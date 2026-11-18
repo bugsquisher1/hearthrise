@@ -882,8 +882,13 @@
   .hw-work-hint { display: none; }
   /* Hunts on the sheet: the list first; a pick opens the ground's page in its place, with the way back on top. */
   .hw-hunts-cols { display: flex; flex-direction: column; }
-  .hw-hunt-list { flex: 1 1 auto; }
-  .hw-hunt { min-height: 44px; }
+  /* WHOLE LINES (audit 2026-11-15 F27, still open 2026-11-18: in a hunt the sheet held two 87 px lines and a scroll left the top one cut): a
+     ground's line is set tight, its band and its advice on one line where they fit, so two whole lines show over the action bar at 667x375,
+     and a scroll comes to rest on a line's top, never part-way into one. */
+  .hw-hunt-list { flex: 1 1 auto; scroll-snap-type: y mandatory; }
+  .hw-hunt { min-height: 44px; padding: 4px 8px 4px 12px; scroll-snap-align: start; }
+  .hw-hunt-main { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 8px; line-height: 1.15; }
+  .hw-hunt-name, .hw-hunt-tally, .hw-hunt-scale, .hw-hunt-events { flex: 1 0 100%; }
   .hw-hunt-detail { display: none; }
   /* A ground's page has the sheet to itself: the list's notes wait on the list. */
   .hw-hunts.is-paged .hw-hunt-list, .hw-hunts.is-paged .hw-hunts-now, .hw-hunts.is-paged .hw-hunts-reco { display: none; }

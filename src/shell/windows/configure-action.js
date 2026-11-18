@@ -33,7 +33,7 @@ import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js
 import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.139';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
 import { actionIconHtml, itemNameFor } from '../widgets/bits.js?v=0.2.139';
-import { SLOTS, draftOf, openSlot, closeSlot, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.139';
+import { SLOTS, draftOf, openSlot, cancelOpen, keepInHost, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.139';
 import { startSupply } from '../rune-supply.js?v=0.2.139';
 import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.139';
 import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.139';
@@ -373,18 +373,21 @@ renderConfigureAction.act = function actConfigureAction(ctx, body, action, ev, t
     }
     else if (x === 'save') { saveOpen(cs, repaint, done); return; }
     else if (x === 'clear') { emptyOpen(cs, repaint, done); return; }
-    else if (x === 'cancel') { closeSlot(cs); done(); return; }
+    else if (x === 'cancel') { cancelOpen(cs); done(); return; }
+    /* hosted by Hunt prep, the change is in its copy now: the window's Back keeps it (bar-draft.js keepInHost, the 139 audit's B1) */
+    keepInHost(cs);
     repaint();
     return;
   }
   if (action !== 'cfg-f' || ev.type !== 'change') return;
   const f = t.getAttribute('data-f');
-  if (f === 'rn-own' || f === 'rn-tick' || f === 'rn-empty') { d.action = runesEdit(d, t, (editSet(cs) || {}).store) || d.action; repaint(); return; }
+  if (f === 'rn-own' || f === 'rn-tick' || f === 'rn-empty') { d.action = runesEdit(d, t, (editSet(cs) || {}).store) || d.action; keepInHost(cs); repaint(); return; }
   if (c && f === 'metric') { const n = conditionFor(t.value); if (n) d.conditions[Number(t.getAttribute('data-i'))] = n; }
   else if (c && f === 'op') c.op = t.value;
   else if (c && f === 'subject') c.subject = t.value;
   else if (c && f === 'value') c.value = Math.round(Number(t.value)) || 0;
   else if (c && f === 'effect') c.value = t.value;
+  keepInHost(cs);
   repaint();
 };
 

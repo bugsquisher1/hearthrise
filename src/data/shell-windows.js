@@ -27,6 +27,8 @@
 //   section  a section key: shown only while the server sends that section for the hero on screen (launcher.js
 //            rowOffered, the icon row, a place's tap); hidden, it never opens
 //   orElse   with `section`: while the server hides it, a tap in the world that names it opens this window instead
+//   menuTabs [{ tab, label, glyph }]: more lines in its group's menu, right under its own, each opening this window on that tab
+//            (launcher.js groupHtml, launcher-menu.js actMenu); offered with the row, so a `section` row's lines go with it
 //   help     the text row of the window's one help line, behind the header's ? (src/data/text/windows.js)
 //   helpKeys [text ids]: the window's keys, listed under its help line behind the same ? (never on a touch screen),
 //            one hint a row read as "<key> to <what it does>" (window-head.js keysHtml)
@@ -105,8 +107,10 @@ export const SHELL_WINDOWS = Object.freeze([
      Hearth click was its only door); while it is hidden the Hearth opens the bag, as before, and the Town menu has no line for it. */
   /* `rise` (audit 2026-11-18 A5): its column grew a Before entering box, so the window rises over the bar in town when the rules, the supplies and
      Enter need more than the room above it (in a hunt no window rises: window-fit.js) */
+  /* `menuTabs` (QA audit 2026-11-18 N2: the Hearth Chest was reached only through Burning Tower, then Chest): its own line in the Town menu,
+     opening the window on its Chest tab */
   Object.freeze({ id: 'tower', label: 'Burning Tower', title: 'The Burning Tower', key: null, noShortcut: true, group: 'town', section: 'tower', orElse: 'inventory',
-    glyph: 'uiFlame', width: 660, object: 'ledger', rise: true }),
+    glyph: 'uiFlame', width: 660, object: 'ledger', rise: true, menuTabs: Object.freeze([Object.freeze({ tab: 'chest', label: 'Hearth Chest', glyph: 'uiKey' })]) }),
   /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. No icon of its
      own since the bar's groups (2026-11-16): the door beside the bar's setup name opens it (action-bar.js, drawn from this row: the
      glyph, the name, the key), so does Hunt prep under a ground's Go as, and P. Its glyph is a written plan (Tyler 2026-11-17: the

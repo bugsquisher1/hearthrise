@@ -7,6 +7,11 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 2. *A session that is no longer the newest still has an analyzer.* `hr_hunt_analyzer(p_slot, p_session)` is a live read; the yard's card reads the hunt it took over once (session/past-hunt.js) instead of a new section.
 3. *Two dedupe layers hide each other's mutant.* The once-rule needed a rescan while the read is in flight to be provable.
 4. *Hero names are world-unique in the local world:* a second "Solo" never gets past createHero (a 120 s canvas timeout, not load).
+## 2026-11-18 · lane/a-prep-truth-2 (139 audit B1 store food won't stick, B2 two picks / silent grounds, B6 off-weight belt)
+1. *Replay the player's exact keys.* B1 did not reproduce with Configure's own Save; it did with "pick, then the window head's Back, then Hunt prep's Save": Configure opened as a PAGE of Hunt prep, and Back closes a page without the renderer hearing it. A hosted edit now lands in the builder's copy as it is made (bar-draft.js keepInHost); Cancel restores the slot as it opened.
+2. *Two module instances, two WeakMaps.* A pure test that imports bar-draft.js without the build's `?v=` gets a different HOST map than configure-action.js's import: the test must import the same URL the module under test does.
+3. *A measured threshold speaks only where it was measured.* Floors are for a lone hero in the band; under the band no food fixes anything, so the line is silent on every ground alike, and a page names each slot once.
+4. *Reversing a designer rule leaves a mutant pinning the old one.* "A bare slot never waits" had its own mutant; the brief reversed it for armor slots, so the mutant was replaced by one that pins the new rule, and CONFLICTS says so for the designer.
 
 ## 2026-11-18 · lane/a-return-cards (full-game audit A2 A3 A6 A17 A22 A23 A24: the return moment lies or goes silent)
 1. *A return line keyed on "the newest session is the stamped one" goes silent whenever the server opens the next session itself.* The after-hunt plan's yard did exactly that (A2). The server already says the link (`hunt_after.last`, the newest ended hunt, while the yard runs) and when the yard began (`hunt_from`); the stamp now carries its ground (`h`) and the plan's skill (`k`/`sl`/`sx`), so the hunt, its death row and the yard are all told from server numbers.

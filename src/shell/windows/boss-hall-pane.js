@@ -20,7 +20,7 @@ import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.139';
 import { settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.139';
 import { hallStateOf } from '../../session/boss-quote.js?v=0.2.139';
 import { hoursWords } from '../../render/format.js?v=0.2.139';
-import { weakFoodOf, weakFoodWords } from '../weak-food.js?v=0.2.139';
+import { weakFoodOf, weakFoodWords, groundFloor, hallFloor, notSaid } from '../weak-food.js?v=0.2.139';
 import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.139';
 import { storeName } from '../bar-draft.js?v=0.2.139';
 import { openHall } from '../../session/boss-intents.js?v=0.2.139';
@@ -138,7 +138,7 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
      to it, CLAUDE.md §2 live-engine rule, so a seat of another account is the server's to flag: handed to Systems) */
   /* ...the bar in use only when it is the bar that walks in: with another setup picked under Go as, its own bar goes (hunts.js asChosen) and
      Before you go names that setup, so the bar on now is not judged here (the full-game audit's A26: one bar truth) */
-  const short = hall.storeFloor && !v.other ? foodShortWords(cs, ctx, v.party, hall.storeFloor) : '';
+  const short = hall.storeFloor && !v.other ? foodShortWords(cs, ctx, v, hall) : '';
   const food = box.querySelector('.hw-hall-food');
   text(food, short);
   prop(food, 'hidden', !short);
@@ -169,17 +169,23 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
 }
 
 /* THE ONE WEAK-FOOD RULE at the hall's door (weak-food.js, the ground pages' own sentence): this hero's bar ("Slot 4: Salted Shrimp heals 72
-   of 1,208 HP. Pick Salted Swordfish"), then each own hero of this party whose bar is under it, by name ("Bryony's slot 4: ..."), or ''. */
-function foodShortWords(cs, ctx, party, floor) {
+   of 1,208 HP. Pick Salted Swordfish"), then each own hero of this party whose bar is under it, by name ("Bryony's slot 4: ..."), or ''. The
+   hall's floor speaks in the hall's band (hallFloor), and ONCE PER SLOT (the 139 audit's B2): a slot this hero's Before you go already names for
+   the ground ("Pick Salted Trout") is not named again here; the hall's "Requires ... on every bar" line above still says what the hall asks. */
+function foodShortWords(cs, ctx, v, hall) {
   const out = [];
-  const said = (p, who) => weakFoodWords('prep', weakFoodOf(settingsOf(p), floor), heroVitalsOf(p).hpMax, who);
-  const mine = said(cs, null);
+  const said = (p, who, ground) => {
+    const lv = heroVitalsOf(p);
+    return weakFoodWords('prep', notSaid(weakFoodOf(settingsOf(p), hallFloor(hall, lv.level)), ground), lv.hpMax, who);
+  };
+  const mine = said(cs, null, weakFoodOf(settingsOf(cs), groundFloor(v.hunt, heroVitalsOf(cs).level)));
   if (mine) out.push(mine);
+  const party = v.party;
   const pid = party && party.id;
   const peers = pid && typeof ctx.peers === 'function' ? ctx.peers() : [];
   for (const p of peers || []) {
     if (!p || p === cs || (partyMembershipOf(p) || {}).id !== pid) continue;
-    const theirs = said(p, nameOf(p) || BOSS_HALL_WORDS.someHero);
+    const theirs = said(p, nameOf(p) || BOSS_HALL_WORDS.someHero, null);
     if (theirs) out.push(theirs);
   }
   return out.join('. ');

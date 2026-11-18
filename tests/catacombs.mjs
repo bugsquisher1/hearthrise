@@ -21,7 +21,7 @@
 //
 //   node tests/catacombs.mjs              the guard (credential-free)
 //   node tests/catacombs.mjs --arm=lean   one arm
-//   node tests/catacombs.mjs --mutate     each defect below planted in the booted chain (or a file) must turn its arm red
+//   node tests/catacombs.mjs --mutate     each defect below planted in the booted chain (or a file) must turn its arm red (--selftest: the same)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -464,7 +464,7 @@ async function main() {
   const u = (p) => new URL('../' + p, import.meta.url).href;
   const load = async () => ({ ...(await TC.load(ROOT)), CA: await import(u('src/data/catacomb-armor.js')) });
   let M = await load();
-  if (process.argv.includes('--mutate')) {
+  if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) {
     const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
     const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
     let escaped = 0;

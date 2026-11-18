@@ -17,7 +17,7 @@
 // one paint. The art's layer picks where it is drawn (lifeDraws).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { EMITTERS, SURFACES, GLANCES, SWAYS, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.137';
+import { EMITTERS, SURFACES, GLANCES, SWAYS, BUMP, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.137';
 
 /** An integer hash of three numbers (the same on every client). */
 function lifeHash(a, b, c) {
@@ -161,6 +161,19 @@ export function glanceOf(id, x, y, t) {
   const beat = 1000 / LIFE_BEAT_FPS;
   const start = (lifeHash(x, y, 7) % 64) * beat;
   return g.faces[Math.floor((Math.max(0, t) + start) / g.holdMs) % g.faces.length];
+}
+
+/**
+ * A BUMP (ambient-life.js BUMP: the Hearth Chest jolting as if something inside wants out): at time t the frame of a loop's `bump` clip
+ * to draw in place of its idle frame, or -1. A bump plays from the start of one idle loop in each block of BUMP.block loops (which one
+ * hashed from the block and `seed`, the page's own), its clip standing for that loop's first `nb` frames. No seed, no bump.
+ * @param {number} t ms @param {number} fps the idle clip's @param {number} n its frames @param {number} nb the bump clip's @param {number|null} seed
+ */
+export function bumpAt(t, fps, n, nb, seed) {
+  if (!Number.isInteger(seed) || !nb || !n || !fps) return -1;
+  const step = Math.floor((Math.max(0, t) * fps) / 1000), loop = Math.floor(step / n), f = step % n;
+  const block = Math.floor(loop / BUMP.block);
+  return f < nb && loop - block * BUMP.block === lifeHash(block, seed, 13) % BUMP.slots ? f : -1;
 }
 
 /**

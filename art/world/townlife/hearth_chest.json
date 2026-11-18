@@ -1,0 +1,47 @@
+{
+  "id": "hearth_chest",
+  "class": "relic",
+  "style": "s1",
+  "material": "native",
+  "source": "hearth_chest.png",
+  "frame": [
+    56,
+    50
+  ],
+  "anchor_px": [
+    28,
+    49
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 24
+      }
+    },
+    {
+      "name": "bump",
+      "fps": 8,
+      "loop": false,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash 56x52, palette hr-world-56-v2, of create_image_pro_flash s37 (style-anchored on the 2026-11-16 chest); its peak an edit of it on 56x64, its open state an edit of s37 on 56x72",
+    "image": "f612d55e",
+    "job": "1cfd0563",
+    "seed": 13,
+    "peak": "72d74260 (job 07a06c1e, seed 3)",
+    "open": "9884f4e5 (job c7e82fc6, seed 7)",
+    "source": "art/world-src/gen-2026-11-17/hearth-chest-big"
+  },
+  "notes": "The Hearth Chest on the Great Hearth (the Burning Tower, Tyler 2026-11-14; made bigger, glowing and smoking lane/fix138-hearth-chest-big, Tyler 2026-11-17: 'a big deal to open it'). One generated heavy iron-bound chest, a chain across the lid, the Keepers' sun scorched into it, green light at the seam and in four keyholes; tools/world-art/tower-art.mjs pours the four locks onto each key's soot-dulled metal (LOCKS: Bronze, Silver, Gold, Platinum), lays the fire's light on the iron facing the fire and a glint over the locks, and breathes the seam's green (24-frame idle, 3 s at the town's beat). Its `bump` (8 frames: lid lifted on a stepped line of green, the generated peak held 3 beats, lifted, slammed with a 1 px shake) plays now and then in place of idle 0-7 (src/world/core/ambient.js bumpAt), with its light (hearth_chest_glow) and smoke (hearth_chest_smoke) in step. Class relic (art-budget.js): this sprite only. Placed by the town map's AMBIENT rows on the Hearth's ledge (src/data/world/town/sites.js CHEST_SEAT), its manifest ellipse drawn under it (compose.js ambient shade), and drawn only while the server sends the Tower's section."
+}

@@ -175,6 +175,13 @@ export const BLEND = Object.freeze({
    (Tyler 2026-11-17, "the chest doesn't feel like it fits here"): it stood on the kindling in front of the west wood bays; it now stands
    against the stone pier right of the firebox, in the corner the firebox's step makes with it, where the fire lights it: its foot at the
    hearth frame's px (230, 311), tile (119, 48) lifted 37 art px and 10 left. The town draws it only while the server sends the Tower's
-   section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere. */
+   section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere.
+   lane/fix138-hearth-chest-big (Tyler 2026-11-17, "more 'special' ... some sort of low glow, maybe some black / green smoke leaking out maybe
+   bigger as well"): the chest is 52 px wide now, so it stands on the ledge in front of the east wood bays, its left side to the firebox, its
+   foot at the hearth frame's px (262, 311): tile (120, 48) lifted 37 and 10 left. It is three rows on ONE seat (CHEST_SEAT), drawn in this
+   order: its light on the stone (under it), the chest, its smoke (over it); the town hides all three together (CHEST_LAYERS). The seat is
+   the Hearth's: a redrawn Hearth moves CHEST_SEAT, and the Tower window follows it (tools/world-art/tower-window-art.mjs chestFoot). */
+const CHEST_SEAT = Object.freeze({ x: 120, y: 48, lift: 37, dx: -10 });
+export const CHEST_LAYERS = Object.freeze(['hearth_chest_glow', 'hearth_chest', 'hearth_chest_smoke']);
 export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }),
-  Object.freeze({ id: 'hearth_chest', x: 119, y: 48, lift: 37, dx: -10 })]);
+  ...CHEST_LAYERS.map((id) => Object.freeze(Object.assign({ id }, CHEST_SEAT)))]);

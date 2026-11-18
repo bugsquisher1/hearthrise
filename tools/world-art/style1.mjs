@@ -32,7 +32,7 @@ const CODE_SPRITES = Object.freeze(['loot_bag', 'signpost']);
 
 /** Is this sidecar style 1, with a style-1 source? (`find`: 'set/id' -> that sidecar, for a variety's sources) */
 /* the classes a drawing script may make: nothing in them stands in the world (art-budget.js CLASSES) */
-const DRAWN_CLASSES = Object.freeze(['vfx', 'plume', 'glint', 'ripple', 'turning', 'stir']);
+const DRAWN_CLASSES = Object.freeze(['vfx', 'plume', 'glow', 'glint', 'ripple', 'turning', 'stir']);
 function isStyle1(sc, scripts = [], find = () => null) {
   if (!sc || sc.style !== 's1') return false;
   if (sc.class === 'terrain' && sc.kind === 'variety') {

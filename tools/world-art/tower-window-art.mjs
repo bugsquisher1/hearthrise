@@ -20,7 +20,9 @@
 //   assets/ui/tower/firebox.png    THE CHEST TAB's scene: the Great Hearth's firebox, the paving in front and the alcoves (FIREBOX)
 //   assets/ui/tower/fire.png       the hearth's own fire loop over it (art/world/common/hearth_fire.png, 8 frames), at FIRE_AT in the scene
 //   assets/ui/tower/chest.png      the chest ON THE LEDGE beside the fire, where the town map puts it (sites.js AMBIENT, chestFoot: the
-//                                  hearth frame's px): tower-art.mjs drawChest, 8 frames of the fire's light on its iron, at CHEST_AT
+//                                  hearth frame's px): tower-art.mjs's idle loop (24 frames: the fire's light, the glint, the seam's breath), at CHEST_AT
+//   assets/ui/tower/chest-glow.png, chest-smoke.png   its green light on the stone (laid additively) and its smoke, the town's own loops,
+//                                  on the chest's foot (GLOW_AT, SMOKE_AT)
 // The reveal strips (assets/ui/tower/chest-open-*, chest-column-*: tower-art.mjs) play at REVEAL_AT, where the chest sits.
 //
 //   node tools/world-art/tower-window-art.mjs           write them
@@ -31,7 +33,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createImage, encodePNG, decodePNG, crop, blit } from './png.mjs';
 import { RAMPS } from './palette.mjs';
-import { METALS, drawChest, FW, FH } from './tower-art.mjs';
+import { METALS, drawChestIdle, drawGlow, drawSmoke, FW, FH, ANCHOR, GLOW_ANCHOR, SMOKE_ANCHOR, GW, GH, SW, SH, ITEM_AT } from './tower-art.mjs';
 import { CHEST_KEYS } from '../../src/data/chests.js';
 import { OUTFITS } from '../../src/data/hunt-outfits.js';
 import { TOWER_ART } from '../../src/data/tower-art.js';
@@ -52,7 +54,7 @@ function fill(img, x, y, w, h, hex) {
   }
 }
 
-const { COURSE, COURSE_NARROW, LANDING_W, LANDING_W_NARROW, LANDING_H, TICK_W, TICK_H, EMBER, HEAD_W, HEAD_H, FIREBOX, FIRE_AT, CHEST_AT, REVEAL_AT } = TOWER_ART;
+const { COURSE, COURSE_NARROW, LANDING_W, LANDING_W_NARROW, LANDING_H, TICK_W, TICK_H, EMBER, HEAD_W, HEAD_H, FIREBOX, FIRE_AT, CHEST_AT, GLOW_AT, SMOKE_AT, REVEAL_AT } = TOWER_ART;
 
 /** One course of the chimney's stack, cut from the Great Hearth (its straight top: the same stones the town shows). */
 export const drawChimney = (c = COURSE) => crop(read(HEARTH), c.x, c.y, c.w, c.h);
@@ -130,7 +132,10 @@ export function drawAll() {
   out.set('assets/ui/tower/heads.png', encodePNG(drawHeads()));
   out.set('assets/ui/tower/firebox.png', encodePNG(drawFirebox()));
   out.set('assets/ui/tower/fire.png', encodePNG(read('art/world/common/hearth_fire.png')));
-  out.set('assets/ui/tower/chest.png', encodePNG(drawChest()));
+  out.set('assets/ui/tower/chest.png', encodePNG(drawChestIdle()));
+  /* the idle rows of the town's light and smoke (row 0 of each sheet) */
+  out.set('assets/ui/tower/chest-glow.png', encodePNG(crop(drawGlow(), 0, 0, CHEST_AT.frames * GW, GH)));
+  out.set('assets/ui/tower/chest-smoke.png', encodePNG(crop(drawSmoke(), 0, 0, CHEST_AT.frames * SW, SH)));
   return out;
 }
 
@@ -151,18 +156,24 @@ export function chestFoot() {
 function placement() {
   const errs = [];
   const fire = JSON.parse(readFileSync(join(ROOT, 'art/world/common/hearth_fire.json'), 'utf8'));
-  const chest = JSON.parse(readFileSync(join(ROOT, 'art/world/common/hearth_chest.json'), 'utf8'));
+  const chest = JSON.parse(readFileSync(join(ROOT, 'art/world/townlife/hearth_chest.json'), 'utf8'));
   const foot = chestFoot();
   if (FIRE_AT.x + FIREBOX.x !== 146 || FIRE_AT.y + FIREBOX.y !== 238 || fire.frame[0] !== FIRE_AT.w || fire.frame[1] !== FIRE_AT.h)
     errs.push('the fire is not at the hearth frame\'s px (146, 238), 61 x 49 (great_hearth.json notes)');
   if (CHEST_AT.x + chest.anchor_px[0] + FIREBOX.x !== foot.x || CHEST_AT.y + chest.anchor_px[1] + FIREBOX.y !== foot.y || chest.frame[0] !== CHEST_AT.w || chest.frame[1] !== CHEST_AT.h)
     errs.push('the chest is not on the ledge where the town map puts it, the hearth frame\'s px (' + foot.x + ', ' + foot.y + ') (sites.js AMBIENT)');
+  const idle = chest.anims.find((a) => a.name === 'idle');
+  if (idle.dirs.s !== CHEST_AT.frames || idle.fps !== CHEST_AT.fps) errs.push('the window\'s chest does not loop as the town\'s (CHEST_AT frames, fps)');
+  /* its light and its smoke stand on its foot, as in town */
+  for (const [name, at, [ax, ay], w, h] of [['light', GLOW_AT, GLOW_ANCHOR, GW, GH], ['smoke', SMOKE_AT, SMOKE_ANCHOR, SW, SH]])
+    if (at.x + ax !== CHEST_AT.x + ANCHOR[0] || at.y + ay !== CHEST_AT.y + ANCHOR[1] || at.w !== w || at.h !== h) errs.push('the chest\'s ' + name + ' is not on its foot');
   if (CHEST_AT.x < FIRE_AT.x + FIRE_AT.w - 10 && CHEST_AT.x + CHEST_AT.w > FIRE_AT.x + 10) errs.push('the chest covers the fire');
   const P = TOWER_ART.PHONE_VIEW;
   if (CHEST_AT.x < P.x || CHEST_AT.x + CHEST_AT.w > P.x + P.w || FIRE_AT.x < P.x || FIRE_AT.x + FIRE_AT.w > P.x + P.w || P.x + P.w > FIREBOX.w)
     errs.push('the phone\'s view cuts through the chest or the fire, or runs past the scene');
   if (REVEAL_AT.x + Math.floor((FW - CHEST_AT.w) / 2) !== CHEST_AT.x || REVEAL_AT.y + FH - 1 - CHEST_AT.h !== CHEST_AT.y || REVEAL_AT.w !== FW || REVEAL_AT.h !== FH)
     errs.push('the reveal does not play where the chest sits');
+  if (TOWER_ART.ITEM_AT.x !== ITEM_AT.x || TOWER_ART.ITEM_AT.y !== ITEM_AT.y) errs.push('the found item does not rise from the open chest\'s mouth (ITEM_AT)');
   return errs;
 }
 

@@ -66,6 +66,10 @@ export const CLASSES = Object.freeze({
   bench: row({ body: [12, 20], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   seat: row({ body: [24, 28], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bulky: row({ body: [20, 32], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
+  // THE HEARTH CHEST, and nothing else (Tyler 2026-11-17, "it's a big deal to open it ... bigger as well"): the Burning Tower's one chest on
+  // the Great Hearth, the town's relic. A chest a head over a hero's waist and wider than any bulky prop, so it reads as THE chest from across
+  // the square; not a loosening of `bulky` (a crate, a barrel and every other chest stay in theirs). Its loot is the server's.
+  relic: row({ body: [40, 48], measure: 'h', maxW: 56, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   barrel: row({ body: [24, 28], measure: 'h', contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   small: row({ body: [4, 12], measure: 'max', contact: 'touch', shadow: null, layer: 'prop' }),
   loot: row({ body: [8, 14], measure: 'max', contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
@@ -125,6 +129,10 @@ export const CLASSES = Object.freeze({
   // Great Hearth's flue, its anchor the mouth it leaves, drawn in the AIR (over the roofs, under the light and the vignette, as
   // the world is); measured by how tall it climbs.
   plume: row({ body: [24, 96], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'air', blank: true }),
+  // ...and a thing's own light on the ground round it (the Hearth Chest's green, tools/world-art/tower-art.mjs): stepped bands of palette
+  // colours drawn ADDITIVELY after the light (its sidecar's blend 'add'), its anchor the thing's foot, so most of it lies under the thing;
+  // measured by its wider extent. It never blocks and casts no shadow.
+  glow: row({ body: [24, 96], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'fx' }),
   // ...and daylight caught on a wave: a few pixels lying flat on the water, under everything standing; between flashes blank.
   glint: row({ body: [1, 12], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal', blank: true }),
   // ...and the water's ripples: one or two cells square of wave marks laid on the water in step (its anchor the corner), under everything standing.

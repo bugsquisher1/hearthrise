@@ -169,7 +169,12 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    drop-homes files and everything applied with v0.2.139 (2027-05-07-open-halls-words-live-events-catalogue last); before this lane's bench-inputs, bench-tax, hunt-sessions, alpha and jewelry files. */
 /* THE JEWELRY SAMPLE, ON THE CATACOMBS (set/v0.2.140): 2027-05-08-catacombs-items-catalogue (STAGED on the set, applied first) is the file before this one and
    this one carries it whole, the descent's keys and armor included; the sample's rows below are the only difference. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-09-jewelry-sample-items-catalogue.generated.sql');
+/* THE CATACOMBS' GOLD AND PLATINUM ARMOR (lane/d-catacomb-gold-platinum, systems-engineer 2026-11-18): 2027-05-09-jewelry-sample-items-catalogue
+   (applied with v0.2.140) is the file before this one and this one carries it whole. Twelve new hr_items rows: the Gold and Platinum Catacomb
+   pieces (src/data/catacomb-armor.js CATACOMB_ARMOR_NOW: all four metals; tradeable, each its twin's book value). No other row moves. ORDER:
+   after everything applied with v0.2.140; before this lane's hunt-sessions file (the pieces' bids), its chest catalogue (every piece is
+   checked against hr_items) and its tally file. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-12-catacomb-gold-platinum-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

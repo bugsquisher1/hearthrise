@@ -4058,3 +4058,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   naming). Owner: game-designer. P3. Also: at 667x375 IN A HUNT the Configure sheet starts under the hunt bar (44 px lower than in
   town) and its sentence takes two lines ("+ Add a condition" wraps), so the list opens on its heads and one scroll brings the rows
   (922x423: town 3 whole rows, hunt 2; 844x390 hunt 1; PH-1 holds each). Owner: art-director, P3, if a modal sheet may cover the hunt bar.
+- **2026-11-18 art-director (lane/b-ui-wave2): the bag's five rows at 1440x900 hold only with no coach line in the window.** A docked
+  Inventory over the action bar is ~570 px tall at 1440x900; the doll at 52 px wells needs 296 of it. With the foot under both
+  columns the bag shows 5 whole rows in the fixture town (AW-103) and 5-6 for a mid-game hero, but a coach card drawn as the window's
+  line ("Weapon sets the style", 48 px) plus a waiting "Equip upgrades" box (71 px beside the doll) leave 4. The fix is the coach's,
+  not the bag's: a window's coach line could fold to its title after its first reading, as the hunt's card does (launcher.js
+  restsNow). Owner: game-designer (coach), P3. Also seen, not touched: a recipe's "Dropped by ... at X." link line leaves its
+  closing period alone on the last line in the 380 px Skills window (goto.js placesParts), and the Tally widget reads "Kill tasks:
+  Tamsin's board, Hearth Square" at 300 px once her task is paid, wider than its 180 px counting state (tally-hud.js).

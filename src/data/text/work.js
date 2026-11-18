@@ -29,4 +29,16 @@ export const WORK_TEXT = Object.freeze({
   row_makes_of: 'Makes {n} of up to {max}',
   sale_shop: 'Shop only',
   sale_none: 'Can\'t be sold',
+  /* What a row makes against what the hero wears (src/shell/bench-output.js; itemization audit 2026-11-18 #1): its stats, each with its
+     change against the piece in its slot, then which piece that is, or that it changes nothing, the slot is bare, or it is worn now. */
+  is_vs: 'vs {worn}',
+  is_same: 'Same as {worn}',
+  is_worn: 'Worn now',
+  is_empty: 'Empty {slot} slot',
+  /* The station's whole ladder past the rows in full: one rung a Level, what it opens. */
+  ladder_head: 'Unlocks',
+  /* The bench fee the picked count takes before Start (src/shell/bench-fee.js feeLineWords), with its share of the purse from 10% up. */
+  fee_all: '{gold} gold for all {n}',
+  fee_n: '{gold} gold for {n}',
+  fee_share: '({pct}% of your gold)',
 });

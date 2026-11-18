@@ -70,9 +70,6 @@ export const TRAINING_PLACES = Object.freeze({
     (`training_` first: a probe that picks the lowest ground by Level floor, then by id, still finds the Mill Cellar.) */
 export const trainingHuntId = (place, skill) => 'training_' + place + '_' + skill;
 
-/** Every training hunt id, place by place, skill by skill. */
-export const TRAINING_HUNT_IDS = Object.freeze(Object.keys(TRAINING_PLACES).flatMap((p) => TRAINING_SKILLS.map((s) => trainingHuntId(p, s))));
-
 /** What training hunt `huntId` trains, { place, skill }, or null for any other hunt. */
 export function trainingOf(huntId) {
   for (const place of Object.keys(TRAINING_PLACES)) {
@@ -137,11 +134,6 @@ export const trainingGearId = (skill, hours, bound) => 'training_' + TRAINING_GE
 /** Every training item: { id, skill, hours, bound, gold (the Arms Master's price; null for a bound row, which no gold door sells) }. */
 export const TRAINING_GEAR_ITEMS = Object.freeze(TRAINING_SKILLS.flatMap((skill) => TRAINING_GEAR.hours.flatMap((hours) => [false, true].map((bound) =>
   Object.freeze({ id: trainingGearId(skill, hours, bound), skill, hours, bound, gold: bound ? null : TRAINING_GEAR.gold[hours] })))));
-
-/** The training item row of `id`, or null. */
-export function trainingGearOf(id) {
-  return TRAINING_GEAR_ITEMS.find((g) => g.id === id) || null;
-}
 
 /** An item's name: the skill's item and its size, "Training Sword (12 h)" (the Coordinator 2026-11-16: the two sizes read alike in the
     bag, Storage and the market). The size is the row's own hours. */

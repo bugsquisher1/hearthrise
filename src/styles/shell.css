@@ -41,8 +41,12 @@
 .hs-wfold:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 
 /* ── Players online (widgets/online.js): one quiet line on the world, a small green dot, the server's number ── */
-.hs-online { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--hud-fill); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hs-online { position: relative; display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 8px; background: var(--hud-fill); font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hs-online-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+/* What they are doing (Tyler 2026-11-18): the server's lines, on hover or keyboard focus, stacked just above the count. */
+.hs-online-by { display: none; position: absolute; left: 0; bottom: calc(100% + 2px); flex-direction: column; gap: 2px; padding: 4px 8px; background: var(--hud-fill); }
+.hs-online:hover .hs-online-by:not(:empty), .hs-online:focus .hs-online-by:not(:empty) { display: flex; }
+.hs-online:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 
 /* ── Live events (widgets/event-plate.js): the online count's plate, one a live event, a gold lozenge before it ── */
 .hs-widget.is-events.is-quiet { display: none; }
@@ -141,6 +145,15 @@
    the weight of the rule above, so a phone's own card rules (below) still win. */
 .hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer { right: max(calc(100% - 46px), calc(100% - var(--hs-menu-left, 100%) + 8px)); }
 .hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer::before { display: none; }
+/* ITS OWN SLOT IN THE WIDGET STACK (hud-room.js dockTownCoach; UI audit 2026-11-18 UI-6: hung under the row it lay over the Tally and reached
+   Town and Home): on a desktop the town's card stands in the World's right column under the Tally, at the place and in the room measured; a
+   long card scrolls its words there. It points at nothing from there, so it carries no tip. A group's menu open steps it left of the menu. */
+.hs-launchers.is-coach-docked > .hs-pointer { left: auto; right: var(--coach-r); top: var(--coach-y); }
+.hs-launchers.is-coach-docked > .hs-pointer::before { display: none; }
+.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; box-sizing: border-box; max-height: var(--coach-h); }
+.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) > .hs-coach-text { min-height: 0; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; }
+.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) > .hs-coach-foot { flex: none; }
+.hs-launchers.is-coach-docked:has(> .hs-launch-group.is-menu) > .hs-pointer { right: max(var(--coach-r), calc(100% - var(--hs-menu-left, 100%) + 8px)); }
 /* A town card's body never ends on one lone word ("…she pays you gold and a" / "helmet.", the v0.2.130 gate, both sizes): the words wrap
    pretty. Only the town's cards: a card inside a window is sized with the window (window-fit.js), so it keeps its lines. */
 :is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }

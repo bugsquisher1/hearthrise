@@ -4,6 +4,7 @@
 //   *.css under src/        → breakpoint-guard, token-single-source, css-literal-ratchet
 //   *.js / *.mjs under src/ → window-globals-exist + the bug-class lint + pack-edge versionQueryGuard (`?v=` rules)
 //   src/** and supabase/**  → mutant-anchors --for <file> (every mutant anchor on it still matches once)
+//   src/** and the edge     → layering --for <file> (its imports point down a layer, or are on the shrinking baseline)
 // Runs in the edited file's own checkout (a lane worktree or main). Silent when green; when red,
 // exits 2 with the guard's last lines so the session sees what to fix. Not a substitute for the
 // lane's own lane-done or the GitHub run.
@@ -29,6 +30,8 @@ if (/^src\/.+\.m?js$/.test(rel)) {
   if (existsSync(join(root, 'tools', 'typecheck.mjs'))) runs.push(['tools/typecheck.mjs', '--lint-if-installed']);
   runs.push(['-e', "import('./tools/pack-edge.mjs').then(async (m) => { const p = await m.versionQueryGuard(); if (p.length) { console.error(p.join('\\n')); process.exit(1); } })"]);
 }
+/* an import that points up a layer (tests/layering.mjs, audit 2026-11-18): only this file's imports, ~0.1 s */
+if (/^(src|supabase\/functions)\/.+\.(m?js|ts)$/.test(rel) && existsSync(join(root, 'tests', 'layering.mjs'))) runs.push(['tests/layering.mjs', '--for', rel]);
 /* a mutant whose anchor this edit moved (the 2026-10-22 class): only the anchors that patch this file */
 if (/^(src|supabase)\/.+\.(m?js|ts|css|sql|html)$/.test(rel) && existsSync(join(root, 'tests', 'mutant-anchors.mjs'))) runs.push(['tests/mutant-anchors.mjs', '--for', rel]);
 if (!runs.length) process.exit(0);

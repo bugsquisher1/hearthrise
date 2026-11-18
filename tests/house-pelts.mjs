@@ -383,7 +383,8 @@ async function wordsFails(root, fill = false) {
   const wolfRow = thicket.find((x) => x.id === 'wolf_pelt');
   if (!wolfRow || !wolfRow.carriers.includes('Briarcoat Wolf') || !(wolfRow.chance > 0 && wolfRow.chance < 1)) out.push('the Thicket\'s Materials miss the Wolf Pelt: ' + JSON.stringify(thicket));
   if (thicket.some((x) => x.id === 'gray_dewclaw')) out.push('a pure sell item is called a material');
-  if (!F.materialsOf('millrace_sewer').some((x) => x.id === 'bat_wing') || !F.materialsOf('mill_cellar').some((x) => x.id === 'slime_gel')) out.push('Bat Wing or Slime Gel is on no ground\'s Materials');
+  /* (the Kobolds' Bone Chips: the Bat Wing turned Junk when its only recipes, the spellbook and Adept cloth, were cut, lane/d-drop-homes 2026-11-18) */
+  if (!F.materialsOf('millrace_sewer').some((x) => x.id === 'bone_chips') || !F.materialsOf('mill_cellar').some((x) => x.id === 'slime_gel')) out.push('Bone Chips or Slime Gel is on no ground\'s Materials');
   if (F.bigPullLine('mill_cellar') !== '') out.push('a ground with no such creature says: ' + F.bigPullLine('mill_cellar'));
   return out;
 }

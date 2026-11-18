@@ -53,12 +53,6 @@ export function weightSentence(w) {
   return r.name + ': ' + pool + r.guard;
 }
 
-/** The same, short, for a coach card: "Heavy adds max HP and absorbs part of each blow that lands." */
-export function weightShort(w) {
-  const r = WEIGHT_RULES[w];
-  return r ? r.name + ': ' + (r.pool ? POOL_WORDS[r.pool] + ', ' : '') + r.guard : '';
-}
-
 /** The tooltip's line for an armor piece: { head, text }, or null. */
 export function pieceWords(id) {
   const w = weightOf(id);

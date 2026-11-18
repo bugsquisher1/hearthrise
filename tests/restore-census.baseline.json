@@ -1067,7 +1067,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 387,
+   "replay": 363,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1077,7 +1077,7 @@
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 159,
+   "replay": 135,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -1757,7 +1757,7 @@
   },
   "hr_players_online_cache": {
    "class": "operational",
-   "note": "2026-11-07-players-online.sql, one row seeded. The shared players-online count and when it was taken, recomputed by hr_players_online from character_presence at most every 15 s. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the first ask recounts."
+   "note": "2026-11-07-players-online.sql, one row seeded; 2027-05-05-players-online-by-activity.sql: the total and its seven lines by activity, written once a world tick fire by hr_players_online_refresh (hr_tick_cron_run) from hunt_sessions, player_state and character_presence, read by the social poll. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the poll answers no count until the first fire, 10 s later."
   },
   "hr_plot_tier": {
    "class": "seeded",

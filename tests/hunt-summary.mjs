@@ -414,6 +414,23 @@ async function runTests(M) {
     ok(!M.REC.takeStarted(cs), 'and told once');
   });
 
+  /* A6 SUMMARY IN A HUNT IS THE HUNT ON NOW (UI audit 2026-11-18: pressed mid-hunt it showed the hunt before): the open session's card,
+     from the server's analyzer, marked live with the server's start; never stored, and gone once the hunt ends (its stored card takes over). */
+  await t('A6 the hunt on now is its own card, from the server\'s analyzer, never stored', async () => {
+    const calls = [];
+    const cs = sessionOn(calls, () => endedEnv(8));
+    const open = clone(FIX); open.version = 7;
+    open.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, phase: 'hunting', entered_at: '2026-10-18T10:00:00Z', bag: [], tally: { kills: 3 } }, pose: FIX.hunt.pose };
+    await cs._take(open, 'load');
+    const card = M.REC.liveSummaryOf(cs);
+    const an = FIX.hunt_analyzer.hero;
+    ok(!!card && card.live === true && card.id === 'sess-9' && card.hunt === 'mill_cellar', 'the hunt on now has a live card: ' + JSON.stringify(card && [card.id, card.hunt, card.live]));
+    eq(card && [card.kills, card.balance, card.since], [an.kills, an.balance, Date.parse('2026-10-18T10:00:00Z')], 'its figures are the analyzer\'s and its start the server\'s');
+    ok(!M.REC.summariesOf(cs).some((x) => x.id === 'sess-9'), 'the live card was stored');
+    ok(await cs.load(), 'the ended envelope applied');
+    eq(M.REC.liveSummaryOf(cs), null, 'an ended hunt has no live card');
+  });
+
   await t('A3 a re-read before the residue put lands keeps the stored card (it never blinks out)', async () => {
     const calls = [];
     let v = 8;
@@ -610,6 +627,8 @@ async function load(base) {
 }
 
 const MUTANTS = [
+  { test: 'A6', file: RECORDER, from: "return card ? Object.assign(card, { live: true, since: s.enteredMs }) : null;", to: 'return null;' },
+  { test: 'A6', file: RECORDER, from: "  if (!s || s.ended) return null;\n  const an = analyzerOf(cs);", to: "  if (!s) return null;\n  const an = analyzerOf(cs);" },
   { test: 'A3', file: SESSION, from: 'for (const [f, v] of Object.entries({ ...this._sent, ...this._pending })) this._record', to: 'for (const [f, v] of Object.entries({ ...this._sent })) this._record' },
   { test: 'A4', file: SESSION, from: 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', to: 'this._pending = {};' },
   { test: 'A4', file: RESIDUE, from: 'if (back === undefined || JSON.stringify(back) !== JSON.stringify(v)) out[f] = v;', to: 'out[f] = v;' },

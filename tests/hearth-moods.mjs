@@ -25,10 +25,12 @@
 //   HM-AGAIN   a second apply is byte-identical: bodies, grants, triggers, the table; the window on the square stays
 //   HM-CLIENT  the town read's kind and window key reach the World; the fire swaps to the chest's art only when the atlas has it (else the plain
 //              fire); the flue's smoke is poured on the winner's ladder (none for the plain fire); the chest's puff plays once a window, from the
-//              first frame that sees it, rising whole pixels, and again for a new window; core/ambient.js draws the pour and the puffs
+//              first frame that sees it, rising whole pixels, and again for a new window; core/ambient.js draws the pour and the puffs;
+//              the chest's locks flash warm gold (CHEST_FLASH on its layers, lane/a-chest-glow-139) once a window, from that same first
+//              frame, for its ms, never again for a stretched window, never for a named flame, a powder or the plain fire
 //   HM-DATA    every flame has a smoke ladder on the palette (and no ladder names a flame that isn't); the shipped plume poured comes out in
 //              exactly its ladder's three colours; the chest's row names hearth_fire_chest; the puff is one turn of the plume, a pixel a beat;
-//              none of this reaches the edge bundle
+//              the locks' flash lasts the chest's whole flash clip on every layer the town seats it on; none of this reaches the edge bundle
 // TRUE CONCURRENCY (two players at once): tests/town-shows-race.mjs R11-R14 on real PostgreSQL 17 backends.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, mkdtempSync, rmSync, writeFileSync, cpSync } from 'node:fs';
@@ -108,6 +110,18 @@ export const MUTANTS = {
     js: ['src/data/world/palette.js', [['chest: Object.freeze([0x17141a, 0x16241a, 0x2c4a2c])', 'chest: Object.freeze([0x17141a, 0x16241a, 0x2c4a2d])']]] },
   chest_wrong_art: { arm: 'HM-DATA', why: 'the chest\'s row names art the art lane does not draw',
     js: ['src/data/world/hearth-moods.js', [["export const CHEST_FLAMES = Object.freeze({ chest: flame('chest', 'burns green') });", "export const CHEST_FLAMES = Object.freeze({ chest: flame('chest_burst', 'burns green') });"]]] },
+  flash_any_flame: { arm: 'HM-CLIENT', why: 'a named flame or a bought powder flashes the chest\'s locks gold',
+    js: ['src/world/hearth-burn.js', [["    if (!h || h.kind !== 'chest') return null;\n", '    if (!h) return null;\n']]] },
+  flash_every_read: { arm: 'HM-CLIENT', why: 'the locks\' flash starts again on every frame, so it never ends',
+    js: ['src/world/hearth-burn.js', [['    if (h.key !== flashKey) { flashKey = h.key; flashAt = now; }\n', '    flashKey = h.key; flashAt = now;\n']]] },
+  flash_never_ends: { arm: 'HM-CLIENT', why: 'the locks stay gold for the whole window',
+    js: ['src/world/hearth-burn.js', [['    if (age < 0 || age >= CHEST_FLASH.ms) return null;\n', '    if (age < 0) return null;\n']]] },
+  flash_not_handed: { arm: 'HM-CLIENT', why: 'the town frame never hears the locks flash',
+    js: ['src/world/hearth-burn.js', [['ambientSwap: out.swap, lifeTint: out.life, ambientPlay: out.play,', 'ambientSwap: out.swap, lifeTint: out.life, ambientPlay: null,']]] },
+  flash_outlasts_clip: { arm: 'HM-DATA', why: 'the flash outlasts the chest\'s clip, so the locks hold a frame off its end',
+    js: ['src/data/world/hearth-moods.js', [["export const CHEST_FLASH = Object.freeze({ anim: 'flash', ms: 750, layers: CHEST_LAYERS });", "export const CHEST_FLASH = Object.freeze({ anim: 'flash', ms: 1000, layers: CHEST_LAYERS });"]]] },
+  flash_chest_only: { arm: 'HM-DATA', why: 'the chest flashes but its smoke bumps through it',
+    js: ['src/data/world/hearth-moods.js', [["export const CHEST_FLASH = Object.freeze({ anim: 'flash', ms: 750, layers: CHEST_LAYERS });", "export const CHEST_FLASH = Object.freeze({ anim: 'flash', ms: 750, layers: ['hearth_chest'] });"]]] },
   puff_half_pixels: { arm: 'HM-DATA', why: 'the puff rises off the life beat, a fraction of a pixel a frame',
     js: ['src/data/world/hearth-moods.js', [['  risePx: 24,\n', '  risePx: 37,\n']]] },
 };
@@ -474,6 +488,23 @@ const ARMS = {
     if (!stretched || stretched.puffs.length) out.push('a stretched window puffed again: ' + JSON.stringify(stretched && stretched.puffs.length));
     const next = v1.frame(env(chest(60000, 70000, 60000)), 60000).lifeTint;
     if (!next || next.puffs.length !== 3) out.push('a new window did not puff');
+    /* THE LOCKS' FLASH (lane/a-chest-glow-139): once a window, from the first frame that sees it, CHEST_FLASH on the chest's layers for its ms */
+    const FL = X.MOODS.CHEST_FLASH;
+    const v3 = HB.createHearthView(map, { sprites: all });
+    const flashes = [];
+    for (let t = 20000; t < 23000; t += 50) { const p = v3.frame(env(chest(5000, 15000, 20000)), t).ambientPlay; if (p) flashes.push({ t, p }); }
+    if (flashes.length !== FL.ms / 50 || !flashes.length || flashes[0].t !== 20000) out.push(`the locks flashed on ${flashes.length} frames from ${flashes[0] && flashes[0].t} (one ${FL.ms} ms flash from the first frame expected)`);
+    if (flashes.some(({ t, p }) => Object.keys(p).sort().join() !== [...FL.layers].sort().join() || Object.values(p).some((x) => x.anim !== FL.anim || x.age !== t - 20000)))
+      out.push('the flash is not CHEST_FLASH on the chest\'s layers, aged from its first frame: ' + JSON.stringify(flashes[0]));
+    /* a second key stretching the window flashes nothing more; a new window flashes again */
+    if (v3.frame(env(chest(5000, 19000, 20000)), 24000).ambientPlay) out.push('a stretched window flashed the locks again');
+    const again = v3.frame(env(chest(60000, 70000, 60000)), 60000).ambientPlay;
+    if (!again || Object.values(again).some((x) => x.age !== 0)) out.push('a new window did not flash the locks');
+    /* a named flame, a bought powder and the plain fire never flash them */
+    const v4 = HB.createHearthView(map, { sprites: all });
+    for (const fl of [{ flame: 'cinnabar', kind: 'bought', key: 'cinnabar@1', startedAt: 70000, endsAt: 100000 }, { flame: 'amber', kind: 'named', key: 'amber@1', startedAt: 70000, endsAt: 100000 }, null]) {
+      for (const t of [70000, 70100, 70400]) if (v4.frame(env(fl), t).ambientPlay) out.push('the locks flashed for ' + (fl ? 'a ' + fl.kind + ' flame' : 'the plain fire'));
+    }
     /* the other flames: their own smoke, never a puff; the plain fire smokes as drawn */
     const bought = v1.frame(env({ flame: 'cinnabar', kind: 'bought', key: 'cinnabar@1', startedAt: 70000, endsAt: 100000 }), 70100).lifeTint;
     if (!bought || bought.pour.hearth_smoke !== 'smoke_cinnabar' || bought.puffs.length) out.push('a powder\'s smoke is ' + JSON.stringify(bought));
@@ -533,6 +564,10 @@ const ARMS = {
     const turn = (cells.length * 1000) / atlas.anims.idle.fps;
     if (MOODS.SMOKE_BURST.ms !== turn) out.push(`the puff lasts ${MOODS.SMOKE_BURST.ms} ms, the plume turns in ${turn}`);
     if (MOODS.SMOKE_BURST.ms / MOODS.SMOKE_BURST.risePx !== 1000 / AL.LIFE_BEAT_FPS) out.push('the puff does not rise a whole pixel a life beat');
+    /* the locks' flash: the chest's whole flash clip (tools/world-art/tower-art.mjs FLASH), on every layer the town seats the chest on */
+    const flash = (JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-townlife.json'), 'utf8')).sprites.hearth_chest || { anims: {} }).anims[MOODS.CHEST_FLASH.anim];
+    if (!flash || MOODS.CHEST_FLASH.ms !== (flash.dirs.s.length * 1000) / flash.fps) out.push(`the flash lasts ${MOODS.CHEST_FLASH.ms} ms, the chest's clip ${flash ? (flash.dirs.s.length * 1000) / flash.fps : 'is missing'}`);
+    if ([...MOODS.CHEST_FLASH.layers].sort().join() !== [...X.SITES.CHEST_LAYERS].sort().join()) out.push('the flash names ' + MOODS.CHEST_FLASH.layers.join() + ', the chest sits on ' + X.SITES.CHEST_LAYERS.join());
     /* none of it reaches the edge */
     for (const f of ['src/data/world/hearth-moods.js', 'src/world/pour.js', 'src/data/world/palette.js', 'src/world/hearth-burn.js']) {
       if (X.edgeFiles.some((n) => n.endsWith(f.replace(/^src\//, '')))) out.push(f + ' is in the edge bundle');
@@ -559,6 +594,7 @@ async function loadReaders(root) {
     PAL: await import(u('src/data/world/palette.js')),
     POUR: await import(u('src/world/pour.js')),
     AL: await import(u('src/data/world/ambient-life.js')),
+    SITES: await import(u('src/data/world/town/sites.js')),
     composeSrc: readFileSync(join(root, 'src/world/core/compose.js'), 'utf8'),
     edgeFiles: EDGE_FILES,
   };

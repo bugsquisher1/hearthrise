@@ -585,6 +585,8 @@
     "node tools/mutant-gate.mjs node tests/token-single-source.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tests/dead-exports.mjs --selftest": "client-guards",
     "node tests/dead-exports.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/layering.mjs --selftest": "client-guards",
+    "node tests/layering.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/dead-css.mjs --selftest": "client-guards",
     "node tests/dead-css.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/platform-seam.mjs --selftest": "client-guards",

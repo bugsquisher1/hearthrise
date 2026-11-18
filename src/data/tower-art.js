@@ -29,10 +29,9 @@ export const TOWER_ART = Object.freeze({
   /* the hearth's fire loop with its top-left at the hearth frame's px (146, 282) (tools/world-art/hearth-fire.mjs), 8 frames at 8 fps */
   FIRE_AT: Object.freeze({ x: 118, y: 6, w: 64, h: 62, frames: 8, fps: 8 }),
   /* the chest ON THE LEDGE beside the fire (Tyler 2026-11-16), its foot where the town map puts it (the hearth frame's px (290, 364): on the
-     redrawn Hearth's dais, lane/fix138-hearth-chest-big): its idle loop (24 frames, 3 s), its green light on the stone under it
-     (drawn additively) and its smoke over it, all three on the chest's foot (tools/world-art/tower-art.mjs CW x CH, GW x GH, SW x SH) */
-  CHEST_AT: Object.freeze({ x: 234, y: 39, w: 56, h: 50, frames: 24, fps: 8 }),
-  GLOW_AT: Object.freeze({ x: 218, y: 71, w: 88, h: 28 }),
+     redrawn Hearth's dais, lane/fix138-hearth-chest-big): its idle loop (40 frames, 5 s: its green at the locks, breathing slowly,
+     lane/a-chest-glow-139) and its smoke over it, both on the chest's foot (tools/world-art/tower-art.mjs CW x CH, SW x SH) */
+  CHEST_AT: Object.freeze({ x: 234, y: 39, w: 56, h: 50, frames: 40, fps: 8 }),
   SMOKE_AT: Object.freeze({ x: 226, y: 17, w: 72, h: 76 }),
   /* the opening and the weapon's column (64 x 80 frames, tower-art.mjs FW x FH) lay the open box over the shut chest; the found item's
      32 px icon starts in the open chest's mouth (tower-art.mjs ITEM_AT, in the reveal's frame) */

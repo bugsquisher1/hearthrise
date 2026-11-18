@@ -320,8 +320,8 @@ export const LIB2_DESC = {
      Each line now opens with the answer — it goes in the ammo slot and raises
      Magic strength — and earns its keep as flavour afterwards.
 
-     ⚠ THE BURN IS REAL NOW (E1, 2026-08-31): `simulateTick` calls
-       `spendForSwings` on every swing, so every rung above tier 1 is spent at
+     ⚠ THE BURN IS REAL NOW (E1, 2026-08-31): the hunt engine spends
+       `ammoPerShot` on every cast, so every rung above tier 1 is spent at
        1 rune per cast. The copy below still does not SAY so, and that is a
        deliberate hold rather than an oversight: consumable-economy.md §14 hands
        the Art Director "the empty-quiver state must read on the equip doll and

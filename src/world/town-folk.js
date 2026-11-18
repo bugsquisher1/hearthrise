@@ -14,10 +14,10 @@
 //   folkExtras(map, sprites)                 -> createWalkScene options: { units } on a map with townsfolk, else {}
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { FOLK, FOLK_TICK_HZ, FOLK_IDLE_FPS, FOLK_WALK_FPS } from '../data/world/town/folk.js?v=0.2.137';
-import { findPath } from './core/path.js?v=0.2.137';
-import { diagonalOf } from './core/facing.js?v=0.2.137';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.137';
+import { FOLK, FOLK_TICK_HZ, FOLK_IDLE_FPS, FOLK_WALK_FPS } from '../data/world/town/folk.js?v=0.2.138';
+import { findPath } from './core/path.js?v=0.2.138';
+import { diagonalOf } from './core/facing.js?v=0.2.138';
+import { GRIDS } from '../data/world/art-budget.js?v=0.2.138';
 
 const FOLK_TICK_MS = 1000 / FOLK_TICK_HZ;
 

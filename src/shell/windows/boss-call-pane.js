@@ -17,16 +17,16 @@
 // NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): "Rat King wins: 2/10" and each seat still short, from the quote's
 // `wins`, or before a quote and after a reload from the envelope's `entry_gates` section; a gate the server says is shut holds the press off.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.137';
-import { itemName, monsterName } from '../widgets/bits.js?v=0.2.137';
-import { whole } from '../../render/format.js?v=0.2.137';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.137';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.137';
-import { callOut } from '../../session/boss-intents.js?v=0.2.137';
-import { readCall } from '../../session/boss-quote.js?v=0.2.137';
-import { callGateOf } from '../../session/gate-sections.js?v=0.2.137';
-import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.137';
-import { partyNote } from '../hunt-list.js?v=0.2.137';
+import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.138';
+import { itemName, monsterName } from '../widgets/bits.js?v=0.2.138';
+import { whole } from '../../render/format.js?v=0.2.138';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.138';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.138';
+import { callOut } from '../../session/boss-intents.js?v=0.2.138';
+import { readCall } from '../../session/boss-quote.js?v=0.2.138';
+import { callGateOf } from '../../session/gate-sections.js?v=0.2.138';
+import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.138';
+import { partyNote } from '../hunt-list.js?v=0.2.138';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false, fights: 1 }; SCRATCH.set(cs, s); } return s; };
@@ -39,10 +39,10 @@ const minutesOf = (ms) => { const m = ms / 60000; return Number.isInteger(m) ? S
 
 /**
  * {Boss}, {boss} and {guard} (his adds shield him, or nothing) from the call; every number from `x`, the server's:
- * { fee, staminaMs, limitMs, n, stamina (ms), gold, covers, max, who, heroes }. A number the server has not said is left unfilled by the caller's choice of line.
+ * { fee, staminaMs, limitMs, n, stamina (ms), gold, covers, max, who, heroes, have, need }. A number the server has not said is left unfilled by the caller's choice of line.
  * @param {string} line
- * @param {{Boss: string, boss: string, monster: string}} call
- * @param {{fee?: number, staminaMs?: number, limitMs?: number, n?: number, stamina?: number, gold?: number, covers?: number, max?: number, who?: string|null, heroes?: number}} [x]
+ * @param {{Boss: string, boss: string, monster: string, of: string}} call
+ * @param {{fee?: number, staminaMs?: number, limitMs?: number, n?: number, stamina?: number, gold?: number, covers?: number, max?: number, who?: string|null, heroes?: number, have?: number, need?: number}} [x]
  */
 export function callWords(line, call, x = {}) {
   const fill = (s, k, v) => (v === undefined || v === null ? s : s.replace('{' + k + '}', v));

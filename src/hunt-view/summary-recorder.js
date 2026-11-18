@@ -10,16 +10,16 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.137';
-import { roleIdOf } from '../session/party-sections.js?v=0.2.137';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.137';
-import { explainDeaths } from './death-explain.js?v=0.2.137';
-import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.137';
-import { trainingOf } from '../session/training-sections.js?v=0.2.137';
-import { levelOf } from '../session/character-sections.js?v=0.2.137';
-import { skillLevelsOf } from '../session/item-sections.js?v=0.2.137';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.138';
+import { roleIdOf } from '../session/party-sections.js?v=0.2.138';
+import { monsterName } from '../shell/widgets/bits.js?v=0.2.138';
+import { explainDeaths } from './death-explain.js?v=0.2.138';
+import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.138';
+import { trainingOf } from '../session/training-sections.js?v=0.2.138';
+import { levelOf } from '../session/character-sections.js?v=0.2.138';
+import { skillLevelsOf } from '../session/item-sections.js?v=0.2.138';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
 
 const ATTACHED = new WeakMap();
 

@@ -430,6 +430,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Gathering and crafting → Cooking → Cook Shrimp',
     'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },
       inWindow: 'Press Cooking, then Start on Cook Shrimp' }),
+  /* A PARTY GOES BELOW BEFORE THE WOLVES (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): the Sewer opens at the Thicket's floor and a four there earns
+     about 1.6x the same heroes alone in the Thicket, so a hero in a party at 5 meets this card where a hero alone meets Tamsin's wolves (a party card is never on a
+     solo hero's way). Hunting the Sewer is past the Thicket on the road, so the wolves' cards behind it pass by. */
+  step('go_below', 'Into the sewer, together',
+    'Hunts → The Sewer → Enter with party',
+    'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('tamsins_task', 'Tamsin\'s wolves',
     TAMSIN_WAY,
     'tally', orGotIt({ kind: 'tally_taken', task: WOLVES.id }), { gotIt: true, when: [IN_TOWN], ring: { task: WOLVES.id } }),
@@ -442,9 +448,6 @@ export const HUNT_TUTORIAL = Object.freeze([
      Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
   step('tamsin_pays', 'Paid in town', WOLVES_WAIT,
     'world', { kind: 'any', of: [{ kind: 'tally_paid', task: WOLVES.id }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
-  step('go_below', 'Into the sewer, together',
-    'Hunts → The Sewer → Enter with party',
-    'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('save_setup', 'Keep this bar',
     'Setup check mark on your bar → New setup → Save',
     'hunt_prep', { kind: 'setup_saved' }, { when: [IN_TOWN, { kind: 'bar_saved' }, { kind: 'been', hunt: THICKET }],
@@ -601,9 +604,11 @@ const pulledKinds = (ground, pocket) => {
 };
 /* The hunts the server has seen this hero in: the open one and the `visited` record. */
 const been = (facts) => [facts.huntId, ...(facts.visited instanceof Set ? facts.visited : [])].filter((h) => HUNT_INDEX[h]);
-/* Has the hero hunted `hunt`, or a ground PAST it (a higher band floor: the chain only moves forward,
-   Cellar -> Thicket -> Sewer -> on)? `past` alone asks only for a ground past it. */
-const reached = (facts, hunt, past) => been(facts).some((h) => (!past && h === hunt) || HUNT_INDEX[h].band[0] > HUNT_INDEX[hunt].band[0]);
+/* Is ground `h` PAST ground `hunt` on the road: a higher band floor, or the same floor and a higher top (the chain only moves forward,
+   Cellar -> Thicket -> Sewer -> on; the Thicket and the Sewer both open at 5 since lane/d-party-pace, Tyler 2026-11-18, and the Sewer's band runs on to 25). */
+const past = (h, hunt) => { const a = HUNT_INDEX[h].band, b = HUNT_INDEX[hunt].band; return a[0] > b[0] || (a[0] === b[0] && a[1] > b[1]); };
+/* Has the hero hunted `hunt`, or a ground past it? `past` alone asks only for a ground past it. */
+const reached = (facts, hunt, onlyPast) => been(facts).some((h) => (!onlyPast && h === hunt) || past(h, hunt));
 /* A skill's XP as the server said it (a skill it did not list is 0), or null when it sent no skills. */
 const xpIn = (facts, skill) => (facts.skillXp ? Number(facts.skillXp[skill]) || 0 : null);
 const known = (v, fn) => (v === null || v === undefined ? null : fn(v));
@@ -633,7 +638,7 @@ const FACTS = Object.freeze({
   not_elsewhere: (p, f) => !f.huntId || f.huntId === p.hunt,
   /* out of that hunt now, or already hunting past it (back in it later is not a step back) */
   ended: (p, f, c) => f.huntId !== c.openedIn || (!!c.openedIn && reached(f, c.openedIn, true)),
-  hunt_age: (p, f) => (!f.huntId || !HUNT_INDEX[f.huntId] || HUNT_INDEX[f.huntId].band[0] <= HUNT_INDEX[p.past].band[0] ? false : known(f.huntMs, (ms) => ms >= p.min)),
+  hunt_age: (p, f) => (!f.huntId || !HUNT_INDEX[f.huntId] || !past(f.huntId, p.past) ? false : known(f.huntMs, (ms) => ms >= p.min)),
   pull: (p, f) => {
     const g = HUNT_GROUNDS[p.ground];
     return (f.huntId === g.hunt && pulledKinds(g, p.pocket).some((k) => f.unitKinds && f.unitKinds.has(k))) || reached(f, g.hunt, true);

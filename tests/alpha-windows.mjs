@@ -3116,7 +3116,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
         const want = ['mill_cellar:picked:Levels 1–8:in:In range:Recommended:No record yet:Players: 1 to 4',
           'meadowbrook_thicket::Levels 5–15:above:Above level::No record yet:Players: 1 to 4',
-          'millrace_sewer::Levels 8–25:above:Above level::No record yet:Players: 1 to 4',
+          'millrace_sewer::Levels 5–25:above:Above level::No record yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
           'wickstead::Levels 8–18:above:Above level::No record yet:Players: 1 to 4',
           'mosslight_glade::Levels 16–31:far:Far above level::No record yet:Players: 1 to 4',

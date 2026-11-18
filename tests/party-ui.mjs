@@ -865,7 +865,7 @@ async function pureRules(M, base) {
       [['tank', 'melee_dps'], 'millrace_sewer', less(1, 35, 'The Sewer')],
       [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 30, 'Coppercap Warrens')],
       [['tank', 'ranger'], 'millrace_sewer', more(2, 10, 'The Sewer')],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 5, 'The Sewer')],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 10, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
       [[null, 'ranger'], 'wickstead', full(2, 10, 'Wickstead')],
       [[null, 'tank'], 'wickstead', less(1, 45, 'Wickstead')],

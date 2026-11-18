@@ -329,7 +329,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
    times before you can call them out"): 2027-05-02-tower-hunt-sessions-catalogue (applied with v0.2.135) is the file before this one and this one carries it
    whole. hr_boss_calls gains boss_id (the call's `of`) and wins (BOSS_CALL_RULES.winsToCall); no other row, bound, limit or shape moves. ORDER: after
    everything applied with v0.2.137, before 2027-05-05-entry-gates.sql (whose quote reads both). */
-export const OUT_NAME = '2027-05-05-entry-gates-hunt-sessions-catalogue.generated.sql';
+/* THE SEWER FROM LEVEL 5 (lane/d-party-pace, designer; Tyler 2026-11-18 "Yes, open at 5"): 2027-05-05-entry-gates-hunt-sessions-catalogue (applied with v0.2.138)
+   is the file before this one and this one carries it whole. The Sewer's floor is 5, so the formula's rows for its six monsters (tools/gen-ground-stats.mjs --write)
+   carry a floor-5 purse (about a fifth less coin a kill): their kill bounds' gold moves. No ground, spawn, limit, end reason or
+   world shape moves. ORDER: after 2027-05-06-sewer-from-five-hunts-catalogue.generated.sql. */
+export const OUT_NAME = '2027-05-06-sewer-from-five-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

@@ -106,11 +106,11 @@ const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Obj
 const lines = (byTier) => Object.freeze(Object.fromEntries(Object.entries(byTier).map(([tier, l]) => [tier, said(l[2], l[3], l[4])])));
 const BASE_VS_ALONE = Object.freeze({
   mill_cellar: lines({ normal: said([-60, -30], [-70, -45, -45], [-80, -60, -60, -60]) }),
-  meadowbrook_thicket: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), dangerous: said([-45, -10], [-50, -20, -15], [-65, -40, -35, -35]), deadly: said([-45, -5], [-50, -20, -15], [-60, -40, -35, -35]) }),
-  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]), dangerous: said([-45, -10], [-50, -20, -15], [-65, -40, -35, -35]), deadly: said([-45, -5], [-50, -20, -15], [-60, -40, -35, -35]) }),
-  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-25, 20, 25], [-35, 5, 10, 10]), deadly: said([-20, 40], [-10, 45, 55], [-20, 30, 40, 40]) }),
-  millrace_sewer: lines({ normal: said([-35, 10], [-35, 10, 15], [-45, 0, 5, 5]), dangerous: said([-30, 20], [-30, 15, 25], [-30, 10, 15, 20]), deadly: said([-30, 20], [-25, 20, 30], [-30, 10, 20, 20]) }),
-  coppercap_warrens: lines({ normal: said([-25, 20], [-25, 25, 30], [-30, 20, 25, 25]), dangerous: said([-25, 30], [-15, 35, 45], [-15, 35, 45, 45]), deadly: said([-25, 30], [-15, 40, 45], [-20, 30, 40, 40]) }),
+  meadowbrook_thicket: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), dangerous: said([-45, -10], [-50, -25, -20], [-65, -40, -40, -40]), deadly: said([-45, -5], [-50, -25, -20], [-65, -40, -40, -35]) }),
+  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]), dangerous: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), deadly: said([-45, -5], [-50, -20, -15], [-60, -40, -35, -35]) }),
+  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-30, 15, 20], [-40, 0, 5, 10]), deadly: said([-15, 45], [-10, 50, 60], [-20, 30, 40, 40]) }),
+  millrace_sewer: lines({ normal: said([-35, 10], [-35, 10, 20], [-45, 5, 10, 10]), dangerous: said([-30, 15], [-30, 15, 20], [-35, 5, 15, 15]), deadly: said([-30, 20], [-25, 20, 30], [-30, 15, 20, 25]) }),
+  coppercap_warrens: lines({ normal: said([-25, 20], [-25, 25, 30], [-30, 20, 25, 25]), dangerous: said([-25, 25], [-20, 35, 40], [-20, 30, 35, 40]), deadly: said([-25, 25], [-15, 35, 45], [-20, 30, 35, 40]) }),
 });
 /* A ground pack's measured lines (src/data/grounds/<id>/pack.js `partyVsAlone`: { normal: { 2, 3, 4 }, dangerous: .., deadly: .. }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: lines(p.partyVsAlone) } : {})));

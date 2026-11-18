@@ -78,6 +78,15 @@ const PACE_CAP = 2.5;
    heroes alone on Dangerous and Deadly. No label hides it and no bar binds it: each run PRINTS their mixes against their heroes alone, and the
    pace cap still binds there. A ground that reads at or over the bar again is named, so its line can go. */
 const STANDS = Object.freeze({ meadowbrook_thicket: 'Tyler 2026-11-16', wickstead: 'Tyler 2026-11-16' });
+/* A HARDER TIER'S CELL IS HALF AN HOUR (lane/d-party-pace, 2026-11-18): a party walks a ground's route faster than a hero alone, so a 15-minute cell
+   compares them on different rooms. With the Sewer at 5, a tank + Healer pair on its Deadly read 0.94 of the same heroes alone in 15-minute cells
+   (140 kills an hour, 182 Level XP a kill) and 1.19 in half-hour cells on the same two seeds (152, 220), 1.19 again on four seeds. */
+const TIER_HOURS = 0.5;
+/* THE PACE CAP READS FROM LEVEL 10 (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5" over the 11-16 cap where they meet, CLAUDE.md §0): the contract is
+   the trend past the first ten Levels, which are paced one by one (src/data/core-model.js LEVEL_PACE: its first target is Level 10 at 6 h), and every
+   first ground overshoots it (the Thicket alone at 5 reads 2.2x). The Sewer at 5 reads 3.2x on NORMAL for a four, so a cap read there judges the
+   ground's floor, not what Deadly adds. A ground whose floor is under 10 has its Deadly fours' pace read at Level 10 (inside its band); the alone bar
+   stays at the floor. PACE_FROM is set where LEVEL_PACE is read, below. */
 
 const argOf = (name, dflt) => { const i = process.argv.indexOf(name); return i > 0 ? Number(process.argv[i + 1]) : dflt; };
 
@@ -88,6 +97,8 @@ const { PARTY_CLASSES } = await import(pathToFileURL(join(ROOT, 'src/data/party-
 const { STYLES } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/gear.mjs')).href);
 const T = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + V);
 const { contractXpPerH } = await import(pathToFileURL(join(ROOT, 'src/data/balance-sheet.js')).href + V);
+const { LEVEL_PACE } = await import(pathToFileURL(join(ROOT, 'src/data/core-model.js')).href + V);
+const PACE_FROM = LEVEL_PACE.targets[0][0];
 
 const groundIds = Object.keys(G.HUNT_GROUNDS);
 const floorOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[0];
@@ -100,11 +111,14 @@ const cellOf = (g, arm, seed, party, name) => ({
   ...(arm.density === null ? {} : { density: arm.density }), ...stagedGear(g),
 });
 
-/* A harder tier's cell: the floor, the tier's own pull for the party's size. Ids start 'tier:' (judge() reads the others). */
-const tierCellOf = (g, tier, seed, party, name, windowMs, under) => {
+/* The Level a ground's Deadly fours are paced at: its floor, or PACE_FROM when the floor is under it (never past the band's top). */
+const paceLevelOf = (g) => Math.min(Math.max(floorOf(g), PACE_FROM), HUNT_INDEX[G.HUNT_GROUNDS[g].hunt].band[1]);
+/* A harder tier's cell: the floor (or `at`), the tier's own pull for the party's size. Ids start 'tier:' (judge() reads the others). */
+const tierCellOf = (g, tier, seed, party, name, windowMs, under, at) => {
   const pull = T.pullOfTier(T.tierRowOf(g, tier), party.length);
-  const level = under ? under.map((u) => Math.max(1, floorOf(g) - u)) : floorOf(g);
-  return { id: ['tier', g, tier, seed, name].join(':'), ground: g, party, level, hours: HOURS, seeds: 1, seedBase: seed, options: { tier },
+  const lv0 = at || floorOf(g);
+  const level = under ? under.map((u) => Math.max(1, lv0 - u)) : lv0;
+  return { id: ['tier', g, tier, seed, name].join(':'), ground: g, party, level, hours: TIER_HOURS, seeds: 1, seedBase: seed, options: { tier },
     ...(pull ? { density: pull } : {}), ...(windowMs ? { windowMs } : {}), ...stagedGear(g) };
 };
 const harderOf = (g) => T.tiersOf(g).filter((t) => HARDER.includes(t));
@@ -116,6 +130,11 @@ function tierPlanOf(seeds) {
     for (const w of TIER_WAYS) jobs.push(tierCellOf(g, tier, seed, [w], 'solo-' + w));
     for (const [n, p] of Object.entries(TIER_MIXED)) jobs.push(tierCellOf(g, tier, seed, p, n));
     if (tier === 'deadly') jobs.push(tierCellOf(g, tier, seed, ANDY.party, 'andy', undefined, ANDY.under));
+    /* the pace cells, where the floor is under PACE_FROM */
+    if (tier === 'deadly' && paceLevelOf(g) !== floorOf(g)) {
+      jobs.push(tierCellOf(g, tier, seed, MIXED.four, 'pace-four', undefined, undefined, paceLevelOf(g)));
+      jobs.push(tierCellOf(g, tier, seed, ANDY.party, 'pace-andy', undefined, ANDY.under, paceLevelOf(g)));
+    }
   }
   return jobs;
 }
@@ -130,9 +149,11 @@ function judgeTiers(jobs, at) {
     const headOf = (name) => meanOf(seeds.map((s) => at(['tier', g, tier, s, name].join(':')).party.levelXpPerHeroPerH));
     for (const [name, party] of Object.entries(TIER_MIXED)) {
       const head = headOf(name), same = meanOf(party.map(alone)), best = Math.max(...party.map(alone));
-      rows.push({ g, tier, name, party, head: Math.round(head), same: Math.round(same), alone: head / same, best: Math.round(best), seat: head / best, pace: head / contractXpPerH(floorOf(g)) });
+      /* a Deadly four's pace at paceLevelOf (its own cells where the floor is under PACE_FROM) */
+      const paced = tier === 'deadly' && name === 'four' && paceLevelOf(g) !== floorOf(g) ? headOf('pace-four') : head;
+      rows.push({ g, tier, name, party, head: Math.round(head), same: Math.round(same), alone: head / same, best: Math.round(best), seat: head / best, pace: paced / contractXpPerH(tier === 'deadly' && name === 'four' ? paceLevelOf(g) : floorOf(g)) });
     }
-    if (tier === 'deadly') { const head = headOf('andy'); rows.push({ g, tier, name: 'andy', party: ANDY.party, head: Math.round(head), same: null, alone: null, best: null, seat: null, pace: head / contractXpPerH(floorOf(g)) }); }
+    if (tier === 'deadly') { const low = paceLevelOf(g) !== floorOf(g), head = headOf(low ? 'pace-andy' : 'andy'); rows.push({ g, tier, name: 'andy', party: ANDY.party, head: Math.round(head), same: null, alone: null, best: null, seat: null, pace: head / contractXpPerH(paceLevelOf(g)) }); }
   }
   return rows;
 }
@@ -252,6 +273,9 @@ const TIER_MUTANTS = [
     edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
   { name: 'a mixed party\'s cell read as one class on Dangerous (the Glade three)', g: 'mosslight_glade', tier: 'dangerous', party: 'trio tank+healer+bow', bar: 'alone',
     edits: [['src/data/party-class-xp.js', 'const cell = cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];', 'const cell = cells[0];']] },
+  /* lane/d-party-pace: the pace read at Level 10 on a ground whose floor is under it still bites */
+  { name: 'the Sewer\'s Deadly pays x2.5 a kill: a four at Level 10 past ' + PACE_CAP + 'x the contract', g: 'millrace_sewer', tier: 'deadly', party: 'four', bar: 'pace',
+    edits: [['src/data/balance-sheet.js', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 1220 }) }),', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 3050 }) }),']] },
   { name: 'one ground pays its own cell (Hask\'s Ford x1.7, typed in the engine)', g: 'hasks_ford', tier: 'deadly', party: 'four', bar: 'pace',
     edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'hasks_ford' ? 1.7 : 1));"]] },
 ];
@@ -299,7 +323,9 @@ async function mutate() {
     const party = TIER_MIXED[mu.party];
     const same = meanOf(party.map((w) => R.runCell(tierCellOf(mu.g, mu.tier, 0, [w], 'solo-' + w)).heroes[0].levelXpPerH));
     const head = R.runCell(tierCellOf(mu.g, mu.tier, 0, party, mu.party)).party.levelXpPerHeroPerH;
-    return { alone: head / same, pace: head / contractXpPerH(floorOf(mu.g)) };
+    /* the pace bar plays the four where the run reads it (paceLevelOf) */
+    const paced = mu.bar === 'pace' && paceLevelOf(mu.g) !== floorOf(mu.g) ? R.runCell(tierCellOf(mu.g, mu.tier, 0, party, mu.party, undefined, undefined, paceLevelOf(mu.g))).party.levelXpPerHeroPerH : head;
+    return { alone: head / same, pace: paced / contractXpPerH(paceLevelOf(mu.g)) };
   };
   const redOf = (mu, x) => (mu.bar === 'pace' ? !(x.pace <= PACE_CAP) : !(x.alone >= ALONE_BAR));
   const said = (mu, x) => (mu.bar === 'pace' ? x.pace.toFixed(2) + 'x the contract against ' + PACE_CAP : x.alone.toFixed(3) + ' of the same heroes alone against ' + ALONE_BAR.toFixed(2));

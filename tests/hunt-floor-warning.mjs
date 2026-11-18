@@ -56,7 +56,7 @@ async function run(base) {
      stays listed and enterable and tells a lone hero it is best with a party. */
   const rows = HL.huntRows();
   /* Level 12, with the party ground's band widened to start ABOVE the sewer's (10-50): the real Q9 bands
-     (thicket 5-15, sewer 8-25, warrens 32-50) leave no level where a party ground out-ranks a solo one. */
+     (thicket 5-15, sewer 5-25, warrens 32-50) leave no level where a party ground out-ranks a solo one by its floor. */
   const wide = rows.map((r) => (r.groupFit === 'party' ? { ...r, band: [10, 50] } : r));
   const solo12 = HL.recommendedHunt(12, 1, wide), party40 = HL.recommendedHunt(40, 3, rows);
   ok('G1', !!solo12 && solo12.groupFit !== 'party' && solo12.band[0] <= 12 && 12 <= solo12.band[1], 'a lone Level-12 hero is recommended ' + (solo12 && solo12.hunt + ' (' + solo12.groupFit + ')'));
@@ -100,6 +100,12 @@ async function run(base) {
     'a lone Level 36 reads ' + JSON.stringify([lostThere.note, wonThere.note]));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
+  /* G4 THE SEWER FROM 5 (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): a fresh four or pair at the Thicket's floor is sent below, where a four earns about
+     1.6x the same heroes alone in the Thicket; a hero alone at 5 is still sent to the Thicket ("a fresh solo melee should be starting in the thicket", 10-21). */
+  for (const [levels, size, want] of [[[5, 5, 5, 5], 4, 'millrace_sewer'], [[5, 5], 2, 'millrace_sewer'], [[7, 6, 5, 5], 4, 'millrace_sewer'], [[5], 1, 'meadowbrook_thicket'], [[4, 4, 4, 4], 4, 'mill_cellar']]) {
+    const got = HL.recommendation(levels, size, rows).row.hunt;
+    ok('G4', got === want, 'a group of ' + size + ' at ' + levels.join('/') + ' is sent to ' + got + ', wanted ' + want);
+  }
   /* G5 (first principle, played 11-04): the window opens on the harder ground this hero last hunted and came home from; never on one that killed it, and never on one below the advice. */
   const rec22 = HL.recommendation(22, 1, rows);
   const open = (last) => HL.openingPick(rec22, rows, last).hunt;
@@ -217,6 +223,8 @@ const MUTANTS = [
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
   ['the gate keeps a hard floor', 'supabase/migrations/2027-02-24-risk-no-level-block.sql', "  -- SECURITY C2: every spawn's OWN gate", "  if public.hr_level_of(p_user, p_slot) < 1 then perform 1; end if;\n  -- SECURITY C2: every spawn's OWN gate"],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],
+  /* G4 (lane/d-party-pace): the party ground loses the tie at 5, so a fresh four is sent to the Thicket again */
+  ['a fresh four at 5 is sent to the Thicket again (the Sewer from 5)', 'src/shell/hunt-list.js', "(group ? (y.groupFit === 'party') - (x.groupFit === 'party') : 0) || ", ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
   ['a party\'s advice claims the ground for the party again (A1)', 'src/shell/hunt-list.js', "export function adviceTag(r, rec, step) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');",
     "export function adviceTag(r, rec, step, party) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Recommended for the party' : t('hunts.tag_right_level');"],

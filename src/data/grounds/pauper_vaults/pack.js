@@ -148,11 +148,18 @@ export default definePack({
   /* THE BAG: the Ox Road's store food, and the fire rune (18 heads in 24 are Undead or the Bone Wall). A caster keeps an ice slot for the Bone Wall
      (fire does 25% less on it). `storeFloor` (the March's rule, lane/d-march-balance): MEASURED on the quick grade (1 seed x 1 h, lane/d-catacombs
      2026-11-15), a lone tank at the floor on the start bar's Salted Shrimp died 7 times in the hour (Keeper Dunn 5, the Paupers 2) and lived on
-     Salted Lobster, so Before you go names the lobster. */
+     Salted Lobster, so Before you go names the lobster. The bag stays Lobster, not lane/d-late-nearmisses' Shark: that was for a Deadly four on
+     the full box (8, then 7); on six, the Healer four holds on Lobster (below). */
+  /* THE COUNTS, MEASURED (lane/d-late-nearmisses' rule, re-measured on v0.2.139 by lane/d-late-items-rescue). A bag is BAG_TARGET_HOURS (3) of
+     its style's eating, a lone hero at the floor on Normal in the uniques kit (tools/balance-sim/gear.mjs, the four late grounds open), Salted
+     Lobster an hour turned into Cooked Lobster (300 HP to the store's 216), to the nearest 5: Melee the median of the four Melee ways, Ranged
+     the mean of bow and crossbow, Magic 10 (a caster eats none alone, so 10 for a stray pull).
+     Measured: 2 seeds x 2 h a way, eats an hour tank 38.8, hammer 87.5, axes 189.3, sword 195.5, bow 47.0, crossbow 18.3, casters 0; Melee 138.4 =
+     300, Ranged 32.65 = 70. */
   bagGuide: { tier: 4, storeFloor: 'salted_lobster',
-    melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_lobster', qty: 300 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 70 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_lobster', qty: 10 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* PARTY LEVEL XP (the Hold's method, as Carter's Rest: quick grade, 1 seed x 1 h, the Morrow's three packs open on the ladder, lane/d-catacombs
      2026-11-15). With no row a four of four classes read 0.48 / 0.46 of the pace contract at the floor and middle and a tank and Healer 0.66 / 0.63, so
      the pair 1000 x 1.10 / 0.645 = 1705 and a first four of 2555. At 2555 the four read 1.31 / 1.26 of the median lone way (the sheet's four-xp asks
@@ -173,6 +180,14 @@ export default definePack({
      on Deadly. On six every Dangerous and Deadly mix stands at or over its heroes alone (1.14-1.89; party-tier-xp, 2 seeds x 0.5 h), Andy's four 1.58x
      the pace contract. Every pair still dies often on Deadly here: the price of the tier. */
   tierOverride: { dangerous: 6, deadly: 6, why: 'Dangerous and Deadly both bring six monsters at once here. On eight, a pair kept dying' },
-  checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655 },
+  /* DEADLY IS A HEALER'S TIER HERE, AT EVERY LEVEL OF THE BAND (lane/d-late-nearmisses' call 2026-11-16, re-measured and bounded by Level on v0.2.139 by
+     lane/d-late-items-rescue, the rule lane/a-honesty-rescue set for the Barrows and the Hold: said under the first Level measured at less than one
+     death in 16 hero-hours without a Healer). MEASURED, Deadly's six, 6 seeds x 2 h a four, deaths in 16 hero-hours, a tank, hammer, bow and Mage /
+     a tank, Healer, bow and Mage, in the uniques kit the ground opens with (its own uniques: the plan, §6): 165 43.3 / 1.3, 168 34.1 / 1.0,
+     170 29.7 / 0.3, 175 22.0 / 0, 180 14.3 / 0.3, 182 10.3 / 0, 185 6.7 / 0. Never under one inside the band, so 186 (not measured past 185).
+     On the ladder kit (Dawnsteel, no uniques) even the four WITH a Healer dies over the sheet's 9 up to 177 (165 23.7, 175 10.3, 178 3.7): the
+     Vaults opens with its armor, as lane/d-late-nearmisses found. */
+  healerTiers: { deadly: 186 },
+  checks: { bridge: [[28, 27], [28, 28], [28, 29], [28, 30], [28, 31], [28, 32]], dropRef: { roles: ['tank', 'healer'], full: true }, valueToday: 17655, deadlyFourNeeds: 'healer' },
   map,
 });

@@ -1898,7 +1898,9 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const route = (page) => page.route('**/src/data/boss-halls.js*', async (r) => { const res = await r.fetch(), body = await res.text();
         if (body.split(HALL_FROM).length !== 2) throw new Error('PH-32: the hallFromGround anchor moved');
         return r.fulfill({ response: res, body: body.replace(HALL_FROM, () => 'export function hallFromGround() { return BOSS_HALLS.krells_hold || null; }') }); });
+      /* Level 85, the hall's own band: a hall's food floor speaks from there (src/shell/weak-food.js hallFloor, the 139 audit's B2) */
       const o = await open(vp, ALPHA, (env) => { townOnly(env); env.inventory = Object.assign({}, env.inventory, { hall_key: 1 });
+        env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(85) });
         for (const sl of env.hunt_settings.slots) if (sl && sl.action && sl.action.id === 'wheat_bread') sl.action.id = 'salted_shrimp'; }, { route });
       if (o.up) { await hallDoor(o.page, tag, fails); await shot(o.page, 'hall-door-' + tag); await done(o, tag); } else fails.push('PH-32 [' + tag + '] the town did not mount');
     }

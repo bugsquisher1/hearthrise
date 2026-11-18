@@ -602,6 +602,8 @@ async function runTests(M) {
       'a heavy hero is never sold the medium pair: the heavy gloves it can wear, and where they come from');
     eq(buy({ equipment: noGloves, shop: gloves, prefer: 'medium' }).title, 'Next buy: Leather Gloves (160 gp)', 'a medium hero is still sold them');
     eq(buy({ equipment: { ...dressed, gloves: 'leather_gloves' }, shop: gloves }).kind, 'find', 'a slot worn in another weight names the hero\'s weight too');
+    /* (a worn Leather Helmet and a better Studded Helmet in the Shop: a better piece of the WORN weight is still off the hero's, so never the buy) */
+    eq(buy({ equipment: { ...dressed, helmet: 'leather_helmet' }, shop: shop(['studded_helmet', 300]) }).kind, 'find', 'a better piece of a worn off weight is never the buy');
     eq(buy({ equipment: dressed, shop: gloves }), null, 'a full set of the hero\'s weight: nothing to find');
     /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */
     const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });

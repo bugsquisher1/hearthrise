@@ -65,13 +65,14 @@
 //   · never picks a piece the server's skills say the hero cannot wear yet
 //     (unknown skills read as "cannot", the safe side)
 //   · never breaks a tie on a worn slot for the player: when two pieces for one slot trade off
-//     (each better at something), the slot is left and named in `choices`. An EMPTY slot
-//     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
+//     (each better at something), the slot is left and named in `choices`. A tie between
+//     weights goes to the weight preferredWeight names (designer 2026-11-04), and an EMPTY armor
+//     slot takes only that weight (the 139 audit's B6), never another one it would keep for good
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.139';
 import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.139';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.139';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.139';
 import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.139';
 import { loadoutOf } from '../core/member.js?v=0.2.139';
 import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.139';
@@ -265,6 +266,10 @@ function bestFor(slot, worn, left, o) {
     const it = ITEMS[id];
     if (n < 1 || !it || !it.slot || !expandItemSlot(it.slot).includes(slot) || unpriced(it) || !meets(it, o.skills, o.level)) continue;
     if (curIt && weightOf(it) !== weightOf(curIt)) continue;
+    /* A BARE ARMOR SLOT TAKES ONLY THE HERO'S WEIGHT (the 139 audit's B6: Equip upgrades put a medium Studded Leather Belt on a heavy hero, and a worn
+       piece only ever takes one of its own weight, so the belt stayed; Next buy follows the same rule, next-buy.js). With the hero's weight known
+       (preferredWeight) a bare helmet, body, legs, boots, gloves or belt waits for that weight, and the Back in town line names where it comes from. */
+    if (!curIt && o.prefer && ARMOUR_SLOTS.includes(slot) && weightOf(it) !== o.prefer) continue;
     if (slot === 'weapon' && !sameHands(id, cur, worn)) continue;
     if (STYLE_SLOTS.has(slot) && !sameOffhand(id, cur, worn)) continue;
     fits.push(id);
@@ -284,10 +289,7 @@ function bestFor(slot, worn, left, o) {
      Platebody and a Leather Body and wore neither). No choice made, or none of that weight: the tie stands. */
   if (o.prefer && front.some((c) => !same(c.after, front[0].after))) {
     const mine = front.filter((c) => weightOf(ITEMS[c.id]) === o.prefer);
-    /* A BARE SLOT NEVER WAITS (played 2026-11-04: a hero fought a night with nothing on, over 140 pieces in the bag): none of that weight here, the piece that guards most goes on. Every piece
-       in `front` is strictly better than bare, and it stays the player's to change on the doll. */
     if (mine.length) front = mine;
-    else if (!curIt) front = [front.reduce((a, c) => (c.after.def > a.after.def || (c.after.def === a.after.def && c.id < a.id) ? c : a))];
   }
   front.sort((a, b) => (a.id < b.id ? -1 : 1));
   if (front.some((c) => !same(c.after, front[0].after))) return { choice: front.map((c) => c.id) };

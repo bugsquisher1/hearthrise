@@ -39,9 +39,8 @@ import { ownCount } from './rune-supply.js?v=0.2.139';
 import { shortOf } from './item-lore.js?v=0.2.139';
 import { whole, gold } from '../render/format.js?v=0.2.139';
 import { t } from '../render/player-text.js?v=0.2.139';
-import { storeFloorFor } from '../data/supplies.js?v=0.2.139';
 import { heroVitalsOf } from '../session/character-sections.js?v=0.2.139';
-import { weakFoodOf, weakFoodWords } from './weak-food.js?v=0.2.139';
+import { weakFoodOf, weakFoodWords, groundFloor } from './weak-food.js?v=0.2.139';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -350,7 +349,7 @@ export function beforeLines(cs, o) {
    safe there. A heads-up, never a stop. { id, text, short } or null. */
 export const FOOD_WEAK_ID = 'food_weak';
 function weakFoodLine(s, hunt, level, hpMax) {
-  const floor = hunt ? storeFloorFor(hunt, Number.isInteger(level) ? level : null) : null;
+  const floor = groundFloor(hunt, level);
   const words = weakFoodWords('prep', weakFoodOf(s, floor), hpMax);
   return words ? { id: FOOD_WEAK_ID, text: words, short: true } : null;
 }

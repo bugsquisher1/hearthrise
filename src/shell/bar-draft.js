@@ -43,7 +43,7 @@ export function moveOffWeapon(discipline, abilityId) {
 /** This character's bar edit state (created empty on first use). */
 export function draftOf(cs) {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { open: null, draft: null, error: null, pending: false, msg: '' }; SCRATCH.set(cs, s); }
+  if (!s) { s = { open: null, draft: null, was: null, error: null, pending: false, msg: '' }; SCRATCH.set(cs, s); }
   return s;
 }
 
@@ -69,6 +69,8 @@ function openSlotFrom(cs, i, bar) {
   const s = draftOf(cs);
   s.open = Number.isInteger(i) && i >= 0 && i < SLOTS ? i : null;
   const cur = bar && s.open !== null ? bar[s.open] : null;
+  /* the slot as it opened, so Cancel can put a host's copy back (keepInHost writes every change there as it is made) */
+  s.was = cur ? JSON.parse(JSON.stringify(cur)) : null;
   s.draft = cur ? Object.assign(JSON.parse(JSON.stringify(cur)), { join: 'and' }) : { action: { type: 'consume', id: null }, conditions: [], join: 'and' };
   s.error = null;
   s.msg = '';
@@ -285,6 +287,28 @@ export function slotForSave(d) {
   const out = Object.assign({}, d);
   delete out.ignore;
   return out;
+}
+
+/**
+ * A HOSTED EDIT LANDS IN THE HOST'S COPY AS IT IS MADE (the 139 audit's B1: Hunt prep, slot 4, Salted Trout, then the window's Back and Save, and
+ * the bar kept Salted Shrimp: Back leaves the page without Configure's own Save, and the pick went with it). The builder's copy is itself unsent
+ * until ITS Save, so every change to the open slot is written there at once, whatever way the page is left; Cancel puts the slot back as it
+ * opened (cancelOpen). A slot with no action picked yet writes nothing. With no host (the server's bar) nothing changes until Save.
+ * Answers whether it wrote.
+ */
+export function keepInHost(cs) {
+  const h = HOST.get(cs), s = draftOf(cs);
+  if (!h || s.open === null || !s.draft || !s.draft.action || !s.draft.action.id) return false;
+  h.write(s.open, JSON.parse(JSON.stringify(slotForSave(s.draft))));
+  h.after();
+  return true;
+}
+
+/** Cancel: a host's slot goes back to what it held when it opened (keepInHost may have written it since), then the slot closes. */
+export function cancelOpen(cs) {
+  const h = HOST.get(cs), s = draftOf(cs);
+  if (h && s.open !== null) { h.write(s.open, s.was ? JSON.parse(JSON.stringify(s.was)) : null); h.after(); }
+  closeSlot(cs);
 }
 
 /* A host takes the slot as written and the window closes: the builder's Save sends it later, with the whole setup. */

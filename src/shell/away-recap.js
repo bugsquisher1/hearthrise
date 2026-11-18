@@ -123,7 +123,7 @@ function awayStampOf(cs, h) {
 
 /**
  * The away line for this character against its stamp, or null. Pure (reads the sections and the residue).
- * @returns {{id: string, kind: 'away', session: string, text: string, said?: string, ended?: boolean, at?: number, cameAt?: number, minutes?: number, levels?: number}|null}
+ * @returns {{id: string, kind: 'away', session: string, text: string, said?: string, ended?: boolean, at?: number, cameAt?: number, minutes?: number, levels?: number, facts?: object}|null}
  */
 export function awayRecapOf(cs) {
   const was = stampOf(cs);

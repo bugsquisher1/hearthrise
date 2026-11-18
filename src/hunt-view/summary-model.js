@@ -210,6 +210,7 @@ export function levelLine(sessionId, start, lv, levels, trained) {
   const mine = isObj(start) && start.s === sessionId ? start : null;
   const lvTo = lv && Number.isSafeInteger(lv.level) && lv.level >= 1 ? lv.level : null;
   const lvFrom = mine && lvTo !== null && Number.isSafeInteger(mine.lv) && mine.lv >= 1 ? mine.lv : null;
+  /** @type {[string, number, number][]} */
   const ups = [];
   for (const sk of Array.isArray(trained) ? trained : []) {
     const was = mine && isObj(mine.sk) ? int(mine.sk[sk]) : null, now = isObj(levels) && isObj(levels[sk]) ? int(levels[sk].level) : null;
@@ -232,7 +233,7 @@ export function trainedIn(s, an) {
  * @param {string[]} deaths  the death explanations' headlines (death-explain.js)
  * @param {string|null} [role]  this hero's role, for a called fight's losing line
  * @param {object|null} [stop]  the `training` section's last stop (training-sections.js), for a training session's card
- * @param {{lvFrom: number|null, lvTo: number|null, ups: Array}|null} [line]  levelLine's, for a hunt's card
+ * @param {{lvFrom: number|null, lvTo: number|null, ups: [string, number, number][]}|null} [line]  levelLine's, for a hunt's card
  */
 export function buildSummary(s, an, deaths, role, stop, line) {
   const train = trainingCard(s, stop || null);

@@ -786,6 +786,19 @@ jobs:
         run: |
           node tests/tower-board.mjs
           node tools/mutant-gate.mjs node tests/tower-board.mjs --mutate
+      # THE UNMARKED CATACOMBS' DESCENT (2027-05-06-catacombs.sql and its five catalogues; Tyler 2026-11-16, the board's "2026-11-16 The Unmarked
+      # Catacombs descent"): two wings on the Tower's engine (their rosters, Dunn at every vault door), a descent browser closed and hunt viewed
+      # landing the same (the catacomb mode, the wing's record, a Bone Key a door, no death price, coin or Bestiary, the solo board); the door
+      # (switch, wing, Level, checkpoints per wing, a replayed key); six a family a week and the held cap across the account; both families on one
+      # chest, each its warmth, the 70/30 slot lean and the worn weight; the solo and party boards and the clamp; a second apply. --mutate (13).
+      # The 24 armor rows' own rules (src/data/catacomb-armor.js: twin + one attribute, the twelve that ship are items): --mutate (29).
+      - name: Catacombs descent — wings, both paths, keys per family, the lean, two boards (13 + 29 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catacombs.mjs
+          node tools/mutant-gate.mjs node tests/catacombs.mjs --mutate
+          node tests/catacomb-armor.mjs
+          node tools/mutant-gate.mjs node tests/catacomb-armor.mjs --mutate
       # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
       # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
       # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled

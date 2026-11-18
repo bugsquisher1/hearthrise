@@ -19,16 +19,6 @@
   ],
   "reviewed": "2026-09-06 (cleanup program, slice 2)",
   "guards": {
-    "catacomb-armor.mjs": {
-      "reason": "THE HIDDEN ROWS' RULES (designer, lane/d-catacomb-armor, PRIORITY_BOARD 2026-11-16 The Unmarked Catacombs descent): the 24 helmets and boots in src/data/catacomb-armor.js are in no catalogue and no src/ file imports them, so nothing shipped depends on this guard yet. Not in smoke.yml for the same reason as the armor line's and the special-attribute sample's guards (a design lane does not edit the CI lane's smoke.yml and ci-shape baseline). It is registered, plain and --mutate, by the lane that builds the Catacomb keys on the chest and spreads the rows into ITEMS.",
-      "owner": "game-designer",
-      "disposition": "register-when-the-sample-ships",
-      "verified": {
-        "asserts": true,
-        "selftest": true,
-        "runner": "by hand: node tests/catacomb-armor.mjs && node tests/catacomb-armor.mjs --mutate (both EXIT 0 on lane/d-catacomb-armor, 25 of 25 mutants caught)"
-      }
-    },
     "away-recap-world.mjs": {
       "reason": "A MANUAL WALK, like `node tools/qa/local-world.mjs smoke`: real closed tabs and world.wait(n, { away: true }) on the real play.html and hr-accrue engine over the replayed chain, about 6 min on a machine's first run. It proves the away line on real settles; the rules are mutation-proven in CI by tests/shell-core.mjs R3, R3b and tests/hud-reachable.mjs HR-7, HR-9.",
       "owner": "art-director",
@@ -222,12 +212,6 @@
     "tools/balance-lab/parity.mjs had been red since 2026-11-08. Prefer registering."
   ],
   "proof_unrun": {
-    "tests/catacomb-armor.mjs": {
-      "reason": "Its --mutate (25 mutants on an in-memory copy) proves the rules for the 24 HIDDEN Catacomb armor rows (src/data/catacomb-armor.js), which no src/ file imports and no catalogue carries, so nothing shipped depends on it yet. It joins smoke.yml, plain and --mutate, with the lane that builds the Catacomb keys on the chest and spreads the rows into ITEMS (the guard's own entry above).",
-      "owner": "game-designer",
-      "disposition": "register-when-the-sample-ships",
-      "runner": "by hand: node tests/catacomb-armor.mjs --mutate (EXIT 0, 25 of 25 caught, lane/d-catacomb-armor)"
-    },
     "tools/balance-sim/sheet-check.mjs": {
       "reason": "Its --selftest plants six mutants into the cells of a REAL plan run (tools/balance-sim/out/formula: `node tools/gen-ground-stats.mjs --propose`, then `node tools/balance-sim/sim.mjs --plan formula`, 312 + 156 cells at 2 seeds x 2 h each), a git-ignored artifact no CI job has. With no run it exits 1 saying so, which is a harness state, not a proof. The rows it grades are held in CI by tests/balance-sheet.mjs (plain + --mutate) and every pace by tests/level-curve.mjs; this file is the designer's grader, run beside the plan it reads.",
       "owner": "game-designer",

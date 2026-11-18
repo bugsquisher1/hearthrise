@@ -151,7 +151,13 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Cinders' Inner Flame rung (hr_activities artisan:fuel_tower_cinders), the Hearth Chest's 28 weapons and the Key Warden's bundle
    (sweeps_coat_bundle, tradeable, book value 20,000). ORDER: the FIRST Tower file, after every v0.2.135 file; before the Tower's hunt-sessions
    file (its weapons and the bundle's bid read these rows). */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-02-tower-items-catalogue.generated.sql');
+/* THE UNMARKED CATACOMBS' DESCENT (lane/c-catacombs, backend-architect, 2026-11-18; Tyler 2026-11-16): 2027-05-02-tower-items-catalogue (applied with
+   v0.2.135) is the file before this one and this one carries it whole. Twenty new hr_items rows: the eight Catacomb keys (Waterlogged and Bone, by
+   metal; bound, value 0: every trade surface refuses them, src/data/chests.js CATACOMB_KEYS) and the twelve Catacomb armor pieces that ship now
+   (Bronze and Silver, src/data/catacomb-armor.js CATACOMB_ARMOR_SHIPPED: tradeable, each its twin's book value), plus the Hearth Cinders' line. No
+   other row moves. ORDER: the FIRST descent file, after 2027-05-05-entry-gates.sql; before the descent's hunt-sessions file (the armor's bids read
+   these rows) and its chest catalogue (every key and piece is checked against hr_items). */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-06-catacombs-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

@@ -43,20 +43,27 @@ import { makeEvent } from './events.js?v=0.2.137';
 /* The Tower's run row: the default for a reader that only means the Tower. */
 const TOWER = RUN_GROUNDS[TOWER_RULES.hunt];
 
-/* Every run's rules against the engine's swing, and every wing's kinds against the catalogue (src/data/tower.js leaves both checks to the one
-   place the swing and the monsters are known). */
+/* Every run's rules against the engine's swing (src/data/tower.js leaves the check to the one place the swing is known). */
 {
   const bad = [];
-  for (const run of Object.values(RUN_GROUNDS)) {
-    for (const p of validateTower(run, TOWER_PARTY_XP, COMBAT_BALANCE.tickMs)) bad.push(run.hunt + ': ' + p);
-    if (run.roster === null) continue;
-    const roles = GROUND_ROSTER[run.rosterGround] || {};
-    for (const id of [...Object.keys(run.roster), run.keeper]) {
-      if (!MONSTERS[id]) bad.push(run.hunt + ': ' + id + ' is no monster');
-      else if (!roles[id] || roles[id] === 'boss') bad.push(run.hunt + ': ' + id + ' has no non-boss role on ' + run.rosterGround);
-    }
-  }
+  for (const run of Object.values(RUN_GROUNDS)) for (const p of validateTower(run, TOWER_PARTY_XP, COMBAT_BALANCE.tickMs)) bad.push(run.hunt + ': ' + p);
   if (bad.length) throw new Error('src/core/hunt/tower.js: a run\'s rules do not hold against the engine: ' + bad.join('; '));
+}
+
+/* A wing's kinds against the catalogue, checked the first time the wing fields a room, not at load: a wing's monsters come from its own pack
+   (src/data/grounds/unmarked_catacombs, staged as a hunting ground), and a catalogue generator's whole view (tools/pack/whole.mjs) leaves a staged
+   pack out, so a load-time check would refuse every generator. The engine and the edge read every pack. tests/catacombs.mjs CB-DATA holds it. */
+const CHECKED = new Set();
+function checkRun(run) {
+  if (run.roster === null || CHECKED.has(run.hunt)) return;
+  const roles = GROUND_ROSTER[run.rosterGround] || {};
+  const bad = [];
+  for (const id of [...Object.keys(run.roster), run.keeper]) {
+    if (!MONSTERS[id]) bad.push(id + ' is no monster');
+    else if (!roles[id] || roles[id] === 'boss') bad.push(id + ' has no non-boss role on ' + run.rosterGround);
+  }
+  if (bad.length) throw new Error('src/core/hunt/tower.js: ' + run.hunt + ' fields what the catalogue does not hold: ' + bad.join('; '));
+  CHECKED.add(run.hunt);
 }
 
 /** The run row of `ground` (the Tower or a Catacomb wing) when `ground` is a run ground, else null. */
@@ -96,6 +103,7 @@ function ladder() {
 /* The kinds a run fields and their roles: the Tower's ladder, or a wing's own roster at its pack's roles. */
 function rolesOf(run) {
   if (run.roster === null) return ladder().roles;
+  checkRun(run);
   const roles = GROUND_ROSTER[run.rosterGround];
   return new Map(Object.keys(run.roster).sort().map((id) => [id, roles[id]]));
 }
@@ -103,6 +111,7 @@ function rolesOf(run) {
 /* The monsters room F may hold, sorted (a wing's: its roster, each id as many times as its weight). The Tower: every non-boss roster monster of
    the grounds whose band holds its Level (past the top band, the top band's). */
 function poolAt(floor, run) {
+  checkRun(run);
   if (run.roster !== null) return Object.keys(run.roster).sort().flatMap((id) => Array(run.roster[id]).fill(id));
   const L = Math.min(towerLevelOf(floor, run), ladder().top);
   const ids = new Set();

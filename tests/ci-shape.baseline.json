@@ -713,6 +713,7 @@
     "node tests/run-smoke.mjs": "in-page",
     "node tests/_chrome.mjs": "in-page",
     "node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest": "in-page",
+    "node tools/mutant-gate.mjs node tests/client-boot.mjs --selftest": "in-page",
     "node tests/client-boot.mjs": "in-page",
     "node tools/mutant-gate.mjs node tests/hunt-screen.mjs --mutate --shard=9/13": "in-page-15",
     "node tools/mutant-gate.mjs node tests/hunt-live.mjs --mutate --shard=2/2": "artisan-selftest-2",

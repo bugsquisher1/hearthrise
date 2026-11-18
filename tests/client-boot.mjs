@@ -5,6 +5,7 @@
 //   node tests/client-boot.mjs           the boot checks
 //   node tests/client-boot.mjs --mutate  every planted defect must turn a check RED
 //     [--shard=K/N]  every Nth mutant from the Kth (smoke.yml's in-page-41..43); [--only <fragment>]  the mutants whose name holds it
+//   node tests/client-boot.mjs --selftest  the sweep itself: a thrown or hung arm is HARNESS and never ends the sweep (no browser)
 //
 // mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/render/canvas-backend.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
 //
@@ -102,7 +103,7 @@
 //        session sends no more than a handful of calls
 // ════════════════════════════════════════════════════════════════════════
 // mutant-rule-functions: checks
-// mutant-runner-functions: main
+// mutant-runner-functions: main sweep bounded selftest
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile } from 'node:fs/promises';
@@ -115,6 +116,7 @@ import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 import { pressBar } from './_bar.mjs';
+import { judge, verdict, report, exitOf, harnessFail, HARNESS } from './_mutant-verdict.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
 
@@ -274,7 +276,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
   if (stopAtFirst) fails.push = function (...a) { Array.prototype.push.apply(this, a); throw STOP; };
   const { server, port } = await serve(overrides);
   const base = 'http://127.0.0.1:' + port;
-  const browser = await leaseBrowser(chromium);
+  const browser = armLease = await leaseBrowser(chromium);   // bounded() closes it when the arm outlives ARM_DEADLINE_MS
   try {
     const fresh = async (o = {}, viewport = { width: 1280, height: 720 }) => {
       const ctx = await browser.newContext({ viewport });
@@ -530,8 +532,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       }
       /* B-5 SIGN OUT PLAYS NO HERO ON ITS WAY OUT: with hero 0 shown and closed first, the next hero was shown in its place (a
          settle) and the chat re-read for it, after the press. Only the heroes' leaves and their last residue belong to a sign-out. */
-      await page.click('.char-tab[data-app="show"][data-slot="0"]');
-      await page.waitForTimeout(400);
+      /* Hero 0 is shown through the strip's own click handler (boot.js's one listener on the page root), and B-5 waits for it to be
+         shown, not for a sleep. A trusted mouse press here, straight after B-4's seven window resizes, waited 30 s for the renderer to
+         take it with the tab visible, stable and hit-tested (run 44379537315, the clean control; 506 presses at up to 8x CPU never
+         took a second locally). B-5 is the sign-out, not the press: the strip's presses are B-9's. */
+      await page.dispatchEvent('.char-tab[data-app="show"][data-slot="0"]', 'click').catch(() => {});
+      if (!(await wait(page, () => document.querySelector('#panel-world[data-slot="0"]') && document.querySelector('.char-tab[data-app="show"][data-slot="0"].is-shown'))))
+        fails.push('HARNESS B-5: a press on hero 0\'s tab did not show hero 0, so the sign-out below would start from the other hero');
+      await page.waitForTimeout(400);   // hero 0's one settle on being shown, before B-5 counts what the page asks
       const asked = [];
       let out = 0;
       const onAsk = (q) => { const m = /\/rest\/v1\/rpc\/([a-z_]+)|\/functions\/v1\/(hr-accrue)/.exec(q.url()); if (m) asked.push({ n: m[1] || m[2], late: out > 0 }); };
@@ -557,7 +565,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const firstHero = order.findIndex((t) => /^hr:/.test(t)), social = order.filter((t) => !/^hr:/.test(t));
       if (firstHero < 0 || !social.length) fails.push('B-5 harness: the sign-out left ' + (order.join(', ') || 'no topic') + ' (a hero topic and a social one are needed to read the order)');
       else if (order.slice(firstHero).some((t) => !/^hr:/.test(t))) fails.push('B-5 a hero closed before the social side ended: topics left in the order ' + order.join(', '));
-      if (errors.length) fails.push('B-1..5 console errors: ' + errors.slice(0, 3).join(' | '));
+      if (errors.length) fails.push('B-1 console errors in B-1..B-5: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
 
@@ -1480,6 +1488,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
   } finally {
     await browser.close();
     server.close();
+    if (armLease === browser) armLease = null;
   }
   return fails;
 }
@@ -1611,9 +1620,115 @@ const SHARD = (() => {
   return m ? { k: +m[1], n: +m[2] } : null;
 })();
 
+/* ONE ARM NEVER ENDS THE SWEEP (run 44379537315: the clean control's B-5 press timed out, the rejection went uncaught and shard 2/3
+   died with its 35 mutants unjudged; run 44238664696: a mutant's evaluate threw out of checks the same way). Every arm (the plain run,
+   the clean control, each mutant) runs inside bounded() and is judged by tests/_mutant-verdict.mjs: an exception out of the run is
+   HARNESS, never a catch and never the end of the process; an arm still running at ARM_DEADLINE_MS has its pages closed (its lease)
+   and is HARNESS the same way. A clean control that throws or hangs is the harness's red, said so, exit 2: no mutant is judged against
+   it. A mutant judged HARNESS is said so, the sweep goes on to the next, and the run exits 2 (1 when one escaped). --selftest plants
+   each case with no browser. */
+const ARM_DEADLINE_MS = 10 * 60 * 1000;   // the slowest arm, the clean control, takes about 2 min on a hosted runner (run 44366545745: 108 s)
+const UNWIND_MS = 30000;                  // how long a stopped arm gets to close its server before the next arm starts
+let armLease = null;                      // the browser lease of the arm now running (set by checks)
+
+/** run() raced against `ms`: its result, its own throw, or (late) a throw once stop() has closed its pages and it has unwound. */
+async function bounded(run, { ms = ARM_DEADLINE_MS, unwindMs = UNWIND_MS, stop = () => (armLease ? armLease.close() : undefined) } = {}) {
+  const arm = Promise.resolve().then(run);
+  const LATE = Symbol('late');
+  let timer = null;
+  const first = await Promise.race([arm, new Promise((k) => { timer = setTimeout(() => k(LATE), ms); })]).finally(() => clearTimeout(timer));
+  if (first !== LATE) return first;
+  await Promise.resolve().then(stop).catch(() => {});
+  let wait2 = null, stuck = null;   // what the closed page threw, where: the step the arm was stuck on
+  await Promise.race([arm.catch((e) => { stuck = e; }), new Promise((k) => { wait2 = setTimeout(k, unwindMs); })]).finally(() => clearTimeout(wait2));
+  const late = new Error('the arm was still running after ' + Math.round(ms / 1000) + ' s (its pages were closed' + (stuck ? '; it was on: ' + String(stuck.message || stuck).split('\n')[0].slice(0, 120) : '') + ')');
+  /* the stuck step's frames, never bounded()'s own: harnessFail names the guard line from them */
+  late.stack = late.message + (stuck && stuck.stack ? '\n' + String(stuck.stack).split('\n').filter((l) => /^\s+at /.test(l)).join('\n') : '');
+  throw late;
+}
+
+/** The --mutate sweep: `control`, then every arm ({ name, run } or { name, missing }), each judged on its own. Returns the exit code. */
+async function sweep(control, arms, { log = console.log, bound = (run) => bounded(run), judgeArm = (run) => judge(() => bound(run)) } = {}) {
+  let clean;
+  try { clean = await bound(control); } catch (e) { log('  ✗ clean control HARNESS: ' + harnessFail('the run', e) + ' — no mutant is judged'); return 2; }
+  if (clean.length) {
+    const harness = clean.some((f) => String(f).startsWith(HARNESS));
+    log('  ✗ clean control ' + (harness ? 'HARNESS' : 'RED') + ': ' + clean.join('; '));
+    return harness ? 2 : 1;
+  }
+  log('  ✓ clean control green');
+  const counts = { caught: 0, harness: 0, escaped: 0 };
+  for (const a of arms) {
+    if (a.missing) { counts.escaped++; log('  ✗ ' + a.name + ' — anchor not found in ' + a.missing); continue; }
+    log(report(a.name, await judgeArm(a.run), counts));
+  }
+  log(counts.escaped || counts.harness ? 'client-boot --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not a catch), ' + counts.caught + ' caught'
+    : 'client-boot --mutate: ' + arms.length + '/' + arms.length + ' mutants caught');
+  return exitOf(counts);
+}
+
+/* --selftest: sweep() over planted arms, no browser. The arm that hung run 44379537315 (a page.click TimeoutError thrown out of
+   checks) and an arm that never settles are each HARNESS and the sweep reaches the arm after them; the same two as the clean control
+   end the sweep with 2 before any mutant; a rule's red is a catch, nothing red an escape. Then the same cases through a sweep with no
+   per-arm guard must fail it (the proof bites). */
+async function selftest() {
+  const clickHang = () => Promise.reject(Object.assign(new Error("page.click: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator('.char-tab[data-app=\"show\"][data-slot=\"0\"]')\n"
+    + '    - locator resolved to <button type="button" data-slot="0" data-app="show" class="char-tab">…</button>\n  - attempting click action\n    - element is visible, enabled and stable\n    - performing click action'),
+    { name: 'TimeoutError', stack: 'page.click: Timeout 30000ms exceeded.\n    at checks (/w/tests/client-boot.mjs:533:18)\n    at async main (/w/tests/client-boot.mjs:1630:17)' }));
+  let closing = null;
+  const never = () => new Promise((_, no) => { closing = () => no(Object.assign(new Error('page.evaluate: Target page, context or browser has been closed'),
+    { stack: 'page.evaluate: Target page, context or browser has been closed\n    at checks (/w/tests/client-boot.mjs:887:20)\n    at async main (/w/tests/client-boot.mjs:1700:9)' })); });
+  const deaf = () => new Promise(() => {});   // ignores the close too: only UNWIND bounds it
+  const ok = () => Promise.resolve([]), red = (id) => () => Promise.resolve([id + ' the planted rule went red']);
+  const runSweep = async (control, arms, judgeArm) => {
+    const lines = [], ran = [], stops = { n: 0 };
+    const stop = () => { stops.n++; if (closing) closing(); };
+    const bound = (run) => bounded(run, { ms: 150, unwindMs: 150, stop });
+    const tag = (a) => (a.run ? { name: a.name, run: () => { ran.push(a.name); return a.run(); } } : a);
+    const o = { log: (l) => lines.push(l), bound, ...(judgeArm ? { judgeArm: judgeArm(bound) } : {}) };
+    let timer = null;
+    const code = await Promise.race([sweep(control, arms.map(tag), o).catch((e) => 'threw: ' + String(e && e.message).split('\n')[0]),
+      new Promise((k) => { timer = setTimeout(() => k('hung'), 3000); })]).finally(() => clearTimeout(timer));
+    closing = null;
+    return { code, lines, ran, stops: stops.n };
+  };
+  const ARMS = [{ name: 'a rule catches it', run: red('B-5') }, { name: 'its click hangs', run: clickHang }, { name: 'its page never settles', run: never },
+    { name: 'it ignores the close', run: deaf }, { name: 'the arm after them', run: red('B-9') }];
+  const cases = [
+    ['a hung click and a page that never settles, among mutants', () => runSweep(ok, ARMS), (r) => r.code === 2 && r.ran.length === 5 && r.stops === 2
+      && r.lines.some((l) => l.endsWith('its click hangs — HARNESS, not a catch: HARNESS the run threw: page.click: Timeout 30000ms exceeded. (at tests/client-boot.mjs:533 < 1630)'))
+      && r.lines.some((l) => /its page never settles — HARNESS, not a catch: .*still running after 0 s \(its pages were closed; it was on: page\.evaluate: Target page.*\(at tests\/client-boot\.mjs:887 < 1700\)$/.test(l))
+      && r.lines.some((l) => /it ignores the close — HARNESS, not a catch: .*still running after 0 s \(its pages were closed\)$/.test(l))
+      && r.lines.some((l) => /the arm after them — caught \(B-9\)/.test(l)) && r.lines.some((l) => l === 'client-boot --mutate: 0 escaped, 3 HARNESS (not a catch), 2 caught')],
+    ['an escape beside them still exits 1', () => runSweep(ok, [...ARMS, { name: 'nothing red', run: ok }]), (r) => r.code === 1 && r.lines.some((l) => /nothing red — NOT caught/.test(l))],
+    ['a missing anchor is an escape', () => runSweep(ok, [{ name: 'gone', missing: 'src/x.js' }]), (r) => r.code === 1 && r.lines.some((l) => /gone — anchor not found in src\/x\.js/.test(l))],
+    ['every arm caught exits 0', () => runSweep(ok, [ARMS[0], ARMS[4]]), (r) => r.code === 0 && r.lines.some((l) => /2\/2 mutants caught/.test(l))],
+    ['a clean control whose click hangs is HARNESS, no mutant judged', () => runSweep(clickHang, ARMS), (r) => r.code === 2 && !r.ran.length && /clean control HARNESS: .*page\.click: Timeout 30000ms.* — no mutant is judged/.test(r.lines[0] || '')],
+    ['a clean control that never settles is HARNESS', () => runSweep(never, ARMS), (r) => r.code === 2 && !r.ran.length && r.stops === 1 && /clean control HARNESS: .*still running after/.test(r.lines[0] || '')],
+    ['a clean control with a red rule is RED', () => runSweep(red('B-1'), ARMS), (r) => r.code === 1 && !r.ran.length && /clean control RED: B-1 /.test(r.lines[0] || '')],
+    ['a clean control with a HARNESS line is HARNESS', () => runSweep(() => Promise.resolve(['HARNESS B-5: planted']), ARMS), (r) => r.code === 2 && /clean control HARNESS: HARNESS B-5/.test(r.lines[0] || '')],
+  ];
+  const fails = [];
+  for (const [label, go, holds] of cases) { const r = await go(); if (!holds(r)) fails.push(label + ': ' + JSON.stringify({ code: r.code, ran: r.ran, stops: r.stops, lines: r.lines }).slice(0, 600)); }
+  /* THE PROOF BITES: the same first case with the arm guard planted away (the old main: await checks(), any throw ends the process) */
+  const bare = await runSweep(ok, ARMS, () => async (run) => verdict(await run()));
+  const unbounded = await runSweep(ok, ARMS, () => (run) => judge(run));
+  const planted = [['no per-arm judge (a throw ends the sweep)', bare], ['no deadline (a page that never settles holds the sweep)', unbounded]];
+  for (const [label, r] of planted) {
+    const bit = !cases[0][2](r);
+    console.log((bit ? '  caught  ' : '  MISSED  ') + 'planted: ' + label + ' — ' + (typeof r.code === 'string' ? r.code : 'exit ' + r.code));
+    if (!bit) fails.push('the planted "' + label + '" passed the first case');
+  }
+  for (const f of fails) console.log('  ✗ ' + f);
+  console.log(fails.length ? 'client-boot --selftest: ' + fails.length + ' FAILED' : 'client-boot --selftest: ' + cases.length + '/' + cases.length + ' cases hold and both planted sweeps are caught: a hung or thrown arm is HARNESS, the sweep reaches the next arm, a clean control that hangs ends it with 2');
+  return fails.length ? 1 : 0;
+}
+
 async function main() {
+  if (process.argv.includes('--selftest')) process.exit(await selftest());
   if (!process.argv.includes('--mutate')) {
-    const fails = await checks(null);
+    let fails;
+    try { fails = await bounded(() => checks(null)); } catch (e) { console.log('  ✗ ' + harnessFail('the run', e)); console.log('client-boot: HARNESS, the run did not finish'); process.exit(2); }
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'client-boot: ' + fails.length + ' check(s) RED' : 'client-boot: both pages boot; sign-in, play (the Common sheets only), a scene switched whole, a late sheet on a closed pane, two characters, one hero + a named, coloured hero created in the second slot, the open heroes back after a reload, sign-out, a dead session, reset and closed all hold');
     process.exit(fails.length ? 1 : 0);
@@ -1626,21 +1741,14 @@ async function main() {
   const chosen = SHARD ? picked.filter((_, i) => i % SHARD.n === SHARD.k - 1) : picked;
   if (SHARD) console.log('  shard ' + SHARD.k + '/' + SHARD.n + ': ' + chosen.length + ' of ' + picked.length + ' mutants');
   if (!chosen.length) { console.log('client-boot --mutate: no mutant chosen' + (SHARD ? ' in this shard' : '')); process.exit(0); }
-  let bad = 0;
-  const clean = await checks(null);
-  if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
-  console.log('  ✓ clean control green');
+  const arms = [];
   for (const [name, file, from, to] of chosen) {
     let text = await readFile(join(ROOT, file), 'utf8');
     const pairs = Array.isArray(from) ? from : [[from, to]];
-    const missing = pairs.find(([a]) => !text.includes(a));
-    if (missing) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
+    if (pairs.find(([a]) => !text.includes(a))) { arms.push({ name, missing: file }); continue; }
     for (const [a, b] of pairs) text = text.replace(a, b);
-    const fails = await checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name), /\(B-19\)|cannot load/.test(name), { stopAtFirst: true });
-    if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
-    else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
+    arms.push({ name, run: () => checks({ [file]: text }, /\(B-1[78]\)/.test(name), /\(B-7\)/.test(name), /\(B-19\)|cannot load/.test(name), { stopAtFirst: true }) });
   }
-  console.log(bad ? 'client-boot --mutate: ' + bad + ' escaped' : 'client-boot --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught');
-  process.exit(bad ? 1 : 0);
+  process.exit(await sweep(() => checks(null), arms));
 }
 main();

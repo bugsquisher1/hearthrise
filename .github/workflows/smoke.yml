@@ -7638,6 +7638,7 @@ jobs:
         run: |
           node tests/_chrome.mjs
           node tools/mutant-gate.mjs node tests/_chrome.mjs --selftest
+          node tools/mutant-gate.mjs node tests/client-boot.mjs --selftest
           node tests/client-boot.mjs
 
       # A failing run is far easier to diagnose with the page state attached.

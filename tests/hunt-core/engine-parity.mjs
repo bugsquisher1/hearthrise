@@ -77,7 +77,10 @@ const SEED = '-4611686018427387904';
    warrens-4, glade-4 and the lone ranger hold. Cause: the Sewer's floor 8 -> 5 re-made its six formula rows (tools/gen-ground-stats.mjs --write: a floor-5
    purse, three of them one point less attack) and the Rat King's attack 7 -> 6 by hand (balance-sheet.js FORMULA_EXCEPTIONS: his Tail Lash held at 35% of
    the floor-5 hero), so its swings and coin differ. Proof: this tree with the parent commit's src/data/monsters.js laid back holds
-   every pin (exit 0); the band itself moves none. */
+   every pin (exit 0); the band itself moves none.
+   RE-PINNED 2026-11-18 (set/v0.2.139 merged into lane/d-party-pace), LANE/D-DROP-HOMES' DROP ROWS ONLY: warrens-4 moved at settle 4 (kills 211 as pinned);
+   glade-4, sewer-2 and the lone ranger hold. Cause: src/data/monsters.js drop rows (armor, weapons and shields drop at every tier, Tyler 2026-11-18) change
+   the Warrens' loot rolls. Proof: set/v0.2.139 alone (f5ec21295) reads the same red, and with origin/main's src/data/monsters.js laid in it holds every pin (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

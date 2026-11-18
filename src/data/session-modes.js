@@ -50,6 +50,13 @@ export const SESSION_MODES = Object.freeze({
      '2026-11-15 The Hearth Chest, and the Tower's XP fitted on real climbs'. */
   tower: Object.freeze({ id: 'tower', deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false, bestiary: false, stamina: true,
     checkpointEvery: 10 }),
+  /* The Unmarked Catacombs' descent (Tyler 2026-11-16: "their OWN game mode like the Burning Tower"; the board's "2026-11-16 The Unmarked
+     Catacombs descent" §2): a copy of `tower`. Keeper Dunn carries a dying hero up because its name isn't in the Wood Book, so a death costs
+     nothing and the Blessings stay. No coin, drops or Bestiary; stamina drains. XP starts at the Tower's 375 permille (ASSUMED: the design's
+     own words, to be re-fitted on real descents to the same target, about half of hunting for the median hero alone at 45, no cell over).
+     Its checkpoints are the vault doors, every 10th room (src/data/tower.js CATACOMB_RULES.landingEvery). */
+  catacomb: Object.freeze({ id: 'catacomb', deathLossPm: 0, blessings: false, xpPm: 375, coin: false, drops: false, bestiary: false, stamina: true,
+    checkpointEvery: 10 }),
 });
 
 /* The mode of every ground that names none. */

@@ -294,7 +294,11 @@
   border-radius: 0;
   image-rendering: pixelated;
   box-shadow: 0 10px 28px color-mix(in srgb, var(--world-shadow) 55%, transparent);
+  /* A window is a game panel, not a page (audit 2026-11-18 A19: a double-click on the chest's Use painted the window's words in the
+     browser's blue selection): its words never select under a press; a field, and Chat's lines, still do. */
+  -webkit-user-select: none; user-select: none;
 }
+.hs-win :is(input, textarea, [contenteditable="true"]), .hs-win[data-hs-win="chat"] .hs-win-body { -webkit-user-select: text; user-select: text; }
 /* The floor and its grain: one layer under everything in the window, faded by the opacity setting alone. */
 .hs-win::before {
   content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none;

@@ -105,7 +105,8 @@ export async function loadCellRunner(root) {
     /* cell.startBySeat [{ levelXp, skills: { skill: xp } }]: a hero's exact XP (a career run's carry); its Level is the curve's */
     const levels = party.map((_, i) => (cell.startBySeat ? XP.charLevelFromXp(cell.startBySeat[i].levelXp)
       : Array.isArray(cell.level) ? cell.level[i] : cell.level));
-    const kits = party.map((s, i) => gear.kitOf(s, levels[i], (cell.gearBySeat && cell.gearBySeat[i]) || cell.gear || {}));
+    /* the ground rides along so a `uniques` kit picks the attribute this ground asks for (gear.mjs); a ladder kit never reads it */
+    const kits = party.map((s, i) => gear.kitOf(s, levels[i], { ground: cell.ground, ...((cell.gearBySeat && cell.gearBySeat[i]) || cell.gear || {}) }));
     const keys = roles.map((r, i) => r + i);
     const band = bandOf(cell.ground);
     /* skills: 'level' = every combat skill at the hero's Level (the harness default); or per seat { skill: level } */

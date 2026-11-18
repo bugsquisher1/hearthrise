@@ -281,7 +281,9 @@ async function checks() {
           if (SHOTS) await page.screenshot({ path: join(SHOTS, 'training-desktop-confirm.png') });
           await page.click('[data-hs-win="training"] [data-hs-act="gear-yes"]');
         }
-        await wait(page, () => ((document.querySelector('[data-hs-win="training"] .tw-gear-day') || {}).textContent || '') === 'Daily limit: 1/10', null, 4000);
+        /* the day's count names what it counts (audit 2026-11-18 A14: "Daily limit: 0/10") */
+        const dayLine = await wait(page, () => ((document.querySelector('[data-hs-win="training"] .tw-gear-day') || {}).textContent || '') === 'Bought today: 1 / 10', null, 4000);
+        if (!dayLine) fails.push('TR-6 the day\'s line reads ' + JSON.stringify(await page.evaluate(() => (document.querySelector('[data-hs-win="training"] .tw-gear-day') || {}).textContent)));
         const buys = s.calls.filter((c) => c.name === 'hr_training_gear_buy');
         if (buys.length !== 1) fails.push('TR-6 hr_training_gear_buy sent ' + buys.length + ' times');
         else {

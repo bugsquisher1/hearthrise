@@ -145,9 +145,10 @@ function spareOf(cs, items, rules, shop) {
 /* What Sell all junk leaves out and why, so its price and the list under it add up (say-why). */
 function sellNote(plan, kept, spare) {
   const parts = [];
-  if (spare.lines.length) parts.push('Keeps worn, higher-tier and Rare pieces');
+  /* each part a sentence of its own (audit 2026-11-18 A14: "Keeps worn, higher-tier and Rare pieces Keeps 8 Material stacks" ran on) */
+  if (spare.lines.length) parts.push(t('shop.spare_keeps'));
   if (kept.ids.length) parts.push(t('shop.junk_keeps', { count: kept.ids.length, worth: gold(kept.worth) }));
-  if (plan.capped) parts.push('One sale takes up to ' + whole(sellQty(Infinity)) + ' of a stack.');
+  if (plan.capped) parts.push(t('shop.sale_cap', { n: whole(sellQty(Infinity)) }));
   return parts.join(' ');
 }
 

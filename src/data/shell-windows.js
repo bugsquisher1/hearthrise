@@ -103,8 +103,10 @@ export const SHELL_WINDOWS = Object.freeze([
      Chest, one window. Shown only while the server sends the `tower` section (the burning_tower switch); the Great Hearth's tap opens it
      (src/data/world/stations.js), so does the Havora window's Hearth tab, and so does its line in the Town menu (QA gate 2026-11-17: the
      Hearth click was its only door); while it is hidden the Hearth opens the bag, as before, and the Town menu has no line for it. */
+  /* `rise` (audit 2026-11-18 A5): its column grew a Before entering box, so the window rises over the bar in town when the rules, the supplies and
+     Enter need more than the room above it (in a hunt no window rises: window-fit.js) */
   Object.freeze({ id: 'tower', label: 'Burning Tower', title: 'The Burning Tower', key: null, noShortcut: true, group: 'town', section: 'tower', orElse: 'inventory',
-    glyph: 'uiFlame', width: 660, object: 'ledger' }),
+    glyph: 'uiFlame', width: 660, object: 'ledger', rise: true }),
   /* The setup builder (Tyler 2026-11-11): the setups column beside the HUD's own 2 x 10 slot grid, so it is as wide as Hunts. No icon of its
      own since the bar's groups (2026-11-16): the door beside the bar's setup name opens it (action-bar.js, drawn from this row: the
      glyph, the name, the key), so does Hunt prep under a ground's Go as, and P. Its glyph is a written plan (Tyler 2026-11-17: the

@@ -341,7 +341,9 @@ const mutants = [
   { name: 'the Melee DPS ignores the tank\'s target', case: 'melee-dps-slot',
     edits: [[R, "closeIn(inst, h, unitById(inst, h.target));", 'closeIn(inst, h, nearestTo(mons, h));']] },
   { name: 'ranged distance measured from the leader', case: 'ranged-distance-from-own-target',
-    edits: [[R, "  const tgt = unitById(inst, h.target);\n  if (!tgt) return;\n  const nearMon", "  const tgt = Object.assign({}, leaderOf(inst), { pocket: unitById(inst, h.target).pocket });\n  if (!tgt) return;\n  const nearMon"]] },
+    /* roles.js no longer imports leaderOf, so the mutant brings it (without, it threw a ReferenceError and was "caught" by that) */
+    edits: [[R, "  const tgt = unitById(inst, h.target);\n  if (!tgt) return;\n  const nearMon", "  const tgt = Object.assign({}, leaderOf(inst), { pocket: unitById(inst, h.target).pocket });\n  if (!tgt) return;\n  const nearMon"],
+      [R, 'import { atRest, unitById, setGoal,', 'import { atRest, unitById, leaderOf, setGoal,']] },
   { name: 'the spot band ignores the setting', case: 'ranged-distance-from-own-target', edits: [[R, '  const want = h.dist;\n  const living', '  const want = 6;\n  const living']] },
   { name: 'kiting needs only chase off', case: 'kite-predicate', edits: [[R, 'export const kites = (u) => !u.chase && u.dist > 1;', 'export const kites = (u) => !u.chase;']] },
   { name: 'the kiter never closes in', case: 'kiter-closes-in-when-out-of-range', edits: [[R, '    if (best) setGoal(inst, h, best[0], best[1]);\n    return;', '    return;']] },

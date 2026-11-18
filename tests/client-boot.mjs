@@ -93,6 +93,9 @@
 //        hr_buy_hero_slot (slot, the acting hero, key, no price) and the button is off until the
 //        answer; the roster is re-read (the new empty slot offers Create hero, the next price
 //        shows); at five slots there is no offer
+//   B-11c BUY ASKS FIRST (audit 2026-11-18 A7): the first press sends nothing and asks at the server's price ("Buy the Third
+//        hero slot for 15,000 gold?", Buy for N and Cancel), Cancel takes it back, a double-click on Buy only asks, and only
+//        Buy for N sends the one hr_buy_hero_slot
 //   B-10 A SESSION THAT ENDS UNDER THE GAME (live 2026-10-20: a dead token sent 805 times):
 //        every call answers 401 and the refresh is refused -> the sign-in screen with
 //        "You were signed out. Sign in again.", no session copy left, and the dead
@@ -1307,7 +1310,25 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         await wait(page, () => document.querySelector('[data-app="buy-slot"]') && !document.querySelector('[data-app="buy-slot"]').disabled);
         const b1 = await btn();
         if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000 gp') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
+        /* B-11c BUY ASKS FIRST (audit 2026-11-18 A7: 300,000 gold went on one click; a 5,500 gp refill asks): the first press sends nothing and asks at
+           the server's price, Cancel takes the question back, a double-click on Buy asks and never buys, and only Buy for N sends */
+        const askView = () => page.evaluate(() => ({ q: (document.querySelector('.slot-offer-ask') || {}).textContent || '',
+          yes: (document.querySelector('[data-app="buy-slot-yes"]') || {}).textContent || '', no: !!document.querySelector('[data-app="buy-slot-no"]'),
+          buy: !!document.querySelector('[data-app="buy-slot"]') }));
         await page.click('[data-app="buy-slot"]');
+        await page.waitForTimeout(200);
+        const a1 = await askView();
+        if (o.bought.length !== 0 || a1.q !== 'Buy the Third hero slot for 15,000 gold?' || a1.yes !== 'Buy for 15,000 gold' || !a1.no || a1.buy)
+          fails.push('B-11c the first press on Buy ' + (o.bought.length ? 'bought (' + o.bought.length + ')' : 'reads ' + JSON.stringify(a1)));
+        if (a1.no) await page.click('[data-app="buy-slot-no"]');
+        await page.waitForTimeout(200);
+        const a2 = await askView();
+        if (o.bought.length !== 0 || a2.q || a2.yes || !a2.buy) fails.push('B-11c Cancel leaves ' + JSON.stringify(a2) + ', bought ' + o.bought.length);
+        if (a2.buy) await page.dblclick('[data-app="buy-slot"]');
+        await page.waitForTimeout(400);
+        const a3 = await askView();
+        if (o.bought.length !== 0 || a3.q !== a1.q) fails.push('B-11c a double-click on Buy ' + (o.bought.length ? 'bought (' + o.bought.length + ')' : 'reads ' + JSON.stringify(a3)));
+        if (a3.yes) await page.click('[data-app="buy-slot-yes"]');
         const b2 = await btn();
         if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
         /* The yes is on screen at once, over the list, with the button still off: "Reading your characters…" alone for 2.5 s let a player press again (board 11-04). */
@@ -1492,6 +1513,8 @@ const MUTANTS = [
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
   ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],
+  ['B-11c a hero slot buys on one click again (audit A7)', 'src/app/boot.js', "    else if (what === 'buy-slot') askSlot(true);", "    else if (what === 'buy-slot') { slotAsking = true; buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay'))); }"],
+  ['B-11c the double-click\'s second click answers the question (audit A7)', 'src/app/boot.js', "what === 'buy-slot-yes' && e.detail <= 1)", "what === 'buy-slot-yes')"],
   ['the price line sits in a column beside the press again (B-11b)', 'src/styles/app.css', '.slot-offer-pay { display: flex; flex-wrap: wrap;', '.slot-offer-pay { display: grid; grid-template-columns: minmax(0, 1fr) max-content; flex-wrap: wrap;'],
   ['the price line breaks again (B-11b)', 'src/styles/app.css', '.slot-offer-purse, .slot-offer-short { white-space: nowrap;', '.slot-offer-purse, .slot-offer-short { white-space: normal; max-width: 4em;'],
   ['the characters screen draws no hero (B-11b)', 'src/app/boot.js', "    G.drawRosterFaces(root.querySelector('.char-list'), roster)", "    Promise.resolve()"],

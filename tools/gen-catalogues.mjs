@@ -156,7 +156,13 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    one carries it whole. The 24 armor, weapon and plain-shield recipes leave hr_activities (artisan rows: the tier-2 weapons, the tier-1 and tier-2 cloth,
    the first gloves and sashes, the tier-4 hatchets and crossbow, the Ironbound, Coppercap and Mithril-Faced shields); Klappa's Club and the Steelgrate
    stay. One hr_items row is renamed (klappas_club: Klappa's Klub, Tyler 2026-11-18), its id unchanged. ORDER: after everything applied with v0.2.138; before the drop-homes bench-inputs, bench-tax and hunt-sessions files. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-06-drop-homes-items-catalogue.generated.sql');
+/* THE UNMARKED CATACOMBS' DESCENT (lane/c-catacombs, backend-architect, 2026-11-18; Tyler 2026-11-16): 2027-05-06-drop-homes-items-catalogue (applied with
+   v0.2.139) is the file before this one and this one carries it whole. Twenty new hr_items rows: the eight Catacomb keys (Waterlogged and Bone, by
+   metal; bound, value 0: every trade surface refuses them, src/data/chests.js CATACOMB_KEYS) and the twelve Catacomb armor pieces that ship now
+   (Bronze and Silver, src/data/catacomb-armor.js CATACOMB_ARMOR_SHIPPED: tradeable, each its twin's book value), plus the Hearth Cinders' line. No
+   other row moves. ORDER: the FIRST descent file, after 2027-05-07-open-halls-words-live-events-catalogue.generated.sql; before the descent's
+   hunt-sessions file (the armor's bids read these rows) and its chest catalogue (every key and piece is checked against hr_items). */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-08-catacombs-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

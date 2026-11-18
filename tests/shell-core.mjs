@@ -317,8 +317,9 @@ async function runTests(mods) {
     /* RISE (Coordinator review 2026-11-17, Hunt prep at 1518x845): a docked window rises over the bar on a short World only; a row with rise
        does whenever its content needs more than the dock leaves, and never when it fits */
     eq([WM.overBar(526, 575), WM.overBar(526, 575, true), WM.overBar(526, 500, true), WM.overBar(440, 575), WM.overBar(Infinity, 575, true)], [false, true, false, true, false], 'who rises over the bar');
-    /* + the away card and the hunt summary (UI audit 2026-11-18 #1, #2: the end card opened at 404 px of its 1,194, its numbers under the fold): each grows to its content */
-    eq(SW.filter((r) => r.rise).map((r) => r.id), ['hunt-prep', 'away', 'hunt-summary'], 'the windows that rise over the bar whenever they need it');
+    /* + the away card and the hunt summary (UI audit 2026-11-18 #1, #2: the end card opened at 404 px of its 1,194, its numbers under the fold): each grows to its content;
+       + the Burning Tower (audit 2026-11-18 A5: its column took a Before entering box, and the rules hid under its foot) */
+    eq(SW.filter((r) => r.rise).map((r) => r.id), ['tower', 'hunt-prep', 'away', 'hunt-summary'], 'the windows that rise over the bar whenever they need it');
   });
   /* With Back, ?, key and Close the band's controls leave a 380 window's title 133 px. Cinzel at .12em set "Gathering and crafting" on THREE
      lines there (v0.2.124); at .04em it takes two (measured 1280, 1440). Widening instead breaks the Party pairing (W18). Two lines, never three. */

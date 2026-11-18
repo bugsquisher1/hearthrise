@@ -103,6 +103,8 @@ export function kindWords(id) {
   if (k === 'food') return t('item.kind_food', { heals: it.heals });
   if (k === 'junk') return t('item.kind_junk');
   if (k === 'material') return t('item.kind_material');
+  /* a Rare drop kept for itself (bag-model.js kindOf: never Junk), named as the bag's chip names it */
+  if (k === 'rare' && !it.type) return t('item.kind_rare');
   return typeWord(it.type, 'item.type_item');
 }
 
@@ -307,7 +309,7 @@ function ammoUse(id, it) {
 
 /**
  * A requirement in words, from what it names and the server's number (null: not known yet):
- * "Needs Level 30 (you're 28)", "Needs Magic 20 (you have 14)". Every piece of gear names the hero's Level
+ * "Requires Level 30, now 28", "Requires Magic 20, now 14". Every piece of gear names the hero's Level
  * (gear-tiers.js LEVEL_REQ, Tyler 2026-10-24); a supply names its skill.
  */
 export function needWords(req, lv, have) {

@@ -31,6 +31,13 @@ export const HOUSE_TEMPLATES = Object.freeze([
 
 export const TROPHY_MOUNT_SPRITES = Object.freeze({ 1: 'shield_wall', 2: 'banner', 3: 'swords_wall', 4: 'trophy_wolf' });
 
+/* THE WINDOW A ROOM OPENS: a tap on one of its pieces or on its signpost (src/app/world-pane.js) opens the House screen, where rooms are
+   built and improved, unless the room is the door to a window of its own: the Garden is the account's farm beds (src/data/perks.js), so it
+   opens the Farm (audit 2026-11-18 A4: its signpost showed a hand and opened nothing). A room with no row here opens the House. */
+export const ROOM_WINDOWS = Object.freeze({ garden: 'farm' });
+/** The shell window a room's piece or signpost opens. */
+export const roomWindowOf = (room) => (Object.hasOwn(ROOM_WINDOWS, room) ? ROOM_WINDOWS[room] : 'house');
+
 export const ROOM_LAYOUTS = Object.freeze({
   home_cottage: Object.freeze({
     building: 'cottage',

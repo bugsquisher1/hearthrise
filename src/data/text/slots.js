@@ -23,6 +23,10 @@ export const SLOTS_TEXT = Object.freeze({
   short: 'Need {gold} more gold',
   buying: 'Buying…',
   buy: 'Buy a hero slot for {cost} gold',
+  /* The one question before the purchase (audit 2026-11-18 A7: it bought on one click), the stamina refill's own shape (hud.stam_ask). */
+  ask_nth: 'Buy the {nth} hero slot for {cost} gold?',
+  ask_any: 'Buy another hero slot for {cost} gold?',
+  buy_for: 'Buy for {cost} gold',
   /* A refused purchase (hr_hero_slot_buy). */
   refused_owned: 'Slot already owned',
   refused_cap: 'All hero slots owned',

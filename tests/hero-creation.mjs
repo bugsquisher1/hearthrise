@@ -127,6 +127,13 @@ export function checkClient({ cells = previewDyes, text = refusalText, shop = sh
   const said = howHtml('Hero slots: 2 (up to 4 play at once)');
   if (!/<p class="hero-how-slots">Hero slots: 2 \(up to 4 play at once\)<\/p>/.test(said)) out.push('H-C5 the server\'s slot line is not its own line: ' + JSON.stringify(said.slice(0, 300)));
   for (const p of howValidate()) out.push('H-C4 ' + p);
+  /* H-C6 (audit 2026-11-18 A14): "Holds monsters off the party Uses food" read as one run-on line: what a style does and what it uses stand apart,
+     a separator between them, read aloud as "Holds monsters off the party · Uses food" */
+  for (const r of HOW_YOU_FIGHT) {
+    const row = (new RegExp('<li data-style="' + r.id + '">(.*?)</li>').exec(how) || [])[1] || '';
+    const aloud = row.replace(/<[^>]+>/g, '').replace(/ /g, ' ').replace(/\s+/g, ' ').trim();
+    if (aloud !== r.name + ' ' + r.does + ' · ' + r.uses) out.push('H-C6 the ' + r.name + ' row reads aloud as ' + JSON.stringify(aloud));
+  }
   return out;
 }
 
@@ -241,7 +248,9 @@ const DATA_MUTANTS = {
   style_row_dropped: { why: 'the staff (Healer) row leaves the how-you-fight list', run: () => checkClient({ howHtml: () => howYouFightHtml().replace(/<li data-style="heal">.*?<\/li>/, '') }) },
   /* N8 (QA audit 2026-11-18) */
   slots_run_on: { why: 'the slot line runs on at the end of the lead with typed numbers', run: () => checkClient({ howHtml: (s) => howYouFightHtml(s).replace(/town\.<\/p>/, 'town Hero slots: 1, buy 3 more, all 4 play at once</p>') }) },
-  slots_dropped: { why: 'the server\'s slot line is not drawn', run: () => checkClient({ howHtml: () => howYouFightHtml('') }) },};
+  slots_dropped: { why: 'the server\'s slot line is not drawn', run: () => checkClient({ howHtml: () => howYouFightHtml('') }) },
+  /* A14 (audit 2026-11-18) */
+  style_uses_run_on: { why: 'a style\'s use runs on after what it does', run: () => checkClient({ howHtml: (s) => howYouFightHtml(s).replace(/<span class="hh-sep">.*?<\/span> <\/span>/g, ' ') }) },};
 
 if (isMain(import.meta.url)) {
   const sql = (await readFile(join(ROOT, 'supabase', 'migrations', MIG), 'utf8')).replace(/\r\n/g, '\n');

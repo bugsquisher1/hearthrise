@@ -54,7 +54,8 @@
 //   Tower's best floor while the server sends its section, else null), death { xp, saved } (the newest death_log row), supplies [{ item,
 //   source, count }] (this hunt's analyzer), huntMs, hpMax, presets (saved setups), landPlanted, land { ready, empty },
 //   home { owned, next }, gold, staminaMs, tally { held, paid, weight, tasks { task: { kills, target, done } }, paidTasks [task] }, sessionId (the open hunt's), and from the SHELL (the lane 1 / lane 2
-//   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids),
+//   interface, src/session/tutorial-sections.js pointerCardOf's second argument): read (Set of read card ids), hid (Set of the
+//   cards a server fact finishes that the player hid with Got it: passed by, see WHICH CARD IS UP),
 //   roster [{ slot, level, name, open, hunting }], slotsOwned, playLimit, sellable (stacks Sell all loot sells
 //   now), upgrades ([item] Equip upgrades would put on), back (the hunt the player came back to after an absence), slotCost (the next hero slot's price).
 //
@@ -347,18 +348,18 @@ export const HUNT_TUTORIAL = Object.freeze([
     'shop', { kind: 'any', of: [READ, { kind: 'armoured' }] },
     { reactive: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND, { kind: 'unarmoured' }],
       inWindow: 'Press Buy, then Leather Gloves', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
+  /* PLANT YOUR LAND, IN TOWN (audit 2026-11-18 A4: two minutes into the first hunt it said "Plant a Turnip Seed in each empty plot" with no word
+     on where the land is, and the Farm lives in the Town menu). Back from the first hunt, before the hero goes back down, the card names the way
+     there and rings it (the Town menu, then its Farm): the turnips grow while the hero hunts. Under the Thicket's floor, or back from it if not done. */
+  step('plant_land', 'Plant your land',
+    t('coach.plant_land'),
+    'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [IN_TOWN, LESSON], ring: { crop: 'turnip' }, inWindow: t('coach.plant_land_in') }),
   /* PAID, AND BACK DOWN: after "Wear what you found" and the Hearth (reactive, above), and ahead of the hunt's own lessons, which wait for the hunt.
      The invitation to close the game, at the minute the designer would have quit. */
   step('back_down', t('coach.back_down_title', RATS_WORDS), t('coach.back_down', RATS_WORDS),
     'hunt_picker', { kind: 'in_hunt', hunt: CELLAR }, { when: [IN_TOWN, UNDER_THICKET, { kind: 'tally_paid_for', task: RATS.id }],
       inWindow: t('coach.back_down_in', RATS_WORDS) }),
   /* ── B. The first hunt, the bar while it fights ────────────────────── */
-  /* In the cellar wait (designer 2026-10-24: dead minutes from minute 2 to Level 5); hr_farm_plant does not refuse a hunter. */
-  step('plant_land', 'Plant your land',
-    /* THE HOOK, SHOWN (designer 2026-11-10, lane/d-first-ten-minutes, played): the first thing a new player does while the hero fights
-       without them. The card says so first, then the job. */
-    'Plant a Turnip Seed in each empty plot',
-    'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [LESSON], ring: { crop: 'turnip' }, inWindow: 'Press Plant on each empty plot' }),
   step('bar_intro', 'Action bar',
     'Press a slot to change what it does',
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON] }),
@@ -828,7 +829,11 @@ export function validate(rows = HUNT_TUTORIAL) {
    in order that is on the hero's way, not done, and can be stated truly is the card. A step about WHERE the hero is
    (enter, ended, pull) is judged on where it has BEEN as well: going into a hunt and back out to town never moves
    the card backward (#58). A step about what the hero has DONE in town is judged on a fact that stays (Farming and
-   Cooking XP, the armor weight Tamsin asks for once, a loot rule, a saved setup). */
+   Cooking XP, the armor weight Tamsin asks for once, a loot rule, a saved setup).
+   A CARD HIDDEN WITH GOT IT HOLDS NOTHING UP (`facts.hid`, the shell's residue `coach.hid`: a card a server fact finishes, which the
+   player pressed Got it on; 2026-11-18, lane/a-first-hours: "Feed the Hearth" hidden held every card after it, the farm's included,
+   until the hero burned fuel). It is passed by like a done card, so the next card whose conditions hold is up; only a card the
+   player has seen and dismissed is passed, never one it has not. */
 
 /* The top of the band of the last ground `rows` enter: past it, those cards are behind the hero. */
 const guideCap = (rows) => Math.max(...rows.filter((r) => r.done.kind === 'enter').map((r) => HUNT_INDEX[r.done.hunt].band[1]));
@@ -852,6 +857,7 @@ export function currentCard(facts, rows = HUNT_TUTORIAL) {
   for (const r of rows) {
     if (r.done.kind === 'enter' && !r.party) openedIn = r.done.hunt;
     if (past && (!r.reactive || r.dayOne)) continue;
+    if (facts.hid instanceof Set && facts.hid.has(r.id)) continue;
     if (!onWay(r, facts, caps)) continue;
     if (judge(r.done, facts, { openedIn, id: r.id }) !== false) continue;
     if (stated(r, facts)) return r;

@@ -18,6 +18,7 @@ import { foldRows } from './grounds/shape.js?v=0.2.139';
 import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.139';
 import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.139';
 import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.139';
+import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.139';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -857,6 +858,14 @@ Object.keys(GEAR_ITEMS).forEach((id) => {
    ids only, the Hearth Chest's. */
 for (const [id, row] of Object.entries(towerWeaponItems(ITEMS))) {
   if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('tower weapon ' + id + ' is already an item');
+  ITEMS[id] = row;
+}
+
+/* THE CATACOMB ARMOR (src/data/catacomb-armor.js catacombArmorItems; Tyler 2026-11-16, the descent): each the standard helmet or boots of its
+   slot, weight and key tier as the ladder stands NOW, its own name and its one attribute. The pieces that ship now (CATACOMB_ARMOR_SHIPPED: Bronze
+   and Silver). New ids only, the Hearth Chest's Catacomb keys'. */
+for (const [id, row] of Object.entries(catacombArmorItems(ITEMS, CATACOMB_ARMOR_SHIPPED))) {
+  if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('catacomb armor ' + id + ' is already an item');
   ITEMS[id] = row;
 }
 

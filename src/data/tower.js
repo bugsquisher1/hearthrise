@@ -79,6 +79,88 @@ export function validateTower(rules, partyXp, swingMs) {
   return out;
 }
 
+/* ── THE UNMARKED CATACOMBS' DESCENT (Tyler 2026-11-16; the board's "2026-11-16 The Unmarked Catacombs descent" §2, lane/c-catacombs) ──────
+   The Burning Tower turned upside down, on the Tower's own engine: same rooms, same stair, same clocks, same free deaths. What a descent adds is
+   one row per WING, picked before Enter (a party's leader picks for the party). The numbers are the Tower's so the two read the same.
+   CATACOMB_RULES  the room, door and clock numbers every wing plays (a vault door is the Tower's landing: every 10th room). minLevel: the
+                   Tower's door Level (Tyler 2026-11-18, 2027-05-05-entry-gates.sql's evidence: the same engine and the same formula, so a
+                   Level 4 hero would out-earn hunting here exactly as it did on the Tower). ASSUMED for the descent: Tyler ruled the descent
+                   "a second door at any Level" against the 165-185 ground's band, before the Tower's door got its Level; one row to move.
+   CATACOMB_WINGS  wing     the id the door's verb is called with (hr_catacomb_start p_wing) and the key rows name
+                   hunt     the wing's hunt and ground id (`unmarked_` sorts after the Mill Cellar, as the Tower's `the_` does)
+                   name     what the player reads
+                   keeper   the vault door's Keeper: a FIXED monster (Keeper Dunn, every door), at the formula's boss role
+                   roster   the monsters a room is picked from, by weight (an id named twice as often stands about twice as often), at the
+                            roles their own pack's roster gives them (`rosterGround`, balance-sheet.js GROUND_ROSTER)
+   RUN_GROUNDS     every ground a run door opens, the Tower's included: the one table the engine (src/core/hunt/tower.js runRulesOf) and the
+                   server (hr_tower_rules, one row each, tools/gen-tower.mjs) read. `family` is the key family its doors mint (src/data/chests.js
+                   KEY_FAMILIES), `board` the board its runs rank on and `boardParty` the one a party's runs rank on (null: the same board). The
+                   Tower's board id is its mode's ('tower', 2027-04-30-tower-board.sql's rows), the Catacombs' "Catacombs, Deepest" is one board
+                   for both wings, alone and in a party (Tyler 2026-11-16: "its own" leaderboard). */
+export const CATACOMB_RULES = Object.freeze({
+  roomSize: 5,
+  landingEvery: 10,
+  floorLimitMs: 180000,
+  landingLimitMs: 600000,
+  stairMs: 4000,
+  floorTop: 300,
+  fit: 'both',
+  minLevel: 10,
+});
+
+export const CATACOMB_WINGS = Object.freeze([
+  /* the Flooded Vault's room: Leeches in the dark water, the Night Carters who sold the dead, the Paupers. A blade for the Leeches, arrows for
+     the Carters, and the Carters' Lime Sack is poison */
+  Object.freeze({ wing: 'flooded', hunt: 'unmarked_flooded_wing', name: 'Flooded Wing', keeper: 'keeper_dunn', rosterGround: 'unmarked_catacombs',
+    roster: Object.freeze({ vault_leech: 2, night_carter: 2, shrouded_pauper: 2 }) }),
+  /* the Bone Room: the ossuary's walls get up, the Paupers walk, a Night Carter now and then. A hammer, an ice slot, a tank for Bone Slide */
+  Object.freeze({ wing: 'bone', hunt: 'unmarked_bone_wing', name: 'Bone Wing', keeper: 'keeper_dunn', rosterGround: 'unmarked_catacombs',
+    roster: Object.freeze({ bone_wall: 2, shrouded_pauper: 2, night_carter: 1 }) }),
+]);
+
+const runRow = (rules, extra) => Object.freeze({ ...rules, ...extra });
+export const RUN_GROUNDS = Object.freeze({
+  [TOWER_RULES.hunt]: runRow(TOWER_RULES, { family: 'tower', wing: null, name: 'The Burning Tower', keeper: null, roster: null, rosterGround: null,
+    board: 'tower', boardParty: null }),
+  ...Object.fromEntries(CATACOMB_WINGS.map((w) => [w.hunt, runRow(CATACOMB_RULES, { hunt: w.hunt, family: 'catacomb', wing: w.wing, name: w.name,
+    keeper: w.keeper, roster: w.roster, rosterGround: w.rosterGround, board: 'catacomb', boardParty: 'catacomb_party' })])),
+});
+
+/** The run row of hunt `id` (the Tower or a Catacomb wing), or null for every other hunt. Pure. */
+export function runRulesOf(id) {
+  return typeof id === 'string' && Object.hasOwn(RUN_GROUNDS, id) ? RUN_GROUNDS[id] : null;
+}
+
+/** Every problem with the run table (beyond each row's own validateTower), as strings (empty: valid). Pure. */
+export function validateRunGrounds(runs = RUN_GROUNDS, wings = CATACOMB_WINGS) {
+  const out = [];
+  const ID = /^[a-z][a-z0-9_]{0,31}$/;
+  const wingIds = new Set();
+  for (const [key, r] of Object.entries(runs || {})) {
+    if (!r || r.hunt !== key) { out.push(key + ': its hunt is not its key'); continue; }
+    if (!ID.test(String(r.family))) out.push(key + ': family is not an id');
+    if (!ID.test(String(r.board)) || (r.boardParty !== null && (!ID.test(String(r.boardParty)) || r.boardParty === r.board))) {
+      out.push(key + ': board and boardParty are not two ids (or boardParty null)'); }
+    if (typeof r.name !== 'string' || !r.name.trim()) out.push(key + ': no name');
+    if (r.wing !== null) {
+      if (!ID.test(String(r.wing)) || wingIds.has(r.wing)) out.push(key + ': wing is not an id, or another row has it');
+      wingIds.add(r.wing);
+    }
+    /* a run ground is either the Tower's kind (rooms from the open grounds' ladder, a Keeper picked from them) or a wing's (its own roster
+       and a fixed Keeper): never half of each */
+    if ((r.roster === null) !== (r.keeper === null) || (r.roster === null) !== (r.rosterGround === null)) out.push(key + ': roster, rosterGround and keeper are not all set or all null');
+    if (r.roster !== null) {
+      const ids = Object.keys(r.roster || {});
+      if (ids.length < 2) out.push(key + ': a roster of fewer than two kinds');
+      for (const id of ids) if (!ID.test(id) || !Number.isInteger(r.roster[id]) || r.roster[id] < 1 || r.roster[id] > 9) out.push(key + ': ' + id + ' has no weight 1..9');
+      if (ids.includes(r.keeper)) out.push(key + ': its Keeper stands in its rooms too');
+    }
+  }
+  for (const w of wings || []) if (!runs[w.hunt] || runs[w.hunt].wing !== w.wing) out.push('wing ' + w.wing + ' has no run row');
+  return out;
+}
+
 /* The stair against the swing is checked where the swing is known (src/core/hunt/tower.js, at load, with COMBAT_BALANCE.tickMs). */
-const PROBLEMS = validateTower(TOWER_RULES, TOWER_PARTY_XP);
+const PROBLEMS = validateTower(TOWER_RULES, TOWER_PARTY_XP).concat(validateRunGrounds(),
+  ...Object.values(RUN_GROUNDS).map((r) => validateTower(r, TOWER_PARTY_XP).map((p) => r.hunt + ': ' + p)));
 if (PROBLEMS.length) throw new Error('src/data/tower.js does not load: ' + PROBLEMS.join('; '));

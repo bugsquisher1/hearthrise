@@ -786,6 +786,19 @@ jobs:
         run: |
           node tests/tower-board.mjs
           node tools/mutant-gate.mjs node tests/tower-board.mjs --mutate
+      # THE UNMARKED CATACOMBS' DESCENT (2027-05-08-catacombs.sql and its five catalogues; Tyler 2026-11-16, the board's "2026-11-16 The Unmarked
+      # Catacombs descent"): two wings on the Tower's engine (their rosters, Dunn at every vault door), a descent browser closed and hunt viewed
+      # landing the same (the catacomb mode, the wing's record, a Bone Key a door, no death price, coin or Bestiary, the solo board); the door
+      # (switch, wing, Level, checkpoints per wing, a replayed key); six a family a week and the held cap across the account; both families on one
+      # chest, each its warmth, the 70/30 slot lean and the worn weight; the solo and party boards and the clamp; a second apply. --mutate (13).
+      # The 24 armor rows' own rules (src/data/catacomb-armor.js: twin + one attribute, the twelve that ship are items): --mutate (29).
+      - name: Catacombs descent — wings, both paths, keys per family, the lean, two boards (13 + 29 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catacombs.mjs
+          node tools/mutant-gate.mjs node tests/catacombs.mjs --mutate
+          node tests/catacomb-armor.mjs
+          node tools/mutant-gate.mjs node tests/catacomb-armor.mjs --mutate
       # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
       # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
       # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled
@@ -7238,6 +7251,20 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-temper.mjs --selftest
           node tests/temper-buy.mjs
           node tools/mutant-gate.mjs node tests/temper-buy.mjs --mutate
+
+      # PAST DAWNSTEEL (Tyler 2026-11-14/15/16: unique gear past tier 7, the armor and weapon lines as power budgets, a small Tempering cap;
+      # designed on lane/d-armor-line-v2's chain, brought onto v0.2.139 by lane/d-late-items-rescue): each hidden sample sits under its
+      # line on every late ground (the engine's own rolls), wins somewhere and stays hidden; the unique armor bands are shut until a piece
+      # is real, and the smith's row reads the server's bands. Seconds each; the proofs plant in memory (TU7 on a copy of src/).
+      - name: Past Dawnsteel - the armor and weapon lines, the unique Tempering bands
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/armor-line.mjs
+          node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate
+          node tests/weapon-line.mjs
+          node tools/mutant-gate.mjs node tests/weapon-line.mjs --mutate
+          node tests/temper-uniques.mjs
+          node tools/mutant-gate.mjs node tests/temper-uniques.mjs --mutate
 
       # CRAFTED JEWELRY (Tyler 2026-11-05, the sample): the designer's odds and the dice, a bench watched and one with the browser closed on the
       # server's settle (no gold moves on a roll), jewelry crafted not dropped, and the Hallmark step's generated catalogue. The verb's own

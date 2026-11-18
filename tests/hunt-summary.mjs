@@ -22,6 +22,7 @@
 //   S6  a forfeited hunt (the server's `forfeit`) reads why in plain words; a plain server end keeps its own
 //   S8  a training session's card is the skill's XP, its levels and the yard's fee (the server's last stop, the tally's XP first),
 //       never Monsters / Level XP / Gold zeros; why it ended in the Training window's words; no Hunt again
+//   S9  a climb the Burning Tower spat out (a mode whose death takes nothing) reads "Spat out", never "Died", on the card and in Earlier hunts
 //   S7  an ended hunt names the tier it ran at (the server's session `tier`) on the card and in Earlier hunts; Normal and a forged tier name the ground alone
 //   A1  Hunt again sends ONE hr_hunt_enter with the same ground, set, limits and
 //       bag; a call missing its ground sends nothing
@@ -234,6 +235,16 @@ async function runTests(M) {
     ok(/^Left the hunt\. .*did not count$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
+  });
+
+  /* S9 (audit 2026-11-18 A5): the hunt history listed a Burning Tower climb as "Died", though the Tower spits you out and takes nothing. A death in a
+     mode that takes nothing for one (session-modes.js deathLossPm 0) reads as the climb's own end, in the summary and in Earlier hunts; a hunt's death keeps "Died". */
+  await t('S9 a climb the Tower spat out never reads Died; a hunt\'s death still does', () => {
+    eq(MD.endWords('died', false, null, 'Wren', null, 'the_burning_tower'), 'Spat out, no XP lost', 'a Tower death');
+    eq(MD.reasonWords({ reason: 'died', hunt: 'the_burning_tower' }, 'Wren', null), 'Spat out, no XP lost', 'the end card\'s reason');
+    eq(MD.endWords('died', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.died, 'a hunt\'s death keeps Died');
+    eq(MD.endWords('died'), MD.END_WORDS.died, 'no hunt named: Died');
+    eq(MD.endWords('floor_time', false, null, 'Wren', null, 'the_burning_tower'), MD.END_WORDS.floor_time, 'another Tower end keeps its own words');
   });
 
   await t('S7 an ended hunt names the tier it ran at, on the card and in Earlier hunts', () => {
@@ -680,6 +691,7 @@ const MUTANTS = [
   { test: 'S7', file: SUMMARIES, from: "    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,\n", to: '' },
   { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
   { test: 'S8', file: MODEL, from: "  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill });\n", to: '' },
+  { test: 'S9', file: MODEL, from: "if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return", to: "if (false) return" },
   { test: 'S8', file: MODEL, from: "fee: mine ? mine.paid : null,", to: "fee: null," },
   { test: 'S8', file: MODEL, from: "  if (train) {\n    const dur", to: "  if (false) {\n    const dur" },
   { test: 'S8', file: SUMMARIES, from: "    train: trainOf(v.train),\n", to: '' },

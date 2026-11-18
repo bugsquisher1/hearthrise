@@ -14,9 +14,9 @@ import pack_hasks_ford from './hasks_ford/pack.js?v=0.2.139';
 import pack_krells_hold from './krells_hold/pack.js?v=0.2.139';
 import pack_muster_barrows from './muster_barrows/pack.js?v=0.2.139';
 import pack_ox_road from './ox_road/pack.js?v=0.2.139';
-import pack_pauper_vaults from './pauper_vaults/pack.js?v=0.2.139';
 import pack_pyre_field from './pyre_field/pack.js?v=0.2.139';
 import pack_the_slake from './the_slake/pack.js?v=0.2.139';
+import pack_unmarked_catacombs from './unmarked_catacombs/pack.js?v=0.2.139';
 import pack_wyvern_roost from './wyvern_roost/pack.js?v=0.2.139';
 
 export const GROUND_PACKS = Object.freeze([
@@ -26,8 +26,8 @@ export const GROUND_PACKS = Object.freeze([
   pack_krells_hold,
   pack_muster_barrows,
   pack_ox_road,
-  pack_pauper_vaults,
   pack_pyre_field,
   pack_the_slake,
+  pack_unmarked_catacombs,
   pack_wyvern_roost,
 ]);

@@ -60,13 +60,13 @@
 //
 // PURE ESM DATA. Imports only the tempering table and the weapon families. Node, Deno and the browser.
 // ════════════════════════════════════════════════════════════════════════
-import { TEMPER_MATERIALS } from './temper.js?v=0.2.137';
-import { WEAPON_FAMILIES } from './gear-tiers.js?v=0.2.137';
-import { TOWER_WEAPONS } from './tower-weapons.js?v=0.2.137';
-import { SKILL_PLUS_FIELDS } from '../core/combat.js?v=0.2.137';
-import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS } from './tower.js?v=0.2.137';
-import { ARMOUR_WEIGHT } from './core-model.js?v=0.2.137';
-import { CATACOMB_ARMOR_SHIPPED, CATACOMB_TIERS, WING_LEAN } from './catacomb-armor.js?v=0.2.137';
+import { TEMPER_MATERIALS } from './temper.js?v=0.2.139';
+import { WEAPON_FAMILIES } from './gear-tiers.js?v=0.2.139';
+import { TOWER_WEAPONS } from './tower-weapons.js?v=0.2.139';
+import { SKILL_PLUS_FIELDS } from '../core/combat.js?v=0.2.139';
+import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS } from './tower.js?v=0.2.139';
+import { ARMOUR_WEIGHT } from './core-model.js?v=0.2.139';
+import { CATACOMB_ARMOR_SHIPPED, CATACOMB_TIERS, WING_LEAN } from './catacomb-armor.js?v=0.2.139';
 
 /* The one chest today, on the Great Hearth's ledge in Havora (world/stations.js `hearth`). A later chest is a row. */
 export const CHESTS = Object.freeze({

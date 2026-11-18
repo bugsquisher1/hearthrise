@@ -12,12 +12,12 @@
 // could not be read): the type filters fold under one press, which says how many
 // are off, and this tab shows no input (hunt.css).
 // ════════════════════════════════════════════════════════════════════════
-import { LOG_TYPES } from '../../data/combat-text.js?v=0.2.137';
-import { logFor } from '../../hunt-view/combat-log.js?v=0.2.137';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.137';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
+import { LOG_TYPES } from '../../data/combat-text.js?v=0.2.139';
+import { logFor } from '../../hunt-view/combat-log.js?v=0.2.139';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.139';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
 
 /* A LOG AT ITS FOOT STAYS AT ITS FOOT when its box changes size (2026-10-24: Chat opened at 1440x900 on its
    oldest lines — the lines were written before the window had its height, then the dock capped it). Only the

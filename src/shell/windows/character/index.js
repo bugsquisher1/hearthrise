@@ -20,18 +20,18 @@
 // While open, a stale sheet is asked for once per record version. The answer
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.137';
-import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.137';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.137';
-import { attr, cls, prop } from '../../../render/paint.js?v=0.2.137';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.137';
-import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.137';
-import { scratchOf } from './state.js?v=0.2.137';
-import { sheetHtml, patchSheet } from './sheet.js?v=0.2.137';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.137';
-import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.137';
-import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.137';
-import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js?v=0.2.137';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.139';
+import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.139';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.139';
+import { attr, cls, prop } from '../../../render/paint.js?v=0.2.139';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.139';
+import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.139';
+import { scratchOf } from './state.js?v=0.2.139';
+import { sheetHtml, patchSheet } from './sheet.js?v=0.2.139';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.139';
+import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.139';
+import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.139';
+import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js?v=0.2.139';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['faction', FACTION_TAB], ['deaths', 'Deaths']]);
 /* The portrait and the wardrobe draw the FIGURE at art size; character.css sets them 2 whole device px an art px (--art-px). */
@@ -86,6 +86,9 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-cs');
+  /* opened on a tab (an alert's "Open Titles", ../../widgets/alerts.js): the wish is taken once */
+  const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('character') : null;
+  if (want && TABS.some(([id]) => id === want)) { sc.tab = want; sc.msg = ''; }
   wantArt(ctx.doc);
   /* The Faction tab is the server's to offer (its switch): hidden, and left for the sheet if it was open, while the section is absent. */
   const fx = factionShown(cs);

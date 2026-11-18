@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.137';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.139';
 
 export const REFUSAL_FALLBACK = 'Didn\'t go through, nothing changed';
 
@@ -219,6 +219,7 @@ export const REFUSAL_WORDS = Object.freeze({
   network: 'No connection, nothing changed',
   timeout: 'No answer from the server',
   busy: 'Still saving, try again',
+  count_stale: 'Online count not ready',
   town_full: 'No free spot, try again',
   no_token: 'Signed out, sign in again',
   not_signed_in: 'Signed out, sign in again',
@@ -370,7 +371,7 @@ export const REFUSAL_WORDS = Object.freeze({
   /* The Tower's Level (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the refusal carries need, have (and who for a seat); the window says the numbers. */
   tower_level: 'Level too low for the Tower',
   tower_party_level: 'Party member\'s Level too low for the Tower',
-  /* The Unmarked Catacombs' descent (2027-05-06-catacombs.sql: hr_catacomb_start, the wing row's Level). Drafts for the Catacombs tab's lane. */
+  /* The Unmarked Catacombs' descent (2027-05-08-catacombs.sql: hr_catacomb_start, the wing row's Level). Drafts for the Catacombs tab's lane. */
   catacomb_level: 'Level too low for the Catacombs',
   catacomb_party_level: 'Party member\'s Level too low for the Catacombs',
   bad_wing: 'Unknown wing',

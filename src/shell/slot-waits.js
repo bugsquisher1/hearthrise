@@ -16,16 +16,17 @@
 // tooltip and on Configure action's first line, or every food slot on the bar would look broken at full health.
 // Display only: an answer is worth one frame, and nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS } from '../data/condition-metrics.js?v=0.2.137';
-import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.137';
-import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.137';
-import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.137';
-import { conditionWords } from './bar-draft.js?v=0.2.137';
-import { reasonOf, holdingReason, aloneReason, aloneNote } from './action-facts.js?v=0.2.137';
-import { carryRows } from './carry-in.js?v=0.2.137';
-import { weakFoodWords } from './hunt-go.js?v=0.2.137';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.137';
-import { heroVitalsOf } from '../session/character-sections.js?v=0.2.137';
+import { METRICS } from '../data/condition-metrics.js?v=0.2.139';
+import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.139';
+import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.139';
+import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.139';
+import { conditionWords } from './bar-draft.js?v=0.2.139';
+import { reasonOf, holdingReason, aloneReason, aloneNote } from './action-facts.js?v=0.2.139';
+import { carryRows } from './carry-in.js?v=0.2.139';
+import { weakFoodOf, weakFoodWords } from './weak-food.js?v=0.2.139';
+import { storeFloorFor } from '../data/supplies.js?v=0.2.139';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
+import { heroVitalsOf } from '../session/character-sections.js?v=0.2.139';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 /* The tests that mark a slot, and the glyph each marks it with. */
@@ -136,13 +137,14 @@ export function slotWhy(sl, f) {
 
 /* THE FOOD SLOT SAYS ITS FOOD IS TOO WEAK FOR THIS GROUND (designer 2026-11-15, lane/d-audit-balance-2, the audit's F14: a Level 56 hero died
    twice in the Barrows on the start bar's Salted Shrimp, and the slot looked as it always had). A store food under the ground's measured
-   floor (supplies.js storeFloorFor), on the ground the hero hunts now, with no Healer: a marked wait on the slot and the Hunts page's own
-   sentence in its hover. The slot still fires; nothing is struck. It outranks a resting reason ("your HP is above 60%"), which is words
+   floor (supplies.js storeFloorFor), on the ground the hero hunts now, with no Healer: a marked wait on the slot and the one rule's
+   sentence in its hover (weak-food.js, the Hunts page's own words less the slot number: it is the slot). The slot still fires; nothing is struck. It outranks a resting reason ("your HP is above 60%"), which is words
    only, and never a strike or a real wait. */
 function weakFood(sl, f) {
   const a = sl && !sl.empty ? sl.action : null;
   const c = a && a.type === 'consume' ? CONSUMABLES[a.id] : null;
   if (!c || c.kind !== 'food' || c.source !== 'store' || !f.ground || f.healed) return null;
-  const words = weakFoodWords('bar', f.set, f.ground, f.level, f.hpMax, a.id);
+  const floor = storeFloorFor(f.ground, Number.isInteger(f.level) ? f.level : null);
+  const words = weakFoodWords('bar', weakFoodOf(f.set, floor, a.id), f.hpMax);
   return words ? { code: 'food_weak', text: words, glyph: 'uiWarn', strike: false } : null;
 }

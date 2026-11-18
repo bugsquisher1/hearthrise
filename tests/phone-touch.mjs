@@ -567,7 +567,7 @@ function longCoach(env) {
 }
 const COACH = `(() => { const p = document.querySelector('.hs-widget .hs-pointer:not(.is-min)'); if (!p) return null;
   const t = p.querySelector('.hs-coach-text'), dash = p.querySelector('.hs-coach-min');
-  return { id: p.getAttribute('data-tutorial'), card: window.__r(p), hub: window.__r('.hb-bar'), chars: (p.textContent || '').length, maxH: getComputedStyle(p).maxHeight,
+  return { id: p.getAttribute('data-tutorial'), card: window.__r(p), hub: window.__r('.hb-bar'), chars: (p.textContent || '').length, maxH: getComputedStyle(p).maxHeight, coachH: getComputedStyle(p).getPropertyValue('--coach-h'),
     dash: window.__onScreen(window.__r(dash)) && window.__hits(dash), text: t && window.__r(t), top: t ? t.scrollTop : 0, end: t ? t.scrollHeight - t.clientHeight : 0,
     lines: t ? t.clientHeight / parseFloat(getComputedStyle(t).lineHeight) : 0 }; })()`;
 const coachState = (page) => page.evaluate((src) => (0, eval)(src), COACH);
@@ -578,9 +578,13 @@ async function coachFits(page, tag, fails, phone) {
   if (!phone) {
     /* THE DESKTOP'S HUNT CARD STANDS IN THE LEFT COLUMN (hud-room.js dockCoach; audit 2026-11-15 F1: under the hunt bar it lay on the hero): whole where the column has the room,
        else it ends above the action bar with its fold in reach and its words scroll to their end under a wheel. The town's card is never capped. */
-    if (!/hunt/.test(tag)) { if (c.maxH !== 'none' || c.end > 0) fails.push('PH-6 [' + tag + '] the desktop coach is capped (' + c.maxH + ', ' + c.end + ' px to scroll)'); return; }
+    /* lane/b-ui-wave2 (set/v0.2.139) docked the TOWN card too, under the Tally in the right column (max-height --coach-h), so the town's card is
+       judged as the hunt's: on screen above the action bar, its fold in reach, its words scrolled to their end. (Was: "the town's card is never capped".) */
     if (!c.hub || !window_onScreen(c.card, page.viewportSize()) || c.card.bottom > c.hub.top + 0.5) { fails.push('PH-6 [' + tag + '] the desktop coach card runs over the action bar or off the screen: ' + JSON.stringify(c.card)); return; }
     if (!c.dash) { fails.push('PH-6 [' + tag + '] the fold of the desktop coach is off screen or covered'); return; }
+    /* whole where the column has the room: a desktop card's words scroll only once it has filled its room down to the action bar */
+    { const cap = parseFloat(c.maxH), room = parseFloat(c.coachH);
+      if (c.end > 0 && room > 0 && !(cap >= room - 2)) { fails.push('PH-6 [' + tag + '] the desktop coach scrolls ' + c.end + ' px capped at ' + c.maxH + ' inside a ' + Math.round(room) + ' px room'); return; } }
     await page.mouse.move(c.text.left + c.text.width / 2, c.text.top + c.text.height / 2);
     let d = c;
     for (let i = 0; i < 20 && d.top < d.end - 1; i++) { await page.mouse.wheel(0, 120); await page.waitForTimeout(40); d = await coachState(page); }
@@ -2197,7 +2201,7 @@ const MUTANTS = [
   ['PH-30 the name reads Pre...', 'src/styles/hunt.css', '  .hb-set .hs-name-t { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }\n', ''],
   ['PH-32 the hall\'s door stands under what wins, a screen below its head', 'src/shell/windows/boss-hall-pane.js', '\'<p class="hw-call-line"></p><p class="hw-before-line is-short hw-hall-food" hidden></p>\'', '\'<p class="hw-call-line"></p><p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips"></ul><p class="hw-before-line is-short hw-hall-food" hidden></p>\''],
   ['PH-31 the form\'s words stay after Create account', 'src/styles/app.css', '.auth-card.is-sent .auth-lead { display: none; }\n', ''],
-  ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-pointer:not(.is-min) { padding-right: 34px; }', '.hs-pointer:not(.is-min) { padding-right: 34px; max-height: 200px; overflow-y: auto; }'],
+  ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; box-sizing: border-box; max-height: var(--coach-h); }', '.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; box-sizing: border-box; max-height: 200px; }'],
   ['PH-33 the bar keeps its full width beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }\n', ''],
   ['PH-33 the hub and the fight panel stay beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }\n', ''],
   ['PH-33 the widget keeps its 320 px floor beside a sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0; }\n', ''],

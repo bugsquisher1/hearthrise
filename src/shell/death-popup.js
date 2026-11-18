@@ -18,20 +18,20 @@
 // alert centre (alerts.js) reads the same id, so a seen death never comes back
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.137';
-import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.137';
-import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.137';
-import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.137';
-import { huntName } from '../session/party-sections.js?v=0.2.137';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.137';
-import { MONSTERS } from '../data/monsters.js?v=0.2.137';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
-import { whole } from '../render/format.js?v=0.2.137';
-import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.137';
-import { monsterName } from './widgets/bits.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.139';
+import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.139';
+import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.139';
+import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.139';
+import { huntName } from '../session/party-sections.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.139';
+import { MONSTERS } from '../data/monsters.js?v=0.2.139';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.139';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.139';
+import { whole } from '../render/format.js?v=0.2.139';
+import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.139';
+import { monsterName } from './widgets/bits.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -122,11 +122,15 @@ function savedWords(row) {
 
 /**
  * The popup's words for one character's death (pure; every number is the server's row).
- * @returns {{title: string, killed: string, what: string, why: string, lost: string, level: string, saved: string, town: string}}
+ * `bless`: the press to the Shop's Services tab. "Bless again" when this death used Blessings up (the row's saving or its count, both its
+ * ledger row's), so it never reads as if the hero had none (full-game audit 2026-11-18 A3: all three fired and saved 26,130 XP, and the
+ * next 12 h ran unblessed with nothing said).
+ * @returns {{title: string, killed: string, what: string, why: string, lost: string, level: string, saved: string, town: string, bless: string}}
  */
 export function deathWords(cs, d) {
   const who = nameOf(cs) || t('away.your_hero');
   const row = d.row;
+  const used = (!!row.saved && typeof row.saved === 'object') || (Number.isSafeInteger(row.blessings) && row.blessings > 0);
   const story = summariesOf(cs).find((s) => s.id === d.session);
   return {
     title: row.hunt ? t('death.title_in', { name: who, ground: huntName(row.hunt) }) : t('death.title', { name: who }),
@@ -143,6 +147,7 @@ export function deathWords(cs, d) {
       : row.saved === null ? t('death.no_blessing', { free: freeWords(cs) })
       : savedWords(row),
     town: t('death.town', { name: who }),
+    bless: t(used ? 'death.bless_again' : 'death.bless'),
   };
 }
 

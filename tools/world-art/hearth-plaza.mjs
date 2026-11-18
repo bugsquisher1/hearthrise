@@ -50,10 +50,6 @@ const KERB_IN = RING - 15;
 const HEARTH_COURSES = 2;
 /* the Hearth's front row in the paving's px (footprint plan y45-48 = local tiles 9-12): its art covers everything north of it */
 const HEARTH_FRONT = 416;
-/* the Hearth's wing ends in the paving's px (the Hearth's frame px + (192, 3): its frame's top-left is plan px (3584, 1155), the paving's
-   (3392, 1152)): the end's outer column, which way the paving lies from it, the first row of wall under the roof's end, the band's width */
-const WING_ENDS = Object.freeze([Object.freeze({ x: 191, dir: -1, top: 296, width: 6, seed: 211, moss: true }),
-  Object.freeze({ x: 544, dir: 1, top: 300, width: 10, seed: 223, moss: false })]);
 /* the square's edge band (the old kerbstone strip) and the narrow kerb inside it */
 const BAND = 32, BAND_KERB = 4;
 
@@ -304,29 +300,6 @@ export function hearthPlaza(base, setts) {
     const k = Math.pow(fall, 1.6) * (0.45 + 0.55 * noise(x, y, 7, 53));
     if (hash2(x, y, 57) < k * 0.7 && SOOT[c]) put(data, p, SOOT[c]);
     else if (owner[i] >= 0 && hash2(x, y, 59) < 0.02 * fall) put(data, p, ASH);
-  }
-  /* 9. THE WING ENDS' FOOT (lane/fix138-hearth-chest-big, Tyler 2026-11-18: "blend it into the ground a bit better"): the redrawn Hearth's
-     ragged wing ends stand on a near-vertical line, so the paving takes them in: a grained band of soot-dark stone hugging each end (the
-     east one wider, the end in the light's shadow, lit from the upper left), stone chips knocked off the end lying in it, thickest at
-     the foot, and moss and weeds on the west where the ivy comes down. Never one side's mirror: each its own seed and widths. */
-  for (const e of WING_ENDS) {
-    for (let y = e.top; y < HEARTH_FRONT; y++) {
-      const low = soft(y, e.top, HEARTH_FRONT);
-      const reach = e.width * (0.55 + 0.45 * noise(e.x, y, 9, e.seed)) * (0.6 + 0.6 * low);
-      for (let d = 0; d < reach + 4; d++) {
-        const x = e.x + e.dir * d;
-        if (x < 0 || x >= W) continue;
-        const i = y * W + x, p = i * 4, c = hexAt(data, p);
-        const k = Math.max(0, 1 - d / reach) * (0.5 + 0.5 * noise(x, y, 5, e.seed + 1));
-        if (hash2(x, y, e.seed + 2) < k * 0.85 && SOOT[c]) put(data, p, SOOT[c]);
-        /* a chip: two or three px of the Hearth's stone, its lit top-left, a dark px under it */
-        if (d > 0 && hash2(x, y, e.seed + 3) < 0.035 * (0.3 + low) * Math.max(0, 1 - d / (reach + 4))) {
-          put(data, p, '#8a867d');
-          if (x - e.dir >= 0 && hash2(x, y, e.seed + 4) < 0.6) put(data, p - e.dir * 4, '#6a6865');
-          if (y + 1 < H) put(data, p + W * 4, '#2f2723');
-        } else if (e.moss && d < reach && hash2(x, y, e.seed + 5) < 0.05 * k) put(data, p, hash2(x, y, e.seed + 6) < 0.5 ? '#4a5a2a' : '#6b7a38');
-      }
-    }
   }
   return img;
 }

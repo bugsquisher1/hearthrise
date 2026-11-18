@@ -5,6 +5,48 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.139 — 2026-11-18 (Drops, Returns and the Sewer)
+
+**Every weapon drops.** Every weapon type and shields now drop at every tier, so your next weapon comes from hunting. Armor, weapon and shield recipes that duplicated drops are gone. A few starter gloves and belts are now Thicket Rares. Klappa's Club is now Klappa's Klub.
+
+**Coming back.** The away card no longer disappears when a hunt rolls into yard training. It tells you how the hunt went, any death and what your Blessings saved, then that the yard took over. Gold on the card matches your purse after supplies. The yard card shows the skill levels you gained. Old cards stop coming back. A death card offers Bless again. Fueling the Hearth and earning a title now show a notice.
+
+**The Sewer from Level 5.** A party of four now does best in the Sewer from Level 5. The party window's estimate reads your leader's tier, and the Hunts window only recommends a ground for a party where a party gains. Sewer coin per kill is a little lower.
+
+**Hunt prep.** Every ground card warns when your bar food is too weak and names the slot. Saving in Hunt prep keeps the bar you set. The Next upgrade line never offers armor of the wrong weight and says where your next piece comes from.
+
+**Dawnsteel Tempering.** A Tempering ladder for Dawnsteel gear, Levels 88 to 110.
+
+**Players online.** The online count includes everyone still hunting on the server. Hover it to see what people are doing.
+
+**Windows.** Bench recipes compare with what you wear and show the fee for the whole batch. The bag has one footer line and shows empty spaces. The Book's ground pages show their monsters and drops, and the Chronicle has a page list. The hunt summary during a hunt shows the current hunt.
+
+**Havora.** The Great Hearth's wings end in clean stone. The Hearth Chest glows green only at its locks, and a lock flashes gold when a key turns.
+
+## v0.2.138 — 2026-11-18 (The Great Hearth)
+
+**The Great Hearth.** Havora's Hearth is rebuilt. A red banner with the H hangs from the chimney, the town crest is carved into the stone, and the fire is bigger.
+
+**The Hearth Chest.** The chest now sits on the Hearth's dais. It glows green, dark smoke leaks out of it, and every so often the lid jumps.
+
+**Green fire.** When someone opens the Hearth Chest, the fire turns green for a few seconds with dark smoke. Fuel and powders color the smoke too. When people use the Hearth at the same time, an opened chest shows first, then fuel, then powder, and nobody loses what they paid for.
+
+**The Tower.** Requires Level 10. The window shows which party members are under it.
+
+**Boss call-outs.** Calling out a boss requires 10 wins against it on its normal hunt. The window shows your count, like "Rat King wins: 2/10".
+
+**Hunt results.** The end-of-hunt card shows your results first: Level, Level XP, gold and kills, then the loot. Coming back after time away, one card shows each hero's results, best find and a Hunt again button.
+
+**Character windows.** Bigger hero on the Character sheet with a bar for each skill. Outfits show twice as big. Character select shows your hero in its colors.
+
+**Configure.** The action list has more room, nothing wraps, and a locked action says what it needs.
+
+**Bag.** Hearth fuel buttons say Burn and Burn all.
+
+**Wording.** Weapon lists say "Dual axes". A hunting ground's monster list is headed "Enemies".
+
+**Fixes.** Every drop shows on the end card. Confirm boxes stay on screen. Name tags no longer cover the guide. The away card counts long absences in days. Entering a hunt from a window's link closes that window. Big counts on phones read like "1.4k".
+
 ## v0.2.137 — 2026-11-17 (Setups on the Go)
 
 **Switch setups mid-hunt.** Press Use on another setup during a hunt to swap to its bar. Your gear stays on. Works for setups that use the weapon you wear.

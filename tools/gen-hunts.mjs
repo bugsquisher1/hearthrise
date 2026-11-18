@@ -55,9 +55,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    the assembled branch): 2027-04-27-march-folded-hunts-catalogue is the file before this one and this one carries it whole, the March packs folded in. It
    collapses 2027-04-24-tower-climb-hunts-catalogue (STAGED, never applied, now deleted): the Tower's one hr_hunts row joins here, and the file still
    refuses to land before 2027-04-24-tower-climb.sql's hr_hunt_admit sends the Tower to its one door. ORDER: right after 2027-04-24-tower-climb.sql. */
-/* 2027-05-02-tower-hunts-catalogue applied with v0.2.135 (history). lane/c-catacombs (2026-11-18) moved it here: the descent's two wings join hr_hunts
-   (hunts.js TOWER_HUNTS, the run hunts) once their one door stands. */
-export const OUT_NAME = '2027-05-06-catacombs-hunts-catalogue.generated.sql';
+/* 2027-05-02-tower-hunts-catalogue is APPLIED history (v0.2.135). THE SEWER FROM LEVEL 5 (lane/d-party-pace, designer; Tyler 2026-11-18 "Yes, open at 5"): a four
+   at Levels 5-7 in the Sewer earns about 1.6x the same heroes alone in the Thicket with no death (the board's "2026-11-18 Party pace"), so its band is 5-25.
+   One hr_hunts row moves (millrace_sewer band_min 8 -> 5, hr_hunt_below_range's warning); no spawn row moves. ORDER: after everything applied with v0.2.138. */
+/* 2027-05-06-sewer-from-five-hunts-catalogue is APPLIED history (v0.2.139). lane/c-catacombs (2026-11-18) moved it here: the descent's two wings join
+   hr_hunts (hunts.js TOWER_HUNTS, the run hunts) once their one door stands, the Sewer's band 5-25 carried. */
+export const OUT_NAME = '2027-05-08-catacombs-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -118,7 +121,7 @@ begin
   if strpos(coalesce((select prosrc from pg_proc where oid = to_regprocedure('public.hr_hunt_admit(uuid,integer,text)')), ''), 'tower_only') = 0
      or (select count(*) from public.hr_tower_rules r where r.hunt_id = any (array[${towers.join(', ')}]::text[])) <> ${towers.length}
      or (to_regprocedure('public.hr_catacomb_start(integer,text,integer,uuid)') is null and exists (select 1 from public.hr_tower_rules r where r.wing is not null)) then
-    raise exception 'PRECONDITION: apply 2027-04-24-tower-climb.sql (the Tower) and 2027-05-06-catacombs.sql (the Catacombs'' wings) first: a run ground joins hr_hunts only once hr_hunt_admit sends it to its one door and that door stands';
+    raise exception 'PRECONDITION: apply 2027-04-24-tower-climb.sql (the Tower) and 2027-05-08-catacombs.sql (the Catacombs'' wings) first: a run ground joins hr_hunts only once hr_hunt_admit sends it to its one door and that door stands';
   end if;
 end $$;
 
@@ -141,7 +144,7 @@ end $$;
 -- src/data/hunts.js). Idempotent: delete+insert inside the migration.
 -- THE BURNING TOWER (lane/c-tower-climb, 2026-11-15): its hunt joins with no spawn row, and only once its one door stands (the check below).
 -- THE UNMARKED CATACOMBS' WINGS (lane/c-catacombs, 2026-11-18): the descent's two run hunts join the same way, once hr_catacomb_start stands.
--- STATUS: STAGED, NOT APPLIED. ORDER: right AFTER 2027-05-06-catacombs.sql, the last of the lane's files.
+-- STATUS: STAGED, NOT APPLIED. ORDER: right AFTER 2027-05-08-catacombs.sql, the last of the lane's files.
 -- ════════════════════════════════════════════════════════════════════════
 
 ${doorFirst}create table if not exists public.hr_hunts (

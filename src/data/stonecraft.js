@@ -17,9 +17,8 @@
 // own essence, cuts its own blanks, and the Local Shop also stocks Blank Runes
 // (above book value, so there is no vendor arbitrage).
 //
-// E1, the per-swing ammo spend, LANDED 2026-08-31 — `simulateTick` charges
-// `spendForSwings` every swing, so runes burn at 1/cast and whetstones at
-// 0.02/swing on both the live and the away path.
+// The hunt engine spends them: runes burn at 1/cast and whetstones at
+// 0.02/swing (src/core/hunt/abilities.js, src/core/member.js).
 // ══════════════════════════════════════════════════════════════════════════
 // ══════════════════════════════════════════════════════════════════════════
 // WHY THE BATCHES ARE ~50 AND NOT ~500 — THE CLAMP IS A DESIGN INPUT
@@ -61,7 +60,7 @@
 // be removed.
 // ══════════════════════════════════════════════════════════════════════════
 
-import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.137';
+import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.139';
 
 /* ── R7: ONE STAT CURVE ACROSS THE AMMO LADDERS ───────────────────────
    `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows and whetstones

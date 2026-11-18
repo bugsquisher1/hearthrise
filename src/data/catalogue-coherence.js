@@ -29,28 +29,28 @@
 // PURE ESM. No DOM. Imports cleanly in Node, Deno and the browser.
 // ============================================================
 
-import { ITEMS } from './items.js?v=0.2.137';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.137';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.137';
-import { SKILLS_DEF } from './skills.js?v=0.2.137';
-import { SHOP_OFFERS } from './shops.js?v=0.2.137';
-import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.137';
-import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.137';
-import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.137';
-import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.137';
-import { EFFECT_KINDS } from './item-effects.js?v=0.2.137';
-import { MONSTERS } from './monsters.js?v=0.2.137';
-import { NAMED_FUELS } from './hearth.js?v=0.2.137';
-import { TEMPER_OFFERS } from './temper.js?v=0.2.137';
-import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.137';
-import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GROUNDS } from './hunt-grounds.js?v=0.2.137';
-import { BOSS_CALLS } from './boss-calls.js?v=0.2.137';
-import { HUNT_INDEX } from './hunts.js?v=0.2.137';
-import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.137';
-import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js?v=0.2.137';
+import { ITEMS } from './items.js?v=0.2.139';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.139';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.139';
+import { SKILLS_DEF } from './skills.js?v=0.2.139';
+import { SHOP_OFFERS } from './shops.js?v=0.2.139';
+import { SHOP_LISTED_OFFER_IDS } from './supply-basics.js?v=0.2.139';
+import { START_INVENTORY, START_EQUIPMENT } from './start-kit.js?v=0.2.139';
+import { PREMIUM_LOGIN_REWARD } from './premium.js?v=0.2.139';
+import { HEARTHFIND_ITEMS, HEARTHFIND_TABLE } from './hearthfind.js?v=0.2.139';
+import { EFFECT_KINDS } from './item-effects.js?v=0.2.139';
+import { MONSTERS } from './monsters.js?v=0.2.139';
+import { NAMED_FUELS } from './hearth.js?v=0.2.139';
+import { TEMPER_OFFERS } from './temper.js?v=0.2.139';
+import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.139';
+import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GROUNDS } from './hunt-grounds.js?v=0.2.139';
+import { BOSS_CALLS } from './boss-calls.js?v=0.2.139';
+import { HUNT_INDEX } from './hunts.js?v=0.2.139';
+import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.139';
+import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js?v=0.2.139';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
-} from './item-authority.js?v=0.2.137';
+} from './item-authority.js?v=0.2.139';
 
 /* The data identities this module reads, re-exported so a Node guard can mutate
    the SAME objects (a bare import without the ?v= query is a second module

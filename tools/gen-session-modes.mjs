@@ -39,7 +39,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    (2027-04-24-tower-climb.sql) reads checkpoint_every and so must come after it. */
 /* 2027-04-24-tower-climb-session-modes-catalogue applied with v0.2.135 (history). lane/c-catacombs (2026-11-18) moved it here: the `catacomb` mode
    and the Unmarked Catacombs' two wings naming it. */
-export const OUT_NAME = '2027-05-06-catacombs-session-modes-catalogue.generated.sql';
+export const OUT_NAME = '2027-05-08-catacombs-session-modes-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* Every ground a hunt can be entered on: the open grounds, the called rooms, the open keyed halls, the training grounds and the Tower. */
@@ -81,8 +81,8 @@ export function build(input) {
 --   game mode like the Burning Tower"). A FORWARD FILE: 2027-04-24-tower-climb-session-modes-catalogue (applied with v0.2.135) whole, plus the
 --   \`catacomb\` mode (a copy of \`tower\`: no death loss, Blessings kept, no coin, drops or Bestiary, stamina drains, 375 permille XP, a checkpoint
 --   every vault door) and the two wings naming it. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit).
---   ORDER: after 2027-05-06-catacombs-hunt-sessions-catalogue.generated.sql (the wings' grounds must be served), before
---   2027-05-06-catacombs-tower-catalogue.generated.sql and 2027-05-06-catacombs.sql (its door reads checkpoint_every). No function body; no
+--   ORDER: after 2027-05-08-catacombs-hunt-sessions-catalogue.generated.sql (the wings' grounds must be served), before
+--   2027-05-08-catacombs-tower-catalogue.generated.sql and 2027-05-08-catacombs.sql (its door reads checkpoint_every). No function body; no
 --   instance plays the new mode until that door opens one, behind its switch.
 -- A row moves no value. hr_session_modes is upserted (an instance's frozen mode points at it: a mode in use refuses to go);
 -- hr_ground_session_modes is rewritten whole: one row for each open ground that names a mode, today the Burning Tower's (every other

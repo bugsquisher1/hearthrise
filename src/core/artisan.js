@@ -26,8 +26,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { advanceToolCarry } from './tools.js?v=0.2.137';
-import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.2.137';
+import { advanceToolCarry } from './tools.js?v=0.2.139';
+import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.2.139';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in
@@ -108,10 +108,6 @@ export function missingInput(recipe, inventory) {
   const inv = inventory || {};
   for (const id in inp) { if ((inv[id] || 0) < inp[id]) return id; }
   return null;
-}
-
-export function hasInputs(recipe, inventory) {
-  return missingInput(recipe, inventory) === null;
 }
 
 export function gateOk(recipe, unlockedRecipes) {

@@ -45,7 +45,7 @@
 // later roll. That is what lets the away parity test compare byte for byte.
 // ============================================================
 
-import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=0.2.137';
+import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js?v=0.2.139';
 
 export { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS };
 
@@ -83,18 +83,8 @@ export const CASTLE_TIER = 5;
    src/features/power-budget.js. The numbers live HERE now because the server
    has no wrapper chain to install a fuse at the end of: `makeBonus` below is
    the whole stack it will ever see, so the clamp has to be inside it.
-
-   ⚠ src/features/power-budget.js still declares its own three literals. It is
-     a classic-script IIFE that reads them at parse time, before core-bridge's
-     deferred module has published HearthriseCore, so it cannot import them
-     without a boot-order assumption — and a boot-order assumption is exactly
-     the escaped-fuse failure that file was written to end. The two copies are
-     pinned equal by a smoke assertion (B349-4), the same remedy that keeps
-     KITCHEN_NO_BURN and the ROOMS Kitchen rungs honest.
    ══════════════════════════════════════════════════════════════════════════ */
 export const PERMANENT_CAP = 0.20;
-export const TEMPORARY_CAP = 0.15;
-export const TOTAL_CAP = 0.30;
 
 /* The nine keys the budget governs — every one multiplies a RATE.
    Everything else a rung can pay is deliberately outside it:

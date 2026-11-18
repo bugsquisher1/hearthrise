@@ -327,7 +327,8 @@ async function arms(db, tick, setActivity, opts) {
   /* ── T-WORDS ── */
   if (opts && opts.fee) {
     const F = opts.fee;
-    const hat = recipeMaking('smithing', 'iron_hatchets');
+    /* a forged piece from Iron Bars (the Iron Hatchets until lane/d-drop-homes cut the weapon recipes, 2026-11-18: the Iron Axe, a tool) */
+    const hat = recipeMaking('smithing', 'iron_axe');
     const cs = (purse, keep, bag) => ({ read: (k) => (k === 'bench_tax' ? { rooms: { smithing: { permille: 150, room: 'forge', free: false } }, fees: { [hat.id]: 9750, [IRON.id]: 900, [COPPER.id + '_x']: 3000 }, carry_mg: 0, keep, run: { r: IRON.id, s: '2026-11-01T00:00:00Z', c: 4, g: 3, e: 'gold', at: '2026-11-01T00:01:00Z' } }
       : k === 'state' ? { gold: purse, gold_v: 1 } : k === 'shop' ? { offers: [], bids: { iron_bar: 6, copper_bar: 3 } } : k === 'inventory' ? bag : null) });
     const w = { kind: 'artisan', id: hat.id, skill: 'smithing', row: hat };
@@ -348,6 +349,15 @@ async function arms(db, tick, setActivity, opts) {
       && !!recap && recap.kind === 'away' && recap.id.startsWith('bench-gold:') && recap.text === words[6];
     arm('T-WORDS', goodWords, 'the row, the start screen, the refusal and the end line say the server\'s numbers in plain words and name the stack to sell',
       `the words: ${js(words)}`);
+    /* T-TOTAL (itemization audit 2026-11-18 #1: a new hero's All spent 38% of the purse unseen): the row says what the picked count takes in
+       all before Start, by the server's carry rule (9.75 g a craft on a 600 mg carry: 10 crafts pass 98.1 gold, so 98 are charged), its
+       share of the purse from 10% up; one craft is the rate alone. */
+    const carried = (purse) => ({ read: (k) => (k === 'bench_tax' ? Object.assign(cs(purse, 0, {}).read('bench_tax'), { carry_mg: 600 }) : cs(purse, 0, {}).read(k)) });
+    const totals = [F.feeLineWords(carried(200), w, 10, true), F.feeLineWords(carried(5000), w, 10, false), F.feeLineWords(carried(200), w, 1, false), F.feeTotal(carried(200), w, 10)];
+    arm('T-TOTAL', totals[0] === 'Bench fee: about 9.8 gold a craft · 98 gold for all 10 (49% of your gold)'
+      && totals[1] === 'Bench fee: about 9.8 gold a craft · 98 gold for 10' && totals[2] === 'Bench fee: about 9.8 gold a craft' && totals[3] === 98,
+    'the row names what All (or the count picked) takes in all before Start, and its share of the purse when that is big',
+    `the totals: ${js(totals)}`);
   }
   return red;
 }

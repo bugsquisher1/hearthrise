@@ -194,7 +194,7 @@ export const MUTANTS = {
   tavern_is_a_prop: { arm: 'TS-WINDOW', why: 'a tap on the Tavern opens nothing',
     js: ['src/data/world/sink-taps.js', [["  havora_tavern: Object.freeze({ open: 'window', window: 'havora', tab: 'round' }),\n", '']]] },
   bought_flame_plain: { arm: 'TS-WINDOW', why: 'a bought flame draws the plain fire',
-    js: ['src/world/hearth-burn.js', [["const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });", "const FLAMES = NAMED_FLAMES;"]]] },
+    js: ['src/world/hearth-burn.js', [["const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES, ...CHEST_FLAMES });", "const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...CHEST_FLAMES });"]]] },
   round_never_bursts: { arm: 'TS-WINDOW', why: 'a round draws nothing',
     js: ['src/world/town-shows.js', [["      if (!fire || !round || now < round.startedAt || now >= round.endsAt) return [];", "      return [];"]]] },
   show_on_the_floor: { arm: 'TS-SHOW', why: 'a shell bursts where it was fired from, on the floor', js: ['src/data/gold-sinks.js', [['riseMs: 416, riseTiles: 6,', 'riseMs: 416, riseTiles: 0,']]] },

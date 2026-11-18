@@ -870,7 +870,7 @@ async function outfitArm(db, M) {
    about 1 replay in 250 one of them finds the bundle before §9(e) plants its find, and §9(e) counted the bag and the named call-out
    from zero. Pinned: a secret on which the probe hero's FIRST key finds the outfit, then the §9 block as the file ships it. */
 const SELFCHECK_SECRET = '76531864643bf73c780984cd0b445566ef549ffe13e6e6101a248385d59e78b4';
-/* Judged where its file sits in the chain (upTo it): 2027-05-06-catacombs-chest-catalogue.generated.sql adds the Catacomb family's keys after it, a
+/* Judged where its file sits in the chain (upTo it): 2027-05-08-catacombs-chest-catalogue.generated.sql adds the Catacomb family's keys after it, a
    later table this §9 (Tyler's four Tower keys) was never written against. */
 async function selfcheckArm(_db, M) {
   const { db } = await bootReplay({ upTo: CHEST_SQL.split('/').pop() });

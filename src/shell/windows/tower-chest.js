@@ -18,20 +18,20 @@
 //   judges the rest. A key counts wherever the hero holds it: the bag, the account's Storage, the Key Ring.
 // The answer of a press (each key's weapon or none, what came out) is drawn from the server's answer; the counts come back with the envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { keyRow, stokeRow, familyRow } from '../../session/tower-sections.js?v=0.2.137';
-import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.137';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { CHESTS, CINDERS } from '../../data/chests.js?v=0.2.137';
-import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.137';
-import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.137';
-import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.137';
-import { whole, localWhen } from '../../render/format.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { runIntent } from '../intent-words.js?v=0.2.137';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.137';
-import { ppmWords, familyWord, keyFamilyWord, timesWords, lootList } from '../tower-words.js?v=0.2.137';
-import { metalWord } from '../tower-stage.js?v=0.2.137';
+import { keyRow, stokeRow, familyRow } from '../../session/tower-sections.js?v=0.2.139';
+import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.139';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { CHESTS, CINDERS } from '../../data/chests.js?v=0.2.139';
+import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.139';
+import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.139';
+import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.139';
+import { whole, localWhen } from '../../render/format.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
+import { runIntent } from '../intent-words.js?v=0.2.139';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.139';
+import { ppmWords, familyWord, keyFamilyWord, timesWords, lootList } from '../tower-words.js?v=0.2.139';
+import { metalWord } from '../tower-stage.js?v=0.2.139';
 
 /* The one chest today (src/data/chests.js CHESTS: a later chest is a row). */
 const CHEST_ID = Object.keys(CHESTS)[0];
@@ -73,20 +73,20 @@ export function useBlock(cs, tw, k) {
 /* THE SCENE's places, from the art's one source (src/data/tower-art.js) as custom properties src/styles/tower.css lays out at x2. */
 const px = (v) => v * SCALE + 'px';
 const SCENE_VARS = (() => {
-  const { FIREBOX: B, FIRE_AT: F, CHEST_AT: C, GLOW_AT: G, SMOKE_AT: S, REVEAL_AT: R, ITEM_AT: I, PHONE_VIEW: P } = TOWER_ART;
+  const { FIREBOX: B, FIRE_AT: F, CHEST_AT: C, SMOKE_AT: S, REVEAL_AT: R, ITEM_AT: I, PHONE_VIEW: P } = TOWER_ART;
   const ms = (frames, fps) => Math.round(1000 * frames / fps) + 'ms';
   return [`--tr-sw:${px(B.w)}`, `--tr-sh:${px(B.h)}`, `--tr-fx:${px(F.x)}`, `--tr-fy:${px(F.y)}`, `--tr-fw:${px(F.w)}`, `--tr-fh:${px(F.h)}`,
     `--tr-fn:${F.frames}`, `--tr-fms:${ms(F.frames, F.fps)}`, `--tr-cx:${px(C.x)}`, `--tr-cy:${px(C.y)}`, `--tr-cw:${px(C.w)}`, `--tr-ch:${px(C.h)}`,
-    `--tr-cn:${C.frames}`, `--tr-cms:${ms(C.frames, C.fps)}`, `--tr-gx:${px(G.x)}`, `--tr-gy:${px(G.y)}`, `--tr-gw:${px(G.w)}`, `--tr-gh:${px(G.h)}`,
+    `--tr-cn:${C.frames}`, `--tr-cms:${ms(C.frames, C.fps)}`,
     `--tr-kx:${px(S.x)}`, `--tr-ky:${px(S.y)}`, `--tr-kw:${px(S.w)}`, `--tr-kh:${px(S.h)}`, `--tr-rx:${px(R.x)}`, `--tr-ry:${px(R.y)}`, `--tr-rw:${px(R.w)}`, `--tr-rh:${px(R.h)}`,
     `--tr-ix:${px(I.x)}`, `--tr-iy:${px(I.y)}`, `--tr-pvx:${px(P.x)}`, `--tr-pvy:${px(P.y)}`, `--tr-pvw:${px(P.w)}`, `--tr-pvh:${px(P.h)}`].join(';');
 })();
 
 /** The pane's skeleton (inside the Tower window, built once). */
 export function chestHtml() {
-  /* the chest on the ledge as the town shows it: its green light on the stone, the chest, its smoke (lane/fix138-hearth-chest-big) */
+  /* the chest on the ledge as the town shows it: the chest, its smoke (lane/fix138-hearth-chest-big; its green at its locks, lane/a-chest-glow-139) */
   return '<div class="tc-scene" style="' + SCENE_VARS + '" aria-hidden="true"><div class="tc-scene-art"><span class="tc-fire"></span>'
-    + '<span class="tc-glow"></span><span class="tc-chest"></span><span class="tc-smoke"></span>'
+    + '<span class="tc-chest"></span><span class="tc-smoke"></span>'
     + '<div class="tc-reveal-slot"></div></div></div>'
     /* the last press's answer under the scene, in place of the keys and the stokes: what came out, the weapon first (Keys goes back) */
     + '<section class="tt-result" hidden><div class="tc-loot-head"><h3 class="hw-hd-h tt-hd">' + esc(t('tower.loot_head')) + '</h3>'

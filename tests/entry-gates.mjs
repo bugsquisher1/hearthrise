@@ -257,14 +257,16 @@ const fileText = (f) => {
   const t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
   return SQL_EDIT && SQL_EDIT.file === f ? SQL_EDIT.edits.reduce((s, [a, b]) => s.replace(a, () => b), t) : t;
 };
-/* Judged where its files sit in the chain (upTo FILE): 2027-05-06-catacombs-tower-catalogue.generated.sql makes hr_tower_rules one row a run
-   ground after them, a later file's schema that this file's second apply was never written against (its §0 pins say so for the bodies). */
+/* EG-IDEM is judged at the files' OWN place in the chain (set/v0.2.139): on the full chain a later catalogue (drop-homes'
+   and the Sewer-from-5 hunt-sessions files) restates the same Sewer and boss-call rows, so re-applying this older catalogue
+   on top of them "moves" rows that are not this file's to keep. The byte-identical second apply of the WHOLE chain is
+   schema-drift's. The full-chain db the arms share is not used here. */
 async function idemArm() {
   const { db } = await bootReplay({ upTo: FILE });
   await H.pinDice(db);
-  try { return await idemAt(db); } finally { await db.close(); }
+  try { return await idemOn(db); } finally { await db.close(); }
 }
-async function idemAt(db) {
+async function idemOn(db) {
   return H.inTx(db, async () => {
     await rewind(db);
     const bad = [];
@@ -303,7 +305,7 @@ const SELF_PLANTS = [
 const ARMS = { data: dataArm, tower: towerArm, call: callArm, count: countArm, idem: idemArm };
 
 /* ── THE MUTANTS: each a defect the gates exist to refuse, planted in the booted chain's live body ─────────────── */
-/* the door's Level is the run door's body since 2027-05-06-catacombs.sql (hr_tower_start calls it on the Tower's ground) */
+/* the door's Level is the run door's body since 2027-05-08-catacombs.sql (hr_tower_start calls it on the Tower's ground) */
 const FN = { start: 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)', quote: 'public.hr_boss_call_quote(uuid,integer,text)', wins: 'public.hr_boss_wins(uuid,integer,text)',
   view: 'public.hr_entry_gates_view(uuid,integer)' };
 const MUTANTS = [

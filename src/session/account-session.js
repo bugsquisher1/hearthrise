@@ -54,17 +54,17 @@
 //                 left and destroyed when it closes
 // ════════════════════════════════════════════════════════════════════════
 
-import { SESSION_CONFIG } from './config.js?v=0.2.137';
-import { CharacterSession } from './character-session.js?v=0.2.137';
-import { TownPresence } from './town-presence.js?v=0.2.137';
-import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.137';
-import { levelOf, outfitOf } from './character-sections.js?v=0.2.137';
-import { heroSprite } from './hero-look.js?v=0.2.137';
-import { assignmentOf } from './party-sections.js?v=0.2.137';
-import { benchJobOver } from './bench-sections.js?v=0.2.137';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.137';
-import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.137';
-import { lastClimbOf } from './tower-sections.js?v=0.2.137';
+import { SESSION_CONFIG } from './config.js?v=0.2.139';
+import { CharacterSession } from './character-session.js?v=0.2.139';
+import { TownPresence } from './town-presence.js?v=0.2.139';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.139';
+import { levelOf, outfitOf } from './character-sections.js?v=0.2.139';
+import { heroSprite } from './hero-look.js?v=0.2.139';
+import { assignmentOf } from './party-sections.js?v=0.2.139';
+import { benchJobOver } from './bench-sections.js?v=0.2.139';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.139';
+import { purseOf, newerPurse, storageOf } from './item-sections.js?v=0.2.139';
+import { lastClimbOf } from './tower-sections.js?v=0.2.139';
 
 /* What the account's characters share: the depot (2026-11-27-account-depot.sql) and the
    farm land (2026-12-14-shared-farm.sql). A change to one re-reads the others. */

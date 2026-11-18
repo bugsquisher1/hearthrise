@@ -11,12 +11,12 @@
 //   elsewhere.js  under the grid while searching: where else the item is
 //   advanced.js   the Advanced view (effects, the worn set, imbuements)
 //   actions.js    every gesture: one intent each, controls off until it answers
-// Laid out as   [ toolbar                                  ]
-//               [ doll ][ grid (its own scroll)              ]
-//               [      ][ armor worn: heavy · medium · light ]
-//               [      ][ capacity · Advanced view · gold    ]
-//               [      ][ slot line / picked line / tools    ]
-//               [      ][ advanced section (when on)         ]
+// Laid out as   [ toolbar                                       ]
+//               [ doll ][ grid (its own scroll, free spaces drawn)]
+//               [      ][ armor worn · worth · Advanced view      ]
+//               [      ][ slot line / picked line / tools         ]
+//               [      ][ advanced section (when on)              ]
+//               [ spaces · gold · why Dispatch is off · Dispatch  ]   the window's foot (UI audit 2026-11-18 UI-5)
 // THE DOLL NEVER SCROLLS (Tyler 2026-11-17: "why am i scrolling to see my belt/ammo slots?"): its column runs
 // beside everything under the toolbar, only the bag's grid scrolls, and its wells fit the room (doll.js fitDoll).
 // On a phone's sheet the doll stands beside the toolbar and the sheet scrolls as one (windows.css).
@@ -24,15 +24,16 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.137';
-import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.137';
-import { whole, gold } from '../../../render/format.js?v=0.2.137';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.137';
-import { stateOf } from './state.js?v=0.2.137';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll } from './doll.js?v=0.2.137';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.137';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.137';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.137';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.139';
+import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.139';
+import { whole, gold } from '../../../render/format.js?v=0.2.139';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.139';
+import { stateOf } from './state.js?v=0.2.139';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll, dollLeast } from './doll.js?v=0.2.139';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.139';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.139';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.139';
+import { t } from '../../../render/player-text.js?v=0.2.139';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -42,11 +43,15 @@ export function renderInventory(ctx) {
     + toolbarHtml(g)
     + '<div class="hw-inv-cols">' + dollHtml(g)
     + '<div class="hw-inv-side"><div class="hw-inv-scroll"><div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
-    + weightsHtml()
+    /* under the bag, about the bag: the armor worn, what it is worth, Advanced view */
+    + '<div class="hw-inv-under">' + weightsHtml() + '<small class="hw-value"></small><label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label></div>'
+    + '<p class="hw-why hw-over"></p>'
+    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div></div>'
+    /* THE FOOT (UI audit 2026-11-18 UI-5: three rows of bag under a stack of lines): the bag's spaces, the gold and Dispatch loot on one line
+       under both columns, why Dispatch is off under it, so the grid takes the window's height */
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
-    + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
-    + '<b class="hw-gold"></b></div><p class="hw-why hw-over"></p>'
-    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div></div></div>';
+    + '<b class="hw-gold"></b><p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
+    + '<button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button></div></div>';
 }
 
 /** What a bag at or past its spaces means (midgame panel 2026-11-01: "114 of 100 spaces" with no word): the server's rule, 2027-02-11-hunt-loot-past-bag-cap.sql. Pure. */
@@ -94,10 +99,45 @@ function keepPickClear(root, st) {
    shell puts on a docked window lands after the first patch; a coach card squeezes a capped window's columns, not its frame): one frame
    later, so the shell's own observer of the frame is never re-run. */
 const WATCHED = new WeakSet();
+
+/* THE BAG ENDS ON A WHOLE ROW (UI audit 2026-11-18 UI-5, AW-93): the grid takes the column's height and its free spaces overflow it, so its
+   scroll box ends at the top of the first row its foot would cut, every pocket in view whole; measured with the bag at its top only (a bag
+   the player scrolled keeps its height, nothing jumps under the hand). A phone's sheet scrolls as one and is left alone. */
+function snapBag(root, phone) {
+  const box = root.querySelector('.hw-inv-scroll');
+  if (!box || (!phone && box.scrollTop > 0)) return;
+  if (box.style.maxHeight) box.style.maxHeight = '';
+  if (phone || box.scrollHeight <= box.clientHeight + 1) return;
+  const top = box.getBoundingClientRect().top + box.clientTop, foot = top + box.clientHeight;
+  let cut = foot;
+  for (const li of box.querySelectorAll('li')) {
+    const q = li.getBoundingClientRect();
+    if (q.height > 0 && q.top < foot - 0.5 && q.bottom > foot + 0.5) cut = Math.min(cut, q.top);
+  }
+  if (cut < foot) box.style.maxHeight = Math.floor(cut - top) + 'px';
+}
+
+/* A WINDOW TOO SHORT FOR THE FOOT UNDER BOTH COLUMNS (in a hunt, 1280x720; under a coach card at 1366x768, AW-62): its band would cut the doll
+   even at its least wells, so the foot is seated beside the doll instead, under the bag's column (windows.css .is-foot-beside: the columns
+   run the whole height, the foot stands in the bag column's reserved foot), and goes back under both columns once the columns hold the doll
+   and twice the foot (so it never flips back on the next pass). The doll never scrolls (Tyler 2026-11-17). Layout reads and writes only. */
+function seatFoot(root, phone) {
+  const view = root.ownerDocument.defaultView, foot = root.querySelector('.hw-inv-foot'), cols = root.querySelector('.hw-inv-cols');
+  const doll = root.querySelector('.hw-doll');
+  if (!view || !foot || !cols || !doll) return;
+  const beside = root.classList.contains('is-foot-beside');
+  const need = phone ? 0 : dollLeast(doll, view);
+  const want = !phone && (beside ? cols.clientHeight - 2 * foot.offsetHeight < need : need > cols.clientHeight + 0.5);
+  if (want !== beside) root.classList.toggle('is-foot-beside', want);
+  const h = want ? foot.offsetHeight + 'px' : '', w = want ? doll.offsetWidth + 'px' : '';
+  if (root.style.getPropertyValue('--hw-foot-h') !== h) { if (h) root.style.setProperty('--hw-foot-h', h); else root.style.removeProperty('--hw-foot-h'); }
+  if (root.style.getPropertyValue('--hw-doll-w') !== w) { if (w) root.style.setProperty('--hw-doll-w', w); else root.style.removeProperty('--hw-doll-w'); }
+}
+
 function fitNow(root) {
   const view = root.ownerDocument.defaultView;
   if (!view) return;
-  const fit = () => fitDoll(root, view.matchMedia(MOBILE_QUERY).matches);
+  const fit = () => { const phone = view.matchMedia(MOBILE_QUERY).matches; seatFoot(root, phone); fitDoll(root, phone); seatFoot(root, phone); snapBag(root, phone); };
   fit();
   const frame = root.closest('.hs-win');
   if (WATCHED.has(root) || !frame || !view.ResizeObserver) return;
@@ -133,6 +173,6 @@ renderInventory.patch = function patchInventory(body, ctx) {
 };
 
 renderInventory.events = INVENTORY_EVENTS;
-renderInventory.act = function act(ctx, body, action, ev, t) {
-  return actInventory(ctx, body, action, ev, t, () => renderInventory.patch(body, ctx));
+renderInventory.act = function act(ctx, body, action, ev, el) {
+  return actInventory(ctx, body, action, ev, el, () => renderInventory.patch(body, ctx));
 };

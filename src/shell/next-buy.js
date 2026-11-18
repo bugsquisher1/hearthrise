@@ -6,7 +6,10 @@
 // purse covers, never a wall of options, in this order (lane/a-next-steps; the designer's handoff, board "2026-11-15 The audit's balance
 // findings" F8 and F12: a Shop piece over a practice one, then the next room rung, then the dummy; gear and Tempering ahead as power):
 //   gear     a Shop piece better than what is worn (upgrade-plan.js: the same "strictly better" every Equip press uses,
-//            over the worn set after the bag's own upgrades go on): a bare slot first, then the cheapest
+//            over the worn set after the bag's own upgrades go on): a bare slot first, then the cheapest; never armor of
+//            another weight than the hero's (the full-game audit's A11)
+//   find     no Shop piece of the hero's weight for a bare or off-weight armor slot: the piece of that weight and where it
+//            comes from (a bench, a ground's drop), its Show opening there (findPiece)
 //   temper   the next Tempering rung of the worn weapon, then of the armor worn (temper-sections.js), gold and material in hand
 //   room     the cheapest next House room rung the house is ready for and the purse and materials cover (home-sections.js; the
 //            first rung of a bench's room also ends its tax, bench-tax.js BENCH_TAX_ROOMS)
@@ -16,20 +19,22 @@
 // is the server's (CLAUDE.md §6): nothing here is a gate the server trusts, and the press only opens the window where the
 // buy is made (goto.js targetOf), where the server prices it again.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { ROOM_PERKS } from '../data/perks.js?v=0.2.137';
-import { EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.137';
-import { upgradePlan, preferredWeight } from './upgrade-plan.js?v=0.2.137';
-import { itemName } from './widgets/bits.js?v=0.2.137';
-import { gold } from '../render/format.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
-import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.137';
-import { levelOf } from '../session/character-sections.js?v=0.2.137';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.137';
-import { settingsOf } from '../session/hunt-sections.js?v=0.2.137';
-import { temperRowsOf } from '../session/temper-sections.js?v=0.2.137';
-import { trainingOf } from '../session/training-sections.js?v=0.2.137';
-import { homeOf } from '../session/home-sections.js?v=0.2.137';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { ROOM_PERKS } from '../data/perks.js?v=0.2.139';
+import { EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.139';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.139';
+import { upgradePlan, preferredWeight, meets } from './upgrade-plan.js?v=0.2.139';
+import { wherePlaces } from './item-lore.js?v=0.2.139';
+import { itemName } from './widgets/bits.js?v=0.2.139';
+import { gold } from '../render/format.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
+import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.139';
+import { levelOf } from '../session/character-sections.js?v=0.2.139';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.139';
+import { settingsOf } from '../session/hunt-sections.js?v=0.2.139';
+import { temperRowsOf } from '../session/temper-sections.js?v=0.2.139';
+import { trainingOf } from '../session/training-sections.js?v=0.2.139';
+import { homeOf } from '../session/home-sections.js?v=0.2.139';
 
 const pct = (pm) => String(pm / 10) + '%';
 /* A room whose rungs do something (the House window offers no purchase for one that does nothing yet). */
@@ -40,9 +45,15 @@ const holds = (items, bag, bank) => {
   return (items || []).every((it) => have(it.id) >= it.qty);
 };
 
-/* A Shop piece better than the worn set: the plan over the shop's affordable gear as if it were in the bag. */
+/* An armor piece's weight ('heavy' | 'medium' | 'light'), or null for a piece with none (jewelry, a weapon, a shield, a cape). */
+const weightOf = (it) => (it && ARMOUR_WEIGHT[it.armourClass]) || null;
+/* NEVER AN OFF-WEIGHT BUY (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to a heavy hero at Level 9, and they
+   stayed on to 85): with the hero's weight known (preferredWeight), an armor piece of another weight is never offered. */
+const ownWeight = (it, prefer) => !prefer || !weightOf(it) || weightOf(it) === prefer;
+
+/* A Shop piece better than the worn set: the plan over the shop's affordable gear of the hero's weight as if it were in the bag. */
 function gearBuy(o) {
-  const offers = (o.shop && o.shop.offers ? o.shop.offers : []).filter((x) => x.kind === 'gear' && x.price <= o.purse && ITEMS[x.item] && ITEMS[x.item].slot);
+  const offers = (o.shop && o.shop.offers ? o.shop.offers : []).filter((x) => x.kind === 'gear' && x.price <= o.purse && ITEMS[x.item] && ITEMS[x.item].slot && ownWeight(ITEMS[x.item], o.prefer));
   if (!offers.length) return null;
   const price = new Map(offers.map((x) => [x.item, x.price]));
   const plan = upgradePlan({ bag: offers.map((x) => ({ id: x.item, qty: 1 })), equipment: o.equipment, skills: o.skills, level: o.level, prefer: o.prefer });
@@ -56,6 +67,44 @@ function gearBuy(o) {
     words: gains ? (p.replaces ? t('summary.buy_gear_better', { gains, worn: itemName(p.replaces) })
       : t('summary.buy_gear_empty', { gains, slot: ((EQUIP_SLOT_META[p.slot] || {}).label || p.slot).toLowerCase() })) : '',
     icon: p.id, place: { kind: 'shop', item: p.id } };
+}
+
+/* Every armor row for a slot, by weight, built once from the catalogue (a new piece's row joins with no code). */
+let BY_SLOT = null;
+function piecesFor(slot, weight) {
+  if (!BY_SLOT) {
+    BY_SLOT = new Map();
+    for (const [id, it] of Object.entries(ITEMS)) {
+      const w = weightOf(it);
+      if (!w || it.type !== 'armor' || !ARMOUR_SLOTS.includes(it.slot)) continue;
+      const k = it.slot + ':' + w;
+      if (!BY_SLOT.has(k)) BY_SLOT.set(k, []);
+      BY_SLOT.get(k).push(id);
+    }
+  }
+  return BY_SLOT.get(slot + ':' + weight) || [];
+}
+
+/* WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11): an armor slot bare, or worn in another weight, that no Shop piece of the hero's
+   weight fills. Names the best piece of that weight for the slot the hero can wear now that the game hands out somewhere (item-lore.js wherePlaces:
+   a bench, the Shop, a ground's drop), else the first one it grows into, and where it comes from, linked there. From the catalogue rows, so the
+   drop homes move the answer with no code here. Bare slots first, in the doll's order. */
+function findPiece(o) {
+  const w = o.prefer, eq = o.equipment || {};
+  if (!w) return null;
+  const level = Number.isInteger(o.level) ? o.level : null;
+  const open = ARMOUR_SLOTS.filter((s) => !eq[s]).concat(ARMOUR_SLOTS.filter((s) => eq[s] && weightOf(ITEMS[eq[s]]) !== w));
+  for (const slot of open) {
+    const found = piecesFor(slot, w).map((id) => ({ id, it: ITEMS[id], where: wherePlaces(id)[0] || null })).filter((x) => x.where && x.where.place);
+    const now = found.filter((x) => meets(x.it, o.skills, level)).sort((a, b) => (b.it.tier || 0) - (a.it.tier || 0) || (b.it.reqLv || 0) - (a.it.reqLv || 0) || (a.id < b.id ? -1 : 1));
+    const later = found.filter((x) => !meets(x.it, o.skills, level)).sort((a, b) => (a.it.reqLv || 0) - (b.it.reqLv || 0) || (a.id < b.id ? -1 : 1));
+    const p = now[0] || later[0];
+    if (!p) continue;
+    const kind = t('summary.find_kind', { weight: t('summary.weight_' + w), slot: ((EQUIP_SLOT_META[slot] || {}).label || slot).toLowerCase() });
+    return { kind: 'find', title: t(now[0] ? 'summary.find_gear' : 'summary.find_gear_at', { item: itemName(p.id), what: kind, level: p.it.reqLv || 1 }),
+      words: p.where.words, icon: p.id, place: p.where.place };
+  }
+  return null;
 }
 
 /* The next Tempering rung the hero can take now: the weapon's, then the armor's. */
@@ -99,7 +148,7 @@ function roomBuy(o) {
  */
 export function nextBuy(o) {
   if (!o || !Number.isSafeInteger(o.purse) || o.purse <= 0) return null;
-  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);
+  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);
 }
 
 /** This character's next buy, from what the server sent. `plan`: the bag's own Equip upgrades (upgrade-line.js upgradeOf), put on first. */

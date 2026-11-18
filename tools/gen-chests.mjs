@@ -38,7 +38,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a changed row moves OUT_NAME to a forward file, like every generated catalogue. */
 /* 2027-04-27-tower-chest-catalogue applied with v0.2.135 (history). lane/c-catacombs (2026-11-18) moved it here: the Catacomb key family, its eight
    keys (each from a wing's vault doors, with its slot lean) and the armor table (hr_chest_armor). */
-export const OUT_NAME = '2027-05-06-catacombs-chest-catalogue.generated.sql';
+export const OUT_NAME = '2027-05-08-catacombs-chest-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. */
@@ -114,8 +114,8 @@ export function build(input) {
 --   2027-04-27-tower-chest-catalogue (lane/c-tower-chest, applied with v0.2.135) whole, plus the catacomb family, its eight keys (each from its
 --   wing's vault doors: hr_chest_keys.ground; its slot lean: helmet_pm; gear 'armor') and the armor table (hr_chest_armor: each Catacomb key's
 --   piece a slot and weight, the twelve that ship now). The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit).
---   ORDER: after 2027-05-06-catacombs-tower-catalogue.generated.sql (every key's ground is a run ground there: §4 checks it), right before
---   2027-05-06-catacombs.sql, which reads every table. No function body. Until that file the live hr_chest_open reads hr_chest_weapons as before
+--   ORDER: after 2027-05-08-catacombs-tower-catalogue.generated.sql (every key's ground is a run ground there: §4 checks it), right before
+--   2027-05-08-catacombs.sql, which reads every table. No function body. Until that file the live hr_chest_open reads hr_chest_weapons as before
 --   and opens a Catacomb key only after its feature_off and chest_not_ready (no weapons) refusals, so nothing opens one early.
 -- hr_chests (one row today); hr_chest_key_families (${r.keyFamilies.length}: a key family's caps, every key of the family sharing them: the keys one hero may
 --   open a UTC week and the held limit past which a new key of it does not drop); hr_chest_keys (${r.keys.length} rows: each in a family; the open
@@ -129,7 +129,7 @@ export function build(input) {
 -- hr_chest_armor (${r.armor.length}: each Catacomb key's piece a slot and weight, the server's heavy / medium / light; a key short of its ${ARMOR_KINDS.length} is
 --   refused chest_not_ready, the Gold and Platinum keys until their pieces ship).
 -- RLS on, no policy, no client grant: only SECURITY DEFINER functions read them. ON THE EA SECURITY LIST with the Tower and the descent.
--- REVERSIBLE: after 2027-05-06-catacombs.sql's reversal, delete the catacomb rows, drop hr_chest_armor and the three new key columns (put the
+-- REVERSIBLE: after 2027-05-08-catacombs.sql's reversal, delete the catacomb rows, drop hr_chest_armor and the three new key columns (put the
 --   (key_family, from_landing) key back); the nine tables after 2027-04-27-tower-chest.sql's.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_chests (

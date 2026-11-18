@@ -21,8 +21,8 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { LIFE_BEAT_FPS } from '../ambient-life.js?v=0.2.137';
-import { at, TOWN_MAP } from './plan.js?v=0.2.137';
+import { LIFE_BEAT_FPS } from '../ambient-life.js?v=0.2.139';
+import { at, TOWN_MAP } from './plan.js?v=0.2.139';
 
 export const FOLK_TICK_HZ = LIFE_BEAT_FPS * 2;
 export const FOLK_IDLE_FPS = LIFE_BEAT_FPS / 2;

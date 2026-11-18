@@ -74,11 +74,3 @@ export const BOSSES = {
     signature: ['dragonfang_pike', 'elderscale_heart'],
   },
 };
-
-// Reverse index: dungeon id → boss record (so a dungeon surface can look up its
-// boss's identity/weakness/mechanic without duplicating it).
-export const BOSS_BY_DUNGEON = (() => {
-  const out = {};
-  Object.values(BOSSES).forEach((b) => { if (b.dungeon) out[b.dungeon] = b; });
-  return out;
-})();

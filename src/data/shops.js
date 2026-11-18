@@ -43,10 +43,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.137';
-import { ITEMS } from './items.js?v=0.2.137';
-
-export const SHOPS_DIGEST = "3dd62b831e08bf6b8180fdfa08e203c68eea083199dfdb44a4082ccd36552e07";
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.139';
+import { ITEMS } from './items.js?v=0.2.139';
 
 function supplyOffer(s) {
   return { id: s.offer, table: "supply", name: ITEMS[s.item].n, cost: [{ kind: "currency", id: "gold", amount: s.price }],
@@ -456,81 +454,6 @@ export const SHOP_OFFERS = [
 ];
 
 export const SUPPLY_PRICE_LIST = Object.freeze(SUPPLY_SHOP_OFFERS.filter((s) => !SHOP_SOLD_KINDS.includes(s.kind)).map(supplyOffer));
-
-/** Where each currency lives server-side. `null` = it does not, yet. */
-export const SHOP_CURRENCIES = {
-  "gold": {
-    "server": "player_state.gold"
-  },
-  "gems": {
-    "server": "account_wallet.gems"
-  },
-  "hearth_tokens": {
-    "server": "account_wallet.hearth_tokens"
-  },
-  "usd": {
-    "server": null
-  }
-};
-
-/** Provenance, so drift has an address. */
-export const SHOP_TABLES = [
-  {
-    "table": "room",
-    "origin": "src/legacy.js",
-    "anchor": "const ROOMS={",
-    "spends_at": "legacy.js upgradeRoom()",
-    "note": "rung level is the grant amount",
-    "count": 40
-  },
-  {
-    "table": "seed",
-    "origin": "src/legacy.js",
-    "anchor": "const SEED_SHOP=[",
-    "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the price is per BUNDLE of qty, not per unit. A vendor price list only since 2026-10-22, shop_buy refuses every seed row not_listed (no Shop tab lists it). The nine crop seeds moved to the seed counter (supply-basics.js kind 'seed', designer 2026-10-22, lane/b-orphan-sources) at the same unit price. The four left (air rune, bronze arrows, coarse whetstone, blank rune) are their items' vendor price only",
-    "count": 4
-  },
-  {
-    "table": "equip",
-    "origin": "src/legacy.js",
-    "anchor": "const EQUIP_SHOP=[",
-    "spends_at": "legacy.js buyShopItem(id, qty, cost)",
-    "note": "the Bronze Belt, Copper Ring, Hunter Necklace, Leather Gloves and Traveler Cape rows moved to the outfitter (supply-basics.js, designer 2026-10-22). The eight left, like every seed row, are a vendor price list only, and shop_buy refuses them not_listed (catalogue.js offerRefusal, 2026-10-22)",
-    "count": 8
-  },
-  {
-    "table": "property",
-    "origin": "src/features/homestead.js",
-    "anchor": "var TIERS = [",
-    "spends_at": "homestead.js upgradeTier()",
-    "note": "grant amount is the tier index",
-    "count": 5
-  },
-  {
-    "table": "character_slot",
-    "origin": "src/multi-character.js",
-    "anchor": "const SLOT_COSTS_GOLD = [",
-    "spends_at": "multi-character.js unlockSlot()",
-    "count": 3
-  },
-  {
-    "table": "companion",
-    "origin": "src/data/companions.js",
-    "anchor": "source:'shop:…'",
-    "spends_at": "legacy.js _buyCompanion(id, price)",
-    "note": "price is embedded in a string, not a field",
-    "count": 4
-  },
-  {
-    "table": "supply",
-    "origin": "src/data/supply-basics.js",
-    "anchor": "export const SUPPLY_SHOP_OFFERS",
-    "spends_at": "hr-accrue shop_buy (the tools and the outfitter's gear; Tyler 2026-10-20: the Shop sells no supplies)",
-    "note": "hand-authored rows that generate hr_shop_supply_offers, never food, drink or ammo",
-    "count": SUPPLY_SHOP_OFFERS.filter((s) => SHOP_SOLD_KINDS.includes(s.kind)).length
-  }
-];
 
 /**
  * Prices that are FORMULAS, not literals — deliberately absent from

@@ -18,20 +18,20 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.137';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.137';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.137';
-import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.137';
-import { lossLine, seriesLine } from './boss-loss.js?v=0.2.137';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.137';
-import { callOf } from '../session/hunt-sections.js?v=0.2.137';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.137';
-import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.137';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.137';
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.139';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.139';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.139';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.139';
+import { lossLine, seriesLine } from './boss-loss.js?v=0.2.139';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.139';
+import { callOf } from '../session/hunt-sections.js?v=0.2.139';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.139';
+import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.139';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 export { sanitizeSummaries };
 
@@ -262,7 +262,7 @@ export function buildSummary(s, an, deaths, role, stop, line) {
     /* The hunt's BALANCE, the server's own (coins + loot value - store supplies): it is there from the first kill,
        where the per-hour figure waits for 10 minutes (core-loop play 2026-10-30: a first 4-minute hunt read "–"). */
     balance: hero ? hero.balance : null,
-    /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP before bonuses
+    /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP with no party or solo bonus
        only when the server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,
     /* Level XP an hour, the server's (per_hour.xp, sent once the hunt is rated): the end card's figure under the Level XP. */

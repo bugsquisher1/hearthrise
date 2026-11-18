@@ -118,9 +118,12 @@
 //         one it leaves unset is off (no client copy of the rule); a press sends ONE absolute value and the re-read
 //         envelope's value replaces it
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
-//         XP per hour only when the server sent it (premium)
+//         XP per hour only when the server sent it (premium), its row named for the party and solo bonus it leaves out,
+//         in the analyzer's own words
 //   HS-30 A TRAINING SESSION'S HUNT BAR says what is happening (lane/a-training-display): "Training Melee at the Training Yard",
 //         the time left (the server's start plus its longest run), the hour's fee and Stop training; the hero's tab says the same
+//   HS-32 (UI audit 2026-11-18) Summary pressed in a hunt shows the hunt on now (its ground, In progress, the analyzer's kills; no Hunt again),
+//         the earlier hunt listed under it; the analyzer's list ends on a whole row at rest (1440x900, 1366x640)
 //   HS-31 ITS ANALYZER shows the trained skill's level, its XP an hour, the fee and the gold paid (the server's training section and
 //         skill_levels), and none of the hunt's rows (it read "Monsters killed 0, Level XP 0, Gold 0")
 // ════════════════════════════════════════════════════════════════════════
@@ -1687,15 +1690,56 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const got = await page.evaluate(() => {
           const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
           const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          /* the raw row's words on the card (its dd's own dt) */
+          const dt = (d) => (d && d.previousElementSibling ? d.previousElementSibling.textContent : null);
           return { balance: v('balance'), balanceH: v('balanceH'), rawXpH: v('rawXpH'), win: !!w, card: !!(w && w.querySelector('.hsum-card.is-on')),
-            text: w ? w.textContent.slice(0, 160) : null };
+            text: w ? w.textContent.slice(0, 160) : null, rawLabel: dt(document.querySelector('[data-hs-win="hunt-summary"] [data-stat="rawXpH"]')) };
         });
         const ph = FIXTURE.hunt_analyzer.hero.per_hour;
         const want = { balance: FIXTURE.hunt_analyzer.hero.balance.toLocaleString('en-US') + ' gp',
           balanceH: short ? null : ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
         if (!shown || got.balance !== want.balance || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
+        /* THE RAW ROW SAYS WHICH BONUS IT LEAVES OUT (lane/a-honest-lines 2026-11-16, re-landed by lane/a-honesty-rescue): "before bonuses" read as a
+           party cutting a hero's XP; it is the even share of each kill, less the party's class cell or the solo boost. The card says the analyzer's
+           own row (hud.an_raw_xp_h, which widgets/analyzer.js prints), so the two never drift. */
+        const rawWords = (await import(pathToFileURL(join(ROOT, 'src/render/player-text.js')).href)).t('hud.an_raw_xp_h');
+        if (premium && !(got.rawLabel === rawWords && /\bparty\b/i.test(rawWords) && /\bsolo bonus\b/i.test(rawWords) && !/before bonuses/i.test(rawWords)))
+          fails.push('HS-25 the raw Level XP row reads ' + JSON.stringify(got.rawLabel) + ' on the card and ' + JSON.stringify(rawWords) + ' in the analyzer: both must be the one row naming the party and solo bonus it leaves out');
       } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
+    }
+
+    { // HS-32 SUMMARY IN A HUNT IS THE HUNT ON NOW; THE ANALYZER ENDS ON A WHOLE ROW (UI audit 2026-11-18)
+      /* a hero with an earlier hunt stored (Wickstead), hunting the Cellar; the analyzer opened (it starts folded below the fold width) */
+      const OLD = { id: 'old-1', hunt: 'wickstead', at: Date.parse('2026-10-18T09:00:00Z'), reason: 'stamina', kills: 9, xp: 90, gold: 12, ms: 3600000, loot: [], supplies: [], preset: 1, bag: [], deaths: [] };
+      for (const vp of [{ width: 1440, height: 900 }, { width: 1366, height: 640 }]) {
+        const { ctx, page, up } = await open({ viewport: vp, prep: (s) => { s.env.client_state = { huntSummaries: [OLD], hudLayout: { desktop: { analyzer: { folded: false }, tally: { folded: false } } } }; } });
+        const at = vp.width + 'x' + vp.height;
+        if (!up) { fails.push('HS-32 the ' + at + ' screen did not mount'); await ctx.close(); continue; }
+        await wait(page, () => document.querySelector('.ha-analyzer [data-stat="kills"]') && document.querySelector('.ha-analyzer [data-stat="kills"]').textContent !== '');
+        await page.waitForTimeout(1200);
+        /* no analyzer row stands cut by the foot of its list, at rest */
+        const cut = await page.evaluate(() => {
+          const box = document.querySelector('.ha-analyzer .ha-scroll');
+          if (!box || !box.getClientRects().length) return 'no list';
+          const foot = box.getBoundingClientRect().top + box.clientTop + box.clientHeight;
+          const rows = Array.from(box.querySelectorAll('.ha-stats > dt, .ha-stats > dd, .ha-sec-head, .ha-line')).filter((e) => e.getClientRects().length);
+          const hit = rows.find((e) => { const q = e.getBoundingClientRect(); return q.top < foot - 2 && q.bottom > foot + 2; });
+          return hit ? hit.textContent.trim() + ' (' + Math.round(hit.getBoundingClientRect().bottom - foot) + ' px under the foot)' : null;
+        });
+        if (cut) fails.push('HS-32 at ' + at + ' the analyzer\'s list ends mid-row: ' + cut);
+        if (vp.height === 900) {
+          await page.click('.ht-bar [data-hs-act="summary"]');
+          await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on'), null, 4000);
+          const sum = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); if (!w) return null;
+            return { title: w.querySelector('.hsum-title').textContent, when: w.querySelector('.hsum-when').textContent, again: !!w.querySelector('[data-hs-act="again"]:not([hidden])'),
+              text: w.querySelector('.hsum-card').textContent, past: Array.from(w.querySelectorAll('.hsum-past b')).map((b) => b.textContent) }; });
+          const kills = FIXTURE.hunt_analyzer.hero.kills.toLocaleString('en-US');
+          if (!sum || sum.title !== 'Mill Cellar' || !/^In progress/.test(sum.when) || sum.again || !sum.text.includes(kills) || !sum.past.includes('Wickstead'))
+            fails.push('HS-32 Summary in a hunt shows ' + JSON.stringify(sum && { title: sum.title, when: sum.when, again: sum.again, past: sum.past, kills: sum.text.includes(kills) }) + ', not the hunt on now (' + kills + ' kills) over the earlier one');
+        }
+        await ctx.close();
+      }
     }
 
     { // HS-21 the cooldown ember: the hero's played `cast` cools that ability's slot for its catalogue cooldown; the ember rises as it runs out
@@ -2107,6 +2151,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* UI audit 2026-11-18 (HS-32): Summary in a hunt is the hunt on now; the analyzer's list ends on a whole row */
+  ['Summary in a hunt shows the hunt before again (HS-32)', 'src/shell/windows/hunt-summary.js', 'const list = [...(now ? [now] : []), ...sanitizeSummaries(summariesOf(cs))];', 'const list = sanitizeSummaries(summariesOf(cs));'],
+  ['the analyzer\'s list ends mid-row again (HS-32)', 'src/shell/widgets/analyzer.js', "  if (cut < foot) box.style.maxHeight = Math.max(0, Math.floor(cut - top)) + 'px';", ''],
   /* lane/c-target-kind: the First target is the server's, and one press is one intent (HS-29) */
   ['the First target shows the pick before the server confirms (HS-29)', 'src/shell/widgets/first-target.js', "  if (v !== null) prop(sel, 'value', v);", "  if (v !== null && !pending) prop(sel, 'value', v);"],
   ['the First target is off with no reason on screen (HS-29)', 'src/shell/widgets/first-target.js', "v === null ? t('bar.first_target_unknown')", "false ? t('bar.first_target_unknown')"],
@@ -2174,7 +2221,7 @@ const MUTANTS = [
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
   /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */
-  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), TIER_DEATH_LINE].join('\\n');", "[tierLine(r, tier, size), TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join('\\n');"],
+  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\\n');", "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join('\\n');"],
   ['the tier note reads one line whatever the pull', 'src/shell/hunt-list.js', 'tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same;', 'L.same;'],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],
@@ -2227,6 +2274,7 @@ const MUTANTS = [
   /* The merge lands on a COPY: envelope records are deep-frozen, so writing into one threw, the Hunts window stopped
      drawing and the click timed out (run 39899899955, HARNESS) instead of the merged best being shown. */
   ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b0 = section(cs, 'hunt_bests');\n  const b = b0 && b0.grounds ? Object.assign({}, b0, { grounds: Object.assign({}, b0.grounds) }) : b0;\n  if (b && b.grounds && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b && b.grounds) globalThis.__hb = b.grounds;\n"],
+  ['the raw Level XP row says "before bonuses" again (HS-25)', 'src/shell/windows/hunt-summary.js', "['rawXpH', t('hud.an_raw_xp_h'), whole]", "['rawXpH', 'Level XP per hour before bonuses', whole]"],
   ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
   ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!cur.train || cur[k] === null || cur[k] === undefined);", "prop(dd.parentNode, 'hidden', !!cur.train);"],

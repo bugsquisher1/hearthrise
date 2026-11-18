@@ -30,7 +30,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    that names both recipes (its §4 asks for them). */
 /* THE MARCH'S MADE PIECES (lane/a-next-steps with d-audit-balance-2, set v0.2.135): 2027-03-27-phase0-tier4 is APPLIED history; the Mithril-Faced Shield's
    forge (Smithing) and the March salts' mixes (Smithing) and packs (Crafting), 150 permille like every job of their skills, the same full replace. */
-export const OUT_FILE = '2027-05-01-v0135-bench-tax-rates.generated.sql';
+/* DROP HOMES (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor, weapons and shields drop, a bench makes none): 2027-05-01-v0135 is APPLIED
+   history. The 24 armor, weapon and plain-shield recipes are cut (style-gear.js, shields.js), so their rows leave hr_bench_tax_rates; no rate moves.
+   ORDER: after 2027-05-06-drop-homes-items-catalogue.generated.sql (which drops their hr_activities rows), the same full replace. */
+export const OUT_FILE = '2027-05-06-drop-homes-bench-tax-rates.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /** What is wrong with the rows, as sentences. */

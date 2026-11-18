@@ -52,23 +52,23 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.137';
-import { ABILITIES, suggestedTrigger, areaSpec } from '../../data/abilities.js?v=0.2.137';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.137';
-import { SUPPLIES } from '../../data/supplies.js?v=0.2.137';
-import { ITEMS } from '../../data/items.js?v=0.2.137';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.137';
-import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.137';
-import { cheb, dist2, los } from './grid.js?v=0.2.137';
-import { makeEvent } from './events.js?v=0.2.137';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.137';
-import { START_BAR } from '../../data/start-kit.js?v=0.2.137';
-import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.137';
-import { footprint, inFootprint, place, covers, tilesMax } from './shapes.js?v=0.2.137';
-import { castsCovering } from './marks.js?v=0.2.137';
-import { elementPermille } from '../elements.js?v=0.2.137';
-import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.137';
-import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js?v=0.2.137';
+import { METRICS, OPERATORS, MAX_CONDITIONS, MAX_STOP_RULES, MAX_IGNORED, STOP_HOLD_MS, ACTION_TYPES, ATTACK_KINDS, EFFECT_IDS } from '../../data/condition-metrics.js?v=0.2.139';
+import { ABILITIES, suggestedTrigger, areaSpec } from '../../data/abilities.js?v=0.2.139';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../../data/consumables.js?v=0.2.139';
+import { SUPPLIES } from '../../data/supplies.js?v=0.2.139';
+import { ITEMS } from '../../data/items.js?v=0.2.139';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.139';
+import { ROLE_RULES } from '../../data/rule-subjects.js?v=0.2.139';
+import { cheb, dist2, los } from './grid.js?v=0.2.139';
+import { makeEvent } from './events.js?v=0.2.139';
+import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.139';
+import { START_BAR } from '../../data/start-kit.js?v=0.2.139';
+import { HUNT_ROLES, shootsItem } from '../../data/hunt-roles.js?v=0.2.139';
+import { footprint, inFootprint, place, covers, tilesMax } from './shapes.js?v=0.2.139';
+import { castsCovering } from './marks.js?v=0.2.139';
+import { elementPermille } from '../elements.js?v=0.2.139';
+import { RUNE_ON_EMPTY, isRune, runeTierOf } from '../../data/runes.js?v=0.2.139';
+import { engagedOf, heroesByIdOf, livingOf } from './unit-index.js?v=0.2.139';
 
 /* ruleHold: ms each stop rule has held, by its stable rule id (null = none held).
    ruleWait: the last `rule_wait` reported, per lane ('ruleId:why'), so it is reported once.
@@ -703,8 +703,6 @@ export function pickSlot(inst, u, h, rows, act, sc, lane) {
    action could not happen is reported ONCE per (lane, rule, why): the unit keeps its
    last report per lane (`ruleWait`, persisted, so a settle cut never repeats one),
    and a lane that fires clears it. Bounded: one event per change, never per sub-step. */
-/* 'level': a spell's carried rune casts a version the hero's skill has not unlocked yet (src/data/runes.js). */
-export const WAIT_WHY = Object.freeze(['mana', 'cooldown', 'no_stock', 'no_target', 'out_of_range', 'gold_short', 'level']);
 function noteWait(u, lane, wait, sc) {
   const key = wait.rule + ':' + wait.why;
   const cur = u.ruleWait && typeof u.ruleWait === 'object' ? u.ruleWait : {};

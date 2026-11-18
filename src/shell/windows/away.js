@@ -13,18 +13,18 @@
 // lines widget leaves them to this card. Closing the card is reading them: every away line is dismissed. Nothing here
 // counts or predicts a number; Hunt again is the server's own restart (CharacterSession.restartHunt), checked there.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.137';
-import { whole, gold } from '../../render/format.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.137';
-import { resultHtml, patchResult } from '../result-block.js?v=0.2.137';
-import { awayNowOf } from '../away-recap.js?v=0.2.137';
-import { spanWords } from '../after-hunt.js?v=0.2.137';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.137';
-import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.137';
-import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.137';
-import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.137';
-import { TOWER_RULES } from '../../data/tower.js?v=0.2.137';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.139';
+import { whole, gold } from '../../render/format.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
+import { itemName, itemIconHtml, skillName } from '../widgets/bits.js?v=0.2.139';
+import { resultHtml, patchResult } from '../result-block.js?v=0.2.139';
+import { awayNowOf } from '../away-recap.js?v=0.2.139';
+import { spanWords } from '../after-hunt.js?v=0.2.139';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.139';
+import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.139';
+import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.139';
+import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.139';
+import { TOWER_RULES } from '../../data/tower.js?v=0.2.139';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);
@@ -33,6 +33,13 @@ const heroOf = (ctx, a) => ctx.peers().find((p) => p.slot === a.slot) || null;
    Start is the Training window's) or a climb (the Tower window's). */
 const restartable = (hunt) => !!hunt && !roomOfHunt(hunt) && !trainedBy(hunt) && hunt !== TOWER_RULES.hunt;
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
+/* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, signed, with
+   both under it; null when the line has no store spend to set against the coins (../away-recap.js says no gold then). */
+function goldFig(f) {
+  if (!Number.isFinite(f.gold) || !Number.isFinite(f.looted) || !Number.isFinite(f.paid)) return null;
+  return { key: 'gold', label: t('summary.fig_gold'), value: (f.gold < 0 ? '−' : '+') + gold(Math.abs(f.gold)),
+    sub: f.paid > 0 ? t('away.card_gold_both', { looted: gold(f.looted), paid: gold(f.paid) }) : t('away.card_gold_looted', { looted: gold(f.looted) }) };
+}
 
 /**
  * One hero's block as it reads now: the result (a hunt's, two server answers), the best find, the line under it, and its press.
@@ -41,18 +48,29 @@ const OPENS = Object.freeze({ bag: 'inventory', show: null });
 export function awayBlockOf(cs, a) {
   const f = a.facts || {};
   const now = cs && !a.work ? awayNowOf(cs, a) : null;
-  const hunt = !a.work && !(now && now.training);
+  /* a hunt's result, also when the yard took over from it (the line keeps that hunt: ../away-recap.js); a training session's is its skill */
+  const hunt = !a.work && (f.tookOver === true || !(now && now.training));
+  const tr = !a.work && f.train ? f.train : null;
   const result = hunt ? {
-    level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: f.lvFrom, to: f.lvTo } : null, ups: [],
+    level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: f.lvFrom, to: f.lvTo } : null,
+    /* the skill the yard that took over trained, "Melee 28 to 34" (two server answers) */
+    ups: tr && tr.to > tr.from ? [t('summary.skill_up', { skill: skillName(tr.skill), from: tr.from, to: tr.to })] : [],
     figs: [f.xp > 0 ? { key: 'xp', label: t('summary.fig_xp'), value: '+' + whole(f.xp) } : null,
-      f.gold > 0 ? { key: 'gold', label: t('summary.fig_gold'), value: '+' + gold(f.gold) } : null,
+      goldFig(f),
       f.kills > 0 ? { key: 'kills', label: t('summary.fig_kills'), value: whole(f.kills) } : null].filter(Boolean),
-  } : { level: null, ups: [], figs: [] };
+  /* A YARD'S CARD HAS ITS NUMBERS (audit 2026-11-18 A22): the skill's levels and XP over the absence, the server's */
+  } : tr ? { level: { name: skillName(tr.skill), from: tr.from, to: tr.to }, ups: [],
+    figs: [{ key: 'xp', label: t('training.card_xp', { skill: skillName(tr.skill) }), value: '+' + whole(tr.xp) }] } : { level: null, ups: [], figs: [] };
   let why = '', when = '', stamina = '', go = a.action === 'bag' ? 'bag' : 'show', label = a.button;
   if (a.work) why = f.body || a.text;
   else if (now && now.training) {
-    why = now.ended ? now.why : t('training.away_still');
-    if (now.ended) { when = [now.ago ? t('away.card_ended_when', { time: now.ago }) : '', now.next].filter(Boolean).join(' '); go = 'train'; label = t('training.card_again'); }
+    const yard = now.ended ? now.why : t('training.away_still');
+    /* the yard took over: the hunt's end the server knows (a death) first, then the yard and where it stands */
+    why = f.tookOver ? f.died || '' : yard;
+    when = [f.tookOver ? f.after : '', f.tookOver ? yard : '', now.ended && now.ago ? t('away.card_ended_when', { time: now.ago }) : '', now.ended ? now.next : '']
+      .filter(Boolean).join(' ');
+    /* a training session is no hunt (Tyler 2026-11-16): its door is the Training window, never "See the hunt" */
+    go = 'train'; label = now.ended ? t('training.card_again') : t('away.card_training');
   } else if (now && now.ended) {
     why = now.why;
     when = [now.ago ? t('away.card_ended_when', { time: now.ago }) : '', now.next].filter(Boolean).join(' ');

@@ -920,7 +920,7 @@
   "chest_luck": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER PROGRESS (2027-04-27-tower-chest.sql) - a hero's lifetime key count (the roll's index and the Turnkey title's count) and its default stokes a key (its warmth moved to chest_warmth, per family, in 2027-05-06-catacombs.sql). Losing a row restarts the roll's index (keys already used would roll their dice again); written only by hr_chest_open and hr_chest_stoke_default; RLS own read, no client write."
+   "note": "PLAYER PROGRESS (2027-04-27-tower-chest.sql) - a hero's lifetime key count (the roll's index and the Turnkey title's count) and its default stokes a key (its warmth moved to chest_warmth, per family, in 2027-05-08-catacombs.sql). Losing a row restarts the roll's index (keys already used would roll their dice again); written only by hr_chest_open and hr_chest_stoke_default; RLS own read, no client write."
   },
   "chest_opens": {
    "class": "restore_only",
@@ -930,7 +930,7 @@
   "chest_warmth": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER PROGRESS (2027-05-06-catacombs.sql) - a hero's Hearth warmth for each key family (its keys since the family's last piece), the Tower family's copied from chest_luck.dry when the column moved here. Losing a row cools that family's Hearth (a dry streak's earned chance lost); written only by hr_chest_open; RLS own read, no client write."
+   "note": "PLAYER PROGRESS (2027-05-08-catacombs.sql) - a hero's Hearth warmth for each key family (its keys since the family's last piece), the Tower family's copied from chest_luck.dry when the column moved here. Losing a row cools that family's Hearth (a dry streak's earned chance lost); written only by hr_chest_open; RLS own read, no client write."
   },
   "clan_bans": {
    "class": "restore_only",
@@ -1073,7 +1073,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 387,
+   "replay": 363,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1083,7 +1083,7 @@
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 159,
+   "replay": 135,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -1170,7 +1170,7 @@
   "hr_chest_armor": {
    "class": "seeded",
    "replay": 24,
-   "note": "Generated catalogue (2027-05-06-catacombs-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js and src/data/catacomb-armor.js): each Catacomb key's armor piece a slot and weight (Bronze and Silver of both wings today). Empty, every Catacomb key is refused chest_not_ready (the key kept). Rebuilt from repo, never restored."
+   "note": "Generated catalogue (2027-05-08-catacombs-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js and src/data/catacomb-armor.js): each Catacomb key's armor piece a slot and weight (Bronze and Silver of both wings today). Empty, every Catacomb key is refused chest_not_ready (the key kept). Rebuilt from repo, never restored."
   },
   "hr_chest_families": {
    "class": "seeded",
@@ -1768,7 +1768,7 @@
   },
   "hr_players_online_cache": {
    "class": "operational",
-   "note": "2026-11-07-players-online.sql, one row seeded. The shared players-online count and when it was taken, recomputed by hr_players_online from character_presence at most every 15 s. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the first ask recounts."
+   "note": "2026-11-07-players-online.sql, one row seeded; 2027-05-05-players-online-by-activity.sql: the total and its seven lines by activity, written once a world tick fire by hr_players_online_refresh (hr_tick_cron_run) from hunt_sessions, player_state and character_presence, read by the social poll. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the poll answers no count until the first fire, 10 s later."
   },
   "hr_plot_tier": {
    "class": "seeded",
@@ -2079,12 +2079,12 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 133,
+   "replay": 143,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {
    "class": "seeded",
-   "replay": 62,
+   "replay": 64,
    "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
   },
   "hr_wipe_log": {

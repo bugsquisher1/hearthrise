@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/catacombs.mjs — THE UNMARKED CATACOMBS' DESCENT, PLAYED ON THE REPLAYED CHAIN WITH THE REAL ENGINE (lane/c-catacombs, 2026-11-18;
-//   Tyler 2026-11-16, the board's "2026-11-16 The Unmarked Catacombs descent"; supabase/migrations/2027-05-06-catacombs.sql and its catalogues).
+//   Tyler 2026-11-16, the board's "2026-11-16 The Unmarked Catacombs descent"; supabase/migrations/2027-05-08-catacombs.sql and its catalogues).
 //
 //   CB-DATA     the run rows (two wings: their rosters, Keeper Dunn, the boards), the `catacomb` mode a copy of `tower`, the eight keys (each
 //               wing's metal, the Tower's doors and odds, the 70/30 lean), the twelve pieces that ship, and the server's rows the data's.
@@ -17,7 +17,7 @@
 //               worn one about half the time, even thirds where nothing is worn.
 //   CB-BOARD    a descent alone raises "Catacombs, Deepest" alone, a party's raises the party board (never the other), raise-only; a forged
 //               window (more rooms than the stair allows) is refused and moves no board: the clamp.
-//   CB-IDEM     a second apply of 2027-05-06-catacombs.sql is byte-identical (schema, every body it states, its rows).
+//   CB-IDEM     a second apply of 2027-05-08-catacombs.sql is byte-identical (schema, every body it states, its rows).
 //
 //   node tests/catacombs.mjs              the guard (credential-free)
 //   node tests/catacombs.mjs --arm=lean   one arm
@@ -33,7 +33,7 @@ const TC = (await import('./tower-climb.mjs')).HARNESS;
 const { one, q, makeExec } = H;
 const ROOT = H.ROOT;
 const UID = H.UIDS[0], UID2 = H.UIDS[1];
-const FILE = '2027-05-06-catacombs.sql';
+const FILE = '2027-05-08-catacombs.sql';
 const SPAN = TC.SPAN;
 const idem = () => crypto.randomUUID();
 const rewind = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);

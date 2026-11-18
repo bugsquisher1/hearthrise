@@ -104,16 +104,6 @@ export function attributeOf(row, attrs = CATACOMB_ATTRS, tiers = CATACOMB_TIERS)
   return { field: a.field, element: a.element || null, size, value: a.element ? { [a.element]: size } : size };
 }
 
-/** The number the card shows: a skill as levels, a permille as a percent (15 reads 1.5). */
-const shown = (field, size) => (field === 'resistPm' || field === 'steadyPm' ? String(size / 10) : String(size));
-
-/** A row's card text: what it does first, with its number, then its one line. */
-export function cardOf(row, attrs = CATACOMB_ATTRS, tiers = CATACOMB_TIERS) {
-  const at = attributeOf(row, attrs, tiers);
-  const a = attrs[row.slot + ':' + row.weight];
-  return a.say.replace('{n}', shown(at.field, at.size)) + ' ' + row.line;
-}
-
 /** The 24 item rows as they would ship, { id: row }, from the catalogue `items` they join: the twin's row with every field copied, its
     own name, its one attribute and `catacombTier` (the key tier it comes out of). Tradeable like any gear (Tyler 2026-10-23: no bound
     gear). Throws when a twin is missing. Pure. */
@@ -128,6 +118,3 @@ export function catacombArmorItems(items, rows = CATACOMB_ARMOR, attrs = CATACOM
   }
   return out;
 }
-
-/** One line an item (item-descriptions.js spreads it when the rows ship). Drafts, not through the reader gate. */
-export const CATACOMB_ARMOR_DESC = Object.freeze(Object.fromEntries(CATACOMB_ARMOR.map((r) => [r.id, cardOf(r)])));

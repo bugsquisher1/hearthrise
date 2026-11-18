@@ -9,6 +9,12 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const HEROES_TEXT = Object.freeze({
+  /* A TITLE EARNED (src/shell/town-news.js; QA audit 2026-11-18 A24: titles unlocked with nobody told). {title} its name, {price} the
+     server's, {count} how many more are waiting. */
+  title_ready: '{name} earned the title {title}. Claim it for {price} in Character → Titles.',
+  title_ready_free: '{name} earned the title {title}. Claim it in Character → Titles.',
+  title_ready_more: { one: '{name} earned the title {title} and 1 more. Claim them in Character → Titles.',
+    other: '{name} earned the title {title} and {count} more. Claim them in Character → Titles.' },
   /* The phone's routes. */
   icons_head: 'What the icons open',
   character_list: 'Character list',

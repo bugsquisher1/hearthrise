@@ -16,6 +16,8 @@
 //   DP-0 PURE      the words are the row's: no `saved` key says nothing about a Blessing,
 //                  saved null says none was active, a saving names its XP; an unpriced row
 //                  (xp null) says nothing about the cost
+//   DP-0c BLESSINGS THAT FIRED (audit 2026-11-18 A3)  three Blessings that saved 26,130 XP read as saved and used up, never "No Blessings",
+//                  and the press back to Shop -> Services reads "Bless again" (DP-1 reads it on the card)
 //   DP-0b A LEVEL TAKEN (Tyler 2026-11-09)  a row whose level_to is under its level_from says the hero dropped
 //                  a Level, none otherwise; the why reads the Level died at; "Your 3 Blessings kept ..."
 //   DP-1 ATTENDED  the hunt section ends `died` in a new envelope: the death popup opens,
@@ -45,6 +47,8 @@
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
@@ -89,6 +93,13 @@ async function pure(base) {
   const old = Object.assign({}, ROW); delete old.saved;
   if (words(old).saved !== '') fail(fails, 'DP-0 a row with no `saved` key (an older server) still says something about a Blessing: ' + JSON.stringify(words(old).saved));
   if (!/^No Blessings/.test(words(Object.assign({}, ROW, { saved: null })).saved)) fail(fails, 'DP-0 saved null does not say no Blessing was active');
+  /* DP-0c BLESSINGS THAT FIRED READ AS FIRED (full-game audit 2026-11-18 A3: the Rat King took 8,710 Level XP after all three Blessings saved
+     26,130, and the card read "No Blessings"; no press offered them again). The row's saving and count say what they saved and that they are
+     used up, and the press back to Shop → Services reads "Bless again"; a death with none held offers "Blessings". */
+  const king = words(Object.assign({}, ROW, { xp: 8710, xp_lost: { level: 8710 }, saved: { level: 26130 }, blessings: 3 }));
+  if (king.saved !== '3 Blessings saved 26,130 Level XP, used up' || /No Blessings/.test(king.saved)) fail(fails, 'DP-0c three Blessings that fired read ' + JSON.stringify(king.saved));
+  if (king.bless !== 'Bless again') fail(fails, 'DP-0c the press after Blessings were used up reads ' + JSON.stringify(king.bless) + ', want "Bless again"');
+  if (words(Object.assign({}, ROW, { saved: null, blessings: null })).bless !== 'Blessings') fail(fails, 'DP-0c a death with none held offers ' + JSON.stringify(words(Object.assign({}, ROW, { saved: null })).bless));
   const unpriced = words(Object.assign({}, ROW, { xp: null, xp_lost: null }));
   if (unpriced.lost !== '') fail(fails, 'DP-0 an unpriced death states a cost: ' + JSON.stringify(unpriced.lost));
   /* THE WHY (Tyler 2026-11-04 UTC: a death teaches): how far under the ground, what that did to every blow, what would have helped. The server's Level and row; an older hunt's row says nothing. */
@@ -142,6 +153,8 @@ function dead(env, row) {
   env.hunt.ended = true;
   env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'died', ended_at: '2026-10-17T12:30:00Z', phase: 'ended' });
   env.death_log = [clone(row || ROW)];
+  /* the death used them up: the server's Blessings section holds none (2026-10-25-blessings.sql hr_blessings_view) */
+  env.blessings = { permille: 0, free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 250 * tier, price: 0, held: false })) };
   env.state = Object.assign({}, env.state, { level_xp: 0 });
 }
 function scripted(died, row) {
@@ -197,7 +210,7 @@ const popRead = (page) => page.evaluate((q) => {
   const r = w.getBoundingClientRect();
   return { modal: w.classList.contains('is-modal'), cx: r.left + r.width / 2, cy: r.top + r.height / 2, vw: innerWidth, vh: innerHeight,
     inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
-    title: t('.hdeath-title'), killed: t('.hdeath-killed'), why: t('.hdeath-why'), lost: t('.hdeath-lost'), level: t('.hdeath-level'), saved: t('.hdeath-saved'), town: t('.hdeath-town'),
+    title: t('.hdeath-title'), killed: t('.hdeath-killed'), why: t('.hdeath-why'), lost: t('.hdeath-lost'), level: t('.hdeath-level'), saved: t('.hdeath-saved'), town: t('.hdeath-town'), bless: t('[data-hs-act="death-bless"]'),
     summary: !!document.querySelector('[data-hs-win="hunt-summary"]:not(.is-leaving)'),
     minPx: Math.min(...Array.from(w.querySelectorAll('.hdeath-card *')).filter((n) => n.childNodes.length && n.textContent.trim() && getComputedStyle(n).display !== 'none').map((n) => parseFloat(getComputedStyle(n).fontSize))) };
 }, POP);
@@ -241,6 +254,8 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
           const r = await popRead(a.page);
           if (!r.modal || Math.abs(r.cx - r.vw / 2) > 40 || !r.inside) fails.push('DP-1 [' + tag + '] the popup is not a centred modal on screen: ' + JSON.stringify({ modal: r.modal, cx: r.cx, vw: r.vw, inside: r.inside }));
           words(r, fails, tag, 'DP-1');
+          /* DP-1 A3 (audit 2026-11-18): the row's two Blessings were used up, so the press back to Shop → Services reads "Bless again" */
+          if (r.bless !== 'Bless again') fails.push('DP-1 [' + tag + '] after Blessings were used up the press reads ' + JSON.stringify(r.bless) + ', want "Bless again"');
           if (!(r.minPx >= 12)) fails.push('DP-1 [' + tag + '] popup text at ' + r.minPx + ' px (under 12)');
           if (r.why !== WHY_IN_RANGE) fails.push('DP-1 [' + tag + '] the card never says what would have helped at the Level died at: ' + JSON.stringify(r.why));
           if (r.summary) fails.push('DP-1 [' + tag + '] the hunt summary opened over the death popup');
@@ -436,6 +451,7 @@ const MUTANTS = [
   ['a death teaches nothing: the card has no why', 'src/shell/death-popup.js', '    why: whyWords(cs, d),', "    why: '',"],  ['a death opens no popup', 'src/shell/death-popup.js', "    ctx.wm.open('death');", '    void 0;'],
   ['the dismissal is not kept', 'src/shell/death-popup.js', '{ const s = showing; showing = null; dismissDeath(cs, s); }', '{ showing = null; }'],
   ['the cost is not the row\'s', 'src/shell/death-popup.js', "t('death.lost', { xp: xpWords(row.xpLost) })", "t('death.lost', { xp: xpWords({ level: row.xp }) })"],
+  ['the press after Blessings were used up still reads "Blessings" (DP-1, audit 2026-11-18 A3)', 'src/shell/death-popup.js', "    bless: t(used ? 'death.bless_again' : 'death.bless'),", "    bless: t('death.bless'),"],
   ['the Blessing line ignores the row', 'src/shell/death-popup.js', "return Object.keys(row.saved).length ? t('death.blessing_kept'", "return false ? t('death.blessing_kept'"],
   ['the Blessings a death used are always one (DP-0b)', 'src/shell/death-popup.js', 'row.blessings > 1 ? row.blessings : 1;', 'false ? row.blessings : 1;'],
   ['a Level the death took is not said (DP-0b)', 'src/shell/death-popup.js', '&& row.levelTo < row.levelFrom', '&& false'],
@@ -479,7 +495,14 @@ async function main() {
   for (const [name, file, from, to] of chosen) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true });
+    let fails = await pageRules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true });
+    /* DP-0 runs in node on the files themselves, never on the page's served overrides: a mutant only DP-0 can see (the boss room's
+       gap, release run 44238664696) is judged on a throwaway copy of src/ outside the tree, so it is caught where its rule lives */
+    if (!fails.length) {
+      const tmp = mkdtempSync(join(tmpdir(), 'dp-mutant-'));
+      try { cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true }); writeFileSync(join(tmp, file), text.replace(from, to)); fails = await pure(tmp); }
+      finally { rmSync(tmp, { recursive: true, force: true }); }
+    }
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

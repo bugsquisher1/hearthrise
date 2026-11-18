@@ -44,27 +44,27 @@
 // window, no timers, no Math.random.
 // ============================================================
 
-import { COMBAT_BALANCE } from './combat.js?v=0.2.137';
-import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js?v=0.2.137';
-import { createRng } from './rng.js?v=0.2.137';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.137';
-import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.137';
-import { MONSTERS } from '../data/monsters.js?v=0.2.137';
-import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.137';
-import { stepSwing } from './hunt/world-step.js?v=0.2.137';
-import { makeEvent, trackStep } from './hunt/events.js?v=0.2.137';
-import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.137';
-import { pullLeader } from './hunt/pull-cycle.js?v=0.2.137';
-import { rewardSwing } from './hunt-rewards.js?v=0.2.137';
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.137';
-import { roomOf } from './hunt/boss-room.js?v=0.2.137';
-import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.137';
-import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js?v=0.2.137';
-import { runRulesOf } from '../data/tower.js?v=0.2.137';
-import { sessionPayOf } from '../data/session-modes.js?v=0.2.137';
+import { COMBAT_BALANCE } from './combat.js?v=0.2.139';
+import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js?v=0.2.139';
+import { createRng } from './rng.js?v=0.2.139';
+import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.139';
+import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.139';
+import { MONSTERS } from '../data/monsters.js?v=0.2.139';
+import { scaleLevelFor, scaledMonsters, scaledTierRow } from '../data/scaled-hunts.js?v=0.2.139';
+import { stepSwing } from './hunt/world-step.js?v=0.2.139';
+import { makeEvent, trackStep } from './hunt/events.js?v=0.2.139';
+import { newHuntWorld, joinHero, leaveHero } from './hunt-spawn.js?v=0.2.139';
+import { pullLeader } from './hunt/pull-cycle.js?v=0.2.139';
+import { rewardSwing } from './hunt-rewards.js?v=0.2.139';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.139';
+import { roomOf } from './hunt/boss-room.js?v=0.2.139';
+import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.139';
+import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js?v=0.2.139';
+import { runRulesOf } from '../data/tower.js?v=0.2.139';
+import { sessionPayOf } from '../data/session-modes.js?v=0.2.139';
 
-/* The engine's front door (src/core/index.js `combatSim`). */
-export { stepSwing } from './hunt/world-step.js?v=0.2.137';
+/* The engine's front door: `combatSim`. */
+export { stepSwing } from './hunt/world-step.js?v=0.2.139';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract
    src/core/skill-sim.js and src/core/artisan-sim.js publish under this name.

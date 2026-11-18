@@ -31,7 +31,16 @@ import { ITEMS } from '../src/data/items.js';
 import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
 import { ELEMENTS } from '../src/data/elements.js';
 import * as COMBAT from '../src/core/combat.js';
-import { CATACOMB_ARMOR, CATACOMB_ATTRS, CATACOMB_TIERS, WING_LEAN, CATACOMB_ARMOR_NOW, catacombArmorItems, cardOf } from '../src/data/catacomb-armor.js';
+import { CATACOMB_ARMOR, CATACOMB_ATTRS, CATACOMB_TIERS, WING_LEAN, CATACOMB_ARMOR_NOW, catacombArmorItems, attributeOf } from '../src/data/catacomb-armor.js';
+
+/* THE CARD as the design reads it (the attribute's sentence with its number first, then the row's line). Composed here since the twelve shipped
+   (lane/c-catacombs): the item description is the line alone (the house's flavour rule: no digit), and the client's card reads the item's own
+   field with CATACOMB_ATTRS `say`, so the data file keeps no composed copy nothing ships. A skill reads as levels, a permille as a percent. */
+const shown = (field, size) => (field === 'resistPm' || field === 'steadyPm' ? String(size / 10) : String(size));
+function cardOf(row, attrs = CATACOMB_ATTRS, tiers = CATACOMB_TIERS) {
+  const at = attributeOf(row, attrs, tiers);
+  return attrs[row.slot + ':' + row.weight].say.replace('{n}', shown(at.field, at.size)) + ' ' + row.line;
+}
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;

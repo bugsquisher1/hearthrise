@@ -36,8 +36,8 @@
 // does not know).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.137';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.137';
+import { SUPABASE_CONFIG } from '../net/supabase-bootstrap.js?v=0.2.139';
+import { createIntentLedger } from './intent-ledger.js?v=0.2.139';
 
 export const CLOSED_CODE = 'hr_closed';
 export const BANNED_CODE = 'hr_banned';

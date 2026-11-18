@@ -23,16 +23,16 @@
 // card that now has nothing left is listed as done, so the player sees what happened;
 // the first open step is the card's ONE gold press, else Hunt again is.
 // ════════════════════════════════════════════════════════════════════════
-import { sellPlan, isStartKit } from './bag-model.js?v=0.2.137';
-import { upgradeWords } from './upgrade-plan.js?v=0.2.137';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.137';
-import { nextBuyOf } from './next-buy.js?v=0.2.137';
-import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.137';
-import { moveStorageMany } from '../session/storage-intents.js?v=0.2.137';
-import { huntOf, sessionModeOfHunt } from '../session/hunt-sections.js?v=0.2.137';
-import { itemName } from './widgets/bits.js?v=0.2.137';
-import { gold, listWords } from '../render/format.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { sellPlan, isStartKit } from './bag-model.js?v=0.2.139';
+import { upgradeWords } from './upgrade-plan.js?v=0.2.139';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.139';
+import { nextBuyOf } from './next-buy.js?v=0.2.139';
+import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.139';
+import { moveStorageMany } from '../session/storage-intents.js?v=0.2.139';
+import { huntOf, sessionModeOfHunt } from '../session/hunt-sections.js?v=0.2.139';
+import { itemName } from './widgets/bits.js?v=0.2.139';
+import { gold, listWords } from '../render/format.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const names = (ids) => listWords(ids.map(itemName));

@@ -11,17 +11,17 @@
 // setTargetKind): the panel goes pending at once, every control off, and comes back only when the server has answered
 // and the re-read envelope has replaced the section (CLAUDE.md §6). A refusal keeps the server's pick and says why.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../../data/monsters.js?v=0.2.137';
-import { groundOfHunt, monstersOn } from '../../data/hunt-grounds.js?v=0.2.137';
-import { huntOf, huntTargetKindOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { huntName } from '../../session/party-sections.js?v=0.2.137';
-import { setTargetKind } from '../../session/target-intents.js?v=0.2.137';
-import { pickedHuntOf } from '../windows/hunts.js?v=0.2.137';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { text, attr, prop } from '../../render/paint.js?v=0.2.137';
-import { answerWithin } from '../bar-draft.js?v=0.2.137';
-import { refusalText } from '../intent-words.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.139';
+import { groundOfHunt, monstersOn } from '../../data/hunt-grounds.js?v=0.2.139';
+import { huntOf, huntTargetKindOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { huntName } from '../../session/party-sections.js?v=0.2.139';
+import { setTargetKind } from '../../session/target-intents.js?v=0.2.139';
+import { pickedHuntOf } from '../windows/hunts.js?v=0.2.139';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
+import { text, attr, prop } from '../../render/paint.js?v=0.2.139';
+import { answerWithin } from '../bar-draft.js?v=0.2.139';
+import { refusalText } from '../intent-words.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
 
 /** The row (built once): the label, the select (its options follow the ground) and the line naming the ground. */
 export function firstTargetHtml() {
@@ -30,8 +30,9 @@ export function firstTargetHtml() {
     + '<p class="hb-pl-note"></p></div>';
 }
 
-/** The ground the pick is for: the open hunt's, else the Hunts window's pick, else the last hunt's; null = none known (the row hides). */
-function firstTargetGround(cs) {
+/** THE HERO'S GROUND, the one a setting or a card is about: the open hunt's, else the Hunts window's pick, else the last hunt's;
+    null = none known (the First target row hides; an item card says nothing of a ground, windows/item-tip.js). */
+export function heroGroundOf(cs) {
   const h = huntOf(cs);
   if (h && !h.ended && h.huntId) return h.huntId;
   return pickedHuntOf(cs) || (h && h.huntId) || null;
@@ -63,7 +64,7 @@ export function patchFirstTarget(root, ctx) {
   const box = root.querySelector('.hb-pl-first');
   if (!box) return;
   const cs = ctx.character;
-  const hunt = firstTargetGround(cs);
+  const hunt = heroGroundOf(cs);
   const kinds = kindsOf(hunt);
   prop(box, 'hidden', kinds.length < 2);
   if (kinds.length < 2) return;

@@ -31,7 +31,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    2027-04-24-tower-climb-catalogue.generated.sql (applied 2026-11-17 with v0.2.135) is history; 2027-05-05-entry-gates-tower-catalogue.generated.sql
    (lane/c-entry-gates, hr_tower_rules.min_level) is carried whole by the next one; lane/c-catacombs (2026-11-18) moved it here: hr_tower_rules
    becomes THE RUN GROUNDS' table, one row a ground (the Tower and the Unmarked Catacombs' two wings, src/data/tower.js RUN_GROUNDS). */
-export const OUT_NAME = '2027-05-06-catacombs-tower-catalogue.generated.sql';
+export const OUT_NAME = '2027-05-08-catacombs-tower-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. `runs` is the run table (the Tower's row is the one whose hunt is
@@ -77,13 +77,13 @@ export function build(input) {
 -- STATUS: STAGED, NOT APPLIED (lane/c-catacombs, backend-architect, 2026-11-18; Tyler 2026-11-16: the Unmarked Catacombs' descent, its "OWN game
 --   mode like the Burning Tower", a wing picked before the run). The Coordinator applies (tools/apply-migration.mjs, one file, never inside
 --   begin/commit). A FORWARD FILE: it carries 2027-05-05-entry-gates-tower-catalogue.generated.sql whole (the Tower's row, min_level) and makes
---   hr_tower_rules ONE ROW A RUN GROUND. ORDER: after 2027-05-05-entry-gates.sql and 2027-05-06-catacombs-session-modes-catalogue.generated.sql,
---   before 2027-05-06-catacombs.sql (which reads the wing rows). No function body, no player row.
+--   hr_tower_rules ONE ROW A RUN GROUND. ORDER: after 2027-05-08-catacombs-session-modes-catalogue.generated.sql,
+--   before 2027-05-08-catacombs.sql (which reads the wing rows). No function body, no player row.
 -- THE TABLE, MADE GENERAL WITHOUT MOVING A LIVE BODY: the primary key moves from \`id\` to \`hunt_id\`; \`id\` stays as THE BURNING TOWER'S MARK
 --   (true on its row, null on every other: its unique constraint and its check keep it so), so every body that reads "the Tower's row" with
 --   \`where id\` (hr_tower_section, hr_tower_board_mode, hr_entry_gates_view, hr_tower_start's image) still reads the Tower and only the Tower,
 --   and the bodies that read a ground's row by hunt_id (hr_hunt_admit's one-door arm, the settle's floor_time proof) read every run ground's.
---   Before 2027-05-06-catacombs.sql nothing opens a wing (its door is that file's, behind its switch, and hr_hunt_admit already answers
+--   Before 2027-05-08-catacombs.sql nothing opens a wing (its door is that file's, behind its switch, and hr_hunt_admit already answers
 --   \`tower_only\` for a run ground's hunt without its door's GUC), so this file alone moves no behaviour.
 -- hr_tower_rules (${rows.length} rows): each run ground's hunt, a room's size, a landing's (a vault door's) spacing (a landing is a checkpoint:
 --   hr_session_modes.checkpoint_every reads the same number), a room's and a landing's time, the stair, the highest room the formula is read
@@ -94,7 +94,7 @@ export function build(input) {
 --   mode's share and its party share (the formula's at that Level, the best-paying role): the settle's XP bound for every run (the generator
 --   refuses a run whose bound differs from the Tower's).
 -- Rewritten whole (no player row points at either: tower_runs and tower_progress name a hunt, never a row). RLS on, no policy, no client grant.
--- ON THE EA SECURITY LIST with the Tower and the descent. REVERSIBLE: after 2027-05-06-catacombs.sql's reversal, delete the wing rows, move the
+-- ON THE EA SECURITY LIST with the Tower and the descent. REVERSIBLE: after 2027-05-08-catacombs.sql's reversal, delete the wing rows, move the
 --   key back to \`id\` and drop the six new columns (nothing else reads them).
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_tower_rules (

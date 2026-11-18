@@ -23,22 +23,22 @@
 //   back        string           the hunt the player came back to after an absence (residue `coach.back`, away-recap.js)
 //   slotCost    number           the next hero slot's price (AccountSession.slotOffer, the server's), absent when none is for sale
 // ════════════════════════════════════════════════════════════════════════
-import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.137';
-import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.137';
-import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, groundsSeenOf, huntTierOf, sessionModeOfHunt } from './hunt-sections.js?v=0.2.137';
-import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.137';
-import { farmFieldOf } from './farm-sections.js?v=0.2.137';
-import { homeOf, chestsOf } from './home-sections.js?v=0.2.137';
-import { tallyOf } from './tally-sections.js?v=0.2.137';
-import { temperFirstRungOf } from './temper-sections.js?v=0.2.137';
-import { partyMembershipOf } from './party-sections.js?v=0.2.137';
-import { trainingOf, quoteFor } from './training-sections.js?v=0.2.137';
-import { wearsArmour } from '../core/vitals.js?v=0.2.137';
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.137';
-import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.137';
-import { towerOf } from './tower-sections.js?v=0.2.137';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
+import { currentCard, cardFor, nextGoal, ROLE_SKILL } from '../data/hunt-tutorial.js?v=0.2.139';
+import { levelOf, heroVitalsOf, deathLogOf } from './character-sections.js?v=0.2.139';
+import { huntOf, settingsOf, huntBestsOf, analyzerOf, staminaOf, groundsSeenOf, huntTierOf, sessionModeOfHunt } from './hunt-sections.js?v=0.2.139';
+import { skillsOf, carriedOf, bagOf, bagCapOf, bankOf, rulesOf, equipmentOf, blessingsOf, presetsOf, nameOf, goldOf, staminaRefillOf } from './item-sections.js?v=0.2.139';
+import { farmFieldOf } from './farm-sections.js?v=0.2.139';
+import { homeOf, chestsOf } from './home-sections.js?v=0.2.139';
+import { tallyOf } from './tally-sections.js?v=0.2.139';
+import { temperFirstRungOf } from './temper-sections.js?v=0.2.139';
+import { partyMembershipOf } from './party-sections.js?v=0.2.139';
+import { trainingOf, quoteFor } from './training-sections.js?v=0.2.139';
+import { wearsArmour } from '../core/vitals.js?v=0.2.139';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.139';
+import { DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.139';
+import { towerOf } from './tower-sections.js?v=0.2.139';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.139';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

@@ -62,7 +62,7 @@ async function hero(db, uid, name) {
                   on conflict (user_id, slot) do update set name = excluded.name, canonical = excluded.canonical`, [uid, name]);
   await asUser(db, '');
 }
-/* A best written as the settle writes it: the record row on the Tower's ground and the hero's board row, raised (2027-05-06-catacombs.sql: hr_tower_write
+/* A best written as the settle writes it: the record row on the Tower's ground and the hero's board row, raised (2027-05-08-catacombs.sql: hr_tower_write
    raises the board itself; before it, the record's trigger did, and the raise-only upsert below is then a no-op). Either chain position (TB-IDEM). */
 const hasGround = async (db) => Number(await one(db, "select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'tower_progress' and column_name = 'hunt_id'")) > 0;
 const best = async (db, uid, floor, at) => {
@@ -272,7 +272,7 @@ async function depthArm(db) {
 const SIGS = ['hr_tower_section(uuid,integer)', 'hr_mode_board_depth()', 'hr_mode_board_rank(text,integer,timestamp with time zone)',
   'hr_mode_board_hero(uuid,integer,integer,timestamp with time zone)', 'hr_mode_board_place(integer)', 'hr_mode_board_field(text,uuid,integer)',
   'hr_mode_board_end(text,uuid,integer,uuid)', 'hr_tower_board_mode()', 'hr_tower_board_rise()', 'hr_tower_board_run_start()', 'hr_tower_board_run_end()'];
-/* Judged where its file sits in the chain (upTo it): 2027-05-06-catacombs.sql restates its section and board triggers for every run ground after it,
+/* Judged where its file sits in the chain (upTo it): 2027-05-08-catacombs.sql restates its section and board triggers for every run ground after it,
    later images this file's §0 pins were never written against. */
 /* an `idem` mutant is planted HERE, in the arm's own chain (the shared one is past this file): IDEM_PLANT, set by the mutate loop */
 let IDEM_PLANT = null;
@@ -321,7 +321,7 @@ const MUTANTS = [
   { name: 'a party seat is a rival', arm: 'order', want: /^TB-ORDER with Cole seated/, fn: 'public.hr_mode_board_field(text,uuid,integer)',
     find: "           where b.mode_id = p_mode and ((-b.score), b.reached_at, b.user_id, b.slot) < ((-me.score), me.reached_at, me.user_id, me.slot)\n             and not exists (select 1 from public.hr_lb_hidden h where h.user_id = b.user_id and (h.slot is null or h.slot = b.slot))\n             and (v_party is null or",
     replace: "           where b.mode_id = p_mode and ((-b.score), b.reached_at, b.user_id, b.slot) < ((-me.score), me.reached_at, me.user_id, me.slot)\n             and not exists (select 1 from public.hr_lb_hidden h where h.user_id = b.user_id and (h.slot is null or h.slot = b.slot))\n             and (true or" },
-  /* the board is raised in hr_tower_write since 2027-05-06-catacombs.sql (the rise trigger on tower_progress is gone) */
+  /* the board is raised in hr_tower_write since 2027-05-08-catacombs.sql (the rise trigger on tower_progress is gone) */
   { name: 'the board is written on every settle', arm: 'rise', want: /^TB-RISE/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',
     find: '   where excluded.score > b.score;', replace: ';' },
   { name: 'the board never rises', arm: 'rise', want: /^TB-RISE/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',

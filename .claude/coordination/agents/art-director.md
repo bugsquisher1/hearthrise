@@ -3747,3 +3747,55 @@ line after the cut, so the MAP takes them in: hearth-plaza.mjs step 9 paints soo
 in the paving at pixel precision (east wider: the end in shadow), and sites.js lays existing scree, moss and weed decals by them (flat,
 open, no mirror). Lesson (7): a map object sits on whole tiles with no offset, so a decal can't be laid against an edge that falls on a
 tile line; paint the contact into the painted ground instead, where every pixel is placeable. The silhouette itself stays straight.
+
+## 2026-11-18 · lane/a-chest-glow-139 (from set/v0.2.138): the chest's green at its locks, the locks' gold flash
+Tyler: "keep the chest green... concentrate the color around the keyhole and fittings and give it a slow, subtle pulse. If you want a color
+change, have the lock flash warm gold when the special key turns... save rotating colors for a mechanic where each color actually means
+something." tower-art.mjs: the shut chest keeps the generation's green only in each lock's KEYHOLE and its HASP (the seam over the keyhole's
+column, a pixel each side); every other seam green is the dark of a shut seam (crack shadow 2, spill shadow 3). The keyholes and hasps breathe
+on BREATH, a cosine on three levels (as made / middles as made, rest a step down / all a step down) over a 40-frame 5 s loop: one palette
+step at most. The pool on the stone (hearth_chest_glow, class `glow`, the window's chest-glow) is gone, with its budget row. The bump is kept
+as drawn (lift/peak pixels unchanged); its schedule stays 15 s on average on the longer loop (BUMP block 3 slots 2: 10-20 s). FLASH, 6
+frames: every lock poured onto WARM (bronze 2-3, gold, the torch's palest as keyhole), then own metal lit with gold keyholes, gold to olive
+to green; its last frame is idle frame 5 exactly. Driven by the server's chest window: hearth-burn.js chestFlash (first frame that sees the
+window, as the puff; never a named flame or a powder) -> createHearthView `ambientPlay` -> compose.js plays a one-shot on an ambient row by
+age, and a row named without that clip (the smoke) holds its loop unbumped. The Tower window's opening flashes the turned key's lock gold on
+its "turn" frame. Tests: TL-CHEST (+11 mutants), HM-CLIENT/HM-DATA flash checks (+6 js mutants). Lessons: (8) an atlas dedupes identical
+frames, so a "draws frame X, not Y" check can pass by coincidence when X and Y are pixel twins: pick the instant where they must differ (the
+flash's last frame is idle frame 5; the "held loop" check reads frame 20); (9) a one-shot over a looping layer must also hold its sibling
+layers' bumps, or the smoke puffs a jolt the chest never makes. Coordinator review (art sign-off delegated): the one green leak off the
+seam went dark like the others, so at rest the chest's green is its keyholes' and hasps' alone; TL-CHEST holds the smoke's loop to no green
+(+1 mutant). The bump's peak puff keeps its green with the lid's light.
+## 2026-11-18 lane/b-ui-wave2 (Tyler: build today's audits' findings overnight; itemization audit #1/#10, UI audit UI-5, UI-6, UI-9, hunt view)
+(1) BENCH: a recipe row says what it makes against what the hero wears (src/shell/bench-output.js outputVsWorn: the item card's own
+statLines/compare over the server's worn set, "+16 Melee damage (+13) · vs Practice Sword", "Empty gloves slot", a tool's effect);
+past the two locked rows in full, the station's whole ladder, one rung a Level ("Lv 30", icon and name, the card on the pointer);
+the fee line names what the picked count takes before Start, by the server's carry rule, with its share of the purse from 10%
+("about 1 gold a craft · 188 gold for all 251"; bench-fee.js feeTotal/feeLineWords). An item card names no closed ground (#10).
+(2) INVENTORY: the foot (spaces, gold, why Dispatch is off, Dispatch) is one line under both columns; the bag draws the cap's free
+spaces as inert empty pockets (desktop, All, no search) and its scroll ends on a whole row (snapBag); worth and Advanced view sit
+under the bag; a window too short for the doll at its least wells seats the foot beside the doll instead (seatFoot, with hysteresis).
+(3) COACH: the town card docks in the World's right column under the Tally (hud-room.js dockTownCoach), never on it or on Town/Home,
+the Tally unmoved. (4) BOOK: ground pages draw the Hunts window's creature figures (x2, each a link to its page), drops carry their
+icons, the Chronicle has a numbered page list that turns to a found page, the monster page's head is x2 (--icon-2). (5) HUNT VIEW:
+the analyzer's list ends on a whole row (snapRows); Summary in a hunt is the hunt on now (summary-recorder.js liveSummaryOf).
+Lessons: (1) a "hide this row when empty" rule on a shared class (.hw-tools) hid the Shop's, Storage's and the Farm's rows: scope it
+to its window (AW-31's HARNESS crash found it); (2) height is the bag's real budget: a docked window over the bar is ~570 px at
+1440x900, so measure each layout at the real height before choosing (a full-width upgrade box cost the doll 14 px a well);
+(3) a footer moved out of a column steals that column's height: the doll's fit at short windows needs its own rule; (4) snapping a
+scroll box to whole rows: clear max-height, find the first row the foot cuts, set it, only at scrollTop 0; (5) a test's press on a
+row a mutant can remove must be guarded, or the mutant run throws instead of reading red.
+## 2026-11-18 lane/a-hearth-wings-139 (Tyler: "hearthwings look fine"; edges3 had read "pasted onto the plaza")
+The Coordinator's new source (art/world-src/gen-2026-11-18/hearth-wings-139, 01-note.json): the ORIGINAL FINAL-s602-bannerH-crest with a
+stone end cap on each wing (eave 3 px past the wall, quoined corner, dressed corner stone on the curb), one inpaint a side, seed 139.
+Measured, not assumed: 0 px differ from the FINAL outside the masks x26-44 / x340-358 y230-408, 67 colours all the FINAL's, alpha 0/255,
+art x26-358 rows 22-412, so the 16-column cut, 352 x 448 frame, 11 x 4 footprint, anchor (176, 412), fire loop and its `at`, cupola smoke and
+sparks points all hold (hearth_fire.png byte-unchanged; the Tower window's firebox crop re-cut, its front the FINAL's again). The map's
+make-do for the ragged ends goes: hearth-plaza.mjs step 9 removed (the tool and paving are byte-for-byte their pre-edges3 commit; the band
+moved to hug the new ends read as grained dirt, kept as a rejected crop beside the source), the two Havora scree piles and
+the moss strand off sites.js, the two weed tufts kept (they read as weeds in the joints by a wall). The Havora sheet leaves a new player's
+first phone view, so client-boot B-21 judges hearth_square #1 again and now says so (a harness red naming the stand that would still
+serve) when the map puts Havora back in that view. Edge payload moved (sites.js rides the bundle).
+Lessons: (1) a clean built edge needs no ground make-do: when the art is fixed, remove the compensations in the same lane or they
+float (the soot band sat 10 px off the new wall); (2) a test that searches for a stand that fits silently drifts away from the case it
+names: pin the real case (the new hero's first stand) and let the search only name the fallback in the red.

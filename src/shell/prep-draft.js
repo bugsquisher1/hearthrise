@@ -13,17 +13,18 @@
 //   draftFrom(set)          the copy of a settings-shaped view
 //   draftKey(draft)         one string for "is it the same" (the base the draft was built from)
 //   isDirty(draft, baseKey) has the player changed it
+//   rebaseDraft(m, b, s)    the server's newer view folded into the player's draft where the player changed nothing
 //   optionsOf(draft)        the ONE intent's options, every key the draft holds a value for
 //   dropPlan(bar, from, to) a drag's drop: onto an empty slot it moves, onto a filled one they swap
 //   clearedBar()            twenty empty slots
 //   stepDistance(d, by)     the distance one tile closer or farther, inside HERO_DISTANCE
 //   goldFloorOk(n)          a whole number of gold the server takes (GOLD_FLOOR)
 // ════════════════════════════════════════════════════════════════════════
-import { wireSlot } from '../session/hunt-sections.js?v=0.2.137';
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.137';
-import { HERO_DISTANCE, HUNT_STANCES, TARGET_MODES } from '../data/rule-subjects.js?v=0.2.137';
-import { GOLD_FLOOR } from '../data/hunt-sessions.js?v=0.2.137';
-import { movePlan, swapPlan } from './bar-draft.js?v=0.2.137';
+import { wireSlot } from '../session/hunt-sections.js?v=0.2.139';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.139';
+import { HERO_DISTANCE, HUNT_STANCES, TARGET_MODES } from '../data/rule-subjects.js?v=0.2.139';
+import { GOLD_FLOOR } from '../data/hunt-sessions.js?v=0.2.139';
+import { movePlan, swapPlan } from './bar-draft.js?v=0.2.139';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 
@@ -51,6 +52,34 @@ export function draftKey(d) {
 /** Has the player changed the draft since it was built from `baseKey`? */
 export function isDirty(d, baseKey) {
   return !!d && draftKey(d) !== baseKey;
+}
+
+const OPTION_KEYS = Object.freeze(['stance', 'targetMode', 'distance', 'chase', 'goldFloor']);
+/**
+ * THE BAR CHANGED UNDER AN EDIT (the full-game audit's A26: a slot changed on the HUD bar while Hunt prep held a copy, and Hunt prep kept
+ * showing the old bar). `mine` the player's draft, built from `baseKey`; `theirs` the server's newer view as a draft (draftFrom). Each slot and
+ * option the server changed and the player did not comes from the server; one the player changed stays the player's. null when both changed
+ * the same one differently (the builder then says so and Save waits). Pure.
+ */
+export function rebaseDraft(mine, baseKey, theirs) {
+  let base = null;
+  try { base = JSON.parse(baseKey); } catch { return null; }
+  if (!mine || !base || !theirs || !Array.isArray(base.slots)) return null;
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  /* one place: the server's when the player left it as built, the player's when the server did (or both agree), else no answer */
+  const pick = (m, b, s) => (same(m, b) ? { v: s } : same(s, b) || same(m, s) ? { v: m } : null);
+  const out = { slots: [] };
+  for (let i = 0; i < SLOTS; i++) {
+    const r = pick(mine.slots[i], base.slots[i], theirs.slots[i]);
+    if (!r) return null;
+    out.slots.push(r.v);
+  }
+  for (const k of OPTION_KEYS) {
+    const r = pick(mine[k], base[k], theirs[k]);
+    if (!r) return null;
+    out[k] = r.v;
+  }
+  return out;
 }
 
 /**

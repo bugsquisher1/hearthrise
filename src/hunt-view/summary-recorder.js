@@ -10,16 +10,16 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.137';
-import { roleIdOf } from '../session/party-sections.js?v=0.2.137';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.137';
-import { explainDeaths } from './death-explain.js?v=0.2.137';
-import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.137';
-import { trainingOf } from '../session/training-sections.js?v=0.2.137';
-import { levelOf } from '../session/character-sections.js?v=0.2.137';
-import { skillLevelsOf } from '../session/item-sections.js?v=0.2.137';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.139';
+import { roleIdOf } from '../session/party-sections.js?v=0.2.139';
+import { monsterName } from '../shell/widgets/bits.js?v=0.2.139';
+import { explainDeaths } from './death-explain.js?v=0.2.139';
+import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.139';
+import { trainingOf } from '../session/training-sections.js?v=0.2.139';
+import { levelOf } from '../session/character-sections.js?v=0.2.139';
+import { skillLevelsOf } from '../session/item-sections.js?v=0.2.139';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 const ATTACHED = new WeakMap();
 
@@ -122,6 +122,21 @@ export function attach(cs) {
     cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, an, deaths, roleIdOf(cs), stop, line)));
   });
   return a;
+}
+
+/**
+ * THE HUNT ON NOW, AS ITS CARD (UI audit 2026-11-18: Summary pressed in a hunt showed the hunt before it). The open session read the way
+ * its end card will be (buildSummary over the server's analyzer, its Level line from the start stamp), with `live` and the server's start
+ * time `since`; never stored, and replaced by every envelope. Its falls are the window's "Just now" lines (liveDeaths), not the card's.
+ * Null with no hunt open. Display only.
+ */
+export function liveSummaryOf(cs) {
+  const s = endedSessionOf(cs);
+  if (!s || s.ended) return null;
+  const an = analyzerOf(cs);
+  const line = levelLine(s.id, startOf(cs), levelOf(cs), skillLevelsOf(cs), trainedIn(s, an));
+  const card = buildSummary(s, an, [], roleIdOf(cs), null, line);
+  return card ? Object.assign(card, { live: true, since: s.enteredMs }) : null;
 }
 
 /* How long a summary must have been up for its moment to count when the page is left. */

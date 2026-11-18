@@ -12,9 +12,14 @@
 //                 poured `smoke_<flame>` (src/world/pour.js, PALETTE_RGB.smoke); a flame with no ladder smokes as drawn
 //   SMOKE_BURST   the chest's puff when a window opens: `plumes` extra plumes [dx, dy] art px from the flue, each rising one whole pixel a
 //                 life beat (risePx over ms) and gone after `ms` (one turn of the plume's 24 frames at 8 fps). Once a window.
+//   CHEST_FLASH   the Hearth Chest's locks when a window opens (lane/a-chest-glow-139, Tyler 2026-11-18: "have the lock flash warm gold when
+//                 the special key turns"): its `anim` clip (tools/world-art/tower-art.mjs FLASH: warm gold fading back to green, 6 frames at
+//                 8 fps) played once on each of its `layers` for `ms`, from the frame that first sees the window, as the puff is; a layer
+//                 without the clip (its smoke) keeps its loop and never bumps meanwhile (src/world/core/compose.js state.ambientPlay)
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
+import { CHEST_LAYERS } from './town/sites.js?v=0.2.139';
 
 const flame = (id, words) => Object.freeze({ fire: 'hearth_fire_' + id, flare: 'hearth_flare_' + id, sparks: 'hearth_burn_sparks_' + id, words });
 export const CHEST_FLAMES = Object.freeze({ chest: flame('chest', 'burns green') });
@@ -26,3 +31,5 @@ export const SMOKE_BURST = Object.freeze({
   risePx: 24,
   plumes: Object.freeze([Object.freeze([-7, 0]), Object.freeze([7, -3]), Object.freeze([0, -6])]),
 });
+
+export const CHEST_FLASH = Object.freeze({ anim: 'flash', ms: 750, layers: CHEST_LAYERS });

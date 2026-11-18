@@ -21,8 +21,8 @@
 // Shop sells a shield, the Hold's pattern). FITTED on the floor hour's kills (tests/hunt-core/drop-tables.mjs, a lone tank in its full set). No armor (Carter's Rest has the tier-7 boots, legs,
 // gloves and belts, Lord Krell the bodies and helms). The unique pieces (board section 9) wait on Carter's Rest's sample of five. Each body
 // drops one imbuement item.
-import { definePack, box, gather } from '../shape.js?v=0.2.137';
-import map from './map.js?v=0.2.137';
+import { definePack, box, gather } from '../shape.js?v=0.2.139';
+import map from './map.js?v=0.2.139';
 
 const TM = 'dead_teamster', RN = 'coal_runner', OX = 'yoke_ox', DR = 'drover', WM = 'wagonmaster';
 
@@ -144,7 +144,7 @@ export default definePack({
   /* (Its own party cells are retired: one party table for every ground, Tyler 2026-11-16, src/data/party-class-xp.js.) */
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-25, 30], 3: [-20, 25, 35], 4: [-30, 15, 20, 20] }, deadly: { 2: [-15, 45], 3: [-10, 45, 55], 4: [-25, 25, 30, 35] } },
   /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, Carter's Rest's reason). On the table's eight a Melee and bow pair at
      the floor earned 0.60 of the same heroes alone on Deadly; on six every Dangerous and Deadly mix stands at or over them (1.23-1.64; party-tier-xp,
      2 seeds x 0.5 h), Andy's four 1.79x the pace contract. A pair with no Healer still dies often on Deadly here: the price of the tier. */

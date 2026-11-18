@@ -18,22 +18,22 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.137';
-import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.137';
-import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.137';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.137';
-import { STATUSES } from '../data/statuses.js?v=0.2.137';
-import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-roles.js?v=0.2.137';
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { isRune } from '../data/supplies.js?v=0.2.137';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.137';
-import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.137';
-import { ownCount } from './rune-supply.js?v=0.2.137';
-import { shortOf } from './item-lore.js?v=0.2.137';
-import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.137';
-import { castOf, costLine, landed } from './cast-facts.js?v=0.2.137';
-import { listWords, whole } from '../render/format.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.139';
+import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.139';
+import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.139';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.139';
+import { STATUSES } from '../data/statuses.js?v=0.2.139';
+import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-roles.js?v=0.2.139';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { isRune } from '../data/supplies.js?v=0.2.139';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.139';
+import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.139';
+import { ownCount } from './rune-supply.js?v=0.2.139';
+import { shortOf } from './item-lore.js?v=0.2.139';
+import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.139';
+import { castOf, costLine, landed } from './cast-facts.js?v=0.2.139';
+import { listWords, whole } from '../render/format.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));

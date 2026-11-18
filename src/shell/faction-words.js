@@ -6,9 +6,9 @@
 // server's instant against the server's clock as the session measures it (display only: the server refuses an early press).
 // A refusal with no number reads from src/data/refusal-words.js; src/shell/intent-words.js refusalText asks here first.
 // ════════════════════════════════════════════════════════════════════════
-import { t, hasText } from '../render/player-text.js?v=0.2.137';
-import { hoursWords } from '../render/format.js?v=0.2.137';
-import { factionOf } from '../session/faction-sections.js?v=0.2.137';
+import { t, hasText } from '../render/player-text.js?v=0.2.139';
+import { hoursWords } from '../render/format.js?v=0.2.139';
+import { factionOf } from '../session/faction-sections.js?v=0.2.139';
 
 const DAY_MS = 86400000;
 const VERBS = Object.freeze(['faction_join', 'faction_swap_start', 'faction_swap_finish', 'faction_outfit_claim']);

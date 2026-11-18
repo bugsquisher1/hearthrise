@@ -37,6 +37,9 @@ export const HUNTS_TEXT = Object.freeze({
 
   /* What a tier does. */
   tier_choice: '{tier}: {head}.',
+  /* A tier where a party with no Healer was measured to die on this ground, under a Level (a pack's healerTiers, hunt-tiers.js HEALER_TIERS):
+     one line of the tier note, said to a hero alone and to a party alike. A warning, never a gate. The wants_healer shape. */
+  tier_healer: 'Recommended: Healer (parties without one die here)',
 
   /* The band, and a ground above the hero. */
   band: 'Levels {lo}–{hi}',
@@ -66,7 +69,6 @@ export const HUNTS_TEXT = Object.freeze({
   /* the same, when the server's best alone there lost gold (hunt_bests balanceH < 0) */
   right_but_lost: '{ground}: right for {levels}, but lost {gold}/h solo',
   easier: 'Easier: {easier} (Levels {lo}–{hi})',
-  tag_right_party: 'Recommended for the party',
   tag_right_level: 'Recommended',
   tag_next_step: 'Next step up',
 

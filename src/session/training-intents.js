@@ -15,9 +15,9 @@
 //   useGear(account, cs, skill, on)  ONE hr_training_gear_switch: the hero's "Use the training item" switch for one skill.
 //   (2027-04-23-training-gear.sql, Tyler 2026-11-14: the training items, one a skill, 200%.)
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.137';
-import { quoted } from './quoted-ask.js?v=0.2.137';
-import { PLACES } from './training-sections.js?v=0.2.137';
+import { askVia } from './intent-ledger.js?v=0.2.139';
+import { quoted } from './quoted-ask.js?v=0.2.139';
+import { PLACES } from './training-sections.js?v=0.2.139';
 
 const WORD = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

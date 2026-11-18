@@ -20,13 +20,13 @@
 //               rows), for the shell's one context menu
 //   want(tab)   ask the chat window to show a tab (a new whisper)
 // ════════════════════════════════════════════════════════════════════════
-import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.137';
-import { ChatStore } from './chat-store.js?v=0.2.137';
-import { WhisperStore } from './whispers.js?v=0.2.137';
-import { FriendStore } from './friends.js?v=0.2.137';
-import { BlockStore } from './blocks.js?v=0.2.137';
-import { inspectOf } from './inspect.js?v=0.2.137';
-import { PlayersOnline } from './players-online.js?v=0.2.137';
+import { CHAT_LIMITS } from '../data/chat-channels.js?v=0.2.139';
+import { ChatStore } from './chat-store.js?v=0.2.139';
+import { WhisperStore } from './whispers.js?v=0.2.139';
+import { FriendStore } from './friends.js?v=0.2.139';
+import { BlockStore } from './blocks.js?v=0.2.139';
+import { inspectOf } from './inspect.js?v=0.2.139';
+import { PlayersOnline } from './players-online.js?v=0.2.139';
 
 export class SocialSession {
   /**
@@ -94,7 +94,7 @@ export class SocialSession {
     const slots = this._away ? [] : this.online.slots();
     try { if (slot !== null) ans = await this._account.server.rpc('hr_social_poll', { p_slot: slot, p_slots: slots }); } catch (e) { ans = null; }
     const read = !!ans && this._applyRead(ans);
-    return this.online.take(read ? ans.body.online : null);
+    return this.online.take(read ? ans.body.online : null, read ? ans.body.online_by : null);
   }
 
   /** hr_social_state: friends, requests and blocks, replaced whole. */

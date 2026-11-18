@@ -18,17 +18,17 @@
 //             (src/core/xp.js); the guard works every row from the curve's data rows by hand.
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts and arithmetic, nothing a player can spend, no intent, no residue.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF, COMBAT_SKILLS } from '../data/skills.js?v=0.2.137';
-import { SKILL_GUIDE } from '../data/skill-guide.js?v=0.2.137';
-import { MONSTERS } from '../data/monsters.js?v=0.2.137';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
-import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.137';
-import { DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.137';
-import { BLESSING_CUT_PERMILLE } from '../data/blessings.js?v=0.2.137';
-import { MAX_LEVEL, isCapped, skillXpForLevel, charXpForLevel } from '../core/xp.js?v=0.2.137';
-import { COMBAT_BALANCE, WEAKNESS_BONUS, ACC_DEF_MUL, playerCombatRolls, monsterAccuracy, monsterMaxHit } from '../core/combat.js?v=0.2.137';
-import { levelDeathLoss } from '../core/action-rules.js?v=0.2.137';
-import { residentsOf, raresOf, materialsOf } from './hunt-ground-facts.js?v=0.2.137';
+import { SKILLS_DEF, COMBAT_SKILLS } from '../data/skills.js?v=0.2.139';
+import { SKILL_GUIDE } from '../data/skill-guide.js?v=0.2.139';
+import { MONSTERS } from '../data/monsters.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.139';
+import { DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.139';
+import { BLESSING_CUT_PERMILLE } from '../data/blessings.js?v=0.2.139';
+import { MAX_LEVEL, isCapped, skillXpForLevel, charXpForLevel } from '../core/xp.js?v=0.2.139';
+import { COMBAT_BALANCE, WEAKNESS_BONUS, ACC_DEF_MUL, playerCombatRolls, monsterAccuracy, monsterMaxHit } from '../core/combat.js?v=0.2.139';
+import { levelDeathLoss } from '../core/action-rules.js?v=0.2.139';
+import { residentsOf, raresOf, materialsOf } from './hunt-ground-facts.js?v=0.2.139';
 
 /* The Levels each curve's table shows: the first hours, then the long climb. A capped skill stops at its cap. */
 const CURVE_LEVELS = Object.freeze([10, 25, 50, 99]);

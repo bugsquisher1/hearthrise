@@ -1,5 +1,5 @@
 -- ════════════════════════════════════════════════════════════════════════
--- 2027-05-06-catacombs.sql — THE UNMARKED CATACOMBS' DESCENT ON THE TOWER'S OWN MACHINERY: A WING PICKED BEFORE ENTER, A RECORD AND A START DOOR
+-- 2027-05-08-catacombs.sql — THE UNMARKED CATACOMBS' DESCENT ON THE TOWER'S OWN MACHINERY: A WING PICKED BEFORE ENTER, A RECORD AND A START DOOR
 --   PER WING, A CATACOMB KEY FROM EVERY VAULT DOOR CLEARED, THE SAME HEARTH CHEST ROLLING ARMOR, KEY FAMILIES CAPPED ON OPENS AND HELD ACROSS THE
 --   ACCOUNT, AND "CATACOMBS, DEEPEST" ALONE AND IN A PARTY (lane/c-catacombs, backend-architect, 2026-11-18; Tyler 2026-11-16, the board's
 --   "2026-11-16 The Unmarked Catacombs descent": their "OWN game mode like the Burning Tower", ARMOR instead of weapons, a WING picked before the
@@ -15,7 +15,7 @@
 -- ── WHY (the table decision) ────────────────────────────────────────────────
 -- The design (2026-11-16) asked to rename the Tower's tables neutral before anything shipped. The Tower shipped in v0.2.135 and is played, so
 -- this file EXTENDS them in place instead of renaming them: tower_runs and tower_progress gain the run ground they belong to (hunt_id), the
--- catalogue hr_tower_rules became one row a run ground (2027-05-06-catacombs-tower-catalogue.generated.sql), and every body that read "the
+-- catalogue hr_tower_rules became one row a run ground (2027-05-08-catacombs-tower-catalogue.generated.sql), and every body that read "the
 -- Tower" now reads "the run's ground". A rename would restate every reader (the settle's helpers, the sections, the boards, the wipe, the census)
 -- for a name alone, on live rows, for no player-visible gain; the names now mean "the run engine's tables, named after its first mode". Live
 -- Tower rows stay exactly what they were: every existing run and record is backfilled with its own session's hunt (the Tower's), nothing is
@@ -101,8 +101,8 @@
 --   combat-sim.js, xp-share.js, hunt-settle.js, hunt-grounds.js, hunts.js, session-modes.js. Either order is safe: no client opens a wing while the
 --   switch is off, and an older engine on a wing would read the Tower's rooms only if one were opened.
 -- CLIENT: none here (a later lane builds the Catacombs tab on `catacomb` and wires hr_catacomb_start; refusal words in src/data/refusal-words.js).
--- ORDER: after 2027-05-06-catacombs-chest-catalogue.generated.sql (the last of the descent's catalogues: items, hunt-sessions, session-modes, run
---   grounds, chest), then 2027-05-06-catacombs-hunts-catalogue.generated.sql (the wings' hr_hunts rows, once this door stands).
+-- ORDER: after 2027-05-08-catacombs-chest-catalogue.generated.sql (the last of the descent's catalogues: items, hunt-sessions, session-modes, run
+--   grounds, chest), then 2027-05-08-catacombs-hunts-catalogue.generated.sql (the wings' hr_hunts rows, once this door stands).
 -- REVERSIBLE: delete the wings' hr_hunts rows first; re-apply the §0 images of hr_tower_start (2027-05-05-entry-gates.sql), hr_tower_record,
 --   hr_tower_check, hr_tower_write (2027-04-24-tower-climb.sql), hr_tower_key_mint, hr_chest_open, hr_chest_section, hr_chest_family_held
 --   (2027-04-27-tower-chest.sql), hr_tower_section, hr_tower_board_run_start/_end and hr_tower_board_rise with its two triggers (2027-04-30-tower-board.sql)
@@ -115,7 +115,7 @@
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
--- Each restated body is exactly the image this file was written against (the replayed chain's after 2027-05-05-entry-gates.sql) or this file's
+-- Each restated body is exactly the image this file was written against (the replayed chain's after 2027-05-07-open-halls-words-live-events-catalogue.generated.sql, v0.2.139 live) or this file's
 -- own (a second apply): md5 of pg_get_functiondef with every run of whitespace one space. hr_tower_board_rise is dropped here: checked only while
 -- it stands.
 do $mig$
@@ -124,7 +124,7 @@ begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_tower_rules' and column_name = 'board_party')
      or not exists (select 1 from public.hr_tower_rules where wing is not null)
      or (select count(*) from public.hr_tower_rules where id) <> 1 then
-    raise exception 'PRECONDITION: apply 2027-05-06-catacombs-tower-catalogue.generated.sql first (one hr_tower_rules row a run ground, the Tower marked)'; end if;
+    raise exception 'PRECONDITION: apply 2027-05-08-catacombs-tower-catalogue.generated.sql first (one hr_tower_rules row a run ground, the Tower marked)'; end if;
   if not exists (select 1 from public.hr_session_modes where mode_id = 'catacomb')
      or exists (select 1 from public.hr_tower_rules r where not exists (select 1 from public.hr_ground_session_modes g where g.hunt_id = r.hunt_id))
      or exists (select 1 from public.hr_tower_rules r where not exists (select 1 from public.hr_hunt_grounds g where g.hunt_id = r.hunt_id)) then
@@ -133,25 +133,25 @@ begin
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_chest_key_families' and column_name = 'switch_id')
      or not exists (select 1 from public.hr_chest_keys where gear = 'armor')
      or exists (select 1 from public.hr_chest_key_families where switch_id is null) then
-    raise exception 'PRECONDITION: apply 2027-05-06-catacombs-chest-catalogue.generated.sql first (the key families'' switches, the armor keys and table)'; end if;
+    raise exception 'PRECONDITION: apply 2027-05-08-catacombs-chest-catalogue.generated.sql first (the key families'' switches, the armor keys and table)'; end if;
   if to_regclass('public.tower_runs') is null or to_regclass('public.tower_progress') is null or to_regclass('public.chest_opens') is null
      or to_regclass('public.chest_luck') is null or to_regclass('public.hr_mode_board') is null or to_regclass('public.hr_feature_switches') is null
      or to_regprocedure('public.hr_entry_gates_view(uuid,integer)') is null or to_regprocedure('public.hr_level_of(uuid,integer)') is null
      or to_regprocedure('public.hr_hunt_party_start(integer,text,uuid)') is null or to_regprocedure('public.hr_mode_board_field(text,uuid,integer)') is null then
     raise exception 'PRECONDITION: a table or helper this file reads is missing (the Tower, its chest, its board, the entry gates)'; end if;
   for v_r in select * from (values
-    ('public.hr_tower_start(integer,integer,uuid)', '15c452e5c51d9d029b0e5c949d9c5160', '020e3b121325909ac6a748839be5afd9'),
-    ('public.hr_tower_record(uuid,integer)', 'ead2976832eeeaf52dc353d67c9a5d5a', '39ce54b5e1129a08233cc7a0e71f8014'),
-    ('public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)', 'b19e04edf28724a88f7a5a2c283a7449', '658b1ba39f55e6412fc4c803f2ceea58'),
-    ('public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)', '2081b410b423ad1ea8686040a483cd0c', 'fe6515dde9a6876dee29c8ba30424c2d'),
-    ('public.hr_tower_key_mint()', '3acdd24e1fb3940deb4a4951cd046a0b', '6b694e31f5483dd45c6481b5a60fe185'),
-    ('public.hr_chest_open(integer,text,text,integer,integer,uuid)', '9d86c2ece2df3d46584e879bd877448c', '334926cfabe17327816a48f7dd41ca40'),
-    ('public.hr_chest_section(uuid,integer)', '8d6fe5332d098ccebcc87f863e5f6fcb', '5242f5d20e7dbac434247c260d5d3882'),
-    ('public.hr_chest_family_held(uuid,integer,text)', 'a8cee1423e8bacc5de8055a04fc790f7', 'bfddfd0798d74c5193a6af3a8ca6cfca'),
-    ('public.hr_tower_section(uuid,integer)', 'fe24bd5fba49169a4caa474555285d9f', '34bff2517e8adc8d395e0f12e2b8e265'),
-    ('public.hr_tower_board_run_start()', 'c16b57671a108aacf024530c251ea043', '3829c523c5f1cb2a1f5404c11d9d44ae'),
-    ('public.hr_tower_board_run_end()', '29ae32376fb06fb6d1f57f55add22d09', 'be52cb59a1681e9215e0a2baff903e69'),
-    ('public.hr_state_sections_of(uuid,integer)', '358bd3ba408d9a07980e5fc5a8c2fb17', '92f72b2af4233cb8bfe30a62c5d354fc'),
+    ('public.hr_tower_start(integer,integer,uuid)', '15c452e5c51d9d029b0e5c949d9c5160', 'f56ff4afbf9a686d57b3df58cb94d914'),
+    ('public.hr_tower_record(uuid,integer)', 'ead2976832eeeaf52dc353d67c9a5d5a', '9c6ae2e77498c799d3ab48e9f6d42041'),
+    ('public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)', 'b19e04edf28724a88f7a5a2c283a7449', '45f561cd77691498f242de5f482dba10'),
+    ('public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)', '2081b410b423ad1ea8686040a483cd0c', '332c04fdf45e02cb859921c24b965bfb'),
+    ('public.hr_tower_key_mint()', '3acdd24e1fb3940deb4a4951cd046a0b', 'd5b1554677b2f8d2c8c37017524c08e7'),
+    ('public.hr_chest_open(integer,text,text,integer,integer,uuid)', '9d86c2ece2df3d46584e879bd877448c', '9a924e89327d5d2bb3b5b842ef34823f'),
+    ('public.hr_chest_section(uuid,integer)', '8d6fe5332d098ccebcc87f863e5f6fcb', 'b4bed4ccc9da9d4610ad64dcf6107ac8'),
+    ('public.hr_chest_family_held(uuid,integer,text)', 'a8cee1423e8bacc5de8055a04fc790f7', '56ed312122d9f30dbf13409e5f8ccdb9'),
+    ('public.hr_tower_section(uuid,integer)', 'fe24bd5fba49169a4caa474555285d9f', 'f9a4695524bd34b4a23e560410285c3c'),
+    ('public.hr_tower_board_run_start()', 'c16b57671a108aacf024530c251ea043', 'e41fc9f7d1ce5f3a10637bd777093d6a'),
+    ('public.hr_tower_board_run_end()', '29ae32376fb06fb6d1f57f55add22d09', '192a8a1112cefc8fc7f0bc51ec860911'),
+    ('public.hr_state_sections_of(uuid,integer)', '358bd3ba408d9a07980e5fc5a8c2fb17', '70a945321037d5889c2f16facde91df9'),
     ('public.hr_tower_board_rise()', '5e5875a75f033abc76a0c6f788ea6971', '5e5875a75f033abc76a0c6f788ea6971')) t(fn, pre, post) loop
     continue when to_regprocedure(v_r.fn) is null and v_r.fn = 'public.hr_tower_board_rise()';
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -163,7 +163,7 @@ end $mig$;
 
 -- ── §1 THE SWITCH, seeded OFF once (2027-03-21-feature-switches.sql): a re-apply never reverts the Coordinator's flip ─────────────
 insert into public.hr_feature_switches (switch_id, scope, note) values
-  ('unmarked_catacombs', 'off', '2027-05-06-catacombs.sql: the Unmarked Catacombs'' descent: its one door (hr_catacomb_start), its keys at the Hearth Chest and its section (catacomb). Off: refused (feature_off), unlisted, null. Stays off until the Catacombs tab and its art land (CLAUDE.md §3.5).')
+  ('unmarked_catacombs', 'off', '2027-05-08-catacombs.sql: the Unmarked Catacombs'' descent: its one door (hr_catacomb_start), its keys at the Hearth Chest and its section (catacomb). Off: refused (feature_off), unlisted, null. Stays off until the Catacombs tab and its art land (CLAUDE.md §3.5).')
   on conflict (switch_id) do nothing;
 
 -- ── §2 THE RECORD PER RUN GROUND, THE ARMOR'S JOURNAL, THE WARMTH PER FAMILY (no new client write: owner reads only) ─────────────
@@ -176,7 +176,7 @@ update public.tower_runs t set hunt_id = h.hunt_id from public.hunt_sessions h w
 update public.tower_runs t set hunt_id = (select r.hunt_id from public.hr_tower_rules r where r.id) where t.hunt_id is null;
 alter table public.tower_runs alter column hunt_id set not null;
 create index if not exists tower_runs_ground on public.tower_runs (user_id, slot, hunt_id, started_at desc);
-comment on column public.tower_runs.hunt_id is '2027-05-06-catacombs.sql: the run ground this run is on (the Burning Tower or a Catacomb wing): its session''s hunt, written by hr_run_start from hunt_sessions. Every reader of a run reads its ground''s rules (hr_tower_rules by hunt_id).';
+comment on column public.tower_runs.hunt_id is '2027-05-08-catacombs.sql: the run ground this run is on (the Burning Tower or a Catacomb wing): its session''s hunt, written by hr_run_start from hunt_sessions. Every reader of a run reads its ground''s rules (hr_tower_rules by hunt_id).';
 
 -- tower_progress: a record per hero PER GROUND (each wing keeps its own deepest door). Every row before this file is the Tower's.
 alter table public.tower_progress add column if not exists hunt_id text;
@@ -190,7 +190,7 @@ begin
     alter table public.tower_progress add constraint tower_progress_pkey primary key (user_id, slot, hunt_id);
   end if;
 end $mig$;
-comment on table public.tower_progress is '2027-04-24-tower-climb.sql, per ground since 2027-05-06-catacombs.sql: each hero''s best floor (room) and landing (vault door) on each run ground (raise-only), written only by hr_tower_write inside the settle. The record a run''s checkpoints are read from (hr_run_record). RLS: own rows readable, no client write.';
+comment on table public.tower_progress is '2027-04-24-tower-climb.sql, per ground since 2027-05-08-catacombs.sql: each hero''s best floor (room) and landing (vault door) on each run ground (raise-only), written only by hr_tower_write inside the settle. The record a run''s checkpoints are read from (hr_run_record). RLS: own rows readable, no client write.';
 
 -- chest_opens: an armor key's find (its piece, slot and weight), beside a weapon key's; never both; only on a hit.
 alter table public.chest_opens add column if not exists armor text check (armor ~ '^[a-z0-9_]{1,64}$');
@@ -199,7 +199,7 @@ alter table public.chest_opens add column if not exists armor_weight text check 
 alter table public.chest_opens drop constraint if exists chest_opens_armor;
 alter table public.chest_opens add constraint chest_opens_armor check ((armor is null) = (armor_slot is null) and (armor is null) = (armor_weight is null)
   and (armor is null or (weapon is null and roll < chance_ppm)));
-comment on column public.chest_opens.armor is '2027-05-06-catacombs.sql: the armor piece a Catacomb key found (armor_slot, armor_weight beside it), or null. A weapon key''s find stays in weapon/family.';
+comment on column public.chest_opens.armor is '2027-05-08-catacombs.sql: the armor piece a Catacomb key found (armor_slot, armor_weight beside it), or null. A weapon key''s find stays in weapon/family.';
 
 -- chest_warmth: the Hearth's warmth for EACH key family (the design §3: a weapon never cools an armor streak), owner-read, no client write.
 create table if not exists public.chest_warmth (
@@ -215,7 +215,7 @@ revoke all on table public.chest_warmth from public, anon, authenticated, servic
 grant select on table public.chest_warmth to authenticated;
 drop policy if exists "chest_warmth own read" on public.chest_warmth;
 create policy "chest_warmth own read" on public.chest_warmth for select to authenticated using (user_id = (select auth.uid()));
-comment on table public.chest_warmth is '2027-05-06-catacombs.sql: each hero''s Hearth warmth for each key family (dry: that family''s keys since its last piece), copied from chest_luck.dry for the Tower family when this file landed. Written only by hr_chest_open. RLS: own rows readable, no client write.';
+comment on table public.chest_warmth is '2027-05-08-catacombs.sql: each hero''s Hearth warmth for each key family (dry: that family''s keys since its last piece), copied from chest_luck.dry for the Tower family when this file landed. Written only by hr_chest_open. RLS: own rows readable, no client write.';
 -- THE COPY, then the column it replaces goes (once: a second apply finds no column). Every live hero's Tower warmth is carried exactly.
 do $mig$
 declare v_bad bigint;
@@ -230,7 +230,7 @@ begin
     alter table public.chest_luck drop column dry;
   end if;
 end $mig$;
-comment on table public.chest_luck is '2027-04-27-tower-chest.sql: each hero''s lifetime key count (opens: the roll''s index and the titles'' count) and its default stokes a key; its warmth moved to chest_warmth (per family) in 2027-05-06-catacombs.sql. Written only by hr_chest_open and hr_chest_stoke_default. RLS: own rows readable, no client write.';
+comment on table public.chest_luck is '2027-04-27-tower-chest.sql: each hero''s lifetime key count (opens: the roll''s index and the titles'' count) and its default stokes a key; its warmth moved to chest_warmth (per family) in 2027-05-08-catacombs.sql. Written only by hr_chest_open and hr_chest_stoke_default. RLS: own rows readable, no client write.';
 create index if not exists chest_opens_family_n on public.chest_opens (user_id, slot, key_family, n);
 
 -- ── §3 THE HELPERS (owner-only; plpgsql, never sql: the settle and the sections read them, tests/settle-budget.mjs SB-3) ──────────
@@ -240,7 +240,7 @@ create or replace function public.hr_run_record(p_user uuid, p_slot int, p_hunt 
 returns int language plpgsql stable set search_path = public, pg_catalog as $$
 declare v_party uuid := public.hr_hunt_party_of(p_user, p_slot);
 begin
-  -- CATACOMBS (2027-05-06-catacombs.sql): TOWER-CHECKPOINTS' record, per run ground
+  -- CATACOMBS (2027-05-08-catacombs.sql): TOWER-CHECKPOINTS' record, per run ground
   if v_party is null then
     return coalesce((select p.best_floor from public.tower_progress p where p.user_id = p_user and p.slot = p_slot and p.hunt_id = p_hunt), 0);
   end if;
@@ -253,7 +253,7 @@ end $$;
 create or replace function public.hr_tower_record(p_user uuid, p_slot int)
 returns int language plpgsql stable set search_path = public, pg_catalog as $$
 begin
-  -- TOWER-CHECKPOINTS (2027-04-24-tower-climb.sql); CATACOMBS (2027-05-06-catacombs.sql): the Tower's ground's record (hr_run_record)
+  -- TOWER-CHECKPOINTS (2027-04-24-tower-climb.sql); CATACOMBS (2027-05-08-catacombs.sql): the Tower's ground's record (hr_run_record)
   return public.hr_run_record(p_user, p_slot, (select r.hunt_id from public.hr_tower_rules r where r.id));
 end $$;
 
@@ -261,7 +261,7 @@ end $$;
 create or replace function public.hr_run_board_of(p_hunt text, p_party int)
 returns text language plpgsql stable set search_path = public, pg_catalog as $$
 begin
-  -- CATACOMBS (2027-05-06-catacombs.sql)
+  -- CATACOMBS (2027-05-08-catacombs.sql)
   return (select case when coalesce(p_party, 1) > 1 and r.board_party is not null then r.board_party else r.board end
             from public.hr_tower_rules r where r.hunt_id = p_hunt);
 end $$;
@@ -271,7 +271,7 @@ create or replace function public.hr_tower_check(p_session uuid, p_hunt jsonb, p
 returns jsonb language plpgsql set search_path = public, pg_catalog as $fn$
 declare v_run public.tower_runs%rowtype; v_r public.hr_tower_rules%rowtype; v_f jsonb; v_n int; v_lo int; v_win bigint; v_xp bigint;
 begin
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql); CATACOMBS (2027-05-06-catacombs.sql): the rules are the run's ground's
+  -- TOWER-CLIMB (2027-04-24-tower-climb.sql); CATACOMBS (2027-05-08-catacombs.sql): the rules are the run's ground's
   select * into v_run from public.tower_runs where session_id = p_session for update;
   if not found then
     if p_hunt ? 'tower' then perform public.hr_reject('bad_tower', jsonb_build_object('why', 'not_a_climb')); end if;
@@ -313,7 +313,7 @@ declare
   v_lo int := (p_tw->>'lo')::int; v_n int := (p_tw->>'n')::int; v_k bigint := greatest(coalesce(p_kills, 0), 0);
   v_hi int; v_board text;
 begin
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql); CATACOMBS (2027-05-06-catacombs.sql): the run's ground's rules, record and board
+  -- TOWER-CLIMB (2027-04-24-tower-climb.sql); CATACOMBS (2027-05-08-catacombs.sql): the run's ground's rules, record and board
   select * into v_run from public.tower_runs where session_id = p_session for update;
   select * into v_r from public.hr_tower_rules where hunt_id = v_run.hunt_id;
   if v_run.session_id is null or v_r.hunt_id is null then perform public.hr_reject('catalogue_missing', jsonb_build_object('what', 'tower_run')); end if;
@@ -348,7 +348,7 @@ end $fn$;
 create or replace function public.hr_chest_family_held(p_user uuid, p_slot int, p_family text)
 returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
 begin
-  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-06-catacombs.sql): the whole account's
+  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-08-catacombs.sql): the whole account's
   return coalesce((select sum(i.qty) from public.player_inventory i join public.hr_chest_keys k on k.item_id = i.item_id
                     where i.user_id = p_user and k.key_family = p_family), 0)::bigint
        + coalesce((select sum(r.qty) from public.player_key_ring r join public.hr_chest_keys k on k.item_id = r.item_id
@@ -361,7 +361,7 @@ end $fn$;
 create or replace function public.hr_chest_family_cap(p_user uuid, p_family text)
 returns bigint language plpgsql stable set search_path = public, pg_catalog as $fn$
 begin
-  -- CATACOMBS (2027-05-06-catacombs.sql)
+  -- CATACOMBS (2027-05-08-catacombs.sql)
   return (select f.held_max::bigint * greatest(1, (select count(*) from public.player_state ps where ps.user_id = p_user))
             from public.hr_chest_key_families f where f.key_family = p_family);
 end $fn$;
@@ -370,7 +370,7 @@ end $fn$;
 create or replace function public.hr_chest_warmth_of(p_user uuid, p_slot int, p_family text)
 returns int language plpgsql stable set search_path = public, pg_catalog as $fn$
 begin
-  -- CATACOMBS (2027-05-06-catacombs.sql)
+  -- CATACOMBS (2027-05-08-catacombs.sql)
   return coalesce((select w.dry from public.chest_warmth w where w.user_id = p_user and w.slot = p_slot and w.key_family = p_family), 0);
 end $fn$;
 
@@ -383,7 +383,7 @@ declare
   v_r public.hr_tower_rules%rowtype; v_f public.hr_chest_key_families%rowtype; v_k public.hr_chest_keys%rowtype; v_l int; v_held bigint;
   v_cap bigint; v_intent text;
 begin
-  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-06-catacombs.sql): the run's ground's keys, the family's account-wide cap
+  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-08-catacombs.sql): the run's ground's keys, the family's account-wide cap
   select * into v_r from public.hr_tower_rules r where r.hunt_id = new.hunt_id;
   select * into v_f from public.hr_chest_key_families f where f.key_family = v_r.family;
   if v_r.hunt_id is null or v_f.key_family is null then
@@ -417,7 +417,7 @@ create or replace function public.hr_tower_board_run_start()
 returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare v_mode text := public.hr_run_board_of(new.hunt_id, new.party); b public.hr_mode_board%rowtype;
 begin
-  -- TOWER-BOARD (2027-04-30-tower-board.sql); CATACOMBS (2027-05-06-catacombs.sql): the run's own board
+  -- TOWER-BOARD (2027-04-30-tower-board.sql); CATACOMBS (2027-05-08-catacombs.sql): the run's own board
   if v_mode is null then return null; end if;
   select * into b from public.hr_mode_board x where x.mode_id = v_mode and x.user_id = new.user_id and x.slot = new.slot;
   insert into public.hr_mode_board_last as l (mode_id, user_id, slot, session_id, from_score, from_at, rank, passed, passed_user, passed_slot,
@@ -436,7 +436,7 @@ declare
   v_mode text := public.hr_run_board_of(new.hunt_id, new.party); v_depth int := public.hr_mode_board_depth();
   l public.hr_mode_board_last%rowtype; me public.hr_mode_board%rowtype; v_n int := 0; v_pu uuid; v_ps int;
 begin
-  -- TOWER-BOARD (2027-04-30-tower-board.sql); CATACOMBS (2027-05-06-catacombs.sql): the run's own board
+  -- TOWER-BOARD (2027-04-30-tower-board.sql); CATACOMBS (2027-05-08-catacombs.sql): the run's own board
   if v_mode is null then return null; end if;
   select * into l from public.hr_mode_board_last x
    where x.mode_id = v_mode and x.user_id = new.user_id and x.slot = new.slot and x.session_id = new.session_id for update;
@@ -488,7 +488,7 @@ declare
   v_need int; v_lv int; v_who text;  -- ENTRY-GATES (2027-05-05-entry-gates.sql): the door's Level, a seat's Level, a short seat's name
 begin
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql); TOWER-CHECKPOINTS (lane/c-tower-checkpoints, Tyler 2026-11-16); ENTRY-GATES (2027-05-05-entry-gates.sql);
-  -- CATACOMBS (2027-05-06-catacombs.sql): the run ground is the caller's (the Tower's, or a Catacomb wing's)
+  -- CATACOMBS (2027-05-08-catacombs.sql): the run ground is the caller's (the Tower's, or a Catacomb wing's)
   select r.hunt_id, g.mode_id into v_hunt, v_mode
     from public.hr_tower_rules r left join public.hr_ground_session_modes g on g.hunt_id = r.hunt_id where r.hunt_id = p_hunt;
   if v_hunt is null or v_mode is null then
@@ -578,7 +578,7 @@ declare
   c_verb constant text := 'tower_start';
   v_uid uuid := auth.uid(); v_hunt text; v_verb text := c_verb || ':' || coalesce(p_landing::text, 'best'); v_r jsonb;
 begin
-  -- TOWER-CLIMB (2027-04-24-tower-climb.sql); TOWER-CHECKPOINTS; ENTRY-GATES (2027-05-05-entry-gates.sql); CATACOMBS (2027-05-06-catacombs.sql):
+  -- TOWER-CLIMB (2027-04-24-tower-climb.sql); TOWER-CHECKPOINTS; ENTRY-GATES (2027-05-05-entry-gates.sql); CATACOMBS (2027-05-08-catacombs.sql):
   -- the body is the run door's (hr_run_start), on the Tower's ground
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
@@ -602,7 +602,7 @@ declare
   c_verb constant text := 'catacomb_start';
   v_uid uuid := auth.uid(); v_hunt text; v_out jsonb; v_verb text; v_r jsonb;
 begin
-  -- CATACOMBS (2027-05-06-catacombs.sql; Tyler 2026-11-16: "a WING picked before the run", the leader picks for a party)
+  -- CATACOMBS (2027-05-08-catacombs.sql; Tyler 2026-11-16: "a WING picked before the run", the leader picks for a party)
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
   if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
@@ -632,7 +632,7 @@ declare
   v_l public.chest_luck%rowtype; v_lk public.hr_chest_luck%rowtype; v_own text; v_cin jsonb; v_wk timestamptz; v_keys jsonb := '[]'::jsonb;
   v_k record; v_def int; v_fams int; v_kf jsonb; v_on text[]; v_tdry int;
 begin
-  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-06-catacombs.sql): both families, each behind its switch, each its own warmth
+  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-08-catacombs.sql): both families, each behind its switch, each its own warmth
   select * into v_l from public.chest_luck where user_id = p_user and slot = p_slot;
   select * into v_lk from public.hr_chest_luck where id;
   select f.family into v_own from public.player_equipment e join public.hr_chest_weapon_families f on f.item_id = e.item_id
@@ -692,9 +692,9 @@ declare
   v_dry int; v_n bigint; v_chance int; v_roll jsonb; v_weapon text; v_opens jsonb := '[]'::jsonb; v_haul jsonb := '{}'::jsonb;
   v_take jsonb; v_a jsonb; v_out jsonb; i int; v_it record; v_ring bigint; v_rest bigint; v_need jsonb;
   v_oroll int; v_cum int; v_orow record; v_outfit text; v_bundle text; v_finds jsonb := '[]'::jsonb; v_find jsonb;
-  v_armor text; v_aslot text; v_aweight text; v_weights text[]; v_aown text; v_kinds int;  -- CATACOMBS (2027-05-06-catacombs.sql)
+  v_armor text; v_aslot text; v_aweight text; v_weights text[]; v_aown text; v_kinds int;  -- CATACOMBS (2027-05-08-catacombs.sql)
 begin
-  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-06-catacombs.sql)
+  -- TOWER-CHEST (2027-04-27-tower-chest.sql); CATACOMBS (2027-05-08-catacombs.sql)
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
   if p_slot is null or p_slot < 0 or p_slot > 5 then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_slot')); end if;
   if p_idem is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_idem')); end if;
@@ -909,7 +909,7 @@ declare
   v_run public.tower_runs%rowtype; v_last public.tower_runs%rowtype; v_run_j jsonb := null; v_last_j jsonb := null;
   v_party uuid; v_party_j jsonb := '[]'::jsonb; v_before int := null; v_field jsonb;
 begin
-  -- TOWER-SECTION (2027-04-28-tower-section.sql); CATACOMBS (2027-05-06-catacombs.sql): the Tower's ground's rows only
+  -- TOWER-SECTION (2027-04-28-tower-section.sql); CATACOMBS (2027-05-08-catacombs.sql): the Tower's ground's rows only
   if not public.hr_feature_on('burning_tower', p_user) then return null; end if;
   if not exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot) then return null; end if;
   select * into r from public.hr_tower_rules where id;
@@ -986,7 +986,7 @@ declare
   v_run_j jsonb := null; v_last_j jsonb := null; v_party uuid; v_party_j jsonb := '[]'::jsonb; v_lv int; v_short jsonb := '[]'::jsonb;
   v_solo jsonb; v_four jsonb; v_lastwing text;
 begin
-  -- CATACOMBS (2027-05-06-catacombs.sql)
+  -- CATACOMBS (2027-05-08-catacombs.sql)
   if not public.hr_feature_on('unmarked_catacombs', p_user) then return null; end if;
   if not exists (select 1 from public.player_state ps where ps.user_id = p_user and ps.slot = p_slot) then return null; end if;
   -- the wings share their rules, mode and boards (one row's are every row's: the tower catalogue's generator holds them one)
@@ -1081,7 +1081,7 @@ as $fn$
 -- statement (the registry still decides which sections there are: architecture contracts X7). It was one EXECUTE and
 -- one `||` per section, thirty of each, and each `||` decoded and re-encoded the whole growing object (~42 KB): 16 ms a
 -- projection on PostgreSQL 17, a sixth of hr_state_of. The same calls, keys and values; one build.
--- CATACOMBS (2027-05-06-catacombs.sql): one jsonb_build_object a run of 50 sections (PostgreSQL's 100-argument limit), joined by `||`.
+-- CATACOMBS (2027-05-08-catacombs.sql): one jsonb_build_object a run of 50 sections (PostgreSQL's 100-argument limit), joined by `||`.
 declare v_sql text; v_out jsonb;
 begin
   select string_agg(c.part, ' || ' order by c.g) into v_sql
@@ -1093,7 +1093,7 @@ begin
 end $fn$;
 revoke execute on function public.hr_state_sections_of(uuid, integer) from public;
 insert into public.hr_state_sections (key, fn, note) values
-  ('catacomb', 'hr_catacomb_section', '2027-05-06-catacombs.sql: the Unmarked Catacombs'' tab (each wing''s record, its doors to start after and the last one picked, the door''s Level, what a descent pays, the descent now and the last one with its keys, the party, the hero''s place on Catacombs, Deepest alone and in a party, and the Hearth Chest''s menu), while the `unmarked_catacombs` switch is on for the account')
+  ('catacomb', 'hr_catacomb_section', '2027-05-08-catacombs.sql: the Unmarked Catacombs'' tab (each wing''s record, its doors to start after and the last one picked, the door''s Level, what a descent pays, the descent now and the last one with its keys, the party, the hero''s place on Catacombs, Deepest alone and in a party, and the Hearth Chest''s menu), while the `unmarked_catacombs` switch is on for the account')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
 
 -- ── §7 GRANTS: the helpers are the owner's; the two doors are the client's alone; the restated bodies keep theirs ─────────────

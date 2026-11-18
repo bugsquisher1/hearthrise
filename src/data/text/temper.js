@@ -17,6 +17,8 @@ export const TEMPER_TEXT = Object.freeze({
   drop_pulled: '{where}, and it drops {stack}.',
   /* Gear above every ladder the server sells (temper-pane.js rowWords; the playthrough audit's F17): {from} and {to} are the server's span. */
   no_rungs: 'Not temperable yet, rungs only for Level {from} to {to} gear',
+  /* A ladder with smaller rungs than the tiers before it (Dawnsteel, src/data/temper.js TEMPER_TIER_RUNG_PM): {step} is a rung's worth, "0.4%". */
+  small_rungs: 'Smaller rungs: {step} each',
   /* Said only for what the Weighhouse lists (item-lore saleWords). */
   way_weighhouse: 'Also sold at the Weighhouse',
 });

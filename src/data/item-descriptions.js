@@ -6,22 +6,22 @@
 // Original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.137';
-import { foldRows } from './grounds/shape.js?v=0.2.137';
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.137';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.137';
-import { LIB2_DESC } from './library2-items.js?v=0.2.137';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.137';
-import { CHAMPION_DESC } from './champions.js?v=0.2.137';
-import { DRINK_DESC } from './drinks.js?v=0.2.137';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.137';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.137';
-import { SHIELD_DESC } from './shields.js?v=0.2.137';
-import { TRAINING_GEAR_DESC } from './training.js?v=0.2.137';
-import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.137';
-import { CHEST_ITEM_DESC } from './chests.js?v=0.2.137';
-import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.137';
-import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.137';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
+import { foldRows } from './grounds/shape.js?v=0.2.139';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.139';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.139';
+import { LIB2_DESC } from './library2-items.js?v=0.2.139';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.139';
+import { CHAMPION_DESC } from './champions.js?v=0.2.139';
+import { DRINK_DESC } from './drinks.js?v=0.2.139';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.139';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.139';
+import { SHIELD_DESC } from './shields.js?v=0.2.139';
+import { TRAINING_GEAR_DESC } from './training.js?v=0.2.139';
+import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.139';
+import { CHEST_ITEM_DESC } from './chests.js?v=0.2.139';
+import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.139';
+import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.139';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -59,7 +59,7 @@ export const ITEM_DESC = {
   ...TRAINING_GEAR_DESC, // lane/c-training-gear: the training items, one line a skill
   ...CHEST_ITEM_DESC,    // lane/c-tower-chest: the Tower's four keys and its Cinders
   /* lane/c-catacombs: the Catacomb armor that ships now, its flavour line (the house's: no digit, no closing stop). The attribute's sentence
-     with its number is the card's, from the item's own field (catacomb-armor.js cardOf), never a written line */
+     with its number is the card's, from the item's own field and CATACOMB_ATTRS say (catacomb-armor.js), never a written line */
   ...Object.fromEntries(CATACOMB_ARMOR_SHIPPED.map((r) => [r.id, r.line.replace(/\.$/, '')])),
   ...TOWER_WEAPON_DESC,  // lane/d-tower-weapons: who left each tower weapon on the Hearth's ledge
   ...CALL_ITEM_DESC,  // lane/d-boss-call-drops: the call-only pieces

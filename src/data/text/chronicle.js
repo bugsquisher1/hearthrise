@@ -11,6 +11,8 @@ export const CHRONICLE_TEXT = Object.freeze({
   /* The tab, the count of open pages, and what a shut page needs: {ground} is the ground's name, a link to its page in Hunts. */
   tab: 'Chronicle',
   found: '{n} of {total} pages found',
+  /* The page list under the count (src/shell/windows/wiki.js tocHtml): its name for a screen reader. */
+  toc: 'Pages',
   how_ground: 'Opens at {ground}',
 
   /* @sentence: the story, told out loud (lore). */

@@ -6,10 +6,10 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 98e4155ec7e70b446336a249529af0fe8769c9dbfee96951e266b841952013a9
+--   catalogue digest: a5fa253a68de3b7f99a13c37939a6345604582716bab38994acddea262519ed8
 --   rows: 695 items (27 untradeable) ·
 --         394 item-slot pairs · 14 equip slots ·
---         13 skills · 9 crops · 387 activities ·
+--         13 skills · 9 crops · 363 activities ·
 --         0 runes
 --
 -- APPLY ORDER: 2026-08-11-player-state.sql → THIS FILE → 2026-08-11-apply-engine.sql
@@ -529,7 +529,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('kindling_wand','Kindling Wand',true,'weapon',32400,'level',88,null,false,null,false),
   ('kingsgrate','Kingsgrate',true,'offhand',300,'level',15,null,false,null,false),
   ('kingstooth','Kingstooth',true,'weapon',600,'level',15,null,false,null,false),
-  ('klappas_club','Klappa''s Club',true,'weapon',100,'level',5,null,false,null,true),
+  ('klappas_club','Klappa''s Klub',true,'weapon',100,'level',5,null,false,null,true),
   ('knotted_tails','Knotted Tails',true,null,50,null,null,null,false,null,false),
   ('kobold_scale','Kobold Scale',true,null,26,null,null,null,false,null,false),
   ('krells_tollgate','Krell''s Tollgate',true,'offhand',43200,'level',88,null,false,null,false),
@@ -1356,7 +1356,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','bind_graven_poison_runes','runecrafting',60,null,false,null),
   ('artisan','bind_graven_rupture_runes','runecrafting',60,null,false,null),
   ('artisan','bind_graven_water_runes','runecrafting',60,null,false,null),
-  ('artisan','bind_oak_spellbook','crafting',15,null,false,null),
   ('artisan','bind_scored_earth_runes','runecrafting',15,null,false,null),
   ('artisan','bind_scored_fire_runes','runecrafting',15,null,false,null),
   ('artisan','bind_scored_ice_runes','runecrafting',15,null,false,null),
@@ -1364,8 +1363,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','bind_scored_rupture_runes','runecrafting',15,null,false,null),
   ('artisan','bind_scored_water_runes','runecrafting',15,null,false,null),
   ('artisan','brew_pumpkin_cider','cooking',45,null,false,null),
-  ('artisan','carve_oak_staff','crafting',15,null,false,null),
-  ('artisan','carve_oak_wand','crafting',15,null,false,null),
   ('artisan','cook_baked_potato','cooking',25,null,false,null),
   ('artisan','cook_bear_meat','cooking',40,null,false,null),
   ('artisan','cook_bear_pie','cooking',70,null,false,null),
@@ -1415,21 +1412,14 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','fletch_rune_arrows','crafting',63,null,false,null),
   ('artisan','fletch_steel_arrows','crafting',33,null,false,null),
   ('artisan','forge_bronze_axe','smithing',3,null,false,null),
-  ('artisan','forge_bronze_gauntlets','smithing',4,null,false,null),
   ('artisan','forge_bronze_pickaxe','smithing',3,null,false,null),
-  ('artisan','forge_coppercap_shield','smithing',30,null,false,null),
   ('artisan','forge_dawn_axe','smithing',92,null,false,null),
   ('artisan','forge_dawn_pickaxe','smithing',92,null,false,null),
   ('artisan','forge_ember_axe','smithing',85,null,false,null),
   ('artisan','forge_ember_pickaxe','smithing',85,null,false,null),
   ('artisan','forge_iron_axe','smithing',18,null,false,null),
-  ('artisan','forge_iron_hatchets','smithing',15,null,false,null),
   ('artisan','forge_iron_pickaxe','smithing',18,null,false,null),
-  ('artisan','forge_iron_warhammer','smithing',15,null,false,null),
-  ('artisan','forge_ironbound_shield','smithing',15,null,false,null),
   ('artisan','forge_mithril_axe','smithing',58,null,false,null),
-  ('artisan','forge_mithril_faced_shield','smithing',45,null,false,null),
-  ('artisan','forge_mithril_hatchets','smithing',45,null,false,null),
   ('artisan','forge_mithril_pickaxe','smithing',58,null,false,null),
   ('artisan','forge_rune_axe','smithing',78,null,false,null),
   ('artisan','forge_rune_pickaxe','smithing',78,null,false,null),
@@ -1480,16 +1470,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','saw_willow','crafting',30,null,false,null),
   ('artisan','saw_yew','crafting',60,null,false,null),
   ('artisan','set_banded_signet','crafting',15,null,false,null),
-  ('artisan','sew_adept_body','crafting',22,null,false,null),
-  ('artisan','sew_adept_boots','crafting',15,null,false,null),
-  ('artisan','sew_adept_helmet','crafting',17,null,false,null),
-  ('artisan','sew_adept_pants','crafting',19,null,false,null),
-  ('artisan','sew_apprentice_belt','crafting',4,null,false,null),
-  ('artisan','sew_apprentice_body','crafting',9,null,false,null),
-  ('artisan','sew_apprentice_boots','crafting',1,null,false,null),
-  ('artisan','sew_apprentice_gloves','crafting',2,null,false,null),
-  ('artisan','sew_apprentice_helmet','crafting',3,null,false,null),
-  ('artisan','sew_apprentice_pants','crafting',6,null,false,null),
   ('artisan','smelt_bronze','smithing',1,null,false,null),
   ('artisan','smelt_copper','smithing',1,null,false,null),
   ('artisan','smelt_dawn','smithing',88,null,false,null),
@@ -1506,10 +1486,6 @@ insert into public.hr_activities (kind, activity_id, req_skill, req_lv, max_hp, 
   ('artisan','steep_goldenroot_tea','cooking',60,null,false,null),
   ('artisan','stitch_graypelt_cloak','crafting',1,null,false,null),
   ('artisan','stitch_houndskin_cloak','crafting',1,null,false,null),
-  ('artisan','stitch_leather_belt','crafting',3,null,false,null),
-  ('artisan','string_longbow','crafting',15,null,false,null),
-  ('artisan','string_maple_crossbow','crafting',45,null,false,null),
-  ('artisan','string_oak_crossbow','crafting',15,null,false,null),
   ('combat','adept',null,null,106,false,60),
   ('combat','air_elemental',null,null,24,false,15),
   ('combat','ancient_bear',null,null,460,false,130),
@@ -2271,7 +2247,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '98e4155ec7e70b446336a249529af0fe8769c9dbfee96951e266b841952013a9', now())
+  values (true, 'a5fa253a68de3b7f99a13c37939a6345604582716bab38994acddea262519ed8', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2302,8 +2278,8 @@ begin
   if v_n <> 695 then raise exception 'hr_items has % rows, generator emitted 695', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'c5c2731f2eba317d01fe26665d7dbeb7' then
-    raise exception 'hr_items names differ from src/data (expected digest c5c2731f2eba317d01fe26665d7dbeb7)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'b3bedbd4dd910aa4815fc9e347a72d33' then
+    raise exception 'hr_items names differ from src/data (expected digest b3bedbd4dd910aa4815fc9e347a72d33)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2317,7 +2293,7 @@ begin
     raise exception 'untradeable count is %, generator emitted 27', v_n;
   end if;
   select count(*) into v_n from public.hr_activities;
-  if v_n <> 387 then raise exception 'hr_activities has % rows, expected 387', v_n; end if;
+  if v_n <> 363 then raise exception 'hr_activities has % rows, expected 363', v_n; end if;
 
   -- MONSTER HP. The count is asserted for the same reason auto_eatable's is: a
   -- re-apply against a database that created hr_activities before the column
@@ -2503,7 +2479,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 98e4155ec7e70b446336a249529af0fe8769c9dbfee96951e266b841952013a9',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest a5fa253a68de3b7f99a13c37939a6345604582716bab38994acddea262519ed8',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

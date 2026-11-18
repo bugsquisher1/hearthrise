@@ -114,7 +114,7 @@ const mutants = [
   { name: 'the biggest blow leaves the spells out again (the audit\'s Wickstead 21 against a Smoke Pot of 52)', case: 'blow-counts-spells',
     edits: [['src/core/hunt/pull-cycle.js', '    const hit = Math.max(swing, spell);', '    const hit = swing;']] },
   { name: 'the Rat King hits for 108 again (Andy\'s death)', case: 'blow-share',
-    edits: [['src/data/monsters.js', 'hp: 556, atk: 7, baseAcc: 0.76, def: 11,', 'hp: 556, atk: 20, baseAcc: 0.76, def: 11,']] },
+    edits: [['src/data/monsters.js', 'hp: 556, atk: 6, baseAcc: 0.78, def: 11,', 'hp: 556, atk: 20, baseAcc: 0.78, def: 11,']] },
   { name: 'a walked ground\'s pockets are not read (the boss who holds a room is missed)', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '(pk.pack || pk.spawns).concat(pk.spawns)', '[]']] },
   { name: 'Chief Coppercap swings 54 again (63% of the Warrens floor)', case: 'blow-share',

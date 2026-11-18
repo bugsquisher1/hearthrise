@@ -25,11 +25,11 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS } from '../../data/monsters.js?v=0.2.137';
-import { makeEvent } from './events.js?v=0.2.137';
-import { spawnAdds } from './pull-cycle.js?v=0.2.137';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.137';
-import { isAdd } from './leash.js?v=0.2.137';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.139';
+import { makeEvent } from './events.js?v=0.2.139';
+import { spawnAdds } from './pull-cycle.js?v=0.2.139';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.139';
+import { isAdd } from './leash.js?v=0.2.139';
 
 const atOrUnder = (hp, maxHp, pm) => hp * 1000 <= maxHp * pm;
 

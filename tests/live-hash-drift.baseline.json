@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-18",
- "replay_ms": 65675,
+ "replay_ms": 2054,
  "counts": {
-  "tracked_names": 952,
-  "entries": 804
+  "tracked_names": 954,
+  "entries": 806
  },
  "functions": [
   {
@@ -1771,17 +1771,18 @@
     "2027-02-28-temper-craft-bench-inputs.generated.sql",
     "2027-03-14-jewelry-bench-inputs.generated.sql",
     "2027-03-27-phase0-tier4-bench-inputs.generated.sql",
-    "2027-04-27-tower-chest-bench-inputs.generated.sql"
+    "2027-04-27-tower-chest-bench-inputs.generated.sql",
+    "2027-05-06-drop-homes-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "5608938e6cb72a461a81b802d4c0c8e9",
-    "norm_len": 8250,
+    "md5": "a8b11d1c0bb015ee967a631d8d784206",
+    "norm_len": 7057,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5608938e6cb72a461a81b802d4c0c8e9",
-    "norm_len": 8250,
+    "md5": "a8b11d1c0bb015ee967a631d8d784206",
+    "norm_len": 7057,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -10924,11 +10925,13 @@
    "sig": "hr_live_events_guard()",
    "name": "hr_live_events_guard",
    "tracked_by": [
+    "chain",
     "restate"
    ],
    "touched_by": [
     "2027-03-22-live-events-catalogue.generated.sql",
-    "2027-05-01-v0135-live-events-catalogue.generated.sql"
+    "2027-05-01-v0135-live-events-catalogue.generated.sql",
+    "2027-05-07-open-halls-words-live-events-catalogue.generated.sql"
    ],
    "live": {
     "md5": "e65b633f12d0118976c99c37433e35ad",
@@ -13377,20 +13380,68 @@
    "sig": "hr_players_online(p_slots integer[])",
    "name": "hr_players_online",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2026-11-07-players-online.sql"
+    "2026-11-07-players-online.sql",
+    "2027-05-05-players-online-by-activity.sql"
    ],
    "live": {
-    "md5": "f9d636dfab258bef48a945f97e8992c7",
-    "norm_len": 2196,
+    "md5": "5965062ba22ed5a0f9a15c5f99483190",
+    "norm_len": 2187,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f9d636dfab258bef48a945f97e8992c7",
-    "norm_len": 2196,
+    "md5": "5965062ba22ed5a0f9a15c5f99483190",
+    "norm_len": 2187,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_players_online_counts(p_users uuid[])",
+   "name": "hr_players_online_counts",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-05-players-online-by-activity.sql"
+   ],
+   "live": {
+    "md5": "a4914bc559c190b7483973ea83647013",
+    "norm_len": 2877,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a4914bc559c190b7483973ea83647013",
+    "norm_len": 2877,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_players_online_refresh()",
+   "name": "hr_players_online_refresh",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-05-players-online-by-activity.sql"
+   ],
+   "live": {
+    "md5": "7c3076133db0bc3cfaa1b712852896ef",
+    "norm_len": 670,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "7c3076133db0bc3cfaa1b712852896ef",
+    "norm_len": 670,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -13399,6 +13450,7 @@
    "sig": "hr_playing(p_uid uuid, p_slot integer)",
    "name": "hr_playing",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -15354,20 +15406,22 @@
    "sig": "hr_social_poll(p_slot integer, p_slots integer[])",
    "name": "hr_social_poll",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-02-17-social-poll.sql"
+    "2027-02-17-social-poll.sql",
+    "2027-05-05-players-online-by-activity.sql"
    ],
    "live": {
-    "md5": "2e2a0c71e61d4915a73d2c3a5b58d450",
-    "norm_len": 925,
+    "md5": "b56ec76a124b924756893a3cced0d8b9",
+    "norm_len": 1133,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2e2a0c71e61d4915a73d2c3a5b58d450",
-    "norm_len": 925,
+    "md5": "b56ec76a124b924756893a3cced0d8b9",
+    "norm_len": 1133,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16214,17 +16268,18 @@
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-11-04-hunt-tick-shards.sql",
     "2027-02-21-tick-gateway-apikey.sql",
-    "2027-04-08-idle-clock.sql"
+    "2027-04-08-idle-clock.sql",
+    "2027-05-05-players-online-by-activity.sql"
    ],
    "live": {
-    "md5": "49c044e97553339355aa5abe2cc1c2db",
-    "norm_len": 17977,
+    "md5": "9185f97c63d3324abe8e26f21e6ac487",
+    "norm_len": 18466,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "49c044e97553339355aa5abe2cc1c2db",
-    "norm_len": 17977,
+    "md5": "9185f97c63d3324abe8e26f21e6ac487",
+    "norm_len": 18466,
     "source": "computed-from-replay"
    },
    "agree": true

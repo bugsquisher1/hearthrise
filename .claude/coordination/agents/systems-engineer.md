@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-18 · lane/a-return-cards (full-game audit A2 A3 A6 A17 A22 A23 A24: the return moment lies or goes silent)
+1. *A return line keyed on "the newest session is the stamped one" goes silent whenever the server opens the next session itself.* The after-hunt plan's yard did exactly that (A2). The server already says the link (`hunt_after.last`, the newest ended hunt, while the yard runs) and when the yard began (`hunt_from`); the stamp now carries its ground (`h`) and the plan's skill (`k`/`sl`/`sx`), so the hunt, its death row and the yard are all told from server numbers.
+2. *"Gold" on a return is the purse's own delta.* The analyzer already sends `waste` (the store's gold); stamping it beside `coins` makes the card's Gold the coins less the supplies (played: card +2,397, purse +2,397). A stamp without it says no gold rather than the coins alone.
+3. *"Told once" by a bounded seen list and an id built on a clock is fragile.* The harness's `wait --away` moves the stamp's `at`, and the list holds 64; a line read now moves the stamp past the hunt's end (stampAway `told`), so nothing can raise it again (A23).
+4. *A3 did not reproduce on v0.2.138 at the audit's own numbers* (8,710 lost, 26,130 saved, Rat King call-out, both skip and live tick): hr_death_log_view joins the blessing_used row and the card reads "3 Blessings saved ..., used up". The client half was the press: "Bless again" once the death used them.
+5. *Fade timers held Node tests open* (a 120 s fade is a 2 min hang); alerts.js now unrefs them where the runtime can.
 ## 2026-11-18 · lane/b-arch-guards (audit items 2 and 3: import direction, real-consumer dead code)
 1. *A layer table needs a row for every folder, or it rots at the first new one.* tests/layering.mjs makes an unplaced src/ folder RED (LAYER-3); render sits beside session (neither imports the other), net under session, the three view layers are peers. 31 file-to-file breaches on a shrinking baseline; a fixed breach left on it is STALE and red.
 2. *"Mentioned anywhere" is not "used".* The old census counted tests, docs and SQL comments as reach and exempted all of src/core and src/data for being edge-vendored: green with 122 dead exports and 12 orphan files. Alive is now the production graph (root pages, the edge entry, named generator tools), comments blanked.

@@ -122,11 +122,15 @@ function savedWords(row) {
 
 /**
  * The popup's words for one character's death (pure; every number is the server's row).
- * @returns {{title: string, killed: string, what: string, why: string, lost: string, level: string, saved: string, town: string}}
+ * `bless`: the press to the Shop's Services tab. "Bless again" when this death used Blessings up (the row's saving or its count, both its
+ * ledger row's), so it never reads as if the hero had none (full-game audit 2026-11-18 A3: all three fired and saved 26,130 XP, and the
+ * next 12 h ran unblessed with nothing said).
+ * @returns {{title: string, killed: string, what: string, why: string, lost: string, level: string, saved: string, town: string, bless: string}}
  */
 export function deathWords(cs, d) {
   const who = nameOf(cs) || t('away.your_hero');
   const row = d.row;
+  const used = (!!row.saved && typeof row.saved === 'object') || (Number.isSafeInteger(row.blessings) && row.blessings > 0);
   const story = summariesOf(cs).find((s) => s.id === d.session);
   return {
     title: row.hunt ? t('death.title_in', { name: who, ground: huntName(row.hunt) }) : t('death.title', { name: who }),
@@ -143,6 +147,7 @@ export function deathWords(cs, d) {
       : row.saved === null ? t('death.no_blessing', { free: freeWords(cs) })
       : savedWords(row),
     town: t('death.town', { name: who }),
+    bless: t(used ? 'death.bless_again' : 'death.bless'),
   };
 }
 

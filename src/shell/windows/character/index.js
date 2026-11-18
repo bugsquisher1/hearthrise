@@ -86,6 +86,9 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   const cs = ctx.character;
   const sc = scratchOf(cs);
   const root = body.querySelector('.hw-cs');
+  /* opened on a tab (an alert's "Open Titles", ../../widgets/alerts.js): the wish is taken once */
+  const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('character') : null;
+  if (want && TABS.some(([id]) => id === want)) { sc.tab = want; sc.msg = ''; }
   wantArt(ctx.doc);
   /* The Faction tab is the server's to offer (its switch): hidden, and left for the sheet if it was open, while the section is absent. */
   const fx = factionShown(cs);

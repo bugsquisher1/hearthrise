@@ -3319,7 +3319,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
         const want = ['mill_cellar:picked:Levels 1–8:in:In range:Recommended:No record yet:Players: 1 to 4',
           'meadowbrook_thicket::Levels 5–15:above:Above level::No record yet:Players: 1 to 4',
-          'millrace_sewer::Levels 8–25:above:Above level::No record yet:Players: 1 to 4',
+          'millrace_sewer::Levels 5–25:above:Above level::No record yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
           'wickstead::Levels 8–18:above:Above level::No record yet:Players: 1 to 4',
           'mosslight_glade::Levels 16–31:far:Far above level::No record yet:Players: 1 to 4',
@@ -5687,7 +5687,7 @@ const MUTANTS = [
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
   ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
-  ['AW-25 every line says Right for your level', 'src/shell/hunt-list.js', "if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');", "return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');"],
+  ['AW-25 every line says Right for your level', 'src/shell/hunt-list.js', "if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');", "return t('hunts.tag_right_level');"],
   ['AW-25 the band ignores the floor', 'src/shell/hunt-list.js', "  if (rangeWords(r, level)) return r.band[0] - level < FAR_UNDER_LEVELS ?", "  if (false) return r.band[0] - level < FAR_UNDER_LEVELS ?"],
   ['AW-25 a ground with no best says nothing', 'src/shell/hunt-list.js', 'none: solo || party ? null :', 'none: true ? null :'],
   ['AW-25 the page shows the first ground, not the pick', 'src/shell/windows/hunts.js', '  const r = list.find((x) => x.hunt === sc.pick) || null;', '  const r = list[0] || null;'],

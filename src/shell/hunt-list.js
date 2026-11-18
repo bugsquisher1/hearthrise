@@ -208,7 +208,10 @@ const levelsWords = (lo, hi) => (lo === hi ? t('hunts.level_one', { level: lo })
  */
 export function recommendation(levels, partySize = 1, rows = huntRows(), bests = null) {
   const lv = [].concat(levels).filter(Number.isInteger);
-  const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (x.name < y.name ? -1 : 1))[0] || null;
+  /* A PARTY TAKES THE PARTY GROUND ON A TIE (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): the Sewer and the Thicket both open at 5, and a four at
+     5-7 earns about 1.6x the same heroes alone in the Thicket there (the board's "2026-11-18 Party pace"). A hero alone never sees a party ground here (fit). */
+  const group = (Number(partySize) || 1) >= 2;
+  const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (group ? Number(y.groupFit === 'party') - Number(x.groupFit === 'party') : 0) || (x.name < y.name ? -1 : 1))[0] || null;
   if (!lv.length) return { row: rows[0] || null, note: null };
   const lo = Math.min(...lv), hi = Math.max(...lv);
   const holds = (r, from, to) => r.band[0] <= from && to <= r.band[1];
@@ -248,9 +251,12 @@ export function openingPick(rec, list, last) {
   return was && advised && was.band[0] > advised.band[0] ? was : advised;
 }
 
-/** THE LIST'S TWO TAGS on one ground: "Right for your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
-export function adviceTag(r, rec, step, party) {
-  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');
+/** THE LIST'S TWO TAGS on one ground: "Recommended" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure.
+    A party reads the same Level tag as a hero alone (lane/d-party-pace, 2026-11-18): "Recommended for the party" sat on the Mill Cellar while the Party window
+    said a four earns 60% under solo there (the full-game sweep, A1). The advice reads Levels, never what a party earns, and no card says which grounds suit
+    parties (Tyler 2026-11-16: "nothing at all"); the Party window says what this party earns on the leader's tier. */
+export function adviceTag(r, rec, step) {
+  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');
   return step && step.hunt === r.hunt ? t('hunts.tag_next_step') : '';
 }
 

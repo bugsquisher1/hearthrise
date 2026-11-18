@@ -55,7 +55,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    the assembled branch): 2027-04-27-march-folded-hunts-catalogue is the file before this one and this one carries it whole, the March packs folded in. It
    collapses 2027-04-24-tower-climb-hunts-catalogue (STAGED, never applied, now deleted): the Tower's one hr_hunts row joins here, and the file still
    refuses to land before 2027-04-24-tower-climb.sql's hr_hunt_admit sends the Tower to its one door. ORDER: right after 2027-04-24-tower-climb.sql. */
-export const OUT_NAME = '2027-05-02-tower-hunts-catalogue.generated.sql';
+/* 2027-05-02-tower-hunts-catalogue is APPLIED history (v0.2.135). THE SEWER FROM LEVEL 5 (lane/d-party-pace, designer; Tyler 2026-11-18 "Yes, open at 5"): a four
+   at Levels 5-7 in the Sewer earns about 1.6x the same heroes alone in the Thicket with no death (the board's "2026-11-18 Party pace"), so its band is 5-25.
+   One hr_hunts row moves (millrace_sewer band_min 8 -> 5, hr_hunt_below_range's warning); no spawn row moves. ORDER: after everything applied with v0.2.138. */
+export const OUT_NAME = '2027-05-06-sewer-from-five-hunts-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

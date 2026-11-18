@@ -35,6 +35,8 @@
 //   spell   a level-up in the record unlocked moves for the weapon worn (spell-news.js:
 //           the projection's own diff, never on a load), one line for all of them,
 //           id = each move's (`also` records the rest); it goes once they are on the bar
+//   work    a bench run this page watched finished on its own (town-news.js), id = the run's recipe and start
+//   title   titles earned and not claimed (town-news.js), one line, id = each title's (`also` the rest)
 //
 // THE RULE: an alert fires ONCE per event id. The ids already shown are kept
 // in memory for the page and in the character's residue (`alerts.seen`,
@@ -61,6 +63,7 @@ import { deathSeen } from './death-popup.js?v=0.2.138';
 import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.138';
 import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.138';
 import { benchStopRecapOf } from './bench-fee.js?v=0.2.138';
+import { workDoneOf, runningRunKey, titleNewsOf } from './town-news.js?v=0.2.138';
 import { workRow } from './town-work.js?v=0.2.138';
 import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.138';
 import { tallyTask } from '../data/tally-tasks.js?v=0.2.138';
@@ -259,6 +262,7 @@ export function createAlertCenter(account, opts) {
   const sinceLoad = (opts && opts.clock) || (() => (typeof performance !== 'undefined' ? performance.now() : 0));
   const gearSeen = new Map();        // slot -> { session, ids: Set } the gear already in the open hunt's loot
   const heroUnit = new Map();        // slot -> { session, unit } the hero's unit the last read of its hunt named (display state)
+  const benchSeen = new Map();       // slot -> the key of the bench run this page last saw running (town-news.js runningRunKey)
   const alerts = [];                 // newest first
   const seen = new Map();            // slot -> Set of ids shown on this page
   const watching = new Map();        // slot -> [unsubscribe]
@@ -280,11 +284,12 @@ export function createAlertCenter(account, opts) {
     cs.setResidue('alerts', { off: Array.isArray(y.off) ? y.off : [], seen: Array.isArray(y.seen) ? y.seen : [] });
     return true;
   }
-  /* No stamp over a card still being read, on screen or on the way out (a page only hidden may flicker back, so it stamps as ever); every other stamp is away-recap.js's own. */
-  const stampAway = (cs, leaving) => ((leaving ? cardUnread(cs) : cardYoung(cs)) ? false : stampNow(cs, leaving));
   const seenOf = (slot) => { let s = seen.get(slot); if (!s) { s = new Set(); seen.set(slot, s); } return s; };
   /* Has this character been shown id `id`, on this page or (the residue) before it. */
   const wasSeen = (cs, id) => { const stored = residueOf(cs).seen; return seenOf(cs.slot).has(id) || (Array.isArray(stored) && stored.includes(id)); };
+  /* No stamp over a card still being read, on screen or on the way out (a page only hidden may flicker back, so it stamps as ever); every other stamp is
+     away-recap.js's own, and a line read is retired there (`told`: shown, and past the read), so it never comes back (audit 2026-11-18 A23). */
+  const stampAway = (cs, leaving) => ((leaving ? cardUnread(cs) : cardYoung(cs)) ? false : stampNow(cs, leaving, (id) => wasSeen(cs, id)));
   const spells = spellWatch();
 
   /* `c.also`: more ids the one line stands for (a prompt for several spells), recorded as seen with its own. */
@@ -301,7 +306,13 @@ export function createAlertCenter(account, opts) {
       share: kind.share || null, glyph: kind.glyph, pending: false, msg: '' }, c));
     if (c.kind === 'away' && c.session) track('away_recap_shown', { slot: cs.slot, minutes: c.minutes, still_hunting: !c.ended, levels: c.levels }, c.id);
     if (alerts.length > 32) alerts.length = 32;
-    if (kind.fadeMs) { const key = alerts[0].key; setTimeout(() => { const i = alerts.findIndex((a) => a.key === key); if (i >= 0) { alerts.splice(i, 1); changed(); } }, kind.fadeMs); }
+    const fadeMs = /** @type {{ fadeMs?: number }} */ (kind).fadeMs;
+    if (fadeMs) {
+      const key = alerts[0].key;
+      const fade = /** @type {any} */ (setTimeout(() => { const i = alerts.findIndex((a) => a.key === key); if (i >= 0) { alerts.splice(i, 1); changed(); } }, fadeMs));
+      /* a fade never holds a process open (Node's tests; a browser's timer has no unref) */
+      if (fade && typeof fade.unref === 'function') fade.unref();
+    }
     /* `transient`: live news a reload never raises again, so it takes no place in the saved list */
     if (!c.transient) {
       const r = residueOf(cs);
@@ -355,6 +366,13 @@ export function createAlertCenter(account, opts) {
     /* A bench the server stopped for gold says so once, watched or not (the work bench tax: bench-fee.js). */
     const broke = benchStopRecapOf(cs, (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'A bench job'; });
     if (broke) now.push(broke);
+    /* A bench run this page watched that finished on its own, and the titles earned and not claimed (town-news.js, audit 2026-11-18 A17 A24). */
+    const done = workDoneOf(cs, benchSeen.get(cs.slot));
+    if (done) now.push(done);
+    const running = runningRunKey(cs);
+    if (running) benchSeen.set(cs.slot, running);
+    const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));
+    if (titled) now.push(titled);
     /* A level-up in this record that unlocked moves (spell-news.js): one line for all of them, never on a load. */
     const spell = spells.news(cs, (id) => wasSeen(cs, id), who(cs));
     if (spell) now.push(spell);
@@ -411,6 +429,7 @@ export function createAlertCenter(account, opts) {
     returning.delete(slot);
     gearSeen.delete(slot);
     heroUnit.delete(slot);
+    benchSeen.delete(slot);
     spells.forget(slot);
     seen.delete(slot);
     for (let i = alerts.length - 1; i >= 0; i--) if (alerts[i].slot === slot) alerts.splice(i, 1);

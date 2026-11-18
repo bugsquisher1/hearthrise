@@ -219,6 +219,7 @@ export const REFUSAL_WORDS = Object.freeze({
   network: 'No connection, nothing changed',
   timeout: 'No answer from the server',
   busy: 'Still saving, try again',
+  count_stale: 'Online count not ready',
   town_full: 'No free spot, try again',
   no_token: 'Signed out, sign in again',
   not_signed_in: 'Signed out, sign in again',

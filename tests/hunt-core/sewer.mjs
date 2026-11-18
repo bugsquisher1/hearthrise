@@ -732,7 +732,19 @@ const cases = {
     /* A hero in a party meets the Sewer card at its floor, never below it, and not once in the sewer. */
     const atSewer = { ...done, levelXp: M.xp.charXpForLevel(sewerBand), charLevel: sewerBand };
     if ((M.tut.currentCard({ ...atSewer, inParty: true }) || {}).id !== 'go_below') return 'a party hero at the Sewer floor does not meet go_below';
-    if ((M.tut.currentCard({ ...atSewer, charLevel: sewerBand - 1, levelXp: M.xp.charXpForLevel(sewerBand - 1), inParty: true }) || {}).id === 'go_below') return 'a party hero under the Sewer floor meets go_below';
+    /* under the floor, judged on the party card alone (since the Sewer opens at the Thicket's floor, lane/d-party-pace, the solo chain's "Out to the brook" asks
+       the same Level first, so the whole chain can't tell the card's own floor from that one) */
+    const goBelow = M.tut.HUNT_TUTORIAL.filter((r) => r.id === 'go_below');
+    if ((M.tut.currentCard({ ...atSewer, charLevel: sewerBand - 1, levelXp: M.xp.charXpForLevel(sewerBand - 1), inParty: true }, goBelow) || {}).id === 'go_below') return 'a party hero under the Sewer floor meets go_below';
+    if ((M.tut.currentCard({ ...atSewer, inParty: true }, goBelow) || {}).id !== 'go_below') return 'a party hero at the Sewer floor does not meet go_below on its own row';
+    /* A PARTY AT THE FLOOR IS SENT BELOW BEFORE THE WOLVES (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): walk the solo chain to the step before
+       Tamsin's wolves, then the same hero in a party meets go_below, never "Into the Thicket", and a hero alone still meets the wolves. */
+    const chain = walkChain(M, T);
+    const before = chain.find((x) => x.id === 'tamsins_task');
+    if (!before) return 'the solo chain has no tamsins_task step to stand before';
+    const party5 = { ...before.facts, inParty: true, levelXp: M.xp.charXpForLevel(sewerBand), charLevel: Math.max(before.facts.charLevel, sewerBand) };
+    if ((M.tut.currentCard(party5) || {}).id !== 'go_below') return 'a party at the Sewer floor, the Cellar behind it, meets ' + ((M.tut.currentCard(party5) || {}).id || 'no card') + ', not go_below';
+    if ((M.tut.currentCard({ ...party5, inParty: false }) || {}).id !== 'tamsins_task') return 'a hero alone at the same point meets ' + ((M.tut.currentCard({ ...party5, inParty: false }) || {}).id || 'no card') + ', not tamsins_task';
     if (M.tut.currentCard({ ...atSewer, inParty: true, huntId: 'millrace_sewer' })) return 'the tutorial does not end once the party is in the sewer';
     /* ...even when the server's record holds the Sewer alone (no best on the Thicket yet): a ground past it counts */
     if (M.tut.currentCard({ ...atSewer, inParty: true, huntId: 'millrace_sewer', visited: new Set() })) return 'in the sewer the coach sends the party back to ' + M.tut.currentCard({ ...atSewer, inParty: true, huntId: 'millrace_sewer', visited: new Set() }).id;
@@ -2165,7 +2177,7 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),",
       "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),\n  step('the_king', 'The Rat King', 'The last room is his.', 'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),"]] },
   { name: 'a hero in the sewer is sent back to the Thicket card (enter judged on the current hunt only)', case: 'tutorial-walk-through',
-    edits: [['src/data/hunt-tutorial.js', ' || HUNT_INDEX[h].band[0] > HUNT_INDEX[hunt].band[0]', '']] },
+    edits: [['src/data/hunt-tutorial.js', ' || past(h, hunt)', '']] },
   { name: 'out of a hunt, the pointer forgets it was there (#58: the Thicket card came back)', case: 'tutorial-never-backward',
     /* where the server has seen this hero hunt is hunt-sections.js groundsSeenOf since the Chronicle reads it too */
     edits: [['src/session/hunt-sections.js', '  if (h && h.huntId) seen.add(h.huntId);\n', '']] },
@@ -2178,9 +2190,12 @@ const mutants = [
   { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'unlock', hunt: THICKET }", "{ kind: 'unlock', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',
-    edits: [['src/data/hunts.js', 'band: [8, 25],', 'band: [1, 25],']] },
+    edits: [['src/data/hunts.js', 'band: [5, 25],', 'band: [1, 25],']] },
   { name: 'the party card walls a solo hero again', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!(f.inParty === true && f.charLevel >= HUNT_INDEX[r.done.hunt].band[0])) return false;', 'if (!true) return false;']] },
+  /* lane/d-party-pace (Tyler 2026-11-18 "Yes, open at 5"): a party at 5 is sent below before the wolves, never through the Thicket first */
+  { name: 'the party card waits for the Thicket again: a fresh four at 5 is sent to the wolves', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),", "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true, when: [{ kind: 'been', hunt: THICKET }] }),"]] },
   { name: 'the party card meets a party below the Sewer floor', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!(f.inParty === true && f.charLevel >= HUNT_INDEX[r.done.hunt].band[0])) return false;', 'if (!(f.inParty === true)) return false;']] },
   { name: 'cooking is not asked for (the town half is untaught)', case: 'tutorial-walk-through',

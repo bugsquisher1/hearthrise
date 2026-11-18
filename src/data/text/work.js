@@ -15,6 +15,13 @@ export const WORK_TEXT = Object.freeze({
   /* The bag's line for a counted bench run (src/shell/town-work.js runParts byRun): what the run has to go, never the stock behind it
      ("Fueling the Great Hearth with Bones: 1 to go" for one Bone fed, live v0.2.135 read "2,529 Bones left"). */
   run_to_go: '{n} to go',
+  /* THE LINE WHEN A BENCH RUN FINISHES IN VIEW (src/shell/town-news.js; QA audit 2026-11-18 A17: "Fuel all" ended with no word): what it
+     made or burned, the server's count, then the skill's level as a label. */
+  done_made: '{name} made {count} {item}.',
+  /* ...a run whose crafts can burn or roll grades (Cooking, jewelry): the run's tally counts crafts, so no number is said */
+  done_run: '{name} finished making {item}.',
+  done_fuel: '{name} fueled the Great Hearth with {count} {item}.',
+  done_level: '{skill} {level}.',
   /* A skill ledger's unlock line (src/shell/windows/skills.js unlockLine, the Character sheet's combat skills too): the first thing
      the next level opens, and how many more it opens (all of them, with their kinds, are the line's tooltip). */
   skill_next: 'Lv {level}: {name}',

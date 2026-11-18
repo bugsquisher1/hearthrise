@@ -140,17 +140,18 @@ begin
      or to_regprocedure('public.hr_hunt_party_start(integer,text,uuid)') is null or to_regprocedure('public.hr_mode_board_field(text,uuid,integer)') is null then
     raise exception 'PRECONDITION: a table or helper this file reads is missing (the Tower, its chest, its board, the entry gates)'; end if;
   for v_r in select * from (values
-    ('public.hr_tower_start(integer,integer,uuid)', '15c452e5c51d9d029b0e5c949d9c5160', 'POST_TOWER_START'),
-    ('public.hr_tower_record(uuid,integer)', 'ead2976832eeeaf52dc353d67c9a5d5a', 'POST_TOWER_RECORD'),
-    ('public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)', 'b19e04edf28724a88f7a5a2c283a7449', 'POST_TOWER_CHECK'),
-    ('public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)', '2081b410b423ad1ea8686040a483cd0c', 'POST_TOWER_WRITE'),
-    ('public.hr_tower_key_mint()', '3acdd24e1fb3940deb4a4951cd046a0b', 'POST_KEY_MINT'),
-    ('public.hr_chest_open(integer,text,text,integer,integer,uuid)', '9d86c2ece2df3d46584e879bd877448c', 'POST_CHEST_OPEN'),
-    ('public.hr_chest_section(uuid,integer)', '8d6fe5332d098ccebcc87f863e5f6fcb', 'POST_CHEST_SECTION'),
-    ('public.hr_chest_family_held(uuid,integer,text)', 'a8cee1423e8bacc5de8055a04fc790f7', 'POST_FAMILY_HELD'),
-    ('public.hr_tower_section(uuid,integer)', 'fe24bd5fba49169a4caa474555285d9f', 'POST_TOWER_SECTION'),
-    ('public.hr_tower_board_run_start()', 'c16b57671a108aacf024530c251ea043', 'POST_RUN_START'),
-    ('public.hr_tower_board_run_end()', '29ae32376fb06fb6d1f57f55add22d09', 'POST_RUN_END'),
+    ('public.hr_tower_start(integer,integer,uuid)', '15c452e5c51d9d029b0e5c949d9c5160', '020e3b121325909ac6a748839be5afd9'),
+    ('public.hr_tower_record(uuid,integer)', 'ead2976832eeeaf52dc353d67c9a5d5a', '39ce54b5e1129a08233cc7a0e71f8014'),
+    ('public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)', 'b19e04edf28724a88f7a5a2c283a7449', '658b1ba39f55e6412fc4c803f2ceea58'),
+    ('public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)', '2081b410b423ad1ea8686040a483cd0c', 'fe6515dde9a6876dee29c8ba30424c2d'),
+    ('public.hr_tower_key_mint()', '3acdd24e1fb3940deb4a4951cd046a0b', '6b694e31f5483dd45c6481b5a60fe185'),
+    ('public.hr_chest_open(integer,text,text,integer,integer,uuid)', '9d86c2ece2df3d46584e879bd877448c', '334926cfabe17327816a48f7dd41ca40'),
+    ('public.hr_chest_section(uuid,integer)', '8d6fe5332d098ccebcc87f863e5f6fcb', '5242f5d20e7dbac434247c260d5d3882'),
+    ('public.hr_chest_family_held(uuid,integer,text)', 'a8cee1423e8bacc5de8055a04fc790f7', 'bfddfd0798d74c5193a6af3a8ca6cfca'),
+    ('public.hr_tower_section(uuid,integer)', 'fe24bd5fba49169a4caa474555285d9f', '34bff2517e8adc8d395e0f12e2b8e265'),
+    ('public.hr_tower_board_run_start()', 'c16b57671a108aacf024530c251ea043', '3829c523c5f1cb2a1f5404c11d9d44ae'),
+    ('public.hr_tower_board_run_end()', '29ae32376fb06fb6d1f57f55add22d09', 'be52cb59a1681e9215e0a2baff903e69'),
+    ('public.hr_state_sections_of(uuid,integer)', '358bd3ba408d9a07980e5fc5a8c2fb17', '92f72b2af4233cb8bfe30a62c5d354fc'),
     ('public.hr_tower_board_rise()', '5e5875a75f033abc76a0c6f788ea6971', '5e5875a75f033abc76a0c6f788ea6971')) t(fn, pre, post) loop
     continue when to_regprocedure(v_r.fn) is null and v_r.fn = 'public.hr_tower_board_rise()';
     v_md5 := md5(regexp_replace(pg_get_functiondef(v_r.fn::regprocedure), '[[:space:]]+', ' ', 'g'));
@@ -492,9 +493,7 @@ begin
     from public.hr_tower_rules r left join public.hr_ground_session_modes g on g.hunt_id = r.hunt_id where r.hunt_id = p_hunt;
   if v_hunt is null or v_mode is null then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'catalogue_missing')); end if;
-  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
-  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
-  if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  -- (the key's first read and the rate gate are the calling door's own, before it calls here: hr_assert_grant_hygiene's A9 reads them there)
   -- THE LOCK: this hero's ONE run door (the Tower's and every wing's: a hero can't race a climb against a descent), which only the doors take
   -- (hr_boss_hall_enter's move, 2027-04-20-boss-hall.sql), before every lock hr_hunt_enter_for takes below (the character, its bag, the play cap).
   perform pg_advisory_xact_lock(hashtextextended('hr:tower:' || v_uid::text || ':' || p_slot::text, 0));
@@ -574,7 +573,7 @@ create or replace function public.hr_tower_start(p_slot int, p_landing int, p_id
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   c_verb constant text := 'tower_start';
-  v_uid uuid := auth.uid(); v_hunt text;
+  v_uid uuid := auth.uid(); v_hunt text; v_verb text := c_verb || ':' || coalesce(p_landing::text, 'best'); v_r jsonb;
 begin
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql); TOWER-CHECKPOINTS; ENTRY-GATES (2027-05-05-entry-gates.sql); CATACOMBS (2027-05-06-catacombs.sql):
   -- the body is the run door's (hr_run_start), on the Tower's ground
@@ -587,7 +586,10 @@ begin
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'feature_off')); end if;
   select r.hunt_id into v_hunt from public.hr_tower_rules r where r.id;
   if v_hunt is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'catalogue_missing')); end if;
-  return public.hr_run_start(v_uid, p_slot, v_hunt, p_landing, p_idem, c_verb, c_verb || ':' || coalesce(p_landing::text, 'best'), 'tower');
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
+  if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  return public.hr_run_start(v_uid, p_slot, v_hunt, p_landing, p_idem, c_verb, v_verb, 'tower');
 end $fn$;
 
 -- THE DESCENT'S DOOR (NEW CLIENT VERB): the shape, the switch, the wing, then the run door on that wing's ground.
@@ -595,7 +597,7 @@ create or replace function public.hr_catacomb_start(p_slot int, p_wing text, p_l
 returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   c_verb constant text := 'catacomb_start';
-  v_uid uuid := auth.uid(); v_hunt text; v_out jsonb;
+  v_uid uuid := auth.uid(); v_hunt text; v_out jsonb; v_verb text; v_r jsonb;
 begin
   -- CATACOMBS (2027-05-06-catacombs.sql; Tyler 2026-11-16: "a WING picked before the run", the leader picks for a party)
   if v_uid is null then return jsonb_build_object('ok', false, 'error', 'not_signed_in'); end if;
@@ -609,7 +611,11 @@ begin
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'feature_off')); end if;
   select r.hunt_id into v_hunt from public.hr_tower_rules r where r.wing = p_wing;
   if v_hunt is null then return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_wing')); end if;
-  v_out := public.hr_run_start(v_uid, p_slot, v_hunt, p_landing, p_idem, c_verb, c_verb || ':' || p_wing || ':' || coalesce(p_landing::text, 'best'), 'catacomb');
+  v_verb := c_verb || ':' || p_wing || ':' || coalesce(p_landing::text, 'best');
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
+  if not public.hr_rpc_gate('hunt') then return jsonb_build_object('ok', false, 'error', 'rate_limited'); end if;
+  v_out := public.hr_run_start(v_uid, p_slot, v_hunt, p_landing, p_idem, c_verb, v_verb, 'catacomb');
   return case when coalesce(v_out->>'ok', 'false') = 'true' then v_out || jsonb_build_object('wing', p_wing) else v_out end;
 end $fn$;
 
@@ -1054,6 +1060,35 @@ begin
     'field', jsonb_strip_nulls(jsonb_build_object('solo', v_solo, 'party', v_four)),
     'chest', public.hr_chest_section(p_user, p_slot));
 end $fn$;
+-- THE ENVELOPE PAST FIFTY SECTIONS (hr_state_sections_of, RESTATED: 2027-02-10-settle-reads.sql's image, §0 pins it). It folds every section
+-- into ONE jsonb_build_object, and PostgreSQL takes at most 100 arguments a call: 50 sections (2027-05-05-entry-gates.sql's `entry_gates` was
+-- the fiftieth), so the 51st (this file's `catacomb`) refused EVERY envelope ("cannot pass more than 100 arguments to a function"). It now
+-- builds one object a run of 50 sections, in key order, joined by `||` (the key sets are disjoint): the same calls, keys and values, one `||`
+-- for every fifty sections instead of the thirty the 2027-02-10 file retired. The class is closed: a 101st section needs no change here.
+create or replace function public.hr_state_sections_of(p_user uuid, p_slot integer)
+ returns jsonb
+ language plpgsql
+ stable
+ security definer
+ parallel unsafe
+ cost 100
+ set search_path = public, pg_catalog
+as $fn$
+-- SETTLE-READS (2027-02-10-settle-reads.sql): every hr_state_sections row, folded into ONE jsonb_build_object in ONE
+-- statement (the registry still decides which sections there are: architecture contracts X7). It was one EXECUTE and
+-- one `||` per section, thirty of each, and each `||` decoded and re-encoded the whole growing object (~42 KB): 16 ms a
+-- projection on PostgreSQL 17, a sixth of hr_state_of. The same calls, keys and values; one build.
+-- CATACOMBS (2027-05-06-catacombs.sql): one jsonb_build_object a run of 50 sections (PostgreSQL's 100-argument limit), joined by `||`.
+declare v_sql text; v_out jsonb;
+begin
+  select string_agg(c.part, ' || ' order by c.g) into v_sql
+    from (select s.g, 'jsonb_build_object(' || string_agg(format('%L, public.%I($1, $2)', s.key, s.fn), ', ' order by s.key) || ')' as part
+            from (select x.key, x.fn, (row_number() over (order by x.key) - 1) / 50 as g from public.hr_state_sections x) s
+           group by s.g) c;
+  execute 'select ' || coalesce(v_sql, '''{}''::jsonb') into v_out using p_user, p_slot;
+  return v_out;
+end $fn$;
+revoke execute on function public.hr_state_sections_of(uuid, integer) from public;
 insert into public.hr_state_sections (key, fn, note) values
   ('catacomb', 'hr_catacomb_section', '2027-05-06-catacombs.sql: the Unmarked Catacombs'' tab (each wing''s record, its doors to start after and the last one picked, the door''s Level, what a descent pays, the descent now and the last one with its keys, the party, the hero''s place on Catacombs, Deepest alone and in a party, and the Hearth Chest''s menu), while the `unmarked_catacombs` switch is on for the account')
   on conflict (key) do update set fn = excluded.fn, note = excluded.note;
@@ -1176,6 +1211,11 @@ begin
     if s is null or jsonb_array_length(s->'wings') <> (select count(*) from public.hr_tower_rules where wing is not null)
        or s->'wings'->0->'checkpoints' <> '[0]'::jsonb or (s->'gate'->>'ok')::boolean is not false or s->'run' <> 'null'::jsonb then
       raise exception 'catacombs §9(c): a new hero''s section reads %', s; end if;
+    -- THE ENVELOPE past fifty sections carries every one (the 100-argument limit hr_state_sections_of now folds around)
+    v := public.hr_state_of(v_u, 0);
+    if (select count(*) from public.hr_state_sections) <= 50 or not (v ? 'catacomb') or v->'catacomb' = 'null'::jsonb
+       or exists (select 1 from public.hr_state_sections x where not (v ? x.key)) then
+      raise exception 'catacombs §9(c): the envelope of % sections is missing one', (select count(*) from public.hr_state_sections); end if;
     -- THE MINT: a run on the wing whose top crosses doors 10 and 20 hands that wing's Bronze key out twice, journalled as catacomb_key
     v_sid := gen_random_uuid();
     insert into public.tower_runs (session_id, user_id, slot, instance_id, hunt_id, start_floor) values (v_sid, v_u, 0, gen_random_uuid(), v_hunt, 1);

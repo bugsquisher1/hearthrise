@@ -367,6 +367,9 @@ export const REFUSAL_WORDS = Object.freeze({
   tower_only: 'Enter at the Great Hearth',
   in_party: 'Already in a party',
   bad_landing: 'Start Floor not reached',
+  /* The Tower's Level (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the refusal carries need, have (and who for a seat); the window says the numbers. */
+  tower_level: 'Level too low for the Tower',
+  tower_party_level: 'Party member\'s Level too low for the Tower',
   /* The Hearth Chest (2027-04-27-tower-chest.sql: hr_chest_open). Drafts, read when the window lane wires the chest. */
   chest_not_ready: 'Key not ready',
   in_hunt: 'Out on a hunt',
@@ -429,6 +432,9 @@ export const REFUSAL_WORDS = Object.freeze({
   party_stamina: 'Party member short on stamina for a fight, nobody charged',
   party_gold: 'Party member short on gold for a fight, nobody charged',
   call_unknown: 'Nobody answers that call, not charged',
+  /* Natural wins before the call (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the quote's `wins` has the numbers; the pane says them. */
+  call_wins: 'Not enough wins on his ground yet, not charged',
+  party_wins: 'Party member short on wins on his ground, nobody charged',
   call_only: 'Call him out from the ground\'s page',
   called_pays: 'Called fights pay nothing',
   /* A keyed hall (2027-04-20-boss-hall.sql). The press's own section reads src/data/boss-halls.js, with the key's name; these are the codes' lines anywhere else. */

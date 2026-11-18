@@ -6579,6 +6579,14 @@ jobs:
           node tools/mutant-gate.mjs node tests/dead-exports.mjs --selftest
           node tests/dead-exports.mjs
 
+      # Imports point one way (architecture audit 2026-11-18): data <- core <- session <- hunt-view/world/social <- shell
+      # <- app, the edge on core and data only; today's breaches on a baseline that only shrinks. Half a second.
+      - name: Imports point one way - layering
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/layering.mjs --selftest
+          node tests/layering.mjs
+
       - name: Cleanup slice 3 - dead CSS class census
         if: ${{ !cancelled() }}
         run: |

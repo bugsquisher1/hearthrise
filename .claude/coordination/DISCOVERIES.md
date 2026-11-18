@@ -8,7 +8,7 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 | # | Found | Affected | Action |
 |---|---|---|---|
-| 1 | P1 CI · `node tests/hunt-screen.mjs --shard-plan` is RED on set/v0.2.139 before this lane: all 12 shards book 18.4 to 19.8 min against the 18 min budget | smoke.yml hunt-screen shards | The lane that added the 11-18 HS-32 mutants (UI audit): add a 13th shard (smoke.yml + `node tests/ci-shape.mjs --write`) |
+| 1 | P1 CI · `node tests/entry-gates.mjs` EG-IDEM is RED on set/v0.2.139 (646a3f992): it re-applies the three 2027-05-05 entry-gates files after the WHOLE chain, and the later 2027-05-06 drop-homes and sewer-from-five hunt-sessions catalogues rewrite `hr_boss_calls` (his drops), so the older catalogue moves the rows back. No file of this lane touches what it snapshots | tests/entry-gates.mjs EG-IDEM | The entry-gates lane: scope EG-IDEM to the chain as of its own files (the TG-AGAIN / FS-AGAIN pattern), never loosen it |
 | 2 | Design fact · a Deadly four with no Healer dies only near the floor: the Muster Barrows 9.3 / 3 / 1.3 / 1 / 0 deaths in 16 hero-hours at Levels 55 / 57 / 58 / 59 / 60, Krell's Hold 6.7 / 1 / 0.7 / 0 at 85 / 88 / 89 / 90 (6 seeds a cell); a four with a Healer 0 everywhere | the Hunts page tier note, any later "needs a Healer" line | A pack's `healerTiers` is `{ tier: Level }`, said under the first Level measured at less than one death in 16 hero-hours (Barrows 60, Hold 89); AW-25 holds it both ways with `checks.deadlyFourNeeds` |
 
 ## 2026-11-15 · game-designer (lane/d-mage-110) · the balance-sim graded every staged ground without Krell's hall drops

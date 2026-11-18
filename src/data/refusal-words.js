@@ -370,6 +370,10 @@ export const REFUSAL_WORDS = Object.freeze({
   /* The Tower's Level (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the refusal carries need, have (and who for a seat); the window says the numbers. */
   tower_level: 'Level too low for the Tower',
   tower_party_level: 'Party member\'s Level too low for the Tower',
+  /* The Unmarked Catacombs' descent (2027-05-06-catacombs.sql: hr_catacomb_start, the wing row's Level). Drafts for the Catacombs tab's lane. */
+  catacomb_level: 'Level too low for the Catacombs',
+  catacomb_party_level: 'Party member\'s Level too low for the Catacombs',
+  bad_wing: 'Unknown wing',
   /* The Hearth Chest (2027-04-27-tower-chest.sql: hr_chest_open). Drafts, read when the window lane wires the chest. */
   chest_not_ready: 'Key not ready',
   in_hunt: 'Out on a hunt',

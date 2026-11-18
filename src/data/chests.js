@@ -442,6 +442,6 @@ export const CHEST_ITEM_DESC = Object.freeze({
     const wing = k.helmetPm >= 500 ? 'the Bone Wing' : 'the Flooded Wing';
     const what = k.helmetPm >= 500 ? 'Mostly helmets' : 'Mostly boots';
     const where = { bronze: 'a door in ', silver: 'the middle doors of ', gold: 'deep in ', platinum: 'the deepest doors of ' }[k.id.split('_').pop()];
-    return [k.item, 'Off Keeper Dunn\'s ring, from ' + where + wing + '. It opens the chest on the Great Hearth\'s ledge once. ' + what];
+    return [k.item, 'Off Keeper Dunn\'s ring, from ' + where + wing + '. It opens the Hearth Chest once. ' + what];
   })),
 });

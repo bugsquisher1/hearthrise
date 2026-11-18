@@ -269,6 +269,10 @@ const DB_ARMS = {
     const bad = [];
     const [a, b] = UIDS;
     for (const uid of [a, b]) await H.character(db, M, uid, { level: 20, gold: 100000 });
+    /* NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql): both heroes beat the Rat King on his ground the catalogue's count of times
+       (his Bestiary counter, as the settle writes it), so this arm measures the fee dial, not the gate (tests/entry-gates.mjs holds that). */
+    await db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at)
+      select u, 0, 'stat', 'ev:kill_monster:' || c.boss_id, '', c.wins, now() from public.hr_boss_calls c, unnest($1::uuid[]) u where c.call_id = 'rat_king'`, [[a, b]]);
     await db.query('select public.hr_party_open($1::uuid, 0)', [a]);
     const pid = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [a]);
     await db.query('select public.hr_party_seat_into($1::uuid, $2::uuid, 0)', [pid, b]);

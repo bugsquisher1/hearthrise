@@ -75,6 +75,8 @@
     "node tools/mutant-gate.mjs node tools/gen-tower.mjs --selftest": "db-replay-8",
     "node tests/tower-climb.mjs": "db-replay-8",
     "node tools/mutant-gate.mjs node tests/tower-climb.mjs --mutate": "db-replay-8",
+    "node tests/entry-gates.mjs": "db-replay-8",
+    "node tools/mutant-gate.mjs node tests/entry-gates.mjs --mutate": "db-replay-8",
     "node tools/gen-chests.mjs --check": "db-replay-8",
     "node tools/mutant-gate.mjs node tools/gen-chests.mjs --selftest": "db-replay-8",
     "node tools/world-art/tower-chest-icons.mjs --check": "db-replay-8",

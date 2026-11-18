@@ -325,7 +325,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
    on the assembled branch): 2027-05-01-v0135-hunt-sessions-catalogue is the file before this one and this one carries it whole. It collapses the two
    notes above, 2027-04-24-tower-climb- and 2027-04-29-tower-weapons-hunt-sessions-catalogue (both STAGED, never applied, now deleted), and adds the
    Key Warden's bundle bid. ORDER: after every v0.2.135 file and 2027-05-02-tower-items-catalogue.generated.sql; before the Tower's session-modes file. */
-export const OUT_NAME = '2027-05-02-tower-hunt-sessions-catalogue.generated.sql';
+/* NATURAL WINS BEFORE THE CALL (lane/c-entry-gates, backend-architect, 2026-11-18; Tyler 2026-11-18: "you have to beat the boss in the hunting ground X
+   times before you can call them out"): 2027-05-02-tower-hunt-sessions-catalogue (applied with v0.2.135) is the file before this one and this one carries it
+   whole. hr_boss_calls gains boss_id (the call's `of`) and wins (BOSS_CALL_RULES.winsToCall); no other row, bound, limit or shape moves. ORDER: after
+   everything applied with v0.2.137, before 2027-05-05-entry-gates.sql (whose quote reads both). */
+export const OUT_NAME = '2027-05-05-entry-gates-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -851,7 +855,17 @@ function calledRows(S) {
         && whole(rules.maxFights) && rules.maxFights >= 1 && rules.maxFights <= 1000)) {
     throw new Error(`BOSS_CALL_RULES ${JSON.stringify(rules)}: a limit of 1 to 60 minutes, a slider top of 1 to 1000 fights, no party size (a hero alone may call) and no daily cap (stamina is the limit)`);
   }
-  return rows.map((c) => ({ ...c, limitMs: rules.limitMs, maxFights: rules.maxFights }));
+  /* NATURAL WINS BEFORE THE CALL (lane/c-entry-gates; Tyler 2026-11-18: "you have to beat the boss in the hunting ground X times before you can call them
+     out"): one whole count of 1 to 1000 for every call (hr_boss_calls.wins), counted on the boss the call copies (hr_boss_calls.boss_id, the row's `of`):
+     a boss row, never a called one, fielded on the press's ground (checked above), so his kills there are the counter's (ev:kill_monster:<of>). */
+  if (!(whole(rules.winsToCall) && rules.winsToCall >= 1 && rules.winsToCall <= 1000)) {
+    throw new Error(`BOSS_CALL_RULES.winsToCall ${rules.winsToCall}: the natural wins a call needs is a whole count of 1 to 1000`);
+  }
+  for (const c of Object.values(S.calls)) {
+    const of = S.monsters[c.of];
+    if (!(of && of.boss === true && of.called !== true && !/_called$/.test(c.of))) throw new Error(`call ${c.id} copies ${c.of}, which is no ground boss: its wins could never be counted`);
+  }
+  return rows.map((c) => ({ ...c, limitMs: rules.limitMs, maxFights: rules.maxFights, bossId: S.calls[c.id].of, wins: rules.winsToCall }));
 }
 
 /* THE KEYED HALLS, AT THE GENERATOR (tests/boss-hall.mjs drives it): the rows of hr_boss_halls, or a throw. A hall PAYS, so none of its rows is called;
@@ -1042,7 +1056,7 @@ export function render(src) {
   const trainValues = r.training.grounds.map((t) => `  (${sq(t.hunt)}, ${sq(t.place)}, ${sq(t.skill)}, ${t.ord}, ${t.fee})`).join(',\n');
   const gearValues = r.training.gear.map((g) => `  (${sq(g.id)}, ${sq(g.skill)}, ${g.ms}, ${g.bound}, ${g.price === null ? 'null' : g.price})`).join(',\n');
   const trainRule = r.training.rules;
-  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.limitMs}, ${c.fightFee}, ${c.fightStaminaMs}, ${c.maxFights}, ${sq(JSON.stringify(c.drops))}::jsonb, ${c.level})`).join(',\n');
+  const callValues = r.bossCalls.map((c) => `  (${sq(c.id)}, ${sq(c.hunt)}, ${sq(c.from)}, ${sq(c.monster)}, ${c.limitMs}, ${c.fightFee}, ${c.fightStaminaMs}, ${c.maxFights}, ${sq(JSON.stringify(c.drops))}::jsonb, ${c.level}, ${sq(c.bossId)}, ${c.wins})`).join(',\n');
   const hallValues = r.bossHalls.map((h) => `  (${sq(h.id)}, ${sq(h.hunt)}, ${sq(h.monster)}, ${sq(h.key)}, ${h.limitMs})`).join(',\n');
   const nLim = Object.keys(r.lim).length;
   const CATALOGUE = ['hr_hunt_supplies', 'hr_hunt_travel', 'hr_hunt_limits', 'hr_hunt_end_reasons', 'hr_hunt_vendor_value',
@@ -1066,8 +1080,16 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-tower-all, backend-architect, 2026-11-17: the Burning Tower on the v0.2.135 set, ONE forward file regenerated on the
--- assembled branch). It collapses 2027-04-24-tower-climb- and 2027-04-29-tower-weapons-hunt-sessions-catalogue (both STAGED, never applied, now
+-- NEW IN THIS FILE (lane/c-entry-gates, backend-architect, 2026-11-18; Tyler 2026-11-18: "you have to beat the boss in the hunting ground X times before
+-- you can call them out"). It carries 2027-05-02-tower-hunt-sessions-catalogue (applied 2026-11-17 with v0.2.135) whole. hr_boss_calls gains boss_id (the
+-- ground boss the call copies, src/data/boss-calls.js \`of\`: his kills on his ground, player_progress ev:kill_monster:<boss_id>, are the count) and wins
+-- (BOSS_CALL_RULES.winsToCall, ${r.bossCalls.length ? r.bossCalls[0].wins : '-'}: the natural wins a hero, and every seat of its party, needs before the call), each NOT NULL behind
+-- hr_boss_calls_wins_ck. No other row, bound, limit, end reason or world shape moves. ORDER: after everything applied with v0.2.137
+-- (2027-05-04-setup-swap-mid-hunt.sql), then 2027-05-05-entry-gates-tower-catalogue.generated.sql, then 2027-05-05-entry-gates.sql (whose quote reads
+-- both columns; until it nothing reads them, so this file alone moves no behaviour). EDGE: either side of the deploy (the engine reads neither column).
+--
+-- CARRIED FROM 2027-05-02-tower-hunt-sessions-catalogue (lane/c-tower-all, backend-architect, 2026-11-17: the Burning Tower on the v0.2.135 set, ONE
+-- forward file regenerated on the assembled branch), whole. It collapses 2027-04-24-tower-climb- and 2027-04-29-tower-weapons-hunt-sessions-catalogue (both STAGED, never applied, now
 -- deleted) and carries 2027-05-01-v0135-hunt-sessions-catalogue whole. ORDER: after every v0.2.135 file and 2027-05-02-tower-items-catalogue.generated.sql
 -- (the self-check wants the weapons and the bundle in hr_items); before 2027-04-24-tower-climb-session-modes-catalogue.generated.sql. EDGE: either side
 -- of the ONE hr-accrue deploy (no world shape, no bound of an open ground moves; no client can open a climb while burning_tower is off).
@@ -1564,6 +1586,8 @@ alter table public.hr_boss_calls add column if not exists fight_fee bigint, add 
 -- WHAT A WIN CAN DROP, for the page (audit F24): his table in its order, [{ item, ppm (odds in parts per million), band }], from monsters.js.
 alter table public.hr_boss_calls add column if not exists drops jsonb, add column if not exists boss_level int;
 alter table public.hr_boss_calls drop column if exists fee, drop column if exists per_day;
+-- NATURAL WINS BEFORE THE CALL (lane/c-entry-gates; Tyler 2026-11-18): the boss the call copies (his kills on his ground are the count) and how many it needs.
+alter table public.hr_boss_calls add column if not exists boss_id text, add column if not exists wins int;
 comment on table public.hr_boss_calls is
   'tools/gen-hunt-sessions.mjs from src/data/boss-calls.js: the called rooms, one fight''s price (stamina and gold) and the most fights one series may queue (Call out). Names no player; character wipe c_no_player.';
 -- COMBAT TRAINING (training.js): the rules, one row, each training ground's place, skill and fee, and the training items. Read by hr_training_start,
@@ -1720,14 +1744,18 @@ delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
 delete from public.hr_boss_calls;
-insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level) values
+insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level, boss_id, wins) values
 ${callValues};
 alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,
-  alter column boss_level set not null;
+  alter column boss_level set not null, alter column boss_id set not null, alter column wins set not null;
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
   check (fight_fee between 1 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
          and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
+-- NATURAL WINS BEFORE THE CALL: a whole count, on a ground boss's own id (never a called row's: those wins are the call's, not the ground's).
+alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_wins_ck;
+alter table public.hr_boss_calls add constraint hr_boss_calls_wins_ck
+  check (wins between 1 and 1000 and boss_id ~ '^[a-z0-9_]{1,64}$' and boss_id !~ '_called$');
 delete from public.hr_training_grounds;
 delete from public.hr_training_rules;
 insert into public.hr_training_rules (id, fee_base, fee_per_level, hp_floor_pm, max_hours, house_tier, house_tier_id, xp_per_hour, min_level, boost_pm, buy_per_day) values
@@ -1839,6 +1867,13 @@ ${r.abilities.filter((a) => a.area).map((a) => `    (${sq(a.id)}, ${sq(a.lane)},
                  or exists (select 1 from jsonb_array_elements(c.drops) d
                              where jsonb_typeof(d.value->'ppm') is distinct from 'number' or (d.value->>'ppm') !~ '^[0-9]{1,7}$' or (d.value->>'ppm')::int not between 1 and 1000000)) then
     raise exception 'a call lists a drop its kill bound does not hold, or odds that are not whole parts per million'; end if;
+  -- NATURAL WINS BEFORE THE CALL (lane/c-entry-gates): each call's count is the data's one number, on a boss its press's ground fields (so a normal hunt
+  -- there is what counts it), never on a called row.
+  if exists (select 1 from public.hr_boss_calls c
+              where c.wins is distinct from ${r.bossCalls.length ? r.bossCalls[0].wins : 0}
+                 or not exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = c.from_hunt and s.monster_id = c.boss_id)
+                 or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.boss_id and s.hunt_id = c.hunt_id)) then
+    raise exception 'a call''s natural wins are not the data''s, or are counted on a boss its press''s ground does not field'; end if;
   -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
   -- pays no coin and no drop; no other ground fields it and no roster names it.
   if exists (select 1 from public.hr_training_grounds t
@@ -2032,6 +2067,10 @@ function selftest() {
       rat_king: { ...MONSTERS.rat_king, drops: MONSTERS.rat_king.drops.map((d) => (d.id === 'crown_shard' ? { ...d, ch: 0.0140005 } : d)) },
       rat_king_called: { ...MONSTERS.rat_king_called, drops: MONSTERS.rat_king_called.drops.map((d) => (d.id === 'crown_shard' ? { ...d, ch: 0.0140005 } : d)) } } }),
     'a party size on the call (a hero alone may call)': () => ({ callRules: { ...BOSS_CALL_RULES, partyMin: 2 } }),
+    /* NATURAL WINS BEFORE THE CALL (lane/c-entry-gates): a whole count of 1 to 1000, on a ground boss the press's ground fields */
+    'a call that needs no natural wins': () => ({ callRules: { ...BOSS_CALL_RULES, winsToCall: 0 } }),
+    'a call that needs no whole count of wins': () => ({ callRules: { ...BOSS_CALL_RULES, winsToCall: 2.5 } }),
+    'a call counted on his called copy': () => ({ calls: { ...BOSS_CALLS, rat_king: { ...BOSS_CALLS.rat_king, of: 'rat_king_called' } } }),
     'no shield arm (no worn set plays the tank)': () => ({ shieldArm: {} }),
     /* THE DEFENSE BOUND AND A MONSTER'S SPELL: the least windup x block_mult covers the swing interval, and no row winds up faster than the least */
     'a least spell windup the Defense bound does not cover': () => ({ spellWindupMinMs: Math.ceil(COMBAT_BALANCE.tickMs / COMBAT_XP.blockMult) - 100 }),

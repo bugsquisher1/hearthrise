@@ -5,7 +5,7 @@
 //   node tests/boss-call-window.mjs            the rules
 //   node tests/boss-call-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/boss-call-pane.js src/hunt-view/summary-model.js src/hunt-view/boss-loss.js src/shell/widgets/boss-bar.js src/shell/windows/hunts.js src/data/boss-calls.js
+// mutant-anchors: src/shell/windows/boss-call-pane.js src/session/boss-quote.js src/hunt-view/summary-model.js src/hunt-view/boss-loss.js src/shell/widgets/boss-bar.js src/shell/windows/hunts.js src/data/boss-calls.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs).
 //   BW-1  THE SERVER'S WORDS: alone, the press is on, the line says what a fight costs (the quote's stamina and gold) and the warning carries one more line (a
@@ -15,6 +15,10 @@
 //         it moves; every number beside it is the quote's (one fight's stamina, gold and limit, what the room covers), and the total is the quote's own entry
 //         for the picked count, never a sum made in the browser; Not yet closes it; confirming sends ONE hr_boss_call with the id, the picked count and the QUOTED price
 //   BW-3  A MOVED PRICE: quote_changed shows the server's new price and the words say nothing was charged; the next press carries the new price and the same count
+//   BW-11 NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): a hero short reads "Requires 10 Rat King wins" and its
+//         count "Rat King wins: 2/10", the press off and nothing sent; after a reload, before any quote, the count from the envelope's
+//         entry_gates; a seat one short is named ("Tessaly: Rat King wins 9/10"); the envelope's shut gate holds the press off over an older
+//         quote; every win earned turns it on; call_wins and party_wins refusals say their numbers and that nothing was charged
 //   BW-9  WHAT A WIN EARNS AND WHAT THE ROOM RISKS (audit F24, 2026-11-15: "Why would I pay to fight the Rat King for nothing?"): the section lists what a
 //         win can drop from the SERVER'S projection (its rows, its order, its odds: the quote here names odds the data does not hold), above the press;
 //         a weak party (a hero under his Level, no tank, no healer, a bar with no food) reads a line for each before the slider and beside it, and no
@@ -222,6 +226,63 @@ async function checks(overrides) {
       if (heroes !== 'Your 2 heroes: stamina each, gold shared') fails.push('BW-2 two of this account\'s heroes read ' + JSON.stringify(heroes));
       await ctx.close();
     }
+    /* BW-11: NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql; Tyler 2026-11-18: "you have to beat the boss in the hunting ground X times before
+       you can call them out"). Every number is the server's: the quote's `wins`, or before a quote and after a reload the envelope's entry_gates. */
+    {
+      const wins = (have, short = []) => ({ boss: 'rat_king', need: 10, have, short });
+      const gate = (have, short = []) => ({ entry_gates: { tower: null, calls: { rat_king: { ...wins(have, short.map((x, i) => ({ seat: i + 1, ...x }))), ok: have >= 10 && !short.length } } } });
+      const lines = (page) => page.evaluate(() => Array.from(document.querySelectorAll('.hw-hd-call .hw-call-wins li')).map((li) => li.textContent));
+      const reopen = async (page) => {
+        await page.reload({ waitUntil: 'load', timeout: 60000 });
+        if (await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'), null, 4000)) await page.click('[data-app="play"][data-slot="0"]');
+        await wait(page, () => document.querySelector('.hs-launchers'));
+        if (!(await page.evaluate(() => !!document.querySelector('.hw-hunt[data-hunt="millrace_sewer"]')))) await page.click('[data-hs-open="hunts"]');
+        await page.click('.hw-hunt[data-hunt="millrace_sewer"]');
+        await page.waitForTimeout(600);
+      };
+      /* ALONE, TWO WINS: the press off, the line says what it takes, the count under it; nothing sent */
+      const short = QUOTE({ available: false, why: 'call_wins', seats: 1, alone: true, wins: wins(2) });
+      let o = await open(gate(2), short);
+      if ((await txt(o.page, '.hw-call-line')) !== 'Requires 10 Rat King wins') fails.push('BW-11 two wins, the line reads ' + JSON.stringify(await txt(o.page, '.hw-call-line')));
+      if ((await lines(o.page)).join('|') !== 'Rat King wins: 2/10') fails.push('BW-11 two wins, the count reads ' + JSON.stringify(await lines(o.page)));
+      if (await off(o.page) !== true) fails.push('BW-11 two wins, the press is on');
+      /* AFTER A RELOAD with the server not quoting yet: the count from the envelope, the press still off */
+      o.s.view = null;
+      await reopen(o.page);
+      if ((await lines(o.page)).join('|') !== 'Rat King wins: 2/10' || await off(o.page) !== true) fails.push('BW-11 after a reload, before a quote, the count reads ' + JSON.stringify([await lines(o.page), await off(o.page)]));
+      if (sent(o.s, 'hr_boss_call').length) fails.push('BW-11 a press held off by its wins sent a call');
+      await o.ctx.close();
+      /* A PARTY, A SEAT ONE WIN SHORT: the line names it with the server's count, the press off, no second line for the same seat */
+      o = await open({ ...PARTY(0), ...gate(10, [{ name: 'Tessaly', have: 9 }]) }, QUOTE({ available: false, why: 'party_wins', who: 'Tessaly', wins: wins(10, [{ name: 'Tessaly', have: 9 }]) }));
+      if ((await txt(o.page, '.hw-call-line')) !== 'Tessaly: Rat King wins 9/10') fails.push('BW-11 a seat one short, the line reads ' + JSON.stringify(await txt(o.page, '.hw-call-line')));
+      if ((await lines(o.page)).length || await off(o.page) !== true) fails.push('BW-11 a seat one short reads ' + JSON.stringify([await lines(o.page), await off(o.page)]));
+      await o.ctx.close();
+      /* THE SECTION SAYS SHUT, AN OLDER QUOTE SAID YES: the press stays off (the server's newest word) */
+      o = await open(gate(9), QUOTE({ seats: 1, alone: true, wins: wins(10) }));
+      if (await off(o.page) !== true) fails.push('BW-11 the envelope\'s shut gate left the press on');
+      await o.ctx.close();
+      /* THE HAPPY PATH: the wins earned on both, the press on, no count line; the server refuses anyway (a win it no longer counts) and the line says
+         nothing was charged, with its numbers; a seat's refusal names the seat */
+      let answer = () => ({ ok: false, error: 'call_wins', boss_call: QUOTE({ available: false, why: 'call_wins', seats: 1, alone: true, wins: wins(9) }) });
+      o = await open(gate(12), QUOTE({ seats: 1, alone: true, wins: wins(12) }), (b) => answer(b));
+      if ((await lines(o.page)).length || await off(o.page) !== false) fails.push('BW-11 every win earned reads ' + JSON.stringify([await lines(o.page), await off(o.page)]));
+      await press(o.page, '[data-hs-act="call-warn"]', 'BW-11');
+      await press(o.page, '[data-hs-act="call-go"]', 'BW-11');
+      await o.page.waitForTimeout(500);
+      let msg = await o.page.evaluate(() => (document.querySelector('.hw-hunts .hh-intent-msg') || {}).textContent || '');
+      if (!/Requires 10 Rat King wins, not charged/.test(msg)) fails.push('BW-11 a call_wins refusal reads ' + JSON.stringify(msg));
+      if (sent(o.s, 'hr_boss_call').length !== 1) fails.push('BW-11 the happy press sent ' + sent(o.s, 'hr_boss_call').length + ' calls');
+      await o.ctx.close();
+      answer = () => ({ ok: false, error: 'party_wins', boss_call: QUOTE({ available: false, why: 'party_wins', who: 'Tessaly', wins: wins(10, [{ name: 'Tessaly', have: 9 }]) }) });
+      o = await open({ ...PARTY(0), ...gate(10) }, QUOTE({ wins: wins(10) }), (b) => answer(b));
+      await press(o.page, '[data-hs-act="call-warn"]', 'BW-11');
+      await press(o.page, '[data-hs-act="call-go"]', 'BW-11');
+      await o.page.waitForTimeout(500);
+      msg = await o.page.evaluate(() => (document.querySelector('.hw-hunts .hh-intent-msg') || {}).textContent || '');
+      if (!/Tessaly: Rat King wins 9\/10, nobody charged/.test(msg)) fails.push('BW-11 a party_wins refusal reads ' + JSON.stringify(msg));
+      if (o.errors.length) fails.push('BW-11 console errors: ' + o.errors.join(' | ').slice(0, 300));
+      await o.ctx.close();
+    }
     /* BW-9: WHAT A WIN CAN DROP, FROM THE SERVER'S PROJECTION, and THE DANGER a weak party reads before the slider */
     {
       const dropsOf = (page) => page.evaluate(() => ({ head: (() => { const h = document.querySelector('.hw-call-drops-h'); return h && h.offsetParent !== null ? h.textContent : null; })(),
@@ -427,6 +488,12 @@ async function checks(overrides) {
 }
 
 const MUTANTS = [
+  /* BW-11 NATURAL WINS BEFORE THE CALL (lane/c-entry-gates) */
+  { name: 'wins: the press ignores the envelope\x27s shut gate', file: 'src/shell/windows/boss-call-pane.js', from: 'const open = !!q && q.available && !v.now && !v.pending && !(gate && !gate.ok);', to: 'const open = !!q && q.available && !v.now && !v.pending;', want: /BW-11/ },
+  { name: 'wins: the wins still owed are never drawn', file: 'src/shell/windows/boss-call-pane.js', from: "rows(box.querySelector('.hw-call-wins'), v.now ? [] :", to: "rows(box.querySelector('.hw-call-wins'), v.now || true ? [] :", want: /BW-11/ },
+  { name: 'wins: the count waits for a quote', file: 'src/shell/windows/boss-call-pane.js', from: 'const w = q && q.wins ? q.wins : gate || null;', to: 'const w = q && q.wins ? q.wins : null;', want: /BW-11/ },
+  { name: 'wins: a seat short of wins is read with the caller\x27s count', file: 'src/shell/windows/boss-call-pane.js', from: 'return { need: q.wins.need, ...(who ? (seat ? { have: seat.have } : {}) : { have: q.wins.have }) };', to: 'return { need: q.wins.need, have: q.wins.have };', want: /BW-11/ },
+  { name: 'wins: the quote drops its wins', file: 'src/session/boss-quote.js', from: 'danger: dangerOf(q.danger), wins: winsOf(q.wins),', to: 'danger: dangerOf(q.danger), wins: null,', want: /BW-11/ },
   /* BW-10 (QA audit 2026-11-18 N3): the confirm opens in view */
   { name: 'the confirm opens below the page\'s fold', file: 'src/shell/windows/hunts.js', from: '}), el)) return inView();', to: '}), el)) return true;' },
   { name: 'the first press charges', file: 'src/shell/windows/boss-call-pane.js', from: "if (action === 'call-warn') { sc.warned = true; repaint(); return true; }", to: "if (action === 'call-warn') { run(() => callOut(ctx.account, cs, sc.call.id, 1, sc.quote.price), '', () => ''); return true; }", want: /BW-2/ },
@@ -438,8 +505,8 @@ const MUTANTS = [
   { name: 'the slider answers only on release', file: 'src/shell/windows/hunts.js', from: "renderHunts.events = Object.freeze(['input']);", to: 'renderHunts.events = Object.freeze([]);', want: /BW-2/ },
   { name: 'a fight with no fee still reads its fee\'s words', file: 'src/shell/windows/boss-call-pane.js', from: 'callWords(free ? S.costFree : S.cost, call, bill)', to: 'callWords(S.cost, call, bill)', want: /BW-2/ },
   { name: 'what the room covers is never said', file: 'src/shell/windows/boss-call-pane.js', from: "text(warn.querySelector('.hw-call-f-covers'), callWords(q.covers === 0 ? S.covers.none : q.covers === 1 ? S.covers.one : S.covers.other, call, bill));", to: '', want: /BW-2/ },
-  { name: 'a seat that can\'t pay is not named', file: 'src/shell/windows/boss-call-pane.js', from: 'const fightOf = (q) => (q ? { fee: q.price, staminaMs: q.staminaMs, limitMs: q.limitMs, max: q.maxFights, who: q.who, heroes: q.heroes } : {});', to: 'const fightOf = (q) => (q ? { fee: q.price, staminaMs: q.staminaMs, limitMs: q.limitMs, max: q.maxFights, heroes: q.heroes } : {});', want: /BW-1/ },
-  { name: 'a refused count never says the server\'s top', file: 'src/shell/windows/boss-call-pane.js', from: "...(Number.isFinite(r.max) ? { max: r.max } : {}) });", to: '});', want: /BW-3/ },
+  { name: 'a seat that can\'t pay is not named', file: 'src/shell/windows/boss-call-pane.js', from: 'max: q.maxFights, who: q.who, heroes: q.heroes,', to: 'max: q.maxFights, heroes: q.heroes,', want: /BW-1/ },
+  { name: 'a refused count never says the server\'s top', file: 'src/shell/windows/boss-call-pane.js', from: '...(Number.isFinite(r.max) ? { max: r.max } : {}),', to: '', want: /BW-3/ },
   /* WHAT A WIN EARNS AND WHAT THE ROOM RISKS (audit F24) */
   { name: 'the drops are the data\'s table, not the server\'s', file: 'src/shell/windows/boss-call-pane.js', from: 'const drops = !v.now && q ? q.drops : [];', to: 'const drops = !v.now && q ? MONSTERS[call.monster].drops.map((x) => ({ item: x.id, ppm: Math.round(x.ch * 1000000) })) : [];', want: /BW-9/ },
   { name: 'the page never says what a win can drop', file: 'src/shell/windows/boss-call-pane.js', from: 'const drops = !v.now && q ? q.drops : [];', to: 'const drops = [];', want: /BW-9/ },
@@ -455,7 +522,7 @@ const MUTANTS = [
   { name: 'the series\' line counts the fights called, not the fights fought', file: 'src/hunt-view/boss-loss.js', from: ".replace('{fought}', String(c.fight));", to: ".replace('{fought}', String(c.fights));", want: /BW-8/ },
   { name: 'a series cut short reads as a hunt that ran out of stamina', file: 'src/hunt-view/summary-model.js', from: "if (forfeit !== true && hunt && Object.hasOwn(short, reason) && (roomOfHunt(hunt) || {}).kind === 'call') return short[reason];", to: '', want: /BW-8/ },
   { name: 'a hall\'s end reads a series\' words', file: 'src/hunt-view/summary-model.js', from: "(roomOfHunt(hunt) || {}).kind === 'call') return short[reason];", to: 'roomOfHunt(hunt)) return short[reason];', want: /BW-8/ },
-  { name: 'the press is on with no quote', file: 'src/shell/windows/boss-call-pane.js', from: 'const open = !!q && q.available && !v.now && !v.pending;', to: 'const open = !v.now && !v.pending;', want: /BW-1|BW-4/ },
+  { name: 'the press is on with no quote', file: 'src/shell/windows/boss-call-pane.js', from: 'const open = !!q && q.available && !v.now && !v.pending && !(gate && !gate.ok);', to: 'const open = !v.now && !v.pending && !(gate && !gate.ok);', want: /BW-1|BW-4/ },
   { name: 'a moved price is not read back', file: 'src/shell/windows/boss-call-pane.js', from: '.then((r) => { if (r && r.quote) sc.quote = r.quote; else sc.at = 0; repaint(); });', to: '.then(() => { repaint(); });', want: /BW-3/ },
   { name: 'every repaint asks again', file: 'src/shell/windows/boss-call-pane.js', from: 'if (!sc.asking && !v.now && now - sc.at > QUOTE_STANDS_MS) {', to: 'if (!sc.asking && !v.now && (!sc.quote || now - sc.at > QUOTE_STANDS_MS)) {', want: /BW-4/ },
   { name: 'a won fight gets a losing line', file: 'src/hunt-view/boss-loss.js', from: '|| !LOST.includes(o.reason)) return null;', to: ') return null;', want: /BW-6/ },
@@ -481,7 +548,10 @@ async function main() {
   if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) {
     if (process.env.HR_MUTANT_CONTROL) { const f = await checks(); console.log('boss-call-window --mutate: control ran the clean tree: ' + (f.join('; ') || 'green')); process.exit(0); }
     let escaped = 0;
-    for (const m of MUTANTS) {
+    /* --mutant=<part of a name>: those alone (a lane proves its own); the plain --mutate runs every one */
+    const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+    const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
+    for (const m of list) {
       const src = (await readFile(join(ROOT, m.file), 'utf8'));
       if (src.split(m.from).length !== 2) throw new Error('anchor: ' + m.name);
       let got;
@@ -490,7 +560,7 @@ async function main() {
       if (!hit) escaped++;
       console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + String(got[0] || 'every rule held').slice(0, 130));
     }
-    console.log(escaped ? `boss-call-window --mutate: ${escaped} ESCAPED` : `boss-call-window --mutate: ${MUTANTS.length}/${MUTANTS.length} caught`);
+    console.log(escaped ? `boss-call-window --mutate: ${escaped} ESCAPED` : `boss-call-window --mutate: ${list.length}/${list.length} caught`);
     process.exit(escaped ? 1 : 0);
   }
   const fails = await checks();

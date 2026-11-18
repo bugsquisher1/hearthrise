@@ -83,6 +83,15 @@ const gold = (db, uid, n) => setGold((sql, p) => db.query(sql, p).then((r) => r.
 /* The hero's own "Keep at least" (the catalogue's default until a player moves it): a later fight never takes the purse under it. */
 const keepOf = async (db, uid) => Number(await one(db, `select greatest(0, coalesce((public.hr_hunt_supply_of($1::uuid, 0, public.hr_hunt_active_set($1::uuid, 0))->>'gold_floor')::bigint, 0))::text`, [uid]));
 
+/* NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql; Tyler 2026-11-18: "you have to beat the boss in the hunting ground X times before you can
+   call them out"): every probe hero here has beaten each called boss on his ground the data's count of times (his Bestiary counter, the row the settle
+   writes), so these arms measure the call itself. The gate's own refusals and passes are tests/entry-gates.mjs's. The data's numbers, so a chain
+   cut before the gate (BD-AGAIN) takes the rows as the harmless counters they are there. */
+const earned = (db, uid) => db.query(`insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at)
+    select $1::uuid, 0, 'stat', 'ev:kill_monster:' || b, '', $3::bigint, now() from unnest($2::text[]) b
+    on conflict (user_id, slot, kind, key, period_key) do update set value = greatest(public.player_progress.value, excluded.value)`,
+  [uid, Object.values(BOSS_CALLS).map((c) => c.of), BOSS_CALL_RULES.winsToCall]);
+
 async function as(db, uid, sql, params) {
   await db.query('begin');
   await asUser(db, uid);
@@ -100,6 +109,7 @@ async function party(db, M, uids, { level = 60, gold: g = 200000, gear = [GEAR, 
   for (const [i, uid] of uids.entries()) {
     await db.query('begin');
     await H.character(db, M, uid, kit);
+    await earned(db, uid);
     await db.query('commit');
     for (const [slot, item] of Object.entries(gear[i] || {})) {
       await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
@@ -123,6 +133,7 @@ async function party(db, M, uids, { level = 60, gold: g = 200000, gear = [GEAR, 
 async function solo(db, M, uid, { level = 60, gold: g = 200000, gear = GEAR, name = 'Lonea' } = {}) {
   await db.query('begin');
   await H.character(db, M, uid, { level, inv: { cooked_shrimp: 400 }, gold: g });
+  await earned(db, uid);
   await db.query('commit');
   for (const [slot, item] of Object.entries(gear || {})) {
     await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
@@ -130,7 +141,7 @@ async function solo(db, M, uid, { level = 60, gold: g = 200000, gear = GEAR, nam
   const named = await as(db, uid, 'select public.hr_character_name_set(0, $1, $2::uuid)', [name, idem()]);
   if (!named || named.ok !== true) throw new Error('harness: name refused: ' + JSON.stringify(named));
 }
-const bare = async (db, M, uid, g = 100000) => { await db.query('begin'); await H.character(db, M, uid, { level: 20, gold: g }); await db.query('commit'); };
+const bare = async (db, M, uid, g = 100000) => { await db.query('begin'); await H.character(db, M, uid, { level: 20, gold: g }); await earned(db, uid); await db.query('commit'); };
 
 /* ── THE VERB ─────────────────────────────────────────────────────────────── */
 async function verbArms(db, M) {

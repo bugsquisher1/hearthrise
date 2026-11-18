@@ -6,7 +6,7 @@
 //   node tests/tower-window.mjs --mutate   every planted defect must turn a named rule RED, each run in only its arm (`TW-4 …`)
 //   node tests/tower-window.mjs --shots <dir>   also write the desktop (1440x900) and phone (922x423) screenshots
 //
-// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js src/data/shell-windows.js src/shell/back-in-town.js src/shell/windows/inventory/state.js src/shell/windows/inventory/actions.js src/shell/item-lore.js
+// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js src/data/shell-windows.js src/shell/back-in-town.js src/shell/windows/inventory/state.js src/shell/windows/inventory/actions.js src/shell/item-lore.js src/session/gate-sections.js
 //
 // THE QA GATE (2026-11-17): the Town menu's Burning Tower line (only with the section) and one re-read each opening (TW-1, TW-2); the Story
 // folds on a tab press and greets with Keeper Rowe (TW-2); the chest's "Weapon chance: 16%" (TW-4); a free fall upsells no Blessing and no
@@ -29,6 +29,10 @@
 //   TW-3  FORGED AND STALE: a checkpoint list that isn't the server's shape draws no pick and Enter stays off; a checkpoint picked then
 //         dropped by the next envelope is never sent (the press takes the server's list again); a hunt running holds Enter off with why; a
 //         party seat that does not lead holds it off (the leader's press starts every seat); a bad_landing refusal says so and re-reads
+//   TW-10 THE DOOR'S LEVEL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): Enter is on only when the server's entry_gates.tower says ok; under
+//         the Level it reads "Requires Level 10" (the server's need) and sends nothing, a seat under it is named ("Bran: Level 8") after a
+//         reload, no gate from the server reads "Checking…" and stays off; at the Level the press is sent; with the window open a
+//         tower_party_level refusal says "Bran: Level 8, requires 10", re-reads, and Enter shuts on the new gate; tower_level says the need
 //   TW-4  THE CHEST: the firebox with THE CHEST ON THE LEDGE BESIDE THE FIRE, never over it (Tyler 2026-11-16 on mock A); a slot a key
 //         row in its metal with the count held and its weapon chance (one not held is no press); the saved stokes as presses with their
 //         Cinders, "Chance" = the server's chance_ppm; a stoke press saves the default (ONE hr_chest_stoke_default); Use sends ONE
@@ -93,6 +97,9 @@ function section(o = {}) {
         outfits: [{ outfit: 'sweeps_coat', item: 'sweeps_coat_bundle', pm: key === 'bronze' ? 2 : 3 }] })) },
   };
 }
+/* The entry_gates section as hr_entry_gates_view answers it: the Tower's door met, no call named (TW-10 sends its own). */
+const OPEN_GATES = Object.freeze({ tower: { need: 10, level: 12, ok: true, short: [] }, calls: {} });
+const gates = (level, short = []) => ({ tower: { need: 10, level, ok: level >= 10 && !short.length, short }, calls: {} });
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -106,6 +113,8 @@ async function stub(page, s) {
     if (name === 'hr_load' || name === 'hr-accrue') {
       const env = Object.assign(clone(s.env), { version: ++s.version, ok: true, hunt_server_now_ms: Date.now(), client_state: clone(s.residue) });
       if (s.tower) env.tower = clone(s.tower); else delete env.tower;
+      /* THE DOOR'S LEVEL (2027-05-05-entry-gates.sql): open by default (the hero at the Level), `gates: null` sends none, TW-10 its own */
+      if (s.gates === null) delete env.entry_gates; else env.entry_gates = clone(s.gates || OPEN_GATES);
       return json(env);
     }
     if (name === 'hr_put_client_state') { Object.assign(s.residue, body.p_patch || {}); return json({ ok: true }); }
@@ -169,7 +178,7 @@ const climbView = (page) => page.evaluate(() => {
     next: next.hidden ? null : next.querySelector('.tt-next-name').textContent + ' | ' + next.querySelector('.tt-next-floor').textContent + ' | ' + next.querySelector('.tt-key-ico').getAttribute('src'),
     pips: Array.from(w.querySelectorAll('.tt-pip')).map((p) => (p.classList.contains('is-on') ? 1 : 0)).join(''),
     lands, labels, marks, darks, ticks,
-    startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent,
+    startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent, gate: Array.from(w.querySelectorAll('.tt-gate li')).map((li) => li.textContent),
     msg: w.querySelector('.hh-intent-msg').textContent };
 });
 /* Every visible line of a pane (a leaf element with its own text): the label rule reads them all. */
@@ -213,7 +222,7 @@ const chestView = (page) => page.evaluate(() => {
    red a whole run prints, since no arm reads another's state. It stops at its first red (hunt-screen's stopAtFirst), so the waits
    its defect leaves hanging cost nothing: the 53 took 6.1 min after the clean control (1.8), at the runner's pace. The plain run and
    the clean control run every arm, every rule and the tail. */
-const ARMS = ['TW-1', 'TW-2', 'TW-3', 'TW-4', 'TW-7', 'TW-5', 'TW-6', 'TW-9'];
+const ARMS = ['TW-1', 'TW-2', 'TW-3', 'TW-10', 'TW-4', 'TW-7', 'TW-5', 'TW-6', 'TW-9'];
 const armOf = (name) => ARMS.find((a) => name.startsWith(a + ' ')) || null;
 const STOP = Symbol('first red');
 
@@ -394,6 +403,54 @@ async function checks(overrides, shots, { arm = null } = {}) {
       v = await climbView(page);
       if (!v || v.go !== 'off' || v.why !== 'Not available while hunting') fails.push('TW-3 out hunting Enter reads ' + JSON.stringify(v && [v.go, v.why]));
       if (errors.length) fails.push('TW-3 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+    if (runs('TW-10')) { // TW-10 THE DOOR'S LEVEL (2027-05-05-entry-gates.sql, Tyler 2026-11-18: "A minimum level to enter the tower")
+      /* under the Level: Enter off, "Requires Level 10" (the server's need), nothing sent */
+      const { ctx, page, errors, s } = await open({ width: 1440, height: 900 }, { tower: section(), gates: gates(7) });
+      await openTower(page);
+      let v = await climbView(page);
+      if (!v || v.go !== 'off' || v.why !== 'Requires Level 10' || v.gate.length) fails.push('TW-10 one hero under the Level reads ' + JSON.stringify(v && [v.go, v.why, v.gate]));
+      await page.click('[data-hs-win="tower"] .tt-go', { force: true }).catch(() => {});
+      await page.waitForTimeout(300);
+      if (verbs(s).length) fails.push('TW-10 an Enter held off by the Level sent ' + verbs(s).map((c) => c.name));
+      /* AFTER A RELOAD, a seat under the Level: still off, the seat named with the server's Level */
+      s.gates = gates(12, [{ seat: 1, name: 'Bran', level: 8 }]);
+      await replay(page); await openTower(page);
+      v = await climbView(page);
+      if (!v || v.go !== 'off' || v.why !== 'Requires Level 10' || v.gate.join('|') !== 'Bran: Level 8') fails.push('TW-10 after a reload a seat under the Level reads ' + JSON.stringify(v && [v.go, v.why, v.gate]));
+      /* no gate from the server yet: locked, never guessed open */
+      s.gates = null;
+      await replay(page); await openTower(page);
+      v = await climbView(page);
+      if (!v || v.go !== 'off' || v.why !== 'Checking…') fails.push('TW-10 with no gate from the server Enter reads ' + JSON.stringify(v && [v.go, v.why]));
+      /* THE HAPPY PATH, after a reload: every seat at the Level, Enter on and the press sent */
+      s.gates = gates(12);
+      await replay(page); await openTower(page);
+      v = await climbView(page);
+      if (!v || v.go !== 'on' || v.gate.length) fails.push('TW-10 at the Level Enter reads ' + JSON.stringify(v && [v.go, v.why, v.gate]));
+      /* WITH THE WINDOW OPEN: the server refuses a seat that fell under (tower_party_level), the answer names it, the character is re-read and
+         the window shuts Enter on the new gate without being reopened */
+      s.answer = (name) => (name === 'hr_tower_start' ? { ok: false, error: 'tower_party_level', who: 'Bran', need: 10, have: 8 } : { ok: true });
+      s.gates = gates(12, [{ seat: 1, name: 'Bran', level: 8 }]);
+      await page.waitForTimeout(400);   // the opening's own re-read has landed: the count below is the refusal's
+      const before = loads(s);
+      await page.click('[data-hs-win="tower"] .tt-go');
+      const said = await wait(page, () => (document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || '') === 'Bran: Level 8, requires 10');
+      if (!said) fails.push('TW-10 a seat\'s refusal reads ' + JSON.stringify((await climbView(page)).msg));
+      if (loads(s) <= before) fails.push('TW-10 a tower_party_level refusal did not re-read the character');
+      const shut = await wait(page, () => { const w = document.querySelector('[data-hs-win="tower"]'); return !!w && w.querySelector('.tt-go').disabled && w.querySelector('.tt-gate li')?.textContent === 'Bran: Level 8'; });
+      if (!shut) fails.push('TW-10 with the window open the new gate reads ' + JSON.stringify(await climbView(page).then((x) => x && [x.go, x.why, x.gate])));
+      const sent = verbs(s);
+      if (sent.length !== 1 || sent[0].name !== 'hr_tower_start') fails.push('TW-10 the happy press sent ' + JSON.stringify(sent.map((x) => x.name)));
+      /* the hero's own Level refused: the server's need */
+      s.gates = gates(12);
+      s.answer = (name) => (name === 'hr_tower_start' ? { ok: false, error: 'tower_level', need: 10, have: 9 } : { ok: true });
+      await replay(page); await openTower(page);
+      await page.waitForTimeout(400);
+      await page.click('[data-hs-win="tower"] .tt-go');
+      if (!(await wait(page, () => (document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || '') === 'Requires Level 10'))) fails.push('TW-10 a tower_level refusal reads ' + JSON.stringify((await climbView(page)).msg));
+      if (errors.length) fails.push('TW-10 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
     if (runs('TW-4')) { // TW-4
@@ -772,6 +829,12 @@ async function checks(overrides, shots, { arm = null } = {}) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
+  /* TW-10, the door's Level (lane/c-entry-gates) */
+  ['TW-10 Enter ignores the door\'s Level', 'src/shell/windows/tower.js', "  if (!gate.ok) return t('tower.off_level', { level: gate.need });", '  if (false) return \'\';'],
+  ['TW-10 a gate not read yet opens Enter', 'src/shell/windows/tower.js', "  if (!gate) return t('tower.off_checking');", "  if (!gate) return '';"],
+  ['TW-10 the seats under the Level are not named', 'src/shell/windows/tower.js', "  const seats = gate && !gate.ok && block === t('tower.off_level', { level: gate.need }) ? gate.short : [];", '  const seats = [];'],
+  ['TW-10 a seat\'s refusal drops its name', 'src/session/tower-intents.js', "    who: typeof b.who === 'string' && b.who.trim() ? b.who.trim().slice(0, 40) : null,", '    who: null,'],
+  ['TW-10 the gate is read as open when the server says shut', 'src/session/gate-sections.js', '  return Object.freeze({ need: g.need, level: g.level, ok: g.ok, short: shortOf(g.short, \'level\') });', '  return Object.freeze({ need: g.need, level: g.level, ok: true, short: shortOf(g.short, \'level\') });'],
   /* TW-4c, the Key Warden (lane/c-sweeps-coat-drop) */
   ['TW-4 a super-rare find is drawn as plain loot', 'src/shell/windows/tower-chest.js', '  const finds = r.opens.filter((o) => o.bundle);', '  const finds = [];'],
   ['TW-4 the reveal ignores the outfit', 'src/shell/windows/tower-chest.js', '  const bundle = r.opens.map((o) => o.bundle).find(Boolean) || null;', '  const bundle = null;'],

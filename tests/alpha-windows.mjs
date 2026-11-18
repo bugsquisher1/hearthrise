@@ -212,7 +212,9 @@
 //         its line the server's answer ("Stored 1 stack, sold 2 stacks for 246 gp. 1 stack locked, so kept."), the bag and
 //         Storage the re-read envelope's; Storage offers the same button beside the bag at 1440x900 and 844x390
 //   AW-33 THE ITEM WELLS (Tyler 10-25, art/review/window-icons-2026-10-25 option C as picked): at 1440x900 the bag's
-//         pockets are 44 px wells, 6 a row; Storage's are 44 px, 10 a row; the paper doll's wells are larger than the
+//         pockets are 44 px wells, 6 a row; Storage's are 44 px, 6 a row in each of its two wells (UI audit 2026-11-18 #4: the storage
+//         at the left, the bag at the right, starting and ending on one line, each drawing the server's room left as empty pockets,
+//         no pocket cut at a well's foot); the paper doll's wells are larger than the
 //         bag's; the Shop's lines hold the art in a 44 px well; every item icon in Inventory, Storage and the Shop
 //         draws its 32 px art at exactly 1x (a whole scale, never 1.25x / 1.5x); counts and shop prices at 16 px. At
 //         922x423 (a phone) every well, count and line is what it was (36 px, 14.5 px).
@@ -2695,12 +2697,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
 
     /* AW-33 the item wells: measured on the rendered windows, desktop then phone. */
-    for (const [vw, vh, want] of [[1440, 900, { pocket: 44, bagRow: 6, storeRow: 10, line: 44, font: '16px' }], [922, 423, { pocket: 36, line: 40, font: '14.5px' }]]) {
+    for (const [vw, vh, want] of [[1440, 900, { pocket: 44, bagRow: 6, storeRow: 6, line: 44, font: '16px', apart: true }], [922, 423, { pocket: 36, line: 40, font: '14.5px' }]]) {
       const tag = 'AW-33 at ' + vw + 'x' + vh + ': ';
       const { ctx, page, up } = await open({ viewport: { width: vw, height: vh }, mutateEnv: (e) => {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
         e.bank = Object.fromEntries(Object.keys(e.inventory).map((id, i) => [id, 3 + i]));
+        /* the server's room: storage holds the bag's stacks of 100 (the House's next chest named), the bag 100 with its next rung */
+        const n = Object.keys(e.bank).length;
+        e.account = Object.assign({}, e.account, { bank: e.bank, depot: { used: n, cap: 100, next: { name: 'Millrace Crate', stacks: 20 } } });
+        e.depot = e.account.depot;
+        e.bag_expand = { cap: 100, rung: 0, max: 30, next: { offer: 'bank.0', gold: 3000, adds: 20 } };
         e.shop = Object.assign({}, e.shop, { offers: ['bronze_sword', 'iron_helm'].map((id, i) => ({ offer: 'gear.' + id, item: id, kind: 'gear', price: 40 + i * 140 })) });
       } });
       /* Every visible item icon in the window: its drawn size and its art's own; a scale that is not whole wobbles. */
@@ -2742,6 +2749,25 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!m.pocket || m.pocket[0] !== want.pocket) fails.push(tag + 'a storage pocket is ' + JSON.stringify(m.pocket) + ', want ' + want.pocket + ' px');
           if (want.storeRow && m.storeRow !== want.storeRow) fails.push(tag + 'storage shows ' + m.storeRow + ' a row, want ' + want.storeRow);
           artOk(m, 'Storage');
+          /* TWO CONTAINERS SIDE BY SIDE (UI audit 2026-11-18 #4): the storage's well at the left, the bag's at the right, starting and ending on
+             one line, each drawing the room the server says it has left (100 a container), and no pocket in view cut at either well's foot */
+          if (want.apart) {
+            const s = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="storage"] .hw-store-well')).map((w) => {
+              const r = w.getBoundingClientRect(), foot = r.top + w.clientTop + w.clientHeight;
+              const cut = Array.from(w.querySelectorAll('.hw-pocket')).filter((p) => { const q = p.getBoundingClientRect(); return q.top < foot - 0.5 && q.bottom > foot + 0.5; }).length;
+              return { side: w.getAttribute('data-well'), left: r.left, right: r.right, top: r.top, bottom: r.bottom, scrolls: w.scrollHeight > w.clientHeight + 1,
+                pockets: w.querySelectorAll('.hw-pocket').length, items: w.querySelectorAll('.hw-pocket[data-item]').length, cut };
+            }));
+            const [bank, bag] = [s.find((x) => x.side === 'bank'), s.find((x) => x.side === 'bag')];
+            if (!bank || !bag) fails.push(tag + 'Storage has no two wells: ' + JSON.stringify(s));
+            else {
+              if (!(bank.right <= bag.left) || Math.abs(bank.top - bag.top) > 1) fails.push(tag + 'Storage stacks its grids, not side by side: ' + JSON.stringify(s));
+              if (Math.abs(bank.bottom - bag.bottom) > 1) fails.push(tag + 'the two wells end apart: ' + JSON.stringify(s));
+              if (bank.cut || bag.cut) fails.push(tag + 'a pocket is cut at a well\'s foot: ' + JSON.stringify(s));
+              if (bank.pockets !== 100 || bag.pockets !== 100 || !bank.items || !bag.items) fails.push(tag + 'a well does not draw the room the server says it has (100 each): ' + JSON.stringify(s));
+              if (!bank.scrolls || !bag.scrolls) fails.push(tag + 'CONTROL: a full container does not overflow its well: ' + JSON.stringify(s));
+            }
+          }
         }
         if (!(await openWin(page, 'v', 'shop'))) fails.push(tag + 'the Shop did not open');
         else {
@@ -5499,6 +5525,10 @@ const MUTANTS = [
   /* QA audit 2026-11-18 N9, N11 and the UI audit's bag items */
   ['AW-25L the card lists materials only again', 'src/shell/windows/hunt-detail.js', '  const loot = lootOf(r.hunt), all =', '  const loot = lootOf(r.hunt).filter((x) => /gel|bones|wheat|fang|jelly|thread/.test(x.id)), all ='],
   ['AW-32b the item menu says Sell twice', 'src/shell/windows/inventory/actions.js', "h += item('m-sell', t('controls.sell_now'),", "h += item('m-sell', t('controls.sell'),"],
+  /* UI audit 2026-11-18 #4: Storage's two containers side by side */
+  ['AW-33 Storage stacks its two grids again', 'src/styles/windows.css', '.hw-store { flex: 1 1 auto; min-height: 0; display: grid;', '.hw-store { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;'],
+  ['AW-33 the two wells end apart, a row cut at a foot', 'src/shell/windows/storage.js', "  if (Number.isFinite(end)) for (const w of wells) w.style.maxHeight = end + 'px';\n", ''],
+  ['AW-33 Storage draws no room left', 'src/shell/windows/storage.js', '  return Math.max(0, room.cap - used - (Number.isSafeInteger(room.reserved) ? room.reserved : 0));', '  return 0;'],
   ['AW-28b nobody to bring tells heroes already playing to play one (audit F23)', 'src/shell/windows/hunt-detail.js', '  if (away.length) {\n', '  if (false) {\n'],
   ['AW-25 a creature card\'s dot can end its line','src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
   ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],

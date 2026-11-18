@@ -3809,3 +3809,23 @@ kind; weakest bone_key_silver (a thin cross), fletchers_hood and sewermans_boots
 washerwoman/fishwife (one silhouette each pair). Lesson: to read icons in the real bag without granting items, build pockets with the
 real pocketHtml into a list of your own placed AFTER the bag's list: the bag's keyed patch takes the first .hw-pockets in document
 order, so a list put before it, or pockets put inside it, are swept away or pushed below the fold.
+## 2026-11-18 lane/b-ui-storage-awaycard (UI audit wave 2: #4 Storage side by side, the phone away card, the hunt view re-check)
+(1) STORAGE: two containers side by side on a desktop (window 540 -> 660: six 44 px pockets a row in each well at 1280+, and still
+beside the bag's 560 at 1280, W18): the search, kinds and help over both; "In storage" head + sunk well at the left, "In bag" at the
+right, the wells starting and ending on one line and each scrolling on its own; each draws its server room left as empty pockets
+(storage: depot cap - used - reserved; bag: hr_bag_expand_view cap - stacks; desktop, All, no search only, as inventory/grid.js
+freeSpaces); under the storage the House's next chest, under the bag Expand with its why beside it, under both Dispatch loot and
+Deposit all materials (A8 kept, its queue untouched). The window no longer scrolls (before: at 1440x900 the search, kinds and the
+storage head scrolled away above a full bag). snapWells ends both wells on the same whole row (window-fit trimmed one well and
+not the other: 196 vs 218 px, a cut fifth row). Phone (400 px sheet): stacked, the bag first (head, Expand, its pockets, the bulk
+moves), then the storage; before, the bag's head sat at the top and its pockets at the bottom with the storage between them.
+(2) AWAY CARD, phone only: each hero's presses follow its result block (the best find, the death and the "when" read on below);
+OK / Hunt summary stick to the sheet's foot; the Gold cell takes the row's spare width (its coins/supplies line wrapped to 3 lines).
+Before at 922x423: the stamina card's Hunt again at 405-449 under a 404 fold; the yard card's OK at 404-448.
+(3) Mid-hunt Summary and the analyzer's last row: already fixed on main by lane/b-ui-wave2 (liveSummaryOf, snapRows); re-checked rendered.
+Lessons: (1) the scratchpad is shared by lanes: name scripts and shot folders uniquely (another lane overwrote shots.mjs mid-run);
+(2) a plain death with the page closed raises no away card (the death popup is that return's notice): the card with Bless again is
+AR-10's shape (died, then the yard took over); (3) two scroll regions side by side need ONE snap for both: window-fit trims each
+region alone and can leave them a row apart; (4) a mutant anchor in another test goes DOUBLE when you add a similar declaration
+(death-popup's "position: sticky; bottom: -10px; z-index: 1;"): reorder your own declaration, never their anchor; (5) a phone
+order that puts every control first can open a sheet on no content at all: count the fold before choosing what leads.

@@ -164,6 +164,19 @@
   .hsum-title { font-size: var(--t-lead); }
   .hres-lv, .haway-gone { font-size: var(--t-lead); }
   .haway-acts .hh-tool, .haway-acts .hh-tool.is-primary { min-height: 44px; }
+  /* THE AWAY CARD'S PRESSES IN VIEW AS IT OPENS (UI audit wave 2, 922x423: Hunt again lay under the fold behind the best find and two lines of
+     why, OK further down): each hero's result, then its presses and their answer, then the best find and the why to read on; the card's own
+     OK and Hunt summary stick to the sheet's foot. The Gold figure takes the row's spare width, so its coins and supplies wrap once, not twice. */
+  .haway-gone { margin-bottom: 6px; }
+  .haway-hero { display: flex; flex-direction: column; padding: 8px 0 10px; }
+  .haway-hero > * { order: 2; }
+  .haway-hero > :is(.haway-head, .hres) { order: 0; }
+  .haway-hero > :is(.haway-acts, .haway-msg) { order: 1; }
+  .haway-head { margin-bottom: 4px; }
+  .haway-hero > .hres { margin-bottom: 6px; }
+  .haway-acts { margin: 0 2px 8px; }
+  .haway-hero .hres-figs { grid-template-columns: max-content minmax(0, 1fr) max-content; }
+  .haway-foot { position: sticky; z-index: 1; bottom: -10px; margin: 0 -10px -10px; padding: 6px 10px 8px; background: var(--bg-1); }
   .hres-level { margin-bottom: 4px; }
   .hres-figs { padding: 4px 0 6px; }
   .hres-fig small { margin-top: 0; }

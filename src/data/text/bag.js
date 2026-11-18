@@ -59,7 +59,8 @@ export const BAG_TEXT = Object.freeze({
   store_search: 'Search items',
   store_in_storage: 'In storage',
   store_in_bag: 'In bag',
-  store_bag_of: 'Bag {n} / {cap}',
+  /* the bag's count beside its head, worded as the storage's beside it ('3 of 100 stacks'): side by side, 'In bag Bag 23 / 100' said Bag twice */
+  store_bag_of: '{n} of {cap} stacks',
   store_no_match: 'Nothing here matches.',
   store_empty: 'Storage empty',
   store_bag_empty: 'Bag empty',

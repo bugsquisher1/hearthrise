@@ -994,3 +994,9 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A tier HP dial slows a hero alone more than a four (the Glade +12% HP: lone -16%, four -8.5%), so it is the cap's dial, but it also widens the gap between the two harder tiers. Equal pulls plus more HP make Deadly the worse pick; the pull is what must differ.
 - Prove a pin's cause on an archive of the SET first: the set was already red on engine-parity (the income dial's coin, then Turning Cut's kills), and only what was left over belonged to this lane.
 - Apostrophes in pins (Hask's Ford) through Python or sed break the file again: Edit tool, then `node --check`.
+## 2026-11-16 lane/d-catacomb-mode (the Unmarked Catacombs descent, design only)
+- A second mode on a built one is mostly a list of where the first hard-codes its name: `TOWER_RULES` in the room engine, the `tower_*` tables, the chest's weapon-only table, "Tower Cinders" paid by every key. Read the built stack for those first, and rename while the migrations are still unapplied.
+- A ruling that moves a cap (earned to opened) changes the first mode too. Put the shared change in ONE lane on the first mode's stack, not in the new mode's.
+- Two slots a key make a wanted piece about 1.4x the wait of a one-slot key at the same odds. Say that number when copying odds across.
+- A held limit counted per bag makes players shuffle items into Storage to make room (a repeated decision). Count it across the account.
+- The odds arithmetic reproduced the Tower board's own 4.7 / 9.3 weeks before I used it for armor. Check a new calculator against a published number first.

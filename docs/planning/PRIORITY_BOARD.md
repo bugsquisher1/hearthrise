@@ -853,6 +853,177 @@ Known limits: the Hold's Krell is the lone tier-7 source and has no ladder (his 
 | 6 | Wins (tier 7 at 1 in 10 a piece) or reads the losing line | | `lord_krell` drops, `lossLine` guarded answer |
 
 ### 2026-11-14 The Morrow Hills: the region after Krell, Harry and Holly, two factions, and unique gear (designer, lane/d-next-region. Tyler 2026-11-14: "let's go ahead and get started on the next set of lore and hunts after this boss", "The lore should somewhat tie in", "a good guy in the lore somewhere named Harry Something after my son", "some type of normal fella that ends up being a god at the endgame", "something similar to horde and alliance it doesn't have to be called good and evil", "Havora is a neutral town", "each new zone has equal amounts", "after tier 7 we start getting unique with the itemization", "for now lets just call him Harry", "she will be the eventual leader of the other side. Lets start with Holly"): DESIGNED, one ground drafted as a STAGED pack and MEASURED on the real engine, the two faction skills, Bulwark and Reap, MEASURED as a what-if on a scratch copy of the engine. Nothing built, nothing played by hand, no art, no server work
+### 2026-11-16 The Unmarked Catacombs descent: the Hearth Chest's armor line (designer, lane/d-catacomb-mode. Tyler 2026-11-16: "Unmarked Catacombs", their "OWN game mode like the Burning Tower" with ARMOR "instead of weapons", a WING picked before the run, "Waterlogged Key" (Flooded Wing, leans boots) and "Bone Key" (Bone Wing, leans helmets), the SAME Hearth Chest and Bronze/Silver/Gold/Platinum tiers "so it's familiar", KEY FAMILIES with 6 chests OPENED per family per hero per week and a held-key limit "about 30"): DESIGNED on the built Tower stack, odds by arithmetic (no engine run), **Tyler's four answers in (section 10, 2026-11-16)**. The armor's 24 rows are built hidden on lane/d-catacomb-armor. No server work, no art. **Keys, the open cap, the roll, the Deepest board and armor through the market are §1 surfaces: pre-EA Security list (§3.7)**
+
+**In plain words (the first thing the Catacombs tab shows; drafts, not through the reader gate).**
+- The Catacombs go down under the Great Hearth. Every room is harder than the one above it.
+- Pick a wing before you go in. The Flooded Wing gives Waterlogged Keys. The Bone Wing gives Bone Keys.
+- Your hero fights it like a hunt, alone or with a party. It uses your stamina and your supplies.
+- Dying down there costs you nothing. You come back up and lose no XP.
+- Every 10th room is a vault door, and Keeper Dunn has a key there. Deeper doors have better keys.
+- Use keys on the chest at the Great Hearth, 6 Catacomb keys a week for each hero. Bone Keys mostly give helmets, Waterlogged Keys mostly boots.
+- You get about half the XP of hunting and no gold. The Leaderboards show who got deepest, alone and in a party.
+
+**The call.** The descent is the Burning Tower turned upside down, built on the Tower's own code: same engine, same free deaths, same chest, same key tiers, same luck, same board machinery. What's new is small: a second key family, two wing rows, an armor roll on the chest, its own Deepest board, and 24 armor rows. The Tower gives weapons and the Catacombs give helmets and boots. A player who does both opens 12 keys a week for each hero, 6 from each family.
+
+#### 1. The story (draft for Tyler's read; ties the Wood Book, Dunn and Rowe, changes nothing approved)
+> Nobody put a stone over the people in the Catacombs. That's why they're unmarked. The only place their names are written down is the Wood Book.
+>
+> Before the Keepers carried somebody down, they took off the helmet and the boots. Those were worth something, and the stairs are steep. They locked them in the chest on the Hearth's ledge with everybody else's things and sent the key down with the body, so it could all go in the fire together someday.
+>
+> The low vaults flooded, and those keys have sat in river water ever since. The ossuary keys were carved out of bone, because brass cost money too.
+>
+> Keeper Dunn is still down there with the Wood Book and every one of those keys on his ring. He meets you at every vault door. Put him down and he lets go of one key, and then he's waiting at the next door, reading the next name. He won't keep anybody whose name isn't in the book, so when you're about to die he carries you up and leaves you at the door.
+>
+> Keeper Rowe is the one who knows where the door is. She says any key you bring up is yours. "They'd want somebody to wear them. Better you than the Carters."
+
+#### 2. How a descent runs (every rule is the Tower's unless the row says new)
+| Rule | What it is |
+|---|---|
+| The two wings | Two run grounds, picked before Enter like any ground, remembered for each hero. The party leader picks for the party. **Flooded Wing**: the Flooded Vault's room, Vault Leeches, Night Carters, Shrouded Paupers (a blade for the Leeches, arrows for the Carters, Lime Sack is poison). **Bone Wing**: the Bone Room, Bone Walls, Shrouded Paupers, a Night Carter (a hammer, an ice slot, the tank holds Bone Slide). New: two rows and a fixed roster each, the pack's monsters (`src/data/grounds/pauper_vaults/pack.js`, being renamed `unmarked_catacombs`) |
+| A room | Depth D is the stat formula at Level D, five monsters, picked by the depth's number (no dice). Tower: `towerRoom`, `rowAt`. New: the pool is the wing's roster, not the ground ladder |
+| A vault door | Every 10th depth. Keeper Dunn (`keeper_dunn`) at the formula's boss role with Snuff the Candles, and four more. New: the door's Keeper is a fixed id, not a pick |
+| Free deaths, XP, stamina | A new `catacomb` row in `src/data/session-modes.js`, a copy of `tower`: no death loss, Blessings kept, no coin, drops or Bestiary, stamina drains. XP starts at the Tower's 375‰ and is re-fitted on real descents to the same target (about half of hunting for the median hero alone at 45, no cell over hunting) |
+| Where you start | **Checkpoints (RULED, Tyler 2026-11-16, for the Tower and the descent alike):** before a run you pick any vault door up to your best in that wing, and a party picks up to the highest door every member has reached. The pick is remembered for each wing. The 60-under weekly start is gone. Built once as a mode field on lane/c-tower-checkpoints, so the descent reads the same rule |
+| What ends it | Death, stamina, supplies, gold, your bar's rule, the room's time (3 minutes, 10 at a door), Leave. All built |
+| Rooms on the map | One pocket for each wing on the Catacombs' own map, the Tower's one-pocket model. The art the hunting ground needs is the art the descent needs |
+| The 165-185 hunting ground | Stays as it is (coin, drops, the armor line's five Vaults pieces). The descent is its second door at any Level (RULED, Tyler 2026-11-16: both) |
+
+#### 3. Shared and new
+| Piece | Built where | For the Catacombs |
+|---|---|---|
+| Session mode switch | `session-modes.js`, `hr_session_modes` (lane/c-tower-mode) | One new row |
+| Room engine | `src/core/hunt/tower.js` (lane/c-tower-climb) | Read a run row instead of `TOWER_RULES` alone: roster source and the door's Keeper become row fields. No second engine |
+| Progress, runs, door rows, the mint | `tower_progress`, `tower_runs`, `tower_landings`, `hr_tower_key_mint`, `hr_tower_start` | A `ground` column (each wing keeps its own deepest door). Nothing is applied yet, so rename them neutral now (`run_*`) instead of carrying "tower" on Catacomb rows |
+| The chest, its open call, the reveal, the call-out | `chests.js`, `hr_chest_open`, `chest_opens` (lane/c-tower-chest) | The same chest. Key rows gain `family` and a slot lean. The weapon table becomes one gear table: key, slot, kind (family for a weapon, weight for armor), item. One roll for both families |
+| The Hearth's warmth, stokes, Cinders | `CHEST_LUCK`, `chest_luck` | Same numbers. Warmth is counted for each family, so a weapon doesn't cool your armor streak. Cinders are paid by every key, so "Tower Cinders" becomes **Hearth Cinders** (id and name, nothing is served) |
+| Sweep's Coat, the Turnkey titles | designed on the chest | Every key at the chest rolls the coat and counts toward the title, both families |
+| +skill, resistance, steady | `SKILL_PLUS_FIELDS` (lane/d-tower-weapons), `resistPm`, `steadyPm` (main `combat.js`) | Read as built. No new hook |
+| Window | Tower window, Climb / Chest / Story (lane/b-tower-window) | A Catacombs tab with two wing cards and the start door. The Chest tab shows both families with "4 of 6 this week" |
+| Leaderboard | Tower boards: `honor-roll.js` rows read through `hr_lb_boards`, a UTC-month season, the raise-only board rows, the floors-a-minute clamp | Its own board, separate from the Tower's (RULED, Tyler 2026-11-16): **Catacombs, Deepest**, solo and party, one board for both wings (the deepest door a hero was alive to clear in either). Two rows on the same machinery, nothing new |
+| **New** | | Key families and the open cap (below), 8 key rows, 2 wing rows, the slot lean, 24 armor rows (12 now), story and lines, icons |
+
+#### 4. Keys
+**Key families (Tyler 2026-11-16), one data table both modes read.** `tower`: today's four keys. `catacomb`: the eight below. Each family has `opensPerWeek: 6` and `heldPerHero: 30`. This replaces the Tower's earn cap, so it lands once, in the chest lane, for both.
+| Rule | What it is |
+|---|---|
+| Earning | Every vault door cleared in a run gives its key, to each hero alive at Dunn's death (Tyler 2026-11-16: keys drop from each door cleared that run, the cap is on opening). No weekly earn row |
+| The weekly cap | 6 keys of a family used at the chest for each hero, Monday 00:00 UTC, counted by the open call from `chest_opens` and the key's family. The 7th press is refused with the reset time. The Tower's 6 is separate |
+| The held limit | 30 for each hero on the account, counted over every bag AND Storage, for each family (four heroes: 120 Catacomb keys). That's five weeks of keys at any account size. At the limit a door gives no key and the end card says so. Counted across the account so nobody shuffles keys into Storage to make room (first principle) |
+| Moving keys | Through Storage between one account's heroes, never traded, sold or listed (`bop`, as the Tower's) |
+
+**Depth per key tier and key odds.** The `from` column is the Tower's, so the doors and the metals read the same.
+| Key, Flooded / Bone | Its doors | Chance a door gives it | Its armor wears the numbers of | Always inside (the Tower key's haul, `keyHaul`) |
+|---|---|---|---|---|
+| Bronze Waterlogged Key / Bronze Bone Key | 10, 20, 30 | 100%, each hero alive | Tier 2, Level 15 (Iron, Studded Leather, Adept) | 50 Hearth Cinders, 15 Tempering Salts, 20 Cooked Shrimp |
+| Silver | 40, 50, 60 | 100% | Tier 4, Level 45 (Mithril, Snakeskin, Warlock) | 150, 25 salts of its tier, 15 Cooked Lobster |
+| Gold | 70, 80, 90 | 100% | Tier 6, Level 75 (Emberforged, Dragonhide, Archmage) | 300, 30, 20 |
+| Platinum | 100 and every 10th after | 100% | Tier 7, Level 88 (Dawnsteel, Dawnhide, Duskweave) | 600, 40, 25 |
+| The next key | 130, with the Tower's | | The armor line's own mixes past tier 7 (Tyler 11-16: a budget, never twins) | its row |
+
+A sure key at a known door, not a drop chance: the run's only question stays "how deep can I get", and the cap is on opening, so more keys only buy a choice of which ones to open.
+
+#### 5. What a key gets out: armor odds
+Three steps on the server, the menu sends none of them. (1) Armor or not: **the Tower's own chances, 16 / 8 / 4.5 / 2%**, times the warmth and the stokes. (2) The slot: a Bone Key 70% helmet, 30% boots, a Waterlogged Key the other way. (3) The weight: 50% the weight you wear in that slot (the server's equipment row), 25% each of the other two. Nothing worn there, even thirds.
+
+Arithmetic, not the engine (`odds.mjs` in the lane's scratch: 300,000 weeks of 6 opens on the built warmth rule, no stokes; it reproduces the Tower board's 4.7 and 9.3 weeks for Platinum):
+| Key | Base | With warmth, a key | A piece every | Your weight, the wing's slot, every | The other slot in your weight | 1-in-100 wait for your piece |
+|---|---|---|---|---|---|---|
+| Bronze | 16% | 18.5% | 0.9 weeks | 3.0 weeks | 6.4 | 12 weeks |
+| Silver | 8% | 10.3% | 1.6 | 5.0 | 11.1 | 20 |
+| Gold | 4.5% | 6.6% | 2.5 | 7.6 | 17.4 | 32 |
+| Platinum | 2% | 3.6% | 4.7 | **13.5** | 31.2 | 57 |
+
+So a wanted Platinum helmet takes about 1.4 times the Tower's own-type weapon (9.3 to 9.5 weeks), because a key has two slots to pick from. Running the other wing is how you chase the other slot, and half of every drop is another weight, which is what stocks the Weighhouse. **RULED (Tyler 2026-11-16): the Tower's numbers.**
+
+#### 6. The armor: 24 rows, a sample of 12
+**The rule (the Tower weapons' rule, Tyler's tiers).** Each piece is the standard helmet or boots of its slot, weight and the key's tier, every number copied (armor, the weight's accuracy fields, crit, Level, book, tier), plus ONE special attribute. Sizes are the special-attribute catalogue's at that tier (`SPECIAL_ATTRIBUTES`, lane/d-special-attributes), never a second table. Generated like `towerWeaponItems`, never typed. Tradeable, and it sells to the Shop at the dropped-gear rate. Past Platinum, a key's pieces follow the armor line instead (Tyler 11-16).
+
+**One attribute for each slot and weight, the same at every tier, so a player learns it once.**
+| Slot, weight | Attribute | Where it wins |
+|---|---|---|
+| Helmet, plate | +1 Defense (`defensePlus`; 4 to 6% less damage taken at 40-90, the catalogue) | A tank, anywhere. The Bone Wing's tank piece |
+| Helmet, leather | +2 Ranged at tiers 2 and 4, +3 at 6 and 7 (`rangedPlus`) | A bow or crossbow, anywhere |
+| Helmet, cloth | 10% less fire (`resistPm.ember`) | A caster on Wickstead (Smoke Pot), the Warrens (Blasting Charge), Krell's Hold. No Magic piece on purpose: +Magic measured 0-2% for casters (lane/d-tower-weapons), and the Mage's pace past 110 was only just brought down (lane/d-mage-110) |
+| Boots, plate | Less from every blow (`steadyPm`): 10 / 15 / 20 / 30‰ by tier | The front line. Bronze's 1% is under a Level 1 cape's 15‰. The catalogue sizes this only from tier 5: its owner reconciles |
+| Boots, leather | 10% less poison | The Night Carters' Lime Sack in both wings, the Sewer (Muck Fling), Wickstead (Venom Spray), Mosslight Glade (Spore Cloud) |
+| Boots, cloth | 10% less ice (`resistPm.frost`) | Keeper Dunn's Snuff the Candles at every vault door, the Slake (Cold Bilge) |
+
+**The sample: Bronze and Platinum (12), so the first key and the last chase are played first.** Silver and Gold (12) are named after these are built and played (DESIGN_STANDARDS §9). Every name checked free in `src/` on main, lane/d-tower-weapons and lane/d-armor-line-v2. Bronze is the town's working poor. Platinum is the first winter, the one the Wood Book starts with.
+| Piece | Slot, weight, Level | Its twin's numbers | Attribute | Its line (draft) |
+|---|---|---|---|---|
+| **Tinker's Kettle** | Helmet, plate, 15 | Iron Helm: 5 armor, Ranged -1, Magic -3 | +1 Defense | He mended pots for the whole street and wore the best one. |
+| **Ratter's Hood** | Helmet, leather, 15 | Studded Leather Hood: 3 armor, Ranged +3, 0.8% crit | +2 Ranged | Havora's ratters worked the Sewer with a sling and their hoods pulled down. |
+| **Midwife's Hat** | Helmet, cloth, 15 | Adept Hat: 2 armor, Magic +3 / +2 | 10% less fire | She sat up by somebody's fire most nights. Her name's in the Wood Book too. |
+| **Hodman's Boots** | Boots, plate, 15 | Iron Boots: 4 armor | 1% less from every blow | He carried bricks up a ladder all day and never slipped once. |
+| **Tanner's Boots** | Boots, leather, 15 | Studded Leather Boots: 2 armor, Ranged +2, 0.8% crit | 10% less poison | He stood in the lime pits all day, and the boots took it. |
+| **Washerwoman's Slippers** | Boots, cloth, 15 | Adept Slippers: 1 armor, Magic +2 / +2 | 10% less ice | She worked the river all winter, and these are lined with felt. |
+| **Vault-Cutter's Helm** | Helmet, plate, 88 | Dawnsteel Helm: 44 armor, Ranged -11, Magic -22 | +1 Defense | The men who cut the vaults wore these for falling rock. They were the first ones buried there. |
+| **Pothunter's Hood** | Helmet, leather, 88 | Dawnhide Hood: 24 armor, Ranged +22, 2.8% crit | +3 Ranged | The pothunters kept the town fed that first winter for as long as there was anything to shoot. |
+| **Almoner's Hat** | Helmet, cloth, 88 | Duskweave Hat: 13 armor, Magic +26 / +18 | 10% less fire | He handed out bread and coals from the Hearth that winter until there wasn't any of either. |
+| **Ice-Cutter's Boots** | Boots, plate, 88 | Dawnsteel Boots: 30 armor | 3% less from every blow | Iron spikes on the soles, for standing on the frozen river all day. |
+| **Dyer's Boots** | Boots, leather, 88 | Dawnhide Boots: 17 armor, Ranged +15, 2.8% crit | 10% less poison | Havora's dyers stood in the vats to the knee. These came out stained and whole. |
+| **Dunn's Slippers** | Boots, cloth, 88 | Duskweave Slippers: 9 armor, Magic +18 / +12 | 10% less ice | Dunn left them in the chest the night he went down. He hasn't needed them since. |
+
+**Where they sit.** Each beats its own twin by its attribute and should stay under the next tier's piece, as the Tower weapons do (0.935-0.989 of the next tier, measured there). A Platinum piece is the best of its slot from 88 to about 125, where the armor line's uniques pass it (Outrider's Visor, 64 armor at 125, a hidden sample on lane/d-armor-line-v2). Not measured here: the build lane runs `tools/balance-sim/armor-power.mjs` and a twin-vs-piece pass before the rows go in.
+
+#### 7. Walk-throughs (ids read on main fcee4484d and the named branches; "new" means this design)
+**A new hero's first week** (about 4 hours of play a day).
+| # | Step | Holds and can reach from the steps before | Checked |
+|---|---|---|---|
+| 0 | Stands in Havora | `practice_sword`, `practice_shield` worn, no helmet, no boots, 20 Cooked Shrimp, 500 gold (`start-kit.js`) | Exists |
+| 1 | Hunts to Level 10 | About 6 hours (`core-model.js` targets [10, 6]) | Exists |
+| 2 | Taps the Hearth, opens the Catacombs tab, picks the Bone Wing, starts at depth 1 | Station `hearth` (`world/stations.js`), the Tower window (lane/b-tower-window, hidden) | Window built hidden, tab and wing rows new |
+| 3 | Depths 1 to 9: Paupers, Bone Walls, a Carter at Levels 1 to 9 | The pack's rows at the formula's Level D, the start bar's food | Rows staged. **Not measured at these Levels.** Bone Slide (2x ring) and Lime Sack at depth 5 are the risk |
+| 4 | Depth 10: Dunn and four. A Bronze Bone Key | Step 3 | New. Dunn's door fight not measured |
+| 5 | Dies around 15 to 20, lands at the door, no XP lost | The `catacomb` mode row (a copy of the built `tower` row). The Tower's proxy: a Level 10 held floor 15 and died on 20 | Mode built for the Tower, reach not measured here |
+| 6 | Next runs start from the door-10 checkpoint (picked once, remembered) | Step 4's door | Rule new (lane/c-tower-checkpoints) |
+| 7 | By day 7: about 28 hours, about Level 22 (25 at 36 h), 7 Bronze keys held | Steps 4 to 6, a key every run that reaches a door | Arithmetic |
+| 8 | Opens 6 at the chest (Use all): 300 Cinders, 90 salts, 120 shrimp, about one piece (18.5% a key), 70% of the time a helmet in any of the three weights (no helmet worn) | The haul is `keyHaul` (built), `temper_salts` and `cooked_shrimp` exist | Haul built, armor rows new |
+| 9 | Wears it at Level 15, or lists it | Level 22 from step 7 | Rows new |
+| 10 | The 7th key stays for next week (1 of 30 held) | Step 7 | Rule new |
+
+Found: a new hero wears no helmet or boots, so the 50% weight rule does nothing for them and two pieces in three are another weight. That's fine (they sell and alts wear them), and the card says "Wear the weight you want before you open."
+
+**A Level 100 hero's week.**
+| # | Step | Holds and can reach | Checked |
+|---|---|---|---|
+| 0 | Level 100 (about 600 h), full Dawnsteel plate (`dawn_helm`, `dawn_boots`, worn from 88), a sword, 6 Tower keys a week already | `gear-tiers.js` tier 7 | Rows exist. Their drops are on staged grounds (Krell's Hold, Carter's Rest, the Ox Road) |
+| 1 | Bone Wing alone from door 90: Dunn at 100 gives a Platinum Bone Key if they hold it | Alone reaches about its own Level on the Tower | **Not measured past Level 45** |
+| 2 | Or a four of friends from the door-100 checkpoint (the highest every member has reached): about +25 depths, three Platinum keys each a run | The Tower's four reached its Level +25 at 45 | Not measured at 100 |
+| 3 | Opens 6 Platinum Bone Keys: 3,600 Cinders, 240 salts, 150 Cooked Lobster, a piece about every 4.7 weeks, the Vault-Cutter's Helm about every 13.5 weeks | Section 5 | Arithmetic |
+| 4 | Wears the Vault-Cutter's Helm over `dawn_helm` (44 armor plus 1 Defense) until the armor line passes it at 125 | Step 3 | Rows new, not measured |
+| 5 | Sells Gold and other-weight pieces on the Weighhouse to heroes at 75 to 88 | Window `market` | Exists, rows new |
+| 6 | Opens 6 Tower keys too, a separate count | The Tower family | Built, cap moves to opens |
+
+#### 8. Build order (each lane merges the one before into itself; the Tower stack is unapplied, so its staged files change in place)
+1. **Key families: IN FLIGHT on lane/c-tower-chest** (the Coordinator 2026-11-16: that lane is building them now, 6 opened per family a week, about 30 held; no second lane). What it needs to cover for the Catacombs: `family` on key rows, `KEY_FAMILIES`, the weekly open cap per family from `chest_opens`, the account-wide held limit at the mint and at Storage, warmth for each family, the earn row retired (the start is lane/c-tower-checkpoints's mode field), Cinders renamed. The Tower needs this anyway (Tyler 11-16), so it ships with the Tower. Guard: `tests/tower-chest.mjs` gains the family cases (a 7th open refused, the other family unaffected, the 121st key not minted, Storage can't beat the limit) with mutants.
+2. **lane/c-catacomb-descent** (systems-engineer, after the pack's rename). The run row behind `tower.js`, the two wing grounds and their rosters, Dunn as the door's Keeper, the `catacomb` mode row, progress for each ground, `hr_tower_start` taking the wing, the two Deepest board rows. Measured on real descents (the Tower's `tower-climb.mjs` with a wing argument, Levels 10/20/30/45, alone to a four, 3 seeds): the reach, the XP fit, and the gate that a Level 10 alone holds depth 10 on the start bar's food. Both paths, viewed and closed (§4).
+3. **lane/d-catacomb-armor** (designer, BUILDING now, the Coordinator 2026-11-16: all 24 at once). The 24 rows as hidden data, `catacombArmorItems`, measured against their same-tier standard pieces. Left for the chest's build once families land: the 8 key rows and the slot lean in `hr_chest_open`.
+4. **lane/b-catacomb-window** (client, Art Director). The tab, the wing cards, the start door, the chest's two families with their weekly counts. Interim icons as the Tower weapons' (the twin's drawing with the key's mark), two key drawings, the wings' rooms from the Catacombs' map art.
+5. Every line through the reader gate. Hidden behind `burning_tower` or its own switch, opened with or after the Tower.
+
+#### 9. Exploit, economy, first principle
+| Risk | Answer |
+|---|---|
+| Free deaths farm keys | Keys are worth only what the 6 opens a week take. Farming past that just picks which tier to open, and the held limit stops a bank |
+| Two families as one big cap | Separate counts on the server, from the key's own family row. A press carries no family |
+| A carried low hero | Snuff the Candles hits the whole group at every door, sized for the door's Level. A hero far under dies there and gets no key |
+| Four heroes feeding one | Opens are capped per hero, so moving keys doesn't raise anyone's 6. The alt opens its own, and the armor trades |
+| Supply | No gold paid. Salts and Cinders now come from 12 keys a week instead of 6. A Platinum opener gets about 480 salts a week against 620 for a whole tier's Tempering (the tier 2-3 ladders), all spent beside the rung's gold, so it's a gold sink. Systems: watch the salt price once both families run |
+
+First principle: the wing, the start door, the default stokes for each key and "Use all" (best keys first, up to the week's 6) are all remembered. **Flagged:** an alt opening keys for its main has to wear the main's weight to get it, a hand swap every week, and the Tower has the same. A "weight to roll for" setting on the chest would remove it. Not in this design.
+
+#### 10. Tyler's answers (2026-11-16, through the Coordinator)
+| # | Question | Answer | What moved |
+|---|---|---|---|
+| 1 | Armor odds: the Tower's, or 1.4x | The Tower's 16 / 8 / 4.5 / 2% | Section 5 ruled. A wanted Platinum piece about 13.5 weeks |
+| 2 | Keep the 165-185 ground as well as the descent | Both | Section 2 ruled |
+| 3 | A leaderboard for the descent | **Yes, its own**, deepest room, like the Tower's, on the Tower's board machinery, a separate board | Sections 3 and 8: Catacombs Deepest, solo and party, one board across both wings. My pick was none: overruled |
+| 4 | Dunn carries you up because your name isn't in the Wood Book | Yes | The reason is locked. The rest of section 1's text still goes through the reader gate |
+
+**Done and verified:** every existing id above was read on main or the branch named, every new name was checked free, the odds table reproduces the Tower board's own weeks. **Not verified:** nothing was played or run on the engine. Reach, XP, the door fight, the low-depth spells, every piece's power. **Assumed:** the 375‰ start, the 30 held, the steady sizes, the 70/30 lean, every count inside a key.
+
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.
 - **The Brook Bear's purse is back on the formula** ([13, 40] -> [11, 32]). It was kept by hand only for the +10% floor. The bear stays a heavy, the slow bruiser it reads as. drop-tables Glade value pin 6364 -> 6214, cause named.

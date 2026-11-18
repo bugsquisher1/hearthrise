@@ -751,6 +751,18 @@ async function prepBuilderRules(base) {
     if (D.dropPlan(bar, 0, 0) !== null || D.dropPlan(bar, 7, 0) !== null) fails.push('AW-86 a drop on itself, or of an empty slot, changes the bar');
     if (JSON.stringify(bar) !== JSON.stringify(wantSlots)) fails.push('AW-86 a plan changed the bar it was planned over');
   }
+  /* AW-86 THE BAR CHANGED UNDER AN EDIT (the full-game audit's A26: slot 4 set to Salted Swordfish on the HUD bar, and Hunt prep kept the old bar):
+     the server's slot comes in where the player changed nothing, the player's stance stays; both changing the same slot is no answer */
+  {
+    const base = D.draftFrom(set), key = D.draftKey(base);
+    const mine = D.draftFrom(set); mine.stance = 'offensive';
+    const theirs = D.draftFrom(set); theirs.slots[3] = { action: { type: 'consume', id: 'salted_swordfish' }, conditions: [], join: 'and' };
+    const merged = D.rebaseDraft(mine, key, theirs);
+    if (!merged || merged.stance !== 'offensive' || JSON.stringify(merged.slots[3]) !== JSON.stringify(theirs.slots[3]) || JSON.stringify(merged.slots[0]) !== JSON.stringify(base.slots[0]))
+      fails.push('AW-86 a HUD change under a Hunt prep edit reads ' + JSON.stringify(merged && { stance: merged.stance, s4: merged.slots[3] }));
+    const both = D.draftFrom(set); both.slots[3] = { action: { type: 'consume', id: 'salted_lobster' }, conditions: [], join: 'and' };
+    if (D.rebaseDraft(both, key, theirs) !== null) fails.push('AW-86 the same slot changed both ways was merged');
+  }
   // AW-87: Save and use, a refused save, a stale copy
   {
     calls.length = 0;
@@ -772,6 +784,24 @@ async function prepBuilderRules(base) {
     B.saveDraft({ character: fakeCs(fx), account: {} }, sc3, noop, false);
     await settle();
     if (calls.length) fails.push('AW-87 a stale copy (the bar changed under it) was sent: ' + calls.map((c) => c[0]).join());
+  }
+  /* AW-87 ONE BAR TRUTH (the full-game audit's A26, 2026-11-18: Save left "Not saved: Preset 1" over the bar the hunt reads): a hero in town
+     whose bar in use has no setup row saves the bar, then keeps it as that setup under its own name; mid-hunt, past the hero's count, or with
+     a row already, only the bar goes */
+  {
+    const town = Object.assign(clone(fx), { hunt: null, hunt_presets: [] });
+    const runSave = async (env) => {
+      calls.length = 0;
+      const sc = scratch();
+      sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0; sc.draft.chase = false;
+      B.saveDraft({ character: fakeCs(env), account: {} }, sc, noop, false);
+      await settle();
+      return calls.map((c) => c[0] + ':' + c[1] + (c[0] === 'hr_hunt_preset_save' ? ':' + c[2] : '')).join();
+    };
+    const said = [await runSave(town), await runSave(Object.assign(clone(town), { hunt: fx.hunt })), await runSave(Object.assign(clone(town), { setup_slots: { count: 0, free: 0, bought: 0, max: 5, price: 3000 } })),
+      await runSave(fx)];
+    if (said[0] !== 'hr_action_set_options:0,hr_hunt_preset_save:0:Hunt' || said[1] !== 'hr_action_set_options:0' || said[2] !== 'hr_action_set_options:0' || said[3] !== 'hr_action_set_options:0')
+      fails.push('AW-87 Save on the bar in use with no setup row sent ' + JSON.stringify(said));
   }
   // AW-88: Use equipped asks once; AW-89: New on the first free number
   {
@@ -1463,24 +1493,42 @@ async function planRules(base) {
      fix; Salted Trout (1 death in 12 h there) is under it too; a ground that names no floor (the Slake: Salted Shrimp 0 deaths in 8 h) says nothing */
   const fedAt = (hunt, store) => say(sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_lobster', 100), slot('consume', store, null)], store: STORE },
     inventory: { cooked_lobster: 100 } }), { hunt });
-  const weakLine = '!Salted Shrimp heals too little here. Pick Salted Lobster';
+  const weakLine = '!Slot 2: Salted Shrimp heals too little here. Pick Salted Lobster';
   const fedReads = [fedAt('muster_barrows', 'salted_shrimp'), fedAt('muster_barrows', 'salted_trout'), fedAt('muster_barrows', 'salted_lobster'), fedAt('the_slake', 'salted_shrimp'), fedAt('millrace_sewer', 'salted_shrimp')];
-  if (!fedReads[0].includes(weakLine) || !/^!Salted Trout heals too little/m.test(fedReads[1].split(' | ').find((x) => /heals too little/.test(x)) || '')
+  if (!fedReads[0].includes(weakLine) || !/^!Slot 2: Salted Trout heals too little/m.test(fedReads[1].split(' | ').find((x) => /heals too little/.test(x)) || '')
     || fedReads.slice(2).some((x) => /heals too little/.test(x))) fails.push('AW-27 store food too weak for the ground reads ' + JSON.stringify(fedReads));
+  /* KRELL'S HOLD WARNS LIKE THE BARROWS (the full-game audit's A25, 2026-11-18: a Level 85 tank on the start bar died there in 81 minutes and its
+     page said nothing). The Hold names its measured floor (Salted Trout, in the kit a hero arrives in), so the start bar's Salted Shrimp is
+     told on its page, naming the slot; a bar on Salted Trout is not. */
+  const holdReads = [fedAt('krells_hold', 'salted_shrimp'), fedAt('krells_hold', 'salted_trout')];
+  if (!holdReads[0].includes('!Slot 2: Salted Shrimp heals too little here. Pick Salted Trout') || /heals too little/.test(holdReads[1]))
+    fails.push('AW-27 Krell\'s Hold\'s page on the start bar reads ' + JSON.stringify(holdReads));
   /* ...AT THE HERO'S LEVEL, WITH ITS NUMBERS, ON THE SLOT TOO, AND THE GROUND SAYS IT EXPECTS A HEALER (lane/d-audit-balance-2, the playthrough
      audit's F14: in range on Normal a hero died in 8 minutes and nothing said the food was too weak). The floor is the one measured for the
      Level (Salted Lobster to 64, Salted Trout from 65); the server's HP is in the sentence; the bar's store food slot says it while the
      hero hunts there and never to a party with a Healer; the Barrows' page asks melee and ranged heroes under 65 for a Healer. */
   {
-    const { weakFoodWords } = await imp('src/shell/hunt-go.js');
+    const { weakFoodOf, weakFoodWords } = await imp('src/shell/weak-food.js');
+    const { storeFloorFor } = await imp('src/data/supplies.js');
+    const { settingsView } = await imp('src/session/hunt-sections.js');
     const { slotWhy } = await imp('src/shell/slot-waits.js');
     const { healerNote } = await imp('src/shell/hunt-list.js');
-    const bar = (id) => ({ slots: [slot('consume', id, null)] });
-    const prep = [weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 56, 850), weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 64, 990),
-      weakFoodWords('prep', bar('salted_trout'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'muster_barrows', 65, 1011), weakFoodWords('prep', bar('salted_shrimp'), 'the_slake', 50, 819)];
-    if (prep[0] !== 'Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
-      || prep[1] !== 'Salted Trout heals 120 of 990 HP. Pick Salted Lobster' || prep[2] !== '' || prep[3] !== 'Salted Shrimp heals 72 of 1,011 HP. Pick Salted Trout' || prep[4] !== '')
+    /* the server's bar and store rows as the envelope projects them: what a food heals is the server's row, never a client copy */
+    const bar = (id) => settingsView({ preset: 0, slots: [slot('consume', id, null)], store: STORE });
+    const prepAt = (id, hunt, level, hp) => weakFoodWords('prep', weakFoodOf(bar(id), storeFloorFor(hunt, level)), hp);
+    const prep = [prepAt('salted_shrimp', 'muster_barrows', 56, 850), prepAt('salted_trout', 'muster_barrows', 64, 990),
+      prepAt('salted_trout', 'muster_barrows', 65, 1011), prepAt('salted_shrimp', 'muster_barrows', 65, 1011), prepAt('salted_shrimp', 'the_slake', 50, 819),
+      prepAt('salted_shrimp', 'krells_hold', 85, 1208), prepAt('salted_shrimp', 'krells_hold', 88, 1305)];
+    if (prep[0] !== 'Slot 1: Salted Shrimp heals 72 of 850 HP. Pick Salted Lobster'
+      || prep[1] !== 'Slot 1: Salted Trout heals 120 of 990 HP. Pick Salted Lobster' || prep[2] !== '' || prep[3] !== 'Slot 1: Salted Shrimp heals 72 of 1,011 HP. Pick Salted Trout' || prep[4] !== ''
+      || prep[5] !== 'Slot 1: Salted Shrimp heals 72 of 1,208 HP. Pick Salted Trout' || prep[6] !== '')
       fails.push('AW-27 the weak store food at the hero\'s Level reads ' + JSON.stringify(prep));
+    /* ...naming every slot that holds it, and with no server store row for the food it says nothing (no client copy of a heal) */
+    const two = settingsView({ preset: 0, slots: [slot('consume', 'salted_shrimp', null), slot('consume', 'cooked_lobster', 9), slot('consume', 'salted_shrimp', null)], store: STORE });
+    const said = [weakFoodWords('prep', weakFoodOf(two, 'salted_trout'), 0), weakFoodWords('prep', weakFoodOf(two, 'salted_trout'), 990, 'Bryony'),
+      weakFoodWords('prep', weakFoodOf(Object.assign({}, two, { store: [] }), 'salted_trout'), 990)];
+    if (said[0] !== 'Slots 1 and 3: Salted Shrimp heals too little here. Pick Salted Trout' || said[1] !== 'Bryony\'s slots 1 and 3: Salted Shrimp heals 72 of 990 HP. Pick Salted Trout' || said[2] !== '')
+      fails.push('AW-27 the weak food line\'s slots read ' + JSON.stringify(said));
     const facts = (o) => Object.assign({ set: bar('salted_shrimp'), bag: [], hero: { mana: 0 }, worn: null, skills: {}, pack: null, party: 1, alone: true, holding: false, test: null,
       ground: 'muster_barrows', level: 56, hpMax: 850, healed: false }, o);
     const on = (id, o) => slotWhy(slot('consume', id, null), facts(o));
@@ -2597,7 +2645,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const before = await look();
         /* the Sell step is the one gold press: its count and value are the server's (31 Rat Tail at 6, 12 Slime Gel at 5), the locked Sticky Core left out;
            the coach's next step is a press, not the gold one, and the card rings the row it is about */
-        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
+        /* (the row after it is the Next buy line, never gold: this hero's bare helmet slot and where its weight's helmet comes from, AW-98's row) */
+        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell","buy"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
         if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Marked Sell: Rat Tail and Slime Gel') fails.push('AW-78 the Sell row reads ' + JSON.stringify([before.title, before.words]));
         if (before.next !== 'Next: Sell junk') fails.push('AW-78 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
         if (JSON.stringify(before.ring) !== '["town:sell"]') fails.push('AW-78 the return card rings ' + JSON.stringify(before.ring) + ', want the summary\'s Sell row');
@@ -2610,7 +2659,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const sales = sent(s, 'hr-accrue', 'vendor_sell_many');
         if (sales.length !== 1 || JSON.stringify(sales[0].body.lines) !== '[{"item":"rat_tail","qty":31},{"item":"slime_gel","qty":12}]') fails.push('AW-78 the Sell step sent ' + JSON.stringify(sales.map((c) => c.body.lines)));
         const after = await look();
-        if (JSON.stringify(after.steps) !== '["sell:done"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-78 after the sale the row reads ' + JSON.stringify(after));
+        if (JSON.stringify(after.steps) !== '["sell:done","buy"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-78 after the sale the row reads ' + JSON.stringify(after));
         if (JSON.stringify(after.gold) !== '["again:"]') fails.push('AW-78 after the sale the gold presses are ' + JSON.stringify(after.gold) + ', want Hunt again alone');
         if (shots) await shot(page, 'alpha-1440x900-back-in-town-done');
         if (errors.length) fails.push('AW-78 console errors: ' + errors.join(' | ').slice(0, 300));
@@ -2641,14 +2690,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     }
 
     { // AW-98 THE NEXT BUY (lane/a-next-steps; audit 2026-11-15 F12/F20: gold piled up and Back in town said nothing once the bag was sorted)
-      /* The AW-78 hero with its loot sold and nothing to deposit or bless, the Shop offering a Bronze Belt for an empty belt slot: the card names that ONE buy,
-         last, its press a Show that is never gold, and the Show opens the Shop's Buy tab. On a phone the row stays inside the sheet. */
+      /* The AW-78 hero with its loot sold and nothing to deposit or bless, the Shop offering a Leather Belt for an empty belt slot: the card names that ONE buy,
+         last, its press a Show that is never gold, and the Show opens the Shop's Buy tab. On a phone the row stays inside the sheet. The hero wears Leather
+         Boots, so its weight is medium: a heavy Bronze Belt is never its buy (the full-game audit's A11; tests/hunt-summary.mjs T5 holds that rule). */
       const sorted = (e) => {
         e.state = Object.assign({}, e.state, { level_xp: LEVEL_5_XP });
         e.skills = Object.assign({}, e.skills, { farming: { xp: 28, level: 1, frac: 0 } });
         for (const id of ['bronze_sword', 'steel_sword', 'iron_helm', 'iron_platebody', 'shortbow', 'rat_tail', 'slime_gel', 'bronze_belt', 'leather_belt']) delete e.inventory[id];
         e.hunt_settings = Object.assign({}, e.hunt_settings, { slots: [], bar: [] });
-        e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'gear.bronze_belt', item: 'bronze_belt', kind: 'gear', price: 110 }]) });
+        e.shop = Object.assign({}, e.shop, { offers: e.shop.offers.concat([{ offer: 'gear.leather_belt', item: 'leather_belt', kind: 'gear', price: 110 }]) });
       };
       for (const [vp, tag] of [[{ width: 1440, height: 900 }, '1440x900'], [{ width: 922, height: 423 }, '922x423']]) {
         const { ctx, page, s, errors, up } = await open({ viewport: vp, mutateEnv: sorted, residue: { coach: { read: ['bar_intro'] } } });
@@ -2667,8 +2717,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             words: li ? li.querySelector('small').textContent : null, verb: b ? b.textContent : null, gold: b ? b.classList.contains('is-primary') : null,
             go: b ? b.getAttribute('data-hs-goto') : null, inside: !!r && r.left >= body.left - 1 && r.right <= body.right + 1 };
         });
-        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Next buy: Bronze Belt (110 gp)' || row.words !== '+2 Defense, +8 health, empty belt slot'
-          || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|bronze_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
+        if (JSON.stringify(row.steps.slice(-1)) !== '["buy"]' || row.title !== 'Next buy: Leather Belt (110 gp)' || row.words !== '+1 Defense, +0.4% critical chance, empty belt slot'
+          || row.verb !== 'Show' || row.gold !== false || row.go !== 'shop|buy|leather_belt' || !row.inside) fails.push('AW-98 at ' + tag + ' the next buy reads ' + JSON.stringify(row));
         if (shots) await shot(page, 'alpha-' + tag + '-back-in-town-buy');
         if (tag === '1440x900') {
           await page.click('[data-hs-win="hunt-summary"] .hsum-step[data-step="buy"] button');
@@ -5284,13 +5334,18 @@ const MUTANTS = [
   /* THE HUNT PREP BUILDER (AW-85 .. AW-92): the copy, its one intent, the drop, Save and use, Use equipped, New setup, Fights as, Sort, Clear, the read. */
   ['prep builder: Save drops the stance', 'src/shell/prep-draft.js', '  if (known(d.stance)) o.stance = d.stance;\n', ''],
   ['prep builder: Save sends a null for an option the server never sent', 'src/shell/prep-draft.js', '  if (known(d.goldFloor)) o.gold_floor = d.goldFloor;', '  o.gold_floor = d.goldFloor;'],
+  ['prep builder: a HUD change under an edit is never folded in (audit A26)', 'src/shell/prep-draft.js', '(same(m, b) ? { v: s } :', '(same(m, b) ? { v: m } :'],
+  ['prep builder: the same slot changed both ways is folded in', 'src/shell/prep-draft.js', ': same(s, b) || same(m, s) ? { v: m } : null);', ': { v: m });'],
   ['prep builder: a drop on a filled slot does nothing', 'src/shell/prep-draft.js', '  return bar[to] ? swapPlan(bar, from, to) : movePlan(bar, from, to);', '  return bar[to] ? null : movePlan(bar, from, to);'],
   ['prep builder: Save and use never puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    await settleTownActivity(cs);\n    return cs.applyPreset(preset);', '    return r;'],
   /* AW-35 when the hunt ends (lane/c-hunt-itinerary) */
   ['when the hunt ends: a pick is never sent', 'src/shell/windows/hunt-after-pane.js', '  if (p) send(() => setHuntAfter(ctx.account, ctx.character, p.choice, p.skill));\n', ''],
   ['when the hunt ends: the control is drawn with no section', 'src/shell/windows/hunt-after-pane.js', "  prop(sec, 'hidden', !c);\n", "  prop(sec, 'hidden', false);\n"],
   ['when the hunt ends: a hero with no job is offered one', 'src/shell/hunt-after.js', '      if (!doing) continue;\n', ''],
-  ['prep builder: a refused save still puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    if (!r.ok || !andUse) return r;', '    if (!andUse) return r;'],
+  ['prep builder: a refused save still puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    if (!r.ok) return r;\n', ''],
+  ['prep builder: Save leaves the bar in use unsaved as a setup (audit A26)', 'src/shell/windows/hunt-prep/builder.js', '    if (keep) { const k = await cs.savePreset(preset, keep.name);', '    if (false) { const k = await cs.savePreset(preset, keep.name);'],
+  ['prep builder: Save keeps a setup row mid-hunt (the server refuses hunt_open)', 'src/shell/windows/hunt-prep/builder.js', '|| (h && !h.ended) ||', '||'],
+  ['prep builder: Save keeps the bar in use over a number past the hero\'s count', 'src/shell/windows/hunt-prep/builder.js', '|| !slots || preset >= slots.count) return null;', ') return null;'],
   ['prep builder: a stale copy still saves', 'src/shell/windows/hunt-prep/builder.js', '  if (!sc.draft || sc.pending || sc.stale) return;', '  if (!sc.draft || sc.pending) return;'],
   ['prep builder: Use equipped sends at the first press', 'src/shell/windows/hunt-prep/setups.js', '    if (!sc.armingEquipped) { sc.armingEquipped = true; repaint(); return true; }\n', ''],
   ['prep builder: New saves over a used number', 'src/shell/windows/hunt-prep/setups.js', '  const free = firstFree(presetsOf(cs));', '  const free = (presetsOf(cs) || []).length;'],
@@ -5435,7 +5490,10 @@ const MUTANTS = [
   ['plans: Equip upgrades sees no worth in a ring\'s perks', 'src/shell/upgrade-plan.js', '  for (const p of perksIn(a, b)) { if (perkOf(a, p) < perkOf(b, p)) return false; if (perkOf(a, p) > perkOf(b, p)) more = true; }\n', ''],
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? ', pick '", "(fixes.length > 9 ? ', pick '"],
   ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);\n    if (weak) out.push(weak);\n', ''],
-  ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/hunt-go.js', 'return best && best.amount < want.heals ? best.id : null;', 'return best && best.amount * 2 < want.heals ? best.id : null;'],
+  ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/weak-food.js', 'if (food === null || heal === null || heal >= want) return null;', 'if (food === null || heal === null || heal * 2 >= want) return null;'],
+  ['plans: AW-27 the weak food line names no slot', 'src/shell/weak-food.js', "return t('prep.food_weak' + hp, Object.assign(vars, { where }));", "return t('prep.food_weak' + hp, Object.assign(vars, { where: '' }));"],
+  ['plans: AW-27 a heal read from the client copy when the server sent none', 'src/shell/weak-food.js', 'return r && Number.isInteger(r.amount) ? r.amount : null;', "return r && Number.isInteger(r.amount) ? r.amount : ((CONSUMABLES[id] || {}).amount || null);"],
+  ['plans: AW-27 Krell\'s Hold names no store food floor (audit A25)', 'src/data/grounds/krells_hold/pack.js', "bagGuide: { tier: 4, storeFloor: 'salted_trout', storeFloorFrom: { 88: 'salted_shrimp' },", 'bagGuide: { tier: 4,'],
   ['plans: AW-27 a club hero is warned about another weapon', 'src/shell/hunt-go.js', 'if (moveOffWeapon(s.discipline, a.id)) return null;', ''],
   ['plans: AW-27 three spells read as a fallback ("then")', 'src/shell/hunt-go.js', "+ ' gp a cast)').join('. ');", "+ ' gp a cast)').join(', then ');"],
   ['plans: AW-27 each store rune is said on its own', 'src/shell/hunt-go.js', "    if (same) same.names.push(p.store.name);\n    else spends.push(", "    spends.push("],

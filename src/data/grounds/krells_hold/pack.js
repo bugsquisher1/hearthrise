@@ -188,8 +188,18 @@ export default definePack({
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Pyre Field's store food, and Chalked Poison Runes in place of its ice. These are
      living men (poison does 15% more), and the dead in the cellar shrug poison off, so a caster brings a second family for the Crypt.
      Lobster, not the tier-6 Shark: the store sells Salted Shark at 693 for 396 HP (1.75 g a point) and Salted Lobster at 180 for 216 (0.83),
-     and on the quick grade a lone floor tank ate 57 Sharks an hour (39.5k g against 13.2k coin). */
-  bagGuide: { tier: 4,
+     and on the quick grade a lone floor tank ate 57 Sharks an hour (39.5k g against 13.2k coin).
+     `storeFloor` (the Barrows' rule, supplies.js storeFloorFor; lane/a-hunt-prep-truth, the full-game audit's A25: a Level 85 tank on the
+     start bar's Salted Shrimp died here in 81 minutes to a Gatekeeper, and the page said nothing). MEASURED in the kit a hero ARRIVES in,
+     one gear tier under the Level's best (tier 5 at 85, since tier 6 drops here) with every combat skill 10 under the Level (the Barrows'
+     floor was measured in its own tier with skills at the Level, a kit nobody walks in wearing). Lone, Normal, 2 seeds x 2 h a cell,
+     tools/balance-sim/cell.mjs. Deaths, tank / hammer / bow / mage:
+       Level 85   Salted Shrimp 8 / 3 / 0 / 0 (Hask's Lookout, the Gatekeeper)    Salted Trout 0 / 0 / 0 / 0    Salted Lobster 0 / 0 / 0 / 0
+       Level 86   Salted Shrimp 5 / 1      Level 87   Salted Shrimp 3 / 1      Level 88 and 91   Salted Shrimp 0 / 0 (tier 6 is the kit from 88)
+     The audit's own kit (Rune armor, the Emberforged Sword and Tower Shield, Leather Gloves, no belt) at 85: Defense 85 0 deaths, Defense 80
+     3 (2 Lookouts, a Gatekeeper). So the floor is Salted Trout to 87 and the start bar's Salted Shrimp from 88. In the same kit the Ford (45),
+     the Slake (50) and the Pyre Field (70) die 0 times on Salted Shrimp in every way, so they name none. */
+  bagGuide: { tier: 4, storeFloor: 'salted_trout', storeFloorFrom: { 88: 'salted_shrimp' },
     melee: { heal: { id: 'cooked_lobster', qty: 100 } },
     ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
     magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_poison_rune', qty: 650 } } },

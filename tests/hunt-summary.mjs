@@ -557,10 +557,11 @@ async function runTests(M) {
     eq(calls.filter((c) => c.name === 'hr_bank_move_many').length, 2, 'one ask per press');
   });
 
-  await t('T5 with gold to spend the card names ONE next buy the purse covers, from the server\'s sections, last and never the gold press', () => {
+  await t('T5 with gold to spend the card names ONE next buy the purse covers, from the server\'s sections, last and never the gold press', async () => {
     const { NB } = M;
     /* audit 2026-11-15 F12/F20 and the Practice Shield worn to 87: a tank at 31 with the Shop's Bronze-Rimmed Shield on offer */
-    const tank = { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody' };
+    const tank = { weapon: 'steel_sword', shield: 'practice_shield', helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', boots: 'bronze_boots', gloves: 'bronze_gauntlets', belt: 'bronze_belt' };
+    const noBelt = { ...tank }; delete noBelt.belt;
     const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 } };
     const shop = (...o) => ({ offers: o.map(([item, price, kind]) => ({ offer: 'shop.' + item, item, kind: kind || 'gear', price })), bids: new Map() });
     const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
@@ -569,11 +570,28 @@ async function runTests(M) {
     eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'bronze_rimmed_shield',
       { kind: 'shop', item: 'bronze_rimmed_shield' }], 'a Shop piece better than the worn one, its price and what it adds');
     /* a bare slot first, though dearer; a piece worse than the worn one, another style's, or past the purse is never named */
-    const bare = buy({ shop: shop(['bronze_rimmed_shield', 140], ['bronze_belt', 200]) });
+    const bare = buy({ equipment: noBelt, shop: shop(['bronze_rimmed_shield', 140], ['bronze_belt', 200]) });
     eq(bare && [bare.title, bare.words], ['Next buy: Bronze Belt (200 gp)', '+2 Defense, +22 health, empty belt slot'], 'an empty slot comes first');
     eq(buy({ purse: 139 }), null, 'past the purse, nothing');
     eq(buy({ equipment: { ...tank, shield: 'bronze_rimmed_shield' } }), null, 'what is worn already is not bought again');
     eq(buy({ shop: shop(['bronze_rimmed_shield', 140, 'tool']) }), null, 'only the Shop\'s gear');
+    /* NEVER AN OFF-WEIGHT BUY, AND WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to
+       a heavy hero at Level 9 and they stayed on to 85; the Shop sells no heavy gloves). A heavy hero's bare gloves slot is never sold the
+       medium pair: the line names the heavy gloves it can wear and where they come from, from the catalogue (item-lore.js wherePlaces), its
+       Show opening there. A medium hero is still sold the pair. The same for a slot worn in another weight. */
+    const { wherePlaces } = await import(pathToFileURL(join(ROOT, 'src/shell/item-lore.js')).href);
+    const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
+    const dressed = tank;
+    const noGloves = { ...dressed }; delete noGloves.gloves;
+    const gloves = shop(['leather_gloves', 160]);
+    const find = buy({ equipment: noGloves, shop: gloves });
+    const fit = find && ITEMS[find.icon];
+    eq(find && [find.kind, /^Next upgrade: .+ \(heavy gloves\)$/.test(find.title), fit && fit.slot, fit && fit.armourClass, fit && fit.reqLv <= 31, find.words, find.place],
+      ['find', true, 'gloves', 'plate', true, (wherePlaces(find && find.icon)[0] || {}).words, (wherePlaces(find && find.icon)[0] || {}).place],
+      'a heavy hero is never sold the medium pair: the heavy gloves it can wear, and where they come from');
+    eq(buy({ equipment: noGloves, shop: gloves, prefer: 'medium' }).title, 'Next buy: Leather Gloves (160 gp)', 'a medium hero is still sold them');
+    eq(buy({ equipment: { ...dressed, gloves: 'leather_gloves' }, shop: gloves }).kind, 'find', 'a slot worn in another weight names the hero\'s weight too');
+    eq(buy({ equipment: dressed, shop: gloves }), null, 'a full set of the hero\'s weight: nothing to find');
     /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */
     const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });
     const temper = { blows: rung('Steel Sword', 3000, 0, 10), armor: rung('Bronze armor', 2000, 0, 10) };
@@ -696,8 +714,13 @@ const MUTANTS = [
   { test: 'T5', file: NEXT, from: "if (!d || !d.hasHome || ", to: "if (!d || " },
   { test: 'T5', file: NEXT, from: "&& r.next.need <= h.tier && ", to: '&& ' },
   { test: 'T5', file: NEXT, from: "&& holds(r.next.items, o.bag, o.bank));", to: ');' },
-  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return roomBuy(o) || dummyBuy(o) || temperBuy(o) || gearBuy(o);" },
-  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || temperBuy(o) || dummyBuy(o) || roomBuy(o);" },
+  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return roomBuy(o) || dummyBuy(o) || temperBuy(o) || findPiece(o) || gearBuy(o);" },
+  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || dummyBuy(o) || roomBuy(o);" },
+  /* the full-game audit's A11: an off-weight Shop piece sold to a heavy hero, and nothing saying where its own weight comes from */
+  { test: 'T5', file: NEXT, from: " && ownWeight(ITEMS[x.item], o.prefer));", to: ');' },
+  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);" },
+  { test: 'T5', file: NEXT, from: '    const p = now[0] || later[0];', to: '    const p = later[0] || now[0];' },
+  { test: 'T5', file: NEXT, from: "&& weightOf(ITEMS[eq[s]]) !== w));", to: '&& false));' },
   { test: 'T3', file: TOWN, from: "else if (did.has(step.id)) out.push(Object.assign(step, { done: true, title: did.get(step.id) || step.title, words: '' }));", to: '' },
   { test: 'T3', file: TOWN, from: "done: true, title: did.get(step.id) || step.title, words: ''", to: "done: true, words: ''" },
   { test: 'T4', file: TOWN, from: "lines.map((l) => l.item), 'deposit');", to: "lines.map((l) => l.item), 'withdraw');" },

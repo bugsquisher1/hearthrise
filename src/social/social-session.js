@@ -94,7 +94,7 @@ export class SocialSession {
     const slots = this._away ? [] : this.online.slots();
     try { if (slot !== null) ans = await this._account.server.rpc('hr_social_poll', { p_slot: slot, p_slots: slots }); } catch (e) { ans = null; }
     const read = !!ans && this._applyRead(ans);
-    return this.online.take(read ? ans.body.online : null);
+    return this.online.take(read ? ans.body.online : null, read ? ans.body.online_by : null);
   }
 
   /** hr_social_state: friends, requests and blocks, replaced whole. */

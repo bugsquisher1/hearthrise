@@ -1751,7 +1751,7 @@
   },
   "hr_players_online_cache": {
    "class": "operational",
-   "note": "2026-11-07-players-online.sql, one row seeded. The shared players-online count and when it was taken, recomputed by hr_players_online from character_presence at most every 15 s. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the first ask recounts."
+   "note": "2026-11-07-players-online.sql, one row seeded; 2027-05-05-players-online-by-activity.sql: the total and its seven lines by activity, written once a world tick fire by hr_players_online_refresh (hr_tick_cron_run) from hunt_sessions, player_state and character_presence, read by the social poll. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the poll answers no count until the first fire, 10 s later."
   },
   "hr_plot_tier": {
    "class": "seeded",

@@ -52,7 +52,6 @@
     "src/shell/widgets/amount.js": 5,
     "src/shell/widgets/bits.js": 2,
     "src/shell/widgets/boss-bar.js": 1,
-    "src/shell/widgets/online.js": 2,
     "src/shell/widgets/party-hold.js": 34,
     "src/shell/widgets/party-leave.js": 1,
     "src/shell/widgets/party-panel.js": 28,

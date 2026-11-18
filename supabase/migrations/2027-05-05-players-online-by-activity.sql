@@ -10,14 +10,16 @@
 -- splices the world tick's driver (one guarded call, before the kill switch).
 -- EDGE: none. CLIENT: src/social/players-online.js + src/shell/widgets/online.js read `online_by` and ride the next release AFTER this
 -- applies. Either half alone is safe: a tab on v0.2.137 reads `online` (now the total) and ignores `online_by`; a new tab on the old
--- server gets no `online_by` and shows the total with no breakdown, never a wrong one.
+-- server gets no `online_by`, takes the answer as no reading and shows "— online", never a number its lines do not add up to.
 --
 -- ── THE RULE (the one definition, hr_players_online_counts) ─────────────────────────────────────────────────────────
 -- A CHARACTER IS COUNTED when it PLAYS ON THE SERVER (hr_playing's definition, 2027-01-19-play-cap.sql: an open hunt session, or
 --   an activity pointer other than idle) OR it is OPEN IN A CLIENT (a character_presence stamp inside the 75 s online window, the
---   window hr_social_state and the old count used) and not set to appear offline (presence_quiet). EACH CHARACTER ONCE: the
---   population is the union of the three indexed sources by (user_id, slot), joined to its player_state row (a deleted hero is out).
--- ITS ONE LINE, first match wins, so the lines always add up to the total:
+--   window hr_social_state and the old count used) and not set to appear offline (presence_quiet). EACH CHARACTER ONCE, by
+--   construction: three DISJOINT arms in one statement's snapshot, (1) an open session (one a character: hunt_sessions_one_open; its
+--   hero exists: hunt_sessions_char_fk), (2) a pointer other than idle with no open session, (3) a fresh stamp on an idle hero with no
+--   open session. Each source is read once.
+-- ITS ONE LINE, so the lines always add up to the total:
 --   training  an open session on a training ground (hr_training_grounds: the yard or the house dummy; training is a hunt session)
 --   tower     an open session whose instance plays the `tower` mode (hunt_instances.session_mode, frozen by the server at its start)
 --   hunting   any other open session (or a `combat` pointer, which hr_playing counts too)
@@ -171,33 +173,36 @@ begin
            'hearth',    count(*) filter (where x.k = 'hearth'),
            'town',      count(*) filter (where x.k = 'town'))
     into v
-    from (select case
-                   when h.id is not null and t.hunt_id is not null then 'training'
-                   when h.id is not null and i.session_mode = 'tower' then 'tower'
-                   when h.id is not null or ps.active_kind = 'combat' then 'hunting'
-                   when ps.active_kind = 'gather' then 'gathering'
-                   when ps.active_kind = 'artisan' and a.req_skill = 'inner_flame' then 'hearth'
-                   when ps.active_kind = 'artisan' then 'crafting'
-                   when ps.active_kind <> 'idle' then 'town'
-                   -- idle with no open session: in the population ONLY through a fresh stamp (the third source), so open in a client
-                   when not ps.presence_quiet then 'town'
-                 end as k
-            -- THE POPULATION: each character once (UNION), from three indexed sources, all read in this statement's one snapshot
-            from (select h0.user_id, h0.slot from public.hunt_sessions h0
-                   where h0.ended_at is null and (p_users is null or h0.user_id = any (p_users))
-                  union
-                  select p0.user_id, p0.slot from public.player_state p0
-                   where p0.active_kind <> 'idle' and (p_users is null or p0.user_id = any (p_users))
-                  union
-                  select c0.user_id, c0.slot from public.character_presence c0
-                   where c0.seen_at > now() - c_online and c0.seen_at <= now() + interval '60 seconds'
-                     and (p_users is null or c0.user_id = any (p_users))) w
-            join public.player_state ps on ps.user_id = w.user_id and ps.slot = w.slot
-            left join public.hunt_sessions h on h.user_id = w.user_id and h.slot = w.slot and h.ended_at is null
+    -- THREE DISJOINT ARMS, each source read once, all in this statement's one snapshot: a character is in exactly one (an open
+    -- session is one a character, hunt_sessions_one_open; a job excludes an open session; a stamp needs idle and no session).
+    from (-- (1) AN OPEN SESSION: its ground says the line (the instance's mode, frozen by the server at its start)
+          select case when t.hunt_id is not null then 'training'
+                      when i.session_mode = 'tower' then 'tower'
+                      else 'hunting' end as k
+            from public.hunt_sessions h
             left join public.hunt_instances i on i.id = h.instance_id
             left join public.hr_training_grounds t on t.hunt_id = h.hunt_id
-            left join public.hr_activities a on a.kind = ps.active_kind and a.activity_id = ps.active_id) x
-   where x.k is not null;
+           where h.ended_at is null and (p_users is null or h.user_id = any (p_users))
+          union all
+          -- (2) A JOB: a pointer other than idle, no open session (a pointer this file does not name counts in town, never dropped)
+          select case when ps.active_kind = 'combat' then 'hunting'
+                      when ps.active_kind = 'gather' then 'gathering'
+                      when ps.active_kind = 'artisan' and a.req_skill = 'inner_flame' then 'hearth'
+                      when ps.active_kind = 'artisan' then 'crafting'
+                      else 'town' end
+            from public.player_state ps
+            left join public.hr_activities a on a.kind = ps.active_kind and a.activity_id = ps.active_id
+           where ps.active_kind <> 'idle' and (p_users is null or ps.user_id = any (p_users))
+             and not exists (select 1 from public.hunt_sessions h2 where h2.user_id = ps.user_id and h2.slot = ps.slot and h2.ended_at is null)
+          union all
+          -- (3) OPEN IN A CLIENT: a stamp inside the window, idle, no open session, not appearing offline
+          select 'town'
+            from public.character_presence cp
+            join public.player_state ps on ps.user_id = cp.user_id and ps.slot = cp.slot
+           where cp.seen_at > now() - c_online and cp.seen_at <= now() + interval '60 seconds'
+             and ps.active_kind = 'idle' and not ps.presence_quiet and (p_users is null or cp.user_id = any (p_users))
+             and not exists (select 1 from public.hunt_sessions h3 where h3.user_id = cp.user_id and h3.slot = cp.slot and h3.ended_at is null)
+         ) x(k);
   return v;
 end $fn$;
 revoke execute on function public.hr_players_online_counts(uuid[]) from public, anon, authenticated, service_role;

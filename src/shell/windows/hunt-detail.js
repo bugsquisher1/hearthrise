@@ -229,7 +229,7 @@ export function patchGround(det, ctx, r, o) {
   patchParts(bigPull, bigParts);
   prop(bigPull, 'hidden', !bigParts.length);
   /* What drops here and how often (Tyler 2026-10-24: "a % drop chance or nothing at all"): the gear a line a tier, the
-     hero's own armour weight first ("Iron, Studded, Adept: helmets, boots and Iron Sword") with the chance a kill here drops
+     hero's own armour weight first ("Helmets and boots: Studded, Iron, Adept · Iron Sword") with the chance a kill here drops
      any piece of it, then each Rare and Trophy, item and carrier, with its chance per kill of that creature. The odds
      are the engine's own rows, the same for every party size (hunt-ground-facts.js), never a number typed here. */
   /* PER KILL, FOR THE WHOLE PARTY (blind party test 2026-11-01; played): each kill rolls the row's own odds for any party size, and each drop goes to one hero
@@ -240,8 +240,11 @@ export function patchGround(det, ctx, r, o) {
     build: () => element(ctx.doc, '<li class="hw-hd-set"><span><b class="hw-hd-set-lines"></b><span class="hw-hd-set-what"></span></span>'
       + '<span class="hw-hd-odds"></span></li>'),
     patch: (li, e) => {
-      text(li.querySelector('.hw-hd-set-lines'), e.lines.join(', '));
-      text(li.querySelector('.hw-hd-set-what'), (e.lines.length ? ': ' : '') + e.what);
+      /* the slots first, as the label, then the lines that make them (QA audit 2026-11-18 N11: "Bronze, Leather, Apprentice: helmets" read
+         backwards): "Helmets: Leather, Bronze, Apprentice", "Helmets and boots: Studded, Iron, Adept · Iron Sword" */
+      const slots = listWords(e.slots, Infinity), weapons = listWords(e.weapons, Infinity);
+      text(li.querySelector('.hw-hd-set-lines'), slots ? slots.charAt(0).toUpperCase() + slots.slice(1) : weapons);
+      text(li.querySelector('.hw-hd-set-what'), slots ? (e.lines.length ? ': ' + e.lines.join(', ') : '') + (weapons ? ' · ' + weapons : '') : '');
       text(li.querySelector('.hw-hd-odds'), chance(e.chance));
     },
   });

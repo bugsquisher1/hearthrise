@@ -268,6 +268,17 @@ async function checks(overrides, shots, firstRed = false) {
       await page.waitForTimeout(400);
       const presses = () => page.evaluate(() => Array.from(document.querySelectorAll('.hs-pointer button')).filter((b) => b.getClientRects().length && !b.closest('[hidden]')).length);
       if (!(await presses())) { fails.push('TB-7 [' + tag(size) + '] CONTROL: no coach card with a press is up in town'); await ctx.close(); continue; }
+      /* TB-8 EVERY ICON SAYS ITS NAME OVER THE CARD (QA audit 2026-11-18 N5: hovering the row's icons showed no name: the coach card under the row
+         painted over each name chip). With the card up, a hovered icon's chip is shown and stacks above the card (the same stacking box, .hs-launchers). */
+      if (!size.touch) for (const id of await barReach(page)) {
+        const q = id.startsWith('group:') ? '.hs-launchers [data-hs-group="' + id.slice(6) + '"]' : '.hs-launchers > .hs-launch[data-hs-open="' + id + '"]';
+        await page.hover(q);
+        await page.waitForTimeout(160);
+        const chip = await page.evaluate((s) => { const b = document.querySelector(s), c = getComputedStyle(b, '::before'), p = document.querySelector('.hs-launchers > .hs-pointer');
+          return { tip: b.getAttribute('data-tip'), opacity: c.opacity, z: c.zIndex, card: p ? getComputedStyle(p).zIndex : null }; }, q);
+        if (!chip.tip || chip.opacity !== '1' || !(chip.card === null || Number(chip.z) > Number(chip.card))) fails.push('TB-8 [' + tag(size) + '] ' + id + '\'s name chip hides under the coach card: ' + JSON.stringify(chip));
+      }
+      await page.mouse.move(2, size.height - 2);
       for (const g of (await barReach(page)).filter((x) => x.startsWith('group:')).map((x) => x.slice(6))) {
         await closeAll(page);
         if (!(await tryPress(page, '.hs-launchers [data-hs-group="' + g + '"]', size.touch))) { fails.push('TB-7 [' + tag(size) + '] the ' + g + ' icon took no press'); continue; }
@@ -416,6 +427,7 @@ const MUTANTS = [
   ['a window opened by key leaves the menu open', 'src/shell/launcher-menu.js', '  if (m && m.seen !== openKey(ctx.wm)) { MENU.delete(ctx.wm); return null; }', ''],
   ['Esc over the menu opens Settings too', 'src/shell/launcher-menu.js', '    e.preventDefault(); e.stopPropagation();\n    shut(true);', '    shut(true);'],
   ['a press elsewhere leaves the menu open', 'src/shell/launcher-menu.js', "  doc.addEventListener('pointerdown', (e) => { if (!(e.target.closest && e.target.closest('.hs-launch-group.is-menu'))) shut(false); }, true);", ''],
+  ['the icons' name chips hide under the coach card (TB-8, QA audit 2026-11-18 N5)', 'src/styles/shell.css', 'top: calc(100% + 6px); right: 0; z-index: 11;', 'top: calc(100% + 6px); right: 0;'],
   ['the arrows do not walk the menu', 'src/shell/launcher-menu.js', '      items[to].focus();', '      void to;'],
   ['the row leaves the group\'s ring to the coach, so every paint rebuilds it', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ ''"],
   ['the group keeps its ring while its menu is open', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ (inside ? ' data-coach-ring=\"\"' : '')"],

@@ -3172,7 +3172,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
            Queen's Comb (the Great Hearth's named fuel, src/data/hearth.js), so the wasp carries and the Rare heading shows */
         /* each line with its chance per kill, alone (the engine's rows: the pure AW-25 works the math from them) */
-        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
+        if (p.sets.join('|') !== 'Helmets: Leather, Bronze, Apprentice · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
           || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'No record yet (hunt 10+ min)') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));

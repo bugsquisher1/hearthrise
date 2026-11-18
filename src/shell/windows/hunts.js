@@ -445,6 +445,9 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   }
   /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
+  /* A CONFIRM OPENS IN VIEW (QA audit 2026-11-18 N3: the call-out's warning opened under the press, below the page's fold and cut by the
+     Enter foot, so "Call him out once" had to be found): once drawn, the page scrolls to it, its buttons at least. */
+  const inView = () => { const w = action === 'call-warn' || action === 'hall-warn' ? el.closest('.hw-hd-call').querySelector('.hw-call-warn.is-on') : null; if (w) revealInWindow(w); return true; };
   /* Call out: its section's presses, run as the setup Go as chose; its refusals read the designer's words. */
   const called = callFromGround(sc.pick);
   if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -452,7 +455,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }), el)) return true;
+  }), el)) return inView();
   /* A keyed hall: its section's presses, the same way; its refusals read its own words, with the key's name. */
   const hall = hallFromGround(sc.pick);
   if (actHall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -460,7 +463,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }))) return true;
+  }))) return inView();
   if (action === 'leave-party') { leaveOrDisband(ctx, cs, sc, repaint, 'leave'); return true; }
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;

@@ -202,7 +202,7 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-meta p { display: flex; gap: 6px; margin: 0; }
 .tc-meta .tc-hand { display: none; }
 /* A PRESS'S ANSWER in the keys' and stokes' place: the loot, the week, the keys of that kind left and the warmth */
-.is-result .tc-keys, .is-result .tc-none, .is-result .tc-stoke-box, .is-result .tc-cinders, .is-result .tc-resets { display: none; }
+.is-result .tc-keys, .is-result .tc-famp, .is-result .tc-none, .is-result .tc-stoke-box, .is-result .tc-cinders, .is-result .tc-resets { display: none; }
 .is-result .tc-meta .tc-hand { display: flex; margin-left: auto; }
 .is-result .tc-meta { justify-content: flex-start; }
 .tc-resets { margin: 0 0 4px; }

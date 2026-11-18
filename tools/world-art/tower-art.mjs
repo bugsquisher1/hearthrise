@@ -313,9 +313,10 @@ export function drawChest() {
 /** The idle loop alone, CW x CH frames in a row (the Tower window's chest). */
 export const drawChestIdle = () => sheet([Array.from({ length: LOOP }, (_, f) => finish(shut(), f))]);
 
-/* ITS SMOKE: thin wisps leaking from the seam and the keyholes (the town's own smoke, town-life.mjs, in black and green inks), SW x SH, the
-   chest's foot at SMOKE_ANCHOR; each emitter starts its puffs at its own frame. The bump adds a green and a black puff out of the seam at the
-   peak and dust off the stone at both feet at the slam. */
+/* ITS SMOKE: thin dark wisps leaking from the seam (the town's own smoke, town-life.mjs, in the black ink: at rest the chest's green is its
+   keyholes' and hasps' alone, lane/a-chest-glow-139), SW x SH, the chest's foot at SMOKE_ANCHOR; each emitter starts its puffs at its own
+   frame. The bump adds a green and a black puff out of the seam at the peak (the lid's light let out) and dust off the stone at both feet at
+   the slam. */
 export const SW = 72, SH = 76, SMOKE_ANCHOR = Object.freeze([36, 71]);
 const SX = SMOKE_ANCHOR[0] - ANCHOR[0], SY = SMOKE_ANCHOR[1] - ANCHOR[1];   /* the chest's frame in the smoke's */
 const INKS = Object.freeze({
@@ -325,7 +326,7 @@ const INKS = Object.freeze({
 });
 const WISP = Object.freeze({ w: SW, h: SH, n: LOOP, every: 4, life: 18, rise: 28, ease: 1.1, drift: 5, r0: 1.1, r1: 2.6, lumpy: 0.5, jitter: 0.8, sway: 1.4, thinFrom: 0.45 });
 /* [x, y in the chest's frame, ink, the frame its first puff is born on, seed] */
-const LEAKS = Object.freeze([[11, SEAM, 'black', 0, 0xc4e51], [36, SEAM, 'green', 2, 0xc4e54], [44, SEAM, 'black', 1, 0xc4e52, { every: 8 }]]);
+const LEAKS = Object.freeze([[11, SEAM, 'black', 0, 0xc4e51], [36, SEAM, 'black', 2, 0xc4e54], [44, SEAM, 'black', 1, 0xc4e52, { every: 8 }]]);
 const PUFFS = Object.freeze([[24, SEAM, 'green', 1, 0xb0a1, { every: LOOP, life: 14, rise: 34, ease: 1.5, drift: 6, r0: 2.5, r1: 6, lumpy: 1.5, jitter: 2, sway: 1.5, thinFrom: 0.35 }],
   [34, SEAM, 'black', 1, 0xb0a2, { every: LOOP, life: 12, rise: 28, ease: 1.5, drift: 8, r0: 2, r1: 5, lumpy: 1.2, jitter: 2, sway: 1.5, thinFrom: 0.35 }],
   [6, ANCHOR[1] - 1, 'dust', 5, 0xd051, { every: LOOP, life: 6, rise: 4, ease: 1, drift: -7, r0: 1.5, r1: 3.5, lumpy: 0.5, jitter: 1, sway: 0.5, thinFrom: 0.2 }],
@@ -436,7 +437,7 @@ const CHEST_JSON = 'art/world/townlife/hearth_chest.json';
 const SIDECARS = Object.freeze({
   hearth_chest_smoke: { id: 'hearth_chest_smoke', class: 'plume', style: 's1', drawn: 'tools/world-art/tower-art.mjs', material: 'native', source: 'hearth_chest_smoke.png',
     frame: [SW, SH], anchor_px: [...SMOKE_ANCHOR], footprint: [1, 1], anims: clipRows(LOOP),
-    notes: 'The Hearth Chest\'s smoke (Tyler 2026-11-17, "black / green smoke leaking out"): thin wisps from its seam and a keyhole, a puff when it jolts and dust off the stone when it slams, all the town\'s own smoke (tools/world-art/town-life.mjs smoke) in palette inks. Drawn by tools/world-art/tower-art.mjs; placed by the chest\'s AMBIENT rows (src/data/world/town/sites.js), over it.' },
+    notes: 'The Hearth Chest\'s smoke (Tyler 2026-11-17, "black / green smoke leaking out"): thin dark wisps from its seam (its green is its keyholes\' alone, Tyler 2026-11-18), a green and black puff when it jolts and dust off the stone when it slams, all the town\'s own smoke (tools/world-art/town-life.mjs smoke) in palette inks. Drawn by tools/world-art/tower-art.mjs; placed by the chest\'s AMBIENT rows (src/data/world/town/sites.js), over it.' },
 });
 const chestSidecar = () => Object.assign(JSON.parse(readFileSync(join(ROOT, CHEST_JSON), 'utf8')), { anims: [clip('idle', LOOP, true), clip('bump', BUMP.length), clip('flash', FLASH.length)] });
 const json = (o) => Buffer.from(JSON.stringify(o, null, 2) + '\n');

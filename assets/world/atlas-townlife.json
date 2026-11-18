@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-townlife.png",
   "size": [2048,660],
-  "pixels": "2cb98e430ac6e97f669375261ce0a5c3ea71c78c87e7f978e6536fd20cc6356e",
+  "pixels": "ff5b99d45f2b940bc95f8e9a52b737f2d0d6139093b0d6aaab02a3c2c431f1e7",
   "sprites": {
     "chimney_smoke": {
       "class": "plume",

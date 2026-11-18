@@ -38,7 +38,8 @@
 //             loop's start, and draw on every layer at once, never with the player's Idle animations off
 //   TL-CHEST  the chest's green at its locks, breathing slowly, and its locks' gold flash (Tyler 2026-11-18: "keep the chest green...
 //             concentrate the color around the keyhole and fittings and give it a slow, subtle pulse... have the lock flash warm gold
-//             when the special key turns"): nothing on its seat lights the stone; over its 4-6 s idle loop every green pixel is a
+//             when the special key turns"): nothing on its seat lights the stone and its smoke's loop holds no green (its wisps dark,
+//             Coordinator 2026-11-18); over its 4-6 s idle loop every green pixel is a
 //             keyhole's or a hasp's (a lock, or the seam over it), stays green, takes at most two tones (as made, a step dimmer) and
 //             some do breathe, turning at most 4 times a loop, each tone held 6 beats; its flash clip lasts CHEST_FLASH.ms on its
 //             layers, its first frame turns every lock warm gold with no green on it, its last is a frame of the loop (back to
@@ -454,6 +455,18 @@ export function problems(env) {
     /* no layer on its seat lights the stone: its green is its own pixels */
     for (const a of town.ambient.filter((r) => r.x === seat.x && r.y === seat.y && r.lift === seat.lift && r.dx === seat.dx))
       if (book.sprite(a.id).blend === 'add') bad('TL-CHEST', a.id + ' casts light on the stone round the chest (the green is to be its keyholes\' and hasps\')');
+    /* ...and its other layers are dark at rest: no green wisp off the lid (the bump's puff, the lid's light let out, is the bump's own) */
+    for (const id of CHEST_LAYERS.filter((x) => x !== 'hearth_chest')) {
+      for (let i = 0; i < book.frames(id, 'idle', 's'); i++) {
+        const f = book.frame(id, 'idle', 's', i), img = sheet(f.set);
+        let g = 0;
+        for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) {
+          const k = ((f.sy + y) * img.width + f.sx + x) * 4;
+          if (img.data[k + 3] >= 128 && GREEN.has('#' + [0, 1, 2].map((c) => img.data[k + c].toString(16).padStart(2, '0')).join(''))) g++;
+        }
+        if (g) { bad('TL-CHEST', id + ' idle ' + i + ' has ' + g + ' green px: at rest the chest\'s green is its keyholes\' and hasps\' alone'); break; }
+      }
+    }
     /* a frame's pixels in the chest's own frame (an atlas cell may be trimmed: its anchor places it) */
     const pixels = (anim, i) => {
       const f = book.frame('hearth_chest', anim, 's', i), img = sheet(f.set), m = new Map();
@@ -630,6 +643,7 @@ function selftest() {
     'the flash never fades back': { manifests: clipCells('hearth_chest', 'flash', (c) => c.map(() => c[0])) },
     'a flash in green': { manifests: clipCells('hearth_chest', 'flash', (c, a) => c.map((_, i) => a.idle.dirs.s[i])) },
     'the flash cut short': { manifests: clipCells('hearth_chest', 'flash', (c) => c.slice(0, c.length - 1)) },
+    'a green wisp off the lid at rest': { manifests: clipCells('hearth_chest_smoke', 'idle', (c, a) => c.map((x, i) => a.bump.dirs.s[i] || x)) },
     'the chest lights the stone again': { manifests: sprites('townlife', (s) => Object.assign(s, { hearth_chest_smoke: Object.assign({}, s.hearth_chest_smoke, { blend: 'add' }) })) },
     'compose ignores the flash': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, Object.assign({}, st, { ambientPlay: null }), ...r) },
     'the smoke bumps through the flash': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, st.ambientPlay ? Object.assign({}, st, { ambientPlay: { hearth_chest: st.ambientPlay.hearth_chest } }) : st, ...r) },

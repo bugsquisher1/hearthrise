@@ -3763,5 +3763,6 @@ age, and a row named without that clip (the smoke) holds its loop unbumped. The 
 its "turn" frame. Tests: TL-CHEST (+11 mutants), HM-CLIENT/HM-DATA flash checks (+6 js mutants). Lessons: (8) an atlas dedupes identical
 frames, so a "draws frame X, not Y" check can pass by coincidence when X and Y are pixel twins: pick the instant where they must differ (the
 flash's last frame is idle frame 5; the "held loop" check reads frame 20); (9) a one-shot over a looping layer must also hold its sibling
-layers' bumps, or the smoke puffs a jolt the chest never makes. Open: one of the three smoke leaks is green and rises from the seam beside
-the gold lock's hasp (kept, as briefed); if Tyler wants every green at the locks, that leak turns black or moves onto a hasp.
+layers' bumps, or the smoke puffs a jolt the chest never makes. Coordinator review (art sign-off delegated): the one green leak off the
+seam went dark like the others, so at rest the chest's green is its keyholes' and hasps' alone; TL-CHEST holds the smoke's loop to no green
+(+1 mutant). The bump's peak puff keeps its green with the lid's light.

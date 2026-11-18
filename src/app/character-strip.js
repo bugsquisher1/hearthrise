@@ -46,11 +46,15 @@ export function stripTargetOf(e) {
 }
 
 /* A phone has room for one word beside the icon row at its narrowest (app.css): "Heroes", carrying the alert count, and
-   the sheet it opens holds Characters and Sign out (src/shell/windows/characters.js, playtest 2026-10-31). */
+   the sheet it opens holds Character list and Sign out (src/shell/windows/characters.js, playtest 2026-10-31).
+   ONE TOP BAR (UI audit 2026-11-18 #10, UI-10): the place slot after the tabs takes the World pane's place name and Town / Home
+   switch (src/app/world-pane.js), and the desktop's character screen press says "Character list", the phone sheet's word for it
+   (it sat beside "All characters" as "Characters", two names a player could not tell apart), so the coach names one control on both. */
 const STRIP_HTML = '<ol class="char-tabs"></ol>'
+  + '<span class="char-place"></span>'
   + '<span class="char-strip-tools">'
   + '<button type="button" class="char-tool is-all" data-app="all" aria-label="' + t('heroes.strip_all') + '" title="' + t('heroes.strip_all_title') + '"><span class="char-tool-now"></span><span class="char-tool-wide">' + t('heroes.strip_all') + '</span><span class="char-tool-short">' + t('heroes.strip_all_short') + '</span><span class="char-badge char-all-badge"></span></button>'
-  + '<button type="button" class="char-tool" data-app="characters">' + t('heroes.strip_characters') + '</button>'
+  + '<button type="button" class="char-tool" data-app="characters">' + t('heroes.character_list') + '</button>'
   + '<button type="button" class="char-tool" data-app="sign-out">' + t('controls.sign_out') + '</button></span>';
 
 const TAB_HTML = '<li class="char-tab-row"><button type="button" class="char-tab" data-app="show">'

@@ -13,7 +13,8 @@
   overflow: clip;
 }
 
-#panel-world .world-chrome {
+/* The place's name and its Town / Home switch (src/app/world-pane.js): in the top bar (app.css .char-place), else over the stage. */
+.world-chrome {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -21,21 +22,21 @@
   min-height: 36px;
 }
 
-#panel-world .world-title {
+.world-title {
   font-family: var(--f-display);
   font-weight: 700;
   font-size: calc(17px * var(--ui-scale, 1));
   color: var(--gold-2);
 }
 
-#panel-world .world-scenes {
+.world-scenes {
   display: flex;
   gap: 6px;
   margin-left: auto;
 }
 
 /* Forged Steel: the scene picks are square steel buttons; the shown one lifted, outlined in gold. */
-#panel-world .world-scene {
+.world-scene {
   min-height: 36px;
   min-width: 72px;
   padding: 4px 14px;
@@ -49,15 +50,15 @@
   cursor: pointer;
 }
 
-#panel-world .world-scene:hover { color: var(--ink); }
+.world-scene:hover { color: var(--ink); }
 
-#panel-world .world-scene.active {
+.world-scene.active {
   color: var(--gold-2);
   border-color: var(--gold);
   background: var(--bg-3);
 }
 
-#panel-world .world-scene[hidden] { display: none; }
+.world-scene[hidden] { display: none; }
 
 #panel-world .world-stage {
   position: relative;

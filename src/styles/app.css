@@ -224,10 +224,14 @@
   .slot-offer { gap: 2px 12px; padding-top: 6px; }
 }
 
-/* Forged Steel: the strip stands on a steel edge (the thin frame's bottom run, 3 art px = 6 px) over the World. */
+/* Forged Steel: the strip stands on a steel edge (the thin frame's bottom run, 3 art px = 6 px) over the World.
+   ONE TOP BAR (UI audit 2026-11-18 #10, UI-10): the hero tabs, the place (its name and the Town / Home switch, src/app/world-pane.js)
+   and the account's presses share one 48 px band with the icon row (shell.css .hs-launchers, the same height), over the one rule. */
 .char-strip {
   display: flex;
   align-items: stretch;
+  box-sizing: border-box;
+  height: calc(48px + var(--art-3));
   gap: 0.25rem;
   padding: 0 0.5rem;
   background: var(--bg-1);
@@ -248,7 +252,7 @@
   background: none;
   border: 0;
   border-bottom: 2px solid transparent;
-  padding: 4px 8px 3px;
+  padding: 2px 8px 1px;
   cursor: pointer;
 }
 .char-tab:hover { color: var(--ink); background: var(--bg-2); }
@@ -298,6 +302,16 @@
 /* The tools stand at the strip's right end, never behind the tabs: a tab arriving or a hero's status changing slid Characters under
    a pointer aimed at Sign out (Andy 2026-11-06, client-boot B-4). */
 .char-strip-tools { display: flex; align-items: stretch; flex: none; margin-left: auto; }
+/* THE PLACE (world-pane.js mounts the pane's .world-chrome here): after the tabs, behind a steel rule, the place's name and its Town / Home switch.
+   In a hunt the hunt bar is the place's title (hunt-topbar.js), so the slot goes; a hunt bar still standing in town keeps it (Andy 2026-11-01:
+   Town / Home is the way out of the house), so this keys on the SCENE the pane shows (world-boot.js paintChrome), never on the bar alone. */
+.char-place { display: flex; align-items: center; flex: none; min-width: 0; margin-left: 0.5rem; padding: 0 0.75rem; border-left: 2px solid var(--steel-sep); }
+.char-place:empty { display: none; }
+.char-place .world-chrome { min-height: 0; gap: 12px; }
+/* the switch first, so it never moves under the pointer when the name beside it changes ("Havora" / "Your Home") */
+.char-place .world-scenes { order: -1; margin-left: 0; gap: 4px; }
+.char-place .world-scene { min-height: 34px; min-width: 64px; padding: 0 12px; }
+.app.is-game:has(#panel-world[data-scene="hunt"] .ht-bar) .char-place { display: none; }
 .char-tool { font: inherit; font-size: 0.85rem; color: var(--ink-3); background: none; border: 0; padding: 0 0.6rem; cursor: pointer; }
 .char-tool:hover { color: var(--ink); }
 .char-tool-short, .char-tool-now, .char-tool .char-all-badge { display: none; }
@@ -329,6 +343,12 @@
   .char-unopened .char-tab-main { gap: 0; }
   .char-unopened .char-tab-name { font-size: var(--t-micro); line-height: 1.15; }
   .char-unopened-play { line-height: 1.15; }
+  /* the place at the strip's right end, by the icon row (the tabs take the width between): the switch at the band's height, the name
+     only where the strip keeps room for a tab beside it */
+  .char-place { height: 34px; margin-left: 0; padding: 0 6px; }
+  .char-place .world-chrome { gap: 8px; }
+  .char-place .world-scene { min-height: 30px; min-width: 56px; padding: 0 8px; font-size: var(--t-micro); }
+  @container char-strip (max-width: 420px) { .char-place .world-title { display: none; } }
   @container char-strip (max-width: 150px) { .char-tabs { display: none; } }
   /* No room for a tab: the press to every hero names the one on screen, over its word (a player at 667 px could not see whose bar it was). */
   @container char-strip (max-width: 150px) {
@@ -344,11 +364,6 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .conn-line { top: 104px; font-size: var(--t-micro); }
 }
-/* In a hunt the top bar carries the ground's name and clock, so the pane's own
-   title row would only repeat it and cost the stage a line. Keyed on the SCENE (world-boot.js paintChrome), never on
-   the bar alone: the bar stays up in town after a hunt ends ("Last hunt: ... Summary") and took the Town / Home
-   buttons with it (Andy 2026-11-01: no way back out of the house). */
-.app.is-game #panel-world[data-scene="hunt"]:has(.ht-bar) .world-chrome { display: none; }
 
 /* THE CREATION STEP (src/app/hero-create.js), in the account card: the hero in a sunk mirror on the left (drawn at
    x4, standing on the pixel ground shadow at the same x4), its name and four colour strips beside it, then How you

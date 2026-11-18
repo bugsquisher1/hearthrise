@@ -353,7 +353,7 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
            closed; the row of Town / Home buttons shares its way out with the house and must stand under it. A running hunt hides the row. */
         const rowView = (page) => page.evaluate(() => {
           const box = (n) => { const r = n && n.getClientRects().length ? n.getBoundingClientRect() : null; return r ? { top: r.top, bottom: r.bottom } : null; };
-          return { bar: box(document.querySelector('.ht-bar')), chrome: box(document.querySelector('#panel-world .world-chrome')),
+          return { bar: box(document.querySelector('.ht-bar')), chrome: box(document.querySelector('.world-chrome')),
             town: box(document.querySelector('[data-world-choice="town"]')), home: box(document.querySelector('[data-world-choice="home"]')) };
         });
         const s5 = scripted(true);
@@ -468,7 +468,7 @@ const MUTANTS = [
   ['a hero switch stands the hunt bar back up in town (DP-6)', 'src/hunt-view/summary-recorder.js', 'attach(cs).closed = h.sessionId;', 'void attach(cs);'],
   ['a hero switch with the summary up stands the hunt bar in its place (DP-6)', 'src/shell/shell.js', "if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);", 'void 0;'],
   ['a closed summary waits out the residue debounce', 'src/hunt-view/summary-recorder.js', "if (typeof cs.flushResidue === 'function') cs.flushResidue().catch(() => {});", 'void 0;'],
-  ['the hunt bar alone hides the Town / Home row', 'src/styles/app.css', '.app.is-game #panel-world[data-scene="hunt"]:has(.ht-bar) .world-chrome', '.app.is-game:has(.ht-bar) #panel-world .world-chrome'],
+  ['the hunt bar alone hides the Town / Home row', 'src/styles/app.css', '.app.is-game:has(#panel-world[data-scene="hunt"] .ht-bar) .char-place', '.app.is-game:has(.ht-bar) .char-place'],
   ['the pane never names its scene', 'src/world/world-boot.js', "    panel.setAttribute('data-scene', sc.kind);", '    void 0;'],
   ['the plate behind a window names nothing (DP-9)', 'src/styles/hunt.css', '  .app:has(.hs-win:not(.is-leaving)) .ht-bar:has(.ht-clock:not([hidden])) .ht-ground { display: none; }', '  .app:has(.hs-win:not(.is-leaving)) .ht-ground { display: none; }'],
   ['the summary opens over the popup','src/shell/shell.js', "if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death'))", 'if (cs && takeFresh(cs))'],

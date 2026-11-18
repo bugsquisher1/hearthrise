@@ -854,7 +854,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         if (added.includes(sheetOf(r.request().url()))) { asked++; await held; }
         return r.continue();
       });
-      const title = () => page.evaluate(() => (document.querySelector('#panel-world .world-title') || {}).textContent || '');
+      const title = () => page.evaluate(() => (document.querySelector('.world-title') || {}).textContent || '');
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       await page.fill('input[name=email]', 'qa@example.test');
@@ -862,14 +862,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await page.click('[data-app="play"][data-slot="0"]');
-      const inTown = await wait(page, (name) => ((document.querySelector('#panel-world .world-title') || {}).textContent || '').includes(name), TOWN_NAME);
+      const inTown = await wait(page, (name) => ((document.querySelector('.world-title') || {}).textContent || '').includes(name), TOWN_NAME);
       o.hunt = true;
       await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 10, env }, 'frame'), [UID, Object.assign({}, HUNT, { version: 10 })]);
       for (let i = 0; i < 60 && !asked; i++) await page.waitForTimeout(50);
       await page.waitForTimeout(500);
       const during = await title();
       release();
-      const after = await wait(page, () => /Mill Cellar/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      const after = await wait(page, () => /Mill Cellar/.test((document.querySelector('.world-title') || {}).textContent || ''));
       if (!added.length) fails.push('B-12 harness: the cellar adds no sheet to the Common\'s (' + CELLAR_SHEETS.sets.join() + ')');
       else if (!inTown) fails.push('B-12 the hero never stood in the Common');
       else if (!asked) fails.push('B-12 the hunt in the cellar never asked for its sheet ' + added.join());
@@ -1068,7 +1068,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await page.click('[data-app="play"][data-slot="0"]');
-      const inCellar = await wait(page, () => /Mill Cellar/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      const inCellar = await wait(page, () => /Mill Cellar/.test((document.querySelector('.world-title') || {}).textContent || ''));
       o.hunt = false;
       const sent = Date.now();
       await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 20, env }, 'frame'), [UID, envelope(0, 20)]);

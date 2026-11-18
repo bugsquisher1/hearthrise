@@ -51,6 +51,7 @@
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.4",
     "@electric-sql/pglite-socket": "^0.2.8",
+    "fast-check": "4.10.2",
     "oxlint": "1.91.0",
     "playwright": "^1.47.0",
     "postgres": "3.4.5",

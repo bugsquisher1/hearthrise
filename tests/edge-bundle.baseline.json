@@ -1,0 +1,24 @@
+{
+  "$comment": [
+    "Each edge function's payload ceiling in bytes (tools/pack-edge.mjs pack(), the bytes the deploy ships), read by tests/edge-bundle.mjs.",
+    "The ceiling is the LAST row. It goes up only through node tests/edge-bundle.mjs --raise \"<why>\", which appends a row with its reason;",
+    "node tests/edge-bundle.mjs --write appends a lower row after a cut (a cut of more than 4 KB is red until it is locked in).",
+    "Written by the tool, never by hand. Two lanes that both moved a ceiling conflict here: take either side and run the tool again."
+  ],
+  "ceilings": {
+    "bug-report-bridge": [
+      {
+        "bytes": 19972,
+        "on": "2026-11-18",
+        "why": "first pin (lane/b-edge-trim, arch audit item 4): hr-accrue after the crew-settle cut and the engine-only map index, 3,142,985 -> 3,044,181 bytes; bug-report-bridge as it stands"
+      }
+    ],
+    "hr-accrue": [
+      {
+        "bytes": 3044181,
+        "on": "2026-11-18",
+        "why": "first pin (lane/b-edge-trim, arch audit item 4): hr-accrue after the crew-settle cut and the engine-only map index, 3,142,985 -> 3,044,181 bytes; bug-report-bridge as it stands"
+      }
+    ]
+  }
+}

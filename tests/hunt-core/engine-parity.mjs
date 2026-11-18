@@ -72,7 +72,11 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-17 (lane/a-cave-walls round 2), THE WARRENS' WALK GRID ONLY: warrens-4 moved at settle 1 (kills 209 -> 211); glade-4, sewer-2 and the
    lone ranger hold. Cause: src/data/world/maps/coppercap_warrens.js rows reshaped off the rectangles (the Coordinator: the rooms read as boxes; every
    pack tile, pull, node, the patrol path and the walk between the pockets held, 981 -> 986 open tiles), so the party walks other steps. Proof: the
-   merged tree with origin/lane/a-art-136's coppercap_warrens.js laid back alone holds every pin (exit 0). The Glade's ford stone ids move no pin. */
+   merged tree with origin/lane/a-art-136's coppercap_warrens.js laid back alone holds every pin (exit 0). The Glade's ford stone ids move no pin.
+   RE-PINNED 2026-11-18 (lane/d-jewelry-sample, stacked on lane/d-drop-homes), DATA ONLY, kills unchanged (211, 515, 128, 121). Proof, by laying each lane's
+   src/ over this tree and pinning: origin/main's holds every pin (exit 0); lane/d-drop-homes' src/data moves warrens-4's world, timeline and tally (its
+   Warrens Scarce weapon and shield rows) and the other three's tallies (its vendor bids); this lane over drop-homes moves warrens-4's TALLY only (the
+   Goblin Digger's Seam Jasper Rare). Steady and Focus (combat.js, damage.js) move no pin: no pinned hero wears them. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

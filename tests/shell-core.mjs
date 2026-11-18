@@ -771,7 +771,7 @@ async function runTests(mods) {
         hunt: { session_id: session, hunt_id: 'meadowbrook_thicket', ended: !!ended, session: ended ? { end_reason: 'stamina' } : {}, hero: {}, pose: { units: [] } },
         hunt_analyzer: { hero: { kills: 644, coins: 1956 } } })[k] });
     const back = AR.awayRecapOf(env(T0 + H2));
-    ok(back && back.kind === 'away' && /Away 2 h 0 min: Brannoc hunted Meadowbrook Thicket/.test(back.text)
+    ok(back && back.kind === 'away' && /^Away 2 h 0 min\. Brannoc hunted Meadowbrook Thicket\. Level 5 to 10, /.test(back.text)
       && /Level 5 to 10/.test(back.text) && /\+1,142 gold/.test(back.text) && !/99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
       'the return line: ' + JSON.stringify(back));
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
@@ -801,7 +801,20 @@ async function runTests(mods) {
     const going = AR.awayRecapOf(withStamina(env(T0 + H2), 3 * 3600000 + 25 * 60000));
     ok(going && /Still hunting, with 3 h 25 min of stamina left\./.test(going.text), 'a hunt still running says the stamina left: ' + JSON.stringify(going && going.text));
     const idle = AR.awayRecapOf(withStamina(env(T0 + 8 * 3600000, true), 5 * 3600000 + 46 * 60000, new Date(T0 + 8 * 3600000 - (5 * 3600000 + 46 * 60000)).toISOString()));
-    ok(idle && /The hunt has ended 5 h 46 min ago\. Out of stamina, so Brannoc came home\. Stamina now: 5 h 46 min\./.test(idle.text) && !/1:1/.test(idle.text), 'a hunt that ran out while the player was away says when, and what now: ' + JSON.stringify(idle && idle.text));
+    ok(idle && /The hunt ended 5 h 46 min ago\. Out of stamina, so Brannoc came home\. Stamina now: 5 h 46 min\./.test(idle.text) && !/1:1/.test(idle.text), 'a hunt that ran out while the player was away says when, and what now: ' + JSON.stringify(idle && idle.text));
+    /* A WEEK AWAY READS IN DAYS, ONE SENTENCE A FACT (QA audit 2026-11-18 N6: "Away 176 h 2 min: Wren hunted ...: Level 5 to 10 ... The hunt has ended 164 h 15 min ago") */
+    const W = 7 * 24 * 3600000 + 8 * 3600000 + 2 * 60000;
+    const week = AR.awayRecapOf(withStamina(env(T0 + W, true), 12 * 3600000, new Date(T0 + W - (6 * 24 * 3600000 + 20 * 3600000 + 15 * 60000)).toISOString()));
+    ok(week && /^Away 7 days\. Brannoc hunted Meadowbrook Thicket\. Level 5 to 10, /.test(week.text) && /The hunt ended 6 days ago\. /.test(week.text)
+      && !/ h \d+ min ago|\d{3,} h /.test(week.text) && !/[a-z]: [A-Z]|\w: Level/.test(week.text), 'a week away: ' + JSON.stringify(week && week.text));
+    eq(AH.spanWords(48 * 3600000), '48 h 0 min', 'two days to the minute still reads in hours');
+    eq(AH.spanWords(48 * 3600000 + 60000), '2 days', 'past two days, whole days');
+    /* N7 (QA audit 2026-11-18, assumed): a week card counting the 8 h the player had already seen. Ruled out: a return to a hunt still running
+       renews the stamp on the first stampAway after the card is read (alerts.js holds it AWAY_READ_MS, 8 s), not ten minutes later, so a tab
+       killed a minute after the return leaves the return's stamp, and the next line counts from there (played on the local world: 168 h, Level 8 to 9). */
+    const readBack = env(T0 + 8 * 3600000 + 20 * 1000);
+    ok(AR.stampAway(readBack) === true && readBack.writes[0][1].at === T0 + 8 * 3600000 + 20 * 1000 && readBack.writes[0][1].lv === 10,
+      'a return\'s card read 20 s in: the stamp is the return\'s own: ' + JSON.stringify(readBack.writes));
     /* the hunt the player came back to is recorded once, for the coach (hunt-tutorial.js fresh_hunt, launcher.js restsNow) */
     const home = hero({ record: { residue: { coach: { read: ['x'] } } } });
     ok(AR.markBack(home, 's-1') === true && home.writes[0][0] === 'coach' && home.writes[0][1].back === 's-1' && home.writes[0][1].read[0] === 'x', 'the return is marked, the reads kept: ' + JSON.stringify(home.writes));
@@ -868,7 +881,7 @@ async function runTests(mods) {
     eq(AR.FIRST_AWAY_MIN_MS, 3 * MIN, 'the first return speaks from three minutes');
     ok(AR.awayRecapOf(hero(T0 + 3 * MIN - 1000)) === null, 'under three minutes away is a look, not an absence');
     const first = AR.awayRecapOf(hero(T0 + 3 * MIN));
-    ok(first && /^Away 3 min: Odalys hunted Mill Cellar: Level 3 to 4, /.test(first.text) && /40 kills/.test(first.text) && /\+30 gold/.test(first.text),
+    ok(first && /^Away 3 min\. Odalys hunted Mill Cellar\. Level 3 to 4, /.test(first.text) && /40 kills/.test(first.text) && /\+30 gold/.test(first.text),
       'a new hero back after three minutes is told, from the server\'s numbers: ' + JSON.stringify(first && first.text));
     ok(first && first.minutes === 3 && first.levels === 1 && first.at === T0, 'the line carries its minutes, its Levels and its stamp: ' + JSON.stringify(first));
     /* the hero left at Level 4 and is back at 5: new by the STAMP's Level, not the Level it returns at */
@@ -907,7 +920,7 @@ async function runTests(mods) {
     const paid = { mining: { xp: XP.skillXpForLevel('mining', 47), level: 47 } };
     /* a hero who has never hunted: no hunt section at all */
     const back = AR.awayRecapOf(hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock));
-    ok(back && back.text === 'Away 8 h 0 min: Tess mined the Copper Rock, +4,303 Copper Ore, Mining 26 to 47. Still mining.', 'the gathering line: ' + JSON.stringify(back && back.text));
+    ok(back && back.text === 'Away 8 h 0 min. Tess mined the Copper Rock. +4,303 Copper Ore, Mining 26 to 47. Still mining.', 'the gathering line: ' + JSON.stringify(back && back.text));
     ok(back && back.action === 'bag' && back.session === null && back.id === 'away:town:gather:copper_rock:' + T0, 'it opens the bag and is shown once: ' + JSON.stringify(back));
     /* the first read back is from before the sign-in's settle: the line waits for the numbers */
     const unpaid = hero(T0 + H8, mining(T0), { mining: { xp: rock.sx, level: 26 } }, { copper_ore: 10 }, rock);
@@ -920,7 +933,7 @@ async function runTests(mods) {
     const saw = { s: 'town:artisan:saw_normal', at: T0, sx: XP.skillXpForLevel('crafting', 10), sl: 10, n: 0 };
     const idle = { active_kind: 'idle', active_id: null, accrued_to: iso(T0 + 50 * MIN) };
     const benched = AR.awayRecapOf(hero(T0 + 50 * MIN, idle, { crafting: { xp: XP.skillXpForLevel('crafting', 29), level: 29 } }, { normal_plank: 392 }, saw));
-    ok(benched && /^Away 50 min: Tess made Normal Plank, \+392 Normal Plank, Crafting 10 to 29\. It stopped about \d+ min in: out of Normal Log\.$/.test(benched.text), 'the bench line: ' + JSON.stringify(benched && benched.text));
+    ok(benched && /^Away 50 min\. Tess made Normal Plank\. \+392 Normal Plank, Crafting 10 to 29\. It stopped about \d+ min in, out of Normal Log\.$/.test(benched.text), 'the bench line: ' + JSON.stringify(benched && benched.text));
     /* nothing came of it: no line */
     ok(AR.awayRecapOf(hero(T0 + H8, idle, { crafting: { xp: saw.sx, level: 10 } }, {}, saw)) === null, 'a job that made nothing raises no line');
     /* the stamp: at the server's watermark, with the server's skill and bag */
@@ -998,7 +1011,7 @@ async function runTests(mods) {
     /* the away line: what it did, and why it ended, in training's words */
     for (const [reason, want] of [['no_fight', /Training ended\./], ['gold_out', /Training ended \(out of gold\)\./], ['hours', /Training ended \(12 h reached\)\./], ['left', /Training stopped\./]]) {
       const line = AR.awayRecapOf(hero(env('training_yard_ranged', true, reason), true));
-      ok(line && /^Away 2 h 0 min: Wren trained Ranged at the Training Yard\./.test(line.text) && want.test(line.text) && !HUNTISH.test(line.text),
+      ok(line && /^Away 2 h 0 min\. Wren trained Ranged at the Training Yard\./.test(line.text) && want.test(line.text) && !HUNTISH.test(line.text),
         'a yard session ended ' + reason + ': ' + JSON.stringify(line && line.text));
     }
     const still = AR.awayRecapOf(hero(env('training_house_magic', false), true));
@@ -1062,7 +1075,7 @@ async function runTests(mods) {
     ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
     ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, mining(END + 2 * H))) || {}).text || ''), 'a job started later was not a resume');
     const unsaid = (AR.awayRecapOf(wrenna(NOW, { gold: 5 })) || {}).text || '';
-    ok(/The hunt has ended 5 h 46 min ago\./.test(unsaid) && !/Then Wrenna/.test(unsaid), 'no pointer from the server: the old line, nothing guessed: ' + unsaid);
+    ok(/The hunt ended 5 h 46 min ago\./.test(unsaid) && !/Then Wrenna/.test(unsaid), 'no pointer from the server: the old line, nothing guessed: ' + unsaid);
   });
   t('R3d the hunt viewed: the summary card says what came after, from the server\'s pointer', () => {
     const atEnd = AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1');
@@ -1318,6 +1331,9 @@ const MUTANTS = [
   { test: 'R3', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'gold', 'kills', 'sx', 'sl', 'n'])" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'const from = Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : null;', to: 'const from = lv.level - 1;' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'xp: lv.xp, lv: lv.level,', to: 'xp: lv.xp,' },
+  /* N6 (QA audit 2026-11-18): a week reads in days, and the hunt "ended ... ago" */
+  { test: 'R3', file: 'src/shell/after-hunt.js', from: '  if (ms > SPAN_DAYS_OVER_MS) return', to: '  if (false) return' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "t('away.card_ended_ago', { time: ago })", to: "t('away.card_ended') + ' ' + ago" },
   { test: 'R3b', file: 'src/shell/away-work.js', from: 'const from = Number.isSafeInteger(was.sl) && was.sl >= 1 ? was.sl : null;', to: 'const from = sk.level - 1;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: '{ sx: sk.xp, sl: sk.level }', to: '{ sx: sk.xp }' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },

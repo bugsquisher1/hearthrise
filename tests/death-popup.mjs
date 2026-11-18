@@ -103,9 +103,17 @@ async function pure(base) {
   if (whyAt(floor, SESSION) !== WHY_IN_RANGE) fail(fails, 'DP-0 a death in range reads ' + JSON.stringify(whyAt(floor, SESSION)));
   if (whyAt(2, 'an-older-hunt') !== '') fail(fails, 'DP-0 an older hunt\'s death guesses at its Level: ' + JSON.stringify(whyAt(2, 'an-older-hunt')));
   /* A BOSS ROOM IS ONE PULL (March play-through 2026-11-14: Krell's Hall said "a smaller pull would help"): a death in range in a hall or a called room never says it. */
+  /* A ROOM'S GAP IS TO ITS BOSS (QA audit 2026-11-18 N4): a Level 5 hero the Level 25 Rat King killed read "3 Levels under this ground",
+     the room's band floor of 8. It says the boss's own Level gap, and at or over his Level it is the room's tip, as above. */
+  const { MONSTERS } = await import(pathToFileURL(join(base, 'src/data/monsters.js')).href);
+  const { roomOfHunt } = await import(pathToFileURL(join(base, 'src/data/boss-halls.js')).href);
+  const roomCs = (room, lvl) => { const rr = Object.assign({}, BARE, { hunt: room });
+    return { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [rr] : k === 'state' ? { level_xp: charXpForLevel(lvl) } : k === 'level' ? levelBlock(charXpForLevel(lvl)) : k === 'hunt' ? { session_id: SESSION, hunt_id: room, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } }; };
+  const kingWhy = (() => { const cs = roomCs('millrace_sewer_called', 5); return deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why; })();
+  if (kingWhy !== '20 Levels under the Rat King') fail(fails, 'DP-0 a Level 5 hero the Rat King (Level 25) killed reads ' + JSON.stringify(kingWhy) + ', want the gap to him');
   for (const room of ['krells_hold_hall', 'millrace_sewer_called']) {
-    const rr = Object.assign({}, BARE, { hunt: room }), lvl = HUNT_INDEX[room].band[0];
-    const cs = { read: (k) => (k === 'name' ? 'Tyler' : k === 'death_log' ? [rr] : k === 'state' ? { level_xp: charXpForLevel(lvl) } : k === 'level' ? levelBlock(charXpForLevel(lvl)) : k === 'hunt' ? { session_id: SESSION, hunt_id: room, ended: true, session: { end_reason: 'died' } } : null), record: { residue: {} } };
+    const lvl = Math.max(HUNT_INDEX[room].band[0], MONSTERS[roomOfHunt(room).monster].level);
+    const cs = roomCs(room, lvl);
     const why = deathWords(cs, { session: SESSION, row: deathLogOf(cs)[0] }).why;
     if (why !== 'Tip: better armor, eat sooner, or bring a healer') fail(fails, 'DP-0 a death in ' + room + ' reads ' + JSON.stringify(why));
     /* ...and a party that HAD a Healer is never told to bring one (the v0.2.132 re-play, a four with a Healer at Krell) */

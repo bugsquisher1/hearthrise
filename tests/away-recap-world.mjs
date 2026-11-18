@@ -83,7 +83,7 @@ try {
     const q = await enter('gatherer');
     const line = await cardOf(q, 30000);
     await q.shot('ar1-gathered');
-    step('AR-1 eight hours at a rock are told', !!line && /Away 8 h \d+ min: Tessel mined the Copper Rock, \+[\d,]+ Copper Ore, Mining 1 to \d+\. Still mining\./.test(line), line);
+    step('AR-1 eight hours at a rock are told', !!line && /Away 8 h \d+ min\. Tessel mined the Copper Rock\. \+[\d,]+ Copper Ore, Mining 1 to \d+\. Still mining\./.test(line), line);
     await q.close();
   }
 

@@ -56,8 +56,11 @@ const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_fo
 const TRAIN_NEXT = Object.freeze({ hours: 'away.next_train_again' });
 const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
 
-/** "1 h 58 min", "25 min". */
+/* Longer than this reads in whole days (QA audit 2026-11-18 N6: a week away read "176 h 2 min"). */
+export const SPAN_DAYS_OVER_MS = 48 * 3600 * 1000;
+/** "1 h 58 min", "25 min"; over two days, "7 days" (whole days, rounded down). */
 export function spanWords(ms) {
+  if (ms > SPAN_DAYS_OVER_MS) return t('away.span_days', { count: Math.floor(ms / (24 * 3600 * 1000)) });
   const m = Math.max(0, Math.floor(ms / 60000));
   return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
 }

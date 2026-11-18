@@ -4,6 +4,15 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-18 · systems-engineer (lane/d-late-items-rescue) · the late-items chain re-landed on v0.2.139
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 tests · `tests/hunt-core/fixtures/h2.js` planted mutant copies without `src/render`, so every mutant in damage, pull-cycle, roles, targeting and temper threw "Cannot find module ... player-text.js" and counted as caught. Fixed (the 11-15 fix never merged); with real plants all five stay green, and roles' "ranged distance measured from the leader" had gone vacuous (a ReferenceError: leaderOf no longer imported), re-armed. Still caught by a throw, not its rule: roles' "a bow is one-handed again" (chests.js refuses the data at load) | hunt-core suites | qa-engineer: a mutant caught by "threw" is not a proof; H2_WHY=1 prints why |
+| 2 | P2 grader · the `--uniques` kit counts a Hearth Chest weapon as gettable (catalogue-coherence reach), so from 88 every hero wears its family's Platinum Tower weapon (Dawnsteel +4 skill) wherever no hidden unique beats it there. A weekly lottery read as a drop | tools/balance-sim/gear.mjs bestOf | game-designer: should a grade assume a chest piece? (a `--chest` opt-in is one line in `can`) |
+| 3 | P2 data · special-attributes.js files +skill as `skillB`; the engine reads `meleePlus`/`rangedPlus`/`magicPlus`/`defensePlus` (combat.js SKILL_PLUS_FIELDS). The Mudlark's Mitts would ship as nothing | special-attributes.js, tests/special-attributes.mjs | game-designer + systems: move the catalogue to the engine's fields; uniques-proof U4 re-aims then |
+| 4 | P3 · since Deadly brings six on the late grounds (lane/d-flat-party-xp), a healerless four holds Deadly on Carter's Rest, the Ox Road and the Roost (1 / 3 / 4 per 16 hero-hours at the floor); only the Vaults is a Healer's tier | late packs | none (measured, built) |
+
 ## 2026-11-18 · systems-engineer (lane/a-honesty-rescue) · three finished 11-16 lanes re-landed; one red found on the set
 
 | # | Found | Affected | Action |

@@ -2002,7 +2002,7 @@ const MUTANTS = [
   ['PH-13 the icon\'s tooltip stays on a tapped sheet', 'src/styles/shell.css', '  .hs-win-head .hs-key, .hs-launch::before { display: none; }\n', '  .hs-win-head .hs-key { display: none; }\n'],
   ['PH-14 a held icon says nothing', 'src/shell/launcher-names.js', 'swallow = true; show(icon); }', 'swallow = true; }'],
   ['PH-14 letting go of a held icon opens it', 'src/shell/launcher-names.js', "function onClick(e) { if (swallow && ", "function onClick(e) { if (false && "],
-  ['PH-14 the key chips stay on touch', 'src/styles/shell.css', ':root.is-touch .hs-win-head .hs-key, :root.is-touch .hs-launch::before { display: none; }', ':root.is-touch .hs-launch::before { display: none; }'],
+  ['PH-14 the key chips stay on touch', 'src/styles/shell.css', ':root.is-touch .hs-win-head .hs-key, :root.is-touch :is(.hs-launch, .hs-keytip)::before { display: none; }', ':root.is-touch :is(.hs-launch, .hs-keytip)::before { display: none; }'],
   ['PH-14 a grey button says nothing', 'src/shell/off-why.js', "if (words) show(b, words); else hide();", "hide();"],
   ['PH-14 a slot\'s sheet does not say why', 'src/shell/windows/configure-action.js', "text(root.querySelector('.ca-why'), fireWhy ? fireWhy.text : '');", ''],
   ['PH-14 her board does not say why while it is loaded', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : takeWhyOf(tally, hunting, suggest);"],

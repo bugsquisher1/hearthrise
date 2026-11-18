@@ -4,8 +4,8 @@
 // Moved out of shell.js whole (no behaviour change). shell.js's placeWidgets runs it, before and after the
 // step-downs. DOM reads and style writes only; it writes a top only when it changed.
 // ════════════════════════════════════════════════════════════════════════
-import { stackBelow } from './hud.js?v=0.2.137';
-import { DOCK_EDGE } from './window-manager.js?v=0.2.137';
+import { stackBelow } from './hud.js?v=0.2.138';
+import { DOCK_EDGE } from './window-manager.js?v=0.2.138';
 
 /* A widget that stacks (a row's `below`: the tally) sits under the widgets it names on its edge, wherever
    they are now (hud.js stackBelow); a hidden one is in nobody's way, and so is one waiting under the dock (v0.2.130 gate D1:

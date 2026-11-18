@@ -109,10 +109,8 @@ export const TRAINING_TEXT = Object.freeze({
   time_under_minute: 'less than a minute',
 
   /* A SESSION'S END CARD (src/shell/windows/hunt-summary.js; the designer's coherence pass 2026-11-15): what it gave and cost, each
-     figure the server's last stop for it. {skill} the skill's name. */
+     figure the server's last stop for it, as the result block's labels (its level line is the summary's "Defense 12 → 14"). {skill} the skill's name. */
   card_xp: '{skill} XP',
-  card_level: '{skill} level',
-  card_level_up: '{from} to {to}',
   card_fee: 'Paid at the yard',
   card_again: 'Train again',
   card_again_title: 'Opens the Training window.',

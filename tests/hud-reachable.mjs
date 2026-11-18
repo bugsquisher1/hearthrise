@@ -7,7 +7,7 @@
 //   node tests/hud-reachable.mjs --mutate --only <words>   only the mutants whose name holds <words>
 //   node tests/hud-reachable.mjs --shots <dir>   also write a screenshot per size, solo and in a party of 4
 //
-// mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css src/styles/app.css
+// mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css src/styles/app.css src/shell/widgets/alerts.js src/shell/windows/away.js
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // Three friends' panel, 2026-11-01 (art/review/player-feedback-2026-11-01/friends.txt on lane/f3-friends): below about 1550 px
@@ -34,7 +34,12 @@
 //        live page at each size and two phones, its line and presses are clear, the launchers and every panel sit in the room below it
 //        and take their presses, a window's close too; Later gives the room back
 //   HR-11 NOTHING DOCKS WHERE THE HERO STANDS (audit 2026-11-15 F1, F13: the coach card and the away card lay on the hero at 1280x720): at each size,
-//        Chat open, the shown away card and an open coach card both stand clear of the point the camera frames (the middle of the World the published inset leaves)
+//        Chat open, the shown alert card and an open coach card both stand clear of the point the camera frames (the middle of the World the published inset leaves)
+//   HR-12 WHILE YOU WERE AWAY IS ONE CARD (UI audit 2026-11-18 #2: a seven-line paragraph at the left edge beside a summary that hid its numbers), at
+//        1440x900 and 922x423, a hunt that ended while the page was closed: the card is docked, the alert lines and the hunt summary say nothing
+//        beside it, the result leads (the Level from the stamp's server Level to the server's now, the Level XP the two stamps differ by) and is
+//        whole as the card opens, Hunt again is its one gold press and sends ONE hr_hunt_restart for that session, OK reads it, a reload does not
+//        bring it back
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -84,6 +89,7 @@ async function stub(page, s) {
   await page.route('https://nezapsylztqbbwuwembx.supabase.co/**', (r) => {
     const name = r.request().url().split('?')[0].split('/').pop();
     const body = JSON.parse(r.request().postData() || '{}');
+    (s.calls = s.calls || []).push({ name, body });
     const json = (b) => r.fulfill({ contentType: 'application/json', body: JSON.stringify(b) });
     if (name === 'hr_load') return json(s.next());
     if (name === 'hr-accrue') return json(Object.assign({ accrued: true }, s.next()));
@@ -322,10 +328,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       env.client_state = Object.assign({}, env.client_state, { awaySeen: { s: env.hunt.session_id, at: env.hunt_server_now_ms - 2 * HOURS, xp: Math.max(0, env.state.level_xp - 500), gold: 0, kills: 1 } }, extra);
     };
 
+    /* A party invite waiting: the alert lines' own card (the return is its own window since UI audit 2026-11-18 #2, HR-12). */
+    const invited = (env) => { env.party_invites = [{ id: '0b1e5a7c-0000-4000-8000-000000000006', from: 'Bramwell', hunt: env.hunt.hunt_id }]; };
     for (const [tag, prep] of [['solo', null], ['party of 4', partyOf4]]) { // HR-6 the alerts block nothing
-      const { ctx, page, up } = await open((env) => { if (prep) prep(env); stamped(env); });
+      const { ctx, page, up } = await open((env) => { if (prep) prep(env); invited(env); });
       if (up) {
-        if (!(await wait(page, () => /\bAway \d/.test(document.querySelector('.hw-alert-text')?.textContent || '')))) fails.push('HR-6 CONTROL ' + tag + ': no away card came up');
+        if (!(await wait(page, () => /invites/.test(document.querySelector('.hw-alert-text')?.textContent || '')))) fails.push('HR-6 CONTROL ' + tag + ': no alert line came up');
         await page.keyboard.press('Enter');
         await wait(page, () => document.querySelector('[data-hs-win="chat"] [role="tab"]'));
         await page.evaluate(() => document.activeElement && document.activeElement.blur && document.activeElement.blur());
@@ -342,8 +350,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const card = await page.evaluate(() => { const e = document.querySelector('[data-hs-widget="alerts"]'); const q = e.getBoundingClientRect(); return { left: q.left, top: q.top, right: q.right, bottom: q.bottom, hidden: getComputedStyle(e).visibility === 'hidden' }; });
           const others = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-widget="party"], [data-hs-widget="analyzer"], [data-hs-widget="tally"], [data-hs-widget="action-bar"], [data-hs-widget="hunt-topbar"], .hs-win:not(.is-leaving)')).filter((e) => e.offsetWidth && getComputedStyle(e).visibility !== 'hidden').map((e) => { const q = e.getBoundingClientRect(); return { n: e.getAttribute('data-hs-widget') || e.getAttribute('data-hs-win'), left: q.left, top: q.top, right: q.right, bottom: q.bottom }; }));
           if (!card.hidden) {
-            for (const q of others) if (crossing(card, q)) fails.push('HR-6 ' + at + ': the away card lies over ' + q.n);
-            if (card.top < 0 || card.bottom > h || card.left < 0 || card.right > w) fails.push('HR-6 ' + at + ': the away card runs off the window');
+            for (const q of others) if (crossing(card, q)) fails.push('HR-6 ' + at + ': the alert card lies over ' + q.n);
+            if (card.top < 0 || card.bottom > h || card.left < 0 || card.right > w) fails.push('HR-6 ' + at + ': the alert card runs off the window');
             for (const g of await presses(page, '.hw-alert-do, .hw-alert-x')) if (!g.ok) fails.push('HR-6 ' + at + ': the card\'s "' + g.what + '" cannot be pressed: at ' + g.at + ' lies ' + g.on);
           } else if (w >= 1280) fails.push('HR-6 ' + at + ': the card waits hidden with room on the screen');
           for (const g of await presses(page, '[role="tab"]', '[data-hs-win="chat"]')) if (!g.ok) fails.push('HR-6 ' + at + ': the Chat tab "' + g.what + '" cannot be pressed: at ' + g.at + ' lies ' + g.on);
@@ -369,20 +377,22 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // HR-7 the away card follows the server
       const { ctx, page, s, up } = await open((env) => stamped(env));
       if (up) {
-        const line = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).find((t) => /\bAway \d/.test(t)) || null);
-        if (!(await wait(page, () => /\bAway \d/.test(document.querySelector('.hw-alert-text')?.textContent || '')))) fails.push('HR-7 CONTROL: no away card came up');
-        const first = await line();
-        if (!/Still hunting, with 7 h 43 min of stamina left\./.test(first || '')) fails.push('HR-7 CONTROL: the first line is ' + JSON.stringify(first));
+        const AWAY = '[data-hs-win="away"]';
+        const line = () => page.evaluate((w) => document.querySelector(w + ' .haway-hero')?.innerText || null, AWAY);
+        const result = () => page.evaluate((w) => document.querySelector(w + ' .hres')?.innerText || null, AWAY);
+        if (!(await wait(page, (w) => !!document.querySelector(w + ' .haway-hero'), AWAY))) fails.push('HR-7 CONTROL: no away card came up');
+        const first = await line(), was = await result();
+        if (!/Still hunting, 7 h 43 min of stamina left/.test(first || '')) fails.push('HR-7 CONTROL: the first line is ' + JSON.stringify(first));
         /* the next envelope's stamina replaces the number */
         s.env.stamina = Object.assign({}, s.env.stamina, { ms: 5 * HOURS });
         await pushEnvelope(page, s);
-        if (!(await wait(page, () => /Still hunting, with 5 h 0 min of stamina left\./.test(document.querySelector('.hw-alert-text')?.textContent || ''), null, 5000))) fails.push('HR-7 the card keeps the stamina it came up with: ' + JSON.stringify(await line()));
-        if ((await line() || '').replace(/Still hunting.*$/, '') !== (first || '').replace(/Still hunting.*$/, '')) fails.push('HR-7 what happened while away changed: ' + JSON.stringify([first, await line()]));
+        if (!(await wait(page, (w) => /Still hunting, 5 h 0 min of stamina left/.test(document.querySelector(w + ' .haway-hero')?.innerText || ''), AWAY, 5000))) fails.push('HR-7 the card keeps the stamina it came up with: ' + JSON.stringify(await line()));
+        if (await result() !== was) fails.push('HR-7 what happened while away changed: ' + JSON.stringify([was, await result()]));
         /* the hunt ends ten minutes into the visit (past the return's own settle, away-recap.js endedOnReturn): no line says it is still hunting; the summary is the notice now */
         s.env.hunt_server_now_ms += 10 * 60000;
         s.env.hunt = Object.assign({}, s.env.hunt, { ended: true, session: Object.assign({}, s.env.hunt.session, { end_reason: 'stamina', ended_at: new Date(s.env.hunt_server_now_ms).toISOString() }) });
         await pushEnvelope(page, s);
-        if (!(await wait(page, () => !/\bAway \d/.test(Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' ')), null, 5000))) fails.push('HR-7 the hunt ended and the card still says: ' + JSON.stringify(await line()));
+        if (!(await wait(page, (w) => !document.querySelector(w), AWAY, 5000))) fails.push('HR-7 the hunt ended and the card still says: ' + JSON.stringify(await line()));
         if (/Still hunting/.test(await page.evaluate(() => document.body.innerText))) fails.push('HR-7 "Still hunting" is on screen after the hunt ended');
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelector('.hb-bar'));
@@ -397,11 +407,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'stamina', ended_at: new Date(env.hunt_server_now_ms - HOURS).toISOString() });
         env.stamina = Object.assign({}, env.stamina, { ms: 2 * HOURS, hunting: false });
       });
-      if (await wait(ended.page, () => /The hunt has ended/.test(document.querySelector('.hw-alert-text')?.textContent || ''))) {
+      const card = () => ended.page.evaluate(() => document.querySelector('[data-hs-win="away"] .haway-hero')?.innerText || null);
+      if (await wait(ended.page, () => /Out of stamina/.test(document.querySelector('[data-hs-win="away"] .haway-hero')?.innerText || ''))) {
         ended.s.env.stamina = Object.assign({}, ended.s.env.stamina, { ms: 3 * HOURS });
         await pushEnvelope(ended.page, ended.s);
-        if (!(await wait(ended.page, () => /Stamina now: 3 h 0 min\./.test(document.querySelector('.hw-alert-text')?.textContent || ''), null, 5000))) fails.push('HR-7 the card about an ended hunt keeps an old stamina: ' + JSON.stringify(await ended.page.evaluate(() => document.querySelector('.hw-alert-text')?.textContent)));
-      } else fails.push('HR-7 CONTROL: a hunt that ended while away raised no card: ' + JSON.stringify(await ended.page.evaluate(() => document.querySelector('.hw-alert-text')?.textContent || null)));
+        if (!(await wait(ended.page, () => /Stamina 3 h 0 min/.test(document.querySelector('[data-hs-win="away"] .haway-hero')?.innerText || ''), null, 5000))) fails.push('HR-7 the card about an ended hunt keeps an old stamina: ' + JSON.stringify(await card()));
+      } else fails.push('HR-7 CONTROL: a hunt that ended while away raised no card: ' + JSON.stringify(await card()));
       await ended.ctx.close();
     }
 
@@ -412,10 +423,69 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(9000);
         await pushEnvelope(page, s);
         await page.waitForTimeout(300);
-        const shown = await page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' | '));
+        const shown = await page.evaluate(() => (document.querySelector('[data-hs-win="away"]')?.innerText || '') + Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).join(' | '));
         if (/\bAway \d/.test(shown)) fails.push('HR-9 a hunt on screen says "While you were away": ' + shown);
       } else fails.push('HR-9 the screen did not mount');
       await ctx.close();
+    }
+
+    { // HR-12 while you were away is one card
+      const AWAY = '[data-hs-win="away"]';
+      const back = (env) => {
+        stamped(env, {});
+        env.client_state.awaySeen.lv = 1;
+        env.hunt.ended = true;
+        env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'stamina', ended_at: new Date(env.hunt_server_now_ms - HOURS).toISOString() });
+        env.stamina = Object.assign({}, env.stamina, { ms: 2 * HOURS, hunting: false });
+      };
+      for (const [w, h] of [[1440, 900], [922, 423]]) {
+        const at = w + 'x' + h;
+        /* home from the hunt: the town mounts (the hunt screen's bar never comes, so signIn's answer is not the control here) */
+        const { ctx, page, s, errors } = await open(back, { width: w, height: h });
+        if (!(await wait(page, () => document.querySelector('.hs-launchers')))) { fails.push('HR-12 ' + at + ': the town did not mount'); await ctx.close(); continue; }
+        if (!(await wait(page, (q) => !!document.querySelector(q + ' .haway-hero'), AWAY))) { fails.push('HR-12 ' + at + ' CONTROL: no away card came up'); await ctx.close(); continue; }
+        await page.waitForTimeout(800);
+        await settle(page);
+        const seen = await page.evaluate((q) => {
+          const win = document.querySelector(q), body = win.querySelector('[data-hs-body]') || win;
+          body.scrollTop = 0;
+          const b = body.getBoundingClientRect(), r = win.querySelector('.hres').getBoundingClientRect();
+          const gold = Array.from(win.querySelectorAll('button.is-primary')).filter((x) => !x.hidden && x.getClientRects().length);
+          return { gone: win.querySelector('.haway-gone').textContent, heroes: win.querySelectorAll('.haway-hero').length,
+            level: win.querySelector('.hres-lv').textContent.replace(/\s+/g, ' ').trim(), xp: win.querySelector('.hres-fig[data-fig="xp"] dd')?.textContent || null,
+            whole: r.height > 0 && r.top >= b.top - 1 && r.bottom <= Math.min(b.bottom, innerHeight) + 1, docked: !win.classList.contains('is-modal'),
+            gold: gold.map((x) => x.getAttribute('data-hs-act') + ':' + x.textContent), lines: document.querySelectorAll('.hw-alert[data-kind="away"]').length,
+            summary: !!document.querySelector('[data-hs-win="hunt-summary"]') };
+        }, AWAY);
+        if (seen.gone !== 'Away 2 h 0 min' || seen.heroes !== 1) fails.push('HR-12 ' + at + ': the card reads ' + JSON.stringify(seen));
+        if (!/^Level 1 → \d+$/.test(seen.level) || seen.xp !== '+500') fails.push('HR-12 ' + at + ': the result is not the two stamps\' difference: ' + JSON.stringify([seen.level, seen.xp]));
+        if (!seen.whole) fails.push('HR-12 ' + at + ': the result block is cut as the card opens');
+        if (JSON.stringify(seen.gold) !== '["away-go:Hunt again"]') fails.push('HR-12 ' + at + ': the gold presses are ' + JSON.stringify(seen.gold));
+        if (seen.lines || seen.summary) fails.push('HR-12 ' + at + ': beside the card, ' + (seen.lines ? 'an away line in the alerts' : '') + (seen.summary ? ' the hunt summary' : ''));
+        if (w === 1440) {
+          await page.click(AWAY + ' [data-hs-act="away-go"]');
+          await wait(page, (q) => !document.querySelector(q), AWAY, 5000);
+          const sent = (s.calls || []).filter((c) => c.name === 'hr_hunt_restart');
+          if (sent.length !== 1 || sent[0].body.p_session !== s.env.hunt.session_id) fails.push('HR-12 Hunt again sent ' + JSON.stringify(sent.map((c) => c.body)));
+          if (await page.$(AWAY)) fails.push('HR-12 the card stayed after the server started the hunt again');
+        } else {
+          if (!(await page.evaluate(() => document.querySelectorAll('.char-badge.is-on').length))) fails.push('HR-12 ' + at + ' CONTROL: the strip counts no away line before OK');
+          await page.click(AWAY + ' [data-hs-act="away-ok"]');
+          if (!(await wait(page, (q) => !document.querySelector(q), AWAY, 3000))) fails.push('HR-12 ' + at + ': OK did not close the card');
+          /* OK reads the lines: the hero's alert count on the strip goes with them (a remount would raise the card again otherwise) */
+          await page.waitForTimeout(500);
+          const counted = await page.evaluate(() => Array.from(document.querySelectorAll('.char-badge.is-on')).map((b) => b.textContent));
+          if (counted.length) fails.push('HR-12 ' + at + ': OK left the away lines counted on the strip: ' + JSON.stringify(counted));
+          await page.waitForTimeout(400);
+          await page.reload({ waitUntil: 'load' });
+          await wait(page, () => document.querySelector('.hs-launchers'));
+          await page.waitForTimeout(1500);
+          if (await page.$(AWAY)) fails.push('HR-12 ' + at + ': the card read with OK came back on a reload');
+        }
+        if (shots) await page.screenshot({ path: join(shots, 'hud-reachable-away-' + at + '.png') });
+        if (errors.length) fails.push('HR-12 ' + at + ' page errors: ' + errors.slice(0, 2).join(' | '));
+        await ctx.close();
+      }
     }
 
     { // HR-8 the phone keeps its own rules
@@ -534,6 +604,11 @@ const MUTANTS = [
   ['the away card keeps the line it came up with (HR-7)', 'src/shell/alerts.js', 'const line = a.kind === \'away\' ? awayLineNow(cs, a) : a.text;', 'const line = a.text;'],
   ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended && !endedOnReturn(h, a))) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
   ['a hunt in view is judged as an absence (HR-9)', 'src/shell/alerts.js', 'if (judged && awaySettled(cs)) returning.delete(cs.slot);', ''],
+  ['the away line is a paragraph in the alerts again (HR-12)', 'src/shell/widgets/alerts.js', ".filter((a) => a.kind !== 'away')", ''],
+  ['the summary opens over the away card (HR-12)', 'src/shell/shell.js', "queueMicrotask(() => { if (!wm.isOpen('away')) wm.open('hunt-summary'); });", "queueMicrotask(() => wm.open('hunt-summary'));"],
+  ['Hunt again sends nothing (HR-12)', 'src/shell/windows/away.js', 'try { r = await cs.restartHunt(a.session); }', 'try { r = { ok: true }; }'],
+  ['the card reads the stamp\'s Level as none (HR-12)', 'src/shell/windows/away.js', "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: f.lvFrom, to: f.lvTo } : null", "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: null, to: f.lvTo } : null"],
+  ['OK leaves the lines unread (HR-12)', 'src/shell/windows/away.js', '    if (open && !up) dismissAll(ctx);\n', ''],
   ['the desktop\'s room reaches the phone (HR-8)', 'src/shell/hud-room.js', 'if (phone) { if (!room.has(e)) room.set(e, null); continue; }', ''],
   ['the launcher row stays at the top of the page, over the banner (HR-10)', 'src/styles/app.css', '.client-page.has-new-version .app { position: relative; flex: 1;', '.client-page.has-new-version .app { flex: 1;'],
 ];

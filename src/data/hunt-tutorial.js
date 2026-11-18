@@ -67,30 +67,30 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.137';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.137';
-import { tiersOf } from './hunt-tiers.js?v=0.2.137';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.137';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.137';
-import { SKILLS_DEF } from './skills.js?v=0.2.137';
-import { CROPS } from './gathering.js?v=0.2.137';
-import { tallyTask } from './tally-tasks.js?v=0.2.137';
-import { ITEMS } from './items.js?v=0.2.137';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.137';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.137';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.137';
-import { isShield } from './shields.js?v=0.2.137';
-import { deriveProfile } from '../core/member.js?v=0.2.137';
-import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.137';
-import { skillLevelFromXp } from '../core/xp.js?v=0.2.137';
-import { CONSUMABLES } from './consumables.js?v=0.2.137';
-import { RUNE_FAMILIES } from './runes.js?v=0.2.137';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.137';
-import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.137';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.137';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.137';
-import { BAR_TEXT } from './text/bar.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { HUNT_INDEX } from './hunts.js?v=0.2.138';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.138';
+import { tiersOf } from './hunt-tiers.js?v=0.2.138';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.138';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.138';
+import { SKILLS_DEF } from './skills.js?v=0.2.138';
+import { CROPS } from './gathering.js?v=0.2.138';
+import { tallyTask } from './tally-tasks.js?v=0.2.138';
+import { ITEMS } from './items.js?v=0.2.138';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.138';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.138';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.138';
+import { isShield } from './shields.js?v=0.2.138';
+import { deriveProfile } from '../core/member.js?v=0.2.138';
+import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.138';
+import { skillLevelFromXp } from '../core/xp.js?v=0.2.138';
+import { CONSUMABLES } from './consumables.js?v=0.2.138';
+import { RUNE_FAMILIES } from './runes.js?v=0.2.138';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.138';
+import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.138';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.138';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.138';
+import { BAR_TEXT } from './text/bar.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -330,12 +330,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'storage', { kind: 'any', of: [READ, { kind: 'stored_stack' }] }, { reactive: true, gotIt: true, when: [{ kind: 'bag_full' }] }),
   /* THE HEARTH, TAUGHT (designer 2026-10-28, lane/b-first-hour): Inner Flame was named only in a bracket of the Sell
      card, so no hero was ever asked to fuel the Hearth. In town with a stack of fuel and no Inner Flame XP yet, the
-     card names the stack and rings it in the bag, then its Fuel all. Finished by the server's Inner Flame XP. */
+     card names the stack and rings it in the bag, then its Burn all. Finished by the server's Inner Flame XP. */
   step('fuel_hearth', 'Feed the Hearth',
-    'Bag → Bones → Fuel all',
+    'Bag → Bones → Burn all',
     'inventory', { kind: 'skill_xp', skill: 'inner_flame' }, { reactive: true, when: [IN_TOWN, { kind: 'fuel_held', n: FUEL_CARD_AT }],
-      inWindow: 'Press Bones, then Fuel all',
-      /* while the walk and the burn run (no XP yet) the ring rests: pressing Fuel all again only says it is running */
+      inWindow: 'Press Bones, then Burn all',
+      /* while the walk and the burn run (no XP yet) the ring rests: pressing Burn all again only says it is running */
       hooks: ['[data-hs-win="inventory"]:not(:has(.hw-burying.is-on)) .hw-pocket[data-item="{fuel}"]', '[data-hs-win="inventory"]:not(:has(.hw-burying.is-on)) .hw-pick[data-item="{fuel}"] [data-hs-act="primary"]'] }),
   /* DEFENSE THAT NEVER TRAINS (designer 2026-10-28): it rises only from blows taken in armor or behind a shield
      (Tyler 2026-10-18; core/vitals.js wearsArmour). The kit's Practice Shield trains it, but a hero who took up a staff,

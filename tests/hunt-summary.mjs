@@ -316,7 +316,8 @@ async function runTests(M) {
     const cs = sessionOn(calls, () => Object.assign(endedEnv(v), state ? { client_state: state } : {}));
     const store = [];
     const real = cs.setResidue.bind(cs);
-    cs.setResidue = (f, val) => { store.push([f, val]); return real(f, val); };
+    /* the summary's writes (the start stamp, residue huntStart, is its own field: L2) */
+    cs.setResidue = (f, val) => { if (f === 'huntSummaries') store.push([f, val]); return real(f, val); };
     /* the hunt was open (session id seen) and its events played */
     const open = clone(FIX); open.version = 7; open.hunt = { session: { id: 'sess-9', hunt: 'mill_cellar', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
     await cs._take(open, 'load');
@@ -335,6 +336,69 @@ async function runTests(M) {
     await cs.load();
     ok(!M.REC.summariesOf(cs).length, 'the fixture lost the card (else the store check hides the once-rule)');
     eq(store.length, 1, 'a second envelope for the same session adds nothing');
+  });
+
+  /* THE LEVEL LINE (UI audit 2026-11-18 #1: a 6 h hunt never said "Level 5 to 8"), from two server answers: the stamp of the server's Level
+     and skill levels while the session had paid nothing, and the server's Level and skill levels as it ends. Never this build's curve. */
+  await t('L1 the level line is two server answers: the stamp of this session and the levels now', async () => {
+    const start = { s: 'sess-9', lv: 5, sk: { melee: 3, defense: 2, mining: 4 } };
+    const now = { melee: { level: 6 }, defense: { level: 2 }, mining: { level: 9 }, magic: { level: 4 } };
+    const line = MD.levelLine('sess-9', start, { level: 8, xp: 1 }, now, ['melee', 'defense', 'magic']);
+    eq(line, { lvFrom: 5, lvTo: 8, ups: [['melee', 3, 6]] }, 'Level 5 to 8; only a skill the hunt trained AND the stamp knew, raised (mining is not the hunt\'s)');
+    eq(MD.levelLine('sess-8', start, { level: 8 }, now, ['melee']), { lvFrom: null, lvTo: 8, ups: [] }, 'another session\'s stamp gives no start');
+    eq(MD.levelLine('sess-9', null, null, now, ['melee']), { lvFrom: null, lvTo: null, ups: [] }, 'no Level block: no line');
+    ok(MD.atStart({ ended: false, tally: null }) && MD.atStart({ ended: false, tally: { kills: 0, xp: { level: 0 } } }), 'a session that has paid nothing is at its start');
+    ok(!MD.atStart({ ended: false, tally: { kills: 4 } }) && !MD.atStart({ ended: false, tally: { xp: { level: 30 } } }) && !MD.atStart({ ended: true, tally: null }), 'one kill or one XP in, or ended: not the start');
+    eq(MD.trainedIn({ tally: { xp: { level: 70, melee: 12, defense: 0 } } }, null), ['melee'], 'the skills the tally paid XP to');
+    const S = M.RES.sanitizeResidueField('huntStart', { s: 'sess-9', lv: 5, sk: Object.fromEntries(Array.from({ length: 40 }, (_, i) => ['s' + String.fromCharCode(97 + (i % 26)) + 'x'.repeat(Math.floor(i / 26)), 2])) });
+    ok(S.lv === 5 && Object.keys(S.sk).length === 32, 'the stamp is bounded: ' + Object.keys(S.sk).length + ' skills');
+    eq(M.RES.sanitizeResidueField('huntStart', { s: 'sess-9', lv: 0 }), {}, 'a stamp with no Level is no stamp');
+  });
+
+  /* The card played both ways: the hunt viewed (the page saw it start and end) and with the page closed (a new page's first read is the ended
+     session, the stamp the first page wrote on the server); and a page that first met the hunt mid-way names only the Level it ended at. */
+  const levelled = (v, ended, tally, lv, melee) => {
+    const e = clone(FIX); e.version = v;
+    e.level = Object.assign({}, e.level, { level: lv });
+    e.skill_levels = Object.assign({}, e.skill_levels, { melee: Object.assign({}, e.skill_levels.melee, { level: melee }) });
+    e.hunt = { session: Object.assign({ id: 'sess-9', hunt: 'mill_cellar', preset: 1, bag: [], tally },
+      ended ? { entered_at: '2026-10-18T10:00:00Z', ended_at: '2026-10-18T16:00:00Z', end_reason: 'stamina', phase: 'ended' } : { phase: 'hunting' }), pose: ended ? null : FIX.hunt.pose };
+    delete e.hunt_analyzer; delete e.hunt_events;
+    return e;
+  };
+  const PAID = { kills: 900, xp: { level: 9000, melee: 400 }, coins: 300, loot: { rat_tail: 4 }, supplies: {} };
+  await t('L2 the end card says "Level 5 to 8": viewed, and with the page closed', async () => {
+    const calls = [];
+    let env = levelled(7, false, {}, 5, 3);
+    const cs = sessionOn(calls, () => env);
+    await cs._take(env, 'load');
+    const stamp = cs.record.residue.huntStart;
+    eq(stamp && [stamp.s, stamp.lv, stamp.sk.melee], ['sess-9', 5, 3], 'the start is stamped from the server\'s Level and skill levels');
+    env = levelled(8, false, { kills: 40, xp: { level: 400 } }, 6, 3);
+    await cs._take(env, 'load');
+    eq(cs.record.residue.huntStart.lv, 5, 'a later read of the same hunt never moves the stamp');
+    env = levelled(9, true, PAID, 8, 6);
+    ok(await cs.load(), 'the ended envelope applied');
+    const card = M.REC.summariesOf(cs)[0];
+    eq(card && [card.lvFrom, card.lvTo, card.ups], [5, 8, [['melee', 3, 6]]], 'VIEWED: the card holds Level 5 to 8 and Melee 3 to 6');
+    /* the page closed: the stamp is on the server (the put), a new page's first read is the ended hunt */
+    await cs.flushResidue();
+    const put = calls.filter((c) => c.name === 'hr_put_client_state').map((c) => c.args.p_patch).find((p) => p.huntStart);
+    ok(put && put.huntStart.lv === 5, 'the stamp went to the server: ' + JSON.stringify(put && put.huntStart));
+    const later = levelled(10, true, PAID, 8, 6); later.client_state = { huntStart: put.huntStart };
+    const cs2 = sessionOn([], () => later);
+    await cs2._take(later, 'load');
+    const card2 = M.REC.summariesOf(cs2)[0];
+    eq(card2 && [card2.lvFrom, card2.lvTo, card2.ups], [5, 8, [['melee', 3, 6]]], 'CLOSED: the next page\'s card holds the same line');
+    /* a page that first read the hunt mid-way stamps nothing, and its card names the Level it ended at, no start */
+    let mid = levelled(7, false, { kills: 40, xp: { level: 400 } }, 6, 3);
+    const cs3 = sessionOn([], () => mid);
+    await cs3._take(mid, 'load');
+    ok(!cs3.record.residue.huntStart || !cs3.record.residue.huntStart.s, 'no stamp mid-hunt: ' + JSON.stringify(cs3.record.residue.huntStart));
+    mid = levelled(8, true, PAID, 8, 6);
+    await cs3.load();
+    const card3 = M.REC.summariesOf(cs3)[0];
+    eq(card3 && [card3.lvFrom, card3.lvTo, card3.ups], [null, 8, []], 'MID-WAY: Level 8, no start and no skill line');
   });
 
   await t('A5 a new hunt after an ended one says so once (the shell closes the old summary: playtest v0.2.127)', async () => {
@@ -587,6 +651,15 @@ const MUTANTS = [
   { test: 'A5', file: RECORDER, from: 'a.started = a.sid !== null || a.done.size > 0;', to: 'a.started = false;' },
   { test: 'A2', file: RECORDER, from: "    if (a.done.has(s.id)) return fillTraining(cs, stop);\n    a.done.add(s.id);", to: "    a.done.add(s.id);" },
   { test: 'A2', file: RECORDER, from: "const ex = a.sid === s.id ? explainDeaths(a.rec.events(), { whoOf, words: fallWordsOf(s.hunt) }) : { deaths: [] };", to: "const ex = { deaths: [] };" },
+  /* the level line (L1, L2) */
+  { test: 'L1', file: MODEL, from: "const mine = isObj(start) && start.s === sessionId ? start : null;", to: "const mine = isObj(start) ? start : null;" },
+  { test: 'L1', file: MODEL, from: "if (was !== null && now !== null && now > was) ups.push", to: "if (now !== null) ups.push" },
+  { test: 'L1', file: MODEL, from: "return !!s && !s.ended && !(int(paid.kills) > 0) && !(xp > 0);", to: "return !!s && !s.ended;" },
+  { test: 'L1', file: RESIDUE, from: "    if (++n >= HUNT_START_SKILLS) break;\n", to: '' },
+  { test: 'L2', file: RECORDER, from: "if ((was && was.s === s.id) || !lv || !atStart(s) || typeof cs.setResidue !== 'function') return;", to: "if (!lv || typeof cs.setResidue !== 'function') return;" },
+  { test: 'L2', file: RECORDER, from: " stampStart(cs, s); return; }", to: " return; }" },
+  { test: 'L2', file: SUMMARIES, from: "lvFrom: level(v.lvFrom), lvTo: level(v.lvTo),", to: "lvFrom: null, lvTo: level(v.lvTo)," },
+  { test: 'L2', file: RESIDUE, from: "  huntStart: sanitizeHuntStart, ", to: "  huntStartGone: sanitizeHuntStart, " },
   /* Back in town (T1..T4) */
   { test: 'T1', file: TOWN, from: "rules.loot[r.id] === rule && !rules.locked.has(r.id) &&", to: "rules.loot[r.id] === rule &&" },
   { test: 'T1', file: TOWN, from: " && !(rule === 'sell' && isStartKit(r.id))", to: '' },

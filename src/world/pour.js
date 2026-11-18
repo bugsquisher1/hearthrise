@@ -20,7 +20,7 @@
 // PURE: RGBA in, RGBA out (in place). No DOM. Node (tools/world-art/tower-pours.mjs) and the browser (monster-pour.js) share it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { PALETTE_RGB } from '../data/world/palette.js?v=0.2.137';
+import { PALETTE_RGB } from '../data/world/palette.js?v=0.2.138';
 
 /* The opacity cut of the world's art (src/data/world/palette.js ALPHA_CUT): the art has no partial alpha. */
 const OPAQUE = 128;
@@ -42,6 +42,10 @@ export const POURS = Object.freeze({
     glow: Object.freeze([[0.06, hexOf(PALETTE_RGB.glow.hot)], [0.16, hexOf(PALETTE_RGB.glow.flame)], [0.28, hexOf(PALETTE_RGB.glow.ember)]]),
     glowMax: 0.34,
   }),
+  /* THE GREAT HEARTH'S SMOKE (2027-05-05-hearth-moods.sql): `smoke_<flame>`, the flue's plume poured onto that flame's ladder (palette.js
+     PALETTE_RGB.smoke), no glow. src/world/hearth-burn.js names the pour for the flame the square burns. */
+  ...Object.fromEntries(Object.entries(PALETTE_RGB.smoke).map(([flame, ladder]) => ['smoke_' + flame,
+    Object.freeze({ ladder: Object.freeze(ladder.map(hexOf)), glow: Object.freeze([]), glowMax: 0 })])),
 });
 
 const hex2 = (n) => (n < 16 ? '0' : '') + n.toString(16);

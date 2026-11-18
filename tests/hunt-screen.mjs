@@ -2133,7 +2133,7 @@ const MUTANTS = [
   ['the phone sheet cuts the heal warning to one line and says it nowhere whole', 'src/shell/windows/configure-action.js', "  markup(root.querySelector('.ca-d-warn'), warn);", ''],
   ['a lone hero is never warned of the King', 'src/shell/windows/configure-action.js', 'biggestBlowOn(h.huntId)', "(p && p.members.length > 1 ? biggestBlowOn(h.huntId) : null)"],
   ['the Hunts window keeps saying "On the way" while hunting', 'src/shell/windows/hunts.js', "  if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }\n", ''],
-  ['the Hunts window stays over the hunt it entered (HS-9b, playtest 2026-10-24)', 'src/shell/windows/hunts.js', "  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }\n", ''],
+  ['the Hunts window stays over the hunt it entered (HS-9b, playtest 2026-10-24)', 'src/shell/windows/hunts.js', "    queueMicrotask(() => { ctx.wm.close('hunts'); if (by && by !== 'hunts') ctx.wm.close(by); });\n", ''],
   ['an edge panel never steps out of the hunt bar’s way', 'src/shell/shell.js', "        for (const p of at.push) edgeEls[p.i].style.top = p.top + 'px';\n", ''],
   /* HS-28 (designer 2026-11-11): the fight stays clear at 1024x768. */
   ['the analyzer starts open over the fight at 1024 (HS-28)', 'src/data/hud-widgets.js', "when: 'hunt', folded: 'narrow',", "when: 'hunt',"],
@@ -2229,7 +2229,7 @@ const MUTANTS = [
   ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b0 = section(cs, 'hunt_bests');\n  const b = b0 && b0.grounds ? Object.assign({}, b0, { grounds: Object.assign({}, b0.grounds) }) : b0;\n  if (b && b.grounds && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b && b.grounds) globalThis.__hb = b.grounds;\n"],
   ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
   ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
-  ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));", "prop(dd.parentNode, 'hidden', false);"],
+  ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!cur.train || cur[k] === null || cur[k] === undefined);", "prop(dd.parentNode, 'hidden', !!cur.train);"],
   ['a docked window covers the analyzer again (HS-26)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
   ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],
 ];

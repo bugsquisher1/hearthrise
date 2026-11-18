@@ -30,16 +30,16 @@
 //
 // Display only: nothing here is spendable or gates an intent (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.137';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
-import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.137';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.137';
-import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.137';
-import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.137';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.137';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.137';
-import { itemName } from './widgets/bits.js?v=0.2.137';
-import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.137';
+import { t } from '../render/player-text.js?v=0.2.138';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
+import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.138';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.138';
+import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.138';
+import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.138';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.138';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.138';
+import { itemName } from './widgets/bits.js?v=0.2.138';
+import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.138';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;
@@ -56,8 +56,11 @@ const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_fo
 const TRAIN_NEXT = Object.freeze({ hours: 'away.next_train_again' });
 const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);
 
-/** "1 h 58 min", "25 min". */
+/* Longer than this reads in whole days (QA audit 2026-11-18 N6: a week away read "176 h 2 min"). */
+export const SPAN_DAYS_OVER_MS = 48 * 3600 * 1000;
+/** "1 h 58 min", "25 min"; over two days, "7 days" (whole days, rounded down). */
 export function spanWords(ms) {
+  if (ms > SPAN_DAYS_OVER_MS) return t('away.span_days', { count: Math.floor(ms / (24 * 3600 * 1000)) });
   const m = Math.max(0, Math.floor(ms / 60000));
   return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min';
 }

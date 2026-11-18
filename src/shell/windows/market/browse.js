@@ -12,23 +12,24 @@
 // next plan is on screen before any more gold moves. A lost answer keeps the plan and its
 // keys: the next press resends them and the server replays what it already did.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.137';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.137';
-import { whole } from '../../../render/format.js?v=0.2.137';
-import { glyphSvg } from '../../launcher.js?v=0.2.137';
-import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.137';
-import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.137';
-import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.137';
-import { BAG_CATS } from '../../bag-model.js?v=0.2.137';
-import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.137';
-import { refusalText } from '../../intent-words.js?v=0.2.137';
-import { notListableWords } from '../../market-words.js?v=0.2.137';
-import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.137';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.137';
-import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.137';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.137';
-import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey } from './state.js?v=0.2.137';
-import { t } from '../../../render/player-text.js?v=0.2.137';
+import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.138';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.138';
+import { whole } from '../../../render/format.js?v=0.2.138';
+import { glyphSvg } from '../../launcher.js?v=0.2.138';
+import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.138';
+import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.138';
+import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.138';
+import { BAG_CATS } from '../../bag-model.js?v=0.2.138';
+import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.138';
+import { refusalText } from '../../intent-words.js?v=0.2.138';
+import { notListableWords } from '../../market-words.js?v=0.2.138';
+import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.138';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.138';
+import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.138';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.138';
+import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey, buildingWorks } from './state.js?v=0.2.138';
+import { gotoAttr } from '../../goto.js?v=0.2.138';
+import { t } from '../../../render/player-text.js?v=0.2.138';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer, safe to press again';
@@ -40,8 +41,10 @@ export function browseHtml(ctx) {
     + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="mk-search" placeholder="Search items" aria-label="Search items" autocomplete="off"></span>'
     + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="mk-sort">' + MARKET_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="mk-cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
-    + '<div class="hw-mk-invite"><h3 class="hw-hd-name">The scales are empty</h3>'
-    + '<p class="hw-mk-invite-p"></p><button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">' + t('controls.list_item') + '</button></div>'
+    + '<div class="hw-mk-invite"><h3 class="hw-hd-name hw-mk-invite-h"></h3><p class="hw-mk-invite-p"></p>'
+    + '<div class="hw-mk-fund"><span class="hw-skill-bar" role="meter" aria-label="Weighhouse build fund" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-mk-fund-n"></small></div>'
+    + '<button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">' + t('controls.list_item') + '</button>'
+    + '<button type="button" class="hh-tool hw-mk-to-works"' + gotoAttr({ win: 'havora', tab: 'works' }) + '>' + t('shop.market_to_works') + '</button></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="Items"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked item"><div class="hw-hd-page">'
     + '<div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'
@@ -204,6 +207,22 @@ function patchPage(root, v) {
   if (page) { patchBuy(root, v, page); patchLine(root, ctx, page); } else cls(root.querySelector('.hw-mk-buy'), 'is-on', false);
 }
 
+/**
+ * THE EMPTY STATE (UI audit 2026-11-18: a closed Weighhouse showed an empty list under one long sentence): what Browse says when it
+ * has no list to show, or null. Open and nothing for sale: what goes here and how to list. Closed while Havora's Works raises it: what
+ * it will be, the fund (the Works' own read, total and goal), and the way there. Closed otherwise: the listings are safe. Said only
+ * once the server has answered (forSale read, or the closed flag), never over a search. Pure over the window's scratch.
+ */
+export function emptyOf(sc) {
+  if (sc.query) return null;
+  if (sc.closed) {
+    return buildingWorks(sc.works) && sc.works.goal > 0
+      ? { kind: 'unbuilt', head: t('shop.market_unbuilt_head'), body: t('shop.market_unbuilt_body'), fund: { total: sc.works.total, goal: sc.works.goal } }
+      : { kind: 'closed', head: t('shop.market_closed_head'), body: t('shop.market_closed_body'), fund: null };
+  }
+  return sc.forSale !== null && !sc.forSale.length ? { kind: 'open', head: t('shop.market_empty_head'), body: t('shop.market_empty_body'), fund: null } : null;
+}
+
 /** Paint the Browse pane. */
 export function patchBrowse(v) {
   const { cs, sc, root, ctx } = v;
@@ -215,9 +234,26 @@ export function patchBrowse(v) {
   for (const b of pane.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(!sc.query && b.getAttribute('data-cat') === view.cat));
   const list = listOf(sc, view);
   /* THE EMPTY MARKET READS AS AN INVITATION: said only once the server has answered that nothing is for sale. */
-  const bare = sc.forSale !== null && !sc.forSale.length && !sc.query && !sc.closed;
-  cls(pane.querySelector('.hw-mk-invite'), 'is-on', bare);
-  text(pane.querySelector('.hw-mk-invite-p'), 'Nothing for sale yet');
+  const e = emptyOf(sc);
+  const invite = pane.querySelector('.hw-mk-invite');
+  cls(invite, 'is-on', !!e);
+  if (e) {
+    text(invite.querySelector('.hw-mk-invite-h'), e.head);
+    text(invite.querySelector('.hw-mk-invite-p'), e.body);
+    const fund = invite.querySelector('.hw-mk-fund');
+    cls(fund, 'is-on', !!e.fund);
+    if (e.fund) {
+      const f = Math.max(0, Math.min(1, e.fund.total / e.fund.goal));
+      style(fund.querySelector('.hw-skill-fill'), 'width', (Math.round(f * 1000) / 10) + '%');
+      attr(fund.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(f * 100));
+      text(fund.querySelector('.hw-mk-fund-n'), t('shop.market_fund_given', { total: whole(e.fund.total), goal: whole(e.fund.goal) }));
+    }
+    prop(invite.querySelector('[data-hs-act="mk-to-sell"]'), 'hidden', e.kind !== 'open');
+    prop(invite.querySelector('.hw-mk-to-works'), 'hidden', e.kind !== 'unbuilt');
+  }
+  /* a closed Weighhouse has nothing to search or sort: its page takes their room (a phone's sheet showed the search over a cut page) */
+  for (const s of ['.hw-find', '.hw-cats']) prop(pane.querySelector(s), 'hidden', !!e && e.kind !== 'open');
+  const bare = !!e;
   const cols = pane.querySelector('.hw-mk-cols');
   prop(cols, 'hidden', bare);
   if (!sc.pick && list.length && !ctx.isPhone()) { sc.pick = list[0].id; readItem(ctx, cs, sc, sc.pick); }

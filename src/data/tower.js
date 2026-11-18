@@ -25,6 +25,8 @@
 //   floorTop        the highest floor the stat formula is read at; a floor above it plays this floor's rows. The server's per-floor
 //                   bounds are generated to it (hr_tower_floors), so it is the one place "the floors never end" meets a table
 //   fit             the stat formula's fit for every Tower room (balance-sheet.js STAT_FORMULA.fit): one difficulty for one hero or four
+//   minLevel        the Level a hero, and every seat of its party, needs to start a climb (Tyler 2026-11-18: "A minimum level to enter the
+//                   tower"; hr_tower_start, the envelope's entry_gates.tower). The evidence: 2027-05-05-entry-gates.sql's header
 //
 // TOWER_PARTY_XP: a kill's Level XP, in permille, shared by the heroes alive at it (xp-share.js reads it itself; the one hunting table,
 //   party-class-xp.js, never names the Tower): a hero alone takes the plain kill (no +15%: the solo boost keeps hunting alone up with a party, and in the Tower the
@@ -45,6 +47,7 @@ export const TOWER_RULES = Object.freeze({
   stairMs: 4000,
   floorTop: 300,
   fit: 'both',
+  minLevel: 10,
 });
 
 export const TOWER_PARTY_XP = Object.freeze({ 1: 1000, 2: 1100, 3: 1200, 4: 1300 });
@@ -55,8 +58,9 @@ export function validateTower(rules, partyXp, swingMs) {
   const pos = (k) => { if (!Number.isInteger(rules[k]) || rules[k] <= 0) out.push(k + ' is not a whole number above 0'); };
   if (!rules || typeof rules !== 'object') return ['the rules are no row'];
   if (typeof rules.hunt !== 'string' || !/^[a-z0-9_]{1,64}$/.test(rules.hunt)) out.push('hunt is not an id');
-  for (const k of ['roomSize', 'landingEvery', 'floorLimitMs', 'landingLimitMs', 'stairMs', 'floorTop']) pos(k);
+  for (const k of ['roomSize', 'landingEvery', 'floorLimitMs', 'landingLimitMs', 'stairMs', 'floorTop', 'minLevel']) pos(k);
   if (Number.isInteger(rules.roomSize) && (rules.roomSize < 2 || rules.roomSize > 8)) out.push('roomSize is not 2..8 (a landing is a Keeper and at least one more, and a full box is 8)');
+  if (Number.isInteger(rules.minLevel) && rules.minLevel > 999) out.push('minLevel is over 999 (no hero could ever enter)');
   if (Number.isInteger(rules.floorTop) && Number.isInteger(rules.landingEvery) && rules.floorTop % rules.landingEvery) out.push('floorTop is not a landing');
   if (Number.isInteger(rules.stairMs) && Number.isInteger(swingMs) && rules.stairMs < 2 * swingMs) out.push('stairMs is under two engine swings, so a floor\'s rows could change inside the swing it was cleared in');
   if (Number.isInteger(rules.floorLimitMs) && Number.isInteger(rules.landingLimitMs) && rules.landingLimitMs < rules.floorLimitMs) out.push('a landing gets less time than a floor');

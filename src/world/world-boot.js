@@ -27,47 +27,49 @@
 // scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
-import { BUILD } from '../build-info.js?v=0.2.137';
-import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.137';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.137';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
-import { MONSTERS } from '../data/monsters.js?v=0.2.137';
-import { compileMap } from './core/map-compile.js?v=0.2.137';
-import { createBook } from './core/book.js?v=0.2.137';
-import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.137';
-import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.137';
-import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.137';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.137';
-import { sceneSetsSliced } from './scene-sets.js?v=0.2.137';
-import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.137';
-import { createViewSheets } from './view-sheets.js?v=0.2.137';
-import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.137';
-import { folkExtras } from './town-folk.js?v=0.2.137';
-import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.137';
-import { huntOfMap } from './hunt-maps.js?v=0.2.137';
-import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.137';
-import { createHuntScene } from './hunt-scene.js?v=0.2.137';
-import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.137';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.137';
-import { createWalkScene } from './walk-scene.js?v=0.2.137';
-import { createTownZoom } from './town-zoom.js?v=0.2.137';
-import { createIdleMotion } from './idle-motion.js?v=0.2.137';
-import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.137';
-import { runAction } from './steer-local.js?v=0.2.137';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.137';
-import { heroDyeOf } from './hero-dye.js?v=0.2.137';
-import { keyBelongsToField } from '../utils/dom.js?v=0.2.137';
-import { homeOf } from '../session/home-sections.js?v=0.2.137';
-import { skillsOf } from '../session/item-sections.js?v=0.2.137';
-import { createHearthView } from './hearth-burn.js?v=0.2.137';
-import { townWorksSwap } from './town-works.js?v=0.2.137';
-import { farmCropProps } from './town-farm.js?v=0.2.137';
-import { farmFieldOf } from '../session/farm-sections.js?v=0.2.137';
-import { createTownShows } from './town-shows.js?v=0.2.137';
-import { monsterPourOf } from './monster-pour.js?v=0.2.137';
-import { towerOf } from '../session/tower-sections.js?v=0.2.137';
-/* the town's ambient rows left out while the Tower is hidden */
-const HIDE_CHEST = Object.freeze({ hearth_chest: true });
+import { BUILD } from '../build-info.js?v=0.2.138';
+import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.138';
+import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.138';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
+import { MONSTERS } from '../data/monsters.js?v=0.2.138';
+import { compileMap } from './core/map-compile.js?v=0.2.138';
+import { createBook } from './core/book.js?v=0.2.138';
+import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.138';
+import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.138';
+import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.138';
+import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.138';
+import { sceneSetsSliced } from './scene-sets.js?v=0.2.138';
+import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.138';
+import { createViewSheets } from './view-sheets.js?v=0.2.138';
+import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.138';
+import { folkExtras } from './town-folk.js?v=0.2.138';
+import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.138';
+import { huntOfMap } from './hunt-maps.js?v=0.2.138';
+import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.138';
+import { createHuntScene } from './hunt-scene.js?v=0.2.138';
+import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.138';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.138';
+import { createWalkScene } from './walk-scene.js?v=0.2.138';
+import { createTownZoom } from './town-zoom.js?v=0.2.138';
+import { createIdleMotion } from './idle-motion.js?v=0.2.138';
+import { homeMapFor, homeEnv } from './home-scene.js?v=0.2.138';
+import { runAction } from './steer-local.js?v=0.2.138';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.138';
+import { heroDyeOf } from './hero-dye.js?v=0.2.138';
+import { keyBelongsToField } from '../utils/dom.js?v=0.2.138';
+import { homeOf } from '../session/home-sections.js?v=0.2.138';
+import { skillsOf } from '../session/item-sections.js?v=0.2.138';
+import { createHearthView } from './hearth-burn.js?v=0.2.138';
+import { townWorksSwap } from './town-works.js?v=0.2.138';
+import { farmCropProps } from './town-farm.js?v=0.2.138';
+import { farmFieldOf } from '../session/farm-sections.js?v=0.2.138';
+import { createTownShows } from './town-shows.js?v=0.2.138';
+import { monsterPourOf } from './monster-pour.js?v=0.2.138';
+import { towerOf } from '../session/tower-sections.js?v=0.2.138';
+import { CHEST_LAYERS } from '../data/world/town/sites.js?v=0.2.138';
+import { bumpSeedOf } from './core/ambient.js?v=0.2.138';
+/* the town's ambient rows left out while the Tower is hidden: the Hearth Chest, its light and its smoke */
+const HIDE_CHEST = Object.freeze(Object.fromEntries(CHEST_LAYERS.map((id) => [id, true])));
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -318,6 +320,8 @@ export async function bootWorld(panel, opts) {
       Object.assign(f, hearthState(map, f, now));
       /* THE HEARTH CHEST stands on the ledge only while the server sends the Burning Tower's section (src/data/world/town/sites.js AMBIENT) */
       if (!towerOf(character)) f.ambientHide = HIDE_CHEST;
+      /* THE CHEST'S BUMPS (core/ambient.js bumpAt) fall on the viewer's own seed, a hash of the hero's name: two players' chests never jolt together */
+      f.bumpSeed = bumpSeedOf(G.playerName);
       /* THE TOWN WORKS (town-works.js): a lot's art by the stage the server said */
       f.objectSwap = townWorksSwap(map, town.extras());
       /* THE FARM (town-farm.js): every planted plot's crop at the stage the server's plot data names */

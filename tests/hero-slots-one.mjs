@@ -216,11 +216,11 @@ function grade(o) {
 
   ok(js(o.at1.offer) === js({ slotId: 1, cost: LADDER[1], max: 4 }), `HS-3: at one hero the offer is ${js(o.at1.offer)}`);
   ok(o.at1.html.includes('Second hero slot: 300,000 gold (max 4 heroes)')
-     && o.at1.html.includes('Party → Find a party to hunt with other players')
+     && o.at1.html.includes('Group with other players: Party → Find a party')
      && o.at1.html.includes('Buy a hero slot for 300,000 gold'),
     `HS-3: at one hero the offer reads ${js(o.at1.html)}`);
   ok(o.at1.line === 'Hero slots: 1 (up to 4 play at once). More cost gold', `HS-3: at one hero the line reads ${js(o.at1.line)}`);
-  ok(o.at2.html.includes('Third hero slot: 750,000 gold') && !o.at2.html.includes('Find a party to hunt with'),
+  ok(o.at2.html.includes('Third hero slot: 750,000 gold') && !o.at2.html.includes('Group with other players'),
     `HS-3: at two heroes the offer reads ${js(o.at2.html)} (the third at 750,000, no one-hero note)`);
 
   ok(js(o.fullAfter) === js(o.fullBefore) && o.fullAfter.length === 3, `HS-4: the live account's heroes moved: ${js(o.fullBefore)} -> ${js(o.fullAfter)}`);

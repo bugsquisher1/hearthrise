@@ -45,8 +45,8 @@
 // When the server moves the stand (a new activity, back from a hunt, a counter)
 // the World walks the hero there from where it is (me(), display only).
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.137';
-import { dyeKeyOf } from '../data/outfits.js?v=0.2.137';
+import { TOWN_PRESENCE, TOWN_DIRS } from '../data/town-presence.js?v=0.2.138';
+import { dyeKeyOf } from '../data/outfits.js?v=0.2.138';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAP_ID = /^[a-z0-9_]{1,40}$/;
@@ -95,13 +95,17 @@ function standOf(m) {
 }
 
 const FLAME = /^[a-z0-9_]{1,32}$/;
-/** The named flame a town answer carries, on the local clock (`at`: this browser's ms when it was read), or null. Pure. */
+/* the one winner's class, as the server ranked it (2027-05-05-hearth-moods.sql: the chest's window, a named flame, a bought one) */
+const FLAME_KINDS = Object.freeze(['chest', 'named', 'bought']);
+/** The flame a town answer carries, on the local clock (`at`: this browser's ms when it was read), or null. `key` names its window
+    by the server's start, so a window stretched by a second press is the same window. Pure. */
 function hearthOf(h, at) {
   if (!h || typeof h !== 'object' || typeof h.flame !== 'string' || !FLAME.test(h.flame)) return null;
   const n = (v) => (Number.isSafeInteger(v) ? v : null);
   const now = n(h.now_ms), from = n(h.from_ms), until = n(h.until_ms);
   if (now === null || from === null || until === null || until <= from) return null;
   return Object.freeze({ flame: h.flame, item: typeof h.item === 'string' && /^[a-z0-9_]{1,64}$/.test(h.item) ? h.item : null,
+    kind: FLAME_KINDS.includes(h.kind) ? h.kind : null, key: h.flame + '@' + from,
     by: typeof h.by === 'string' && h.by.trim() ? h.by.slice(0, 24) : null,
     startedAt: at - (now - from), endsAt: at + (until - now), queued: n(h.queued) || 0 });
 }
@@ -336,6 +340,9 @@ export class TownPresence {
   /** This character's last accepted named burn ({item, at, stand: {station, stand, since}|null}, local ms), or null. Display only. */
   lastBurn() { return this._burn; }
 
+  /** A press the square will show (a Hearth Chest key: 2027-05-05-hearth-moods.sql's green window): the next reads keep the active pace. */
+  wake() { if (!this._dead) this._quiet = 0; }
+
   _noteMe(raw) {
     const s = standOf(raw);
     if (!s) { if (raw === null) this._me = null; return; }
@@ -365,7 +372,7 @@ export class TownPresence {
 
   /* After an answer: did it say anything new? A walker still on its way counts as news: it is about to move again. */
   _quietAfter(list) {
-    let heard = (this._hearth ? this._hearth.flame : '') + (this._round ? ':round' : '');
+    let heard = (this._hearth ? this._hearth.key : '') + (this._round ? ':round' : '');
     let walking = false;
     for (const w of list) {
       heard += '|' + keyOf(w) + ':' + w.x + ',' + w.y + ',' + w.gx + ',' + w.gy + ',' + w.dir + ',' + w.station + ',' + w.work + ',' + w.outfit + ',' + w.title + ',' + (w.colors ? w.colors.head + '.' + w.colors.body + '.' + w.colors.legs + '.' + w.colors.feet : '');
@@ -442,7 +449,7 @@ export class TownPresence {
     return this._walkers.filter((w) => !this._hidden(w.id));
   }
 
-  /** The named flame the Great Hearth burns now ({flame, item, by, startedAt, endsAt, queued}, local ms), or null. */
+  /** The flame the Great Hearth burns now ({flame, item, kind, key, by, startedAt, endsAt, queued}, local ms), or null: the server's one winner. */
   hearth() {
     const h = this._hearth;
     return h && this._map && this._now() < h.endsAt ? h : null;

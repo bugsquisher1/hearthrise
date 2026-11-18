@@ -4,7 +4,7 @@
 // The one home for the town activities a player starts and stops (designer
 // ruling 2026-10-22, lane/b-town-skills): chopping, mining and fishing (a
 // gathering node), and every bench recipe (Cooking, Smithing, Crafting,
-// Runecrafting, and Inner Flame's fuels the bag's Fuel the hearth names). The
+// Runecrafting, and Inner Flame's fuels the bag's Burn names). The
 // Gathering and crafting window (src/shell/windows/work.js) and the bag's Fuel
 // the hearth / Cook all (src/shell/windows/inventory/bury.js) both start and stop through
 // here, so there is one path, not two.
@@ -35,29 +35,29 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.137';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.137';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.137';
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.137';
-import { indexGatherNodes, gatherIntervalMs, gatherBagFullFor } from '../core/skill-sim.js?v=0.2.137';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.137';
-import { recipeInputs } from '../core/artisan.js?v=0.2.137';
-import { pacedXp } from '../core/pacing.js?v=0.2.137';
-import { whole } from '../render/format.js?v=0.2.137';
-import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.137';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.137';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.137';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.137';
-import { skillShortWords } from './intent-words.js?v=0.2.137';
-import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.137';
-import { bestTool } from '../core/tools.js?v=0.2.137';
-import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.137';
-import { whereToGet, wherePlaces, toolEffect } from './item-lore.js?v=0.2.137';
-import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.137';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.138';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.138';
+import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.138';
+import { ITEMS } from '../data/items.js?v=0.2.138';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.138';
+import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.138';
+import { indexGatherNodes, gatherIntervalMs, gatherBagFullFor } from '../core/skill-sim.js?v=0.2.138';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.138';
+import { recipeInputs } from '../core/artisan.js?v=0.2.138';
+import { pacedXp } from '../core/pacing.js?v=0.2.138';
+import { whole } from '../render/format.js?v=0.2.138';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.138';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.138';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.138';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.138';
+import { skillShortWords } from './intent-words.js?v=0.2.138';
+import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.138';
+import { bestTool } from '../core/tools.js?v=0.2.138';
+import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.138';
+import { whereToGet, wherePlaces, toolEffect } from './item-lore.js?v=0.2.138';
+import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.138';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -327,7 +327,7 @@ export function jobReplacedWords(cs, w) {
   return what ? 'Stopped ' + what : '';
 }
 
-/* AN ERRAND (supabase/migrations/2027-04-27-hearth-errand.sql hr_hearth_errand): a Hearth run of ONE, "Fuel the hearth". The server
+/* AN ERRAND (supabase/migrations/2027-04-27-hearth-errand.sql hr_hearth_errand): a Hearth run of ONE, the bag's "Burn". The server
    remembers the job it interrupts and points the hero back at it when the run ends, so the press stops nothing, and nothing here
    arms a Stop: that Stop would land after the server's way back and end the job (the shell's settle of a spent bench,
    town-poll.js settleSpentBench, ends the run). */
@@ -501,7 +501,7 @@ export function runParts(cs, w, byRun) {
       /* What is left to spend: the bag plus the Storage the bench draws on, less the ticker's certain spend of both. */
       const d = aheadQty(tick, first) + aheadStored(tick, first);
       const left = Math.max(0, (supplyOf(cs)[first] || 0) + d);
-      /* "Fuel the hearth" is a run of ONE: its line says what the run has to go, never the stock (live v0.2.135: one Bone fed
+      /* "Burn" is a run of ONE: its line says what the run has to go, never the stock (live v0.2.135: one Bone fed
          read "2,529 Bones left"): the server's count less the ticker's certain actions. */
       const run = byRun ? leftOf(cs) : null;
       const need = Math.max(1, recipeInputs(w.row)[first] || 1);

@@ -16,6 +16,28 @@ export const AWAY_TEXT = Object.freeze({
   next_stamina: 'While stamina refills: work a bench or train at the Yard',
   /* A training session that reached its longest run (after-hunt.js TRAIN_NEXT). */
   next_train_again: 'Start training again to keep going',
+  /* A span over two days (after-hunt.js spanWords): whole days, rounded down. */
+  span_days: { one: '{count} day', other: '{count} days' },
+  /* THE AWAY CARD (away-recap.js, away-work.js), one sentence a fact (QA audit 2026-11-18 N6: "Away 176 h 2 min: Wren hunted ...: Level 5 to 10"
+     ran three clauses together on colons). {time} "2 h 5 min" or "7 days"; {who} what the hero did ("Wren hunted Mill Cellar"); {facts} the
+     server's differences, "Level 5 to 10, +1,200 Level XP, 40 kills". */
+  card_head: 'Away {time}. {who}.',
+  card_facts: '{facts}.',
+  card_hunted: '{name} hunted {ground}',
+  /* how long ago the hunt ended ({time}), or that it has with no time said */
+  card_ended_ago: 'The hunt ended {time} ago.',
+  card_ended: 'The hunt has ended.',
+  /* A town job's line on the card, after the card's own head ({who} "Tess mined the Copper Rock", {facts} what it made and where it stands). */
+  card_work: '{who}. {facts}',
+  /* THE WHILE YOU WERE AWAY CARD (src/shell/windows/away.js, UI audit 2026-11-18 #2): its head, each hero's labels and the line under the figures. */
+  card_gone: 'Away {time}',
+  card_best: 'Best find',
+  card_still: 'Still hunting',
+  card_still_stamina: 'Still hunting, {time} of stamina left',
+  card_ended_when: 'Ended {time} ago',
+  card_stamina: 'Stamina {time}',
+  card_summary: 'Hunt summary',
+  card_ok: 'OK',
   /* {doing} is the server's job in words ("mining the Copper Rock", party-sections.js townActivityWords). */
   after_went: 'Then {name} went back to {doing}.',
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */

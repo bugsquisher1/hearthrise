@@ -5,10 +5,10 @@
 // (src/session/training-sections.js) or a refusal's figures (src/session/training-intents.js). A refusal with no
 // number reads from src/data/refusal-words.js; src/shell/intent-words.js refusalText asks here first.
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.137';
-import { whole } from '../render/format.js?v=0.2.137';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
-import { TRAINING_RULES } from '../data/training.js?v=0.2.137';
+import { t } from '../render/player-text.js?v=0.2.138';
+import { whole, gold } from '../render/format.js?v=0.2.138';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.138';
+import { TRAINING_RULES } from '../data/training.js?v=0.2.138';
 
 const MINUTE = 60000;
 const num = (v) => Number.isSafeInteger(v);
@@ -40,7 +40,7 @@ export function trainingRefusal(r) {
   if (r && (r.verb === 'training_gear_buy' || r.verb === 'training_gear_open' || r.verb === 'training_gear_switch')) return gearRefusal(r);
   if (!r || (r.verb !== 'training_start' && r.verb !== 'house_dummy')) return null;
   if (r.error === 'insufficient_gold' && num(r.fee) && num(r.purse)) return t('training.short_gold', { fee: whole(r.fee), purse: whole(r.purse) });
-  if (r.error === 'insufficient_gold' && num(r.price) && num(r.purse)) return t('training.dummy_short', { price: whole(r.price), purse: whole(r.purse) });
+  if (r.error === 'insufficient_gold' && num(r.price) && num(r.purse)) return t('training.dummy_short', { price: whole(r.price), purse: gold(r.purse) });
   if (r.error === 'dummy_busy' && r.busy) return t('training.dummy_busy', { who: r.busy });
   if (r.error === 'hunt_open') return t('training.hunting');
   if (r.error === 'in_party') return t('training.in_party');

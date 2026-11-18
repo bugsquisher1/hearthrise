@@ -90,6 +90,8 @@ declare
     'tower_progress', 'tower_runs', 'hr_mode_board', 'hr_mode_board_last',
     /* a hero's Hearth Chest warmth, key count and default stokes, the journal of its keys used, and its Key Ring (2027-04-27-tower-chest.sql) */
     'chest_luck', 'chest_opens', 'player_key_ring',
+    /* the Hearth Chest's green window on the square, naming the hero who opened it (2027-05-05-hearth-moods.sql) */
+    'hearth_bursts',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
     'party_settle_boundary', 'party_tick_lease',
     'player_action_sets', 'player_blessings', 'player_cosmetics', 'player_equipment', 'player_hunt_active', 'player_hunt_presets',

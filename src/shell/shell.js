@@ -39,31 +39,31 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.137';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.137';
-import { markup } from '../render/paint.js?v=0.2.137';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.137';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.137';
-import { createShellHud, fightOn } from './shell-hud.js?v=0.2.137';
-import { createHudRoom } from './hud-room.js?v=0.2.137';
-import { createWidgetStack } from './widget-stack.js?v=0.2.137';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.137';
-import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.137';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.137';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.137';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.137';
-import { mountContextMenu } from './context-menu.js?v=0.2.137';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.137';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.137';
-import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.137';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.137';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.137';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.137';
-import { benchSpentAtMs } from './town-work.js?v=0.2.137';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.137';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.137';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.137';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.137';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.138';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.138';
+import { markup } from '../render/paint.js?v=0.2.138';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.138';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.138';
+import { createShellHud, fightOn } from './shell-hud.js?v=0.2.138';
+import { createHudRoom } from './hud-room.js?v=0.2.138';
+import { createWidgetStack } from './widget-stack.js?v=0.2.138';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.138';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.138';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.138';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.138';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.138';
+import { mountContextMenu } from './context-menu.js?v=0.2.138';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.138';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.138';
+import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.138';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.138';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.138';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.138';
+import { benchSpentAtMs } from './town-work.js?v=0.2.138';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.138';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.138';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.138';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.138';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -437,7 +437,7 @@ export function mountShell(root, o) {
     const cs = ctx.character;
     /* ...and a new hunt that starts closes the last one's (playtest v0.2.127: it stayed open over the next hunt) */
     if (cs && takeStarted(cs) && wm.isOpen('hunt-summary')) wm.close('hunt-summary');
-    if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death')) queueMicrotask(() => wm.open('hunt-summary'));
+    if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death')) queueMicrotask(() => { if (!wm.isOpen('away')) wm.open('hunt-summary'); });
   }
 
   /* The display tick: components patch their clocks and play the timeline's due events. A hidden page patches nothing (nobody reads it). */
@@ -565,7 +565,7 @@ export function mountShell(root, o) {
   coach();
   /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own,
      and the server's first offer of a side opens the join prompt (windows/faction-join.js). */
-  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh), offFaction = WINDOW_RENDERERS['faction-join'].follow(ctx);
+  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh), offFaction = WINDOW_RENDERERS['faction-join'].follow(ctx), offAway = WINDOW_RENDERERS.away.follow(ctx, refresh);
 
   return {
     wm, hud,
@@ -584,7 +584,7 @@ export function mountShell(root, o) {
     destroy() {
       /* a switch of the viewed hero takes the windows with it: the summary on screen has been seen, and the bar must not stand in for it on the way back */
       if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);
-      offDeaths(); offPlayCap(); offFaction(); offWm(); offHud(); offMoves();
+      offDeaths(); offPlayCap(); offFaction(); offAway(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

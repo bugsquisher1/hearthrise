@@ -17,15 +17,15 @@
 // yards, all one tileset family chained from the same grass and dirt tiles), drawn on the dual grid
 // (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
 // (a placeholder site) stays a placeholder tone.
-import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.137';
-import { GROUND_ROWS } from '../town/ground.js?v=0.2.137';
-import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.137';
-import { GREENERY } from '../town/greenery.js?v=0.2.137';
-import { WEAR } from '../town/wear.js?v=0.2.137';
-import { PALISADE } from '../town/palisade.js?v=0.2.137';
-import { SCREE } from '../town/mountain.js?v=0.2.137';
-import { PIERS } from '../town/piers.js?v=0.2.137';
-import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.137';
+import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.138';
+import { GROUND_ROWS } from '../town/ground.js?v=0.2.138';
+import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.138';
+import { GREENERY } from '../town/greenery.js?v=0.2.138';
+import { WEAR } from '../town/wear.js?v=0.2.138';
+import { PALISADE } from '../town/palisade.js?v=0.2.138';
+import { SCREE } from '../town/mountain.js?v=0.2.138';
+import { PIERS } from '../town/piers.js?v=0.2.138';
+import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.138';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
 /** A placeholder footprint: a painted, closed building with its door mid-side. */
@@ -52,7 +52,7 @@ export default Object.freeze({
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),
   /* daylight on the river, the mill race and the harbour (src/world/core/ambient.js); the chimneys smoke wherever the homes stand */
   life: Object.freeze(['water']),
-  ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, a.dx ? { dx: a.dx } : {}, tile(a.x, a.y))))),
+  ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, ('dx' in a && a.dx) ? { dx: a.dx } : {}, tile(a.x, a.y))))),
   faces: Object.freeze([]),
   objects: Object.freeze([
     ...SCENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),

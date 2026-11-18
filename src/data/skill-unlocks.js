@@ -17,14 +17,14 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SKILLS_DEF } from './skills.js?v=0.2.137';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.137';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.137';
-import { ITEMS } from './items.js?v=0.2.137';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.137';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.137';
-import { reachableSources } from './catalogue-coherence.js?v=0.2.137';
-import { itemUse, nodeUse } from './item-uses.js?v=0.2.137';
+import { SKILLS_DEF } from './skills.js?v=0.2.138';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.138';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.138';
+import { ITEMS } from './items.js?v=0.2.138';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.138';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.138';
+import { reachableSources } from './catalogue-coherence.js?v=0.2.138';
+import { itemUse, nodeUse } from './item-uses.js?v=0.2.138';
 
 /* How many things one unlock line names before "and N more". */
 const NAMED = 3;
@@ -60,11 +60,20 @@ function unlocks() {
  * (the coach names the gear the hero's role wears); recipes and nodes always count.
  */
 export function nextUnlock(skill, level, keep) {
+  const n = nextUnlocks(skill, level, keep);
+  if (!n) return '';
+  const named = n.all.slice(0, NAMED).map(({ name, use }) => (use ? name + ' (' + use + ')' : name));
+  return 'Next at level ' + n.level + ': ' + named.join(', ') + (n.all.length > NAMED ? ' and ' + (n.all.length - NAMED) + ' more' : '');
+}
+
+/**
+ * The same next level, as data: { level, all: [{ name, use }] } (each name once, in nextUnlock's order), or null. A skill ledger's line
+ * names the first and counts the rest; nextUnlock's words are its tooltip (UI audit 2026-11-18: four lines a skill on the sheet).
+ */
+export function nextUnlocks(skill, level, keep) {
   const list = (unlocks().get(skill) || []).filter(([, , , id]) => !keep || !id || keep(id));
   const next = list.find(([lv]) => lv > level);
-  if (!next) return '';
+  if (!next) return null;
   const seen = new Set();
-  const at = list.filter(([lv, name]) => lv === next[0] && !seen.has(name) && seen.add(name));
-  const named = at.slice(0, NAMED).map(([, name, use]) => (use ? name + ' (' + use + ')' : name));
-  return 'Next at level ' + next[0] + ': ' + named.join(', ') + (at.length > NAMED ? ' and ' + (at.length - NAMED) + ' more' : '');
+  return { level: next[0], all: list.filter(([lv, name]) => lv === next[0] && !seen.has(name) && seen.add(name)).map(([, name, use]) => ({ name, use })) };
 }

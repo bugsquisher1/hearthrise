@@ -16,13 +16,13 @@
 // no pixels. THE GROUND IS KEPT WHILE THE CAMERA STANDS (groundLayer); moving, a frame composes it directly.
 // Colours: --world-* tokens via `css`. Tile, chunk, zoom: the map's grid (zs = z x T / 32).
 // ════════════════════════════════════════════════════════════════════════
-import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.137';
-import { composeFrame } from '../core/compose.js?v=0.2.137';
-import { layPlates } from '../core/plates.js?v=0.2.137';
-import { castBox } from '../core/shadows.js?v=0.2.137';
-import { createGroundChunks } from './ground-chunks.js?v=0.2.137';
-import { createFrameSig } from './frame-sig.js?v=0.2.137';
-import { paintStub } from '../stub-atlas.js?v=0.2.137';
+import { zoomFor, frameView, cleanInset } from '../core/camera.js?v=0.2.138';
+import { composeFrame } from '../core/compose.js?v=0.2.138';
+import { layPlates } from '../core/plates.js?v=0.2.138';
+import { castBox } from '../core/shadows.js?v=0.2.138';
+import { createGroundChunks } from './ground-chunks.js?v=0.2.138';
+import { createFrameSig } from './frame-sig.js?v=0.2.138';
+import { paintStub } from '../stub-atlas.js?v=0.2.138';
 
 const LIGHT_BANDS = 4;   // stepped pools: pixel-art light, no airbrush
 const CHUNK_KEEP = 24;   // baked ground chunks kept (LRU): a 192 x 116 town is 96 of ~1 MB each
@@ -35,7 +35,7 @@ const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
- *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object, pours?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye); pours: monsters in a pour (monster-pour.js createMonsterPour: the Burning Tower's fire)
+ *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object, pours?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye); pours: sprites in a pour (monster-pour.js createMonsterPour: the Burning Tower's fire, the Great Hearth's smoke)
  */
 export function createCanvasBackend(o) {
   const { win, doc, css, dyes, pours } = o;
@@ -483,13 +483,13 @@ export function createCanvasBackend(o) {
     s.add(list);
     for (const l of [list.decals, list.sprites, list.raised, list.fx]) for (const d of l) s.add(!!images[d.set]);
     if (dyes) for (const d of list.sprites) if (d.dye) s.add(dyes.has(d.id, d.dye));
-    if (pours) for (const d of list.sprites) if (d.pour) s.add(pours.has(d.id, d.pour));
+    if (pours) for (const l of [list.sprites, list.raised]) for (const d of l) if (d.pour) s.add(pours.has(d.id, d.pour));
     return s.end();
   }
 
   /* THE FRAME'S COLORS (hero-dye.js, monster-pour.js): every dyed unit and every poured unit's sheet it draws, then at most one bake of each, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
   function wantDyes(list) {
-    if (pours) { for (const d of list.sprites) if (d.pour) pours.want(d.id, d.pour, book.sprite(d.id), images[d.set]); pours.pump(); }
+    if (pours) { for (const l of [list.sprites, list.raised]) for (const d of l) if (d.pour) pours.want(d.id, d.pour, book.sprite(d.id), images[d.set]); pours.pump(); }
     if (!dyes) return;
     for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);
     dyes.pump();

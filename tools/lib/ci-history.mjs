@@ -90,11 +90,28 @@ export function readNightly(get) {
   return { at: run.updated_at, id: run.id, jobs: explained ? Object.fromEntries(list.map((j) => [j.name, j.conclusion])) : {} };
 }
 
-/** A green release run of smoke.yml on this very commit: { id, branch }, or null. */
-function readProved(env) {
-  const runs = ghGet(`/actions/runs?head_sha=${env.GITHUB_SHA}&event=push&status=success&per_page=50`, env).workflow_runs || [];
-  const hit = runs.find((r) => r.path === WORKFLOW && /^release\//.test(r.head_branch) && String(r.id) !== String(env.GITHUB_RUN_ID));
+/* WHAT MAKES A RUN PROOF OF A COMMIT, one rule each, so tools/release-proven.mjs --selftest can drop each in turn and see a
+   planted run get through. The query already asks for most of them; each is checked again on the answer, never trusted to the URL. */
+export const PROOF_RULES = Object.freeze([
+  ['the same commit', (r, c) => !!c.sha && r.head_sha === c.sha],
+  ['this workflow file', (r) => r.path === WORKFLOW],
+  ['a release/** branch', (r) => /^release\//.test(r.head_branch || '')],
+  ['a push, not a dispatch, a schedule or a pull request', (r) => r.event === 'push'],
+  ['finished green', (r) => r.status === 'completed' && r.conclusion === 'success'],
+  ['this repository, not a fork', (r, c) => !c.repo || (r.repository?.full_name === c.repo && r.head_repository?.full_name === c.repo)],
+  ['not this run itself', (r, c) => String(r.id) !== String(c.own)],
+]);
+
+/** The first run in `runs` that proves commit `sha` green: { id, branch }, or null. Pure. */
+export function provedBy(runs, { sha, own, repo }, rules = PROOF_RULES) {
+  const hit = (runs || []).find((r) => rules.every(([, ok]) => ok(r, { sha, own, repo })));
   return hit ? { id: hit.id, branch: hit.head_branch } : null;
+}
+
+/** A green release run of smoke.yml on this very commit: { id, branch }, or null. Throws when GitHub cannot be read. */
+export function readProved(env, get = githubReader(env)) {
+  const runs = get(`/actions/runs?head_sha=${env.GITHUB_SHA}&event=push&status=success&per_page=50`).workflow_runs || [];
+  return provedBy(runs, { sha: env.GITHUB_SHA, own: env.GITHUB_RUN_ID, repo: env.GITHUB_REPOSITORY });
 }
 
 /**

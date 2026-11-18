@@ -35,15 +35,15 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.137';
-import { heroBuilding } from './roofs.js?v=0.2.137';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.137';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.137';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.137';
-import { markShapes } from './mark-shapes.js?v=0.2.137';
-import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.137';
-import { roughEdges } from './ground-rough.js?v=0.2.137';
-import { lifeDraws, glanceOf, swayOf } from './ambient.js?v=0.2.137';
+import { ySort } from './zsort.js?v=0.2.138';
+import { heroBuilding } from './roofs.js?v=0.2.138';
+import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.138';
+import { vertexGrid, tileKey } from './wang.js?v=0.2.138';
+import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.138';
+import { markShapes } from './mark-shapes.js?v=0.2.138';
+import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.138';
+import { roughEdges } from './ground-rough.js?v=0.2.138';
+import { lifeDraws, glanceOf, swayOf, bumpAt } from './ambient.js?v=0.2.138';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -398,9 +398,11 @@ function standingOf(map, book, tables, T) {
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
- *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
+ *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, bumpSeed?: number, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[],
+ *          lifeTint?: object|null}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0;
- *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js)
+ *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js);
+ *                           lifeTint: the Great Hearth's smoke under the server's flame (hearth-burn.js, core/ambient.js lifeDraws)
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
  */
@@ -411,8 +413,9 @@ export function composeFrame(map, book, state, view, tables, T) {
   const near = (x, y, w, h) => x < view.ox + view.w + 2 * T && y < view.oy + view.h + 2 * T && x + w > view.ox - 2 * T && y + h > view.oy - 2 * T;
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
-  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs */
-  const life = lifeDraws(map, book, state.t || 0, view, T);
+  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs; state.lifeTint is the Great
+     Hearth's smoke under the flame the server names (src/world/hearth-burn.js: its pour and the chest's puff) */
+  const life = lifeDraws(map, book, state.t || 0, view, T, state.lifeTint || null);
   for (const d of life.ground) { d.seq = seq++; stand.push(d); }
   for (const d of life.air) { d.seq = seq++; raised.push(d); }
 
@@ -586,11 +589,15 @@ export function composeFrame(map, book, state, view, tables, T) {
     if (!name) continue;
     const n = book.frames(id, name, 's');
     const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
-    const f = book.frame(id, name, 's', i);
+    /* ...or now and then its BUMP (core/ambient.js bumpAt: the Hearth Chest jolts, its light flashes, it puffs), on the page's own luck, never with
+       the Idle animations off */
+    const b = s.anims.bump && state.stillIdle !== true ? bumpAt(state.t || 0, s.anims[name].fps || 0, n, book.frames(id, 'bump', 's'), state.bumpSeed) : -1;
+    const f = b < 0 ? book.frame(id, name, 's', i) : book.frame(id, 'bump', 's', b);
     const px = Math.round((a.x + 0.5) * T + (a.dx || 0)), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
     /* a loop off the view is no change at all (the World paints only what changes): the view itself, no margin, as an effect casts nothing */
     const lx = px - f.ax, ly = py - f.ay;
     if (!(lx < view.ox + view.w && ly < view.oy + view.h && lx + f.w > view.ox && ly + f.h > view.oy)) continue;
+    /** @type {{[k: string]: any}} */
     const e = { id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
       blend: s.blend === 'add' ? 'add' : 'over', angle: 0 };
     /* AN OBJECT STANDING ON ART (the Hearth Chest on the Hearth's ledge, lane/fix137-hearth-chest-art): its manifest ellipse at its foot,

@@ -13,11 +13,13 @@ const LOOT_SHOWN = 6;
 const SUPPLIES_SHOWN = 8;
 const BAG_LINES_MAX = 16;
 const DEATH_LINES_MAX = 6;
+const UPS_SHOWN = 8;
 const REASON = /^[a-z_]{1,24}$/;
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 const int = (v) => (Number.isSafeInteger(v) ? v : null);
+const level = (v) => (Number.isSafeInteger(v) && v >= 1 ? v : null);
 const ID = /^[a-z0-9_]{1,64}$/;
 const id = (v) => (typeof v === 'string' && ID.test(v) ? v : null);
 const ms = (v) => { if (typeof v === 'number' && Number.isFinite(v)) return v; const t = typeof v === 'string' ? Date.parse(v) : NaN; return Number.isFinite(t) ? t : null; };
@@ -38,8 +40,11 @@ export function sanitizeSummary(v) {
     why: typeof v.why === 'string' && REASON.test(v.why) ? v.why : null,
     ms: num(v.ms) !== null && v.ms >= 0 ? Math.floor(v.ms) : null,
     kills: int(v.kills), xp: num(v.xp), gold: num(v.gold), lootValue: num(v.lootValue), balance: num(v.balance), died: int(v.died),
-    /* The server's per-hour figures at the end (the analyzer's): balance for everyone, raw XP premium only. */
-    balanceH: num(v.balanceH), rawXpH: num(v.rawXpH),
+    /* The server's per-hour figures at the end (the analyzer's): balance and Level XP for everyone, raw XP premium only. */
+    balanceH: num(v.balanceH), rawXpH: num(v.rawXpH), xpH: num(v.xpH),
+    /* THE LEVEL LINE (summary-model.js levelLine): the server's Level at the hunt's start and end, and each skill it raised [id, from, to]. */
+    lvFrom: level(v.lvFrom), lvTo: level(v.lvTo),
+    ups: pairs(v.ups, (p) => (Array.isArray(p) && id(p[0]) && level(p[1]) !== null && level(p[2]) !== null ? [p[0], p[1], p[2]] : null), UPS_SHOWN),
     loot: pairs(v.loot, (p) => (Array.isArray(p) && id(p[0]) && int(p[1]) !== null ? [p[0], p[1]] : null), LOOT_SHOWN),
     supplies: pairs(v.supplies, (p) => (Array.isArray(p) && id(p[0]) && (p[1] === 'own' || p[1] === 'store') && num(p[2]) !== null ? [p[0], p[1], p[2]] : null), SUPPLIES_SHOWN),
     preset: int(v.preset), hoursLimit: int(v.hoursLimit),

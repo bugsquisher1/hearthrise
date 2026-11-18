@@ -15,16 +15,27 @@
 //   THE COLOUR  while the town's answer names a burning flame (TownPresence
 //            hearth()), the fire, its flares and sparks are drawn in that colour's
 //            art (src/data/hearth.js FLAMES), and the sparks rise on a beat.
+//   THE SMOKE   the flue's plume (SMOKE_CLIP) is poured onto the winner's ladder
+//            (src/world/pour.js `smoke_<flame>`; the plain fire smokes as drawn), and
+//            when the server opens a CHEST window (2027-05-05-hearth-moods.sql: the
+//            answer's kind 'chest') the flue puffs SMOKE_BURST once for that window,
+//            from the first frame that sees it (src/data/world/hearth-moods.js).
+//            The server picks the one flame; nothing here ranks two.
 // The firebox is the map's own `hearth_fire` ambient (src/data/world/town/sites.js
 // AMBIENT), so nothing here names a tile. A colour whose art the atlas lacks draws
 // the plain fire (never a missing sprite).
 // PURE: no DOM, no window, no clock of its own (the caller passes `now`).
 // ════════════════════════════════════════════════════════════════════════
-import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.137';
-import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.137';
+import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.138';
+import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.138';
+import { CHEST_FLAMES, SMOKE_CLIP, SMOKE_BURST } from '../data/world/hearth-moods.js?v=0.2.138';
+import { POURS } from './pour.js?v=0.2.138';
 
-/* The named colors and the bought powders, one table to draw from. A bought flame stays out of src/data/hearth.js, which the edge bundles. */
-const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });
+/* The named colors, the bought powders and the chest's window, one table to draw from. A bought flame and the chest's stay out of
+   src/data/hearth.js, which the edge bundles. */
+const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES, ...CHEST_FLAMES });
+/** The pour the flue's smoke takes under a flame, or null (the plain fire, or a flame with no ladder: smoke as drawn). */
+const smokeOf = (flame) => (flame && Object.hasOwn(POURS, 'smoke_' + flame) ? 'smoke_' + flame : null);
 
 const CHUNK_OF_RECIPE = new Map(HEARTH_FUELS.map((f) => [fuelRecipeId(f.item), f.chunk]));
 const FLARE_MS = 700;        // the flare's 6 frames at 10 fps, and a beat for the sparks
@@ -55,6 +66,24 @@ function createHearthBurn(map, o) {
   };
   /* the firebox mouth, in tiles (fractional: the ambient's lift above its foot row) */
   const mouth = fire ? { x: fire.x, y: fire.y - (fire.lift || 0) / T } : null;
+  /* the flue: the plume the map's life lays at the Hearth's chimney (core/ambient.js lifeOf), art px */
+  const flue = (map.life || []).find((a) => a.id === SMOKE_CLIP) || null;
+  /* THE CHEST'S PUFF, once a window: the window's server key and when this view first saw it */
+  let puffKey = null, puffAt = 0;
+  const step = SMOKE_BURST.ms / SMOKE_BURST.risePx;
+
+  /** The flue's smoke under `flame`: its pour, and the chest's puff while it plays ({ pour, puffs } for core/ambient.js lifeDraws), or null. */
+  function smokeFrame(h, flame, now) {
+    const pour = smokeOf(flame);
+    if (h && h.kind === 'chest' && h.key !== puffKey) { puffKey = h.key; puffAt = now; }
+    const age = now - puffAt;
+    const puffs = [];
+    if (flue && pour && h && h.kind === 'chest' && h.key === puffKey && age >= 0 && age < SMOKE_BURST.ms) {
+      const up = Math.floor(age / step);
+      for (const [dx, dy] of SMOKE_BURST.plumes) puffs.push({ id: SMOKE_CLIP, px: flue.px + dx, py: flue.py + dy - up, age, pour });
+    }
+    return pour || puffs.length ? { pour: pour ? { [SMOKE_CLIP]: pour } : null, puffs } : null;
+  }
 
   /* one throw that started `age` ms ago from tile `from`: the chunk in its arc, then the flare (and named sparks) */
   function throwFx(out, from, chunk, age, flame) {
@@ -78,16 +107,16 @@ function createHearthBurn(map, o) {
      * @param {{ me?: {key: string, x: number, y: number, chunk: string, since: number}|null,
      *           burn?: {x: number, y: number, chunk: string, at: number}|null,
      *           errand?: {x: number, y: number, chunk: string, at: number}|null,
-     *           peers?: {key: string, x: number, y: number}[], flame?: {flame: string, startedAt: number}|null }} env
+     *           peers?: {key: string, x: number, y: number}[], flame?: {flame: string, startedAt: number, kind?: string|null, key?: string}|null }} env
      *   me: your hero at its fuel stand working a fuel bench (since: when it got there); burn: your named fuel,
      *   thrown once from where the hero stands (at: when it arrived); errand: your one everyday fuel, the same;
      *   peers: others working at the Hearth's stands; flame: TownPresence.hearth()
      * @param {number} now  ms
-     * @returns {{ fx: object[], swap: object|null }}
+     * @returns {{ fx: object[], swap: object|null, life: {pour: object|null, puffs: object[]}|null }}  life: the flue's smoke (core/ambient.js lifeDraws)
      */
     frame(env, now) {
       const fx = [];
-      if (!mouth) return { fx, swap: null };
+      if (!mouth) return { fx, swap: null, life: null };
       const flame = env.flame && FLAMES[env.flame.flame] ? env.flame.flame : null;
       const every = BURN_SHOW.throwEveryMs;
       const cycle = (key, since, from, chunk) => {
@@ -107,7 +136,7 @@ function createHearthBurn(map, o) {
         if (a >= 0 && a < FLARE_MS) fx.push({ id: art(flame, 'sparks'), x: fire.x, y: fire.y, age: a, lift: (fire.lift || 0) / 20 });
       }
       const swap = flame && art(flame, 'fire') !== FLAMES.fire.fire ? { [FLAMES.fire.fire]: art(flame, 'fire') } : null;
-      return { fx, swap };
+      return { fx, swap, life: smokeFrame(env.flame, flame, now) };
     },
   };
 }
@@ -141,7 +170,7 @@ export function createHearthView(map, o) {
      *   TownPresence.me(); active: the server's artisan pointer (state.active_id) or null; burn: lastBurn(); flame:
      *   hearth(); xp: the server's Inner Flame XP (skills section); hero: the hero as drawn
      * @param {number} now ms
-     * @returns {{ fx: object[], floats: object[], ambientSwap: object|null }}
+     * @returns {{ fx: object[], floats: object[], ambientSwap: object|null, lifeTint: object|null }}  lifeTint: the flue's smoke (core/compose.js state.lifeTint)
      */
     frame(e, now) {
       /* WHEN THE HERO REACHED ITS HEARTH STAND (a new stand starts the clock again) */
@@ -179,7 +208,7 @@ export function createHearthView(map, o) {
         lastXp = e.xp;
       }
       while (floats.length && now - floats[0].at > XP_FLOAT_MS) floats.shift();
-      return { fx: out.fx, ambientSwap: out.swap,
+      return { fx: out.fx, ambientSwap: out.swap, lifeTint: out.life,
         floats: floats.map((f) => ({ text: f.text, kind: f.kind, x: hero.x, y: hero.y - 1, age: now - f.at, life: XP_FLOAT_MS })) };
     },
   };

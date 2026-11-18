@@ -18,19 +18,20 @@
 // alert centre (alerts.js) reads the same id, so a seen death never comes back
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.137';
-import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.137';
-import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.137';
-import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.137';
-import { huntName } from '../session/party-sections.js?v=0.2.137';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.137';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
-import { whole } from '../render/format.js?v=0.2.137';
-import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.137';
-import { monsterName } from './widgets/bits.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.138';
+import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.138';
+import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.138';
+import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.138';
+import { huntName } from '../session/party-sections.js?v=0.2.138';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.138';
+import { MONSTERS } from '../data/monsters.js?v=0.2.138';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.138';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.138';
+import { whole } from '../render/format.js?v=0.2.138';
+import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.138';
+import { monsterName } from './widgets/bits.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;
@@ -92,10 +93,14 @@ function whyWords(cs, d) {
   const band = d.row.hunt && HUNT_INDEX[d.row.hunt] && HUNT_INDEX[d.row.hunt].band;
   const at = d.row.levelFrom !== null && d.row.levelFrom !== undefined ? d.row.levelFrom : lv ? lv.level : null;
   if (!band || at === null || !h || h.sessionId !== d.session) return '';
-  const gap = band[0] - at;
+  /* A BOSS ROOM IS HIS FIGHT (QA audit 2026-11-18 N4: a Level 5 hero killed by the Level 25 Rat King read "3 Levels under this ground",
+     the room's band floor): the gap is to the boss's own Level, the catalogue row the engine fights with. */
+  const room = roomOfHunt(d.row.hunt);
+  const boss = room && MONSTERS[room.monster];
+  const gap = (boss && Number.isInteger(boss.level) ? boss.level : band[0]) - at;
   /* a boss room never tells a party that HAS a healer to bring one (the v0.2.132 re-play: four with a Healer read it): it says heal sooner */
-  if (gap <= 0) return t(!roomOfHunt(d.row.hunt) ? 'death.why_in_range' : hasHealer(cs) ? 'death.why_in_room_healed' : 'death.why_in_room');
-  return t('death.why_under', { count: gap });
+  if (gap <= 0) return t(!room ? 'death.why_in_range' : hasHealer(cs) ? 'death.why_in_room_healed' : 'death.why_in_room');
+  return room ? t('death.why_under_boss', { count: gap, boss: room.boss }) : t('death.why_under', { count: gap });
 }
 
 /* Did this hero's party (or the hero) fight with a Healer? The server's party section, else the hero's own role. */

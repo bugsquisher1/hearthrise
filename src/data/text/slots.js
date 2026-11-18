@@ -34,5 +34,5 @@ export const SLOTS_TEXT = Object.freeze({
   refused_gold: 'Not enough gold',
   refused_other: 'Slot not bought, try again',
   /* Under the offer, only while the account has one hero (designer 2026-11-09, table E). @sentence: guidance a label can't carry (the week, and what to do meanwhile). */
-  one_hero_note: 'Party → Find a party to hunt with other players',
+  one_hero_note: 'Group with other players: Party → Find a party',
 });

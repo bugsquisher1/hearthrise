@@ -41,36 +41,36 @@
 // read-only ("Set by <leader>: Dangerous", the server's `leader_tiers`) with no buttons, and the server refuses a
 // member's pick (hr_hunt_tier_set `not_leader`).
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.137';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.137';
-import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.137';
-import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.137';
-import { startPartyHunt, settleTownActivity, inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.137';
-import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.137';
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.137';
-import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.137';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { itemNameFor, revealInWindow } from '../widgets/bits.js?v=0.2.137';
-import { glyphSvg, markCoachRead } from '../launcher.js?v=0.2.137';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.137';
-import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.137';
-import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.137';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.137';
-import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js?v=0.2.137';
-import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.137';
-import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js?v=0.2.137';
-import { openFinderOn } from './party-finder.js?v=0.2.137';
-import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.137';
-import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.137';
-import { callFromGround } from '../../data/boss-calls.js?v=0.2.137';
-import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.137';
-import { hallFromGround } from '../../data/boss-halls.js?v=0.2.137';
-import { rowLines } from '../live-events-view.js?v=0.2.137';
-import { patchParts } from '../goto.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.137';
-import { patchScale, actScale, scaleTag } from './scale-pane.js?v=0.2.137';
+import { huntOf, huntBagOf, settingsOf, huntBestsOf, huntTierOf } from '../../session/hunt-sections.js?v=0.2.138';
+import { bagOf, equipmentOf, blessingsOf } from '../../session/item-sections.js?v=0.2.138';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.138';
+import { levelOf as levelRowOf } from '../../session/character-sections.js?v=0.2.138';
+import { huntName, partyMembershipOf } from '../../session/party-sections.js?v=0.2.138';
+import { startPartyHunt, settleTownActivity, inviteOwn, warnPartyGround } from '../../session/party-intents.js?v=0.2.138';
+import { leaveOrDisband } from '../widgets/party-panel.js?v=0.2.138';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.138';
+import { whole, sepHtml, withSeps } from '../../render/format.js?v=0.2.138';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
+import { itemNameFor, revealInWindow } from '../widgets/bits.js?v=0.2.138';
+import { glyphSvg, markCoachRead } from '../launcher.js?v=0.2.138';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.138';
+import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.138';
+import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.138';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.138';
+import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js?v=0.2.138';
+import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.138';
+import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js?v=0.2.138';
+import { openFinderOn } from './party-finder.js?v=0.2.138';
+import { tallyOf, heldOn, tallyLine } from '../../session/tally-sections.js?v=0.2.138';
+import { callHtml, patchCall, actCall, callRefusal } from './boss-call-pane.js?v=0.2.138';
+import { callFromGround } from '../../data/boss-calls.js?v=0.2.138';
+import { hallHtml, patchHall, actHall, hallRefusal } from './boss-hall-pane.js?v=0.2.138';
+import { hallFromGround } from '../../data/boss-halls.js?v=0.2.138';
+import { rowLines } from '../live-events-view.js?v=0.2.138';
+import { patchParts } from '../goto.js?v=0.2.138';
+import { t } from '../../render/player-text.js?v=0.2.138';
+import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.138';
+import { patchScale, actScale, scaleTag } from './scale-pane.js?v=0.2.138';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -234,7 +234,12 @@ renderHunts.patch = function patchHunts(body, ctx) {
      whole sheet, and the two cards that explain the fight were never seen): once the SERVER's hunt section says the
      hero is hunting after an Enter pressed here, the window closes and the hunt is in view. Opening it again while
      hunting keeps it open (it says where the hero is). */
-  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }
+  /* ...AND THE WINDOW WHOSE LINK OPENED IT (QA audit 2026-11-18 N12: the Tally stayed over the hunt after Enter from its link): its work is done once the hunt runs. */
+  if (sc.closeOnHunt && now) {
+    sc.closeOnHunt = false;
+    const by = typeof ctx.wm.backTo === 'function' ? ctx.wm.backTo('hunts') : null;
+    queueMicrotask(() => { ctx.wm.close('hunts'); if (by && by !== 'hunts') ctx.wm.close(by); });
+  }
   const level = levelOf(cs);
   const party = partyMembershipOf(cs);
   const size = party ? party.seats.length : 1;
@@ -312,7 +317,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
 function patchPage(det, ctx, sc, v) {
   const { r, level, size, party, follower, now } = v;
   const cs = ctx.character;
-  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
+  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), allLoot: sc.allLoot === r.hunt, repaint: () => ctx.refresh('hunts') });
   /* the floor is a warning (Tyler 2026-11-04 UTC): this hero's own gap, and a leader's every seat's too. The first press of Enter arms the one confirm (renderHunts.act). */
   const under = party && !follower ? seatsUnder(r, party).under : [];
   /* the death line says the share a death would really take with the Blessings the server says are on (designer re-read 2026-11-11) */
@@ -426,6 +431,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     return true;
   }
   if (action === 'back') { sc.paged = false; repage(); return true; }
+  /* "+N more" under a ground's loot: the rest of its rows (display scratch, this ground's only) */
+  if (action === 'loot-more') { sc.allLoot = sc.pick; repaint(); return true; }
   /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
@@ -440,6 +447,9 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   }
   /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
+  /* A CONFIRM OPENS IN VIEW (QA audit 2026-11-18 N3: the call-out's warning opened under the press, below the page's fold and cut by the
+     Enter foot, so "Call him out once" had to be found): once drawn, the page scrolls to it, its buttons at least. */
+  const inView = () => { const w = action === 'call-warn' || action === 'hall-warn' ? el.closest('.hw-hd-call').querySelector('.hw-call-warn.is-on') : null; if (w) revealInWindow(w); return true; };
   /* Call out: its section's presses, run as the setup Go as chose; its refusals read the designer's words. */
   const called = callFromGround(sc.pick);
   if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -447,7 +457,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }), el)) return true;
+  }), el)) return inView();
   /* A keyed hall: its section's presses, the same way; its refusals read its own words, with the key's name. */
   const hall = hallFromGround(sc.pick);
   if (actHall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -455,7 +465,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }))) return true;
+  }))) return inView();
   if (action === 'leave-party') { leaveOrDisband(ctx, cs, sc, repaint, 'leave'); return true; }
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;

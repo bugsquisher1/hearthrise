@@ -24,11 +24,11 @@
 //
 // PURE ESM. Data, a validator and the ground rule. Never imported by the engine or the page (tests/faction-ground-balance.mjs FG-EDGE).
 // ════════════════════════════════════════════════════════════════════════
-import { REGIONS, STANDING_SIDES } from './grounds/shape.js?v=0.2.137';
-import { HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS } from './hunts.js?v=0.2.137';
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.137';
-import { MONSTERS } from './monsters.js?v=0.2.137';
-import { REGION_KITS } from './world/region-kits.js?v=0.2.137';
+import { REGIONS, STANDING_SIDES } from './grounds/shape.js?v=0.2.138';
+import { HUNTS, CALLED_HUNTS, HALL_HUNTS, TRAINING_HUNTS } from './hunts.js?v=0.2.138';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.138';
+import { MONSTERS } from './monsters.js?v=0.2.138';
+import { REGION_KITS } from './world/region-kits.js?v=0.2.138';
 
 export const FACTION_RULES = Object.freeze({
   /* The monster whose first server-counted kill opens joining: Lord Krell, his hall in Krell's Hold (src/data/grounds/krells_hold). */

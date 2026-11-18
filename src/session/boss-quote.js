@@ -9,7 +9,7 @@
 // A FREE FIGHT IS A PRICE (2027-03-22-live-events.sql §4): an event's fee dial (Open Halls) quotes 0 gold, the verb takes 0, and
 // the quote names the event that set it (`event`). It waives gold only: a fight's stamina is the same.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.137';
+import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.138';
 
 const whole = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const table = (v, n) => (Array.isArray(v) && v.length === n && v.every((x) => Number.isSafeInteger(x) && x >= 0) ? v.slice() : null);
@@ -32,6 +32,16 @@ function dangerOf(v) {
     tank: v.tank === true, healer: v.healer === true, noFood: count(v.no_food) };
 }
 
+/* NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the boss counted, the server's number, this hero's count and every
+   OTHER seat short of it by name, or null when the quote does not say (an older server: the press still waits on `available`). */
+function winsOf(v) {
+  if (!v || typeof v !== 'object' || typeof v.boss !== 'string' || !ITEM.test(v.boss) || !(Number.isSafeInteger(v.need) && v.need > 0) || whole(v.have) === null) return null;
+  const short = (Array.isArray(v.short) ? v.short.slice(0, 7) : [])
+    .filter((s) => s && typeof s === 'object' && typeof s.name === 'string' && s.name.trim() && whole(s.have) !== null)
+    .map((s) => ({ name: s.name.trim().slice(0, 40), have: s.have }));
+  return { boss: v.boss, need: v.need, have: v.have, short };
+}
+
 /** A quote as the server sent it, bounded: whole numbers and a code, or null. A quote that can't draw the slider is no quote. */
 export function quoteOf(q) {
   if (!q || typeof q !== 'object' || !Number.isSafeInteger(q.price) || q.price < 0) return null;
@@ -52,7 +62,7 @@ export function quoteOf(q) {
     /* the bill of n fights, n = 1..maxFights at index n - 1: gold for this account, stamina a hero */
     totals: { fee, staminaMs: stamina },
     /* what a win can drop, and the room's danger: the page names both before the slider (audit F24) */
-    drops: dropsOf(q.drops), danger: dangerOf(q.danger),
+    drops: dropsOf(q.drops), danger: dangerOf(q.danger), wins: winsOf(q.wins),
     /* the room will hold this hero alone (2027-04-05-call-out-alone.sql): the warning's one more line; a server that doesn't say adds none */
     alone: q.alone === true,
     /* the live event whose fee dial set this price (the quote's `event`), or null: it picks the pane's words, never its number */

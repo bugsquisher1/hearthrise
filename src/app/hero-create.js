@@ -20,13 +20,14 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD, HOW_YOU_FIGHT_SLOTS } from '../data/how-to-play.js?v=0.2.137';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js?v=0.2.137';
-import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js?v=0.2.137';
-import { refusalWords } from '../shell/intent-words.js?v=0.2.137';
-import { outfitArt, outfitMasks, drawOutfit } from '../render/outfit-sprite.js?v=0.2.137';
-import { focusOffTouch } from './sign-in.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.138';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.138';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js?v=0.2.138';
+import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js?v=0.2.138';
+import { refusalWords } from '../shell/intent-words.js?v=0.2.138';
+import { outfitArt, outfitMasks, drawOutfit } from '../render/outfit-sprite.js?v=0.2.138';
+import { focusOffTouch } from './sign-in.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
 
 /* The preview's whole-number scale: a 64 px sprite at 3 = 192 px; the other outfits at 1. */
 export const PREVIEW_SCALE = 3;
@@ -65,10 +66,12 @@ export function startWords() {
   return t('heroes.create_start', { outfit: row.label });
 }
 
-/** The "How you fight" column: the rule, then one line per way to fight. Pure. */
-export function howYouFightHtml() {
+/** The "How you fight" column: the rule, the account's hero slots on their own line (`slots`: the Characters screen's line, the SERVER'S
+    numbers, slot-offer.js playLineOf; '' while it has not said, and nothing is shown), then one line per way to fight. Pure. */
+export function howYouFightHtml(slots = '') {
   return '<section class="hero-how" aria-labelledby="hero-how-title"><h2 class="hero-how-title hs-sub" id="hero-how-title">' + t('heroes.create_how') + '</h2>'
-    + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + ' <span class="hero-how-slots">' + HOW_YOU_FIGHT_SLOTS + '</span></p>'
+    + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p>'
+    + (slots ? '<p class="hero-how-slots">' + esc(slots) + '</p>' : '')
     + '<ul class="hero-how-list">'
     + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hero-how-uses">' + r.uses + '</span></li>').join('')
     + '</ul><p class="hero-how-more" hidden>' + t('heroes.create_more') + '</p></section>';
@@ -115,7 +118,8 @@ function previewer(card, colors, colorOf) {
  * Render the creation step into `card` (the characters card).
  * @param card  the .auth-card element
  * @param o { slot, colorOf (token) -> '#rrggbb', create (name, colors) -> Promise<{ ok, reason, nameReason }>,
- *            done () (the hero exists: play it), back () (return to the characters), dyes (the strips and preview: outfits.js HERO_DYES_SHOWN) }
+ *            done () (the hero exists: play it), back () (return to the characters), dyes (the strips and preview: outfits.js HERO_DYES_SHOWN),
+ *            slots (the Characters screen's hero-slot line, the server's numbers; '' or none: not shown) }
  * @returns { colors () the picked indices, destroy () }
  */
 export function renderHeroCreate(card, o) {
@@ -139,7 +143,7 @@ export function renderHeroCreate(card, o) {
     + '<div class="hero-form">'
     + '<label class="auth-field">' + t('heroes.create_name') + '<input type="text" class="hero-name" maxlength="20" autocomplete="off" spellcheck="false" placeholder="' + t('heroes.create_name_hint') + '"></label>'
     + (dyes ? '<div class="hero-colors">' + BASE_REGIONS.map((g) => '<fieldset class="hero-region"><legend>' + REGION_LABEL[g] + '</legend><div class="hero-dyes">' + swatches(g) + '</div></fieldset>').join('') + '</div>' : '')
-    + '</div>' + howYouFightHtml() + '</div>'
+    + '</div>' + howYouFightHtml(typeof o.slots === 'string' ? o.slots : '') + '</div>'
     + '<p class="auth-message" role="status" aria-live="polite"></p>'
     + '<div class="auth-foot"><button type="button" class="auth-link hero-back">' + t('controls.back') + '</button>'
     + '<button type="button" class="hh-tool is-primary auth-submit is-go hero-confirm">' + t('heroes.create_go') + '</button></div>';

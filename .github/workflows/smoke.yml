@@ -7439,6 +7439,16 @@ jobs:
           node tests/temper-uniques.mjs
           node tools/mutant-gate.mjs node tests/temper-uniques.mjs --mutate
 
+      # SPECIAL-ATTRIBUTE GEAR (designer, lane/d-special-attributes; Tyler 2026-11-14 "sprinkle items like this throughout the game"): each of the
+      # five sample rows in src/data/special-attributes.js is the standard piece plus one attribute at its tier's size, with a home a player can
+      # reach; a row not shipped is on no item list or drop table, and the two that ship (Krell's Tollgate, the Banded Legguards) ship exactly as
+      # written. Under a second plain; --mutate (25) plants in an in-memory copy, about 14 s.
+      - name: Special-attribute gear - the sample hidden or shipped as written (25 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/special-attributes.mjs
+          node tools/mutant-gate.mjs node tests/special-attributes.mjs --mutate
+
       # CRAFTED JEWELRY (Tyler 2026-11-05, the sample): the designer's odds and the dice, a bench watched and one with the browser closed on the
       # server's settle (no gold moves on a roll), jewelry crafted not dropped, and the Hallmark step's generated catalogue. The verb's own
       # proof is its migration's §4 (db-replay); the perks' fight is tests/hunt-core/jewelry-play.mjs in the hunt-core step.

@@ -52,7 +52,8 @@ export function workDoneOf(cs, sawKey) {
        crafts, not what they made, so those say the run without a number rather than one the bag disagrees with */
     const exact = w.skill !== 'cooking' && !w.row.roll;
     const n = run.crafts * yieldOf(w);
-    said = exact ? t('work.done_made', { name, count: whole(n), item: itemNameFor(product, n) }) : t('work.done_run', { name, item: itemName(product) });
+    if (exact) said = t('work.done_made', { name, count: whole(n), item: itemNameFor(product, n) });
+    else said = t('work.done_run', { name, item: itemName(product) });
   } else {
     /* a Hearth fuel makes nothing: what it burned, its one input */
     const [input, per] = Object.entries(recipeInputs(w.row))[0] || [];

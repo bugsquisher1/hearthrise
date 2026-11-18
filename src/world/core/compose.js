@@ -411,8 +411,9 @@ export function composeFrame(map, book, state, view, tables, T) {
   const near = (x, y, w, h) => x < view.ox + view.w + 2 * T && y < view.oy + view.h + 2 * T && x + w > view.ox - 2 * T && y + h > view.oy - 2 * T;
   const decals = [], shadows = [], stand = [], raised = [];
   let seq = 0;
-  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs */
-  const life = lifeDraws(map, book, state.t || 0, view, T);
+  /* THE MAP'S LIFE (core/ambient.js): water light under everything standing, smoke and sparks over the roofs; state.lifeTint is the Great
+     Hearth's smoke under the flame the server names (src/world/hearth-burn.js: its pour and the chest's puff) */
+  const life = lifeDraws(map, book, state.t || 0, view, T, state.lifeTint || null);
   for (const d of life.ground) { d.seq = seq++; stand.push(d); }
   for (const d of life.air) { d.seq = seq++; raised.push(d); }
 

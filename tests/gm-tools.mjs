@@ -779,7 +779,7 @@ const ARMS = {
   },
   'GM-W-FUTURE': async (W, say) => {
     const { k } = W;
-    for (const t of ['account_gold_given', 'town_works_gifts', 'town_works_totals', 'town_shows']) {
+    for (const t of ['account_gold_given', 'town_works_gifts', 'town_works_totals', 'town_shows', 'hearth_bursts']) {
       const present = await k.one('select to_regclass($1) is not null', ['public.' + t]);
       if (!present) continue;
       const locked = await k.one(`select exists (select 1 from pg_trigger g where g.tgrelid = $1::regclass and g.tgname like 'hr_gm_wall%' and not g.tgisinternal)`, ['public.' + t]);

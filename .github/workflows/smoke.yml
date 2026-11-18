@@ -6933,6 +6933,10 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-gold-sinks.mjs --selftest
           node tests/town-shows.mjs
           node tools/mutant-gate.mjs node tests/town-shows.mjs --selftest
+          # THE HEARTH'S MOODS (Tyler 2026-11-18, lane/c-hearth-moods): one winner on the square (the chest's window, a named flame, a powder, the
+          # plain fire), a window that extends and never queues, 30 s green at most in a row, every paused second kept; the smoke follows the flame
+          node tests/hearth-moods.mjs
+          node tools/mutant-gate.mjs node tests/hearth-moods.mjs --selftest
           node tests/town-crier.mjs
           node tools/mutant-gate.mjs node tests/town-crier.mjs --selftest
           node tools/world-art/hearth-flames.mjs --check

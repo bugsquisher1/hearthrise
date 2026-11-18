@@ -216,9 +216,6 @@ function jobsOfPiece(plain, p) {
 export const JEWELRY_RECIPES_BY_SKILL = Object.freeze(Object.fromEntries(JEWEL_SKILLS.map((skill) => [skill,
   Object.freeze(Object.entries(JEWEL_PIECES).filter(([, p]) => p.skill === skill).flatMap(([plain, p]) => jobsOfPiece(plain, p)))])));
 
-/** Every crafted-piece job, every bench. */
-export const JEWELRY_RECIPES = Object.freeze(JEWEL_SKILLS.flatMap((s) => JEWELRY_RECIPES_BY_SKILL[s]));
-
 /** Every id a recipe row can make: its rolled outcomes, else its one output. */
 export function recipeOutcomes(r) {
   if (!r) return [];

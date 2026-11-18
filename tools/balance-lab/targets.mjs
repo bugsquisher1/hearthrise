@@ -10,7 +10,7 @@
 // page did not play (each hero alone, the same party on Normal) says which box to tick.
 import { LEVEL_PACE } from '../../src/data/core-model.js';
 import { charXpForLevel } from '../../src/core/xp.js';
-import { STYLES } from '../balance-sim/gear.mjs';
+import { STYLES } from '../balance-sim/styles.mjs';
 import * as SHEET from './virtual/sheet.mjs';
 
 /* Tyler's 2026-10-25 ruling, in the sheet's shape (used when the bundle has no sheet) */

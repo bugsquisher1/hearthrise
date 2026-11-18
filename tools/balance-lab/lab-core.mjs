@@ -33,7 +33,7 @@ import { GEAR_LADDERS } from '../../src/data/gear-tiers.js';
 import { SHIELD_ITEMS } from '../../src/data/shields.js';
 import { reachableSources } from '../../src/data/catalogue-coherence.js';
 import { BUILD } from '../../src/build-info.js';
-import { STYLES } from '../balance-sim/gear.mjs';
+import { STYLES } from '../balance-sim/styles.mjs';
 import { rateCI, quantile, round, gini } from '../balance-sim/stats.mjs';
 
 export { STYLES };

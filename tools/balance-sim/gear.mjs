@@ -37,6 +37,7 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { weaponPower } from './weapon-power.mjs';
 import { armorPower, loadArmorPower } from './armor-power.mjs';
+import { STYLES } from './styles.mjs';
 
 /* The tools' own tree. A staged sample under tools/ (tools/balance-sim/staged/) is read from HERE, never from the `root` a guard plants:
    a planted copy carries src/ and the edge, not the simulator's data (party-class-xp-line's mutants plant one and load this file). */
@@ -55,17 +56,9 @@ export const STAGED_GEAR = Object.freeze([
 /* The combat skill each role fights with (a `skillB` key that answers the style). */
 const ROLE_SKILL = Object.freeze({ tank: 'melee', melee_dps: 'melee', ranger: 'ranged', mage: 'magic', healer: 'magic' });
 
-/* The styles the simulator plays. `role` is the src/data/hunt-roles.js id the party is built with. */
-export const STYLES = Object.freeze({
-  tank: Object.freeze({ role: 'tank', weapon: 'weapon:sword', offhand: 'shield', line: 'plate', label: 'Sword + shield (tank)' }),
-  sword: Object.freeze({ role: 'melee_dps', weapon: 'weapon:sword', offhand: null, line: 'plate', label: 'Sword alone (Melee)' }),
-  hammer: Object.freeze({ role: 'melee_dps', weapon: 'weapon:warhammer', offhand: null, line: 'plate', label: 'Two-hand hammer (Melee)' }),
-  axes: Object.freeze({ role: 'melee_dps', weapon: 'weapon:hatchets', offhand: null, line: 'plate', label: 'Dual axes (Melee)' }),
-  bow: Object.freeze({ role: 'ranger', weapon: 'weapon:bow', offhand: null, line: 'leather', label: 'Bow (Ranger)' }),
-  crossbow: Object.freeze({ role: 'ranger', weapon: 'weapon:crossbow', offhand: 'shield', line: 'leather', label: 'Crossbow + shield (Ranger)' }),
-  mage: Object.freeze({ role: 'mage', weapon: 'weapon:wand', offhand: 'spellbook', line: 'cloth', label: 'Wand + spellbook (Mage)' }),
-  healer: Object.freeze({ role: 'healer', weapon: 'weapon:staff', offhand: null, line: 'cloth', label: 'Staff (Healer)' }),
-});
+/* The styles the simulator plays (./styles.mjs: the list alone, so the Balance Lab's browser bundle reads it without this file's node-only
+   uniques kit). */
+export { STYLES };
 
 const ARMOUR_SLOT_KEYS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
 

@@ -30,8 +30,8 @@
 //   node tests/temper-uniques.mjs            the guard
 //   node tests/temper-uniques.mjs --mutate   each rule driven red by a defect planted on a copy of the data
 //
-// mutant-anchors: src/session/temper-sections.js src/data/temper.js — TU1-TU6's mutants edit an in-memory copy (structuredClone); TU7's
-// plant a file copy
+// TU1-TU6's mutants edit an in-memory copy (structuredClone); TU7's plant a file copy of these:
+// mutant-anchors: src/session/temper-sections.js src/data/temper.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';

@@ -1185,12 +1185,22 @@ const cases = {
       const g = whatNext(M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false }));
       if (!g.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n + ', made in Crafting') || !(stitch.inputs.wolf_pelt > 0)) return role + ': What next reads ' + JSON.stringify(g);
     }
-    /* a bench rung above 1 names its level (played 10-31: Level 12, Smithing 1, the shield's line said nothing of 15) */
-    /* (a Level 12 Ranger: the Longbow leads Level 15's gear, made at Crafting 15) */
-    const bow = (M.recipes.ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'longbow');
-    const g12 = M.tut.nextGoal({ charLevel: 12, role: 'ranger', skillLevel: 12, defenseXp: 9, land: null, inParty: false });
-    const bowLine = 'Next gear at Level ' + M.items.ITEMS.longbow.reqLv + ': Longbow, made at Crafting ' + (bow && bow.req);
-    if (!bow || !(bow.req > 1) || ![g12.text, ...g12.also].includes(bowLine)) return 'ranger at Level 12: What next reads ' + JSON.stringify([g12.text, ...g12.also]) + ', wanted ' + JSON.stringify(bowLine);
+    /* NO BENCH MAKES A WEAPON (Tyler 2026-11-18, lane/d-drop-homes): every role's next tier leads with a drop, so no What next gear line names a bench
+       (a Level 12 Ranger read "Longbow, made at Crafting 15" until the recipe was cut). Each role, below tiers 2, 3 and 4. */
+    const lines = (L, role) => { const g = M.tut.nextGoal({ charLevel: L, role, skillLevel: L, defenseXp: 9, land: null, inParty: false }); return [g.text, ...g.also]; };
+    for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) for (const L of [14, 29, 44]) {
+      const gear = lines(L, role).filter((x) => /^Next gear at Level /.test(x));
+      if (!gear.length || gear.some((x) => /, made (at|in) /.test(x))) return role + ' at Level ' + L + ': What next names a bench for its next weapon: ' + JSON.stringify(gear);
+    }
+    /* a bench rung above 1 names its level (played 10-31: Level 12, Smithing 1, the shield's line said nothing of 15). No made piece leads a gear
+       line since the cut, so the rule is read on a FIXTURE row (the old Longbow recipe, Crafting 15) planted on the live bench list and taken off. */
+    const fixture = Object.freeze({ id: 'fixture_string_longbow', name: 'String Longbow', icon: '🏹', inputs: Object.freeze({ oak_plank: 3, silk_thread: 2 }), output: 'longbow', xp: 110, req: 15, ms: 3600 });
+    const crafts = M.recipes.ARTISAN_RECIPES.crafting;
+    crafts.push(fixture);
+    let g12;
+    try { g12 = lines(12, 'ranger'); } finally { crafts.splice(crafts.indexOf(fixture), 1); }
+    const bowLine = 'Next gear at Level ' + M.items.ITEMS.longbow.reqLv + ': Longbow, made at Crafting ' + fixture.req;
+    if (!g12.includes(bowLine)) return 'ranger at Level 12 with a Crafting 15 bow on the bench: What next reads ' + JSON.stringify(g12) + ', wanted ' + JSON.stringify(bowLine);
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
     const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
     if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('Buy a third hero slot for 15,000 gp')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
@@ -2124,6 +2134,9 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),", "when: [{ kind: 'carries', item: 'turnip_juice' }] }),"]] },
   { name: 'What next hides a made piece\'s bench level (core-loop 10-31)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "const madeKey = made ? (made.req > 1 ? 'coach.goal_gear_made_at' : 'coach.goal_gear_made')", "const madeKey = made ? ('coach.goal_gear_made')"]] },
+  /* lane/d-drop-homes (Tyler 2026-11-18: no bench makes a weapon): a forge row for the Iron Sword back on the bench, and What next tells a tank to make it */
+  { name: 'a weapon recipe back on the bench (What next sends a tank to Smithing)', case: 'tutorial-reactive',
+    edits: [['src/data/style-gear.js', "'klappas_club', 120, 1, 3000),", "'klappas_club', 120, 1, 3000),\n    r('forge_iron_sword', 'Forge Iron Sword', '⚔️', { iron_bar: 6, normal_plank: 2 }, 'iron_sword', 120, 15, 3400),"]] },
   { name: 'the day-one goals wait for Level 8 again (about two hours in)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'const DAY_ONE_LEVEL = 7;', 'const DAY_ONE_LEVEL = 8;']] },
   { name: 'the Hearth card waits for more fuel than the Cellar leaves', case: 'tutorial-reactive',

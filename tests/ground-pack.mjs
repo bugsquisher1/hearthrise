@@ -81,7 +81,14 @@ function gp3() {
     const tab = (stmts) => { const m = new Map(); for (const t of stmts) m.set(t.table, [...(m.get(t.table) || []), ...t.rows.map((r) => r.join(','))]); return m; };
     const mine = tab(rowsOf(have)), now = tab(ship.added.map((t) => ({ table: t.table, rows: t.rows })));
     const wholes = folded.map((o) => tab(rowsOf(readFileSync(join(MIG, o), 'utf8'))));
-    for (const [t, rows] of now) ok(JSON.stringify([...(mine.get(t) || [])].sort()) === JSON.stringify([...rows].sort()), 'GP-3 ' + f + ': its ' + t + ' rows are not what tools/pack.mjs ship ' + id + ' renders today');
+    /* (lane/d-drop-homes, 2026-11-18: this read every table row for row, the folded whole files' own too, so a world move that re-issues a partly
+       folded pack's rows in its whole file, Krell's Hold's kill bounds, read red against the pack's applied file. As the paragraph above says, a
+       table a folded whole file writes is that file's: today's rows must be in it, row for row, or in the pack's file.) */
+    for (const [t, rows] of now) {
+      const same = JSON.stringify([...(mine.get(t) || [])].sort()) === JSON.stringify([...rows].sort());
+      const inWhole = !same && wholes.some((w) => w.has(t) && rows.every((r) => w.get(t).includes(r)));
+      ok(same || inWhole, 'GP-3 ' + f + ': its ' + t + ' rows are not what tools/pack.mjs ship ' + id + ' renders today, and no folded whole file (' + folded.join(', ') + ') carries them');
+    }
     for (const [t, rows] of mine) {
       if (now.has(t)) continue;
       const keyCols = PACK_TABLES[t] ? PACK_TABLES[t].length : 1;
@@ -335,6 +342,16 @@ async function mutate() {
   });
   /* GP-2: an open pack naming a file that is not in the order */
   await bites('GP-2 an open pack whose file is in no apply order', async () => { const p = await plantAll([g]); try { gp2(); } finally { unplant(p); } });
+  /* GP-3: a PARTLY folded pack (Krell's Hold: every whole file folds it but the faction catalogue) whose row moves with no whole file re-issued: the
+     Grave Guard's shield row turned into a helmet, so its kill bound reads a new drop set that neither its applied file nor a whole file carries */
+  await bites('GP-3 a partly folded pack row moved with no whole file re-issued', async () => {
+    const file = join(GROUNDS_DIR(), 'krells_hold', 'pack.js'), was = readFileSync(file, 'utf8');
+    const planted = was.replace("{ id: 'ember_tower_shield', ch: 0.017, band: 'scarce' }", "{ id: 'ember_helm', ch: 0.017, band: 'scarce' }");
+    if (planted === was) throw new Error('the GP-3 mutant planted nothing');
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(file, planted);
+    try { gp3(); } finally { writeFileSync(file, was); }
+  });
   /* GP-5: a pack that moves a base row (the fixture's monster takes a base monster's id: refused at load) */
   await bites('GP-5 a pack taking a base monster id', async () => {
     const fx = await fixturePack(g, { prefix: FIX, status: 'open' });

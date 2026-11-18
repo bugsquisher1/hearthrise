@@ -211,6 +211,13 @@ export const REASONS = Object.freeze({
     { cond: 'pending || !tw.checkpoints.length', words: "t('tower.off_no_start')", where: 'Start Floor: off while a press is out (the busy line says so) or when the server lists no checkpoint, which the line above Enter says (No start floor available)' },
     { cond: '!!block', words: "text(root.querySelector('.tt-off-why'), block)", where: 'Enter: the line above it says why (out hunting, already climbing, a party seat that does not lead, no checkpoint the server lists), and data-off-why says it on a press' },
   ],
+  /* the Unmarked Catacombs (lane/b-catacombs-client): Enter has the line above it, the Start Room says the server listed none, a door past
+     the record is dim under the wing's own Deepest Room */
+  'src/shell/windows/tower-catacombs.js': [
+    { cond: 'pending || !listed', words: "t('catacomb.wing_best', { room: whole(w.best) })", where: 'A vault door: a press only for a door the record reaches; one past it is dimmed, and the picked wing says how deep the hero has been ("Deepest Room: 10"), the first door past it tagged Next key' },
+    { cond: '!w || !w.checkpoints.length', words: "t('catacomb.off_no_start')", where: 'Start Room: off while a press is out (the busy line says so) or when the server lists no door for the wing, which the line above Enter says (No start room available)' },
+    { cond: '!!block', words: "text(pane.querySelector('.tk-off-why'), block)", where: 'Enter: the line above it says why (out hunting, already descending, a seat that does not lead, the door\'s Level with each seat under it, no door the server lists), and data-off-why says it on a press' },
+  ],
   'src/shell/windows/tower-chest.js': [
     { cond: '!!block', words: "text(pane.querySelector('.tc-off-why'), k ? block : '')", where: 'Use: the line above it says why (out on a hunt, no key, its weapons not built, the key family\'s week of chests used); with no key held the press is hidden and the pane says how to earn one' },
     { cond: '!!block || all < 2', words: "t('tower.opens_left')", where: 'Use all: off for Use\'s reasons (the line above), or when the key family\'s week leaves one chest, which its "Opens left 1 / 6" line says; hidden with fewer than two keys held' },

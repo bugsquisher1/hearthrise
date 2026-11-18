@@ -39,31 +39,31 @@
 //
 // Mounted by src/app/world-pane.js over one character's World.
 // ════════════════════════════════════════════════════════════════════════
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.139';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.139';
-import { markup } from '../render/paint.js?v=0.2.139';
-import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.139';
-import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.139';
-import { createShellHud, fightOn } from './shell-hud.js?v=0.2.139';
-import { createHudRoom } from './hud-room.js?v=0.2.139';
-import { createWidgetStack } from './widget-stack.js?v=0.2.139';
-import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.139';
-import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.139';
-import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.139';
-import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.139';
-import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.139';
-import { mountContextMenu } from './context-menu.js?v=0.2.139';
-import { menuProvidersOf } from './menu-providers.js?v=0.2.139';
-import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.139';
-import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.139';
-import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.139';
-import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.139';
-import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.139';
-import { benchSpentAtMs } from './town-work.js?v=0.2.139';
-import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.139';
-import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.139';
-import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.139';
-import { hideTipIfGone } from './windows/item-tip.js?v=0.2.139';
+import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.140';
+import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.140';
+import { markup } from '../render/paint.js?v=0.2.140';
+import { createWindowManager, DOCK_EDGE, HOME_BOTTOM, RESIZE_MIN } from './window-manager.js?v=0.2.140';
+import { placeWidget, hudInsetOf, clearOfEdges, clearOfDock, stageOf, homeAt } from './hud.js?v=0.2.140';
+import { createShellHud, fightOn } from './shell-hud.js?v=0.2.140';
+import { createHudRoom } from './hud-room.js?v=0.2.140';
+import { createWidgetStack } from './widget-stack.js?v=0.2.140';
+import { fitDocked, dockedHeight, trimEnds } from './window-fit.js?v=0.2.140';
+import { headHtml, bodyOf, showPage, paintHead, pressHead, oneGold } from './window-head.js?v=0.2.140';
+import { actCoach, heldCard, coachHtml, placeCoach, fitCoachLine, ringCoach, noteCoachSight, coachOnScreen } from './launcher.js?v=0.2.140';
+import { coachWindow } from '../data/hunt-tutorial.js?v=0.2.140';
+import { WINDOW_RENDERERS, WIDGET_RENDERERS } from './renderers.js?v=0.2.140';
+import { mountContextMenu } from './context-menu.js?v=0.2.140';
+import { menuProvidersOf } from './menu-providers.js?v=0.2.140';
+import { followDeaths, deathPopupOf } from './death-popup.js?v=0.2.140';
+import { takeFresh, takeStarted, summaryDone, summaryClosedBy } from '../hunt-view/summary-recorder.js?v=0.2.140';
+import { sizeStore, gripHtml, pressGrip } from './window-sizes.js?v=0.2.140';
+import { watchTown, settleSpentBench, settleStaleTown } from '../session/town-poll.js?v=0.2.140';
+import { STAMP_EVERY_MS } from './away-recap.js?v=0.2.140';
+import { benchSpentAtMs } from './town-work.js?v=0.2.140';
+import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.140';
+import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.140';
+import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.140';
+import { hideTipIfGone } from './windows/item-tip.js?v=0.2.140';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;

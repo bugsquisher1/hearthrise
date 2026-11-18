@@ -17,38 +17,38 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.139';
-import { whole, gold } from '../../render/format.js?v=0.2.139';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.139';
-import { runIntent } from '../intent-words.js?v=0.2.139';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle, goldKeptOf } from '../../hunt-view/summary-model.js?v=0.2.139';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.139';
-import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.139';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.139';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.139';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.139';
-import { observeSessions } from '../../session/character-session.js?v=0.2.139';
-import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js?v=0.2.139';
-import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.139';
-import { staminaOf, goldFloorOf } from '../../session/hunt-sections.js?v=0.2.139';
-import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.139';
-import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.139';
-import { afterDoneWords } from '../hunt-after.js?v=0.2.139';
-import { heldStep, glyphSvg } from '../launcher.js?v=0.2.139';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.139';
-import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.139';
-import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.139';
-import { blessAll } from '../bless-all.js?v=0.2.139';
-import { blessingsOf } from '../../session/item-sections.js?v=0.2.139';
-import { t } from '../../render/player-text.js?v=0.2.139';
-import { skillWord } from '../training-words.js?v=0.2.139';
-import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.139';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
-import { towerOf } from '../../session/tower-sections.js?v=0.2.139';
-import { TOWER_RULES, runRulesOf } from '../../data/tower.js?v=0.2.139';
-import { climbEnd } from '../tower-words.js?v=0.2.139';
-import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.139';
-import { targetOf, gotoKey } from '../goto.js?v=0.2.139';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.140';
+import { whole, gold } from '../../render/format.js?v=0.2.140';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.140';
+import { runIntent } from '../intent-words.js?v=0.2.140';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle, goldKeptOf } from '../../hunt-view/summary-model.js?v=0.2.140';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.140';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.140';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.140';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.140';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.140';
+import { observeSessions } from '../../session/character-session.js?v=0.2.140';
+import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js?v=0.2.140';
+import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.140';
+import { staminaOf, goldFloorOf } from '../../session/hunt-sections.js?v=0.2.140';
+import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.140';
+import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.140';
+import { afterDoneWords } from '../hunt-after.js?v=0.2.140';
+import { heldStep, glyphSvg } from '../launcher.js?v=0.2.140';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.140';
+import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.140';
+import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.140';
+import { blessAll } from '../bless-all.js?v=0.2.140';
+import { blessingsOf } from '../../session/item-sections.js?v=0.2.140';
+import { t } from '../../render/player-text.js?v=0.2.140';
+import { skillWord } from '../training-words.js?v=0.2.140';
+import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.140';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
+import { towerOf } from '../../session/tower-sections.js?v=0.2.140';
+import { TOWER_RULES, runRulesOf } from '../../data/tower.js?v=0.2.140';
+import { climbEnd } from '../tower-words.js?v=0.2.140';
+import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.140';
+import { targetOf, gotoKey } from '../goto.js?v=0.2.140';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */

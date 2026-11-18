@@ -43,8 +43,8 @@
 //
 // THE BARGEMAN'S SPELL: Cold Bilge (whole group, frost; the area spells board's seed row) is this pack's own `spells` row
 // (lane/b-pack-fields, engine piece 10), cast now that the area spells are live.
-import { definePack, box, gather } from '../shape.js?v=0.2.139';
-import map from './map.js?v=0.2.139';
+import { definePack, box, gather } from '../shape.js?v=0.2.140';
+import map from './map.js?v=0.2.140';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
 

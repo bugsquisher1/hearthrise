@@ -12,23 +12,23 @@
 // as numbers with their sales count, and the player types the price, until the server's read
 // carries the sample rules. A listing's price then only ever comes from this player's eyes.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.139';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.139';
-import { whole } from '../../../render/format.js?v=0.2.139';
-import { ITEMS } from '../../../data/items.js?v=0.2.139';
-import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.139';
-import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.139';
-import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.139';
-import { refusalText } from '../../intent-words.js?v=0.2.139';
-import { marketList } from '../../../session/market-intents.js?v=0.2.139';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.139';
-import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.139';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.139';
-import { notListableWords, keptWords } from '../../market-words.js?v=0.2.139';
-import { toolLossWords } from '../../town-work.js?v=0.2.139';
-import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.139';
-import { t } from '../../../render/player-text.js?v=0.2.139';
-import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.139';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.140';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.140';
+import { whole } from '../../../render/format.js?v=0.2.140';
+import { ITEMS } from '../../../data/items.js?v=0.2.140';
+import { jewelSuggestedAsk } from '../../../data/jewelry.js?v=0.2.140';
+import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.140';
+import { bagOf, bankOf, shopOf, rulesOf as bagRulesOf, nameOf, presetsOf, goldOf } from '../../../session/item-sections.js?v=0.2.140';
+import { refusalText } from '../../intent-words.js?v=0.2.140';
+import { marketList } from '../../../session/market-intents.js?v=0.2.140';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.140';
+import { feeOf, netEachOf, netLotOf, evenAskOf, sellRowWords, goldWords, priceSample, ageWords } from '../../market-model.js?v=0.2.140';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.140';
+import { notListableWords, keptWords } from '../../market-words.js?v=0.2.140';
+import { toolLossWords } from '../../town-work.js?v=0.2.140';
+import { viewOf, setView, readItem, readNamed, rereadAll, holdGesture, dropGesture } from './state.js?v=0.2.140';
+import { t } from '../../../render/player-text.js?v=0.2.140';
+import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.140';
 
 /** The Sell pane's skeleton. */
 export function sellHtml() {

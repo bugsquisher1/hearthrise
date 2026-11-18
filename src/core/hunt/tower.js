@@ -32,13 +32,13 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { TOWER_RULES, TOWER_PARTY_XP, RUN_GROUNDS, runRulesOf, validateTower } from '../../data/tower.js?v=0.2.139';
-import { formulaStats, GROUND_ROSTER, MONSTER_ROLES } from '../../data/balance-sheet.js?v=0.2.139';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.139';
-import { OPEN_HUNTS } from '../../data/hunts.js?v=0.2.139';
-import { COMBAT_BALANCE } from '../combat.js?v=0.2.139';
-import { hashSeed } from '../rng.js?v=0.2.139';
-import { makeEvent } from './events.js?v=0.2.139';
+import { TOWER_RULES, TOWER_PARTY_XP, RUN_GROUNDS, runRulesOf, validateTower } from '../../data/tower.js?v=0.2.140';
+import { formulaStats, GROUND_ROSTER, MONSTER_ROLES } from '../../data/balance-sheet.js?v=0.2.140';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.140';
+import { OPEN_HUNTS } from '../../data/hunts.js?v=0.2.140';
+import { COMBAT_BALANCE } from '../combat.js?v=0.2.140';
+import { hashSeed } from '../rng.js?v=0.2.140';
+import { makeEvent } from './events.js?v=0.2.140';
 
 /* The Tower's run row: the default for a reader that only means the Tower. */
 const TOWER = RUN_GROUNDS[TOWER_RULES.hunt];

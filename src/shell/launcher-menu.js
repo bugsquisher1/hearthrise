@@ -6,8 +6,8 @@
 // src/shell/launcher.js (renderLaunchers), which hands its own renderer in as `draw`. Display scratch only: gates, spends and
 // stores nothing (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { LAUNCHER_GROUPS } from '../data/shell-windows.js?v=0.2.139';
-import { markup } from '../render/paint.js?v=0.2.139';
+import { LAUNCHER_GROUPS } from '../data/shell-windows.js?v=0.2.140';
+import { markup } from '../render/paint.js?v=0.2.140';
 
 /* ── THE BAR'S GROUPS (Tyler 2026-11-16: "Our top menu bar is starting to get long again"; src/data/shell-windows.js LAUNCHER_GROUPS) ──
    A grouped row's icon lives in its group's menu, one press under the group's own icon. The menu is display scratch per shell (its

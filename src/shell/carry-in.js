@@ -21,20 +21,20 @@
 //                          its line is the server's answer, and every count on
 //                          screen changes only from the re-read envelope
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.139';
-import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.139';
-import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.139';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.139';
-import { ABILITIES } from '../data/abilities.js?v=0.2.139';
-import { ITEMS } from '../data/items.js?v=0.2.139';
-import { shootsItem } from '../data/hunt-roles.js?v=0.2.139';
-import { shortOf } from './item-lore.js?v=0.2.139';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.139';
-import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.139';
-import { runIntent } from './intent-words.js?v=0.2.139';
-import { itemName } from './widgets/bits.js?v=0.2.139';
-import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.139';
-import { whole } from '../render/format.js?v=0.2.139';
+import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.140';
+import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.140';
+import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.140';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.140';
+import { ABILITIES } from '../data/abilities.js?v=0.2.140';
+import { ITEMS } from '../data/items.js?v=0.2.140';
+import { shootsItem } from '../data/hunt-roles.js?v=0.2.140';
+import { shortOf } from './item-lore.js?v=0.2.140';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.140';
+import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.140';
+import { runIntent } from './intent-words.js?v=0.2.140';
+import { itemName } from './widgets/bits.js?v=0.2.140';
+import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.140';
+import { whole } from '../render/format.js?v=0.2.140';
 
 /* The server's hunt is open and not on its way home: a session, not ended, no Leave or change pending. */
 function running(cs) {

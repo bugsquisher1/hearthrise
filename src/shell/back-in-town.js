@@ -26,19 +26,19 @@
 // card that now has nothing left is listed as done, so the player sees what happened;
 // the first open step is the card's ONE gold press, else Hunt again is.
 // ════════════════════════════════════════════════════════════════════════
-import { sellPlan, isStartKit } from './bag-model.js?v=0.2.139';
-import { upgradeWords } from './upgrade-plan.js?v=0.2.139';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.139';
-import { nextBuyOf } from './next-buy.js?v=0.2.139';
-import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.139';
-import { moveStorageMany } from '../session/storage-intents.js?v=0.2.139';
-import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js?v=0.2.139';
-import { levelOf } from '../session/character-sections.js?v=0.2.139';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.139';
-import { nextGroundFrom, adviceLevels } from './hunt-list.js?v=0.2.139';
-import { itemName } from './widgets/bits.js?v=0.2.139';
-import { gold, listWords } from '../render/format.js?v=0.2.139';
-import { t } from '../render/player-text.js?v=0.2.139';
+import { sellPlan, isStartKit } from './bag-model.js?v=0.2.140';
+import { upgradeWords } from './upgrade-plan.js?v=0.2.140';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.140';
+import { nextBuyOf } from './next-buy.js?v=0.2.140';
+import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.140';
+import { moveStorageMany } from '../session/storage-intents.js?v=0.2.140';
+import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js?v=0.2.140';
+import { levelOf } from '../session/character-sections.js?v=0.2.140';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.140';
+import { nextGroundFrom, adviceLevels } from './hunt-list.js?v=0.2.140';
+import { itemName } from './widgets/bits.js?v=0.2.140';
+import { gold, listWords } from '../render/format.js?v=0.2.140';
+import { t } from '../render/player-text.js?v=0.2.140';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const names = (ids) => listWords(ids.map(itemName));

@@ -35,26 +35,26 @@
 // hr_bank_move_many (storage-model.js queuePress, nextBatch). A refusal stops
 // the queue and says why: nothing more is sent on a guess.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf, shopOf, bagExpandOf, goldOf, rulesOf } from '../../session/item-sections.js?v=0.2.139';
-import { moveStorageMany } from '../../session/storage-intents.js?v=0.2.139';
-import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.139';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.139';
-import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.139';
-import { whole, gold } from '../../render/format.js?v=0.2.139';
-import { glyphSvg } from '../launcher.js?v=0.2.139';
-import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.139';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
-import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.139';
-import { storePrefsOf, markStored, materialsToStore, queuePress, nextBatch } from '../storage-model.js?v=0.2.139';
-import { runIntent } from '../intent-words.js?v=0.2.139';
-import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.139';
-import { showTip, hideTip } from './item-tip.js?v=0.2.139';
-import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.139';
-import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.139';
-import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.139';
-import { toolLossWords } from '../town-work.js?v=0.2.139';
-import { t } from '../../render/player-text.js?v=0.2.139';
-import { heroGroundOf } from '../widgets/first-target.js?v=0.2.139';
+import { bagOf, bankOf, depotOf, shopOf, bagExpandOf, goldOf, rulesOf } from '../../session/item-sections.js?v=0.2.140';
+import { moveStorageMany } from '../../session/storage-intents.js?v=0.2.140';
+import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.140';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.140';
+import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.140';
+import { whole, gold } from '../../render/format.js?v=0.2.140';
+import { glyphSvg } from '../launcher.js?v=0.2.140';
+import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.140';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
+import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.140';
+import { storePrefsOf, markStored, materialsToStore, queuePress, nextBatch } from '../storage-model.js?v=0.2.140';
+import { runIntent } from '../intent-words.js?v=0.2.140';
+import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.140';
+import { showTip, hideTip } from './item-tip.js?v=0.2.140';
+import { openFloatMenu, closeFloatMenu } from './float-menu.js?v=0.2.140';
+import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.140';
+import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.140';
+import { toolLossWords } from '../town-work.js?v=0.2.140';
+import { t } from '../../render/player-text.js?v=0.2.140';
+import { heroGroundOf } from '../widgets/first-target.js?v=0.2.140';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false, queue: [] }; SCRATCH.set(cs, s); } return s; };

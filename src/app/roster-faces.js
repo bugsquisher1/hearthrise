@@ -15,9 +15,9 @@
 // dyed hero in view (src/world/hero-dye.js): each figure is drawn as the art is
 // first, then in its colors. Display only: sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../render/outfit-sprite.js?v=0.2.139';
-import { loadAtlasManifest } from '../world/atlas.js?v=0.2.139';
-import { dyesOf } from '../shell/windows/character/outfit.js?v=0.2.139';
+import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../render/outfit-sprite.js?v=0.2.140';
+import { loadAtlasManifest } from '../world/atlas.js?v=0.2.140';
+import { dyesOf } from '../shell/windows/character/outfit.js?v=0.2.140';
 
 /** Draw every [data-face] canvas under `root` from its roster row's look. Resolves once drawn (or once the art failed or the list went). */
 export async function drawRosterFaces(root, roster) {

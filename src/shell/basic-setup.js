@@ -11,12 +11,12 @@
 // skillsOf, `carried` from carriedOf. A skill the server has not stated reads as level 1, so a move waiting for a
 // level stays off (fail safe, CLAUDE.md §6). Nothing here sends: the builder's Save is the one intent.
 // ════════════════════════════════════════════════════════════════════════
-import { BASIC_SETUPS } from '../data/basic-setups.js?v=0.2.139';
-import { ROLE_RULES } from '../data/rule-subjects.js?v=0.2.139';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.139';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
-import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.139';
-import { suggestedConditions } from '../core/hunt/conditions.js?v=0.2.139';
+import { BASIC_SETUPS } from '../data/basic-setups.js?v=0.2.140';
+import { ROLE_RULES } from '../data/rule-subjects.js?v=0.2.140';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.140';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.140';
+import { BAR_SLOTS } from '../data/hunt-hud.js?v=0.2.140';
+import { suggestedConditions } from '../core/hunt/conditions.js?v=0.2.140';
 
 const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const copy = (v) => JSON.parse(JSON.stringify(v));

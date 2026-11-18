@@ -19,26 +19,26 @@
 // under it, Tyler 2026-11-18; a checkpoint the server did not list); the server still judges
 // (hr_tower_start), and a refusal re-reads the character so the list on screen is the server's again.
 // ════════════════════════════════════════════════════════════════════════
-import { towerOf, keyForLanding } from '../../session/tower-sections.js?v=0.2.139';
-import { startClimb } from '../../session/tower-intents.js?v=0.2.139';
-import { huntOf, sessionModeOfHunt } from '../../session/hunt-sections.js?v=0.2.139';
-import { beforeLines, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.139';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.139';
-import { towerGateOf } from '../../session/gate-sections.js?v=0.2.139';
-import { nameOf } from '../../session/item-sections.js?v=0.2.139';
-import { heroSprite } from '../../session/hero-look.js?v=0.2.139';
-import { outfitSprite } from '../../data/hunt-outfits.js?v=0.2.139';
-import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.139';
-import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.139';
-import { whole } from '../../render/format.js?v=0.2.139';
-import { t } from '../../render/player-text.js?v=0.2.139';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
-import { runIntent } from '../intent-words.js?v=0.2.139';
-import { rankWords } from '../tower-words.js?v=0.2.139';
-import { stageHtml, stageModel, patchStage, climbLabels, scrollToFloor } from '../tower-stage.js?v=0.2.139';
-import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.139';
-import { catacombOf } from '../../session/catacomb-sections.js?v=0.2.139';
-import { catacombHtml, patchCatacombs, actCatacomb } from './tower-catacombs.js?v=0.2.139';
+import { towerOf, keyForLanding } from '../../session/tower-sections.js?v=0.2.140';
+import { startClimb } from '../../session/tower-intents.js?v=0.2.140';
+import { huntOf, sessionModeOfHunt } from '../../session/hunt-sections.js?v=0.2.140';
+import { beforeLines, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.140';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.140';
+import { towerGateOf } from '../../session/gate-sections.js?v=0.2.140';
+import { nameOf } from '../../session/item-sections.js?v=0.2.140';
+import { heroSprite } from '../../session/hero-look.js?v=0.2.140';
+import { outfitSprite } from '../../data/hunt-outfits.js?v=0.2.140';
+import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.140';
+import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.140';
+import { whole } from '../../render/format.js?v=0.2.140';
+import { t } from '../../render/player-text.js?v=0.2.140';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
+import { runIntent } from '../intent-words.js?v=0.2.140';
+import { rankWords } from '../tower-words.js?v=0.2.140';
+import { stageHtml, stageModel, patchStage, climbLabels, scrollToFloor } from '../tower-stage.js?v=0.2.140';
+import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.140';
+import { catacombOf } from '../../session/catacomb-sections.js?v=0.2.140';
+import { catacombHtml, patchCatacombs, actCatacomb } from './tower-catacombs.js?v=0.2.140';
 
 /* The tabs, in order, each with its label row. Catacombs (./tower-catacombs.js) shows only while the server sends the `catacomb` section
    (the unmarked_catacombs switch, 2027-05-08-catacombs.sql). */

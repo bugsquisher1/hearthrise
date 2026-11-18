@@ -29,15 +29,15 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.139';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier } from '../data/hunt-tiers.js?v=0.2.139';
-import { PARTY } from '../data/party.js?v=0.2.139';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
-import { MONSTERS } from '../data/monsters.js?v=0.2.139';
-import { SUPPLIES, healerWanted } from '../data/supplies.js?v=0.2.139';
-import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.139';
-import { whole, gold } from '../render/format.js?v=0.2.139';
-import { t } from '../render/player-text.js?v=0.2.139';
+import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.140';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier } from '../data/hunt-tiers.js?v=0.2.140';
+import { PARTY } from '../data/party.js?v=0.2.140';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
+import { MONSTERS } from '../data/monsters.js?v=0.2.140';
+import { SUPPLIES, healerWanted } from '../data/supplies.js?v=0.2.140';
+import { SESSION_LIMITS, DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.140';
+import { whole, gold } from '../render/format.js?v=0.2.140';
+import { t } from '../render/player-text.js?v=0.2.140';
 
 const PACK_QTY_MAX = 100000;
 /* A line of several labels: each on its own line (the warning keeps line breaks, windows.css). */

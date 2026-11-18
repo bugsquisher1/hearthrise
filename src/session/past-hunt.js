@@ -12,7 +12,7 @@
 //   pastHuntOf(cs, session)            the answer, or null (not asked, asking, or nothing): the away line reads it (away-recap.js).
 // Display only: nothing here gates, prices or spends, and the residue holds none of it.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerFrom } from './hunt-sections.js?v=0.2.139';
+import { analyzerFrom } from './hunt-sections.js?v=0.2.140';
 
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const READS = new WeakMap();   // cs -> Map(session -> analyzer | null | 'asking')

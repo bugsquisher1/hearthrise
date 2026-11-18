@@ -11,8 +11,8 @@
 // two runs meet on one post (no run overhangs the other). Plan coordinates [id, x, y] (town/plan.js).
 // What blocks a step is the sprites' footprints; at a corner the band's outer column under the east-west run is open.
 // PURE ESM. Display data only.
-import { GROUND_ROWS } from './ground.js?v=0.2.139';
-import { WEST } from './plan.js?v=0.2.139';
+import { GROUND_ROWS } from './ground.js?v=0.2.140';
+import { WEST } from './plan.js?v=0.2.140';
 
 const wall = (x, y) => y >= 0 && y < GROUND_ROWS.length && x >= 0 && GROUND_ROWS[y][x] === '|';
 function lay() {

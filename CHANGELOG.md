@@ -5,6 +5,24 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.140 — 2026-11-18 (Jewelry and First Hours)
+
+**Jewelry.** Two new pieces. Fang Studs help your swings land, or give you some mana back each time you finish a monster. The Seam Jasper Band takes a stone: amber for more crits, pale blue for harder spells, red for swings that carry into the monster next to your target. Goblin Diggers in the Warrens can drop a Seam Jasper. You can now reforge a Hallmarked piece into the next tier and keep both of its perks.
+
+**First hours.** The farm coach tells you where your land is. A coach card you close with Got it moves on to the next one. Buying a hero slot asks first. Item tips say what Level a piece requires. Sell all junk keeps your Best find. Double-clicking a window button no longer selects its text.
+
+**Storage.** Deposit all materials in one click. Clicking fast queues your moves instead of saying "Too many changes".
+
+**The Tower.** Its labels say what they mean: Kill XP is a share of normal hunting, Stoke costs Cinders, and being spat out costs no XP.
+
+**Coming back.** Gold on the end-of-hunt card now matches the away card and your purse. When a hunt stops to keep your gold reserve, the card says why with the numbers. A hunt the yard took over keeps its Gold, Kills and Best find. The away card has Bless again. The analyzer calls coins Coins.
+
+**Hunt prep.** A pick you make survives Back. Each slot shows one food line for your band. Empty armor slots only offer your weight.
+
+**Parties.** When one hero's hunt ends, the others keep their settings.
+
+**Town and phone.** The Hearth Chest is in the Town menu. On a phone, the hunt summary names your next ground, and the Hunts sheet shows whole lines.
+
 ## v0.2.139 — 2026-11-18 (Drops, Returns and the Sewer)
 
 **Every weapon drops.** Every weapon type and shields now drop at every tier, so your next weapon comes from hunting. Armor, weapon and shield recipes that duplicated drops are gone. A few starter gloves and belts are now Thicket Rares. Klappa's Club is now Klappa's Klub.

@@ -10,18 +10,18 @@
 // price; confirming sends ONE hr_hallmark or hr_jewel_reforge naming the two pieces and that price, and the server re-quotes it under its own
 // lock. The new piece shows only from the re-read envelope.
 // ════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.139';
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.139';
-import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.139';
-import { hallmarkOf, jewelLevelOf, heldForHallmark } from '../../session/jewelry-sections.js?v=0.2.139';
-import { hallmarkPiece, reforgePiece } from '../../session/hallmark-intents.js?v=0.2.139';
-import { goldOf } from '../../session/item-sections.js?v=0.2.139';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.139';
-import { gold, whole } from '../../render/format.js?v=0.2.139';
-import { itemName } from '../widgets/bits.js?v=0.2.139';
-import { runIntent } from '../intent-words.js?v=0.2.139';
-import { whereToGet } from '../item-lore.js?v=0.2.139';
-import { t } from '../../render/player-text.js?v=0.2.139';
+import { ITEMS } from '../../data/items.js?v=0.2.140';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.140';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.140';
+import { hallmarkOf, jewelLevelOf, heldForHallmark } from '../../session/jewelry-sections.js?v=0.2.140';
+import { hallmarkPiece, reforgePiece } from '../../session/hallmark-intents.js?v=0.2.140';
+import { goldOf } from '../../session/item-sections.js?v=0.2.140';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.140';
+import { gold, whole } from '../../render/format.js?v=0.2.140';
+import { itemName } from '../widgets/bits.js?v=0.2.140';
+import { runIntent } from '../intent-words.js?v=0.2.140';
+import { whereToGet } from '../item-lore.js?v=0.2.140';
+import { t } from '../../render/player-text.js?v=0.2.140';
 
 /* A row's key: its kind (h a Hallmark, r a reforge) and its pair, so the one confirmation knows which verb it asks for. */
 const keyOf = (kind) => (o) => kind + ':' + o.from + '>' + o.to;

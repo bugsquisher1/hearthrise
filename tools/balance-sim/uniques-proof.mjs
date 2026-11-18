@@ -14,12 +14,16 @@
 //       + Ranged is now the engine's own `rangedPlus` (combat.js SKILL_PLUS_FIELDS), so it is reported `hooked: true` and the hero's
 //       unit carries it at its row's size (skillPlus.ranged); and the same piece with its + Ranged planted on a field the engine never
 //       reads (`skillB`, where the catalogue had it until 11-18) is reported `hooked: false` and the engine's view does not move.
+//   U5  GROUND AND BOSS DROPS ONLY (the designer's ruling 2026-11-18 row 1f): at Carter's Rest's floor (110) no way's kit wears a Hearth Chest
+//       piece (the Tower's Platinum weapons were the kit's there before), and with `chest` (the printed what-if) at least one does, so the
+//       what-if is not empty.
 // Each mutant plants one defect where the rows meet the engine and must turn the proof red:
 //   ladder       the kit ignores `uniques` (dressed off the ladder alone)
 //   edgeMissing  the staged rows are in src/core's ITEMS only, not the edge's (the settle's)
 //   attrStripped a worn row reaches the engine without its attribute
 //   baseArmor    a worn row reaches the engine with its Dawnsteel twin's armor (the line not applied)
 //   fakeHook     the report calls an unhooked attribute applied
+//   chestIn      the graded kit lets the Hearth Chest's pieces in (the what-if graded as the floor)
 // Answers a list of failures (empty: proven).
 
 const GROUND = 'unmarked_catacombs';
@@ -27,7 +31,9 @@ const LEVEL = 165;
 const OPEN = Object.freeze(['unmarked_catacombs', 'carters_rest', 'ox_road', 'wyvern_roost']);
 /* where U4 is proven: a staged row with a + skill the uniques kit wears (the Mitts), and the field the engine never reads it from */
 const U4_AT = Object.freeze({ style: 'bow', level: 50, ground: 'the_slake', id: 'mudlarks_mitts', skill: 'ranged', deadField: 'skillB' });
-export const UNIQUES_MUTANTS = Object.freeze(['ladder', 'edgeMissing', 'attrStripped', 'baseArmor', 'fakeHook']);
+export const UNIQUES_MUTANTS = Object.freeze(['ladder', 'edgeMissing', 'attrStripped', 'baseArmor', 'fakeHook', 'chestIn']);
+/* where U5 is proven: Carter's Rest's floor with the other Morrow packs open, every way the grader plays alone */
+const U5_AT = Object.freeze({ ground: 'carters_rest', level: 110, ways: Object.freeze(['tank', 'sword', 'hammer', 'axes', 'bow', 'crossbow', 'mage', 'healer']) });
 
 /** `items` with the staged row `id`'s attribute taken off (a copy: the table given is not touched), or null when it names none.
     fieldFor(kind, key): the row's field for it (gear.attrFieldOf, the catalogue's). */
@@ -120,5 +126,15 @@ export function proveUniques(gear, plant = null) {
   else if (deadP.hooked !== false) bad.push('U4 the Mitts\' + ' + U4_AT.skill + ' planted on ' + U4_AT.deadField + ' (which the engine never reads) is reported ' + deadP.hooked);
   if (!hooked) bad.push('U3 no worn attribute reached the engine (nothing proven)');
   if (!unhooked) bad.push('U4 no worn attribute is read as unhooked, so the report\'s honesty about one is not proven (re-aim the proof: ' + JSON.stringify(U4_AT) + ')');
+
+  /* U5: the graded kit is ground and boss drops only; the chest's pieces only in the what-if */
+  const o5 = { ground: U5_AT.ground, openAlso: [...OPEN], uniques: true };
+  let whatIf = 0;
+  for (const way of U5_AT.ways) {
+    const graded = gear.kitOf(way, U5_AT.level, { ...o5, ...(plant === 'chestIn' ? { chest: true } : {}) });
+    for (const [slot, id] of Object.entries(graded)) if (gear.CHEST_IDS.has(id)) bad.push('U5 the ' + way + ' at ' + U5_AT.ground + ' ' + U5_AT.level + ' is graded in ' + id + ' (' + slot + '), a Hearth Chest piece: ground and boss drops only');
+    whatIf += Object.values(gear.kitOf(way, U5_AT.level, { ...o5, chest: true })).filter((id) => gear.CHEST_IDS.has(id)).length;
+  }
+  if (!whatIf) bad.push('U5 no way at ' + U5_AT.ground + ' ' + U5_AT.level + ' wears a Hearth Chest piece even with `chest`: the what-if row proves nothing (re-aim the proof)');
   return bad;
 }

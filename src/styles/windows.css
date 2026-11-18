@@ -264,6 +264,8 @@
 [data-hs-win="inventory"] .hw-inv-side { align-self: stretch; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 [data-hs-win="inventory"] .hw-inv-side > * { flex: none; }
 [data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; display: flex; flex-direction: column; }
+/* ...never under two whole rows of pockets (the pocket and its gap as .hw-pockets draws them, and the well's rim) */
+[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { min-height: calc(2 * max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px)) + round(down, clamp(2px, 2px + (100vw - 1024px) / 128, 4px), 1px) + 8px); }
 /* THE GRID TAKES THE HEIGHT (UI audit 2026-11-18 UI-5): the bag's sunk well runs down the column to the lines under it, its free spaces drawn
    as empty pockets (grid.js freeSpaces); the column's foot is the window's (.hw-inv-foot), so nothing but the bag's own lines stand under it. */
 [data-hs-win="inventory"] .hw-inv-scroll > .hw-inv-grid { flex: 1 0 auto; }
@@ -294,6 +296,11 @@
    from the bag by the steel rule; it wraps (worth first) only where the window is too narrow for one. */
 .hw-inv-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--steel-sep); font-size: var(--t-micro); color: var(--ink-2); }
 .hw-inv-foot > .hw-capacity { flex: 1 1 120px; }
+/* A WINDOW TOO SHORT FOR IT UNDER BOTH COLUMNS (index.js seatFoot): the columns run the window's height, the doll beside it all, and the foot
+   stands under the bag's column in the room that column keeps free at its foot, its spaces on a line of their own. */
+[data-hs-win="inventory"] .hw-inv.is-foot-beside > .hw-inv-foot { margin-top: calc(-1 * var(--hw-foot-h, 0px)); margin-left: calc(var(--hw-doll-w, 0px) + 10px); }
+[data-hs-win="inventory"] .hw-inv.is-foot-beside .hw-inv-side { padding-bottom: calc(var(--hw-foot-h, 0px) + 8px); }
+.hw-inv.is-foot-beside > .hw-inv-foot > .hw-capacity { flex-basis: 100%; }
 .hw-inv-foot > .hw-capacity .hw-capbar { min-width: 32px; }
 .hw-inv-under > .hw-value { color: var(--ink-3); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hw-inv-foot > .hw-gold { margin-left: auto; }

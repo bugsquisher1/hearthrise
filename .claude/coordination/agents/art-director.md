@@ -3747,3 +3747,22 @@ line after the cut, so the MAP takes them in: hearth-plaza.mjs step 9 paints soo
 in the paving at pixel precision (east wider: the end in shadow), and sites.js lays existing scree, moss and weed decals by them (flat,
 open, no mirror). Lesson (7): a map object sits on whole tiles with no offset, so a decal can't be laid against an edge that falls on a
 tile line; paint the contact into the painted ground instead, where every pixel is placeable. The silhouette itself stays straight.
+## 2026-11-18 lane/b-ui-wave2 (Tyler: build today's audits' findings overnight; itemization audit #1/#10, UI audit UI-5, UI-6, UI-9, hunt view)
+(1) BENCH: a recipe row says what it makes against what the hero wears (src/shell/bench-output.js outputVsWorn: the item card's own
+statLines/compare over the server's worn set, "+16 Melee damage (+13) · vs Practice Sword", "Empty gloves slot", a tool's effect);
+past the two locked rows in full, the station's whole ladder, one rung a Level ("Lv 30", icon and name, the card on the pointer);
+the fee line names what the picked count takes before Start, by the server's carry rule, with its share of the purse from 10%
+("about 1 gold a craft · 188 gold for all 251"; bench-fee.js feeTotal/feeLineWords). An item card names no closed ground (#10).
+(2) INVENTORY: the foot (spaces, gold, why Dispatch is off, Dispatch) is one line under both columns; the bag draws the cap's free
+spaces as inert empty pockets (desktop, All, no search) and its scroll ends on a whole row (snapBag); worth and Advanced view sit
+under the bag; a window too short for the doll at its least wells seats the foot beside the doll instead (seatFoot, with hysteresis).
+(3) COACH: the town card docks in the World's right column under the Tally (hud-room.js dockTownCoach), never on it or on Town/Home,
+the Tally unmoved. (4) BOOK: ground pages draw the Hunts window's creature figures (x2, each a link to its page), drops carry their
+icons, the Chronicle has a numbered page list that turns to a found page, the monster page's head is x2 (--icon-2). (5) HUNT VIEW:
+the analyzer's list ends on a whole row (snapRows); Summary in a hunt is the hunt on now (summary-recorder.js liveSummaryOf).
+Lessons: (1) a "hide this row when empty" rule on a shared class (.hw-tools) hid the Shop's, Storage's and the Farm's rows: scope it
+to its window (AW-31's HARNESS crash found it); (2) height is the bag's real budget: a docked window over the bar is ~570 px at
+1440x900, so measure each layout at the real height before choosing (a full-width upgrade box cost the doll 14 px a well);
+(3) a footer moved out of a column steals that column's height: the doll's fit at short windows needs its own rule; (4) snapping a
+scroll box to whole rows: clear max-height, find the first row the foot cuts, set it, only at scrollTop 0; (5) a test's press on a
+row a mutant can remove must be guarded, or the mutant run throws instead of reading red.

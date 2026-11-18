@@ -202,7 +202,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   cls(card, 'is-on', !!cur);
   if (cur) {
     text(root.querySelector('.hsum-title'), groundTitle(cur));
-    text(root.querySelector('.hsum-when'), cur.live ? t('summary.live_when', { time: dayTime(cur.since) }) : cur.at ? dayTime(cur.at) : '');
+    text(root.querySelector('.hsum-when'), cur.live ? (cur.since ? t('summary.live_when', { time: dayTime(cur.since) }) : t('summary.live_row')) : cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     /* the newest hunt, none open: what the hero did after it, from the server's pointer (../after-hunt.js) */
     /* ...or what came of the choice the hunt carried (a training session it opened is a hunt of its own, so this one is said either way) */

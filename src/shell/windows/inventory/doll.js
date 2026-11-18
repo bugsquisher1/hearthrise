@@ -71,6 +71,12 @@ function dollWell(room, gap, pad) {
   return Math.max(DOLL_WELL_MIN, w - (w % 2));
 }
 
+/** The least height the doll stands at: its wells at DOLL_WELL_MIN with its own gaps and rim (index.js placeFoot reads it). */
+export function dollLeast(doll, view) {
+  const cs = view.getComputedStyle(doll);
+  return 2 * (parseFloat(cs.paddingTop) || 0) + DOLL_ROWS * DOLL_WELL_MIN + (DOLL_ROWS - 1) * (parseFloat(cs.rowGap) || 0);
+}
+
 const FIT = '--hw-doll-fit';
 const FIT_SIG = new WeakMap();
 /** Fit the doll's wells to its column (above): measured at its own wells, capped only when they would not show whole. Runs when

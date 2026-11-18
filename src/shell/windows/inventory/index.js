@@ -29,7 +29,7 @@ import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.137';
 import { whole, gold } from '../../../render/format.js?v=0.2.137';
 import { closeFloatMenu } from '../float-menu.js?v=0.2.137';
 import { stateOf } from './state.js?v=0.2.137';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll } from './doll.js?v=0.2.137';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll, dollLeast } from './doll.js?v=0.2.137';
 import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.137';
 import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.137';
 import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.137';
@@ -117,10 +117,27 @@ function snapBag(root, phone) {
   if (cut < foot) box.style.maxHeight = Math.floor(cut - top) + 'px';
 }
 
+/* A WINDOW TOO SHORT FOR THE FOOT UNDER BOTH COLUMNS (in a hunt, 1280x720; under a coach card at 1366x768, AW-62): its band would cut the doll
+   even at its least wells, so the foot is seated beside the doll instead, under the bag's column (windows.css .is-foot-beside: the columns
+   run the whole height, the foot stands in the bag column's reserved foot), and goes back under both columns once the columns hold the doll
+   and twice the foot (so it never flips back on the next pass). The doll never scrolls (Tyler 2026-11-17). Layout reads and writes only. */
+function seatFoot(root, phone) {
+  const view = root.ownerDocument.defaultView, foot = root.querySelector('.hw-inv-foot'), cols = root.querySelector('.hw-inv-cols');
+  const doll = root.querySelector('.hw-doll');
+  if (!view || !foot || !cols || !doll) return;
+  const beside = root.classList.contains('is-foot-beside');
+  const need = phone ? 0 : dollLeast(doll, view);
+  const want = !phone && (beside ? cols.clientHeight - 2 * foot.offsetHeight < need : need > cols.clientHeight + 0.5);
+  if (want !== beside) root.classList.toggle('is-foot-beside', want);
+  const h = want ? foot.offsetHeight + 'px' : '', w = want ? doll.offsetWidth + 'px' : '';
+  if (root.style.getPropertyValue('--hw-foot-h') !== h) { if (h) root.style.setProperty('--hw-foot-h', h); else root.style.removeProperty('--hw-foot-h'); }
+  if (root.style.getPropertyValue('--hw-doll-w') !== w) { if (w) root.style.setProperty('--hw-doll-w', w); else root.style.removeProperty('--hw-doll-w'); }
+}
+
 function fitNow(root) {
   const view = root.ownerDocument.defaultView;
   if (!view) return;
-  const fit = () => { const phone = view.matchMedia(MOBILE_QUERY).matches; fitDoll(root, phone); snapBag(root, phone); };
+  const fit = () => { const phone = view.matchMedia(MOBILE_QUERY).matches; seatFoot(root, phone); fitDoll(root, phone); seatFoot(root, phone); snapBag(root, phone); };
   fit();
   const frame = root.closest('.hs-win');
   if (WATCHED.has(root) || !frame || !view.ResizeObserver) return;

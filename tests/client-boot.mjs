@@ -1281,7 +1281,10 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const drawn = await wait(page, () => document.querySelectorAll('.char-row canvas.char-face[data-drawn]').length === 2, null, 5000);
         const look = await page.evaluate(() => {
           const lh = (e) => parseFloat(getComputedStyle(e).lineHeight);
-          const buy = document.querySelector('[data-app="buy-slot"]').getBoundingClientRect(), card = document.querySelector('.slot-offer').getBoundingClientRect();
+          /* no press or no offer card is a reading, not a crash: the mutant that takes them away must be caught by B-11/B-11b, not kill the run */
+          const buyEl = document.querySelector('[data-app="buy-slot"]'), cardEl = document.querySelector('.slot-offer');
+          if (!buyEl || !cardEl) return { faces: [], purse: false, short: false, missing: !buyEl ? 'buy-slot press' : 'slot-offer card' };
+          const buy = buyEl.getBoundingClientRect(), card = cardEl.getBoundingClientRect();
           /* one line, its words inside their own box and the card, clear of the press */
           const one = (q) => { const e = document.querySelector(q); if (!e) return false; const r = e.getBoundingClientRect(), rng = document.createRange(); rng.selectNodeContents(e); const w = rng.getBoundingClientRect();
             return r.height <= lh(e) * 1.4 && w.right <= card.right + 1 && !(w.left < buy.right && buy.left < w.right && w.top < buy.bottom && buy.top < w.bottom); };

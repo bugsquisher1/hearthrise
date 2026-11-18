@@ -2,6 +2,10 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-18 · lane/a-end-card-gold (the end card's Gold, kill the class)
+1. *One figure, one reader.* `result-block.js goldFig` (fed by `summary-model.js goldKeptOf`, coins + loot value − balance) is the Gold on both cards; a record with no spend is labelled Coins, never Gold. The analyzer's coins row says Coins on both tabs.
+2. *Known gap, server work:* the analyzer's `coins` leave out loot sold to cover supplies (the tally's `cover_gold`), so after a cover sale the net under-reads the purse by that much.
+
 ## 2026-11-18 · lane/a-return-cards-2 (post-patch audit B3 B4 B5)
 1. *"Gold reserve reached" was a real stop, a wording gap.* Played: a solo Level 5 in the Sewer bought 1,160 gp of store food for 680 gp of coins in 19 min; the purse went 787 to 307 against the 300 gp reserve. The card now says both numbers and the reserve (server tally + `hunt_settings.gold_floor`, now one reader, hunt-sections goldFloorOf). Whether that hunt should lose money is the designer's.
 2. *A session that is no longer the newest still has an analyzer.* `hr_hunt_analyzer(p_slot, p_session)` is a live read; the yard's card reads the hunt it took over once (session/past-hunt.js) instead of a new section.

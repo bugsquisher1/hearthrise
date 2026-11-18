@@ -4,7 +4,9 @@
 // (designer, lane/d-catacomb-armor; PRIORITY_BOARD "2026-11-16 The Unmarked Catacombs descent" §6; Tyler 2026-11-16: armor
 //  "instead of weapons", Bone Keys lean helmets, Waterlogged Keys lean boots, a special attribute each, tiered close to the grounds).
 //
-//   CA1  HIDDEN: no src/ file imports src/data/catacomb-armor.js, and no row's id or name is already an item (nothing ships by accident).
+//   CA1  SHIPPED AS RULED (lane/c-catacombs, 2026-11-18; it read HIDDEN until the Catacomb keys were built): only the shipping files import
+//        src/data/catacomb-armor.js (items.js, item-descriptions.js, chests.js); the rows of CATACOMB_ARMOR_NOW's tiers are items, each exactly
+//        its generated row, and every other row is no item (nothing ships by accident); no row's id or name belongs to another item.
 //   CA2  ONE OF EACH: 24 rows, every key tier x helmet and boots x plate, leather and cloth exactly once, ids and names unique.
 //   CA3  THE TWIN: a row's twin is the gear ladder's piece of its slot and weight at its key's tier, and the shipped row is that twin
 //        with every field copied: no extra armor, no lost penalty, the same Level, book value, rarity and tier.
@@ -29,7 +31,7 @@ import { ITEMS } from '../src/data/items.js';
 import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
 import { ELEMENTS } from '../src/data/elements.js';
 import * as COMBAT from '../src/core/combat.js';
-import { CATACOMB_ARMOR, CATACOMB_ATTRS, CATACOMB_TIERS, WING_LEAN, catacombArmorItems, cardOf } from '../src/data/catacomb-armor.js';
+import { CATACOMB_ARMOR, CATACOMB_ATTRS, CATACOMB_TIERS, WING_LEAN, CATACOMB_ARMOR_NOW, catacombArmorItems, cardOf } from '../src/data/catacomb-armor.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
@@ -51,12 +53,18 @@ function srcTexts() {
 /** Every problem, as 'CAn ...' strings. `d` is the data (a copy for a mutant), `gen` the row builder. */
 export function problems(d, gen = catacombArmorItems, files = srcTexts()) {
   const out = [];
-  const { rows, attrs, tiers, lean, items } = d;
+  const { rows, attrs, tiers, lean, items, now } = d;
   /* CA1 */
-  for (const [f, txt] of files) if (/catacomb-armor\.js/.test(txt) && !/src[\\/]data[\\/]catacomb-armor\.js$/.test(f)) out.push('CA1 ' + f + ' imports the hidden armor');
-  const itemNames = new Set(Object.values(items).map((it) => it && it.n).filter(Boolean));
+  const SHIPPERS = /src[\\/]data[\\/](catacomb-armor|items|item-descriptions|chests)\.js$/;
+  for (const [f, txt] of files) if (/from\s*['"][^'"]*catacomb-armor\.js/.test(txt) && !SHIPPERS.test(f)) out.push('CA1 ' + f + ' imports the armor outside the shipping files');
+  const mine = new Set(rows.map((r) => r.id));
+  const itemNames = new Set(Object.entries(items).filter(([id]) => !mine.has(id)).map(([, it]) => it && it.n).filter(Boolean));
+  let shippedRows = {};
+  try { shippedRows = gen(Object.fromEntries(Object.entries(items).filter(([id]) => !mine.has(id))), rows.filter((r) => now.includes(r.key)), attrs, tiers); } catch (e) { out.push('CA1 ' + e.message); }
   for (const r of rows) {
-    if (Object.prototype.hasOwnProperty.call(items, r.id)) out.push('CA1 ' + r.id + ' is already an item');
+    const isItem = Object.prototype.hasOwnProperty.call(items, r.id);
+    if (now.includes(r.key) !== isItem) out.push('CA1 ' + r.id + (isItem ? ' is an item, and its tier does not ship' : ' does not ship, and its tier does'));
+    else if (isItem && JSON.stringify(items[r.id]) !== JSON.stringify(shippedRows[r.id])) out.push('CA1 ' + r.id + ' ships as another row than its generated one');
     if (itemNames.has(r.name)) out.push('CA1 ' + r.id + ': another item is called ' + r.name);
   }
   /* CA2 */
@@ -127,12 +135,15 @@ export function problems(d, gen = catacombArmorItems, files = srcTexts()) {
   return out;
 }
 
-const DATA = () => structuredClone({ rows: CATACOMB_ARMOR, attrs: CATACOMB_ATTRS, tiers: CATACOMB_TIERS, lean: WING_LEAN, items: ITEMS });
+const DATA = () => structuredClone({ rows: CATACOMB_ARMOR, attrs: CATACOMB_ATTRS, tiers: CATACOMB_TIERS, lean: WING_LEAN, items: ITEMS, now: CATACOMB_ARMOR_NOW });
 const row = (d, id) => d.rows.find((r) => r.id === id);
 
 /* ── THE MUTANTS: each plants one defect on a copy and names the rule that must catch it. ── */
 const MUTANTS = [
-  ['a src file imports the armor', 'CA1', (d) => d, (f) => f.concat([['src/data/items.js', "import { X } from './catacomb-armor.js';"]])],
+  ['a src file imports the armor', 'CA1', (d) => d, (f) => f.concat([['src/shell/windows/market.js', "import { X } from '../../data/catacomb-armor.js';"]])],
+  ['a tier that does not ship is an item', 'CA1', (d) => { d.now = ['bronze']; return d; }],
+  ['a tier that ships is no item', 'CA1', (d) => { d.now = ['bronze', 'silver', 'gold']; return d; }],
+  ['a shipped piece is not its generated row', 'CA1', (d) => { d.items.tinkers_kettle.defB += 1; return d; }],
   ['a row takes an item\'s id', 'CA1', (d) => { row(d, 'tinkers_kettle').id = 'iron_helm'; return d; }],
   ['a row takes an item\'s name', 'CA1', (d) => { row(d, 'ratters_hood').name = 'Iron Helm'; return d; }],
   ['a row is missing', 'CA2', (d) => { d.rows.pop(); return d; }],

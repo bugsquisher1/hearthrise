@@ -50,8 +50,8 @@ export const REGION_KITS = Object.freeze({
         tilesets: ids('e0c9621c-fb2d-41df-a2fe-5039b76f9893 b342fc89-d714-4d10-adc1-d3b4a62f5230'),
         maps: ids('d9c3544c-a2a0-4214-b680-749fe48a2eda a055f449-7a3a-48f2-bc74-0fcacfe32063'),
       }),
-      /* THE VAULTS UNDER HAVORA (lane/d-catacombs 2026-11-15, the board's "2026-11-15 The Pauper Vaults"): the Keepers' vaults under the Great
-         Hearth, a Level 165 ground below the Sewer. Its floors are owed (art/briefs/ground-pauper_vaults.txt): worn vault flagstone, the Keepers'
+      /* UNMARKED CATACOMBS, THE VAULTS UNDER HAVORA (lane/d-catacombs 2026-11-15, the board's "2026-11-15 Unmarked Catacombs"): the Keepers' vaults under the Great
+         Hearth, a Level 165 ground below the Sewer. Its floors are owed (art/briefs/ground-unmarked_catacombs.txt): worn vault flagstone, the Keepers'
          setts, the Carters' packed earth and standing water, each meeting the cut-corner vault rock. The sewer family's walls are the nearest kin. */
       vault: Object.freeze({ terrains: Object.freeze({}), tilesets: ids(''), maps: ids('') }),
     }),
@@ -77,12 +77,12 @@ export const REGION_KITS = Object.freeze({
       coppercap_warrens: Object.freeze({ family: 'cave', signature: ids('cw_throne') }),
       mosslight_glade: Object.freeze({ family: 'meadow', signature: ids('') }),
       wickstead: Object.freeze({ family: 'meadow', signature: ids('wk_footbridge') }),
-      /* STAGED (src/data/grounds/pauper_vaults): the Wood Book on its lectern in the Keepers' Room, and the ossuary's bone wall */
-      pauper_vaults: Object.freeze({ family: 'vault', signature: ids('pv_wood_book pv_ossuary_wall') }),
+      /* STAGED (src/data/grounds/unmarked_catacombs): the Wood Book on its lectern in the Keepers' Room, and the ossuary's bone wall */
+      unmarked_catacombs: Object.freeze({ family: 'vault', signature: ids('uc_wood_book uc_ossuary_wall') }),
     }),
-    /* the Pauper Vaults' two signature pieces and the vault kit's four props any later ground under Havora may place (the candle niche and the
-       iron sconce on a wall face, the stone bier, the Carters' hoist): art/briefs/ground-pauper_vaults.txt */
-    pending: ids('pv_wood_book pv_ossuary_wall pv_niche_candles pv_sconce pv_bier pv_hoist'),
+    /* Unmarked Catacombs' two signature pieces and the vault kit's four props any later ground under Havora may place (the candle niche and the
+       iron sconce on a wall face, the stone bier, the Carters' hoist): art/briefs/ground-unmarked_catacombs.txt */
+    pending: ids('uc_wood_book uc_ossuary_wall uc_niche_candles uc_sconce uc_bier uc_hoist'),
   }),
 
   /* THE BARROW MARCH, the 45-110 region (docs/planning/PRIORITY_BOARD.md, the ground pack plan): the Banded Company's dead

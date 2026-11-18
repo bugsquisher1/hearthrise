@@ -1,9 +1,9 @@
-// src/data/grounds/pauper_vaults/pack.js — THE PAUPER VAULTS, Levels 165-185: the vaults deep under Havora's Great Hearth (lane/d-catacombs,
-// the designer's "2026-11-15 The Pauper Vaults" on the board; Tyler 2026-11-14: "one of my favorite hunts in tibia is called 'catacombs' i would
+// src/data/grounds/unmarked_catacombs/pack.js — UNMARKED CATACOMBS, Levels 165-185: the vaults deep under Havora's Great Hearth (lane/d-catacombs,
+// the designer's "2026-11-15 Unmarked Catacombs" on the board; Tyler 2026-11-14: "one of my favorite hunts in tibia is called 'catacombs' i would
 // like a hunt like that", what he loves is "the map/atmosphere/rooms etc", "a later on hunt deep underneath havora or something"). Shape:
-// src/data/grounds/shape.js. Started from `node tools/pack.mjs new pauper_vaults --like wickstead --band 165,185`, then every row rewritten and the
+// src/data/grounds/shape.js. Started from `node tools/pack.mjs new unmarked_catacombs --like wickstead --band 165,185`, then every row rewritten and the
 // map drawn new (map.js: six rooms, corridors, one plank bridge, cellar light). The stat lines are the formula's (`node tools/pack.mjs propose
-// pauper_vaults --write`): tier 6, floor 165, fit both.
+// unmarked_catacombs --write`): tier 6, floor 165, fit both.
 //
 // STAGED, A SAMPLE OF FIVE. No art (the map stands on a stand-in ground and Greenhaven kit props). Nothing here is served or listed. It opens only
 // with its painted ground and pieces, and after the full grade.
@@ -23,7 +23,7 @@
 // throws a sack of lime over the whole party; Keeper Dunn snuffs the candles and the cold hits everyone. Kill him first.
 // Weak-to at a pull of 4: 18 heads to a hammer (13 Paupers, 4 Bone Walls, Dunn), 3 to a blade, 3 to an arrow.
 // THE LOOT. No standard gear: Dawnsteel is the last tier (Tyler 2026-11-14), and Carter's Rest, the Ox Road and Lord Krell drop all of it. The
-// Vaults' rare unique pieces (the board's section 6) wait on Carter's Rest's sample of five, as Wyvern Roost's do. Until then it pays in coin,
+// Catacombs' rare unique pieces (the board's section 6) wait on Carter's Rest's sample of five, as Wyvern Roost's do. Until then it pays in coin,
 // Hearth fuel that a Level 165 hero burns (Bones, Big Bones, Bone Chips, Grave Dust), the Carters' gold bars, one imbuement item a body (one of
 // each kind), and the Leech's Live Leech for the shop. The odds are the band's (no gear to fit).
 // DUNN'S CANDLE, the ground's named Hearth fuel and Dunn's Rare (the board's section 6), is NOT a row yet: a Rare is revealed with its own pixel
@@ -35,12 +35,12 @@ import map from './map.js?v=0.2.137';
 const PA = 'shrouded_pauper', LE = 'vault_leech', BW = 'bone_wall', CA = 'night_carter', DU = 'keeper_dunn';
 
 export default definePack({
-  id: 'pauper_vaults',
+  id: 'unmarked_catacombs',
   status: 'staged',
   sql: null,
   /* Weights are the pockets' head-count at a pull of 4 (the first four of each box): 13 Paupers, 4 Bone Walls, 3 Leeches, 3 Night Carters, 1 Dunn. */
   hunt: {
-    name: 'The Pauper Vaults', theme: 'The dead Havora couldn\'t afford to burn were put down here to wait. They\'re still waiting.',
+    name: 'Unmarked Catacombs', theme: 'The dead Havora couldn\'t afford to burn were put down here to wait. They\'re still waiting.',
     band: [165, 185],
     spawns: [{ monster: PA, w: 13, rarity: 'common' }, { monster: BW, w: 4, rarity: 'uncommon' }, { monster: LE, w: 3, rarity: 'uncommon' },
       { monster: CA, w: 3, rarity: 'uncommon' }, { monster: DU, w: 1, rarity: 'rare' }],
@@ -51,7 +51,7 @@ export default definePack({
   /* THE ROUTE (map.js): in down the Night Carters' tunnel, the Cut, the Long Gallery, the Bone Room, the Flooded Vault, over the plank bridge to
      the Keepers' Room, west to the Loading Vault, and back up the hoist shaft to the Cut. */
   ground: {
-    map: 'pauper_vaults',
+    map: 'unmarked_catacombs',
     /* in the Carters' tunnel, one tile a seat */
     start: [[3, 1], [2, 1], [4, 1], [3, 2]],
     pockets: [
@@ -138,7 +138,7 @@ export default definePack({
     candle_snuffer: 'Keeper Dunn\'s snuffer. He lights a candle for every name in the book, and snuffs them out when you come in',
     live_leech: 'A leech off the vault floor, still alive. Somebody in town always buys leeches',
   },
-  /* THE VAULTS' THREE (src/data/monster-spells.js rows; numbers start from rows that already play: Venom Spray's ring, Blasting Charge's group, the
+  /* THE CATACOMBS' THREE (src/data/monster-spells.js rows; numbers start from rows that already play: Venom Spray's ring, Blasting Charge's group, the
      Turncoat's rare group spell scaled down). Measured with the ground on the grade, not tuned one at a time. */
   spells: {
     bone_slide: { n: 'Bone Slide', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 18000, hitPm: 2000, element: null },

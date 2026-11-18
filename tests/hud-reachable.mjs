@@ -469,8 +469,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (sent.length !== 1 || sent[0].body.p_session !== s.env.hunt.session_id) fails.push('HR-12 Hunt again sent ' + JSON.stringify(sent.map((c) => c.body)));
           if (await page.$(AWAY)) fails.push('HR-12 the card stayed after the server started the hunt again');
         } else {
+          if (!(await page.evaluate(() => document.querySelectorAll('.char-badge.is-on').length))) fails.push('HR-12 ' + at + ' CONTROL: the strip counts no away line before OK');
           await page.click(AWAY + ' [data-hs-act="away-ok"]');
           if (!(await wait(page, (q) => !document.querySelector(q), AWAY, 3000))) fails.push('HR-12 ' + at + ': OK did not close the card');
+          /* OK reads the lines: the hero's alert count on the strip goes with them (a remount would raise the card again otherwise) */
+          await page.waitForTimeout(500);
+          const counted = await page.evaluate(() => Array.from(document.querySelectorAll('.char-badge.is-on')).map((b) => b.textContent));
+          if (counted.length) fails.push('HR-12 ' + at + ': OK left the away lines counted on the strip: ' + JSON.stringify(counted));
           await page.waitForTimeout(400);
           await page.reload({ waitUntil: 'load' });
           await wait(page, () => document.querySelector('.hs-launchers'));

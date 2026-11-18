@@ -24,6 +24,7 @@ import { HOUSE_TEXT } from './house.js?v=0.2.138';
 import { HUD_TEXT } from './hud.js?v=0.2.138';
 import { HUNTS_TEXT } from './hunts.js?v=0.2.138';
 import { ITEM_TEXT } from './item.js?v=0.2.138';
+import { JEWEL_TEXT } from './jewel.js?v=0.2.138';
 import { MONSTER_TEXT } from './monster.js?v=0.2.138';
 import { LOG_TEXT } from './log.js?v=0.2.138';
 import { PARTY_TEXT } from './party.js?v=0.2.138';
@@ -57,6 +58,7 @@ export const TEXT = Object.freeze({
   hud: HUD_TEXT,
   hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
+  jewel: JEWEL_TEXT,
   log: LOG_TEXT,
   monster: MONSTER_TEXT,
   party: PARTY_TEXT,

@@ -21,6 +21,7 @@ import { gold, whole } from '../../render/format.js?v=0.2.138';
 import { itemName } from '../widgets/bits.js?v=0.2.138';
 import { runIntent } from '../intent-words.js?v=0.2.138';
 import { whereToGet } from '../item-lore.js?v=0.2.138';
+import { t } from '../../render/player-text.js?v=0.2.138';
 
 /* A row's key: its kind (h a Hallmark, r a reforge) and its pair, so the one confirmation knows which verb it asks for. */
 const keyOf = (kind) => (o) => kind + ':' + o.from + '>' + o.to;
@@ -29,30 +30,32 @@ const perkName = (p) => (JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p);
 const pctOf = (pm) => (Math.round(pm) / 10) + '%';
 
 /* The gem's line when the hero holds none: where it comes from, from the catalogue (item-lore.js whereToGet), so a new tier's gem says its own home. */
-const gemShort = (id) => 'Needs a ' + itemName(id) + '. ' + (whereToGet(id) ? whereToGet(id) + '. ' : '') + 'Or buy one at the Weighhouse.';
+const gemShort = (id) => t('jewel.gem_short', { gem: itemName(id), where: whereToGet(id) ? whereToGet(id) + '. ' : '' });
 
 /* What one row needs and why its button is off: the first thing missing, in the order the server checks it. */
+const levelShort = (o, lv) => t('jewel.requires', { skill: benchName(o.skill), need: o.level, have: lv });
+const goldShort = (o, purse) => t('jewel.gold_short', { gold: gold(o.gold - purse) });
 function blockOf(cs, o, h, purse, lv) {
-  if (lv !== null && lv < o.level) return 'Requires ' + benchName(o.skill) + ' ' + o.level + ', have ' + lv;
-  if (h.today >= h.perDay) return 'Daily limit: ' + whole(h.perDay) + ' Hallmarks, resets at midnight UTC';
+  if (lv !== null && lv < o.level) return levelShort(o, lv);
+  if (h.today >= h.perDay) return t('jewel.limit_hallmark', { limit: whole(h.perDay) });
   if (heldForHallmark(cs, o.gem).all < 1) return gemShort(o.gem);
-  if (purse !== null && purse < o.gold) return 'Need ' + gold(o.gold - purse) + ' more';
+  if (purse !== null && purse < o.gold) return goldShort(o, purse);
   return '';
 }
 function reforgeBlockOf(cs, o, h, purse, lv) {
-  if (lv !== null && lv < o.level) return 'Requires ' + benchName(o.skill) + ' ' + o.level + ', have ' + lv;
-  if (h.reforged >= h.perDay) return 'Daily limit: ' + whole(h.perDay) + ' reforges, resets at midnight UTC';
+  if (lv !== null && lv < o.level) return levelShort(o, lv);
+  if (h.reforged >= h.perDay) return t('jewel.limit_reforge', { limit: whole(h.perDay) });
   const bars = heldForHallmark(cs, o.metal).all;
-  if (bars < o.bars) return 'Needs ' + itemName(o.metal) + ' x' + whole(o.bars) + ', have ' + whole(bars);
+  if (bars < o.bars) return t('jewel.bars_short', { bar: itemName(o.metal), need: whole(o.bars), have: whole(bars) });
   if (heldForHallmark(cs, o.gem).all < 1) return gemShort(o.gem);
-  if (purse !== null && purse < o.gold) return 'Need ' + gold(o.gold - purse) + ' more';
+  if (purse !== null && purse < o.gold) return goldShort(o, purse);
   return '';
 }
 
 /* "held 2, 1 in Storage" */
 function holdWords(cs, id) {
   const n = heldForHallmark(cs, id);
-  return 'held ' + whole(n.all) + (n.storage ? ', ' + whole(n.storage) + ' in Storage' : '');
+  return n.storage ? t('jewel.held_storage', { n: whole(n.all), storage: whole(n.storage) }) : t('jewel.held', { n: whole(n.all) });
 }
 
 /* "Keen 4% → 6%, Follow-through 4% → 6%": each perk kept, at its old size and the new tier's. */
@@ -67,8 +70,8 @@ export function hallmarkPaneHtml() {
     + '<p class="hs-note hw-hallmark-how">Fine piece + gem: pick its second perk, no roll, no fail</p>'
     + '<p class="hs-note hw-hallmark-day"></p>'
     + '<ul class="hw-ledger hw-hallmark-rows"></ul><p class="hh-empty hw-hallmark-none"></p>'
-    + '<h3 class="hs-sub hw-reforge-head">Reforge</h3>'
-    + '<p class="hs-note hw-reforge-how">Hallmarked piece + next tier\'s bars and gem: both perks kept, no roll, no fail. Worn pieces: unequip first</p>'
+    + '<h3 class="hs-sub hw-reforge-head">' + t('jewel.reforge_head') + '</h3>'
+    + '<p class="hs-note hw-reforge-how">' + t('jewel.reforge_how') + '</p>'
     + '<ul class="hw-ledger hw-reforge-rows"></ul>'
     + '<div class="hw-confirm hw-hallmark-ask" role="alertdialog" aria-label="Confirm"><p class="hw-confirm-q"></p>'
     + '<p class="hw-confirm-note"></p>'
@@ -111,19 +114,18 @@ export function patchHallmarkPane(root, ctx, sc, skill) {
       const why = reforgeBlockOf(cs, o, h, purse, lv);
       const it = ITEMS[o.to];
       /* What it becomes leads; the perks it keeps, at their new size, and what it takes sit under it. */
-      text(li.querySelector('b'), itemName(o.from) + ' → ' + itemName(o.to));
-      text(li.querySelector('.hw-reforge-what'), 'Perks kept: ' + keptWords(o) + (it && Number.isInteger(it.reqLv) ? '. Worn from Level ' + it.reqLv : ''));
-      text(li.querySelector('.hw-reforge-need'), why || ('Uses it, ' + itemName(o.metal) + ' x' + whole(o.bars) + ' (' + holdWords(cs, o.metal) + '), 1 '
-        + itemName(o.gem) + ' (' + holdWords(cs, o.gem) + ').'));
+      text(li.querySelector('b'), t('jewel.reforge_name', { from: itemName(o.from), to: itemName(o.to) }));
+      text(li.querySelector('.hw-reforge-what'), it && Number.isInteger(it.reqLv) ? t('jewel.reforge_kept_worn', { perks: keptWords(o), level: it.reqLv }) : t('jewel.reforge_kept', { perks: keptWords(o) }));
+      text(li.querySelector('.hw-reforge-need'), why || t('jewel.reforge_uses', { bar: itemName(o.metal), bars: whole(o.bars), barHeld: holdWords(cs, o.metal), gem: itemName(o.gem), gemHeld: holdWords(cs, o.gem) }));
       const btn = li.querySelector('button');
-      text(btn, 'Reforge for ' + gold(o.gold));
+      text(btn, t('jewel.reforge_go', { gold: gold(o.gold) }));
       prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);
     },
   });
   /* With nothing to Hallmark the section is one line (the rows below are the way to a Fine piece); the rest shows once there is a choice. */
   prop(root.querySelector('.hw-hallmark-how'), 'hidden', !offers.length);
   prop(root.querySelector('.hw-hallmark-day'), 'hidden', !offers.length && !reforges.length);
-  text(root.querySelector('.hw-hallmark-day'), h ? 'Today: Hallmarks ' + whole(h.today) + '/' + whole(h.perDay) + ', reforges ' + whole(h.reforged) + '/' + whole(h.perDay) : '');
+  text(root.querySelector('.hw-hallmark-day'), h ? t('jewel.day', { hallmarks: whole(h.today), reforges: whole(h.reforged), limit: whole(h.perDay) }) : '');
   prop(root.querySelector('.hw-reforge-head'), 'hidden', !reforges.length);
   prop(root.querySelector('.hw-reforge-how'), 'hidden', !reforges.length);
   const none = root.querySelector('.hw-hallmark-none');
@@ -140,25 +142,25 @@ export function patchHallmarkPane(root, ctx, sc, skill) {
   if (sc.hallmark && askedH) {
     text(cf.querySelector('.hw-confirm-q'), 'Hallmark ' + itemName(askedH.from) + ' with ' + perkName(askedH.perk)
       + '?\nCost: ' + gold(askedH.gold) + ', 1 ' + itemName(askedH.gem) + '\nResult: ' + itemName(askedH.to) + ', permanent');
-    text(cf.querySelector('.hw-confirm-note'), 'Uses the Fine piece and the gem\nResult: tradeable');
+    text(cf.querySelector('.hw-confirm-note'), t('jewel.hallmark_note'));
     text(yes, 'Hallmark for ' + gold(askedH.gold));
   } else if (sc.hallmark && askedR) {
-    text(cf.querySelector('.hw-confirm-q'), 'Reforge ' + itemName(askedR.from) + '?\nCost: ' + gold(askedR.gold) + ', ' + itemName(askedR.metal) + ' x' + whole(askedR.bars)
-      + ', 1 ' + itemName(askedR.gem) + '\nResult: ' + itemName(askedR.to) + ', permanent');
-    text(cf.querySelector('.hw-confirm-note'), 'Perks kept: ' + keptWords(askedR) + '\nUses the piece, the bars and the gem\nResult: tradeable');
-    text(yes, 'Reforge for ' + gold(askedR.gold));
+    text(cf.querySelector('.hw-confirm-q'), t('jewel.reforge_ask', { from: itemName(askedR.from), gold: gold(askedR.gold), bar: itemName(askedR.metal), bars: whole(askedR.bars),
+      gem: itemName(askedR.gem), to: itemName(askedR.to) }));
+    text(cf.querySelector('.hw-confirm-note'), t('jewel.reforge_note', { perks: keptWords(askedR) }));
+    text(yes, t('jewel.reforge_go', { gold: gold(askedR.gold) }));
   }
   prop(yes, 'disabled', sc.pending);
 }
 
 /** The section's presses; true when handled. */
-export function actHallmarkPane(ctx, action, t, sc, repaint) {
+export function actHallmarkPane(ctx, action, el, sc, repaint) {
   const cs = ctx.character;
   if (action === 'hallmark-ask') {
-    sc.hallmark = t.getAttribute('data-key');
+    sc.hallmark = el.getAttribute('data-key');
     sc.msg = '';
     repaint();
-    const cf = t.closest('.hw-hallmark').querySelector('.hw-hallmark-ask');
+    const cf = el.closest('.hw-hallmark').querySelector('.hw-hallmark-ask');
     if (cf && cf.scrollIntoView) cf.scrollIntoView({ block: 'nearest' });
     return true;
   }

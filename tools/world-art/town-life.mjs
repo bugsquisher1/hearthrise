@@ -65,8 +65,9 @@ const blank = (w, h) => Array.from({ length: h }, () => new Array(w).fill(null))
  *   drift  px it leans east by the end of its life (t^2: the breeze takes it as it slows)
  *   r0 r1  its radius at birth and at the end (it swells fastest early: t^0.75)
  *   thinFrom  the age (0..1) it starts to break up into the dither
+ * The town's ONE smoke: the Hearth Chest's wisps and its bump's puff are drawn by it too (tower-art.mjs), in their own inks.
  */
-function smoke(o) {
+export function smoke(o) {
   const rnd = rng(o.seed);
   const puffs = [];
   for (let b = 0; b < o.n; b += o.every) {

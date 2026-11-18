@@ -813,6 +813,7 @@
   "town_shows": "The gold sinks' show journal (2027-02-27-town-shows.sql): which powder or round plays and until when. Player-scoped by user_id, but it holds no value: the gold and the journal are hr_apply's ledger row in the same transaction. Lost, a show still to play is simply not drawn.",
   "account_gold_given": "The Gold Given board's counter (2027-02-27-gold-given.sql): gold each hero gave to the town this UTC month. Player-scoped by user_id, but it holds no value and has no prize: it ranks, and it starts again every month. Lost, the month's standing starts over.",
   "hearth_flames": "The Great Hearth's flame journal (2027-01-31-inner-flame.sql): which named fuel colours the square and until when, and the per-day burn count. Player-scoped by user_id, but it holds no value: the fuel debit, the Inner Flame XP and the journal row live in player_inventory, player_skills and player_ledger. Losing every row returns the square to plain fire and re-opens one day of the burn clamp early; nobody loses or gains a fuel, an XP point or a rank.",
+  "hearth_bursts": "The Hearth Chest's green window on the square (2027-05-05-hearth-moods.sql): one row a town map naming the hero who opened it. Player-scoped by user_id, but it holds no value a player earned: the keys spent and the haul are in chest_opens, player_inventory and player_ledger. Losing it returns the square to its own flame a few seconds early.",
   "hr_gm_accounts": "Who the Game Master is (2027-03-13-gm-tools.sql): one row a migration writes per GM account, no value. A rebuild creates it empty and the account's own file (tools/gm-allow.mjs) re-adds it by a join on auth.users.",
   "hr_bans": "Moderation state (2027-03-13-gm-tools.sql): which accounts are banned, no value. Losing it lifts every ban, which a restore must carry but costs no player anything.",
   "hr_chat_mutes": "Moderation state (2027-03-13-gm-tools.sql): which accounts are muted until when, no value. Every row expires by itself.",
@@ -1014,6 +1015,11 @@
    "class": "operational",
    "replay": 0,
    "note": "2027-01-31-inner-flame.sql, ships EMPTY. THE GREAT HEARTH'S FLAME: one row per named fuel burnt (map, user, slot, item, flame colour, starts_at/ends_at), written ONLY by hr_hearth_burn (SECURITY DEFINER) in the same transaction as the item debit, the Inner Flame XP and its player_ledger row (kind craft, intent hearth_burn:<item>); RLS on, every privilege revoked from client roles. Read by hr_hearth_flame_of (the square's colour, via hr_town_view) and by hr_hearth_burn itself for the per-day clamp and the queue. Holds no value: the item, the XP and the journal are in player_inventory, player_skills and player_ledger, all restore_only. Losing every row returns the square to plain fire and re-opens one UTC day of the 20-a-day clamp early (a throughput budget, not a mint: every burn still consumes a fuel the player owns)."
+  },
+  "hearth_bursts": {
+   "class": "operational",
+   "replay": 0,
+   "note": "2027-05-05-hearth-moods.sql, ships EMPTY. THE HEARTH CHEST'S GREEN WINDOW: one row per town map, updated in place (who opened it, starts_at/ends_at, the credit the square may still burn green in a row, the presses in the window), written ONLY by hr_hearth_chest_burst (the trigger on chest_luck a press updates) under the Hearth's key; RLS on, every privilege revoked, no policy. Read by hr_hearth_flame_of (the square's flame, via hr_town_view). Holds no value: the press, its keys and its haul are in chest_opens, player_inventory and player_ledger. Losing the row ends a green window early and refills the credit: the next press opens a fresh window."
   },
   "hearthfind_log": {
    "class": "restore_only",

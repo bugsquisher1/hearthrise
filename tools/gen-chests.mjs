@@ -99,8 +99,8 @@ export function build(input) {
   const famRows = WEAPON_FAMILY_KEYS.map((f, i) => `  (${lit(f)}, ${i + 1})`).join(',\n');
   const wfRows = r.weaponFamilies.map((w) => `  (${lit(w.item)}, ${lit(w.family)})`).join(',\n');
   const wRows = r.weapons.map((w) => `  (${lit(w.key)}, ${lit(w.family)}, ${lit(w.item)})`).join(',\n');
-  const kfRows = r.keyFamilies.map((f) => `  (${lit(f.id)}, ${lit(f.name)}, ${f.opensPerWeek}, ${f.heldMax})`).join(',\n');
-  const kfSum = [...r.keyFamilies].sort((a, b) => (a.id < b.id ? -1 : 1)).map((f) => [f.id, f.opensPerWeek, f.heldMax].join(':')).join('|');
+  const kfRows = r.keyFamilies.map((f) => `  (${lit(f.id)}, ${lit(f.name)}, ${f.opensPerWeek}, ${f.heldMax}, ${lit(f.switch)})`).join(',\n');
+  const kfSum = [...r.keyFamilies].sort((a, b) => (a.id < b.id ? -1 : 1)).map((f) => [f.id, f.opensPerWeek, f.heldMax, f.switch].join(':')).join('|');
   const chestRows = Object.values(CHESTS).map((c) => `  (${lit(c.id)}, ${lit(c.name)})`).join(',\n');
   const sum = [...r.keys].sort((a, b) => (a.id < b.id ? -1 : 1)).map((k) => [k.id, k.family, k.item, k.from, k.weaponPm, k.weaponTier, k.skillPlus, k.cinders, k.salts, k.saltsQty, k.food, k.foodQty, k.ground, k.gear, k.helmetPm === null ? '' : k.helmetPm].join(':')).join('|');
   const oRows = r.outfitRolls.map((o) => `  (${lit(o.key)}, ${lit(o.outfit)}, ${lit(o.item)}, ${o.pm})`).join(',\n');
@@ -161,6 +161,8 @@ create table if not exists public.hr_chest_keys (
 );
 -- THE CATACOMB KEYS (lane/c-catacombs): a key names the run ground whose doors mint it, what a hit pays and an armor key's slot lean. Two wings'
 -- keys of one metal share a door, so the open table is unique by ground, not by family; an armor key carries no +skill.
+-- a key family's switch (lane/c-catacombs): the feature that hides its door, its keys at the chest and its section (burning_tower, unmarked_catacombs)
+alter table public.hr_chest_key_families add column if not exists switch_id text check (switch_id ~ '^[a-z0-9_]{1,40}$');
 alter table public.hr_chest_keys add column if not exists ground text;
 alter table public.hr_chest_keys add column if not exists gear text;
 alter table public.hr_chest_keys add column if not exists helmet_pm int;
@@ -228,8 +230,9 @@ delete from public.hr_chest_weapons;
 delete from public.hr_chest_armor;
 delete from public.hr_chest_keys;
 delete from public.hr_chest_key_families;
-insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max) values
+insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max, switch_id) values
 ${kfRows};
+alter table public.hr_chest_key_families alter column switch_id set not null;
 insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty,
                                  ground, gear, helmet_pm) values
 ${keyRows};
@@ -268,7 +271,7 @@ begin
                              ground, gear, coalesce(helmet_pm::text, '')), '|' order by key_id collate "C")
     into v_sum from public.hr_chest_keys;
   if v_sum is distinct from ${lit(sum)} then raise exception 'chest-catalogue §4: hr_chest_keys is not src/data/chests.js: %', v_sum; end if;
-  select string_agg(concat_ws(':', key_family, opens_per_week, held_max), '|' order by key_family collate "C") into v_sum from public.hr_chest_key_families;
+  select string_agg(concat_ws(':', key_family, opens_per_week, held_max, switch_id), '|' order by key_family collate "C") into v_sum from public.hr_chest_key_families;
   if v_sum is distinct from ${lit(kfSum)} then raise exception 'chest-catalogue §4: hr_chest_key_families is not src/data/chests.js: %', v_sum; end if;
   if exists (select 1 from public.hr_chest_keys k where not exists (select 1 from public.hr_chest_key_families f where f.key_family = k.key_family))
      or exists (select 1 from public.hr_chest_key_families f where not exists (select 1 from public.hr_chest_keys k where k.key_family = f.key_family))

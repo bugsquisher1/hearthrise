@@ -54,6 +54,8 @@ create table if not exists public.hr_chest_keys (
 );
 -- THE CATACOMB KEYS (lane/c-catacombs): a key names the run ground whose doors mint it, what a hit pays and an armor key's slot lean. Two wings'
 -- keys of one metal share a door, so the open table is unique by ground, not by family; an armor key carries no +skill.
+-- a key family's switch (lane/c-catacombs): the feature that hides its door, its keys at the chest and its section (burning_tower, unmarked_catacombs)
+alter table public.hr_chest_key_families add column if not exists switch_id text check (switch_id ~ '^[a-z0-9_]{1,40}$');
 alter table public.hr_chest_keys add column if not exists ground text;
 alter table public.hr_chest_keys add column if not exists gear text;
 alter table public.hr_chest_keys add column if not exists helmet_pm int;
@@ -121,9 +123,10 @@ delete from public.hr_chest_weapons;
 delete from public.hr_chest_armor;
 delete from public.hr_chest_keys;
 delete from public.hr_chest_key_families;
-insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max) values
-  ('tower', 'Tower', 6, 30),
-  ('catacomb', 'Catacomb', 6, 30);
+insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max, switch_id) values
+  ('tower', 'Tower', 6, 30, 'burning_tower'),
+  ('catacomb', 'Catacomb', 6, 30, 'unmarked_catacombs');
+alter table public.hr_chest_key_families alter column switch_id set not null;
 insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty,
                                  ground, gear, helmet_pm) values
   ('bronze', 'tower', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 'temper_salts', 15, 'cooked_shrimp', 20, 'the_burning_tower', 'weapon', null),
@@ -349,8 +352,8 @@ begin
                              ground, gear, coalesce(helmet_pm::text, '')), '|' order by key_id collate "C")
     into v_sum from public.hr_chest_keys;
   if v_sum is distinct from 'bone_bronze:catacomb:bone_key_bronze:10:160:2:0:50:temper_salts:15:cooked_shrimp:20:unmarked_bone_wing:armor:700|bone_gold:catacomb:bone_key_gold:70:45:6:0:300:ember_temper_salts:30:cooked_lobster:20:unmarked_bone_wing:armor:700|bone_platinum:catacomb:bone_key_platinum:100:20:7:0:600:ember_temper_salts:40:cooked_lobster:25:unmarked_bone_wing:armor:700|bone_silver:catacomb:bone_key_silver:40:80:4:0:150:mithril_temper_salts:25:cooked_lobster:15:unmarked_bone_wing:armor:700|bronze:tower:tower_key_bronze:10:160:2:1:50:temper_salts:15:cooked_shrimp:20:the_burning_tower:weapon:|gold:tower:tower_key_gold:70:45:6:3:300:ember_temper_salts:30:cooked_lobster:20:the_burning_tower:weapon:|platinum:tower:tower_key_platinum:100:20:7:4:600:ember_temper_salts:40:cooked_lobster:25:the_burning_tower:weapon:|silver:tower:tower_key_silver:40:80:4:2:150:mithril_temper_salts:25:cooked_lobster:15:the_burning_tower:weapon:|waterlogged_bronze:catacomb:waterlogged_key_bronze:10:160:2:0:50:temper_salts:15:cooked_shrimp:20:unmarked_flooded_wing:armor:300|waterlogged_gold:catacomb:waterlogged_key_gold:70:45:6:0:300:ember_temper_salts:30:cooked_lobster:20:unmarked_flooded_wing:armor:300|waterlogged_platinum:catacomb:waterlogged_key_platinum:100:20:7:0:600:ember_temper_salts:40:cooked_lobster:25:unmarked_flooded_wing:armor:300|waterlogged_silver:catacomb:waterlogged_key_silver:40:80:4:0:150:mithril_temper_salts:25:cooked_lobster:15:unmarked_flooded_wing:armor:300' then raise exception 'chest-catalogue §4: hr_chest_keys is not src/data/chests.js: %', v_sum; end if;
-  select string_agg(concat_ws(':', key_family, opens_per_week, held_max), '|' order by key_family collate "C") into v_sum from public.hr_chest_key_families;
-  if v_sum is distinct from 'catacomb:6:30|tower:6:30' then raise exception 'chest-catalogue §4: hr_chest_key_families is not src/data/chests.js: %', v_sum; end if;
+  select string_agg(concat_ws(':', key_family, opens_per_week, held_max, switch_id), '|' order by key_family collate "C") into v_sum from public.hr_chest_key_families;
+  if v_sum is distinct from 'catacomb:6:30:unmarked_catacombs|tower:6:30:burning_tower' then raise exception 'chest-catalogue §4: hr_chest_key_families is not src/data/chests.js: %', v_sum; end if;
   if exists (select 1 from public.hr_chest_keys k where not exists (select 1 from public.hr_chest_key_families f where f.key_family = k.key_family))
      or exists (select 1 from public.hr_chest_key_families f where not exists (select 1 from public.hr_chest_keys k where k.key_family = f.key_family))
      or not exists (select 1 from public.hr_chest_key_families f where f.key_family = 'tower') then

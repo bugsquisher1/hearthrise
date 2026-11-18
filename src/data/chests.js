@@ -81,10 +81,10 @@ export const CINDERS = 'tower_cinders';
    hero's bag and Key Ring and the account's Storage, against heldMax x the account's heroes), so nobody shuffles keys into Storage or onto
    another hero to make room: four heroes hold up to 120 of a family between them. */
 export const KEY_FAMILIES = Object.freeze({
-  tower: Object.freeze({ id: 'tower', name: 'Tower', opensPerWeek: 6, heldMax: 30 }),
+  tower: Object.freeze({ id: 'tower', name: 'Tower', opensPerWeek: 6, heldMax: 30, switch: 'burning_tower' }),
   /* the Unmarked Catacombs' descent (Tyler 2026-11-16: "the SAME amount as the Tower (6 per hero per week) but a SEPARATE count"): every wing's
      keys, Waterlogged and Bone and any later wing, share one six and one held limit */
-  catacomb: Object.freeze({ id: 'catacomb', name: 'Catacomb', opensPerWeek: 6, heldMax: 30 }),
+  catacomb: Object.freeze({ id: 'catacomb', name: 'Catacomb', opensPerWeek: 6, heldMax: 30, switch: 'unmarked_catacombs' }),
 });
 /* The family a Tower landing mints from (the server's hr_tower_key_mint reads the same id). */
 export const TOWER_KEY_FAMILY = 'tower';
@@ -283,6 +283,8 @@ export function validateChests(keys = HEARTH_CHEST_KEYS, luck = CHEST_LUCK, land
     if (typeof f.name !== 'string' || !f.name.trim()) out.push('family ' + fid + ': no name');
     if (!Number.isInteger(f.opensPerWeek) || f.opensPerWeek < 1 || f.opensPerWeek > 1000) out.push('family ' + fid + ': opensPerWeek is not 1..1000');
     if (!Number.isInteger(f.heldMax) || f.heldMax < f.opensPerWeek) out.push('family ' + fid + ': heldMax is under a week\'s opens');
+    /* the feature switch that hides the family's door, its keys at the chest and its section (hr_feature_switches) */
+    if (typeof f.switch !== 'string' || !ID.test(f.switch)) out.push('family ' + fid + ': no feature switch');
     if (!keys.some((k) => k && k.family === fid)) out.push('family ' + fid + ': no key belongs to it');
   }
   /* (worded with no quote after the word that ends an import: tools/pack-edge.mjs reads an export's specifier up to the next quote) */

@@ -4943,6 +4943,12 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const saleNote = await page.evaluate(() => { const c = document.querySelector('[data-pane="sell"] .hw-confirm'); return c ? c.querySelector('.hw-confirm-q').textContent + ' | ' + c.querySelector('.hw-confirm-note').textContent : ''; });
         if (!saleNote || /Alpha Fang|rare finds/i.test(saleNote)) fails.push('AW-62 Sell all junk asks: ' + JSON.stringify(saleNote));
         await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
+        /* ...so a Rare reaches a sale only on its own row, and that confirmation still names it before the press (the Shop's note, item-lore.js
+           rareSaleWords; set/v0.2.140: with A16 the junk sale above stopped carrying the Fangs, and nothing read the Shop's rare words) */
+        await page.click('[data-hs-win="shop"] [data-hs-act="sell"][data-item="alpha_fang"]');
+        const rowNote = await page.evaluate(() => { const c = document.querySelector('[data-pane="sell"] .hw-confirm.is-on'); return c ? c.querySelector('.hw-confirm-q').textContent + ' | ' + c.querySelector('.hw-confirm-note').textContent : ''; });
+        if (!/This sells rare finds: 3 Alpha Fang\./.test(rowNote)) fails.push('AW-62 selling the Alpha Fangs on their own row asks: ' + JSON.stringify(rowNote));
+        await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
         await page.keyboard.press('v');
         /* AW-62 Inventory's foot stands inside the window at a laptop's height, the bag scrolling above it, with a card up too */
         if (!(await openWin(page, 'b', 'inventory'))) fails.push('AW-62 Inventory did not open');
@@ -5781,7 +5787,9 @@ const MUTANTS = [
   ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "t('prep.ready_stamina', { left: hoursWords(st.msLeft) })", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "t(h && !h.ended ? 'prep.gold_spend_now' : 'prep.gold_spend_last', vars)", "t('prep.gold_spend_now', vars)"],
-  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    if (mine.length) front = mine;', '    if (mine.length) front = front.slice();'],
+  /* set/v0.2.140: the tie line (`if (mine.length) front = mine;`) went equivalent when the 139 audit's B6 let a bare armor slot take only the
+     hero's weight and a worn one only its own, so every front is all one weight; the plan remembers the pick where it reads it */
+  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    prefer: o && PREFER.has(o.prefer) ? o.prefer : null };', '    prefer: null };'],
   ['plans: a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],

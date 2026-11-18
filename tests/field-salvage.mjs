@@ -294,12 +294,23 @@ function mutated(mutate) {
 }
 const lastOf = (ms, mid) => ms[mid].drops[ms[mid].drops.length - 1];
 const moveSalvage = (ms, from, to) => { ms[to].drops.push(ms[from].drops.pop()); };
+/* A REAL monster that carries a lucky row, of wild_boar's tier when one is (set/v0.2.140: the arm named small_wolf, whose lucky Wolfbone Necklace
+   became a bench piece in the jewelry sample, so the arm planted onto a clean host and caught nothing). Picked from the data so a lane that moves
+   one lucky row cannot empty the arm again; with no lucky row left anywhere rule (b)'s lucky clause guards nothing, and that is said, not passed. */
+const luckyHost = (ms, tier) => {
+  const hosts = Object.entries(ms).filter(([id, m]) => !m.boss && !FIXTURE_EXCLUDED.includes(id) && (m.drops || []).some((d) => d && d.lucky)
+    && !(m.drops || []).some((d) => d && d.salvage));
+  const pick = hosts.find(([, m]) => m.tier === tier) || hosts[0];
+  if (!pick) throw new Error('field-salvage --selftest: no monster carries a lucky row, so (b)\'s lucky clause has nothing to guard: retire it with the rule');
+  return pick[0];
+};
+const luckyItem = (ms) => ms[luckyHost(ms, ms.wild_boar.tier)].drops.find((d) => d && d.lucky).id;
 const MUTATIONS = {
   ch_x10:               { rule: 'c', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').ch *= 10; }) },
   on_goblin:            { rule: 'b', mk: () => mutated((ms) => moveSalvage(ms, 'wild_boar', 'goblin')) },
   on_elk_king_boss:     { rule: 'b', mk: () => mutated((ms) => moveSalvage(ms, 'void_parasite', 'elk_king')) },
-  on_small_wolf_lucky:  { rule: 'b', mk: () => mutated((ms) => moveSalvage(ms, 'wild_boar', 'small_wolf')) },
-  lucky_item:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'wolfbone_torc'; }) },
+  on_lucky_host:        { rule: 'b', mk: () => mutated((ms) => moveSalvage(ms, 'wild_boar', luckyHost(ms, ms.wild_boar.tier))) },
+  lucky_item:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = luckyItem(ms); }) },
   wrong_slot:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'scarecrow').id = 'bronze_platebody'; }) },
   wrong_tier:           { rule: 'a', mk: () => mutated((ms) => { lastOf(ms, 'wild_boar').id = 'iron_belt'; }) },
   /* worn tier-3 gear sells at 0.14 of book (loot-bands.js), so the brute's own sword is doubled to cross the 5% line */

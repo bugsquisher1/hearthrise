@@ -591,6 +591,7 @@ export function composeFrame(map, book, state, view, tables, T) {
     /* a loop off the view is no change at all (the World paints only what changes): the view itself, no margin, as an effect casts nothing */
     const lx = px - f.ax, ly = py - f.ay;
     if (!(lx < view.ox + view.w && ly < view.oy + view.h && lx + f.w > view.ox && ly + f.h > view.oy)) continue;
+    /** @type {{[k: string]: any}} */
     const e = { id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x: px - f.ax, y: py - f.ay, cx: px, cy: py, ax: f.ax, ay: f.ay,
       blend: s.blend === 'add' ? 'add' : 'over', angle: 0 };
     /* AN OBJECT STANDING ON ART (the Hearth Chest on the Hearth's ledge, lane/fix137-hearth-chest-art): its manifest ellipse at its foot,

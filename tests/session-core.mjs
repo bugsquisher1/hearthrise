@@ -70,6 +70,9 @@
 //          four heroes), and the account's other heroes open at once after Play, within the limit
 //   QUOTE-1 a priced press the server refused (quote_changed, the bar already full) re-reads the hero before it resolves: the quote
 //          shown is the server's, for every verb that sends a quoted price; an answer that is no refusal reads nothing
+//   REFUSE-A20 (the full-game sweep's A20, two tabs) a refused ask of the hero's own leaves no stale screen: the engine's refusal
+//          carries the whole character and is the record (no read on top); a Postgres verb's refusal re-reads ONCE; a dropped
+//          network or a rate limit reads nothing
 //   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
 //          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
 //          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
@@ -1648,6 +1651,47 @@ async function rules(M) {
     }
     return true;
   });
+  /* REFUSE-A20 (the full-game sweep's A20, two tabs, one sell at the same instant): the tab whose sell the engine refused kept
+     showing 39 Goblin Totems and the old gold after "Not enough Goblin Totem left". The engine's refusal carries the whole
+     character (supabase/functions/hr-accrue/envelope.js refusalBody; envelope.js E7): it IS the record, with no read on top. A
+     Postgres verb's refusal carries none: the hero is re-read ONCE before the refusal is said. A dropped network reads nothing. */
+  await t('REFUSE-A20', async () => {
+    const bySlot = { 0: env(1, { inventory: { goblin_totem: 39 }, state: { gold: 100 } }) };
+    const srv = fakeServer(bySlot);
+    const base = srv.rpc;
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: fakeHub().channel, ...timers });
+    await cs.load();
+    const loads = () => srv.calls.filter((c) => c[0] === 'hr_load').length;
+    const shows = () => JSON.stringify([cs.read('inventory'), (cs.read('state') || {}).gold]);
+    /* the other tab sold the stack first: the server holds none, and the gold it paid */
+    bySlot[0] = env(2, { inventory: {}, state: { gold: 4000 } });
+    srv.accrue = async (body) => {
+      srv.calls.push(['accrue', body]);
+      return { ok: false, status: 409, closed: false, error: 'http_409',
+        body: Object.assign({}, bySlot[0], { ok: false, verb: 'vendor_sell_many', error: 'insufficient_qty', detail: { item_id: 'goblin_totem' } }) };
+    };
+    let l0 = loads();
+    const sold = await cs.edgeIntent('vendor_sell_many', { lines: [{ item: 'goblin_totem', qty: 39 }] });
+    if (sold.ok || sold.error !== 'insufficient_qty' || sold.item !== 'goblin_totem') return 'the refused sell answered ' + JSON.stringify(sold);
+    if (shows() !== '[{},4000]') return 'after the refused sell the tab shows ' + shows() + ' (the server holds [{},4000])';
+    if (loads() !== l0) return 'a refusal that carried the whole character was read again (' + (loads() - l0) + ' hr_load)';
+    /* a Postgres verb's refusal ({ ok:false } at 200, no envelope): ONE re-read, before it resolves */
+    bySlot[0] = env(3, { inventory: {}, state: { gold: 3000 } });
+    srv.rpc = async (name, args) => (name === 'hr_item_lock' ? (srv.calls.push([name, args]), { ok: true, status: 200, closed: false, body: { ok: false, error: 'no_item' } }) : base(name, args));
+    l0 = loads();
+    const locked = await cs.lockItem('goblin_totem', true);
+    if (locked.ok || locked.error !== 'no_item') return 'the refused lock answered ' + JSON.stringify(locked);
+    if (loads() - l0 !== 1 || shows() !== '[{},3000]') return 'a refused verb sent ' + (loads() - l0) + ' re-read(s) and the tab shows ' + shows() + ' (want 1, [{},3000])';
+    /* no answer, no news: a dropped network and a rate limit read nothing */
+    for (const ans of [{ ok: false, status: 0, closed: false, error: 'network' },
+      { ok: true, status: 200, closed: false, body: { ok: false, error: 'rate_limited' } }]) {
+      srv.rpc = async (name, args) => (name === 'hr_item_lock' ? (srv.calls.push([name, args]), ans) : base(name, args));
+      l0 = loads();
+      await cs.lockItem('goblin_totem', false);
+      if (loads() !== l0) return 'a ' + (ans.error || ans.body.error) + ' answer was read as a refusal (' + (loads() - l0) + ' hr_load)';
+    }
+    return true;
+  });
   /* ONE ACCOUNT DEPOT on a fake server (hr_bank_move / hr_state_of keep one for every slot): each envelope states it
      with the server's clock (`now`, hr_state_of's transaction instant); `spend` is a town skill on some hero drawing
      on it (2027-01-24-skills-from-storage.sql); `loads(slot)` counts the full reads sent. */
@@ -2442,10 +2486,11 @@ async function viewRules(base) {
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
   ['a refused priced press leaves the stale quote on screen (lane/a-quote-changed)', 'src/session/quoted-ask.js', 'if (refusedByServer(ans) && cs', 'if (false && cs'],
-  ['the stamina refill keeps its quote after quote_changed (lane/a-quote-changed)', 'src/session/character-session.js',
-    "this._ask('stamina_refill', quoted(this, () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() })));",
-    "this._ask('stamina_refill', () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));"],
-  ['a dropped network is read as a refusal (lane/a-quote-changed)', 'src/session/quoted-ask.js', '!!ans && ans.ok === true && !!ans.body', '!!ans'],
+  /* the full-game sweep's A20 (two tabs): every refusal of a hero's own ask (a sell, a move, a priced press) re-reads, in _settled */
+  ['a refusal of the hero\'s own ask leaves the screen behind the server (A20; lane/a-quote-changed)', 'src/session/character-session.js',
+    "    if (!(restated && this._take(restated, 'load')) && refusedByServer(ans)) await this.resync();\n", ''],
+  ['a dropped network is read as a refusal (lane/a-quote-changed)', 'src/session/refusal.js',
+    "  return (ans.ok === true || ans.status === 409) && ans.body.error !== 'rate_limited';", "  return ans.body.error !== 'rate_limited';"],
   ['a refused training start keeps the stale fee (lane/a-quote-changed)', 'src/session/training-intents.js',
     "await quoted(cs, () => account.server.rpc('hr_training_start', { p_slot: cs.slot, p_skill: skill, p_where: where, p_fee_seen: feeSeen, p_idem: newIdem() }))();",
     "await account.server.rpc('hr_training_start', { p_slot: cs.slot, p_skill: skill, p_where: where, p_fee_seen: feeSeen, p_idem: newIdem() });"],
@@ -2614,7 +2659,8 @@ const MUTANTS = [
   ['the Storage is the envelope\'s own copy', 'src/session/item-sections.js', '  return acct && isObj(acct[key]) ? acct[key] : read(cs, key);', '  return read(cs, key);'],
   ['the Storage is the last answer, not the newest', 'src/session/account-session.js', '    if (this._storage && next.at < this._storage.at) return;\n', ''],
   ['two heroes re-render each other forever', 'src/session/account-session.js', '    if (!next || this._seenBanks.has(next.bank)) return;', '    if (!next) return;'],
-  ['a refused move keeps the stale window', 'src/session/character-session.js', "      if (!r.ok && r.error !== 'closed') await this.resync();", ''],
+  ['a refusal that carries the whole character is thrown away and read again (envelope.js E7, A20)', 'src/session/character-session.js',
+    "if (!(restated && this._take(restated, 'load')) && refusedByServer(ans))", 'if (refusedByServer(ans))'],
   ['every refusal re-reads', 'src/session/read-gate.js', '    if (wait <= 0) return this._resyncNow();', '    return this._resyncNow();'],
   ['every read is sent on its own', 'src/session/read-gate.js', '    if (!this._out) return this._send();', '    return this._send();'],
   ['a farm action never tells the account', 'src/session/farm-intents.js', "    if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);\n", ''],

@@ -474,12 +474,20 @@ async function checks(overrides, shots, { arm = null } = {}) {
       };
       await openTower(page, 'chest');
       /* A WINDOW IS NO PAGE (audit 2026-11-18 A19: a double-click on the chest's Use painted the window's words in the browser's blue selection): a
-         double-click on its presses selects nothing */
+         double-click on the pane's words, or a drag across them, selects nothing (a double-click on a press that repaints lands on words like these) */
       await page.waitForTimeout(300);
-      /* a word of the pane's own (the week's reset line: a double-click on a press that repaints lands on words like it) */
-      await page.dblclick('[data-hs-win="tower"] .tc-resets');
-      const picked = await page.evaluate(() => String(window.getSelection()).trim());
-      if (picked) fails.push('TW-4 a double-click selected the window\'s words: ' + JSON.stringify(picked.slice(0, 60)));
+      const words = await page.evaluate(() => { const e = Array.from(document.querySelectorAll('[data-hs-win="tower"] [data-pane="chest"] *'))
+        .find((x) => x.getClientRects().length && !x.closest('button, select, a, [data-hs-act]') && [...x.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim().length > 6));
+        if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + 3, y: b.top + b.height / 2, x2: Math.min(b.right - 3, b.left + 160) }; });
+      let picked = 'no words in the pane to press';
+      if (words) {
+        await page.evaluate(() => window.getSelection().removeAllRanges());
+        await page.mouse.dblclick(words.x + 10, words.y);
+        await page.mouse.move(words.x, words.y); await page.mouse.down(); await page.mouse.move(words.x2, words.y, { steps: 6 }); await page.mouse.up();
+        picked = await page.evaluate(() => String(window.getSelection()).trim());
+        await page.evaluate(() => window.getSelection().removeAllRanges());
+      }
+      if (picked) fails.push('TW-4 a double-click or a drag selected the window\'s words: ' + JSON.stringify(picked.slice(0, 60)));
       /* the window still sliding in moves the scene (a --shots run measured the chest 16 px off the reveal): read it once it stands still */
       await page.waitForFunction(() => { const e = document.querySelector('[data-hs-win="tower"] .tc-chest'); if (!e) return false;
         const x = Math.round(e.getBoundingClientRect().left); const still = window.__tcX === x; window.__tcX = x; return still; }, null, { polling: 120, timeout: 3000 }).catch(() => {});

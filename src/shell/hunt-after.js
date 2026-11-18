@@ -16,7 +16,7 @@
 // computed, spent or sent. The words are src/data/text/away.js.
 // ════════════════════════════════════════════════════════════════════════
 import { t } from '../render/player-text.js?v=0.2.137';
-import { whole } from '../render/format.js?v=0.2.137';
+import { whole, gold } from '../render/format.js?v=0.2.137';
 import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.137';
 import { trainingOf } from '../session/training-sections.js?v=0.2.137';
 import { townActivityWords, partyMembershipOf } from '../session/party-sections.js?v=0.2.137';
@@ -108,7 +108,7 @@ export function afterDoneWords(cs, id, name) {
   if (d.state === 'pending') return t('away.done_pending', { name, skill });
   if (d.state === 'started') return t('away.done_started', { name, skill });
   if (d.why === 'chose_wait') return t('away.done_chose_wait', { name });
-  if (d.why === 'insufficient_gold' && d.fee !== null) return t(d.purse !== null ? 'away.done_gold_purse' : 'away.done_gold', { name, fee: whole(d.fee), purse: d.purse !== null ? whole(d.purse) : '' });
+  if (d.why === 'insufficient_gold' && d.fee !== null) return t(d.purse !== null ? 'away.done_gold_purse' : 'away.done_gold', { name, fee: whole(d.fee), purse: d.purse !== null ? gold(d.purse) : '' });
   if (d.why === 'low_level' && d.need !== null) return t('away.done_level', { name, level: d.need });
   if (d.why === 'in_party') return t('away.done_party', { name });
   if (d.skill && d.why !== 'moved_on') return t('away.done_no_train', { name, skill });

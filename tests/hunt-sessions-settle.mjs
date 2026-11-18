@@ -2987,7 +2987,7 @@ const DB_ARMS = {
     if (!yielded || yielded.kind !== 'artisan' || yielded.id !== 'fuel_bones') problems.push(`the bury's stop was not journalled: ${JSON.stringify(yielded)}`);
     /* A BENCH RESUMES FOR THE COUNT IT HAD LEFT WHEN THE HUNT STARTED (Tyler 2026-11-15, "Yes, resume them";
        2027-04-24-bench-resume.sql). It replaces his 2026-10-31 "bench jobs dont" (2027-02-15-panel-truth.sql §2: no bench
-       resumed, because a resume had no count and one "Fuel all 15" before an 11 h hunt burned that hunt's 1,954 Bones).
+       resumed, because a resume had no count and one "Burn all 15" before an 11 h hunt burned that hunt's 1,954 Bones).
        Now Enter remembers the count: the smaller of the run's own ("Make N"; none on "All") and what the bag plus Storage
        could make then. Only a bench that was RUNNING at Enter resumes, for exactly that count, so never the hunt's loot.
        Dry at Enter, emptied by the end, or not running at Enter (a stale count from an older hunt included): idle, and the

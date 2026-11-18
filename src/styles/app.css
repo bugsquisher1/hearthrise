@@ -21,6 +21,9 @@
 ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: var(--scroll-track); }
 ::-webkit-scrollbar-thumb { background: var(--scroll-thumb); }
 ::-webkit-scrollbar-thumb:hover { background: var(--scroll-thumb-hover); }
+/* THE ONE TICK COLOUR (UI audit 2026-11-18: the bag's Advanced view and All characters' alert boxes drew the browser's blue, Settings' gold):
+   every box, choice and slider the game draws is gold. Zero specificity, so a control styled on purpose keeps its own. */
+:where(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--gold); }
 /* clip, never hidden: a hidden box still scrolls when told to (a focus, a scroll-into-view), and at 667 x 375 a
    too-wide child slid the whole game 102 px off the left edge, the icon row with it (phone-touch PH-1). */
 .app.is-game { height: 100vh; display: flex; flex-direction: column; overflow: clip; }
@@ -366,6 +369,8 @@
 .hero-how { flex: 1; min-width: 14rem; border-left: 2px solid var(--steel-sep); padding-left: 16px; }
 .hero-how-title { margin: 0 0 6px; }
 .hero-how-lead { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink); line-height: 1.4; }
+/* the account's hero slots, its own line under the lead (hero-create.js): the server's numbers, never run into the rule */
+.hero-how-slots { margin: 0 0 8px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.4; }
 .hero-how-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
 .hero-how-list b { color: var(--ink); }
 .hero-how-uses { color: var(--ink-3); }

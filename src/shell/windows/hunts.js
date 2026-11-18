@@ -234,7 +234,12 @@ renderHunts.patch = function patchHunts(body, ctx) {
      whole sheet, and the two cards that explain the fight were never seen): once the SERVER's hunt section says the
      hero is hunting after an Enter pressed here, the window closes and the hunt is in view. Opening it again while
      hunting keeps it open (it says where the hero is). */
-  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }
+  /* ...AND THE WINDOW WHOSE LINK OPENED IT (QA audit 2026-11-18 N12: the Tally stayed over the hunt after Enter from its link): its work is done once the hunt runs. */
+  if (sc.closeOnHunt && now) {
+    sc.closeOnHunt = false;
+    const by = typeof ctx.wm.backTo === 'function' ? ctx.wm.backTo('hunts') : null;
+    queueMicrotask(() => { ctx.wm.close('hunts'); if (by && by !== 'hunts') ctx.wm.close(by); });
+  }
   const level = levelOf(cs);
   const party = partyMembershipOf(cs);
   const size = party ? party.seats.length : 1;
@@ -312,7 +317,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
 function patchPage(det, ctx, sc, v) {
   const { r, level, size, party, follower, now } = v;
   const cs = ctx.character;
-  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
+  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), allLoot: sc.allLoot === r.hunt, repaint: () => ctx.refresh('hunts') });
   /* the floor is a warning (Tyler 2026-11-04 UTC): this hero's own gap, and a leader's every seat's too. The first press of Enter arms the one confirm (renderHunts.act). */
   const under = party && !follower ? seatsUnder(r, party).under : [];
   /* the death line says the share a death would really take with the Blessings the server says are on (designer re-read 2026-11-11) */
@@ -426,6 +431,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     return true;
   }
   if (action === 'back') { sc.paged = false; repage(); return true; }
+  /* "+N more" under a ground's loot: the rest of its rows (display scratch, this ground's only) */
+  if (action === 'loot-more') { sc.allLoot = sc.pick; repaint(); return true; }
   /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */
@@ -440,6 +447,9 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
   }
   /* An Enter the server took closes this window once its hunt section shows the hunt (patchHunts). */
   const thenClose = (r) => { if (r && r.ok) { sc.closeOnHunt = true; repaint(); } };
+  /* A CONFIRM OPENS IN VIEW (QA audit 2026-11-18 N3: the call-out's warning opened under the press, below the page's fold and cut by the
+     Enter foot, so "Call him out once" had to be found): once drawn, the page scrolls to it, its buttons at least. */
+  const inView = () => { const w = action === 'call-warn' || action === 'hall-warn' ? el.closest('.hw-hd-call').querySelector('.hw-call-warn.is-on') : null; if (w) revealInWindow(w); return true; };
   /* Call out: its section's presses, run as the setup Go as chose; its refusals read the designer's words. */
   const called = callFromGround(sc.pick);
   if (actCall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -447,7 +457,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }), el)) return true;
+  }), el)) return inView();
   /* A keyed hall: its section's presses, the same way; its refusals read its own words, with the key's name. */
   const hall = hallFromGround(sc.pick);
   if (actHall(ctx, action, repaint, (send, busy, done) => runIntent(sc, repaint, () => asChosen(cs, sc, send), busy, done, cs).then((r) => {
@@ -455,7 +465,7 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     if (said) { sc.msg = said; repaint(); }
     thenClose(r);
     return r;
-  }))) return true;
+  }))) return inView();
   if (action === 'leave-party') { leaveOrDisband(ctx, cs, sc, repaint, 'leave'); return true; }
   if (action === 'enter' && partyMembershipOf(cs)) {
     sc.pick = hunt;

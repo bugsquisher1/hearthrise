@@ -5,6 +5,7 @@
 //   node tests/hunt-live.mjs            the rules
 //   node tests/hunt-live.mjs --mutate   every planted defect must turn its rule RED
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
+//   node tests/hunt-live.mjs --mutate --shard=K/N      every Nth mutant from the Kth (smoke.yml's artisan-selftest and -2)
 //
 // mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
@@ -2151,7 +2152,14 @@ async function mutate() {
   let escaped = 0;
   /* `--only <text>`: just the mutants whose name holds <text> (a lane proves its own rule without the whole sweep) */
   const at = process.argv.indexOf('--only');
-  const list = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
+  const picked = at > 0 ? MUTANTS.filter(([name]) => name.includes(String(process.argv[at + 1] || ''))) : MUTANTS;
+  /* --shard=K/N (lane/ci-speed, 2026-11-18: --mutate took 31 of artisan-selftest's 40 min on the full sweep 44144849725): every
+     Nth mutant from the Kth, as tests/client-boot.mjs does. A malformed shard is the harness's fault: exit 2 before any copy. */
+  const sh = process.argv.find((x) => x.startsWith('--shard'));
+  const m = sh && /^--shard=(\d+)\/(\d+)$/.exec(sh);
+  if (sh && (!m || +m[1] < 1 || +m[1] > +m[2])) { console.error(`  HARNESS: bad ${sh} (want --shard=K/N, 1 <= K <= N)`); process.exit(2); }
+  const list = m ? picked.filter((_, i) => i % +m[2] === +m[1] - 1) : picked;
+  if (m) console.log(`  shard ${m[1]}/${m[2]}: ${list.length} of ${picked.length} mutants`);
   /* `more`: further [file, from, to] edits one mutant plants with its first (a rule two doors hold). */
   for (const [name, file, from, to, arm, more] of list) {
     const base = mkdtempSync(join(tmpdir(), 'hr-live-'));

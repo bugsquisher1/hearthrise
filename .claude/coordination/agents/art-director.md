@@ -1,5 +1,40 @@
 # Art Director — running log
 
+## 2026-11-18 - Configure action: the list gets the height (lane/b-ui-configure, from v0.2.137, UI audit #7)
+
+Tyler: the Configure action UX must be immaculate. Three named problems, today's structure and tabs kept:
+- **Phone 922x423, 0 rows -> 3 in town (2 in a hunt).** The sentence runs on one line (the action, its first condition, "+ Add a
+  condition"; `.ca-conds` display: contents in a row-wrap flex), each select as wide as its word (`field-sizing: content`), the
+  run's name heads its name column (Food, Drink) instead of its own h3 line, and "g per HP, cheapest first" became "g per HP" (it
+  stood four lines tall; the bold column shows the order).
+- **Desktop: no head or cell wraps.** Window 800 -> 880; the list takes the width the detail leaves (detail clamp(232px, 28%, 320px));
+  number columns sized for GitHub's fallback faces, not Alegreya (the rules draw DejaVu: "1 Rupture rune" 137 px vs 112 real). The
+  empty slot's details pane says "Pick a spell to see what it does" (by tab). A spell's target label stands on its own line ("Hits
+  the target Deals 6-10" ran together).
+- **A lock names its need** under the row's name: the first thing that stops it, as the bar's refusal orders it (action-facts.js
+  rowNeed: the weapon words, else "Melee 10" from the server's skills). A spell under its `unlock` level is now locked too, like ammo.
+Lessons: (1) the page guards measure with pinned fallback faces (tests/_test-fonts.mjs): size a column on the test's widths, the real
+font only shows slack; (2) PH-1's old "heads on one line" check compared each head to the row of heads, which grows with a wrapped head,
+so it never saw the four-line head: measure each cell against its own font size; (3) in a hunt the phone sheet starts under the hunt
+bar, 44 px lower than town: test both; (4) a configure-action.js `t` would shadow act()'s element parameter (text-home TH-5): put the
+words in action-table.js and pass them through; (5) custom properties outside tokens.css fail token-single-source: inline the px.
+## 2026-11-18 - the result first (lane/b-ui-result-cards, from v0.2.137 99511ead1)
+
+UI audit #1 (the end card led with chores, its numbers under the fold) and #2 (the return was a paragraph at the left edge).
+Lessons worth keeping:
+
+- **Check the data before drawing the line.** "Level 9 → 10" had no server source: no session stores the Level it began at,
+  and a level worked out from XP on the client is the class lane/c-level-from-server closed. The answer was a second server
+  answer, the away recap's own pattern: a residue stamp (`huntStart`) of the server's Level and skill levels while the
+  session has paid nothing (`atStart`), compared at the end. A page that first meets a hunt mid-way names only the Level it
+  ended at. A server `level_from` on the session would be cleaner; that is a lane C for the backend.
+- **A shared block, not a shared card.** `src/shell/result-block.js` (Level line + three figures) serves the end card and
+  the away card; each surface keeps its own why line and presses. No box: one rule over the figures and one under.
+- **A pseudo-element arrow is invisible to innerText** ("Level 15" for 1 → 5): the arrow is a text row now.
+- **Grid `gap` is both gaps.** A flex row's `gap: 10px` became a 10 px row gap when the loot cell turned grid.
+- **A docked window hides the HUD widget under it**, so a world test that reads the analyzer must close the card first.
+- **Moving a surface moves its tests' samples:** HR-6 used the away line as its sample alert; it is a party invite now.
+
 ## 2026-11-16 - whole device px at 125 % and 150 % (lane/a-visual-audit, from main v0.2.133)
 
 Tyler: blurry and grainy at Windows display scaling. Lessons worth keeping:
@@ -3680,3 +3715,35 @@ first, checks the list is still in the page, draws undyed, and loads the color m
 as the World does (a portrait without them read red-plumed beside a blue-plumed hero in town); (5) new player words under
 src/shell go in src/data/text/* through t() or text-home TH-1 is red; (6) `hidden` loses to an author `display` rule: a pane
 that hides children by attribute needs its own `[hidden] { display: none }`.
+## 2026-11-17 lane/fix138-hearth-chest-big (Tyler: the chest "more 'special' ... low glow ... black / green smoke ... bigger"; "bump slightly open"; then the Great Hearth redraw and "a bit more flamey")
+Phase 1, the chest (45 Coordinator gens): imp-s13 shut (gold third lock, chain, the Keepers' sun), bump-s3 peak, open-s7 open with the shut
+box spliced below its seam. tower-art.mjs: locks poured onto LOCKS by VALUE inside each padlock's body rect (no outline, no green, nothing as
+dark as the oak), so every source agrees; the seam's greens breathe one step down/up over a 24-frame 3 s loop; the in-between is the shut
+chest with its lid lifted 2-3 px on a stepped band (the review called bump-s17's streak a smear); the bump clip (lift, peak x3, lift, slam
++/-1 px) stands for idle 0-7 of a bump loop. Its light: class `glow` (new row), stepped leaf greens drawn ADDITIVELY (`blend: 'add'`) after
+the light, since the town's day light mask is white (a point light adds nothing in daylight). Its smoke: town-life.mjs smoke() exported and
+reused in black/green inks, plus a puff and dust in the bump clip. Schedule: core/ambient.js bumpAt, one loop in each block of 5 at a
+hashed slot of 3 (gaps 3-7 loops = 9-21 s), seeded by the viewer's hero name (bumpSeedOf on the town frame), off with the
+Idle animations switch. Three AMBIENT rows on one CHEST_SEAT, hidden together (CHEST_LAYERS). Class `relic` (this sprite only).
+Phase 2, the Great Hearth (Coordinator gens): FINAL-s602 + banner H + crest inpaints, 384 x 448 with 319 px of art centred, shipped at 352 (16 transparent columns cut each side: a 384 frame box stood over the shop and storage stands, town-stations ST-1), so the 11 x 4
+footprint holds and the walk mask, stands and stations file do not move; landmark band 352 -> 360 (390 px with the cupola). atlas-common
+overflowed to 4096 wide: the Hearth and its fire/flare/sparks families moved to a new set `hearth`. hearth-fire.mjs cuts the new loop
+(64 x 62) from animate_image frames by their difference from the embers-only crop and writes the verdigris twin BY RULE (hot = red >= 110,
+leading blue by 60 and green by 35), so hearth-flames re-derives every colour plus `chest` (sickly green). Chest seated on the dais
+between the chain rings, foot hearth px (290, 364). Smoke emitter at the cupola's openings [176, 66], sparks [178, 298].
+Lessons: (1) a scripted edit that finds no anchor must THROW: a slice on indexOf -1 silently prepended a block to tower-art.js; (2) guards
+read declarations literally (token-single-source, mutant anchors, perf-budget probes): a helper that builds `--tr-${k}x` names or an edit to
+a probed line breaks them; carry new state on a frame object instead of the shared sync line; (3) to photograph a random moment, pin Date.now
+and scope a fixed Math.random to the one module that seeds it (stack test), then compute the instant from the game's own function; (4) a
+hero name is unique per world: a second shot run needs a new name (a "hang" at hero creation was that, not the overrides); (5) the Climb tab's course needs a straight run the new tapered chimney lacks: handed to the asset director.
+Round 2 (lane/c-hearth-moods found it red after merging f2f7bc2b1): world-no-authority W-CALL bans Math.random anywhere in src/world, and
+my BUMP_SEED drew one. The seed is now the viewer's own, a hash of the hero's name (core/ambient.js bumpSeedOf, null with no hero), on the
+town frame; TL-BUMP takes its seeds from four names and plants a shared seed and a no-hero bump. Lesson (6): before handing back a lane
+that touches src/world, run the authority guard that scopes it (world-no-authority); my guard list came from the brief and missed it.
+Round 3 (Tyler 2026-11-18: "the edges of the hearth need to be more natural", then his pick of round 2 "and try and blend it into the
+ground a bit better"): edges3 (rounded roof corners, ragged ivied wing ends, broken front; nothing under row 412) through hearth-fire.mjs's
+one FINAL line, the 16-column cut, no row clip; rounds 3-5 superseded and backed out uncommitted. The ends still stand on a near-vertical
+line after the cut, so the MAP takes them in: hearth-plaza.mjs step 9 paints soot-dark grain, stone chips and (west) moss hugging each end
+in the paving at pixel precision (east wider: the end in shadow), and sites.js lays existing scree, moss and weed decals by them (flat,
+open, no mirror). Lesson (7): a map object sits on whole tiles with no offset, so a decal can't be laid against an edge that falls on a
+tile line; paint the contact into the painted ground instead, where every pixel is placeable. The silhouette itself stays straight.

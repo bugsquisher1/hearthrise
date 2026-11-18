@@ -70,6 +70,11 @@ export const TOWER_TEXT = Object.freeze({
   off_pick: 'Pick a floor',
   off_no_start: 'No start floor available',
   bad_floor: 'Floor not available',
+  /* The door's Level (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the server's own numbers, the hero's and each seat's under it. */
+  off_level: 'Requires Level {level}',
+  off_checking: 'Checking…',
+  seat_level: '{name}: Level {level}',
+  refused_seat_level: '{name}: Level {level}, requires {need}',
 
   /* THE CHEST (the design's "one menu that shows all of it"). */
   keys_head: 'Keys',

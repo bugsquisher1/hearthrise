@@ -1,0 +1,39 @@
+{
+  "id": "hearth_chest_smoke",
+  "class": "plume",
+  "style": "s1",
+  "drawn": "tools/world-art/tower-art.mjs",
+  "material": "native",
+  "source": "hearth_chest_smoke.png",
+  "frame": [
+    72,
+    76
+  ],
+  "anchor_px": [
+    36,
+    71
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 24
+      }
+    },
+    {
+      "name": "bump",
+      "fps": 8,
+      "loop": false,
+      "dirs": {
+        "s": 24
+      }
+    }
+  ],
+  "notes": "The Hearth Chest's smoke (Tyler 2026-11-17, \"black / green smoke leaking out\"): thin wisps from its seam and a keyhole, a puff when it jolts and dust off the stone when it slams, all the town's own smoke (tools/world-art/town-life.mjs smoke) in palette inks. Drawn by tools/world-art/tower-art.mjs; placed by the chest's AMBIENT rows, over it."
+}

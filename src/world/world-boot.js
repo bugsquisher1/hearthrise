@@ -66,8 +66,10 @@ import { farmFieldOf } from '../session/farm-sections.js?v=0.2.137';
 import { createTownShows } from './town-shows.js?v=0.2.137';
 import { monsterPourOf } from './monster-pour.js?v=0.2.137';
 import { towerOf } from '../session/tower-sections.js?v=0.2.137';
-/* the town's ambient rows left out while the Tower is hidden */
-const HIDE_CHEST = Object.freeze({ hearth_chest: true });
+import { CHEST_LAYERS } from '../data/world/town/sites.js?v=0.2.137';
+import { bumpSeedOf } from './core/ambient.js?v=0.2.137';
+/* the town's ambient rows left out while the Tower is hidden: the Hearth Chest, its light and its smoke */
+const HIDE_CHEST = Object.freeze(Object.fromEntries(CHEST_LAYERS.map((id) => [id, true])));
 
 /* THE KEYS (desktop): WASD and the arrows, by physical key (e.code, so a
    non-QWERTY layout walks with the same hand). Two held at once walk the
@@ -318,6 +320,8 @@ export async function bootWorld(panel, opts) {
       Object.assign(f, hearthState(map, f, now));
       /* THE HEARTH CHEST stands on the ledge only while the server sends the Burning Tower's section (src/data/world/town/sites.js AMBIENT) */
       if (!towerOf(character)) f.ambientHide = HIDE_CHEST;
+      /* THE CHEST'S BUMPS (core/ambient.js bumpAt) fall on the viewer's own seed, a hash of the hero's name: two players' chests never jolt together */
+      f.bumpSeed = bumpSeedOf(G.playerName);
       /* THE TOWN WORKS (town-works.js): a lot's art by the stage the server said */
       f.objectSwap = townWorksSwap(map, town.extras());
       /* THE FARM (town-farm.js): every planted plot's crop at the stage the server's plot data names */

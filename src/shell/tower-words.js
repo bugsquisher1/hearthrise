@@ -91,6 +91,9 @@ export function climbEnd(tw, card, towerHunt) {
 export function towerRefusal(r) {
   if (!r || !VERBS.includes(r.verb)) return null;
   if (r.error === 'bad_landing') return t('tower.bad_floor');
+  /* the door's Level (2027-05-05-entry-gates.sql): the server's need, and for a seat its name and Level */
+  if (r.error === 'tower_level' && num(r.need)) return t('tower.off_level', { level: r.need });
+  if (r.error === 'tower_party_level' && r.who && num(r.need) && num(r.have)) return t('tower.refused_seat_level', { name: r.who, level: r.have, need: r.need });
   if (r.error === 'party_hunting') return t('tower.off_party_hunting');
   if (r.error === 'hunt_open' || r.error === 'activity_running' || r.error === 'in_hunt') return t('tower.off_hunting');
   if (r.error === 'no_key') return t('tower.off_no_key');

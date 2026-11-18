@@ -72,7 +72,7 @@ function patchFoot(root, st) {
   prop(root.querySelector('[data-hs-act="advanced"]'), 'checked', st.prefs.advanced);
 }
 
-/* THE PRESS IN HAND STANDS CLEAR OF THE ANSWER LINE (newcomer panel 2026-11-03, 1366x768: "Fuel all 23" half under "Put on 1 piece.", Stop wholly under
+/* THE PRESS IN HAND STANDS CLEAR OF THE ANSWER LINE (newcomer panel 2026-11-03, 1366x768: "Burn all 23" half under "Put on 1 piece.", Stop wholly under
    "Fueling…"). The column scrolls and the line stands over its foot (windows.css), so when the stack, the job or the line changes the column brings the
    press up from under it, once: the player's own scrolling is never fought. The column is the one beside the doll where it scrolls (a short window),
    else the whole; where neither does (the phone's sheet) the body has its own rule. */

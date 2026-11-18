@@ -244,13 +244,23 @@ export function scarceSetOf(hunt, worn) {
  * Silk Thread had no page to be found on): [{ id, name, carriers: [names], chance }], likeliest first, `chance` that one kill here,
  * drops it, for any party size (the same mix and roller as the gear's). A Rare row stays on the Rare list. [] for a ground with none.
  */
-export function materialsOf(hunt) {
+export function materialsOf(hunt) { return dropTally(hunt, (d) => isSpentMaterial(d.id)); }
+
+/**
+ * EVERY OTHER DROP TOO (QA audit 2026-11-18 N9: the Mill Cellar's card left out Rat Tail, Venom Sac, Stinger, Hide and Sticky Core, most of what
+ * ten minutes there dropped): every row a kill here can roll that is not gear (the Drops list) or a Rare, materials and sell loot alike, in
+ * materialsOf's shape and order. The engine's own rows and roller, never a list typed here.
+ */
+export function lootOf(hunt) { return dropTally(hunt, () => true); }
+
+/* A ground's kill-mix drop rows that `keep` takes, past gear and Rares (their own lists), tallied per item, likeliest first. */
+function dropTally(hunt, keep) {
   const g = groundOf(hunt);
   if (!g) return [];
   const mix = killMixOf(g), found = new Map();
   for (const [id, share] of mix) {
     for (const d of (MONSTERS[id] || {}).drops || []) {
-      if (!d || !d.id || d.band === 'scarce' || d.lucky === true || d.salvage === true || isRare(d) || !isSpentMaterial(d.id)) continue;
+      if (!d || !d.id || d.band === 'scarce' || d.lucky === true || d.salvage === true || isRare(d) || !keep(d)) continue;
       if (!found.has(d.id)) found.set(d.id, { id: d.id, name: nameOf(d.id), carriers: [], chance: 0 });
       const e = found.get(d.id);
       e.carriers.push(MONSTERS[id].name);

@@ -183,14 +183,24 @@ export const BAR_TEXT = Object.freeze({
      row against the picked one, what a big heal wastes, where a row's uses come from. */
   col_heals: 'Heals',
   col_gold: 'Gold',
-  col_per_hp: 'g per HP, cheapest first',
+  /* (one line each, UI audit 2026-11-18: "g per HP, cheapest first" stood four lines tall over a phone's list; the column's
+     bold numbers show the order) */
+  col_per_hp: 'g per HP',
   col_carry: 'Carried',
   col_mana: 'Mana',
-  col_per_mana: 'g per mana, cheapest first',
+  col_per_mana: 'g per mana',
   col_damage: 'Damage',
-  col_per_shot: 'g per shot, cheapest first',
+  col_per_shot: 'g per shot',
   col_cooldown: 'Cooldown',
   col_rune: 'Rune',
+  /* the name column's head where its run has no name of its own (Spells; a run's name heads it: Food, Drink) */
+  col_name: 'Name',
+  /* a locked row's skill wait, after its lock (action-facts.js rowNeed): "Melee 10" */
+  row_need_level: '{skill} {level}',
+  /* the details pane of an empty slot, by tab, until a row is pointed at or picked (action-table.js pickHint) */
+  pick_spells: 'Pick a spell to see what it does',
+  pick_food: 'Pick a food or drink to see what it does',
+  pick_ammo: 'Pick ammo to see what it does',
   run_food: 'Food',
   run_drink: 'Drink',
   run_ammo: 'Arrows and bolts',

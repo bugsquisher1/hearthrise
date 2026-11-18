@@ -18,7 +18,7 @@
 //   isNew / markSeen      the "new" mark (residue `bagSeen`, display only)
 //   statLines / compare   an item's stats in words, and the change against the worn one
 //   equipSlotFor(id, eq)  the slot an item would go into
-//   riteOf / cookOf       the bench recipe that spends a whole stack (Fuel the hearth, Cook all)
+//   riteOf / cookOf       the bench recipe that spends a whole stack (Burn all, Cook all)
 //   namedFuelOf(id)       a named Hearth fuel's row (src/data/hearth.js): burnt alone, never sold in bulk
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?

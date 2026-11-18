@@ -14,13 +14,15 @@
 // select, both the same pick, and both only the CHECKPOINTS the server lists (Tyler 2026-11-16: every landing up to the hero's best, a
 // party's lowest seat's; the highest by default). Chest: ./tower-chest.js. The Story link shows Tyler's text. Every number is the section's
 // (CLAUDE.md §1, §6): the window works none out and sends only the picked checkpoint. Enter is off, and says why above it, for what the
-// screen already knows (a hunt, a seat that does not lead its party, a checkpoint the server did not list); the server still judges
+// screen already knows (a hunt, a seat that does not lead its party, the door's Level from the server's `entry_gates` section with each seat
+// under it, Tyler 2026-11-18; a checkpoint the server did not list); the server still judges
 // (hr_tower_start), and a refusal re-reads the character so the list on screen is the server's again.
 // ════════════════════════════════════════════════════════════════════════
 import { towerOf, keyForLanding } from '../../session/tower-sections.js?v=0.2.137';
 import { startClimb } from '../../session/tower-intents.js?v=0.2.137';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.137';
 import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.137';
+import { towerGateOf } from '../../session/gate-sections.js?v=0.2.137';
 import { nameOf } from '../../session/item-sections.js?v=0.2.137';
 import { heroSprite } from '../../session/hero-look.js?v=0.2.137';
 import { outfitSprite } from '../../data/hunt-outfits.js?v=0.2.137';
@@ -62,6 +64,11 @@ export function enterBlock(cs, tw, landing) {
   /* a party climbs together on its leader's press (hr_tower_start: every seat or none, from its lowest seat's checkpoints) */
   const party = partyMembershipOf(cs);
   if (party && !party.isLeader) return t('tower.off_leader');
+  /* THE DOOR'S LEVEL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the server's gate, this hero's and every seat's (`ok`). Enter waits for
+     it: a gate not read yet is locked, never guessed open */
+  const gate = towerGateOf(cs);
+  if (!gate) return t('tower.off_checking');
+  if (!gate.ok) return t('tower.off_level', { level: gate.need });
   if (!tw.checkpoints.length) return t('tower.off_no_start');
   if (landing === null || !tw.checkpoints.includes(landing)) return t('tower.off_pick');
   return '';
@@ -102,7 +109,7 @@ export function renderTower(ctx) {
     /* the Start Floor stands on the foot beside Enter: the floor the press sends is never scrolled away from it */
     + '<div class="tt-foot"><label class="tt-start-row"><span class="tt-k">' + esc(t('tower.start_head')) + '</span>'
     + '<select class="hh-select tt-start-pick" data-hs-act="floor"></select></label>'
-    + '<p class="hw-why tt-off-why"></p>'
+    + '<p class="hw-why tt-off-why"></p><ul class="hw-before tt-gate"></ul>'
     + '<button type="button" class="hh-tool is-primary tt-go" data-hs-act="tower-enter">' + esc(t('controls.enter')) + '</button></div>'
     + '</div></div></section>'
     + '<section class="hw-pane tt-pane" data-pane="chest">' + chestHtml() + '</section>'
@@ -179,6 +186,14 @@ function patchClimb(root, cs, tw, sc) {
   attr(go, 'data-off-why', block || null);
   attr(go, 'data-landing', landing === null ? null : String(landing));
   text(root.querySelector('.tt-off-why'), block);
+  /* while the door's Level holds Enter off, each seat under it by name and the server's Level ("Bran: Level 8") */
+  const gate = towerGateOf(cs);
+  const seats = gate && !gate.ok && block === t('tower.off_level', { level: gate.need }) ? gate.short : [];
+  rows(root.querySelector('.tt-gate'), seats, {
+    key: (x) => x.name,
+    build: () => { const li = root.ownerDocument.createElement('li'); li.className = 'hw-before-line is-short'; return li; },
+    patch: (li, x) => { text(li, t('tower.seat_level', { name: x.name, level: x.level })); },
+  });
 }
 
 renderTower.patch = function patchTower(body, ctx) {

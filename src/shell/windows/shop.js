@@ -47,7 +47,7 @@ const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
 /* The Buy tab's lists, by the server's offer kind: [kind, heading, the one line under it]. The gear line says
    why it is there (designer 2026-10-22: Defense trains only in armour; monsters drop the big pieces). */
 const BUY_GROUPS = Object.freeze([
-  ['gear', 'Gear', 'Gloves and belts: armor that trains Defense'],
+  ['gear', 'Gear', 'Gloves and belts · Trains Defense when worn'],
   ['tool', 'Tools', ''],
   /* The seed counter (designer 2026-10-22): one seed grows one crop on a farm plot; the crop's Farming level and the
      land's plot tier gate the planting, not the purchase. */

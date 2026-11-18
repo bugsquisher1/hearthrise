@@ -8,6 +8,8 @@
 // the envelope; a refusal that means the screen was behind is re-read too.
 //   startClimb(account, cs, landing)               hr_tower_start         from the floor after a checkpoint the server listed (0: floor 1);
 //                                                                         in a party the leader's press starts every seat. Refuses
+//                                                                         tower_level { need, have }, tower_party_level { who, need, have }
+//                                                                         (the door's Level, 2027-05-05-entry-gates.sql),
 //                                                                         bad_landing { checkpoints }, party_hunting, feature_off, the hunt's
 //                                                                         and the party start's own (not_leader, not_ready { seats })
 //   openChest(account, cs, chest, key, count)      hr_chest_open          the stokes are the hero's saved default (p_stokes null): the window
@@ -29,7 +31,7 @@ const bodyOf = (ans) => (ans && isObj(ans.body) ? ans.body : {});
 const newIdem = () => globalThis.crypto.randomUUID();
 /* Refusals that mean the screen was behind the server: the character is re-read so the window shows what the server holds. */
 const RE_READS = Object.freeze(['bad_landing', 'party_hunting', 'feature_off', 'hunt_open', 'activity_running', 'no_key', 'week_limit', 'chest_not_ready',
-  'in_hunt', 'bag_full', 'settle_first', 'party_hunt_running', 'bad_key', 'bad_stokes', 'bad_count']);
+  'in_hunt', 'bag_full', 'settle_first', 'party_hunt_running', 'bad_key', 'bad_stokes', 'bad_count', 'tower_level', 'tower_party_level']);
 
 /* A refused answer, with the figures the server sent (src/shell/tower-words.js says them). */
 function refused(ans, verb) {
@@ -37,7 +39,10 @@ function refused(ans, verb) {
   const checkpoints = Array.isArray(b.checkpoints) ? b.checkpoints.slice(0, 512).filter((f) => Number.isSafeInteger(f) && f >= 0) : null;
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb,
     checkpoints, family: typeof b.family === 'string' && WORD.test(b.family) ? b.family : null, used: nat(b.used), limit: nat(b.limit),
-    have: nat(b.have), need: nat(b.need), stacks: nat(b.stacks), cap: nat(b.cap), seats: Array.isArray(b.seats) ? b.seats : null };
+    have: nat(b.have), need: nat(b.need),
+    /* the seat the door's Level stopped (tower_party_level): its name, the server's own */
+    who: typeof b.who === 'string' && b.who.trim() ? b.who.trim().slice(0, 40) : null,
+    stacks: nat(b.stacks), cap: nat(b.cap), seats: Array.isArray(b.seats) ? b.seats : null };
 }
 
 /* The open's answer, read field by field: one row a key (its stokes, the chance it rolled at, the weapon or none and its family, the
@@ -80,7 +85,12 @@ export function startClimb(account, cs, landing) {
 export function openChest(account, cs, chest, key, count) {
   if (!usable(account, cs) || !WORD.test(String(chest)) || !WORD.test(String(key)) || !(Number.isSafeInteger(count) && count > 0)) return bad('chest_open');
   return send(cs, 'chest_open', () => account.server.rpc('hr_chest_open',
-    { p_slot: cs.slot, p_chest: chest, p_key: key, p_count: count, p_stokes: null, p_idem: newIdem() }), openedOf);
+    { p_slot: cs.slot, p_chest: chest, p_key: key, p_count: count, p_stokes: null, p_idem: newIdem() }), (b) => {
+    /* the press may have turned the Hearth green (2027-05-05-hearth-moods.sql): the town is read at the active pace to see it */
+    const town = typeof account.townOf === 'function' ? account.townOf(cs.slot) : null;
+    if (town && typeof town.wake === 'function') town.wake();
+    return openedOf(b);
+  });
 }
 
 /** Save the hero's default stokes for one kind of key (0 = none). */

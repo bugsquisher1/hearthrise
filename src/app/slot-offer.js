@@ -16,7 +16,7 @@
 // PURE: strings in, strings out. src/app/boot.js mounts and wires it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { whole } from '../render/format.js?v=0.2.137';
+import { whole, gold } from '../render/format.js?v=0.2.137';
 import { t } from '../render/player-text.js?v=0.2.137';
 
 const ORDINAL = Object.freeze(['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth']);
@@ -104,7 +104,7 @@ export function slotOfferHtml(offer, roster, o = {}) {
     + (heroes === 1 ? '<p class="slot-offer-lead slot-offer-note">' + t('slots.one_hero_note') + '</p>' : '')
     /* The gold and what is short stand together, each on ONE line, beside the press while both fit, the press under them when not
        (UI audit 2026-11-18: in a grid beside the press "Need 299,500 more gold" set one word a line). */
-    + '<div class="slot-offer-pay"><div class="slot-offer-fund"><p class="slot-offer-purse">' + t('slots.purse', { gold: whole(purse.gold) }) + '</p>'
+    + '<div class="slot-offer-pay"><div class="slot-offer-fund"><p class="slot-offer-purse">' + t('slots.purse', { gold: gold(purse.gold) }) + '</p>'
     + (short > 0 ? '<p class="slot-offer-short">' + t('slots.short', { gold: whole(short) }) + '</p>' : '') + '</div>'
     + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
     + (o.pending || short > 0 ? ' disabled' : '') + '>'

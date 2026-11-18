@@ -120,6 +120,11 @@ async function run(base) {
   ok('G6', tagged(17) === 'mosslight_glade:Recommended,coppercap_warrens:Next step up', 'Level 17 reads ' + tagged(17));
   ok('G6', tagged(16) === 'mosslight_glade:Recommended', 'Level 16 (16 under the Warrens) reads ' + tagged(16));
   ok('G6', tagged(35) === '', 'Level 35 alone, with a note and nothing above, reads ' + tagged(35));
+  /* G6 A PARTY READS THE LEVEL TAG, NEVER A PARTY CLAIM (lane/d-party-pace, the full-game sweep's A1: "Recommended for the party" sat on the Mill Cellar,
+     where the Party window says a four earns 60% under solo). Four friends at Level 1 and at 11 read what a hero alone reads. */
+  const partyTagged = (lv) => { const rec = HL.recommendation([lv, lv, lv, lv], 4, baseRows), step = STEP.nextStepUp(baseRows, lv, true); return baseRows.filter((r) => HL.adviceTag(r, rec, step, true)).map((r) => r.hunt + ':' + HL.adviceTag(r, rec, step, true)).join(); };
+  ok('G6', partyTagged(1) === 'mill_cellar:Recommended', 'four friends at Level 1 read ' + partyTagged(1));
+  ok('G6', !/party/i.test(partyTagged(1) + partyTagged(11) + partyTagged(17)), 'a party\'s tags claim a party ground: ' + [partyTagged(1), partyTagged(11), partyTagged(17)].join(' | '));
   const war = rows.find((r) => r.hunt === 'coppercap_warrens');
   ok('G2', !!war && HL.heroWords(war) === 'Players: 1 to 4', 'the Warrens card reads ' + JSON.stringify(war && HL.heroWords(war)));
   ok('G2', rows.every((r) => !/party|one hero|solo/i.test(HL.heroWords(r))), 'a ground is labelled solo or party: ' + rows.map((r) => HL.heroWords(r)).join(' | '));
@@ -212,6 +217,9 @@ const MUTANTS = [
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
   ['the gate keeps a hard floor', 'supabase/migrations/2027-02-24-risk-no-level-block.sql', "  -- SECURITY C2: every spawn's OWN gate", "  if public.hr_level_of(p_user, p_slot) < 1 then perform 1; end if;\n  -- SECURITY C2: every spawn's OWN gate"],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],
+  /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
+  ['a party\'s advice claims the ground for the party again (A1)', 'src/shell/hunt-list.js', "export function adviceTag(r, rec, step) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');",
+    "export function adviceTag(r, rec, step, party) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Recommended for the party' : t('hunts.tag_right_level');"],
 ];
 
 if (SELFTEST) {

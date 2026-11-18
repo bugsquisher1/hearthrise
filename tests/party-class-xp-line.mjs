@@ -21,7 +21,7 @@
 //   node tests/party-class-xp-line.mjs --mutate    the proof: each mutant turns its cell red
 //   --wide       the designer's read: 30-minute cells, every size on more seeds (about 4x the guard)
 //   --seeds N    --workers N   --table every cell's ratio   --mixed the mixed parties too (10-25 §5)
-//   --write      (with --mixed) rewrite the Party window's measured lines (party-class-xp.js BASE_VS_ALONE and each pack's partyVsAlone) from this run
+//   --write      (with --mixed) rewrite the Party window's measured lines, one per tier (party-class-xp.js BASE_VS_ALONE and each pack's partyVsAlone) from this run
 //
 // THE HARDER TIERS ARE THE PARTY'S (Tyler 2026-11-16: "normal isn't meant for parties anyway", "its not restricted, but it's not necessarily meant
 // for them"). On Normal a mixed party may earn under its heroes alone: no mixed bar there. ONE TABLE (Tyler 2026-11-16: "just balance the hunting
@@ -337,20 +337,27 @@ async function mutate() {
   process.exitCode = escaped ? 1 : 0;
 }
 
-/* THE PARTY WINDOW'S LINES, MEASURED (--write; the method of party-class-xp.js PARTY_VS_ALONE): at the floor on Normal (the window names no tier, and Normal
-   is the ground as built), a head against the same heroes alone in whole percent to the nearest 5. One class is the mean of its one-class parties of
-   that size; two of two, three of three and four of four the mean of the played mixes; three of two, four of two and four of three the size's mix
-   times the table's cell ratio (a cell moves no blow). Answers { ground: { 2: [..], 3: [..], 4: [..] } }. */
-function linesOf(rows, table) {
+/* THE PARTY WINDOW'S LINES, MEASURED (--write; the method of party-class-xp.js PARTY_VS_ALONE), ONE PER TIER the ground offers (lane/d-party-pace: the window
+   reads the leader's tier). Each at the floor, on the tier's own pull, a head against the same heroes alone ON THAT TIER, in whole percent to the nearest 5.
+   Normal: one class is the mean of its one-class parties of that size; two of two, three of three and four of four the mean of the played mixes; three of
+   two, four of two and four of three the size's mix times the table's cell ratio (a cell moves no blow). Dangerous and Deadly (the harder-tier arm's cells):
+   two of two the mean of the two played pairs, three of three the trio, four of four the four, every other cell the size's mix times the cell ratio.
+   Answers { ground: { normal: { 2: [..], 3: [..], 4: [..] }, dangerous?: .., deadly?: .. } }. */
+function linesOf(rows, tierRows, table) {
   const five = (r) => Math.round(((r - 1) * 100) / 5) * 5 || 0;
+  const scaled = (m2, m3, m4, one2, one3, one4) => ({ 2: [five(one2 === null ? (m2 * table[2][0]) / table[2][1] : one2), five(m2)],
+    3: [five(one3 === null ? (m3 * table[3][0]) / table[3][2] : one3), five((m3 * table[3][1]) / table[3][2]), five(m3)],
+    4: [five(one4 === null ? (m4 * table[4][0]) / table[4][3] : one4), five((m4 * table[4][1]) / table[4][3]), five((m4 * table[4][2]) / table[4][3]), five(m4)] });
   const out = {};
   for (const g of groundIds) {
     const on = rows.filter((r) => r.g === g && r.armId === 'pull');
     const one = (n) => meanOf(on.filter((r) => !Object.hasOwn(MIXED, r.name) && r.party.length === n).map((r) => r.ratio));
     const mix = (n) => meanOf(on.filter((r) => Object.hasOwn(MIXED, r.name) && r.party.length === n).map((r) => r.ratio));
-    const m2 = mix(2), m3 = mix(3), m4 = mix(4);
-    out[g] = { 2: [five(one(2)), five(m2)], 3: [five(one(3)), five((m3 * table[3][1]) / table[3][2]), five(m3)],
-      4: [five(one(4)), five((m4 * table[4][1]) / table[4][3]), five((m4 * table[4][2]) / table[4][3]), five(m4)] };
+    out[g] = { normal: scaled(mix(2), mix(3), mix(4), one(2), one(3), one(4)) };
+    for (const tier of harderOf(g)) {
+      const t = (name) => tierRows.find((r) => r.g === g && r.tier === tier && r.name === name).alone;
+      out[g][tier] = scaled(meanOf([t('duo tank+healer'), t('duo tank+bow')]), t('trio tank+healer+bow'), t('four'), null, null, null);
+    }
   }
   return out;
 }
@@ -358,20 +365,22 @@ function linesOf(rows, table) {
 /** Write each ground's line where it lives: the base grounds' rows in party-class-xp.js, a pack's in its pack.js. Answers the files written. */
 function writeLines(lines, packIds) {
   const said = (r) => 'said([' + r[2].join(', ') + '], [' + r[3].join(', ') + '], [' + r[4].join(', ') + '])';
+  const plain = (r) => '{ 2: [' + r[2].join(', ') + '], 3: [' + r[3].join(', ') + '], 4: [' + r[4].join(', ') + '] }';
+  const each = (byTier, one) => Object.entries(byTier).map(([tier, r]) => tier + ': ' + one(r)).join(', ');
   const written = [];
   const pcx = join(ROOT, 'src/data/party-class-xp.js');
   let src = readFileSync(pcx, 'utf8');
-  for (const [g, r] of Object.entries(lines)) {
+  for (const [g, byTier] of Object.entries(lines)) {
     if (packIds.includes(g)) {
       const f = join(ROOT, 'src/data/grounds', g, 'pack.js');
-      const ps = readFileSync(f, 'utf8'), re = /^ {2}partyVsAlone: \{ 2: \[[^\]]*\], 3: \[[^\]]*\], 4: \[[^\]]*\] \},$/m;
+      const ps = readFileSync(f, 'utf8'), re = /^ {2}partyVsAlone: \{ normal: .*\},$/m;
       if (!re.test(ps)) throw new Error(g + ': its pack has no partyVsAlone line to write');
-      writeFileSync(f, ps.replace(re, '  partyVsAlone: { 2: [' + r[2].join(', ') + '], 3: [' + r[3].join(', ') + '], 4: [' + r[4].join(', ') + '] },'));
+      writeFileSync(f, ps.replace(re, '  partyVsAlone: { ' + each(byTier, plain) + ' },'));
       written.push('src/data/grounds/' + g + '/pack.js');
     } else {
-      const re = new RegExp('^ {2}' + g + ': said\\(.*\\),$', 'm');
+      const re = new RegExp('^ {2}' + g + ': lines\\(\\{ normal: .*\\}\\),$', 'm');
       if (!re.test(src)) throw new Error(g + ': party-class-xp.js has no BASE_VS_ALONE row to write');
-      src = src.replace(re, '  ' + g + ': ' + said(r) + ',');
+      src = src.replace(re, '  ' + g + ': lines({ ' + each(byTier, said) + ' }),');
     }
   }
   writeFileSync(pcx, src);
@@ -418,7 +427,7 @@ async function main() {
     if (process.argv.includes('--table')) for (const r of same) console.log('  ' + cellWords(r));
     if (process.argv.includes('--write')) {
       if (!process.argv.includes('--mixed')) { console.log('  ✗ --write needs --mixed (the lines read the mixes)'); return; }
-      const lines = linesOf(rows, P.PARTY_CLASS_XP);
+      const lines = linesOf(rows, tierRows, P.PARTY_CLASS_XP);
       for (const [g, r] of Object.entries(lines)) console.log('  LINE ' + g.padEnd(20) + JSON.stringify(r) + (JSON.stringify(r) === JSON.stringify(P.PARTY_VS_ALONE[g]) ? ' (as written)' : ' (was ' + JSON.stringify(P.PARTY_VS_ALONE[g]) + ')'));
       console.log('  wrote ' + writeLines(lines, GROUND_PACKS.map((x) => x.id)).join(', '));
     }

@@ -66,7 +66,6 @@ export const HUNTS_TEXT = Object.freeze({
   /* the same, when the server's best alone there lost gold (hunt_bests balanceH < 0) */
   right_but_lost: '{ground}: right for {levels}, but lost {gold}/h solo',
   easier: 'Easier: {easier} (Levels {lo}–{hi})',
-  tag_right_party: 'Recommended for the party',
   tag_right_level: 'Recommended',
   tag_next_step: 'Next step up',
 

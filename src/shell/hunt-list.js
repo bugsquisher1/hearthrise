@@ -244,9 +244,12 @@ export function openingPick(rec, list, last) {
   return was && advised && was.band[0] > advised.band[0] ? was : advised;
 }
 
-/** THE LIST'S TWO TAGS on one ground: "Right for your level" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure. */
-export function adviceTag(r, rec, step, party) {
-  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');
+/** THE LIST'S TWO TAGS on one ground: "Recommended" on the advice, when its band truly holds the group (no note), and "Next step up" on the harder ground above it (hunt-tutorial.js nextStepUp). Pure.
+    A party reads the same Level tag as a hero alone (lane/d-party-pace, 2026-11-18): "Recommended for the party" sat on the Mill Cellar while the Party window
+    said a four earns 60% under solo there (the full-game sweep, A1). The advice reads Levels, never what a party earns, and no card says which grounds suit
+    parties (Tyler 2026-11-16: "nothing at all"); the Party window says what this party earns on the leader's tier. */
+export function adviceTag(r, rec, step) {
+  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');
   return step && step.hunt === r.hunt ? t('hunts.tag_next_step') : '';
 }
 

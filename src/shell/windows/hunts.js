@@ -282,7 +282,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
       text(band, fit ? fit.words : '');
       attr(band, 'data-tone', fit ? fit.tone : null);
       prop(band.previousElementSibling, 'hidden', !fit || !fit.words);
-      const tag = adviceTag(r, rec, step, !!party), best = bestLine(bests, r.hunt) || '';
+      const tag = adviceTag(r, rec, step), best = bestLine(bests, r.hunt) || '';
       text(li.querySelector('.hw-hunt-fits'), tag);
       text(li.querySelector('.hw-hunt-bestline'), best);
       prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);

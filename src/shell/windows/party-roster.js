@@ -19,6 +19,7 @@
 import { HUNT_ROLES, roleForWeapon } from '../../data/hunt-roles.js?v=0.2.138';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.138';
 import { PARTY_CLASSES, partyClassXp, partyVsAlone } from '../../data/party-class-xp.js?v=0.2.138';
+import { DEFAULT_TIER, TIER_NAME, tiersOf } from '../../data/hunt-tiers.js?v=0.2.138';
 import { recommendation } from '../hunt-list.js?v=0.2.138';
 import { huntName } from '../../session/party-sections.js?v=0.2.138';
 import { rosterOf, stateWords, leaveOrDisband, disbandWord } from '../widgets/party-panel.js?v=0.2.138';
@@ -71,17 +72,20 @@ const CLASS_WORDS = CLASS_NAMES.slice(0, -1).join(', ') + ' and ' + CLASS_NAMES[
 /**
  * THE CLASS LINE (Tyler 2026-10-31; designer's words), the classes read off the ONE table the engine pays by and the answer off its measured row (src/data/party-class-xp.js
  * over the seats' server roles; a seat with no weapon fights as the engine's bare-handed Melee). It names the ground, since this
- * window holds no ground of its own. Exported for tests/party-ui.mjs.
+ * window holds no ground of its own, and the tier the leader picked there when it is not Normal: each tier has its own measured line
+ * (lane/d-party-pace: the Normal line sat on the Glade's Deadly, -20% where the settle paid a four +22-41%). Exported for tests/party-ui.mjs.
  */
-export function classXpLine(roles, hunt) {
+export function classXpLine(roles, hunt, tier = DEFAULT_TIER) {
   const ground = Object.values(HUNT_GROUNDS).find((g) => g.hunt === hunt);
   const seats = roles.map((r) => r || roleForWeapon('neutral'));
   const { classes } = partyClassXp(seats);
+  /* a tier the ground no longer offers reads Normal, as the Hunts window does (hunts.js tierOf) */
+  const at = ground && tiersOf(ground.id).includes(tier) ? tier : DEFAULT_TIER;
   /* The measured answer against hunting alone (designer 2026-11-02), never the table's factor on a share: see PARTY_VS_ALONE. */
   /* Tyler's voice (2026-11-09): a sentence each, no colon joins. Since one pack on Normal for every group (Tyler 2026-11-11) a one-class party loses a lot
      there, so its line says how to fix it (lane/d-party-xp-cells). */
-  const vs = partyVsAlone(ground ? ground.id : null, seats);
-  const place = huntName(hunt);
+  const vs = partyVsAlone(ground ? ground.id : null, seats, at);
+  const place = at === DEFAULT_TIER ? huntName(hunt) : t('party.place_tier', { place: huntName(hunt), tier: TIER_NAME[at] });
   const have = t('party.class_have', { have: classes.length, of: CLASS_NAMES.length }) + '. ';
   if (vs === null) return have + t('party.class_none', { place });
   if (vs === 0) return have + t('party.class_same', { place });
@@ -92,11 +96,13 @@ export function classXpLine(roles, hunt) {
   return have + t('party.class_less', { pct: -vs, place, classes: CLASS_WORDS });
 }
 
-/** The line before a hunt starts, on the party's last ground or the one the Hunts window opens on; '' for no line. */
+/** The line before a hunt starts, on the party's last ground or the one the Hunts window opens on, at the tier the leader picked there (the party
+    section's leader_tiers, no key = Normal); '' for no line. */
 export function classLineOf(p, r) {
   if (r.anyHunting || r.members.length < 2) return '';
   const hunt = p.hunt || (recommendation(r.members.map((m) => m.level), r.members.length).row || {}).hunt;
-  return hunt ? classXpLine(r.members.map((m) => m.role), hunt) : '';
+  const tier = hunt && p.tiers && Object.hasOwn(p.tiers, hunt) ? p.tiers[hunt] : DEFAULT_TIER;
+  return hunt ? classXpLine(r.members.map((m) => m.role), hunt, tier) : '';
 }
 
 /** Patch the tab from the server's party; `p` partyMembershipOf (null: the tab is hidden by the window). */

@@ -70,6 +70,10 @@
    in view as the card opens. The rule between rows only; best first reads across, then down. */
 .hsum-loot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
 .hsum-loot .hsum-item:nth-child(2) { border-top: 0; }
+/* each find: the icon, the name, the count quiet under it, so a half-width cell keeps the whole name */
+.hsum-loot .hsum-item { display: grid; grid-template-columns: max(32px, var(--icon-1)) minmax(0, 1fr); gap: 0 10px; align-content: center; padding: 3px 0; }
+.hsum-loot .hsum-ico { grid-row: 1 / span 2; }
+.hsum-loot .hsum-n { grid-column: 2; font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
 /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as a list between the numbers and the foot, each row one step with its
    count and value, its one press at the right; the first open step's press is the card's gold plate; a done row stays, ticked in green. */
 .hsum-town { display: none; margin-top: 4px; }
@@ -118,6 +122,7 @@
 .haway-stamina { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .haway-msg:empty { display: none; }
 .haway-foot { justify-content: flex-end; margin: 0; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
+.haway-foot [hidden] { display: none; }
 
 /* The death popup (src/shell/windows/death.js): a centred modal read top to bottom, the cost set apart, the
    answers in the foot with OK on the right. Its key (X) is not capped in the title band: beside the close it

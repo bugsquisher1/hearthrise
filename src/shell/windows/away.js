@@ -60,14 +60,15 @@ export function awayBlockOf(cs, a) {
     if (restartable(f.hunt) && a.session) { go = 'again'; label = t('controls.hunt_again'); } else { go = 'summary'; label = t('away.card_summary'); }
   } else if (now) why = now.stamina ? t('away.card_still_stamina', { time: now.stamina }) : t('away.card_still');
   return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, when, stamina, go, label,
-    /* the hero's own Hunt summary beside Hunt again, once its hunt has ended */
+    /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */
     summary: go === 'again' };
 }
 
 /** The skeleton (built once): how long the player was away, the heroes, OK. */
 export function renderAway() {
   return '<div class="haway"><p class="haway-gone"></p><ol class="haway-heroes"></ol>'
-    + '<div class="hsum-actions haway-foot"><button type="button" class="hh-tool" data-hs-act="away-ok">' + t('away.card_ok') + '</button></div></div>';
+    + '<div class="hsum-actions haway-foot"><button type="button" class="hh-tool" data-hs-act="away-summary" hidden>' + t('away.card_summary') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="away-ok">' + t('away.card_ok') + '</button></div></div>';
 }
 
 function heroRow(ctx) {
@@ -75,9 +76,7 @@ function heroRow(ctx) {
     + resultHtml()
     + '<p class="haway-best"><span class="hsum-ico"></span><span class="haway-best-name"><small>' + t('away.card_best') + '</small><b></b></span></p>'
     + '<p class="haway-why"></p><p class="haway-when"></p>'
-    + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="away-summary" hidden>' + t('away.card_summary') + '</button>'
-    + '<span class="haway-stamina"></span></div><p class="hh-intent-msg haway-msg" role="status" aria-live="polite"></p></li>');
+    + '<div class="haway-acts"><button type="button" class="hh-tool" data-hs-act="away-go"></button><span class="haway-stamina"></span></div><p class="hh-intent-msg haway-msg" role="status" aria-live="polite"></p></li>');
 }
 
 renderAway.patch = function patchAway(body, ctx) {
@@ -85,6 +84,10 @@ renderAway.patch = function patchAway(body, ctx) {
   const list = linesOf(ctx);
   const longest = list.reduce((m, a) => Math.max(m, a.facts && Number.isFinite(a.facts.gone) ? a.facts.gone : 0), 0);
   text(root.querySelector('.haway-gone'), longest > 0 ? t('away.card_gone', { time: spanWords(longest) }) : '');
+  const mine = ctx.character ? list.find((a) => a.slot === ctx.character.slot && awayBlockOf(ctx.character, a).summary) : null;
+  const sum = root.querySelector('[data-hs-act="away-summary"]');
+  prop(sum, 'hidden', !mine);
+  attr(sum, 'data-alert', mine ? mine.key : null);
   rows(root.querySelector('.haway-heroes'), list, {
     key: (a) => a.key,
     build: (a) => { const li = heroRow(ctx); for (const b of li.querySelectorAll('button')) b.setAttribute('data-alert', a.key); return li; },
@@ -108,7 +111,6 @@ renderAway.patch = function patchAway(body, ctx) {
       prop(go, 'disabled', !!a.pending);
       /* ONE gold press on the card: the first hero's next move */
       cls(go, 'is-primary', list.indexOf(a) === 0);
-      prop(li.querySelector('[data-hs-act="away-summary"]'), 'hidden', !b.summary);
       text(li.querySelector('.haway-msg'), a.msg || '');
     },
   });

@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/qa/craft-economy.mjs — WHAT A SKILL PAYS, MEASURED: REAL SETTLE, REAL SALE, ON THE LOCAL WORLD.
 //
-//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--only REGEX | --no-rows] [--hunts] [--careers] [--away] [--chains] [--walk] [--rooms] [--market]
+//   node tools/qa/craft-economy.mjs --out FILE [--max-req 60] [--samples 2] [--hours 2] [--only REGEX | --no-rows] [--hunts] [--careers] [--away] [--chains] [--rooms] [--market]
 //
 // On tools/qa/local-world.mjs (the replayed chain, the real hr-accrue, nothing leaves the machine). Two accounts play each
 // row through the verbs a player's client sends: set_activity starts it, town time passes (world.wait), set_activity idle
@@ -13,7 +13,7 @@
 //   --careers  a hero from 1 by the best row it can reach, an hour at a time: hours to 15, 30, 45, 60, 75, 99, gold sold
 //   --hunts  in-band grounds, 2 h each, the Level's kit: coin, loot sold, store bill, gold/h
 //   --chains   one hero, both halves, whole cycles played: gold over every hour it took
-//   --walk     a fresh hero's first forged weapon, no fixture: what it holds at each step
+//   (--walk retired 2026-11-18: no bench makes a weapon)
 //   --rooms    the deeds and the first bench rooms: refused one gold short, sold at the price
 //   --market   the Weighhouse's floor played: one under it refused, one at it listed, bought by the other account, the seller paid
 // Levels, stock and kit are LOCAL fixtures, written straight to this in-memory database (party-soak's way); production has none of it.
@@ -314,31 +314,7 @@ if (has('--chains')) {
     report.chains.push({ name: c.name, samples: rows });
     log(`chain ${c.name}: ${rows.map((r) => r.gold + ' g, tax ' + r.tax + ' in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h, after tax ' + r.afterTaxPerH).join(' / ')}`);
   }
-  /* The whole forge: rock, bars, tree, planks, hatchets, shop. Iron Hatchets at Smithing 15. */
-  const rows = [];
-  for (const a of heroes) {
-    await newDay(a); await emptyBag(a);
-    for (const s of ['mining', 'smithing', 'woodcutting', 'crafting']) await setSkill(a, s, 15);
-    const forge = Object.values(ARTISAN_RECIPES).flat().find((r) => r.id === 'forge_iron_hatchets');
-    const ins = recipeInputs(forge);
-    await rich(a);
-    const purse0 = await purse(a);
-    await run(a, 'gather', 'iron_rock', 1);
-    const ore = (await bag(a)).iron_ore || 0;
-    let hours = 1 + await benchAll(a, 'smelt_iron', ore);
-    const jobs = Math.floor(ore / ins.iron_bar);
-    const planks = jobs * ins.normal_plank;
-    await run(a, 'gather', 'normal_tree', (planks * pacedActionMs(TREES[0].ms)) / 3600000 + 0.01);
-    hours += (planks * pacedActionMs(TREES[0].ms)) / 3600000;
-    hours += await benchAll(a, 'saw_normal', planks);
-    hours += await benchAll(a, 'forge_iron_hatchets', jobs);
-    const made = (await bag(a)).iron_hatchets || 0;
-    const sold = await sell(a, ['iron_hatchets']);
-    const net = (await purse(a)) - purse0;
-    rows.push({ ore, jobs, made, gold: sold.gold, tax: sold.gold - net, net, hours, perH: Math.round(sold.gold / hours), afterTaxPerH: Math.round(net / hours) });
-  }
-  report.chains.push({ name: 'Iron Hatchets', samples: rows });
-  log(`chain Iron Hatchets: ${rows.map((r) => r.made + ' made, ' + r.gold + ' g, tax ' + r.tax + ' in ' + r.hours.toFixed(2) + ' h = ' + r.perH + ' g/h, after tax ' + r.afterTaxPerH).join(' / ')}`);
+  /* (the whole forge, rock to Iron Hatchets to the shop, retired with the weapon recipes: lane/d-drop-homes 2026-11-18, Tyler: no bench makes a weapon) */
   /* The same Iron Bar with the Forge's first rung owned: the tax comes off and the room's speed goes on, the whole of what the 75,000 g buys. */
   const owned = heroes[0];
   const offer = SHOP_OFFERS.find((o) => o.id === 'room.forge.1');
@@ -361,45 +337,7 @@ if (has('--chains')) {
   log(`chain Iron Bar, Forge owned: ${sold.gold} g, tax ${sold.gold - net} in ${(1 + t).toFixed(2)} h, after tax ${Math.round(net / (1 + t))} g/h`);
 }
 
-// ── A FRESH HERO'S FIRST FORGED WEAPON ───────────────────────────────────
-/* No fixture past the sign-up: what the hero holds at each step is what the steps before it made. Every press is one a player has. */
-if (has('--walk')) {
-  const a = await account('walkera');
-  const walk = [];
-  let hours = 0;
-  const note = async (step) => {
-    const b = await bag(a);
-    const skills = {};
-    for (const s of ['mining', 'smithing', 'woodcutting', 'crafting']) skills[s] = lvl(s, await xpOf(a, s));
-    walk.push({ step, hours: Math.round(hours * 100) / 100, gold: await purse(a), ore: b.copper_ore || 0, ironOre: b.iron_ore || 0, copperBars: b.copper_bar || 0, ironBars: b.iron_bar || 0, logs: b.normal_log || 0, planks: b.normal_plank || 0, hatchets: b.iron_hatchets || 0, skills });
-    log(`walk ${JSON.stringify(walk[walk.length - 1])}`);
-  };
-  const go = async (kind, id, h) => { const r = await run(a, kind, id, h); hours += h; return r; };
-  await note('signed up');
-  /* Mining to 15 on copper; every bar it makes takes Smithing up with it. */
-  while (lvl('mining', await xpOf(a, 'mining')) < 15) await go('gather', 'copper_rock', 0.25);
-  await note('Mining 15 on Copper Rock');
-  while (lvl('smithing', await xpOf(a, 'smithing')) < 15) {
-    const have = (await bag(a)).copper_ore || 0;
-    if (have < 10) await go('gather', 'copper_rock', 0.25);
-    await go('artisan', 'smelt_copper', 0.25);
-  }
-  await note('Smithing 15 on Copper Bars');
-  await go('gather', 'iron_rock', 0.05);
-  await note('Iron Rock: ore for six bars');
-  await go('artisan', 'smelt_iron', 0.05);
-  await note('smelted');
-  await go('gather', 'normal_tree', 0.05);
-  await note('Normal Tree: logs for two planks');
-  await go('artisan', 'saw_normal', 0.05);
-  await note('sawed');
-  const forged = await edge(a, 'set_activity', { activity: { kind: 'artisan', id: 'forge_iron_hatchets', count: 1 } });
-  await world.wait(1);
-  await edge(a, 'set_activity', { activity: { kind: 'idle' } });
-  hours += 1 / 60;
-  await note('Forge Iron Hatchets, Make 1: ' + (forged.body && forged.body.ok === false ? JSON.stringify(forged.body) : 'accepted'));
-  report.walk = walk;
-}
+// (--walk, a fresh hero's first forged weapon, retired with the weapon recipes: lane/d-drop-homes 2026-11-18, Tyler: no bench makes a weapon)
 
 // ── THE HOUSE BENCH ──────────────────────────────────────────────────────
 /* The real verb at the real price: the deeds in order, the room refused short of its gold, sold at it. Gold and materials are local fixtures. */

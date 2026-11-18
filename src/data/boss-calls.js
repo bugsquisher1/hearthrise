@@ -89,8 +89,8 @@ export const CALL_ITEMS = Object.freeze({
     resistPm: Object.freeze({ ember: 100 }), tier: 3, rarity: 'rare', reqSkill: 'level', reqLv: 30 }),
 });
 export const CALL_ITEM_DESC = Object.freeze({
-  kingstooth: 'The Rat King\'s long front tooth, set in an iron hilt. It does 10% more damage to Vermin, and it lands more often than an Iron Sword but hits a little lighter',
-  cauldron_lid: 'The lid off the cauldron Chief Coppercap wears as a crown. It guards a little less than a Coppercap Shield, but you take 10% less fire damage with it on your arm',
+  kingstooth: 'The Rat King\'s long front tooth, set in an iron hilt. Vermin feel it most, and it lands more often than an Iron Sword',
+  cauldron_lid: 'The lid off the cauldron Chief Coppercap wears as a crown. It guards less than a Coppercap Shield but turns fire aside',
 });
 
 const rows = Object.values(BOSS_CALLS);

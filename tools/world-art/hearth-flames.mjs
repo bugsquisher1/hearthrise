@@ -11,7 +11,7 @@
 // other colour re-pours exactly those pixels, ranked dark to light by luminance,
 // onto its own palette ramp (src/data/hearth.js FLAMES); everything else is the
 // base's. Output: art/world/common/<base>_<colour>.png + its sidecar (the
-// verdigris twin's, renamed), built into atlas-common by tools/world-art/build.mjs.
+// verdigris twin's, renamed), built into atlas-hearth by tools/world-art/build.mjs (the Great Hearth's own set, 2026-11-17).
 //
 //   node tools/world-art/hearth-flames.mjs          write the sources and sidecars
 //   node tools/world-art/hearth-flames.mjs --check  exit 1 when a written source differs
@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { decodePNG, encodePNG, pixelHash } from './png.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const DIR = join(ROOT, 'art', 'world', 'common');
+const DIR = join(ROOT, 'art', 'world', 'hearth');
 const BASES = Object.freeze(['hearth_fire', 'hearth_flare', 'hearth_burn_sparks']);
 /* Each named colour's ramp, palette colours dark -> light (art/world/palette.json). */
 export const RAMPS = Object.freeze({
@@ -34,6 +34,9 @@ export const RAMPS = Object.freeze({
   cinnabar: ['#3e1216', '#5e1a1f', '#8e1f1f', '#c23a2a', '#f2a03a'],                  // Cinnabar: red
   quicklime: ['#6a6865', '#8a867d', '#c9bfa0', '#e6dcbc', '#c4ccd2'],                 // Quicklime: white
   borax: ['#2c4a2c', '#3d6234', '#557a3e', '#73944c', '#7ccf4a'],                     // Borax: green
+  /* THE HEARTH CHEST OPENED (lane/fix138-hearth-chest-big; drawn by lane/c-hearth-moods' flame row): a sickly green, the chest's own light, darker
+     and more bilious than Borax (moss olive under it), its core the pale green-white of the chest's crack */
+  chest: ['#16241a', '#2c4a2c', '#4a5a2a', '#6b7a38', '#7ccf4a', '#c8e6e0'],
 });
 const hex = (d, i) => '#' + [d[i], d[i + 1], d[i + 2]].map((v) => v.toString(16).padStart(2, '0')).join('');
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));

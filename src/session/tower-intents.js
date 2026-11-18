@@ -80,7 +80,12 @@ export function startClimb(account, cs, landing) {
 export function openChest(account, cs, chest, key, count) {
   if (!usable(account, cs) || !WORD.test(String(chest)) || !WORD.test(String(key)) || !(Number.isSafeInteger(count) && count > 0)) return bad('chest_open');
   return send(cs, 'chest_open', () => account.server.rpc('hr_chest_open',
-    { p_slot: cs.slot, p_chest: chest, p_key: key, p_count: count, p_stokes: null, p_idem: newIdem() }), openedOf);
+    { p_slot: cs.slot, p_chest: chest, p_key: key, p_count: count, p_stokes: null, p_idem: newIdem() }), (b) => {
+    /* the press may have turned the Hearth green (2027-05-05-hearth-moods.sql): the town is read at the active pace to see it */
+    const town = typeof account.townOf === 'function' ? account.townOf(cs.slot) : null;
+    if (town && typeof town.wake === 'function') town.wake();
+    return openedOf(b);
+  });
 }
 
 /** Save the hero's default stokes for one kind of key (0 = none). */

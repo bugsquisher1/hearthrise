@@ -3654,3 +3654,25 @@ rises over the bar whenever it needs the room, the way 1280 and 1366 already did
 (the foot's box-shadow rule), not the box: a 1 px overlap reads cut to the eye and passes a box test; (7) a fixture can hide a
 clip the live hero shows (different fonts, weapon, setups): make the measuring rule strict enough that today's layout is red there
 too; (8) shell.js sits at the module-size cap: carry a row flag as a frame class, not a new line.
+
+## 2026-11-17 lane/fix138-hearth-chest-big (Tyler: the chest "more 'special' ... low glow ... black / green smoke ... bigger"; "bump slightly open"; then the Great Hearth redraw and "a bit more flamey")
+Phase 1, the chest (45 Coordinator gens): imp-s13 shut (gold third lock, chain, the Keepers' sun), bump-s3 peak, open-s7 open with the shut
+box spliced below its seam. tower-art.mjs: locks poured onto LOCKS by VALUE inside each padlock's body rect (no outline, no green, nothing as
+dark as the oak), so every source agrees; the seam's greens breathe one step down/up over a 24-frame 3 s loop; the in-between is the shut
+chest with its lid lifted 2-3 px on a stepped band (the review called bump-s17's streak a smear); the bump clip (lift, peak x3, lift, slam
++/-1 px) stands for idle 0-7 of a bump loop. Its light: class `glow` (new row), stepped leaf greens drawn ADDITIVELY (`blend: 'add'`) after
+the light, since the town's day light mask is white (a point light adds nothing in daylight). Its smoke: town-life.mjs smoke() exported and
+reused in black/green inks, plus a puff and dust in the bump clip. Schedule: core/ambient.js bumpAt, one loop in each block of 5 at a
+hashed slot of 3 (gaps 3-7 loops = 9-21 s), seeded by the page's own Math.random (world-boot BUMP_SEED on the town frame), off with the
+Idle animations switch. Three AMBIENT rows on one CHEST_SEAT, hidden together (CHEST_LAYERS). Class `relic` (this sprite only).
+Phase 2, the Great Hearth (Coordinator gens): FINAL-s602 + banner H + crest inpaints, 384 x 448 with 319 px of art centred, shipped at 352 (16 transparent columns cut each side: a 384 frame box stood over the shop and storage stands, town-stations ST-1), so the 11 x 4
+footprint holds and the walk mask, stands and stations file do not move; landmark band 352 -> 360 (390 px with the cupola). atlas-common
+overflowed to 4096 wide: the Hearth and its fire/flare/sparks families moved to a new set `hearth`. hearth-fire.mjs cuts the new loop
+(64 x 62) from animate_image frames by their difference from the embers-only crop and writes the verdigris twin BY RULE (hot = red >= 110,
+leading blue by 60 and green by 35), so hearth-flames re-derives every colour plus `chest` (sickly green). Chest seated on the dais
+between the chain rings, foot hearth px (290, 364). Smoke emitter at the cupola's openings [176, 66], sparks [178, 298].
+Lessons: (1) a scripted edit that finds no anchor must THROW: a slice on indexOf -1 silently prepended a block to tower-art.js; (2) guards
+read declarations literally (token-single-source, mutant anchors, perf-budget probes): a helper that builds `--tr-${k}x` names or an edit to
+a probed line breaks them; carry new state on a frame object instead of the shared sync line; (3) to photograph a random moment, pin Date.now
+and scope a fixed Math.random to the one module that seeds it (stack test), then compute the instant from the game's own function; (4) a
+hero name is unique per world: a second shot run needs a new name (a "hang" at hero creation was that, not the overrides); (5) the Climb tab's course needs a straight run the new tapered chimney lacks: handed to the asset director.

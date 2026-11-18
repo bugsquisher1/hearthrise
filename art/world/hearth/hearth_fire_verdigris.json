@@ -1,0 +1,37 @@
+{
+  "id": "hearth_fire_verdigris",
+  "class": "vfx",
+  "style": "s1",
+  "material": "light",
+  "source": "hearth_fire_verdigris.png",
+  "frame": [
+    64,
+    62
+  ],
+  "anchor_px": [
+    32,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 8
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "animate_image of an inpaint_image_pro_flash still (the flames) on the final Hearth's firebox crop",
+    "image": "d1764a77",
+    "seed": 12,
+    "still": "aa2c98e5 (seed 9; alternate 6a2cde9a, seed 31)",
+    "source": "art/world-src/gen-2026-11-17/great-hearth (firebox-crop-128x128-at128-248, fire-still-s9-aa2c98e5, fire-anim-s12-d1764a77)"
+  },
+  "notes": "hearth_fire with its hot pixels poured by value onto the verdigris ramp (copper green) by tools/world-art/hearth-fire.mjs: the twin tools/world-art/hearth-flames.mjs reads as the flame mask. Same placement as hearth_fire."
+}

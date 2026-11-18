@@ -111,20 +111,28 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-chest { position: absolute; left: var(--tr-cx); top: var(--tr-cy); width: var(--tr-cw); height: var(--tr-ch); image-rendering: pixelated;
   background: url('../../assets/ui/tower/chest.png') 0 0 / calc(var(--tr-cn) * var(--tr-cw)) var(--tr-ch) no-repeat;
   animation: tc-loop var(--tr-cms) steps(var(--tr-cn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-cn)) * var(--tr-cw)); }
+/* its green light on the stone, laid additively as the town lays it (the light it casts, never a tint), and its smoke, in step with it */
+.tc-glow { position: absolute; left: var(--tr-gx); top: var(--tr-gy); width: var(--tr-gw); height: var(--tr-gh); image-rendering: pixelated; mix-blend-mode: plus-lighter;
+  background: url('../../assets/ui/tower/chest-glow.png') 0 0 / calc(var(--tr-cn) * var(--tr-gw)) var(--tr-gh) no-repeat;
+  animation: tc-loop var(--tr-cms) steps(var(--tr-cn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-cn)) * var(--tr-gw)); }
+.tc-smoke { position: absolute; left: var(--tr-kx); top: var(--tr-ky); width: var(--tr-kw); height: var(--tr-kh); image-rendering: pixelated;
+  background: url('../../assets/ui/tower/chest-smoke.png') 0 0 / calc(var(--tr-cn) * var(--tr-kw)) var(--tr-kh) no-repeat;
+  animation: tc-loop var(--tr-cms) steps(var(--tr-cn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-cn)) * var(--tr-kw)); }
 @keyframes tc-loop { from { background-position: 0 0; } to { background-position: var(--tr-loop) 0; } }
-.tc-scene.is-open .tc-chest { visibility: hidden; }
+.tc-scene.is-open .tc-chest, .tc-scene.is-open .tc-smoke { visibility: hidden; }
 .tc-reveal-slot { position: absolute; left: var(--tr-rx); top: var(--tr-ry); }
-/* THE REVEAL (revealHtml; the strips are tools/world-art/tower-art.mjs): 48 x 64 art px frames at x2, stepped, never smoothed, the open
-   box exactly over the shut chest. The key's lock catches the light, the lid lifts on its fire, embers climb (8 frames); a weapon's column
+/* THE REVEAL (revealHtml; the strips are tools/world-art/tower-art.mjs): 64 x 80 art px frames at x2 (REVEAL_AT), stepped, never smoothed, the open
+   box exactly over the shut chest. The key's lock catches the light, the lid cracks on its green light and jolts, it opens, green embers
+   and smoke climb (8 frames); a weapon's column
    rises (4) and its icon climbs out of the chest's mouth in whole art pixels. Reduced motion shows the last frame of each, still. */
-.tc-reveal { position: relative; width: 96px; height: 128px; }
+.tc-reveal { position: relative; width: var(--tr-rw); height: var(--tr-rh); }
 .tc-reveal-chest, .tc-reveal-col { position: absolute; inset: 0; background-repeat: no-repeat; background-position: 0 0; image-rendering: pixelated; }
-.tc-reveal-chest { background-size: 768px 128px; animation: tc-open 800ms steps(7, jump-none) forwards; }
-.tc-reveal-col { background-size: 384px 128px; opacity: 0; animation: tc-col 300ms steps(3, jump-none) 800ms forwards; }
-.tc-reveal-item { position: absolute; left: 14px; top: 68px; width: 64px; height: 64px; image-rendering: pixelated; opacity: 0;
+.tc-reveal-chest { background-size: calc(8 * var(--tr-rw)) var(--tr-rh); animation: tc-open 800ms steps(7, jump-none) forwards; }
+.tc-reveal-col { background-size: calc(4 * var(--tr-rw)) var(--tr-rh); opacity: 0; animation: tc-col 300ms steps(3, jump-none) 800ms forwards; }
+.tc-reveal-item { position: absolute; left: var(--tr-ix); top: var(--tr-iy); width: 64px; height: 64px; image-rendering: pixelated; opacity: 0;
   animation: tc-rise 400ms steps(8, jump-none) 900ms forwards; }
-@keyframes tc-open { from { background-position: 0 0; } to { background-position: -672px 0; } }
-@keyframes tc-col { from { opacity: 1; background-position: 0 0; } to { opacity: 1; background-position: -288px 0; } }
+@keyframes tc-open { from { background-position: 0 0; } to { background-position: calc(-7 * var(--tr-rw)) 0; } }
+@keyframes tc-col { from { opacity: 1; background-position: 0 0; } to { opacity: 1; background-position: calc(-3 * var(--tr-rw)) 0; } }
 @keyframes tc-rise { from { opacity: 1; transform: translateY(0); } to { opacity: 1; transform: translateY(-64px); } }
 .tc-reveal[data-key="bronze"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-bronze.png'); }
 .tc-reveal[data-key="silver"] .tc-reveal-chest { background-image: url('../../assets/ui/tower/chest-open-silver.png'); }
@@ -135,9 +143,9 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-reveal[data-key="gold"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-gold.png'); }
 .tc-reveal[data-key="platinum"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-platinum.png'); }
 @media (prefers-reduced-motion: reduce) {
-  .tc-fire, .tc-chest, .tc-reveal-chest, .tc-reveal-col, .tc-reveal-item { animation: none; }
-  .tc-reveal-chest { background-position: -672px 0; }
-  .tc-reveal-col { opacity: 1; background-position: -288px 0; }
+  .tc-fire, .tc-glow, .tc-chest, .tc-smoke, .tc-reveal-chest, .tc-reveal-col, .tc-reveal-item { animation: none; }
+  .tc-reveal-chest { background-position: calc(-7 * var(--tr-rw)) 0; }
+  .tc-reveal-col { opacity: 1; background-position: calc(-3 * var(--tr-rw)) 0; }
   .tc-reveal-item { opacity: 1; transform: translateY(-64px); }
 }
 /* THE LOOT under the scene: a sunk pocket an item, the weapon's name in gold */

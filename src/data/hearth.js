@@ -96,7 +96,7 @@ export const NAMED_FUELS = Object.freeze({
 export const HEARTH_RULE = Object.freeze({ perDay: 20, queueS: 600 });
 
 /* ── THE FLAMES (display: the Great Hearth's fire, its flare and its sparks in a named fuel's colour). The
-   everyday fire is `fire` (hearth_fire / hearth_flare / hearth_burn_sparks, atlas-common); each colour is the
+   everyday fire is `fire` (hearth_fire / hearth_flare / hearth_burn_sparks, atlas-hearth); each colour is the
    same art with its flame pixels re-poured onto the colour's palette ramp (tools/world-art/hearth-flames.mjs). */
 const flame = (fire, flare, sparks, words) => Object.freeze({ fire, flare, sparks, words });
 export const FLAMES = Object.freeze({

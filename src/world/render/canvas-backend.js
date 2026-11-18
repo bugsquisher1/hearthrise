@@ -35,7 +35,7 @@ const HEAL_MS = 5000;
 
 /**
  * @param {{win: Window, doc: Document, book: object, images: object, tables: object,
- *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object, pours?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye); pours: monsters in a pour (monster-pour.js createMonsterPour: the Burning Tower's fire)
+ *          css: (token: string) => string, arrived?: (set: string) => boolean, dyes?: object, pours?: object}} o   css('--world-void') → the token's value; arrived: this sheet has landed (or failed), when sheets may come behind the view (missing); dyes: heroes' colors (hero-dye.js createHeroDye); pours: sprites in a pour (monster-pour.js createMonsterPour: the Burning Tower's fire, the Great Hearth's smoke)
  */
 export function createCanvasBackend(o) {
   const { win, doc, css, dyes, pours } = o;
@@ -483,13 +483,14 @@ export function createCanvasBackend(o) {
     s.add(list);
     for (const l of [list.decals, list.sprites, list.raised, list.fx]) for (const d of l) s.add(!!images[d.set]);
     if (dyes) for (const d of list.sprites) if (d.dye) s.add(dyes.has(d.id, d.dye));
-    if (pours) for (const d of list.sprites) if (d.pour) s.add(pours.has(d.id, d.pour));
+    if (pours) for (const l of [list.sprites, list.raised]) for (const d of l) if (d.pour) s.add(pours.has(d.id, d.pour));
     return s.end();
   }
 
   /* THE FRAME'S COLORS (hero-dye.js, monster-pour.js): every dyed unit and every poured unit's sheet it draws, then at most one bake of each, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
   function wantDyes(list) {
-    if (pours) { for (const d of list.sprites) if (d.pour) pours.want(d.id, d.pour, book.sprite(d.id), images[d.set]); pours.pump(); }
+    /* a poured unit stands; a poured plume (the Great Hearth's smoke under its flame, core/ambient.js) is raised */
+    if (pours) { for (const l of [list.sprites, list.raised]) for (const d of l) if (d.pour) pours.want(d.id, d.pour, book.sprite(d.id), images[d.set]); pours.pump(); }
     if (!dyes) return;
     for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);
     dyes.pump();

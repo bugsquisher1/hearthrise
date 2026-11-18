@@ -73,17 +73,20 @@ export function useBlock(cs, tw, k) {
 /* THE SCENE's places, from the art's one source (src/data/tower-art.js) as custom properties src/styles/tower.css lays out at x2. */
 const px = (v) => v * SCALE + 'px';
 const SCENE_VARS = (() => {
-  const { FIREBOX: B, FIRE_AT: F, CHEST_AT: C, REVEAL_AT: R, PHONE_VIEW: P } = TOWER_ART;
+  const { FIREBOX: B, FIRE_AT: F, CHEST_AT: C, GLOW_AT: G, SMOKE_AT: S, REVEAL_AT: R, ITEM_AT: I, PHONE_VIEW: P } = TOWER_ART;
   const ms = (frames, fps) => Math.round(1000 * frames / fps) + 'ms';
   return [`--tr-sw:${px(B.w)}`, `--tr-sh:${px(B.h)}`, `--tr-fx:${px(F.x)}`, `--tr-fy:${px(F.y)}`, `--tr-fw:${px(F.w)}`, `--tr-fh:${px(F.h)}`,
     `--tr-fn:${F.frames}`, `--tr-fms:${ms(F.frames, F.fps)}`, `--tr-cx:${px(C.x)}`, `--tr-cy:${px(C.y)}`, `--tr-cw:${px(C.w)}`, `--tr-ch:${px(C.h)}`,
-    `--tr-cn:${C.frames}`, `--tr-cms:${ms(C.frames, C.fps)}`, `--tr-rx:${px(R.x)}`, `--tr-ry:${px(R.y)}`,
-    `--tr-pvx:${px(P.x)}`, `--tr-pvy:${px(P.y)}`, `--tr-pvw:${px(P.w)}`, `--tr-pvh:${px(P.h)}`].join(';');
+    `--tr-cn:${C.frames}`, `--tr-cms:${ms(C.frames, C.fps)}`, `--tr-gx:${px(G.x)}`, `--tr-gy:${px(G.y)}`, `--tr-gw:${px(G.w)}`, `--tr-gh:${px(G.h)}`,
+    `--tr-kx:${px(S.x)}`, `--tr-ky:${px(S.y)}`, `--tr-kw:${px(S.w)}`, `--tr-kh:${px(S.h)}`, `--tr-rx:${px(R.x)}`, `--tr-ry:${px(R.y)}`, `--tr-rw:${px(R.w)}`, `--tr-rh:${px(R.h)}`,
+    `--tr-ix:${px(I.x)}`, `--tr-iy:${px(I.y)}`, `--tr-pvx:${px(P.x)}`, `--tr-pvy:${px(P.y)}`, `--tr-pvw:${px(P.w)}`, `--tr-pvh:${px(P.h)}`].join(';');
 })();
 
 /** The pane's skeleton (inside the Tower window, built once). */
 export function chestHtml() {
-  return '<div class="tc-scene" style="' + SCENE_VARS + '" aria-hidden="true"><div class="tc-scene-art"><span class="tc-fire"></span><span class="tc-chest"></span>'
+  /* the chest on the ledge as the town shows it: its green light on the stone, the chest, its smoke (lane/fix138-hearth-chest-big) */
+  return '<div class="tc-scene" style="' + SCENE_VARS + '" aria-hidden="true"><div class="tc-scene-art"><span class="tc-fire"></span>'
+    + '<span class="tc-glow"></span><span class="tc-chest"></span><span class="tc-smoke"></span>'
     + '<div class="tc-reveal-slot"></div></div></div>'
     /* the last press's answer under the scene, in place of the keys and the stokes: what came out, the weapon first (Keys goes back) */
     + '<section class="tt-result" hidden><div class="tc-loot-head"><h3 class="hw-hd-h tt-hd">' + esc(t('tower.loot_head')) + '</h3>'

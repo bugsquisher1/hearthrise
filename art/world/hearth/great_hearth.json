@@ -1,0 +1,44 @@
+{
+  "id": "great_hearth",
+  "class": "landmark",
+  "style": "s1",
+  "material": "native",
+  "source": "great_hearth.png",
+  "frame": [
+    352,
+    448
+  ],
+  "anchor_px": [
+    176,
+    412
+  ],
+  "footprint": [
+    11,
+    4
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro 384x448 on hr-world-56-v2 (seed 602), then two masked inpaint_image_pro_flash passes on 128 px crops pasted back with every pixel outside the mask byte-identical",
+    "image": "defb8c0e",
+    "seed": 602,
+    "size": [
+      384,
+      448
+    ],
+    "cost": 25,
+    "style": "a 300x307 crop of havora_gatehouse (its tower)",
+    "references": "r3-s401 (layout), r3-s402 (the slate cupola), the pixel crest mock art/world-src/gen-2026-11-17/crest/c-s501-1.png",
+    "inpaints": "banner-h-s7-8d080f4a (the banner's gold H, crop at 128,48), crest-carve-s17-a10a0eb3 (the carved crest: sun, hills and a flame in a bowl, crop at 128,136)",
+    "source": "art/world-src/gen-2026-11-17/great-hearth (FINAL-s602-bannerH-crest; 01-note.json for every round)"
+  },
+  "notes": "The Great Hearth of Hearth Square, redrawn 2026-11-17 (lane/fix138-hearth-chest-big; Tyler: \"if you can make it amazing\"): readable dressed blocks like the gatehouse, a slate cupola with an iron finial (the flue's smoke leaves its openings, ambient-life.js EMITTERS), a red banner with the gold H, the carved Hearthrise crest, a lantern, four different bays (full logs, kindling, iron tools and a scuttle, bricked half up with a crack), steps, an embers-only firebox (hearth_fire's loop lies over it with its anchor on hearth px (178, 313), tools/world-art/hearth-fire.mjs) and an empty stone dais with two iron chain rings right of it, where the Hearth Chest stands (src/data/world/town/sites.js CHEST_SEAT, its foot on hearth px (290, 364)). The art is 319 px wide, centred in a 384 px canvas: shipped with 16 transparent columns cut off each side (tools/world-art/hearth-fire.mjs), so its frame is its footprint, 11 x 4 at x112-122 y45-48 as before (the art half-covers its first and last columns) and the walk mask does not move; its anchor is the front step's last row. The previous Hearth (2026-10-25) is kept as art/world-src/havora-hearth/great_hearth-2026-10-25.png for the Tower window's chimney course only (tools/world-art/tower-window-art.mjs)."
+}

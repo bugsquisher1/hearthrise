@@ -27,9 +27,9 @@
       "tanners_boots": "c25: red-brown leather boots with buckles (81%)",
       "washerwomans_slippers": "c28: blue felt slippers, fur at the cuff (81%)",
       "cranemans_helm": "c33: a polished steel kettle helm with a spike (78%)",
-      "fletchers_hood": "c39: a green hood, two arrows through it (88%)",
+      "fletchers_hood": "fix call 2c1309b8 c49 (replaces armor c39, too dark on the slot): a bright moss-green hood with a fan of white goose feathers",
       "bakers_cap": "c45: a tall cream baker's cap, a wooden handle tucked in its band (75%)",
-      "dockhands_boots": "c51: dark iron boots with a coil of rope (84%)",
+      "dockhands_boots": "fix call 2c1309b8 c12 (replaces armor c51, a twin of hodmans_boots): tall dark boots with steel caps and a brass anchor buckle on each",
       "sewermans_boots": "c54: black waders with green sewer slime at the soles (84%)",
       "fishwifes_slippers": "c61: red slippers with a fur lining (81%)"
     }
@@ -41,6 +41,7 @@
     }
   },
   "refused": "the first bone silver (a plain ring, read as a Tower key) and the first ratter's hood (the rat tails did not show)",
+  "fix (Coordinator, 2026-11-18, call 2c1309b8, 10 gens, style tower_key_silver snakeskin_helmet studded_boots)": "after the bag read: dockhands_boots and fletchers_hood replaced (above); the bone_key_silver retries lost the key or the bones, so c03 stays",
   "read": "art/review/catacomb-icons/final-20.png (the Coordinator's preview of all 20); lane/a-catacomb-icons read them in the real bag (tools/qa/local-world.mjs, a new local hero, real pocketHtml and CSS, a list of its own beside the bag's) at 1440x900 (44 px pockets) and 922x423 (36 px), the icon at 32 px, each wing's keys under the Tower keys, each piece under its standard twin. All 20 read as their kind; weakest: bone_key_silver (thin, the crossed bones read as a plain cross), fletchers_hood and sewermans_boots (the darkest on the slot; the arrows and the slime are what carry them), hodmans_boots beside dockhands_boots (one dark plate boot, the rope the only difference) and washerwomans_slippers beside fishwifes_slippers (one fur-lined slipper in blue and in red)",
   "total": "4 calls, 40 gens (subscription; credits $0), 256 candidates, 20 kept",
   "later (call a3610df6, 10 gens; same palette, the armor call's style images iron_helm snakeskin_helmet studded_boots)": {

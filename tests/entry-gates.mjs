@@ -257,7 +257,14 @@ const fileText = (f) => {
   const t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
   return SQL_EDIT && SQL_EDIT.file === f ? SQL_EDIT.edits.reduce((s, [a, b]) => s.replace(a, () => b), t) : t;
 };
-async function idemArm(db) {
+/* ON THE CHAIN UP TO THESE FILES, its own replay (lane/d-jewelry-sample, 2026-11-18): a later forward catalogue restates rows these files once
+   wrote (2027-05-06-drop-homes' hunt-sessions moves hr_boss_calls' quote drops), so a second apply over the chain's END would move rows the files
+   no longer own and judge them for it. Replayed to FILE, the second apply is judged on the state the files themselves made. */
+async function idemArm() {
+  const { db } = await bootReplay({ upTo: FILE });
+  try { await H.pinDice(db); return await idemOn(db); } finally { await db.close(); }
+}
+async function idemOn(db) {
   return H.inTx(db, async () => {
     await rewind(db);
     const bad = [];

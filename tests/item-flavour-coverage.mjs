@@ -41,8 +41,9 @@ import { isMain } from './_is-main.mjs';
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const DESC_PATH = join(ROOT, 'src', 'data', 'item-descriptions.js');
 
-/* The 14 WAVE3 uniques whose lines were authored, and approved, ending in a
-   full stop before this guard existed. Nothing NEW may end in one; these 14
+/* The 13 WAVE3 uniques whose lines were authored, and approved, ending in a
+   full stop before this guard existed (the Warband Bulwark left with its
+   new line, a crafted cloak, 2026-11-18). Nothing NEW may end in one; these 13
    are grandfathered and must STAY grandfathered — an allowlisted id whose
    line no longer ends in '.' is a stale entry (FLV-8) just as much as a new
    line that gained one is a violation. */
@@ -50,7 +51,7 @@ export const FULL_STOP_ALLOWLIST = new Set([
   'dragonrend_greatblade', 'crown_of_the_fallen_king', 'emberfang_blade', 'demoncaller_staff',
   'panthers_eye_pendant', 'wraithsilk_shroud', 'widows_fang', 'plaguewarden_greaves',
   'hollow_sigil_ring', 'fangdart_recurve', 'alphaheart_longbow', 'nightstalker_pelt',
-  'warband_bulwark', 'chitinweave_cloak',
+  'chitinweave_cloak',
 ]);
 
 const EXTENDED_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;

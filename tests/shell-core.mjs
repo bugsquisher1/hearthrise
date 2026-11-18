@@ -1460,12 +1460,12 @@ async function runTests(mods) {
     });
 
     t('R3m a hunt out of gold says why with the numbers that ended it, on the end card and the away card (post-patch audit B3)', () => {
-      const WHY = 'Gold reserve reached. Store supplies cost 1,160 gp and the coins brought in 680 gp, so your gold fell to your 300 gp reserve';
+      const WHY = 'Gold reserve reached. Store supplies cost 1,160 gp and the coins brought in 680 gp, so your gold fell to your 300 gp reserve.';
       /* THE HUNT IN VIEW: its end card (the stored summary's server tally: coins 680, loot 311, balance -169, so 1,160 gp of store supplies) */
       const card = { reason: 'gold_out', gold: 680, lootValue: 311, balance: -169 };
       eq(SM.reasonWords(card, 'Solo', null, 300), WHY, 'the end card');
       eq(SM.reasonWords(card, 'Solo', null, null), 'Gold reserve reached', 'no reserve from the server: the label alone');
-      eq(SM.reasonWords({ reason: 'gold_out' }, 'Solo', null, 300), 'Gold reserve reached. Your gold fell to your 300 gp reserve', 'no tally: the reserve alone');
+      eq(SM.reasonWords({ reason: 'gold_out' }, 'Solo', null, 300), 'Gold reserve reached. Your gold fell to your 300 gp reserve.', 'no tally: the reserve alone');
       /* THE BROWSER CLOSED: the away card's line and its why, from the hunt's analyzer and the server's reserve */
       const S7 = '77777777-7777-4777-8777-777777777777';
       const away = heroOf({ name: 'Solo', level: { xp: XP57 + 500, level: 57, into: 0, need: 1 }, hunt_settings: { gold_floor: 300 },
@@ -1473,8 +1473,8 @@ async function runTests(mods) {
         hunt_analyzer: { hero: { kills: 35, coins: 680, waste: 1160, loot_value: 311, balance: -169 } } },
         { s: S7, at: T0, xp: XP57, lv: 57, gold: 0, sp: 0, kills: 0 }, T0 + 4 * H);
       const line = AR.awayRecapOf(away);
-      ok(line && line.text.includes(WHY + '.'), 'the away line: ' + JSON.stringify(line && line.text));
-      eq(AW.awayBlockOf(away, line).why, WHY + '.', 'the away card');
+      ok(line && line.text.includes(WHY), 'the away line: ' + JSON.stringify(line && line.text));
+      eq(AW.awayBlockOf(away, line).why, WHY, 'the away card');
     });
   }
 

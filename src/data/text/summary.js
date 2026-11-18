@@ -85,8 +85,8 @@ export const SUMMARY_TEXT = Object.freeze({
   /* ...said with the numbers that ended it (post-patch audit 2026-11-18 B3: "Gold reserve reached" beside Gold +2,679 gp, nothing said why).
      {spent} the store's supplies, {coins} the coins, both the hunt's own tally; {floor} the Gold reserve, the server's setting. Loot is not
      gold until it is sold, so it is not in the sum. The _floor form is for a card that has no tally to say it with. */
-  end_gold_out_why: 'Gold reserve reached. Store supplies cost {spent} and the coins brought in {coins}, so your gold fell to your {floor} reserve',
-  end_gold_out_floor: 'Gold reserve reached. Your gold fell to your {floor} reserve',
+  end_gold_out_why: 'Gold reserve reached. Store supplies cost {spent} and the coins brought in {coins}, so your gold fell to your {floor} reserve.',
+  end_gold_out_floor: 'Gold reserve reached. Your gold fell to your {floor} reserve.',
   end_rule: 'Stop rule met',
   end_stamina: 'Out of stamina · Stamina refills 1 h per hour',
   end_hours: 'Time limit reached',

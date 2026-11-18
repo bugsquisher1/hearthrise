@@ -692,11 +692,9 @@ export const MONSTERS = {
      Numbers, names and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 2, designer ladder 10-23):
      the lower rooms share the Thicket's tier-1 legs (rats) and bodies (slimes), the upper rooms give the tier-2 helmets
      (bats) and boots (kobolds), every piece in three weights about hourly for a solo hero AND a party of four at the
-     floor. THE PARTY GROUND KITS THE TANK AND THE MAGE (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor,
-     weapons and shields drop, a bench makes none): the kobolds' Iron Sword, the rats' Ironbound Shield (its own line names
-     a rat's lunge), the slimes' sunk Oak Wand and the bats' Oakboard Spellbook, each about hourly. The Rares stay a party's
-     lucky door to the tier-2 weapons whose hourly home is Wickstead or the Glade: the slimes' staff, the spiders' webbed bows,
-     the kobolds' scrap hatchets and club. The Rat King keeps his Crown Shard and his Kingsgrate. ══════════ */
+     floor; and (weapons drop, a bench makes none: Tyler 2026-11-18) the kobolds' Iron Sword, the rats' Ironbound Shield, the slimes'
+     Oak Wand and the bats' Oakboard Spellbook, each hourly. The Rares (slime staff, spider bows, kobold hatchets and club) are a party's
+     lucky door to what Wickstead and the Glade drop hourly. The Rat King keeps his Crown Shard and his Kingsgrate. ══════════ */
   drain_rat: { name: 'Drain Rat', icon: '🐀', tier: 1, level: 10, cls: 'vermin', family: 'Vermin', formation: true,
     hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [7, 19], formula: true, speed: 3400,
     drops: [{ id: 'rat_tail', ch: .9, band: 'common' }, { id: 'bones', ch: .35, band: 'common' }, { id: 'rat_incisor', ch: .08, band: 'uncommon' },
@@ -739,9 +737,7 @@ export const MONSTERS = {
      Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS' SAMPLE (designer 2026-10-23): one
      tier-1 armour slot per wolf in all three weights, each piece about hourly per hero; the den mother's tier-2 helmets,
      Alpha Fang and Ruff and the Dire Gray's Studded Leather Body about every 15 h. Odds PROVISIONAL (Tyler 10-23).
-     THE FIRST GLOVES AND BELTS (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor drops, a bench makes none):
-     the Shop sells the medium gloves and the heavy belt; the other two weights of each are Rares here, about every 15 h,
-     as tier 2's are at Wickstead (the Briarcoats the gloves, the Gray Wolves the belts). Their recipes are cut. ══ */
+     The other weights' first gloves (Briarcoats) and belts (Gray Wolves) are Rares here since their recipes went (2026-11-18). ══ */
   gray_whelp: { name: 'Gray Wolf Pup', icon: '🐺', tier: 1, level: 5, cls: 'mammal', family: 'Mammal',
     hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [1, 3], formula: true, speed: 3800,
     drops: [{ id: 'raw_wolf_meat', ch: .262, band: 'common' }, { id: 'bones', ch: .3, band: 'common' }, { id: 'whelp_milk_tooth', ch: .06, band: 'uncommon' },
@@ -777,9 +773,7 @@ export const MONSTERS = {
      a party ground). Names, roles and economy: the src/data/hunt-grounds.js header. THE LOOT BANDS (batch 4): the
      tier-3 set in three weights about hourly for a party of four at 32 AND a lone hero at 45. The swarm dies fastest,
      so the scavengers carry two slots (boots, legs) and the Steel Sword they pick off the spoil; the diggers the helmets
-     and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies AND the Coppercap Shield, the Chief's
-     own design (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: shields drop at every tier, a smith only reforges
-     a named one), at the bodies' odds, so it comes about hourly as they do. Rares, ~13-15 h: the skulkers'
+     and the Steel Warhammer; the few skulkers, foremen and the Chief share the bodies and the Coppercap Shield (2026-11-18). Rares, ~13-15 h: the skulkers'
      willow bows, the foreman's steel hatchets, the willow caster pieces in the Chief's hoard beside his War Crown. ══ */
   goblin_scavenger: { name: 'Goblin Scavenger', icon: '👺', tier: 3, level: 34, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 147, atk: 18, baseAcc: 0.72, def: 10, xp: 623, gp: [11, 35], formula: true, speed: 3200,
@@ -859,9 +853,7 @@ export const MONSTERS = {
   /* ══ Mosslight Glade, levels 16-31, solo, mixed (lane c-ground-16-31): roles, junk and economy in the src/data/hunt-grounds.js header.
      THE LOOT BANDS (batch 3): the whole tier-2 set in three weights, about hourly (crows boots, poachers legs and their
      Longbow, vines helmets, sluicers bodies); Rook keeps his Whistle and hides the tier-3 helmets, about every 15 h. Stats: src/data/balance-sheet.js.
-     THE RANGER'S, THE HEALER'S AND THE HAMMER'S TIER 2 (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: weapons drop,
-     a bench makes none), each about hourly: Rook's own Oak Crossbow, the Oak Staff a vine grew round, the sluicers' Iron Warhammer
-     (they break the spring's copper out with it). ══ */
+     Hourly since 2026-11-18 (weapons drop): Rook's Oak Crossbow, the vines' Oak Staff, the sluicers' Iron Warhammer. ══ */
   carrion_crow: { name: 'Carrion Crow', icon: '🐦', tier: 2, level: 16, cls: 'vermin', family: 'Vermin',
     /* one override (weapon): a bird in the open, so an arrow brings it down and a club swings at air. */
     weaponWeak: 'ranged', weaponResist: [],
@@ -901,8 +893,7 @@ export const MONSTERS = {
 
   /* ══ Wickstead, levels 8-18, solo, mixed (lane b-greenhaven-6, designer 2026-10-28): roles and economy in the
      src/data/hunt-grounds.js header. THE LOOT BANDS: tier-1 boots (rats) and helmets (wasps), tier-2 legs (spiders) and
-     bodies (Turncoats, with their Bramble Blade), each about hourly at the floor, and the boars' Iron Hatchets (lane/d-drop-homes,
-     2026-11-18). The Rares are the first tier-2 gloves
+     bodies (Turncoats, with their Bramble Blade) and the boars' Iron Hatchets, each about hourly. The Rares are the first tier-2 gloves
      (spiders), belts (wasps) and jewellery (Turncoats), each every 10-20 h: the Shop sells the basic gloves, belt,
      earrings, ring and necklace, so here they are the prize above it, never a regular drop. Stats: src/data/balance-sheet.js. ══ */
   granary_rat: { name: 'Granary Rat', icon: '🐀', tier: 1, level: 9, cls: 'vermin', family: 'Vermin',
@@ -930,8 +921,7 @@ export const MONSTERS = {
     weaponWeak: 'sword', weaponResist: ['hammer'],
     hp: 24, atk: 4, baseAcc: 0.46, def: 3, xp: 89, gp: [3, 10], formula: true, speed: 3000,
     /* no Rare: the Tusker's Charm is Old Tusker's relic, ONE source (tests/w0f-fun-content.mjs); he joins the Orchard as its
-       champion with his own (larger) art, the next batch. THE IRON HATCHETS' HOME (lane/d-drop-homes, designer 2026-11-18): the
-       pruning hatchets the orchard's keepers dropped when the boars came, about hourly, the bleed fighter's tier 2. */
+       champion with his own (larger) art, the next batch. Its Iron Hatchets (2026-11-18) are the orchard keepers' lost pruning pair. */
     drops: [{ id: 'boar_bristle', ch: .462, band: 'common' }, { id: 'bones', ch: .385, band: 'common' }, { id: 'orchard_boar_tusk', ch: .0616, band: 'uncommon' },
       { id: 'iron_hatchets', ch: .03, band: 'scarce' }] },
   turncoat: { name: 'Turncoat', icon: '🗡️', tier: 2, level: 16, cls: 'human', family: 'Human',

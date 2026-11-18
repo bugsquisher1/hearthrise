@@ -32,6 +32,13 @@
 //     "a new spell that can only be used when not in a party"), read at each cast as the kill XP
 //     reads the living heroes (src/core/hunt/abilities.js aloneIn); a death or a leave changes the
 //     next cast. Otherwise the slot falls through to the next, as a slot that cannot act does.
+//   skill: THE ROW'S OWN SKILL, when it is not its discipline's (itemization plan §7: the fist line's strikes level on
+//     Magic while its blows read Melee). Its unlock, rune versions and numbers read that skill (abilitySkill), and its
+//     hits train it: a weapon skill by damage, Magic by none (Magic is paid per mana spent, magicXpMult; ownHitSkill,
+//     src/core/hunt-rewards.js). A universal row (the self-heal) always names one. Absent: the discipline's.
+//   weakPm: permille of a monster's WEAKNESS to the row's element its hits land (plan §7, the fist's element by choice:
+//     half the weak-side bonus, so picking the weak element is worth half what a fixed one is); a resistance lands in
+//     full. Absent: all of it (src/core/hunt/damage.js hurt).
 //   unlock: a level in the row's own skill (abilitySkill) the ability waits for: a slot set up
 //     early is kept and waits (`level`, the wait a locked rune version gives), never refused
 //   trigger: the conditions a NEW slot of the row starts with, when suggestedTrigger's generic one
@@ -62,6 +69,7 @@ import { isElement } from './elements.js?v=0.2.139';
 import { ITEMS } from './items.js?v=0.2.139';
 import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.139';
 import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.139';
+import { FIST_LINE, FIST_ELEMENTS } from './fists.js?v=0.2.139';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;
@@ -83,6 +91,8 @@ export const DISCIPLINES = Object.freeze({
   ranged: Object.freeze({ skill: 'ranged' }),       // a bow or a crossbow
   destruction: Object.freeze({ skill: 'magic' }),   // a wand (and its spellbook): the Mage
   restoration: Object.freeze({ skill: 'magic' }),   // a staff: the Healer
+  /* wraps: the fist line (src/data/fists.js), its blows on Melee, its strikes naming Magic; only while the sample is live */
+  ...(FIST_LINE.live ? { [FIST_LINE.family]: Object.freeze({ skill: 'melee' }) } : {}),
 });
 export const DISCIPLINE_IDS = Object.freeze(Object.keys(DISCIPLINES));
 
@@ -129,7 +139,8 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield', 'sword'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_fire_rune',
     target: 'enemy', dmg: [8, 14], element: 'ember', magicXpMult: 250,
     versions: [[10, 1000], [12, 1740], [14, 2520], [17, 3310], [21, 4100]], lvPm: LV_PM }),
-  ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 6000, mana: 6,
+  /* (the fist line plays it too while its sample is live: src/data/fists.js) */
+  ab({ id: 'power_strike', n: 'Power Strike', disciplines: ['shield', 'sword', 'dual_axe', 'club', ...(FIST_LINE.live ? [FIST_LINE.family] : [])], lane: 'offense', cdMs: 6000, mana: 6,
     target: 'enemy', dmg: [7, 13] }),
   /* TURNING CUT (the area-spells design, lane/b-area-data; Tyler 2026-11-08: "our heros some more aoe spells"): every melee
      weapon WITHOUT a shield (Tyler 2026-11-16, from Andy: "Give it to all melee that doesn't have a shield on": a sword alone, two
@@ -223,6 +234,23 @@ export const ABILITIES = Object.freeze([
   ab({ id: 'undertow', n: 'Undertow', disciplines: ['restoration'], lane: 'offense', cdMs: 20000, mana: 15, rune: 'chalked_water_rune', alone: true,
     target: 'enemy', dmg: [8, 13], magicXpMult: 1600,
     versions: [[15, 1000], [18, 1740], [22, 2520], [26, 3310], [31, 4100]], lvPm: LV_PM }),
+  /* THE FIST LINE'S TWO STRIKES (itemization plan §7, phase 1; src/data/fists.js: HIDDEN, in this table only while the sample is
+     live). One target each, no area. Each comes in fire, ice and poison (FIST_ELEMENTS): the element is the player's choice, the
+     row its bar slots, and it lands half a weakness's bonus (weakPm 500). Both name MAGIC as their own skill (`skill`): their
+     numbers grow with Magic and they train Magic per mana at the spell rate, while the wraps' blows train Melee.
+       CHARGED HANDS (`<element>_hands`): the strike on mana alone, no rune.
+       THE PALM (`<element>_palm`): the optional stronger cast, a rune of its element's family, its version by the rune's tier.
+     PROVISIONAL numbers beside the built strikes (Flame Strike 10 mana, Power Strike 6). MEASURED (tools/balance-sim/fist-table.mjs,
+     lane/d-fists-phase1, alone on Normal at Levels 10 to 57): the mana is not what limits them. Hands at 8, 6 or 4 mana cast within 1%
+     as often and moved Level XP under 1% (they wait on their cooldown and the fight), and only the drink bill fell (30 to 8 an hour at
+     the Thicket); so the mana stays 8 and 12, which keeps Magic training beside Melee (Magic 19 and Melee 18 at Level 10). */
+  ...(FIST_LINE.live ? FIST_ELEMENTS.flatMap(([family, element, word]) => [
+    ab({ id: family + '_hands', n: word + ' Hands', disciplines: [FIST_LINE.family], skill: 'magic', lane: 'offense', cdMs: 6000, mana: 8,
+      target: 'enemy', dmg: [8, 14], element, weakPm: 500, magicXpMult: 1600, lvPm: LV_PM }),
+    ab({ id: family + '_palm', n: word + ' Palm', disciplines: [FIST_LINE.family], skill: 'magic', lane: 'offense', cdMs: 8000, mana: 12,
+      rune: 'chalked_' + family + '_rune', target: 'enemy', dmg: [10, 18], element, weakPm: 500, magicXpMult: 1600,
+      versions: [[12, 1000], [14, 1740], [17, 2520], [21, 3310], [25, 4100]], lvPm: LV_PM }),
+  ]) : []),
   /* MEND, THE UNIVERSAL SELF-HEAL (Bible §4.1 / §17 CONFIRMED; roadmap p21): every loadout heals itself with mana on
      the heal lane, outside its three discipline abilities. It needs missing HP (a hero at full health never casts it,
      so a full-health cast never pays Magic XP) and spends no rune: the free floor. It levels on Magic, and pays Magic
@@ -253,8 +281,13 @@ export function areaSpec(row) {
 export const DISCIPLINE_SKILL = Object.freeze(Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, DISCIPLINES[d].skill])));
 /** The ability ids discipline `d` may hold, in data order (its own rows and every universal row). */
 export const disciplineAbilities = (d) => Object.values(ABILITIES).filter((a) => a.disciplines.includes(d)).map((a) => a.id);
-/** The skill `row`'s versions and output level on. */
-export const abilitySkill = (row) => (row && row.universal && row.skill) || DISCIPLINE_SKILL[row && row.disciplines && row.disciplines[0]] || 'magic';
+/** The skill `row`'s unlock, versions and output level on: its own `skill` when it names one (a universal row always does), else
+    its discipline's. */
+export const abilitySkill = (row) => (row && typeof row.skill === 'string' && row.skill) || DISCIPLINE_SKILL[row && row.disciplines && row.disciplines[0]] || 'magic';
+/** THE SKILL A ROW'S HITS TRAIN, when it names its own (`skill` on a discipline's row, the header's field): a weapon skill by the
+    damage it lands, null for Magic (Magic is paid per mana spent, never by damage: skills.js DAMAGE_XP_FAMILIES). Undefined for every
+    other row, a basic blow and an unknown id: those hits train the weapon family's skill (src/core/hunt-rewards.js). */
+export const ownHitSkill = (row) => (row && !row.universal && typeof row.skill === 'string' ? (row.skill === 'magic' ? null : row.skill) : undefined);
 
 /** THE TRIGGER A NEW SLOT OF `row` STARTS WITH, as conditions written ON the slot (the role rule sets,
     rule-subjects.js ROLE_RULES, and a slot the player adds: conditions.js suggestedConditions). Never
@@ -309,6 +342,10 @@ export function validate() {
     for (const d of r.disciplines) { if (!(d in per)) bad('unknown discipline ' + d); else if (!r.universal) per[d]++; }
     /* A universal row is every discipline's, on a skill it names (the self-heal: Magic). */
     if (r.universal && (DISCIPLINE_IDS.some((d) => !r.disciplines.includes(d)) || !Object.values(DISCIPLINE_SKILL).includes(r.skill))) bad('a universal row lists every discipline and names its skill');
+    /* A row's OWN skill is a combat skill a discipline levels on, and it differs from its discipline's (else it says nothing). */
+    if (!r.universal && r.skill !== undefined && (!Object.values(DISCIPLINE_SKILL).includes(r.skill) || r.disciplines.some((d) => DISCIPLINE_SKILL[d] === r.skill))) bad('its own skill must be another combat skill than its discipline\'s');
+    /* A weakness share is a striking row's with an element: whole permille 0..1000 of the bonus. */
+    if (r.weakPm !== undefined && (!Number.isInteger(r.weakPm) || r.weakPm < 0 || r.weakPm > 1000 || !r.element || !DAMAGING.includes(r.target))) bad('weakPm is a whole permille 0..1000 on a damaging row with an element');
     if (new Set(r.disciplines).size !== r.disciplines.length) bad('a discipline is listed twice');
     for (const k of ['dmg', 'heal']) if (r[k] && !(r[k].length === 2 && r[k].every(Number.isInteger) && r[k][0] > 0 && r[k][0] <= r[k][1])) bad(k + ' must be [lo, hi]');
     /* A damaging target lands dmg [lo, hi] OR a share of the hero's own largest blow (hitPm), never both. */

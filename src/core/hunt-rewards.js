@@ -44,6 +44,7 @@ import { rollDropTable, rollPrize } from './drops.js?v=0.2.139';
 import { applyGoldFind } from './pacing.js?v=0.2.139';
 import { COMBAT_XP } from '../data/core-model.js?v=0.2.139';
 import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.139';
+import { ABILITIES, ownHitSkill } from '../data/abilities.js?v=0.2.139';
 import { resolveHearthfind } from './hearthfind.js?v=0.2.139';
 import { magicXpFor } from './hunt/xp-share.js?v=0.2.139';
 import { splitEven, itemOwner, rareRoll } from './party-split.js?v=0.2.139';
@@ -60,6 +61,14 @@ function defenseXp(m, attacker, missed, ctx) {
   if (!m || m.armoured !== true || !attacker || attacker.side !== 'mon') return 0;
   const lv = levelAtTier(monsterLevelOf((ctx.monsters || MONSTERS)[attacker.kind]), ctx.tier);
   return (lv * COMBAT_XP.defenseXpPerLevelPermille / 1000) * (missed && m.shield === true ? COMBAT_XP.blockMult : 1);
+}
+
+/* THE SKILL A HERO'S BLOW TRAINS (the `dmg` route): the striking row's own skill when it names one (abilities.js ownHitSkill: a weapon
+   skill, or none for Magic, which mana pays), else the weapon family's for a family whose blows pay damage XP, else none. */
+function hitSkillOf(family, abilityId) {
+  const own = ownHitSkill(typeof abilityId === 'string' ? ABILITIES[abilityId] : null);
+  if (own !== undefined) return own;
+  return DAMAGE_XP_FAMILIES.includes(family) ? FAMILY_SKILL[family] : null;
 }
 
 /* The kill counters every hero in the instance earns for one monster kill. The session's tally and the lifetime count always (the settle
@@ -220,8 +229,9 @@ export function rewardSwing(members, events, world, ctx) {
       case 'dmg': {
         const m = members.get(ev.u);
         const t = unitOf(ev.t);
-        if (m && t && t.side === 'mon' && ev.amount > 0 && DAMAGE_XP_FAMILIES.includes(m.family)) {
-          call(m.fx, 'addXp', FAMILY_SKILL[m.family], share(ev.amount * COMBAT_XP.hitXpPerDamage));
+        if (m && t && t.side === 'mon' && ev.amount > 0) {
+          const skill = hitSkillOf(m.family, ev.ability);
+          if (skill) call(m.fx, 'addXp', skill, share(ev.amount * COMBAT_XP.hitXpPerDamage));
         }
         if (m && ev.crit === true) { m.state.stats = m.state.stats || {}; m.state.stats.crits = (m.state.stats.crits || 0) + 1; }
         /* A status tick (`dot`: poison, burn, bleed) is not a blow: it trains no Defense (Tyler 2026-10-22). */

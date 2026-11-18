@@ -279,9 +279,12 @@ async function pureRules(M) {
       L.actCoach(ctxOf(cs), {}, 'coach-got', { type: 'click', target: on });
       const hid = cs.record.residue.coach && cs.record.residue.coach.hid;
       if (!Array.isArray(hid) || !hid.includes(card.id)) fail('TC-7 Got it did not record the card hidden: ' + JSON.stringify(cs.record.residue.coach));
-      if (L.heldCard(ctxOf(cs)) !== null) fail('TC-7 the card is still held after Got it');
+      /* ...and passed by, not held: the next card whose conditions hold shows, or none (2026-11-18: a hidden card held every later one) */
+      const after = L.heldCard(ctxOf(cs));
+      if (after && after.id === card.id) fail('TC-7 the card is still held after Got it');
       const again = reloaded(M, cs);
-      if (L.heldCard(ctxOf(again)) !== null) fail('TC-7 the card came back after a reload');
+      const back = L.heldCard(ctxOf(again));
+      if (back && back.id === card.id) fail('TC-7 the card came back after a reload');
       /* the server's chain moved on: the next card shows */
       const next = reloaded(M, cs, { hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'left' }, hero: {}, pose: { units: [] } } });
       const nc = L.heldCard(ctxOf(next));
@@ -313,7 +316,7 @@ const MUTANTS = [
   ['the criers ignore Show tips', 'src/shell/town-criers.js', '|| !switchOn(account.characters(), TIPS)', '|| false'],
   ['the line loses its link', 'src/shell/town-criers.js', 'if (target) parts.push(', 'if (false) parts.push('],
   ['a hero who has hunted is told the gate', 'src/session/crier-facts.js', 'unhunted: lv.xp === 0,', 'unhunted: true,'],
-  ['the coach ignores a hidden card', 'src/shell/launcher.js', 'if (hid && hid.has(card.id)) card = null;', ''],
+  ['the coach ignores a hidden card', 'src/shell/launcher.js', '    hid: coachHidOf(cs),\n', ''],
   ['the coach ignores Show tips', 'src/shell/launcher.js', 'if (cs && !tipsOn(ctx)) { HELD.delete(cs); return null; }', ''],
   ['Got it records nothing on a server-fact card', 'src/shell/launcher.js', 'if (card.gotIt || readable(card)) markCoachRead(cs, card); else markCoachHid(cs, card);', 'if (card.gotIt || readable(card)) markCoachRead(cs, card);'],
   ['Don\'t show tips presses nothing', 'src/shell/launcher.js', "if (action === 'coach-off') { setSwitch(heroesOf(ctx), TIPS, false, serverNowOf(cs)); return true; }", "if (action === 'coach-off') return true;"],

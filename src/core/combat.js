@@ -209,7 +209,23 @@ export function equipmentStats(equipment, items) {
   /* +SKILL (SKILL_PLUS_FIELDS above): present only on a hero whose gear carries any, so every other hero's stats are what they were. */
   const plus = skillPlusWorn(equipment, items);
   if (plus) Object.assign(s, { skillPlus: plus });
+  /* THE OWN HEAL (itemization plan §7, the fist line's sustain; src/data/fists.js): a worn piece's `selfHealPm`, permille of max HP back
+     every second while hurt (src/core/hunt/pull-cycle.js tickHeroes). The largest worn, never a sum, so a second piece carrying one adds
+     nothing; present only on a hero that wears one, so every other hero's stats are what they were. */
+  const selfHeal = selfHealWorn(equipment, items);
+  if (selfHeal) Object.assign(s, { selfHealPm: selfHeal });
   return s;
+}
+
+/* The largest whole `selfHealPm` (> 0) of a worn set, or 0. */
+function selfHealWorn(equipment, items) {
+  let best = 0;
+  for (const id of Object.values(equipment || {})) {
+    const it = id && items && Object.prototype.hasOwnProperty.call(items, id) ? items[id] : null;
+    const n = it ? it.selfHealPm : 0;
+    if (Number.isInteger(n) && n > best) best = n;
+  }
+  return best;
 }
 
 /* The summed `resistPm` of a worn set, normalised (elements.js resistProfile), or null. */

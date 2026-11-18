@@ -219,7 +219,8 @@ export async function loadPlay(root) {
   /* kitFor(L, role, full): the worn set a measured hero at Level L wears (the ladder kit, or the full own-tier set), so a
      test can wear one hero differently and the rest as measured (drop-tables.mjs ranger-floor: the crossbow and shield). */
   const kitFor = (L, role, full) => (full ? fullKit(L, role) : kit(L, role));
-  return { run, kitFor, MONSTERS, ITEMS, vendorPriceOf: CAT.vendorPriceOf, basics: SB.BASIC_INDEX };
+  /* refBar(huntId): the reference bar a measured hero runs (above), so a test can add its own ability lane beside the ground's food and drink. */
+  return { run, kitFor, refBar, MONSTERS, ITEMS, vendorPriceOf: CAT.vendorPriceOf, basics: SB.BASIC_INDEX };
 }
 
 export async function play(root, only) {

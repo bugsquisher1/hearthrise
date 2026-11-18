@@ -68,7 +68,16 @@ const ABILITY = 'assets/icons-bundle/pixel/abilities';
     share a shelf (src/data/catalogue-coherence.js reachableSources); it gets its own when it opens. A new pair is a finding. */
 const KNOWN_TWINS = [
   ['graypelt_cloak', 'woolen_cloak'], ['skulkers_shiv', 'bronze_knife'],
-  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['torn_company_badge', 'warlord_badge']];
+  ['rat_kings_crown', 'crown_of_the_fallen_king'], ['torn_company_badge', 'warlord_badge'],
+  /* THE UNMARKED CATACOMBS' DESCENT (lane/c-catacombs, 2026-11-18): its twelve armor pieces wear their standard twin's drawing and its eight
+     keys the Tower key of their metal, until their own PixelLab picks land with the Catacombs tab (v0.2.140). No hero reaches any of them
+     while the switch unmarked_catacombs is off. Each pair goes when its own icon does. */
+  ['iron_helm', 'tinkers_kettle'], ['studded_helmet', 'ratters_hood'], ['adept_helmet', 'midwifes_hat'], ['iron_boots', 'hodmans_boots'],
+  ['studded_boots', 'tanners_boots'], ['adept_boots', 'washerwomans_slippers'], ['mithril_helm', 'cranemans_helm'], ['snakeskin_helmet', 'fletchers_hood'],
+  ['warlock_helmet', 'bakers_cap'], ['mithril_boots', 'dockhands_boots'], ['snakeskin_boots', 'sewermans_boots'], ['warlock_boots', 'fishwifes_slippers'],
+  ['tower_key_bronze', 'waterlogged_key_bronze'], ['tower_key_silver', 'waterlogged_key_silver'], ['tower_key_gold', 'waterlogged_key_gold'],
+  ['tower_key_platinum', 'waterlogged_key_platinum'], ['tower_key_bronze', 'bone_key_bronze'], ['tower_key_silver', 'bone_key_silver'],
+  ['tower_key_gold', 'bone_key_gold'], ['tower_key_platinum', 'bone_key_platinum']];
 
 /** Byte-identical icon files under two ids, except the listed twins. */
 export function checkDuplicates(dir, ids, twins = KNOWN_TWINS) {

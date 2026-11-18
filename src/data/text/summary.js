@@ -62,6 +62,10 @@ export const SUMMARY_TEXT = Object.freeze({
   buy_dummy_words: 'Train at home, no hourly fee',
   buy_room: 'Next buy: {room} upgrade ({price})',
   buy_room_words: 'Next: {rung}',
+  /* THE NEXT GROUND (src/shell/hunt-list.js nextGroundFrom; audit 2026-11-18 A12: Hunt again kept a hero in the Mill Cellar all night after Level 5):
+     the Hunts list's Recommended ground when it is a step up from the one just hunted. {band} its Levels, {levels} the hero's (or the party's) */
+  ground_up: 'Next ground: {ground}',
+  ground_up_words: '{band}, recommended for {levels}',
   /* The answers. */
   selling: 'Selling…',
   depositing: 'Depositing…',

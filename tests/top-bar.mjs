@@ -429,7 +429,7 @@ async function checks(overrides, shots, firstRed = false) {
 const MUTANTS = [
   ['Tamsin\'s tally back in the row', 'src/data/shell-windows.js', "id: 'tally', label: 'Tamsin\\'s tally', key: 'q', group: 'town',", "id: 'tally', label: 'Tamsin\\'s tally', key: 'q',"],
   ['the Menu group holds Settings alone', 'src/data/shell-windows.js', "id: 'report', label: 'Report a problem', key: 'f', group: 'menu',", "id: 'report', label: 'Report a problem', key: 'f', launcher: false,"],
-  ['a pick leaves the menu open', 'src/shell/launcher-menu.js', "if (ev.type === 'click') { setMenu(ctx, el, null, draw); ctx.wm.open(id); return true; }", "if (ev.type === 'click') { ctx.wm.open(id); return true; }"],
+  ['a pick leaves the menu open', 'src/shell/launcher-menu.js', "if (ev.type === 'click') { setMenu(ctx, el, null, draw); if (tab) ctx.wm.openTab(id, tab); else ctx.wm.open(id); return true; }", "if (ev.type === 'click') { if (tab) ctx.wm.openTab(id, tab); else ctx.wm.open(id); return true; }"],
   ['a window opened by key leaves the menu open', 'src/shell/launcher-menu.js', '  if (m && m.seen !== openKey(ctx.wm)) { MENU.delete(ctx.wm); return null; }', ''],
   ['Esc over the menu opens Settings too', 'src/shell/launcher-menu.js', '    e.preventDefault(); e.stopPropagation();\n    shut(true);', '    shut(true);'],
   ['a press elsewhere leaves the menu open', 'src/shell/launcher-menu.js', "  doc.addEventListener('pointerdown', (e) => { if (!(e.target.closest && e.target.closest('.hs-launch-group.is-menu'))) shut(false); }, true);", ''],

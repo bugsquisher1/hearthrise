@@ -15,6 +15,7 @@
 //   recommendation(levels, size)  the Hunts window's default pick for this hero
 //                        or this party's levels, and a plain note when no ground
 //                        built for the group holds them
+//   nextGroundFrom(hunt, levels, size)  the advice's ground when it is a step up from `hunt` (the summary's Next ground)
 //   partyNote(hunt)     the ground's party rule in words, from ITS row (the
 //                        pocket carrying forParty and the boss standing in it),
 //                        or '' for a ground with no party-only pocket
@@ -238,6 +239,22 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
 /** The recommended ground's row alone (see recommendation). */
 export function recommendedHunt(levels, partySize = 1, rows = huntRows()) {
   return recommendation(levels, partySize, rows).row;
+}
+
+/** The Levels the advice reads: this hero's `level`, or every seat's in its `party` (partyMembershipOf), this hero's own at `level`. All the server's. */
+export const adviceLevels = (level, party) => (party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level);
+
+/**
+ * THE NEXT GROUND, OFF THE GROUND JUST HUNTED (audit 2026-11-18 A12: on a phone "Hunt again" kept a hero in the Mill Cellar all night after
+ * Level 5, and nothing on the summary said there was a better ground): the advice's ground (recommendation: the Hunts list's own
+ * "Recommended" line) when it stands on a higher floor than `hunt`, else null. A ground the list does not hold (the Tower, a called boss, a
+ * training session) has no next. Advice only: Hunt again still sends what it sends. Pure.
+ */
+export function nextGroundFrom(hunt, levels, partySize = 1, rows = huntRows(), bests = null) {
+  const was = rows.find((r) => r.hunt === hunt);
+  if (!was) return null;
+  const rec = recommendation(levels, partySize, rows, bests);
+  return rec.row && !rec.note && rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;
 }
 
 /**

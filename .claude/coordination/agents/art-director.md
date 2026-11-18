@@ -1,5 +1,24 @@
 # Art Director — running log
 
+## 2026-11-18 - Configure action: the list gets the height (lane/b-ui-configure, from v0.2.137, UI audit #7)
+
+Tyler: the Configure action UX must be immaculate. Three named problems, today's structure and tabs kept:
+- **Phone 922x423, 0 rows -> 3 in town (2 in a hunt).** The sentence runs on one line (the action, its first condition, "+ Add a
+  condition"; `.ca-conds` display: contents in a row-wrap flex), each select as wide as its word (`field-sizing: content`), the
+  run's name heads its name column (Food, Drink) instead of its own h3 line, and "g per HP, cheapest first" became "g per HP" (it
+  stood four lines tall; the bold column shows the order).
+- **Desktop: no head or cell wraps.** Window 800 -> 880; the list takes the width the detail leaves (detail clamp(232px, 28%, 320px));
+  number columns sized for GitHub's fallback faces, not Alegreya (the rules draw DejaVu: "1 Rupture rune" 137 px vs 112 real). The
+  empty slot's details pane says "Pick a spell to see what it does" (by tab). A spell's target label stands on its own line ("Hits
+  the target Deals 6-10" ran together).
+- **A lock names its need** under the row's name: the first thing that stops it, as the bar's refusal orders it (action-facts.js
+  rowNeed: the weapon words, else "Melee 10" from the server's skills). A spell under its `unlock` level is now locked too, like ammo.
+Lessons: (1) the page guards measure with pinned fallback faces (tests/_test-fonts.mjs): size a column on the test's widths, the real
+font only shows slack; (2) PH-1's old "heads on one line" check compared each head to the row of heads, which grows with a wrapped head,
+so it never saw the four-line head: measure each cell against its own font size; (3) in a hunt the phone sheet starts under the hunt
+bar, 44 px lower than town: test both; (4) a configure-action.js `t` would shadow act()'s element parameter (text-home TH-5): put the
+words in action-table.js and pass them through; (5) custom properties outside tokens.css fail token-single-source: inline the px.
+
 ## 2026-11-16 - whole device px at 125 % and 150 % (lane/a-visual-audit, from main v0.2.133)
 
 Tyler: blurry and grainy at Windows display scaling. Lessons worth keeping:

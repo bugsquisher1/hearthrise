@@ -856,7 +856,7 @@ label.st-line { cursor: pointer; }
   .ca-pinned.is-on { display: none; }
   .ca-detail { position: sticky; top: 0; max-height: calc(100vh - 160px); overflow-y: auto; overscroll-behavior: contain; }
   /* (the gold and cooldown columns, data-c 1, give way to the detail beside the list) */
-  .ca-head, .ca-row { grid-template-columns: var(--icon-1) minmax(0, 1fr) 64px 88px 64px; column-gap: 8px; }
+  .ca-head, .ca-row { grid-template-columns: var(--icon-1) minmax(0, 1fr) 64px 88px 64px; column-gap: 6px; padding: 0 4px; }
   .ca-row.is-spell, .ca-run[data-run="spells"] .ca-head { grid-template-columns: var(--icon-1) minmax(0, 1fr) 44px 140px; }
   /* The heads stick to the sheet's scroller while their run scrolls under them: solid, so no row reads through. */
   .ca-head { min-height: 24px; background: var(--bg-0); }

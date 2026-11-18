@@ -166,7 +166,13 @@ export const BOSS_CALL_WORDS = Object.freeze({
   }),
   /* Why the press is off, beside it, before anything was pressed (the quote's `why`, the server's; {who} the seat it names, {fee} and
      {staminaMin} one fight's price). The same codes answer a press in `refused` below, where they also say nobody was charged. */
+  /* NATURAL WINS BEFORE THE CALL (Tyler 2026-11-18; the quote's `wins` and the envelope's entry_gates.calls, the server's numbers): {name} the
+     boss's own name (monsters.js `n` of the row the call copies), {have} and {need} the server's count and number, {who} a seat's name. A label
+     a line: this hero's own count while it falls short, then each other seat that does. */
+  wins: '{name} wins: {have}/{need}',
   cant: Object.freeze({
+    call_wins: 'Requires {need} {name} wins',
+    party_wins: '{who}: {name} wins {have}/{need}',
     call_leader: 'Party leader only',
     call_stamina: 'Requires {staminaMin} min of stamina a fight',
     insufficient_gold: 'Requires {fee} gp a fight',
@@ -197,6 +203,8 @@ export const BOSS_CALL_WORDS = Object.freeze({
   }),
   /* The verb's own refusals (src/data/refusal-words.js holds them for the table's walker; this is the worded row). Each says it charged nothing. */
   refused: Object.freeze({
+    call_wins: 'Requires {need} {name} wins, not charged',
+    party_wins: '{who}: {name} wins {have}/{need}, nobody charged',
     call_leader: 'Party leader only',
     bad_fights: 'Pick 1 to {max} fights, not charged',
     call_stamina: 'Requires {staminaMin} min of stamina a fight, not charged',

@@ -2,10 +2,14 @@
 // Usage: node tools/qa/itemization-audit.mjs <section>
 //   probe | grounds | gear | recipes | dead | shop
 // Reads the data modules only. Changes nothing.
-import { ITEMS } from '../../src/data/items.js?v=0.2.137';
-import * as CC from '../../src/data/catalogue-coherence.js?v=0.2.137';
-import * as HG from '../../src/data/hunt-grounds.js?v=0.2.137';
-import { HUNT_INDEX } from '../../src/data/hunts.js?v=0.2.137';
+import { readFileSync } from 'node:fs';
+/* the data modules at the build's own ?v= (src/build-info.js), so they are the same instances their own imports load (no version is written here) */
+const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(new URL('../../src/build-info.js', import.meta.url), 'utf8')) || [, ''])[1];
+const imp = (p) => import(new URL('../../src/data/' + p, import.meta.url).href + V);
+const { ITEMS } = await imp('items.js');
+const CC = await imp('catalogue-coherence.js');
+const HG = await imp('hunt-grounds.js');
+const { HUNT_INDEX } = await imp('hunts.js');
 
 const { MONSTERS, ARTISAN_RECIPES, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS } = CC;
 const sec = process.argv[2] || 'probe';
@@ -37,7 +41,7 @@ const usedBy = new Map();
 for (const [skill, list] of Object.entries(ARTISAN_RECIPES)) for (const r of list || []) {
   const ins = CC.recipeInputs(r);
   let outs = [];
-  try { outs = (await import('../../src/data/jewelry.js?v=0.2.137')).recipeOutcomes(r); } catch { outs = [r.output]; }
+  try { outs = (await imp('jewelry.js')).recipeOutcomes(r); } catch { outs = [r.output]; }
   for (const o of outs) if (o) { if (!madeBy.has(o)) madeBy.set(o, []); madeBy.get(o).push({ skill, req: r.req, ins, xp: r.xp, ms: r.ms, gated: r.gated, id: r.id }); }
   for (const i of Object.keys(ins)) { if (!usedBy.has(i)) usedBy.set(i, []); usedBy.get(i).push({ skill, req: r.req, out: r.output || r.id }); }
 }

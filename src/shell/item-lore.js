@@ -37,7 +37,7 @@ import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromK
 import { FLAMES } from '../data/hearth.js?v=0.2.140';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.140';
 import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.140';
-import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS } from '../data/jewelry.js?v=0.2.140';
+import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS, JEWEL_PIECES, JEWEL_PERKS, perksFor } from '../data/jewelry.js?v=0.2.140';
 import { t, hasText } from '../render/player-text.js?v=0.2.140';
 import { baneIndex, baneMultFor, classOfMonster } from '../core/bane.js?v=0.2.140';
 import { resistProfile } from '../core/elements.js?v=0.2.140';
@@ -346,6 +346,13 @@ export function needOf(id, skills, level) {
 export function shortOf(id, skills, level) {
   const need = needOf(id, skills, level);
   return need && need.short ? need : null;
+}
+
+/** The perks a PLAIN crafted piece can come out with when a gem is set in it at its bench (src/data/jewelry.js perksFor: its slot's
+    pool the engine plays), as names; [] for any other item (a graded piece shows its own perks). The 140 notes said what Fine Fang Studs
+    do and the plain card said only its crit (post-140 audit C11): the card now names what the piece can become, from the bench's table. */
+export function possiblePerksOf(id) {
+  return typeof id === 'string' && Object.prototype.hasOwnProperty.call(JEWEL_PIECES, id) ? perksFor(id).map((p) => JEWEL_PERKS[p].name) : [];
 }
 
 /** The item's description line, or ''. */

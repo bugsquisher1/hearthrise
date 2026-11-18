@@ -12,7 +12,8 @@
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { whole, gold } from '../../render/format.js?v=0.2.140';
 import { itemName } from '../widgets/bits.js?v=0.2.140';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, groundEdgeWords } from '../item-lore.js?v=0.2.140';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, groundEdgeWords, possiblePerksOf } from '../item-lore.js?v=0.2.140';
+import { t } from '../../render/player-text.js?v=0.2.140';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.140';
 import { planWords } from '../loot-dispatch.js?v=0.2.140';
 import { pieceWords } from '../../data/armour-weights.js?v=0.2.140';
@@ -42,6 +43,9 @@ function tipHtml(id, o) {
   const perks = ITEMS[id] && ITEMS[id].jewelPerks ? Object.entries(ITEMS[id].jewelPerks) : [];
   if (perks.length) h += '<dl class="hw-tip-stats hw-tip-perks">' + perks.map(([p, pm]) => '<dt>' + esc(JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p) + '</dt><dd>' + esc(perkWords(p, pm)) + '</dd>').join('') + '</dl>'
     + '<p class="hw-tip-line"><small>Perks</small>No stacking across pieces</p>';
+  /* a plain crafted piece: the perks a gem set in it at its bench can add (item-lore.js possiblePerksOf) */
+  const may = possiblePerksOf(id);
+  if (may.length) h += '<p class="hw-tip-line"><small>' + esc(t('item.perks_possible')) + '</small>' + esc(may.join(', ')) + '</p>';
   /* ON THIS GROUND (lane/a-honest-lines): a unique that reads worse than the ladder's piece can still win where the hero hunts, by its
      bane or its resistance against the monsters there. Nothing when it does nothing special there, or no ground is known. */
   const edge = groundEdgeWords(id, opt.ground);

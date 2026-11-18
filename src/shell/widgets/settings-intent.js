@@ -15,14 +15,14 @@
 //
 // Controls are marked `data-opt="<key>"`; buttons carry `data-val`.
 // ════════════════════════════════════════════════════════════════════════
-import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.138';
-import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.138';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.138';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
-import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.138';
-import { answerWithin } from '../bar-draft.js?v=0.2.138';
-import { refusalText } from '../intent-words.js?v=0.2.138';
-import { t } from '../../render/player-text.js?v=0.2.138';
+import { TARGET_MODES, HUNT_STANCES, HERO_DISTANCE } from '../../data/rule-subjects.js?v=0.2.139';
+import { GOLD_FLOOR } from '../../data/hunt-sessions.js?v=0.2.139';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
+import { text, attr, prop, cls } from '../../render/paint.js?v=0.2.139';
+import { answerWithin } from '../bar-draft.js?v=0.2.139';
+import { refusalText } from '../intent-words.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
 
 /* The server's refusal reads from the one table (src/data/refusal-words.js via intent-words.js refusalText). */
 

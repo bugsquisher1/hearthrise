@@ -29,31 +29,31 @@
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
 // Farming has no door here: it is grown in plots, which this window does not run.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.138';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.138';
-import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.138';
-import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage, equipmentOf } from '../../session/item-sections.js?v=0.2.138';
-import { levelOf } from '../../session/character-sections.js?v=0.2.138';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.138';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.138';
-import { whole } from '../../render/format.js?v=0.2.138';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
-import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js?v=0.2.138';
-import { runIntent } from '../intent-words.js?v=0.2.138';
-import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.138';
-import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, BENCH_MAX, clampCount, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.138';
-import { patchParts, placesParts } from '../goto.js?v=0.2.138';
-import { saleWords } from '../item-lore.js?v=0.2.138';
-import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.138';
-import { feeLineWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.138';
-import { outputVsWorn, ladderOf } from '../bench-output.js?v=0.2.138';
-import { showTip, hideTip } from './item-tip.js?v=0.2.138';
-import { kindOf, equipSlotFor } from '../bag-model.js?v=0.2.138';
-import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.138';
-import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.138';
-import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.138';
-import { t } from '../../render/player-text.js?v=0.2.138';
-import { heroGroundOf } from '../widgets/first-target.js?v=0.2.138';
+import { SKILLS_DEF } from '../../data/skills.js?v=0.2.139';
+import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.139';
+import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.139';
+import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage, equipmentOf } from '../../session/item-sections.js?v=0.2.139';
+import { levelOf } from '../../session/character-sections.js?v=0.2.139';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.139';
+import { whole } from '../../render/format.js?v=0.2.139';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
+import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js?v=0.2.139';
+import { runIntent } from '../intent-words.js?v=0.2.139';
+import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.139';
+import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, BENCH_MAX, clampCount, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.139';
+import { patchParts, placesParts } from '../goto.js?v=0.2.139';
+import { saleWords } from '../item-lore.js?v=0.2.139';
+import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.139';
+import { feeLineWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.139';
+import { outputVsWorn, ladderOf } from '../bench-output.js?v=0.2.139';
+import { showTip, hideTip } from './item-tip.js?v=0.2.139';
+import { kindOf, equipSlotFor } from '../bag-model.js?v=0.2.139';
+import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.139';
+import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.139';
+import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
+import { heroGroundOf } from '../widgets/first-target.js?v=0.2.139';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;

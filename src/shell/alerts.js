@@ -48,33 +48,33 @@
 // Nothing here gates or spends anything; the "Start again" button is an
 // intent (CharacterSession.restartHunt) like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_INDEX } from '../data/alerts.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.138';
-import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.138';
-import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.138';
-import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.138';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.138';
-import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.138';
-import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.138';
-import { noShotWords } from './hunt-go.js?v=0.2.138';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.138';
-import { deathSeen } from './death-popup.js?v=0.2.138';
-import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.138';
-import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.138';
-import { benchStopRecapOf } from './bench-fee.js?v=0.2.138';
-import { workDoneOf, runningRunKey, titleNewsOf } from './town-news.js?v=0.2.138';
-import { workRow } from './town-work.js?v=0.2.138';
-import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.138';
-import { tallyTask } from '../data/tally-tasks.js?v=0.2.138';
-import { gold } from '../render/format.js?v=0.2.138';
-import { levelOf } from '../session/character-sections.js?v=0.2.138';
-import { ITEMS } from '../data/items.js?v=0.2.138';
-import { trackOnce } from '../net/observability.js?v=0.2.138';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.138';
-import { endedWords as trainingEndWords } from './training-words.js?v=0.2.138';
-import { spellWatch, movesOnBar } from './spell-news.js?v=0.2.138';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.138';
+import { ALERT_INDEX } from '../data/alerts.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.139';
+import { huntOf, settingsOf } from '../session/hunt-sections.js?v=0.2.139';
+import { carriedOf, nameOf, huntLootOf } from '../session/item-sections.js?v=0.2.139';
+import { huntName, invitesOf, noticesOf, partyMembershipOf } from '../session/party-sections.js?v=0.2.139';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.139';
+import { cameHomeWords, noticeWords, staminaLowWords } from '../data/party-words.js?v=0.2.139';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.139';
+import { noShotWords } from './hunt-go.js?v=0.2.139';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
+import { deathSeen } from './death-popup.js?v=0.2.139';
+import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.139';
+import { awayRecapOf, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.139';
+import { benchStopRecapOf } from './bench-fee.js?v=0.2.139';
+import { workDoneOf, runningRunKey, titleNewsOf } from './town-news.js?v=0.2.139';
+import { workRow } from './town-work.js?v=0.2.139';
+import { tallyOf, pickWords } from '../session/tally-sections.js?v=0.2.139';
+import { tallyTask } from '../data/tally-tasks.js?v=0.2.139';
+import { gold } from '../render/format.js?v=0.2.139';
+import { levelOf } from '../session/character-sections.js?v=0.2.139';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { trackOnce } from '../net/observability.js?v=0.2.139';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.139';
+import { endedWords as trainingEndWords } from './training-words.js?v=0.2.139';
+import { spellWatch, movesOnBar } from './spell-news.js?v=0.2.139';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.139';
 
 const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 

@@ -20,7 +20,7 @@
 // PURE: RGBA in, RGBA out (in place). No DOM. Node (tools/world-art/tower-pours.mjs) and the browser (monster-pour.js) share it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { PALETTE_RGB } from '../data/world/palette.js?v=0.2.138';
+import { PALETTE_RGB } from '../data/world/palette.js?v=0.2.139';
 
 /* The opacity cut of the world's art (src/data/world/palette.js ALPHA_CUT): the art has no partial alpha. */
 const OPAQUE = 128;

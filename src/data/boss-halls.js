@@ -26,11 +26,11 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from './boss-calls.js?v=0.2.138';
-import { HUNT_INDEX } from './hunts.js?v=0.2.138';
-import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.138';
-import { MONSTERS } from './monsters.js?v=0.2.138';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.138';
+import { BOSS_CALLS } from './boss-calls.js?v=0.2.139';
+import { HUNT_INDEX } from './hunts.js?v=0.2.139';
+import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.139';
+import { MONSTERS } from './monsters.js?v=0.2.139';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
 
 export const BOSS_HALL_RULES = Object.freeze({
   /* The fight's limit from the first swing, the called rooms' ten minutes (the design: "a 10 minute limit"). */

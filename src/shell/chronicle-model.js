@@ -6,11 +6,11 @@
 // groundsSeenOf) and the kills the `titles` section counts. Nothing here is kept or remembered by the client, so a reload,
 // another device or a closed browser shows the same pages (CLAUDE.md §6). Display only: it gates, spends and stores nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { CHRONICLE } from '../data/chronicle.js?v=0.2.138';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
-import { groundsSeenOf } from '../session/hunt-sections.js?v=0.2.138';
-import { titlesOf } from '../session/character-sections.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
+import { CHRONICLE } from '../data/chronicle.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { groundsSeenOf } from '../session/hunt-sections.js?v=0.2.139';
+import { titlesOf } from '../session/character-sections.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 /** Is page `p` open for what the server said: `seen` the grounds hunted (a Set), `kills` title id -> the server's count (a Map). Pure. */
 function pageOpen(p, seen, kills) {

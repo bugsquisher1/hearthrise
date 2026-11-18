@@ -15,18 +15,18 @@
 //
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts, nothing a player can spend, no intent and no residue.
 // ════════════════════════════════════════════════════════════════════════
-import { prop, attr, text, cls, style } from '../../render/paint.js?v=0.2.138';
-import { whole, chance, listWords } from '../../render/format.js?v=0.2.138';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
-import { t } from '../../render/player-text.js?v=0.2.138';
-import { glyphSvg, itemIconHtml } from '../widgets/bits.js?v=0.2.138';
-import { skillPages, groundPages, formulaPages, levelXpRows } from '../wiki-model.js?v=0.2.138';
-import { chronicleOf } from '../chronicle-model.js?v=0.2.138';
-import { levelOf } from '../../session/character-sections.js?v=0.2.138';
-import { linkHtml, targetOf, gotoAttr } from '../goto.js?v=0.2.138';
-import { factsTarget } from './monster.js?v=0.2.138';
-import { LINEUP_SPRITE } from './hunt-detail.js?v=0.2.138';
-import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.138';
+import { prop, attr, text, cls, style } from '../../render/paint.js?v=0.2.139';
+import { whole, chance, listWords } from '../../render/format.js?v=0.2.139';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
+import { glyphSvg, itemIconHtml } from '../widgets/bits.js?v=0.2.139';
+import { skillPages, groundPages, formulaPages, levelXpRows } from '../wiki-model.js?v=0.2.139';
+import { chronicleOf } from '../chronicle-model.js?v=0.2.139';
+import { levelOf } from '../../session/character-sections.js?v=0.2.139';
+import { linkHtml, targetOf, gotoAttr } from '../goto.js?v=0.2.139';
+import { factsTarget } from './monster.js?v=0.2.139';
+import { LINEUP_SPRITE } from './hunt-detail.js?v=0.2.139';
+import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.139';
 
 const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
 /* The creature art loaded so far (null until the first lands) and the creatures already asked for: the Hunts window's own way. */

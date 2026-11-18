@@ -14,10 +14,10 @@
 // The answer names the bar's SLOTS that hold that food (1 = the bar's first), the slot a player changes. Display only: nothing here
 // gates a press; the hunt always runs.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.138';
-import { storeName } from './bar-draft.js?v=0.2.138';
-import { whole, listWords } from '../render/format.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
+import { storeName } from './bar-draft.js?v=0.2.139';
+import { whole, listWords } from '../render/format.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 /* What one store food heals, from the server's own store rows: null when the server sent no heal row for it. */
 function healOf(set, id) {

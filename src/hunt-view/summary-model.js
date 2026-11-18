@@ -18,20 +18,20 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.138';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.138';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.138';
-import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.138';
-import { lossLine, seriesLine } from './boss-loss.js?v=0.2.138';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.138';
-import { callOf } from '../session/hunt-sections.js?v=0.2.138';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.138';
-import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.138';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.138';
-import { ITEMS } from '../data/items.js?v=0.2.138';
-import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.139';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.139';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.139';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.139';
+import { lossLine, seriesLine } from './boss-loss.js?v=0.2.139';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.139';
+import { callOf } from '../session/hunt-sections.js?v=0.2.139';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.139';
+import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.139';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 export { sanitizeSummaries };
 

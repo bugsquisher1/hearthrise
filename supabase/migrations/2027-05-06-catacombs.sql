@@ -480,7 +480,7 @@ drop function if exists public.hr_tower_board_rise();
 -- press: a wing, a landing), p_code the Level refusals' prefix (<code>_level, <code>_party_level). The caller has checked the shape and the
 -- switch; this body takes the lock, the key under it, the sessions, the Level and the record under their locks, and journals once.
 create or replace function public.hr_run_start(p_uid uuid, p_slot int, p_hunt text, p_landing int, p_idem uuid, p_verb text, p_intent text, p_code text)
-returns jsonb language plpgsql set search_path = public, pg_catalog as $fn$
+returns jsonb language plpgsql security definer set search_path = public, pg_catalog as $fn$
 declare
   c_verb constant text := p_verb;
   v_uid uuid := p_uid; v_hunt text; v_mode text; v_verb text := p_intent; v_r jsonb; v_no jsonb; v_sid uuid; v_ver bigint; v_a jsonb;
@@ -493,7 +493,10 @@ begin
     from public.hr_tower_rules r left join public.hr_ground_session_modes g on g.hunt_id = r.hunt_id where r.hunt_id = p_hunt;
   if v_hunt is null or v_mode is null then
     return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'catalogue_missing')); end if;
-  -- (the key's first read and the rate gate are the calling door's own, before it calls here: hr_assert_grant_hygiene's A9 reads them there)
+  -- THE KEY, BEFORE THE LOCK (the calling door read it too, before its rate gate: hr_assert_grant_hygiene's A9 reads the gate there). Read
+  -- again here so this body carries the whole shape tests/key-under-lock.mjs KL-CLASS holds every door to: a read, the lock, a read again.
+  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);
+  if v_r is not null then return public.hr_note_rejection(c_verb, p_slot, v_r); end if;
   -- THE LOCK: this hero's ONE run door (the Tower's and every wing's: a hero can't race a climb against a descent), which only the doors take
   -- (hr_boss_hall_enter's move, 2027-04-20-boss-hall.sql), before every lock hr_hunt_enter_for takes below (the character, its bag, the play cap).
   perform pg_advisory_xact_lock(hashtextextended('hr:tower:' || v_uid::text || ':' || p_slot::text, 0));

@@ -528,7 +528,7 @@ const MUTANTS = [
   { name: 'the ordinary door admits the Tower', arm: 'start', want: /^TC-START the ordinary door/, fn: 'public.hr_hunt_admit(uuid,integer,text)',
     find: "    if current_setting('hr.tower', true) is distinct from p_hunt then", replace: '    if false then' },
   { name: 'the best is not written', arm: 'doors', want: /^TC-DOORS/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',
-    find: '  insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at, updated_at)', replace: '  return;\n  insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at, updated_at)' },
+    find: '  insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing, best_at, updated_at)', replace: '  return;\n  insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing, best_at, updated_at)' },
   { name: 'the arm writes on every apply', arm: 'arm', want: /^TC-ARM a second apply moved/, sql: { file: ARM_FILE, edits: [
     ["   where switch_id = 'burning_tower' and (scope <> 'everyone' or cardinality(accounts) <> 0);", "   where switch_id = 'burning_tower';"]] } },
   { name: 'the arm moves another switch', arm: 'arm', want: /^TC-ARM the file moved another switch row/, sql: { file: ARM_FILE, edits: [

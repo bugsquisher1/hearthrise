@@ -33,10 +33,15 @@
 // mitigation.js, the unit's resistPm); `engineView` reads that, and `uniquesIn` says, per piece, whether its attribute reaches
 // the engine at all (one with no hook yet is worn and plays as nothing). `tierOffset` moves the ladder only: a slot group with
 // an offset is dressed off the ladder, as before.
-import { pathToFileURL } from 'node:url';
-import { join } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
 import { weaponPower } from './weapon-power.mjs';
 import { armorPower, loadArmorPower } from './armor-power.mjs';
+
+/* The tools' own tree. A staged sample under tools/ (tools/balance-sim/staged/) is read from HERE, never from the `root` a guard plants:
+   a planted copy carries src/ and the edge, not the simulator's data (party-class-xp-line's mutants plant one and load this file). */
+const TOOLS_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const fileUrl = (root, p) => pathToFileURL(join(p.startsWith('tools/') ? TOOLS_ROOT : root, p)).href;
 
 /* THE STAGED GEAR CATALOGUES: [module, export]. Each export is { id: { row, source: { ground, monster, how }, attr } } (the
    design lanes' sample shape). A row whose id is already in ITEMS has shipped: the shipped row stands and the staged one is not read.
@@ -146,14 +151,14 @@ export async function loadGear(root) {
      over its spawn, so the grader picks the weapon the guard (tests/weapon-line.mjs) holds under the line */
   const WP = weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS: { ...HUNT_GROUNDS }, HUNT_INDEX: (await import(u('src/data/hunts.js') + v)).HUNT_INDEX,
     combat: await import(u('src/core/combat.js')), deriveProfile: MEMBER.deriveProfile, skillXpForLevel: (await import(u('src/core/xp.js'))).skillXpForLevel,
-    line: await import(u('tools/balance-sim/staged/weapon-line.js')) });
+    line: await import(fileUrl(root, 'tools/balance-sim/staged/weapon-line.js')) });
   /* THE ARMOR LINE'S MEASURE (armor-power.mjs, lane/d-armor-line-v2): a piece's score on the graded ground, so the grader wears the piece the
      guard (tests/armor-line.mjs) holds under the line */
   const APL = await loadArmorPower(root);
   const AP = armorPower(APL.mods), AP_WEIGHTS = new Set(Object.keys(APL.line.LINE_BASE)), AP_CACHE = new Map();
   const staged = new Map();
   for (const [file, name] of STAGED_GEAR) {
-    const cat = (await import(u(file)))[name] || {};
+    const cat = (await import(fileUrl(root, file)))[name] || {};
     for (const [id, s] of Object.entries(cat)) {
       if (own(ITEMS, id)) continue;
       if (staged.has(id)) throw new Error('balance-sim gear: staged row ' + id + ' is in two catalogues');

@@ -175,14 +175,15 @@ export function armorPower(mods) {
   return { read, wornWith, versus, againstLine, scoreOnDawn, setVsTemperedDawn, firstLevel, lateGrounds, huntedAt, levelOn, bandOf, lineRow, dawnRow, spawnsOf, fullTemper, weightOf };
 }
 
-/** The module instances a stand-alone reader uses (the guard's and this tool's): the bare src/ modules. */
+/** The module instances a stand-alone reader uses (the guard's and this tool's): the bare src/ modules from `root`, and the staged armor line
+    from this tool's own tree (a guard's planted copy carries src/, never tools/). */
 export async function loadArmorPower(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const [{ ITEMS }, { MONSTERS, monsterLevelOf }, { HUNT_GROUNDS }, { HUNT_INDEX }, combat, mitigation, temperCore, temperData, elements, spells, member, xp, line, core] = await Promise.all([
     import(u('src/data/items.js')), import(u('src/data/monsters.js')), import(u('src/data/hunt-grounds.js')), import(u('src/data/hunts.js')),
     import(u('src/core/combat.js')), import(u('src/core/mitigation.js')), import(u('src/core/temper.js')), import(u('src/data/temper.js')),
     import(u('src/core/elements.js')), import(u('src/data/monster-spells.js')), import(u('src/core/member.js')), import(u('src/core/xp.js')),
-    import(u('tools/balance-sim/staged/armor-line.js')), import(u('src/data/core-model.js'))]);
+    import(new URL('./staged/armor-line.js', import.meta.url).href), import(u('src/data/core-model.js'))]);
   return { mods: { ITEMS, MONSTERS, monsterLevelOf, HUNT_GROUNDS, HUNT_INDEX, combat, mitigation, temperCore, temperData, elements, spells,
     deriveProfile: member.deriveProfile, skillXpForLevel: xp.skillXpForLevel, line, capPm: core.ARMOUR_MITIGATION.capPm }, line };
 }

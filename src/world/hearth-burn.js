@@ -21,6 +21,9 @@
 //            answer's kind 'chest') the flue puffs SMOKE_BURST once for that window,
 //            from the first frame that sees it (src/data/world/hearth-moods.js).
 //            The server picks the one flame; nothing here ranks two.
+//   THE LOCKS   that same window sets the Hearth Chest's locks flashing warm gold once,
+//            fading back to green (CHEST_FLASH, from the frame that first sees it): a
+//            named flame or a bought powder never does (lane/a-chest-glow-139).
 // The firebox is the map's own `hearth_fire` ambient (src/data/world/town/sites.js
 // AMBIENT), so nothing here names a tile. A colour whose art the atlas lacks draws
 // the plain fire (never a missing sprite).
@@ -28,7 +31,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { FLAMES as NAMED_FLAMES, BURN_SHOW, HEARTH_FUELS, NAMED_FUELS, fuelRecipeId } from '../data/hearth.js?v=0.2.137';
 import { SHOW_FLAMES, POWDER_CHUNK } from '../data/gold-sinks.js?v=0.2.137';
-import { CHEST_FLAMES, SMOKE_CLIP, SMOKE_BURST } from '../data/world/hearth-moods.js?v=0.2.137';
+import { CHEST_FLAMES, SMOKE_CLIP, SMOKE_BURST, CHEST_FLASH } from '../data/world/hearth-moods.js?v=0.2.137';
 import { POURS } from './pour.js?v=0.2.137';
 
 /* The named colors, the bought powders and the chest's window, one table to draw from. A bought flame and the chest's stay out of
@@ -85,6 +88,18 @@ function createHearthBurn(map, o) {
     return pour || puffs.length ? { pour: pour ? { [SMOKE_CLIP]: pour } : null, puffs } : null;
   }
 
+  /* THE CHEST'S LOCKS FLASH, once a window: warm gold fading back to green (CHEST_FLASH), from the first frame that sees the server's window,
+     as the puff does; a named flame or a bought powder never sets it off */
+  let flashKey = null, flashAt = 0;
+  /** The chest's layers playing CHEST_FLASH ({ [layer]: { anim, age } } for core/compose.js state.ambientPlay) while it plays, or null. */
+  function chestFlash(h, now) {
+    if (!h || h.kind !== 'chest') return null;
+    if (h.key !== flashKey) { flashKey = h.key; flashAt = now; }
+    const age = now - flashAt;
+    if (age < 0 || age >= CHEST_FLASH.ms) return null;
+    return Object.fromEntries(CHEST_FLASH.layers.map((id) => [id, { anim: CHEST_FLASH.anim, age }]));
+  }
+
   /* one throw that started `age` ms ago from tile `from`: the chunk in its arc, then the flare (and named sparks) */
   function throwFx(out, from, chunk, age, flame) {
     if (age < 0) return;
@@ -112,11 +127,12 @@ function createHearthBurn(map, o) {
      *   thrown once from where the hero stands (at: when it arrived); errand: your one everyday fuel, the same;
      *   peers: others working at the Hearth's stands; flame: TownPresence.hearth()
      * @param {number} now  ms
-     * @returns {{ fx: object[], swap: object|null, life: {pour: object|null, puffs: object[]}|null }}  life: the flue's smoke (core/ambient.js lifeDraws)
+     * @returns {{ fx: object[], swap: object|null, life: {pour: object|null, puffs: object[]}|null, play: object|null }}  life: the flue's smoke
+     *   (core/ambient.js lifeDraws); play: the chest's locks flashing (core/compose.js state.ambientPlay)
      */
     frame(env, now) {
       const fx = [];
-      if (!mouth) return { fx, swap: null, life: null };
+      if (!mouth) return { fx, swap: null, life: null, play: null };
       const flame = env.flame && FLAMES[env.flame.flame] ? env.flame.flame : null;
       const every = BURN_SHOW.throwEveryMs;
       const cycle = (key, since, from, chunk) => {
@@ -136,7 +152,7 @@ function createHearthBurn(map, o) {
         if (a >= 0 && a < FLARE_MS) fx.push({ id: art(flame, 'sparks'), x: fire.x, y: fire.y, age: a, lift: (fire.lift || 0) / 20 });
       }
       const swap = flame && art(flame, 'fire') !== FLAMES.fire.fire ? { [FLAMES.fire.fire]: art(flame, 'fire') } : null;
-      return { fx, swap, life: smokeFrame(env.flame, flame, now) };
+      return { fx, swap, life: smokeFrame(env.flame, flame, now), play: chestFlash(env.flame, now) };
     },
   };
 }
@@ -170,7 +186,8 @@ export function createHearthView(map, o) {
      *   TownPresence.me(); active: the server's artisan pointer (state.active_id) or null; burn: lastBurn(); flame:
      *   hearth(); xp: the server's Inner Flame XP (skills section); hero: the hero as drawn
      * @param {number} now ms
-     * @returns {{ fx: object[], floats: object[], ambientSwap: object|null, lifeTint: object|null }}  lifeTint: the flue's smoke (core/compose.js state.lifeTint)
+     * @returns {{ fx: object[], floats: object[], ambientSwap: object|null, lifeTint: object|null, ambientPlay: object|null }}  lifeTint: the
+     *   flue's smoke (core/compose.js state.lifeTint); ambientPlay: the chest's locks flashing (state.ambientPlay)
      */
     frame(e, now) {
       /* WHEN THE HERO REACHED ITS HEARTH STAND (a new stand starts the clock again) */
@@ -208,7 +225,7 @@ export function createHearthView(map, o) {
         lastXp = e.xp;
       }
       while (floats.length && now - floats[0].at > XP_FLOAT_MS) floats.shift();
-      return { fx: out.fx, ambientSwap: out.swap, lifeTint: out.life,
+      return { fx: out.fx, ambientSwap: out.swap, lifeTint: out.life, ambientPlay: out.play,
         floats: floats.map((f) => ({ text: f.text, kind: f.kind, x: hero.x, y: hero.y - 1, age: now - f.at, life: XP_FLOAT_MS })) };
     },
   };

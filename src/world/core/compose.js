@@ -399,10 +399,11 @@ function standingOf(map, book, tables, T) {
  * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
  *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, bumpSeed?: number, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[],
- *          lifeTint?: object|null}} state
+ *          lifeTint?: object|null, ambientPlay?: Object<string, {anim: string, age: number}>|null}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0;
  *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js);
- *                           lifeTint: the Great Hearth's smoke under the server's flame (hearth-burn.js, core/ambient.js lifeDraws)
+ *                           lifeTint: the Great Hearth's smoke under the server's flame (hearth-burn.js, core/ambient.js lifeDraws);
+ *                           ambientPlay: a one-shot on an ambient row, `age` ms in (hearth-burn.js: the Hearth Chest's locks flashing)
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
  */
@@ -589,10 +590,15 @@ export function composeFrame(map, book, state, view, tables, T) {
     if (!name) continue;
     const n = book.frames(id, name, 's');
     const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
-    /* ...or now and then its BUMP (core/ambient.js bumpAt: the Hearth Chest jolts, its light flashes, it puffs), on the page's own luck, never with
-       the Idle animations off */
-    const b = s.anims.bump && state.stillIdle !== true ? bumpAt(state.t || 0, s.anims[name].fps || 0, n, book.frames(id, 'bump', 's'), state.bumpSeed) : -1;
-    const f = b < 0 ? book.frame(id, name, 's', i) : book.frame(id, 'bump', 's', b);
+    /* ...or a ONE-SHOT the server set off (state.ambientPlay, src/world/hearth-burn.js: the Hearth Chest's locks flash gold when its window
+       opens), `age` ms in, in place of the loop and of any bump; a row whose sprite has no such clip keeps its loop, unbumped, meanwhile */
+    const play = (state.ambientPlay && state.ambientPlay[a.id]) || null;
+    const shot = play && s.anims[play.anim] ? Math.floor((Math.max(0, play.age) * (s.anims[play.anim].fps || 0)) / 1000) : -1;
+    const once = shot >= 0 && shot < book.frames(id, play.anim, 's') ? shot : -1;
+    /* ...or now and then its BUMP (core/ambient.js bumpAt: the Hearth Chest jolts, it puffs), on the page's own luck, never with the Idle
+       animations off */
+    const b = !play && s.anims.bump && state.stillIdle !== true ? bumpAt(state.t || 0, s.anims[name].fps || 0, n, book.frames(id, 'bump', 's'), state.bumpSeed) : -1;
+    const f = once >= 0 ? book.frame(id, play.anim, 's', once) : b < 0 ? book.frame(id, name, 's', i) : book.frame(id, 'bump', 's', b);
     const px = Math.round((a.x + 0.5) * T + (a.dx || 0)), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
     /* a loop off the view is no change at all (the World paints only what changes): the view itself, no margin, as an effect casts nothing */
     const lx = px - f.ax, ly = py - f.ay;

@@ -3747,3 +3747,21 @@ line after the cut, so the MAP takes them in: hearth-plaza.mjs step 9 paints soo
 in the paving at pixel precision (east wider: the end in shadow), and sites.js lays existing scree, moss and weed decals by them (flat,
 open, no mirror). Lesson (7): a map object sits on whole tiles with no offset, so a decal can't be laid against an edge that falls on a
 tile line; paint the contact into the painted ground instead, where every pixel is placeable. The silhouette itself stays straight.
+
+## 2026-11-18 · lane/a-chest-glow-139 (from set/v0.2.138): the chest's green at its locks, the locks' gold flash
+Tyler: "keep the chest green... concentrate the color around the keyhole and fittings and give it a slow, subtle pulse. If you want a color
+change, have the lock flash warm gold when the special key turns... save rotating colors for a mechanic where each color actually means
+something." tower-art.mjs: the shut chest keeps the generation's green only in each lock's KEYHOLE and its HASP (the seam over the keyhole's
+column, a pixel each side); every other seam green is the dark of a shut seam (crack shadow 2, spill shadow 3). The keyholes and hasps breathe
+on BREATH, a cosine on three levels (as made / middles as made, rest a step down / all a step down) over a 40-frame 5 s loop: one palette
+step at most. The pool on the stone (hearth_chest_glow, class `glow`, the window's chest-glow) is gone, with its budget row. The bump is kept
+as drawn (lift/peak pixels unchanged); its schedule stays 15 s on average on the longer loop (BUMP block 3 slots 2: 10-20 s). FLASH, 6
+frames: every lock poured onto WARM (bronze 2-3, gold, the torch's palest as keyhole), then own metal lit with gold keyholes, gold to olive
+to green; its last frame is idle frame 5 exactly. Driven by the server's chest window: hearth-burn.js chestFlash (first frame that sees the
+window, as the puff; never a named flame or a powder) -> createHearthView `ambientPlay` -> compose.js plays a one-shot on an ambient row by
+age, and a row named without that clip (the smoke) holds its loop unbumped. The Tower window's opening flashes the turned key's lock gold on
+its "turn" frame. Tests: TL-CHEST (+11 mutants), HM-CLIENT/HM-DATA flash checks (+6 js mutants). Lessons: (8) an atlas dedupes identical
+frames, so a "draws frame X, not Y" check can pass by coincidence when X and Y are pixel twins: pick the instant where they must differ (the
+flash's last frame is idle frame 5; the "held loop" check reads frame 20); (9) a one-shot over a looping layer must also hold its sibling
+layers' bumps, or the smoke puffs a jolt the chest never makes. Open: one of the three smoke leaks is green and rises from the seam beside
+the gold lock's hasp (kept, as briefed); if Tyler wants every green at the locks, that leak turns black or moves onto a hasp.

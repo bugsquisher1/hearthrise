@@ -17,11 +17,11 @@
 //   rowWords · noneWords · ageWords · sellRowWords · listingWords · historyWords   the plain-English lines
 //   noticesSince(history, seenAt)   the sold and returned rows a player has not been told
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { whole } from '../render/format.js?v=0.2.137';
-import { kindOf } from './bag-model.js?v=0.2.137';
-import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { ITEMS } from '../data/items.js?v=0.2.138';
+import { whole } from '../render/format.js?v=0.2.138';
+import { kindOf } from './bag-model.js?v=0.2.138';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
 
 const int = (v) => (Number.isSafeInteger(v) ? v : null);
 const count = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : 0);

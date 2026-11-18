@@ -19,9 +19,9 @@
 // Every envelope replaces it, and nothing here holds a number of its own (CLAUDE.md §6). The one thing drawn between
 // two answers is the running clock: the server's `since` against the server's clock as the session measures it.
 // ════════════════════════════════════════════════════════════════════════
-import { trainingOf as trainingHuntOf } from '../data/training.js?v=0.2.137';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { trainingOf as trainingHuntOf } from '../data/training.js?v=0.2.138';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 

@@ -19,8 +19,8 @@
 //                                                                         bag_full, feature_off; ok answers { opens, haul, cinders_spent }
 //   saveStokes(account, cs, key, stokes)           hr_chest_stoke_default the hero's default stokes for one kind of key (moves no value)
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.137';
-import { settleTownActivity } from './party-intents.js?v=0.2.137';
+import { askVia } from './intent-ledger.js?v=0.2.138';
+import { settleTownActivity } from './party-intents.js?v=0.2.138';
 
 const WORD = /^[a-z0-9_]{1,64}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

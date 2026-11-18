@@ -46,10 +46,10 @@ export const WEAPON_LINE_BASE = Object.freeze({
   sword: Object.freeze({ id: 'dawn_sword', atkB: 42, strB: 35 }),
   hatchets: Object.freeze({ id: 'dawn_hatchets', atkB: 42, strB: 38 }),
   warhammer: Object.freeze({ id: 'dawn_warhammer', atkB: 32, strB: 68 }),
-  bow: Object.freeze({ id: 'duskwood_bow', atkB: 45, strB: 36, rangeAtkB: 45, rangeStrB: 36 }),
-  crossbow: Object.freeze({ id: 'duskwood_crossbow', atkB: 43, strB: 37, rangeAtkB: 43, rangeStrB: 37 }),
-  wand: Object.freeze({ id: 'duskwood_wand', atkB: 42, strB: 45, magicAtkB: 42, magicStrB: 45 }),
-  staff: Object.freeze({ id: 'duskwood_staff', atkB: 36, strB: 49, magicAtkB: 36, magicStrB: 49 }),
+  bow: Object.freeze({ id: 'duskwood_bow', rangeAtkB: 45, rangeStrB: 36 }),
+  crossbow: Object.freeze({ id: 'duskwood_crossbow', rangeAtkB: 43, rangeStrB: 37 }),
+  wand: Object.freeze({ id: 'duskwood_wand', magicAtkB: 42, magicStrB: 45 }),
+  staff: Object.freeze({ id: 'duskwood_staff', magicAtkB: 36, magicStrB: 49 }),
 });
 
 /* TEMPERED DAWNSTEEL IS THE FLOOR A UNIQUE MUST CLEAR (lane/d-temper-dawnsteel, board "2026-11-16 Tempering Dawnsteel": tier 7 tempers

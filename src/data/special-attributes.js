@@ -116,7 +116,7 @@ export const SPECIAL_SAMPLE = Object.freeze({
   /* The wave-3 staff, re-fitted to the tier-6 staff's numbers (the id and the name stay; its old row is untouched, as above). */
   demoncaller_staff: Object.freeze({
     row: Object.freeze({ n: 'Demoncaller', icon: '🪄', v: 13000, type: 'weapon', slot: 'weapon', weaponType: 'magic', discipline: 'restoration', twoHanded: true,
-      atkB: 28, strB: 38, magicAtkB: 28, magicStrB: 38, bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']),
+      magicAtkB: 28, magicStrB: 38, bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']),
       tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75 }),
     base: 'runewood_staff', attr: Object.freeze(['bane', 'undead']),
     source: Object.freeze({ monster: 'provost', ground: 'pyre_field', how: 'rare' }), use: 'worn',

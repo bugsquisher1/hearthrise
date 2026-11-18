@@ -25,6 +25,10 @@
 //         spellbook and six cloth pieces at that tier's Level (Magic at the Level) hits at most 1.3 times a warhammer at the same Level
 //         (Melee at the Level), the engine's own max hit (playerCombatRolls). At 0.4 of the plate twin's defence it was 1.5 at tier 3 and
 //         1.9 at tier 7 (today 1.19-1.28), and a lone Mage earned 1.4-1.8 times the pace from the Slake to the Pauper Vaults (the board's section)
+//   SG-9  a weapon carries ONLY its own style's accuracy and damage (the pair src/core/member.js deriveProfile rolls it on: a bow the
+//         Ranged pair, a wand or staff the Magic pair, every other kind the Melee pair). The post-140 audit's C6 (designer: a data bug):
+//         every bow, crossbow, wand and staff carried a Melee pair copying its own numbers, which combat never read, but the item card
+//         called it "Melee accuracy/damage" and the doll ranked on it, so an Oak Wand (7/8) read better than an Iron Sword (7/6)
 //
 //   node tests/style-gear.mjs            the shipped data
 //   node tests/style-gear.mjs --mutate   each arm driven red by a planted defect on the live objects
@@ -49,6 +53,8 @@ import { deriveProfile } from '../src/core/member.js';
 import { skillXpForLevel } from '../src/core/xp.js';
 import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
 
+/* Every style's accuracy and damage fields (SG-9: a weapon carries its own pair only). */
+const STYLE_PAIRS = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB']);
 /* A weapon's power for its own style: accuracy + damage of the style it rolls (the engine sums these fields). */
 const power = (it) => {
   if (!it) return 0;
@@ -112,6 +118,13 @@ export function check() {
     if (far.length) fails.push(`SG-5 ${r.id}: input(s) a player cannot reach: ${far.join(', ')}`);
     if (!(ARTISAN_RECIPES[skill] || []).some((x) => x.id === r.id)) fails.push(`SG-6 ${r.id}: not on the ${skill} bench (ARTISAN_RECIPES)`);
     else if (!recipeCategory(skill, r, ITEMS)) fails.push(`SG-6 ${r.id}: no Work-window category (recipeCategory returns null)`);
+  }
+  /* SG-9: a weapon carries only its own style's accuracy and damage, the pair the engine rolls it on (the header) */
+  for (const [id, it] of Object.entries(ITEMS)) {
+    if (!it || it.type !== 'weapon') continue;
+    const p = deriveProfile(it.weaponType), mine = [p.accuracyBonusField, p.strengthBonusField];
+    const other = STYLE_PAIRS.filter((k) => !mine.includes(k) && it[k] !== undefined);
+    if (other.length) fails.push(`SG-9 ${id} (${it.weaponType}) carries ${other.join(', ')}: a weapon carries its own style's ${mine.join(' and ')} only (the card would say another style)`);
   }
   /* SG-8: cloth's damage is a premium on the wand and book, not the hit (the header). A zero-defence foe: the gear and the skill only. */
   const lad = Object.fromEntries(GEAR_LADDERS.map((l) => [l.key, l.ids]));
@@ -222,6 +235,11 @@ function mutate() {
     const undo = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'].map((sl, i) => setField('scholar_' + sl, 'magicStrB', [4, 9, 6, 3, 2, 3][i]));
     return () => undo.reverse().forEach((u) => u());
   });
+  /* SG-9: the C6 rows back (a generated wand and a generated bow, a hand-written boss wand), and a melee weapon with a Magic pair */
+  run('the Oak Wand carries its Melee pair again (the C6 card: "Melee accuracy 7")', 'SG-9', () => { const a = setField('oak_wand', 'atkB', 7); const b = setField('oak_wand', 'strB', 8); return () => { b(); a(); }; });
+  run('the Duskwood Bow carries a Melee damage copy', 'SG-9', () => setField('duskwood_bow', 'strB', 36));
+  run('the Whispering Codex\'s hand copy back (atkB 15)', 'SG-9', () => setField('whispering_codex', 'atkB', 15));
+  run('an Iron Sword with a Magic pair', 'SG-9', () => setField('iron_sword', 'magicAtkB', 3));
   run('Klappa\'s Club worn from Level 1', 'SG-7', () => setField('klappas_club', 'reqLv', 1));
   run('Klappa\'s Club as true as the Iron Warhammer', 'SG-7', () => setField('klappas_club', 'atkB', 7));
   run('Klappa\'s Club no harder than the Practice Club', 'SG-7', () => setField('klappas_club', 'strB', 7));

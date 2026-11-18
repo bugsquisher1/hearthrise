@@ -56,11 +56,11 @@ Player-visible bugs first, in the order a player meets them. No new feature trac
 | **C. DB / economy** | any migration or RPC body change | author + §4 self-check + `schema-drift` replay + `apply-order-honesty` → **Security GO** → Coordinator applies (one file; landed body md5s match the review) → `live-hash-drift --live --write` + apply-order note flipped to APPLIED, in ONE Coordinator commit (the authoring lane re-pins `restore-census` in its own commit when it adds a table or changes seeded rows) → edge deploy if the engine moved → THEN the client half ships via A or B. The apply always precedes the client push that needs it. No separate post-apply verification agent: the migration's §4 self-check runs inside the apply and rolls it back on failure. |
 
 Every lane:
-- **The record gate is the GitHub matrix (47 jobs as of 2026-11-12) on `release/vX.Y.Z` (and `next` for staging), not Tyler's PC (2026-10-14: `run-ci-local` is not a gate, only a way to reproduce a GitHub red; no local in-page suite unless `supabase/functions/**` changed, in which case ONE local run precedes the edge deploy, because GitHub's payload guard can only pass after it).** Before pushing, run locally only the guards the diff touches (selftests, replay guards for changed migrations) — a GitHub red costs a fix lane plus a full CI cycle.
+- **The record gate is the GitHub matrix on `release/vX.Y.Z` (and `next` for staging), not Tyler's PC (2026-10-14: `run-ci-local` is not a gate, only a way to reproduce a GitHub red; no local in-page suite unless `supabase/functions/**` changed, in which case ONE local run precedes the edge deploy, because GitHub's payload guard can only pass after it).** Before pushing, run locally only the guards the diff touches (selftests, replay guards for changed migrations) — a GitHub red costs a fix lane plus a full CI cycle.
 - **Stream mode:** while OBS is live (`node ~/Huntera-Stream/obs-status.mjs` → `"streaming":true`), no heavy local work (no run-ci-local, full suites or multi-lane browser fan-outs). Dispatch `isolation:"remote"` lanes and rely on GitHub. Applies, edge deploys, Discord posts, the play gate and pushes stay local.
 - **The Coordinator never resolves a conflict by hand.** Integration is `git merge` with zero conflict hunks or nothing; a conflicting branch goes back to its lane, which merges main into itself, re-tests and reports.
 - **One run at a time.** Merge the ready set, push it, let ONE GitHub run judge it, bisect only if red.
-- **Never bundle a lane-A fix behind B/C work.**
+- **Bug fixes ride the next big patch** (Tyler 2026-11-15/16). A fix ships ALONE only for a big bug (a P0, or a P1 that blocks progress, loses or corrupts progress or value, or misleads a player into spending) or when Tyler says so.
 - **Green means:** the GitHub run on the release SHA is green. A red is fixed forward within the hour, never called "flaky" until read. Exception while the game is CLOSED: a red caused only by a test/guard harness, fixed by a test-only change, may push before the re-run, which judges it after the fact (Tyler, 2026-10-19).
 - **Play gate (2026-10-14, while nobody plays):** per release, a short loop on what changed (reload → act → reload, plus the original bug's repro), read as page text rather than screenshots. Once a day, the full loop on live as the signed-in QA account in the connected Chrome (reload → pick a hunt → hunt → hunt ends, back in town → one-tap refill → bag → reload) plus a fresh account's first minutes, logged as played or unplayed. Play the release on live BEFORE telling Tyler to play; a boot check is not a play gate (Tyler, 2026-10-19).
 - **Visual gate** exists because two individually-verified branches broke combat together (b361); the authoring agent's own look never counts. Screenshots are taken of `play.html` in the browser pane as the allowlisted QA account (`tests/visual-qa.mjs` retired with the old client); the art-director reads them if the Coordinator cannot.
@@ -72,9 +72,10 @@ Every lane:
 - A release: bump → ONE CHANGELOG entry in player-facing words → push `release/vX.Y.Z` → GitHub green → push `main`.
 - Lane C applies don't wait for a release: a reviewed migration applies when ready; its client half rides the next release. The apply-order note, live-hash baseline and census re-pin land the same day.
 
-### 3.3b Cadence: ship continuously while nobody plays (Tyler, 2026-10-10)
-"Keep building the game as if no one is playing it." Until Tyler says players are back (beta-3 keys or the Steam EA wipe):
-- **Each lane ships as soon as ITS gates pass.** No fixed daily cut, no batching behind an unrelated red.
+### 3.3b Cadence: big patches (Tyler, 2026-11-14; replaces the 10-10 "ship continuously")
+"If I were you I would just do big patches from now on." Until Tyler says otherwise:
+- **Lanes work continuously and merge onto the next set; one release per big patch.** No fixed daily cut, no batching behind an unrelated red.
+- **After each big patch ships:** a blind playthrough audit of what changed (play as a human, learn only from the screen) plus a short Level 1-20 pass; findings go to fix lanes (Tyler 2026-11-15).
 - **No player-protection staging:** no cohort percentages or soaks. Arm channels for everyone after the Security GO; prove scale with synthetic load tests. Old content may be cut freely.
 - **Still held:** combat-engine changes are batched and spaced by the world-tick parity rule; Security keeps its veto.
 
@@ -136,6 +137,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the one full ad
 ## 7. Code & content rules
 
 - Layout: data in `src/data/*`, pure logic in `src/core/*` (dual-runtime, imported by the edge), per-character state in `src/session/*`, boot/sign-in/world pane in `src/app/*`, windows and HUD in `src/shell/*`, hunt rendering in `src/hunt-view/*`, chat/friends in `src/social/*`, the world renderer in `src/world/*`, render helpers in `src/render/*`. `src/legacy.js` is deleted; no module grows into a monolith (`tests/client-module-size.mjs`).
+- **Imports point one way** (arch audit, Tyler 2026-11-18): data ← core ← session ← hunt-view / world / social ← shell ← app; render beside session, net under session; the edge imports only core and data. A new upward import is red (`tests/layering.mjs`, its baseline only shrinks).
 - **No hardcoded colours.** Every colour is a token from `src/styles/tokens.css` (the single source); convert as you touch each component.
 - Stylesheets are one per surface under `src/styles/` (`tokens.css` + app, shell, windows, hunt, character, world, summary, notice). UI is Charcoal & Gold only; text at least 12 px.
 - **Mobile query:** `@media (max-width: 540px), (max-height: 540px) and (max-width: 1024px)` (`tests/breakpoint-guard.mjs` freezes the set). Phones are landscape-only; windows become slide-out sheets, never a bottom-nav.

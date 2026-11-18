@@ -43,10 +43,13 @@
 --   the cache row's lock on every ask and recounted under it every 15 s, so concurrent polls queued behind a recount).
 -- FRESHNESS: a row older than 60 s (six fires missed: pg_cron or the tick is down) is no answer: count_stale, and the poll answers
 --   `online` and `online_by` null (the client shows "— online", never the last number).
--- MEASURED (lane/c-online-afk; PGlite = PostgreSQL 18, absolute ms are not production's, plans and row counts are): see the lane's
---   report. The counts statement is three index range scans (hunt_sessions_one_open, player_state_playing below,
---   character_presence_seen_at) over the rows that play or are open, then primary-key probes: its cost grows with PLAYING heroes,
---   never with registered ones.
+-- MEASURED 2026-11-18 on the replayed chain (PGlite = PostgreSQL 18 in WASM, warm: its ms are not production's, its plans and
+--   buffer counts are). 100x: 8,001 heroes, 82,001 sessions (2,001 open), 1,200 at a town job, 1,201 fresh stamps, 4,001 counted:
+--   the count is ONE statement, 2,930 buffer hits, 20 ms (a union-then-join draft read hunt_sessions twice: 15,064, 41 ms); with
+--   24,000 more dormant heroes it is 2,892 with player_state_playing and 3,616 (a seq scan that grows with every registered hero)
+--   without it, so its cost follows PLAYING heroes, not registered ones. The poll's read: one primary-key probe, 2 buffers, 0.02 ms.
+--   An idle fire (tools/commit-cost.mjs --idle, before -> after): 1.46 -> 3.43 ms, 262 -> 344 B WAL, 10 -> 17 blocks, +1 row
+--   updated. tests/settle-budget.mjs: every call budget holds (the settle does not call the count).
 --
 -- ── THE CONTRACT ───────────────────────────────────────────────────────────────────────────────────────────────────
 -- hr_players_online_cache   +7 columns hunting, tower, gathering, crafting, training, hearth, town (int >= 0) and the CHECK n = their
@@ -77,8 +80,8 @@
 -- reads rows and writes one operational row; it cannot lease, post or pay.
 --
 -- ── ROWS AND BYTES (100x players) ──────────────────────────────────────────────────────────────────────────────────
--- No table and no row: 7 ints on the one cache row. One HOT update of that row a fire (8,640 a day, ~150 B of WAL each, ~1.3 MB a
--- day at ANY player count). The partial index holds one entry a WORKING hero (a few KB at 100x); a pointer write that stays
+-- No table and no row: 7 ints on the one cache row. One update of that row a fire (8,640 a day, 72 B of WAL each measured, ~0.6 MB
+-- a day at ANY player count). The partial index holds one entry a WORKING hero (a few KB at 100x); a pointer write that stays
 -- non-idle and moves no indexed column keeps its HOT update. Per poll: one primary-key read instead of a locked conditional
 -- UPDATE (and a recount every 15 s). Nothing per settle, nothing journalled (a count is not a value transfer).
 --

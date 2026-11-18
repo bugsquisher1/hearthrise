@@ -91,7 +91,7 @@ export const HUNTS_TEXT = Object.freeze({
   win_page: 'The picked hunt',
   head_packs: 'The packs',
   head_tiers: 'Tiers',
-  head_lives: 'Who lives here',
+  head_lives: 'Enemies',
   head_drops: 'Drops',
   head_mats: 'Loot',
   /* the loot rows past the first few (hunt-detail.js LOOT_SHOWN): {count} more, the press that lists them */

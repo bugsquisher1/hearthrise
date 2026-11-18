@@ -3680,3 +3680,10 @@ Round 2 (lane/c-hearth-moods found it red after merging f2f7bc2b1): world-no-aut
 my BUMP_SEED drew one. The seed is now the viewer's own, a hash of the hero's name (core/ambient.js bumpSeedOf, null with no hero), on the
 town frame; TL-BUMP takes its seeds from four names and plants a shared seed and a no-hero bump. Lesson (6): before handing back a lane
 that touches src/world, run the authority guard that scopes it (world-no-authority); my guard list came from the brief and missed it.
+Round 3 (Tyler 2026-11-18: "the edges of the hearth need to be more natural", then his pick of round 2 "and try and blend it into the
+ground a bit better"): edges3 (rounded roof corners, ragged ivied wing ends, broken front; nothing under row 412) through hearth-fire.mjs's
+one FINAL line, the 16-column cut, no row clip; rounds 3-5 superseded and backed out uncommitted. The ends still stand on a near-vertical
+line after the cut, so the MAP takes them in: hearth-plaza.mjs step 9 paints soot-dark grain, stone chips and (west) moss hugging each end
+in the paving at pixel precision (east wider: the end in shadow), and sites.js lays existing scree, moss and weed decals by them (flat,
+open, no mirror). Lesson (7): a map object sits on whole tiles with no offset, so a decal can't be laid against an edge that falls on a
+tile line; paint the contact into the painted ground instead, where every pixel is placeable. The silhouette itself stays straight.

@@ -1680,10 +1680,10 @@ async function planRules(base) {
   const atRanged = (level) => (name, role, slots, packed, equipment) => sess({ name, hunt_settings: barOf(role, slots), equipment, inventory: packed, skills: { ranged: { xp: 1, level } } });
   const BOW = { weapon: 'willow_longbow' };
   for (const [what, level, args, text] of [
-    ['a Mithril slot under its Ranged, Bronze behind it', 42, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows, never runs out, Mithril Arrows: Needs Ranged 45, now 42'],
+    ['a Mithril slot under its Ranged, Bronze behind it', 42, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: Bronze Arrows, never runs out, Mithril Arrows: Requires Ranged 45, now 42'],
     ['the same bar at the level', 45, [[shoot('mithril_arrows'), shoot('bronze_arrows')], { mithril_arrows: 9, bronze_arrows: 5 }, BOW], 'Ammo: 9 Mithril Arrows, then Bronze Arrows, never runs out'],
     ['a stack under its Ranged no slot names', 42, [[], { mithril_arrows: 9 }, { weapon: 'willow_longbow', ammo: 'steel_arrows' }], 'Ammo: no Steel Arrows left, then Plain Steel Arrows (1 gp)'],
-    ['nothing else to shoot', 42, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: none loaded (no attacks). Empty slot → Ammo → pick a store shot, Mithril Arrows: Needs Ranged 45, now 42'],
+    ['nothing else to shoot', 42, [[shoot('mithril_arrows')], { mithril_arrows: 9 }, BOW], 'Ammo: none loaded (no attacks). Empty slot → Ammo → pick a store shot, Mithril Arrows: Requires Ranged 45, now 42'],
   ]) {
     const cs = atRanged(level)('A', 'ranger', ...args);
     if (beforeOf(cs, 'ammo') !== text) fails.push('AW-64 ' + what + ', Before you go reads ' + JSON.stringify(beforeOf(cs, 'ammo')));
@@ -4129,21 +4129,22 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       else {
         await openWin(page, 't', 'storage');
         await page.waitForTimeout(300);
-        /* three whole stacks Shift-pressed in a burst: the first goes, the two pressed while it was out go together in ONE ask */
-        const at = (id) => W + '[data-side="bag"] .hw-pocket[data-item="' + id + '"]';
-        await page.click(at('copper_ore'), { modifiers: ['Shift'] });
-        await page.click(at('normal_log'), { modifiers: ['Shift'] });
-        await page.click(at('wolf_pelt'), { modifiers: ['Shift'] });
+        /* three whole stacks Shift-pressed in a burst (one task, before any answer: no machine is too slow for it): the first goes, the two pressed
+           while it was out go together in ONE ask */
+        const burst = (presses) => page.evaluate((list) => {
+          for (const [id, shiftKey] of list) document.querySelector('[data-hs-win="storage"] [data-side="bag"] .hw-pocket[data-item="' + id + '"]')
+            .dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, shiftKey, detail: 1 }));
+        }, presses);
+        await burst([['copper_ore', true], ['normal_log', true], ['wolf_pelt', true]]);
         await wait(page, () => !document.querySelector('[data-hs-win="storage"] .hw-store.is-pending'), null, 4000);
         await page.waitForTimeout(400);
-        /* three presses on one stack in a burst: one goes, the other two wait and go as ONE move of 2 */
-        await page.click(at('rat_tail'));
-        await page.click(at('rat_tail'));
-        await page.click(at('rat_tail'));
+        /* a press on one stack, then two on another while the first is out: the first goes, the two wait and go as ONE move of 2 (a second
+           press on the stack being sent is the page's to swallow, press-ack.js: one intent per press) */
+        await burst([['rat_tail', false], ['slime_gel', false], ['slime_gel', false]]);
         await wait(page, () => !document.querySelector('[data-hs-win="storage"] .hw-store.is-pending'), null, 4000);
         await page.waitForTimeout(400);
         const said = await page.evaluate((w) => document.querySelector(w + '.hh-intent-msg').textContent, W);
-        if (moves().join() !== 'copper_ore:10,many:normal_log+wolf_pelt,rat_tail:1,rat_tail:2' || /Too many/.test(said))
+        if (moves().join() !== 'copper_ore:10,many:normal_log+wolf_pelt,rat_tail:1,slime_gel:2' || /Too many/.test(said))
           fails.push('AW-18q a burst of presses sent ' + JSON.stringify(moves()) + ' and says ' + JSON.stringify(said));
         /* DEPOSIT ALL MATERIALS: ONE hr_bank_move_many naming every unlocked Material stack in the bag, whole (ids only), and none after it */
         const btn = await page.evaluate((w) => { const b = document.querySelector(w + '[data-hs-act="deposit-materials"]'); return b ? { text: b.textContent, off: b.disabled } : null; }, W);
@@ -4676,12 +4677,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           for (const n of names) if (n.over > 0) fails.push('AW-61 ' + tag + ': the Shop cuts ' + JSON.stringify(n));
         };
         await shopNames(page, '1365');
-        /* AW-62 the Shop's confirmation names the rare finds in the sale */
+        /* AW-62 A RARE IS NEVER JUNK (audit 2026-11-18 A16, replacing "the confirmation names the rare finds in the sale"): the bag's 3 Alpha Fangs,
+           the away card's Best find, are not in Sell all junk at all; its confirmation sells the Junk alone */
         await page.click('[data-hs-win="shop"] .hw-tab[data-tab="sell"]');
         await wait(page, () => document.querySelector('[data-hs-act="sell-loot"]:not([disabled])'), null, 3000);
         await page.click('[data-hs-act="sell-loot"]');
-        const saleNote = await page.evaluate(() => document.querySelector('[data-pane="sell"] .hw-confirm-note').textContent);
-        if (!/This sells rare finds: 3 Alpha Fang\./.test(saleNote)) fails.push('AW-62 Sell all loot asks: ' + saleNote);
+        const saleNote = await page.evaluate(() => { const c = document.querySelector('[data-pane="sell"] .hw-confirm'); return c ? c.querySelector('.hw-confirm-q').textContent + ' | ' + c.querySelector('.hw-confirm-note').textContent : ''; });
+        if (!saleNote || /Alpha Fang|rare finds/i.test(saleNote)) fails.push('AW-62 Sell all junk asks: ' + JSON.stringify(saleNote));
         await page.click('[data-hs-win="shop"] [data-hs-act="confirm-no"]');
         await page.keyboard.press('v');
         /* AW-62 Inventory's foot stands inside the window at a laptop's height, the bag scrolling above it, with a card up too */

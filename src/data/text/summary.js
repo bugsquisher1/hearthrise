@@ -22,6 +22,9 @@ export const SUMMARY_TEXT = Object.freeze({
   fig_per_hour: '{amount} per hour',
   fig_loot: '{gold} in loot',
   fig_in: 'in {time}',
+  /* The hunt on now (src/hunt-view/summary-recorder.js liveSummaryOf): its card's time line, and its row under Earlier hunts. */
+  live_when: 'In progress, started {time}',
+  live_row: 'In progress',
   town_head: 'Back in town',
   done: 'Done',
   /* The one press of each row: the glossary's words (src/data/text/controls.js: Equip, Sell, Deposit); Bless is the Services tab's own word. */

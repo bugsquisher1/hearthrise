@@ -123,6 +123,16 @@ function contract(R, cs, body, tl) {
       'hallStateOf(' + hallId + ') yields ' + JSON.stringify(bh) + ' from ' + JSON.stringify(body.boss_halls));
   }
   need('boss_halls', Object.keys(R.BHL.OPEN_BOSS_HALLS).length > 0, 'CONTROL: the data holds no open hall, so the boss_halls reader was never read');
+  // entry_gates (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the Tower's door (its switch on) and every call's natural wins, each `ok` the server's own
+  // reading of this hero and every other seat (true only at the number with no seat short), each short seat named
+  const tg = R.GT.towerGateOf(cs);
+  need('entry_gates', !!tg && tg.need >= 2 && tg.level >= 1 && tg.ok === (tg.level >= tg.need && tg.short.length === 0) && tg.short.every((x) => !!x.name && x.level < tg.need),
+    'towerGateOf yields ' + JSON.stringify(tg) + ' from ' + JSON.stringify(body.entry_gates));
+  for (const id of Object.keys(R.BC.BOSS_CALLS)) {
+    const cg = R.GT.callGateOf(cs, id);
+    need('entry_gates', !!cg && cg.boss === R.BC.BOSS_CALLS[id].of && cg.need === R.BC.BOSS_CALL_RULES.winsToCall && cg.ok === (cg.have >= cg.need && cg.short.length === 0)
+      && cg.short.every((x) => !!x.name && x.have < cg.need), 'callGateOf(' + id + ') yields ' + JSON.stringify(cg) + ' from ' + JSON.stringify(body.entry_gates));
+  }
   // party (the hunt panel's and the party window's readers, one shape)
   const p = R.HS.partyOf(cs);
   need('party', !!p && p.members.length === 2, 'partyOf yields ' + (p ? p.members.length : 'no') + ' members: ' + JSON.stringify(body.party).slice(0, 240));
@@ -356,7 +366,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring']);
+  'tower', 'key_ring', 'entry_gates']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -420,6 +430,7 @@ async function readers(root) {
     HA: await import(u('src/session/hunt-after-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
+    GT: await import(u('src/session/gate-sections.js')), BC: await import(u('src/data/boss-calls.js')),
     CFG: await import(u('src/session/config.js')), CSN: await import(u('src/session/character-session.js')),
     M: await import(u('src/data/monsters.js')), SHOP: await import(u('src/data/shops.js')),
   };
@@ -517,6 +528,8 @@ const DB_MUTANTS = [
   ['hunt_target_kind', 'public.hr_hunt_target_kind_view(uuid,integer)', "'picks', coalesce(", "'pick', coalesce("],
   ['boss_halls', 'public.hr_boss_halls_view(uuid,integer)', "'taken', v_taken,", "'took', v_taken,"],
   ['boss_halls', 'public.hr_boss_halls_view(uuid,integer)', "'left', v_left));", "'remaining', v_left));"],
+  ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "v_tower := jsonb_build_object('need', v_need,", "v_tower := jsonb_build_object('needs', v_need,"],
+  ['entry_gates', 'public.hr_entry_gates_view(uuid,integer)', "'need', c.wins, 'have', v_have,", "'need', c.wins, 'count', v_have,"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leader_tiers', coalesce", "'leader_tier', coalesce"],
   ['party', 'public.hr_hunt_party_view(uuid,integer)', "'leave_together', (select ps.party_leave_together", "'leave_togther', (select ps.party_leave_together"],
   ['hunt_settings', 'public.hr_hunt_settings_view(uuid,integer)', "'gather_share', v_eff->'gather_share',", "'gather', v_eff->'gather_share',"],

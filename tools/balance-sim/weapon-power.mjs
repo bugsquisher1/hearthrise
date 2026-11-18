@@ -15,7 +15,7 @@
 //   SAFETY  the same, each head weighted again by what it does to the hero while it lives (its threat: the engine's
 //           monsterCombatRolls accuracy against a hero of Level L with no guard, times its average blow, over its swing time):
 //           the blow a hero lands weighted by the damage it takes meanwhile (the low point and the food bill).
-// Measured on the real settle (lane/d-weapon-line, the Pauper Vaults at 165, lone axes, 6 x 4 h, the same dice): a bane of the
+// Measured on the real settle (lane/d-weapon-line, the Unmarked Catacombs at 165, lone axes, 6 x 4 h, the same dice): a bane of the
 // Undead read 0.98 of the line's PACE and killed 223 an hour against the line's 226, but its low point was 59.9 against 62.1,
 // because the heads it doesn't bite (the Leech, the Night Carter) hit hardest. So the ceiling holds on both, and a piece ranks
 // by their mean (`score`). It reads the weapon alone (no armor, no off-hand, no ammo), so the number is the weapon's own. Melee
@@ -126,8 +126,8 @@ if (isMain(import.meta.url)) {
       console.log('  ' + fam + ' @' + L + ' ' + g + ': ' + ps.map(([id, p], i) => (i === 0 ? '*' : '') + id + ' ' + p.toFixed(1)).join(', '));
     }
     if (can.length > 1) {
-      const M = Object.fromEntries(P.spawnsOf('pauper_vaults').map((s) => [s.monster, can.map((id) => [id, P.blow(S[id].row, mods.MONSTERS[s.monster], L).e]).sort((a, b) => b[1] - a[1])[0][0]]));
-      console.log('  ' + fam + ' @' + L + ' best blow by monster at the Vaults: ' + JSON.stringify(M));
+      const M = Object.fromEntries(P.spawnsOf('unmarked_catacombs').map((s) => [s.monster, can.map((id) => [id, P.blow(S[id].row, mods.MONSTERS[s.monster], L).e]).sort((a, b) => b[1] - a[1])[0][0]]));
+      console.log('  ' + fam + ' @' + L + ' best blow by monster at the Catacombs: ' + JSON.stringify(M));
     }
   }
   /* THE LINE'S FIRST LEVEL (lane/d-temper-dawnsteel: tier 7 tempers to +2%): the lowest Level where the line's weapon beats fully tempered

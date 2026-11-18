@@ -16,7 +16,7 @@
 //        each weight's full set of one band on the line, fully tempered, against the next band's bare set, on every drafted ground the
 //        next band's pieces are worn on or past; and what a full ladder takes off on its own band's ground.
 //
-//   node tools/balance-sim/temper-uniques-table.mjs bars [--ground pauper_vaults|wyvern_roost] [--seeds 3] [--hours 2] [--only 0,2] [--food 0]
+//   node tools/balance-sim/temper-uniques-table.mjs bars [--ground unmarked_catacombs|wyvern_roost] [--seeds 3] [--hours 2] [--only 0,2] [--food 0]
 //        A FULLY TEMPERED UNIQUE SET DOESN'T MOVE A GROUND'S BARS: the line's set untempered and fully tempered, and one band behind
 //        untempered and fully tempered, on the sheet's cells (Normal lone low point, Dangerous and Deadly deaths per 16 hero-hours).
 //
@@ -41,7 +41,7 @@ const GROUNDS = [
   { ground: 'carters_rest', band: [110, 125], levels: [110, 117, 124], open: ['carters_rest', 'ox_road'] },
   { ground: 'ox_road', band: [112, 128], levels: [112, 120, 127], open: ['carters_rest', 'ox_road'] },
   { ground: 'wyvern_roost', band: [125, 142], levels: [125, 133, 141], open: ['wyvern_roost', 'carters_rest', 'ox_road'] },
-  { ground: 'pauper_vaults', band: [165, 185], levels: [165, 175, 184], open: ['pauper_vaults', 'carters_rest', 'ox_road', 'wyvern_roost'] },
+  { ground: 'unmarked_catacombs', band: [165, 185], levels: [165, 175, 184], open: ['unmarked_catacombs', 'carters_rest', 'ox_road', 'wyvern_roost'] },
 ];
 
 /* In-memory rows: each weight's line set worn from Level `r` ('tu_<r>_<weight>_<slot>', armor Dawnsteel's x max(1, r / 110), reqLv r),
@@ -149,7 +149,7 @@ async function next() {
     }
     return sum / mons.length;
   };
-  const FLOORS = { carters_rest: 110, ox_road: 112, wyvern_roost: 125, pauper_vaults: 165 };
+  const FLOORS = { carters_rest: 110, ox_road: 112, wyvern_roost: 125, unmarked_catacombs: 165 };
   const full = (b) => ({ ['temper:armor:' + b]: TD.TEMPER_UNIQUE_BANDS[b].gold.length });
   head('WHAT A FULL LADDER DOES ON ITS OWN BAND\'S GROUNDS: a whole set on the line, bare and fully tempered. Plate on the line sits near the 60% cap against the ground top monsters, so there the cap takes part of the ladder.',
     ['Band', 'Weight', 'Ground', 'pm read', 'bare: a swing lets through', 'fully tempered', 'taken off']);
@@ -181,11 +181,11 @@ async function next() {
 /* ── THE BARS ── */
 async function bars() {
   const SPEC = {
-    pauper_vaults: { level: 165, band: 165, behind: 145, seeds: 3, hours: 2, open: GROUNDS[3].open },
+    unmarked_catacombs: { level: 165, band: 165, behind: 145, seeds: 3, hours: 2, open: GROUNDS[3].open },
     wyvern_roost: { level: 125, band: 125, behind: 110, seeds: 3, hours: 2, open: GROUNDS[2].open },
-  }[arg('ground', 'pauper_vaults')];
-  if (!SPEC) throw new Error('--ground pauper_vaults|wyvern_roost');
-  const g = arg('ground', 'pauper_vaults'), SEEDS = Number(arg('seeds', SPEC.seeds)), HOURS = Number(arg('hours', SPEC.hours));
+  }[arg('ground', 'unmarked_catacombs')];
+  if (!SPEC) throw new Error('--ground unmarked_catacombs|wyvern_roost');
+  const g = arg('ground', 'unmarked_catacombs'), SEEDS = Number(arg('seeds', SPEC.seeds)), HOURS = Number(arg('hours', SPEC.hours));
   const { rows } = await rowsFor([SPEC.band, SPEC.behind]);
   const { R } = await engine(rows);
   const TD = await import(u('src/data/temper.js'));

@@ -75,26 +75,26 @@ export function lineArmor(slot, armourClass, reqLv) {
   return Math.round(b.defB[slot] * lineScale(reqLv));
 }
 
-/* ── THE LINE BY BAND: the Levels a unique is worn from, from the Morrow Hills ladder and the Vaults (board 2026-11-14 section 5,
-   2026-11-15 the Pauper Vaults), and what a full set on the line wears. For the board and the wiki; every number is lineArmor's. ── */
+/* ── THE LINE BY BAND: the Levels a unique is worn from, from the Morrow Hills ladder and the Catacombs (board 2026-11-14 section 5,
+   2026-11-15 the Unmarked Catacombs), and what a full set on the line wears. For the board and the wiki; every number is lineArmor's. ── */
 export const LINE_BANDS = Object.freeze([
   Object.freeze({ reqLv: 110, where: 'Carter\'s Rest (Dawnsteel itself; the Ox Road opens at 112)' }),
   Object.freeze({ reqLv: 122, where: 'The Night Shift' }),
   Object.freeze({ reqLv: 125, where: 'Wyvern Roost' }),
   Object.freeze({ reqLv: 138, where: 'The Old Guard' }),
   Object.freeze({ reqLv: 145, where: 'The Bellows, Father Gault' }),
-  Object.freeze({ reqLv: 165, where: 'The Pauper Vaults' }),
+  Object.freeze({ reqLv: 165, where: 'The Unmarked Catacombs' }),
   Object.freeze({ reqLv: 185, where: 'the next region' }),
   Object.freeze({ reqLv: 200, where: 'Level 200' }),
 ]);
 
-/* ── THE SAMPLE OF EIGHT: Wyvern Roost's plate (125) for the sword and the tank on the bow's ground, and the Pauper Vaults' five (165),
+/* ── THE SAMPLE OF EIGHT: Wyvern Roost's plate (125) for the sword and the tank on the bow's ground, and the Unmarked Catacombs' five (165),
    one per way of spending the budget. `row` is the item row as it would ship, `base` the Dawnsteel piece of its slot and weight (every
    field but its words, numbers, Level, book and rarity is the base's), `attr` its one special attribute or null (the special-attribute catalogue,
    SPECIAL_ATTRIBUTES, tier-7 size; only one the engine reads), `spend` how it spends the budget (its identity, one line), `source`
    where it drops (`ch` a kill, proposed: about one every 15 hours for a lone hero at the floor at 172 kills an hour, by the monster's
    share of the spawn; the drop guard fits it when the rows go in), `use` what catalogue-coherence files it under, `text` the item
-   card's line. Every element a piece resists is a spell on its own ground: Fire Breath (the Crag Wyvern) and, at the Vaults, Lime Sack
+   card's line. Every element a piece resists is a spell on its own ground: Fire Breath (the Crag Wyvern) and, at the Catacombs, Lime Sack
    (poison) and Snuff the Candles (ice). Each power and each "wins where" is measured by tests/armor-line.mjs and printed by
    `node tools/balance-sim/armor-power.mjs`. ── */
 export const LINE_SAMPLE = Object.freeze({
@@ -123,13 +123,13 @@ export const LINE_SAMPLE = Object.freeze({
     source: Object.freeze({ monster: 'ledge_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0023 }), use: 'worn',
     text: 'It carries 64 armor and costs your Melee 2. The outriders rode ahead of the wagons with these shut, because the Ledge Wyverns spit at faces.',
   }),
-  /* ── THE PAUPER VAULTS, 165 ── */
+  /* ── THE UNMARKED CATACOMBS, 165 ── */
   watchmans_helm: Object.freeze({
     row: Object.freeze({ n: 'Watchman\'s Helm', icon: '🛡️', v: 64800, type: 'armor', slot: 'helmet', defB: 84, armourClass: 'plate', atkB: -1, rangeAtkB: -11, magicAtkB: -22,
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_helm', attr: null,
     spend: 'heavy: a full face, 18 more armor than the line, and the narrow slit costs your Melee a point',
-    source: Object.freeze({ monster: 'shrouded_pauper', ground: 'pauper_vaults', how: 'rare', ch: 0.0007 }), use: 'worn',
+    source: Object.freeze({ monster: 'shrouded_pauper', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0007 }), use: 'worn',
     text: 'It carries 84 armor, the most of any helm, and your Melee lands a little less often in it. The Havora Watch wore them shut on the night rounds, and some of the paupers were old Watch.',
   }),
   limewashed_plate: Object.freeze({
@@ -137,7 +137,7 @@ export const LINE_SAMPLE = Object.freeze({
       resistPm: Object.freeze({ poison: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_platebody', attr: Object.freeze(['resist_element', 'poison']),
     spend: 'the lime\'s answer: under the line\'s armor, and the Night Carters\' Lime Sack does less',
-    source: Object.freeze({ monster: 'bone_wall', ground: 'pauper_vaults', how: 'rare', ch: 0.0023 }), use: 'worn',
+    source: Object.freeze({ monster: 'bone_wall', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0023 }), use: 'worn',
     text: 'You take 10% less poison damage. It went into the ossuary wall with whoever wore it, and a hundred years in the lime turned it white and sealed it against the stuff.',
   }),
   keepers_leg_plates: Object.freeze({
@@ -145,7 +145,7 @@ export const LINE_SAMPLE = Object.freeze({
       resistPm: Object.freeze({ frost: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_element', 'frost']),
     spend: 'the cold\'s answer: under the line\'s armor, and Keeper Dunn\'s Snuff the Candles does less',
-    source: Object.freeze({ monster: 'keeper_dunn', ground: 'pauper_vaults', how: 'rare', ch: 0.0093 }), use: 'worn',
+    source: Object.freeze({ monster: 'keeper_dunn', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0093 }), use: 'worn',
     text: 'You take 10% less ice damage. The Keepers stood their watches in the cold vaults for years, and these are lined against it.',
   }),
   haulers_jerkin: Object.freeze({
@@ -153,7 +153,7 @@ export const LINE_SAMPLE = Object.freeze({
       tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'dawnhide_body', attr: null,
     spend: 'light: damage over dodge, 6 under the line\'s armor and a quarter more critical chance than Dawnhide',
-    source: Object.freeze({ monster: 'night_carter', ground: 'pauper_vaults', how: 'rare', ch: 0.0031 }), use: 'worn',
+    source: Object.freeze({ monster: 'night_carter', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0031 }), use: 'worn',
     text: 'You land a critical hit 3.5% more often in it, a quarter more than a Dawnhide Body, and it carries 69 armor. The Night Carters cut their coats loose at the shoulders to swing the sacks up, and it draws a bow the same way.',
   }),
   paupers_shroud: Object.freeze({
@@ -161,7 +161,7 @@ export const LINE_SAMPLE = Object.freeze({
       resistPm: Object.freeze({ frost: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 165 }),
     base: 'duskweave_body', attr: Object.freeze(['resist_element', 'frost']),
     spend: 'the cold\'s answer for a caster: a thin sheet, 5 under the line\'s ward, and Keeper Dunn\'s Snuff the Candles does less',
-    source: Object.freeze({ monster: 'shrouded_pauper', ground: 'pauper_vaults', how: 'rare', ch: 0.0007 }), use: 'worn',
+    source: Object.freeze({ monster: 'shrouded_pauper', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0007 }), use: 'worn',
     text: 'You take 10% less ice damage, and it wards 36. A thin gray sheet with a wooden tag still tied to it. Whoever it was is still owed a burning.',
   }),
 });

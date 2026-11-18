@@ -7,12 +7,12 @@
 //
 //   node tools/balance-sim/armor-line-table.mjs curve                          the line by band: a full set's armor and what it does
 //                                                                              against a monster of its Level, beside Dawnsteel's (no fights)
-//   node tools/balance-sim/armor-line-table.mjs vaults [--seeds 3] [--hours 2] the Pauper Vaults at its floor (165): today's kit, full
+//   node tools/balance-sim/armor-line-table.mjs catacombs [--seeds 3] [--hours 2] the Unmarked Catacombs at its floor (165): today's kit, full
 //                                                                              Dawnsteel, the line one band behind and on it, the sample,
 //                                                                              each on the ground's guide food and on Salted Shark
 //   node tools/balance-sim/armor-line-table.mjs roost  [--seeds 4] [--hours 2] Wyvern Roost's Deadly on the full box (8, the pack's
 //                                                                              override brings 6): Dawnsteel against the line, two foods
-//   vaults and roost take --only <variant rows> and --food <food row> (0-based) to split one table over processes
+//   catacombs and roost take --only <variant rows> and --food <food row> (0-based) to split one table over processes
 //
 // Every variant keeps the hero's weapon from the gear ladder. The tank's shield is the ladder's (the Coppercap, guard 7: main's shield
 // ladder stops at tier 3) where the variant says so, else Krell's Tollgate (guard 15, src/data/special-attributes.js, the tier-7 rung):
@@ -33,7 +33,7 @@ const LINE_OF = { tank: 'plate', sword: 'plate', hammer: 'plate', axes: 'plate',
 const head = (title, cols) => { console.log('\n' + title); console.log('| ' + cols.join(' | ') + ' |'); console.log('|' + cols.map(() => '---').join('|') + '|'); };
 const line = (cells) => console.log('| ' + cells.join(' | ') + ' |');
 
-/* ── THE LINE BY BAND (no fights): mitigation.js against a monster of the band's Level + 5, the Vaults' and the Roost's own spread ── */
+/* ── THE LINE BY BAND (no fights): mitigation.js against a monster of the band's Level + 5, the Catacombs' and the Roost's own spread ── */
 async function curve() {
   const AL = await import(u('tools/balance-sim/staged/armor-line.js'));
   const MIT = await import(u('src/core/mitigation.js'));
@@ -79,7 +79,7 @@ function wearOf(variant, style, AL) {
   if (variant.kind === 'ladder') return w;
   if (style === 'tank' && variant.shield !== 'ladder') w.shield = 'sample_krells_tollgate';
   for (const k of SLOTS) w[k] = variant.kind === 'line' ? 'line_' + variant.m + '_' + cls + '_' + k : AL.LINE_BASE[cls].ids[k];
-  /* the sample's pieces of the seat's weight, the latest Level last so it wins its slot (the Vaults' 165 over the Roost's 125) */
+  /* the sample's pieces of the seat's weight, the latest Level last so it wins its slot (the Catacombs' 165 over the Roost's 125) */
   if (variant.kind === 'sample') for (const [id, s] of Object.entries(AL.LINE_SAMPLE).sort((a, b) => a[1].row.reqLv - b[1].row.reqLv)) if (s.row.armourClass === cls) w[s.row.slot] = 'sample_' + id;
   return w;
 }
@@ -123,9 +123,9 @@ const VARIANTS_165 = [
   { kind: 'line', m: 1.5, label: 'The line (x1.5, worn from 165)' },
   { kind: 'sample', label: 'The sample: its 3 heavy pieces or its body, Dawnsteel elsewhere' },
 ];
-async function vaults() {
-  await playGround({ ground: 'pauper_vaults', level: 165, seeds: 3, hours: 2, openAlso: ['pauper_vaults', 'carters_rest', 'ox_road', 'wyvern_roost'],
-    title: 'THE PAUPER VAULTS AT ITS FLOOR, Level 165, the Morrow\'s three packs open on the ladder.',
+async function catacombs() {
+  await playGround({ ground: 'unmarked_catacombs', level: 165, seeds: 3, hours: 2, openAlso: ['unmarked_catacombs', 'carters_rest', 'ox_road', 'wyvern_roost'],
+    title: 'THE UNMARKED CATACOMBS AT ITS FLOOR, Level 165, the Morrow\'s three packs open on the ladder.',
     foods: [{ id: null, label: 'the guide\'s (Salted Lobster)' }, { id: 'salted_shark', label: 'Salted Shark' }], variants: VARIANTS_165,
     cells: [{ label: 'Normal, tank alone', party: ['tank'], tier: 'normal' }, { label: 'Normal, hammer alone', party: ['hammer'], tier: 'normal' },
       { label: 'Normal, bow alone', party: ['bow'], tier: 'normal' }, { label: 'Normal, Mage alone', party: ['mage'], tier: 'normal' },
@@ -140,7 +140,7 @@ async function roost() {
     cells: [{ label: 'Deadly on 8, a four', party: ['tank', 'healer', 'bow', 'mage'], tier: 'deadly', pull: 8, show: 'deaths' }] });
 }
 
-const MODES = { curve, vaults, roost };
+const MODES = { curve, catacombs, roost };
 if (!MODES[mode]) { console.error('usage: node tools/balance-sim/armor-line-table.mjs ' + Object.keys(MODES).join('|') + ' [--seeds N] [--hours N]'); process.exit(1); }
 const t0 = Date.now();
 try { await MODES[mode](); } catch (e) { console.error('armor-line-table: ' + (e && e.stack || e)); process.exit(1); }

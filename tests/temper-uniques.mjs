@@ -49,7 +49,7 @@ import { LINE_ANCHOR_LEVEL, LINE_BANDS, LINE_BASE, lineArmor } from '../tools/ba
 const SLOTS = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'];
 const WEIGHTS = ['plate', 'leather', 'cloth'];
 /* The drafted grounds past Dawnsteel, by their floor (each pack's `band`). A new drafted ground joins here. */
-const FLOORS = { carters_rest: 110, ox_road: 112, wyvern_roost: 125, pauper_vaults: 165 };
+const FLOORS = { carters_rest: 110, ox_road: 112, wyvern_roost: 125, unmarked_catacombs: 165 };
 
 /* Dawnsteel's ladder as the fight reads it (src/data/temper.js temperLadder), null with none. */
 const dawnOf = () => {

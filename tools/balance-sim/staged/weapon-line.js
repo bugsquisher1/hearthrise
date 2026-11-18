@@ -18,9 +18,9 @@
 // hero that Level can wear, fully tempered Dawnsteel included. tests/weapon-line.mjs measures all of it.
 //
 // WHY THE WEAPON NEEDS A LINE (the board's "2026-11-16 The late grounds, cleaned up"): a Melee hero's own blow is what falls behind
-// past Dawnsteel. A lone sword at the Pauper Vaults' floor lost 92k gold an hour and its low point was 58.7 (bar 60). Accuracy is
+// past Dawnsteel. A lone sword at the Unmarked Catacombs' floor lost 92k gold an hour and its low point was 58.7 (bar 60). Accuracy is
 // capped at 95% against most heads, so most of a weapon's power past 110 is its max hit. Accuracy buys power only against the
-// hard-skinned heads (Keeper Dunn 55% -> 76%). A bane on heads that don't hurt doesn't buy safety: measured, the Vaults' axes with
+// hard-skinned heads (Keeper Dunn 55% -> 76%). A bane on heads that don't hurt doesn't buy safety: measured, the Catacombs' axes with
 // a bane of the Undead killed as fast as the line and bottomed out 2 points lower, because the Leech and the Night Carter hit hardest.
 //
 // EVERY FAMILY HAS THE LINE; THE SAMPLE IS MELEE. The bow, crossbow, wand and staff profit at every late floor and hold their low
@@ -72,7 +72,7 @@ export function lineWeapon(family, reqLv) {
   return out;
 }
 
-/* ── THE SAMPLE OF FIVE. Wyvern Roost's sword (its one red), and the Pauper Vaults' Melee: two swords that split one budget two
+/* ── THE SAMPLE OF FIVE. Wyvern Roost's sword (its one red), and the Unmarked Catacombs' Melee: two swords that split one budget two
    ways, the hatchets and the warhammer. Shape as the armor line's sample: `row` is the item row as it would ship, `family` the
    line it sits under (its Dawnsteel base copies every field but its own), `attr` the special-attribute catalogue's attribute and key,
    `spend` how it spends the budget (the identity, one line), `source` where it drops (`ch` a kill, proposed: about one every 15
@@ -94,7 +94,7 @@ export const WEAPON_SAMPLE = Object.freeze({
       bane: Object.freeze({ class: 'human', mult: 1.1 }), effects: Object.freeze(['bane']), rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'sword', attr: Object.freeze(['bane', 'human']),
     spend: 'precise: a third more accuracy than the line and an eighth less damage, for the hard-skinned heads and the men',
-    source: Object.freeze({ monster: 'shrouded_pauper', ground: 'pauper_vaults', how: 'rare', ch: 0.0007 }), use: 'worn',
+    source: Object.freeze({ monster: 'shrouded_pauper', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0007 }), use: 'worn',
     text: 'It hits Humans 10% harder. The Havora Watch carried these against the town\'s thieves, and the Watchmen buried down here took theirs with them.',
   }),
   limewashed_sword: Object.freeze({
@@ -102,7 +102,7 @@ export const WEAPON_SAMPLE = Object.freeze({
       critB: 0.1, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'sword', attr: Object.freeze(['crit', null]),
     spend: 'keen: under the line\'s accuracy and damage, and one blow in ten more lands critical, for the soft heads',
-    source: Object.freeze({ monster: 'bone_wall', ground: 'pauper_vaults', how: 'rare', ch: 0.0023 }), use: 'worn',
+    source: Object.freeze({ monster: 'bone_wall', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0023 }), use: 'worn',
     text: 'It lands a critical hit 10% more often. A hundred years in the ossuary lime ate its edge rough, and a rough edge bites deep.',
   }),
   hoist_hooks: Object.freeze({
@@ -110,7 +110,7 @@ export const WEAPON_SAMPLE = Object.freeze({
       critB: 0.1, twoHanded: true, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'hatchets', attr: Object.freeze(['crit', null]),
     spend: 'sure and keen: a fifth more accuracy than the line and a sixth less damage, and one blow in ten more lands critical, best on the hard-skinned',
-    source: Object.freeze({ monster: 'night_carter', ground: 'pauper_vaults', how: 'rare', ch: 0.0031 }), use: 'worn',
+    source: Object.freeze({ monster: 'night_carter', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0031 }), use: 'worn',
     text: 'It lands a critical hit 10% more often. The Night Carters dragged the dead up the hoist shaft on these, and a hook that\'s caught doesn\'t let go.',
   }),
   dunns_mallet: Object.freeze({
@@ -118,7 +118,7 @@ export const WEAPON_SAMPLE = Object.freeze({
       bane: Object.freeze({ class: 'construct', mult: 1.1 }), effects: Object.freeze(['bane']), twoHanded: true, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 165 }),
     family: 'warhammer', attr: Object.freeze(['bane', 'construct']),
     spend: 'a hammer that lands: a third more accuracy than the line and a tenth less damage, and the walls of bone break',
-    source: Object.freeze({ monster: 'keeper_dunn', ground: 'pauper_vaults', how: 'rare', ch: 0.0093 }), use: 'worn',
+    source: Object.freeze({ monster: 'keeper_dunn', ground: 'unmarked_catacombs', how: 'rare', ch: 0.0093 }), use: 'worn',
     text: 'It hits Constructs 10% harder. The Keepers packed the old bones into the walls with it to make room for the new dead, and Keeper Dunn never put it down.',
   }),
 });

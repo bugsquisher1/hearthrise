@@ -20,9 +20,9 @@ async function settled(cs, ans) {
   const b = ans && ans.body && typeof ans.body === 'object' ? ans.body : {};
   if (ans && ans.ok && b.ok === true) { if (cs.status !== 'closed') await cs.load(); return { ok: true, item: typeof b.item === 'string' ? b.item : null }; }
   const r = refusalOf(ans);
-  if (typeof b.skill === 'string' && SKILL.test(b.skill)) r.bench = b.skill;
+  const bench = typeof b.skill === 'string' && SKILL.test(b.skill) ? b.skill : null;
   if ((r.error === 'quote_changed' || r.error === 'insufficient_item') && cs.status !== 'closed') await cs.load();
-  return r;
+  return { ...r, bench };
 }
 
 /* One priced step on one piece: the shared shape of both verbs. `send(args)` names its RPC literally (tests/client-intent-surface.mjs reads the calls). */

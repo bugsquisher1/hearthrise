@@ -1295,13 +1295,14 @@ jobs:
       # patched in place; the server's counts win; every action one intent with
       # its controls off until the server answers; a locked stack never reaches
       # a bulk sale; a sale and the one-tap refill show their total first; the
-      # new sections missing fail safe. --mutate shard 1 of 18 (2: in-page-11, 3: in-page-12,
-      # 4..5: in-page-17..18, 6..17: in-page-27..38, 18: in-page-49, 19..24: in-page-51..56), balanced by measured seconds.
+      # new sections missing fail safe. --mutate shard 1 of 27 (2: in-page-11, 3: in-page-12,
+      # 4..5: in-page-17..18, 6..17: in-page-27..38, 18: in-page-49, 19..24: in-page-51..56, 25..27: in-page-57..59),
+      # balanced by measured seconds.
       - name: Alpha windows (play.html)
         if: ${{ !cancelled() }}
         run: |
           node tests/alpha-windows.mjs
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=1/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=1/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -1802,12 +1803,12 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 2 of 24 (see in-page-10), then the live
+      # The Alpha windows --mutate shard 2 of 27 (see in-page-10), then the live
       # hunt scene.
-      - name: Alpha windows mutants, shard 2 of 24 (play.html)
+      - name: Alpha windows mutants, shard 2 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=2/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=2/27
           node tests/hunt-scene-live.mjs
 
       - name: Upload failure artifacts
@@ -1842,11 +1843,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 3 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 3 of 24 (play.html)
+      # The Alpha windows --mutate shard 3 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 3 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=3/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=3/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -1882,11 +1883,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 4 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 4 of 24 (play.html)
+      # The Alpha windows --mutate shard 4 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 4 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=4/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=4/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -1920,11 +1921,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 5 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 5 of 24 (play.html)
+      # The Alpha windows --mutate shard 5 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 5 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=5/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=5/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2016,11 +2017,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 6 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 6 of 24 (play.html)
+      # The Alpha windows --mutate shard 6 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 6 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=6/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=6/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2054,11 +2055,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 7 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 7 of 24 (play.html)
+      # The Alpha windows --mutate shard 7 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 7 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=7/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=7/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2092,11 +2093,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 8 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 8 of 24 (play.html)
+      # The Alpha windows --mutate shard 8 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 8 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=8/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=8/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2130,11 +2131,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 9 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 9 of 24 (play.html)
+      # The Alpha windows --mutate shard 9 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 9 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=9/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=9/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2168,11 +2169,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 10 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 10 of 24 (play.html)
+      # The Alpha windows --mutate shard 10 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 10 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=10/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=10/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2206,11 +2207,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 11 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 11 of 24 (play.html)
+      # The Alpha windows --mutate shard 11 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 11 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=11/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=11/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2244,11 +2245,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 12 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 12 of 24 (play.html)
+      # The Alpha windows --mutate shard 12 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 12 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=12/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=12/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2282,11 +2283,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 13 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 13 of 24 (play.html)
+      # The Alpha windows --mutate shard 13 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 13 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=13/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=13/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2320,11 +2321,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 14 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 14 of 24 (play.html)
+      # The Alpha windows --mutate shard 14 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 14 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=14/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=14/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2358,11 +2359,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 15 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 15 of 24 (play.html)
+      # The Alpha windows --mutate shard 15 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 15 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=15/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=15/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2396,11 +2397,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 16 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 16 of 24 (play.html)
+      # The Alpha windows --mutate shard 16 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 16 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=16/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=16/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2434,11 +2435,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 17 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 17 of 24 (play.html)
+      # The Alpha windows --mutate shard 17 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 17 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=17/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=17/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2473,11 +2474,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 18 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 18 of 24 (play.html)
+      # The Alpha windows --mutate shard 18 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 18 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=18/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=18/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2490,7 +2491,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # 2026-11-18 (set/v0.2.139): alpha-windows shard 19 of 24. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
+  # 2026-11-18 (set/v0.2.139): alpha-windows shard 19 of 27. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
   # measured (286 s), so 18 shards read 28 min against the 22 min cap; 24 take it back under. Re-measure the times file from the next full sweep.
   in-page-51:
     runs-on: ubuntu-latest
@@ -2512,11 +2513,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 19 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 19 of 24 (play.html)
+      # The Alpha windows --mutate shard 19 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 19 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=19/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=19/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2529,7 +2530,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # 2026-11-18 (set/v0.2.139): alpha-windows shard 20 of 24. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
+  # 2026-11-18 (set/v0.2.139): alpha-windows shard 20 of 27. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
   # measured (286 s), so 18 shards read 28 min against the 22 min cap; 24 take it back under. Re-measure the times file from the next full sweep.
   in-page-52:
     runs-on: ubuntu-latest
@@ -2551,11 +2552,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 20 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 20 of 24 (play.html)
+      # The Alpha windows --mutate shard 20 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 20 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=20/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=20/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2568,7 +2569,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # 2026-11-18 (set/v0.2.139): alpha-windows shard 21 of 24. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
+  # 2026-11-18 (set/v0.2.139): alpha-windows shard 21 of 27. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
   # measured (286 s), so 18 shards read 28 min against the 22 min cap; 24 take it back under. Re-measure the times file from the next full sweep.
   in-page-53:
     runs-on: ubuntu-latest
@@ -2590,11 +2591,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 21 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 21 of 24 (play.html)
+      # The Alpha windows --mutate shard 21 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 21 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=21/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=21/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2607,7 +2608,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # 2026-11-18 (set/v0.2.139): alpha-windows shard 22 of 24. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
+  # 2026-11-18 (set/v0.2.139): alpha-windows shard 22 of 27. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
   # measured (286 s), so 18 shards read 28 min against the 22 min cap; 24 take it back under. Re-measure the times file from the next full sweep.
   in-page-54:
     runs-on: ubuntu-latest
@@ -2629,11 +2630,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 22 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 22 of 24 (play.html)
+      # The Alpha windows --mutate shard 22 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 22 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=22/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=22/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2646,7 +2647,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # 2026-11-18 (set/v0.2.139): alpha-windows shard 23 of 24. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
+  # 2026-11-18 (set/v0.2.139): alpha-windows shard 23 of 27. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
   # measured (286 s), so 18 shards read 28 min against the 22 min cap; 24 take it back under. Re-measure the times file from the next full sweep.
   in-page-55:
     runs-on: ubuntu-latest
@@ -2668,11 +2669,11 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 23 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 23 of 24 (play.html)
+      # The Alpha windows --mutate shard 23 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 23 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=23/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=23/27
 
       - name: Upload failure artifacts
         if: failure()
@@ -2685,7 +2686,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # 2026-11-18 (set/v0.2.139): alpha-windows shard 24 of 24. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
+  # 2026-11-18 (set/v0.2.139): alpha-windows shard 24 of 27. Tonight's lanes added 36 mutants not yet measured, booked at the slowest
   # measured (286 s), so 18 shards read 28 min against the 22 min cap; 24 take it back under. Re-measure the times file from the next full sweep.
   in-page-56:
     runs-on: ubuntu-latest
@@ -2707,17 +2708,134 @@ jobs:
       - name: Install Playwright + Chromium
         uses: ./.github/actions/playwright-chromium
 
-      # The Alpha windows --mutate shard 24 of 24 (see in-page-10).
-      - name: Alpha windows mutants, shard 24 of 24 (play.html)
+      # The Alpha windows --mutate shard 24 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 24 of 27 (play.html)
         if: ${{ !cancelled() }}
         run: |
-          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=24/24
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=24/27
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-56
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # 2026-11-18 (set/v0.2.140): alpha-windows shard 25 of 27. The 140 set's lanes left 48 mutants not yet measured, booked at the slowest
+  # measured, so 24 shards read 23.6 min against the 22 min cap; 26 read 21.9 (the next mutant re-reds it), 27 read 21.0. Re-measure the times file from the next full sweep.
+  in-page-57:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # The Alpha windows --mutate shard 25 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 25 of 27 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=25/27
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-57
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # 2026-11-18 (set/v0.2.140): alpha-windows shard 26 of 27. The 140 set's lanes left 48 mutants not yet measured, booked at the slowest
+  # measured, so 24 shards read 23.6 min against the 22 min cap; 26 read 21.9 (the next mutant re-reds it), 27 read 21.0. Re-measure the times file from the next full sweep.
+  in-page-58:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # The Alpha windows --mutate shard 26 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 26 of 27 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=26/27
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-58
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # 2026-11-18 (set/v0.2.140): alpha-windows shard 27 of 27. The 140 set's lanes left 48 mutants not yet measured, booked at the slowest
+  # measured, so 24 shards read 23.6 min against the 22 min cap; 26 read 21.9 (the next mutant re-reds it), 27 read 21.0. Re-measure the times file from the next full sweep.
+  in-page-59:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # The Alpha windows --mutate shard 27 of 27 (see in-page-10).
+      - name: Alpha windows mutants, shard 27 of 27 (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tests/alpha-windows.mjs --mutate --shard=27/27
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-59
           path: |
             tests/**/*.png
             tests/**/*.log

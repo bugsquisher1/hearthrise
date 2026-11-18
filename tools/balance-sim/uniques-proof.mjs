@@ -2,9 +2,9 @@
 // lane/d-late-items-rescue; run by `node tools/balance-sim/grade.mjs --selftest`, which CI runs).
 //
 // The grader's `uniques` kit (gear.mjs) dresses a hero in the best piece it can get per slot, the staged gear catalogues' hidden rows
-// included, and puts those rows into the engine's ITEMS as they would ship. This proves, on the Pauper Vaults at its floor (165) with
+// included, and puts those rows into the engine's ITEMS as they would ship. This proves, on the Unmarked Catacombs at its floor (165) with
 // the Morrow's three packs open, the ground the armor line was measured on:
-//   U1  the kit wears a staged plate piece (one the ladder has no row for) in each slot the Vaults sample fills;
+//   U1  the kit wears a staged plate piece (one the ladder has no row for) in each slot the Catacombs sample fills;
 //   U2  the live settle's own member builder (src/core/member.js memberSide, the hr-accrue settle's) carries each worn piece's armor
 //       onto the hero: heavy armour is the sum of the worn plate rows, and more than the ladder kit's;
 //   U3  each worn attribute reported applied reaches the hero's unit: the engine's view moves when it is taken off, and a resistance
@@ -21,9 +21,9 @@
 //   fakeHook     the report calls an unhooked attribute applied
 // Answers a list of failures (empty: proven).
 
-const GROUND = 'pauper_vaults';
+const GROUND = 'unmarked_catacombs';
 const LEVEL = 165;
-const OPEN = Object.freeze(['pauper_vaults', 'carters_rest', 'ox_road', 'wyvern_roost']);
+const OPEN = Object.freeze(['unmarked_catacombs', 'carters_rest', 'ox_road', 'wyvern_roost']);
 /* where U4 is proven: a staged row whose attribute the engine does not read, worn by the uniques kit */
 const U4_AT = Object.freeze({ style: 'bow', level: 50, ground: 'the_slake' });
 export const UNIQUES_MUTANTS = Object.freeze(['ladder', 'edgeMissing', 'attrStripped', 'baseArmor', 'fakeHook']);
@@ -47,7 +47,7 @@ export function proveUniques(gear, plant = null) {
   const opts = { ground: GROUND, openAlso: [...OPEN] };
   const kit = gear.kitOf('tank', LEVEL, { ...opts, uniques: plant !== 'ladder' });
   const ladderKit = gear.kitOf('tank', LEVEL, opts);
-  /* the sample this proves on: every staged plate row that drops on the Vaults and is worn by 165, best armor per slot */
+  /* the sample this proves on: every staged plate row that drops on the Catacombs and is worn by 165, best armor per slot */
   const sample = {};
   for (const [id, s] of gear.staged) {
     const r = s.row;

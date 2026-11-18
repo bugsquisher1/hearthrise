@@ -346,7 +346,7 @@ function main() {
       console.log('  ✓ ' + o.set + '/' + id + ' (' + klass + ', ' + sc.frame.join('x') + ')');
     });
   } else if (cmd === 'unit') {
-    /* --dir DIR --class C --object OBJ_ID [--hover N] [--ramps a,b,c] [--lift N] [--meta FILE] [--hit N]: an 8-direction Pro Flash
+    /* --dir DIR --class C --object OBJ_ID [--hover N] [--ramps a,b,c] [--lift N [--lift-into a:b[:N][@d,…]]] [--meta FILE] [--hit N]: an 8-direction Pro Flash
        object (a monster or an NPC). DIR holds its rotations as <facing>.png (south, east, …, the PixelLab names)
        and, when it walks, walk/<facing>/<i>.png (attack/ and death/ the same way: the blow, the fall,
        and a one-frame corpse from the fall's end). idle is the rotation, walk the clip. Each clip
@@ -382,12 +382,21 @@ function main() {
     const ramps = o.ramps ? o.ramps.split(',') : null;
     if (ramps) for (const n of ramps) if (!RAMPS[n]) throw new Error(o.id + ': no ramp ' + n + ' in art/world/palette.json');
     const colours = ramps && ramps.flatMap((n) => RAMPS[n]);
-    const load = (f) => { const img = decodePNG(readFileSync(f)); const snapped = colours ? snapTo(img, colours) : img; return colours && o.lift ? liftBody(snapped, Number(o.lift)) : snapped; };
+    /* --lift-into a:b[:N][,c:d][@d1,d2]: ramp a lifts on into ramp b's lighter steps (lock.mjs liftBody `into`), N steps there in place of
+       --lift's, on the facings after @ only (the Night Carter's back is drawn in the shadow ramp; his front keeps its black hook and brim) */
+    const [intoPairs, intoAt] = (o['lift-into'] || '').split('@');
+    const intoList = (intoPairs ? intoPairs.split(',') : []).map((p) => p.split(':'));
+    const into = Object.fromEntries(intoList.map(([a, b]) => [a, b]));
+    const intoSteps = Math.max(Number(o.lift || 0), ...intoList.map((q) => Number(q[2] || 0)));
+    for (const [a, b] of Object.entries(into)) if (!RAMPS[a] || !RAMPS[b]) throw new Error(o.id + ': --lift-into ' + a + ':' + b + ' names no ramp');
+    const intoFacings = intoAt ? intoAt.split(',') : FACINGS;
+    if (intoFacings.some((d) => !FACINGS.includes(d))) throw new Error(o.id + ': --lift-into @' + intoAt + ' names no facing');
+    const load = (f, d) => { const img = decodePNG(readFileSync(f)); const snapped = colours ? snapTo(img, colours) : img; if (!colours || !o.lift) return snapped; return intoFacings.includes(d) ? liftBody(snapped, intoSteps, into) : liftBody(snapped, Number(o.lift)); };
     let r = 0, canvas = 0;
     for (const a of anims) for (const d of facingsOf(a)) {
-      const imgs = a.frames[d].map(load);
+      const imgs = a.frames[d].map((f) => load(f, d));
       canvas = Math.max(canvas, imgs[0].width);
-      const lowest = Math.max(...(a.name === 'corpse' ? death.frames[d].map(load) : imgs).map(lowestRow));
+      const lowest = Math.max(...(a.name === 'corpse' ? death.frames[d].map((f) => load(f, d)) : imgs).map(lowestRow));
       /* a flier falls from its hover to the floor: its fall and corpse rest on the anchor row like every body */
       const dy = (flier && a.name !== 'death' && a.name !== 'corpse' ? ay - hover : ay) - lowest, dx = ax - Math.floor(imgs[0].width / 2);
       imgs.forEach((img, i) => {
@@ -403,7 +412,7 @@ function main() {
       ...(flier ? { hover_px: hover } : {}),
       anims: anims.map((a) => ({ name: a.name, fps: a.fps, loop: a.loop, ...(a.name === 'attack' && o.hit ? { hit: Number(o.hit) } : {}), dirs: Object.fromEntries(facingsOf(a).map((d) => [d, a.frames[d].length])) })),
       pixellab: { tool: 'create_object_pro_flash', object: o.object, n_directions: 8, ...(o.name ? { name: o.name } : {}), ...(o.meta ? JSON.parse(readFileSync(o.meta, 'utf8')) : {}) },
-      notes: 'Ported from PixelLab object ' + o.object + ' (style 1, ' + canvas + ' px canvas, 8 rotations' + (anims.length > 1 ? ' and a v3 walk' : '') + ') by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels.' + (ramps ? ' Snapped to the ' + ramps.join(', ') + ' ramps before the lock (lock.mjs snapTo): its hue is its identity.' : '') + (o.lift ? ' Body lifted ' + o.lift + ' ramp step(s) for its dark floor (lock.mjs liftBody).' : '') + (o.note ? ' ' + o.note : ''),
+      notes: 'Ported from PixelLab object ' + o.object + ' (style 1, ' + canvas + ' px canvas, 8 rotations' + (anims.length > 1 ? ' and a v3 walk' : '') + ') by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels.' + (ramps ? ' Snapped to the ' + ramps.join(', ') + ' ramps before the lock (lock.mjs snapTo): its hue is its identity.' : '') + (o.lift ? ' Body lifted ' + o.lift + ' ramp step(s) for its dark floor (lock.mjs liftBody).' : '') + Object.entries(into).map(([a, b]) => ' The ' + a + ' ramp lifts on into ' + b + (intoSteps !== Number(o.lift) ? ', ' + intoSteps + ' steps,' : '') + (intoAt ? ' on ' + intoFacings.join(', ') : '') + '.').join('') + (o.note ? ' ' + o.note : ''),
     };
     writeFileSync(join(dir, o.id + '.json'), JSON.stringify(sc, null, 2) + '\n');
     console.log('  ✓ ' + o.set + '/' + o.id + ' (' + o.class + ', ' + anims.map((a) => a.name).join('+') + ')');

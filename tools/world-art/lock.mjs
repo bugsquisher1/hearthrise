@@ -117,11 +117,18 @@ export function snapTo(img, colours) {
  * One value step up its own ramp, `steps` times, for every body pixel of an on-palette image (ART_DIRECTION section 4: a
  * body on a dark floor lifts up its ramp, never to another hue). The silhouette's edge, the shadow ramp and the accents
  * (a Drain Rat's orange teeth stay orange) keep their value.
+ * `into` { ramp: next }: a ramp that lifts on into the lighter steps of a neighbour of its own material (the Night Carter's coat
+ * is drawn in the shadow ramp, which never lifts alone: { shadow: 'stone' } carries it on up the neutral greys), as shadeGround's
+ * SHADES_INTO carries moss down into the leaf greens.
  */
 const UNLIFTED = Object.freeze(['shadow', 'torch', 'blood', 'frost', 'venom', 'gold']);
-export function liftBody(img, steps) {
+export function liftBody(img, steps, into = {}) {
   const at = {};
-  for (const [name, ramp] of Object.entries(RAMPS)) ramp.forEach((c, k) => { at[c] = UNLIFTED.includes(name) ? c : ramp[Math.min(ramp.length - 1, k + steps)]; });
+  for (const [name, ramp] of Object.entries(RAMPS)) {
+    const top = lumHex(ramp[ramp.length - 1]);
+    const chain = into[name] ? [...ramp, ...RAMPS[into[name]].filter((c) => lumHex(c) > top)] : ramp;
+    ramp.forEach((c, k) => { at[c] = UNLIFTED.includes(name) && !into[name] ? c : chain[Math.min(chain.length - 1, k + steps)]; });
+  }
   const out = createImage(img.width, img.height);
   const on = (x, y) => x >= 0 && y >= 0 && x < img.width && y < img.height && img.data[(y * img.width + x) * 4 + 3] >= ALPHA_CUT;
   for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {

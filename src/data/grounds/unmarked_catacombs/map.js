@@ -20,9 +20,10 @@
 // the hero's lamp and four candles on the bier, and a ring of candles in the Keepers' Room. Walking it goes warm, small and many, warm, black,
 // then candlelight.
 //
-// STAGED, NO ART. The ground is the Sewer's painted ground under a new id (`sewer_ground`, a stand-in so the map lints: its paint does not
-// match these rows). Every placed piece is a Greenhaven kit prop standing in for the vault kit the art list owes (the board's section 8): the
-// niche candles, the bone walls, the Wood Book's lectern, the bier, the hoist. The pack opens only with its own painted ground and pieces.
+// STAGED. The ground is its own vault floor (lane/a-catacomb-art 2026-11-17: `unmarked_catacombs_ground`, set vault, painted from these rows
+// by tools/world-art/catacomb-ground.mjs, its walls laid into the paint), and its two signature pieces stand: Dunn's Wood Book in the Keepers'
+// Room, north of his pocket, and the ossuary hung on the Bone Room's faces (uc_ossuary_wall, class hanging: no step is blocked). The rest are
+// Greenhaven kit props standing in for the vault kit the art list still owes (the board's section 8): the niche candles, the bier, the hoist.
 export default Object.freeze({
   id: 'unmarked_catacombs',
   name: 'Unmarked Catacombs',
@@ -30,7 +31,7 @@ export default Object.freeze({
   hunts: Object.freeze(['unmarked_catacombs']),
   outdoor: false,
   light: 'cellar',
-  ground: 'sewer_ground',
+  ground: 'unmarked_catacombs_ground',
   legend: Object.freeze({ '#': 'rock', '.': 'flagstone', ':': 'earth', s: 'setts', '~': 'water', '=': 'planks' }),
   rows: Object.freeze([
     '##:::#######################################################', // 0
@@ -107,6 +108,14 @@ export default Object.freeze({
     { id: 'sack_stack', x: 2, y: 23 }, { id: 'sack_stack', x: 2, y: 24 }, { id: 'sack_stack', x: 2, y: 37 }, { id: 'sack_stack', x: 11, y: 37 },
     { id: 'sack_pile', x: 12, y: 33 }, { id: 'sack_pile', x: 2, y: 30 }, { id: 'sack_pile', x: 12, y: 27 }, { id: 'barrels', x: 12, y: 22 },
     { id: 'barrel_broken', x: 3, y: 35 }, { id: 'straw', x: 6, y: 25 }, { id: 'straw', x: 9, y: 35 }, { id: 'loot_bag', x: 11, y: 30 },
+    /* the signature pieces: the Wood Book where Dunn reads it, and the ossuary on the Bone Room's north faces and its four pillars (its torch
+       keeps 52,12) */
+    { id: 'uc_wood_book', x: 34, y: 35 },
+    { id: 'uc_ossuary_wall', x: 44, y: 12 }, { id: 'uc_ossuary_wall_b', x: 45, y: 12 }, { id: 'uc_ossuary_wall_c', x: 46, y: 12 },
+    { id: 'uc_ossuary_wall', x: 47, y: 12 }, { id: 'uc_ossuary_wall_b', x: 48, y: 12 }, { id: 'uc_ossuary_wall_c', x: 53, y: 12 },
+    { id: 'uc_ossuary_wall', x: 54, y: 12 }, { id: 'uc_ossuary_wall_b', x: 55, y: 12 }, { id: 'uc_ossuary_wall_c', x: 56, y: 12 },
+    { id: 'uc_ossuary_wall', x: 57, y: 12 }, { id: 'uc_ossuary_wall_b', x: 47, y: 16 }, { id: 'uc_ossuary_wall_c', x: 54, y: 16 },
+    { id: 'uc_ossuary_wall', x: 47, y: 21 }, { id: 'uc_ossuary_wall_b', x: 54, y: 21 },
   ]),
   buildings: Object.freeze([]),
   /* the patrol loop, in the Carters' Cut by the tunnel mouth */
@@ -123,5 +132,5 @@ export default Object.freeze({
   stations: Object.freeze({}),
   exits: Object.freeze([{ x: 3, y: 0, to: 'town_common' }]),
   start: Object.freeze([3, 1]),
-  maskHash: 'f43f14d7',
+  maskHash: 'b34acba6',
 });

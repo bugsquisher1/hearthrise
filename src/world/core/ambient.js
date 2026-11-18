@@ -164,6 +164,19 @@ export function glanceOf(id, x, y, t) {
 }
 
 /**
+ * A viewer's own bump seed: a stable hash of who is watching (the hero's name), so two players' chests never jolt together and one
+ * page's never jumps about; null with no viewer (no bump). The world draws no randomness of its own (tests/world-no-authority W-CALL).
+ * @param {string|null|undefined} key
+ * @returns {number|null}
+ */
+export function bumpSeedOf(key) {
+  if (typeof key !== 'string' || !key) return null;
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) & 0x7fffffff;
+}
+
+/**
  * A BUMP (ambient-life.js BUMP: the Hearth Chest jolting as if something inside wants out): at time t the frame of a loop's `bump` clip
  * to draw in place of its idle frame, or -1. A bump plays from the start of one idle loop in each block of BUMP.block loops (which one
  * hashed from the block and `seed`, the page's own), its clip standing for that loop's first `nb` frames. No seed, no bump.

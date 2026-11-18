@@ -3663,7 +3663,7 @@ chest with its lid lifted 2-3 px on a stepped band (the review called bump-s17's
 +/-1 px) stands for idle 0-7 of a bump loop. Its light: class `glow` (new row), stepped leaf greens drawn ADDITIVELY (`blend: 'add'`) after
 the light, since the town's day light mask is white (a point light adds nothing in daylight). Its smoke: town-life.mjs smoke() exported and
 reused in black/green inks, plus a puff and dust in the bump clip. Schedule: core/ambient.js bumpAt, one loop in each block of 5 at a
-hashed slot of 3 (gaps 3-7 loops = 9-21 s), seeded by the page's own Math.random (world-boot BUMP_SEED on the town frame), off with the
+hashed slot of 3 (gaps 3-7 loops = 9-21 s), seeded by the viewer's hero name (bumpSeedOf on the town frame), off with the
 Idle animations switch. Three AMBIENT rows on one CHEST_SEAT, hidden together (CHEST_LAYERS). Class `relic` (this sprite only).
 Phase 2, the Great Hearth (Coordinator gens): FINAL-s602 + banner H + crest inpaints, 384 x 448 with 319 px of art centred, shipped at 352 (16 transparent columns cut each side: a 384 frame box stood over the shop and storage stands, town-stations ST-1), so the 11 x 4
 footprint holds and the walk mask, stands and stations file do not move; landmark band 352 -> 360 (390 px with the cupola). atlas-common
@@ -3676,3 +3676,7 @@ read declarations literally (token-single-source, mutant anchors, perf-budget pr
 a probed line breaks them; carry new state on a frame object instead of the shared sync line; (3) to photograph a random moment, pin Date.now
 and scope a fixed Math.random to the one module that seeds it (stack test), then compute the instant from the game's own function; (4) a
 hero name is unique per world: a second shot run needs a new name (a "hang" at hero creation was that, not the overrides); (5) the Climb tab's course needs a straight run the new tapered chimney lacks: handed to the asset director.
+Round 2 (lane/c-hearth-moods found it red after merging f2f7bc2b1): world-no-authority W-CALL bans Math.random anywhere in src/world, and
+my BUMP_SEED drew one. The seed is now the viewer's own, a hash of the hero's name (core/ambient.js bumpSeedOf, null with no hero), on the
+town frame; TL-BUMP takes its seeds from four names and plants a shared seed and a no-hero bump. Lesson (6): before handing back a lane
+that touches src/world, run the authority guard that scopes it (world-no-authority); my guard list came from the brief and missed it.

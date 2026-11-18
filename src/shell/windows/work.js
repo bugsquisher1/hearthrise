@@ -28,7 +28,8 @@
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.137';
 import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.137';
 import { recipeInputs, burnPct } from '../../core/artisan.js?v=0.2.137';
-import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage } from '../../session/item-sections.js?v=0.2.137';
+import { skillsOf, skillLevelsOf, heldOf, drawsOnStorage, equipmentOf } from '../../session/item-sections.js?v=0.2.137';
+import { levelOf } from '../../session/character-sections.js?v=0.2.137';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.137';
 import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.137';
 import { whole } from '../../render/format.js?v=0.2.137';
@@ -40,7 +41,10 @@ import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf,
 import { patchParts, placesParts } from '../goto.js?v=0.2.137';
 import { saleWords } from '../item-lore.js?v=0.2.137';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.137';
-import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.137';
+import { feeLineWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.137';
+import { outputVsWorn, ladderOf } from '../bench-output.js?v=0.2.137';
+import { showTip, hideTip } from './item-tip.js?v=0.2.137';
+import { kindOf, equipSlotFor } from '../bag-model.js?v=0.2.137';
 import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.137';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.137';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.137';
@@ -76,8 +80,34 @@ export function rowsFor(skill, level, inv, sort) {
   const all = BY_SKILL.get(skill) || [];
   const lv = Number.isInteger(level) ? level : 1;
   const open = all.filter((w) => (w.row.req || 1) <= lv);
-  const ahead = all.filter((w) => (w.row.req || 1) > lv).sort((a, b) => (a.row.req || 1) - (b.row.req || 1)).slice(0, AHEAD);
-  return orderStation(open, ahead, sort, (w) => w.kind === 'artisan' && runsOf(w.row, inv) > 0);
+  return orderStation(open, lockedOf(skill, lv).slice(0, AHEAD), sort, (w) => w.kind === 'artisan' && runsOf(w.row, inv) > 0);
+}
+
+/* A skill's rows above the level, lowest first: the next AHEAD in full (rowsFor), the rest its ladder (bench-output.js ladderOf). */
+const lockedOf = (skill, lv) => (BY_SKILL.get(skill) || []).filter((w) => (w.row.req || 1) > lv).sort((a, b) => (a.row.req || 1) - (b.row.req || 1));
+
+/* THE WHOLE LADDER (itemization audit 2026-11-18 #1): every rung past the rows in full, one line a Level, each thing it opens an icon and a
+   name whose card (the item tooltip, against what the hero wears) shows on the pointer. Built once a skill and level. */
+function ladderHtml(g, rungs) {
+  if (!rungs.length) return '';
+  return '<h4 class="hw-hd-h">' + esc(t('work.ladder_head')) + '</h4><ul class="hw-ladder">' + rungs.map((r) => '<li class="hw-ladder-rung"><b class="hw-ladder-lv">'
+    + esc(t('work.row_level', { level: r.level })) + '</b><span class="hw-ladder-items">' + r.rows.map((w) => {
+      const out = productOf(w);
+      return '<span class="hw-ladder-item"' + (out ? ' data-hs-act="work-tip" data-item="' + esc(out) + '"' : '') + '>'
+        + itemIconHtml(g, out || Object.keys(recipeInputs(w.row))[0]) + '<span>' + esc(out ? itemName(out) : w.row.name) + '</span></span>';
+    }).join('') + '</span></li>').join('') + '</ul>';
+}
+
+/* What a row makes against what the hero wears (bench-output.js), as a comparison reads in any RPG: each stat with its change against the
+   worn piece after it in gain or loss ("+16 Melee damage (+13)"), then what it is set against ("vs Practice Sword", "Empty ammo slot"). */
+const keep = (s) => esc(s).replace(/ /g, NBSP);   /* the line breaks only between its parts, never inside "+16 Melee damage (+13)" */
+const changeHtml = (c) => '<span class="' + (c.gain ? 'is-gain' : 'is-loss') + '">' + keep(c.text) + '</span>';
+function isHtml(o) {
+  if (!o) return '';
+  const stats = o.stats.map((s) => (s.stat ? keep(s.stat) + (s.change ? NBSP + '(' + changeHtml(s.change) + ')' : '') : changeHtml(s.change))).join(', ');
+  const vs = o.same ? t('work.is_worn') : o.worn ? t(o.stats.some((s) => s.change) ? 'work.is_vs' : 'work.is_same', { worn: itemName(o.worn) })
+    : o.slot ? t('work.is_empty', { slot: o.slot }) : '';
+  return [stats, vs ? '<span class="hw-work-vs">' + keep(vs) + '</span>' : ''].filter(Boolean).join(' · ');
 }
 
 const NBSP = String.fromCharCode(160);
@@ -113,9 +143,11 @@ function rowHtml(g, w) {
   const n = w.kind === 'artisan' ? yieldOf(w) : 1;
   /* what it makes, named on the pointer (a rite makes nothing: its icon is what it takes) */
   const made = productOf(w) ? ' title="' + esc(itemName(productOf(w))) + '"' : '';
-  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '" data-hs-find="' + esc(w.id) + '"><span class="hw-ico"' + made + '>' + itemIconHtml(g, icon)
+  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '" data-hs-find="' + esc(w.id) + '"><span class="hw-ico"' + made
+    + (w.kind === 'artisan' && productOf(w) ? ' data-hs-act="work-tip" data-item="' + esc(productOf(w)) + '"' : '') + '>' + itemIconHtml(g, icon)
     + (n > 1 ? '<small class="hw-work-yield">' + esc(whole(n)) + '</small>' : '') + '</span>'
     + '<span class="hw-line-name"><span class="hw-work-top"><b>' + esc(w.row.name) + '</b><small class="hw-work-lv">' + esc(t('work.row_level', { level: w.row.req || 1 })) + '</small></span>'
+    + '<small class="hw-work-is"></small>'
     + '<span class="hw-work-ins"><span class="hw-work-what">' + inputsHtml(g, w) + '</span><small class="hw-work-stat"></small></span>'
     + '<small class="hw-work-odds"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
     /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
@@ -129,10 +161,14 @@ function rowHtml(g, w) {
     + '</span><button type="button" class="hh-tool hw-work-go" data-hs-act="work-go" data-kind="' + w.kind + '" data-id="' + esc(w.id) + '"></button></li>';
 }
 
-function patchRow(li, w, cs, sc, on, hunting, lv) {
+function patchRow(li, w, cs, sc, on, hunting, lv, worn) {
   const ms = actionMs(cs, w);
   const out = productOf(w);
   const gather = w.kind === 'gather';
+  /* What it makes, against the worn set the server sends: written only when it changes (a key on the line). */
+  const is = li.querySelector('.hw-work-is'), isSaid = gather ? '' : isHtml(outputVsWorn(out, worn));
+  if (is.getAttribute('data-is') !== isSaid) { is.innerHTML = isSaid; is.setAttribute('data-is', isSaid); }
+  prop(is, 'hidden', !isSaid);
   /* The numbers line: the seconds and XP an action at the hero's tool, then a node's hourly yield, or a dish's burn chance at the
      server's Cooking level ("up to": a Kitchen rung the server holds burns less) and who won't buy what it makes. */
   const burn = w.skill === 'cooking' && out ? burnPct(w.row, lv, 0) : 0;
@@ -152,9 +188,10 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const odds = li.querySelector('.hw-work-odds'), oddsSaid = gather ? '' : oddsWords(cs, w);
   text(odds, oddsSaid);
   prop(odds, 'hidden', !oddsSaid);
-  /* What the public bench takes, before the press (bench-fee.js): the whole sentence on the pointer, the number on the row. */
+  /* What the public bench takes, before the press (bench-fee.js): the whole sentence on the pointer, the rate on the row and what the
+     picked count takes in all, its share of the purse when that is big (a new hero's All spent 38% unseen, itemization audit 2026-11-18). */
   const fee = li.querySelector('.hw-work-fee');
-  text(fee, feeRowWords(cs, w));
+  text(fee, feeLineWords(cs, w, gather ? 0 : pick === 'all' ? runs : Math.min(pick, runs), pick === 'all'));
   attr(fee, 'title', feeFullWords(cs, w) || null);
   const have = gather ? gatherBagWords(cs, w, running)
     : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })
@@ -193,7 +230,7 @@ export function renderWork() {
     + '<div class="hw-trade-ledger"><p class="hs-note hw-work-hint">Press a skill to gather or make.</p>' + renderTradeSkills() + '</div>'
     + '<section class="hw-work"><div class="hw-work-head">'
     + '<b class="hw-work-title"></b>' + skillBarHtml('Skill') + '<small class="hw-skill-xp"></small><b class="hw-skill-lv"></b></div>'
-    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul></section>'
+    + '<p class="hs-note hw-work-use"></p><p class="hs-note hw-work-tool"></p>' + hallmarkPaneHtml() + sortMenuHtml() + '<ul class="hw-ledger hw-work-rows"></ul><div class="hw-work-ladder"></div></section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
@@ -256,11 +293,20 @@ renderWork.patch = function patchWork(body, ctx) {
     const bench = SKILLS_DEF[skill].cat === 'artisan';
     const sort = bench ? stationSortOf(residueOf(cs), skill) : DEFAULT_SORT;
     patchSortMenu(view.querySelector('.hw-work-sort'), bench && lv !== null, sort);
+    const worn = equipmentOf(cs);
     rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs), sort), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),
-      patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),
+      patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv, worn),
     });
+  }
+  /* the ladder past those rows, redrawn when the skill or its server level moves */
+  const ladder = view.querySelector('.hw-work-ladder');
+  const lvNow = skill ? ((skillsOf(cs) || {})[skill] || {}).level : null;
+  const ladderKey = skill && Number.isInteger(lvNow) ? skill + ':' + lvNow : '';
+  if (ladder.getAttribute('data-key') !== ladderKey) {
+    ladder.setAttribute('data-key', ladderKey);
+    ladder.innerHTML = ladderKey ? ladderHtml(ctx.glyphs, ladderOf(lockedOf(skill, lvNow).slice(AHEAD))) : '';
   }
   /* The Hallmark step belongs to Crafting (src/data/jewelry.js JEWEL_SKILL): above its rows, one line until the hero holds a Fine piece. */
   const hall = view.querySelector('.hw-hallmark');
@@ -270,8 +316,16 @@ renderWork.patch = function patchWork(body, ctx) {
   cls(root, 'is-pending', sc.pending);
 };
 
-/* Enter or Space on a focused skill opens it, like a press. */
-renderWork.events = Object.freeze(['keydown']);
+/* Enter or Space on a focused skill opens it, like a press; a made thing's icon shows its card on the pointer. */
+renderWork.events = Object.freeze(['keydown', 'mouseover', 'mouseout']);
+
+/* A made thing's card (item-tip.js), against the piece the server says is worn in its slot, as the bag shows it. */
+function tipFor(ctx, el) {
+  const cs = ctx.character, id = el.getAttribute('data-item'), eq = equipmentOf(cs) || {};
+  const slot = kindOf(id) === 'gear' ? equipSlotFor(id, eq) : null;
+  const lv = levelOf(cs);
+  showTip(ctx.doc, el, id, { worn: slot ? (eq[slot] || null) : undefined, skills: skillsOf(cs), level: lv ? lv.level : null });
+}
 
 /* The typed count, clamped to what the server takes, becomes the row's pick (Enter or Set). */
 function setX(sc, field, repaint) {
@@ -295,6 +349,12 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     if (next) { cs.setResidue('stationSort', next); repaint(); }
     return false;
   }
+  if (action === 'work-tip') {
+    if (ev.type === 'mouseover' || ev.type === 'click') tipFor(ctx, el);
+    else if (ev.type === 'mouseout' && !el.contains(ev.relatedTarget)) hideTip(ctx.doc);
+    return false;
+  }
+  if (ev.type === 'mouseover' || ev.type === 'mouseout') return false;
   if (action === 'work-x-field') {
     if (ev.type !== 'keydown') return false;
     if (ev.key === 'Escape') { sc.xOpen = null; repaint(); return true; }

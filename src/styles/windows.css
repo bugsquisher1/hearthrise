@@ -643,6 +643,25 @@
 /* A crafting station's Sort menu (src/shell/station-sort.js): the bag's own label and select, at the list's top right. */
 .hw-work-sort { display: flex; justify-content: flex-end; margin: 4px 0; }
 .hw-work-sort[hidden] { display: none; }
+/* WHAT IT MAKES AGAINST WHAT IS WORN (src/shell/bench-output.js; itemization audit 2026-11-18 #1): one plain line under the name, its stats
+   in ink, the change against the worn piece in gain or loss, as the item card says it. */
+.hw-work-row .hw-line-name .hw-work-is { color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-work-is[hidden] { display: none; }
+.hw-work-is .is-gain { color: var(--green); }
+.hw-work-is .is-loss { color: var(--red); }
+.hw-work-is .hw-work-vs { color: var(--ink-3); }
+.hw-work-row > .hw-ico[data-item] { cursor: help; }
+/* THE WHOLE LADDER past the rows in full: one rung a Level, the Level in a fixed column and what it opens as icon and name, wrapping.
+   Read-only (the card on the pointer), so no row is a box: the rungs part on the list's own hairline. */
+.hw-work-ladder:empty { display: none; }
+.hw-ladder { margin: 0; padding: 0; list-style: none; }
+.hw-ladder-rung { display: flex; align-items: flex-start; gap: 10px; padding: 4px 0; border-top: 1px solid var(--line-soft); }
+.hw-ladder-rung:first-child { border-top: 0; }
+.hw-ladder-lv { flex: none; width: 52px; padding-top: 4px; font-size: var(--t-micro); color: var(--ink-3); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-ladder-items { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 14px; min-width: 0; }
+.hw-ladder-item { display: inline-flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink-2); white-space: nowrap; }
+.hw-ladder-item[data-item] { cursor: help; }
+.hw-ladder-item .hh-icon { flex: none; width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; opacity: .6; }
 
 /* ── The shop and hunt prep ── */
 .hw-qty { width: 64px; }
@@ -1242,7 +1261,10 @@
 .mf-sprite { display: block; image-rendering: pixelated; }
 .mf-stand:not(.is-drawn) .mf-sprite { width: 0; height: 0; }
 /* The creature's head (art brief 15): the Tally's sunk well, the bust at its one 32 px density; no head, no well. */
-.mf-face { display: grid; flex: none; width: 44px; height: 44px; place-items: center; align-self: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+/* THE HEAD AT THE PAGE'S x2 (UI audit 2026-11-18 UI-9: a 32 px bust drawn x1 beside the x2 figure, two densities on one page): whole device px
+   at any display scale (--icon-2), in its sunk well. */
+.mf-face { display: grid; flex: none; width: calc(var(--icon-2) + 12px); height: calc(var(--icon-2) + 12px); place-items: center; align-self: center; background: var(--bg-1); box-shadow: var(--hw-well); }
+.mf-face .mf-head-img { width: var(--icon-2); height: var(--icon-2); }
 .mf-face[hidden] { display: none; }
 .mf-id { min-width: 0; padding-bottom: 2px; }
 .mf-name { margin: 0; font-family: var(--f-display); font-size: var(--t-h2); font-weight: 700; line-height: 1.15; letter-spacing: .05em; color: var(--gold-2); }
@@ -1319,9 +1341,27 @@
 .ck-teaser { margin: 0 0 4px; font-size: var(--t-small); font-style: italic; color: var(--ink-2); }
 .ck-how { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 4px; margin: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .ck-band { margin-left: 8px; }
+/* THE PAGE LIST (UI audit 2026-11-18 UI-9): a book's contents under the count, two columns read down, each page's number in a fixed
+   column; a found page is a plain press in ink that turns to it, a shut one stays dim under its lock. No boxes: a contents page. */
+.ck-toc { columns: 2; column-gap: 24px; margin: 4px 0 10px; padding: 0 2px; list-style: none; font-size: var(--t-small); }
+.ck-toc[hidden] { display: none; }
+.ck-toc-row { display: flex; align-items: baseline; gap: 8px; break-inside: avoid; min-height: 28px; }
+.ck-toc-n { flex: none; width: 2ch; text-align: right; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+.ck-toc-go { min-width: 0; min-height: 28px; padding: 0; border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+  text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.ck-toc-go:hover { color: var(--gold-2); text-decoration-color: var(--gold); }
+.ck-toc-go:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.ck-toc-shut { display: inline-flex; align-items: baseline; gap: 6px; min-width: 0; color: var(--ink-3); }
+.ck-toc-shut .hs-glyph { flex: none; align-self: center; width: 14px; height: 14px; }
+/* The Book's ground pages: the Hunts window's creature line, a little tighter (wiki.js monHtml), and each drop beside its icon. */
+.wk-lineup { margin: 2px 0 6px; }
+.wk-drop { align-items: center; }
+.wk-drop .hw-ico, .wk-drop .hw-ico .hh-icon { width: var(--icon-1); height: var(--icon-1); }
+.wk-drop .hw-ico + span { flex: 1; min-width: 0; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .wk-name { font-size: var(--t-small); }
   .wk-table th, .wk-table td { padding-right: 10px; }
+  .ck-toc { columns: 1; }
 }
 
 /* ── THE TRAINING YARD (src/shell/windows/training.js): the run while one runs, then the skill picks (sunk steel, the

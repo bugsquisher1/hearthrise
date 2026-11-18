@@ -10,6 +10,7 @@ import { benchTaxOf, benchFeeMg, benchRunOf } from '../session/bench-sections.js
 import { goldOf, shopOf } from '../session/item-sections.js?v=0.2.137';
 import { whole } from '../render/format.js?v=0.2.137';
 import { itemNameFor } from './widgets/bits.js?v=0.2.137';
+import { t } from '../render/player-text.js?v=0.2.137';
 
 const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : null);
 
@@ -26,6 +27,23 @@ export function feeWords(mg) {
 export function feeRowWords(cs, w) {
   const mg = w.kind === 'artisan' ? benchFeeMg(cs, w.id) : 0;
   return mg > 0 ? 'Bench fee: ' + feeWords(mg) : '';
+}
+
+/** THE FEE FOR THE PRESS, BEFORE IT (itemization audit 2026-11-18 #1: a new hero's "All" spent 38% of the purse unseen): the whole gold
+    `n` crafts take from here, the carry passing one gold each 1000 milligold (core/bench-tax.js, the server's own rule), or 0. */
+export function feeTotal(cs, w, n) {
+  const tax = rowTax(cs, w);
+  return tax && n > 0 ? Math.floor((tax.carry + n * tax.mg) / 1000) : 0;
+}
+
+/** The row's line for the count picked: "Bench fee: about 1 gold a craft · 62 gold for all 62 (38% of your gold)"; one craft, the rate alone. */
+export function feeLineWords(cs, w, n, all) {
+  const row = feeRowWords(cs, w);
+  const total = n > 1 ? feeTotal(cs, w, n) : 0;
+  if (!row || !(total > 0)) return row;
+  const purse = goldOf(cs);
+  const share = purse > 0 ? Math.round((total * 100) / purse) : 0;
+  return row + ' · ' + t(all ? 'work.fee_all' : 'work.fee_n', { gold: whole(total), n: whole(n) }) + (share >= 10 ? ' ' + t('work.fee_share', { pct: share }) : '');
 }
 
 /** The full sentence, with what takes it off. */

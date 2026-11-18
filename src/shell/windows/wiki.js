@@ -15,15 +15,23 @@
 //
 // DISPLAY ONLY (CLAUDE.md §6): catalogue facts, nothing a player can spend, no intent and no residue.
 // ════════════════════════════════════════════════════════════════════════
-import { prop, attr, text } from '../../render/paint.js?v=0.2.137';
+import { prop, attr, text, cls, style } from '../../render/paint.js?v=0.2.137';
 import { whole, chance, listWords } from '../../render/format.js?v=0.2.137';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
 import { t } from '../../render/player-text.js?v=0.2.137';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.137';
+import { glyphSvg, itemIconHtml } from '../widgets/bits.js?v=0.2.137';
 import { skillPages, groundPages, formulaPages, levelXpRows } from '../wiki-model.js?v=0.2.137';
 import { chronicleOf } from '../chronicle-model.js?v=0.2.137';
 import { levelOf } from '../../session/character-sections.js?v=0.2.137';
-import { linkHtml, targetOf } from '../goto.js?v=0.2.137';
+import { linkHtml, targetOf, gotoAttr } from '../goto.js?v=0.2.137';
+import { factsTarget } from './monster.js?v=0.2.137';
+import { LINEUP_SPRITE } from './hunt-detail.js?v=0.2.137';
+import { creatureArt, drawCreature } from '../../render/creature-sprite.js?v=0.2.137';
+
+const VERSION = new URL(import.meta.url).searchParams.get('v') || '';
+/* The creature art loaded so far (null until the first lands) and the creatures already asked for: the Hunts window's own way. */
+let ART = null;
+const asked = new Set();
 
 /* THE BOOK (the top bar's groups, 2026-11-16): the Chronicle first, the story so far (Tyler: "Yeah build the chronicle"), then the wiki. */
 const WIKI_SECTIONS = Object.freeze(['chronicle', 'skills', 'grounds', 'formulas']);
@@ -42,8 +50,13 @@ function howHtml(h) {
   return esc(before) + linkHtml(h.ground, targetOf({ kind: 'hunt', hunt: h.hunt })) + esc(after || '')
     + (h.band ? '<span class="ck-band">' + esc(t('hunts.level_band', { lo: h.band[0], hi: h.band[1] })) + '</span>' : '');
 }
+/* THE PAGE LIST (UI audit 2026-11-18 UI-9: "1 of 13 pages found" and no way to see which): a book's contents under the count, every page in
+   the story's order with its number, a found one a press that turns to it, a shut one under its lock. */
+const tocHtml = (ctx, c) => '<ol class="ck-toc" aria-label="' + esc(t('chronicle.toc')) + '">' + c.pages.map((p, i) => '<li class="ck-toc-row' + (p.open ? '' : ' is-shut') + '">'
+  + '<span class="ck-toc-n">' + (i + 1) + '</span>' + (p.open ? '<button type="button" class="ck-toc-go" data-hs-act="ck-go" data-page="' + esc(p.id) + '">' + esc(p.title) + '</button>'
+    : '<span class="ck-toc-shut">' + glyphSvg(ctx.glyphs, 'uiLock') + '<span>' + esc(p.title) + '</span></span>') + '</li>').join('') + '</ol>';
 function chronicleHtml(ctx, c) {
-  return '<p class="ck-found">' + esc(t('chronicle.found', { n: c.found, total: c.total })) + '</p>'
+  return '<p class="ck-found">' + esc(t('chronicle.found', { n: c.found, total: c.total })) + '</p>' + tocHtml(ctx, c)
     + c.pages.map((p) => '<article class="wk-page ck-page' + (p.open ? '' : ' is-shut') + '" data-wk-sec="chronicle" data-wk-id="' + esc(p.id) + '">'
       + '<h4 class="wk-name">' + (p.open ? '' : glyphSvg(ctx.glyphs, 'uiLock')) + '<span>' + esc(p.title) + '</span></h4>'
       + (p.open ? p.paras.map((x) => '<p class="wk-text ck-text">' + esc(x) + '</p>').join('')
@@ -78,13 +91,20 @@ function skillHtml(ctx, s) {
     + fact(t('wiki.top_level'), cap) + '</dl>' + curveTable(s.curve), s.glyph ? glyphSvg(ctx.glyphs, s.glyph) : '');
 }
 
-function groundHtml(g) {
-  const mons = g.monsters.map((m) => '<li><b>' + esc(m.name) + '</b> <small>' + esc(t(m.boss ? 'wiki.monster_boss' : 'wiki.monster_line', { level: m.level })) + '</small></li>').join('');
-  const drops = g.drops.map((d) => '<li class="wk-drop"><span><b>' + esc(d.name) + '</b> <small>'
+/* EACH CREATURE AS THE HUNTS WINDOW DRAWS IT (UI audit 2026-11-18 UI-9): the figure facing front at the world's x2 on its ground shadow, its
+   name the link to its page (the shell's one link door, src/shell/goto.js), its Level under it. The figures are painted by the patch once
+   their art has loaded (paintFigures). */
+const monHtml = (m, hunt) => '<li class="hw-hd-mon" data-monster="' + esc(m.id) + '"' + gotoAttr(factsTarget(m.id, hunt)) + '><span class="hw-hd-stand">'
+  + '<canvas class="hw-hd-sprite" aria-hidden="true"></canvas></span><button type="button" class="hw-hd-mon-name mf-open">' + esc(m.name) + '</button>'
+  + '<small class="hw-hd-mon-how">' + esc(t(m.boss ? 'wiki.monster_boss' : 'wiki.monster_line', { level: m.level })) + '</small></li>';
+
+function groundHtml(gl, g) {
+  const mons = g.monsters.map((m) => monHtml(m, g.id)).join('');
+  const drops = g.drops.map((d) => '<li class="wk-drop"><span class="hw-ico">' + itemIconHtml(gl, d.id) + '</span><span><b>' + esc(d.name) + '</b> <small>'
     + esc(d.from ? t('wiki.drop_from', { monster: d.from }) : t('wiki.drop_here')) + '</small></span><span class="hw-hd-odds">' + esc(chance(d.chance)) + '</span></li>').join('');
   return page('grounds', g.id, g.name, (g.band ? '<p class="wk-sub">' + esc(t('wiki.band', { lo: g.band[0], hi: g.band[1] })) + '</p>' : '')
     + (g.theme ? '<p class="wk-text">' + esc(g.theme) + '</p>' : '')
-    + '<h5 class="wk-h">' + esc(t('wiki.monsters')) + '</h5><ul class="wk-list">' + mons + '</ul>'
+    + '<h5 class="wk-h">' + esc(t('wiki.monsters')) + '</h5><ul class="hw-hd-lineup wk-lineup">' + mons + '</ul>'
     + '<h5 class="wk-h">' + esc(t('wiki.drops')) + ' <small>' + esc(t('monster.per_kill')) + '</small></h5>'
     + (drops ? '<ul class="wk-list">' + drops + '</ul>' : '<p class="wk-text">' + esc(t('wiki.no_drops')) + '</p>'));
 }
@@ -155,7 +175,7 @@ export function renderWiki(ctx) {
   const g = ctx.glyphs;
   const level = heroLevelOf(ctx);
   /* the Chronicle's pages are drawn by the patch (they follow the server) */
-  const secs = { chronicle: [], skills: skillPages().map((s) => skillHtml(ctx, s)), grounds: groundPages().map(groundHtml),
+  const secs = { chronicle: [], skills: skillPages().map((s) => skillHtml(ctx, s)), grounds: groundPages().map((p) => groundHtml(g, p)),
     formulas: formulaPages(level).map((f) => formulaHtml(f, level)) };
   return '<div class="wk">'
     + '<div class="hw-find"><span class="hw-search">' + glyphSvg(g, 'uiSearch') + '<input type="search" class="hh-num hw-q" data-hs-act="wk-search" placeholder="'
@@ -165,6 +185,29 @@ export function renderWiki(ctx) {
     + '<p class="hs-note wk-none" hidden></p>'
     + WIKI_SECTIONS.map((s) => '<section class="wk-sec" data-wk-sec="' + s + '"><h3 class="hw-hd-h wk-sec-h">' + esc(t(SECTION_WORD[s])) + '</h3>' + secs[s].join('') + '</section>').join('')
     + '</div>';
+}
+
+/* The figures on the ground pages in view: their art asked for once (the page patched again when it lands), each drawn once on its canvas,
+   and every figure of a ground standing at its tallest one's height, feet on one line (hunt-detail.js's lineup). */
+function paintFigures(root, ctx) {
+  const lis = Array.from(root.querySelectorAll('section[data-wk-sec="grounds"]:not([hidden]) .wk-page:not([hidden]) .hw-hd-mon'));
+  if (!lis.length) return;
+  const need = [...new Set(lis.map((li) => li.getAttribute('data-monster')))].filter((id) => !asked.has(id));
+  if (need.length) {
+    for (const id of need) asked.add(id);
+    creatureArt(ctx.doc, VERSION, need).then((a) => { ART = a; if (typeof ctx.refresh === 'function') ctx.refresh('wiki'); }, () => { for (const id of need) asked.delete(id); });
+  }
+  if (!ART) return;
+  for (const li of lis) {
+    const id = li.getAttribute('data-monster'), c = li.querySelector('canvas');
+    if (c.getAttribute('data-drawn') === id || !ART.has(id)) continue;
+    cls(li, 'is-drawn', drawCreature(c, ART, id, LINEUP_SPRITE));
+    c.setAttribute('data-drawn', id);
+  }
+  for (const ul of root.querySelectorAll('.wk-lineup')) {
+    const tallest = Math.max(0, ...Array.from(ul.querySelectorAll('.hw-hd-mon.is-drawn canvas'), (c) => parseFloat(c.style.height) || c.height));
+    style(ul, '--stand-h', tallest ? tallest + 'px' : null);
+  }
 }
 
 /* A page's words, lower-cased once, for the search. */
@@ -177,8 +220,9 @@ renderWiki.patch = function patchWiki(body, ctx) {
   patchChronicle(root.querySelector('section.wk-sec[data-wk-sec="chronicle"]'), ctx);
   patchLevelTable(root, ctx);
   const q = sc.query.trim().toLowerCase();
-  /* the count of pages found reads beside the pages, not over a search's matches */
+  /* the count of pages found and their list read beside the pages, not over a search's matches */
   prop(root.querySelector('.ck-found'), 'hidden', !!q);
+  prop(root.querySelector('.ck-toc'), 'hidden', !!q);
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(!q && b.getAttribute('data-tab') === sc.tab));
   let shown = 0;
   for (const sec of root.querySelectorAll('section.wk-sec')) {
@@ -196,11 +240,18 @@ renderWiki.patch = function patchWiki(body, ctx) {
   const none = root.querySelector('.wk-none');
   prop(none, 'hidden', shown > 0);
   text(none, shown > 0 ? '' : t('wiki.none', { query: sc.query.trim() }));
+  paintFigures(root, ctx);
 };
 
 renderWiki.events = Object.freeze(['input']);
 renderWiki.act = function actWiki(ctx, body, action, ev, el) {
   const sc = scratchOf(ctx.character);
+  /* the page list turns to a found page: the body scrolls it to the top */
+  if (action === 'ck-go' && ev.type === 'click') {
+    const at = body.querySelector('.ck-page[data-wk-id="' + String(el.getAttribute('data-page') || '').replace(/[^a-z0-9_-]/gi, '') + '"]');
+    if (at) at.scrollIntoView({ block: 'start' });
+    return true;
+  }
   if (action === 'wk-search' && ev.type === 'input') { sc.query = String(el.value || '').slice(0, 40); }
   else if (action === 'wk-tab' && ev.type === 'click') {
     sc.tab = el.getAttribute('data-tab'); sc.query = '';

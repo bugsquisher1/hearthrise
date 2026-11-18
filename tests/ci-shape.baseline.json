@@ -654,6 +654,8 @@
     "node tools/mutant-gate.mjs node tools/gen-gold-sinks.mjs --selftest": "client-guards-3",
     "node tests/town-shows.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/town-shows.mjs --selftest": "client-guards-3",
+    "node tests/hearth-moods.mjs": "client-guards-3",
+    "node tools/mutant-gate.mjs node tests/hearth-moods.mjs --selftest": "client-guards-3",
     "node tests/town-crier.mjs": "client-guards-3",
     "node tools/mutant-gate.mjs node tests/town-crier.mjs --selftest": "client-guards-3",
     "node tools/world-art/hearth-flames.mjs --check": "client-guards-3",

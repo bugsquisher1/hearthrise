@@ -1,0 +1,663 @@
+{
+  "version": 1,
+  "set": "hearth",
+  "palette": "hr-world-56-v2",
+  "T": 32,
+  "image": "atlas-hearth.png",
+  "size": [2048,876],
+  "pixels": "8c18368f93b87ee022fbb13e58edc4b15fefcf4bc830cb2eb734e88ce82a7ec1",
+  "sprites": {
+    "great_hearth": {
+      "class": "landmark",
+      "layer": "unit",
+      "frame": [352,448],
+      "anchor": [176,412],
+      "footprint": [11,4],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 390,
+      "contact": [122,347],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 0,
+          "loop": false,
+          "dirs": {
+            "s": [[0,0]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[353,0],[429,0],[505,0],[581,0],[657,0],[733,0],[809,0],[885,0]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_amber": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[961,0],[1037,0],[1113,0],[1189,0],[1265,0],[1341,0],[1417,0],[1493,0]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_borax": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[1569,0],[1645,0],[1721,0],[1797,0],[1873,0],[1949,0],[0,449],[76,449]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_chest": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[152,449],[228,449],[304,449],[380,449],[456,449],[532,449],[608,449],[684,449]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_cinnabar": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[760,449],[836,449],[912,449],[988,449],[1064,449],[1140,449],[1216,449],[1292,449]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_honey": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[1368,449],[1444,449],[1520,449],[1596,449],[1672,449],[1748,449],[1824,449],[1900,449]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_marsh": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[0,515],[76,515],[152,515],[228,515],[304,515],[380,515],[456,515],[532,515]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_mosslight": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[608,515],[684,515],[760,515],[836,515],[912,515],[988,515],[1064,515],[1140,515]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_quicklime": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[1216,515],[1292,515],[1368,515],[1444,515],[1520,515],[1596,515],[1672,515],[1748,515]]
+          }
+        }
+      }
+    },
+    "hearth_burn_sparks_verdigris": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [75,65],
+      "anchor": [40,30],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 11,
+      "contact": [28,55],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 12,
+          "loop": false,
+          "dirs": {
+            "s": [[1824,515],[1900,515],[0,581],[76,581],[152,581],[228,581],[304,581],[380,581]]
+          }
+        }
+      }
+    },
+    "hearth_fire": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[456,581],[521,581],[586,581],[651,581],[716,581],[781,581],[846,581],[911,581]]
+          }
+        }
+      }
+    },
+    "hearth_fire_amber": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[976,581],[1041,581],[1106,581],[1171,581],[1236,581],[1301,581],[1366,581],[1431,581]]
+          }
+        }
+      }
+    },
+    "hearth_fire_borax": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[1496,581],[1561,581],[1626,581],[1691,581],[1756,581],[1821,581],[1886,581],[1951,581]]
+          }
+        }
+      }
+    },
+    "hearth_fire_chest": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[0,647],[65,647],[130,647],[195,647],[260,647],[325,647],[390,647],[455,647]]
+          }
+        }
+      }
+    },
+    "hearth_fire_cinnabar": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[520,647],[585,647],[650,647],[715,647],[780,647],[845,647],[910,647],[975,647]]
+          }
+        }
+      }
+    },
+    "hearth_fire_honey": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[1040,647],[1105,647],[1170,647],[1235,647],[1300,647],[1365,647],[1430,647],[1495,647]]
+          }
+        }
+      }
+    },
+    "hearth_fire_marsh": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[1560,647],[1625,647],[1690,647],[1755,647],[1820,647],[1885,647],[1950,647],[0,710]]
+          }
+        }
+      }
+    },
+    "hearth_fire_mosslight": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[65,710],[130,710],[195,710],[260,710],[325,710],[390,710],[455,710],[520,710]]
+          }
+        }
+      }
+    },
+    "hearth_fire_quicklime": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[585,710],[650,710],[715,710],[780,710],[845,710],[910,710],[975,710],[1040,710]]
+          }
+        }
+      }
+    },
+    "hearth_fire_verdigris": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [64,62],
+      "anchor": [32,31],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 62,
+      "contact": [0,63],
+      "shadow": null,
+      "anims": {
+        "idle": {
+          "fps": 8,
+          "loop": true,
+          "dirs": {
+            "s": [[1105,710],[1170,710],[1235,710],[1300,710],[1365,710],[1430,710],[1495,710],[1560,710]]
+          }
+        }
+      }
+    },
+    "hearth_flare": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[1625,710],[1681,710],[1737,710],[1793,710],[1849,710],[1905,710]]
+          }
+        }
+      }
+    },
+    "hearth_flare_amber": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[1961,710],[0,773],[56,773],[112,773],[168,773],[224,773]]
+          }
+        }
+      }
+    },
+    "hearth_flare_borax": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[280,773],[336,773],[392,773],[448,773],[504,773],[560,773]]
+          }
+        }
+      }
+    },
+    "hearth_flare_chest": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[616,773],[672,773],[728,773],[784,773],[840,773],[896,773]]
+          }
+        }
+      }
+    },
+    "hearth_flare_cinnabar": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[952,773],[1008,773],[1064,773],[1120,773],[1176,773],[1232,773]]
+          }
+        }
+      }
+    },
+    "hearth_flare_honey": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[1288,773],[1344,773],[1400,773],[1456,773],[1512,773],[1568,773]]
+          }
+        }
+      }
+    },
+    "hearth_flare_marsh": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[1624,773],[1680,773],[1736,773],[1792,773],[1848,773],[1904,773]]
+          }
+        }
+      }
+    },
+    "hearth_flare_mosslight": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[1960,773],[0,824],[56,824],[112,824],[168,824],[224,824]]
+          }
+        }
+      }
+    },
+    "hearth_flare_quicklime": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[280,824],[336,824],[392,824],[448,824],[504,824],[560,824]]
+          }
+        }
+      }
+    },
+    "hearth_flare_verdigris": {
+      "class": "vfx",
+      "layer": "fx",
+      "frame": [55,50],
+      "anchor": [25,34],
+      "footprint": [1,1],
+      "overhang": [0,0,0,0],
+      "hover": 0,
+      "height": 50,
+      "contact": [0,54],
+      "shadow": null,
+      "anims": {
+        "play": {
+          "fps": 10,
+          "loop": false,
+          "dirs": {
+            "s": [[616,824],[672,824],[728,824],[784,824],[840,824],[896,824]]
+          }
+        }
+      }
+    }
+  },
+  "terrain": {}
+}

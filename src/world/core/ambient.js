@@ -3,7 +3,8 @@
 //
 // map-compile.js lays it once per map (lifeOf -> map.life) and compose.js draws it every frame
 // (lifeDraws). Nothing here reads a server value, spends, gates or blocks a step; the same map always
-// lays the same life, so every client draws the same town.
+// lays the same life, so every client draws the same town. The one tint, the Great Hearth's smoke under
+// the flame the server names, is handed in (lifeDraws `tint`, src/world/hearth-burn.js).
 //   EMITTERS  a placed sprite's own points (src/data/world/ambient-life.js): a chimney's mouth in the
 //             sprite's pixels, placed by the rule compose.js places the sprite by, so a home's smoke rises
 //             from its chimney wherever it stands
@@ -17,7 +18,7 @@
 // one paint. The art's layer picks where it is drawn (lifeDraws).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { EMITTERS, SURFACES, GLANCES, SWAYS, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.137';
+import { EMITTERS, SURFACES, GLANCES, SWAYS, BUMP, LIFE_BEAT_FPS } from '../../data/world/ambient-life.js?v=0.2.137';
 
 /** An integer hash of three numbers (the same on every client). */
 function lifeHash(a, b, c) {
@@ -125,11 +126,15 @@ function bands(life, book) {
  * @param {number} t  ms (the state's clock)
  * @param {{ox: number, oy: number, w: number, h: number}} view
  * @param {number} T
+ * @param {{pour: Object<string, string>|null, puffs: {id: string, px: number, py: number, age: number, pour: string}[]}|null} [tint]
+ *   THE HEARTH'S MOOD (src/world/hearth-burn.js, from the server's flame): `pour` draws a clip of the map's life in a pour
+ *   (src/world/pour.js; the backend bakes it), `puffs` are more of a clip for a moment, each from its first frame at `age` ms
  */
-export function lifeDraws(map, book, t, view, T) {
+export function lifeDraws(map, book, t, view, T, tint) {
   const ground = [], air = [];
   if (!map.life || !map.life.length) return { ground, air };
   const b = bands(map.life, book);
+  const pourOf = (tint && tint.pour) || null;
   for (let k = Math.floor((view.oy - b.pad - 2 * T) / BAND); k <= Math.floor((view.oy + view.h + b.pad + 2 * T) / BAND); k++) {
     for (const a of b.by.get(k) || []) {
       const s = book.sprite(a.id);
@@ -141,13 +146,28 @@ export function lifeDraws(map, book, t, view, T) {
       const m = 2 * T;
       if (!(x < view.ox + view.w + m && y < view.oy + view.h + m && x + s.frame[0] > view.ox - m && y + s.frame[1] > view.oy - m)) continue;
       const n = book.frames(a.id, 'idle', 's');
-      const f = book.frame(a.id, 'idle', 's', (Math.floor((Math.max(0, t) * clip.fps) / 1000) + a.phase) % n);
-      const d = { id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x, y, alpha: 1, kind: 'life', cls: s.class, tx: Math.floor(a.px / T), ty: Math.floor(a.py / T), ref: null };
-      if (s.layer === 'decal') ground.push(Object.assign(d, { row: GROUND_ROW + a.py }));
-      else air.push(Object.assign(d, { row: AIR_ROW + a.py }));
+      lay(a, s, x, y, (Math.floor((Math.max(0, t) * clip.fps) / 1000) + a.phase) % n, pourOf && pourOf[a.id]);
     }
   }
+  /* A PUFF: its clip from its first frame, on the clip's beat, in its pour; gone off the view like any loop */
+  for (const p of (tint && tint.puffs) || []) {
+    const s = book.sprite(p.id);
+    const clip = s.anims && s.anims.idle;
+    if (!clip || !clip.fps || !s.frame) continue;
+    const x = p.px - s.anchor[0], y = p.py - s.anchor[1];
+    if (!(x < view.ox + view.w && y < view.oy + view.h && x + s.frame[0] > view.ox && y + s.frame[1] > view.oy)) continue;
+    lay(p, s, x, y, Math.floor((Math.max(0, p.age) * clip.fps) / 1000) % book.frames(p.id, 'idle', 's'), p.pour);
+  }
   return { ground, air };
+
+  /** One loop's draw entry (frame `i`, in `pour` when named), to the ground or the air by its art's layer. */
+  function lay(a, s, x, y, i, pour) {
+    const f = book.frame(a.id, 'idle', 's', i);
+    const d = { id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x, y, alpha: 1, kind: 'life', cls: s.class, tx: Math.floor(a.px / T), ty: Math.floor(a.py / T), ref: null };
+    if (pour) d.pour = pour;
+    if (s.layer === 'decal') ground.push(Object.assign(d, { row: GROUND_ROW + a.py }));
+    else air.push(Object.assign(d, { row: AIR_ROW + a.py }));
+  }
 }
 
 /**
@@ -161,6 +181,32 @@ export function glanceOf(id, x, y, t) {
   const beat = 1000 / LIFE_BEAT_FPS;
   const start = (lifeHash(x, y, 7) % 64) * beat;
   return g.faces[Math.floor((Math.max(0, t) + start) / g.holdMs) % g.faces.length];
+}
+
+/**
+ * A viewer's own bump seed: a stable hash of who is watching (the hero's name), so two players' chests never jolt together and one
+ * page's never jumps about; null with no viewer (no bump). The world draws no randomness of its own (tests/world-no-authority W-CALL).
+ * @param {string|null|undefined} key
+ * @returns {number|null}
+ */
+export function bumpSeedOf(key) {
+  if (typeof key !== 'string' || !key) return null;
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) & 0x7fffffff;
+}
+
+/**
+ * A BUMP (ambient-life.js BUMP: the Hearth Chest jolting as if something inside wants out): at time t the frame of a loop's `bump` clip
+ * to draw in place of its idle frame, or -1. A bump plays from the start of one idle loop in each block of BUMP.block loops (which one
+ * hashed from the block and `seed`, the page's own), its clip standing for that loop's first `nb` frames. No seed, no bump.
+ * @param {number} t ms @param {number} fps the idle clip's @param {number} n its frames @param {number} nb the bump clip's @param {number|null} seed
+ */
+export function bumpAt(t, fps, n, nb, seed) {
+  if (!Number.isInteger(seed) || !nb || !n || !fps) return -1;
+  const step = Math.floor((Math.max(0, t) * fps) / 1000), loop = Math.floor(step / n), f = step % n;
+  const block = Math.floor(loop / BUMP.block);
+  return f < nb && loop - block * BUMP.block === lifeHash(block, seed, 13) % BUMP.slots ? f : -1;
 }
 
 /**

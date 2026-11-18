@@ -333,7 +333,8 @@ export function createAlertCenter(account, opts) {
       if (!past || !alerts.includes(a)) return;
       const again = awayRecapFrom(cs, a.stamp);
       if (!again || again.id !== a.id) return;
-      Object.assign(a, { facts: again.facts, said: again.said, text: again.text });
+      /* a hunt's line (its id matched the asked one): a bench line carries no `said` */
+      Object.assign(a, { facts: again.facts, said: /** @type {{ said?: string }} */ (again).said, text: again.text });
       changed();
     }).catch(() => {});
   }

@@ -726,6 +726,7 @@
     "node tools/mutant-gate.mjs node tools/balance-lab/parity.mjs --mutate": "db-replay-9",
     "node tools/balance-sim/yard-table.mjs": "db-replay-9",
     "node tools/mutant-gate.mjs node tools/balance-sim/yard-table.mjs --selftest": "db-replay-9",
+    "node tools/mutant-gate.mjs node tools/balance-sim/boss-call-table.mjs --selftest": "db-replay-9",
     "node tools/mutant-gate.mjs node tests/mutation-proof.mjs --selftest": "db-replay-9",
     "node tools/mutant-gate.mjs node tools/hooks/bash-guard.mjs --selftest": "db-replay-9",
     "node tools/mutant-gate.mjs node tools/lib/hunt-lag.mjs --selftest": "db-replay-9",

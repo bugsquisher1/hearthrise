@@ -45,6 +45,7 @@ import { amountHtml, amountOf, stepAmount } from '../widgets/amount.js?v=0.2.138
 import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.138';
 import { toolLossWords } from '../town-work.js?v=0.2.138';
 import { t } from '../../render/player-text.js?v=0.2.138';
+import { heroGroundOf } from '../widgets/first-target.js?v=0.2.138';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
@@ -214,7 +215,7 @@ renderStorage.act = function actStorage(ctx, body, action, ev, el) {
   if (action !== 'withdraw' && action !== 'deposit') return false;
   const id = el.getAttribute('data-item');
   const type = ev.type;
-  if (type === 'mouseover') { showTip(ctx.doc, el, id, {}); return false; }
+  if (type === 'mouseover') { showTip(ctx.doc, el, id, { ground: heroGroundOf(cs) }); return false; }
   if (type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
   if (type === 'pointerup' || type === 'pointercancel') { clearTimeout(sc.press); return false; }
   const off = el.getAttribute('aria-disabled') === 'true';

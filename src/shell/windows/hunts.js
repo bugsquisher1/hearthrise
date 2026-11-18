@@ -379,7 +379,7 @@ function patchPage(det, ctx, sc, v) {
   /* Normal says it is safe only where it is: under the ground's floor the warning above says what the hero risks, and with store food
      too weak for the ground Before you go says the fix (hunt-go.js weakFoodLine: the hand play died twice under "Safe at your level"). */
   const safe = rangeWords(r, level) || (before || []).some((l) => l.id === FOOD_WEAK_ID) ? '' : TIER_LINES.normal + '\n';
-  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size) || (follower ? t('hunts.tier_leader_picks')
+  text(det.querySelector('.hw-tier-note'), !choice ? '' : tierWords(r, tier, size, level) || (follower ? t('hunts.tier_leader_picks')
     : size > 1 ? safe + t('hunts.tier_kept_party') : safe + t('hunts.tier_kept')));
 }
 

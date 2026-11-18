@@ -41,6 +41,7 @@ import { CROPS } from '../../data/gathering.js?v=0.2.138';
 import { requiredPlotLevel } from '../../core/farm.js?v=0.2.138';
 import { farmFieldOf } from '../../session/farm-sections.js?v=0.2.138';
 import { t } from '../../render/player-text.js?v=0.2.138';
+import { heroGroundOf } from '../widgets/first-target.js?v=0.2.138';
 
 const TABS = Object.freeze([['buy', t('controls.buy')], ['sell', t('controls.sell')], ['services', 'Services']]);
 const QTYS = Object.freeze([1, 5, 10, 25, 50, 100]);
@@ -235,7 +236,7 @@ renderShop.act = function actShop(ctx, body, action, ev, el) {
     const id = el.getAttribute('data-item');
     const bag = bagOf(cs) || [];
     const have = bag.find((r) => r.id === id);
-    showTip(ctx.doc, el, id, { qty: have ? have.qty : 0, bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, offers: shop ? shop.offers : null });
+    showTip(ctx.doc, el, id, { qty: have ? have.qty : 0, bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, offers: shop ? shop.offers : null, ground: heroGroundOf(cs) });
     return false;
   }
   if (ev.type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }

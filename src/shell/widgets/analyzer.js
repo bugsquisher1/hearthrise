@@ -11,7 +11,7 @@
 // kills, Level XP and Level XP/h, gold (coin received) and loot value (unsold) apart,
 // gold + loot value an hour, supplies spent (own vs
 // store), balance. The server's `premium` section adds the rest — next-level ETA,
-// Level XP before bonuses, waste, TRAINING XP and next level by skill (its own tab; Tyler
+// Level XP with no party or solo bonus, waste, TRAINING XP and next level by skill (its own tab; Tyler
 // 2026-10-22: a premium tab, never a popup over the heads), damage taken and
 // dealt (two tabs) and the party breakdown. Level XP and training XP are never
 // added into one number (Tyler 2026-10-22: "so it's clear what's happening"). A

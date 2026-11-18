@@ -29,7 +29,7 @@
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.138';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier } from '../data/hunt-tiers.js?v=0.2.138';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier } from '../data/hunt-tiers.js?v=0.2.138';
 import { PARTY } from '../data/party.js?v=0.2.138';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
 import { MONSTERS } from '../data/monsters.js?v=0.2.138';
@@ -111,9 +111,13 @@ export function tierPull(r, id, size = 1) {
  * death line. No percent, HP or blow here: the wiki says the numbers. Normal says '' (the ground as the page describes it). Pure.
  */
 const tierLine = (r, tier, size) => { const L = TIER_LINES[tier.id]; return typeof L === 'string' ? L : tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same; };
-export function tierWords(r, id, size = 1) {
+/* `level`: the server's Level for this hero (null: unknown). A Healer's tier on this ground (hunt-tiers.js HEALER_TIERS, measured) adds its
+   line under the Level it was measured to hold to, for a hero alone and a party alike (lane/a-honest-lines, re-landed by lane/a-honesty-rescue). */
+export function tierWords(r, id, size = 1, level = null) {
   const tier = tierRowOf(r.hunt, id);
-  return tier.id === DEFAULT_TIER ? '' : [tierLine(r, tier, size), TIER_DEATH_LINE].join('\n');
+  if (tier.id === DEFAULT_TIER) return '';
+  const healer = isHealerTier(r.hunt, tier.id, level) ? [t('hunts.tier_healer')] : [];
+  return [tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\n');
 }
 
 /** The one line beside Enter, so a pick kept from last time is said at the press: "Deadly: big groups that hit hard." '' on Normal. Pure. */

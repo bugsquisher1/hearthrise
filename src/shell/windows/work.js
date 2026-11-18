@@ -53,6 +53,7 @@ import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.138';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.138';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.138';
 import { t } from '../../render/player-text.js?v=0.2.138';
+import { heroGroundOf } from '../widgets/first-target.js?v=0.2.138';
 
 /* How many rows above the level a skill shows: the next things to aim at. */
 const AHEAD = 2;
@@ -328,7 +329,7 @@ function tipFor(ctx, el) {
   const cs = ctx.character, id = el.getAttribute('data-item'), eq = equipmentOf(cs) || {};
   const slot = kindOf(id) === 'gear' ? equipSlotFor(id, eq) : null;
   const lv = levelOf(cs);
-  showTip(ctx.doc, el, id, { worn: slot ? (eq[slot] || null) : undefined, skills: skillsOf(cs), level: lv ? lv.level : null });
+  showTip(ctx.doc, el, id, { worn: slot ? (eq[slot] || null) : undefined, skills: skillsOf(cs), level: lv ? lv.level : null, ground: heroGroundOf(cs) });
 }
 
 /* The typed count, clamped to what the server takes, becomes the row's pick (Enter or Set). */

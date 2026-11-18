@@ -32,6 +32,7 @@ import { whyLine } from '../../widgets/why-line.js?v=0.2.138';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.138';
 import { showTip } from '../item-tip.js?v=0.2.138';
 import { t } from '../../../render/player-text.js?v=0.2.138';
+import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.138';
 
 /* Body order, row by row: [slot, label, empty glyph]. */
 export const DOLL = Object.freeze([
@@ -201,5 +202,5 @@ export function dollTip(ctx, st, el, action) {
   const shop = shopOf(st.cs);
   const lv = levelOf(st.cs);
   showTip(ctx.doc, el, id, { worn: action === 'slot' ? id : (st.eq[slot] || null), skills: skillsOf(st.cs), level: lv ? lv.level : null,
-    bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined });
+    bid: shop ? (shop.bids.has(id) ? shop.bids.get(id) : null) : undefined, ground: heroGroundOf(st.cs) });
 }

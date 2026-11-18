@@ -7562,7 +7562,8 @@ jobs:
       # area spells, lab-core.mjs did not) and nothing ran it. The training gate (lane/c-training-gear, Tyler 2026-11-14: one fixed rate
       # for every skill and Level, 2:1 with the item): every skill, place and point pays exactly 30,000 an hour and 60,000 with an item's
       # hours, on the real settle with the server's xp carry, and its proof. No database. Measured locally: parity 10 s + --mutate 9 s,
-      # yard-table 24 s + --selftest 4 s.
+      # yard-table 24 s + --selftest 4 s. Call out's money line (lane/a-compare-lines, re-landed by lane/a-honesty-rescue; option B:
+      # no XP or coin, a win drops his table and his call-only piece, nothing else): boss-call-table --selftest plants each payout, under 1 s.
       - name: Balance tools — the Lab plays the sim's game, training pays one fixed rate
         if: ${{ !cancelled() }}
         run: |
@@ -7570,6 +7571,7 @@ jobs:
           node tools/mutant-gate.mjs node tools/balance-lab/parity.mjs --mutate
           node tools/balance-sim/yard-table.mjs
           node tools/mutant-gate.mjs node tools/balance-sim/yard-table.mjs --selftest
+          node tools/mutant-gate.mjs node tools/balance-sim/boss-call-table.mjs --selftest
 
       # PROOF ARMS NO WORKFLOW RAN (lane/a-guard-proofs-2, 2026-11-14; guard-hygiene RULE 7 now refuses one). The shared
       # mutation driver every bespoke proof leans on; the §2 bash hook; the vitals and hunt-health alarms; the local

@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-18 · systems-engineer (lane/a-honesty-rescue) · three finished 11-16 lanes re-landed; one red found on the set
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 CI · `node tests/entry-gates.mjs` EG-IDEM is RED on set/v0.2.139 (646a3f992): it re-applies the three 2027-05-05 entry-gates files after the WHOLE chain, and the later 2027-05-06 drop-homes and sewer-from-five hunt-sessions catalogues rewrite `hr_boss_calls` (his drops), so the older catalogue moves the rows back. No file of this lane touches what it snapshots | tests/entry-gates.mjs EG-IDEM | The entry-gates lane: scope EG-IDEM to the chain as of its own files (the TG-AGAIN / FS-AGAIN pattern), never loosen it |
+| 1b | P1 CI · three more reds on a clean copy of set/v0.2.139 (646a3f992), the same on this lane: `hunt-live` LV-SCALE-SPELL (a scaled Sewer Muck Fling hits 128 over the scaled row's 121), `level-curve` C1 and its `--selftest` (grounds or monsters moved since the pace was measured, b400ad80 to 5aee7da5), `phone-touch` PH-6 (the 1440x900 desktop coach is capped at 586 px) | Sewer from 5 (lane/d-party-pace), the coach | The lanes that moved them; level-curve wants a re-measure, never a loosened fingerprint |
+| 2 | Design fact · a Deadly four with no Healer dies only near the floor: the Muster Barrows 9.3 / 3 / 1.3 / 1 / 0 deaths in 16 hero-hours at Levels 55 / 57 / 58 / 59 / 60, Krell's Hold 6.7 / 1 / 0.7 / 0 at 85 / 88 / 89 / 90 (6 seeds a cell); a four with a Healer 0 everywhere | the Hunts page tier note, any later "needs a Healer" line | A pack's `healerTiers` is `{ tier: Level }`, said under the first Level measured at less than one death in 16 hero-hours (Barrows 60, Hold 89); AW-25 holds it both ways with `checks.deadlyFourNeeds` |
+
 ## 2026-11-15 · game-designer (lane/d-mage-110) · the balance-sim graded every staged ground without Krell's hall drops
 - `tools/balance-sim/gear.mjs` reachWith built a staged ground's reach from `OPEN_GROUNDS` plus the ground and left out `OPEN_HALL_GROUNDS`, which `reachableSources`' own default carries. At Carter's Rest a Level 110 hammer wore the Ember Warhammer and Ember plate and a bow the Runewood Bow, while the Mage kept its Duskwood wand. Fixed on lane/d-mage-110. Every Morrow and Pauper Vaults grade before it read Melee and the bow a weapon tier short (Carter's Rest hammer 0.97 of the contract where it is 1.09).
 - The Mage's high-Level lead was cloth's `magicStrB` (0.4 of plate's defence a slot), not spawn density: the board's "2026-11-15 The Mage at 110 and up".

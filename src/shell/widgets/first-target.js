@@ -30,8 +30,9 @@ export function firstTargetHtml() {
     + '<p class="hb-pl-note"></p></div>';
 }
 
-/** The ground the pick is for: the open hunt's, else the Hunts window's pick, else the last hunt's; null = none known (the row hides). */
-function firstTargetGround(cs) {
+/** THE HERO'S GROUND, the one a setting or a card is about: the open hunt's, else the Hunts window's pick, else the last hunt's;
+    null = none known (the First target row hides; an item card says nothing of a ground, windows/item-tip.js). */
+export function heroGroundOf(cs) {
   const h = huntOf(cs);
   if (h && !h.ended && h.huntId) return h.huntId;
   return pickedHuntOf(cs) || (h && h.huntId) || null;
@@ -63,7 +64,7 @@ export function patchFirstTarget(root, ctx) {
   const box = root.querySelector('.hb-pl-first');
   if (!box) return;
   const cs = ctx.character;
-  const hunt = firstTargetGround(cs);
+  const hunt = heroGroundOf(cs);
   const kinds = kindsOf(hunt);
   prop(box, 'hidden', kinds.length < 2);
   if (kinds.length < 2) return;

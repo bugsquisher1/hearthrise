@@ -72,9 +72,10 @@ const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: fa
 const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.did.clear(); sc.did.set(id, d); } return d; };
 /* ── The window ── */
 /* THE DETAILS, under the presses: the hunt's balance for everyone, balance per hour once the server rates the hunt (10 minutes of it: a
-   shorter hunt showed a bare "–" there, core-loop play 2026-10-30), Level XP per hour before bonuses only when the server sent it
-   (premium, the 10-19 analyzer ruling). The headline figures (Level XP, Gold, Kills) lead the card in the result block. */
-const STATS = Object.freeze([['balance', 'Balance', gold], ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Level XP per hour before bonuses', whole]]);
+   shorter hunt showed a bare "–" there, core-loop play 2026-10-30), Level XP per hour with no party or solo bonus (the analyzer's own
+   row, hud.an_raw_xp_h) only when the server sent it (premium, the 10-19 analyzer ruling). The headline figures (Level XP, Gold, Kills)
+   lead the card in the result block. */
+const STATS = Object.freeze([['balance', 'Balance', gold], ['balanceH', 'Balance per hour', gold], ['rawXpH', t('hud.an_raw_xp_h'), whole]]);
 
 const plus = (n, fmt) => (Number.isFinite(n) && n > 0 ? '+' + fmt(n) : fmt(n));
 /* A time the server measured, in the away card's words ("45 min", "6 h 2 min"), or '' when it sent none. */

@@ -199,7 +199,7 @@ async function checks(overrides) {
         }
         /* the sheet says what the rungs do for what is worn now, from the same server rows */
         await page.keyboard.press('c');
-        const sheet = await wait(page, () => /blows \+1%, damage taken -5%/.test((document.querySelector('[data-combat="temper"]') || {}).textContent || ''), null, 3000);
+        const sheet = await wait(page, () => /\+1% dealt, -5% taken/.test((document.querySelector('[data-combat="temper"]') || {}).textContent || ''), null, 3000);
         if (!sheet) fails.push('SV-7 the sheet reads ' + JSON.stringify(await page.evaluate(() => (document.querySelector('[data-combat="temper"]') || {}).textContent || null)));
       }
       await ctx.close();

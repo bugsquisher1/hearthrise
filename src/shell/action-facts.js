@@ -113,6 +113,36 @@ export function weaponWarning(a, disc, role, skills) {
   return t('bar.cast_wrong_weapon', { weapons: weaponsFor(r) });
 }
 
+/* The hero's level in spell row `r`'s own skill while the row waits for one (`unlock`), from the server's `skills` (a skill it has
+   not sent reads 1, as the engine's does), else null: the bar's refusal (reasonOf) and Configure action's row (rowNeed) read it. */
+const unlockHave = (r, skills) => (r && r.unlock && skills ? (skills[abilitySkill(r)] || { level: 1 }).level : null);
+
+/**
+ * WHAT A LOCKED ROW NEEDS, short, on Configure action's list (UI audit 2026-11-18: a lock with no requirement): the FIRST thing
+ * that stops it, in the order the bar's refusal names it (reasonOf, without its "Requires"): the worn sets that cast or shoot it
+ * when the hero's (the server's discipline and role) cannot ("Wand"), else the level it waits for when the server's `skills` put
+ * the hero under it ("Melee 10"); null when nothing stops the row. The details pane says every requirement (factsOf). Display only:
+ * a locked row can still be picked (the bar is set up for the next weapon).
+ */
+export function rowNeed(a, ctx) {
+  const { discipline = null, role = null, skills = null } = ctx || {};
+  const level = (skill, lv) => t('bar.row_need_level', { skill: skillName(skill), level: lv });
+  if (a && a.type === 'ability' && ABILITIES[a.id]) {
+    const r = ABILITIES[a.id];
+    if (!discipline) return t('bar.no_weapon');
+    if (!r.universal && !r.disciplines.includes(discipline)) return weaponsFor(r);
+    const have = unlockHave(r, skills);
+    return have !== null && have < r.unlock ? level(abilitySkill(r), r.unlock) : null;
+  }
+  if (a && a.type === 'attack_with_item' && !own(ATTACK_KINDS, a.id) && ITEMS[a.id]) {
+    const it = ITEMS[a.id];
+    /* (the list offers only a shot some weapon looses: action-table.js tableOf) */
+    if (!shootsItem(role, it)) return weaponsOf(Object.keys(HUNT_ROLES).filter((k) => shootsItem(k, it)));
+    return shortOf(a.id, skills, null) ? level(it.reqSkill, it.reqLv) : null;
+  }
+  return null;
+}
+
 /* THE ALONE CALLOUT (Tyler 2026-11-09: "Make that callout clear to the player"): a spell marked `alone` (src/data/abilities.js)
    casts only while no other living hero shares its hunt. Said on its card, its slot's tooltip and, in a party, on the slot (bar.alone). */
 
@@ -363,7 +393,7 @@ export function reasonOf(sl, set, bag, hero, worn, skills, pack) {
     if (!disc) return { code: 'weapon', text: r.universal ? t('bar.no_weapon_any') : t('bar.no_weapon'), glyph: 'uiLock', strike: true };
     if (!r.universal && !r.disciplines.includes(disc)) return { code: 'weapon', text: t('bar.weapon_cant_use', { weapons: weaponsFor(r) }), glyph: 'uiLock', strike: true };
     /* NOT UNLOCKED YET (`unlock`, a level in the row's own skill, the server's `skills`): the slot is kept and waits, as the engine's does (abilities.js 'level') */
-    const have = r.unlock && skills ? (skills[abilitySkill(r)] || { level: 1 }).level : null;
+    const have = unlockHave(r, skills);
     if (have !== null && have < r.unlock) return { code: 'unlock', text: t('bar.unlock_wait', { skill: skillName(abilitySkill(r)), level: r.unlock, have }), glyph: 'uiLock', strike: true };
     const storeOn = !!set && (set.supplySource === 'store' || set.onEmpty === 'switch');
     /* RUNE SUPPLY PER SLOT (Tyler 2026-11-08): only the runes the slot ticked count, and the shop only when it buys on empty */

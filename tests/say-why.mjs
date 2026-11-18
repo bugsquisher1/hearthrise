@@ -374,7 +374,7 @@ export const REASONS = Object.freeze({
     { cond: 'st.farming < up.farming || !afford', words: "t('farm.tier_next", where: 'the tier line names the price and Farming level (OPEN: does not say which is short)' },
   ],
   'src/shell/windows/configure-action.js': [
-    { cond: 'off', words: "'Wrong ammo for this weapon'", where: 'a locked supply: title only (OPEN: other lane)' },
+    { cond: 'off', words: "text(el.querySelector('.ca-need-t'), r.locked ? r.need || '' : '')", where: 'a locked row names what it needs under its name, whole in its title (rowNeed; UI audit 2026-11-18, phone-touch PH-1)' },
     { cond: 'MAX_CONDITIONS', words: 'MAX_CONDITIONS', where: 'the conditions list (OPEN: no words at the cap)' },
     { cond: 'd.action.id', words: 'd.action.id', where: 'Save needs an action picked' },
     { cond: 's.open', words: 's.open', where: 'move up/down at the ends' },

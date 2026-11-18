@@ -4045,3 +4045,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   rises over the bar whenever it needs the room, as it already did at 1280 and 1366. AW-101 measures every slot against the foot's
   drawn rule at 5 sizes, town and hunt. Left as is: in a hunt (no window rises over the hunt's bar, AW-95) at 1518 and under, and
   on the phone sheet, the bar is one scroll down below Carry, Fights as and the four panels: whole once scrolled, never cut at rest.
+- **2026-11-18 art-director (lane/b-ui-configure): a spell's weapon words stutter, "Two axes or Axes or Club or Hammer or Bare hands".**
+  action-facts.js weaponsFor lists one word a ROLE_KEY, so Cleave names five weapons and Rend "Two axes or Axes" (the dual_axe and axe
+  keys, WEAPON_WORDS). Configure action now shows the requirement on a locked row (rowNeed, the same words): Cleave's ends in an
+  ellipsis on a desktop (the row's title and the details pane say it whole). The fix is words, not layout: one word a discipline, or
+  drop a word another already covers; it moves the bar's refusal, the hover and Configure action's details together (AW-27 holds weapon
+  naming). Owner: game-designer. P3. Also: at 667x375 IN A HUNT the Configure sheet starts under the hunt bar (44 px lower than in
+  town) and its sentence takes two lines ("+ Add a condition" wraps), so the list opens on its heads and one scroll brings the rows
+  (922x423: town 3 whole rows, hunt 2; 844x390 hunt 1; PH-1 holds each). Owner: art-director, P3, if a modal sheet may cover the hunt bar.

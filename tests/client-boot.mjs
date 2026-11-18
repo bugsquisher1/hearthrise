@@ -182,19 +182,19 @@ async function townStands() {
     return comp.composeFrame(map, book, { hero: { x, y } }, view, tables, T).shadows.some((sh) => sh.type === 'cast' && sh.sprite.set === 'havora' && !meets(castBox(sh.sprite, sh.m)));
   };
   const stand = (s, i) => ({ station: s.id, no: i + 1, x: s.stands[i][0], y: s.stands[i][1] });
-  /* THE QUIET STAND: the first stand (idle ones first) whose view leaves the Havora sheet out, so that sheet can be held behind it, and
-     that meets the v0.2.97 case. It was the hearth's first stand until v0.2.138, whose redrawn Hearth's scree (havora_scree_a, sites.js
-     (111, 45)) put Havora in that view; no idle stand meets both now, so it is Tamsin's tally's. None at all: the first idle stand, and B-21 says so. */
+  /* THE QUIET STAND: the stand a new hero takes in a quiet town (the first idle station's first, hearth_square #1 by the Hearth's west
+     end: stations.js THE FIRST FRAME). Its view must leave the Havora sheet out, so that sheet can be held behind it, and meet the v0.2.97
+     case. v0.2.138's ragged Hearth laid Havora scree in that view (sites.js (111, 45)) and B-21 moved to Tamsin's tally; hearth-wings-139
+     took the scree out, so B-21 is back on the first stand. When the map puts Havora in that view again, B-21 says so (a new player's
+     first phone view then waits for that sheet) and names the first stand that would still serve the harness. */
   const idle = STATIONS.filter((s) => s.kind === 'idle');
-  let quiet = null;
-  for (const s of idle.concat(STATIONS.filter((s) => s.kind !== 'idle'))) {
-    for (let i = 0; i < (s.stands || []).length && !quiet; i++) {
-      const [x, y] = s.stands[i], d = drawn(x, y, 440, 210);
-      if (!d.includes('havora') && shadowOff(x, y)) quiet = Object.assign(stand(s, i), { drawn: d });
-    }
-    if (quiet) break;
+  const fits = (s, i) => { const [x, y] = s.stands[i], d = drawn(x, y, 440, 210); return !d.includes('havora') && shadowOff(x, y) ? Object.assign(stand(s, i), { drawn: d }) : null; };
+  let quiet = fits(idle[0], 0);
+  if (!quiet) {
+    let other = null;
+    for (const s of idle.concat(STATIONS.filter((s) => s.kind !== 'idle'))) { for (let i = 0; i < (s.stands || []).length && !other; i++) other = fits(s, i); if (other) break; }
+    quiet = Object.assign(stand(idle[0], 0), { drawn: drawn(idle[0].stands[0][0], idle[0].stands[0][1], 440, 210), off: true, other });
   }
-  if (!quiet) quiet = Object.assign(stand(idle[0], 0), { drawn: drawn(idle[0].stands[0][0], idle[0].stands[0][1], 440, 210), noShadow: true });
   let onHavora = null;
   for (const s of STATIONS) { for (let i = 0; i < (s.stands || []).length && !onHavora; i++) if (drawn(s.stands[i][0], s.stands[i][1], 120, 80).includes('havora')) onHavora = stand(s, i); if (onHavora) break; }
   return { quiet, onHavora };
@@ -903,7 +903,11 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const res = await r.fetch(), body = await res.text();
         return r.fulfill({ response: res, body: body.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n') });
       });
-      if (TOWN_VIEWS.quiet.noShadow || !late.includes('havora')) fails.push('B-21 harness: no stand leaves the Havora sheet out of its view with a Havora shadow just off it (the first idle one draws ' + TOWN_VIEWS.quiet.drawn.join() + '): pick another held sheet');
+      if (TOWN_VIEWS.quiet.off || !late.includes('havora')) {
+        const q = TOWN_VIEWS.quiet, o = q.other;
+        fails.push('B-21 harness: the stand a new hero takes (' + q.station + ' #1) no longer leaves the Havora sheet out of its phone view with a Havora shadow just off it (it draws '
+          + q.drawn.join() + '), so a new player\'s first view waits for that sheet: take it out of the view' + (o ? ', or judge B-21 on ' + o.station + ' #' + o.no : ', or hold another sheet'));
+      }
 
       { // the first view opens with its other sheets held, asks for none of them on the town's start while the server has yet to name its stand, and asks for them all as it opens
         const { ctx, page, errors } = await fresh({}, PHONE);

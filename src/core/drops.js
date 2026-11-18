@@ -9,7 +9,7 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.138';
+import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.139';
 
 export const DROP_BAND_MAX = { rare: 0.05, uncommon: 0.15, common: 1.0 };
 
@@ -27,23 +27,6 @@ export function dropBand(ch) {
 export function bandOf(row) {
   if (row && LOOT_BANDS.includes(row.band)) return row.band;
   return dropBand(row ? row.ch : 0);
-}
-
-/* Below this a percentage stops meaning anything ('0.0%' for a .0004 lucky
-   row), so the odds read as '1 in N' instead. */
-export const ODDS_ONE_IN_BELOW = 0.001;
-
-/**
- * THE ONE ODDS FORMATTER for a non-guaranteed chance (0 < ch < 1): '12%',
- * '0.8%', or '1 in 1,087' under ODDS_ONE_IN_BELOW. Every drop-table surface
- * (fight screen, Boss of the Day card, monster panel) prints through this, so
- * no two screens can state one row two ways. Callers render ch >= 1 themselves.
- */
-export function formatDropOdds(ch) {
-  const c = Number(ch) || 0;
-  if (c > 0 && c < ODDS_ONE_IN_BELOW) return `1 in ${Math.round(1 / c).toLocaleString('en-US')}`;
-  const p = c * 100;
-  return `${p >= 1 ? Math.round(p) : p.toFixed(1)}%`;
 }
 
 /**

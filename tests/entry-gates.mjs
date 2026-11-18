@@ -257,7 +257,16 @@ const fileText = (f) => {
   const t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
   return SQL_EDIT && SQL_EDIT.file === f ? SQL_EDIT.edits.reduce((s, [a, b]) => s.replace(a, () => b), t) : t;
 };
-async function idemArm(db) {
+/* EG-IDEM is judged at the files' OWN place in the chain (set/v0.2.139): on the full chain a later catalogue (drop-homes'
+   and the Sewer-from-5 hunt-sessions files) restates the same Sewer and boss-call rows, so re-applying this older catalogue
+   on top of them "moves" rows that are not this file's to keep. The byte-identical second apply of the WHOLE chain is
+   schema-drift's. The full-chain db the arms share is not used here. */
+async function idemArm() {
+  const { db } = await bootReplay({ upTo: FILE });
+  await H.pinDice(db);
+  try { return await idemOn(db); } finally { await db.close(); }
+}
+async function idemOn(db) {
   return H.inTx(db, async () => {
     await rewind(db);
     const bad = [];

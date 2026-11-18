@@ -36,33 +36,34 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.138';
-import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.138';
-import { runIntent } from '../../intent-words.js?v=0.2.138';
-import { t } from '../../../render/player-text.js?v=0.2.138';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.138';
-import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.138';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.138';
-import { gold } from '../../../render/format.js?v=0.2.138';
-import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.138';
-import { itemName } from '../../widgets/bits.js?v=0.2.138';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.138';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.138';
-import { offerForSale } from '../market/state.js?v=0.2.138';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.138';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.138';
-import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.138';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.138';
-import { askElsewhere } from './elsewhere.js?v=0.2.138';
-import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.138';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.138';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.138';
-import { wearBlock } from '../../gear-gate.js?v=0.2.138';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.138';
-import { unlockRing } from './key-ring.js?v=0.2.138';
-import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.138';
-import { actPlanCopy } from './plan-copy.js?v=0.2.138';
-import { text, attr } from '../../../render/paint.js?v=0.2.138';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.139';
+import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.139';
+import { runIntent } from '../../intent-words.js?v=0.2.139';
+import { t } from '../../../render/player-text.js?v=0.2.139';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.139';
+import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.139';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.139';
+import { gold } from '../../../render/format.js?v=0.2.139';
+import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.139';
+import { itemName } from '../../widgets/bits.js?v=0.2.139';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.139';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.139';
+import { offerForSale } from '../market/state.js?v=0.2.139';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.139';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.139';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.139';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.139';
+import { askElsewhere } from './elsewhere.js?v=0.2.139';
+import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.139';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.139';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.139';
+import { wearBlock } from '../../gear-gate.js?v=0.2.139';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.139';
+import { unlockRing } from './key-ring.js?v=0.2.139';
+import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.139';
+import { actPlanCopy } from './plan-copy.js?v=0.2.139';
+import { text, attr } from '../../../render/paint.js?v=0.2.139';
+import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.139';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -99,6 +100,7 @@ function tipFor(ctx, st, li) {
     offers: st.shop ? st.shop.offers : null,
     skills: skillsOf(st.cs),
     level: heroLevel(st.cs),
+    ground: heroGroundOf(st.cs),
   });
 }
 

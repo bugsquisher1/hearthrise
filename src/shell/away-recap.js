@@ -46,24 +46,36 @@
 // IN VIEW, A TIME SKIP (tools/qa/local-world.mjs) IS NOT AN ABSENCE. It moves the hunt, not the clock, so the stamp stays as young as
 // real time says; a tab closed with no goodbye right after one reports the skipped stretch too. No real clock can do that: a stamp is
 // never older than the absence it reports plus the renewal below, and its time and its numbers are the same stamp's.
+//
+// THE RETURN NEVER LIES OR GOES SILENT (full-game audit 2026-11-18, A2 A6 A22):
+//   GOLD is what the purse kept: the coins the absence looted less the store gold its supplies took (the analyzer's `coins` and `waste`,
+//     both stamped), never the coins alone ("+6,182 gold" while the purse rose 1,843).
+//   THE YARD THAT TOOK OVER a hunt (its plan, src/shell/hunt-after.js) leaves the hunt's line standing: the stamp's hunt ended while the
+//     player was away and the server opened the training session after the stamp, so the line tells that hunt from what outlives it (the
+//     Level, the death row) and then the yard. A 12 h hunt and a death went untold because the newest session was the yard's.
+//   A SKILL THE ABSENCE TRAINED says its levels: the stamp keeps the server's level of the skill a training session (or the yard a hunt
+//     goes on to) trains, and the return says "Melee 28 to 34" from two server answers.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf } from '../session/character-sections.js?v=0.2.138';
-import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.138';
-import { nameOf } from '../session/item-sections.js?v=0.2.138';
-import { huntName } from '../session/party-sections.js?v=0.2.138';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.138';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.138';
-import { whole } from '../render/format.js?v=0.2.138';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.138';
-import { bestFind, END_WORDS } from '../hunt-view/summary-model.js?v=0.2.138';
-import { itemName } from './widgets/bits.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
-import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.138';
-import { afterDoneWords } from './hunt-after.js?v=0.2.138';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.138';
-import { trainingPhrase } from '../session/training-sections.js?v=0.2.138';
-import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.138';
+import { levelOf, deathLogOf } from '../session/character-sections.js?v=0.2.139';
+import { huntOf, analyzerOf, serverNowOf, staminaOf } from '../session/hunt-sections.js?v=0.2.139';
+import { nameOf, skillsOf } from '../session/item-sections.js?v=0.2.139';
+import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.139';
+import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.139';
+import { deathWords } from './death-popup.js?v=0.2.139';
+import { huntName } from '../session/party-sections.js?v=0.2.139';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.139';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.139';
+import { whole } from '../render/format.js?v=0.2.139';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.139';
+import { bestFind, END_WORDS } from '../hunt-view/summary-model.js?v=0.2.139';
+import { itemName } from './widgets/bits.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
+import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.139';
+import { afterDoneWords } from './hunt-after.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.139';
+import { trainingPhrase } from '../session/training-sections.js?v=0.2.139';
+import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.139';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -105,8 +117,19 @@ const awayWords = spanWords;
 const STAMINA_WORDS = Object.freeze({ stamina: 'Out of stamina, so {name} came home.' });
 const signed = (n, unit) => (n >= 0 ? '+' : '−') + whole(Math.abs(n)) + ' ' + unit;
 
-/* The coins this hero's hunt has taken (the analyzer's session tally), or null. */
+/* The coins this hero's hunt has taken, and the store gold its supplies took (the analyzer's session tally, `coins` and `waste`), or null. */
 const coinsOf = (a) => (a && a.hero && Number.isSafeInteger(a.hero.gold) && a.hero.gold >= 0 ? a.hero.gold : null);
+const spentOf = (a) => (a && a.hero && Number.isSafeInteger(a.hero.waste) && a.hero.waste >= 0 ? a.hero.waste : null);
+
+/* The skill this session trains: a training session's own, or the yard skill the running hunt's plan goes on to (hunt_after.now,
+   frozen at Enter), or null. */
+function trainedSkillOf(cs, h) {
+  const own = trainedBy(h.huntId);
+  if (own) return own.skill;
+  const a = huntAfterOf(cs);
+  const row = a && a.now && a.now.session === h.sessionId ? AFTER_INDEX[a.now.choice] : null;
+  return row && row.runs === 'training' && a.now.skill ? a.now.skill : null;
+}
 
 /** The numbers to stamp now (server's), or null when there is no hunt or the server has not said yet. */
 function awayStampOf(cs, h) {
@@ -115,10 +138,53 @@ function awayStampOf(cs, h) {
   if (!h || !lv || !Number.isFinite(now)) return null;
   const a = analyzerOf(cs);
   const kills = a && a.hero && Number.isFinite(a.hero.kills) ? Math.floor(a.hero.kills) : null;
-  const gold = coinsOf(a);
+  const gold = coinsOf(a), sp = spentOf(a);
+  const k = trainedSkillOf(cs, h);
+  const sk = k ? (skillsOf(cs) || {})[k] : null;
   /* `lv`: the Level the server said with that XP. The return compares it with the Level the server says then; a Level
-     worked out here from the stamped XP would be this build's curve (character-sections.js levelOf). */
-  return { s: h.sessionId, at: Math.floor(now), xp: lv.xp, lv: lv.level, ...(gold !== null ? { gold } : {}), ...(kills !== null ? { kills } : {}) };
+     worked out here from the stamped XP would be this build's curve (character-sections.js levelOf). `sl` likewise for skill `k`. */
+  return { s: h.sessionId, at: Math.floor(now), xp: lv.xp, lv: lv.level, ...(h.huntId ? { h: h.huntId } : {}), ...(gold !== null ? { gold } : {}),
+    ...(gold !== null && sp !== null ? { sp } : {}), ...(kills !== null ? { kills } : {}), ...(sk ? { k, sx: sk.xp, sl: sk.level } : {}) };
+}
+
+/** The gold the purse kept over the absence: { net, looted, paid }, each two server answers, or null when the stamp kept no store spend
+    (a stamp from before `sp`: the coins alone are never said as gold). */
+function goldOf(was, a) {
+  const coins = coinsOf(a), spent = spentOf(a);
+  if (!Number.isSafeInteger(was.gold) || !Number.isSafeInteger(was.sp) || coins === null || spent === null) return null;
+  const looted = Math.max(0, coins - was.gold), paid = Math.max(0, spent - was.sp);
+  return looted || paid ? { net: looted - paid, looted, paid } : null;
+}
+
+/** The trained skill's levels over the absence: { skill, from, to, xp }, two server answers, or null (no skill stamped, no gain). */
+function trainOf(cs, was) {
+  const sk = typeof was.k === 'string' ? (skillsOf(cs) || {})[was.k] : null;
+  if (!sk || !Number.isSafeInteger(was.sl) || !Number.isSafeInteger(was.sx) || sk.xp <= was.sx) return null;
+  return { skill: was.k, from: was.sl, to: sk.level, xp: sk.xp - was.sx };
+}
+/* "Melee 28 to 34, +120,000 Melee XP" (the level only when it rose). */
+const trainWords = (tr) => (tr.to > tr.from ? [skillWord(tr.skill) + ' ' + tr.from + ' to ' + tr.to] : []).concat(signed(tr.xp, skillWord(tr.skill) + ' XP'));
+
+/**
+ * THE YARD TOOK OVER (see the header): `h`, the session the server says now, is a training session it opened after the stamp's hunt
+ * ended (its plan), so that hunt's line still stands. The server's own link while the yard runs (hunt_after.last names the stamp's
+ * hunt, the newest ended one), else the yard's start past the stamp. A training stamp is never taken over: the plan opens none after one.
+ */
+function yardTookOver(cs, was, h) {
+  if (!trainedBy(h.huntId) || (typeof was.h === 'string' && trainedBy(was.h))) return false;
+  const a = huntAfterOf(cs);
+  if (a && a.last && a.last.session === was.s) return true;
+  return Number.isFinite(h.huntFromMs) && h.huntFromMs > was.at;
+}
+
+/* The death that ended the stamp's hunt, in the death popup's words (every number the server's row), or ''. `card`: the card's line, which
+   leaves the Level it took to the card's own Level line ("Level 12 → 11"). */
+function diedWords(cs, session, card = false) {
+  const log = deathLogOf(cs);
+  const row = log ? log.find((r) => r.session === session) : null;
+  if (!row) return '';
+  const w = deathWords(cs, { session, row });
+  return [w.title, w.killed, w.lost, card ? '' : w.level, w.saved].filter(Boolean).map(dot).join(' ');
 }
 
 /**
@@ -135,37 +201,54 @@ export function awayRecapOf(cs) {
   const h = huntOf(cs);
   const lv = levelOf(cs);
   const now = serverNowOf(cs);
-  if (!was || !h || h.sessionId !== was.s || !lv || !Number.isFinite(now)) return null;
+  if (!was || !h || !lv || !Number.isFinite(now)) return null;
+  /* the session the stamp is of, or the yard that took over from it (the header); any other session is never compared with the stamp's */
+  const over = h.sessionId !== was.s;
+  if (over && !yardTookOver(cs, was, h)) return null;
   const gone = now - was.at;
   if (gone < awayMinMsOf(cs, was)) return null;
   /* A hunt that was over when the player left is no part of the absence (crafter's panel 2026-11-01). */
-  if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;
+  if (!over && h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;
+  const name = nameOf(cs) || 'Hero';
+  /* A TRAINING SESSION is no hunt (Tyler 2026-11-16): "Wren trained Ranged at the Training Yard", never "hunted Training Yard". */
+  const yard = over ? null : trainingPhrase(h.huntId);
+  /* the stamp's hunt: the session's own, else (the yard took over) the ground the stamp or its death row names */
+  const died = over ? diedWords(cs, was.s) : '';
+  const deathRow = over ? (deathLogOf(cs) || []).find((r) => r.session === was.s) : null;
+  const hunt = !over ? h.huntId : typeof was.h === 'string' ? was.h : deathRow ? deathRow.hunt : null;
   const parts = [];
   /* two server answers, the stamp's Level and this one's; a stamp from before `lv` was kept says no Levels, only the XP */
   const from = Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : null;
   if (from !== null && lv.level > from) parts.push('Level ' + from + ' to ' + lv.level);
   if (lv.xp > was.xp) parts.push(signed(lv.xp - was.xp, 'Level XP'));
-  const a = analyzerOf(cs);
-  const gold = coinsOf(a);
-  if (Number.isSafeInteger(was.gold) && gold !== null && gold > was.gold) parts.push(signed(gold - was.gold, 'gold'));
+  /* the hunt's own tally (gold, kills, its best find) is the session's: once the yard took over it is gone, and nothing is guessed */
+  const a = over ? null : analyzerOf(cs);
+  const gold = goldOf(was, a);
+  if (gold) parts.push(signed(gold.net, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
-  const name = nameOf(cs) || 'Hero';
-  /* A TRAINING SESSION is no hunt (Tyler 2026-11-16): "Wren trained Ranged at the Training Yard", never "hunted Training Yard". */
-  const yard = trainingPhrase(h.huntId);
+  const train = over || yard ? trainOf(cs, was) : null;
+  if (train && yard) parts.push(...trainWords(train));
   /* one sentence a fact, never clauses on colons (QA audit 2026-11-18 N6): "Away 7 days. Wren hunted Mill Cellar. Level 5 to 10, +1,200 Level XP." */
   const head = t('away.card_head', { time: awayWords(gone),
-    who: yard ? t('training.away_trained', { name, skill: skillWord(trainedBy(h.huntId).skill), at: yard.at }) : t('away.card_hunted', { name, ground: huntName(h.huntId) }) });
+    who: yard ? t('training.away_trained', { name, skill: skillWord(trainedBy(h.huntId).skill), at: yard.at })
+      : hunt ? t('away.card_hunted', { name, ground: huntName(hunt) }) : t('away.card_hunted_off', { name }) });
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
-  const said = head + (parts.length ? ' ' + t('away.card_facts', { facts: parts.join(', ') }) : '') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '');
+  /* the yard that took over: how the hunt ended when the server knows (a death), then the yard and what it trained */
+  const then = over ? t('away.done_started', { name, skill: skillWord(trainedBy(h.huntId).skill) }) : '';
+  const tail = over ? [died, then, train ? dot(trainWords(train).join(', ')) : ''].filter(Boolean).join(' ') : '';
+  const said = head + (parts.length ? ' ' + t('away.card_facts', { facts: parts.join(', ') }) : '') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '')
+    + (tail ? ' ' + tail : '');
   /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does).
-     `facts`: the same differences for the away card (windows/away.js, UI audit 2026-11-18 #2), each two server answers or null. */
-  return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
+     `facts`: the same differences for the away card (windows/away.js, UI audit 2026-11-18 #2), each two server answers or null. The id is the
+     stamp's, so a line is told once whichever session it follows; `session` is the one the record says now (awayLineNow follows it). */
+  return { id: 'away:' + was.s.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     at: was.at, cameAt: now, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
-    facts: { name, hunt: h.huntId, place: yard ? yard.doing : huntName(h.huntId), gone, lvFrom: from, lvTo: lv.level, xp: Math.max(0, lv.xp - was.xp),
-      gold: Number.isSafeInteger(was.gold) && gold !== null ? Math.max(0, gold - was.gold) : null, kills: kills !== null ? Math.max(0, kills) : null, best },
+    facts: { name, hunt, place: yard ? yard.doing : hunt ? huntName(hunt) : '', gone, lvFrom: from, lvTo: lv.level, xp: Math.max(0, lv.xp - was.xp),
+      gold: gold ? gold.net : null, looted: gold ? gold.looted : null, paid: gold ? gold.paid : null, kills: kills !== null ? Math.max(0, kills) : null, best,
+      train, died: over ? diedWords(cs, was.s, true) : '', after: then, tookOver: over },
     text: (said + nowWords(cs, h, now)).trim() };
 }
 
@@ -261,10 +344,14 @@ export function backWithNoStamp(cs) {
 
 /**
  * Renew the stamp when it is due: a hunt not stamped yet, one last stamp for a hunt seen ended, else by age (see the header).
+ * ONCE SEEN, IT'S SEEN (full-game audit 2026-11-18 A23: another hero's card, "Away 216 h ... Bryony hunted Wickstead", came back on every
+ * return for nine days): a line over an ended hunt the player has read (`told`, the alert centre's) moves the stamp past it, so no later
+ * return can raise it again, whatever its id or the saved list's bound.
  * @param {object} cs
  * @param {boolean} [leaving]  the page is being left: the stamp is now, unless the last one is under LEAVE_EVERY_MS old
+ * @param {(id: string) => boolean} [told]  has the line with this id been shown and read
  */
-export function stampAway(cs, leaving = false) {
+export function stampAway(cs, leaving = false, told = null) {
   if (typeof cs.setResidue !== 'function') return false;
   const was = stampOf(cs);
   const work = workStampOf(cs);
@@ -278,9 +365,12 @@ export function stampAway(cs, leaving = false) {
   const next = awayStampOf(cs, h);
   if (!next) return false;
   if (h.ended) {
+    const due = awayRecapOf(cs);
+    /* a line read is retired: the stamp lands past the end, where no line is due (its own write re-runs this and finds none) */
+    if (due && typeof told === 'function' && told(due.id) && next.at >= h.endedAtMs) return cs.setResidue('awaySeen', next);
     /* only the hunt this stamp is for, once (this stamp lands past the end, the last one before it: a write re-runs this through its
        listeners, so a clock short of the end must not stamp at all), and never over a line still due: a new stamp would be a new line about the same hunt */
-    if (!was || was.s !== next.s || !(was.at < h.endedAtMs && next.at >= h.endedAtMs) || awayRecapOf(cs)) return false;
+    if (!was || was.s !== next.s || !(was.at < h.endedAtMs && next.at >= h.endedAtMs) || due) return false;
   } else if (was && was.s === next.s && next.at - was.at < Math.min(awayMinMsOf(cs, null), (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS))) return false;
   return cs.setResidue('awaySeen', next);
 }

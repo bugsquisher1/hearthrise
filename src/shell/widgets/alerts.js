@@ -20,14 +20,14 @@
 //                                addMovesOrOpen), the same way; with the bar full
 //                                it opens Hunt prep on that hero instead
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.138';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.138';
-import { glyphSvg } from '../launcher.js?v=0.2.138';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.138';
-import { cardFacts, shareCard } from '../share-card.js?v=0.2.138';
-import { addMovesOrOpen } from '../bar-assign.js?v=0.2.138';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.139';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.139';
+import { glyphSvg } from '../launcher.js?v=0.2.139';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.139';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.139';
+import { addMovesOrOpen } from '../bar-assign.js?v=0.2.139';
 
-const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends', training: 'training' });
+const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends', training: 'training', titles: 'character' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
 const SHARE_WORDS = Object.freeze({
   copied: 'Card copied', shared: 'Card shared', saved: 'Card saved to downloads',
@@ -122,6 +122,8 @@ renderAlerts.act = async function actAlerts(ctx, el, action, ev, t) {
     ctx.alerts.dismiss(key);
     /* a private message opens on its own conversation */
     if (a.tab && ctx.account && ctx.account.social) ctx.account.social.want(a.tab);
+    /* a title earned: the Character window on its Titles tab for the hero on screen, else that hero and its Character window */
+    if (a.action === 'titles' && ctx.wm && ctx.character && ctx.character.slot === a.slot) { ctx.wm.openTab('character', 'titles'); return; }
     if (ctx.goTo) ctx.goTo(a.slot, OPENS[a.action] || null);
     return;
   }

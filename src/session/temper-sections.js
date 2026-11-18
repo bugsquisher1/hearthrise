@@ -5,13 +5,13 @@
 // rung's offer at the server's price, gold and material. Every envelope replaces it and nothing here holds a number of its own: what a rung is
 // worth is the one rule the fight uses (src/core/temper.js), read over the server's rungs and the server's worn set.
 // ════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.138';
-import { TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.138';
-import { armourLineWord, MATERIAL_TIERS } from '../data/gear-tiers.js?v=0.2.138';
-import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.138';
-import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.138';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.138';
-import { recipeInputs } from '../core/artisan.js?v=0.2.138';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { TEMPER_TIERS, TEMPER_RUNG_PM, temperLadder, temperUnlockId } from '../data/temper.js?v=0.2.139';
+import { armourLineWord, MATERIAL_TIERS } from '../data/gear-tiers.js?v=0.2.139';
+import { armorLineOf, armorPmOf, blowsPmOf } from '../core/temper.js?v=0.2.139';
+import { equipmentOf, bankOf, skillsOf } from './item-sections.js?v=0.2.139';
+import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.139';
+import { recipeInputs } from '../core/artisan.js?v=0.2.139';
 
 const count = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : null);
 
@@ -66,8 +66,16 @@ function spanOf(ladders) {
 
 const mapOf = (ladders) => Object.fromEntries(ladders.map((l) => [temperUnlockId(l.track, l.tier), l.rung]));
 
+/* A ladder the server sells whose rungs are smaller than the tiers before it (Dawnsteel, 0.4%: src/data/temper.js TEMPER_TIER_RUNG_PM): the rung's
+   permille, so the row can say why "Next" climbs by less, or 0. */
+const smallStepOf = (ladder) => {
+  const l = ladder ? temperLadder(ladder.track, ladder.tier) : null;
+  return l && l.pm < TEMPER_RUNG_PM ? l.pm : 0;
+};
+
 /**
- * The two rows the smith's window shows: { blows, armor }, each { piece, below, span, ladder, needs, nowPm, nextPm } for what this hero wears now,
+ * The two rows the smith's window shows: { blows, armor }, each { piece, below, span, ladder, smallPm, needs, nowPm, nextPm } for what this hero wears now
+ * (`smallPm`: a rung's permille on a ladder with smaller rungs, else 0),
  * `ladder` null on gear with none (`below`: under the first ladder; `span`: the Levels the server's ladders cover), `piece` null when it wears nothing of the kind. Null until the server has said.
  */
 export function temperRowsOf(cs) {
@@ -83,8 +91,8 @@ export function temperRowsOf(cs) {
   const worn = line ? armourLineWord(line.armourClass, line.tier) : null;
   const span = spanOf(ladders);
   return {
-    blows: { piece: weapon ? weapon.n : null, span, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },
-    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, span, below: !!line && belowLadders(line.tier), ladder: armorLadder, needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
+    blows: { piece: weapon ? weapon.n : null, span, below: !!weapon && belowLadders(weapon.tier), ladder: blowsLadder, smallPm: smallStepOf(blowsLadder), needs: needsOf(cs, blowsLadder), nowPm: blowsPmOf(eq, ITEMS, map), nextPm: nextOf(blowsLadder, (m) => blowsPmOf(eq, ITEMS, m)) },
+    armor: { piece: line ? (worn ? worn + ' armor' : 'armor') : null, span, below: !!line && belowLadders(line.tier), ladder: armorLadder, smallPm: smallStepOf(armorLadder), needs: needsOf(cs, armorLadder), nowPm: armorPmOf(eq, ITEMS, map), nextPm: nextOf(armorLadder, (m) => armorPmOf(eq, ITEMS, m)) },
   };
 }
 

@@ -6,6 +6,13 @@
 //                                          --first: every kit without the boss's own prize (the party reading his card for the first time)
 //   node tools/balance-sim/boss-call-table.mjs [--seeds 12] [--only rat|chief] [--json OUT] [--hp 1500 --atk 21 --acc 0.7 --lvl 25 --rage 1400 --addhp 260 --addatk 30 --addacc 0.1 --addlvl 40 --adds 5 --guard 500] [--cliff] [--ship] [--focus] [--rows REGEX] [--stats]
 //
+//   node tools/balance-sim/boss-call-table.mjs --selftest
+//                                          the money line bites: planted payouts (skill XP, Level XP, coin, an item on a loss or off his table) each throw
+//
+// THE MONEY LINE (Tyler 2026-11-14, src/data/boss-calls.js; option B): a called fight pays NO XP and NO coin on any route; a WIN may drop his
+// own ground table (the boss `of`'s monsters.js drops) and his call-only piece, and nothing else; a loss or the limit drops nothing. Every
+// try is read against that (calledPayProblems) and the first that breaks it throws. A keyed hall pays, so it is not read.
+//
 // Each cell plays the called room to its end through accrueHunt (tests/hunt-core/fixtures/play-ground.mjs, the settle
 // the world tick runs), a fresh hunt secret per seed, and reads how it ended: the kill, a death or the limit. It plays
 // the room as data ships it; --hp, --atk, --acc and --lvl try another row on the same dice (scratch, nothing is written). --cliff plays only the rows that read the cliff.
@@ -27,6 +34,44 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
+
+/* WHAT ONE CALLED TRY MAY PAY (the money line above), as problems; [] when it held. `pays`: { how, xp, lvl, coin, items: { id: qty gained } };
+   `allowed`: the Set a win may drop (allowedDrops). Pure: --selftest feeds it planted payouts. */
+function calledPayProblems(pays, allowed) {
+  const out = [];
+  if (pays.xp) out.push(pays.xp + ' skill XP');
+  if (pays.lvl) out.push(pays.lvl + ' Level XP');
+  if (pays.coin) out.push(pays.coin + ' coin');
+  const got = Object.entries(pays.items || {}).filter(([, n]) => n > 0).map(([id]) => id);
+  if (got.length && pays.how !== 'felled') out.push('items on a ' + pays.how + ' (' + got.join(', ') + ')');
+  const off = got.filter((id) => !allowed.has(id));
+  if (off.length) out.push('items off his table (' + off.join(', ') + ')');
+  return out;
+}
+/* What a win may drop: the copied boss's own table (monsters.js `of`'s drops) and the call's call-only piece. */
+const allowedDrops = (call, monsters) => new Set([...((monsters[call.of] && monsters[call.of].drops) || []).map((d) => d.id), ...(call.callOnly ? [call.callOnly] : [])]);
+
+/* --selftest: the check reads green on a clean win and a clean loss, and red on each planted payout (each a mutant of a try). */
+if (process.argv.includes('--selftest')) {
+  const { BOSS_CALLS: CALLS } = await import(u('src/data/boss-calls.js'));
+  const { MONSTERS } = await import(u('src/data/monsters.js'));
+  const rat = CALLS.rat_king, ok = allowedDrops(rat, MONSTERS);
+  const win = { how: 'felled', xp: 0, lvl: 0, coin: 0, items: { rat_tail: 1, bones: 2, kingstooth: 1 } };
+  const clean = [['a win with his table and Kingstooth', win], ['a loss with nothing', { how: 'death', xp: 0, lvl: 0, coin: 0, items: {} }],
+    ['a win that spent a stack', { ...win, items: { ...win.items, bronze_arrows: -3 } }]];
+  const planted = [['skill XP on a win', { ...win, xp: 40 }], ['Level XP on a win', { ...win, lvl: 120 }], ['coin on a win', { ...win, coin: 25 }],
+    ['skill XP on a loss', { how: 'death', xp: 5, lvl: 0, coin: 0, items: {} }], ['coin at the limit', { how: 'time', xp: 0, lvl: 0, coin: 1, items: {} }],
+    ['an item on a loss', { how: 'death', xp: 0, lvl: 0, coin: 0, items: { rat_tail: 1 } }], ['an item at the limit', { how: 'time', xp: 0, lvl: 0, coin: 0, items: { kingstooth: 1 } }],
+    ["another call's piece on a win", { ...win, items: { cauldron_lid: 1 } }]];
+  const bad = [];
+  if (!ok.has('kingstooth') || !ok.has('rat_tail') || ok.has('cauldron_lid')) bad.push("the Rat King's allowed drops read " + [...ok].join(','));
+  for (const [name, t] of clean) if (calledPayProblems(t, ok).length) bad.push('clean ' + name + ' read ' + calledPayProblems(t, ok).join('; '));
+  for (const [name, t] of planted) if (!calledPayProblems(t, ok).length) bad.push('planted ' + name + ' ESCAPED');
+  for (const b of bad) console.log('  x ' + b);
+  console.log(bad.length ? 'boss-call-table --selftest: ' + bad.length + ' case(s) wrong'
+    : 'boss-call-table --selftest: ' + clean.length + ' clean tries pass, ' + planted.length + '/' + planted.length + ' planted payouts caught');
+  process.exit(bad.length ? 1 : 0);
+}
 
 const { loadPlay } = await import(u('tests/hunt-core/fixtures/play-ground.mjs'));
 const play = await loadPlay(ROOT);
@@ -171,9 +216,9 @@ function tryOnce(call, c, seed) {
   const bar = (role, seat) => (named
     ? [...spellsOf(named, c.party[seat], call.id).map(([id, when]) => slotWith(id, when)), ...guideBar(call.from, named.eat, named.card ? call.storeFloor : null)]
     : [...((c.spells && c.spells[c.party[seat]]) || []).map(slotOf), ...(c.starter ? starterBar() : guideBar(call.from, c.eatPct))]);
-  let how = 'other', ms = 0, deaths = 0, store = 0, lowest = 100, dealt = 0, xp = 0, coin = 0, items = 0, lvl = 0, phase = 'first', fell = null;
+  let how = 'other', ms = 0, deaths = 0, store = 0, lowest = 100, dealt = 0, xp = 0, coin = 0, lvl = 0, phase = 'first', fell = null;
   /* --stats: who hit whom (blows, landed, damage), what each role cast, how long each phase stood */
-  const units = {}, blows = {}, casts = {}, at = {};
+  const units = {}, blows = {}, casts = {}, at = {}, items = {};
   const nameOf = (id) => (units[id] ? units[id][0] : String(id)).replace('_called', '');
   const out = play.run(call.hunt, c.level, roles, {
     ground, spanMs: (call.hall ? BOSS_HALL_RULES : BOSS_CALL_RULES).limitMs + 30000, windowMs: TRACE ? 10000 : 30000, secret: secretOf(seed), equipment: (role, i) => kits[i],
@@ -205,7 +250,7 @@ function tryOnce(call, c, seed) {
         xp += Object.values(p.delta.xp || {}).reduce((a, b) => a + b, 0);
         lvl += p.delta.level_xp || 0;
         coin += p.delta.gold || 0;
-        items += Object.keys(p.delta.items || {}).length;
+        for (const [id, n] of Object.entries(p.delta.items || {})) items[id] = (items[id] || 0) + n;
         for (const [id, n] of Object.entries(p.hunt.buys || {})) store += n * ((play.basics[id] || {}).price || 0);
         if (p.maxHp && Number.isInteger(p.delta.hp) && !p.hunt.ended) lowest = Math.min(lowest, 100 * p.delta.hp / p.maxHp);
       }
@@ -214,7 +259,7 @@ function tryOnce(call, c, seed) {
   });
   const end = at.kill || (Date.UTC(2026, 9, 18, 12, 0, 0) + (ms || out.playedMs));
   const phaseS = { adds: at.adds ? ((at.enrage || end) - at.adds) / 1000 : null, enrage: at.enrage ? (end - at.enrage) / 1000 : null };
-  return { how, ms: ms || out.playedMs, deaths, store: store / roles.length, lowest, paid: xp + lvl + coin + items, fell, blows, casts, phaseS };
+  return { how, ms: ms || out.playedMs, deaths, store: store / roles.length, lowest, pays: { how, xp, lvl, coin, items }, fell, blows, casts, phaseS };
 }
 
 /* --stats: blows per try (landed %, damage per try) for each attacker>target, casts per try, the phases' median seconds. */
@@ -234,8 +279,13 @@ function cell(call, c, seeds) {
   const t = [];
   for (let s = 0; s < seeds; s++) t.push(tryOnce(call, c, s));
   const won = t.filter((x) => x.how === 'felled');
-  const paid = t.reduce((a, x) => a + x.paid, 0);
-  if (paid !== 0 && !call.hall) throw new Error('A CALLED FIGHT PAID ' + paid + ' on ' + c.label + ': the money line is broken');
+  if (!call.hall) {
+    const ok = allowedDrops(call, play.MONSTERS);
+    for (const [i, x] of t.entries()) {
+      const bad = calledPayProblems(x.pays, ok);
+      if (bad.length) throw new Error('A CALLED FIGHT PAID ' + bad.join('; ') + ' on ' + c.label + ' (seed ' + i + ', ' + x.how + '): the money line is broken');
+    }
+  }
   return {
     call: call.id, label: c.label, level: c.level, seeds,
     win: round((100 * won.length) / seeds), felled: won.length, deaths: t.filter((x) => x.how === 'death').length, time: t.filter((x) => x.how === 'time').length,

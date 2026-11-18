@@ -53,9 +53,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.138';
-import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.138';
-import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.138';
+import { RUNE_TIERS, RUNE_FAMILIES, runeId, runeName } from './runes.js?v=0.2.139';
+import { CRAFTED_RUNE_FAMILIES } from './stonecraft.js?v=0.2.139';
+import { JEWEL_SHOP_PRICE } from './jewelry.js?v=0.2.139';
 
 /* A basic heal or drink gives this share of its crafted partner (floored); a
    basic arrow gives this share of its partner's ammo bonus. */
@@ -175,9 +175,9 @@ export const NO_STORE_PARTNER = Object.freeze(Object.assign(Object.create(null),
 // less magic and ranged accuracy: the shield hero's pick). The light and other medium
 // tier-1 gloves and belts are not sold: they are field-salvage finds (tests/field-salvage.mjs
 // (a): a salvage piece is never shop stock). Tier 1 and Level 1 only: better pieces come
-// from drops and crafting.
-// THE FIRST SHIELD (Tyler 2026-10-23, from Andy's reports: a basic shield at the Shop outfitter, better
-// shields made at Smithing, and some drops): the Bronze-Rimmed Shield (src/data/shields.js), tier 1 at
+// from drops (Tyler 2026-11-18: armor, weapons and shields drop, a bench makes none).
+// THE FIRST SHIELD (Tyler 2026-10-23, from Andy's reports: a basic shield at the Shop outfitter; since 2026-11-18
+// every better plain shield drops, src/data/shields.js SOURCES): the Bronze-Rimmed Shield (src/data/shields.js), tier 1 at
 // Defense 1, on the same rules. The shield slot joins the outfitter's: the Rat King's Kingsgrate is a
 // tier-2 Rare, never the shop's piece, so the Shop still never competes with a drop at its tier.
 // Price = SHOP_PREMIUM x book value, the tools' rule, so the vendor's buy-back (at most

@@ -38,12 +38,18 @@ export const ITEM_TEXT = Object.freeze({
      (monster.el_ember "Fire", monster.el_physical "Physical"), and the number beside it is how much less the wearer takes. */
   resist_taken: '{element} damage taken',
 
-  /* A bane weapon: its damage against one kind of monster (src/core/bane.js). */
-  bane_label: 'Bane',
+  /* A piece's bane, one stat line a kind (src/shell/bag-model.js statLines and compare): {kind} is the Bestiary's name for it, and the
+     number beside it is how much more the wearer deals (src/core/bane.js, the engine's clamped multiplier). */
+  stat_bane: 'Damage to {kind} monsters',
+  /* A bane weapon: its damage against one kind of monster (src/core/bane.js), in Equip upgrades' words (src/shell/upgrade-plan.js). */
   bane_more: '+{pct}% damage to {kind} monsters',
+  /* The piece on the hero's ground (src/shell/item-lore.js groundEdgeWords): its bane and its element resistance against the monsters
+     there. The line's head is the ground's name. {names} lists the monsters, or ground_every when it is all of them. */
+  ground_bane: '+{pct}% damage vs {names}',
+  ground_resist: '−{pct}% {element} damage from {names}',
+  ground_every: 'every monster here',
 
   /* Where it comes from. */
-  dropped_closed: 'Dropped by creatures on grounds that aren\'t open yet',
   grown_with: 'Grown with {skill}',
   grown_with_level: 'Grown with {skill} {level}',
   gathered_with: 'Gathered with {skill}',

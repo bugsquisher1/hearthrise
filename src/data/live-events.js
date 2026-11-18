@@ -46,8 +46,9 @@ export const LIVE_EVENT_TYPES = Object.freeze({
    costs no gold: src/data/boss-calls.js series.costFree).
    TRUTHFUL TO THE SERVER'S RULE (2027-03-22-live-events.sql: a dial moves Level XP a kill or a fee, never coin, drops, rares or skill
    XP): the XP event says what stays the same. OPEN HALLS WAIVES GOLD ONLY (2027-04-24-boss-call-series.sql): a called fight still costs
-   its stamina and still drops on a win, so no client line here says "free" or "no drops". `start` and `end` are the SERVER'S announcer
-   lines (the generated catalogue) and still say "free": they move with that catalogue's next regeneration, before the switch goes on. */
+   its stamina and still drops on a win, so no line here says "free" or "no drops". `start` and `end` are the SERVER'S announcer
+   lines (the generated catalogue, tools/gen-live-events.mjs OUT_NAME: the forward file that carries these words; designer
+   lane/d-coherence-fixes 2026-11-16, C10, re-landed by lane/a-honesty-rescue). */
 export const WORDS = Object.freeze({
   bonus_weekend: Object.freeze({
     name: 'Bonus XP weekend',
@@ -65,8 +66,8 @@ export const WORDS = Object.freeze({
     soon: 'Open Halls starts {start}. Calling out the Rat King or Chief Coppercap will cost no gold, only stamina.',
     on: 'Until {end}, calling out the Rat King or Chief Coppercap costs no gold, only stamina. He still drops only when you win.',
     chip: 'Open Halls',
-    start: 'The halls are open. Until {end}, calling out the Rat King or Chief Coppercap is free. Bring a friend or a second hero.',
-    end: 'The halls are closed again. Calling out costs its usual fee.',
+    start: 'The halls are open. Until {end}, calling out the Rat King or Chief Coppercap costs no gold, only stamina. Bring a friend or a second hero.',
+    end: 'The halls are closed again. Calling out costs gold again.',
     hunts: 'Call out {boss} for no gold',
     page: 'Open Halls is on.',
     pageUntil: 'You can call out {boss} for no gold until {end}.',

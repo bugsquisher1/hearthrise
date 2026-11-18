@@ -9,8 +9,8 @@
 // its next settle, and the live view asks for a start point carrying it at once (display only, live-link.js ask).
 //   setTargetKind(account, cs, hunt, kind)   hr_hunt_target_kind_set (kind null = none)
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.138';
-import { refusalOf } from './refusal.js?v=0.2.138';
+import { askVia } from './intent-ledger.js?v=0.2.139';
+import { refusalOf } from './refusal.js?v=0.2.139';
 
 const VERB = 'hunt_target_kind_set';
 const ID = /^[a-z0-9_]{1,64}$/;

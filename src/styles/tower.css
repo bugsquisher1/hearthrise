@@ -113,10 +113,7 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-chest { position: absolute; left: var(--tr-cx); top: var(--tr-cy); width: var(--tr-cw); height: var(--tr-ch); image-rendering: pixelated;
   background: url('../../assets/ui/tower/chest.png') 0 0 / calc(var(--tr-cn) * var(--tr-cw)) var(--tr-ch) no-repeat;
   animation: tc-loop var(--tr-cms) steps(var(--tr-cn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-cn)) * var(--tr-cw)); }
-/* its green light on the stone, laid additively as the town lays it (the light it casts, never a tint), and its smoke, in step with it */
-.tc-glow { position: absolute; left: var(--tr-gx); top: var(--tr-gy); width: var(--tr-gw); height: var(--tr-gh); image-rendering: pixelated; mix-blend-mode: plus-lighter;
-  background: url('../../assets/ui/tower/chest-glow.png') 0 0 / calc(var(--tr-cn) * var(--tr-gw)) var(--tr-gh) no-repeat;
-  animation: tc-loop var(--tr-cms) steps(var(--tr-cn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-cn)) * var(--tr-gw)); }
+/* its smoke, in step with it */
 .tc-smoke { position: absolute; left: var(--tr-kx); top: var(--tr-ky); width: var(--tr-kw); height: var(--tr-kh); image-rendering: pixelated;
   background: url('../../assets/ui/tower/chest-smoke.png') 0 0 / calc(var(--tr-cn) * var(--tr-kw)) var(--tr-kh) no-repeat;
   animation: tc-loop var(--tr-cms) steps(var(--tr-cn), jump-none) infinite; --tr-loop: calc((1 - var(--tr-cn)) * var(--tr-kw)); }
@@ -145,7 +142,7 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-reveal[data-key="gold"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-gold.png'); }
 .tc-reveal[data-key="platinum"] .tc-reveal-col { background-image: url('../../assets/ui/tower/chest-column-platinum.png'); }
 @media (prefers-reduced-motion: reduce) {
-  .tc-fire, .tc-glow, .tc-chest, .tc-smoke, .tc-reveal-chest, .tc-reveal-col, .tc-reveal-item { animation: none; }
+  .tc-fire, .tc-chest, .tc-smoke, .tc-reveal-chest, .tc-reveal-col, .tc-reveal-item { animation: none; }
   .tc-reveal-chest { background-position: calc(-7 * var(--tr-rw)) 0; }
   .tc-reveal-col { opacity: 1; background-position: calc(-3 * var(--tr-rw)) 0; }
   .tc-reveal-item { opacity: 1; transform: translateY(-64px); }

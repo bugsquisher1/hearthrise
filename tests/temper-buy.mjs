@@ -14,6 +14,7 @@
 //   TB-HERO     a rung is one hero's, never the account's; the purse and the Storage it drew on are the account's, so one smith supplies another hero
 //   TB-HUNT     a hunting hero's packed bag is neither source: a material can't be packed, and a rung bought mid-hunt leaves the bag's rows as they stood
 //   TB-MARKET   the salts are on the Weighhouse at the shop's bid and up, and the public bench takes its share of a mix
+//   TB-DAWN     Dawnsteel's ladder (tier 7) is sold at the data's price on Ember Tempering Salts, five rungs deep, and the fight reads 0.4% a rung
 //   TB-IDEM     a second apply of the newest files moves nothing, and keeps every other catalogue row
 //   TB-MATERIAL the data's rules: a Smithing recipe at or under its tier's level, climbing rungs, a shop bid under what goes in,
 //               NO COAL anywhere in the chain (Andy's slog; board 2026-11-05), and a whole tier inside the hours a resting hero has
@@ -50,7 +51,7 @@ const SALTS = TEMPER_MATERIALS[2].item, FINE = TEMPER_MATERIALS[3].item;
 const fails = [];
 const ok = (cond, msg) => { if (!cond) fails.push(msg); };
 
-async function play(db) {
+async function play(db, full = false) {
   const q = async (s, a) => (await db.query(s, a)).rows;
   const one = async (s, a) => (await q(s, a))[0];
   const J = (x) => JSON.stringify(x).replace(/'/g, "''");
@@ -101,6 +102,25 @@ async function play(db) {
   ok(first.ok === true && was - (await purse()) === row1.gold && saltsThen - (await stored(SALTS)) === row1.items[SALTS], 'TB-HERO: the second hero\'s first rung answered ' + J(first));
   ok((await one(`select public.hr_perks_of('${USER}', 0) p`)).p.temper['temper:blows:2'] === 2, 'TB-HERO: the second hero\'s rung moved the first hero\'s');
 
+  /* TB-DAWN (lane/d-gold-sinks, the lane/d-temper-dawnsteel design): Dawnsteel's ladder is sold by the same RPC at the data's price, on tier 6's
+     Ember Tempering Salts, five rungs deep, and the fight reads its rungs at 0.4% each (src/data/temper.js TEMPER_TIER_RUNG_PM). Played on the whole
+     chain only: a mutant replay stops at the 02-28 files (upTo LAST_PATCHED), before any tier 7 row exists, and would be "caught" by its absence. */
+  if (full) {
+  await db.exec(`insert into public.account_bank (user_id, item_id, qty) values ('${USER}', '${TEMPER_MATERIALS[7].item}', 30)
+    on conflict (user_id, item_id) do update set qty = excluded.qty;`);
+  const dawnView = (await one(`select public.hr_temper_view('${USER}', 0) v`)).v.find((l) => l.track === 'blows' && l.tier === 7);
+  const dawn1 = TEMPER_OFFERS.find((r) => r.offer_id === temperOfferId('blows', 7, 1));
+  ok(dawnView && dawnView.max === 5 && dawnView.rung === 0 && dawnView.offer === dawn1.offer_id && Number(dawnView.gold) === dawn1.gold && JSON.stringify(dawnView.items) === JSON.stringify(dawn1.items),
+    'TB-DAWN: the window shows ' + J(dawnView) + ', the data says ' + JSON.stringify(dawn1));
+  const dawnWas = await purse(), dawnA = await buy(temperOfferId('blows', 7, 1)), dawnB = await buy(temperOfferId('blows', 7, 2));
+  const dawn2 = TEMPER_OFFERS.find((r) => r.offer_id === temperOfferId('blows', 7, 2));
+  ok(dawnA.ok === true && dawnB.ok === true && dawnWas - (await purse()) === dawn1.gold + dawn2.gold && (await stored(TEMPER_MATERIALS[7].item)) === 0,
+    'TB-DAWN: two Dawnsteel rungs answered ' + J([dawnA, dawnB]) + ', charged ' + (dawnWas - (await purse())) + ' g');
+  const dawnPerks = (await one(`select public.hr_perks_of('${USER}', 0) p`)).p.temper;
+  ok(dawnPerks['temper:blows:7'] === 2 && blowsPmOf({ weapon: 'dawn_sword' }, ITEMS, dawnPerks) === 8 && blowsPmOf(IRON, ITEMS, dawnPerks) === 20,
+    'TB-DAWN: the perks read ' + J(dawnPerks) + ': a Dawnsteel Sword at ' + blowsPmOf({ weapon: 'dawn_sword' }, ITEMS, dawnPerks) + ' pm, an Iron Sword at ' + blowsPmOf(IRON, ITEMS, dawnPerks));
+  }
+
   /* TB-HUNT: the salts can't be packed, and a rung bought while the hero hunts takes them from the bag or Storage and leaves the hunt's bag as it stood. */
   await db.exec(`delete from public.account_bank where user_id = '${USER}';
     insert into public.player_inventory (user_id, slot, item_id, qty) values ('${USER}', 0, '${SALTS}', 45)
@@ -119,7 +139,7 @@ async function play(db) {
 
   /* The ledger holds every sale, and the rows sum to what the purse lost. */
   const sold = await one(`select count(*)::int n, coalesce(sum(-gold), 0)::bigint g from public.player_ledger where user_id = '${USER}' and kind = 'shop' and intent like 'unlock\\_buy:temper.%'`);
-  ok(sold.n === 9 && Number(sold.g) === 1000000 - (await purse()), `TB-PRICE: the ledger holds ${sold.n} sales of ${sold.g} gold, the purse lost ${1000000 - (await purse())}`);
+  ok(sold.n === (full ? 11 : 9) && Number(sold.g) === 1000000 - (await purse()), `TB-PRICE: the ledger holds ${sold.n} sales of ${sold.g} gold, the purse lost ${1000000 - (await purse())}`);
   await db.exec(`select set_config('request.jwt.claim.sub', '', false)`);
 
   /* TB-MARKET: tradeable, floored at the shop's bid, and the public bench takes its share of the output's bid. */
@@ -178,8 +198,9 @@ function chainOf(id, recipes, rocks) {
 function materialProblems({ materials, recipes, rocks, items, bid }) {
   const out = [];
   const TIERS = Object.keys(materials).map(Number);
-  /* tiers 4 to 6 joined 2026-11-15 (lane/d-audit-balance-2: the March's Mithril, Rune and Emberforged), every rule below unchanged */
-  if (TIERS.join() !== '2,3,4,5,6') out.push('TB-MATERIAL: the ladders with a material are tiers ' + TIERS.join());
+  /* tiers 4 to 6 joined 2026-11-15 (lane/d-audit-balance-2: the March's Mithril, Rune and Emberforged), tier 7 2026-11-18 (lane/d-gold-sinks, the
+     lane/d-temper-dawnsteel design: Dawnsteel, on tier 6's Ember Tempering Salts), every rule below unchanged */
+  if (TIERS.join() !== '2,3,4,5,6,7') out.push('TB-MATERIAL: the ladders with a material are tiers ' + TIERS.join());
   for (const tier of TIERS) {
     const m = materials[tier];
     const r = recipes.smithing.find((x) => x.output === m.item);
@@ -230,7 +251,7 @@ async function main() {
     try { ({ db } = await bootReplay()); } catch (e) { console.error('temper-buy: HARNESS - ' + String(e.message).slice(0, 900)); process.exit(2); }
     forward(resolveUnlockOffer);
     for (const p of materialProblems(SHIPPED)) ok(false, p);
-    await play(db);
+    await play(db, true);
     await idem(db, newestOwned(ROOT, 'gen-temper.mjs').file);
     if (fails.length) { for (const f of fails) console.log('FAIL  ' + f); console.log(`temper-buy: ${fails.length} RED`); process.exit(1); }
     console.log('temper-buy: green');

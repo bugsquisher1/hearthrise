@@ -34,9 +34,11 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.138';
-import { HUNT_INDEX } from './hunts.js?v=0.2.138';
-import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.138';
+import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.139';
+import { HUNT_INDEX } from './hunts.js?v=0.2.139';
+import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.139';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
+import { foldRows } from './grounds/shape.js?v=0.2.139';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';
@@ -56,6 +58,19 @@ export const TIER_LINES = Object.freeze({
 /* The one death line a harder tier's note ends on (hunt-sessions.js DEATH_XP_LOSS is the number; the wiki says it). It read "costs a little XP" while a
    death cost 2% and never took a Level; since Tyler 2026-11-09 it costs 6% of the total Level XP and can take a Level, so the line says so, still with no number. */
 export const TIER_DEATH_LINE = 'Death: hunt ends, Level XP lost, can drop a Level';
+/* A HEALER'S TIER (designer 2026-11-15, lane/d-late-nearmisses; ported to the live grounds by lane/a-honest-lines 2026-11-16, re-landed and
+   bounded by Level by lane/a-honesty-rescue): ground id -> { tier: Level }, a harder tier where a four with NO Healer was measured to die
+   and a four with one holds, under that Level (a pack's `healerTiers`; the grader grades that four with a Healer, checks.deadlyFourNeeds).
+   The Hunts page says "Recommended: Healer" on it to a hero under that Level, alone or in a party (hunt-list.js tierWords). Words only:
+   nothing in a fight reads it. */
+export const HEALER_TIERS = Object.freeze(foldRows('healer tiers', {}, GROUND_PACKS,
+  (p) => (p.healerTiers ? { [(p.ground && p.ground.id) || p.id]: Object.freeze({ ...p.healerTiers }) } : {})));
+/** True when `tierId` on `groundId` is a Healer's tier for a hero at `level` (HEALER_TIERS); an unknown Level reads as under it (the warning shows). */
+export function isHealerTier(groundId, tierId, level) {
+  const row = Object.prototype.hasOwnProperty.call(HEALER_TIERS, groundId) ? HEALER_TIERS[groundId] : null;
+  const under = row && Object.prototype.hasOwnProperty.call(row, tierId) ? row[tierId] : null;
+  return under !== null && !(Number.isInteger(level) && level >= under);
+}
 /* The dials a tier row carries (permille of the monster row). */
 export const DIALS = Object.freeze(['dmgPm', 'hpPm', 'xpPm']);
 

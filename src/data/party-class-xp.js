@@ -27,9 +27,10 @@
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.138';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.138';
-import { foldRows } from './grounds/shape.js?v=0.2.138';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.139';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
+import { foldRows } from './grounds/shape.js?v=0.2.139';
+import { TIER_IDS, DEFAULT_TIER, tiersOf } from './hunt-tiers.js?v=0.2.139';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -92,18 +93,27 @@ export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 16
    RE-READ 2026-11-11 UNDER SOLO +15% (lane/d-solo-fifteen; party-class-xp-line --table --mixed, the floor, 3 seeds): every cell lands on its number or one 5-step
    from it (the Cellar's four 28, the Glade's four 34, the Warrens' three 29, Wickstead's three 43), so the lines stand.
    RE-WRITTEN 2026-11-17 ON THE ONE TABLE AND SET v0.2.135 (cloth's smaller damage, Turning Cut on every melee weapon without a shield, the one-class pair 950;
-   tests/party-class-xp-line.mjs --mixed --write, 3 seeds, the floor): every ground's line here and in its pack is that run's. */
+   tests/party-class-xp-line.mjs --mixed --write, 3 seeds, the floor): every ground's line here and in its pack is that run's.
+   ONE LINE PER TIER (lane/d-party-pace, 2026-11-18; the full-game sweep's A1): the window read the Normal line whatever tier the leader picked, so on the
+   Glade's Deadly it said -20% where the settle paid a four +22-41% (tools/balance-sim/party-tier-xp.mjs, 2 seeds x 0.5 h, the floor and the middle). Each
+   tier a ground offers carries its own line, against the same heroes alone ON THAT TIER, written by the same run (party-class-xp-line --mixed --write): on
+   Dangerous and Deadly two of two, three of three and four of four are the played mixes (a pair the mean of tank + Healer and tank + bow), every other cell
+   the size's mix times the table's cell ratio (a cell moves no blow; on Normal that reading lands within 5 of the measured one-class cells).
+   first-week-bands vs-alone plays a harder tier's full mix against its line. The Normal lines were re-measured by that run on set v0.2.138 (2026-11-18,
+   3 seeds): one ground's moved, the Warrens' (5 points on six cells; its three of three +25 -> +30). */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
+/* a ground's lines, one per tier it offers: { normal: said(..), dangerous: said(..), deadly: said(..) } */
+const lines = (byTier) => Object.freeze(Object.fromEntries(Object.entries(byTier).map(([tier, l]) => [tier, said(l[2], l[3], l[4])])));
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: said([-60, -30], [-70, -45, -45], [-80, -60, -60, -60]),
-  meadowbrook_thicket: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]),
-  wickstead: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]),
-  mosslight_glade: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]),
-  millrace_sewer: said([-35, 10], [-35, 10, 15], [-45, 0, 5, 5]),
-  coppercap_warrens: said([-30, 20], [-25, 20, 25], [-30, 15, 20, 25]),
+  mill_cellar: lines({ normal: said([-60, -30], [-70, -45, -45], [-80, -60, -60, -60]) }),
+  meadowbrook_thicket: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), dangerous: said([-45, -10], [-50, -25, -20], [-65, -40, -40, -40]), deadly: said([-45, -5], [-50, -25, -20], [-65, -40, -40, -35]) }),
+  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]), dangerous: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), deadly: said([-45, -5], [-50, -20, -15], [-60, -40, -35, -35]) }),
+  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-30, 15, 20], [-40, 0, 5, 10]), deadly: said([-15, 45], [-10, 50, 60], [-20, 30, 40, 40]) }),
+  millrace_sewer: lines({ normal: said([-35, 10], [-35, 10, 20], [-45, 5, 10, 10]), dangerous: said([-30, 15], [-30, 15, 20], [-35, 5, 15, 15]), deadly: said([-30, 20], [-25, 20, 30], [-30, 15, 20, 25]) }),
+  coppercap_warrens: lines({ normal: said([-25, 20], [-25, 25, 30], [-30, 20, 25, 25]), dangerous: said([-25, 25], [-20, 35, 40], [-20, 30, 35, 40]), deadly: said([-25, 25], [-15, 35, 45], [-20, 30, 35, 40]) }),
 });
-/* A ground pack's measured line (src/data/grounds/<id>/pack.js `partyVsAlone`: { 2, 3, 4 }, whole fives, measured on the real settle). */
-export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: said(p.partyVsAlone[2], p.partyVsAlone[3], p.partyVsAlone[4]) } : {})));
+/* A ground pack's measured lines (src/data/grounds/<id>/pack.js `partyVsAlone`: { normal: { 2, 3, 4 }, dangerous: .., deadly: .. }, whole fives, measured on the real settle). */
+export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: lines(p.partyVsAlone) } : {})));
 
 /* A FOUR WHO ALL SHARE ONE ROLE READS ITS OWN LINE (designer 2026-11-04; CLAUDE.md §6). The Thicket's one-class four pays the even share, so its weapons no longer sit near one number, and a four of wands earns more than
    alone. Whole percent to the nearest 5, against the same heroes alone (1 h x 2 seeds, Levels 5 and 10: shields -12, -15; hammers -11, -9; bows -9, -8; staffs -12, -11; wands +4, +5). first-week-bands vs-alone plays it.
@@ -136,13 +146,14 @@ export function partyClassXp(roles) {
   return { permille: cell, classes };
 }
 
-/** The measured percent (PARTY_VS_ALONE) for these living roles on this ground; null with no row or under two heroes. */
-export function partyVsAlone(groundId, roles) {
-  if (roles.length < 2 || !Object.hasOwn(PARTY_VS_ALONE, groundId)) return null;
+/** The measured percent (PARTY_VS_ALONE) for these living roles on this ground and tier (the leader's pick, Normal when none); null with no row, no line
+    for that tier, or under two heroes. The one-role line (ONE_ROLE_VS_ALONE) was measured on Normal and reads only there. */
+export function partyVsAlone(groundId, roles, tier = DEFAULT_TIER) {
+  if (roles.length < 2 || !Object.hasOwn(PARTY_VS_ALONE, groundId) || !Object.hasOwn(PARTY_VS_ALONE[groundId], tier)) return null;
   const { classes } = partyClassXp(roles);
-  const tab = PARTY_VS_ALONE[groundId];
+  const tab = PARTY_VS_ALONE[groundId][tier];
   const n = Math.min(roles.length, Math.max(...Object.keys(tab).map(Number)));
-  const oneRole = Object.hasOwn(ONE_ROLE_VS_ALONE, groundId) ? ONE_ROLE_VS_ALONE[groundId][n] : null;
+  const oneRole = tier === DEFAULT_TIER && Object.hasOwn(ONE_ROLE_VS_ALONE, groundId) ? ONE_ROLE_VS_ALONE[groundId][n] : null;
   if (oneRole && roles.every((r) => r === roles[0]) && Object.hasOwn(oneRole, roles[0])) return oneRole[roles[0]];
   const cells = tab[n];
   return cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
@@ -170,11 +181,15 @@ export function validate(grounds) {
     if (cells.some((v) => !Number.isInteger(v) || v <= 0)) out.push(n + ' heroes: cells are whole permille > 0');
     for (let i = 1; i < cells.length; i++) if (cells[i] <= cells[i - 1]) out.push(n + ' heroes: another class pays no more');
   }
-  /* the Party window's measured line, one per ground: a ground a row may name, whole fives, one per class count */
-  for (const [g, words] of Object.entries(PARTY_VS_ALONE)) {
+  /* the Party window's measured lines, one per tier a ground offers (lane/d-party-pace): a ground a row may name, a tier it offers, whole fives, one per class count */
+  for (const [g, byTier] of Object.entries(PARTY_VS_ALONE)) {
     if (grounds && !grounds.includes(g)) out.push(g + ': the Party window\'s line names no ground');
-    for (const n of [2, 3, 4]) if (!Array.isArray(words[n]) || words[n].length !== Math.min(n, classCount) || words[n].some((v) => !Number.isInteger(v) || v % 5 !== 0)) out.push(g + ': ' + n + ' heroes: PARTY_VS_ALONE needs whole fives, one per class count');
+    for (const [tier, words] of Object.entries(byTier)) {
+      if (!TIER_IDS.includes(tier)) { out.push(g + ': the Party window\'s line names no tier ' + tier); continue; }
+      if (grounds && !tiersOf(g).includes(tier)) out.push(g + ': the Party window has a line for ' + tier + ', a tier the ground does not offer');
+      for (const n of [2, 3, 4]) if (!Array.isArray(words[n]) || words[n].length !== Math.min(n, classCount) || words[n].some((v) => !Number.isInteger(v) || v % 5 !== 0)) out.push(g + ' ' + tier + ': ' + n + ' heroes: PARTY_VS_ALONE needs whole fives, one per class count');
+    }
   }
-  if (grounds) for (const g of grounds) if (!Object.hasOwn(PARTY_VS_ALONE, g)) out.push(g + ': the Party window has no measured line for this ground');
+  if (grounds) for (const g of grounds) for (const tier of tiersOf(g)) if (!Object.hasOwn(PARTY_VS_ALONE, g) || !Object.hasOwn(PARTY_VS_ALONE[g], tier)) out.push(g + ': the Party window has no measured line for ' + tier + ' on this ground');
   return out;
 }

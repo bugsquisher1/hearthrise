@@ -23,25 +23,25 @@
 //                       characters that sit in no party (own characters join at once,
 //                       PARTY_SPEC 10-19).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.138';
-import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.138';
-import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.138';
-import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.138';
-import { ITEMS } from '../data/items.js?v=0.2.138';
-import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.138';
-import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.138';
-import { ammoPerShot } from '../core/ammo.js?v=0.2.138';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.138';
-import { ABILITIES } from '../data/abilities.js?v=0.2.138';
-import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.138';
-import { itemName, itemNameFor, runeWords } from './widgets/bits.js?v=0.2.138';
-import { ownCount } from './rune-supply.js?v=0.2.138';
-import { shortOf } from './item-lore.js?v=0.2.138';
-import { whole, gold } from '../render/format.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
-import { storeFloorFor } from '../data/supplies.js?v=0.2.138';
-import { heroVitalsOf } from '../session/character-sections.js?v=0.2.138';
-import { BASIC_SUPPLIES } from '../data/supply-basics.js?v=0.2.138';
+import { settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.139';
+import { presetsOf, equipmentOf, goldOf, nameOf, carriedOf, skillsOf, blessingsOf } from '../session/item-sections.js?v=0.2.139';
+import { partyMembershipOf, huntName } from '../session/party-sections.js?v=0.2.139';
+import { tallyOf, countsWords } from '../session/tally-sections.js?v=0.2.139';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { HUNT_ROLES, wornRoleKey, roleForWeapon, shootsItem } from '../data/hunt-roles.js?v=0.2.139';
+import { attackOrder, DEFAULT_ATTACK_ROW, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.139';
+import { ammoPerShot } from '../core/ammo.js?v=0.2.139';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
+import { ABILITIES } from '../data/abilities.js?v=0.2.139';
+import { storeOf, storeName, moveOffWeapon } from './bar-draft.js?v=0.2.139';
+import { itemName, itemNameFor, runeWords } from './widgets/bits.js?v=0.2.139';
+import { ownCount } from './rune-supply.js?v=0.2.139';
+import { shortOf } from './item-lore.js?v=0.2.139';
+import { whole, gold } from '../render/format.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
+import { storeFloorFor } from '../data/supplies.js?v=0.2.139';
+import { heroVitalsOf } from '../session/character-sections.js?v=0.2.139';
+import { weakFoodOf, weakFoodWords } from './weak-food.js?v=0.2.139';
 
 /* How many of the bar's actions a setup line shows. */
 const SETUP_ICONS = 4;
@@ -344,44 +344,15 @@ export function beforeLines(cs, o) {
 /* STORE FOOD TOO WEAK FOR THE GROUND (designer 2026-11-14, lane/d-march-balance). The start bar's store slot is Salted Shrimp, and a slot
    names one item until the player changes it (Tyler 2026-10-21), so a hero who never touched it walked into the Muster Barrows on 72 HP
    heals and died 2 of 2 under "Safe at your level". A ground whose blows outrun a weak store food names the weakest one measured safe for
-   a lone hero (its pack's bagGuide.storeFloor, supplies.js storeFloorFor); a bar whose best store food heals less is told the fix, and
-   the page drops "Safe at your level" (hunts.js). A ground that names none says nothing: the start bar is measured safe there. A heads-up,
-   never a stop. { id, text, short } or null.
-   AT THE HERO'S LEVEL, WITH ITS OWN NUMBERS (designer 2026-11-15, lane/d-audit-balance-2, the audit's F14): the floor is the one measured for
-   this Level (the Barrows ask for Salted Lobster to 64 and Salted Trout from 65), and when the server has sent the hero's HP the line says
-   what the food heals of it ("Salted Shrimp heals 72 of your 883 HP"): the two numbers a player needs to see why. The bar's food slot says
-   the same while the hero hunts there (weakFoodWords, slot-waits.js). */
+   a lone hero at this Level (its pack's bagGuide.storeFloor and storeFloorFrom, supplies.js storeFloorFor); a bar whose best store food
+   heals less is told the fix by THE ONE RULE (weak-food.js: the slot, the server's heal and HP, "Slot 4: Salted Shrimp heals 72 of 1,208 HP.
+   Pick Salted Trout"), and the page drops "Safe at your level" (hunts.js). A ground that names none says nothing: the start bar is measured
+   safe there. A heads-up, never a stop. { id, text, short } or null. */
 export const FOOD_WEAK_ID = 'food_weak';
 function weakFoodLine(s, hunt, level, hpMax) {
-  const words = weakFoodWords('prep', s, hunt, level, hpMax);
-  return words ? { id: FOOD_WEAK_ID, text: words, short: true } : null;
-}
-
-/** The weak-store-food sentence for bar `s` on ground `hunt` at `level`, from text table `home` ('prep' the Hunts page, 'bar' the slot), or ''.
-    `only` (a store food id) asks about that one food, a slot's own, instead of the bar's best. */
-export function weakFoodWords(home, s, hunt, level, hpMax, only) {
   const floor = hunt ? storeFloorFor(hunt, Number.isInteger(level) ? level : null) : null;
-  const best = floor ? (only ? (healsOf(only) < healsOf(floor) ? only : null) : storeFoodUnder(s, floor)) : null;
-  if (!best) return '';
-  const vars = { food: storeName(best), want: storeName(floor), heal: whole(healsOf(best)), hp: hpMax > 0 ? whole(hpMax) : '' };
-  if (home === 'bar') return hpMax > 0 ? t('bar.food_weak_hp', vars) : t('bar.food_weak', vars);
-  return hpMax > 0 ? t('prep.food_weak_hp', vars) : t('prep.food_weak', vars);
-}
-/* What one store food heals (supply-basics.js), 0 for anything else. */
-const healsOf = (id) => { const b = BASIC_SUPPLIES.find((x) => x.id === id); return b && b.kind === 'heal' ? b.heals : 0; };
-
-/** The store food bar `s` (settingsOf) buys at best, when it heals less than store row `floorId`; else null (no store food, or enough).
-    A keyed hall's door reads it too (boss-hall-pane.js, `storeFloor`). Display only. */
-export function storeFoodUnder(s, floorId) {
-  const want = BASIC_SUPPLIES.find((b) => b.id === floorId);
-  if (!want || want.kind !== 'heal' || !s || !Array.isArray(s.slots)) return null;
-  let best = null;
-  for (const sl of s.slots) {
-    if (!sl || sl.empty || sl.enabled === false || sl.why === 'store_off' || !sl.action || sl.action.type !== 'consume') continue;
-    const c = CONSUMABLES[sl.action.id];
-    if (c && c.kind === 'food' && c.source === 'store' && (!best || c.amount > best.amount)) best = c;
-  }
-  return best && best.amount < want.heals ? best.id : null;
+  const words = weakFoodWords('prep', weakFoodOf(s, floor), hpMax);
+  return words ? { id: FOOD_WEAK_ID, text: words, short: true } : null;
 }
 
 /* WHAT A DEATH WOULD COST, said before the risk is taken: the Blessings on, or the next one and its price. A heads-up, never a stop. All the server's. */

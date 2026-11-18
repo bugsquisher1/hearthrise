@@ -20,23 +20,25 @@
 // Defense COMBAT_XP.blockMult times over (src/core/hunt-rewards.js; Tyler
 // 2026-10-18: "shield blocks count extra").
 //
-// SOURCES (Tyler 2026-10-23: a basic shield at the Shop outfitter, better ones
-// made at Smithing, and some drops):
-//   Bronze-Rimmed  the Shop's Gear tab, 140 g (supply-basics.js SUPPLY_SHOP_OFFERS)
-//   Ironbound      Smithing 15
-//   Kingsgrate     the Rat King, RARE band 1.7%, after his Crown Shard (monsters.js)
-//   Coppercap      Smithing 30
-//   Steelgrate     Smithing 30, reforged from a Kingsgrate
+// SOURCES. SHIELDS DROP AT EVERY TIER; A SMITH ONLY REFORGES A NAMED ONE (Tyler 2026-11-18, answering the
+// itemization audit; it replaces his 10-23 "better shields made at Smithing, and some drops"). One rule from
+// tier 2 up (lane/d-drop-homes, designer 2026-11-18): each tier's plain shield is a Scarce drop, about hourly,
+// with ONE home, a weapon row like any other (src/data/loot-bands.js: one Scarce weapon a monster, the 5% row
+// ceiling). The named shields are Rares and reforges. The Ironbound, Coppercap and Mithril-Faced recipes are cut.
+//   tier 1  Bronze-Rimmed  the Shop's Gear tab, 140 g (supply-basics.js SUPPLY_SHOP_OFFERS; Tyler 10-23, the kit tier)
+//   tier 2  Ironbound      the Sewer's Drain Rats            Kingsgrate: the Rat King, a RARE 1.6% (named)
+//   tier 3  Coppercap      the Warrens' Chief's crew (the skulkers, foremen and Chief carry it, as they share the bodies)
+//                          Steelgrate: Smithing 30, reforged from a Kingsgrate (named). Cauldron Lid: the called Chief (named)
+//   tier 4  Mithril-Faced  Hask's Ford's Bannerman (still a Rare on the Slake's Color Sergeant)
+//   tier 5  Runebound      the Pyre Field's Lurchers (still a Rare on the Muster Barrows' Pikeman)
+//   tier 6  Emberforged    Krell's Hold's Grave Guards (still a Rare on the Pyre Field's Provost)
+//   tier 7  Krell's Tollgate, Lord Krell's prize (named, the special-attribute plan below)
 // THE BARROW MARCH'S RUNGS (designer 2026-11-15, lane/d-audit-balance-1; the playthrough audit's F8: no shield from Level 30 to
 // 110 while the sword ran to 95 and the spellbook to 88). One plain shield a tier, guard +2 a tier as tiers 1 to 3 climb
-// (3, 5, 7, then 9, 11, 13), no attack penalty. Each is a RARE on a body that carries a sword and a shield in its picture
-// (the packs' rows, src/data/grounds/*/pack.js), and tier 4 is also forged, as the tier's hatchets are (style-gear.js):
-//   Mithril-Faced           worn from 45: the Slake's Color Sergeant; Smithing 45
-//   Runebound               worn from 60: the Muster Barrows' Barrow Pikeman, the Pyre Field's Charred Pikeman
-//   Emberforged Tower       worn from 75: the Pyre Field's Provost, Krell's Hold's Grave Guard
+// (3, 5, 7, then 9, 11, 13), no attack penalty.
 // Tier 7 is Krell's Tollgate (guard 15, Tyler 2026-11-14) and the Muster's Bier Shield is the Runebound with one attribute
 // (both in the special-attribute plan, src/data/special-attributes.js): neither is a row here.
-// Book value (`v`): a made shield is worth no more than the book of what goes
+// Book value (`v`): a reforged shield is worth no more than the book of what goes
 // in (the bench is never a gold faucet: tests/style-gear.mjs SG-4's rule), the
 // Shop's at SHOP_PREMIUM x its book. Icons are placeholders until the Asset
 // Director's style-1 art lands (item-art.js).
@@ -64,14 +66,10 @@ export const SHIELD_ITEMS = Object.freeze({
   ember_tower_shield: shield('Emberforged Tower Shield', 9750, 6, 75, 13, 0, 'legendary'),
 });
 
-/* THE MADE SHIELDS' RECIPES (Smithing; the levels they are worn at). */
+/* THE REFORGE (Smithing; Tyler 2026-11-18: a smith only reforges a named shield). The plain shields drop (SOURCES above). */
 const r = (id, name, inputs, output, xp, req, ms) => Object.freeze({ id, name, icon: '🛡️', inputs: Object.freeze(inputs), output, xp, req, ms });
 export const SHIELD_RECIPES = Object.freeze([
-  r('forge_ironbound_shield', 'Forge Ironbound Shield', { iron_bar: 9, normal_plank: 3 }, 'ironbound_shield', 130, 15, 3400),
-  r('forge_coppercap_shield', 'Forge Coppercap Shield', { steel_bar: 3, copper_bar: 4, normal_plank: 1 }, 'coppercap_shield', 300, 30, 4200),
   r('reforge_steelgrate', 'Reforge the Kingsgrate as Steelgrate', { kingsgrate: 1, steel_bar: 3 }, 'steelgrate', 320, 30, 4400),
-  /* tier 4, made as the tier's hatchets are: four bars and two planks book 1,130 against the shield's 1,100 (never a gold faucet) */
-  r('forge_mithril_faced_shield', 'Forge Mithril-Faced Shield', { mithril_bar: 4, maple_plank: 2 }, 'mithril_faced_shield', 450, 45, 4600),
 ]);
 
 /* Each shield's flavour line (item-descriptions.js spreads them). */

@@ -15,7 +15,7 @@
 //            bag, 'restart' sends the restart intent, 'show'
 //            switches to the character, 'join' accepts a party invite,
 //            'party' opens the Party window, 'chat' the conversation, 'friends' the Friends window, 'training' the Training window,
-//            'addspell' puts the new spells on the bar (src/shell/bar-assign.js addMovesOrOpen)
+//            'addspell' puts the new spells on the bar (src/shell/bar-assign.js addMovesOrOpen), 'titles' the Character window's Titles tab
 //   decline  a second button's words (the invite's Decline), or none
 //   share    a Share button's words: the rare find's card (src/shell/share-card.js)
 //   button   the button's words
@@ -50,6 +50,10 @@ export const ALERT_KINDS = Object.freeze([
   /* A level-up unlocked a spell for the weapon worn (src/shell/spell-news.js, Tyler 2026-11-16: "just dont overwhelm the screen
      with it"): Add to bar puts it in the first empty slot, or opens Hunt prep when the bar is full. It fades unanswered. */
   Object.freeze({ id: 'spell', label: 'New spells', glyph: 'uiSpark', action: 'addspell', button: 'Add to bar', fadeMs: 30000 }),
+  /* A bench run watched in town finished on its own (src/shell/town-news.js; QA audit 2026-11-18 A17: "Fuel all" ended with no word). */
+  Object.freeze({ id: 'work', label: 'Town work done', glyph: 'uiHourglass', action: 'bag', button: 'Open your inventory', fadeMs: 30000 }),
+  /* A title earned and not claimed (town-news.js; A24: titles unlocked with nobody told): Character on its Titles tab. */
+  Object.freeze({ id: 'title', label: 'Titles earned', glyph: 'navCharacter', action: 'titles', button: 'Open Titles', fadeMs: 120000 }),
 ]);
 
 export const ALERT_INDEX = Object.freeze(Object.fromEntries(ALERT_KINDS.map((k) => [k.id, k])));

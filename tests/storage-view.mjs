@@ -64,7 +64,7 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   const NEW = 'goblin_totem';
   REC.ARTISAN_RECIPES.crafting.push({ id: 'v6_totem_charm', name: 'Totem Charm', input: NEW, inputQty: 1, output: 'copper_ring', req: 1, xp: 1 });
   ok('V6', B.kindOf(NEW) === 'material', 'a drop a new recipe spends files under ' + B.kindOf(NEW) + ', not material');
-  for (const [id, k] of Object.entries({ big_bones: 'material', bat_wing: 'material', silk_thread: 'material', raw_wolf_meat: 'material', rat_tail: 'junk', gold_bar: 'material', rat_kings_crown: 'rare' }))
+  for (const [id, k] of Object.entries({ big_bones: 'material', bone_chips: 'material', bat_wing: 'junk', silk_thread: 'material', raw_wolf_meat: 'material', rat_tail: 'junk', gold_bar: 'material', rat_kings_crown: 'rare' }))
     ok('V6', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);
   /* a quest keepsake nothing drops (the boss's crown is a Rare drop too, so it alone no longer proves the tag's rule) */
   ITM.ITEMS.v6_keepsake = { n: 'Keepsake', tag: 'quest', v: 1 };

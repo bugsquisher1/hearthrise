@@ -131,31 +131,6 @@ export function unlockedCrops(plotLevel) {
   return PLOT_TIERS[clampPlotLevel(plotLevel)].unlocks.slice();
 }
 
-/** Which crop a sweep should put in the next empty plot, or null when nothing in
-    the bag qualifies. Pure, so the same rule answers the header's "Plant all",
-    a future worker and any test: the preferred crop (auto-replant's) first, then
-    the highest farming requirement the player can actually plant.
-    `seeds` is the caller's REMAINING budget, not the bag — the seed debit is the
-    server's and lands with the response, so a sweep that re-read the bag spent
-    one seed many times over. Deriving the order from `crops` keeps every crop
-    ever added reachable without editing a list here. */
-export function pickSeedToPlant(st) {
-  const s = st || {};
-  const crops = s.crops || {};
-  const seeds = s.seeds || {};
-  const lv = Math.floor(Number(s.farmingLevel) || 0);
-  const order = Object.keys(crops).sort((a, b) => (crops[b].req || 0) - (crops[a].req || 0));
-  const prefer = (s.prefer && crops[s.prefer]) ? [s.prefer] : [];
-  for (const id of prefer.concat(order)) {
-    const c = crops[id];
-    if (!c || (seeds[c.seed] | 0) <= 0) continue;
-    if (lv < (c.req || 0)) continue;
-    if (!canPlantCrop(s.plotLevel, id)) continue;
-    return id;
-  }
-  return null;
-}
-
 /** Which plot indices are plantable RIGHT NOW: empty, and inside the property's
     plot cap. ONE answer for the farm render's "Plant all (n)" label and for the
     sweep itself — deriving it twice is how the button came to offer a sweep that
@@ -240,18 +215,6 @@ export function cropHours(plot, crops) {
   return (c && c.hours > 0) ? c.hours : 0;
 }
 
-export function isReady(plot, crops, now) {
-  const h = cropHours(plot, crops);
-  if (!h) return false;                            // unknown crop — never auto-ready
-  return growthHours(plot, now) >= h;
-}
-
-export function progressPct(plot, crops, now) {
-  const h = cropHours(plot, crops);
-  if (!h) return 0;
-  return Math.min(100, Math.floor(growthHours(plot, now) / h * 100));
-}
-
 export function lastWatering(plot, now) {
   if (!plot) return 0;
   normalizePlot(plot, now);
@@ -270,14 +233,6 @@ export function waterWindowRemainingMs(plot, now) {
   return Math.max(0, lastWatering(plot, now) + WATER_WINDOW_MS - now);
 }
 
-/** A plot is waterable only when the previous window has closed. This is the
-    whole anti-abuse mechanism AND the affordance ("this plot is thirsty"). */
-export function isWaterable(plot, crops, now) {
-  if (!plot || !cropHours(plot, crops)) return false;
-  if (plot.state === 'ready' || isReady(plot, crops, now)) return false;
-  return waterWindowRemainingMs(plot, now) <= 0;
-}
-
 /** Projected wall-clock ms until ready: the rest of the current window runs
     at 2×, everything after it at 1×. */
 export function readyInMs(plot, crops, now) {
@@ -289,19 +244,4 @@ export function readyInMs(plot, crops, now) {
   const windowGrowth = windowMs / 3600000 * WATER_RATE;
   if (windowGrowth >= remain) return Math.round(remain / WATER_RATE * 3600000);
   return Math.round(windowMs + (remain - windowGrowth) * 3600000);
-}
-
-/** floor(hours / 4) — the windows must fit inside the shortened grow time,
-    which is why the mechanic self-caps at −50% with no separate cap table. */
-export function maxWaterings(cropId, crops) {
-  const c = crops && crops[cropId];
-  if (!c || !(c.hours > 0)) return 0;
-  return Math.floor(c.hours / (WATER_WINDOW_H * WATER_RATE));
-}
-
-/** XP for a watering: a tenth-ish of the skill's throughput, bounded to once
-    per plot per window so it can never be farmed. */
-export function waterXp(plot, crops) {
-  const c = cropOf(plot, crops);
-  return Math.max(1, Math.ceil(((c && c.xp) || 4) / 4));
 }

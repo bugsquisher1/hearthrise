@@ -26,11 +26,11 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from './boss-calls.js?v=0.2.138';
-import { HUNT_INDEX } from './hunts.js?v=0.2.138';
-import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.138';
-import { MONSTERS } from './monsters.js?v=0.2.138';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.138';
+import { BOSS_CALLS } from './boss-calls.js?v=0.2.139';
+import { HUNT_INDEX } from './hunts.js?v=0.2.139';
+import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.139';
+import { MONSTERS } from './monsters.js?v=0.2.139';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
 
 export const BOSS_HALL_RULES = Object.freeze({
   /* The fight's limit from the first swing, the called rooms' ten minutes (the design: "a 10 minute limit"). */
@@ -127,12 +127,9 @@ export const BOSS_HALL_WORDS = Object.freeze({
   /* the same label as a called room's (boss-calls.js warnGuard): what his adds do, never a move to turn off */
   warnGuard: ' and shield him until killed',
   /* WHAT WINS (lane/d-march-balance, the v0.2.132 re-play: 0 of 6 on the bars a party is handed). A hall that names a store food (`storeFloor`)
-     says it, and its bar line (`words.bars`, label style), under the key line; {food} the store food. `foodShort` is red: this hero's bar buys
-     weaker food (src/shell/hunt-go.js storeFoodUnder). */
+     says it, and its bar line (`words.bars`, label style), under the key line; {food} the store food. A bar under it is told in red by the
+     one weak-food rule, naming the slot (src/shell/weak-food.js, the ground pages' own sentence; boss-hall-pane.js foodShortWords). */
   food: 'Requires {food} or better on every bar',
-  foodShort: 'Bar food: {have}. Change that slot to {food}.',
-  /* ...for another hero of this account in the party (boss-hall-pane.js foodShortWords) */
-  foodShortPeer: '{name}\'s food: {have}. Change that slot to {food}.',
   /* a hero whose name the envelope has not sent yet */
   someHero: 'A hero',
   /* the lead-in to the hall's tips (its `words.bars`, label lines, each one change from the bar a party is handed) */

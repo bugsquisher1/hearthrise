@@ -69,24 +69,25 @@
 //     takes the weight preferredWeight names, so no hero stays bare (designer 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.138';
-import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.138';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.138';
-import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.138';
-import { loadoutOf } from '../core/member.js?v=0.2.138';
-import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.138';
-import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.138';
-import { MONSTERS } from '../data/monsters.js?v=0.2.138';
-import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.138';
-import { castsOf, spellRow, mends, SPELL_SWITCH } from '../data/monster-spells.js?v=0.2.138';
-import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.138';
-import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.138';
-import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.138';
-import { itemName } from './widgets/bits.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
-import { reqHave, baneKindName } from './item-lore.js?v=0.2.138';
-import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.138';
-import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.138';
+import { ITEMS } from '../data/items.js?v=0.2.139';
+import { EQUIP_SLOT_META, expandItemSlot } from '../data/gathering.js?v=0.2.139';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.139';
+import { JEWEL_PERKS } from '../data/jewelry.js?v=0.2.139';
+import { loadoutOf } from '../core/member.js?v=0.2.139';
+import { jewelPerksOf, playerCombatRolls } from '../core/combat.js?v=0.2.139';
+import { baneIndex, baneMultFor, classOfMonster, MONSTER_CLASSES } from '../core/bane.js?v=0.2.139';
+import { MONSTERS } from '../data/monsters.js?v=0.2.139';
+import { OPEN_HUNTS } from '../data/hunts.js?v=0.2.139';
+import { castsOf, spellRow, mends, SPELL_SWITCH } from '../data/monster-spells.js?v=0.2.139';
+import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.139';
+import { armourWeights, maxHpFor, maxManaFor } from '../core/vitals.js?v=0.2.139';
+import { roleWeaponOf, wornRoleKey } from '../data/hunt-roles.js?v=0.2.139';
+import { itemName } from './widgets/bits.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
+import { reqHave } from './item-lore.js?v=0.2.139';
+import { baneKindName } from './bag-model.js?v=0.2.139';
+import { wornWeightOf } from './hunt-ground-facts.js?v=0.2.139';
+import { WEIGHT_FOR_ROLE } from '../data/hunt-tutorial.js?v=0.2.139';
 
 /* The off-hand and the quiver: the player's own choice, never this one. */
 const STYLE_SLOTS = new Set(['shield', 'ammo']);
@@ -104,9 +105,9 @@ const unpriced = (it) => !!(it && (it.awayEffect || (Array.isArray(it.effects) &
 /* The damage multiplier the worn set has against each monster kind, as the engine clamps it (bane.js baneMultFor), 1 = none. */
 const banesOf = (worn) => { const ix = baneIndex(worn, ITEMS); return Object.fromEntries(MONSTER_CLASSES.map((c) => [c, baneMultFor(c, ix)])); };
 
-/* The server's own number against the row's requirement (the hero's Level for gear, Tyler 2026-10-24; item-lore.js
-   reqHave, the one reader); a number the server has not sent reads as "cannot", the safe side. */
-function meets(it, skills, level) {
+/** The server's own number against the row's requirement (the hero's Level for gear, Tyler 2026-10-24; item-lore.js
+    reqHave, the one reader); a number the server has not sent reads as "cannot", the safe side. Next buy reads it too. */
+export function meets(it, skills, level) {
   if (!it.reqSkill || !(it.reqLv > 1)) return true;
   const have = reqHave(it.reqSkill, skills, level);
   return have !== null && have >= it.reqLv;

@@ -6,6 +6,8 @@
 // next-tier-wins the point of one ladder per tier: a maxed Iron Blows never overtakes the next tier's kit, on any way to fight.
 // armor-below-the-next-set  exact, through the engine's own functions: a maxed Armor ladder leaves more damage reaching the hero than the next
 //               tier's bare set does, on every weight against the monsters of a ground that wears it (lane/c-armor-tiers' table).
+// dawnsteel-rungs-play  tier 7's small ladder (0.4% a rung, 2% a track) at Krell's Hold: its rungs read as its own ladder says, both paths
+//               agree, the rungs change the hunt and Armor takes what it says off. No tier 8 exists yet, so no next-tier bar.
 //
 // mutant-anchors: src/core/temper.js src/core/combat-sim.js src/core/member.js src/data/temper.js
 import { join } from 'node:path';
@@ -37,8 +39,13 @@ const LINES = {
   cloth: { 2: ['adept_helmet', 'adept_body', 'adept_pants', 'adept_boots'], 3: ['scholar_helmet', 'scholar_body', 'scholar_pants', 'scholar_boots'], 4: ['warlock_helmet', 'warlock_body', 'warlock_pants', 'warlock_boots'],
     5: ['sorcerer_helmet', 'sorcerer_body', 'sorcerer_pants', 'sorcerer_boots'], 6: ['archmage_helmet', 'archmage_body', 'archmage_pants', 'archmage_boots'], 7: ['duskweave_helmet', 'duskweave_body', 'duskweave_pants', 'duskweave_boots'] },
 };
-const WEAPON = { tank: { 2: 'iron_sword', 3: 'steel_sword', 4: 'mithril_sword' }, ranger: { 2: 'longbow', 3: 'willow_longbow', 4: 'maple_bow' }, mage: { 2: 'oak_wand', 3: 'willow_wand', 4: 'maple_wand' }, healer: { 2: 'oak_staff', 3: 'willow_staff', 4: 'maple_staff' } };
-const OFF = { tank: { 2: 'ironbound_shield', 3: 'coppercap_shield', 4: 'coppercap_shield' }, mage: { 2: 'oak_spellbook', 3: 'willow_spellbook', 4: 'maple_spellbook' } };
+/* Tier 7 is Dawnsteel's, worn from 88: Lord Krell's weapons and helms and bodies, his Tollgate and the Duskwood Codex (catalogue-coherence reachableSources) */
+const WEAPON = { tank: { 2: 'iron_sword', 3: 'steel_sword', 4: 'mithril_sword', 7: 'dawn_sword' }, ranger: { 2: 'longbow', 3: 'willow_longbow', 4: 'maple_bow', 7: 'duskwood_bow' },
+  mage: { 2: 'oak_wand', 3: 'willow_wand', 4: 'maple_wand', 7: 'duskwood_wand' }, healer: { 2: 'oak_staff', 3: 'willow_staff', 4: 'maple_staff', 7: 'duskwood_staff' } };
+const OFF = { tank: { 2: 'ironbound_shield', 3: 'coppercap_shield', 4: 'coppercap_shield', 7: 'krells_tollgate' }, mage: { 2: 'oak_spellbook', 3: 'willow_spellbook', 4: 'maple_spellbook', 7: 'duskwood_codex' } };
+/* DAWNSTEEL'S LADDER (lane/d-gold-sinks 2026-11-18; Tyler 2026-11-16 "give tier-7 Dawnsteel its own Tempering ladder", small cap): both tracks full */
+const MAX7 = Object.freeze({ 'temper:blows:7': 5, 'temper:armor:7': 5 });
+const HOLD = 'krells_hold', HOLD_L = 95;
 const LINE_OF = { tank: 'plate', ranger: 'leather', mage: 'cloth', healer: 'cloth' };
 const kitOf = (items) => (role, tier) => {
   const worn = { weapon: WEAPON[role][tier], ...(OFF[role] ? { shield: OFF[role][tier] } : {}), ...(role === 'ranger' ? { ammo: 'bronze_arrows' } : {}) };
@@ -134,7 +141,7 @@ const cases = {
     for (const [weight, line] of Object.entries(LINES)) {
       /* a tier's rows are the grounds that tier is worn on: Iron and Studded at the Sewer and the Glade, Steel and Boarhide at the Warrens; the
          March's three (lane/d-audit-balance-2, temper.js tiers 4 to 6): Mithril at the Ford and the Slake, Rune at the Barrows, Emberforged at the
-         Hold, each against the next tier's bare set. Tier 6's bar is Dawnsteel (tier 7, no ladder), worn from 88, so it is read at the Hold (85 to
+         Hold, each against the next tier's bare set. Tier 6's bar is bare Dawnsteel (tier 7), worn from 88, so it is read at the Hold (85 to
          110), where it is worn. Not at the Pyre Field (70 to 90): there a plate hero in Emberforged already sits at the armor cap (a full ladder takes
          3.4%, not 5%) and Dawnsteel only 2.3%, so a maxed Emberforged set lets 1.2% less through than bare Dawnsteel; neither moves much there */
       for (const [tier, grounds] of [[2, [GLADE, 'millrace_sewer']], [3, [WARRENS]], [4, ['hasks_ford', 'the_slake']], [5, ['muster_barrows']], [6, ['krells_hold']]]) {
@@ -158,6 +165,46 @@ const cases = {
     if (process.argv.includes('--verbose')) console.log('  thinnest margin of the next set over a maxed one: ' + thinnest.toFixed(1) + '%');
     return null;
   },
+  /* A TIER 7 HERO'S RUNGS PLAY (lane/d-gold-sinks): a Level 95 hero in Dawnsteel at Krell's Hold, where it is worn. Its five rungs read as its ladder says
+     (0.4% a rung, 2% a track, never a tier's 1%, a forged 9 included), a watched hunt and a closed browser land every blow alike with them on, they
+     change the hunt, and the Armor rungs take what they say off what reaches the hero, exactly, inside the small cap (Tyler 2026-11-15/16: about +2-3%). */
+  'dawnsteel-rungs-play': (P, X) => {
+    const ladder = X.TD.temperLadder('armor', 7), top = ladder ? ladder.rungs * ladder.pm : 0;
+    if (!(top >= 20 && top <= 30)) return 'Dawnsteel\'s ladder is ' + top + ' pm, outside the small cap';
+    for (const role of ['tank', 'ranger', 'mage', 'healer']) {
+      const kit = P.kit(role, 7);
+      for (const t of [MAX7, { 'temper:blows:7': 9, 'temper:armor:7': 9 }]) {
+        if (X.T.blowsPmOf(kit, X.ITEMS, t) !== top || X.T.armorPmOf(kit, X.ITEMS, t) !== top) return role + ' in Dawnsteel at ' + JSON.stringify(t) + ' reads ' + X.T.blowsPmOf(kit, X.ITEMS, t) + ' and ' + X.T.armorPmOf(kit, X.ITEMS, t) + ' pm, its ladder says ' + top;
+      }
+      /* Emberforged's rungs are Emberforged's: a tier 7 kit reads none of them */
+      if (X.T.blowsPmOf(kit, X.ITEMS, MAX) !== 0 || X.T.armorPmOf(kit, X.ITEMS, MAX) !== 0) return role + ': tiers 2 to 6\'s rungs pay on Dawnsteel';
+    }
+    for (const roles of [['tank'], ['tank', 'healer', 'ranger', 'mage']]) {
+      const o = { tier: 7, spanMs: HOUR / 4, temper: MAX7 };
+      const viewed = play(P, HOLD, HOLD_L, roles, { ...o, windowMs: 10000 }), closed = play(P, HOLD, HOLD_L, roles, { ...o, windowMs: 600000 });
+      if (viewed.whole !== closed.whole) return roles.join('+') + ' at the Hold: a watched hunt and a closed browser disagree';
+      if (play(P, HOLD, HOLD_L, roles, { tier: 7, spanMs: HOUR / 4 }).whole === closed.whole) return roles.join('+') + ' at the Hold: a full ladder changed nothing';
+    }
+    /* NOT READ HERE: what a full Blows ladder adds a blow on the settle. 2% sits under one hour's noise at the Hold (eight seeds of an hour, measured
+       2026-11-18: a tank +1.4%, a Mage +1.9%, a bow +0.3% a blow, the kill's overkill clipped off), so a bar there would be a coin. The magnitude is
+       exact in tests/hunt-core/temper.mjs: the-mean-is-exact (20 pm), blows-raise-what-lands (the hook), dawnsteel-takes-smaller-rungs (the kit reads 20). */
+    const { mitigationOf, mitigate, armourValues } = X.MI;
+    const mons = [...new Set(X.G.OPEN_GROUNDS[HOLD].pockets.flatMap((p) => p.spawns.map((s) => s.monster)))];
+    for (const [weight, line] of Object.entries(LINES)) {
+      const set = Object.fromEntries(line[7].map((id) => [X.ITEMS[id].slot, id])), values = armourValues(set, X.ITEMS);
+      let plain = 0, full = 0;
+      for (const k of mons) {
+        const row = X.MONSTERS[k], mit = mitigationOf(values, X.monsterLevelOf(row)), blow = Math.max(1, Math.floor(X.monsterMaxHit(row)));
+        const mean = (pm) => { let p = 0; const lo = mitigate(blow, 1000, mit, pm, { chance: (c) => { p = c; return false; } }), hi = mitigate(blow, 1000, mit, pm, { chance: () => true }); return (1 - mit.dodgePm / 1000) * (lo + p * (hi - lo)); };
+        plain += mean(0); full += mean(X.T.armorPmOf(set, X.ITEMS, MAX7));
+      }
+      const off = 100 * (1 - full / plain);
+      if (process.argv.includes('--verbose')) console.log('  ' + weight + ' Dawnsteel at the Hold: a full Armor ladder takes ' + off.toFixed(2) + '% off what reaches the hero');
+      if (off > top / 10 + 0.3) return weight + ' Dawnsteel: a full Armor ladder takes ' + off.toFixed(2) + '% off, past the ladder\'s ' + top / 10 + '%';
+      if (off < 0.8) return weight + ' Dawnsteel: a full Armor ladder takes only ' + off.toFixed(2) + '% off what reaches the hero';
+    }
+    return null;
+  },
 };
 
 const T = 'src/core/temper.js';
@@ -169,6 +216,9 @@ const mutants = [
   { name: 'a rung is worth 5%, so a maxed ladder beats the next tier', case: 'next-tier-wins', edits: [['src/data/temper.js', 'export const TEMPER_RUNG_PM = 10;', 'export const TEMPER_RUNG_PM = 50;']] },
   { name: 'a rung is worth 5%, so a maxed Armor ladder beats the next set', case: 'armor-below-the-next-set', edits: [['src/data/temper.js', 'export const TEMPER_RUNG_PM = 10;', 'export const TEMPER_RUNG_PM = 50;']] },
   { name: 'a rung is worth almost nothing', case: 'armor-below-the-next-set', edits: [['src/data/temper.js', 'export const TEMPER_RUNG_PM = 10;', 'export const TEMPER_RUNG_PM = 2;']] },
+  { name: 'Dawnsteel has no ladder', case: 'dawnsteel-rungs-play', edits: [['src/data/temper.js', '  7: Object.freeze([40000, 80000, 160000, 320000, 640000]),\n', '']] },
+  { name: 'a Dawnsteel rung pays a tier\'s 1%', case: 'dawnsteel-rungs-play', edits: [['src/data/temper.js', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({ 7: 4 });', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({});']] },
+  { name: 'Armor never reads a tier 7 piece\'s own rung', case: 'dawnsteel-rungs-play', edits: [[T, "rungs += def * temperRung(temper, 'armor', it.tier) * rungPmOf('armor', it.tier)", "rungs += def * temperRung(temper, 'armor', Math.min(it.tier, 6)) * rungPmOf('armor', Math.min(it.tier, 6))"]] },
 ];
 
 const R = makeReport('hunt-core/temper-play');

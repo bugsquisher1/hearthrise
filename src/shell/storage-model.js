@@ -19,7 +19,7 @@
 //                                queue, merged with one on the same stack
 //   nextBatch(queue)             what the queue sends next: { take, rest }
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, kindOf } from './bag-model.js?v=0.2.138';
+import { BAG_CATS, BAG_SORTS, kindOf } from './bag-model.js?v=0.2.139';
 
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
 const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));

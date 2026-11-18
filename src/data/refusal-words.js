@@ -14,7 +14,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.138';
+import { MAX_CONDITIONS, MAX_IGNORED } from './condition-metrics.js?v=0.2.139';
 
 export const REFUSAL_FALLBACK = 'Didn\'t go through, nothing changed';
 
@@ -219,6 +219,7 @@ export const REFUSAL_WORDS = Object.freeze({
   network: 'No connection, nothing changed',
   timeout: 'No answer from the server',
   busy: 'Still saving, try again',
+  count_stale: 'Online count not ready',
   town_full: 'No free spot, try again',
   no_token: 'Signed out, sign in again',
   not_signed_in: 'Signed out, sign in again',

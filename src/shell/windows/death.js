@@ -5,16 +5,16 @@
 // character dies: where, what killed the hero, what happened in its last
 // seconds (when the hunt was watched), the XP dying cost, the Level it took (a
 // death can take one, Tyler 2026-11-09) and what a Blessing kept, back in town.
-//   Blessings      (while the hero lacks one) closes it and opens the Shop on its Services tab
+//   Blessings      (while the hero lacks one; "Bless again" once this death used them up) closes it and opens the Shop on its Services tab
 //   Hunt summary   closes it and opens the hunt summary (windows/hunt-summary.js)
 //   OK             closes it
 // Closing it any way records the dismissal (death-popup.js followDeaths). Every
 // line is the server's death row; built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop } from '../../render/paint.js?v=0.2.138';
-import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.138';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.138';
-import { deathLogOf } from '../../session/character-sections.js?v=0.2.138';
+import { text, cls, prop } from '../../render/paint.js?v=0.2.139';
+import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.139';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.139';
+import { deathLogOf } from '../../session/character-sections.js?v=0.2.139';
 
 const LINES = Object.freeze(['killed', 'what', 'why', 'lost', 'level', 'saved', 'town']);
 const line = (k) => '<p class="hdeath-line hdeath-' + k + '"></p>';
@@ -30,7 +30,7 @@ export function renderDeath() {
     + line('town')
     + '<div class="hsum-actions hdeath-actions">'
     /* the way to the Blessings a death used up (the Shop's Services tab), while the hero lacks one */
-    + '<button type="button" class="hh-tool" data-hs-act="death-bless" hidden>Blessings</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="death-bless" hidden></button>'
     + '<button type="button" class="hh-tool" data-hs-act="death-summary">Hunt summary</button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="death-ok">OK</button></div>'
     + '</section></div>';
@@ -57,7 +57,9 @@ renderDeath.patch = function patchDeath(body, ctx) {
     text(p, w[k]);
     cls(p, 'is-on', !!w[k]);
   }
-  prop(root.querySelector('[data-hs-act="death-bless"]'), 'hidden', blessingsMissing(ctx.character) !== true);
+  const bless = root.querySelector('[data-hs-act="death-bless"]');
+  text(bless, w.bless);
+  prop(bless, 'hidden', blessingsMissing(ctx.character) !== true);
 };
 
 renderDeath.act = function actDeath(ctx, body, action, ev) {

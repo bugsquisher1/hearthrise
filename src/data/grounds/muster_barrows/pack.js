@@ -69,8 +69,8 @@
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box, gather, addRows } from '../shape.js?v=0.2.138';
-import map from './map.js?v=0.2.138';
+import { definePack, box, gather, addRows } from '../shape.js?v=0.2.139';
+import map from './map.js?v=0.2.139';
 
 const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'captain_hask';
 
@@ -253,6 +253,14 @@ export default definePack({
      so the answer is the HP, not the pay. */
   /* THE HARDER TIERS ARE THE TABLE'S (lane/d-flat-party-xp, 2026-11-17): its own Dangerous HP of 1000 made Dangerous pay a party and a hero alone as much as
      Deadly an hour (0.97-1.02, party-tier-xp) for less risk. On the table's 1100 and 1150 Deadly pays the more. */
+  /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 60 (lane/a-honest-lines 2026-11-16, re-landed and bounded by Level by lane/a-honesty-rescue
+     2026-11-18; graded so since designer Q4 2026-11-12, checks.deadlyFourNeeds, and the page never said it). MEASURED on set/v0.2.139 (the
+     table's Deadly: pull 8, blows 1330, HP 1150), the ladder kit, 2 h a seed, a tank, hammer, bow and Mage against a tank, Healer, bow and Mage,
+     deaths in 16 hero-hours. The full grade (node tools/balance-sim/grade.mjs --mode full --grounds muster_barrows --tiers deadly, 2 seeds):
+     Level 50 38 / 1, 52 18 / 1, 53 18 / 0, 55 (the floor) 10 / 0, over the sheet's bar of 9, 65 0 / 0, 75 0 / 0. Then 6 seeds a cell across
+     the band: 55 9.3 / 0, 57 3 / 0, 58 1.3 / 0, 59 1 / 0, 60 0 / 0, 61 0 / 0, 63 0 / 0, 65 0 / 0. The rule (Krell's Hold's too): the page says it
+     under the first Level measured at less than one death in 16 hero-hours without a Healer, here 60. */
+  healerTiers: { deadly: 60 },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours
@@ -263,7 +271,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.80-0.86, threes 0.73-0.81, fours 0.65-0.77), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.02-1.06, threes 1.01-1.08, the four 1.07); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-30, 25], 3: [-25, 25, 35], 4: [-30, 20, 25, 30] },
+  partyVsAlone: { normal: { 2: [-30, 25], 3: [-25, 25, 35], 4: [-30, 20, 25, 30] }, dangerous: { 2: [-25, 25], 3: [-15, 35, 40], 4: [-25, 25, 35, 35] }, deadly: { 2: [-25, 30], 3: [-15, 40, 45], 4: [-20, 30, 40, 40] } },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's

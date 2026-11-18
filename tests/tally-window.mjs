@@ -25,6 +25,8 @@
 //   TW-15 SHE GIVES IT ONCE: a piece on two rows says so on both (the 11-11 bug: sharedPieces read
 //         pick.pick while tally-intents.js hands over pick.kind, so the note never showed); the
 //         pure helpers (sharedPieces, cutMarks, resetWords, keeperSay)
+//   TW-18 THE COACH CARD HAS ITS OWN SLOT (UI audit 2026-11-18 UI-6): in town the coach card stands under the Tally in the World's right
+//         column, on neither the Tally nor the Town and Home tabs, and the Tally keeps its own place
 //   TW-17 THE CREATURE'S HEAD (art brief 15, 2026-11-12): an entry draws the 32 px head of its creature in its own 44 px well when the head set
 //         has it (assets/icons-bundle/pixel/heads/<monster>.png, src/data/monster-art.js) and nothing, no broken image, when it does not (faceOf)
 //   TW-16 TAKE ME THERE: an entry's ground link opens the Hunts window on that ground
@@ -622,6 +624,29 @@ async function checks(overrides, shots) {
       }
       await met.ctx.close();
     }
+    { // TW-18 THE COACH CARD HAS ITS OWN SLOT (UI audit 2026-11-18 UI-6: hung under the icon row it lay over the Tally and reached Town and Home)
+      /* in town at 1440x900 with her two tasks held: the coach's card stands under the Tally in the World's right column, on neither the Tally
+         nor the Town and Home tabs, and the Tally stands at its own place (its row's corner, dx 12 / dy 12), nothing moved for the card */
+      const { ctx, page, up } = await open(clone(TOWN));
+      const shown = up && await wait(page, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 2, null, 6000);
+      if (!shown) fails.push('TW-18 the town Tally never showed');
+      else {
+        await wait(page, () => document.querySelector('.hs-launchers > .hs-pointer'), null, 4000);
+        await page.waitForTimeout(600);
+        const m = await page.evaluate(() => {
+          const r = (e) => { if (!e || !e.getClientRects().length) return null; const q = e.getBoundingClientRect(); return { l: Math.round(q.left), t: Math.round(q.top), r: Math.round(q.right), b: Math.round(q.bottom) }; };
+          const card = r(document.querySelector('.hs-launchers > .hs-pointer')), tally = r(document.querySelector('[data-hs-widget="tally"]'));
+          const world = r(document.querySelector('[data-hs-widget="tally"]').parentElement), tabs = Array.from(document.querySelectorAll('.world-scene')).map(r).filter(Boolean);
+          const over = (a, b) => !!a && !!b && a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t;
+          return { card, tally, world, overTally: over(card, tally), overTabs: tabs.some((x) => over(card, x)), tabs: tabs.length };
+        });
+        if (!m.card) fails.push('TW-18 CONTROL: no coach card in town to place');
+        else if (m.overTally || m.overTabs || !m.tabs || m.card.t < m.tally.b) fails.push('TW-18 the coach card lies on the Tally or the Town and Home tabs, or stands above the Tally: ' + JSON.stringify(m));
+        if (m.tally && m.world && (m.world.r - m.tally.r !== 12 || m.tally.t - m.world.t !== 12)) fails.push('TW-18 the Tally moved for the card: ' + JSON.stringify(m));
+        if (shots) await page.screenshot({ path: join(shots, 'tw-coach-slot-1440x900.png') });
+      }
+      await ctx.close();
+    }
     { // TW-11 move and fold, desktop (Tyler 2026-10-25)
       const { ctx, page, errors, s, up } = await open({ tally: clone(TALLY3) });
       const shown = up && await wait(page, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 3
@@ -875,6 +900,9 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  /* TW-18 the coach card's own slot (UI audit 2026-11-18 UI-6) */
+  ['the town coach card hangs under the icon row over the Tally again', 'src/shell/hud-room.js', '  function dockCoach() {\n    dockTownCoach();', '  function dockCoach() {'],
+  ['the town coach card docks on top of the Tally', 'src/shell/hud-room.js', '        for (const q of way) if (q.top < top + h + gap && q.bottom + gap > top) { top = q.bottom + gap; moved = true; }', ''],
   /* TW-8 docked (v0.2.130 gate D1) */
   ['the Tally stacks under an analyzer waiting under the dock', 'src/shell/widget-stack.js', ".filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);", '.filter(Boolean).map(rel);'],
   ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', r.held || full || st.sc.pending || st.hunting || !tally || (!tally.weight && !st.suggest));", "prop(btn, 'disabled', r.held || full || st.sc.pending || !tally || !tally.weight);"],

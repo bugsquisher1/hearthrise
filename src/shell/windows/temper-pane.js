@@ -10,15 +10,15 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.138';
-import { goldOf } from '../../session/item-sections.js?v=0.2.138';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.138';
-import { gold, whole, listWords } from '../../render/format.js?v=0.2.138';
-import { runIntent } from '../intent-words.js?v=0.2.138';
-import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.138';
-import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.138';
-import { patchParts, targetOf } from '../goto.js?v=0.2.138';
-import { t } from '../../render/player-text.js?v=0.2.138';
+import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.139';
+import { goldOf } from '../../session/item-sections.js?v=0.2.139';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.139';
+import { gold, whole, listWords } from '../../render/format.js?v=0.2.139';
+import { runIntent } from '../intent-words.js?v=0.2.139';
+import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.139';
+import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.139';
+import { patchParts, targetOf } from '../goto.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'damage and heals', sign: '+', none: 'Requires a weapon' },
@@ -34,9 +34,11 @@ function rowWords(track, r) {
   if (!r.ladder) return !r.below && r.span ? t('temper.no_rungs', { from: r.span.from, to: r.span.to })
     : 'Not temperable' + (r.below ? ', requires gear from Level 15' : ' yet');
   const now = 'Rung ' + r.ladder.rung + '/' + r.ladder.max + ': ';
-  if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max';
+  /* Dawnsteel's rungs are 0.4%, not 1% (src/data/temper.js TEMPER_TIER_RUNG_PM): "Next: +0.8%" after Emberforged's 1% steps needs its why */
+  const small = r.smallPm ? '. ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '';
+  if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max' + small;
   return (r.ladder.rung ? now + track.effect + ' ' + track.sign + pct(r.nowPm) + '. Next: ' + track.sign + pct(r.nextPm)
-    : 'Rung 0/' + r.ladder.max + '. Next: ' + track.effect + ' ' + track.sign + pct(r.nextPm));
+    : 'Rung 0/' + r.ladder.max + '. Next: ' + track.effect + ' ' + track.sign + pct(r.nextPm)) + small;
 }
 
 /* What the next rung takes besides gold, and what this hero holds. */

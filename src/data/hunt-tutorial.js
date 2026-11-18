@@ -67,30 +67,30 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.138';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.138';
-import { tiersOf } from './hunt-tiers.js?v=0.2.138';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.138';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.138';
-import { SKILLS_DEF } from './skills.js?v=0.2.138';
-import { CROPS } from './gathering.js?v=0.2.138';
-import { tallyTask } from './tally-tasks.js?v=0.2.138';
-import { ITEMS } from './items.js?v=0.2.138';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.138';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.138';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.138';
-import { isShield } from './shields.js?v=0.2.138';
-import { deriveProfile } from '../core/member.js?v=0.2.138';
-import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.138';
-import { skillLevelFromXp } from '../core/xp.js?v=0.2.138';
-import { CONSUMABLES } from './consumables.js?v=0.2.138';
-import { RUNE_FAMILIES } from './runes.js?v=0.2.138';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.138';
-import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.138';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.138';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.138';
-import { BAR_TEXT } from './text/bar.js?v=0.2.138';
-import { t } from '../render/player-text.js?v=0.2.138';
+import { HUNT_INDEX } from './hunts.js?v=0.2.139';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.139';
+import { tiersOf } from './hunt-tiers.js?v=0.2.139';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.139';
+import { nextUnlock } from './skill-unlocks.js?v=0.2.139';
+import { SKILLS_DEF } from './skills.js?v=0.2.139';
+import { CROPS } from './gathering.js?v=0.2.139';
+import { tallyTask } from './tally-tasks.js?v=0.2.139';
+import { ITEMS } from './items.js?v=0.2.139';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.139';
+import { LEVEL_REQ } from './gear-tiers.js?v=0.2.139';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.139';
+import { isShield } from './shields.js?v=0.2.139';
+import { deriveProfile } from '../core/member.js?v=0.2.139';
+import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.139';
+import { skillLevelFromXp } from '../core/xp.js?v=0.2.139';
+import { CONSUMABLES } from './consumables.js?v=0.2.139';
+import { RUNE_FAMILIES } from './runes.js?v=0.2.139';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.139';
+import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.139';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.139';
+import { HEARTH_FUELS } from './hearth.js?v=0.2.139';
+import { BAR_TEXT } from './text/bar.js?v=0.2.139';
+import { t } from '../render/player-text.js?v=0.2.139';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings
@@ -430,6 +430,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Gathering and crafting → Cooking → Cook Shrimp',
     'crafting', orGotIt({ kind: 'skill_xp', skill: 'cooking' }), { gotIt: true, when: [IN_TOWN, THICKET_BEHIND], ring: { skill: 'cooking', work: 'cook_shrimp' },
       inWindow: 'Press Cooking, then Start on Cook Shrimp' }),
+  /* A PARTY GOES BELOW BEFORE THE WOLVES (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): the Sewer opens at the Thicket's floor and a four there earns
+     about 1.6x the same heroes alone in the Thicket, so a hero in a party at 5 meets this card where a hero alone meets Tamsin's wolves (a party card is never on a
+     solo hero's way). Hunting the Sewer is past the Thicket on the road, so the wolves' cards behind it pass by. */
+  step('go_below', 'Into the sewer, together',
+    'Hunts → The Sewer → Enter with party',
+    'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('tamsins_task', 'Tamsin\'s wolves',
     TAMSIN_WAY,
     'tally', orGotIt({ kind: 'tally_taken', task: WOLVES.id }), { gotIt: true, when: [IN_TOWN], ring: { task: WOLVES.id } }),
@@ -442,9 +448,6 @@ export const HUNT_TUTORIAL = Object.freeze([
      Sewer the card sent him back to the Thicket; the tally on screen still counts them and she still pays). */
   step('tamsin_pays', 'Paid in town', WOLVES_WAIT,
     'world', { kind: 'any', of: [{ kind: 'tally_paid', task: WOLVES.id }, { kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),
-  step('go_below', 'Into the sewer, together',
-    'Hunts → The Sewer → Enter with party',
-    'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),
   step('save_setup', 'Keep this bar',
     'Setup check mark on your bar → New setup → Save',
     'hunt_prep', { kind: 'setup_saved' }, { when: [IN_TOWN, { kind: 'bar_saved' }, { kind: 'been', hunt: THICKET }],
@@ -458,17 +461,17 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Put Turnip Juice in a slot before store juice',
     'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
-  /* KLAPPA'S CLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
+  /* KLAPPA'S KLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
      is two minutes of mining and smelting. Before Build your home, which holds the line until a house is owned. The bench spends the bag's
      club, so the hero's hands are empty when it is done: the card stays until the new club is worn, and then rings the bag (SAY). */
-  step('klappas_club', 'Klappa\'s Club',
-    t('coach.club_make', { recipe: CLUB_REFORGE ? CLUB_REFORGE.name : 'Klappa\'s Club' }),
+  step('klappas_club', 'Klappa\'s Klub',
+    t('coach.club_make', { recipe: CLUB_REFORGE ? CLUB_REFORGE.name : 'Reforge Klappa\'s Klub' }),
     'crafting', orGotIt({ kind: 'wields', item: 'klappas_club' }), { reactive: true, dayOne: true, gotIt: true, ring: { skill: 'smithing', work: CLUB_REFORGE.id },
       when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
       hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
   /* GOLD WITH NOWHERE TO GO (designer's 10-31 pass ruled it a FIX; blind panel 11-03, hour 11, 15k banked: "nothing says what's next"): What next carries it in a line, but What next only
      speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse is a real start on the next hero, one card names what exists at the server's
-     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
+     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Klub, one card at a time: the club has a job in it and a Level on it, and the gold
      keeps. */
   step('purse_goal', 'Spend your gold',
     t('coach.purse_goal'),
@@ -601,9 +604,11 @@ const pulledKinds = (ground, pocket) => {
 };
 /* The hunts the server has seen this hero in: the open one and the `visited` record. */
 const been = (facts) => [facts.huntId, ...(facts.visited instanceof Set ? facts.visited : [])].filter((h) => HUNT_INDEX[h]);
-/* Has the hero hunted `hunt`, or a ground PAST it (a higher band floor: the chain only moves forward,
-   Cellar -> Thicket -> Sewer -> on)? `past` alone asks only for a ground past it. */
-const reached = (facts, hunt, past) => been(facts).some((h) => (!past && h === hunt) || HUNT_INDEX[h].band[0] > HUNT_INDEX[hunt].band[0]);
+/* Is ground `h` PAST ground `hunt` on the road: a higher band floor, or the same floor and a higher top (the chain only moves forward,
+   Cellar -> Thicket -> Sewer -> on; the Thicket and the Sewer both open at 5 since lane/d-party-pace, Tyler 2026-11-18, and the Sewer's band runs on to 25). */
+const past = (h, hunt) => { const a = HUNT_INDEX[h].band, b = HUNT_INDEX[hunt].band; return a[0] > b[0] || (a[0] === b[0] && a[1] > b[1]); };
+/* Has the hero hunted `hunt`, or a ground past it? `past` alone asks only for a ground past it. */
+const reached = (facts, hunt, onlyPast) => been(facts).some((h) => (!onlyPast && h === hunt) || past(h, hunt));
 /* A skill's XP as the server said it (a skill it did not list is 0), or null when it sent no skills. */
 const xpIn = (facts, skill) => (facts.skillXp ? Number(facts.skillXp[skill]) || 0 : null);
 const known = (v, fn) => (v === null || v === undefined ? null : fn(v));
@@ -633,7 +638,7 @@ const FACTS = Object.freeze({
   not_elsewhere: (p, f) => !f.huntId || f.huntId === p.hunt,
   /* out of that hunt now, or already hunting past it (back in it later is not a step back) */
   ended: (p, f, c) => f.huntId !== c.openedIn || (!!c.openedIn && reached(f, c.openedIn, true)),
-  hunt_age: (p, f) => (!f.huntId || !HUNT_INDEX[f.huntId] || HUNT_INDEX[f.huntId].band[0] <= HUNT_INDEX[p.past].band[0] ? false : known(f.huntMs, (ms) => ms >= p.min)),
+  hunt_age: (p, f) => (!f.huntId || !HUNT_INDEX[f.huntId] || !past(f.huntId, p.past) ? false : known(f.huntMs, (ms) => ms >= p.min)),
   pull: (p, f) => {
     const g = HUNT_GROUNDS[p.ground];
     return (f.huntId === g.hunt && pulledKinds(g, p.pocket).some((k) => f.unitKinds && f.unitKinds.has(k))) || reached(f, g.hunt, true);
@@ -1059,7 +1064,7 @@ export function cardFor(card, facts) {
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
-  /* `said.anchor`: the words moved on to another surface (Klappa's Club: from the bench to the bag), so the ring goes with them */
+  /* `said.anchor`: the words moved on to another surface (Klappa's Klub: from the bench to the bag), so the ring goes with them */
   return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), ...(said.ring ? { ring: Object.freeze(said.ring) } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 

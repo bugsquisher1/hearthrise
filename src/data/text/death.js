@@ -23,6 +23,9 @@ export const DEATH_TEXT = Object.freeze({
   /* {count} is how many Blessings the death used up (the row's `blessings`), {xp} what they kept. */
   blessing_kept: { one: 'Blessing saved {xp}, used up', other: '{count} Blessings saved {xp}, used up' },
   blessing_used: { one: 'Blessing used up', other: '{count} Blessings used up' },
+  /* The press to Shop → Services while the hero lacks a Blessing: "Bless again" once this death used them up (QA audit 2026-11-18 A3). */
+  bless: 'Blessings',
+  bless_again: 'Bless again',
   /* WHAT WOULD HAVE HELPED, at the Level died at (death-popup.js whyWords): advice, kept as short sentences. A boss room (a call
      or a hall) is one pull, so it never says to pull less. */
   why_in_range: 'Tip: better armor, eat sooner, or a smaller pull',

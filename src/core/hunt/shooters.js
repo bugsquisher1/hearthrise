@@ -23,11 +23,11 @@
 // unit's own (movement.js, roles.js PERSISTED), so the world's shape does not move.
 // ============================================================
 
-import { MONSTERS, monsterRangeOf } from '../../data/monsters.js?v=0.2.138';
-import { SURROUND } from '../../data/hunt-roles.js?v=0.2.138';
-import { cheb, dist2, los } from './grid.js?v=0.2.138';
-import { inArea } from './leash.js?v=0.2.138';
-import { clearGoal, goToNearest } from './movement.js?v=0.2.138';
+import { MONSTERS, monsterRangeOf } from '../../data/monsters.js?v=0.2.139';
+import { SURROUND } from '../../data/hunt-roles.js?v=0.2.139';
+import { cheb, dist2, los } from './grid.js?v=0.2.139';
+import { inArea } from './leash.js?v=0.2.139';
+import { clearGoal, goToNearest } from './movement.js?v=0.2.139';
 
 /** The tiles monster unit `m` shoots from, or 0: a hero, or a monster that fights beside its target. Its row through the
     instance's one door (world-step.js inst.monsters: a scaled hunt's table), the catalogue for a bare caller. */

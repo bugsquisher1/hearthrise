@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, SHELL_CSS } = mods;
+  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, AW, SHELL_CSS } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   const eq = (a, b, msg) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg + ' — got ' + JSON.stringify(a) + ', want ' + JSON.stringify(b)); };
@@ -761,7 +761,7 @@ async function runTests(mods) {
     /* THE LEVELS ARE THE SERVER'S, BOTH OF THEM (lane/c-level-from-server): the stamp keeps the Level the server said with its
        XP (`lv`) and the return reads the envelope's `level` block. The XP here is what THIS build's curve calls Level 6 and
        Level 12, so a line worked out in the browser says "Level 6 to 12". */
-    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(6), lv: 5, gold: 814, kills: 100 };
+    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(6), lv: 5, gold: 814, sp: 100, kills: 100 };
     const hero = (o) => Object.assign({ record: { residue: { awaySeen: stamp } }, writes: [],
       setResidue(f, v) { this.writes.push([f, v]); this.record = { residue: { [f]: v } }; return true; } }, o);
     const XP_NOW = XP.charXpForLevel(12) + 7;
@@ -771,16 +771,16 @@ async function runTests(mods) {
          reads this hero's own hunt coins (the analyzer's), never the purse. */
       read: (k) => ({ name: 'Brannoc', state: { level_xp: XP_NOW, gold: 99999 }, level: { xp: XP_NOW, level: 10, into: 7, need: 5000 },
         hunt: { session_id: session, hunt_id: 'meadowbrook_thicket', ended: !!ended, session: ended ? { end_reason: 'stamina' } : {}, hero: {}, pose: { units: [] } },
-        hunt_analyzer: { hero: { kills: 644, coins: 1956 } } })[k] });
+        hunt_analyzer: { hero: { kills: 644, coins: 1956, waste: 400 } } })[k] });
     const back = AR.awayRecapOf(env(T0 + H2));
     ok(back && back.kind === 'away' && /^Away 2 h 0 min\. Brannoc hunted Meadowbrook Thicket\. Level 5 to 10, /.test(back.text)
-      && /Level 5 to 10/.test(back.text) && /\+1,142 gold/.test(back.text) && !/99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
+      && /Level 5 to 10/.test(back.text) && /\+842 gold/.test(back.text) && !/1,142 gold|99,185|98,185/.test(back.text) && /544 kills/.test(back.text) && /Still hunting\./.test(back.text),
       'the return line: ' + JSON.stringify(back));
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
     ok(back && !/best find/.test(back.text), 'no loot tally, no best find: ' + JSON.stringify(back && back.text));
     /* THE AWAY CARD NAMES THE BEST FIND (designer re-read 2026-11-11): gear or a Rare from the server's loot tally, never the Bones it has most of */
     const found = env(T0 + H2); const fr = found.read;
-    found.read = (k) => (k === 'hunt_analyzer' ? { hero: { kills: 644, coins: 1956, loot: { bones: 900, iron_platebody: 1 } } } : fr(k));
+    found.read = (k) => (k === 'hunt_analyzer' ? { hero: { kills: 644, coins: 1956, waste: 400, loot: { bones: 900, iron_platebody: 1 } } } : fr(k));
     const finds = AR.awayRecapOf(found);
     ok(finds && /544 kills\. Best find: Iron Platebody\. Still hunting\./.test(finds.text), 'the best find on the return line: ' + JSON.stringify(finds && finds.text));
     /* a stamp from a build that kept no Level says the XP and names no Levels: never a Level worked out from the stamped XP */
@@ -875,11 +875,11 @@ async function runTests(mods) {
   /* A NEW HERO'S FIRST RETURN (designer 2026-11-10, the first ten minutes): its first away line speaks after 3 minutes, every later one after 10. */
   t('R3e a new hero\'s first away line speaks after 3 minutes away, and only on its first return', () => {
     const T0 = 1_800_000_000_000, MIN = 60 * 1000;
-    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(3), lv: 3, gold: 10, kills: 30 };
+    const stamp = { s: 's-1', at: T0, xp: XP.charXpForLevel(3), lv: 3, gold: 10, sp: 0, kills: 30 };
     const hero = (now, coach, xpNow = XP.charXpForLevel(4) + 5, was = stamp) => ({ record: { residue: Object.assign({ awaySeen: was }, coach ? { coach } : {}) }, writes: [],
       setResidue(f, v) { this.writes.push([f, v]); return true; }, serverNow: () => now,
       read: (k) => ({ name: 'Odalys', state: { level_xp: xpNow }, level: { xp: xpNow, level: XP.charLevelFromXp(xpNow), into: 0, need: 1 }, hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session: {}, hero: {}, pose: { units: [] } },
-        hunt_analyzer: { hero: { kills: 70, coins: 40 } } })[k] });
+        hunt_analyzer: { hero: { kills: 70, coins: 40, waste: 0 } } })[k] });
     eq(AR.FIRST_AWAY_MIN_MS, 3 * MIN, 'the first return speaks from three minutes');
     ok(AR.awayRecapOf(hero(T0 + 3 * MIN - 1000)) === null, 'under three minutes away is a look, not an absence');
     const first = AR.awayRecapOf(hero(T0 + 3 * MIN));
@@ -1181,6 +1181,213 @@ async function runTests(mods) {
     eq(came({ state: 'started', skill: 'melee' }, 's-0'), '', 'another hunt\'s summary says nothing of this one');
   });
 
+  /* ── R3g-R3j: THE RETURN NEVER LIES OR GOES SILENT (full-game audit 2026-11-18, A2 A6 A22 A23; src/shell/away-recap.js) ── */
+  {
+    const T0 = 1_800_000_000_000, MIN = 60 * 1000, H = 60 * MIN;
+    const iso = (ms) => new Date(ms).toISOString();
+    const S1 = '11111111-1111-4111-8111-111111111111', S2 = '22222222-2222-4222-8222-222222222222';
+    const XP57 = XP.charXpForLevel(57), XP58 = XP.charXpForLevel(58) + 1234;
+    const MX40 = XP.skillXpForLevel('melee', 40), MX42 = XP.skillXpForLevel('melee', 42) + 77;
+    /* one hero: `env` its sections (read afresh, so a test can move them), the residue's away stamp, the server's clock */
+    const heroOf = (env, stamp, now) => ({ slot: 0, env, writes: [], subs: new Set(), record: { residue: { awaySeen: stamp } },
+      read(k) { return this.env[k]; }, serverNow: () => now, flushResidue: () => Promise.resolve(),
+      setResidue(f, v) { this.writes.push([f, v]); this.record = { residue: Object.assign({}, this.record.residue, { [f]: v }) }; return true; },
+      subscribe(fn) { this.subs.add(fn); return () => this.subs.delete(fn); } });
+    const centreOf = (cs, viewed = 0) => AL.createAlertCenter({ viewed, character: () => cs, characters: () => [cs], subscribe: () => () => {} }, { track: () => {}, clock: () => 0 });
+    const awayLine = (centre) => centre.list().find((a) => a.kind === 'away') || null;
+
+    t('R3g the away gold is what the purse kept: the coins less the store supplies, never the coins alone (audit 2026-11-18 A6)', () => {
+      const stamp = { s: 's-1', at: T0, xp: XP57, lv: 57, gold: 1000, sp: 500, kills: 10 };
+      const env = (coins, waste) => ({ name: 'Hob', level: { xp: XP57 + 5000, level: 57, into: 0, need: 1 },
+        hunt: { session_id: 's-1', hunt_id: 'meadowbrook_thicket', ended: false, session: {}, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 6336, coins, waste } } });
+      /* the mage's night (f3-08): 6,182 coins looted, 4,339 of them on runes and juice, the purse up 1,843 */
+      const mage = AR.awayRecapOf(heroOf(env(7182, 4839), stamp, T0 + 8 * H));
+      ok(mage && /\+1,843 gold/.test(mage.text) && !/6,182 gold/.test(mage.text), 'the line says what the purse kept: ' + JSON.stringify(mage && mage.text));
+      eq([mage.facts.gold, mage.facts.looted, mage.facts.paid], [1843, 6182, 4339], 'the card\'s facts: net, coins, supplies');
+      const fig = AW.awayBlockOf(null, mage).result.figs.find((x) => x.key === 'gold');
+      eq([fig.value, fig.sub], ['+1,843 gp', '6,182 gp in coins, 4,339 gp on supplies'], 'the card\'s Gold, with both under it');
+      /* supplies over coins: the purse fell, and the line says so */
+      const dear = AR.awayRecapOf(heroOf(env(1500, 1500), stamp, T0 + 8 * H));
+      ok(dear && /−500 gold/.test(dear.text) && AW.awayBlockOf(null, dear).result.figs.find((x) => x.key === 'gold').value === '−500 gp', 'a night that cost more than it took: ' + JSON.stringify(dear && dear.text));
+      /* a stamp from before the store spend was kept: the coins alone are never said as gold */
+      const old = AR.awayRecapOf(heroOf(env(7182, 4839), { ...stamp, sp: undefined }, T0 + 8 * H));
+      ok(old && !/gold/.test(old.text) && old.facts.gold === null && !AW.awayBlockOf(null, old).result.figs.some((x) => x.key === 'gold'), 'an old stamp says no gold: ' + JSON.stringify(old && old.text));
+      /* the stamp keeps the store spend beside the coins, both the server's */
+      const st = heroOf(env(7182, 4839), { s: 's-1', at: T0, xp: XP57, lv: 57 }, T0 + 11 * MIN);
+      ok(AR.stampAway(st) === true && st.writes[0][1].gold === 7182 && st.writes[0][1].sp === 4839, 'the stamp: ' + JSON.stringify(st.writes));
+    });
+
+    /* the hunt the yard took over: Mosslight Glade, then Melee at the yard. `o.died` a death row for the hunt; `o.ended` the yard over since
+       (the server's link, hunt_after.last, has moved on to it, and only its start past the stamp says it came after); `o.from` its start */
+    const STAMP = { s: S1, at: T0, xp: XP57, lv: 57, h: 'mosslight_glade', gold: 100, sp: 50, kills: 10, k: 'melee', sx: MX40, sl: 40 };
+    const yard = (o = {}) => ({ name: 'Ashwick', level: { xp: XP58, level: 58, into: 0, need: 1 }, skills: { melee: { xp: MX42, level: 42 } },
+      hunt: { session_id: S2, hunt_id: 'training_yard_melee', ended: !!o.ended,
+        session: Object.assign(o.from ? { hunt_from: iso(o.from) } : {}, o.ended ? { end_reason: 'hours', ended_at: iso(T0 + 24 * H) } : {}), hero: {}, pose: { units: [] } },
+      hunt_after: { choice: 'train', skill: 'melee', grace_s: 60, job: null, now: o.ended ? null : { session: S2, choice: 'wait', skill: null },
+        last: o.ended ? { session: S2, choice: 'wait', skill: null, done: null } : { session: S1, choice: 'train', skill: 'melee', done: { state: 'started', skill: 'melee', place: 'yard' } } },
+      death_log: o.died ? [{ id: 9, at: iso(T0 + 6 * H), hunt: 'mosslight_glade', session: S1, monster: 'warband_captain', xp: 441672,
+        xp_lost: { level: 441672 }, saved: { level: 1325016 }, blessings: 3, level_from: 58, level_to: 58 }] : [] });
+
+    t('R3h a hunt the yard took over keeps its card: its Levels, a death, then the yard; with the hunt in view, no card (audit 2026-11-18 A2)', () => {
+      /* THE BROWSER CLOSED: the return tells the hunt, the death and the yard, from the server's link alone (no start time sent) */
+      const cs = heroOf(yard({ died: true }), STAMP, T0 + 13 * H);
+      const centre = centreOf(cs);
+      const line = awayLine(centre);
+      ok(line, 'the return raised no card: ' + JSON.stringify(centre.list().map((a) => a.kind)));
+      ok(/^Away 13 h 0 min\. Ashwick hunted Mosslight Glade\. Level 57 to 58, \+[\d,]+ Level XP\./.test(line.text), 'the hunt the yard took over is told: ' + line.text);
+      ok(line.text.includes('Ashwick died in Mosslight Glade. Killed by Warband Captain. Death cost: 441,672 Level XP. 3 Blessings saved 1,325,016 Level XP, used up.'),
+        'the death is told, in the server\'s numbers: ' + line.text);
+      ok(/Then Ashwick went to the yard to train Melee\. Melee 40 to 42, \+[\d,]+ Melee XP\. Still training\.$/.test(line.text), 'then the yard, its levels and where it stands: ' + line.text);
+      eq([line.session, line.id], [S2, 'away:' + S1 + ':' + T0], 'the card follows the yard, and is told once, by its stamp');
+      const block = AW.awayBlockOf(cs, line);
+      eq([block.result.level, block.result.ups], [{ name: 'Level', from: 57, to: 58 }, ['Melee 40 → 42']], 'the card leads with the hunt\'s Levels and the yard\'s');
+      ok(/Death cost: 441,672 Level XP/.test(block.why) && /went to the yard to train Melee/.test(block.when) && /Still training/.test(block.when) && block.go === 'train',
+        'the card says the death, then the yard: ' + JSON.stringify(block));
+      centre.destroy();
+      /* the yard ended too: the server's link has moved on to it, and its start past the stamp still says it took over */
+      const over = heroOf(yard({ ended: true, from: T0 + 12 * H }), STAMP, T0 + 30 * H);
+      const overC = centreOf(over), later = awayLine(overC);
+      ok(later && /Ashwick hunted Mosslight Glade/.test(later.text) && /Training ended \(12 h reached\)/.test(later.text), 'a yard over since: ' + JSON.stringify(later && later.text));
+      overC.destroy();
+      /* never another session: a yard started before the stamp, with no link to it, is no part of the absence */
+      const before = heroOf(Object.assign(yard({ ended: true, from: T0 - H }), {}), STAMP, T0 + 30 * H);
+      const beforeC = centreOf(before);
+      ok(!awayLine(beforeC), 'a yard from before the stamp was compared with it');
+      beforeC.destroy();
+      /* THE HUNT IN VIEW: the page watched it end (its summary is the notice), so the yard taking over raises no card and the stamp moves to the yard */
+      const watched = heroOf(Object.assign(yard(), { hunt: { session_id: S1, hunt_id: 'mosslight_glade', ended: false, session: {}, hero: {}, pose: { units: [] } } }),
+        Object.assign({}, STAMP, { at: T0 + 13 * H - MIN }), T0 + 13 * H);
+      const seen = centreOf(watched);
+      watched.env = yard({ died: true });
+      for (const fn of watched.subs) fn(watched, 'changed');
+      ok(!awayLine(seen), 'a hunt watched into the yard raised a card: ' + JSON.stringify(seen.list().map((a) => a.text)));
+      ok(watched.record.residue.awaySeen.s === S2, 'the stamp moved on to the yard: ' + JSON.stringify(watched.record.residue.awaySeen));
+      seen.destroy();
+    });
+
+    t('R3i the yard\'s card has its numbers: the skill\'s levels and XP over the absence, two server answers (audit 2026-11-18 A22)', () => {
+      const env = { name: 'Ashwick', level: { xp: XP57, level: 57, into: 0, need: 1 }, skills: { melee: { xp: MX42, level: 42 } },
+        hunt: { session_id: S2, hunt_id: 'training_yard_melee', ended: false, session: {}, hero: {}, pose: { units: [] } } };
+      const cs = heroOf(env, { s: S2, at: T0, xp: XP57, lv: 57, h: 'training_yard_melee', k: 'melee', sx: MX40, sl: 40 }, T0 + 10 * H);
+      const line = AR.awayRecapOf(cs);
+      ok(line && /^Away 10 h 0 min\. Ashwick trained Melee at the Training Yard\. Melee 40 to 42, \+[\d,]+ Melee XP\. Still training\.$/.test(line.text), 'the yard\'s line: ' + JSON.stringify(line && line.text));
+      const block = AW.awayBlockOf(cs, line);
+      eq([block.result.level, block.result.figs.map((f) => f.label)], [{ name: 'Melee', from: 40, to: 42 }, ['Melee XP']], 'the card: Melee 40 to 42, and its XP');
+      eq([block.go, block.label], ['train', 'Open Training'], 'its door is Training, never "See the hunt"');
+      /* the stamp keeps the trained skill's server level: a training session's own, and the yard a hunt's plan goes on to */
+      const yardStamp = heroOf(env, { s: 'x', at: T0 }, T0 + MIN);
+      ok(AR.stampAway(yardStamp) === true && yardStamp.writes[0][1].k === 'melee' && yardStamp.writes[0][1].sl === 42 && yardStamp.writes[0][1].sx === MX42, 'a yard\'s stamp: ' + JSON.stringify(yardStamp.writes));
+      const hunting = heroOf(Object.assign({}, env, { hunt: { session_id: S1, hunt_id: 'mosslight_glade', ended: false, session: {}, hero: {}, pose: { units: [] } },
+        hunt_after: { choice: 'train', skill: 'melee', grace_s: 60, job: null, now: { session: S1, choice: 'train', skill: 'melee' }, last: null } }), { s: 'x', at: T0 }, T0 + MIN);
+      ok(AR.stampAway(hunting) === true && hunting.writes[0][1].k === 'melee' && hunting.writes[0][1].h === 'mosslight_glade', 'a hunt whose plan trains: ' + JSON.stringify(hunting.writes));
+      eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, h: 'mosslight_glade', k: 'melee', sp: 3, extra: 1 }), { s: 's-1', at: 5, sp: 3, h: 'mosslight_glade', k: 'melee' }, 'the stamp\'s new keys survive the residue');
+      eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: 5, h: 'x; drop', k: 7, sp: -1 }), { s: 's-1', at: 5 }, 'and are bounded');
+    });
+
+    t('R3j a card read is retired: another hero\'s old card never comes back, whatever the saved list or the stamp\'s clock (audit 2026-11-18 A23)', () => {
+      const END = T0 + 2 * H;
+      const env = { name: 'Bryony', level: { xp: XP57 + 900, level: 57, into: 0, need: 1 },
+        hunt: { session_id: 's-b', hunt_id: 'wickstead', ended: true, session: { end_reason: 'stamina', ended_at: iso(END) }, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 50, coins: 300, waste: 0 } } };
+      const bry = heroOf(env, { s: 's-b', at: T0, xp: XP57, lv: 57, gold: 0, sp: 0, kills: 0 }, T0 + 9 * 24 * H);
+      const real = Date.now;
+      try {
+        const first = centreOf(bry, 1);
+        ok(awayLine(first) && /Bryony hunted Wickstead/.test(awayLine(first).text), 'CONTROL: the first return tells it: ' + JSON.stringify(first.list().map((a) => a.text)));
+        /* read: the card has been up past its read time when the record next moves */
+        Date.now = () => real() + 9000;
+        for (const fn of bry.subs) fn(bry, 'changed');
+        const was = bry.record.residue.awaySeen;
+        ok(was.s === 's-b' && was.at >= END, 'the stamp moved past the hunt\'s end once its card was read: ' + JSON.stringify(was));
+        first.destroy();
+        /* the next return, with the saved list lost (it is bounded) and the clock moved as an absence moves it: no card */
+        bry.record = { residue: { awaySeen: Object.assign({}, was, { at: was.at - 3 * H }), alerts: { seen: [] } } };
+        bry.env = Object.assign({}, env, { hunt: Object.assign({}, env.hunt, { session: { end_reason: 'stamina', ended_at: iso(END - 3 * H) } }) });
+        const next = centreOf(bry, 1);
+        ok(!awayLine(next), 'the old card came back: ' + JSON.stringify(next.list().map((a) => a.text)));
+        next.destroy();
+      } finally { Date.now = real; }
+    });
+
+    t('R7 a bench run watched to its end says what it did, once; a run never watched says nothing (audit 2026-11-18 A17)', () => {
+      const SINCE = iso(T0);
+      const env = (e, active) => ({ name: 'Ashwick',
+        state: active ? { active_kind: 'artisan', active_id: 'fuel_bones', active_since: SINCE, accrued_to: iso(T0 + MIN) } : { active_kind: 'idle', active_id: null },
+        skills: { inner_flame: { xp: 900, level: 3 } },
+        bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0, run: Object.assign({ r: 'fuel_bones', s: SINCE, c: 14, g: 0, at: iso(T0 + 6 * MIN) }, e ? { e } : {}) } });
+      const cs = heroOf(env(null, true), null, T0 + 6 * MIN);
+      const centre = centreOf(cs);
+      ok(!centre.list().some((a) => a.kind === 'work'), 'a run still burning raised a line');
+      /* the bones ran out: the server's stop and its count */
+      cs.env = env('supplies', false);
+      for (const fn of cs.subs) fn(cs, 'changed');
+      const line = centre.list().find((a) => a.kind === 'work');
+      ok(line && line.text === 'Ashwick fueled the Great Hearth with 14 Bones. Inner Flame 3.', 'the Fuel all watched to its end: ' + JSON.stringify(line && line.text));
+      for (const fn of cs.subs) fn(cs, 'changed');
+      ok(centre.list().filter((a) => a.kind === 'work').length === 1, 'told once: ' + JSON.stringify(centre.list().map((a) => a.text)));
+      centre.destroy();
+      /* the player's own Stop is no news, and a page that never saw the run (a load after it ended) leaves it to the away card */
+      const stopped = heroOf(env(null, true), null, T0 + 6 * MIN);
+      const sc = centreOf(stopped);
+      stopped.env = env('idle', false);
+      for (const fn of stopped.subs) fn(stopped, 'changed');
+      ok(!sc.list().some((a) => a.kind === 'work'), 'a run the player stopped raised a line');
+      sc.destroy();
+      /* a short run paid whole by its first settle: its tally was never read running, only the activity pointer was (played on the local
+         world: Fuel all of 14 Bones, the first envelope back already said 14 burned and out of Bones) */
+      const quick = heroOf(Object.assign(env(null, true), { bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0 } }), null, T0 + MIN);
+      const qc = centreOf(quick);
+      quick.env = env('supplies', false);
+      for (const fn of quick.subs) fn(quick, 'changed');
+      ok(qc.list().some((a) => a.kind === 'work'), 'a run paid whole by its first settle raised no line: ' + JSON.stringify(qc.list().map((a) => a.text)));
+      qc.destroy();
+      /* the run's tally counts crafts: a bar is a craft each, but a dish can burn, so a Cooking run says no number the bag could disagree with */
+      const bench = (id, skill, e) => ({ name: 'Ashwick', state: e ? { active_kind: 'idle', active_id: null } : { active_kind: 'artisan', active_id: id, active_since: SINCE },
+        skills: { [skill]: { xp: 900, level: 7 } }, bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0, run: Object.assign({ r: id, s: SINCE, c: 20, g: 0, at: iso(T0 + 6 * MIN) }, e ? { e } : {}) } });
+      const said = (id, skill) => { const h = heroOf(bench(id, skill, null), null, T0 + MIN), c = centreOf(h); h.env = bench(id, skill, 'supplies');
+        for (const fn of h.subs) fn(h, 'changed'); const l = c.list().find((a) => a.kind === 'work'); c.destroy(); return l ? l.text : null; };
+      eq([said('smelt_bronze', 'smithing'), said('cook_shrimp', 'cooking')],
+        ['Ashwick made 20 Bronze Bar. Smithing 7.', 'Ashwick finished making Cooked Shrimp. Cooking 7.'], 'a bar run says its count, a dish run never does');
+      const late = centreOf(heroOf(env('supplies', false), null, T0 + 6 * MIN));
+      ok(!late.list().some((a) => a.kind === 'work'), 'a run never watched raised a line');
+      late.destroy();
+    });
+
+    t('R8 titles earned and not claimed are told once, all of them in one line (audit 2026-11-18 A24)', () => {
+      const row = (id, words, have, kills, price, held = false) => ({ id, words, price, kills, have, held, worn: false });
+      const env = (rows) => ({ name: 'Cass', titles: { rows } });
+      const cs = heroOf(env([row('ratcatcher', 'the Ratcatcher', 2400, 2500, 1500), row('wolfer', 'the Wolfslayer', 10, 5000, 3000)]), null, T0);
+      const centre = centreOf(cs, 1);
+      ok(!centre.list().some((a) => a.kind === 'title'), 'a title short of its kills raised a line');
+      /* the 2,500th rat: the server says Ratcatcher is earned */
+      cs.env = env([row('ratcatcher', 'the Ratcatcher', 2500, 2500, 1500), row('wolfer', 'the Wolfslayer', 10, 5000, 3000)]);
+      for (const fn of cs.subs) fn(cs, 'changed');
+      const line = centre.list().find((a) => a.kind === 'title');
+      ok(line && line.text === 'Cass earned the title Ratcatcher. Claim it for 1,500 gp in Character → Titles.' && line.action === 'titles' && line.button === 'Open Titles',
+        'the title earned: ' + JSON.stringify(line));
+      for (const fn of cs.subs) fn(cs, 'changed');
+      ok(centre.list().filter((a) => a.kind === 'title').length === 1, 'told once');
+      /* a second earned later is its own news; a held one never is */
+      cs.env = env([row('ratcatcher', 'the Ratcatcher', 2600, 2500, 1500), row('wolfer', 'the Wolfslayer', 5000, 5000, 3000), row('gamekeeper', 'the Warden', 3000, 2500, 10000, true)]);
+      for (const fn of cs.subs) fn(cs, 'changed');
+      const lines = centre.list().filter((a) => a.kind === 'title').map((a) => a.text);
+      ok(lines.length === 2 && lines[0] === 'Cass earned the title Wolfslayer. Claim it for 3,000 gp in Character → Titles.', 'the next title: ' + JSON.stringify(lines));
+      centre.destroy();
+      /* a new page: what was told stays told (the saved list) */
+      const again = centreOf(cs, 1);
+      ok(!again.list().some((a) => a.kind === 'title'), 'a told title came back on the next page: ' + JSON.stringify(again.list().map((a) => a.text)));
+      again.destroy();
+      /* three at once, on a first load: one line for all of them */
+      const manyCs = heroOf(env([row('ratcatcher', 'the Ratcatcher', 2500, 2500, 1500), row('wolfer', 'the Wolfslayer', 5000, 5000, 3000), row('gamekeeper', 'the Warden', 2500, 2500, 10000)]), null, T0);
+      const many = centreOf(manyCs, 1);
+      for (const fn of manyCs.subs) fn(manyCs, 'changed');
+      const all = many.list().filter((a) => a.kind === 'title');
+      ok(all.length === 1 && all[0].text === 'Cass earned the title Ratcatcher and 2 more. Claim them in Character → Titles.', 'three at once: ' + JSON.stringify(all.map((a) => a.text)));
+      many.destroy();
+    });
+  }
+
   return fails;
 }
 
@@ -1208,6 +1415,7 @@ async function load(base) {
     CS: await import(u('src/session/residue.js')),
     AR: await import(u('src/shell/away-recap.js')),
     AL: await import(u('src/shell/alerts.js')),
+    AW: await import(u('src/shell/windows/away.js')),
     AH: await import(u('src/shell/after-hunt.js')),
     HA: await import(u('src/shell/hunt-after.js')),
     XP: await import(u('src/core/xp.js')),
@@ -1313,6 +1521,27 @@ const MUTANTS = [
   { test: 'R2', file: HUD_FILE, from: "      character.setResidue('hudLayout', next);\n", to: '' },
   { test: 'R2', file: HUD_FILE, from: "      if (now && typeof character.flushResidue === 'function') Promise.resolve(character.flushResidue()).catch(() => {});\n", to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (gone < awayMinMsOf(cs, was)) return null;\n', to: '' },
+  /* R3g-R3j: the return never lies or goes silent (full-game audit 2026-11-18 A6 A2 A22 A23) */
+  { test: 'R3g', file: 'src/shell/away-recap.js', from: "if (gold) parts.push(signed(gold.net, 'gold'));", to: "if (gold) parts.push(signed(gold.looted, 'gold'));" },
+  { test: 'R3g', file: 'src/shell/away-recap.js', from: "if (!Number.isSafeInteger(was.gold) || !Number.isSafeInteger(was.sp) || coins === null", to: "if (!Number.isSafeInteger(was.gold) || coins === null" },
+  { test: 'R3g', file: 'src/shell/windows/away.js', from: "value: (f.gold < 0 ? '−' : '+') + gold(Math.abs(f.gold)),", to: "value: '+' + gold(f.looted)," },
+  { test: 'R3h', file: 'src/shell/away-recap.js', from: '  if (a && a.last && a.last.session === was.s) return true;\n', to: '' },
+  { test: 'R3h', file: 'src/shell/away-recap.js', from: '  return Number.isFinite(h.huntFromMs) && h.huntFromMs > was.at;\n', to: '  return false;\n' },
+  { test: 'R3h', file: 'src/shell/away-recap.js', from: "  const died = over ? diedWords(cs, was.s) : '';", to: "  const died = '';" },
+  { test: 'R3h', file: 'src/shell/windows/away.js', from: '  const hunt = !a.work && (f.tookOver === true || !(now && now.training));', to: '  const hunt = !a.work && !(now && now.training);' },
+  { test: 'R3i', file: 'src/shell/away-recap.js', from: '  if (train && yard) parts.push(...trainWords(train));\n', to: '' },
+  { test: 'R3i', file: 'src/shell/away-recap.js', from: '...(sk ? { k, sx: sk.xp, sl: sk.level } : {})', to: '...({})' },
+  { test: 'R3j', file: 'src/shell/away-recap.js', from: "    if (due && typeof told === 'function' && told(due.id) && next.at >= h.endedAtMs) return cs.setResidue('awaySeen', next);\n", to: '' },
+  { test: 'R3j', file: 'src/shell/alerts.js', from: 'stampNow(cs, leaving, (id) => wasSeen(cs, id))', to: 'stampNow(cs, leaving)' },
+  /* R7, R8: town news said once (audit 2026-11-18 A17 A24; src/shell/town-news.js) */
+  { test: 'R7', file: 'src/shell/alerts.js', from: '    const done = workDoneOf(cs, benchSeen.get(cs.slot));', to: '    const done = null;' },
+  { test: 'R7', file: 'src/shell/town-news.js', from: ' || runKey(run) !== sawKey || ', to: ' || ' },
+  { test: 'R7', file: 'src/shell/town-news.js', from: "const FINISHED = new Set(['supplies', 'count']);", to: "const FINISHED = new Set(['supplies', 'count', 'idle']);" },
+  { test: 'R7', file: 'src/shell/town-news.js', from: "  return st && st.active_kind === 'artisan' && typeof st.active_id === 'string'", to: "  return st && benchRunOf(cs) && benchRunOf(cs).end === null && st.active_kind === 'artisan' && typeof st.active_id === 'string'" },
+  { test: 'R7', file: 'src/shell/town-news.js', from: "    const exact = w.skill !== 'cooking' && !w.row.roll;", to: '    const exact = true;' },
+  { test: 'R8', file: 'src/shell/alerts.js', from: '    const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));', to: '    const titled = null;' },
+  { test: 'R8', file: 'src/shell/town-news.js', from: " && !told('title:' + r.id)) : [];", to: ') : [];' },
+  { test: 'R8', file: 'src/shell/town-news.js', from: "also: ready.slice(1).map((r) => 'title:' + r.id),", to: 'also: [],' },
   { test: 'R3e', file: 'src/shell/away-recap.js', from: '? FIRST_AWAY_MIN_MS : AWAY_MIN_MS;', to: '? AWAY_MIN_MS : AWAY_MIN_MS;' },
   { test: 'R3e', file: 'src/shell/away-recap.js', from: '  if (told && !(was && coach.back === was.s && coach.backAt === was.at)) return AWAY_MIN_MS;\n', to: '' },
   { test: 'R3e', file: 'src/shell/away-recap.js', from: 'coach.back === was.s && coach.backAt === was.at', to: 'coach.back === was.s' },
@@ -1322,7 +1551,7 @@ const MUTANTS = [
   { test: 'R3e', file: 'src/shell/away-recap.js', from: 'backAt: Number.isSafeInteger(at) ? at : undefined', to: 'backAt: undefined' },
   { test: 'R3e', file: 'src/session/residue.js', from: '  if (out.back && Number.isSafeInteger(v.backAt) && v.backAt >= 0) out.backAt = v.backAt;\n', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: '(leaving ? -1 : STAMP_EVERY_MS)' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;\n', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (!over && h.ended && Number.isFinite(h.endedAtMs) && h.endedAtMs <= was.at) return null;\n', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended && !endedOnReturn(h, a))) return null;', to: 'if (!h || h.sessionId !== a.session) return null;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: 'return paid > was.at && now - paid < SETTLED_WITHIN_MS;', to: 'return true;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: "const still = !!goes && keyOf(goes) === was.s;", to: 'const still = true;' },
@@ -1331,9 +1560,9 @@ const MUTANTS = [
   { test: 'R3b', file: 'src/shell/away-work.js', from: "return { s: keyOf(w), at: Math.floor(at),", to: "return { s: keyOf(w), at: Math.floor(serverNowOf(cs)) + 1,"},
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'if (isWorkStamp(was) && (!h || h.ended)) {', to: 'if (false) {' },
   { test: 'R3b', file: 'src/shell/away-recap.js', from: 'return (a.still && !(w && w.s === a.work)) || (h && !h.ended) ? null : a.text;', to: 'return a.text;' },
-  { test: 'R3b', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'lv', 'gold', 'kills'])" },
+  { test: 'R3b', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'sp', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'lv', 'gold', 'sp', 'kills'])" },
   /* lane/c-level-from-server: the away lines' Levels are two server answers, never this build's curve over a stamped XP */
-  { test: 'R3', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'gold', 'kills', 'sx', 'sl', 'n'])" },
+  { test: 'R3', file: 'src/session/residue.js', from: "for (const k of ['xp', 'lv', 'gold', 'sp', 'kills', 'sx', 'sl', 'n'])", to: "for (const k of ['xp', 'gold', 'sp', 'kills', 'sx', 'sl', 'n'])" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'const from = Number.isSafeInteger(was.lv) && was.lv >= 1 ? was.lv : null;', to: 'const from = lv.level - 1;' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'xp: lv.xp, lv: lv.level,', to: 'xp: lv.xp,' },
   /* N6 (QA audit 2026-11-18): a week reads in days, and the hunt "ended ... ago" */
@@ -1345,14 +1574,14 @@ const MUTANTS = [
   { test: 'R3', file: 'src/shell/away-recap.js', from: "(cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS", to: "(STAMINA_WORDS" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "|| STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')", to: "|| END_WORDS[h.endReason] || '')" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: "!was || !h || h.sessionId !== was.s ||", to: '!was || !h ||' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: '  if (over && !yardTookOver(cs, was, h)) return null;', to: '' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "'away:' + was.s.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at", to: "'away:' + was.s.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + now" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (was && was.s === next.s && next.at - was.at < Math.min(awayMinMsOf(cs, null), (leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS))) return false;', to: '' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'STAMP_EVERY_MS' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '(leaving ? LEAVE_EVERY_MS : STAMP_EVERY_MS)', to: 'LEAVE_EVERY_MS' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '!(was.at < h.endedAtMs && next.at >= h.endedAtMs)', to: '!(next.at >= h.endedAtMs)' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: '!(was.at < h.endedAtMs && next.at >= h.endedAtMs)', to: '!(was.at < h.endedAtMs)' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: ' || awayRecapOf(cs)) return false;', to: ') return false;' },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: ' || due) return false;', to: ') return false;' },
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'if (!was || was.s !== next.s || !(was.at', to: 'if (true || !was || was.s !== next.s || !(was.at' },
   { test: 'R3', file: 'src/session/residue.js', from: '  awaySeen: sanitizeAwaySeen,', to: '  awaySeen: (v) => v,' },
   { test: 'R6', file: 'src/shell/alerts.js', from: "if (c.kind === 'away' && c.session) track('away_recap_shown',", to: "if (false) track('away_recap_shown'," },
@@ -1363,7 +1592,7 @@ const MUTANTS = [
   { test: 'R6', file: 'src/shell/alerts.js', from: 'gearSeen.set(cs.slot, { session: h.sessionId, ids: new Set(ids) }); return; }', to: 'gearSeen.set(cs.slot, { session: h.sessionId, ids: new Set() }); }' },
   { test: 'R6', file: 'src/shell/alerts.js', from: '&& GEAR_TYPES.has(ITEMS[l.item].type))', to: ')' },
   { test: 'R6', file: 'src/shell/alerts.js', from: '    for (const id of ids) was.ids.add(id);\n', to: '' },
-  { test: 'R3y', file: 'src/shell/away-recap.js', from: '  const yard = trainingPhrase(h.huntId);', to: '  const yard = null;' },
+  { test: 'R3y', file: 'src/shell/away-recap.js', from: '  const yard = over ? null : trainingPhrase(h.huntId);', to: '  const yard = null;' },
   { test: 'R3y', file: 'src/shell/away-recap.js', from: "  if (trainedBy(h.huntId)) return { training: true,", to: "  if (false) return { training: true," },
   { test: 'R3y', file: 'src/shell/away-recap.js', from: "    if (!f.ended) return ' ' + t('training.away_still');\n", to: '' },
   { test: 'R3y', file: 'src/shell/alerts.js', from: '  if (trainedBy(h.huntId)) {\n    if (h.ended) out.push', to: '  if (false) {\n    if (h.ended) out.push' },

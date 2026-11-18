@@ -18,24 +18,24 @@
 // under it, Tyler 2026-11-18; a checkpoint the server did not list); the server still judges
 // (hr_tower_start), and a refusal re-reads the character so the list on screen is the server's again.
 // ════════════════════════════════════════════════════════════════════════
-import { towerOf, keyForLanding } from '../../session/tower-sections.js?v=0.2.138';
-import { startClimb } from '../../session/tower-intents.js?v=0.2.138';
-import { huntOf, sessionModeOfHunt } from '../../session/hunt-sections.js?v=0.2.138';
-import { beforeLines, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.138';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.138';
-import { towerGateOf } from '../../session/gate-sections.js?v=0.2.138';
-import { nameOf } from '../../session/item-sections.js?v=0.2.138';
-import { heroSprite } from '../../session/hero-look.js?v=0.2.138';
-import { outfitSprite } from '../../data/hunt-outfits.js?v=0.2.138';
-import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.138';
-import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.138';
-import { whole } from '../../render/format.js?v=0.2.138';
-import { t } from '../../render/player-text.js?v=0.2.138';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
-import { runIntent } from '../intent-words.js?v=0.2.138';
-import { rankWords } from '../tower-words.js?v=0.2.138';
-import { stageHtml, stageModel, patchStage, climbLabels, scrollToFloor } from '../tower-stage.js?v=0.2.138';
-import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.138';
+import { towerOf, keyForLanding } from '../../session/tower-sections.js?v=0.2.139';
+import { startClimb } from '../../session/tower-intents.js?v=0.2.139';
+import { huntOf, sessionModeOfHunt } from '../../session/hunt-sections.js?v=0.2.139';
+import { beforeLines, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.139';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.139';
+import { towerGateOf } from '../../session/gate-sections.js?v=0.2.139';
+import { nameOf } from '../../session/item-sections.js?v=0.2.139';
+import { heroSprite } from '../../session/hero-look.js?v=0.2.139';
+import { outfitSprite } from '../../data/hunt-outfits.js?v=0.2.139';
+import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.139';
+import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.139';
+import { whole } from '../../render/format.js?v=0.2.139';
+import { t } from '../../render/player-text.js?v=0.2.139';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
+import { runIntent } from '../intent-words.js?v=0.2.139';
+import { rankWords } from '../tower-words.js?v=0.2.139';
+import { stageHtml, stageModel, patchStage, climbLabels, scrollToFloor } from '../tower-stage.js?v=0.2.139';
+import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.139';
 
 const TABS = Object.freeze(['climb', 'chest']);
 const STORY = Object.freeze(['tower.story_1', 'tower.story_2', 'tower.story_3', 'tower.story_4', 'tower.story_5']);

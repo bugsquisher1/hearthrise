@@ -341,9 +341,8 @@ export function wiredIconMap() {
 // filename is DERIVED from the id, so there is no list to drift: tests/pixel-icons.mjs
 // requires one file per ITEMS key, no orphan files, 32x32, on-palette, binary alpha.
 //
-// ONE SWITCH. `ITEM_ART_SET = 'painted'` restores the Hearthfire painted set
-// exactly as it was (activeIconMap() then returns wiredIconMap() untouched, and
-// itemTintClass() resumes tinting the shared wood sprite). Nothing else changes.
+// The painted set is retired: tools/build-site.mjs (SITE-6) refuses a build with
+// `ITEM_ART_SET` set to anything but 'pixel'.
 export const ITEM_ART_SET = 'pixel';
 export const PIXEL_DIR = 'assets/icons-bundle/pixel/items/';
 
@@ -372,16 +371,3 @@ export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row la
 export const ITEM_ART_AHEAD = Object.freeze([
   'hall_key', 'farmhands_tag', 'lookouts_whistle', 'barrow_nail', 'priests_cord', 'gatekeepers_chain', 'coffin_nail', 'urn_shard', 'toll_token', 'shroud_pin',
   'pike_ferrule', 'rake_tine', 'warrant_seal', 'kennel_tag']);
-
-/** `<PIXEL_DIR><id>.png` for every id given. */
-export function pixelIconMap(ids) {
-  const out = {};
-  (ids || []).forEach((id) => { out[id] = PIXEL_DIR + fileFor(id); });
-  return out;
-}
-
-/** The map main.js wires: the painted set, with the pixel set over it when it is the active one. */
-export function activeIconMap(ids) {
-  const painted = wiredIconMap();
-  return ITEM_ART_SET === 'pixel' ? Object.assign(painted, pixelIconMap(ids)) : painted;
-}

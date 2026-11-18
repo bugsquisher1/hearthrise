@@ -44,8 +44,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    (2027-04-17-barrow-data-items-catalogue) in 2027-04-21-tally-tier7-names.generated.sql, APPLIED history now. KRELL'S UNIQUE LEGS
    (lane/c-krell-uniques, 2026-11-15; Tyler 2026-11-14: "a pair of pally legs"): the Banded Legguards are a new wearable in one of her
    slots (tier 7 pants), so hr_tally_tiers gains their row in this forward file, the same full rewrite of the same tables: without it
-   her pick would read a hero in them as wearing nothing on the legs and hand over pants under them. No function body moves. */
-export const OUT_FILE = '2027-04-25-tally-krell-uniques.generated.sql';
+   her pick would read a hero in them as wearing nothing on the legs and hand over pants under them. No function body moves.
+   2027-04-25-tally-krell-uniques.generated.sql is APPLIED history now. THE CATACOMB ARMOR (lane/c-catacombs, 2026-11-18): the twelve
+   Bronze and Silver helmets and boots the Hearth Chest's Catacomb keys pay (src/data/catacomb-armor.js, shipped by
+   2027-05-08-catacombs-items-catalogue) are wearables in two of her slots, so hr_tally_tiers gains their twelve rows in this forward
+   file, the same full rewrite of the same tables (167 worn tiers, was 155): without it her pick would read a hero in a Tinker's Kettle as
+   wearing no helmet and hand over one under it. No function body moves; no task, piece, material or gold moves. */
+export const OUT_FILE = '2027-05-08-tally-catacomb-armor.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /**

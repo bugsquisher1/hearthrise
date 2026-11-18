@@ -560,6 +560,8 @@ Training: +10 of a main skill takes 12 hours at Level 24 and about 960 at 80, so
 
 Tyler, 11-18: "I actually dont want everyone to be able to easily unlock everything and upgrade everything. otherwise its not really a gold sink it's just a natural line of progression. I want people to make choices on what is important to them, so each character isn't exactly the same."
 
+**How the game makes money (Tyler 11-18):** "I plan on making money in this game by people buying premium, and people buying crowns to sell to other players for gold. I don't want to cripple people so that the only way they can progress is by paying to win, however, I do want whales to pay for gold so they can have an 'edge'." So every progression path (Levels, drops, grounds, gear tiers, skills) is fully reachable without paying, and the gold sinks below are where bought gold becomes an edge: a player who buys gold with Crowns from another player affords more of them. Power is never sold for Crowns directly.
+
 So there is no budget that fits everything. The prices are the ruled ones, and a hero who wants every upgrade in a band can't pay for it from that band's hunting.
 
 **The ruled prices**

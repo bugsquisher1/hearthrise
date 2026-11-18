@@ -58,6 +58,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { bootReplay } from './schema-replay.mjs';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const C = (await import('./tower-climb.mjs')).HARNESS;
@@ -116,17 +117,19 @@ async function dataArm(db, M) {
   if (rows !== 'bronze@10=160,silver@40=80,gold@70=45,platinum@100=20') bad.push('TCH-DATA the key table reads ' + rows);
   if (JSON.stringify(L.stokes) !== JSON.stringify([{ pm: 1700, keys: 3 }, { pm: 2500, keys: 7 }, { pm: 3300, keys: 12 }])) bad.push('TCH-DATA the stokes read ' + JSON.stringify(L.stokes));
   if (L.warmthStepPm !== 40 || L.warmthCapPm !== 3000 || L.ownPm !== 500) bad.push(`TCH-DATA the warmth is ${L.warmthStepPm} a dry key to ${L.warmthCapPm}, own ${L.ownPm}`);
-  /* the key families (Tyler 2026-11-16): every Tower key in one family; six opened a week; a held limit of at least a week's opens */
-  if (K.some((k) => k.family !== 'tower') || Object.keys(KF).join(',') !== 'tower' || KF.tower.opensPerWeek !== 6 || !(KF.tower.heldMax >= KF.tower.opensPerWeek)) {
+  /* the key families (Tyler 2026-11-16): every Tower key in one family, the Catacombs' in their own (lane/c-catacombs); six opened a week each;
+     a held limit of at least a week's opens; each behind its own switch */
+  if (K.some((k) => k.family !== 'tower') || Object.keys(KF).sort().join(',') !== 'catacomb,tower' || Object.values(KF).some((x) => x.opensPerWeek !== 6 || !(x.heldMax >= x.opensPerWeek))
+      || KF.tower.switch !== 'burning_tower' || KF.catacomb.switch !== 'unmarked_catacombs' || M.CH.CATACOMB_KEYS.some((k) => k.family !== 'catacomb')) {
     bad.push('TCH-DATA the key families read ' + JSON.stringify({ keys: K.map((k) => k.family), families: KF }));
   }
-  const kfDb = await q(db, 'select key_family, opens_per_week, held_max from public.hr_chest_key_families order by key_family');
-  const kfWant = Object.values(KF).map((f) => [f.id, f.opensPerWeek, f.heldMax].join(':')).sort().join('|');
-  if (kfDb.map((r) => [r.key_family, r.opens_per_week, r.held_max].join(':')).join('|') !== kfWant) bad.push(`TCH-DATA hr_chest_key_families reads ${JSON.stringify(kfDb)}, the data ${kfWant}`);
+  const kfDb = await q(db, 'select key_family, opens_per_week, held_max, switch_id from public.hr_chest_key_families order by key_family');
+  const kfWant = Object.values(KF).map((f) => [f.id, f.opensPerWeek, f.heldMax, f.switch].join(':')).sort().join('|');
+  if (kfDb.map((r) => [r.key_family, r.opens_per_week, r.held_max, r.switch_id].join(':')).join('|') !== kfWant) bad.push(`TCH-DATA hr_chest_key_families reads ${JSON.stringify(kfDb)}, the data ${kfWant}`);
   /* the open table is the Tower family's alone: a later family's row starting low never hands out a Tower landing's key */
   const other = [...K, { ...K[3], id: 'deep_wing', family: 'catacomb', item: 'deep_wing_key', from: 10 }];
   if (keyForLanding(130, other).id !== 'platinum' || keyForLanding(10, other).id !== 'bronze') bad.push('TCH-DATA the open table read another family\'s row for a Tower landing');
-  if (!validateChests(K.map((k, j) => (j === 1 ? { ...k, family: 'catacomb' } : k))).some((x) => x.includes('is no key family'))) bad.push('TCH-DATA the table let a key of no family load');
+  if (!validateChests(K.map((k, j) => (j === 1 ? { ...k, family: 'arena' } : k))).some((x) => x.includes('is no key family'))) bad.push('TCH-DATA the table let a key of no family load');
   /* the design's warmth table (the board's §5 "(a) The Hearth's warmth"), in hundredths of a percent */
   const table = { bronze: [1600, 1920, 2240, 2880, 3840, 4800], silver: [800, 960, 1120, 1440, 1920, 2400], gold: [450, 540, 630, 810, 1080, 1350], platinum: [200, 240, 280, 360, 480, 600] };
   for (const [id, want] of Object.entries(table)) {
@@ -148,7 +151,7 @@ async function dataArm(db, M) {
   /* the open table */
   const lands = [10, 30, 40, 60, 70, 90, 100, 130, 300].map((l) => keyForLanding(l).id).join(',');
   if (lands !== 'bronze,bronze,silver,silver,gold,gold,platinum,platinum,platinum' || keyForLanding(9) !== null) bad.push('TCH-DATA the landings hand out ' + lands);
-  const sqlLands = await one(db, `select string_agg((select k.key_id from public.hr_chest_keys k where k.key_family = 'tower' and k.from_landing <= l order by k.from_landing desc limit 1), ',' order by l)
+  const sqlLands = await one(db, `select string_agg((select k.key_id from public.hr_chest_keys k where k.ground = 'the_burning_tower' and k.from_landing <= l order by k.from_landing desc limit 1), ',' order by l)
     from unnest(array[10, 30, 40, 60, 70, 90, 100, 130, 300]) l`);
   if (sqlLands !== lands) bad.push('TCH-DATA the server\'s open table reads ' + sqlLands);
   /* C4: the salts of the highest tempering tier at or under the key's weapons, never a tier under the hero's gear when a ladder exists */
@@ -158,7 +161,7 @@ async function dataArm(db, M) {
     if (keySalts(k) !== M.TM.TEMPER_MATERIALS[t].item) bad.push(`TCH-DATA ${k.id} pays ${keySalts(k)}, not tier ${t}'s ${M.TM.TEMPER_MATERIALS[t].item}`);
   }
   /* the catalogue rows are the data's */
-  const cat = await q(db, 'select key_id, key_family, item_id, from_landing, weapon_pm, cinders, salts_item, salts_qty, food_item, food_qty, skill_plus from public.hr_chest_keys order by key_family, from_landing');
+  const cat = await q(db, "select key_id, key_family, item_id, from_landing, weapon_pm, cinders, salts_item, salts_qty, food_item, food_qty, skill_plus from public.hr_chest_keys where key_family = 'tower' order by key_family, from_landing");
   const want = K.map((k) => [k.id, k.family, k.item, k.from, k.weaponPm, k.cinders, keySalts(k), k.saltsQty, k.food, k.foodQty, k.skillPlus].join(':')).join('|');
   const got = cat.map((r) => [r.key_id, r.key_family, r.item_id, r.from_landing, r.weapon_pm, r.cinders, r.salts_item, r.salts_qty, r.food_item, r.food_qty, r.skill_plus].join(':')).join('|');
   if (got !== want) bad.push(`TCH-DATA hr_chest_keys reads ${got}, the data ${want}`);
@@ -266,7 +269,7 @@ async function mintArm(db, M) {
   const table = await H.inTx(db, async () => {
     await H.character(db, M, UID, { level: 12, inv: {}, gold: 0 });
     const sid = idem();
-    await db.query('insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 1)', [sid, UID, idem()]);
+    await db.query("insert into public.tower_runs (session_id, user_id, slot, instance_id, hunt_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 'the_burning_tower', 1)", [sid, UID, idem()]);
     for (const [top, kills] of [[60, 0], [60, 5], [130, 0]]) {
       await db.query('update public.tower_runs set top_floor = $2, floors = $2, kills = kills + $3 where session_id = $1::uuid', [sid, top, kills]);
     }
@@ -319,12 +322,12 @@ async function heldArm(db, M) {
        the hero holds plenty of (it must never count against the Tower's limit) */
     await H.character(db, M, UID, { level: 12, inv: { tower_key_silver: 10, bones: 500 }, gold: 0 });
     await db.query("insert into public.account_bank (user_id, item_id, qty) values ($1, 'tower_key_gold', $2) on conflict (user_id, item_id) do update set qty = $2", [UID, max - 11]);
-    await db.query("insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max) values ('deep_wing', 'Stand-in', 6, 30)");
-    await db.query(`insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty)
-      values ('deep_bronze', 'deep_wing', 'bones', 'Stand-in Key', 10, 160, 2, 1, 50, 'temper_salts', 15, 'cooked_shrimp', 20)`);
+    await db.query("insert into public.hr_chest_key_families (key_family, name, opens_per_week, held_max, switch_id) values ('deep_wing', 'Stand-in', 6, 30, 'burning_tower')");
+    await db.query(`insert into public.hr_chest_keys (key_id, key_family, item_id, name, from_landing, weapon_pm, weapon_tier, skill_plus, cinders, salts_item, salts_qty, food_item, food_qty, ground, gear)
+      values ('deep_bronze', 'deep_wing', 'bones', 'Stand-in Key', 10, 160, 2, 1, 50, 'temper_salts', 15, 'cooked_shrimp', 20, 'deep_wing_ground', 'weapon')`);
     const run = async (top) => {
       const sid = idem();
-      await db.query('insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 1)', [sid, UID, idem()]);
+      await db.query("insert into public.tower_runs (session_id, user_id, slot, instance_id, hunt_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 'the_burning_tower', 1)", [sid, UID, idem()]);
       await db.query('update public.tower_runs set top_floor = $2, floors = $2 where session_id = $1::uuid', [sid, top]);
       return sid;
     };
@@ -389,7 +392,7 @@ async function ringArm(db, M) {
     out.sorted = { ring: await ring(), bagKeys: await bagKeys(), stacks: await stacks() };
     /* a key drops after it: a run over landing 10 */
     const sid = idem();
-    await db.query('insert into public.tower_runs (session_id, user_id, slot, instance_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 1)', [sid, UID, idem()]);
+    await db.query("insert into public.tower_runs (session_id, user_id, slot, instance_id, hunt_id, start_floor) values ($1::uuid, $2, 0, $3::uuid, 'the_burning_tower', 1)", [sid, UID, idem()]);
     await db.query('update public.tower_runs set top_floor = 10, floors = 10 where session_id = $1::uuid', [sid]);
     out.dropped = { ring: await ring(), bagKeys: await bagKeys(), stacks: await stacks(), held: Number(await one(db, "select public.hr_chest_family_held($1, 0, 'tower')", [UID])) };
     /* a reload: the envelope the client applies */
@@ -490,14 +493,14 @@ async function openArm(db, M) {
     for (let i = 0; i < 12; i++) out.warm.push(await open(db, 'platinum', 1, 0));
     out.warmRows = await opensOf(db);
     /* (2) THE CAP: the Hearth at 49 dry keys, three more */
-    await db.query('update public.chest_luck set dry = 49 where user_id = $1 and slot = 0', [UID]);
+    await db.query("insert into public.chest_warmth (user_id, slot, key_family, dry) values ($1, 0, 'tower', 49) on conflict (user_id, slot, key_family) do update set dry = excluded.dry", [UID]);
     for (let i = 0; i < 3; i++) await open(db, 'platinum', 1, 0);
     out.capRows = (await opensOf(db)).slice(-3);
     /* (3) A WEAPON COOLS IT: a Bronze Key three times stoked at 50 dry keys is a sure thing (160 x 3 x 3.3 > 100%) */
-    await db.query('update public.chest_luck set dry = 50 where user_id = $1 and slot = 0', [UID]);
+    await db.query("insert into public.chest_warmth (user_id, slot, key_family, dry) values ($1, 0, 'tower', 50) on conflict (user_id, slot, key_family) do update set dry = excluded.dry", [UID]);
     await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'tower_cinders', 600) on conflict (user_id, slot, item_id) do update set qty = 600", [UID]);
     out.sure = await open(db, 'bronze', 1, 3);
-    out.afterSure = await one(db, 'select dry from public.chest_luck where user_id = $1 and slot = 0', [UID]);
+    out.afterSure = await one(db, "select dry from public.chest_warmth where user_id = $1 and slot = 0 and key_family = 'tower'", [UID]);
     out.weaponInBag = out.sure && out.sure.opens && out.sure.opens[0].weapon ? await bag(db, out.sure.opens[0].weapon) : null;
     out.own = own;
     /* (4) THE STOKES: each count at a cold Hearth, its chance and its Cinders: 100 in the bag, 2,000 in Storage */
@@ -506,7 +509,7 @@ async function openArm(db, M) {
     await db.query("insert into public.account_bank (user_id, item_id, qty) values ($1, 'tower_cinders', 2000) on conflict (user_id, item_id) do update set qty = 2000", [UID]);
     out.stoke = [];
     for (const s of [1, 2, 3]) {
-      await db.query('update public.chest_luck set dry = 0 where user_id = $1 and slot = 0', [UID]);
+      await db.query("insert into public.chest_warmth (user_id, slot, key_family, dry) values ($1, 0, 'tower', 0) on conflict (user_id, slot, key_family) do update set dry = excluded.dry", [UID]);
       const before = [await bag(db, 'tower_cinders'), await store(db, 'tower_cinders')];
       const res = await open(db, 'bronze', 1, s);
       out.stoke.push({ s, res, before, after: [await bag(db, 'tower_cinders'), await store(db, 'tower_cinders')],
@@ -516,13 +519,13 @@ async function openArm(db, M) {
     await db.query("delete from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'tower_cinders'", [UID]);
     await db.query("delete from public.account_bank where user_id = $1 and item_id = 'tower_cinders'", [UID]);
     await db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'tower_cinders', 100)", [UID]);
-    await db.query('update public.chest_luck set dry = 0 where user_id = $1 and slot = 0', [UID]);
+    await db.query("insert into public.chest_warmth (user_id, slot, key_family, dry) values ($1, 0, 'tower', 0) on conflict (user_id, slot, key_family) do update set dry = excluded.dry", [UID]);
     out.short = await open(db, 'bronze', 3, 1);
     out.shortCinders = await bag(db, 'tower_cinders');
     /* (6) THE DEFAULT: Silver saved at two stokes, sent with none */
     await db.query("insert into public.account_bank (user_id, item_id, qty) values ($1, 'tower_cinders', 5000) on conflict (user_id, item_id) do update set qty = 5000", [UID]);
     out.def = await call(db, 'select public.hr_chest_stoke_default(0, $1, $2, $3::uuid)', ['silver', 2, idem()]);
-    await db.query('update public.chest_luck set dry = 0 where user_id = $1 and slot = 0', [UID]);
+    await db.query("insert into public.chest_warmth (user_id, slot, key_family, dry) values ($1, 0, 'tower', 0) on conflict (user_id, slot, key_family) do update set dry = excluded.dry", [UID]);
     out.defOpen = await open(db, 'silver', 1, null);
     /* (7) THE HAUL: one cold, unstoked Silver Key on a fresh count of its own items. Which salts is the data's (keySalts), never a written
        id: (6)'s Silver Key paid them too, and a stale id here counted both keys' salts once the Silver Key moved to Mithril (C4). */
@@ -718,9 +721,11 @@ async function outfitArm(db, M) {
   if (!coat || coat.outfit !== 'sweeps_coat' || coat.item !== 'sweeps_coat_bundle') return ['TCH-OUTFIT the data has no Key Warden row: ' + JSON.stringify(coat)];
   /* (1) THE DATA: Tyler's super-rare from any chest, the designer's 0.2 / 0.3 / 0.4 / 0.5%; the server's rows are the data's; the bundle
      trades (the board: "it trades, until someone wears it") at its book value */
-  if (JSON.stringify(coat.pm) !== JSON.stringify({ bronze: 2, silver: 3, gold: 4, platinum: 5 })) bad.push('TCH-OUTFIT the coat\'s chances read ' + JSON.stringify(coat.pm));
+  /* every key of both families (the descent design §3: "every key at the chest rolls the coat"), each its metal's chance */
+  const METAL = { bronze: 2, silver: 3, gold: 4, platinum: 5 };
+  if (Object.keys(coat.pm).length !== M.CH.HEARTH_CHEST_KEYS.length || M.CH.HEARTH_CHEST_KEYS.some((k) => coat.pm[k.id] !== METAL[k.id.split('_').pop()])) bad.push('TCH-OUTFIT the coat\'s chances read ' + JSON.stringify(coat.pm));
   const rows = await q(db, 'select key_id, outfit_id, item_id, pm from public.hr_chest_outfits order by key_id');
-  const want = M.CH.CHEST_KEYS.flatMap((k) => O.map((o) => [k.id, o.outfit, o.item, o.pm[k.id]].join(':'))).sort().join('|');
+  const want = M.CH.HEARTH_CHEST_KEYS.flatMap((k) => O.map((o) => [k.id, o.outfit, o.item, o.pm[k.id]].join(':'))).sort().join('|');
   if (rows.map((r) => [r.key_id, r.outfit_id, r.item_id, r.pm].join(':')).sort().join('|') !== want) bad.push('TCH-OUTFIT hr_chest_outfits reads ' + JSON.stringify(rows));
   const item = await q(db, 'select tradeable, value from public.hr_items where item_id = $1', [coat.item]);
   if (!item.length || item[0].tradeable !== true || Number(item[0].value) !== coat.value) bad.push('TCH-OUTFIT the bundle\'s item row reads ' + JSON.stringify(item));
@@ -865,7 +870,13 @@ async function outfitArm(db, M) {
    about 1 replay in 250 one of them finds the bundle before §9(e) plants its find, and §9(e) counted the bag and the named call-out
    from zero. Pinned: a secret on which the probe hero's FIRST key finds the outfit, then the §9 block as the file ships it. */
 const SELFCHECK_SECRET = '76531864643bf73c780984cd0b445566ef549ffe13e6e6101a248385d59e78b4';
-async function selfcheckArm(db, M) {
+/* Judged where its file sits in the chain (upTo it): 2027-05-06-catacombs-chest-catalogue.generated.sql adds the Catacomb family's keys after it, a
+   later table this §9 (Tyler's four Tower keys) was never written against. */
+async function selfcheckArm(_db, M) {
+  const { db } = await bootReplay({ upTo: CHEST_SQL.split('/').pop() });
+  try { return await selfcheckAt(db, M); } finally { await db.close(); }
+}
+async function selfcheckAt(db, M) {
   const src = readFileSync(join(M.root, CHEST_SQL), 'utf8').replace(/\r\n/g, '\n');
   const at = src.indexOf('-- ── §9 SELF-CHECK');
   const u = at < 0 ? null : /v_u\s+constant uuid := '([0-9a-f-]{36})'/.exec(src.slice(at));

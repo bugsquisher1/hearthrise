@@ -78,7 +78,6 @@ export const BAG_TEXT = Object.freeze({
   store_kept: { one: '{count} more kept free for market listings', other: '{count} more kept free for market listings' },
   store_dispatch_tip: 'Deposits and sells each stack as planned',
   /* DEPOSIT ALL MATERIALS (audit 2026-11-18 A8): one press for every Material stack that fits; {n} the stacks it names now */
-  store_mats: 'Deposit all materials',
   store_mats_n: 'Deposit all materials ({n})',
   store_mats_tip: 'Every Material stack in the bag, unlocked, whole',
   store_mats_left: { one: 'Storage full: {count} material stack stays in the bag', other: 'Storage full: {count} material stacks stay in the bag' },

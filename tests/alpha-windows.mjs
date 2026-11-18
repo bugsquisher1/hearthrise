@@ -4167,8 +4167,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (moves().length !== before + 1 || !sent || sent.body.p_items.some((l) => l.dir !== 'deposit' || Object.keys(l).sort().join() !== 'dir,item')
             || wrong.length || ids.some((id) => locked.has(id)) || !ids.includes('bones') || bagMats.length)
             fails.push('AW-18m Deposit all materials sent ' + JSON.stringify(moves().slice(before)) + ' (not materials: ' + wrong.join() + '; left in the bag: ' + bagMats.join() + ')');
-          const after = await page.evaluate((w) => { const b = document.querySelector(w + '[data-hs-act="deposit-materials"]'); return b ? { text: b.textContent, off: b.disabled } : null; }, W);
-          if (!after || !after.off || after.text !== 'Deposit all materials') fails.push('AW-18m with no material left the press reads ' + JSON.stringify(after));
+          const after = await page.evaluate((w) => { const b = document.querySelector(w + '[data-hs-act="deposit-materials"]'); return b ? { shown: b.getClientRects().length > 0, text: b.textContent } : null; }, W);
+          if (!after || after.shown) fails.push('AW-18m with no material left the press is still drawn: ' + JSON.stringify(after));
         }
         if (shots) await shot(page, 'alpha-1440x900-storage-materials');
       }

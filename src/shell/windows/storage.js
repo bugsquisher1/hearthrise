@@ -163,11 +163,13 @@ renderStorage.patch = function patchStorage(body, ctx) {
   prop(db, 'disabled', sc.pending || !!dWhy);
   attr(db, 'title', dWhy || t('bag.store_dispatch_tip'));
   text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);
-  /* Deposit all materials: the bag's Material stacks that fit, counted on the press; what does not fit is said under it */
+  /* Deposit all materials: the bag's Material stacks that fit, counted on the press, and no press with none; what does not fit is said under it.
+     Off only while a press is out, a hunt runs or Storage is loading: the note above says those. */
   const mats = materialsOf(cs);
   const mb = root.querySelector('[data-hs-act="deposit-materials"]');
-  text(mb, mats.ids.length ? t('bag.store_mats_n', { n: whole(mats.ids.length) }) : t('bag.store_mats'));
-  prop(mb, 'disabled', sc.pending || off || !mats.ids.length);
+  text(mb, t('bag.store_mats_n', { n: whole(mats.ids.length) }));
+  prop(mb, 'hidden', !mats.ids.length);
+  prop(mb, 'disabled', sc.pending || off);
   attr(mb, 'title', t('bag.store_mats_tip'));
   text(root.querySelector('.hw-store-mats-why'), away || !mats.left ? '' : t('bag.store_mats_left', { count: mats.left }));
   cls(root, 'is-pending', sc.pending);

@@ -1061,7 +1061,9 @@ async function huntsPure(imp) {
       const pk = GROUND_PACKS.find((x) => ((x.ground && x.ground.id) || x.id) === g), hr = rows.find((r) => r.hunt === g);
       if (!TV.tiersOf(g).includes(id)) fails.push('AW-25 ' + g + ' names ' + id + ' a Healer\'s tier, and it does not offer ' + id);
       if (id === 'deadly' && !(pk && pk.checks && pk.checks.deadlyFourNeeds === 'healer')) fails.push('AW-25 ' + g + ' says Deadly needs a Healer, and the grader grades its four without one (checks.deadlyFourNeeds)');
-      if (hr && !(under > hr.band[0] && under <= hr.band[1])) fails.push('AW-25 ' + g + '\'s Healer line stops at Level ' + under + ', outside its band ' + hr.band.join('-'));
+      /* the line stops inside the band, or one past its top: said at EVERY Level of the band (the Pauper Vaults, measured never under one death
+         without a Healer up to 185; lane/d-late-items-rescue) */
+      if (hr && !(under > hr.band[0] && under <= hr.band[1] + 1)) fails.push('AW-25 ' + g + '\'s Healer line stops at Level ' + under + ', outside its band ' + hr.band.join('-'));
     }
     for (const r of rows) for (const id of TV.tiersOf(r.hunt).filter((x) => x !== TV.DEFAULT_TIER)) {
       const under = (TV.HEALER_TIERS[r.hunt] || {})[id] || null;
@@ -5799,6 +5801,8 @@ const MUTANTS = [
   ['hunts: AW-25 a Healer\'s tier is said at every Level', 'src/data/hunt-tiers.js', '  return under !== null && !(Number.isInteger(level) && level >= under);', '  return under !== null;'],
   ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 60 },\n', ''],
   ['hunts: AW-25 Krell\'s Hold\'s Deadly says nothing of a Healer', 'src/data/grounds/krells_hold/pack.js', '  healerTiers: { deadly: 89 },\n', ''],
+  ['hunts: AW-25 the Pauper Vaults\' Deadly says nothing of a Healer', 'src/data/grounds/pauper_vaults/pack.js', '  healerTiers: { deadly: 186 },\n', ''],
+  ['hunts: AW-25 a Healer line that stops past its band', 'src/data/grounds/pauper_vaults/pack.js', '  healerTiers: { deadly: 186 },\n', '  healerTiers: { deadly: 187 },\n'],
   ['hunts: AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],

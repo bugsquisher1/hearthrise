@@ -11,6 +11,9 @@
 //   node tools/balance-sim/grade.mjs --mode full  [--grounds a,b] [--tiers t,u]     the whole grid (about 17k hero-hours)
 //   ... [--open-also a,b]                                                          staged grounds that ship with these: their drops on
 //                                                                                   the gear ladder too (a staged graded ground's own always are)
+//   ... [--uniques]                                                                each hero in the best piece it can get per slot, the
+//                                                                                   staged gear catalogues' hidden rows included (gear.mjs
+//                                                                                   uniques: the armor and weapon lines past Dawnsteel); cells of their own
 //   node tools/balance-sim/grade.mjs --in DIR                                       grade cells already played (no play)
 //   node tools/balance-sim/grade.mjs --mode quick --what-if '{"monsters":{"*":{"atk":"*3"}}}'   a candidate on the same dice
 //   node tools/balance-sim/grade.mjs --selftest                                     every rule bites a synthetic mutant
@@ -31,6 +34,8 @@ import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { rateCI } from './stats.mjs';
+import { loadGear } from './gear.mjs';
+import { proveUniques, UNIQUES_MUTANTS } from './uniques-proof.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -90,7 +95,11 @@ export async function buildGrid(root, mode, opts = {}) {
        armor and the Slake's weapons). The cell id says so, so a cell played on another ladder is never resumed as this one. */
     const extra = (opts.openAlso || []).filter((x) => x !== g.id && !own(G.OPEN_GROUNDS, x));
     const opens = [...(own(G.OPEN_GROUNDS, g.id) ? [] : [g.id]), ...extra];
-    const og = opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '', ogear = opens.length ? { openAlso: opens } : null;
+    /* --uniques (gear.mjs, lane/a-grader-uniques): the best gettable piece per slot, past the ladder; its cells say so, so a ladder cell is never
+       resumed as one. The practice cells stay the start kit's. */
+    const uq = opts.uniques === true;
+    const og = (opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '') + (uq ? ',uniq' : '');
+    const ogear = opens.length || uq ? { ...(opens.length ? { openAlso: opens } : {}), ...(uq ? { uniques: true } : {}) } : null;
     for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       const row = T.tierRowOf(g.id, tier);
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
@@ -431,6 +440,22 @@ export function synthSet(mut = {}) {
   return cells;
 }
 
+/** The pieces past the ladder each way wore in a uniques run, one line per ground, way and Level (gear.mjs uniquesIn). */
+export function wornReport(cells, gearLib) {
+  const seen = new Map();
+  for (const c of cells) {
+    if (!(c.cell && c.cell.gear && c.cell.gear.uniques) || !c.heroes) continue;
+    for (const h of c.heroes) {
+      const k = c.cell.ground + ' / ' + h.style + ' / ' + h.level;
+      if (seen.has(k)) continue;
+      gearLib.kitOf(h.style, h.level, { ground: c.cell.ground, ...c.cell.gear }); /* registers the staged rows the kit names */
+      const ps = gearLib.uniquesIn(h.kit, h.level);
+      seen.set(k, ps.length ? ps.map((p) => p.n + ' (' + p.slot + ', armor ' + p.armor + (p.attr ? ', ' + p.attr + (p.hooked === false ? ' NO ENGINE HOOK: plays as nothing' : '') : '') + ')').join('; ') : 'the ladder');
+    }
+  }
+  return '\n\nWORN PAST THE LADDER (--uniques)\n| Ground / way / Level | Pieces |\n|---|---|\n' + [...seen].sort().map(([k, v]) => '| ' + k + ' | ' + v + ' |').join('\n');
+}
+
 if (isMain(import.meta.url)) {
   const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
   /* the selftest proves the grader's logic on the local sheet, whatever sheet the tree carries */
@@ -471,19 +496,26 @@ if (isMain(import.meta.url)) {
     let refused = false;
     try { gradeCells(synthSet(), { ...SHEET, rules: [...SHEET.rules, { id: 'a-profit-floor', metric: 'margin', min: 0.25, binding: true }] }, flat); } catch (e) { refused = /NO PROFIT MOLDS/.test(e.message); }
     if (!refused) bad.push('a sheet with a profit rule (margin >= +25%) was not refused as a profit rule');
+    /* THE UNIQUES KIT (uniques-proof.mjs): a staged unique's armor and attribute reach the live settle's member, and each planted defect is caught */
+    const gearLib = await loadGear(ROOT);
+    const proof = proveUniques(gearLib);
+    if (proof.length) bad.push('the uniques kit: ' + proof.join('; '));
+    for (const m of UNIQUES_MUTANTS) if (!proveUniques(gearLib, m).length) bad.push('uniques mutant ' + m + ' was not caught');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
-    console.log('grade --selftest: the good set passes, 6 mutants each FAIL their rule, the long-band and needs-a-Healer scopes hold, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused');
+    console.log('grade --selftest: the good set passes, 6 mutants each FAIL their rule, the long-band and needs-a-Healer scopes hold, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused; '
+      + 'a unique\'s armor and attribute reach the engine, ' + UNIQUES_MUTANTS.length + ' of ' + UNIQUES_MUTANTS.length + ' uniques mutants caught');
     process.exit(0);
   }
   const mode = arg('mode', 'quick');
   if (!OFFSETS[mode]) { console.error('grade: --mode quick|full'); process.exit(2); }
   const inDir = arg('in', null);
-  const out = resolve(inDir || arg('out', join(HERE, 'out', 'grade-' + mode)));
+  const uniques = process.argv.includes('--uniques');
+  const out = resolve(inDir || arg('out', join(HERE, 'out', 'grade-' + mode + (uniques ? '-uniques' : ''))));
   if (!inDir) {
     const whatIf = arg('what-if', null) ? JSON.parse(arg('what-if')) : null;
     const grounds = arg('grounds', null) ? arg('grounds').split(',') : null, tiers = arg('tiers', null) ? arg('tiers').split(',') : null;
     const openAlso = arg('open-also', null) ? arg('open-also').split(',') : null;
-    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers, openAlso });
+    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers, openAlso, uniques });
     if (process.argv.includes('--estimate')) { console.log('grade ' + mode + ': ' + jobs.length + ' cells, ' + jobs.reduce((s, j) => s + j.seeds * j.hours * j.party.length, 0) + ' hero-hours'); process.exit(0); }
     const { runPool } = await import('./pool.mjs');
     mkdirSync(out, { recursive: true });
@@ -494,7 +526,9 @@ if (isMain(import.meta.url)) {
   for (const v of feelVerdicts(cells, await fitsOf(ROOT))) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   const gold = goldRows(cells, await fitsOf(ROOT));
+  /* WHAT THE UNIQUES CELLS WORE past the ladder (gear.mjs uniquesIn): each piece, its attribute and whether that reaches the engine */
+  const worn = cells.some((c) => c.cell && c.cell.gear && c.cell.gear.uniques) ? wornReport(cells, await loadGear(ROOT)) : '';
   writeFileSync(join(out, 'grade.json'), JSON.stringify({ sheet: SHEET.source, cells: cells.length, ...graded, gold }, null, 1));
-  console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))) + '\n\n' + goldReport(gold));
+  console.log('GRADE (' + SHEET.source + '), ' + cells.length + ' cells from ' + out + '\n' + report(graded, Number(arg('limit', '60'))) + '\n\n' + goldReport(gold) + worn);
   process.exit(graded.verdicts.some((v) => v.verdict === 'FAIL') ? 1 : 0);
 }

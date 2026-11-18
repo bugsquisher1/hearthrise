@@ -68,7 +68,17 @@ export async function runPool(jobs, outFile, opts) {
         log('  [' + k + '/' + total + '] ' + m.id + ' ' + Math.round(m.ms / 1000) + ' s · elapsed ' + Math.round(el) + ' s · eta ' + Math.round((el / k) * (total - k)) + ' s');
         feed(w);
       });
-      w.on('exit', (code) => { if (w.job && code && running > 0) { running--; failed++; log('  worker died on ' + w.job.id); finish(); } });
+      w.on('exit', (code) => {
+        w.gone = true;
+        if (w.job && code && running > 0) { running--; failed++; log('  worker died on ' + w.job.id); w.job = null; finish(); }
+        /* EVERY WORKER GONE with work left (one that dies loading the engine never says ready, so nothing above counts it): settle as
+           failed. Unsettled, the promise would hang with nothing left to run and node would exit 0 having played nothing (lane/d-party-lines). */
+        if (workers.length === n && workers.every((x) => x.gone) && (queue.length || running > 0)) {
+          failed += queue.length + running; queue.length = 0; running = 0;
+          log('  every worker exited with work left');
+          resolve({ done, failed, ms: Date.now() - t0 });
+        }
+      });
     }
   });
 }

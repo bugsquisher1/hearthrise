@@ -4,6 +4,13 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-18 · systems-engineer (lane/a-honesty-rescue) · three finished 11-16 lanes re-landed; one red found on the set
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 CI · `node tests/hunt-screen.mjs --shard-plan` is RED on set/v0.2.139 before this lane: all 12 shards book 18.4 to 19.8 min against the 18 min budget | smoke.yml hunt-screen shards | The lane that added the 11-18 HS-32 mutants (UI audit): add a 13th shard (smoke.yml + `node tests/ci-shape.mjs --write`) |
+| 2 | Design fact · the Muster Barrows' Deadly kills a four with no Healer only near its floor: 9.3 / 3 / 1 / 0 deaths in 16 hero-hours at Levels 55 / 57 / 59 / 61 (6 seeds a cell), a four with a Healer 0 everywhere; Krell's Hold 7 at its floor (inside the bar of 9) | the Hunts page tier note, any later "needs a Healer" line | A pack's `healerTiers` is `{ tier: Level }`; say a measured warning only where it was measured true |
+
 ## 2026-11-15 · game-designer (lane/d-mage-110) · the balance-sim graded every staged ground without Krell's hall drops
 - `tools/balance-sim/gear.mjs` reachWith built a staged ground's reach from `OPEN_GROUNDS` plus the ground and left out `OPEN_HALL_GROUNDS`, which `reachableSources`' own default carries. At Carter's Rest a Level 110 hammer wore the Ember Warhammer and Ember plate and a bow the Runewood Bow, while the Mage kept its Duskwood wand. Fixed on lane/d-mage-110. Every Morrow and Pauper Vaults grade before it read Melee and the bow a weapon tier short (Carter's Rest hammer 0.97 of the contract where it is 1.09).
 - The Mage's high-Level lead was cloth's `magicStrB` (0.4 of plate's defence a slot), not spawn density: the board's "2026-11-15 The Mage at 110 and up".

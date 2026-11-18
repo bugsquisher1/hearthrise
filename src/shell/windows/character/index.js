@@ -20,18 +20,18 @@
 // While open, a stale sheet is asked for once per record version. The answer
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.137';
-import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.137';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.137';
-import { attr, cls, prop } from '../../../render/paint.js?v=0.2.137';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.137';
-import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.137';
-import { scratchOf } from './state.js?v=0.2.137';
-import { sheetHtml, patchSheet } from './sheet.js?v=0.2.137';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.137';
-import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.137';
-import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.137';
-import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js?v=0.2.137';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.138';
+import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.138';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.138';
+import { attr, cls, prop } from '../../../render/paint.js?v=0.2.138';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.138';
+import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.138';
+import { scratchOf } from './state.js?v=0.2.138';
+import { sheetHtml, patchSheet } from './sheet.js?v=0.2.138';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.138';
+import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.138';
+import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.138';
+import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js?v=0.2.138';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['faction', FACTION_TAB], ['deaths', 'Deaths']]);
 /* The portrait and the wardrobe draw the FIGURE at art size; character.css sets them 2 whole device px an art px (--art-px). */

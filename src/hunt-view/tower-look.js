@@ -5,8 +5,8 @@
 // a landing its Keeper (src/core/hunt/tower.js towerRoom: the one kind no other slot of the room takes) burns (`keeper`). The floor is
 // the live view's (live-engine.js tower(), display only, replaced by every server start point). PURE but for the live read.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
-import { towerRoom } from '../core/hunt/tower.js?v=0.2.137';
+import { TOWER_RULES } from '../data/tower.js?v=0.2.138';
+import { towerRoom } from '../core/hunt/tower.js?v=0.2.138';
 
 /** { keeper: kind | null } on the Tower's hunt (keeper null off a landing or with no floor yet), else null. Pure. */
 export function towerLookOf(huntId, floor) {

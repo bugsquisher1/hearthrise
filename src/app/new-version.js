@@ -23,8 +23,8 @@
 // can raise the banner.
 // ════════════════════════════════════════════════════════════════════════
 
-import { BUILD } from '../build-info.js?v=0.2.137';
-import { readServed } from '../session/server.js?v=0.2.137';
+import { BUILD } from '../build-info.js?v=0.2.138';
+import { readServed } from '../session/server.js?v=0.2.138';
 
 export const NEW_VERSION_COPY = Object.freeze({
   line: 'New version available, reload to update',

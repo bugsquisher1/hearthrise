@@ -18,20 +18,20 @@
 //   judges the rest. A key counts wherever the hero holds it: the bag, the account's Storage, the Key Ring.
 // The answer of a press (each key's weapon or none, what came out) is drawn from the server's answer; the counts come back with the envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { keyRow, stokeRow, familyRow } from '../../session/tower-sections.js?v=0.2.137';
-import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.137';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { CHESTS, CINDERS } from '../../data/chests.js?v=0.2.137';
-import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.137';
-import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.137';
-import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.137';
-import { whole, localWhen } from '../../render/format.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { runIntent } from '../intent-words.js?v=0.2.137';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.137';
-import { ppmWords, familyWord, keyFamilyWord, timesWords, lootList } from '../tower-words.js?v=0.2.137';
-import { metalWord } from '../tower-stage.js?v=0.2.137';
+import { keyRow, stokeRow, familyRow } from '../../session/tower-sections.js?v=0.2.138';
+import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.138';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.138';
+import { CHESTS, CINDERS } from '../../data/chests.js?v=0.2.138';
+import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.138';
+import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.138';
+import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.138';
+import { whole, localWhen } from '../../render/format.js?v=0.2.138';
+import { t } from '../../render/player-text.js?v=0.2.138';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
+import { runIntent } from '../intent-words.js?v=0.2.138';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.138';
+import { ppmWords, familyWord, keyFamilyWord, timesWords, lootList } from '../tower-words.js?v=0.2.138';
+import { metalWord } from '../tower-stage.js?v=0.2.138';
 
 /* The one chest today (src/data/chests.js CHESTS: a later chest is a row). */
 const CHEST_ID = Object.keys(CHESTS)[0];

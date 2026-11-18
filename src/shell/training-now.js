@@ -8,9 +8,9 @@
 // longest run, the hour's fee, the gold paid, the rate. The one thing worked out here is the time left: the server's start
 // plus the server's longest run, against the server's clock (display only; the next envelope restates both).
 // ════════════════════════════════════════════════════════════════════════
-import { trainingOf as trainingHuntOf, TRAINING_RULES } from '../data/training.js?v=0.2.137';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.137';
-import { trainingOf, quoteFor, trainingPhrase } from '../session/training-sections.js?v=0.2.137';
+import { trainingOf as trainingHuntOf, TRAINING_RULES } from '../data/training.js?v=0.2.138';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.138';
+import { trainingOf, quoteFor, trainingPhrase } from '../session/training-sections.js?v=0.2.138';
 
 /**
  * The hero's RUNNING training session, or null when its hunt is not a training ground or is over.

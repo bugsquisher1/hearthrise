@@ -13,18 +13,18 @@
 // lines widget leaves them to this card. Closing the card is reading them: every away line is dismissed. Nothing here
 // counts or predicts a number; Hunt again is the server's own restart (CharacterSession.restartHunt), checked there.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.137';
-import { whole, gold } from '../../render/format.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.137';
-import { resultHtml, patchResult } from '../result-block.js?v=0.2.137';
-import { awayNowOf } from '../away-recap.js?v=0.2.137';
-import { spanWords } from '../after-hunt.js?v=0.2.137';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.137';
-import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.137';
-import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.137';
-import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.137';
-import { TOWER_RULES } from '../../data/tower.js?v=0.2.137';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.138';
+import { whole, gold } from '../../render/format.js?v=0.2.138';
+import { t } from '../../render/player-text.js?v=0.2.138';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.138';
+import { resultHtml, patchResult } from '../result-block.js?v=0.2.138';
+import { awayNowOf } from '../away-recap.js?v=0.2.138';
+import { spanWords } from '../after-hunt.js?v=0.2.138';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.138';
+import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.138';
+import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.138';
+import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.138';
+import { TOWER_RULES } from '../../data/tower.js?v=0.2.138';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);

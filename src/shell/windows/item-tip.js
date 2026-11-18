@@ -49,10 +49,12 @@ function tipHtml(id, o) {
   if (stats.length && opt.worn !== undefined) {
     if (opt.worn === id) h += '<p class="hw-tip-cmp">Equipped</p>';
     else {
+      /* ONE BLOCK, so the short screen's two columns (windows.css .hw-tip > *: break-inside avoid) never leave "vs Iron Sword:" at the foot
+         of one column and its lines at the head of the next (a Bramble Blade's tip at 922x423 did, once its bane joined the list). */
       const d = compare(id, opt.worn);
-      h += '<p class="hw-tip-cmp">' + (opt.worn ? 'vs ' + esc(itemName(opt.worn)) : 'vs empty slot') + ':</p>';
-      h += d.length ? '<ul class="hw-tip-delta">' + d.map((x) => '<li class="' + (x.delta > 0 ? 'is-gain' : 'is-loss') + '">' + esc(x.text + ' ' + x.label) + '</li>').join('') + '</ul>'
-        : '<p class="hw-tip-cmp">No change.</p>';
+      h += '<div class="hw-tip-vs"><p class="hw-tip-cmp">' + (opt.worn ? 'vs ' + esc(itemName(opt.worn)) : 'vs empty slot') + ':</p>';
+      h += (d.length ? '<ul class="hw-tip-delta">' + d.map((x) => '<li class="' + (x.delta > 0 ? 'is-gain' : 'is-loss') + '">' + esc(x.text + ' ' + x.label) + '</li>').join('') + '</ul>'
+        : '<p class="hw-tip-cmp">No change.</p>') + '</div>';
     }
   }
   /* what its weight gives (Tyler 2026-10-25: players did not know heavy, medium and light differ) */

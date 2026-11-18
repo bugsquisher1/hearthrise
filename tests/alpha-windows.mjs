@@ -2609,10 +2609,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
               if (!p) return null;
               p.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
               const tip = document.querySelector('.hw-tip.is-on');
+              /* the compare is ONE child of the tip, its "vs" line with its list, so a short screen's two columns never split them (item-tip.js) */
+              const list = tip && tip.querySelector('.hw-tip-delta'), block = list && list.parentElement;
               return tip ? { stats: Array.from(tip.querySelectorAll('.hw-tip-stats:not(.hw-tip-perks) dt')).map((d) => d.textContent + d.nextElementSibling.textContent),
-                gains: Array.from(tip.querySelectorAll('.hw-tip-delta .is-gain')).map((l) => l.textContent) } : null;
+                gains: Array.from(tip.querySelectorAll('.hw-tip-delta .is-gain')).map((l) => l.textContent),
+                oneBlock: !!(block && block !== tip && block.parentElement === tip && block.querySelector('.hw-tip-cmp')) } : null;
             }, id);
             if (!read || !read.stats.includes(stat) || !read.gains.includes(delta)) fails.push('AW-21 the ' + id + ' tip in the bag reads ' + JSON.stringify(read) + ', want the stat "' + stat + '" and the gain "' + delta + '"');
+            if (read && !read.oneBlock) fails.push('AW-21 the ' + id + ' tip\'s compare is not one block with its "vs" line: two columns can split them');
             if (shots) await shot(page, name + '-1440x900-bag-tip');
           }
           await page.mouse.move(2, 2);
@@ -5566,6 +5570,7 @@ const MUTANTS = [
   /* A PIECE'S BANE ON ITS CARD AND COMPARE; THE CARD'S LINE ON THE HERO'S GROUND (lane/a-compare-lines, lane/a-honest-lines; re-landed by lane/a-honesty-rescue) */
   ['plans: AW-21 the card drops a piece\'s bane', 'src/shell/bag-model.js', "    if (v > 1e-9) out.push({ key: 'bane.' + c, label: baneLabel(c), value: v, text: '+' + pctWords(v) });\n", ''],
   ['plans: AW-21 the compare drops a piece\'s bane', 'src/shell/bag-model.js', "    if (Math.abs(d) > 1e-9) out.push({ label: baneLabel(c), delta: d, text: (d > 0 ? '+' : '−') + pctWords(Math.abs(d)) });\n", ''],
+  ['AW-21 the tip\'s "vs" line and its list are two blocks again (a short screen\'s columns split them)', 'src/shell/windows/item-tip.js', "h += '<div class=\"hw-tip-vs\"><p class=\"hw-tip-cmp\">'", "h += '<p class=\"hw-tip-cmp\">'"],
   ['plans: AW-21 an item card says nothing of what it does on the hero\'s ground', 'src/shell/item-lore.js', '  return lines.length ? { ground: (HUNT_INDEX[g.hunt]', '  return lines.length && false ? { ground: (HUNT_INDEX[g.hunt]'],
   ['plans: AW-21 an item card\'s ground line skips the resistance', 'src/shell/item-lore.js', '    if (hit.length && pm > 0) lines.push(', '    if (false) lines.push('],
   ['plans: AW-21 an item card\'s ground line names monsters that are not of the bane\'s kind', 'src/shell/item-lore.js', '  for (const m of ms) { const k = baneMultFor(classOfMonster(MONSTERS[m]), ix);', '  for (const m of ms) { const k = Math.max(...Object.values(ix || { x: 1 }));'],

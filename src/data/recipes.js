@@ -313,11 +313,11 @@ const byReq = (list) => list.slice().sort((a, b) => (a.req || 0) - (b.req || 0))
 
 export const ARTISAN_RECIPES = {
   cooking:  byReq(BASE_RECIPES.cooking.concat(DRINK_RECIPES)),
-  /* The style ladder's made rungs (designer 2026-10-22, style-gear.js): each style's tier-2 weapon and the cloth line;
-     the made shields (shields.js, Tyler 2026-10-23). */
+  /* The reforges of named pieces (Tyler 2026-11-18: armor, weapons and shields drop, a bench only reforges a named piece):
+     Klappa's Club (style-gear.js) and the Steelgrate (shields.js). */
   smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES)),
   /* Crafted jewelry's rolled jobs (src/data/jewelry.js): a piece from the metal, and a gem set in a plain piece. */
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, STYLE_GEAR_RECIPES.crafting, JEWELRY_RECIPES)),
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, JEWELRY_RECIPES)),
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };

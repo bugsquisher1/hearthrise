@@ -114,8 +114,8 @@
 // the loot (CONFLICTS.md 2026-10-20). EQUIPMENT: every ground is on the LOOT BANDS (Tyler
 // 2026-10-23, src/data/loot-bands.js): its own tier's armour in all three weights, each piece
 // about hourly per hero at the floor (the Cellar one helmet slot, the Thicket tier 1, the Sewer
-// tier 1-2, the Glade tier 2, the Warrens tier 3), the next tier, the made weapons and the
-// carriers' trophies as Rares (10-20 h per item); worn gear sells by tier so the hour's gear
+// tier 1-2, the Glade tier 2, the Warrens tier 3) and its weapons and shield (lane/d-drop-homes, 2026-11-18: none is made),
+// the next tier and the carriers' trophies as Rares (10-20 h per item); worn gear sells by tier so the hour's gear
 // stays under half its coin. The coin is final in the rows (DM-16).
 // THE RUNG ABOVE PAYS MORE (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters give more, nothing
 // rewards staying on a weak ground): Wickstead paid above the Sewer's party and the Glade's floor, a lone hero in the Sewer

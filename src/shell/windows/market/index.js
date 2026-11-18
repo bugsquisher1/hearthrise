@@ -18,8 +18,7 @@ import { goldOf } from '../../../session/item-sections.js?v=0.2.137';
 import { MARKET_TABS } from '../../market-model.js?v=0.2.137';
 import { lockedWords } from '../../market-words.js?v=0.2.137';
 import { hideTip } from '../item-tip.js?v=0.2.137';
-import { marketScratch, rereadAll, readMine, readItem, MARKET_WORKS, buildingWorks } from './state.js?v=0.2.137';
-import { TOWN_WORKS } from '../../../data/town-works.js?v=0.2.137';
+import { marketScratch, rereadAll, readMine, readItem, buildingWorks } from './state.js?v=0.2.137';
 import { browseHtml, patchBrowse, actBrowse } from './browse.js?v=0.2.137';
 import { sellHtml, patchSell, actSell } from './sell.js?v=0.2.137';
 import { ledgerHtml, patchLedger, actLedger } from './ledger.js?v=0.2.137';
@@ -39,10 +38,7 @@ export function renderMarket(ctx) {
 
 /* What stands between this account and a trade, in the server's own terms ('' = nothing). */
 export function blockWords(sc) {
-  if (sc.closed && buildingWorks(sc.works)) {
-    const w = sc.works;
-    return t('shop.market_being_built', { building: TOWN_WORKS[MARKET_WORKS].name, total: whole(w.total), goal: whole(w.goal) }) + '. ' + t('shop.market_listings_safe');
-  }
+  if (sc.closed && buildingWorks(sc.works)) return t('shop.market_fund', { total: whole(sc.works.total), goal: whole(sc.works.goal) });
   if (sc.closed) return 'Weighhouse closed, listings safe';
   if (sc.locked && sc.rules && sc.rules.minLevel) return lockedWords(sc.rules.minLevel, sc.rules.minSkillLevel) + ' Until then, have a look around.';
   return '';
@@ -62,8 +58,10 @@ renderMarket.patch = function patchMarket(body, ctx) {
   text(root.querySelector('.hw-mk-purse'), purse === null ? '' : 'Gold: ' + whole(purse));
   const why = blockWords(sc);
   const state = root.querySelector('.hw-mk-state');
-  text(state, why || sc.readMsg);
-  prop(state, 'hidden', !(why || sc.readMsg));
+  /* on Browse a closed Weighhouse is the page's own empty state (browse.js): the line would say it twice */
+  const said = (sc.tab === 'browse' && sc.closed ? '' : why) || sc.readMsg;
+  text(state, said);
+  prop(state, 'hidden', !said);
   prop(root.querySelector('.hw-mk-refresh'), 'disabled', sc.pending);
   const v = { cs, sc, root, ctx, off: sc.pending || !sc.rules || !sc.mine || sc.closed || sc.locked, offWhy: why };
   if (sc.tab === 'browse') patchBrowse(v);

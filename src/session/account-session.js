@@ -58,7 +58,8 @@ import { SESSION_CONFIG } from './config.js?v=0.2.137';
 import { CharacterSession } from './character-session.js?v=0.2.137';
 import { TownPresence } from './town-presence.js?v=0.2.137';
 import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.137';
-import { levelOf } from './character-sections.js?v=0.2.137';
+import { levelOf, outfitOf } from './character-sections.js?v=0.2.137';
+import { heroSprite } from './hero-look.js?v=0.2.137';
 import { assignmentOf } from './party-sections.js?v=0.2.137';
 import { benchJobOver } from './bench-sections.js?v=0.2.137';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.137';
@@ -110,15 +111,19 @@ const agedBy = (body, ms) => (body && typeof body.now === 'string' ? Object.assi
     ("Hunting in Mill Cellar", "In town, fishing at the Shrimp Spot": party-sections.js assignmentOf, the
     words the character strip uses), or nulls. Pure. */
 export function heroOf(body) {
-  if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null, doing: null };
+  if (!body || body.ok !== true) return { name: null, level: null, gold: null, goldV: null, doing: null, look: null };
   const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 40) : null;
   const st = body.state && typeof body.state === 'object' ? body.state : {};
-  const lv = levelOf({ read: (k) => body[k] });
+  const read = { read: (k) => body[k] };
+  const lv = levelOf(read);
+  const o = outfitOf(read);
   return { name, level: lv ? lv.level : null,
     gold: Number.isSafeInteger(st.gold) && st.gold >= 0 ? st.gold : null,
     goldV: Number.isSafeInteger(st.gold_v) && st.gold_v >= 0 ? st.gold_v : null,
     /* The picker said only "Level 2 · Play" for a hero mid-hunt (core-loop play 2026-10-30; board 10-28 P3). */
-    doing: doingOf(body) };
+    doing: doingOf(body),
+    /* What the hero wears, the World's own sprite and colors (hero-look.js), for its portrait on the list (UI audit 2026-11-18). */
+    look: { sprite: heroSprite(read), base: o ? o.base : null } };
 }
 
 /* What an hr_load answer says its hero is doing, in the strip's words; null when idle in town or unread. */

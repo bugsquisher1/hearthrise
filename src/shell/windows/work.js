@@ -80,18 +80,22 @@ export function rowsFor(skill, level, inv, sort) {
   return orderStation(open, ahead, sort, (w) => w.kind === 'artisan' && runsOf(w.row, inv) > 0);
 }
 
-const secs = (ms) => (Math.round(ms / 100) / 10) + ' s';
+const secs = (ms) => String(Math.round(ms / 100) / 10);
 /* A bench recipe's own name, for the line about its last run. */
 const recipeNameOf = (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'That job'; };
 
-/* "2 Copper Ore → Bronze Bar", "6 Rune Blank → 45 Earth Rune", "1 Bone" (a rite). */
-function recipeWords(w) {
-  const ins = Object.entries(recipeInputs(w.row)).map(([id, n]) => whole(n) + ' ' + itemNameFor(id, n)).join(' + ');
-  const out = productOf(w);
-  const n = yieldOf(w);
-  /* A ROLLED job (src/data/jewelry.js) names the grades it can make; its odds line says how likely each is. */
-  if (out && w.row.roll === 'gem') return ins + ' → a Fine or Hallmarked ' + itemName(out);
-  return out ? ins + ' → ' + (n > 1 ? whole(n) + ' ' : '') + itemName(out) : ins;
+/* A RECIPE IS A GENRE ROW (UI audit 2026-11-18: "a recipe row is a paragraph"): what it makes is the row's icon (its count in
+   the corner when one run makes more than one), what goes in is a chip per input with its own icon and count, then one line of
+   numbers (seconds, XP, the burn, who buys it) and one of status; the required Level sits at the right by Start. */
+function inputsHtml(g, w) {
+  if (w.kind === 'gather') return '<span class="hw-work-in">' + esc(itemName(productOf(w))) + '</span>';
+  return Object.entries(recipeInputs(w.row)).map(([id, n]) => '<span class="hw-work-in" title="' + esc(itemNameFor(id, n)) + '">'
+    + itemIconHtml(g, id) + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');
+}
+/* Who won't buy what it makes, said before it is made (panel 2026-11-01: 12,000 runes, no buyer, no word): a short tag, the sentence on the pointer. */
+function saleTag(out) {
+  const s = out ? saleWords(out) : '';
+  return !s ? '' : s === t('item.own_use') ? t('work.sale_none') : t('work.sale_shop');
 }
 
 /* A rolled job's odds at the server's Crafting level, BEFORE the roll (Tyler 2026-11-05, call 6). No gold moves on a roll. */
@@ -105,8 +109,12 @@ function oddsWords(cs, w) {
 
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];
-  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '" data-hs-find="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon) + '</span>'
-    + '<span class="hw-line-name"><b>' + esc(w.row.name) + '</b><small class="hw-work-what"></small><small class="hw-work-odds"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
+  const n = w.kind === 'artisan' ? yieldOf(w) : 1;
+  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '" data-hs-find="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon)
+    + (n > 1 ? '<small class="hw-work-yield">' + esc(whole(n)) + '</small>' : '') + '</span>'
+    + '<span class="hw-line-name"><span class="hw-work-top"><b>' + esc(w.row.name) + '</b><small class="hw-work-lv">' + esc(t('work.row_level', { level: w.row.req || 1 })) + '</small></span>'
+    + '<span class="hw-work-ins"><span class="hw-work-what">' + inputsHtml(g, w) + '</span><small class="hw-work-stat"></small></span>'
+    + '<small class="hw-work-odds"></small><small class="hw-work-fee"></small><small class="hw-work-why"></small>'
     /* "Make N" (a bench row only), under the row's words: how many the next Start makes; the server stops the bench there. */
     + (w.kind === 'artisan' ? '<span class="hh-segs hw-work-n" role="group" aria-label="How many to make">'
       + BENCH_COUNTS.map((n) => '<button type="button" class="hh-seg" data-hs-act="work-n" data-id="' + esc(w.id) + '" data-n="' + n + '">'
@@ -119,17 +127,22 @@ function rowHtml(g, w) {
 }
 
 function patchRow(li, w, cs, sc, on, hunting, lv) {
-  const each = whole(xpEach(w)) + ' XP every ' + secs(actionMs(cs, w));
+  const ms = actionMs(cs, w);
   const out = productOf(w);
   const gather = w.kind === 'gather';
-  /* Who won't buy it is said before it is made (panel 2026-11-01: 12,000 runes, no buyer, no word). */
-  const sale = !gather && out ? saleWords(out) : '';
-  text(li.querySelector('.hw-work-what'), gather ? itemName(out) + ', about ' + whole(perHourOf(w, actionMs(cs, w))) + ' an hour, ' + each : recipeWords(w) + (sale ? '. ' + sale + '.' : ''));
+  /* The numbers line: the seconds and XP an action at the hero's tool, then a node's hourly yield, or a dish's burn chance at the
+     server's Cooking level ("up to": a Kitchen rung the server holds burns less) and who won't buy what it makes. */
+  const burn = w.skill === 'cooking' && out ? burnPct(w.row, lv, 0) : 0;
+  const sale = gather ? '' : saleTag(out);
+  const stat = li.querySelector('.hw-work-stat');
+  /* the line breaks only between its parts, never inside one ("3.8 s", "burns up to 25%") */
+  text(stat, [t('work.row_time_xp', { secs: secs(ms), xp: whole(xpEach(w)) }), gather ? t('work.row_per_hour', { n: whole(perHourOf(w, ms)) }) : '',
+    burn ? t('work.row_burn', { pct: burn }) : '', sale].filter(Boolean).map((s) => s.replace(/ /g, ' ')).join(' · '));
+  attr(stat, 'title', sale ? saleWords(out) : null);
+  cls(li.querySelector('.hw-work-lv'), 'is-short', (w.row.req || 1) > (Number.isInteger(lv) ? lv : 1));
   const running = !!on && on.id === w.id;
   const why = running ? '' : workBlock(cs, w, hunting);
-  /* The status line: running, why not, or what the server's bag holds / covers. A dish says its burn chance at the
-     server's Cooking level ("up to": a Kitchen rung the server holds burns less). */
-  const burn = w.skill === 'cooking' && out ? burnPct(w.row, lv, 0) : 0;
+  /* The status line: running, why not, or what the server's bag holds / covers. */
   const pick = gather ? 'all' : countOf(sc, w);
   /* The bench's count reads what it draws on: the server's bag + Storage (heldOf), the server's own order. */
   const runs = gather ? 0 : affordable(cs, w, runsOf(w.row, heldOf(cs)));
@@ -140,10 +153,9 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const fee = li.querySelector('.hw-work-fee');
   text(fee, feeRowWords(cs, w));
   attr(fee, 'title', feeFullWords(cs, w) || null);
-  const makes = (pick === 'all' ? 'Makes up to ' + whole(runs * yieldOf(w))
-    : 'Makes ' + whole(Math.min(pick, runs) * yieldOf(w)) + ' of up to ' + whole(runs * yieldOf(w)));
   const have = gather ? gatherBagWords(cs, w, running)
-    : makes + ', ' + each + (burn ? ', burns up to ' + burn + '%' : '');
+    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })
+      : t('work.row_makes_of', { n: whole(Math.min(pick, runs) * yieldOf(w)), max: whole(runs * yieldOf(w)) });
   /* Running: the server's count left on this run ("3 left"), or nothing when it runs until the bag is out. */
   const left = running && !gather ? leftOf(cs) : null;
   /* Short of an input: where to get it, each place a link to its window (src/shell/goto.js) */

@@ -6,13 +6,13 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const GAME_MODULES = Object.freeze([
-  'src/app/character-strip.js', 'src/app/game-half.js', 'src/app/hero-create.js', 'src/app/slot-offer.js',
-  'src/app/world-pane.js', 'src/app/world-view.js', 'src/core/action-rules.js', 'src/core/ammo.js',
-  'src/core/artisan-sim.js', 'src/core/artisan.js', 'src/core/away.js', 'src/core/bane.js', 'src/core/bench-tax.js',
-  'src/core/buffs.js', 'src/core/combat-sim.js', 'src/core/combat.js', 'src/core/companion-perk.js',
-  'src/core/drops.js', 'src/core/elements.js', 'src/core/farm.js', 'src/core/goals.js', 'src/core/hearthfind.js',
-  'src/core/hunt-ground.js', 'src/core/hunt-rewards.js', 'src/core/hunt-spawn.js', 'src/core/hunt-track.js',
-  'src/core/hunt/abilities.js', 'src/core/hunt/boss-phases.js', 'src/core/hunt/boss-room.js',
+  'src/app/character-strip.js', 'src/app/game-half.js', 'src/app/hero-create.js', 'src/app/roster-faces.js',
+  'src/app/slot-offer.js', 'src/app/world-pane.js', 'src/app/world-view.js', 'src/core/action-rules.js',
+  'src/core/ammo.js', 'src/core/artisan-sim.js', 'src/core/artisan.js', 'src/core/away.js', 'src/core/bane.js',
+  'src/core/bench-tax.js', 'src/core/buffs.js', 'src/core/combat-sim.js', 'src/core/combat.js',
+  'src/core/companion-perk.js', 'src/core/drops.js', 'src/core/elements.js', 'src/core/farm.js', 'src/core/goals.js',
+  'src/core/hearthfind.js', 'src/core/hunt-ground.js', 'src/core/hunt-rewards.js', 'src/core/hunt-spawn.js',
+  'src/core/hunt-track.js', 'src/core/hunt/abilities.js', 'src/core/hunt/boss-phases.js', 'src/core/hunt/boss-room.js',
   'src/core/hunt/conditions.js', 'src/core/hunt/consumables.js', 'src/core/hunt/damage.js', 'src/core/hunt/events.js',
   'src/core/hunt/grid.js', 'src/core/hunt/leash.js', 'src/core/hunt/marks.js', 'src/core/hunt/monster-spells.js',
   'src/core/hunt/movement.js', 'src/core/hunt/pull-cycle.js', 'src/core/hunt/roles.js', 'src/core/hunt/shapes.js',

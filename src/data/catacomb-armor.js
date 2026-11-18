@@ -1,5 +1,5 @@
 // ============================================================================
-// src/data/catacomb-armor.js — THE UNMARKED CATACOMBS' ARMOR: 24 HELMETS AND BOOTS FROM THE HEARTH CHEST (HIDDEN)
+// src/data/catacomb-armor.js — THE UNMARKED CATACOMBS' ARMOR: 24 HELMETS AND BOOTS FROM THE HEARTH CHEST (12 SHIP, 12 WAIT)
 // (designer, lane/d-catacomb-armor; the design is docs/planning/PRIORITY_BOARD.md "2026-11-16 The Unmarked Catacombs descent" §5-§6).
 //
 // Tyler 2026-11-16: the Catacombs are their own mode "like the Burning Tower" with ARMOR "instead of weapons"; a Bone Key (the Bone
@@ -21,10 +21,9 @@
 // (a Defense level is worth more than a tier of helm armor), so the plate helm carries the plate wearer's +Melee instead. Past Platinum a key's
 // pieces follow the armor line instead (Tyler 2026-11-16: past tier 7 a line is a budget, never twins).
 //
-// HIDDEN. Nothing here is in ITEMS, in a catalogue or in a generator, and no src/ file imports this one, so the edge bundle and every
-// served catalogue are what they were. Its readers are the measuring tool (tools/balance-sim/catacomb-armor.mjs) and its guard
-// (tests/catacomb-armor.mjs). The lane that builds the Catacomb keys on the chest (after lane/c-tower-chest's key families) spreads
-// catacombArmorItems(...) into src/data/items.js and CATACOMB_ARMOR_DESC into item-descriptions.js, behind the descent's switch.
+// SHIPPING (lane/c-catacombs, 2026-11-18): the Bronze and Silver twelve (CATACOMB_ARMOR_SHIPPED) are spread into src/data/items.js and their
+// lines into item-descriptions.js; src/data/chests.js hands each Catacomb key its tier's six. They reach a hero only through the Hearth Chest,
+// behind the descent's switch (unmarked_catacombs). Gold and Platinum stay here, measured, until their batch ships.
 //
 // NAMES. Each piece was a Havoran's, taken off them before the Keepers carried them down, and locked in the chest under their name in
 // the Wood Book (the design's story). Bronze is the street's working poor, Silver the riverside and the market, Gold the Hearth's own
@@ -87,6 +86,15 @@ export const CATACOMB_ARMOR = Object.freeze([
   p('dyers_boots', 'platinum', 'boots', 'leather', 'dawnhide_boots', 'Dyer\'s Boots', 'Havora\'s dyers stood in the vats to the knee. These came out stained and whole.'),
   p('dunns_slippers', 'platinum', 'boots', 'cloth', 'duskweave_boots', 'Dunn\'s Slippers', 'Dunn left them in the chest the night he went down. He hasn\'t needed them since.'),
 ]);
+
+/* THE ROWS THAT SHIP NOW (lane/c-catacombs, 2026-11-18; the design's "24 armor rows (12 now)", CLAUDE.md §10: a batch over 20 ships in
+   batches of 20 or fewer): the Bronze and Silver pieces, the ones a hero meets first (the vault doors 10 to 60). A Gold or Platinum Catacomb
+   key still drops at its doors and is held, but the chest refuses to open it (`chest_not_ready`, the key kept) until its six pieces ship:
+   one more tier here and a regenerated catalogue, nothing else. */
+export const CATACOMB_ARMOR_NOW = Object.freeze(['bronze', 'silver']);
+
+/** The rows of CATACOMB_ARMOR that ship now (CATACOMB_ARMOR_NOW). */
+export const CATACOMB_ARMOR_SHIPPED = Object.freeze(CATACOMB_ARMOR.filter((r) => CATACOMB_ARMOR_NOW.includes(r.key)));
 
 /** A row's attribute: { field, element, size, value } where value is what the item row carries. */
 export function attributeOf(row, attrs = CATACOMB_ATTRS, tiers = CATACOMB_TIERS) {

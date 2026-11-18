@@ -342,6 +342,8 @@ async function loadEdge(root) {
     PS: await import(u('src/core/party-split.js')),
     HR: await import(u('src/core/hunt-rewards.js')),
     ROLES: await import(u('src/data/hunt-roles.js')),
+    /* the role defaults' own rows (PARTY-ROSTER: a lone hero's target mode) */
+    RS: await import(u('src/data/rule-subjects.js') + V),
     PCX: await import(u('src/data/party-class-xp.js')),
     XS: await import(u('src/core/hunt/xp-share.js')),
     WS: await import(u('src/core/hunt/world-state.js')),
@@ -3820,6 +3822,58 @@ const DB_ARMS = {
     if (canon(tick) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(tick), canon(viewed))}`);
     return problems;
   }),
+  /* PARTY-ROSTER (KNOWN-F1, found by tests/settle-properties.mjs 2026-11-18), through the replayed chain, BOTH PATHS: a Mage
+     (seat 0, her own box unticked) and a tank, both on settings they never set; the tank leaves and the Mage hunts on alone. A
+     setting left unset is the role's default for the party STANDING in the world (roles.js settingsOf), so the Mage, who
+     follows into the fight beside a Melee hero, kites from the boundary her tank's hunt ends (a party with no Melee kites):
+     the tick's 90 s windows and a player's instants, one 1 ms past the end, write the same rows. Before the fix the read handed
+     the engine the party IT saw, so she switched at whichever settle came after the end. */
+  'PARTY-ROSTER': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const h = await hunter(db, M, { party: [{ ...STRONG, keepKit: true }, { ...STRONG }], beforeEnter: async () => {
+      await admin(db, UIDS[0], { equip: { weapon: 'practice_wand', shield: 'practice_spellbook' } });
+      await asUser(db, UIDS[0]);
+      const r = await one(db, 'select public.hr_party_leave_together_set(0, false, $1::uuid)', [idem()]);
+      if (!r || r.ok !== true) throw new Error('the untick answered ' + JSON.stringify(r));
+    } });
+    /* the tank leaves on his third swing: under the defect the tick's first window kept him in the Mage's party to its
+       end, 84 s on, while a player's instant just past the end dropped him at once (a 12 s gap read the same rows) */
+    const tick = M.C.COMBAT_BALANCE.tickMs;
+    const LEAVE = h.from + 5000;
+    const L = h.from + Math.ceil(5000 / tick) * tick;
+    await asUser(db, UIDS[1]);
+    const lv = await one(db, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+    await db.query("select set_config('request.jwt.claim.sub', '', true)");
+    if (!lv || lv.ok !== true) return ['CONTROL: the tank\'s leave was refused: ' + JSON.stringify(lv)];
+    await db.query('update public.hunt_sessions set leave_at = to_timestamp($2::double precision / 1000) where id = $1', [h.sids[1], LEAVE]);
+    /* the Mage's unit as the stored world holds it after the last settle */
+    const mage = async () => {
+      const text = await one(db, 'select world::text from public.hunt_instances where id = $1', [h.inst]);
+      const u = text ? M.WS.decodeStored(JSON.parse(text)).units.find((x) => x.side === 'hero' && x.role === 'mage') : null;
+      return u ? { chase: u.chase, tmode: u.tmode } : null;
+    };
+    const SPAN = 10 * 60000;
+    const seen = {};
+    const go = async (cuts) => {
+      for (const t of cuts(h.from)) {
+        const r = await settleTo(db, M, t, { user: UIDS[0] });
+        if (r.skipped === 'no_hunt') break;
+        if (t === LEAVE - 1500) seen.before = await mage();
+      }
+      return Promise.all(h.sids.map((sid, i) => snapshot(db, sid, UIDS[i])));
+    };
+    await db.query('savepoint party_roster');
+    const closed = await go(ticksOf(90000, SPAN));
+    seen.after = await mage();
+    await db.query('rollback to savepoint party_roster');
+    const viewed = await go((from) => [LEAVE - 1500, L + 1, L + 2001, from + 33333, from + 200001, from + SPAN]);
+    if (closed[1].session.end_reason !== 'left' || Date.parse(closed[1].session.ended_at) !== L) return [`CONTROL: the tank ended ${closed[1].session.end_reason} at ${closed[1].session.ended_at}, not left at ${new Date(L).toISOString()}`];
+    if (closed[0].session.ended_at !== null || !(closed[0].tally && closed[0].tally.kills > 0)) return [`CONTROL: the Mage ended ${closed[0].session.end_reason} (kills ${closed[0].tally && closed[0].tally.kills})`];
+    if (!seen.before || seen.before.chase !== true || seen.before.tmode !== 'follow') problems.push(`beside her tank the Mage plays ${JSON.stringify(seen.before)}, not her party default (chase on, follow)`);
+    if (!seen.after || seen.after.chase !== false || seen.after.tmode !== M.RS.DEFAULT_TARGET_MODE) problems.push(`alone the Mage plays ${JSON.stringify(seen.after)}, not a lone hero's default (kiting, ${M.RS.DEFAULT_TARGET_MODE})`);
+    if (canon(closed) !== canon(viewed)) problems.push(`viewed and tick wrote different rows ${firstDiff(canon(closed), canon(viewed))}`);
+    return problems;
+  }),
   /* PARTY-LEAVE-IDEM: a SECOND apply of 2026-12-18-party-leave-together.sql on the replayed chain (its §0 accepts its
      own post-images, its §3 splices skip, its §4 runs again) is byte-identical: every body it writes, the column,
      the grants and the client baseline row. Rolled back. */
@@ -5033,10 +5087,12 @@ const MUTANTS = [
     from: "  const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;",
     to: "  const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : (mode === 'tick' ? nowMs - (nowMs % 90000) : nowMs);" },
   { arm: 'PARITY', name: '[combat-parity C2 read-dropped] the tick door builds its heroes without their options', file: join(FN, 'hunt-settle.js'),
-    from: '    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles,',
-    to: "    m.hero = heroSetup({ weaponType: m._weaponType, options: mode === 'tick' ? {} : m._options, bar: m._bar, partyRoles," },
+    from: '    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar,',
+    to: "    m.hero = heroSetup({ weaponType: m._weaponType, options: mode === 'tick' ? {} : m._options, bar: m._bar," },
   { arm: 'SETTINGS', name: 'the stored options never reach the unit', file: 'src/core/combat-sim.js',
-    from: '    if (s.stance !== undefined) u.stance = s.stance;', to: '' },
+    from: ' u.stance = s.stance;', to: '' },
+  { arm: 'PARTY-ROSTER', name: '[KNOWN-F1] the party defaults read every member the read handed in, not the party standing', file: 'src/core/combat-sim.js',
+    from: '    const roles = rolesOf(inWorld(members));', to: '    const roles = rolesOf(members);' },
   { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/hunt/consumables.js',
     from: '    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);', to: '    if (false) use(u, hero, got.pick.kind, got.pick.line, sc, got);' },
   { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrual.js'),

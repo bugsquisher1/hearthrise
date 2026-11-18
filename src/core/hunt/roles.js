@@ -18,8 +18,9 @@
 //              ground, so nobody moves for it
 //
 // The hero's settings (role, distance, chase, target mode) are persisted on its
-// unit: the settle writes them from the character's hunt settings when the
-// hero joins and when they change; a window never reads them from elsewhere.
+// unit: the settle writes them when the hero joins and at every boundary, the
+// character's own settings over its role's defaults for the party standing in
+// the world then (settingsOf); a window never reads them from elsewhere.
 //
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
@@ -72,6 +73,21 @@ export function defaultSettings(role, partyRoles) {
     stance: d.stance,
   };
 }
+
+/**
+ * THE SETTINGS A HERO FIGHTS WITH NOW: its own picks (`own`, hunt-spawn.js heroSetup `settings`: only the keys the player
+ * set) over its role's defaults for the party STANDING IN THE WORLD at this instant (`partyRoles`: every hero with a unit
+ * whose hunt has not ended, itself included). The engine asks it at every boundary (combat-sim.js syncUnit) and when a hero
+ * joins (hunt-spawn.js heroUnit), so a partner's end or arrival moves a default at that very boundary, the same however the
+ * settles are cut (KNOWN-F1, 2026-11-18: the read once froze the party it saw, so a survivor's defaults moved at whichever
+ * settle came after its partner's end).
+ */
+export function settingsOf(role, own, partyRoles) {
+  const s = defaultSettings(role, partyRoles.length ? partyRoles : [role]);
+  if (own && typeof own === 'object') for (const k of SETTING_KEYS) if (own[k] !== undefined && own[k] !== null) s[k] = own[k];
+  return s;
+}
+const SETTING_KEYS = Object.freeze(['dist', 'chase', 'tmode', 'stance']);
 
 const occupiedBy = (inst, x, y) => {
   const k = tileKey(inst.grid, x, y);

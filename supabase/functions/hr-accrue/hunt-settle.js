@@ -580,9 +580,10 @@ export async function readHuntSettle(o, mode) {
   inst.play = scalePlanOf(inst, where);
   const members = [];
   for (const m of r.members) members.push(await memberInput(exec, m, inst));
-  const partyRoles = members.map((m) => m._role).filter(Boolean);
+  /* EACH HERO AS ITS OWN CHARACTER READS (heroSetup): never the party this read saw. A setting the player left unset is the
+     role's default for the party standing in the world at each boundary, the engine's to read (KNOWN-F1, 2026-11-18). */
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, leaveTogether: m._leaveTogether, lead: m._leads, hold: m._hold });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, leaveTogether: m._leaveTogether, lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
   /* Below the floor a player door that asked for the live view gets the instance's start point
@@ -680,7 +681,6 @@ async function memberInput(exec, m, inst) {
      combat style stays equipmentStats' weaponType in the engine. */
   const weaponType = wornRoleKey(e.equipment, ITEMS);
   const options = (m.session.options && typeof m.session.options === 'object') ? m.session.options : {};
-  const pre = heroSetup({ weaponType, options, bar: m.session.bar, partyRoles: null });
   return {
     key: String(m.user) + ':' + String(m.slot),
     user: String(m.user), slot: Number(m.slot), seat: Number(m.seat) || 0,
@@ -697,7 +697,7 @@ async function memberInput(exec, m, inst) {
        (account_bestiary.relic_mult: { monster kind: mult }), never from the request */
     relicMults: env.account_bestiary && typeof env.account_bestiary === 'object' && env.account_bestiary.relic_mult
       && typeof env.account_bestiary.relic_mult === 'object' ? env.account_bestiary.relic_mult : null,
-    _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,
+    _weaponType: weaponType, _options: options, _bar: m.session.bar,
     /* THE PARTY LEADER (hr_hunt_instance_read `leads`, 2026-11-01-party-leader-density.sql): its density is the pull. */
     _leads: m.leads === true,
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the party's hold seat (hr_hunt_instance_read `hold_seat`, the server's

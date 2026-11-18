@@ -31,11 +31,16 @@
 //   pages: serving vX        the site states the version asked about
 //   pages: deploying <sha>   a deploy is queued or running
 //   pages: RED …             the newest deploy failed, was cancelled or timed out: the site still serves the old version
+//
+// THE NIGHTLY LINE (lane/ci-speed, 2026-11-18): beside the release run, whether the last nightly sweep is green, and when it is
+// red, cancelled, stale or unreadable, which jobs every release runs in FULL because of it (tools/lib/nightly-health.mjs, the
+// gate's own reading, cached 30 min). A finished release run then says "FULL: … ran every proof because the nightly did not prove them".
 // mutant-anchors: none — the proof plants into copies of this file's own verdict and wait functions, never a tree file
 import { execFile, execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { isMain } from '../tests/_is-main.mjs';
+import { nightlyHealth } from './lib/nightly-health.mjs';
 
 const REPO = 'bugsquisher1/hearthrise';
 const EDGE = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue';
@@ -100,7 +105,8 @@ export async function check(ver, wait, io) {
     const [relRuns, mainRuns, live, edge] = await Promise.all([io.runs(branch, 10), io.runs('main', 20), io.live(), io.edge()]);
     const [rel, main] = await Promise.all([ciVerdict(branch, relRuns, sha, io.jobs), ciVerdict('main', mainRuns, undefined, io.jobs)]);
     const pages = pagesVerdict(mainRuns || [], live, ver);
-    io.log(`\nv${ver} at ${new Date(io.now()).toLocaleTimeString()}\n  ${rel.line}\n  ${main.line}\n  ${pages.line}\n  ${edge}`);
+    const night = await io.nightly();
+    io.log(`\nv${ver} at ${new Date(io.now()).toLocaleTimeString()}\n  ${rel.line}\n  ${night.line}\n  ${main.line}\n  ${pages.line}\n  ${edge}`);
     /* THE PUSH THAT STARTS NO RUN: 5 min after this head was first seen with no run, start one by hand, once */
     let gaveUp = '';
     if (wait && rel.none) {
@@ -121,6 +127,8 @@ export async function check(ver, wait, io) {
     if (!wait || gaveUp || (rel.done && !(rel.ok && pages.state === 'deploying'))) {
       if (gaveUp) io.log(gaveUp);
       const red = (rel.done && !rel.ok) || pages.state === 'failed';
+      /* THE NIGHTLY (lane/ci-speed): a job the last sweep did not prove green ran every proof it holds on this release. */
+      if (rel.done && (night.full === 'all' || night.full.length)) io.log(`FULL: ${night.full === 'all' ? 'every job' : night.full.length + ' job(s)'} of this release ran every proof because the nightly did not prove them (the nightly line above)`);
       io.log(rel.ok && pages.state === 'serving' ? 'VERDICT: shipped and green' : red ? 'VERDICT: red, see above' : rel.ok ? 'VERDICT: release green, not live yet' : 'VERDICT: not finished');
       return red ? 1 : rel.ok ? 0 : 3;
     }
@@ -149,9 +157,13 @@ const WAITS = [
   ['gh cannot start it: stops at once, not finished', true, '1.2.2', () => [], false, { code: 3, sends: 1, text: [/could not start it \(gh not found\)/] }],
   ['the API does not answer for 10 min: nothing started on uncertainty', true, '1.2.3',
     (t) => t < 600000 ? null : [smokeRun(HEAD, 'push', 'completed', 'success')], true, { code: 0, sends: 0, text: [/API did not answer/] }],
+  ['a red nightly: its line beside the run, and the verdict says the release ran full', false, '1.2.2', () => [smokeRun(HEAD, 'push', 'completed', 'success')], true,
+    { code: 0, sends: 0, text: [/NIGHTLY RED \(stub\)/, /FULL: 3 job\(s\) of this release ran every proof/] }, { loud: true, full: ['a', 'b', 'c'], line: 'NIGHTLY RED (stub)' }],
+  ['a stale nightly: every job ran full', true, '1.2.3', () => [smokeRun(HEAD, 'push', 'completed', 'success')], true,
+    { code: 0, sends: 0, text: [/FULL: every job of this release/] }, { loud: true, full: 'all', line: 'NIGHTLY STALE (stub)' }],
 ];
 
-async function play(checkFn, [, wait, live, list, works]) {
+async function play(checkFn, [, wait, live, list, works, , night = { loud: false, full: [], line: 'nightly: green (stub)' }]) {
   let t = 0, sent = null;
   const sends = [], out = [];
   const io = {
@@ -159,7 +171,7 @@ async function play(checkFn, [, wait, live, list, works]) {
     runs: async (branch) => (branch === 'main' ? [] : list(t, sent)),
     jobs: async () => [{ name: 'a job', conclusion: 'failure', steps: [{ name: 'a step', conclusion: 'failure' }] }],
     dispatch: async (branch) => { sends.push({ branch, t }); if (!works) return { ok: false, why: 'gh not found' }; sent = t; return { ok: true }; },
-    live: async () => live, edge: async () => 'engine: stub', now: () => t, log: (s) => out.push(s),
+    live: async () => live, edge: async () => 'engine: stub', nightly: async () => night, now: () => t, log: (s) => out.push(s),
     sleep: async (ms) => { t += ms; if (t > 4 * 3600000) throw new Error('--wait never ended'); },
   };
   try { return { code: await checkFn('1.2.3', wait, io), sends, text: out.join('\n') }; }
@@ -227,6 +239,8 @@ async function selftest() {
     ['started at once, not after 5 min', '>= DISPATCH_AFTER_MS', '>= 0'],
     ['started again and again', 'if (dispatched)', 'if (false)'],
     ['an API that does not answer reads as no run', 'runs === null', 'false'],
+    ['the release never says it ran full', "if (rel.done && (night.full === 'all'", "if (false && (night.full === 'all'"],
+    ['the nightly line is not printed', '\\n  ${night.line}', ''],
   ];
   let bad = 0;
   const clean = wrong(pagesVerdict);
@@ -286,6 +300,7 @@ const realIo = {
   },
   live: () => liveVersion(),
   edge: () => edgeVerdict(),
+  nightly: async () => nightlyHealth(),
   now: () => Date.now(),
   sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
   log: (s) => console.log(s),

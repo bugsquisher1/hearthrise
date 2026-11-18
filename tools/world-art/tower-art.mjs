@@ -1,32 +1,38 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/world-art/tower-art.mjs — THE HEARTH CHEST AND ITS REVEALS (lane/a-tower-art; the chest redrawn lane/a-tower-art-gen 2026-11-16).
+// tools/world-art/tower-art.mjs — THE HEARTH CHEST, ITS LIGHT, ITS SMOKE AND ITS REVEALS (lane/a-tower-art; the big chest lane/fix138-hearth-chest-big).
 //
 // The Burning Tower's chest (Tyler 2026-11-14: "burning tower chests that sit on the ledge of the Great Hearth"; ONE chest, "varies loot
 // based on the key"; the locked story: "the Keepers locked them all in one big chest on the ledge, with a different lock for the better
-// ones"). It is ONE generated object in two states, both kept in art/world-src/gen-2026-11-16/02-chest (01-note.json, "chest"):
-//   SHUT  create_image_pro_flash 40x44 on hr-world-56-v2 (ba0d7de0, style the Hold's toll box): a great iron-bound oak chest, curved lid,
-//         four lock plates on its front band. Every pixel came back on the palette.
-//   OPEN  edit_image_pro_flash of that very chest (6f025e0b, laid on a 40x56 canvas so the lid has room): the lid swung up, a bed of
-//         embers inside. The box below the lid's seam is the shut chest's, pixel for pixel. The edit draws off the palette, so it is
-//         snapped here: the ember bed onto the fire ramp (shadow, cloth, blood, torch), everything else onto the whole palette.
-// This tool cuts both to the shut chest's box, lays the four lock plates in each key's soot-dulled metal (LOCKS: Bronze, Silver, Gold,
-// Platinum, left to right; the generation drew two of them grey, and the window's bright METALS read as candy dots on the Hearth,
-// lane/fix137-hearth-chest-art), and lays the frames. Every pixel is a palette entry (art/world/palette.json, read by
-// palette.mjs: no colour is written here as a literal), binary alpha, nothing scaled.
+// ones"). Tyler 2026-11-17: "the chest needs to be more 'special' as it's a big deal to open it ... some sort of low glow, maybe some black /
+// green smoke leaking out maybe bigger as well?" and "periodically the chest should 'bump' slightly open like something is trying to get
+// out". ONE generated chest, PixelLab on hr-world-56-v2, every source 56 px wide with the box on the same columns and its foot on `foot`
+// (art/world-src/gen-2026-11-17/hearth-chest-big, 01-note.json):
+//   SHUT  imp-s13 (edit_image_pro_flash of s37): heavy iron-bound chest, a chain across the lid, the Keepers' sun scorched into it, green
+//         light at the seam and in the four keyholes, the third lock gold
+//   PEAK  bump-s3 (edit on the shut chest on a 56x64 canvas): the lid jolted up, the chain taut, a hard green band, sparks out of the sides
+//   OPEN  open-s7 (edit of s37 on 56x72): the lid tipped back, green light and smoke inside. Its box below the seam is the shut chest's
+// Every source is snapped onto the whole palette (palette.mjs reads art/world/palette.json: no colour is written here as a literal), binary
+// alpha, nothing scaled. The rest is the pipeline's own: the box below the seam held to the shut chest's pixels, the four locks poured onto
+// each key's soot-dulled metal by value (LOCKS: Bronze, Silver, Gold, Platinum left to right), the fire's light on the iron facing it and a
+// glint passing over the locks, the seam's green light breathing (PULSE), the lid lifted on a stepped line of light (crack, never the
+// generation's soft smear: the review of bump-s17), the town's own smoke (town-life.mjs smoke) in black and green, and a stepped pool of
+// light in palette greens drawn additively.
 //
-//   art/world/common/hearth_chest.png             the chest on the Hearth's ledge (src/data/world/town/sites.js AMBIENT): the shut chest,
-//                                                  8 frames of the fire's light on its iron facing the fire and a glint passing over
-//                                                  its locks (FLICKER, glintsAt)
-//   assets/ui/tower/chest-open-<key>.png          THE KEY'S OPENING (the Tower window's Chest tab, src/shell/windows/tower-chest.js):
-//                                                  8 frames of FW x FH in a row, shown at x2: the key's own lock catches the light, the
-//                                                  lid cracks on a line of fire, opens, and embers climb out
-//   assets/ui/tower/chest-column-<key>.png        THE WEAPON'S REVEAL over the open chest's last frame: 4 frames of FW x FH, a stepped
-//                                                  light column in the key's metal rising out of it (three bands, no bloom:
-//                                                  ART_DIRECTION §8); the weapon's own icon rises in it (CSS, whole pixels)
+//   art/world/townlife/hearth_chest.png        THE CHEST ON THE HEARTH (src/data/world/town/sites.js AMBIENT): `idle` 24 frames at the town's
+//                                               beat (3 s: the fire's light x3, the glint, one breath of the seam), `bump` 8 frames (lid
+//                                               lifted, the peak held, lifted, slammed with a 1 px shake) that stand for idle 0-7 in a bump loop
+//   art/world/townlife/hearth_chest_glow.png   ITS LIGHT on the stone round its foot, in step: idle 24, bump 8 (the flash)
+//   art/world/townlife/hearth_chest_smoke.png  ITS SMOKE leaking from the seam and keyholes, in step: idle 24, bump 24 (a puff at the peak,
+//                                               dust at the slam). The bump loops are chosen at run time (src/world/core/ambient.js bumpAt)
+//   assets/ui/tower/chest-open-<key>.png       THE KEY'S OPENING (the Tower window's Chest tab, src/shell/windows/tower-chest.js): 8 frames of
+//                                               FW x FH, shown at x2: the key's lock catches the light, the lid cracks on green, jolts, opens,
+//                                               green embers and smoke climb out
+//   assets/ui/tower/chest-column-<key>.png     THE WEAPON'S REVEAL over the opening's last frame: 4 frames, a stepped light column in the key's
+//                                               metal rising out of it (three bands, no bloom: ART_DIRECTION §8); the item's icon rises in it (CSS)
 // A key row with no metal here is a finding (a later key is a row in src/data/chests.js CHEST_KEYS; its lock and column need a ramp).
 //
-//   node tools/world-art/tower-art.mjs           write them
+//   node tools/world-art/tower-art.mjs           write them (then: node tools/world-art/build.mjs --set townlife)
 //   node tools/world-art/tower-art.mjs --check   exit 1 when a written file differs from a fresh drawing, or a key has no metal
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -35,22 +41,28 @@ import { fileURLToPath } from 'node:url';
 import { createImage, encodePNG, decodePNG } from './png.mjs';
 import { snapTo } from './lock.mjs';
 import { PALETTE, RAMPS } from './palette.mjs';
+import { smoke } from './town-life.mjs';
 import { CHEST_KEYS } from '../../src/data/chests.js';
 import { AMBIENT } from '../../src/data/world/town/sites.js';
+import { LIFE_BEAT_FPS } from '../../src/data/world/ambient-life.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const SRC = 'art/world-src/gen-2026-11-16/02-chest/';
-/* the two kept generations, and where the shut chest's box sits in each canvas (x, y, w, h) */
-const SHUT = Object.freeze({ file: SRC + 'r2-shut-s97-ba0d7de0.png', box: [4, 7, 31, 29] });
-const OPEN = Object.freeze({ file: SRC + 'r2-open-edit-s7-6f025e0b.png', box: [4, 25, 31, 29], lid: 20 });
+const SRC = 'art/world-src/gen-2026-11-17/hearth-chest-big/';
+/* the kept generations: the box's foot row in each canvas, the shut chest's seam (the green line under the chain: the lid is above it),
+   and each lock's body [x0, y0, x1, y1] in the canvas (bronze, silver, gold, platinum) */
+const SHUT = Object.freeze({ file: SRC + 'imp-s13-f612d55e.png', foot: 47, seam: 24,
+  locks: Object.freeze([[11, 30, 16, 35], [19, 30, 25, 35], [31, 30, 36, 35], [40, 30, 46, 35]]) });
+const PEAK = Object.freeze({ file: SRC + 'bump-s3-72d74260.png', foot: 59,
+  locks: Object.freeze([[11, 38, 16, 43], [19, 37, 25, 42], [31, 37, 36, 42], [40, 38, 46, 43]]) });
+const OPEN = Object.freeze({ file: SRC + 'open-s7-9884f4e5.png', foot: 67 });
 
-/* the palette entries the paint uses, by ramp and step (hr-world-56-v2) */
+/* THE CHEST'S FRAME in the town: CW x CH, its foot on the last row, the peak's lid and sparks inside it */
+export const CW = 56, CH = 50, ANCHOR = Object.freeze([28, CH - 1]);
+const SEAM = SHUT.seam - SHUT.foot + ANCHOR[1];   /* the seam's row in the frame */
+
 const R = (ramp, i) => RAMPS[ramp][i];
-const C = Object.freeze({
-  K: R('shadow', 0), k1: R('shadow', 1), k2: R('shadow', 2), k3: R('shadow', 3),
-  ember: R('blood', 1), flame: R('torch', 0), hot: R('torch', 1),
-});
+const C = Object.freeze({ K: R('shadow', 0), hot: R('mithril', 3) });
 /* EACH KEY'S METAL in the window's light: the reveal's column and the Climb tab's landing plates, dark to light (palette ramps: bronze,
    steel, bronze-and-gold, mithril) */
 export const METALS = Object.freeze({
@@ -59,9 +71,9 @@ export const METALS = Object.freeze({
   gold: Object.freeze([R('bronze', 2), R('gold', 0), R('torch', 1)]),
   platinum: Object.freeze([R('mithril', 1), R('mithril', 2), R('mithril', 3)]),
 });
-/* EACH KEY'S LOCK ON THE CHEST, [dark, body, lit corner, glint] (lane/fix137-hearth-chest-art, Tyler 2026-11-17: the plates in the window's
-   bright metals read as candy dots on the sooty Hearth). Old metal dulled by the fire like the Hearth's own iron: a lock is told by its body's
-   metal and value (bronze brown, silver cool iron, gold tan, platinum pale warm grey), and its shine is one glint pixel, never a coloured plate. */
+/* EACH KEY'S LOCK ON THE CHEST, [dark, body, lit, glint] (lane/fix137-hearth-chest-art, Tyler 2026-11-17: the plates in the window's bright
+   metals read as candy dots on the sooty Hearth). Old metal dulled by the fire like the Hearth's own iron: a lock is told by its body's
+   metal and value (bronze brown, silver cool iron, gold, platinum pale warm grey), and its shine is a glint, never a coloured plate. */
 export const LOCKS = Object.freeze({
   bronze: Object.freeze([R('bronze', 0), R('bronze', 1), R('bronze', 2), R('bronze', 3)]),
   silver: Object.freeze([R('iron', 1), R('iron', 2), R('iron', 3), R('steel', 3)]),
@@ -71,10 +83,8 @@ export const LOCKS = Object.freeze({
 /* WHICH SIDE THE FIRE IS ON: the chest's ambient row against the fire's (src/data/world/town/sites.js), so its light falls on the iron that
    faces the firebox wherever the chest is seated */
 const AT = Object.fromEntries(AMBIENT.map((a) => [a.id, a]));
-export const FIRE_SIDE = AT.hearth_chest && AT.hearth_fire && AT.hearth_chest.x > AT.hearth_fire.x ? 'left' : 'right';
-/* THE EMBER BED: an edit pixel in the open box's mouth that came back warm is poured by its red onto the fire ramp, never onto the planks'
-   earth (a nearest-colour snap reads the edit's hottest orange, 225,63,5, as blood red and the bed goes flat). [least red, colour] */
-const FIRE = Object.freeze([[200, R('torch', 0)], [160, R('blood', 1)], [120, R('blood', 0)], [85, R('cloth', 1)], [60, R('cloth', 0)], [0, R('shadow', 1)]]);
+const seatX = (a) => a.x * 32 + (a.dx || 0);
+export const FIRE_SIDE = AT.hearth_chest && AT.hearth_fire && seatX(AT.hearth_chest) > seatX(AT.hearth_fire) ? 'left' : 'right';
 
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const hexAt = (img, x, y) => { const i = (y * img.width + x) * 4; return '#' + [0, 1, 2].map((k) => img.data[i + k].toString(16).padStart(2, '0')).join(''); };
@@ -85,156 +95,259 @@ function put(img, x, y, hex) {
   const [r, g, b] = rgb(hex);
   img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
 }
-function cut(img, x0, y0, w, h) {
-  const out = createImage(w, h);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const i = ((y0 + y) * img.width + x0 + x) * 4;
-    if (img.data[i + 3] >= 128) { out.data.set(img.data.subarray(i, i + 3), (y * w + x) * 4); out.data[(y * w + x) * 4 + 3] = 255; }
+/* src's opaque pixels laid on dst with src's (0, 0) at (dx, dy) */
+function lay(dst, src, dx, dy) {
+  for (let y = 0; y < src.height; y++) for (let x = 0; x < src.width; x++) {
+    const i = (y * src.width + x) * 4;
+    if (src.data[i + 3] === 255) put(dst, x + dx, y + dy, '#' + [0, 1, 2].map((k) => src.data[i + k].toString(16).padStart(2, '0')).join(''));
   }
-  return out;
+}
+const lum = (hex) => { const [r, g, b] = rgb(hex).map((v) => { const u = v / 255; return u > 0.04045 ? ((u + 0.055) / 1.055) ** 2.4 : u / 12.92; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+/* a generation as the palette holds it: every opaque pixel snapped, the rest clear */
+const source = (s) => snapTo(decodePNG(readFileSync(join(ROOT, s.file))), PALETTE);
+
+/* THE GREEN LIGHT, dark to bright (hr-world-56-v2's greens by value: the seam and the keyholes breathe along it, the pool is laid in its
+   darkest steps); a generated green's place on it is its nearest by value */
+const GLOW = Object.freeze([R('leaf', 2), R('leaf', 3), R('leaf', 4), R('leaf', 5), R('venom', 0)]);
+const GREENS = new Set([...RAMPS.leaf, ...RAMPS.moss, ...RAMPS.venom]);
+const glowStep = (hex) => GLOW.reduce((best, c, i) => (Math.abs(lum(c) - lum(hex)) < Math.abs(lum(GLOW[best]) - lum(hex)) ? i : best), 0);
+/* THE BREATH: the seam's light one step down, as made, one step up, over the 24-frame loop (3 s at the beat) */
+export const LOOP = 24;
+export const PULSE = Object.freeze(Array.from({ length: LOOP }, (_, f) => Math.max(-1, Math.min(1, Math.round(1.4 * Math.sin((2 * Math.PI * f) / LOOP))))));
+function breathe(img, d) {
+  if (!d) return;
+  for (let y = 0; y < img.height; y++) for (let x = 0; x < img.width; x++) {
+    if (!opaque(img, x, y)) continue;
+    const h = hexAt(img, x, y);
+    if (GREENS.has(h)) put(img, x, y, GLOW[Math.max(0, Math.min(GLOW.length - 1, glowStep(h) + d))]);
+  }
 }
 
-/* THE MOUTH of the open chest, in its box's frame (x, y from the box's top-left; the lid stands above row 0): the ember bed */
-const MOUTH = Object.freeze({ x0: 5, x1: 25, y0: 1, y1: 10 });
-/* WHERE THE LOCKS ARE, in the box's frame: four plates on the front band, rows 15..17, the keyhole the shadow pixel in row 16 */
-const PLATES = Object.freeze([[6, 8], [12, 14], [17, 19], [22, 24]]), PLATE_Y = 15;
-
-/** The shut chest's box: { w, h, img } (31 x 29, on the palette as generated). */
-export function shutChest() {
-  const [x, y, w, h] = SHUT.box;
-  return { w, h, img: cut(decodePNG(readFileSync(join(ROOT, SHUT.file))), x, y, w, h) };
-}
-/** The open chest: the box's frame plus the lid's rows above it ({ w, h, lid, img }, h = box + lid), snapped onto the palette. */
-export function openChest() {
-  const [x, y, w, h] = OPEN.box, raw = cut(decodePNG(readFileSync(join(ROOT, OPEN.file))), x, y - OPEN.lid, w, h + OPEN.lid);
-  const all = snapTo(raw, PALETTE);
-  for (let yy = MOUTH.y0; yy <= MOUTH.y1; yy++) for (let xx = MOUTH.x0; xx <= MOUTH.x1; xx++) {
-    const i = ((yy + OPEN.lid) * w + xx) * 4;
-    const [r, g, b] = raw.data.subarray(i, i + 3);
-    /* the fire, not the oak or the iron: red leads green and blue by a margin */
-    if (raw.data[i + 3] === 255 && r > 40 && r - b > 15 && r - g > 15) all.data.set([...rgb(FIRE.find(([min]) => r >= min)[1]), 255], i);
-  }
-  /* the box below the seam is the shut chest's own pixels (the edit kept them; this holds them exactly) */
-  const shut = shutChest().img;
-  for (let yy = PLATE_Y - 3; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
-    const s = (yy * w + xx) * 4, d = ((yy + OPEN.lid) * w + xx) * 4;
-    all.data.set(shut.data.subarray(s, s + 4), d);
-  }
-  return { w, h: h + OPEN.lid, lid: OPEN.lid, img: all };
-}
-
-/* THE FOUR LOCKS on a chest image whose box's top-left is (left, top): each 3 x 3 plate laid in its key's LOCKS, lit from the upper left
-   (the lit corner, the body, the shade right and below; the keyhole and the outline stay shadow). `glint`: the keys whose lock catches the
-   fire this frame (its corner the glint, the next pixel lit); `lit`: the key being used in the reveal, its whole plate in the light. */
-const PLATE = Object.freeze(['LBB', 'BkD', 'BDD']);
-const PLATE_GLINT = Object.freeze(['GLB', 'BkD', 'BDD']), PLATE_LIT = Object.freeze(['GLL', 'LkB', 'BBD']);
-function locks(img, left, top, lit, glint = []) {
-  CHEST_KEYS.slice(0, PLATES.length).forEach((k, n) => {
-    const [dark, body, light, shine] = LOCKS[k.id];
-    const plate = lit === k.id ? PLATE_LIT : glint.includes(k.id) ? PLATE_GLINT : PLATE;
-    const x0 = left + PLATES[n][0];
-    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-      const x = x0 + c, y = top + PLATE_Y + r;
-      if (!opaque(img, x, y) || RAMPS.shadow.includes(hexAt(img, x, y))) continue;
-      put(img, x, y, { L: light, B: body, D: dark, G: shine }[plate[r][c]]);
+/* THE FOUR LOCKS on an image whose source canvas sits at (dx, dy): each body's metal (no outline, no keyhole light, nothing as dark as the
+   oak behind it) poured by its value onto its key's LOCKS ramp, [dark, body, lit]. `glint`: the keys whose lock catches the fire this frame
+   (its top-left metal the glint, the next lit); `lit`: the key being used in the reveal, every pixel one step up. */
+const OAK = lum(R('earth', 2));
+function locks(img, rects, dx, dy, lit, glint = []) {
+  CHEST_KEYS.slice(0, rects.length).forEach((k, n) => {
+    const [x0, y0, x1, y1] = rects[n], ramp = LOCKS[k.id];
+    const px = [];
+    for (let y = y0 + dy; y <= y1 + dy; y++) for (let x = x0 + dx; x <= x1 + dx; x++) {
+      if (!opaque(img, x, y)) continue;
+      const h = hexAt(img, x, y);
+      if (RAMPS.shadow.includes(h) || GREENS.has(h) || lum(h) < OAK) continue;
+      px.push([x, y, lum(h)]);
+    }
+    if (!px.length) return;
+    const lo = Math.min(...px.map((p) => p[2])), hi = Math.max(...px.map((p) => p[2]));
+    const top = px.reduce((a, p) => (p[0] + p[1] < a[0] + a[1] ? p : a));
+    for (const [x, y, l] of px) {
+      const t = hi > lo ? (l - lo) / (hi - lo) : 0.5;
+      let s = t < 0.3 ? 0 : t < 0.75 ? 1 : 2;
+      if (lit === k.id) s += 1;
+      if (glint.includes(k.id) && x === top[0] && y === top[1]) s = 3;
+      else if (glint.includes(k.id) && x === top[0] + 1 && y === top[1]) s = Math.max(s, 2);
+      put(img, x, y, ramp[Math.min(3, s)]);
     }
   });
 }
 
 /* THE FIRE'S LIGHT ON IT: the Great Hearth's fire burns beside the chest (its 8-frame loop at 8 fps, hearth_fire), so the chest's iron on the
    fire's side (FIRE_SIDE) takes that light, one value step up its own ramp, over more or fewer of its rows frame by frame, and its locks
-   catch it in turn: the lock nearest the fire leads, each next one two frames behind, a glint where the fire is high (GLINT_AT). An ambient
-   row loops on the town's clock (tests/world-core.mjs W2), and in town something always moves (ART_DIRECTION §3). */
+   catch it in turn: the lock nearest the fire leads, each next one two frames behind, a glint where the fire is high (GLINT_AT). */
 export const FLICKER = Object.freeze([1, 2, 4, 3, 5, 2, 3, 1]);
 const GLINT_AT = 4, GLINT_LAG = 2;
 const upRamp = (n) => RAMPS[n].slice(0, -1).map((c, i) => [c, RAMPS[n][i + 1]]);
-const STEP_UP = Object.freeze(Object.fromEntries([[R('shadow', 3), R('stone', 0)], ...upRamp('stone'), ...upRamp('iron')]));
-const LIT_COLS = 6;
+const STEP_UP = Object.freeze(Object.fromEntries([[R('shadow', 3), R('stone', 0)], ...upRamp('stone'), ...upRamp('iron'), ...upRamp('steel')]));
+const LIT_COLS = 9;
 
 /** The keys whose lock glints on frame f: the lock nearest the fire first. */
 export function glintsAt(f) {
-  const keys = CHEST_KEYS.slice(0, PLATES.length).map((k) => k.id);
+  const keys = CHEST_KEYS.slice(0, SHUT.locks.length).map((k) => k.id);
   const fromFire = FIRE_SIDE === 'right' ? keys.slice().reverse() : keys;
   return fromFire.filter((id, n) => FLICKER[(f + FLICKER.length - (n * GLINT_LAG) % FLICKER.length) % FLICKER.length] >= GLINT_AT);
 }
+function firelight(img, f) {
+  const rows = FLICKER[f % FLICKER.length];
+  const xs = FIRE_SIDE === 'right' ? img.width - LIT_COLS : 0;
+  let top = img.height;
+  for (let y = 0; y < img.height && top === img.height; y++) for (let x = 0; x < img.width; x++) if (opaque(img, x, y)) { top = y; break; }
+  for (let y = top + 1; y < Math.min(img.height - 1, top + 1 + rows * 5); y++) for (let x = xs; x < xs + LIT_COLS; x++) {
+    const up = opaque(img, x, y) && STEP_UP[hexAt(img, x, y)];
+    if (up) put(img, x, y, up);
+  }
+}
 
-/** THE CHEST ON THE LEDGE: the shut chest with its four locks, 8 frames of the fire's light in a row. */
-export function drawChest() {
-  const b = shutChest();
-  const img = createImage(b.w * FLICKER.length, b.h);
-  FLICKER.forEach((rows, f) => {
-    const one = createImage(b.w, b.h);
-    one.data.set(b.img.data);
-    locks(one, 0, 0, null, glintsAt(f));
-    /* the lit rows: the fire side's iron from the lid's top down `rows` x 3 rows */
-    const xs = FIRE_SIDE === 'right' ? b.w - LIT_COLS : 0;
-    for (let y = 1; y < Math.min(b.h - 1, 1 + rows * 3); y++) for (let x = xs; x < xs + LIT_COLS; x++) {
-      const up = opaque(one, x, y) && STEP_UP[hexAt(one, x, y)];
-      if (up) put(one, x, y, up);
-    }
-    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
-      const i = (y * b.w + x) * 4;
-      img.data.set(one.data.subarray(i, i + 4), (y * img.width + f * b.w + x) * 4);
-    }
-  });
+/* THE POSES, each a CW x CH frame with the box's foot on the last row (dx: a shake, whole px) */
+const SHUT_IMG = source(SHUT), PEAK_IMG = source(PEAK);
+function shut(dx = 0) {
+  const img = createImage(CW, CH);
+  lay(img, SHUT_IMG, dx, ANCHOR[1] - SHUT.foot);
+  return { img, rects: SHUT.locks, ldx: dx, ldy: ANCHOR[1] - SHUT.foot };
+}
+/* THE LID LIFTED `up` px on a stepped line of light: the lid and its chain (the rows above the seam) raised, the rows they leave a band of the
+   green light (hot points on its lower row, the outline kept at its ends), the box below as it was */
+function lifted(up) {
+  const img = createImage(CW, CH), dy = ANCHOR[1] - SHUT.foot;
+  for (let y = 0; y < SHUT_IMG.height; y++) for (let x = 0; x < SHUT_IMG.width; x++) {
+    const i = (y * SHUT_IMG.width + x) * 4;
+    if (SHUT_IMG.data[i + 3] !== 255) continue;
+    put(img, x, y + dy - (y < SHUT.seam ? up : 0), '#' + [0, 1, 2].map((k) => SHUT_IMG.data[i + k].toString(16).padStart(2, '0')).join(''));
+  }
+  for (let r = 0; r < up; r++) {
+    const y = SEAM - 1 - r;
+    const row = []; for (let x = 0; x < CW; x++) if (opaque(img, x, SEAM)) row.push(x);
+    if (!row.length) continue;
+    const a = row[0], b = row[row.length - 1];
+    for (let x = a; x <= b; x++) put(img, x, y, x === a || x === b ? C.K : r === 0 && (x - a) % 4 === 2 ? C.hot : GLOW[Math.max(2, GLOW.length - 1 - r)]);
+  }
+  return { img, rects: SHUT.locks, ldx: 0, ldy: dy };
+}
+function peak() {
+  const img = createImage(CW, CH);
+  lay(img, PEAK_IMG, 0, ANCHOR[1] - PEAK.foot);
+  return { img, rects: PEAK.locks, ldx: 0, ldy: ANCHOR[1] - PEAK.foot };
+}
+/* a pose finished for frame f: its locks, the fire's light, the seam's breath (+ `boost` steps while it jolts) */
+function finish(p, f, boost = 0) {
+  locks(p.img, p.rects, p.ldx, p.ldy, null, glintsAt(f));
+  firelight(p.img, f);
+  breathe(p.img, PULSE[f % LOOP] + boost);
+  return p.img;
+}
+
+/* THE BUMP (Tyler 2026-11-17: "bump slightly open like something is trying to get out"): 8 frames standing for idle 0-7 of a bump loop.
+   [pose, the seam's extra breath, the pool's flash]: the lid lifts on its light, jolts to the peak and holds it 3 beats (375 ms), drops back
+   to the lift, slams shut with a 1 px shake and settles */
+export const BUMP = Object.freeze([['lift', 1, 1], ['peak', 2, 2], ['peak', 2, 2], ['peak', 2, 2], ['lift', 1, 1], ['shake+', 1, 1], ['shake-', 0, 0], ['shut', 0, 0]]);
+const pose = (name) => (name === 'lift' ? lifted(3) : name === 'peak' ? peak() : name === 'shake+' ? shut(1) : name === 'shake-' ? shut(-1) : shut());
+
+/* a sheet of rows of frames (one row a clip, shorter rows left-aligned: tools/world-art/build.mjs reads one row per clip) */
+function sheet(rows) {
+  const w = rows[0][0].width, h = rows[0][0].height, n = Math.max(...rows.map((r) => r.length));
+  const img = createImage(w * n, h * rows.length);
+  rows.forEach((row, r) => row.forEach((one, i) => lay(img, one, i * w, r * h)));
   return img;
 }
 
-/* Embers climbing out of an open chest: a fixed set, each a pixel, higher and fewer frame by frame. [dx, rise, kind] */
-const EMBERS = Object.freeze([[-9, 2, 1], [-5, 5, 0], [-1, 1, 2], [2, 6, 1], [4, 3, 0], [8, 5, 2], [10, 1, 1], [-7, 8, 2], [3, 9, 0], [-3, 11, 1], [6, 10, 2], [0, 13, 0]]);
+/** THE CHEST ON THE HEARTH: row 0 `idle` (LOOP frames), row 1 `bump` (BUMP.length frames). */
+export function drawChest() {
+  return sheet([Array.from({ length: LOOP }, (_, f) => finish(shut(), f)), BUMP.map(([name, boost], f) => finish(pose(name), f, boost))]);
+}
+/** The idle loop alone, CW x CH frames in a row (the Tower window's chest). */
+export const drawChestIdle = () => sheet([Array.from({ length: LOOP }, (_, f) => finish(shut(), f))]);
+
+/* ITS LIGHT ON THE STONE: a pool round its foot, GW x GH, the chest's foot at GLOW_ANCHOR. Three stepped bands of the darkest greens (an outer
+   one on a checker), drawn ADDITIVELY after the light (the sidecar's blend), so the stone under it lifts toward green; the bands breathe with the
+   seam (PULSE: a pixel or two wider) and flash one or two steps up while the chest jolts. Most of it lies under the chest: what shows is the
+   stone in front of its foot and at its sides. */
+export const GW = 88, GH = 28, GLOW_ANCHOR = Object.freeze([44, 17]);
+const POOL = Object.freeze({ rx: 34, ry: 8, dy: 1, bands: Object.freeze([[1, 0, true], [0.55, 0, false], [0.25, 1, false]]) });
+const DARK_GREENS = Object.freeze([R('leaf', 0), R('leaf', 1), R('leaf', 2), R('leaf', 3)]);
+function pool(f, flash = 0) {
+  const img = createImage(GW, GH);
+  const sway = Math.round(2 * Math.sin((2 * Math.PI * f) / LOOP));
+  const rx = POOL.rx + sway + 3 * flash, ry = POOL.ry + flash;
+  const cx = GLOW_ANCHOR[0], cy = GLOW_ANCHOR[1] + POOL.dy;   /* centred between pixels: no one-pixel nub at its poles */
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+    const e = Math.sqrt(((x + 0.5 - cx) / rx) ** 2 + ((y + 0.5 - cy) / ry) ** 2);
+    let hit = null;
+    for (const band of POOL.bands) if (e <= band[0]) hit = band;
+    if (!hit || (hit[2] && !flash && (x + y) % 2)) continue;
+    put(img, x, y, DARK_GREENS[Math.min(DARK_GREENS.length - 1, hit[1] + flash)]);
+  }
+  return img;
+}
+/** The pool: row 0 `idle`, row 1 `bump` (the flash). */
+export function drawGlow() {
+  return sheet([Array.from({ length: LOOP }, (_, f) => pool(f)), BUMP.map(([, , flash], f) => pool(f, flash))]);
+}
+
+/* ITS SMOKE: thin wisps leaking from the seam and the keyholes (the town's own smoke, town-life.mjs, in black and green inks), SW x SH, the
+   chest's foot at SMOKE_ANCHOR; each emitter starts its puffs at its own frame. The bump adds a green and a black puff out of the seam at the
+   peak and dust off the stone at both feet at the slam. */
+export const SW = 72, SH = 76, SMOKE_ANCHOR = Object.freeze([36, 71]);
+const SX = SMOKE_ANCHOR[0] - ANCHOR[0], SY = SMOKE_ANCHOR[1] - ANCHOR[1];   /* the chest's frame in the smoke's */
+const INKS = Object.freeze({
+  green: Object.freeze({ lit: R('venom', 0), body: R('leaf', 4), shade: R('leaf', 2) }),
+  black: Object.freeze({ lit: R('stone', 0), body: R('shadow', 2), shade: R('shadow', 0) }),
+  dust: Object.freeze({ lit: R('stone', 4), body: R('stone', 3), shade: R('stone', 2) }),
+});
+const WISP = Object.freeze({ w: SW, h: SH, n: LOOP, every: 4, life: 18, rise: 28, ease: 1.1, drift: 5, r0: 1.1, r1: 2.6, lumpy: 0.5, jitter: 0.8, sway: 1.4, thinFrom: 0.45 });
+/* [x, y in the chest's frame, ink, the frame its first puff is born on, seed] */
+const LEAKS = Object.freeze([[11, SEAM, 'black', 0, 0xc4e51], [36, SEAM, 'green', 2, 0xc4e54], [44, SEAM, 'black', 1, 0xc4e52, { every: 8 }]]);
+const PUFFS = Object.freeze([[24, SEAM, 'green', 1, 0xb0a1, { every: LOOP, life: 14, rise: 34, ease: 1.5, drift: 6, r0: 2.5, r1: 6, lumpy: 1.5, jitter: 2, sway: 1.5, thinFrom: 0.35 }],
+  [34, SEAM, 'black', 1, 0xb0a2, { every: LOOP, life: 12, rise: 28, ease: 1.5, drift: 8, r0: 2, r1: 5, lumpy: 1.2, jitter: 2, sway: 1.5, thinFrom: 0.35 }],
+  [6, ANCHOR[1] - 1, 'dust', 5, 0xd051, { every: LOOP, life: 6, rise: 4, ease: 1, drift: -7, r0: 1.5, r1: 3.5, lumpy: 0.5, jitter: 1, sway: 0.5, thinFrom: 0.2 }],
+  [50, ANCHOR[1] - 1, 'dust', 5, 0xd052, { every: LOOP, life: 6, rise: 4, ease: 1, drift: 7, r0: 1.5, r1: 3.5, lumpy: 0.5, jitter: 1, sway: 0.5, thinFrom: 0.2 }]]);
+/* one emitter's LOOP frames of keys, its births moved to `from` */
+function emitter([x, y, ink, from, seed, o = {}]) {
+  const frames = smoke(Object.assign({}, WISP, o, { ax: x + SX, ay: y + SY, seed }));
+  return { ink, frames: frames.map((_, f) => frames[(f - from + LOOP * 4) % LOOP]) };
+}
+function inked(list, f) {
+  const img = createImage(SW, SH);
+  for (const e of list) e.frames[f].forEach((line, y) => line.forEach((k, x) => { if (k) put(img, x, y, INKS[e.ink][k]); }));
+  return img;
+}
+/** The smoke: row 0 `idle` (the wisps), row 1 `bump` (the wisps with the puffs and the dust, a whole loop). */
+export function drawSmoke() {
+  const wisps = LEAKS.map((l) => emitter(l)), puffs = PUFFS.map((p) => emitter(p));
+  /* black under green, the puffs over the wisps */
+  return sheet([Array.from({ length: LOOP }, (_, f) => inked(wisps, f)), Array.from({ length: LOOP }, (_, f) => inked(wisps.concat(puffs), f))]);
+}
+
+/* THE REVEAL'S FRAME: FW x FH art px, the chest's frame centred on its last rows (its foot on the last row but one); the open lid, the embers
+   and the smoke above it */
+export const FW = 64, FH = 80;
+const OX = Math.floor((FW - CW) / 2), OY = FH - 1 - CH;   /* the chest's frame's top-left in the reveal */
+/* the open chest: its box below the seam is the shut chest's own pixels (the edit kept them; this holds them exactly) */
+function opened() {
+  const o = source(OPEN), img = createImage(CW, CH + (OPEN.foot - ANCHOR[1]));
+  const top = OPEN.foot - ANCHOR[1];   /* the open canvas's rows above the chest's frame */
+  lay(img, o, 0, 0);
+  for (let y = SHUT.seam + 1; y <= SHUT.foot; y++) for (let x = 0; x < CW; x++) {
+    const s = (y * SHUT_IMG.width + x) * 4, d = ((y - SHUT.foot + OPEN.foot) * img.width + x) * 4;
+    img.data.set(SHUT_IMG.data.subarray(s, s + 4), d);
+  }
+  return { img, top };
+}
+/* the open chest's glowing mouth, in the reveal's rows */
+const MOUTH_Y = OY + 22;
+/* green embers climbing out of the open chest: a fixed set, each a pixel, higher and fewer frame by frame. [dx, rise, kind] */
+const EMBERS = Object.freeze([[-11, 2, 1], [-6, 5, 0], [-1, 1, 2], [3, 6, 1], [5, 3, 0], [10, 5, 2], [12, 1, 1], [-8, 8, 2], [4, 9, 0], [-3, 11, 1], [7, 10, 2], [0, 13, 0]]);
+const EMBER = Object.freeze([C.hot, R('venom', 0), R('leaf', 4)]);
 function embers(img, cx, mouthY, step) {
   for (const [dx, rise, kind] of EMBERS) {
-    const y = mouthY - rise - step * 5;
+    const y = mouthY - rise - step * 6;
     if (y < 1 || step * 3 + kind > 11) continue;
     const drift = Math.round(Math.sin((rise + step) * 1.7));
-    put(img, cx + dx + drift, y, kind === 0 ? C.hot : kind === 1 ? C.flame : C.ember);
+    put(img, cx + dx + drift, y, EMBER[kind]);
   }
 }
+/* the smoke out of the open mouth: the town's smoke in green, born frame by frame from the opening on (no puff older than the lid) */
+const MOUTH_SMOKE = smoke({ w: FW, h: FH, ax: FW / 2 - 2, ay: MOUTH_Y, n: 32, every: 1, life: 10, rise: 50, ease: 1.3, drift: 6, r0: 1.5, r1: 4, lumpy: 1, jitter: 3, sway: 1.5, thinFrom: 0.4, seed: 0x0be5 });
 
-/* THE REVEAL'S FRAME: FW x FH art px, the chest's box foot on its last row but one, centred; the lid and the embers above it */
-export const FW = 48, FH = 64;
-const BOX = shutChest(), OX = Math.floor((FW - BOX.w) / 2), OY = FH - 1 - BOX.h;   /* the box's top-left in the frame */
-const SEAM = PLATE_Y - 3;                                                            /* the lid's lower edge, in the box's frame */
-
-/* one pose of the chest at the frame's box: lid 0 shut, 1-2 cracked that many px on a line of fire, 3 open; lit: a key's lock */
-function pose(one, s) {
-  if (s.lid >= 3) {
-    const o = openChest();
-    for (let y = 0; y < o.h; y++) for (let x = 0; x < o.w; x++) {
-      const i = (y * o.w + x) * 4;
-      if (o.img.data[i + 3] === 255) one.data.set(o.img.data.subarray(i, i + 4), ((OY - o.lid + y) * FW + OX + x) * 4);
-    }
-  } else {
-    const up = s.lid || 0;
-    for (let y = 0; y < BOX.h; y++) for (let x = 0; x < BOX.w; x++) {
-      const i = (y * BOX.w + x) * 4;
-      if (BOX.img.data[i + 3] !== 255) continue;
-      one.data.set(BOX.img.data.subarray(i, i + 4), ((OY + y - (y < SEAM ? up : 0)) * FW + OX + x) * 4);
-    }
-    /* the crack: the seam's rows between the lifted lid and the box, a line of fire inside the outline */
-    for (let r = 0; r < up; r++) for (let x = 1; x < BOX.w - 1; x++) {
-      const y = OY + SEAM - 1 - r;
-      put(one, OX + x, y, x === 1 || x === BOX.w - 2 ? C.K : (x + r) % 4 === 1 ? C.hot : r ? C.ember : C.flame);
-    }
-  }
-  locks(one, OX, OY, s.lit || null);
-}
-
-/** THE KEY'S OPENING, 8 frames of FW x FH in a row. */
+/** THE KEY'S OPENING, 8 frames of FW x FH in a row: shut, its lock lit, the lid cracked on green, the jolt, then open and climbing. */
 export function drawOpen(keyId) {
   if (!METALS[keyId]) throw new Error('no metal for key ' + keyId);
-  const n = 8, img = createImage(FW * n, FH);
-  const plan = [{ lid: 0 }, { lid: 0, lit: keyId }, { lid: 1, lit: keyId }, { lid: 2, lit: keyId }, { lid: 3, e: 0 }, { lid: 3, e: 1 }, { lid: 3, e: 2 }, { lid: 3, e: 3 }];
-  plan.forEach((s, i) => {
+  const plan = [{ pose: 'shut' }, { pose: 'shut', lit: keyId }, { pose: 'lift', lit: keyId }, { pose: 'peak', lit: keyId }, { e: 0 }, { e: 1 }, { e: 2 }, { e: 3 }];
+  const frames = plan.map((s) => {
     const one = createImage(FW, FH);
-    pose(one, s);
-    if (s.e !== undefined) embers(one, OX + Math.floor(BOX.w / 2), OY + MOUTH.y0 + 2, s.e);
-    for (let y = 0; y < FH; y++) for (let x = 0; x < FW; x++) {
-      const a = (y * FW + x) * 4, b = (y * img.width + i * FW + x) * 4;
-      img.data.set(one.data.subarray(a, a + 4), b);
+    if (s.e === undefined) {
+      const p = s.pose === 'lift' ? lifted(2) : s.pose === 'peak' ? peak() : shut();
+      locks(p.img, p.rects, p.ldx, p.ldy, s.lit || null);
+      breathe(p.img, s.pose === 'peak' ? 2 : s.pose === 'lift' ? 1 : 0);
+      lay(one, p.img, OX, OY);
+    } else {
+      const o = opened();
+      locks(o.img, SHUT.locks, 0, OPEN.foot - SHUT.foot, null);
+      lay(one, o.img, OX, OY - o.top);
+      MOUTH_SMOKE[s.e].forEach((line, y) => line.forEach((k, x) => { if (k) put(one, x, y, INKS.green[k]); }));
+      embers(one, FW / 2, MOUTH_Y, s.e);
     }
+    return one;
   });
-  return img;
+  return sheet([frames]);
 }
 
 /** THE WEAPON'S COLUMN, 4 frames of FW x FH in a row, over the opening's last frame: three bands of the key's metal, rising out of the mouth. */
@@ -242,7 +355,7 @@ export function drawColumn(keyId) {
   const m = METALS[keyId];
   if (!m) throw new Error('no metal for key ' + keyId);
   const n = 4, img = createImage(FW * n, FH);
-  const cx = OX + Math.floor(BOX.w / 2) - 1, foot = OY + MOUTH.y1 - 2;
+  const cx = FW / 2 - 1, foot = MOUTH_Y - 2;
   [14, 28, 42, 42].forEach((r, i) => {
     const top = Math.max(1, foot - r);
     /* three straight bands, the outer shortest: the head steps in, the lightest band alone at its tip; the last frame shimmers */
@@ -255,11 +368,27 @@ export function drawColumn(keyId) {
   });
   return img;
 }
+/** Where the reveal's item starts (its 32 px icon's top-left, art px in the reveal's frame): centred on the column, in the chest's mouth. */
+export const ITEM_AT = Object.freeze({ x: FW / 2 - 16, y: MOUTH_Y - 16 });
 
-/** Every file this tool writes: path -> PNG bytes. */
+/* THE SIDECARS of the light and the smoke (drawn by rule: style1.mjs DRAWN_CLASSES); the chest's own is kept by hand (its PixelLab block) */
+const clipRows = (bump) => [{ name: 'idle', fps: LIFE_BEAT_FPS, loop: true, dirs: { s: LOOP } }, { name: 'bump', fps: LIFE_BEAT_FPS, loop: false, dirs: { s: bump } }];
+const SIDECARS = Object.freeze({
+  hearth_chest_glow: { id: 'hearth_chest_glow', class: 'glow', style: 's1', drawn: 'tools/world-art/tower-art.mjs', material: 'native', source: 'hearth_chest_glow.png',
+    blend: 'add', frame: [GW, GH], anchor_px: [...GLOW_ANCHOR], footprint: [1, 1], anims: clipRows(BUMP.length),
+    notes: 'The Hearth Chest\'s green light on the stone round its foot (Tyler 2026-11-17, "some sort of low glow"): stepped bands of the palette\'s darkest greens drawn additively after the light, breathing with its seam and flashing while it jolts. Drawn by tools/world-art/tower-art.mjs; placed by the chest\'s AMBIENT rows (src/data/world/town/sites.js), under it.' },
+  hearth_chest_smoke: { id: 'hearth_chest_smoke', class: 'plume', style: 's1', drawn: 'tools/world-art/tower-art.mjs', material: 'native', source: 'hearth_chest_smoke.png',
+    frame: [SW, SH], anchor_px: [...SMOKE_ANCHOR], footprint: [1, 1], anims: clipRows(LOOP),
+    notes: 'The Hearth Chest\'s smoke (Tyler 2026-11-17, "black / green smoke leaking out"): thin wisps from its seam and a keyhole, a puff when it jolts and dust off the stone when it slams, all the town\'s own smoke (tools/world-art/town-life.mjs smoke) in palette inks. Drawn by tools/world-art/tower-art.mjs; placed by the chest\'s AMBIENT rows, over it.' },
+});
+
+/** Every file this tool writes: path -> bytes. */
 export function drawAll() {
   const out = new Map();
-  out.set('art/world/common/hearth_chest.png', encodePNG(drawChest()));
+  out.set('art/world/townlife/hearth_chest.png', encodePNG(drawChest()));
+  out.set('art/world/townlife/hearth_chest_glow.png', encodePNG(drawGlow()));
+  out.set('art/world/townlife/hearth_chest_smoke.png', encodePNG(drawSmoke()));
+  for (const [id, sc] of Object.entries(SIDECARS)) out.set('art/world/townlife/' + id + '.json', Buffer.from(JSON.stringify(sc, null, 2) + '\n'));
   for (const k of CHEST_KEYS) {
     out.set('assets/ui/tower/chest-open-' + k.id + '.png', encodePNG(drawOpen(k.id)));
     out.set('assets/ui/tower/chest-column-' + k.id + '.png', encodePNG(drawColumn(k.id)));
@@ -272,10 +401,14 @@ function main(argv) {
   const missing = CHEST_KEYS.filter((k) => !METALS[k.id]);
   if (missing.length) { console.error('tower-art: no metal for ' + missing.map((k) => k.id).join(', ') + ' (METALS)'); return 1; }
   let stale = 0;
-  for (const [rel, png] of drawAll()) {
+  for (const [rel, bytes] of drawAll()) {
     const file = join(ROOT, rel);
-    if (check) { let cur = null; try { cur = readFileSync(file); } catch { /* missing */ } if (!cur || !cur.equals(png)) { console.error('stale: ' + rel); stale++; } }
-    else { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, png); console.log('wrote ' + rel); }
+    if (check) {
+      let cur = null; try { cur = readFileSync(file); } catch { /* missing */ }
+      /* a sidecar by value (a checkout may turn its line ends) */
+      const same = cur && (rel.endsWith('.json') ? JSON.stringify(JSON.parse(cur.toString('utf8'))) === JSON.stringify(JSON.parse(bytes.toString('utf8'))) : cur.equals(bytes));
+      if (!same) { console.error('stale: ' + rel); stale++; }
+    } else { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, bytes); console.log('wrote ' + rel); }
   }
   if (check) console.log(stale ? 'tower-art --check: ' + stale + ' stale' : 'tower-art --check: fresh');
   return stale ? 1 : 0;

@@ -43,7 +43,7 @@ import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.137';
 import { markShapes } from './mark-shapes.js?v=0.2.137';
 import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.137';
 import { roughEdges } from './ground-rough.js?v=0.2.137';
-import { lifeDraws, glanceOf, swayOf } from './ambient.js?v=0.2.137';
+import { lifeDraws, glanceOf, swayOf, bumpAt } from './ambient.js?v=0.2.137';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;
@@ -398,7 +398,7 @@ function standingOf(map, book, tables, T) {
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
- *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
+ *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, bumpSeed?: number, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0;
  *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js)
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
@@ -587,7 +587,10 @@ export function composeFrame(map, book, state, view, tables, T) {
     if (!name) continue;
     const n = book.frames(id, name, 's');
     const i = Math.floor((Math.max(0, state.t || 0) * (s.anims[name].fps || 0)) / 1000) % n;
-    const f = book.frame(id, name, 's', i);
+    /* ...or now and then its BUMP (core/ambient.js bumpAt: the Hearth Chest jolts, its light flashes, it puffs), on the page's own luck, never with
+       the Idle animations off */
+    const b = s.anims.bump && state.stillIdle !== true ? bumpAt(state.t || 0, s.anims[name].fps || 0, n, book.frames(id, 'bump', 's'), state.bumpSeed) : -1;
+    const f = b < 0 ? book.frame(id, name, 's', i) : book.frame(id, 'bump', 's', b);
     const px = Math.round((a.x + 0.5) * T + (a.dx || 0)), py = Math.round((a.y + 1) * T - 1 - (a.lift || 0));
     /* a loop off the view is no change at all (the World paints only what changes): the view itself, no margin, as an effect casts nothing */
     const lx = px - f.ax, ly = py - f.ay;

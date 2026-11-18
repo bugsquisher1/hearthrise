@@ -46,6 +46,12 @@ export const SCENERY = Object.freeze([
      west's chips where the logs are carried to the fire */
   ['fuel_log', 111, 48], ['bucket', 111, 49],
   ['sack_pile', 123, 45], ['square_decal_chips_b', 113, 51],
+  /* THE HEARTH'S WING ENDS MEET THE GROUND (lane/fix138-hearth-chest-big, Tyler 2026-11-18: "blend it into the ground a bit better"): the
+     redrawn Hearth's ragged, ivied wing ends still stand on a near-vertical line, so tumbled stone, weeds and moss lie along each end on the
+     paving (flat decals: they block nothing), never one side's mirror: WEST a stone pile at the end's top, moss behind it, weeds by the log
+     stack; EAST two fallen blocks between the sacks and the chopping block, weeds behind the sacks */
+  ['havora_scree_a', 111, 45], ['square_decal_moss_b', 111, 44], ['square_decal_tuft_b', 111, 47],
+  ['havora_scree_b', 123, 46], ['square_decal_tuft_a', 123, 44],
   /* the square's seats over the bench stands (stations.js square_benches, x123-128 on y56 and y59: the stands are the server's, so the
      seats move, never the stands): not two rows of three identical benches (lane/fix137-hearth-chest-art, the Coordinator's review), but a
      sitting corner at uneven gaps: two benches and a flower barrel on the back row, a hay bale, a bench and a stool on the front, the two

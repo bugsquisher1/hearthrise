@@ -33,9 +33,9 @@
 //             A still twin (P02 with its hens and goat cut out): its stirring pieces at rest over it are the art exactly
 //   TL-STIR   each stirring piece moves, and never draws a colour the art has nowhere within 2 px
 //   TL-BUMP   the Hearth Chest jolts now and then (Tyler 2026-11-17, "like something is trying to get out"): the chest, its light and its
-//             smoke each have a bump clip and loop in step on one seat; bumps fall 8-21 s apart on the page's own seed (two pages never
-//             in step, none with no seed), play their whole clip from a loop's start, and draw on every layer at once, never with the
-//             player's Idle animations off
+//             smoke each have a bump clip and loop in step on one seat; bumps fall 8-21 s apart on each viewer's own seed (a hash of
+//             the hero's name, core/ambient.js bumpSeedOf: two viewers never in step, none with no hero), play their whole clip from a
+//             loop's start, and draw on every layer at once, never with the player's Idle animations off
 //   TL-GLANCE a keeper standing at her work (Tamsin at her board, the smith) looks about: every face her idle clip has, turning
 //             on the beat, and the frame drawn is the face of the moment
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -47,7 +47,7 @@ import { decodePNG } from '../tools/world-art/png.mjs';
 import { createBook } from '../src/world/core/book.js';
 import { compileMap } from '../src/world/core/map-compile.js';
 import { composeFrame } from '../src/world/core/compose.js';
-import { lifeOf, lifeDraws, glanceOf, swayOf, bumpAt } from '../src/world/core/ambient.js';
+import { lifeOf, lifeDraws, glanceOf, swayOf, bumpAt, bumpSeedOf } from '../src/world/core/ambient.js';
 import { CHEST_LAYERS } from '../src/data/world/town/sites.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../src/data/world/terrain.js';
@@ -404,7 +404,11 @@ export function problems(env) {
     const fps = clip(chest.id).fps, N = n(chest.id), NB = nb(chest.id), loopMs = (1000 * N) / fps;
     const loopsOf = (seed) => Array.from({ length: 300 }, (_, k) => k).filter((k) => env.bumpAt(k * loopMs + 1, fps, N, NB, seed) === 0);
     const seen = new Set();
-    for (const seed of [1, 7, 4242, 0x5eed1]) {
+    /* each viewer's own seed, from the hero it watches as (world-boot.js; the world draws no randomness: world-no-authority W-CALL) */
+    const seeds = ['Marlow', 'Corliss', 'Tamwell', 'Edrin'].map((name) => env.bumpSeedOf(name));
+    if (seeds.some((x) => !Number.isInteger(x)) || env.bumpSeedOf(null) !== null || env.bumpSeedOf('') !== null)
+      bad('TL-BUMP', 'a hero\'s name must give a whole seed, and no viewer none: ' + JSON.stringify(seeds));
+    for (const seed of seeds.filter(Number.isInteger)) {
       const at = loopsOf(seed), gaps = at.slice(1).map((k, i) => k - at[i]);
       seen.add(at.slice(0, 12).join());
       /* "about every 8-20 s": 3 to 7 loops of 3 s */
@@ -413,7 +417,7 @@ export function problems(env) {
       const k = at[0], frames = Array.from({ length: N }, (_, f) => env.bumpAt(k * loopMs + (f * 1000) / fps + 1, fps, N, NB, seed));
       if (frames.join() !== Array.from({ length: N }, (_, f) => (f < NB ? f : -1)).join()) bad('TL-BUMP', 'seed ' + seed + ': a bump loop shows ' + frames.join());
     }
-    if (seen.size < 3) bad('TL-BUMP', 'two pages bump in step: the bumps must fall on the page\'s own seed');
+    if (seen.size < 3) bad('TL-BUMP', 'two viewers bump in step: the bumps must fall on each viewer\'s own seed');
     if ([0, 3000, 9000, 60000].some((t) => env.bumpAt(t, fps, N, NB, null) !== -1)) bad('TL-BUMP', 'a page with no seed bumps');
     /* drawn: at a bump's peak every layer shows its bump frame, in step; with the Idle animations off, or no seed, the idle loop */
     const seed = 7, t = loopsOf(seed)[0] * loopMs + (1 * 1000) / fps + 1;
@@ -430,7 +434,7 @@ export function problems(env) {
   return out;
 }
 
-const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras, glanceOf, swayOf, sways: SWAYS, bumpAt });
+const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras, glanceOf, swayOf, sways: SWAYS, bumpAt, bumpSeedOf });
 
 function selftest() {
   const ok = problems(real());
@@ -521,6 +525,8 @@ function selftest() {
     /* TL-BUMP */
     'the chest never bumps': { bumpAt: () => -1 },
     'every screen bumps in step': { bumpAt: (t, fps, n, nb, seed) => bumpAt(t, fps, n, nb, seed == null ? seed : 1) },
+    'every viewer shares one seed': { bumpSeedOf: (key) => (key ? 7 : null) },
+    'a viewer with no hero still bumps': { bumpSeedOf: (key) => bumpSeedOf(key || 'nobody') },
     'the chest bumps every loop': { bumpAt: (t, fps, n, nb, seed) => { const step = Math.floor((t * fps) / 1000) % n; return seed == null || step >= nb ? -1 : step; } },
     'a bump with the Idle animations off': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, st.bumpSeed == null ? st : Object.assign({}, st, { stillIdle: false }), ...r) },
     'the light out of step with the chest': { manifests: sprites('townlife', (s) => Object.assign(s, { hearth_chest_glow: Object.assign({}, s.hearth_chest_glow, { anims: Object.assign({}, s.hearth_chest_glow.anims, { idle: Object.assign({}, s.hearth_chest_glow.anims.idle, { dirs: { s: s.hearth_chest_glow.anims.idle.dirs.s.slice(0, 23) } }) }) }) })) },

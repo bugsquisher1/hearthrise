@@ -68,8 +68,9 @@ export const SWAYS = Object.freeze({ ty_banner: 'ty_banner_sway', square_market_
 
 /* A BUMP (Tyler 2026-11-17, the Hearth Chest: "periodically the chest should 'bump' slightly open like something is trying to get out"): a
    map's ambient loop whose sprite has a `bump` clip draws it in place of its idle frames now and then, at the start of one idle loop in each
-   block of `block` loops, which one of the first `slots` hashed from the block and the page's own seed (src/world/core/ambient.js bumpAt).
-   The Hearth Chest's loop is 3 s, so its bumps fall 3 to 7 loops apart (9 to 21 s), never in step on two screens, and never while the
+   block of `block` loops, which one of the first `slots` hashed from the block and the viewer's own seed (src/world/core/ambient.js bumpAt).
+   The Hearth Chest's loop is 3 s, so its bumps fall 3 to 7 loops apart (9 to 21 s); the seed is the viewer's own (a hash of the hero's
+   name, core/ambient.js bumpSeedOf), so two players' chests never jolt in step; never while the
    player's Idle animations are off */
 export const BUMP = Object.freeze({ block: 5, slots: 3 });
 

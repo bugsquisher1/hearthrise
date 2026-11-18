@@ -21,7 +21,7 @@ import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.
 import { whole, gold } from '../../render/format.js?v=0.2.139';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.139';
 import { runIntent } from '../intent-words.js?v=0.2.139';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.139';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle, goldKeptOf } from '../../hunt-view/summary-model.js?v=0.2.139';
 import { callOfHunt } from '../../data/boss-calls.js?v=0.2.139';
 import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.139';
 import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.139';
@@ -32,7 +32,7 @@ import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.139';
 import { staminaOf, goldFloorOf } from '../../session/hunt-sections.js?v=0.2.139';
 import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.139';
-import { resultHtml, patchResult } from '../result-block.js?v=0.2.139';
+import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.139';
 import { afterDoneWords } from '../hunt-after.js?v=0.2.139';
 import { heldStep, glyphSvg } from '../launcher.js?v=0.2.139';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.139';
@@ -75,7 +75,8 @@ const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.
    shorter hunt showed a bare "–" there, core-loop play 2026-10-30), Level XP per hour with no party or solo bonus (the analyzer's own
    row, hud.an_raw_xp_h) only when the server sent it (premium, the 10-19 analyzer ruling). The headline figures (Level XP, Gold, Kills)
    lead the card in the result block. */
-const STATS = Object.freeze([['balance', 'Balance', gold], ['balanceH', 'Balance per hour', gold], ['rawXpH', t('hud.an_raw_xp_h'), whole]]);
+/* the loot's unsold value is its own row here (the Gold figure is what the purse kept, coins less supplies; loot is not gold until it is sold) */
+const STATS = Object.freeze([['lootValue', t('hud.an_loot_value'), gold], ['balance', 'Balance', gold], ['balanceH', 'Balance per hour', gold], ['rawXpH', t('hud.an_raw_xp_h'), whole]]);
 
 const plus = (n, fmt) => (Number.isFinite(n) && n > 0 ? '+' + fmt(n) : fmt(n));
 /* A time the server measured, in the away card's words ("45 min", "6 h 2 min"), or '' when it sent none. */
@@ -83,11 +84,11 @@ const took = (ms) => (Number.isFinite(ms) && ms >= 0 ? spanWords(ms) : '');
 
 /**
  * THE RESULT, FIRST (UI audit 2026-11-18 #1): what the card leads with, every figure the stored summary's (the server's, summary-model.js).
- * A hunt: its Level line and the skills it raised, then Level XP (an hour under it), Gold (the loot's value under it) and Kills (the time
+ * A hunt: its Level line and the skills it raised, then Level XP (an hour under it), Gold (what the purse kept, its coins and supplies under it) and Kills (the time
  * under it; a called boss counts none, so Time stands there). A TRAINING SESSION (summary-model.js trainingCard): the skill's line from
  * the server's last stop, its XP, what the yard took (the house dummy charges none) and the time, never the hunt's zeros.
  */
-function resultOf(cur) {
+export function resultOf(cur) {
   const tr = cur.train;
   if (tr) {
     const skill = skillWord(tr.skill), where = trainedBy(cur.hunt);
@@ -103,7 +104,9 @@ function resultOf(cur) {
     ups: (cur.ups || []).map(([sk, from, to]) => t('summary.skill_up', { skill: skillWord(sk), from, to })),
     figs: [
       { key: 'xp', label: t('summary.fig_xp'), value: plus(cur.xp, whole), sub: Number.isFinite(cur.xpH) && cur.xpH > 0 ? t('summary.fig_per_hour', { amount: whole(cur.xpH) }) : '' },
-      { key: 'gold', label: t('summary.fig_gold'), value: plus(cur.gold, gold), sub: Number.isFinite(cur.lootValue) && cur.lootValue > 0 ? t('summary.fig_loot', { gold: gold(cur.lootValue) }) : '' },
+      /* GOLD IS WHAT THE PURSE KEPT (post-patch audit 2026-11-18: "Gold +615 gp" beside a hunt whose store food took the purse down): the
+         coins less the store's supplies, both under it, the away card's own reading (../result-block.js goldFig); a record with no spend, Coins */
+      goldFig(goldKeptOf(cur), cur.gold),
       /* A called boss counts no kill (src/data/boss-calls.js): the reason line says he's down, and "Kills 0" would say he isn't. */
       called ? { key: 'ms', label: t('summary.fig_time'), value: took(cur.ms) || whole(null) }
         : { key: 'kills', label: t('summary.fig_kills'), value: whole(cur.kills), sub: took(cur.ms) ? t('summary.fig_in', { time: took(cur.ms) }) : '' },

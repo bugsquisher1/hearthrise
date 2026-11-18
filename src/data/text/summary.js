@@ -16,11 +16,13 @@ export const SUMMARY_TEXT = Object.freeze({
   lv_arrow: '→',
   skill_up: '{skill} {from} → {to}',
   fig_xp: 'Level XP',
+  /* Gold is what the purse kept, the coins less the store's supplies (src/shell/result-block.js goldFig); a record that sent no spend says
+     its coins under Coins, never as Gold (post-patch audit 2026-11-18). */
   fig_gold: 'Gold',
+  fig_coins: 'Coins',
   fig_kills: 'Kills',
   fig_time: 'Time',
   fig_per_hour: '{amount} per hour',
-  fig_loot: '{gold} in loot',
   fig_in: 'in {time}',
   /* The hunt on now (src/hunt-view/summary-recorder.js liveSummaryOf): its card's time line, and its row under Earlier hunts. */
   live_when: 'In progress, started {time}',

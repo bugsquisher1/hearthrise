@@ -17,7 +17,7 @@ import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.
 import { whole, gold } from '../../render/format.js?v=0.2.139';
 import { t } from '../../render/player-text.js?v=0.2.139';
 import { itemName, itemIconHtml, skillName } from '../widgets/bits.js?v=0.2.139';
-import { resultHtml, patchResult } from '../result-block.js?v=0.2.139';
+import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.139';
 import { awayNowOf } from '../away-recap.js?v=0.2.139';
 import { deathWords, blessingsMissing } from '../death-popup.js?v=0.2.139';
 import { deathLogOf } from '../../session/character-sections.js?v=0.2.139';
@@ -35,13 +35,9 @@ const heroOf = (ctx, a) => ctx.peers().find((p) => p.slot === a.slot) || null;
    Start is the Training window's) or a climb (the Tower window's). */
 const restartable = (hunt) => !!hunt && !roomOfHunt(hunt) && !trainedBy(hunt) && hunt !== TOWER_RULES.hunt;
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
-/* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, signed, with
-   both under it; null when the line has no store spend to set against the coins (../away-recap.js says no gold then). */
-function goldFig(f) {
-  if (!Number.isFinite(f.gold) || !Number.isFinite(f.looted) || !Number.isFinite(f.paid)) return null;
-  return { key: 'gold', label: t('summary.fig_gold'), value: (f.gold < 0 ? '−' : '+') + gold(Math.abs(f.gold)),
-    sub: f.paid > 0 ? t('away.card_gold_both', { looted: gold(f.looted), paid: gold(f.paid) }) : t('away.card_gold_looted', { looted: gold(f.looted) }) };
-}
+/* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, the end card's
+   own reading (../result-block.js goldFig); none when the line has no store spend to set against the coins (../away-recap.js says no gold then). */
+const awayGoldFig = (f) => goldFig(Number.isFinite(f.gold) && Number.isFinite(f.looted) && Number.isFinite(f.paid) ? { net: f.gold, coins: f.looted, spent: f.paid } : null, null);
 
 /**
  * One hero's block as it reads now: the result (a hunt's, two server answers), the best find, the line under it, and its press.
@@ -58,7 +54,7 @@ export function awayBlockOf(cs, a) {
     /* the skill the yard that took over trained, "Melee 28 to 34" (two server answers) */
     ups: tr && tr.to > tr.from ? [t('summary.skill_up', { skill: skillName(tr.skill), from: tr.from, to: tr.to })] : [],
     figs: [f.xp > 0 ? { key: 'xp', label: t('summary.fig_xp'), value: '+' + whole(f.xp) } : null,
-      goldFig(f),
+      awayGoldFig(f),
       f.kills > 0 ? { key: 'kills', label: t('summary.fig_kills'), value: whole(f.kills) } : null].filter(Boolean),
   /* A YARD'S CARD HAS ITS NUMBERS (audit 2026-11-18 A22): the skill's levels and XP over the absence, the server's */
   } : tr ? { level: { name: skillName(tr.skill), from: tr.from, to: tr.to }, ups: [],

@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-18",
- "replay_ms": 1972,
+ "replay_ms": 184912,
  "counts": {
-  "tracked_names": 962,
-  "entries": 813
+  "tracked_names": 964,
+  "entries": 815
  },
  "functions": [
   {
@@ -7376,17 +7376,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-25-hunt-itinerary.sql"
+    "2027-04-25-hunt-itinerary.sql",
+    "2027-05-11-party-alone.sql"
    ],
    "live": {
-    "md5": "58ce975979e7030ba89294074157dc6a",
-    "norm_len": 3744,
+    "md5": "767a22df448089a1222f60c6557805a8",
+    "norm_len": 4056,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "58ce975979e7030ba89294074157dc6a",
-    "norm_len": 3744,
+    "md5": "767a22df448089a1222f60c6557805a8",
+    "norm_len": 4056,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8807,17 +8808,18 @@
     "2026-10-23-hunt-party.sql",
     "2026-10-29-party-security.sql",
     "2026-10-31-live-horizon.sql",
-    "2027-02-18-party-truth.sql"
+    "2027-02-18-party-truth.sql",
+    "2027-05-11-party-alone.sql"
    ],
    "live": {
-    "md5": "46fac3427727d8780a0b8429c73a7d68",
-    "norm_len": 3375,
+    "md5": "86d51e5527873dafc4b6d08b1faa842f",
+    "norm_len": 3614,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "46fac3427727d8780a0b8429c73a7d68",
-    "norm_len": 3375,
+    "md5": "86d51e5527873dafc4b6d08b1faa842f",
+    "norm_len": 3614,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8826,22 +8828,24 @@
    "sig": "hr_hunt_party_leave(p_slot integer, p_idem uuid)",
    "name": "hr_hunt_party_leave",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-23-hunt-party.sql",
-    "2027-02-18-party-truth.sql"
+    "2027-02-18-party-truth.sql",
+    "2027-05-11-party-alone.sql"
    ],
    "live": {
-    "md5": "4419442dc3805ccfd9bd47ad3ff6a834",
-    "norm_len": 2597,
+    "md5": "c9c8dc6c9fd9e443b2ff4ee2dc3f86b6",
+    "norm_len": 2816,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "4419442dc3805ccfd9bd47ad3ff6a834",
-    "norm_len": 2597,
+    "md5": "c9c8dc6c9fd9e443b2ff4ee2dc3f86b6",
+    "norm_len": 2816,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8927,22 +8931,24 @@
    "sig": "hr_hunt_party_sweep(p_limit integer)",
    "name": "hr_hunt_party_sweep",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-28-party-flow.sql",
-    "2027-02-18-party-truth.sql"
+    "2027-02-18-party-truth.sql",
+    "2027-05-11-party-alone.sql"
    ],
    "live": {
-    "md5": "e92f841c491a990ee0dc2d11d4c16305",
-    "norm_len": 1716,
+    "md5": "6551694d517664690befa96f0073ab25",
+    "norm_len": 2612,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "e92f841c491a990ee0dc2d11d4c16305",
-    "norm_len": 1716,
+    "md5": "6551694d517664690befa96f0073ab25",
+    "norm_len": 2612,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12378,6 +12384,29 @@
    "agree": true
   },
   {
+   "sig": "hr_party_alone(p_party uuid, p_less_user uuid, p_less_slot integer)",
+   "name": "hr_party_alone",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-11-party-alone.sql"
+   ],
+   "live": {
+    "md5": "d477bdadb487564eac0c1136aeed5d2a",
+    "norm_len": 1070,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "d477bdadb487564eac0c1136aeed5d2a",
+    "norm_len": 1070,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_party_away(p_user uuid, p_slot integer, p_joined timestamp with time zone)",
    "name": "hr_party_away",
    "tracked_by": [
@@ -12462,6 +12491,29 @@
    "replay": {
     "md5": "7f018b78253e3131ee13af8b94db9f1e",
     "norm_len": 245,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_party_close_if_alone(p_party uuid, p_wait boolean, p_less_user uuid, p_less_slot integer)",
+   "name": "hr_party_close_if_alone",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-11-party-alone.sql"
+   ],
+   "live": {
+    "md5": "87e9157e4cd57fbd69e71eef01ba0de7",
+    "norm_len": 1252,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "87e9157e4cd57fbd69e71eef01ba0de7",
+    "norm_len": 1252,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12605,6 +12657,7 @@
    "sig": "hr_party_invite_ttl()",
    "name": "hr_party_invite_ttl",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [

@@ -810,6 +810,24 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
+    { // TW-16b ENTER FROM HER LINK CLEARS THE WAY IN (QA audit 2026-11-18 N12: her window stayed over the hunt): once the server says the hero is hunting,
+      // the Hunts window her ground link opened closes, and so does hers
+      const free = Object.assign(clone(BOARD), { tally: null, board: BOARD.board.map((r) => Object.assign({}, r, { held: false })) });
+      const { ctx, page, s, up } = await open(Object.assign(clone(TOWN), { party: null, tally: Object.assign(clone(TALLY), { held: [] }) }), null, free);
+      if (!(up && await show(page))) fails.push('TW-16b her window did not open');
+      else {
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-row[data-task="cellar_giant_rats"] .ht-row-go .hs-goto'), null, 4000);
+        await press(page, W + '.ht-row[data-task="cellar_giant_rats"] .ht-row-go .hs-goto', 'TW-16b');
+        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"].is-picked'), null, 4000);
+        /* the server's answer to Enter: the hero is hunting the Cellar (the fixture's own running hunt) */
+        s.env = Object.assign(clone(BASE_ENV), { party: null, tally: s.env.tally, client_state: s.env.client_state });
+        await press(page, '[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter', 'TW-16b');
+        const gone = await wait(page, () => !document.querySelector('[data-hs-win="hunts"]:not(.is-leaving)') && !document.querySelector('[data-hs-win="tally"]:not(.is-leaving)'), null, 5000);
+        if (!gone) fails.push('TW-16b after Enter from her link: ' + JSON.stringify(await page.evaluate(() => ({ hunts: !!document.querySelector('[data-hs-win="hunts"]:not(.is-leaving)'),
+          tally: !!document.querySelector('[data-hs-win="tally"]:not(.is-leaving)'), msg: document.querySelector('[data-hs-win="hunts"] .hh-intent-msg')?.textContent || null }))));
+      }
+      await ctx.close();
+    }
     { // TW-15 the pure half of the once note: her answer's rows carry pick.kind (tally-intents.js boardRow), and sharedPieces reads that
       const { sharedPieces, cutMarks, resetWords, keeperSay, faceOf } = await import(pathToFileURL(join(ROOT, 'src/shell/windows/tally.js')).href);
       /* TW-17 the pure half: a creature in the head set has a face, one the set lacks has none (the entry then draws no well and no broken image) */
@@ -897,6 +915,7 @@ const MUTANTS = [
   ['take carries a count', 'src/session/tally-intents.js', "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_idem: newIdem() }", "{ p_slot: cs.slot, p_task: task, p_weight: weight == null ? null : weight, p_count: 1, p_idem: newIdem() }"],
   ['the HUD shows one more kill than the server', 'src/session/tally-sections.js', "return label + ' ' + h.kills + '/' + h.target;", "return label + ' ' + (h.kills + 1) + '/' + h.target;"],
   ['a refusal reads as a generic line', 'src/shell/windows/tally.js', "  const run = (send, busy, done) => runIntent(sc, repaint, send, busy, (r) => { sc.stale = true; return done(r); }, cs);", "  const run = (send, busy, done) => runIntent(sc, repaint, async () => { const r = await send(); if (!r.ok) r.error = 'refused'; return r; }, busy, (r) => { sc.stale = true; return done(r); }, cs);"],
+  ['Enter from her link leaves her window over the hunt (TW-16b, QA audit 2026-11-18 N12)', 'src/shell/windows/hunts.js', " if (by && by !== 'hunts') ctx.wm.close(by);", ''],
   ['the hunt list drops the tally line', 'src/shell/windows/hunts.js', "patchParts(li.querySelector('.hw-hunt-tally'), withSeps(heldOn(tally, r.hunt).map(tallyLine)));", "patchParts(li.querySelector('.hw-hunt-tally'), []);"],
   ['the Tally is held at its capped height', 'src/shell/hud-room.js', 'phone ? rel(el) : Object.assign(rel(el), { height: wholeHeight(el) })', 'rel(el)'],
   ['her board says nothing of a missing weight', 'src/shell/windows/tally.js', "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : takeWhyOf(tally, hunting, suggest);", "const why = !sc.board ? '' : hunting ? t('tally.board_hunting') : '';"],

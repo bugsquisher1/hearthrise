@@ -234,7 +234,12 @@ renderHunts.patch = function patchHunts(body, ctx) {
      whole sheet, and the two cards that explain the fight were never seen): once the SERVER's hunt section says the
      hero is hunting after an Enter pressed here, the window closes and the hunt is in view. Opening it again while
      hunting keeps it open (it says where the hero is). */
-  if (sc.closeOnHunt && now) { sc.closeOnHunt = false; queueMicrotask(() => ctx.wm.close('hunts')); }
+  /* ...AND THE WINDOW WHOSE LINK OPENED IT (QA audit 2026-11-18 N12: the Tally stayed over the hunt after Enter from its link): its work is done once the hunt runs. */
+  if (sc.closeOnHunt && now) {
+    sc.closeOnHunt = false;
+    const by = typeof ctx.wm.backTo === 'function' ? ctx.wm.backTo('hunts') : null;
+    queueMicrotask(() => { ctx.wm.close('hunts'); if (by && by !== 'hunts') ctx.wm.close(by); });
+  }
   const level = levelOf(cs);
   const party = partyMembershipOf(cs);
   const size = party ? party.seats.length : 1;

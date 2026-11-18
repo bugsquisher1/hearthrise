@@ -35,7 +35,7 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { CROPS } from '../src/data/gathering.js';
 import { STAMINA_REFILL, validate as validateRefill } from '../src/data/stamina-refill.js';
 import { BLESSING_RULES, BLESSING_TIERS, validate as validateBlessings } from '../src/data/blessings.js';
-import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_PREMIUM } from '../src/data/jewelry.js';
+import { JEWEL_PIECES, JEWEL_SHOP_PRICE, JEWEL_SHOP_PREMIUM, JEWEL_SHOP_SLOTS } from '../src/data/jewelry.js';
 import { isMain } from '../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -90,11 +90,14 @@ export function supplyRows(offers = SUPPLY_SHOP_OFFERS, { items = ITEMS, supplie
       if (o.price !== SHOP_PREMIUM * Number(it.v)) throw new Error(`tool offer ${o.item} at ${o.price} g is not ${SHOP_PREMIUM} x its book value ${it.v}`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
     }
-    if (o.kind === 'gear' && own(JEWEL_SHOP_PRICE, o.item)) {
+    /* every crafted piece the Shop lists comes here (src/data/jewelry.js JEWEL_PIECES), priced or not, so a cloak or an unpriced jewel is refused, never sold as plain gear */
+    if (o.kind === 'gear' && (own(JEWEL_SHOP_PRICE, o.item) || own(JEWEL_PIECES, o.item))) {
       /* PLAIN CRAFTED JEWELRY STAYS IN THE SHOP AT A PREMIUM (Tyler 2026-11-05, call 5): a crafted piece's plain row, at its own price and at least
          JEWEL_SHOP_PREMIUM x its book, so the Shop never undercuts the crafter and buy-then-sell always loses. The one door past tier 1. */
       const it = items[o.item];
       if (!JEWEL_PIECES[o.item] || it.jewelGrade || o.basic !== null) throw new Error(`gear offer ${o.item} is not a plain crafted jewelry piece with no basic`);
+      /* jewelry only (the ruling's words): a crafted cloak has no Shop premium, so the Shop sells none past the Traveler Cape */
+      if (!JEWEL_SHOP_SLOTS.includes(it.slot)) throw new Error(`gear offer ${o.item} is a crafted ${it.slot}, not jewelry: no Shop premium`);
       if (o.price !== JEWEL_SHOP_PRICE[o.item] || o.price < JEWEL_SHOP_PREMIUM * Number(it.v)) throw new Error(`gear offer ${o.item} at ${o.price} g is not its premium (${JEWEL_SHOP_PRICE[o.item]} g, at least ${JEWEL_SHOP_PREMIUM} x its book ${it.v})`);
       if (it.bop || !(Number(it.v) > 0)) throw new Error(`gear offer ${o.item} is bound or has no book value`);
       return { offer: o.offer, item: o.item, kind: o.kind, price: o.price };
@@ -296,6 +299,7 @@ function gearCases(base) {
     ['gear with a basic', g({ basic: 'salted_shrimp' })],
     ['a crafted ring under its premium', g({ item: 'banded_signet', offer: 'supply.banded_signet', price: JEWEL_SHOP_PRICE.banded_signet - 1 })],
     ['a Fine ring in the Shop', g({ item: 'banded_signet_keen', offer: 'supply.banded_signet_keen', price: JEWEL_SHOP_PRICE.banded_signet })],
+    ['the crafted cloak in the Shop at a jewel premium', g({ item: 'warband_bulwark', offer: 'supply.warband_bulwark', price: 12000 })],
   ];
 }
 

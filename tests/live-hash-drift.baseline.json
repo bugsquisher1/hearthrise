@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-18",
- "replay_ms": 2054,
+ "replay_ms": 1972,
  "counts": {
-  "tracked_names": 954,
-  "entries": 806
+  "tracked_names": 962,
+  "entries": 813
  },
  "functions": [
   {
@@ -1772,17 +1772,18 @@
     "2027-03-14-jewelry-bench-inputs.generated.sql",
     "2027-03-27-phase0-tier4-bench-inputs.generated.sql",
     "2027-04-27-tower-chest-bench-inputs.generated.sql",
-    "2027-05-06-drop-homes-bench-inputs.generated.sql"
+    "2027-05-06-drop-homes-bench-inputs.generated.sql",
+    "2027-05-09-jewelry-sample-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "a8b11d1c0bb015ee967a631d8d784206",
-    "norm_len": 7057,
+    "md5": "350c8663cecc7587ed597b9fbcc76534",
+    "norm_len": 7390,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a8b11d1c0bb015ee967a631d8d784206",
-    "norm_len": 7057,
+    "md5": "350c8663cecc7587ed597b9fbcc76534",
+    "norm_len": 7390,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3037,6 +3038,52 @@
    "agree": true
   },
   {
+   "sig": "hr_catacomb_section(p_user uuid, p_slot integer)",
+   "name": "hr_catacomb_section",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-08-catacombs.sql"
+   ],
+   "live": {
+    "md5": "a08b74f3622f9d8c03cf107d8c20be5b",
+    "norm_len": 6706,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a08b74f3622f9d8c03cf107d8c20be5b",
+    "norm_len": 6706,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_catacomb_start(p_slot integer, p_wing text, p_landing integer, p_idem uuid)",
+   "name": "hr_catacomb_start",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-08-catacombs.sql"
+   ],
+   "live": {
+    "md5": "04bbc1ab6ac4593191c5abcfe8cc8365",
+    "norm_len": 2189,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "04bbc1ab6ac4593191c5abcfe8cc8365",
+    "norm_len": 2189,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_char_level(p_xp bigint)",
    "name": "hr_char_level",
    "tracked_by": [
@@ -3719,23 +3766,48 @@
    "agree": true
   },
   {
-   "sig": "hr_chest_family_held(p_user uuid, p_slot integer, p_family text)",
-   "name": "hr_chest_family_held",
+   "sig": "hr_chest_family_cap(p_user uuid, p_family text)",
+   "name": "hr_chest_family_cap",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-04-27-tower-chest.sql"
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "a8cee1423e8bacc5de8055a04fc790f7",
-    "norm_len": 840,
+    "md5": "ff97eb9a71c6cdab559c28b6f89af91c",
+    "norm_len": 427,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "a8cee1423e8bacc5de8055a04fc790f7",
-    "norm_len": 840,
+    "md5": "ff97eb9a71c6cdab559c28b6f89af91c",
+    "norm_len": 427,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_chest_family_held(p_user uuid, p_slot integer, p_family text)",
+   "name": "hr_chest_family_held",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-04-27-tower-chest.sql",
+    "2027-05-08-catacombs.sql"
+   ],
+   "live": {
+    "md5": "56ed312122d9f30dbf13409e5f8ccdb9",
+    "norm_len": 859,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "56ed312122d9f30dbf13409e5f8ccdb9",
+    "norm_len": 859,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3770,17 +3842,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-27-tower-chest.sql"
+    "2027-04-27-tower-chest.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "9d86c2ece2df3d46584e879bd877448c",
-    "norm_len": 14808,
+    "md5": "9a924e89327d5d2bb3b5b842ef34823f",
+    "norm_len": 17715,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "9d86c2ece2df3d46584e879bd877448c",
-    "norm_len": 14808,
+    "md5": "9a924e89327d5d2bb3b5b842ef34823f",
+    "norm_len": 17715,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3855,20 +3928,22 @@
    "sig": "hr_chest_section(p_user uuid, p_slot integer)",
    "name": "hr_chest_section",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-04-27-tower-chest.sql"
+    "2027-04-27-tower-chest.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "8d6fe5332d098ccebcc87f863e5f6fcb",
-    "norm_len": 3093,
+    "md5": "b4bed4ccc9da9d4610ad64dcf6107ac8",
+    "norm_len": 4406,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "8d6fe5332d098ccebcc87f863e5f6fcb",
-    "norm_len": 3093,
+    "md5": "b4bed4ccc9da9d4610ad64dcf6107ac8",
+    "norm_len": 4406,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -3891,6 +3966,29 @@
    "replay": {
     "md5": "ec4f59eaea60938cb9390ebae6640dbd",
     "norm_len": 2550,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_chest_warmth_of(p_user uuid, p_slot integer, p_family text)",
+   "name": "hr_chest_warmth_of",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-08-catacombs.sql"
+   ],
+   "live": {
+    "md5": "f89ba89c393d95b682d0d3027a4e96e2",
+    "norm_len": 390,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "f89ba89c393d95b682d0d3027a4e96e2",
+    "norm_len": 390,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -6667,17 +6765,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-03-14-jewelry-hallmark.sql"
+    "2027-03-14-jewelry-hallmark.sql",
+    "2027-05-09-jewel-reforge.sql"
    ],
    "live": {
-    "md5": "3340082a9e23cce49b8d4b751b6c368f",
-    "norm_len": 1401,
+    "md5": "28e3da156af574eb57516dde6d610837",
+    "norm_len": 2172,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3340082a9e23cce49b8d4b751b6c368f",
-    "norm_len": 1401,
+    "md5": "28e3da156af574eb57516dde6d610837",
+    "norm_len": 2172,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -10253,6 +10352,28 @@
    "agree": true
   },
   {
+   "sig": "hr_jewel_reforge(p_slot integer, p_from text, p_to text, p_price bigint, p_idem uuid)",
+   "name": "hr_jewel_reforge",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-09-jewel-reforge.sql"
+   ],
+   "live": {
+    "md5": "e08f8b8ac41b88529de1275582e7f910",
+    "norm_len": 4617,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "e08f8b8ac41b88529de1275582e7f910",
+    "norm_len": 4617,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_jsonb_add(p_a jsonb, p_b jsonb)",
    "name": "hr_jsonb_add",
    "tracked_by": [
@@ -11797,6 +11918,7 @@
    "sig": "hr_mode_board_field(p_mode text, p_user uuid, p_slot integer)",
    "name": "hr_mode_board_field",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -14391,6 +14513,75 @@
    "agree": true
   },
   {
+   "sig": "hr_run_board_of(p_hunt text, p_party integer)",
+   "name": "hr_run_board_of",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-08-catacombs.sql"
+   ],
+   "live": {
+    "md5": "5861e5e86b0cd88d5ed9468ad162f301",
+    "norm_len": 406,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5861e5e86b0cd88d5ed9468ad162f301",
+    "norm_len": 406,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_run_record(p_user uuid, p_slot integer, p_hunt text)",
+   "name": "hr_run_record",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-08-catacombs.sql"
+   ],
+   "live": {
+    "md5": "22abdd265999d8d2b087074604f4ae3e",
+    "norm_len": 750,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "22abdd265999d8d2b087074604f4ae3e",
+    "norm_len": 750,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_run_start(p_uid uuid, p_slot integer, p_hunt text, p_landing integer, p_idem uuid, p_verb text, p_intent text, p_code text)",
+   "name": "hr_run_start",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-08-catacombs.sql"
+   ],
+   "live": {
+    "md5": "5284ba707f3dee55deb4dd542f57bbc7",
+    "norm_len": 7770,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "5284ba707f3dee55deb4dd542f57bbc7",
+    "norm_len": 7770,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_scaled_hours_today(p_user uuid, p_slot integer)",
    "name": "hr_scaled_hours_today",
    "tracked_by": [
@@ -15719,22 +15910,24 @@
    "sig": "hr_state_sections_of(p_user uuid, p_slot integer)",
    "name": "hr_state_sections_of",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-23-character-premium.sql",
-    "2027-02-10-settle-reads.sql"
+    "2027-02-10-settle-reads.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "358bd3ba408d9a07980e5fc5a8c2fb17",
-    "norm_len": 949,
+    "md5": "70a945321037d5889c2f16facde91df9",
+    "norm_len": 1266,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "358bd3ba408d9a07980e5fc5a8c2fb17",
-    "norm_len": 949,
+    "md5": "70a945321037d5889c2f16facde91df9",
+    "norm_len": 1266,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16809,45 +17002,25 @@
    "agree": true
   },
   {
-   "sig": "hr_tower_board_rise()",
-   "name": "hr_tower_board_rise",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2027-04-30-tower-board.sql"
-   ],
-   "live": {
-    "md5": "5e5875a75f033abc76a0c6f788ea6971",
-    "norm_len": 832,
-    "measured": "2026-11-18",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "5e5875a75f033abc76a0c6f788ea6971",
-    "norm_len": 832,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
    "sig": "hr_tower_board_run_end()",
    "name": "hr_tower_board_run_end",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-04-30-tower-board.sql"
+    "2027-04-30-tower-board.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "29ae32376fb06fb6d1f57f55add22d09",
-    "norm_len": 2206,
+    "md5": "192a8a1112cefc8fc7f0bc51ec860911",
+    "norm_len": 2283,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "29ae32376fb06fb6d1f57f55add22d09",
-    "norm_len": 2206,
+    "md5": "192a8a1112cefc8fc7f0bc51ec860911",
+    "norm_len": 2283,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16856,20 +17029,22 @@
    "sig": "hr_tower_board_run_start()",
    "name": "hr_tower_board_run_start",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-04-30-tower-board.sql"
+    "2027-04-30-tower-board.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "c16b57671a108aacf024530c251ea043",
-    "norm_len": 1155,
+    "md5": "e41fc9f7d1ce5f3a10637bd777093d6a",
+    "norm_len": 1232,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "c16b57671a108aacf024530c251ea043",
-    "norm_len": 1155,
+    "md5": "e41fc9f7d1ce5f3a10637bd777093d6a",
+    "norm_len": 1232,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16882,17 +17057,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-24-tower-climb.sql"
+    "2027-04-24-tower-climb.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "b19e04edf28724a88f7a5a2c283a7449",
-    "norm_len": 2808,
+    "md5": "45f561cd77691498f242de5f482dba10",
+    "norm_len": 2901,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b19e04edf28724a88f7a5a2c283a7449",
-    "norm_len": 2808,
+    "md5": "45f561cd77691498f242de5f482dba10",
+    "norm_len": 2901,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16924,20 +17100,22 @@
    "sig": "hr_tower_key_mint()",
    "name": "hr_tower_key_mint",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-04-27-tower-chest.sql"
+    "2027-04-27-tower-chest.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "3acdd24e1fb3940deb4a4951cd046a0b",
-    "norm_len": 2150,
+    "md5": "d5b1554677b2f8d2c8c37017524c08e7",
+    "norm_len": 2417,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3acdd24e1fb3940deb4a4951cd046a0b",
-    "norm_len": 2150,
+    "md5": "d5b1554677b2f8d2c8c37017524c08e7",
+    "norm_len": 2417,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16950,17 +17128,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-24-tower-climb.sql"
+    "2027-04-24-tower-climb.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "ead2976832eeeaf52dc353d67c9a5d5a",
-    "norm_len": 660,
+    "md5": "9c6ae2e77498c799d3ab48e9f6d42041",
+    "norm_len": 434,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ead2976832eeeaf52dc353d67c9a5d5a",
-    "norm_len": 660,
+    "md5": "9c6ae2e77498c799d3ab48e9f6d42041",
+    "norm_len": 434,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16992,22 +17171,24 @@
    "sig": "hr_tower_section(p_user uuid, p_slot integer)",
    "name": "hr_tower_section",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2027-04-28-tower-section.sql",
-    "2027-04-30-tower-board.sql"
+    "2027-04-30-tower-board.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "fe24bd5fba49169a4caa474555285d9f",
-    "norm_len": 5315,
+    "md5": "f9a4695524bd34b4a23e560410285c3c",
+    "norm_len": 5516,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fe24bd5fba49169a4caa474555285d9f",
-    "norm_len": 5315,
+    "md5": "f9a4695524bd34b4a23e560410285c3c",
+    "norm_len": 5516,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -17016,22 +17197,24 @@
    "sig": "hr_tower_start(p_slot integer, p_landing integer, p_idem uuid)",
    "name": "hr_tower_start",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2027-04-24-tower-climb.sql",
-    "2027-05-05-entry-gates.sql"
+    "2027-05-05-entry-gates.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "15c452e5c51d9d029b0e5c949d9c5160",
-    "norm_len": 8098,
+    "md5": "f56ff4afbf9a686d57b3df58cb94d914",
+    "norm_len": 1917,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "15c452e5c51d9d029b0e5c949d9c5160",
-    "norm_len": 8098,
+    "md5": "f56ff4afbf9a686d57b3df58cb94d914",
+    "norm_len": 1917,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -17044,17 +17227,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-24-tower-climb.sql"
+    "2027-04-24-tower-climb.sql",
+    "2027-05-08-catacombs.sql"
    ],
    "live": {
-    "md5": "2081b410b423ad1ea8686040a483cd0c",
-    "norm_len": 1873,
+    "md5": "332c04fdf45e02cb859921c24b965bfb",
+    "norm_len": 2766,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "2081b410b423ad1ea8686040a483cd0c",
-    "norm_len": 1873,
+    "md5": "332c04fdf45e02cb859921c24b965bfb",
+    "norm_len": 2766,
     "source": "computed-from-replay"
    },
    "agree": true

@@ -5024,32 +5024,36 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
     { // AW-103 THE BAG TAKES THE WINDOW'S HEIGHT (UI audit 2026-11-18 UI-5: three rows of bag under a stack of lines)
       const inTown = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 100 }); };
-      const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 }, mutateEnv: inTown });
-      if (!up) fails.push('AW-103 the screen did not mount');
-      else if (!(await openWin(page, 'b', 'inventory'))) fails.push('AW-103 B did not open the Inventory');
-      else {
-        await page.waitForTimeout(500);
-        const read = () => page.evaluate(() => {
-          const w = document.querySelector('[data-hs-win="inventory"]');
-          const box = w.querySelector('.hw-inv-scroll'), ul = w.querySelector('.hw-pockets'), b = box.getBoundingClientRect(), foot = box.clientHeight + b.top + box.clientTop;
-          const lis = Array.from(ul.children), f = w.querySelector('.hw-inv-foot').getBoundingClientRect(), doll = w.querySelector('.hw-doll').getBoundingClientRect();
-          const rows = new Set(lis.filter((li) => { const q = li.getBoundingClientRect(); return q.height && q.top >= b.top - 0.5 && q.bottom <= foot + 0.5; }).map((li) => Math.round(li.getBoundingClientRect().top)));
-          return { items: ul.querySelectorAll('.hw-pocket[data-item]').length, spaces: ul.querySelectorAll('.hw-pocket.is-space').length, rows: rows.size,
-            cut: lis.some((li) => { const q = li.getBoundingClientRect(); return q.top < foot - 4 && q.bottom > foot + 4; }),
-            footUnder: f.top >= doll.bottom - 0.5 && f.left <= doll.left + 0.5, footHas: ['.hw-capacity', '.hw-gold', '[data-hs-act="dispatch"]'].every((q) => !!w.querySelector('.hw-inv-foot ' + q)),
-            spaceTaken: lis.filter((li) => li.classList.contains('is-space')).some((li) => li.hasAttribute('data-item') || li.hasAttribute('tabindex') || li.getAttribute('aria-hidden') !== 'true') };
-        });
-        const m = await read();
-        /* the whole bag: every free space the server's cap leaves drawn after the stacks, five whole rows in view and none cut, the foot under both columns */
-        if (m.items + m.spaces !== 100 || m.spaceTaken || m.rows < 5 || m.cut || !m.footUnder || !m.footHas) fails.push('AW-103 the Inventory at 1440x900 reads ' + JSON.stringify(m));
-        /* a search shows its matches alone: no empty pocket says "nothing else" */
-        await page.fill('[data-hs-win="inventory"] .hw-q', 'rat');
-        await page.waitForTimeout(250);
-        const q = await read();
-        if (q.spaces !== 0) fails.push('AW-103 a search still draws ' + q.spaces + ' free spaces');
-        if (shots) { await page.fill('[data-hs-win="inventory"] .hw-q', ''); await page.waitForTimeout(250); await shot(page, 'bag-height-1440x900'); }
+      /* at 1440x900, and two heights that put the column's foot at other points of a row (a whole row there is the snap's, never luck) */
+      for (const height of [900, 874, 851]) {
+        const { ctx, page, up } = await open({ viewport: { width: 1440, height }, mutateEnv: inTown });
+        if (!up) fails.push('AW-103 the screen did not mount at 1440x' + height);
+        else if (!(await openWin(page, 'b', 'inventory'))) fails.push('AW-103 B did not open the Inventory at 1440x' + height);
+        else {
+          await page.waitForTimeout(500);
+          const read = () => page.evaluate(() => {
+            const w = document.querySelector('[data-hs-win="inventory"]');
+            const box = w.querySelector('.hw-inv-scroll'), ul = w.querySelector('.hw-pockets'), b = box.getBoundingClientRect(), foot = box.clientHeight + b.top + box.clientTop;
+            const lis = Array.from(ul.children), f = w.querySelector('.hw-inv-foot').getBoundingClientRect(), doll = w.querySelector('.hw-doll').getBoundingClientRect();
+            const rows = new Set(lis.filter((li) => { const q = li.getBoundingClientRect(); return q.height && q.top >= b.top - 0.5 && q.bottom <= foot + 0.5; }).map((li) => Math.round(li.getBoundingClientRect().top)));
+            return { items: ul.querySelectorAll('.hw-pocket[data-item]').length, spaces: ul.querySelectorAll('.hw-pocket.is-space').length, rows: rows.size,
+              cut: lis.some((li) => { const q = li.getBoundingClientRect(); return q.top < foot - 1 && q.bottom > foot + 1; }),
+              footUnder: f.top >= doll.bottom - 0.5 && f.left <= doll.left + 0.5, footHas: ['.hw-capacity', '.hw-gold', '[data-hs-act="dispatch"]'].every((q) => !!w.querySelector('.hw-inv-foot ' + q)),
+              spaceTaken: lis.filter((li) => li.classList.contains('is-space')).some((li) => li.hasAttribute('data-item') || li.hasAttribute('tabindex') || li.getAttribute('aria-hidden') !== 'true') };
+          });
+          const m = await read();
+          /* the whole bag: every free space the server's cap leaves drawn after the stacks, five whole rows in view and none cut, the foot under both columns */
+          if (m.items + m.spaces !== 100 || m.spaceTaken || (height === 900 && m.rows < 5) || m.cut || !m.footUnder || !m.footHas) fails.push('AW-103 the Inventory at 1440x' + height + ' reads ' + JSON.stringify(m));
+          if (height !== 900) { await ctx.close(); continue; }
+          /* a search shows its matches alone: no empty pocket says "nothing else" */
+          await page.fill('[data-hs-win="inventory"] .hw-q', 'rat');
+          await page.waitForTimeout(250);
+          const q = await read();
+          if (q.spaces !== 0) fails.push('AW-103 a search still draws ' + q.spaces + ' free spaces');
+          if (shots) { await page.fill('[data-hs-win="inventory"] .hw-q', ''); await page.waitForTimeout(250); await shot(page, 'bag-height-1440x900'); }
+        }
+        await ctx.close();
       }
-      await ctx.close();
     }
 
     { // AW-94 one window header (UX flow audit 2026-11-11): the same band on every window, Back to where a press came from, a page in its host,

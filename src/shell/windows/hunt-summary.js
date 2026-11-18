@@ -186,7 +186,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   /* THE HUNT ON NOW LEADS (UI audit 2026-11-18: Summary pressed in a hunt showed the hunt before it): its card from the server's analyzer
      (summary-recorder.js liveSummaryOf), the stored ones after it */
   const now = liveSummaryOf(cs);
-  const list = (now ? [now] : []).concat(sanitizeSummaries(summariesOf(cs)));
+  /** @type {Array<ReturnType<typeof sanitizeSummaries>[number] & { live?: boolean, since?: number|null }>} */
+  const list = [...(now ? [now] : []), ...sanitizeSummaries(summariesOf(cs))];
   const cur = list.find((s) => s.id === sc.pick) || list[0] || null;
   const open = endedSessionOf(cs);
   const huntOpen = !!open && !open.ended;

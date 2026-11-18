@@ -2143,7 +2143,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
 const MUTANTS = [
   /* UI audit 2026-11-18 (HS-32): Summary in a hunt is the hunt on now; the analyzer's list ends on a whole row */
-  ['Summary in a hunt shows the hunt before again (HS-32)', 'src/shell/windows/hunt-summary.js', 'const list = (now ? [now] : []).concat(sanitizeSummaries(summariesOf(cs)));', 'const list = sanitizeSummaries(summariesOf(cs));'],
+  ['Summary in a hunt shows the hunt before again (HS-32)', 'src/shell/windows/hunt-summary.js', 'const list = [...(now ? [now] : []), ...sanitizeSummaries(summariesOf(cs))];', 'const list = sanitizeSummaries(summariesOf(cs));'],
   ['the analyzer\'s list ends mid-row again (HS-32)', 'src/shell/widgets/analyzer.js', "  if (cut < foot) box.style.maxHeight = Math.max(0, Math.floor(cut - top)) + 'px';", ''],
   /* lane/c-target-kind: the First target is the server's, and one press is one intent (HS-29) */
   ['the First target shows the pick before the server confirms (HS-29)', 'src/shell/widgets/first-target.js', "  if (v !== null) prop(sel, 'value', v);", "  if (v !== null && !pending) prop(sel, 'value', v);"],

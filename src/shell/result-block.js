@@ -18,7 +18,7 @@ const FIGS = 3;
 /** The skeleton (built once, inside the card that owns it). */
 export function resultHtml() {
   return '<div class="hres">'
-    + '<p class="hres-level"><b class="hres-lv"><span class="hres-was"></span><span class="hres-now"></span></b><span class="hres-ups"></span></p>'
+    + '<p class="hres-level"><b class="hres-lv"><span class="hres-was"></span> <span class="hres-to"></span> <span class="hres-now"></span></b><span class="hres-ups"></span></p>'
     + '<dl class="hres-figs">' + Array.from({ length: FIGS }, () => '<div class="hres-fig"><dt></dt><dd></dd><small></small></div>').join('') + '</dl>'
     + '</div>';
 }
@@ -41,6 +41,7 @@ export function patchResult(el, r) {
   cls(b, 'is-up', moved && lv.to > lv.from);
   cls(b, 'is-down', moved && lv.to < lv.from);
   text(root.querySelector('.hres-was'), moved ? t('summary.lv_at', { name: lv.name, level: lv.from }) : '');
+  text(root.querySelector('.hres-to'), moved ? t('summary.lv_arrow') : '');
   text(root.querySelector('.hres-now'), !lv ? '' : moved ? String(lv.to) : t('summary.lv_at', { name: lv.name, level: lv.to }));
   text(root.querySelector('.hres-ups'), ups.join(', '));
   const figs = r && Array.isArray(r.figs) ? r.figs : [];

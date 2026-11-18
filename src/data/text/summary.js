@@ -13,6 +13,7 @@ export const SUMMARY_TEXT = Object.freeze({
      over the server's number and one small line under it. {name} is "Level" or a skill's name. */
   lv_name: 'Level',
   lv_at: '{name} {level}',
+  lv_arrow: '→',
   skill_up: '{skill} {from} → {to}',
   fig_xp: 'Level XP',
   fig_gold: 'Gold',

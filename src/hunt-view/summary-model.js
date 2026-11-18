@@ -189,14 +189,52 @@ export function withTrainingStop(summary, stop) {
 }
 
 /**
+ * IS THE HUNT STILL AT ITS START? The server's tally of this session has paid no kill and no Level XP yet (none at all before its first
+ * settle), so the Level and skill levels the server states now are the ones the hunt began at. Pure.
+ */
+export function atStart(s) {
+  const paid = s && isObj(s.tally) ? s.tally : {};
+  const xp = isObj(paid.xp) ? num(paid.xp.level) : num(paid.xp);
+  return !!s && !s.ended && !(int(paid.kills) > 0) && !(xp > 0);
+}
+
+/**
+ * THE LEVEL LINE (UI audit 2026-11-18 #1: a 6 h hunt never said "Level 5 to 8"), from TWO SERVER ANSWERS, never this build's curve
+ * (item-sections.js skillLevelsOf: the class lane/c-level-from-server closed): `start` the stamp of the server's Level and skill
+ * levels taken while the session was at its start (atStart; residue `huntStart`), `lv` the server's Level block now (character-sections.js
+ * levelOf), `levels` the server's skill levels now (skillLevelsOf). `trained`: the skills the session's tally paid XP to, the only
+ * skills the line names (a bench after the hunt is not the hunt's). A stamp of another session gives no `from`. Pure.
+ * @returns {{lvFrom: number|null, lvTo: number|null, ups: [string, number, number][]}}
+ */
+export function levelLine(sessionId, start, lv, levels, trained) {
+  const mine = isObj(start) && start.s === sessionId ? start : null;
+  const lvTo = lv && Number.isSafeInteger(lv.level) && lv.level >= 1 ? lv.level : null;
+  const lvFrom = mine && lvTo !== null && Number.isSafeInteger(mine.lv) && mine.lv >= 1 ? mine.lv : null;
+  const ups = [];
+  for (const sk of Array.isArray(trained) ? trained : []) {
+    const was = mine && isObj(mine.sk) ? int(mine.sk[sk]) : null, now = isObj(levels) && isObj(levels[sk]) ? int(levels[sk].level) : null;
+    if (was !== null && now !== null && now > was) ups.push([sk, was, now]);
+  }
+  return { lvFrom, lvTo, ups: ups.sort((a, b) => (b[2] - b[1]) - (a[2] - a[1]) || (a[0] < b[0] ? -1 : 1)) };
+}
+
+/** The skills a session's tally paid XP to (its `xp` keys but the Level's), or the analyzer's training rows. Pure. */
+export function trainedIn(s, an) {
+  const xp = s && isObj(s.tally) && isObj(s.tally.xp) ? s.tally.xp : null;
+  if (xp) return Object.keys(xp).filter((k) => k !== 'level' && ID.test(k) && num(xp[k]) > 0);
+  return an && an.hero && Array.isArray(an.hero.training) ? an.hero.training.map((r) => r.skill).filter((k) => typeof k === 'string' && ID.test(k)) : [];
+}
+
+/**
  * The summary record for an ended session.
  * @param {object} s         endedSessionOf(cs)
  * @param {object|null} an   analyzerOf(cs) (hunt-sections.js) or null
  * @param {string[]} deaths  the death explanations' headlines (death-explain.js)
  * @param {string|null} [role]  this hero's role, for a called fight's losing line
  * @param {object|null} [stop]  the `training` section's last stop (training-sections.js), for a training session's card
+ * @param {{lvFrom: number|null, lvTo: number|null, ups: Array}|null} [line]  levelLine's, for a hunt's card
  */
-export function buildSummary(s, an, deaths, role, stop) {
+export function buildSummary(s, an, deaths, role, stop, line) {
   const train = trainingCard(s, stop || null);
   /* a training session pays no kill, Level XP, coin or loot and spends no supply: its card is the skill, never a row of zeros */
   if (train) {
@@ -226,6 +264,10 @@ export function buildSummary(s, an, deaths, role, stop) {
     /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP before bonuses
        only when the server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,
+    /* Level XP an hour, the server's (per_hour.xp, sent once the hunt is rated): the end card's figure under the Level XP. */
+    xpH: ph ? ph.levelXp : null,
+    /* THE LEVEL LINE (levelLine): the Level the hunt began at and ended at, and the skills it raised, each the server's. */
+    lvFrom: line ? line.lvFrom : null, lvTo: line ? line.lvTo : null, ups: line ? line.ups : [],
     died: s.died, loot, supplies,
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
     loss: lossLine({ hunt: s.hunt, reason: s.reason, fight: s.fight || null, role: role || null }),

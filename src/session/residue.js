@@ -159,6 +159,21 @@ function sanitizeAwaySeen(v) {
   return out;
 }
 
+/* THE HUNT'S START (src/hunt-view/summary-recorder.js stampStart): the session, and the Level and skill levels the server stated while
+   it had paid nothing yet, for the end card's "Level 9 → 10" (summary-model.js levelLine). Display state; bounded to the skills a hero has. */
+const HUNT_START_SKILLS = 32;
+function sanitizeHuntStart(v) {
+  if (!isObj(v) || typeof v.s !== 'string' || !/^[A-Za-z0-9_:.-]{1,64}$/.test(v.s) || !Number.isSafeInteger(v.lv) || v.lv < 1) return {};
+  const sk = {};
+  let n = 0;
+  for (const [id, lv] of Object.entries(isObj(v.sk) ? v.sk : {})) {
+    if (!/^[a-z_]{1,32}$/.test(id) || !Number.isSafeInteger(lv) || lv < 1) continue;
+    sk[id] = lv;
+    if (++n >= HUNT_START_SKILLS) break;
+  }
+  return { s: v.s, lv: v.lv, sk };
+}
+
 /* A resizable window's size (src/shell/window-sizes.js): window id -> [width, height] in CSS px. The window
    manager clamps it to the screen again on every read; this bounds only the shape and the count. */
 const WIN_SIZE = Object.freeze({ windows: 16, min: 120, max: 4096 });
@@ -250,6 +265,7 @@ const SANITIZERS = Object.freeze({
   alerts: sanitizeAlerts,           // display state: which alert kinds show and which events were shown; gates and spends nothing
   huntSummaries: sanitizeSummaries, // display state: the last few hunts' summary cards (src/hunt-view/summary-model.js); gates and spends nothing
   awaySeen: sanitizeAwaySeen,       // display state: the away recap's last-seen stamp (src/shell/away-recap.js); gates and spends nothing
+  huntStart: sanitizeHuntStart,     // display state: the server's Level and skill levels as the hunt began, for the end card (src/hunt-view/summary-recorder.js); gates and spends nothing
   winSize: sanitizeWinSize,         // display preference: a resizable window's size (src/shell/window-sizes.js); gates and spends nothing
   panelAlpha: sanitizePanelAlpha,   // display preference: the window opacity, a percent (src/shell/panel-alpha.js); gates and spends nothing
   coach: sanitizeCoach,             // display state: the coach line folded to its title and the cards read (src/shell/launcher.js); gates and spends nothing

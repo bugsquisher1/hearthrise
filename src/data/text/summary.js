@@ -9,6 +9,18 @@
 // ════════════════════════════════════════════════════════════════════════
 
 export const SUMMARY_TEXT = Object.freeze({
+  /* THE RESULT, FIRST (UI audit 2026-11-18 #1 and #2; src/shell/result-block.js): the Level line, then three figures, each a genre label
+     over the server's number and one small line under it. {name} is "Level" or a skill's name. */
+  lv_name: 'Level',
+  lv_at: '{name} {level}',
+  skill_up: '{skill} {from} → {to}',
+  fig_xp: 'Level XP',
+  fig_gold: 'Gold',
+  fig_kills: 'Kills',
+  fig_time: 'Time',
+  fig_per_hour: '{amount} per hour',
+  fig_loot: '{gold} in loot',
+  fig_in: 'in {time}',
   town_head: 'Back in town',
   done: 'Done',
   /* The one press of each row: the glossary's words (src/data/text/controls.js: Equip, Sell, Deposit); Bless is the Services tab's own word. */

@@ -18,7 +18,7 @@
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
 import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.137';
-import { whole, gold, clock } from '../../render/format.js?v=0.2.137';
+import { whole, gold } from '../../render/format.js?v=0.2.137';
 import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.137';
 import { runIntent } from '../intent-words.js?v=0.2.137';
 import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle } from '../../hunt-view/summary-model.js?v=0.2.137';
@@ -31,7 +31,8 @@ import { observeSessions } from '../../session/character-session.js?v=0.2.137';
 import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.137';
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.137';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { endCardAfter } from '../after-hunt.js?v=0.2.137';
+import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.137';
+import { resultHtml, patchResult } from '../result-block.js?v=0.2.137';
 import { afterDoneWords } from '../hunt-after.js?v=0.2.137';
 import { heldStep, glyphSvg } from '../launcher.js?v=0.2.137';
 import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.137';
@@ -70,22 +71,43 @@ const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { pending: fa
    Done and stays saying what it did. Display only. */
 const didOf = (sc, id) => { let d = sc.did.get(id); if (!d) { d = new Map(); sc.did.clear(); sc.did.set(id, d); } return d; };
 /* ── The window ── */
-/* The hunt's balance shows for everyone; balance per hour once the server rates the hunt (10 minutes of it: a shorter
-   hunt showed a bare "–" there, core-loop play 2026-10-30); Level XP per hour before bonuses only when the server sent
-   it (premium, the 10-19 analyzer ruling). XP here is LEVEL XP; training XP is the premium analyzer's Training tab
-   (Tyler 2026-10-22). */
-const STATS = Object.freeze([['ms', 'Time', clock], ['kills', 'Monsters', whole], ['xp', 'Level XP', whole], ['gold', 'Gold', gold], ['lootValue', 'Unsold loot value', gold, true],
-  ['balance', 'Balance', gold, true], ['balanceH', 'Balance per hour', gold, true], ['rawXpH', 'Level XP per hour before bonuses', whole, true]]);
+/* THE DETAILS, under the presses: the hunt's balance for everyone, balance per hour once the server rates the hunt (10 minutes of it: a
+   shorter hunt showed a bare "–" there, core-loop play 2026-10-30), Level XP per hour before bonuses only when the server sent it
+   (premium, the 10-19 analyzer ruling). The headline figures (Level XP, Gold, Kills) lead the card in the result block. */
+const STATS = Object.freeze([['balance', 'Balance', gold], ['balanceH', 'Balance per hour', gold], ['rawXpH', 'Level XP per hour before bonuses', whole]]);
 
-/* A TRAINING SESSION'S ROWS (summary-model.js trainingCard), in place of the hunt's: the skill's XP, its level before and after, and the
-   gold the yard took (the house dummy charges none, so it has no row). Each the server's; an unsent one is not shown. */
-const TRAIN_STATS = Object.freeze(['xp', 'level', 'fee']);
-function trainStat(k, tr, hunt) {
-  const skill = skillWord(tr.skill);
-  if (k === 'xp') return tr.xp === null ? null : [t('training.card_xp', { skill }), whole(tr.xp)];
-  if (k === 'level') return tr.to === null ? null : [t('training.card_level', { skill }), tr.from !== null && tr.from < tr.to ? t('training.card_level_up', { from: tr.from, to: tr.to }) : String(tr.to)];
-  const where = trainedBy(hunt);
-  return tr.fee === null || (where && where.place !== 'yard') ? null : [t('training.card_fee'), gold(tr.fee)];
+const plus = (n, fmt) => (Number.isFinite(n) && n > 0 ? '+' + fmt(n) : fmt(n));
+/* A time the server measured, in the away card's words ("45 min", "6 h 2 min"), or '' when it sent none. */
+const took = (ms) => (Number.isFinite(ms) && ms >= 0 ? spanWords(ms) : '');
+
+/**
+ * THE RESULT, FIRST (UI audit 2026-11-18 #1): what the card leads with, every figure the stored summary's (the server's, summary-model.js).
+ * A hunt: its Level line and the skills it raised, then Level XP (an hour under it), Gold (the loot's value under it) and Kills (the time
+ * under it; a called boss counts none, so Time stands there). A TRAINING SESSION (summary-model.js trainingCard): the skill's line from
+ * the server's last stop, its XP, what the yard took (the house dummy charges none) and the time, never the hunt's zeros.
+ */
+function resultOf(cur) {
+  const tr = cur.train;
+  if (tr) {
+    const skill = skillWord(tr.skill), where = trainedBy(cur.hunt);
+    const fee = tr.fee !== null && !(where && where.place !== 'yard');
+    return { level: tr.to !== null ? { name: skill, from: tr.from, to: tr.to } : null, ups: [],
+      figs: [tr.xp !== null ? { key: 'xp', label: t('training.card_xp', { skill }), value: plus(tr.xp, whole) } : null,
+        fee ? { key: 'fee', label: t('training.card_fee'), value: gold(tr.fee) } : null,
+        { key: 'ms', label: t('summary.fig_time'), value: took(cur.ms) || whole(null) }].filter(Boolean) };
+  }
+  const called = !!callOfHunt(cur.hunt);
+  return {
+    level: cur.lvTo !== null ? { name: t('summary.lv_name'), from: cur.lvFrom, to: cur.lvTo } : null,
+    ups: (cur.ups || []).map(([sk, from, to]) => t('summary.skill_up', { skill: skillWord(sk), from, to })),
+    figs: [
+      { key: 'xp', label: t('summary.fig_xp'), value: plus(cur.xp, whole), sub: Number.isFinite(cur.xpH) && cur.xpH > 0 ? t('summary.fig_per_hour', { amount: whole(cur.xpH) }) : '' },
+      { key: 'gold', label: t('summary.fig_gold'), value: plus(cur.gold, gold), sub: Number.isFinite(cur.lootValue) && cur.lootValue > 0 ? t('summary.fig_loot', { gold: gold(cur.lootValue) }) : '' },
+      /* A called boss counts no kill (src/data/boss-calls.js): the reason line says he's down, and "Kills 0" would say he isn't. */
+      called ? { key: 'ms', label: t('summary.fig_time'), value: took(cur.ms) || whole(null) }
+        : { key: 'kills', label: t('summary.fig_kills'), value: whole(cur.kills), sub: took(cur.ms) ? t('summary.fig_in', { time: took(cur.ms) }) : '' },
+    ],
+  };
 }
 
 /** The bag is at the server's cap and the server sells a next rung. */
@@ -100,16 +122,17 @@ export function renderHuntSummary() {
     + '<p class="hs-note hsum-none">No finished hunts yet</p>'
     + '<section class="hsum-live"><h3 class="hw-ledger-head is-on">Just now</h3><ul class="hsum-falls hsum-live-falls"></ul></section>'
     + '<section class="hsum-card">'
-    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header><p class="hsum-reason"></p><p class="hsum-series" hidden></p><p class="hsum-loss" hidden></p>'
+    + '<header class="hsum-head"><h3 class="hsum-title"></h3><p class="hsum-when"></p></header>'
+    /* THE RESULT, FIRST (UI audit 2026-11-18 #1: three chores led the card and every number sat under the fold): the Level line, the three
+       figures, then why it ended (../result-block.js, the away card's block too) */
+    + resultHtml() + '<p class="hsum-reason"></p><p class="hsum-series" hidden></p><p class="hsum-loss" hidden></p>'
     + climbCardHtml()
-    /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps right under the reason, each one press with its count and
-       value (../back-in-town.js); the first open one is the card's one gold press, and a done one stays, ticked. Above the numbers, so the
-       first step's press is in view as the window opens (under them it sat behind the sticky foot at 1440x900). */
-    + '<section class="hsum-town"><h4 class="hw-ledger-head hsum-h-town is-on">' + esc(t('summary.town_head')) + '</h4><ul class="hsum-steps"></ul></section>'
-    /* TOP LOOT above the numbers (first-30 play 2026-11-12: the first gear drop sat under the sticky foot, out of sight) */
+    /* TOP LOOT next (first-30 play 2026-11-12: the first gear drop sat under the sticky foot, out of sight) */
     + '<h4 class="hw-ledger-head hsum-h-loot">Top loot</h4><ul class="hsum-list hsum-loot"></ul>'
-    + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('')
-    + TRAIN_STATS.map((k) => '<div class="hsum-stat" hidden><dt data-train-label="' + k + '"></dt><dd data-train="' + k + '"></dd></div>').join('') + '</dl>'
+    /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as steps, each one press with its count and value (../back-in-town.js);
+       the first open one is the card's one gold press, and a done one stays, ticked. After the result and the loot (UI audit 2026-11-18 #1);
+       the window grows to its content, so they are in view as it opens. */
+    + '<section class="hsum-town"><h4 class="hw-ledger-head hsum-h-town is-on">' + esc(t('summary.town_head')) + '</h4><ul class="hsum-steps"></ul></section>'
     /* The presses and their answer stay in reach: the reason and the numbers pushed them under a 1366x768 window's fold, so a hunt that
        ran out of stamina opened with no press in sight (door panel 2026-11-04). */
     + '<div class="hsum-foot"><div class="hsum-actions">'
@@ -123,6 +146,7 @@ export function renderHuntSummary() {
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
+    + '<dl class="hsum-stats">' + STATS.map(([k, label]) => '<div class="hsum-stat"><dt>' + label + '</dt><dd data-stat="' + k + '"></dd></div>').join('') + '</dl>'
     + '<h4 class="hw-ledger-head hsum-h-sup">Supplies used</h4><ul class="hsum-list hsum-sup"></ul>'
     + '<h4 class="hw-ledger-head hsum-h-deaths">What happened</h4><ul class="hsum-falls hsum-deaths"></ul>'
     + '</section>'
@@ -197,22 +221,14 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     /* A lost called fight: where it was lost and what answers it (hunt-view/boss-loss.js). */
     text(root.querySelector('.hsum-loss'), cur.loss || '');
     prop(root.querySelector('.hsum-loss'), 'hidden', !cur.loss);
-    for (const [k, , fmt, onlySent] of STATS) {
+    patchResult(root.querySelector('.hres'), resultOf(cur));
+    /* the details: each only when the server sent it, and none on a training card */
+    for (const [k, , fmt] of STATS) {
       const dd = root.querySelector('[data-stat="' + k + '"]');
       text(dd, fmt(cur[k]));
-      prop(dd.parentNode, 'hidden', !!onlySent && (cur[k] === null || cur[k] === undefined));
-      /* A called boss counts no kill (src/data/boss-calls.js): the reason line says he's down, and "Monsters 0" would say he isn't. */
-      if (k === 'kills' && callOfHunt(cur.hunt)) prop(dd.parentNode, 'hidden', true);
-      /* A training session's card is its time and the skill's rows below, never the hunt's zeros */
-      if (cur.train && k !== 'ms') prop(dd.parentNode, 'hidden', true);
+      prop(dd.parentNode, 'hidden', !!cur.train || cur[k] === null || cur[k] === undefined);
     }
-    for (const k of TRAIN_STATS) {
-      const row = cur.train ? trainStat(k, cur.train, cur.hunt) : null;
-      const dd = root.querySelector('[data-train="' + k + '"]');
-      prop(dd.parentNode, 'hidden', !row);
-      text(root.querySelector('[data-train-label="' + k + '"]'), row ? row[0] : '');
-      text(dd, row ? row[1] : '');
-    }
+    cls(root.querySelector('.hsum-stats'), 'is-empty', !!cur.train || STATS.every(([k]) => cur[k] === null || cur[k] === undefined));
     const loot = cur.loot.map(([it, n]) => ({ it, n }));
     cls(root.querySelector('.hsum-h-loot'), 'is-on', loot.length > 0);
     itemLines(root.querySelector('.hsum-loot'), ctx, loot);

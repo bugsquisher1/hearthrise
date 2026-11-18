@@ -47,6 +47,8 @@
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
 import { readFile, mkdir } from 'node:fs/promises';
+import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
@@ -493,7 +495,14 @@ async function main() {
   for (const [name, file, from, to] of chosen) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true });
+    let fails = await pageRules({ [file]: text.replace(from, to) }, null, { stopAtFirst: true });
+    /* DP-0 runs in node on the files themselves, never on the page's served overrides: a mutant only DP-0 can see (the boss room's
+       gap, release run 44238664696) is judged on a throwaway copy of src/ outside the tree, so it is caught where its rule lives */
+    if (!fails.length) {
+      const tmp = mkdtempSync(join(tmpdir(), 'dp-mutant-'));
+      try { cpSync(join(ROOT, 'src'), join(tmp, 'src'), { recursive: true }); writeFileSync(join(tmp, file), text.replace(from, to)); fails = await pure(tmp); }
+      finally { rmSync(tmp, { recursive: true, force: true }); }
+    }
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

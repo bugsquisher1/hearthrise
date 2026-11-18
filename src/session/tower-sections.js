@@ -13,9 +13,11 @@
 //     party [{ seat, name, floor, outfit }],
 //     field { rank | over, above [{ name, floor, at, outfit }], below [...] } | absent,
 //     chest { on, dry, opens, per_call, own_pm, own_family, warmth_pm, week_ends, cinders { bag, storage, ring },
-//             families [{ family, name, max, held_max, opened, held }],
+//             families [{ family, name, max, held_max, opened, held, dry, warmth_pm }],
 //             keys [{ key, family, item, name, from, held { bag, storage, ring }, base_pm, chance_ppm, stokes_default, stokes [{ n, pm, cost }],
-//                     inside { item: qty }, ready, skill_plus, outfits [{ outfit, item, pm }] }] } }
+//                     inside { item: qty }, ready, skill_plus, outfits [{ outfit, item, pm }],
+//                     gear, ground, helmet_pm, armor [{ slot, weight, item }] (2027-05-08-catacombs.sql: a Catacomb key's armor) }] } }
+// The chest, the field and the board's place are read the same way for the Catacombs (./catacomb-sections.js imports them).
 //
 // CHECKPOINTS (Tyler 2026-11-16, lane/c-tower-checkpoints; replaces the week that started 60 floors under your best): a climb starts after
 // any landing up to the RECORD (the hero's best floor; in a party, its lowest seat's), the best by default. `checkpoints` is the server's
@@ -61,7 +63,7 @@ function rulesOf(r) {
   return Object.values(o).some((v) => v === null) ? null : Object.freeze(o);
 }
 
-function paysOf(p) {
+export function paysOf(p) {
   if (!isObj(p) || nat(p.xp_pm) === null || nat(p.death_loss_pm) === null) return null;
   return Object.freeze({ xpPm: p.xp_pm, coin: p.coin === true, drops: p.drops === true, bestiary: p.bestiary === true,
     deathLossPm: p.death_loss_pm, blessings: p.blessings === true, stamina: p.stamina === true });
@@ -100,14 +102,14 @@ function placeOf(p) {
 }
 /* The field (the Tower board's, 2027-04-30-tower-board.sql: the hero's place and the heroes just above and below), or null while the
    server sends none (a hero with no floor on the board). */
-function fieldOf(f) {
+export function fieldOf(f) {
   const place = placeOf(f);
   if (!place) return null;
   return Object.freeze({ rank: place.rank, over: place.over, above: heroes(f.above, 3), below: heroes(f.below, 3) });
 }
 /* The last climb's place on the board (last.board): its rank when it ended, how many heroes it passed and the best of them (a name, or
    null when it passed nobody or that hero left the board), or null when the server sends none. */
-function climbPlaceOf(b) {
+export function climbPlaceOf(b) {
   const place = placeOf(b);
   if (!place || nat(b.passed) === null) return null;
   return Object.freeze({ rank: place.rank, over: place.over, passed: b.passed, passedName: b.passed > 0 ? name(b.name) : null });
@@ -132,7 +134,9 @@ function familyOf(f) {
   if (!isObj(f) || !word(f.family) || nat(f.opened) === null || pos(f.max) === null) return null;
   const held = nat(f.held), maxHeld = pos(f.held_max);
   return Object.freeze({ family: f.family, name: name(f.name), openedWeek: f.opened, maxWeek: f.max,
-    held: held !== null && maxHeld !== null ? held : null, maxHeld: held !== null && maxHeld !== null ? maxHeld : null });
+    held: held !== null && maxHeld !== null ? held : null, maxHeld: held !== null && maxHeld !== null ? maxHeld : null,
+    /* the family's own warmth (2027-05-08-catacombs.sql chest_warmth: a weapon never cools an armor streak), null when not sent */
+    dry: nat(f.dry), warmthPm: nat(f.warmth_pm) });
 }
 
 function keyOf(k) {
@@ -154,10 +158,17 @@ function keyOf(k) {
     stokesDefault: def === 0 || stokes.some((s) => s.n === def) ? def : null,
     stokes: Object.freeze(stokes), inside: Object.freeze(inside), ready: k.ready === true, skillPlus: pos(k.skill_plus),
     outfits: Object.freeze(outfits),
+    /* what a hit pays (2027-05-08-catacombs.sql): 'weapon' (a Tower key) or 'armor' (a Catacomb key: a helmet or boots, `helmetPm` of them
+       helmets, each slot and weight's piece the server's `armor` row); `ground` the run ground whose doors hand it out */
+    gear: k.gear === 'armor' ? 'armor' : 'weapon', ground: word(k.ground),
+    helmetPm: Number.isSafeInteger(k.helmet_pm) && k.helmet_pm >= 0 && k.helmet_pm <= 1000 ? k.helmet_pm : null,
+    armor: Object.freeze((Array.isArray(k.armor) ? k.armor : []).slice(0, 12)
+      .filter((a) => isObj(a) && word(a.slot) && word(a.weight) && word(a.item))
+      .map((a) => Object.freeze({ slot: a.slot, weight: a.weight, item: a.item }))),
   });
 }
 
-function chestOf(c) {
+export function chestOf(c) {
   if (!isObj(c) || !Array.isArray(c.keys)) return null;
   const cinders = heldOf(c.cinders);
   return Object.freeze({

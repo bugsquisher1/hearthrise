@@ -74,7 +74,7 @@ import { trackOnce } from '../net/observability.js?v=0.2.139';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.139';
 import { endedWords as trainingEndWords } from './training-words.js?v=0.2.139';
 import { spellWatch, movesOnBar } from './spell-news.js?v=0.2.139';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.139';
+import { runRulesOf } from '../data/tower.js?v=0.2.139';
 
 const tallyLabel = (task) => { const row = tallyTask(task); return row ? row.label : 'a tally'; };
 
@@ -179,9 +179,12 @@ function candidatesOf(cs, viewed) {
   /* A death ends the hunt (CORE_MODEL.md §4): the death alert stands in for the ended one. The character
      on screen gets the death POPUP instead (death-popup.js, Tyler 2026-10-19), and a death whose popup was
      already dismissed never comes back as a side line. */
-  /* THE BURNING TOWER: the Hearth spat the hero out, no death (no popup either: death-popup.js); an ended line in the Tower's words */
-  if (h.ended && h.endReason === 'died' && h.huntId === TOWER_RULES.hunt) {
-    out.push(/** @type {any} */ ({ id: 'ended:' + h.sessionId, kind: 'ended', session: null, quiet: viewed, text: t('tower.alert_spat', { name: who(cs) }) }));
+  /* A RUN GROUND, no death (no popup either: death-popup.js): the Burning Tower's Hearth spat the hero out, or Keeper Dunn carried it up
+     out of the Catacombs; an ended line in the run's own words */
+  const run = h.ended && h.endReason === 'died' ? runRulesOf(h.huntId) : null;
+  if (run) {
+    out.push(/** @type {any} */ ({ id: 'ended:' + h.sessionId, kind: 'ended', session: null, quiet: viewed,
+      text: run.family === 'catacomb' ? t('catacomb.alert_carried', { name: who(cs) }) : t('tower.alert_spat', { name: who(cs) }) }));
   } else if (h.ended && h.endReason === 'died') {
     if (!viewed && !deathSeen(cs, h.sessionId)) out.push({ id: 'death:' + h.sessionId, kind: 'death', session: h.sessionId,
       text: t('summary.died_in', { name: who(cs), ground: where }) });

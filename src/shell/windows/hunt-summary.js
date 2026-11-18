@@ -45,7 +45,7 @@ import { skillWord } from '../training-words.js?v=0.2.139';
 import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.139';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.139';
 import { towerOf } from '../../session/tower-sections.js?v=0.2.139';
-import { TOWER_RULES } from '../../data/tower.js?v=0.2.139';
+import { TOWER_RULES, runRulesOf } from '../../data/tower.js?v=0.2.139';
 import { climbEnd } from '../tower-words.js?v=0.2.139';
 import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.139';
 import { targetOf, gotoKey } from '../goto.js?v=0.2.139';
@@ -53,7 +53,9 @@ import { targetOf, gotoKey } from '../goto.js?v=0.2.139';
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
 const againOffWords = (cur) => {
-  if (cur.hunt === TOWER_RULES.hunt) return t('tower.again_off');
+  /* a run starts only at its own door, the Tower window: the Tower's Climb tab, a Catacombs wing's Catacombs tab */
+  const run = runRulesOf(cur.hunt);
+  if (run) return run.family === 'catacomb' ? t('catacomb.again_off') : t('tower.again_off');
   const room = roomOfHunt(cur.hunt);
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
   return callOfHunt(cur.hunt) ? 'Call him out from the ground\'s page' : 'Hunt settings not saved';
@@ -243,8 +245,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     itemLines(root.querySelector('.hsum-sup'), ctx, sup);
     cls(root.querySelector('.hsum-h-deaths'), 'is-on', cur.deaths.length > 0);
     lines(root.querySelector('.hsum-deaths'), ctx.doc, cur.deaths);
-    /* a climb starts only at its own door, the Tower window (hr_tower_start): Hunt again has nothing to send for one */
-    const again = cur.hunt === TOWER_RULES.hunt ? null : huntAgainOf(cur);
+    /* a climb or a descent starts only at its own door, the Tower window (hr_tower_start, hr_catacomb_start): Hunt again has nothing to
+       send for one */
+    const again = runRulesOf(cur.hunt) ? null : huntAgainOf(cur);
     const route = again ? againRoute(partyMembershipOf(cs), again.hunt) : null;
     const go = root.querySelector('[data-hs-act="again"]');
     /* a training card's press opens the Training window on its Start (its own door, hr_training_start) */

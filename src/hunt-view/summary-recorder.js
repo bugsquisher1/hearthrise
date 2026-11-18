@@ -18,7 +18,7 @@ import { createRecorder, endedSessionOf, buildSummary, withSummary, withTraining
 import { trainingOf } from '../session/training-sections.js?v=0.2.139';
 import { levelOf } from '../session/character-sections.js?v=0.2.139';
 import { skillLevelsOf } from '../session/item-sections.js?v=0.2.139';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.139';
+import { runRulesOf } from '../data/tower.js?v=0.2.139';
 import { t } from '../render/player-text.js?v=0.2.139';
 
 const ATTACHED = new WeakMap();
@@ -53,10 +53,13 @@ export const whoOf = (u, fall) => {
   return { name: fall.an || 'Someone', vitals: v.self || undefined, others: v.others };
 };
 
-/* HOW A FALL IS SAID on a hunt: the default (death-explain.js "died", "The killing blow"), and on the Burning Tower its own, since a
-   Tower death costs nothing (session-modes.js `tower`): "Ashby was spat out", "The last blow". */
+/* HOW A FALL IS SAID on a hunt: the default (death-explain.js "died", "The killing blow"), and on a run ground its own, since a death
+   there costs nothing (session-modes.js `tower`, `catacomb`): the Burning Tower's "Ashby was spat out", the Catacombs' "Ashby was carried
+   up" (Keeper Dunn carries the hero up), each with "The last blow". */
 export function fallWordsOf(hunt) {
-  return hunt === TOWER_RULES.hunt ? { fell: (name) => t('tower.fell', { name }), blow: t('tower.fell_blow') } : undefined;
+  const run = runRulesOf(hunt);
+  if (!run) return undefined;
+  return { fell: (name) => (run.family === 'catacomb' ? t('catacomb.fell', { name }) : t('tower.fell', { name })), blow: t('tower.fell_blow') };
 }
 
 /** The summaries the residue holds for this character, newest first. */

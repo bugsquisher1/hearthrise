@@ -8,11 +8,12 @@
 // switch off the Hearth opens the bag as before and nothing here exists. One component: a docked window on a desktop, a slide-out sheet on
 // a phone (the window manager's).
 //
-// TWO TABS. Climb: THE TOWER (../tower-stage.js: the chimney, a landing every 10th floor in its key's metal, the dark above the best, the
+// THREE TABS (the Catacombs' only with its section). Climb: THE TOWER (../tower-stage.js: the chimney, a landing every 10th floor in its key's metal, the dark above the best, the
 // heroes on it: you, your party, the field's rivals when the server sends a field) beside the column of labels (Best Floor, Next Key and
 // its ticks, what a climb pays), and on the foot the Start Floor beside Enter. A start is picked by tapping a landing or in the Start Floor
 // select, both the same pick, and both only the CHECKPOINTS the server lists (Tyler 2026-11-16: every landing up to the hero's best, a
-// party's lowest seat's; the highest by default). Chest: ./tower-chest.js. The Story link shows Tyler's text. Every number is the section's
+// party's lowest seat's; the highest by default). Chest: ./tower-chest.js. Catacombs (./tower-catacombs.js, only while the server sends the
+// `catacomb` section): the Unmarked Catacombs' descent, its wings, vault doors and keys. The Story link shows Tyler's text. Every number is the section's
 // (CLAUDE.md §1, §6): the window works none out and sends only the picked checkpoint. Enter is off, and says why above it, for what the
 // screen already knows (a hunt, a seat that does not lead its party, the door's Level from the server's `entry_gates` section with each seat
 // under it, Tyler 2026-11-18; a checkpoint the server did not list); the server still judges
@@ -36,18 +37,30 @@ import { runIntent } from '../intent-words.js?v=0.2.139';
 import { rankWords } from '../tower-words.js?v=0.2.139';
 import { stageHtml, stageModel, patchStage, climbLabels, scrollToFloor } from '../tower-stage.js?v=0.2.139';
 import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.139';
+import { catacombOf } from '../../session/catacomb-sections.js?v=0.2.139';
+import { catacombHtml, patchCatacombs, actCatacomb } from './tower-catacombs.js?v=0.2.139';
 
-const TABS = Object.freeze(['climb', 'chest']);
+/* The tabs, in order, each with its label row. Catacombs (./tower-catacombs.js) shows only while the server sends the `catacomb` section
+   (the unmarked_catacombs switch, 2027-05-08-catacombs.sql). */
+const TABS = Object.freeze(['climb', 'catacomb', 'chest']);
+const TAB_WORDS = Object.freeze({ climb: 'tower.tab_climb', catacomb: 'catacomb.tab', chest: 'tower.tab_chest' });
+/** Is tab `id` offered now (a Catacombs tab needs its section)? Pure over the sections. */
+const offered = (cs, id) => TABS.includes(id) && (id !== 'catacomb' || !!catacombOf(cs));
 const STORY = Object.freeze(['tower.story_1', 'tower.story_2', 'tower.story_3', 'tower.story_4', 'tower.story_5']);
 /* the Climb column's label rows, in order: [id, label row] (each value is filled from the section, a row the server does not say hidden) */
 const STATS = Object.freeze([['xp', 'tower.stat_xp'], ['death', 'tower.stat_death'], ['uses', 'tower.stat_uses'], ['time', 'tower.stat_time'],
   ['party', 'tower.stat_party']]);
 const SCRATCH = new WeakMap();
 /* Display scratch per CharacterSession: the tab, the story shown, the checkpoint picked (null: the highest the server lists), the stage
-   brought to the hero once a showing, the re-read an opening owes (`stale`), the chest's. */
+   brought to the hero once a showing, the re-read an opening owes (`stale`), the chest's (the key and the key family shown), the
+   Catacombs tab's (the wing pressed, the door picked per wing, the doors brought to the pick once a showing). */
 export const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
-  if (!s) { s = { tab: 'climb', story: false, landing: null, scrolled: false, key: null, pending: false, msg: '', result: null, stale: false }; SCRATCH.set(cs, s); }
+  if (!s) {
+    s = { tab: 'climb', story: false, landing: null, scrolled: false, key: null, fam: null, pending: false, msg: '', result: null, stale: false,
+      wing: null, doors: {}, catScrolled: false };
+    SCRATCH.set(cs, s);
+  }
   return s;
 };
 
@@ -88,11 +101,11 @@ function climbHeroes(cs, tw) {
 
 /** The skeleton (built once per opening). */
 export function renderTower(ctx) {
-  if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.msg = ''; sc.result = null; sc.story = false; sc.scrolled = false; sc.stale = true; }
+  if (ctx && ctx.character) { const sc = scratchOf(ctx.character); sc.msg = ''; sc.result = null; sc.story = false; sc.scrolled = false; sc.catScrolled = false; sc.stale = true; }
   return '<div class="tt-tower">'
     + '<div class="tt-top"><div class="hw-tabs" role="tablist">'
-    + TABS.map((id, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '">'
-      + esc(t('tower.tab_' + id)) + '</button>').join('')
+    + TABS.map((id, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"'
+      + (id === 'catacomb' ? ' hidden' : '') + '>' + esc(t(TAB_WORDS[id])) + '</button>').join('')
     + '</div><button type="button" class="hh-tool tt-story-link" data-hs-act="story" aria-expanded="false">' + esc(t('tower.story_link')) + '</button></div>'
     + '<section class="tt-story" hidden>' + STORY.map((k) => '<p>' + esc(t(k)) + '</p>').join('') + '</section>'
     + '<section class="hw-pane tt-pane" data-pane="climb">'
@@ -115,6 +128,7 @@ export function renderTower(ctx) {
     + '<p class="hw-why tt-off-why"></p><ul class="hw-before tt-gate"></ul>'
     + '<button type="button" class="hh-tool is-primary tt-go" data-hs-act="tower-enter">' + esc(t('controls.enter')) + '</button></div>'
     + '</div></div></section>'
+    + '<section class="hw-pane tt-pane tk-pane" data-pane="catacomb">' + catacombHtml() + '</section>'
     + '<section class="hw-pane tt-pane" data-pane="chest">' + chestHtml() + '</section>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
@@ -228,17 +242,25 @@ renderTower.patch = function patchTower(body, ctx) {
   if (!tw) { if (ctx.wm && typeof ctx.wm.close === 'function') ctx.wm.close('tower'); return; }
   const sc = scratchOf(cs);
   const want = ctx.wm && typeof ctx.wm.takeTab === 'function' ? ctx.wm.takeTab('tower') : null;
-  if (want && TABS.includes(want)) { sc.tab = want; sc.msg = ''; sc.story = false; }
+  if (want && offered(cs, want)) { sc.tab = want; sc.msg = ''; sc.story = false; }
+  /* THE CATACOMBS TAB only while the server sends its section: switched off, the tab is gone and the window shows the Climb */
+  const cat = catacombOf(cs);
+  if (!offered(cs, sc.tab)) sc.tab = 'climb';
+  prop(root.querySelector('.hw-tab[data-tab="catacomb"]'), 'hidden', !cat);
   /* THE BOARD MOVES WITHOUT THIS HERO: another player's climb changes its rank and rivals, which only its own envelope states (QA gate
      2026-11-17: "Rank #2" stood until a reload). One re-read each opening, in town (a climb's own re-reads keep it fresh while it runs);
      the account's other heroes re-read when one of its climbs ends (src/session/account-session.js). */
   if (sc.stale) { sc.stale = false; const h = huntOf(cs); if (!(h && !h.ended) && typeof cs.load === 'function') cs.load(); }
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.tt-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
+  /* the Story is the Tower's (Tyler's, locked): the Catacombs tab draws none (its story is the designer's draft for Tyler) */
+  if (sc.tab === 'catacomb') sc.story = false;
+  prop(root.querySelector('.tt-story-link'), 'hidden', sc.tab === 'catacomb');
   prop(root.querySelector('.tt-story'), 'hidden', !sc.story);
   attr(root.querySelector('.tt-story-link'), 'aria-expanded', String(sc.story));
   text(root.querySelector('.tt-story-link'), t(sc.story ? 'tower.story_hide' : 'tower.story_link'));
   if (sc.tab === 'climb') patchClimb(root, cs, tw, sc);
+  else if (sc.tab === 'catacomb' && cat) patchCatacombs(root.querySelector('[data-pane="catacomb"]'), cs, cat, sc, towerBeforeLines);
   else patchChest(root.querySelector('[data-pane="chest"]'), cs, tw, sc);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
@@ -259,12 +281,13 @@ renderTower.act = function actTower(ctx, body, action, ev, el) {
   const tw = towerOf(cs);
   if (!tw) return false;
   if (action === 'floor') { if (ev.type === 'change') { pick(sc, tw, el.value); repaint(); } return true; }
+  if (actCatacomb(ctx, cs, sc, action, ev, el, repaint)) return true;
   if (ev.type !== 'click') return false;
   if (action === 'floor-pick') { if (!sc.pending && pick(sc, tw, el.getAttribute('data-landing'))) repaint(); return true; }
   if (action === 'tab') {
     const id = el.getAttribute('data-tab');
     /* a tab press shows that tab: the Story folds away (QA gate 2026-11-17: it stayed drawn over Climb and Chest) */
-    if (TABS.includes(id)) { sc.tab = id; sc.msg = ''; sc.story = false; sc.scrolled = false; body.scrollTop = 0; repaint(); }
+    if (offered(cs, id)) { sc.tab = id; sc.msg = ''; sc.story = false; sc.scrolled = false; sc.catScrolled = false; body.scrollTop = 0; repaint(); }
     return true;
   }
   if (action === 'story') { sc.story = !sc.story; repaint(); return true; }

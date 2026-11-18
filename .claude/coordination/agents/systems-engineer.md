@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-18 · lane/a-return-cards-2 (post-patch audit B3 B4 B5)
+1. *"Gold reserve reached" was a real stop, a wording gap.* Played: a solo Level 5 in the Sewer bought 1,160 gp of store food for 680 gp of coins in 19 min; the purse went 787 to 307 against the 300 gp reserve. The card now says both numbers and the reserve (server tally + `hunt_settings.gold_floor`, now one reader, hunt-sections goldFloorOf). Whether that hunt should lose money is the designer's.
+2. *A session that is no longer the newest still has an analyzer.* `hr_hunt_analyzer(p_slot, p_session)` is a live read; the yard's card reads the hunt it took over once (session/past-hunt.js) instead of a new section.
+3. *Two dedupe layers hide each other's mutant.* The once-rule needed a rescan while the read is in flight to be provable.
+4. *Hero names are world-unique in the local world:* a second "Solo" never gets past createHero (a 120 s canvas timeout, not load).
+
 ## 2026-11-18 · lane/a-return-cards (full-game audit A2 A3 A6 A17 A22 A23 A24: the return moment lies or goes silent)
 1. *A return line keyed on "the newest session is the stamped one" goes silent whenever the server opens the next session itself.* The after-hunt plan's yard did exactly that (A2). The server already says the link (`hunt_after.last`, the newest ended hunt, while the yard runs) and when the yard began (`hunt_from`); the stamp now carries its ground (`h`) and the plan's skill (`k`/`sl`/`sx`), so the hunt, its death row and the yard are all told from server numbers.
 2. *"Gold" on a return is the purse's own delta.* The analyzer already sends `waste` (the store's gold); stamping it beside `coins` makes the card's Gold the coins less the supplies (played: card +2,397, purse +2,397). A stamp without it says no gold rather than the coins alone.

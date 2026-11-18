@@ -116,7 +116,7 @@ try {
     const q = await enter('benchhand');
     const line = await cardOf(q, 30000);
     await q.shot('ar3-bench');
-    step('AR-3 the bench run is told, with when and why it stopped', !!line && /Benchy made Normal Plank, \+[\d,]+ Normal Plank, Crafting \d+ to \d+\. It stopped about .+ in: out of Normal Log\./.test(line), line);
+    step('AR-3 the bench run is told, with when and why it stopped', !!line && /Benchy made Normal Plank\. \+[\d,]+ Normal Plank, Crafting \d+ to \d+\. It stopped about .+ in, out of Normal Log\./.test(line), line);
     await q.close();
   }
 

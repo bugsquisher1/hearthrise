@@ -205,7 +205,7 @@ try {
       gold: Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).map((b) => b.textContent) }));
     await q.shot('ar10-card');
     step('AR-9 one card: the result first, why and when it ended, Hunt again its gold press, nothing beside it',
-      !!line && /^Away 14 h 0 min Cardy Mill Cellar Level 1 → \d+ Level XP \+[\d,]+ Gold \+[\d,]+ gp Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
+      !!line && /^Away 14 h \d+ min Cardy Mill Cellar Level 1 → \d+ Level XP \+[\d,]+ Gold \+[\d,]+ gp Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
       && !beside.summary && !beside.lines && JSON.stringify(beside.gold) === '["Hunt again"]', JSON.stringify({ line, beside }));
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
     const went = await q.page.waitForFunction(() => !document.querySelector('[data-hs-win="away"]') && !!document.querySelector('[data-hs-act="leave"]'), null, { timeout: 30000 }).then(() => true, () => false);

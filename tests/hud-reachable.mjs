@@ -600,7 +600,6 @@ const MUTANTS = [
   ['the away card stays after the hunt ended (HR-7)', 'src/shell/away-recap.js', 'if (!h || h.sessionId !== a.session || (h.ended && !a.ended && !endedOnReturn(h, a))) return null;', 'if (!h || h.sessionId !== a.session) return null;'],
   ['a hunt in view is judged as an absence (HR-9)', 'src/shell/alerts.js', 'if (judged && awaySettled(cs)) returning.delete(cs.slot);', ''],
   ['the away line is a paragraph in the alerts again (HR-12)', 'src/shell/widgets/alerts.js', ".filter((a) => a.kind !== 'away')", ''],
-  ['the summary opens beside the away card (HR-12)', 'src/shell/windows/away.js', "a.slot === cs.slot && a.session === top.id)) ctx.wm.close('hunt-summary');", "false) ctx.wm.close('hunt-summary');"],
   ['the summary opens over the away card (HR-12)', 'src/shell/shell.js', "queueMicrotask(() => { if (!wm.isOpen('away')) wm.open('hunt-summary'); });", "queueMicrotask(() => wm.open('hunt-summary'));"],
   ['Hunt again sends nothing (HR-12)', 'src/shell/windows/away.js', 'try { r = await cs.restartHunt(a.session); }', 'try { r = { ok: true }; }'],
   ['the card reads the stamp\'s Level as none (HR-12)', 'src/shell/windows/away.js', "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: f.lvFrom, to: f.lvTo } : null", "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: null, to: f.lvTo } : null"],

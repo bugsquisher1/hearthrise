@@ -162,11 +162,16 @@ renderAway.follow = function followAway(ctx, refresh) {
     if (open && !up) dismissAll(ctx);
     open = up;
     const list = linesOf(ctx);
-    if (!up && list.some((a) => !shown.has(a.key)) && !ctx.wm.isOpen('death')) { for (const a of list) shown.add(a.key); open = true; ctx.wm.open('away'); }
+    if (!up && list.some((a) => !shown.has(a.key)) && !ctx.wm.isOpen('death')) {
+      for (const a of list) shown.add(a.key);
+      open = true;
+      ctx.wm.open('away');
+      /* ...over the summary of the same hunt if that opened first (shell.js opens none while the card is up); one the player opens later stays */
+      const cs = ctx.character, top = cs ? summariesOf(cs)[0] : null;
+      if (ctx.wm.isOpen('hunt-summary') && top && list.some((a) => a.slot === cs.slot && a.session === top.id)) ctx.wm.close('hunt-summary');
+    }
     if (!open) return;
     if (!list.length) { ctx.wm.close('away'); return; }
-    const cs = ctx.character, top = cs ? summariesOf(cs)[0] : null;
-    if (ctx.wm.isOpen('hunt-summary') && top && list.some((a) => a.slot === cs.slot && a.session === top.id)) ctx.wm.close('hunt-summary');
     refresh('away');
   };
   /* the window manager and the centre both call back while a step opens or closes: one step at a time, then once more for what it moved */

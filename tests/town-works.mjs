@@ -142,7 +142,7 @@ export const MUTANTS = {
   compose_ignores_swap: { arm: 'TW-MAP', why: 'the stage\'s art is never drawn',
     js: ['src/world/core/compose.js', [["place(swap || o.id, o.x, o.y, { fp: [o.fw, o.fh] });", 'place(o.id, o.x, o.y, { fp: [o.fw, o.fh] });']]] },
   lot_is_an_effect: { arm: 'TW-MAP', why: 'the lot draws over everyone, as the fire does',
-    js: ['src/data/world/town/sites.js', [["export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }),", "export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }), Object.freeze({ id: 'havora_weighhouse_staked', x: 98, y: 60, lift: 0 }),"]]] },
+    js: ['src/data/world/town/sites.js', [["export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 99, dx: 2 }),", "export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 99, dx: 2 }), Object.freeze({ id: 'havora_weighhouse_staked', x: 98, y: 60, lift: 0 }),"]]] },
   /* THE TAPS */
   plaque_is_a_prop: { arm: 'TW-TAP', why: 'a tap on the plaque opens nothing', js: ['src/data/world/sink-taps.js', [["  havora_weighhouse_plaque: works,\n", '']]] },
   finished_is_a_prop: { arm: 'TW-TAP', why: 'the finished Weighhouse is no door to the Market', js: ['src/data/world/sink-taps.js', [["  havora_weighhouse_finished: Object.freeze({ open: 'window', window: 'market' }),\n", '']]] },

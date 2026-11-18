@@ -88,7 +88,8 @@ export const CLASSES = Object.freeze({
   // A big town hall-sized building round a plaza (Hearth Square's general store, depot, bank, guild
   // hall: 10-14 tiles wide). Drawn like a building; the monument (landmark) stays taller.
   hall: row({ body: [200, 320], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
-  landmark: row({ body: [240, 352], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // The Great Hearth redrawn (2026-11-17: a slate cupola and finial over a tapering stack) stands 390 px: the band's top rose 352 -> 360.
+  landmark: row({ body: [240, 360], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   // A whole town LOT drawn as one sprite: a building with its yard, fence, wall or towers (Havora's gatehouse,
   // tavern, guilds, harbour office and homes P01-P15). Its footprint is the lot; a deep lot's art stands taller
   // than a hall (footprint depth plus the facade), so its own row. Drawn like a building.

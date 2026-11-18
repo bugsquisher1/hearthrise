@@ -30,8 +30,9 @@ const piece = (clip, x, y) => Object.freeze({ clip, at: Object.freeze([x, y]) })
 const chimney = (x, y) => Object.freeze({ clip: 'chimney_smoke', at: Object.freeze([x, y]) });
 
 export const EMITTERS = Object.freeze({
-  /* the Great Hearth: its flue's smoke, and sparks lifting out of the fire's mouth (the fire's anchor is hearth px 176, 262) */
-  great_hearth: Object.freeze([Object.freeze({ clip: 'hearth_smoke', at: Object.freeze([176, 3]) }), Object.freeze({ clip: 'hearth_embers', at: Object.freeze([176, 250]) })]),
+  /* the Great Hearth: its flue's smoke out of the slate cupola's openings, and sparks lifting out of the fire's mouth (the fire's anchor is
+     hearth px 178, 313: the Hearth redrawn 2026-11-17) */
+  great_hearth: Object.freeze([Object.freeze({ clip: 'hearth_smoke', at: Object.freeze([176, 66]) }), Object.freeze({ clip: 'hearth_embers', at: Object.freeze([178, 298]) })]),
   /* the shacks' stovepipes (P01, P02) and the homes' stacks */
   havora_home_p01: Object.freeze([chimney(217, 2)]),
   /* P02's yard: its two hens peck and its goat nods (town-life.mjs stir: cut from its still twin, SWAYS) */

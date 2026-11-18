@@ -175,7 +175,7 @@ export function problems(env) {
     if (!s) { bad('TL-BEAT', id + ' is not in the townlife atlas'); continue; }
     if (!fps || !s.anims.idle.loop || LIFE_BEAT_FPS % fps !== 0) bad('TL-BEAT', id + ' turns at ' + fps + ' fps, off the ' + LIFE_BEAT_FPS + ' fps beat');
   }
-  const fire = env.manifests.common.sprites.hearth_fire;
+  const fire = env.manifests.hearth.sprites.hearth_fire;   /* the Great Hearth's own set (2026-11-17) */
   if (!fire || fire.anims.idle.fps !== LIFE_BEAT_FPS) bad('TL-BEAT', 'the Great Hearth fire is no longer on the beat (' + (fire && fire.anims.idle.fps) + ' fps): LIFE_BEAT_FPS follows it');
 
   /* TL-DRAW */
@@ -478,7 +478,7 @@ function selftest() {
     'the glints differ between two compiles': { lifeOf: (() => { let n = 0; return withLife((l) => (++n % 2 ? l : l.map((a) => (/^water_glint/.test(a.id) ? Object.assign({}, a, { phase: a.phase + 1 }) : a)))); })() },
     'the smoke turns off the beat': { manifests: sprites('townlife', (s) => Object.assign(s, { chimney_smoke: Object.assign({}, s.chimney_smoke, { anims: { idle: Object.assign({}, s.chimney_smoke.anims.idle, { fps: 6 }) } }) })) },
     'a clip missing from the atlas': { manifests: sprites('townlife', (s) => { delete s.water_glint_b; return s; }) },
-    'the Hearth fire moves off the beat': { manifests: sprites('common', (s) => Object.assign(s, { hearth_fire: Object.assign({}, s.hearth_fire, { anims: { idle: Object.assign({}, s.hearth_fire.anims.idle, { fps: 10 }) } }) })) },
+    'the Hearth fire moves off the beat': { manifests: sprites('hearth', (s) => Object.assign(s, { hearth_fire: Object.assign({}, s.hearth_fire, { anims: { idle: Object.assign({}, s.hearth_fire.anims.idle, { fps: 10 }) } }) })) },
     'compose drops the water light': { composeFrame: (...a) => { const l = composeFrame(...a); return Object.assign({}, l, { sprites: l.sprites.filter((d) => d.kind !== 'life') }); } },
     'the water light drawn over the standing': { composeFrame: (...a) => { const l = composeFrame(...a); const g = l.sprites.filter((d) => d.kind === 'life'); return Object.assign({}, l, { sprites: l.sprites.filter((d) => d.kind !== 'life').concat(g) }); } },
     'smoke drawn among the standing': { composeFrame: (...a) => { const l = composeFrame(...a); const s = l.raised.filter((d) => d.kind === 'life'); return Object.assign({}, l, { raised: l.raised.filter((d) => d.kind !== 'life'), sprites: l.sprites.concat(s) }); } },

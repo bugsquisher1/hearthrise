@@ -18,7 +18,7 @@
 //   assets/ui/tower/heads.png      a hero's head for the tower's markers: the idle south frame's head of each outfit (atlas-heroes),
 //                                  HEAD_W x HEAD_H each, in src/data/hunt-outfits.js OUTFITS order
 //   assets/ui/tower/firebox.png    THE CHEST TAB's scene: the Great Hearth's firebox, the paving in front and the alcoves (FIREBOX)
-//   assets/ui/tower/fire.png       the hearth's own fire loop over it (art/world/common/hearth_fire.png, 8 frames), at FIRE_AT in the scene
+//   assets/ui/tower/fire.png       the hearth's own fire loop over it (art/world/hearth/hearth_fire.png, 8 frames), at FIRE_AT in the scene
 //   assets/ui/tower/chest.png      the chest ON THE LEDGE beside the fire, where the town map puts it (sites.js AMBIENT, chestFoot: the
 //                                  hearth frame's px): tower-art.mjs's idle loop (24 frames: the fire's light, the glint, the seam's breath), at CHEST_AT
 //   assets/ui/tower/chest-glow.png, chest-smoke.png   its green light on the stone (laid additively) and its smoke, the town's own loops,
@@ -33,6 +33,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createImage, encodePNG, decodePNG, crop, blit } from './png.mjs';
 import { RAMPS } from './palette.mjs';
+import { fireAt } from './hearth-fire.mjs';
 import { METALS, drawChestIdle, drawGlow, drawSmoke, FW, FH, ANCHOR, GLOW_ANCHOR, SMOKE_ANCHOR, GW, GH, SW, SH, ITEM_AT } from './tower-art.mjs';
 import { CHEST_KEYS } from '../../src/data/chests.js';
 import { OUTFITS } from '../../src/data/hunt-outfits.js';
@@ -42,7 +43,9 @@ import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (rel) => decodePNG(readFileSync(join(ROOT, rel)));
-const HEARTH = 'art/world/common/great_hearth.png';
+const HEARTH = 'art/world/hearth/great_hearth.png';
+/* the previous Hearth (2026-10-25): the redrawn one tapers under a cupola and has no plain straight course for the Climb tab's stack */
+const STACK = 'art/world-src/havora-hearth/great_hearth-2026-10-25.png';
 const R = (ramp, i) => RAMPS[ramp][i];
 const C = Object.freeze({ K: R('shadow', 0), gold: R('gold', 0), dark: R('iron', 1), i1: R('iron', 1), i2: R('iron', 2), i3: R('iron', 3) });
 const rgb = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
@@ -57,7 +60,7 @@ function fill(img, x, y, w, h, hex) {
 const { COURSE, COURSE_NARROW, LANDING_W, LANDING_W_NARROW, LANDING_H, TICK_W, TICK_H, EMBER, HEAD_W, HEAD_H, FIREBOX, FIRE_AT, CHEST_AT, GLOW_AT, SMOKE_AT, REVEAL_AT } = TOWER_ART;
 
 /** One course of the chimney's stack, cut from the Great Hearth (its straight top: the same stones the town shows). */
-export const drawChimney = (c = COURSE) => crop(read(HEARTH), c.x, c.y, c.w, c.h);
+export const drawChimney = (c = COURSE) => crop(read(STACK), c.x, c.y, c.w, c.h);
 
 /* A landing's band and plate, LANDING_W x LANDING_H, the band's rows 1..6 (dark edge, lit top, two mid, a shade, dark edge), the plate a
    7 x 9 lock in the key's metal (light top and left, dark right and foot, a keyhole), or no plate for the foot. */
@@ -131,7 +134,7 @@ export function drawAll() {
   out.set('assets/ui/tower/embers.png', encodePNG(drawEmbers()));
   out.set('assets/ui/tower/heads.png', encodePNG(drawHeads()));
   out.set('assets/ui/tower/firebox.png', encodePNG(drawFirebox()));
-  out.set('assets/ui/tower/fire.png', encodePNG(read('art/world/common/hearth_fire.png')));
+  out.set('assets/ui/tower/fire.png', encodePNG(read('art/world/hearth/hearth_fire.png')));
   out.set('assets/ui/tower/chest.png', encodePNG(drawChestIdle()));
   /* the idle rows of the town's light and smoke (row 0 of each sheet) */
   out.set('assets/ui/tower/chest-glow.png', encodePNG(crop(drawGlow(), 0, 0, CHEST_AT.frames * GW, GH)));
@@ -142,7 +145,7 @@ export function drawAll() {
 /* THE CHEST'S FOOT IN THE HEARTH'S FRAME, from the town's own rows (src/data/world/town/sites.js: the Hearth's SCENERY row and the chest's
    AMBIENT row, compose.js's anchor rule), so the window's chest stands where the town's does wherever it is seated */
 export function chestFoot() {
-  const T = 32, hearth = JSON.parse(readFileSync(join(ROOT, 'art/world/common/great_hearth.json'), 'utf8'));
+  const T = 32, hearth = JSON.parse(readFileSync(join(ROOT, 'art/world/hearth/great_hearth.json'), 'utf8'));
   const [, hx, hy] = SCENERY.find((r) => r[0] === 'great_hearth');
   const a = AMBIENT.find((r) => r.id === 'hearth_chest');
   const [fw, fh] = hearth.footprint, [ax, ay] = hearth.anchor_px;
@@ -155,11 +158,13 @@ export function chestFoot() {
    and the reveal's frame lays the open chest's box exactly over the shut chest's. */
 function placement() {
   const errs = [];
-  const fire = JSON.parse(readFileSync(join(ROOT, 'art/world/common/hearth_fire.json'), 'utf8'));
+  const fire = JSON.parse(readFileSync(join(ROOT, 'art/world/hearth/hearth_fire.json'), 'utf8'));
   const chest = JSON.parse(readFileSync(join(ROOT, 'art/world/townlife/hearth_chest.json'), 'utf8'));
   const foot = chestFoot();
-  if (FIRE_AT.x + FIREBOX.x !== 146 || FIRE_AT.y + FIREBOX.y !== 238 || fire.frame[0] !== FIRE_AT.w || fire.frame[1] !== FIRE_AT.h)
-    errs.push('the fire is not at the hearth frame\'s px (146, 238), 61 x 49 (great_hearth.json notes)');
+  /* the fire loop's top-left on the hearth (tools/world-art/hearth-fire.mjs: its box in the firebox crop, its anchor the crop's mask centre) */
+  const [fx, fy] = fireAt();
+  if (FIRE_AT.x + FIREBOX.x !== fx || FIRE_AT.y + FIREBOX.y !== fy || fire.frame[0] !== FIRE_AT.w || fire.frame[1] !== FIRE_AT.h)
+    errs.push('the fire is not at the hearth frame\'s px (' + fx + ', ' + fy + '), ' + fire.frame.join(' x ') + ' (hearth_fire.json, tools/world-art/hearth-fire.mjs)');
   if (CHEST_AT.x + chest.anchor_px[0] + FIREBOX.x !== foot.x || CHEST_AT.y + chest.anchor_px[1] + FIREBOX.y !== foot.y || chest.frame[0] !== CHEST_AT.w || chest.frame[1] !== CHEST_AT.h)
     errs.push('the chest is not on the ledge where the town map puts it, the hearth frame\'s px (' + foot.x + ', ' + foot.y + ') (sites.js AMBIENT)');
   const idle = chest.anims.find((a) => a.name === 'idle');

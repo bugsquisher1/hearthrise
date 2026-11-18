@@ -11,7 +11,7 @@
 // A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk']);
+export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth']);
 
 /* THE SETS OF ANOTHER ART GRID (src/data/world/art-budget.js GRIDS), by grid. They are not loaded
    on the pane's first open: the first scene drawn on that grid loads them into a book of their own

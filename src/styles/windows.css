@@ -439,6 +439,10 @@
 .hw-hd-rare-name { font-weight: 700; color: var(--rar-rare); }
 .hw-hd-rare.is-trophy .hw-hd-rare-name { color: var(--rar-legendary); }
 .hw-hd-rare-by { font-size: var(--t-micro); color: var(--ink-2); }
+/* the loot list (hunt-detail.js): plain loot reads in ink, never the Rare's colour; its rows past the first few wait behind "+N more" */
+.hw-hd-mats .hw-hd-rare-name { color: var(--ink); }
+.hw-hd-rare[hidden], .hw-hd-mats-more[hidden] { display: none; }
+.hw-hd-mats-more { margin-top: 6px; }
 .hw-hd-h:has(+ .hw-hd-sets:empty), .hw-hd-h:has(+ .hw-hd-rares:empty), .hw-hd-h:has(+ .hw-hd-mats:empty) { display: none; }
 .hw-hunt-party { margin: 8px 0 0; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-best { margin: 0; font-size: var(--t-small); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }

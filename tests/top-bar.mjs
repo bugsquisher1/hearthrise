@@ -6,7 +6,7 @@
 //   node tests/top-bar.mjs --mutate        every planted defect must turn a named rule RED
 //   node tests/top-bar.mjs --shots <dir>   also write the bar and each group's menu at each size
 //
-// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js src/styles/hunt.css src/shell/windows/hunt-detail.js
+// mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/styles/app.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js src/styles/hunt.css src/shell/windows/hunt-detail.js
 //
 // Tyler 2026-11-16: "Our top menu bar is starting to get long again, are there some things we can either combine or move to clean
 // it up? It's getting a bit overwhelming." The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8). The windows a player
@@ -268,6 +268,17 @@ async function checks(overrides, shots, firstRed = false) {
       await page.waitForTimeout(400);
       const presses = () => page.evaluate(() => Array.from(document.querySelectorAll('.hs-pointer button')).filter((b) => b.getClientRects().length && !b.closest('[hidden]')).length);
       if (!(await presses())) { fails.push('TB-7 [' + tag(size) + '] CONTROL: no coach card with a press is up in town'); await ctx.close(); continue; }
+      /* TB-8 EVERY ICON SAYS ITS NAME OVER THE CARD (QA audit 2026-11-18 N5: hovering the row's icons showed no name: the coach card under the row
+         painted over each name chip). With the card up, a hovered icon's chip is shown and stacks above the card (the same stacking box, .hs-launchers). */
+      if (!size.touch) for (const id of await barReach(page)) {
+        const q = id.startsWith('group:') ? '.hs-launchers [data-hs-group="' + id.slice(6) + '"]' : '.hs-launchers > .hs-launch[data-hs-open="' + id + '"]';
+        await page.hover(q);
+        await page.waitForTimeout(160);
+        const chip = await page.evaluate((s) => { const b = document.querySelector(s), c = getComputedStyle(b, '::before'), p = document.querySelector('.hs-launchers > .hs-pointer');
+          return { tip: b.getAttribute('data-tip'), opacity: c.opacity, z: c.zIndex, card: p ? getComputedStyle(p).zIndex : null }; }, q);
+        if (!chip.tip || chip.opacity !== '1' || !(chip.card === null || Number(chip.z) > Number(chip.card))) fails.push('TB-8 [' + tag(size) + '] ' + id + '\'s name chip hides under the coach card: ' + JSON.stringify(chip));
+      }
+      await page.mouse.move(2, size.height - 2);
       for (const g of (await barReach(page)).filter((x) => x.startsWith('group:')).map((x) => x.slice(6))) {
         await closeAll(page);
         if (!(await tryPress(page, '.hs-launchers [data-hs-group="' + g + '"]', size.touch))) { fails.push('TB-7 [' + tag(size) + '] the ' + g + ' icon took no press'); continue; }
@@ -325,6 +336,12 @@ async function checks(overrides, shots, firstRed = false) {
         if (!(await opened(page, id))) fails.push('TB-3 [' + tag(size) + '] ' + presses + ' presses from the row did not open ' + id);
         else if (presses > 2) fails.push('TB-3 [' + tag(size) + '] ' + id + ' took ' + presses + ' presses');
         if (await page.$('.hs-launch-menu')) fails.push('TB-3 [' + tag(size) + '] the menu stayed open after ' + id + ' was picked');
+        /* TB-9 ONE TICK COLOUR (UI audit 2026-11-18: the bag's Advanced view and All characters' alert boxes drew the browser's blue): every box,
+           choice and slider in the window is the gold token */
+        const ticks = await page.evaluate((w) => { const p = document.createElement('i'); p.style.color = 'var(--gold)'; document.body.appendChild(p); const gold = getComputedStyle(p).color; p.remove();
+          return Array.from(document.querySelectorAll('[data-hs-win="' + w + '"] input:is([type="checkbox"], [type="radio"], [type="range"])')).filter((c) => getComputedStyle(c).accentColor !== gold)
+            .map((c) => (c.closest('label') ? c.closest('label').textContent.trim().slice(0, 30) : c.className) + ': ' + getComputedStyle(c).accentColor); }, id);
+        if (ticks.length) fails.push('TB-9 [' + tag(size) + '] ' + id + ' draws ticks off the gold token: ' + JSON.stringify(ticks.slice(0, 4)));
         if (shots && presses === 2 && id === want.find((x) => groupOf(x) === groupOf(id))) {
           await closeAll(page);
           await tryPress(page, '.hs-launchers [data-hs-group="' + groupOf(id) + '"]', size.touch);
@@ -416,6 +433,8 @@ const MUTANTS = [
   ['a window opened by key leaves the menu open', 'src/shell/launcher-menu.js', '  if (m && m.seen !== openKey(ctx.wm)) { MENU.delete(ctx.wm); return null; }', ''],
   ['Esc over the menu opens Settings too', 'src/shell/launcher-menu.js', '    e.preventDefault(); e.stopPropagation();\n    shut(true);', '    shut(true);'],
   ['a press elsewhere leaves the menu open', 'src/shell/launcher-menu.js', "  doc.addEventListener('pointerdown', (e) => { if (!(e.target.closest && e.target.closest('.hs-launch-group.is-menu'))) shut(false); }, true);", ''],
+  ['the name chips hide under the coach card (TB-8, QA audit 2026-11-18 N5)', 'src/styles/shell.css', 'top: calc(100% + 6px); right: 0; z-index: 11;', 'top: calc(100% + 6px); right: 0;'],
+  ['the ticks are the browser\'s blue again (TB-9, UI audit 2026-11-18)', 'src/styles/app.css', ':where(input[type="checkbox"], input[type="radio"], input[type="range"]) { accent-color: var(--gold); }\n', ''],
   ['the arrows do not walk the menu', 'src/shell/launcher-menu.js', '      items[to].focus();', '      void to;'],
   ['the row leaves the group\'s ring to the coach, so every paint rebuilds it', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ ''"],
   ['the group keeps its ring while its menu is open', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ (inside ? ' data-coach-ring=\"\"' : '')"],

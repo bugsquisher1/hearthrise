@@ -18,9 +18,14 @@
 //   R8  two accounts race for what's left on the project (gate: the project's key): it fills exactly; the other is refused works_short and every trace of its charge rolls back
 //   R9  two accounts' gifts cross one stage at once (gate: the project's key): the town says it once, and the total is the sum of both
 //   R10 one gift's key pressed twice at once: one charge, one row, one gift
+//   THE HEARTH'S MOODS (2027-05-05-hearth-moods.sql: the Hearth Chest's green window outranks a named flame, which outranks a powder):
+//   R11 a chest and a powder at once, both orders, on one account: both land, no deadlock, the chest wins the square, the powder shows its 30 s
+//   R12 a chest and a named fuel at once, both orders, on one account: both land, no deadlock, the named flame shows every second of its own
+//   R13 two accounts' chests at once over a burning powder: both wait on the Hearth's key, ONE window (the second extends it), the powder keeps its 30 s
+//   R14 a chest and a feed errand at once: the errand and its town read never wait on the Hearth's key the chest is held at; then the chest lands
 // CI: smoke.yml's pg17 job, plain + --mutate (.github/actions/postgres-17, since 2026-11-14). Never touches production or the machine's own PostgreSQL service: it starts tools/pg-replay.mjs's
 // scratch cluster. HR_PG_TEMPLATE = an existing chain database to clone, this lane's files applied over it, instead of the build of the whole chain.
-// mutant-anchors: supabase/migrations/2027-02-27-town-shows.sql, supabase/migrations/2027-03-04-town-works.sql
+// mutant-anchors: supabase/migrations/2027-02-27-town-shows.sql, supabase/migrations/2027-03-04-town-works.sql, supabase/migrations/2027-05-05-hearth-moods.sql
 // Exit: 0 green (--mutate: every mutant caught) · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
@@ -33,12 +38,15 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
 const TEMPLATE = process.env.HR_PG_TEMPLATE || undefined;
-const LANE_FILES = ['2027-02-27-gold-sinks-catalogue.generated.sql', '2027-02-27-gold-sinks-seams.sql', '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-03-04-town-works-catalogue.generated.sql', '2027-03-04-town-works.sql'];
+const LANE_FILES = ['2027-02-27-gold-sinks-catalogue.generated.sql', '2027-02-27-gold-sinks-seams.sql', '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-03-04-town-works-catalogue.generated.sql', '2027-03-04-town-works.sql', '2027-05-05-hearth-moods.sql'];
 const MAP = 'town_common';
 const SHOW = 'public.hr_town_show(integer,text,bigint,uuid)';
 const CRY = 'public.hr_crier_send(integer,text,bigint,uuid)';
 const BURN = 'public.hr_hearth_burn(integer,text,uuid)';
 const GIVE = 'public.hr_town_works_give(integer,text,bigint,uuid)';
+const BURST = 'public.hr_hearth_chest_burst()';
+const FREE_AT = 'public.hr_town_show_free_at(text,text)';
+const AFTER_BURST = 'public.hr_hearth_named_after_burst()';
 const idem = () => crypto.randomUUID();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let serial = 0;
@@ -68,6 +76,14 @@ const MUTANTS = {
     find: "    v_total := coalesce((select t.total from public.town_works_totals t where t.project_id = p_project), 0);\n    v_fault := public.hr_town_works_fault(v_p.min_gift, v_p.per_day, v_goal - v_total, v_given, p_amount);\n    if v_fault is not null then raise", repl: '    if v_fault is not null then raise' },
   works_second_replay_gone: { race: 'R10', why: 'a second press of one key that waited on the hero\'s lock is never answered from the first', fn: GIVE,
     find: "  v_r := public.hr_intent_replay(v_uid, p_slot, p_idem, v_verb);\n  if v_r is not null then return public.hr_note_rejection('town_works', p_slot, v_r); end if;\n  select version into v_ver", repl: '  select version into v_ver' },
+  chest_without_the_key: { race: 'R13', why: 'the chest writes the square without the Hearth\'s key, so two chests never meet there', fn: BURST,
+    find: "  perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n", repl: '' },
+  chest_eats_the_powder: { race: 'R11', why: 'the chest burns over a powder burning when it opens, which loses those seconds', fn: BURST,
+    find: '  perform public.hr_hearth_pause(v_map, v_now, v_until);\n', repl: '' },
+  powder_under_the_chest: { race: 'R11', why: 'a powder booked while the chest burns starts under it', fn: FREE_AT,
+    find: "    case when p_sink = 'powder' then (select b.ends_at from public.hearth_bursts b where b.map_id = p_map) end)\n", repl: '    null)\n' },
+  named_under_the_chest: { race: 'R12', why: 'a named flame booked while the chest burns starts under it', fn: AFTER_BURST,
+    find: '  if v_end is not null and new.starts_at < v_end then\n', repl: '  if false then\n' },
   burn_holds_the_key: { race: 'R4', why: 'the burn holds the Hearth\'s key over its charge, against a powder holding its row and waiting on the key', fn: BURN,
     find: "    -- THE BURN: the item and the XP, journalled, exactly once on this key\n", repl: "    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n" },
 };
@@ -146,12 +162,27 @@ const open = (w) => w.gate.exec('commit');
 const clearTown = async (w) => {
   await w.db.query('delete from public.town_shows');
   await w.db.query('delete from public.hearth_flames');
+  await w.db.query('delete from public.hearth_bursts');
   await w.db.query('delete from public.town_works_gifts');
   await w.db.query('delete from public.town_works_totals');
   await w.db.exec('alter table public.chat_messages disable trigger hr_chat_immutable');
   await w.db.query("delete from public.chat_messages where crier or from_name = 'The Weighhouse'");
   await w.db.exec('alter table public.chat_messages enable trigger hr_chat_immutable');
 };
+
+/* THE HEARTH CHEST (2027-04-27-tower-chest.sql): a hero with `n` Bronze Keys in its bag, and one key used as the client presses it */
+const keyed = (w, u, slot, n) => w.db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, $2, 'tower_key_bronze', $3) on conflict (user_id, slot, item_id) do update set qty = excluded.qty", [u, slot, n]);
+const openChest = (c, uid, slot, key = idem()) => asClient(c, uid, "select public.hr_chest_open($1::int, 'great_hearth', 'bronze', 1, 0, $2::uuid) r", [slot, key]);
+/* the square's rows, in epoch ms: the chest's window, the named flames, the powders */
+async function hearthRows(w) {
+  const ms = (c) => `floor(extract(epoch from ${c}) * 1000)::bigint`;
+  const win = (await w.db.query(`select ${ms('starts_at')} s, ${ms('ends_at')} e from public.hearth_bursts where map_id = $1`, [MAP])).rows[0];
+  const named = (await w.db.query(`select user_id, ${ms('starts_at')} s, ${ms('ends_at')} e from public.hearth_flames where map_id = $1`, [MAP])).rows;
+  const powders = (await w.db.query(`select user_id, ${ms('starts_at')} s, ${ms('ends_at')} e from public.town_shows where map_id = $1 and sink_id = 'powder'`, [MAP])).rows;
+  const n = (r) => ({ ...r, s: Number(r.s), e: Number(r.e) });
+  return { window: win ? n(win) : null, named: named.map(n), powders: powders.map(n) };
+}
+const overlap = (a, b) => Math.max(0, Math.min(a.e, b.e) - Math.max(a.s, b.s));
 
 const RACES = {
   R1: async (w) => {
@@ -377,6 +408,132 @@ const RACES = {
     if ((await purse(w, u)) !== 999000) out.push('one key twice left the purse at ' + (await purse(w, u)));
     if ((await shopRows(w, u)).length !== 1) out.push('one key twice journalled ' + JSON.stringify(await shopRows(w, u)));
     if (Number((await w.db.query('select gold from public.town_works_gifts where user_id = $1', [u])).rows[0].gold) !== 1000) out.push('one key twice gave twice');
+    return out;
+  },
+  /* THE HEARTH'S MOODS (2027-05-05-hearth-moods.sql). A chest press writes the window from its luck update, after its hr_apply, so it takes the
+     Hearth's key where a burn and a powder do: last. Each race holds that key, lines the two presses up on it, and lets go. */
+  R11: async (w) => {
+    const out = [];
+    for (const first of ['powder', 'chest']) {
+      await clearTown(w);
+      const u = await account(w, 2);
+      await keyed(w, u, 0, 2);
+      await holdKey(w, 'hr:hearth:' + MAP);
+      const powder = () => press(w.A, u, 1, 'cinnabar', 2000);
+      const chest = () => openChest(w.B, u, 0);
+      const p1 = first === 'powder' ? powder() : chest();
+      await blocked(w, first === 'powder' ? w.A : w.B, p1);
+      const p2 = first === 'powder' ? chest() : powder();
+      await blocked(w, first === 'powder' ? w.B : w.A, p2);
+      await open(w);
+      const settled = await Promise.race([Promise.allSettled([p1, p2]), sleep(30000).then(() => null)]);
+      if (!settled) { out.push(first + ' first: the two never finished'); continue; }
+      const dead = settled.filter((s) => s.status === 'rejected').map((s) => String(s.reason && s.reason.message).slice(0, 160));
+      if (dead.length) { out.push(first + ' first: ' + dead.join('; ')); continue; }
+      const [rp, rc] = first === 'powder' ? [settled[0].value, settled[1].value] : [settled[1].value, settled[0].value];
+      if (rp.ok !== true || rc.ok !== true) { out.push(first + ' first: ' + JSON.stringify({ rp, rc })); continue; }
+      const sq = await hearthRows(w);
+      if (!sq.window) { out.push(first + ' first: the chest opened no window'); continue; }
+      const p = sq.powders.find((r) => r.user_id === u);
+      const seen = p ? (p.e - p.s) - overlap(p, sq.window) : 0;
+      if (Math.abs(seen - 30000) > 1) out.push(`${first} first: the powder shows for ${seen / 1000} s of its 30 (window ${JSON.stringify(sq.window)}, powder ${JSON.stringify(p)})`);
+      const flame = (await w.db.query('select public.hr_hearth_flame_of($1) f', [MAP])).rows[0].f;
+      if (!flame || flame.kind !== 'chest') out.push(first + ' first: the square reads ' + JSON.stringify(flame));
+    }
+    return out;
+  },
+  R12: async (w) => {
+    const out = [];
+    for (const first of ['named', 'chest']) {
+      await clearTown(w);
+      const u = await account(w, 2);
+      await keyed(w, u, 0, 2);
+      await w.db.query("insert into public.player_skills (user_id, slot, skill_id, xp) values ($1, 1, 'inner_flame', 50000000) on conflict (user_id, slot, skill_id) do update set xp = excluded.xp", [u]);
+      await w.db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 1, 'den_knot', 2) on conflict (user_id, slot, item_id) do update set qty = excluded.qty", [u]);
+      const secs = Number((await w.db.query("select secs from public.hr_hearth_named where item_id = 'den_knot'")).rows[0].secs);
+      await holdKey(w, 'hr:hearth:' + MAP);
+      const named = () => asClient(w.A, u, 'select public.hr_hearth_burn(1, $1, $2::uuid) r', ['den_knot', idem()]);
+      const chest = () => openChest(w.B, u, 0);
+      const p1 = first === 'named' ? named() : chest();
+      await blocked(w, first === 'named' ? w.A : w.B, p1);
+      const p2 = first === 'named' ? chest() : named();
+      await blocked(w, first === 'named' ? w.B : w.A, p2);
+      await open(w);
+      const settled = await Promise.race([Promise.allSettled([p1, p2]), sleep(30000).then(() => null)]);
+      if (!settled) { out.push(first + ' first: the two never finished'); continue; }
+      const dead = settled.filter((s) => s.status === 'rejected').map((s) => String(s.reason && s.reason.message).slice(0, 160));
+      if (dead.length) { out.push(first + ' first: ' + dead.join('; ')); continue; }
+      const [rn, rc] = first === 'named' ? [settled[0].value, settled[1].value] : [settled[1].value, settled[0].value];
+      if (rn.ok !== true || rc.ok !== true) { out.push(first + ' first: ' + JSON.stringify({ rn, rc })); continue; }
+      const sq = await hearthRows(w);
+      const n = sq.named.find((r) => r.user_id === u);
+      if (!sq.window || !n) { out.push(first + ' first: the square holds ' + JSON.stringify(sq)); continue; }
+      const seen = (n.e - n.s) - overlap(n, sq.window);
+      if (Math.abs(seen - secs * 1000) > 1) out.push(`${first} first: the named flame shows for ${seen / 1000} s of its ${secs}`);
+    }
+    return out;
+  },
+  R13: async (w) => {
+    const out = [];
+    await clearTown(w);
+    const [a, b, buyer] = [await account(w, 1), await account(w, 1), await account(w, 1)];
+    await keyed(w, a, 0, 1);
+    await keyed(w, b, 0, 1);
+    /* a powder five seconds into its show */
+    const bought = await press(w.A, buyer, 0, 'cinnabar', 2000);
+    if (!bought || bought.ok !== true) return ['the powder was refused: ' + JSON.stringify(bought)];
+    await w.db.query("update public.town_shows set starts_at = starts_at - interval '5 seconds', ends_at = ends_at - interval '5 seconds' where user_id = $1", [buyer]);
+    await holdKey(w, 'hr:hearth:' + MAP);
+    const pa = openChest(w.A, a, 0);
+    const ba = await blocked(w, w.A, pa);
+    const pb = openChest(w.B, b, 0);
+    const bb = await blocked(w, w.B, pb);
+    await open(w);
+    const settled = await Promise.race([Promise.allSettled([pa, pb]), sleep(30000).then(() => null)]);
+    if (!ba || !bb) out.push('a chest never waited on the Hearth\'s key: ' + JSON.stringify({ ba, bb }));
+    if (!settled) return out.concat('the two chests never finished');
+    const dead = settled.filter((s) => s.status === 'rejected').map((s) => String(s.reason && s.reason.message).slice(0, 160));
+    if (dead.length) return out.concat(dead);
+    if (settled.some((s) => s.value.ok !== true)) out.push('the two chests answered ' + JSON.stringify(settled.map((s) => s.value.error || s.value.ok)));
+    const rows = (await w.db.query('select opens, extract(epoch from ends_at - starts_at) * 1000 len from public.hearth_bursts where map_id = $1', [MAP])).rows;
+    if (rows.length !== 1 || rows[0].opens !== 2 || Number(rows[0].len) < 10000 || Number(rows[0].len) > 11000) out.push('two chests at once made ' + JSON.stringify(rows));
+    const sq = await hearthRows(w);
+    const p = sq.powders.find((r) => r.user_id === buyer);
+    const seen = p && sq.window ? (p.e - p.s) - overlap(p, sq.window) : 0;
+    if (Math.abs(seen - 30000) > 1) out.push(`the powder under two chests shows for ${seen / 1000} s of its 30`);
+    return out;
+  },
+  R14: async (w) => {
+    const out = [];
+    await clearTown(w);
+    const [k, f] = [await account(w, 1), await account(w, 1)];
+    await keyed(w, k, 0, 1);
+    await w.db.query("insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, 'bones', 5) on conflict (user_id, slot, item_id) do update set qty = excluded.qty", [f]);
+    await holdKey(w, 'hr:hearth:' + MAP);
+    const pc = openChest(w.A, k, 0);
+    const bc = await blocked(w, w.A, pc);
+    /* the errand, as the engine's pointer write makes it (the hero's lock, then the pointer), then the feeder's own town read */
+    const errand = (async () => {
+      await w.B.exec('begin');
+      try {
+        await w.B.query('select public.hr_hunt_lock($1, 0)', [f]);
+        await w.B.query("update public.player_state set active_kind = 'artisan', active_id = 'fuel_bones', active_left = 1, active_since = now() where user_id = $1 and slot = 0", [f]);
+        await w.B.exec('commit');
+      } catch (e) { await w.B.exec('rollback').catch(() => {}); throw e; }
+      return asClient(w.B, f, 'select public.hr_town_view(0, $1, null, null, null, null, null) r', [MAP]);
+    })();
+    const done = await Promise.race([errand.then((r) => ({ r }), (e) => ({ e })), sleep(15000).then(() => null)]);
+    if (!bc) out.push('the chest never waited on the Hearth\'s key');
+    if (!done) out.push('the errand waited on the Hearth\'s key the chest is held at');
+    else if (done.e) out.push('the errand failed: ' + String(done.e.message).slice(0, 200));
+    else if (!done.r || done.r.ok !== true) out.push('the feeder\'s town read answered ' + JSON.stringify(done.r).slice(0, 200));
+    await open(w);
+    await errand.catch(() => {});
+    const rc = await Promise.race([pc, sleep(30000).then(() => null)]);
+    if (!rc || rc.ok !== true) out.push('the chest after the errand answered ' + JSON.stringify(rc));
+    if (!(await hearthRows(w)).window) out.push('the chest after the errand opened no window');
+    const st = (await w.db.query('select active_kind, active_id from public.player_state where user_id = $1 and slot = 0', [f])).rows[0];
+    if (!st || st.active_id !== 'fuel_bones') out.push('the errand did not hold: ' + JSON.stringify(st));
     return out;
   },
 };

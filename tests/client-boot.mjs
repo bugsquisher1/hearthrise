@@ -1234,13 +1234,13 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       if (!/Hero slots: 2 \(up to 4 play at once\)\. More cost gold/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
-        || b0.purse !== 'Gold: 14,100' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
+        || b0.purse !== 'Gold: 14,100 gp' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
       else {
         o.purse = 80000; o.goldV = 8; o.lag = null;
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelector('[data-app="buy-slot"]') && !document.querySelector('[data-app="buy-slot"]').disabled);
         const b1 = await btn();
-        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
+        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000 gp') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
         await page.click('[data-app="buy-slot"]');
         const b2 = await btn();
         if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));

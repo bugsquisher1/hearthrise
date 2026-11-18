@@ -31,4 +31,6 @@ export const DEATH_TEXT = Object.freeze({
   why_in_room_healed: 'Tip: better armor, better food, or heal sooner',
   /* {count} Levels under the ground's floor */
   why_under: { one: '{count} Level under this ground', other: '{count} Levels under this ground' },
+  /* ...in a boss room, {count} Levels under the boss's own Level; {boss} as a sentence names him ("the Rat King", "Lord Krell") */
+  why_under_boss: { one: '{count} Level under {boss}', other: '{count} Levels under {boss}' },
 });

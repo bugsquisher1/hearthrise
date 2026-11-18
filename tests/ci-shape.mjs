@@ -38,6 +38,9 @@
 //   CI-SHAPE-11 every apt-get update/install and `playwright install` a composite
 //               action (.github/actions/*/action.yml) runs has a `timeout` (run
 //               42758317717: an install step sat silent 43 min, past its job's limit)
+//   CI-SHAPE-12 jobs are listed by timeout-minutes (each job's full sweep x2), never rising, so GitHub,
+//               which starts queued jobs in file order, starts the long ones first; a job others
+//               `needs` stands first (lane/ci-speed, 2026-11-18)
 //
 // ── THE REGISTER ────────────────────────────────────────────────────────────
 // tests/ci-shape.baseline.json maps every guard command to the job that owns
@@ -145,6 +148,21 @@ export function analyse({ workflowText, baseline, listText, actions = [] }) {
       fail('CI-SHAPE-3', `job "${j.name}" never checks out the repository — every step in it is `
         + 'running against an empty workspace.');
     }
+  }
+
+  // CI-SHAPE-12 — longest first. GitHub starts queued jobs roughly in file order, so a long job left for the
+  // last wave sets the run's tail (lane/ci-speed, 2026-11-18). timeout-minutes is each job's measured full
+  // sweep x2, so the file lists jobs by it, never rising; a job other jobs `needs` stands first, whatever its budget.
+  const needed = new Set(jobs.flatMap((j) => j.needs || []));
+  let prev = null;
+  for (const j of jobs) {
+    if (needed.has(j.name) || !Number.isFinite(j.timeoutMinutes)) continue;
+    if (prev && j.timeoutMinutes > prev.timeoutMinutes) {
+      fail('CI-SHAPE-12', `job "${j.name}" (timeout-minutes ${j.timeoutMinutes}) is listed after "${prev.name}" `
+        + `(${prev.timeoutMinutes}). Jobs go longest first: GitHub starts them in file order, and a long job in the last `
+        + 'wave sets the run\'s wall time. Move it up to where its timeout puts it.');
+    }
+    prev = j;
   }
 
   const cmds = guardCommands(jobs);
@@ -441,6 +459,15 @@ async function selftest() {
     ['the browser install without its deadline', 'CI-SHAPE-11', () => ({
       workflowText, baseline, listText, actions: inAction(/\btimeout\s+(?:-k\s+\d+\s+)?\d+\s+(npx playwright install\b)/, '$1'),
     })],
+    ['a long job appended at the end of the file (the last wave sets the tail)', 'CI-SHAPE-12', () => {
+      // Structural: the LAST job's budget raised past the job above it.
+      const ls = [...lines];
+      const at = ls.indexOf('  edge:');
+      const to = ls.findIndex((l, i) => i > at && /^    timeout-minutes:/.test(l));
+      if (to < 0) throw harness('--selftest could not find the edge job timeout');
+      ls[to] = '    timeout-minutes: 999';
+      return { workflowText: ls.join('\n'), baseline, listText };
+    }],
   ];
 
   const controls = [

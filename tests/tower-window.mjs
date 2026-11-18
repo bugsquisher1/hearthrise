@@ -58,6 +58,9 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { menuLines, pressBar } from './_bar.mjs';
+import { TOWER_ART, SCALE } from '../src/data/tower-art.js';
+/* the reveal's frame lays the chest's frame centred on its foot (tools/world-art/tower-art.mjs): CSS px from the reveal's left to the chest's */
+const REVEAL_IN = (TOWER_ART.CHEST_AT.x - TOWER_ART.REVEAL_AT.x) * SCALE;
 
 const BASE_ENV = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -446,7 +449,7 @@ async function checks(overrides, shots, { arm = null } = {}) {
       });
       const rv = await reveal();
       const at = c.scene;
-      if (!at.reveal || at.reveal.l + 16 !== sc0.chest.l || at.reveal.b - 2 !== sc0.chest.b) fails.push('TW-4 the reveal does not play where the chest sits: ' + JSON.stringify([at.reveal, sc0.chest]));
+      if (!at.reveal || at.reveal.l + REVEAL_IN !== sc0.chest.l || at.reveal.b - 2 !== sc0.chest.b) fails.push('TW-4 the reveal does not play where the chest sits: ' + JSON.stringify([at.reveal, sc0.chest]));
       if (shots) { await page.waitForTimeout(1600); await page.screenshot({ path: join(shots, 'tower-chest-reveal-1440x900.png') }); }
       for (const tab of ['climb', 'chest']) { await page.click('[data-hs-win="tower"] .hw-tab[data-tab="' + tab + '"]'); await page.waitForTimeout(150); }
       const rv2 = await reveal();

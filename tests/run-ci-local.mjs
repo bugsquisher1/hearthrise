@@ -131,7 +131,7 @@ export function parseWorkflow(text) {
     const indent = l.length - l.trimStart().length;
     if (indent === 0) break;                      // left the jobs: block
     if (indent === 2 && /^[A-Za-z0-9_-]+:\s*$/.test(l.trim())) {
-      job = { name: l.trim().slice(0, -1), timeoutMinutes: null, steps: [] };
+      job = { name: l.trim().slice(0, -1), timeoutMinutes: null, needs: [], steps: [] };
       jobs.push(job);
       inSteps = false; cur = null; inRun = false;
       continue;
@@ -143,6 +143,9 @@ export function parseWorkflow(text) {
       if (/^steps:\s*$/.test(t)) { inSteps = true; continue; }
       const m = /^timeout-minutes:\s*(\d+)/.exec(t);
       if (m) job.timeoutMinutes = Number(m[1]);
+      /* `needs: a` or `needs: [a, b]` (tests/ci-shape.mjs CI-SHAPE-12 lets a job others need stand first). */
+      const nd = /^needs:\s*(.+)$/.exec(t);
+      if (nd) job.needs = nd[1].replace(/^\[|\]$/g, '').split(',').map((x) => x.trim()).filter(Boolean);
       continue;
     }
     if (!inSteps) continue;

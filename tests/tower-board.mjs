@@ -269,6 +269,9 @@ async function idemArm(db) {
   return inTx(db, async () => {
     const bad = [];
     await seed(db);
+    /* THE DOOR'S LEVEL IS A LATER FILE'S RULE (2027-05-05-entry-gates.sql, Tyler 2026-11-18): this file's own §6 climbs with new Level 1 heroes,
+       so its second apply is judged with the door at Level 1 (the catalogue's floor), in this rolled-back transaction, before either snapshot. */
+    await db.query('update public.hr_tower_rules set min_level = 1 where id');
     const snap = async () => JSON.stringify([await inventory(db),
       await q(db, `select string_agg(md5(replace(prosrc, chr(13), '')), ',' order by oid::regprocedure::text) m from pg_proc where oid = any (array[${SIGS.map((s) => `'public.${s}'::regprocedure`).join(',')}])`),
       await q(db, 'select mode_id, user_id, slot, score, reached_at, updated_at from public.hr_mode_board order by 1, 2, 3'),

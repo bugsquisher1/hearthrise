@@ -47,6 +47,10 @@ export const BOSS_CALL_RULES = Object.freeze({
      whose allowlist takes a win's items; the hr-accrue carrying this deploys AFTER that file (an older settle refuses every win: called_pays).
      tests/boss-call.mjs plays the door both ways. */
   dropsLive: true,
+  /* Natural wins before the call (Tyler 2026-11-18: "you have to beat the boss in the hunting ground X times before you can call them out"): the
+     hero's, and every seat's, kills of the boss the call copies (`of`) on a normal hunt (player_progress ev:kill_monster:<of>; a called fight
+     counts <of>_called, never this). hr_boss_calls.wins; the evidence: 2027-05-05-entry-gates.sql's header. */
+  winsToCall: 10,
 });
 
 /* `id` the catalogue id the verb names; `hunt` the called room's hunt and ground (hunts.js CALLED_HUNTS, hunt-grounds.js
@@ -97,7 +101,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   warnTitle: 'Call out {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14: "Recommended: 4+ players", "do it like that for everything outside of actual lore"); the note keeps line breaks. */
   warn: Object.freeze([
-    'Hits harder than on the ground\n50% HP: adds attack non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
+    'Hits harder than on the ground\n50% HP: summons adds that target non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
   ]),
   /* THE SERIES' LABELS (the slider; Tyler 2026-11-14). EVERY NUMBER IS THE SERVER'S QUOTE (hr_boss_call_view): {n} the fights picked (1 to its
      max_fights), {fee} and {staminaMin} one fight's price, {minutes} one fight's limit, {stamina} and {gold} the picked count's bill (the quote's

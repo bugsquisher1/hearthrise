@@ -11,13 +11,40 @@
 // store food. A bar with no store food is never told (it eats its own stock, then nothing: food is optional, Tyler 2026-10-29).
 // Every number is the SERVER's: what a store food heals is its store row as the server prices it (hunt_settings.store, `amount`), and
 // the HP the sentence names is the server's. With no row for either food the rule says nothing (no client copy, CLAUDE.md §1).
-// The answer names the bar's SLOTS that hold that food (1 = the bar's first), the slot a player changes. Display only: nothing here
-// gates a press; the hunt always runs.
+// The answer names the bar's SLOTS that hold that food (1 = the bar's first), the slot a player changes. A floor speaks in the Level band
+// it was measured for (groundFloor, hallFloor), and a page names each slot once (notSaid). Display only: nothing here gates a press; the
+// hunt always runs.
 // ════════════════════════════════════════════════════════════════════════
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { storeFloorFor } from '../data/supplies.js?v=0.2.139';
 import { storeName } from './bar-draft.js?v=0.2.139';
 import { whole, listWords } from '../render/format.js?v=0.2.139';
 import { t } from '../render/player-text.js?v=0.2.139';
+
+/* WHERE A FLOOR SPEAKS (the 139 audit's B2: at Level 5 the Barrows and the Hold named a food and the Pyre, the Slake and the Ford did not). A
+   floor is MEASURED for a lone hero in its place's Level band (supplies.js storeFloorFor; a hall's own row), so it speaks from the band's
+   first Level up, on every ground and hall alike. Under the band no store food is the fix, and the page's own range line says what is
+   ("Levels under", the death cost). A Level the server has not sent reads as in the band (the floor's answer, as before). */
+const inBand = (hunt, level) => {
+  const band = HUNT_INDEX[hunt] && HUNT_INDEX[hunt].band;
+  return !Number.isInteger(level) || !Array.isArray(band) || level >= band[0];
+};
+/** The store food measured safe on ground `hunt` at `level`, or null (none named, or under the band). */
+export function groundFloor(hunt, level) {
+  return hunt && inBand(hunt, level) ? storeFloorFor(hunt, Number.isInteger(level) ? level : null) : null;
+}
+/** A keyed hall's own floor (boss-halls.js `storeFloor`) at `level`, or null (none, or under the hall's band). */
+export function hallFloor(hall, level) {
+  return hall && hall.storeFloor && inBand(hall.hunt, level) ? hall.storeFloor : null;
+}
+/** ONCE PER SLOT (B2: the Hold's page said "Pick Salted Trout" and "Pick Salted Swordfish" for slot 4): `weak` less the slots `said` already
+    names, or null when none are left. The ground's line speaks first; a hall below it names only what that line did not. */
+export function notSaid(weak, said) {
+  if (!weak) return null;
+  const slots = said ? weak.slots.filter((n) => !said.slots.includes(n)) : weak.slots;
+  return slots.length ? Object.assign({}, weak, { slots }) : null;
+}
 
 /* What one store food heals, from the server's own store rows: null when the server sent no heal row for it. */
 function healOf(set, id) {

@@ -787,6 +787,36 @@ async function prepBuilderRules(base) {
     await settle();
     if (calls.length) fails.push('AW-87 a stale copy (the bar changed under it) was sent: ' + calls.map((c) => c[0]).join());
   }
+  /* AW-87 A PICK IN CONFIGURE ACTION IS IN HUNT PREP'S COPY AT ONCE (the 139 audit's B1: Hunt prep, slot 4, Salted Trout, the window's Back,
+     Save, and the bar kept Salted Shrimp, so a card's "Pick Salted Trout" could not be followed): Configure action opened on the copy's slot 4
+     and picking Salted Trout, then left by Back (no Configure Save), and the builder's Save sends Salted Trout in slot 4; Cancel puts the
+     slot back as it opened */
+  {
+    /* the instance configure-action.js holds (its import carries the build's ?v=): one host map, not two */
+    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const CA = await imp('src/shell/windows/configure-action.js');
+    const cs = fakeCs(fx), sc = scratch();
+    sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0; sc.view = set;
+    const was = JSON.stringify(sc.draft.slots[3]);
+    const host = { bar: () => sc.draft.slots.slice(), set: () => set, write: (k, s) => { sc.draft.slots[k] = s; }, move: () => {}, after: () => {} };
+    const ctx = { character: cs, wm: { close: () => {} }, refresh: () => {} };
+    const pick = (id) => CA.renderConfigureAction.act(ctx, { querySelector: () => null }, 'cfg', { type: 'click', clientX: 0, clientY: 0 },
+      el({ 'data-x': 'pick', 'data-type': 'consume', 'data-id': id }));
+    BD.openSlotIn(cs, 3, host);
+    pick('salted_trout');
+    calls.length = 0;
+    B.saveDraft({ character: cs, account: {} }, sc, noop, false);
+    await settle();
+    const o = sent('hr_action_set_options');
+    if (o.length !== 1 || !o[0][2].slots[3] || o[0][2].slots[3].action.id !== 'salted_trout') fails.push('AW-87 a pick left by Back saved slot 4 as ' + JSON.stringify(o.map((c) => c[2].slots[3])));
+    const sc2 = scratch();
+    sc2.draft = D.draftFrom(set); sc2.base = D.draftKey(sc2.draft); sc2.draftFor = 0; sc2.view = set;
+    const host2 = Object.assign({}, host, { bar: () => sc2.draft.slots.slice(), write: (k, s) => { sc2.draft.slots[k] = s; } });
+    BD.openSlotIn(cs, 3, host2);
+    pick('salted_trout');
+    CA.renderConfigureAction.act(ctx, { querySelector: () => null }, 'cfg', { type: 'click', clientX: 0, clientY: 0 }, el({ 'data-x': 'cancel' }));
+    if (JSON.stringify(sc2.draft.slots[3]) !== was) fails.push('AW-87 Cancel left slot 4 as ' + JSON.stringify(sc2.draft.slots[3]));
+  }
   /* AW-87 ONE BAR TRUTH (the full-game audit's A26, 2026-11-18: Save left "Not saved: Preset 1" over the bar the hunt reads): a hero in town
      whose bar in use has no setup row saves the bar, then keeps it as that setup under its own name; mid-hunt, past the hero's count, or with
      a row already, only the bar goes */
@@ -1546,14 +1576,20 @@ async function planRules(base) {
      Level (Salted Lobster to 64, Salted Trout from 65); the server's HP is in the sentence; the bar's store food slot says it while the
      hero hunts there and never to a party with a Healer; the Barrows' page asks melee and ranged heroes under 65 for a Healer. */
   {
-    const { weakFoodOf, weakFoodWords } = await imp('src/shell/weak-food.js');
-    const { storeFloorFor } = await imp('src/data/supplies.js');
+    const { weakFoodOf, weakFoodWords, groundFloor } = await imp('src/shell/weak-food.js');
     const { settingsView } = await imp('src/session/hunt-sections.js');
     const { slotWhy } = await imp('src/shell/slot-waits.js');
     const { healerNote } = await imp('src/shell/hunt-list.js');
     /* the server's bar and store rows as the envelope projects them: what a food heals is the server's row, never a client copy */
     const bar = (id) => settingsView({ preset: 0, slots: [slot('consume', id, null)], store: STORE });
-    const prepAt = (id, hunt, level, hp) => weakFoodWords('prep', weakFoodOf(bar(id), storeFloorFor(hunt, level)), hp);
+    const prepAt = (id, hunt, level, hp) => weakFoodWords('prep', weakFoodOf(bar(id), groundFloor(hunt, level)), hp);
+    /* ONE RULE ON EVERY GROUND, IN THE BAND IT WAS MEASURED FOR (the 139 audit's B2: at Level 5 the Barrows and the Hold named a food and the
+       Pyre, the Slake and the Ford did not). Under a ground's band no store food is the fix and every ground says the same: nothing; from
+       the band's first Level the measured floor speaks */
+    const atFive = ['hasks_ford', 'the_slake', 'muster_barrows', 'pyre_field', 'krells_hold'].map((g) => prepAt('salted_shrimp', g, 5, 190));
+    const edge = [prepAt('salted_shrimp', 'muster_barrows', 54, 840), prepAt('salted_shrimp', 'muster_barrows', 55, 845)];
+    if (atFive.some(Boolean) || edge[0] !== '' || edge[1] !== 'Slot 1: Salted Shrimp heals 72 of 845 HP. Pick Salted Lobster')
+      fails.push('AW-27 the food lines under and at a band read ' + JSON.stringify(atFive.concat(edge)));
     const prep = [prepAt('salted_shrimp', 'muster_barrows', 56, 850), prepAt('salted_trout', 'muster_barrows', 64, 990),
       prepAt('salted_trout', 'muster_barrows', 65, 1011), prepAt('salted_shrimp', 'muster_barrows', 65, 1011), prepAt('salted_shrimp', 'the_slake', 50, 819),
       prepAt('salted_shrimp', 'krells_hold', 85, 1208), prepAt('salted_shrimp', 'krells_hold', 88, 1305)];
@@ -2019,13 +2055,18 @@ async function planRules(base) {
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight known: the
-     tie stands. None of that weight in the bag for a BARE slot: the piece that guards most goes on (played 2026-11-04). */
+     tie stands. None of that weight in the bag for a BARE armor slot: it waits for that weight (the 139 audit's B6: a medium belt put on a
+     heavy hero stayed for good, since a worn piece only takes its own weight), and Back in town names where it comes from (next-buy.js). */
   const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
   const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
   const tieOf = (prefer) => UP.upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
   const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops2(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
-  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {"body":"bronze_platebody","boots":"bronze_boots"}/0')
+  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/0')
     fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
+  /* ...the audit's own case: a heavy hero, a bare belt slot and only the medium Studded Leather Belt in the bag puts nothing on; the Bronze Belt goes on */
+  const beltOf = (bag) => ops2(UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody' }, bag: bag.map((id) => ({ id, qty: 1 })), skills: lv1, level: 15, prefer: 'heavy' }));
+  const belts = [beltOf(['studded_belt']), beltOf(['studded_belt', 'bronze_belt'])];
+  if (belts[0] !== '{}' || belts[1] !== '{"belt":"bronze_belt"}') fails.push('AW-21 a heavy hero\'s bare belt slot takes ' + JSON.stringify(belts));
   /* NO HERO STAYS BARE FOR WANT OF A CHOICE (played 2026-11-04: Marlow fought a night in nothing over 140 pieces; Sorrel, a hammer, was bare at hour 16): her pick, else what the hero wears most, else its role's. */
   const weightIs = [['medium', { weapon: 'practice_sword', body: 'bronze_platebody' }, 'tank', 'medium'], [null, { weapon: 'practice_sword', body: 'leather_body', boots: 'leather_boots' }, 'tank', 'medium'], [null, kit, 'melee_dps', 'heavy'], [null, kit, 'ranger', 'medium'], [null, kit, 'healer', 'light'], [null, kit, null, null]];
   for (const [chosen, worn, role, want] of weightIs) if (UP.preferredWeight(chosen, worn, role) !== want) fails.push('AW-21 chosen ' + chosen + ', role ' + role + ' prefers ' + UP.preferredWeight(chosen, worn, role) + ', wanted ' + want);
@@ -2747,8 +2788,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const before = await look();
         /* the Sell step is the one gold press: its count and value are the server's (31 Rat Tail at 6, 12 Slime Gel at 5), the locked Sticky Core left out;
            the coach's next step is a press, not the gold one, and the card rings the row it is about */
-        /* (the row after it is the Next buy line, never gold: this hero's bare helmet slot and where its weight's helmet comes from, AW-98's row) */
-        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell","buy"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
+        /* (the rows after it are the Next ground line, a Level 5 back from the Cellar: the Hunts list recommends the Thicket, tests/hunt-summary.mjs T6; and the Next buy
+           line, this hero's bare helmet slot and where its weight's helmet comes from, AW-98's row; neither is ever gold) */
+        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell","ground","buy"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
         if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Marked Sell: Rat Tail and Slime Gel') fails.push('AW-78 the Sell row reads ' + JSON.stringify([before.title, before.words]));
         if (before.next !== 'Next: Sell junk') fails.push('AW-78 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
         if (JSON.stringify(before.ring) !== '["town:sell"]') fails.push('AW-78 the return card rings ' + JSON.stringify(before.ring) + ', want the summary\'s Sell row');
@@ -2761,7 +2803,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const sales = sent(s, 'hr-accrue', 'vendor_sell_many');
         if (sales.length !== 1 || JSON.stringify(sales[0].body.lines) !== '[{"item":"rat_tail","qty":31},{"item":"slime_gel","qty":12}]') fails.push('AW-78 the Sell step sent ' + JSON.stringify(sales.map((c) => c.body.lines)));
         const after = await look();
-        if (JSON.stringify(after.steps) !== '["sell:done","buy"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-78 after the sale the row reads ' + JSON.stringify(after));
+        if (JSON.stringify(after.steps) !== '["sell:done","ground","buy"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-78 after the sale the row reads ' + JSON.stringify(after));
         if (JSON.stringify(after.gold) !== '["again:"]') fails.push('AW-78 after the sale the gold presses are ' + JSON.stringify(after.gold) + ', want Hunt again alone');
         if (shots) await shot(page, 'alpha-1440x900-back-in-town-done');
         if (errors.length) fails.push('AW-78 console errors: ' + errors.join(' | ').slice(0, 300));
@@ -4398,6 +4440,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Level 30 (gear is worn by Level, Tyler 2026-10-24): the bag's Steel Sword is better than the worn Iron Sword, the same family, so it goes on
            (designer 2026-11-03); the Mithril Helm needs Level 45. */
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_30_XP });
+        /* a heavy hero (Bronze Boots worn): the bag's medium Leather Gloves stay off its bare gloves slot (the 139 audit's B6), every heavy piece goes on */
+        e.equipment = Object.assign({}, e.equipment, { boots: 'bronze_boots' });
         Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, mithril_helm: 1 });
         e.shop.offers.push({ offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 });
       };
@@ -4412,7 +4456,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!--s.env.inventory[id]) delete s.env.inventory[id];
         }
       };
-      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
+      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
       const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
       const msg = () => page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
       if (up) aw21: {
@@ -4447,7 +4491,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
         const mid = await page.evaluate(() => ({ slots: Array.from(document.querySelectorAll('.hw-slot.is-wearing')).map((b) => b.getAttribute('data-slot')).sort().join(','),
           stacks: document.querySelectorAll('.hw-pocket.is-wearing').length, off: document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled }));
-        if (mid.slots !== 'belt,body,gloves,helmet,ring2,weapon' || mid.stacks !== 6 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
+        if (mid.slots !== 'belt,body,helmet,ring2,weapon' || mid.stacks !== 5 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
         await wait(page, () => !document.querySelector('.hw-slot.is-wearing'), null, 3000);
         await page.waitForTimeout(200);
         const eqs = sent(s, 'hr-accrue', 'equip');
@@ -4455,7 +4499,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (eqs.some((c) => 'shield' in c.body.equip || 'ammo' in c.body.equip)) fails.push('AW-21 Equip upgrades touched the off-hand or the ammo');
         const after = await page.evaluate(() => ({ helm: document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'), weapon: document.querySelector('.hw-slot[data-slot="weapon"]').getAttribute('data-item'),
           line: document.querySelector('.hw-inv .hw-upgrade').classList.contains('is-on') }));
-        if (after.helm !== 'iron_helm' || after.weapon !== 'steel_sword' || after.line || (await msg()) !== 'Put on 6 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
+        if (after.helm !== 'iron_helm' || after.weapon !== 'steel_sword' || after.line || (await msg()) !== 'Put on 5 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
         if (!(await reloadAndPlay(page))) fails.push('AW-21 the reload did not come back');
         else {
           await openWin(page, 'b', 'inventory');
@@ -5528,6 +5572,8 @@ const MUTANTS = [
   ['when the hunt ends: a pick is never sent', 'src/shell/windows/hunt-after-pane.js', '  if (p) send(() => setHuntAfter(ctx.account, ctx.character, p.choice, p.skill));\n', ''],
   ['when the hunt ends: the control is drawn with no section', 'src/shell/windows/hunt-after-pane.js', "  prop(sec, 'hidden', !c);\n", "  prop(sec, 'hidden', false);\n"],
   ['when the hunt ends: a hero with no job is offered one', 'src/shell/hunt-after.js', '      if (!doing) continue;\n', ''],
+  ['prep builder: a hosted pick waits for Configure\'s own Save (139 audit B1)', 'src/shell/windows/configure-action.js', '    keepInHost(cs);\n    repaint();\n    return;\n  }', '    repaint();\n    return;\n  }'],
+  ['prep builder: Cancel keeps the hosted pick', 'src/shell/bar-draft.js', '  if (h && s.open !== null) { h.write(s.open, s.was ? JSON.parse(JSON.stringify(s.was)) : null); h.after(); }\n', ''],
   ['prep builder: a refused save still puts the setup on', 'src/shell/windows/hunt-prep/builder.js', '    if (!r.ok) return r;\n', ''],
   ['prep builder: Save leaves the bar in use unsaved as a setup (audit A26)', 'src/shell/windows/hunt-prep/builder.js', '    if (keep) { const k = await cs.savePreset(preset, keep.name);', '    if (false) { const k = await cs.savePreset(preset, keep.name);'],
   ['prep builder: Save keeps a setup row mid-hunt (the server refuses hunt_open)', 'src/shell/windows/hunt-prep/builder.js', '|| (h && !h.ended) ||', '||'],
@@ -5651,7 +5697,8 @@ const MUTANTS = [
   ['plans: AW-21 Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: AW-21 a hero with no weight stays bare (played 2026-11-04)', 'src/shell/upgrade-plan.js', "return chosen || wornWeightOf(equipment || {}) || WEIGHT_FOR_ROLE[role] || null;", "return chosen || null;"],
-  ['plans: AW-21 a bare slot waits for a weight the bag doesn\'t hold', 'src/shell/upgrade-plan.js', "else if (!curIt) front = [front.reduce(", "else if (false) front = [front.reduce("],
+  /* (the 11-04 "a bare slot never waits" fallback is reversed by the 139 audit's B6: its mutant became this one, which pins the new rule) */
+  ['plans: AW-21 a bare armor slot takes another weight (139 audit B6)', 'src/shell/upgrade-plan.js', "    if (!curIt && o.prefer && ARMOUR_SLOTS.includes(slot) && weightOf(it) !== o.prefer) continue;\n", ''],
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: AW-21 a piece\'s resistance is not on its card (lane/c-krell-uniques)', 'src/shell/bag-model.js', "    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });\n", ''],
@@ -5684,6 +5731,7 @@ const MUTANTS = [
   ['plans: Before you go names a struck spell without its fix', 'src/shell/hunt-go.js', "(fixes.length ? ', pick '", "(fixes.length > 9 ? ', pick '"],
   ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);\n    if (weak) out.push(weak);\n', ''],
   ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/weak-food.js', 'if (food === null || heal === null || heal >= want) return null;', 'if (food === null || heal === null || heal * 2 >= want) return null;'],
+  ['plans: AW-27 a floor speaks under its band (139 audit B2)', 'src/shell/weak-food.js', 'return !Number.isInteger(level) || !Array.isArray(band) || level >= band[0];', 'return true;'],
   ['plans: AW-27 the weak food line names no slot', 'src/shell/weak-food.js', "return t('prep.food_weak' + hp, Object.assign(vars, { where }));", "return t('prep.food_weak' + hp, Object.assign(vars, { where: '' }));"],
   ['plans: AW-27 a heal read from the client copy when the server sent none', 'src/shell/weak-food.js', 'return r && Number.isInteger(r.amount) ? r.amount : null;', "return r && Number.isInteger(r.amount) ? r.amount : ((CONSUMABLES[id] || {}).amount || null);"],
   ['plans: AW-27 Krell\'s Hold names no store food floor (audit A25)', 'src/data/grounds/krells_hold/pack.js', "bagGuide: { tier: 4, storeFloor: 'salted_trout', storeFloorFrom: { 88: 'salted_shrimp' },", 'bagGuide: { tier: 4,'],
@@ -5801,8 +5849,8 @@ const MUTANTS = [
   ['hunts: AW-25 a Healer\'s tier is said at every Level', 'src/data/hunt-tiers.js', '  return under !== null && !(Number.isInteger(level) && level >= under);', '  return under !== null;'],
   ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 60 },\n', ''],
   ['hunts: AW-25 Krell\'s Hold\'s Deadly says nothing of a Healer', 'src/data/grounds/krells_hold/pack.js', '  healerTiers: { deadly: 89 },\n', ''],
-  ['hunts: AW-25 the Pauper Vaults\' Deadly says nothing of a Healer', 'src/data/grounds/pauper_vaults/pack.js', '  healerTiers: { deadly: 186 },\n', ''],
-  ['hunts: AW-25 a Healer line that stops past its band', 'src/data/grounds/pauper_vaults/pack.js', '  healerTiers: { deadly: 186 },\n', '  healerTiers: { deadly: 187 },\n'],
+  ['hunts: AW-25 the Pauper Vaults\' Deadly says nothing of a Healer', 'src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },\n', ''],
+  ['hunts: AW-25 a Healer line that stops past its band', 'src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },\n', '  healerTiers: { deadly: 187 },\n'],
   ['hunts: AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],

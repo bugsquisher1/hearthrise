@@ -23,8 +23,7 @@ import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=
 import { conditionWords } from './bar-draft.js?v=0.2.139';
 import { reasonOf, holdingReason, aloneReason, aloneNote } from './action-facts.js?v=0.2.139';
 import { carryRows } from './carry-in.js?v=0.2.139';
-import { weakFoodOf, weakFoodWords } from './weak-food.js?v=0.2.139';
-import { storeFloorFor } from '../data/supplies.js?v=0.2.139';
+import { weakFoodOf, weakFoodWords, groundFloor } from './weak-food.js?v=0.2.139';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.139';
 import { heroVitalsOf } from '../session/character-sections.js?v=0.2.139';
 
@@ -144,7 +143,7 @@ function weakFood(sl, f) {
   const a = sl && !sl.empty ? sl.action : null;
   const c = a && a.type === 'consume' ? CONSUMABLES[a.id] : null;
   if (!c || c.kind !== 'food' || c.source !== 'store' || !f.ground || f.healed) return null;
-  const floor = storeFloorFor(f.ground, Number.isInteger(f.level) ? f.level : null);
+  const floor = groundFloor(f.ground, f.level);
   const words = weakFoodWords('bar', weakFoodOf(f.set, floor, a.id), f.hpMax);
   return words ? { code: 'food_weak', text: words, glyph: 'uiWarn', strike: false } : null;
 }

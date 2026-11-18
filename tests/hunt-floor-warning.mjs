@@ -166,7 +166,10 @@ async function run(base) {
   ok('G3', HL.underWords(glade, low.under) === 'Under Level 16 (death risk): Sorrel, Level 9' && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
   /* The Hunts window is the list (hunts.js) and the picked ground's page (hunt-detail.js, master-detail 2026-10-22). */
   const win = read('src/shell/windows/hunts.js') + read('src/shell/windows/hunt-detail.js');
-  ok('G2', win.includes("recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list, bests)")
+  /* the party's Levels: each seat's, this hero's own at the server's Level (hunt-list.js adviceLevels, which the summary's Next ground reads too) */
+  ok('G2', JSON.stringify(HL.adviceLevels(7, { me: 0, seats: [{ seat: 0, level: 3 }, { seat: 1, level: 12 }] })) === '[7,12]' && HL.adviceLevels(7, null) === 7,
+    'the advice\'s Levels are not every seat\'s: ' + JSON.stringify(HL.adviceLevels(7, { me: 0, seats: [{ seat: 0, level: 3 }, { seat: 1, level: 12 }] })));
+  ok('G2', win.includes('recommendation(adviceLevels(level, party), size, list, bests)')
     && win.includes('<p class="hs-note hw-hunts-reco" hidden></p>') && win.includes('text(reco, advice);'), 'the Hunts window does not recommend by the party\'s levels or never says the note');
   ok('W2', win.includes("text(det.querySelector('.hw-hunt-warn'), [rangeWords(r, level, blessed ? blessed.permille : 0), underWords(r, under), shareWords(r, party, level)].filter(Boolean).join('\\n'));") && win.includes('<p class="hw-hunt-warn"></p>')
     && win.includes("text(det.querySelector('.hw-hd-who'), heroWords(r));"),
@@ -203,7 +206,7 @@ const MUTANTS = [
   ['the gap is not said', 'src/shell/hunt-list.js', "    if (!inBand) return { row: below, note: [t('hunts.no_ground',", "    if (!inBand) return { row: below, note: null && [t('hunts.no_ground',"],
   ['"no good hunt" over a ground in range again (Tyler 2026-11-11)', 'src/shell/hunt-list.js', "    if (!inBand) return { row: below,", "    if (inBand || !inBand) return { row: below,"],
   ['the server\'s loss alone is not said', 'src/shell/hunt-list.js', "const key = lost ? 'hunts.right_but_lost' :", "const key = lost && false ? 'hunts.right_but_lost' :"],
-  ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list, bests)', 'recommendation(level, size, list, bests)'],
+  ['a party is recommended by its own hero\'s level', 'src/shell/windows/hunts.js', 'recommendation(adviceLevels(level, party), size, list, bests)', 'recommendation(level, size, list, bests)'],
   ['a ground says who it is for again (Tyler 2026-11-08: no ground is solo or party)', 'src/shell/hunt-list.js', "  return r.heroes > 1 ? t('hunts.heroes_up_to', { max: r.heroes }) : t('hunts.heroes_one');", "  return r.band[0] >= 32 ? t('hunts.heroes_one') : r.heroes > 1 ? t('hunts.heroes_up_to', { max: r.heroes }) : t('hunts.heroes_one');"],
   ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
   ['the note sends a lone hero to bring a party again', 'src/data/text/hunts.js', "right_but_tough: '{ground}: right for {levels}, tough monsters',", "right_but_tough: '{ground}: right for {levels}, bring a party',"],

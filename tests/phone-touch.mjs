@@ -10,7 +10,7 @@
 //
 // mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js
 // mutant-writes-tree: no — page mutants are served overrides
-// mutant-rule-functions: bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor barBesideSheet rules
+// mutant-rule-functions: huntsWholeRows bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor barBesideSheet rules
 // mutant-runner-functions: main
 //
 // QA's phone playtest (2026-10-24) scored mobile 4/10. play.html with supabase-js and the REST paths stubbed
@@ -115,6 +115,10 @@
 //   PH-33 THE BAR BESIDE A TOWN SHEET (667x375, 844x390, 922x423; audit 2026-11-15 F27: slots 9, 10, 19 and 20 lay under the bag's sheet,
 //         and where the slots page, the page press with them): with the bag open in town the bar ends left of the sheet, every slot on
 //         screen takes a press, and the rest come round with the page press; closed, the bar is whole again with its hub
+//   PH-34 THE HUNTS SHEET SHOWS WHOLE LINES (667x375, 844x390, 922x423, in a hunt; audit 2026-11-15 F27, still open 2026-11-18: the sheet over the
+//         action bar held two lines, the top one cut): the lines are set tight, so at rest the list shows 3 whole ground lines at 922x423, 2 at
+//         844x390 and 1 at 667x375 (a hero who has hunted: three-line grounds), none cut at its top; a scroll or a wheel that stops part-way
+//         into a line comes to rest on a line's top
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -1028,6 +1032,33 @@ async function barBesideSheet(page, tag, fails) {
   const whole = await wait(page, () => !document.querySelector('[data-hs-win="inventory"]') && document.querySelector('.hb-hub').getClientRects().length > 0 && document.querySelector('.hb-plaque').getClientRects().length > 0, null, 4000);
   if (!whole) fails.push('PH-33 [' + tag + '] with the sheet closed the hub and fight panel did not come back');
 }
+/* ── PH-34 ── THE HUNTS SHEET SHOWS WHOLE LINES: as many as the room over the action bar holds, set tight, and every scroll rests on a line's top.
+   The whole lines at rest in a hunt, a hero who has hunted (three-line grounds), the lead on two lines: at 87 px a line the 922x423 sheet held one. */
+const WHOLE_LINES = Object.freeze({ '667x375': 1, '844x390': 2, '922x423': 3 });
+async function huntsWholeRows(page, tag, fails) {
+  await page.click('.hs-launch[data-hs-open="hunts"]', { timeout: 2500 }).catch(() => null);
+  if (!(await wait(page, () => document.querySelectorAll('[data-hs-win="hunts"] .hw-hunt b').length > 3, null, 4000))) { fails.push('PH-34 [' + tag + '] CONTROL: no list in Hunts'); return; }
+  await page.waitForTimeout(400);
+  /* the lines the list shows whole, and how far its first shown line starts above the list's top (> 0: cut) */
+  const read = () => page.evaluate(() => { const l = document.querySelector('[data-hs-win="hunts"] .hw-hunt-list'), b = l.getBoundingClientRect(), top = b.top + l.clientTop, foot = top + l.clientHeight;
+    const rows = Array.from(l.querySelectorAll('.hw-hunt')).map((e) => e.getBoundingClientRect()).filter((r) => r.bottom > top + 0.5 && r.top < foot - 0.5);
+    const w = document.querySelector('[data-hs-win="hunts"]').getBoundingClientRect();
+    return { whole: rows.filter((r) => r.top >= top - 0.5 && r.bottom <= foot + 4).length, cut: rows.length ? Math.round(top - rows[0].top) : null, at: l.scrollTop, h: l.clientHeight,
+      lines: rows.map((r) => Math.round(r.height)), sheet: [Math.round(w.top), Math.round(w.bottom)], list: [Math.round(top), Math.round(foot)] }; });
+  const rest = await read();
+  if (rest.whole < WHOLE_LINES[tag] || rest.cut > 0.5) fails.push('PH-34 [' + tag + '] at rest the list shows ' + rest.whole + ' whole line(s) in ' + rest.h + ' px (want ' + WHOLE_LINES[tag] + '), its first cut by ' + rest.cut + ' px: ' + JSON.stringify(rest));
+  /* a scroll that stops part-way (a swipe's flick, the window revealing a pick), then a wheel over the list */
+  await page.evaluate(() => { const l = document.querySelector('[data-hs-win="hunts"] .hw-hunt-list'); l.scrollTop = Math.round(l.querySelector('.hw-hunt').offsetHeight * 0.6); });
+  await page.waitForTimeout(500);
+  const flick = await read();
+  if (flick.cut !== 0) fails.push('PH-34 [' + tag + '] a scroll that stopped part-way rests with the top line cut by ' + flick.cut + ' px (scrolled ' + flick.at + ')');
+  const box = await page.evaluate(() => { const r = document.querySelector('[data-hs-win="hunts"] .hw-hunt-list').getBoundingClientRect(); return [r.left + r.width / 2, r.top + 30]; });
+  await page.mouse.move(box[0], box[1]);
+  await page.mouse.wheel(0, 37);
+  await page.waitForTimeout(700);
+  const wheel = await read();
+  if (wheel.cut !== 0 || wheel.at === flick.at) fails.push('PH-34 [' + tag + '] a wheel over the list rests with the top line cut by ' + wheel.cut + ' px (scrolled ' + flick.at + ' -> ' + wheel.at + ')');
+}
 /* ── PH-32 ── A KEYED HALL'S DOOR ON A PHONE. The data opens no hall yet (every hall's pack is staged), so the page is served a
    boss-halls.js whose hallFromGround hands every ground Krell's hall (open() o.route); the hero holds its key and eats Salted Shrimp. */
 async function hallDoor(page, tag, fails) {
@@ -1898,7 +1929,9 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const route = (page) => page.route('**/src/data/boss-halls.js*', async (r) => { const res = await r.fetch(), body = await res.text();
         if (body.split(HALL_FROM).length !== 2) throw new Error('PH-32: the hallFromGround anchor moved');
         return r.fulfill({ response: res, body: body.replace(HALL_FROM, () => 'export function hallFromGround() { return BOSS_HALLS.krells_hold || null; }') }); });
+      /* Level 85, the hall's own band: a hall's food floor speaks from there (src/shell/weak-food.js hallFloor, the 139 audit's B2) */
       const o = await open(vp, ALPHA, (env) => { townOnly(env); env.inventory = Object.assign({}, env.inventory, { hall_key: 1 });
+        env.state = Object.assign({}, env.state, { level_xp: charXpForLevel(85) });
         for (const sl of env.hunt_settings.slots) if (sl && sl.action && sl.action.id === 'wheat_bread') sl.action.id = 'salted_shrimp'; }, { route });
       if (o.up) { await hallDoor(o.page, tag, fails); await shot(o.page, 'hall-door-' + tag); await done(o, tag); } else fails.push('PH-32 [' + tag + '] the town did not mount');
     }
@@ -1906,6 +1939,12 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       const tag = tagOf(vp);
       const o = await open(vp, ALPHA, (env) => { env.hunt = null; env.state = Object.assign({}, env.state, { active_kind: null, active_id: null }); });
       if (o.up) { await barBesideSheet(o.page, tag, fails); await shot(o.page, 'bar-beside-sheet-' + tag); await done(o, tag); } else fails.push('PH-33 [' + tag + '] the town did not mount');
+    }
+    for (const vp of run('huntlist') ? PHONES : []) { // PH-34
+      const tag = tagOf(vp);
+      /* a hero who has hunted: the server's bests put "Best ..." and "No record yet" on the lines, as the audit's phone saw them */
+      const o = await open(vp, HUNT, (env) => { env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 9413, balance_h: 450 }, party: null } } }; });
+      if (o.up) { await huntsWholeRows(o.page, tag, fails); await shot(o.page, 'hunts-list-hunting-' + tag); await done(o, tag); } else fails.push('PH-34 [' + tag + '] the hunt did not mount');
     }
     if (run('ground')) {
       const tag = tagOf(SMALLEST);
@@ -2045,7 +2084,7 @@ async function moreShots(open, shot) {
 
 /* The pages each rule reads: a mutant named for a rule runs those alone, or the pages its own fifth field names
    (PH-5's hunt bar and analyzer tabs are measured on the hunt pages, its Shop, tooltip and Equip in town). */
-const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'], 'PH-11': ['strip'], 'PH-12': ['strip'], 'PH-13': ['slots'], 'PH-14': ['meaning'], 'PH-15': ['stack'], 'PH-16': ['waits'], 'PH-17': ['door'], 'PH-18': ['coachsheet'], 'PH-19': ['apart'], 'PH-20': ['partyacts'], 'PH-21': ['tapped'], 'PH-22': ['doors'], 'PH-23': ['market'], 'PH-24': ['partyphone'], 'PH-25': ['ground'], 'PH-26': ['details'], 'PH-27': ['cards', 'coach'], 'PH-28': ['doors'], 'PH-29': ['partyfold'], 'PH-30': ['bar'], 'PH-31': ['doors'], 'PH-32': ['hall'], 'PH-33': ['barsheet'] });
+const BLOCKS_OF = Object.freeze({ 'PH-1': ['configure'], 'PH-2': ['hunt'], 'PH-3': ['portrait'], 'PH-4': ['town'], 'PH-5': ['town'], 'PH-6': ['coach'], 'PH-7': ['bar'], 'PH-8': ['desk'], 'PH-9': ['stamina'], 'PH-10': ['fight'], 'PH-11': ['strip'], 'PH-12': ['strip'], 'PH-13': ['slots'], 'PH-14': ['meaning'], 'PH-15': ['stack'], 'PH-16': ['waits'], 'PH-17': ['door'], 'PH-18': ['coachsheet'], 'PH-19': ['apart'], 'PH-20': ['partyacts'], 'PH-21': ['tapped'], 'PH-22': ['doors'], 'PH-23': ['market'], 'PH-24': ['partyphone'], 'PH-25': ['ground'], 'PH-26': ['details'], 'PH-27': ['cards', 'coach'], 'PH-28': ['doors'], 'PH-29': ['partyfold'], 'PH-30': ['bar'], 'PH-31': ['doors'], 'PH-32': ['hall'], 'PH-33': ['barsheet'], 'PH-34': ['huntlist'] });
 /* Each planted defect undoes one fix; each must turn a rule red. */
 const MUTANTS = [
   ['PH-1 the configure sheet\'s list does not scroll', 'src/styles/hunt.css', '  .hs-win[data-hs-win="configure-action"] .ca-mid {', '  .hs-win[data-hs-win="configure-action"] .ca-mid-x {'],
@@ -2204,6 +2243,8 @@ const MUTANTS = [
   ['PH-6 the coach is capped on a desktop too', 'src/styles/shell.css', '.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; box-sizing: border-box; max-height: var(--coach-h); }', '.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; box-sizing: border-box; max-height: 200px; }'],
   ['PH-33 the bar keeps its full width beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hb-bar { max-width: calc(100vw - min(400px, 48vw) - 40px); }\n', ''],
   ['PH-33 the hub and the fight panel stay beside a town sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) :is(.hb-hub, .hb-plaque) { display: none; }\n', ''],
+  ['PH-34 the phone list rests part-way into a line', 'src/styles/windows.css', '  .hw-hunt-list { flex: 1 1 auto; scroll-snap-type: y mandatory; }', '  .hw-hunt-list { flex: 1 1 auto; }'],
+  ['PH-34 the phone lines keep the desktop\'s height', 'src/styles/windows.css', '  .hw-hunt-main { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0 8px; line-height: 1.15; }\n', ''],
   ['PH-33 the widget keeps its 320 px floor beside a sheet', 'src/styles/hunt.css', '  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-action-bar { min-width: 0; }\n', ''],
 ];
 

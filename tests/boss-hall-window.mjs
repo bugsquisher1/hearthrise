@@ -86,9 +86,11 @@ async function checks(overrides) {
         const calls = [];
         /* the hero's bar (hunt_settings), for the hall's food line: none by default */
         let barNow = null;
+        /* the hero's Level (the server's `level` section): none by default */
+        let levelNow = null;
         /* `sec` the server's `boss_halls` section, `partySec` its `party` section, `now` its clock (CharacterSession.serverNow): none unless the pane says */
         const csOf = (keys, sec, partySec, now, hh = hall) => ({ slot: 0, status: 'open', serverNow: () => (now === undefined ? null : now),
-          read: (k) => (k === 'inventory' ? (keys ? { [(hh || hall).key]: keys } : {}) : k === 'state' ? { active_kind: 'idle' } : k === 'hunt_settings' ? barNow
+          read: (k) => (k === 'inventory' ? (keys ? { [(hh || hall).key]: keys } : {}) : k === 'state' ? { active_kind: 'idle' } : k === 'level' ? levelNow : k === 'hunt_settings' ? barNow
             : k === 'boss_halls' ? (sec ? { [(hh || hall).id]: sec } : null) : k === 'party' ? (partySec || null) : null), load: async () => {} });
         const pane = (keys, v = {}, h = hall) => {
           const det = document.createElement('div');
@@ -170,6 +172,17 @@ async function checks(overrides) {
         const firstSec = { ...takenSec, taken: false, next_at: null, left: 1, first: true };
         krellTable.page = { ahead: pane(1, { hunt: 'krells_hold', sec: firstSec, serverNow: NOW }, realHall).read(), behind: pane(1, { hunt: 'krells_hold', sec: { ...firstSec, first: false }, serverNow: NOW }, realHall).read(),
           fixture: pane(1).read() };
+        /* ONCE PER SLOT, IN THE HALL'S BAND (the 139 audit's B2: the Hold's page said "Pick Salted Trout" and "Pick Salted Swordfish" for slot 4 at
+           once, and at Level 5): Krell's real hall on his ground, the hero's bar on one store food at Level 85 and at 5 */
+        const holdFood = (food, level) => {
+          barNow = { preset: 0, presets: [], slots: [{ action: { type: 'consume', id: food }, conditions: [], join: 'and', usable: true }],
+            store: [['salted_shrimp', 72, 14], ['salted_trout', 120, 40], ['salted_swordfish', 288, 432]].map(([id, heals, price]) => ({ id, kind: 'heal', heals, price })) };
+          levelNow = { xp: 1, level, into: 0, need: 1 };
+          const pf = pane(1, { hunt: 'krells_hold' }, realHall); const q = pf.det.querySelector('.hw-hall-food');
+          barNow = null; levelNow = null;
+          return q.hidden ? null : q.textContent;
+        };
+        krellTable.food = { shrimp85: holdFood('salted_shrimp', 85), trout85: holdFood('salted_trout', 85), trout5: holdFood('salted_trout', 5) };
         /* the warning names the seat whose key it uses up, and the confirm sends the one verb though this hero holds no key */
         const sp = pane(0, { party: leader, sec: seatSec, partySec });
         const before = calls.length;
@@ -245,6 +258,11 @@ async function checks(overrides) {
        numbers the server rolls (drops.js prizeSlices over the boss's own rows): each piece and its share of a roll, and its first-win share */
     if (d.firstAhead.loot !== 'Loot: available|First win: one piece, guaranteed') fails.push('BH-7 a hero whose first win is ahead reads ' + JSON.stringify(d.firstAhead.loot));
     if (/First win/.test(d.left.loot + d.taken.loot + d.seatKey.loot)) fails.push('BH-7 a hero the server never called first is promised a piece: ' + JSON.stringify([d.left.loot, d.taken.loot, d.seatKey.loot]));
+    /* BH-1 once per slot, in the hall's band: Salted Shrimp at 85 is the ground's line (Pick Salted Trout), not a second pick here; Salted Trout
+       at 85 is the hall's own; at Level 5 nothing (under the hall's band) */
+    const kf = r.krellTable.food;
+    if (kf.shrimp85 !== null || kf.trout85 !== 'Slot 1: Salted Trout heals too little here. Pick Salted Swordfish' || kf.trout5 !== null)
+      fails.push('BH-1 Krell\'s hall food line reads ' + JSON.stringify(kf));
     const kp = r.krellTable.page;
     if (kp.ahead.tableHead !== 'Loot table: 16 pieces, one roll a day' || kp.ahead.table.join('|') !== r.krellTable.first.join('|')) fails.push('BH-7 Krell\'s page, the first win ahead, lists ' + JSON.stringify([kp.ahead.tableHead, kp.ahead.table]));
     if (kp.behind.tableHead !== 'Loot table: 16 pieces, one roll a day' || kp.behind.table.join('|') !== r.krellTable.plain.join('|')) fails.push('BH-7 Krell\'s page, the first win behind, lists ' + JSON.stringify([kp.behind.tableHead, kp.behind.table]));
@@ -271,7 +289,9 @@ const MUTANTS = [
   { name: 'the press is on with no key', file: 'src/shell/windows/boss-hall-pane.js', from: 'const open = (keys > 0 || !!seatKey) && !v.now && !v.pending && !member;', to: 'const open = !v.now && !v.pending && !member;', want: /BH-1/ },
   { name: 'a member may press', file: 'src/shell/windows/boss-hall-pane.js', from: 'const member = !!v.party && !v.party.isLeader;', to: 'const member = false;', want: /BH-1/ },
   { name: 'the first press opens the hall', file: 'src/shell/windows/boss-hall-pane.js', from: "if (action === 'hall-warn') { sc.warned = true; repaint(); return true; }", to: "if (action === 'hall-warn') { run(() => openHall(ctx.account, cs, sc.hall.id), '', () => ''); return true; }", want: /BH-2/ },
-  { name: 'a bar buying Salted Shrimp is never told at the hall door', file: 'src/shell/windows/boss-hall-pane.js', from: '  const mine = said(cs, null);', to: '  const mine = null;', want: /BH-1/ },
+  { name: 'a bar buying Salted Shrimp is never told at the hall door', file: 'src/shell/windows/boss-hall-pane.js', from: '  if (mine) out.push(mine);', to: '', want: /BH-1/ },
+  { name: 'the hall names a slot the ground\'s line already named (139 audit B2)', file: 'src/shell/windows/boss-hall-pane.js', from: 'hallFloor(hall, lv.level)), ground)', to: 'hallFloor(hall, lv.level)), null)', want: /BH-1/ },
+  { name: 'the hall\'s floor speaks under its band (139 audit B2)', file: 'src/shell/windows/boss-hall-pane.js', from: 'weakFoodOf(settingsOf(p), hallFloor(hall, lv.level))', to: 'weakFoodOf(settingsOf(p), hall.storeFloor)', want: /BH-1/ },
   { name: 'the hall judges the bar on now while another setup goes in', file: 'src/shell/windows/boss-hall-pane.js', from: 'hall.storeFloor && !v.other ? foodShortWords(', to: 'hall.storeFloor ? foodShortWords(', want: /BH-1/ },
   { name: 'the food line reads only the viewed hero\'s bar', file: 'src/shell/windows/boss-hall-pane.js', from: '    if (theirs) out.push(theirs);', to: '    if (false) out.push(theirs);', want: /BH-1/ },
   { name: 'the hall lists none of the changes that win', file: 'src/shell/windows/boss-hall-pane.js', from: "rows(box.querySelector('.hw-hall-tips'), hall.bars || [],", to: "rows(box.querySelector('.hw-hall-tips'), [],", want: /BH-1/ },

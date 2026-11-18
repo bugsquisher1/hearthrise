@@ -274,10 +274,19 @@ const SIGS = ['hr_tower_section(uuid,integer)', 'hr_mode_board_depth()', 'hr_mod
   'hr_mode_board_end(text,uuid,integer,uuid)', 'hr_tower_board_mode()', 'hr_tower_board_rise()', 'hr_tower_board_run_start()', 'hr_tower_board_run_end()'];
 /* Judged where its file sits in the chain (upTo it): 2027-05-06-catacombs.sql restates its section and board triggers for every run ground after it,
    later images this file's §0 pins were never written against. */
+/* an `idem` mutant is planted HERE, in the arm's own chain (the shared one is past this file): IDEM_PLANT, set by the mutate loop */
+let IDEM_PLANT = null;
 async function idemArm() {
   const { bootReplay } = await import('./schema-replay.mjs');
   const { db } = await bootReplay({ upTo: FILE });
-  try { return await idemAt(db); } finally { await db.close(); }
+  try {
+    if (IDEM_PLANT) {
+      const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [IDEM_PLANT.fn])).split('\r').join('');
+      if (def.split(IDEM_PLANT.find).length !== 2) return [`HARNESS: ${IDEM_PLANT.fn} has no single ${JSON.stringify(IDEM_PLANT.find.slice(0, 80))} at ${FILE}`];
+      await db.exec(def.replace(IDEM_PLANT.find, () => IDEM_PLANT.replace));
+    }
+    return await idemAt(db);
+  } finally { await db.close(); }
 }
 async function idemAt(db) {
   return inTx(db, async () => {
@@ -345,6 +354,15 @@ async function main() {
     const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
     let escaped = 0;
     for (const m of list) {
+      if (m.arm === 'idem') {
+        IDEM_PLANT = m;
+        let gotIdem = [];
+        try { gotIdem = await runArm(db, M, m.arm); } finally { IDEM_PLANT = null; }
+        const hitIdem = gotIdem.some((x) => m.want.test(x));
+        if (!hitIdem) escaped++;
+        console.log(`  ${hitIdem ? 'caught ' : 'ESCAPED'} ${m.name}: ${String(gotIdem[0] || 'every check held').slice(0, 170)}`);
+        continue;
+      }
       const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).split('\r').join('');
       if (def.split(m.find).length !== 2) { console.error(`HARNESS: ${m.fn} has no single ${JSON.stringify(m.find.slice(0, 80))}`); process.exit(2); }
       let got = [];

@@ -67,7 +67,7 @@ export function sheetHtml() {
     + '<p class="hw-cs-note hw-cs-wait"></p>'
     + '<h3 class="hw-cs-head hw-cs-bhead">Bestiary</h3><div class="hw-cs-best"><span class="hw-skill-bar" role="meter" aria-label="Bestiary completion" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-cs-btext"></small></div>'
     + '<h3 class="hw-cs-head hw-cs-xhead">Experience bonuses</h3><dl class="hw-cs-list hw-cs-xp">' + XP_SOURCES.map((r) => lineHtml(r, 'xp')).join('')
-    + '<div class="hw-cs-line hw-cs-total"><dt>Total</dt><dd></dd></div></dl><p class="hw-cs-note hw-cs-xnone">No experience bonuses right now.</p>'
+    + '<div class="hw-cs-line hw-cs-total"><dt>Total</dt><dd></dd></div></dl><p class="hw-cs-note hw-cs-xnone">None right now</p>'
     + '</div></div></section>';
 }
 

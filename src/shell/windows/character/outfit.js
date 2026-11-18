@@ -47,7 +47,7 @@ export function outfitHtml(g) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>'
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
-    + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Show only owned</label></div>'
+    + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Owned only</label></div>'
     + '<ul class="hw-of-grid"></ul><p class="hh-empty hw-of-none">No outfit matches.</p></div>'
     + '</section>';
 }

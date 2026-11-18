@@ -3564,7 +3564,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="runecrafting"]');
         await page.waitForTimeout(200);
-        if (!/Chalked Fire Rune\. Own use only, can't be sold\./.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Runecrafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
+        /* the row's numbers line says it in a tag (UI audit 2026-11-18: a recipe row was a paragraph), its sentence on the pointer */
+        const noBuyer = await page.evaluate(() => { const li = document.querySelector('[data-hs-win="skills-trade"] .hw-work-row[data-id*="fire"]'); const s = li && li.querySelector('.hw-work-stat'); return s ? s.textContent.replace(/ /g, ' ') + '|' + s.getAttribute('title') : ''; });
+        if (!/· Can't be sold\|Own use only, can't be sold$/.test(noBuyer)) fails.push('AW-60 Runecrafting rows read ' + JSON.stringify(noBuyer));
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="woodcutting"]');
         await page.waitForTimeout(200);

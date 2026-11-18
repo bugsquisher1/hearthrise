@@ -48,6 +48,13 @@ export function scaleView(sh, hunt, o) {
     bankMaxH: Math.floor(sh.bankMaxMs / HOUR_MS), dayMaxH: sh.dayMaxHours, active: !!sh.playing && sh.playing.hunt === hunt ? sh.playing.level : null };
 }
 
+/** The hunt bar's word for the open hunt on `hunt`: "Scaled: Level 41" while the server says it plays scaled (the section's `playing`,
+    the Level its last settle proved), else ''. A paid hour ticks only in the spawn, so the hunt itself says when it is being spent. */
+export function scalePlaying(cs, hunt) {
+  const sh = scaledHuntsOf(cs);
+  return sh && sh.playing && sh.playing.hunt === hunt ? t('hunts.scale_tag_on', { level: sh.playing.level }) : '';
+}
+
 /** The Hunts list line's tag for `hunt`: "Scaled: Level 41" while its hours are on and banked, "Scalable" where it can be bought, else ''. */
 export function scaleTag(cs, hunt) {
   const g = scaledGroundOf(scaledHuntsOf(cs), hunt);

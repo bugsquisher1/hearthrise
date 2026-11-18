@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-18 · lane/c-arm-switches (live events + scaled hunts on for everyone)
+1. *Arming a wall-clock feature in the chain arms it in every test database.* PGlite's now() is the machine's clock, so with the event switches at everyone a guard reads a waived fee on Wednesday evenings and +25% Level XP every other weekend: boss-call-db went EXIT 2 on the live calendar inside Open Halls, EXIT 0 quiet, same tree, same hour. bootReplay now turns every event TYPE's switch back off after the chain (quietCalendar, the premiumPerCharacter pattern); `liveCalendar: true` opts in (arm-switches, the QA world's serve/smoke, the restore drill's rebuild).
+2. *A test of the calendar moves the catalogue's own row to now* (holdNow), never waits for Friday and never invents a probe row.
+3. *A naked Level 20 dies in the scaled Cellar inside six minutes* (scaled-hunts-server already knew: KIT_20). A happy path wears its Level's gear.
+4. *Read a label against the engine before shipping it:* the designer's "Loot ×N" would be false (only coin scales), so it is a CONFLICTS item, not a row.
+
 ## 2026-11-18 · lane/a-end-card-gold (the end card's Gold, kill the class)
 1. *One figure, one reader.* `result-block.js goldFig` (fed by `summary-model.js goldKeptOf`, coins + loot value − balance) is the Gold on both cards; a record with no spend is labelled Coins, never Gold. The analyzer's coins row says Coins on both tabs.
 2. *Known gap, server work:* the analyzer's `coins` leave out loot sold to cover supplies (the tally's `cover_gold`), so after a cover sale the net under-reads the purse by that much.

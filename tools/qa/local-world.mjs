@@ -21,6 +21,7 @@
 //
 //   import { openWorld } from './tools/qa/local-world.mjs';
 //   const world = await openWorld();                     // { url, db, skip, tick, play, close }; one world per process
+//   openWorld({ liveCalendar: true })                    // the live events on the wall clock, as serve and smoke play them (default: the guards' quiet calendar)
 //   const p = await world.play({ account: 'marlow', viewport: { width: 1440, height: 900 }, touch: false, shots: 'art/review/x', scale: 1.25 });
 //   await p.createHero('Marlow');  await p.enterHunt('mill_cellar');  await world.skip(30);  await world.wait(480);  await world.wait(480, { away: true });
 //   await p.shot('after');  p.text();  p.errors;  p.offsite;  p.page /* raw Playwright */;  await p.reload();  await world.close();
@@ -178,10 +179,10 @@ function postgresShim(db) {
   return () => ({ begin: (fn) => db.transaction((tx) => fn(face(tx))) });
 }
 
-async function bootDatabase() {
+async function bootDatabase({ liveCalendar = false } = {}) {
   const { bootReplay } = await import(pathToFileURL(join(ROOT, 'tests/schema-replay.mjs')).href);
   const { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET, K_SECRET } = await import(pathToFileURL(join(ROOT, 'tests/world-tick-token-shims.mjs')).href);
-  const { db } = await bootReplay({ keepClosed: true });
+  const { db } = await bootReplay({ keepClosed: true, liveCalendar });
   const open = (await readFile(join(ROOT, 'supabase/migrations', OPEN_FILE), 'utf8')).replace(/\r\n/g, '\n');
   await db.exec('begin;\n' + open + '\ncommit;');
   /* The betas play with every character premium (2026-12-17-beta-premium.sql); bootReplay turned it off for its guards. */
@@ -455,15 +456,17 @@ async function serveStatic(res, urlPath, origin, held, site, asked) {
 }
 
 /**
- * @param {{port?: number, tickMs?: number|false, liveFiles?: boolean, site?: string}} [o]  tickMs: how often the world tick fires (default 10 s, false: only
+ * @param {{port?: number, tickMs?: number|false, liveFiles?: boolean, site?: string, liveCalendar?: boolean}} [o]  tickMs: how often the world tick fires (default 10 s, false: only
  *   on skip); liveFiles: re-read client files on every request (serve), else each is read once; site: the folder the client's files are
  *   served from (the Pages artifact, `node tools/build-site.mjs`), default the repository. The engine and the chain are always the repository's.
+ *   liveCalendar: the live events armed as the chain arms them, on the wall clock (serve and smoke: the calendar production plays); default
+ *   off, the quiet calendar every guard reads (tests/schema-replay.mjs quietCalendar), so a world test reads the same on any day.
  */
 export async function openWorld(o = {}) {
   refuseProduction();
   const offsite = [], reports = [], held = o.liveFiles ? null : new Map();
   const site = o.site ? resolvePath(o.site) : ROOT, asked = { served: new Set(), missed: [] };
-  const { db, tickSecret } = await bootDatabase();
+  const { db, tickSecret } = await bootDatabase({ liveCalendar: o.liveCalendar === true });
   let origin = '';
   const auth = { shim: null, issuer: null };
   let engine = null, rest = null, push = null, verifyJwtFn = null;
@@ -715,7 +718,7 @@ const known = new Set();
 async function smoke({ shots, viewport, touch, site }) {
   const fails = [], t0 = Date.now();
   const step = (name, ok, got) => { console.log((ok ? '  ok   ' : '  RED  ') + name + (ok ? '' : ' -- ' + got) + '  (' + Math.round((Date.now() - t0) / 1000) + ' s)'); if (!ok) fails.push(name); };
-  const world = await openWorld({ tickMs: false, site });
+  const world = await openWorld({ tickMs: false, site, liveCalendar: true });
   step('world up: chain replayed and opened, engine loaded', true);
   try {
     const flag = (await world.db.query(`select enabled from public.hr_flags where key = 'closed_mode'`)).rows[0];
@@ -848,7 +851,7 @@ if (isMain(import.meta.url)) {
     const code = await smoke({ shots: opt('--shots') ? resolvePath(opt('--shots')) : null, viewport: { width: w, height: h }, touch: args.includes('--touch'), site: opt('--site') });
     process.exit(code);
   } else if (cmd === 'serve') {
-    const world = await openWorld({ port: Number(opt('--port') || 8787), tickMs: args.includes('--no-tick') ? false : 10000, liveFiles: true, site: opt('--site') });
+    const world = await openWorld({ port: Number(opt('--port') || 8787), tickMs: args.includes('--no-tick') ? false : 10000, liveFiles: true, site: opt('--site'), liveCalendar: true });
     console.log('local-world: open ' + world.url + '   (Ctrl-C ends the world; nothing is kept)');
   } else if (cmd === 'skip' || cmd === 'wait') {
     const res = await fetch('http://127.0.0.1:' + Number(opt('--port') || 8787) + '/__world/' + cmd + '?minutes=' + Number(args[1]) + (args.includes('--away') ? '&away=1' : ''));

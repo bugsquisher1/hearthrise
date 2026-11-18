@@ -18,6 +18,22 @@ font only shows slack; (2) PH-1's old "heads on one line" check compared each he
 so it never saw the four-line head: measure each cell against its own font size; (3) in a hunt the phone sheet starts under the hunt
 bar, 44 px lower than town: test both; (4) a configure-action.js `t` would shadow act()'s element parameter (text-home TH-5): put the
 words in action-table.js and pass them through; (5) custom properties outside tokens.css fail token-single-source: inline the px.
+## 2026-11-18 - the result first (lane/b-ui-result-cards, from v0.2.137 99511ead1)
+
+UI audit #1 (the end card led with chores, its numbers under the fold) and #2 (the return was a paragraph at the left edge).
+Lessons worth keeping:
+
+- **Check the data before drawing the line.** "Level 9 → 10" had no server source: no session stores the Level it began at,
+  and a level worked out from XP on the client is the class lane/c-level-from-server closed. The answer was a second server
+  answer, the away recap's own pattern: a residue stamp (`huntStart`) of the server's Level and skill levels while the
+  session has paid nothing (`atStart`), compared at the end. A page that first meets a hunt mid-way names only the Level it
+  ended at. A server `level_from` on the session would be cleaner; that is a lane C for the backend.
+- **A shared block, not a shared card.** `src/shell/result-block.js` (Level line + three figures) serves the end card and
+  the away card; each surface keeps its own why line and presses. No box: one rule over the figures and one under.
+- **A pseudo-element arrow is invisible to innerText** ("Level 15" for 1 → 5): the arrow is a text row now.
+- **Grid `gap` is both gaps.** A flex row's `gap: 10px` became a 10 px row gap when the loot cell turned grid.
+- **A docked window hides the HUD widget under it**, so a world test that reads the analyzer must close the card first.
+- **Moving a surface moves its tests' samples:** HR-6 used the away line as its sample alert; it is a party invite now.
 
 ## 2026-11-16 - whole device px at 125 % and 150 % (lane/a-visual-audit, from main v0.2.133)
 

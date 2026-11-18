@@ -437,7 +437,7 @@ export function mountShell(root, o) {
     const cs = ctx.character;
     /* ...and a new hunt that starts closes the last one's (playtest v0.2.127: it stayed open over the next hunt) */
     if (cs && takeStarted(cs) && wm.isOpen('hunt-summary')) wm.close('hunt-summary');
-    if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death')) queueMicrotask(() => wm.open('hunt-summary'));
+    if (cs && takeFresh(cs) && !deathPopupOf(cs) && !wm.isOpen('death')) queueMicrotask(() => { if (!wm.isOpen('away')) wm.open('hunt-summary'); });
   }
 
   /* The display tick: components patch their clocks and play the timeline's due events. A hidden page patches nothing (nobody reads it). */
@@ -565,7 +565,7 @@ export function mountShell(root, o) {
   coach();
   /* A death opens its popup (death-popup.js), on mount too: a death while away shows on return. The play cap's refusal opens its own,
      and the server's first offer of a side opens the join prompt (windows/faction-join.js). */
-  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh), offFaction = WINDOW_RENDERERS['faction-join'].follow(ctx);
+  const offDeaths = followDeaths(ctx), offPlayCap = WINDOW_RENDERERS['play-cap'].follow(ctx, refresh), offFaction = WINDOW_RENDERERS['faction-join'].follow(ctx), offAway = WINDOW_RENDERERS.away.follow(ctx, refresh);
 
   return {
     wm, hud,
@@ -584,7 +584,7 @@ export function mountShell(root, o) {
     destroy() {
       /* a switch of the viewed hero takes the windows with it: the summary on screen has been seen, and the bar must not stand in for it on the way back */
       if (wm.isOpen('hunt-summary')) summaryClosedBy(ctx.character);
-      offDeaths(); offPlayCap(); offFaction(); offWm(); offHud(); offMoves();
+      offDeaths(); offPlayCap(); offFaction(); offAway(); offWm(); offHud(); offMoves();
       if (sized) sized.ro.disconnect();
       ctx.menu.destroy();
       host.clearInterval(ticker);

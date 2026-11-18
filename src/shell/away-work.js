@@ -108,9 +108,12 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
   const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') : ' It stopped' + when + whyStopped(cs, w) + '.';
   const name = nameOf(cs) || 'Hero';
+  const who = name + ' ' + didWords(w), facts = t('away.card_facts', { facts: parts.join(', ') }) + tail;
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     action: made ? 'bag' : 'show', button: made ? 'Open your inventory' : 'See your hero',
-    text: t('away.card_head', { time: awayWords(now - was.at), who: name + ' ' + didWords(w) }) + ' ' + t('away.card_facts', { facts: parts.join(', ') }) + tail,
+    /* the away card's (windows/away.js): the hero, the absence, and the line after its head ("Tess mined the Copper Rock. +4,303 Copper Ore.") */
+    facts: { name, gone: now - was.at, body: t('away.card_work', { who, facts }) },
+    text: t('away.card_head', { time: awayWords(now - was.at), who }) + ' ' + facts,
   };
 }

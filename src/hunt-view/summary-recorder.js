@@ -14,8 +14,10 @@ import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.1
 import { roleIdOf } from '../session/party-sections.js?v=0.2.137';
 import { monsterName } from '../shell/widgets/bits.js?v=0.2.137';
 import { explainDeaths } from './death-explain.js?v=0.2.137';
-import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop } from './summary-model.js?v=0.2.137';
+import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.137';
 import { trainingOf } from '../session/training-sections.js?v=0.2.137';
+import { levelOf } from '../session/character-sections.js?v=0.2.137';
+import { skillLevelsOf } from '../session/item-sections.js?v=0.2.137';
 import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
 import { t } from '../render/player-text.js?v=0.2.137';
 
@@ -78,6 +80,18 @@ function fillTraining(cs, stop) {
   if (filled) cs.setResidue('huntSummaries', withSummary(summariesOf(cs), filled));
 }
 
+/* THE HUNT'S START, STAMPED ONCE (UI audit 2026-11-18 #1): the server's Level and skill levels while the session has paid nothing yet
+   (summary-model.js atStart), so the end card can say "Level 9 → 10" from two server answers. A session first read mid-hunt is not
+   stamped: its card names the Level it ended at and no start. Display state only (residue `huntStart`). */
+const startOf = (cs) => { const r = cs && cs.record && cs.record.residue && cs.record.residue.huntStart; return r && typeof r.s === 'string' ? r : null; };
+function stampStart(cs, s) {
+  const was = startOf(cs), lv = levelOf(cs);
+  if ((was && was.s === s.id) || !lv || !atStart(s) || typeof cs.setResidue !== 'function') return;
+  const sk = {};
+  for (const [id, r] of Object.entries(skillLevelsOf(cs) || {})) sk[id] = r.level;
+  cs.setResidue('huntStart', { s: s.id, lv: lv.level, sk });
+}
+
 /**
  * Start recording a character's hunts (idempotent). Safe to call from any
  * paint: the first call subscribes, later calls are a lookup.
@@ -92,7 +106,7 @@ export function attach(cs) {
   cs.subscribe(() => {
     const s = endedSessionOf(cs);
     if (!s) return;
-    if (!s.ended) { if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.hunt = s.hunt; a.live = null; a.liveSig = ''; } return; }
+    if (!s.ended) { if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.hunt = s.hunt; a.live = null; a.liveSig = ''; } stampStart(cs, s); return; }
     const tr = trainingOf(cs);
     const stop = tr ? tr.lastStop : null;
     if (a.done.has(s.id)) return fillTraining(cs, stop);
@@ -103,7 +117,9 @@ export function attach(cs) {
     const deaths = ex.deaths.map((f) => f.lines.join(' '));
     a.fresh = s.id;
     a.recorded = { id: s.id, at: Date.now() };
-    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, analyzerOf(cs), deaths, roleIdOf(cs), stop)));
+    const an = analyzerOf(cs);
+    const line = levelLine(s.id, startOf(cs), levelOf(cs), skillLevelsOf(cs), trainedIn(s, an));
+    cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, an, deaths, roleIdOf(cs), stop, line)));
   });
   return a;
 }

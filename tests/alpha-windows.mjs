@@ -433,6 +433,15 @@ async function pure() {
   const { SKILLS_DEF } = await imp('src/data/skills.js');
   const { SKILL_GUIDE } = await imp('src/data/skill-guide.js');
   for (const id of Object.keys(SKILLS_DEF)) if (!SKILL_GUIDE[id]) fails.push('AW-0 the skill ' + id + ' has no row in src/data/skill-guide.js');
+  /* AW-0c A PHONE'S CORNER COUNT FITS ITS POCKET (UI audit 2026-11-18: "10" and "1,493" side by side read as "101,493"): over 999 it reads 1.4k, 12k,
+     rounded down; the desktop's 44 px pocket keeps the whole count to ten thousand */
+  const { cornerCount, patchCount } = await imp('src/shell/windows/inventory/pockets.js');
+  const corner = [999, 1000, 1493, 12000, 999999, 1250000].map(cornerCount).join('|');
+  if (corner !== '999|1k|1.4k|12k|999k|1.2kk') fails.push('AW-0c the corner counts read ' + corner);
+  const pocketOn = (phone) => { const el = { textContent: '', classList: { toggle() {}, contains: () => false } };
+    const li = { querySelector: () => el, ownerDocument: { defaultView: { matchMedia: () => ({ matches: phone }) } } };
+    patchCount(li, 1493, false); return el.textContent; };
+  if (pocketOn(true) !== '1.4k' || pocketOn(false) !== '1,493') fails.push('AW-0c 1,493 in a pocket reads ' + JSON.stringify({ phone: pocketOn(true), desktop: pocketOn(false) }));
   const { edgeBody, withReceipt } = await imp('src/session/edge-intents.js');
   /* What the shop paid is the server's receipt, never the purse's difference (blind playtest 2026-10-31: "Sell for 10,000", "The shop paid 10,012"). */
   const askIt = (ans) => withReceipt(async (send) => { const a = await send(); return a.ok ? { ok: true } : { ok: false, error: 'no' }; }, async () => ans);
@@ -2931,11 +2940,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click('.hw-pocket[data-item="' + id + '"]', { button: 'right' });
           await page.waitForTimeout(150);
           return page.evaluate(() => ({ subs: Array.from(document.querySelectorAll('.hw-menu .hw-menu-sub')).map((x) => x.textContent),
+            labels: Array.from(document.querySelectorAll('.hw-menu .hw-mi')).map((x) => x.textContent),
             rules: Array.from(document.querySelectorAll('.hw-menu [data-hs-act="m-rule"]')).map((b) => [b.getAttribute('data-rule'), b.textContent, b.getAttribute('aria-pressed'), b.disabled]) }));
         };
         const m = await menuOf('wolf_pelt');
         const want = [['keep', 'Keep', 'true', false], ['deposit', 'Deposit', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
         if (JSON.stringify(m.rules) !== JSON.stringify(want) || !m.subs.includes('Loot plan') || !m.subs.includes('On pickup')) fails.push('AW-32 the item menu offers ' + JSON.stringify(m));
+        /* AW-32b NO WORD TWICE (UI audit 2026-11-18: the menu listed "Sell" twice, the sale now and the loot plan): every entry reads apart */
+        const twice = m.labels.filter((w, i) => m.labels.indexOf(w) !== i);
+        if (twice.length || !m.labels.includes('Sell now')) fails.push('AW-32b the item menu repeats ' + JSON.stringify(twice) + ' in ' + JSON.stringify(m.labels));
         if (shots) await shot(page, 'dispatch-1440x900-item-menu');
         s.onCall = (name, body) => {
           if (name === 'hr_loot_rule_set') { s.env.bag_rules.loot[body.p_item] = body.p_rule; }
@@ -3176,6 +3189,22 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'No record yet (hunt 10+ min)') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
+        /* AW-25L EVERY DROP IS ON THE CARD (QA audit 2026-11-18 N9: ten minutes in the Cellar dropped 21 Rat Tail, Venom Sac, Stinger, Hide and Sticky Core, and
+           the card named none): the loot list holds every row the engine can roll here past gear and Rares, the likeliest first, "+N more" opening the rest */
+        const lootRows = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hd-mats .hw-hd-rare')).map((n) => ({ id: n.dataset.item, shown: n.getClientRects().length > 0 })), W);
+        const lootMore = () => page.evaluate((w) => { const b = document.querySelector(w + '.hw-hd-mats-more'); return b && b.getClientRects().length ? b.textContent : null; }, W);
+        const lootBefore = await lootRows(), moreSaid = await lootMore();
+        const LOOT_WANT = ['rat_tail', 'venom_sac', 'hive_wasp_stinger', 'giant_rat_hide', 'sticky_core', 'slime_gel', 'bones'];
+        const lootMissing = LOOT_WANT.filter((id) => !lootBefore.some((x) => x.id === id));
+        const lootHidden = lootBefore.filter((x) => !x.shown).length;
+        if (lootMissing.length || lootBefore.length < 7 || lootBefore.slice(0, 6).some((x) => !x.shown) || moreSaid !== '+' + lootHidden + ' more' || !lootHidden)
+          fails.push('AW-25L the Cellar\'s loot reads ' + JSON.stringify({ lootBefore, moreSaid, lootMissing }));
+        else {
+          await page.click(W + '.hw-hd-mats-more');
+          await page.waitForTimeout(150);
+          const lootAfter = await lootRows();
+          if (lootAfter.some((x) => !x.shown) || await lootMore() !== null) fails.push('AW-25L "+N more" left rows hidden: ' + JSON.stringify(lootAfter));
+        }
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 7141, balance_h: 1859 } } } };

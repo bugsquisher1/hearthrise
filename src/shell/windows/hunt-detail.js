@@ -28,7 +28,7 @@ import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.137';
 import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.137';
 import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.137';
 import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, materialsOf } from '../hunt-ground-facts.js?v=0.2.137';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, lootOf } from '../hunt-ground-facts.js?v=0.2.137';
 import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.137';
 import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.137';
 import { gotoAttr, patchParts } from '../goto.js?v=0.2.137';
@@ -40,6 +40,8 @@ import { scaleHtml } from './scale-pane.js?v=0.2.137';
 import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.137';
 
 const PREP_LABEL = SHELL_WINDOWS.find((w) => w.id === 'hunt-prep').label;
+/* How many loot rows a ground's page lists before "+N more" (one more row than this shows them all: a press to open one row is a wasted press). */
+export const LOOT_SHOWN = 6;
 
 /* The world's one density (ART_DIRECTION §2): every art pixel is 2x2 screen px; each creature faces the player
    (Tyler 2026-10-24), the portrait's front pose, so the line reads as one. */
@@ -63,6 +65,7 @@ export function detailHtml() {
     + scaleHtml()
     + '<h4 class="hw-hd-h">' + t('hunts.head_drops') + ' <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="' + t('hunts.head_drops') + '"></ul>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_mats') + ' <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="' + t('hunts.head_mats') + '"></ul>'
+    + '<button type="button" class="hh-tool hw-hd-mats-more" data-hs-act="loot-more" hidden></button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_rares') + ' <small class="hw-hd-per">' + t('hunts.rares_per') + '</small></h4><ul class="hw-hd-rares" aria-label="' + t('hunts.head_rares') + '"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
     + '<section class="hw-hd-bests" aria-label="' + t('hunts.head_best') + '"><h4 class="hw-hd-h">' + t('hunts.head_best') + '</h4>'
@@ -248,10 +251,12 @@ export function patchGround(det, ctx, r, o) {
       text(li.querySelector('.hw-hd-odds'), chance(e.chance));
     },
   });
-  /* The materials a shortage sends a player here for (panel 2026-11-01: Drops listed gear only). The rows look like the Rare list's. */
-  const mats = materialsOf(r.hunt);
+  /* EVERY OTHER DROP (panel 2026-11-01: Drops listed gear only; QA audit 2026-11-18 N9: the sell loot was missing too), likeliest first: the
+     first LOOT_SHOWN, then "+N more" opens the rest (`o.allLoot`, hunts.js's display scratch). The rows look like the Rare list's. */
+  const loot = lootOf(r.hunt), all = !!o.allLoot || loot.length <= LOOT_SHOWN + 1;
+  const shown = new Set(loot.slice(0, all ? loot.length : LOOT_SHOWN).map((x) => x.id));
   text(det.querySelector('.hw-hd-mats-per'), size > 1 ? t('hunts.per_kill_party', { n: size }) : t('hunts.per_kill_alone'));
-  rows(det.querySelector('.hw-hd-mats'), mats, {
+  rows(det.querySelector('.hw-hd-mats'), loot, {
     key: (x) => x.id,
     build: (x) => element(ctx.doc, '<li class="hw-hd-rare" data-item="' + esc(x.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, x.id) + '</span>'
       + '<b class="hw-hd-rare-name"></b><small class="hw-hd-rare-by"></small><span class="hw-hd-odds"></span></li>'),
@@ -259,8 +264,12 @@ export function patchGround(det, ctx, r, o) {
       text(li.querySelector('.hw-hd-rare-name'), x.name);
       text(li.querySelector('.hw-hd-rare-by'), listWords(x.carriers));
       text(li.querySelector('.hw-hd-odds'), chance(x.chance));
+      prop(li, 'hidden', !shown.has(x.id));
     },
   });
+  const more = det.querySelector('.hw-hd-mats-more');
+  prop(more, 'hidden', all);
+  text(more, all ? '' : t('hunts.loot_more', { count: loot.length - LOOT_SHOWN }));
   rows(det.querySelector('.hw-hd-rares'), rares, {
     key: (x) => x.id + ':' + x.carrier.id,
     build: (x) => element(ctx.doc, '<li class="hw-hd-rare" data-item="' + esc(x.id) + '"><span class="hw-ico">' + itemIconHtml(ctx.glyphs, x.id) + '</span>'

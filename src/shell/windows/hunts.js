@@ -317,7 +317,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
 function patchPage(det, ctx, sc, v) {
   const { r, level, size, party, follower, now } = v;
   const cs = ctx.character;
-  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), repaint: () => ctx.refresh('hunts') });
+  patchGround(det, ctx, r, { level, size, bests: v.bests, worn: wornWeightOf(equipmentOf(cs) || {}), allLoot: sc.allLoot === r.hunt, repaint: () => ctx.refresh('hunts') });
   /* the floor is a warning (Tyler 2026-11-04 UTC): this hero's own gap, and a leader's every seat's too. The first press of Enter arms the one confirm (renderHunts.act). */
   const under = party && !follower ? seatsUnder(r, party).under : [];
   /* the death line says the share a death would really take with the Blessings the server says are on (designer re-read 2026-11-11) */
@@ -431,6 +431,8 @@ renderHunts.act = function actHunts(ctx, body, action, ev, el) {
     return true;
   }
   if (action === 'back') { sc.paged = false; repage(); return true; }
+  /* "+N more" under a ground's loot: the rest of its rows (display scratch, this ground's only) */
+  if (action === 'loot-more') { sc.allLoot = sc.pick; repaint(); return true; }
   /* Go as: display scratch only, until Enter sends it (nothing else reads or spends it). */
   if (action === 'go-as') { if (!sc.pending) { sc.goAs = Number(el.getAttribute('data-preset')); sc.msg = ''; repaint(); } return true; }
   /* Find a party: the Party window's finder, on this ground and this hero's weapon (B #3). */

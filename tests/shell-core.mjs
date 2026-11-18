@@ -1171,7 +1171,7 @@ async function runTests(mods) {
     eq(came({ state: 'started', skill: 'melee', place: 'yard', fee: 122 }), 'Then Wrenna went to the yard to train Melee.', 'started');
     eq(came({ state: 'pending', skill: 'melee', place: 'yard' }), 'Wrenna is on the way to the yard to train Melee.', 'pending');
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: 30 }),
-      'Wrenna waited in town · Yard: 122 gp/h · Gold: 30', 'too little gold says the fee and the purse');
+      'Wrenna waited in town · Yard: 122 gp/h · Gold: 30 gp', 'too little gold says the fee and the purse');
     eq(came({ state: 'waited', why: 'insufficient_gold', skill: 'melee', fee: 122, purse: null }), 'Wrenna waited in town · Yard: 122 gp/h', 'a purse the server did not send is not said');
     eq(came({ state: 'waited', why: 'low_level', skill: 'melee', need: 10 }), 'Wrenna waited in town: the yard requires Level 10', 'under the Level');
     eq(came({ state: 'waited', why: 'chose_wait' }), 'Then Wrenna waited in town', 'chose to wait');

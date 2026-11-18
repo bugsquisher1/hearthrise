@@ -11,7 +11,7 @@ import { unlockDummy } from '../../session/training-intents.js?v=0.2.137';
 import { goldOf } from '../../session/item-sections.js?v=0.2.137';
 import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.137';
 import { text, cls, attr, prop, rows, element } from '../../render/paint.js?v=0.2.137';
-import { whole } from '../../render/format.js?v=0.2.137';
+import { whole, gold } from '../../render/format.js?v=0.2.137';
 import { t } from '../../render/player-text.js?v=0.2.137';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
 import { runIntent } from '../intent-words.js?v=0.2.137';
@@ -35,7 +35,7 @@ export const DUMMY_HTML = '<section class="hd-dummy" hidden><h3 class="hs-sub">'
 export function unlockBlock(d, purse) {
   if (!d.hasHome) return t('training.dummy_needs_home', { home: homeName(d.needs || 'homestead') });
   if (d.nextPrice === null) return '';
-  if (purse !== null && purse < d.nextPrice) return t('training.dummy_short', { price: whole(d.nextPrice), purse: whole(purse) });
+  if (purse !== null && purse < d.nextPrice) return t('training.dummy_short', { price: whole(d.nextPrice), purse: gold(purse) });
   return '';
 }
 

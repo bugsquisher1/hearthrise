@@ -67,6 +67,8 @@ export const CONTROLS_TEXT = Object.freeze({
   leave_party: 'Leave party',
   buy: 'Buy',
   sell: 'Sell',
+  /* the item menu's sale at once, beside its Loot plan's Sell */
+  sell_now: 'Sell now',
   sell_selected: 'Sell selected',
   sell_all_cat: 'Sell all {category}',
   deposit: 'Deposit',

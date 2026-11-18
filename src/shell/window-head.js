@@ -102,7 +102,9 @@ export function paintHead(frame, ctx, renderers) {
   attr(crumb, 'hidden', !page);
   /* the arrow is text, so a reader gets "Hunts › Mill Cellar", not "HuntsMill Cellar" */
   text(crumb, page ? (row.title || row.label) + ' › ' : '');
-  text(frame.querySelector(':scope > .hs-win-head .hs-win-name'), page ? (page.title || page.label) : (row.title || row.label));
+  /* a window that names what it shows now (the Tower window on its Catacombs tab) says so through its renderer's `title`; else its row's */
+  const named = !page && render && typeof render.title === 'function' ? render.title(ctx) : null;
+  text(frame.querySelector(':scope > .hs-win-head .hs-win-name'), page ? (page.title || page.label) : (named || row.title || row.label));
 }
 
 /** A press on the band's Back (with no act of a renderer's own) or ?: handled here. False for any other press. */

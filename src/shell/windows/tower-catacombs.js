@@ -85,14 +85,16 @@ export function catacombHtml() {
     + '<span class="tt-rank tk-rank" data-board="solo" hidden><span class="tt-k">' + esc(t('catacomb.rank_solo')) + '</span><b class="tt-v"></b></span>'
     + '<span class="tt-rank tk-rank" data-board="party" hidden><span class="tt-k">' + esc(t('catacomb.rank_party')) + '</span><b class="tt-v"></b></span></p></section>'
     + '<section class="tt-box tk-keys-box"><h3 class="hw-hd-h tt-hd">' + esc(t('catacomb.keys_head')) + '</h3><div class="tk-fams"></div>'
-    + '<div class="tk-keys"></div><p class="tt-line tk-no-keys" hidden></p></section>'
+    + '<div class="tk-keys"></div></section>'
     + '<section class="tt-box tk-last-box" hidden><h3 class="hw-hd-h tt-hd">' + esc(t('catacomb.last_head')) + '</h3><div class="tt-rows tk-last"></div></section>'
     + '<section class="tt-box tk-party-box" hidden><h3 class="hw-hd-h tt-hd">' + esc(t('catacomb.party_head')) + '</h3><div class="tt-rows tk-party"></div></section>'
     + '<section class="tt-box tk-rules-box"><h3 class="hw-hd-h tt-hd">' + esc(t('catacomb.descent_head')) + '</h3><div class="tt-rows">'
     + STATS.map(([id, key]) => '<div class="tt-row" data-row="' + id + '"><span class="tt-k">' + esc(t(key)) + '</span><span class="tt-v"></span></div>').join('')
     + '</div></section>'
-    + '<section class="tt-box tk-before-box"><h3 class="hw-hd-h tt-hd">' + esc(t('hunts.head_before')) + '</h3><ul class="hw-before tk-before"></ul></section>'
-    + '<div class="tt-foot"><label class="tt-start-row"><span class="tt-k">' + esc(t('catacomb.start_head')) + '</span>'
+    /* Before entering stands IN the foot, over the Start Room (2026-11-18 shots: in the column it scrolled under the foot, clipped
+       mid-line), so what the bar buys is read whole beside the press it is for */
+    + '<div class="tt-foot tk-foot"><section class="tk-before-box"><h3 class="hw-hd-h tt-hd">' + esc(t('hunts.head_before')) + '</h3>'
+    + '<ul class="hw-before tk-before"></ul></section><label class="tt-start-row"><span class="tt-k">' + esc(t('catacomb.start_head')) + '</span>'
     + '<select class="hh-select tk-start-pick" data-hs-act="cat-door"></select></label>'
     + '<p class="hw-why tk-off-why"></p><ul class="hw-before tk-gate"></ul>'
     + '<button type="button" class="hh-tool is-primary tk-go" data-hs-act="cat-enter">' + esc(t('controls.enter')) + '</button></div>'
@@ -201,9 +203,6 @@ function patchKeys(root, cat) {
       text(b.querySelector('.tk-key-open'), t('catacomb.open_chest'));
     },
   });
-  const none = root.querySelector('.tk-no-keys');
-  prop(none, 'hidden', held.length > 0);
-  text(none, held.length ? '' : t('catacomb.no_keys'));
 }
 
 /* THE LAST DESCENT as label rows (the section's `last`): the wing, the rooms cleared, the keys it dropped by kind, the ones the held limit
@@ -243,9 +242,11 @@ export function patchCatacombs(pane, cs, cat, sc, before) {
   }
   text(pane.querySelector('.tk-big'), w && w.best > 0 ? whole(w.best) : t('tower.best_none'));
   /* "Catacombs, Deepest": the hero's place alone and in a party (one board for both wings), each only when the server sends it */
+  /* ...never beside a wing the hero has not descended (2026-11-18 shots: "None" next to "Rank #1" earned in the other wing) */
+  const ranked = !!w && w.best > 0;
   for (const [board, f] of [['solo', cat.field.solo], ['party', cat.field.party]]) {
     const el = pane.querySelector('.tk-rank[data-board="' + board + '"]');
-    prop(el, 'hidden', !f);
+    prop(el, 'hidden', !f || !ranked);
     text(el.querySelector('.tt-v'), rankWords(f));
   }
   patchKeys(pane, cat);

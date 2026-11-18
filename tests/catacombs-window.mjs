@@ -6,7 +6,7 @@
 //   node tests/catacombs-window.mjs --mutate   every planted defect must turn a named rule RED, each run in only its arm (`CT-2 …`)
 //   node tests/catacombs-window.mjs --shots <dir>   also write the desktop (1440x900) and phone (922x423) screenshots
 //
-// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-catacombs.js src/shell/windows/tower-chest.js src/shell/tower-words.js src/shell/death-popup.js src/hunt-view/summary-recorder.js src/hunt-view/summary-model.js src/session/catacomb-sections.js src/shell/windows/hunt-summary.js src/world/hunt-maps.js src/shell/widgets/tower-bar.js
+// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-catacombs.js src/shell/windows/tower-chest.js src/shell/tower-words.js src/shell/death-popup.js src/hunt-view/summary-recorder.js src/hunt-view/summary-model.js src/session/catacomb-sections.js src/shell/windows/hunt-summary.js src/world/hunt-maps.js src/shell/widgets/tower-bar.js src/data/text/catacomb.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs); the hero is tests/fixtures/alpha-envelope.json ("Tyler",
 // slot 0), with a `tower` section (tests/tower-window.mjs's shape) and a `catacomb` section in the shape of 2027-05-08-catacombs.sql
@@ -158,7 +158,19 @@ const tabView = (page) => page.evaluate(() => {
     ranks: Array.from(w.querySelectorAll('.tk-rank')).filter((r) => !r.hidden).map((r) => words(r)),
     fams: Array.from(w.querySelectorAll('.tk-fam')).map((d) => Array.from(d.children).filter((c) => !c.hidden).map((c) => (c.children.length ? words(c) : c.textContent)).join(' | ')),
     keys: Array.from(w.querySelectorAll('.tk-key')).map((b) => [b.querySelector('.tk-key-name'), b.querySelector('.tk-key-sub'), b.querySelector('.tk-key-open')].map((e) => e.textContent.trim()).filter(Boolean).join(' ')),
-    noKeys: w.querySelector('.tk-no-keys').hidden ? '' : w.querySelector('.tk-no-keys').textContent,
+    /* a line that says the keys held a second time ("Catacomb keys: 0" under "Keys held 0 / 30", the 2026-11-18 shots) */
+    keysTwice: Array.from(w.querySelectorAll('*')).filter((e) => e.children.length === 0 && e.getClientRects().length && /^Catacomb keys:/i.test(e.textContent.trim())).length,
+    /* the band's name (window-head.js paintHead: the renderer's own title on this tab) */
+    title: (document.querySelector('[data-hs-win="tower"] .hs-win-head .hs-win-name') || {}).textContent || null,
+    /* Before entering, read whole: every line shown inside the window's body and over the Start Room, none under the foot */
+    before: Array.from(w.querySelectorAll('.tk-before li')).filter((li) => li.getClientRects().length).map((li) => li.textContent),
+    beforeWhole: (() => {
+      const body = w.closest('[data-hs-body]') || w, b = body.getBoundingClientRect(), start = w.querySelector('.tt-start-row').getBoundingClientRect();
+      return Array.from(w.querySelectorAll('.tk-before li')).filter((li) => li.getClientRects().length)
+        .every((li) => { const r = li.getBoundingClientRect(); return r.top >= b.top - 1 && r.bottom <= b.bottom + 1 && r.bottom <= start.top + 1; });
+    })(),
+    /* each wing slot's "Deepest" line on one line */
+    wingLines: Array.from(w.querySelectorAll('.tk-wing-best')).map((e) => { const lh = parseFloat(getComputedStyle(e).lineHeight) || 18; return e.getBoundingClientRect().height < lh * 1.5 ? 1 : 2; }),
     last: rowsOf('.tk-last-box'), party: rowsOf('.tk-party-box'), rules: rowsOf('.tk-rules-box'),
     starts: Array.from(sel.options).map((o) => o.textContent + (o.selected ? '*' : '')),
     go: go.disabled ? 'off' : 'on', why: w.querySelector('.tk-off-why').textContent, gate: Array.from(w.querySelectorAll('.tk-gate li')).map((li) => li.textContent),
@@ -202,6 +214,8 @@ async function checks(overrides, shots, { arm = null } = {}) {
       if (!(await openTower(page))) fails.push('CT-1 the Tower window never opened');
       let v = await tabView(page);
       if (!v || v.tab !== 'hidden' || v.on) fails.push('CT-1 with the switch off the Catacombs tab reads ' + JSON.stringify(v && [v.tab, v.on]));
+      /* the band keeps the Tower's name off the Catacombs tab */
+      if (!v || v.title !== 'The Burning Tower') fails.push('CT-1 the Tower window\'s band reads ' + JSON.stringify(v && v.title));
       /* a forged press on the hidden tab shows nothing and sends nothing */
       await page.evaluate(() => document.querySelector('[data-hs-win="tower"] .hw-tab[data-tab="catacomb"]').click());
       await page.evaluate(() => { const b = document.querySelector('[data-hs-win="tower"] .tk-go'); b.disabled = false; b.click(); });
@@ -230,7 +244,12 @@ async function checks(overrides, shots, { arm = null } = {}) {
       if (!(await openTower(page, 'catacomb'))) fails.push('CT-2 the Catacombs tab never opened');
       let v = await tabView(page);
       /* the wings: the server's two, the one that ran last picked */
-      if (!v || v.wings.join(' || ') !== 'Bone Wing Deepest Room: 23* || Flooded Wing Deepest Room: 41') fails.push('CT-2 the wings read ' + JSON.stringify(v && v.wings));
+      if (!v || v.wings.join(' || ') !== 'Bone Wing Deepest: 23* || Flooded Wing Deepest: 41') fails.push('CT-2 the wings read ' + JSON.stringify(v && v.wings));
+      /* THE 2026-11-18 SHOTS: the band names the Catacombs on this tab; the keys held are said once (the family's line); Before entering
+         stands whole over the Start Room, never cut under the foot */
+      if (!v || v.title !== 'Unmarked Catacombs') fails.push('CT-2 the window\'s band on the Catacombs tab reads ' + JSON.stringify(v && v.title));
+      if (!v || v.keysTwice) fails.push('CT-2 the keys held are said twice');
+      if (!v || v.before.length < 3 || !v.beforeWhole) fails.push('CT-2 Before entering is cut or missing: ' + JSON.stringify(v && [v.before, v.beforeWhole]));
       /* the Bone Wing's doors: the entrance, then 10, 20, 30, 40 (two past the deepest 23), each with the BONE key its rows give, the last
          descent's start (door 10) picked, the first door past the deepest the next key, only the wing's checkpoints pressable */
       const DOORS = ['0|Room 1 Entrance||on|', '10|Room 10 Bronze Bone Key|Start 11|on|bone_key_bronze.png', '20|Room 20 Bronze Bone Key||on|bone_key_bronze.png',
@@ -392,9 +411,22 @@ async function checks(overrides, shots, { arm = null } = {}) {
       await ctx.close();
     }
     if (runs('CT-6')) { // CT-6
-      const { ctx, page, errors } = await open({ width: 922, height: 423 }, { catacomb: catSection({ held: { bone_bronze: { bag: 2, storage: 0, ring: 0 } } }) });
+      /* the Flooded Wing never descended (the 2026-11-18 phone shots: "Deepest Room: None" wrapped, and "Rank #1" stood beside it) */
+      const wings = [{ wing: 'bone', hunt: BONE, name: 'Bone Wing', best: 23, record: 23, checkpoints: [0, 10, 20], last_start: 10 },
+        { wing: 'flooded', hunt: FLOODED, name: 'Flooded Wing', best: 0, record: 0, checkpoints: [0], last_start: null }];
+      const { ctx, page, errors } = await open({ width: 922, height: 423 }, { catacomb: catSection({ wings, held: { bone_bronze: { bag: 2, storage: 0, ring: 0 } } }) });
       if (!(await openTower(page, 'catacomb'))) fails.push('CT-6 the Catacombs tab never opened on the phone');
       await page.waitForTimeout(400);
+      let pv = await tabView(page);
+      if (!pv || pv.wings.join(' || ') !== 'Bone Wing Deepest: 23* || Flooded Wing Deepest: —' || pv.wingLines.some((n) => n !== 1) || pv.ranks.join() !== 'Rank #7,Party Rank #1,000+')
+        fails.push('CT-6 the phone\'s wings read ' + JSON.stringify(pv && [pv.wings, pv.wingLines, pv.ranks]));
+      await page.click('[data-hs-win="tower"] .tk-wing[data-wing="flooded"]');
+      await wait(page, () => document.querySelector('[data-hs-win="tower"] .tk-wing[data-wing="flooded"]')?.getAttribute('aria-checked') === 'true');
+      pv = await tabView(page);
+      if (!pv || pv.best !== 'None' || pv.ranks.length) fails.push('CT-6 a wing never descended shows ' + JSON.stringify(pv && [pv.best, pv.ranks]));
+      if (shots) await page.screenshot({ path: join(shots, 'catacombs-tab-phone-922x423-flooded.png') });
+      await page.click('[data-hs-win="tower"] .tk-wing[data-wing="bone"]');
+      await page.waitForTimeout(300);
       const fit = await page.evaluate(() => {
         const win = document.querySelector('[data-hs-win="tower"]'), pane = win.querySelector('[data-pane="catacomb"]');
         const r = win.getBoundingClientRect();
@@ -478,7 +510,10 @@ const MUTANTS = [
   ['CT-5 the death popup opens in the Catacombs', 'src/shell/death-popup.js', '  if (runRulesOf(h.huntId)) return null;', "  if (h.huntId === 'the_burning_tower') return null;"],
   ['CT-5 a Catacombs fall said as the Tower\'s', 'src/hunt-view/summary-recorder.js', "run.family === 'catacomb' ? t('catacomb.fell', { name }) : t('tower.fell', { name })", "t('tower.fell', { name })"],
   ['CT-5 a descent\'s card says spat out', 'src/hunt-view/summary-model.js', "sessionModeOfHunt(hunt).id === 'catacomb' ? t('catacomb.end_carried') : t('summary.end_spat')", "t('summary.end_spat')"],
-  ['CT-5 the hunt bar says nothing in the Catacombs', 'src/shell/widgets/tower-bar.js', '  if (!w) return null;', '  return null;'],
+  ['CT-2 the band says The Burning Tower on the Catacombs tab', 'src/shell/windows/tower.js', "return cs && scratchOf(cs).tab === 'catacomb' && offered(cs, 'catacomb') ? t('catacomb.title') : null;", 'return null;'],
+  ['CT-6 a Rank beside a wing never descended', 'src/shell/windows/tower-catacombs.js', "prop(el, 'hidden', !f || !ranked);", "prop(el, 'hidden', !f);"],
+  ['CT-6 the empty wing says the long label', 'src/data/text/catacomb.js', "wing_none: 'Deepest: —',", "wing_none: 'Deepest Room: None',"],
+  ['CT-5 the hunt bar says nothing in the Catacombs','src/shell/widgets/tower-bar.js', '  if (!w) return null;', '  return null;'],
   ['CT-7 a descent watched draws the town','src/world/hunt-maps.js', 'export const HUNT_MAP_INDEX = huntMapIndex(DRAWN_MAPS, HUNT_INDEX);', 'export const HUNT_MAP_INDEX = huntMapIndex(WORLD_MAPS, HUNT_INDEX);'],
   ['CT-7 the staged hunting ground routes to its map', 'src/world/hunt-maps.js', '{ hunts: Object.freeze(m.hunts.filter((h) => runRulesOf(h))) }', '{ hunts: m.hunts }'],
   ['CT-5 Hunt again offered on a descent','src/shell/windows/hunt-summary.js', '    const again = runRulesOf(cur.hunt) ? null : huntAgainOf(cur);', '    const again = cur.hunt === TOWER_RULES.hunt ? null : huntAgainOf(cur);'],

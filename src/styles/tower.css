@@ -218,7 +218,7 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tk-wing-ico { width: var(--icon-1); height: var(--icon-1); flex: none; image-rendering: pixelated; }
 .tk-wing-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .tk-wing-name { font: 700 var(--t-small)/1.15 var(--f-ui); color: var(--ink); }
-.tk-wing-best { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.tk-wing-best { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 .tk-wing[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; box-shadow: inset 4px 0 0 var(--gold); background: var(--fill-3); }
 .tk-wing[aria-checked="true"] .tk-wing-name, .tk-wing:hover:not(:disabled) .tk-wing-name { color: var(--gold-2); }
 .tk-wing:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
@@ -265,7 +265,11 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tk-key:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
 .tk-pane .tt-line { margin-top: 6px; }
 .tk-gate:empty { display: none; }
-/* Before entering, none while a descent runs; Enter the width of the column (the Climb's own look, its own class: one window, two doors) */
+/* Before entering, in the foot over the Start Room (read whole beside Enter), none while a descent runs; Enter the width of the column
+   (the Climb's own look, its own class: one window, two doors) */
+.tk-before-box { margin: 0 0 8px; }
+/* the foot is the column's scroll edge: a rule over it, so a box sliding under it reads as scrolled, not cut */
+.tk-foot { border-top: 2px solid var(--steel-sep); padding-top: 8px; }
 .tk-before-box:has(.tk-before:empty) { display: none; }
 .tk-go { display: block; width: 100%; min-height: 40px; }
 

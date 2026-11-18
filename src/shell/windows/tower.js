@@ -265,6 +265,13 @@ renderTower.patch = function patchTower(body, ctx) {
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
+/* THE BAND'S NAME (window-head.js paintHead): on the Catacombs tab the window is the Catacombs' ("Unmarked Catacombs"), else the row's own
+   title (The Burning Tower). Read from the tab the window shows, only while the server offers it. */
+renderTower.title = function titleTower(ctx) {
+  const cs = ctx && ctx.character;
+  return cs && scratchOf(cs).tab === 'catacomb' && offered(cs, 'catacomb') ? t('catacomb.title') : null;
+};
+
 /* A pick, from the select or a landing tapped on the tower: only a checkpoint the server lists (anything else is ignored). */
 function pick(sc, tw, value) {
   const l = Number(value);

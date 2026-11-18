@@ -12,11 +12,14 @@
 export const CATACOMB_TEXT = Object.freeze({
   /* The Tower window's tab (shown only while the server sends the `catacomb` section). */
   tab: 'Catacombs',
+  /* the window's band on that tab (Tyler 2026-11-16: "Unmarked Catacombs", no "The") */
+  title: 'Unmarked Catacombs',
 
   /* THE WINGS, picked before Enter (Tyler 2026-11-16): one slot a wing the server lists, its name and the hero's deepest room in it. */
   wings_head: 'Wing',
-  wing_best: 'Deepest Room: {room}',
-  wing_none: 'Deepest Room: None',
+  /* the wing slot's one line (2026-11-18 phone shots: "Deepest Room: None" wrapped at 922 px): the genre's short label and an empty mark */
+  wing_best: 'Deepest: {room}',
+  wing_none: 'Deepest: —',
 
   /* THE COLUMN: label, value (each value the server's: the wing's deepest room, the boards, the mode's pay, the rules). */
   best_head: 'Deepest Room',
@@ -52,7 +55,6 @@ export const CATACOMB_TEXT = Object.freeze({
 
   /* THE KEYS: each family's week (the server's family rows) and the Catacomb keys held, a press opens the chest on one. */
   keys_head: 'Keys',
-  no_keys: 'Catacomb keys: 0',
   open_chest: 'Open chest',
 
   /* THE PARTY: every other seat's deepest room in the picked wing (the section's party). */

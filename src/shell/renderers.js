@@ -31,6 +31,7 @@ import { renderParty } from './windows/party.js?v=0.2.137';
 import { renderCharacters } from './windows/characters.js?v=0.2.137';
 import { renderAlerts } from './widgets/alerts.js?v=0.2.137';
 import { renderHuntSummary } from './windows/hunt-summary.js?v=0.2.137';
+import { renderAway } from './windows/away.js?v=0.2.137';
 import { renderReport } from './windows/report.js?v=0.2.137';
 import { renderDeath } from './windows/death.js?v=0.2.137';
 import { renderPlayCap } from './windows/play-cap.js?v=0.2.137';
@@ -69,6 +70,7 @@ export const WINDOW_RENDERERS = Object.freeze({
   'hunt-party': renderParty,
   characters: renderCharacters,
   'hunt-summary': renderHuntSummary,
+  away: renderAway,
   hud: renderHudSettings,
   'configure-action': renderConfigureAction,
   death: renderDeath,

@@ -92,6 +92,33 @@
 .hsum-actions .hh-tool { min-height: 36px; }
 .hsum-actions .hh-tool.is-primary { min-height: 40px; }
 
+/* WHILE YOU WERE AWAY (src/shell/windows/away.js, UI audit 2026-11-18 #2): how long the player was away, large, then one block per hero on
+   the end card's result block, the heroes parted by the dim gold rule the end card's head uses; each hero's presses at its foot, OK at the
+   card's. The hero's name is a name (Cinzel, gold); what it did is plain text under the figures. */
+.haway-gone { margin: 2px 2px 10px; font-size: var(--t-h2); font-weight: 800; line-height: 1.15; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.haway-gone:empty { display: none; }
+.haway-heroes { margin: 0; padding: 0; list-style: none; }
+.haway-hero { padding: 10px 0 12px; border-top: 2px solid var(--steel-rule); }
+.haway-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 0 2px 8px; }
+.haway-name { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-lead); letter-spacing: .05em; color: var(--gold-2); }
+.haway-place { font-size: var(--t-small); color: var(--ink-2); }
+.haway-hero .hres.is-empty { display: none; }
+.haway-best { display: flex; align-items: center; gap: 10px; margin: 0 2px 6px; }
+.haway-best[hidden] { display: none; }
+.haway-best-name { display: flex; flex-direction: column; min-width: 0; }
+.haway-best-name small { font-family: var(--f-label); font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
+.haway-best-name b { font-size: var(--t-small); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.haway-why { margin: 0 2px 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.haway-when { margin: 0 2px 8px; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
+.haway-why:empty, .haway-when:empty { display: none; }
+.haway-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 2px 0; }
+.haway-acts .hh-tool { min-height: 36px; }
+.haway-acts .hh-tool.is-primary { min-height: 40px; }
+.haway-acts [hidden] { display: none; }
+.haway-stamina { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.haway-msg:empty { display: none; }
+.haway-foot { justify-content: flex-end; margin: 0; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
+
 /* The death popup (src/shell/windows/death.js): a centred modal read top to bottom, the cost set apart, the
    answers in the foot with OK on the right. Its key (X) is not capped in the title band: beside the close it
    read as a second close (the key still opens the last death). */
@@ -127,7 +154,8 @@
   /* the sheet's head is one tight block: the ground and its date, the rule close under them */
   .hsum-head { margin-bottom: 4px; padding-bottom: 16px; }
   .hsum-title { font-size: var(--t-lead); }
-  .hres-lv, .hres-fig dd { font-size: var(--t-lead); }
+  .hres-lv, .hres-fig dd, .haway-gone { font-size: var(--t-lead); }
+  .haway-acts .hh-tool, .haway-acts .hh-tool.is-primary { min-height: 44px; }
   .hres-level { margin-bottom: 6px; }
   .hres-figs { padding: 6px 0 8px; }
   .hsum-reason { margin-bottom: 8px; }

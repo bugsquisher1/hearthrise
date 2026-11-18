@@ -112,6 +112,8 @@ export const SHELL_WINDOWS = Object.freeze([
      character strip's "All characters", so it takes no launcher icon). */
   Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', group: 'social', glyph: 'uiBanner', width: 440, object: 'plain' }),
   Object.freeze({ id: 'characters', label: 'All characters', key: 'o', glyph: 'navProfile', width: 460, object: 'ledger', launcher: false }),
+  /* UI audit 2026-11-18 #2: the return is ONE card, docked where the summary docks (src/shell/windows/away.js opens it from the alert centre's away lines) */
+  Object.freeze({ id: 'away', label: 'While you were away', key: null, noShortcut: true, glyph: 'uiHourglass', width: 420, object: 'ledger', launcher: false, rise: true }),
   /* rise: the result, the loot, the steps and the presses open whole, over the bottom bar in town (UI audit 2026-11-18 #1: 404 px of a 1,194 px card) */
   Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false, rise: true }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),

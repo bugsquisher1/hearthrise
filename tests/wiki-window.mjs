@@ -227,11 +227,7 @@ async function chronicleRules() {
     if (p.open.kind === 'kills' && !CHRONICLE_TEXT['opens_' + p.id]) fails.push('WK-5 the page ' + p.id + ' never says which fight opens it');
     if (!['start', 'ground', 'kills'].includes(p.open.kind)) fails.push('WK-5 the page ' + p.id + ' opens on ' + p.open.kind);
   }
-  /* ITS FACTS ARE THE CANON (chronicle.js's header; audit 2026-11-18 A14: the Chronicle called Grayjaw "he" while the Ruff, the whisker and the
-     Thicket's den call Old Grayjaw the den mother): the Thicket's page says "she" of Grayjaw, never "he" */
-  const grayjaw = (CHRONICLE_TEXT.page_thicket || '').split(/(?<=[.!?])\s+/).filter((s) => /Grayjaw|\b(?:He|he|his|She|she|her)\b/.test(s)).join(' ');
-  if (/\b(?:He|he|his)\b/.test(grayjaw) || !/\b(?:She|she)\b/.test(grayjaw)) fails.push('WK-5 the Thicket page says of Grayjaw: ' + JSON.stringify(grayjaw.slice(0, 160)));
-  const start = CHRONICLE.filter((p) => p.open.kind === 'start').map((p) => p.id).join(',');
+  const start =CHRONICLE.filter((p) => p.open.kind === 'start').map((p) => p.id).join(',');
   const order = (ids) => CHRONICLE.map((p) => p.id).filter((id) => ids.includes(id)).join(',');
   const cases = [
     ['nothing said', fakeHero({}), start],
@@ -251,8 +247,21 @@ async function chronicleRules() {
 const CK = '[data-hs-win="wiki"] .ck-page';
 const ckOpen = (page) => page.evaluate((q) => Array.from(document.querySelectorAll(q + ':not(.is-shut)')).map((e) => e.getAttribute('data-wk-id')).join(','), CK);
 
+/* ITS FACTS ARE THE CANON (chronicle.js's header; audit 2026-11-18 A14: the Chronicle called Grayjaw "he" while the Ruff, the whisker and the
+   Thicket's den call Old Grayjaw the den mother): the Thicket's page says "she" of Grayjaw, never "he". Read from the file's text (a planted
+   copy when a mutant names it; the table imports nothing), so the rule sees what a mutant plants. */
+const CHRONICLE_FILE = 'src/data/text/chronicle.js';
+async function canonRules(overrides) {
+  const text = (overrides && overrides[CHRONICLE_FILE]) || await readFile(join(ROOT, CHRONICLE_FILE), 'utf8');
+  const { CHRONICLE_TEXT } = await import('data:text/javascript;charset=utf-8,' + encodeURIComponent(text));
+  const grayjaw = (CHRONICLE_TEXT.page_thicket || '').split(/(?<=[.!?])\s+/).filter((s) => /Grayjaw|\b(?:He|he|his|She|she|her)\b/.test(s)).join(' ');
+  return /\b(?:He|he|his)\b/.test(grayjaw) || !/\b(?:She|she)\b/.test(grayjaw) ? ['WK-5 the Thicket page says of Grayjaw: ' + JSON.stringify(grayjaw.slice(0, 160))] : [];
+}
+
 async function checks(overrides, shots) {
-  const fails = [];
+  const fails = [...await canonRules(overrides)];
+  /* a planted copy of the Chronicle's words is judged by the rule above alone: the pages below draw the shipped table */
+  if (overrides && overrides[CHRONICLE_FILE]) return fails;
   if (!overrides) { // WK-1
     const { skillPages, groundPages, formulaPages } = await src('src/shell/wiki-model.js');
     const skills = skillPages().map((s) => s.id), grounds = groundPages().map((g) => g.id), formulas = formulaPages();

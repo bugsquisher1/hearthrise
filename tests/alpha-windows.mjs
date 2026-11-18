@@ -2057,18 +2057,42 @@ async function planRules(base) {
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight known: the
-     tie stands. None of that weight in the bag for a BARE armor slot: it waits for that weight (the 139 audit's B6: a medium belt put on a
-     heavy hero stayed for good, since a worn piece only takes its own weight), and Back in town names where it comes from (next-buy.js). */
+     tie stands. None of that weight in the bag for a BARE armor slot: the piece that guards most goes on, so it never waits (played 2026-11-04;
+     designer ruling 2b of 2026-11-18 put it back after the 139 audit's B6 took it out). */
   const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
   const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
   const tieOf = (prefer) => UP.upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
   const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops2(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
-  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/0')
+  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {"body":"bronze_platebody","boots":"bronze_boots"}/0')
     fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
-  /* ...the audit's own case: a heavy hero, a bare belt slot and only the medium Studded Leather Belt in the bag puts nothing on; the Bronze Belt goes on */
-  const beltOf = (bag) => ops2(UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody' }, bag: bag.map((id) => ({ id, qty: 1 })), skills: lv1, level: 15, prefer: 'heavy' }));
+  /* THE WEIGHT RULE (designer ruling 2b of 2026-11-18, the full-game audit's A11; it undoes the 139 audit's B6, which made a bare armor slot wait for
+     the hero's weight). (1) A BARE armor slot takes the best piece that beats bare, of ANY weight: the Level 1 light Mage holding the Shop's Leather
+     Gloves and Bronze Belt and an Apprentice Hat wears the hat AND the gloves (B6 left the gloves bare); the heavy belt costs Magic accuracy, so it
+     stays off either way. A heavy hero's bare belt takes the medium Studded Leather Belt, or the Bronze Belt that beats it. */
+  const bagOf = (ids) => ids.map((id) => ({ id, qty: 1 }));
+  const mage = UP.upgradePlan({ equipment: { weapon: 'practice_wand' }, bag: bagOf(['apprentice_helmet', 'leather_gloves', 'bronze_belt']), skills: lv1, level: 1, prefer: 'light', chosen: 'light' });
+  if (ops2(mage) !== '{"gloves":"leather_gloves","helmet":"apprentice_helmet"}' || UP.upgradeWords(mage) !== 'Upgrade: Apprentice Hat (+2 Magic accuracy) and Leather Gloves (+1 Defense)')
+    fails.push('AW-21 the Level 1 light Mage puts on ' + ops2(mage) + ': ' + UP.upgradeWords(mage) + ' (want the hat and the gloves, never the heavy belt)');
+  const beltOf = (bag, belt) => ops2(UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody', ...(belt ? { belt } : {}) }, bag: bagOf(bag), skills: lv1, level: 15, prefer: 'heavy', chosen: 'heavy' }));
   const belts = [beltOf(['studded_belt']), beltOf(['studded_belt', 'bronze_belt'])];
-  if (belts[0] !== '{}' || belts[1] !== '{"belt":"bronze_belt"}') fails.push('AW-21 a heavy hero\'s bare belt slot takes ' + JSON.stringify(belts));
+  if (belts[0] !== '{"belt":"studded_belt"}' || belts[1] !== '{"belt":"bronze_belt"}') fails.push('AW-21 a heavy hero\'s bare belt slot takes ' + JSON.stringify(belts));
+  /* (2) A WORN piece off the weight chosen at Tamsin's takes a piece of that weight of the same tier or higher, and the line says what the move gives
+     up as well as what it adds: a heavy hero's Leather Gloves (bought at Level 9, worn to 85 in the audit) go for the Bronze Gauntlets. Never a lower
+     tier (a worn Studded Leather Belt stays over the Bronze Belt), never the reverse (Bronze Boots stay over Leather Boots), and with no weight chosen
+     nothing moves a worn piece to another weight. */
+  const heavyIn = (worn, bag, chosen) => UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody', ...worn }, bag: bagOf(bag), skills: lv1, level: 9, prefer: 'heavy', chosen });
+  const moved = heavyIn({ gloves: 'leather_gloves' }, ['bronze_gauntlets'], 'heavy');
+  if (ops2(moved) !== '{"gloves":"bronze_gauntlets"}' || UP.upgradeWords(moved) !== 'Upgrade: Bronze Gauntlets (+11 health, -1 Melee accuracy)')
+    fails.push('AW-21 a heavy hero\'s worn Leather Gloves with Bronze Gauntlets in the bag: ' + ops2(moved) + ' / ' + UP.upgradeWords(moved));
+  const stays = [beltOf(['bronze_belt'], 'studded_belt'), ops2(heavyIn({ boots: 'bronze_boots' }, ['leather_boots'], 'heavy')), ops2(heavyIn({ boots: 'leather_boots' }, ['bronze_boots'], null))];
+  if (stays.some((s) => s !== '{}')) fails.push('AW-21 a lower tier, the reverse, or no weight chosen moved a worn piece: ' + JSON.stringify(stays));
+  /* ONE PRESS DOES WHAT TWO WOULD: a heavy bow hero's bare boots take the Leather Boots that beat bare, which (2) moves to the Bronze Boots, so the
+     press puts the Bronze Boots on at once and the next plan is empty */
+  const bow = { weapon: 'practice_bow' };
+  const once = UP.upgradePlan({ equipment: bow, bag: bagOf(['leather_boots', 'bronze_boots']), skills: lv1, level: 5, prefer: 'heavy', chosen: 'heavy' });
+  const twice = UP.upgradePlan({ equipment: { ...bow, ...once.ops }, bag: bagOf(['leather_boots']), skills: lv1, level: 5, prefer: 'heavy', chosen: 'heavy' });
+  if (ops2(once) !== '{"boots":"bronze_boots"}' || ops2(twice) !== '{}' || UP.upgradeWords(once) !== 'Upgrade: Bronze Boots (+2 Defense, -1 Ranged accuracy)')
+    fails.push('AW-21 a heavy bow hero\'s bare boots take ' + ops2(once) + ' (' + UP.upgradeWords(once) + '), then ' + ops2(twice));
   /* NO HERO STAYS BARE FOR WANT OF A CHOICE (played 2026-11-04: Marlow fought a night in nothing over 140 pieces; Sorrel, a hammer, was bare at hour 16): her pick, else what the hero wears most, else its role's. */
   const weightIs = [['medium', { weapon: 'practice_sword', body: 'bronze_platebody' }, 'tank', 'medium'], [null, { weapon: 'practice_sword', body: 'leather_body', boots: 'leather_boots' }, 'tank', 'medium'], [null, kit, 'melee_dps', 'heavy'], [null, kit, 'ranger', 'medium'], [null, kit, 'healer', 'light'], [null, kit, null, null]];
   for (const [chosen, worn, role, want] of weightIs) if (UP.preferredWeight(chosen, worn, role) !== want) fails.push('AW-21 chosen ' + chosen + ', role ' + role + ' prefers ' + UP.preferredWeight(chosen, worn, role) + ', wanted ' + want);
@@ -2076,8 +2100,6 @@ async function planRules(base) {
   const { upgradeOf } = await imp('src/shell/widgets/upgrade-line.js');
   const bare = { state: { level_xp: 200 }, level: levelBlock(200), inventory: { bronze_helm: 1, leather_helmet: 1 }, equipment: { weapon: 'practice_club' }, hunt_settings: { preset: 0, role: 'melee_dps', slots: [] }, skills: { melee: { xp: 0, level: 1 }, defense: { xp: 0, level: 1 } } };
   if (upgradeOf({ read: (k) => bare[k] }).ops.helmet !== 'bronze_helm') fails.push('AW-21 a hammer hero with no pick would put on ' + JSON.stringify(upgradeOf({ read: (k) => bare[k] }).ops));
-  /* a worn slot's tie is still the player's: a heavy hero in Leather Boots isn't moved off them */
-  if (UP.upgradePlan({ equipment: { ...kit, boots: 'leather_boots' }, bag: [{ id: 'bronze_boots', qty: 1 }], skills: lv1, level: 5, prefer: 'heavy' }).ops.boots) fails.push('AW-21 Equip upgrades took off a piece of another weight');
   /* A TIER STEP (designer ruling 2026-10-31, played: Marlow, Level 16 in a full Bronze plate set, wore none of ten Iron
      Platebodies, since each one alone broke the set's +1% critical chance): the next tier of the worn weight goes on, and
      the line names the set bonus it ends. */
@@ -4469,7 +4491,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Level 30 (gear is worn by Level, Tyler 2026-10-24): the bag's Steel Sword is better than the worn Iron Sword, the same family, so it goes on
            (designer 2026-11-03); the Mithril Helm needs Level 45. */
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_30_XP });
-        /* a heavy hero (Bronze Boots worn): the bag's medium Leather Gloves stay off its bare gloves slot (the 139 audit's B6), every heavy piece goes on */
+        /* a heavy hero (Bronze Boots worn, no weight chosen at Tamsin's): its bare gloves slot takes the bag's medium Leather Gloves (designer ruling 2b of 2026-11-18: a bare armor slot takes any weight that beats bare), and every heavy piece goes on */
         e.equipment = Object.assign({}, e.equipment, { boots: 'bronze_boots' });
         Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, mithril_helm: 1 });
         e.shop.offers.push({ offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 });
@@ -4485,7 +4507,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!--s.env.inventory[id]) delete s.env.inventory[id];
         }
       };
-      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
+      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
       const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
       const msg = () => page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
       if (up) aw21: {
@@ -4520,7 +4542,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
         const mid = await page.evaluate(() => ({ slots: Array.from(document.querySelectorAll('.hw-slot.is-wearing')).map((b) => b.getAttribute('data-slot')).sort().join(','),
           stacks: document.querySelectorAll('.hw-pocket.is-wearing').length, off: document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled }));
-        if (mid.slots !== 'belt,body,helmet,ring2,weapon' || mid.stacks !== 5 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
+        if (mid.slots !== 'belt,body,gloves,helmet,ring2,weapon' || mid.stacks !== 6 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
         await wait(page, () => !document.querySelector('.hw-slot.is-wearing'), null, 3000);
         await page.waitForTimeout(200);
         const eqs = sent(s, 'hr-accrue', 'equip');
@@ -4528,7 +4550,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (eqs.some((c) => 'shield' in c.body.equip || 'ammo' in c.body.equip)) fails.push('AW-21 Equip upgrades touched the off-hand or the ammo');
         const after = await page.evaluate(() => ({ helm: document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'), weapon: document.querySelector('.hw-slot[data-slot="weapon"]').getAttribute('data-item'),
           line: document.querySelector('.hw-inv .hw-upgrade').classList.contains('is-on') }));
-        if (after.helm !== 'iron_helm' || after.weapon !== 'steel_sword' || after.line || (await msg()) !== 'Put on 5 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
+        if (after.helm !== 'iron_helm' || after.weapon !== 'steel_sword' || after.line || (await msg()) !== 'Put on 6 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
         if (!(await reloadAndPlay(page))) fails.push('AW-21 the reload did not come back');
         else {
           await openWin(page, 'b', 'inventory');
@@ -5733,8 +5755,13 @@ const MUTANTS = [
   ['plans: AW-21 Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: AW-21 a hero with no weight stays bare (played 2026-11-04)', 'src/shell/upgrade-plan.js', "return chosen || wornWeightOf(equipment || {}) || WEIGHT_FOR_ROLE[role] || null;", "return chosen || null;"],
-  /* (the 11-04 "a bare slot never waits" fallback is reversed by the 139 audit's B6: its mutant became this one, which pins the new rule) */
-  ['plans: AW-21 a bare armor slot takes another weight (139 audit B6)', 'src/shell/upgrade-plan.js', "    if (!curIt && o.prefer && ARMOUR_SLOTS.includes(slot) && weightOf(it) !== o.prefer) continue;\n", ''],
+  /* THE WEIGHT RULE (designer ruling 2b of 2026-11-18, undoing the 139 audit's B6): (1) a bare armor slot takes any weight that beats bare, and with
+     no piece of the hero's weight in a tie the one that guards most; (2) a worn piece off the weight chosen at Tamsin's moves to it, never to a lower tier */
+  ['plans: AW-21 a bare armor slot waits for the hero\'s weight (B6 back, ruling 2b)', 'src/shell/upgrade-plan.js', "    if (!weightFits(curIt, it, o.chosen)) continue;\n", "    if (!weightFits(curIt, it, o.chosen) || (!curIt && o.prefer && ARMOUR_SLOTS.includes(slot) && weightOf(it) !== o.prefer)) continue;\n"],
+  ['plans: AW-21 a bare slot waits for a weight the bag doesn\'t hold', 'src/shell/upgrade-plan.js', "else if (!curIt && ARMOUR_SLOTS.includes(slot)) front = [front.reduce(", "else if (false) front = [front.reduce("],
+  ['plans: AW-21 a worn piece off the chosen weight never moves (ruling 2b)', 'src/shell/upgrade-plan.js', "  if (offWeight(cur, chosen)) return weightOf(it) === chosen && notLower(it, cur);\n", ''],
+  ['plans: AW-21 a worn piece off the chosen weight moves to a lower tier (ruling 2b)', 'src/shell/upgrade-plan.js', " && notLower(it, cur);\n", ";\n"],
+  ['plans: AW-21 a move to the chosen weight hides what it gives up (ruling 2b)', 'src/shell/upgrade-plan.js', '.concat((p.costs || []).slice(0, gains))', ''],
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: AW-21 a piece\'s resistance is not on its card (lane/c-krell-uniques)', 'src/shell/bag-model.js', "    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });\n", ''],
@@ -5817,9 +5844,8 @@ const MUTANTS = [
   ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "t('prep.ready_stamina', { left: hoursWords(st.msLeft) })", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "t(h && !h.ended ? 'prep.gold_spend_now' : 'prep.gold_spend_last', vars)", "t('prep.gold_spend_now', vars)"],
-  /* set/v0.2.140: the tie line (`if (mine.length) front = mine;`) went equivalent when the 139 audit's B6 let a bare armor slot take only the
-     hero's weight and a worn one only its own, so every front is all one weight; the plan remembers the pick where it reads it */
-  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    prefer: o && PREFER.has(o.prefer) ? o.prefer : null };', '    prefer: null };'],
+  /* the plan forgets the weight where it reads it: the tie line (live again since ruling 2b lets a bare slot's front hold every weight) and the move */
+  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    chosen, prefer: chosen || (o && PREFER.has(o.prefer) ? o.prefer : null) };', '    chosen: null, prefer: null };'],
   ['plans: a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],

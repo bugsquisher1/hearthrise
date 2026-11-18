@@ -18,8 +18,15 @@
 //
 // THE SAMPLE (CLAUDE.md §10, no mass generation): only the pieces in JEWEL_PIECES are crafted, and only the perks in
 // PERKS_PLAYED roll. A new piece is one row here (its plain row must exist); a new perk is one engine hook and one name
-// in PERKS_PLAYED. Rows, recipes, the Hallmark offers and the market ceilings are all built from these tables, never typed,
-// and tools/gen-jewelry.mjs copies the server's half (hr_hallmark_offers, hr_market_ceilings) with a --check.
+// in PERKS_PLAYED. Rows, recipes, the Hallmark offers, the reforges and the market ceilings are all built from these tables,
+// never typed, and tools/gen-jewelry.mjs copies the server's half (hr_hallmark_offers, hr_jewel_reforge_offers,
+// hr_market_ceilings) with a --check.
+//
+// EACH PIECE NAMES ITS OWN BENCH (Tyler 2026-11-18: ALL jewelry is Smithing, rings, earrings and necklaces; Crafting makes
+// cloaks and belts; docs/design/itemization-plan.md §4): `skill` on a JEWEL_PIECES row is the bench that makes it, rolls it,
+// sets its gem, Hallmarks it and reforges it. A piece whose slot has no perk the engine plays ships PLAIN: one ordinary job,
+// no roll, no gem job, no graded rows. It starts rolling the build its first perk lands in PERKS_PLAYED (and then needs its
+// gem job), with no other change.
 //
 // PURE ESM. Imports data only. Node, Deno and the browser read it verbatim.
 // ============================================================================
@@ -36,37 +43,47 @@ export const JEWEL_PERKS = Object.freeze({
   thrift: Object.freeze({ name: 'Thrift', pm: Object.freeze({ 2: 53, 3: 80 }), what: '{pct} of your casts and shots cost nothing' }),
   deflect: Object.freeze({ name: 'Deflect', pm: Object.freeze({ 2: 27, 3: 40 }), what: '{pct} of the blows at you are turned aside' }),
   second_wind: Object.freeze({ name: 'Second Wind', pm: Object.freeze({ 2: 7, 3: 10 }), what: '{pct} of your max HP back on each kill' }),
+  /* THE EARRINGS' PAIR (itemization plan §4, phase 2), sized on the real engine to the plan's budget (one perk in an ordinary hunt
+     about 1% XP or 2% less damage, about three times that in the case it is built for). Measured 2026-11-18 at the Glade, Level 24, lone,
+     3 seeds x 3 h, over plain Fang Studs (tools/balance-sim/itemization-table.mjs sample / built-for): Steady 15% gave +0.3 to +1.7% XP
+     by way (20% gave up to +2.4%); Focus 2% gave a mage +3.2% and 6% less damage taken (its case: the mana basic) and a healer +0.4%,
+     where 4% gave the mage +16% and 1% nothing, since a kill returns whole mana. T3 is half again, as Keen's is. */
+  steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 150, 3: 225 }), what: '{pct} of your basic blows that would miss land anyway' }),
+  focus: Object.freeze({ name: 'Focus', pm: Object.freeze({ 2: 20, 3: 30 }), what: '{pct} of your max mana back on each kill' }),
 });
 
 /** How hard a Surge lands its cast, permille of the cast's own numbers (the spec's "1.5x"). */
 export const SURGE_MULT_PM = 1500;
 
-/** The perks the engine plays today (each has its hook: Keen combat.js critChance, Follow-through damage.js roll, Surge
-    abilities.js fire). Only these roll; the rest wait for their hook (the spec's next batches). */
-export const PERKS_PLAYED = Object.freeze(['keen', 'follow', 'surge']);
+/** The perks the engine plays today (each has its hook: Keen combat.js critChance, Steady combat.js accuracy, Follow-through
+    damage.js roll, Focus damage.js landHit's kill, Surge abilities.js fire). Only these roll; the rest wait for their hook. */
+export const PERKS_PLAYED = Object.freeze(['keen', 'follow', 'surge', 'steady', 'focus']);
 
-/** What each slot can carry, in the order a row's name lists them (the spec's pools). */
+/** What each slot can carry, in the order a row's name lists them (itemization plan §4, the pools from tier 2; the tier 4 and 6
+    perks join with their tiers). A cloak's Slip and Stride join `cape` with their hooks: until then a cloak ships plain. */
 export const JEWEL_POOLS = Object.freeze({
   ring: Object.freeze(['keen', 'surge', 'follow', 'thrift']),
-  necklace: Object.freeze(['surge', 'thrift', 'second_wind', 'deflect']),
-  earrings: Object.freeze(['keen', 'follow', 'second_wind', 'deflect']),
+  necklace: Object.freeze(['deflect', 'second_wind']),
+  earrings: Object.freeze(['steady', 'focus']),
 });
 
-/* ── WHAT EACH TIER TAKES. The gem (src/data/items.js), the Hallmark step's gold and Crafting level, and the market's
-   per-row ceiling for each grade (the plain piece keeps 100x book: hr_market_items). The gold is Tyler's call (11-05). ── */
+/* ── WHAT EACH TIER TAKES. The gem (src/data/items.js), the tier's metal, the Hallmark step's gold and level (in the piece's own
+   skill), and the market's per-row ceiling for each grade (the plain piece keeps 100x book: hr_market_items). The gold is Tyler's
+   (11-05; tiers 4 to 7 ruled 11-18). `reforge`: what carrying a piece UP to this tier takes besides its gem and the fee difference
+   (itemization plan §4 "Jewel reforging": the new tier's metal, gem and Hallmark level). ── */
 export const JEWEL_TIERS = Object.freeze({
-  2: Object.freeze({ gem: 'road_carnelian', hallmark: Object.freeze({ gold: 25000, level: 30 }), ceiling: Object.freeze({ fine: 100000, hallmarked: 300000 }) }),
-  3: Object.freeze({ gem: 'seam_jasper', hallmark: Object.freeze({ gold: 100000, level: 45 }), ceiling: Object.freeze({ fine: 300000, hallmarked: 1000000 }) }),
+  2: Object.freeze({ gem: 'road_carnelian', metal: 'bronze_bar', hallmark: Object.freeze({ gold: 25000, level: 30 }), ceiling: Object.freeze({ fine: 100000, hallmarked: 300000 }) }),
+  3: Object.freeze({ gem: 'seam_jasper', metal: 'steel_bar', hallmark: Object.freeze({ gold: 100000, level: 45 }), ceiling: Object.freeze({ fine: 300000, hallmarked: 1000000 }),
+    reforge: Object.freeze({ bars: 6 }) }),
 });
 
-/** THE SHOP'S PRICE for a plain crafted piece (Tyler 2026-11-05, call 5: plain jewelry stays in the Shop at a premium; the designer's
+/** THE SHOP'S PRICE for a plain crafted jewel (Tyler 2026-11-05, call 5: plain jewelry stays in the Shop at a premium; the designer's
     3,000 g at T2 and 12,000 g at T3). At least JEWEL_SHOP_PREMIUM times the piece's book, so the Shop never undercuts a crafter
-    (tests/catalogue-coherence.mjs C6). */
-export const JEWEL_SHOP_PRICE = Object.freeze({ banded_signet: 3000 });
+    (tests/catalogue-coherence.mjs C6). A cloak is not jewelry: the Shop sells none past the Traveler Cape. */
+export const JEWEL_SHOP_PRICE = Object.freeze({ banded_signet: 3000, fang_studs: 3000, wolfbone_torc: 3000, seam_jasper_band: 12000 });
 export const JEWEL_SHOP_PREMIUM = 10;
-
-/** The skill every jewel roll and the Hallmark step read (designer: Crafting, no new skill). */
-export const JEWEL_SKILL = 'crafting';
+/** The slots the Shop's premium covers: jewelry (the ruling's words), never a cloak. */
+export const JEWEL_SHOP_SLOTS = Object.freeze(['ring', 'necklace', 'earrings']);
 
 /* ── THE ODDS, per 10,000, at each Crafting level named (straight lines between, flat past the ends). The designer's
    table: a base recipe (metal only) rolls Fine, and Hallmarked at the extra-rare band; a gem roll (a plain piece and a
@@ -81,17 +98,50 @@ export const ODDS_SCALE = 10000;
     about 11 hours of hunting). hr_hallmark reads its generated copy. */
 export const HALLMARK_DAY_LIMIT = 10;
 
-/* ── THE PIECES THE SAMPLE CRAFTS. A row: its plain item (slot-ladders.js) and its two jobs. `inputs` are the designer's
-   recipe, raised 15% because a rolled job pays no bench tax (decision 5): 12 -> 14 Bronze Bars, no coal, no steel. ── */
+/* ── THE PIECES THE SAMPLE CRAFTS (itemization plan §4 "Samples for the first build"). A row: its plain item (slot-ladders.js), the
+   `skill` whose bench makes it, its job, its gem job once it rolls, and `next`, the piece of the tier above it reforges into. A rolled
+   job's `inputs` are raised 15% because it pays no bench tax (decision 5: 12 -> 14 Bars); a rolled job's XP is its bars' own XP x 1.5
+   (the Banded Signet's 14 x 20 x 1.5 = 420), a gem job's the tier's gem job (200 at T2) x the bar's XP step. A plain job (the necklace
+   and cloak until their hooks land) pays the bench tax like any job. Plan's chain and clasp parts are left to the belt phase's buckles:
+   the bar itself carries the Smithing half. ── */
 export const JEWEL_PIECES = Object.freeze({
   banded_signet: Object.freeze({
+    skill: 'smithing', next: 'seam_jasper_band',
     recipe: Object.freeze({ id: 'craft_banded_signet', name: 'Make Banded Signet', icon: '💍', inputs: Object.freeze({ bronze_bar: 14 }), xp: 420, req: 15, ms: 4000 }),
     gem: Object.freeze({ id: 'set_banded_signet', name: 'Set a Road Carnelian in a Banded Signet', icon: '💍', xp: 200, req: 15, ms: 3000 }),
   }),
+  seam_jasper_band: Object.freeze({
+    skill: 'smithing',
+    recipe: Object.freeze({ id: 'craft_seam_jasper_band', name: 'Make Seam Jasper Band', icon: '💍', inputs: Object.freeze({ steel_bar: 14 }), xp: 1470, req: 30, ms: 4400 }),
+    gem: Object.freeze({ id: 'set_seam_jasper_band', name: 'Set a Seam Jasper in a Seam Jasper Band', icon: '💍', xp: 700, req: 30, ms: 3400 }),
+  }),
+  fang_studs: Object.freeze({
+    skill: 'smithing',
+    recipe: Object.freeze({ id: 'craft_fang_studs', name: 'Make Fang Studs', icon: '💎', inputs: Object.freeze({ bronze_bar: 7, small_fang: 7 }), xp: 240, req: 15, ms: 3600 }),
+    gem: Object.freeze({ id: 'set_fang_studs', name: 'Set a Road Carnelian in Fang Studs', icon: '💎', xp: 200, req: 15, ms: 3000 }),
+  }),
+  wolfbone_torc: Object.freeze({
+    skill: 'smithing',
+    recipe: Object.freeze({ id: 'craft_wolfbone_torc', name: 'Make Wolfbone Necklace', icon: '📿', inputs: Object.freeze({ bronze_bar: 6, small_fang: 8, silk_thread: 4 }), xp: 300, req: 15, ms: 3600 }),
+  }),
+  warband_bulwark: Object.freeze({
+    skill: 'crafting',
+    recipe: Object.freeze({ id: 'stitch_warband_bulwark', name: 'Stitch Warband Bulwark', icon: '🦸', inputs: Object.freeze({ bear_pelt: 8, steel_bar: 4 }), xp: 640, req: 30, ms: 4000 }),
+  }),
 });
 
+/** The skills a crafted piece's bench can be (a guard reads it: a piece names one of these). */
+export const JEWEL_SKILLS = Object.freeze(['smithing', 'crafting']);
+
+/** The bench a piece (plain or graded) is made, Hallmarked and reforged at, or null for a piece no row here crafts. */
+export function jewelSkillOf(id) {
+  const plain = own(JEWEL_PIECES, id) ? id : own(JEWELRY_ITEMS, id) ? JEWELRY_ITEMS[id].jewelBase : null;
+  return plain && own(JEWEL_PIECES, plain) ? JEWEL_PIECES[plain].skill : null;
+}
+
+const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
 const fmtPct = (pm) => (Math.round(pm) / 10) + '%';
-const plainOf = (id) => SLOT_ITEMS[id] || null;
+const plainOf = (id) => (own(SLOT_ITEMS, id) ? SLOT_ITEMS[id] : null);
 
 /** A grade's row id: the plain id, then its perks in the slot's own order (keen, then follow). */
 export function jewelId(plain, perks) {
@@ -144,11 +194,15 @@ export function gradeRows(plain, grade) {
   return Object.keys(JEWELRY_ITEMS).filter((id) => JEWELRY_ITEMS[id].jewelBase === plain && JEWELRY_ITEMS[id].jewelGrade === grade);
 }
 
-/* ── THE JOBS, as Crafting recipe rows (src/data/recipes.js joins them to the bench). `output` is the PIECE the job
-   works on, its plain id, so a job keeps one product for the bench's tax, icon and category; `roll` is how the grade is
-   picked and `outcomes` every id it can make (recipeOutcomes). A gem roll spends a plain piece and never makes one. ── */
-export const JEWELRY_RECIPES = Object.freeze(Object.entries(JEWEL_PIECES).flatMap(([plain, p]) => {
+/* ── THE JOBS, as recipe rows on each piece's own bench (src/data/recipes.js joins them by skill). `output` is the PIECE the
+   job works on, its plain id, so a job keeps one product for the bench's tax, icon and category; `roll` is how the grade is
+   picked and `outcomes` every id it can make (recipeOutcomes). A gem roll spends a plain piece and never makes one. A piece
+   with no perk the engine plays has one plain job: no roll, no gem job. ── */
+function jobsOfPiece(plain, p) {
   const tier = plainOf(plain).tier;
+  if (!JEWEL_SKILLS.includes(p.skill)) throw new Error('jewelry.js: ' + plain + "'s bench " + p.skill + ' is not one of ' + JEWEL_SKILLS.join(', '));
+  if (!perksFor(plain).length) return [Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain }))];
+  if (!p.gem) throw new Error('jewelry.js: ' + plain + ' rolls perks and has no gem job');
   const fine = gradeRows(plain, 'fine'), hall = gradeRows(plain, 'hallmarked');
   return [
     Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain, roll: 'base',
@@ -156,7 +210,14 @@ export const JEWELRY_RECIPES = Object.freeze(Object.entries(JEWEL_PIECES).flatMa
     Object.freeze(Object.assign({}, p.gem, { inputs: { [plain]: 1, [JEWEL_TIERS[tier].gem]: 1 }, output: plain, roll: 'gem',
       outcomes: Object.freeze(fine.concat(hall)) })),
   ];
-}));
+}
+
+/** Each bench's crafted-piece jobs, by skill: { smithing: [...], crafting: [...] }. */
+export const JEWELRY_RECIPES_BY_SKILL = Object.freeze(Object.fromEntries(JEWEL_SKILLS.map((skill) => [skill,
+  Object.freeze(Object.entries(JEWEL_PIECES).filter(([, p]) => p.skill === skill).flatMap(([plain, p]) => jobsOfPiece(plain, p)))])));
+
+/** Every crafted-piece job, every bench. */
+export const JEWELRY_RECIPES = Object.freeze(JEWEL_SKILLS.flatMap((s) => JEWELRY_RECIPES_BY_SKILL[s]));
 
 /** Every id a recipe row can make: its rolled outcomes, else its one output. */
 export function recipeOutcomes(r) {
@@ -190,8 +251,28 @@ export const HALLMARK_OFFERS = Object.freeze(Object.keys(JEWEL_PIECES).flatMap((
   return gradeRows(plain, 'fine').flatMap((from) => {
     const first = Object.keys(JEWELRY_ITEMS[from].jewelPerks)[0];
     return perksFor(plain).filter((p) => p !== first).map((second) => Object.freeze({
-      from, to: jewelId(plain, [first, second]), perk: second, gem: t.gem, gold: t.hallmark.gold, skill: JEWEL_SKILL, level: t.hallmark.level, tier,
+      from, to: jewelId(plain, [first, second]), perk: second, gem: t.gem, gold: t.hallmark.gold, skill: JEWEL_PIECES[plain].skill, level: t.hallmark.level, tier,
     }));
+  });
+}));
+
+/* ── JEWEL REFORGING (itemization plan §4; Tyler 2026-11-18: keep Hallmark fees per piece and ADD reforging up a tier): a
+   Hallmarked piece becomes the Hallmarked piece of the tier above it (its row's `next`), KEEPING BOTH PERKS at the new tier's
+   size. It takes the new tier's metal, its gem, its Hallmark level in the new piece's skill, and the FEE DIFFERENCE (the new
+   tier's Hallmark fee less the old's: what the piece already paid stays paid). Nothing rolls, nothing fails. The server's copy is
+   hr_jewel_reforge_offers. A swap of one perk for the new tier's pool and a Fine piece's reforge are the next jewelry lane's. ── */
+export const REFORGE_OFFERS = Object.freeze(Object.keys(JEWEL_PIECES).flatMap((plain) => {
+  const next = JEWEL_PIECES[plain].next;
+  if (!next) return [];
+  const a = plainOf(plain), b = plainOf(next);
+  if (!b || !own(JEWEL_PIECES, next) || b.slot !== a.slot || b.tier !== a.tier + 1) throw new Error('jewelry.js: ' + plain + "'s next " + next + ' is not a crafted ' + a.slot + ' of tier ' + (a.tier + 1));
+  const from = JEWEL_TIERS[a.tier], to = JEWEL_TIERS[b.tier];
+  if (!to || !to.reforge || !to.metal) throw new Error('jewelry.js: tier ' + b.tier + ' has no reforge row');
+  return gradeRows(plain, 'hallmarked').flatMap((id) => {
+    const perks = Object.keys(JEWELRY_ITEMS[id].jewelPerks);
+    if (!perks.every((p) => perksFor(next).includes(p))) return [];
+    return [Object.freeze({ from: id, to: jewelId(next, perks), metal: to.metal, bars: to.reforge.bars, gem: to.gem,
+      gold: to.hallmark.gold - from.hallmark.gold, skill: JEWEL_PIECES[next].skill, level: to.hallmark.level, tier: b.tier })];
   });
 }));
 

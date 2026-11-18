@@ -42,6 +42,7 @@ import { saleWords } from '../item-lore.js?v=0.2.138';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.138';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.138';
 import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.138';
+import { JEWEL_SKILLS } from '../../data/jewelry.js?v=0.2.138';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.138';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.138';
 import { t } from '../../render/player-text.js?v=0.2.138';
@@ -99,12 +100,12 @@ function saleTag(out) {
   return !s ? '' : s === t('item.own_use') ? t('work.sale_none') : t('work.sale_shop');
 }
 
-/* A rolled job's odds at the server's Crafting level, BEFORE the roll (Tyler 2026-11-05, call 6). No gold moves on a roll. */
+/* A rolled job's odds at the server's level in the job's own bench, BEFORE the roll (Tyler 2026-11-05, call 6). No gold moves on a roll. */
 function oddsWords(cs, w) {
   const o = rollOddsOf(cs, w.row);
   if (!o) return '';
   const perks = o.perks.length > 1 ? o.perks.slice(0, -1).join(', ') + ' or ' + o.perks[o.perks.length - 1] : o.perks.join('');
-  return 'Odds at Crafting ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
+  return 'Odds at ' + SKILLS_DEF[o.skill].name + ' ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
     : 'Hallmarked ' + o.hallmarked + ', otherwise Fine') + '. Perks: ' + perks + '. No bench fee on a roll.';
 }
 
@@ -262,10 +263,12 @@ renderWork.patch = function patchWork(body, ctx) {
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),
     });
   }
-  /* The Hallmark step belongs to Crafting (src/data/jewelry.js JEWEL_SKILL): above its rows, one line until the hero holds a Fine piece. */
+  /* The Hallmark step and the reforge belong to each crafted piece's own bench (src/data/jewelry.js JEWEL_SKILLS: Smithing for jewelry, Crafting for
+     cloaks): above its rows, one line until the hero holds a piece to work on. */
   const hall = view.querySelector('.hw-hallmark');
-  prop(hall, 'hidden', skill !== 'crafting');
-  if (skill === 'crafting') patchHallmarkPane(hall, ctx, sc);
+  const jeweler = JEWEL_SKILLS.includes(skill);
+  prop(hall, 'hidden', !jeweler);
+  if (jeweler) patchHallmarkPane(hall, ctx, sc, skill);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   cls(root, 'is-pending', sc.pending);
 };

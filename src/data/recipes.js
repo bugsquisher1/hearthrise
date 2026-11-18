@@ -23,7 +23,7 @@ import { DRINK_RECIPES } from './drinks.js?v=0.2.138';
 import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.138';
 import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.138';
 import { SHIELD_RECIPES } from './shields.js?v=0.2.138';
-import { JEWELRY_RECIPES } from './jewelry.js?v=0.2.138';
+import { JEWELRY_RECIPES_BY_SKILL } from './jewelry.js?v=0.2.138';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -314,10 +314,11 @@ const byReq = (list) => list.slice().sort((a, b) => (a.req || 0) - (b.req || 0))
 export const ARTISAN_RECIPES = {
   cooking:  byReq(BASE_RECIPES.cooking.concat(DRINK_RECIPES)),
   /* The reforges of named pieces (Tyler 2026-11-18: armor, weapons and shields drop, a bench only reforges a named piece):
-     Klappa's Klub (style-gear.js) and the Steelgrate (shields.js). */
-  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES)),
-  /* Crafted jewelry's rolled jobs (src/data/jewelry.js): a piece from the metal, and a gem set in a plain piece. */
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, JEWELRY_RECIPES)),
+     Klappa's Klub (style-gear.js) and the Steelgrate (shields.js). And ALL JEWELRY (Tyler 2026-11-18): each crafted piece's jobs
+     on its own bench (src/data/jewelry.js JEWEL_PIECES skill), a piece from the metal and a gem set in a plain piece. */
+  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES, JEWELRY_RECIPES_BY_SKILL.smithing)),
+  /* Crafting's cloaks (src/data/jewelry.js, the same table). */
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, JEWELRY_RECIPES_BY_SKILL.crafting)),
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };

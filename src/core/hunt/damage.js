@@ -166,9 +166,18 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));
     fallen(inst, target, sc);
-    if (target.side === 'mon') { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp), ...(Number.isInteger(row.partyPm) ? { partyPm: row.partyPm } : {}) }, sc); }
+    if (target.side === 'mon') { const row = rowOf(inst, target.kind); shareKillXp(inst, { t: target.id, u, xp: Math.round(atTier(row, inst.tier).xp), ...(Number.isInteger(row.partyPm) ? { partyPm: row.partyPm } : {}) }, sc); focusBack(source, target); }
   }
   return r;
+}
+
+/* FOCUS (src/data/jewelry.js): the hero whose blow fell a monster gets `focusPm` permille of its max mana back (at least 1), never past
+   the max. Only a hero that wears the perk; no draw, so every other kill plays what it played before. A training dummy never falls. */
+function focusBack(u, t) {
+  if (!u || u.side !== 'hero' || !u.alive || !(u.focusPm > 0) || t.side !== 'mon') return;
+  const max = Math.floor(Number(u.maxMana) || 0);
+  if (max <= 0) return;
+  u.mana = Math.min(max, Math.floor(Number(u.mana) || 0) + Math.max(1, Math.floor((max * u.focusPm) / 1000)));
 }
 
 /* One swing of `u` at `t`: miss → a miss event; a hit → landHit. Two draws at most (rollAttack). */

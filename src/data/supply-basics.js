@@ -236,6 +236,9 @@ export const SUPPLY_SHOP_OFFERS = Object.freeze([
   /* PLAIN JEWELRY STAYS IN THE SHOP, AT A PREMIUM (Tyler 2026-11-05, call 5): a fighter is never blocked, and a crafter can sell the
      plain piece for anything under this and still beat the Shop (src/data/jewelry.js JEWEL_SHOP_PRICE; tests/catalogue-coherence.mjs C6). */
   sell('banded_signet', 'gear', null, JEWEL_SHOP_PRICE.banded_signet),
+  sell('fang_studs', 'gear', null, JEWEL_SHOP_PRICE.fang_studs),
+  sell('wolfbone_torc', 'gear', null, JEWEL_SHOP_PRICE.wolfbone_torc),
+  sell('seam_jasper_band', 'gear', null, JEWEL_SHOP_PRICE.seam_jasper_band),
   /* The seed counter, in crop order (src/data/gathering.js CROPS). */
   sell('turnip_seed', 'seed', null, 5),
   sell('carrot_seed', 'seed', null, 10),

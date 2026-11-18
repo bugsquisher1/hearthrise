@@ -3676,6 +3676,7 @@ device px; (2) crop a sprite frame to the union of its art in EVERY facing (an e
 missed) and pin the crop with a test that scans every frame; (3) a window's width is not free: the dock pairs cap Gathering
 near 400, so a long title is fixed by its words; (4) the characters screen sits under the town-sheet guards (client-boot B-14
 only the town's sheets, B-15 no sheet before the manifests or after sign-out): a portrait there loads the heroes manifest
-first, checks the list is still in the page, and loads no masks (the town draws none either); (5) new player words under
+first, checks the list is still in the page, draws undyed, and loads the color masks only when a hero on the list has colors,
+as the World does (a portrait without them read red-plumed beside a blue-plumed hero in town); (5) new player words under
 src/shell go in src/data/text/* through t() or text-home TH-1 is red; (6) `hidden` loses to an author `display` rule: a pane
 that hides children by attribute needs its own `[hidden] { display: none }`.

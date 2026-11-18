@@ -3785,3 +3785,17 @@ to its window (AW-31's HARNESS crash found it); (2) height is the bag's real bud
 (3) a footer moved out of a column steals that column's height: the doll's fit at short windows needs its own rule; (4) snapping a
 scroll box to whole rows: clear max-height, find the first row the foot cuts, set it, only at scrollTop 0; (5) a test's press on a
 row a mutant can remove must be guarded, or the mutant run throws instead of reading red.
+## 2026-11-18 lane/a-hearth-wings-139 (Tyler: "hearthwings look fine"; edges3 had read "pasted onto the plaza")
+The Coordinator's new source (art/world-src/gen-2026-11-18/hearth-wings-139, 01-note.json): the ORIGINAL FINAL-s602-bannerH-crest with a
+stone end cap on each wing (eave 3 px past the wall, quoined corner, dressed corner stone on the curb), one inpaint a side, seed 139.
+Measured, not assumed: 0 px differ from the FINAL outside the masks x26-44 / x340-358 y230-408, 67 colours all the FINAL's, alpha 0/255,
+art x26-358 rows 22-412, so the 16-column cut, 352 x 448 frame, 11 x 4 footprint, anchor (176, 412), fire loop and its `at`, cupola smoke and
+sparks points all hold (hearth_fire.png byte-unchanged; the Tower window's firebox crop re-cut, its front the FINAL's again). The map's
+make-do for the ragged ends goes: hearth-plaza.mjs step 9 removed (the tool and paving are byte-for-byte their pre-edges3 commit; the band
+moved to hug the new ends read as grained dirt, kept as a rejected crop beside the source), the two Havora scree piles and
+the moss strand off sites.js, the two weed tufts kept (they read as weeds in the joints by a wall). The Havora sheet leaves a new player's
+first phone view, so client-boot B-21 judges hearth_square #1 again and now says so (a harness red naming the stand that would still
+serve) when the map puts Havora back in that view. Edge payload moved (sites.js rides the bundle).
+Lessons: (1) a clean built edge needs no ground make-do: when the art is fixed, remove the compensations in the same lane or they
+float (the soot band sat 10 px off the new wall); (2) a test that searches for a stand that fits silently drifts away from the case it
+names: pin the real case (the new hero's first stand) and let the search only name the fallback in the red.

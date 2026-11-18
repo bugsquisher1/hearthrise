@@ -72,7 +72,7 @@ function tipHtml(id, o) {
   return h;
 }
 
-/* TOUCH (panel 2026-11-01: a tapped Bones' tooltip lay over Fuel all; a card showed in the Shop with no tap at all): the
+/* TOUCH (panel 2026-11-01: a tapped Bones' tooltip lay over Burn all; a card showed in the Shop with no tap at all): the
    browser's emulated hover shows a tip only for the item just pressed, beside the sheet and never on it (the anchor
    below is the sheet), it takes no press (windows.css), and the next press anywhere puts it away. */
 let pressed = null, tipFor = null;

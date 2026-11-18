@@ -153,12 +153,13 @@ export function awayRecapOf(cs) {
   const name = nameOf(cs) || 'Hero';
   /* A TRAINING SESSION is no hunt (Tyler 2026-11-16): "Wren trained Ranged at the Training Yard", never "hunted Training Yard". */
   const yard = trainingPhrase(h.huntId);
-  const head = 'Away ' + awayWords(gone) + ': '
-    + (yard ? t('training.away_trained', { name, skill: skillWord(trainedBy(h.huntId).skill), at: yard.at }) : name + ' hunted ' + huntName(h.huntId));
+  /* one sentence a fact, never clauses on colons (QA audit 2026-11-18 N6): "Away 7 days. Wren hunted Mill Cellar. Level 5 to 10, +1,200 Level XP." */
+  const head = t('away.card_head', { time: awayWords(gone),
+    who: yard ? t('training.away_trained', { name, skill: skillWord(trainedBy(h.huntId).skill), at: yard.at }) : t('away.card_hunted', { name, ground: huntName(h.huntId) }) });
   /* the hunt's best find, gear or a Rare, from the server's loot tally (designer re-read 2026-11-11: the card never named the Iron Platebody). The
      tally is the whole hunt's, so the line says so: the stamp holds no loot, and the absence alone is not known here. */
   const best = a && a.hero ? bestFind(a.hero.loot) : null;
-  const said = head + (parts.length ? ': ' + parts.join(', ') + '.' : '.') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '');
+  const said = head + (parts.length ? ' ' + t('away.card_facts', { facts: parts.join(', ') }) : '') + (best ? ' ' + t('hunts.away_best', { item: itemName(best) }) + '.' : '');
   /* `minutes`, `levels`: the absence and the Levels gained, as the line says them (telemetry reads them, alerts.js: nothing else does) */
   return { id: 'away:' + h.sessionId.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     at: was.at, cameAt: now, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
@@ -179,7 +180,7 @@ function nowWords(cs, h, now) {
   const state = h.ended && typeof cs.read === 'function' ? cs.read('state') : null;
   const after = h.ended ? afterHuntOf(state, h, now) : null;
   const waited = !!after && after.kind === 'waited' && after.idleMs >= WAITED_FROM_MS;
-  const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? ' ' + awayWords(now - h.endedAtMs) + ' ago' : '';
+  const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? awayWords(now - h.endedAtMs) : '';
   /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
   const said = (h.ended ? afterDoneWords(cs, h.sessionId, name) : '') || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '');
   const then = said ? ' ' + dot(said) : '';
@@ -188,11 +189,11 @@ function nowWords(cs, h, now) {
   if (trainedBy(h.huntId)) {
     if (!h.ended) return ' ' + t('training.away_still');
     const why = trainingEndWords({ reason: h.endReason });
-    return ' ' + (ago ? t('training.away_ended_ago', { why, time: awayWords(now - h.endedAtMs) }) : why + '.') + then;
+    return ' ' + (ago ? t('training.away_ended_ago', { why, time: ago }) : why + '.') + then;
   }
   return h.ended
     /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
-    ? ' The hunt has ended' + ago + '. ' + dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
+    ? ' ' + (ago ? t('away.card_ended_ago', { time: ago }) : t('away.card_ended')) + ' ' + dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
       .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt'))
       + then + (stamina ? ' Stamina now: ' + stamina + '.' : '')
     : stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.';

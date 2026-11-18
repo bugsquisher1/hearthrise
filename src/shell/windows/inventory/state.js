@@ -121,7 +121,7 @@ export function primaryOf(st, id) {
   const br = buryRecipeOf(id);
   if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];
   /* a named fuel burns alone in the Great Hearth (bury.js burnNamed) */
-  if (namedFuelOf(id)) return ['hearth', 'Fuel the hearth'];
+  if (namedFuelOf(id)) return ['hearth', 'Burn'];
   /* an outfit's bundle is USED (QA gate 2026-11-17: the strip offered only Sell for the Key Warden); once the server says the hero owns the
      outfit, the bundle is kept to sell or trade and Sell is its press */
   if (bundleOutfitOf(id) && !bundleUseBlock(st.cs, id)) return ['use', t('controls.use')];

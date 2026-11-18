@@ -4,7 +4,7 @@
 // The one home for the town activities a player starts and stops (designer
 // ruling 2026-10-22, lane/b-town-skills): chopping, mining and fishing (a
 // gathering node), and every bench recipe (Cooking, Smithing, Crafting,
-// Runecrafting, and Inner Flame's fuels the bag's Fuel the hearth names). The
+// Runecrafting, and Inner Flame's fuels the bag's Burn names). The
 // Gathering and crafting window (src/shell/windows/work.js) and the bag's Fuel
 // the hearth / Cook all (src/shell/windows/inventory/bury.js) both start and stop through
 // here, so there is one path, not two.
@@ -327,7 +327,7 @@ export function jobReplacedWords(cs, w) {
   return what ? 'Stopped ' + what : '';
 }
 
-/* AN ERRAND (supabase/migrations/2027-04-27-hearth-errand.sql hr_hearth_errand): a Hearth run of ONE, "Fuel the hearth". The server
+/* AN ERRAND (supabase/migrations/2027-04-27-hearth-errand.sql hr_hearth_errand): a Hearth run of ONE, the bag's "Burn". The server
    remembers the job it interrupts and points the hero back at it when the run ends, so the press stops nothing, and nothing here
    arms a Stop: that Stop would land after the server's way back and end the job (the shell's settle of a spent bench,
    town-poll.js settleSpentBench, ends the run). */
@@ -501,7 +501,7 @@ export function runParts(cs, w, byRun) {
       /* What is left to spend: the bag plus the Storage the bench draws on, less the ticker's certain spend of both. */
       const d = aheadQty(tick, first) + aheadStored(tick, first);
       const left = Math.max(0, (supplyOf(cs)[first] || 0) + d);
-      /* "Fuel the hearth" is a run of ONE: its line says what the run has to go, never the stock (live v0.2.135: one Bone fed
+      /* "Burn" is a run of ONE: its line says what the run has to go, never the stock (live v0.2.135: one Bone fed
          read "2,529 Bones left"): the server's count less the ticker's certain actions. */
       const run = byRun ? leftOf(cs) : null;
       const need = Math.max(1, recipeInputs(w.row)[first] || 1);

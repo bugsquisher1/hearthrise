@@ -16,7 +16,7 @@
 // PURE: strings in, strings out. src/app/boot.js mounts and wires it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { whole } from '../render/format.js?v=0.2.137';
+import { whole, gold } from '../render/format.js?v=0.2.137';
 import { t } from '../render/player-text.js?v=0.2.137';
 
 const ORDINAL = Object.freeze(['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth']);
@@ -102,7 +102,7 @@ export function slotOfferHtml(offer, roster, o = {}) {
     /* The second hero is a week away for most players (designer 2026-11-09, table E: about 56 hours of hunting for the
        second slot): while the account has ONE hero, say so and point at other players meanwhile. */
     + (heroes === 1 ? '<p class="slot-offer-lead slot-offer-note">' + t('slots.one_hero_note') + '</p>' : '')
-    + '<p class="slot-offer-purse">' + t('slots.purse', { gold: whole(purse.gold) }) + '</p>'
+    + '<p class="slot-offer-purse">' + t('slots.purse', { gold: gold(purse.gold) }) + '</p>'
     + (short > 0 ? '<p class="slot-offer-short">' + t('slots.short', { gold: whole(short) }) + '</p>' : '')
     + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
     + (o.pending || short > 0 ? ' disabled' : '') + '>'

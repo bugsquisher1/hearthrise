@@ -489,7 +489,6 @@ export function createCanvasBackend(o) {
 
   /* THE FRAME'S COLORS (hero-dye.js, monster-pour.js): every dyed unit and every poured unit's sheet it draws, then at most one bake of each, before the paint decides: a held frame still bakes, and a look landing changes the picture. Not baked: drawn as the art is. */
   function wantDyes(list) {
-    /* a poured unit stands; a poured plume (the Great Hearth's smoke under its flame, core/ambient.js) is raised */
     if (pours) { for (const l of [list.sprites, list.raised]) for (const d of l) if (d.pour) pours.want(d.id, d.pour, book.sprite(d.id), images[d.set]); pours.pump(); }
     if (!dyes) return;
     for (const d of list.sprites) if (d.dye) dyes.want(d.id, d.dye, d.dyeOwn === true, book.sprite(d.id), images[d.set]);

@@ -15,7 +15,11 @@
 //   a bench     what goes in and what comes out, the seconds and XP each, and
 //               how many the bag and the account's Storage cover ("Makes up to
 //               62"; the server spends the bag first, Tyler 2026-10-25) or what is missing
-//   locked      the next two rows above the level, "Needs Smithing 15"
+//   locked      the next two rows above the level, "Needs Smithing 15"; past them the station's whole
+//               ladder, one rung a Level, each thing it opens with its card on the pointer
+//   a piece     what it is against what the hero wears: its stats, each with its change against the
+//               worn piece (src/shell/bench-output.js); a bench row's fee says what the picked count
+//               takes in all before Start (src/shell/bench-fee.js; itemization audit 2026-11-18)
 // A crafting station's rows come in the order its Sort menu picks (Can make, Level, Name;
 // src/shell/station-sort.js), remembered per station; locked rows stay in the list under every sort.
 // Buttons are off while a press is in flight and when the server's numbers say

@@ -4675,7 +4675,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(r));
             const bottom = (q) => { const e = w.querySelector(q); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().bottom) : null; };
             const slots = w.querySelectorAll('.hw-doll .hw-slot'), last = slots[slots.length - 1], cols = w.querySelector('.hw-inv-cols');
-            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight,
+            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('[data-hs-act="dispatch"]'), scroll: w.querySelector('.hw-inv-scroll').clientHeight,
               doll: slots.length === 14 && last.getBoundingClientRect().bottom <= Math.min(cols.getBoundingClientRect().bottom, w.getBoundingClientRect().bottom) + 0.5 };
             w.querySelector('.hs-win-coach').textContent = '';
             return out;
@@ -5022,6 +5022,36 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-103 THE BAG TAKES THE WINDOW'S HEIGHT (UI audit 2026-11-18 UI-5: three rows of bag under a stack of lines)
+      const inTown = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 100 }); };
+      const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 }, mutateEnv: inTown });
+      if (!up) fails.push('AW-103 the screen did not mount');
+      else if (!(await openWin(page, 'b', 'inventory'))) fails.push('AW-103 B did not open the Inventory');
+      else {
+        await page.waitForTimeout(500);
+        const read = () => page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="inventory"]');
+          const box = w.querySelector('.hw-inv-scroll'), ul = w.querySelector('.hw-pockets'), b = box.getBoundingClientRect(), foot = box.clientHeight + b.top + box.clientTop;
+          const lis = Array.from(ul.children), f = w.querySelector('.hw-inv-foot').getBoundingClientRect(), doll = w.querySelector('.hw-doll').getBoundingClientRect();
+          const rows = new Set(lis.filter((li) => { const q = li.getBoundingClientRect(); return q.height && q.top >= b.top - 0.5 && q.bottom <= foot + 0.5; }).map((li) => Math.round(li.getBoundingClientRect().top)));
+          return { items: ul.querySelectorAll('.hw-pocket[data-item]').length, spaces: ul.querySelectorAll('.hw-pocket.is-space').length, rows: rows.size,
+            cut: lis.some((li) => { const q = li.getBoundingClientRect(); return q.top < foot - 4 && q.bottom > foot + 4; }),
+            footUnder: f.top >= doll.bottom - 0.5 && f.left <= doll.left + 0.5, footHas: ['.hw-capacity', '.hw-gold', '[data-hs-act="dispatch"]'].every((q) => !!w.querySelector('.hw-inv-foot ' + q)),
+            spaceTaken: lis.filter((li) => li.classList.contains('is-space')).some((li) => li.hasAttribute('data-item') || li.hasAttribute('tabindex') || li.getAttribute('aria-hidden') !== 'true') };
+        });
+        const m = await read();
+        /* the whole bag: every free space the server's cap leaves drawn after the stacks, five whole rows in view and none cut, the foot under both columns */
+        if (m.items + m.spaces !== 100 || m.spaceTaken || m.rows < 5 || m.cut || !m.footUnder || !m.footHas) fails.push('AW-103 the Inventory at 1440x900 reads ' + JSON.stringify(m));
+        /* a search shows its matches alone: no empty pocket says "nothing else" */
+        await page.fill('[data-hs-win="inventory"] .hw-q', 'rat');
+        await page.waitForTimeout(250);
+        const q = await read();
+        if (q.spaces !== 0) fails.push('AW-103 a search still draws ' + q.spaces + ' free spaces');
+        if (shots) { await page.fill('[data-hs-win="inventory"] .hw-q', ''); await page.waitForTimeout(250); await shot(page, 'bag-height-1440x900'); }
+      }
+      await ctx.close();
+    }
+
     { // AW-94 one window header (UX flow audit 2026-11-11): the same band on every window, Back to where a press came from, a page in its host,
       // the bag beside Storage, the Shop and Character at 1440, Hunts over the dock, one gold plate per window
       const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 } });
@@ -5191,6 +5221,10 @@ const MUTANTS = [
   ['AW-101 Hunt prep stays under the dock in town, its bar under Close and Save', 'src/data/shell-windows.js', "over: true, rise: true, help: 'windows.help_prep'", "over: true, help: 'windows.help_prep'"],
   ['AW-100 the doll scrolls with the bag again', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; }', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }'],
   ['AW-100 the doll\'s wells never fit a short column', 'src/shell/windows/inventory/doll.js', "    doll.style.setProperty(FIT, dollWell(room, parseFloat(cs.rowGap) || 0, parseFloat(cs.paddingTop) || 0) + 'px');\n", ''],
+  ['AW-103 the bag draws no free space', 'src/shell/windows/inventory/grid.js', "  return !phone && st.loaded && st.prefs.cat === 'all' && !st.sc.query && free > 0 ? free : 0;", '  return 0;'],
+  ['AW-103 a search draws free spaces too', 'src/shell/windows/inventory/grid.js', "st.prefs.cat === 'all' && !st.sc.query && free > 0", "st.prefs.cat === 'all' && free > 0"],
+  ['AW-103 the bag ends on a cut row', 'src/shell/windows/inventory/index.js', '  if (cut < foot) box.style.maxHeight = Math.floor(cut - top) + \'px\';', ''],
+  ['AW-103 the foot stands beside the doll again', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; }', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; flex-wrap: wrap; } [data-hs-win="inventory"] .hw-inv > .hw-inv-foot { order: -1; }'],
   ['AW-100 the phone\'s doll stands under the toolbar again', 'src/styles/windows.css', '  [data-hs-win="inventory"] .hw-inv { display: grid; grid-template-columns: auto minmax(0, 1fr);', '  [data-hs-win="inventory"] .hw-inv { display: block; grid-template-columns: auto minmax(0, 1fr);'],
   ['AW-95 a docked window lies over the hunt bar again', 'src/shell/window-fit.js', '    if (hunt) clearTops(w, hunt.tops, gap);', '    if (false) clearTops(w, hunt.tops, gap);'],
   ['AW-95 the phone sheet lies over the action bar in a hunt again', 'src/shell/shell.js', 'const bars = phoneMq.matches && !hunting ? [] :', 'const bars = phoneMq.matches ? [] :'],

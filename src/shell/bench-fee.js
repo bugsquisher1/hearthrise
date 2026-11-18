@@ -12,7 +12,7 @@ import { whole } from '../render/format.js?v=0.2.137';
 import { itemNameFor } from './widgets/bits.js?v=0.2.137';
 import { t } from '../render/player-text.js?v=0.2.137';
 
-const roomWords = (t, skill) => (t && t.rooms[skill] ? t.rooms[skill].room : null);
+const roomWords = (bt, skill) => (bt && bt.rooms[skill] ? bt.rooms[skill].room : null);
 
 /** "3 gold a craft", "about 2.4 gold a craft", "about 10 gold a craft", "about 1 gold every 2 crafts". The server charges the exact milligold, each
     whole gold as the carry passes it (core/bench-tax.js), so a fee under 10 gold keeps its tenth: "about 3" over 5 crafts that took 12 read as a wrong bill (Tyler 2026-11-01). */
@@ -55,8 +55,8 @@ export function feeFullWords(cs, w) {
 
 /** The skill's start screen, before any press: the share and what takes it off, or what the account's room already does. */
 export function feeHeadWords(cs, skill) {
-  const t = benchTaxOf(cs);
-  const r = t && t.rooms[skill];
+  const bt = benchTaxOf(cs);
+  const r = bt && bt.rooms[skill];
   if (!r) return '';
   if (r.free) return 'No bench fee: ' + r.room + ' at home';
   return 'Bench fee: ' + (r.permille / 10) + '% of output at shop prices\nFree with a ' + r.room + ' at home';
@@ -64,8 +64,8 @@ export function feeHeadWords(cs, skill) {
 
 /** The live tax this hero's next run of `w` would owe, from the server's numbers, or null. */
 export function rowTax(cs, w) {
-  const t = benchTaxOf(cs);
-  return w && w.kind === 'artisan' && t ? taxFor({ carry_mg: t.carry, keep: t.keep }, benchFeeMg(cs, w.id), goldOf(cs)) : null;
+  const bt = benchTaxOf(cs);
+  return w && w.kind === 'artisan' && bt ? taxFor({ carry_mg: bt.carry, keep: bt.keep }, benchFeeMg(cs, w.id), goldOf(cs)) : null;
 }
 
 /** How many crafts the purse covers for `w`, or null when no fee limits it. */
@@ -98,8 +98,8 @@ function payWords(cs) {
 export function feeBlock(cs, w) {
   const tax = rowTax(cs, w);
   if (!tax || canPayNext(tax)) return '';
-  const t = benchTaxOf(cs);
-  const kept = t && t.keep > 0 ? ', reserve ' + whole(t.keep) : '';
+  const bt = benchTaxOf(cs);
+  const kept = bt && bt.keep > 0 ? ', reserve ' + whole(bt.keep) : '';
   return 'Bench fee: ' + whole(dueNext(tax)) + ' gold, have ' + whole(tax.purse) + kept + '. ' + payWords(cs);
 }
 
@@ -110,8 +110,8 @@ export function benchEndWords(cs, recipeName) {
   const paid = run.gold > 0 ? 'Bench fee paid: ' + whole(run.gold) + ' gold' : '';
   const name = recipeName(run.recipe);
   if (run.end === 'gold') {
-    const t = benchTaxOf(cs);
-    const why = t && t.keep > 0 ? 'gold at reserve ' + whole(t.keep) : 'out of gold for the bench fee';
+    const bt = benchTaxOf(cs);
+    const why = bt && bt.keep > 0 ? 'gold at reserve ' + whole(bt.keep) : 'out of gold for the bench fee';
     return [name + ' stopped after ' + whole(run.crafts) + ', ' + why, paid, payWords(cs)].filter(Boolean).join('\n');
   }
   return paid ? name + ': ' + whole(run.crafts) + ' done\n' + paid : '';

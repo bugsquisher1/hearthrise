@@ -11,12 +11,12 @@
 //   elsewhere.js  under the grid while searching: where else the item is
 //   advanced.js   the Advanced view (effects, the worn set, imbuements)
 //   actions.js    every gesture: one intent each, controls off until it answers
-// Laid out as   [ toolbar                                  ]
-//               [ doll ][ grid (its own scroll)              ]
-//               [      ][ armor worn: heavy · medium · light ]
-//               [      ][ capacity · Advanced view · gold    ]
-//               [      ][ slot line / picked line / tools    ]
-//               [      ][ advanced section (when on)         ]
+// Laid out as   [ toolbar                                       ]
+//               [ doll ][ grid (its own scroll, free spaces drawn)]
+//               [      ][ armor worn · worth · Advanced view      ]
+//               [      ][ slot line / picked line / tools         ]
+//               [      ][ advanced section (when on)              ]
+//               [ spaces · gold · why Dispatch is off · Dispatch  ]   the window's foot (UI audit 2026-11-18 UI-5)
 // THE DOLL NEVER SCROLLS (Tyler 2026-11-17: "why am i scrolling to see my belt/ammo slots?"): its column runs
 // beside everything under the toolbar, only the bag's grid scrolls, and its wells fit the room (doll.js fitDoll).
 // On a phone's sheet the doll stands beside the toolbar and the sheet scrolls as one (windows.css).
@@ -156,6 +156,6 @@ renderInventory.patch = function patchInventory(body, ctx) {
 };
 
 renderInventory.events = INVENTORY_EVENTS;
-renderInventory.act = function act(ctx, body, action, ev, t) {
-  return actInventory(ctx, body, action, ev, t, () => renderInventory.patch(body, ctx));
+renderInventory.act = function act(ctx, body, action, ev, el) {
+  return actInventory(ctx, body, action, ev, el, () => renderInventory.patch(body, ctx));
 };

@@ -121,6 +121,8 @@
 //         XP per hour only when the server sent it (premium)
 //   HS-30 A TRAINING SESSION'S HUNT BAR says what is happening (lane/a-training-display): "Training Melee at the Training Yard",
 //         the time left (the server's start plus its longest run), the hour's fee and Stop training; the hero's tab says the same
+//   HS-32 (UI audit 2026-11-18) Summary pressed in a hunt shows the hunt on now (its ground, In progress, the analyzer's kills; no Hunt again),
+//         the earlier hunt listed under it; the analyzer's list ends on a whole row at rest (1440x900, 1366x640)
 //   HS-31 ITS ANALYZER shows the trained skill's level, its XP an hour, the fee and the gold paid (the server's training section and
 //         skill_levels), and none of the hunt's rows (it read "Monsters killed 0, Level XP 0, Gold 0")
 // ════════════════════════════════════════════════════════════════════════
@@ -1698,6 +1700,39 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // HS-32 SUMMARY IN A HUNT IS THE HUNT ON NOW; THE ANALYZER ENDS ON A WHOLE ROW (UI audit 2026-11-18)
+      /* a hero with an earlier hunt stored (Wickstead), hunting the Cellar; the analyzer opened (it starts folded below the fold width) */
+      const OLD = { id: 'old-1', hunt: 'wickstead', at: Date.parse('2026-10-18T09:00:00Z'), reason: 'stamina', kills: 9, xp: 90, gold: 12, ms: 3600000, loot: [], supplies: [], preset: 1, bag: [], deaths: [] };
+      for (const vp of [{ width: 1440, height: 900 }, { width: 1366, height: 640 }]) {
+        const { ctx, page, up } = await open({ viewport: vp, prep: (s) => { s.env.client_state = { huntSummaries: [OLD], hudLayout: { desktop: { analyzer: { folded: false }, tally: { folded: false } } } }; } });
+        const at = vp.width + 'x' + vp.height;
+        if (!up) { fails.push('HS-32 the ' + at + ' screen did not mount'); await ctx.close(); continue; }
+        await wait(page, () => document.querySelector('.ha-analyzer [data-stat="kills"]') && document.querySelector('.ha-analyzer [data-stat="kills"]').textContent !== '');
+        await page.waitForTimeout(1200);
+        /* no analyzer row stands cut by the foot of its list, at rest */
+        const cut = await page.evaluate(() => {
+          const box = document.querySelector('.ha-analyzer .ha-scroll');
+          if (!box || !box.getClientRects().length) return 'no list';
+          const foot = box.getBoundingClientRect().top + box.clientTop + box.clientHeight;
+          const rows = Array.from(box.querySelectorAll('.ha-stats > dt, .ha-stats > dd, .ha-sec-head, .ha-line')).filter((e) => e.getClientRects().length);
+          const hit = rows.find((e) => { const q = e.getBoundingClientRect(); return q.top < foot - 2 && q.bottom > foot + 2; });
+          return hit ? hit.textContent.trim() + ' (' + Math.round(hit.getBoundingClientRect().bottom - foot) + ' px under the foot)' : null;
+        });
+        if (cut) fails.push('HS-32 at ' + at + ' the analyzer\'s list ends mid-row: ' + cut);
+        if (vp.height === 900) {
+          await page.click('.ht-bar [data-hs-act="summary"]');
+          await wait(page, () => document.querySelector('[data-hs-win="hunt-summary"] .hsum-card.is-on'), null, 4000);
+          const sum = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); if (!w) return null;
+            return { title: w.querySelector('.hsum-title').textContent, when: w.querySelector('.hsum-when').textContent, again: !!w.querySelector('[data-hs-act="again"]:not([hidden])'),
+              text: w.querySelector('.hsum-card').textContent, past: Array.from(w.querySelectorAll('.hsum-past b')).map((b) => b.textContent) }; });
+          const kills = FIXTURE.hunt_analyzer.hero.kills.toLocaleString('en-US');
+          if (!sum || sum.title !== 'Mill Cellar' || !/^In progress/.test(sum.when) || sum.again || !sum.text.includes(kills) || !sum.past.includes('Wickstead'))
+            fails.push('HS-32 Summary in a hunt shows ' + JSON.stringify(sum && { title: sum.title, when: sum.when, again: sum.again, past: sum.past, kills: sum.text.includes(kills) }) + ', not the hunt on now (' + kills + ' kills) over the earlier one');
+        }
+        await ctx.close();
+      }
+    }
+
     { // HS-21 the cooldown ember: the hero's played `cast` cools that ability's slot for its catalogue cooldown; the ember rises as it runs out
       /* ON THE PINNED CLOCK (2026-10-21, P1): paused before the cast lands, so the cooldown cannot run out
          between two reads on a loaded box (it was read at 0.2 s left, then over); 1 s of page time apart. */
@@ -2107,6 +2142,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* UI audit 2026-11-18 (HS-32): Summary in a hunt is the hunt on now; the analyzer's list ends on a whole row */
+  ['Summary in a hunt shows the hunt before again (HS-32)', 'src/shell/windows/hunt-summary.js', 'const list = (now ? [now] : []).concat(sanitizeSummaries(summariesOf(cs)));', 'const list = sanitizeSummaries(summariesOf(cs));'],
+  ['the analyzer\'s list ends mid-row again (HS-32)', 'src/shell/widgets/analyzer.js', "  if (cut < foot) box.style.maxHeight = Math.max(0, Math.floor(cut - top)) + 'px';", ''],
   /* lane/c-target-kind: the First target is the server's, and one press is one intent (HS-29) */
   ['the First target shows the pick before the server confirms (HS-29)', 'src/shell/widgets/first-target.js', "  if (v !== null) prop(sel, 'value', v);", "  if (v !== null && !pending) prop(sel, 'value', v);"],
   ['the First target is off with no reason on screen (HS-29)', 'src/shell/widgets/first-target.js', "v === null ? t('bar.first_target_unknown')", "false ? t('bar.first_target_unknown')"],

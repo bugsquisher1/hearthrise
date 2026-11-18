@@ -31,6 +31,9 @@
 //         words, only open grounds have pages, and a page opens only on the server's word: with nothing said only the start is
 //         open; a personal best on a ground or the latest hunt there opens its page; a title's kill count of one opens the Rat
 //         King's, and zero keeps it shut; nothing else opens one
+//   WK-7  THE PAGE LIST (UI audit 2026-11-18 UI-9): under the count, every Chronicle page in order, numbered; a found one a press that turns
+//         to its page, a shut one under its lock
+//   WK-8  the Hunting grounds tab draws every creature as the Hunts window does: its figure at the world's x2, the link to its page
 //   WK-6  THE CHRONICLE FOLLOWS THE SERVER, IN THE PAGE (1440x900): the pages an envelope opens are the ones shown, a shut page says
 //         what opens it and its ground's name opens that ground in Hunts; an envelope that adds a ground opens its page while
 //         the Book is open; a RELOAD on the same envelope shows the same pages (nothing kept by the browser)
@@ -313,6 +316,19 @@ async function checks(overrides, shots) {
         const none = await page.evaluate((w) => { const n = document.querySelector(w + ' .wk-none'); return n && !n.hidden ? n.textContent : ''; }, W);
         if (nothing.length || !none.includes('zzqx')) fails.push('WK-2 a search for nonsense shows ' + JSON.stringify(nothing) + ' and says ' + JSON.stringify(none));
         await search(page, '');
+        /* WK-8 EACH CREATURE AS THE HUNTS WINDOW DRAWS IT (UI audit 2026-11-18 UI-9): on the Hunting grounds tab every creature of a ground stands
+           as its figure, drawn at the world's x2 (a whole 2 CSS px an art px at 100%), and the figure is the link to its page */
+        await page.click(W + ' .hw-tab[data-tab="grounds"]');
+        const figs = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .wk-page:not([hidden]) .wk-lineup .hw-hd-mon')).map((li) => {
+          const c = li.querySelector('canvas'), css = parseFloat(c.style.width) || 0;
+          return { id: li.getAttribute('data-monster'), drawn: li.classList.contains('is-drawn'), x2: css > 0 && c.width === css && css % 2 === 0, link: li.hasAttribute('data-hs-goto') };
+        }), W);
+        await wait(page, (w) => { const l = document.querySelectorAll(w + ' .wk-page:not([hidden]) .wk-lineup .hw-hd-mon'); return l.length > 0 && Array.from(l).every((li) => li.classList.contains('is-drawn')); }, W, 6000);
+        const drawn = await figs();
+        const wantMons = (await src('src/shell/wiki-model.js')).groundPages().reduce((n, g) => n + g.monsters.length, 0);
+        if (drawn.length !== wantMons || drawn.some((f) => !f.drawn || !f.x2 || !f.link))
+          fails.push('WK-8 the grounds\' creatures read ' + JSON.stringify(drawn.filter((f) => !f.drawn || !f.x2 || !f.link).slice(0, 3)) + ' (' + drawn.length + ' figures of ' + wantMons + ')');
+        if (shots) { await page.waitForTimeout(200); await page.screenshot({ path: join(shots, 'wiki-desktop-grounds-1440x900.png') }); }
         await page.click(W + ' .hw-tab[data-tab="formulas"]');
         await page.waitForTimeout(150);
         const forms = await shownPages(page);
@@ -409,6 +425,23 @@ async function checks(overrides, shots) {
         if (!how || !how.shut || !/The Sewer/.test(how.how) || !how.link) fails.push('WK-6 the shut Sewer page reads ' + JSON.stringify(how));
         const king = await page.evaluate((q) => { const p = document.querySelector(q + '[data-wk-id="rat_king"]'); return p ? (p.querySelector('.ck-how') || {}).textContent : null; }, CK);
         if (!king || !/Rat King/.test(king)) fails.push('WK-6 the shut Rat King page says ' + JSON.stringify(king));
+        /* WK-7 THE PAGE LIST (UI audit 2026-11-18 UI-9: "3 of 13 pages found" and no way to see which): under the count, every page in the
+           story's order, numbered; a found page is a press, a shut one is under its lock and is none; pressing Wickstead turns to its page */
+        const toc = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .ck-toc > li')).map((li) => { const b = li.querySelector('.ck-toc-go');
+          return { n: li.querySelector('.ck-toc-n').textContent, go: b ? b.getAttribute('data-page') : null, lock: !!li.querySelector('.hs-glyph') }; }), W);
+        const pages = await page.evaluate((q) => Array.from(document.querySelectorAll(q)).map((p) => [p.getAttribute('data-wk-id'), !p.classList.contains('is-shut')]), CK);
+        if (toc.length !== pages.length || toc.some((r, i) => r.n !== String(i + 1) || (pages[i][1] ? r.go !== pages[i][0] || r.lock : r.go !== null || !r.lock)))
+          fails.push('WK-7 the page list reads ' + JSON.stringify(toc.slice(0, 4)) + ' for the pages ' + JSON.stringify(pages.slice(0, 4)));
+        else {
+          /* the last found page in the list (Wickstead with the server's word above); a list with no press to make is this rule's red, never a thrown run */
+          const last = toc.filter((r) => r.go).map((r) => r.go).pop();
+          const pressed = !!last && last !== 'havora' && await page.click(W + ' .ck-toc-go[data-page="' + last + '"]', { timeout: 3000 }).then(() => true, () => false);
+          await page.waitForTimeout(250);
+          const at = pressed ? await page.evaluate(([w, q, id]) => { const b = document.querySelector(w + ' .hs-win-body').getBoundingClientRect(), p = document.querySelector(q + '[data-wk-id="' + id + '"]').getBoundingClientRect();
+            return Math.round(p.top - b.top); }, [W, CK, last]) : null;
+          if (at === null || !(at >= -2 && at <= 40)) fails.push('WK-7 pressing ' + last + ' in the page list left its page ' + at + ' px from the top of the Book');
+          await page.evaluate((w) => { document.querySelector(w + ' .hs-win-body').scrollTop = 0; }, W);
+        }
         /* the server adds the Sewer and a Rat King kill: both pages open while the Book is open, nothing pressed */
         s.env = chronicleEnv(s.env, { grounds: ['mill_cellar', 'millrace_sewer'], latest: 'wickstead', kills: { knotcutter: 1 } });
         const env = Object.assign(clone(s.env), { version: ++s.version, ok: true });
@@ -466,6 +499,9 @@ const MUTANTS = [
   ['the latest hunt opens nothing', 'src/session/hunt-sections.js', '  if (h && h.huntId) seen.add(h.huntId);\n  return seen;', '  return seen;'],
   ['the Chronicle is drawn once and never follows the server', 'src/shell/windows/wiki.js', "if (sec.getAttribute('data-ck') === c.key) return;", "if (sec.hasAttribute('data-ck')) return;"],
   ['a shut page\'s ground is no link', 'src/shell/windows/wiki.js', "linkHtml(h.ground, targetOf({ kind: 'hunt', hunt: h.hunt }))", 'esc(h.ground)'],
+  ['the Chronicle has no page list again (WK-7)', 'src/shell/windows/wiki.js', "'</p>' + tocHtml(ctx, c)", "'</p>'"],
+  ['a found page in the list turns to nothing (WK-7)', 'src/shell/windows/wiki.js', "if (at) at.scrollIntoView({ block: 'start' });", 'if (at) void at;'],
+  ['the grounds\' creatures are names, never figures (WK-8)', 'src/shell/windows/wiki.js', "cls(li, 'is-drawn', drawCreature(c, ART, id, LINEUP_SPRITE));", "cls(li, 'is-drawn', false);"],
   ['an example\'s sentence drops its answer', 'src/shell/windows/wiki.js', "example: t('wiki.max_example', { level: I.level, monster: I.monster, result: r }) };", "example: t('wiki.max_example', { level: I.level, monster: I.monster, result: '?' }) };"],
 ];
 

@@ -66,6 +66,10 @@ export const CLASSES = Object.freeze({
   bench: row({ body: [12, 20], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   seat: row({ body: [24, 28], measure: 'h', contact: 'legged', shadow: 'ellipse', layer: 'prop' }),
   bulky: row({ body: [20, 32], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
+  // THE HEARTH CHEST, and nothing else (Tyler 2026-11-17, "it's a big deal to open it ... bigger as well"): the Burning Tower's one chest on
+  // the Great Hearth, the town's relic. A chest a head over a hero's waist and wider than any bulky prop, so it reads as THE chest from across
+  // the square; not a loosening of `bulky` (a crate, a barrel and every other chest stay in theirs). Its loot is the server's.
+  relic: row({ body: [40, 48], measure: 'h', maxW: 56, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   barrel: row({ body: [24, 28], measure: 'h', contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   small: row({ body: [4, 12], measure: 'max', contact: 'touch', shadow: null, layer: 'prop' }),
   loot: row({ body: [8, 14], measure: 'max', contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
@@ -84,7 +88,8 @@ export const CLASSES = Object.freeze({
   // A big town hall-sized building round a plaza (Hearth Square's general store, depot, bank, guild
   // hall: 10-14 tiles wide). Drawn like a building; the monument (landmark) stays taller.
   hall: row({ body: [200, 320], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
-  landmark: row({ body: [240, 352], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
+  // The Great Hearth redrawn (2026-11-17: a slate cupola and finial over a tapering stack) stands 390 px: the band's top rose 352 -> 360.
+  landmark: row({ body: [240, 360], measure: 'h', contact: 'touch', shadow: null, layer: 'unit' }),
   // A whole town LOT drawn as one sprite: a building with its yard, fence, wall or towers (Havora's gatehouse,
   // tavern, guilds, harbour office and homes P01-P15). Its footprint is the lot; a deep lot's art stands taller
   // than a hall (footprint depth plus the facade), so its own row. Drawn like a building.

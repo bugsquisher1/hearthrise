@@ -14,16 +14,19 @@
 // A LIVE EVENT (Open Halls, 2027-03-22-live-events.sql §4) moves only the server's quote: a fight that costs no gold reads the
 // no-gold labels, with the event's line before them (live-events-view.js callEventWords). It waives gold only: stamina stays.
 // The event coming on or going off on the server's clock reads the quote again (feeKey).
+// NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): "Rat King wins: 2/10" and each seat still short, from the quote's
+// `wins`, or before a quote and after a reload from the envelope's `entry_gates` section; a gate the server says is shut holds the press off.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.137';
-import { itemName } from '../widgets/bits.js?v=0.2.137';
-import { whole } from '../../render/format.js?v=0.2.137';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.137';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.137';
-import { callOut } from '../../session/boss-intents.js?v=0.2.137';
-import { readCall } from '../../session/boss-quote.js?v=0.2.137';
-import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.137';
-import { partyNote } from '../hunt-list.js?v=0.2.137';
+import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.138';
+import { itemName, monsterName } from '../widgets/bits.js?v=0.2.138';
+import { whole } from '../../render/format.js?v=0.2.138';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.138';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.138';
+import { callOut } from '../../session/boss-intents.js?v=0.2.138';
+import { readCall } from '../../session/boss-quote.js?v=0.2.138';
+import { callGateOf } from '../../session/gate-sections.js?v=0.2.138';
+import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.138';
+import { partyNote } from '../hunt-list.js?v=0.2.138';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false, fights: 1 }; SCRATCH.set(cs, s); } return s; };
@@ -36,14 +39,18 @@ const minutesOf = (ms) => { const m = ms / 60000; return Number.isInteger(m) ? S
 
 /**
  * {Boss}, {boss} and {guard} (his adds shield him, or nothing) from the call; every number from `x`, the server's:
- * { fee, staminaMs, limitMs, n, stamina (ms), gold, covers, max, who, heroes }. A number the server has not said is left unfilled by the caller's choice of line.
+ * { fee, staminaMs, limitMs, n, stamina (ms), gold, covers, max, who, heroes, have, need }. A number the server has not said is left unfilled by the caller's choice of line.
  * @param {string} line
- * @param {{Boss: string, boss: string, monster: string}} call
- * @param {{fee?: number, staminaMs?: number, limitMs?: number, n?: number, stamina?: number, gold?: number, covers?: number, max?: number, who?: string|null, heroes?: number}} [x]
+ * @param {{Boss: string, boss: string, monster: string, of: string}} call
+ * @param {{fee?: number, staminaMs?: number, limitMs?: number, n?: number, stamina?: number, gold?: number, covers?: number, max?: number, who?: string|null, heroes?: number, have?: number, need?: number}} [x]
  */
 export function callWords(line, call, x = {}) {
   const fill = (s, k, v) => (v === undefined || v === null ? s : s.replace('{' + k + '}', v));
   let s = line.replace('{Boss}', call.Boss).replace('{boss}', call.boss).replace('{guard}', isGuarded(MONSTERS[call.monster]) ? BOSS_CALL_WORDS.warnGuard : '');
+  /* the natural wins (2027-05-05-entry-gates.sql): the boss by his own name ("Rat King"), the server's count and number */
+  s = s.replace('{name}', monsterName(call.of));
+  s = fill(s, 'need', Number.isFinite(x.need) ? whole(x.need) : null);
+  s = fill(s, 'have', Number.isFinite(x.have) ? whole(x.have) : null);
   s = fill(s, 'fee', Number.isFinite(x.fee) ? whole(x.fee) : null);
   s = fill(s, 'staminaMin', Number.isFinite(x.staminaMs) ? minutesOf(x.staminaMs) : null);
   s = fill(s, 'minutes', Number.isFinite(x.limitMs) ? minutesOf(x.limitMs) : null);
@@ -55,15 +62,23 @@ export function callWords(line, call, x = {}) {
   s = fill(s, 'heroes', Number.isFinite(x.heroes) ? String(x.heroes) : null);
   return fill(s, 'who', typeof x.who === 'string' && x.who ? x.who : null);
 }
-/* One fight's numbers of quote `q`, for callWords. */
-const fightOf = (q) => (q ? { fee: q.price, staminaMs: q.staminaMs, limitMs: q.limitMs, max: q.maxFights, who: q.who, heroes: q.heroes } : {});
+/* The natural wins of quote `q` for callWords: its number, and the count of `who` (a seat short of it, by the server's name) or this hero's. */
+function winsFacts(q, who) {
+  if (!q || !q.wins) return {};
+  const seat = who ? q.wins.short.find((s) => s.name === who) : null;
+  return { need: q.wins.need, ...(who ? (seat ? { have: seat.have } : {}) : { have: q.wins.have }) };
+}
+/* One fight's numbers of quote `q`, for callWords (and the wins its `why` names). */
+const fightOf = (q) => (q ? { fee: q.price, staminaMs: q.staminaMs, limitMs: q.limitMs, max: q.maxFights, who: q.who, heroes: q.heroes,
+  ...winsFacts(q, q.why === 'party_wins' ? q.who : null) } : {});
 
 /** The words for a refusal of this call (the designer's table), or null: the status line's general reader takes the rest.
     `r` the refusal (its own `quote`, `who` and `max` are the server's); a line whose number the server did not say is not used. */
 export function callRefusal(r, call) {
   const line = r && Object.hasOwn(BOSS_CALL_WORDS.refused, r.error) ? BOSS_CALL_WORDS.refused[r.error] : null;
   if (!line) return null;
-  const said = callWords(line, call, { ...fightOf(r.quote || null), ...(r.who ? { who: r.who } : {}), ...(Number.isFinite(r.max) ? { max: r.max } : {}) });
+  const said = callWords(line, call, { ...fightOf(r.quote || null), ...(r.who ? { who: r.who } : {}), ...(Number.isFinite(r.max) ? { max: r.max } : {}),
+    ...winsFacts(r.quote || null, r.error === 'party_wins' ? r.who || (r.quote && r.quote.who) : null) });
   return /\{[a-zA-Z]+\}/.test(said) ? null : said;
 }
 
@@ -89,12 +104,24 @@ function cantWords(q, call) {
   return said && !/\{[a-zA-Z]+\}/.test(said) ? said : null;
 }
 
+/** THE NATURAL WINS LINES (2027-05-05-entry-gates.sql, Tyler 2026-11-18): the server's count, from quote `q` or else the envelope's gate (before a
+    quote and after a reload): this hero's own while it falls short ("Rat King wins: 2/10"), then each other seat that does, but the one the quote's
+    own line already names. [] when the server says nothing or nobody falls short. */
+function winsLines(q, gate, call) {
+  const w = q && q.wins ? q.wins : gate || null;
+  if (!w) return [];
+  const named = q && q.why === 'party_wins' ? q.who : null;
+  const out = w.have < w.need ? [callWords(BOSS_CALL_WORDS.wins, call, { have: w.have, need: w.need })] : [];
+  for (const s of w.short) if (s.name !== named) out.push(callWords(BOSS_CALL_WORDS.cant.party_wins, call, { who: s.name, have: s.have, need: w.need }));
+  return out;
+}
+
 /* How many fights the slider holds for quote `q`: the pick, inside the server's range. */
 const pickOf = (sc, q) => Math.max(1, Math.min(q ? q.maxFights : 1, Number.isInteger(sc.fights) ? sc.fights : 1));
 
 export function callHtml() {
   return '<section class="hw-hd-call" aria-label="Call out" hidden><h4 class="hw-hd-h">Call out</h4>'
-    + '<p class="hw-call-line"></p>'
+    + '<p class="hw-call-line"></p><ul class="hw-before hw-call-wins"></ul>'
     /* WHAT A WIN CAN DROP (the server's list and odds) and THE DANGER (the server's reading of the room): both stand above the press, so they are read before it */
     + '<p class="hw-call-drops-h" hidden></p><ul class="hw-call-drops"></ul>'
     + '<ul class="hw-before hw-call-danger" aria-label="' + BOSS_CALL_WORDS.danger.label + '"></ul>'
@@ -132,7 +159,9 @@ export function patchCall(det, ctx, v) {
       .finally(() => { sc.asking = false; ctx.refresh('hunts'); });
   }
   const q = sc.quote;
-  const open = !!q && q.available && !v.now && !v.pending;
+  /* the natural wins as the envelope states them (entry_gates.calls): a gate the server says is shut holds the press off whatever an older quote said */
+  const gate = callGateOf(cs, call.id);
+  const open = !!q && q.available && !v.now && !v.pending && !(gate && !gate.ok);
   const one = fightOf(q);
   const free = !!q && q.price === 0;
   /* The quote's event, when it set the price (null: today's words). Its line goes first; what a fight costs still follows it. */
@@ -141,6 +170,9 @@ export function patchCall(det, ctx, v) {
     : q.available ? callWords(free ? S.eachFree : S.each, call, one) : (cantWords(q, call) || BOSS_CALL_WORDS.noQuote);
   /* No quote yet: the press names him, off, until the server has said; off, it always says why, beside it. */
   text(box.querySelector('.hw-call-line'), ev && ev.line ? ev.line + ' ' + said : said);
+  /* the natural wins still owed, one red line a hero, under the line that says why the press is off */
+  rows(box.querySelector('.hw-call-wins'), v.now ? [] : winsLines(q, gate, call).map((line, i) => ({ k: i + ':' + line, line })), { key: (x) => x.k,
+    build: () => element(box.ownerDocument, '<li class="hw-before-line is-short"></li>'), patch: (li, x) => text(li, x.line) });
   /* what a win can drop: the quote's rows, in its order, each with its odds; nothing while the server has not said */
   const drops = !v.now && q ? q.drops : [];
   const head = box.querySelector('.hw-call-drops-h');

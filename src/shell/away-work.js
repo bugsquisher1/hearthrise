@@ -15,14 +15,15 @@
 // past the stamp the line waits (awayWorkSettled), and so does the stamp. "It stopped about 25 min in" is the actions the server paid
 // times the action time for the tool the server says the hero holds: display only, and worded as an estimate.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
-import { recipeInputs } from '../core/artisan.js?v=0.2.137';
-import { whole } from '../render/format.js?v=0.2.137';
-import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.137';
-import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.137';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.137';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.137';
-import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.137';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.138';
+import { recipeInputs } from '../core/artisan.js?v=0.2.138';
+import { whole } from '../render/format.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
+import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.138';
+import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.138';
+import { serverNowOf } from '../session/hunt-sections.js?v=0.2.138';
+import { townWorkRunning } from '../session/town-poll.js?v=0.2.138';
+import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js?v=0.2.138';
 
 const TOWN_STAMP = /^town:(gather|artisan):([A-Za-z0-9_.-]+)$/;
 /* A record settled this recently is the return's answer; an older one waits for the sign-in's settle. */
@@ -78,9 +79,9 @@ function didWords(w) {
 function whyStopped(cs, w) {
   if (w.kind !== 'artisan') return '';
   const held = heldOf(cs) || {};
-  if (runsOf(w.row, held) > 0) return leftOf(cs) === null ? ': the run is done' : '';
+  if (runsOf(w.row, held) > 0) return leftOf(cs) === null ? ', the run is done' : '';
   const out = Object.entries(recipeInputs(w.row)).find(([id, need]) => (held[id] || 0) < need);
-  return out ? ': out of ' + itemName(out[0]) : '';
+  return out ? ', out of ' + itemName(out[0]) : '';
 }
 
 /**
@@ -107,9 +108,12 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
   const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') : ' It stopped' + when + whyStopped(cs, w) + '.';
   const name = nameOf(cs) || 'Hero';
+  const who = name + ' ' + didWords(w), facts = t('away.card_facts', { facts: parts.join(', ') }) + tail;
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     action: made ? 'bag' : 'show', button: made ? 'Open your inventory' : 'See your hero',
-    text: 'Away ' + awayWords(now - was.at) + ': ' + name + ' ' + didWords(w) + ', ' + parts.join(', ') + '.' + tail,
+    /* the away card's (windows/away.js): the hero, the absence, and the line after its head ("Tess mined the Copper Rock. +4,303 Copper Ore.") */
+    facts: { name, gone: now - was.at, body: t('away.card_work', { who, facts }) },
+    text: t('away.card_head', { time: awayWords(now - was.at), who }) + ' ' + facts,
   };
 }

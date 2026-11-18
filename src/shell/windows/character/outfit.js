@@ -14,19 +14,19 @@
 // scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
 // the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.137';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.137';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.137';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.137';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.137';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.137';
-import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.137';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.137';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.137';
-import { gold } from '../../../render/format.js?v=0.2.137';
-import { glyphSvg } from '../../launcher.js?v=0.2.137';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.137';
-import { t } from '../../../render/player-text.js?v=0.2.137';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.138';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.138';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.138';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.138';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.138';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.138';
+import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.138';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.138';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.138';
+import { gold } from '../../../render/format.js?v=0.2.138';
+import { glyphSvg } from '../../launcher.js?v=0.2.138';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.138';
+import { t } from '../../../render/player-text.js?v=0.2.138';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));
@@ -38,7 +38,7 @@ export function outfitHtml(g) {
     + '<div class="hw-of-left"><div class="hw-of-stage"><canvas class="hw-of-preview" width="192" height="192" aria-label="Outfit preview"></canvas>'
     + '<button type="button" class="hh-tool hw-of-turn" data-hs-act="of-turn">Turn</button></div>'
     + '<p class="hw-of-name"></p>'
-    + '<p class="hw-of-shows"></p>'
+    + '<p class="hw-of-shows"></p><p class="hs-note hw-of-looks">Cosmetic only</p>'
     + '<div class="hw-of-dye"><div class="hw-of-regions" role="tablist"></div><div class="hw-of-swatches"></div></div>'
     + '<div class="hw-of-save"><button type="button" class="hh-tool" data-hs-act="of-save">' + t('controls.equip') + '</button>'
     + '<button type="button" class="hw-primary hw-of-colors" data-hs-act="of-colors"></button>'
@@ -47,8 +47,7 @@ export function outfitHtml(g) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>'
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
-    + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Show only owned</label></div>'
-    + '<p class="hs-note hw-of-looks">Cosmetic only</p>'
+    + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Owned only</label></div>'
     + '<ul class="hw-of-grid"></ul><p class="hh-empty hw-of-none">No outfit matches.</p></div>'
     + '</section>';
 }
@@ -141,14 +140,16 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   rows(root.querySelector('.hw-of-grid'), ids, {
     key: (id) => id,
     build: (id) => element(ctx.doc, '<li><button type="button" class="hw-of-card" data-hs-act="of-pick" data-outfit="' + esc(id) + '">'
-      + '<canvas class="hw-of-face" width="64" height="64" aria-hidden="true"></canvas><b>' + esc(OUTFIT_ROWS[id].label) + '</b><small class="hw-of-mark"></small></button></li>'),
+      + '<canvas class="hw-of-face" width="42" height="45" aria-hidden="true"></canvas><b>' + esc(OUTFIT_ROWS[id].label) + '</b><small class="hw-of-mark"></small></button></li>'),
     patch: (li, id) => {
       const b = li.firstChild;
       attr(b, 'aria-pressed', String(id === d.outfit));
       cls(b, 'is-worn', !!o && o.worn === id);
       const have = !!o && o.owned.has(id);
       cls(b, 'is-locked', !!o && !have);
-      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? (have ? 'Premium' : 'Premium, not owned') : '');
+      /* the caption is one short word under the figure; a locked one is dimmed and says why on the pointer */
+      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? 'Premium' : '');
+      attr(b, 'title', o && !have ? OUTFIT_ROWS[id].label + (OUTFIT_ROWS[id].premium ? ', Premium' : '') + ', not owned' : null);
       drawTile(b.querySelector('canvas'), id);
     },
   });

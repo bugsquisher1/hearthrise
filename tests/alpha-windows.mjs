@@ -54,7 +54,7 @@
 //         stood on the gold "Next:" plate, whose foot read as a half-filled progress bar), "Setting out." goes once the hunt it set out on is over,
 //         and every press is in reach as the window opens (door panel 2026-11-04: a hunt out of stamina opened with none in sight)
 //   AW-67 NOTHING LIES ON THE PRESS IN HAND (newcomer panel 2026-11-03, 1366x768, the coach's line up): a stack in hand drops the last press's
-//         result; its Fuel all, and Stop while it fuels, take a real press at their middle, over the answer line and inside the column; the
+//         result; its Burn all, and Stop while it fuels, take a real press at their middle, over the answer line and inside the column; the
 //         player's own scroll is not fought; the Shop's tabs stay whole at the top of a scrolled body; the All characters card's
 //         figure says what it is (optimizer panel: "Bag 19,369 gp" beside "Your gold 51.7k")
 //   AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04): "You have 19 left" stood over a bar reading 6 for a whole hunt
@@ -93,7 +93,7 @@
 //         stack, Newest puts the stack just stored first, and the chip and sort are
 //         remembered (ONE residue put naming storeView) and come back after a reload
 //   AW-19 FUEL THE HEARTH (Tyler live 10-18, "can't bury bones"; 10-25: Inner Flame replaces
-//         Prayer): bones offer Fuel all N; it is ONE set_activity { kind:'artisan', id:'fuel_bones' }
+//         Prayer): bones offer Burn all N; it is ONE set_activity { kind:'artisan', id:'fuel_bones' }
 //         and nothing else, the Fueling line reads the server's pointer, Stop is ONE set_activity
 //         idle, and the bag and the Inner Flame XP change only from the envelope (and stay after a reload)
 //   AW-20 COOK ALL (playtest 10-22: Raw Wolf Meat sold for 1 gp, nothing said it cooks):
@@ -114,7 +114,9 @@
 //         more (no stop first); the work line reads the server's pointer and survives a
 //         reload; Stop is ONE idle and says what the server made; a bench row's amount
 //         (1 / 5 / All; a tool starts on 1, stock on All) rides the Start as `count` and
-//         the running row says the server's "N left"
+//         the running row says the server's "N left". A row is a genre row (UI audit 2026-11-18):
+//         the inputs as icon chips with counts, one numbers line, "Lv N" by Start; AW-22T the
+//         window's band name stands on one line on the ledger and beside Back
 //   AW-76 A CRAFTING STATION SORTS (Andy, Discord 2026-11-11): a bench skill's Sort menu reads Can make, Level, Name;
 //         Can make is the default and the order the list had before (what the bag makes first, highest level first,
 //         the next locked ones last); Level is low to high, Name A to Z, both over the same rows (the locked ones
@@ -433,6 +435,15 @@ async function pure() {
   const { SKILLS_DEF } = await imp('src/data/skills.js');
   const { SKILL_GUIDE } = await imp('src/data/skill-guide.js');
   for (const id of Object.keys(SKILLS_DEF)) if (!SKILL_GUIDE[id]) fails.push('AW-0 the skill ' + id + ' has no row in src/data/skill-guide.js');
+  /* AW-0c A PHONE'S CORNER COUNT FITS ITS POCKET (UI audit 2026-11-18: "10" and "1,493" side by side read as "101,493"): over 999 it reads 1.4k, 12k,
+     rounded down; the desktop's 44 px pocket keeps the whole count to ten thousand */
+  const { cornerCount, patchCount } = await imp('src/shell/windows/inventory/pockets.js');
+  const corner = [999, 1000, 1493, 12000, 999999, 1250000].map(cornerCount).join('|');
+  if (corner !== '999|1k|1.4k|12k|999k|1.2kk') fails.push('AW-0c the corner counts read ' + corner);
+  const pocketOn = (phone) => { const el = { textContent: '', classList: { toggle() {}, contains: () => false } };
+    const li = { querySelector: () => el, ownerDocument: { defaultView: { matchMedia: () => ({ matches: phone }) } } };
+    patchCount(li, 1493, false); return el.textContent; };
+  if (pocketOn(true) !== '1.4k' || pocketOn(false) !== '1,493') fails.push('AW-0c 1,493 in a pocket reads ' + JSON.stringify({ phone: pocketOn(true), desktop: pocketOn(false) }));
   const { edgeBody, withReceipt } = await imp('src/session/edge-intents.js');
   /* What the shop paid is the server's receipt, never the purse's difference (blind playtest 2026-10-31: "Sell for 10,000", "The shop paid 10,012"). */
   const askIt = (ans) => withReceipt(async (send) => { const a = await send(); return a.ok ? { ok: true } : { ok: false, error: 'no' }; }, async () => ans);
@@ -957,11 +968,11 @@ async function huntsPure(imp) {
     if (got.some((x, i) => x.trophy && got.slice(i + 1).some((y) => !y.trophy))) fails.push('AW-25 ' + r.hunt + ' lists a Trophy before a Rare');
   }
   const sets = (h, w) => scarceSetOf(h, w).map((e) => e.lines.join(',') + ':' + e.slots.join(',') + ':' + e.weapons.join(',')).join('|');
-  if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
+  if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Ironbound Shield,Oakboard Spellbook,Oak Wand,Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
   /* the page's words are one list (v0.2.100 played on Wickstead: "Iron, Studded, Adept: bodies, legs; Bramble Blade") */
   const wick = scarceSetOf('wickstead', 'medium').map((e) => e.what).join('|');
-  if (wick !== 'helmets and boots|bodies, legs and Bramble Blade') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
-  if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Longbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
+  if (wick !== 'helmets and boots|bodies, legs, Iron Hatchets and Bramble Blade') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
+  if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Oak Staff,Longbow,Iron Warhammer,Oak Crossbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
   /* THE ODDS (Tyler 2026-10-24: "a % drop chance or nothing at all"): each line's chance per kill is the engine's rows
      (monsters.js, the catalogue hr-accrue rolls), the whole kill's for every party size since 2026-11-08. Worked here from the
      rows on the Sewer (a hall built for a party, two tiers): a tier line = any piece of it on one kill of the ground's mix (every
@@ -1193,9 +1204,10 @@ async function itemTruthRules(base) {
   if (toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1) !== 'Woodcutting slower without it') fails.push('AW-60 storing the only axe says ' + toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1));
   if (toolLossWords(both, 'rat_tail', 1) !== '') fails.push('AW-60 storing a rat tail warns about tools');
   /* A SHORT INPUT SAYS WHERE IT COMES FROM, where the shortage is read. */
-  const wc = workRow('artisan', Object.keys(BENCH_INDEX).find((id) => { const i = BENCH_INDEX[id].recipe.inputs || {}; return i.silk_thread && Object.keys(i).length === 1; }));
-  const short = workBlock({ read: (k) => (k === 'skills' ? { crafting: { xp: 0, level: 44 } } : k === 'inventory' ? {} : null) }, wc, false);
-  if (!/^No Silk Thread in bag.*Dropped by .* at Mill Cellar/.test(short)) fails.push('AW-60 a recipe short of Silk Thread reads ' + short);
+  /* (a bench row whose one input the Cellar drops: the silk-only sewing went with the armor recipes, lane/d-drop-homes 2026-11-18, so the Hearth's Lamp Jelly) */
+  const wc = workRow('artisan', Object.keys(BENCH_INDEX).find((id) => { const i = BENCH_INDEX[id].recipe; return i.input === 'lamp_jelly' && !i.inputs; }));
+  const short = workBlock({ read: (k) => (k === 'skills' ? { [wc.skill]: { xp: 0, level: 44 } } : k === 'inventory' ? {} : null) }, wc, false);
+  if (!/^No Lamp Jelly in bag.*Dropped by .* at Mill Cellar/.test(short)) fails.push('AW-60 a bench row short of Lamp Jelly reads ' + short);
   if (whereToGet('copper_ore') !== 'Gathered with Mining') fails.push('AW-60 a level 1 node\'s source sends a hero to its goblins too: ' + whereToGet('copper_ore'));
   if (whereToGet('normal_plank') !== 'Made with Crafting') fails.push('AW-60 a level 1 recipe\'s source reads ' + whereToGet('normal_plank'));
   if (!/^Made with Crafting \d+$/.test(whereToGet('timber_beam'))) fails.push('AW-60 the Timber Beam\'s source reads ' + whereToGet('timber_beam'));
@@ -1324,7 +1336,7 @@ async function panelLeftovers(base) {
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
   const bones = buryRecipeOf('bones');
   const burning = { read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: bones.recipe.id } : null) };
-  if (buryLabel(bones, 59) !== 'Fuel all 59' || buryLabel(bones, 59, { read: () => null }) !== 'Fuel all 59' || buryLabel(bones, 59, burning) !== 'Fueling…') fails.push('AW-62 the fuel label reads ' + buryLabel(bones, 59, burning));
+  if (buryLabel(bones, 59) !== 'Burn all 59' || buryLabel(bones, 59, { read: () => null }) !== 'Burn all 59' || buryLabel(bones, 59, burning) !== 'Fueling…') fails.push('AW-62 the fuel label reads ' + buryLabel(bones, 59, burning));
   const { rareSaleWords } = await imp('src/shell/item-lore.js');
   if (rareSaleWords([{ item: 'rat_tail', qty: 4 }, { item: 'alpha_fang', qty: 3 }]) !== 'This sells rare finds: 3 Alpha Fang.' || rareSaleWords([{ item: 'rat_tail', qty: 4 }]) !== '') fails.push('AW-62 the sale says ' + rareSaleWords([{ item: 'alpha_fang', qty: 3 }]));
   const { slotOfferHtml, playLineOf } = await imp('src/app/slot-offer.js');
@@ -1873,7 +1885,7 @@ async function planRules(base) {
   const bidsOn = (rows) => ({ bids: new Map(rows.map((r) => [r.id, 10])) });
   const rulesAre = (loot, locked) => ({ loot: loot || {}, locked: new Set(locked || []) });
   const spareIds = (rows, worn, rules, o) => spareSale(rows, worn, rules || rulesAre(), bidsOn(rows), { isRare: FACTS.isRareOnly, ...(o || {}) }).lines.map((l) => l.item).sort().join();
-  /* (the Iron Helm and the Longbow are Rare somewhere and everyday elsewhere, so they are spare; the Iron Warhammer drops only as a Rare, so it is not) */
+  /* (the Iron Helm and the Longbow are Rare somewhere and everyday elsewhere, so they are spare; the Kingstooth drops only as a Rare, so it is not; the Iron Warhammer was that piece until the Glade dropped it hourly, 2026-11-18) */
   const OUTGROWN = ['bronze_helm', 'bronze_platelegs', 'iron_helm', 'studded_helmet', 'adept_pants', 'leather_boots', 'longbow'];
   if (spareIds(stack(OUTGROWN), IRON) !== OUTGROWN.slice().sort().join()) fails.push('AW-70 an Iron hero\'s outgrown stacks read ' + spareIds(stack(OUTGROWN), IRON));
   for (const [what, id, rows, worn, rules, o] of [
@@ -1881,7 +1893,7 @@ async function planRules(base) {
     ['a higher tier of its own slot', 'steel_platebody', null, IRON],
     ['a piece for an empty slot', 'bronze_helm', null, { ...IRON, helmet: null }],
     ['a Rare', 'houndskin_cloak', null, { ...IRON, cape: 'trollhide_cape' }],
-    ['a Rare of a lower tier', 'iron_warhammer', null, { ...IRON, weapon: 'steel_sword' }],
+    ['a Rare of a lower tier', 'kingstooth', null, { ...IRON, weapon: 'steel_sword' }],
     ['the start kit', 'practice_club', null, IRON],
     ['the Practice Club with Klappa\'s Club in hand', 'practice_club', null, { ...IRON, weapon: 'klappas_club' }],
     ['Klappa\'s Club, another family in hand', 'klappas_club', null, IRON],
@@ -1898,7 +1910,7 @@ async function planRules(base) {
   if (lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines.length) fails.push('AW-70 Sell all junk would sell a club: ' + JSON.stringify(lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines));
   if (madeFromKit('klappas_club') !== 'practice_club' || madeFromKit('cooked_shrimp') || madeFromKit('bronze_helm')) fails.push('AW-70 made from the kit reads ' + [madeFromKit('klappas_club'), madeFromKit('cooked_shrimp'), madeFromKit('bronze_helm')].join());
   const saleWords = (await imp('src/shell/item-lore.js')).rareSaleWords;
-  if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Club.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
+  if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Klub.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
   const big = spareSale(stack(Array.from({ length: 70 }, () => 'bronze_helm')), IRON, rulesAre(), { bids: new Map([['bronze_helm', 10]]) }, {});
   if (big.lines.length !== 64 || big.total !== 64 * 3 * 10 || big.more !== 6 || big.capped) fails.push('AW-70 past the engine\'s 64 lines a sale reads ' + big.lines.length + ' lines, ' + big.total + ' gp, ' + big.more + ' more, capped ' + big.capped);
   /* AW-70b BULK SALES OF A BIG BAG (audit F18, 2026-11-15: a Level 60 bag of 145 outgrown stacks; replayed on the local world 11-16: Sell spare gear
@@ -1913,12 +1925,12 @@ async function planRules(base) {
     if (p95.lines.length !== 64 || p95.more !== 31 || p95.total !== 64 * 2 * 7) fails.push('AW-70b a 95-stack sale reads ' + p95.lines.length + ' lines, ' + p95.more + ' more, ' + p95.total + ' gp');
     if (!edgeBody(0, 'vendor_sell_many', { lines: p95.lines }, '00000000-0000-4000-8000-000000000000')) fails.push('AW-70b a 95-stack bag sale builds no engine ask (nothing would sell)');
     const TROLL = { ...IRON, cape: 'trollhide_cape' };
-    const outRows = stack(['houndskin_cloak', 'bronze_helm', 'steel_platebody', 'practice_club', 'iron_warhammer']);
+    const outRows = stack(['houndskin_cloak', 'bronze_helm', 'steel_platebody', 'practice_club', 'kingstooth']);
     const picked = outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: upgradeWanted({ picks: [], choices: [] }) }).sort().join();
-    if (picked !== 'bronze_helm,houndskin_cloak,iron_warhammer') fails.push('AW-70b Select outgrown picks ' + picked + ', want bronze_helm,houndskin_cloak,iron_warhammer');
+    if (picked !== 'bronze_helm,houndskin_cloak,kingstooth') fails.push('AW-70b Select outgrown picks ' + picked + ', want bronze_helm,houndskin_cloak,kingstooth');
     if (spareIds(outRows, { ...TROLL, weapon: 'steel_sword' }) !== 'bronze_helm') fails.push('AW-70b Sell spare gear now sells a Rare: ' + spareIds(outRows, { ...TROLL, weapon: 'steel_sword' }));
     const wantedUp = upgradeWanted({ picks: [{ id: 'bronze_helm' }], choices: [{ ids: ['houndskin_cloak'] }] });
-    if (outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: wantedUp }).join() !== 'iron_warhammer') fails.push('AW-70b Select outgrown takes what Equip upgrades wants');
+    if (outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: wantedUp }).join() !== 'kingstooth') fails.push('AW-70b Select outgrown takes what Equip upgrades wants');
     const SEL = await imp('src/shell/windows/inventory/selection.js');
     const scO = { sel: new Set(['rat_tail']), anchor: 'rat_tail', base: new Set(), cursor: null };
     SEL.selectOutgrown(scO, ['bronze_helm', 'houndskin_cloak', 'iron_warhammer'], new Set(['iron_warhammer']));
@@ -2172,8 +2184,8 @@ async function tickerRules(base) {
   const bline = TK.lineText(buryParts(csb));
   if (!b3 || b3.items.bones !== -3 || TK.aheadXp(b3, 'inner_flame') !== 3 * TW.xpEach(bury) || !ball || ball.items.bones !== -8 || !bleft || bleft.items.bones !== -2 || !/^Fueling the Great Hearth with Bones: 0 Bones left$/.test(bline))
     fails.push('TK-8 the bench count: ' + JSON.stringify({ b3, all: ball && ball.items, left2: bleft && bleft.items, bline }));
-  /* TK-8b (live v0.2.135: the bag's "Fuel the hearth" on 2,530 Bones read "with 1 Bones…" over "2,529 Bones left"): a count
-     of one names ONE ("1 Bone"), a counted run's line says what the run has to go and never the stock, Fuel all keeps the
+  /* TK-8b (live v0.2.135: the bag's "Burn" on 2,530 Bones read "with 1 Bones…" over "2,529 Bones left"): a count
+     of one names ONE ("1 Bone"), a counted run's line says what the run has to go and never the stock, Burn all keeps the
      stock's count, and every Hearth fuel named in the plural has its one-form (text item.one_<id>). */
   const { startBury } = await imp('src/shell/windows/inventory/bury.js');
   const { itemName, itemNameFor } = await imp('src/shell/widgets/bits.js');
@@ -2931,11 +2943,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.click('.hw-pocket[data-item="' + id + '"]', { button: 'right' });
           await page.waitForTimeout(150);
           return page.evaluate(() => ({ subs: Array.from(document.querySelectorAll('.hw-menu .hw-menu-sub')).map((x) => x.textContent),
+            labels: Array.from(document.querySelectorAll('.hw-menu .hw-mi')).map((x) => x.textContent),
             rules: Array.from(document.querySelectorAll('.hw-menu [data-hs-act="m-rule"]')).map((b) => [b.getAttribute('data-rule'), b.textContent, b.getAttribute('aria-pressed'), b.disabled]) }));
         };
         const m = await menuOf('wolf_pelt');
         const want = [['keep', 'Keep', 'true', false], ['deposit', 'Deposit', 'false', false], ['sell', 'Sell', 'false', false], ['ignore', 'Don\'t pick up', 'false', false]];
         if (JSON.stringify(m.rules) !== JSON.stringify(want) || !m.subs.includes('Loot plan') || !m.subs.includes('On pickup')) fails.push('AW-32 the item menu offers ' + JSON.stringify(m));
+        /* AW-32b NO WORD TWICE (UI audit 2026-11-18: the menu listed "Sell" twice, the sale now and the loot plan): every entry reads apart */
+        const twice = m.labels.filter((w, i) => m.labels.indexOf(w) !== i);
+        if (twice.length || !m.labels.includes('Sell now')) fails.push('AW-32b the item menu repeats ' + JSON.stringify(twice) + ' in ' + JSON.stringify(m.labels));
         if (shots) await shot(page, 'dispatch-1440x900-item-menu');
         s.onCall = (name, body) => {
           if (name === 'hr_loot_rule_set') { s.env.bag_rules.loot[body.p_item] = body.p_rule; }
@@ -3172,10 +3188,26 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* the fixture hero wears Leather Boots, so the medium line reads first; the Cellar's one Rare is the Hive Wasp's
            Queen's Comb (the Great Hearth's named fuel, src/data/hearth.js), so the wasp carries and the Rare heading shows */
         /* each line with its chance per kill, alone (the engine's rows: the pure AW-25 works the math from them) */
-        if (p.sets.join('|') !== 'Leather, Bronze, Apprentice: helmets · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
+        if (p.sets.join('|') !== 'Helmets: Leather, Bronze, Apprentice · ' + CELLAR_ODDS || p.per !== 'chance per kill, hunting alone'
           || p.rares.join('|') !== "Queen's Comb / Hive Wasp" || !p.raresShown)
           fails.push('AW-25 the Cellar\'s drops read ' + JSON.stringify([p.sets, p.per, p.rares, p.raresShown]));
         if (p.bests.join('|') !== 'No record yet (hunt 10+ min)') fails.push('AW-25 with no best the page reads ' + JSON.stringify(p.bests));
+        /* AW-25L EVERY DROP IS ON THE CARD (QA audit 2026-11-18 N9: ten minutes in the Cellar dropped 21 Rat Tail, Venom Sac, Stinger, Hide and Sticky Core, and
+           the card named none): the loot list holds every row the engine can roll here past gear and Rares, the likeliest first, "+N more" opening the rest */
+        const lootRows = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hd-mats .hw-hd-rare')).map((n) => ({ id: n.dataset.item, shown: n.getClientRects().length > 0 })), W);
+        const lootMore = () => page.evaluate((w) => { const b = document.querySelector(w + '.hw-hd-mats-more'); return b && b.getClientRects().length ? b.textContent : null; }, W);
+        const lootBefore = await lootRows(), moreSaid = await lootMore();
+        const LOOT_WANT = ['rat_tail', 'venom_sac', 'hive_wasp_stinger', 'giant_rat_hide', 'sticky_core', 'slime_gel', 'bones'];
+        const lootMissing = LOOT_WANT.filter((id) => !lootBefore.some((x) => x.id === id));
+        const lootHidden = lootBefore.filter((x) => !x.shown).length;
+        if (lootMissing.length || lootBefore.length < 7 || lootBefore.slice(0, 6).some((x) => !x.shown) || moreSaid !== '+' + lootHidden + ' more' || !lootHidden)
+          fails.push('AW-25L the Cellar\'s loot reads ' + JSON.stringify({ lootBefore, moreSaid, lootMissing }));
+        else {
+          await page.click(W + '.hw-hd-mats-more');
+          await page.waitForTimeout(150);
+          const lootAfter = await lootRows();
+          if (lootAfter.some((x) => !x.shown) || await lootMore() !== null) fails.push('AW-25L "+N more" left rows hidden: ' + JSON.stringify(lootAfter));
+        }
         if (shots) await shot(page, 'hunts-1440x900-cellar-level1');
         /* The server's best arrives: the line and the page take it (replaced, never kept from before). */
         s.env.hunt_bests = { min_ms: 600000, grounds: { mill_cellar: { solo: { xp_h: 7141, balance_h: 1859 } } } };
@@ -3562,7 +3594,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="runecrafting"]');
         await page.waitForTimeout(200);
-        if (!/Chalked Fire Rune\. Own use only, can't be sold\./.test(await say('[data-hs-win="skills-trade"] .hw-work-rows') || '')) fails.push('AW-60 Runecrafting rows read ' + await say('[data-hs-win="skills-trade"] .hw-work-rows'));
+        /* the row's numbers line says it in a tag (UI audit 2026-11-18: a recipe row was a paragraph), its sentence on the pointer */
+        const noBuyer = await page.evaluate(() => { const li = document.querySelector('[data-hs-win="skills-trade"] .hw-work-row[data-id*="fire"]'); const s = li && li.querySelector('.hw-work-stat'); return s ? s.textContent.replace(/\u00a0/g, ' ') + '|' + s.getAttribute('title') : ''; });
+        if (!/· Can't be sold\|Own use only, can't be sold$/.test(noBuyer)) fails.push('AW-60 Runecrafting rows read ' + JSON.stringify(noBuyer));
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="woodcutting"]');
         await page.waitForTimeout(200);
@@ -3811,7 +3845,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const col = await page.evaluate((w) => { const c = document.querySelector(w + '.hw-inv-side'); return c.scrollHeight - c.clientHeight; }, W67);
         if (col <= 0) fails.push('AW-67 CONTROL: the column does not overflow at this size, so this proves nothing');
         const fuel = await takes(page, W67 + '.hw-pick [data-hs-act="primary"]');
-        if (!fuel.hit) fails.push('AW-67 Fuel all does not take a press with the stack in hand: ' + JSON.stringify(fuel));
+        if (!fuel.hit) fails.push('AW-67 Burn all does not take a press with the stack in hand: ' + JSON.stringify(fuel));
         await page.click(W67 + '.hw-pick [data-hs-act="primary"]');
         await wait(page, (w) => document.querySelector(w + '.hw-burying.is-on'), W67, 4000);
         await page.waitForTimeout(400);
@@ -4006,17 +4040,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           }
           if (shots) await shot(page, 'alpha-1440x900-storage');
         }
-        /* AW-19 Fuel the hearth: the bones' primary is Fuel all 8; ONE set_activity; Stop collects; the server's numbers only */
+        /* AW-19 the Hearth: the bones' primary is Burn all 8; ONE set_activity; Stop collects; the server's numbers only */
         await openWin(page, 'b', 'inventory');
         await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]');
         const prim = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]').textContent);
-        if (prim !== 'Fuel all 8') fails.push('AW-19 the bones offer "' + prim + '", not Fuel all 8');
+        if (prim !== 'Burn all 8') fails.push('AW-19 the bones offer "' + prim + '", not Burn all 8');
         else {
           await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
           await page.waitForTimeout(800);
           const go = sent(s, 'hr-accrue', 'set_activity');
           if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"fuel_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
-            fails.push('AW-19 Fuel all sent ' + JSON.stringify(go.map((c) => c.body)));
+            fails.push('AW-19 Burn all sent ' + JSON.stringify(go.map((c) => c.body)));
           const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
           if (!/^Fueling the Great Hearth with Bones: 8 Bones left/.test(line)) fails.push('AW-19 no Fueling line from the server pointer: ' + JSON.stringify(line));
           if ((await count(page, 'bones')) !== '8') fails.push('AW-19 the bag painted the bury before the server paid it: bones x' + (await count(page, 'bones')));
@@ -4203,7 +4237,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const rowsOf = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-work.is-on .hw-work-row')).map((li) => {
         const b = li.querySelector('.hw-work-go');
         const n = li.querySelector('.hw-work-n .hh-seg[aria-pressed="true"]');
-        return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent, n: n ? n.textContent : null };
+        /* a genre row (UI audit 2026-11-18): the inputs as icon chips with their counts, one numbers line, the Level by Start, the status */
+        return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent, n: n ? n.textContent : null,
+          stat: li.querySelector('.hw-work-stat').textContent.replace(/\u00a0/g, ' '), lv: li.querySelector('.hw-work-lv').textContent, chips: li.querySelectorAll('.hw-work-in img.hh-icon').length };
       }), W);
       const nowText = () => page.evaluate((w) => { const b = document.querySelector(w + ' .hw-work-now'); return b && b.classList.contains('is-on') ? b.querySelector('.hw-burying-q').textContent : ''; }, W);
       const msg = () => page.evaluate((w) => document.querySelector(w + ' .hh-intent-msg').textContent, W);
@@ -4214,11 +4250,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const doors = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-skill[data-hs-act="open-skill"]')).map((li) => li.getAttribute('data-skill')).join(), W);
         if (doors !== 'woodcutting,mining,fishing,cooking,crafting,smithing,runecrafting') fails.push('AW-22 the skills that open their work: ' + doors);
         if (shots) await shot(page, 'work-1440x900-ledger');
+        /* AW-22T (UI audit 2026-11-18) the band's name stands on ONE line, on the ledger and, with Back showing, on a skill's rows */
+        const titleLines = () => page.evaluate((w) => { const h = document.querySelector(w + ' .hs-win-title'); return Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight)); }, W);
+        if ((await titleLines()) !== 1) fails.push('AW-22T the Gathering and crafting band takes ' + (await titleLines()) + ' lines on the ledger');
         await page.click(W + ' .hw-skill[data-skill="woodcutting"]');
         await page.waitForTimeout(300);
         let r = await rowsOf();
+        if ((await titleLines()) !== 1) fails.push('AW-22T the Gathering and crafting band takes ' + (await titleLines()) + ' lines beside Back');
         const tree = r.find((x) => x.id === 'normal_tree'), oak = r.find((x) => x.id === 'oak_tree');
-        if (!tree || tree.off || tree.btn !== 'Start' || !/^Normal Log, about [\d,]+ an hour, \d+ XP every [\d.]+ s$/.test(tree.what) || tree.why !== '40 in bag') fails.push('AW-22 Woodcutting offers ' + JSON.stringify(tree));
+        if (!tree || tree.off || tree.btn !== 'Start' || tree.what !== 'Normal Log' || !/^[\d.]+ s · \d+ XP · about [\d,]+ an hour$/.test(tree.stat) || tree.lv !== 'Lv 1' || tree.why !== '40 in bag') fails.push('AW-22 Woodcutting offers ' + JSON.stringify(tree));
         if (!oak || !oak.off || !/^Requires Woodcutting 15, now \d+$/.test(oak.why)) fails.push('AW-22 a tree above the server level reads ' + JSON.stringify(oak));
         await page.click(W + ' .hw-work-row[data-id="normal_tree"] .hw-work-go');
         await page.waitForTimeout(800);
@@ -4257,7 +4297,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(300);
           r = await rowsOf();
           const bar = r.find((x) => x.id === 'smelt_bronze'), axe = r.find((x) => x.id === 'forge_bronze_axe');
-          if (!bar || bar.off || !/^Makes up to 5, \d+ XP every [\d.]+ s$/.test(bar.why) || bar.what !== '2 Copper Ore → Bronze Bar') fails.push('AW-22 Smithing offers ' + JSON.stringify(bar));
+          if (!bar || bar.off || bar.why !== 'Makes up to 5' || bar.what !== '2 Copper Ore' || bar.chips !== 1 || !/^[\d.]+ s · \d+ XP$/.test(bar.stat) || bar.lv !== 'Lv 1') fails.push('AW-22 Smithing offers ' + JSON.stringify(bar));
           if (!axe || !axe.off || !/^Requires Smithing 3, now \d+$/.test(axe.why)) fails.push('AW-22 a recipe above the server level reads ' + JSON.stringify(axe));
           /* "MAKE N" (lane c-work-fixes): a bar starts on All, a tool on 1; the player picks 5 and Start sends count 5. */
           if (bar && bar.n !== 'All') fails.push('AW-22 a bar row starts on ' + bar.n + ', not All');
@@ -4266,7 +4306,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(200);
           r = await rowsOf();
           const five = r.find((x) => x.id === 'smelt_bronze');
-          if (!five || five.n !== '5' || !/^Makes 5 of up to 5, /.test(five.why)) fails.push('AW-22 picking 5 reads ' + JSON.stringify(five));
+          if (!five || five.n !== '5' || five.why !== 'Makes 5 of up to 5') fails.push('AW-22 picking 5 reads ' + JSON.stringify(five));
           if (shots) await shot(page, 'work-1440x900-smithing');
           /* AW-22X "X" (Andy, Discord 2026-11-12): X opens a number field; 37 + Enter makes the pick 37 and Start sends count 37.
              0 clamps to 1 and 200000 to 100000 (the server's active_left range); Escape closes without a change. */
@@ -4292,7 +4332,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":37}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
           if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. Stops when materials run out$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
-          if (!/^Working on it now, 37 left\. Makes 5 of up to 5, /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
+          if (!/^Working on it now, 37 left\. Makes 5 of up to 5$/.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
@@ -5075,6 +5115,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* QA audit 2026-11-18 N9, N11 and the UI audit's bag items */
+  ['AW-25L the card lists materials only again', 'src/shell/windows/hunt-detail.js', '  const loot = lootOf(r.hunt), all =', '  const loot = lootOf(r.hunt).filter((x) => /gel|bones|wheat|fang|jelly|thread/.test(x.id)), all ='],
+  ['AW-32b the item menu says Sell twice', 'src/shell/windows/inventory/actions.js', "h += item('m-sell', t('controls.sell_now'),", "h += item('m-sell', t('controls.sell'),"],
   ['AW-28b nobody to bring tells heroes already playing to play one (audit F23)', 'src/shell/windows/hunt-detail.js', '  if (away.length) {\n', '  if (false) {\n'],
   ['AW-25 a creature card\'s dot can end its line','src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
   ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],
@@ -5154,6 +5197,9 @@ const MUTANTS = [
   ['prep builder: the setup in use is read from the server', 'src/session/preset-read.js', '  if (live && live.preset === preset) return { ok: true, set: live, live: true, name: null };\n', ''],
   ['prep builder: the read asks for another number', 'src/session/preset-read.js', "{ p_slot: cs.slot, p_preset: preset }", "{ p_slot: cs.slot, p_preset: preset + 1 }"],
   ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort)', 'rowsFor(skill, lv, heldOf(cs))'],
+  ['AW-22 an input chip shows no icon', 'src/shell/windows/work.js', "    + itemIconHtml(g, id) + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');", "    + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');"],
+  ['AW-22 a row is a paragraph again', 'src/shell/windows/work.js', "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })", "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) }) + ', ' + stat.textContent"],
+  ['AW-22T the band reads Gathering and crafting again', 'src/data/shell-windows.js', "label: 'Gathering and crafting', title: 'Skills',", "label: 'Gathering and crafting',"],
   ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
   ['item truth: the shop\'s raw flag files a tool as a material', 'src/shell/bag-model.js', "if (it.type === 'tool') return 'other';", ''],
@@ -5172,7 +5218,7 @@ const MUTANTS = [
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
   ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
-  ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
+  ['item truth: panel: Burn all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
   ['item truth: panel: the play line sells a slot beside an empty one', 'src/app/slot-offer.js', "  if (anEmptySlot(rows)) return t('slots.play_owned'", "  if (false) return t('slots.play_owned'"],

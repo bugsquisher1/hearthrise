@@ -32,6 +32,19 @@
 //             no pixel more than 2 px from where the art had it, on the half beat, each placed one from its own frame
 //             A still twin (P02 with its hens and goat cut out): its stirring pieces at rest over it are the art exactly
 //   TL-STIR   each stirring piece moves, and never draws a colour the art has nowhere within 2 px
+//   TL-BUMP   the Hearth Chest jolts now and then (Tyler 2026-11-17, "like something is trying to get out"): the chest and its
+//             smoke each have a bump clip and loop in step on one seat; bumps fall 8-21 s apart on each viewer's own seed (a hash of
+//             the hero's name, core/ambient.js bumpSeedOf: two viewers never in step, none with no hero), play their whole clip from a
+//             loop's start, and draw on every layer at once, never with the player's Idle animations off
+//   TL-CHEST  the chest's green at its locks, breathing slowly, and its locks' gold flash (Tyler 2026-11-18: "keep the chest green...
+//             concentrate the color around the keyhole and fittings and give it a slow, subtle pulse... have the lock flash warm gold
+//             when the special key turns"): nothing on its seat lights the stone and its smoke's loop holds no green (its wisps dark,
+//             Coordinator 2026-11-18); over its 4-6 s idle loop every green pixel is a
+//             keyhole's or a hasp's (a lock, or the seam over it), stays green, takes at most two tones (as made, a step dimmer) and
+//             some do breathe, turning at most 4 times a loop, each tone held 6 beats; its flash clip lasts CHEST_FLASH.ms on its
+//             layers, its first frame turns every lock warm gold with no green on it, its last is a frame of the loop (back to
+//             green); drawn, the chest plays the flash while compose's ambientPlay names it, its smoke holds its loop unbumped, and
+//             past the clip the chest holds its loop
 //   TL-GLANCE a keeper standing at her work (Tamsin at her board, the smith) looks about: every face her idle clip has, turning
 //             on the beat, and the frame drawn is the face of the moment
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -43,7 +56,11 @@ import { decodePNG } from '../tools/world-art/png.mjs';
 import { createBook } from '../src/world/core/book.js';
 import { compileMap } from '../src/world/core/map-compile.js';
 import { composeFrame } from '../src/world/core/compose.js';
-import { lifeOf, lifeDraws, glanceOf, swayOf } from '../src/world/core/ambient.js';
+import { lifeOf, lifeDraws, glanceOf, swayOf, bumpAt, bumpSeedOf } from '../src/world/core/ambient.js';
+import { CHEST_LAYERS } from '../src/data/world/town/sites.js';
+import { CHEST_FLASH } from '../src/data/world/hearth-moods.js';
+import { CHEST_LOCKS, SEAM as CHEST_SEAM } from '../tools/world-art/tower-art.mjs';
+import { RAMPS } from '../tools/world-art/palette.mjs';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../src/data/world/terrain.js';
 import { ATLAS_SETS } from '../src/data/world/atlas-sets.js';
@@ -59,6 +76,9 @@ const MANIFESTS = Object.fromEntries(ATLAS_SETS.map((s) => [s, manifest(s)]));
 const sheets = new Map();
 const sheet = (set) => { if (!sheets.has(set)) sheets.set(set, decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.png')))); return sheets.get(set); };
 const TOWN = WORLD_MAPS.find((m) => m.id === 'town_common');
+/* the palette's greens (the chest's light) and its warm golds (a lock as a key turns) */
+const GREEN = new Set([...RAMPS.leaf, ...RAMPS.moss, ...RAMPS.venom]);
+const WARM = new Set([RAMPS.gold[0], RAMPS.torch[1]]);
 /* the harbour (open sea, the fishing pier) and Hearth Square's north side (the flue, the fire): two views a player stands in */
 const VIEWS = Object.freeze({ harbour: [149, 86], hearth: [141, 41] });
 /* a 24 x 24 meadow round a 16 x 16 pond, as a map row (map-compile.js ROW SHAPE) */
@@ -170,7 +190,7 @@ export function problems(env) {
     if (!s) { bad('TL-BEAT', id + ' is not in the townlife atlas'); continue; }
     if (!fps || !s.anims.idle.loop || LIFE_BEAT_FPS % fps !== 0) bad('TL-BEAT', id + ' turns at ' + fps + ' fps, off the ' + LIFE_BEAT_FPS + ' fps beat');
   }
-  const fire = env.manifests.common.sprites.hearth_fire;
+  const fire = env.manifests.hearth.sprites.hearth_fire;   /* the Great Hearth's own set (2026-11-17) */
   if (!fire || fire.anims.idle.fps !== LIFE_BEAT_FPS) bad('TL-BEAT', 'the Great Hearth fire is no longer on the beat (' + (fire && fire.anims.idle.fps) + ' fps): LIFE_BEAT_FPS follows it');
 
   /* TL-DRAW */
@@ -383,16 +403,149 @@ export function problems(env) {
       if (!d || d.sx !== want.sx || d.sy !== want.sy) bad('TL-GLANCE', id + ' drawn facing other than its glance at t+' + (t - t0));
     }
   }
+
+  /* TL-BUMP */
+  const jolts = town.ambient.filter((a) => book.sprite(a.id).anims && book.sprite(a.id).anims.bump);
+  const chest = jolts.find((a) => a.id === 'hearth_chest');
+  if (!chest || jolts.length !== CHEST_LAYERS.length || !CHEST_LAYERS.every((id) => jolts.some((a) => a.id === id))) {
+    bad('TL-BUMP', 'the Hearth Chest and its smoke must each have a bump clip on the town map (have ' + jolts.map((a) => a.id).join() + ')');
+  } else {
+    const clip = (id) => book.sprite(id).anims.idle, n = (id) => book.frames(id, 'idle', 's'), nb = (id) => book.frames(id, 'bump', 's');
+    for (const a of jolts) {
+      if (clip(a.id).fps !== clip(chest.id).fps || n(a.id) !== n(chest.id) || a.x !== chest.x || a.y !== chest.y || a.lift !== chest.lift || a.dx !== chest.dx)
+        bad('TL-BUMP', a.id + ' must loop in step with the chest (same rate and length) on its seat');
+      if (!nb(a.id) || nb(a.id) > n(a.id)) bad('TL-BUMP', a.id + '\'s bump must stand for at most one idle loop');
+    }
+    const fps = clip(chest.id).fps, N = n(chest.id), NB = nb(chest.id), loopMs = (1000 * N) / fps;
+    const loopsOf = (seed) => Array.from({ length: 300 }, (_, k) => k).filter((k) => env.bumpAt(k * loopMs + 1, fps, N, NB, seed) === 0);
+    const seen = new Set();
+    /* each viewer's own seed, from the hero it watches as (world-boot.js; the world draws no randomness: world-no-authority W-CALL) */
+    const seeds = ['Marlow', 'Corliss', 'Tamwell', 'Edrin'].map((name) => env.bumpSeedOf(name));
+    if (seeds.some((x) => !Number.isInteger(x)) || env.bumpSeedOf(null) !== null || env.bumpSeedOf('') !== null)
+      bad('TL-BUMP', 'a hero\'s name must give a whole seed, and no viewer none: ' + JSON.stringify(seeds));
+    for (const seed of seeds.filter(Number.isInteger)) {
+      const at = loopsOf(seed), gaps = at.slice(1).map((k, i) => k - at[i]);
+      seen.add(at.slice(0, 12).join());
+      /* "about every 8-20 s": 2 to 4 loops of 5 s (3 to 7 of 3 s before the keyholes breathed slowly) */
+      if (at.length < 40 || gaps.some((g) => g * loopMs < 8000 || g * loopMs > 21000)) bad('TL-BUMP', 'seed ' + seed + ': bumps ' + gaps.slice(0, 8).join(',') + ' loops apart, want 8-21 s');
+      /* a bump plays its whole clip from its loop's start and nothing after it */
+      const k = at[0], frames = Array.from({ length: N }, (_, f) => env.bumpAt(k * loopMs + (f * 1000) / fps + 1, fps, N, NB, seed));
+      if (frames.join() !== Array.from({ length: N }, (_, f) => (f < NB ? f : -1)).join()) bad('TL-BUMP', 'seed ' + seed + ': a bump loop shows ' + frames.join());
+    }
+    if (seen.size < 3) bad('TL-BUMP', 'two viewers bump in step: the bumps must fall on each viewer\'s own seed');
+    if ([0, 3000, 9000, 60000].some((t) => env.bumpAt(t, fps, N, NB, null) !== -1)) bad('TL-BUMP', 'a page with no seed bumps');
+    /* drawn: at a bump's peak every layer shows its bump frame, in step; with the Idle animations off, or no seed, the idle loop */
+    const seed = 7, t = loopsOf(seed)[0] * loopMs + (1 * 1000) / fps + 1;
+    const view = { ox: (chest.x - 6) * T, oy: (chest.y - 6) * T, w: 12 * T, h: 8 * T };
+    const drawn = (st) => env.composeFrame(town, book, Object.assign({ t }, st), view, tables, T).fx || [];
+    for (const [st, want, why] of [[{ bumpSeed: seed }, 'bump', 'at a bump'], [{ bumpSeed: seed, stillIdle: true }, 'idle', 'with the Idle animations off'], [{}, 'idle', 'with no seed']]) {
+      const fx = drawn(st);
+      for (const a of jolts) {
+        const e = fx.find((x) => x.id === a.id), f = want === 'bump' ? book.frame(a.id, 'bump', 's', 1) : book.frame(a.id, 'idle', 's', Math.floor((t * fps) / 1000) % N);
+        if (!e || e.sx !== f.sx || e.sy !== f.sy) bad('TL-BUMP', a.id + ' ' + why + ' must draw its ' + want + ' frame');
+      }
+    }
+  }
+
+  /* TL-CHEST */
+  const cs = book.sprite('hearth_chest'), cl = (cs && cs.anims) || {};
+  const seat = town.ambient.find((a) => a.id === 'hearth_chest');
+  if (!seat || !cl.idle || !cl.flash) bad('TL-CHEST', 'the Hearth Chest needs its seat, an idle loop and a flash clip (has ' + Object.keys(cl).join() + ')');
+  else {
+    /* no layer on its seat lights the stone: its green is its own pixels */
+    for (const a of town.ambient.filter((r) => r.x === seat.x && r.y === seat.y && r.lift === seat.lift && r.dx === seat.dx))
+      if (book.sprite(a.id).blend === 'add') bad('TL-CHEST', a.id + ' casts light on the stone round the chest (the green is to be its keyholes\' and hasps\')');
+    /* ...and its other layers are dark at rest: no green wisp off the lid (the bump's puff, the lid's light let out, is the bump's own) */
+    for (const id of CHEST_LAYERS.filter((x) => x !== 'hearth_chest')) {
+      for (let i = 0; i < book.frames(id, 'idle', 's'); i++) {
+        const f = book.frame(id, 'idle', 's', i), img = sheet(f.set);
+        let g = 0;
+        for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) {
+          const k = ((f.sy + y) * img.width + f.sx + x) * 4;
+          if (img.data[k + 3] >= 128 && GREEN.has('#' + [0, 1, 2].map((c) => img.data[k + c].toString(16).padStart(2, '0')).join(''))) g++;
+        }
+        if (g) { bad('TL-CHEST', id + ' idle ' + i + ' has ' + g + ' green px: at rest the chest\'s green is its keyholes\' and hasps\' alone'); break; }
+      }
+    }
+    /* a frame's pixels in the chest's own frame (an atlas cell may be trimmed: its anchor places it) */
+    const pixels = (anim, i) => {
+      const f = book.frame('hearth_chest', anim, 's', i), img = sheet(f.set), m = new Map();
+      for (let y = 0; y < f.h; y++) for (let x = 0; x < f.w; x++) {
+        const k = ((f.sy + y) * img.width + f.sx + x) * 4;
+        if (img.data[k + 3] >= 128) m.set((x + cs.anchor[0] - f.ax) + ',' + (y + cs.anchor[1] - f.ay), '#' + [0, 1, 2].map((c) => img.data[k + c].toString(16).padStart(2, '0')).join(''));
+      }
+      return m;
+    };
+    const atLock = (key) => { const [x, y] = key.split(',').map(Number); return CHEST_LOCKS.some(([x0, , x1, y1]) => x >= x0 - 1 && x <= x1 + 1 && y >= CHEST_SEAM && y <= y1); };
+    const inLock = (key, [x0, y0, x1, y1]) => { const [x, y] = key.split(',').map(Number); return x >= x0 && x <= x1 && y >= y0 && y <= y1; };
+    const greensOf = (m) => new Map([...m].filter(([, c]) => GREEN.has(c)));
+    const N = book.frames('hearth_chest', 'idle', 's'), fps = cl.idle.fps;
+    const idle = Array.from({ length: N }, (_, i) => greensOf(pixels('idle', i)));
+    /* a slow loop: one breath in 4-6 s */
+    if (!(N * 1000 / fps >= 4000 && N * 1000 / fps <= 6000)) bad('TL-CHEST', 'the chest breathes over ' + (N * 1000 / fps) + ' ms, want a slow 4-6 s');
+    /* the green at the locks only: a keyhole, or the seam over a lock (its hasp) */
+    idle.forEach((g, i) => { const off = [...g.keys()].filter((k) => !atLock(k)); if (off.length) bad('TL-CHEST', 'idle ' + i + ' has ' + off.length + ' green px away from the locks (first ' + off[0] + ')'); });
+    /* the band: every green place stays green all loop, in at most two colours (as made and one step dimmer), and some do breathe */
+    const places = new Set(idle.flatMap((g) => [...g.keys()]));
+    let breathes = 0;
+    for (const p of places) {
+      const tones = new Set(idle.map((g) => g.get(p) || 'none'));
+      if (tones.has('none')) { bad('TL-CHEST', 'the green at ' + p + ' goes out over the loop'); continue; }
+      if (tones.size > 2) bad('TL-CHEST', 'the green at ' + p + ' swings over ' + tones.size + ' tones, want a subtle pulse (one step)');
+      if (tones.size === 2) breathes++;
+    }
+    if (!breathes) bad('TL-CHEST', 'the keyholes never pulse');
+    /* slow: the green changes at most 4 times a loop, each tone held 6 beats or more */
+    const sig = idle.map((g) => [...g].sort().join(';'));
+    const turns = sig.map((s, i) => (s !== sig[(i + N - 1) % N] ? i : -1)).filter((i) => i >= 0);
+    const runs = turns.map((i, j) => ((turns[(j + 1) % turns.length] - i + N) % N) || N);
+    if (turns.length > 4 || runs.some((r) => r < 6)) bad('TL-CHEST', 'the pulse turns at frames ' + turns.join(',') + ', want a slow breath (at most 4 turns a loop, each held 6 beats)');
+    /* THE FLASH: its clip lasts CHEST_FLASH.ms on the chest's layers; frame 0 every lock warm gold (no green on it); its last frame the loop's own */
+    const nf = book.frames('hearth_chest', 'flash', 's');
+    if (CHEST_FLASH.anim !== 'flash' || nf * 1000 / cl.flash.fps !== CHEST_FLASH.ms || CHEST_FLASH.layers.join() !== CHEST_LAYERS.join())
+      bad('TL-CHEST', 'CHEST_FLASH (' + CHEST_FLASH.ms + ' ms on ' + CHEST_FLASH.layers.join() + ') is not the chest\'s ' + nf + '-frame flash on its layers');
+    const f0 = pixels('flash', 0);
+    CHEST_LOCKS.forEach((r, n) => {
+      const on = [...f0].filter(([k]) => inLock(k, r));
+      if (on.some(([, c]) => GREEN.has(c)) || on.filter(([, c]) => WARM.has(c)).length < 3) bad('TL-CHEST', 'lock ' + n + ' does not flash warm gold in the flash\'s first frame');
+    });
+    const last = [...pixels('flash', nf - 1)].sort().join(';');
+    if (!Array.from({ length: N }, (_, i) => [...pixels('idle', i)].sort().join(';')).includes(last)) bad('TL-CHEST', 'the flash never fades back to the chest\'s green (its last frame is no frame of the loop)');
+    /* drawn: while it plays, the chest draws its flash frame and its smoke its loop, neither bumping; after it, the bump as ever */
+    const n = book.frames('hearth_chest', 'idle', 's'), nb = book.frames('hearth_chest', 'bump', 's'), loopMs = (1000 * n) / fps;
+    const k0 = Array.from({ length: 300 }, (_, k) => k).find((k) => env.bumpAt(k * loopMs + 1, fps, n, nb, 7) === 0);
+    const t = k0 * loopMs + 1000 / fps + 1;
+    const view = { ox: (seat.x - 6) * T, oy: (seat.y - 6) * T, w: 12 * T, h: 8 * T };
+    const play = (age) => Object.fromEntries(CHEST_FLASH.layers.map((id) => [id, { anim: CHEST_FLASH.anim, age }]));
+    const drawn = (st, at0 = t) => env.composeFrame(town, book, Object.assign({ t: at0, bumpSeed: 7 }, st), view, tables, T).fx || [];
+    const at = (fx, id) => fx.find((x) => x.id === id);
+    const same = (e, f) => !!e && e.sx === f.sx && e.sy === f.sy;
+    const during = drawn({ ambientPlay: play(1000 / fps + 5) });
+    if (!same(at(during, 'hearth_chest'), book.frame('hearth_chest', 'flash', 's', 1))) bad('TL-CHEST', 'the chest does not draw its flash while the server\'s window sets it off');
+    for (const id of CHEST_LAYERS.filter((x) => x !== 'hearth_chest'))
+      if (!same(at(during, id), book.frame(id, 'idle', 's', Math.floor((t * fps) / 1000) % n))) bad('TL-CHEST', id + ' bumps (or stops) while the chest flashes');
+    /* past its last frame (the burn stops naming it then) the chest holds its loop, never the clip's end: at the dim of its breath (the
+       flash ends on the loop's full green, so the two differ) */
+    const t2 = k0 * loopMs + Math.floor(n / 2) * (1000 / fps) + 1;
+    const over = drawn({ ambientPlay: play(CHEST_FLASH.ms) }, t2);
+    if (!same(at(over, 'hearth_chest'), book.frame('hearth_chest', 'idle', 's', Math.floor((t2 * fps) / 1000) % n))) bad('TL-CHEST', 'the chest past its flash does not hold its loop');
+  }
   return out;
 }
 
-const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras, glanceOf, swayOf, sways: SWAYS });
+const real = () => ({ manifests: MANIFESTS, town: TOWN, emitters: EMITTERS, surfaces: SURFACES, lifeOf, lifeDraws, composeFrame, folk: FOLK, createTownFolk, folkExtras, glanceOf, swayOf, sways: SWAYS, bumpAt, bumpSeedOf });
 
 function selftest() {
   const ok = problems(real());
   if (ok.length) { console.error('selftest: the clean control is red:\n  ' + ok.join('\n  ')); return 1; }
   const base = real();
   const sprites = (set, edit) => Object.assign({}, MANIFESTS, { [set]: Object.assign({}, MANIFESTS[set], { sprites: edit(Object.assign({}, MANIFESTS[set].sprites)) }) });
+  /* the manifests (`from`, else the shipped ones) with a townlife sprite's clip pointed at other cells: edit(its cells, all its clips) */
+  const clipCells = (id, anim, edit, from = MANIFESTS) => {
+    const s = from.townlife.sprites[id];
+    const clip = Object.assign({}, s.anims[anim], { dirs: { s: edit(s.anims[anim].dirs.s, s.anims) } });
+    return Object.assign({}, from, { townlife: Object.assign({}, from.townlife, { sprites: Object.assign({}, from.townlife.sprites, { [id]: Object.assign({}, s, { anims: Object.assign({}, s.anims, { [anim]: clip }) }) }) }) });
+  };
   const withLife = (fn) => (row, objects, ground, sp, w, h, T) => fn(lifeOf(row, objects, ground, sp, w, h, T), { row, objects, ground, w, h, T });
   const firstGlint = (l) => l.find((a) => /^water_glint/.test(a.id));
   /* a copy of the town's townsfolk with person i edited; a stand tile of a station */
@@ -434,7 +587,7 @@ function selftest() {
     'the glints differ between two compiles': { lifeOf: (() => { let n = 0; return withLife((l) => (++n % 2 ? l : l.map((a) => (/^water_glint/.test(a.id) ? Object.assign({}, a, { phase: a.phase + 1 }) : a)))); })() },
     'the smoke turns off the beat': { manifests: sprites('townlife', (s) => Object.assign(s, { chimney_smoke: Object.assign({}, s.chimney_smoke, { anims: { idle: Object.assign({}, s.chimney_smoke.anims.idle, { fps: 6 }) } }) })) },
     'a clip missing from the atlas': { manifests: sprites('townlife', (s) => { delete s.water_glint_b; return s; }) },
-    'the Hearth fire moves off the beat': { manifests: sprites('common', (s) => Object.assign(s, { hearth_fire: Object.assign({}, s.hearth_fire, { anims: { idle: Object.assign({}, s.hearth_fire.anims.idle, { fps: 10 }) } }) })) },
+    'the Hearth fire moves off the beat': { manifests: sprites('hearth', (s) => Object.assign(s, { hearth_fire: Object.assign({}, s.hearth_fire, { anims: { idle: Object.assign({}, s.hearth_fire.anims.idle, { fps: 10 }) } }) })) },
     'compose drops the water light': { composeFrame: (...a) => { const l = composeFrame(...a); return Object.assign({}, l, { sprites: l.sprites.filter((d) => d.kind !== 'life') }); } },
     'the water light drawn over the standing': { composeFrame: (...a) => { const l = composeFrame(...a); const g = l.sprites.filter((d) => d.kind === 'life'); return Object.assign({}, l, { sprites: l.sprites.filter((d) => d.kind !== 'life').concat(g) }); } },
     'smoke drawn among the standing': { composeFrame: (...a) => { const l = composeFrame(...a); const s = l.raised.filter((d) => d.kind === 'life'); return Object.assign({}, l, { raised: l.raised.filter((d) => d.kind !== 'life'), sprites: l.sprites.concat(s) }); } },
@@ -474,6 +627,27 @@ function selftest() {
     'Tamsin stares south': { glanceOf: () => 's' },
     'Tamsin turns off the beat': { glanceOf: (id, x, y, t) => glanceOf(id, x, y, t + 37) },
     'Tamsin looks where she has no face': { glanceOf: (id, x, y, t) => (glanceOf(id, x, y, t) === 'w' ? 'nw' : glanceOf(id, x, y, t)) },
+    /* TL-BUMP */
+    'the chest never bumps': { bumpAt: () => -1 },
+    'every screen bumps in step': { bumpAt: (t, fps, n, nb, seed) => bumpAt(t, fps, n, nb, seed == null ? seed : 1) },
+    'every viewer shares one seed': { bumpSeedOf: (key) => (key ? 7 : null) },
+    'a viewer with no hero still bumps': { bumpSeedOf: (key) => bumpSeedOf(key || 'nobody') },
+    'the chest bumps every loop': { bumpAt: (t, fps, n, nb, seed) => { const step = Math.floor((t * fps) / 1000) % n; return seed == null || step >= nb ? -1 : step; } },
+    'a bump with the Idle animations off': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, st.bumpSeed == null ? st : Object.assign({}, st, { stillIdle: false }), ...r) },
+    'the smoke out of step with the chest': { manifests: clipCells('hearth_chest_smoke', 'idle', (c) => c.slice(0, c.length - 1)) },
+    /* TL-CHEST */
+    'the seam\'s green band back all loop': { manifests: clipCells('hearth_chest', 'idle', (c, a) => c.map(() => a.bump.dirs.s[0])) },
+    'a 3 s breath': { manifests: clipCells('hearth_chest', 'idle', (c) => c.slice(0, 24), clipCells('hearth_chest_smoke', 'idle', (c) => c.slice(0, 24))) },
+    'the keyholes blink every beat': { manifests: clipCells('hearth_chest', 'idle', (c) => c.map((_, i) => c[i % 2 ? 20 : 0])) },
+    'a pulse past its band': { manifests: clipCells('hearth_chest', 'idle', (c, a) => c.map((x, i) => (i === 20 ? a.flash.dirs.s[4] : x))) },
+    'the flash never fades back': { manifests: clipCells('hearth_chest', 'flash', (c) => c.map(() => c[0])) },
+    'a flash in green': { manifests: clipCells('hearth_chest', 'flash', (c, a) => c.map((_, i) => a.idle.dirs.s[i])) },
+    'the flash cut short': { manifests: clipCells('hearth_chest', 'flash', (c) => c.slice(0, c.length - 1)) },
+    'a green wisp off the lid at rest': { manifests: clipCells('hearth_chest_smoke', 'idle', (c, a) => c.map((x, i) => a.bump.dirs.s[i] || x)) },
+    'the chest lights the stone again': { manifests: sprites('townlife', (s) => Object.assign(s, { hearth_chest_smoke: Object.assign({}, s.hearth_chest_smoke, { blend: 'add' }) })) },
+    'compose ignores the flash': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, Object.assign({}, st, { ambientPlay: null }), ...r) },
+    'the smoke bumps through the flash': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, st.ambientPlay ? Object.assign({}, st, { ambientPlay: { hearth_chest: st.ambientPlay.hearth_chest } }) : st, ...r) },
+    'a frame past the flash\'s end': { composeFrame: (m, b, st, ...r) => composeFrame(m, b, st.ambientPlay ? Object.assign({}, st, { ambientPlay: Object.fromEntries(Object.entries(st.ambientPlay).map(([k, v]) => [k, Object.assign({}, v, { age: Math.min(v.age, CHEST_FLASH.ms - 1) })])) }) : st, ...r) },
   };
   let missed = 0;
   for (const [name, m] of Object.entries(mutants)) {

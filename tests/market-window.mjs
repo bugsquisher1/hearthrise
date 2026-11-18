@@ -22,6 +22,7 @@
 //   W11 a graded jewelry piece's Suggested is what it cost in fixed gold (Fine 3,000, Hallmarked 28,200), never the book every grade shares
 //   W12 the Sell sheet keeps the picked name on screen: its head holds the top of the scroller, and a long name wraps
 //   W13 trading off while Havora's Works still raises the Weighhouse: the window tells the Works' story with its numbers (audit F19), else the plain closed line
+//   W14 the empty Browse page says what goes here: open and empty, how to list; being built, the Works' fund and the way there (UI audit 2026-11-18)
 //
 // The selftest copies src/ to a temp tree, plants one defect per arm and requires the
 // named test to fail. No ?v= on imports here (tests/**).
@@ -178,10 +179,23 @@ async function runTests({ M, I, G, C, F, R, T, S, W, base }) {
      the Works' own read unfinished: one story, the server's numbers, where to give. Finished, unread or another project: the plain closed line. */
   const built = { project: 'weighhouse', total: 125000, goal: 1000000, finished: false };
   const closedLine = 'Weighhouse closed, listings safe';
-  ok('W13', W.blockWords({ closed: true, works: built }) === "The Weighhouse being built: 125,000 of 1,000,000 gp (give in Havora > Works). Your listings are safe (you can take them back)",
+  /* a one-line genre label (UI audit 2026-11-18): what the place is for and where it is built are the Browse page's empty state (W14) */
+  ok('W13', W.blockWords({ closed: true, works: built }) === 'Being built: 125,000 / 1,000,000 gp',
     'trading off while the Works builds it reads ' + JSON.stringify(W.blockWords({ closed: true, works: built })));
   ok('W13', W.blockWords({ closed: true, works: { ...built, finished: true } }) === closedLine && W.blockWords({ closed: true, works: null }) === closedLine
     && W.blockWords({ closed: true, works: { ...built, project: 'bridge' } }) === closedLine && W.blockWords({ closed: false, works: built }) === '', 'the plain closed line is not kept for a standing building, an unread Works or another project');
+
+  /* W14 (UI audit 2026-11-18) THE EMPTY BROWSE PAGE SAYS WHAT GOES HERE: open with nothing for sale, how to list; closed while the Works raises it,
+     what it will be, the Works' own fund numbers and the way there; closed otherwise, the listings are safe. Never over a search or before the read. */
+  const B = await import(pathToFileURL(join(base, 'src/shell/windows/market/browse.js')).href);
+  const e = (o) => B.emptyOf({ query: '', closed: false, works: null, forSale: null, ...o });
+  const unbuilt = e({ closed: true, works: built });
+  ok('W14', !!unbuilt && unbuilt.kind === 'unbuilt' && unbuilt.fund && unbuilt.fund.total === 125000 && unbuilt.fund.goal === 1000000 && /Havora > Works/.test(unbuilt.body),
+    'the Weighhouse being built reads ' + JSON.stringify(unbuilt));
+  const open = e({ forSale: [] });
+  ok('W14', !!open && open.kind === 'open' && !open.fund && /List something/.test(open.body), 'an open, empty market reads ' + JSON.stringify(open));
+  ok('W14', (e({ closed: true, works: { ...built, finished: true } }) || {}).kind === 'closed', 'a closed, standing Weighhouse is not the plain closed page');
+  ok('W14', e({ forSale: ['coal'] }) === null && e({ forSale: null }) === null && e({ forSale: [], query: 'coal' }) === null, 'the empty page shows over a list, before the read or over a search');
 
   /* W10 the residue */
   ok('W10', R.RESIDUE_FIELDS.includes('marketView') && R.RESIDUE_FIELDS.includes('marketSeen'), 'the two fields are not on the allowlist');
@@ -208,7 +222,9 @@ const MUTANTS = [
   { test: 'W9', file: MODEL, from: "return { id: raw.item_id, listable: raw.listable === true,", to: "return { ...raw, id: raw.item_id, listable: raw.listable === true,", why: 'the row keeps whatever the read carried' },
   { test: 'W11', file: SELL, from: 'const book = jewelSuggestedAsk(id, ITEMS) ?? (ITEMS[id] && Number(ITEMS[id].v));', to: 'const book = ITEMS[id] && Number(ITEMS[id].v);', why: 'a Hallmarked ring suggests its 260 book' },
   { test: 'W12', file: 'src/styles/market.css', from: '.hw-mk-sell .hw-mk-head { position: sticky; top: 0; z-index: 1; background: var(--fill-1); }', to: '', why: 'the price field scrolls the picked name out of sight' },
-  { test: 'W13', file: 'src/shell/windows/market/index.js', from: '  if (sc.closed && buildingWorks(sc.works)) {', to: '  if (false) {', why: 'the Market says an outage while the Works says it is being built' },
+  { test: 'W13', file: 'src/shell/windows/market/index.js', from: '  if (sc.closed && buildingWorks(sc.works)) return', to: '  if (false) return', why: 'the Market says an outage while the Works says it is being built' },
+  { test: 'W14', file: 'src/shell/windows/market/browse.js', from: "  return sc.forSale !== null && !sc.forSale.length ? {", to: '  return false ? {', why: 'an open market with nothing for sale shows an empty list' },
+  { test: 'W14', file: 'src/shell/windows/market/browse.js', from: 'fund: { total: sc.works.total, goal: sc.works.goal } }', to: 'fund: null }', why: 'the Weighhouse being built hides how far the fund is' },
   { test: 'W10', file: 'src/session/residue.js', from: "  if (v.deliver === 'storage' || v.deliver === 'bag') out.deliver = v.deliver;", to: '  if (v.deliver) out.deliver = v.deliver;', why: 'a junk delivery survives' },
 ];
 

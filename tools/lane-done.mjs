@@ -64,6 +64,9 @@ const STEPS = [
   ['node', ['tests/no-client-xp-mint.mjs']],
   ['node', ['tests/dead-exports.mjs']],
   ['node', ['tests/dead-css.mjs']],
+  // Imports point one way (audit 2026-11-18): a new upward import or a stale baseline entry is red. Half a second.
+  ['node', ['tests/layering.mjs']],
+  ['node', ['tests/layering.mjs', '--selftest']],
   // Web storage only through src/platform/storage.js (W4.1). Milliseconds.
   ['node', ['tests/platform-seam.mjs']],
   ['node', ['tests/window-globals-exist.mjs']],

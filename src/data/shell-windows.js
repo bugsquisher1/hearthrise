@@ -52,7 +52,7 @@
 // search inside Inventory and Storage, not a window of its own.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWN_NAME } from './world/town/plan.js?v=0.2.137';
+import { TOWN_NAME } from './world/town/plan.js?v=0.2.138';
 
 /* THE TOP BAR'S GROUPS (Tyler 2026-11-16: "Our top menu bar is starting to get long again ... It's getting a bit overwhelming").
    The row had grown back to 19 icons (WORLD_SHELL.md §1 started at 8), so the windows a player opens now and then sit one press
@@ -72,7 +72,10 @@ export const SHELL_WINDOWS = Object.freeze([
       'bag.key_sell', 'bag.key_lock']),
     beside: Object.freeze(['storage', 'shop', 'character']) }),
   Object.freeze({ id: 'character', label: 'Character', key: 'c', glyph: 'navCharacter', width: 560, object: 'ledger' }),
-  Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger', help: 'windows.help_skills' }),
+  /* The band says "Skills" (UI audit 2026-11-18: "Gathering and crafting" took two lines beside Back, ?, the key and Close, and the
+     window can't be wider: it docks beside Party, 440, inside 60% of a 1440 World, tests/shell-core.mjs W18). Its two sections
+     name the rest; the icon row keeps the full label. */
+  Object.freeze({ id: 'skills-trade', label: 'Gathering and crafting', title: 'Skills', key: 'g', glyph: 'uiPickaxe', width: 380, object: 'ledger', help: 'windows.help_skills' }),
   /* Services (stamina, Blessings) is the Shop's third tab (Tyler 2026-10-25: "Lets move services to the 'shop' menu"):
      its old key R opens the Shop on it. */
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', group: 'town', glyph: 'navStore', width: 480, object: 'ledger', help: 'windows.help_shop', tabKeys: Object.freeze({ r: 'services' }) }),
@@ -112,10 +115,13 @@ export const SHELL_WINDOWS = Object.freeze([
      character strip's "All characters", so it takes no launcher icon). */
   Object.freeze({ id: 'hunt-party', label: 'Party', key: 'y', group: 'social', glyph: 'uiBanner', width: 440, object: 'plain' }),
   Object.freeze({ id: 'characters', label: 'All characters', key: 'o', glyph: 'navProfile', width: 460, object: 'ledger', launcher: false }),
-  Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false }),
+  /* UI audit 2026-11-18 #2: the return is ONE card, docked where the summary docks (src/shell/windows/away.js opens it from the alert centre's away lines) */
+  Object.freeze({ id: 'away', label: 'While you were away', key: null, noShortcut: true, glyph: 'uiHourglass', width: 420, object: 'ledger', launcher: false, rise: true }),
+  /* rise: the result, the loot, the steps and the presses open whole, over the bottom bar in town (UI audit 2026-11-18 #1: 404 px of a 1,194 px card) */
+  Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false, rise: true }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   /* One bar slot: what it does and when (opened by a press on a bar slot, in town or in a hunt). */
-  Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 800, object: 'plain', launcher: false, modal: true,
+  Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 880, object: 'plain', launcher: false, modal: true,
     pageOf: Object.freeze(['hunt-prep']) }),
   /* Tyler 2026-10-19: a death opens a centred popup (src/shell/death-popup.js opens it; its key shows the last death). */
   Object.freeze({ id: 'death', label: 'Defeated', key: null, glyph: 'uiSkull', width: 420, object: 'ledger', launcher: false, modal: true }),

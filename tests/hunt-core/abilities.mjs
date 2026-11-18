@@ -801,9 +801,9 @@ const cases = {
     if (!M.shell) return null;
     const { factsOf, reasonOf } = M.shell.facts;
     const req = (id) => factsOf({ type: 'ability', id }).requires;
-    if (!req('turning_cut').includes('Melee weapon (no shield)') || /Sword/.test(req('turning_cut'))) return 'Turning Cut reads ' + JSON.stringify(req('turning_cut'));
+    if (!req('turning_cut').includes('Melee weapon (no shield)') || /sword/i.test(req('turning_cut'))) return 'Turning Cut reads ' + JSON.stringify(req('turning_cut'));
     if (!/Melee weapon\.$/.test(req('power_strike'))) return 'Power Strike, every melee weapon\'s, reads ' + JSON.stringify(req('power_strike'));
-    if (!/Shield/.test(req('flame_strike')) || !/Sword/.test(req('flame_strike'))) return 'Flame Strike, a shield\'s and a sword\'s, reads ' + JSON.stringify(req('flame_strike'));
+    if (!/shield/i.test(req('flame_strike')) || !/sword/i.test(req('flame_strike'))) return 'Flame Strike, a shield\'s and a sword\'s, reads ' + JSON.stringify(req('flame_strike'));
     const struck = reasonOf({ action: { type: 'ability', id: 'turning_cut' }, conditions: [], join: 'and', usable: false }, { discipline: 'shield', role: 'tank', slots: [], store: [], supplySource: 'store', onEmpty: 'switch' }, [], null, null, null, null);
     return struck && struck.code === 'weapon' && struck.text.includes('Melee weapon (no shield)') ? null : 'a sword and shield\'s Turning Cut slot reads ' + JSON.stringify(struck);
   },

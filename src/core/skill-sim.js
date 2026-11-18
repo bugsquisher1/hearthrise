@@ -68,13 +68,13 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { resolveGatherAction } from './progression.js?v=0.2.137';
-import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.137';
-import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=0.2.137';
-import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.137';
-import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.137';
-import { levelOf } from './xp.js?v=0.2.137';
-import { resolveHearthfind } from './hearthfind.js?v=0.2.137';
+import { resolveGatherAction } from './progression.js?v=0.2.138';
+import { bestTool, toolSpeed, toolXpB, toolDouble } from './tools.js?v=0.2.138';
+import { actionIntervalMs, MIN_ACTION_MS, GATHER_SKILLS } from './pacing.js?v=0.2.138';
+import { CHANNEL, channelApplies, rateMult } from './away.js?v=0.2.138';
+import { nextBuffExpiryMs, hasActiveBuff, tickBuffs, pruneBuffs } from './buffs.js?v=0.2.138';
+import { levelOf } from './xp.js?v=0.2.138';
+import { resolveHearthfind } from './hearthfind.js?v=0.2.138';
 
 function fxOf(ctx) { return (ctx && ctx.fx) || {}; }
 function call(fx, name, ...args) {
@@ -528,9 +528,6 @@ export function simulateSkillSpan(state, ctx) {
     nodeId: targetId,
   };
 }
-
-/** Is this a skill this file can simulate? One list, read by the engine. */
-export function isGatherSkill(skillId) { return GATHER_SKILLS.indexOf(skillId) >= 0; }
 
 /* ══════════════════════════════════════════════════════════════════════════
    THE CLIENT SWITCH-OVER IS DONE (b351). What this block used to specify —

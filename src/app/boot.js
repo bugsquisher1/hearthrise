@@ -41,29 +41,29 @@
 // account reaches another's heroes and no answer of another's reaches this page (Andy 2026-11-06).
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.137';
-import { createBootTiming } from '../net/boot-timing.js?v=0.2.137';
-import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.137';
-import { SESSION_CONFIG } from '../session/config.js?v=0.2.137';
-import { createServerLink } from '../session/server.js?v=0.2.137';
-import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.137';
-import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.137';
-import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.137';
-import { createSocialRealtime } from '../social/realtime.js?v=0.2.137';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.137';
-import { startObservability, track, trackOnce, useHeroReaders } from '../net/observability.js?v=0.2.137';
-import { BUILD } from '../build-info.js?v=0.2.137';
-import { GAME_MODULES } from './game-modules.js?v=0.2.137';
-import { loadGlyphs } from './glyphs-loader.js?v=0.2.137';
-import { startDiagnostics } from '../net/diagnostics.js?v=0.2.137';
-import { mountPressAck } from '../shell/press-ack.js?v=0.2.137';
-import { mountOffWhy } from '../shell/off-why.js?v=0.2.137';
-import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.137';
-import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.137';
-import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.137';
-import { mountNewVersion } from './new-version.js?v=0.2.137';
-import { lowerFirst } from '../render/format.js?v=0.2.137';
-import { mountDevicePx } from '../render/device-px.js?v=0.2.137';
+import { SUPABASE_CONFIG, createSupabaseClient, authLockFor } from '../net/supabase-bootstrap.js?v=0.2.138';
+import { createBootTiming } from '../net/boot-timing.js?v=0.2.138';
+import { createAuth, AUTH_COPY } from '../net/auth.js?v=0.2.138';
+import { SESSION_CONFIG } from '../session/config.js?v=0.2.138';
+import { createServerLink } from '../session/server.js?v=0.2.138';
+import { renderAuthScreen, AUTH_BRAND } from './sign-in.js?v=0.2.138';
+import { renderBannedNotice, renderClosedNotice } from './closed-notice.js?v=0.2.138';
+import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.138';
+import { createSocialRealtime } from '../social/realtime.js?v=0.2.138';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.138';
+import { startObservability, track, trackOnce, useHeroReaders } from '../net/observability.js?v=0.2.138';
+import { BUILD } from '../build-info.js?v=0.2.138';
+import { GAME_MODULES } from './game-modules.js?v=0.2.138';
+import { loadGlyphs } from './glyphs-loader.js?v=0.2.138';
+import { startDiagnostics } from '../net/diagnostics.js?v=0.2.138';
+import { mountPressAck } from '../shell/press-ack.js?v=0.2.138';
+import { mountOffWhy } from '../shell/off-why.js?v=0.2.138';
+import { mountLauncherNames } from '../shell/launcher-names.js?v=0.2.138';
+import { connection, mountConnectionLine } from '../net/connection.js?v=0.2.138';
+import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.138';
+import { mountNewVersion } from './new-version.js?v=0.2.138';
+import { lowerFirst } from '../render/format.js?v=0.2.138';
+import { mountDevicePx } from '../render/device-px.js?v=0.2.138';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -73,7 +73,7 @@ const DISCORD = 'https://discord.gg/eJrUSUJM3M';
    files all at once (GAME_MODULES, generated: tests/module-preload.mjs --write; one import level at a time they would
    come in about eight round trips), so they land while the player types and a returning player's page still asks for
    everything at once. Nothing below the sign-in screen runs before it is in: startAccount awaits it. */
-/** @type {typeof import('./game-half.js?v=0.2.137')} */
+/** @type {typeof import('./game-half.js?v=0.2.138')} */
 let G = /** @type {any} */ (null);
 function loadGameHalf(doc) {
   for (const path of GAME_MODULES) {
@@ -82,7 +82,7 @@ function loadGameHalf(doc) {
     link.href = path + '?v=' + BUILD.cache;
     doc.head.appendChild(link);
   }
-  return import('./game-half.js?v=0.2.137').then((m) => { G = m; useHeroReaders(m.HERO_READERS); return m; });
+  return import('./game-half.js?v=0.2.138').then((m) => { G = m; useHeroReaders(m.HERO_READERS); return m; });
 }
 
 /** A private broadcast topic on the shared client: (topic, onMessage, onStatus) => leave. */
@@ -219,7 +219,7 @@ function startApp(win) {
     /* the town's sheets likewise (src/world/prewarm.js): a cold Play after a release no longer waits for 2.5 MB */
     /* ...for THIS session only: the pass asks before every slice and sheet whether its account is still the page's, so a
        sign-out or a refused session stops it at once (client-boot B-15) */
-    import('../world/prewarm.js?v=0.2.137').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
+    import('../world/prewarm.js?v=0.2.138').then((m) => { const acc = account; if (acc) m.prewarmTown(win, { alive: () => account === acc }); }, () => {});
     /* the token's answer is the moment the first read leaves (boot-timing.js): whatever it waited on is before that; the
        link carries THIS login's token only (auth.tokensFor), never another account's a later sign-in left on the device */
     const tokens = auth.tokensFor(auth.userId());
@@ -275,6 +275,8 @@ function startApp(win) {
        row is the press. Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
     const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
       + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
+      /* the hero's own figure (roster-faces.js draws it), an empty well for a slot with none (UI audit 2026-11-18) */
+      + (r.exists ? '<canvas class="char-face" data-face="' + r.slot + '" width="42" height="45" aria-hidden="true"></canvas>' : '<span class="char-face" aria-hidden="true"></span>')
       + '<span class="char-name"><b>' + (r.exists ? esc(r.name || 'Unnamed hero') : r.unnamed ? 'Unnamed hero' : 'Empty slot') + '</b>'
       + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + (r.doing ? ', ' + esc(lowerFirst(r.doing)) : '') + '</small>' : '') + '</span> '
       + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'
@@ -289,6 +291,7 @@ function startApp(win) {
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
+    G.drawRosterFaces(root.querySelector('.char-list'), roster).catch(() => { /* display only: the wells stay empty */ });
     timing.drawn('characters');
   }
 
@@ -342,6 +345,8 @@ function startApp(win) {
       create: (name, colors, key) => account.create(slot, name, colors, key),
       done: () => { track('character_created'); return play(slot); },
       back: () => showCharacters(),
+      /* the account's hero slots, the line the Characters screen just read from the server (never typed numbers) */
+      slots: G.playLineOf(account.statedLimit(), account.limit(), roster.length, account.slotOffer, roster),
     });
   }
 

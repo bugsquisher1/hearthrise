@@ -72,14 +72,16 @@ const ADD = 'public.hr_gold_given_add(uuid,integer,bigint)';
    re-applying the file it splices, so it is re-applied after it, as a replay does. */
 /* (2027-04-16-combat-training-gold-sinks-catalogue.generated.sql is the newest full replace of hr_sink_rules: re-applied last, as a replay does, so the house dummy's row stands) */
 const CHAIN = [CATALOGUE, SEAMS, '2027-02-27-gold-given.sql', '2027-02-27-town-crier.sql', '2027-02-27-town-shows.sql', '2027-02-28-sink-price-plan.sql', '2027-03-07-gold-sinks-catalogue.generated.sql',
-  '2027-03-16-crier-muted.sql', '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql', '2027-04-19-key-under-lock.sql'];
-/* A LATER FILE RESTATED A BODY ONE OF THESE FILES PINS (2027-04-19-key-under-lock.sql: hr_hearth_burn over 2027-02-27-town-shows.sql's image).
+  '2027-03-16-crier-muted.sql', '2027-04-16-combat-training-gold-sinks-catalogue.generated.sql', '2027-04-19-key-under-lock.sql', '2027-05-05-hearth-moods.sql'];
+/* A LATER FILE RESTATED A BODY ONE OF THESE FILES PINS (2027-04-19-key-under-lock.sql: hr_hearth_burn over 2027-02-27-town-shows.sql's image;
+   2027-05-05-hearth-moods.sql: hr_hearth_flame_of, the chest's window first).
    The pin refuses any other image, so the file's own body goes back first, as the chain held it when the file ran, and the later file is
    re-applied after it (CHAIN's tail), as a replay does. */
-const PINNED_LATER = [['2027-02-27-town-shows.sql', 'hr_hearth_burn']];
+const PINNED_LATER = [['2027-02-27-town-shows.sql', 'hr_hearth_burn'], ['2027-02-27-town-shows.sql', 'hr_hearth_flame_of']];
+/* a body from its head to its own closing $fn$; (a PL/pgSQL body's `end $fn$;`, a LANGUAGE sql body's bare one) */
 const ownBody = (text, fn) => {
-  const head = 'create or replace function public.' + fn + '(', tail = '\nend $fn$;';
-  const at = text.indexOf(head), end = text.indexOf(tail, at);
+  const head = 'create or replace function public.' + fn + '(', tail = '$fn$;';
+  const at = text.indexOf(head), open = at < 0 ? -1 : text.indexOf('$fn$', at), end = open < 0 ? -1 : text.indexOf(tail, open + 4);
   if (at < 0 || end < 0 || text.indexOf(head, at + 1) >= 0) throw new Error('harness: ' + fn + ' is not restated once in its file');
   return text.slice(at, end + tail.length);
 };
@@ -192,7 +194,7 @@ export const MUTANTS = {
   tavern_is_a_prop: { arm: 'TS-WINDOW', why: 'a tap on the Tavern opens nothing',
     js: ['src/data/world/sink-taps.js', [["  havora_tavern: Object.freeze({ open: 'window', window: 'havora', tab: 'round' }),\n", '']]] },
   bought_flame_plain: { arm: 'TS-WINDOW', why: 'a bought flame draws the plain fire',
-    js: ['src/world/hearth-burn.js', [["const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES });", "const FLAMES = NAMED_FLAMES;"]]] },
+    js: ['src/world/hearth-burn.js', [["const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...SHOW_FLAMES, ...CHEST_FLAMES });", "const FLAMES = Object.freeze({ ...NAMED_FLAMES, ...CHEST_FLAMES });"]]] },
   round_never_bursts: { arm: 'TS-WINDOW', why: 'a round draws nothing',
     js: ['src/world/town-shows.js', [["      if (!fire || !round || now < round.startedAt || now >= round.endsAt) return [];", "      return [];"]]] },
   show_on_the_floor: { arm: 'TS-SHOW', why: 'a shell bursts where it was fired from, on the floor', js: ['src/data/gold-sinks.js', [['riseMs: 416, riseTiles: 6,', 'riseMs: 416, riseTiles: 0,']]] },

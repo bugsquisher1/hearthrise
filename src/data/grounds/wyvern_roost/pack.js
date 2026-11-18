@@ -18,8 +18,8 @@
 // The bow's unique pieces and the Roost Mother's boss pieces (board section 9) wait on Carter's Rest's sample of five. Until then the Roost
 // pays in coin, Dragon Bones (Hearth fuel, Inner Flame 35) and Dragon Scales (Hearth fuel, Inner Flame 79, and the top house tiers ask for
 // them), two rows that had no source in the game. Each body drops one imbuement item. The odds are the band's (no gear to fit).
-import { definePack, box, gather } from '../shape.js?v=0.2.137';
-import map from './map.js?v=0.2.137';
+import { definePack, box, gather } from '../shape.js?v=0.2.138';
+import map from './map.js?v=0.2.138';
 
 const FL = 'wyvern_fledgling', LW = 'ledge_wyvern', BW = 'bull_wyvern', CW = 'crag_wyvern', BR = 'brood_wyvern';
 

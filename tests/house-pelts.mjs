@@ -383,7 +383,8 @@ async function wordsFails(root, fill = false) {
   const wolfRow = thicket.find((x) => x.id === 'wolf_pelt');
   if (!wolfRow || !wolfRow.carriers.includes('Briarcoat Wolf') || !(wolfRow.chance > 0 && wolfRow.chance < 1)) out.push('the Thicket\'s Materials miss the Wolf Pelt: ' + JSON.stringify(thicket));
   if (thicket.some((x) => x.id === 'gray_dewclaw')) out.push('a pure sell item is called a material');
-  if (!F.materialsOf('millrace_sewer').some((x) => x.id === 'bat_wing') || !F.materialsOf('mill_cellar').some((x) => x.id === 'slime_gel')) out.push('Bat Wing or Slime Gel is on no ground\'s Materials');
+  /* (the Kobolds' Bone Chips: the Bat Wing turned Junk when its only recipes, the spellbook and Adept cloth, were cut, lane/d-drop-homes 2026-11-18) */
+  if (!F.materialsOf('millrace_sewer').some((x) => x.id === 'bone_chips') || !F.materialsOf('mill_cellar').some((x) => x.id === 'slime_gel')) out.push('Bone Chips or Slime Gel is on no ground\'s Materials');
   if (F.bigPullLine('mill_cellar') !== '') out.push('a ground with no such creature says: ' + F.bigPullLine('mill_cellar'));
   return out;
 }
@@ -397,8 +398,8 @@ const WORD_MUTANTS = [
   { name: 'the House tells everyone', edits: [['src/shell/windows/house.js', "const places = short ? wherePlaces(it.id) : [];", 'const places = wherePlaces(it.id);']] },
   { name: 'a hall boss\'s prize comes from nowhere again', edits: [['src/shell/hunt-ground-facts.js', "    if (boss && ((MONSTERS[boss] || {}).drops || []).some((d) => d && d.id === item)) standing.push({ g, names: [MONSTERS[boss].name] });\n", '']] },
   { name: 'the source names no ground', edits: [['src/shell/hunt-ground-facts.js', "' at ' + groundName(first.g) + (more.length", "(more.length"]] },
-  { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "!isSpentMaterial(d.id)) continue;", "true) continue;"]] },
-  { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "|| isRare(d) || !isSpentMaterial(d.id)) continue;", "|| isRare(d)) continue;"]] },
+  { name: 'a material with no drop on Materials: gear-only Drops again', edits: [['src/shell/hunt-ground-facts.js', "(hunt, (d) => isSpentMaterial(d.id))", "(hunt, () => false)"]] },
+  { name: 'Materials lists a pure sell item', edits: [['src/shell/hunt-ground-facts.js', "(hunt, (d) => isSpentMaterial(d.id))", "(hunt, () => true)"]] },
   { name: 'the page names no bear (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "return said.length ? SUMMONS + listWords(said, Infinity) + '.' : '';", "return said.length > 9 ? SUMMONS + listWords(said, Infinity) + '.' : '';"]] },
   { name: 'the page lists the drops in parentheses again (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "const said = bigPullOf(hunt).map((m) => 'the ' + m.name);", "const said = bigPullOf(hunt).map((m) => 'the ' + m.name + ' (Bear Pelt)');"]] },
   { name: 'the page\'s name is no link (the bear in the fill rows)', fill: true, edits: [...FILL_BEAR, ['src/shell/hunt-ground-facts.js', "{ words: m.name, target: link ? link(m.id) : null }", "m.name"]] },

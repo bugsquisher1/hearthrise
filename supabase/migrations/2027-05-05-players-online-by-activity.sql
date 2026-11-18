@@ -88,7 +88,8 @@
 -- REVERSIBILITY: re-apply hr_players_online from 2026-11-07-players-online.sql (then the 2027-02-20 revoke) and hr_social_poll from
 -- 2027-02-17-social-poll.sql; reverse §3's splice (r -> a); drop hr_players_online_refresh, hr_players_online_counts, the index and
 -- the CHECK; the 7 columns are inert. No row of any character needs repair.
--- ORDER: after 2027-05-04-setup-swap-mid-hunt.sql (the last file). FREE against every staged file that does not restate
+-- ORDER: LAST, after 2027-05-06-drop-homes-hunt-sessions-catalogue.generated.sql (set/v0.2.139's tail; its date is not its
+-- position: §6 then probes the training catalogue drop-homes rewrites). FREE against every staged file that does not restate
 -- hr_players_online, hr_social_poll or hr_tick_cron_run. No begin/commit (CLAUDE.md §2).
 -- After apply: live-hash-drift wants hr_players_online, hr_social_poll and hr_tick_cron_run re-measured and the two new bodies tracked
 -- (Coordinator). restore-census: no table, no seeded row (the cache's note re-worded in this lane).
@@ -109,6 +110,11 @@ begin
      or not exists (select 1 from public.hr_session_modes where mode_id = 'tower')
      or to_regprocedure('public.hr_playing(uuid,integer)') is null then
     raise exception 'PRECONDITION: the presence stamps, the open-session index, the session modes (tower), the training grounds or hr_playing are missing';
+  end if;
+  -- §6's probes start a climb and a yard session at each door's own Level.
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_tower_rules' and column_name = 'min_level')
+     or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_training_rules' and column_name = 'min_level') then
+    raise exception 'PRECONDITION: hr_tower_rules.min_level / hr_training_rules.min_level are missing (apply 2027-05-05-entry-gates-tower-catalogue.generated.sql first)';
   end if;
   -- THE POINTER KINDS THE LINES NAME. A kind added later still counts (as town), but this file was written for exactly these.
   select pg_get_constraintdef(c.oid) into v_kinds from pg_constraint c
@@ -429,7 +435,9 @@ begin
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'by-activity §6-harness: the yard answered %', v; end if;
     delete from public.hr_rate_counters where user_id = c_u[2];
     perform public.hr_players_online(array[0]);
-    -- C CLIMBS the Tower (its one door; the switch opened for the probe alone if it is not on for it).
+    -- C CLIMBS the Tower (its one door, at the door's Level; the switch opened for the probe alone if it is not on for it).
+    update public.player_state set level_xp = public.hr_char_xp_for_level((select r.min_level from public.hr_tower_rules r where r.id))
+     where user_id = c_u[3] and slot = 0;
     if not public.hr_feature_on('burning_tower', c_u[3]) then
       update public.hr_feature_switches set scope = 'accounts', accounts = array[c_u[3]] where switch_id = 'burning_tower'; end if;
     perform set_config('request.jwt.claim.sub', c_u[3]::text, true);

@@ -15,16 +15,17 @@
 //   wasteLine(row, …)     "At 45% you’re only missing 121 HP, so 167 of its 288 goes to waste."
 // No DOM, no clock, no state. Nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.137';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.137';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.137';
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.137';
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.137';
-import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.137';
-import { shortOf } from './item-lore.js?v=0.2.137';
-import { castOf } from './cast-facts.js?v=0.2.137';
-import { t } from '../render/player-text.js?v=0.2.137';
+import { ABILITIES } from '../data/abilities.js?v=0.2.138';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.138';
+import { SUPPLIES } from '../data/supplies.js?v=0.2.138';
+import { ITEMS } from '../data/items.js?v=0.2.138';
+import { HUNT_ROLES, shootsItem } from '../data/hunt-roles.js?v=0.2.138';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.138';
+import { itemName, abilityName, runeWords } from './widgets/bits.js?v=0.2.138';
+import { shortOf } from './item-lore.js?v=0.2.138';
+import { castOf } from './cast-facts.js?v=0.2.138';
+import { rowNeed } from './action-facts.js?v=0.2.138';
+import { t } from '../render/player-text.js?v=0.2.138';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -36,7 +37,8 @@ export const RUN_COLUMNS = Object.freeze({
   food: cols('bar.col_heals', 'bar.col_gold', 'bar.col_per_hp', 'bar.col_carry'),
   drink: cols('bar.col_mana', 'bar.col_gold', 'bar.col_per_mana', 'bar.col_carry'),
   ammo: cols('bar.col_damage', 'bar.col_gold', 'bar.col_per_shot', 'bar.col_carry'),
-  spells: cols('bar.col_mana', 'bar.col_cooldown', 'bar.col_rune', ''),
+  /* three numbers: what a locked spell needs is said under its name (rowNeed), not in a column of its own */
+  spells: cols('bar.col_mana', 'bar.col_cooldown', 'bar.col_rune'),
 });
 const RUN_LABEL = Object.freeze({ food: t('bar.run_food'), drink: t('bar.run_drink'), ammo: t('bar.run_ammo') });
 
@@ -73,7 +75,7 @@ const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0)
   || ((b.amount || 0) - (a.amount || 0)) || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
 
 /**
- * The runs a tab shows: [{ kind, label, cols, rows }], plus `empty` (why there is
+ * The runs a tab shows: [{ kind, label, head (its name column's head: the run's name, else "Name"), cols, rows }], plus `empty` (why there is
  * nothing to pick) when no run has a row. `ctx` = { discipline, role (the server's, hunt_settings), bag (the server's
  * inventory rows), store (the server's store rows: settingsOf(cs).store), skills and set (the server's skills and
  * hunt_settings: a spell's mana is the version it would cast, cast-facts.js castOf), picked (the slot's action: the spell it
@@ -84,25 +86,27 @@ export function tableOf(tab, ctx) {
   const disc = c.discipline || null;
   if (tab === 'spells') {
     /* Every spell in the game, a rune spell with its rune on its row (Tyler 2026-11-08: one Spells tab), the weapon's own first
-       (castable, then the catalogue's order): one the weapon cannot cast is still listed and can be picked, LOCKED (art spec §5, §8). */
+       (castable, then the catalogue's order): one the weapon cannot cast, or that waits for a level in its skill (the server's
+       `skills`), is still listed and can be picked, LOCKED, with what it needs (action-facts.js rowNeed: "Wand", "Melee 10"). */
     const rows = Object.values(ABILITIES).filter((a) => a.active).map((a) => {
       const p = a.rune ? partnerRow(c.store, a.rune) : null;
       const picked = c.picked && c.picked.id === a.id ? c.picked : null;
       /* its mana is the version it would cast for this hero (cast-facts.js castOf): the pick's own supply, else what a pick starts with */
       const cast = castOf(picked || { type: 'ability', id: a.id, ...(p ? { store: p.id } : {}) }, c);
+      const need = rowNeed({ type: 'ability', id: a.id }, { discipline: disc, skills: c.skills });
       return { action: { type: 'ability', id: a.id }, kind: 'spells', name: abilityName(a.id), store: false,
         amount: cast ? cast.mana : a.mana, price: null, per: null, carry: null,
         cooldown: t('bar.secs', { secs: secs(a.cdMs) }), rune: a.rune ? t('bar.cost_rune', { rune: runeWords(a.rune, 1) }) : '—', unpriced: false, none: false,
-        locked: !disc || !(a.universal || a.disciplines.includes(disc)) };
+        locked: !!need, need };
     });
     rows.sort((a, b) => a.locked - b.locked);
-    return { runs: rows.length ? [{ kind: tab, label: null, cols: RUN_COLUMNS[tab], rows }] : [], empty: rows.length ? null : t('bar.no_spells') };
+    return { runs: rows.length ? [{ kind: tab, label: null, head: t('bar.col_name'), cols: RUN_COLUMNS[tab], rows }] : [], empty: rows.length ? null : t('bar.no_spells') };
   }
   const runs = [];
   if (tab === 'food') {
     for (const kind of ['food', 'drink']) {
       const rows = Object.values(CONSUMABLES).filter((x) => x.kind === kind).map((x) => supplyRow(x, c.store, c.bag)).sort(byValue);
-      if (rows.length) runs.push({ kind, label: RUN_LABEL[kind], cols: RUN_COLUMNS[kind], rows });
+      if (rows.length) runs.push({ kind, label: RUN_LABEL[kind], head: RUN_LABEL[kind], cols: RUN_COLUMNS[kind], rows });
     }
     return { runs, empty: runs.length ? null : t('bar.no_food') };
   }
@@ -116,12 +120,16 @@ export function tableOf(tab, ctx) {
     .map((id) => {
       /* under its skill it is locked too, and keeps its place on a bar for the level (abilities.js shotLine); `skills` is the server's */
       const short = shortOf(id, c.skills, null);
-      return Object.assign(ammoRow(id, c.store, c.bag), { locked: !own(ATTACK_KINDS, id) && (!shootsItem(c.role, ITEMS[id]) || !!short), lockWhy: short ? short.text : null });
+      return Object.assign(ammoRow(id, c.store, c.bag), { locked: !own(ATTACK_KINDS, id) && (!shootsItem(c.role, ITEMS[id]) || !!short), lockWhy: short ? short.text : null,
+        need: rowNeed({ type: 'attack_with_item', id }, { role: c.role, skills: c.skills }) });
     });
   const loaded = ammo.filter((r) => own(ATTACK_KINDS, r.action.id));
-  runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort((a, b) => (a.locked - b.locked) || byValue(a, b))) });
+  runs.push({ kind: 'ammo', label: RUN_LABEL.ammo, head: RUN_LABEL.ammo, cols: RUN_COLUMNS.ammo, rows: loaded.concat(ammo.filter((r) => !own(ATTACK_KINDS, r.action.id)).sort((a, b) => (a.locked - b.locked) || byValue(a, b))) });
   return { runs, empty: null };
 }
+
+/** What the details pane says before a row is pointed at or picked (an empty slot): "Pick a spell to see what it does". */
+export const pickHint = (tab) => t('bar.pick_' + (tab === 'food' || tab === 'ammo' ? tab : 'spells'));
 
 /** The row of `action` in a table, or null. */
 export function rowIn(table, action) {
@@ -134,7 +142,7 @@ export function rowIn(table, action) {
 export function cellsOf(r) {
   const dash = (v) => (v === null || v === undefined ? '—' : v);
   const carry = r.carry === 'store' ? t('bar.cell_store') : r.carry === null ? '—' : r.carry > 0 ? '×' + r.carry : t('bar.cell_none');
-  if (r.kind === 'spells') return [String(r.amount), r.cooldown, r.rune, ''];
+  if (r.kind === 'spells') return [String(r.amount), r.cooldown, r.rune];
   if (r.kind === 'ammo') return [r.amount ? '+' + r.amount : '—', dash(r.price), r.per === null ? '—' : String(r.per), carry];
   return [dash(r.amount), dash(r.price), r.per === null ? '—' : fixed(r.per), carry];
 }

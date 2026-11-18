@@ -84,6 +84,8 @@
 //        that reopens both never shows either as not open on the way; at the server's
 //        play-at-once limit Fennick has no Play, and a press says why in one plain
 //        line (12 px or more, on screen) and asks the server nothing
+//   B-11b each hero row shows the hero's own figure at a whole 2x or more, and the gold and the short line each stand on
+//        one line, at 1440x900, 922x423 and 667x375 (UI audit 2026-11-18)
 //   B-11 BUY A HERO SLOT (tracker r45; Tyler 10-17: up to five, for gold): the roster offers the
 //        server's next slot at the server's price, paid from "Your gold" — ONE purse per account
 //        (Tyler 10-23), so there is no payer to pick; short of gold it cannot be pressed and says
@@ -137,21 +139,25 @@ async function sheetsOf(mapId) {
 const TOWN_SHEETS = await sheetsOf('town_common');
 const CELLAR_SHEETS = await sheetsOf('mill_cellar');
 
-/* Two stands for B-20, from what the shipped map draws around them: the hearth's first (the stand a new hero takes in a quiet town) with its
+/* Two stands for B-21, from what the shipped map draws around them: a quiet stand (below) with its
    sheets read over a little more than a phone's 422x195, so no camera detail can add one, and a stand whose small view is sure to draw the Havora sheet. */
+/* THE PHONE'S WORLD FRAME in B-21's page (844x390): the canvas in device px, the zoom, and the bottom inset the HUD leaves in CSS px, as
+   window.__world.stats() says there (dpr 1). B-21 reads the page's own and says so when it moves: re-pin it here then. */
+const PHONE_FRAME = Object.freeze({ W: 826, H: 290, z: 2, bottom: 93 });
 async function townStands() {
   const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
-  const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }, { FOLK }] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
+  const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }, { FOLK }, { castBox }, cam] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
     'src/world/core/book.js', 'src/world/core/map-compile.js', 'src/data/world/terrain.js', 'src/world/core/compose.js', 'src/data/world/stations.js',
-    'src/data/world/town/folk.js'].map(imp));
+    'src/data/world/town/folk.js', 'src/world/core/shadows.js', 'src/world/core/camera.js'].map(imp));
   const manifests = {};
   for (const s of ATLAS_SETS) manifests[s] = JSON.parse(await readFile(join(ROOT, 'assets/world/atlas-' + s + '.json'), 'utf8'));
   const book = bookm.createBook(manifests);
   const tables = { materials: ter.MATERIALS, sprites: new Proxy(book.sprites, { get: (t, k) => t[k] || bookm.STUB_SPRITE }), openClasses: ter.OPEN_CLASSES, lights: ter.LIGHTS };
   const map = mapc.compileMap(WORLD_MAPS.find((m) => m.id === 'town_common'), tables);
   const T = map.T || 32, ground = comp.groundOf(map, book, tables, T).tiles;
+  const viewAt = (x, y, w, h) => ({ ox: Math.max(0, Math.min(map.w * T - w, Math.round(x * T - w / 2))), oy: Math.max(0, Math.min(map.h * T - h, Math.round(y * T - h / 2))), w, h });
   const drawn = (x, y, w, h) => {
-    const view = { ox: Math.max(0, Math.min(map.w * T - w, Math.round(x * T - w / 2))), oy: Math.max(0, Math.min(map.h * T - h, Math.round(y * T - h / 2))), w, h };
+    const view = viewAt(x, y, w, h);
     const f = comp.composeFrame(map, book, { hero: { x, y } }, view, tables, T);
     const out = new Set([book.frame('outfit_knight').set]);
     /* the townsfolk walk on the clock (src/world/town-folk.js) and any of them may stand in a first view: their sheets, as the hero's */
@@ -162,9 +168,30 @@ async function townStands() {
     for (const t of ground) if (t.x < view.ox + w && t.x + T > view.ox && t.y < view.oy + h && t.y + T > view.oy) out.add(t.set);
     return Array.from(out);
   };
-  const idle = STATIONS.find((s) => s.kind === 'idle');
+  /* THE v0.2.97 CASE: a Havora sprite whose shadow the World's first frame lists but casts off the view, which must not hold the town for
+     its sheet. Judged on the World's own frame (src/world/render/canvas-backend.js missing(): core/camera.js frameView over PHONE_FRAME,
+     the view it sees, compose's list over the overscan), so only the shadow's fall decides it. */
+  const shadowOff = (x, y) => {
+    const F = PHONE_FRAME, k = 1 / F.z;
+    const { view, plan } = cam.frameView({ x, y }, F.W / F.z, F.H / F.z, map, F.z, T, { inset: { left: 0, right: 0, top: 0, bottom: F.bottom * k }, keep: { x, y } });
+    const seen = { ox: view.ox - plan.dx / F.z, oy: view.oy - plan.dy / F.z, w: F.W / F.z, h: F.H / F.z };
+    const meets = (b) => b.x < seen.ox + seen.w && b.x + b.w > seen.ox && b.y < seen.oy + seen.h && b.y + b.h > seen.oy;
+    return comp.composeFrame(map, book, { hero: { x, y } }, view, tables, T).shadows.some((sh) => sh.type === 'cast' && sh.sprite.set === 'havora' && !meets(castBox(sh.sprite, sh.m)));
+  };
   const stand = (s, i) => ({ station: s.id, no: i + 1, x: s.stands[i][0], y: s.stands[i][1] });
-  const quiet = Object.assign(stand(idle, 0), { drawn: drawn(idle.stands[0][0], idle.stands[0][1], 440, 210) });
+  /* THE QUIET STAND: the first stand (idle ones first) whose view leaves the Havora sheet out, so that sheet can be held behind it, and
+     that meets the v0.2.97 case. It was the hearth's first stand until v0.2.138, whose redrawn Hearth's scree (havora_scree_a, sites.js
+     (111, 45)) put Havora in that view; no idle stand meets both now, so it is Tamsin's tally's. None at all: the first idle stand, and B-21 says so. */
+  const idle = STATIONS.filter((s) => s.kind === 'idle');
+  let quiet = null;
+  for (const s of idle.concat(STATIONS.filter((s) => s.kind !== 'idle'))) {
+    for (let i = 0; i < (s.stands || []).length && !quiet; i++) {
+      const [x, y] = s.stands[i], d = drawn(x, y, 440, 210);
+      if (!d.includes('havora') && shadowOff(x, y)) quiet = Object.assign(stand(s, i), { drawn: d });
+    }
+    if (quiet) break;
+  }
+  if (!quiet) quiet = Object.assign(stand(idle[0], 0), { drawn: drawn(idle[0].stands[0][0], idle[0].stands[0][1], 440, 210), noShadow: true });
   let onHavora = null;
   for (const s of STATIONS) { for (let i = 0; i < (s.stands || []).length && !onHavora; i++) if (drawn(s.stands[i][0], s.stands[i][1], 120, 80).includes('havora')) onHavora = stand(s, i); if (onHavora) break; }
   return { quiet, onHavora };
@@ -210,7 +237,10 @@ async function stubServer(page, o) {
             gold_v: o.purse !== undefined ? (o.lag && o.lag[slot] ? o.lag[slot].v : o.goldV) : 0, level_xp: LEVEL_10_XP },
           /* B-9h: a hero the server holds in an open hunt ({ slot: hunt id }) */
           ...(o.hunting && o.hunting[slot] ? { hunt: { session_id: '5d1c0f2e-0000-4000-8000-00000000000' + slot, hunt_id: o.hunting[slot], ended: false } } : {}),
-          ...(o.stamped ? { client_state: { awaySeen: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, at: Date.parse('2026-10-17T00:00:00Z') - (o.stampedMin || 5) * 60000, xp: LEVEL_10_XP } } } : {}) })
+          /* B-17: a hunt this page stamped before, so it also holds the hunt's start the end card reads (summary-recorder.js stampStart, v0.2.138):
+             without it every load writes that start, a put the first hide then falls inside the debounce of (CharacterSession.flushResidue) */
+          ...(o.stamped ? { client_state: { awaySeen: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, at: Date.parse('2026-10-17T00:00:00Z') - (o.stampedMin || 5) * 60000, xp: LEVEL_10_XP },
+            huntStart: { s: '5d1c0f2e-0000-4000-8000-00000000000' + slot, lv: 10, sk: {} } } } : {}) })
           : { ok: false, error: 'no_character', hero_slots: slots };
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
@@ -713,7 +743,8 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await r.page.click('.auth-submit');
       await wait(r.page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await r.page.click('[data-app="play"][data-slot="0"]');
-      if (!(await wait(r.page, () => /\bAway \d/.test((document.querySelector('.hw-alert') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
+      /* the away card is its own window (windows/away.js, v0.2.138), no longer an alert line */
+      if (!(await wait(r.page, () => /\bAway \d/.test((document.querySelector('[data-hs-win="away"] .haway-gone') || {}).textContent || '')))) fails.push('B-17 CONTROL: no away card on the return');
       await r.page.reload({ waitUntil: 'load' });
       await r.page.waitForTimeout(500);
       const lost = owed.puts.filter((p) => p.p_patch && (Number.isFinite(p.p_patch.awaySeen && p.p_patch.awaySeen.at) && p.p_patch.awaySeen.at !== Date.parse('2026-10-17T00:00:00Z') - 60 * 60000
@@ -864,11 +895,17 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         });
         return () => { if (served !== true) fails.push('B-21 harness: view-sheets.js was ' + (served === null ? 'never asked for' : 'served without its SHEET_HOLD_MS line') + ', so the hold was not lengthened'); };
       };
-      if (!late.includes('havora')) fails.push('B-21 harness: the first hearth stand now draws the Havora sheet (' + TOWN_VIEWS.quiet.drawn.join() + '): pick another stand');
+      /* the World's runtime on window.__world (read-only: its stats()), so the quiet stand's frame is the one PHONE_FRAME says */
+      const exposeWorld = (page) => page.route('**/src/app/world-pane.js*', async (r) => {
+        const res = await r.fetch(), body = await res.text();
+        return r.fulfill({ response: res, body: body.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n') });
+      });
+      if (TOWN_VIEWS.quiet.noShadow || !late.includes('havora')) fails.push('B-21 harness: no stand leaves the Havora sheet out of its view with a Havora shadow just off it (the first idle one draws ' + TOWN_VIEWS.quiet.drawn.join() + '): pick another held sheet');
 
       { // the first view opens with its other sheets held, asks for none of them on the town's start while the server has yet to name its stand, and asks for them all as it opens
         const { ctx, page, errors } = await fresh({}, PHONE);
         const heldLong = await longHold(page);
+        await exposeWorld(page);
         let named = null;
         const naming = new Promise((k) => { named = k; });
         await answerWith(page, TOWN_VIEWS.quiet);
@@ -893,6 +930,11 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         const open = await opened(page, 15000);
         if (!open) fails.push('B-21 with ' + late.join() + ' held the town never opened on its view (asked: ' + asked.join() + ')');
         else {
+          await wait(page, () => window.__world && window.__world.stats().inset.bottom > 0, null, 3000);
+          const f = await page.evaluate(() => { const s = window.__world ? window.__world.stats() : null; return s && { W: s.size[0], H: s.size[1], z: s.z, dpr: s.dpr, bottom: s.inset.bottom }; });
+          if (!f || f.W !== PHONE_FRAME.W || f.H !== PHONE_FRAME.H || f.z !== PHONE_FRAME.z || f.dpr !== 1 || f.bottom !== PHONE_FRAME.bottom) {
+            fails.push('B-21 harness: the phone\'s World frame is ' + JSON.stringify(f) + ', not PHONE_FRAME ' + JSON.stringify(PHONE_FRAME) + ': re-pin it, or the v0.2.97 stand is judged on a frame the page does not draw');
+          }
           /* its ground bakes a slice a frame first (the last frame stays), so the picture comes within a moment of the bar */
           const painted = await wait(page, () => { const c = document.querySelector('canvas.world-canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; const seen = new Set();
             for (let i = 0; i < d.length; i += 4000) seen.add((d[i] << 16) | (d[i + 1] << 8) | d[i + 2]); return seen.size >= 8; }, null, 8000);
@@ -1232,15 +1274,35 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
       /* The price is the offer block's own (the server's quote), so the line names none (designer 2026-11-09). */
       if (!/Hero slots: 2 \(up to 4 play at once\)\. More cost gold/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
+      /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more; the gold and the short line each stand
+         on ONE line beside or above the press (a grid beside it set "Need 299,500 more gold" one word a line), at the desktop and the phone width */
+      for (const vp of [[1440, 900], [922, 423], [667, 375]]) {
+        await page.setViewportSize({ width: vp[0], height: vp[1] });
+        const drawn = await wait(page, () => document.querySelectorAll('.char-row canvas.char-face[data-drawn]').length === 2, null, 5000);
+        const look = await page.evaluate(() => {
+          const lh = (e) => parseFloat(getComputedStyle(e).lineHeight);
+          /* no press or no offer card is a reading, not a crash: the mutant that takes them away must be caught by B-11/B-11b, not kill the run */
+          const buyEl = document.querySelector('[data-app="buy-slot"]'), cardEl = document.querySelector('.slot-offer');
+          if (!buyEl || !cardEl) return { faces: [], purse: false, short: false, missing: !buyEl ? 'buy-slot press' : 'slot-offer card' };
+          const buy = buyEl.getBoundingClientRect(), card = cardEl.getBoundingClientRect();
+          /* one line, its words inside their own box and the card, clear of the press */
+          const one = (q) => { const e = document.querySelector(q); if (!e) return false; const r = e.getBoundingClientRect(), rng = document.createRange(); rng.selectNodeContents(e); const w = rng.getBoundingClientRect();
+            return r.height <= lh(e) * 1.4 && w.right <= card.right + 1 && !(w.left < buy.right && buy.left < w.right && w.top < buy.bottom && buy.top < w.bottom); };
+          const faces = Array.from(document.querySelectorAll('.char-row canvas.char-face')).map((c) => { const k = c.getBoundingClientRect().width / c.width; return Math.abs(k - Math.round(k)) < 0.01 && k >= 2; });
+          return { faces, purse: one('.slot-offer-purse'), short: one('.slot-offer-short') };
+        });
+        if (!drawn || look.faces.length !== 2 || look.faces.some((f) => !f) || !look.purse || !look.short) fails.push('B-11b at ' + vp.join('x') + ' the characters screen reads ' + JSON.stringify({ drawn: !!drawn, ...look }));
+      }
+      await page.setViewportSize({ width: 1280, height: 720 });
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
-        || b0.purse !== 'Gold: 14,100' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
+        || b0.purse !== 'Gold: 14,100 gp' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
       else {
         o.purse = 80000; o.goldV = 8; o.lag = null;
         await page.reload({ waitUntil: 'load' });
         await wait(page, () => document.querySelector('[data-app="buy-slot"]') && !document.querySelector('[data-app="buy-slot"]').disabled);
         const b1 = await btn();
-        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
+        if (!b1 || b1.off || b1.pay !== '0' || b1.short || b1.purse !== 'Gold: 80,000 gp') fails.push('B-11 the offer with gold reads ' + JSON.stringify(b1));
         await page.click('[data-app="buy-slot"]');
         const b2 = await btn();
         if (!b2 || !b2.off || b2.text !== 'Buying…') fails.push('B-11 while the purchase is out the button reads ' + JSON.stringify(b2));
@@ -1426,6 +1488,10 @@ const MUTANTS = [
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
   ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],
+  ['the price line sits in a column beside the press again (B-11b)', 'src/styles/app.css', '.slot-offer-pay { display: flex; flex-wrap: wrap;', '.slot-offer-pay { display: grid; grid-template-columns: minmax(0, 1fr) max-content; flex-wrap: wrap;'],
+  ['the price line breaks again (B-11b)', 'src/styles/app.css', '.slot-offer-purse, .slot-offer-short { white-space: nowrap;', '.slot-offer-purse, .slot-offer-short { white-space: normal; max-width: 4em;'],
+  ['the characters screen draws no hero (B-11b)', 'src/app/boot.js', "    G.drawRosterFaces(root.querySelector('.char-list'), roster)", "    Promise.resolve()"],
+  ['a hero is drawn at 1x on the list (B-11b)', 'src/styles/app.css', '.char-face { flex: none; display: block; width: calc(42 * var(--art-px));', '.char-face { flex: none; display: block; width: 42px;'],
   ['a bought slot is not re-read', 'src/app/boot.js', "if (r.ok) { track('hero_slot_bought'); await showCharacters(", "if (r.ok) { track('hero_slot_bought'); drawSlotOffer(); void ("],
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['the strip\'s tools ride behind the hero tabs (B-4)', 'src/styles/app.css', '.char-strip-tools { display: flex; align-items: stretch; flex: none; margin-left: auto; }', '.char-strip-tools { display: flex; align-items: stretch; flex: none; }'],

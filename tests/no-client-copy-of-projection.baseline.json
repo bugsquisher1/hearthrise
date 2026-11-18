@@ -18,6 +18,7 @@
       "depot",
       "dungeon_cooldowns",
       "enchant",
+      "entry_gates",
       "equipment",
       "factions",
       "farm_land",
@@ -111,5 +112,5 @@
       "tool_carry"
     ]
   },
-  "generatedAt": "2026-11-17"
+  "generatedAt": "2026-11-18"
 }

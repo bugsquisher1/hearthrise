@@ -23,7 +23,7 @@
 //   Dispatch loot          ONE hr_loot_dispatch: the server runs every plan in town
 //   fuel / cook (and stop) the engine's `set_activity` on the item's Hearth fuel row or
 //                          Cooking recipe (bury.js): the server spends the stack (or one:
-//                          "Fuel the hearth") and pays; the hero walks to a fuel stand
+//                          "Burn") and pays; the hero walks to a fuel stand
 //   a named fuel           hr_hearth_burn (bury.js burnNamed): one, alone, the square's colour
 // While one is in flight every action control is off; the counts change only
 // when the re-read envelope replaces the bag and the worn set.
@@ -36,33 +36,33 @@
 // open doll slot and the "new" marks. No key here is a walk key: selling is
 // Delete, so W, A, S and D always reach the World (Tyler 10-18).
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.137';
-import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.137';
-import { runIntent } from '../../intent-words.js?v=0.2.137';
-import { t } from '../../../render/player-text.js?v=0.2.137';
-import { huntOf } from '../../../session/hunt-sections.js?v=0.2.137';
-import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.137';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.137';
-import { gold } from '../../../render/format.js?v=0.2.137';
-import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.137';
-import { itemName } from '../../widgets/bits.js?v=0.2.137';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.137';
-import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.137';
-import { offerForSale } from '../market/state.js?v=0.2.137';
-import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.137';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.137';
-import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.137';
-import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.137';
-import { askElsewhere } from './elsewhere.js?v=0.2.137';
-import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.137';
-import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.137';
-import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.137';
-import { wearBlock } from '../../gear-gate.js?v=0.2.137';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.137';
-import { unlockRing } from './key-ring.js?v=0.2.137';
-import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.137';
-import { actPlanCopy } from './plan-copy.js?v=0.2.137';
-import { text, attr } from '../../../render/paint.js?v=0.2.137';
+import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } from '../../bag-model.js?v=0.2.138';
+import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.138';
+import { runIntent } from '../../intent-words.js?v=0.2.138';
+import { t } from '../../../render/player-text.js?v=0.2.138';
+import { huntOf } from '../../../session/hunt-sections.js?v=0.2.138';
+import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.138';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.138';
+import { gold } from '../../../render/format.js?v=0.2.138';
+import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.138';
+import { itemName } from '../../widgets/bits.js?v=0.2.138';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.138';
+import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.138';
+import { offerForSale } from '../market/state.js?v=0.2.138';
+import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.138';
+import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.138';
+import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.138';
+import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.138';
+import { askElsewhere } from './elsewhere.js?v=0.2.138';
+import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.138';
+import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.138';
+import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.138';
+import { wearBlock } from '../../gear-gate.js?v=0.2.138';
+import { levelOf } from '../../../session/character-sections.js?v=0.2.138';
+import { unlockRing } from './key-ring.js?v=0.2.138';
+import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.138';
+import { actPlanCopy } from './plan-copy.js?v=0.2.138';
+import { text, attr } from '../../../render/paint.js?v=0.2.138';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -283,18 +283,19 @@ function openMenu(ctx, body, st, id, at, repaint) {
   if (k === 'food') h += item('m-eat', 'Eat', !eatWhy, '', eatWhy);
   const br = buryRecipeOf(id);
   const brWhy = br ? buryBlock(st.cs, br) : '';
-  /* a fuel stack offers ONE ("Fuel the hearth", a bench count of one) beside the whole stack ("Fuel all N", Tyler 10-25) */
-  if (br && br.skill !== 'cooking' && buryQty(st.cs, id) > br.need) h += item('m-fuel-one', 'Fuel the hearth', !brWhy, '', brWhy);
+  /* a fuel stack offers ONE ("Burn", a bench count of one) beside the whole stack ("Burn all N"; Tyler 10-25, the words 11-18) */
+  if (br && br.skill !== 'cooking' && buryQty(st.cs, id) > br.need) h += item('m-fuel-one', 'Burn', !brWhy, '', brWhy);
   if (br) h += item('m-bury', buryLabel(br, buryQty(st.cs, id), st.cs), !brWhy, '', brWhy);
   const nf = namedFuelOf(id);
   const nfWhy = nf ? namedBlock(st.cs, id) : '';
-  if (nf) h += item('m-hearth', 'Fuel the hearth', !nfWhy, '', nfWhy);
+  if (nf) h += item('m-hearth', 'Burn', !nfWhy, '', nfWhy);
   /* an outfit's bundle: Use owns the outfit for this hero (off, with why, once the server says it owns it already) */
   const ubWhy = bundleOutfitOf(id) ? bundleUseBlock(st.cs, id) : '';
   if (bundleOutfitOf(id)) h += item('m-use', t('controls.use'), !ubWhy, '', ubWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
   const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
-  h += item('m-sell', t('controls.sell'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
+  /* "Sell now", never a second "Sell": the Loot plan below holds Sell too (UI audit 2026-11-18) */
+  h += item('m-sell', t('controls.sell_now'), !locked && !sellWhy, '', locked ? 'Unlock it first.' : sellWhy);
   h += item('m-market', t('controls.list_on_market'), !locked, '', locked ? 'Unlock it first.' : '');
   h += item('m-lock', locked ? t('controls.unlock') : t('controls.lock'), !!st.rules);
   h += item('m-select', sc.sel.has(id) ? t('controls.deselect') : t('controls.select'), true);
@@ -454,7 +455,7 @@ function onPocket(ctx, body, st, action, ev, el, repaint) {
      Ctrl: once a selection stands (the long-press menu's Select starts one) a tap toggles, as a phone's file list does. */
   pressSelect(sc, id, st.shown, { ctrl: ev.ctrlKey || ev.metaKey || (!!sc.touch && sc.sel.size > 0), shift: ev.shiftKey });
   sc.menu = null;
-  /* The last press's result is old news once another stack is in hand (newcomer panel 2026-11-03: "Put on 1 piece." over the Bones' Fuel all). */
+  /* The last press's result is old news once another stack is in hand (newcomer panel 2026-11-03: "Put on 1 piece." over the Bones' Burn all). */
   if (!sc.pending && !sc.msgAt) sc.msg = '';
   commitSeen(st.cs, [id]);
   repaint();

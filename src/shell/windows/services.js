@@ -18,16 +18,16 @@
 // Every control is off while an intent is in flight; nothing changes on
 // screen until the re-read envelope says so.
 // ════════════════════════════════════════════════════════════════════════
-import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.137';
-import { staminaOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.137';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.137';
-import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.137';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { runIntent } from '../intent-words.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.137';
-import { blessAll } from '../bless-all.js?v=0.2.137';
+import { staminaRefillOf, blessingsOf, goldOf } from '../../session/item-sections.js?v=0.2.138';
+import { staminaOf } from '../../session/hunt-sections.js?v=0.2.138';
+import { staminaAskWords } from '../widgets/stamina-buy.js?v=0.2.138';
+import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.138';
+import { whole, gold, hoursWords as hoursText } from '../../render/format.js?v=0.2.138';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
+import { runIntent } from '../intent-words.js?v=0.2.138';
+import { t } from '../../render/player-text.js?v=0.2.138';
+import { temperPaneHtml, patchTemperPane, actTemperPane } from './temper-pane.js?v=0.2.138';
+import { blessAll } from '../bless-all.js?v=0.2.138';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const SCRATCH = new WeakMap();

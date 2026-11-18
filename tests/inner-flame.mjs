@@ -11,7 +11,7 @@
 //
 // The real chain replayed (PGlite), the real edge intent (supabase/functions/hr-accrue
 // set-activity.js as hr_engine), the real client modules; production untouched:
-//   IF-1 FUEL     a hero with Bones presses "Fuel all": ONE set_activity artisan fuel_bones (the
+//   IF-1 FUEL     a hero with Bones presses "Burn all": ONE set_activity artisan fuel_bones (the
 //                 edge's own intent) puts its body on a Great Hearth fuel stand (the server's
 //                 town read says station `hearth`: the walk the World plays), and the collect
 //                 takes the bones and pays exactly the bench's Inner Flame XP, journalled as one
@@ -24,11 +24,11 @@
 //                 at the Hearth; ANOTHER player's town read in the square carries the amber flame
 //                 (the shared surface); a retried key burns nothing twice; a second named fuel
 //                 queues behind the first.
-//   IF-4 DISPLAY  the bag offers "Fuel all N" / "Fuel the hearth" from the server's counts and the
-//                 named fuel's "Fuel the hearth"; the town read's flame is held on the local clock
+//   IF-4 DISPLAY  the bag offers "Burn all N" / "Burn" from the server's counts and the
+//                 named fuel's "Burn"; the town read's flame is held on the local clock
 //                 and REPLACED by every answer; the World throws the hero's fuel only once it stands
 //                 at its Hearth stand (never predicted), peers working at the Hearth throw, and a
-//                 named flame swaps the fire's art. An ERRAND ("Fuel the hearth" on one, 2027-04-27-hearth-
+//                 named flame swaps the fire's art. An ERRAND ("Burn" on one, 2027-04-27-hearth-
 //                 errand.sql) throws its fuel ONCE when the visit reaches the fire, though the pointer
 //                 moved on; a work stand throws on the beat; the press says no "You stopped" and arms no Stop.
 //   IF-5 ERRAND   a fisher feeds ONE bone, the owner's browser open (its own town reads and settle):
@@ -75,8 +75,8 @@ export const MUTANTS = {
       "    perform pg_advisory_xact_lock(hashtextextended('hr:hearth:' || v_map, 0));\n    v_start := now();"] },
   fuel_not_at_hearth: { arm: 'IF-1', why: 'the Hearth hosts no skill: a fuelling hero stands on the square, not at the fire',
     ddl: "delete from public.hr_town_station_hosts where skill = 'inner_flame'" },
-  bag_no_fuel_all: { arm: 'IF-4', why: 'a stack of bones offers no "Fuel all N"',
-    js: ['src/shell/windows/inventory/bury.js', [["  if (e.skill !== 'cooking') return qty > e.need ? 'Fuel all ' + whole(qty) : 'Fuel the hearth';\n", '']]] },
+  bag_no_fuel_all: { arm: 'IF-4', why: 'a stack of bones offers no "Burn all N"',
+    js: ['src/shell/windows/inventory/bury.js', [["  if (e.skill !== 'cooking') return qty > e.need ? 'Burn all ' + whole(qty) : 'Burn';\n", '']]] },
   throw_before_arrival: { arm: 'IF-4', why: 'the World throws the fuel before the hero stands at the fire (a prediction)',
     js: ['src/world/hearth-burn.js', [['      const there = me && arrivedAt !== null && atStand(e.place, me);', '      const there = !!me;']]] },
   flame_merged: { arm: 'IF-4', why: 'an answer with no flame keeps the last one (merged upward, not replaced)',
@@ -96,9 +96,9 @@ export const MUTANTS = {
     js: ['src/world/hearth-burn.js', [['      for (const b of [env.burn, env.errand]) if', '      for (const b of [env.burn]) if']]] },
   errand_beat_on_visit: { arm: 'IF-4', why: 'a visit throws its one fuel on the beat like a bench run',
     js: ['src/world/hearth-burn.js', [['      const chunk = there && me.work && e.active ? chunkOfRecipe(e.active) : null;', '      const chunk = there && e.active ? chunkOfRecipe(e.active) : null;']]] },
-  errand_arms_stop: { arm: 'IF-4', why: '"Fuel the hearth" arms the bench\'s Stop, which ends the job the server went back to',
+  errand_arms_stop: { arm: 'IF-4', why: '"Burn" arms the bench\'s Stop, which ends the job the server went back to',
     js: ['src/shell/town-work.js', [["    if (w.kind === 'artisan' && !errand) {", "    if (w.kind === 'artisan') {"]]] },
-  errand_says_stopped: { arm: 'IF-4', why: '"Fuel the hearth" says it stopped the fishing though the fishing comes back',
+  errand_says_stopped: { arm: 'IF-4', why: '"Burn" says it stopped the fishing though the fishing comes back',
     js: ['src/shell/town-work.js', [['  const replaced = errand ? \'\' : jobReplacedWords(cs, w);', '  const replaced = jobReplacedWords(cs, w);']]] },
 };
 
@@ -140,7 +140,7 @@ const ARMS = {
     const exec = makeExec(db);
     const call = (o) => M.SA.runSetActivity({ exec, user: U1, slot: 0, ...o });
     const go = await call({ intentId: idem(), activity: { kind: 'artisan', id: 'fuel_bones' } });
-    if (go.status !== 200 || !go.body || go.body.ok !== true) return ['Fuel all was refused: ' + JSON.stringify(go).slice(0, 300)];
+    if (go.status !== 200 || !go.body || go.body.ok !== true) return ['Burn all was refused: ' + JSON.stringify(go).slice(0, 300)];
     /* THE WALK: the server stands the hero at the Great Hearth (the World walks there from this answer) */
     await asUser(db, U1);
     const here = await one(db, "select public.hr_town_here(0, (select map_id from public.hr_town_maps where main))");
@@ -230,13 +230,13 @@ const ARMS = {
   'IF-4': async (db, M, X) => {
     const out = [];
     const { BU, ST, TP, HB, HD, IL } = X;
-    /* THE BAG: Fuel all N on a stack, Fuel the hearth on one; the named fuel's own entry (the server's counts) */
+    /* THE BAG: Burn all N on a stack, Burn on one; the named fuel's own entry (the server's counts) */
     const cs = (inv, skills, st) => ({ slot: 0, read: (k) => (k === 'inventory' ? inv : k === 'skills' ? skills : k === 'state' ? st || { active_kind: 'idle', active_id: null } : null) });
     const bones = BU.buryRecipeOf('bones');
-    if (!bones || BU.buryLabel(bones, 120) !== 'Fuel all 120' || BU.buryLabel(bones, 1) !== 'Fuel the hearth') out.push('the bones read ' + JSON.stringify(bones && [BU.buryLabel(bones, 120), BU.buryLabel(bones, 1)]));
+    if (!bones || BU.buryLabel(bones, 120) !== 'Burn all 120' || BU.buryLabel(bones, 1) !== 'Burn') out.push('the bones read ' + JSON.stringify(bones && [BU.buryLabel(bones, 120), BU.buryLabel(bones, 1)]));
     const st = { cs: cs({ den_knot: 1 }, { inner_flame: { xp: 0, level: 1 } }), qty: new Map([['den_knot', 1]]), eq: {}, bar: null, shop: null, rules: null };
     const prim = ST.primaryOf(st, 'den_knot');
-    if (!prim || prim[0] !== 'hearth' || prim[1] !== 'Fuel the hearth') out.push('the Den Knot offers ' + JSON.stringify(prim));
+    if (!prim || prim[0] !== 'hearth' || prim[1] !== 'Burn') out.push('the Den Knot offers ' + JSON.stringify(prim));
     const why = BU.namedBlock(cs({ den_knot: 1 }, { inner_flame: { xp: 0, level: 1 } }), 'den_knot');
     if (why !== 'Den Knot: requires Inner Flame ' + HD.NAMED_FUELS.den_knot.req) out.push('the Den Knot below its level says ' + JSON.stringify(why));
     if (!IL.usesOf('lamp_jelly').some((l) => /Great Hearth/.test(l))) out.push('the Lamp Jelly tooltip names no Hearth');
@@ -259,7 +259,7 @@ const ARMS = {
     const map = { T: 32, ambient: [{ id: 'hearth_fire', x: 117, y: 48, lift: 86 }] };
     const sprites = new Proxy({}, { get: (t, k) => ({ id: k }) });
     const view = HB.createHearthView(map, { sprites });
-    /* "Fuel all": the server holds the hero WORKING at its fuel stand (hr_town_me `work`) */
+    /* "Burn all": the server holds the hero WORKING at its fuel stand (hr_town_me `work`) */
     const me = { station: 'hearth', stand: 3, since: 1, x: 114, y: 49, work: true };
     const walking = view.frame({ place: { x: 110, y: 52, gx: 114, gy: 49 }, units: [], walkers: [], me, active: 'fuel_bones', burn: null, flame: null, xp: 0, hero: { x: 110, y: 52 } }, 10000);
     if (walking.fx.length) out.push('the World threw before the hero reached the fire: ' + JSON.stringify(walking.fx.map((f) => f.id)));
@@ -269,8 +269,8 @@ const ARMS = {
     if (!first.fx.some((f) => f.id === 'fuel_bone') || !flare.fx.some((f) => f.id === 'hearth_flare')) out.push('at the fire: ' + JSON.stringify([first.fx.map((f) => f.id), flare.fx.map((f) => f.id)]));
     /* a bench run throws on the beat while it works there */
     const beats = (v, f, from) => Array.from({ length: 40 }, (_, i) => v.frame(f, from + i * 100).fx.some((x) => x.id === 'fuel_bone')).filter((b, i, a) => b && !a[i - 1]).length;
-    if (beats(view, at, 20000 + HD.BURN_SHOW.throwEveryMs) < 2) out.push('"Fuel all" at its work stand does not throw on the beat');
-    /* AN ERRAND (2027-04-27-hearth-errand.sql): "Fuel the hearth" while fishing. The press names the fuel; the run of one ends in
+    if (beats(view, at, 20000 + HD.BURN_SHOW.throwEveryMs) < 2) out.push('"Burn all" at its work stand does not throw on the beat');
+    /* AN ERRAND (2027-04-27-hearth-errand.sql): "Burn" while fishing. The press names the fuel; the run of one ends in
        seconds and the pointer moves on; the server holds the body on a VISIT for the ~25 s walk. ONE throw when it gets there. */
     const ev = HB.createHearthView(map, { sprites });
     const shore = { station: 'shore', stand: 2, since: 1, x: 60, y: 70, work: true };
@@ -292,7 +292,7 @@ const ARMS = {
     ev.frame(fr({}), 80000);
     if (beats(ev, fr({ ...atFire, me: { ...visit, since: 3 } }), 90000) !== 0) out.push('an errand thrown and walked away from threw again on a later visit');
     /* THE PRESS: an errand stops nothing ("You stopped …" is not said) and arms no Stop (it would end the job the server points
-       the hero back at); "Fuel all" over the fishing still says so and arms its Stop */
+       the hero back at); "Burn all" over the fishing still says so and arms its Stop */
     const TW = X.TW;
     const fishing = { active_kind: 'gather', active_id: 'shrimp_s', active_since: '2026-11-01T00:00:00Z' };
     const fisher = { slot: 0, read: (k) => (k === 'state' ? fishing : k === 'inventory' ? { bones: 5 } : k === 'skills' ? { inner_flame: { xp: 0, level: 1 } } : null),
@@ -308,9 +308,9 @@ const ARMS = {
     const stopped = TW.jobReplacedWords(fisher, fuelRow);
     if (!stopped) out.push('a Hearth run over the fishing names no job it replaces');
     const one1 = await armed(1);
-    if ((stopped && one1.words.includes(stopped)) || one1.n !== 0) out.push('"Fuel the hearth" while fishing says ' + JSON.stringify(one1.words) + ' and arms ' + one1.n + ' Stop(s)');
+    if ((stopped && one1.words.includes(stopped)) || one1.n !== 0) out.push('"Burn" while fishing says ' + JSON.stringify(one1.words) + ' and arms ' + one1.n + ' Stop(s)');
     const all = await armed(null);
-    if (!stopped || !all.words.startsWith(stopped) || all.n < 1) out.push('"Fuel all" over the fishing says ' + JSON.stringify(all.words) + ' and arms ' + all.n);
+    if (!stopped || !all.words.startsWith(stopped) || all.n < 1) out.push('"Burn all" over the fishing says ' + JSON.stringify(all.words) + ' and arms ' + all.n);
     const peerAt = { ...at, active: null, me: null, units: [{ x: 115, y: 49, ref: { player: { id: 'p', slot: 1 } } }], walkers: [{ id: 'p', slot: 1, station: 'hearth', work: true }] };
     const peerRun = Array.from({ length: 16 }, (_, i) => view.frame(peerAt, 30000 + i * 100).fx.map((f) => f.id)).flat();
     if (!peerRun.includes('fuel_bone')) out.push('a peer working at the Hearth never throws');
@@ -326,7 +326,7 @@ const ARMS = {
 };
 
 /* ── THE ERRAND, BOTH PATHS (2027-04-27-hearth-errand.sql; Tyler 2026-11-16: fed the Hearth while fishing, no walk, no throw,
-   fishing stopped for good). A fisher at the shore presses "Fuel the hearth" on one of three Bones: the player's own set_activity
+   fishing stopped for good). A fisher at the shore presses "Burn" on one of three Bones: the player's own set_activity
    (artisan fuel_bones, count 1). Then the body walks to the Hearth on a VISIT, the one bone burns ONCE (one bone's Inner Flame
    XP, one craft row), the pointer goes back to the same fishing spot (which pays again), and the body walks back to the shore when
    the visit ends. `closed`: the owner's browser is shut, so the world tick settles the run and another player's town reads move
@@ -379,7 +379,7 @@ async function errandArm(db, M, closed) {
   const x0 = await xp(db, U1);
   /* "FUEL THE HEARTH": one bone, while fishing */
   const go = await call({ kind: 'artisan', id: 'fuel_bones', count: 1 });
-  if (go.status !== 200 || !go.body || go.body.ok !== true) return out.concat(['"Fuel the hearth" was refused: ' + JSON.stringify(go).slice(0, 300)]);
+  if (go.status !== 200 || !go.body || go.body.ok !== true) return out.concat(['"Burn" was refused: ' + JSON.stringify(go).slice(0, 300)]);
   const s1 = await st();
   if (s1.errand_kind !== 'gather' || s1.errand_id !== SPOT) out.push('the errand did not remember the fishing: ' + JSON.stringify(s1));
   /* THE WALK: the body goes to the Hearth on a visit (the World walks it there, and throws on arrival: IF-4) */

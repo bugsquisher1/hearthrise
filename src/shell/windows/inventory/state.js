@@ -20,20 +20,20 @@
 //                     pockets show it as pending; `items` and `qty`, which every
 //                     action reads, stay the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.137';
-import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.137';
-import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf, outgrownIds, upgradeWanted, isSuperRare } from '../../bag-model.js?v=0.2.137';
-import { isRareOnly } from '../../hunt-ground-facts.js?v=0.2.137';
-import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.137';
-import { itemName } from '../../widgets/bits.js?v=0.2.137';
-import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.137';
-import { bundleOutfitOf, bundleUseBlock } from './outfit-bundle.js?v=0.2.137';
-import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.137';
-import { tickOf } from '../../town-work.js?v=0.2.137';
-import { ITEMS } from '../../../data/items.js?v=0.2.137';
-import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.137';
-import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.137';
-import { t } from '../../../render/player-text.js?v=0.2.137';
+import { bagOf, bagCapOf, goldOf, rulesOf, shopOf, equipmentOf, huntLootOf } from '../../../session/item-sections.js?v=0.2.138';
+import { settingsOf, analyzerOf } from '../../../session/hunt-sections.js?v=0.2.138';
+import { BAG_CATS, BAG_SORTS, view, kindOf, equipSlotFor, sellPlan, namedFuelOf, outgrownIds, upgradeWanted, isSuperRare } from '../../bag-model.js?v=0.2.138';
+import { isRareOnly } from '../../hunt-ground-facts.js?v=0.2.138';
+import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.138';
+import { itemName } from '../../widgets/bits.js?v=0.2.138';
+import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.138';
+import { bundleOutfitOf, bundleUseBlock } from './outfit-bundle.js?v=0.2.138';
+import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.138';
+import { tickOf } from '../../town-work.js?v=0.2.138';
+import { ITEMS } from '../../../data/items.js?v=0.2.138';
+import { REFUSAL_WORDS } from '../../../data/refusal-words.js?v=0.2.138';
+import { heroVitalsOf } from '../../../session/character-sections.js?v=0.2.138';
+import { t } from '../../../render/player-text.js?v=0.2.138';
 
 const SCRATCH = new WeakMap();
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
@@ -121,7 +121,7 @@ export function primaryOf(st, id) {
   const br = buryRecipeOf(id);
   if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];
   /* a named fuel burns alone in the Great Hearth (bury.js burnNamed) */
-  if (namedFuelOf(id)) return ['hearth', 'Fuel the hearth'];
+  if (namedFuelOf(id)) return ['hearth', 'Burn'];
   /* an outfit's bundle is USED (QA gate 2026-11-17: the strip offered only Sell for the Key Warden); once the server says the hero owns the
      outfit, the bundle is kept to sell or trade and Sell is its press */
   if (bundleOutfitOf(id) && !bundleUseBlock(st.cs, id)) return ['use', t('controls.use')];

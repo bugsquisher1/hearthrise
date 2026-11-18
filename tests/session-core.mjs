@@ -1489,7 +1489,10 @@ async function rules(M) {
       hunt: { session_id: 'sess-1', hunt_id: 'mill_cellar', ended: false } }), 2: env(1),
       3: { ok: false, error: 'needs_name', hero_slots: [0, 2, 3] } });
     const acc = mkAccount(srv);
-    const r = await acc.roster();
+    const read = await acc.roster();
+    /* each hero's look is the World's own sprite (hero-look.js), for its portrait on the list; a slot with no hero has none */
+    if (read.map((x) => (x.look ? typeof x.look.sprite : 'none')).join() !== 'string,string,none') return 'the roster looks were ' + JSON.stringify(read.map((x) => x.look));
+    const r = read.map(({ look, ...x }) => x);
     if (JSON.stringify(r) !== JSON.stringify([{ slot: 0, exists: true, unnamed: false, name: 'Tester', level: 9, gold: 1, goldV: 4, doing: 'Hunting in Mill Cellar' },
       { slot: 2, exists: true, unnamed: false, name: null, level: null, gold: 1, goldV: null, doing: null },
       { slot: 3, exists: false, unnamed: true, name: null, level: null, gold: null, goldV: null, doing: null }])) return 'roster was ' + JSON.stringify(r);
@@ -2482,7 +2485,7 @@ const MUTANTS = [
   ['one topic for every slot', 'src/session/frame-channel.js', "return 'hr:' + uid.toLowerCase() + ':' + slot;", "return 'hr:' + uid.toLowerCase();"],
   ['the slot offer is made up on this side', 'src/session/account-session.js', '    || !Number.isSafeInteger(o.cost_gold) || o.cost_gold < 1) return null;', '    || false) return null;'],
   ['a slot purchase sends a price', 'src/session/account-session.js', "{ p_slot_id: slotId, p_slot: paySlot, p_idem: newIdem() }", "{ p_slot_id: slotId, p_slot: paySlot, p_price: this.slotOffer && this.slotOffer.cost, p_idem: newIdem() }"],
-  ['the roster never says a hero is hunting', 'src/session/account-session.js', '    doing: doingOf(body) };', '    doing: null };'],
+  ['the roster never says a hero is hunting', 'src/session/account-session.js', '    doing: doingOf(body),\n', '    doing: null,\n'],
   ['the paying hero keeps its old gold', 'src/session/account-session.js', '      if (cs) await cs.load();\n', ''],
   ['a lost channel waits out the deferral', 'src/session/character-session.js', '      if (this._fed && this._huntOpen()) { this._fed = false; this._poll.arm(this._pace.waitMs()); }\n', ''],
   ['a frame never marks the re-read as fed', 'src/session/character-session.js', '    this._fed = deferred === true;', '    this._fed = false;'],
@@ -2635,7 +2638,7 @@ const MUTANTS = [
     + "  if (!isObj(b) && mutX !== null) b = { xp: mutX, level: mutLv(mutX), into: mutX - mutXp(mutLv(mutX)), need: mutXp(mutLv(mutX) + 1) - mutXp(mutLv(mutX)) };\n  if (!isObj(b)) return null;\n"],
   ['a Level block with no Level in it is drawn', 'src/session/character-sections.js', '  if (xp === null || !level || into === null || !need) return null;\n', '  if (xp === null) return null;\n'],
   ['the XP ring is filled from the Level XP, not the server\'s two marks', 'src/session/character-sections.js', 'xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, lv.into / lv.need)) : null,', 'xpPct: lv && lv.need > 0 ? Math.max(0, Math.min(1, (lv.xp % lv.need) / lv.need)) : null,'],
-  ['the roster works the Level out of Level XP', 'src/session/account-session.js', '  const lv = levelOf({ read: (k) => body[k] });\n', "  const lv = Number.isSafeInteger(st.level_xp) ? { level: 1 + Math.floor(st.level_xp / 1000) } : null;\n"],
+  ['the roster works the Level out of Level XP', 'src/session/account-session.js', '  const lv = levelOf(read);\n', "  const lv = Number.isSafeInteger(st.level_xp) ? { level: 1 + Math.floor(st.level_xp / 1000) } : null;\n"],
   ['the residue drops the stamp\'s Level (the return line names none)', 'src/session/residue.js', "for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n'])", "for (const k of ['xp', 'gold', 'kills', 'sx', 'sl', 'n'])"],
   ['a client module takes the Level curve again', 'src/session/party-sections.js', "import { heroVitalsOf } from './character-sections.js", "import { charLevelFromXp } from '../core/xp.js';\nimport { heroVitalsOf } from './character-sections.js"],
   ['a client module reads level_xp again', 'src/session/tutorial-sections.js', '  const lv = levelOf(cs);\n  if (!lv) return null;\n', "  const lv = levelOf(cs);\n  if (!lv || !(cs.read('state').level_xp >= 0)) return null;\n"],
@@ -2652,7 +2655,7 @@ const MUTANTS = [
     + "  const sk = isObj(mutSk) ? Object.fromEntries(Object.entries(mutSk).map(([id, r]) => { const lv = mutLv(id, r.xp); return [id, { xp: r.xp, level: lv, into: r.xp - mutXp(id, lv), need: mutXp(id, lv + 1) - mutXp(id, lv) }]; })) : null;\n"],
   ['a broken skill cell is drawn', 'src/session/item-sections.js', ' || !Number.isInteger(r.level) || r.level < 1 || (need > 0 && into >= need)) continue;', ') continue;'],
   ['the burn check reads no server Cooking level', 'src/shell/town-ticker.js', '? o.skills.cooking.level : 1;', '? 99 : 1;'],
-  ['the skill ledger takes a curve from src/core/xp.js again', 'src/shell/windows/skills.js', "import { nextUnlock } from '../../data/skill-unlocks.js", "import { skillXpForLevel } from '../../core/xp.js';\nimport { nextUnlock } from '../../data/skill-unlocks.js"],
+  ['the skill ledger takes a curve from src/core/xp.js again', 'src/shell/windows/skills.js', "import { nextUnlock, nextUnlocks } from '../../data/skill-unlocks.js", "import { skillXpForLevel } from '../../core/xp.js';\nimport { nextUnlock, nextUnlocks } from '../../data/skill-unlocks.js"],
   ['the town ticker takes a curve from src/core/xp.js again', 'src/shell/town-ticker.js', "import { ITEMS } from '../data/items.js", "import { levelOf } from '../core/xp.js';\nimport { ITEMS } from '../data/items.js"],
 ];
 

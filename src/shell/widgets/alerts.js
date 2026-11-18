@@ -20,12 +20,12 @@
 //                                addMovesOrOpen), the same way; with the bar full
 //                                it opens Hunt prep on that hero instead
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.137';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.137';
-import { glyphSvg } from '../launcher.js?v=0.2.137';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.137';
-import { cardFacts, shareCard } from '../share-card.js?v=0.2.137';
-import { addMovesOrOpen } from '../bar-assign.js?v=0.2.137';
+import { ALERTS_SHOWN } from '../../data/alerts.js?v=0.2.138';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.138';
+import { glyphSvg } from '../launcher.js?v=0.2.138';
+import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.138';
+import { cardFacts, shareCard } from '../share-card.js?v=0.2.138';
+import { addMovesOrOpen } from '../bar-assign.js?v=0.2.138';
 
 const OPENS = Object.freeze({ bag: 'inventory', show: null, market: 'market', party: 'hunt-party', chat: 'chat', friends: 'friends', training: 'training' });
 /* What the line says once its card was made (src/shell/share-card.js shareCard's answer). */
@@ -48,7 +48,8 @@ function alertRow(ctx) {
 }
 
 renderAlerts.patch = function patchAlerts(el, ctx) {
-  const list = ctx.alerts ? ctx.alerts.list().slice(0, ALERTS_SHOWN) : [];
+  /* "While you were away" is its own card (windows/away.js, UI audit 2026-11-18 #2), never a line here */
+  const list = ctx.alerts ? ctx.alerts.list().filter((a) => a.kind !== 'away').slice(0, ALERTS_SHOWN) : [];
   cls(el.querySelector('.hw-alerts'), 'is-empty', !list.length);
   text(el.querySelector('.hw-alerts-more'), list.length > 1 ? (list.length - 1) + ' more' : '');
   rows(el.querySelector('.hw-alert-list'), list, {

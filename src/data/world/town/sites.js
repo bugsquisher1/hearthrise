@@ -46,6 +46,12 @@ export const SCENERY = Object.freeze([
      west's chips where the logs are carried to the fire */
   ['fuel_log', 111, 48], ['bucket', 111, 49],
   ['sack_pile', 123, 45], ['square_decal_chips_b', 113, 51],
+  /* THE HEARTH'S WING ENDS MEET THE GROUND (lane/fix138-hearth-chest-big, Tyler 2026-11-18: "blend it into the ground a bit better"): the
+     redrawn Hearth's ragged, ivied wing ends still stand on a near-vertical line, so tumbled stone, weeds and moss lie along each end on the
+     paving (flat decals: they block nothing), never one side's mirror: WEST a stone pile at the end's top, moss behind it, weeds by the log
+     stack; EAST two fallen blocks between the sacks and the chopping block, weeds behind the sacks */
+  ['havora_scree_a', 111, 45], ['square_decal_moss_b', 111, 44], ['square_decal_tuft_b', 111, 47],
+  ['havora_scree_b', 123, 46], ['square_decal_tuft_a', 123, 44],
   /* the square's seats over the bench stands (stations.js square_benches, x123-128 on y56 and y59: the stands are the server's, so the
      seats move, never the stands): not two rows of three identical benches (lane/fix137-hearth-chest-art, the Coordinator's review), but a
      sitting corner at uneven gaps: two benches and a flower barrel on the back row, a hay bale, a bench and a stool on the front, the two
@@ -170,11 +176,23 @@ export const BLEND = Object.freeze({
 });
 
 /* looping effects the map places (map-compile.js `ambient`): the Great Hearth's fire over its firebox,
-   tile (117, 48) lifted 86 art px (the hearth frame's px (176, 262), sidecar art/world/common/hearth_fire.json);
+   tile (117, 48) lifted 86 art px (the first Hearth's frame px (176, 262));
    and THE HEARTH CHEST on the ledge (the Burning Tower's one chest, Tyler 2026-11-14; tools/world-art/tower-art.mjs). lane/fix137-hearth-chest-art
    (Tyler 2026-11-17, "the chest doesn't feel like it fits here"): it stood on the kindling in front of the west wood bays; it now stands
    against the stone pier right of the firebox, in the corner the firebox's step makes with it, where the fire lights it: its foot at the
    hearth frame's px (230, 311), tile (119, 48) lifted 37 art px and 10 left. The town draws it only while the server sends the Tower's
-   section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere. */
-export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 86 }),
-  Object.freeze({ id: 'hearth_chest', x: 119, y: 48, lift: 37, dx: -10 })]);
+   section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere.
+   lane/fix138-hearth-chest-big (Tyler 2026-11-17, "more 'special' ... some sort of low glow, maybe some black / green smoke leaking out maybe
+   bigger as well"): the chest is 52 px wide now, so it stands on the ledge in front of the east wood bays, its left side to the firebox, its
+   foot at the hearth frame's px (262, 311): tile (120, 48) lifted 37 and 10 left. It is two rows on ONE seat (CHEST_SEAT), drawn in this
+   order: the chest, its smoke (over it); the town hides both together (CHEST_LAYERS). It casts no light on the stone (lane/a-chest-glow-139,
+   Tyler 2026-11-18, "concentrate the color around the keyhole and fittings": its green is its keyholes' and hasps'). The seat is
+   the Hearth's: a redrawn Hearth moves CHEST_SEAT, and the Tower window follows it (tools/world-art/tower-window-art.mjs chestFoot).
+   THE HEARTH REDRAWN (2026-11-17, art/world/hearth/great_hearth.json): its firebox's centre is hearth px (178, 313), tile (117, 48) lifted 99
+   and 2 across (the fire loop's anchor, tools/world-art/hearth-fire.mjs), and it was built with a stone DAIS right of the firebox for the
+   chest, two iron chain rings at its front: the chest's foot is the dais top's front edge, hearth px (290, 364), tile (121, 48) lifted 48
+   and 14 left. */
+const CHEST_SEAT = Object.freeze({ x: 121, y: 48, lift: 48, dx: -14 });
+export const CHEST_LAYERS = Object.freeze(['hearth_chest', 'hearth_chest_smoke']);
+export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 99, dx: 2 }),
+  ...CHEST_LAYERS.map((id) => Object.freeze(Object.assign({ id }, CHEST_SEAT)))]);

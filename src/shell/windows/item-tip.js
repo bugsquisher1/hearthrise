@@ -9,16 +9,16 @@
 // Display only: it reads the catalogue (src/shell/item-lore.js) and the
 // numbers the window hands it from the envelope, and sends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { whole, gold } from '../../render/format.js?v=0.2.137';
-import { itemName } from '../widgets/bits.js?v=0.2.137';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.137';
-import { planWords } from '../loot-dispatch.js?v=0.2.137';
-import { pieceWords } from '../../data/armour-weights.js?v=0.2.137';
-import { ITEMS } from '../../data/items.js?v=0.2.137';
-import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.137';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
+import { whole, gold } from '../../render/format.js?v=0.2.138';
+import { itemName } from '../widgets/bits.js?v=0.2.138';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, baneWords } from '../item-lore.js?v=0.2.138';
+import { t } from '../../render/player-text.js?v=0.2.138';
+import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.138';
+import { planWords } from '../loot-dispatch.js?v=0.2.138';
+import { pieceWords } from '../../data/armour-weights.js?v=0.2.138';
+import { ITEMS } from '../../data/items.js?v=0.2.138';
+import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.138';
 
 const GAP = 10;
 
@@ -72,7 +72,7 @@ function tipHtml(id, o) {
   return h;
 }
 
-/* TOUCH (panel 2026-11-01: a tapped Bones' tooltip lay over Fuel all; a card showed in the Shop with no tap at all): the
+/* TOUCH (panel 2026-11-01: a tapped Bones' tooltip lay over Burn all; a card showed in the Shop with no tap at all): the
    browser's emulated hover shows a tip only for the item just pressed, beside the sheet and never on it (the anchor
    below is the sheet), it takes no press (windows.css), and the next press anywhere puts it away. */
 let pressed = null, tipFor = null;

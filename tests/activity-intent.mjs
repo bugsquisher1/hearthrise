@@ -982,7 +982,7 @@ async function run(mutate) {
   }
 
   /* ── A3d. FUELLING THE HEARTH WITH BONES PAYS INNER FLAME (Tyler live, v0.2.1: "can't bury bones";
-     Tyler 2026-10-25: Inner Flame replaces Prayer). The Inventory's Fuel all is THIS intent and nothing
+     Tyler 2026-10-25: Inner Flame replaces Prayer). The Inventory's Burn all is THIS intent and nothing
      else: set_activity artisan:fuel_bones, then the switch back to idle collects. Inner Flame XP comes
      from the server's recipe row (FLAME_FUEL), the bones leave the server's bag,
      and the tables a reload reads (player_skills, player_inventory) say so. */
@@ -993,7 +993,7 @@ async function run(mutate) {
     const flameBefore = await skillXp(db, UID, 'inner_flame');
     const start = await call({ intentId: uuid(), activity: { kind: 'artisan', id: 'fuel_bones' } });
     ok(start.status === 200 && start.body.ok === true,
-      `A3d: Fuel all was refused: ${start.status} ${JSON.stringify(start.body).slice(0, 200)}`);
+      `A3d: Burn all was refused: ${start.status} ${JSON.stringify(start.body).slice(0, 200)}`);
     const fueling = await state(db, UID);
     ok(fueling.active_kind === 'artisan' && fueling.active_id === 'fuel_bones',
       `A3d: the pointer is ${fueling.active_kind}/${fueling.active_id}, not artisan/fuel_bones`);

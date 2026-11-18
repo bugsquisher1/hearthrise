@@ -33,19 +33,19 @@
 //   (combat.js weaknessInfo, what the settle hands the roller: hunt-rewards.js payKill), the same for every party size (Tyler 2026-11-08:
 //   one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, OPEN_HALL_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.137';
-import { hallOfHunt, hallBossOf } from '../data/boss-halls.js?v=0.2.137';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.137';
-import { MONSTERS } from '../data/monsters.js?v=0.2.137';
-import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.137';
-import { ITEMS } from '../data/items.js?v=0.2.137';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.137';
-import { weaknessInfo } from '../core/combat.js?v=0.2.137';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.137';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.137';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.137';
-import { listWords } from '../render/format.js?v=0.2.137';
-import { isSpentMaterial } from './bag-model.js?v=0.2.137';
+import { HUNT_GROUNDS, OPEN_GROUNDS, OPEN_HALL_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.138';
+import { hallOfHunt, hallBossOf } from '../data/boss-halls.js?v=0.2.138';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
+import { MONSTERS } from '../data/monsters.js?v=0.2.138';
+import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.138';
+import { ITEMS } from '../data/items.js?v=0.2.138';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.138';
+import { weaknessInfo } from '../core/combat.js?v=0.2.138';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.138';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.138';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.138';
+import { listWords } from '../render/format.js?v=0.2.138';
+import { isSpentMaterial } from './bag-model.js?v=0.2.138';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -244,13 +244,23 @@ export function scarceSetOf(hunt, worn) {
  * Silk Thread had no page to be found on): [{ id, name, carriers: [names], chance }], likeliest first, `chance` that one kill here,
  * drops it, for any party size (the same mix and roller as the gear's). A Rare row stays on the Rare list. [] for a ground with none.
  */
-export function materialsOf(hunt) {
+export function materialsOf(hunt) { return dropTally(hunt, (d) => isSpentMaterial(d.id)); }
+
+/**
+ * EVERY OTHER DROP TOO (QA audit 2026-11-18 N9: the Mill Cellar's card left out Rat Tail, Venom Sac, Stinger, Hide and Sticky Core, most of what
+ * ten minutes there dropped): every row a kill here can roll that is not gear (the Drops list) or a Rare, materials and sell loot alike, in
+ * materialsOf's shape and order. The engine's own rows and roller, never a list typed here.
+ */
+export function lootOf(hunt) { return dropTally(hunt, () => true); }
+
+/* A ground's kill-mix drop rows that `keep` takes, past gear and Rares (their own lists), tallied per item, likeliest first. */
+function dropTally(hunt, keep) {
   const g = groundOf(hunt);
   if (!g) return [];
   const mix = killMixOf(g), found = new Map();
   for (const [id, share] of mix) {
     for (const d of (MONSTERS[id] || {}).drops || []) {
-      if (!d || !d.id || d.band === 'scarce' || d.lucky === true || d.salvage === true || isRare(d) || !isSpentMaterial(d.id)) continue;
+      if (!d || !d.id || d.band === 'scarce' || d.lucky === true || d.salvage === true || isRare(d) || !keep(d)) continue;
       if (!found.has(d.id)) found.set(d.id, { id: d.id, name: nameOf(d.id), carriers: [], chance: 0 });
       const e = found.get(d.id);
       e.carriers.push(MONSTERS[id].name);

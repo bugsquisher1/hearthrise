@@ -7,11 +7,11 @@
 // loses its answer keeps its gesture (sc.gesture) and its keys, so the next press sends
 // the same ones and the server replays its decision (market-intents.js).
 // ════════════════════════════════════════════════════════════════════════
-import { marketBrowse, marketItem, marketMine } from '../../../session/market-intents.js?v=0.2.137';
-import { marketKey } from '../../../session/market-gesture.js?v=0.2.137';
-import { rulesOf, summaryOf, asksOf, listingOf, historyRowOf } from '../../market-model.js?v=0.2.137';
-import { refusalText } from '../../intent-words.js?v=0.2.137';
-import { readWorks } from '../../../session/town-intents.js?v=0.2.137';
+import { marketBrowse, marketItem, marketMine } from '../../../session/market-intents.js?v=0.2.138';
+import { marketKey } from '../../../session/market-gesture.js?v=0.2.138';
+import { rulesOf, summaryOf, asksOf, listingOf, historyRowOf } from '../../market-model.js?v=0.2.138';
+import { refusalText } from '../../intent-words.js?v=0.2.138';
+import { readWorks } from '../../../session/town-intents.js?v=0.2.138';
 
 const SCRATCH = new WeakMap();
 /* Items for sale are a page of at most 50 a read, keyset by id: the whole catalogue is about a dozen pages. */
@@ -20,7 +20,7 @@ const NAMED_CHUNK = 50;
 const NAMED_CHUNKS = 4;
 const SEARCH_WAIT_MS = 250;
 /** The Works project that raises the building this window is named for (src/data/town-works.js: the Weighhouse). */
-export const MARKET_WORKS = 'weighhouse';
+const MARKET_WORKS = 'weighhouse';
 /** The server's Works read says the Market's building is still going up (its own project, not finished). Pure. */
 export const buildingWorks = (w) => !!w && w.project === MARKET_WORKS && w.finished !== true;
 const FRESH_MS = 60000;

@@ -20,19 +20,41 @@
 .hsum-when { margin: 2px 0 0; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .hsum-when:empty { display: none; }
 .hsum-reason { margin: 0 2px 10px; font-size: var(--t-small); color: var(--ink); line-height: 1.4; }
+.hsum-reason:empty { display: none; }
 .hsum-loss { margin: 4px 0 8px; color: var(--gold-2); font-size: 14px; white-space: pre-line; }
 /* a Call out series: fights, wins and what the server charged, under the reason */
 .hsum-series { margin: 0 2px 8px; font-size: var(--t-small); color: var(--ink-2); line-height: 1.4; }
 .hsum-series[hidden] { display: none; }
-/* What it came to: one steel panel of figures, three to a row; each label sits on its value at the foot of its
-   cell, so a label that wraps never lifts its number off the row; the long premium figure takes two cells. */
-.hsum-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 14px; margin: 0; padding: 10px 12px 12px; background: var(--fill-1); border: 2px solid var(--steel-edge); }
-.hsum-stat { display: flex; flex-direction: column; justify-content: flex-end; min-width: 0; }
+/* THE RESULT, FIRST (UI audit 2026-11-18 #1 and #2; src/shell/result-block.js, the end card's and the away card's): the Level line large,
+   the new Level in gold (a drop in the cost's red), the skills raised quiet beside it; then ONE row of three figures, a small-caps label
+   over a large number and one quiet line under it. No box and no per-cell border: one rule over the row and one under it. */
+.hres { margin: 2px 2px 8px; }
+.hres-level { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; margin: 0 0 8px; }
+.hres-level[hidden] { display: none; }
+.hres-lv { font-size: var(--t-h2); font-weight: 800; line-height: 1.15; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.hres-was:empty, .hres-to:empty { display: none; }
+.hres-to { font-weight: 700; color: var(--ink-2); }
+.hres-lv.is-up .hres-now { color: var(--gold-2); }
+.hres-lv.is-down .hres-now { color: var(--red); }
+.hres-ups { font-size: var(--t-small); line-height: 1.3; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hres-figs { display: grid; grid-template-columns: repeat(3, minmax(min-content, 1fr)); gap: 0 12px; margin: 0; padding: 8px 0 10px; border-top: 2px solid var(--steel-sep); border-bottom: 2px solid var(--steel-sep); }
+.hres-figs.is-empty { display: none; }
+.hres-fig { display: flex; flex-direction: column; min-width: 0; }
+.hres-fig[hidden] { display: none; }
+.hres-fig dt { font-family: var(--f-label); font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
+.hres-fig dd { margin: 2px 0 0; font-size: var(--t-lead); font-weight: 800; line-height: 1.15; color: var(--ink); font-variant-numeric: lining-nums tabular-nums;
+  white-space: nowrap; }
+.hres-fig small { margin-top: 2px; font-size: var(--t-micro); line-height: 1.25; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hres-fig small:empty { display: none; }
+/* THE DETAILS over the presses (Balance, Balance per hour, the premium figure): quiet ledger lines, label then value, as many to a line as fit.
+   No panel: the result block above is the card's figure; one rule parts them from the steps. */
+.hsum-stats { display: flex; flex-wrap: wrap; gap: 2px 18px; margin: 4px 2px 0; padding: 8px 0 0; border-top: 2px solid var(--steel-sep); }
+.hsum-stats.is-empty { margin: 0; padding: 0; border-top: 0; }
+.hsum-stat { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
 /* A figure the server did not send (premium only) is hidden by its attribute: the flex cell must not undo that. */
 .hsum-stat[hidden] { display: none; }
-.hsum-stat:has([data-stat="rawXpH"]) { grid-column: span 2; }
 .hsum-stats dt { font-size: var(--t-micro); line-height: 1.25; color: var(--ink-2); }
-.hsum-stats dd { margin: 2px 0 0; font-size: var(--t-body); font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.hsum-stats dd { margin: 0; font-size: var(--t-small); font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 .hsum-list, .hsum-falls { margin: 0 2px 4px; padding: 0; list-style: none; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; font-variant-numeric: lining-nums tabular-nums; }
 .hsum-falls li { margin-bottom: 4px; color: var(--ink); }
 /* A loot or supply line, as the Bag shows an item: its 32 px pixel icon, its name, the count at the right. */
@@ -45,6 +67,14 @@
 .hsum-name small { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
 .hsum-name small:empty { display: none; }
 .hsum-n { flex: none; font-size: var(--t-small); font-weight: 700; color: var(--ink); }
+/* TOP LOOT two to a row, as a satchel lays its finds out (UI audit 2026-11-18 #1): six finds take three rows, so the steps under them are
+   in view as the card opens. The rule between rows only; best first reads across, then down. */
+.hsum-loot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 16px; }
+.hsum-loot .hsum-item:nth-child(2) { border-top: 0; }
+/* each find: the icon, the name, the count quiet under it, so a half-width cell keeps the whole name */
+.hsum-loot .hsum-item { display: grid; grid-template-columns: max(32px, var(--icon-1)) minmax(0, 1fr); gap: 0 10px; align-content: center; padding: 3px 0; }
+.hsum-loot .hsum-ico { grid-row: 1 / span 2; }
+.hsum-loot .hsum-n { grid-column: 2; font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
 /* BACK IN TOWN (UX flow audit 2026-11-11, flow C): the trip home as a list between the numbers and the foot, each row one step with its
    count and value, its one press at the right; the first open step's press is the card's gold plate; a done row stays, ticked in green. */
 .hsum-town { display: none; margin-top: 4px; }
@@ -67,6 +97,34 @@
 .hsum-actions .hh-tool { min-height: 36px; }
 .hsum-actions .hh-tool.is-primary { min-height: 40px; }
 
+/* WHILE YOU WERE AWAY (src/shell/windows/away.js, UI audit 2026-11-18 #2): how long the player was away, large, then one block per hero on
+   the end card's result block, the heroes parted by the dim gold rule the end card's head uses; each hero's presses at its foot, OK at the
+   card's. The hero's name is a name (Cinzel, gold); what it did is plain text under the figures. */
+.haway-gone { margin: 2px 2px 10px; font-size: var(--t-h2); font-weight: 800; line-height: 1.15; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
+.haway-gone:empty { display: none; }
+.haway-heroes { margin: 0; padding: 0; list-style: none; }
+.haway-hero { padding: 10px 0 12px; border-top: 2px solid var(--steel-rule); }
+.haway-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 0 2px 8px; }
+.haway-name { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-lead); letter-spacing: .05em; color: var(--gold-2); }
+.haway-place { font-size: var(--t-small); color: var(--ink-2); }
+.haway-hero .hres.is-empty { display: none; }
+.haway-best { display: flex; align-items: center; gap: 10px; margin: 0 2px 6px; }
+.haway-best[hidden] { display: none; }
+.haway-best-name { display: flex; flex-direction: column; min-width: 0; }
+.haway-best-name small { font-family: var(--f-label); font-size: var(--t-micro); line-height: 1.2; color: var(--ink-2); }
+.haway-best-name b { font-size: var(--t-small); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.haway-why { margin: 0 2px 2px; font-size: var(--t-small); line-height: 1.4; color: var(--ink); }
+.haway-when { margin: 0 2px 8px; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
+.haway-why:empty, .haway-when:empty { display: none; }
+.haway-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 6px 2px 0; }
+.haway-acts .hh-tool { min-height: 36px; }
+.haway-acts .hh-tool.is-primary { min-height: 40px; }
+.haway-acts [hidden] { display: none; }
+.haway-stamina { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.haway-msg:empty { display: none; }
+.haway-foot { justify-content: flex-end; margin: 0; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
+.haway-foot [hidden] { display: none; }
+
 /* The death popup (src/shell/windows/death.js): a centred modal read top to bottom, the cost set apart, the
    answers in the foot with OK on the right. Its key (X) is not capped in the title band: beside the close it
    read as a second close (the key still opens the last death). */
@@ -88,18 +146,28 @@
 /* The play cap's popup (src/shell/windows/play-cap.js): the death popup's foot, and its one sentence at reading size. */
 .hplaycap-words { margin: 2px 2px 6px; font-size: var(--t-body); line-height: 1.45; color: var(--ink); }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  /* A phone's sheet has no height for a foot of two rows of 44 px presses over the numbers: there they come right under the reason, the numbers under them. */
+  /* A phone's sheet has no height for a foot of two rows of 44 px presses over the numbers. The RESULT stays first, whole as the sheet opens
+     (UI audit 2026-11-18 #1); the steps and the presses come right under the reason, then the loot, then the details. */
   .hsum-card.is-on { display: flex; flex-direction: column; }
   .hsum-card > * { order: 3; }
-  .hsum-card > .hsum-head, .hsum-card > .hsum-reason { order: 0; }
+  .hsum-card > .hsum-head, .hsum-card > .hres, .hsum-card > .hsum-reason { order: 0; }
   /* the steps come before the foot (the same list, stacked), so the first open step's gold press is the first thing under the reason */
   .hsum-card > .hsum-town { order: 1; }
   .hsum-foot { position: static; order: 1; margin: 0 0 8px; padding: 0; background: none; }
-  .hsum-card > .hsum-h-loot, .hsum-card > .hsum-loot, .hsum-card > .hsum-stats { order: 2; }
+  .hsum-card > .hsum-h-loot, .hsum-card > .hsum-loot { order: 2; }
   .hsum-actions { margin-top: 0; }
   .hsum-actions .hh-tool, .hsum-actions .hh-tool.is-primary { min-height: 44px; flex: 1 1 30%; }
-  .hsum-stats { gap: 8px 10px; padding: 8px 10px 10px; }
+  /* the sheet's head is one tight block: the ground and its date, the rule close under them */
+  .hsum-head { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; margin-bottom: 2px; padding-bottom: 16px; }
+  .hsum-card > .hres { margin-bottom: 6px; }
+  .hsum-when { margin: 0; }
   .hsum-title { font-size: var(--t-lead); }
+  .hres-lv, .haway-gone { font-size: var(--t-lead); }
+  .haway-acts .hh-tool, .haway-acts .hh-tool.is-primary { min-height: 44px; }
+  .hres-level { margin-bottom: 4px; }
+  .hres-figs { padding: 4px 0 6px; }
+  .hres-fig small { margin-top: 0; }
+  .hsum-reason { margin-bottom: 6px; }
   .hdeath-title { font-size: var(--t-lead); margin-bottom: 4px; }
   .hdeath-line { font-size: var(--t-micro); margin-bottom: 4px; }
   .hdeath-cost { margin: 6px 0; padding: 6px 10px 1px; }

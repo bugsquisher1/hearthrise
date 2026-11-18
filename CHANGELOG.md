@@ -5,6 +5,30 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.138 — 2026-11-18 (The Great Hearth)
+
+**The Great Hearth.** Havora's Hearth is rebuilt. A red banner with the H hangs from the chimney, the town crest is carved into the stone, and the fire is bigger.
+
+**The Hearth Chest.** The chest now sits on the Hearth's dais. It glows green, dark smoke leaks out of it, and every so often the lid jumps.
+
+**Green fire.** When someone opens the Hearth Chest, the fire turns green for a few seconds with dark smoke. Fuel and powders color the smoke too. When people use the Hearth at the same time, an opened chest shows first, then fuel, then powder, and nobody loses what they paid for.
+
+**The Tower.** Requires Level 10. The window shows which party members are under it.
+
+**Boss call-outs.** Calling out a boss requires 10 wins against it on its normal hunt. The window shows your count, like "Rat King wins: 2/10".
+
+**Hunt results.** The end-of-hunt card shows your results first: Level, Level XP, gold and kills, then the loot. Coming back after time away, one card shows each hero's results, best find and a Hunt again button.
+
+**Character windows.** Bigger hero on the Character sheet with a bar for each skill. Outfits show twice as big. Character select shows your hero in its colors.
+
+**Configure.** The action list has more room, nothing wraps, and a locked action says what it needs.
+
+**Bag.** Hearth fuel buttons say Burn and Burn all.
+
+**Wording.** Weapon lists say "Dual axes". A hunting ground's monster list is headed "Enemies".
+
+**Fixes.** Every drop shows on the end card. Confirm boxes stay on screen. Name tags no longer cover the guide. The away card counts long absences in days. Entering a hunt from a window's link closes that window. Big counts on phones read like "1.4k".
+
 ## v0.2.137 — 2026-11-17 (Setups on the Go)
 
 **Switch setups mid-hunt.** Press Use on another setup during a hunt to swap to its bar. Your gear stays on. Works for setups that use the weapon you wear.

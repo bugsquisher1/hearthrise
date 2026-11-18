@@ -17,18 +17,18 @@
 // the skill's open item, the "Use" switch, the sealed ones held (Open) and the Arms Master's rows (Buy at the price SEEN). Every
 // number is the section's; the window never works one out.
 // ════════════════════════════════════════════════════════════════════════
-import { trainingOf, quoteFor, runForMs, gearFor, offersFor } from '../../session/training-sections.js?v=0.2.137';
-import { startTraining, stopTraining, buyGear, openGear, useGear } from '../../session/training-intents.js?v=0.2.137';
-import { itemName } from '../widgets/bits.js?v=0.2.137';
-import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.137';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.137';
-import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.137';
-import { whole } from '../../render/format.js?v=0.2.137';
-import { t } from '../../render/player-text.js?v=0.2.137';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
-import { runIntent } from '../intent-words.js?v=0.2.137';
-import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.137';
-import { TRAINING_GEAR } from '../../data/training.js?v=0.2.137';
+import { trainingOf, quoteFor, runForMs, gearFor, offersFor } from '../../session/training-sections.js?v=0.2.138';
+import { startTraining, stopTraining, buyGear, openGear, useGear } from '../../session/training-intents.js?v=0.2.138';
+import { itemName } from '../widgets/bits.js?v=0.2.138';
+import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.138';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.138';
+import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.138';
+import { whole, gold } from '../../render/format.js?v=0.2.138';
+import { t } from '../../render/player-text.js?v=0.2.138';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
+import { runIntent } from '../intent-words.js?v=0.2.138';
+import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.138';
+import { TRAINING_GEAR } from '../../data/training.js?v=0.2.138';
 
 /* The ground a training session runs on (src/data/hunts.js, the server half): its hunt is the run, not "out hunting". */
 const YARD_GROUND = 'training_yard';
@@ -209,7 +209,7 @@ renderTraining.patch = function patchTraining(body, ctx) {
   if (!tr) { if (ctx.wm && typeof ctx.wm.close === 'function') ctx.wm.close('training'); return; }
   const sc = scratchOf(cs);
   const purse = goldOf(cs);
-  text(root.querySelector('.tw-purse'), purse === null ? '' : t('training.purse', { gold: whole(purse) }));
+  text(root.querySelector('.tw-purse'), purse === null ? '' : t('training.purse', { gold: gold(purse) }));
 
   /* THE RUN: the server's session; the clock runs on the server's clock between answers */
   const run = tr.run;

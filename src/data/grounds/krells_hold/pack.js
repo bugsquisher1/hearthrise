@@ -25,7 +25,8 @@
 // against the design's 14 and 6), and a Pyre Priest kneels among the Crypt's dead.
 //
 // THE LOOT (src/data/loot-bands.js). Scarce, about hourly a piece per hero at the floor: the whole TIER-6 armor set in three weights, one slot a
-// body (Farmhand boots, Lookout helmets, Grave Guard legs, Gatekeeper bodies), and one tier-6 weapon on four bodies. Rare, each about every 10-20 h: the
+// body (Farmhand boots, Lookout helmets, Grave Guard legs, Gatekeeper bodies), one tier-6 weapon on four bodies and the Grave Guards' tower shield
+// (lane/d-drop-homes, 2026-11-18: shields drop at every tier, so his Rare went hourly and his hammer to the Gatekeeper). Rare, each about every 10-20 h: the
 // tier-6 gloves (Lookout) and belts (Grave Guard), and the Pyre Priests' wand and codex. Tier 6 is worn from 75, so every piece is wearable the hour it
 // drops: this is the game's only source of tier-6 armor. Each body drops one imbuement item, one of each of the five kinds. Each has one
 // product of its own: the Farmhand's tithe wheat, the Lookout's bolt iron, the Grave Guard's grave dust, the Pyre Priest's pyre coal, and the toll gold the
@@ -34,9 +35,9 @@
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
 // GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's 0.45 to-hit and the Dangerous dmgPm 1300 that
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
-import { definePack, box, gather } from '../shape.js?v=0.2.137';
-import map from './map.js?v=0.2.137';
-import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.137';
+import { definePack, box, gather } from '../shape.js?v=0.2.138';
+import map from './map.js?v=0.2.138';
+import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.138';
 
 /* KRELL'S TWO UNIQUE PIECES (Tyler 2026-11-14: "a pair of pally legs a tank shield ... just no weapon", "by unique i mean having a special
    attribute"). Their rows and lines are the designer's sample rows (src/data/special-attributes.js: the standard piece plus ONE attribute),
@@ -116,15 +117,15 @@ export default definePack({
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
          set at Krell's doors behind a door-sized shield. Undead, no override: a hammer breaks him, fire does 15% more, poison half. His grave dust
-         for the Hearth, the barrow nail they pulled to get him out, the tier-6 legs and the Emberforged Warhammer, and now and then a belt. His
-         Shield Slam is a marked hit on the two tiles in front of him (`spells` below): the tank holds, everyone else steps off. */
+         for the Hearth, the barrow nail they pulled to get him out, the tier-6 legs and that door-sized shield, and now and then a belt. His
+         Shield Slam is a marked hit on the two tiles in front of him (`spells` below): the tank holds, everyone else steps off.
+         HIS SHIELD ABOUT HOURLY (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: shields drop at every tier): it was a Rare here
+         (0.12%); the Emberforged Warhammer he carried beside it went to the Gatekeeper's mace, so each body keeps one weapon. */
       spells: ['shield_slam'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'barrow_nail', ch: 0.08, band: 'uncommon' },
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
-        { id: 'ember_warhammer', ch: 0.017, band: 'scarce' },
-        { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' },
-        /* the guard's own tower shield (shields.js, the audit's F8) */
-        { id: 'ember_tower_shield', ch: 0.0012, band: 'rare' }],
+        { id: 'ember_tower_shield', ch: 0.017, band: 'scarce' },
+        { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
       hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2035, gp: [27, 80], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
@@ -140,11 +141,13 @@ export default definePack({
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
          A man in plate, so a blade skids off him and a hammer gets through (one override, the weapon axis). The toll gold he keeps, a link of
-         his key chain, and the tier-6 bodies. He is the first monster whose drop opens a fight: the Hall Key off his ring (the Key band,
+         his key chain, the tier-6 bodies and his mace, the Emberforged Warhammer (lane/d-drop-homes, 2026-11-18, off the Grave Guard: about
+         15 met an hour, so the 5% ceiling). He is the first monster whose drop opens a fight: the Hall Key off his ring (the Key band,
          loot-bands.js, about one every two hours). */
       weaponWeak: 'hammer', weaponResist: [], // designer round 3, 2026-11-12: no sword resist, the hammer edge stays
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
+        { id: 'ember_warhammer', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
       hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3179, gp: [39, 116], formula: true },
   },

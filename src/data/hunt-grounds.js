@@ -114,8 +114,8 @@
 // the loot (CONFLICTS.md 2026-10-20). EQUIPMENT: every ground is on the LOOT BANDS (Tyler
 // 2026-10-23, src/data/loot-bands.js): its own tier's armour in all three weights, each piece
 // about hourly per hero at the floor (the Cellar one helmet slot, the Thicket tier 1, the Sewer
-// tier 1-2, the Glade tier 2, the Warrens tier 3), the next tier, the made weapons and the
-// carriers' trophies as Rares (10-20 h per item); worn gear sells by tier so the hour's gear
+// tier 1-2, the Glade tier 2, the Warrens tier 3) and its weapons and shield (lane/d-drop-homes, 2026-11-18: none is made),
+// the next tier and the carriers' trophies as Rares (10-20 h per item); worn gear sells by tier so the hour's gear
 // stays under half its coin. The coin is final in the rows (DM-16).
 // THE RUNG ABOVE PAYS MORE (designer 2026-11-03, lane/c-gold-matters; Tyler the same day: harder monsters give more, nothing
 // rewards staying on a weak ground): Wickstead paid above the Sewer's party and the Glade's floor, a lone hero in the Sewer
@@ -135,16 +135,16 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.137';
-import { HUNT_INDEX } from './hunts.js?v=0.2.137';
-import { MONSTERS } from './monsters.js?v=0.2.137';
-import { PARTY } from './party.js?v=0.2.137';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.138';
+import { HUNT_INDEX } from './hunts.js?v=0.2.138';
+import { MONSTERS } from './monsters.js?v=0.2.138';
+import { PARTY } from './party.js?v=0.2.138';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.137';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.137';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.137';
-import { sessionModeOf } from './session-modes.js?v=0.2.137';
-import { TOWER_RULES } from './tower.js?v=0.2.137';
+import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.138';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.138';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.138';
+import { sessionModeOf } from './session-modes.js?v=0.2.138';
+import { TOWER_RULES } from './tower.js?v=0.2.138';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a

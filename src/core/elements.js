@@ -37,9 +37,8 @@
 // ── THE `element` FIELD ON A RUNE IS LOAD-BEARING ───────────────────────────
 // A rune item carries `tag:'rune'` + `element:'ember'|'frost'|'poison'`. That
 // field is the ONLY thing that maps a rune id to the element it binds — the
-// server reads it to author `enchant.weapon`, the crafting UI reads it to lane
-// the recipe, and `runeElement()` here reads it for both. There is no name
-// parsing anywhere; the element is data.
+// server reads it to author `enchant.weapon` and the crafting UI reads it to
+// lane the recipe. There is no name parsing anywhere; the element is data.
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random. Vendored into the
 // hr-accrue Edge Function, so it must stay side-effect free.
@@ -49,7 +48,7 @@
    `equipmentStats` and this module, so a fourth "element" can never leak in from
    a forged enchant or a bad rune row) are src/data/elements.js's, the one copy;
    re-exported so existing callers keep their import. */
-import { ELEMENTS, ELEMENT_PCT, isElement, HERO_RESIST_PM, HERO_RESIST_KEYS, heroResistCap, PHYSICAL } from '../data/elements.js?v=0.2.137';
+import { ELEMENTS, ELEMENT_PCT, isElement, HERO_RESIST_PM, HERO_RESIST_KEYS, heroResistCap, PHYSICAL } from '../data/elements.js?v=0.2.138';
 export { ELEMENTS, isElement };
 
 /** The hard ceiling on the single enchant factor (damage only: the b343 ruling, an
@@ -59,21 +58,6 @@ export const MAX_ELEMENT_MULT = 1.15;
 /** The ceiling on weapon-weakness × bane × element combined. Applied inside
     `weaknessInfo`. 1.20 × 1.40 × 1.15 = 1.932 → clamped here to 1.90. */
 export const MAX_TOTAL_DAMAGE_MULT = 1.90;
-
-/**
- * The element a rune binds, or null if the id is not a rune.
- *
- * NULL PROTOTYPE lookup guard, exactly as baneIndex uses: the id comes from
- * player data and is used as a key, so `__proto__`/`constructor` must not read
- * as truthy items. Returns null (not undefined) for a non-rune so callers can
- * `if (!el) return`.
- */
-export function runeElement(itemId, items) {
-  if (!itemId || !items) return null;
-  const it = Object.prototype.hasOwnProperty.call(items, itemId) ? items[itemId] : null;
-  if (!it || it.tag !== 'rune') return null;
-  return isElement(it.element) ? it.element : null;
-}
 
 /**
  * What one blow of `element` is worth against `monster`, in PERMILLE of the

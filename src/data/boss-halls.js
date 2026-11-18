@@ -26,11 +26,11 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from './boss-calls.js?v=0.2.137';
-import { HUNT_INDEX } from './hunts.js?v=0.2.137';
-import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.137';
-import { MONSTERS } from './monsters.js?v=0.2.137';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.137';
+import { BOSS_CALLS } from './boss-calls.js?v=0.2.138';
+import { HUNT_INDEX } from './hunts.js?v=0.2.138';
+import { HALL_GROUNDS } from './hunt-grounds.js?v=0.2.138';
+import { MONSTERS } from './monsters.js?v=0.2.138';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.138';
 
 export const BOSS_HALL_RULES = Object.freeze({
   /* The fight's limit from the first swing, the called rooms' ten minutes (the design: "a 10 minute limit"). */
@@ -119,7 +119,7 @@ export const BOSS_HALL_WORDS = Object.freeze({
   warnTitle: 'Fight {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14), the same shape as a called room's (boss-calls.js warn). */
   warn: Object.freeze([
-    'Hits hard\n50% HP: adds attack non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
+    'Hits hard\n50% HP: summons adds that target non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
     'Uses {whose} {key}, win or lose\nTime limit: {minutes} min',
   ]),
   /* {whose} in the line above: this hero's own key, or the seat's the server names (any seat's key opens the hall) */

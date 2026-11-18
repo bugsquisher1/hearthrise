@@ -2420,7 +2420,7 @@ async function rules(M) {
 const CURVE_USE = Object.freeze({
   /* The wiki's public formulas (lane/b-wiki): it prints the curves themselves (XP to reach Level 10, 25, 50...) and works their example
      with the engine's own function, so the page cannot drift from it. It never reads a hero's XP or draws a hero's Level or bar. */
-  'src/shell/wiki-model.js': ['MAX_LEVEL', 'charXpForLevel', 'isCapped', 'levelCurveRows', 'skillXpForLevel'],
+  'src/shell/wiki-model.js': ['MAX_LEVEL', 'charXpForLevel', 'isCapped', 'skillXpForLevel'],
 });
 
 async function viewRules(base) {

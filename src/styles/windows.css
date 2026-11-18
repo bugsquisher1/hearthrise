@@ -263,7 +263,10 @@
 /* the column beside the doll: the bag gives way first (to two rows), then the column scrolls on its own, the doll standing still beside it */
 [data-hs-win="inventory"] .hw-inv-side { align-self: stretch; min-height: 0; display: flex; flex-direction: column; overflow-y: auto; }
 [data-hs-win="inventory"] .hw-inv-side > * { flex: none; }
-[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }
+[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; display: flex; flex-direction: column; }
+/* THE GRID TAKES THE HEIGHT (UI audit 2026-11-18 UI-5): the bag's sunk well runs down the column to the lines under it, its free spaces drawn
+   as empty pockets (grid.js freeSpaces); the column's foot is the window's (.hw-inv-foot), so nothing but the bag's own lines stand under it. */
+[data-hs-win="inventory"] .hw-inv-scroll > .hw-inv-grid { flex: 1 0 auto; }
 [data-hs-win="inventory"] .hw-cats { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 /* The tabs and the search share a line: at 1366x768 the bag kept 97 px between its toolbar and its foot, two rows beside a cut doll (door panel 2026-11-04). */
 [data-hs-win="inventory"] .hw-inv-head { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 6px; }
@@ -283,10 +286,25 @@
 .hw-weights span { white-space: nowrap; }
 .hw-weights span:empty { display: none; }
 .hw-weights small { font-family: var(--f-label); font-weight: 700; letter-spacing: .04em; color: var(--ink-3); }
-.hw-inv-foot { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
-/* Beside the doll the foot is two lines: the bag's spaces, then Advanced view and the gold (one line squeezed the bar to nothing). */
-[data-hs-win="inventory"] .hw-inv-side .hw-inv-foot { flex-wrap: wrap; row-gap: 4px; }
-[data-hs-win="inventory"] .hw-inv-side .hw-capacity { flex-basis: 100%; }
+/* Under the bag: the armor worn at the left, Advanced view at the right, one quiet line. */
+.hw-inv-under { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0 12px; margin-top: 6px; font-size: var(--t-micro); color: var(--ink-2); }
+.hw-inv-under > .hw-weights { margin: 0; }
+.hw-inv-under > .hw-adv-toggle { margin-left: auto; }
+/* THE WINDOW'S FOOT, under both columns (UI audit 2026-11-18 UI-5): the bag's spaces, its worth, the gold and Dispatch loot on one line, parted
+   from the bag by the steel rule; it wraps (worth first) only where the window is too narrow for one. */
+.hw-inv-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--steel-sep); font-size: var(--t-micro); color: var(--ink-2); }
+.hw-inv-foot > .hw-capacity { flex: 1 1 120px; }
+.hw-inv-foot > .hw-capacity .hw-capbar { min-width: 32px; }
+.hw-inv-under > .hw-value { color: var(--ink-3); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
+.hw-inv-foot > .hw-gold { margin-left: auto; }
+/* beside the doll the upgrade's words read at the label size, so the box stands two lines, not four */
+[data-hs-win="inventory"] .hw-inv-side .hw-upgrade { padding: 4px 8px; }
+[data-hs-win="inventory"] .hw-inv-side .hw-upgrade-q { flex-basis: 120px; font-size: var(--t-micro); line-height: 1.3; }
+.hw-inv-foot > [data-hs-act="dispatch"][hidden] { display: none; }
+/* why Dispatch is off stands beside it, on the line */
+.hw-inv-foot > .hw-dispatch-why { flex: 0 1 auto; margin: 0; color: var(--ink-2); }
+/* A free space is a pocket with nothing in it: the same sunk square, a step quieter, no press. */
+.hw-pocket.is-space { cursor: default; pointer-events: none; background: var(--surf-sunken); }
 .hw-capacity { display: none; flex: 1; min-width: 0; align-items: center; gap: 6px; }
 .hw-capacity.is-on { display: flex; }
 .hw-capbar { position: relative; flex: 1; height: 6px; background: var(--bg-1); box-shadow: var(--hw-well); }
@@ -295,7 +313,8 @@
 .hw-captext { font-size: var(--t-micro); white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .hw-adv-toggle { display: flex; align-items: center; gap: 4px; white-space: nowrap; cursor: pointer; }
 .hw-gold { margin-left: auto; color: var(--gold-2); font-weight: 800; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
-.hw-tools .hw-value { margin-left: auto; font-size: var(--t-micro); color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }
+/* The bag's other bulk presses: a row only while one of them is up. */
+.hw-tools:not(:has(> [data-hs-act="select-outgrown"]:not([hidden]), > [data-hs-act="sell-cat"].is-on)) { display: none; }
 .hw-elsewhere { display: none; margin-top: 6px; }
 .hw-elsewhere.is-on { display: block; }
 .hw-advanced { display: none; margin-top: 8px; padding-top: 4px; border-top: 1px solid var(--line-soft); }
@@ -824,7 +843,7 @@
   [data-hs-win="inventory"] :is(.hw-tabs, .hw-find, .hw-cats, .hw-inv-scroll) { grid-column: 2; }
   [data-hs-win="inventory"] .hw-doll { grid-column: 1; grid-row: 1 / span 4; }
   [data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { overflow-y: visible; }
-  [data-hs-win="inventory"] .hw-inv-side .hw-capacity { flex-basis: 0%; }
+  [data-hs-win="inventory"] .hw-inv-foot > .hw-capacity { flex-basis: 100%; }
   [data-hs-win="inventory"] .hw-inv-head > .hw-tabs { margin-bottom: 8px; }
   [data-hs-win="inventory"] .hw-inv-head > .hw-find { margin-bottom: 6px; }
   .hw-tab { min-height: 36px; }

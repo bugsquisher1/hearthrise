@@ -33,6 +33,7 @@ import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWei
 import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.137';
 import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.137';
 import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.137';
+import { t } from '../../../render/player-text.js?v=0.2.137';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {
@@ -42,11 +43,15 @@ export function renderInventory(ctx) {
     + toolbarHtml(g)
     + '<div class="hw-inv-cols">' + dollHtml(g)
     + '<div class="hw-inv-side"><div class="hw-inv-scroll"><div class="hw-inv-grid" data-hs-act="grid">' + gridHtml() + '</div></div>'
-    + weightsHtml()
+    /* under the bag, about the bag: the armor worn, what it is worth, Advanced view */
+    + '<div class="hw-inv-under">' + weightsHtml() + '<small class="hw-value"></small><label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label></div>'
+    + '<p class="hw-why hw-over"></p>'
+    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div></div>'
+    /* THE FOOT (UI audit 2026-11-18 UI-5: three rows of bag under a stack of lines): the bag's spaces, the gold and Dispatch loot on one line
+       under both columns, why Dispatch is off under it, so the grid takes the window's height */
     + '<div class="hw-inv-foot"><span class="hw-capacity"><span class="hw-capbar" role="meter" aria-label="Bag spaces used" aria-valuemin="0"><i class="hw-capfill"></i></span><small class="hw-captext"></small></span>'
-    + '<label class="hw-adv-toggle"><input type="checkbox" data-hs-act="advanced"> Advanced view</label>'
-    + '<b class="hw-gold"></b></div><p class="hw-why hw-over"></p>'
-    + slotLineHtml() + toolsHtml(g) + advancedHtml() + '</div></div></div>';
+    + '<b class="hw-gold"></b><p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>'
+    + '<button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button></div></div>';
 }
 
 /** What a bag at or past its spaces means (midgame panel 2026-11-01: "114 of 100 spaces" with no word): the server's rule, 2027-02-11-hunt-loot-past-bag-cap.sql. Pure. */
@@ -94,10 +99,28 @@ function keepPickClear(root, st) {
    shell puts on a docked window lands after the first patch; a coach card squeezes a capped window's columns, not its frame): one frame
    later, so the shell's own observer of the frame is never re-run. */
 const WATCHED = new WeakSet();
+
+/* THE BAG ENDS ON A WHOLE ROW (UI audit 2026-11-18 UI-5, AW-93): the grid takes the column's height and its free spaces overflow it, so its
+   scroll box ends at the top of the first row its foot would cut, every pocket in view whole; measured with the bag at its top only (a bag
+   the player scrolled keeps its height, nothing jumps under the hand). A phone's sheet scrolls as one and is left alone. */
+function snapBag(root, phone) {
+  const box = root.querySelector('.hw-inv-scroll');
+  if (!box || (!phone && box.scrollTop > 0)) return;
+  if (box.style.maxHeight) box.style.maxHeight = '';
+  if (phone || box.scrollHeight <= box.clientHeight + 1) return;
+  const top = box.getBoundingClientRect().top + box.clientTop, foot = top + box.clientHeight;
+  let cut = foot;
+  for (const li of box.querySelectorAll('li')) {
+    const q = li.getBoundingClientRect();
+    if (q.height > 0 && q.top < foot - 0.5 && q.bottom > foot + 0.5) cut = Math.min(cut, q.top);
+  }
+  if (cut < foot) box.style.maxHeight = Math.floor(cut - top) + 'px';
+}
+
 function fitNow(root) {
   const view = root.ownerDocument.defaultView;
   if (!view) return;
-  const fit = () => fitDoll(root, view.matchMedia(MOBILE_QUERY).matches);
+  const fit = () => { const phone = view.matchMedia(MOBILE_QUERY).matches; fitDoll(root, phone); snapBag(root, phone); };
   fit();
   const frame = root.closest('.hs-win');
   if (WATCHED.has(root) || !frame || !view.ResizeObserver) return;

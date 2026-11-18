@@ -50,10 +50,21 @@ export const REGION_KITS = Object.freeze({
         tilesets: ids('e0c9621c-fb2d-41df-a2fe-5039b76f9893 b342fc89-d714-4d10-adc1-d3b4a62f5230'),
         maps: ids('d9c3544c-a2a0-4214-b680-749fe48a2eda a055f449-7a3a-48f2-bc74-0fcacfe32063'),
       }),
-      /* THE VAULTS UNDER HAVORA (lane/d-catacombs 2026-11-15, the board's "2026-11-15 The Pauper Vaults"): the Keepers' vaults under the Great
-         Hearth, a Level 165 ground below the Sewer. Its floors are owed (art/briefs/ground-pauper_vaults.txt): worn vault flagstone, the Keepers'
-         setts, the Carters' packed earth and standing water, each meeting the cut-corner vault rock. The sewer family's walls are the nearest kin. */
-      vault: Object.freeze({ terrains: Object.freeze({}), tilesets: ids(''), maps: ids('') }),
+      /* UNMARKED CATACOMBS, THE VAULTS UNDER HAVORA (lane/d-catacombs 2026-11-15, the board's "2026-11-15 Unmarked Catacombs"): the Keepers' vaults under the Great
+         Hearth, a Level 165 ground below the Sewer. Its floors are owed (art/briefs/ground-unmarked_catacombs.txt): worn vault flagstone, the Keepers'
+         setts, the Carters' packed earth and standing water, each meeting the cut-corner vault rock. Born on hr-world-56-v2 and chained (lane/a-catacomb-art,
+         gen-2026-11-17/vault-tiles, tools/world-art/catacomb-ground.mjs): flagstone is the hub; the rock and the water are raised a quarter tile behind a
+         pale lime rim; the setts meet the flagstone only. The walls are a lime-washed run laid over the paint. */
+      vault: Object.freeze({
+        terrains: Object.freeze({
+          flagstone: '4910e009-f5cb-4ad3-a791-f1f821162d4d', rock: 'd5704cc2-79d3-4f92-ac2d-a0c148306547', earth: 'a42b0770-b391-434b-8ee2-bc0e0c3ce45b',
+          water: '164582a7-835e-44ef-b079-95a8cba10cbe', setts: '25040f9c-4ece-489a-9928-b76631e60dff',
+        }),
+        /* flagstone/rock, earth/rock, flagstone/earth, water/flagstone, water/rock, flagstone/setts */
+        tilesets: ids(`6cc9b014-2ce7-4c83-8a72-b66fa2cce2f3 9fc6c7de-7bcf-44ae-b254-e1bbf3464901 c7473d04-820c-4649-a1de-c3417a2fed8f
+          4f2763d2-3871-44c9-9905-779a05ed4800 577ffa4d-5edd-4573-aa6d-cc4974c0de37 344c8c76-fde8-4536-b86a-b6583ea2e550`),
+        maps: ids(''),
+      }),
     }),
     props: ids(`
       barrel_broken bone_pile bread_loaf candle coins_scattered grain_spill hay_bale ladder loot_bag mushrooms pebbles sack_pile
@@ -68,8 +79,11 @@ export const REGION_KITS = Object.freeze({
       cw_rails cw_rubble cw_stalagmite cw_tool_rack`),
     units: ids(`rat slime hive_wasp drain_rat sump_slime cistern_spider culvert_bat kobold_tosher gray_whelp gray_wolf briarcoat_wolf
       dire_gray goblin_scavenger goblin_skulker goblin_digger hobgoblin_foreman carrion_crow glade_poacher walking_vine goblin_sluicer
-      granary_rat barn_wasp barn_spider turncoat rook_poacher orchard_boar brook_bear`),
-    sets: ids('mill sewer common cottage forest warren glade stead hunt'),
+      granary_rat barn_wasp barn_spider turncoat rook_poacher orchard_boar brook_bear
+      shrouded_pauper keeper_dunn night_carter vault_leech bone_wall`),
+    /* vaultdead and vaultliving: the Unmarked Catacombs' bodies, its own dead and what came in from outside; vault: its painted floor and its two
+       signature pieces (lane/a-catacomb-art, tools/world-art/import-catacombs-2026-11-16.mjs) */
+    sets: ids('mill sewer common cottage forest warren glade stead hunt vaultdead vaultliving vault'),
     grounds: Object.freeze({
       mill_cellar: Object.freeze({ family: 'sewer', signature: ids('millstone') }),
       millrace_sewer: Object.freeze({ family: 'sewer', signature: ids('grate_bridge rat_nest') }),
@@ -77,12 +91,12 @@ export const REGION_KITS = Object.freeze({
       coppercap_warrens: Object.freeze({ family: 'cave', signature: ids('cw_throne') }),
       mosslight_glade: Object.freeze({ family: 'meadow', signature: ids('') }),
       wickstead: Object.freeze({ family: 'meadow', signature: ids('wk_footbridge') }),
-      /* STAGED (src/data/grounds/pauper_vaults): the Wood Book on its lectern in the Keepers' Room, and the ossuary's bone wall */
-      pauper_vaults: Object.freeze({ family: 'vault', signature: ids('pv_wood_book pv_ossuary_wall') }),
+      /* STAGED (src/data/grounds/unmarked_catacombs): the Wood Book on its lectern in the Keepers' Room, and the ossuary's bone wall */
+      unmarked_catacombs: Object.freeze({ family: 'vault', signature: ids('uc_wood_book uc_ossuary_wall') }),
     }),
-    /* the Pauper Vaults' two signature pieces and the vault kit's four props any later ground under Havora may place (the candle niche and the
-       iron sconce on a wall face, the stone bier, the Carters' hoist): art/briefs/ground-pauper_vaults.txt */
-    pending: ids('pv_wood_book pv_ossuary_wall pv_niche_candles pv_sconce pv_bier pv_hoist'),
+    /* the vault kit's four props any later ground under Havora may place (the candle niche and the iron sconce on a wall face, the stone bier,
+       the Carters' hoist): art/briefs/ground-unmarked_catacombs.txt. The two signature pieces landed in set vault (lane/a-catacomb-art). */
+    pending: ids('uc_niche_candles uc_sconce uc_bier uc_hoist'),
   }),
 
   /* THE BARROW MARCH, the 45-110 region (docs/planning/PRIORITY_BOARD.md, the ground pack plan): the Banded Company's dead

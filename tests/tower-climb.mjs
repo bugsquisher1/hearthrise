@@ -360,7 +360,7 @@ async function startArm(db, M) {
     out.unearned = await as(db, UID, 'select public.hr_tower_start(0, 20, $1::uuid)', [idem()]);
     out.open0 = Number(await one(db, 'select count(*) from public.hunt_sessions where user_id = $1 and ended_at is null', [UID]));
     /* a landing reached (the settle's own write of the best): its checkpoint is offered */
-    await db.query("insert into public.tower_progress (user_id, slot, best_floor, best_landing) values ($1, 0, 14, 10)", [UID]);
+    await db.query("insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing) values ($1, 0, $2, 14, 10)", [UID, M.TD.TOWER_RULES.hunt]);
     const key = idem();
     out.ten = await as(db, UID, 'select public.hr_tower_start(0, 10, $1::uuid)', [key]);
     out.again = await as(db, UID, 'select public.hr_tower_start(0, 10, $1::uuid)', [key]);
@@ -386,7 +386,7 @@ async function as(db, uid, sql, p) {
 
 /* ── TC-CHECKPOINT ────────────────────────────────────────────────────────── */
 const UID2 = H.UIDS[1];
-const best = (db, uid, floor) => db.query('insert into public.tower_progress (user_id, slot, best_floor, best_landing) values ($1, 0, $2, $3)', [uid, floor, Math.floor(floor / 10) * 10]);
+const best = (db, uid, floor) => db.query('insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing) values ($1, 0, $4, $2, $3)', [uid, floor, Math.floor(floor / 10) * 10, 'the_burning_tower']);
 const openOf = async (db) => q(db, 'select s.user_id, r.start_floor, r.party from public.hunt_sessions s left join public.tower_runs r on r.session_id = s.id where s.ended_at is null order by s.user_id');
 async function checkpointArm(db, M) {
   const bad = [];
@@ -508,7 +508,7 @@ const MUTANTS = [
   { name: 'the split ignores the mode', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/hunt/xp-share.js',
     from: '  const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;', to: '  const raw = xp / heroes.length;' },
   { name: 'the floor\'s time is never asked', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/combat-sim.js',
-    from: '    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world) : null;', to: '' },
+    from: '    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world, tw) : null;', to: '' },
   { name: 'the order check is gone', arm: 'forged', want: /^TC-FORGED (a skipped|a repeated)/, fn: 'public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)',
     find: "  if exists (select 1 from jsonb_array_elements(v_f) with ordinality e(v, i) where (e.v #>> '{}')::bigint <> v_lo + e.i - 1) then",
     replace: '  if false then' },
@@ -516,19 +516,19 @@ const MUTANTS = [
     find: "  if not found then return 'mode'; end if;", replace: "  return null;" },
   { name: 'the kill bound ignores the mode', arm: 'forged', want: /^TC-FORGED Level XP/, fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
     find: '  if v_mode.xp_pm <> 1000 then v_vb_xp := ceil(v_vb_xp * v_mode.xp_pm / 1000.0)::bigint; end if;', replace: '  v_vb_xp := v_vb_xp * 100;' },
-  { name: 'the checkpoint is not checked', arm: 'checkpoint', want: /^TC-CHECKPOINT a forged landing 60/, fn: 'public.hr_tower_start(integer,integer,uuid)',
+  { name: 'the checkpoint is not checked', arm: 'checkpoint', want: /^TC-CHECKPOINT a forged landing 60/, fn: 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)',
     find: '    if v_cps is null or v_pick is null or v_pick <> all (v_cps) then', replace: '    if v_cps is null or v_pick is null then' },
-  { name: 'a party climbs from its strongest seat', arm: 'checkpoint', want: /^TC-CHECKPOINT a party/, fn: 'public.hr_tower_record(uuid,integer)',
+  { name: 'a party climbs from its strongest seat', arm: 'checkpoint', want: /^TC-CHECKPOINT a party/, fn: 'public.hr_run_record(uuid,integer,text)',
     find: '(select min(coalesce(p.best_floor, 0)) from public.hunt_party_members m', replace: '(select max(coalesce(p.best_floor, 0)) from public.hunt_party_members m' },
-  { name: 'no pick starts at the bottom, not the best', arm: 'checkpoint', want: /^TC-CHECKPOINT (no pick|a party of)/, fn: 'public.hr_tower_start(integer,integer,uuid)',
+  { name: 'no pick starts at the bottom, not the best', arm: 'checkpoint', want: /^TC-CHECKPOINT (no pick|a party of)/, fn: 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)',
     find: '    v_pick := coalesce(p_landing, v_cps[cardinality(v_cps)]);', replace: '    v_pick := coalesce(p_landing, 0);' },
-  { name: 'a party start leaves the second seat runless', arm: 'checkpoint', want: /^TC-CHECKPOINT a party of/, fn: 'public.hr_tower_start(integer,integer,uuid)',
+  { name: 'a party start leaves the second seat runless', arm: 'checkpoint', want: /^TC-CHECKPOINT a party of/, fn: 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)',
     find: '                                       else exists (select 1 from public.hunt_party_members m where m.party_id = v_party\n                                                     and m.user_id = h.user_id and m.slot = h.slot) end);\n    insert into public.tower_runs',
     replace: '                                       else exists (select 1 from public.hunt_party_members m where m.party_id = v_party\n                                                     and m.user_id = h.user_id and m.slot = h.slot) end);\n    v_party := null;\n    insert into public.tower_runs' },
   { name: 'the ordinary door admits the Tower', arm: 'start', want: /^TC-START the ordinary door/, fn: 'public.hr_hunt_admit(uuid,integer,text)',
     find: "    if current_setting('hr.tower', true) is distinct from p_hunt then", replace: '    if false then' },
   { name: 'the best is not written', arm: 'doors', want: /^TC-DOORS/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',
-    find: '  insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at, updated_at)', replace: '  return;\n  insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at, updated_at)' },
+    find: '  insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing, best_at, updated_at)', replace: '  return;\n  insert into public.tower_progress (user_id, slot, hunt_id, best_floor, best_landing, best_at, updated_at)' },
   { name: 'the arm writes on every apply', arm: 'arm', want: /^TC-ARM a second apply moved/, sql: { file: ARM_FILE, edits: [
     ["   where switch_id = 'burning_tower' and (scope <> 'everyone' or cardinality(accounts) <> 0);", "   where switch_id = 'burning_tower';"]] } },
   { name: 'the arm moves another switch', arm: 'arm', want: /^TC-ARM the file moved another switch row/, sql: { file: ARM_FILE, edits: [

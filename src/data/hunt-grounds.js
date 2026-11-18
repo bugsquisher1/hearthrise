@@ -144,7 +144,7 @@ import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shap
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
 import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.139';
 import { sessionModeOf } from './session-modes.js?v=0.2.139';
-import { TOWER_RULES } from './tower.js?v=0.2.139';
+import { TOWER_RULES, CATACOMB_RULES, RUN_GROUNDS, runRulesOf } from './tower.js?v=0.2.139';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -426,6 +426,27 @@ export const TOWER_GROUNDS = Object.freeze({
     route: Object.freeze([0]),
     respawnMs: TOWER_RULES.stairMs, pullDist: 1.5, groupFit: 'both',
   }),
+  /* THE UNMARKED CATACOMBS' WINGS (src/data/tower.js CATACOMB_WINGS; Tyler 2026-11-16; the board's "2026-11-16 The Unmarked Catacombs descent" §2):
+     run grounds on the Tower's engine, ONE POCKET EACH on the Catacombs' own map (the Tower's one-pocket model), reached by one verb,
+     hr_catacomb_start, the wing picked before Enter. Each pocket is its room of the 165-185 hunting ground (src/data/grounds/unmarked_catacombs/
+     pack.js): the Flooded Vault (P3) and the Bone Room (P2). The five slots are the ring round that room's own pull tile (3x3 clear, the pack's
+     guard), slot 0 (a vault door's Keeper Dunn) north of it; the four seats stand on the open floor of the same room, clear of the ring.
+     `mode` is the session mode the server freezes (`catacomb`); the as-built spawns are the catalogue's placeholders (the Tower's own, a low row
+     whose kill bound never lifts a room's: the engine fields each room from the wing's roster, src/core/hunt/tower.js). */
+  unmarked_flooded_wing: Object.freeze({
+    id: 'unmarked_flooded_wing', hunt: 'unmarked_flooded_wing', map: 'unmarked_catacombs', tower: true, mode: 'catacomb',
+    start: Object.freeze([[24, 18], [23, 18], [24, 19], [23, 19]]),
+    pockets: Object.freeze([pocket([20, 14, 37, 26], ['rat', 28, 18], ['rat', 29, 19], ['rat', 28, 20], ['rat', 27, 19], ['rat', 29, 18])]),
+    route: Object.freeze([0]),
+    respawnMs: CATACOMB_RULES.stairMs, pullDist: 1.5, groupFit: 'both',
+  }),
+  unmarked_bone_wing: Object.freeze({
+    id: 'unmarked_bone_wing', hunt: 'unmarked_bone_wing', map: 'unmarked_catacombs', tower: true, mode: 'catacomb',
+    start: Object.freeze([[55, 18], [56, 18], [55, 19], [56, 19]]),
+    pockets: Object.freeze([pocket([44, 13, 57, 24], ['rat', 50, 17], ['rat', 51, 18], ['rat', 50, 19], ['rat', 49, 18], ['rat', 51, 17])]),
+    route: Object.freeze([0]),
+    respawnMs: CATACOMB_RULES.stairMs, pullDist: 1.5, groupFit: 'both',
+  }),
 });
 
 /** The ground row a hunt is fought on, called rooms, keyed halls, training grounds and the Tower included, or null: the engine's and the scene's one lookup. */
@@ -663,5 +684,12 @@ export function validate() {
     if (row.id !== key) out.push(key + ': row id ' + row.id + ' does not match its key');
     out.push(...validateGround(row));
   }
+  /* THE RUN GROUNDS: every `tower` ground has its run row (src/data/tower.js RUN_GROUNDS) and every run row its ground, on its mode */
+  for (const [key, row] of Object.entries(TOWER_GROUNDS)) {
+    const run = row.tower === true ? runRulesOf(key) : null;
+    if (!run) out.push(key + ': a run ground with no run row (src/data/tower.js RUN_GROUNDS)');
+    else if (row.respawnMs !== run.stairMs || row.pockets.length !== 1 || row.pockets[0].spawns.length !== run.roomSize) out.push(key + ': its respawn is not its stair, or it is not one pocket of a room');
+  }
+  for (const id of Object.keys(RUN_GROUNDS)) if (!TOWER_GROUNDS[id]) out.push(id + ': a run row with no ground');
   return out;
 }

@@ -62,9 +62,16 @@ async function hero(db, uid, name) {
                   on conflict (user_id, slot) do update set name = excluded.name, canonical = excluded.canonical`, [uid, name]);
   await asUser(db, '');
 }
-/* A best written as the settle writes it: the record row (its trigger keeps the board). */
-const best = (db, uid, floor, at) => db.query(`insert into public.tower_progress (user_id, slot, best_floor, best_landing, best_at) values ($1, 0, $2, $3, $4::timestamptz)
-  on conflict (user_id, slot) do update set best_floor = greatest(tower_progress.best_floor, excluded.best_floor), best_at = excluded.best_at`, [uid, floor, Math.floor(floor / 10) * 10, at]);
+/* A best written as the settle writes it: the record row on the Tower's ground and the hero's board row, raised (2027-05-08-catacombs.sql: hr_tower_write
+   raises the board itself; before it, the record's trigger did, and the raise-only upsert below is then a no-op). Either chain position (TB-IDEM). */
+const hasGround = async (db) => Number(await one(db, "select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'tower_progress' and column_name = 'hunt_id'")) > 0;
+const best = async (db, uid, floor, at) => {
+  const g = await hasGround(db);
+  await db.query(`insert into public.tower_progress (user_id, slot, ${g ? 'hunt_id, ' : ''}best_floor, best_landing, best_at) values ($1, 0, ${g ? "'the_burning_tower', " : ''}$2, $3, $4::timestamptz)
+    on conflict (user_id, slot${g ? ', hunt_id' : ''}) do update set best_floor = greatest(tower_progress.best_floor, excluded.best_floor), best_at = excluded.best_at`, [uid, floor, Math.floor(floor / 10) * 10, at]);
+  await db.query(`insert into public.hr_mode_board as b (mode_id, user_id, slot, score, reached_at, updated_at) values ('tower', $1, 0, $2, $3::timestamptz, now())
+    on conflict (mode_id, user_id, slot) do update set score = excluded.score, reached_at = excluded.reached_at, updated_at = excluded.updated_at where excluded.score > b.score`, [uid, floor, at]);
+};
 const towerOf = (db, uid) => one(db, `select public.hr_state_of($1::uuid, 0)->'tower'`, [uid]);
 const names = (list) => (list || []).map((h) => h.name).join(',');
 const switchOn = (db) => db.query("update public.hr_feature_switches set scope = 'everyone' where switch_id = 'burning_tower'");
@@ -265,13 +272,30 @@ async function depthArm(db) {
 const SIGS = ['hr_tower_section(uuid,integer)', 'hr_mode_board_depth()', 'hr_mode_board_rank(text,integer,timestamp with time zone)',
   'hr_mode_board_hero(uuid,integer,integer,timestamp with time zone)', 'hr_mode_board_place(integer)', 'hr_mode_board_field(text,uuid,integer)',
   'hr_mode_board_end(text,uuid,integer,uuid)', 'hr_tower_board_mode()', 'hr_tower_board_rise()', 'hr_tower_board_run_start()', 'hr_tower_board_run_end()'];
-async function idemArm(db) {
+/* Judged where its file sits in the chain (upTo it): 2027-05-08-catacombs.sql restates its section and board triggers for every run ground after it,
+   later images this file's §0 pins were never written against. */
+/* an `idem` mutant is planted HERE, in the arm's own chain (the shared one is past this file): IDEM_PLANT, set by the mutate loop */
+let IDEM_PLANT = null;
+async function idemArm() {
+  const { bootReplay } = await import('./schema-replay.mjs');
+  const { db } = await bootReplay({ upTo: FILE });
+  try {
+    if (IDEM_PLANT) {
+      const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [IDEM_PLANT.fn])).split('\r').join('');
+      if (def.split(IDEM_PLANT.find).length !== 2) return [`HARNESS: ${IDEM_PLANT.fn} has no single ${JSON.stringify(IDEM_PLANT.find.slice(0, 80))} at ${FILE}`];
+      await db.exec(def.replace(IDEM_PLANT.find, () => IDEM_PLANT.replace));
+    }
+    return await idemAt(db);
+  } finally { await db.close(); }
+}
+async function idemAt(db) {
   return inTx(db, async () => {
     const bad = [];
     await seed(db);
     /* THE DOOR'S LEVEL IS A LATER FILE'S RULE (2027-05-05-entry-gates.sql, Tyler 2026-11-18): this file's own §6 climbs with new Level 1 heroes,
        so its second apply is judged with the door at Level 1 (the catalogue's floor), in this rolled-back transaction, before either snapshot. */
-    await db.query('update public.hr_tower_rules set min_level = 1 where id');
+    if (Number(await one(db, "select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'hr_tower_rules' and column_name = 'min_level'")))
+      await db.query('update public.hr_tower_rules set min_level = 1 where id');
     const snap = async () => JSON.stringify([await inventory(db),
       await q(db, `select string_agg(md5(replace(prosrc, chr(13), '')), ',' order by oid::regprocedure::text) m from pg_proc where oid = any (array[${SIGS.map((s) => `'public.${s}'::regprocedure`).join(',')}])`),
       await q(db, 'select mode_id, user_id, slot, score, reached_at, updated_at from public.hr_mode_board order by 1, 2, 3'),
@@ -297,12 +321,12 @@ const MUTANTS = [
   { name: 'a party seat is a rival', arm: 'order', want: /^TB-ORDER with Cole seated/, fn: 'public.hr_mode_board_field(text,uuid,integer)',
     find: "           where b.mode_id = p_mode and ((-b.score), b.reached_at, b.user_id, b.slot) < ((-me.score), me.reached_at, me.user_id, me.slot)\n             and not exists (select 1 from public.hr_lb_hidden h where h.user_id = b.user_id and (h.slot is null or h.slot = b.slot))\n             and (v_party is null or",
     replace: "           where b.mode_id = p_mode and ((-b.score), b.reached_at, b.user_id, b.slot) < ((-me.score), me.reached_at, me.user_id, me.slot)\n             and not exists (select 1 from public.hr_lb_hidden h where h.user_id = b.user_id and (h.slot is null or h.slot = b.slot))\n             and (true or" },
-  { name: 'the board is written on every settle', arm: 'rise', want: /^TB-RISE/,
-    ddl: 'drop trigger hr_tower_board_rise on public.tower_progress; create trigger hr_tower_board_rise after update of best_floor on public.tower_progress for each row execute function public.hr_tower_board_rise()',
-    fn: 'public.hr_tower_board_rise()', find: '   where excluded.score > b.score;', replace: ';',
-    undo: 'drop trigger hr_tower_board_rise on public.tower_progress; create trigger hr_tower_board_rise after update of best_floor on public.tower_progress for each row when (new.best_floor > old.best_floor) execute function public.hr_tower_board_rise()' },
-  { name: 'the board never rises', arm: 'rise', want: /^TB-RISE/, fn: 'public.hr_tower_board_rise()',
-    find: '  if v_mode is null or new.best_floor < 1 then return null; end if;', replace: '  if v_mode is null or new.best_floor < 1 or tg_op = \'UPDATE\' then return null; end if;' },
+  /* the board is raised in hr_tower_write since 2027-05-08-catacombs.sql (the rise trigger on tower_progress is gone) */
+  { name: 'the board is written on every settle', arm: 'rise', want: /^TB-RISE/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',
+    find: '   where excluded.score > b.score;', replace: ';' },
+  { name: 'the board never rises', arm: 'rise', want: /^TB-RISE/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',
+    find: '  on conflict (mode_id, user_id, slot) do update set score = excluded.score, reached_at = excluded.reached_at, updated_at = excluded.updated_at\n   where excluded.score > b.score;',
+    replace: '  on conflict (mode_id, user_id, slot) do nothing;' },
   { name: 'the tie with the old record counts as passed', arm: 'end', want: /^TB-END the record climb/, fn: 'public.hr_tower_board_run_end()',
     find: '         and ((-b.score), b.reached_at) < ((-l.from_score), l.from_at)\n         and not exists (select 1 from public.hr_lb_hidden h where h.user_id = b.user_id and (h.slot is null or h.slot = b.slot))\n       limit v_depth) t;',
     replace: '         and ((-b.score), b.reached_at) <= ((-l.from_score), l.from_at)\n         and not exists (select 1 from public.hr_lb_hidden h where h.user_id = b.user_id and (h.slot is null or h.slot = b.slot))\n       limit v_depth) t;' },
@@ -330,6 +354,15 @@ async function main() {
     const list = MUTANTS.filter((m) => !pick || m.name.includes(pick));
     let escaped = 0;
     for (const m of list) {
+      if (m.arm === 'idem') {
+        IDEM_PLANT = m;
+        let gotIdem = [];
+        try { gotIdem = await runArm(db, M, m.arm); } finally { IDEM_PLANT = null; }
+        const hitIdem = gotIdem.some((x) => m.want.test(x));
+        if (!hitIdem) escaped++;
+        console.log(`  ${hitIdem ? 'caught ' : 'ESCAPED'} ${m.name}: ${String(gotIdem[0] || 'every check held').slice(0, 170)}`);
+        continue;
+      }
       const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).split('\r').join('');
       if (def.split(m.find).length !== 2) { console.error(`HARNESS: ${m.fn} has no single ${JSON.stringify(m.find.slice(0, 80))}`); process.exit(2); }
       let got = [];

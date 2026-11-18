@@ -64,6 +64,9 @@ import { TEMPER_MATERIALS } from './temper.js?v=0.2.139';
 import { WEAPON_FAMILIES } from './gear-tiers.js?v=0.2.139';
 import { TOWER_WEAPONS } from './tower-weapons.js?v=0.2.139';
 import { SKILL_PLUS_FIELDS } from '../core/combat.js?v=0.2.139';
+import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS } from './tower.js?v=0.2.139';
+import { ARMOUR_WEIGHT } from './core-model.js?v=0.2.139';
+import { CATACOMB_ARMOR_SHIPPED, CATACOMB_TIERS, WING_LEAN } from './catacomb-armor.js?v=0.2.139';
 
 /* The one chest today, on the Great Hearth's ledge in Havora (world/stations.js `hearth`). A later chest is a row. */
 export const CHESTS = Object.freeze({
@@ -74,26 +77,68 @@ export const CHESTS = Object.freeze({
 export const CINDERS = 'tower_cinders';
 
 /* The key families and their caps (Tyler 2026-11-16: "6 per family per hero per week" opened; a held limit of "about 30, ~5 weeks", the
-   designer's to set). The Catacombs' family joins as one row here when its keys are built. */
+   designer's to set). heldMax is PER HERO ON THE ACCOUNT, counted over the whole account (lane/c-catacombs, the descent design §4: every
+   hero's bag and Key Ring and the account's Storage, against heldMax x the account's heroes), so nobody shuffles keys into Storage or onto
+   another hero to make room: four heroes hold up to 120 of a family between them. */
 export const KEY_FAMILIES = Object.freeze({
-  tower: Object.freeze({ id: 'tower', name: 'Tower', opensPerWeek: 6, heldMax: 30 }),
+  tower: Object.freeze({ id: 'tower', name: 'Tower', opensPerWeek: 6, heldMax: 30, switch: 'burning_tower' }),
+  /* the Unmarked Catacombs' descent (Tyler 2026-11-16: "the SAME amount as the Tower (6 per hero per week) but a SEPARATE count"): every wing's
+     keys, Waterlogged and Bone and any later wing, share one six and one held limit */
+  catacomb: Object.freeze({ id: 'catacomb', name: 'Catacomb', opensPerWeek: 6, heldMax: 30, switch: 'unmarked_catacombs' }),
 });
 /* The family a Tower landing mints from (the server's hr_tower_key_mint reads the same id). */
 export const TOWER_KEY_FAMILY = 'tower';
 
+/* A KEY ROW (both families):
+     ground    the run ground whose landings (the Tower's) or vault doors (a wing's) hand this key out (src/data/tower.js RUN_GROUNDS): a
+               ground's door hands out the key of its highest row starting at or under it (keyForLanding), so a family's top row is open-ended
+     gear      what a hit pays: 'weapon' (a Tower key: one of its seven tower weapons, the opener's own family half the time) or 'armor' (a
+               Catacomb key: a helmet or boots of its tier, the slot by the wing's lean, the weight the opener wears in that slot half the time)
+     helmetPm  an armor key's lean: of the armor it finds, this many permille are helmets, the rest boots (catacomb-armor.js WING_LEAN: a
+               Bone Key 700, a Waterlogged Key 300). Null on a weapon key
+     weaponPm  the base chance a key finds a piece of its gear (the column keeps its first name: a Tower key's weapon, a Catacomb key's armor)
+     skillPlus a weapon key's +combat skill on its weapons (0 on an armor key: its pieces carry their own attribute, catacomb-armor.js) */
 const key = (id, family, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty) => Object.freeze({
   id, family, item, name, from, weaponPm, weaponTier, skillPlus, cinders, saltsQty, food, foodQty,
+  ground: TOWER_RULES.hunt, gear: 'weapon', helmetPm: null, armor: Object.freeze({}),
   weapons: Object.freeze(Object.fromEntries(TOWER_WEAPONS.filter((w) => w.key === id).map((w) => [w.family, w.id]))) });
 
 /* The design's four (§5, Tyler 2026-11-14), in `from` order. Counts are the designer's; none is measured in play. Platinum: the
    coherence pass's C4 says "Ember salts and more Cinders" until a tier 7 ladder exists, with no number for the Cinders: 600 stays the
-   design's, the designer's to raise. */
+   design's, the designer's to raise. THE TOWER'S keys: the Tower window and its art read these four (tower-stage.js, tower-art.mjs). */
 export const CHEST_KEYS = Object.freeze([
   key('bronze', 'tower', 'tower_key_bronze', 'Bronze Key', 10, 160, 2, 1, 50, 15, 'cooked_shrimp', 20),
   key('silver', 'tower', 'tower_key_silver', 'Silver Key', 40, 80, 4, 2, 150, 25, 'cooked_lobster', 15),
   key('gold', 'tower', 'tower_key_gold', 'Gold Key', 70, 45, 6, 3, 300, 30, 'cooked_lobster', 20),
   key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20, 7, 4, 600, 40, 'cooked_lobster', 25),
 ]);
+
+/* THE CATACOMB KEYS (Tyler 2026-11-16: "Waterlogged Key" from the Flooded Wing, leans boots; "Bone Key" from the Bone Wing, leans helmets; the
+   SAME chest and the SAME Bronze / Silver / Gold / Platinum "so it's familiar"; the descent design §4-§5): a wing's tier key per metal, its
+   doors the Tower's (`from`), its chance the Tower's (16 / 8 / 4.5 / 2%, RULED 2026-11-16), what it always holds the Tower key's of that
+   metal. A hit pays one armor piece of the key's tier (catacomb-armor.js: the slot's twin plus one attribute); `armor` maps slot:weight (the
+   server's heavy / medium / light, core-model.js ARMOUR_WEIGHT) to the piece, from the pieces that ship (CATACOMB_ARMOR_SHIPPED). A key
+   short of its six is NOT READY: it drops and is held, and the chest refuses to open it (chest_not_ready, the key kept). */
+const TOWER_OF_METAL = Object.freeze(Object.fromEntries(CHEST_KEYS.map((k) => [k.id, k])));
+const WING_OF_LEAN = Object.freeze(Object.fromEntries(Object.entries(WING_LEAN).map(([lean, l]) => [lean, CATACOMB_WINGS.find((w) => w.wing === l.wing)])));
+const catacombKey = (lean, metal) => {
+  const t = TOWER_OF_METAL[metal], w = WING_OF_LEAN[lean], l = WING_LEAN[lean];
+  return Object.freeze({
+    id: lean + '_' + metal, family: 'catacomb', item: lean + '_key_' + metal, name: t.name.replace(' Key', ' ' + l.name),
+    from: t.from, weaponPm: t.weaponPm, weaponTier: CATACOMB_TIERS[metal], skillPlus: 0, cinders: t.cinders, saltsQty: t.saltsQty, food: t.food,
+    foodQty: t.foodQty, ground: w ? w.hunt : null, gear: 'armor', helmetPm: l.helmet, weapons: Object.freeze({}),
+    armor: Object.freeze(Object.fromEntries(CATACOMB_ARMOR_SHIPPED.filter((p) => p.key === metal)
+      .map((p) => [p.slot + ':' + ARMOUR_WEIGHT[p.weight], p.id]).sort((a, b) => (a[0] < b[0] ? -1 : 1)))),
+  });
+};
+export const CATACOMB_KEYS = Object.freeze(['waterlogged', 'bone'].flatMap((lean) => ['bronze', 'silver', 'gold', 'platinum'].map((m) => catacombKey(lean, m))));
+
+/* EVERY KEY THE HEARTH CHEST OPENS, both families: the server's table (tools/gen-chests.mjs hr_chest_keys) and every item row reads this. */
+export const HEARTH_CHEST_KEYS = Object.freeze([...CHEST_KEYS, ...CATACOMB_KEYS]);
+
+/* The armor slots a Catacomb key can find, and the weights in each, in the order the open lists them (the server's hr_chest_armor). */
+export const ARMOR_SLOTS = Object.freeze(['helmet', 'boots']);
+export const ARMOR_WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 
 export const CHEST_LUCK = Object.freeze({
   warmthStepPm: 40,
@@ -121,14 +166,17 @@ export const CHEST_LUCK = Object.freeze({
 export const CHEST_OUTFITS = Object.freeze([
   /* Tyler 2026-11-16 named it "Key Warden" (a hooded key-keeper with a gold key); the ids keep the design's first name */
   Object.freeze({ outfit: 'sweeps_coat', item: 'sweeps_coat_bundle', name: 'Key Warden', value: 20000,
-    pm: Object.freeze({ bronze: 2, silver: 3, gold: 4, platinum: 5 }) }),
+    /* every key of both families (the descent design §3: "every key at the chest rolls the coat"), the same chance a metal */
+    pm: Object.freeze({ bronze: 2, silver: 3, gold: 4, platinum: 5,
+      waterlogged_bronze: 2, waterlogged_silver: 3, waterlogged_gold: 4, waterlogged_platinum: 5,
+      bone_bronze: 2, bone_silver: 3, bone_gold: 4, bone_platinum: 5 }) }),
 ]);
 
 /** Everything wrong with the outfit rows against the key table, as strings (empty: valid). Pure. */
-export function validateChestOutfits(outfits = CHEST_OUTFITS, keys = CHEST_KEYS) {
+export function validateChestOutfits(outfits = CHEST_OUTFITS, keys = HEARTH_CHEST_KEYS) {
   const out = [];
   const ID = /^[a-z0-9_]{1,40}$/;
-  const keyIds = keys.map((k) => k.id), taken = new Set(keys.map((k) => k.item).concat([CINDERS], keys.flatMap((k) => Object.values(k.weapons || {}))));
+  const keyIds = keys.map((k) => k.id), taken = new Set(keys.map((k) => k.item).concat([CINDERS], keys.flatMap((k) => Object.values(k.weapons || {}).concat(Object.values(k.armor || {})))));
   const seen = new Set(), items = new Set();
   const total = Object.fromEntries(keyIds.map((id) => [id, 0]));
   for (const o of Array.isArray(outfits) ? outfits : []) {
@@ -168,11 +216,12 @@ export function weaponFamilyOf(item) {
   }
 }
 
-/** The key row a Tower landing (a floor) hands out: the highest Tower row starting at or under it, or null under the first. Pure. */
-export function keyForLanding(landing, keys = CHEST_KEYS) {
+/** The key row run ground `ground`'s landing (a floor, a vault door) hands out: the highest row of that ground starting at or under it, or
+    null under the first. The Tower's ground by default (its landings' keys). Pure. */
+export function keyForLanding(landing, keys = HEARTH_CHEST_KEYS, ground = TOWER_RULES.hunt) {
   let out = null;
   for (const k of keys) {
-    if (k.family === TOWER_KEY_FAMILY && Number.isInteger(landing) && landing >= k.from && (!out || k.from > out.from)) out = k;
+    if (k.ground === ground && Number.isInteger(landing) && landing >= k.from && (!out || k.from > out.from)) out = k;
   }
   return out;
 }
@@ -220,8 +269,10 @@ export function chestChancePpm(k, dry, stokes, luck = CHEST_LUCK) {
   return Math.min(1000000, Math.floor((k.weaponPm * warmthPm(dry, luck) * s) / 1000));
 }
 
-/** Everything wrong with the chest table, as strings (empty: valid). `landingEvery` is TOWER_RULES.landingEvery. Pure. */
-export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = TEMPER_MATERIALS, families = KEY_FAMILIES, tower = TOWER_WEAPONS) {
+/** Everything wrong with the chest table, as strings (empty: valid). `landingEvery` is a key's spacing when its ground has no run row (the
+    run row's own landingEvery otherwise: src/data/tower.js RUN_GROUNDS). Pure. */
+export function validateChests(keys = HEARTH_CHEST_KEYS, luck = CHEST_LUCK, landingEvery = 10, materials = TEMPER_MATERIALS, families = KEY_FAMILIES, tower = TOWER_WEAPONS,
+  runs = RUN_GROUNDS) {
   const out = [];
   const ID = /^[a-z0-9_]{1,40}$/;
   if (!Array.isArray(keys) || !keys.length) return ['the key table is empty'];
@@ -232,6 +283,8 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
     if (typeof f.name !== 'string' || !f.name.trim()) out.push('family ' + fid + ': no name');
     if (!Number.isInteger(f.opensPerWeek) || f.opensPerWeek < 1 || f.opensPerWeek > 1000) out.push('family ' + fid + ': opensPerWeek is not 1..1000');
     if (!Number.isInteger(f.heldMax) || f.heldMax < f.opensPerWeek) out.push('family ' + fid + ': heldMax is under a week\'s opens');
+    /* the feature switch that hides the family's door, its keys at the chest and its section (hr_feature_switches) */
+    if (typeof f.switch !== 'string' || !ID.test(f.switch)) out.push('family ' + fid + ': no feature switch');
     if (!keys.some((k) => k && k.family === fid)) out.push('family ' + fid + ': no key belongs to it');
   }
   /* (worded with no quote after the word that ends an import: tools/pack-edge.mjs reads an export's specifier up to the next quote) */
@@ -243,16 +296,33 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
     if (!k || !ID.test(String(k.id))) { out.push(n + ': its id is not an id'); continue; }
     if (seen.has(k.id)) out.push(n + ': a second row with this id');
     if (!Object.hasOwn(families, k.family)) out.push(n + ': its family ' + k.family + ' is no key family');
-    const prev = prevOf[k.family] || null;
+    /* its ground: a run ground of its own family (a Tower key from a Tower landing, a Catacomb key from a wing's vault door) */
+    const run = k.ground && Object.hasOwn(runs, k.ground) ? runs[k.ground] : null;
+    if (!run) out.push(n + ': its ground ' + k.ground + ' is no run ground');
+    else if (run.family !== k.family) out.push(n + ': its ground ' + k.ground + ' mints the ' + run.family + ' family');
+    /* a family's open table rises ground by ground: two wings' Bronze keys share their metal's door */
+    const prev = prevOf[k.family + ':' + k.ground] || null;
     seen.add(k.id);
     if (!ID.test(String(k.item)) || items.has(k.item)) out.push(n + ': its item is not an id, or another key names it');
     items.add(k.item);
     if (k.item === CINDERS) out.push(n + ': the key is the Cinders');
     if (typeof k.name !== 'string' || !k.name.trim()) out.push(n + ': no name');
-    if (!Number.isInteger(k.from) || k.from <= 0 || k.from % landingEvery) out.push(n + ': from is not a landing');
+    if (!Number.isInteger(k.from) || k.from <= 0 || k.from % (run ? run.landingEvery : landingEvery)) out.push(n + ': from is not a landing');
     if (!Number.isInteger(k.weaponPm) || k.weaponPm < 1 || k.weaponPm > 1000) out.push(n + ': weaponPm is not a whole permille 1..1000');
     if (!Number.isInteger(k.weaponTier) || k.weaponTier < 1 || k.weaponTier > 10) out.push(n + ': weaponTier is not a tier');
-    if (!Number.isInteger(k.skillPlus) || k.skillPlus < 1) out.push(n + ': skillPlus is not a whole number above 0');
+    /* WHAT A HIT PAYS: a weapon key its weapons (and a +skill on them), an armor key its armor (and a lean between the two slots) */
+    if (k.gear === 'weapon') {
+      if (!Number.isInteger(k.skillPlus) || k.skillPlus < 1) out.push(n + ': skillPlus is not a whole number above 0');
+      if (k.helmetPm !== null || Object.keys(k.armor || {}).length) out.push(n + ': a weapon key with an armor lean or armor');
+    } else if (k.gear === 'armor') {
+      if (k.skillPlus !== 0 || Object.keys(k.weapons || {}).length) out.push(n + ': an armor key with a +skill or weapons');
+      if (!Number.isInteger(k.helmetPm) || k.helmetPm < 0 || k.helmetPm > 1000) out.push(n + ': helmetPm is not a whole permille 0..1000');
+      for (const [sw, item] of Object.entries(k.armor || {})) {
+        const [slot, weight] = sw.split(':');
+        if (!ARMOR_SLOTS.includes(slot) || !ARMOR_WEIGHTS.includes(weight)) out.push(n + ': ' + sw + ' is no armor slot and weight');
+        if (!ID.test(String(item))) out.push(n + ': its ' + sw + ' piece is not an item id');
+      }
+    } else out.push(n + ': gear is not weapon or armor');
     for (const f of ['cinders', 'saltsQty', 'foodQty']) if (!Number.isInteger(k[f]) || k[f] <= 0) out.push(n + ': ' + f + ' is not a whole number above 0');
     if (!ID.test(String(k.food)) || k.food === CINDERS) out.push(n + ': food is not an item id');
     if (!keySalts(k, materials)) out.push(n + ': no tempering tier at or under its weapon tier pays salts');
@@ -265,10 +335,11 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
          weapon is the rarer one (Tyler 2026-11-14's reversal), its tier and its +skill higher. */
       if (k.from <= prev.from) out.push(n + ': starts at or under ' + prev.id);
       if (k.weaponPm > prev.weaponPm) out.push(n + ': a better weapon chance than ' + prev.id + ' (the odds fall as keys rise)');
-      if (k.weaponTier < prev.weaponTier || k.skillPlus <= prev.skillPlus) out.push(n + ': its weapons are no better than ' + prev.id + '\'s');
+      if (k.weaponTier < prev.weaponTier || (k.gear === 'weapon' && k.skillPlus <= prev.skillPlus)) out.push(n + ': its weapons are no better than ' + prev.id + '\'s');
       if (k.cinders <= prev.cinders) out.push(n + ': no more Cinders than ' + prev.id);
+      if (k.gear !== prev.gear || k.helmetPm !== prev.helmetPm) out.push(n + ': pays another gear or lean than ' + prev.id + ', a key of its ground');
     }
-    prevOf[k.family] = k;
+    prevOf[k.family + ':' + k.ground] = k;
   }
   /* THE TOWER WEAPONS' OWN ROWS (tower-weapons.js): a key and a family each, one row a pair (the key's `weapons` map keeps only the last
      of two), an id no other row takes, a name and a line */
@@ -302,11 +373,15 @@ export function validateChests(keys = CHEST_KEYS, luck = CHEST_LUCK, landingEver
   return out;
 }
 
-/** What the `burning_tower` switch waits on before the chest can open anything: each key row whose seven weapons are not all named.
-    Not a load error: the server refuses such a key (`chest_not_ready`) and the climb still mints it. Pure. */
+/** The slot:weight pairs an armor key must carry to be ready (two slots x three weights). */
+export const ARMOR_KINDS = Object.freeze(ARMOR_SLOTS.flatMap((s) => ARMOR_WEIGHTS.map((w) => s + ':' + w)));
+
+/** What a key's switch waits on before the chest can open it: each key row whose gear is not all named (a weapon key's seven weapons, an
+    armor key's six pieces). Not a load error: the server refuses such a key (`chest_not_ready`) and its door still mints it. The Tower's
+    four by default (the burning_tower switch's own list); HEARTH_CHEST_KEYS for both families. Pure. */
 export function chestShipBlockers(keys = CHEST_KEYS) {
-  return keys.filter((k) => WEAPON_FAMILY_KEYS.some((f) => !(k.weapons || {})[f]))
-    .map((k) => k.name + ': ' + WEAPON_FAMILY_KEYS.filter((f) => !(k.weapons || {})[f]).join(', ') + ' not built');
+  const missing = (k) => (k.gear === 'armor' ? ARMOR_KINDS.filter((x) => !(k.armor || {})[x]) : WEAPON_FAMILY_KEYS.filter((f) => !(k.weapons || {})[f]));
+  return keys.filter((k) => missing(k).length).map((k) => k.name + ': ' + missing(k).join(', ') + ' not built');
 }
 
 const PROBLEMS = validateChests().concat(validateChestOutfits());
@@ -319,6 +394,9 @@ if (PROBLEMS.length) throw new Error('src/data/chests.js does not load: ' + PROB
 export const CHEST_ITEM_ROWS = Object.freeze({
   ...Object.fromEntries(CHEST_KEYS.map((k) => [k.item, Object.freeze({ n: k.name, v: 0, bop: true, type: 'key', tag: 'tower_key',
     towerKey: k.id })])),
+  /* a Catacomb key (the descent): bound the same way, its own tag so a window can tell the families apart; `chestKey` its key row */
+  ...Object.fromEntries(CATACOMB_KEYS.map((k) => [k.item, Object.freeze({ n: k.name, v: 0, bop: true, type: 'key', tag: 'catacomb_key',
+    chestKey: k.id })])),
   [CINDERS]: Object.freeze({ n: 'Hearth Cinders', v: 0, bop: true, tag: 'fuel' }),
   /* a super-rare outfit's bundle (CHEST_OUTFITS): tradeable (no `bop`: the board's "it trades, until someone wears it"), kept and never
      junk (tag cosmetic), its own book value; `outfit` names what using it gives */
@@ -357,6 +435,14 @@ export const CHEST_ITEM_DESC = Object.freeze({
   tower_key_silver: 'A Keeper\'s key from the Tower\'s middle landings. The chest on the ledge gives more for it',
   tower_key_gold: 'A Keeper\'s key from high up the Tower. The chest on the ledge gives a lot for it',
   tower_key_platinum: 'A key from the Tower\'s top landings, still warm. The chest on the ledge gives the most for it',
-  [CINDERS]: 'Embers from the Tower\'s own fire. Burn them in the Hearth, or stoke the chest with them for luck',
+  [CINDERS]: 'Embers from the Great Hearth. Every key at the chest pays some. Burn them in the Hearth, or stoke the chest with them for luck',
   sweeps_coat_bundle: 'Unlocks the Key Warden outfit for this hero',
+  /* the Catacomb keys (drafts, not through the reader gate): off Keeper Dunn's ring, a wing's door each */
+  ...Object.fromEntries(CATACOMB_KEYS.map((k) => {
+    const wing = k.helmetPm >= 500 ? 'the Bone Wing' : 'the Flooded Wing';
+    const what = k.helmetPm >= 500 ? 'Mostly helmets' : 'Mostly boots';
+    /* (no quote straight after the word that ends an import, as validateChests notes: tools/pack-edge.mjs reads a specifier up to the next quote) */
+    const where = { bronze: 'a door in ', silver: 'the middle doors of ', gold: 'the deep doors of ', platinum: 'the deepest doors of ' }[k.id.split('_').pop()];
+    return [k.item, 'Off Keeper Dunn\'s ring. He kept it at ' + where + wing + '. It opens the Hearth Chest once. ' + what];
+  })),
 });

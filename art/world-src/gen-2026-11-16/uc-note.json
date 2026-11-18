@@ -1,0 +1,40 @@
+{
+  "brief": "lane/a-catacomb-art (2026-11-16): the Unmarked Catacombs' five monsters (src/data/grounds/unmarked_catacombs/pack.js), bodies, clips and heads",
+  "tool": "create_object_pro_flash high top-down, palette hr-world-56-v2, style art/briefs/gen-2026-11-07/refs/style-glade-poacher-s-48.png (the Leech: refs/style-drain-rat-s.png, the drain rat's south cropped); n_directions 1 for the souths, then 8 from the kept south (rotation charge only); clips animate_object v3, 1 gen a facing (idle frame_count 8, the rest 6); heads create_1_direction_object, 64 candidates at 32 px",
+  "sample": {
+    "rule": "CLAUDE.md §10: the Shrouded Pauper and Keeper Dunn first (south + one idle), read in the real renderer before anything else ran",
+    "read": "tools/qa/region-kit.html on the Catacombs' map (the stand-in Sewer ground, cellar light), beside the Pyre Priest, the Grave Guard, the Cairn Wight, the Pyre Wraith, the drain rat and the hero (art/review/catacomb-art/sample-scene-full.png, sample-scene-crop-x2.png; gitignored). One outline weight, one shading, one scale with the shipped bodies: PASS, so the other three and every clip ran",
+    "souths": "uc-sample/souths/ (the sample's six candidates; the other nine in uc-bodies/souths/); idles uc-sample/<body>/idle/south (the 1-direction objects' own idle, kept as the record)"
+  },
+  "objects": {
+    "shrouded_pauper": "73682e97-0931-4a4f-b305-8098105d8f30 (south 163817d2, seed 102)",
+    "keeper_dunn": "6d53dcba-b582-4a30-9911-ac7eff01189f (south 333de20f, seed 203)",
+    "night_carter": "bd21ccf4-aef4-44f4-b8e9-db4fa6a8f24d (south b0a2be3e, seed 303)",
+    "vault_leech": "4b1488fb-a20d-4cf4-95e0-b223e5344584 (south ebd5708f, seed 402, canvas 40)",
+    "bone_wall": "2ef199d0-0607-4d22-b02d-ddce79a130e6 (south 5ebba705, seed 502, canvas 56)",
+    "heads": "ab2dc56b-60e2-48f6-a8d0-ca6409ef965a (review, 64 candidates: 0-11 pauper, 12-23 Dunn, 24-35 Carter, 36-49 leech, 50-63 Bone Wall)"
+  },
+  "souths": {
+    "shrouded_pauper": { "kept": "102: a grey-white sheet tied in a knot above the head and at the ankles, twine trailing; 41 px; ring 4.57:1 raw", "refused": { "101": "kept the tag hand but the head reads as a plain hood", "103": "a dark red stripe down the chest" } },
+    "keeper_dunn": { "kept": "203: a hooded dun habit, a pale bearded face, the candle raised, the wooden book, a ring of keys; 40 px", "refused": { "201": "the candle flame reads as a cross", "202": "the face lost in the hood" } },
+    "night_carter": { "kept": "303: a slouch hat, a grey cloth mask, a grey coat, the meat hook low, a rope coil on the shoulder, the lime sack at the belt; 41 px", "refused": { "301": "a green-black coat, the rope reads as an orange stripe", "302": "a mint glint on the hook, the face lost" } },
+    "vault_leech": { "kept": "402: a fat olive-black leech with ochre sides and a round toothed sucker; 37 px long", "refused": { "401": "thin, a worm", "403": "striped brown, reads as a snake" } },
+    "bone_wall": { "kept": "502: yellowed skulls in rows in grey lime on bone legs, the back a grey lime slab; 40 x 38 px", "refused": { "501": "loose, reads as a skeleton pile", "503": "a figure with shoulders, less wall" } }
+  },
+  "lift at import (ring on the stand-in floor, median 0.013: the Sewer's painted ground under the map's open tiles)": {
+    "shrouded_pauper": "0 (4.57 raw)", "keeper_dunn": "2 (1.59 -> 3.14)", "night_carter": "2 (1.46 -> 2.98 S E W; N 1.13 at any lift, his back is the shadow ramp)",
+    "vault_leech": "2 (1.46 -> 3.14, N 4.12)", "bone_wall": "1 (2.01-2.16 -> 2.98-3.14)",
+    "note": "re-measured on the vault family's own floor 2026-11-17 (gen-2026-11-17/vault-note.json): the lifts hold; the Night Carter's back lifts on into the stone greys (re-ported by the driver)"
+  },
+  "kept clips (uc-bodies/<body>/<clip>/<facing>/fNN.png, f00 the still)": "the facings and lays are tools/world-art/catacomb-clips.mjs; every refusal is named there in one line",
+  "refused clips (the pattern)": {
+    "swings": "the first roll of every humanoid's swing drifted: the Pauper into a man in a tunic, the Carter's hook into a pick or a hammer with sparks, Dunn turning to face the viewer; the words that held: 'he keeps facing the same way the whole time', 'seen from behind the whole time', 'only one hook in his one hand', 'no sparks, no glints, no light'",
+    "falls": "'falls flat' stood up in E/NW (Pauper), SW (Dunn), N (Carter), N three times (Bone Wall: a blue mist, legs splayed, standing); a baked shadow (Pauper W), a puddle and slime (Bone Wall N, NW); 'topples over stiffly like a felled post' and 'seen from behind' fixed most; the rest mirror or play a neighbour's fall (the Krell route)",
+    "the leech": "the first fall barely moved (a dead leech read as a live one): re-rolled 'rolls over onto its back, belly up, limp'"
+  },
+  "heads (uc-heads/picks/<id>.png)": {
+    "kept": { "shrouded_pauper": "07", "keeper_dunn": "14", "night_carter": "25", "vault_leech": "36, snapped to the leech's ramps at import (every leech candidate wore leaf greens)", "bone_wall": "59, snapped to the Bone Wall's ramps (the skulls came back gold)" },
+    "read": "x6 beside their bodies: each follows its body (the knot and twine, the hood and candle, the hat and mask, the toothed sucker, skulls in lime)"
+  },
+  "gens": "338 by this lane's tally: Pauper 70 (souths 15, sample idle 1, rotations 1, clips 53), Dunn 63 (15, 1, 1, 46), Carter 67 (15, 1, 51), Leech 66 (15, 1, 50), Bone Wall 62 (15, 1, 46), heads 10. Balance 8201 -> 7792 (409: another session ran jobs on the account at the same time). Credits $0 throughout"
+}

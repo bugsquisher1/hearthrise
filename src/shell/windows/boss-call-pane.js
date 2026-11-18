@@ -39,10 +39,10 @@ const minutesOf = (ms) => { const m = ms / 60000; return Number.isInteger(m) ? S
 
 /**
  * {Boss}, {boss} and {guard} (his adds shield him, or nothing) from the call; every number from `x`, the server's:
- * { fee, staminaMs, limitMs, n, stamina (ms), gold, covers, max, who, heroes }. A number the server has not said is left unfilled by the caller's choice of line.
+ * { fee, staminaMs, limitMs, n, stamina (ms), gold, covers, max, who, heroes, have, need }. A number the server has not said is left unfilled by the caller's choice of line.
  * @param {string} line
- * @param {{Boss: string, boss: string, monster: string}} call
- * @param {{fee?: number, staminaMs?: number, limitMs?: number, n?: number, stamina?: number, gold?: number, covers?: number, max?: number, who?: string|null, heroes?: number}} [x]
+ * @param {{Boss: string, boss: string, monster: string, of: string}} call
+ * @param {{fee?: number, staminaMs?: number, limitMs?: number, n?: number, stamina?: number, gold?: number, covers?: number, max?: number, who?: string|null, heroes?: number, have?: number, need?: number}} [x]
  */
 export function callWords(line, call, x = {}) {
   const fill = (s, k, v) => (v === undefined || v === null ? s : s.replace('{' + k + '}', v));

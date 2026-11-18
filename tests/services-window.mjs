@@ -381,7 +381,7 @@ const MUTANTS = [
   ['the row hides what it takes (SV-8)', 'src/shell/windows/temper-pane.js', "      text(li.querySelector('.hw-temper-need'), needWords(r.needs));\n", ''],
   ['the way is not said (SV-8)', 'src/shell/windows/temper-pane.js', "  patchParts(root.querySelector('.hw-temper-way'), all ? wayParts([all.blows, all.armor]) : []);\n", ''],
   /* the re-read after a refusal is the session's (A20): one rule for every hero's ask, character-session.js _settled */
-  ['a refused sale never re-reads (SV-8)', 'src/session/character-session.js', "    if (!(restated && this._take(restated, 'load')) && refusedByServer(ans)) await this.resync();\n", ''],
+  ['a refused sale never re-reads (SV-8)', 'src/session/character-session.js', "    if (!(restated && this._take(restated, 'load'))) await afterRefusal(this, ans);\n", ''],
   ['short of gold stays on (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || itemsShort ||"],
   ['the top of a ladder can be pressed (SV-7)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short ||", "prop(btn, 'disabled', !!short ||"],
   ['the answer sticks to the sheet\'s foot again (SV-9)', 'src/styles/windows.css', '.hw-temper-msg { margin: 6px 0 0;', '.hw-temper-msg { position: sticky; bottom: 0; margin: 6px 0 0;'],

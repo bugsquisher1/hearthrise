@@ -11,6 +11,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
 import { refusalOf } from './refusal.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 
 const VERB = 'hunt_target_kind_set';
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -23,6 +24,7 @@ export function setTargetKind(account, cs, hunt, kind) {
     const ans = await account.server.rpc('hr_hunt_target_kind_set', { p_slot: cs.slot, p_hunt: hunt, p_kind: kind, p_idem: globalThis.crypto.randomUUID() });
     const body = ans && ans.body && typeof ans.body === 'object' ? ans.body : null;
     if (!(ans && ans.ok && body && body.ok === true)) {
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       const r = refusalOf(ans || {});
       return Object.assign(r, { verb: r.verb || VERB });
     }

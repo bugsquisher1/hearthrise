@@ -45,7 +45,8 @@ import { AskPacer } from './ask-pacer.js?v=0.2.140';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.140';
 import { ReadGate } from './read-gate.js?v=0.2.140';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.140';
-import { refusalOf, refusedByServer, settleRefusalOf } from './refusal.js?v=0.2.140';
+import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { catchUpLink, newIdem } from './catch-up.js?v=0.2.140';
 import { pageAway } from './page-away.js?v=0.2.140';
 import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.140';
@@ -454,16 +455,15 @@ export class CharacterSession {
   /* ONE ASK, tracked (intent-ledger.js) from the send to the re-read envelope: the press shows it in flight (press-ack.js). */
   _ask(verb, send, carries) { return this.intents.track(verb, async () => this._settled(await send(), carries === true)); }
 
-  /* An intent's answer: on ok the server's result (`carries`: the engine's body IS the whole envelope; else re-read, resync'd if that
-     did not land). REFUSED (A20, two tabs: the screen was behind): a refusal carrying the whole character is the record (envelope.js E7);
-     any other the server answered re-reads ONCE (read-gate.js); no answer, a closed door or a rate limit reads nothing (refusal.js). */
+  /* An intent's answer: on ok the server's result (`carries`: the engine's body IS the whole envelope; else re-read, resync'd if that did not
+     land). REFUSED (A20): a refusal carrying the whole character is the record (envelope.js E7), else the one rule (quoted-ask.js afterRefusal). */
   async _settled(ans, carries) {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
     if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }
     const restated = carries ? refusalEnvelope(ans.body) : null;
-    if (!(restated && this._take(restated, 'load')) && refusedByServer(ans)) await this.resync();
+    if (!(restated && this._take(restated, 'load'))) await afterRefusal(this, ans);
     return refusalOf(ans);   // the server's detail (slot, condition, field, item) back to the editor as sent
   }
 

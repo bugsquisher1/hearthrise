@@ -25,7 +25,7 @@ import { characterSheetOf, outfitOf } from '../../../session/character-sections.
 import { heroSprite } from '../../../session/hero-look.js?v=0.2.137';
 import { attr, cls, prop } from '../../../render/paint.js?v=0.2.137';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.137';
-import { outfitArt, outfitMasks, drawOutfit } from '../../../render/outfit-sprite.js?v=0.2.137';
+import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.137';
 import { scratchOf } from './state.js?v=0.2.137';
 import { sheetHtml, patchSheet } from './sheet.js?v=0.2.137';
 import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.137';
@@ -34,6 +34,7 @@ import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.137';
 import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js?v=0.2.137';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['faction', FACTION_TAB], ['deaths', 'Deaths']]);
+/* The portrait and the wardrobe draw the FIGURE at art size; character.css sets them 2 whole device px an art px (--art-px). */
 const PORTRAIT_SCALE = 1;
 
 /* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in), and the color masks (null: the outfit draws as it is). */
@@ -74,11 +75,11 @@ function askSheet(cs, sc) {
 }
 
 /* Draw `sprite` into a canvas once per (sprite, facing, dyes): the canvas keeps its signature. */
-function paintCanvas(canvas, sprite, dir, scale, dyes) {
+function paintCanvas(canvas, sprite, dir, scale, dyes, crop) {
   if (!ART || !canvas) return;
-  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + !!MASKS;
+  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + !!MASKS + '|' + !!crop;
   if (canvas.getAttribute('data-sig') === sig) return;
-  if (drawOutfit(canvas, ART, sprite, { dir, scale, dyes, masks: MASKS })) attr(canvas, 'data-sig', sig);
+  if (drawOutfit(canvas, ART, sprite, { dir, scale, dyes, masks: MASKS, crop })) attr(canvas, 'data-sig', sig);
 }
 
 renderCharacter.patch = function patchCharacter(body, ctx) {
@@ -95,12 +96,12 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   askSheet(cs, sc);
   if (sc.tab === 'sheet') {
     const base = (outfitOf(cs) || {}).base || null;
-    patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(base, ctx.doc)), sc.opening === 'done');
+    patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');
   } else if (sc.tab === 'outfit') {
     const d = draftOf(cs, sc);
     /* every outfit in the grid and the big preview wear the colors being tried on: one set, across every outfit */
     const dyes = dyesOf(colorsShown(cs, d), ctx.doc);
-    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes), () => renderCharacter.patch(body, ctx));
+    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, FIGURE), () => renderCharacter.patch(body, ctx));
     paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyes);
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
   else if (sc.tab === 'faction') patchFaction(body, ctx, sc);

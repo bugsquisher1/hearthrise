@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-18",
- "replay_ms": 129838,
+ "replay_ms": 65675,
  "counts": {
-  "tracked_names": 950,
-  "entries": 802
+  "tracked_names": 952,
+  "entries": 804
  },
  "functions": [
   {
@@ -2377,17 +2377,18 @@
     "2027-03-12-boss-call.sql",
     "2027-03-22-live-events.sql",
     "2027-04-05-call-out-alone.sql",
-    "2027-04-24-boss-call-series.sql"
+    "2027-04-24-boss-call-series.sql",
+    "2027-05-05-entry-gates.sql"
    ],
    "live": {
-    "md5": "3228bc77baba81415ef0cb5722d12afb",
-    "norm_len": 6134,
+    "md5": "d1bbad7fe47d89ccd953b9aab755a578",
+    "norm_len": 7647,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3228bc77baba81415ef0cb5722d12afb",
-    "norm_len": 6134,
+    "md5": "d1bbad7fe47d89ccd953b9aab755a578",
+    "norm_len": 7647,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2620,6 +2621,29 @@
    "replay": {
     "md5": "840bd2d8fcb9a72d8b8f6b173037b82e",
     "norm_len": 4656,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_boss_wins(p_user uuid, p_slot integer, p_boss text)",
+   "name": "hr_boss_wins",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-05-entry-gates.sql"
+   ],
+   "live": {
+    "md5": "8d9555cbf9afc6c0ce590b2f65a6b4f6",
+    "norm_len": 453,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "8d9555cbf9afc6c0ce590b2f65a6b4f6",
+    "norm_len": 453,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -4989,6 +5013,29 @@
    "replay": {
     "md5": "117e20d080197a60664282bc239a2e46",
     "norm_len": 481,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_entry_gates_view(p_user uuid, p_slot integer)",
+   "name": "hr_entry_gates_view",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-05-entry-gates.sql"
+   ],
+   "live": {
+    "md5": "a87c053ada3b2b870fae3d5ed8e3b18c",
+    "norm_len": 2486,
+    "measured": "2026-11-18",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a87c053ada3b2b870fae3d5ed8e3b18c",
+    "norm_len": 2486,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -16918,17 +16965,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-24-tower-climb.sql"
+    "2027-04-24-tower-climb.sql",
+    "2027-05-05-entry-gates.sql"
    ],
    "live": {
-    "md5": "3f48c0a223134a17a2912846ea703455",
-    "norm_len": 6516,
+    "md5": "15c452e5c51d9d029b0e5c949d9c5160",
+    "norm_len": 8098,
     "measured": "2026-11-18",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3f48c0a223134a17a2912846ea703455",
-    "norm_len": 6516,
+    "md5": "15c452e5c51d9d029b0e5c949d9c5160",
+    "norm_len": 8098,
     "source": "computed-from-replay"
    },
    "agree": true

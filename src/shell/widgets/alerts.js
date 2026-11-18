@@ -48,7 +48,8 @@ function alertRow(ctx) {
 }
 
 renderAlerts.patch = function patchAlerts(el, ctx) {
-  const list = ctx.alerts ? ctx.alerts.list().slice(0, ALERTS_SHOWN) : [];
+  /* "While you were away" is its own card (windows/away.js, UI audit 2026-11-18 #2), never a line here */
+  const list = ctx.alerts ? ctx.alerts.list().filter((a) => a.kind !== 'away').slice(0, ALERTS_SHOWN) : [];
   cls(el.querySelector('.hw-alerts'), 'is-empty', !list.length);
   text(el.querySelector('.hw-alerts-more'), list.length > 1 ? (list.length - 1) + ' more' : '');
   rows(el.querySelector('.hw-alert-list'), list, {

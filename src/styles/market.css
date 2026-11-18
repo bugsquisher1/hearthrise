@@ -96,6 +96,12 @@
 .hw-mk-invite { display: none; flex: 1; min-height: 0; overflow-y: auto; flex-direction: column; align-items: flex-start; justify-content: safe center; gap: 10px; padding: 20px 24px; background: var(--fill-1); border: 2px solid var(--steel-edge); }
 .hw-mk-invite.is-on { display: flex; }
 .hw-mk-invite-p { margin: 0; max-width: 52ch; line-height: 1.45; color: var(--ink); }
+.hw-mk-invite [hidden], .hw-mk-browse > [hidden] { display: none; }
+/* The build fund while Havora's Works raises the Weighhouse (browse.js emptyOf): the skill ledger's bar, the server's two numbers in gold. */
+.hw-mk-fund { display: none; align-items: center; gap: 10px; width: min(100%, 420px); }
+.hw-mk-fund.is-on { display: flex; }
+.hw-mk-fund .hw-skill-bar { flex: 1; min-width: 96px; height: 6px; }
+.hw-mk-fund-n { flex: none; font-size: var(--t-small); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-mk-none { display: none; flex-direction: column; align-items: flex-start; gap: 8px; }
 .hw-mk-none.is-on { display: flex; }
 .hw-mk-book { overflow: auto; }

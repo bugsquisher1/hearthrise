@@ -398,9 +398,11 @@ function standingOf(map, book, tables, T) {
  * @param {object} book      createBook()
  * @param {{hero: {x:number,y:number}|null, name?: string, title?: string|null, roofAlpha?: object, t?: number,
  *          units?: object[], props?: object[], bubbles?: object[], mark?: {x:number,y:number}|null, objectSwap?: Object<string, string>|null,
- *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, bumpSeed?: number, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[]}} state
+ *          stillIdle?: boolean, ambientHide?: Object<string, boolean>|null, bumpSeed?: number, marks?: {kind: string, tiles?: number[][], x?: number, y?: number, fill: number, alpha: number}[],
+ *          lifeTint?: object|null}} state
  *                           hero in tile coords (fractional while moving); t = ms clock for idle clips; stillIdle: idle clips hold frame 0;
- *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js)
+ *                           marks: a hunt's danger marks (src/hunt-view/spell-marks.js), drawn on the ground under every actor (mark-shapes.js);
+ *                           lifeTint: the Great Hearth's smoke under the server's flame (hearth-burn.js, core/ambient.js lifeDraws)
  * @param {{ox:number, oy:number, w:number, h:number}} view  compose region, art px
  * @param {{materials: object}} tables
  */

@@ -317,7 +317,8 @@ async function runTests(mods) {
     /* RISE (Coordinator review 2026-11-17, Hunt prep at 1518x845): a docked window rises over the bar on a short World only; a row with rise
        does whenever its content needs more than the dock leaves, and never when it fits */
     eq([WM.overBar(526, 575), WM.overBar(526, 575, true), WM.overBar(526, 500, true), WM.overBar(440, 575), WM.overBar(Infinity, 575, true)], [false, true, false, true, false], 'who rises over the bar');
-    eq(SW.filter((r) => r.rise).map((r) => r.id), ['hunt-prep'], 'the windows that rise over the bar whenever they need it');
+    /* + the away card and the hunt summary (UI audit 2026-11-18 #1, #2: the end card opened at 404 px of its 1,194, its numbers under the fold): each grows to its content */
+    eq(SW.filter((r) => r.rise).map((r) => r.id), ['hunt-prep', 'away', 'hunt-summary'], 'the windows that rise over the bar whenever they need it');
   });
   /* With Back, ?, key and Close the band's controls leave a 380 window's title 133 px. Cinzel at .12em set "Gathering and crafting" on THREE
      lines there (v0.2.124); at .04em it takes two (measured 1280, 1440). Widening instead breaks the Party pairing (W18). Two lines, never three. */
@@ -1224,7 +1225,10 @@ const MUTANTS = [
   { test: 'W17', file: 'src/shell/window-manager.js', from: '(rise || cap < DOCK_ROOM_PX)', to: '(cap < DOCK_ROOM_PX)' },
   { test: 'W17', file: 'src/data/shell-windows.js', from: 'over: true, rise: true,', to: 'over: true,' },
   /* W17-W21: one window header (lane/b-window-header) */
-  { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }' },
+  /* `also`: the narrow window with a long name the rule is for (v0.2.124's "Gathering and crafting", whose band says "Skills" since v0.2.138):
+     with none in the tree the rule has nothing to hold, so the plant brings its case back with its defect */
+  { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }',
+    also: [{ file: 'src/data/shell-windows.js', from: "label: 'Gathering and crafting', title: 'Skills',", to: "label: 'Gathering and crafting'," }] },
   { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },
   { test: 'W17', file: WH_FILE, from: "    + (help ? '<button type=\"button\" class=\"hs-help\"", to: "    + (false ? '<button type=\"button\" class=\"hs-help\"" },
   { test: 'W17', file: WH_FILE, from: "  const key = row.key && !row.noShortcut && !touch ?", to: '  const key = row.key ?' },
@@ -1333,10 +1337,10 @@ const MUTANTS = [
   { test: 'R3', file: 'src/shell/away-recap.js', from: 'xp: lv.xp, lv: lv.level,', to: 'xp: lv.xp,' },
   /* N6 (QA audit 2026-11-18): a week reads in days, and the hunt "ended ... ago" */
   { test: 'R3', file: 'src/shell/after-hunt.js', from: '  if (ms > SPAN_DAYS_OVER_MS) return', to: '  if (false) return' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: "t('away.card_ended_ago', { time: ago })", to: "t('away.card_ended') + ' ' + ago" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "t('away.card_ended_ago', { time: f.ago })", to: "t('away.card_ended') + ' ' + f.ago" },
   { test: 'R3b', file: 'src/shell/away-work.js', from: 'const from = Number.isSafeInteger(was.sl) && was.sl >= 1 ? was.sl : null;', to: 'const from = sk.level - 1;' },
   { test: 'R3b', file: 'src/shell/away-work.js', from: '{ sx: sk.xp, sl: sk.level }', to: '{ sx: sk.xp }' },
-  { test: 'R3', file: 'src/shell/away-recap.js', from: "stamina ? ' Still hunting, with ' + stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },
+  { test: 'R3', file: 'src/shell/away-recap.js', from: "f.stamina ? ' Still hunting, with ' + f.stamina + ' of stamina left.' : ' Still hunting.'", to: "' Still hunting.'" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "(cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS", to: "(STAMINA_WORDS" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "|| STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')", to: "|| END_WORDS[h.endReason] || '')" },
   { test: 'R3', file: 'src/shell/away-recap.js', from: "return r.back === session ? false :", to: "return" },
@@ -1359,12 +1363,12 @@ const MUTANTS = [
   { test: 'R6', file: 'src/shell/alerts.js', from: '&& GEAR_TYPES.has(ITEMS[l.item].type))', to: ')' },
   { test: 'R6', file: 'src/shell/alerts.js', from: '    for (const id of ids) was.ids.add(id);\n', to: '' },
   { test: 'R3y', file: 'src/shell/away-recap.js', from: '  const yard = trainingPhrase(h.huntId);', to: '  const yard = null;' },
-  { test: 'R3y', file: 'src/shell/away-recap.js', from: "  if (trainedBy(h.huntId)) {\n    if (!h.ended) return ' ' + t('training.away_still');", to: "  if (false) {\n    if (!h.ended) return ' ' + t('training.away_still');" },
-  { test: 'R3y', file: 'src/shell/away-recap.js', from: "    if (!h.ended) return ' ' + t('training.away_still');\n", to: '' },
+  { test: 'R3y', file: 'src/shell/away-recap.js', from: "  if (trainedBy(h.huntId)) return { training: true,", to: "  if (false) return { training: true," },
+  { test: 'R3y', file: 'src/shell/away-recap.js', from: "    if (!f.ended) return ' ' + t('training.away_still');\n", to: '' },
   { test: 'R3y', file: 'src/shell/alerts.js', from: '  if (trainedBy(h.huntId)) {\n    if (h.ended) out.push', to: '  if (false) {\n    if (h.ended) out.push' },
   { test: 'R3y', file: 'src/shell/alerts.js', from: "    return out;\n  }\n  const where = huntName(h.huntId);", to: "  }\n  const where = huntName(h.huntId);" },
   { test: 'R3y', file: 'src/shell/training-words.js', from: "  if (last.reason === 'gold_out') return t('training.ended_gold_out');\n", to: '' },
-  { test: 'R3c', file: 'src/shell/away-recap.js', from: "      + then + (stamina ? ' Stamina now: '", to: "      + (stamina ? ' Stamina now: '" },
+  { test: 'R3c', file: 'src/shell/away-recap.js', from: "' ' + f.why + then + (f.stamina ? ' Stamina now: '", to: "' ' + f.why + (f.stamina ? ' Stamina now: '" },
   { test: 'R3c', file: 'src/shell/away-recap.js', from: "const ago = h.ended && !waited && ", to: 'const ago = h.ended && ' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: 'Math.abs(since - home) <= SAME_MS', to: 'true' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (Number.isFinite(since) && since > home + MOVED_AFTER_MS) return null;", to: '' },
@@ -1394,10 +1398,12 @@ async function selftest() {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true, filter: (s) => !skip.has(s) });
       mkdirSync(join(base, 'src/styles'), { recursive: true });
       cpSync(join(ROOT, 'src/styles/shell.css'), join(base, 'src/styles/shell.css'));
-      const p = join(base, m.file);
-      const src = readFileSync(p, 'utf8');
-      if (!src.includes(m.from)) throw new Error('selftest: anchor for ' + m.test + ' not found in ' + m.file);
-      writeFileSync(p, src.replace(m.from, m.to));
+      for (const q of [m, ...(m.also || [])]) {
+        const p = join(base, q.file);
+        const src = readFileSync(p, 'utf8');
+        if (!src.includes(q.from)) throw new Error('selftest: anchor for ' + m.test + ' not found in ' + q.file);
+        writeFileSync(p, src.replace(q.from, q.to));
+      }
       const fails = await runTests(await load(base));
       if (!fails.some((f) => f.startsWith(m.test + ' '))) { console.error('  MISSED: ' + m.test + ' stayed green with its defect planted (' + m.file + ')'); process.exit(1); }
       caught++;

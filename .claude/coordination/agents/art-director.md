@@ -1,5 +1,40 @@
 # Art Director — running log
 
+## 2026-11-18 - Configure action: the list gets the height (lane/b-ui-configure, from v0.2.137, UI audit #7)
+
+Tyler: the Configure action UX must be immaculate. Three named problems, today's structure and tabs kept:
+- **Phone 922x423, 0 rows -> 3 in town (2 in a hunt).** The sentence runs on one line (the action, its first condition, "+ Add a
+  condition"; `.ca-conds` display: contents in a row-wrap flex), each select as wide as its word (`field-sizing: content`), the
+  run's name heads its name column (Food, Drink) instead of its own h3 line, and "g per HP, cheapest first" became "g per HP" (it
+  stood four lines tall; the bold column shows the order).
+- **Desktop: no head or cell wraps.** Window 800 -> 880; the list takes the width the detail leaves (detail clamp(232px, 28%, 320px));
+  number columns sized for GitHub's fallback faces, not Alegreya (the rules draw DejaVu: "1 Rupture rune" 137 px vs 112 real). The
+  empty slot's details pane says "Pick a spell to see what it does" (by tab). A spell's target label stands on its own line ("Hits
+  the target Deals 6-10" ran together).
+- **A lock names its need** under the row's name: the first thing that stops it, as the bar's refusal orders it (action-facts.js
+  rowNeed: the weapon words, else "Melee 10" from the server's skills). A spell under its `unlock` level is now locked too, like ammo.
+Lessons: (1) the page guards measure with pinned fallback faces (tests/_test-fonts.mjs): size a column on the test's widths, the real
+font only shows slack; (2) PH-1's old "heads on one line" check compared each head to the row of heads, which grows with a wrapped head,
+so it never saw the four-line head: measure each cell against its own font size; (3) in a hunt the phone sheet starts under the hunt
+bar, 44 px lower than town: test both; (4) a configure-action.js `t` would shadow act()'s element parameter (text-home TH-5): put the
+words in action-table.js and pass them through; (5) custom properties outside tokens.css fail token-single-source: inline the px.
+## 2026-11-18 - the result first (lane/b-ui-result-cards, from v0.2.137 99511ead1)
+
+UI audit #1 (the end card led with chores, its numbers under the fold) and #2 (the return was a paragraph at the left edge).
+Lessons worth keeping:
+
+- **Check the data before drawing the line.** "Level 9 → 10" had no server source: no session stores the Level it began at,
+  and a level worked out from XP on the client is the class lane/c-level-from-server closed. The answer was a second server
+  answer, the away recap's own pattern: a residue stamp (`huntStart`) of the server's Level and skill levels while the
+  session has paid nothing (`atStart`), compared at the end. A page that first meets a hunt mid-way names only the Level it
+  ended at. A server `level_from` on the session would be cleaner; that is a lane C for the backend.
+- **A shared block, not a shared card.** `src/shell/result-block.js` (Level line + three figures) serves the end card and
+  the away card; each surface keeps its own why line and presses. No box: one rule over the figures and one under.
+- **A pseudo-element arrow is invisible to innerText** ("Level 15" for 1 → 5): the arrow is a text row now.
+- **Grid `gap` is both gaps.** A flex row's `gap: 10px` became a 10 px row gap when the loot cell turned grid.
+- **A docked window hides the HUD widget under it**, so a world test that reads the analyzer must close the card first.
+- **Moving a surface moves its tests' samples:** HR-6 used the away line as its sample alert; it is a party invite now.
+
 ## 2026-11-16 - whole device px at 125 % and 150 % (lane/a-visual-audit, from main v0.2.133)
 
 Tyler: blurry and grainy at Windows display scaling. Lessons worth keeping:
@@ -3655,6 +3690,31 @@ rises over the bar whenever it needs the room, the way 1280 and 1366 already did
 clip the live hero shows (different fonts, weapon, setups): make the measuring rule strict enough that today's layout is red there
 too; (8) shell.js sits at the module-size cap: carry a row flag as a frame class, not a new line.
 
+## 2026-11-18 lane/b-ui-character (Tyler: "Let's start working on the UI improvements", UI audit 2026-11-18 #8 + fix list)
+Five windows, today's type, colors and chrome kept. (1) CHARACTER SHEET: the portrait is the hero's FIGURE (outfit-sprite.js
+FIGURE, the 42x45 art px of the 64 px frame every idle facing stands in, measured x 15..53 y 17..58) drawn at art size and set
+calc(42 * var(--art-px)) wide, so 2 whole device px an art px at 100/125/150 %; vitals in one column beside the identity; a
+combat skill is three rows on the sheet (name, XP to go, Level / a 6 px bar across the entry / ONE unlock "Lv 15: Scored Earth
+Rune +5 more", all of them with their kinds on the pointer and in full on keyboard focus: skill-unlocks.js nextUnlocks,
+skills.js unlockLine); a stat value is a number and unit ("69%", "3.2 tiles/s"), what it is measured against is its tooltip;
+skills column 1.4fr. Whole at 1440x900 (CW-10). (2) OUTFIT: a wardrobe, one sunk rack, figures at the portrait's scale, three
+to a row, captions not cards ("Premium"; the not-owned reason on the pointer), search and "Owned only" on one row.
+(3) CHARACTER SELECT: each row shows the hero's figure (roster-faces.js from AccountSession.roster rows' `look`); the slot offer
+is a flex row, gold and short lines nowrap, the press wraps under them. (4) GATHERING AND CRAFTING: the band says "Skills" (the
+window can't widen: it docks beside Party 440 inside 60% of a 1440 World, shell-core W18 + window-camera WC-3); a recipe is a
+genre row: output icon with its yield count in the corner, input chips with icon and count, one numbers line that breaks only
+between its parts, "Lv N" by Start, the status line. (5) WEIGHHOUSE: browse.js emptyOf: open and empty says what goes here and
+offers List an item; being built says what it will be, the Works' fund as a bar, and Go to Works (a goto link); search and
+categories hide while closed; the state line is "Being built: 125,000 / 1,000,000 gp".
+Lessons: (1) a 2x pixel figure sizes in --art-px, never 2 CSS px (2.5 device px at 125 %): draw at art size, let CSS set whole
+device px; (2) crop a sprite frame to the union of its art in EVERY facing (an east-facing sword reached x 53 the s/e scan
+missed) and pin the crop with a test that scans every frame; (3) a window's width is not free: the dock pairs cap Gathering
+near 400, so a long title is fixed by its words; (4) the characters screen sits under the town-sheet guards (client-boot B-14
+only the town's sheets, B-15 no sheet before the manifests or after sign-out): a portrait there loads the heroes manifest
+first, checks the list is still in the page, draws undyed, and loads the color masks only when a hero on the list has colors,
+as the World does (a portrait without them read red-plumed beside a blue-plumed hero in town); (5) new player words under
+src/shell go in src/data/text/* through t() or text-home TH-1 is red; (6) `hidden` loses to an author `display` rule: a pane
+that hides children by attribute needs its own `[hidden] { display: none }`.
 ## 2026-11-17 lane/fix138-hearth-chest-big (Tyler: the chest "more 'special' ... low glow ... black / green smoke ... bigger"; "bump slightly open"; then the Great Hearth redraw and "a bit more flamey")
 Phase 1, the chest (45 Coordinator gens): imp-s13 shut (gold third lock, chain, the Keepers' sun), bump-s3 peak, open-s7 open with the shut
 box spliced below its seam. tower-art.mjs: locks poured onto LOCKS by VALUE inside each padlock's body rect (no outline, no green, nothing as

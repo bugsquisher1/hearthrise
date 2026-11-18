@@ -11,8 +11,18 @@ export const SHOP_TEXT = Object.freeze({
   /* The Market window (src/shell/windows/market/index.js) while trading is off AND Havora's Works is still raising the building the
      Market is named for: the Works' own story, with its numbers from the server, and where to give (audit 2026-11-15 F19: the Market
      read "isn't trading right now", an outage, while the Works said it was being built). Two facts side by side, no promise of when. Labels (Tyler 2026-11-14). */
-  market_being_built: '{building} being built: {total} of {goal} gp (give in Havora > Works)',
-  market_listings_safe: 'Your listings are safe (you can take them back)',
+  /* While Havora's Works still raises the Weighhouse: the window's one-line state (and a closed press's reason), and its Browse page's
+     empty state, which says what the place is for and where it is built (UI audit 2026-11-18: one long sentence, and nothing under it). */
+  market_fund: 'Being built: {total} / {goal} gp',
+  market_unbuilt_head: 'Not open yet',
+  market_unbuilt_body: 'Once it\'s built, players list items here and buy each other\'s for gold. Everyone in town builds it together at Havora > Works.',
+  market_fund_given: '{total} / {goal} gp given',
+  market_to_works: 'Go to Works',
+  market_closed_head: 'Closed for now',
+  market_closed_body: 'Trading is paused. Your listings are safe, and you can take them back from My listings.',
+  /* Open, with nothing for sale: what goes here and how to put something up. */
+  market_empty_head: 'The scales are empty',
+  market_empty_body: 'Nothing is for sale yet. Players list items here and buy each other\'s for gold. List something from your bag or Storage to start.',
   /* What a seed still needs before it can be planted: the hero's Farming and the account's plot tier, from the server. */
   seed_needs_farming: 'Needs Farming {level} to plant',
   seed_needs_tier: 'Needs plot tier {tier} to plant',

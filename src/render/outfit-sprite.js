@@ -17,6 +17,12 @@ import { recolourPixels, loadMasks } from '../world/hero-dye.js?v=0.2.137';
 const SET = 'heroes';
 let ART = null;
 
+/* THE FIGURE: the part of a 64 px hero frame a portrait shows, [x, y, w, h] (lane/b-ui-character 2026-11-18). Every style-1
+   outfit's idle, in every facing, stands inside x 15..53, y 17..58 (anchor 32,58; a sword held out to the east), so this 42 x 45
+   box holds the whole hero, the one facing a portrait shows (s, x 15..51) a px off its middle, and the empty px round it are never
+   drawn at twice their size. tests/character-window.mjs CW-10 proves no outfit paints outside it. */
+export const FIGURE = Object.freeze([13, 15, 42, 45]);
+
 /** The `heroes` art set, loaded once: Promise<{manifest, image}> (rejects when it cannot load). */
 export function outfitArt(doc, version) {
   if (!ART) ART = loadAtlasSet({ doc, version }, SET).catch((e) => { ART = null; throw e; });
@@ -31,8 +37,9 @@ export const outfitMasks = loadMasks;
  * @param {HTMLCanvasElement} canvas
  * @param {{manifest: object, image: HTMLImageElement}} art
  * @param {string} sprite
- * @param {{dir?: string, scale?: number, dyes?: (string|null)[], masks?: {manifest: object, image: HTMLImageElement}|null}} [o]
- *   dyes: per BASE_REGIONS index, a colour or null; masks: outfitMasks' answer, when it has landed
+ * @param {{dir?: string, scale?: number, dyes?: (string|null)[], masks?: {manifest: object, image: HTMLImageElement}|null, crop?: readonly number[]}} [o]
+ *   dyes: per BASE_REGIONS index, a colour or null; masks: outfitMasks' answer, when it has landed;
+ *   crop: [x, y, w, h] of the frame to draw (FIGURE for a portrait), else the whole frame
  * @returns {boolean} false when the sprite or facing is not in the art set
  */
 export function drawOutfit(canvas, art, sprite, o) {
@@ -45,8 +52,9 @@ export function drawOutfit(canvas, art, sprite, o) {
   const scale = Math.max(1, Math.floor(opt.scale || 1));
   const [fw, fh] = row.frame;
   const [sx, sy] = at[0];
-  if (canvas.width !== fw * scale) canvas.width = fw * scale;
-  if (canvas.height !== fh * scale) canvas.height = fh * scale;
+  const [cx, cy, cw, ch] = Array.isArray(opt.crop) && opt.crop.length === 4 ? opt.crop : [0, 0, fw, fh];
+  if (canvas.width !== cw * scale) canvas.width = cw * scale;
+  if (canvas.height !== ch * scale) canvas.height = ch * scale;
   const g = canvas.getContext('2d');
   g.imageSmoothingEnabled = false;
   g.clearRect(0, 0, canvas.width, canvas.height);
@@ -54,7 +62,7 @@ export function drawOutfit(canvas, art, sprite, o) {
   const masks = opt.masks || null;
   const maskRow = dyes.some(Boolean) && masks ? masks.manifest.sprites[sprite + '_mask'] : null;
   const mAt = maskRow && maskRow.anims && maskRow.anims.idle && (maskRow.anims.idle.dirs[dir] || maskRow.anims.idle.dirs.s);
-  if (!mAt) { g.drawImage(art.image, sx, sy, fw, fh, 0, 0, fw * scale, fh * scale); return true; }
+  if (!mAt) { g.drawImage(art.image, sx + cx, sy + cy, cw, ch, 0, 0, cw * scale, ch * scale); return true; }
   /* Recolour at art size, then scale the result up by whole pixels. */
   const doc = canvas.ownerDocument;
   const tmp = doc.createElement('canvas');
@@ -67,6 +75,6 @@ export function drawOutfit(canvas, art, sprite, o) {
   const mask = t.getImageData(0, 0, fw, fh).data;
   recolourPixels(pix.data, mask, dyes);
   t.putImageData(pix, 0, 0);
-  g.drawImage(tmp, 0, 0, fw, fh, 0, 0, fw * scale, fh * scale);
+  g.drawImage(tmp, cx, cy, cw, ch, 0, 0, cw * scale, ch * scale);
   return true;
 }

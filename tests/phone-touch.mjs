@@ -8,7 +8,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js
+// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js
 // mutant-writes-tree: no — page mutants are served overrides
 // mutant-rule-functions: bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor barBesideSheet rules
 // mutant-runner-functions: main
@@ -20,7 +20,13 @@
 //        inside the sheet until its LAST row is on screen and pressable, while Save, Cancel and the close stay
 //        on screen and pressable; a new tab's list starts at its first row; the column heads sit over their own
 //        columns (the head's cells line up with the rows' cells, none wraps to a second line); the page itself
-//        never pans sideways
+//        never pans sideways. THE LIST GETS THE HEIGHT (UI audit 2026-11-18: at 922x423 the list showed its heads and
+//        no row): before any scroll the action and its first condition stand on one line and whole rows show under
+//        the heads (3 at 922x423, 2 at 844x390, 1 at 667x375); no head or cell wraps or runs past its column.
+//        On a desktop (1440x900, the same audit): on every tab no head or cell wraps or runs past its column ("1 Fire
+//        rune" stood on two lines); every locked row names what it needs under its name and an open one names nothing,
+//        from the server's discipline and skills: a Shield hero's Hunter's Mark needs its weapons, a Sword hero at
+//        Melee 9 sees Turning Cut need "Melee 10", and at the server's Melee 10 it opens
 //   PH-2 HUNT DETAILS IS A TOGGLE, THE ANALYZER CLOSES, AND NEITHER TRAPS THE HUNT BAR (844x390, 667x375):
 //        Hunt details shows the analyzer (pressed) and a second press hides it; the analyzer has its own close;
 //        open, it never crosses the hunt bar or the action bar; closed stays closed after a reload, open comes
@@ -213,6 +219,69 @@ const RECT = `window.__r = (q, root) => { const e = typeof q === 'string' ? (roo
   window.__hits = (e) => { if (!e) return false; const b = e.getBoundingClientRect(); const t = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!t && (t === e || e.contains(t)); };`;
 
 /* ── PH-1 ── */
+/* Configure action's shown heads and number cells that take a second line or run past their column, as "words height/size". */
+const WRAPPED = () => Array.from(document.querySelectorAll('.ca-runs .ca-head > .ca-c, .ca-runs .ca-head > .ca-name, .ca-runs .ca-row .ca-c'))
+  .filter((e) => e.getClientRects().length && getComputedStyle(e).display !== 'none' && (e.textContent || '').trim())
+  .filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().height > 1.8 * parseFloat(getComputedStyle(e).fontSize))
+  .map((e) => e.textContent.trim() + ' ' + e.scrollWidth + '>' + e.clientWidth + 'px wide, ' + Math.round(e.getBoundingClientRect().height) + 'px tall at ' + getComputedStyle(e).fontSize);
+/* A row's lock and what it needs: [{ id, locked, need }] for every row of the list shown. */
+const NEEDS = () => Array.from(document.querySelectorAll('.ca-runs .ca-row')).map((r) => {
+  const t = r.querySelector('.ca-need-t'), shown = !!t && t.getClientRects().length > 0;
+  return { id: r.getAttribute('data-id'), locked: r.classList.contains('is-locked'), need: shown ? t.textContent : '', cut: shown && t.scrollWidth > t.clientWidth + 1 };
+});
+/* What the server's discipline and skills leave a spell row needing (src/shell/action-facts.js rowNeed, the window's own words). */
+const { rowNeed } = await import(pathToFileURL(join(ROOT, 'src/shell/action-facts.js')).href);
+const { ABILITIES } = await import(pathToFileURL(join(ROOT, 'src/data/abilities.js')).href);
+
+/* PH-1 on a desktop: every tab whole (no head or cell wraps), every locked row says what it needs and an open one nothing. */
+async function configureDesk(page, tag, fails, discipline) {
+  await page.click('.hb-slot[data-slot="2"]');
+  if (!(await wait(page, () => { const f = document.querySelector('[data-hs-win="configure-action"] .ca'); return f && !f.classList.contains('is-empty'); }))) { fails.push('PH-1 [' + tag + '] a bar slot did not open Configure action'); return null; }
+  let spells = null;
+  for (const tab of ['ammo', 'food', 'spells']) {
+    await page.click('.ca-tab[data-tab="' + tab + '"]');
+    if (!(await wait(page, (t) => document.querySelector('.ca-tab[data-tab="' + t + '"][aria-selected="true"]') && document.querySelectorAll('.ca-runs .ca-row').length > 3, tab, 4000))) { fails.push('PH-1 [' + tag + '] the ' + tab + ' tab shows no list'); continue; }
+    const cut = await page.evaluate(WRAPPED);
+    if (cut.length) fails.push('PH-1 [' + tag + '] ' + tab + ': a head or cell wraps or runs past its column: ' + cut.slice(0, 4).join(' | '));
+    const rows = await page.evaluate(NEEDS);
+    const mute = rows.filter((r) => r.locked !== !!r.need);
+    if (mute.length) fails.push('PH-1 [' + tag + '] ' + tab + ': a locked row says nothing of what it needs, or an open one says it needs something: ' + JSON.stringify(mute.slice(0, 3)));
+    if (tab === 'spells') spells = rows;
+  }
+  /* a Shield hero's Hunter's Mark: the weapons that cast it, the window's own words for the server's discipline */
+  if (discipline === 'shield') {
+    const mark = (spells || []).find((r) => r.id === 'hunters_mark');
+    const said = rowNeed({ type: 'ability', id: 'hunters_mark' }, { discipline });
+    if (!mark || !said || mark.need !== said || mark.cut) fails.push('PH-1 [' + tag + '] a Shield hero\'s Hunter\'s Mark does not say it needs ' + JSON.stringify(said) + ': ' + JSON.stringify(mark));
+  }
+  return spells;
+}
+
+/* THE LIST GETS THE HEIGHT (UI audit 2026-11-18: at 922x423 the sheet showed the list's heads and no row): as the sheet opens, the
+   action and its first condition share one line, and at least `want` whole rows show between the heads and the scroller's foot. */
+async function listGetsHeight(page, tag, want, fails) {
+  const fit = await page.evaluate(() => {
+    const mid = document.querySelector('.ca-mid').getBoundingClientRect();
+    const head = document.querySelector('.ca-runs .ca-head').getBoundingClientRect();
+    const rows = Array.from(document.querySelectorAll('.ca-runs .ca-row')).filter((r) => { const b = r.getBoundingClientRect(); return b.top >= head.bottom - 0.5 && b.bottom <= mid.bottom + 0.5; }).length;
+    const lead = document.querySelector('.ca-lead').getBoundingClientRect(), c0 = document.querySelector('.ca-cond[data-cond="0"]').getBoundingClientRect();
+    const tall = (q) => { const e = document.querySelector(q); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().height) : 0; };
+    return { rows, scrolled: document.querySelector('.ca-mid').scrollTop, lead: Math.round((lead.top + lead.bottom) / 2), cond: Math.round((c0.top + c0.bottom) / 2),
+      condH: Math.round(c0.height), mid: [Math.round(mid.top), Math.round(mid.bottom)], head: Math.round(head.top), sentence: tall('.ca-sentence') };
+  });
+  if (fit.scrolled || fit.rows < want || Math.abs(fit.lead - fit.cond) > 4 || fit.condH > 48) {
+    fails.push('PH-1 [' + tag + '] the sheet opens with ' + fit.rows + ' whole rows (want ' + want + ') or the action and its condition on two lines: ' + JSON.stringify(fit));
+  }
+}
+
+/* The audit's own view: in town at 922x423, three whole rows as the sheet opens. */
+async function configureTownFits(page, tag, fails) {
+  await page.click('.hb-slot[data-slot="2"]');
+  if (!(await wait(page, () => { const f = document.querySelector('[data-hs-win="configure-action"] .ca'); return f && !f.classList.contains('is-empty'); }))) { fails.push('PH-1 [' + tag + '] a bar slot did not open Configure action in town'); return; }
+  await page.waitForTimeout(300);
+  await listGetsHeight(page, tag + ' in town', 3, fails);
+}
+
 async function configureFits(page, tag, fails) {
   await page.click('.hb-slot[data-slot="2"]');
   if (!(await wait(page, () => document.querySelector('[data-hs-win="configure-action"] .ca-rank')))) { fails.push('PH-1 [' + tag + '] a bar slot did not open Configure action'); return; }
@@ -221,6 +290,9 @@ async function configureFits(page, tag, fails) {
     return { said: !!r && r.width > 0 && /^Fires automatically/.test(p.textContent), clear: !!r && r.right <= b.left + 0.5, tall: r ? r.height : 0, icons: Array.from(document.querySelectorAll('.ca-ico .hh-icon')).map((e) => e.getBoundingClientRect().width).filter((w) => w > 0) }; });
   if (!foot.said || !foot.clear) fails.push('PH-1 [' + tag + '] the foot does not say the hero acts alone, or lies on its buttons: ' + JSON.stringify(foot));
   if (!foot.icons.length || foot.icons.some((w) => Math.abs(w - 32) > 0.01)) fails.push('PH-1 [' + tag + '] an icon is off the whole-pixel scale: ' + JSON.stringify(foot.icons.slice(0, 4)));
+  /* In a hunt the sheet starts under the hunt bar, 44 px lower than in town (configureTownFits holds town at 922x423). At 667x375 that
+     band is 132 px: the sentence's two lines and the heads fill it, and one scroll brings the rows (below). */
+  await listGetsHeight(page, tag, { '922x423': 2, '844x390': 1, '667x375': 0 }[tag] || 0, fails);
   for (const tab of ['spells', 'food', 'ammo']) {
     await page.click('.ca-tab[data-tab="' + tab + '"]');
     if (!(await wait(page, (t) => document.querySelector('.ca-tab[data-tab="' + t + '"][aria-selected="true"]') && document.querySelectorAll('.ca-runs .ca-row').length > 3, tab, 4000))) {
@@ -242,6 +314,10 @@ async function configureFits(page, tag, fails) {
       if (h.heads !== h.cells || h.off.length) fails.push('PH-1 [' + tag + '] ' + tab + ' / ' + h.run + ': ' + h.heads + ' head cells over ' + h.cells + ' columns, ' + h.off.length + ' off their column');
       else if (!h.oneLine) fails.push('PH-1 [' + tag + '] ' + tab + ' / ' + h.run + ': a column head wrapped below the row of heads');
     }
+    /* ...and no head or cell takes a second line or runs past its column (a head that wrapped grew the row of heads with it, so
+       the line-up above never saw "g per HP, cheapest first" stand four lines tall) */
+    const cut = await page.evaluate(WRAPPED);
+    if (cut.length) fails.push('PH-1 [' + tag + '] ' + tab + ': a head or cell wraps or runs past its column: ' + cut.slice(0, 4).join(' | '));
     /* Scroll the list the way a thumb (or a wheel) does, over its first row (or the middle of a short screen when
        that row is further down), until its last row shows. A new tab's list starts at its first row. */
     const first = await page.evaluate(() => { const r = window.__r('.ca-runs .ca-row'); return r && { x: r.left + r.width / 2, y: r.top + r.height / 2, vh: innerHeight }; });
@@ -1506,6 +1582,30 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       await shot(o.page, 'configure-spells-' + tag);
       await done(o, tag);
     }
+    if (run('configure')) { // PH-1 in town at 922x423 (the audit's view)
+      const vp = { width: 922, height: 423 }, tag = tagOf(vp);
+      const o = await open(vp, ALPHA);
+      if (!o.up) fails.push('PH-1 [' + tag + '] the town did not mount');
+      else { await configureTownFits(o.page, tag, fails); await shot(o.page, 'configure-town-' + tag); }
+      await done(o, tag + ' in town');
+    }
+    if (run('configure')) { // PH-1 on a desktop: the fixture's Shield hero, then a Sword hero at the server's Melee one under Turning Cut's level and at it
+      const desk = { width: 1440, height: 900 }, tag = tagOf(desk);
+      const o = await open(desk, HUNT);
+      if (!o.up) fails.push('PH-1 [' + tag + '] the hunt did not mount');
+      else { await configureDesk(o.page, tag, fails, HUNT.hunt_settings.discipline); await shot(o.page, 'configure-spells-' + tag); }
+      await done(o, tag);
+      const lvl = ABILITIES.turning_cut.unlock;
+      for (const [lv, need] of [[lvl - 1, 'Melee ' + lvl], [lvl, '']]) {
+        const sword = await open(desk, HUNT, (env) => { env.hunt_settings.discipline = 'sword'; env.hunt_settings.role = 'melee_dps'; env.skills = Object.assign({}, env.skills, { melee: { xp: 0, level: lv } }); });
+        const at = tag + ' Melee ' + lv;
+        if (!sword.up) { fails.push('PH-1 [' + at + '] the hunt did not mount'); await sword.ctx.close(); continue; }
+        const rows = await configureDesk(sword.page, at, fails, 'sword');
+        const cut = (rows || []).find((r) => r.id === 'turning_cut');
+        if (!cut || cut.locked !== !!need || cut.need !== need) fails.push('PH-1 [' + at + '] a Sword hero at the server\'s Melee ' + lv + ' sees Turning Cut ' + JSON.stringify(cut) + ' (want ' + (need ? 'locked, needing "' + need + '"' : 'open') + ')');
+        await done(sword, at);
+      }
+    }
     for (const vp of run('hunt') ? [{ width: 844, height: 390 }, { width: 667, height: 375 }, { width: 1440, height: 900 }] : []) { // PH-2
       const tag = tagOf(vp);
       const phone = vp.width < 1024;
@@ -1949,6 +2049,14 @@ const MUTANTS = [
   ['PH-1 the screen widgets widen the page', 'src/styles/shell.css', '.hs-screen { z-index: 6; overflow: clip; }', '.hs-screen { z-index: 6; }'],
   ['PH-1 a new tab opens mid-list', 'src/shell/windows/configure-action.js', "v.hover = null; repaint(); listToTop(body); return; }", "v.hover = null; repaint(); return; }"],
   ['PH-1 the column heads hide the wrong cell', 'src/styles/hunt.css', '  .ca-head .ca-c[data-c="1"], .ca-row .ca-c[data-c="1"] { display: none; }', '  .ca-head .ca-c:nth-of-type(2), .ca-row .ca-c[data-c="1"] { display: none; }'],
+  /* UI audit 2026-11-18: the list's height, a head four lines tall, the rune column, a lock with no requirement */
+  ['PH-1 the phone sentence stands its condition on a line of its own', 'src/styles/hunt.css', '  .ca-conds { display: contents; }\n', ''],
+  ['PH-1 the run\'s name takes a line over its heads again', 'src/shell/windows/configure-action.js', "(run.label ? ' aria-label=\"' + esc(run.label) + '\"' : '') + '>'", "'>' + (run.label ? '<h3 class=\"ca-run-label\">' + esc(run.label) + '</h3>' : '')"],
+  ['PH-1 a column head says cheapest first on four lines', 'src/data/text/bar.js', "  col_per_mana: 'g per mana',", "  col_per_mana: 'g per mana, cheapest first',"],
+  ['PH-1 the rune column wraps beside an empty third of the window', 'src/styles/hunt.css', 'minmax(0, 1fr) 44px 76px 140px;', 'minmax(0, 1fr) 44px 76px 60px;'],
+  ['PH-1 a locked row says nothing of what it needs', 'src/shell/windows/configure-action.js', "  text(el.querySelector('.ca-need-t'), r.locked ? r.need || '' : '');", "  text(el.querySelector('.ca-need-t'), '');"],
+  ['PH-1 a spell under its level reads open', 'src/shell/action-facts.js', '    return have !== null && have < r.unlock ? level(abilitySkill(r), r.unlock) : null;', '    return null;'],
+  ['PH-1 the level wait ignores the server\'s skills', 'src/shell/action-facts.js', '(skills[abilitySkill(r)] || { level: 1 }).level : null);', '1 : null);'],
   ['PH-2 Hunt details only shows', 'src/shell/widgets/hunt-topbar.js', "    if (analyzerOpen(ctx)) { hud.setVisible('analyzer', false); return; }", "    if (analyzerOpen(ctx)) return;"],
   ['PH-2 the analyzer has no close', 'src/shell/widgets/analyzer.js', "  if (action === 'hide') { ctx.hud.setVisible('analyzer', false); return; }", ''],
   ['PH-2 the analyzer sits over the hunt bar', 'src/data/hud-widgets.js', "    below: Object.freeze(['hunt-topbar']),\n", ''],

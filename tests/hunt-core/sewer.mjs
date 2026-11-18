@@ -1132,14 +1132,14 @@ const cases = {
     if ((say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id !== 'home') return 'at Level 7 past the chain the house card is not up: ' + (say(R({ ...L7, home: homeNext, bag: { normal_log: 3 } })) || {}).id;
     if ((say(R({ ...L7, levelXp: M.xp.charXpForLevel(6), charLevel: 6, home: homeNext, bag: { normal_log: 3 } })) || {}).id === 'home') return 'the house card came before Level 7';
     /* The Hearth: back from the Cellar with the quarter hour's fuel (forest-cave --play: 9 Bones and 3 Lamp Jelly), the
-       card interrupts the chain, names the biggest stack and rings it, then the bag's Fuel all; Inner Flame XP ends it. */
+       card interrupts the chain, names the biggest stack and rings it, then the bag's Burn all; Inner Flame XP ends it. */
     const back = walkChain(M, T).find((s) => s.id === 'sell_loot').facts;
     const fuel = say({ ...back, bag: { ...back.bag, bones: 9, lamp_jelly: 3 }, carried: { ...back.carried, bones: 9, lamp_jelly: 3 } });
-    if (!fuel || fuel.id !== 'fuel_hearth' || fuel.text !== 'Bag → Bones → Fuel all'
-      || !fuel.hooks.includes('[data-hs-win="inventory"]:not(:has(.hw-burying.is-on)) .hw-pocket[data-item="bones"]') || fuel.textIn !== 'Press Bones, then Fuel all') return 'the Hearth card reads ' + JSON.stringify(fuel && { id: fuel.id, text: fuel.text, hooks: fuel.hooks, textIn: fuel.textIn });
+    if (!fuel || fuel.id !== 'fuel_hearth' || fuel.text !== 'Bag → Bones → Burn all'
+      || !fuel.hooks.includes('[data-hs-win="inventory"]:not(:has(.hw-burying.is-on)) .hw-pocket[data-item="bones"]') || fuel.textIn !== 'Press Bones, then Burn all') return 'the Hearth card reads ' + JSON.stringify(fuel && { id: fuel.id, text: fuel.text, hooks: fuel.hooks, textIn: fuel.textIn });
     /* the biggest first-rung stack is the one named and ringed */
     const jelly = say({ ...back, bag: { ...back.bag, bones: 2, lamp_jelly: 11 }, carried: { ...back.carried, bones: 2, lamp_jelly: 11 } });
-    if (!jelly || jelly.text !== 'Bag → Lamp Jelly → Fuel all' || !jelly.hooks.some((h) => h.includes('data-item="lamp_jelly"'))) return 'the Hearth card names the smaller stack: ' + JSON.stringify(jelly && jelly.text);
+    if (!jelly || jelly.text !== 'Bag → Lamp Jelly → Burn all' || !jelly.hooks.some((h) => h.includes('data-item="lamp_jelly"'))) return 'the Hearth card names the smaller stack: ' + JSON.stringify(jelly && jelly.text);
     if ((say({ ...back, bag: { ...back.bag, bones: 9 } }) || {}).id === 'fuel_hearth') return 'the Hearth card asked with 9 fuel';
     if ((say({ ...back, bag: { ...back.bag, bones: 12 }, skillXp: { ...back.skillXp, inner_flame: 16 } }) || {}).id === 'fuel_hearth') return 'the Hearth card is up after the hero fuelled';
     if ((say({ ...back, huntId: 'mill_cellar', bag: { ...back.bag, bones: 40 } }) || {}).id === 'fuel_hearth') return 'the Hearth card is up in a hunt';

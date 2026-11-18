@@ -16,6 +16,10 @@
 //   AR-6  a hunt still running: only what the absence earned, not the whole hunt (the goodbye stamps the numbers on the way out)
 //   AR-7  a page left open is not an absence: no line through a long skip
 //   AR-8  nothing left the machine, and no console error but the harness's
+//   AR-9  THE CARD, PLAYED (UI audit 2026-11-18 #2): a hunt that ran out of stamina with the page closed comes back as ONE card, the result
+//         first ("Level 1 → n", the Level XP), why and when it ended; no hunt summary beside it; Hunt again starts the hunt on the server
+//         and the card goes
+// The return is its own card (src/shell/windows/away.js): every check reads the card, never the alert lines.
 // mutant-anchors: none — a manual walk of the real game; the rules are mutation-proven in shell-core.mjs and hud-reachable.mjs
 // ════════════════════════════════════════════════════════════════════════
 import { resolve as resolvePath } from 'node:path';
@@ -68,8 +72,9 @@ const leave = async (p, stampKey) => {
   }
 };
 const cardOf = async (p, ms = 15000) => {
-  try { await p.page.waitForFunction(() => /\bAway \d/.test(document.querySelector('.hw-alerts')?.textContent || ''), null, { timeout: ms }); } catch { return null; }
-  return p.page.evaluate(() => Array.from(document.querySelectorAll('.hw-alert-text')).map((e) => e.textContent).find((t) => /\bAway \d/.test(t)) || null);
+  try { await p.page.waitForFunction(() => /\bAway \d/.test(document.querySelector('[data-hs-win="away"] .haway-gone')?.textContent || ''), null, { timeout: ms }); } catch { return null; }
+  await p.page.waitForTimeout(400);
+  return p.page.evaluate(() => document.querySelector('[data-hs-win="away"] [data-hs-body]')?.innerText.replace(/\s+/g, ' ').trim() || null);
 };
 const noCard = async (p) => { await p.page.waitForTimeout(6000); return cardOf(p, 500); };
 
@@ -83,7 +88,7 @@ try {
     const q = await enter('gatherer');
     const line = await cardOf(q, 30000);
     await q.shot('ar1-gathered');
-    step('AR-1 eight hours at a rock are told', !!line && /Away 8 h \d+ min\. Tessel mined the Copper Rock\. \+[\d,]+ Copper Ore, Mining 1 to \d+\. Still mining\./.test(line), line);
+    step('AR-1 eight hours at a rock are told', !!line && /^Away 8 h \d+ min Tessel Tessel mined the Copper Rock\. \+[\d,]+ Copper Ore, Mining 1 to \d+\. Still mining\./.test(line), line);
     await q.close();
   }
 
@@ -167,7 +172,10 @@ try {
     await world.wait(62, { away: true });
     const q = await enter('hunter');
     const line = await cardOf(q, 30000);
-    const gained = Number(((line || '').match(/\+([\d,]+) Level XP/) || [])[1]?.replace(/,/g, ''));
+    /* the card docks where the analyzer stands: read it, then OK, then the analyzer's total */
+    await q.page.click('[data-hs-win="away"] [data-hs-act="away-ok"]').catch(() => {});
+    await q.page.waitForTimeout(1000);
+    const gained = Number(((line || '').match(/Level XP \+([\d,]+)/) || [])[1]?.replace(/,/g, ''));
     const after = await xpOf(q.page);
     step('AR-6 the line reports the absence, not the whole hunt', !!line && before > 0 && gained > 0 && gained <= after - before + 200 && gained < after, JSON.stringify({ line, before, after, gained }));
     await q.close();
@@ -183,6 +191,27 @@ try {
     const line = await noCard(p);
     step('AR-7 a page left open raises no line', line === null, line);
     await p.close();
+  }
+  { // AR-9 the card, played: a hunt that ran out of stamina with the page closed
+    const p = await open('cardplay');
+    await p.createHero('Cardy');
+    await p.enterHunt('mill_cellar');
+    await world.skip(3);
+    await leave(p, '%-%-%-%-%');
+    await world.wait(840, { away: true });
+    const q = await enter('cardplay');
+    const line = await cardOf(q, 30000);
+    const beside = await q.page.evaluate(() => ({ summary: !!document.querySelector('[data-hs-win="hunt-summary"]'), lines: document.querySelectorAll('.hw-alert[data-kind="away"]').length,
+      gold: Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).map((b) => b.textContent) }));
+    await q.shot('ar10-card');
+    step('AR-9 one card: the result first, why and when it ended, Hunt again its gold press, nothing beside it',
+      !!line && /^Away 14 h \d+ min Cardy Mill Cellar Level 1 → \d+ Level XP \+[\d,]+ Gold \+[\d,]+ gp Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
+      && !beside.summary && !beside.lines && JSON.stringify(beside.gold) === '["Hunt again"]', JSON.stringify({ line, beside }));
+    await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
+    const went = await q.page.waitForFunction(() => !document.querySelector('[data-hs-win="away"]') && !!document.querySelector('[data-hs-act="leave"]'), null, { timeout: 30000 }).then(() => true, () => false);
+    const open1 = (await world.db.query("select count(*)::int as n from public.hunt_sessions where ended_at is null and hunt_id = 'mill_cellar'")).rows[0].n;
+    step('AR-9 Hunt again: the server starts the hunt, the card goes', went && open1 >= 1, JSON.stringify({ went, open1 }));
+    await q.close();
   }
   step('AR-8 no page error', errors.length === 0, errors.join(' | '));
 } catch (e) {

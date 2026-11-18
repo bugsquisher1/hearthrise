@@ -163,6 +163,7 @@ export function lifeDraws(map, book, t, view, T, tint) {
   /** One loop's draw entry (frame `i`, in `pour` when named), to the ground or the air by its art's layer. */
   function lay(a, s, x, y, i, pour) {
     const f = book.frame(a.id, 'idle', 's', i);
+    /** @type {{[k: string]: any}} */
     const d = { id: a.id, set: f.set, sx: f.sx, sy: f.sy, w: f.w, h: f.h, x, y, alpha: 1, kind: 'life', cls: s.class, tx: Math.floor(a.px / T), ty: Math.floor(a.py / T), ref: null };
     if (pour) d.pour = pour;
     if (s.layer === 'decal') ground.push(Object.assign(d, { row: GROUND_ROW + a.py }));

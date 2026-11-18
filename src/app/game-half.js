@@ -16,6 +16,7 @@ export { mountWorldPane } from './world-pane.js?v=0.2.137';
 export { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.137';
 export { renderHeroCreate } from './hero-create.js?v=0.2.137';
 export { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.137';
+export { drawRosterFaces } from './roster-faces.js?v=0.2.137';
 export { createAlertCenter } from '../shell/alerts.js?v=0.2.137';
 export { mountMarketWatch } from '../shell/market-watch.js?v=0.2.137';
 export { mountTownCriers } from '../shell/town-criers.js?v=0.2.137';

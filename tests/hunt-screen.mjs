@@ -118,7 +118,8 @@
 //         one it leaves unset is off (no client copy of the rule); a press sends ONE absolute value and the re-read
 //         envelope's value replaces it
 //   HS-25 THE HUNT SUMMARY shows the server's balance per hour to every character, and raw
-//         XP per hour only when the server sent it (premium)
+//         XP per hour only when the server sent it (premium), its row named for the party and solo bonus it leaves out,
+//         in the analyzer's own words
 //   HS-30 A TRAINING SESSION'S HUNT BAR says what is happening (lane/a-training-display): "Training Melee at the Training Yard",
 //         the time left (the server's start plus its longest run), the hour's fee and Stop training; the hero's tab says the same
 //   HS-32 (UI audit 2026-11-18) Summary pressed in a hunt shows the hunt on now (its ground, In progress, the analyzer's kills; no Hunt again),
@@ -1689,13 +1690,21 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const got = await page.evaluate(() => {
           const v = (k) => { const d = document.querySelector('[data-hs-win="hunt-summary"] [data-stat="' + k + '"]'); return d && d.parentNode.getClientRects().length > 0 ? d.textContent : null; };
           const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          /* the raw row's words on the card (its dd's own dt) */
+          const dt = (d) => (d && d.previousElementSibling ? d.previousElementSibling.textContent : null);
           return { balance: v('balance'), balanceH: v('balanceH'), rawXpH: v('rawXpH'), win: !!w, card: !!(w && w.querySelector('.hsum-card.is-on')),
-            text: w ? w.textContent.slice(0, 160) : null };
+            text: w ? w.textContent.slice(0, 160) : null, rawLabel: dt(document.querySelector('[data-hs-win="hunt-summary"] [data-stat="rawXpH"]')) };
         });
         const ph = FIXTURE.hunt_analyzer.hero.per_hour;
         const want = { balance: FIXTURE.hunt_analyzer.hero.balance.toLocaleString('en-US') + ' gp',
           balanceH: short ? null : ph.balance.toLocaleString('en-US') + ' gp', rawXpH: premium ? ph.raw_xp.toLocaleString('en-US') : null };
         if (!shown || got.balance !== want.balance || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
+        /* THE RAW ROW SAYS WHICH BONUS IT LEAVES OUT (lane/a-honest-lines 2026-11-16, re-landed by lane/a-honesty-rescue): "before bonuses" read as a
+           party cutting a hero's XP; it is the even share of each kill, less the party's class cell or the solo boost. The card says the analyzer's
+           own row (hud.an_raw_xp_h, which widgets/analyzer.js prints), so the two never drift. */
+        const rawWords = (await import(pathToFileURL(join(ROOT, 'src/render/player-text.js')).href)).t('hud.an_raw_xp_h');
+        if (premium && !(got.rawLabel === rawWords && /\bparty\b/i.test(rawWords) && /\bsolo bonus\b/i.test(rawWords) && !/before bonuses/i.test(rawWords)))
+          fails.push('HS-25 the raw Level XP row reads ' + JSON.stringify(got.rawLabel) + ' on the card and ' + JSON.stringify(rawWords) + ' in the analyzer: both must be the one row naming the party and solo bonus it leaves out');
       } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
     }
@@ -2212,7 +2221,7 @@ const MUTANTS = [
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
   /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */
-  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), TIER_DEATH_LINE].join('\\n');", "[tierLine(r, tier, size), TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join('\\n');"],
+  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\\n');", "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join('\\n');"],
   ['the tier note reads one line whatever the pull', 'src/shell/hunt-list.js', 'tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same;', 'L.same;'],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],

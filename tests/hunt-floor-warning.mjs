@@ -163,7 +163,7 @@ async function run(base) {
   /* W4 in plain words (Tyler 2026-11-08, the tier note "way too exact"): every harder tier's line says you can die here, Deadly's says to bring food, and the note ends on the death line. */
   const tierData = read('src/data/hunt-tiers.js');
   ok('W4', (tierData.match(/XP per kill/g) || []).length === 4 && (tierData.match(/Bring plenty of food/g) || []).length === 2 && /TIER_DEATH_LINE = 'Death: /.test(tierData)
-    && read('src/shell/hunt-list.js').includes("[tierLine(r, tier, size), TIER_DEATH_LINE].join('\\n')") && win.includes('tierWords(r, tier, size)'), 'the tier no longer says what a harder tier costs (first-week-bands.mjs bigger-pulls-words plays it)');
+    && read('src/shell/hunt-list.js').includes("[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\\n')") && win.includes('tierWords(r, tier, size, level)'),'the tier no longer says what a harder tier costs (first-week-bands.mjs bigger-pulls-words plays it)');
   ok('W2', !/prop\([^)]*'disabled'[^)]*(short|rangeWords)/.test(win), 'Enter must never be disabled by the level warning');
   ok('W2', win.includes("if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {") && win.includes("armed ? t('controls.enter_anyway') : t('controls.enter')"), 'a lone hero above its level walks in with no confirm press');
   ok('W2', /res && res\.belowRange \? '\. ' \+ ABOVE_LEVEL_WORDS/.test(win), 'a below_range enter does not repeat the warning');

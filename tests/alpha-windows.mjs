@@ -106,7 +106,8 @@
 //         refusal in words with nothing moved, the Shop's offer after a gear purchase, a reload agrees;
 //         the screen never offers what the server refuses (Tyler 2026-10-24): an unmet requirement
 //         (the server's numbers) or a running hunt turns Equip / Equip upgrades off with the reason
-//         beside it, and a refusal says why on the line pressed, in view
+//         beside it, and a refusal says why on the line pressed, in view; an item card's stat lines and compare carry a piece's own
+//         attribute (a resistance, a bane: the engine's numbers), and the card says what the piece does on the hero's ground
 //   AW-22 GATHERING AND CRAFTING (designer 2026-10-22: the town skills had no door):
 //         each gathering and bench skill in the ledger opens its work; a row shows what
 //         the server's level opens (and the next two, "Needs Woodcutting 15"); Start is
@@ -180,7 +181,8 @@
 //         carrier, the bests (one "No best here yet" line when none, the server's best
 //         replacing it); on the phone the list, then the page as the sheet, then back. On a scaled
 //         screen (Tyler 2026-11-16, 125 % and 150 %) a creature's bitmap is whole device px an art px,
-//         the most no bigger than x2 (2 at 125 %, 3 at 150 %), shown at exactly its own size
+//         the most no bigger than x2 (2 at 125 %, 3 at 150 %), shown at exactly its own size. A harder tier a pack measured as a
+//         Healer's (healerTiers: a four with no Healer dies there under a Level) says "Recommended: Healer" under that Level, to every group
 //   AW-26 GO AS: the setups as lines (weapon, role, the bar's first four on the setup
 //         on now; a set with no setup row is not offered); Enter as the setup on now is
 //         ONE hr_hunt_enter; as another it is ONE hr_hunt_preset_apply then ONE
@@ -1043,6 +1045,35 @@ async function huntsPure(imp) {
     TV.GROUND_TIERS.mosslight_glade.deadly = tierRow('deadly', [8, 8, 8, 8], 2261, 2847, 1400);
     for (const r of [glade, thicketR]) for (const t of ['dangerous', 'deadly']) for (const n of [1, 2, 3, 4]) if (/\d/.test(tierWords(r, t, n) + tierChoiceWords(r, t, n))) fails.push('AW-25 a tier note carries a number: ' + tierWords(r, t, n));
   } finally { TV.GROUND_TIERS.mosslight_glade = kept.glade; TV.GROUND_TIERS.meadowbrook_thicket = kept.thicket; }
+  /* A HEALER'S TIER (lane/a-honest-lines 2026-11-16, re-landed and bounded by Level by lane/a-honesty-rescue; the mechanism is lane/d-late-nearmisses'):
+     where a pack's healerTiers names a tier and a Level (hunt-tiers.js HEALER_TIERS, measured: a four with no Healer dies there under that Level and a four
+     with one holds), the page says "Recommended: Healer" on that tier to a hero under that Level, alone or in a party, an unknown Level too; and on no
+     other ground, tier or Level. A named Deadly is graded with a Healer (checks.deadlyFourNeeds), so the page and the grader's bar agree. The Muster
+     Barrows was graded so since 2026-11-12 and its page never said it; Krell's Hold, graded the same way, holds its floor without one (its pack). */
+  {
+    const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
+    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    let named = 0;
+    if (!healerLine || healerLine === 'hunts.tier_healer') fails.push('AW-25 hunts.tier_healer has no words');
+    const rows = huntRows();
+    for (const [g, row] of Object.entries(TV.HEALER_TIERS || {})) for (const [id, under] of Object.entries(row)) {
+      const pk = GROUND_PACKS.find((x) => ((x.ground && x.ground.id) || x.id) === g), hr = rows.find((r) => r.hunt === g);
+      if (!TV.tiersOf(g).includes(id)) fails.push('AW-25 ' + g + ' names ' + id + ' a Healer\'s tier, and it does not offer ' + id);
+      if (id === 'deadly' && !(pk && pk.checks && pk.checks.deadlyFourNeeds === 'healer')) fails.push('AW-25 ' + g + ' says Deadly needs a Healer, and the grader grades its four without one (checks.deadlyFourNeeds)');
+      if (hr && !(under > hr.band[0] && under <= hr.band[1])) fails.push('AW-25 ' + g + '\'s Healer line stops at Level ' + under + ', outside its band ' + hr.band.join('-'));
+    }
+    for (const r of rows) for (const id of TV.tiersOf(r.hunt).filter((x) => x !== TV.DEFAULT_TIER)) {
+      const under = (TV.HEALER_TIERS[r.hunt] || {})[id] || null;
+      for (const lv of [r.band[0], r.band[1], null, ...(under ? [under - 1, under] : [])]) {
+        const want = !!under && !(Number.isInteger(lv) && lv >= under);
+        named += want ? 1 : 0;
+        for (const n of [1, 2, 4]) if (tierWords(r, id, n, lv).includes(healerLine) !== want) fails.push('AW-25 ' + r.hunt + ' ' + id + ' at Level ' + lv + ', a group of ' + n + ': the page reads "' + tierWords(r, id, n, lv) + '"' + (want ? ', with no word that it needs a Healer' : ', and it is not named one there'));
+      }
+    }
+    if (!(TV.isHealerTier('muster_barrows', 'deadly', 55) && !TV.isHealerTier('muster_barrows', 'deadly', 61))) fails.push('AW-25 the Muster Barrows\' Deadly kills a four with no Healer at its floor (55) and not from 61, and the page does not say so there');
+    if (TV.isHealerTier('krells_hold', 'deadly', 85)) fails.push('AW-25 Krell\'s Hold\'s Deadly is named a Healer\'s tier: its four with no Healer holds its floor (its pack)');
+    if (!named) fails.push('AW-25 no ground names a Healer\'s tier: the words were never read');
+  }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
   const cellar = residentsOf('mill_cellar').map((m) => m.id + ':' + m.band + ':' + m.level).join();
   if (cellar !== 'rat:common:2,slime:uncommon:2,hive_wasp:uncommon:4') fails.push('AW-25 the Mill Cellar lives as ' + cellar);
@@ -1860,7 +1891,40 @@ async function planRules(base) {
     if (ops2(plan({ weapon: 'steel_sword', shield: 'ironbound_shield' }, [['kingsgrate']], lv1, 31)) !== '{}') fails.push('AW-21 Equip upgrades would put on a shield that costs accuracy');
     const swapped = plan({ weapon: 'iron_sword', shield: 'practice_shield' }, [['bramble_blade', 6]], lv1, 16);
     if (ops2(swapped) !== '{}' || swapped.choices.length || UP.upgradeWords(swapped) !== '') fails.push('AW-21 a hand swap to the Iron Sword does not stick: ' + ops2(swapped) + ' / ' + JSON.stringify(swapped.choices));
-    if ((await imp('src/shell/item-lore.js')).baneWords('bramble_blade').join() !== '+40% damage to Plant monsters') fails.push('AW-21 the Bramble Blade tooltip bane reads ' + (await imp('src/shell/item-lore.js')).baneWords('bramble_blade'));
+    /* A PIECE'S BANE IS ON ITS CARD AND ITS COMPARE (lane/a-compare-lines 2026-11-16, re-landed by lane/a-honesty-rescue; the coherence pass's
+       DISCOVERIES 1: Kingstooth read "-1 Melee damage" against the Iron Sword, a side-grade shown as a loss): the stat lines and the compare carry the
+       bane, the engine's clamped number (bane.js baneMultFor), a gain when the new piece has it and a loss when the worn one does, from the rows, so
+       every unique gets it; and the call-only pieces are side-grades by their own attribute (C1, C2: never another piece's numbers plus one). */
+    {
+      const BM = await imp('src/shell/bag-model.js');
+      const said = (l) => l.map((x) => x.text + ' ' + x.label + (x.delta === undefined ? '' : x.delta > 0 ? ' (gain)' : ' (loss)')).join(', ');
+      for (const [got, want] of [
+        [said(BM.statLines('bramble_blade')), '+6 Melee accuracy, +5 Melee damage, +40% Damage to Plant monsters'],
+        [said(BM.statLines('cauldron_lid')), '+6 Defense, −10% Fire damage taken'],
+        [said(BM.statLines('kingstooth')), '+8 Melee accuracy, +5 Melee damage, +10% Damage to Vermin monsters'],
+        [said(BM.compare('kingstooth', 'iron_sword')), '+1 Melee accuracy (gain), −1 Melee damage (loss), +10% Damage to Vermin monsters (gain)'],
+        [said(BM.compare('iron_sword', 'kingstooth')), '−1 Melee accuracy (loss), +1 Melee damage (gain), −10% Damage to Vermin monsters (loss)'],
+        [said(BM.compare('cauldron_lid', 'coppercap_shield')), '−1 Defense (loss), −10% Fire damage taken (gain)'],
+        [said(BM.compare('coppercap_shield', 'cauldron_lid')), '+1 Defense (gain), +10% Fire damage taken (loss)'],
+      ]) if (got !== want) fails.push('AW-21 a piece\'s own attribute: wanted "' + want + '", read "' + got + '"');
+      if (!BM.statLines('bramble_blade').some((s) => s.key === 'bane.plant')) fails.push('AW-21 the Bramble Blade\'s bane line is not keyed bane.plant (the special catalogue reads the card by field and class)');
+    }
+    /* ON THIS GROUND (lane/a-honest-lines 2026-11-16, re-landed by lane/a-honesty-rescue): a unique that reads worse than the ladder's piece can win
+       where the hero hunts, so its card says so, from the ground's own monsters through the engine's readers (bane.js classOfMonster, monster-spells.js
+       castsOf, elements.js resistProfile), and says nothing where it does nothing special. Generic: a planted resist row gets it with no code. */
+    {
+      const LORE = await imp('src/shell/item-lore.js'), CAT = (await imp('src/data/items.js')).ITEMS;
+      const planted = { ...CAT, aw_resist_helm: { ...CAT.iron_helm, n: 'Planted Helm', resistPm: { ember: 100 } }, aw_guard_helm: { ...CAT.iron_helm, n: 'Guard Helm', resistPm: { physical: 30 } } };
+      const edge = (id, hunt) => JSON.stringify(LORE.groundEdgeWords(id, hunt, planted));
+      const want = [
+        ['bramble_blade', 'mosslight_glade', '{"ground":"Mosslight Glade","lines":["+40% damage vs Walking Vine"]}'],
+        ['kingstooth', 'mill_cellar', '{"ground":"Mill Cellar","lines":["+10% damage vs every monster here"]}'],
+        ['cauldron_lid', 'coppercap_warrens', '{"ground":"Coppercap Warrens","lines":["−10% Fire damage from Goblin Digger and Chief Coppercap"]}'],
+        ['aw_resist_helm', 'wickstead', '{"ground":"Wickstead","lines":["−10% Fire damage from Turncoat"]}'],
+        ['bramble_blade', 'wickstead', 'null'], ['aw_resist_helm', 'meadowbrook_thicket', 'null'], ['aw_guard_helm', 'wickstead', 'null'],
+        ['iron_sword', 'mosslight_glade', 'null'], ['bramble_blade', null, 'null']];
+      for (const [id, hunt, line] of want) if (edge(id, hunt) !== line) fails.push('AW-21 ON THIS GROUND: ' + id + ' on ' + hunt + ' reads ' + edge(id, hunt) + ', not ' + line);
+    }
     /* A PIECE'S RESISTANCE IS ON ITS CARD, IN PLAIN WORDS (lane/c-krell-uniques; the special-attributes lane found no card line for resistPm): Krell's two
        unique pieces say what they take off, the engine's own number, after their plain stats, and the comparison against the standard piece names it as the gain. */
     {
@@ -2529,6 +2593,33 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!tip || !tip.startsWith('Heavy armor') || !tip.includes(share(VITALS.heavyHpPermille, 1) + ' max HP, of the ' + share(VITALS.heavyHpPermille, ARMOUR_SLOTS.length) + ' a full heavy set of ' + ARMOUR_SLOTS.length))
           fails.push('AW-34 the worn plate helmet\'s tooltip weight line reads ' + JSON.stringify(tip));
         if (shots) await shot(page, 'armour-weight-1440x900-doll-tip');
+        /* AW-21 IN THE PAGE: a side-grade's own attribute on its card and its compare (lane/a-compare-lines 2026-11-16, re-landed by lane/a-honesty-rescue;
+           the pure rows are AW-21's in planRules). Kingstooth against a worn Iron Sword, the Cauldron Lid against a worn Coppercap Shield: the bag pocket's tip,
+           as a player hovers it, says the bane and the fire resistance as a stat and as a gain. */
+        {
+          const was = { weapon: s.env.equipment.weapon, shield: s.env.equipment.shield };
+          Object.assign(s.env.equipment, { weapon: 'iron_sword', shield: 'coppercap_shield' });
+          Object.assign(s.env.inventory, { kingstooth: 1, cauldron_lid: 1 });
+          await pushEnvelope(page, s);
+          await page.mouse.move(2, 2);
+          for (const [id, stat, delta, name] of [['kingstooth', 'Damage to Vermin monsters+10%', '+10% Damage to Vermin monsters', 'compare-kingstooth'],
+            ['cauldron_lid', 'Fire damage taken−10%', '−10% Fire damage taken', 'compare-cauldron-lid']]) {
+            const read = await page.evaluate((x) => {
+              const p = document.querySelector('[data-hs-win="inventory"] .hw-pocket[data-item="' + x + '"]');
+              if (!p) return null;
+              p.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+              const tip = document.querySelector('.hw-tip.is-on');
+              return tip ? { stats: Array.from(tip.querySelectorAll('.hw-tip-stats:not(.hw-tip-perks) dt')).map((d) => d.textContent + d.nextElementSibling.textContent),
+                gains: Array.from(tip.querySelectorAll('.hw-tip-delta .is-gain')).map((l) => l.textContent) } : null;
+            }, id);
+            if (!read || !read.stats.includes(stat) || !read.gains.includes(delta)) fails.push('AW-21 the ' + id + ' tip in the bag reads ' + JSON.stringify(read) + ', want the stat "' + stat + '" and the gain "' + delta + '"');
+            if (shots) await shot(page, name + '-1440x900-bag-tip');
+          }
+          await page.mouse.move(2, 2);
+          for (const k of ['weapon', 'shield']) { if (was[k]) s.env.equipment[k] = was[k]; else delete s.env.equipment[k]; }
+          delete s.env.inventory.kingstooth; delete s.env.inventory.cauldron_lid;
+          await pushEnvelope(page, s);
+        }
         /* THE TIP GOES WITH ITS WINDOW (designer re-read 2026-11-11: a bag tip stood over the World after B closed the bag, through mouse moves and a hunt start).
            A tip the pointer is not on (the bag's keyboard cursor shows one: actions.js focusCursor) gets no mouseout when its window goes, so the
            pointer is moved off the bag first and the pocket's tip is raised as the cursor raises it. */
@@ -5472,6 +5563,12 @@ const MUTANTS = [
   ['plans: AW-21 the card reads a resistance as a tenth of itself', 'src/shell/bag-model.js', "    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });", "    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v / 10) });"],
   ['plans: AW-21 the comparison never names a resistance', 'src/shell/bag-model.js', "    if (d) out.push({ label: resistLabel(k), delta: d, text: (d > 0 ? '−' : '+') + cutWords(d) });\n", ''],
   ['plans: AW-21 the card calls every resistance by one name', 'src/shell/bag-model.js', "const resistLabel = (k) => t('item.resist_taken', { element: t('monster.el_' + k) });", "const resistLabel = (k) => t('item.resist_taken', { element: t('monster.el_ember') });"],
+  /* A PIECE'S BANE ON ITS CARD AND COMPARE; THE CARD'S LINE ON THE HERO'S GROUND (lane/a-compare-lines, lane/a-honest-lines; re-landed by lane/a-honesty-rescue) */
+  ['plans: AW-21 the card drops a piece\'s bane', 'src/shell/bag-model.js', "    if (v > 1e-9) out.push({ key: 'bane.' + c, label: baneLabel(c), value: v, text: '+' + pctWords(v) });\n", ''],
+  ['plans: AW-21 the compare drops a piece\'s bane', 'src/shell/bag-model.js', "    if (Math.abs(d) > 1e-9) out.push({ label: baneLabel(c), delta: d, text: (d > 0 ? '+' : '−') + pctWords(Math.abs(d)) });\n", ''],
+  ['plans: AW-21 an item card says nothing of what it does on the hero\'s ground', 'src/shell/item-lore.js', '  return lines.length ? { ground: (HUNT_INDEX[g.hunt]', '  return lines.length && false ? { ground: (HUNT_INDEX[g.hunt]'],
+  ['plans: AW-21 an item card\'s ground line skips the resistance', 'src/shell/item-lore.js', '    if (hit.length && pm > 0) lines.push(', '    if (false) lines.push('],
+  ['plans: AW-21 an item card\'s ground line names monsters that are not of the bane\'s kind', 'src/shell/item-lore.js', '  for (const m of ms) { const k = baneMultFor(classOfMonster(MONSTERS[m]), ix);', '  for (const m of ms) { const k = Math.max(...Object.values(ix || { x: 1 }));'],
   ['plans: AW-21 a hall boss\'s piece comes from nowhere a player can reach', 'src/shell/hunt-ground-facts.js', "    if (boss && ((MONSTERS[boss] || {}).drops || []).some((d) => d && d.id === item)) standing.push({ g, names: [MONSTERS[boss].name] });\n", ''],
   ['plans: AW-21 a hall piece\'s link opens a hunt page that does not exist', 'src/shell/hunt-ground-facts.js', "  return standing.length ? { kind: 'hunt', hunt: pageOf(standing[0].g) }", "  return standing.length ? { kind: 'hunt', hunt: standing[0].g.hunt }"],
   ['plans: AW-21 a bane is a reason to skip the blade again', 'src/shell/upgrade-plan.js', "it.effects.some((e) => e !== 'bane')", 'it.effects.length'],
@@ -5597,6 +5694,10 @@ const MUTANTS = [
   ['AW-25 the creatures are never drawn', 'src/shell/windows/hunt-detail.js', '  const ok = drawCreature(c, ART, id, LINEUP_SPRITE);', '  const ok = false;'],
   ['AW-25 each creature stands at its own height', 'src/shell/windows/hunt-detail.js', "  style(lineup, '--stand-h', tallest ? tallest + 'px' : null);\n", ''],
   /* 'hunts:' is judged by the pure Hunts rules (huntsPure) on a planted copy of src: the page runs at a 1x screen, so only the pure 125/150 % arm sees it */
+  /* A HEALER'S TIER (lane/a-honest-lines, re-landed and bounded by Level by lane/a-honesty-rescue) */
+  ['hunts: AW-25 the tier note never says a Healer\'s tier', 'src/shell/hunt-list.js', "  const healer = isHealerTier(r.hunt, tier.id, level) ? [t('hunts.tier_healer')] : [];", '  const healer = [];'],
+  ['hunts: AW-25 a Healer\'s tier is said at every Level', 'src/data/hunt-tiers.js', '  return under !== null && !(Number.isInteger(level) && level >= under);', '  return under !== null;'],
+  ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 60 },\n', ''],
   ['hunts: AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],

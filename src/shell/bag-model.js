@@ -16,7 +16,9 @@
 //   sellPlan(items, ids)  the lines a bulk sale sends; LOCKED stacks are never named
 //   bagValue(items, bids) the bag's worth at the server's bids
 //   isNew / markSeen      the "new" mark (residue `bagSeen`, display only)
-//   statLines / compare   an item's stats in words, and the change against the worn one
+//   statLines / compare   an item's stats in words, and the change against the worn one: the ladder's numbers and its own
+//                         attribute (a resistance, a bane: the engine's readers, so a new unique needs no code)
+//   baneKindName(cls)     a bane's monster kind as the Bestiary names it
 //   equipSlotFor(id, eq)  the slot an item would go into
 //   riteOf / cookOf       the bench recipe that spends a whole stack (Burn all, Cook all)
 //   namedFuelOf(id)       a named Hearth fuel's row (src/data/hearth.js): burnt alone, never sold in bulk
@@ -39,6 +41,8 @@ import { recipeInputs } from '../core/artisan.js?v=0.2.138';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.138';
 import { itemName } from './widgets/bits.js?v=0.2.138';
 import { HERO_RESIST_KEYS } from '../data/elements.js?v=0.2.138';
+import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.138';
+import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.138';
 import { t } from '../render/player-text.js?v=0.2.138';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
@@ -386,7 +390,19 @@ const resistLabel = (k) => t('item.resist_taken', { element: t('monster.el_' + k
 const pctWords = (v) => (Math.round(v * 1000) / 10) + '%';
 const cutWords = (v) => Math.abs(v) / 10 + '%';
 
-/** An item's stats as [{ key, label, value, text }] (non-zero only). */
+/** A monster kind's name as the Bestiary says it: bane.js keys "extra_dimensional", the class table "extradimensional". */
+export function baneKindName(cls) {
+  const row = MONSTER_CLASSES[cls] || MONSTER_CLASSES[String(cls).replace(/_/g, '')];
+  return row ? row.name : String(cls);
+}
+/* A PIECE'S BANE (`bane`: { class, mult } or a list; any worn slot, src/core/bane.js baneIndex), one line a kind in bane.js's order, its value
+   the ENGINE's clamped multiplier less one (baneMultFor): "Damage to Vermin monsters +10%". A side-grade's worth is its attribute: left off the
+   compare, Kingstooth read as "−1 Melee damage" against the Iron Sword and nothing else (lane/a-compare-lines 2026-11-16, re-landed by
+   lane/a-honesty-rescue). The key is the field and its class (`bane.vermin`), as a resistance's is (`resistPm.ember`). */
+const baneValue = (it, cls) => (it ? baneMultFor(cls, baneIndex({ piece: 'it' }, { it })) - 1 : 0);
+const baneLabel = (cls) => t('item.stat_bane', { kind: baneKindName(cls) });
+
+/** An item's stats as [{ key, label, value, text }] (non-zero only): the ladder's numbers, then its own attribute (a resistance, a bane). */
 export function statLines(id) {
   const it = ITEMS[id];
   const out = [];
@@ -399,10 +415,15 @@ export function statLines(id) {
     const v = resistValue(it, k);
     if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });
   }
+  for (const c of BANE_CLASSES) {
+    const v = baneValue(it, c);
+    if (v > 1e-9) out.push({ key: 'bane.' + c, label: baneLabel(c), value: v, text: '+' + pctWords(v) });
+  }
   return out;
 }
 
-/** The change wearing `id` instead of `worn` makes, stat by stat: [{ label, delta, text }]. */
+/** The change wearing `id` instead of `worn` makes, stat by stat: [{ label, delta, text }]. An attribute only one of the two carries is
+    a whole gain or a whole loss (Kingstooth against the Iron Sword: "+10% Damage to Vermin monsters"). */
 export function compare(id, worn) {
   const a = ITEMS[id], b = worn ? ITEMS[worn] : null;
   const out = [];
@@ -414,6 +435,10 @@ export function compare(id, worn) {
   for (const k of HERO_RESIST_KEYS) {
     const d = resistValue(a, k) - resistValue(b, k);
     if (d) out.push({ label: resistLabel(k), delta: d, text: (d > 0 ? '−' : '+') + cutWords(d) });
+  }
+  for (const c of BANE_CLASSES) {
+    const d = baneValue(a, c) - baneValue(b, c);
+    if (Math.abs(d) > 1e-9) out.push({ label: baneLabel(c), delta: d, text: (d > 0 ? '+' : '−') + pctWords(Math.abs(d)) });
   }
   return out;
 }

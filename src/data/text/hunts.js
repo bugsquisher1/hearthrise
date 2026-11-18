@@ -37,6 +37,9 @@ export const HUNTS_TEXT = Object.freeze({
 
   /* What a tier does. */
   tier_choice: '{tier}: {head}.',
+  /* A tier where a party with no Healer was measured to die on this ground, under a Level (a pack's healerTiers, hunt-tiers.js HEALER_TIERS):
+     one line of the tier note, said to a hero alone and to a party alike. A warning, never a gate. The wants_healer shape. */
+  tier_healer: 'Recommended: Healer (parties without one die here)',
 
   /* The band, and a ground above the hero. */
   band: 'Levels {lo}–{hi}',

@@ -262,7 +262,7 @@ export function buildSummary(s, an, deaths, role, stop, line) {
     /* The hunt's BALANCE, the server's own (coins + loot value - store supplies): it is there from the first kill,
        where the per-hour figure waits for 10 minutes (core-loop play 2026-10-30: a first 4-minute hunt read "–"). */
     balance: hero ? hero.balance : null,
-    /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP before bonuses
+    /* Per hour, the server's (hr_hunt_stats_of per_hour): balance for every character; Level XP with no party or solo bonus
        only when the server sent it (premium: the basic analyzer carries no raw_xp). Never divided here. */
     balanceH: ph ? ph.balance : null, rawXpH: ph ? ph.rawLevelXp : null,
     /* Level XP an hour, the server's (per_hour.xp, sent once the hunt is rated): the end card's figure under the Level XP. */

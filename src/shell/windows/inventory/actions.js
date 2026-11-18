@@ -63,6 +63,7 @@ import { unlockRing } from './key-ring.js?v=0.2.138';
 import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.138';
 import { actPlanCopy } from './plan-copy.js?v=0.2.138';
 import { text, attr } from '../../../render/paint.js?v=0.2.138';
+import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.138';
 
 const heroLevel = (cs) => { const lv = levelOf(cs); return lv ? lv.level : null; };
 
@@ -99,6 +100,7 @@ function tipFor(ctx, st, li) {
     offers: st.shop ? st.shop.offers : null,
     skills: skillsOf(st.cs),
     level: heroLevel(st.cs),
+    ground: heroGroundOf(st.cs),
   });
 }
 

@@ -324,7 +324,7 @@ export const REASONS = Object.freeze({
     { cond: 'can.entry.off', words: 'text(inv, can ? can.entry.label', where: 'the phone\'s Invite: an off entry reads its reason as its label ("Party full")' },
   ],
   'src/shell/windows/character/outfit.js': [
-    { cond: '!owned || (o.worn || null) === d.outfit', words: "'Premium, not owned'", where: 'the outfit tile says not owned; Equip needs another outfit' },
+    { cond: '!owned || (o.worn || null) === d.outfit', words: "(o && !owned ? ', not owned' : '')", where: 'the picked outfit\'s name under the preview says not owned (a tile not owned is dimmed and says so on the pointer); Equip needs another outfit' },
     { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
     { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
   ],

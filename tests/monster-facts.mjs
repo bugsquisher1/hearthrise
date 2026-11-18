@@ -6,7 +6,7 @@
 //   node tests/monster-facts.mjs --mutate   every planted defect must turn a rule RED
 //   node tests/monster-facts.mjs --shots <dir>   also write the desktop and phone screenshots
 //
-// mutant-anchors: src/shell/monster-facts.js src/shell/windows/monster.js src/shell/windows/hunt-detail.js src/data/text/monster.js
+// mutant-anchors: src/shell/monster-facts.js src/shell/windows/monster.js src/shell/windows/hunt-detail.js src/data/text/monster.js src/styles/windows.css
 //
 // Tyler 2026-11-09: every monster's stats are visible in the game. play.html with supabase-js and the REST
 // paths stubbed (tests/_client-harness.mjs); the hero is tests/fixtures/alpha-envelope.json ("Tyler", slot 0)
@@ -28,7 +28,8 @@
 //         page; the Rat King reads his row's numbers and carries the Hunts list's own group warning, never a gate
 //   MF-6  the phone (922x423): the page is a sheet no wider than 400 px, nothing overflows sideways, no text is
 //         under 12 px, and a ground's link goes back to that ground's Hunts page
-//   MF-8  the page's title row (its own, as a page of Hunts) draws the creature's 32 px head in a well beside the name when the head
+//   MF-8  the page's title row (its own, as a page of Hunts) draws the creature's 32 px head at the page's x2 (64 px at 100%; UI audit
+//         2026-11-18 UI-9: x1 beside the x2 figure was two densities on one page) in a well beside the name when the head
 //         set has one (HEAD_ART, the Briarcoat Wolf), and no well at all for a creature it has none for (the same page with the
 //         wolf's head taken out of the set); the Hunts window's header never carries it
 //   MF-7  (no browser) every monster on an open ground has a page, and every word its row can ask for exists; on each of
@@ -245,7 +246,7 @@ async function checks(overrides, shots) {
         compare(fails, 'MF-2', got, want);
         if (got && !got.drawn) fails.push('MF-2 the creature was not drawn');
         /* MF-8: the wolf has a head, so its title row draws it in the well beside the name (the head path is the art manifest's, not retyped here) */
-        if (got && (!got.face.shown || got.face.src !== headPathFor('briarcoat_wolf') || got.face.w !== 32 || got.face.inWindowHead)) fails.push('MF-8 the Briarcoat Wolf\'s title row reads ' + JSON.stringify(got.face) + ', not its head at ' + headPathFor('briarcoat_wolf'));
+        if (got && (!got.face.shown || got.face.src !== headPathFor('briarcoat_wolf') || got.face.w !== 64 || got.face.inWindowHead)) fails.push('MF-8 the Briarcoat Wolf\'s title row reads ' + JSON.stringify(got.face) + ', not its head at x2 (64 px at 100%) from ' + headPathFor('briarcoat_wolf'));
         /* Each heading is the heading alone (Tyler 2026-11-11: a line that explains how the game works is cut): which tier is the Tier
            row's to say, a kill's heading carries no "shared by the heroes who were there", and the drops' note is the column's "Chance per
            kill" with no party rule after it. */
@@ -339,6 +340,7 @@ async function checks(overrides, shots) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
+  ['the head draws x1 beside the x2 figure again (MF-8)', 'src/styles/windows.css', '.mf-face .mf-head-img { width: var(--icon-2); height: var(--icon-2); }', '.mf-face .mf-head-img { width: var(--icon-1); height: var(--icon-1); }'],
   ['a creature with no head still gets a well and a head path', 'src/shell/windows/monster.js', "  const well = root.querySelector('.mf-face'), src = headPathFor(id);", "  const well = root.querySelector('.mf-face'), src = headPathFor(id) || 'assets/icons-bundle/pixel/heads/' + id + '.png';"],
   ['a creature with no head keeps an empty well', 'src/shell/windows/monster.js', "  prop(well, 'hidden', !src);", "  prop(well, 'hidden', false);"],
   ['Health is the monster\'s attack', 'src/shell/monster-facts.js', '    hp: Math.max(1, fights.hp || 1),', '    hp: Math.max(1, fights.atk || 1),'],

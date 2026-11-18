@@ -17,8 +17,8 @@
 //   W-RAW     gathered and sold raw, a node to its skill level pays no more than RAW_CAP
 //   W-CHAIN   gather and bench, a row with no hunted input pays no more than CHAIN_CAP, and CHAIN_CAP stays under hunting
 //   W-STEP    refining pays more than selling the raw stack: bar, plank, cooked fish
-//   W-FORGE   a forged or sewn piece a player can wear sells above the shop's bid for what went in (TIER_3_USE excepted), and forging
-//             pays more than selling its bars
+//   W-FORGE   a reforged piece a player can wear (Klappa's Club, the capes: since 2026-11-18 no bench makes armor, a weapon or a plain
+//             shield, Tyler) sells above the shop's bid for what went in (TIER_3_USE excepted), and forging pays more than selling its bars
 //   W-ROOM    a cooked fish's bid sits under the store's price for the same heal, so a cook can undercut the store on the Weighhouse
 //   W-USE     Bronze Arrows, Coarse Whetstones and Chalked Runes stay priced at nothing: made for your own use
 //   W-TAX     the public bench's fee (src/data/bench-tax.js): no craft charges more than its output sells for, and a row the cheap goods
@@ -62,12 +62,9 @@ const at = (table, req) => table.filter(([l]) => l <= req).pop()[1];
 const huntingAt = (req) => at(HUNTING, req);
 const RAW_CAP = (req) => Math.round(at(HUNTING_FOR_RAW, req) * 0.6);
 const CHAIN_CAP = (req) => Math.round(huntingAt(req) * 0.9);
-/* Tier 3 sells at 0.14 of book by the 10-23 ruling and tier 4 at 0.075 (designer 2026-11-08), one price per item however it came: these are
-   made to be carried. */
-const TIER_3_USE = Object.freeze({ forge_coppercap_shield: 'the Warrens-tier shield', reforge_steelgrate: 'a Rare Kingsgrate reforged',
-  forge_mithril_hatchets: 'the tier-4 pair no ground drops', string_maple_crossbow: 'the tier-4 crossbow no ground drops',
-  /* the tier-4 shield (designer 2026-11-15, the audit's F8): forged to be worn the day a tank reaches 45; its only other door is a Rare, about every 15 h */
-  forge_mithril_faced_shield: 'the tier-4 shield, a Rare on the Slake otherwise' });
+/* Tier 3 sells at 0.14 of book by the 10-23 ruling, one price per item however it came: this is made to be carried. (The forged Coppercap and
+   Mithril-Faced shields, Mithril Hatchets and Maple Crossbow left with their recipes, lane/d-drop-homes 2026-11-18: each drops now.) */
+const TIER_3_USE = Object.freeze({ reforge_steelgrate: 'a Rare Kingsgrate reforged' });
 const SELF_USE = Object.freeze(['bronze_arrows', 'coarse_whetstone', 'chalked_earth_rune', 'chalked_water_rune', 'chalked_fire_rune',
   'chalked_ice_rune', 'chalked_poison_rune', 'chalked_rupture_rune']);
 
@@ -145,7 +142,9 @@ export function check() {
       if (afterH <= raw) fails.push(`W-STEP ${r.id}: refined pays ${Math.round(afterH)} g/h after the bench's fee, the raw stack ${Math.round(raw)}: nobody would refine for the shop`);
     }
     if (['weapon', 'armor', 'offhand'].includes(it.type) && !TIER_3_USE[r.id]) {
-      const cost = keys.reduce((s, id) => s + ins[id] * bid(id), 0) + feeG(r) / (Number(r.outputQty) || 1);
+      /* the recipe row carries no `skill` (benchIndex adds it), so the fee is read with the bench's skill: before lane/d-drop-homes this read
+         0 for every row, and only the bars arm below ever saw a fee, which no reforge reaches now (each has a hunted input) */
+      const cost = keys.reduce((s, id) => s + ins[id] * bid(id), 0) + feeG({ ...r, skill }) / (Number(r.outputQty) || 1);
       if (unit <= cost) fails.push(`W-FORGE ${r.id}: sells for ${unit} g, the shop's bid for what went in plus the bench's fee is ${cost} g`);
       const bars = keys.filter((id) => /_bar$/.test(id));
       for (const b of bars) {
@@ -216,7 +215,7 @@ export function check() {
     });
   }
   /* a recipe still files itself (the guard reads rows the bench shows) */
-  if (!recipeCategory('smithing', B.iron_hatchets, ITEMS)) fails.push('W-CHAIN harness: Iron Hatchets has no bench category');
+  if (!recipeCategory('smithing', B.klappas_club, ITEMS)) fails.push("W-CHAIN harness: Klappa's Club has no bench category");
   return fails;
 }
 
@@ -246,14 +245,13 @@ function mutate() {
   run('Graven Runes bid at their store price (no room to list under it)', 'W-RUNE', () => setField('graven_ice_rune', 'v', 24));
   run('Etched Runes back at the old yield of 36 (a job a faucet)', 'W-RUNE', () => { const list = ARTISAN_RECIPES.runecrafting; const at = list.findIndex((x) => x.id === 'bind_etched_water_runes'); const was = list[at]; list[at] = { ...was, outputQty: 36 }; return () => { list[at] = was; }; });
   run('the Steel Axe back at book 900', 'W-CHAIN', () => setField('steel_axe', 'v', 900));
-  run('Iron Hatchets back at two bars and a plank (a chain faster than the bench)', 'W-CHAIN', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 2, normal_plank: 1 }));
   run('an Oak Plank that pays less than the log time it takes', 'W-STEP', () => setField('oak_plank', 'v', 5));
-  run('Iron Hatchets that sell below their metal', 'W-FORGE', () => inputs('smithing', 'forge_iron_hatchets', { iron_bar: 12, normal_plank: 2 }));
-  run('forging that pays less than selling the bars', 'W-FORGE', () => inputs('smithing', 'forge_iron_warhammer', { iron_bar: 10, normal_plank: 3 }));
+  run("Klappa's Club that sells below its metal", 'W-FORGE', () => inputs('smithing', 'reforge_klappas_club', { practice_club: 1, bronze_bar: 60, small_fang: 3 }));
   run('Cooked Herring bid over the store\'s Salted Shrimp', 'W-ROOM', () => setField('cooked_herring', 'v', 14));
   const rate = (key, v, skill) => () => { if (skill) { const was = TAX.permille[skill]; TAX.permille[skill] = v; return () => { TAX.permille[skill] = was; }; } const was = TAX[key]; TAX[key] = v; return () => { TAX[key] = was; }; };
   run('a public bench taking the whole bid: refining pays less than the raw stack', 'W-STEP', rate(null, 1000, 'smithing'));
-  run('a public bench taking 60%: forging pays less than its metal', 'W-FORGE', rate(null, 600, 'smithing'));
+  run("a public bench taking 60%: reforging Klappa's Club pays less than its metal", 'W-FORGE', rate(null, 600, 'smithing'));
+  run('a public bench taking 60%: stitching a cape pays less than its pelts', 'W-FORGE', rate(null, 600, 'crafting'));
   run('a fee above what the job sells for', 'W-TAX', rate(null, 1500, 'cooking'));
   run('the cheap goods line raised until the free rows out-earn the taxed ones', 'W-TAX', rate('freeUnderMg', 6000));
   run('Bronze Arrows priced', 'W-USE', () => setField('bronze_arrows', 'v', 1));

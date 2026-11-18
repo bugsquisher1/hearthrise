@@ -61,11 +61,15 @@
 //         next read (hr_chat_row renders it), its menu target too
 //   CW-11 [page] THE COMBAT TAB'S LINES COME FIRST: at the window's default size and on a phone the log has
 //         room for 4 lines, a miss wears no cost color, its filters are folded and say what is off
-//   ON-1  PLAYERS ONLINE (tracker r16): the count comes with hr_social_poll's answer, ONE
-//         request a poll naming the account's open character slots, replaced by each
-//         answer; a refused or malformed answer reads "— online", never the last number
+//   ON-1  PLAYERS ONLINE (tracker r16; Tyler 2026-11-18): the total and its seven lines by activity come with
+//         hr_social_poll's answer (online, online_by), ONE request a poll naming the account's open character slots,
+//         replaced together by each answer; a refused, malformed or contradictory answer (lines that are not whole
+//         numbers adding up to the total) reads "— online" with no lines, never the last numbers
 //   ON-2  [page] the counter reads the server's "3 online" at 12 px or more, on
 //         screen, overlapping no other widget; off by default on a phone
+//   ON-4  [page] the server's lines ("Hunting 1", "In town 2") show on hover and on keyboard focus, in order, a line at
+//         0 left out, on top, inside the screen, the counter's box unmoved; none without; the widget itself reads
+//         "14 online" with its lines, then "— online" and no lines when the answer fails
 //   ON-3  a page hidden past the grace keeps its account online for its friends: a slower poll, inside the server's online
 //         window on any timer the browser gives it, naming no hero (a hero nobody watches is not stamped watched); shown
 //         again it reads at once, naming them
@@ -422,7 +426,10 @@ async function pureRules(M) {
   // exactly the account's open character slots (the server stamps its own of those present), REPLACED by each answer; a
   // failed or malformed answer shows a dash, never the last number.
   {
-    let answer = { online: 3 };
+    /* The server's seven lines (2027-05-05-players-online-by-activity.sql), which add up to `online`. */
+    const BY = (o) => Object.assign({ hunting: 0, tower: 0, gathering: 0, crafting: 0, training: 0, hearth: 0, town: 0 }, o);
+    const lines = () => JSON.stringify(M.online.onlineLines(soc.online.by).map((l) => l.text));
+    let answer = { online: 3, online_by: BY({ hunting: 1, town: 2 }) };
     const read = { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] };
     const { acct, calls, cs } = fakeAccount({ hr_social_poll: () => Object.assign({}, read, answer) });
     const second = { slot: 2, read: () => null, subscribe: () => () => {} };
@@ -436,23 +443,41 @@ async function pureRules(M) {
     const apart = calls.filter((c) => c.name === 'hr_social_state' || c.name === 'hr_players_online');
     if (apart.length) fail('ON-1 a poll made a second request: ' + apart.map((c) => c.name).join(', ') + ' (one poll is one request)');
     if (soc.online.count !== 3 || M.online.onlineWords(soc.online.count) !== '3 online') fail('ON-1 the server said 3, the counter reads ' + M.online.onlineWords(soc.online.count));
-    answer = { online: null };
+    if (lines() !== '["Hunting 1","In town 2"]') fail('ON-1 the server said 1 hunting and 2 in town, the hover reads ' + lines() + ' (a line at 0 is left out)');
+    /* Every line, in the hover's order, numbers written as numbers; they replace the last ones whole. */
+    answer = { online: 1222, online_by: BY({ town: 207, hearth: 1000, training: 5, crafting: 4, gathering: 2, tower: 1, hunting: 3 }) };
     poll(); for (let i = 0; i < 5; i++) await tick();
-    if (soc.online.count !== null || M.online.onlineWords(null) !== '— online') fail('ON-1 a refused ask kept the old count ' + soc.online.count);
-    answer = { online: 'many' };
+    if (M.online.onlineWords(soc.online.count) !== '1,222 online'
+        || lines() !== '["Hunting 3","Tower 1","Gathering 2","Crafting 4","Training 5","Feeding the Hearth 1,000","In town 207"]') {
+      fail('ON-1 every line reads ' + M.online.onlineWords(soc.online.count) + ' ' + lines());
+    }
+    answer = { online: null, online_by: null };
+    poll(); for (let i = 0; i < 5; i++) await tick();
+    if (soc.online.count !== null || soc.online.by !== null || M.online.onlineWords(null) !== '— online' || lines() !== '[]') fail('ON-1 a refused ask kept the old count ' + soc.online.count + ' or lines ' + lines());
+    answer = { online: 'many', online_by: BY({ town: 1 }) };
     poll(); for (let i = 0; i < 5; i++) await tick();
     if (soc.online.count !== null) fail('ON-1 a malformed count was shown: ' + soc.online.count);
-    answer = { online: 1204 };
+    /* The lines and the total are ONE reading: lines that do not add up, a line that is not a whole number, or no lines at all
+       show nothing, never a total the lines contradict. */
+    for (const bad of [{ online: 5, online_by: BY({ town: 4 }) }, { online: 5, online_by: BY({ town: 6, hunting: -1 }) },
+      { online: 2, online_by: BY({ town: 1.5, hunting: 0.5 }) }, { online: 2, online_by: null }, { online: 2, online_by: [2] }]) {
+      answer = { online: 1204, online_by: BY({ town: 1204 }) };
+      poll(); for (let i = 0; i < 5; i++) await tick();
+      answer = bad;
+      poll(); for (let i = 0; i < 5; i++) await tick();
+      if (soc.online.count !== null || soc.online.by !== null) fail('ON-1 a malformed breakdown ' + JSON.stringify(bad) + ' showed ' + soc.online.count + ' ' + lines());
+    }
+    answer = { online: 1204, online_by: BY({ town: 1204 }) };
     poll(); for (let i = 0; i < 5; i++) await tick();
-    if (M.online.onlineWords(soc.online.count) !== '1,204 online') fail('ON-1 the next answer did not replace the dash: ' + M.online.onlineWords(soc.online.count));
+    if (M.online.onlineWords(soc.online.count) !== '1,204 online' || lines() !== '["In town 1,204"]') fail('ON-1 the next answer did not replace the dash: ' + M.online.onlineWords(soc.online.count) + ' ' + lines());
     /* A poll the server refuses (a session it no longer knows) is one dead call, and shows the dash. */
     const asked = calls.length;
     acct.server.rpc = async (name, args) => { calls.push({ name, args }); return { ok: false, status: 401, body: null }; };
     poll(); for (let i = 0; i < 5; i++) await tick();
     if (calls.length !== asked + 1) fail('ON-1 a refused poll made ' + (calls.length - asked) + ' calls (one is one)');
-    if (soc.online.count !== null) fail('ON-1 a refused poll kept showing ' + soc.online.count);
+    if (soc.online.count !== null || soc.online.by !== null) fail('ON-1 a refused poll kept showing ' + soc.online.count + ' ' + lines());
     soc.destroy();
-    if (soc.online.count !== null) fail('ON-1 a destroyed session still shows a count');
+    if (soc.online.count !== null || soc.online.by !== null) fail('ON-1 a destroyed session still shows a count');
   }
 
   // ON-3: the poll a hidden page keeps. The server's "online" window, read from its own body.
@@ -539,7 +564,8 @@ async function stub(page, s) {
       return json({ ok: true, price: body.p_price, n: s.cried, per_day: 5, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, crier: true }) });
     }
     if (name === 'hr_chat_send') return json({ ok: true, line: row({ from_id: UID, from_name: 'Quill', body: body.p_body, from_weapon: 'staff', from_role: 'healer' }) });
-    if (name === 'hr_social_state' || name === 'hr_social_poll') return json(Object.assign({ online: 3 }, s.social || { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] }));
+    if (name === 'hr_social_state' || name === 'hr_social_poll') return json(Object.assign({ online: 3, online_by: { hunting: 1, tower: 0, gathering: 0, crafting: 0, training: 0, hearth: 0, town: 2 } },
+      s.social || { ok: true, friends: [], incoming: [], outgoing: [], blocks: [] }));
     if (name === 'hr_friend_request' && s.ask) return json(s.ask);
     if (name === 'hr_block_set' && s.block) return json(s.block);
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
@@ -686,6 +712,55 @@ async function pageRules(overrides, shots) {
           return { px: parseFloat(getComputedStyle(el.querySelector('.hs-online-n')).fontSize), inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight, over };
         });
         if (!(box.px >= 12) || !box.inside || box.over.length) fails.push('ON-2 [' + tag + '] the counter is ' + JSON.stringify(box));
+        // ON-4 (Tyler 2026-11-18): the server's lines show on hover AND on keyboard focus, in their order with a line at 0 left
+        // out, at 12 px or more, inside the screen, on top of whatever stands there, and the counter's own box does not move;
+        // with neither, none show.
+        const shown = () => page.evaluate(() => {
+          const el = document.querySelector('[data-hs-widget="online"]');
+          const by = el.querySelector('.hs-online-by');
+          const r = by.getBoundingClientRect(), b = el.getBoundingClientRect();
+          const on = getComputedStyle(by).display !== 'none' && r.height > 0;
+          const top = on && Array.from(by.children).every((c) => {
+            const q = c.getBoundingClientRect();
+            const hit = document.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2);
+            return !!hit && (hit === c || c.contains(hit));
+          });
+          return { on, texts: Array.from(by.children).map((c) => c.textContent), top,
+            inside: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight,
+            px: on && by.firstElementChild ? parseFloat(getComputedStyle(by.firstElementChild).fontSize) : null,
+            box: [b.left, b.top, b.width, b.height].map(Math.round) };
+        });
+        const rest = await shown();
+        if (rest.on) fails.push('ON-4 [' + tag + '] the lines show with no hover or focus');
+        await page.hover('[data-hs-widget="online"] .hs-online');
+        const hov = await shown();
+        if (shots) await page.screenshot({ path: join(shots, 'online-lines-' + tag + '.png') });
+        await page.mouse.move(vp.width / 2, 40);
+        await page.focus('[data-hs-widget="online"] .hs-online');
+        const foc = await shown();
+        await page.evaluate(() => document.activeElement && document.activeElement.blur());
+        for (const [how, x] of [['hover', hov], ['focus', foc]]) {
+          if (!x.on || JSON.stringify(x.texts) !== '["Hunting 1","In town 2"]' || !x.top || !x.inside || !(x.px >= 12)
+              || JSON.stringify(x.box) !== JSON.stringify(rest.box)) {
+            fails.push('ON-4 [' + tag + '] on ' + how + ' the lines read ' + JSON.stringify(x) + ' (box at rest ' + JSON.stringify(rest.box) + ')');
+          }
+        }
+        // The widget itself, with the answer present and then failed: "14 online" and its lines, then "— online" and NO lines
+        // (a failed answer never leaves the last lines up).
+        const dash = await page.evaluate(async () => {
+          const W = await import('/src/shell/widgets/online.js');
+          const host = document.createElement('div');
+          host.innerHTML = W.renderOnline();
+          document.body.appendChild(host);
+          const read = () => ({ n: host.querySelector('.hs-online-n').textContent, lines: Array.from(host.querySelector('.hs-online-by').children).map((c) => c.textContent) });
+          const as = (count, by) => { W.renderOnline.patch(host, { doc: document, account: { social: { online: { count, by } } } }); return read(); };
+          const out = [as(null, null), as(14, { hunting: 3, tower: 0, gathering: 2, crafting: 0, training: 0, hearth: 0, town: 9 }), as(null, null)];
+          host.remove();
+          return out;
+        });
+        if (JSON.stringify(dash) !== JSON.stringify([{ n: '— online', lines: [] }, { n: '14 online', lines: ['Hunting 3', 'Gathering 2', 'In town 9'] }, { n: '— online', lines: [] }])) {
+          fails.push('ON-4 [' + tag + '] the widget with no answer, an answer, then a failed one reads ' + JSON.stringify(dash));
+        }
       }
       if (shots) await page.screenshot({ path: join(shots, 'online-' + tag + '.png') });
       await page.keyboard.press('Enter');
@@ -1087,9 +1162,13 @@ const PURE_MUTANTS = [
     "        for (const tab of SERVER_TABS) { for (const l of this.lines(tab)) this._ids.delete(l.id); this._lines.set(tab, []); }\n        for (const row of b.lines) if (this._take(row, true)) any = true;\n        if (any) { for (const tab of SERVER_TABS)"],
   ['a whisper rejoin never catches up', 'src/social/whispers.js', ", () => this._catchUp());", ');'],
   ['a blocked player\'s public line is shown', 'src/social/chat-store.js', '    if (live && l.fromId && this._blocked(l.fromId)) return false;\n', ''],
-  ['a failed online ask keeps the last count', 'src/social/players-online.js', 'online >= 0 ? online : null;', 'online >= 0 ? online : this.count;'],
-  ['a refused poll keeps showing the count', 'src/social/social-session.js', 'return this.online.take(read ? ans.body.online : null);', 'return read ? this.online.take(ans.body.online) : null;'],
-  ['a poll asks the count apart again', 'src/social/social-session.js', "    return this.online.take(read ? ans.body.online : null);", "    await this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null);"],
+  ['a failed online ask keeps the last count', 'src/social/players-online.js', 'const n = r ? r.n : null, lines = r ? r.by : null;', 'const n = r ? r.n : this.count, lines = r ? r.by : this.by;'],
+  ['a refused poll keeps showing the count', 'src/social/social-session.js', 'return this.online.take(read ? ans.body.online : null, read ? ans.body.online_by : null);', 'return read ? this.online.take(ans.body.online, ans.body.online_by) : null;'],
+  ['a poll asks the count apart again', 'src/social/social-session.js', "    return this.online.take(read ? ans.body.online : null, read ? ans.body.online_by : null);", "    await this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null, read ? ans.body.online_by : null);"],
+  /* ON-1 (Tyler 2026-11-18): the total and its lines are one reading of the server's answer */
+  ['lines that do not add up to the total are shown (ON-1)', 'src/social/players-online.js', '  return sum === online ? { n: online, by: Object.freeze(lines) } : null;', '  return { n: online, by: Object.freeze(lines) };'],
+  ['a line at 0 is listed (ON-1)', 'src/social/players-online.js', 'ONLINE_LINES.filter((id) => by[id] > 0)', 'ONLINE_LINES.filter((id) => by[id] >= 0)'],
+  ['the poll drops the lines (ON-1)', 'src/social/social-session.js', 'read ? ans.body.online_by : null);', 'null);'],
   ['the online ask names only the viewed character', 'src/social/social-session.js',
     "o.account.characters().map((cs) => cs.slot)", '[o.account.viewed]'],
   ['the look claims a resistance the engine never applies (MN-2)', 'src/shell/menu-providers.js', '  return s;\n}',
@@ -1128,6 +1207,10 @@ const PAGE_MUTANTS = [
   ['the server ids are not read', 'src/session/party-sections.js', "    out.set(p.seat, { id: p.user, slot: Number.isInteger(p.slot) ? p.slot : null, name: name(p.name), dye: dyeKeyOf(p.colors) });", "    void p;"],
   ['the World names nothing on a right-click', 'src/world/world-boot.js', "if (pick) emit('entity', { hits: pick.hits, x, y }); }", "void pick; }"],
   ['the counter does not read the server\'s count', 'src/shell/widgets/online.js', '  const s = ctx.account && ctx.account.social;', '  const s = ctx.account;'],
+  ['the lines never show (ON-4)', 'src/styles/shell.css', '.hs-online:focus .hs-online-by:not(:empty) { display: flex; }', '.hs-online:focus .hs-online-by:not(:empty) { display: none; }'],
+  ['keyboard focus shows no lines (ON-4)', 'src/styles/shell.css', '.hs-online:hover .hs-online-by:not(:empty), .hs-online:focus .hs-online-by:not(:empty) {', '.hs-online:hover .hs-online-by:not(:empty) {'],
+  ['the lines always show (ON-4)', 'src/styles/shell.css', '.hs-online-by { display: none; position: absolute;', '.hs-online-by { display: flex; position: absolute;'],
+  ['a failed answer leaves the last lines up (ON-4)', 'src/shell/widgets/online.js', "  rows(el.querySelector('.hs-online-by'), lines, {", "  if (lines.length) rows(el.querySelector('.hs-online-by'), lines, {"],
   ['the chat stands over the widgets above its column (CW-8)', 'src/shell/shell.js', 'const tops = homes.length ? Array.from(', 'const tops = false ? Array.from('],
   ['the chat keeps its height under a widget (CW-8)', 'src/shell/hud.js', 'const max = Math.min(...over.map(room), at.max === null ? Infinity : at.max);', 'const max = at.max === null ? Infinity : at.max;'],
   ['a log is not kept at its foot (CW-9)', 'src/shell/windows/chat.js', '    keepPinned(list);', '    void keepPinned;'],

@@ -104,6 +104,7 @@ const REPAIR_AFTER_WIPE = [
   '2027-03-25-hero-slots-one-unlocks.generated.sql',   // the same SCOPED upsert with character_slot:1 back (one slot to start, slot 1 sold); deletes the same retired ids
   '2027-04-28-key-ring-gold-ladders.generated.sql',    // the gold ladders again with the Key Ring (key_ring), upserted by id; retires worker_hire and plot:farm_land by id
   '2027-05-01-v0135-temper-catalogue.generated.sql',   // Tempering's ladders with tiers 4-6 (temper:blows:4-6, temper:armor:4-6), SCOPED upsert by id; deletes nothing
+  '2027-05-06-dawnsteel-temper-catalogue.generated.sql', // the same ladders with Dawnsteel's (temper:blows:7, temper:armor:7), SCOPED upsert by id; deletes nothing
 ];
 
 /** The seventeen ids the 2026-08-23 refill destroyed, pinned BY VALUE (b493:

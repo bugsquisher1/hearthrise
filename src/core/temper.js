@@ -18,28 +18,33 @@
 // ============================================================================
 
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.138';
-import { TEMPER_RUNGS, TEMPER_RUNG_PM, TEMPER_TIERS, temperUnlockId } from '../data/temper.js?v=0.2.138';
+import { TEMPER_TIERS, temperLadder, temperUnlockId } from '../data/temper.js?v=0.2.138';
 
 /* The armor points a piece wears: a shield or a cape wears none here (mitigation.js armourValues reads the same pieces). */
 const armorPointsOf = (it) => (it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor(Number(it.defB) || 0) : 0);
 
-/** The rung this hero holds on one ladder, clamped; 0 for a tier with no ladder. */
+/** The rung this hero holds on one ladder, clamped to that ladder; 0 for a tier with no ladder. */
 export function temperRung(temper, track, tier) {
-  if (!temper || typeof temper !== 'object' || !TEMPER_TIERS[tier]) return 0;
+  const ladder = temperLadder(track, tier);
+  if (!temper || typeof temper !== 'object' || !ladder) return 0;
   const n = Math.floor(Number(temper[temperUnlockId(track, tier)]));
-  return Number.isFinite(n) && n > 0 ? Math.min(n, TEMPER_RUNGS) : 0;
+  return Number.isFinite(n) && n > 0 ? Math.min(n, ladder.rungs) : 0;
 }
 
-/** The permille this hero's blows and heals gain: its WEAPON's tier's Blows rung. 0 with none. */
+/* A rung's worth on one ladder, permille: 1% on tiers 2 to 6, 0.4% on Dawnsteel's (src/data/temper.js TEMPER_TIER_RUNG_PM). Read from the
+   ladder, never a constant here. */
+const rungPmOf = (track, tier) => { const l = temperLadder(track, tier); return l ? l.pm : 0; };
+
+/** The permille this hero's blows and heals gain: its WEAPON's tier's Blows rung, at that ladder's worth a rung. 0 with none. */
 export function blowsPmOf(equipment, items, temper) {
   const it = temper && equipment && equipment.weapon && items ? items[equipment.weapon] : null;
-  return it ? temperRung(temper, 'blows', it.tier) * TEMPER_RUNG_PM : 0;
+  return it ? temperRung(temper, 'blows', it.tier) * rungPmOf('blows', it.tier) : 0;
 }
 
 /**
- * The permille every blow at this hero loses: each worn armor piece's own tier's Armor rung, weighted by the armor the
- * piece wears. So a mixed set reads piece by piece, and moving one piece up a tier costs that piece's share of the rung,
- * never the whole ladder.
+ * The permille every blow at this hero loses: each worn armor piece's own tier's Armor rung, at that ladder's worth a rung,
+ * weighted by the armor the piece wears. So a mixed set reads piece by piece, and moving one piece up a tier costs that
+ * piece's share of the rung, never the whole ladder.
  */
 export function armorPmOf(equipment, items, temper) {
   if (!temper || !equipment || !items) return 0;
@@ -47,9 +52,9 @@ export function armorPmOf(equipment, items, temper) {
   for (const id of Object.values(equipment)) {
     const it = id ? items[id] : null;
     const def = armorPointsOf(it);
-    if (def > 0) { worn += def; rungs += def * temperRung(temper, 'armor', it.tier); }
+    if (def > 0) { worn += def; rungs += def * temperRung(temper, 'armor', it.tier) * rungPmOf('armor', it.tier); }
   }
-  return worn > 0 ? Math.floor((rungs * TEMPER_RUNG_PM) / worn) : 0;
+  return worn > 0 ? Math.floor(rungs / worn) : 0;
 }
 
 /**

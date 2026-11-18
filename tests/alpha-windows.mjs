@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules prepBuilderRules selectRules
+// mutant-rule-functions: checks pure huntsPure itemTruthRules panelLeftovers planRules armourWordRules tickerRules stationSortRules prepBuilderRules selectRules benchRules
 // mutant-runner-functions: main shardOf mutantSeconds shardPlan tickerMutant pureMutant
 // ════════════════════════════════════════════════════════════════════════
 // tests/alpha-windows.mjs — THE ALPHA WINDOWS' RULES, IN A REAL CHROMIUM.
@@ -543,7 +543,7 @@ async function pure() {
   const copper = workRow('gather', 'copper_rock');
   const gathered = [workBlock(gcs({ tin_ore: 1 }, 1), copper, false), workBlock(gcs({ copper_ore: 1 }, 1), copper, false), workBlock(gcs({ tin_ore: 1 }, 2), copper, false)];
   if (gathered.join('|') !== 'Bag full, no room for Copper Ore||') fails.push('AW-22 a gathering row on a full bag says ' + JSON.stringify(gathered));
-  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT), await prepBuilderRules(ROOT), await selectRules(ROOT));
+  return fails.concat(await huntsPure(imp), await tickerRules(ROOT), await armourWordRules(ROOT), await planRules(ROOT), await itemTruthRules(ROOT), await stationSortRules(ROOT), await prepBuilderRules(ROOT), await selectRules(ROOT), await benchRules(ROOT));
 }
 
 /* AW-76 PURE: A CRAFTING STATION'S SORT, over the src at `base` (the 'station sort:' mutants judge a planted copy).
@@ -608,6 +608,67 @@ async function stationSortRules(base) {
   const forged = R.sanitizeResidueField('stationSort', { smithing: 'name', not_a_skill: 'name', cooking: 5, 'BAD KEY': 'level', crafting: 'x'.repeat(99) });
   if (JSON.stringify(forged) !== '{"smithing":"name"}') fails.push('AW-76 a forged stationSort keeps ' + JSON.stringify(forged));
   if (S.stationSortOf({ stationSort: { smithing: 'bogus' } }, 'smithing') !== 'can' || S.stationSortOf(null, 'smithing') !== 'can' || S.withStationSort({}, 'smithing', 'bogus') !== null) fails.push('AW-76 an unknown or missing pick is not Can make');
+  return fails;
+}
+
+/* AW-102 PURE: A BENCH ROW SAYS WHAT IT MAKES AND THE LADDER ABOVE IT (itemization audit 2026-11-18 #1, #10), over the src at `base` (the
+   'bench:' mutants judge a planted copy). A piece reads its stats, each with its change against the piece the server says is worn in its
+   slot (the item card's own numbers); a bare slot says so; a bar says nothing. The rows in full and the ladder hold every recipe of a
+   station once at every level, the ladder one rung a Level, low to high. An item's card names no ground that isn't open. */
+async function benchRules(base) {
+  const fails = [];
+  const imp = (p) => import(pathToFileURL(join(base, p)).href);
+  const { outputVsWorn, ladderOf } = await imp('src/shell/bench-output.js');
+  const { rowsFor } = await imp('src/shell/windows/work.js');
+  const { compare, statLines } = await imp('src/shell/bag-model.js');
+  const { BENCH_INDEX } = await imp('src/shell/town-work.js');
+  const { SKILLS_DEF } = await imp('src/data/skills.js');
+  const { ITEMS } = await imp('src/data/items.js');
+  const { MONSTERS } = await imp('src/data/monsters.js');
+  const L = await imp('src/shell/item-lore.js');
+  const G = await imp('src/shell/hunt-ground-facts.js');
+  const club = outputVsWorn('klappas_club', { weapon: 'practice_sword' });
+  const want = compare('klappas_club', 'practice_sword');
+  const changed = club ? club.stats.filter((s) => s.change) : [];
+  if (!club || club.worn !== 'practice_sword' || !want.length || changed.length !== want.length
+    || !want.every((d) => changed.some((s) => s.change.text === d.text && s.change.gain === d.delta > 0 && (s.stat === '' || s.stat.endsWith(' ' + d.label)))))
+    fails.push('AW-102 the club against the worn sword is not the card\'s compare: ' + JSON.stringify(club) + ' want ' + JSON.stringify(want));
+  const bare = outputVsWorn('bronze_gauntlets', { weapon: 'practice_sword' });
+  if (!bare || bare.worn !== null || bare.slot !== 'gloves' || bare.stats.some((s) => s.change) || bare.stats.length !== statLines('bronze_gauntlets').length)
+    fails.push('AW-102 gauntlets over a bare gloves slot read ' + JSON.stringify(bare));
+  const same = outputVsWorn('bronze_gauntlets', { gloves: 'bronze_gauntlets' });
+  if (!same || !same.same || same.stats.some((s) => s.change)) fails.push('AW-102 the piece worn now reads ' + JSON.stringify(same));
+  if (outputVsWorn('copper_bar', {}) !== null || outputVsWorn('nope', {}) !== null) fails.push('AW-102 a bar or an unknown id says what it is against the worn set');
+  const tool = outputVsWorn('bronze_pickaxe', {});
+  if (!tool || tool.stats.length !== 1 || tool.stats[0].stat !== L.toolEffect('bronze_pickaxe')) fails.push('AW-102 a tool does not say what it does: ' + JSON.stringify(tool));
+  /* the whole ladder: rows in full + rungs hold each recipe once, the rungs low to high, one a Level */
+  let cases = 0;
+  for (const skill of Object.keys(SKILLS_DEF).filter((s) => SKILLS_DEF[s].cat === 'artisan')) {
+    const cat = Object.keys(BENCH_INDEX).filter((id) => BENCH_INDEX[id].skill === skill);
+    if (!cat.length) continue;
+    const req = (id) => BENCH_INDEX[id].recipe.req || 1;
+    for (const lv of [1, ...new Set(cat.map(req))]) {
+      const rows = rowsFor(skill, lv, {}, 'can');
+      const shown = new Set(rows.map((w) => w.id));
+      const rest = cat.filter((id) => req(id) > lv && !shown.has(id)).map((id) => ({ id, row: BENCH_INDEX[id].recipe }));
+      const rungs = ladderOf(rest);
+      const inRungs = rungs.flatMap((r) => r.rows.map((w) => w.id));
+      const levels = rungs.map((r) => r.level);
+      if (inRungs.length + rows.length !== cat.length || new Set(inRungs.concat([...shown])).size !== cat.length
+        || levels.some((v, i) => i && v <= levels[i - 1]) || rungs.some((r) => r.rows.some((w) => req(w.id) !== r.level))) {
+        fails.push('AW-102 ' + skill + ' at ' + lv + ': the rows and the ladder do not hold every recipe once, a rung a Level: ' + rows.length + ' + ' + inRungs.length + ' of ' + cat.length);
+        break;
+      }
+      if (rungs.length) cases++;
+    }
+  }
+  if (!cases) fails.push('AW-102 no station had a ladder: the cases prove nothing');
+  /* #10: a drop no open ground gives names nothing (the catalogue keeps creatures no open ground spawns) */
+  const dropped = new Set(Object.values(MONSTERS).flatMap((m) => (m.drops || []).map((d) => d.id)));
+  const closed = [...dropped].filter((id) => ITEMS[id] && !G.dropWhereWords(id));
+  if (!closed.length) fails.push('AW-102 no item drops only on a closed ground: the case proves nothing');
+  const said = closed.filter((id) => L.sourcesOf(id).some((s) => /aren.t open|not open/i.test(s) || /^Dropped by/.test(s)));
+  if (said.length) fails.push('AW-102 the card names a closed ground for ' + said.slice(0, 3).join(', '));
   return fails;
 }
 
@@ -968,11 +1029,11 @@ async function huntsPure(imp) {
     if (got.some((x, i) => x.trophy && got.slice(i + 1).some((y) => !y.trophy))) fails.push('AW-25 ' + r.hunt + ' lists a Trophy before a Rare');
   }
   const sets = (h, w) => scarceSetOf(h, w).map((e) => e.lines.join(',') + ':' + e.slots.join(',') + ':' + e.weapons.join(',')).join('|');
-  if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
+  if (sets('millrace_sewer', 'medium') !== 'Leather,Bronze,Apprentice:bodies,legs:|Studded,Iron,Adept:helmets,boots:Ironbound Shield,Oakboard Spellbook,Oak Wand,Iron Sword') fails.push('AW-25 the Sewer\'s gear reads ' + sets('millrace_sewer', 'medium'));
   /* the page's words are one list (v0.2.100 played on Wickstead: "Iron, Studded, Adept: bodies, legs; Bramble Blade") */
   const wick = scarceSetOf('wickstead', 'medium').map((e) => e.what).join('|');
-  if (wick !== 'helmets and boots|bodies, legs and Bramble Blade') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
-  if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Longbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
+  if (wick !== 'helmets and boots|bodies, legs, Iron Hatchets and Bramble Blade') fails.push('AW-25 Wickstead\'s drop lines read ' + wick);
+  if (sets('mosslight_glade', null) !== 'Iron,Studded,Adept:helmets,bodies,legs,boots:Oak Staff,Longbow,Iron Warhammer,Oak Crossbow') fails.push('AW-25 the glade\'s gear for no worn weight reads ' + sets('mosslight_glade', null));
   /* THE ODDS (Tyler 2026-10-24: "a % drop chance or nothing at all"): each line's chance per kill is the engine's rows
      (monsters.js, the catalogue hr-accrue rolls), the whole kill's for every party size since 2026-11-08. Worked here from the
      rows on the Sewer (a hall built for a party, two tiers): a tier line = any piece of it on one kill of the ground's mix (every
@@ -1204,9 +1265,10 @@ async function itemTruthRules(base) {
   if (toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1) !== 'Woodcutting slower without it') fails.push('AW-60 storing the only axe says ' + toolLossWords(hero({ iron_axe: 1 }), 'iron_axe', 1));
   if (toolLossWords(both, 'rat_tail', 1) !== '') fails.push('AW-60 storing a rat tail warns about tools');
   /* A SHORT INPUT SAYS WHERE IT COMES FROM, where the shortage is read. */
-  const wc = workRow('artisan', Object.keys(BENCH_INDEX).find((id) => { const i = BENCH_INDEX[id].recipe.inputs || {}; return i.silk_thread && Object.keys(i).length === 1; }));
-  const short = workBlock({ read: (k) => (k === 'skills' ? { crafting: { xp: 0, level: 44 } } : k === 'inventory' ? {} : null) }, wc, false);
-  if (!/^No Silk Thread in bag.*Dropped by .* at Mill Cellar/.test(short)) fails.push('AW-60 a recipe short of Silk Thread reads ' + short);
+  /* (a bench row whose one input the Cellar drops: the silk-only sewing went with the armor recipes, lane/d-drop-homes 2026-11-18, so the Hearth's Lamp Jelly) */
+  const wc = workRow('artisan', Object.keys(BENCH_INDEX).find((id) => { const i = BENCH_INDEX[id].recipe; return i.input === 'lamp_jelly' && !i.inputs; }));
+  const short = workBlock({ read: (k) => (k === 'skills' ? { [wc.skill]: { xp: 0, level: 44 } } : k === 'inventory' ? {} : null) }, wc, false);
+  if (!/^No Lamp Jelly in bag.*Dropped by .* at Mill Cellar/.test(short)) fails.push('AW-60 a bench row short of Lamp Jelly reads ' + short);
   if (whereToGet('copper_ore') !== 'Gathered with Mining') fails.push('AW-60 a level 1 node\'s source sends a hero to its goblins too: ' + whereToGet('copper_ore'));
   if (whereToGet('normal_plank') !== 'Made with Crafting') fails.push('AW-60 a level 1 recipe\'s source reads ' + whereToGet('normal_plank'));
   if (!/^Made with Crafting \d+$/.test(whereToGet('timber_beam'))) fails.push('AW-60 the Timber Beam\'s source reads ' + whereToGet('timber_beam'));
@@ -1884,7 +1946,7 @@ async function planRules(base) {
   const bidsOn = (rows) => ({ bids: new Map(rows.map((r) => [r.id, 10])) });
   const rulesAre = (loot, locked) => ({ loot: loot || {}, locked: new Set(locked || []) });
   const spareIds = (rows, worn, rules, o) => spareSale(rows, worn, rules || rulesAre(), bidsOn(rows), { isRare: FACTS.isRareOnly, ...(o || {}) }).lines.map((l) => l.item).sort().join();
-  /* (the Iron Helm and the Longbow are Rare somewhere and everyday elsewhere, so they are spare; the Iron Warhammer drops only as a Rare, so it is not) */
+  /* (the Iron Helm and the Longbow are Rare somewhere and everyday elsewhere, so they are spare; the Kingstooth drops only as a Rare, so it is not; the Iron Warhammer was that piece until the Glade dropped it hourly, 2026-11-18) */
   const OUTGROWN = ['bronze_helm', 'bronze_platelegs', 'iron_helm', 'studded_helmet', 'adept_pants', 'leather_boots', 'longbow'];
   if (spareIds(stack(OUTGROWN), IRON) !== OUTGROWN.slice().sort().join()) fails.push('AW-70 an Iron hero\'s outgrown stacks read ' + spareIds(stack(OUTGROWN), IRON));
   for (const [what, id, rows, worn, rules, o] of [
@@ -1892,7 +1954,7 @@ async function planRules(base) {
     ['a higher tier of its own slot', 'steel_platebody', null, IRON],
     ['a piece for an empty slot', 'bronze_helm', null, { ...IRON, helmet: null }],
     ['a Rare', 'houndskin_cloak', null, { ...IRON, cape: 'trollhide_cape' }],
-    ['a Rare of a lower tier', 'iron_warhammer', null, { ...IRON, weapon: 'steel_sword' }],
+    ['a Rare of a lower tier', 'kingstooth', null, { ...IRON, weapon: 'steel_sword' }],
     ['the start kit', 'practice_club', null, IRON],
     ['the Practice Club with Klappa\'s Club in hand', 'practice_club', null, { ...IRON, weapon: 'klappas_club' }],
     ['Klappa\'s Club, another family in hand', 'klappas_club', null, IRON],
@@ -1909,7 +1971,7 @@ async function planRules(base) {
   if (lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines.length) fails.push('AW-70 Sell all junk would sell a club: ' + JSON.stringify(lootSale(clubs, rulesAre(), bidsOn(clubs), null).lines));
   if (madeFromKit('klappas_club') !== 'practice_club' || madeFromKit('cooked_shrimp') || madeFromKit('bronze_helm')) fails.push('AW-70 made from the kit reads ' + [madeFromKit('klappas_club'), madeFromKit('cooked_shrimp'), madeFromKit('bronze_helm')].join());
   const saleWords = (await imp('src/shell/item-lore.js')).rareSaleWords;
-  if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Club.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
+  if (saleWords([{ item: 'klappas_club', qty: 1 }]) !== 'Nothing sells the Practice Club that makes another Klappa\'s Klub.' || saleWords([{ item: 'bronze_helm', qty: 3 }])) fails.push('AW-70 a hand sale of the club says ' + JSON.stringify(saleWords([{ item: 'klappas_club', qty: 1 }])));
   const big = spareSale(stack(Array.from({ length: 70 }, () => 'bronze_helm')), IRON, rulesAre(), { bids: new Map([['bronze_helm', 10]]) }, {});
   if (big.lines.length !== 64 || big.total !== 64 * 3 * 10 || big.more !== 6 || big.capped) fails.push('AW-70 past the engine\'s 64 lines a sale reads ' + big.lines.length + ' lines, ' + big.total + ' gp, ' + big.more + ' more, capped ' + big.capped);
   /* AW-70b BULK SALES OF A BIG BAG (audit F18, 2026-11-15: a Level 60 bag of 145 outgrown stacks; replayed on the local world 11-16: Sell spare gear
@@ -1924,12 +1986,12 @@ async function planRules(base) {
     if (p95.lines.length !== 64 || p95.more !== 31 || p95.total !== 64 * 2 * 7) fails.push('AW-70b a 95-stack sale reads ' + p95.lines.length + ' lines, ' + p95.more + ' more, ' + p95.total + ' gp');
     if (!edgeBody(0, 'vendor_sell_many', { lines: p95.lines }, '00000000-0000-4000-8000-000000000000')) fails.push('AW-70b a 95-stack bag sale builds no engine ask (nothing would sell)');
     const TROLL = { ...IRON, cape: 'trollhide_cape' };
-    const outRows = stack(['houndskin_cloak', 'bronze_helm', 'steel_platebody', 'practice_club', 'iron_warhammer']);
+    const outRows = stack(['houndskin_cloak', 'bronze_helm', 'steel_platebody', 'practice_club', 'kingstooth']);
     const picked = outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: upgradeWanted({ picks: [], choices: [] }) }).sort().join();
-    if (picked !== 'bronze_helm,houndskin_cloak,iron_warhammer') fails.push('AW-70b Select outgrown picks ' + picked + ', want bronze_helm,houndskin_cloak,iron_warhammer');
+    if (picked !== 'bronze_helm,houndskin_cloak,kingstooth') fails.push('AW-70b Select outgrown picks ' + picked + ', want bronze_helm,houndskin_cloak,kingstooth');
     if (spareIds(outRows, { ...TROLL, weapon: 'steel_sword' }) !== 'bronze_helm') fails.push('AW-70b Sell spare gear now sells a Rare: ' + spareIds(outRows, { ...TROLL, weapon: 'steel_sword' }));
     const wantedUp = upgradeWanted({ picks: [{ id: 'bronze_helm' }], choices: [{ ids: ['houndskin_cloak'] }] });
-    if (outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: wantedUp }).join() !== 'iron_warhammer') fails.push('AW-70b Select outgrown takes what Equip upgrades wants');
+    if (outgrownIds(outRows, { ...TROLL, weapon: 'steel_sword' }, rulesAre(), { wanted: wantedUp }).join() !== 'kingstooth') fails.push('AW-70b Select outgrown takes what Equip upgrades wants');
     const SEL = await imp('src/shell/windows/inventory/selection.js');
     const scO = { sel: new Set(['rat_tail']), anchor: 'rat_tail', base: new Set(), cursor: null };
     SEL.selectOutgrown(scO, ['bronze_helm', 'houndskin_cloak', 'iron_warhammer'], new Set(['iron_warhammer']));
@@ -4614,7 +4676,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             for (let i = 0; i < 3; i++) await new Promise((r) => requestAnimationFrame(r));
             const bottom = (q) => { const e = w.querySelector(q); return e && e.getClientRects().length ? Math.round(e.getBoundingClientRect().bottom) : null; };
             const slots = w.querySelectorAll('.hw-doll .hw-slot'), last = slots[slots.length - 1], cols = w.querySelector('.hw-inv-cols');
-            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('.hw-tools'), scroll: w.querySelector('.hw-inv-scroll').clientHeight,
+            const out = { win: Math.round(w.getBoundingClientRect().bottom), foot: bottom('.hw-inv-foot'), tools: bottom('[data-hs-act="dispatch"]'), scroll: w.querySelector('.hw-inv-scroll').clientHeight,
               doll: slots.length === 14 && last.getBoundingClientRect().bottom <= Math.min(cols.getBoundingClientRect().bottom, w.getBoundingClientRect().bottom) + 0.5 };
             w.querySelector('.hs-win-coach').textContent = '';
             return out;
@@ -4961,6 +5023,40 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // AW-103 THE BAG TAKES THE WINDOW'S HEIGHT (UI audit 2026-11-18 UI-5: three rows of bag under a stack of lines)
+      const inTown = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 100 }); };
+      /* at 1440x900, and two heights that put the column's foot at other points of a row (a whole row there is the snap's, never luck) */
+      for (const height of [900, 874, 851]) {
+        const { ctx, page, up } = await open({ viewport: { width: 1440, height }, mutateEnv: inTown });
+        if (!up) fails.push('AW-103 the screen did not mount at 1440x' + height);
+        else if (!(await openWin(page, 'b', 'inventory'))) fails.push('AW-103 B did not open the Inventory at 1440x' + height);
+        else {
+          await page.waitForTimeout(500);
+          const read = () => page.evaluate(() => {
+            const w = document.querySelector('[data-hs-win="inventory"]');
+            const box = w.querySelector('.hw-inv-scroll'), ul = w.querySelector('.hw-pockets'), b = box.getBoundingClientRect(), foot = box.clientHeight + b.top + box.clientTop;
+            const lis = Array.from(ul.children), f = w.querySelector('.hw-inv-foot').getBoundingClientRect(), doll = w.querySelector('.hw-doll').getBoundingClientRect();
+            const rows = new Set(lis.filter((li) => { const q = li.getBoundingClientRect(); return q.height && q.top >= b.top - 0.5 && q.bottom <= foot + 0.5; }).map((li) => Math.round(li.getBoundingClientRect().top)));
+            return { items: ul.querySelectorAll('.hw-pocket[data-item]').length, spaces: ul.querySelectorAll('.hw-pocket.is-space').length, rows: rows.size,
+              cut: lis.some((li) => { const q = li.getBoundingClientRect(); return q.top < foot - 1 && q.bottom > foot + 1; }),
+              footUnder: f.top >= doll.bottom - 0.5 && f.left <= doll.left + 0.5, footHas: ['.hw-capacity', '.hw-gold', '[data-hs-act="dispatch"]'].every((q) => !!w.querySelector('.hw-inv-foot ' + q)),
+              spaceTaken: lis.filter((li) => li.classList.contains('is-space')).some((li) => li.hasAttribute('data-item') || li.hasAttribute('tabindex') || li.getAttribute('aria-hidden') !== 'true') };
+          });
+          const m = await read();
+          /* the whole bag: every free space the server's cap leaves drawn after the stacks, five whole rows in view and none cut, the foot under both columns */
+          if (m.items + m.spaces !== 100 || m.spaceTaken || (height === 900 && m.rows < 5) || m.cut || !m.footUnder || !m.footHas) fails.push('AW-103 the Inventory at 1440x' + height + ' reads ' + JSON.stringify(m));
+          if (height !== 900) { await ctx.close(); continue; }
+          /* a search shows its matches alone: no empty pocket says "nothing else" */
+          await page.fill('[data-hs-win="inventory"] .hw-q', 'rat');
+          await page.waitForTimeout(250);
+          const q = await read();
+          if (q.spaces !== 0) fails.push('AW-103 a search still draws ' + q.spaces + ' free spaces');
+          if (shots) { await page.fill('[data-hs-win="inventory"] .hw-q', ''); await page.waitForTimeout(250); await shot(page, 'bag-height-1440x900'); }
+        }
+        await ctx.close();
+      }
+    }
+
     { // AW-94 one window header (UX flow audit 2026-11-11): the same band on every window, Back to where a press came from, a page in its host,
       // the bag beside Storage, the Shop and Character at 1440, Hunts over the dock, one gold plate per window
       const { ctx, page, up } = await open({ viewport: { width: 1440, height: 900 } });
@@ -5130,6 +5226,10 @@ const MUTANTS = [
   ['AW-101 Hunt prep stays under the dock in town, its bar under Close and Save', 'src/data/shell-windows.js', "over: true, rise: true, help: 'windows.help_prep'", "over: true, help: 'windows.help_prep'"],
   ['AW-100 the doll scrolls with the bag again', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; }', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }'],
   ['AW-100 the doll\'s wells never fit a short column', 'src/shell/windows/inventory/doll.js', "    doll.style.setProperty(FIT, dollWell(room, parseFloat(cs.rowGap) || 0, parseFloat(cs.paddingTop) || 0) + 'px');\n", ''],
+  ['AW-103 the bag draws no free space', 'src/shell/windows/inventory/grid.js', "  return !phone && st.loaded && st.prefs.cat === 'all' && !st.sc.query && free > 0 ? free : 0;", '  return 0;'],
+  ['AW-103 a search draws free spaces too', 'src/shell/windows/inventory/grid.js', "st.prefs.cat === 'all' && !st.sc.query && free > 0", "st.prefs.cat === 'all' && free > 0"],
+  ['AW-103 the bag ends on a cut row', 'src/shell/windows/inventory/index.js', '  if (cut < foot) box.style.maxHeight = Math.floor(cut - top) + \'px\';', ''],
+  ['AW-103 the foot stands beside the doll again', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; }', '[data-hs-win="inventory"] .hw-inv > .hw-inv-cols { flex: 1 1 auto; min-height: 0; flex-wrap: wrap; } [data-hs-win="inventory"] .hw-inv > .hw-inv-foot { order: -1; }'],
   ['AW-100 the phone\'s doll stands under the toolbar again', 'src/styles/windows.css', '  [data-hs-win="inventory"] .hw-inv { display: grid; grid-template-columns: auto minmax(0, 1fr);', '  [data-hs-win="inventory"] .hw-inv { display: block; grid-template-columns: auto minmax(0, 1fr);'],
   ['AW-95 a docked window lies over the hunt bar again', 'src/shell/window-fit.js', '    if (hunt) clearTops(w, hunt.tops, gap);', '    if (false) clearTops(w, hunt.tops, gap);'],
   ['AW-95 the phone sheet lies over the action bar in a hunt again', 'src/shell/shell.js', 'const bars = phoneMq.matches && !hunting ? [] :', 'const bars = phoneMq.matches ? [] :'],
@@ -5154,6 +5254,10 @@ const MUTANTS = [
   ['item truth: a tool says sell it again', 'src/shell/item-lore.js', "  if (tool) out.push(tool);\n", ''],
   ['item truth: a kit stone says sell it', 'src/shell/item-lore.js', "Number(it.v) > 0 ? t('item.sell_it') : ", "true ? t('item.sell_it') : "],
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
+  ['bench: a row compares to nothing worn', 'src/shell/bench-output.js', 'const deltas = on && on !== out ? compare(out, on) : [];', 'const deltas = [];'],
+  ['bench: a bare slot is not said', 'src/shell/bench-output.js', "slot: on ? null : ((EQUIP_SLOT_META[slot] || {}).label || slot || '').toLowerCase()", 'slot: null'],
+  ['bench: the ladder drops a rung', 'src/shell/bench-output.js', '.sort((a, b) => a[0] - b[0]).map(([level, rows]) => ({ level, rows }));', '.sort((a, b) => a[0] - b[0]).slice(1).map(([level, rows]) => ({ level, rows }));'],
+  ['bench: the card names a closed ground again', 'src/shell/item-lore.js', '  if (drop) out.push(drop);', '  if (r && r.drops.length) out.push(drop || "Dropped by creatures on grounds no one can reach yet");'],
   ['station sort: Level runs high to low', 'src/shell/station-sort.js', "if (sort === 'level') return all.sort((a, b) => reqOf(a) - reqOf(b));", "if (sort === 'level') return all.sort((a, b) => reqOf(b) - reqOf(a));"],
   ['station sort: Name is not a sort', 'src/shell/station-sort.js', "  if (sort === 'name') return all.sort(byName);\n", ''],
   /* AW-77 the bag's selection: `select:` mutants are judged by selectRules on a temp copy of src. */
@@ -5233,7 +5337,7 @@ const MUTANTS = [
   ['AW-62 the analyzer tab runs past the panel', 'src/styles/hunt.css', '.ha-tabs .ha-tab { margin-bottom: -2px; padding: 0 4px; }', '.ha-tabs .ha-tab { margin-bottom: -2px; }'],
   ['item truth: panel: a coach card takes the window', 'src/shell/launcher.js', "(line ? ' is-line' : '')", "''"],
   ['AW-62 the foot scrolls off', 'src/styles/windows.css', '.hs-win[data-hs-win="inventory"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }\n', ''],
-  ['AW-62 the bag gives way to one row beside the doll', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto; }', '[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 0 1 52px; min-height: 0; overflow-y: auto; }'],
+  ['AW-62 the bag gives way to one row beside the doll', 'src/styles/windows.css', '[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 1 1 auto; min-height: 96px; overflow-y: auto;', '[data-hs-win="inventory"] .hw-inv-side > .hw-inv-scroll { flex: 0 1 52px; min-height: 0; overflow-y: auto;'],
   ['AW-63 the first press of Enter under the floor walks straight in', 'src/shell/windows/hunts.js', "if (above && rangeWords(above, levelOf(cs)) && sc.warned !== warnKey(hunt, [])) {", 'if (false) {'],
   ['item truth: panel: a full bag says nothing', 'src/shell/windows/inventory/index.js', "  return used >= cap ? 'Bag full", "  return false ? 'Bag full"],
   ['AW-63 Enter off has no reason beside it', 'src/shell/windows/hunts.js', "  text(det.querySelector('.hw-enter-why'), off || choosing);\n", ''],
@@ -5299,7 +5403,7 @@ const MUTANTS = [
   ['the bag keeps a count the server dropped', 'src/session/item-sections.js', '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  return items;',
     '  for (const [id, n] of Object.entries(inv)) if (ID.test(id) && count(n) && n > 0) items.push({ id, qty: n });\n  const prev = globalThis.__bag || [];\n  for (const p of prev) { const i = items.find((x) => x.id === p.id); if (!i) items.push(p); else i.qty = Math.max(i.qty, p.qty); }\n  globalThis.__bag = items.map((x) => ({ ...x }));\n  return items;'],
   ['bag actions stay on while an intent is in flight', 'src/shell/windows/inventory/grid.js', "prop(pb, 'disabled', sc.pending || !prim || !!wearWhy || !!eatWhy);", "prop(pb, 'disabled', !prim || !!wearWhy || !!eatWhy);"],
-  ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', '    key: (r) => r.id,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),', '    key: (r) => r.id + ":" + r.qty,\n    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),'],
+  ['a pocket is rebuilt whenever its count changes', 'src/shell/windows/inventory/grid.js', "    key: (r) => (r.space === undefined ? r.id : ' space:' + r.space),", "    key: (r) => (r.space === undefined ? r.id + ':' + r.qty : ' space:' + r.space),"],
   ['a sale is sent without the confirmation', 'src/shell/windows/inventory/actions.js', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();', '  st.sc.confirm = confirmFor(st, ids, label);\n  repaint();\n  doSell(st, repaint);'],
   ['the Shop lists supplies again', 'src/data/supply-basics.js', "export const SHOP_SOLD_KINDS = Object.freeze(['tool', 'gear', 'seed']);", "export const SHOP_SOLD_KINDS = Object.freeze(['food', 'drink', 'ammo', 'tool', 'gear', 'seed']);"],
   ['an equip in flight is not marked', 'src/shell/windows/inventory/actions.js', '  sc.wearing = { slots: [slot], items: id ? [id] : [] };\n', ''],
@@ -5542,7 +5646,7 @@ async function main() {
       over[f] = text.replace(x, y);
     }
     if (missing) { console.log('  ✗ ' + name + ' — HARNESS: anchor not found in ' + missing); counts.harness++; continue; }
-    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('hunts:') ? tickerMutant(over, huntsRules) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : name.startsWith('select:') ? tickerMutant(over, selectRules) : name.startsWith('prep builder:') ? tickerMutant(over, prepBuilderRules) : checks(over, null, { stopAtFirst: true })));
+    const v = await judge(() => (name.startsWith('edgeBody') ? pureMutant(over[file]) : name.startsWith('ticker:') ? tickerMutant(over) : name.startsWith('hunts:') ? tickerMutant(over, huntsRules) : name.startsWith('armor words:') ? tickerMutant(over, armourWordRules) : name.startsWith('item truth:') ? tickerMutant(over, itemTruthRules) : name.startsWith('plans:') ? tickerMutant(over, planRules) : name.startsWith('station sort:') ? tickerMutant(over, stationSortRules) : name.startsWith('bench:') ? tickerMutant(over, benchRules) : name.startsWith('select:') ? tickerMutant(over, selectRules) : name.startsWith('prep builder:') ? tickerMutant(over, prepBuilderRules) : checks(over, null, { stopAtFirst: true })));
     console.log(report(name, v, counts));
   }
   console.log(exitOf(counts) ? 'alpha-windows --mutate: ' + counts.escaped + ' escaped, ' + counts.harness + ' HARNESS (not catches)' : 'alpha-windows --mutate: ' + mine.length + '/' + mine.length + ' mutants caught, each by a named rule' + (mine === MUTANTS ? '' : ' (' + (only ? '--only=' + only + ', ' : '') + 'of ' + MUTANTS.length + ')'));

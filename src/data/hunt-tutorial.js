@@ -461,17 +461,17 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Put Turnip Juice in a slot before store juice',
     'action_bar', { kind: 'drink_slot', item: 'turnip_juice' }, { reactive: true, dayOne: true,
       when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),
-  /* KLAPPA'S CLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
+  /* KLAPPA'S KLUB (Tyler 2026-11-03; Andy's own idea, the first taste of the bench): a club hero's next rung is 10 Levels away and this one
      is two minutes of mining and smelting. Before Build your home, which holds the line until a house is owned. The bench spends the bag's
      club, so the hero's hands are empty when it is done: the card stays until the new club is worn, and then rings the bag (SAY). */
-  step('klappas_club', 'Klappa\'s Club',
-    t('coach.club_make', { recipe: CLUB_REFORGE ? CLUB_REFORGE.name : 'Klappa\'s Club' }),
+  step('klappas_club', 'Klappa\'s Klub',
+    t('coach.club_make', { recipe: CLUB_REFORGE ? CLUB_REFORGE.name : 'Reforge Klappa\'s Klub' }),
     'crafting', orGotIt({ kind: 'wields', item: 'klappas_club' }), { reactive: true, dayOne: true, gotIt: true, ring: { skill: 'smithing', work: CLUB_REFORGE.id },
       when: [IN_TOWN, { kind: 'level_at', at: ITEMS.klappas_club.reqLv }, { kind: 'club_hand', item: 'practice_club', made: 'klappas_club' }],
       hooks: ['[data-hs-win="inventory"] .hw-pocket[data-item="klappas_club"]', '[data-hs-win="inventory"] .hw-pick[data-item="klappas_club"] [data-hs-act="primary"]'] }),
   /* GOLD WITH NOWHERE TO GO (designer's 10-31 pass ruled it a FIX; blind panel 11-03, hour 11, 15k banked: "nothing says what's next"): What next carries it in a line, but What next only
      speaks with every window shut and no card up, and a return lands on the Hunt summary. So once the purse is a real start on the next hero, one card names what exists at the server's
-     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Club, one card at a time: the club has a job in it and a Level on it, and the gold
+     prices; the summary's Next opens the House. Read once: the What next line keeps saying it. After Klappa's Klub, one card at a time: the club has a job in it and a Level on it, and the gold
      keeps. */
   step('purse_goal', 'Spend your gold',
     t('coach.purse_goal'),
@@ -1064,7 +1064,7 @@ export function cardFor(card, facts) {
   const hooks = (card.hooks || []).map((h) => h.replace('{store}', said.store || '').replace('{other}', said.other === undefined ? '' : String(said.other))
     .replace('{slot}', barSlot === null ? '' : String(barSlot)).replace('{fuel}', said.fuel || '').replace('{spell}', said.spell || '').replace('{shot}', said.shot || ''));
   const textIn = said.textIn || card.inWindow || null;
-  /* `said.anchor`: the words moved on to another surface (Klappa's Club: from the bench to the bag), so the ring goes with them */
+  /* `said.anchor`: the words moved on to another surface (Klappa's Klub: from the bench to the bag), so the ring goes with them */
   return Object.freeze({ ...card, ...(said.anchor ? { anchor: said.anchor } : {}), ...(said.ring ? { ring: Object.freeze(said.ring) } : {}), text: slotted(text), barSlot, goal: Number.isFinite(said.goal) ? said.goal : null, textIn: textIn && slotted(textIn), hooks: Object.freeze(hooks) });
 }
 

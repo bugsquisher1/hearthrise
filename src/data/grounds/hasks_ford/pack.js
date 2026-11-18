@@ -26,8 +26,10 @@
 //
 // THE LOOT (src/data/loot-bands.js). THE TIER-4 ARMOR'S FIRST HOME (worn from Level 45): the set in all three weights, each
 // piece about hourly (Pikemen boots and helmets, Fordsunk legs, Ledger Wights bodies). Rare, each about every 15 h: the
-// Bannerman's gloves and belts. No weapon drops here. The tier-4 weapons are the Slake's, and the hatchets and the crossbow are
-// a smith's and a fletcher's (style-gear.js). MEASURED (tests/hunt-core/drop-tables.mjs, a lone tank at the floor in the full
+// Bannerman's gloves and belts. THE OFF FAMILIES' TIER 4 (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor, weapons
+// and shields drop, a bench makes none, so the made pair and shield lost their recipes): the Pikemen's Maple Crossbow, the Fordsunk's
+// Mithril Hatchets and the Bannerman's Mithril-Faced Shield (its own line: the company's sergeants carried these), each about hourly.
+// The Slake keeps the sword, warhammer, bow and staff, so the two grounds still split the weapons. MEASURED (before the three weapons) (tests/hunt-core/drop-tables.mjs, a lone tank at the floor in the full
 // set, one played hour): each Scarce piece every 0.99-1.05 h, each Rare every 15.2 h, coin 7,403 g, commons 951 g, gear 1,931 g
 // (26% of the coin, the cap is 50%) at the tier-4 sale rate of 0.075. That tank clears +40% over its store bill.
 // THE ARMOR GROUND, THE SLAKE THE WEAPON GROUND (designer 2026-11-16, lane/d-andy-march-feedback; Andy: "the Slake and Hask's are
@@ -119,7 +121,8 @@ export default definePack({
       weaponResist: ['sword'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_band', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.008, band: 'scarce' }, { id: 'warlock_boots', ch: 0.008, band: 'scarce' },
-        { id: 'mithril_helm', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.008, band: 'scarce' }],
+        { id: 'mithril_helm', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.008, band: 'scarce' },
+        { id: 'maple_crossbow', ch: 0.006, band: 'scarce' }],
       hp: 61, atk: 26, baseAcc: 1.04, def: 14, xp: 485, gp: [9, 27], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
@@ -127,7 +130,8 @@ export default definePack({
          legs, and the weed that grew through them. */
       weaponResist: ['ranged'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_platelegs', ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0325, band: 'scarce' }],
+        { id: 'mithril_platelegs', ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0325, band: 'scarce' },
+        { id: 'mithril_hatchets', ch: 0.026, band: 'scarce' }],
       hp: 101, atk: 26, baseAcc: 1.08, def: 27, xp: 921, gp: [15, 44], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
@@ -140,10 +144,11 @@ export default definePack({
       hp: 65, atk: 36, baseAcc: 1.05, def: 18, xp: 652, gp: [10, 28], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
-      /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. The gloves
-         and belts. */
+      /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. His shield,
+         about hourly (a lone hero meets about 20 an hour, so its row sits at the 5% ceiling), and the gloves and belts. */
       weaponResist: ['ranged'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'toll_token', ch: 0.1, band: 'uncommon' },
+        { id: 'mithril_faced_shield', ch: 0.05, band: 'scarce' },
         { id: 'mithril_gauntlets', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0042, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0042, band: 'rare' },
         { id: 'mithril_belt', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0042, band: 'rare' }, { id: 'warlock_belt', ch: 0.0042, band: 'rare' }],
       hp: 151, atk: 36, baseAcc: 1.1, def: 36, xp: 1507, gp: [22, 67], formula: true },

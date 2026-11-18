@@ -197,7 +197,7 @@ const MUTANTS = [
   ['the away stamp is written every minute again (beta cost 11-01: 1 of a hunt\'s 8.3 requests a minute, per hero)', 'src/shell/away-recap.js',
     'export const STAMP_EVERY_MS = AWAY_MIN_MS;', 'export const STAMP_EVERY_MS = 60 * 1000;', /^asks: .*away stamp/, 'scenario', 4],
   ['the online count is asked apart from the social poll again (beta cost 11-01: 2 requests a minute for nothing)', 'src/social/social-session.js',
-    '    return this.online.take(read ? ans.body.online : null);', "    this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null);", /^asks: .*apart/, 'scenario', 4],
+    '    return this.online.take(read ? ans.body.online : null, read ? ans.body.online_by : null);', "    this._account.server.rpc('hr_players_online', { p_slots: this.online.slots() });\n    return this.online.take(read ? ans.body.online : null, read ? ans.body.online_by : null);", /^asks: .*apart/, 'scenario', 4],
   ['the social poll is sent twice as often (the total must see what no verb budget names)', 'src/social/social-session.js',
     "this._poll = set(() => { if (!this._away", "this._poll = set(() => { this.reread(); this.reread(); if (!this._away", /^asks: .*a minute/, 'scenario', 4],
   /* THE DEATH SCENE (DEATH, deathFails): an ended hunt the page still holds open never takes it back to town */

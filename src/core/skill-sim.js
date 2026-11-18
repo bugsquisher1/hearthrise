@@ -529,9 +529,6 @@ export function simulateSkillSpan(state, ctx) {
   };
 }
 
-/** Is this a skill this file can simulate? One list, read by the engine. */
-export function isGatherSkill(skillId) { return GATHER_SKILLS.indexOf(skillId) >= 0; }
-
 /* ══════════════════════════════════════════════════════════════════════════
    THE CLIENT SWITCH-OVER IS DONE (b351). What this block used to specify —
    four edits in legacy.js, written out because another agent held that file —

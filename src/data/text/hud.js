@@ -48,6 +48,19 @@ export const HUD_TEXT = Object.freeze({
   stam_buying: 'Buying stamina…',
   stam_done: 'Stamina restored',
 
+  /* PLAYERS ONLINE (src/shell/widgets/online.js, src/social/players-online.js; Tyler 2026-11-18). The server's total, every hero
+     playing in a browser or still active with the game closed; on hover or focus, its lines by what they are doing. {n} a whole
+     number. online_none: no fresh answer from the server. */
+  online_n: '{n} online',
+  online_none: '— online',
+  online_hunting: 'Hunting {n}',
+  online_tower: 'Tower {n}',
+  online_gathering: 'Gathering {n}',
+  online_crafting: 'Crafting {n}',
+  online_training: 'Training {n}',
+  online_hearth: 'Feeding the Hearth {n}',
+  online_town: 'In town {n}',
+
   /* THE TALLY WIDGET. {board} where her board stands; {ground} a hunt's name. */
   tally_aria: 'Tallies',
   tally_open: 'Open the Tally (drag to move)',

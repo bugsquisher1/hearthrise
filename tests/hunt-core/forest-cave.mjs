@@ -25,7 +25,7 @@
 //   wickstead-solo-floor  (Wickstead, lane b-greenhaven-6; staged, played on its fitted grid) a ladder-kit Melee alone at
 //                       its floor (L8) lives the hour on the six seeds and levels no worse than the Thicket at the
 //                       Thicket's floor; its net gold and the start kit's hour are printed (evidence)
-//   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground's regular gear drops (a Rare
+//   shop-outfits-defense  the Shop's gear (designer 2026-10-22) sells no slot a walked ground's regular gear drops AT ITS TIER (a Rare
 //                       named piece may share a slot with a Shop basic), has gloves and
 //                       a belt a new hero can afford (one medium), and a start-kit Melee at the Thicket floor who buys them
 //                       trains Defense (0 without) and lives the hour (its net is printed)
@@ -348,10 +348,15 @@ cases['shop-outfits-defense'] = async (M) => {
      or Trophy named piece (Grayjaw's Ruff, about every 15 h) is the better prize above the Shop's basic, the pattern
      Tyler ruled for shields (2026-10-23: a basic at the Shop, better ones made and dropped). */
   const regular = (d) => !(d.band === 'rare' || d.band === 'trophy');
+  /* AT ITS TIER (supply-basics.js: the Shop never competes with a drop at its tier). Since Tyler 2026-11-18 a plain shield drops hourly from tier 2 up
+     (src/data/shields.js SOURCES) while the outfitter keeps the tier-1 Bronze-Rimmed (his 10-23 basic shield): a slot is the Shop's when no ground drops
+     it as regular gear of the Shop piece's own tier (lane/d-drop-homes). */
+  const tierOf = (id) => Math.max(1, Number(ITEMS[id] && ITEMS[id].tier) || 1);
+  const keyOf = (id) => ITEMS[id].slot + ':' + tierOf(id);
   for (const g of Object.values(M.grounds.HUNT_GROUNDS)) for (const p of g.pockets) for (const s of p.spawns) {
-    for (const d of (M.MONSTERS[s.monster] || {}).drops || []) if (ITEMS[d.id] && ITEMS[d.id].slot && regular(d)) dropped.set(ITEMS[d.id].slot, d.id + ' (' + s.monster + ')');
+    for (const d of (M.MONSTERS[s.monster] || {}).drops || []) if (ITEMS[d.id] && ITEMS[d.id].slot && regular(d)) dropped.set(keyOf(d.id), d.id + ' (' + s.monster + ')');
   }
-  for (const o of gear) if (dropped.has(ITEMS[o.item].slot)) bad.push(o.item + ': the Shop sells a ' + ITEMS[o.item].slot + ', which ' + dropped.get(ITEMS[o.item].slot) + ' drops');
+  for (const o of gear) if (dropped.has(keyOf(o.item))) bad.push(o.item + ': the Shop sells a tier-' + tierOf(o.item) + ' ' + ITEMS[o.item].slot + ', which ' + dropped.get(keyOf(o.item)) + ' drops');
   const armour = (o) => !!ARMOUR_WEIGHT[ITEMS[o.item].armourClass] || Number(ITEMS[o.item].defB) > 0;
   const pick = (slot) => gear.filter((o) => ITEMS[o.item].slot === slot && armour(o) && o.price <= M.kit.START_CURRENCY.gold).sort((a, b) => a.price - b.price)[0];
   const gl = pick('gloves'), bt = pick('belt');
@@ -579,6 +584,9 @@ const mutants = [
     edits: [['src/data/monsters.js', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [1, 3]', 'hp: 10, atk: 4, baseAcc: 0.38, def: 0, xp: 20, gp: [3000, 4167]']] },
   { name: 'the Shop sells a helmet the Thicket wolves drop', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  sell('copper_studs', 'gear', null, 120),", "  sell('copper_studs', 'gear', null, 120),\n  sell('leather_helmet', 'gear', null, 120),"]] },
+  /* the tier is the rule's (lane/d-drop-homes): a tier-1 shield as regular loot on a walked ground competes with the outfitter's Bronze-Rimmed */
+  { name: "the Sewer rats drop the Shop's tier-1 shield hourly", case: 'shop-outfits-defense',
+    edits: [['src/data/monsters.js', "{ id: 'ironbound_shield', ch: .03, band: 'scarce' }", "{ id: 'bronze_rimmed_shield', ch: .03, band: 'scarce' }"]] },
   { name: 'the Shop stops selling gloves (no neutral first armour piece)', case: 'shop-outfits-defense',
     edits: [['src/data/supply-basics.js', "  sell('leather_gloves', 'gear', null, 160),\n", '']] },
   { name: 'gloves and belts stop counting as armour (Defense never trains from them)', case: 'shop-outfits-defense',

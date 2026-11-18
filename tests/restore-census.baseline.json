@@ -1073,7 +1073,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 369,
+   "replay": 372,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1333,7 +1333,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 8,
+   "replay": 9,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-14",

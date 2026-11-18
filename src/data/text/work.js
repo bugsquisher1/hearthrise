@@ -44,6 +44,16 @@ export const WORK_TEXT = Object.freeze({
   is_empty: 'Empty {slot} slot',
   /* The station's whole ladder past the rows in full: one rung a Level, what it opens. */
   ladder_head: 'Unlocks',
+  /* A rolled job's odds before the roll (src/shell/windows/work.js oddsWords; src/data/jewelry.js): the grade at the hero's server level
+     in the job's own skill, the perks it may roll, and what a boss drop set in place of the gem always gives. */
+  odds_at: 'Odds at {skill} {level}: {grade}. {perks}. No bench fee on a roll.',
+  odds_plain: 'Fine {fine}, Hallmarked {hallmarked}, otherwise plain',
+  odds_fine: 'Hallmarked {hallmarked}, otherwise Fine',
+  odds_sealed: 'always Hallmarked',
+  odds_perks: 'Perks: {perks}',
+  odds_second: 'Second perk: {perks}',
+  odds_or: '{list} or {last}',
+  odds_always: 'Always {perk}. {rest}',
   /* The bench fee the picked count takes before Start (src/shell/bench-fee.js feeLineWords), with its share of the purse from 10% up. */
   fee_all: '{gold} gold for all {n}',
   fee_n: '{gold} gold for {n}',

@@ -33,7 +33,7 @@ export async function deriveCatalogueRows() {
 const { ITEMS, isAutoEatable } = await imp('src/data/items.js');
 const { ARMOUR_WEIGHT } = await imp('src/data/core-model.js');
 const { TREES, ROCKS, FISH_SPOTS, expandItemSlot } = await imp('src/data/gathering.js');
-const { ARTISAN_RECIPES } = await imp('src/data/recipes.js');
+const { ARTISAN_RECIPES_EVERY: ARTISAN_RECIPES } = await imp('src/data/recipes.js');   // a dark (switched) job is an activity too: set_activity asks its switch
 const { MONSTERS, monsterLevelOf } = await imp('src/data/monsters.js');
 
 const itemIds = Object.keys(ITEMS).sort();

@@ -36,7 +36,7 @@
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.140';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';
+import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';   // the dark (switched) jobs too: a running one is shown; the bench offers one only where the server lists it
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.140';
 import { ITEMS } from '../data/items.js?v=0.2.140';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.140';

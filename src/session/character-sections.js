@@ -69,6 +69,14 @@ export function characterSheetOf(cs) {
 
 /** The server says this account is the Game Master (2027-03-13-gm-tools.sql's `gm` section). Fails safe to false. */
 export function gmOf(cs) { return read(cs, 'gm') === true; }
+
+/** Is the server switch `sw` on for this hero's account? The `features` section (hr_features_view, 2027-03-21-feature-switches.sql)
+    lists the ids of every switch on for it. Before the server says, or for a switch it doesn't list, NO: a door stays hidden, and
+    the server still decides every verb behind it. */
+export function featureOn(cs, sw) {
+  const on = read(cs, 'features');
+  return typeof sw === 'string' && Array.isArray(on) && on.includes(sw);
+}
 /** `titles` (2027-02-28-titles.sql): every title with the server's price, the kills it takes and this hero's own count, or null. A row with words the client refuses is not drawn. */
 export function titlesOf(cs) {
   const t = read(cs, 'titles');

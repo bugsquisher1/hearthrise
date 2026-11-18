@@ -580,7 +580,7 @@ async function runTests(M) {
     const noBelt = { ...tank }; delete noBelt.belt;
     const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 } };
     const shop = (...o) => ({ offers: o.map(([item, price, kind]) => ({ offer: 'shop.' + item, item, kind: kind || 'gear', price })), bids: new Map() });
-    const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
+    const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
       temper: null, dummy: null, home: null, bag: [], bank: [] }, over || {}));
     const shield = buy();
     eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'bronze_rimmed_shield',
@@ -591,24 +591,33 @@ async function runTests(M) {
     eq(buy({ purse: 139 }), null, 'past the purse, nothing');
     eq(buy({ equipment: { ...tank, shield: 'bronze_rimmed_shield' } }), null, 'what is worn already is not bought again');
     eq(buy({ shop: shop(['bronze_rimmed_shield', 140, 'tool']) }), null, 'only the Shop\'s gear');
-    /* NEVER AN OFF-WEIGHT BUY, AND WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to
-       a heavy hero at Level 9 and they stayed on to 85; the Shop sells no heavy gloves). A heavy hero's bare gloves slot is never sold the
-       medium pair: the line names the heavy gloves it can wear and where they come from, from the catalogue (item-lore.js wherePlaces), its
-       Show opening there. A medium hero is still sold the pair. The same for a slot worn in another weight. */
+    /* THE PLAN'S WEIGHT RULE, AND WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to
+       a heavy hero at Level 9 and they stayed on to 85; designer ruling 2b of 2026-11-18). Next buy reads upgradePlan's rule (upgrade-plan.js
+       weightFits), never its own: a bare slot takes any weight, so a heavy hero's bare gloves slot is sold the medium pair, as a medium hero's is;
+       a slot worn off the weight chosen at Tamsin's is never sold another piece of that off weight (a better Studded Helmet over a worn Leather
+       Helmet), and the line names the heavy piece Equip upgrades would move it to and where it comes from, from the catalogue (item-lore.js
+       wherePlaces), its Show opening there; so does a bare slot no Shop piece fills. */
     const { wherePlaces } = await import(pathToFileURL(join(ROOT, 'src/shell/item-lore.js')).href);
     const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
     const dressed = tank;
     const noGloves = { ...dressed }; delete noGloves.gloves;
     const gloves = shop(['leather_gloves', 160]);
-    const find = buy({ equipment: noGloves, shop: gloves });
-    const fit = find && ITEMS[find.icon];
-    eq(find && [find.kind, /^Next upgrade: .+ \(heavy gloves\)$/.test(find.title), fit && fit.slot, fit && fit.armourClass, fit && fit.reqLv <= 31, find.words, find.place],
-      ['find', true, 'gloves', 'plate', true, (wherePlaces(find && find.icon)[0] || {}).words, (wherePlaces(find && find.icon)[0] || {}).place],
-      'a heavy hero is never sold the medium pair: the heavy gloves it can wear, and where they come from');
-    eq(buy({ equipment: noGloves, shop: gloves, prefer: 'medium' }).title, 'Next buy: Leather Gloves (160 gp)', 'a medium hero is still sold them');
-    eq(buy({ equipment: { ...dressed, gloves: 'leather_gloves' }, shop: gloves }).kind, 'find', 'a slot worn in another weight names the hero\'s weight too');
-    /* (a worn Leather Helmet and a better Studded Helmet in the Shop: a better piece of the WORN weight is still off the hero's, so never the buy) */
-    eq(buy({ equipment: { ...dressed, helmet: 'leather_helmet' }, shop: shop(['studded_helmet', 300]) }).kind, 'find', 'a better piece of a worn off weight is never the buy');
+    eq(buy({ equipment: noGloves, shop: gloves }).title, 'Next buy: Leather Gloves (160 gp)', 'a heavy hero\'s bare gloves slot is sold the medium pair (a bare slot takes any weight)');
+    eq(buy({ equipment: noGloves, shop: gloves, prefer: 'medium', chosen: 'medium' }).title, 'Next buy: Leather Gloves (160 gp)', 'a medium hero is sold them too');
+    const isFind = (find, kind) => { const fit = find && ITEMS[find.icon];
+      return [find && find.kind, find && new RegExp('^Next upgrade: .+ \\(' + kind + '\\)$').test(find.title), fit && fit.slot, fit && fit.armourClass, fit && fit.reqLv <= 31, find && find.words, find && find.place]; };
+    const want = (find, slot) => ['find', true, slot, 'plate', true, (wherePlaces(find && find.icon)[0] || {}).words, (wherePlaces(find && find.icon)[0] || {}).place];
+    const bareFind = buy({ equipment: noGloves, shop: shop() });
+    eq(isFind(bareFind, 'heavy gloves'), want(bareFind, 'gloves'), 'a bare slot no Shop piece fills: the heavy gloves it can wear, and where they come from');
+    const wornFind = buy({ equipment: { ...dressed, gloves: 'leather_gloves' }, shop: gloves });
+    eq(isFind(wornFind, 'heavy gloves'), want(wornFind, 'gloves'), 'a slot worn off the chosen weight names the heavy gloves Equip upgrades would move it to');
+    const helmFind = buy({ equipment: { ...dressed, helmet: 'leather_helmet' }, shop: shop(['studded_helmet', 300]) });
+    eq(isFind(helmFind, 'heavy helmet'), want(helmFind, 'helmet'), 'a better piece of a worn off weight is never the buy');
+    /* the Shop's Bronze Belt moves a worn Leather Belt to the chosen weight, and the line says what the move gives up beside what it adds; a worn
+       Studded Leather Belt (tier 2) is never moved to it (a lower tier) */
+    const move = buy({ equipment: { ...dressed, belt: 'leather_belt' }, shop: shop(['bronze_belt', 220]) });
+    eq(move && [move.kind, move.title, move.words], ['gear', 'Next buy: Bronze Belt (220 gp)', '+1 Defense, +22 health, -0.4% critical chance vs Leather Belt'], 'a move to the chosen weight, its cost said');
+    eq(buy({ equipment: { ...dressed, belt: 'studded_belt' }, shop: shop(['bronze_belt', 220]) }).kind, 'find', 'never a lower tier');
     eq(buy({ equipment: dressed, shop: gloves }), null, 'a full set of the hero\'s weight: nothing to find');
     /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */
     const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });
@@ -778,11 +787,13 @@ const MUTANTS = [
   { test: 'T5', file: NEXT, from: "&& holds(r.next.items, o.bag, o.bank));", to: ');' },
   { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return roomBuy(o) || dummyBuy(o) || temperBuy(o) || findPiece(o) || gearBuy(o);" },
   { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || dummyBuy(o) || roomBuy(o);" },
-  /* the full-game audit's A11: an off-weight Shop piece sold to a heavy hero, and nothing saying where its own weight comes from */
-  { test: 'T5', file: NEXT, from: " && ownWeight(ITEMS[x.item], o.prefer));", to: ');' },
+  /* the full-game audit's A11 under designer ruling 2b: Next buy off the plan's weight rule (a better piece of a worn off weight sold), and nothing
+     saying where the hero's own weight comes from */
+  { test: 'T5', file: NEXT, from: "prefer: o.prefer, chosen: o.chosen });", to: "prefer: o.prefer });" },
   { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);" },
   { test: 'T5', file: NEXT, from: '    const p = now[0] || later[0];', to: '    const p = later[0] || now[0];' },
-  { test: 'T5', file: NEXT, from: "&& weightOf(ITEMS[eq[s]]) !== w));", to: '&& false));' },
+  { test: 'T5', file: NEXT, from: "&& offWeight(ITEMS[eq[s]], o.chosen)));", to: '&& false));' },
+  { test: 'T5', file: NEXT, from: '.concat((p.costs || []).slice(0, 1))', to: '' },
   { test: 'T3', file: TOWN, from: "else if (did.has(step.id)) out.push(Object.assign(step, { done: true, title: did.get(step.id) || step.title, words: '' }));", to: '' },
   { test: 'T3', file: TOWN, from: "done: true, title: did.get(step.id) || step.title, words: ''", to: "done: true, words: ''" },
   { test: 'T4', file: TOWN, from: "lines.map((l) => l.item), 'deposit');", to: "lines.map((l) => l.item), 'withdraw');" },

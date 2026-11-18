@@ -19,7 +19,8 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { isMain } from '../../tests/_is-main.mjs';
 import { readNightly, STALE_MS } from './ci-history.mjs';
 
@@ -29,6 +30,9 @@ const TTL_MS = 30 * 60000;
 /* Jobs with no proof in them: skipped on a sweep by design (smoke.yml's release-proven only runs on a push to main). */
 const NO_PROOFS = new Set(['release-proven']);
 const RED = new Set(['failure', 'timed_out']);
+/* GitHub lists at most 100 jobs a page, and every reader here (ci-history's readNightly, release-check's red jobs) reads one
+   page: a job past it is never seen. The selftest holds smoke.yml under it (82 jobs at lane/ci-speed). */
+export const JOBS_PAGE = 100;
 
 const hours = (ms) => (ms < 3600e3 ? `${Math.max(1, Math.round(ms / 60e3))} min` : `${Math.round(ms / 3600e3)} h`);
 
@@ -141,6 +145,11 @@ function selftest() {
   console.log(`  ${cacheOk ? 'ok      ' : 'FAILED  '} two calls read a sweep; inside 30 min the cache answers; past it a failed read says UNREADABLE`);
   if (!cacheOk) fails.push('cache');
   rmSync(file, { force: true });
+  /* every job of smoke.yml fits the one page of jobs each reader asks for */
+  const n = workflowJobs(join(dirname(fileURLToPath(import.meta.url)), '..', '..')).length;
+  const fits = n > 1 && n <= JOBS_PAGE;
+  console.log(`  ${fits ? 'ok      ' : 'FAILED  '} smoke.yml's ${n} jobs fit one page of GitHub's jobs list (${JOBS_PAGE}); past it, a job is never read`);
+  if (!fits) fails.push('jobs page');
   console.log(fails.length ? `\nnightly-health --selftest: ${fails.length} failed` : `\nnightly-health --selftest: green, red, cancelled, stale, none and unreadable read right; ${mutants.length}/${mutants.length} mutants caught`);
   return fails.length ? 1 : 0;
 }

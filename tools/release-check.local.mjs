@@ -40,7 +40,7 @@ import { execFile, execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { promisify } from 'node:util';
 import { isMain } from '../tests/_is-main.mjs';
-import { nightlyHealth } from './lib/nightly-health.mjs';
+import { JOBS_PAGE, nightlyHealth } from './lib/nightly-health.mjs';
 
 const REPO = 'bugsquisher1/hearthrise';
 const EDGE = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue';
@@ -292,7 +292,8 @@ const realIo = {
     try { return ((await exec('git', ['ls-remote', 'origin', `refs/heads/${branch}`], { windowsHide: true })).stdout.match(/^[0-9a-f]{40}/) || [''])[0]; } catch (e) { return null; }
   },
   runs: async (branch, n) => (await api(`/actions/runs?branch=${encodeURIComponent(branch)}&per_page=${n}`))?.workflow_runs || null,
-  jobs: async (id) => (await api(`/actions/runs/${id}/jobs?per_page=50`))?.jobs || null,
+  /* One page holds every job (82 since lane/ci-speed): at 50 a red job past the 50th was never named. tools/lib/nightly-health.mjs --selftest keeps smoke.yml under JOBS_PAGE. */
+  jobs: async (id) => (await api(`/actions/runs/${id}/jobs?per_page=${JOBS_PAGE}`))?.jobs || null,
   dispatch: async (branch) => {
     if (!gh()) return { ok: false, why: 'gh not found' };
     try { await exec(gh(), ['workflow', 'run', 'smoke.yml', '--ref', branch, '-R', REPO], { windowsHide: true }); return { ok: true }; }

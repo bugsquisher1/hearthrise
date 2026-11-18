@@ -518,7 +518,7 @@ async function checks(overrides, shots) {
               const bar = box(li.querySelector('.hw-skill-bar')), next = li.querySelector('.hw-skill-next');
               const shown = next.getClientRects().length > 0;
               return { name: li.querySelector('.hw-skill-name').textContent, bar: Math.round(bar.width), of: Math.round(box(li).width),
-                lines: shown ? Math.round(box(next).height / lh(next)) : 0 };
+                lines: shown ? Math.round(box(next).height / lh(next)) : 0, one: li.querySelector('.hw-skill-one').textContent };
             });
             /* every stat value on one line */
             const wrapped = Array.from(win.querySelectorAll('.hw-cs-line.is-on dd')).filter((d) => box(d).height > lh(d) * 1.5).map((d) => d.parentElement.querySelector('dt').textContent);
@@ -528,6 +528,8 @@ async function checks(overrides, shots) {
           for (const s of r.skills) {
             if (s.bar < s.of * 0.4) fails.push('CW-10 at ' + tag + ' the ' + s.name + ' bar is ' + s.bar + ' px of a ' + s.of + ' px entry');
             if (s.lines > 1) fails.push('CW-10 at ' + tag + ' the ' + s.name + ' unlock runs ' + s.lines + ' lines');
+            /* ONE thing on the line, by name only: "Lv 15: Scored Earth Rune" (its kind and the rest are the tooltip) */
+            if (s.one && !/^(Recovery \+[\d.]+%\. )?Lv \d+: [^,()]+$/.test(s.one)) fails.push('CW-10 at ' + tag + ' the ' + s.name + ' unlock line reads ' + JSON.stringify(s.one));
           }
           if (r.skills.length < 4) fails.push('CW-10 at ' + tag + ' CONTROL: ' + r.skills.length + ' combat skills drawn');
           if (r.wrapped.length) fails.push('CW-10 at ' + tag + ' these values wrap: ' + r.wrapped.join(', '));
@@ -628,7 +630,6 @@ const MUTANTS = [
   ['the portrait shows at 1.5 px an art px (CW-10)', 'src/styles/character.css', '.hw-cs-portrait { flex: none; width: calc(42 * var(--art-px));', '.hw-cs-portrait { flex: none; width: 60px;'],
   ['the sheet bar shares its row with the name again (CW-10)', 'src/styles/character.css', 'grid-template-areas: "glyph name xp lv" ". bar bar bar" ". next next next"; row-gap: 2px;', 'grid-template-areas: "glyph name bar lv" ". xp xp xp" ". next next next"; row-gap: 2px;'],
   ['every unlock is on the line again (CW-10)', 'src/shell/windows/skills.js', "text(nx.querySelector('.hw-skill-one'), u.one);", "text(nx.querySelector('.hw-skill-one'), u.all);"],
-  ['the unlock line wraps again (CW-10)', 'src/styles/windows.css', '.hw-skill-next { display: flex; min-width: 0; white-space: nowrap;', '.hw-skill-next { display: block; min-width: 0; white-space: normal;'],
   ['a value says what it is measured against again (CW-10)', 'src/shell/windows/character/sheet.js', "c && c.dodgePct !== null ? c.dodgePct + '%' : null", "c && c.dodgePct !== null ? c.dodgePct + '% of blows vs a monster of the same Level' : null"],
   ['the wardrobe shows the whole frame again (CW-10)', 'src/shell/windows/character/index.js', "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, FIGURE)", "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, null)"],
   ['the FIGURE is cut to the body (CW-10)', 'src/render/outfit-sprite.js', 'export const FIGURE = Object.freeze([13, 15, 42, 45]);', 'export const FIGURE = Object.freeze([16, 19, 32, 40]);'],

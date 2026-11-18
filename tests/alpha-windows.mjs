@@ -54,7 +54,7 @@
 //         stood on the gold "Next:" plate, whose foot read as a half-filled progress bar), "Setting out." goes once the hunt it set out on is over,
 //         and every press is in reach as the window opens (door panel 2026-11-04: a hunt out of stamina opened with none in sight)
 //   AW-67 NOTHING LIES ON THE PRESS IN HAND (newcomer panel 2026-11-03, 1366x768, the coach's line up): a stack in hand drops the last press's
-//         result; its Fuel all, and Stop while it fuels, take a real press at their middle, over the answer line and inside the column; the
+//         result; its Burn all, and Stop while it fuels, take a real press at their middle, over the answer line and inside the column; the
 //         player's own scroll is not fought; the Shop's tabs stay whole at the top of a scrolled body; the All characters card's
 //         figure says what it is (optimizer panel: "Bag 19,369 gp" beside "Your gold 51.7k")
 //   AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04): "You have 19 left" stood over a bar reading 6 for a whole hunt
@@ -93,7 +93,7 @@
 //         stack, Newest puts the stack just stored first, and the chip and sort are
 //         remembered (ONE residue put naming storeView) and come back after a reload
 //   AW-19 FUEL THE HEARTH (Tyler live 10-18, "can't bury bones"; 10-25: Inner Flame replaces
-//         Prayer): bones offer Fuel all N; it is ONE set_activity { kind:'artisan', id:'fuel_bones' }
+//         Prayer): bones offer Burn all N; it is ONE set_activity { kind:'artisan', id:'fuel_bones' }
 //         and nothing else, the Fueling line reads the server's pointer, Stop is ONE set_activity
 //         idle, and the bag and the Inner Flame XP change only from the envelope (and stay after a reload)
 //   AW-20 COOK ALL (playtest 10-22: Raw Wolf Meat sold for 1 gp, nothing said it cooks):
@@ -1333,7 +1333,7 @@ async function panelLeftovers(base) {
   const { buryLabel, buryRecipeOf } = await imp('src/shell/windows/inventory/bury.js');
   const bones = buryRecipeOf('bones');
   const burning = { read: (k) => (k === 'state' ? { active_kind: 'artisan', active_id: bones.recipe.id } : null) };
-  if (buryLabel(bones, 59) !== 'Fuel all 59' || buryLabel(bones, 59, { read: () => null }) !== 'Fuel all 59' || buryLabel(bones, 59, burning) !== 'Fueling…') fails.push('AW-62 the fuel label reads ' + buryLabel(bones, 59, burning));
+  if (buryLabel(bones, 59) !== 'Burn all 59' || buryLabel(bones, 59, { read: () => null }) !== 'Burn all 59' || buryLabel(bones, 59, burning) !== 'Fueling…') fails.push('AW-62 the fuel label reads ' + buryLabel(bones, 59, burning));
   const { rareSaleWords } = await imp('src/shell/item-lore.js');
   if (rareSaleWords([{ item: 'rat_tail', qty: 4 }, { item: 'alpha_fang', qty: 3 }]) !== 'This sells rare finds: 3 Alpha Fang.' || rareSaleWords([{ item: 'rat_tail', qty: 4 }]) !== '') fails.push('AW-62 the sale says ' + rareSaleWords([{ item: 'alpha_fang', qty: 3 }]));
   const { slotOfferHtml, playLineOf } = await imp('src/app/slot-offer.js');
@@ -2181,8 +2181,8 @@ async function tickerRules(base) {
   const bline = TK.lineText(buryParts(csb));
   if (!b3 || b3.items.bones !== -3 || TK.aheadXp(b3, 'inner_flame') !== 3 * TW.xpEach(bury) || !ball || ball.items.bones !== -8 || !bleft || bleft.items.bones !== -2 || !/^Fueling the Great Hearth with Bones: 0 Bones left$/.test(bline))
     fails.push('TK-8 the bench count: ' + JSON.stringify({ b3, all: ball && ball.items, left2: bleft && bleft.items, bline }));
-  /* TK-8b (live v0.2.135: the bag's "Fuel the hearth" on 2,530 Bones read "with 1 Bones…" over "2,529 Bones left"): a count
-     of one names ONE ("1 Bone"), a counted run's line says what the run has to go and never the stock, Fuel all keeps the
+  /* TK-8b (live v0.2.135: the bag's "Burn" on 2,530 Bones read "with 1 Bones…" over "2,529 Bones left"): a count
+     of one names ONE ("1 Bone"), a counted run's line says what the run has to go and never the stock, Burn all keeps the
      stock's count, and every Hearth fuel named in the plural has its one-form (text item.one_<id>). */
   const { startBury } = await imp('src/shell/windows/inventory/bury.js');
   const { itemName, itemNameFor } = await imp('src/shell/widgets/bits.js');
@@ -3840,7 +3840,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const col = await page.evaluate((w) => { const c = document.querySelector(w + '.hw-inv-side'); return c.scrollHeight - c.clientHeight; }, W67);
         if (col <= 0) fails.push('AW-67 CONTROL: the column does not overflow at this size, so this proves nothing');
         const fuel = await takes(page, W67 + '.hw-pick [data-hs-act="primary"]');
-        if (!fuel.hit) fails.push('AW-67 Fuel all does not take a press with the stack in hand: ' + JSON.stringify(fuel));
+        if (!fuel.hit) fails.push('AW-67 Burn all does not take a press with the stack in hand: ' + JSON.stringify(fuel));
         await page.click(W67 + '.hw-pick [data-hs-act="primary"]');
         await wait(page, (w) => document.querySelector(w + '.hw-burying.is-on'), W67, 4000);
         await page.waitForTimeout(400);
@@ -4035,17 +4035,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           }
           if (shots) await shot(page, 'alpha-1440x900-storage');
         }
-        /* AW-19 Fuel the hearth: the bones' primary is Fuel all 8; ONE set_activity; Stop collects; the server's numbers only */
+        /* AW-19 the Hearth: the bones' primary is Burn all 8; ONE set_activity; Stop collects; the server's numbers only */
         await openWin(page, 'b', 'inventory');
         await page.click('[data-hs-win="inventory"] .hw-pocket[data-item="bones"]');
         const prim = await page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]').textContent);
-        if (prim !== 'Fuel all 8') fails.push('AW-19 the bones offer "' + prim + '", not Fuel all 8');
+        if (prim !== 'Burn all 8') fails.push('AW-19 the bones offer "' + prim + '", not Burn all 8');
         else {
           await page.click('[data-hs-win="inventory"] .hw-pick [data-hs-act="primary"]');
           await page.waitForTimeout(800);
           const go = sent(s, 'hr-accrue', 'set_activity');
           if (go.length !== 1 || JSON.stringify(go[0].body.activity) !== '{"kind":"artisan","id":"fuel_bones"}' || Object.keys(go[0].body).sort().join() !== 'activity,intentId,slot,verb')
-            fails.push('AW-19 Fuel all sent ' + JSON.stringify(go.map((c) => c.body)));
+            fails.push('AW-19 Burn all sent ' + JSON.stringify(go.map((c) => c.body)));
           const line = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="inventory"] .hw-burying'); return b && b.classList.contains('is-on') ? b.textContent : ''; });
           if (!/^Fueling the Great Hearth with Bones: 8 Bones left/.test(line)) fails.push('AW-19 no Fueling line from the server pointer: ' + JSON.stringify(line));
           if ((await count(page, 'bones')) !== '8') fails.push('AW-19 the bag painted the bury before the server paid it: bones x' + (await count(page, 'bones')));
@@ -5204,7 +5204,7 @@ const MUTANTS = [
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
   ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
-  ['item truth: panel: Fuel all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
+  ['item truth: panel: Burn all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
   ['item truth: panel: a slot on sale beside an empty one', 'src/app/slot-offer.js', "if (!offer || !purse || actor === null || anEmptySlot(roster)) return '';", "if (!offer || !purse || actor === null) return '';"],
   ['item truth: panel: the play line sells a slot beside an empty one', 'src/app/slot-offer.js', "  if (anEmptySlot(rows)) return t('slots.play_owned'", "  if (false) return t('slots.play_owned'"],

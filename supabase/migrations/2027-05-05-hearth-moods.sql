@@ -6,7 +6,7 @@
 --   people are using the hearth for different things it doesn't break the game." The priority and the cap are the Coordinator's ruling.
 --
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on
--- its passing §9; ON THE EA SECURITY LIST (a shared surface: a chest press now writes the square's flame). EDGE: none (no file the edge
+-- its passing §8; ON THE EA SECURITY LIST (a shared surface: a chest press now writes the square's flame). EDGE: none (no file the edge
 -- bundles moves; the chest's flame row and every smoke colour are client display data outside src/data/hearth.js). CLIENT: the smoke and
 -- the chest's colour ride the next release AFTER this applies; an older client draws the chest's window as the plain fire (its FLAMES has
 -- no `chest`), never a missing sprite, and ignores `kind`.
@@ -76,7 +76,7 @@
 -- REVERSIBILITY: drop the triggers hr_hearth_chest_burst (chest_luck) and hr_hearth_after_burst (hearth_flames), then re-apply
 -- 2027-02-27-town-shows.sql's hr_hearth_flame_of and hr_town_show_free_at (§0 pins them), then drop hr_hearth_chest_burst(),
 -- hr_hearth_named_after_burst(), hr_hearth_pause and hearth_bursts. No player row needs repair: a paused flame only burns later.
--- IDEMPOTENT: a second apply finds the table, restates every body byte-identical, re-creates the triggers, and §9 rolls back its probes.
+-- IDEMPOTENT: a second apply finds the table, restates every body byte-identical, re-creates the triggers, and §8 rolls back its probes.
 -- ORDER: LAST, after 2027-05-04-setup-swap-mid-hunt.sql; no object in common with any staged file.
 -- WIPE: hearth_bursts joins 2027-02-25-character-wipe.sql's c_wipe (it names a hero).
 -- AFTER APPLY: live-hash-drift re-measures hr_hearth_flame_of and hr_town_show_free_at and tracks the four new bodies (Coordinator);
@@ -261,7 +261,7 @@ begin
       limit 1));
 end $fn$;
 
--- ── §8 GRANTS: every function here is the owner's ────────────────────────────
+-- ── §7 GRANTS: every function here is the owner's ────────────────────────────
 do $mig$
 declare f text;
 begin
@@ -271,7 +271,7 @@ begin
   end loop;
 end $mig$;
 
--- ── §9 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
+-- ── §8 SELF-CHECK (CLAUDE.md §4), EXECUTED, every probe rolled back ──────────
 -- The probe empties the square first (the map's windows, named flames and powders, rolled back with it), so its numbers are its own.
 -- now() is one instant in a transaction, so "time passes" is every Hearth row of the map moved back by the same span (pg_temp.hm_age), and a
 -- key used is the press's own two writes (pg_temp.hm_press: its chest_opens row, its luck count), once the real press has been proven (d).
@@ -286,7 +286,7 @@ declare
   v_w public.hearth_bursts%rowtype; v_named public.hearth_flames%rowtype;
 begin
   v_map := (select m.map_id from public.hr_town_maps m where m.main);
-  if v_map is null then raise exception 'hearth-moods §9: no main town'; end if;
+  if v_map is null then raise exception 'hearth-moods §8: no main town'; end if;
   begin
     create function pg_temp.hm_age(p_map text, p_by interval) returns void language sql as $f$
       update public.hearth_bursts set starts_at = starts_at - p_by, ends_at = ends_at - p_by where map_id = p_map;
@@ -309,13 +309,13 @@ begin
     delete from public.hearth_flames where map_id = v_map;
     delete from public.town_shows where map_id = v_map;
     insert into auth.users (id) values (v_a), (v_b) on conflict (id) do nothing;
-    insert into public.hr_access_allowlist (user_id, note) values (v_a, 'hearth-moods §9 probe'), (v_b, 'hearth-moods §9 probe') on conflict (user_id) do nothing;
+    insert into public.hr_access_allowlist (user_id, note) values (v_a, 'hearth-moods §8 probe'), (v_b, 'hearth-moods §8 probe') on conflict (user_id) do nothing;
     perform set_config('request.jwt.claim.sub', v_b::text, true);
     v := public.hr_create_character(0);
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §9: the other hero was not made: %', v; end if;
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §8: the other hero was not made: %', v; end if;
     perform set_config('request.jwt.claim.sub', v_a::text, true);
     v := public.hr_create_character(0);
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §9: hr_create_character refused: %', v; end if;
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §8: hr_create_character refused: %', v; end if;
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_a and slot = 0;
     update public.account_wallet set gold = 1000000 where user_id = v_a;
     insert into public.player_inventory (user_id, slot, item_id, qty) values (v_a, 0, 'tower_key_bronze', 5)
@@ -323,42 +323,42 @@ begin
     if not public.hr_feature_on('burning_tower', v_a) then
       update public.hr_feature_switches set scope = 'accounts', accounts = array[v_a] where switch_id = 'burning_tower'; end if;
     -- (a) THE PLAIN FIRE: a clean square answers null
-    if public.hr_hearth_flame_of(v_map) is not null then raise exception 'hearth-moods §9(a): a clean square burns %', public.hr_hearth_flame_of(v_map); end if;
+    if public.hr_hearth_flame_of(v_map) is not null then raise exception 'hearth-moods §8(a): a clean square burns %', public.hr_hearth_flame_of(v_map); end if;
     -- (b) A BOUGHT POWDER: the square burns it, kind bought
     v_price := (public.hr_town_sink_quote(v_a, v_map, 'powder')->>'price')::bigint;
     v := public.hr_town_show(0, 'cinnabar', v_price, (k || '0b01')::uuid);
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §9(b): a powder answered %', v; end if;
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §8(b): a powder answered %', v; end if;
     v := public.hr_hearth_flame_of(v_map);
-    if v->>'flame' is distinct from 'cinnabar' or v->>'kind' is distinct from 'bought' then raise exception 'hearth-moods §9(b): the square reads %', v; end if;
+    if v->>'flame' is distinct from 'cinnabar' or v->>'kind' is distinct from 'bought' then raise exception 'hearth-moods §8(b): the square reads %', v; end if;
     -- (c) A NAMED FLAME over it (hr_hearth_burn's own two writes): kind named, the powder waiting behind it; then a second passes
     insert into public.hearth_flames (map_id, item_id, flame, user_id, slot, starts_at, ends_at) values (v_map, 'zz_probe', 'honey', v_b, 0, now(), now() + interval '60 seconds');
     perform public.hr_town_show_push(v_map, now(), now() + interval '60 seconds');
     v := public.hr_hearth_flame_of(v_map);
-    if v->>'flame' is distinct from 'honey' or v->>'kind' is distinct from 'named' then raise exception 'hearth-moods §9(c): the named flame did not come first: %', v; end if;
+    if v->>'flame' is distinct from 'honey' or v->>'kind' is distinct from 'named' then raise exception 'hearth-moods §8(c): the named flame did not come first: %', v; end if;
     perform pg_temp.hm_age(v_map, interval '1 second');
     v_ne := (select ends_at from public.hearth_flames where item_id = 'zz_probe');
     -- (d) THE CHEST, through the real press: the window wins for 10 s from now; the burning named flame keeps its start and ends 10 s later,
     --     the powder behind it moves whole
     v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '0d01')::uuid);
-    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §9(d): the press answered %', v; end if;
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'hearth-moods §8(d): the press answered %', v; end if;
     v := public.hr_hearth_flame_of(v_map);
     if v->>'flame' is distinct from 'chest' or v->>'kind' is distinct from 'chest' or (v->>'until_ms')::bigint - (v->>'from_ms')::bigint <> 10000
        or (v->>'from_ms')::bigint <> floor(extract(epoch from now()) * 1000)::bigint then
-      raise exception 'hearth-moods §9(d): the chest did not win the square: %', v; end if;
+      raise exception 'hearth-moods §8(d): the chest did not win the square: %', v; end if;
     -- (k) THE ANSWER'S SHAPE: the fields the client reads, and nothing it doesn't
     if (select array_agg(key order by key) from jsonb_object_keys(v) key) is distinct from array['by', 'flame', 'from_ms', 'item', 'kind', 'now_ms', 'queued', 'until_ms'] then
-      raise exception 'hearth-moods §9(k): the chest''s answer has keys %', (select array_agg(key order by key) from jsonb_object_keys(v) key); end if;
+      raise exception 'hearth-moods §8(k): the chest''s answer has keys %', (select array_agg(key order by key) from jsonb_object_keys(v) key); end if;
     select * into v_w from public.hearth_bursts where map_id = v_map;
-    if v_w.credit <> interval '20 seconds' or v_w.opens <> 1 or v_w.user_id <> v_a then raise exception 'hearth-moods §9(d): the window row reads %', to_jsonb(v_w); end if;
+    if v_w.credit <> interval '20 seconds' or v_w.opens <> 1 or v_w.user_id <> v_a then raise exception 'hearth-moods §8(d): the window row reads %', to_jsonb(v_w); end if;
     if (select ends_at from public.hearth_flames where item_id = 'zz_probe') <> v_ne + interval '10 seconds' or not pg_temp.hm_paid(v_map, v_a, v_b) then
-      raise exception 'hearth-moods §9(d): a flame under the chest lost or gained time'; end if;
+      raise exception 'hearth-moods §8(d): a flame under the chest lost or gained time'; end if;
     -- (e) EXTEND, NOT QUEUE: 4 s on, a second key stretches the one window to 10 s past it; one row; the flames paused by the 4 s it added
     perform pg_temp.hm_age(v_map, interval '4 seconds');
     perform pg_temp.hm_press(v_a, 2, 'great_hearth');
     select * into v_w from public.hearth_bursts where map_id = v_map;
     if (select count(*) from public.hearth_bursts where map_id = v_map) <> 1 or v_w.ends_at <> now() + interval '10 seconds'
        or v_w.starts_at <> now() - interval '4 seconds' or v_w.credit <> interval '16 seconds' or v_w.opens <> 2 or not pg_temp.hm_paid(v_map, v_a, v_b) then
-      raise exception 'hearth-moods §9(e): a second key did not extend the window, or the flames lost time: %', to_jsonb(v_w); end if;
+      raise exception 'hearth-moods §8(e): a second key did not extend the window, or the flames lost time: %', to_jsonb(v_w); end if;
     -- (f) THE CAP: a key every 4 s never holds it green past 30 s in a row (credit 16, 12, 8, 4, 0, then nothing more)
     for i in 3 .. 8 loop
       perform pg_temp.hm_age(v_map, interval '4 seconds');
@@ -367,75 +367,75 @@ begin
     select * into v_w from public.hearth_bursts where map_id = v_map;
     if v_w.ends_at - v_w.starts_at <> interval '30 seconds' or v_w.credit <> interval '0' or v_w.opens <> 8 or v_w.ends_at <> now() + interval '2 seconds'
        or not pg_temp.hm_paid(v_map, v_a, v_b) then
-      raise exception 'hearth-moods §9(f): spammed keys held it green for % (credit %), or the flames lost time', v_w.ends_at - v_w.starts_at, v_w.credit; end if;
+      raise exception 'hearth-moods §8(f): spammed keys held it green for % (credit %), or the flames lost time', v_w.ends_at - v_w.starts_at, v_w.credit; end if;
     -- the window over with 6 s of credit back: a key shows nothing (the named flame burns on); 4 s more, a whole 10 s, and a new window opens
     perform pg_temp.hm_age(v_map, interval '8 seconds');
     perform pg_temp.hm_press(v_a, 9, 'great_hearth');
     v := public.hr_hearth_flame_of(v_map);
     if v->>'kind' is distinct from 'named' or (select ends_at from public.hearth_bursts where map_id = v_map) > now() then
-      raise exception 'hearth-moods §9(f): a resting square went green again: %', v; end if;
+      raise exception 'hearth-moods §8(f): a resting square went green again: %', v; end if;
     perform pg_temp.hm_age(v_map, interval '4 seconds');
     v_ne := (select ends_at from public.hearth_flames where item_id = 'zz_probe');
     perform pg_temp.hm_press(v_a, 10, 'great_hearth');
     select * into v_w from public.hearth_bursts where map_id = v_map;
     if v_w.starts_at <> now() or v_w.ends_at <> now() + interval '10 seconds' or v_w.credit <> interval '0' or v_w.opens <> 1
        or public.hr_hearth_flame_of(v_map)->>'kind' is distinct from 'chest' or (select ends_at from public.hearth_flames where item_id = 'zz_probe') <> v_ne + interval '10 seconds' then
-      raise exception 'hearth-moods §9(f): a rested square did not open a new window (or did not pause the named flame for it): %', to_jsonb(v_w); end if;
+      raise exception 'hearth-moods §8(f): a rested square did not open a new window (or did not pause the named flame for it): %', to_jsonb(v_w); end if;
     -- (g) A NAMED FLAME BOOKED IN THE WINDOW starts when it ends, every second of it
     insert into public.hearth_flames (map_id, item_id, flame, user_id, slot, starts_at, ends_at) values (v_map, 'zz_probe2', 'amber', v_b, 0, now(), now() + interval '60 seconds')
       returning * into v_named;
     if v_named.starts_at <> v_w.ends_at or v_named.ends_at - v_named.starts_at <> interval '60 seconds' then
-      raise exception 'hearth-moods §9(g): a named flame booked in the window reads [%, %)', v_named.starts_at, v_named.ends_at; end if;
+      raise exception 'hearth-moods §8(g): a named flame booked in the window reads [%, %)', v_named.starts_at, v_named.ends_at; end if;
     delete from public.hearth_flames where item_id = 'zz_probe2';
     -- (h) A POWDER BOOKED IN THE WINDOW waits for its end (and behind every named flame, as before)
-    if public.hr_town_show_free_at(v_map, 'powder') < v_w.ends_at then raise exception 'hearth-moods §9(h): a powder may start inside the window'; end if;
+    if public.hr_town_show_free_at(v_map, 'powder') < v_w.ends_at then raise exception 'hearth-moods §8(h): a powder may start inside the window'; end if;
     -- (i) A REFUSED PRESS, A ROLLED-BACK PRESS AND ANOTHER CHEST write nothing
     perform pg_temp.hm_age(v_map, interval '2 seconds');
     v_row := (select to_jsonb(b) from public.hearth_bursts b where b.map_id = v_map);
     delete from public.hr_rate_counters where user_id = v_a;
     v := public.hr_chest_open(0, 'great_hearth', 'bronze', 5, 0, (k || '0d02')::uuid);
     if coalesce(v->>'ok', '') = 'true' or (select to_jsonb(b) from public.hearth_bursts b where b.map_id = v_map) is distinct from v_row then
-      raise exception 'hearth-moods §9(i): five keys from four answered % (or moved the window)', v; end if;
+      raise exception 'hearth-moods §8(i): five keys from four answered % (or moved the window)', v; end if;
     begin
       delete from public.hr_rate_counters where user_id = v_a;
       v := public.hr_chest_open(0, 'great_hearth', 'bronze', 1, 0, (k || '0d03')::uuid);
       if coalesce(v->>'ok', '') <> 'true' or (select opens from public.hearth_bursts where map_id = v_map) <> 2 then
-        raise exception 'hearth-moods §9(i): the press inside the savepoint did not reach the window: %', v; end if;
+        raise exception 'hearth-moods §8(i): the press inside the savepoint did not reach the window: %', v; end if;
       raise exception using errcode = 'HR944', message = 'roll the press back';
     exception when sqlstate 'HR944' then null;
     end;
     if (select to_jsonb(b) from public.hearth_bursts b where b.map_id = v_map) is distinct from v_row then
-      raise exception 'hearth-moods §9(i): a rolled-back press left its window behind'; end if;
+      raise exception 'hearth-moods §8(i): a rolled-back press left its window behind'; end if;
     perform pg_temp.hm_press(v_a, 50, 'zz_other_chest');
     if (select to_jsonb(b) from public.hearth_bursts b where b.map_id = v_map) is distinct from v_row then
-      raise exception 'hearth-moods §9(i): another chest coloured the Hearth'; end if;
-    raise exception using errcode = 'HR941', message = 'hearth-moods §9 complete - rolling back';
+      raise exception 'hearth-moods §8(i): another chest coloured the Hearth'; end if;
+    raise exception using errcode = 'HR941', message = 'hearth-moods §8 complete - rolling back';
   exception when sqlstate 'HR941' then
     null;
   end;
   perform set_config('request.jwt.claim.sub', '', true);
   if exists (select 1 from public.player_state where user_id in (v_a, v_b)) or exists (select 1 from auth.users where id in (v_a, v_b))
      or exists (select 1 from public.hearth_bursts where user_id in (v_a, v_b)) or to_regprocedure('pg_temp.hm_age(text,interval)') is not null then
-    raise exception 'hearth-moods §9: LEAKED a probe row'; end if;
+    raise exception 'hearth-moods §8: LEAKED a probe row'; end if;
   -- (j) GRANTS AND SHAPE: no client reaches a helper or the table; the triggers stand where the contract says; the window is one row a map
   foreach v_role in array array['anon', 'authenticated', 'service_role'] loop
     foreach f in array array['public.hr_hearth_pause(text,timestamp with time zone,timestamp with time zone)', 'public.hr_hearth_chest_burst()',
                              'public.hr_hearth_named_after_burst()', 'public.hr_town_show_free_at(text,text)', 'public.hr_hearth_flame_of(text)'] loop
-      if has_function_privilege(v_role, f, 'execute') then raise exception 'hearth-moods §9(j): % reaches %', v_role, f; end if;
+      if has_function_privilege(v_role, f, 'execute') then raise exception 'hearth-moods §8(j): % reaches %', v_role, f; end if;
     end loop;
     if has_table_privilege(v_role, 'public.hearth_bursts', 'select') or has_table_privilege(v_role, 'public.hearth_bursts', 'insert,update,delete') then
-      raise exception 'hearth-moods §9(j): % reaches the table', v_role; end if;
+      raise exception 'hearth-moods §8(j): % reaches the table', v_role; end if;
   end loop;
-  if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'hearth_bursts') then raise exception 'hearth-moods §9(j): a policy opens the table'; end if;
+  if exists (select 1 from pg_policies where schemaname = 'public' and tablename = 'hearth_bursts') then raise exception 'hearth-moods §8(j): a policy opens the table'; end if;
   if not exists (select 1 from pg_trigger where tgname = 'hr_hearth_chest_burst' and tgrelid = 'public.chest_luck'::regclass and not tgisinternal)
      or not exists (select 1 from pg_trigger where tgname = 'hr_hearth_after_burst' and tgrelid = 'public.hearth_flames'::regclass and not tgisinternal)
      or not exists (select 1 from pg_trigger where tgname = 'hr_gm_wall' and tgrelid = 'public.hearth_bursts'::regclass and not tgisinternal) then
-    raise exception 'hearth-moods §9(j): a trigger is missing'; end if;
+    raise exception 'hearth-moods §8(j): a trigger is missing'; end if;
   if strpos((select prosrc from pg_proc where oid = 'public.hr_town_view(integer,text,integer,integer,bigint,integer,integer)'::regprocedure), 'hr_hearth_flame_of(p_map)') = 0 then
-    raise exception 'hearth-moods §9(j): the town read no longer carries the square''s flame'; end if;
+    raise exception 'hearth-moods §8(j): the town read no longer carries the square''s flame'; end if;
   if (select array_agg(a.attname::text order by a.attname) from pg_index x join pg_attribute a on a.attrelid = x.indrelid and a.attnum = any (x.indkey)
        where x.indrelid = 'public.hearth_bursts'::regclass and x.indisprimary) is distinct from array['map_id'] then
-    raise exception 'hearth-moods §9(j): the window is not one row a map'; end if;
+    raise exception 'hearth-moods §8(j): the window is not one row a map'; end if;
   perform public.hr_assert_grant_hygiene(true);
   raise notice 'hearth-moods: one winner (chest, named, bought, plain), a window extends and never queues, 30 s green at most in a row, every paused second kept; all green';
 end $chk$;

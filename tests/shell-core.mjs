@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, AW, SM, SHELL_CSS } = mods;
+  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, AW, SM, HSUM, AN, SHELL_CSS } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   /* an async rule (a read the alert centre waits on): run with the rest, judged before the verdict */
@@ -1476,6 +1476,25 @@ async function runTests(mods) {
       ok(line && line.text.includes(WHY), 'the away line: ' + JSON.stringify(line && line.text));
       eq(AW.awayBlockOf(away, line).why, WHY, 'the away card');
     });
+
+    t('R9 the end card\'s Gold is what the purse kept, the away card\'s own reading, and a record with no spend says Coins (post-patch audit, end card)', () => {
+      /* THE HUNT IN VIEW: its end card, the stored summary's server tally (coins 615, loot 314, balance -171: 1,100 gp of store supplies) */
+      const cur = { hunt: 'millrace_sewer', lvFrom: 5, lvTo: 6, ups: [], xp: 8024, xpH: 25383, gold: 615, lootValue: 314, balance: -171, kills: 35, ms: 18 * MIN };
+      const fig = HSUM.resultOf(cur).figs.find((f) => f.key === 'gold');
+      eq([fig.label, fig.value, fig.sub], ['Gold', '−485 gp', '615 gp in coins, 1,100 gp on supplies'], 'the end card\'s Gold');
+      /* THE BROWSER CLOSED: the same hunt told by the away card reads the same figure */
+      const away = AW.awayBlockOf(null, { facts: { gold: -485, looted: 615, paid: 1100 } }).result.figs.find((f) => f.key === 'gold');
+      eq([away.label, away.value, away.sub], [fig.label, fig.value, fig.sub], 'the away card\'s Gold is the same reading');
+      /* a record that sent no spend (the session tally of an older server): its coins under Coins, never as Gold */
+      const coins = HSUM.resultOf(Object.assign({}, cur, { lootValue: null, balance: null })).figs.find((f) => f.key === 'gold');
+      eq([coins.label, coins.value], ['Coins', '+615 gp'], 'no spend to set against them: Coins');
+    });
+
+    t('R10 the analyzer says which figure its coins row is, on the hero\'s tab and the party\'s (post-patch audit, analyzer)', () => {
+      const html = AN.renderAnalyzer({});
+      ok(/<dt>Coins<\/dt><dd data-stat="gold">/.test(html) && !/<dt>Gold<\/dt><dd data-stat="gold">/.test(html), 'the coins row is labelled Coins');
+      ok(/<dt>Coins and loot value per hour<\/dt><dd data-stat="perHour\.goldAndLoot">/.test(html), 'and its rate says it is coins and loot');
+    });
   }
 
   await Promise.all(later);
@@ -1508,6 +1527,8 @@ async function load(base) {
     AL: await import(u('src/shell/alerts.js')),
     AW: await import(u('src/shell/windows/away.js')),
     SM: await import(u('src/hunt-view/summary-model.js')),
+    HSUM: await import(u('src/shell/windows/hunt-summary.js')),
+    AN: await import(u('src/shell/widgets/analyzer.js')),
     AH: await import(u('src/shell/after-hunt.js')),
     HA: await import(u('src/shell/hunt-after.js')),
     XP: await import(u('src/core/xp.js')),
@@ -1616,7 +1637,7 @@ const MUTANTS = [
   /* R3g-R3j: the return never lies or goes silent (full-game audit 2026-11-18 A6 A2 A22 A23) */
   { test: 'R3g', file: 'src/shell/away-recap.js', from: "if (gold) parts.push(signed(gold.net, 'gold'));", to: "if (gold) parts.push(signed(gold.looted, 'gold'));" },
   { test: 'R3g', file: 'src/shell/away-recap.js', from: "if (!Number.isSafeInteger(was.gold) || !Number.isSafeInteger(was.sp) || coins === null", to: "if (!Number.isSafeInteger(was.gold) || coins === null" },
-  { test: 'R3g', file: 'src/shell/windows/away.js', from: "value: (f.gold < 0 ? '−' : '+') + gold(Math.abs(f.gold)),", to: "value: '+' + gold(f.looted)," },
+  { test: 'R3g', file: 'src/shell/result-block.js', from: "value: (kept.net < 0 ? '−' : '+') + gold(Math.abs(kept.net)),", to: "value: '+' + gold(kept.coins)," },
   { test: 'R3h', file: 'src/shell/away-recap.js', from: '  if (a && a.last && a.last.session === was.s) return true;\n', to: '' },
   { test: 'R3h', file: 'src/shell/away-recap.js', from: '  return Number.isFinite(h.huntFromMs) && h.huntFromMs > was.at;\n', to: '  return false;\n' },
   { test: 'R3h', file: 'src/shell/away-recap.js', from: "  const died = over ? diedWords(cs, was.s) : '';", to: "  const died = '';" },
@@ -1643,6 +1664,10 @@ const MUTANTS = [
   { test: 'R3m', file: 'src/hunt-view/summary-model.js', from: "  const why = s.reason === 'gold_out' && s.forfeit !== true ? goldOutWords(s, floor)", to: '  const why = false ? goldOutWords(s, floor)' },
   { test: 'R3m', file: 'src/hunt-view/summary-model.js', from: 'coins + loot - balance', to: 'coins - balance' },
   { test: 'R3m', file: 'src/shell/away-recap.js', from: '  const why = goldOut ? dot(goldOut) :', to: '  const why = false ? dot(goldOut) :' },
+  /* R9, R10: every surface says which gold it is (post-patch audit 2026-11-18, the end card) */
+  { test: 'R9', file: 'src/shell/windows/hunt-summary.js', from: '      goldFig(goldKeptOf(cur), cur.gold),', to: '      goldFig(null, cur.gold),' },
+  { test: 'R9', file: 'src/shell/result-block.js', from: "  return Number.isFinite(coins) ? { key: 'gold', label: t('summary.fig_coins'),", to: "  return Number.isFinite(coins) ? { key: 'gold', label: t('summary.fig_gold')," },
+  { test: 'R10', file: 'src/data/text/hud.js', from: "  an_gold: 'Coins',", to: "  an_gold: 'Gold'," },
   { test: 'R8', file: 'src/shell/town-news.js', from: " && !told('title:' + r.id)) : [];", to: ') : [];' },
   { test: 'R8', file: 'src/shell/town-news.js', from: "also: ready.slice(1).map((r) => 'title:' + r.id),", to: 'also: [],' },
   { test: 'R3e', file: 'src/shell/away-recap.js', from: '? FIRST_AWAY_MIN_MS : AWAY_MIN_MS;', to: '? AWAY_MIN_MS : AWAY_MIN_MS;' },

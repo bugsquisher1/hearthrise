@@ -101,10 +101,22 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
  */
 export function goldOutWords(s, floor) {
   const reserve = Number.isSafeInteger(floor) && floor >= 0 ? gp(floor) : null;
-  const coins = int(s.gold), loot = int(s.lootValue), balance = int(s.balance);
-  const spent = coins !== null && loot !== null && balance !== null ? coins + loot - balance : null;
-  if (reserve && spent !== null && spent > 0) return t('summary.end_gold_out_why', { spent: gp(spent), coins: gp(coins), floor: reserve });
+  const kept = goldKeptOf(s);
+  if (reserve && kept && kept.spent > 0) return t('summary.end_gold_out_why', { spent: gp(kept.spent), coins: gp(kept.coins), floor: reserve });
   return reserve ? t('summary.end_gold_out_floor', { floor: reserve }) : END_WORDS.gold_out;
+}
+
+/**
+ * WHAT THE PURSE KEPT FROM A HUNT, from its server tally (`s`: a stored summary's, or the analyzer's hero view in that shape: gold = the coins,
+ * lootValue, balance): the coins, what the store's supplies cost (the balance is coins + loot value - those supplies, so they are
+ * coins + loot value - balance) and the difference, `net`. Loot is not gold until it is sold, so it is no part of it. Null when the tally
+ * lacks any of the three (an older record): the cards then say Coins (../shell/result-block.js goldFig). The away card's reading too.
+ */
+export function goldKeptOf(s) {
+  const coins = int(s && s.gold), loot = int(s && s.lootValue), balance = int(s && s.balance);
+  if (coins === null || loot === null || balance === null) return null;
+  const spent = Math.max(0, coins + loot - balance);
+  return { coins, spent, net: coins - spent };
 }
 
 /** The end card's reason line. `msLeft`: the stamina the server says the hero has now, given only for the newest hunt with none running:

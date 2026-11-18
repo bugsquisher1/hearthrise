@@ -28,7 +28,7 @@ import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2
 import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.138';
 import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.138';
 import { observeSessions } from '../../session/character-session.js?v=0.2.138';
-import { attach, summariesOf, liveDeaths } from '../../hunt-view/summary-recorder.js?v=0.2.138';
+import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js?v=0.2.138';
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.138';
 import { staminaOf } from '../../session/hunt-sections.js?v=0.2.138';
 import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.138';
@@ -183,7 +183,11 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   const a = attach(cs);
   const sc = scratchOf(cs);
   const root = body.querySelector('.hsum');
-  const list = sanitizeSummaries(summariesOf(cs));
+  /* THE HUNT ON NOW LEADS (UI audit 2026-11-18: Summary pressed in a hunt showed the hunt before it): its card from the server's analyzer
+     (summary-recorder.js liveSummaryOf), the stored ones after it */
+  const now = liveSummaryOf(cs);
+  /** @type {Array<ReturnType<typeof sanitizeSummaries>[number] & { live?: boolean, since?: number|null }>} */
+  const list = [...(now ? [now] : []), ...sanitizeSummaries(summariesOf(cs))];
   const cur = list.find((s) => s.id === sc.pick) || list[0] || null;
   const open = endedSessionOf(cs);
   const huntOpen = !!open && !open.ended;
@@ -199,18 +203,18 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
   cls(card, 'is-on', !!cur);
   if (cur) {
     text(root.querySelector('.hsum-title'), groundTitle(cur));
-    text(root.querySelector('.hsum-when'), cur.at ? dayTime(cur.at) : '');
+    text(root.querySelector('.hsum-when'), cur.live ? (cur.since ? t('summary.live_when', { time: dayTime(cur.since) }) : t('summary.live_row')) : cur.at ? dayTime(cur.at) : '');
     const st = cur === list[0] && !huntOpen ? staminaOf(cs) : null;
     /* the newest hunt, none open: what the hero did after it, from the server's pointer (../after-hunt.js) */
     /* ...or what came of the choice the hunt carried (a training session it opened is a hunt of its own, so this one is said either way) */
-    const after = afterDoneWords(cs, cur.id, nameOf(cs)) || (cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '');
+    const after = cur.live ? '' : afterDoneWords(cs, cur.id, nameOf(cs)) || (cur === list[0] && !huntOpen ? endCardAfter(cs, cur.id) : '');
     /* A CLIMB (the Burning Tower) is drawn on the tower with its label rows and keys (../tower-end-card.js, ../tower-words.js climbEnd):
        spat out, never died; the reason line keeps only what the hero did after */
     const tw = towerOf(cs);
     const climb = climbEnd(tw, cur, TOWER_RULES.hunt);
-    const why = climb ? '' : reasonWords(cur, nameOf(cs), st ? st.msLeft : null);
+    const why = climb || cur.live ? '' : reasonWords(cur, nameOf(cs), st ? st.msLeft : null);
     text(root.querySelector('.hsum-reason'), [why, after].filter(Boolean).join(' '));
-    prop(root.querySelector('.hsum-reason'), 'hidden', !!climb && !after);
+    prop(root.querySelector('.hsum-reason'), 'hidden', !why && !after);
     patchClimbCard(root.querySelector('.hsum-climb'), cs, tw, climb);
     /* its presses: Open chest when it earned keys, Climb again (the Tower window's own door) */
     const toTower = root.querySelector('[data-hs-act="tower"]'), toClimb = root.querySelector('[data-hs-act="tower-climb"]');
@@ -265,7 +269,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       cls(toTower, 'is-primary', town.primary === 'again' && climb.keys.length > 0);
       cls(toClimb, 'is-primary', town.primary === 'again' && !climb.keys.length);
       againWhy = '';
-    } else prop(go, 'hidden', false);
+    } else prop(go, 'hidden', !!cur.live);
+    /* the hunt on now has no Hunt again: it is the hunt */
+    if (cur.live) againWhy = '';
     for (const b of root.querySelectorAll('.hsum-actions button:not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
     prop(root.querySelector('[data-hs-act="expand"]'), 'hidden', !bagFull(cs));
   }
@@ -282,7 +288,7 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
       + '<button type="button" class="hh-tool" data-hs-act="pick" data-id="' + s.id.replace(/[^a-z0-9-]/gi, '') + '">' + t('controls.show') + '</button></li>'),
     patch: (el, s) => {
       text(el.querySelector('b'), groundTitle(s));
-      text(el.querySelector('small'), [dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : ''].filter(Boolean).join(', ') + (s.reason ? '. ' + endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why, s.hunt).split('. ')[0].replace(/\.$/, '') : ''));
+      text(el.querySelector('small'), [s.live ? t('summary.live_row') : dayTime(s.at), s.kills !== null ? whole(s.kills) + ' kills' : ''].filter(Boolean).join(', ') + (s.reason ? '. ' + endWords(s.reason, s.forfeit, s.by, nameOf(cs), s.why, s.hunt).split('. ')[0].replace(/\.$/, '') : ''));
     },
   });
 };

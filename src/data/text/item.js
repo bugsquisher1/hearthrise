@@ -42,7 +42,6 @@ export const ITEM_TEXT = Object.freeze({
   bane_more: '+{pct}% damage to {kind} monsters',
 
   /* Where it comes from. */
-  dropped_closed: 'Dropped by creatures on grounds that aren\'t open yet',
   grown_with: 'Grown with {skill}',
   grown_with_level: 'Grown with {skill} {level}',
   gathered_with: 'Gathered with {skill}',

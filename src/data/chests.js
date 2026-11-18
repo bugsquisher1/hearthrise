@@ -441,7 +441,8 @@ export const CHEST_ITEM_DESC = Object.freeze({
   ...Object.fromEntries(CATACOMB_KEYS.map((k) => {
     const wing = k.helmetPm >= 500 ? 'the Bone Wing' : 'the Flooded Wing';
     const what = k.helmetPm >= 500 ? 'Mostly helmets' : 'Mostly boots';
-    const where = { bronze: 'a door in ', silver: 'the middle doors of ', gold: 'deep in ', platinum: 'the deepest doors of ' }[k.id.split('_').pop()];
-    return [k.item, 'Off Keeper Dunn\'s ring, from ' + where + wing + '. It opens the Hearth Chest once. ' + what];
+    /* (no quote straight after the word that ends an import, as validateChests notes: tools/pack-edge.mjs reads a specifier up to the next quote) */
+    const where = { bronze: 'a door in ', silver: 'the middle doors of ', gold: 'the deep doors of ', platinum: 'the deepest doors of ' }[k.id.split('_').pop()];
+    return [k.item, 'Off Keeper Dunn\'s ring. He kept it at ' + where + wing + '. It opens the Hearth Chest once. ' + what];
   })),
 });

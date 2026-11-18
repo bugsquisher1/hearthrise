@@ -1011,15 +1011,15 @@
    "wiped_at_cutover": true,
    "note": "The RETIRED client-authored blob: gold, inventory, every skill's XP, equipment, farm. One row left in production. server-authority.md §2a-iv is explicit — 'Starting state is FRESH. game_saves.snapshot is never read' — so a post-cutover restore has NO reason to bring it back, and reading it would launder the forged values the audit found. This is the single table whose value flipped from critical to worthless the moment the cutover completed, and the cutover has now completed."
   },
-  "hearth_flames": {
-   "class": "operational",
-   "replay": 0,
-   "note": "2027-01-31-inner-flame.sql, ships EMPTY. THE GREAT HEARTH'S FLAME: one row per named fuel burnt (map, user, slot, item, flame colour, starts_at/ends_at), written ONLY by hr_hearth_burn (SECURITY DEFINER) in the same transaction as the item debit, the Inner Flame XP and its player_ledger row (kind craft, intent hearth_burn:<item>); RLS on, every privilege revoked from client roles. Read by hr_hearth_flame_of (the square's colour, via hr_town_view) and by hr_hearth_burn itself for the per-day clamp and the queue. Holds no value: the item, the XP and the journal are in player_inventory, player_skills and player_ledger, all restore_only. Losing every row returns the square to plain fire and re-opens one UTC day of the 20-a-day clamp early (a throughput budget, not a mint: every burn still consumes a fuel the player owns)."
-  },
   "hearth_bursts": {
    "class": "operational",
    "replay": 0,
    "note": "2027-05-05-hearth-moods.sql, ships EMPTY. THE HEARTH CHEST'S GREEN WINDOW: one row per town map, updated in place (who opened it, starts_at/ends_at, the credit the square may still burn green in a row, the presses in the window), written ONLY by hr_hearth_chest_burst (the trigger on chest_luck a press updates) under the Hearth's key; RLS on, every privilege revoked, no policy. Read by hr_hearth_flame_of (the square's flame, via hr_town_view). Holds no value: the press, its keys and its haul are in chest_opens, player_inventory and player_ledger. Losing the row ends a green window early and refills the credit: the next press opens a fresh window."
+  },
+  "hearth_flames": {
+   "class": "operational",
+   "replay": 0,
+   "note": "2027-01-31-inner-flame.sql, ships EMPTY. THE GREAT HEARTH'S FLAME: one row per named fuel burnt (map, user, slot, item, flame colour, starts_at/ends_at), written ONLY by hr_hearth_burn (SECURITY DEFINER) in the same transaction as the item debit, the Inner Flame XP and its player_ledger row (kind craft, intent hearth_burn:<item>); RLS on, every privilege revoked from client roles. Read by hr_hearth_flame_of (the square's colour, via hr_town_view) and by hr_hearth_burn itself for the per-day clamp and the queue. Holds no value: the item, the XP and the journal are in player_inventory, player_skills and player_ledger, all restore_only. Losing every row returns the square to plain fire and re-opens one UTC day of the 20-a-day clamp early (a throughput budget, not a mint: every burn still consumes a fuel the player owns)."
   },
   "hearthfind_log": {
    "class": "restore_only",
@@ -1067,7 +1067,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 387,
+   "replay": 363,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1077,7 +1077,7 @@
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 159,
+   "replay": 135,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {

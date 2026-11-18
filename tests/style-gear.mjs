@@ -11,11 +11,13 @@
 //         reachable inputs) playing that same style (its role weapon key)
 //   SG-2  the first rung is worn at Level 15 or below (the sword's Iron Sword rung) and beats the practice
 //         weapon on its style's accuracy + damage; a rung is two-handed exactly when its practice weapon is
-//   SG-3  the cloth line: every tier-1 and tier-2 piece is reachable light armour (armourClass cloth), tier 1
+//   SG-3  the cloth line: every tier-1 and tier-2 piece is reachable light armour (armourClass cloth: a drop since
+//         2026-11-18, Tyler: armor, weapons and shields drop, a bench makes none), tier 1
 //         worn at Level 1 and tier 2 at Level 15, and each tier's set carries more magic damage than the last
-//   SG-4  a made piece never sells for more than the BOOK value of what went in (the bench is never a faucet)
-//   SG-5  every made rung opens at or below the level it is worn at, from inputs a player can reach without it
-//   SG-6  every made rung sits in a Work-window category (recipes.js recipeCategory), never uncategorized
+//   SG-4  a reforged piece (Klappa's Club, style-gear.js; the Steelgrate, shields.js: the only made weapons and shields since
+//         2026-11-18) never sells for more than the BOOK value of what went in (the bench is never a faucet)
+//   SG-5  every reforge opens at or below the level its piece is worn at, from inputs a player can reach without it
+//   SG-6  every reforge sits in a Work-window category (recipes.js recipeCategory), never uncategorized
 //   SG-7  Klappa's Club (Tyler 2026-11-03, the tribute to Andy): the club hero's rung between the kit and the Iron Warhammer, reforged at a
 //         fresh bench from the kit's one club (so it is no wage) and what a Level 5 hero can reach; PLAYED: the bench run on the real span,
 //         then its blow and a real Thicket hunt on the settle
@@ -32,6 +34,7 @@
 import { fileURLToPath } from 'node:url';
 import { isMain as isEntryModule } from './_is-main.mjs';
 import { STYLE_LADDER, CLOTH_LADDER, STYLE_GEAR_RECIPES } from '../src/data/style-gear.js';
+import { SHIELD_RECIPES } from '../src/data/shields.js';
 import { recipeCategory } from '../src/data/recipes.js';
 import { START_EQUIPMENT, START_INVENTORY } from '../src/data/start-kit.js';
 /* ITEMS and ARTISAN_RECIPES are the SAME identities reachableSources reads (its re-export), so a plant reaches it. */
@@ -62,6 +65,7 @@ export function check() {
   const kit = new Set(Object.keys(START_INVENTORY).concat(Object.values(START_EQUIPMENT)));
   const made = new Map();
   for (const [skill, rows] of Object.entries(STYLE_GEAR_RECIPES)) for (const r of rows) made.set(r.output, { skill, r });
+  for (const r of SHIELD_RECIPES) made.set(r.output, { skill: 'smithing', r });
 
   for (const [style, row] of Object.entries(STYLE_LADDER)) {
     const p = ITEMS[row.practice];
@@ -190,24 +194,28 @@ function mutate() {
   const control = check();
   if (control.length) { console.error('MUTATE CONTROL: the tree is not clean:\n  ' + control.join('\n  ')); process.exit(2); }
   const setField = (id, k, v) => { const had = Object.prototype.hasOwnProperty.call(ITEMS[id], k); const was = ITEMS[id][k]; ITEMS[id][k] = v; return () => { if (had) ITEMS[id][k] = was; else delete ITEMS[id][k]; }; };
+  /* a frozen row (the shields, shields.js) is swapped whole for a copy, and put back */
+  const swap = (id, patch) => { const was = ITEMS[id]; ITEMS[id] = { ...was, ...patch }; return () => { ITEMS[id] = was; }; };
   const unbench = (skill, rid) => { const list = ARTISAN_RECIPES[skill]; const at = list.findIndex((x) => x.id === rid); const [row] = list.splice(at, 1); return () => list.splice(at, 0, row); };
-  /* a rung has two doors since the loot bands (made, and a Sewer Rare): a style loses its upgrade only when both close */
+  /* a rung's one door is its drop row since 2026-11-18 (the Oak Wand: the Sewer's slimes, about hourly) */
   const undrop = (mid, item) => { const m = MONSTERS[mid]; const was = m.drops; m.drops = was.filter((d) => d.id !== item); return () => { m.drops = was; }; };
-  run('the wand rung loses its recipe and its drop (a style with no reachable upgrade)', 'SG-1', () => { const a = unbench('crafting', 'carve_oak_wand'); const b = undrop('sump_slime', 'oak_wand'); return () => { b(); a(); }; });
+  run('the wand rung loses its drop (a style with no reachable upgrade)', 'SG-1', () => undrop('sump_slime', 'oak_wand'));
+  /* a reforge's one door is its bench: the Steelgrate unbenched leaves the Kingsgrate's reforge with no source */
+  run('the Steelgrate loses its reforge (a made piece no bench makes)', 'SG-6', () => { const a = unbench('smithing', 'reforge_steelgrate'); return a; });
   /* the hoard is the Chief's and its called copy's (src/data/boss-calls.js: chief_coppercap_called drops the same rows) */
   run('the wand\'s tier-3 rung loses its one drop (the Chief\'s hoard)', 'SG-1', () => { const a = undrop('chief_coppercap', 'willow_wand'); const b = undrop('chief_coppercap_called', 'willow_wand'); return () => { b(); a(); }; });
   run('the hatchets rung worn only at Melee 30', 'SG-2', () => setField('iron_hatchets', 'reqLv', 30));
   run('the crossbow rung no stronger than the practice crossbow', 'SG-2', () => { const a = setField('oak_crossbow', 'rangeAtkB', 4); const b = setField('oak_crossbow', 'rangeStrB', 4); return () => { b(); a(); }; });
   run('the club rung one-handed again', 'SG-2', () => setField('iron_warhammer', 'twoHanded', false));
   run('an adept robe that is plate', 'SG-3', () => setField('adept_body', 'armourClass', 'plate'));
-  /* worn gear sells at half book (loot-bands.js): a 600 g Longbow sells for 300, over the 275 its planks and thread cost */
-  run('the Longbow at 600 g (it sells for more than its inputs)', 'SG-4', () => setField('longbow', 'v', 600));
-  run('a rung worn before its recipe opens (Level 10, made at Smithing 15)', 'SG-5', () => setField('iron_hatchets', 'reqLv', 10));
-  run('a made rung from an input no player can reach', 'SG-5', () => {
-    const was = ITEMS.silk_thread; delete ITEMS.silk_thread;
-    return () => { ITEMS.silk_thread = was; };
+  /* worn gear sells by tier (loot-bands.js, tier 3 at 0.14): a 5,000 g Steelgrate sells for 700, over the 675 a Kingsgrate and three Steel Bars book at */
+  run('the Steelgrate at 5,000 g (it sells for more than its inputs)', 'SG-4', () => swap('steelgrate', { v: 5000 }));
+  run('a reforge worn before it opens (the Steelgrate at Level 20, reforged at Smithing 30)', 'SG-5', () => swap('steelgrate', { reqLv: 20 }));
+  run('a reforge from an input no player can reach', 'SG-5', () => {
+    const was = ITEMS.small_fang; delete ITEMS.small_fang;
+    return () => { ITEMS.small_fang = was; };
   });
-  run('a made rung whose output type no Work-window tab claims', 'SG-6', () => setField('oak_wand', 'type', 'trinket'));
+  run('a reforge whose output type no Work-window tab claims', 'SG-6', () => swap('steelgrate', { type: 'trinket' }));
   /* the old cloth row on one piece: the Duskwood Robe Top at 0.4 of the Dawn Platebody's 90 (36, not 10) */
   run('the Duskwood Robe Top back at 0.4 of its plate twin\'s defence', 'SG-8', () => setField('duskweave_body', 'magicStrB', 36));
   run('the Scholar set back at 0.4 (the Mage 1.5 times the Willow Warhammer at Level 30)', 'SG-8', () => {
@@ -234,6 +242,6 @@ if (isEntryModule(import.meta.url)) {
     const fails = [...check(), ...club(), ...await hunted()];
     if (fails.length) { console.error('style-gear: RED'); fails.forEach((f) => console.error('  ✗ ' + f)); process.exit(1); }
     console.log(`style-gear: OK — ${Object.keys(STYLE_LADDER).length} styles each climb past the practice kit by Level 15 from a door a player can reach; `
-      + `the cloth line is made at tiers 1 and 2; ${Object.values(STYLE_GEAR_RECIPES).flat().length} made rungs, none sells above its inputs' book`);
+      + `the cloth line drops at tiers 1 and 2; ${Object.values(STYLE_GEAR_RECIPES).flat().length + SHIELD_RECIPES.length} reforges, none sells above its inputs' book`);
   } catch (e) { console.error('style-gear: HARNESS ERROR — ' + (e && e.stack || e)); process.exit(2); }
 }

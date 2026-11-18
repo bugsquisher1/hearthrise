@@ -327,7 +327,8 @@ async function arms(db, tick, setActivity, opts) {
   /* ── T-WORDS ── */
   if (opts && opts.fee) {
     const F = opts.fee;
-    const hat = recipeMaking('smithing', 'iron_hatchets');
+    /* a forged piece from Iron Bars (the Iron Hatchets until lane/d-drop-homes cut the weapon recipes, 2026-11-18: the Iron Axe, a tool) */
+    const hat = recipeMaking('smithing', 'iron_axe');
     const cs = (purse, keep, bag) => ({ read: (k) => (k === 'bench_tax' ? { rooms: { smithing: { permille: 150, room: 'forge', free: false } }, fees: { [hat.id]: 9750, [IRON.id]: 900, [COPPER.id + '_x']: 3000 }, carry_mg: 0, keep, run: { r: IRON.id, s: '2026-11-01T00:00:00Z', c: 4, g: 3, e: 'gold', at: '2026-11-01T00:01:00Z' } }
       : k === 'state' ? { gold: purse, gold_v: 1 } : k === 'shop' ? { offers: [], bids: { iron_bar: 6, copper_bar: 3 } } : k === 'inventory' ? bag : null) });
     const w = { kind: 'artisan', id: hat.id, skill: 'smithing', row: hat };

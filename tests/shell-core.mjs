@@ -1225,7 +1225,10 @@ const MUTANTS = [
   { test: 'W17', file: 'src/shell/window-manager.js', from: '(rise || cap < DOCK_ROOM_PX)', to: '(cap < DOCK_ROOM_PX)' },
   { test: 'W17', file: 'src/data/shell-windows.js', from: 'over: true, rise: true,', to: 'over: true,' },
   /* W17-W21: one window header (lane/b-window-header) */
-  { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }' },
+  /* `also`: the narrow window with a long name the rule is for (v0.2.124's "Gathering and crafting", whose band says "Skills" since v0.2.138):
+     with none in the tree the rule has nothing to hold, so the plant brings its case back with its defect */
+  { test: 'W22', file: 'src/styles/shell.css', from: '> .hs-win-title { letter-spacing: .04em; }', to: '> .hs-win-title { }',
+    also: [{ file: 'src/data/shell-windows.js', from: "label: 'Gathering and crafting', title: 'Skills',", to: "label: 'Gathering and crafting'," }] },
   { test: 'W17', file: WH_FILE, from: "    + '<button type=\"button\" class=\"hs-back\" data-hs-back=\"' + id + '\" hidden>&lsaquo; ' + esc(t('controls.back')) + '</button>'\n", to: '' },
   { test: 'W17', file: WH_FILE, from: "    + (help ? '<button type=\"button\" class=\"hs-help\"", to: "    + (false ? '<button type=\"button\" class=\"hs-help\"" },
   { test: 'W17', file: WH_FILE, from: "  const key = row.key && !row.noShortcut && !touch ?", to: '  const key = row.key ?' },
@@ -1395,10 +1398,12 @@ async function selftest() {
       cpSync(join(ROOT, 'src'), join(base, 'src'), { recursive: true, filter: (s) => !skip.has(s) });
       mkdirSync(join(base, 'src/styles'), { recursive: true });
       cpSync(join(ROOT, 'src/styles/shell.css'), join(base, 'src/styles/shell.css'));
-      const p = join(base, m.file);
-      const src = readFileSync(p, 'utf8');
-      if (!src.includes(m.from)) throw new Error('selftest: anchor for ' + m.test + ' not found in ' + m.file);
-      writeFileSync(p, src.replace(m.from, m.to));
+      for (const q of [m, ...(m.also || [])]) {
+        const p = join(base, q.file);
+        const src = readFileSync(p, 'utf8');
+        if (!src.includes(q.from)) throw new Error('selftest: anchor for ' + m.test + ' not found in ' + q.file);
+        writeFileSync(p, src.replace(q.from, q.to));
+      }
       const fails = await runTests(await load(base));
       if (!fails.some((f) => f.startsWith(m.test + ' '))) { console.error('  MISSED: ' + m.test + ' stayed green with its defect planted (' + m.file + ')'); process.exit(1); }
       caught++;

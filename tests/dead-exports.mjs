@@ -82,10 +82,17 @@ export function readTree() {
 const isVendor = (rel) => rel.startsWith('src/vendor/');
 const globRe = (g) => new RegExp('^' + g.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*') + '$');
 
-/** A file's text as the census reads it: comments blanked (strings kept) for code, raw for a page, empty for vendor. */
+/** A file's text as the census reads it: comments blanked (strings kept) for code, raw for a page, empty for vendor.
+    Remembered per file while its text is the same string, so the self-test's planted trees re-strip only what changed. */
+const STRIPPED = new Map();
 function codeOf(rel, text) {
   if (isVendor(rel)) return '';
-  return rel.endsWith('.html') ? text : strip(text).noC;
+  if (rel.endsWith('.html')) return text;
+  const hit = STRIPPED.get(rel);
+  if (hit && hit.text === text) return hit.code;
+  const code = strip(text).noC;
+  STRIPPED.set(rel, { text, code });
+  return code;
 }
 
 const SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\bnew\s+URL\s*\(\s*)(['"`])(\.{1,2}\/[^'"`]*?)\1/g;

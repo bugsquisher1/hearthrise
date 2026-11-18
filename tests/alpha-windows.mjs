@@ -1048,8 +1048,9 @@ async function huntsPure(imp) {
   /* A HEALER'S TIER (lane/a-honest-lines 2026-11-16, re-landed and bounded by Level by lane/a-honesty-rescue; the mechanism is lane/d-late-nearmisses'):
      where a pack's healerTiers names a tier and a Level (hunt-tiers.js HEALER_TIERS, measured: a four with no Healer dies there under that Level and a four
      with one holds), the page says "Recommended: Healer" on that tier to a hero under that Level, alone or in a party, an unknown Level too; and on no
-     other ground, tier or Level. A named Deadly is graded with a Healer (checks.deadlyFourNeeds), so the page and the grader's bar agree. The Muster
-     Barrows was graded so since 2026-11-12 and its page never said it; Krell's Hold, graded the same way, holds its floor without one (its pack). */
+     other ground, tier or Level. A Deadly the grader grades with a Healer (checks.deadlyFourNeeds, the designer's Q4 2026-11-12 "bring a Healer") is
+     named, and a named Deadly is graded so: the page and the grader agree both ways. The Muster Barrows and Krell's Hold were graded so since 2026-11-12
+     and their pages never said it (each pack carries its measurement). */
   {
     const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
     const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
@@ -1070,8 +1071,12 @@ async function huntsPure(imp) {
         for (const n of [1, 2, 4]) if (tierWords(r, id, n, lv).includes(healerLine) !== want) fails.push('AW-25 ' + r.hunt + ' ' + id + ' at Level ' + lv + ', a group of ' + n + ': the page reads "' + tierWords(r, id, n, lv) + '"' + (want ? ', with no word that it needs a Healer' : ', and it is not named one there'));
       }
     }
+    for (const pk of GROUND_PACKS) {
+      const g = (pk.ground && pk.ground.id) || pk.id;
+      if (pk.checks && pk.checks.deadlyFourNeeds === 'healer' && !((TV.HEALER_TIERS[g] || {}).deadly)) fails.push('AW-25 ' + g + '\'s Deadly is graded with a Healer (checks.deadlyFourNeeds) and its page never says to bring one (healerTiers)');
+    }
     if (!(TV.isHealerTier('muster_barrows', 'deadly', 55) && !TV.isHealerTier('muster_barrows', 'deadly', 61))) fails.push('AW-25 the Muster Barrows\' Deadly kills a four with no Healer at its floor (55) and not from 61, and the page does not say so there');
-    if (TV.isHealerTier('krells_hold', 'deadly', 85)) fails.push('AW-25 Krell\'s Hold\'s Deadly is named a Healer\'s tier: its four with no Healer holds its floor (its pack)');
+    if (!(TV.isHealerTier('krells_hold', 'deadly', 85) && !TV.isHealerTier('krells_hold', 'deadly', 91))) fails.push('AW-25 Krell\'s Hold\'s Deadly kills a four with no Healer at its floor (85) and hardly from 91, and the page does not say so there');
     if (!named) fails.push('AW-25 no ground names a Healer\'s tier: the words were never read');
   }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
@@ -5702,7 +5707,8 @@ const MUTANTS = [
   /* A HEALER'S TIER (lane/a-honest-lines, re-landed and bounded by Level by lane/a-honesty-rescue) */
   ['hunts: AW-25 the tier note never says a Healer\'s tier', 'src/shell/hunt-list.js', "  const healer = isHealerTier(r.hunt, tier.id, level) ? [t('hunts.tier_healer')] : [];", '  const healer = [];'],
   ['hunts: AW-25 a Healer\'s tier is said at every Level', 'src/data/hunt-tiers.js', '  return under !== null && !(Number.isInteger(level) && level >= under);', '  return under !== null;'],
-  ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 60 },\n', ''],
+  ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 61 },\n', ''],
+  ['hunts: AW-25 Krell\'s Hold\'s Deadly says nothing of a Healer', 'src/data/grounds/krells_hold/pack.js', '  healerTiers: { deadly: 91 },\n', ''],
   ['hunts: AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],

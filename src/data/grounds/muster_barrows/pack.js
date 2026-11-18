@@ -253,15 +253,14 @@ export default definePack({
      so the answer is the HP, not the pay. */
   /* THE HARDER TIERS ARE THE TABLE'S (lane/d-flat-party-xp, 2026-11-17): its own Dangerous HP of 1000 made Dangerous pay a party and a hero alone as much as
      Deadly an hour (0.97-1.02, party-tier-xp) for less risk. On the table's 1100 and 1150 Deadly pays the more. */
-  /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 60 (lane/a-honest-lines 2026-11-16, re-landed and bounded by Level by lane/a-honesty-rescue
+  /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 61 (lane/a-honest-lines 2026-11-16, re-landed and bounded by Level by lane/a-honesty-rescue
      2026-11-18; graded so since designer Q4 2026-11-12, checks.deadlyFourNeeds, and the page never said it). MEASURED on set/v0.2.139 (the
      table's Deadly: pull 8, blows 1330, HP 1150), the ladder kit, 2 h a seed, a tank, hammer, bow and Mage against a tank, Healer, bow and Mage,
      deaths in 16 hero-hours. The full grade (node tools/balance-sim/grade.mjs --mode full --grounds muster_barrows --tiers deadly, 2 seeds):
      Level 50 38 / 1, 52 18 / 1, 53 18 / 0, 55 (the floor) 10 / 0, over the sheet's bar of 9, 65 0 / 0, 75 0 / 0. Then 6 seeds a cell across
-     the band: 55 9.3 / 0, 57 3 / 0, 59 1 / 0, 61 0 / 0, 63 0 / 0, 65 0 / 0. So a four with no Healer dies here under 60 and holds from 61, and
-     the page says it only under 60. Krell's Hold, graded the same way, is NOT named: its healerless four died 7 in 16 at its floor (85),
-     inside the bar, and 0 from 95. */
-  healerTiers: { deadly: 60 },
+     the band: 55 9.3 / 0, 57 3 / 0, 59 1 / 0, 61 0 / 0, 63 0 / 0, 65 0 / 0. The rule (Krell's Hold's too): the page says it under the first
+     Level measured at less than one death in 16 hero-hours without a Healer, here 61. */
+  healerTiers: { deadly: 61 },
   /* WHAT THE PARTY WINDOW SAYS (party-class-xp.js PARTY_VS_ALONE's shape): Level XP a head against the same heroes alone, whole fives,
      measured at the floor on the default pull (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, 2026-11-10, with Hask's lines and
      the cells above). One class is the mean of its five one-class parties: pairs 0.88-0.94 (0.91), threes 0.80-0.89 (0.84), fours

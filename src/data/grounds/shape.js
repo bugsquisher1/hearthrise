@@ -62,7 +62,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
                tests/party-class-xp-line.mjs --write). A pack carries NO party pay cell: one party table for every ground (Tyler 2026-11-16)
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
      healerTiers (optional) { tier: Level }: a harder tier where a four with NO Healer was measured to die and a four with one holds, and the
-               Level under which that was measured to hold true ({ deadly: 60 }). The Hunts page says "Recommended: Healer" on that tier to
+               Level under which that was measured to hold true ({ deadly: 61 }: the first Level a four with no Healer dies less than once in 16 hero-hours). The Hunts page says "Recommended: Healer" on that tier to
                a hero under that Level, alone or in a party (hunt-tiers.js HEALER_TIERS, hunt-list.js tierWords), and a pack naming Deadly
                carries checks.deadlyFourNeeds 'healer' so the grader grades the four the page asks for (tests/alpha-windows.mjs AW-25). Words only
      checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]

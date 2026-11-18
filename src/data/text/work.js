@@ -18,6 +18,8 @@ export const WORK_TEXT = Object.freeze({
   /* THE LINE WHEN A BENCH RUN FINISHES IN VIEW (src/shell/town-news.js; QA audit 2026-11-18 A17: "Fuel all" ended with no word): what it
      made or burned, the server's count, then the skill's level as a label. */
   done_made: '{name} made {count} {item}.',
+  /* ...a run whose crafts can burn or roll grades (Cooking, jewelry): the run's tally counts crafts, so no number is said */
+  done_run: '{name} finished making {item}.',
   done_fuel: '{name} fueled the Great Hearth with {count} {item}.',
   done_level: '{skill} {level}.',
   /* A skill ledger's unlock line (src/shell/windows/skills.js unlockLine, the Character sheet's combat skills too): the first thing

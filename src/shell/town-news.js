@@ -20,7 +20,7 @@ import { recipeInputs } from '../core/artisan.js?v=0.2.138';
 import { TITLES } from '../data/titles.js?v=0.2.138';
 import { whole, gold } from '../render/format.js?v=0.2.138';
 import { t } from '../render/player-text.js?v=0.2.138';
-import { itemNameFor, skillName } from './widgets/bits.js?v=0.2.138';
+import { itemName, itemNameFor, skillName } from './widgets/bits.js?v=0.2.138';
 import { workRow, productOf, yieldOf } from './town-work.js?v=0.2.138';
 
 /* The stops that mean the run finished on its own: an input used up, the count made (supabase/functions/hr-accrue/accrual.js `stopped`). */
@@ -48,8 +48,11 @@ export function workDoneOf(cs, sawKey) {
   const sk = (skillsOf(cs) || {})[w.skill];
   let said;
   if (product) {
+    /* a count only where every craft makes the product: a dish can burn and a rolled piece comes in grades, and the run's tally counts
+       crafts, not what they made, so those say the run without a number rather than one the bag disagrees with */
+    const exact = w.skill !== 'cooking' && !w.row.roll;
     const n = run.crafts * yieldOf(w);
-    said = t('work.done_made', { name, count: whole(n), item: itemNameFor(product, n) });
+    said = exact ? t('work.done_made', { name, count: whole(n), item: itemNameFor(product, n) }) : t('work.done_run', { name, item: itemName(product) });
   } else {
     /* a Hearth fuel makes nothing: what it burned, its one input */
     const [input, per] = Object.entries(recipeInputs(w.row))[0] || [];

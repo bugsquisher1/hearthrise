@@ -1341,6 +1341,13 @@ async function runTests(mods) {
       for (const fn of quick.subs) fn(quick, 'changed');
       ok(qc.list().some((a) => a.kind === 'work'), 'a run paid whole by its first settle raised no line: ' + JSON.stringify(qc.list().map((a) => a.text)));
       qc.destroy();
+      /* the run's tally counts crafts: a bar is a craft each, but a dish can burn, so a Cooking run says no number the bag could disagree with */
+      const bench = (id, skill, e) => ({ name: 'Ashwick', state: e ? { active_kind: 'idle', active_id: null } : { active_kind: 'artisan', active_id: id, active_since: SINCE },
+        skills: { [skill]: { xp: 900, level: 7 } }, bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0, run: Object.assign({ r: id, s: SINCE, c: 20, g: 0, at: iso(T0 + 6 * MIN) }, e ? { e } : {}) } });
+      const said = (id, skill) => { const h = heroOf(bench(id, skill, null), null, T0 + MIN), c = centreOf(h); h.env = bench(id, skill, 'supplies');
+        for (const fn of h.subs) fn(h, 'changed'); const l = c.list().find((a) => a.kind === 'work'); c.destroy(); return l ? l.text : null; };
+      eq([said('smelt_bronze', 'smithing'), said('cook_shrimp', 'cooking')],
+        ['Ashwick made 20 Bronze Bar. Smithing 7.', 'Ashwick finished making Cooked Shrimp. Cooking 7.'], 'a bar run says its count, a dish run never does');
       const late = centreOf(heroOf(env('supplies', false), null, T0 + 6 * MIN));
       ok(!late.list().some((a) => a.kind === 'work'), 'a run never watched raised a line');
       late.destroy();
@@ -1530,6 +1537,7 @@ const MUTANTS = [
   { test: 'R7', file: 'src/shell/town-news.js', from: ' || runKey(run) !== sawKey || ', to: ' || ' },
   { test: 'R7', file: 'src/shell/town-news.js', from: "const FINISHED = new Set(['supplies', 'count']);", to: "const FINISHED = new Set(['supplies', 'count', 'idle']);" },
   { test: 'R7', file: 'src/shell/town-news.js', from: "  return st && st.active_kind === 'artisan' && typeof st.active_id === 'string'", to: "  return st && benchRunOf(cs) && benchRunOf(cs).end === null && st.active_kind === 'artisan' && typeof st.active_id === 'string'" },
+  { test: 'R7', file: 'src/shell/town-news.js', from: "    const exact = w.skill !== 'cooking' && !w.row.roll;", to: '    const exact = true;' },
   { test: 'R8', file: 'src/shell/alerts.js', from: '    const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));', to: '    const titled = null;' },
   { test: 'R8', file: 'src/shell/town-news.js', from: " && !told('title:' + r.id)) : [];", to: ') : [];' },
   { test: 'R8', file: 'src/shell/town-news.js', from: "also: ready.slice(1).map((r) => 'title:' + r.id),", to: 'also: [],' },

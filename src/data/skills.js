@@ -20,6 +20,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { FIST_LINE } from './fists.js?v=0.2.139';
+
 export const SKILLS_DEF = {
   melee: { name: 'Melee', icon: '⚔️', cat: 'combat' },
   ranged: { name: 'Ranged', icon: '🏹', cat: 'combat' },
@@ -43,6 +45,9 @@ export const COMBAT_SKILLS = Object.freeze(Object.keys(SKILLS_DEF).filter((id) =
 
 /* The skill a weapon family's damage trains and its accuracy and max hit read
    (CORE_MODEL.md §4). Magic is trained by mana spent, never by damage. */
-export const FAMILY_SKILL = Object.freeze({ sword: 'melee', hammer: 'melee', axe: 'melee', ranged: 'ranged', magic: 'magic', neutral: 'melee' });
-/* The families whose landed blows pay damage XP (magic pays per mana spent). */
-export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral']);
+export const FAMILY_SKILL = Object.freeze({ sword: 'melee', hammer: 'melee', axe: 'melee', ranged: 'ranged', magic: 'magic', neutral: 'melee',
+  /* the wraps (src/data/fists.js): Melee, only while the fist sample is live */
+  ...(FIST_LINE.live ? { [FIST_LINE.family]: 'melee' } : {}) });
+/* The families whose landed blows pay damage XP (magic pays per mana spent). A striking row that names its own skill trains that
+   one instead (src/data/abilities.js ownHitSkill). */
+export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral', ...(FIST_LINE.live ? [FIST_LINE.family] : [])]);

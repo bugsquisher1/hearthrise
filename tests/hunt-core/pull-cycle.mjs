@@ -182,6 +182,27 @@ const cases = {
     const prayed = 100 + Math.floor((200 * M.tuning.HUNT_TUNING.oocRegenPermillePerS * 1500) / 1000000);
     return p.hp === prayed ? null : 'Inner Flame x1.5: ' + p.hp + ' HP, expected ' + prayed;
   },
+  /* THE OWN HEAL (the fist line's wraps, src/data/fists.js; combat-sim.js syncUnit writes `selfHealPm` on the unit): a hurt hero
+     regains that permille of max HP a second on top of the regen, in a fight and out of one, never multiplied by Inner Flame
+     (the pull-cycle.js tickHeroes formula, per 100 ms sub-step). A hero with none regains exactly what it did. */
+  'own-heal': (M) => {
+    const mk = (phase, o) => {
+      const h = H(M, 1, 2, 8, 'tank', { hp: o.hp || 1000, maxHp: 2000 });
+      /* the settle's boundary numbers, written on the unit as syncUnit writes them (makeUnit keeps only the persisted fields) */
+      if (o.selfHealPm) h.selfHealPm = o.selfHealPm;
+      if (o.regenPm) h.regenPm = o.regenPm;
+      const packs = PARTY_GROUND().pockets.map((_, i) => ({ alive: i === 0, aggro: i === 0, holder: i === 0 ? 1 : null, respawnAtMs: 1e9 }));
+      return [h, inst2(M, world(M, [h, E(M, 2, 0, 14, 3, 1)], { phase, leader: 1, packs }), PARTY_GROUND())];
+    };
+    const second = (phase, o) => { const [h, inst] = mk(phase, o); for (let i = 0; i < 10; i++) M.hunt['pull-cycle'].runPhase(inst, sc2(M, 1)); return h.hp; };
+    /* per sub-step floor(2000 x (rate x regenPm + selfHealPm x 1000) x 100 / 1e6) milli-HP, ten sub-steps a second */
+    const want = (rate, pm, own) => 1000 + Math.floor((10 * Math.floor((2000 * (rate * pm + own * 1000) * 100) / 1000000)) / 1000);
+    const fight = M.coreModel.VITALS.inFightRegenPermillePerS, rest = M.tuning.HUNT_TUNING.oocRegenPermillePerS;
+    const rows = [['fight, healing 8', 'fight', { selfHealPm: 8 }, want(fight, 1000, 8)], ['fight, none', 'fight', {}, want(fight, 1000, 0)],
+      ['resting, healing 8', 'regroup', { selfHealPm: 8 }, want(rest, 1000, 8)], ['fight, healing 8, Inner Flame x1.5', 'fight', { selfHealPm: 8, regenPm: 1500 }, want(fight, 1500, 8)]];
+    for (const [label, phase, o, w] of rows) { const got = second(phase, o); if (got !== w) return label + ': one second gave ' + got + ' HP, expected ' + w; }
+    return second('fight', { selfHealPm: 8, hp: 2000 }) === 2000 ? null : 'a whole hero went over its max';
+  },
   /* PC-16: a corpse lingers corpseMs, then is removed. */
   'corpse-removed': (M) => {
     const m = E(M, 2, 0, 13, 3, null, { alive: false, hp: 0 });
@@ -302,6 +323,9 @@ const mutants = [
   { name: 'a dead leader stands up', case: 'wipe-resets-pack', edits: [[P, '    if (!h.alive) continue;', '    if (!h.alive) { h.alive = true; h.hp = h.maxHp; continue; }']] },
   { name: 'the resting rate in a fight', case: 'ooc-regen', edits: [[P, "inst.world.phase !== PHASE.FIGHT ? HUNT_TUNING.oocRegenPermillePerS : VITALS.inFightRegenPermillePerS", 'HUNT_TUNING.oocRegenPermillePerS']] },
   { name: 'Inner Flame does not reach HP regen', case: 'ooc-regen', edits: [[P, '    const pm = Number.isInteger(h.regenPm) && h.regenPm > 0 ? h.regenPm : 1000;', '    const pm = 1000;']] },
+  { name: 'the own heal never reaches HP', case: 'own-heal', edits: [[P, '? h.selfHealPm * 1000 : 0;', '? 0 : 0;']] },
+  { name: 'Inner Flame multiplies the own heal', case: 'own-heal', edits: [[P, '(h.maxHp * (rate * pm + own) * sc.dtMs)', '(h.maxHp * (rate + own / 1000) * pm * sc.dtMs)']] },
+  { name: 'the own heal works only in a fight', case: 'own-heal', edits: [[P, '? h.selfHealPm * 1000 : 0;', "&& inst.world.phase === PHASE.FIGHT ? h.selfHealPm * 1000 : 0;"]] },
   { name: 'corpses stay forever', case: 'corpse-removed', edits: [[P, '    if (u.deadMs >= HUNT_TUNING.corpseMs) gone = true;', '']] },
   { name: 'a swing clock is not persisted', case: 'party-world-survives-every-cut',
     edits: [['src/core/hunt/damage.js', ", ['swingLeftMs', 'int']]),", ']),']] },

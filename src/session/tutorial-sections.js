@@ -13,6 +13,8 @@
 // the button it points at use ONE function. Each is optional; absent = unknown, and the card that needs it is passed by.
 //   read        string[] | Set   the card ids the player pressed Got it on or has read (residue `coach.read`,
 //                                display state); absent = this client records no read yet
+//   hid         string[] | Set   the cards a server fact finishes that the player pressed Got it on (residue `coach.hid`):
+//                                passed by, so the next card shows (hunt-tutorial.js currentCard)
 //   roster      [{ slot, level, name, open, hunting }]  the account's heroes (AccountSession.roster rows, `open`: a
 //                                CharacterSession is playing it, `hunting`: its own huntOf is open)
 //   slotsOwned  number           the hero slots the account owns (the roster's length)
@@ -61,11 +63,13 @@ const storedSlot = (s) => (isObj(s) && isObj(s.action) && typeof s.action.id ===
 function shellFacts(sh) {
   const o = isObj(sh) ? sh : {};
   const read = o.read instanceof Set ? o.read : Array.isArray(o.read) ? new Set(o.read) : null;
+  const hid = o.hid instanceof Set ? o.hid : Array.isArray(o.hid) ? new Set(o.hid) : null;
   const roster = Array.isArray(o.roster) ? o.roster.slice(0, 8).filter((h) => isObj(h) && Number.isInteger(h.slot))
     .map((h) => ({ slot: h.slot, level: Number.isInteger(h.level) ? h.level : null, name: typeof h.name === 'string' ? h.name.slice(0, 40) : null,
       open: h.open === true, hunting: typeof h.hunting === 'boolean' ? h.hunting : null })) : null;
   return {
     read: read ? new Set(Array.from(read).filter((id) => typeof id === 'string' && ID.test(id))) : null,
+    hid: hid ? new Set(Array.from(hid).filter((id) => typeof id === 'string' && ID.test(id))) : null,
     roster, slotsOwned: nat(o.slotsOwned), playLimit: nat(o.playLimit), sellable: nat(o.sellable),
     upgrades: Array.isArray(o.upgrades) ? o.upgrades.filter((id) => typeof id === 'string' && ID.test(id)).slice(0, 14) : null,
     back: typeof o.back === 'string' ? o.back : null, slotCost: nat(o.slotCost),

@@ -117,7 +117,10 @@ async function check(M) {
       { id: 'neighbour', rect: [16, 1, 5, 5], wall: 'timber', floor: 'plank_floor', doors: [[18, 5]], windows: [17, 20], chimney: 19, closed: true, roof: { rect: [16, 1, 5, 5], kind: 'roof_slate' } },
     ] });
   const fixtures = { _kit_town: kitTown, _kit_home: kitHome };
-  const compiled = (id) => M.mapc.compileMap(rows[id] || fixtures[id], tables);
+  /* a staged pack's map (the Unmarked Catacombs: the descent's wings fight in its rooms before the hunting ground opens) compiles for the
+     Tower-seat check (G5) only; every shipped-map check reads `rows` alone */
+  const staged = Object.fromEntries(M.maps.STAGED_MAPS.map((m) => [m.id, m]));
+  const compiled = (id) => M.mapc.compileMap(rows[id] || fixtures[id] || staged[id], tables);
   const frame = (id, hero, extra = {}, view) => {
     const b = M.nullb.createNullBackend({ book, tables, view });
     b.mount(); b.setMap(compiled(id)); b.sync(Object.assign({ hero, name: 'Hero', t: 0 }, extra));

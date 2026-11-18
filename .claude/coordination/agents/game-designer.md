@@ -994,3 +994,15 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A tier HP dial slows a hero alone more than a four (the Glade +12% HP: lone -16%, four -8.5%), so it is the cap's dial, but it also widens the gap between the two harder tiers. Equal pulls plus more HP make Deadly the worse pick; the pull is what must differ.
 - Prove a pin's cause on an archive of the SET first: the set was already red on engine-parity (the income dial's coin, then Turning Cut's kills), and only what was left over belonged to this lane.
 - Apostrophes in pins (Hask's Ford) through Python or sed break the file again: Edit tool, then `node --check`.
+## 2026-11-16 lane/d-catacomb-mode (the Unmarked Catacombs descent, design only)
+- A second mode on a built one is mostly a list of where the first hard-codes its name: `TOWER_RULES` in the room engine, the `tower_*` tables, the chest's weapon-only table, "Tower Cinders" paid by every key. Read the built stack for those first, and rename while the migrations are still unapplied.
+- A ruling that moves a cap (earned to opened) changes the first mode too. Put the shared change in ONE lane on the first mode's stack, not in the new mode's.
+- Two slots a key make a wanted piece about 1.4x the wait of a one-slot key at the same odds. Say that number when copying odds across.
+- A held limit counted per bag makes players shuffle items into Storage to make room (a repeated decision). Count it across the account.
+- The odds arithmetic reproduced the Tower board's own 4.7 / 9.3 weeks before I used it for armor. Check a new calculator against a published number first.
+## 2026-11-16 lane/d-catacomb-armor (the 24 helmets and boots, hidden, measured)
+- The sim's worker `whatIf` can put an attribute on a twin's own item row for one cell (both engine instances, restored after). That measures a hidden "twin plus one attribute" piece on the real settle with nothing in ITEMS. A +skill piece is the hero N skill levels up (the Tower lane's proven rule), so main's engine needs no field to measure it.
+- Damage taken an hour moves with kill speed. Read safety as damage per monster swing. Its noise at 6 seeds x 1 h was about 4% (a +Melee piece, which can't change a swing, read 0.959), so a 1% read needs 20 seeds or more.
+- One armor slot's tier step is worth about 1% of safety. Any attribute worth having beats the next tier's piece of that ONE slot, so "under the next tier" is the wrong bar for a single armor slot. +1 Defense was 5-8% (more than a tier), which is why the plate helm moved to +Melee.
+- A kiting bow and a back-row Mage are seldom hit by ring or single-target element spells. Element boots for them only win against GROUP spells (Lime Sack, Snuff the Candles). Check the spell's shape before saying where a resist piece wins.
+- Merging a big unapplied stack (lane/d-tower-weapons, 18 conflicting files at a version bump) into a design lane is the wrong move. Build hidden data on main, name the built field, and let the build lane wire it.

@@ -746,6 +746,7 @@
   "tower_runs",
   "chest_luck",
   "chest_opens",
+  "chest_warmth",
   "player_key_ring",
   "player_boss_loot_day"
  ],
@@ -919,12 +920,17 @@
   "chest_luck": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER PROGRESS (2027-04-27-tower-chest.sql) - a hero's Hearth Chest warmth (keys since its last tower weapon), its lifetime key count (the roll's index and the Turnkey title's count) and its default stokes a key. Losing a row cools the Hearth (a dry streak's earned chance lost) and restarts the roll's index (keys already used would roll their dice again); written only by hr_chest_open and hr_chest_stoke_default; RLS own read, no client write."
+   "note": "PLAYER PROGRESS (2027-04-27-tower-chest.sql) - a hero's lifetime key count (the roll's index and the Turnkey title's count) and its default stokes a key (its warmth moved to chest_warmth, per family, in 2027-05-08-catacombs.sql). Losing a row restarts the roll's index (keys already used would roll their dice again); written only by hr_chest_open and hr_chest_stoke_default; RLS own read, no client write."
   },
   "chest_opens": {
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER PROGRESS (2027-04-27-tower-chest.sql) - append-only, one row per key used at the Hearth Chest (index, chance, roll, warmth, stokes, weapon): the audit a disputed roll is replayed from, the day's open clamp and the Turnkey title's count. Losing rows loses that audit and resets the day's count; written only by hr_chest_open; RLS own read, no client write."
+  },
+  "chest_warmth": {
+   "class": "restore_only",
+   "wiped_at_cutover": false,
+   "note": "PLAYER PROGRESS (2027-05-08-catacombs.sql) - a hero's Hearth warmth for each key family (its keys since the family's last piece), the Tower family's copied from chest_luck.dry when the column moved here. Losing a row cools that family's Hearth (a dry streak's earned chance lost); written only by hr_chest_open; RLS own read, no client write."
   },
   "clan_bans": {
    "class": "restore_only",
@@ -1161,6 +1167,11 @@
    "wiped_at_cutover": false,
    "note": "Muted accounts and until when (2027-03-13-gm-tools.sql). Only a backup has the rows; every one expires by itself."
   },
+  "hr_chest_armor": {
+   "class": "seeded",
+   "replay": 24,
+   "note": "Generated catalogue (2027-05-08-catacombs-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js and src/data/catacomb-armor.js): each Catacomb key's armor piece a slot and weight (Bronze and Silver of both wings today). Empty, every Catacomb key is refused chest_not_ready (the key kept). Rebuilt from repo, never restored."
+  },
   "hr_chest_families": {
    "class": "seeded",
    "replay": 7,
@@ -1168,12 +1179,12 @@
   },
   "hr_chest_key_families": {
    "class": "seeded",
-   "replay": 1,
+   "replay": 2,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js KEY_FAMILIES): each key family's caps, the keys one hero may open a UTC week and the held limit past which a new key of it does not drop (Tyler 2026-11-16). Empty, a climb that crosses a landing is refused catalogue_missing (retried, nothing moves) and every open is refused week_limit. Rebuilt from repo, never restored."
   },
   "hr_chest_keys": {
    "class": "seeded",
-   "replay": 4,
+   "replay": 12,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js): the open key table: each key's first landing, base weapon chance, weapon tier, +skill and what it always holds. Empty, no landing mints a key and every open is refused bad_key. Rebuilt from repo, never restored."
   },
   "hr_chest_luck": {
@@ -1183,7 +1194,7 @@
   },
   "hr_chest_outfits": {
    "class": "seeded",
-   "replay": 4,
+   "replay": 12,
    "note": "Generated catalogue (2027-04-27-tower-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js CHEST_OUTFITS; lane/c-sweeps-coat-drop): each key's super-rare outfits, their bundle item and chance in permille (the Sweep's Coat). Empty, no key finds an outfit (the weapon roll and the haul are untouched). Rebuilt from repo, never restored."
   },
   "hr_chest_stokes": {
@@ -1208,7 +1219,7 @@
   },
   "hr_client_rpc_baseline": {
    "class": "seeded",
-   "replay": 148,
+   "replay": 149,
    "note": "The approved client-callable RPC list: 51 rows on 2026-08-15, 72 on 2026-08-30, 73 since 2026-09-08-hero-slot-buy.sql §9 registered hr_buy_hero_slot(p_slot_id integer, p_slot integer, p_idem uuid) for `authenticated` with a delete-then-insert, so a re-apply cannot double it; production measured at 73 rows carrying that exact row on 2026-09-04. 74 IN THE REPLAY SINCE 2026-09-06-recovering-until.sql §5b registered hr_rest(p_slot integer, p_intent_id uuid) for `authenticated` — the Recovery Rule's food-for-a-knockout relief valve, granted in §5 of the same file and deliberately revoked from hr_engine. STAGED, NOT APPLIED: this row is a REPLAY-ONLY count today and production is expected to stay one lower until the Coordinator applies that migration, at which point the two converge with no further re-baseline. §5b derives identity_args from pg_proc via to_regprocedure (a retyped signature silences nothing, because check (2) joins on it) and deletes any row bearing a stale signature first, so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. hr_assert_grant_hygiene check (2) raises on any grant not recorded here, nightly on cron. A rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 77 IN THE REPLAY SINCE 2026-09-13-town-presence.sql §12 registered the three Week-1 live-system verbs for `authenticated` — hr_heartbeat(p_slot integer), hr_set_presence_quiet(p_slot integer, p_quiet boolean) and hr_town_of(p_zone text) — with the same delete-then-insert, so a re-apply cannot double them. APPLIED 2026-09-13 (town-presence): production and replay converged at 77. 78 IN THE REPLAY SINCE 2026-09-13-world-finds-projection.sql §5 registered hr_world_finds_of(p_limit integer) for `authenticated` — the projected Hearthfind board, which closes the named pre-launch P2 by minting the finder's display name server-side (NULL for a presence_quiet finder) so that world_finds.user_id could be revoked from anon and authenticated — with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double the row nor leave an approval for a shape that no longer exists. APPLIED 2026-09-13 08:14 UTC (world-finds-projection): production and replay converged at 78. This row is the APPROVAL for the grant, in the same migration as the grant: hr_assert_grant_hygiene check (2) raises nightly on any client-executable function this table does not list, so a rebuild that seeded a different set would make that detector wrong in both directions — silently permitting an unreviewed grant, or crying about a reviewed one. 80 IN THE REPLAY SINCE 2026-09-14-gem-unlock-buy.sql section 6b and 2026-09-14-recipe-learn.sql section 4d registered hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid) and hr_recipe_learn(p_item text, p_slot integer, p_idem uuid) for `authenticated`, each with the same delete-then-insert keyed on (proname, grantee), so a re-apply can neither double a row nor leave an approval for a shape that no longer exists. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 78 until the Coordinator applies the two migrations, at which point the counts converge with no further re-baseline. This entry was updated BY HAND rather than with --write, deliberately: --write would also re-pin every other table's row count from this branch's replay, which is not this lane's to certify. 87 since 2026-09-23-m8-parties-s1-3-client-surface.sql registered the six client-callable M8 slice-1 party functions (hr_party_view + the five membership verbs) for `authenticated`, also with a delete-then-insert so a re-apply converges rather than skipping a row whose argued claim has since been rewritten. 89 since 2026-09-24-m8-parties-s4-3-client-surface.sql registered the two M8 slice-4 hunt verbs — hr_party_hunt_start(p_slot integer, p_active_id text, p_stance text, p_stop jsonb, p_idem uuid) and hr_party_hunt_stop(p_slot integer, p_idem uuid) — for `authenticated`, with the same delete-then-insert, and that file's §3(a) asserts each row's identity_args EQUALS the installed pg_get_function_arguments, so a retyped signature is red at apply time rather than an approval for a shape nobody granted. STAGED, NOT APPLIED: both rows are REPLAY-ONLY today and production is expected to stay at 87 until the Coordinator applies the S4 three, at which point the counts converge with no further re-baseline. 90 IN THE REPLAY SINCE 2026-10-15-party-hunt-view.sql §6 registered hr_party_hunt_view(p_slot integer) for authenticated (Game Designer A1, the member-only read of the party hunt) and rewrote the hr_party_view row's note (A2: share_bp/xp/gold retired), both delete-then-insert keyed on (proname, grantee) with identity_args derived from pg_get_function_identity_arguments. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write, for the reason above. 91 IN THE REPLAY SINCE 2026-10-18-discord-gift.sql §7 registered hr_claim_discord_gift(p_slot integer, p_code text) for authenticated (delete-then-insert keyed on (proname, grantee)). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND. 98 IN THE REPLAY SINCE 2026-10-22-hunt-sessions-drop-away.sql §3 dropped hr_set_auto_eat and hr_credit_kills and deleted their two `authenticated` rows (hunt sessions retire auto-eat and the attended kill credit; ruling HR-2026-10-14 §3). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 2026-10-25-town-walk.sql registered hr_town_move and hr_town_walkers for authenticated (delete-then-insert). 123 since 2026-10-31-party-create-retire.sql deleted the hr_hunt_party_create row (the first invite makes the party); APPLIED in v0.2.20, production and replay converged. 112 IN THE REPLAY SINCE 2026-12-04-world-actions-cut.sql deleted the twelve raid_strike / world_event_* / hr_rally_pledge_state / clan_board_* / clan_hunt_declare / clan_tier_up / clan_work_complete rows with their functions. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 95 IN THE REPLAY SINCE 2027-01-18-dead-surfaces-cut.sql deleted the hr_worker_hire / hr_worker_assign rows with their functions (§1) and the 23 clan-door rows whose EXECUTE it revoked from every client role (§3: clan_* + hr_clan_browser; bodies and clan tables kept). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 102 IN THE REPLAY SINCE 2027-02-20-players-online-revoke.sql deleted the hr_players_online row with its grant (hr_social_poll answers the count). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 128 IN THE REPLAY SINCE 2027-03-26-signout-presence.sql registered hr_presence_leave() (no argument) for authenticated, delete-then-insert keyed on (proname, grantee): sign-out says the caller's own client is gone. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only). 132 IN THE REPLAY SINCE 2027-04-19-key-under-lock.sql §2 deleted the hr_companion_grant row with its EXECUTE (revoked from every request role; no src/ caller). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only). 133 IN THE REPLAY SINCE 2027-04-20-boss-hall.sql §4 registered hr_boss_hall_enter(p_slot integer, p_hall text, p_idem uuid) for authenticated, delete-then-insert keyed on (proname, grantee): a keyed hall's one door. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 134 since 2027-04-22-target-kind.sql registered hr_hunt_target_kind_set for authenticated (APPLIED 2026-11-14). 138 IN THE REPLAY SINCE 2027-04-22-faction-standing.sql §4 registered hr_faction_join(p_slot integer, p_faction text, p_idem uuid), hr_faction_swap_start(p_slot integer, p_faction text, p_idem uuid), hr_faction_swap_finish(p_slot integer, p_idem uuid) and hr_faction_outfit_claim(p_slot integer, p_piece text, p_idem uuid) for authenticated, delete-then-insert keyed on (proname, grantee). STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. 141 IN THE REPLAY SINCE 2027-04-23-training-gear.sql registered hr_training_gear_buy, hr_training_gear_open and hr_training_gear_switch for authenticated. STAGED, NOT APPLIED: REPLAY-ONLY until the Coordinator applies it. Updated BY HAND, not --write (the count only)."
   },
   "hr_client_write_baseline": {
@@ -1322,7 +1333,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 7,
+   "replay": 8,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-14",
@@ -1410,7 +1421,7 @@
   },
   "hr_ground_session_modes": {
    "class": "seeded",
-   "replay": 1,
+   "replay": 3,
    "note": "Generated catalogue (2027-04-24-tower-climb-session-modes-catalogue.generated.sql, tools/gen-session-modes.mjs from the ground rows' mode in src/data/hunt-grounds.js): each open ground that names a session mode; today one, the Burning Tower's `tower`. Empty, a new climb would freeze the default (a full hunt: a death in the Tower would cost XP), so it is rebuilt from repo before the Tower's switch is on, never restored."
   },
   "hr_ground_tiers": {
@@ -1526,12 +1537,12 @@
   },
   "hr_hunt_ground_spawns": {
    "class": "seeded",
-   "replay": 68,
+   "replay": 70,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): each ground's monsters and counts, the kill bound's spawn term. Since 2027-02-10-drop-bounds: every monster in a pocket's whole pack (the Glade's Brook Bear, 29 -> 30), the settle's value bound. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_grounds": {
    "class": "seeded",
-   "replay": 23,
+   "replay": 25,
    "note": "Generated catalogue (2026-10-23-hunt-sessions-catalogue.generated.sql, tools/gen-hunt-sessions.mjs --check from src/data): one row per hunt ground (pockets, spawns, respawn, seats) from src/data/hunt-grounds.js; empty until the content lane ships a ground, and every enter answers no_ground until then. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_kill_bounds": {
@@ -1602,12 +1613,12 @@
   },
   "hr_hunt_travel": {
    "class": "seeded",
-   "replay": 166,
+   "replay": 168,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): every hunt a session may be entered on: the 4 named hunts and the 94 non-boss, non-champion training monsters, with their walk time. An EMPTY rebuild refuses every enter (unknown_hunt, fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 637,
+   "replay": 649,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1627,7 +1638,7 @@
   },
   "hr_hunts": {
    "class": "seeded",
-   "replay": 26,
+   "replay": 28,
    "note": "Generated catalogue (2026-10-20-hunts-catalogue.generated.sql, tools/gen-hunts.mjs --check from src/data/hunts.js): the named hunts and their level bands, read by hr_hunt_gate. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_import_marker": {
@@ -1642,12 +1653,12 @@
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 382,
+   "replay": 394,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 675,
+   "replay": 695,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_kill_credit_log": {
@@ -1819,7 +1830,7 @@
   },
   "hr_session_modes": {
    "class": "seeded",
-   "replay": 2,
+   "replay": 3,
    "note": "Generated catalogue (2027-04-23-session-modes-catalogue.generated.sql, tools/gen-session-modes.mjs from src/data/session-modes.js): hunt (the default, full death price) and tower (no death loss, Blessings kept, no coin or drops). Upserted: hunt_instances.session_mode points here. Rebuilt from repo, never restored."
   },
   "hr_settings": {
@@ -1883,7 +1894,7 @@
   },
   "hr_state_sections": {
    "class": "seeded",
-   "replay": 50,
+   "replay": 51,
    "note": "The X7 state-section registry (2026-10-23-character-premium.sql and the S1 files): one row per hr_state_of section and its projector. Seeded by the migrations that register a section; rebuilt from repo, never restored."
   },
   "hr_storage_chests": {
@@ -2018,7 +2029,7 @@
   },
   "hr_tower_rules": {
    "class": "seeded",
-   "replay": 1,
+   "replay": 3,
    "note": "Generated catalogue (2027-04-24-tower-climb-catalogue.generated.sql from src/data/tower.js): the Burning Tower's rules, one row (room size, landing spacing, the floor's and the landing's time, the stair, the week's reach, the top floor). Empty, hr_tower_start answers catalogue_missing and no climb opens. Rebuilt from repo, never restored."
   },
   "hr_town_maps": {

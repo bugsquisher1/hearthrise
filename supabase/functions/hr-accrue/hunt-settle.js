@@ -127,9 +127,10 @@ function frozenAt(inst) {
   const world = typeof inst.world === 'string' && !play.restart ? inst.world : null;
   const where = play.level === null ? null : huntGroundOf(String(inst.hunt));
   /* THE BURNING TOWER: the floor the server says stands (or stands next), the live engine's ctx.towerFloor; its table is the peers' rows */
-  const tower = towerOf((huntGroundOf(String(inst.hunt)) || {}).ground) && Number.isInteger(inst.tower_floor) ? inst.tower_floor : null;
+  const run = towerOf((huntGroundOf(String(inst.hunt)) || {}).ground);
+  const tower = run && Number.isInteger(inst.tower_floor) ? inst.tower_floor : null;
   /* a peer's frozen rolls against the rows the instance plays (null: member.js reads the catalogue, as before) */
-  const rows = tower !== null ? towerMonsters(tower) : where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
+  const rows = tower !== null ? towerMonsters(tower, run) : where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
   const atMs = Number(inst.next_swing_at_ms);
   /* the kinds, read once and only for a frozen row (a lone viewer's start point parses no world for them) */
   let kinds = null;
@@ -185,7 +186,7 @@ function kindsOf(inst, worldText, tower) {
   const out = new Set();
   const where = huntGroundOf(String(inst.hunt));
   for (const p of (where && where.ground.pockets) || []) for (const sp of [...(p.spawns || []), ...(p.pack || [])]) if (sp && MONSTERS[sp.monster]) out.add(sp.monster);
-  if (Number.isInteger(tower)) for (const id of towerRoom(tower).monsters) out.add(id);
+  if (Number.isInteger(tower)) for (const id of towerRoom(tower, towerOf(where && where.ground)).monsters) out.add(id);
   if (worldText) for (const u of JSON.parse(worldText).u || []) for (const v of u) if (typeof v === 'string' && MONSTERS[v]) out.add(v);
   return Array.from(out).sort();
 }

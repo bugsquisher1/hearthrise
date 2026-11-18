@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/world-art/import-clips.mjs — REVIEWED CLIP FRAMES INTO THE SHIPPED SHEETS (lane/a-hunt-clips, 2026-11-10).
 //
-//   node tools/world-art/import-clips.mjs            write every row of hunt-clips.mjs and barrow-clips.mjs into art/world/<set>/<id>.{png,json}
+//   node tools/world-art/import-clips.mjs            write every row of hunt-clips.mjs, barrow-clips.mjs and catacomb-clips.mjs into art/world/<set>/<id>.{png,json}
 //   node tools/world-art/import-clips.mjs --check    exit 1 when a committed sheet or sidecar is not what a re-run writes
 //   node tools/world-art/import-clips.mjs --id rat   one sprite (with --check too)
 // Then node tools/world-art/build.mjs (the atlases) and, for the heroes, tools/world-art/outfit-masks.mjs.
@@ -35,6 +35,7 @@ import { plant } from './port-hunt-sim.mjs';
 import { measureFrame } from './measure.mjs';
 import { HUNT_CLIPS } from './hunt-clips.mjs';
 import { BARROW_CLIPS } from './barrow-clips.mjs';
+import { CATACOMB_CLIPS } from './catacomb-clips.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const SEAT_PX = 3;          // port-pixellab.mjs: a swing frame may stand this far above the anchor
@@ -90,7 +91,15 @@ function treatmentOf(sc) {
   if (!m) throw new Error(sc.id + ': a native body whose notes name no ramps');
   const colours = m[1].split(', ').flatMap((n) => { if (!RAMPS[n]) throw new Error(sc.id + ': no ramp ' + n); return RAMPS[n]; });
   const lift = Number((/lifted (\d+) ramp step/.exec(sc.notes || '') || [, 0])[1]);
-  return (im) => { const s = snapTo(im, colours); return lift ? liftBody(s, lift) : s; };
+  /* --lift-into (port-pixellab.mjs unit): a ramp that lifts on into a neighbour's lighter steps */
+  const into = [...(sc.notes || '').matchAll(/The ([a-z]+) ramp lifts on into ([a-z]+)(?:, (\d+) steps,)?(?: on ([a-z, ]+))?\./g)]
+    .map((q) => ({ a: q[1], b: q[2], steps: Number(q[3] || lift), at: q[4] ? q[4].split(', ') : null }));
+  return (im, d) => {
+    const s = snapTo(im, colours);
+    if (!lift) return s;
+    const here = into.filter((q) => !q.at || q.at.includes(d));
+    return here.length ? liftBody(s, Math.max(...here.map((q) => q.steps)), Object.fromEntries(here.map((q) => [q.a, q.b]))) : liftBody(s, lift);
+  };
 }
 
 /** Every row of a sprite's sheet, by clip and facing: { idle: { s: [img…] }, … }. */
@@ -121,10 +130,10 @@ export function importSprite(row, sc0, sheet0) {
   for (const [name, clip] of Object.entries(row.clips)) {
     const made = {};
     const laid = (src, d) => {
-      const raw = framesIn(src.dir).map(tint);
+      const raw = framesIn(src.dir).map((im) => tint(im, d));
       const order = src.lay || raw.map((_, i) => i);
       if (order.some((i) => !raw[i])) throw new Error(`${row.id} ${name}/${d}: lay ${order} reaches past the ${raw.length} frames of ${src.dir}`);
-      const still = src.still ? tint(load(src.still)) : raw[0];
+      const still = src.still ? tint(load(src.still), d) : raw[0];
       return { frames: order.map((i) => raw[i]), still };
     };
     const target = (d) => { const idle = rows.idle && rows.idle[d]; if (!idle) throw new Error(`${row.id}: no idle ${d} to lay ${name} on`); return idle[0]; };
@@ -198,7 +207,7 @@ function run(argv) {
   const check = argv.includes('--check');
   const only = argv.includes('--id') ? argv[argv.indexOf('--id') + 1] : null;
   let stale = 0, done = 0;
-  for (const row of HUNT_CLIPS.concat(BARROW_CLIPS)) {
+  for (const row of HUNT_CLIPS.concat(BARROW_CLIPS, CATACOMB_CLIPS)) {
     if (only && row.id !== only) continue;
     const dir = join(ROOT, ART_DIR, row.set), jp = join(dir, row.id + '.json');
     const sc0 = JSON.parse(readFileSync(jp, 'utf8'));

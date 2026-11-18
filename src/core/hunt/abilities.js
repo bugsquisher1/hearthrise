@@ -345,6 +345,8 @@ function effect(inst, u, row, t, sc, v) {
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
   const scaled = (n) => (pm === 1000 ? n : Math.floor((n * pm) / 1000));
   const hitTag = pm === 1000 ? { id: row.id } : { id: row.id, mult: pm };
+  /* A row that lands only part of a weakness's bonus (`weakPm`, the fist line's strikes) carries its share to hurt(). */
+  if (Number.isInteger(row.weakPm)) hitTag.weakPm = row.weakPm;
   /* A Surge (fire, surged) shows on its numbers with the crit mark. */
   const sg = !!(v && v.surge);
   /* One hit's roll: the row's dmg [lo, hi], or a hitPm row's share of the hero's own largest blow (abilities.js blowShare). */

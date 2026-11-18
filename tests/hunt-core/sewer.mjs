@@ -1821,6 +1821,45 @@ const cases = {
     }
     return null;
   },
+  /* GOT IT NEVER HOLDS THE CHAIN (2026-11-18, lane/a-first-hours played on the local world: "Feed the Hearth" hidden with Got it held every card
+     after it, the farm's included, until the hero burned fuel). The class: every card a Got it HIDES (one a server fact finishes, launcher.js
+     markCoachHid; a card that teaches is read instead, first-hour-never-walls). At each step of the walked chain, hiding the card up puts up
+     exactly the card the chain shows without that card (never nothing, never one further on: no card the player has not seen is passed); the
+     reported case, in town at Level 3 with 12 Bones, moves from the Hearth to the farm; and the shell hands the hidden set to the chain. */
+  'tutorial-got-it-moves-on': async (M) => {
+    const imp = (p) => import(pathToFileURL(join(M.root, p)).href + V);
+    const L = await imp('src/shell/launcher.js');
+    const { tutorialFactsOf } = await imp('src/session/tutorial-sections.js');
+    const { residueOf } = await imp('src/session/residue.js');
+    const reads = (d) => d.kind === 'read' || (d.kind === 'any' && d.of.some(reads));
+    const id = (c) => (c ? c.id : null);
+    let swept = 0;
+    for (const role of ['tank', 'mage', 'ranger']) {
+      for (const step of walkChain(M, tutKit(M, role))) {
+        const c = M.tut.currentCard(step.facts);
+        if (!c || c.gotIt || reads(c.done)) continue;
+        const without = M.tut.currentCard(step.facts, M.tut.HUNT_TUTORIAL.filter((r) => r.id !== c.id));
+        const hidden = M.tut.currentCard({ ...step.facts, hid: new Set([c.id]) });
+        if (id(hidden) !== id(without)) return role + ': with "' + c.title + '" hidden the coach is on ' + id(hidden) + ', the chain\'s next is ' + id(without);
+        swept++;
+      }
+    }
+    if (swept < 6) return 'the walk met only ' + swept + ' cards a Got it hides: the sweep proves nothing';
+    const T = tutKit(M, 'tank');
+    const RATS = 'cellar_giant_rats';
+    const town = (more) => tutAt(M, T, 3, { visited: new Set(['mill_cellar']), read: new Set(['styles']), bag: { ...M.kit.START_INVENTORY, bones: 12 },
+      tally: tallyFact([], [RATS]), land: { ready: {}, empty: 2 }, ...(more || {}) });
+    if (id(M.tut.currentCard(town())) !== 'fuel_hearth') return 'in town with 12 Bones the coach is on ' + id(M.tut.currentCard(town())) + ', want Feed the Hearth';
+    const after = M.tut.currentCard(town({ hid: new Set(['fuel_hearth']) }));
+    if (id(after) !== 'plant_land') return 'Feed the Hearth hidden with Got it, the coach is on ' + id(after) + ', want Plant your land';
+    /* the shell's own readers carry the hidden set: residue coach.hid -> coachFactsOf -> the chain's facts */
+    const cs = { slot: 0, read: () => undefined, record: { data: {}, residue: residueOf({ coach: { hid: ['fuel_hearth'] } }) }, setResidue: () => true };
+    const sh = L.coachFactsOf(cs, null);
+    if (!(sh.hid instanceof Set) || !sh.hid.has('fuel_hearth')) return 'the shell hands the chain no hidden cards: ' + JSON.stringify(sh.hid && [...sh.hid]);
+    const f = tutorialFactsOf({ slot: 0, read: () => undefined }, sh);
+    if (f && !(f.hid instanceof Set && f.hid.has('fuel_hearth'))) return 'the coach\'s facts drop the hidden cards: ' + JSON.stringify(f.hid);
+    return null;
+  },
   'tutorial-shell-facts': async (M) => {
     /* LANE 2 (board 2026-10-25 §4): THE SHELL'S FACTS make the twelve hidden cards visible. Through the shell's own
        readers (src/shell/launcher.js coachFactsOf over a real envelope and an AccountSession's roster): each card's
@@ -1984,6 +2023,15 @@ const cases = {
 };
 
 const mutants = [
+  /* GOT IT NEVER HOLDS THE CHAIN (2026-11-18) */
+  { name: 'a card hidden with Got it holds every card after it again', case: 'tutorial-got-it-moves-on',
+    edits: [['src/data/hunt-tutorial.js', '    if (facts.hid instanceof Set && facts.hid.has(r.id)) continue;\n', '']] },
+  { name: 'the shell hands the chain no hidden cards', case: 'tutorial-got-it-moves-on',
+    edits: [['src/shell/launcher.js', '    hid: coachHidOf(cs),\n', '    hid: null,\n']] },
+  { name: 'the coach\'s facts drop the hidden cards', case: 'tutorial-got-it-moves-on',
+    edits: [['src/session/tutorial-sections.js', "    hid: hid ? new Set(Array.from(hid).filter((id) => typeof id === 'string' && ID.test(id))) : null,\n", '    hid: null,\n']] },
+  { name: 'a hidden card passes by the cards after it too', case: 'tutorial-got-it-moves-on',
+    edits: [['src/data/hunt-tutorial.js', '    if (facts.hid instanceof Set && facts.hid.has(r.id)) continue;\n', '    if (facts.hid instanceof Set && facts.hid.size && rows.indexOf(r) >= Math.min(...[...facts.hid].map((h) => rows.findIndex((x) => x.id === h)).filter((i) => i >= 0))) continue;\n']] },
   { name: 'the first Dangerous run is offered to a hero in the practice kit', case: 'first-dangerous-run',
     edits: [['src/data/hunt-tutorial.js', "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }, { kind: 'danger_kit' }] }),", "when: [IN_TOWN, { kind: 'level_at', at: DANGER_LEVEL, below: WANT_BELOW }] }),"]] },
   { name: 'a last hunt on Dangerous does not count as taken', case: 'first-dangerous-run',
@@ -2042,8 +2090,8 @@ const mutants = [
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', '  if (card) return cardFor(card, f);\n', '  return card && cardFor(card, f);\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'let card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);',
-      "let card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
+    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);',
+      "const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
   { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', 'coachCovered(ctx.wm)', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
@@ -2322,7 +2370,7 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull']);", "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull', 'unlock']);"]] },
   /* lane 2: the shell's facts, Got it, read on sight, the hooks' order */
   { name: 'the shell passes the coach no facts (the twelve cards stay hidden)', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'let card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);', 'let card = pointerCardOf(cs, undefined);']] },
+    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);', 'const card = pointerCardOf(cs, undefined);']] },
   { name: 'the coach counts the bag, not what Sell all loot sells', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', 'lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length', 'bag.length']] },
   { name: 'Got it records nothing', case: 'tutorial-shell-facts',

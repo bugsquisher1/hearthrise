@@ -302,14 +302,19 @@ function awaitPack(inst, k, p) {
 
 /* The living heroes regain HP (PC-12): the resting rate out of a fight, the
    in-fight rate during one (CORE_NUMBERS Q6), each times the hero's Inner Flame regen
-   rate (`regenPm`, src/core/vitals.js regenPermille). */
+   rate (`regenPm`, src/core/vitals.js regenPermille). A hero wearing an OWN HEAL (the fist
+   line's wraps: `selfHealPm`, written on the unit at every boundary, combat-sim.js syncUnit)
+   regains that permille of max HP a second on top, while hurt, in a fight or out of one, never
+   multiplied by Inner Flame (a wiki formula, per 100 ms sub-step, carried below one HP in hpMilli):
+     milli-HP += floor(maxHp x (rate x regenPm + selfHealPm x 1000) x 100 / 1,000,000) */
 function tickHeroes(inst, sc) {
   const rate = inst.world.phase !== PHASE.FIGHT ? HUNT_TUNING.oocRegenPermillePerS : VITALS.inFightRegenPermillePerS;
   for (const h of heroes(inst)) {
     if (!h.alive) continue;
     if (h.hp >= h.maxHp) { h.hpMilli = 0; continue; }
     const pm = Number.isInteger(h.regenPm) && h.regenPm > 0 ? h.regenPm : 1000;
-    h.hpMilli += Math.floor((h.maxHp * rate * pm * sc.dtMs) / 1000000);
+    const own = Number.isInteger(h.selfHealPm) && h.selfHealPm > 0 ? h.selfHealPm * 1000 : 0;
+    h.hpMilli += Math.floor((h.maxHp * (rate * pm + own) * sc.dtMs) / 1000000);
     const whole = Math.floor(h.hpMilli / 1000);
     h.hp = Math.min(h.maxHp, h.hp + whole);
     h.hpMilli -= whole * 1000;

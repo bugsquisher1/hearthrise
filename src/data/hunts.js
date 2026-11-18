@@ -68,7 +68,7 @@
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
 import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.139';
 import { SKILLS_DEF } from './skills.js?v=0.2.139';
-import { TOWER_RULES } from './tower.js?v=0.2.139';
+import { TOWER_RULES, CATACOMB_RULES, CATACOMB_WINGS } from './tower.js?v=0.2.139';
 
 const BASE_HUNTS = Object.freeze([
   {
@@ -220,7 +220,18 @@ export const TOWER_HUNTS = Object.freeze([Object.freeze({
   id: TOWER_RULES.hunt, region: 'greenhaven', name: 'The Burning Tower',
   theme: 'Every floor is harder than the last. The Hearth spits you out before anything can kill you, and it costs you nothing.',
   tower: true, band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'rat', w: 1 })]),
-  family: 'Vermin', art: 'rat', travelS: 0, pull: TOWER_RULES.roomSize, respawnMs: TOWER_RULES.stairMs })]);
+  family: 'Vermin', art: 'rat', travelS: 0, pull: TOWER_RULES.roomSize, respawnMs: TOWER_RULES.stairMs }),
+  /* THE UNMARKED CATACOMBS' WINGS (src/data/tower.js CATACOMB_WINGS; Tyler 2026-11-16): the descent's two run grounds, each reached by one verb,
+     hr_catacomb_start, and never listed, on the Tower's model (placeholder spawns, every Level from 1: the room is the dial). STAGED until the
+     Catacombs' map ships to the client (src/data/world/maps STAGED_MAPS: the 165-185 hunting ground's pack is staged), so a scene routes a
+     wing to the map it is fought on; the server serves them regardless (gen-hunts, gen-hunt-sessions read every run hunt). The theme is a
+     draft, not through the reader gate. */
+  ...CATACOMB_WINGS.map((w) => Object.freeze({
+    id: w.hunt, region: 'greenhaven', name: 'Unmarked Catacombs, ' + w.name, staged: true,
+    theme: 'Every room is deeper than the last. Keeper Dunn carries you up before anything can kill you, and it costs you nothing.',
+    tower: true, band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'rat', w: 1 })]),
+    family: 'Vermin', art: 'rat', travelS: 0, pull: CATACOMB_RULES.roomSize, respawnMs: CATACOMB_RULES.stairMs })),
+]);
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
 export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS, ...TOWER_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },

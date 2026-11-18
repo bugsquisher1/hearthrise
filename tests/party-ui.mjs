@@ -23,7 +23,7 @@
 //         CARD.px times its size, puts it on the clipboard and says so on the line
 //   PI-1  PARTY CONTROLS ARE INTENT-ONLY: each party verb is ONE rpc naming only the slot,
 //         ids, a seat or a name (never a user id, never a number of the server's); the record
-//         moves only from the re-read; a refusal re-reads nothing; a malformed one sends nothing
+//         moves only from the re-read; a refusal re-reads at most once (A20); a malformed one sends nothing
 //   PR-1  THE ROLE IS THE WEAPON'S: seats read roleForWeapon (a pick only where the weapon
 //         allows it); no client module keeps its own weapon-to-role table
 //   PR-5  WHO HOLDS THE PACK (bug #59, Andy 10-22): with two tanks each tank's row says when it holds
@@ -451,11 +451,13 @@ async function pureRules(M, base) {
       const rec = cs.record;
       const r = await cs[verb](...args);
       if (r.ok || r.error !== 'not_leader') return verb + ' did not pass the refusal through: ' + JSON.stringify(r);
-      if (srv.calls.length !== 1 || !PARTY_RPCS.includes(srv.calls[0][0])) return verb + ' sent ' + JSON.stringify(srv.calls.map((c) => c[0]));
+      /* the one rpc, then at most ONE re-read: a refusal means the screen was behind (the full-game sweep's A20), bounded by read-gate.js */
+      const names = srv.calls.map((c) => c[0]);
+      if (!PARTY_RPCS.includes(names[0]) || names.length > 2 || names.slice(1).some((n) => n !== 'hr_load')) return verb + ' sent ' + JSON.stringify(names);
       const extra = Object.keys(srv.calls[0][1]).filter((k) => !ALLOWED.has(k));
       if (extra.length) return verb + ' sent field(s) ' + extra.join(', ');
       if (srv.calls[0][1].p_slot !== 1) return verb + ' named slot ' + srv.calls[0][1].p_slot;
-      if (cs.record !== rec) return verb + ' changed the record on a refusal';
+      if (cs.record.version < rec.version) return verb + ' rolled the record back on a refusal';
       srv.calls.length = 0;
       srv.reply = { ok: true, party: { id: P, seats: [] } };
       const v = cs.record.version;

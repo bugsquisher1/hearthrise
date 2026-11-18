@@ -26,6 +26,12 @@
 //      answer with no `state` object is not a restatement and is refused
 //      ('incomplete') rather than allowed to replace the record with less; a
 //      frame whose `frame` is not its envelope's own version is malformed.
+//   E7 a REFUSAL that carries the whole character restates the record as E1
+//      (refusalEnvelope): the engine's refusals that reached the database carry
+//      the fresh hr_state_of envelope (supabase/functions/hr-accrue/envelope.js
+//      refusalBody, security review C2), so a tab that was behind shows the
+//      server's stacks and gold, never the ones it sent the refused press on.
+//      One that carries none (a shape, a rate limit, no character) is no news.
 // ════════════════════════════════════════════════════════════════════════
 
 import { residueOf } from './residue.js?v=0.2.140';
@@ -65,6 +71,15 @@ export function applyEnvelope(current, env) {
   const data = {};
   for (const k of Object.keys(env)) if (!META.includes(k) && !TIMELINE_KEYS.includes(k) && k !== 'client_state') data[k] = copy(env[k]);
   return { applied: true, verdict: 'replaced', record: record(env.version, data, residueOf(env.client_state)) };
+}
+
+/**
+ * The whole character a REFUSED answer carries, as an envelope to apply like a load (E7), or null when it carries none. Pure.
+ * @param {object} body  the refused answer's body
+ */
+export function refusalEnvelope(body) {
+  if (!isObj(body) || body.ok !== false || !isVersion(body.version) || !isObj(body.state)) return null;
+  return Object.assign({}, body, { ok: true });
 }
 
 /**

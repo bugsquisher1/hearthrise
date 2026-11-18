@@ -580,6 +580,25 @@ async function checks(overrides, shots, { arm = null } = {}) {
       await replay(page); await openTower(page, 'chest');
       c = await chestView(page);
       if (c.picks[0] !== 'Bronze x3 Weapon chance: 16%*' || c.use !== 'on') fails.push('TW-4 a key on the ring reads ' + JSON.stringify([c.picks, c.use]));
+      /* A STALE TAB (the full-game sweep's A20, two tabs, one Silver key): Silver picked, but the other tab already used it. The server
+         refuses `no_key` and the re-read shows it spent: Silver STAYS picked with Use off, and the next press sends nothing, never the
+         Bronze the player did not pick (the stale tab spent a Bronze key while it showed Silver picked). */
+      s.tower = section({ held: { bronze: { bag: 3, storage: 0, ring: 0 }, silver: { bag: 1, storage: 0, ring: 0 } } });
+      await replay(page); await openTower(page, 'chest');
+      await page.click('[data-hs-win="tower"] .tc-pick[data-key="silver"]');
+      s.tower = section({ held: { bronze: { bag: 3, storage: 0, ring: 0 } } });
+      s.answer = (name) => (name === 'hr_chest_open' ? { ok: false, error: 'no_key', have: 0, need: 1 } : { ok: true });
+      let n20 = verbs(s).length;
+      await page.click('[data-hs-win="tower"] .tc-use');
+      await wait(page, () => /x0/.test(document.querySelector('[data-hs-win="tower"] .tc-pick[data-key="silver"] .tc-pick-n')?.textContent || ''));
+      const stale = verbs(s).slice(n20).map((x) => x.body.p_key);
+      c = await chestView(page);
+      if (stale.join() !== 'silver' || !/^Bronze x3 .*[^*]$/.test(c.picks[0] || '') || !/^Silver x0 .* off\*$/.test(c.picks[1] || '') || c.use !== 'off')
+        fails.push('TW-4 [A20] a key another tab spent reads ' + JSON.stringify([stale, c.picks, c.use]));
+      n20 = verbs(s).length;
+      await page.click('[data-hs-win="tower"] .tc-use', { force: true }).catch(() => {});
+      await page.waitForTimeout(250);
+      if (verbs(s).length !== n20) fails.push('TW-4 [A20] the next press spent a key the player did not pick: ' + JSON.stringify(verbs(s).slice(n20).map((x) => x.body.p_key)));
       /* off: a key not built, out hunting */
       for (const [o, env, want] of [[{ notReady: true }, null, /^Not available yet$/], [{}, 'hunt', /^Not available while hunting$/]]) {
         s.tower = section(Object.assign({ held: { bronze: { bag: 2, storage: 1, ring: 0 } } }, o));
@@ -895,6 +914,9 @@ const MUTANTS = [
   ['TW-7 a cap line drawn with no family from the server', 'src/session/tower-sections.js', '(Array.isArray(c.families) ? c.families : [])', "(Array.isArray(c.families) ? c.families : [{ family: 'tower', opened: 0, max: 6 }])"],
   ['TW-6 the death popup opens in the Tower', 'src/shell/death-popup.js', '  if (runRulesOf(h.huntId)) return null;', '  if (false) return null;'],
   ['TW-6 a Tower fall says died', 'src/hunt-view/summary-recorder.js', "  if (!run) return undefined;", '  return undefined;'],
+  /* the full-game sweep's A20: a picked key another tab spent is quietly swapped for one the player did not pick */
+  ['TW-4 a picked key that ran out is swapped for another (A20)', 'src/shell/windows/tower-chest.js',
+    '  return keys.find((k) => k.key === sc.key) || keys.find((k) => k.heldAll > 0) || null;', '  return keys.find((k) => k.key === sc.key && k.heldAll > 0) || keys.find((k) => k.heldAll > 0) || null;'],
   ['TW-4 the reveal is not the opened key\'s', 'src/shell/windows/tower-chest.js', "if (r.ok) sc.result = Object.assign({}, r, { key: k.key, metal: metalOfKey(tw, k) });", "if (r.ok) sc.result = Object.assign({}, r, { key: k.key, metal: 'gold' });"],
   ['TW-4 a repaint replays the reveal', 'src/shell/windows/tower-chest.js', '  if (SHOWN.get(host) === r) return;\n', '\n'],
   /* direction A (Tyler 2026-11-16): the tower drawn, the chest beside the fire, the reveal at the chest, the end card's run */

@@ -147,7 +147,7 @@ export function actTemperPane(ctx, action, el, sc, repaint) {
     if (!r || !r.ladder || !r.ladder.offer) { repaint(); return true; }
     const offer = r.ladder.offer, piece = r.piece, rung = r.ladder.rung + 1;
     /* A refusal means this window held numbers the server no longer has (Storage is the account's, and another hero spends it): one bounded re-read, so the row and the answer agree. */
-    const send = async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; };
+    const send = () => cs.edgeIntent('unlock_buy', { offer });   // a refusal re-reads the hero in the session (_settled)
     /* the answer takes the question's place; the re-read rows above it can grow (a short purse, where the next salts come from), so once it lands a short
        sheet scrolls it back into view (played 2026-11-05 at 844x390: half of it stood under the sheet's foot) */
     const line = el.closest('.hw-services') ? el.closest('.hw-services').querySelector('.hw-temper-msg') : null;

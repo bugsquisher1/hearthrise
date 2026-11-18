@@ -438,6 +438,19 @@ Leech is where a lone hero's sustain comes from without food. The fist prototype
 
 **Old grounds stay useful through scaled hunts** (Tyler 11-18): a scaled early hunt raises its monsters, so their lining parts keep dropping for higher heroes, likely from the third region on. Linings never ask for parts from earlier grounds.
 
+**House curing** (Tyler 11-18: kept, as a gold sink).
+
+| Rule | Value | Label |
+|---|---|---|
+| What it is | A room slot in the House where a lining or a batch of salts cures while the hero is away hunting. The account's House, so every hero shares the slots | Proposed |
+| What can cure | Linings and Tempering salts only. Gear, jewelry and food stay at the bench | Proposed |
+| Time | The same craft time as at the bench, counted on the server clock. No skill XP: the hero isn't working it | Proposed |
+| Slots | Bought with gold, each dearer than the last: 100,000, then 250,000, then 500,000. Three at most | Proposed, unmeasured |
+| Each cure | A gold fee on top of the materials, about a tenth of the item's reference value | Proposed, unmeasured |
+| Skill | The recipe's own skill level is still required | Proposed |
+
+It saves bench hours, never skill: a hero still needs the skill to set a cure, and a hero who cures instead of crafting earns no XP for it. It is a sink by design, so the slot and fee prices are measured against band income before it ships.
+
 **Linings by region.** Strengths never grow. A region names the wall element on each ground and supplies the part. Barrow March: fire. Morrow Hills: fire at Carter's Rest, Wyvern Roost and the Bellows, necrotic on the Ox Road (the Ox Shoe), poison on the Night Shift, ice and storm on the Old Guard. Catacombs: necrotic (the Owing Tag), poison and ice. Region 5: storm. Later regions: at least two elements each, and a ground's wall never matches its faction pair's.
 
 **Salvage.**
@@ -640,7 +653,7 @@ Weekly orders pay chips and salts, not gold. Salvage takes gold out indirectly, 
 | 6c | The other ten spells for the seven shipped families, one batch, measured against the sample. Bow and crossbow split | M | Yes | Phase 6b measured |
 | 7 | Belts to crafting, with buckles | M | Yes | Phase 4 |
 | 8 | Ladders for tiers 4 to 7, 20 rows a batch, each measured as a full set | L | Yes | Phases 3, 4, 7 |
-| 9 | Good batch. Patterns. Weekly orders. Stirred grounds | M | Yes | Phases 2 and 3 |
+| 9 | Good batch. Patterns. Weekly orders. Stirred grounds. House curing slots | M | Yes | Phases 2 and 3 |
 | 10 | Chest reforging, fusing, the glove wing | M | Yes | The Catacombs build |
 | 11 | The property hooks, spell change first. Krell's weapons as sidegrades. **Worn in, as a sample on those five weapons, measured before anything else gets ranks.** Morrow grounds to the grid, authored with region tables. The Ox Road's wall set to necrotic and the Old Guard's storm spell, as those grounds are built | L | Yes | Phases 0, 6 and 6b |
 | 12 | Fist tiers 3 to 7 and its Tower rows, **and its two spells, Live Hand and Draw** | L | Yes | Phase 1 measured, phase 6b |
@@ -704,7 +717,7 @@ Every "Yes" is on the pre-EA Security list.
 | Worn in uniques | Sample of five in phase 11 | A choice on dropped gear that costs time, not gold. Small by rule |
 | Shared-work commissions | Merged into Commissions as the bulk order | The same board with the work split into units |
 | Studies: Bestiary points pin a bonus to one monster | Parked for the Bestiary deep dive | The Bestiary's reward is undecided (Tyler 11-11) and nothing is built on it until then. Limit to carry over: common and uncommon rows only, never a Rare, gem or trophy. Moving one costs gold by ground tier |
-| House curing slots | Cut | It takes away the choice between crafting and training in town. A lining is one press and a tier's salts are a few bench hours, so there is little to automate |
+| House curing slots | Kept as a gold sink (Tyler 11-18: "We can do this, just make it a gold sink") | Section 5, House curing. The town choice stays because the hero still spends its own town hours on everything else, and every slot and every cure costs gold |
 | Wanted and unwanted lists on weekly orders, loot-line bonus reasons, tool wear, Town Works recipe unlocks | Rejected by Tyler 11-18 | |
 
 ## 13. Questions for Tyler, and his answers (2026-11-18)

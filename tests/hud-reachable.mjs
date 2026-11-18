@@ -397,7 +397,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'stamina', ended_at: new Date(env.hunt_server_now_ms - HOURS).toISOString() });
         env.stamina = Object.assign({}, env.stamina, { ms: 2 * HOURS, hunting: false });
       });
-      if (await wait(ended.page, () => /The hunt has ended/.test(document.querySelector('.hw-alert-text')?.textContent || ''))) {
+      if (await wait(ended.page, () => /The hunt (?:has )?ended/.test(document.querySelector('.hw-alert-text')?.textContent || ''))) {
         ended.s.env.stamina = Object.assign({}, ended.s.env.stamina, { ms: 3 * HOURS });
         await pushEnvelope(ended.page, ended.s);
         if (!(await wait(ended.page, () => /Stamina now: 3 h 0 min\./.test(document.querySelector('.hw-alert-text')?.textContent || ''), null, 5000))) fails.push('HR-7 the card about an ended hunt keeps an old stamina: ' + JSON.stringify(await ended.page.evaluate(() => document.querySelector('.hw-alert-text')?.textContent)));

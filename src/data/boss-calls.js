@@ -101,7 +101,7 @@ export const BOSS_CALL_WORDS = Object.freeze({
   warnTitle: 'Call out {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14: "Recommended: 4+ players", "do it like that for everything outside of actual lore"); the note keeps line breaks. */
   warn: Object.freeze([
-    'Hits harder than on the ground\n50% HP: adds attack non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
+    'Hits harder than on the ground\n50% HP: summons adds that target non-tanks{guard}\n25% HP: hits even harder\nEnds if anyone dies',
   ]),
   /* THE SERIES' LABELS (the slider; Tyler 2026-11-14). EVERY NUMBER IS THE SERVER'S QUOTE (hr_boss_call_view): {n} the fights picked (1 to its
      max_fights), {fee} and {staminaMin} one fight's price, {minutes} one fight's limit, {stamina} and {gold} the picked count's bill (the quote's

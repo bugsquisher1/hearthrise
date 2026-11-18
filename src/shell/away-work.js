@@ -18,6 +18,7 @@
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.137';
 import { recipeInputs } from '../core/artisan.js?v=0.2.137';
 import { whole } from '../render/format.js?v=0.2.137';
+import { t } from '../render/player-text.js?v=0.2.137';
 import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.137';
 import { heldOf, nameOf, skillsOf } from '../session/item-sections.js?v=0.2.137';
 import { serverNowOf } from '../session/hunt-sections.js?v=0.2.137';
@@ -78,9 +79,9 @@ function didWords(w) {
 function whyStopped(cs, w) {
   if (w.kind !== 'artisan') return '';
   const held = heldOf(cs) || {};
-  if (runsOf(w.row, held) > 0) return leftOf(cs) === null ? ': the run is done' : '';
+  if (runsOf(w.row, held) > 0) return leftOf(cs) === null ? ', the run is done' : '';
   const out = Object.entries(recipeInputs(w.row)).find(([id, need]) => (held[id] || 0) < need);
-  return out ? ': out of ' + itemName(out[0]) : '';
+  return out ? ', out of ' + itemName(out[0]) : '';
 }
 
 /**
@@ -110,6 +111,6 @@ export function awayWorkLineOf(cs, was, awayWords) {
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
     action: made ? 'bag' : 'show', button: made ? 'Open your inventory' : 'See your hero',
-    text: 'Away ' + awayWords(now - was.at) + ': ' + name + ' ' + didWords(w) + ', ' + parts.join(', ') + '.' + tail,
+    text: t('away.card_head', { time: awayWords(now - was.at), who: name + ' ' + didWords(w) }) + ' ' + t('away.card_facts', { facts: parts.join(', ') }) + tail,
   };
 }

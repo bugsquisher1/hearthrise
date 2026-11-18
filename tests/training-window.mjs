@@ -149,7 +149,7 @@ async function checks() {
       const { trainingRefusal } = await import('../src/shell/training-words.js');
       const want = [
         [{ verb: 'training_start', error: 'insufficient_gold', fee: 272, purse: 100 }, /^Not enough gold \(need 272, have 100\)$/],
-        [{ verb: 'house_dummy', error: 'insufficient_gold', price: 250000, purse: 5200 }, /^Next unlock: 250,000 gold\. Gold: 5,200$/],
+        [{ verb: 'house_dummy', error: 'insufficient_gold', price: 250000, purse: 5200 }, /^Next unlock: 250,000 gold\. Gold: 5,200 gp$/],
         [{ verb: 'training_start', error: 'hunt_open' }, /^Not available while hunting$/],
         [{ verb: 'training_gear_buy', error: 'insufficient_gold', price: 250000, purse: 1200 }, /^Not enough gold \(need 250,000, have 1,200\)$/],
         [{ verb: 'training_gear_buy', error: 'buy_limit', max: 10 }, /^Daily limit reached \(10\/10\)$/],
@@ -228,7 +228,7 @@ async function checks() {
         why: (document.querySelector('.hd-why') || {}).textContent || '', next: (document.querySelector('.hd-next') || {}).textContent || '' }));
       if (r.held.join() !== 'Defense') fails.push('TR-4 the held skills are not the server\'s: ' + r.held.join());
       if (!/250,000/.test(r.next)) fails.push('TR-4 the next price is not the server\'s: ' + r.next);
-      if (!r.offAll || !/^Next unlock: 250,000 gold\. Gold: 5,200$/.test(r.why)) fails.push('TR-4 short of the price, Unlock is not off with why: ' + JSON.stringify(r));
+      if (!r.offAll || !/^Next unlock: 250,000 gold\. Gold: 5,200 gp$/.test(r.why)) fails.push('TR-4 short of the price, Unlock is not off with why: ' + JSON.stringify(r));
       await ctx.close();
       const s2 = world({ gold: 300000 });
       const o2 = await open(s2);

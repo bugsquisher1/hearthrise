@@ -23,7 +23,7 @@ import { itemName } from '../widgets/bits.js?v=0.2.137';
 import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.137';
 import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.137';
 import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.137';
-import { whole } from '../../render/format.js?v=0.2.137';
+import { whole, gold } from '../../render/format.js?v=0.2.137';
 import { t } from '../../render/player-text.js?v=0.2.137';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.137';
 import { runIntent } from '../intent-words.js?v=0.2.137';
@@ -209,7 +209,7 @@ renderTraining.patch = function patchTraining(body, ctx) {
   if (!tr) { if (ctx.wm && typeof ctx.wm.close === 'function') ctx.wm.close('training'); return; }
   const sc = scratchOf(cs);
   const purse = goldOf(cs);
-  text(root.querySelector('.tw-purse'), purse === null ? '' : t('training.purse', { gold: whole(purse) }));
+  text(root.querySelector('.tw-purse'), purse === null ? '' : t('training.purse', { gold: gold(purse) }));
 
   /* THE RUN: the server's session; the clock runs on the server's clock between answers */
   const run = tr.run;

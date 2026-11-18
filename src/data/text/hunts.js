@@ -93,7 +93,9 @@ export const HUNTS_TEXT = Object.freeze({
   head_tiers: 'Tiers',
   head_lives: 'Who lives here',
   head_drops: 'Drops',
-  head_mats: 'Materials',
+  head_mats: 'Loot',
+  /* the loot rows past the first few (hunt-detail.js LOOT_SHOWN): {count} more, the press that lists them */
+  loot_more: { one: '+{count} more', other: '+{count} more' },
   head_rares: 'Rare drops',
   head_best: 'Best here',
   head_go_as: 'Go as',

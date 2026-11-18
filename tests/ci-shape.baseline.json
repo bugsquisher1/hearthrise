@@ -40,6 +40,7 @@
     "node tests/house-window.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/house-window.mjs --mutate": "in-page-2",
     "node tests/training-window.mjs": "in-page-2",
+    "node tools/world-art/farm-house-art.mjs --check": "in-page-2",
     "node tests/farm-window.mjs": "in-page-2",
     "node tools/mutant-gate.mjs node tests/farm-window.mjs --mutate": "in-page-2",
     "node tests/instant-press.mjs": "in-page-2",

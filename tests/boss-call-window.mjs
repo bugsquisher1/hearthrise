@@ -121,13 +121,19 @@ async function checks(overrides) {
       if ((await txt(page, '.hw-call-line')) !== 'A fight costs 2 min of stamina and 50 gp.') fails.push('BW-1 alone reads ' + JSON.stringify(await txt(page, '.hw-call-line')));
       if (await off(page) !== false) fails.push('BW-1 alone, the press is off');
       if ((await txt(page, '.hw-call-press')) !== 'Call out the Rat King') fails.push('BW-1 the press reads ' + JSON.stringify(await txt(page, '.hw-call-press')));
-      await press(page, '[data-hs-act="call-warn"]', 'BW-1');
-      await page.waitForTimeout(150);
+      /* BW-10 THE CONFIRM OPENS IN VIEW (QA audit 2026-11-18 N3: it opened under the press, below the page's fold and cut by the Enter foot): the page
+         scrolled just far enough to show the press at its foot, as a player reads down to it, a press opens the warning and its confirm stands in the page's box */
+      await page.evaluate(() => { const box = document.querySelector('.hw-hd-page'), b = document.querySelector('.hw-call-press');
+        box.scrollTop += b.getBoundingClientRect().bottom - box.getBoundingClientRect().bottom; b.click(); });
+      await page.waitForTimeout(200);
+      const seen = await page.evaluate(() => { const box = document.querySelector('.hw-hd-page').getBoundingClientRect(), go = document.querySelector('[data-hs-act="call-go"]'), g = go.getBoundingClientRect();
+        return { top: Math.round(g.top), bottom: Math.round(g.bottom), box: [Math.round(box.top), Math.round(box.bottom)], hit: document.elementFromPoint(g.left + g.width / 2, g.top + g.height / 2) === go }; });
+      if (!(seen.top >= seen.box[0] && seen.bottom <= seen.box[1] && seen.hit)) fails.push('BW-10 the confirm opened out of view: ' + JSON.stringify(seen));
       if (sent(s, 'hr_boss_call').length) fails.push('BW-1 the first press charged');
       const lone = await txt(page, '.hw-call-note-alone') || '';
       if (lone !== 'Recommended: 2+ players' || !await shown(page, '.hw-call-note-alone')) fails.push('BW-1 alone, the warning\'s own line reads ' + JSON.stringify(lone));
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/Cost: 50 gp a fight, win or lose/.test(warned) || !/50% HP: adds attack non-tanks/.test(warned)) fails.push('BW-1 alone, the warning reads ' + JSON.stringify(warned));
+      if (!/Cost: 50 gp a fight, win or lose/.test(warned) || !/50% HP: summons adds that target non-tanks/.test(warned)) fails.push('BW-1 alone, the warning reads ' + JSON.stringify(warned));
       if ((await txt(page, '[data-hs-act="call-go"]')) !== 'Call him out once') fails.push('BW-1 one fight\'s confirm reads ' + JSON.stringify(await txt(page, '[data-hs-act="call-go"]')));
       await press(page, '[data-hs-act="call-go"]', 'BW-1');
       await page.waitForTimeout(500);
@@ -170,7 +176,7 @@ async function checks(overrides) {
       if (sent(s, 'hr_boss_call').length) fails.push('BW-2 the first press charged');
       if (!await shown(page, '.hw-call-warn')) fails.push('BW-2 no warning');
       const warned = await txt(page, '.hw-call-warn') || '';
-      if (!/Ends if anyone dies/.test(warned) || !/50% HP: adds attack non-tanks/.test(warned) || !/25% HP: hits even harder/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
+      if (!/Ends if anyone dies/.test(warned) || !/50% HP: summons adds that target non-tanks/.test(warned) || !/25% HP: hits even harder/.test(warned)) fails.push('BW-2 the warning reads ' + JSON.stringify(warned));
       if (/no XP, coin or drops|3 times today|calls left/i.test(warned)) fails.push('BW-2 the warning still reads the one-fight rules: ' + JSON.stringify(warned));
       /* a party's leader reads no lone line: the room holds the party */
       /* the lone line's words are BW-1's ("Recommended: 2+ players" since the labels sweep). Its element holds no words at all for a party, shown or not. */
@@ -393,7 +399,7 @@ async function checks(overrides) {
       if (!b.half.wave || b.half.raging || b.half.state !== 'Adds incoming') fails.push('BW-7 at the first line he reads ' + JSON.stringify(b.half));
       /* A boss whose adds shield him says so, on the bar and in the warning; one whose adds don't, never (boss-calls.js isGuarded). */
       if (!b.chief.wave || b.chief.state !== 'Shielded by adds') fails.push('BW-7 the Chief at his first line reads ' + JSON.stringify(b.chief));
-      if (!/adds attack non-tanks and shield him until killed\n25% HP/.test(r.warn.chief) || /Challenge/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
+      if (!/summons adds that target non-tanks and shield him until killed\n25% HP/.test(r.warn.chief) || /Challenge/.test(r.warn.chief) || /shield/.test(r.warn.king) || /{guard}/.test(r.warn.king + r.warn.chief)) fails.push('BW-7 the warnings read ' + JSON.stringify(r.warn));
       if (b.quarter.wave || !b.quarter.raging || b.quarter.state !== 'Enraged' || b.quarter.fill !== '24%') fails.push('BW-7 under the second line he reads ' + JSON.stringify(b.quarter));
       if (!b.played.raging || b.played.fill !== '24%') fails.push('BW-7 the bar does not read the instant shown: ' + JSON.stringify(b.played));
       if (!b.normal.quiet) fails.push('BW-7 a normal hunt has a boss bar');

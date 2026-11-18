@@ -119,7 +119,7 @@ export const BOSS_HALL_WORDS = Object.freeze({
   warnTitle: 'Fight {boss}?',
   /* LABELS, one a line (Tyler 2026-11-14), the same shape as a called room's (boss-calls.js warn). */
   warn: Object.freeze([
-    'Hits hard\n50% HP: adds attack non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
+    'Hits hard\n50% HP: summons adds that target non-tanks{guard}\n25% HP: hits even harder{haste}\nEnds if anyone dies',
     'Uses {whose} {key}, win or lose\nTime limit: {minutes} min',
   ]),
   /* {whose} in the line above: this hero's own key, or the seat's the server names (any seat's key opens the hall) */

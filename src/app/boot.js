@@ -342,6 +342,8 @@ function startApp(win) {
       create: (name, colors, key) => account.create(slot, name, colors, key),
       done: () => { track('character_created'); return play(slot); },
       back: () => showCharacters(),
+      /* the account's hero slots, the line the Characters screen just read from the server (never typed numbers) */
+      slots: G.playLineOf(account.statedLimit(), account.limit(), roster.length, account.slotOffer, roster),
     });
   }
 

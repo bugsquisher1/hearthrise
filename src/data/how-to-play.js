@@ -32,10 +32,9 @@ import { DEATH_XP_LOSS } from './hunt-sessions.js?v=0.2.137';
 const style = (id, role, weapons, name, does, uses) => Object.freeze({ id, role, weapons: Object.freeze(weapons), name, does, uses });
 
 /* The lead line above the rows: the rule itself. The sword and shield are WORN, not in the bag (start-kit.js
-   START_EQUIPMENT); a player can make more heroes and play several at once (1 slot to start, Tyler 2026-11-09; up to 4 at once). */
-export const HOW_YOU_FIGHT_LEAD = 'No classes, nothing to pick. Every weapon below is yours, the one in hand sets the style. Switch any time in town';
-/* The lead's last sentence: not about fighting, so a phone's short card leaves it to the Help page (app.css). */
-export const HOW_YOU_FIGHT_SLOTS = 'Hero slots: 1, buy 3 more, all 4 play at once';
+   START_EQUIPMENT). Every sentence ends: the line under it is the account's hero slots, the SERVER'S line (hero-create.js; QA audit
+   2026-11-18 N8: "Switch any time in town Hero slots: 1, buy 3 more, all 4 play at once" ran on, and its numbers were typed here). */
+export const HOW_YOU_FIGHT_LEAD = 'No classes, nothing to pick. Every weapon below is yours, the one in hand sets the style. Switch any time in town.';
 
 export const HOW_YOU_FIGHT = Object.freeze([
   style('hold', 'tank', ['practice_sword', 'practice_shield'], 'Sword and shield',

@@ -211,10 +211,11 @@
 .hs-launch:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -4px; }
 .hs-launch.is-open { color: var(--gold-2); }
 .hs-launch.is-open::after { content: ''; position: absolute; left: 10px; right: 10px; bottom: 0; height: 2px; background: var(--gold); }
-/* THE NAME CHIP: an icon's name and its key on hover, the icon row's and any other door's that carries the pair (.hs-keytip: the bar's Hunt prep). */
+/* THE NAME CHIP: an icon's name and its key on hover, the icon row's and any other door's that carries the pair (.hs-keytip: the bar's Hunt prep).
+   It stands over the coach's card hung under the row (z 5) and under a group's menu (z 12) (QA audit 2026-11-18 N5: the card painted over every name). */
 :is(.hs-launch, .hs-keytip)::before {
   content: attr(data-tip) "  " attr(data-key);
-  position: absolute; top: calc(100% + 6px); right: 0;
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 11;
   padding: 3px 8px; white-space: pre;
   font-family: var(--f-ui); font-size: var(--t-micro); font-weight: 700; color: var(--ink);
   background: var(--bg-2); border: var(--art-3) solid transparent; border-radius: 0;

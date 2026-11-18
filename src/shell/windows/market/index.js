@@ -13,7 +13,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { text, cls, attr, prop } from '../../../render/paint.js?v=0.2.137';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.137';
-import { whole } from '../../../render/format.js?v=0.2.137';
+import { whole, gold } from '../../../render/format.js?v=0.2.137';
 import { goldOf } from '../../../session/item-sections.js?v=0.2.137';
 import { MARKET_TABS } from '../../market-model.js?v=0.2.137';
 import { lockedWords } from '../../market-words.js?v=0.2.137';
@@ -59,7 +59,7 @@ renderMarket.patch = function patchMarket(body, ctx) {
   for (const b of root.querySelectorAll('.hw-tab')) attr(b, 'aria-selected', String(b.getAttribute('data-tab') === sc.tab));
   for (const p of root.querySelectorAll('.hw-pane')) cls(p, 'is-on', p.getAttribute('data-pane') === sc.tab);
   const purse = goldOf(cs);
-  text(root.querySelector('.hw-mk-purse'), purse === null ? '' : 'Gold: ' + whole(purse));
+  text(root.querySelector('.hw-mk-purse'), purse === null ? '' : 'Gold: ' + gold(purse));
   const why = blockWords(sc);
   const state = root.querySelector('.hw-mk-state');
   text(state, why || sc.readMsg);

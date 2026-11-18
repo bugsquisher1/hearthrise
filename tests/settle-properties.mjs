@@ -5,18 +5,21 @@
 //   node tests/settle-properties.mjs                          the guard: a fixed seed, a bounded run count (CI)
 //   node tests/settle-properties.mjs --seed N --runs N        replay a failure, or go wider (--db-runs N for the DB tier)
 //   node tests/settle-properties.mjs --seed N --path P        jump straight to the shrunk case a red run printed
-//   node tests/settle-properties.mjs --nightly                the nightly size: more runs, a seed per UTC day
+//   node tests/settle-properties.mjs --nightly                the nightly size: ten times the runs, a seed per UTC day
 //                                                             (also chosen when GITHUB_EVENT_NAME=schedule)
 //   node tests/settle-properties.mjs --mutate                 every planted defect must be FOUND and SHRUNK small
-//   --only=engine | --only=db                                 one tier; --verbose prints each tier's numbers
+//   node tests/settle-properties.mjs --roles=open             the engine tier under the live read's party-roles rule:
+//                                                             KNOWN-F1 reproduces (the fix lane's check)
+//   --only=engine | --only=db                                 one tier; --verbose prints what each tier exercised
 //
-// mutant-anchors: supabase/functions/hr-accrue/accrual.js src/core/combat-sim.js src/core/action-rules.js
+// mutant-anchors: supabase/functions/hr-accrue/accrual.js src/core/combat-sim.js src/core/action-rules.js supabase/migrations/2027-03-21-scaled-hunts.sql
 //
 // WHY. TICK-1 (tests/hunt-sessions-settle.mjs) proves the one-engine rule (CLAUDE.md §6, AWAY-1) on hand-picked cuts, and
 // tests/conservation-fuzz.mjs fuzzes the economy with no shrinking: a red there is a 400-op trace to read by hand. Here
 // fast-check GENERATES the hunt (a real ground, a party of 1-4 of any role and Level, bags, purses, stamina, Leave,
-// stop rules, buffs, tiers) and the settle cadence (cuts anywhere, on round seconds or on swing boundaries, lost commits,
-// retries), and on a red SHRINKS it to the smallest party, span and cut list that still fails, replayable by seed and path.
+// stop rules, buffs, tiers) and the settle cadence (cuts anywhere, on round seconds or on swing boundaries, attended cuts
+// just before each end and death, lost commits, retries), and on a red SHRINKS it to the smallest party, span and cut
+// list that still fails, replayable by seed and path.
 //
 // THE ENGINE TIER: the world tick's settle itself (supabase/functions/hr-accrue/accrual.js accrueHunt over
 // src/core/combat-sim.js simulateHuntInstance), the state carried between windows the way the database carries it
@@ -24,8 +27,9 @@
 // account debited by the store bill; an ended member's session no longer read). Each generated case is played once as
 // ONE window and once as its cut list; every window of both is checked:
 //   SPLIT    any cut list == one window: per hero the XP, Level XP, coin, loot, supplies (own, bought, sold), paid time,
-//            kills, the death rows and their price, the progress rows, the end and its instant, the final swing, stamina,
-//            unit, HP and xp_frac; the instance's events, world, world swing and watermark.
+//            kills, the death rows and their price, the progress rows, the hints, the analyzer totals, the end and its
+//            instant, the final swing, stamina, unit, HP and xp_frac; the instance's events, world, world swing and
+//            watermark (the last three while a hero still hunts: engineCase says why).
 //   WINDOW   a window settles only inside itself: it plays the boundaries before its end and no other (no event before
 //            its start or at its watermark), its watermark is the first swing boundary at or after its end (or the end
 //            of the hunt), and every swing is paid exactly one tick.
@@ -45,8 +49,10 @@
 //              the bag + backpack moved by exactly the loot the accrue rows journal less the own supplies journalled; no
 //              wallet, stack, bag line, XP, Level XP or stamina pool is ever negative.
 //
-// A FAILURE prints the shrunk case, the first difference and `--seed S --path P` to replay it. If it is a real engine
-// defect, that line goes in the report; this guard never carves an exception for a finding.
+// A FAILURE prints the shrunk case, the first difference and `--seed S --path P` to replay it. NOTHING IS HIDDEN: a real
+// defect is reported and, until fixed, pinned STRICTLY (KNOWN-F1: red the day it stops reproducing), and the two things
+// SPLIT does not compare (a closed instance's own clock, the Level-up display list) say why where they are skipped.
+// Every red, every run size and the coverage floor (a run that exercised too little is red: NOT VACUOUS) are exit codes.
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -105,7 +111,6 @@ export async function loadEngine(root) {
   const { wornRoleKey } = await import(u('src/data/hunt-roles.js'));
   const { gridOfMap } = await import(u('src/core/hunt-ground.js'));
   const { COMBAT_BALANCE } = await import(u('src/core/combat.js'));
-  const { GOLD_FLOOR } = await import(u('src/data/hunt-sessions.js'));
   /* the measured hero's ladder kit (the balance runs' gear by Level), one source with tests/hunt-core */
   const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
   const { kitFor } = await loadPlay(root);
@@ -118,7 +123,7 @@ export async function loadEngine(root) {
     if (!grids.has(id)) grids.set(id, { ground: G.HUNT_GROUNDS[id], grid: gridOfMap(G.HUNT_GROUNDS[id].map) });
     return grids.get(id);
   };
-  return { AC, SPAWN, XP, HUNTS, MONSTERS, ITEMS, wornRoleKey, kitFor, basics, grounds, whereOf, tickMs: COMBAT_BALANCE.tickMs, floorDefault: GOLD_FLOOR.default };
+  return { AC, SPAWN, XP, HUNTS, MONSTERS, ITEMS, wornRoleKey, kitFor, basics, grounds, whereOf, tickMs: COMBAT_BALANCE.tickMs };
 }
 
 /* canonical JSON (sorted keys): the one equality every comparison here uses */
@@ -135,7 +140,7 @@ const addTo = (acc, obj, sign = 1) => { for (const [k, v] of Object.entries(obj 
 const isNat = (v) => Number.isSafeInteger(v) && v >= 0;
 
 /* ── THE GENERATED HUNT ──────────────────────────────────────────────────
-   Every field shrinks toward the plainest hunt: one hero, at the ground's floor, an own bag, a full pool, no Leave, no
+   Every field shrinks toward the plainest hunt: one hero, at the ground's floor, an empty bag, a full pool, no Leave, no
    rule, no buff, one window. A cut is a millisecond offset, a round second or a swing boundary (the tick's clock lands
    on whole seconds from a whole-second start, so boundaries are where an off-by-one lives), and what became of its
    commit: landed, lost (proposed, never committed: the next settle reads the same state) or retried (proposed twice,
@@ -413,12 +418,14 @@ export function engineCase(E, sc, tally, rolesFrom = 'roster') {
 }
 
 /* KNOWN-F1, found by this guard on 2026-11-18 and reported, not fixed here (the lane's rule: an engine defect is reported
-   with its shrunk case). A party hunt where one hero's hunt ends on a CERTAIN end (gold out, a death, a stop rule: stamped
-   at its next swing even past the window's end, combat-sim.js) while a partner hunts on: the live read hands heroSetup the
-   party roles of the OPEN members (hunt-settle.js readHuntSettle), so the survivor's DEFAULT settings (roles.js
-   defaultSettings: chase, target mode) switch to a lone hero's at the next settle. One window switches them only after the
-   window; a cut just before the end switches them at once. The pinned case (the shrinker's, 232001 ms, run on to 300001):
-   a Level-32 Mage hunting on after her tank's gold-out earns Magic XP 2216 vs 2086, Defense 323 vs 189, loot 16 vs 15.
+   with its shrunk case). A party hunt where one hero's hunt ENDS (a Leave, stamina, a death, gold out, a stop rule) while a
+   partner hunts on: the live read hands heroSetup the party roles of the OPEN members (hunt-settle.js readHuntSettle), so
+   the survivor's DEFAULT settings (roles.js defaultSettings: chase, target mode) switch to a lone hero's at the first
+   settle after the end. One window switches them only when it closes; a cut just after the end switches them at once.
+   Smallest case (--roles=open shrinks to it): a tank Leaves at its first swing, a ranger hunts on, 4,001 ms cut at 2,001:
+   the ranger pulls at +4.7 s in one window, +4.0 s in the cut list. The pinned case below (the first shrink, 232001 ms,
+   run on to 300001): a Level-32 Mage hunting on after her tank's gold-out earns Magic XP 2216 vs 2086, Defense 323 vs
+   189, loot 16 vs 15.
    STRICT, like a ratchet: red when the case stops diverging under the live rule (the engine fixed) or the live rule's line
    moves (the read fixed); then delete KNOWN_F1 and ROLES_FROM.roster and let every hunt read 'open'. */
 const KNOWN_F1 = Object.freeze({
@@ -753,7 +760,8 @@ function report(tier, r, show, floor) {
 }
 
 async function main() {
-  if (has('--mutate')) return mutate({ seed: SEED });
+  /* the proof is judged on the fixed seed every night too (a per-day seed would make a catch depend on the date) */
+  if (process.argv.includes('--mutate')) return mutate({ seed: intArg('--seed') ?? CI_SEED });
   let red = 0;
   if (ONLY !== 'db') {
     if (!ROLES_FROM[ROLES_ARG]) { console.error('✗ --roles is roster or open'); return 2; }
@@ -772,6 +780,7 @@ async function main() {
   return red ? 1 : 0;
 }
 
-export { scenarioArb, dbScenarioArb, describe, describeDb, sizeOf, report, SEED as DEFAULT_SEED, T0 };
+/* for a fix lane's own probes: the generators, the printers and the clock a printed case is read against */
+export { scenarioArb, dbScenarioArb, describe, describeDb, T0 };
 
 if (isMain(import.meta.url)) main().then((c) => process.exit(c), (e) => { console.error('✗ harness: ' + (e && e.stack || e)); process.exit(2); });

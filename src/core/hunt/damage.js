@@ -100,6 +100,9 @@ export const rowOf = (inst, kind) => (inst.monsters || MONSTERS)[kind];
 const armourVs = (inst, target, source) => (target.armour
   ? mitigationOf(target.armour, source && source.side === 'mon' ? levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier) : 1) : NO_MITIGATION);
 
+/* A monster's element permille `el` for a hit tagged `ability`: a weakness (over 1000) at the tag's `weakPm` share, else `el` itself. */
+const weakShare = (el, ability) => (el > 1000 && ability && Number.isInteger(ability.weakPm) ? 1000 + Math.floor(((el - 1000) * ability.weakPm) / 1000) : el);
+
 /**
  * Apply `amount` from `source` to `target`; answers what landed:
  * { dmg (HP removed), absorbed (shield spent), killed }.
@@ -111,7 +114,9 @@ export function hurt(inst, target, amount, source, element, ability, rng) {
   /* A monster's defence comes off a hero's blow after its element. A blow AT A HERO keeps its
      element for the armour chain below (ruling K7). */
   let n = Math.max(0, Math.floor(amount));
-  if (target.side === 'mon') n = Math.floor((n * el) / 1000) - defenceReduction(rowOf(inst, target.kind));
+  /* A HIT THAT LANDS PART OF A WEAKNESS (`weakPm`, abilities.js: the fist line's strikes, half): the monster's bonus over 1000 at that
+     share, a resistance in full (a wiki formula: weak = 1000 + floor((el - 1000) x weakPm / 1000) when el > 1000). */
+  if (target.side === 'mon') n = Math.floor((n * weakShare(el, ability)) / 1000) - defenceReduction(rowOf(inst, target.kind));
   if (ability && Number.isInteger(ability.mult)) n = Math.floor((n * ability.mult) / 1000);
   /* A CALLED BOSS BEHIND HIS ADDS takes his guard's share of every blow (boss-phases.js); any other monster all of it. */
   if (target.side === 'mon') n = Math.floor((n * guardPmOf(inst, target)) / 1000);

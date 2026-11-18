@@ -151,6 +151,8 @@ function syncUnit(u, m) {
   if (snap.surgePm) u.surgePm = snap.surgePm; else if (u.surgePm) delete u.surgePm;
   /* ELEMENTAL RESISTANCE (Tyler 2026-11-08), the same: from the gear the server holds, never persisted, absent with none (targeting.js elementOn). */
   if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;
+  /* THE OWN HEAL (the fist line's wraps, src/data/fists.js), the same: never persisted, absent with none (pull-cycle.js tickHeroes). */
+  if (snap.selfHealPm) u.selfHealPm = snap.selfHealPm; else if (u.selfHealPm) delete u.selfHealPm;
   /* A WORN SHIELD, the same (its brace takes a share off a marked monster spell: monster-spells.js, data SHIELD_BRACE). */
   if (m.shield === true) u.shieldWorn = true; else if (u.shieldWorn) delete u.shieldWorn;
   u.maxHp = Math.max(u.maxHp, m.state.playerMaxHp);

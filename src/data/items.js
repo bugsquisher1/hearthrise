@@ -17,6 +17,7 @@ import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
 import { foldRows } from './grounds/shape.js?v=0.2.139';
 import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.139';
 import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.139';
+import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.139';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -56,6 +57,8 @@ export const ITEMS={
   ...IMBUE_ITEMS,
   /* The five shields (src/data/shields.js, Tyler 2026-10-23): the Shop's, two made, a drop and its reforge. New ids only. */
   ...SHIELD_ITEMS,
+  /* The fist line's wraps, tiers 1 and 2 (src/data/fists.js): HIDDEN, in the catalogue only while its sample is live. New ids only. */
+  ...(FIST_LINE.live ? FIST_ITEMS : {}),
   /* The training items (src/data/training.js, Tyler 2026-11-14): one a combat skill in 12 and 24 hours, the Arms Master's for gold and the Crowns store's bound copy. New ids only. */
   ...TRAINING_GEAR_ITEM_ROWS,
   /* The Burning Tower's chest (src/data/chests.js, Tyler 2026-11-14): the four keys a landing mints and the Hearth Cinders the chest pays. Bound to the account. New ids only. */

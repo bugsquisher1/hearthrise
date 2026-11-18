@@ -35,7 +35,9 @@ const versionText = (root) => {
   const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
   const at = src.indexOf('export function versionOf('), end = src.indexOf('/** Every problem with the table', at);
   const sk = src.indexOf('export const abilitySkill = ');
-  return at < 0 || end < 0 || sk < 0 ? '' : strip(src.slice(at, end) + '\n' + src.slice(sk, src.indexOf('\n', sk)));
+  /* a row's OWN skill (lane/d-fists-phase1): ownHitSkill reads `universal` and `skill` for the skill a strike's hits train (hunt-rewards.js) */
+  const own = src.indexOf('export const ownHitSkill = ');
+  return at < 0 || end < 0 || sk < 0 || own < 0 ? '' : strip(src.slice(at, end) + '\n' + src.slice(sk, src.indexOf('\n', sk)) + '\n' + src.slice(own, src.indexOf('\n', own)));
 };
 /* THE DISCIPLINE LISTS (roadmap p15, lane b-spell-roles): a row's `disciplines` is read by abilities.js disciplineAbilities
    (the data copy under test), which the engine calls for every hero's bar (src/core/hunt-spawn.js heroSetup). */
@@ -92,7 +94,7 @@ const cases = {
     const client = textOf(ROOT, CLIENT_DIRS, null);
     const suggest = suggestText(M.root);
     const versioned = versionText(M.root);
-    const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine) && /\babilitySkill\(/.test(engine);
+    const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine) && /\babilitySkill\(/.test(engine) && /\bownHitSkill\(/.test(engine);
     const listed = listText(M.root), lists = /\bdisciplineAbilities\(/.test(engine);
     const shaped = shapeText(M.root), shapes = /\bareaSpec\(/.test(engine) && /\bblowShare\(/.test(engine);
     const dead = [];

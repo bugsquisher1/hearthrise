@@ -1,13 +1,14 @@
 // tools/hooks/session-brief.mjs — SessionStart hook: where Hearthrise stands, in under 12 lines,
 // so a new session starts from facts instead of exploring. Its stdout becomes session context.
 //
-// Lanes pushed in the last 3 h, main's last smoke run, the live version; on Tyler's PC (where
+// Lanes pushed in the last 3 h, main's last smoke run, the nightly sweep (tools/lib/nightly-health.mjs), the live version; on Tyler's PC (where
 // ~/.supabase-token exists) also any open hunt the server is > 32 s behind on. Every network read
 // has a short timeout and a failure prints "?" rather than blocking the session.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { nightlyHealth } from '../lib/nightly-health.mjs';
 
 const git = (...a) => { try { return execFileSync('git', a, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 8000 }).trim(); } catch (e) { return ''; } };
 const get = async (url, ms = 4000) => { try { const r = await fetch(url, { headers: { 'User-Agent': 'session-brief' }, signal: AbortSignal.timeout(ms) }); return r.ok ? r : null; } catch (e) { return null; } };
@@ -29,6 +30,8 @@ let live = '?';
 try { live = ((await build.text()).match(/version:\s*'([^']+)'/) || [])[1] || '?'; } catch (e) { /* ? */ }
 
 const out = [`Hearthrise now: live v${live} · main ${git('log', '-1', '--format=%h %cr', 'origin/main')} · main smoke ${ci}`];
+/* The nightly sweep (lane/ci-speed): a red, cancelled or stale one turns every release into a full sweep (tools/lib/ci-history.mjs). */
+out.push(nightlyHealth().line);
 out.push(lanes.length ? 'Lanes pushed in the last 3 h:\n' + lanes.join('\n') : 'No lane pushed in the last 3 h.');
 if (existsSync(join(homedir(), '.supabase-token'))) {
   try {

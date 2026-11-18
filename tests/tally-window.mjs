@@ -4,6 +4,7 @@
 //
 //   node tests/tally-window.mjs            the rules
 //   node tests/tally-window.mjs --mutate   every planted defect must turn a rule RED
+//   node tests/tally-window.mjs --mutate --shard=K/N   every Nth mutant from the Kth (smoke.yml's in-page-20, -47, -48)
 //   node tests/tally-window.mjs --shots <dir>   also write TW-11's screenshots (moved, folded; desktop and phone)
 //
 // mutant-anchors: src/styles/hunt.css src/render/format.js src/shell/windows/tally.js src/session/tally-sections.js src/session/tally-intents.js src/shell/windows/hunts.js src/shell/shell.js src/shell/widget-stack.js src/shell/widgets/tally-hud.js src/shell/widget-move.js src/shell/hud-room.js src/styles/windows.css src/styles/shell.css src/render/format.js
@@ -933,11 +934,19 @@ async function main() {
   /* A gated push proves only the mutants its diff touches (tools/lib/mutant-scope.mjs); the nightly proves them all. */
   const MINE = scopedMutants('tests/tally-window.mjs', MUTANTS);
   if (!MINE.length) process.exit(0);
+  const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
+  const picked = MINE.filter((m) => !pick || m[0].includes(pick));
+  /* --shard=K/N (lane/ci-speed, 2026-11-18: --mutate took 61 of in-page-20's 66 min on the full sweep 44144849725): every Nth
+     mutant from the Kth, as tests/client-boot.mjs does; the clean control runs in every shard that holds one. Malformed: exit 2. */
+  const sh = process.argv.find((a) => a.startsWith('--shard'));
+  const sm = sh && /^--shard=(\d+)\/(\d+)$/.exec(sh);
+  if (sh && (!sm || +sm[1] < 1 || +sm[1] > +sm[2])) { console.error('  HARNESS: bad ' + sh + ' (want --shard=K/N, 1 <= K <= N)'); process.exit(2); }
+  const list = sm ? picked.filter((_, i) => i % +sm[2] === +sm[1] - 1) : picked;
+  if (sm) console.log('  shard ' + sm[1] + '/' + sm[2] + ': ' + list.length + ' of ' + picked.length + ' mutants');
+  if (!list.length) process.exit(0);
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   let bad = 0;
-  const pick = (process.argv.find((a) => a.startsWith('--mutant=')) || '').slice(9);
-  const list = MINE.filter((m) => !pick || m[0].includes(pick));
   for (const [name, file, from, to] of list) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }

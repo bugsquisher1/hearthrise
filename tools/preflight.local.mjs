@@ -211,7 +211,16 @@ export function verdict(results) {
   return { red, unjudged, green: results.length - red.length - unjudged.length, exit: red.length ? 1 : unjudged.length ? 3 : 0 };
 }
 
-function theDiff(base) {
+/** The plan for the diff `d` (theDiff): the touched proofs selected as GitHub selects them. Also tools/release-preflight.local.mjs's. */
+export function planFor(text, d) {
+  const proofs = flatSteps(parseWorkflow(text)).filter((s) => CHEAP_JOB.test(s.job)).flatMap((s) => s.run).filter((c) => PROOF_FLAG.test(unwrapGate(c))).map(guardFileOf);
+  const read = (rel) => committedTexts(ROOT, d.sha, rel, d.head);
+  const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: proofs, regions: d.regions, read }).keys());
+  const solo = new Set(catalogue(ROOT).filter((e) => e.solo).map((e) => e.guard));
+  return { read, solo, plan: buildPlan(text, { changed: d.files, selected, solo, smokeText: readFileSync(join(ROOT, 'tests', 'run-smoke.mjs'), 'utf8') }) };
+}
+
+export function theDiff(base) {
   const a = (args) => {
     const r = spawnSync('git', args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1e8 });
     if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr.trim()}`);
@@ -487,13 +496,9 @@ async function main(argv) {
   const base = at('--base') || 'origin/main';
   const d = theDiff(base);
   const text = readFileSync(WORKFLOW, 'utf8');
-  const proofs = flatSteps(parseWorkflow(text)).filter((s) => CHEAP_JOB.test(s.job)).flatMap((s) => s.run).filter((c) => PROOF_FLAG.test(unwrapGate(c))).map(guardFileOf);
-  const read = (rel) => committedTexts(ROOT, d.sha, rel, d.head);
-  const selected = new Set(selectGuards(d.files, { base: d.sha, extraGuards: proofs, regions: d.regions, read }).keys());
-  const solo = new Set(catalogue(ROOT).filter((e) => e.solo).map((e) => e.guard));
+  const { read, solo, plan } = planFor(text, d);
   const allProofs = flatSteps(parseWorkflow(text)).flatMap((s) => s.run).filter((c) => PROOF_FLAG.test(unwrapGate(c))).map(guardFileOf);
   if (argv.includes('--proofs')) return deepProofs(text, d, allProofs, read, solo, argv);
-  const plan = buildPlan(text, { changed: d.files, selected, solo, smokeText: readFileSync(join(ROOT, 'tests', 'run-smoke.mjs'), 'utf8') });
   console.log(`preflight: ${d.files.length} changed file(s) since ${d.sha.slice(0, 9)} (${base}); ${plan.run.length} command(s), ${plan.run.filter((r) => r.proof).length} of them proofs this diff touches; ${plan.left.length} left for GitHub`);
   if (d.dirty) console.log('preflight: UNCOMMITTED changes here; GitHub judges the commit, not this tree');
   if (plan.errors.length) { for (const e of plan.errors) console.error(`  HARNESS  ${e}`); return 2; }

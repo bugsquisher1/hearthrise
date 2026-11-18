@@ -44,7 +44,9 @@ export async function suite(name, cases, mutants) {
   for (const mu of mutants || []) {
     if (only && !only.has(mu.case)) continue;
     if (!cases[mu.case]) { R.ok(false, 'mutant "' + mu.name + '" names no case ' + mu.case); continue; }
-    const p = plant(mu.edits);
+    /* src/render too: src/data/hunt-tutorial.js reads its words through src/render/player-text.js, and a copy without it made every mutant
+       here throw "Cannot find module", so each was "caught" by the missing file, never by its rule (lane/d-temper-uniques found it) */
+    const p = plant(mu.edits, ['src/render']);
     try {
       let why = null;
       try { why = cases[mu.case](await loadCore2(p.root)); } catch (e) { why = 'threw ' + e.message; }

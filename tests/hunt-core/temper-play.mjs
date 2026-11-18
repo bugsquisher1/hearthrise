@@ -218,7 +218,7 @@ const mutants = [
   { name: 'a rung is worth almost nothing', case: 'armor-below-the-next-set', edits: [['src/data/temper.js', 'export const TEMPER_RUNG_PM = 10;', 'export const TEMPER_RUNG_PM = 2;']] },
   { name: 'Dawnsteel has no ladder', case: 'dawnsteel-rungs-play', edits: [['src/data/temper.js', '  7: Object.freeze([40000, 80000, 160000, 320000, 640000]),\n', '']] },
   { name: 'a Dawnsteel rung pays a tier\'s 1%', case: 'dawnsteel-rungs-play', edits: [['src/data/temper.js', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({ 7: 4 });', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({});']] },
-  { name: 'Armor never reads a tier 7 piece\'s own rung', case: 'dawnsteel-rungs-play', edits: [[T, "rungs += def * temperRung(temper, 'armor', it.tier) * rungPmOf('armor', it.tier)", "rungs += def * temperRung(temper, 'armor', Math.min(it.tier, 6)) * rungPmOf('armor', Math.min(it.tier, 6))"]] },
+  { name: 'Armor never reads a tier 7 piece\'s own rung', case: 'dawnsteel-rungs-play', edits: [[T, "rungs += def * temperRung(temper, 'armor', t) * rungPmOf('armor', t)", "rungs += def * temperRung(temper, 'armor', Math.min(t, 6)) * rungPmOf('armor', Math.min(t, 6))"]] },
 ];
 
 const R = makeReport('hunt-core/temper-play');

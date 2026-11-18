@@ -19,6 +19,9 @@ export const TEMPER_TEXT = Object.freeze({
   no_rungs: 'Not temperable yet, rungs only for Level {from} to {to} gear',
   /* A ladder with smaller rungs than the tiers before it (Dawnsteel, src/data/temper.js TEMPER_TIER_RUNG_PM): {step} is a rung's worth, "0.4%". */
   small_rungs: 'Smaller rungs: {step} each',
+  /* Unique armor past Dawnsteel (src/data/temper.js TEMPER_UNIQUE_BANDS): a ladder per band of Levels, not per metal, so a piece from 165
+     starts at rung 0 beside one from 125. {bands} is every band the SERVER sells ("110, 125 and 165"). */
+  unique_bands: 'One ladder per band: Levels {bands}',
   /* Said only for what the Weighhouse lists (item-lore saleWords). */
   way_weighhouse: 'Also sold at the Weighhouse',
 });

@@ -3318,7 +3318,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # db-replay-13: the last steps of db-replay-5, from "World tick" on, split out 2026-11-18 (lane/ci-speed). db-replay-5 took up to 35.9 min
+  # db-replay-13: the last steps of db-replay-5, from "World tick — each channel arms alone" on, split out 2026-11-18 (lane/ci-speed). db-replay-5 took up to 35.9 min
   # (the sum of each step's slowest run on the full sweeps 44139839256, 44144849725 and 43931474595). Here about 22.5 min with setup and
   # one chain build; x2 = 45.
   db-replay-13:
@@ -4198,7 +4198,7 @@ jobs:
           node tests/legacy-keys.mjs
           node tools/mutant-gate.mjs node tests/legacy-keys.mjs --selftest
 
-  # in-page-46: Death popup and HUD in reach, split out of in-page-21 (2026-11-18 (lane/ci-speed)). in-page-21 ran 38.3-38.4 min
+  # in-page-46: Death popup and HUD in reach, split out of in-page-21 (lane/ci-speed, 2026-11-18). in-page-21 ran 38.3-38.4 min
   # on the nightlies 44139839256 and 43931474595. Here: Death popup 7.1 + HUD in reach 13.7 + setup 1.0 = 21.8 min; x2 = 44.
   in-page-46:
     runs-on: ubuntu-latest
@@ -4991,7 +4991,7 @@ jobs:
           node tests/catalogue-regrow-limit.mjs
           node tools/mutant-gate.mjs node tests/catalogue-regrow-limit.mjs --mutate
 
-  # in-page-45: Chat and social, split out of in-page-13 (2026-11-18 (lane/ci-speed)): 19.8 min on the full sweep 44144849725,
+  # in-page-45: Chat and social, split out of in-page-13 (lane/ci-speed, 2026-11-18): 19.8 min on the full sweep 44144849725,
   # where in-page-13 ran 39.8. With setup 20.7; x2 = 42.
   in-page-45:
     runs-on: ubuntu-latest
@@ -5165,7 +5165,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  # in-page-44: Auth lock and Live events, split out of in-page-23 (2026-11-18 (lane/ci-speed)). The full sweep 44144849725 ran
+  # in-page-44: Auth lock and Live events, split out of in-page-23 (lane/ci-speed, 2026-11-18). The full sweep 44144849725 ran
   # in-page-23 for 39.9 min (Call out 29.6 once lane c-boss-call-b grew its mutants) and the nightly 44139839256 had Auth lock
   # at 11.5: 51.5 min of steps in one job. Here: Auth lock 11.5 + Live events 7.5 + setup 1.3 = 20.3 min; x2 = 41.
   in-page-44:
@@ -7206,7 +7206,7 @@ jobs:
   # night (19.6, 40898080100).
   # + proof arms (2026-11-13, lane/a-audit-guards, measured locally): world-tick-writer-authz --mutate
   # 14 s + world-tick-shadow-chain --mutate 129 s = 143 s; x2 = 4.8 min, 40 -> 45.
-  # 2026-11-18 (lane/ci-speed): the steps from "World tick" on moved to db-replay-13. Here about 15.4 min; x2 = 31.
+  # 2026-11-18 (lane/ci-speed): the steps from "World tick — each channel arms alone" on moved to db-replay-13. Here about 15.4 min; x2 = 31.
   db-replay-5:
     runs-on: ubuntu-latest
     needs: release-proven

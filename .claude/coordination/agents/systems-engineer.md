@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-18 · lane/a-return-cards (full-game audit A2 A3 A6 A17 A22 A23 A24: the return moment lies or goes silent)
+1. *A return line keyed on "the newest session is the stamped one" goes silent whenever the server opens the next session itself.* The after-hunt plan's yard did exactly that (A2). The server already says the link (`hunt_after.last`, the newest ended hunt, while the yard runs) and when the yard began (`hunt_from`); the stamp now carries its ground (`h`) and the plan's skill (`k`/`sl`/`sx`), so the hunt, its death row and the yard are all told from server numbers.
+2. *"Gold" on a return is the purse's own delta.* The analyzer already sends `waste` (the store's gold); stamping it beside `coins` makes the card's Gold the coins less the supplies (played: card +2,397, purse +2,397). A stamp without it says no gold rather than the coins alone.
+3. *"Told once" by a bounded seen list and an id built on a clock is fragile.* The harness's `wait --away` moves the stamp's `at`, and the list holds 64; a line read now moves the stamp past the hunt's end (stampAway `told`), so nothing can raise it again (A23).
+4. *A3 did not reproduce on v0.2.138 at the audit's own numbers* (8,710 lost, 26,130 saved, Rat King call-out, both skip and live tick): hr_death_log_view joins the blessing_used row and the card reads "3 Blessings saved ..., used up". The client half was the press: "Bless again" once the death used them.
+5. *Fade timers held Node tests open* (a 120 s fade is a 2 min hang); alerts.js now unrefs them where the runtime can.
+
 ## 2026-11-16 · lane/d-flat-party-xp (LV-PULL's viewed drift: a peer's level the browser never sees)
 1. *Name the first differing event before theorising.* The diverged world named one monster's HP (74 vs 51); the events at that instant named Eddie's swing: dmg 23 on the server, a miss in the browser. His Melee had gone 41 -> 42 at the 608 s commit; the browser's frozen Eddie never did. A party-XP change only moved the level earlier.
 2. *A frozen peer is frozen for the whole prediction.* The browser never holds a peer's XP (Tyler 10-20), so it cannot foresee a peer's level; and it only took new rows on a divergence, so a stale peer ran until some roll flipped (150 s here, never in other seeds). Each viewed commit now names every member's frozen-row key (member.js frozenKey) and a moved key asks for a start point.

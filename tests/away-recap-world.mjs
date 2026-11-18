@@ -19,6 +19,8 @@
 //   AR-9  THE CARD, PLAYED (UI audit 2026-11-18 #2): a hunt that ran out of stamina with the page closed comes back as ONE card, the result
 //         first ("Level 1 → n", the Level XP), why and when it ended; no hunt summary beside it; Hunt again starts the hunt on the server
 //         and the card goes
+//   AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that died with the page closed and went on to the yard ("When the hunt
+//         ends: Train Melee") comes back as its card: the Levels, the death and what the Blessings saved, then the yard, still training
 // The return is its own card (src/shell/windows/away.js): every check reads the card, never the alert lines.
 // mutant-anchors: none — a manual walk of the real game; the rules are mutation-proven in shell-core.mjs and hud-reachable.mjs
 // ════════════════════════════════════════════════════════════════════════
@@ -205,12 +207,47 @@ try {
       gold: Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).map((b) => b.textContent) }));
     await q.shot('ar10-card');
     step('AR-9 one card: the result first, why and when it ended, Hunt again its gold press, nothing beside it',
-      !!line && /^Away 14 h \d+ min Cardy Mill Cellar Level 1 → \d+ Level XP \+[\d,]+ Gold \+[\d,]+ gp Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
+      /* Gold is what the purse kept, with the coins and the supplies under it (audit 2026-11-18 A6) */
+      !!line && /^Away 14 h \d+ min Cardy Mill Cellar Level 1 → \d+ Level XP \+[\d,]+ Gold [+−][\d,]+ gp [\d,]+ gp in coins(, [\d,]+ gp on supplies)? Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
       && !beside.summary && !beside.lines && JSON.stringify(beside.gold) === '["Hunt again"]', JSON.stringify({ line, beside }));
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
     const went = await q.page.waitForFunction(() => !document.querySelector('[data-hs-win="away"]') && !!document.querySelector('[data-hs-act="leave"]'), null, { timeout: 30000 }).then(() => true, () => false);
     const open1 = (await world.db.query("select count(*)::int as n from public.hunt_sessions where ended_at is null and hunt_id = 'mill_cellar'")).rows[0].n;
     step('AR-9 Hunt again: the server starts the hunt, the card goes', went && open1 >= 1, JSON.stringify({ went, open1 }));
+    await q.close();
+  }
+  { // AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that dies with the page closed and goes on to the yard keeps its card
+    const p = await open('yardroll');
+    await p.createHero('Yardley');
+    /* the setup a player reaches in hours, as this world's own rows: Level 12 (the yard opens at 10), gold for its fee, three Blessings, and
+       "When the hunt ends: Train Melee at the yard" (frozen on the hunt at Enter) */
+    const uid = (await world.db.query('select id from auth.users where email = $1', [p.email])).rows[0].id;
+    await world.db.query(`update public.player_state set level_xp = public.hr_char_xp_for_level(12), after_choice = 'train', after_skill = 'melee' where user_id = $1`, [uid]);
+    await world.db.query('update public.account_wallet set gold = 50000 where user_id = $1', [uid]);
+    for (const tier of [1, 2, 3]) await world.db.query(`insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values ($1, 0, $2, 0, now() - interval '2 hours') on conflict do nothing`, [uid, tier]);
+    await p.reload();
+    if (!(await p.page.$('.hs-launchers'))) await p.page.click('[data-app="play"][data-slot="0"]');
+    await p.page.waitForSelector('.hs-launchers');
+    /* Hask's Ford, 33 Levels over: the one confirm, then Enter */
+    await p.page.click('[data-hs-open="hunts"]');
+    await p.page.click('.hw-hunt[data-hunt="hasks_ford"]');
+    await p.page.click('.hw-hunt-enter');
+    await p.page.waitForTimeout(500);
+    if (!(await p.page.$('[data-hs-act="leave"]'))) await p.page.click('.hw-hunt-enter');
+    await p.page.waitForSelector('[data-hs-act="leave"]');
+    await leave(p, '%-%-%-%-%');
+    await world.wait(40, { away: true });
+    /* the plan's deferred start (pg_cron's hr-hunt-after: a wait runs no job) */
+    await world.cron('hr-hunt-after');
+    await world.wait(60, { away: true });
+    const ran = (await world.db.query('select hunt_id, end_reason from public.hunt_sessions where user_id = $1 order by entered_at', [uid])).rows;
+    step('CONTROL AR-10 the hunt died and the yard took over', ran.length === 2 && ran[0].end_reason === 'died' && ran[1].hunt_id === 'training_yard_melee', JSON.stringify(ran));
+    const q = await enter('yardroll');
+    const line = await cardOf(q, 30000);
+    await q.shot('ar10-yard-took-over');
+    step('AR-10 the card tells the hunt the yard took over: its Levels, the death and its Blessings, then the yard',
+      !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford\. Killed by .+\. Death cost: [\d,]+ Level XP/.test(line)
+      && /3 Blessings saved [\d,]+ Level XP, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
     await q.close();
   }
   step('AR-8 no page error', errors.length === 0, errors.join(' | '));

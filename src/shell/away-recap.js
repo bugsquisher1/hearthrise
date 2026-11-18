@@ -177,13 +177,14 @@ function yardTookOver(cs, was, h) {
   return Number.isFinite(h.huntFromMs) && h.huntFromMs > was.at;
 }
 
-/* The death that ended the stamp's hunt, in the death popup's words (every number the server's row), or ''. */
-function diedWords(cs, session) {
+/* The death that ended the stamp's hunt, in the death popup's words (every number the server's row), or ''. `card`: the card's line, which
+   leaves the Level it took to the card's own Level line ("Level 12 → 11"). */
+function diedWords(cs, session, card = false) {
   const log = deathLogOf(cs);
   const row = log ? log.find((r) => r.session === session) : null;
   if (!row) return '';
   const w = deathWords(cs, { session, row });
-  return [w.title, w.killed, w.lost, w.level, w.saved].filter(Boolean).map(dot).join(' ');
+  return [w.title, w.killed, w.lost, card ? '' : w.level, w.saved].filter(Boolean).map(dot).join(' ');
 }
 
 /**
@@ -247,7 +248,7 @@ export function awayRecapOf(cs) {
     at: was.at, cameAt: now, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
     facts: { name, hunt, place: yard ? yard.doing : hunt ? huntName(hunt) : '', gone, lvFrom: from, lvTo: lv.level, xp: Math.max(0, lv.xp - was.xp),
       gold: gold ? gold.net : null, looted: gold ? gold.looted : null, paid: gold ? gold.paid : null, kills: kills !== null ? Math.max(0, kills) : null, best,
-      train, died, after: then, tookOver: over },
+      train, died: over ? diedWords(cs, was.s, true) : '', after: then, tookOver: over },
     text: (said + nowWords(cs, h, now)).trim() };
 }
 

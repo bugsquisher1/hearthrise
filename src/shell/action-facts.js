@@ -75,15 +75,23 @@ function weaponsOf(roles) {
   return wordsOfKeys(Object.keys(ROLE_KEYS).filter((k) => ROLE_KEYS[k].roles.some((r) => roles.includes(r))));
 }
 
+/* In a list the hatchets are the pair they are: the only axe weapon (the Practice Hatchets, weaponType 'axe') plays as dual axes,
+   so its word is the pair's and the list names it once (Tyler 2026-11-18: "are there even single axes in the game?"). */
+const LIST_WORDS = Object.freeze({ axe: WEAPON_WORDS.dual_axe });
+
+/* One sentence: "Dual axes, club, hammer or bare hands", "Bow or crossbow" (the first word capitalized, each weapon once). */
 function wordsOfKeys(keys) {
   const seen = new Set();
   const w = [];
   for (const k of keys) {
-    for (const word of String(WEAPON_WORDS[k] || k).split(' or ')) {
-      if (!seen.has(word.toLowerCase())) { seen.add(word.toLowerCase()); w.push(word.charAt(0).toUpperCase() + word.slice(1)); }
+    for (const word of String(LIST_WORDS[k] || WEAPON_WORDS[k] || k).split(' or ')) {
+      const low = word.toLowerCase();
+      if (!seen.has(low)) { seen.add(low); w.push(low); }
     }
   }
-  return w.join(' or ');
+  if (!w.length) return '';
+  const said = w.length === 1 ? w[0] : w.slice(0, -1).join(', ') + ' or ' + w[w.length - 1];
+  return said.charAt(0).toUpperCase() + said.slice(1);
 }
 
 /* WHAT THE WORN WEAPON CAN SHOOT, in words: the engine's own rule (hunt-roles.js shootsItem; damage.js pickShot

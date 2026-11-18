@@ -33,7 +33,7 @@ export const HOTKEYS = Object.freeze([
 
 export const WEAPON_WORDS = Object.freeze({
   shield: 'Shield',
-  dual_axe: 'Two axes',
+  dual_axe: 'Dual axes',
   club: 'Club',
   bow: 'Bow',
   crossbow: 'Crossbow',

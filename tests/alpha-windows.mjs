@@ -162,6 +162,8 @@
 //         TK-7  a refused settle clears it until a newer record; the character keeps the
 //               refusal from its settle until the next answer
 //         TK-8  a bench counts its inputs down with the engine's own stop, within "N left"
+//         TK-8d a counted run's work line says its own count ("45 of 300 left"), never the stock behind it, and
+//               "Stops when materials run out" only where they do; a run until the inputs run out keeps both
 //         TK-9  a dish that can burn is a roll: inputs and the burn's XP are certain, no stack moves
 //         TK-10 ROUNDED DOWN: against the engine as the server runs it (perks, a real roll, its
 //               tool carry and XP remainder) it never shows an action, item or XP not paid
@@ -2466,6 +2468,33 @@ async function tickerRules(base) {
     || TK.aheadXp(c2, 'cooking') > 2 * TW.xpEach(cook) || !s2 || s2.unsure !== 0 || s2.items.cooked_shrimp !== 2)
     fails.push('TK-9 a dish that can burn: ' + JSON.stringify({ c2, fire, s2 }));
 
+  /* TK-8d A COUNTED RUN'S WORK LINE SAYS ITS COUNT (Andy 2026-11-18: Bind Etched Water Runes for 300, the row "Working on it now, 45
+     left", the line over it "8,300 Blank Rune left. Stops when materials run out"). The server's bench_run.left less the ticker's certain
+     actions, of the run's whole count (the server's tally of this run, bench_tax.run, plus its count left); the stop sentence only where
+     the bag and Storage run out first; a run until the inputs run out keeps both. One line for every bench kind. */
+  const tally = (r, since, c) => ({ bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0, run: { r, s: iso(since), c, g: 0, at: iso(T0) } } });
+  const workLine = (id, inv, more, ms) => { const cs = hero(envOf('artisan', id, inv, more)); cs.clock = T0 + (ms || 0); return TK.lineText(TW.nowParts(cs)); };
+  const etched = 'bind_etched_water_runes';
+  const sstep = TW.actionMs(hero(envOf('artisan', 'smelt_bronze', {})), TW.workRow('artisan', 'smelt_bronze'));
+  const counted = [
+    workLine(etched, { rune_blank: 8300 }, Object.assign({ bench_run: { left: 45 } }, tally(etched, T0, 255))),
+    workLine(etched, { rune_blank: 8300 }, Object.assign({ bench_run: { left: 45 } }, tally(etched, T0 - 60000, 80))),
+    workLine(etched, { rune_blank: 8300 }, { bench_run: { left: 45 } }),
+    workLine(etched, { rune_blank: 200 }, Object.assign({ bench_run: { left: 45 } }, tally(etched, T0, 255))),
+    workLine(etched, { rune_blank: 8300 }, tally(etched, T0, 255)),
+    workLine('smelt_bronze', { copper_ore: 40 }, Object.assign({ bench_run: { left: 5 } }, tally('smelt_bronze', T0, 3)), 2 * sstep + 100),
+    workLine('cook_shrimp', { shrimp: 6 }, Object.assign({ bench_run: { left: 6 } }, tally('cook_shrimp', T0, 0)), 2 * cstep + 100),
+    workLine('fuel_bones', { bones: 8 }, { bench_run: { left: 2 } }),
+  ];
+  const countedWant = ['Making Etched Water Rune: 45 of 300 left', 'Making Etched Water Rune: 45 of 45 left', 'Making Etched Water Rune: 45 left',
+    'Making Etched Water Rune: 45 of 300 left. Stops when materials run out', 'Making Etched Water Rune: 8,300 Blank Rune left. Stops when materials run out',
+    'Making Bronze Bar: 3 of 8 left', 'Cooking Raw Shrimp: 2 more on the fire, 4 of 6 left', 'Fueling the Great Hearth with Bones: 2 left'];
+  const smeltCs = hero(envOf('artisan', 'smelt_bronze', { copper_ore: 40 }, Object.assign({ bench_run: { left: 5 } }, tally('smelt_bronze', T0, 3))));
+  smeltCs.clock = T0 + 2 * sstep + 100;
+  const smeltAhead = TW.nowParts(smeltCs).filter((p) => p.ahead).map((p) => p.text).join('|');
+  if (counted.join('\n') !== countedWant.join('\n') || smeltAhead !== '3 of 8 left')
+    fails.push('TK-8d a counted run\'s work line reads ' + JSON.stringify({ counted, smeltAhead }) + ', want ' + JSON.stringify(countedWant) + ' with "3 of 8 left" pending');
+
   /* TK-10: ROUNDED DOWN. Against the engine as the SERVER runs it (its perks, a real roll, its tool carry and XP
      remainder), over many windows, the ticker never shows an action, an item or an XP the server did not pay. */
   const perks = { gatherSpeed: 0.2, smithSpeed: 0.2, flameSpeed: 0.2, cookSpeed: 0.2, runeSpeed: 0.2, allXP: 0.1, craftSave: 0.3, yield_smithing: 0.2, noBurn: 0.1 };
@@ -4670,7 +4699,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
           if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":37}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
-          if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. Stops when materials run out$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
+          /* A run of 37 says its own count, never the ore behind it (Andy 2026-11-18, TK-8d); the bag's ore makes 5, so it says the ore stops it first. */
+          if (!/^Making Bronze Bar: 0 made so far, 37 left\. Stops when materials run out$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
           if (!/^Working on it now, 37 left\. Makes 5 of up to 5$/.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
@@ -5822,7 +5852,7 @@ const MUTANTS = [
   ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return skillShortWords(", "  if (false) return skillShortWords("],
   ['the running row offers no Stop', 'src/shell/windows/work.js', "text(b, running ? 'Stop' : 'Start');", "text(b, 'Start');"],
   ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs), true), '');", '  if (e) return [];'],
-  ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);", "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), [], '. ' + tail);"],
+  ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, tail && '. ' + tail);", "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), [], tail && '. ' + tail);"],
   ['a watched bench is never re-read', 'src/shell/shell.js', "(wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);", "false) watchTown(ctx.character);"],
   ['raw food offers no Cook all', 'src/shell/bag-model.js', "      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;", '      continue;'],
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) {", "  if (false) {"],
@@ -5906,6 +5936,9 @@ const MUTANTS = [
   ['ticker: a bench spends inputs the bag does not hold', 'src/shell/town-ticker.js', "    removeItem(id, n) {\n      const take = Math.min(n, supply[id] || 0);\n      const fromBag = Math.min(take, bag[id] || 0);\n      supply[id] = (supply[id] || 0) - take;\n      bag[id] = (bag[id] || 0) - fromBag;\n      if (fromBag) move(id, -fromBag);\n      if (take > fromBag) stored[id] = (stored[id] || 0) - (take - fromBag);\n    },", '    removeItem(id, n) { move(id, -n); },'],
   ['ticker: a dish that may burn is counted as cooked', 'src/shell/town-ticker.js', "  const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, cook, 0) > 0;", '  const burnable = false;'],
   ['ticker: a yield range is read at its top', 'src/shell/town-ticker.js', '  int: (lo) => Math.ceil(Number(lo) || 0),', '  int: (lo, hi) => Math.floor(Number(hi) || 0),'],
+  /* Andy 2026-11-18: a run of 300 read "8,300 Blank Rune left. Stops when materials run out" (TK-8d) */
+  ['ticker: a counted run\'s work line says the stock and that materials stop it', 'src/shell/town-work.js', '  const run = countedRun(cs, w);\n', '  const run = null;\n'],
+  ['ticker: a counted run\'s work line forgets what it has made', 'src/shell/town-work.js', 'of: run === undefined ? null : left + (mine ? run.crafts : 0)', 'of: run === undefined ? null : left'],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */
 const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', "    if (slot) wear(st, repaint, slot, id, 'pick:' + id);", "    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id, 'pick:' + id);"],

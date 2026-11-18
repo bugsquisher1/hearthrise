@@ -1075,8 +1075,8 @@ async function huntsPure(imp) {
       const g = (pk.ground && pk.ground.id) || pk.id;
       if (pk.checks && pk.checks.deadlyFourNeeds === 'healer' && !((TV.HEALER_TIERS[g] || {}).deadly)) fails.push('AW-25 ' + g + '\'s Deadly is graded with a Healer (checks.deadlyFourNeeds) and its page never says to bring one (healerTiers)');
     }
-    if (!(TV.isHealerTier('muster_barrows', 'deadly', 55) && !TV.isHealerTier('muster_barrows', 'deadly', 61))) fails.push('AW-25 the Muster Barrows\' Deadly kills a four with no Healer at its floor (55) and not from 61, and the page does not say so there');
-    if (!(TV.isHealerTier('krells_hold', 'deadly', 85) && !TV.isHealerTier('krells_hold', 'deadly', 91))) fails.push('AW-25 Krell\'s Hold\'s Deadly kills a four with no Healer at its floor (85) and hardly from 91, and the page does not say so there');
+    if (!(TV.isHealerTier('muster_barrows', 'deadly', 59) && !TV.isHealerTier('muster_barrows', 'deadly', 60))) fails.push('AW-25 the Muster Barrows\' Deadly kills a four with no Healer up to 59 and not from 60 (its pack), and the page does not say so there');
+    if (!(TV.isHealerTier('krells_hold', 'deadly', 88) && !TV.isHealerTier('krells_hold', 'deadly', 89))) fails.push('AW-25 Krell\'s Hold\'s Deadly kills a four with no Healer up to 88 and hardly from 89 (its pack), and the page does not say so there');
     if (!named) fails.push('AW-25 no ground names a Healer\'s tier: the words were never read');
   }
   /* Who lives here: each creature's share of the ground's spawn points (Tyler 10-18: a common majority, some uncommon, a rare). */
@@ -5707,8 +5707,8 @@ const MUTANTS = [
   /* A HEALER'S TIER (lane/a-honest-lines, re-landed and bounded by Level by lane/a-honesty-rescue) */
   ['hunts: AW-25 the tier note never says a Healer\'s tier', 'src/shell/hunt-list.js', "  const healer = isHealerTier(r.hunt, tier.id, level) ? [t('hunts.tier_healer')] : [];", '  const healer = [];'],
   ['hunts: AW-25 a Healer\'s tier is said at every Level', 'src/data/hunt-tiers.js', '  return under !== null && !(Number.isInteger(level) && level >= under);', '  return under !== null;'],
-  ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 61 },\n', ''],
-  ['hunts: AW-25 Krell\'s Hold\'s Deadly says nothing of a Healer', 'src/data/grounds/krells_hold/pack.js', '  healerTiers: { deadly: 91 },\n', ''],
+  ['hunts: AW-25 the Muster Barrows\' Deadly says nothing of a Healer again', 'src/data/grounds/muster_barrows/pack.js', '  healerTiers: { deadly: 60 },\n', ''],
+  ['hunts: AW-25 Krell\'s Hold\'s Deadly says nothing of a Healer', 'src/data/grounds/krells_hold/pack.js', '  healerTiers: { deadly: 89 },\n', ''],
   ['hunts: AW-25 a creature is drawn x2 in CSS px and stretched 2.5x on a 125 % screen', 'src/render/creature-sprite.js', '  const k = Math.max(1, Math.floor(scale * dpr + 1e-9));', '  const k = scale;'],
   ['AW-30 the window opacity is not kept in the residue', 'src/session/residue.js', '  panelAlpha: sanitizePanelAlpha,', ''],
   ['AW-30 the windows do not follow the opacity setting', 'src/shell/panel-alpha.js', '  return Number.isInteger(v) ? v : PANEL_ALPHA.initial;', '  return globalThis.__panelAlpha ?? PANEL_ALPHA.initial;'],

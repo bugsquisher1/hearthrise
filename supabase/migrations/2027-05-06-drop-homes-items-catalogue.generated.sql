@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 099830e20df437588ee66a12563da3d191a68296c81ea25b05c82b726687f8e4
+--   catalogue digest: 10986f726bb97eb388a0b38f0f0d611467b74cfe23362b9a740ea335df668e0b
 --   rows: 675 items (19 untradeable) ·
 --         382 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 363 activities ·
@@ -519,7 +519,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('kindling_wand','Kindling Wand',true,'weapon',32400,'level',88,null,false,null,false),
   ('kingsgrate','Kingsgrate',true,'offhand',300,'level',15,null,false,null,false),
   ('kingstooth','Kingstooth',true,'weapon',600,'level',15,null,false,null,false),
-  ('klappas_club','Klappa''s Club',true,'weapon',100,'level',5,null,false,null,true),
+  ('klappas_club','Klappa''s Klub',true,'weapon',100,'level',5,null,false,null,true),
   ('knotted_tails','Knotted Tails',true,null,50,null,null,null,false,null,false),
   ('kobold_scale','Kobold Scale',true,null,26,null,null,null,false,null,false),
   ('krells_tollgate','Krell''s Tollgate',true,'offhand',43200,'level',88,null,false,null,false),
@@ -2215,7 +2215,7 @@ insert into public.hr_feast_foods (item_id, heals) values
 on conflict (item_id) do update set heals = excluded.heals;
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '099830e20df437588ee66a12563da3d191a68296c81ea25b05c82b726687f8e4', now())
+  values (true, '10986f726bb97eb388a0b38f0f0d611467b74cfe23362b9a740ea335df668e0b', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2246,8 +2246,8 @@ begin
   if v_n <> 675 then raise exception 'hr_items has % rows, generator emitted 675', v_n; end if;
   -- THE NAMES (2026-11-11): every landed display name is the source's, byte for byte (ids unchanged, the count above).
   -- A rename that reaches the client but not hr_items, or an old name a re-apply leaves behind, fails here.
-  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> '0a54399b22b44bb855534398d2af8395' then
-    raise exception 'hr_items names differ from src/data (expected digest 0a54399b22b44bb855534398d2af8395)';
+  if (select md5(string_agg(item_id || '=' || name, chr(10) order by item_id collate "C")) from public.hr_items) <> 'ff6094bb90f4354c0002b3a95347abda' then
+    raise exception 'hr_items names differ from src/data (expected digest ff6094bb90f4354c0002b3a95347abda)';
   end if;
   -- SMALL CALLS (2026-11-11): the two rows this file exists for, each pinned to the source row's value (never hand-typed).
   if (select req_lv from public.hr_activities where kind = 'artisan' and activity_id = 'cook_wolf_meat') is distinct from 1 then
@@ -2447,7 +2447,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 099830e20df437588ee66a12563da3d191a68296c81ea25b05c82b726687f8e4',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 10986f726bb97eb388a0b38f0f0d611467b74cfe23362b9a740ea335df668e0b',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

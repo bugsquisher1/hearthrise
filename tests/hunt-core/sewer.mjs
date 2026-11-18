@@ -2020,7 +2020,7 @@ const mutants = [
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Club',\n", "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Club',\n"]] },
+    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Klub',\n", "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Klub',\n"]] },
   /* QA gate 2026-11-17: a free Tower fall raised "Defeated" and a Bless upsell; the Tower had no tip */
   { name: 'a free-death mode raises the death card', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "f.endReason === 'died' && f.freeDeath !== true,", "f.endReason === 'died',"]] },

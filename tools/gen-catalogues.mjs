@@ -155,7 +155,7 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    makes none, and a smith only reforges a named shield): 2027-05-02-tower-items-catalogue (applied with v0.2.135) is the file before this one and this
    one carries it whole. The 24 armor, weapon and plain-shield recipes leave hr_activities (artisan rows: the tier-2 weapons, the tier-1 and tier-2 cloth,
    the first gloves and sashes, the tier-4 hatchets and crossbow, the Ironbound, Coppercap and Mithril-Faced shields); Klappa's Club and the Steelgrate
-   stay. No hr_items row moves. ORDER: after everything applied with v0.2.138; before the drop-homes bench-inputs, bench-tax and hunt-sessions files. */
+   stay. One hr_items row is renamed (klappas_club: Klappa's Klub, Tyler 2026-11-18), its id unchanged. ORDER: after everything applied with v0.2.138; before the drop-homes bench-inputs, bench-tax and hunt-sessions files. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-06-drop-homes-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational

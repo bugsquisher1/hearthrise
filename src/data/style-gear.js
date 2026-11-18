@@ -24,7 +24,7 @@
 //   tier 4   Hask's Ford: Maple Crossbow (Pikemen), Mithril Hatchets (Fordsunk), Mithril-Faced Shield
 //            (Bannerman). The Slake keeps the sword, warhammer, bow and staff.
 // What a crafter makes for a hunter is the rest of the kit: capes, jewelry, ammunition and runes, food
-// and drink, Tempering, the House. KLAPPA'S CLUB STAYS (Tyler 2026-11-18): a reforge of the kit's own
+// and drink, Tempering, the House. KLAPPA'S KLUB STAYS (Tyler 2026-11-18): a reforge of the kit's own
 // club, as the Steelgrate is of a Kingsgrate (shields.js). A bench only ever reforges a named piece.
 //
 // THE ECONOMY RULE (tests/style-gear.mjs SG-4). A reforged piece never sells for more than the BOOK
@@ -34,7 +34,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /* style -> the practice weapon, the rungs that ship (each item's door is a drop row, src/data/monsters.js and the ground packs, the
-   loot bands 2026-10-23; Klappa's Club the one reforge), and what comes next. A style is a ROLE weapon key (hunt-roles.js WEAPON_ROLES). */
+   loot bands 2026-10-23; Klappa's Klub the one reforge), and what comes next. A style is a ROLE weapon key (hunt-roles.js WEAPON_ROLES). */
 export const STYLE_LADDER = Object.freeze({
   sword:     Object.freeze({ practice: 'practice_sword',     rungs: Object.freeze(['iron_sword', 'steel_sword']), next: '' }),
   dual_axe:  Object.freeze({ practice: 'practice_hatchets',  rungs: Object.freeze(['iron_hatchets', 'steel_hatchets', 'mithril_hatchets']),  next: '' }),
@@ -56,13 +56,13 @@ export const CLOTH_LADDER = Object.freeze({
 
 const r = (id, name, icon, inputs, output, xp, req, ms) => Object.freeze({ id, name, icon, inputs: Object.freeze(inputs), output, xp, req, ms });
 
-/* THE ONE MADE RUNG: a reforge of a kit piece (Tyler 2026-11-18, "Klappa's Club stays a reforge"). */
+/* THE ONE MADE RUNG: a reforge of a kit piece (Tyler 2026-11-18: "Klappa's Club stays a reforge", and later that day "Klappa's Club needs to be 'Klappa's Klub' and it CANNOT be removed from the game"; tests/catalogue-coherence.mjs PROTECTED holds it). */
 export const STYLE_GEAR_RECIPES = Object.freeze({
   smithing: Object.freeze([
-    /* KLAPPA'S CLUB (Tyler 2026-11-03: a beginner club, a tribute to Andy, who has done much of this game's real testing; his own idea,
+    /* KLAPPA'S KLUB (Tyler 2026-11-03: a beginner club, a tribute to Andy, who has done much of this game's real testing; his own idea,
        a practice club reforged, after the Kingsgrate). Any hero makes it the normal way: one run from the kit's one club, so the row is
        a first taste of the bench and never a wage. Mine, smelt, hunt the Cellar's rats, forge. Numbers on the priority board, 2026-11-03. */
-    r('reforge_klappas_club', 'Reforge Klappa\'s Club', '🏏', { practice_club: 1, bronze_bar: 6, small_fang: 3 }, 'klappas_club', 120, 1, 3000),
+    r('reforge_klappas_club', 'Reforge Klappa\'s Klub', '🏏', { practice_club: 1, bronze_bar: 6, small_fang: 3 }, 'klappas_club', 120, 1, 3000),
   ]),
 });
 

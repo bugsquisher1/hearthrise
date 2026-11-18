@@ -936,36 +936,79 @@ Arithmetic, not the engine (`odds.mjs` in the lane's scratch: 300,000 weeks of 6
 
 So a wanted Platinum helmet takes about 1.4 times the Tower's own-type weapon (9.3 to 9.5 weeks), because a key has two slots to pick from. Running the other wing is how you chase the other slot, and half of every drop is another weight, which is what stocks the Weighhouse. **RULED (Tyler 2026-11-16): the Tower's numbers.**
 
-#### 6. The armor: 24 rows, a sample of 12
+#### 6. The armor: 24 rows, BUILT hidden on lane/d-catacomb-armor (`src/data/catacomb-armor.js`, guard `tests/catacomb-armor.mjs`, measure `tools/balance-sim/catacomb-armor.mjs`)
 **The rule (the Tower weapons' rule, Tyler's tiers).** Each piece is the standard helmet or boots of its slot, weight and the key's tier, every number copied (armor, the weight's accuracy fields, crit, Level, book, tier), plus ONE special attribute. Sizes are the special-attribute catalogue's at that tier (`SPECIAL_ATTRIBUTES`, lane/d-special-attributes), never a second table. Generated like `towerWeaponItems`, never typed. Tradeable, and it sells to the Shop at the dropped-gear rate. Past Platinum, a key's pieces follow the armor line instead (Tyler 11-16).
 
 **One attribute for each slot and weight, the same at every tier, so a player learns it once.**
 | Slot, weight | Attribute | Where it wins |
 |---|---|---|
-| Helmet, plate | +1 Defense (`defensePlus`; 4 to 6% less damage taken at 40-90, the catalogue) | A tank, anywhere. The Bone Wing's tank piece |
+| Helmet, plate | +2 Melee at tiers 2 and 4, +3 at 6 and 7 (`meleePlus`) | A sword, hammer or axes hero, anywhere. **Changed from +1 Defense, measured:** a tank with Defense one level up took 5 to 8% less damage than in the NEXT tier's helm at 30, 60 and 88, so a +Defense helm would out-guard every helm above it (CONFLICTS 2026-11-16) |
 | Helmet, leather | +2 Ranged at tiers 2 and 4, +3 at 6 and 7 (`rangedPlus`) | A bow or crossbow, anywhere |
 | Helmet, cloth | 10% less fire (`resistPm.ember`) | A caster on Wickstead (Smoke Pot), the Warrens (Blasting Charge), Krell's Hold. No Magic piece on purpose: +Magic measured 0-2% for casters (lane/d-tower-weapons), and the Mage's pace past 110 was only just brought down (lane/d-mage-110) |
 | Boots, plate | Less from every blow (`steadyPm`): 10 / 15 / 20 / 30‰ by tier | The front line. Bronze's 1% is under a Level 1 cape's 15‰. The catalogue sizes this only from tier 5: its owner reconciles |
-| Boots, leather | 10% less poison | The Night Carters' Lime Sack in both wings, the Sewer (Muck Fling), Wickstead (Venom Spray), Mosslight Glade (Spore Cloud) |
-| Boots, cloth | 10% less ice (`resistPm.frost`) | Keeper Dunn's Snuff the Candles at every vault door, the Slake (Cold Bilge) |
+| Boots, leather | 10% less poison | The Night Carters' Lime Sack in both wings (a group spell, so it reaches a bow). Measured: barely anywhere else, a kiting bow steps out of Venom Spray and most of Muck Fling |
+| Boots, cloth | 10% less ice (`resistPm.frost`) | Keeper Dunn's Snuff the Candles at every vault door. Measured: almost nothing on the Slake, where Cold Bilge seldom reaches a Mage |
 
-**The sample: Bronze and Platinum (12), so the first key and the last chase are played first.** Silver and Gold (12) are named after these are built and played (DESIGN_STANDARDS §9). Every name checked free in `src/` on main, lane/d-tower-weapons and lane/d-armor-line-v2. Bronze is the town's working poor. Platinum is the first winter, the one the Wood Book starts with.
-| Piece | Slot, weight, Level | Its twin's numbers | Attribute | Its line (draft) |
+**All 24 (the Coordinator 2026-11-16: all named now, not a sample of 12).** Every name checked free in `src/` on main, lane/d-tower-weapons, lane/d-armor-line-v2 and lane/d-catacombs (the Pyre Field's Stokers took "Stoker", so the Gold hat is the Fire-Tender's). Each was a Havoran's, taken off them before they went down and locked in the chest under their name. Bronze is the street's working poor, Silver the riverside and the market, Gold the Hearth's own people who died too poor to be burned in it, Platinum the deepest vaults: the first winter, and Dunn. The numbers are the generator's own output (`catacombArmorItems` over main's ITEMS). The card reads the attribute sentence first, then the line.
+| Piece | Key, slot, weight, Level | Its twin's numbers, copied | Attribute | Its line (draft) |
 |---|---|---|---|---|
-| **Tinker's Kettle** | Helmet, plate, 15 | Iron Helm: 5 armor, Ranged -1, Magic -3 | +1 Defense | He mended pots for the whole street and wore the best one. |
-| **Ratter's Hood** | Helmet, leather, 15 | Studded Leather Hood: 3 armor, Ranged +3, 0.8% crit | +2 Ranged | Havora's ratters worked the Sewer with a sling and their hoods pulled down. |
-| **Midwife's Hat** | Helmet, cloth, 15 | Adept Hat: 2 armor, Magic +3 / +2 | 10% less fire | She sat up by somebody's fire most nights. Her name's in the Wood Book too. |
-| **Hodman's Boots** | Boots, plate, 15 | Iron Boots: 4 armor | 1% less from every blow | He carried bricks up a ladder all day and never slipped once. |
-| **Tanner's Boots** | Boots, leather, 15 | Studded Leather Boots: 2 armor, Ranged +2, 0.8% crit | 10% less poison | He stood in the lime pits all day, and the boots took it. |
-| **Washerwoman's Slippers** | Boots, cloth, 15 | Adept Slippers: 1 armor, Magic +2 / +2 | 10% less ice | She worked the river all winter, and these are lined with felt. |
-| **Vault-Cutter's Helm** | Helmet, plate, 88 | Dawnsteel Helm: 44 armor, Ranged -11, Magic -22 | +1 Defense | The men who cut the vaults wore these for falling rock. They were the first ones buried there. |
-| **Pothunter's Hood** | Helmet, leather, 88 | Dawnhide Hood: 24 armor, Ranged +22, 2.8% crit | +3 Ranged | The pothunters kept the town fed that first winter for as long as there was anything to shoot. |
-| **Almoner's Hat** | Helmet, cloth, 88 | Duskweave Hat: 13 armor, Magic +26 / +18 | 10% less fire | He handed out bread and coals from the Hearth that winter until there wasn't any of either. |
-| **Ice-Cutter's Boots** | Boots, plate, 88 | Dawnsteel Boots: 30 armor | 3% less from every blow | Iron spikes on the soles, for standing on the frozen river all day. |
-| **Dyer's Boots** | Boots, leather, 88 | Dawnhide Boots: 17 armor, Ranged +15, 2.8% crit | 10% less poison | Havora's dyers stood in the vats to the knee. These came out stained and whole. |
-| **Dunn's Slippers** | Boots, cloth, 88 | Duskweave Slippers: 9 armor, Magic +18 / +12 | 10% less ice | Dunn left them in the chest the night he went down. He hasn't needed them since. |
+| **Tinker's Kettle** | Bronze, helmet, plate, 15 | Iron Helm: 5 armor, Ranged -1, Magic -3 | +2 Melee | He mended pots for the whole street and wore the best one. |
+| **Ratter's Hood** | Bronze, helmet, leather, 15 | Studded Leather Hood: 3 armor, Ranged +3, 0.8% crit, Magic -1 | +2 Ranged | Havora's ratters worked the Sewer with a sling and their hoods pulled down. |
+| **Midwife's Hat** | Bronze, helmet, cloth, 15 | Adept Hat: 2 armor, Melee acc -1, Ranged -1, Magic +3 / +2 | 10% less fire | She sat up by somebody's fire most nights. Her name's in the Wood Book too. |
+| **Hodman's Boots** | Bronze, boots, plate, 15 | Iron Boots: 4 armor, Ranged -1, Magic -2 | 1% less from every hit | He carried bricks up a ladder all day and never slipped once. |
+| **Tanner's Boots** | Bronze, boots, leather, 15 | Studded Leather Boots: 2 armor, Ranged +2, 0.8% crit, Magic -1 | 10% less poison | He stood in the lime pits all day, and the boots took it. |
+| **Washerwoman's Slippers** | Bronze, boots, cloth, 15 | Adept Slippers: 1 armor, Melee acc -1, Ranged -1, Magic +2 / +2 | 10% less ice | She worked the river all winter, and these are lined with felt. |
+| **Craneman's Helm** | Silver, helmet, plate, 45 | Mithril Helm: 16 armor, Ranged -4, Magic -8 | +2 Melee | He ran the dock crane and wore iron for the day a load swung back. |
+| **Fletcher's Hood** | Silver, helmet, leather, 45 | Snakeskin Hood: 9 armor, Ranged +8, 1.6% crit, Magic -2 | +2 Ranged | She made the arrows half of Havora shot, and she tried every batch herself. |
+| **Baker's Cap** | Silver, helmet, cloth, 45 | Warlock Hat: 5 armor, Melee acc -4, Ranged -3, Magic +10 / +6 | 10% less fire | She had the town ovens going before dawn, and the brim is scorched all the way round. |
+| **Dockhand's Boots** | Silver, boots, plate, 45 | Mithril Boots: 11 armor, Ranged -3, Magic -6 | 1.5% less from every hit | They're hobnailed for wet planks, and he never went in the river once. |
+| **Sewerman's Boots** | Silver, boots, leather, 45 | Snakeskin Boots: 6 armor, Ranged +6, 1.6% crit, Magic -2 | 10% less poison | He waded the Sewer every day in these, and the pitch kept everything out. |
+| **Fishwife's Slippers** | Silver, boots, cloth, 45 | Warlock Slippers: 3 armor, Melee acc -3, Ranged -2, Magic +7 / +4 | 10% less ice | She sold fish on the cold quay every winter morning, and these are lined with rabbit. |
+| **Coffer-Guard's Helm** | Gold, helmet, plate, 75 | Emberforged Helm: 33 armor, Ranged -8, Magic -17 | +3 Melee | Somebody had to watch the chest on the ledge at night. This was his helmet. |
+| **Woodward's Hood** | Gold, helmet, leather, 75 | Dragonhide Hood: 18 armor, Ranged +17, 2.4% crit, Magic -5 | +3 Ranged | He guarded the Hearth's woodlot with a bow and still couldn't pay for his own burning. |
+| **Fire-Tender's Cap** | Gold, helmet, cloth, 75 | Archmage Hat: 10 armor, Melee acc -8, Ranged -7, Magic +20 / +13 | 10% less fire | She tended the Great Hearth for thirty years and died too poor to be burned in it. |
+| **Porter's Boots** | Gold, boots, plate, 75 | Emberforged Boots: 22 armor, Ranged -6, Magic -11 | 2% less from every hit | He carried the Hearth's wood up from the river road, a load a trip, every day. |
+| **Soapboiler's Boots** | Gold, boots, leather, 75 | Dragonhide Boots: 12 armor, Ranged +11, 2.4% crit, Magic -3 | 10% less poison | She boiled soap from the Hearth's own ash, and the lye ate everything but these. |
+| **Scribe's Slippers** | Gold, boots, cloth, 75 | Archmage Slippers: 7 armor, Melee acc -6, Ranged -4, Magic +13 / +9 | 10% less ice | The Keepers' scribe wrote the names in the Wood Book down in the cold, so he kept his feet warm. |
+| **Vault-Cutter's Helm** | Platinum, helmet, plate, 88 | Dawnsteel Helm: 44 armor, Ranged -11, Magic -22 | +3 Melee | The men who cut the vaults wore these for falling rock. They were the first ones buried there. |
+| **Pothunter's Hood** | Platinum, helmet, leather, 88 | Dawnhide Hood: 24 armor, Ranged +22, 2.8% crit, Magic -7 | +3 Ranged | The pothunters kept the town fed that first winter for as long as there was anything to shoot. |
+| **Almoner's Hat** | Platinum, helmet, cloth, 88 | Duskweave Hat: 13 armor, Melee acc -11, Ranged -9, Magic +26 / +18 | 10% less fire | He handed out bread and coals from the Hearth that winter until there wasn't any of either. |
+| **Ice-Cutter's Boots** | Platinum, boots, plate, 88 | Dawnsteel Boots: 30 armor, Ranged -8, Magic -15 | 3% less from every hit | They have iron spikes on the soles, for standing on the frozen river all day. |
+| **Dyer's Boots** | Platinum, boots, leather, 88 | Dawnhide Boots: 17 armor, Ranged +15, 2.8% crit, Magic -5 | 10% less poison | Havora's dyers stood in the vats to the knee. These came out stained and whole. |
+| **Dunn's Slippers** | Platinum, boots, cloth, 88 | Duskweave Slippers: 9 armor, Melee acc -8, Ranged -6, Magic +18 / +12 | 10% less ice | Dunn left them in the chest the night he went down. He hasn't needed them since. |
 
-**Where they sit.** Each beats its own twin by its attribute and should stay under the next tier's piece, as the Tower weapons do (0.935-0.989 of the next tier, measured there). A Platinum piece is the best of its slot from 88 to about 125, where the armor line's uniques pass it (Outrider's Visor, 64 armor at 125, a hidden sample on lane/d-armor-line-v2). Not measured here: the build lane runs `tools/balance-sim/armor-power.mjs` and a twin-vs-piece pass before the rows go in.
+**Measured on the real settle** (`node tools/balance-sim/catacomb-armor.mjs --seeds 6 --hours 1`, 66 cells, a lone hero, the piece's twin forced on the slot so the pair differs only in the attribute, paired dice; a +skill piece plays as that many more skill levels, the built rule; resistance and steady go on the twin's own row for that cell only). XP is Level XP an hour, "a swing" is damage taken a monster swing, both against the same hero in the twin. A sword wears the plate helms, a tank the plate boots, a bow leather, a Mage cloth. No cell had a death.
+| Piece | Ground, Level | XP | A swing | | Piece | Ground, Level | XP | A swing |
+|---|---|---|---|---|---|---|---|---|
+| Tinker's Kettle | Wickstead 15 | 1.023 | 0.959 | | Coffer-Guard's Helm | Pyre Field 75 | 1.036 | 0.992 |
+| Ratter's Hood | Wickstead 15 | 1.007 | 0.968 | | Woodward's Hood | Pyre Field 75 | 1.020 | 1.015 |
+| Midwife's Hat | Wickstead 15 | 1.000 | **0.921** | | Fire-Tender's Cap | Pyre Field 75 | 1.000 | 1.000 |
+| Hodman's Boots | Wickstead 15 | 1.005 | 0.976 | | Porter's Boots | Pyre Field 75 | 1.003 | 0.956 |
+| Tanner's Boots | Wickstead 15 / the Sewer / the Glade 20 | 1.000 | 1.000 / 0.989 / 0.997 | | Soapboiler's Boots | Pyre Field 75 | 1.000 | 1.000 |
+| Washerwoman's Slippers | Wickstead 15 | 1.000 | 1.000 | | Scribe's Slippers | Pyre Field 75 | 1.000 | 1.000 |
+| Craneman's Helm | Hask's Ford 45 | 1.022 | 1.002 | | Vault-Cutter's Helm | Krell's Hold 88 | 1.016 | 1.005 |
+| Fletcher's Hood | Hask's Ford 45 | 1.007 | 0.984 | | Pothunter's Hood | Krell's Hold 88 | 1.013 | 0.978 |
+| Baker's Cap | Hask's Ford 45 / the Warrens 45 | 1.000 | 1.000 / **0.941** | | Almoner's Hat | Krell's Hold 88 | 1.000 | 1.000 |
+| Dockhand's Boots | Hask's Ford 45 | 1.003 | 0.985 | | Ice-Cutter's Boots | Krell's Hold 88 | 1.003 | 0.993 |
+| Sewerman's Boots | Hask's Ford 45 | 1.000 | 1.000 | | Dyer's Boots | Krell's Hold 88 | 1.000 | 1.000 |
+| Fishwife's Slippers | Hask's Ford 45 / the Slake 50 | 1.000 | 1.000 / 0.998 | | Dunn's Slippers | Krell's Hold 88 | 1.000 | 1.000 |
+
+What it says. The +Melee and +Ranged helms are 0.7 to 3.6% more Level XP an hour over their twins, the steady boots 1 to 4% less a swing (6 seeds read a swing to about 4%: a +Melee helm, which can't change a swing, read 0.959). The fire hats are 6 to 8% less a swing where fire lands on a Mage (Wickstead's Smoke Pot, the Warrens' Blasting Charge) and nothing elsewhere. **The poison and ice boots win almost nowhere on today's open grounds**: a kiting bow steps out of Venom Spray and most of Muck Fling, and Cold Bilge seldom reaches a Mage. They are the answer to the descent's own GROUP spells (the Night Carters' Lime Sack, Dunn's Snuff the Candles at every door) and the Vaults, which aren't built, so they can't be measured yet. That fits the wings (the Flooded Wing leans boots and is full of Carters), and it's the honest limit of this read. No piece costs anything where its attribute doesn't land, so none is a trap. A Platinum piece is the best of its slot from 88 to about 125, where the armor line's uniques pass it (Outrider's Visor, 64 armor at 125, a hidden sample on lane/d-armor-line-v2).
+
+**Against the NEXT tier's standard piece** (`--only next --seeds 20`, 18 cells: the piece's twin plus its attribute, worn at the next tier's Level, against that tier's piece of the same slot, the rest of the set the next tier's). The budget is the armor line's two reads: pace is XP, safety is 1 over "a swing", and their mean.
+| Piece | Against | Ground, Level | Pace | Safety | Mean |
+|---|---|---|---|---|---|
+| Tinker's Kettle | Steel Helm | the Glade 30 | 1.033 | 0.989 | 1.011 |
+| Ratter's Hood | Boarhide Hood | the Glade 30 | 1.030 | 0.917 | 0.973 |
+| Hodman's Boots | Steel Boots | the Glade 30 | 1.007 | 1.006 | 1.007 |
+| Craneman's Helm | Rune Helm | the Slake 60 | 1.000 | 1.000 | 1.000 |
+| Fletcher's Hood | Wyvernhide Hood | the Slake 60 | 1.011 | 0.990 | 1.000 |
+| Dockhand's Boots | Rune Boots | the Slake 60 | 0.998 | 1.014 | 1.006 |
+| Coffer-Guard's Helm | Dawnsteel Helm | Krell's Hold 88 | 1.018 | 1.004 | 1.011 |
+| Woodward's Hood | Dawnhide Hood | Krell's Hold 88 | 1.004 | 0.980 | 0.992 |
+| Porter's Boots | Dawnsteel Boots | Krell's Hold 88 | 0.996 | 1.001 | 0.999 |
+
+**Where they sit, ruled.** Every piece beats its twin and lands within about 1% of the next tier's piece of its own slot: the leather hoods a little under it (they trade armor for pace), the plate helms and boots level with it, at most 1.1% over. That's the right place for a chase piece. One armor slot's whole tier step is only about 1% of safety, so any attribute worth having sits about a tier up in its slot, and the special-attribute catalogue's sizes (the budget for tiers 2 to 7) put it there and no further. The Tower weapons sit under their next tier because a weapon tier is 5 to 8%. If Tyler wants every piece strictly under the next tier, it's two rows: the plate helm at +1 / +1 / +2 / +2 Melee and the plate boots at 0.5 / 1 / 1.5 / 2.5%.
 
 #### 7. Walk-throughs (ids read on main fcee4484d and the named branches; "new" means this design)
 **A new hero's first week** (about 4 hours of play a day).
@@ -992,7 +1035,7 @@ Found: a new hero wears no helmet or boots, so the 50% weight rule does nothing 
 | 1 | Bone Wing alone from door 90: Dunn at 100 gives a Platinum Bone Key if they hold it | Alone reaches about its own Level on the Tower | **Not measured past Level 45** |
 | 2 | Or a four of friends from the door-100 checkpoint (the highest every member has reached): about +25 depths, three Platinum keys each a run | The Tower's four reached its Level +25 at 45 | Not measured at 100 |
 | 3 | Opens 6 Platinum Bone Keys: 3,600 Cinders, 240 salts, 150 Cooked Lobster, a piece about every 4.7 weeks, the Vault-Cutter's Helm about every 13.5 weeks | Section 5 | Arithmetic |
-| 4 | Wears the Vault-Cutter's Helm over `dawn_helm` (44 armor plus 1 Defense) until the armor line passes it at 125 | Step 3 | Rows new, not measured |
+| 4 | Wears the Vault-Cutter's Helm over `dawn_helm` (44 armor plus 3 Melee) until the armor line passes it at 125 | Step 3 | Rows built hidden. Measured at 88 on Krell's Hold: +1.6% Level XP over `dawn_helm` (section 6) |
 | 5 | Sells Gold and other-weight pieces on the Weighhouse to heroes at 75 to 88 | Window `market` | Exists, rows new |
 | 6 | Opens 6 Tower keys too, a separate count | The Tower family | Built, cap moves to opens |
 
@@ -1022,7 +1065,7 @@ First principle: the wing, the start door, the default stokes for each key and "
 | 3 | A leaderboard for the descent | **Yes, its own**, deepest room, like the Tower's, on the Tower's board machinery, a separate board | Sections 3 and 8: Catacombs Deepest, solo and party, one board across both wings. My pick was none: overruled |
 | 4 | Dunn carries you up because your name isn't in the Wood Book | Yes | The reason is locked. The rest of section 1's text still goes through the reader gate |
 
-**Done and verified:** every existing id above was read on main or the branch named, every new name was checked free, the odds table reproduces the Tower board's own weeks. **Not verified:** nothing was played or run on the engine. Reach, XP, the door fight, the low-depth spells, every piece's power. **Assumed:** the 375‰ start, the 30 held, the steady sizes, the 70/30 lean, every count inside a key.
+**Done and verified:** every existing id above was read on main or the branch named, every new name was checked free, the odds table reproduces the Tower board's own weeks. The 24 pieces' power is measured on the real settle (section 6, lane/d-catacomb-armor). **Not verified:** nothing was played by hand. Reach, XP, the door fight, the low-depth spells, and the poison and ice boots against the descent's own group spells (no descent to play yet). **Assumed:** the 375‰ start, the 30 held, the 70/30 lean, every count inside a key.
 
 ### 2026-11-13 No profit molds on the live grounds (designer, lane/d-no-profit-molds; **Tyler 2026-11-13: no profit molds**): BUILT, MEASURED on the full grade, the edge moves, ONE staged catalogue
 - **The grader prints gold and never grades it** (GOLD BY GROUND). Every +25% / +10% floor, supplies share, "under-Level loses gold" and gold-order rule is retired from the grader, the hunt-core guards and the Balance Lab, and a sheet that grades a profit number is refused.

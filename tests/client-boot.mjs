@@ -84,6 +84,8 @@
 //        that reopens both never shows either as not open on the way; at the server's
 //        play-at-once limit Fennick has no Play, and a press says why in one plain
 //        line (12 px or more, on screen) and asks the server nothing
+//   B-11b each hero row shows the hero's own figure at a whole 2x or more, and the gold and the short line each stand on
+//        one line, at 1440x900, 922x423 and 667x375 (UI audit 2026-11-18)
 //   B-11 BUY A HERO SLOT (tracker r45; Tyler 10-17: up to five, for gold): the roster offers the
 //        server's next slot at the server's price, paid from "Your gold" — ONE purse per account
 //        (Tyler 10-23), so there is no payer to pick; short of gold it cannot be pressed and says
@@ -1232,6 +1234,23 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const lead = await page.evaluate(() => (document.querySelector('.auth-lead') || {}).textContent || '');
       /* The price is the offer block's own (the server's quote), so the line names none (designer 2026-11-09). */
       if (!/Hero slots: 2 \(up to 4 play at once\)\. More cost gold/.test(lead)) fails.push('B-11 the line over the roster reads ' + JSON.stringify(lead));
+      /* B-11b (UI audit 2026-11-18): each hero's row shows its own figure, drawn, at a whole 2x or more; the gold and the short line each stand
+         on ONE line beside or above the press (a grid beside it set "Need 299,500 more gold" one word a line), at the desktop and the phone width */
+      for (const vp of [[1440, 900], [922, 423], [667, 375]]) {
+        await page.setViewportSize({ width: vp[0], height: vp[1] });
+        const drawn = await wait(page, () => document.querySelectorAll('.char-row canvas.char-face[data-drawn]').length === 2, null, 5000);
+        const look = await page.evaluate(() => {
+          const lh = (e) => parseFloat(getComputedStyle(e).lineHeight);
+          const buy = document.querySelector('[data-app="buy-slot"]').getBoundingClientRect(), card = document.querySelector('.slot-offer').getBoundingClientRect();
+          /* one line, its words inside their own box and the card, clear of the press */
+          const one = (q) => { const e = document.querySelector(q); if (!e) return false; const r = e.getBoundingClientRect(), rng = document.createRange(); rng.selectNodeContents(e); const w = rng.getBoundingClientRect();
+            return r.height <= lh(e) * 1.4 && w.right <= card.right + 1 && !(w.left < buy.right && buy.left < w.right && w.top < buy.bottom && buy.top < w.bottom); };
+          const faces = Array.from(document.querySelectorAll('.char-row canvas.char-face')).map((c) => { const k = c.getBoundingClientRect().width / c.width; return Math.abs(k - Math.round(k)) < 0.01 && k >= 2; });
+          return { faces, purse: one('.slot-offer-purse'), short: one('.slot-offer-short') };
+        });
+        if (!drawn || look.faces.length !== 2 || look.faces.some((f) => !f) || !look.purse || !look.short) fails.push('B-11b at ' + vp.join('x') + ' the characters screen reads ' + JSON.stringify({ drawn: !!drawn, ...look }));
+      }
+      await page.setViewportSize({ width: 1280, height: 720 });
       /* 14,100 at wallet version 7 is the purse; Fennick's older answer (90,000 at version 3) is not. */
       if (!b0 || b0.text !== 'Buy a hero slot for 15,000 gold' || !b0.off || b0.pay !== '0' || b0.picker
         || b0.purse !== 'Gold: 14,100' || !/^Need 900 more gold/.test(b0.short)) fails.push('B-11 the offer short of gold reads ' + JSON.stringify(b0) + ' (expected Gold: 14,100, 900 short, off, no payer to pick)');
@@ -1426,6 +1445,10 @@ const MUTANTS = [
   ['the oldest hero answer is the purse', 'src/app/slot-offer.js', '    if (!best || v > best.v) best = { gold: r.gold, v };', '    if (!best || v < best.v) best = { gold: r.gold, v };'],
   ['the buy button stays lit while buying', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(short > 0 ? ' disabled' : '')"],
   ['a hero short of gold can press buy', 'src/app/slot-offer.js', "(o.pending || short > 0 ? ' disabled' : '')", "(o.pending ? ' disabled' : '')"],
+  ['the price line sits in a column beside the press again (B-11b)', 'src/styles/app.css', '.slot-offer-pay { display: flex; flex-wrap: wrap;', '.slot-offer-pay { display: grid; grid-template-columns: minmax(0, 1fr) max-content; flex-wrap: wrap;'],
+  ['the price line breaks again (B-11b)', 'src/styles/app.css', '.slot-offer-purse, .slot-offer-short { white-space: nowrap;', '.slot-offer-purse, .slot-offer-short { white-space: normal; max-width: 4em;'],
+  ['the characters screen draws no hero (B-11b)', 'src/app/boot.js', "    G.drawRosterFaces(root.querySelector('.char-list'), roster)", "    Promise.resolve()"],
+  ['a hero is drawn at 1x on the list (B-11b)', 'src/styles/app.css', '.char-face { flex: none; display: block; width: calc(42 * var(--art-px));', '.char-face { flex: none; display: block; width: 42px;'],
   ['a bought slot is not re-read', 'src/app/boot.js', "if (r.ok) { track('hero_slot_bought'); await showCharacters(", "if (r.ok) { track('hero_slot_bought'); drawSlotOffer(); void ("],
   ['the notice page boots the app', 'index.html', '</body>', '<script type="module" src="src/app/boot.js?v=1"></script></body>'],
   ['the strip\'s tools ride behind the hero tabs (B-4)', 'src/styles/app.css', '.char-strip-tools { display: flex; align-items: stretch; flex: none; margin-left: auto; }', '.char-strip-tools { display: flex; align-items: stretch; flex: none; }'],

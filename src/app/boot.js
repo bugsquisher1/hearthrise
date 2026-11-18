@@ -276,7 +276,7 @@ function startApp(win) {
     const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
       + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
       /* the hero's own figure (roster-faces.js draws it), an empty well for a slot with none (UI audit 2026-11-18) */
-      + (r.exists ? '<canvas class="char-face" data-face="' + r.slot + '" width="40" height="45" aria-hidden="true"></canvas>' : '<span class="char-face" aria-hidden="true"></span>')
+      + (r.exists ? '<canvas class="char-face" data-face="' + r.slot + '" width="42" height="45" aria-hidden="true"></canvas>' : '<span class="char-face" aria-hidden="true"></span>')
       + '<span class="char-name"><b>' + (r.exists ? esc(r.name || 'Unnamed hero') : r.unnamed ? 'Unnamed hero' : 'Empty slot') + '</b>'
       + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + (r.doing ? ', ' + esc(lowerFirst(r.doing)) : '') + '</small>' : '') + '</span> '
       + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'

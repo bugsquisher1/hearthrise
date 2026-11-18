@@ -55,7 +55,7 @@ const signedPct = (f) => (f > 0 ? '+' : '') + (Math.round(f * 1000) / 10) + '%';
 /** The Character tab's skeleton. */
 export function sheetHtml() {
   return '<section class="hw-cs-sheet">'
-    + '<header class="hw-cs-who"><canvas class="hw-cs-portrait" width="40" height="45" aria-hidden="true"></canvas>'
+    + '<header class="hw-cs-who"><canvas class="hw-cs-portrait" width="42" height="45" aria-hidden="true"></canvas>'
     + '<div class="hw-cs-id"><b class="hw-cs-name"></b><span class="hw-cs-role"></span>'
     + '<span class="hw-cs-level" title="' + esc(LEVEL_TIP) + '"><b class="hw-cs-lv"></b>'
     + '<span class="hw-skill-bar" role="meter" aria-label="Level progress" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span>'

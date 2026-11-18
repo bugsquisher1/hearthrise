@@ -18,10 +18,10 @@ const SET = 'heroes';
 let ART = null;
 
 /* THE FIGURE: the part of a 64 px hero frame a portrait shows, [x, y, w, h] (lane/b-ui-character 2026-11-18). Every style-1
-   outfit's idle, in every facing, stands inside x 15..51, y 17..58 (anchor 32,58), so a 40 x 45 box centred on the anchor holds
-   the whole hero with room to spare and the empty px round it are never drawn at twice their size. tests/character-window.mjs
-   CW-10 proves no outfit paints outside it. */
-export const FIGURE = Object.freeze([12, 15, 40, 45]);
+   outfit's idle, in every facing, stands inside x 15..53, y 17..58 (anchor 32,58; a sword held out to the east), so this 42 x 45
+   box holds the whole hero, the one facing a portrait shows (s, x 15..51) a px off its middle, and the empty px round it are never
+   drawn at twice their size. tests/character-window.mjs CW-10 proves no outfit paints outside it. */
+export const FIGURE = Object.freeze([13, 15, 42, 45]);
 
 /** The `heroes` art set, loaded once: Promise<{manifest, image}> (rejects when it cannot load). */
 export function outfitArt(doc, version) {

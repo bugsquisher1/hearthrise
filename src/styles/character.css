@@ -13,9 +13,9 @@
 
 /* ── The Character tab ── */
 .hw-cs-who { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 12px; padding-bottom: 8px; border-bottom: 1px solid var(--line-soft); }
-/* THE PORTRAIT (UI audit 2026-11-18 #8: a 32 px hero in a 64 px box): the hero's own figure (outfit-sprite.js FIGURE, 40 x 45 art px)
+/* THE PORTRAIT (UI audit 2026-11-18 #8: a 32 px hero in a 64 px box): the hero's own figure (outfit-sprite.js FIGURE, 42 x 45 art px)
    at 2 whole device px an art px at any display scale (--art-px: 80 x 90 at 100 %, 64 x 72 CSS px = 80 x 90 device px at 125 %). */
-.hw-cs-portrait { flex: none; width: calc(40 * var(--art-px)); height: calc(45 * var(--art-px)); background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-cs-portrait { flex: none; width: calc(42 * var(--art-px)); height: calc(45 * var(--art-px)); background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-cs-id { flex: 1 1 170px; min-width: 0; display: flex; flex-direction: column; gap: 2px; padding-top: 2px; }
 .hw-cs-name { font-family: var(--f-label); font-size: var(--t-lead); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-cs-role, .hw-cs-level { font-size: var(--t-micro); color: var(--ink-2); }
@@ -33,8 +33,8 @@
 .hw-cs-line dt { font-size: var(--t-micro); color: var(--ink-3); }
 .hw-cs-line dd { margin: 0; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; text-align: right; }
 .hw-cs-vitals .hw-cs-line { justify-content: flex-start; flex-wrap: wrap; column-gap: 6px; min-width: 0; }
-/* The skills column a little wider than the numbers column: its bars and unlocks need the room, the stat values are short. */
-.hw-cs-cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0 16px; margin-top: 6px; }
+/* The skills column wider than the numbers column: its bars and unlocks need the room, the stat values are short. */
+.hw-cs-cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 0 16px; margin-top: 6px; }
 .hw-cs-col { min-width: 0; }
 /* A COMBAT SKILL ON THE SHEET, three rows (UI audit 2026-11-18 #8: the bar shared one row with the name, the XP and the Level and
    came out a few px wide): the name with the XP to go and the Level, the bar across the entry, one unlock. */
@@ -78,13 +78,13 @@
 /* THE WARDROBE (UI audit 2026-11-18: 32 px heroes in tall identical cards): one sunk rack, every outfit's figure standing in it at
    2 whole device px an art px (outfit-sprite.js FIGURE, as the sheet's portrait), its name and mark as a caption under it. No box
    per outfit: the picked one is outlined in ink, the one worn says so in gold. */
-.hw-of-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(40 * var(--art-px) + 6px), 1fr)); gap: 2px; margin: 0; padding: 4px; list-style: none; background: var(--bg-1); box-shadow: var(--hw-well); }
+.hw-of-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(42 * var(--art-px) + 6px), 1fr)); gap: 2px; margin: 0; padding: 4px; list-style: none; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-of-card { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px 2px 6px; border: 0; background: none; color: var(--ink); font: inherit; font-size: var(--t-micro); line-height: 1.15; text-align: center; cursor: pointer; }
 .hw-of-card:hover { background: var(--bg-2); }
 .hw-of-card:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
 .hw-of-card[aria-pressed="true"] { background: var(--bg-2); box-shadow: inset 0 0 0 2px var(--ink); }
 .hw-of-card.is-locked canvas { opacity: .5; }
-.hw-of-face { flex: none; width: calc(40 * var(--art-px)); height: calc(45 * var(--art-px)); }
+.hw-of-face { flex: none; width: calc(42 * var(--art-px)); height: calc(45 * var(--art-px)); }
 .hw-of-mark { min-height: 1.15em; color: var(--ink-3); }
 .hw-of-mark:empty { min-height: 0; }
 .hw-of-card.is-worn .hw-of-mark { color: var(--gold-2); }

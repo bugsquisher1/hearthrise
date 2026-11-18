@@ -140,7 +140,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   rows(root.querySelector('.hw-of-grid'), ids, {
     key: (id) => id,
     build: (id) => element(ctx.doc, '<li><button type="button" class="hw-of-card" data-hs-act="of-pick" data-outfit="' + esc(id) + '">'
-      + '<canvas class="hw-of-face" width="40" height="45" aria-hidden="true"></canvas><b>' + esc(OUTFIT_ROWS[id].label) + '</b><small class="hw-of-mark"></small></button></li>'),
+      + '<canvas class="hw-of-face" width="42" height="45" aria-hidden="true"></canvas><b>' + esc(OUTFIT_ROWS[id].label) + '</b><small class="hw-of-mark"></small></button></li>'),
     patch: (li, id) => {
       const b = li.firstChild;
       attr(b, 'aria-pressed', String(id === d.outfit));

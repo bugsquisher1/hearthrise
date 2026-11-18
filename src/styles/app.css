@@ -178,7 +178,7 @@
 .char-pick:hover, .char-pick:focus-visible { background: var(--bg-3); box-shadow: inset 0 0 0 2px var(--gold), inset 6px 0 0 var(--gold); outline: none; }
 /* THE HERO'S FIGURE (roster-faces.js; UI audit 2026-11-18): its own sprite at 2 whole device px an art px (--art-px) in a sunk well;
    a slot with no hero keeps the empty well, so the names stand in one column. */
-.char-face { flex: none; display: block; width: calc(40 * var(--art-px)); height: calc(45 * var(--art-px)); background: var(--bg-0); box-shadow: var(--steel-well); image-rendering: pixelated; }
+.char-face { flex: none; display: block; width: calc(42 * var(--art-px)); height: calc(45 * var(--art-px)); background: var(--bg-0); box-shadow: var(--steel-well); image-rendering: pixelated; }
 .char-name { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .char-name b { font-size: var(--t-lead); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .char-level { font-size: var(--t-micro); font-weight: 400; color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }

@@ -38,8 +38,14 @@
 //         hr_title_wear; each changes only from the re-read; a short purse is off and says how much more; a refusal says the server's numbers;
 //         the sheet's header shows (no title row says party-only: a lone hero walks the King's hall too, 2026-11-08)
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
-//         ledger is the Character window's; an unlock line names each thing and
-//         its kind ("Bronze Axe (woodcutting tool)")
+//         ledger is the Character window's; an unlock line's tooltip names each
+//         thing and its kind ("Bronze Axe (woodcutting tool)")
+//   CW-10 THE SHEET READS AS A CHARACTER SHEET (UI audit 2026-11-18 #8), at 1440x900
+//         and 922x423: the portrait is the 42x45 FIGURE at a whole 2x or more; every
+//         combat skill's bar is 40% of its entry or more and its unlock one line; no
+//         stat value wraps; nothing is cut at 1440x900; the Outfit wardrobe stands
+//         every figure at one whole scale, three or more to a row; and the FIGURE
+//         holds every outfit's idle art in every facing
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -207,7 +213,8 @@ async function checks(overrides, shots) {
         /* CW-6c Inner Flame's line says what it gives now, the Regeneration line's own number (lane/b-first-hour) */
         const flameNext = await page.evaluate(() => { const li = Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).find((x) => /^\s*Inner Flame/.test(x.textContent)); return li ? li.querySelector('.hw-skill-next').textContent : ''; });
         if (!flameNext.startsWith('Recovery +1.9%')) fails.push('CW-6c the Inner Flame line does not say its recovery: ' + JSON.stringify(flameNext));
-        const magic = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).map((li) => li.textContent).find((t) => /^\s*Magic/.test(t)) || '');
+        /* the unlock line names one thing; every one, with its kind, is its tooltip (CW-10) */
+        const magic = await page.evaluate(() => { const li = Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-skill')).find((x) => /^\s*Magic/.test(x.textContent)); return li ? li.querySelector('.hw-skill-next').getAttribute('title') || '' : ''; });
         if (!/\(rune for staves\)/.test(magic) || /\((wand|staff|spellbook)\)/.test(magic)) fails.push('CW-6 the Magic line does not name its runes alone: ' + JSON.stringify(magic));
         const kinds = await page.evaluate(async () => {
           const t = await import('/src/data/hunt-tutorial.js');
@@ -295,7 +302,7 @@ async function checks(overrides, shots) {
         /* CW-6: Gathering and crafting has no combat skill; the unlock names its kind. */
         await openWin(page, 'g', 'skills-trade');
         await page.waitForTimeout(300);
-        const trade = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skill')).map((li) => li.textContent));
+        const trade = await page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="skills-trade"] .hw-skill')).map((li) => li.textContent + '|' + (li.querySelector('.hw-skill-next').getAttribute('title') || '')));
         if (trade.some((t) => /^\s*(Melee|Defense|Inner Flame|Magic|Ranged)/.test(t))) fails.push('CW-6 Gathering and crafting lists a combat skill');
         const wc = trade.find((t) => /^\s*Smithing/.test(t)) || '';
         if (!/Next at level \d+: .*\((woodcutting|mining) tool\)/.test(wc)) fails.push('CW-6 the smithing unlock does not name its kind: ' + JSON.stringify(wc));
@@ -490,6 +497,79 @@ async function checks(overrides, shots) {
         await ctx.close();
       }
     }
+    { // CW-10 THE SHEET READS AS A CHARACTER SHEET (UI audit 2026-11-18 #8), at 1440x900 and on the 922x423 sheet
+      for (const vp of [[1440, 900], [922, 423]]) {
+        const tag = vp.join('x');
+        const { ctx, page, up } = await open({ viewport: { width: vp[0], height: vp[1] } });
+        if (up && await openWin(page, 'c', 'character')) {
+          await waitCombat(page);
+          await wait(page, () => { const c = document.querySelector('[data-hs-win="character"] .hw-cs-portrait'); return !!c && c.hasAttribute('data-sig'); }, null, 5000);
+          const r = await page.evaluate(() => {
+            const win = document.querySelector('[data-hs-win="character"]');
+            const body = win.querySelector('.hs-win-body');
+            const box = (e) => e.getBoundingClientRect();
+            const lh = (e) => parseFloat(getComputedStyle(e).lineHeight) || parseFloat(getComputedStyle(e).fontSize) * 1.25;
+            const pc = win.querySelector('.hw-cs-portrait');
+            /* the portrait: the FIGURE drawn at art size and shown at a WHOLE number of px an art px, 2 or more */
+            const k = box(pc).width / pc.width;
+            const portrait = { w: pc.width, h: pc.height, k, whole: Math.abs(k - Math.round(k)) < 0.01 && Math.abs(box(pc).height / pc.height - k) < 0.01 };
+            /* each combat skill: its bar a real width (40% of the entry or more), its unlock one line */
+            const skills = Array.from(win.querySelectorAll('.hw-cs .hw-skill')).map((li) => {
+              const bar = box(li.querySelector('.hw-skill-bar')), next = li.querySelector('.hw-skill-next');
+              const shown = next.getClientRects().length > 0;
+              return { name: li.querySelector('.hw-skill-name').textContent, bar: Math.round(bar.width), of: Math.round(box(li).width),
+                lines: shown ? Math.round(box(next).height / lh(next)) : 0 };
+            });
+            /* every stat value on one line */
+            const wrapped = Array.from(win.querySelectorAll('.hw-cs-line.is-on dd')).filter((d) => box(d).height > lh(d) * 1.5).map((d) => d.parentElement.querySelector('dt').textContent);
+            return { portrait, skills, wrapped, cut: body.scrollHeight - body.clientHeight };
+          });
+          if (r.portrait.w !== 42 || r.portrait.h !== 45 || !r.portrait.whole || r.portrait.k < 2) fails.push('CW-10 at ' + tag + ' the portrait is ' + JSON.stringify(r.portrait) + ', not the 42x45 figure at a whole 2x or more');
+          for (const s of r.skills) {
+            if (s.bar < s.of * 0.4) fails.push('CW-10 at ' + tag + ' the ' + s.name + ' bar is ' + s.bar + ' px of a ' + s.of + ' px entry');
+            if (s.lines > 1) fails.push('CW-10 at ' + tag + ' the ' + s.name + ' unlock runs ' + s.lines + ' lines');
+          }
+          if (r.skills.length < 4) fails.push('CW-10 at ' + tag + ' CONTROL: ' + r.skills.length + ' combat skills drawn');
+          if (r.wrapped.length) fails.push('CW-10 at ' + tag + ' these values wrap: ' + r.wrapped.join(', '));
+          /* nothing cut at 1440x900: the whole sheet stands in the window (the phone's sheet scrolls by design) */
+          if (vp[0] === 1440 && r.cut > 1) fails.push('CW-10 at ' + tag + ' the sheet is cut: ' + r.cut + ' px under the window');
+          /* THE WARDROBE: every outfit's figure at the portrait's whole scale, three or more to a row */
+          await page.click('[data-hs-win="character"] .hw-tab[data-tab="outfit"]');
+          await wait(page, () => document.querySelectorAll('[data-hs-win="character"] .hw-of-face[data-sig]').length >= 5, null, 5000);
+          const o = await page.evaluate(() => {
+            const faces = Array.from(document.querySelectorAll('[data-hs-win="character"] .hw-of-face'));
+            const ks = faces.map((c) => c.getBoundingClientRect().width / c.width);
+            const tops = new Set(faces.map((c) => Math.round(c.getBoundingClientRect().top)));
+            return { n: faces.length, sizes: [...new Set(faces.map((c) => c.width + 'x' + c.height))], ks: [...new Set(ks.map((k) => Math.round(k * 100) / 100))], perRow: Math.round(faces.length / tops.size) };
+          });
+          if (o.sizes.join() !== '42x45' || o.ks.length !== 1 || o.ks[0] < 2 || Math.abs(o.ks[0] - Math.round(o.ks[0])) > 0.01) fails.push('CW-10 at ' + tag + ' the wardrobe figures are ' + JSON.stringify(o));
+          if (o.perRow < 3) fails.push('CW-10 at ' + tag + ' the wardrobe stands ' + o.perRow + ' to a row');
+        } else fails.push('CW-10 the window did not open at ' + tag);
+        if (shots) await shot(page, 'character-' + tag + '-cw10');
+        await ctx.close();
+      }
+      /* THE FIGURE holds every outfit: no opaque art px of any idle facing lies outside it (a new outfit with a taller plume would be cut) */
+      const { ctx, page, up } = await open();
+      if (up) {
+        const out = await page.evaluate(async () => {
+          const { FIGURE } = await import('/src/render/outfit-sprite.js');
+          const man = await (await fetch('/assets/world/atlas-heroes.json')).json();
+          const img = new Image(); img.src = '/assets/world/atlas-heroes.png'; await img.decode();
+          const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+          const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+          const [fx, fy, fw, fh] = FIGURE, bad = [];
+          for (const [id, s] of Object.entries(man.sprites)) for (const [dir, frames] of Object.entries(s.anims.idle.dirs)) for (const [sx, sy] of frames) {
+            const d = g.getImageData(sx, sy, s.frame[0], s.frame[1]).data;
+            for (let y = 0; y < s.frame[1]; y++) for (let x = 0; x < s.frame[0]; x++) {
+              if (d[(y * s.frame[0] + x) * 4 + 3] && (x < fx || y < fy || x >= fx + fw || y >= fy + fh)) { bad.push(id + ' ' + dir + ' at ' + x + ',' + y); y = s.frame[1]; break; }
+            }
+          }
+          return { n: Object.keys(man.sprites).length, bad: [...new Set(bad)].slice(0, 6) };
+        });
+        if (out.n < 5 || out.bad.length) fails.push('CW-10 the FIGURE cuts an outfit: ' + JSON.stringify(out));
+      } else fails.push('CW-10 the figure check did not mount');
+      await ctx.close();
+    }
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up && await openWin(page, 'c', 'character')) {
@@ -544,6 +624,14 @@ const MUTANTS = [
   ['a bundle outfit shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit.js', "    && (!OUTFIT_ROWS[id].bundle || (!!o && o.owned.has(id))));", "    && true);"],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],
+  ['the portrait is the whole 64 px frame at 1x again (CW-10)', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc), null), sc.opening === 'done');"],
+  ['the portrait shows at 1.5 px an art px (CW-10)', 'src/styles/character.css', '.hw-cs-portrait { flex: none; width: calc(42 * var(--art-px));', '.hw-cs-portrait { flex: none; width: 60px;'],
+  ['the sheet bar shares its row with the name again (CW-10)', 'src/styles/character.css', 'grid-template-areas: "glyph name xp lv" ". bar bar bar" ". next next next"; row-gap: 2px;', 'grid-template-areas: "glyph name bar lv" ". xp xp xp" ". next next next"; row-gap: 2px;'],
+  ['every unlock is on the line again (CW-10)', 'src/shell/windows/skills.js', "text(nx.querySelector('.hw-skill-one'), u.one);", "text(nx.querySelector('.hw-skill-one'), u.all);"],
+  ['the unlock line wraps again (CW-10)', 'src/styles/windows.css', '.hw-skill-next { display: flex; min-width: 0; white-space: nowrap;', '.hw-skill-next { display: block; min-width: 0; white-space: normal;'],
+  ['a value says what it is measured against again (CW-10)', 'src/shell/windows/character/sheet.js', "c && c.dodgePct !== null ? c.dodgePct + '%' : null", "c && c.dodgePct !== null ? c.dodgePct + '% of blows vs a monster of the same Level' : null"],
+  ['the wardrobe shows the whole frame again (CW-10)', 'src/shell/windows/character/index.js', "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, FIGURE)", "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, null)"],
+  ['the FIGURE is cut to the body (CW-10)', 'src/render/outfit-sprite.js', 'export const FIGURE = Object.freeze([13, 15, 42, 45]);', 'export const FIGURE = Object.freeze([16, 19, 32, 40]);'],
 ];
 
 async function main() {

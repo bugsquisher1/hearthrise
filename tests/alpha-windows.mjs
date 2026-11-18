@@ -114,7 +114,9 @@
 //         more (no stop first); the work line reads the server's pointer and survives a
 //         reload; Stop is ONE idle and says what the server made; a bench row's amount
 //         (1 / 5 / All; a tool starts on 1, stock on All) rides the Start as `count` and
-//         the running row says the server's "N left"
+//         the running row says the server's "N left". A row is a genre row (UI audit 2026-11-18):
+//         the inputs as icon chips with counts, one numbers line, "Lv N" by Start; AW-22T the
+//         window's band name stands on one line on the ledger and beside Back
 //   AW-76 A CRAFTING STATION SORTS (Andy, Discord 2026-11-11): a bench skill's Sort menu reads Can make, Level, Name;
 //         Can make is the default and the order the list had before (what the bag makes first, highest level first,
 //         the next locked ones last); Level is low to high, Name A to Z, both over the same rows (the locked ones
@@ -4203,7 +4205,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const rowsOf = () => page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-work.is-on .hw-work-row')).map((li) => {
         const b = li.querySelector('.hw-work-go');
         const n = li.querySelector('.hw-work-n .hh-seg[aria-pressed="true"]');
-        return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent, n: n ? n.textContent : null };
+        /* a genre row (UI audit 2026-11-18): the inputs as icon chips with their counts, one numbers line, the Level by Start, the status */
+        return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent, n: n ? n.textContent : null,
+          stat: li.querySelector('.hw-work-stat').textContent.replace(/ /g, ' '), lv: li.querySelector('.hw-work-lv').textContent, chips: li.querySelectorAll('.hw-work-in img.hh-icon').length };
       }), W);
       const nowText = () => page.evaluate((w) => { const b = document.querySelector(w + ' .hw-work-now'); return b && b.classList.contains('is-on') ? b.querySelector('.hw-burying-q').textContent : ''; }, W);
       const msg = () => page.evaluate((w) => document.querySelector(w + ' .hh-intent-msg').textContent, W);
@@ -4214,11 +4218,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const doors = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-skill[data-hs-act="open-skill"]')).map((li) => li.getAttribute('data-skill')).join(), W);
         if (doors !== 'woodcutting,mining,fishing,cooking,crafting,smithing,runecrafting') fails.push('AW-22 the skills that open their work: ' + doors);
         if (shots) await shot(page, 'work-1440x900-ledger');
+        /* AW-22T (UI audit 2026-11-18) the band's name stands on ONE line, on the ledger and, with Back showing, on a skill's rows */
+        const titleLines = () => page.evaluate((w) => { const h = document.querySelector(w + ' .hs-win-title'); return Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight)); }, W);
+        if ((await titleLines()) !== 1) fails.push('AW-22T the Gathering and crafting band takes ' + (await titleLines()) + ' lines on the ledger');
         await page.click(W + ' .hw-skill[data-skill="woodcutting"]');
         await page.waitForTimeout(300);
         let r = await rowsOf();
+        if ((await titleLines()) !== 1) fails.push('AW-22T the Gathering and crafting band takes ' + (await titleLines()) + ' lines beside Back');
         const tree = r.find((x) => x.id === 'normal_tree'), oak = r.find((x) => x.id === 'oak_tree');
-        if (!tree || tree.off || tree.btn !== 'Start' || !/^Normal Log, about [\d,]+ an hour, \d+ XP every [\d.]+ s$/.test(tree.what) || tree.why !== '40 in bag') fails.push('AW-22 Woodcutting offers ' + JSON.stringify(tree));
+        if (!tree || tree.off || tree.btn !== 'Start' || tree.what !== 'Normal Log' || !/^[\d.]+ s · \d+ XP · about [\d,]+ an hour$/.test(tree.stat) || tree.lv !== 'Lv 1' || tree.why !== '40 in bag') fails.push('AW-22 Woodcutting offers ' + JSON.stringify(tree));
         if (!oak || !oak.off || !/^Requires Woodcutting 15, now \d+$/.test(oak.why)) fails.push('AW-22 a tree above the server level reads ' + JSON.stringify(oak));
         await page.click(W + ' .hw-work-row[data-id="normal_tree"] .hw-work-go');
         await page.waitForTimeout(800);
@@ -4257,7 +4265,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(300);
           r = await rowsOf();
           const bar = r.find((x) => x.id === 'smelt_bronze'), axe = r.find((x) => x.id === 'forge_bronze_axe');
-          if (!bar || bar.off || !/^Makes up to 5, \d+ XP every [\d.]+ s$/.test(bar.why) || bar.what !== '2 Copper Ore → Bronze Bar') fails.push('AW-22 Smithing offers ' + JSON.stringify(bar));
+          if (!bar || bar.off || bar.why !== 'Makes up to 5' || bar.what !== '2 Copper Ore' || bar.chips !== 1 || !/^[\d.]+ s · \d+ XP$/.test(bar.stat) || bar.lv !== 'Lv 1') fails.push('AW-22 Smithing offers ' + JSON.stringify(bar));
           if (!axe || !axe.off || !/^Requires Smithing 3, now \d+$/.test(axe.why)) fails.push('AW-22 a recipe above the server level reads ' + JSON.stringify(axe));
           /* "MAKE N" (lane c-work-fixes): a bar starts on All, a tool on 1; the player picks 5 and Start sends count 5. */
           if (bar && bar.n !== 'All') fails.push('AW-22 a bar row starts on ' + bar.n + ', not All');
@@ -4266,7 +4274,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(200);
           r = await rowsOf();
           const five = r.find((x) => x.id === 'smelt_bronze');
-          if (!five || five.n !== '5' || !/^Makes 5 of up to 5, /.test(five.why)) fails.push('AW-22 picking 5 reads ' + JSON.stringify(five));
+          if (!five || five.n !== '5' || five.why !== 'Makes 5 of up to 5') fails.push('AW-22 picking 5 reads ' + JSON.stringify(five));
           if (shots) await shot(page, 'work-1440x900-smithing');
           /* AW-22X "X" (Andy, Discord 2026-11-12): X opens a number field; 37 + Enter makes the pick 37 and Start sends count 37.
              0 clamps to 1 and 200000 to 100000 (the server's active_left range); Escape closes without a change. */
@@ -4292,7 +4300,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":37}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
           if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. Stops when materials run out$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
-          if (!/^Working on it now, 37 left\. Makes 5 of up to 5, /.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
+          if (!/^Working on it now, 37 left\. Makes 5 of up to 5$/.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
@@ -5154,6 +5162,9 @@ const MUTANTS = [
   ['prep builder: the setup in use is read from the server', 'src/session/preset-read.js', '  if (live && live.preset === preset) return { ok: true, set: live, live: true, name: null };\n', ''],
   ['prep builder: the read asks for another number', 'src/session/preset-read.js', "{ p_slot: cs.slot, p_preset: preset }", "{ p_slot: cs.slot, p_preset: preset + 1 }"],
   ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort)', 'rowsFor(skill, lv, heldOf(cs))'],
+  ['AW-22 an input chip shows no icon', 'src/shell/windows/work.js', "    + itemIconHtml(g, id) + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');", "    + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');"],
+  ['AW-22 a row is a paragraph again', 'src/shell/windows/work.js', "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })", "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) }) + ', ' + stat.textContent"],
+  ['AW-22T the band reads Gathering and crafting again', 'src/data/shell-windows.js', "label: 'Gathering and crafting', title: 'Skills',", "label: 'Gathering and crafting',"],
   ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
   ['item truth: the shop\'s raw flag files a tool as a material', 'src/shell/bag-model.js', "if (it.type === 'tool') return 'other';", ''],

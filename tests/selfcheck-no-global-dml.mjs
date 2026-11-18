@@ -304,6 +304,13 @@ function tracedNames(rawBlock, lexed) {
     const semi = lexed.indexOf(';', from);
     push(m[1], from, semi < 0 ? rawBlock.length : semi);
   }
+  // A DECLARE initializer (`c_snap constant text := $q$…$q$;`): the word before `:=` is the TYPE, so the
+  // loop above keys it as `text`. The declared name is the line's first word.
+  for (const m of lexed.matchAll(/^[ \t]*([a-z_][a-z0-9_]*)[ \t]+(?:constant[ \t]+)?[a-z_][a-z0-9_.]*(?:[ \t]*\([^)\n]*\))?(?:\[\])?[ \t]*(?::=|\bdefault\b)/gim)) {
+    const from = m.index + m[0].length;
+    const semi = lexed.indexOf(';', from);
+    push(m[1], from, semi < 0 ? rawBlock.length : semi);
+  }
   // `select pg_get_functiondef(…) into v_src;` is the same assignment written
   // the other way round, and it is how most of this chain reads a body.
   for (const m of lexed.matchAll(/\binto\s+(?:strict\s+)?([a-z_][a-z0-9_]*)/gi)) {
@@ -1145,6 +1152,7 @@ export function verdicts(findings, srcs, acks = ACKNOWLEDGED) {
 // assertion that must catch it; the two controls must stay silent.
 const TARGET = '2026-09-19-lifetime-facts-off-the-ledger.sql';
 const IN_BLOCK = `    v_bf := public.hr_backfill_lifetime_facts(v_uid);`;
+const IN_DECLARE = `  v_bf      jsonb;`;   // the same block's DECLARE section
 // family E plants go into the §4 block of the file whose first apply production refused.
 const CRON_TARGET = '2027-01-16-cron-health-fast.sql';
 const CRON_IN_BLOCK = `    perform public.hr_cron_health_ex(interval '25 hours', 1.0);`;
@@ -1354,6 +1362,14 @@ ${IN_BLOCK}`),
       `    execute $q$ delete from public.player_ledger where at < now() $q$;\n${IN_BLOCK}`),
   },
   {
+    name: 'A execute_declared_constant',
+    what: 'family A — the same delete held in a DECLARE constant (`c_x constant text := $q$…$q$`) and handed to EXECUTE by name',
+    by: 'open', match: /delete player_ledger/,
+    patch: (s) => s.replace(IN_DECLARE,
+      `${IN_DECLARE}\n  c_bad     constant text := $q$ delete from public.player_ledger where at < now() $q$;`)
+      .replace(IN_BLOCK, `    execute c_bad;\n${IN_BLOCK}`),
+  },
+  {
     name: 'B fake_bind_is_not_null',
     what: 'family B — `where id is not null and at < v_cut`: a blanket prune that used to read as owner-scoped',
     by: 'open', match: /delete player_ledger/,
@@ -1440,6 +1456,14 @@ ${IN_BLOCK}`),
     what: 'a further call that PASSES the owner scope — a scoped call is not a global one, and must not be counted as a third site',
     control: true,
     patch: (s) => s.replace(IN_BLOCK, `    v_bf := public.hr_backfill_lifetime_facts(v_uid);\n${IN_BLOCK}`),
+  },
+  {
+    name: 'CONTROL execute_declared_read',
+    what: 'a DECLARE constant that only READS the probe (setup-swap §6\'s c_snap) — a readable select is not unreadable code',
+    control: true,
+    patch: (s) => s.replace(IN_DECLARE,
+      `${IN_DECLARE}\n  c_read    constant text := $q$ select count(*) from public.player_ledger l where l.user_id = $1 $q$;`)
+      .replace(IN_BLOCK, `    execute c_read into v_bf using v_uid;\n${IN_BLOCK}`),
   },
   {
     name: 'CONTROL format_keeps_the_bind',

@@ -68,9 +68,10 @@
 -- ── EXPLOIT SURFACE DELTA ────────────────────────────────────────────────────
 -- No new client verb, grant or write path; two verbs refuse MORE. No client value is read: the Level is player_state.level_xp, the wins are the
 --   settle's counter, the names hr_character_name. The section shows a party seat's name and Level or win count to the other seats, which the
---   party already shows. FOR THE EA REVIEW: the win counter is bounded by hr_apply's per-op clamp (1e6) and the window's kill count, not by a
---   per-monster kill bound, so a compromised ENGINE could write wins it did not earn; the same counter already gates titles, faction joins and
---   the Bestiary's trophies, so this file adds no new trust in it.
+--   party already shows. FOR THE EA REVIEW: the win counter is bounded only by hr_apply's progress clamps (1e6 an op, 64 ops a window), not by
+--   the window's own kills of that monster, so a compromised ENGINE could write wins it did not earn; the same counter already gates titles,
+--   faction joins and the Bestiary's trophies, so this file adds no new trust in it (a per-monster bound is the settle's, a separate lane).
+--   The pins below are production's measured images (tests/live-hash-drift.baseline.json: hr_tower_start 3f48c0a2, hr_boss_call_quote 3228bc77).
 --
 -- ── COST (rows and bytes at 100x players) ────────────────────────────────────
 -- No table, no row (one hr_state_sections row). Per settle of any hero, the section: one hr_tower_rules primary-key read, the hero's Level, one

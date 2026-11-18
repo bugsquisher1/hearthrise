@@ -427,7 +427,7 @@ const MUTANTS = [
   ['a window opened by key leaves the menu open', 'src/shell/launcher-menu.js', '  if (m && m.seen !== openKey(ctx.wm)) { MENU.delete(ctx.wm); return null; }', ''],
   ['Esc over the menu opens Settings too', 'src/shell/launcher-menu.js', '    e.preventDefault(); e.stopPropagation();\n    shut(true);', '    shut(true);'],
   ['a press elsewhere leaves the menu open', 'src/shell/launcher-menu.js', "  doc.addEventListener('pointerdown', (e) => { if (!(e.target.closest && e.target.closest('.hs-launch-group.is-menu'))) shut(false); }, true);", ''],
-  ['the icons' name chips hide under the coach card (TB-8, QA audit 2026-11-18 N5)', 'src/styles/shell.css', 'top: calc(100% + 6px); right: 0; z-index: 11;', 'top: calc(100% + 6px); right: 0;'],
+  ['the name chips hide under the coach card (TB-8, QA audit 2026-11-18 N5)', 'src/styles/shell.css', 'top: calc(100% + 6px); right: 0; z-index: 11;', 'top: calc(100% + 6px); right: 0;'],
   ['the arrows do not walk the menu', 'src/shell/launcher-menu.js', '      items[to].focus();', '      void to;'],
   ['the row leaves the group\'s ring to the coach, so every paint rebuilds it', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ ''"],
   ['the group keeps its ring while its menu is open', 'src/shell/launcher.js', "+ (inside && !shown ? ' data-coach-ring=\"\"' : '')", "+ (inside ? ' data-coach-ring=\"\"' : '')"],

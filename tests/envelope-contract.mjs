@@ -229,6 +229,20 @@ function contract(R, cs, body, tl) {
     && tw.chest.perCall > 0 && tw.chest.weekEnds !== null && tw.chest.families.length >= 1
     && tw.chest.families.every((x) => x.openedWeek === 0 && x.maxWeek > 0 && x.held === 0 && x.maxHeld >= x.maxWeek && !!x.name),
     'towerOf yields ' + JSON.stringify(tw && { party: tw.party, field: tw.field }) + ' ' + JSON.stringify(tw).slice(0, 300) + ' from ' + JSON.stringify(body.tower).slice(0, 300));
+  // the Unmarked Catacombs (2027-05-08-catacombs.sql hr_catacomb_section, the switch on inside this test): a hero who never descended, both
+  // wings the server lists with room 1 their one start and no last start, the door's Level met (this Level 25 hero), the mode's own pay, no
+  // run, no last, no board place; its chest lists the Catacomb keys with their armor (a ready key every slot and weight, a key not ready none)
+  const cat = R.CAT.catacombOf(cs);
+  need('catacomb', !!cat && cat.wings.map((w) => w.wing).sort().join() === 'bone,flooded'
+    && cat.wings.every((w) => w.best === 0 && w.record === 0 && w.checkpoints.join() === '0' && w.lastStart === null && /^unmarked_/.test(w.hunt))
+    && cat.lastWing === null && cat.rules.doorEvery > 0 && cat.rules.doorLimitMs >= cat.rules.roomLimitMs && !!cat.gate && cat.gate.ok === true && cat.gate.need > 0
+    && !!cat.pays && cat.pays.deathLossPm === 0 && cat.pays.coin === false && cat.run === null && cat.last === null
+    && cat.party.length === others.length && cat.field.solo === null && cat.field.party === null && !!cat.chest
+    && cat.chest.families.some((f) => f.family === 'catacomb') && cat.chest.families.some((f) => f.family === 'tower')
+    && cat.chest.keys.filter((k) => k.gear === 'armor').length === 8
+    && cat.chest.keys.filter((k) => k.gear === 'armor').every((k) => cat.wings.some((w) => w.hunt === k.ground) && k.helmetPm !== null
+      && (k.ready ? k.armor.length === 6 : k.armor.length === 0)),
+    'catacombOf yields ' + JSON.stringify(cat && { wings: cat.wings, gate: cat.gate, field: cat.field }) + ' from ' + JSON.stringify(body.catacomb).slice(0, 400));
   // when the hunt ends (2027-04-25-hunt-itinerary.sql): a hunter that never picked reads the default, the grace, and its running hunt's own frozen choice
   const ha = R.HA.huntAfterOf(cs);
   need('hunt_after', !!ha && ha.choice === 'job' && ha.skill === null && Number.isInteger(ha.graceS) && ha.graceS > 0
@@ -366,7 +380,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -426,7 +440,7 @@ async function readers(root) {
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')), TD: await import(u('src/data/temper.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),
-    TWR: await import(u('src/session/tower-sections.js')),
+    TWR: await import(u('src/session/tower-sections.js')), CAT: await import(u('src/session/catacomb-sections.js')),
     HA: await import(u('src/session/hunt-after-sections.js')),
     SH: await import(u('src/session/scaled-hunts.js')),
     BQ: await import(u('src/session/boss-quote.js')), BHL: await import(u('src/data/boss-halls.js')),
@@ -470,6 +484,8 @@ async function realBody(db, M, H) {
   /* THE BURNING TOWER (2027-04-28-tower-section.sql) and THE KEY RING (2027-04-27-tower-chest.sql), whose section rides the Tower's switch:
      on for everyone, inside this test's transaction only. */
   await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'burning_tower'");
+  /* THE UNMARKED CATACOMBS (2027-05-08-catacombs.sql): the descent's switch, on for everyone inside this test's transaction only */
+  await db.query("update public.hr_feature_switches set scope = 'everyone', updated_at = now() where switch_id = 'unmarked_catacombs'");
   const exec = H.makeExec(db);
   const at = h.from + 6 * 60000 + 60000;
   const v = await M.HS.settleHunt({ exec, user: H.UIDS[0], slot: 0, mode: 'settle', bucket: null, project: true,
@@ -592,6 +608,9 @@ const DB_MUTANTS = [
   ['tower', 'public.hr_tower_section(uuid,integer)', "'checkpoints', to_jsonb(public.hr_mode_checkpoints(m.mode_id, v_rec)),", "'start_floors', to_jsonb(public.hr_mode_checkpoints(m.mode_id, v_rec)),"],
   ['tower', 'public.hr_tower_section(uuid,integer)', "'floor_limit_ms', r.floor_limit_ms,", "'floor_ms', r.floor_limit_ms,"],
   ['tower', 'public.hr_chest_section(uuid,integer)', "'chance_ppm', public.hr_chest_chance_ppm(", "'chance', public.hr_chest_chance_ppm("],
+  /* lane/b-catacombs-client: the Catacombs tab lists each wing's own vault doors and steps the doors by the server's rule */
+  ['catacomb', 'public.hr_catacomb_section(uuid,integer)', "'checkpoints', to_jsonb(public.hr_mode_checkpoints(m.mode_id, public.hr_run_record(p_user, p_slot, r.hunt_id))),", "'doors', to_jsonb(public.hr_mode_checkpoints(m.mode_id, public.hr_run_record(p_user, p_slot, r.hunt_id))),"],
+  ['catacomb', 'public.hr_catacomb_section(uuid,integer)', "'door_every', w0.landing_every,", "'landing_every', w0.landing_every,"],
   /* lane/c-hunt-itinerary: the hunt page's control and the analyzer's line read the grace and the running hunt's own choice */
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'grace_s', v_grace,", "'grace', v_grace,"],
   ['hunt_after', 'public.hr_hunt_after_section(uuid,integer)', "'job', public.hr_hunt_after_job(p_user, p_slot), 'now', v_now,", "'job', public.hr_hunt_after_job(p_user, p_slot), 'running', v_now,"],

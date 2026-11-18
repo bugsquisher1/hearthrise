@@ -29,7 +29,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=0.2.139';
 import { OPEN_CLASSES } from '../data/world/terrain.js?v=0.2.139';
-import { WORLD_MAPS, SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.139';
+import { SCENE_MAPS } from '../data/world/maps/index.js?v=0.2.139';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
 import { MONSTERS } from '../data/monsters.js?v=0.2.139';
 import { compileMap } from './core/map-compile.js?v=0.2.139';
@@ -44,7 +44,7 @@ import { createViewSheets } from './view-sheets.js?v=0.2.139';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.139';
 import { folkExtras } from './town-folk.js?v=0.2.139';
 import { createCanvasBackend } from './render/canvas-backend.js?v=0.2.139';
-import { huntOfMap } from './hunt-maps.js?v=0.2.139';
+import { huntOfMap, DRAWN_MAPS } from './hunt-maps.js?v=0.2.139';
 import { OPEN_HUNT, unmappedBanner, bannerFoot } from './idle-banner.js?v=0.2.139';
 import { createHuntScene } from './hunt-scene.js?v=0.2.139';
 import { liveSceneOf, endLiveScene } from '../hunt-view/scene.js?v=0.2.139';
@@ -84,8 +84,9 @@ const WALK_KEYS = Object.freeze({
 const LONG_PRESS_MS = 500;
 const onWorld = (e) => !!(e && e.target && e.target.classList && e.target.classList.contains('world-canvas'));
 
-const ROWS = new Map(WORLD_MAPS.map((m) => [m.id, m]));
-const ROW_OF = Object.fromEntries(WORLD_MAPS.map((m) => [m.id, m]));
+/* every map the World draws: the shipped ones and the run maps (hunt-maps.js RUN_MAPS: the Catacombs' wings) */
+const ROWS = new Map(DRAWN_MAPS.map((m) => [m.id, m]));
+const ROW_OF = Object.fromEntries(DRAWN_MAPS.map((m) => [m.id, m]));
 
 /** The fight as the view holds it, for a fight with no live `hunt` section (no swing beats arrive). */
 function bareSnapshot(G) {

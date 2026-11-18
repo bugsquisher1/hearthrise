@@ -4315,6 +4315,84 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # ── in-page-39 ── THE FACTION AND TOWER WINDOWS, SPLIT OUT OF in-page-25 2026-11-17 (lane/fix135-ci-budget).
+  # release/v0.2.135 (run 44118906758) CANCELLED in-page-25 at its 47 inside tower-window --mutate, 0 escaped:
+  # in-page-25 was already 35.5 min without it (run 44098000549: setup 0.6 + Roll of Honor 2.4 + Faction 7.7 +
+  # Monster facts 2.9 + Wiki 2.9 + Character 19.0, every --mutate run), and the Tower's 53 mutants re-ran every
+  # page arm at ~107 s each (~95 min). Each Tower mutant now runs only its own arm and stops at its first red
+  # (tests/tower-window.mjs THE ARMS). in-page-25 keeps ~27.8 min (59% of 47). MEASURED: setup 0.6 + Faction 7.7
+  # (44098000549) + Tower 9.8 (art check 0.1 + plain 1.8 + --mutate 7.9: clean control 1.8, 53 mutants 6.1, on
+  # Tyler's PC, whose plain run, 108 s, matches the runner's on 44118906758) = 18.1 min; x2 = 36.
+  # 2026-11-18 (lane/ci-speed): timeout 36 -> 40: the full sweep measured 19.3 min, x2, with 20 min for the install's own deadlines.
+  # 2026-11-18 (lane/b-catacombs-client): + the Catacombs tab, plain 0.8 + --mutate 2.2 (21 mutants, each its own arm) measured on
+  # Tyler's PC under load = 22.3 min; x2 = 45.
+  in-page-39:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright + Chromium
+        uses: ./.github/actions/playwright-chromium
+
+      # THE FACTIONS ON SCREEN (lane/b-faction-ui, Tyler 2026-11-14): hidden with the `factions` switch off; the join prompt asks
+      # once with both sides drawn the same and "Not now" kept; ONE join naming a side, the side shown from the re-read; claims and
+      # swaps off until the server's numbers allow; a sheet on the phone. --mutate plants eleven.
+      - name: Faction window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/faction-window.mjs
+          node tools/mutant-gate.mjs node tests/faction-window.mjs --mutate
+
+      # THE BURNING TOWER ON SCREEN (lane/b-tower-window, Tyler 2026-11-14): hidden with the `burning_tower` switch off; the server's
+      # start floors the only picks and one Enter one floor; forged and stale floors never sent; the chest's odds the server's and Use
+      # sends the saved stokes (never a number); off with why; a sheet on the phone; the climb's bar and end card. Direction A "The
+      # Chimney" (2026-11-16): the tower drawn from the server's floors (landings in their keys' metal, the dark above the best, you and
+      # your party on it), a landing tapped picks only a listed start, the chest beside the fire and the reveal where it sits, the end
+      # card's run. The window's art: tools/world-art/tower-window-art.mjs (--check: fresh, placed where the town map puts chest and fire).
+      # The board (2027-04-30-tower-board.sql): the Climb tab's rank (#N, or #1,000+ past the board's depth) and rivals, and the end card's
+      # Rank (+ heroes passed) and Passed on a record climb only. --mutate: each mutant runs only the arm its name starts with.
+      - name: Tower window (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/world-art/tower-window-art.mjs --check
+          node tests/tower-window.mjs
+          node tools/mutant-gate.mjs node tests/tower-window.mjs --mutate
+
+      # THE UNMARKED CATACOMBS ON SCREEN (lane/b-catacombs-client, 2026-11-18): the Tower window's Catacombs tab only with the
+      # `catacomb` section; the server's wings, vault doors and checkpoints the only picks and one Enter one hr_catacomb_start (wing and
+      # door); off with why (the door's Level, a stale list, a hunt); the chest's key families and armor keys ("Armor coming soon");
+      # a fall costs nothing (no death popup, "carried up"), the hunt bar's room; the wings drawn on the Catacombs' own map
+      # (src/world/hunt-maps.js RUN_MAPS); a sheet on the phone. --mutate: each mutant runs only the arm its name starts with.
+      - name: Catacombs tab (play.html)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catacombs-window.mjs
+          node tools/mutant-gate.mjs node tests/catacombs-window.mjs --mutate
+
+      # A failing run is far easier to diagnose with the page state attached.
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-failure-in-page-39
+          path: |
+            tests/**/*.png
+            tests/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
   # ── db-replay-6 / db-replay-7 ── MUTATION PROOFS NOTHING RAN (2026-10-07,
   # lane b564-hollow-mutants). Thirteen guards' plain bodies run in the in-page
   # job (tests/run-smoke.mjs), but their --mutate/--selftest proofs were wired
@@ -5791,71 +5869,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-failure-in-page-21
-          path: |
-            tests/**/*.png
-            tests/**/*.log
-          if-no-files-found: ignore
-          retention-days: 7
-
-  # ── in-page-39 ── THE FACTION AND TOWER WINDOWS, SPLIT OUT OF in-page-25 2026-11-17 (lane/fix135-ci-budget).
-  # release/v0.2.135 (run 44118906758) CANCELLED in-page-25 at its 47 inside tower-window --mutate, 0 escaped:
-  # in-page-25 was already 35.5 min without it (run 44098000549: setup 0.6 + Roll of Honor 2.4 + Faction 7.7 +
-  # Monster facts 2.9 + Wiki 2.9 + Character 19.0, every --mutate run), and the Tower's 53 mutants re-ran every
-  # page arm at ~107 s each (~95 min). Each Tower mutant now runs only its own arm and stops at its first red
-  # (tests/tower-window.mjs THE ARMS). in-page-25 keeps ~27.8 min (59% of 47). MEASURED: setup 0.6 + Faction 7.7
-  # (44098000549) + Tower 9.8 (art check 0.1 + plain 1.8 + --mutate 7.9: clean control 1.8, 53 mutants 6.1, on
-  # Tyler's PC, whose plain run, 108 s, matches the runner's on 44118906758) = 18.1 min; x2 = 36.
-  # 2026-11-18 (lane/ci-speed): timeout 36 -> 40: the full sweep measured 19.3 min, x2, with 20 min for the install's own deadlines.
-  in-page-39:
-    runs-on: ubuntu-latest
-    needs: release-proven
-    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
-    timeout-minutes: 40
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # Do NOT leave the token in .git/config where every later step —
-          # including npm lifecycle scripts — can read it and `git push`.
-          persist-credentials: false
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install Playwright + Chromium
-        uses: ./.github/actions/playwright-chromium
-
-      # THE FACTIONS ON SCREEN (lane/b-faction-ui, Tyler 2026-11-14): hidden with the `factions` switch off; the join prompt asks
-      # once with both sides drawn the same and "Not now" kept; ONE join naming a side, the side shown from the re-read; claims and
-      # swaps off until the server's numbers allow; a sheet on the phone. --mutate plants eleven.
-      - name: Faction window (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tests/faction-window.mjs
-          node tools/mutant-gate.mjs node tests/faction-window.mjs --mutate
-
-      # THE BURNING TOWER ON SCREEN (lane/b-tower-window, Tyler 2026-11-14): hidden with the `burning_tower` switch off; the server's
-      # start floors the only picks and one Enter one floor; forged and stale floors never sent; the chest's odds the server's and Use
-      # sends the saved stokes (never a number); off with why; a sheet on the phone; the climb's bar and end card. Direction A "The
-      # Chimney" (2026-11-16): the tower drawn from the server's floors (landings in their keys' metal, the dark above the best, you and
-      # your party on it), a landing tapped picks only a listed start, the chest beside the fire and the reveal where it sits, the end
-      # card's run. The window's art: tools/world-art/tower-window-art.mjs (--check: fresh, placed where the town map puts chest and fire).
-      # The board (2027-04-30-tower-board.sql): the Climb tab's rank (#N, or #1,000+ past the board's depth) and rivals, and the end card's
-      # Rank (+ heroes passed) and Passed on a record climb only. --mutate: each mutant runs only the arm its name starts with.
-      - name: Tower window (play.html)
-        if: ${{ !cancelled() }}
-        run: |
-          node tools/world-art/tower-window-art.mjs --check
-          node tests/tower-window.mjs
-          node tools/mutant-gate.mjs node tests/tower-window.mjs --mutate
-
-      # A failing run is far easier to diagnose with the page state attached.
-      - name: Upload failure artifacts
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: smoke-failure-in-page-39
           path: |
             tests/**/*.png
             tests/**/*.log

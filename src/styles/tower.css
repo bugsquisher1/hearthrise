@@ -202,13 +202,76 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tc-meta p { display: flex; gap: 6px; margin: 0; }
 .tc-meta .tc-hand { display: none; }
 /* A PRESS'S ANSWER in the keys' and stokes' place: the loot, the week, the keys of that kind left and the warmth */
-.is-result .tc-keys, .is-result .tc-none, .is-result .tc-stoke-box, .is-result .tc-cinders, .is-result .tc-resets { display: none; }
+.is-result .tc-keys, .is-result .tc-famp, .is-result .tc-none, .is-result .tc-stoke-box, .is-result .tc-cinders, .is-result .tc-resets { display: none; }
 .is-result .tc-meta .tc-hand { display: flex; margin-left: auto; }
 .is-result .tc-meta { justify-content: flex-start; }
 .tc-resets { margin: 0 0 4px; }
 .tc-uses { display: flex; gap: 8px; }
 .tc-use { flex: 1; min-height: 40px; }
 .tc-use-all { flex: none; min-height: 40px; padding: 0 16px; }
+
+/* ── THE CATACOMBS (src/shell/windows/tower-catacombs.js): the wings across the top, the vault doors down the left (a descent reads top to
+   bottom), the column beside them. No card around anything: the wings and the doors are sunk wells like the chest's keys, the picked gold. ── */
+.tk-wings { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px; margin: 0 0 10px; }
+.tk-wing { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 10px 0 4px; border: 0; background: var(--bg-0);
+  box-shadow: var(--steel-well); color: var(--ink); text-align: left; cursor: pointer; }
+.tk-wing-ico { width: var(--icon-1); height: var(--icon-1); flex: none; image-rendering: pixelated; }
+.tk-wing-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tk-wing-name { font: 700 var(--t-small)/1.15 var(--f-ui); color: var(--ink); }
+.tk-wing-best { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.tk-wing[aria-checked="true"] { outline: 2px solid var(--gold); outline-offset: -2px; box-shadow: inset 4px 0 0 var(--gold); background: var(--fill-3); }
+.tk-wing[aria-checked="true"] .tk-wing-name, .tk-wing:hover:not(:disabled) .tk-wing-name { color: var(--gold-2); }
+.tk-wing:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tk-wing:disabled { cursor: default; }
+.tk-body { display: grid; grid-template-columns: 250px minmax(0, 1fr); column-gap: 18px; align-items: start; }
+.tk-doors { display: flex; flex-direction: column; gap: 4px; max-height: 460px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: var(--steel-rule) var(--steel-sep); }
+.tk-door { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 8px 0 0; border: 0; background: var(--bg-0); box-shadow: var(--steel-well);
+  color: var(--ink); text-align: left; cursor: pointer; }
+.tk-door-well { display: grid; place-items: center; flex: none; width: calc(var(--icon-1) + 8px); height: calc(var(--icon-1) + 8px); }
+.tk-door-ico { width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; }
+.tk-door-words { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; padding: 3px 0; font-size: var(--t-micro); }
+/* the room and its tag on one line, the key it gives the whole width under them */
+.tk-door-l1 { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.tk-door-room { color: var(--ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.tk-door-key { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-door-tag { flex: none; padding: 2px 5px 3px; }
+.tk-rank { white-space: nowrap; }
+.tk-door.is-pick { outline: 2px solid var(--gold); outline-offset: -2px; box-shadow: inset 4px 0 0 var(--gold); background: var(--fill-3); }
+.tk-door.is-pick .tk-door-room { color: var(--gold-2); }
+.tk-door:hover:not(:disabled) .tk-door-room { color: var(--gold-2); }
+.tk-door:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tk-door:disabled { cursor: default; }
+.tk-door.is-dark { opacity: .5; }
+.tk-pane .tt-best { flex-wrap: wrap; row-gap: 4px; }
+.tk-rank + .tk-rank { margin-left: 4px; }
+/* the chest's key families, one press each (tower-chest.js patchFamilyPicks), the stokes' look */
+.tc-famp { display: flex; flex-wrap: wrap; gap: 0; margin: 0 0 6px; }
+.tc-fam-pick { min-height: 36px; }
+/* THE KEYS: one line a family (opens left, keys held), then a press a Catacomb key held */
+.tk-fam { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 14px; row-gap: 2px; padding: 3px 0; border-bottom: 1px solid var(--steel-sep);
+  font-size: var(--t-small); }
+.tk-fam-name { flex: 1 0 100%; font-size: var(--t-micro); color: var(--ink-2); }
+.tk-fam-week, .tk-fam-held { display: inline-flex; gap: 6px; }
+.tk-keys { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+.tk-key { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 10px 0 4px; border: 0; background: var(--bg-0); box-shadow: var(--steel-well);
+  color: var(--ink); text-align: left; cursor: pointer; }
+.tk-key-ico { width: var(--icon-1); height: var(--icon-1); flex: none; image-rendering: pixelated; }
+.tk-key-words { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; font-size: var(--t-micro); }
+.tk-key-sub { color: var(--ink-2); }
+.tk-key-sub:empty { display: none; }
+.tk-key-open { flex: none; font: 700 var(--t-micro)/1 var(--f-ui); color: var(--gold-2); }
+.tk-key:hover .tk-key-name { color: var(--gold-2); }
+.tk-key:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.tk-pane .tt-line { margin-top: 6px; }
+.tk-gate:empty { display: none; }
+/* Before entering, in the foot over the Start Room (read whole beside Enter), none while a descent runs; Enter the width of the column
+   (the Climb's own look, its own class: one window, two doors) */
+.tk-before-box { margin: 0 0 8px; }
+/* the foot is the column's scroll edge: a rule over it, so a box sliding under it reads as scrolled, not cut */
+.tk-foot { border-top: 2px solid var(--steel-sep); padding-top: 8px; }
+.tk-before-box:has(.tk-before:empty) { display: none; }
+.tk-go { display: block; width: 100%; min-height: 40px; }
 
 /* ── THE PHONE (922 x 423 and smaller): one sheet; the tower (its narrower stack, the floors' numbers and tags) beside its column, the
    rules under the fold; the scene's ledge view, the chest and the fire both in it ── */
@@ -226,7 +289,7 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
   .tt-climb-stage .tt-lbl { padding-left: calc(var(--tr-lw) + 4px); }
   .tt-mk-who b { max-width: 40px; }
   .tt-side { gap: 8px; }
-  .tt-rules-box { display: none; }
+  .tt-rules-box, .tk-rules-box { display: none; }
   .tt-next .tt-hd { display: none; }
   .tt-next-row { flex-direction: column; align-items: flex-start; gap: 4px; }
   .tt-pips { gap: 2px; margin-top: 6px; }
@@ -241,6 +304,15 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
   .tc-loot { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tc-stoke { min-width: 44px; padding: 4px 6px; }
   .tc-stoke-row { flex-wrap: wrap; }
+  /* the Catacombs: the two wings side by side, the doors beside a narrower column, the rules under the fold as the Tower's */
+  .tk-wings { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 6px; }
+  .tk-wing { min-height: 44px; }
+  .tk-body { grid-template-columns: 200px minmax(0, 1fr); column-gap: 8px; }
+  .tk-doors { max-height: 230px; }
+  .tk-door { min-height: 40px; }
+  /* the deepest room over its two places, one a line */
+  .tk-pane .tt-best { flex-direction: column; align-items: flex-start; gap: 2px; }
+  .tk-rank + .tk-rank { margin-left: 0; }
 }
 
 /* ── A CLIMB'S END CARD (the hunt summary, src/shell/tower-end-card.js): the run up the stack, the rows and the keys under it ── */

@@ -26,7 +26,7 @@ import { huntName } from '../session/party-sections.js?v=0.2.139';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.139';
 import { MONSTERS } from '../data/monsters.js?v=0.2.139';
-import { TOWER_RULES } from '../data/tower.js?v=0.2.139';
+import { runRulesOf } from '../data/tower.js?v=0.2.139';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.139';
 import { whole } from '../render/format.js?v=0.2.139';
 import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.139';
@@ -65,8 +65,9 @@ export function deathSeen(cs, session) {
 export function deathPopupOf(cs) {
   const h = huntOf(cs);
   if (!h || !h.ended || h.endReason !== 'died' || deathSeen(cs, h.sessionId)) return null;
-  /* THE BURNING TOWER: nobody dies there, the Hearth spits you out and it costs nothing (the board's §1). The climb's end card says so. */
-  if (h.huntId === TOWER_RULES.hunt) return null;
+  /* A RUN GROUND (src/data/tower.js RUN_GROUNDS): nobody dies there and it costs nothing. The Burning Tower's Hearth spits you out (the
+     board's §1), and in the Unmarked Catacombs Keeper Dunn carries you up (2027-05-08-catacombs.sql). The run's end card says so. */
+  if (runRulesOf(h.huntId)) return null;
   const log = deathLogOf(cs);
   const row = log && log[0];
   /* The newest row must be THIS hunt's death (a row with no session is an older server's: the newest). */

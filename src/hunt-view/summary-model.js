@@ -87,7 +87,8 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
   if (forfeit !== true && hunt && Object.hasOwn(short, reason) && (roomOfHunt(hunt) || {}).kind === 'call') return short[reason];
   /* A MODE THAT TAKES NOTHING FOR A DEATH (session-modes.js deathLossPm 0: the Burning Tower spits you out) never reads "Died" (audit 2026-11-18
      A5: the hunt history listed a climb as Died, though the Tower says it can't kill you) */
-  if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return t('summary.end_spat');
+  /* ...and in the Unmarked Catacombs Keeper Dunn carries the hero up (session-modes.js `catacomb`) */
+  if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return sessionModeOfHunt(hunt).id === 'catacomb' ? t('catacomb.end_carried') : t('summary.end_spat');
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || t('summary.end_plain');
 }
 

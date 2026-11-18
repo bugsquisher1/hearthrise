@@ -26,14 +26,14 @@ import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.139';
 import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.139';
 import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.139';
 import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.139';
-import { TOWER_RULES } from '../../data/tower.js?v=0.2.139';
+import { runRulesOf } from '../../data/tower.js?v=0.2.139';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);
 const heroOf = (ctx, a) => ctx.peers().find((p) => p.slot === a.slot) || null;
 /* A hunt the server can start again with its own settings: never a boss room (its one door is a paid press), a training session (its
-   Start is the Training window's) or a climb (the Tower window's). */
-const restartable = (hunt) => !!hunt && !roomOfHunt(hunt) && !trainedBy(hunt) && hunt !== TOWER_RULES.hunt;
+   Start is the Training window's) or a run (a climb or a descent: the Tower window's). */
+const restartable = (hunt) => !!hunt && !roomOfHunt(hunt) && !trainedBy(hunt) && !runRulesOf(hunt);
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
 /* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, the end card's
    own reading (../result-block.js goldFig); none when the line has no store spend to set against the coins (../away-recap.js says no gold then). */

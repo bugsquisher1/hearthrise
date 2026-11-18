@@ -1,6 +1,6 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/tower-intents.js — THE BURNING TOWER'S THREE PRESSES (supabase/migrations/2027-04-24-tower-climb.sql hr_tower_start,
-// 2027-04-27-tower-chest.sql hr_chest_open and hr_chest_stoke_default).
+// src/session/tower-intents.js — THE BURNING TOWER'S AND THE CATACOMBS' PRESSES (supabase/migrations/2027-04-24-tower-climb.sql hr_tower_start,
+// 2027-05-08-catacombs.sql hr_catacomb_start, 2027-04-27-tower-chest.sql hr_chest_open and hr_chest_stoke_default).
 //
 // Each is ONE intent naming only this character's slot, a checkpoint or a catalogue id (a chest, a key), a count or a stoke count, and a
 // fresh key. Never a chance, a warmth, a Cinder count, a weapon or a price: the server reads the hero's own record, keys, Cinders,
@@ -12,7 +12,11 @@
 //                                                                         (the door's Level, 2027-05-05-entry-gates.sql),
 //                                                                         bad_landing { checkpoints }, party_hunting, feature_off, the hunt's
 //                                                                         and the party start's own (not_leader, not_ready { seats })
-//   openChest(account, cs, chest, key, count)      hr_chest_open          the stokes are the hero's saved default (p_stokes null): the window
+//   startDescent(account, cs, wing, landing)       hr_catacomb_start      the Unmarked Catacombs (2027-05-08-catacombs.sql): a wing id the
+//                                                                         server lists and a vault door from ITS checkpoints (0: room 1);
+//                                                                         the same door rules as a climb, refusing catacomb_level,
+//                                                                         catacomb_party_level { who, need, have }, bad_wing, bad_landing
+//   openChest(account, cs, chest, key, count)      hr_chest_open         the stokes are the hero's saved default (p_stokes null): the window
 //                                                                         shows the server's chance at that default, so the press can't send
 //                                                                         a different one. Refuses no_key, week_limit { family, used, limit },
 //                                                                         chest_not_ready, in_hunt,
@@ -31,7 +35,8 @@ const bodyOf = (ans) => (ans && isObj(ans.body) ? ans.body : {});
 const newIdem = () => globalThis.crypto.randomUUID();
 /* Refusals that mean the screen was behind the server: the character is re-read so the window shows what the server holds. */
 const RE_READS = Object.freeze(['bad_landing', 'party_hunting', 'feature_off', 'hunt_open', 'activity_running', 'no_key', 'week_limit', 'chest_not_ready',
-  'in_hunt', 'bag_full', 'settle_first', 'party_hunt_running', 'bad_key', 'bad_stokes', 'bad_count', 'tower_level', 'tower_party_level']);
+  'in_hunt', 'bag_full', 'settle_first', 'party_hunt_running', 'bad_key', 'bad_stokes', 'bad_count', 'tower_level', 'tower_party_level',
+  'catacomb_level', 'catacomb_party_level', 'bad_wing']);
 
 /* A refused answer, with the figures the server sent (src/shell/tower-words.js says them). */
 function refused(ans, verb) {
@@ -45,12 +50,14 @@ function refused(ans, verb) {
     stacks: nat(b.stacks), cap: nat(b.cap), seats: Array.isArray(b.seats) ? b.seats : null };
 }
 
-/* The open's answer, read field by field: one row a key (its stokes, the chance it rolled at, the weapon or none and its family, the
-   super-rare outfit or none and the bundle it came out as), the haul. */
+/* The open's answer, read field by field: one row a key (its stokes, the chance it rolled at, the weapon or none and its family, the armor
+   piece or none and its slot and weight, the super-rare outfit or none and the bundle it came out as), the haul. */
 function openedOf(b) {
   const id = (v) => (typeof v === 'string' && WORD.test(v) ? v : null);
   const opens = (Array.isArray(b.opens) ? b.opens : []).slice(0, 64).filter(isObj).map((o) => Object.freeze({
     stokes: nat(o.stokes) ?? 0, chancePpm: nat(o.chance_ppm), weapon: id(o.weapon), family: id(o.family),
+    /* a Catacomb key's armor piece, its slot and weight (2027-05-08-catacombs.sql), or none */
+    armor: id(o.armor), slot: id(o.armor) ? id(o.slot) : null, weight: id(o.armor) ? id(o.weight) : null,
     outfit: id(o.outfit), bundle: id(o.outfit) ? id(o.bundle) : null }));
   const haul = {};
   if (isObj(b.haul)) for (const [id, q] of Object.entries(b.haul)) if (WORD.test(id) && Number.isSafeInteger(q) && q > 0) haul[id] = q;
@@ -79,6 +86,14 @@ export function startClimb(account, cs, landing) {
   if (!usable(account, cs) || !(Number.isSafeInteger(landing) && landing >= 0)) return bad('tower_start');
   /* a town job is settled first (the boss hall's door does the same): the climb takes the hero out of town */
   return send(cs, 'tower_start', async () => { await settleTownActivity(cs); return account.server.rpc('hr_tower_start', { p_slot: cs.slot, p_landing: landing, p_idem: newIdem() }); });
+}
+
+/** Start a descent on wing `wing` from the room after a vault door the server listed for that wing (0: room 1); in a party, the leader's
+    press for every seat. */
+export function startDescent(account, cs, wing, landing) {
+  if (!usable(account, cs) || !WORD.test(String(wing)) || !(Number.isSafeInteger(landing) && landing >= 0)) return bad('catacomb_start');
+  return send(cs, 'catacomb_start', async () => { await settleTownActivity(cs);
+    return account.server.rpc('hr_catacomb_start', { p_slot: cs.slot, p_wing: wing, p_landing: landing, p_idem: newIdem() }); });
 }
 
 /** Use `count` keys of one kind at a chest, each stoked with the hero's saved default. Resolves to { ok, opens, haul } or the refusal. */

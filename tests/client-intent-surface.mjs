@@ -149,6 +149,9 @@ export const CLIENT_RPCS = Object.freeze({
   /* The Burning Tower (2027-04-24-tower-climb.sql, 2027-04-27-tower-chest.sql, behind the `burning_tower` switch): a slot, a floor or a
      catalogue id and a count, with a fresh key; never a chance, a warmth, a Cinder count, a weapon or a price. */
   hr_tower_start: 'start a climb after a checkpoint the server lists for this hero (a party: its leader, every seat); refused bad_landing otherwise (tower-intents.js startClimb)',
+  /* The Unmarked Catacombs (2027-05-08-catacombs.sql, behind the `unmarked_catacombs` switch): a slot, a wing id and a vault door the server
+     lists for that wing, with a fresh key; the same door rules as a climb. */
+  hr_catacomb_start: 'start a descent on a wing the server lists, after a vault door it lists for this hero in that wing (a party: its leader, every seat); refused bad_wing / bad_landing otherwise (tower-intents.js startDescent)',
   hr_outfit_bundle_use: 'use one outfit bundle (the Sweep\'s Coat): the slot and the bundle\'s item id, with a fresh key; the server reads the outfit from its catalogue, takes the bundle from the bag or Storage and owns it for this hero (outfit-intents.js useOutfitBundle; 2027-04-30-sweeps-coat.sql)',
   hr_chest_open: 'use keys at the Hearth Chest, stoked with the hero\'s SAVED default (p_stokes null); the server prices the stokes and rolls on its own dice (tower-intents.js openChest)',
   hr_chest_stoke_default: 'the hero\'s own default stoke count for one kind of key; moves no value (tower-intents.js saveStokes)',

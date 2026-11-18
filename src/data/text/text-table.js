@@ -11,6 +11,7 @@
 import { AWAY_TEXT } from './away.js?v=0.2.139';
 import { BAG_TEXT } from './bag.js?v=0.2.139';
 import { BAR_TEXT } from './bar.js?v=0.2.139';
+import { CATACOMB_TEXT } from './catacomb.js?v=0.2.139';
 import { CHRONICLE_TEXT } from './chronicle.js?v=0.2.139';
 import { COACH_TEXT } from './coach.js?v=0.2.139';
 import { CONTROLS_TEXT } from './controls.js?v=0.2.139';
@@ -45,6 +46,7 @@ export const TEXT = Object.freeze({
   away: AWAY_TEXT,
   bag: BAG_TEXT,
   bar: BAR_TEXT,
+  catacomb: CATACOMB_TEXT,
   chronicle: CHRONICLE_TEXT,
   coach: COACH_TEXT,
   controls: CONTROLS_TEXT,

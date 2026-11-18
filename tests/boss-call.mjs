@@ -12,10 +12,10 @@
 //   node tests/boss-call.mjs            the guard
 //   node tests/boss-call.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrual.js
+// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrual.js src/data/boss-calls.js
 //
 //   BC-ROW     a called row is xp 0, gp [0, 0], no yield trick; a called boss drops only his ground boss's rows at their rates and his call-only piece (worn, no jewelry,
-//              dropped by nothing else), an add drops nothing; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
+//              dropped by nothing else, never another piece's stat mix, its attribute at its tier's size in the special catalogue), an add drops nothing; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
 //   BC-TIER    a difficulty tier can't reach the room (when src/data/hunt-tiers.js is on the tree)
 //   BC-PAY     a win pays only items from his own table, in the window he fell in, by any path: a lone seat, a pair, a four, Tempering, a bestiary boost; every
 //              other window is the settle's allowlist; no XP or coin ever; his table is rolled once a win (his call-only piece at certain odds lands once)
@@ -61,6 +61,7 @@ async function loadAll(root) {
     BE: await import(u('src/data/bestiary.js')),
     I: await import(u('src/data/items.js')),
     ID: await import(u('src/data/item-descriptions.js')),
+    SA: await import(u('src/data/special-attributes.js')),
     /* the engine's own instances (src/core imports with ?v=): the rows the fight reads */
     EM: (await import(u('src/data/monsters.js') + V)).MONSTERS,
     D: await import(u('src/core/hunt/damage.js') + V),
@@ -165,6 +166,23 @@ async function guard(X) {
     if (!it.slot || /ring|necklace|amulet/.test(it.slot) || it.type === 'jewelry') bad.push('BC-ROW ' + c.callOnly + ' is not a worn piece, or is jewelry: ' + it.slot);
     if (!(it.v > 0) || !X.ID.ITEM_DESC[c.callOnly]) bad.push('BC-ROW ' + c.callOnly + ' has no book value or no words');
     for (const [mid, mon] of Object.entries(M.MONSTERS)) if (mid !== c.monster && (mon.drops || []).some((d) => d.id === c.callOnly)) bad.push('BC-ROW ' + c.callOnly + ' drops from ' + mid + ': it is his call\'s only');
+    /* NEVER A COPY (Tyler, binding; coherence pass 2026-11-15 C1): no other piece of its slot (and weapon type) has its stat mix, so it is
+       never "that piece plus a number". AT ITS TIER'S SIZE (C2): each attribute no bigger than the special catalogue's row for its tier
+       (src/data/special-attributes.js SPECIAL_ATTRIBUTES `at`, one source); "less from every hit" (steadyPm, the physical row's kind)
+       only from the tier that row starts at. */
+    const mix = (x) => ['atkB', 'strB', 'defB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB'].map((k) => x[k] || 0).join('/');
+    for (const [oid, o] of Object.entries(X.I.ITEMS)) {
+      if (oid !== c.callOnly && o && o.slot === it.slot && (it.slot !== 'weapon' || o.weaponType === it.weaponType) && mix(o) === mix(it)) bad.push('BC-ROW ' + c.callOnly + ' is ' + oid + '\'s stat mix (' + mix(it) + '): a unique is never a copy');
+    }
+    const AT = X.SA.SPECIAL_ATTRIBUTES, size = (attr) => (AT[attr].at[it.tier] === undefined ? 0 : AT[attr].at[it.tier]);
+    const physicalFrom = Math.min(...Object.keys(AT.resist_physical.at).map(Number));
+    if (it.steadyPm && !(it.tier >= physicalFrom)) bad.push('BC-ROW ' + c.callOnly + ' cuts every hit (steadyPm ' + it.steadyPm + ') at tier ' + it.tier + ': that starts at tier ' + physicalFrom);
+    for (const [el, pm] of Object.entries(it.resistPm || {})) {
+      const cap = el === 'physical' ? size('resist_physical') : size('resist_element');
+      if (!(pm <= cap)) bad.push('BC-ROW ' + c.callOnly + ' resists ' + el + ' ' + pm + ' permille: a tier-' + it.tier + ' piece is ' + cap);
+    }
+    for (const b of [].concat(it.bane || [])) if (!(b.mult <= size('bane'))) bad.push('BC-ROW ' + c.callOnly + ' bane x' + b.mult + ': a tier-' + it.tier + ' piece is x' + size('bane'));
+    if (it.critB && !(it.critB <= size('crit'))) bad.push('BC-ROW ' + c.callOnly + ' crit ' + it.critB + ' past its tier\'s ' + size('crit'));
   }
   for (const c of calls) {
     const g = G.CALLED_GROUNDS[c.hunt];
@@ -520,6 +538,11 @@ const MUTANTS = [
   /* HIS OWN TABLE, ONLY ON A WIN (Tyler 2026-11-14) */
   { name: 'a called boss drops off his own table', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace("band: 'rare' }],", "band: 'rare' }, { id: 'iron_sword', ch: .05, band: 'scarce' }],")]], want: /BC-ROW/ },
   { name: 'a called boss drops above his ground\'s rates', edits: [['src/data/monsters.js', KING_TAIL, KING_TAIL.replace('ch: .00141', 'ch: .5')]], want: /BC-ROW/ },
+  /* A CALL-ONLY PIECE IS NEVER A COPY, AND IS ITS TIER'S SIZE (coherence pass 2026-11-15 C1, C2; lane/d-coherence-fixes, re-landed by lane/a-honesty-rescue) */
+  { name: 'Kingstooth back to the Iron Sword\'s numbers', edits: [['src/data/boss-calls.js', "weaponType: 'sword', atkB: 8, strB: 5,", "weaponType: 'sword', atkB: 7, strB: 6,"]], want: /BC-ROW/ },
+  { name: 'the Cauldron Lid back to the Coppercap Shield\'s guard', edits: [['src/data/boss-calls.js', "offhand: 'shield', defB: 6,", "offhand: 'shield', defB: 7,"]], want: /BC-ROW/ },
+  { name: 'the Cauldron Lid cuts every hit at tier 3', edits: [['src/data/boss-calls.js', "offhand: 'shield', defB: 6,", "offhand: 'shield', defB: 6, steadyPm: 50,"]], want: /BC-ROW/ },
+  { name: 'Kingstooth\'s bane past its tier\'s size', edits: [['src/data/boss-calls.js', "class: 'vermin', mult: 1.1 }", "class: 'vermin', mult: 1.2 }"]], want: /BC-ROW/ },
   { name: 'a called boss without his call-only piece', edits: [['src/data/monsters.js', KING_TAIL, "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' }],"]], want: /BC-ROW/ },
   { name: 'a loss that pays: his table rolled on a hero\'s death', edits: [['src/core/hunt-rewards.js', DOOR_DEATH, DOOR_DEATH.replace('      const k = unitOf(ev.u);\n', '      ' + PAY_HERE + '\n      const k = unitOf(ev.u);\n')]], want: /BC-DEATH|BC-WAVE|BC-RECORD/ },
   { name: 'a timeout that pays: his table rolled on his blows taken, not his kill', edits: [['src/core/hunt-rewards.js', DOOR_KILL, "    if (ev.type === 'dmg' && unitOf(ev.t) && unitOf(ev.t).kind === boss) " + PAY_HERE + "\n" + DOOR_KILL]], want: /BC-TIME|BC-PAY|BC-DEATH/ },

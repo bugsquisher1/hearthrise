@@ -14,8 +14,8 @@
 // waits until the draft is loaded again.
 // A clean draft always follows the server. Nothing here spends or gates anything (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf } from '../../../session/hunt-sections.js?v=0.2.138';
-import { presetsOf, equipmentOf, skillsOf, carriedOf } from '../../../session/item-sections.js?v=0.2.138';
+import { settingsOf, huntOf } from '../../../session/hunt-sections.js?v=0.2.138';
+import { presetsOf, equipmentOf, skillsOf, carriedOf, setupSlotsOf } from '../../../session/item-sections.js?v=0.2.138';
 import { text, cls, prop, attr } from '../../../render/paint.js?v=0.2.138';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.138';
 import { runIntent, refusalWords } from '../../intent-words.js?v=0.2.138';
@@ -26,7 +26,7 @@ import { itemName } from '../../widgets/bits.js?v=0.2.138';
 import { setupsOf } from '../../hunt-go.js?v=0.2.138';
 import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.138';
 import { readPreset } from '../../../session/preset-read.js?v=0.2.138';
-import { draftFrom, draftKey, isDirty, optionsOf, clearedBar, stepDistance, goldFloorOk } from '../../prep-draft.js?v=0.2.138';
+import { draftFrom, draftKey, isDirty, rebaseDraft, optionsOf, clearedBar, stepDistance, goldFloorOk } from '../../prep-draft.js?v=0.2.138';
 import { sortBar } from '../../bar-sort.js?v=0.2.138';
 import { basicBar, basicSetupOf } from '../../basic-setup.js?v=0.2.138';
 import { t } from '../../../render/player-text.js?v=0.2.138';
@@ -101,13 +101,16 @@ function viewOf(ctx, sc, repaint) {
 }
 
 /* THE DRAFT FOLLOWS THE SERVER: built from the view on the first look, rebuilt when the server's row changes under a clean
-   draft, held (and marked stale) when it changes under a dirty one. */
+   draft. Under a dirty one the server's change is folded in where the player changed nothing (prep-draft.js rebaseDraft: a slot set on
+   the HUD bar shows here at once, the audit's A26); only when both changed the same slot is the copy held (and marked stale). */
 function syncDraft(sc, view) {
   if (!view) return;
   const key = draftKey(draftFrom(view));
   if (!sc.draft || sc.draftFor !== sc.picked) { sc.draft = draftFrom(view); sc.base = key; sc.draftFor = sc.picked; sc.stale = false; return; }
   if (key === sc.base) { sc.stale = false; return; }
   if (!draftDirty(sc)) { sc.draft = draftFrom(view); sc.base = key; sc.stale = false; return; }
+  const merged = rebaseDraft(sc.draft, sc.base, draftFrom(view));
+  if (merged) { sc.draft = merged; sc.base = key; sc.stale = false; return; }
   sc.stale = true;
 }
 
@@ -217,19 +220,35 @@ export function patchBuilder(root, ctx, sc, hunting, repaint) {
 }
 
 /** SAVE: ONE hr_action_set_options with every key of the copy; and use: then ONE hr_hunt_preset_apply (a town activity settled
-    first, as Use does). The copy is dropped on ok, so the next patch shows the server's row. A stale copy sends nothing. */
+    first, as Use does). The copy is dropped on ok, so the next patch shows the server's row. A stale copy sends nothing.
+    ONE BAR TRUTH (the full-game audit's A26, 2026-11-18: Save left "Not saved: Preset 1"): the bar in use is the setup this window names,
+    so when the server holds no setup row for it, Save also keeps it as one, ONE hr_hunt_preset_save under its own name after the bar
+    (keepAsSetup: in town, and only on a number the server lets this hero open). */
 export function saveDraft(ctx, sc, repaint, andUse) {
   const cs = ctx.character;
   if (!sc.draft || sc.pending || sc.stale) return;
   const preset = sc.picked;
   const opts = optionsOf(sc.draft);
-  const name = ((presetsOf(cs) || []).find((p) => p.preset === preset) || {}).name || t('prep.setup_n', { n: preset + 1 });
+  const keep = keepAsSetup(cs, preset);
+  const name = ((presetsOf(cs) || []).find((p) => p.preset === preset) || keep || {}).name || t('prep.setup_n', { n: preset + 1 });
   runIntent(sc, repaint, async () => {
     const r = await cs.setHuntOptions(preset, opts);
-    if (!r.ok || !andUse) return r;
+    if (!r.ok) return r;
+    if (keep) { const k = await cs.savePreset(preset, keep.name); if (!k || !k.ok) return k || { ok: false, error: 'network' }; }
+    if (!andUse) return r;
     await settleTownActivity(cs);
     return cs.applyPreset(preset);
   }, t('prep.saving'), () => { dropDraft(sc); return andUse ? t('prep.saved_on', { name }) : t('prep.saved', { name }); }, cs);
+}
+
+/** THE BAR IN USE WITH NO SETUP ROW: { name } when Save should also keep setup `preset` as one, else null. Only the setup in use (the server's
+    hunt_settings.preset, named by its own row there), only with no saved row (hunt_presets), only in town (the server refuses hunt_open), and
+    only on a number under this hero's count (setup_slots; unknown is no, §6 fail safe): past it the column's Buy line says why. Pure. */
+export function keepAsSetup(cs, preset) {
+  const live = settingsOf(cs), saved = presetsOf(cs), slots = setupSlotsOf(cs), h = huntOf(cs);
+  if (!live || live.preset !== preset || !saved || saved.some((p) => p.preset === preset) || (h && !h.ended) || !slots || preset >= slots.count) return null;
+  const row = live.presets.find((p) => p.preset === preset);
+  return { name: row ? row.name : t('prep.setup_n', { n: preset + 1 }) };
 }
 
 /** BASIC SETUP: the copy's bar becomes the basic setup of the weapon type the picked setup fights as (its discipline, the server's),

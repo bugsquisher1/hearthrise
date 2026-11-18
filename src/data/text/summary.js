@@ -44,6 +44,14 @@ export const SUMMARY_TEXT = Object.freeze({
   buy_gear: 'Next buy: {item} ({price})',
   buy_gear_better: '{gains} vs {worn}',
   buy_gear_empty: '{gains}, empty {slot} slot',
+  /* WHERE THE HERO'S WEIGHT COMES FROM (src/shell/next-buy.js findPiece): no Shop piece of the hero's armor weight fills a bare or off-weight
+     slot, so the line names the piece and the words say where it comes from. {what} its weight and slot (find_kind), {level} the Level it needs */
+  find_gear: 'Next upgrade: {item} ({what})',
+  find_gear_at: 'Next upgrade: {item} ({what}, Level {level})',
+  find_kind: '{weight} {slot}',
+  weight_heavy: 'heavy',
+  weight_medium: 'medium',
+  weight_light: 'light',
   buy_temper: 'Next buy: Temper {piece} ({price})',
   buy_temper_blows: 'Damage and heals +{pct}',
   buy_temper_armor: 'Damage taken −{pct}',

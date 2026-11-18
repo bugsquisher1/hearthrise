@@ -124,11 +124,16 @@ export const PREP_TEXT = Object.freeze({
   buying: 'Buying…',
   bought: 'Setup slots: {n}',
 
-  /* BEFORE YOU GO, STORE FOOD TOO WEAK FOR THE GROUND (src/shell/hunt-go.js weakFoodLine): {food} the bar's best store food, {want} the
-     store food this ground's bag guide names. */
-  food_weak: '{food} heals too little here. Pick {want}',
+  /* STORE FOOD TOO WEAK HERE (src/shell/weak-food.js, the one rule): a ground's Before you go and a keyed hall's door. {where} the bar's
+     slots holding it (food_where*), {food} the bar's best store food, {want} the store food measured safe here. */
+  food_weak: '{where}: {food} heals too little here. Pick {want}',
   /* the same with the server's numbers, when it has sent this hero's HP: {heal} what one {food} heals, {hp} the hero's full HP */
-  food_weak_hp: '{food} heals {heal} of {hp} HP. Pick {want}',
+  food_weak_hp: '{where}: {food} heals {heal} of {hp} HP. Pick {want}',
+  /* {n} the slot number ("4"), or the numbers ("4 and 6"); {name} another hero of this account in the party */
+  food_where: 'Slot {n}',
+  food_where_many: 'Slots {n}',
+  food_where_peer: '{name}\'s slot {n}',
+  food_where_peer_many: '{name}\'s slots {n}',
 
   /* CARRY IN, while this hero hunts (src/shell/carry-in.js). */
   carry_head: 'Carry into this hunt',

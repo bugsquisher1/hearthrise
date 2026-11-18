@@ -23,7 +23,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.137';
 import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.137';
-import { nextUnlock } from '../../data/skill-unlocks.js?v=0.2.137';
+import { nextUnlock, nextUnlocks } from '../../data/skill-unlocks.js?v=0.2.137';
 import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.137';
 import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.137';
 import { whole } from '../../render/format.js?v=0.2.137';
@@ -32,6 +32,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.137';
 import { tickOf } from '../town-work.js?v=0.2.137';
 import { aheadXp } from '../town-ticker.js?v=0.2.137';
 import { characterSheetOf } from '../../session/character-sections.js?v=0.2.137';
+import { t } from '../../render/player-text.js?v=0.2.137';
 
 /* Is this the skill's last level? The server says so: no XP across it (need 0, a capped skill at 99). */
 const mastered = (r) => r.need === 0;
@@ -67,15 +68,27 @@ export function patchSkillProgress(el, r, ahead) {
   cls(xp, 'is-ahead', a > 0);
 }
 
-/* One entry (built once per skill by rows(), keyed by skill id); the guide is its tooltip. */
+/* One entry (built once per skill by rows(), keyed by skill id); the guide is its tooltip. ONE UNLOCK A LINE (UI audit 2026-11-18:
+   "Next at level 15: Scored Earth Rune (rune for staves), Scored Water Rune…" ran four lines a skill on the sheet): the first thing
+   the next level opens and a count of the rest; every one, with its kind, is the line's tooltip and shows in full while the entry
+   has the keyboard's focus. */
 function entryHtml(g, id) {
   const guide = SKILL_GUIDE[id];
   const name = SKILLS_DEF[id].name;
-  return '<li class="hw-skill"' + (guide ? ' title="' + esc(name + ': ' + guide.use + ' ' + guide.where) + '"' : '') + '>'
+  return '<li class="hw-skill" tabindex="0"' + (guide ? ' title="' + esc(name + ': ' + guide.use + ' ' + guide.where) + '"' : '') + '>'
     + '<span class="hw-skill-top"><span class="hw-skill-glyph">' + glyphSvg(g, guide ? guide.glyph : 'uiStar') + '</span>'
     + '<b class="hw-skill-name">' + esc(name) + '</b><b class="hw-skill-lv"></b></span>'
     + '<span class="hw-skill-mid">' + skillBarHtml(name)
-    + '<small class="hw-skill-xp"></small></span><small class="hw-skill-next"></small></li>';
+    + '<small class="hw-skill-xp"></small></span><small class="hw-skill-next"><span class="hw-skill-one"></span><span class="hw-skill-more"></span></small>'
+    + '<small class="hw-skill-all"></small></li>';
+}
+
+/** A skill's unlock line: { one, more, all } (one: the first thing its next level opens; more: "+N more"; all: every one, with its
+    kind, nextUnlock's words). `before` leads both (Inner Flame's recovery). Pure. */
+export function unlockLine(id, level, before) {
+  const n = nextUnlocks(id, level);
+  const one = [before, n ? t('work.skill_next', { level: n.level, name: n.all[0].name }) : ''].filter(Boolean).join('. ');
+  return { one, more: n && n.all.length > 1 ? t('work.skill_more', { count: n.all.length - 1 }) : '', all: [before, nextUnlock(id, level)].filter(Boolean).join('. ') };
 }
 
 /**
@@ -109,10 +122,12 @@ function skillsWindow(groups) {
           /* Inner Flame's payoff on its own line (lane/b-first-hour): the recovery the server's sheet says it gives now,
              before its next fuel; nothing until the server has said. */
           const flame = id === 'inner_flame' && regen !== null && regen > 100 ? 'Recovery +' + Math.round((regen - 100) * 10) / 10 + '%' : '';
-          const next = [flame, nextUnlock(id, r.level)].filter(Boolean).join('. ');
+          const u = unlockLine(id, r.level, flame);
           const nx = li.querySelector('.hw-skill-next');
-          text(nx, next);
-          attr(nx, 'title', next || null);
+          text(nx.querySelector('.hw-skill-one'), u.one);
+          text(nx.querySelector('.hw-skill-more'), u.more);
+          attr(nx, 'title', u.all || null);
+          text(li.querySelector('.hw-skill-all'), u.all);
         },
       });
     }

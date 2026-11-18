@@ -4045,6 +4045,11 @@ row. Give the head cells the rows' data-c and hide both with one selector.
   rises over the bar whenever it needs the room, as it already did at 1280 and 1366. AW-101 measures every slot against the foot's
   drawn rule at 5 sizes, town and hunt. Left as is: in a hunt (no window rises over the hunt's bar, AW-95) at 1518 and under, and
   on the phone sheet, the bar is one scroll down below Carry, Fights as and the four panels: whole once scrolled, never cut at rest.
+- **2026-11-18 art-director (lane/b-ui-character): Gathering and crafting opens one recipe tall (pre-existing).** A crafting skill's
+  rows at 1440x900: window-fit rule 3 ends the region on a whole row, and a short-input row with its "Dropped by ..." links is
+  ~150 px, so the window opens 401 px of a 580 px dock, before and after this lane. Readable (one scroll), but it looks shrunk: a
+  tall row should not cost the window half its height (window-fit's ROW_SHARE). (The typecheck-ratchet and session-core LVL-0
+  reds at 99511ead1 were fixed on main by 62652a528, merged here.)
 - **2026-11-18 art-director (lane/b-ui-configure): a spell's weapon words stutter, "Two axes or Axes or Club or Hammer or Bare hands".**
   action-facts.js weaponsFor lists one word a ROLE_KEY, so Cleave names five weapons and Rend "Two axes or Axes" (the dual_axe and axe
   keys, WEAPON_WORDS). Configure action now shows the requirement on a locked row (rowNeed, the same words): Cleave's ends in an

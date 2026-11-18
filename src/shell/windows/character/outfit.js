@@ -38,7 +38,7 @@ export function outfitHtml(g) {
     + '<div class="hw-of-left"><div class="hw-of-stage"><canvas class="hw-of-preview" width="192" height="192" aria-label="Outfit preview"></canvas>'
     + '<button type="button" class="hh-tool hw-of-turn" data-hs-act="of-turn">Turn</button></div>'
     + '<p class="hw-of-name"></p>'
-    + '<p class="hw-of-shows"></p>'
+    + '<p class="hw-of-shows"></p><p class="hs-note hw-of-looks">Cosmetic only</p>'
     + '<div class="hw-of-dye"><div class="hw-of-regions" role="tablist"></div><div class="hw-of-swatches"></div></div>'
     + '<div class="hw-of-save"><button type="button" class="hh-tool" data-hs-act="of-save">' + t('controls.equip') + '</button>'
     + '<button type="button" class="hw-primary hw-of-colors" data-hs-act="of-colors"></button>'
@@ -47,8 +47,7 @@ export function outfitHtml(g) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>'
     + '<div class="hw-of-right"><div class="hw-of-tools"><label class="hw-search">' + glyphSvg(g, 'uiSearch')
     + '<input type="search" data-hs-act="of-search" placeholder="Search outfits" aria-label="Search outfits"></label>'
-    + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Show only owned</label></div>'
-    + '<p class="hs-note hw-of-looks">Cosmetic only</p>'
+    + '<label class="hw-of-owned"><input type="checkbox" data-hs-act="of-owned"> Owned only</label></div>'
     + '<ul class="hw-of-grid"></ul><p class="hh-empty hw-of-none">No outfit matches.</p></div>'
     + '</section>';
 }
@@ -141,14 +140,16 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   rows(root.querySelector('.hw-of-grid'), ids, {
     key: (id) => id,
     build: (id) => element(ctx.doc, '<li><button type="button" class="hw-of-card" data-hs-act="of-pick" data-outfit="' + esc(id) + '">'
-      + '<canvas class="hw-of-face" width="64" height="64" aria-hidden="true"></canvas><b>' + esc(OUTFIT_ROWS[id].label) + '</b><small class="hw-of-mark"></small></button></li>'),
+      + '<canvas class="hw-of-face" width="42" height="45" aria-hidden="true"></canvas><b>' + esc(OUTFIT_ROWS[id].label) + '</b><small class="hw-of-mark"></small></button></li>'),
     patch: (li, id) => {
       const b = li.firstChild;
       attr(b, 'aria-pressed', String(id === d.outfit));
       cls(b, 'is-worn', !!o && o.worn === id);
       const have = !!o && o.owned.has(id);
       cls(b, 'is-locked', !!o && !have);
-      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? (have ? 'Premium' : 'Premium, not owned') : '');
+      /* the caption is one short word under the figure; a locked one is dimmed and says why on the pointer */
+      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? 'Premium' : '');
+      attr(b, 'title', o && !have ? OUTFIT_ROWS[id].label + (OUTFIT_ROWS[id].premium ? ', Premium' : '') + ', not owned' : null);
       drawTile(b.querySelector('canvas'), id);
     },
   });

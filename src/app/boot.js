@@ -275,6 +275,8 @@ function startApp(win) {
        row is the press. Every account owns two (Tyler 10-17); the next one for sale is offered under the list. */
     const rows = roster.map((r) => '<li class="char-row' + (r.exists ? '' : ' is-empty') + '">'
       + '<button type="button" class="char-pick" ' + (r.exists ? 'data-app="play"' : 'data-app="create"') + ' data-slot="' + r.slot + '">'
+      /* the hero's own figure (roster-faces.js draws it), an empty well for a slot with none (UI audit 2026-11-18) */
+      + (r.exists ? '<canvas class="char-face" data-face="' + r.slot + '" width="42" height="45" aria-hidden="true"></canvas>' : '<span class="char-face" aria-hidden="true"></span>')
       + '<span class="char-name"><b>' + (r.exists ? esc(r.name || 'Unnamed hero') : r.unnamed ? 'Unnamed hero' : 'Empty slot') + '</b>'
       + (r.exists && r.level ? ' <small class="char-level">Level ' + r.level + (r.doing ? ', ' + esc(lowerFirst(r.doing)) : '') + '</small>' : '') + '</span> '
       + '<span class="char-go">' + (r.exists ? (open.has(r.slot) ? 'Show' : 'Play') : r.unnamed ? 'Name hero' : 'Create hero') + '</span>'
@@ -289,6 +291,7 @@ function startApp(win) {
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
+    G.drawRosterFaces(root.querySelector('.char-list'), roster).catch(() => { /* display only: the wells stay empty */ });
     timing.drawn('characters');
   }
 

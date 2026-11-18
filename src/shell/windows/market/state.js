@@ -20,7 +20,7 @@ const NAMED_CHUNK = 50;
 const NAMED_CHUNKS = 4;
 const SEARCH_WAIT_MS = 250;
 /** The Works project that raises the building this window is named for (src/data/town-works.js: the Weighhouse). */
-export const MARKET_WORKS = 'weighhouse';
+const MARKET_WORKS = 'weighhouse';
 /** The server's Works read says the Market's building is still going up (its own project, not finished). Pure. */
 export const buildingWorks = (w) => !!w && w.project === MARKET_WORKS && w.finished !== true;
 const FRESH_MS = 60000;

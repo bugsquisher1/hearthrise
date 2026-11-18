@@ -3690,6 +3690,31 @@ rises over the bar whenever it needs the room, the way 1280 and 1366 already did
 clip the live hero shows (different fonts, weapon, setups): make the measuring rule strict enough that today's layout is red there
 too; (8) shell.js sits at the module-size cap: carry a row flag as a frame class, not a new line.
 
+## 2026-11-18 lane/b-ui-character (Tyler: "Let's start working on the UI improvements", UI audit 2026-11-18 #8 + fix list)
+Five windows, today's type, colors and chrome kept. (1) CHARACTER SHEET: the portrait is the hero's FIGURE (outfit-sprite.js
+FIGURE, the 42x45 art px of the 64 px frame every idle facing stands in, measured x 15..53 y 17..58) drawn at art size and set
+calc(42 * var(--art-px)) wide, so 2 whole device px an art px at 100/125/150 %; vitals in one column beside the identity; a
+combat skill is three rows on the sheet (name, XP to go, Level / a 6 px bar across the entry / ONE unlock "Lv 15: Scored Earth
+Rune +5 more", all of them with their kinds on the pointer and in full on keyboard focus: skill-unlocks.js nextUnlocks,
+skills.js unlockLine); a stat value is a number and unit ("69%", "3.2 tiles/s"), what it is measured against is its tooltip;
+skills column 1.4fr. Whole at 1440x900 (CW-10). (2) OUTFIT: a wardrobe, one sunk rack, figures at the portrait's scale, three
+to a row, captions not cards ("Premium"; the not-owned reason on the pointer), search and "Owned only" on one row.
+(3) CHARACTER SELECT: each row shows the hero's figure (roster-faces.js from AccountSession.roster rows' `look`); the slot offer
+is a flex row, gold and short lines nowrap, the press wraps under them. (4) GATHERING AND CRAFTING: the band says "Skills" (the
+window can't widen: it docks beside Party 440 inside 60% of a 1440 World, shell-core W18 + window-camera WC-3); a recipe is a
+genre row: output icon with its yield count in the corner, input chips with icon and count, one numbers line that breaks only
+between its parts, "Lv N" by Start, the status line. (5) WEIGHHOUSE: browse.js emptyOf: open and empty says what goes here and
+offers List an item; being built says what it will be, the Works' fund as a bar, and Go to Works (a goto link); search and
+categories hide while closed; the state line is "Being built: 125,000 / 1,000,000 gp".
+Lessons: (1) a 2x pixel figure sizes in --art-px, never 2 CSS px (2.5 device px at 125 %): draw at art size, let CSS set whole
+device px; (2) crop a sprite frame to the union of its art in EVERY facing (an east-facing sword reached x 53 the s/e scan
+missed) and pin the crop with a test that scans every frame; (3) a window's width is not free: the dock pairs cap Gathering
+near 400, so a long title is fixed by its words; (4) the characters screen sits under the town-sheet guards (client-boot B-14
+only the town's sheets, B-15 no sheet before the manifests or after sign-out): a portrait there loads the heroes manifest
+first, checks the list is still in the page, draws undyed, and loads the color masks only when a hero on the list has colors,
+as the World does (a portrait without them read red-plumed beside a blue-plumed hero in town); (5) new player words under
+src/shell go in src/data/text/* through t() or text-home TH-1 is red; (6) `hidden` loses to an author `display` rule: a pane
+that hides children by attribute needs its own `[hidden] { display: none }`.
 ## 2026-11-17 lane/fix138-hearth-chest-big (Tyler: the chest "more 'special' ... low glow ... black / green smoke ... bigger"; "bump slightly open"; then the Great Hearth redraw and "a bit more flamey")
 Phase 1, the chest (45 Coordinator gens): imp-s13 shut (gold third lock, chain, the Keepers' sun), bump-s3 peak, open-s7 open with the shut
 box spliced below its seam. tower-art.mjs: locks poured onto LOCKS by VALUE inside each padlock's body rect (no outline, no green, nothing as

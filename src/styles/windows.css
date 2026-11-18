@@ -572,10 +572,18 @@
 .hw-skill-bar { position: relative; display: block; flex: 1; min-width: 24px; height: 4px; background: var(--bg-1); box-shadow: var(--hw-well); }
 .hw-skill-fill { position: absolute; top: 0; left: 0; bottom: 0; width: 0; background: var(--gold-3); }
 .hw-skill-xp { flex: none; min-width: 0; }   /* the name never clips ("Inner Flame"); the XP line yields first */
-.hw-skill-xp, .hw-skill-next { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.hw-skill-xp, .hw-skill-next, .hw-skill-all { font-size: var(--t-micro); line-height: 1.2; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; overflow: hidden; text-overflow: ellipsis; }
 .hw-skill-xp { white-space: nowrap; }
-.hw-skill-next { white-space: normal; color: var(--ink-2); }
-.hw-skill-next:empty { display: none; }
+/* The unlock: ONE line, its first thing cut short before the count of the rest is (skills.js unlockLine); all of it on the pointer
+   (its title) and in full while the entry has the keyboard (.hw-skill-all). */
+.hw-skill-next { display: flex; min-width: 0; white-space: nowrap; color: var(--ink-2); }
+.hw-skill-next:not(:has(.hw-skill-one:not(:empty))) { display: none; }
+.hw-skill-one { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.hw-skill-more { flex: none; margin-left: 6px; color: var(--ink-3); }
+.hw-skill-all { grid-area: next; display: none; white-space: normal; color: var(--ink-2); }
+.hw-skill:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: -2px; }
+.hw-skill:focus-visible .hw-skill-next { display: none; }
+.hw-skill:focus-visible .hw-skill-all:not(:empty) { display: block; }
 
 /* ── Gathering and crafting: a skill is a door to its work (src/shell/windows/work.js) ── */
 .hw-trade .hw-work-now { margin: 0 0 8px; }
@@ -603,6 +611,22 @@
 .hw-burying-q .is-ahead, .hw-count.is-ahead { font-style: italic; color: var(--ink-2); }
 .hw-skill-xp.is-ahead { font-style: italic; }
 .hw-work-row .hw-line-name small { white-space: normal; }
+/* A RECIPE ROW (work.js rowHtml; UI audit 2026-11-18): the name and the Level it needs, the inputs as icon chips with their counts
+   beside the numbers, then the status. What one run makes, past one, is the icon's corner count (the bag's .hw-count). */
+.hw-work-row { align-items: flex-start; padding: 6px 0; }
+.hw-work-row > .hw-ico { position: relative; margin-top: 2px; }
+.hw-work-yield { position: absolute; right: 1px; bottom: 1px; font-size: var(--t-micro); font-weight: 800; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--ink);
+  paint-order: stroke fill; -webkit-text-stroke: 3px var(--bg-0); pointer-events: none; }
+.hw-work-row > .hw-work-go { align-self: center; }
+.hw-work-top { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.hw-work-top b { flex: 1; min-width: 0; }
+.hw-work-row .hw-line-name .hw-work-lv { flex: none; white-space: nowrap; color: var(--ink-3); }
+.hw-work-row .hw-line-name .hw-work-lv.is-short { color: var(--ink); font-weight: 700; }
+.hw-work-ins { display: flex; flex-wrap: wrap; align-items: center; gap: 0 12px; min-height: var(--icon-1); }
+.hw-work-what { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 10px; }
+.hw-work-in { display: inline-flex; align-items: center; gap: 4px; font-size: var(--t-micro); color: var(--ink); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+.hw-work-in .hh-icon { flex: none; width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; }
+.hw-work-row .hw-line-name .hw-work-stat { color: var(--ink-3); }
 .hw-work-why { color: var(--ink-3); }
 .hw-work-why:empty, .hw-work-fee:empty, .hw-work-end:empty { display: none; }
 .hw-work-fee { color: var(--ink-3); }
@@ -792,10 +816,9 @@
   .hw-skill-list { grid-template-columns: 1fr 1fr; }
   .hw-skill { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: none; column-gap: 6px; row-gap: 2px; }
   .hw-skill-top { display: flex; align-items: center; gap: 6px; }
-  .hw-skill-glyph, .hw-skill-name, .hw-skill-bar, .hw-skill-xp, .hw-skill-lv, .hw-skill-next { grid-area: auto; }
-  .hw-skill-top, .hw-skill-bar { grid-column: 1 / -1; }
+  .hw-skill-glyph, .hw-skill-name, .hw-skill-bar, .hw-skill-xp, .hw-skill-lv, .hw-skill-next, .hw-skill-all { grid-area: auto; }
+  .hw-skill-top, .hw-skill-bar, .hw-skill-all { grid-column: 1 / -1; }
   .hw-skill-mid { display: contents; }
-  .hw-skill-next { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
   .hw-mi { min-height: 40px; }
   /* THE TOOLTIP ON A SHORT SCREEN (QA 10-24: an iron helm's was 411 px on a 390 px screen, its foot cut off): it
      runs wide, in two columns, and never past the screen's height. */

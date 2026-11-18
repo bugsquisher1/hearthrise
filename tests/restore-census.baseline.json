@@ -1421,7 +1421,7 @@
   "hr_hallmark_offers": {
    "class": "seeded",
    "replay": 6,
-   "note": "Generated catalogue (2027-03-14-jewelry-catalogue.generated.sql, tools/gen-jewelry.mjs --check from src/data/jewelry.js): the Hallmark step, each Fine piece to the Hallmarked row it makes, its gem, gold and Crafting level. Empty, hr_hallmark refuses unknown_hallmark and charges nothing. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (2027-03-14-jewelry-catalogue.generated.sql, tools/gen-jewelry.mjs --check from src/data/jewelry.js): the Hallmark step, each Fine piece to the Hallmarked row it makes, its gem, gold and the level in the piece's own bench (2027-05-07-jewelry-sample-catalogue: Smithing for jewelry). Empty, hr_hallmark refuses unknown_hallmark and charges nothing. Rebuilt from repo, never restored."
   },
   "hr_hallmark_rule": {
    "class": "seeded",
@@ -1649,6 +1649,11 @@
    "class": "seeded",
    "replay": 675,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
+  },
+  "hr_jewel_reforge_offers": {
+   "class": "seeded",
+   "replay": 3,
+   "note": "Generated catalogue (2027-05-07-jewelry-sample-catalogue.generated.sql, tools/gen-jewelry.mjs --check from src/data/jewelry.js REFORGE_OFFERS): the jewel reforge, each Hallmarked piece to the next tier's Hallmarked row with the same perks, its metal and bars, gem, the fee difference and the bench level. Empty, hr_jewel_reforge refuses unknown_reforge and charges nothing. Rebuilt from repo, never restored."
   },
   "hr_kill_credit_log": {
    "class": "restore_only",

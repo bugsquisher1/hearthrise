@@ -42,7 +42,7 @@ import { saleWords } from '../item-lore.js?v=0.2.138';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.138';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.138';
 import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.138';
-import { JEWEL_SKILLS } from '../../data/jewelry.js?v=0.2.138';
+import { JEWEL_STEP_BENCHES } from '../../data/jewelry.js?v=0.2.138';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.138';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.138';
 import { t } from '../../render/player-text.js?v=0.2.138';
@@ -263,10 +263,10 @@ renderWork.patch = function patchWork(body, ctx) {
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv),
     });
   }
-  /* The Hallmark step and the reforge belong to each crafted piece's own bench (src/data/jewelry.js JEWEL_SKILLS: Smithing for jewelry, Crafting for
-     cloaks): above its rows, one line until the hero holds a piece to work on. */
+  /* The Hallmark step and the reforge belong to each crafted piece's own bench (src/data/jewelry.js JEWEL_STEP_BENCHES: Smithing for jewelry; Crafting's
+     cloaks join once they roll): above its rows, one line until the hero holds a piece to work on. */
   const hall = view.querySelector('.hw-hallmark');
-  const jeweler = JEWEL_SKILLS.includes(skill);
+  const jeweler = JEWEL_STEP_BENCHES.includes(skill);
   prop(hall, 'hidden', !jeweler);
   if (jeweler) patchHallmarkPane(hall, ctx, sc, skill);
   text(root.querySelector('.hh-intent-msg'), sc.msg);

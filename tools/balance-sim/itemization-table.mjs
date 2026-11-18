@@ -9,6 +9,10 @@
 //        what ONE upgrade is worth with everything else equal (same seeds, so the dice are paired): the weapon a tier
 //        behind, the armor a tier behind, a full Tempering track, ten trained skill levels, the crafted ring plain and
 //        Hallmarked, the cape, the Tower weapon of the tier
+//   node tools/balance-sim/itemization-table.mjs sample [--at glade,warrens] [--only Steady,Focus] [--styles ...]
+//        the phase 2 jewelry sample, each new piece and perk alone and the sample set against the set a tier down
+//   node tools/balance-sim/itemization-table.mjs built-for [--at glade]
+//        Steady and Focus where each is meant to shine (the main skill ten under the Level)
 //
 // Every number is read off the engine's own events (cell.mjs). Nothing here computes a combat or gold number.
 import { dirname, resolve } from 'node:path';
@@ -160,4 +164,4 @@ async function sample() {
 if (mode === 'sample' || mode === 'built-for') await sample();
 else if (mode === 'day') await day();
 else if (mode === 'steps') await steps();
-else console.log('usage: node tools/balance-sim/itemization-table.mjs day|steps [--hours 2] [--seeds 2] [--styles hammer,tank] [--at glade,slake]');
+else console.log('usage: node tools/balance-sim/itemization-table.mjs day|steps|sample|built-for [--hours 2] [--seeds 2] [--styles hammer,tank] [--at glade,slake]');

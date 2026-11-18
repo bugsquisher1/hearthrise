@@ -146,7 +146,6 @@ export const MONSTERS = {
   small_wolf: { name: 'Wolf Cub', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
     dropBonus: 1.15,
     hp: 16, atk: 5, def: 1, xp: 14, gp: [3, 9],
-    /* its Wolfbone Necklace left (2026-11-18): Smithing makes it now (src/data/jewelry.js), and a crafted piece drops nowhere */
     drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 }] },
   mandrake: { name: 'Mandrake', icon: '🌱', tier: 1, cls: 'plant', family: 'Plant',
     hp: 11, atk: 3, def: 1, xp: 9, gp: [2, 5],
@@ -190,7 +189,6 @@ export const MONSTERS = {
 
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12], speed: 4400,
-    /* its Fang Studs left (2026-11-18): Smithing makes them now (src/data/jewelry.js), and a crafted piece drops nowhere */
     drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 }] },
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 25, atk: 8, def: 1, xp: 27, gp: [4, 13],
@@ -932,7 +930,6 @@ export const MONSTERS = {
     spells: ['smoke_pot'],
     drops: [{ id: 'wolf_pelt', ch: .231, band: 'common' }, { id: 'bones', ch: .385, band: 'common' }, { id: 'torn_company_badge', ch: .077, band: 'uncommon' },
       { id: 'iron_platebody', ch: .0266, band: 'scarce' }, { id: 'studded_body', ch: .0266, band: 'scarce' }, { id: 'adept_body', ch: .0266, band: 'scarce' }, { id: 'bramble_blade', ch: .0266, band: 'scarce' },
-      /* the Wolfbone Necklace and the Fang Studs left his Rares (Tyler 2026-11-18: the two dropped Wickstead jewels become crafted) */
       { id: 'road_carnelian', ch: .00231, band: 'rare' }] },
 };
 

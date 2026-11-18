@@ -276,6 +276,10 @@ export const REFORGE_OFFERS = Object.freeze(Object.keys(JEWEL_PIECES).flatMap((p
   });
 }));
 
+/** The benches with a Hallmark step or a reforge to offer (the Work window shows its jeweler section on these only): a bench whose
+    pieces all ship plain has none. */
+export const JEWEL_STEP_BENCHES = Object.freeze(JEWEL_SKILLS.filter((s) => HALLMARK_OFFERS.some((o) => o.skill === s) || REFORGE_OFFERS.some((o) => o.skill === s)));
+
 /**
  * WHAT A GRADED PIECE COST IN FIXED GOLD, the Weighhouse's Suggested for it (designer 2026-11-05: "Suggested 260" invited a crafter to sell a
  * 25,000 g piece for 260): a Fine piece, its plain piece's Shop price; a Hallmarked one, that plus its tier's Hallmark fee and its gem's book.

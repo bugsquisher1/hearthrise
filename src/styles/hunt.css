@@ -482,7 +482,8 @@ select.ca-token { field-sizing: content; }
 /* one line, the row's rhythm kept: the rare long one ("Two axes or Axes or Club or Hammer or Bare hands") ends in an ellipsis and
    is said whole in the row's title and the details pane */
 .ca-need-t { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ca-lock { display: inline-flex; flex: none; width: 14px; height: 14px; }
+.ca-lock { display: none; flex: none; width: 14px; height: 14px; }
+.ca-row.is-locked .ca-lock { display: inline-flex; }
 .ca-lock svg { width: 14px; height: 14px; }
 .ca-row.is-locked .ca-name { color: var(--ink-3); }
 .ca-c { text-align: right; white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; color: var(--ink-2); }

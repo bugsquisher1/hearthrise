@@ -180,6 +180,10 @@
 //   TALLY      tally = Σ ledger rows stamped with the session.
 //   ANALYZER   dealt / taken / healed persisted per session from the engine's
 //              tally; a free character reads no analyzer, a premium one does.
+//   ANALYZER-COVER  the analyzer's coins are every coin the hunt put in the purse
+//              (2027-05-15-analyzer-cover-coins.sql): after a sell-to-cover, coins
+//              less waste is the purse's move and the loot value is the loot still
+//              held; the tick (browser closed) and the player's settle (viewed) alike.
 //   BETA       the beta premium switch (2026-12-17-beta-premium.sql, Tyler 10-23):
 //              on, a FREE hero is premium in every surface (the edge's cap, the
 //              rest, the section + the client's isPremium, the analyzer, the login
@@ -3453,6 +3457,56 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  /* ANALYZER-COVER (lane/a-analyzer-coins 2026-11-18, 2027-05-15-analyzer-cover-coins.sql), BOTH PATHS: the analyzer's coins
+     are every coin the hunt put in the purse. A thin-purse hero eats store food and sells its looted bones to pay for it (bones
+     made coverable at a meal's price, as PARTY-GRIEF does). After the cover sales the analyzer's coins less its waste are the
+     purse's own move (the end card's and away card's Gold, summary-model.js goldKeptOf / away-recap.js goldOf), and its loot
+     value prices only the bones still held. Before the fix the coins left the cover gold out and the cards' Gold under-read the
+     purse by it. The tick (browser closed) and the player's own settle (hunt viewed) land the same figures. */
+  'ANALYZER-COVER': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const HSEC = await import(pathToFileURL(join(ROOT, 'src', 'session', 'hunt-sections.js')).href);
+    const SM = await import(pathToFileURL(join(ROOT, 'src', 'hunt-view', 'summary-model.js')).href);
+    const START = 100;
+    const h = await hunter(db, M, { minutesAgo: 25, inv: {}, bag: [], gold: START, level: 3,
+      options: { supply_source: 'store', on_empty: 'end', gold_floor: 0,
+        slots: [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 99 }], join: 'and' }] } });
+    const meal = M.SB.BASIC_SUPPLIES.find((x) => x.id === 'salted_shrimp').price;
+    await db.query('insert into public.hr_hunt_cover_items (item_id, unit) values ($1, $2) on conflict (item_id) do update set unit = $2', ['bones', meal]);
+    const exec = makeExec(db);
+    const doors = { closed: { mode: 'tick', session: h.sid }, viewed: { mode: 'settle', project: true, live: true, minWindowMs: 0 } };
+    const seen = {};
+    await db.query('savepoint analyzer_cover');
+    for (const [path, door] of Object.entries(doors)) {
+      for (const t of ticksOf(90000, SPAN_MS)(h.from)) {
+        const r = await M.HS.settleHunt({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: t, ...door });
+        if (!r || (r.outcome !== 'paid' && r.outcome !== 'none')) { problems.push(`${path}: the window to +${t - h.from} ms answered ${r && r.outcome}/${r && r.reason}`); break; }
+        if (r.outcome === 'none' || r.ended) break;
+      }
+      const s = await snapshot(db, h.sid);
+      const answer = await one(db, 'select public.hr_hunt_analyzer_of($1::uuid, 0, $2::uuid)', [UID, h.sid]);
+      const a = answer.hero;
+      const cover = Number(s.tally.cover_gold);
+      const sold = Number((s.ledger.vendor_cover || [0])[0]);
+      if (!(cover > 0)) { problems.push(`${path}: CONTROL: no window sold bones to pay the store (ended ${s.session.end_reason}, kills ${s.tally.kills}, coins ${s.tally.coins}, store ${s.tally.supply_gold}, loot ${JSON.stringify(s.tally.loot)})`); break; }
+      if (sold !== cover) problems.push(`${path}: CONTROL: the vendor_cover rows paid ${sold}, the tally says ${cover}`);
+      const purse = s.gold - START;
+      if (Number(a.coins) - Number(a.waste) !== purse) {
+        problems.push(`${path}: the analyzer's coins ${a.coins} less its waste ${a.waste} read ${Number(a.coins) - Number(a.waste)}, the purse moved ${purse} (the cover sales paid ${cover})`);
+      }
+      const units = Object.fromEntries((await q(db, 'select item_id, unit from public.hr_hunt_vendor_value')).map((r) => [r.item_id, Number(r.unit)]));
+      const held = Object.entries(s.tally.loot || {}).reduce((n, [k, c]) => n + Math.max(0, Math.floor(Number(c)) - Math.floor(Number((s.tally.covered || {})[k] || 0))) * (units[k] || 0), 0);
+      if (Number(a.loot_value) !== held) problems.push(`${path}: the analyzer's loot value ${a.loot_value} is not the ${held} gold of loot still held (covered ${JSON.stringify(s.tally.covered)})`);
+      if (Number(a.balance) !== Number(a.coins) + Number(a.loot_value) - Number(a.waste)) problems.push(`${path}: the balance ${a.balance} is not coins + loot value - waste`);
+      /* ...and the END CARD's Gold, read the client's own way from this answer (hunt-sections.js analyzerFrom, summary-model.js goldKeptOf). */
+      const kept = SM.goldKeptOf((HSEC.analyzerFrom({ read: () => null }, answer) || {}).hero);
+      if (!kept || kept.net !== purse) problems.push(`${path}: the end card's Gold reads ${kept && kept.net}, the purse moved ${purse}`);
+      seen[path] = { coins: a.coins, waste: a.waste, loot_value: a.loot_value, purse, ended: s.session.ended_at, reason: s.session.end_reason };
+      await db.query('rollback to savepoint analyzer_cover');
+    }
+    if (seen.closed && seen.viewed && canon(seen.closed) !== canon(seen.viewed)) problems.push(`browser closed ${canon(seen.closed)} vs viewed ${canon(seen.viewed)}`);
+    return problems;
+  }),
   BETA: async (db, M) => inTx(db, async () => {
     const problems = [];
     const cap = M.HSD.STAMINA_MAX_MS;
@@ -5143,6 +5197,11 @@ const AF = 'public.hr_hunt_after_freeze()';
 const AT = 'public.hr_hunt_after_start(uuid)';
 const AW = 'public.hr_hunt_after_sweep(integer)';
 const DB_MUTANTS = [
+  /* THE ANALYZER'S COINS (2027-05-15-analyzer-cover-coins.sql): each half of the cover read goes red on its own. */
+  { arm: 'ANALYZER-COVER', name: '[analyzer coins] the coins leave out the loot sold to pay the store (the cards under-read the purse)', fn: 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)',
+    find: '  v_coins := v_coins + v_cover;\n', replace: '' },
+  { arm: 'ANALYZER-COVER', name: '[analyzer coins] the loot value still prices the units sold to pay the store', fn: 'public.hr_hunt_stats_of(uuid[],numeric,uuid,integer)',
+    find: ' - floor(coalesce((v_covered->>l.key)::numeric, 0))', replace: '' },
   /* CARRY IN MID-HUNT (2027-02-21-hunt-carry-in.sql): each rule of the carry goes red on its own defect. */
   { arm: 'CARRY-IN', name: '[carry-in] a carry never takes the shrimp out of the bag (a dupe)', fn: 'public.hr_hunt_restock(integer,text,bigint,uuid)',
     find: '  if v_have = p_qty then\n    delete from public.player_inventory where user_id = v_uid and slot = p_slot and item_id = p_item;\n  else\n    update public.player_inventory set qty = qty - p_qty where user_id = v_uid and slot = p_slot and item_id = p_item;\n  end if;',
@@ -5491,6 +5550,9 @@ const DB_MUTANTS = [
 /* SQL mutants: planted in a migration's TEXT; its own §4 must refuse each. The
    C2 settle file's are kept verbatim (its self-check is the proof that applied it). */
 const SQL_MUTANTS = [
+  /* lane/a-analyzer-coins (2026-11-18): the file's §2 refuses an analyzer that leaves the cover sale out of either figure. */
+  { file: '2027-05-15-analyzer-cover-coins.sql', name: '[analyzer coins] the coins leave out the loot sold to pay the store', find: '  v_coins := v_coins + v_cover;\n', replace: '' },
+  { file: '2027-05-15-analyzer-cover-coins.sql', name: '[analyzer coins] the loot value prices the units sold to pay the store', find: ' - floor(coalesce((v_covered->>l.key)::numeric, 0))', replace: '' },
   /* lane b-spell-content (2026-10-23): the old rune ladder's cut journals every holding it takes, and the slot vocabulary
      offers Green Sickness's mark. */
   { file: '2027-01-13-rune-ladder-cut.sql', name: '[spell-content] a worn old rune is cut unjournalled', find: "  select user_id, slot, 'admin', 'item_cut', p_item, -1,\n         jsonb_build_object('from', 'equipment', 'equip_slot', equip_slot, 'why', 'rune ladder cut 2026-10-23')\n    from d;",

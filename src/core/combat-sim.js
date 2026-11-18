@@ -161,6 +161,7 @@ function syncUnit(u, m, roles) {
   /* CRAFTED JEWELRY'S PERKS, the same: never persisted, absent on a hero that wears none (damage.js roll, abilities.js fire). */
   if (snap.followPm) u.followPm = snap.followPm; else if (u.followPm) delete u.followPm;
   if (snap.surgePm) u.surgePm = snap.surgePm; else if (u.surgePm) delete u.surgePm;
+  if (snap.focusPm) u.focusPm = snap.focusPm; else if (u.focusPm) delete u.focusPm;
   /* ELEMENTAL RESISTANCE (Tyler 2026-11-08), the same: from the gear the server holds, never persisted, absent with none (targeting.js elementOn). */
   if (snap.resistPm) u.resistPm = snap.resistPm; else if (u.resistPm) delete u.resistPm;
   /* THE OWN HEAL (the fist line's wraps, src/data/fists.js), the same: never persisted, absent with none (pull-cycle.js tickHeroes). */

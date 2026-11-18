@@ -343,7 +343,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
    grounds) join hr_hunt_grounds, their placeholder spawn rows hr_hunt_ground_spawns and their hunts hr_hunt_travel, served to one verb (hr_catacomb_start)
    and left off the roster; the twelve Catacomb armor pieces join hr_hunt_vendor_value (each one's bid). No limit, kill bound, end reason or world shape
    moves. ORDER: after 2027-05-08-catacombs-items-catalogue.generated.sql, before the descent's session-modes file. */
-export const OUT_NAME = '2027-05-08-catacombs-hunt-sessions-catalogue.generated.sql';
+/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-08-catacombs-hunt-sessions-catalogue (STAGED on set/v0.2.140, applied first) is the file before this
+   one and this one carries it whole. Only kill bounds' drop sets and vendor values move: the Goblin Digger carries the Seam Jasper (a Rare), the Turncoat's
+   Wolfbone Necklace and Fang Studs leave (crafted now), and the new rows get their bids. ORDER: after this lane's items catalogue. */
+export const OUT_NAME = '2027-05-09-jewelry-sample-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1094,7 +1097,14 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-catacombs, backend-architect, 2026-11-18; Tyler 2026-11-16: the Unmarked Catacombs' descent). It carries
+-- NEW IN THIS FILE (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2; Tyler 2026-11-18: the two dropped Wickstead jewels
+-- become crafted). It carries 2027-05-08-catacombs-hunt-sessions-catalogue (STAGED on set/v0.2.140) whole. Only kill bounds' drop sets and vendor values
+-- move: the Warrens' Goblin Digger gains the Seam Jasper (a Rare, tier 3's jewel gem), the Turncoat loses the Wolfbone Necklace and the Fang Studs (Smithing
+-- makes both now), and the new crafted rows get their bids. No ground, spawn, gold or XP bound, limit, end reason or world shape moves. ORDER: after
+-- 2027-05-09-jewelry-sample-items-catalogue.generated.sql (its self-check wants every dropped item in hr_items). EDGE: this file BEFORE the hr-accrue
+-- deploy that ships the Seam Jasper row (an engine crediting it against the old bounds is refused value_over).
+--
+-- CARRIED FROM 2027-05-08-catacombs-hunt-sessions-catalogue (lane/c-catacombs, backend-architect, 2026-11-18; Tyler 2026-11-16: the Unmarked Catacombs' descent). It carries
 -- 2027-05-06-sewer-from-five-hunt-sessions-catalogue (applied with v0.2.139) whole. THE DESCENT'S TWO WINGS (src/data/tower.js CATACOMB_WINGS, run grounds on the
 -- Tower's engine): their grounds in hr_hunt_grounds, their placeholder spawn rows (the engine fields each room from the wing's roster) in
 -- hr_hunt_ground_spawns and their hunts in hr_hunt_travel, served to one verb (hr_catacomb_start, 2027-05-08-catacombs.sql; until it, hr_hunt_admit

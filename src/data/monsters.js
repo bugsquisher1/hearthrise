@@ -146,8 +146,7 @@ export const MONSTERS = {
   small_wolf: { name: 'Wolf Cub', icon: '🐺', tier: 1, cls: 'mammal', family: 'Mammal',
     dropBonus: 1.15,
     hp: 16, atk: 5, def: 1, xp: 14, gp: [3, 9],
-    drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 },
-      { id: 'wolfbone_torc', ch: .0002, lucky: true }] },   // .0006 -> .0002 (core rebuild, flat 2.0 s swing: 3.2 h): ~10 h, the rare-drop ruling's 10-20 h (Tyler 10-14/15)
+    drops: [{ id: 'wolf_pelt', ch: .32 }, { id: 'small_fang', ch: .18 }, { id: 'bones', ch: 1 }, { id: 'raw_wolf_meat', ch: .6 }] },
   mandrake: { name: 'Mandrake', icon: '🌱', tier: 1, cls: 'plant', family: 'Plant',
     hp: 11, atk: 3, def: 1, xp: 9, gp: [2, 5],
     drops: [{ id: 'goldenroot', ch: .3 }, { id: 'moonbloom', ch: .08 }, { id: 'turnip', ch: .35 },
@@ -190,8 +189,7 @@ export const MONSTERS = {
 
   giant_bat: { name: 'Giant Bat', icon: '🦇', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 24, atk: 7, def: 1, xp: 24, gp: [4, 12], speed: 4400,
-    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 },
-      { id: 'fang_studs', ch: .00019, lucky: true }] },   // .0005 -> .00019 (core rebuild: 3.8 h): ~10 h, rare ruling 10-20 h
+    drops: [{ id: 'bat_wing', ch: .7 }, { id: 'night_fang', ch: .025 }, { id: 'bones', ch: .5 }] },
   locust_swarm: { name: 'Locust Swarm', icon: '🦗', tier: 2, cls: 'vermin', family: 'Vermin',
     hp: 25, atk: 8, def: 1, xp: 27, gp: [4, 13],
     drops: [{ id: 'wheat', ch: .8 }, { id: 'silk_thread', ch: .2 }, { id: 'venom_sac', ch: .1 },
@@ -796,7 +794,9 @@ export const MONSTERS = {
     drops: [{ id: 'copper_ore', ch: .8, band: 'common' }, { id: 'coal', ch: .4, band: 'common' }, { id: 'bones', ch: .5, band: 'common' }, { id: 'goblin_ear', ch: .4, band: 'common' }, { id: 'dented_copper_pot', ch: .08, band: 'uncommon' },
       { id: 'steel_helm', ch: .0308, band: 'scarce' }, { id: 'boarhide_helmet', ch: .0308, band: 'scarce' }, { id: 'scholar_helmet', ch: .0308, band: 'scarce' }, { id: 'steel_warhammer', ch: .0308, band: 'scarce' },
       /* the first tier-3 belts (lane b-unsourced-items), Rares above the Shop's basic belt */
-      { id: 'steel_belt', ch: .00238, band: 'rare' }, { id: 'boarhide_belt', ch: .00238, band: 'rare' }, { id: 'scholar_belt', ch: .00238, band: 'rare' }] },
+      { id: 'steel_belt', ch: .00238, band: 'rare' }, { id: 'boarhide_belt', ch: .00238, band: 'rare' }, { id: 'scholar_belt', ch: .00238, band: 'rare' },
+      /* the jeweler's tier 3 gem (src/data/jewelry.js), broken out of the copper seams: last, so no earlier row's draw moves */
+      { id: 'seam_jasper', ch: .00238, band: 'rare' }] },
   hobgoblin_foreman: { name: 'Hobgoblin Foreman', icon: '👹', tier: 3, level: 46, cls: 'humanoid', family: 'Humanoid', formation: true,
     hp: 312, atk: 23, baseAcc: 0.86, def: 28, xp: 1715, gp: [24, 73], formula: true, speed: 3000,
     /* his spell: the lash he drops (foremans_lash), swept across the two tiles in front of him (lane/d-spell-tuning) */
@@ -930,7 +930,7 @@ export const MONSTERS = {
     spells: ['smoke_pot'],
     drops: [{ id: 'wolf_pelt', ch: .231, band: 'common' }, { id: 'bones', ch: .385, band: 'common' }, { id: 'torn_company_badge', ch: .077, band: 'uncommon' },
       { id: 'iron_platebody', ch: .0266, band: 'scarce' }, { id: 'studded_body', ch: .0266, band: 'scarce' }, { id: 'adept_body', ch: .0266, band: 'scarce' }, { id: 'bramble_blade', ch: .0266, band: 'scarce' },
-      { id: 'road_carnelian', ch: .00231, band: 'rare' }, { id: 'wolfbone_torc', ch: .00231, band: 'rare' }, { id: 'fang_studs', ch: .00231, band: 'rare' }] },
+      { id: 'road_carnelian', ch: .00231, band: 'rare' }] },
 };
 
 /* GROUND PACKS (src/data/grounds): each pack's new monsters join the table, a copy each (the seal below writes onto its rows).

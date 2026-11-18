@@ -412,9 +412,13 @@ export const REFUSAL_WORDS = Object.freeze({
   title_owned: 'Title already owned',
   title_not_owned: 'Title not claimed yet',
   /* The Hallmark step (2027-03-14-jewelry-hallmark.sql). With the server's numbers these read from intent-words.js refusalText. */
-  hallmark_level: 'Requires a higher Crafting level',
+  hallmark_level: 'Requires a higher Smithing level',
   hallmark_limit: 'Daily limit: 10 Hallmarks. Resets at midnight UTC',
   unknown_hallmark: 'Can\'t Hallmark that way, pick another perk',
+  /* The jewel reforge (2027-05-09-jewel-reforge.sql), the same: intent-words.js says the bench and both levels when the server sends them. */
+  reforge_level: 'Requires a higher Smithing level',
+  reforge_limit: 'Daily limit: 10 reforges. Resets at midnight UTC',
+  unknown_reforge: 'Can\'t reforge that piece that way',
   /* The tier picked per ground (hr_hunt_tier_set). */
   bad_hunt: 'No monsters to set a number for',
   bad_tier: 'Tier not open on this hunt',

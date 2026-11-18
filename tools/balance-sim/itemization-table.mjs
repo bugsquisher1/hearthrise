@@ -9,6 +9,10 @@
 //        what ONE upgrade is worth with everything else equal (same seeds, so the dice are paired): the weapon a tier
 //        behind, the armor a tier behind, a full Tempering track, ten trained skill levels, the crafted ring plain and
 //        Hallmarked, the cape, the Tower weapon of the tier
+//   node tools/balance-sim/itemization-table.mjs sample [--at glade,warrens] [--only Steady,Focus] [--styles ...]
+//        the phase 2 jewelry sample, each new piece and perk alone and the sample set against the set a tier down
+//   node tools/balance-sim/itemization-table.mjs built-for [--at glade]
+//        Steady and Focus where each is meant to shine (the main skill ten under the Level)
 //
 // Every number is read off the engine's own events (cell.mjs). Nothing here computes a combat or gold number.
 import { dirname, resolve } from 'node:path';
@@ -93,6 +97,71 @@ async function steps() {
   }
 }
 
-if (mode === 'day') await day();
+/* THE PHASE 2 JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): what each new piece and perk is worth with everything else equal
+   (same seeds, so the dice are paired), against the plan's budget (docs/design/itemization-plan.md §4: one perk in an ordinary hunt
+   about 1% XP or 2% less damage, about three times that in the case it is built for; a whole set one tier up at most one weapon step).
+   `sample` plays the Glade (tier 2, Level 24) and the Warrens (tier 3, Level 42) in the Level's kit with no accessories, then each piece
+   alone; `built-for` plays each new perk where it is meant to shine: Steady for a hero ten skill levels under its Level (more misses),
+   Focus for a caster who spends its mana. */
+const SAMPLE = {
+  glade: [
+    ['+ Fang Studs, plain', { earrings: 'fang_studs' }],
+    ['+ Fang Studs (Steady)', { earrings: 'fang_studs_steady' }],
+    ['+ Fang Studs (Focus)', { earrings: 'fang_studs_focus' }],
+    ['+ Hallmarked Fang Studs (Steady, Focus)', { earrings: 'fang_studs_steady_focus' }],
+    ['+ Wolfbone Necklace, plain', { necklace: 'wolfbone_torc' }],
+    ['+ Banded Signet x2, plain', { ring1: 'banded_signet', ring2: 'banded_signet' }],
+    ['+ Hallmarked Banded Signet x2 (Keen, Follow) (Keen, Surge)', { ring1: 'banded_signet_keen_follow', ring2: 'banded_signet_keen_surge' }],
+  ],
+  warrens: [
+    ['+ Banded Signet x2, plain (the tier below)', { ring1: 'banded_signet', ring2: 'banded_signet' }],
+    ['+ Seam Jasper Band x2, plain', { ring1: 'seam_jasper_band', ring2: 'seam_jasper_band' }],
+    ['+ Hallmarked Banded Signet x2 (Keen, Follow) (Keen, Surge)', { ring1: 'banded_signet_keen_follow', ring2: 'banded_signet_keen_surge' }],
+    ['+ Hallmarked Seam Jasper Band x2, reforged (Keen, Follow) (Keen, Surge)', { ring1: 'seam_jasper_band_keen_follow', ring2: 'seam_jasper_band_keen_surge' }],
+    ['+ Warband Bulwark, plain', { cape: 'warband_bulwark' }],
+    ['+ Houndskin Cloak, plain (the tier below)', { cape: 'houndskin_cloak' }],
+    ['+ Fang Studs (Steady)', { earrings: 'fang_studs_steady' }],
+    ['+ Fang Studs (Focus)', { earrings: 'fang_studs_focus' }],
+    ['the full sample set: Seam Jasper Bands (Hallmarked), Hallmarked Fang Studs, Wolfbone Necklace, Warband Bulwark',
+      { ring1: 'seam_jasper_band_keen_follow', ring2: 'seam_jasper_band_keen_surge', earrings: 'fang_studs_steady_focus', necklace: 'wolfbone_torc', cape: 'warband_bulwark' }],
+    ['the same set one tier down: Banded Signets (Hallmarked), Hallmarked Fang Studs, Wolfbone Necklace, Houndskin Cloak',
+      { ring1: 'banded_signet_keen_follow', ring2: 'banded_signet_keen_surge', earrings: 'fang_studs_steady_focus', necklace: 'wolfbone_torc', cape: 'houndskin_cloak' }],
+  ],
+};
+
+async function sample() {
+  const R = await loadCellRunner(ROOT);
+  const builtFor = mode === 'built-for';
+  const only = String(arg('only', '')).split(',').filter(Boolean);
+  const wanted = String(arg('at', builtFor ? 'glade' : 'glade,warrens')).split(',');
+  console.log('where | way | what changed | Level XP/h | vs base | damage taken/h | vs base | casts/h | deaths | low HP p10 %');
+  for (const key of wanted) {
+    const a = AT[key];
+    if (!a) { console.log('no such place ' + key); continue; }
+    for (const s of styles) {
+      const L = a.level, main = MAIN[s];
+      /* built-for Steady: the main skill ten under the Level (the miss case); Focus is read off the same rows on a caster */
+      const patch = builtFor ? { skillsBySeat: [{ melee: L, ranged: L, magic: L, defense: L, [main]: Math.max(1, L - 10) }] } : {};
+      const rows = [['base: the Level\'s kit, no accessories' + (builtFor ? ', main skill 10 under' : ''), {}]]
+        .concat(builtFor ? [['+ Fang Studs, plain', { earrings: 'fang_studs' }], ['+ Fang Studs (Steady)', { earrings: 'fang_studs_steady' }],
+          ['+ Fang Studs (Focus)', { earrings: 'fang_studs_focus' }]] : SAMPLE[key] || [])
+        /* --only a,b: the rows whose label holds one of these words (the base always plays) */
+        .filter(([label], i) => i === 0 || !only.length || only.some((w) => label.includes(w)));
+      let base = null;
+      for (const [label, also] of rows) {
+        let m;
+        try { m = R.runCell({ id: ['IT-sample', key, s, label, builtFor].join(':'), ground: a.ground, party: [s], level: L, hours, seeds, ...patch, gear: { also } }); } catch (e) { console.log([key, s, label, 'ERROR ' + e.message].join(' | ')); continue; }
+        const h = m.heroes[0];
+        if (!base) base = h;
+        const casts = Object.values(h.castsPerH || {}).reduce((x, y) => x + y, 0);
+        console.log([key + ' L' + L, s, label, h.levelXpPerH, pct(h.levelXpPerH, base.levelXpPerH), h.takenPerH, pct(h.takenPerH, base.takenPerH),
+          casts.toFixed(0), h.deaths, h.encMinHpPct.p10].join(' | '));
+      }
+    }
+  }
+}
+
+if (mode === 'sample' || mode === 'built-for') await sample();
+else if (mode === 'day') await day();
 else if (mode === 'steps') await steps();
-else console.log('usage: node tools/balance-sim/itemization-table.mjs day|steps [--hours 2] [--seeds 2] [--styles hammer,tank] [--at glade,slake]');
+else console.log('usage: node tools/balance-sim/itemization-table.mjs day|steps|sample|built-for [--hours 2] [--seeds 2] [--styles hammer,tank] [--at glade,slake]');

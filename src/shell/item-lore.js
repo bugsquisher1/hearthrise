@@ -37,7 +37,7 @@ import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromK
 import { FLAMES } from '../data/hearth.js?v=0.2.139';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.139';
 import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.139';
-import { recipeOutcomes, HALLMARK_OFFERS } from '../data/jewelry.js?v=0.2.139';
+import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS } from '../data/jewelry.js?v=0.2.139';
 import { t, hasText } from '../render/player-text.js?v=0.2.139';
 import { baneIndex, baneMultFor, classOfMonster } from '../core/bane.js?v=0.2.139';
 import { resistProfile } from '../core/elements.js?v=0.2.139';
@@ -76,8 +76,9 @@ function index() {
   };
   for (const [skill, rows] of Object.entries(ARTISAN_RECIPES)) for (const r of rows || []) recipe(skill, r);
   for (const r of DRINK_RECIPES) recipe('cooking', r);
-  /* the Hallmark step: a Fine piece and its gem make the Hallmarked row (at Crafting), and are used in it */
-  for (const o of HALLMARK_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.gem]) at(id).inputOf.push([o.skill, o.to, 'the Hallmark', null, o.level]); }
+  /* the Hallmark step: a Fine piece and its gem make the Hallmarked row (at the piece's own bench), and are used in it; the reforge the same, with the bars */
+  for (const o of HALLMARK_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.gem]) at(id).inputOf.push([o.skill, o.to, t('jewel.job_hallmark'), null, o.level]); }
+  for (const o of REFORGE_OFFERS) { at(o.to).made.push(o.skill); lowest(at(o.to), o.skill, o.level); for (const id of [o.from, o.metal, o.gem]) at(id).inputOf.push([o.skill, o.to, t('jewel.job_reforge'), null, o.level]); }
   for (const [nodes, skill] of /** @type {[{id: string, prod?: string, req?: number}[], string][]} */ ([[TREES, 'woodcutting'], [ROCKS, 'mining'], [FISH_SPOTS, 'fishing']])) for (const n of nodes) if (n.prod) { at(n.prod).from.push(skill); lowest(at(n.prod), skill, n.req, n.id); }
   for (const c of Object.values(CROPS)) if (c && c.prod) { at(c.prod).from.push('farming'); lowest(at(c.prod), 'farming', c.req || c.lv); }
   /* Only a row a Shop tab lists is "sold at the shop": the rest are the vendor's price list (lane/b-orphan-sources). */

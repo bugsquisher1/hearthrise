@@ -121,6 +121,9 @@ export const ITEMS={
      Turncoat carries it, the one rare that replaced his Banded Signet. A gem roll and the Hallmark step spend it; raw, so the shop pays a fifth.
      Not a garnet (designer 2026-11-05): the mined Heartgarnet is a red gem too, and a player holding both would set the wrong one. */
   road_carnelian:{n:'Road Carnelian',icon:'🟠',v:200},
+  /* THE T3 JEWEL'S GEM (src/data/jewelry.js JEWEL_TIERS, lane/d-jewelry-sample 2026-11-18): a red-brown jasper the Warrens' diggers break out of
+     the copper seams and pocket, so the Goblin Digger carries it as a Rare. A gem roll, the Hallmark step and a reforge to tier 3 spend it. */
+  seam_jasper:{n:'Seam Jasper',icon:'🟤',v:500},
   rat_tail:{n:'Rat Tail',icon:'🐀',v:6},
   /* The Rat King's shard (15%, ~3 an hour for a full party): sold, the sewer's profit. */
   crown_shard:{n:'Crown Shard',icon:'👑',v:150},small_fang:{n:'Small Fang',icon:'🦷',v:15},
@@ -945,8 +948,8 @@ const RAW_DROPS = [
   'bear_pelt', 'bear_claw', 'dire_fang', 'shadow_pelt', 'razor_claw',
   'shadow_thread', 'void_chitin', 'death_steel', 'brute_plate',
   'raw_wolf_meat', 'raw_panther_meat', 'raw_bear_meat',
-  /* a gem a monster carries for the jeweler (src/data/jewelry.js) */
-  'road_carnelian',
+  /* the gems monsters carry for the jeweler (src/data/jewelry.js) */
+  'road_carnelian', 'seam_jasper',
 ];
 
 /* BULK GOODS (designer 2026-11-01, lane/c-craft-economy; the measured table is on the priority board). A shop buys a

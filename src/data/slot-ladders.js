@@ -128,12 +128,20 @@ export const SLOT_ITEMS = {
   graypelt_cloak:  { n: 'Graypelt Cloak',  icon: '🦸', v: 150, type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common', reqSkill: 'level', reqLv: 8, steadyPm: 30, critB: 0.005 },
   woolen_cloak:    { n: 'Woollen Cloak',   icon: '🦸', v: priced(240, 1), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 12, steadyPm: 30 },
   houndskin_cloak: { n: 'Houndskin Cloak', icon: '🦸', v: priced(240, 2), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 22, steadyPm: 70,  strB: 1 },
+  /* THE TIER 3 CLOAK, CRAFTED (itemization plan §4 phase 2, lane/d-jewelry-sample 2026-11-18; src/data/jewelry.js JEWEL_PIECES): Crafting 30 stitches
+     it from the Glade's Bear Pelts over Smithing's steel. Was a wave-3 unique with no source; re-cut to the cape ladder (worn from tier 3's Level
+     30, book priced like its rungs, armourClass cape so it never counts toward a plate set) and its plain stats help every way to fight (the
+     plan's rule): the ladder's cut between the Houndskin's 70 and the Trollhide's 150, and a point of damage for each style. Ships plain until
+     the cloak's perks (Slip, Stride) are hooked. */
+  warband_bulwark: { n: 'Warband Bulwark', icon: '🦸', v: priced(240, 3), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30, steadyPm: 110, strB: 1, rangeStrB: 1, magicStrB: 1 },
   trollhide_cape:  { n: 'Trollhide Cape',  icon: '🦸', v: priced(240, 4), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, steadyPm: 150, strB: 2 },
   shadowsilk_cape: { n: 'Shadowsilk Cape', icon: '🦸', v: priced(240, 5), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 63, steadyPm: 185, strB: 3 },
   dawnlit_mantle:  { n: 'Dawnlit Mantle',  icon: '🦸', v: priced(240, 7), type: 'armor', slot: 'cape', armourClass: 'cape', tier: 7, rarity: 'mythic',    reqSkill: 'level', reqLv: 88, steadyPm: 255, strB: 3, critB: 0.01 },
 
   /* ══ NECKLACE — accuracy low, damage high ═══════════════════════════════ */
-  wolfbone_torc:     { n: 'Wolfbone Necklace', icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15, atkB: 3},
+  /* CRAFTED NOW (Tyler 2026-11-18: the two dropped Wickstead jewels become crafted; src/data/jewelry.js): Smithing 15. Its plain stats help every way to
+     fight (the itemization plan's rule: atkB 3 alone gave a hammer +1.0% and a bow or a wand nothing, measured 2026-11-18), a Banded Signet's +2 +2 each. */
+  wolfbone_torc:     { n: 'Wolfbone Necklace', icon: '📿', v: priced(200, 2), type: 'jewelry', slot: 'necklace', tier: 2, rarity: 'uncommon', reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 },
   spidersilk_choker: { n: 'Spidersilk Choker', icon: '📿', v: priced(200, 3), type: 'jewelry', slot: 'necklace', tier: 3, rarity: 'rare',     reqSkill: 'level', reqLv: 34, atkB: 5, critB: 0.01 },
   warlords_torc:     { n: "Warlord's Necklace",icon: '📿', v: priced(200, 4), type: 'jewelry', slot: 'necklace', tier: 4, rarity: 'epic',     reqSkill: 'level', reqLv: 52, atkB: 6, strB: 5},
   dawnbound_amulet:  { n: 'Dawnbound Amulet',  icon: '📿', v: priced(200, 7), type: 'jewelry', slot: 'necklace', tier: 7, rarity: 'mythic',   reqSkill: 'level', reqLv: 86, atkB: 8, strB: 7},
@@ -144,6 +152,10 @@ export const SLOT_ITEMS = {
   /* CRAFTED NOW (src/data/jewelry.js, the designer's spec 2026-11-05): plain pieces read for EVERY style, +2 +2, since a bow or a
      wand drew nothing from a ring that paid melee only. Its Fine and Hallmarked rows copy this row. */
   banded_signet:     { n: 'Banded Signet',     icon: '💍', v: priced(200, 2), type: 'jewelry', slot: 'ring', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 },
+  /* THE TIER 3 RING (itemization plan §4 phase 2, lane/d-jewelry-sample 2026-11-18): Smithing 30 makes it from Steel Bars, and a Seam Jasper, the
+     Warrens' gem, is set in it. Every style a point more than the Banded Signet, as that one is for all three. A Hallmarked Banded Signet
+     reforges into one (src/data/jewelry.js REFORGE_OFFERS). */
+  seam_jasper_band:  { n: 'Seam Jasper Band',  icon: '💍', v: priced(200, 3), type: 'jewelry', slot: 'ring', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 30, atkB: 3, strB: 3, rangeAtkB: 3, rangeStrB: 3, magicAtkB: 3, magicStrB: 3 },
   ruby_signet:       { n: 'Ruby Signet',       icon: '💍', v: priced(200, 5), type: 'jewelry', slot: 'ring', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 52, atkB: 4, strB: 4, critB: 0.01 },
   /* The second scroll the code has been waiting for: `spellstone_diagram` →
      `spellstone_ring`, same b145 note, same three steps. Magic-flavoured
@@ -235,6 +247,7 @@ export const SLOT_DESC = {
   dragon_gem_earrings: 'A dragon\'s heart-gem cut in half to make a pair of earrings. It\'s the best work a gemcutter can do',
 
   woolen_cloak: 'A plain wool cloak that keeps the rain off. It\'s the first cloak most people ever own',
+  warband_bulwark: 'Bear pelts sewn over a steel frame and worn on your back. Every hit you take lands a little softer',
   houndskin_cloak: 'A cape for any fighter, with more force behind a blade or a hammer. Wolf pelts backed with bear hide, cut short for the swing',
   trollhide_cape: 'Troll hide over bear pelt, thick enough to blunt a blade and heavy enough to notice',
   shadowsilk_cape: 'A cape of shadow silk woven on a spider\'s loom. It doesn\'t move, even when you\'re running',
@@ -246,6 +259,7 @@ export const SLOT_DESC = {
   dawnbound_amulet: 'A dawnsteel and dragon gem amulet on a gold chain. It\'s worth more than most towns',
 
   banded_signet: 'A copper ring with a bronze band around it. The Banded Company gave one to each of its soldiers',
+  seam_jasper_band: 'A plain steel band cut to hold a jasper from the Warrens seams. Smiths make them in pairs, one for each hand',
   ruby_signet: 'A ruby as big as your thumbnail on a mithril band. Everyone notices it on your hand',
   spellstone_ring: 'A warlock\'s cracked spellstone wrapped in runes. Mages wear it for stronger spells and more crits',
   dawnforged_signet: 'A ring forged from dawnsteel, death-steel and gold. It\'s about as tough as a ring gets',

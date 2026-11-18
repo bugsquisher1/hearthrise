@@ -42,7 +42,7 @@ import { EFFECT_KINDS } from './item-effects.js?v=0.2.139';
 import { MONSTERS } from './monsters.js?v=0.2.139';
 import { NAMED_FUELS } from './hearth.js?v=0.2.139';
 import { TEMPER_OFFERS } from './temper.js?v=0.2.139';
-import { recipeOutcomes, HALLMARK_OFFERS } from './jewelry.js?v=0.2.139';
+import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS } from './jewelry.js?v=0.2.139';
 import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GROUNDS } from './hunt-grounds.js?v=0.2.139';
 import { BOSS_CALLS } from './boss-calls.js?v=0.2.139';
 import { HUNT_INDEX } from './hunts.js?v=0.2.139';
@@ -159,7 +159,7 @@ export const AWAITING_ROSTER = Object.freeze([
   'verdite_blade', 'verdite_helm', 'verdite_platebody',
   /* tier 7's boots, gloves, legs and belts in three weights left for Carter's Rest (lane/d-morrow-grounds, UNREACHABLE.staged) */
   'verdite_platelegs', 'void_essence', 'voidheart_robe', 'voidmaw_scepter',
-  'voidwoven_sigil', 'warband_bulwark',
+  'voidwoven_sigil',
   'warboss_standard', 'warden_girdle', 'warden_seal',
   'wartusk_cleaver', 'watchknight_belt', 'watchknight_body', 'watchknight_boots',
   'watchknight_gloves', 'watchknight_helmet', 'watchknight_pants', 'whispering_codex',
@@ -393,6 +393,8 @@ export function itemUses() {
   for (const o of TEMPER_OFFERS) Object.keys(o.items).forEach((id) => push(m, id, 'pays for a Tempering rung'));
   /* the Hallmark step (src/data/jewelry.js, hr_hallmark): a Fine piece and its tier's gem make the Hallmarked row */
   for (const o of HALLMARK_OFFERS) { push(m, o.from, 'Hallmarked at the jeweler'); push(m, o.gem, 'pays for a Hallmark'); }
+  /* the jewel reforge (hr_jewel_reforge): a Hallmarked piece, the next tier's bars and gem make that tier's Hallmarked row */
+  for (const o of REFORGE_OFFERS) { push(m, o.from, 'reforged at the jeweler'); push(m, o.gem, 'pays for a reforge'); push(m, o.metal, 'pays for a reforge'); }
   addSet(m, seedIds(), 'planted');
   addSet(m, HEARTHFIND_ITEMS, 'a Hearthfind set piece');
   for (const id of VENDOR_TRASH) push(m, id, 'vendor trash');

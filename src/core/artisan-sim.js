@@ -150,14 +150,6 @@ export function bagFullFor(state, recipe, skill, ctx) {
   return stacks - freed + 1 > cap ? opens : null;
 }
 
-/* The benches this file can simulate. Derived from the index the caller builds
-   rather than hardcoded, so a fifth bench is a data row. */
-export function isArtisanSkill(skillId, index) {
-  if (!index) return false;
-  for (const id of Object.keys(index)) if (index[id].skill === skillId) return true;
-  return false;
-}
-
 /**
  * Build the recipe index: `{ [recipeId]: { skill, recipe } }`.
  *

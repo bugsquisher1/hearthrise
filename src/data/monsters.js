@@ -29,7 +29,7 @@
 //                classes (Dragon / Elemental / Extra Dimensional) REQUIRE an
 //                element profile, which is not an override. `elements` = percent
 //                LESS taken per element, negative = more, never immune (2026-11-06).
-//   dropBonus    see the NEUTRAL_DROP_BONUS note below.
+//   dropBonus    see the `neutral` note below.
 //   tier/hp/atk/def/xp/gp
 //                must land inside `TIER_BANDS` in monster-classes.js, which
 //                is the MEASURED curve of the 31 originals. New content bends
@@ -50,7 +50,7 @@
 //
 // `neutral` IS RETIRED (DEC-NEUT-01). Every monster answers a real weapon.
 // The 7 monsters that used to opt out of the triangle earned a x1.15 drop
-// rate for it (`NEUTRAL_DROP_BONUS`). Deleting `neutral` would have silently
+// rate for it. Deleting `neutral` would have silently
 // nerfed their drops 13%, including the game's capstone Green Dragon. That
 // bonus is RE-HOMED as an explicit per-monster `dropBonus:1.15` on exactly
 // those 7 rows, so nobody is worse off and the engine loses a magic constant

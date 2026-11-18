@@ -248,17 +248,6 @@ export function inventoryArmStaged(host) {
    documented exclusion) — so the harvest RPC, not the inventory flip, is what
    makes farm produce server-owned. */
 export const FARM_SERVER_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 cutover) — farm gestures are server intents
-/* b514 (cleanup slice 4): the OVERRIDE SEAM IS GONE and this is a constant.
-   `__setFarmServerArm` existed to drive the pre-cutover client-authoring path,
-   and that path no longer exists in any caller — plantCrop / waterPlot /
-   waterAllPlots / harvestPlot / upgradePlot have exactly one branch each. A seam
-   that can only select a deleted branch is not a kill switch, it is a lie about
-   what the client can still do; keeping it would let a test (or a console) claim
-   a fall-through that would now simply drop the gesture on the floor.
-   The kill-switch position, if it is ever wanted again, is a SERVER one. */
-export function isFarmServerArmed() {
-  return FARM_SERVER_ARM_ENABLED;
-}
 
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,
@@ -436,7 +425,7 @@ export function buildItemAuthority(opts) {
   /* ── THE CONSUMED SET IS NARROWED BY THE FARM ─────────────────────────────
      A raw crop heals, so `serverConsumedIds()` names all nine of them. But a
      crop's MINT path is the farm harvest, which is a SEPARATE server-authority
-     program with its own arm (`isFarmServerArmed`) — and letting a complete
+     program with its own arm (`FARM_SERVER_ARM_ENABLED`) — and letting a complete
      envelope zero a crop would put an entire harvest at the mercy of that
      program being finished, which is not a bet the phantom-food fix needs to
      take. Crops are therefore left on the never-lower rule exactly as today.

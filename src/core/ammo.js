@@ -5,40 +5,11 @@
 // through the SAME per-swing field (`ammoPerShot`) in the SAME slot (`ammo`).
 // There is not a second consumption path."
 //
-// ── WHY THIS FILE EXISTS SEPARATELY FROM combat-sim.js ────────────────
-// `ammoPerShot` shipped as DATA in b343 (`src/data/slot-ladders.js`) with its
-// own header admitting "NOTHING CONSUMES THESE YET", and the design doc then
-// MEASURED the inertness rather than assuming it: a 12-hour away run loosed
-// 20,454 arrows and called `fx.removeItem` zero times. Three skills —
-// Fletching, Runecrafting and Stonemason — are all specified against that one
-// field, and they are being built by different agents at different times.
-//
-// If each of them brings its own arithmetic, the three will drift exactly the
-// way `processOfflineCombat` drifted from `combatTick` (b325) and `deriveTickMs`
-// drifted from its caller. So the arithmetic is authored ONCE, here, ahead of
-// its consumers, and every consumer imports it:
-//
-//   • the pre-flight supply projection  (docs/design/supply-projection.md)
-//   • the away card's dry-out line      (consumable-economy.md §10)
-//   • the combat loop's per-swing spend (E1, NOT YET WIRED — see below)
-//   • the server's away accrual         (same functions, vendored)
-//
-// §4.5 of the design states the requirement this file discharges verbatim:
-// "`consumablesPerHour` and `hoursOfSupply` MUST live beside [swingIntervalMs]
-// in `src/core/**` and be called by BOTH the pre-flight projection and the
-// server's away accrual. If the projection computes its own copy, the two will
-// disagree, and the player will be told a number the night does not honour."
-//
-// ── E1 IS WIRED (2026-08-31) ─────────────────────────────────────────────
-// `simulateTick` in src/core/combat-sim.js NOW calls `spendForSwings(state, 1,
-// ctx)` on every swing — the live 2.4s tick and the server's away accrual are
-// the same call, because they are the same function. Paione, 2026-08-20:
-// "crafted arrows are never spent in combat." They are now.
-//
-// The wiring is CTX-BLIND on purpose: nothing below and nothing at the call
-// site reads `ctx.away`. That is what keeps AWAY-1 true — a seeded fight
-// consumes the identical number of arrows through both paths, because there is
-// only one path.
+// The rules here are read by the one hunt engine: a shot pays `ammoPerShot`
+// from the hunt's bag (src/core/hunt/abilities.js), a melee swing wears its
+// hone by `honeWornAt` (src/core/member.js), and an unsupplied style fights at
+// `AMMO_DRY_MULT` (`ammoDamageMult`, `readAmmo`). One engine, so there is one
+// spend path whether the hunt is watched or not.
 //
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
@@ -182,12 +153,6 @@ export function styleNeedsAmmo(weaponType) {
    with the reason attached. */
 export const AMMO_EMPTY_SLOT_IS_DRY = true;
 
-/** The greppable proof that the empty-quiver indicator exists. See the block
- *  above: `AMMO_EMPTY_SLOT_IS_DRY` may not be true unless this token appears in
- *  a rendered surface under `src/`. Exported so the guard reads the contract
- *  from the module that owns it rather than re-typing the string. */
-export const AMMO_DRY_UI_MARKER = 'hr-ammo-dry';
-
 /* ── THE SECOND OPEN QUESTION, AND IT IS NOT SOLVABLE IN THIS FILE ─────
    AN EMPTIED SLOT KEEPS ITS STATS. `equipmentStats` sums the ammo item's
    bonuses off the EQUIPMENT MAP, and §2.2's slot is a POINTER that survives
@@ -247,90 +212,6 @@ export function honeWornAt(index, perShot) {
   return Math.floor(i * p + 1e-9) - Math.floor((i - 1) * p + 1e-9);
 }
 
-/* ── R3: BURN IS A PURE FUNCTION OF TIME ──────────────────────────────
-   An arrow is spent on the SWING, hit or miss — never on the hit, never on the
-   kill, never on a drop roll. This is the property that makes every number
-   below honest, and it is worth stating why rather than just asserting it:
-
-   `simulateSpan` runs `floor(spanMs / tickMs)` ticks for the whole span
-   regardless of what happens in the fight (measured: ticks = 13,636 in every
-   8-hour ranged run, at every damage multiplier, against every monster). So
-   consumption is EXACTLY `swings x ammoPerShot`, independent of monster
-   choice, accuracy, kill rate and drop luck.
-
-   Spending on HITS would make the burn rate a function of the monster's
-   defence and the player's accuracy — still computable, but it would mean a
-   high-accuracy build is CHEAPER to run, which inverts the intent, and it
-   would couple the pre-flight projection to a monster the player has not
-   picked yet. */
-
-/** Consumables spent per hour at this swing interval. */
-export function consumablesPerHour(swingIntervalMs, perShot) {
-  const ms = Number(swingIntervalMs);
-  const per = Number(perShot);
-  if (!(ms > 0) || !(per > 0)) return 0;
-  return (3600000 / ms) * per;
-}
-
-/**
- * How long a stack lasts, in hours. `Infinity` when nothing is spent — which
- * covers BOTH the free rung and melee's empty slot, so a caller never
- * has to special-case "this style does not use ammo".
- */
-export function hoursOfSupply(stock, swingIntervalMs, perShot) {
-  const rate = consumablesPerHour(swingIntervalMs, perShot);
-  if (rate <= 0) return Infinity;
-  return Math.max(0, Number(stock) || 0) / rate;
-}
-
-/**
- * The instant the stack hits zero, in absolute ms — or `null` for "never".
- *
- * DERIVABLE IN CLOSED FORM BEFORE THE SPAN RUNS, which is the whole point:
- * the server computes it, the client renders it, and neither invents it. The
- * away card's "you ran out 4h 20m in" and the pre-flight "about 7 hours of
- * keen edge" are then the SAME expression evaluated at two moments, so they
- * cannot disagree — see §10's rule that a player who buys exactly what they
- * were quoted must not run dry in the last minute.
- */
-export function dryAtMs(fromMs, stock, perShot, tickMs) {
-  const per = Number(perShot);
-  const ms = Number(tickMs);
-  if (!(per > 0) || !(ms > 0)) return null;
-  const swings = Math.floor((Math.max(0, Number(stock) || 0) + 1e-9) / per);
-  return (Number(fromMs) || 0) + swings * ms;
-}
-
-/**
- * The DETERMINISTIC fractional carry for `ammoPerShot < 1` — a whetstone at
- * 0.02 is one honing per fifty swings, and it must be the SAME fifty swings on
- * every replay.
- *
- * Deliberately NOT an RNG roll. `advanceToolCarry` in ./tools.js was written
- * with that same reasoning and this is its twin, including the `+1e-9`
- * correction that file documents: 0.02 accumulated fifty times floats short of
- * 1.0 and would never pay out without it. Roll a dice here and the AWAY-1
- * parity test goes red and the pre-flight projection becomes a lie.
- *
- * Mutates `carry` (a plain `{ [ammoId]: fraction }` bag) and returns the WHOLE
- * units owed for these swings.
- *
- * ⚠ THE CARRY IS PERSISTENT PROGRESS. It belongs in the save snapshot and must
- *   NEVER be added to `NO_SYNC` — save invariant 3: "adding a persistent-
- *   progress field to NO_SYNC = silent cloud data loss". Keyed by AMMO ID
- *   rather than by slot so swapping stacks mid-night cannot silently forgive
- *   or double-charge the fraction already banked against the other stack.
- */
-export function advanceAmmoCarry(carry, ammoId, swings, perShot) {
-  const per = Number(perShot);
-  const n = Math.max(0, Math.floor(Number(swings) || 0));
-  if (!(per > 0) || n === 0 || !carry || !ammoId) return 0;
-  const c = (Number(carry[ammoId]) || 0) + n * per;
-  const whole = Math.floor(c + 1e-9);
-  carry[ammoId] = c - whole;
-  return whole;
-}
-
 /**
  * The damage multiplier this loadout earns from its supply state.
  *
@@ -349,27 +230,6 @@ export function ammoDamageMult({ weaponType, perShot, stock, equipped }) {
   if (!loaded) return AMMO_EMPTY_SLOT_IS_DRY ? AMMO_DRY_MULT : 1;
   if (!(Number(perShot) > 0)) return 1;      // the free rung never runs dry
   return (Number(stock) || 0) > 0 ? 1 : AMMO_DRY_MULT;
-}
-
-/**
- * APPLY the supply multiplier to a rolled max hit. One expression, so the
- * fight, the projection and any future readout cannot round it differently.
- *
- * `Math.max(1, ...)` is the engine's own floor — the same line the style, the
- * weakness and the food-damage multipliers already end on (src/core/combat.js
- * `playerCombatRolls`) — and it is what makes this safe to ship to a brand-new
- * character: at level 10 against a Goblin, x0.25 and x1.00 are both 1, so the
- * player who has not built a supply chain yet is the least punished by not
- * having one (consumable-economy.md §3.2). Preserve that when retuning.
- *
- * A multiplier of 1 returns the input UNTOUCHED rather than re-flooring an
- * already-floored integer — the identity is what keeps a no-ammo loadout
- * byte-identical to the pre-E1 engine.
- */
-export function applyAmmoMult(maxHit, mult) {
-  const m = Number(mult);
-  if (!(m >= 0) || m === 1) return maxHit;
-  return Math.max(1, Math.floor(Number(maxHit) * m));
 }
 
 /**
@@ -434,98 +294,5 @@ export function readAmmo(state, ctx) {
        statement and cannot disagree. */
     dry: mult < 1,
     mult,
-  };
-}
-
-/**
- * Spend for a run of swings, ONCE, and report what happened.
- *
- * ── THE AGGREGATION IS A HARD REQUIREMENT, NOT AN OPTIMISATION ────────
- * §13.2: "Consumption is a per-tick inventory decrement, and the ledger is
- * append-only and compacted per-absence. It MUST be aggregated into the span's
- * single delta, never written per tick — 13,636 arrows over an 8-hour absence
- * is 13,636 ledger rows if anyone gets that wrong."
- *
- * So the unit of work here is a RUN OF SWINGS, not a swing. A caller that has
- * one swing passes 1; the away path passes the whole slice. Both take exactly
- * one `fx.removeItem` call, and the arithmetic is identical either way, which
- * is what keeps the live tick and the away accrual byte-identical.
- *
- * @param state MUTATED via `fx.removeItem`; `state.ammoCarry` is created if absent.
- * @param swings how many swings to charge for
- * @param ctx { items, weaponType, fx }
- * @returns { id, spent, before, after, dryAfterSwings, startMult, mult, dry }
- *          `dryAfterSwings` is how many of the requested swings were covered
- *          before the stack emptied — `null` when it never emptied. The caller
- *          renders the moment; this function states it.
- *
- *          `startMult` is the multiplier the run's FIRST swing earns and
- *          `mult` the one its REMAINDER earns. They differ by exactly one
- *          case and that case is the whole reason both exist: the swing that
- *          looses the LAST arrow was supplied when it was loosed, so it hits
- *          at full strength and only the NEXT one is weak. A per-swing caller
- *          (simulateTick) reads `startMult`; a whole-slice caller reads both
- *          and splits the span on `dryAfterSwings`. Charging the last arrow's
- *          own swing at x0.25 is an off-by-one a player would feel as "it took
- *          my arrow AND weakened the shot".
- */
-export function spendForSwings(state, swings, ctx) {
-  const c = ctx || {};
-  const s = state || {};
-  const info = readAmmo(s, c);
-  const n = Math.max(0, Math.floor(Number(swings) || 0));
-
-  const base = {
-    id: info.id, spent: 0, before: info.stock, after: info.stock,
-    dryAfterSwings: null, startMult: info.mult, mult: info.mult, dry: info.dry,
-  };
-  /* Nothing to spend: an unarmed swing, the free rung, an empty slot, or
-     zero swings. All four are ordinary, and none of them is an error.
-     ⚠ The gate is `spends`, NOT `needed`. They are different questions and
-       conflating them made every whetstone free — see the two tables above. */
-  if (!info.spends || info.perShot <= 0 || n === 0) return base;
-
-  if (!s.ammoCarry || typeof s.ammoCarry !== 'object') s.ammoCarry = {};
-
-  /* HOW MANY OF THESE SWINGS THE STACK ACTUALLY COVERS. Computed before the
-     carry advances, because a stack that runs out partway through must charge
-     only for the swings it paid for — charging for all `n` and then flooring
-     the inventory at zero would silently over-bill exactly the night that
-     already went wrong.
-     Clamped at 0 from below as well as at `n` from above: an empty stack with
-     a banked carry makes the division negative, and a negative `covered` would
-     be reported as a `dryAfterSwings` of -1 (a moment no clock has). */
-  const covered = Math.max(0,
-    Math.min(n, Math.floor((info.stock - (s.ammoCarry[info.id] || 0) + 1e-9) / info.perShot)));
-  const owed = advanceAmmoCarry(s.ammoCarry, info.id, covered, info.perShot);
-  const spent = Math.min(owed, info.stock);
-
-  if (spent > 0 && typeof c.fx?.removeItem === 'function') c.fx.removeItem(info.id, spent);
-
-  const after = info.stock - spent;
-  const restMult = ammoDamageMult({ weaponType: info.weaponType, perShot: info.perShot, stock: after, equipped: !!info.id });
-  return {
-    id: info.id,
-    spent,
-    before: info.stock,
-    after,
-    dryAfterSwings: covered < n ? covered : null,
-    /* What the run STARTED at — the supplied answer whenever the stack could
-       cover the first swing, which is what a per-swing caller needs. */
-    startMult: info.mult,
-    /* The multiplier the REMAINDER of the run earns. A run that emptied the
-       stack fought its first `covered` swings supplied and the rest at 0.25 —
-       the caller splits the span on `dryAfterSwings` rather than being told a
-       single average, because an average is a number no tick actually ran at.
-
-       ⚠ THROUGH `ammoDamageMult`, NOT `after > 0 ? 1 : AMMO_DRY_MULT`. The bare
-         ternary was a SECOND statement of the fail-soft rule that did not know
-         about R5, so it reported 0.25 for a melee run with an empty whetstone
-         slot — a family that by ruling takes no depletion penalty at all. It
-         reached nothing today (the fight reads `startMult`), which is exactly
-         the kind of latent wrong answer the next consumer inherits. One
-         expression, asked twice. */
-    mult: restMult,
-    dry: restMult < 1,
   };
 }

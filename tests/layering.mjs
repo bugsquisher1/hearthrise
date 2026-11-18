@@ -60,7 +60,7 @@ export function layerOf(rel) {
   return Object.hasOwn(ALLOWED, parts[1]) ? parts[1] : '?';
 }
 
-const SPEC = /(?:\bfrom\s*|\bimport\s*\(\s*|\bnew\s+URL\s*\(\s*)(['"`])(\.{1,2}\/[^'"`]*?)\1/g;
+const SPEC = /(?:\bfrom\s*|\bimport\s*\(?\s*|\bnew\s+URL\s*\(\s*)(['"`])(\.{1,2}\/[^'"`]*?)\1/g;
 
 /** The repo-relative files one module imports (relative specifiers only; `?v=` and `#` dropped). */
 export function importsOf(rel, text) {
@@ -152,16 +152,18 @@ function selftest() {
     console.error('SELFTEST INCONCLUSIVE: the real tree is not green:\n  ' + explain(clean).join('\n  '));
     return 1;
   }
+  const Q = '?v' + '=1'; // assembled: a literal cache-buster in a tests/ import string is versionQueryGuard's to refuse
   const pick = (layer) => [...tree.keys()].find((r) => layerOf(r) === layer && !r.includes('/grounds/'));
   const plant = (rel, line) => new Map([...tree, [rel, line + '\n' + tree.get(rel)]]);
   const core = pick('core'), session = pick('session'), world = pick('world'), edge = 'supabase/functions/hr-accrue/index.ts';
   const cases = [
-    { name: 'an upward static import (core -> shell)', files: plant(core, "import { x } from '../shell/app-shell.js?v=1';"), expect: 'LAYER-1' },
-    { name: 'an upward dynamic import (session -> shell)', files: plant(session, "const m = import('../shell/app-shell.js?v=1');"), expect: 'LAYER-1' },
-    { name: 'an upward new URL (session -> app)', files: plant(session, "const u = new URL('../app/boot.js?v=1', import.meta.url);"), expect: 'LAYER-1' },
-    { name: 'a re-export upward (data -> render)', files: plant('src/data/items.js', "export { a } from '../render/format.js?v=1';"), expect: 'LAYER-1' },
-    { name: 'a peer view import (world -> social)', files: plant(world, "import { y } from '../social/friends.js?v=1';"), expect: 'LAYER-1' },
-    { name: 'the dual-runtime floor (core -> utils)', files: plant(core, "import { escapeHtml } from '../utils/dom.js?v=1';"), expect: 'LAYER-1' },
+    { name: 'an upward static import (core -> shell)', files: plant(core, `import { x } from '../shell/app-shell.js${Q}';`), expect: 'LAYER-1' },
+    { name: 'an upward dynamic import (session -> shell)', files: plant(session, `const m = import('../shell/app-shell.js${Q}');`), expect: 'LAYER-1' },
+    { name: 'an upward side-effect import (session -> shell)', files: plant(session, `import '../shell/app-shell.js${Q}';`), expect: 'LAYER-1' },
+    { name: 'an upward new URL (session -> app)', files: plant(session, `const u = new URL('../app/boot.js${Q}', import.meta.url);`), expect: 'LAYER-1' },
+    { name: 'a re-export upward (data -> render)', files: plant('src/data/items.js', `export { a } from '../render/format.js${Q}';`), expect: 'LAYER-1' },
+    { name: 'a peer view import (world -> social)', files: plant(world, `import { y } from '../social/friends.js${Q}';`), expect: 'LAYER-1' },
+    { name: 'the dual-runtime floor (core -> utils)', files: plant(core, `import { escapeHtml } from '../utils/dom.js${Q}';`), expect: 'LAYER-1' },
     { name: 'the edge reaching the client (edge -> session)', files: plant(edge, "import { z } from '../../../src/session/config.js';"), expect: 'LAYER-1' },
     { name: 'a stale baseline entry', files: tree, baseline: [...baseline, 'src/core/xp.js -> src/shell/app-shell.js'], expect: 'LAYER-2' },
     { name: 'a baseline entry whose import was fixed', files: (() => {
@@ -169,15 +171,15 @@ function selftest() {
       const base = posix.basename(to);
       return new Map([...tree, [from, tree.get(from).split('\n').filter((l) => !(l.includes(base) && /from|import|URL/.test(l))).join('\n')]]);
     })(), expect: 'LAYER-2' },
-    { name: 'an unplaced folder', files: new Map([...tree, ['src/gadgets/thing.js', "import { a } from '../core/xp.js?v=1';"]]), expect: 'LAYER-3' },
-    { name: 'an import into an unplaced folder', files: plant(session, "import { a } from '../gadgets/thing.js?v=1';"), expect: 'LAYER-3' },
-    { name: '--for still sees a new breach in the one file', files: plant(core, "import { x } from '../shell/app-shell.js?v=1';"), only: core, expect: 'LAYER-1' },
+    { name: 'an unplaced folder', files: new Map([...tree, ['src/gadgets/thing.js', `import { a } from '../core/xp.js${Q}';`]]), expect: 'LAYER-3' },
+    { name: 'an import into an unplaced folder', files: plant(session, `import { a } from '../gadgets/thing.js${Q}';`), expect: 'LAYER-3' },
+    { name: '--for still sees a new breach in the one file', files: plant(core, `import { x } from '../shell/app-shell.js${Q}';`), only: core, expect: 'LAYER-1' },
     // Controls: each must stay silent.
-    { name: 'CONTROL a downward import (session -> core)', files: plant(session, "import { a } from '../core/xp.js?v=1';"), expect: null },
-    { name: 'CONTROL a downward import (shell -> world)', files: plant(pick('shell'), "import { a } from '../world/atlas.js?v=1';"), expect: null },
-    { name: 'CONTROL an upward import inside a comment', files: plant(core, "// import { x } from '../shell/app-shell.js?v=1';\n/** @type {typeof import('../app/boot.js')} */"), expect: null },
+    { name: 'CONTROL a downward import (session -> core)', files: plant(session, `import { a } from '../core/xp.js${Q}';`), expect: null },
+    { name: 'CONTROL a downward import (shell -> world)', files: plant(pick('shell'), `import { a } from '../world/atlas.js${Q}';`), expect: null },
+    { name: 'CONTROL an upward import inside a comment', files: plant(core, `// import { x } from '../shell/app-shell.js${Q}';\n/** @type {typeof import('../app/boot.js')} */`), expect: null },
     { name: 'CONTROL a package specifier on the edge', files: plant(edge, "import postgres from 'npm:postgres@3.4.5';"), expect: null },
-    { name: 'CONTROL --for on a file with no breach', files: plant(core, "import { x } from '../shell/app-shell.js?v=1';"), only: session, expect: null },
+    { name: 'CONTROL --for on a file with no breach', files: plant(core, `import { x } from '../shell/app-shell.js${Q}';`), only: session, expect: null },
   ];
   let bad = 0;
   for (const c of cases) {

@@ -286,7 +286,7 @@ function blow(inst, sc, u, h, t, price, sharePm) {
     vs ? Number(vs.critChance) || 0 : 0);
 }
 
-/* Why a shot's line cannot pay, in conditions.js WAIT_WHY words. */
+/* Why a shot's line cannot pay, in rule_wait's `why` words (events.js). */
 const shotWait = (l) => (l.why === 'gold_short' || l.why === 'level' ? l.why : 'no_stock');
 
 /* The attack slot a hero's swing takes now: { pick: { ammo (an item id, or null =

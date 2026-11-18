@@ -223,7 +223,7 @@
   ],
   "proof_unrun": {
     "tests/layering.mjs": {
-      "reason": "THE IMPORT-DIRECTION GUARD (lane/b-arch-guards, architecture audit 2026-11-18 item 2). Its --selftest plants 12 breaches (upward static, dynamic and new-URL imports, a re-export, a peer view import, the dual-runtime floor, the edge reaching the client, two stale baseline entries, two unplaced folders, the --for path) and 5 silent controls on an in-memory tree, and it runs in tools/lane-done.mjs. It is not in smoke.yml only because another lane is restructuring smoke.yml this cycle (a lane does not edit another lane's file); the Coordinator registers `node tools/mutant-gate.mjs node tests/layering.mjs --selftest` beside the plain run once that lane lands, and deletes this entry.",
+      "reason": "THE IMPORT-DIRECTION GUARD (lane/b-arch-guards, architecture audit 2026-11-18 item 2). Its --selftest plants 13 breaches (upward static, side-effect, dynamic and new-URL imports, a re-export, a peer view import, the dual-runtime floor, the edge reaching the client, two stale baseline entries, two unplaced folders, the --for path) and 5 silent controls on an in-memory tree, and it runs in tools/lane-done.mjs. It is not in smoke.yml only because another lane is restructuring smoke.yml this cycle (a lane does not edit another lane's file); the Coordinator registers `node tools/mutant-gate.mjs node tests/layering.mjs --selftest` beside the plain run once that lane lands, and deletes this entry.",
       "owner": "systems-engineer",
       "disposition": "register-when-smoke-yml-is-free",
       "runner": "by hand: node tests/layering.mjs --selftest"

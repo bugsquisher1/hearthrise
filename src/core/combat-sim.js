@@ -63,7 +63,7 @@ import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js?v=0.2.137';
 import { TOWER_RULES } from '../data/tower.js?v=0.2.137';
 import { sessionPayOf } from '../data/session-modes.js?v=0.2.137';
 
-/* The engine's front door (src/core/index.js `combatSim`). */
+/* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js?v=0.2.137';
 
 /* WHY A COMBAT SPAN STOPPED BEFORE THE WINDOW DID — the same contract

@@ -27,16 +27,7 @@ import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.137';
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
 
-/* `neutral` is retired as a MONSTER weakness (DEC-NEUT-01) but survives here
-   as a WEAPON type — an unarmed/typeless loadout still has to render. */
-export const WEAPON_TYPES = {
-  sword: '1H Sword', magic: 'Magic', ranged: 'Ranged', neutral: 'Neutral', hammer: '2H Hammer',
-};
 export const WEAKNESS_BONUS = { damage: 1.20, accuracy: 1.15 };
-/* The drop-rate the 7 formerly-`neutral` monsters were paid for opting out of
-   the triangle. Now a documented default carried per-row as `dropBonus`, not
-   a branch in `weaknessInfo`. See that function's header. */
-export const NEUTRAL_DROP_BONUS = 1.15;
 
 export const COMBAT_BALANCE = {
   playerBaseAccuracy: 0.55,
@@ -295,9 +286,7 @@ export function armorSetBonus(equipment, items) {
  *    for it; deleting `neutral` would have silently cut their drops 13% —
  *    including the Green Dragon. The bonus is RE-HOMED as an explicit
  *    per-monster `dropBonus` field on exactly those 7 rows, so drop identity
- *    is DATA rather than a side effect of having no weakness.
- *    `NEUTRAL_DROP_BONUS` stays exported as the documented default those
- *    rows carry (core-bridge and the vendored server copy read the symbol).
+ *    is DATA rather than a side effect of having no weakness (1.15 on each).
  *
  * `weak` may still be falsy if a caller passes a monster from outside the
  * roster — it then never matches, the safe direction (no bonus, not a free one).

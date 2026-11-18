@@ -80,6 +80,7 @@ export function rowsFor(skill, level, inv, sort) {
   return orderStation(open, ahead, sort, (w) => w.kind === 'artisan' && runsOf(w.row, inv) > 0);
 }
 
+const NBSP = String.fromCharCode(160);
 const secs = (ms) => String(Math.round(ms / 100) / 10);
 /* A bench recipe's own name, for the line about its last run. */
 const recipeNameOf = (id) => { const w = workRow('artisan', id); return w ? w.row.name : 'That job'; };
@@ -110,7 +111,9 @@ function oddsWords(cs, w) {
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];
   const n = w.kind === 'artisan' ? yieldOf(w) : 1;
-  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '" data-hs-find="' + esc(w.id) + '"><span class="hw-ico">' + itemIconHtml(g, icon)
+  /* what it makes, named on the pointer (a rite makes nothing: its icon is what it takes) */
+  const made = productOf(w) ? ' title="' + esc(itemName(productOf(w))) + '"' : '';
+  return '<li class="hw-line hw-work-row" data-id="' + esc(w.id) + '" data-hs-find="' + esc(w.id) + '"><span class="hw-ico"' + made + '>' + itemIconHtml(g, icon)
     + (n > 1 ? '<small class="hw-work-yield">' + esc(whole(n)) + '</small>' : '') + '</span>'
     + '<span class="hw-line-name"><span class="hw-work-top"><b>' + esc(w.row.name) + '</b><small class="hw-work-lv">' + esc(t('work.row_level', { level: w.row.req || 1 })) + '</small></span>'
     + '<span class="hw-work-ins"><span class="hw-work-what">' + inputsHtml(g, w) + '</span><small class="hw-work-stat"></small></span>'
@@ -137,7 +140,7 @@ function patchRow(li, w, cs, sc, on, hunting, lv) {
   const stat = li.querySelector('.hw-work-stat');
   /* the line breaks only between its parts, never inside one ("3.8 s", "burns up to 25%") */
   text(stat, [t('work.row_time_xp', { secs: secs(ms), xp: whole(xpEach(w)) }), gather ? t('work.row_per_hour', { n: whole(perHourOf(w, ms)) }) : '',
-    burn ? t('work.row_burn', { pct: burn }) : '', sale].filter(Boolean).map((s) => s.replace(/ /g, ' ')).join(' · '));
+    burn ? t('work.row_burn', { pct: burn }) : '', sale].filter(Boolean).map((s) => s.replace(/ /g, NBSP)).join(' · '));
   attr(stat, 'title', sale ? saleWords(out) : null);
   cls(li.querySelector('.hw-work-lv'), 'is-short', (w.row.req || 1) > (Number.isInteger(lv) ? lv : 1));
   const running = !!on && on.id === w.id;

@@ -3565,7 +3565,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('[data-hs-win="skills-trade"] [data-skill="runecrafting"]');
         await page.waitForTimeout(200);
         /* the row's numbers line says it in a tag (UI audit 2026-11-18: a recipe row was a paragraph), its sentence on the pointer */
-        const noBuyer = await page.evaluate(() => { const li = document.querySelector('[data-hs-win="skills-trade"] .hw-work-row[data-id*="fire"]'); const s = li && li.querySelector('.hw-work-stat'); return s ? s.textContent.replace(/ /g, ' ') + '|' + s.getAttribute('title') : ''; });
+        const noBuyer = await page.evaluate(() => { const li = document.querySelector('[data-hs-win="skills-trade"] .hw-work-row[data-id*="fire"]'); const s = li && li.querySelector('.hw-work-stat'); return s ? s.textContent.replace(/\u00a0/g, ' ') + '|' + s.getAttribute('title') : ''; });
         if (!/· Can't be sold\|Own use only, can't be sold$/.test(noBuyer)) fails.push('AW-60 Runecrafting rows read ' + JSON.stringify(noBuyer));
         await page.click('[data-hs-win="skills-trade"] [data-hs-act="work-back"]');
         await page.click('[data-hs-win="skills-trade"] [data-skill="woodcutting"]');
@@ -4209,7 +4209,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const n = li.querySelector('.hw-work-n .hh-seg[aria-pressed="true"]');
         /* a genre row (UI audit 2026-11-18): the inputs as icon chips with their counts, one numbers line, the Level by Start, the status */
         return { id: li.getAttribute('data-id'), btn: b.textContent, off: b.disabled, why: li.querySelector('.hw-work-why').textContent, what: li.querySelector('.hw-work-what').textContent, n: n ? n.textContent : null,
-          stat: li.querySelector('.hw-work-stat').textContent.replace(/ /g, ' '), lv: li.querySelector('.hw-work-lv').textContent, chips: li.querySelectorAll('.hw-work-in img.hh-icon').length };
+          stat: li.querySelector('.hw-work-stat').textContent.replace(/\u00a0/g, ' '), lv: li.querySelector('.hw-work-lv').textContent, chips: li.querySelectorAll('.hw-work-in img.hh-icon').length };
       }), W);
       const nowText = () => page.evaluate((w) => { const b = document.querySelector(w + ' .hw-work-now'); return b && b.classList.contains('is-on') ? b.querySelector('.hw-burying-q').textContent : ''; }, W);
       const msg = () => page.evaluate((w) => document.querySelector(w + ' .hh-intent-msg').textContent, W);

@@ -27,7 +27,7 @@ export function resultHtml() {
  * Patch the block. `r`:
  *   level  { name, from, to } or null: "Level 9 → 10" when from is known and differs, else "Level 10"; a drop reads in the cost's red
  *   ups    the skills raised, each already in words ("Melee 12 → 13")
- *   figs   up to three { key, label, value, sub, tone } ('up' gold for a gain worth a glance, '' plain); a missing one hides its cell
+ *   figs   up to three { key, label, value, sub }; a missing one hides its cell
  * @param {Element} el  the block (.hres) or an element holding it
  */
 export function patchResult(el, r) {
@@ -53,7 +53,6 @@ export function patchResult(el, r) {
     attr(cell, 'data-fig', f ? f.key : null);
     text(cell.querySelector('dt'), f ? f.label : '');
     text(cell.querySelector('dd'), f ? f.value : '');
-    cls(cell.querySelector('dd'), 'is-up', !!f && f.tone === 'up');
     text(cell.querySelector('small'), f && f.sub ? f.sub : '');
   }
   cls(root.querySelector('.hres-figs'), 'is-empty', !figs.length);

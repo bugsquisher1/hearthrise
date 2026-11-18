@@ -13,16 +13,16 @@
 -- TOWER_RULES.minLevel = 10 (src/data/tower.js -> hr_tower_rules.min_level, tools/gen-tower.mjs). Measured on the real settle (the play fixture,
 --   tests/hunt-core/fixtures/play-ground.mjs -> accrual.js accrueHunt on the Tower's ground in the `tower` mode): a hero who never climbed, from
 --   floor 1, store food only, 2 seeds x 60 min, five weapon roles alone; against the same heroes hunting the ground their Level suits.
---     Level 4: a climb pays 2.06-2.12x hunting's Level XP for a sword-and-axe, a bow and a Mage (0.88-0.97x tank and Healer), so it is the fastest
+--     Level 4: a climb pays 2.06-2.12x hunting's Level XP for a hammer, a bow and a Mage (0.88-0.97x tank and Healer), so it is the fastest
 --       path a fresh hero has, while it burns 3,165-8,097 g an hour of food and pays no coin; the Mill Cellar nets 1,146-2,194 g an hour. The QA
 --       audit of 2026-11-18 played exactly that: a Level 4 hero ate its 20 starter shrimp and 11 bought in 7 minutes and earned 0 gp.
 --     Level 6-8: 0.28-0.85x hunting, the same 3,100-8,100 g an hour of food against a Thicket hour of 1,550-3,990 g.
 --     Level 10: 0.27-0.75x hunting (under it in every cell, the Tower's own design guard), a hero alone clears floor 15-35 and takes the floor-10
---       Bronze Key; one climb's food is 700-4,000 g against the ~6 hours of hunting (2-4k g an hour) it took to get there. 10 is also the Level the
+--       Bronze Key; one climb's food is about 700-4,100 g against the ~6 hours of hunting (2-4k g an hour) it took to get there. 10 is also the Level the
 --       Training Yard opens at (src/data/training.js minLevel): the first hours stay hunting hours.
 -- BOSS_CALL_RULES.winsToCall = 10, one number for every boss (src/data/boss-calls.js -> hr_boss_calls.wins, tools/gen-hunt-sessions.mjs). Measured
 --   the same way, 2 seeds x 2 h a cell, natural kills an hour per hero (each hero alive at his kill counts it):
---     the Rat King in the Sewer, Levels 12 / 16 / 20: alone 4.0-16.0 (tank 6.5-8, sword-and-axe 13-16, bow 7.5-11, Mage 5.5-7.5, Healer 4-6), a
+--     the Rat King in the Sewer, Levels 12 / 16 / 20: alone 4.0-16.0 (tank 6.5-8, hammer 13-16, bow 7.5-11, Mage 5.5-7.5, Healer 4-6), a
 --       pair 9-16, a four 18-22.5;
 --     Chief Coppercap in the Warrens, Levels 34 / 40 / 46: alone 3.0-10.5 (median about 6), a pair 7.5-14, a four 16-22.5.
 --   The two bosses fall at the same rate (once a lap), so one number fits both. 10 wins is about 1.3-1.7 h alone (the median hero), about an hour
@@ -81,6 +81,9 @@
 --   only: two numbers the engine never reads). Either order is safe; deploy with the next release.
 -- CLIENT: the Tower window and the Call out pane read `entry_gates` and the quote's `wins` after this apply; until they ship, an old client's
 --   press reads the refusal's general line (src/data/refusal-words.js), the server still refusing.
+-- GUARDS: tests/entry-gates.mjs (EG-DATA, EG-TOWER, EG-CALL, EG-COUNT through both doors, EG-IDEM, EG-SELF; --mutate 13); the probe heroes of
+--   tests/boss-call-db.mjs and tests/live-events.mjs earn their wins first; tests/tower-board.mjs TB-IDEM judges that older file's second apply
+--   with the door at Level 1 (its own §6 climbs with new heroes).
 -- REVERSIBLE: re-apply hr_tower_start from 2027-04-24-tower-climb.sql §3 and hr_boss_call_quote from 2027-04-24-boss-call-series.sql §4 (their
 --   §0 pins accept the live images), delete the section row, drop hr_entry_gates_view and hr_boss_wins; the columns are the catalogues'.
 -- IDEMPOTENT: a second apply finds §0's post-images, restates every body byte-identical, upserts the same section row, and §5 rolls back its probes.

@@ -56,7 +56,7 @@ import { glyphSvg, markCoachRead } from '../launcher.js?v=0.2.139';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.139';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.139';
 import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.139';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.139';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, adviceLevels, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.139';
 import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js?v=0.2.139';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.139';
 import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js?v=0.2.139';
@@ -247,7 +247,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
   /* The advice reads the server's levels: this hero's, or every seat's in its party (the party's levels pick). */
   /* This hero's personal bests, the server's (hunt_bests); null = the server sent none, the lines stay empty. */
   const bests = huntBestsOf(cs);
-  const rec = recommendation(party ? party.seats.map((s) => (s.seat === party.me ? level : s.level)) : level, size, list, bests);
+  const rec = recommendation(adviceLevels(level, party), size, list, bests);
   /* Until the player picks a line by hand the pick FOLLOWS the advice (lane/b-first-hour: the Cellar, picked for a
      Level 1 hero, stayed picked at Level 5 for the rest of the session while the coach sent the hero to the Thicket). */
   if ((!sc.pick || sc.auto) && list.length) { sc.pick = openingPick(rec, list, h ? { huntId: h.huntId, endReason: h.ended ? h.endReason : null } : null).hunt; sc.auto = true; }

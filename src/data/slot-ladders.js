@@ -66,10 +66,9 @@ export const SLOT_ITEMS = {
      is better costs. Air Runes no longer exist, and Coarse Whetstones wear at 0.02
      a swing.
 
-     THESE ARE SPENT (E1, 2026-08-31). `src/core/ammo.js spendForSwings` is
-     called by `src/core/combat-sim.js simulateTick` on every swing, live and
-     away, and the debit lands in the server accrual's signed `items` delta.
-     Before that date `ammoPerShot` was inert and this block said so.  */
+     THESE ARE SPENT: the one hunt engine pays `ammoPerShot` per shot from the
+     hunt's bag (src/core/hunt/abilities.js) and wears a hone per swing
+     (src/core/member.js), watched or not.  */
   bronze_arrows:    { n: 'Bronze Arrows',      icon: '🏹', v: 0,  type: 'ammo', slot: 'ammo', tier: 1, rarity: 'common',    reqSkill: 'ranged', reqLv: 1,  rangeAtkB: 2, rangeStrB: 2,  ammoPerShot: 0 },
   barbed_arrows:    { n: 'Barbed Arrows',      icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 2, rarity: 'uncommon',  reqSkill: 'ranged', reqLv: 15, rangeAtkB: 3, rangeStrB: 3,  ammoPerShot: 1 },
   steel_arrows:     { n: 'Steel Arrows',       icon: '🏹', v: 1,  type: 'ammo', slot: 'ammo', tier: 3, rarity: 'rare',      reqSkill: 'ranged', reqLv: 30, rangeAtkB: 4, rangeStrB: 5,  critB: 0.01,  ammoPerShot: 1 },

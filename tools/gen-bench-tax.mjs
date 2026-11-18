@@ -33,7 +33,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* DROP HOMES (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor, weapons and shields drop, a bench makes none): 2027-05-01-v0135 is APPLIED
    history. The 24 armor, weapon and plain-shield recipes are cut (style-gear.js, shields.js), so their rows leave hr_bench_tax_rates; no rate moves.
    ORDER: after 2027-05-06-drop-homes-items-catalogue.generated.sql (which drops their hr_activities rows), the same full replace. */
-/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-bench-tax-rates (STAGED, applied first) is the file before. Rolled
+/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-bench-tax-rates (APPLIED with v0.2.139) is the file before. Rolled
    jobs have no row (a roll moves no gold, decision 5); the Wolfbone Necklace (Smithing) and the Warband Bulwark (Crafting) are plain jobs, new rows at
    their skill's rate. ORDER: after this lane's items catalogue. */
 export const OUT_FILE = '2027-05-07-jewelry-sample-bench-tax-rates.generated.sql';

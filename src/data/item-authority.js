@@ -47,12 +47,12 @@
 // when present, so this loads and answers in Node and before the legacy IIFE.
 // ============================================================================
 
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.138';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.138';
-import { recipeOutcomes } from './jewelry.js?v=0.2.138';
-import { MONSTERS } from './monsters.js?v=0.2.138';
-import { BOSSES } from './bosses.js?v=0.2.138';
-import { ITEMS } from './items.js?v=0.2.138';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.139';
+import { ARTISAN_RECIPES } from './recipes.js?v=0.2.139';
+import { recipeOutcomes } from './jewelry.js?v=0.2.139';
+import { MONSTERS } from './monsters.js?v=0.2.139';
+import { BOSSES } from './bosses.js?v=0.2.139';
+import { ITEMS } from './items.js?v=0.2.139';
 /* THE GRANT UNIVERSE, WIDENED (security C3). `unclassifiedGrantIds()` used to
    walk only the four ENGINE grant sources, so an id a shop is the ONLY source of
    could sit in limbo — neither ownable nor excluded — and nothing failed. The
@@ -60,10 +60,10 @@ import { ITEMS } from './items.js?v=0.2.138';
    daily-task and raid-chest partitions were deleted with their systems in the
    2026-10-14 demolition; the quest rewards with the old-client reward cut of
    2026-10-22.) */
-import { SHOP_OFFERS } from './shops.js?v=0.2.138';
+import { SHOP_OFFERS } from './shops.js?v=0.2.139';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
-import { BURNT_ITEM } from '../core/artisan.js?v=0.2.138';
+import { BURNT_ITEM } from '../core/artisan.js?v=0.2.139';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan
@@ -248,17 +248,6 @@ export function inventoryArmStaged(host) {
    documented exclusion) — so the harvest RPC, not the inventory flip, is what
    makes farm produce server-owned. */
 export const FARM_SERVER_ARM_ENABLED = true;   // LIVE since b454 (2026-08-22 cutover) — farm gestures are server intents
-/* b514 (cleanup slice 4): the OVERRIDE SEAM IS GONE and this is a constant.
-   `__setFarmServerArm` existed to drive the pre-cutover client-authoring path,
-   and that path no longer exists in any caller — plantCrop / waterPlot /
-   waterAllPlots / harvestPlot / upgradePlot have exactly one branch each. A seam
-   that can only select a deleted branch is not a kill switch, it is a lie about
-   what the client can still do; keeping it would let a test (or a console) claim
-   a fall-through that would now simply drop the gesture on the floor.
-   The kill-switch position, if it is ever wanted again, is a SERVER one. */
-export function isFarmServerArmed() {
-  return FARM_SERVER_ARM_ENABLED;
-}
 
 /** Every id a hired worker can mint client-side = every gather product (a worker
  *  is only ever assigned a gather node). Kept as its own function, not an alias,
@@ -436,7 +425,7 @@ export function buildItemAuthority(opts) {
   /* ── THE CONSUMED SET IS NARROWED BY THE FARM ─────────────────────────────
      A raw crop heals, so `serverConsumedIds()` names all nine of them. But a
      crop's MINT path is the farm harvest, which is a SEPARATE server-authority
-     program with its own arm (`isFarmServerArmed`) — and letting a complete
+     program with its own arm (`FARM_SERVER_ARM_ENABLED`) — and letting a complete
      envelope zero a crop would put an entire harvest at the mercy of that
      program being finished, which is not a bet the phantom-food fix needs to
      take. Crops are therefore left on the never-lower rule exactly as today.

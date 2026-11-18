@@ -24,6 +24,8 @@ export const AWAY_TEXT = Object.freeze({
   card_head: 'Away {time}. {who}.',
   card_facts: '{facts}.',
   card_hunted: '{name} hunted {ground}',
+  /* ...when the yard took over from a hunt whose ground neither the stamp nor a death row names (a stamp from an older build) */
+  card_hunted_off: '{name} went hunting',
   /* how long ago the hunt ended ({time}), or that it has with no time said */
   card_ended_ago: 'The hunt ended {time} ago.',
   card_ended: 'The hunt has ended.',
@@ -38,6 +40,11 @@ export const AWAY_TEXT = Object.freeze({
   card_stamina: 'Stamina {time}',
   card_summary: 'Hunt summary',
   card_ok: 'OK',
+  /* Under the Gold figure, which is what the purse kept (QA audit 2026-11-18 A6): {looted} the coins, {paid} the store's supplies. */
+  card_gold_both: '{looted} in coins, {paid} on supplies',
+  card_gold_looted: '{looted} in coins',
+  /* A hero still training: its door is the Training window (a training session is no hunt, Tyler 2026-11-16). */
+  card_training: 'Open Training',
   /* {doing} is the server's job in words ("mining the Copper Rock", party-sections.js townActivityWords). */
   after_went: 'Then {name} went back to {doing}.',
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */

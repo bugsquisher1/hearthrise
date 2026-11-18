@@ -16,14 +16,14 @@
 /* The fletching ladder (arrows). Crafted gear — the generated gear-tiers
    recipes, the wave-3 uniques, the library-2 sets, the boss forge and the
    jewellery/cape rows — was deleted in the 2026-10-14 demolition. */
-import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.138';
-import { ITEMS, foodClassOf } from './items.js?v=0.2.138';
-import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.138';
-import { DRINK_RECIPES } from './drinks.js?v=0.2.138';
-import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.138';
-import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.138';
-import { SHIELD_RECIPES } from './shields.js?v=0.2.138';
-import { JEWELRY_RECIPES_BY_SKILL } from './jewelry.js?v=0.2.138';
+import { SLOT_RECIPES } from './slot-ladders.js?v=0.2.139';
+import { ITEMS, foodClassOf } from './items.js?v=0.2.139';
+import { STONECRAFT_RECIPES } from './stonecraft.js?v=0.2.139';
+import { DRINK_RECIPES } from './drinks.js?v=0.2.139';
+import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.139';
+import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.139';
+import { SHIELD_RECIPES } from './shields.js?v=0.2.139';
+import { JEWELRY_RECIPES_BY_SKILL } from './jewelry.js?v=0.2.139';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -323,57 +323,6 @@ export const ARTISAN_RECIPES = {
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
 
-/* ══════════════════════════════════════════════════════════════════════
-   b220 — ARTISAN CATEGORIES (crafting-cooking-taxonomy §§3-5)
-
-   The categories below are DERIVED, never authored: a hand-written
-   `category:` field on each recipe is a drift generator. Everything here
-   reads fields the recipe and its output item already carry: `output.type`,
-   the `_bar` / `_plank` / `_blank` id suffix, and `foodClass`. A NEW recipe
-   lands in the right tab the moment it is written, and one that no lane
-   claims surfaces as `uncategorized` (asserted empty) instead of vanishing.
-
-   Inner Flame is deliberately absent — its bench is a list of fuels, not a
-   taxonomy, and it has no output item to derive from.
-
-   Demolition (2026-10-14): the weapon, armour, jewellery, materials and
-   weapon-enchant lanes went with crafted gear, tools and Enchant v1, and the
-   Stonemason bench was cut (designer ruling): whetstones are smithed, rune
-   blanks are cut at Runecrafting and the keystone is crafted. "Building
-   Materials" (`tag:'castle'`) is the LAST claim in every skill so it never
-   steals a recipe from a more specific lane.
-   ══════════════════════════════════════════════════════════════════════ */
-export const ARTISAN_CATEGORIES = {
-  smithing: [
-    { key: 'smelting',   label: 'Smelting' },
-    { key: 'tools',      label: 'Tools' },
-    { key: 'whetstones', label: 'Whetstones' },
-    { key: 'tempering',  label: 'Tempering' },
-    { key: 'weapons',    label: 'Weapons & Shields' },
-    { key: 'armour',     label: 'Armor' },
-    { key: 'castle',     label: 'Building Materials' },
-  ],
-  crafting: [
-    { key: 'sawmill',    label: 'Sawmill' },
-    { key: 'ammunition', label: 'Ammunition' },
-    { key: 'weapons',    label: 'Weapons' },
-    { key: 'armour',     label: 'Armor' },
-    { key: 'jewelry',    label: 'Jewelry' },
-    { key: 'castle',     label: 'Building Materials' },
-  ],
-  cooking: [
-    { key: 'provisions', label: 'Provisions' },
-    { key: 'feasts',     label: 'Feasts & Draughts' },
-    { key: 'castle',     label: 'Building Materials' },
-  ],
-  /* Runecrafting: the self-supply lane first (mine Rune Essence, cut it to
-     blanks), then the staff runes socketed in the ammo slot. */
-  runecrafting: [
-    { key: 'essence', label: 'Essence & Blanks' },
-    { key: 'staff',   label: 'Staff Runes' },
-  ],
-};
-
 /* isCastleGood(item) — the single predicate behind the "Building Materials"
    lane: the goods the Homestead's rooms and properties are built from. A
    function rather than an inline `.tag === 'castle'` so every reader agrees. */
@@ -381,12 +330,11 @@ export function isCastleGood(item) {
   return !!(item && item.tag === 'castle');
 }
 
-/* recipeCategory(skillId, recipe) → category key, or null.
-   Pure: pass `items` explicitly to classify against a different item table
-   (the engine passes window.ITEMS, which is the same object post-merge).
-   null means "this skill has no categories" OR "nothing claimed this recipe";
-   callers must surface an unclaimed recipe rather than hide it — see
-   categorizeRecipes(). */
+/* recipeCategory(skillId, recipe) → category key, or null. DERIVED, never authored: it reads only fields the
+   recipe and its output item already carry (`output.type`, the `_bar` / `_plank` / `_blank` id suffix,
+   `foodClass`), so a new recipe lands in a category the moment it is written. "Building Materials"
+   (`tag:'castle'`) is the last claim in every skill. null means "this skill has no categories" OR "nothing
+   claimed this recipe" (tests/style-gear.mjs SG-6 holds every made rung to a category). */
 export function recipeCategory(skillId, recipe, items = ITEMS) {
   if (!recipe) return null;
   const outId = recipe.output || '';
@@ -431,32 +379,4 @@ export function recipeCategory(skillId, recipe, items = ITEMS) {
   }
 
   return null;
-}
-
-/* categorizeRecipes(skillId, recipes?, items?) →
-     { groups: [{key, label, recipes[]}], uncategorized: [recipe], total }
-
-   `groups` keeps ARTISAN_CATEGORIES order and only includes categories that
-   actually hold something, so an empty lane never becomes a dead tab.
-   `uncategorized` must always be empty (a regression test asserts it) — but
-   it is returned rather than swallowed so a renderer can show the strays
-   instead of making content unreachable. Silence is how content goes missing. */
-export function categorizeRecipes(skillId, recipes = ARTISAN_RECIPES[skillId], items = ITEMS) {
-  const defs = ARTISAN_CATEGORIES[skillId];
-  const list = Array.isArray(recipes) ? recipes : [];
-  if (!defs) return { groups: [], uncategorized: [], total: list.length };
-
-  const byKey = new Map(defs.map((d) => [d.key, []]));
-  const uncategorized = [];
-  list.forEach((r) => {
-    const key = recipeCategory(skillId, r, items);
-    if (key && byKey.has(key)) byKey.get(key).push(r);
-    else uncategorized.push(r);
-  });
-
-  const groups = defs
-    .filter((d) => byKey.get(d.key).length > 0)
-    .map((d) => ({ key: d.key, label: d.label, recipes: byKey.get(d.key) }));
-
-  return { groups, uncategorized, total: list.length };
 }

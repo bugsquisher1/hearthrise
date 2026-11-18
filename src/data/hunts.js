@@ -65,10 +65,10 @@
 // GROUND PACKS (lane/b-ground-pack): a new ground is a folder under src/data/grounds, not a row here. HUNTS is the rows below
 // and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.138';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.138';
-import { SKILLS_DEF } from './skills.js?v=0.2.138';
-import { TOWER_RULES } from './tower.js?v=0.2.138';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.139';
+import { SKILLS_DEF } from './skills.js?v=0.2.139';
+import { TOWER_RULES } from './tower.js?v=0.2.139';
 
 const BASE_HUNTS = Object.freeze([
   {
@@ -101,11 +101,12 @@ const BASE_HUNTS = Object.freeze([
      A walked ground: its rooms, packs and route are src/data/hunt-grounds.js
      `millrace_sewer`, and its map is src/data/world/maps/millrace_sewer.js. The
      weights below are the pockets' head-count (the Rat King, a boss, is never a
-     weighted spawn; he holds the last room). Floor 4: a fresh character (combat 3)
-     earns the door in the Mill Cellar first. */
+     weighted spawn; he holds the last room). Its floor is 5, the Thicket's (lane/d-party-pace;
+     Tyler 2026-11-18 "Yes, open at 5"): a four at 5-7 here earns about 1.6x the same heroes alone in the
+     Thicket, so a party is sent below from 5 while a hero alone still starts in the Thicket. */
   {
     id: 'millrace_sewer', region: 'greenhaven', name: 'The Sewer', theme: 'The mill race runs under town, and its rats follow the Rat King.',
-    band: [8, 25],
+    band: [5, 25],
     spawns: [{ monster: 'drain_rat', w: 6, rarity: 'common' }, { monster: 'culvert_bat', w: 4, rarity: 'uncommon' },
       { monster: 'sump_slime', w: 3, rarity: 'uncommon' }, { monster: 'kobold_tosher', w: 3, rarity: 'uncommon' },
       { monster: 'cistern_spider', w: 2, rarity: 'rare' }],
@@ -220,9 +221,6 @@ export const TOWER_HUNTS = Object.freeze([Object.freeze({
   theme: 'Every floor is harder than the last. The Hearth spits you out before anything can kill you, and it costs you nothing.',
   tower: true, band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'rat', w: 1 })]),
   family: 'Vermin', art: 'rat', travelS: 0, pull: TOWER_RULES.roomSize, respawnMs: TOWER_RULES.stairMs })]);
-
-/** The words a player reads for a spawn's rarity. */
-export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
 
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
 export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS, ...TOWER_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },

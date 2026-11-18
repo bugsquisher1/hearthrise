@@ -130,10 +130,6 @@ export const CLASSES = Object.freeze({
   // Great Hearth's flue, its anchor the mouth it leaves, drawn in the AIR (over the roofs, under the light and the vignette, as
   // the world is); measured by how tall it climbs.
   plume: row({ body: [24, 96], measure: 'h', raw: true, contact: 'raised', shadow: null, layer: 'air', blank: true }),
-  // ...and a thing's own light on the ground round it (the Hearth Chest's green, tools/world-art/tower-art.mjs): stepped bands of palette
-  // colours drawn ADDITIVELY after the light (its sidecar's blend 'add'), its anchor the thing's foot, so most of it lies under the thing;
-  // measured by its wider extent. It never blocks and casts no shadow.
-  glow: row({ body: [24, 96], measure: 'max', raw: true, contact: 'raised', shadow: null, layer: 'fx' }),
   // ...and daylight caught on a wave: a few pixels lying flat on the water, under everything standing; between flashes blank.
   glint: row({ body: [1, 12], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal', blank: true }),
   // ...and the water's ripples: one or two cells square of wave marks laid on the water in step (its anchor the corner), under everything standing.

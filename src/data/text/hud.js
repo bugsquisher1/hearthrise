@@ -48,6 +48,19 @@ export const HUD_TEXT = Object.freeze({
   stam_buying: 'Buying stamina…',
   stam_done: 'Stamina restored',
 
+  /* PLAYERS ONLINE (src/shell/widgets/online.js, src/social/players-online.js; Tyler 2026-11-18). The server's total, every hero
+     playing in a browser or still active with the game closed; on hover or focus, its lines by what they are doing. {n} a whole
+     number. online_none: no fresh answer from the server. */
+  online_n: '{n} online',
+  online_none: '— online',
+  online_hunting: 'Hunting {n}',
+  online_tower: 'Tower {n}',
+  online_gathering: 'Gathering {n}',
+  online_crafting: 'Crafting {n}',
+  online_training: 'Training {n}',
+  online_hearth: 'Feeding the Hearth {n}',
+  online_town: 'In town {n}',
+
   /* THE TALLY WIDGET. {board} where her board stands; {ground} a hunt's name. */
   tally_aria: 'Tallies',
   tally_open: 'Open the Tally (drag to move)',
@@ -97,7 +110,10 @@ export const HUD_TEXT = Object.freeze({
   an_balance: 'Balance',
   an_sec_rates: 'Per hour',
   an_level_xp_h: 'Level XP per hour',
-  an_raw_xp_h: 'Level XP per hour before bonuses',
+  /* the even share of each kill (the server's raw_xp): what was paid less the party's class cell or the solo boost, the only Level XP
+     bonuses. "Before bonuses" read as a party cutting a hero's XP (lane/a-honest-lines, re-landed by lane/a-honesty-rescue). The summary
+     card's row says the same (hunt-summary.js). */
+  an_raw_xp_h: 'Level XP per hour (no party or solo bonus)',
   an_gold_loot_h: 'Gold and loot value per hour',
   an_supplies_h: 'Supplies per hour',
   an_balance_h: 'Balance per hour',

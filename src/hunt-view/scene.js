@@ -40,25 +40,25 @@
 //      flinches on a blow that landed on it, and a dead one falls, each only on a facing its
 //      clip has; no clip ever plays without the event that caused it.
 // ════════════════════════════════════════════════════════════════════════
-import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.138';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.138';
-import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.138';
-import { partyPeopleOf } from '../session/party-sections.js?v=0.2.138';
-import { floatShown } from './float-prefs.js?v=0.2.138';
-import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.138';
-import { abilityName, itemName, monsterName } from '../shell/widgets/bits.js?v=0.2.138';
-import { STUB_SPRITE } from '../world/core/book.js?v=0.2.138';
-import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.138';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.138';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.138';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
-import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.138';
-import { createSpellMarks } from './spell-marks.js?v=0.2.138';
-import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.138';
-import { createClipHook, struckBy } from './clip-hook.js?v=0.2.138';
-import { switchOn } from '../session/player-switch.js?v=0.2.138';
-import { MONSTER_NAMES } from '../data/world/monster-names.js?v=0.2.138';
-import { towerLookOf, liveFloorOf } from './tower-look.js?v=0.2.138';
+import { EVENT_FX, LOOT_FX, HIT_FX, PROJECTILE, CAST_FX, GLANCE_FX } from '../data/hunt-vfx.js?v=0.2.139';
+import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.139';
+import { huntOf, partyOf } from '../session/hunt-sections.js?v=0.2.139';
+import { partyPeopleOf } from '../session/party-sections.js?v=0.2.139';
+import { floatShown } from './float-prefs.js?v=0.2.139';
+import { heroSprite, heroDye } from '../session/hero-look.js?v=0.2.139';
+import { abilityName, itemName, monsterName } from '../shell/widgets/bits.js?v=0.2.139';
+import { STUB_SPRITE } from '../world/core/book.js?v=0.2.139';
+import { entranceOf, idleFrame, facingOf } from './scene-pose.js?v=0.2.139';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.139';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.139';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
+import { levelOf, wornTitleOf } from '../session/character-sections.js?v=0.2.139';
+import { createSpellMarks } from './spell-marks.js?v=0.2.139';
+import { fxAlphaOf, ownerAlpha, ownerOf } from './fx-prefs.js?v=0.2.139';
+import { createClipHook, struckBy } from './clip-hook.js?v=0.2.139';
+import { switchOn } from '../session/player-switch.js?v=0.2.139';
+import { MONSTER_NAMES } from '../data/world/monster-names.js?v=0.2.139';
+import { towerLookOf, liveFloorOf } from './tower-look.js?v=0.2.139';
 
 export const SCENE_TIMING = Object.freeze({
   deathFadeMs: 400,     // VW-05: colour to a grey corpse

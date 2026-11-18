@@ -71,7 +71,8 @@ export const EVENT_TYPES = Object.freeze({
   /* conditions.js / damage.js: a stop rule met; an attack item's shot (the decision: its rule id and the conditions that passed) */
   rule_stop: Object.freeze(['u', 'rule']),
   shot: Object.freeze(['u', 't', 'item', 'rule']),
-  /* a rule whose conditions held but whose action could not happen (why: conditions.js WAIT_WHY) */
+  /* a rule whose conditions held but whose action could not happen (why: mana, cooldown, no_stock, no_target,
+     out_of_range, gold_short, or level: a carried rune casts a version the hero's skill has not unlocked yet) */
   rule_wait: Object.freeze(['u', 't', 'rule', 'why']),
 });
 

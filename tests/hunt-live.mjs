@@ -162,6 +162,8 @@ async function load(base) {
   const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(base, 'src/build-info.js'), 'utf8')) || [, ''])[1];
   return {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
+    /* the stances a hero fights in (a blow it takes is x its stance's `taken`: LV-SCALE-SPELL's top) */
+    ENGINE_STANCES: (await import(pathToFileURL(join(base, 'src/data/rule-subjects.js')).href + V)).HUNT_STANCES,
     /* the engine's own spell table (LV-SPELL plants a test row and takes it back) */
     ENGINE_SPELLS: (await import(pathToFileURL(join(base, 'src/data/monster-spells.js')).href + V)).MONSTER_SPELLS,
     /* the engine's own switch (the one row that turns every monster's spells on or off): LV-SPELL plays with it on, whichever way it ships */
@@ -646,8 +648,12 @@ function rules(M) {
     // (the server's commits) and viewed (every commit matches the prediction), 240 s to reach the Toshers (the fifth pocket): a spell lands harder than the catalogue row's top can.
     const L = 30, HERO_L = 70, SPELL_ID = 'muck_fling';
     const play = M.ENGINE_SIM.huntPlayOf('millrace_sewer', { level: L });
-    const catTop = M.ENGINE_MS.spellHit(M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS.kobold_tosher), M.ENGINE_MS.spellRow(SPELL_ID))[1];
-    const scaledTop = M.ENGINE_MS.spellHit(M.ENGINE_COMBAT.monsterMaxHit(play.monsters.kobold_tosher), M.ENGINE_MS.spellRow(SPELL_ID))[1];
+    /* each row's top roll x the most a hero's stance takes (an Offensive hero takes 1.1x: hunt/damage.js hurt), the most one Fling can land;
+       it read the rolls alone and held only while no top roll met an Offensive hero (the 139 set's Sewer-from-5 moved the dice: 128 against 121;
+       the same fix as lane/d-defense-tower 0d6bad158) */
+    const takenMax = Math.max(...Object.values(M.ENGINE_STANCES).map((s) => s.taken));
+    const catTop = Math.floor((M.ENGINE_MS.spellHit(M.ENGINE_COMBAT.monsterMaxHit(M.ENGINE_MONSTERS.kobold_tosher), M.ENGINE_MS.spellRow(SPELL_ID))[1] * takenMax) / 1000);
+    const scaledTop = Math.floor((M.ENGINE_MS.spellHit(M.ENGINE_COMBAT.monsterMaxHit(play.monsters.kobold_tosher), M.ENGINE_MS.spellRow(SPELL_ID))[1] * takenMax) / 1000);
     const wasLive = M.ENGINE_SPELL_SWITCH.live;
     M.ENGINE_SPELL_SWITCH.live = true;
     try {

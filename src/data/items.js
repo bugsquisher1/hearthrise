@@ -1,22 +1,22 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.138';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.138';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.138';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.138';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.138';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.138';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.138';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.138';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.138';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.138';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.138';
-import { CALL_ITEMS } from './boss-calls.js?v=0.2.138';
-import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.138';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.138';
-import { foldRows } from './grounds/shape.js?v=0.2.138';
-import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.138';
-import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.138';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.139';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.139';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.139';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.139';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.139';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.139';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.139';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.139';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.139';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.139';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.139';
+import { CALL_ITEMS } from './boss-calls.js?v=0.2.139';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.139';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.139';
+import { foldRows } from './grounds/shape.js?v=0.2.139';
+import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.139';
+import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.139';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -960,57 +960,3 @@ const BULK_GOODS = [
 
 export const RAW_MATERIAL_IDS = [...new Set([...RAW_GATHERED, ...RAW_DROPS, ...BULK_GOODS])];
 for (const id of RAW_MATERIAL_IDS) { if (ITEMS[id]) ITEMS[id].raw = true; }
-
-/* ══════════════════════════════════════════════════════════════════════
-   b224 — foodKindOf(item): how a food PRESENTS at the point of use.
-
-   foodClassOf() answers the engine's question ("may auto-eat spend this?").
-   It does not answer the player's question, which is "what is this and what
-   verb do I press?" — and beta testers reported exactly that gap: a Void
-   Banquet and a Cooked Shrimp were both an item called "food" with a heal
-   number and an identical button.
-
-   So this is the presentation twin of foodClassOf, derived from it plus the
-   item's own name. Three kinds, three verbs:
-
-     provision → "Eat"    healing staple; auto-eat draws from this pool
-     feast     → "Use"    prepared dish eaten for a timed buff
-     draught   → "Drink"  the same, but liquid — the drinks category the
-                          standing design note asked for
-
-   Provision/buff comes from foodClassOf so the split can never drift from
-   the auto-eat rule. Draught-vs-feast is a naming read, because "is it a
-   drink" is a fact about the noun and hand-tagging 27 items with a field
-   that only picks a verb would be authoring with no reader (same argument
-   §2 of the taxonomy makes for categories generally).
-   ══════════════════════════════════════════════════════════════════════ */
-const DRAUGHT_NAME_RE = /\b(elixir|draught|draft|potion|brew|tonic|cordial|tea)\b/i;
-
-export function foodKindOf(item) {
-  const cls = foodClassOf(item);
-  if (!cls) return null;
-  if (cls === 'healing') return 'provision';
-  return DRAUGHT_NAME_RE.test(item.n || '') ? 'draught' : 'feast';
-}
-
-/* Plain-words presentation for each kind. The UI reads verb/label/blurb from
-   here so the item modal, the combat picker and the hover tooltip cannot
-   describe the same item three different ways. No emoji — these are labels,
-   not art. */
-export const FOOD_KIND_META = {
-  provision: {
-    label: 'Provision',
-    verb: 'Eat',
-    blurb: 'Healing food.',
-  },
-  feast: {
-    label: 'Feast',
-    verb: 'Use',
-    blurb: 'Eaten for a timed buff.',
-  },
-  draught: {
-    label: 'Draught',
-    verb: 'Drink',
-    blurb: 'Drunk for a timed buff.',
-  },
-};

@@ -157,10 +157,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    the first gloves and sashes, the tier-4 hatchets and crossbow, the Ironbound, Coppercap and Mithril-Faced shields); Klappa's Club and the Steelgrate
    stay. One hr_items row is renamed (klappas_club: Klappa's Klub, Tyler 2026-11-18), its id unchanged. ORDER: after everything applied with v0.2.138; before the drop-homes bench-inputs, bench-tax and hunt-sessions files. */
 /* THE JEWELRY SAMPLE (lane/d-jewelry-sample, systems-engineer 2026-11-18; itemization plan phase 2; Tyler 2026-11-18: all jewelry is Smithing): it carries
-   2027-05-06-drop-homes-items-catalogue (STAGED, applied first) whole. hr_items gains the Seam Jasper, the Seam Jasper Band and its six grades and the Fang
+   2027-05-06-drop-homes-items-catalogue (APPLIED with v0.2.139) whole. hr_items gains the Seam Jasper, the Seam Jasper Band and its six grades and the Fang
    Studs' three grades; the Warband Bulwark is re-cut to the cape ladder (worn from 30). hr_activities: the Banded Signet's two jobs move to Smithing, and the
    Seam Jasper Band's two, the Fang Studs' two, the Wolfbone Necklace's (Smithing) and the Warband Bulwark's (Crafting) are new. ORDER: after the four
-   drop-homes files; before this lane's bench-inputs, bench-tax, hunt-sessions, alpha and jewelry files. */
+   drop-homes files and everything applied with v0.2.139 (2027-05-07-open-halls-words-live-events-catalogue last); before this lane's bench-inputs, bench-tax, hunt-sessions, alpha and jewelry files. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-07-jewelry-sample-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
@@ -1336,7 +1336,7 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
    salts' mixes and packs (2027-05-01-v0135-bench-inputs, never applied, folded in here on the assembled set). */
 /* DROP HOMES (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor, weapons and shields drop, a bench makes none): 2027-04-27-tower-chest is
    APPLIED history; the 24 cut recipes' inputs leave the function, no other recipe's inputs move. */
-/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-bench-inputs (STAGED, applied first) is the file before; the five new
+/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-bench-inputs (APPLIED with v0.2.139) is the file before; the five new
    pieces' jobs bring their inputs, and the Banded Signet's keep theirs on Smithing's bench. */
 const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-07-jewelry-sample-bench-inputs.generated.sql');
 const benchInputs = {};

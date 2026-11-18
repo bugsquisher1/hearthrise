@@ -11,10 +11,10 @@
 // way IN (envelope) and on the way OUT (put), so a malformed or oversized value
 // can never reach a renderer or the server.
 // ════════════════════════════════════════════════════════════════════════
-import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.138';
-import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.138';
-import { FX_ALPHA_ROW } from '../data/fx-alpha.js?v=0.2.138';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.138';
+import { PANEL_ALPHA } from '../data/panel-alpha.js?v=0.2.139';
+import { TOWN_ZOOM } from '../data/world/view-zoom.js?v=0.2.139';
+import { FX_ALPHA_ROW } from '../data/fx-alpha.js?v=0.2.139';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.139';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 
@@ -76,8 +76,8 @@ function sanitizeCombatLog(v) {
   return out;
 }
 
-import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.138';
-import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.138';
+import { sanitizeSummaries } from './hunt-summaries.js?v=0.2.139';
+import { DEPOT_BASE_STACKS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.139';
 
 const ITEM_ID = /^[a-z0-9_]{1,64}$/;
 export const BAG_SEEN_MAX = 512;
@@ -154,8 +154,11 @@ function sanitizeAlerts(v) {
 function sanitizeAwaySeen(v) {
   if (!isObj(v) || typeof v.s !== 'string' || !/^[A-Za-z0-9_:.-]{1,64}$/.test(v.s) || !Number.isSafeInteger(v.at) || v.at < 0) return {};
   const out = { s: v.s, at: v.at };
-  /* lv / sl: the Level and the skill level the server said with xp / sx (away-recap.js, away-work.js) */
-  for (const k of ['xp', 'lv', 'gold', 'kills', 'sx', 'sl', 'n']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
+  /* lv / sl: the Level and the skill level the server said with xp / sx (away-recap.js, away-work.js); sp: the store gold the
+     hunt had spent with its coins `gold` (the analyzer's `waste`), so the return says the gold the purse kept */
+  for (const k of ['xp', 'lv', 'gold', 'sp', 'kills', 'sx', 'sl', 'n']) if (Number.isSafeInteger(v[k]) && v[k] >= 0) out[k] = v[k];
+  /* h: the stamped hunt's ground, k: the skill sx / sl are of (a training session's, or the yard its hunt goes on to) */
+  for (const k of ['h', 'k']) if (typeof v[k] === 'string' && /^[a-z0-9_]{1,64}$/.test(v[k])) out[k] = v[k];
   return out;
 }
 

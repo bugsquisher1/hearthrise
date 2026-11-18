@@ -257,12 +257,14 @@ const fileText = (f) => {
   const t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
   return SQL_EDIT && SQL_EDIT.file === f ? SQL_EDIT.edits.reduce((s, [a, b]) => s.replace(a, () => b), t) : t;
 };
-/* ON THE CHAIN UP TO THESE FILES, its own replay (lane/d-jewelry-sample, 2026-11-18): a later forward catalogue restates rows these files once
-   wrote (2027-05-06-drop-homes' hunt-sessions moves hr_boss_calls' quote drops), so a second apply over the chain's END would move rows the files
-   no longer own and judge them for it. Replayed to FILE, the second apply is judged on the state the files themselves made. */
+/* EG-IDEM is judged at the files' OWN place in the chain (set/v0.2.139): on the full chain a later catalogue (drop-homes'
+   and the Sewer-from-5 hunt-sessions files) restates the same Sewer and boss-call rows, so re-applying this older catalogue
+   on top of them "moves" rows that are not this file's to keep. The byte-identical second apply of the WHOLE chain is
+   schema-drift's. The full-chain db the arms share is not used here. */
 async function idemArm() {
   const { db } = await bootReplay({ upTo: FILE });
-  try { await H.pinDice(db); return await idemOn(db); } finally { await db.close(); }
+  await H.pinDice(db);
+  try { return await idemOn(db); } finally { await db.close(); }
 }
 async function idemOn(db) {
   return H.inTx(db, async () => {

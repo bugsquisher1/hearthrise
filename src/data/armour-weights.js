@@ -16,8 +16,8 @@
 // The share is by ARMOUR_SLOTS worn of that weight (ruling K7: mixed pieces blend,
 // no mixing penalty); shields and capes carry no weight. PURE: no DOM.
 // ════════════════════════════════════════════════════════════════════════
-import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.138';
-import { ITEMS } from './items.js?v=0.2.138';
+import { VITALS, ARMOUR_WEIGHT, ARMOUR_SLOTS } from './core-model.js?v=0.2.139';
+import { ITEMS } from './items.js?v=0.2.139';
 
 /* pool: the vital the weight raises ('hp' | 'mana' | null), fullPm: that raise for a full set, permille. */
 const WEIGHT_RULES = Object.freeze({
@@ -51,12 +51,6 @@ export function weightSentence(w) {
   if (!r) return '';
   const pool = r.pool ? POOL_WORDS[r.pool] + ' up to ' + pct(r.fullPm) + ', ' : 'no HP or mana, ';
   return r.name + ': ' + pool + r.guard;
-}
-
-/** The same, short, for a coach card: "Heavy adds max HP and absorbs part of each blow that lands." */
-export function weightShort(w) {
-  const r = WEIGHT_RULES[w];
-  return r ? r.name + ': ' + (r.pool ? POOL_WORDS[r.pool] + ', ' : '') + r.guard : '';
 }
 
 /** The tooltip's line for an armor piece: { head, text }, or null. */

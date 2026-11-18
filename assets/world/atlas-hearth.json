@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-hearth.png",
   "size": [2048,876],
-  "pixels": "8c18368f93b87ee022fbb13e58edc4b15fefcf4bc830cb2eb734e88ce82a7ec1",
+  "pixels": "839bef0284de36a36d6ae60e5c3573ade6cda53f0482bda660fa785567cd13ad",
   "sprites": {
     "great_hearth": {
       "class": "landmark",
@@ -16,7 +16,7 @@
       "overhang": [0,0,0,0],
       "hover": 0,
       "height": 390,
-      "contact": [122,347],
+      "contact": [122,229],
       "shadow": null,
       "anims": {
         "idle": {

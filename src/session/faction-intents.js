@@ -9,7 +9,7 @@
 //   finishSwap(account, cs)             hr_faction_swap_finish   refuses swap_short { need_ms, have_ms }, no_swap
 //   claimPiece(account, cs, piece)      hr_faction_outfit_claim  refuses standing_short { need_ms, have_ms }, piece_owned
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.138';
+import { askVia } from './intent-ledger.js?v=0.2.139';
 
 const WORD = /^[a-z0-9_]{1,32}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

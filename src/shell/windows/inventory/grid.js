@@ -18,29 +18,30 @@
 // action is ONE intent with the controls off until the server answers
 // (actions.js). Patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.138';
-import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.138';
-import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.138';
-import { patchParts, placeLink } from '../../goto.js?v=0.2.138';
-import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.138';
-import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.138';
-import { whole, gold } from '../../../render/format.js?v=0.2.138';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.138';
-import { glyphSvg } from '../../launcher.js?v=0.2.138';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.138';
-import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.138';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.138';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.138';
-import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.138';
-import { ringTabHtml, ringPaneHtml, patchRing } from './key-ring.js?v=0.2.138';
-import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.138';
-import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.138';
-import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.138';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.138';
-import { whyLine } from '../../widgets/why-line.js?v=0.2.138';
-import { t } from '../../../render/player-text.js?v=0.2.138';
-import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.138';
-import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.138';
+import { BAG_CATS, BAG_SORTS, isNew, bagValue, lootToSell, upgradeNeeds } from '../../bag-model.js?v=0.2.139';
+import { homeOf, chestsOf } from '../../../session/home-sections.js?v=0.2.139';
+import { usePlaces, wherePlaces } from '../../item-lore.js?v=0.2.139';
+import { patchParts, placeLink } from '../../goto.js?v=0.2.139';
+import { barIndexOf, barKeyLabel } from '../../bar-assign.js?v=0.2.139';
+import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v=0.2.139';
+import { whole, gold } from '../../../render/format.js?v=0.2.139';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.139';
+import { glyphSvg } from '../../launcher.js?v=0.2.139';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.139';
+import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.139';
+import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.139';
+import { pocketHtml, patchCount } from './pockets.js?v=0.2.139';
+import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.139';
+import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.139';
+import { ringTabHtml, ringPaneHtml, patchRing } from './key-ring.js?v=0.2.139';
+import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.139';
+import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.139';
+import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.139';
+import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.139';
+import { whyLine } from '../../widgets/why-line.js?v=0.2.139';
+import { t } from '../../../render/player-text.js?v=0.2.139';
+import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.139';
+import { planCopyHtml, patchPlanCopy } from './plan-copy.js?v=0.2.139';
 
 /* The This hunt row's choices: the three plans, then the pickup filter (loot-dispatch.js). */
 const RULE_OPTIONS = '<optgroup label="Loot plan">' + LOOT_CHOICES.filter((c) => c[2] === 'plan').map(([v, w]) => '<option value="' + v + '">' + esc(w) + '</option>').join('')
@@ -82,10 +83,10 @@ export function toolsHtml(g) {
     + '<button type="button" class="hh-tool" data-hs-act="deposit-sel">' + t('controls.deposit') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="lock-sel">' + t('controls.lock') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="clear-sel">' + t('controls.clear') + '</button></div>'
-    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="select-outgrown"></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button><span class="hw-value"></span></div>'
-    + '<p class="hw-why hw-dispatch-why" role="status" aria-live="polite"></p>' + planCopyHtml()   /* the sale's confirm follows; plan-copy.js keeps its own class names */
+    /* Dispatch loot and the bag's worth stand in the window's foot (index.js); these two are the bag's other bulk presses */
+    + '<div class="hw-tools"><button type="button" class="hh-tool" data-hs-act="select-outgrown"></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="sell-cat"></button></div>'
+    + planCopyHtml()   /* the sale's confirm follows; plan-copy.js keeps its own class names (why Dispatch is off: the window's foot, index.js) */
     + '<div class="hw-confirm" role="alertdialog" aria-label="Confirm the sale"><p class="hw-confirm-q"></p><p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="confirm-yes"></button>'
     + '<button type="button" class="hh-tool" data-hs-act="confirm-no">' + t('controls.cancel') + '</button></div></div>'
@@ -128,13 +129,24 @@ export function patchToolbar(root, st, ctx) {
   patchRing(root, st, ctx.doc, ctx.glyphs);
 }
 
+/** THE BAG'S FREE SPACES, DRAWN (UI audit 2026-11-18 UI-5: the bag read as three rows of items under a stack of lines): on a desktop, the whole
+    bag with nothing filtered out shows each space the server's cap leaves free as an empty pocket after the stacks, so the grid reads as a
+    bag with room in it. Never under a category or a search (an empty pocket there would read as "nothing else"), never past the cap, and not
+    on a phone's sheet, which scrolls as one. Inert: no item, no press, hidden from a reader. Pure. */
+export function freeSpaces(st, phone) {
+  const free = Number.isSafeInteger(st.cap) ? st.cap - st.items.length : 0;
+  return !phone && st.loaded && st.prefs.cat === 'all' && !st.sc.query && free > 0 ? free : 0;
+}
+
 function patchBagPane(root, st, ctx) {
   const { sc } = st;
   const pane = root.querySelector('[data-pane="bag"]');
-  rows(pane.querySelector('.hw-pockets'), st.shown, {
-    key: (r) => r.id,
-    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs)),
-    patch: (li, r) => patchPocket(li, r, st),
+  const view = ctx.doc.defaultView;
+  const spaces = freeSpaces(st, !!view && view.matchMedia(MOBILE_QUERY).matches);
+  rows(pane.querySelector('.hw-pockets'), st.shown.concat(Array.from({ length: spaces }, (_, i) => ({ space: i }))), {
+    key: (r) => (r.space === undefined ? r.id : ' space:' + r.space),
+    build: (r) => element(ctx.doc, r.space === undefined ? pocketHtml(r.id, ctx.glyphs) : '<li class="hw-pocket is-space" aria-hidden="true"></li>'),
+    patch: (li, r) => { if (r.space === undefined) patchPocket(li, r, st); },
   });
   const none = pane.querySelector('.hw-none');
   cls(none, 'is-on', st.loaded && !st.shown.length);
@@ -196,7 +208,8 @@ export function patchTools(root, st, ctx) {
   cls(tools, 'is-off', !onBag);
   /* Dispatch loot: off with the server-sections' reason (a hunt running, nothing planned), said on its own line. */
   const dWhy = dispatchBlock(st.cs);
-  const db = tools.querySelector('[data-hs-act="dispatch"]');
+  const db = root.querySelector('[data-hs-act="dispatch"]');
+  prop(db, 'hidden', !onBag);
   attr(db, 'title', dWhy || 'Deposits every stack planned "Deposit" and sells every stack planned "Sell"');
   prop(db, 'disabled', sc.pending || !!dWhy);
   whyLine(root.querySelector('.hw-dispatch-why'), onBag ? dWhy : '', false);
@@ -213,7 +226,10 @@ export function patchTools(root, st, ctx) {
   prop(ob, 'hidden', !st.outgrown.length);
   prop(ob, 'disabled', sc.pending);
   const val = st.shop ? bagValue(st.items, st.shop.bids) : null;
-  text(tools.querySelector('.hw-value'), !st.shop ? 'Loading shop prices…' : !val ? 'Value –' : 'Worth: ' + gold(val.total) + (val.unpriced ? ', ' + val.unpriced + ' unpriced' : ''));
+  /* under the bag, one short label; the stacks the shop prices nothing are counted on the pointer */
+  const valEl = root.querySelector('.hw-value');
+  text(valEl, !st.shop ? 'Loading shop prices…' : !val ? 'Value –' : 'Worth: ' + gold(val.total));
+  attr(valEl, 'title', val && val.unpriced ? 'Worth at the shop\'s prices, ' + val.unpriced + ' unpriced' : null);
 
   const cf = root.querySelector('.hw-confirm');
   cls(cf, 'is-on', !!sc.confirm);

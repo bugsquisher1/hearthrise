@@ -747,7 +747,7 @@ async function equipFromBag(p, t, slot, id) {
 
 /* ══ LOOP-2 — A MID-LEVEL CHARACTER (LEVEL 15, the Thicket's top) ═══════ */
 /* Level 15 with Melee and Defense at 15 (the iron kit asks 15) in the iron kit: the top of Meadowbrook
-   Thicket's solo band (5-15). The Sewer (8-25) is a party ground (Tyler 2026-10-21: "The Sewer is a party hunt"),
+   Thicket's solo band (5-15). The Sewer (5-25 since lane/d-party-pace) is a party ground (Tyler 2026-10-21: "The Sewer is a party hunt"),
    so a lone hero over 15 is told no solo ground fits yet (src/shell/hunt-list.js recommendation) — a designer
    gap until Mosslight Glade lands, not this loop's question. */
 const MID_LEVEL = 15;

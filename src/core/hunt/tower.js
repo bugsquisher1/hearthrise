@@ -28,13 +28,13 @@
 // Draws nothing. PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { TOWER_RULES, TOWER_PARTY_XP, validateTower } from '../../data/tower.js?v=0.2.138';
-import { formulaStats, GROUND_ROSTER, MONSTER_ROLES } from '../../data/balance-sheet.js?v=0.2.138';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.138';
-import { OPEN_HUNTS } from '../../data/hunts.js?v=0.2.138';
-import { COMBAT_BALANCE } from '../combat.js?v=0.2.138';
-import { hashSeed } from '../rng.js?v=0.2.138';
-import { makeEvent } from './events.js?v=0.2.138';
+import { TOWER_RULES, TOWER_PARTY_XP, validateTower } from '../../data/tower.js?v=0.2.139';
+import { formulaStats, GROUND_ROSTER, MONSTER_ROLES } from '../../data/balance-sheet.js?v=0.2.139';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.139';
+import { OPEN_HUNTS } from '../../data/hunts.js?v=0.2.139';
+import { COMBAT_BALANCE } from '../combat.js?v=0.2.139';
+import { hashSeed } from '../rng.js?v=0.2.139';
+import { makeEvent } from './events.js?v=0.2.139';
 
 /* The stair against the engine's swing (src/data/tower.js leaves this check to the one place the swing is known). */
 {

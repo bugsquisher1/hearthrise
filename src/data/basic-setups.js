@@ -19,10 +19,10 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES, DISCIPLINE_IDS } from './abilities.js?v=0.2.138';
-import { ROLE_KEYS } from './hunt-roles.js?v=0.2.138';
-import { ROLE_RULES } from './rule-subjects.js?v=0.2.138';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.138';
+import { ABILITIES, DISCIPLINE_IDS } from './abilities.js?v=0.2.139';
+import { ROLE_KEYS } from './hunt-roles.js?v=0.2.139';
+import { ROLE_RULES } from './rule-subjects.js?v=0.2.139';
+import { BASIC_INDEX } from './supply-basics.js?v=0.2.139';
 
 const setup = (role, heal) => Object.freeze({ role, heal, food: 'salted_shrimp', drink: 'thin_turnip_juice' });
 

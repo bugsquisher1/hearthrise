@@ -20,7 +20,7 @@
 // DOM reads and style writes only. Each writes only what changed, and reads no height of its own to set its room,
 // so the size change a write causes settles in the next pass (shell.js's observer).
 // ════════════════════════════════════════════════════════════════════════
-import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.138';
+import { DOCK_CAP_MIN_PX, liftOverBars, panelRoom, placeWidget, slideClear, stackRoom } from './hud.js?v=0.2.139';
 
 /* A stack of alerts is never squeezed shorter than one alert with its button. */
 const ALERTS_MIN_ROOM = 120;
@@ -133,10 +133,43 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
     return panels.concat(Array.from(layer.querySelectorAll('.hs-win:not(.is-leaving)'))).map(rel);
   }
 
+  /* THE TOWN'S COACH CARD IN ITS OWN SLOT (UI audit 2026-11-18 UI-6: hung under the icon row it lay over the Tally and reached the Town and
+     Home tabs). On a desktop it stands in the World's right column, in the widget stack: under the Tally and whatever else stands there (where
+     the Tally would stand when there is none), its right edge on theirs. It takes a free place and moves nothing, so the Tally stays where the
+     player left it, moved or not. --coach-r / --coach-y place it from the icon row's box (it is drawn there, launcher.js), --coach-h is its room
+     down to the bar; with less room than a card needs it hangs under the row as before. A group's menu open steps it left (shell.css). */
+  function dockTownCoach() {
+    const host = screenHud.querySelector('[data-hs-widget="launchers"] .hs-launchers');
+    if (!host) return;
+    const card = host.querySelector(':scope > .hs-pointer');
+    let at = null;
+    if (card && !isPhone() && host.offsetWidth) {
+      const hb = host.getBoundingClientRect(), wb = worldHud.getBoundingClientRect();
+      const right = wb.right - gap, w = card.offsetWidth || COACH_WIDE, h = card.offsetHeight;
+      const way = worldEls().filter((e) => e.offsetWidth && !isBar(e) && !e.classList.contains('is-under-dock')).map((e) => e.getBoundingClientRect())
+        .filter((q) => q.left < right && q.right > right - w);
+      let top = wb.top + gap;
+      for (let moved = true, n = 0; moved && n <= way.length; n++) {
+        moved = false;
+        for (const q of way) if (q.top < top + h + gap && q.bottom + gap > top) { top = q.bottom + gap; moved = true; }
+      }
+      const bars = worldEls().filter(isBar).map((e) => e.getBoundingClientRect()).filter((q) => q.left < right && q.right > right - w);
+      const floor = (bars.length ? Math.min(...bars.map((q) => q.top)) : wb.bottom) - gap;
+      if (floor - top >= Math.min(COACH_MIN_ROOM, h)) at = { r: Math.round(hb.right - right), y: Math.round(top - hb.top), h: Math.floor(floor - top) };
+    }
+    const now = at ? [at.r + 'px', at.y + 'px', at.h + 'px'].join() : ',,';
+    if ([host.style.getPropertyValue('--coach-r'), host.style.getPropertyValue('--coach-y'), host.style.getPropertyValue('--coach-h')].join() !== now) {
+      for (const k of ['--coach-r', '--coach-y', '--coach-h']) host.style.removeProperty(k);
+      if (at) { host.style.setProperty('--coach-r', at.r + 'px'); host.style.setProperty('--coach-y', at.y + 'px'); host.style.setProperty('--coach-h', at.h + 'px'); }
+    }
+    host.classList.toggle('is-coach-docked', !!at);
+  }
+
   /* THE HUNT'S COACH CARD, DOCKED (see the header). --coach-x / --coach-y: the card's place from its host's corner (it is drawn inside the hunt
      bar's widget, hunt-topbar.js); --coach-h its room down to the bar. Reads no height of the card. */
   const coachHost = () => worldHud.querySelector('[data-hs-widget="hunt-topbar"]');
   function dockCoach() {
+    dockTownCoach();
     const host = coachHost();
     if (!host) return;
     const card = host.querySelector(':scope > .hs-pointer');

@@ -334,8 +334,12 @@ export const WORLD_FIELDS_READ = Object.freeze({
    drop sets move (hr_hunt_kill_bounds.drops, and a called boss's quote drops): the new Scarce weapon and shield rows on the Sewer, Wickstead, the Glade,
    the Warrens, Hask's Ford, the Pyre Field and Krell's Hold, the Thicket's first gloves and belts, and the same-ground Rares they replace. No ground,
    spawn, limit, end reason or world shape moves. ORDER: after 2027-05-06-drop-homes-items-catalogue.generated.sql. */
-/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-hunt-sessions-catalogue (STAGED, applied first) is the file before this one
-   and this one carries it whole. Only kill bounds' drop sets and vendor values move: the Goblin Digger carries the Seam Jasper (a Rare), the Turncoat's
+/* THE SEWER FROM LEVEL 5 (lane/d-party-pace, designer; Tyler 2026-11-18 "Yes, open at 5"): 2027-05-06-drop-homes-hunt-sessions-catalogue (STAGED on
+   set/v0.2.139, applied before this one) is the file before this one and this one carries it whole, drop-homes' drop sets included. The Sewer's floor is 5, so
+   the formula's rows for its six monsters (tools/gen-ground-stats.mjs --write) carry a floor-5 purse (about a fifth less coin a kill): their kill bounds' gold
+   moves. No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-05-06-sewer-from-five-hunts-catalogue.generated.sql. */
+/* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-sewer-from-five-hunt-sessions-catalogue (APPLIED with v0.2.139) is the file before this
+   one and this one carries it whole. Only kill bounds' drop sets and vendor values move: the Goblin Digger carries the Seam Jasper (a Rare), the Turncoat's
    Wolfbone Necklace and Fang Studs leave (crafted now), and the new rows get their bids. ORDER: after this lane's items catalogue. */
 export const OUT_NAME = '2027-05-07-jewelry-sample-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
@@ -1089,11 +1093,14 @@ export function render(src) {
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
 -- NEW IN THIS FILE (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2; Tyler 2026-11-18: the two dropped Wickstead jewels
--- become crafted). It carries 2027-05-06-drop-homes-hunt-sessions-catalogue (STAGED, applied first) whole. Only kill bounds' drop sets and vendor values
+-- become crafted). It carries 2027-05-06-sewer-from-five-hunt-sessions-catalogue (APPLIED with v0.2.139) whole. Only kill bounds' drop sets and vendor values
 -- move: the Warrens' Goblin Digger gains the Seam Jasper (a Rare, tier 3's jewel gem), the Turncoat loses the Wolfbone Necklace and the Fang Studs (Smithing
 -- makes both now), and the new crafted rows get their bids. No ground, spawn, gold or XP bound, limit, end reason or world shape moves. ORDER: after
 -- 2027-05-07-jewelry-sample-items-catalogue.generated.sql (its self-check wants every dropped item in hr_items). EDGE: this file BEFORE the hr-accrue
 -- deploy that ships the Seam Jasper row (an engine crediting it against the old bounds is refused value_over).
+--
+-- CARRIED FROM 2027-05-06-sewer-from-five-hunt-sessions-catalogue (lane/d-party-pace, designer, 2026-11-18; Tyler 2026-11-18 "Yes, open at 5"), whole: the
+-- Sewer's six formula rows at a floor-5 purse (their kill bounds' gold).
 --
 -- CARRIED FROM 2027-05-06-drop-homes-hunt-sessions-catalogue (lane/d-drop-homes, game-designer, 2026-11-18; Tyler 2026-11-18, answering the itemization audit: armor, weapons and shields drop at every
 -- tier, a bench makes none). It carries 2027-05-05-entry-gates-hunt-sessions-catalogue (applied 2026-11-18 with v0.2.138) whole. Only kill bounds' drop

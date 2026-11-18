@@ -192,7 +192,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_friend_remove: 'end a friendship or withdraw an ask (FriendStore.remove)',
   hr_social_state: 'friends, asks and blocks, and this account’s presence stamp, a read (SocialSession.reread)',
   hr_inspect: 'another player’s worn items, a read (inspectOf)',
-  hr_social_poll: 'the social read plus stamping this account’s own open characters present (slots only) and how many characters are playing, a count only, in one request (SocialSession._presence; 2027-02-17-social-poll.sql)',
+  hr_social_poll: 'the social read plus stamping this account’s own open characters present (slots only) and how many characters are playing, with their lines by activity, counts only, in one request (SocialSession._presence; 2027-02-17-social-poll.sql, 2027-05-05-players-online-by-activity.sql)',
   /* Report #78 (2027-03-26-signout-presence.sql): no argument at all; the server reads the account from the token. */
   hr_presence_leave: 'sign-out says this account’s client is gone, so the players-online count and the friends’ dot drop it at once; names no slot, player or time (AccountSession._leavePresence)',
   /* Town presence (2026-10-25-town-walk.sql): this character's own tile, goal tile and facing, catalogue-bounded; never a user or a time.

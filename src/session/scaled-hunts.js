@@ -16,9 +16,9 @@
 // Every number on screen is the section's and every envelope replaces it (CLAUDE.md §6). The slider's hours are the window's
 // display scratch, sent with the press and spent by nothing else.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.138';
-import { quoted } from './quoted-ask.js?v=0.2.138';
-import { refusalOf } from './refusal.js?v=0.2.138';
+import { askVia } from './intent-ledger.js?v=0.2.139';
+import { quoted } from './quoted-ask.js?v=0.2.139';
+import { refusalOf } from './refusal.js?v=0.2.139';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const HUNT = /^[a-z0-9_]{1,64}$/;

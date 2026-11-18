@@ -12,6 +12,7 @@
 // only from the envelope. Each ask goes in the account's intent ledger (askVia), so the pressed control waits.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { SHOW_FLAMES, ROUND_OFFER } from '../data/gold-sinks.js?v=0.2.140';
 
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
@@ -62,6 +63,7 @@ function buyShow(account, cs, show, price, verb) {
     const ans = await account.server.rpc('hr_town_show', { p_slot: cs.slot, p_show: show, p_price: price, p_idem: globalThis.crypto.randomUUID() });
     const b = isObj(ans && ans.body) ? ans.body : {};
     if (!(ans && ans.ok && b.ok === true)) {
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb, show,
         price: int(b.price), perDay: int(b.per_day), waitS: int(b.wait_s), bookedS: int(b.booked_s) };
     }
@@ -121,6 +123,7 @@ export function giveToWorks(account, cs, project, amount) {
     const ans = await account.server.rpc('hr_town_works_give', { p_slot: cs.slot, p_project: project, p_amount: amount, p_idem: globalThis.crypto.randomUUID() });
     const b = isObj(ans && ans.body) ? ans.body : {};
     if (!(ans && ans.ok && b.ok === true)) {
+      await afterRefusal(cs, ans);
       return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'town_works', project,
         perDay: int(b.per_day), left: int(b.left), min: int(b.min) };
     }

@@ -5104,6 +5104,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* QA audit 2026-11-18 N9, N11 and the UI audit's bag items */
+  ['AW-25L the card lists materials only again', 'src/shell/windows/hunt-detail.js', '  const loot = lootOf(r.hunt), all =', '  const loot = lootOf(r.hunt).filter((x) => /gel|bones|wheat|fang|jelly|thread/.test(x.id)), all ='],
+  ['AW-32b the item menu says Sell twice', 'src/shell/windows/inventory/actions.js', "h += item('m-sell', t('controls.sell_now'),", "h += item('m-sell', t('controls.sell'),"],
   ['AW-28b nobody to bring tells heroes already playing to play one (audit F23)', 'src/shell/windows/hunt-detail.js', '  if (away.length) {\n', '  if (false) {\n'],
   ['AW-25 a creature card\'s dot can end its line','src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
   ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],

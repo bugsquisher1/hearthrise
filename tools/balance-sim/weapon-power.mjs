@@ -89,7 +89,15 @@ export function weaponPower(mods) {
       return { ground: g, power: p, line: lp, pace, safety, ratio: pace === null || safety === null ? null : Math.max(pace, safety) };
     });
   }
-  return { blow, threat, groundPower, safePower, score, lateGrounds, lineRow, againstLine, spawnsOf };
+  /** THE LINE'S FIRST LEVEL for `family` (lane/d-temper-dawnsteel: tier 7 tempers to +2%): the lowest Level from the anchor where the line's
+      weapon beats fully tempered Dawnsteel on every late ground, both ways, so a unique worn from there can be an upgrade (null: not by 200). */
+  function firstLevel(family, grounds = lateGrounds()) {
+    const b = line.WEAPON_LINE_BASE[family], base = b && ITEMS[b.id], td = line.TEMPERED_DAWNSTEEL;
+    if (!base) return null;
+    for (let L = line.WEAPON_LINE_ANCHOR; L <= 200; L++) if (againstLine(base, family, L, grounds).every((r) => r.pace * td < 1 && r.safety * td < 1)) return L;
+    return null;
+  }
+  return { blow, threat, groundPower, safePower, score, lateGrounds, lineRow, againstLine, spawnsOf, firstLevel };
 }
 
 /** The module instances a stand-alone reader uses (the guard's and this tool's): the bare src/ modules. */
@@ -132,15 +140,8 @@ if (isMain(import.meta.url)) {
   }
   /* THE LINE'S FIRST LEVEL (lane/d-temper-dawnsteel: tier 7 tempers to +2%): the lowest Level where the line's weapon beats fully tempered
      Dawnsteel on every late ground, both ways, so a unique worn from there can be an upgrade */
-  console.log('\nTHE FIRST LEVEL THE LINE BEATS TEMPERED DAWNSTEEL (x' + TD + ') on every late ground, pace and safety');
-  for (const fam of Object.keys(line.WEAPON_LINE_BASE)) {
-    const base = mods.ITEMS[line.WEAPON_LINE_BASE[fam].id];
-    let first = null;
-    for (let L = line.WEAPON_LINE_ANCHOR; L <= 200 && first === null; L++) {
-      if (P.againstLine(base, fam, L, G).every((r) => r.pace * TD < 1 && r.safety * TD < 1)) first = L;
-    }
-    console.log('  ' + fam + ': ' + first);
-  }
+  console.log('\nTHE FIRST LEVEL THE LINE BEATS TEMPERED DAWNSTEEL (x' + TD + ') on every late ground, pace and safety (data: WEAPON_FIRST_LEVEL)');
+  for (const fam of Object.keys(line.WEAPON_LINE_BASE)) console.log('  ' + fam + ': ' + P.firstLevel(fam, G) + ' (data ' + (line.WEAPON_FIRST_LEVEL || {})[fam] + ')');
   /* the Mage bar (tests/weapon-line.mjs WL9, style-gear SG-8's 1.3): max hit on a zero-defence foe, Magic and Melee at the Level */
   console.log('\nTHE MAGE ON THE LINE (wand on the line, Duskwood Codex, full Duskweave) OVER A WARHAMMER ON THE LINE, max hit, the bar 1.3');
   const robes = ['duskweave_helmet', 'duskweave_body', 'duskweave_pants', 'duskweave_boots', 'duskweave_gloves', 'duskweave_belt'];

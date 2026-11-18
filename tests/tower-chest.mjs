@@ -971,7 +971,7 @@ const MUTANTS = [
   { name: 'the data\'s Platinum odds move', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
     from: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 20,", to: "key('platinum', 'tower', 'tower_key_platinum', 'Platinum Key', 100, 40," },
   { name: 'the data\'s Tower week moves', arm: 'data', want: /^TCH-DATA/, file: 'src/data/chests.js',
-    from: "name: 'Tower', opensPerWeek: 6, heldMax: 30 })", to: "name: 'Tower', opensPerWeek: 7, heldMax: 30 })" },
+    from: "name: 'Tower', opensPerWeek: 6, heldMax: 30,", to: "name: 'Tower', opensPerWeek: 7, heldMax: 30," },
   /* TCH-SELFCHECK: §9(e) counting from zero again (the shape GitHub run 44144849725 caught at random) */
   { name: '§9(e) counts the bag from zero', arm: 'selfcheck', want: /^TCH-SELFCHECK §9 refused/, file: CHEST_SQL,
     from: 'and item_id = v_fam.item_id) is distinct from v_had + 1', to: 'and item_id = v_fam.item_id) is distinct from 1' },

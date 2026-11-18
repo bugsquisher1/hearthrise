@@ -257,7 +257,14 @@ const fileText = (f) => {
   const t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
   return SQL_EDIT && SQL_EDIT.file === f ? SQL_EDIT.edits.reduce((s, [a, b]) => s.replace(a, () => b), t) : t;
 };
-async function idemArm(db) {
+/* Judged where its files sit in the chain (upTo FILE): 2027-05-06-catacombs-tower-catalogue.generated.sql makes hr_tower_rules one row a run
+   ground after them, a later file's schema that this file's second apply was never written against (its §0 pins say so for the bodies). */
+async function idemArm() {
+  const { db } = await bootReplay({ upTo: FILE });
+  await H.pinDice(db);
+  try { return await idemAt(db); } finally { await db.close(); }
+}
+async function idemAt(db) {
   return H.inTx(db, async () => {
     await rewind(db);
     const bad = [];
@@ -296,14 +303,15 @@ const SELF_PLANTS = [
 const ARMS = { data: dataArm, tower: towerArm, call: callArm, count: countArm, idem: idemArm };
 
 /* ── THE MUTANTS: each a defect the gates exist to refuse, planted in the booted chain's live body ─────────────── */
-const FN = { start: 'public.hr_tower_start(integer,integer,uuid)', quote: 'public.hr_boss_call_quote(uuid,integer,text)', wins: 'public.hr_boss_wins(uuid,integer,text)',
+/* the door's Level is the run door's body since 2027-05-06-catacombs.sql (hr_tower_start calls it on the Tower's ground) */
+const FN = { start: 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)', quote: 'public.hr_boss_call_quote(uuid,integer,text)', wins: 'public.hr_boss_wins(uuid,integer,text)',
   view: 'public.hr_entry_gates_view(uuid,integer)' };
 const MUTANTS = [
   { name: 'the door asks no Level', arm: 'tower', want: /^EG-TOWER one Level under, the door/, fn: FN.start, find: '    if v_lv < v_need then\n', replace: '    if false then\n' },
   { name: 'the door asks only the hero, not its seats', arm: 'tower', want: /^EG-TOWER a seat under, the door/, fn: FN.start,
-    find: "      if found then\n        v_no := jsonb_build_object('ok', false, 'error', 'tower_party_level'", replace: "      if false then\n        v_no := jsonb_build_object('ok', false, 'error', 'tower_party_level'" },
+    find: "      if found then\n        v_no := jsonb_build_object('ok', false, 'error', p_code || '_party_level'", replace: "      if false then\n        v_no := jsonb_build_object('ok', false, 'error', p_code || '_party_level'" },
   { name: 'a missing door Level lets every hero through', arm: 'tower', want: /^EG-TOWER one Level under, the door/, fn: FN.start,
-    find: '    select r.min_level into v_need from public.hr_tower_rules r where r.id;\n    if v_need is null then', replace: '    v_need := null;\n    if false then' },
+    find: '    select r.min_level into v_need from public.hr_tower_rules r where r.hunt_id = v_hunt;\n    if v_need is null then', replace: '    v_need := null;\n    if false then' },
   { name: 'the quote asks no wins', arm: 'call', want: /^EG-CALL one win short, the (quote|call)/, fn: FN.quote,
     find: "  if v_gate is not null and v_why is distinct from 'call_leader' then", replace: '  if false then' },
   { name: 'the quote counts the called row\'s wins', arm: 'call', want: /^EG-CALL one win short, the (quote|call)/, fn: FN.quote,

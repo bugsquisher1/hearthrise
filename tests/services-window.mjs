@@ -180,6 +180,7 @@ async function checks(overrides) {
         if ((await txt(page, '.hw-temper-way')) !== '') fails.push('SV-8 a hero who holds enough is told where to get it');
         if (!/Rung 5\/5/.test(armor || '') || !/damage taken -5%, max/.test(armor || '') || !/Full/.test(armor || '')) fails.push('SV-7 the Armor row reads ' + JSON.stringify(armor));
         if (!(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 a full ladder can still be pressed');
+        if (/Smaller rungs/.test((blows || '') + (armor || ''))) fails.push('SV-7 Iron is told it takes smaller rungs: ' + JSON.stringify([blows, armor]));
         const before = s.calls.length;
         const sales = () => s.calls.slice(before).filter((c) => c.name === 'hr-accrue' && JSON.stringify(c.body).includes('unlock_buy'));
         await press(page, P + '.hw-temper [data-track="blows"] button', 'SV-7');
@@ -315,6 +316,20 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // SV-7: DAWNSTEEL (lane/d-gold-sinks, the lane/d-temper-dawnsteel design): tier 7 takes smaller rungs, 0.4% each (src/data/temper.js
+      // TEMPER_TIER_RUNG_PM), so "Next: +1.2%" after Emberforged's 1% steps says why, on both rows, in the server's ladders (tier 7 at rung 2 and at the top)
+      const dawn = { equipment: { weapon: 'dawn_sword', helmet: 'dawn_helm', body: 'dawn_platebody' }, temper: [...clone(TEMPER.temper),
+        { track: 'blows', tier: 7, rung: 2, max: 5, offer: 'temper.blows.7.3', gold: 160000, items: { ember_temper_salts: 40 } }, { track: 'armor', tier: 7, rung: 5, max: 5, offer: null, gold: null, items: null }] };
+      const { ctx, page, opened } = await open(Object.assign(clone(SECTIONS), dawn));
+      if (!opened) fails.push('SV-7 the Services tab did not open on Dawnsteel');
+      else {
+        const b = await txt(page, '.hw-temper [data-track="blows"]'), a = await txt(page, '.hw-temper [data-track="armor"]');
+        if (!/Dawnsteel Sword/.test(b || '') || !/Rung 2\/5: damage and heals \+0\.8%\. Next: \+1\.2%\. Smaller rungs: 0\.4% each/.test(b || '')) fails.push('SV-7 a Dawnsteel Sword reads ' + JSON.stringify(b));
+        if (!/Rung 5\/5: damage taken -2%, max\. Smaller rungs: 0\.4% each/.test(a || '') || !(await off(page, '.hw-temper [data-track="armor"] button'))) fails.push('SV-7 Dawnsteel armor reads ' + JSON.stringify(a));
+        if (!/160,000/.test((await txt(page, '.hw-temper [data-track="blows"] button')) || '')) fails.push('SV-7 the Dawnsteel rung is not at the server\'s price: ' + JSON.stringify(await txt(page, '.hw-temper [data-track="blows"] button')));
+      }
+      await ctx.close();
+    }
     { // SV-5
       /* SV-11 BLESS ALL (designer re-read 2026-11-11: three presses to bless again): ONE press buys every missing tier in order, each at the price
          the envelope the last purchase brought back quotes, and the button goes once nothing is missing */
@@ -358,6 +373,8 @@ async function checks(overrides) {
 const MUTANTS = [
   ['Temper sends without a confirmation (SV-7)', 'src/shell/windows/temper-pane.js', "sc.ask = el.getAttribute('data-track');\n    sc.msg = '';", "sc.ask = el.getAttribute('data-track');\n    return actTemperPane(ctx, 'temper-yes', el, sc, repaint);\n    sc.msg = '';"],
   ['the sale carries a price (SV-7)', 'src/shell/windows/temper-pane.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('unlock_buy', { offer, gold: 8000 })"],
+  ['Dawnsteel never says why its rungs are smaller (SV-7)', 'src/shell/windows/temper-pane.js', "const small = r.smallPm ? '. ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '';", "const small = '';"],
+  ['every tier is told it takes smaller rungs (SV-7)', 'src/session/temper-sections.js', '  return l && l.pm < TEMPER_RUNG_PM ? l.pm : 0;', '  return l ? l.pm : 0;'],
   ['the sheet forgets the rungs (SV-7)', 'src/session/temper-sections.js', 'return r && (r.blows.nowPm > 0 || r.armor.nowPm > 0) ?', 'return r && false ?'],
   ['short of material stays on (SV-8)', 'src/shell/windows/temper-pane.js', "prop(btn, 'disabled', !offer || !!short || itemsShort ||", "prop(btn, 'disabled', !offer || !!short ||"],
   ['Storage is not counted (SV-8)', 'src/session/temper-sections.js', 'const storage = row ? row.qty : 0;', 'const storage = 0;'],

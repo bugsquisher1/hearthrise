@@ -34,9 +34,11 @@ function rowWords(track, r) {
   if (!r.ladder) return !r.below && r.span ? t('temper.no_rungs', { from: r.span.from, to: r.span.to })
     : 'Not temperable' + (r.below ? ', requires gear from Level 15' : ' yet');
   const now = 'Rung ' + r.ladder.rung + '/' + r.ladder.max + ': ';
-  if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max';
+  /* Dawnsteel's rungs are 0.4%, not 1% (src/data/temper.js TEMPER_TIER_RUNG_PM): "Next: +0.8%" after Emberforged's 1% steps needs its why */
+  const small = r.smallPm ? '. ' + t('temper.small_rungs', { step: pct(r.smallPm) }) : '';
+  if (!r.ladder.offer) return now + track.effect + ' ' + track.sign + pct(r.nowPm) + ', max' + small;
   return (r.ladder.rung ? now + track.effect + ' ' + track.sign + pct(r.nowPm) + '. Next: ' + track.sign + pct(r.nextPm)
-    : 'Rung 0/' + r.ladder.max + '. Next: ' + track.effect + ' ' + track.sign + pct(r.nextPm));
+    : 'Rung 0/' + r.ladder.max + '. Next: ' + track.effect + ' ' + track.sign + pct(r.nextPm)) + small;
 }
 
 /* What the next rung takes besides gold, and what this hero holds. */

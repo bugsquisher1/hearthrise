@@ -67,6 +67,36 @@ const cases = {
     if (M.ITEMS.iron_sword.tier !== 2 || M.ITEMS.steel_sword.tier !== 3 || M.ITEMS.iron_platebody.tier !== 2) return 'the gear\'s tiers moved: this test names the wrong pieces';
     return null;
   },
+  /* DAWNSTEEL (designed on lane/d-temper-dawnsteel, Tyler 2026-11-16; built by lane/d-gold-sinks 2026-11-18): tier 7, worn from 88, has both
+     tracks at 0.4% a rung, 2% a ladder (Tyler 2026-11-15/16: a small cap, about +2-3%), read the same way as every tier (its weapon's tier, its
+     pieces' tier), clamped, and never paid by tier 6's rungs; tier 6 still reads 1% a rung; a mixed Emberforged and Dawnsteel set reads each
+     piece's own ladder at its own worth. */
+  'dawnsteel-takes-smaller-rungs': (M) => {
+    const { armorPmOf, blowsPmOf, temperRung, armorLineOf } = M.temper;
+    const D = M.temperData, I = M.ITEMS;
+    const DAWN = { weapon: 'dawn_sword', helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets', belt: 'dawn_belt' };
+    if (I.dawn_sword.tier !== 7 || I.dawn_platebody.tier !== 7 || I.dawn_platebody.reqLv !== 88) return 'fixture: Dawnsteel is not tier 7 worn from 88';
+    const ladder = D.temperLadder('armor', 7), blows = D.temperLadder('blows', 7);
+    if (!ladder || !blows) return 'Dawnsteel has no ladder: ' + JSON.stringify({ ladder, blows });
+    const full = ladder.rungs * ladder.pm;
+    if (ladder.rungs !== 5 || full !== 20 || blows.rungs * blows.pm !== 20) return 'a full Dawnsteel ladder is ' + ladder.rungs + ' x ' + ladder.pm + ' pm: the ruling is a small cap, designed 2%';
+    const max = { 'temper:blows:7': 5, 'temper:armor:7': 5 };
+    if (blowsPmOf(DAWN, I, max) !== 20 || armorPmOf(DAWN, I, max) !== 20) return 'a whole Dawnsteel kit at rung 5 reads ' + blowsPmOf(DAWN, I, max) + ' and ' + armorPmOf(DAWN, I, max) + ' pm, want 20 and 20';
+    if (blowsPmOf(DAWN, I, { 'temper:blows:7': 2 }) !== 8 || armorPmOf(DAWN, I, { 'temper:armor:7': 3 }) !== 12) return 'Dawnsteel at rungs 2 and 3 reads ' + blowsPmOf(DAWN, I, { 'temper:blows:7': 2 }) + ' and ' + armorPmOf(DAWN, I, { 'temper:armor:7': 3 }) + ' pm, want 8 and 12';
+    if (temperRung({ 'temper:blows:7': 99 }, 'blows', 7) !== 5 || blowsPmOf(DAWN, I, { 'temper:blows:7': 99 }) !== 20) return 'a forged Dawnsteel rung reads ' + blowsPmOf(DAWN, I, { 'temper:blows:7': 99 }) + ' pm';
+    const six = { 'temper:blows:6': 5, 'temper:armor:6': 5 };
+    if (blowsPmOf(DAWN, I, six) !== 0 || armorPmOf(DAWN, I, six) !== 0) return "tier 6's rungs pay on Dawnsteel";
+    const ember = { weapon: 'ember_sword', helmet: 'ember_helm', body: 'ember_platebody' };
+    if (blowsPmOf(ember, I, max) !== 0 || armorPmOf(ember, I, max) !== 0) return "Dawnsteel's rungs pay on Emberforged";
+    if (blowsPmOf(ember, I, six) !== 50 || armorPmOf(ember, I, six) !== 50) return 'tier 6 stopped reading 1% a rung: ' + blowsPmOf(ember, I, six) + ' and ' + armorPmOf(ember, I, six);
+    /* a Dawnsteel body over an Emberforged helm, both ladders full: each piece's share at its own ladder's worth */
+    const mixed = { helmet: 'ember_helm', body: 'dawn_platebody' }, h = I.ember_helm.defB, b = I.dawn_platebody.defB;
+    const want = Math.floor((h * 5 * 10 + b * 5 * 4) / (h + b));
+    if (armorPmOf(mixed, I, { ...six, ...max }) !== want) return 'Emberforged helm and Dawnsteel body, both full, read ' + armorPmOf(mixed, I, { ...six, ...max }) + ' pm, want ' + want;
+    const top = armorLineOf(DAWN, I);
+    if (!top || top.tier !== 7) return 'the smith offers ' + JSON.stringify(top) + ' for full Dawnsteel, want tier 7';
+    return null;
+  },
   /* A mixed set reads piece by piece, by the armor the piece wears: moving one piece up costs that piece's share, never the ladder. */
   'a-mixed-set-reads-each-piece': (M) => {
     const { armorPmOf } = M.temper;
@@ -266,9 +296,15 @@ const mutants = [
   { name: 'a flat floor: +1% pays nothing under 100', case: 'the-mean-is-exact', edits: [[T, '(part > 0 && rng.chance(part / 1000) ? 1 : 0)', '0']] },
   { name: 'a draw even when the blow has no part', case: 'the-mean-is-exact', edits: [[T, '(part > 0 && rng.chance(part / 1000) ? 1 : 0)', '(rng.chance(0.5) ? 1 : 0)']] },
   { name: 'no rung still draws', case: 'no-rung-draws-nothing', edits: [[T, '  if (!pm || !(amount > 0)) return amount;\n', '  rng.chance(0);\n  if (!(amount > 0)) return amount;\n']] },
-  { name: 'no clamp: a forged rung is a number', case: 'a-rung-is-clamped', edits: [[T, 'Math.min(n, TEMPER_RUNGS)', 'n']] },
+  { name: 'no clamp: a forged rung is a number', case: 'a-rung-is-clamped', edits: [[T, 'Math.min(n, ladder.rungs)', 'n']] },
   { name: 'tier 1 has a ladder', case: 'the-table-is-the-sale', edits: [['src/data/temper.js', '  2: Object.freeze([2000,', '  1: Object.freeze([1, 2, 3, 4, 5]),\n  2: Object.freeze([2000,']] },
-  { name: 'Blows reads the first ladder whatever the weapon', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'blows', it.tier) * TEMPER_RUNG_PM", "temperRung(temper, 'blows', 2) * TEMPER_RUNG_PM"]] },
+  { name: 'Blows reads the first ladder whatever the weapon', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'blows', it.tier) * rungPmOf('blows', it.tier)", "temperRung(temper, 'blows', 2) * rungPmOf('blows', 2)"]] },
+  { name: "Blows pays a gear tier's 1% a rung on every ladder", case: 'dawnsteel-takes-smaller-rungs', edits: [[T, "temperRung(temper, 'blows', it.tier) * rungPmOf('blows', it.tier)", "temperRung(temper, 'blows', it.tier) * 10"]] },
+  { name: "Armor pays a gear tier's 1% a rung on every ladder", case: 'dawnsteel-takes-smaller-rungs', edits: [[T, "temperRung(temper, 'armor', it.tier) * rungPmOf('armor', it.tier)", "temperRung(temper, 'armor', it.tier) * 10"]] },
+  { name: 'a Dawnsteel rung is worth a tier rung', case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({ 7: 4 });', 'export const TEMPER_TIER_RUNG_PM = Object.freeze({ 7: 10 });']] },
+  { name: "the ladder forgets its tier's smaller rung", case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', 'pm: TEMPER_TIER_RUNG_PM[tier] || TEMPER_RUNG_PM', 'pm: TEMPER_RUNG_PM']] },
+  { name: 'Dawnsteel has no ladder', case: 'dawnsteel-takes-smaller-rungs', edits: [['src/data/temper.js', '  7: Object.freeze([40000, 80000, 160000, 320000, 640000]),\n', '']] },
+  { name: "Dawnsteel reads tier 6's rungs", case: 'dawnsteel-takes-smaller-rungs', edits: [[T, "  return it ? temperRung(temper, 'blows', it.tier)", "  return it ? temperRung(temper, 'blows', Math.min(6, it.tier))"]] },
   { name: 'Armor reads the first ladder whatever the piece', case: 'each-tier-its-own-ladder', edits: [[T, "temperRung(temper, 'armor', it.tier)", "temperRung(temper, 'armor', 2)"]] },
   { name: 'every piece counts the same, whatever it wears', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'if (def > 0) { worn += def; rungs += def * temperRung(', 'if (def > 0) { worn += 1; rungs += temperRung(']] },
   { name: 'a shield carries the Armor rung', case: 'a-mixed-set-reads-each-piece', edits: [[T, 'it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor', 'it && it.slot ? 1 + Math.floor']] },

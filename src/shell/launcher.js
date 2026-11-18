@@ -432,6 +432,9 @@ const itemHtml = (ctx, r, on, ringed) => {
     + (ringed ? ' data-coach-ring=""' : '') + '>' + glyphSvg(ctx.glyphs, r.glyph) + '<span class="hs-launch-label">' + esc(r.label) + '</span>'
     + (key ? '<span class="hs-launch-key" aria-hidden="true">' + esc(key) + '</span>' : '') + '</button>';
 };
+/* A line of the row's `menuTabs` (src/data/shell-windows.js): its window opened on that tab (launcher-menu.js actMenu), under the window's own line. */
+const tabItemHtml = (ctx, r, m) => '<button type="button" role="menuitem" class="hs-launch-item" data-hs-act="launch-pick" data-hs-open="' + esc(r.id) + '" data-hs-tab="' + esc(m.tab) + '">'
+  + glyphSvg(ctx.glyphs, m.glyph) + '<span class="hs-launch-label">' + esc(m.label) + '</span></button>';
 function groupHtml(ctx, e, open, ring, menu) {
   const g = e.group, shown = menu === g.id;
   const on = e.rows.some((r) => open.has(r.id));
@@ -441,7 +444,7 @@ function groupHtml(ctx, e, open, ring, menu) {
     + ' aria-haspopup="menu" aria-expanded="' + shown + '" aria-label="' + esc(g.label) + '" data-tip="' + esc(g.label) + '" data-key=""'
     + (inside && !shown ? ' data-coach-ring=""' : '') + '>' + glyphSvg(ctx.glyphs, g.glyph) + '</button>'
     + (shown ? '<div class="hs-launch-menu" role="menu" aria-label="' + esc(g.label) + '"><p class="hs-launch-menu-h" aria-hidden="true">' + esc(g.label) + '</p>'
-      + e.rows.map((r) => itemHtml(ctx, r, open.has(r.id), r.id === ring)).join('') + '</div>' : '')
+      + e.rows.map((r) => itemHtml(ctx, r, open.has(r.id), r.id === ring) + (r.menuTabs || []).map((m) => tabItemHtml(ctx, r, m)).join('')).join('') + '</div>' : '')
     + '</span>';
 }
 

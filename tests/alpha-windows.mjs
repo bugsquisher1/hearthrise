@@ -2788,8 +2788,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const before = await look();
         /* the Sell step is the one gold press: its count and value are the server's (31 Rat Tail at 6, 12 Slime Gel at 5), the locked Sticky Core left out;
            the coach's next step is a press, not the gold one, and the card rings the row it is about */
-        /* (the row after it is the Next buy line, never gold: this hero's bare helmet slot and where its weight's helmet comes from, AW-98's row) */
-        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell","buy"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
+        /* (the rows after it are the Next ground line, a Level 5 back from the Cellar: the Hunts list recommends the Thicket, tests/hunt-summary.mjs T6; and the Next buy
+           line, this hero's bare helmet slot and where its weight's helmet comes from, AW-98's row; neither is ever gold) */
+        if (JSON.stringify(before.gold) !== '["town:sell"]' || JSON.stringify(before.steps) !== '["sell","ground","buy"]') fails.push('AW-78 the gold presses on the summary are ' + JSON.stringify(before));
         if (before.title !== 'Sell 2 stacks for 246 gp' || before.words !== 'Marked Sell: Rat Tail and Slime Gel') fails.push('AW-78 the Sell row reads ' + JSON.stringify([before.title, before.words]));
         if (before.next !== 'Next: Sell junk') fails.push('AW-78 the card\'s next step is not a press on the summary: ' + JSON.stringify(before.next));
         if (JSON.stringify(before.ring) !== '["town:sell"]') fails.push('AW-78 the return card rings ' + JSON.stringify(before.ring) + ', want the summary\'s Sell row');
@@ -2802,7 +2803,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const sales = sent(s, 'hr-accrue', 'vendor_sell_many');
         if (sales.length !== 1 || JSON.stringify(sales[0].body.lines) !== '[{"item":"rat_tail","qty":31},{"item":"slime_gel","qty":12}]') fails.push('AW-78 the Sell step sent ' + JSON.stringify(sales.map((c) => c.body.lines)));
         const after = await look();
-        if (JSON.stringify(after.steps) !== '["sell:done","buy"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-78 after the sale the row reads ' + JSON.stringify(after));
+        if (JSON.stringify(after.steps) !== '["sell:done","ground","buy"]' || after.done !== 'Done' || after.title !== 'Sell 2 stacks for 246 gp') fails.push('AW-78 after the sale the row reads ' + JSON.stringify(after));
         if (JSON.stringify(after.gold) !== '["again:"]') fails.push('AW-78 after the sale the gold presses are ' + JSON.stringify(after.gold) + ', want Hunt again alone');
         if (shots) await shot(page, 'alpha-1440x900-back-in-town-done');
         if (errors.length) fails.push('AW-78 console errors: ' + errors.join(' | ').slice(0, 300));

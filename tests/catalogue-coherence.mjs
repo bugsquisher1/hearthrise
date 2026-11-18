@@ -76,6 +76,10 @@
 //       gold ladders were sold to a hand-made unlock_buy for gold while nothing read the rung):
 //       C14a no SHOP_OFFERS row sits in a cut table (plot, worker) or grants a cut unlock (plot:*, worker, worker_hire);
 //       C14b no gold-ladder rung or ladder row (src/data/gold-ladders.js) names a cut unlock.
+//   C15 PROTECTED: a piece Tyler ruled can never leave the game stays, under its name, with its way in (Tyler 2026-11-18:
+//       "Klappa's Club needs to be 'Klappa's Klub' and it CANNOT be removed from the game"): its ITEMS row carries the ruled
+//       name, its recipe is on its bench making it under that name, its coach card still rings that recipe, and a player can
+//       reach it (reachableSources). One row now, room for more: a row leaves only on Tyler's word.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -105,6 +109,7 @@ import { START_CURRENCY } from '../src/data/start-kit.js';
 import { PROPERTY_TIERS, ROOM_RUNGS, STORAGE_CHESTS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
 import { latestBodies, clientRpcNames, serverEntryNames, reachedFunctions } from './_sql-bodies.mjs';
 import { GOLD_LADDER_OFFERS, GOLD_LADDER_UNLOCKS } from '../src/data/gold-ladders.js';
+import { HUNT_TUTORIAL } from '../src/data/hunt-tutorial.js';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 /* C9's start kit: the shipped one, or a planted one (mutate() only; the data is frozen). */
@@ -119,6 +124,8 @@ let BODIES_PLANT = null;
 let DEBT_PLANT = null;
 /* C14b's gold-ladder rungs: the shipped (frozen) ones, or planted ones (mutate() only). */
 let LADDER_PLANT = null;
+/* C15's coach cards: the shipped (frozen) list, or a planted one (mutate() only). */
+let CARDS_PLANT = null;
 const realRead = (rel) => readFileSync(join(ROOT, rel), 'utf8');
 
 /* C13: item ids a server function the game reaches still compares the bag against, with no ITEMS row and so no source.
@@ -168,6 +175,29 @@ export function cutCapabilityFails({ offers = SHOP_OFFERS, ladder = LADDER_PLANT
   }
   for (const r of ladder) if (r && CUT_UNLOCK(r.unlock_id)) out.push(`C14b gold-ladder rung ${r.offer_id} sells the cut ${r.unlock_id}: nothing reads it`);
   for (const u of ladders) if (u && CUT_UNLOCK(u.unlock_id)) out.push(`C14b gold-ladder row ${u.unlock_id} is a cut ladder: nothing reads it`);
+  return out;
+}
+
+/* C15. PROTECTED PIECES (Tyler 2026-11-18, of Klappa's Klub, the tribute to Andy, who has done much of this game's real testing:
+   "Klappa's Club needs to be 'Klappa's Klub' and it CANNOT be removed from the game"). Each row: the item id, the name it must carry,
+   the bench recipe that makes it (its skill), and the coach card that rings that recipe. A row leaves only on Tyler's word. */
+export const PROTECTED = Object.freeze([
+  Object.freeze({ id: 'klappas_club', name: 'Klappa\'s Klub', skill: 'smithing', recipe: 'reforge_klappas_club', card: 'klappas_club',
+    ruling: 'Tyler 2026-11-18: Klappa\'s Klub CANNOT be removed from the game' }),
+]);
+export function protectedFails({ items = ITEMS, recipes = ARTISAN_RECIPES, cards = CARDS_PLANT || HUNT_TUTORIAL, reach = reachableSources() } = {}) {
+  const out = [];
+  for (const p of PROTECTED) {
+    const it = items[p.id];
+    if (!it) { out.push(`C15 ${p.id} is gone from ITEMS (${p.ruling})`); continue; }
+    if (it.n !== p.name) out.push(`C15 ${p.id} is named ${JSON.stringify(it.n)}, the ruling names it ${JSON.stringify(p.name)} (${p.ruling})`);
+    const r = (recipes[p.skill] || []).find((x) => x && x.id === p.recipe);
+    if (!r || r.output !== p.id) out.push(`C15 ${p.id}: its recipe ${p.recipe} is not on the ${p.skill} bench making it (${p.ruling})`);
+    else if (!String(r.name || '').includes(p.name)) out.push(`C15 ${p.id}: its recipe reads ${JSON.stringify(r.name)}, not the name ${JSON.stringify(p.name)}`);
+    const c = cards.find((x) => x && x.id === p.card);
+    if (!c || !c.ring || c.ring.work !== p.recipe || c.ring.skill !== p.skill) out.push(`C15 ${p.id}: its coach card ${p.card} is gone or rings another recipe (${p.ruling})`);
+    if (!reach.has(p.id)) out.push(`C15 ${p.id}: no player can reach it (${p.ruling})`);
+  }
   return out;
 }
 
@@ -311,6 +341,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   fails.push(...serverItemFails());
   // C14 — nothing sells a cut capability.
   fails.push(...cutCapabilityFails());
+  // C15 — a protected piece stays, under its name, with its way in.
+  fails.push(...protectedFails());
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -698,6 +730,29 @@ function mutate() {
     return { restore: () => { LADDER_PLANT = null; } };
   });
 
+  /* C15: each way Klappa's Klub could leave (Tyler 2026-11-18: it CANNOT be removed from the game) */
+  run('Klappa\'s Klub: the row is gone', 'C15', () => {
+    const was = ITEMS.klappas_club; delete ITEMS.klappas_club;
+    return { restore: () => { ITEMS.klappas_club = was; } };
+  });
+  run('Klappa\'s Klub: renamed back to Klappa\'s Club', 'C15', () => {
+    const was = ITEMS.klappas_club; ITEMS.klappas_club = { ...was, n: 'Klappa\'s Club' };
+    return { restore: () => { ITEMS.klappas_club = was; } };
+  });
+  run('Klappa\'s Klub: the recipe is cut', 'C15', () => {
+    const list = ARTISAN_RECIPES.smithing, at = list.findIndex((r) => r.id === 'reforge_klappas_club'), [row] = list.splice(at, 1);
+    return { restore: () => { list.splice(at, 0, row); } };
+  });
+  run('Klappa\'s Klub: the recipe renamed back', 'C15', () => {
+    const list = ARTISAN_RECIPES.smithing, at = list.findIndex((r) => r.id === 'reforge_klappas_club'), was = list[at];
+    list[at] = { ...was, name: 'Reforge Klappa\'s Club' };
+    return { restore: () => { list[at] = was; } };
+  });
+  run('Klappa\'s Klub: its coach card is gone', 'C15', () => {
+    CARDS_PLANT = HUNT_TUTORIAL.filter((c) => c.id !== 'klappas_club');
+    return { restore: () => { CARDS_PLANT = null; } };
+  });
+
   let bad = 0;
   for (const [name, hit] of results) {
     console.log(`  ${hit ? 'CAUGHT ' : 'MISSED '} ${name}`);
@@ -722,7 +777,7 @@ if (isMain) {
     }
     console.log(`catalogue-coherence: OK — ${counts.items} items each with a source and a use (${counts.awaiting} held, sourceless, for the roster), `
       + `${counts.skills} skills each with a consumer, the shop sells starter gear only, `
-      + `the Collection Log counts the obtainable catalogue, armour climbs inside its class, `
+      + `the Collection Log counts the obtainable catalogue, armour climbs inside its class, ${PROTECTED.length} protected piece(s) stay, `
       + `${counts.reachable} items reachable and ${counts.outOfReach} out of reach each tagged with the door that will source it (pending: ${counts.pendingUse} item uses, `
       + `${counts.pendingConsumer} skill consumer, ${counts.pendingSource} item sources, each with its ruling and owner)`);
   } catch (e) {

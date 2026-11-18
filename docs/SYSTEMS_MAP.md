@@ -37,12 +37,17 @@ Regenerate with `node tools/gen-hunts.mjs` and `node tools/gen-hunt-sessions.mjs
 
 ## The systems (reuse these — don't rebuild)
 
-### 1. Gear + gear-recipes — GENERATED from curves
-`src/data/gear-tiers.js` → `GEAR_ITEMS` + `GEAR_RECIPES`.
+### 1. Gear — GENERATED from curves; it DROPS, a bench makes none
+`src/data/gear-tiers.js` → `GEAR_ITEMS`.
 - `MATERIAL_TIERS` (7: bronze→dawn, each with `tier/smith/craft/value/bar/plank/wood/rarity`)
-  × `ARMOUR_SLOTS` × `WEAPON_FAMILIES` (sword/warhammer/bow/staff) → ~70 items **and their recipes**.
+  × `ARMOUR_SLOTS` × `WEAPON_FAMILIES` (sword/warhammer/bow/staff) → ~70 items.
+- **Armor, weapons and shields come from drops** (Tyler 2026-11-18): each piece gets a drop home
+  on a ground (`src/data/monsters.js`, a pack's `monsters`) under the loot-band rules
+  (`src/data/loot-bands.js`: one Scarce weapon a monster, the 5% row ceiling, one home a player
+  can learn). A bench only REFORGES a named piece (Klappa's Club, `style-gear.js`; the Steelgrate,
+  `shields.js`). Crafting makes the rest of the kit: capes, jewelry, ammunition, runes, food, Tempering.
 - **To add a whole new tier or weapon family:** add one row to `MATERIAL_TIERS`
-  or `WEAPON_FAMILIES`. Items, stats, recipes, values and wield-levels generate.
+  or `WEAPON_FAMILIES`. Items, stats, values and wield-levels generate; give each piece its drop row.
 - **To hand-tune one generated piece:** author an entry with the same id in
   `items.js` — it overrides the generated stats/value.
 

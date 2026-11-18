@@ -30,7 +30,7 @@
 //
 // THE LOOT (src/data/loot-bands.js). Scarce, about hourly a piece: the TIER-5 boots (Pikemen), legs (Stokers), helmets (Lurchers)
 // and bodies (Provosts) in all three weights (worn from Level 60), and one tier-5 weapon on four bodies (sword, warhammer, staff,
-// bow). Rare, each about every 15 h: the tier-5 belts (Stokers) and gloves (Lurchers), the Yew Wand and Yewclasp Spellbook (the
+// bow), and the Runebound Shield on the fifth, the Lurchers (lane/d-drop-homes, 2026-11-18). Rare, each about every 15 h: the tier-5 belts (Stokers) and gloves (Lurchers), the Yew Wand and Yewclasp Spellbook (the
 // Wraiths) and the Provosts' tier-6 weapons, worn from 75 (the Stokers forged them in the pyres' heat: Emberforged).
 // RE-FIT FOR ONE DIFFICULTY (2026-11-10): a lone hero is paid the whole row now, not 0.55 of it, so every Scarce and Rare row came
 // down (a Pikeman's boots 0.015 to 0.0115) except the Lurcher's, which went up to the 5% ceiling: the Kennels field one as built
@@ -121,9 +121,8 @@ export default definePack({
       elements: BURNED,
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'pike_ferrule', ch: 0.08, band: 'uncommon' },
         { id: 'rune_boots', ch: 0.0115, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.0115, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.0115, band: 'scarce' },
-        { id: 'rune_sword', ch: 0.0115, band: 'scarce' },
-        /* the front rank's shield (shields.js, the audit's F8): a Rare beside his Scarce sword */
-        { id: 'runebound_shield', ch: 0.0008, band: 'rare' }],
+        { id: 'rune_sword', ch: 0.0115, band: 'scarce' }],
+      /* (his Rare Runebound Shield, 0.08%, left for the Lurchers' hourly row: one home on a ground, lane/d-drop-homes 2026-11-18) */
       hp: 93, atk: 48, baseAcc: 1.1, def: 28, xp: 770, gp: [14, 41], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
@@ -139,9 +138,11 @@ export default definePack({
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
          Mammal class with no override: an arrow's mark, fire does more. They worry the helmets off the dead, chew the gloves, and
-         dig the claws sharp in the ash. */
+         dig the claws sharp in the ash. THE RUNEBOUND SHIELD'S HOME (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: shields
+         drop at every tier): the dogs drag their dead masters' shields off the rows, about hourly (about 16 met an hour, so the 5% ceiling). */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'razor_claw', ch: 0.2, band: 'common' }, { id: 'kennel_tag', ch: 0.08, band: 'uncommon' },
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
+        { id: 'runebound_shield', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
       hp: 90, atk: 64, baseAcc: 0.91, def: 29, xp: 904, gp: [13, 40], formula: true },
     pyre_wraith: {
@@ -229,7 +230,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.60-0.72, threes 0.48-0.70, fours 0.36-0.57), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.92-1.05, threes 0.91-1.00, the four 1.02: a Mage or a Healer alone earns the most here, so a mix reads near even against its own heroes while it reads 1.20 against the median lone way, the band the grader binds); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-30, 15], 3: [-30, 10, 15], 4: [-35, 5, 10, 10] }, deadly: { 2: [-30, 20], 3: [-30, 15, 25], 4: [-35, 5, 10, 15] } },
   /* THE PACK'S TEST FACTS (re-pinned 2026-11-10 for one difficulty). dropRef: a lone tank at the floor in its full own-tier set
      (tests/hunt-core/drop-tables.mjs, the harness's tier-5 kit). valueToday is COMPUTED, the 11-09 method: the hour's expected coin
      (10,090 g) and commons (3,930; re-pinned 2026-11-13 with the commons reverted) plus the gear-faucet's half of the coin (5,045). The

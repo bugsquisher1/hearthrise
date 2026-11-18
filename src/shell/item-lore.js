@@ -106,8 +106,10 @@ export function sourcesOf(id, serverOffers) {
   const r = index().get(id);
   const out = [];
   /* The creatures a player can meet, and where: the catalogue keeps rows for monsters no open ground spawns, and
-     "Dropped by" six of those sent a Bear Pelt hunter nowhere. */
-  if (r && r.drops.length) out.push(dropWhereWords(id) || t('item.dropped_closed'));
+     "Dropped by" six of those sent a Bear Pelt hunter nowhere. A drop no open ground gives is not said at all (itemization audit
+     2026-11-18 #10: "Dropped by creatures on grounds that aren't open yet" named a place nobody can go). */
+  const drop = r && r.drops.length ? dropWhereWords(id) : '';
+  if (drop) out.push(drop);
   if (r && r.from.length) out.push(fromWords(r.from));
   if (r && r.made.length) out.push(t('item.made_with', { skill: listWords(r.made.map(skillName)) }));
   if ((r && r.shop) || (serverOffers || []).some((o) => o.item === id)) out.push(t('item.sold_at_shop'));

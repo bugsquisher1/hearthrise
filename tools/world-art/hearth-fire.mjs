@@ -4,10 +4,12 @@
 //
 // Tyler 2026-11-17, on the redrawn Hearth: "I would like the flame to be a bit more flamey". The Hearth's art keeps an embers-only
 // firebox; the town lays this loop over it (src/data/world/town/sites.js AMBIENT hearth_fire).
-//   HEARTH  FINAL-s602-bannerH-crest-edges3 (the FINAL with natural edges, 2026-11-18: broken flagstones along its front, the wing ends
-//           rounding down in ragged stone, ivy and rubble), 384 x 448, art inside x 16-367 and above row 413: shipped with CUT_X clear
-//           columns cut off each side, so its frame is its 11-tile footprint (352 px) and nothing of its frame box stands over a stand
-//           beside it (tests/town-stations ST-1). Its wing ends meet the ground through the town map's decals (sites.js HEARTH_FOOT)
+//   HEARTH  FINAL-s602-bannerH-crest with stone END CAPS on both wings (hearth-wings-139, Tyler 2026-11-18: "hearthwings look fine"; it
+//           replaces edges3, whose ragged ivied ends read "pasted onto the plaza"): each wing's roof eave runs 3 px past its wall, a quoined
+//           corner, a dressed corner stone on the curb; every pixel outside the two end masks is the FINAL's. 384 x 448, art inside
+//           x 26-358 and above row 413: shipped with CUT_X clear columns cut off each side, so its frame is its 11-tile footprint (352 px)
+//           and nothing of its frame box stands over a stand beside it (tests/town-stations ST-1). Its ends stand on the paving as built
+//           stone does: no soot band, no rubble decals
 // The fire, made as the first fire was (its sidecar):
 //   BASE    the final Hearth's firebox crop, 128 x 128 with its top-left on the FINAL canvas's px (CROP_AT)
 //   STILL   inpaint_image_pro_flash of that crop in MASK (tall roaring flames filling the arch, seed 9, aa2c98e5)
@@ -32,8 +34,8 @@ import { isMain } from '../../tests/_is-main.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SRC = 'art/world-src/gen-2026-11-17/great-hearth/';
 export const CROP_AT = Object.freeze([128, 248]);
-/* Tyler 2026-11-18: "the edges of the hearth need to be more natural not straight edges": the FINAL with natural edges (round 2) */
-const FINAL = 'art/world-src/gen-2026-11-18/hearth-edges/FINAL-s602-bannerH-crest-edges3.png', CUT_X = 16;
+/* Tyler 2026-11-18, "hearthwings look fine": the FINAL with stone end caps on its wings (art/world-src/gen-2026-11-18/hearth-wings-139/01-note.json) */
+const FINAL = 'art/world-src/gen-2026-11-18/hearth-wings-139/hearth-139-pass1-1x.png', CUT_X = 16;
 const BASE = SRC + 'firebox-crop-128x128-at128-248.png';
 const FRAMES = Object.freeze(Array.from({ length: 8 }, (_, i) => SRC + 'fire-anim-s12-d1764a77/f' + (i + 1) + '.png'));
 const MASK = Object.freeze([34, 34, 64, 62]);

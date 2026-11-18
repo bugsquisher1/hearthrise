@@ -104,9 +104,9 @@ const unpriced = (it) => !!(it && (it.awayEffect || (Array.isArray(it.effects) &
 /* The damage multiplier the worn set has against each monster kind, as the engine clamps it (bane.js baneMultFor), 1 = none. */
 const banesOf = (worn) => { const ix = baneIndex(worn, ITEMS); return Object.fromEntries(MONSTER_CLASSES.map((c) => [c, baneMultFor(c, ix)])); };
 
-/* The server's own number against the row's requirement (the hero's Level for gear, Tyler 2026-10-24; item-lore.js
-   reqHave, the one reader); a number the server has not sent reads as "cannot", the safe side. */
-function meets(it, skills, level) {
+/** The server's own number against the row's requirement (the hero's Level for gear, Tyler 2026-10-24; item-lore.js
+    reqHave, the one reader); a number the server has not sent reads as "cannot", the safe side. Next buy reads it too. */
+export function meets(it, skills, level) {
   if (!it.reqSkill || !(it.reqLv > 1)) return true;
   const have = reqHave(it.reqSkill, skills, level);
   return have !== null && have >= it.reqLv;

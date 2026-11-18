@@ -282,7 +282,7 @@ renderHunts.patch = function patchHunts(body, ctx) {
       text(band, fit ? fit.words : '');
       attr(band, 'data-tone', fit ? fit.tone : null);
       prop(band.previousElementSibling, 'hidden', !fit || !fit.words);
-      const tag = adviceTag(r, rec, step, !!party), best = bestLine(bests, r.hunt) || '';
+      const tag = adviceTag(r, rec, step), best = bestLine(bests, r.hunt) || '';
       text(li.querySelector('.hw-hunt-fits'), tag);
       text(li.querySelector('.hw-hunt-bestline'), best);
       prop(li.querySelector('.hw-hunt-sub .hw-hunt-sep'), 'hidden', !tag || !best);
@@ -343,7 +343,7 @@ function patchPage(det, ctx, sc, v) {
   /* WHEN THE HUNT ENDS: each hero's own choice, a party member's too (the leader picks the hunt, never where a friend goes after it). */
   patchAfter(det, ctx, { off: sc.pending, now: !!now });
   patchCall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
-  patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending });
+  patchHall(det, ctx, { hunt: r.hunt, party, now, pending: sc.pending, other: !!other });
   patchScale(det, ctx, { hunt: r.hunt, party, pending: sc.pending });
   const enter = det.querySelector('.hw-hunt-enter');
   attr(enter, 'data-hunt', r.hunt);

@@ -1011,15 +1011,15 @@
    "wiped_at_cutover": true,
    "note": "The RETIRED client-authored blob: gold, inventory, every skill's XP, equipment, farm. One row left in production. server-authority.md §2a-iv is explicit — 'Starting state is FRESH. game_saves.snapshot is never read' — so a post-cutover restore has NO reason to bring it back, and reading it would launder the forged values the audit found. This is the single table whose value flipped from critical to worthless the moment the cutover completed, and the cutover has now completed."
   },
-  "hearth_flames": {
-   "class": "operational",
-   "replay": 0,
-   "note": "2027-01-31-inner-flame.sql, ships EMPTY. THE GREAT HEARTH'S FLAME: one row per named fuel burnt (map, user, slot, item, flame colour, starts_at/ends_at), written ONLY by hr_hearth_burn (SECURITY DEFINER) in the same transaction as the item debit, the Inner Flame XP and its player_ledger row (kind craft, intent hearth_burn:<item>); RLS on, every privilege revoked from client roles. Read by hr_hearth_flame_of (the square's colour, via hr_town_view) and by hr_hearth_burn itself for the per-day clamp and the queue. Holds no value: the item, the XP and the journal are in player_inventory, player_skills and player_ledger, all restore_only. Losing every row returns the square to plain fire and re-opens one UTC day of the 20-a-day clamp early (a throughput budget, not a mint: every burn still consumes a fuel the player owns)."
-  },
   "hearth_bursts": {
    "class": "operational",
    "replay": 0,
    "note": "2027-05-05-hearth-moods.sql, ships EMPTY. THE HEARTH CHEST'S GREEN WINDOW: one row per town map, updated in place (who opened it, starts_at/ends_at, the credit the square may still burn green in a row, the presses in the window), written ONLY by hr_hearth_chest_burst (the trigger on chest_luck a press updates) under the Hearth's key; RLS on, every privilege revoked, no policy. Read by hr_hearth_flame_of (the square's flame, via hr_town_view). Holds no value: the press, its keys and its haul are in chest_opens, player_inventory and player_ledger. Losing the row ends a green window early and refills the credit: the next press opens a fresh window."
+  },
+  "hearth_flames": {
+   "class": "operational",
+   "replay": 0,
+   "note": "2027-01-31-inner-flame.sql, ships EMPTY. THE GREAT HEARTH'S FLAME: one row per named fuel burnt (map, user, slot, item, flame colour, starts_at/ends_at), written ONLY by hr_hearth_burn (SECURITY DEFINER) in the same transaction as the item debit, the Inner Flame XP and its player_ledger row (kind craft, intent hearth_burn:<item>); RLS on, every privilege revoked from client roles. Read by hr_hearth_flame_of (the square's colour, via hr_town_view) and by hr_hearth_burn itself for the per-day clamp and the queue. Holds no value: the item, the XP and the journal are in player_inventory, player_skills and player_ledger, all restore_only. Losing every row returns the square to plain fire and re-opens one UTC day of the 20-a-day clamp early (a throughput budget, not a mint: every burn still consumes a fuel the player owns)."
   },
   "hearthfind_log": {
    "class": "restore_only",
@@ -1067,7 +1067,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 387,
+   "replay": 363,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1077,7 +1077,7 @@
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 159,
+   "replay": 135,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -1757,7 +1757,7 @@
   },
   "hr_players_online_cache": {
    "class": "operational",
-   "note": "2026-11-07-players-online.sql, one row seeded. The shared players-online count and when it was taken, recomputed by hr_players_online from character_presence at most every 15 s. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the first ask recounts."
+   "note": "2026-11-07-players-online.sql, one row seeded; 2027-05-05-players-online-by-activity.sql: the total and its seven lines by activity, written once a world tick fire by hr_players_online_refresh (hr_tick_cron_run) from hunt_sessions, player_state and character_presence, read by the social poll. A cache of a count, never player value: a rebuild's seeded row is stale by construction (taken at -infinity), so the poll answers no count until the first fire, 10 s later."
   },
   "hr_plot_tier": {
    "class": "seeded",
@@ -2068,12 +2068,12 @@
   },
   "hr_unlock_offers": {
    "class": "seeded",
-   "replay": 133,
+   "replay": 143,
    "note": "Generated catalogue (2026-08-16-unlock-offers.generated.sql, tools/gen-unlock-offers.mjs --check as a smoke preflight): every purchasable unlock offer with its namespace, rung and price. 142 rows, and it is a PRICE LIST — a rebuild producing a different set sells different things at different prices than the ledger's recorded purchases were made at. Rebuilt from repo, never restored."
   },
   "hr_unlocks": {
    "class": "seeded",
-   "replay": 62,
+   "replay": 64,
    "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
   },
   "hr_wipe_log": {

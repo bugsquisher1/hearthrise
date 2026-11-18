@@ -16,6 +16,8 @@ export const PARTY_TEXT = Object.freeze({
   class_more: 'Level XP each: about +{pct}% vs solo in {place}',
   class_less: 'Level XP each: about -{pct}% vs solo in {place}. Mix {classes} for more',
   class_less_full: 'Level XP each: about -{pct}% vs solo in {place}',
+  /* {place} on a harder tier the leader picked: each tier has its own measured line (lane/d-party-pace), so the line names it */
+  place_tier: '{place} ({tier})',
   /* An invite by name refused `already_in_party`: the server says it of the hero invited, never of the one inviting
      (hr_party_seat_own; audit 2026-11-15 F16 read "You are already in a party" to a hero in none). A label (Tyler 2026-11-14). */
   invitee_partied: 'Already in a party: {name} (switch to them, press Leave party)',

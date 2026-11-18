@@ -44,7 +44,10 @@ const PARTIES = Object.freeze({
   'duo tank+healer': [['tank', 'healer'], [0, 0]],
   'duo tank+bow': [['tank', 'bow'], [0, 0]],
   'trio tank+healer+bow': [['tank', 'healer', 'bow'], [0, 0, 0]],
+  /* ONE STYLE (lane/d-party-pace, 2026-11-18): four hammers, printed, never held to the >= bar (Tyler 2026-10-31: one class never out-earns its heroes alone) */
+  hammers: [['hammer', 'hammer', 'hammer', 'hammer'], [0, 0, 0, 0]],
 });
+const ONE_CLASS = new Set(['hammers']);
 /* --table: the what-if table, { n: [cells] } */
 const WHAT_IF = arg('--table', null) ? Object.fromEntries(arg('--table').split(';').map((x) => { const [n, c] = x.split('='); return [Number(n), c.split(',').map(Number)]; })) : null;
 const cellOf = (tab, ways) => { const cells = tab[Math.min(ways.length, 4)]; return cells[Math.min(Math.max(PCX.partyClassXp(ways.map((w) => STYLES[w].role)).classes.length, 1), cells.length) - 1]; };
@@ -117,7 +120,7 @@ function report(rows) {
   console.log('  ground               lowest harder-tier mix vs alone          | hottest Deadly four xC          | Normal four vs alone (floor, middle)');
   let reds = 0;
   for (const g of grounds) {
-    const h = rows.filter((x) => x.g === g && x.tier !== 'normal' && x.name !== 'andy');
+    const h = rows.filter((x) => x.g === g && x.tier !== 'normal' && x.name !== 'andy' && !ONE_CLASS.has(x.name));
     const d = rows.filter((x) => x.g === g && x.tier === 'deadly' && fours(x));
     const n4 = rows.filter((x) => x.g === g && x.tier === 'normal' && x.name === 'four').map((x) => f2(x.vsSame)).join(', ');
     if (!h.length) { console.log('  ' + g.padEnd(20) + ' Normal only' + ' '.repeat(62) + '| ' + n4); continue; }

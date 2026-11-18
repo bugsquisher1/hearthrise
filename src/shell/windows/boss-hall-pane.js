@@ -20,7 +20,8 @@ import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.138';
 import { settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.138';
 import { hallStateOf } from '../../session/boss-quote.js?v=0.2.138';
 import { hoursWords } from '../../render/format.js?v=0.2.138';
-import { storeFoodUnder } from '../hunt-go.js?v=0.2.138';
+import { weakFoodOf, weakFoodWords } from '../weak-food.js?v=0.2.138';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.138';
 import { storeName } from '../bar-draft.js?v=0.2.138';
 import { openHall } from '../../session/boss-intents.js?v=0.2.138';
 import { itemName } from '../widgets/bits.js?v=0.2.138';
@@ -101,7 +102,8 @@ export function hallHtml() {
     + '<p class="hs-note hw-hall-bars" hidden></p><ul class="hw-before hw-hall-tips" aria-label="' + BOSS_HALL_WORDS.tipsLabel + '"></ul></section>';
 }
 
-/** Write the section for ground `v.hunt` ({ hunt, party, now, pending }); `hall` the hall its page opens (the data's, by default). */
+/** Write the section for ground `v.hunt` ({ hunt, party, now, pending, other: another setup picked under Go as }); `hall` the hall its page
+    opens (the data's, by default). */
 export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
   const box = det.querySelector('.hw-hd-hall');
   prop(box, 'hidden', !hall);
@@ -134,7 +136,9 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
   rows(box.querySelector('.hw-hall-tips'), hall.bars || [], { key: (x) => x, build: () => element(box.ownerDocument, '<li class="hw-before-line"></li>'), patch: (li, x) => text(li, x) });
   /* this hero's bar, then every hero of this account in the same party (their bars are in this browser; another account's are not projected
      to it, CLAUDE.md §2 live-engine rule, so a seat of another account is the server's to flag: handed to Systems) */
-  const short = hall.storeFloor ? foodShortWords(cs, ctx, v.party, hall.storeFloor) : '';
+  /* ...the bar in use only when it is the bar that walks in: with another setup picked under Go as, its own bar goes (hunts.js asChosen) and
+     Before you go names that setup, so the bar on now is not judged here (the full-game audit's A26: one bar truth) */
+  const short = hall.storeFloor && !v.other ? foodShortWords(cs, ctx, v.party, hall.storeFloor) : '';
   const food = box.querySelector('.hw-hall-food');
   text(food, short);
   prop(food, 'hidden', !short);
@@ -164,20 +168,21 @@ export function patchHall(det, ctx, v, hall = hallFromGround(v.hunt)) {
   }
 }
 
-/* "Your bar buys Salted Shrimp. ..." and one line a short own hero in this party ("Mender's bar buys ..."), or ''. */
+/* THE ONE WEAK-FOOD RULE at the hall's door (weak-food.js, the ground pages' own sentence): this hero's bar ("Slot 4: Salted Shrimp heals 72
+   of 1,208 HP. Pick Salted Swordfish"), then each own hero of this party whose bar is under it, by name ("Bryony's slot 4: ..."), or ''. */
 function foodShortWords(cs, ctx, party, floor) {
-  const W = BOSS_HALL_WORDS, out = [];
-  const say = (line, have) => line.replace('{have}', storeName(have)).replace('{food}', storeName(floor));
-  const mine = storeFoodUnder(settingsOf(cs), floor);
-  if (mine) out.push(say(W.foodShort, mine));
+  const out = [];
+  const said = (p, who) => weakFoodWords('prep', weakFoodOf(settingsOf(p), floor), heroVitalsOf(p).hpMax, who);
+  const mine = said(cs, null);
+  if (mine) out.push(mine);
   const pid = party && party.id;
   const peers = pid && typeof ctx.peers === 'function' ? ctx.peers() : [];
   for (const p of peers || []) {
     if (!p || p === cs || (partyMembershipOf(p) || {}).id !== pid) continue;
-    const have = storeFoodUnder(settingsOf(p), floor);
-    if (have) out.push(say(W.foodShortPeer, have).replace('{name}', nameOf(p) || W.someHero));
+    const theirs = said(p, nameOf(p) || BOSS_HALL_WORDS.someHero);
+    if (theirs) out.push(theirs);
   }
-  return out.join(' ');
+  return out.join('. ');
 }
 
 /**

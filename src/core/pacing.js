@@ -90,8 +90,8 @@ export function speedKeyFor(skillId) {
  *       server pricing a smithing night off `actionIntervalMs` would have run
  *       the bench SLOWER than the client does, by up to the tool ladder's 25%.
  *       Under the away ruling that is a defect, not a rounding difference.
- *    2. `actionRate` (the ONE rate calculator every artisan tile and the
- *       activity pill read) quoted the tool-less interval, so the screen
+ *    2. the rate readout (every artisan tile and the activity pill) quoted
+ *       the tool-less interval, so the screen
  *       under-reported the rate the game was already paying.
  *
  *  The client's expression is the ground truth here — it is what shipped and
@@ -108,23 +108,6 @@ export function actionSpeedBonus(skillId, ctx) {
 /** The interval one action actually takes, fuse applied. */
 export function actionIntervalMs(skillId, baseMs, ctx) {
   return Math.max(MIN_ACTION_MS, Math.floor(pacedActionMs(baseMs || 3000) * speedClamp(actionSpeedBonus(skillId, ctx))));
-}
-
-/**
- * The advertised rate, computed the way the engine actually pays. Every
- * "xp/hr" readout reads this — an activity bar quoting 18,000 xp/hr while
- * the skill ticks at 5,000 is a worse lie than showing no number at all.
- *
- * @param ctx { bonus, toolSpeed }
- */
-export function actionRate(skillId, action, ctx) {
-  if (!action) return null;
-  const c = ctx || {};
-  const bonus = typeof c.bonus === 'function' ? c.bonus : () => 0;
-  const ms = actionIntervalMs(skillId, action.ms, c);
-  const xpBonus = bonus('allXP') || 0;
-  const per = Math.max(1, Math.floor(pacedXp(skillId, action.xp || 0) * (1 + xpBonus)));
-  return { ms, xpPerAction: per, xpPerHour: Math.floor(3600000 / ms * per) };
 }
 
 /* ── Gold find ────────────────────────────────────────────────────────

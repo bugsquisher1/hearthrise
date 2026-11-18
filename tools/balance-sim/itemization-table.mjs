@@ -1,0 +1,98 @@
+#!/usr/bin/env node
+// tools/balance-sim/itemization-table.mjs — THE 2026-11-18 ITEMIZATION AUDIT'S NUMBERS, ON THE REAL SETTLE
+// (designer, lane/d-itemization-audit). A measuring tool: it grades nothing and changes nothing.
+//
+//   node tools/balance-sim/itemization-table.mjs day   [--hours 2] [--seeds 2] [--styles hammer,tank]
+//        one hunting hour on every open ground at the middle of its band, a lone hero on Normal in the Level's kit:
+//        Level XP, main-skill XP, coin and sold loot, the store bill, gear pieces an hour, hours a Rare
+//   node tools/balance-sim/itemization-table.mjs steps [--hours 2] [--seeds 2] [--styles hammer,tank] [--at glade]
+//        what ONE upgrade is worth with everything else equal (same seeds, so the dice are paired): the weapon a tier
+//        behind, the armor a tier behind, a full Tempering track, ten trained skill levels, the crafted ring plain and
+//        Hallmarked, the cape, the Tower weapon of the tier
+//
+// Every number is read off the engine's own events (cell.mjs). Nothing here computes a combat or gold number.
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { loadCellRunner } from './cell.mjs';
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const ROOT = resolve(HERE, '..', '..');
+const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
+const mode = process.argv[2];
+const hours = Number(arg('hours', 2)), seeds = Number(arg('seeds', 2));
+const styles = String(arg('styles', 'hammer,tank')).split(',');
+
+/* ground, the Level a hero stands on it (the middle of its band), the gear tier worn there */
+const DAY = [
+  ['meadowbrook_thicket', 10, 1], ['wickstead', 13, 1], ['millrace_sewer', 18, 2], ['mosslight_glade', 24, 2],
+  ['coppercap_warrens', 40, 3], ['hasks_ford', 52, 4], ['the_slake', 57, 4], ['muster_barrows', 65, 5],
+  ['pyre_field', 80, 5], ['krells_hold', 95, 6],
+];
+const MAIN = { hammer: 'melee', tank: 'melee', sword: 'melee', axes: 'melee', bow: 'ranged', crossbow: 'ranged', mage: 'magic', healer: 'magic' };
+const pct = (a, b) => (b ? ((a / b - 1) * 100).toFixed(1) + '%' : 'n/a');
+
+async function day() {
+  const R = await loadCellRunner(ROOT);
+  console.log('ground | Level | way | Level XP/h | main skill XP/h | Defense XP/h | coin+loot g/h | store g/h | net g/h | gear pieces/h | a Rare every (h) | deaths | low HP p10 %');
+  for (const [ground, level] of DAY) for (const s of styles) {
+    let m;
+    try { m = R.runCell({ id: ['IT-day', ground, level, s].join(':'), ground, party: [s], level, hours, seeds }); } catch (e) { console.log([ground, level, s, 'ERROR ' + e.message].join(' | ')); continue; }
+    const h = m.heroes[0];
+    const pieces = Object.values(h.gearPerH || {}).reduce((a, b) => a + b, 0);
+    console.log([ground, level, s, h.levelXpPerH, (h.skillXpPerH || {})[MAIN[s]] || 0, (h.skillXpPerH || {}).defense || 0, h.incomePerH, h.storePerH, h.profitPerH,
+      pieces.toFixed(2), h.rareEveryH === null ? 'none seen' : h.rareEveryH, h.deaths, h.encMinHpPct.p10].join(' | '));
+  }
+}
+
+/* where a step is measured: ground, Level, the gear tier worn, the Tower weapon of that tier by style, the temper tier */
+const AT = {
+  glade: { ground: 'mosslight_glade', level: 24, tier: 2, tower: { hammer: 'millwrights_mallet', tank: 'palisade_sword', bow: 'fowling_bow', mage: 'lamplighters_wand' } },
+  warrens: { ground: 'coppercap_warrens', level: 42, tier: 3, tower: {} },
+  slake: { ground: 'the_slake', level: 57, tier: 4, tower: { hammer: 'quarry_maul', tank: 'tollkeepers_sword', bow: 'ferrymans_bow', mage: 'chandlers_wand' } },
+  /* at 80 the kit is Emberforged (worn from 75), so the Tempering rows name tier 6. At the Hold (95) the weapon, body and helm are
+     Krell's tier 7, which has no ladder: its Blows row reads nothing and its Armor row only the tier-6 pieces' share. */
+  pyre: { ground: 'pyre_field', level: 80, tier: 6, tower: {} },
+  hold: { ground: 'krells_hold', level: 95, tier: 6, tower: { hammer: 'passing_bell_hammer', tank: 'bierguard_sword', bow: 'vigil_bow', mage: 'sextons_wand' } },
+};
+
+async function steps() {
+  const R = await loadCellRunner(ROOT);
+  const wanted = String(arg('at', Object.keys(AT).join(','))).split(',');
+  console.log('where | way | what changed | Level XP/h | vs base | damage taken/h | vs base | store g/h | net g/h | deaths | low HP p10 %');
+  for (const key of wanted) {
+    const a = AT[key];
+    if (!a) { console.log('no such place ' + key); continue; }
+    for (const s of styles) {
+      const L = a.level, main = MAIN[s];
+      const even = { melee: L, ranged: L, magic: L, defense: L };
+      const rows = [
+        ['base: the Level\'s kit, skills at Level', {}],
+        ['weapon one tier behind', { gear: { tierOffset: -1, only: 'weapon' } }],
+        ['armor one tier behind (all six slots)', { gear: { tierOffset: -1, only: 'armour' } }],
+        ['Tempering, Blows 5 of 5', { temper: { ['temper:blows:' + a.tier]: 5 } }],
+        ['Tempering, Armor 5 of 5', { temper: { ['temper:armor:' + a.tier]: 5 } }],
+        ['main skill +5 (training)', { skillsBySeat: [{ ...even, [main]: L + 5 }] }],
+        ['main skill +10 (training)', { skillsBySeat: [{ ...even, [main]: L + 10 }] }],
+        ['Defense +10 (training)', { skillsBySeat: [{ ...even, defense: L + 10 }] }],
+        ['skills 10 UNDER Level (a hero who never trains and parties)', { skillsBySeat: [{ ...even, [main]: Math.max(1, L - 10) }] }],
+        ['+ Banded Signet, plain', { gear: { also: { ring: 'banded_signet' } } }],
+        ['+ Hallmarked Banded Signet (Keen, Follow-through)', { gear: { also: { ring: 'banded_signet_keen_follow' } } }],
+        ['+ Houndskin Cloak', { gear: { also: { cape: 'houndskin_cloak' } } }],
+        ['+ Shop jewelry (Copper Ring, Hunter Necklace, Copper Studs)', { gear: { also: { ring: 'copper_ring', necklace: 'hunter_necklace', earrings: 'copper_studs' } } }],
+      ];
+      if (a.tower[s]) rows.push(['Tower weapon of the tier (' + a.tower[s] + ')', { gear: { also: { weapon: a.tower[s] } } }]);
+      let base = null;
+      for (const [label, patch] of rows) {
+        let m;
+        try { m = R.runCell({ id: ['IT-step', key, s, label].join(':'), ground: a.ground, party: [s], level: L, hours, seeds, ...patch }); } catch (e) { console.log([key, s, label, 'ERROR ' + e.message].join(' | ')); continue; }
+        const h = m.heroes[0];
+        if (!base) base = h;
+        console.log([key + ' L' + L, s, label, h.levelXpPerH, pct(h.levelXpPerH, base.levelXpPerH), h.takenPerH, pct(h.takenPerH, base.takenPerH), h.storePerH, h.profitPerH, h.deaths, h.encMinHpPct.p10].join(' | '));
+      }
+    }
+  }
+}
+
+if (mode === 'day') await day();
+else if (mode === 'steps') await steps();
+else console.log('usage: node tools/balance-sim/itemization-table.mjs day|steps [--hours 2] [--seeds 2] [--styles hammer,tank] [--at glade,slake]');

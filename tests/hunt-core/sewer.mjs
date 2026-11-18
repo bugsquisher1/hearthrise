@@ -732,7 +732,19 @@ const cases = {
     /* A hero in a party meets the Sewer card at its floor, never below it, and not once in the sewer. */
     const atSewer = { ...done, levelXp: M.xp.charXpForLevel(sewerBand), charLevel: sewerBand };
     if ((M.tut.currentCard({ ...atSewer, inParty: true }) || {}).id !== 'go_below') return 'a party hero at the Sewer floor does not meet go_below';
-    if ((M.tut.currentCard({ ...atSewer, charLevel: sewerBand - 1, levelXp: M.xp.charXpForLevel(sewerBand - 1), inParty: true }) || {}).id === 'go_below') return 'a party hero under the Sewer floor meets go_below';
+    /* under the floor, judged on the party card alone (since the Sewer opens at the Thicket's floor, lane/d-party-pace, the solo chain's "Out to the brook" asks
+       the same Level first, so the whole chain can't tell the card's own floor from that one) */
+    const goBelow = M.tut.HUNT_TUTORIAL.filter((r) => r.id === 'go_below');
+    if ((M.tut.currentCard({ ...atSewer, charLevel: sewerBand - 1, levelXp: M.xp.charXpForLevel(sewerBand - 1), inParty: true }, goBelow) || {}).id === 'go_below') return 'a party hero under the Sewer floor meets go_below';
+    if ((M.tut.currentCard({ ...atSewer, inParty: true }, goBelow) || {}).id !== 'go_below') return 'a party hero at the Sewer floor does not meet go_below on its own row';
+    /* A PARTY AT THE FLOOR IS SENT BELOW BEFORE THE WOLVES (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): walk the solo chain to the step before
+       Tamsin's wolves, then the same hero in a party meets go_below, never "Into the Thicket", and a hero alone still meets the wolves. */
+    const chain = walkChain(M, T);
+    const before = chain.find((x) => x.id === 'tamsins_task');
+    if (!before) return 'the solo chain has no tamsins_task step to stand before';
+    const party5 = { ...before.facts, inParty: true, levelXp: M.xp.charXpForLevel(sewerBand), charLevel: Math.max(before.facts.charLevel, sewerBand) };
+    if ((M.tut.currentCard(party5) || {}).id !== 'go_below') return 'a party at the Sewer floor, the Cellar behind it, meets ' + ((M.tut.currentCard(party5) || {}).id || 'no card') + ', not go_below';
+    if ((M.tut.currentCard({ ...party5, inParty: false }) || {}).id !== 'tamsins_task') return 'a hero alone at the same point meets ' + ((M.tut.currentCard({ ...party5, inParty: false }) || {}).id || 'no card') + ', not tamsins_task';
     if (M.tut.currentCard({ ...atSewer, inParty: true, huntId: 'millrace_sewer' })) return 'the tutorial does not end once the party is in the sewer';
     /* ...even when the server's record holds the Sewer alone (no best on the Thicket yet): a ground past it counts */
     if (M.tut.currentCard({ ...atSewer, inParty: true, huntId: 'millrace_sewer', visited: new Set() })) return 'in the sewer the coach sends the party back to ' + M.tut.currentCard({ ...atSewer, inParty: true, huntId: 'millrace_sewer', visited: new Set() }).id;
@@ -1185,12 +1197,22 @@ const cases = {
       const g = whatNext(M.tut.nextGoal({ charLevel: cloak.reqLv - 1, role, skillLevel: 5, defenseXp: 9, land: null, inParty: false }));
       if (!g.includes('Next gear at Level ' + cloak.reqLv + ': ' + cloak.n + ', made in Crafting') || !(stitch.inputs.wolf_pelt > 0)) return role + ': What next reads ' + JSON.stringify(g);
     }
-    /* a bench rung above 1 names its level (played 10-31: Level 12, Smithing 1, the shield's line said nothing of 15) */
-    /* (a Level 12 Ranger: the Longbow leads Level 15's gear, made at Crafting 15) */
-    const bow = (M.recipes.ARTISAN_RECIPES.crafting || []).find((r) => r.output === 'longbow');
-    const g12 = M.tut.nextGoal({ charLevel: 12, role: 'ranger', skillLevel: 12, defenseXp: 9, land: null, inParty: false });
-    const bowLine = 'Next gear at Level ' + M.items.ITEMS.longbow.reqLv + ': Longbow, made at Crafting ' + (bow && bow.req);
-    if (!bow || !(bow.req > 1) || ![g12.text, ...g12.also].includes(bowLine)) return 'ranger at Level 12: What next reads ' + JSON.stringify([g12.text, ...g12.also]) + ', wanted ' + JSON.stringify(bowLine);
+    /* NO BENCH MAKES A WEAPON (Tyler 2026-11-18, lane/d-drop-homes): every role's next tier leads with a drop, so no What next gear line names a bench
+       (a Level 12 Ranger read "Longbow, made at Crafting 15" until the recipe was cut). Each role, below tiers 2, 3 and 4. */
+    const lines = (L, role) => { const g = M.tut.nextGoal({ charLevel: L, role, skillLevel: L, defenseXp: 9, land: null, inParty: false }); return [g.text, ...g.also]; };
+    for (const role of ['tank', 'melee_dps', 'ranger', 'mage', 'healer']) for (const L of [14, 29, 44]) {
+      const gear = lines(L, role).filter((x) => /^Next gear at Level /.test(x));
+      if (!gear.length || gear.some((x) => /, made (at|in) /.test(x))) return role + ' at Level ' + L + ': What next names a bench for its next weapon: ' + JSON.stringify(gear);
+    }
+    /* a bench rung above 1 names its level (played 10-31: Level 12, Smithing 1, the shield's line said nothing of 15). No made piece leads a gear
+       line since the cut, so the rule is read on a FIXTURE row (the old Longbow recipe, Crafting 15) planted on the live bench list and taken off. */
+    const fixture = Object.freeze({ id: 'fixture_string_longbow', name: 'String Longbow', icon: '🏹', inputs: Object.freeze({ oak_plank: 3, silk_thread: 2 }), output: 'longbow', xp: 110, req: 15, ms: 3600 });
+    const crafts = M.recipes.ARTISAN_RECIPES.crafting;
+    crafts.push(fixture);
+    let g12;
+    try { g12 = lines(12, 'ranger'); } finally { crafts.splice(crafts.indexOf(fixture), 1); }
+    const bowLine = 'Next gear at Level ' + M.items.ITEMS.longbow.reqLv + ': Longbow, made at Crafting ' + fixture.req;
+    if (!g12.includes(bowLine)) return 'ranger at Level 12 with a Crafting 15 bow on the bench: What next reads ' + JSON.stringify(g12) + ', wanted ' + JSON.stringify(bowLine);
     /* WHAT THE GOLD IS FOR (panel 2026-11-01: 22,355 gp and "no idea what I'm saving for"), at the server's price */
     const goal = (charLevel, more) => whatNext(M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 9, land: null, inParty: false, ...more }));
     if (!goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 }).includes('Buy a third hero slot for 15,000 gp')) return 'at 16,000 gp What next reads ' + goal(12, { gold: 16000, slotCost: 15000, slotsOwned: 2 });
@@ -2010,7 +2032,7 @@ const mutants = [
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', "(ctx.hud && ctx.hud.isShown('hunt-topbar') ? '' : pointerFor(ctx))", 'pointerFor(ctx)']] },
   { name: 'the gold card stands ahead of Klappa\'s Club', case: 'tutorial-reactive',
-    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Club',\n", "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Club',\n"]] },
+    edits: [['src/data/hunt-tutorial.js', "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n", ''], ['src/data/hunt-tutorial.js', "  step('klappas_club', 'Klappa\\'s Klub',\n", "  step('purse_goal', 'Spend your gold',\n    t('coach.purse_goal'),\n    'house', READ, { reactive: true, knowledge: true, gotIt: true, when: [IN_TOWN, { kind: 'purse_saving_hero' }] }),\n" + "  step('klappas_club', 'Klappa\\'s Klub',\n"]] },
   /* QA gate 2026-11-17: a free Tower fall raised "Defeated" and a Bless upsell; the Tower had no tip */
   { name: 'a free-death mode raises the death card', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "f.endReason === 'died' && f.freeDeath !== true,", "f.endReason === 'died',"]] },
@@ -2124,6 +2146,9 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "when: [{ kind: 'carries', item: 'turnip_juice' }, { kind: 'bought_drinks', n: JUICE_BOUGHT }] }),", "when: [{ kind: 'carries', item: 'turnip_juice' }] }),"]] },
   { name: 'What next hides a made piece\'s bench level (core-loop 10-31)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', "const madeKey = made ? (made.req > 1 ? 'coach.goal_gear_made_at' : 'coach.goal_gear_made')", "const madeKey = made ? ('coach.goal_gear_made')"]] },
+  /* lane/d-drop-homes (Tyler 2026-11-18: no bench makes a weapon): a forge row for the Iron Sword back on the bench, and What next tells a tank to make it */
+  { name: 'a weapon recipe back on the bench (What next sends a tank to Smithing)', case: 'tutorial-reactive',
+    edits: [['src/data/style-gear.js', "'klappas_club', 120, 1, 3000),", "'klappas_club', 120, 1, 3000),\n    r('forge_iron_sword', 'Forge Iron Sword', '⚔️', { iron_bar: 6, normal_plank: 2 }, 'iron_sword', 120, 15, 3400),"]] },
   { name: 'the day-one goals wait for Level 8 again (about two hours in)', case: 'tutorial-reactive',
     edits: [['src/data/hunt-tutorial.js', 'const DAY_ONE_LEVEL = 7;', 'const DAY_ONE_LEVEL = 8;']] },
   { name: 'the Hearth card waits for more fuel than the Cellar leaves', case: 'tutorial-reactive',
@@ -2152,7 +2177,7 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),",
       "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),\n  step('the_king', 'The Rat King', 'The last room is his.', 'world', { kind: 'pull', ground: 'millrace_sewer', pocket: 5 }),"]] },
   { name: 'a hero in the sewer is sent back to the Thicket card (enter judged on the current hunt only)', case: 'tutorial-walk-through',
-    edits: [['src/data/hunt-tutorial.js', ' || HUNT_INDEX[h].band[0] > HUNT_INDEX[hunt].band[0]', '']] },
+    edits: [['src/data/hunt-tutorial.js', ' || past(h, hunt)', '']] },
   { name: 'out of a hunt, the pointer forgets it was there (#58: the Thicket card came back)', case: 'tutorial-never-backward',
     /* where the server has seen this hero hunt is hunt-sections.js groundsSeenOf since the Chronicle reads it too */
     edits: [['src/session/hunt-sections.js', '  if (h && h.huntId) seen.add(h.huntId);\n', '']] },
@@ -2165,9 +2190,12 @@ const mutants = [
   { name: 'the Thicket is skipped: the cellar unlocks the sewer', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'unlock', hunt: THICKET }", "{ kind: 'unlock', hunt: 'millrace_sewer' }"]] },
   { name: 'the sewer opens to a fresh character', case: 'tutorial-walk-through',
-    edits: [['src/data/hunts.js', 'band: [8, 25],', 'band: [1, 25],']] },
+    edits: [['src/data/hunts.js', 'band: [5, 25],', 'band: [1, 25],']] },
   { name: 'the party card walls a solo hero again', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!(f.inParty === true && f.charLevel >= HUNT_INDEX[r.done.hunt].band[0])) return false;', 'if (!true) return false;']] },
+  /* lane/d-party-pace (Tyler 2026-11-18 "Yes, open at 5"): a party at 5 is sent below before the wolves, never through the Thicket first */
+  { name: 'the party card waits for the Thicket again: a fresh four at 5 is sent to the wolves', case: 'tutorial-walk-through',
+    edits: [['src/data/hunt-tutorial.js', "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true }),", "'hunt_picker', { kind: 'enter', hunt: 'millrace_sewer' }, { party: true, when: [{ kind: 'been', hunt: THICKET }] }),"]] },
   { name: 'the party card meets a party below the Sewer floor', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', 'if (!(f.inParty === true && f.charLevel >= HUNT_INDEX[r.done.hunt].band[0])) return false;', 'if (!(f.inParty === true)) return false;']] },
   { name: 'cooking is not asked for (the town half is untaught)', case: 'tutorial-walk-through',

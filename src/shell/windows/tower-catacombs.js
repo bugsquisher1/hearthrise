@@ -240,7 +240,7 @@ export function patchCatacombs(pane, cs, cat, sc, before) {
       if (row && host.clientHeight > 0) { host.scrollTop = Math.max(0, row.offsetTop - host.offsetTop - host.clientHeight / 2); sc.catScrolled = true; }
     }
   }
-  text(pane.querySelector('.tk-big'), w && w.best > 0 ? whole(w.best) : t('tower.best_none'));
+  text(pane.querySelector('.tk-big'), w && w.best > 0 ? whole(w.best) : t('catacomb.best_none'));
   /* "Catacombs, Deepest": the hero's place alone and in a party (one board for both wings), each only when the server sends it */
   /* ...never beside a wing the hero has not descended (2026-11-18 shots: "None" next to "Rank #1" earned in the other wing) */
   const ranked = !!w && w.best > 0;

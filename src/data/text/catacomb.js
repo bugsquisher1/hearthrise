@@ -23,6 +23,8 @@ export const CATACOMB_TEXT = Object.freeze({
 
   /* THE COLUMN: label, value (each value the server's: the wing's deepest room, the boards, the mode's pay, the rules). */
   best_head: 'Deepest Room',
+  /* a wing never descended: the game's empty mark, as the wing slot says it (2026-11-18 phone review: "None" under Deepest Room) */
+  best_none: '—',
   rank_solo: 'Rank',
   rank_party: 'Party Rank',
   descent_head: 'Descent',
@@ -73,7 +75,7 @@ export const CATACOMB_TEXT = Object.freeze({
 
   /* AN ARMOR KEY AT THE HEARTH CHEST (2027-05-08-catacombs.sql): its chance, the slot it leans to, and what came out. */
   armor_chance: 'Armor chance: {pct}',
-  /* a key whose armor is not in the chest yet (the server's chest_not_ready, `ready` false: Gold and Platinum until their pieces ship) */
+  /* a key whose armor is not in the chest yet (the server's chest_not_ready, `ready` false: a later tier or wing until its pieces ship) */
   not_ready: 'Armor coming soon',
   helmet_lean: 'Helmets: {pct}',
   slot_helmet: 'Helmet',

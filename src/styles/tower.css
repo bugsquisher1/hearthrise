@@ -313,6 +313,10 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
   /* the deepest room over its two places, one a line */
   .tk-pane .tt-best { flex-direction: column; align-items: flex-start; gap: 2px; }
   .tk-rank + .tk-rank { margin-left: 0; }
+  /* a key row in the narrow column: Open chest under the name, so a long key name ("Waterlogged") wraps in the row's whole width and never
+     runs under it (2026-11-18 local-world read at 922x423) */
+  .tk-key { flex-wrap: wrap; row-gap: 2px; padding-block: 4px; }
+  .tk-key-open { flex-basis: 100%; padding-left: calc(var(--icon-1) + 8px); }
 }
 
 /* ── A CLIMB'S END CARD (the hunt summary, src/shell/tower-end-card.js): the run up the stack, the rows and the keys under it ── */

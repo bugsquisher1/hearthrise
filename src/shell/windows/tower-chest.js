@@ -162,7 +162,7 @@ function patchKeys(host, tw, keys, picked, pending) {
       text(b.querySelector('.tc-pick-n'), t('tower.count', { count: whole(k.heldAll) }));
       /* a Catacomb key finds armor (2027-05-08-catacombs.sql), a Tower key a weapon: the same base chance, named for what it finds */
       const pct = k.basePm !== null ? ppmWords(k.basePm * 1000) : null;
-      /* an armor key whose pieces are not in the chest yet (chest_not_ready: Gold and Platinum until their pieces ship) says so on its slot */
+      /* an armor key whose pieces are not in the chest yet (chest_not_ready: a later tier or wing until its pieces ship) says so on its slot */
       const soon = k.gear === 'armor' && !k.ready;
       text(b.querySelector('.tc-pick-pct'), soon ? t('catacomb.not_ready') : pct === null ? '' : k.gear === 'armor' ? t('catacomb.armor_chance', { pct }) : t('tower.weapon_chance', { pct }));
       attr(b, 'aria-label', (k.name || itemName(k.item)) + ': ' + whole(k.heldAll));

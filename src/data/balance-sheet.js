@@ -291,6 +291,11 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
   /* KRELL'S LOOKOUT, A DANGER EXCEPTION (lane/b-barrow-packs 2026-11-13, after NO PROFIT MOLDS): on the glass role's 0.22 blow a lone hero at the
      Hold's floor on Normal read 2.81 close calls in 12 h on the full grade (the sheet allows 1). While engine piece 2 is unbuilt he swings in melee,
      and he is the floor's top damage. His blow is the Farmhands' 0.17 (designer Q3 measured close calls 3.2 to 0.63); his to-hit stays the role's 0.75. */
+  /* THE RAT KING, A DANGER EXCEPTION (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): his Tail Lash lands twice his blow, and with the Sewer's floor at 5
+     the formula's attack 7 lands it for 74, 39% of the floor hero's 190 HP, over the 35% a boss may take of the floor hero (tests/hunt-core/hunt-data.mjs
+     blow-share; Andy died to 108). Attack 6 lands 64 (34%); his to-hit at a same-Level hero is the formula's, restated for the lower blow. */
+  rat_king: Object.freeze({ atk: "his Tail Lash, twice his blow, held at 35% of the floor hero's HP since the Sewer opens at 5: 64 of 190 at attack 6, where the formula's 7 lands 74",
+    baseAcc: "the formula's to-hit at a same-Level hero, restated for the lower blow: 0.76 + 1 x 0.02" }),
   hasks_lookout: Object.freeze({ atk: "a blow of 0.17 of a same-Level hero, the Farmhands', so a lone hero at the floor on Normal is safe (close calls, not gold)",
     baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, restated for the lower blow: 0.75 + (88 - 80) x 0.02" }),
 });

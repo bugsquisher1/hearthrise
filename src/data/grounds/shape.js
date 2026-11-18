@@ -58,7 +58,7 @@ export const gather = (refKillMs, nodes) => Object.freeze({ refKillMs, shares: G
      items     { id: row }: the pack's NEW items, src/data/items.js rows; itemText { id: 'its line' } (item-descriptions.js)
      xpFit, tierOverride   (optional) its GROUND_XP_FIT number and TIER_PULL_OVERRIDES row (balance-sheet.js), each with its reason
      gpFit                 (optional) its GROUND_GP_FIT number (balance-sheet.js): the ground's income dial on coin and on what its loot sells for
-     partyVsAlone   (optional) the measured line the party window says { 2: [...], 3: [...], 4: [...] } (party-class-xp.js PARTY_VS_ALONE's shape,
+     partyVsAlone   (optional) the measured lines the party window says, one per tier the ground offers { normal: { 2: [...], 3: [...], 4: [...] }, dangerous, deadly } (party-class-xp.js PARTY_VS_ALONE's shape,
                tests/party-class-xp-line.mjs --write). A pack carries NO party pay cell: one party table for every ground (Tyler 2026-11-16)
      bagGuide  the hunt's suggested bag { tier, melee, ranged, magic } (src/data/supplies.js BAG_GUIDE_BY_HUNT's row shape)
      checks    (optional) the pack's own test facts, read only by the guards that loop over every ground: bridge [[x, y], ...]
@@ -172,7 +172,9 @@ export function definePack(p) {
   if (p.tierOverride !== undefined && !(isObj(p.tierOverride) && typeof p.tierOverride.why === 'string' && p.tierOverride.why)) no('tierOverride has no why');
   if (p.checks !== undefined && !isObj(p.checks)) no('checks is not an object');
   if (p.bagGuide !== undefined && !(isObj(p.bagGuide) && Number.isInteger(p.bagGuide.tier))) no('bagGuide is not { tier, melee, ranged, magic }');
-  if (p.partyVsAlone !== undefined && !(isObj(p.partyVsAlone) && [2, 3, 4].every((n) => Array.isArray(p.partyVsAlone[n]) && p.partyVsAlone[n].length === n))) no('partyVsAlone is not { 2: [2], 3: [3], 4: [4] }');
+  /* one line per tier the ground offers (lane/d-party-pace): { normal: { 2: [2], 3: [3], 4: [4] }, dangerous: .., deadly: .. } (party-class-xp.js validate names a missing tier) */
+  const lineOk = (l) => isObj(l) && [2, 3, 4].every((n) => Array.isArray(l[n]) && l[n].length === n);
+  if (p.partyVsAlone !== undefined && !(isObj(p.partyVsAlone) && lineOk(p.partyVsAlone.normal) && Object.entries(p.partyVsAlone).every(([tier, l]) => ['normal', 'dangerous', 'deadly'].includes(tier) && lineOk(l)))) no('partyVsAlone is not { normal: { 2: [2], 3: [3], 4: [4] }, dangerous?, deadly? }');
   if (p.hall !== undefined) { const why = hallWhy(p); if (why) no(why); }
   if (p.fuel !== undefined) { const why = fuelWhy(p); if (why) no(why); }
   if (p.spells !== undefined) { const why = spellsWhy(p); if (why) no(why); }

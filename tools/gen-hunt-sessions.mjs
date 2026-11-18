@@ -334,7 +334,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
    drop sets move (hr_hunt_kill_bounds.drops, and a called boss's quote drops): the new Scarce weapon and shield rows on the Sewer, Wickstead, the Glade,
    the Warrens, Hask's Ford, the Pyre Field and Krell's Hold, the Thicket's first gloves and belts, and the same-ground Rares they replace. No ground,
    spawn, limit, end reason or world shape moves. ORDER: after 2027-05-06-drop-homes-items-catalogue.generated.sql. */
-export const OUT_NAME = '2027-05-06-drop-homes-hunt-sessions-catalogue.generated.sql';
+/* THE SEWER FROM LEVEL 5 (lane/d-party-pace, designer; Tyler 2026-11-18 "Yes, open at 5"): 2027-05-06-drop-homes-hunt-sessions-catalogue (STAGED on
+   set/v0.2.139, applied before this one) is the file before this one and this one carries it whole, drop-homes' drop sets included. The Sewer's floor is 5, so
+   the formula's rows for its six monsters (tools/gen-ground-stats.mjs --write) carry a floor-5 purse (about a fifth less coin a kill): their kill bounds' gold
+   moves. No ground, spawn, limit, end reason or world shape moves. ORDER: after 2027-05-06-sewer-from-five-hunts-catalogue.generated.sql. */
+export const OUT_NAME = '2027-05-06-sewer-from-five-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

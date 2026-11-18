@@ -72,7 +72,15 @@ const SEED = '-4611686018427387904';
    RE-PINNED 2026-11-17 (lane/a-cave-walls round 2), THE WARRENS' WALK GRID ONLY: warrens-4 moved at settle 1 (kills 209 -> 211); glade-4, sewer-2 and the
    lone ranger hold. Cause: src/data/world/maps/coppercap_warrens.js rows reshaped off the rectangles (the Coordinator: the rooms read as boxes; every
    pack tile, pull, node, the patrol path and the walk between the pockets held, 981 -> 986 open tiles), so the party walks other steps. Proof: the
-   merged tree with origin/lane/a-art-136's coppercap_warrens.js laid back alone holds every pin (exit 0). The Glade's ford stone ids move no pin. */
+   merged tree with origin/lane/a-art-136's coppercap_warrens.js laid back alone holds every pin (exit 0). The Glade's ford stone ids move no pin.
+   RE-PINNED 2026-11-18 (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"), THE SEWER'S MONSTER ROWS ONLY: sewer-2 moved at settle 2 (kills 121 -> 114);
+   warrens-4, glade-4 and the lone ranger hold. Cause: the Sewer's floor 8 -> 5 re-made its six formula rows (tools/gen-ground-stats.mjs --write: a floor-5
+   purse, three of them one point less attack) and the Rat King's attack 7 -> 6 by hand (balance-sheet.js FORMULA_EXCEPTIONS: his Tail Lash held at 35% of
+   the floor-5 hero), so its swings and coin differ. Proof: this tree with the parent commit's src/data/monsters.js laid back holds
+   every pin (exit 0); the band itself moves none.
+   RE-PINNED 2026-11-18 (set/v0.2.139 merged into lane/d-party-pace), LANE/D-DROP-HOMES' DROP ROWS ONLY: warrens-4 moved at settle 4 (kills 211 as pinned);
+   glade-4, sewer-2 and the lone ranger hold. Cause: src/data/monsters.js drop rows (armor, weapons and shields drop at every tier, Tyler 2026-11-18) change
+   the Warrens' loot rolls. Proof: set/v0.2.139 alone (f5ec21295) reads the same red, and with origin/main's src/data/monsters.js laid in it holds every pin (exit 0). */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

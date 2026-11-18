@@ -110,10 +110,6 @@ export function missingInput(recipe, inventory) {
   return null;
 }
 
-export function hasInputs(recipe, inventory) {
-  return missingInput(recipe, inventory) === null;
-}
-
 export function gateOk(recipe, unlockedRecipes) {
   if (!recipe || !recipe.gated) return true;
   return !!(unlockedRecipes && unlockedRecipes[recipe.gated]);

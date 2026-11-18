@@ -221,9 +221,6 @@ export const TOWER_HUNTS = Object.freeze([Object.freeze({
   tower: true, band: Object.freeze([1, 200]), spawns: Object.freeze([Object.freeze({ monster: 'rat', w: 1 })]),
   family: 'Vermin', art: 'rat', travelS: 0, pull: TOWER_RULES.roomSize, respawnMs: TOWER_RULES.stairMs })]);
 
-/** The words a player reads for a spawn's rarity. */
-export const RARITY_LABEL = Object.freeze({ common: 'Common', uncommon: 'Uncommon', rare: 'Rare' });
-
 /** Null-prototype index by id: `HUNT_INDEX['constructor']` is undefined. */
 export const HUNT_INDEX = Object.freeze([...HUNTS, ...CALLED_HUNTS, ...HALL_HUNTS, ...TRAINING_HUNTS, ...TOWER_HUNTS].reduce((acc, h) => { acc[h.id] = h; return acc; },
   Object.create(null)));

@@ -2,6 +2,13 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-18 · lane/b-arch-guards (audit items 2 and 3: import direction, real-consumer dead code)
+1. *A layer table needs a row for every folder, or it rots at the first new one.* tests/layering.mjs makes an unplaced src/ folder RED (LAYER-3); render sits beside session (neither imports the other), net under session, the three view layers are peers. 31 file-to-file breaches on a shrinking baseline; a fixed breach left on it is STALE and red.
+2. *"Mentioned anywhere" is not "used".* The old census counted tests, docs and SQL comments as reach and exempted all of src/core and src/data for being edge-vendored: green with 122 dead exports and 12 orphan files. Alive is now the production graph (root pages, the edge entry, named generator tools), comments blanked.
+3. *A side-effect `import './x.js'` is an edge too.* The first regex read only `from` / `import(` / `new URL(`; the dead-exports selftest's "orphan the client starts importing" case found it. Both guards share the fixed pattern.
+4. *A planted `?v=` in a tests/ string is versionQueryGuard's to refuse*: assemble it (`'?v' + '=1'`).
+5. *Owed:* the 90 dead exports left are mostly test-only (oracles, validators, bookkeeping lists); cut each with its assertions or move the validator into its guard. typecheck-ratchet was already red at 99511ead1 (src/world/core/compose.js, src/data/world/maps/town_common.js): not this lane's files.
+
 ## 2026-11-16 · lane/d-flat-party-xp (LV-PULL's viewed drift: a peer's level the browser never sees)
 1. *Name the first differing event before theorising.* The diverged world named one monster's HP (74 vs 51); the events at that instant named Eddie's swing: dmg 23 on the server, a miss in the browser. His Melee had gone 41 -> 42 at the 608 s commit; the browser's frozen Eddie never did. A party-XP change only moved the level earlier.
 2. *A frozen peer is frozen for the whole prediction.* The browser never holds a peer's XP (Tyler 10-20), so it cannot foresee a peer's level; and it only took new rows on a divergence, so a stale peer ran until some roll flipped (150 s here, never in other seeds). Each viewed commit now names every member's frozen-row key (member.js frozenKey) and a moved key asks for a start point.

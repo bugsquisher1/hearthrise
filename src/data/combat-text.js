@@ -49,21 +49,3 @@ export const LOG_TYPES = Object.freeze([
 
 /** Most lines the Combat tab keeps (older lines fall off; the analyzer holds the totals). */
 export const LOG_MAX_LINES = 200;
-
-/** Every problem with the tables, as strings. Empty = valid. */
-export function validateCombatText() {
-  const out = [];
-  const ids = new Set();
-  for (const r of FLOAT_TYPES) {
-    if (ids.has(r.id)) out.push('float ' + r.id + ': duplicate');
-    ids.add(r.id);
-    for (const t of FLOAT_TARGETS) if (typeof r.on[t] !== 'boolean') out.push('float ' + r.id + ': on.' + t + ' must be a boolean');
-  }
-  const logs = new Set();
-  for (const r of LOG_TYPES) {
-    if (logs.has(r.id)) out.push('log ' + r.id + ': duplicate');
-    logs.add(r.id);
-    if (!r.events.length) out.push('log ' + r.id + ': reads no event');
-  }
-  return out;
-}

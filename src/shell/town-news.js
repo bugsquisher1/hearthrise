@@ -27,11 +27,14 @@ import { workRow, productOf, yieldOf } from './town-work.js?v=0.2.138';
 const FINISHED = new Set(['supplies', 'count']);
 const runKey = (run) => run.recipe + ':' + run.since;
 
-/** The key of the bench run the server says runs now (its recipe and start), or null. */
+/** The key of the bench job the server says runs now: its recipe and start, from the activity pointer (`state.active_*`), the same pair
+    the run's tally is keyed by (2027-02-19-bench-tax.sql: one run is one recipe and active_since). The pointer, not the tally: a short run
+    can be paid whole by the first settle, so its tally is never seen running (played: Fuel all of 14 Bones). Null when none runs. */
 export function runningRunKey(cs) {
-  const run = benchRunOf(cs);
   const st = cs && typeof cs.read === 'function' ? cs.read('state') : null;
-  return run && run.end === null && Number.isFinite(run.since) && st && st.active_kind === 'artisan' && st.active_id === run.recipe ? runKey(run) : null;
+  const since = st && typeof st.active_since === 'string' ? Date.parse(st.active_since) : NaN;
+  return st && st.active_kind === 'artisan' && typeof st.active_id === 'string' && workRow('artisan', st.active_id) && Number.isFinite(since)
+    ? st.active_id + ':' + since : null;
 }
 
 /** The line for the run `sawKey` names once the server says it finished on its own, or null. */

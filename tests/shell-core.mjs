@@ -1333,6 +1333,14 @@ async function runTests(mods) {
       for (const fn of stopped.subs) fn(stopped, 'changed');
       ok(!sc.list().some((a) => a.kind === 'work'), 'a run the player stopped raised a line');
       sc.destroy();
+      /* a short run paid whole by its first settle: its tally was never read running, only the activity pointer was (played on the local
+         world: Fuel all of 14 Bones, the first envelope back already said 14 burned and out of Bones) */
+      const quick = heroOf(Object.assign(env(null, true), { bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0 } }), null, T0 + MIN);
+      const qc = centreOf(quick);
+      quick.env = env('supplies', false);
+      for (const fn of quick.subs) fn(quick, 'changed');
+      ok(qc.list().some((a) => a.kind === 'work'), 'a run paid whole by its first settle raised no line: ' + JSON.stringify(qc.list().map((a) => a.text)));
+      qc.destroy();
       const late = centreOf(heroOf(env('supplies', false), null, T0 + 6 * MIN));
       ok(!late.list().some((a) => a.kind === 'work'), 'a run never watched raised a line');
       late.destroy();
@@ -1521,6 +1529,7 @@ const MUTANTS = [
   { test: 'R7', file: 'src/shell/alerts.js', from: '    const done = workDoneOf(cs, benchSeen.get(cs.slot));', to: '    const done = null;' },
   { test: 'R7', file: 'src/shell/town-news.js', from: ' || runKey(run) !== sawKey || ', to: ' || ' },
   { test: 'R7', file: 'src/shell/town-news.js', from: "const FINISHED = new Set(['supplies', 'count']);", to: "const FINISHED = new Set(['supplies', 'count', 'idle']);" },
+  { test: 'R7', file: 'src/shell/town-news.js', from: "  return st && st.active_kind === 'artisan' && typeof st.active_id === 'string'", to: "  return st && benchRunOf(cs) && benchRunOf(cs).end === null && st.active_kind === 'artisan' && typeof st.active_id === 'string'" },
   { test: 'R8', file: 'src/shell/alerts.js', from: '    const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));', to: '    const titled = null;' },
   { test: 'R8', file: 'src/shell/town-news.js', from: " && !told('title:' + r.id)) : [];", to: ') : [];' },
   { test: 'R8', file: 'src/shell/town-news.js', from: "also: ready.slice(1).map((r) => 'title:' + r.id),", to: 'also: [],' },

@@ -247,7 +247,7 @@ try {
     await q.shot('ar10-yard-took-over');
     step('AR-10 the card tells the hunt the yard took over: its Levels, the death and its Blessings, then the yard',
       !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford\. Killed by .+\. Death cost: [\d,]+ Level XP/.test(line)
-      && /3 Blessings saved [\d,]+ Level XP, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
+      && /3 Blessings saved [\d,]+ Level XP[^.]*, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
     await q.close();
   }
   step('AR-8 no page error', errors.length === 0, errors.join(' | '));

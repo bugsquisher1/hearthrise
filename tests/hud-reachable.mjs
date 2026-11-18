@@ -440,8 +440,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       };
       for (const [w, h] of [[1440, 900], [922, 423]]) {
         const at = w + 'x' + h;
-        const { ctx, page, s, up, errors } = await open(back, { width: w, height: h });
-        if (!up) { fails.push('HR-12 ' + at + ': the screen did not mount'); await ctx.close(); continue; }
+        /* home from the hunt: the town mounts (the hunt screen's bar never comes, so signIn's answer is not the control here) */
+        const { ctx, page, s, errors } = await open(back, { width: w, height: h });
+        if (!(await wait(page, () => document.querySelector('.hs-launchers')))) { fails.push('HR-12 ' + at + ': the town did not mount'); await ctx.close(); continue; }
         if (!(await wait(page, (q) => !!document.querySelector(q + ' .haway-hero'), AWAY))) { fails.push('HR-12 ' + at + ' CONTROL: no away card came up'); await ctx.close(); continue; }
         await page.waitForTimeout(800);
         await settle(page);

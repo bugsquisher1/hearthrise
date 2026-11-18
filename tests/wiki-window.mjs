@@ -6,7 +6,7 @@
 //   node tests/wiki-window.mjs --mutate         every planted defect must turn a rule RED
 //   node tests/wiki-window.mjs --shots <dir>    also write the desktop and phone screenshots
 //
-// mutant-anchors: src/data/settings.js src/core/combat.js src/core/action-rules.js src/core/xp.js src/shell/wiki-model.js src/shell/windows/wiki.js src/shell/chronicle-model.js src/session/hunt-sections.js
+// mutant-anchors: src/data/text/chronicle.js src/data/settings.js src/core/combat.js src/core/action-rules.js src/core/xp.js src/shell/wiki-model.js src/shell/windows/wiki.js src/shell/chronicle-model.js src/session/hunt-sections.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs); the hero is
 // tests/fixtures/alpha-envelope.json in town. Since the top bar's groups (2026-11-16) the wiki is the Book: the Chronicle first, then
@@ -227,6 +227,10 @@ async function chronicleRules() {
     if (p.open.kind === 'kills' && !CHRONICLE_TEXT['opens_' + p.id]) fails.push('WK-5 the page ' + p.id + ' never says which fight opens it');
     if (!['start', 'ground', 'kills'].includes(p.open.kind)) fails.push('WK-5 the page ' + p.id + ' opens on ' + p.open.kind);
   }
+  /* ITS FACTS ARE THE CANON (chronicle.js's header; audit 2026-11-18 A14: the Chronicle called Grayjaw "he" while the Ruff, the whisker and the
+     Thicket's den call Old Grayjaw the den mother): the Thicket's page says "she" of Grayjaw, never "he" */
+  const grayjaw = (CHRONICLE_TEXT.page_thicket || '').split(/(?<=[.!?])\s+/).filter((s) => /Grayjaw|\b(?:He|he|his|She|she|her)\b/.test(s)).join(' ');
+  if (/\b(?:He|he|his)\b/.test(grayjaw) || !/\b(?:She|she)\b/.test(grayjaw)) fails.push('WK-5 the Thicket page says of Grayjaw: ' + JSON.stringify(grayjaw.slice(0, 160)));
   const start = CHRONICLE.filter((p) => p.open.kind === 'start').map((p) => p.id).join(',');
   const order = (ids) => CHRONICLE.map((p) => p.id).filter((id) => ids.includes(id)).join(',');
   const cases = [
@@ -444,6 +448,7 @@ async function checks(overrides, shots) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
+  ['WK-5 the Chronicle calls Grayjaw "he" again (audit A14)', 'src/data/text/chronicle.js', "She\\'s slower than the young ones, but she got old", "He\\'s slower than the young ones, but he got old"],
   ['the engine\'s base chance to hit moves and the words do not', 'src/core/combat.js', '  let accuracy = 0.55 + (', '  let accuracy = 0.6 + ('],
   ['the engine\'s max hit per Level moves and the words do not', 'src/core/combat.js', '(dmgLvl * 0.35)', '(dmgLvl * 0.4)'],
   ['a monster\'s chance to hit grows faster than the words say', 'src/core/combat.js', ' - playerDefense) * b.monsterAccuracyPerPoint),', ' - playerDefense) * b.monsterAccuracyPerPoint * 1.5),'],

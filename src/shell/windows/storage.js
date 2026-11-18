@@ -210,6 +210,8 @@ async function pump(account, cs, sc, repaint) {
     const rows = (take[0].dir === 'withdraw' ? bankOf(cs) : bagOf(cs)) || [];
     const live = take.map((p) => ({ p, row: rows.find((r) => r.id === p.id) })).filter((x) => x.row);
     if (!live.length) continue;
+    /* no account to ask in bulk with: the head goes alone, the rest wait their turn (never dropped) */
+    if (live.length > 1 && !account) sc.queue = live.slice(1).map((x) => x.p).concat(sc.queue);
     const r = live.length > 1 && account ? await moveMany(account, cs, sc, repaint, live.map((x) => x.p.id), take[0].dir)
       : await move(cs, sc, repaint, live[0].p.id, live[0].p.qty === 'all' ? live[0].row.qty : Math.min(live[0].p.qty, live[0].row.qty), live[0].p.dir);
     if (!r || !r.ok) { sc.queue = []; return; }

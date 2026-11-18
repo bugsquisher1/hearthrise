@@ -98,6 +98,8 @@ export function kindWords(id) {
   if (k === 'food') return t('item.kind_food', { heals: it.heals });
   if (k === 'junk') return t('item.kind_junk');
   if (k === 'material') return t('item.kind_material');
+  /* a Rare drop kept for itself (bag-model.js kindOf: never Junk), named as the bag's chip names it */
+  if (k === 'rare' && !it.type) return t('item.kind_rare');
   return typeWord(it.type, 'item.type_item');
 }
 

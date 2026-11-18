@@ -285,10 +285,11 @@ function startApp(win) {
     /* the server's play-at-once limit, never a client fallback (board 2026-10-25 #8: an empty account read "One can play
        at a time." because the server had not said yet); unsaid, nothing is said */
     const playLine = G.playLineOf(a.statedLimit(), a.limit(), roster.length, a.slotOffer, roster);
+    slotAsking = false;   // a fresh roster asks nothing until Buy is pressed on it
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
-      + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying, asking: (slotAsking = false) }) + '</div>'
+      + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying, asking: false }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));

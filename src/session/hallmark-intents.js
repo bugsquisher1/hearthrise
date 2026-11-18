@@ -25,20 +25,19 @@ async function settled(cs, ans) {
   return r;
 }
 
-/* One priced step on one piece: the shared shape of both verbs. */
-function step(verb, rpc, account, cs, from, to, price) {
+/* One priced step on one piece: the shared shape of both verbs. `send(args)` names its RPC literally (tests/client-intent-surface.mjs reads the calls). */
+function step(verb, account, cs, from, to, price, send) {
   if (!account || !account.server || !cs) return Promise.resolve({ ok: false, error: 'bad_intent' });
   if (!ID.test(String(from)) || !ID.test(String(to)) || !Number.isSafeInteger(price) || price < 1) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return askVia(cs, verb, async () => settled(cs, await account.server.rpc(rpc,
-    { p_slot: cs.slot, p_from: from, p_to: to, p_price: price, p_idem: newIdem() })));
+  return askVia(cs, verb, async () => settled(cs, await send({ p_slot: cs.slot, p_from: from, p_to: to, p_price: price, p_idem: newIdem() })));
 }
 
 /** Hallmark one Fine piece into `to` at the price the server quoted. */
 export function hallmarkPiece(account, cs, from, to, price) {
-  return step('hallmark', 'hr_hallmark', account, cs, from, to, price);
+  return step('hallmark', account, cs, from, to, price, (args) => account.server.rpc('hr_hallmark', args));
 }
 
 /** Reforge one Hallmarked piece into the next tier's `to` at the price (the fee difference) the server quoted. */
 export function reforgePiece(account, cs, from, to, price) {
-  return step('jewel_reforge', 'hr_jewel_reforge', account, cs, from, to, price);
+  return step('jewel_reforge', account, cs, from, to, price, (args) => account.server.rpc('hr_jewel_reforge', args));
 }

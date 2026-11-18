@@ -36,6 +36,8 @@ import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0
 import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.138';
 import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.138';
 import { recipeInputs } from '../core/artisan.js?v=0.2.138';
+import { bandOf } from '../core/drops.js?v=0.2.138';
+import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.138';
 import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.138';
 import { itemName } from './widgets/bits.js?v=0.2.138';
 import { HERO_RESIST_KEYS } from '../data/elements.js?v=0.2.138';
@@ -119,6 +121,21 @@ export const plannedUse = (id) => !!(ITEMS[id] && ITEMS[id].imbue);
 /** Does any recipe, House price or Tempering rung spend this item? From the rows, so a new recipe or rung needs no list. */
 export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);
 
+/** A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
+export const isRareRow = (d) => !!d && d.lucky !== true && d.salvage !== true && d.ch < 1 && REVEAL_BANDS.includes(bandOf(d));
+let RARE_ITEMS = null;
+/** Is this item a Rare somewhere (the Hunts page's own test, and the away card's "Best find")? From the rows, built once. */
+export function isRareItem(id) {
+  if (!RARE_ITEMS) { RARE_ITEMS = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (isRareRow(d)) RARE_ITEMS.add(d.id); }
+  return RARE_ITEMS.has(id);
+}
+let EVERYDAY = null;
+/** Is this item a Rare wherever it drops (Rook's Whistle), not a ground's everyday piece as well (the Iron Helm: Rare on the Thicket's den mother, Scarce in the Glade)? */
+export function isRareOnly(id) {
+  if (!EVERYDAY) { EVERYDAY = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (d && d.lucky !== true && d.salvage !== true && !isRareRow(d)) EVERYDAY.add(d.id); }
+  return isRareItem(id) && !EVERYDAY.has(id);
+}
+
 /** The pocket's kind, from the catalogue row (and the drop and recipe rows, so a new row files itself). */
 export function kindOf(id) {
   const it = ITEMS[id];
@@ -135,7 +152,9 @@ export function kindOf(id) {
      rung: Big Bones, Silk Thread, pelts, raw meat) or will (an imbuement's ingredient), unless a hero can make or gather it
      too; a tool is a tool however it is made */
   const made = it.type !== 'tool' && madeSet().has(id);
-  if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';
+  /* A RARE IS NEVER JUNK (audit 2026-11-18 A16: "Sell all junk" sold the Alpha Fang the away card had just called the Best find): a drop that is a
+     Rare somewhere (isRareItem, the Best find's own test) files under Rare, so no bulk sale sweeps it unasked */
+  if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';
   if (made) return 'material';
   /* the raw flag on a tool is only the shop's bid (BULK_GOODS, src/data/items.js), never its kind */
   if (it.type === 'tool') return 'other';

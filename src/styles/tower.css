@@ -99,6 +99,8 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tt-start-row .hh-select { flex: 0 1 auto; margin-left: auto; min-width: 96px; min-height: 36px; font-size: var(--t-small); font-weight: 700; }
 .tt-foot .hw-why { margin: 0 2px 6px; }
 .tt-foot .hw-why:empty { display: none; }
+/* Before entering: what the bar buys from the store, a box under the rules (audit 2026-11-18 A5); none while a climb runs */
+.tt-before-box:has(.tt-before:empty) { display: none; }
 .tt-go { display: block; width: 100%; min-height: 40px; }
 
 /* ── THE CHEST: the firebox, the chest on the ledge beside the fire, the reveal where the chest sits ── */

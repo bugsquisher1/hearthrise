@@ -55,6 +55,9 @@ export const SHOP_TEXT = Object.freeze({
   /* Why Bless all is off, said under it. */
   bless_all_on: 'All Blessings on',
   bless_all_short: 'Not enough gold for the next Blessing',
+  /* the Sell tab's note, one sentence a part (audit 2026-11-18 A14: two parts ran on with no stop between them) */
+  spare_keeps: 'Sell spare gear keeps worn, higher-tier and Rare pieces.',
+  sale_cap: 'One sale takes up to {n} of a stack.',
   junk_keeps: { one: 'Keeps {count} Material stack ({worth}), sell it by hand.',
     other: 'Keeps {count} Material stacks ({worth}), sell them by hand.' },
 });

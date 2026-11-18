@@ -20,7 +20,8 @@
 // ════════════════════════════════════════════════════════════════════════
 import { towerOf, keyForLanding } from '../../session/tower-sections.js?v=0.2.138';
 import { startClimb } from '../../session/tower-intents.js?v=0.2.138';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.138';
+import { huntOf, sessionModeOfHunt } from '../../session/hunt-sections.js?v=0.2.138';
+import { beforeLines, FOOD_WEAK_ID } from '../hunt-go.js?v=0.2.138';
 import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.138';
 import { towerGateOf } from '../../session/gate-sections.js?v=0.2.138';
 import { nameOf } from '../../session/item-sections.js?v=0.2.138';
@@ -106,6 +107,8 @@ export function renderTower(ctx) {
     + '<section class="tt-box tt-rules-box"><h3 class="hw-hd-h tt-hd">' + esc(t('tower.climb_head')) + '</h3><div class="tt-rows">'
     + STATS.map(([id, key]) => '<div class="tt-row" data-row="' + id + '"><span class="tt-k">' + esc(t(key)) + '</span><span class="tt-v"></span></div>').join('')
     + '</div></section>'
+    /* Before entering (audit 2026-11-18 A5): what the bar buys from the store and the gold it is paid from, a box in the column under the rules */
+    + '<section class="tt-box tt-before-box"><h3 class="hw-hd-h tt-hd">' + esc(t('hunts.head_before')) + '</h3><ul class="hw-before tt-before"></ul></section>'
     /* the Start Floor stands on the foot beside Enter: the floor the press sends is never scrolled away from it */
     + '<div class="tt-foot"><label class="tt-start-row"><span class="tt-k">' + esc(t('tower.start_head')) + '</span>'
     + '<select class="hh-select tt-start-pick" data-hs-act="floor"></select></label>'
@@ -133,6 +136,21 @@ function stat(root, id, value) {
   const row = root.querySelector('.tt-row[data-row="' + id + '"]');
   prop(row, 'hidden', !value);
   text(row.querySelector('.tt-v'), value || '');
+}
+
+/** BEFORE ENTERING, AS A HUNT'S CARD SAYS IT (audit 2026-11-18 A5: a Level 9 hero climbed 19 floors on 56 Salted Shrimp from the store, 794 gp, with no
+    word before Enter): the bar's food, drink, runes and ammo with the store's prices, the stamina and the gold the store is paid from (hunt-go.js
+    beforeLines, the Hunts page's own reader, so the two never disagree; the stamina is the bar's clock). Not while a hunt or a climb runs (the hunt bag is spent then), and never a
+    line about a death this mode takes nothing for (session-modes.js: no Blessings used). A hunt card's line joins its parts with ". " ("Food: 14
+    Wheat Bread. Carried: 5 Cooked Shrimp, put it on the bar"); the Tower's labels stand one a line (tower.js text table: labels, not sentences).
+    Display only: the server judges the press. */
+export function towerBeforeLines(cs, tw) {
+  const h = huntOf(cs);
+  if ((h && !h.ended) || tw.run) return [];
+  const mode = sessionModeOfHunt(tw.hunt);
+  /* the stamina is the bar's own clock, right under the window (and the rules' Uses row says a climb drains it) */
+  return (beforeLines(cs, { hunt: tw.hunt }) || []).filter((l) => l.id !== FOOD_WEAK_ID && l.id !== 'stamina' && (mode.blessings || l.id !== 'blessings'))
+    .flatMap((l) => l.text.split('. ').map((text, i) => ({ id: l.id + (i ? ':' + i : ''), text, short: l.short })));
 }
 
 /* NEXT KEY: the key the first landing past the best gives (the server's key row), its floor, and a tick a floor climbed toward it. */
@@ -180,6 +198,11 @@ function patchClimb(root, cs, tw, sc) {
   /* in a party the climb starts where every seat has been: the server's own checkpoints, read from its lowest seat's record */
   stat(root, 'party', partyMembershipOf(cs) && tw.checkpoints.length ? t('tower.start_floor', { floor: tw.checkpoints[tw.checkpoints.length - 1] + 1 }) : '');
   patchStarts(root.querySelector('.tt-start-pick'), tw, landing, sc.pending);
+  rows(root.querySelector('.tt-before'), towerBeforeLines(cs, tw), {
+    key: (l) => l.id,
+    build: () => { const li = root.ownerDocument.createElement('li'); li.className = 'hw-before-line'; return li; },
+    patch: (li, l) => { text(li, l.text); cls(li, 'is-short', l.short); },
+  });
   const block = enterBlock(cs, tw, landing);
   const go = root.querySelector('.tt-go');
   prop(go, 'disabled', sc.pending || !!block);

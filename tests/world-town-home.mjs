@@ -34,7 +34,8 @@
 //     trophy mounts follow the server's claims and the Trophy Room
 //   H THE HATCH ONLY NAVIGATES: tapping the mill hatch (or its tile) is ONE
 //     navigation to Adventures with mill_cellar; the anvil opens Smithing, a
-//     piece its room, a signpost the House screen, open ground a walk; the
+//     piece its room, a signpost the House screen (and the pane opens it,
+//     the Garden's its Farm: world-pane.js tapWindowOf), open ground a walk; the
 //     world's navigation table names nothing that could send an intent
 //   S STEERING: no corner cutting; a tap on a station opens it and walks next to
 //     it; THE HERO NEVER WALKS ON ITS OWN (Tyler 2026-10-19): not after a tap, the
@@ -80,6 +81,7 @@ async function load(base) {
   return { walk, town, home, steer, store, mapc, nullb, book, bookm, manifests, tables, rows, maps, terrain, stations, layouts, perks, camera, facing, choreo,
     residue: (await import(pathToFileURL(join(base, 'src/session/residue.js')).href)).RESIDUE_FIELDS,
     homeSec: await imp('src/session/home-sections.js'),
+    pane: await imp('src/app/world-pane.js'),
     bootSrc: readFileSync(join(base, 'src/world/world-boot.js'), 'utf8') };
 }
 
@@ -283,6 +285,13 @@ function check(M) {
       'the anvil under a tree canopy opens Smithing');
     ok('H', M.steer.tapAction(cottage, { tile: [7, 2], hits: [{ id: 'hearth', tx: 7, ty: 2, ref: { room: 'kitchen' } }] }, o).room === 'kitchen', 'a piece opens its room');
     ok('H', M.steer.tapAction(cottage, { tile: [7, 2], hits: [{ id: 'signpost', tx: 7, ty: 2, ref: { sign: 'kitchen' } }] }, o).kind === 'house', 'a signpost opens the House screen');
+    /* ...and THE PANE OPENS IT (audit 2026-11-18 A4: the Garden signpost showed a hand and opened nothing, since the pane answered neither
+       'room' nor 'house'): a room's signpost and piece open the House screen, the Garden's the Farm (house-layouts.js roomWindowOf). */
+    const seen = { read: () => null };
+    const opens = (kind, room) => M.pane.tapWindowOf(kind, { room }, seen);
+    ok('H', opens('house', 'kitchen') === 'house' && opens('room', 'kitchen') === 'house', 'a home room\'s signpost and piece open the House screen, got ' + opens('house', 'kitchen') + ' / ' + opens('room', 'kitchen'));
+    ok('H', opens('house', 'garden') === 'farm' && opens('room', 'garden') === 'farm', 'the Garden\'s signpost and pieces open the Farm, got ' + opens('house', 'garden') + ' / ' + opens('room', 'garden'));
+    ok('H', M.pane.tapWindowOf('house', {}, seen) === null && M.pane.tapWindowOf('keeper', { window: 'settings' }, seen) === null, 'a tap naming no room, or a window no station names, opens nothing');
     const walk = M.steer.tapAction(town, { tile: [11, 9], hits: [{ id: 'hero', tx: 11, ty: 9, ref: null }] }, o);
     ok('H', walk.kind === 'walk' && walk.to.join() === '11,9', 'open ground is a walk');
     const exit = M.steer.tapAction(cottage, { tile: [22, 12], hits: [] }, o);
@@ -498,7 +507,7 @@ function check(M) {
    src/data/training.js: hunts.js and the map index fold the training grounds in (lane/c-combat-training).
    Past those: every module a copied file imports, followed to the end (importClosure below), so a data module a pack or hunts.js
    starts to read is copied with it (release/v0.2.135 run 44066147612 missed src/data/tower.js, then special-attributes.js). */
-const HAND = ['src/world', 'src/data/world', 'src/data/grounds', 'src/data/hunts.js', 'src/data/training.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/data/panel-alpha.js', 'src/data/fx-alpha.js', 'src/data/skills.js', 'src/build-info.js', 'assets/world', 'src/session'];
+const HAND = ['src/app/world-pane.js', 'src/world', 'src/data/world', 'src/data/grounds', 'src/data/hunts.js', 'src/data/training.js', 'src/data/hunt-outfits.js', 'src/data/town-presence.js', 'src/data/perks.js', 'src/data/homestead-tiers.js', 'src/data/panel-alpha.js', 'src/data/fx-alpha.js', 'src/data/skills.js', 'src/build-info.js', 'assets/world', 'src/session'];
 /* Every .js under `seeds` (files or folders), then every relative module they import (static `from`, literal `import()`), followed. */
 function importClosure(seeds) {
   const todo = [], seen = new Set();
@@ -560,6 +569,8 @@ const MUTANTS = [
   ['F', 'a built Trophy Room with nothing to hang says nothing', 'src/world/home-scene.js', [["if (first) first.plate = { text: EMPTY_WALL, kind: 'sign' };", 'void first;']]],
   ['F', 'a room with a rung missing from its layout', 'src/data/world/house-layouts.js', [[", [p('basket', 6, 3)]]),", ']),']]],
   ['H', 'the hatch also moves the hero', 'src/world/steer-local.js', [["if (act.kind === 'hunt') return nav.hunt(act.hunt);", "if (act.kind === 'hunt') { nav.walk([0, 0]); return nav.hunt(act.hunt); }"]]],
+  ['H', 'a home tap opens nothing again (audit A4)', 'src/app/world-pane.js', [["  if (kind === 'room' || kind === 'house') return", '  if (false) return']]],
+  ['H', 'the Garden opens the House, not the Farm', 'src/data/world/house-layouts.js', [["ROOM_WINDOWS = Object.freeze({ garden: 'farm' });", 'ROOM_WINDOWS = Object.freeze({});']]],
   ['H', 'the hatch starts the hunt', 'src/world/world-boot.js', [["    hunt: (id) => emit('entrance', { hunt: id }),", "    hunt: (id) => { win.startHunt(id); return emit('entrance', { hunt: id }); },"]]],
   ['S', 'a corner-cutting walk', 'src/world/core/path.js', [['if (dx && dy) return walkable', 'if (false) return walkable']]],
   ['S', 'the hero walks to its station on its own again', 'src/world/walk-scene.js', [['      const at = steer.step(now);', '      if (steer.restMs(now) >= 3000) steer.walkTo(map.stations.combat || map.start, now, false);\n      const at = steer.step(now);']]],

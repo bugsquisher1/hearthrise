@@ -27,6 +27,9 @@ export const COACH_TEXT = Object.freeze({
   tower: 'Town → Burning Tower → Enter',
   tamsin_owes_title: 'Rats done',
   tamsin_owes: 'Leave the hunt and collect from Tamsin in town',
+  /* THE FARM, from town (audit 2026-11-18 A4): the way there first, since the Farm lives in the Town menu */
+  plant_land: 'Town → Farm (J) → Plant Turnip Seeds',
+  plant_land_in: 'Press Plant on each empty plot',
   back_down_title: 'Back for Level {level}',
   back_down: 'Hunts → {ground} → Enter',
   back_down_in: 'Press the {ground}, then Enter',

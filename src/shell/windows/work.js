@@ -23,7 +23,9 @@
 // While the work runs, the line and the skill's bar under its title also count
 // what the server's engine has certainly done since its last payout
 // (src/shell/town-ticker.js), as pending; the rows' numbers stay the server's.
-// Farming has no door here: it is grown in plots, which this window does not run.
+// Farming has no rows here: it is grown in plots, which this window does not run, so its
+// ledger line is a link to the window that does (skill-guide.js `window`: the Farm), the
+// same arrow and press as every other skill (audit 2026-11-18 A4: the one line that went nowhere).
 // ════════════════════════════════════════════════════════════════════════
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.138';
 import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.138';
@@ -37,7 +39,7 @@ import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js?v=0.2.13
 import { runIntent } from '../intent-words.js?v=0.2.138';
 import { renderTradeSkills, skillBarHtml, patchSkillProgress } from './skills.js?v=0.2.138';
 import { GATHER_INDEX, BENCH_INDEX, workRow, workOf, productOf, yieldOf, runsOf, affordable, actionMs, perHourOf, xpEach, workBlock, startWork, stopWork, nowParts, gatherBagWords, tickOf, BENCH_COUNTS, BENCH_MAX, clampCount, defaultCount, leftOf, toolLine, shortInputLine } from '../town-work.js?v=0.2.138';
-import { patchParts, placesParts } from '../goto.js?v=0.2.138';
+import { patchParts, placesParts, gotoKey, followGoto } from '../goto.js?v=0.2.138';
 import { saleWords } from '../item-lore.js?v=0.2.138';
 import { aheadXp, paintLine } from '../town-ticker.js?v=0.2.138';
 import { feeRowWords, feeFullWords, feeHeadWords, benchEndWords } from '../bench-fee.js?v=0.2.138';
@@ -65,6 +67,12 @@ function push(w) { if (!BY_SKILL.has(w.skill)) BY_SKILL.set(w.skill, []); BY_SKI
 function hasWork(skill) {
   const d = SKILLS_DEF[skill];
   return !!d && (d.cat === 'gather' || d.cat === 'artisan') && BY_SKILL.has(skill);
+}
+
+/** The window a skill with no rows here is trained in (skill-guide.js `window`), as a link target, or null. */
+export function elsewhereOf(skill) {
+  const g = hasWork(skill) ? null : SKILL_GUIDE[skill];
+  return g && g.window ? { win: g.window, tab: null, find: null } : null;
 }
 
 /**
@@ -221,10 +229,13 @@ renderWork.patch = function patchWork(body, ctx) {
   for (const li of ledger.querySelectorAll('.hw-skill')) {
     const id = li.getAttribute('data-key');
     const door = hasWork(id);
-    attr(li, 'data-hs-act', door ? 'open-skill' : null);
+    /* a skill trained in another window (the Farm) is a link to it: the shell follows the press (goto.js), Enter here */
+    const away = elsewhereOf(id);
+    attr(li, 'data-hs-act', door ? 'open-skill' : away ? 'open-place' : null);
+    attr(li, 'data-hs-goto', gotoKey(away));
     attr(li, 'data-skill', door ? id : null);
-    attr(li, 'role', door ? 'button' : null);
-    attr(li, 'tabindex', door ? '0' : null);
+    attr(li, 'role', door || away ? 'button' : null);
+    attr(li, 'tabindex', door || away ? '0' : null);
     cls(li, 'is-working', !!on && on.skill === id);
   }
   /* One skill's rows. */
@@ -301,7 +312,8 @@ renderWork.act = function actWork(ctx, body, action, ev, el) {
     return ev.key === 'Enter' ? setX(sc, el, repaint) : false;
   }
   if (ev.type === 'keydown') {
-    if (action !== 'open-skill' || (ev.key !== 'Enter' && ev.key !== ' ')) return false;
+    if ((action !== 'open-skill' && action !== 'open-place') || (ev.key !== 'Enter' && ev.key !== ' ')) return false;
+    if (action === 'open-place') return followGoto(ctx, el);
   } else if (ev.type !== 'click') return false;
   /* To a skill's rows and back: the header's Back follows the page AT ONCE (the shell's refresh paints both, as Hunts does). Painted on a later
      refresh, the Back grew the head under a pressed Start and pushed its row out of the body (IP-7, a 667x375 phone). */

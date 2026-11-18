@@ -77,6 +77,14 @@ export const BAG_TEXT = Object.freeze({
   store_aria_put: '{item}: deposit',
   store_kept: { one: '{count} more kept free for market listings', other: '{count} more kept free for market listings' },
   store_dispatch_tip: 'Deposits and sells each stack as planned',
+  /* DEPOSIT ALL MATERIALS (audit 2026-11-18 A8): one press for every Material stack that fits; {n} the stacks it names now */
+  store_mats: 'Deposit all materials',
+  store_mats_n: 'Deposit all materials ({n})',
+  store_mats_tip: 'Every Material stack in the bag, unlocked, whole',
+  store_mats_left: { one: 'Storage full: {count} material stack stays in the bag', other: 'Storage full: {count} material stacks stay in the bag' },
+  /* a press made while another is out waits its turn (the same audit: fast presses were dropped or refused) */
+  store_queued: { one: 'Moving… {count} more waiting', other: 'Moving… {count} more waiting' },
+  store_took_stacks: { one: 'Withdrew {count} stack', other: 'Withdrew {count} stacks' },
   store_how_many: '{verb} how many {item}?',
   store_how_many_label: '{verb} how many',
   store_grow_reading: 'Loading bag size…',

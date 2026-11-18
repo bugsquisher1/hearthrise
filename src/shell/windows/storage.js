@@ -25,9 +25,18 @@
 // Beside the bag: Dispatch loot (Tyler 2026-10-25, loot-dispatch.js), ONE
 // hr_loot_dispatch that stores every stack planned "Deposit in storage" while
 // Storage has room and sells every stack planned "Sell"; off with its reason (a
-// hunt, nothing planned), and its line is the server's answer.
+// hunt, nothing planned), and its line is the server's answer. Beside it,
+// Deposit all materials (audit 2026-11-18 A8: a full bag took 46 shift-clicks):
+// ONE hr_bank_move_many naming the bag's Material stacks that fit
+// (storage-model.js materialsToStore), whole, at the server's own counts.
+// PRESSES QUEUE (the same audit: two a second met "Too many changes, try
+// again"): a press made while another is out waits its turn, merged with a
+// queued press on the same stack, and the whole-stack ones go together in ONE
+// hr_bank_move_many (storage-model.js queuePress, nextBatch). A refusal stops
+// the queue and says why: nothing more is sent on a guess.
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, bankOf, depotOf, shopOf, bagExpandOf, goldOf } from '../../session/item-sections.js?v=0.2.138';
+import { bagOf, bankOf, depotOf, shopOf, bagExpandOf, goldOf, rulesOf } from '../../session/item-sections.js?v=0.2.138';
+import { moveStorageMany } from '../../session/storage-intents.js?v=0.2.138';
 import { STORE_SEEN_MAX } from '../../session/residue.js?v=0.2.138';
 import { huntOf } from '../../session/hunt-sections.js?v=0.2.138';
 import { rows, text, cls, attr, prop, element } from '../../render/paint.js?v=0.2.138';
@@ -36,7 +45,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.138';
 import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.138';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.138';
 import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.138';
-import { storePrefsOf, markStored } from '../storage-model.js?v=0.2.138';
+import { storePrefsOf, markStored, materialsToStore, queuePress, nextBatch } from '../storage-model.js?v=0.2.138';
 import { runIntent } from '../intent-words.js?v=0.2.138';
 import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.138';
 import { showTip, hideTip } from './item-tip.js?v=0.2.138';
@@ -47,7 +56,7 @@ import { toolLossWords } from '../town-work.js?v=0.2.138';
 import { t } from '../../render/player-text.js?v=0.2.138';
 
 const SCRATCH = new WeakMap();
-const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false }; SCRATCH.set(cs, s); } return s; };
+const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { query: '', pending: false, msg: '', press: null, pressed: false, queue: [] }; SCRATCH.set(cs, s); } return s; };
 const LONG_PRESS_MS = 500;
 
 const residueOf = (cs) => (cs && cs.record && cs.record.residue) || {};
@@ -68,7 +77,8 @@ export function renderStorage(ctx) {
     + '<h3 class="hw-ledger-head is-on hw-store-baghead">' + t('bag.store_in_bag') + ' <small class="hw-store-n" data-n="bag"></small></h3>'
     /* Expand: the bag's next rung, at the server's price (hr_bag_expand_view); one unlock_buy naming the offer and no number. */
     + '<div class="hw-tools hw-store-grow"><button type="button" class="hh-tool" data-hs-act="expand"></button><p class="hw-why"></p></div>'
-    + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button><p class="hw-why"></p></div>'
+    + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="deposit-materials"></button><p class="hw-why"></p><p class="hw-why hw-store-mats-why"></p></div>'
     + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
        (windows.css, sticky), and its coming moves no stack from under the hand. Above the grids, a bag scrolled into reach left it out of sight, and a
@@ -119,7 +129,8 @@ renderStorage.patch = function patchStorage(body, ctx) {
   const bank = bankOf(cs), bag = bagOf(cs);
   const h = huntOf(cs);
   const away = !!(h && !h.ended);
-  const off = sc.pending || away || !bank || !bag;
+  /* a press while another is out is queued, never dropped: the stacks stay pressable then (the window is is-pending) */
+  const off = away || !bank || !bag;
   const prefs = storePrefsOf(residueOf(cs));
   /* "Recently added": mark the stacks in storage now; one residue put only when a mark changed. */
   const marks = bank ? markStored(residueOf(cs).storeSeen || null, bank, STORE_SEEN_MAX) : null;
@@ -152,6 +163,13 @@ renderStorage.patch = function patchStorage(body, ctx) {
   prop(db, 'disabled', sc.pending || !!dWhy);
   attr(db, 'title', dWhy || t('bag.store_dispatch_tip'));
   text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);
+  /* Deposit all materials: the bag's Material stacks that fit, counted on the press; what does not fit is said under it */
+  const mats = materialsOf(cs);
+  const mb = root.querySelector('[data-hs-act="deposit-materials"]');
+  text(mb, mats.ids.length ? t('bag.store_mats_n', { n: whole(mats.ids.length) }) : t('bag.store_mats'));
+  prop(mb, 'disabled', sc.pending || off || !mats.ids.length);
+  attr(mb, 'title', t('bag.store_mats_tip'));
+  text(root.querySelector('.hw-store-mats-why'), away || !mats.left ? '' : t('bag.store_mats_left', { count: mats.left }));
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);
   if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds
@@ -165,6 +183,37 @@ function setPref(cs, key, value) {
   const p = storePrefsOf(residueOf(cs));
   p[key] = value;
   cs.setResidue('storeView', p);
+}
+
+/* What Deposit all materials names now (storage-model.js materialsToStore over the server's bag, Storage, room and locks). */
+const materialsOf = (cs) => materialsToStore(bagOf(cs) || [], bankOf(cs), depotOf(cs), (rulesOf(cs) || {}).locked || null);
+
+/* ONE hr_bank_move_many naming whole stacks (the server's counts, all or nothing); both grids change only from the re-read envelope. */
+function moveMany(account, cs, sc, repaint, ids, dir) {
+  return runIntent(sc, repaint, () => moveStorageMany(account, cs, ids, dir), dir === 'withdraw' ? t('bag.store_taking') : t('bag.putting_away'),
+    (r) => t(dir === 'withdraw' ? 'bag.store_took_stacks' : 'bag.put_away', { count: r.count }), cs);
+}
+
+/* A press: queued (merged with a queued press on the same stack), then the queue is sent in turn. While one is out the line says how many wait. */
+function press(account, cs, sc, repaint, p) {
+  sc.queue = queuePress(sc.queue, p);
+  if (sc.pending) { sc.msg = t('bag.store_queued', { count: sc.queue.length }); repaint(); return; }
+  pump(account, cs, sc, repaint);
+}
+
+/* SEND THE QUEUE, ONE ASK AT A TIME: every whole-stack press of a direction together (ONE hr_bank_move_many), a counted press alone (ONE hr_bank_move)
+   at its count, never more than the server's last stack (a stack gone since is passed by). A refusal stops it: its words stand, the rest is dropped. */
+async function pump(account, cs, sc, repaint) {
+  while (!sc.pending && sc.queue.length) {
+    const { take, rest } = nextBatch(sc.queue);
+    sc.queue = rest;
+    const rows = (take[0].dir === 'withdraw' ? bankOf(cs) : bagOf(cs)) || [];
+    const live = take.map((p) => ({ p, row: rows.find((r) => r.id === p.id) })).filter((x) => x.row);
+    if (!live.length) continue;
+    const r = live.length > 1 && account ? await moveMany(account, cs, sc, repaint, live.map((x) => x.p.id), take[0].dir)
+      : await move(cs, sc, repaint, live[0].p.id, live[0].p.qty === 'all' ? live[0].row.qty : Math.min(live[0].p.qty, live[0].row.qty), live[0].p.dir);
+    if (!r || !r.ok) { sc.queue = []; return; }
+  }
 }
 
 /* ONE hr_bank_move naming exactly `qty`; both grids change only from the re-read envelope. */
@@ -195,7 +244,7 @@ function askAmount(ctx, body, cs, sc, repaint, row, dir, at) {
       if (stepAmount(menu, action) || action !== 'amt-go') return;
       const n = amountOf(menu);
       closeFloatMenu(ctx.doc);
-      if (!sc.pending) move(cs, sc, repaint, row.id, n, dir);
+      press(ctx.account, cs, sc, repaint, { id: row.id, dir, qty: n });
     },
     onClose: () => {},
     alive: () => body.isConnected,
@@ -209,8 +258,15 @@ renderStorage.act = function actStorage(ctx, body, action, ev, el) {
   if (action === 'search' && ev.type === 'input') { sc.query = el.value.slice(0, 40); repaint(); return false; }
   if (action === 'sort' && ev.type === 'change') { setPref(cs, 'sort', el.value); repaint(); return false; }
   if (action === 'cat' && ev.type === 'click') { setPref(cs, 'cat', el.getAttribute('data-cat')); repaint(); return true; }
-  if (action === 'expand') { if (ev.type === 'click' && !sc.pending && !el.disabled) expand(cs, sc, repaint); return ev.type === 'click'; }
-  if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !el.disabled) runDispatch(ctx.account, cs, sc, repaint); return ev.type === 'click'; }
+  /* a stack pressed while one of these is out waits in the queue: sent once its answer is in */
+  const then = (p) => Promise.resolve(p).then(() => pump(ctx.account, cs, sc, repaint));
+  if (action === 'expand') { if (ev.type === 'click' && !sc.pending && !el.disabled) then(expand(cs, sc, repaint)); return ev.type === 'click'; }
+  if (action === 'dispatch') { if (ev.type === 'click' && !sc.pending && !el.disabled) then(runDispatch(ctx.account, cs, sc, repaint)); return ev.type === 'click'; }
+  if (action === 'deposit-materials') {
+    const ids = materialsOf(cs).ids;
+    if (ev.type === 'click' && !sc.pending && !el.disabled && ids.length && ctx.account) then(moveMany(ctx.account, cs, sc, repaint, ids, 'deposit'));
+    return ev.type === 'click';
+  }
   if (action !== 'withdraw' && action !== 'deposit') return false;
   const id = el.getAttribute('data-item');
   const type = ev.type;
@@ -236,6 +292,6 @@ renderStorage.act = function actStorage(ctx, body, action, ev, el) {
   if (sc.pressed) { sc.pressed = false; return true; }
   if (off || !row) { sayAway(cs, sc, repaint); return true; }
   hideTip(ctx.doc);
-  move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);
+  press(ctx.account, cs, sc, repaint, { id, dir: action, qty: ev.shiftKey ? 'all' : 1 });
   return true;
 };

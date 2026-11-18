@@ -86,12 +86,13 @@ export const ITEM_TEXT = Object.freeze({
   ammo_shot: 'Fired from a bow or crossbow, one used each shot',
   ammo_endless: 'Fired from a bow or crossbow, never runs out',
 
-  /* A requirement, against the server's number. */
-  need_level: 'Needs Level {level}',
+  /* A requirement, against the server's number, in the genre's label (audit 2026-11-18 A18: "Requires Level 12", the Tower's door and a
+     bench row's own words). */
+  need_level: 'Requires Level {level}',
   locked_unlock_first: '{item} is locked. Unlock it first',
-  need_level_have: 'Needs Level {level}, now {have}',
-  need_skill: 'Needs {skill} {level}',
-  need_skill_have: 'Needs {skill} {level}, now {have}',
+  need_level_have: 'Requires Level {level}, now {have}',
+  need_skill: 'Requires {skill} {level}',
+  need_skill_have: 'Requires {skill} {level}, now {have}',
 
   /* ONE of an item named in the plural, for a count beside it (src/shell/widgets/bits.js itemNameFor): "1 Bone", never
      "1 Bones" (live v0.2.135). One row per countable stack whose name is plural. A pair (Iron Boots) and a mass (Tempering

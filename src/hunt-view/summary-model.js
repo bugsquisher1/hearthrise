@@ -24,7 +24,7 @@ import { cameHomeWords } from '../data/party-words.js?v=0.2.138';
 import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.138';
 import { lossLine, seriesLine } from './boss-loss.js?v=0.2.138';
 import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.138';
-import { callOf } from '../session/hunt-sections.js?v=0.2.138';
+import { callOf, sessionModeOfHunt } from '../session/hunt-sections.js?v=0.2.138';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.138';
 import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.138';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.138';
@@ -84,6 +84,9 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
   /* A CALL OUT SERIES that ended short of its count: the hero could not pay another fight (src/data/boss-calls.js series.ended). */
   const short = BOSS_CALL_WORDS.series.ended;
   if (forfeit !== true && hunt && Object.hasOwn(short, reason) && (roomOfHunt(hunt) || {}).kind === 'call') return short[reason];
+  /* A MODE THAT TAKES NOTHING FOR A DEATH (session-modes.js deathLossPm 0: the Burning Tower spits you out) never reads "Died" (audit 2026-11-18
+     A5: the hunt history listed a climb as Died, though the Tower says it can't kill you) */
+  if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return t('summary.end_spat');
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || t('summary.end_plain');
 }
 

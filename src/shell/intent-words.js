@@ -4,7 +4,7 @@
 // PURE. Every window says why the server refused, the same way, from ONE table
 // (src/data/refusal-words.js): a code's own line, else its family's, else a
 // fallback that still says nothing was changed. A refusal that names an item
-// the hero is short of says the numbers ("Steel Helm needs Level 30 — you're
+// the hero is short of says the numbers ("Steel Helm requires Level 30, now
 // 28.": gear by Level, a supply by its skill), the SERVER's own; a house
 // build short of a material says the server's bag and Storage counts. The
 // server's value stays on screen either way: nothing changed before it answered.
@@ -47,19 +47,19 @@ export function refusalWords(code, verb) {
 }
 
 /**
- * "Steel Helm needs Level 30 — you're 28." for an item the server refused on its requirement: the item the
+ * "Steel Helm requires Level 30, now 28." for an item the server refused on its requirement: the item the
  * server's answer names, what its catalogue row requires (the hero's Level for gear, a skill for ammo: item-lore.js
  * needOf) and the server's own number, from the refusal itself when it says one (hr_apply's `have`, hr_item_
  * requirement_unmet), else from the character's sections. Null when the item names no requirement.
  */
 function requirementWords(item, cs, counts) {
   const it = typeof item === 'string' && own(ITEMS, item) ? ITEMS[item] : null;
-  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) {
-    return it.n + ' n' + needWords(it.reqSkill, it.reqLv, counts.have).slice(1) + '.';
-  }
+  /* the requirement's label as the sentence's verb: "Requires Level 15" -> "Iron Platelegs requires Level 15." */
+  const said = (words) => it.n + ' ' + words.charAt(0).toLowerCase() + words.slice(1) + '.';
+  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) return said(needWords(it.reqSkill, it.reqLv, counts.have));
   const lv = cs ? levelOf(cs) : null;
   const need = it ? needOf(item, cs ? skillsOf(cs) : null, lv ? lv.level : null) : null;
-  return need ? it.n + ' n' + need.text.slice(1) + '.' : null;
+  return need ? said(need.text) : null;
 }
 
 /**

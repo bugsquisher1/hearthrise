@@ -209,6 +209,16 @@
 .slot-offer-buy:hover:not(:disabled) { background: var(--bg-3); border-color: var(--gold-3); }
 .slot-offer-buy:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .slot-offer-buy:disabled { opacity: .5; cursor: default; }
+/* The one question before the purchase (audit 2026-11-18 A7): the price asked under the gold, Buy for N beside Cancel. */
+.slot-offer-ask { margin: 2px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--gold-2); white-space: nowrap; }
+.slot-offer-do { display: flex; flex: none; gap: 8px; margin-left: auto; }
+.slot-offer-do .slot-offer-buy { margin-left: 0; }
+.slot-offer-no {
+  flex: none; min-height: 40px; padding: 0 12px; border: 2px solid var(--steel-sep); border-radius: 0; background: transparent; color: var(--ink-2);
+  font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.2; cursor: pointer;
+}
+.slot-offer-no:hover { color: var(--ink); border-color: var(--steel-btn); }
+.slot-offer-no:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .char-pick { min-height: 48px; padding: 4px 12px 4px 16px; }
   .slot-offer { gap: 2px 12px; padding-top: 6px; }

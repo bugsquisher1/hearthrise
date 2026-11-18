@@ -13,8 +13,13 @@
 //                                this paint: one per stack in storage now, a
 //                                stack that grew becomes the newest; null when
 //                                nothing changed (no write)
+//   materialsToStore(bag, bank, depot, locked)  what "Deposit all materials"
+//                                names: { ids, left } (audit 2026-11-18 A8)
+//   queuePress(queue, press)     a press made while another is out joins the
+//                                queue, merged with one on the same stack
+//   nextBatch(queue)             what the queue sends next: { take, rest }
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS } from './bag-model.js?v=0.2.138';
+import { BAG_CATS, BAG_SORTS, kindOf } from './bag-model.js?v=0.2.138';
 
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
 const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));
@@ -48,4 +53,53 @@ export function markStored(seen, items, max) {
     if (keys.length === list.length && keys.every((id) => out[id] && out[id][0] === prev[id][0] && out[id][1] === prev[id][1])) return null;
   }
   return out;
+}
+
+/**
+ * "DEPOSIT ALL MATERIALS" (audit 2026-11-18 A8: a full bag at Level 45 took 46 shift-clicks): the bag's Material stacks (bag-model.js kindOf), in the
+ * bag's order, never a locked one (a lock keeps a stack in the bag; the server refuses item_locked), and only as many NEW kinds as Storage has room for
+ * (`depot`: the server's used / cap / kept for listings; a kind Storage already holds merges and takes none), so ONE hr_bank_move_many (all or nothing)
+ * is not refused whole for one stack too many. `left`: the materials that do not fit. Pure: ids only, the server moves each stack at its own count.
+ * @param {{id:string, qty:number}[]} bag
+ * @param {{id:string}[]|null} bank
+ * @param {{used:number, cap:number, reserved?:number}|null} depot  null (not read yet): the server judges the room
+ * @param {Set<string>|null} locked
+ */
+export function materialsToStore(bag, bank, depot, locked) {
+  const held = new Set((bank || []).map((r) => r.id));
+  let room = depot ? Math.max(0, depot.cap - depot.used - (depot.reserved || 0)) : Infinity;
+  const ids = [];
+  let left = 0;
+  for (const r of bag || []) {
+    if (kindOf(r.id) !== 'material' || (locked && locked.has(r.id))) continue;
+    if (held.has(r.id)) ids.push(r.id);
+    else if (room > 0) { ids.push(r.id); room--; } else left++;
+  }
+  return { ids, left };
+}
+
+/**
+ * PRESSES QUEUE, THEY ARE NEVER DROPPED OR REFUSED FOR SPEED (audit 2026-11-18 A8: two presses a second dropped some while one was out and the rest met
+ * "Too many changes, try again"). A press made while another is out joins the queue: one on a stack already queued the same way is merged with it (a
+ * count adds, a whole stack wins), so a burst becomes few asks. A press is { id, dir: 'deposit'|'withdraw', qty: n|'all' }. Returns the new queue. Pure.
+ */
+export function queuePress(queue, press) {
+  const q = (queue || []).slice();
+  const same = q.findIndex((p) => p.id === press.id && p.dir === press.dir);
+  if (same < 0) return q.concat([{ ...press }]);
+  const had = q[same];
+  q[same] = { ...had, qty: had.qty === 'all' || press.qty === 'all' ? 'all' : had.qty + press.qty };
+  return q;
+}
+
+/**
+ * What the queue sends next: the head press, with every other WHOLE-stack press of its direction when the head is one (ONE hr_bank_move_many for all
+ * of them: one ask, one rate token, all or nothing), else the head alone (ONE hr_bank_move at its count). { take, rest }. Pure.
+ */
+export function nextBatch(queue) {
+  const q = queue || [];
+  if (!q.length) return { take: [], rest: [] };
+  const head = q[0];
+  const take = head.qty === 'all' ? q.filter((p) => p.qty === 'all' && p.dir === head.dir) : [head];
+  return { take, rest: q.filter((p) => !take.includes(p)) };
 }

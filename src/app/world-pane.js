@@ -19,6 +19,7 @@ import { pickHunt } from '../shell/windows/hunts.js?v=0.2.138';
 import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.138';
 import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.138';
 import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.138';
+import { roomWindowOf } from '../data/world/house-layouts.js?v=0.2.138';
 import { connection, loadingWords } from '../net/connection.js?v=0.2.138';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.138';
 import { rowOffered } from '../shell/launcher.js?v=0.2.138';
@@ -30,6 +31,21 @@ const ROW_OF = new Map(SHELL_WINDOWS.map((r) => [r.id, r]));
 /* A window the server hides from this hero (shell-windows.js `section`) is not opened by a tap: its row's `orElse` is (the yard
    opens Hunts while the server sends no `training` section). */
 const shownOr = (id, character) => (rowOffered(ROW_OF.get(id), character) ? id : (ROW_OF.get(id) && ROW_OF.get(id).orElse) || null);
+
+/**
+ * The window a tap the World names opens for `character`, or null (it opens nothing): a station's work, a town keeper's window, and
+ * a home room's piece or signpost (house-layouts.js roomWindowOf: the House screen, or the room's own window, the Garden's Farm).
+ * A hunt's entrance is the pane's own (it picks the hunt first). Pure.
+ * THE HOME'S TAPS WERE NAMED AND NEVER OPENED (audit 2026-11-18 A4: the Garden signpost showed a hand and did nothing): the World
+ * emitted 'room' and 'house' and nothing here answered them.
+ */
+export function tapWindowOf(kind, d, character) {
+  const detail = d || {};
+  if (kind === 'station') return 'skills-trade';
+  if (kind === 'keeper') return KEEPER_WINDOWS.has(detail.window) ? shownOr(detail.window, character) : null;
+  if (kind === 'room' || kind === 'house') return typeof detail.room === 'string' && detail.room ? shownOr(roomWindowOf(detail.room), character) : null;
+  return null;
+}
 
 const PANE_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
@@ -80,13 +96,12 @@ export async function mountWorldPane(host, character, o) {
 
   /* What a tap in the World names, and the window it opens (the World itself knows no window). */
   let shell = null;
-  const SHOWS = { entrance: (d) => { pickHunt(character, d.hunt); return 'hunts'; }, station: () => 'skills-trade',
-    /* A town keeper's or station's window (src/data/world/stations.js TAP_WINDOWS): only a window a station names. */
-    keeper: (d) => (KEEPER_WINDOWS.has(d.window) ? shownOr(d.window, character) : null) };
   function emit(kind, detail) {
     /* The World's entity context (a right-click or long press on a unit): the shell's one player / monster menu. */
     if (kind === 'entity') { const t = shell && worldTargetOf(detail); return !!t && shell.menu.open(t, { x: detail.x, y: detail.y }); }
-    const to = shell && SHOWS[kind] ? SHOWS[kind](detail || {}) : null;
+    if (!shell) return false;
+    /* a hunt's entrance picks its hunt, then opens Hunts; every other tap is tapWindowOf's (a keeper's window: only one a station names) */
+    const to = kind === 'entrance' ? (pickHunt(character, (detail || {}).hunt), 'hunts') : tapWindowOf(kind, detail, character);
     if (!to) return false;
     /* a station that opens its window on one tab (the Tavern on Round) */
     if (detail && typeof detail.tab === 'string') { shell.wm.openTab(to, detail.tab); shell.refresh(to); return true; }

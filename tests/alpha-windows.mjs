@@ -1992,9 +1992,9 @@ async function planRules(base) {
       equipment: { weapon: 'willow_longbow' }, inventory: { mithril_arrows: 40 }, hunt: { session_id: 's-1', hunt_id: 'mill_cellar', ended: false, session: { bag: [] } } });
     const shotSet = { slots: [waitSlot], store: STORE, role: 'ranger', supplySource: 'mine', onEmpty: 'end' };
     const [under] = carryFor(archer(42), waitSlot.action) || [];
-    if (!under || under.id !== 'mithril_arrows' || under.max !== 40 || under.wait !== 'Needs Ranged 45, now 42') fails.push('AW-65 a shot waiting for its level offers ' + JSON.stringify(under));
+    if (!under || under.id !== 'mithril_arrows' || under.max !== 40 || under.wait !== 'Requires Ranged 45, now 42') fails.push('AW-65 a shot waiting for its level offers ' + JSON.stringify(under));
     const waits = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 42 } }, carryRows(archer(42)));
-    if (!waits || waits.code !== 'skill' || !waits.strike || waits.text !== 'Needs Ranged 45, now 42, next ammo fires meanwhile') fails.push('AW-65 a waiting shot with its stack in the backpack reads ' + JSON.stringify(waits));
+    if (!waits || waits.code !== 'skill' || !waits.strike || waits.text !== 'Requires Ranged 45, now 42, next ammo fires meanwhile') fails.push('AW-65 a waiting shot with its stack in the backpack reads ' + JSON.stringify(waits));
     const [atLevel] = carryFor(archer(45), waitSlot.action) || [];
     if (!atLevel || atLevel.wait !== null) fails.push('AW-65 a shot at its level still says it waits: ' + JSON.stringify(atLevel));
     const woke = reasonOf(waitSlot, shotSet, [], null, null, { ranged: { xp: 1, level: 45 } }, carryRows(archer(45)));
@@ -3554,9 +3554,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
         e.bank = {};
-        e.inventory = { slime_gel: 12, rat_tail: 31, venom_sac: 3, iron_axe: 1, bronze_axe: 1, chalked_fire_rune: 40, turnip_juice: 9, cooked_shrimp: 5 };
+        e.inventory = { slime_gel: 12, rat_tail: 31, venom_sac: 3, iron_axe: 1, bronze_axe: 1, chalked_fire_rune: 40, turnip_juice: 9, cooked_shrimp: 5, stone_maul: 1 };
         e.skills = Object.assign({}, e.skills, { crafting: { xp: 0, level: 1, frac: 0 }, runecrafting: { xp: 0, level: 1, frac: 0 } });
-        e.shop = Object.assign({}, e.shop, { bids: { slime_gel: 5, rat_tail: 6, venom_sac: 40, iron_axe: 250, bronze_axe: 60, turnip_juice: 6, cooked_shrimp: 3 } });
+        e.shop = Object.assign({}, e.shop, { bids: { slime_gel: 5, rat_tail: 6, venom_sac: 40, iron_axe: 250, bronze_axe: 60, turnip_juice: 6, cooked_shrimp: 3, stone_maul: 20 } });
         /* the deed names Venom Sac, a Junk drop no recipe spends: only the House's own word keeps it from Sell all junk */
         e.home = { tier: 2, rooms: [], tiers: [{ offer: 'property.manor', name: 'Stonecross Manor', tier: 3, need: 2, owned: false, gold: 10000, items: { timber_beam: 6, silk_thread: 8, venom_sac: 2 } }] };
       };
@@ -3576,6 +3576,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!/Kept by Sell all junk/.test(gel || '') || /Kept by Sell all junk/.test(tail || '')) fails.push('AW-60 the Shop: Slime Gel ' + gel + ' / Rat Tail ' + tail);
         if (!/Kept by Sell all junk/.test(sac || '')) fails.push('AW-60 the Shop forgets the deed that names Venom Sac: ' + sac);
         if (!/ for 186 gp$/.test(await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]') || '')) fails.push('AW-60 Sell all junk is priced ' + await say('[data-hs-win="shop"] [data-hs-act="sell-loot"]'));
+        /* AW-60n the note under the two sales reads aloud as sentences (audit 2026-11-18 A14: "Keeps worn, higher-tier and Rare pieces Keeps 8 Material
+           stacks" ran on): an outgrown Stone Maul for Sell spare gear, the kept Materials for Sell all junk, each part closed by its own stop */
+        const note = await say('[data-hs-win="shop"] .hw-sell-note');
+        if (!/^Sell spare gear keeps [^.]+\. Keeps \d+ Material stacks [^.]*\.$/.test(note || '')) fails.push('AW-60n the Sell tab\'s note reads ' + JSON.stringify(note));
         /* Selling the counting tool warns in the sale's own confirmation. */
         await page.click('[data-hs-win="shop"] .hw-line[data-item="iron_axe"] [data-hs-act="sell"]');
         await page.waitForTimeout(150);
@@ -4105,6 +4109,72 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       await ctx.close();
     }
 
+    { // AW-18q PRESSES QUEUE, AW-18m DEPOSIT ALL MATERIALS (audit 2026-11-18 A8: a full bag at Level 45 took 46 shift-clicks to empty, and two
+      // presses a second dropped some and met "Too many changes, try again"). A stateful stub: each answer moves the server's own counts.
+      const town = (e) => {
+        for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
+        e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 40 });
+        e.bank = { oak_logs: 12 };
+      };
+      const { ctx, page, errors, s, up } = await open({ mutateEnv: town });
+      const shift = (from, to, id, n) => { from[id] -= n; if (!from[id]) delete from[id]; to[id] = (to[id] || 0) + n; };
+      s.onCall = (name, b) => {
+        if (name === 'hr_bank_move' && s.reply.ok !== false) { if (b.p_dir === 'deposit') shift(s.env.inventory, s.env.bank, b.p_item, b.p_qty); else shift(s.env.bank, s.env.inventory, b.p_item, b.p_qty); }
+        if (name === 'hr_bank_move_many') for (const l of b.p_items || []) { if (l.dir === 'deposit' && s.env.inventory[l.item]) shift(s.env.inventory, s.env.bank, l.item, s.env.inventory[l.item]); }
+      };
+      const W = '[data-hs-win="storage"] ';
+      const moves = () => s.calls.filter((c) => c.name === 'hr_bank_move' || c.name === 'hr_bank_move_many')
+        .map((c) => (c.name === 'hr_bank_move' ? c.body.p_item + ':' + c.body.p_qty : 'many:' + c.body.p_items.map((l) => l.item).join('+')));
+      if (!up) fails.push('AW-18q the town did not mount');
+      else {
+        await openWin(page, 't', 'storage');
+        await page.waitForTimeout(300);
+        /* three whole stacks Shift-pressed in a burst: the first goes, the two pressed while it was out go together in ONE ask */
+        const at = (id) => W + '[data-side="bag"] .hw-pocket[data-item="' + id + '"]';
+        await page.click(at('copper_ore'), { modifiers: ['Shift'] });
+        await page.click(at('normal_log'), { modifiers: ['Shift'] });
+        await page.click(at('wolf_pelt'), { modifiers: ['Shift'] });
+        await wait(page, () => !document.querySelector('[data-hs-win="storage"] .hw-store.is-pending'), null, 4000);
+        await page.waitForTimeout(400);
+        /* three presses on one stack in a burst: one goes, the other two wait and go as ONE move of 2 */
+        await page.click(at('rat_tail'));
+        await page.click(at('rat_tail'));
+        await page.click(at('rat_tail'));
+        await wait(page, () => !document.querySelector('[data-hs-win="storage"] .hw-store.is-pending'), null, 4000);
+        await page.waitForTimeout(400);
+        const said = await page.evaluate((w) => document.querySelector(w + '.hh-intent-msg').textContent, W);
+        if (moves().join() !== 'copper_ore:10,many:normal_log+wolf_pelt,rat_tail:1,rat_tail:2' || /Too many/.test(said))
+          fails.push('AW-18q a burst of presses sent ' + JSON.stringify(moves()) + ' and says ' + JSON.stringify(said));
+        /* DEPOSIT ALL MATERIALS: ONE hr_bank_move_many naming every unlocked Material stack in the bag, whole (ids only), and none after it */
+        const btn = await page.evaluate((w) => { const b = document.querySelector(w + '[data-hs-act="deposit-materials"]'); return b ? { text: b.textContent, off: b.disabled } : null; }, W);
+        const before = moves().length;
+        const plan = await page.evaluate(async (ids) => {
+          const v = document.querySelector('script[type=module][src*="?v="]')?.src.split('?v=')[1] || '';
+          const bm = await import('/src/shell/bag-model.js?v=' + v);
+          return { kinds: Object.fromEntries(ids.map((id) => [id, bm.kindOf(id)])) };
+        }, Object.keys(s.env.inventory));
+        if (!btn || btn.off || !/^Deposit all materials \(\d+\)$/.test(btn.text)) fails.push('AW-18m the press reads ' + JSON.stringify(btn));
+        else {
+          await page.click(W + '[data-hs-act="deposit-materials"]');
+          await wait(page, () => !document.querySelector('[data-hs-win="storage"] .hw-store.is-pending'), null, 4000);
+          await page.waitForTimeout(400);
+          const sent = s.calls.filter((c) => c.name === 'hr_bank_move_many').slice(-1)[0];
+          const ids = sent ? sent.body.p_items.map((l) => l.item) : [];
+          const locked = new Set(s.env.bag_rules.locked);
+          const wrong = ids.filter((id) => plan.kinds[id] !== undefined && plan.kinds[id] !== 'material');
+          const bagMats = Object.keys(s.env.inventory).filter((id) => plan.kinds[id] === 'material' && !locked.has(id));
+          if (moves().length !== before + 1 || !sent || sent.body.p_items.some((l) => l.dir !== 'deposit' || Object.keys(l).sort().join() !== 'dir,item')
+            || wrong.length || ids.some((id) => locked.has(id)) || !ids.includes('bones') || bagMats.length)
+            fails.push('AW-18m Deposit all materials sent ' + JSON.stringify(moves().slice(before)) + ' (not materials: ' + wrong.join() + '; left in the bag: ' + bagMats.join() + ')');
+          const after = await page.evaluate((w) => { const b = document.querySelector(w + '[data-hs-act="deposit-materials"]'); return b ? { text: b.textContent, off: b.disabled } : null; }, W);
+          if (!after || !after.off || after.text !== 'Deposit all materials') fails.push('AW-18m with no material left the press reads ' + JSON.stringify(after));
+        }
+        if (shots) await shot(page, 'alpha-1440x900-storage-materials');
+      }
+      if (errors.length) fails.push('AW-18q console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
     { // AW-21 EQUIP UPGRADES (gold-sinks designer + 10-22 playtest: four menus per piece): ONE equip intent naming
       // every better piece, never the weapon or a piece the hero cannot wear yet; the slots and stacks marked until the
       // answer; a refusal in words with nothing moved; the Shop offers it right after a gear purchase; a reload agrees
@@ -4146,7 +4216,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           why: document.querySelector('.hw-inv .hw-pick-why').textContent }));
         await page.keyboard.press('Enter');
         await page.waitForTimeout(300);
-        if (!need.off || need.why !== 'Needs Level 45, now 30.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
+        if (!need.off || need.why !== 'Requires Level 45, now 30.' || sent(s, 'hr-accrue', 'equip').length) fails.push('AW-21 a Mithril Helm at Level 30 reads ' + JSON.stringify(need) + ', ' + sent(s, 'hr-accrue', 'equip').length + ' equip(s) sent');
         /* A refusal (the engine's 409): nothing moves, and the words say why ON THE LINE PRESSED, in view (they sat at the
            window's foot, below the fold, so the press looked like nothing). */
         s.refuse = 'requirement_not_met';
@@ -4248,6 +4318,18 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.waitForTimeout(300);
         const doors = await page.evaluate((w) => Array.from(document.querySelectorAll(w + ' .hw-skill[data-hs-act="open-skill"]')).map((li) => li.getAttribute('data-skill')).join(), W);
         if (doors !== 'woodcutting,mining,fishing,cooking,crafting,smithing,runecrafting') fails.push('AW-22 the skills that open their work: ' + doors);
+        /* AW-22F (audit 2026-11-18 A4): Farming, grown in the Farm's plots, was the one line with no arrow and no press. It is a link to the Farm,
+           the same arrow and press as the others, and the press opens the Farm. */
+        const farmLine = await page.evaluate((w) => { const li = document.querySelector(w + ' .hw-skill[data-key="farming"]'); const lv = li && li.querySelector('.hw-skill-lv');
+          return li ? { act: li.getAttribute('data-hs-act'), go: li.getAttribute('data-hs-goto'), role: li.getAttribute('role'), arrow: lv ? getComputedStyle(lv, '::after').content : '' } : null; }, W);
+        if (!farmLine || farmLine.act !== 'open-place' || farmLine.go !== 'farm||' || farmLine.role !== 'button' || !/›/.test(farmLine.arrow)) fails.push('AW-22F the Farming line reads ' + JSON.stringify(farmLine));
+        else {
+          await page.click(W + ' .hw-skill[data-key="farming"]');
+          const farmUp = await wait(page, () => document.querySelector('[data-hs-win="farm"] [data-hs-built]'), null, 3000);
+          if (!farmUp) fails.push('AW-22F a press on Farming opened no Farm');
+          await openWin(page, 'g', 'skills-trade');
+          await page.waitForTimeout(300);
+        }
         if (shots) await shot(page, 'work-1440x900-ledger');
         /* AW-22T (UI audit 2026-11-18) the band's name stands on ONE line, on the ledger and, with Back showing, on a skill's rows */
         const titleLines = () => page.evaluate((w) => { const h = document.querySelector(w + ' .hs-win-title'); return Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight)); }, W);
@@ -5199,7 +5281,7 @@ const MUTANTS = [
   ['AW-22 an input chip shows no icon', 'src/shell/windows/work.js', "    + itemIconHtml(g, id) + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');", "    + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');"],
   ['AW-22 a row is a paragraph again', 'src/shell/windows/work.js', "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })", "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) }) + ', ' + stat.textContent"],
   ['AW-22T the band reads Gathering and crafting again', 'src/data/shell-windows.js', "label: 'Gathering and crafting', title: 'Skills',", "label: 'Gathering and crafting',"],
-  ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
+  ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
   ['item truth: the shop\'s raw flag files a tool as a material', 'src/shell/bag-model.js', "if (it.type === 'tool') return 'other';", ''],
   ['item truth: Sell all loot ignores the House', 'src/shell/bag-model.js', ' && !(needs && needs.has(r.id))', ''],
@@ -5390,8 +5472,12 @@ const MUTANTS = [
   ['an open window takes the walk keys', 'src/world/world-boot.js', '    if (keyBelongsToField(t, e.code)) { letGo(); return; }', "    if (keyBelongsToField(t, e.code) || (t.closest && t.closest('[data-hs-win]'))) { letGo(); return; }"],
   ['the mill hatch opens nothing', 'src/world/world-boot.js', "    hunt: (id) => emit('entrance', { hunt: id }),", '    hunt: () => false,'],
   ['a hunt carries only part of its own stack', 'src/shell/hunt-list.js', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty) }))', '.map((r) => ({ item: r.id, qty: Math.min(PACK_QTY_MAX, r.qty, 10) }))'],
-  ['a Shift-press in Storage moves one at a time', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, 1, action);'],
-  ['a press in Storage moves the whole stack', 'src/shell/windows/storage.js', 'move(cs, sc, repaint, id, ev.shiftKey ? row.qty : 1, action);', 'move(cs, sc, repaint, id, row.qty, action);'],
+  ['a Shift-press in Storage moves one at a time', 'src/shell/windows/storage.js', "{ id, dir: action, qty: ev.shiftKey ? 'all' : 1 }", '{ id, dir: action, qty: 1 }'],
+  ['a press in Storage moves the whole stack', 'src/shell/windows/storage.js', "{ id, dir: action, qty: ev.shiftKey ? 'all' : 1 }", "{ id, dir: action, qty: 'all' }"],
+  ['AW-18q a press while another is out is dropped again (audit A8)', 'src/shell/windows/storage.js', '  sc.queue = queuePress(sc.queue, p);\n  if (sc.pending) {', '  if (sc.pending) return;\n  sc.queue = queuePress(sc.queue, p);\n  if (sc.pending) {'],
+  ['AW-18q the queued whole stacks go one ask each (audit A8)', 'src/shell/windows/storage.js', '    const r = live.length > 1 && account ?', '    const r = false ?'],
+  ['AW-18m Deposit all materials sends nothing (audit A8)', 'src/shell/windows/storage.js', "ids.length && ctx.account) then(moveMany(ctx.account, cs, sc, repaint, ids, 'deposit'));", 'ids.length && ctx.account) void ids;'],
+  ['AW-18m Deposit all materials takes a locked stack (audit A8)', 'src/shell/storage-model.js', "if (kindOf(r.id) !== 'material' || (locked && locked.has(r.id))) continue;", "if (kindOf(r.id) !== 'material') continue;"],
   ['the Storage chip and sort are not applied', 'src/shell/windows/storage.js', '  const o = { cat: prefs.cat, query: sc.query, sort: prefs.sort,', "  const o = { cat: 'all', query: sc.query, sort: 'name',"],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],
   ['Enter in the amount picker does nothing', 'src/shell/windows/float-menu.js', "      if (e.key === 'Enter' && def) { e.preventDefault(); e.stopPropagation(); def.click(); }\n", ''],
@@ -5400,7 +5486,9 @@ const MUTANTS = [
   ['bones offer no Bury', 'src/shell/windows/inventory/state.js', "  if (br) return ['bury', buryLabel(br, buryQty(st.cs, id), st.cs)];\n", ''],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = buryQty(cs, id);\n", "  const qty = buryQty(cs, id);\n  delete cs.read('inventory')[id];\n"],
   ['Stop does not collect', 'src/shell/town-work.js', "cs.edgeIntent('set_activity', { activity: { kind: 'idle' } })", "Promise.resolve({ ok: true })"],
-  ['a skill opens no work', 'src/shell/windows/work.js', "attr(li, 'data-hs-act', door ? 'open-skill' : null);", "attr(li, 'data-hs-act', null);"],
+  ['a skill opens no work', 'src/shell/windows/work.js', "attr(li, 'data-hs-act', door ? 'open-skill' : away ? 'open-place' : null);", "attr(li, 'data-hs-act', away ? 'open-place' : null);"],
+  ['AW-60n the Sell note runs on again (audit A14)', 'src/data/text/shop.js', "  spare_keeps: 'Sell spare gear keeps worn, higher-tier and Rare pieces.',", "  spare_keeps: 'Keeps worn, higher-tier and Rare pieces',"],
+  ['AW-22F Farming goes nowhere again (audit A4)', 'src/shell/windows/work.js', '    const away = elsewhereOf(id);', '    const away = null;'],
   ['the client cannot declare gathering', 'src/session/edge-intents.js', "(v.kind === 'artisan' || v.kind === 'gather')", "v.kind === 'artisan'"],
   ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return skillShortWords(", "  if (false) return skillShortWords("],
   ['the running row offers no Stop', 'src/shell/windows/work.js', "text(b, running ? 'Stop' : 'Start');", "text(b, 'Start');"],
@@ -5427,7 +5515,7 @@ const MUTANTS = [
   ['coach: an ended hunt\'s bar stays over its open summary (AW-31)', 'src/shell/shell-hud.js', " && !wm.isOpen('hunt-summary');", ';'],
   /* The Hunts window, master-detail (designer plan 2026-10-22): AW-25 .. AW-29. */
   ['AW-25 every creature reads common', 'src/shell/hunt-ground-facts.js', "  if (share >= SHARE_BANDS.common) return 'common';", "  return 'common';"],
-  ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/hunt-ground-facts.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
+  ['AW-25 a Scarce piece reads as the ground\'s Rare (odds, not the band)', 'src/shell/bag-model.js', 'd.ch < 1 && REVEAL_BANDS.includes(bandOf(d));', 'd.ch < 1 && d.ch <= 0.05;'],
   ['AW-25 every line says Right for your level', 'src/shell/hunt-list.js', "if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');", "return party ? t('hunts.tag_right_party') : t('hunts.tag_right_level');"],
   ['AW-25 the band ignores the floor', 'src/shell/hunt-list.js', "  if (rangeWords(r, level)) return r.band[0] - level < FAR_UNDER_LEVELS ?", "  if (false) return r.band[0] - level < FAR_UNDER_LEVELS ?"],
   ['AW-25 a ground with no best says nothing', 'src/shell/hunt-list.js', 'none: solo || party ? null :', 'none: true ? null :'],

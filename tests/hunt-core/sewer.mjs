@@ -481,10 +481,14 @@ const cases = {
     const floor = M.tut.HUNT_TUTORIAL.find((r) => r.id === 'earn_the_thicket').text.match(/Level (\d+)/)[1] * 1;
     const fresh = (L, more) => tutAt(M, K, L, { levelXp: M.xp.charXpForLevel(L), huntId: 'mill_cellar', visited: new Set(['mill_cellar']), ...(more || {}) });
     const id = (f) => (M.tut.currentCard(f) || {}).id;
-    if (id(fresh(floor - 1)) !== 'plant_land') return 'a watcher under the floor is on ' + id(fresh(floor - 1));
+    /* the farm card waits for town (audit 2026-11-18 A4), so a watcher's first lesson is the bar */
+    if (id(fresh(floor - 1)) !== 'bar_intro') return 'a watcher under the floor is on ' + id(fresh(floor - 1));
     if (id(fresh(floor)) !== 'leave_cellar') return 'a watcher at the Thicket floor is on ' + id(fresh(floor)) + ', not Cash in';
     const thicket = fresh(floor + 1, { huntId: 'meadowbrook_thicket', visited: new Set(['mill_cellar', 'meadowbrook_thicket']) });
-    if (id(thicket) !== 'plant_land') return 'the lessons skipped in the Cellar did not come back in the Thicket: ' + id(thicket);
+    if (id(thicket) !== 'bar_intro') return 'the lessons skipped in the Cellar did not come back in the Thicket: ' + id(thicket);
+    /* ...and the farm card skipped in town comes back in town after the Thicket */
+    const homeFromThicket = tutAt(M, K, floor + 1, { levelXp: M.xp.charXpForLevel(floor + 1), visited: new Set(['mill_cellar', 'meadowbrook_thicket']), read: new Set(['styles']) });
+    if (id(homeFromThicket) !== 'plant_land') return 'home from the Thicket with the land bare, the card is ' + id(homeFromThicket) + ', not Plant your land';
     /* Got it on each asking card moves on, in order, with nothing else done */
     let f = fresh(floor - 1);
     const seen = [];
@@ -494,7 +498,8 @@ const cases = {
       seen.push(c.id);
       f = { ...f, read: new Set([...f.read, c.id]) };
     }
-    for (const want of ['plant_land', 'bar_intro']) if (!seen.includes(want)) return want + ' was not on the way past: ' + seen.join(', ');
+    for (const want of ['bar_intro']) if (!seen.includes(want)) return want + ' was not on the way past: ' + seen.join(', ');
+    if (seen.includes('plant_land')) return 'Plant your land came in the first hunt (it waits for town): ' + seen.join(', ');
     for (const later of ['first_spell', 'help_page']) if (seen.includes(later)) return later + ' came in the first hunt (it waits for the Thicket): ' + seen.join(', ');
     /* town: every asking card has its way past too, up to the Thicket's Enter */
     let t = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3 });
@@ -718,7 +723,8 @@ const cases = {
        Help page wait for the Thicket, where a hero has time to read, and Cook and Decide once for the second return */
     /* TAMSIN FIRST (designer 2026-11-10, the first ten minutes): her rats before the first hunt, her count while it runs, "Tamsin owes you" when it is
        done, the helmet worn in town, then back down, and "Out to the brook" only on that second trip */
-    const want = ['tamsins_rats', 'to_the_cellar', 'first_kill', 'first_level', 'plant_land', 'bar_intro', 'rats_count', 'tamsin_owes', 'styles', 'equip_upgrades', 'back_down', 'earn_the_thicket',
+    /* PLANT YOUR LAND IN TOWN (audit 2026-11-18 A4): home from the first hunt, before back down, never two minutes into it */
+    const want = ['tamsins_rats', 'to_the_cellar', 'first_kill', 'first_level', 'bar_intro', 'rats_count', 'tamsin_owes', 'styles', 'equip_upgrades', 'plant_land', 'back_down', 'earn_the_thicket',
       'leave_cellar', 'bless', 'sell_loot', 'tamsins_task', 'into_the_thicket', 'food_when', 'food_order', 'first_spell', 'help_page', 'tamsin_pays',
       'loot_rules', 'cook_catch', 'save_setup', 'own_runes', null];
     if (order.join() !== want.join()) return 'a sword-and-shield hero walks ' + order.join(' > ') + ', wanted ' + want.join(' > ');
@@ -1334,10 +1340,21 @@ const cases = {
   },
   'tutorial-plant-every-plot': async (M) => {
     const T = tutKit(M, 'tank');
-    const at = (land, more) => M.tut.currentCard(tutAt(M, T, 2, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']),
+    /* in town, home from the first hunt (the card waits for town: audit 2026-11-18 A4), the weapon card read */
+    const at = (land, more) => M.tut.currentCard(tutAt(M, T, 2, { visited: new Set(['mill_cellar']), read: new Set(['styles']),
       skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, land, ...(more || {}) }));
     const id = (land, more) => (at(land, more) || {}).id;
     if (id({ ready: {}, empty: 1 }) !== 'plant_land') return 'one plot planted, one bare, seeds held: the card is ' + id({ ready: {}, empty: 1 });
+    /* PLANT YOUR LAND WAITS FOR TOWN AND SAYS WHERE (audit 2026-11-18 A4: two minutes into the first hunt it asked for a seed "in each empty
+       plot" with no word on where the land is). In the Cellar it is never the card; in town it names the way, the Town menu's Farm, and rings it. */
+    const cellar = (more) => M.tut.currentCard(tutAt(M, T, 2, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), land: { ready: {}, empty: 2 }, ...(more || {}) }));
+    for (const read of [new Set(), new Set(['bar_intro']), new Set(['bar_intro', 'rats_count'])]) {
+      if ((cellar({ read }) || {}).id === 'plant_land') return 'two minutes into the first hunt the coach asks for a seed (read: ' + [...read].join(', ') + ')';
+    }
+    const card = at({ ready: {}, empty: 2 }, { landPlanted: false, skillXp: { farming: 0, cooking: 0, melee: 0 } });
+    const said = card ? M.tut.cardFor(card, tutAt(M, T, 2, { visited: new Set(['mill_cellar']) })) : null;
+    if (!said || said.id !== 'plant_land' || !/^Town → Farm \(J\) → /.test(said.text)) return 'in town the farm card reads ' + JSON.stringify(said && [said.id, said.text]) + ' (it names the Town menu\'s Farm)';
+    if (M.tut.coachIcon(card, () => false) !== 'farm') return 'the farm card does not ring the Farm\'s way with its window shut';
     if (id({ ready: {}, empty: 0 }) === 'plant_land') return 'every open plot planted, yet "Plant your land" is still up';
     if (id({ ready: {}, empty: 1 }, { bag: { ...M.kit.START_INVENTORY, turnip_seed: 0 } }) === 'plant_land') return 'no seed left to plant, yet "Plant your land" is still up';
     if (id({ ready: {}, empty: 2 }, { skillXp: { farming: M.gathering.CROPS.turnip.xp, cooking: 0, melee: 0 } }) === 'plant_land') return 'a harvested field came back bare and walled the chain';

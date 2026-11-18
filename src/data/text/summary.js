@@ -60,6 +60,8 @@ export const SUMMARY_TEXT = Object.freeze({
 
   /* WHY THE HUNT ENDED (src/hunt-view/summary-model.js END_WORDS, one per END_ORDER name): labels on the end card. */
   end_died: 'Died',
+  /* a death in a mode that takes nothing for one (the Burning Tower spits you out: session-modes.js deathLossPm 0) */
+  end_spat: 'Spat out, no XP lost',
   died_in: '{name} died in {ground}',
   end_boss_felled: 'Boss defeated, new title earned',
   end_party_member_died: 'Party member died',

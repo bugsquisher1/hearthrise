@@ -41,11 +41,10 @@ import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.138';
 import { ITEMS } from '../data/items.js?v=0.2.138';
 import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.138';
 import { weaknessInfo } from '../core/combat.js?v=0.2.138';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.138';
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.138';
 import { armourLineWord } from '../data/gear-tiers.js?v=0.2.138';
 import { listWords } from '../render/format.js?v=0.2.138';
-import { isSpentMaterial } from './bag-model.js?v=0.2.138';
+import { isSpentMaterial, isRareRow, isRareItem, isRareOnly } from './bag-model.js?v=0.2.138';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */
@@ -162,20 +161,10 @@ export function dropPlaceOf(item) {
   return standing.length ? { kind: 'hunt', hunt: pageOf(standing[0].g) } : best ? { kind: 'monster', id: best.id } : null;
 }
 
-/* A Rare row: a revealed band (a Rare or Trophy row), not a server-only surprise. */
-const isRare = (d) => !!d && d.lucky !== true && d.salvage !== true && d.ch < 1 && REVEAL_BANDS.includes(bandOf(d));
-let RARE_ITEMS = null;
-/** Is this item a Rare somewhere (the Hunts page's own test)? From the rows, built once. */
-export function isRareItem(id) {
-  if (!RARE_ITEMS) { RARE_ITEMS = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (isRare(d)) RARE_ITEMS.add(d.id); }
-  return RARE_ITEMS.has(id);
-}
-let EVERYDAY = null;
-/** Is this item a Rare wherever it drops (Rook's Whistle), not a ground's everyday piece as well (the Iron Helm: Rare on the Thicket's den mother, Scarce in the Glade)? */
-export function isRareOnly(id) {
-  if (!EVERYDAY) { EVERYDAY = new Set(); for (const m of Object.values(MONSTERS)) for (const d of (m && m.drops) || []) if (d && d.lucky !== true && d.salvage !== true && !isRare(d)) EVERYDAY.add(d.id); }
-  return isRareItem(id) && !EVERYDAY.has(id);
-}
+/* A Rare row, and the items that are Rares somewhere or everywhere: bag-model.js's (the bag files a Rare as Rare, never Junk: audit 2026-11-18
+   A16), the one test this page and the bag share. */
+const isRare = isRareRow;
+export { isRareItem, isRareOnly };
 const nameOf = (id) => (ITEMS[id] && ITEMS[id].n) || id;
 const WEIGHTS = Object.freeze(['heavy', 'medium', 'light']);
 const SLOT_WORDS = Object.freeze({ helmet: 'helmets', body: 'bodies', pants: 'legs', boots: 'boots' });

@@ -28,6 +28,10 @@
 //       monster drop, Junk is never something a recipe, the House or Tempering spends or an
 //       imbuement will, and a recipe row added before the bag files anything makes its drop a
 //       Material by itself
+//   V7  A RARE IS NEVER JUNK (audit 2026-11-18 A16): a drop that is a Rare somewhere (the away card's Best find test) files under
+//       Rare, and Sell all junk never takes it
+//   V8  DEPOSIT ALL MATERIALS AND THE QUEUE (audit 2026-11-18 A8): the unlocked Material stacks that fit Storage's room; a press
+//       made while another is out merges with one on the same stack; whole stacks of one direction go as one ask
 //
 // The selftest copies src/ to a temp tree, plants one defect per arm and
 // requires the named test to fail. No ?v= on imports here (tests/**).
@@ -62,6 +66,9 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   ok('V6', B.kindOf(NEW) === 'material', 'a drop a new recipe spends files under ' + B.kindOf(NEW) + ', not material');
   for (const [id, k] of Object.entries({ big_bones: 'material', bat_wing: 'material', silk_thread: 'material', raw_wolf_meat: 'material', rat_tail: 'junk', gold_bar: 'material', rat_kings_crown: 'rare' }))
     ok('V6', B.kindOf(id) === k, id + ' files under ' + B.kindOf(id) + ', not ' + k);
+  /* a quest keepsake nothing drops (the boss's crown is a Rare drop too, so it alone no longer proves the tag's rule) */
+  ITM.ITEMS.v6_keepsake = { n: 'Keepsake', tag: 'quest', v: 1 };
+  ok('V6', B.kindOf('v6_keepsake') === 'rare', 'a quest keepsake files under ' + B.kindOf('v6_keepsake') + ', not rare');
   /* a ward item (Briar Burr feeds Ward, Cistern Venom Gland Element Ward): kept for the imbuement it will feed */
   const wards = ['briar_burr', 'cistern_venom_gland'];
   ok('V6', wards.every((id) => ITM.ITEMS[id] && ITM.ITEMS[id].imbue && B.kindOf(id) === 'material'), 'a ward item files under ' + wards.map((id) => B.kindOf(id)).join(',') + ', not material');
@@ -70,6 +77,35 @@ async function runTests({ B, S, R, H, REC, MON, ITM }) {
   const wrong = [...drops].filter((id) => B.kindOf(id) === 'junk' && (B.isSpentMaterial(id) || B.plannedUse(id)));
   ok('V6', wrong.length === 0, 'Junk that a recipe, the House or Tempering spends: ' + wrong.join(','));
   ok('V6', [...drops].some((id) => B.kindOf(id) === 'junk') && [...drops].some((id) => B.kindOf(id) === 'material' && B.isSpentMaterial(id)), 'the drops hold no Junk or no spent Material: the sweep proves nothing');
+
+  /* V7 A RARE IS NEVER JUNK (audit 2026-11-18 A16: "Sell all junk" sold the Alpha Fang the away card had just called the Best find). The Alpha Fang
+     files under Rare and Sell all junk never takes it; across every monster drop, nothing Junk is a Rare somewhere (the Best find's own test) */
+  ok('V7', B.isRareItem('alpha_fang') && B.kindOf('alpha_fang') === 'rare', 'the Alpha Fang files under ' + B.kindOf('alpha_fang') + ', not rare');
+  const sold = B.lootToSell([{ id: 'alpha_fang', qty: 2 }, { id: 'rat_tail', qty: 9 }]);
+  ok('V7', sold.join() === 'rat_tail', 'Sell all junk takes ' + sold.join());
+  const junkRares = [...drops].filter((id) => B.kindOf(id) === 'junk' && B.isRareItem(id));
+  ok('V7', junkRares.length === 0, 'Junk that is a Rare somewhere: ' + junkRares.join(','));
+  ok('V7', [...drops].some((id) => B.isRareItem(id) && B.kindOf(id) === 'rare' && !B.isSpentMaterial(id)), 'no drop is a Rare kept for itself: the sweep proves nothing');
+
+  /* V8 DEPOSIT ALL MATERIALS AND THE QUEUE (audit 2026-11-18 A8): the bag's unlocked Material stacks, a kind Storage holds always (it merges), new kinds
+     only while Storage has room; a press while another is out merges with one on the same stack; whole stacks of one direction go together */
+  const bag8 = [{ id: 'copper_bar', qty: 5 }, { id: 'shrimp', qty: 3 }, { id: 'oak_plank', qty: 2 }, { id: 'rune_blank', qty: 7 }, { id: 'turnip_seed', qty: 4 }, { id: 'bronze_helm', qty: 1 }];
+  const plan = (bank, depot, locked) => S.materialsToStore(bag8, bank, depot, locked ? new Set(locked) : null);
+  ok('V8', JSON.stringify(plan([], null, null)) === '{"ids":["copper_bar","oak_plank","rune_blank","turnip_seed"],"left":0}', 'every material, no room said: ' + JSON.stringify(plan([], null, null)));
+  ok('V8', plan([], null, ['oak_plank']).ids.join() === 'copper_bar,rune_blank,turnip_seed', 'a locked material is named: ' + plan([], null, ['oak_plank']).ids.join());
+  const room1 = plan([{ id: 'rune_blank', qty: 1 }], { used: 9, cap: 11, reserved: 1 }, null);
+  ok('V8', room1.ids.join() === 'copper_bar,rune_blank' && room1.left === 2, 'one free stack and rune blanks already stored: ' + JSON.stringify(room1));
+  let q = S.queuePress([], { id: 'rat_tail', dir: 'deposit', qty: 1 });
+  q = S.queuePress(q, { id: 'rat_tail', dir: 'deposit', qty: 1 });
+  q = S.queuePress(q, { id: 'oak_plank', dir: 'deposit', qty: 'all' });
+  q = S.queuePress(q, { id: 'copper_bar', dir: 'withdraw', qty: 'all' });
+  q = S.queuePress(q, { id: 'shrimp', dir: 'deposit', qty: 'all' });
+  q = S.queuePress(q, { id: 'oak_plank', dir: 'deposit', qty: 3 });
+  ok('V8', JSON.stringify(q) === JSON.stringify([{ id: 'rat_tail', dir: 'deposit', qty: 2 }, { id: 'oak_plank', dir: 'deposit', qty: 'all' }, { id: 'copper_bar', dir: 'withdraw', qty: 'all' }, { id: 'shrimp', dir: 'deposit', qty: 'all' }]),
+    'the queue merges to ' + JSON.stringify(q));
+  const b1 = S.nextBatch(q), b2 = S.nextBatch(b1.rest);
+  ok('V8', b1.take.map((p) => p.id).join() === 'rat_tail' && b2.take.map((p) => p.id).join() === 'oak_plank,shrimp' && S.nextBatch(b2.rest).take.map((p) => p.id).join() === 'copper_bar',
+    'the batches go ' + JSON.stringify([b1.take, b2.take, S.nextBatch(b2.rest).take]));
 
   /* V1 — the chips, and the rows that file into them */
   const cats = new Set(B.BAG_CATS.map(([id]) => id));
@@ -147,9 +183,16 @@ const MUTANTS = [
   { test: 'V1', file: BAG, from: "if (it.raw || it.tag === 'crafting-mat' || it.seed || inputSet().has(id)) return 'material';", to: "if (it.raw || it.tag === 'crafting-mat') return 'material';" },
   { test: 'V1', file: BAG, from: "  if (RARE_RUNGS.has(it.rarity)) return 'rare';\n", to: '' },
   { test: 'V6', file: BAG, from: "  if (it.type === 'trophy' || RARE_TAGS.has(it.tag)) return 'rare';\n", to: '' },
-  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", to: "return 'junk';" },
-  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", to: "return 'material';" },
-  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';", to: "return isSpentMaterial(id) ? 'material' : 'junk';" },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';", to: "return isRareItem(id) ? 'rare' : 'junk';" },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';", to: "return 'material';" },
+  { test: 'V6', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';", to: "return isSpentMaterial(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';" },
+  { test: 'V7', file: BAG, from: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';", to: "return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';" },
+  { test: 'V8', file: STORE, from: "if (kindOf(r.id) !== 'material' || (locked && locked.has(r.id))) continue;", to: "if (kindOf(r.id) !== 'material') continue;" },
+  { test: 'V8', file: STORE, from: '    else if (room > 0) { ids.push(r.id); room--; } else left++;', to: '    else ids.push(r.id);' },
+  { test: 'V8', file: STORE, from: '    if (held.has(r.id)) ids.push(r.id);\n', to: '' },
+  { test: 'V8', file: STORE, from: "  q[same] = { ...had, qty: had.qty === 'all' || press.qty === 'all' ? 'all' : had.qty + press.qty };", to: '  q[same] = { ...had };' },
+  { test: 'V8', file: STORE, from: "  const take = head.qty === 'all' ? q.filter((p) => p.qty === 'all' && p.dir === head.dir) : [head];", to: '  const take = [head];' },
+  { test: 'V8', file: STORE, from: "  const take = head.qty === 'all' ? q.filter((p) => p.qty === 'all' && p.dir === head.dir) : [head];", to: "  const take = head.qty === 'all' ? q.filter((p) => p.qty === 'all') : [head];" },
   { test: 'V6', file: BAG, from: "export const isSpentMaterial = (id) => inputSet().has(id) || homeSpends().has(id) || TEMPER_SPENDS.has(id);", to: "export const isSpentMaterial = (id) => homeSpends().has(id) || TEMPER_SPENDS.has(id);" },
   { test: 'V2', file: BAG, from: "(cat === 'all' || kindOf(r.id) === cat)", to: 'true' },
   { test: 'V3', file: BAG, from: '    count: (a, b) => b.qty - a.qty || byName(a, b),\n', to: '' },

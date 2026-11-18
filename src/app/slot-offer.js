@@ -85,9 +85,12 @@ function actingSlot(roster) {
 /**
  * The offer block under the roster, or '' (no offer: the account is at the cap or the server said
  * nothing; no hero yet, so no gold to show). Pure.
+ * BUY ASKS FIRST, the way a stamina refill does (audit 2026-11-18 A7: 300,000 gold went on one click while a
+ * 5,500 gp refill asks): the first press only asks (`o.asking`), naming the slot and the server's price, with
+ * "Buy for N gold" and Cancel; only that second press sends the intent (src/app/boot.js).
  * @param offer    AccountSession.slotOffer: { slotId, cost, max } | null
  * @param roster   AccountSession.roster() rows
- * @param o        { pending: bool }
+ * @param o        { pending: bool, asking: bool }
  */
 export function slotOfferHtml(offer, roster, o = {}) {
   const purse = rosterPurse(roster);
@@ -96,6 +99,15 @@ export function slotOfferHtml(offer, roster, o = {}) {
   const nth = ORDINAL[offer.slotId] || '';
   const short = offer.cost - purse.gold;
   const heroes = (Array.isArray(roster) ? roster : []).filter((r) => r && r.exists).length;
+  /* the question stands only while the purse covers the price and nothing is in flight */
+  const asking = !!o.asking && !o.pending && short <= 0;
+  const press = asking
+    ? '<span class="slot-offer-do"><button type="button" class="slot-offer-buy is-yes" data-app="buy-slot-yes" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '">'
+      + t('slots.buy_for', { cost: whole(offer.cost) }) + '</button>'
+      + '<button type="button" class="slot-offer-no" data-app="buy-slot-no">' + t('controls.cancel') + '</button></span>'
+    : '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
+      + (o.pending || short > 0 ? ' disabled' : '') + '>'
+      + (o.pending ? t('slots.buying') : t('slots.buy', { cost: whole(offer.cost) })) + '</button>';
   return '<section class="slot-offer" data-slot-id="' + offer.slotId + '">'
     + '<p class="slot-offer-lead">' + t(nth ? (offer.max ? 'slots.offer_nth_max' : 'slots.offer_nth') : (offer.max ? 'slots.offer_any_max' : 'slots.offer_any'),
       Object.assign({ cost: whole(offer.cost) }, nth ? { nth } : {}, offer.max ? { max: offer.max } : {})) + '</p>'
@@ -105,9 +117,8 @@ export function slotOfferHtml(offer, roster, o = {}) {
     /* The gold and what is short stand together, each on ONE line, beside the press while both fit, the press under them when not
        (UI audit 2026-11-18: in a grid beside the press "Need 299,500 more gold" set one word a line). */
     + '<div class="slot-offer-pay"><div class="slot-offer-fund"><p class="slot-offer-purse">' + t('slots.purse', { gold: gold(purse.gold) }) + '</p>'
-    + (short > 0 ? '<p class="slot-offer-short">' + t('slots.short', { gold: whole(short) }) + '</p>' : '') + '</div>'
-    + '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
-    + (o.pending || short > 0 ? ' disabled' : '') + '>'
-    + (o.pending ? t('slots.buying') : t('slots.buy', { cost: whole(offer.cost) })) + '</button></div>'
+    + (short > 0 ? '<p class="slot-offer-short">' + t('slots.short', { gold: whole(short) }) + '</p>' : '')
+    + (asking ? '<p class="slot-offer-ask" role="alert">' + t(nth ? 'slots.ask_nth' : 'slots.ask_any', Object.assign({ cost: whole(offer.cost) }, nth ? { nth } : {})) + '</p>' : '')
+    + '</div>' + press + '</div>'
     + '</section>';
 }

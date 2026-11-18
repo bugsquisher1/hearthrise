@@ -347,18 +347,18 @@ export const HUNT_TUTORIAL = Object.freeze([
     'shop', { kind: 'any', of: [READ, { kind: 'armoured' }] },
     { reactive: true, gotIt: true, when: [IN_TOWN, THICKET_BEHIND, { kind: 'unarmoured' }],
       inWindow: 'Press Buy, then Leather Gloves', hooks: ['[data-hs-win="shop"] .hw-tab[data-tab="buy"]'] }),
+  /* PLANT YOUR LAND, IN TOWN (audit 2026-11-18 A4: two minutes into the first hunt it said "Plant a Turnip Seed in each empty plot" with no word
+     on where the land is, and the Farm lives in the Town menu). Back from the first hunt, before the hero goes back down, the card names the way
+     there and rings it (the Town menu, then its Farm): the turnips grow while the hero hunts. Under the Thicket's floor, or back from it if not done. */
+  step('plant_land', 'Plant your land',
+    t('coach.plant_land'),
+    'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [IN_TOWN, LESSON], ring: { crop: 'turnip' }, inWindow: t('coach.plant_land_in') }),
   /* PAID, AND BACK DOWN: after "Wear what you found" and the Hearth (reactive, above), and ahead of the hunt's own lessons, which wait for the hunt.
      The invitation to close the game, at the minute the designer would have quit. */
   step('back_down', t('coach.back_down_title', RATS_WORDS), t('coach.back_down', RATS_WORDS),
     'hunt_picker', { kind: 'in_hunt', hunt: CELLAR }, { when: [IN_TOWN, UNDER_THICKET, { kind: 'tally_paid_for', task: RATS.id }],
       inWindow: t('coach.back_down_in', RATS_WORDS) }),
   /* ── B. The first hunt, the bar while it fights ────────────────────── */
-  /* In the cellar wait (designer 2026-10-24: dead minutes from minute 2 to Level 5); hr_farm_plant does not refuse a hunter. */
-  step('plant_land', 'Plant your land',
-    /* THE HOOK, SHOWN (designer 2026-11-10, lane/d-first-ten-minutes, played): the first thing a new player does while the hero fights
-       without them. The card says so first, then the job. */
-    'Plant a Turnip Seed in each empty plot',
-    'farm', orGotIt({ kind: 'planted', crop: 'turnip' }), { gotIt: true, when: [LESSON], ring: { crop: 'turnip' }, inWindow: 'Press Plant on each empty plot' }),
   step('bar_intro', 'Action bar',
     'Press a slot to change what it does',
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON] }),

@@ -37,8 +37,8 @@ export const CHRONICLE_TEXT = Object.freeze({
   teaser_thicket: 'The wolves have their dens along the brook.',
   page_thicket: 'Out past the town fields, the Meadowbrook runs through a stretch of thick pine and bramble, and that\'s where the gray '
     + 'wolves den. They mostly leave Havora alone, but walking the brook path by yourself at dusk is asking for trouble.\n\n'
-    + 'The pack\'s leader is an old wolf the hunters call Grayjaw. He\'s slower than the young ones, but he got old out here for a reason, '
-    + 'and plenty of hunters have come back to town with his teeth marks in their boots.\n\n'
+    + 'The pack\'s leader is an old she-wolf the hunters call Grayjaw, the den mother. She\'s slower than the young ones, but she got old out here for a reason, '
+    + 'and plenty of hunters have come back to town with her teeth marks in their boots.\n\n'
     + 'The big Dire Grays sleep on beds of old pine, and over the years the resin soaks into the wood. '
     + 'Every so often somebody brings back a chunk of it. It burns a deep amber in the Great Hearth and spits and crackles the whole time.',
 

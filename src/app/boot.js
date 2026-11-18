@@ -132,6 +132,7 @@ function startApp(win) {
   let rosterSlots = [];   // the account's existing characters, as the roster last read them
   let roster = [];        // the roster rows the characters screen shows (the server's, as last read)
   let slotBuying = false; // a hero-slot purchase is in flight: the button stays off until the answer
+  let slotAsking = false; // Buy was pressed once: the offer asks before anything is sent (audit 2026-11-18 A7)
   let soon = new Set();   // the heroes play() opens next, beside the one it shows: off the strip's not-open list until tried
 
   const recovering = /type=recovery/.test(win.location.hash);
@@ -287,7 +288,7 @@ function startApp(win) {
     root.querySelector('.auth-card').innerHTML = '<h1 class="auth-title">Characters</h1>'
       + '<p class="auth-lead">Signed in as ' + esc(auth.email() || 'you') + '. ' + playLine + '</p>'
       + '<ul class="char-list">' + (rows || '<li class="char-row">No server response, reload the page</li>') + '</ul>'
-      + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying }) + '</div>'
+      + '<div class="slot-offer-mount">' + G.slotOfferHtml(a.slotOffer, roster, { pending: slotBuying, asking: (slotAsking = false) }) + '</div>'
       + '<p class="auth-message' + (note ? ' is-good' : '') + '" role="status" aria-live="polite">' + esc(note || '') + '</p>'
       + '<p class="auth-links"><button type="button" class="auth-link" data-app="sign-out">Sign out</button></p>';
     ringCharacters(a, root.querySelector('.auth-card'));
@@ -308,7 +309,15 @@ function startApp(win) {
   /* The offer block alone, redrawn while a purchase is in flight. */
   function drawSlotOffer() {
     const m = root.querySelector('.slot-offer-mount');
-    if (m && account) m.innerHTML = G.slotOfferHtml(account.slotOffer, roster, { pending: slotBuying });
+    if (m && account) m.innerHTML = G.slotOfferHtml(account.slotOffer, roster, { pending: slotBuying, asking: slotAsking });
+  }
+
+  /* BUY ASKS FIRST (audit 2026-11-18 A7, the stamina refill's way): the first press only asks, at the server's price on the offer; Buy for N
+     sends. The second click of a double-click (`detail` 2) is never the answer to a question it asked a moment ago. */
+  function askSlot(on) {
+    if (slotBuying || !account) return;
+    slotAsking = on;
+    drawSlotOffer();
   }
 
   /* The characters card's answer line. */
@@ -320,8 +329,9 @@ function startApp(win) {
   /* ONE purchase from the account's gold (`actor`: the hero the journal names): the button is off until the
      server answers and, on a yes, until the roster is re-read from the server. */
   async function buySlot(slotId, actor) {
-    if (slotBuying || !account || !Number.isInteger(slotId) || !Number.isInteger(actor)) return;
+    if (slotBuying || !slotAsking || !account || !Number.isInteger(slotId) || !Number.isInteger(actor)) return;
     const a = account;
+    slotAsking = false;
     slotBuying = true;
     drawSlotOffer();
     const r = await a.buySlot(slotId, actor);
@@ -449,7 +459,9 @@ function startApp(win) {
     else if (what === 'open-hero') openHero(slot);
     else if (what === 'all') { if (pane) pane.shell.toggle('characters'); }
     else if (what === 'create') showCreate(slot);
-    else if (what === 'buy-slot') buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));
+    else if (what === 'buy-slot') askSlot(true);
+    else if (what === 'buy-slot-no') askSlot(false);
+    else if (what === 'buy-slot-yes' && e.detail <= 1) buySlot(Number(t.getAttribute('data-slot-id')), Number(t.getAttribute('data-pay')));
   });
 
   /* A HIDDEN PAGE ASKS NOTHING (AccountSession.setPageHidden): the hunts run on the server; shown again, one catch-up. */

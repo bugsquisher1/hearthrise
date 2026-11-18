@@ -22,6 +22,7 @@
 
 import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.138';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.138';
+import { sepHtml } from '../render/format.js?v=0.2.138';
 import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js?v=0.2.138';
 import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js?v=0.2.138';
 import { refusalWords } from '../shell/intent-words.js?v=0.2.138';
@@ -73,7 +74,8 @@ export function howYouFightHtml(slots = '') {
     + '<p class="hero-how-lead">' + HOW_YOU_FIGHT_LEAD + '</p>'
     + (slots ? '<p class="hero-how-slots">' + esc(slots) + '</p>' : '')
     + '<ul class="hero-how-list">'
-    + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + ' <span class="hero-how-uses">' + r.uses + '</span></li>').join('')
+    /* what the style does, a dot, then what it uses (audit 2026-11-18 A14: "Holds monsters off the party Uses food" read as one run-on line) */
+    + HOW_YOU_FIGHT.map((r) => '<li data-style="' + r.id + '"><b>' + r.name + '</b> ' + r.does + sepHtml() + '<span class="hero-how-uses">' + r.uses + '</span></li>').join('')
     + '</ul><p class="hero-how-more" hidden>' + t('heroes.create_more') + '</p></section>';
 }
 

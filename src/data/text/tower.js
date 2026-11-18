@@ -25,7 +25,8 @@ export const TOWER_TEXT = Object.freeze({
   next_head: 'Next Key',
   climb_head: 'Climb',
   stat_xp: 'Kill XP',
-  xp_pct: '{pct}%',
+  /* of what (audit 2026-11-18 A5: a bare "37.5%" never said): a kill pays this share of what the same kill pays on a hunt */
+  xp_pct: '{pct}% of hunting',
   stat_death: 'Death penalty',
   stat_uses: 'Uses',
   uses_value: 'Stamina, supplies',
@@ -86,6 +87,8 @@ export const TOWER_TEXT = Object.freeze({
   stoke_head: 'Stoke',
   stoke_none: 'None',
   stoke_x: 'x{count}',
+  /* a stoke's price on its button, with its unit (audit 2026-11-18 A5: "150 / 350 / 600" named nothing) */
+  stoke_cost: '{cost} Cinders',
   stoke_option: '{label}: {cost} Cinders',
   stoke_short: 'Not enough Cinders',
   chance_head: 'Chance',

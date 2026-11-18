@@ -434,7 +434,7 @@ const mutants = [
   { name: 'a kill pays a combat skill too', case: 'xp-routes',
     edits: [['src/core/hunt-rewards.js', "if (m && ev.amount > 0) call(m.fx, 'addLevelXp', ev.amount, ev.raw, ev.ev);", "if (m && ev.amount > 0) { call(m.fx, 'addLevelXp', ev.amount, ev.raw, ev.ev); call(m.fx, 'addXp', 'melee', ev.amount); }"]] },
   { name: 'a staff blow pays damage XP', case: 'xp-routes',
-    edits: [['src/data/skills.js', "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral']);", "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral', 'magic']);"]] },
+    edits: [['src/data/skills.js', "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral', ...", "export const DAMAGE_XP_FAMILIES = Object.freeze(['sword', 'hammer', 'axe', 'ranged', 'neutral', 'magic', ..."]] },
   { name: 'Defense trains without armour', case: 'xp-routes',
     edits: [['src/core/hunt-rewards.js', "if (!m || m.armoured !== true || !attacker", "if (!m || !attacker"]] },
   { name: 'a shield block pays no extra', case: 'xp-routes',

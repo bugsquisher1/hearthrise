@@ -90,6 +90,8 @@ declare
     'tower_progress', 'tower_runs', 'hr_mode_board', 'hr_mode_board_last',
     /* a hero's Hearth Chest warmth, key count and default stokes, the journal of its keys used, and its Key Ring (2027-04-27-tower-chest.sql) */
     'chest_luck', 'chest_opens', 'player_key_ring',
+    /* a hero's Hearth warmth for each key family (2027-05-08-catacombs.sql) */
+    'chest_warmth',
     /* the Hearth Chest's green window on the square, naming the hero who opened it (2027-05-05-hearth-moods.sql) */
     'hearth_bursts',
     'party', 'party_hunt', 'party_hunt_roster_log', 'party_hunt_tally', 'party_invite', 'party_member', 'party_notices', 'party_seekers',
@@ -128,7 +130,7 @@ declare
     'hr_account_deletion_log', 'hr_sink_rules', 'hr_titles', 'hr_town_works', 'hr_boss_calls',
     /* crafted jewelry's catalogues (2027-03-14-jewelry-catalogue.generated.sql): the Hallmark step, its day limit, the graded rows' ceilings */
     'hr_hallmark_offers', 'hr_hallmark_rule', 'hr_market_ceilings',
-    /* the jewel reforge's catalogue (2027-05-07-jewelry-sample-catalogue.generated.sql) */
+    /* the jewel reforge's catalogue (2027-05-09-jewelry-sample-catalogue.generated.sql) */
     'hr_jewel_reforge_offers',
     /* scaled hunts' catalogues (2027-03-21-scaled-hunts-catalogue.generated.sql): the rule, the grounds, the scaled kill bounds */
     'hr_scaled_hunt_rule', 'hr_scaled_grounds', 'hr_scaled_kill_bounds',
@@ -143,6 +145,8 @@ declare
     /* the Hearth Chest's catalogue (2027-04-27-tower-chest-catalogue.generated.sql): the chest, its key families, keys, stokes, luck and weapons */
     'hr_chests', 'hr_chest_key_families', 'hr_chest_keys', 'hr_chest_stokes', 'hr_chest_luck', 'hr_chest_families', 'hr_chest_weapons', 'hr_chest_weapon_families',
     'hr_chest_outfits',
+    /* the Catacomb keys' armor (2027-05-08-catacombs-chest-catalogue.generated.sql): each key's piece a slot and weight */
+    'hr_chest_armor',
     /* the keyed halls' catalogue (2027-04-20-boss-hall-hunt-sessions-catalogue.generated.sql): the halls, their keys and limits */
     'hr_boss_halls',
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */

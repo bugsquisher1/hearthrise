@@ -138,6 +138,8 @@ export function coachFactsOf(cs, account) {
   const bag = bagOf(cs), shop = shopOf(cs), eq = equipmentOf(cs);
   const sh = {
     read: coachReadOf(cs),
+    /* the cards hidden with Got it are passed by in the chain, so the next card shows (hunt-tutorial.js currentCard) */
+    hid: coachHidOf(cs),
     roster,
     slotsOwned: rows ? rows.length : null,
     playLimit: account && typeof account.statedLimit === 'function' ? account.statedLimit() : null,
@@ -161,8 +163,9 @@ export function markCoachRead(cs, card) {
 
 /* ── NO TIP IS MANDATORY (Tyler 2026-11-11) ── The player's "Show tips" switch (src/data/tips.js: one pick for every open
    hero, the newest wins, src/session/player-switch.js) and, per character, the cards a server fact finishes that the player
-   pressed Got it on (residue `coach.hid`). Both display state: the tutorial's own progress is the server's, and a card
-   hidden here still finishes on the server's fact, so the next one shows in its turn. */
+   pressed Got it on (residue `coach.hid`). Both display state: the tutorial's own progress is the server's. A card hidden here
+   is passed by in the chain (coachFactsOf hands `hid` to hunt-tutorial.js currentCard), so the next card whose conditions hold
+   shows at once; it no longer holds every later card until its own fact (2026-11-18: "Feed the Hearth" held the farm's). */
 const heroesOf = (ctx) => {
   const all = ctx.account && typeof ctx.account.characters === 'function' ? ctx.account.characters() : [];
   return !ctx.character || all.includes(ctx.character) ? all : all.concat(ctx.character);
@@ -232,11 +235,10 @@ export function heldStep(ctx) {
 
 export function heldCard(ctx) {
   const cs = ctx.character;
-  /* tips off, or this card hidden with Got it: nothing shown and nothing rung (the server's chain still moves on its own facts) */
+  /* tips off: nothing shown and nothing rung (the server's chain still moves on its own facts) */
   if (cs && !tipsOn(ctx)) { HELD.delete(cs); return null; }
-  let card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);
-  const hid = card && coachHidOf(cs);
-  if (hid && hid.has(card.id)) card = null;
+  /* a card hidden with Got it is never the pointer's: the facts carry `hid`, and the chain moves on past it */
+  const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (!cs || now === null) return card;
   const had = HELD.get(cs);
@@ -430,6 +432,9 @@ const itemHtml = (ctx, r, on, ringed) => {
     + (ringed ? ' data-coach-ring=""' : '') + '>' + glyphSvg(ctx.glyphs, r.glyph) + '<span class="hs-launch-label">' + esc(r.label) + '</span>'
     + (key ? '<span class="hs-launch-key" aria-hidden="true">' + esc(key) + '</span>' : '') + '</button>';
 };
+/* A line of the row's `menuTabs` (src/data/shell-windows.js): its window opened on that tab (launcher-menu.js actMenu), under the window's own line. */
+const tabItemHtml = (ctx, r, m) => '<button type="button" role="menuitem" class="hs-launch-item" data-hs-act="launch-pick" data-hs-open="' + esc(r.id) + '" data-hs-tab="' + esc(m.tab) + '">'
+  + glyphSvg(ctx.glyphs, m.glyph) + '<span class="hs-launch-label">' + esc(m.label) + '</span></button>';
 function groupHtml(ctx, e, open, ring, menu) {
   const g = e.group, shown = menu === g.id;
   const on = e.rows.some((r) => open.has(r.id));
@@ -439,7 +444,7 @@ function groupHtml(ctx, e, open, ring, menu) {
     + ' aria-haspopup="menu" aria-expanded="' + shown + '" aria-label="' + esc(g.label) + '" data-tip="' + esc(g.label) + '" data-key=""'
     + (inside && !shown ? ' data-coach-ring=""' : '') + '>' + glyphSvg(ctx.glyphs, g.glyph) + '</button>'
     + (shown ? '<div class="hs-launch-menu" role="menu" aria-label="' + esc(g.label) + '"><p class="hs-launch-menu-h" aria-hidden="true">' + esc(g.label) + '</p>'
-      + e.rows.map((r) => itemHtml(ctx, r, open.has(r.id), r.id === ring)).join('') + '</div>' : '')
+      + e.rows.map((r) => itemHtml(ctx, r, open.has(r.id), r.id === ring) + (r.menuTabs || []).map((m) => tabItemHtml(ctx, r, m)).join('')).join('') + '</div>' : '')
     + '</span>';
 }
 

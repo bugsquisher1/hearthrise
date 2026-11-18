@@ -132,9 +132,11 @@ export function heroSnapshot(state, c) {
   /* +SKILL ON WORN GEAR (combat.js SKILL_PLUS_FIELDS), the same: the rolls above already read it; it rides the snapshot so a peer's
      spells grow with it in the browser as on the server (frozenOf), only on a hero whose gear carries any. */
   const skillPlus = (c.eq && c.eq.skillPlus) || null;
+  /* THE OWN HEAL (combat.js equipmentStats selfHealPm, the fist line's), the same: a number on the unit, only on a hero that wears one. */
+  const selfHealPm = c.eq && c.eq.selfHealPm > 0 ? c.eq.selfHealPm : 0;
   return { acc: Math.round(roll.accuracy * 1000), maxHit: Math.max(1, Math.floor(roll.maxHit)), def, armour: armourValues(c.equipment, c.items), level: charLevelFromXp(state.levelXp),
     ...(blowsPm ? { blowsPm } : {}), ...(armorPm ? { armorPm } : {}), ...(followPm ? { followPm } : {}), ...(surgePm ? { surgePm } : {}), ...(focusPm ? { focusPm } : {}), ...(resistPm ? { resistPm } : {}),
-    ...(skillPlus ? { skillPlus } : {}) };
+    ...(skillPlus ? { skillPlus } : {}), ...(selfHealPm ? { selfHealPm } : {}) };
 }
 
 /* THE SET A FIGHT IS PRICED BY (Tyler 2026-10-23: runes fuel SPELLS only, caster basics cost mana): the
@@ -464,8 +466,10 @@ function shotItemsOf(hero) {
   return Array.from(out).sort();
 }
 
-/* A peer's jewelry perks, as numbers like its rungs (combat-sim.js syncUnit), so the browser lands its blows and casts as the server does. */
-const jewelSnap = (snap) => ({ ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}), ...(snap.focusPm ? { focusPm: snap.focusPm } : {}),
+/* A peer's jewelry perks, as numbers like its rungs (combat-sim.js syncUnit), so the browser lands its blows and casts as the server does;
+   and its own heal (selfHealPm), so its HP climbs in the browser as on the server. */
+const jewelSnap = (snap) => ({ ...(snap.selfHealPm ? { selfHealPm: snap.selfHealPm } : {}),
+  ...(snap.followPm ? { followPm: snap.followPm } : {}), ...(snap.surgePm ? { surgePm: snap.surgePm } : {}), ...(snap.focusPm ? { focusPm: snap.focusPm } : {}),
   ...(snap.resistPm ? { resistPm: snap.resistPm } : {}), ...(snap.skillPlus ? { skillPlus: snap.skillPlus } : {}) });
 
 /** The frozen numbers of an assembled member side at server instant `atMs`, against the monster `kinds` as the instance plays them

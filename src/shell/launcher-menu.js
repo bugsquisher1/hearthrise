@@ -101,8 +101,9 @@ export function actMenu(ctx, el, action, ev, hit, draw) {
     return false;
   }
   if (action === 'launch-pick') {
-    const id = hit.getAttribute('data-hs-open');
-    if (ev.type === 'click') { setMenu(ctx, el, null, draw); ctx.wm.open(id); return true; }
+    const id = hit.getAttribute('data-hs-open'), tab = hit.getAttribute('data-hs-tab');
+    /* a `menuTabs` line (src/data/shell-windows.js) opens its window on its tab */
+    if (ev.type === 'click') { setMenu(ctx, el, null, draw); if (tab) ctx.wm.openTab(id, tab); else ctx.wm.open(id); return true; }
     if (ev.type === 'keydown' && (ev.key === 'ArrowDown' || ev.key === 'ArrowUp' || ev.key === 'Home' || ev.key === 'End')) {
       const items = Array.from(el.querySelectorAll('.hs-launch-item'));
       const i = items.indexOf(hit), n = items.length;

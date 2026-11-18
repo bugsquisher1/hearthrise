@@ -20,6 +20,7 @@ import { SHIELD_DESC } from './shields.js?v=0.2.139';
 import { TRAINING_GEAR_DESC } from './training.js?v=0.2.139';
 import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.139';
 import { CHEST_ITEM_DESC } from './chests.js?v=0.2.139';
+import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.139';
 import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.139';
 
 export const ITEM_DESC = {
@@ -68,6 +69,9 @@ export const ITEM_DESC = {
   ...SHIELD_DESC,     // lane b-spell-roles: the five shields
   ...TRAINING_GEAR_DESC, // lane/c-training-gear: the training items, one line a skill
   ...CHEST_ITEM_DESC,    // lane/c-tower-chest: the Tower's four keys and its Cinders
+  /* lane/c-catacombs: the Catacomb armor that ships now, its flavour line (the house's: no digit, no closing stop). The attribute's sentence
+     with its number is the card's, from the item's own field and CATACOMB_ATTRS say (catacomb-armor.js), never a written line */
+  ...Object.fromEntries(CATACOMB_ARMOR_SHIPPED.map((r) => [r.id, r.line.replace(/\.$/, '')])),
   ...TOWER_WEAPON_DESC,  // lane/d-tower-weapons: who left each tower weapon on the Hearth's ledge
   ...CALL_ITEM_DESC,  // lane/d-boss-call-drops: the call-only pieces
   /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */

@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/hallmark-intents.js — THE HALLMARK STEP AND THE JEWEL REFORGE (2027-03-14-jewelry-hallmark.sql, 2027-05-07-jewel-reforge.sql).
+// src/session/hallmark-intents.js — THE HALLMARK STEP AND THE JEWEL REFORGE (2027-03-14-jewelry-hallmark.sql, 2027-05-09-jewel-reforge.sql).
 //
 // ONE intent each, naming only this character's slot, the piece, the row the catalogue pairs it with, and the QUOTE the `hallmark` section
 // showed. The server checks the hero's level in the piece's own bench, the account's count today and the price under its locks, takes the

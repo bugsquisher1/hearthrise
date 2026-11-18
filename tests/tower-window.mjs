@@ -6,7 +6,7 @@
 //   node tests/tower-window.mjs --mutate   every planted defect must turn a named rule RED, each run in only its arm (`TW-4 …`)
 //   node tests/tower-window.mjs --shots <dir>   also write the desktop (1440x900) and phone (922x423) screenshots
 //
-// mutant-anchors: src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js src/data/shell-windows.js src/shell/back-in-town.js src/shell/windows/inventory/state.js src/shell/windows/inventory/actions.js src/shell/item-lore.js src/session/gate-sections.js
+// mutant-anchors: src/data/text/tower.js src/styles/shell.css src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js src/data/shell-windows.js src/shell/back-in-town.js src/shell/windows/inventory/state.js src/shell/windows/inventory/actions.js src/shell/item-lore.js src/session/gate-sections.js src/shell/launcher-menu.js src/shell/launcher.js
 //
 // THE QA GATE (2026-11-17): the Town menu's Burning Tower line (only with the section) and one re-read each opening (TW-1, TW-2); the Story
 // folds on a tab press and greets with Keeper Rowe (TW-2); the chest's "Weapon chance: 16%" (TW-4); a free fall upsells no Blessing and no
@@ -179,6 +179,7 @@ const climbView = (page) => page.evaluate(() => {
     pips: Array.from(w.querySelectorAll('.tt-pip')).map((p) => (p.classList.contains('is-on') ? 1 : 0)).join(''),
     lands, labels, marks, darks, ticks,
     startOn: (() => { const sel = w.querySelector('.tt-foot .tt-start-pick'); return sel ? sel.options[sel.selectedIndex]?.textContent || '' : null; })(), go: go.disabled ? 'off' : 'on', why: w.querySelector('.tt-off-why').textContent, gate: Array.from(w.querySelectorAll('.tt-gate li')).map((li) => li.textContent),
+    before: Array.from(w.querySelectorAll('.tt-before li')).filter((li) => li.getClientRects().length).map((li) => li.textContent),
     msg: w.querySelector('.hh-intent-msg').textContent };
 });
 /* Every visible line of a pane (a leaf element with its own text): the label rule reads them all. */
@@ -275,9 +276,15 @@ async function checks(overrides, shots, { arm = null } = {}) {
         let v = await climbView(page);
         /* the column: only what a player acts on, label and value (the mode's own pay, the rules), Best Floor, Next Key (the server's key
            row for the next landing) and a tick a floor toward it; no rank with no field */
-        if (!v || v.rows.join(' | ') !== 'Kill XP: 37.5% | Death penalty: None | Uses: Stamina, supplies | Time limit: 3 min per floor'
+        /* "Kill XP" says of what (audit 2026-11-18 A5: a bare "37.5%") */
+        if (!v || v.rows.join(' | ') !== 'Kill XP: 37.5% of hunting | Death penalty: None | Uses: Stamina, supplies | Time limit: 3 min per floor'
           || /Floors: one room|Party: solo|Keys open|this week|60 floors|under your best/i.test(v.pane))
           fails.push('TW-2 the column rows read ' + JSON.stringify(v && v.rows));
+        /* BEFORE ENTERING, AS A HUNT'S CARD SAYS IT (audit 2026-11-18 A5: 56 Salted Shrimp from the store, 794 gp, and no word before Enter): the bar's
+           food and drink, its runes with the store's price a cast and the gold the store is paid from, above Enter, one label a line; no Blessings line
+           (a Tower death takes nothing). The fixture's bar: 14 Wheat Bread, 6 Goldenroot Tea, Fire runes then the store's Plain Fire Rune. */
+        if (!v || v.before.join(' | ') !== 'Runes: 40 Fire runes, then Plain Fire Rune (1 gp a cast) | Food: 14 Wheat Bread | Carried: 5 Cooked Shrimp, put it on the bar | Drink: 6 Goldenroot Tea | Gold: 5,200 gp')
+          fails.push('TW-2 Before entering reads ' + JSON.stringify(v && v.before));
         if (!v || v.best !== '27' || v.rank !== null || v.next !== 'Bronze Key | Floor 30 | assets/icons-bundle/pixel/items/tower_key_bronze.png' || v.pips !== '1111111000')
           fails.push('TW-2 Best Floor / Next Key read ' + JSON.stringify(v && [v.best, v.rank, v.next, v.pips]));
         if (!v || v.starts.join() !== '0,10,20*' || v.optionText.join() !== 'Floor 1,Floor 11,Floor 21') fails.push('TW-2 the Start Floor select reads ' + JSON.stringify(v && [v.starts, v.optionText]));
@@ -354,6 +361,21 @@ async function checks(overrides, shots, { arm = null } = {}) {
       if (!(await wait(page, () => document.querySelector('[data-hs-win="tower"] .tt-pane.is-on'), null, 4000))) fails.push('TW-2 the Town menu line opened no Tower window');
       for (let i = 0; i < 40 && loads(s) <= before; i++) await page.waitForTimeout(50);
       if (loads(s) <= before) fails.push('TW-2 opening the Tower window re-read nothing (' + before + ' -> ' + loads(s) + ')');
+      /* THE HEARTH CHEST'S OWN LINE (QA audit 2026-11-18 N2: the chest was reached only through Burning Tower, then Chest): the Town menu lists it right
+         under the Tower's line, and its press opens the Tower window on its Chest, from a closed window and from one open on the Climb */
+      for (const from of ['closed', 'climb']) {
+        await replay(page);
+        await page.click('[data-hs-win="tower"] .hs-close', { timeout: 1500 }).catch(() => {});
+        await wait(page, () => !document.querySelector('[data-hs-win="tower"]:not(.is-leaving)'), null, 3000);
+        if (from === 'climb') { await pressBar(page, 'tower').catch(() => {}); await wait(page, () => document.querySelector('[data-hs-win="tower"] [data-pane="climb"].is-on'), null, 4000); }
+        await page.click('.hs-launchers [data-hs-group="town"]').catch(() => {});
+        const lines = await page.evaluate(() => Array.from(document.querySelectorAll('.hs-launch-menu .hs-launch-item')).map((b) => [b.getAttribute('data-hs-open'), b.getAttribute('data-hs-tab'), b.textContent.trim()]));
+        const at = lines.findIndex((l) => l[0] === 'tower' && !l[1]);
+        if (at < 0 || JSON.stringify(lines[at + 1]) !== JSON.stringify(['tower', 'chest', 'Hearth Chest'])) fails.push('TW-2 the Town menu has no Hearth Chest line under the Tower\'s (' + from + '): ' + JSON.stringify(lines));
+        await page.click('.hs-launch-menu [data-hs-tab="chest"]', { timeout: 2500 }).catch(() => {});
+        if (!(await wait(page, () => document.querySelector('[data-hs-win="tower"] [data-pane="chest"].is-on') && !document.querySelector('.hs-launch-menu'), null, 4000)))
+          fails.push('TW-2 the Hearth Chest line did not open the Tower on its Chest (' + from + '): ' + JSON.stringify(await page.evaluate(() => [!!document.querySelector('[data-hs-win="tower"]'), (document.querySelector('[data-hs-win="tower"] .tt-pane.is-on') || { dataset: {} }).dataset.pane, !!document.querySelector('.hs-launch-menu')])));
+      }
       if (errors.length) fails.push('TW-2 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
@@ -466,6 +488,21 @@ async function checks(overrides, shots, { arm = null } = {}) {
         return { ok: true };
       };
       await openTower(page, 'chest');
+      /* A WINDOW IS NO PAGE (audit 2026-11-18 A19: a double-click on the chest's Use painted the window's words in the browser's blue selection): a
+         double-click on the pane's words, or a drag across them, selects nothing (a double-click on a press that repaints lands on words like these) */
+      await page.waitForTimeout(300);
+      const words = await page.evaluate(() => { const e = Array.from(document.querySelectorAll('[data-hs-win="tower"] [data-pane="chest"] *'))
+        .find((x) => x.getClientRects().length && !x.closest('button, select, a, [data-hs-act]') && [...x.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim().length > 6));
+        if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + 3, y: b.top + b.height / 2, x2: Math.min(b.right - 3, b.left + 160) }; });
+      let picked = 'no words in the pane to press';
+      if (words) {
+        await page.evaluate(() => window.getSelection().removeAllRanges());
+        await page.mouse.dblclick(words.x + 10, words.y);
+        await page.mouse.move(words.x, words.y); await page.mouse.down(); await page.mouse.move(words.x2, words.y, { steps: 6 }); await page.mouse.up();
+        picked = await page.evaluate(() => String(window.getSelection()).trim());
+        await page.evaluate(() => window.getSelection().removeAllRanges());
+      }
+      if (picked) fails.push('TW-4 a double-click or a drag selected the window\'s words: ' + JSON.stringify(picked.slice(0, 60)));
       /* the window still sliding in moves the scene (a --shots run measured the chest 16 px off the reveal): read it once it stands still */
       await page.waitForFunction(() => { const e = document.querySelector('[data-hs-win="tower"] .tc-chest'); if (!e) return false;
         const x = Math.round(e.getBoundingClientRect().left); const still = window.__tcX === x; window.__tcX = x; return still; }, null, { polling: 120, timeout: 3000 }).catch(() => {});
@@ -476,7 +513,8 @@ async function checks(overrides, shots, { arm = null } = {}) {
       /* a slot a key row the server lists, in its metal: held count and weapon chance; one not held is no press; the picked the one Use opens */
       if (c.picks.join() !== 'Bronze x3 Weapon chance: 16%*,Silver x0 Weapon chance: 8% off' || c.icons.join() !== 'tower_key_bronze.png,tower_key_silver.png' || c.cinders !== 'Hearth Cinders 400')
         fails.push('TW-4 the keys read ' + JSON.stringify([c.picks, c.icons, c.cinders]));
-      if (c.warm !== 'x1.2' || c.stokes.join() !== 'None,x1 150*,x2 350,x3 600' || c.stokeHead !== 'Stoke' || c.chance !== 'Chance: 33%')
+      /* each stoke's price names its unit (audit 2026-11-18 A5: "150 / 350 / 600" said nothing) */
+      if (c.warm !== 'x1.2' || c.stokes.join() !== 'None,x1 150 Cinders*,x2 350 Cinders,x3 600 Cinders' || c.stokeHead !== 'Stoke' || c.chance !== 'Chance: 33%')
         fails.push('TW-4 the odds read ' + JSON.stringify([c.warm, c.stokes, c.stokeHead, c.chance]));
       if (c.tip !== 'Equipped type (Bow): 50%\nContents: Hearth Cinders x50, Tempering Salts x15, Cooked Shrimp x20\nWeapon bonus: +1 combat skill\nKey Warden: 0.2%')
         fails.push('TW-4 the key\'s inside reads ' + JSON.stringify(c.tip));
@@ -860,6 +898,10 @@ const MUTANTS = [
   ['TW-4 the reveal is not the opened key\'s', 'src/shell/windows/tower-chest.js', "if (r.ok) sc.result = Object.assign({}, r, { key: k.key });", "if (r.ok) sc.result = Object.assign({}, r, { key: 'gold' });"],
   ['TW-4 a repaint replays the reveal', 'src/shell/windows/tower-chest.js', '  if (SHOWN.get(host) === r) return;\n', '\n'],
   /* direction A (Tyler 2026-11-16): the tower drawn, the chest beside the fire, the reveal at the chest, the end card's run */
+  ['TW-4 a double-click selects a window\'s words again (audit A19)', 'src/styles/shell.css', '  -webkit-user-select: none; user-select: none;\n}\n.hs-win :is(', '}\n.hs-win :is('],
+  ['TW-2 Enter says nothing of the store\'s food again (audit A5)', 'src/shell/windows/tower.js', "  rows(root.querySelector('.tt-before'), towerBeforeLines(cs, tw), {", "  rows(root.querySelector('.tt-before'), [], {"],
+  ['TW-2 Kill XP says no "of what" again (audit A5)', 'src/data/text/tower.js', "  xp_pct: '{pct}% of hunting',", "  xp_pct: '{pct}%',"],
+  ['TW-4 a stoke\'s price names no unit again (audit A5)', 'src/shell/windows/tower-chest.js', "r.n ? t('tower.stoke_cost', { cost: whole(r.cost) }) : ''", "r.n ? whole(r.cost) : ''"],
   ['TW-2 a landing over the record is a press', 'src/shell/tower-stage.js', '  const press = (l) => pressable && !!l.pickable;', '  const press = (l) => pressable;'],
   ['TW-2 a tapped landing the server did not list is picked', 'src/shell/windows/tower.js', '  if (!Number.isSafeInteger(l) || !tw.checkpoints.includes(l)) return false;', '  if (!Number.isSafeInteger(l)) return false;'],
   ['TW-2 the dark starts under the best', 'src/shell/tower-stage.js', '  let from = best;', '  let from = best - 2;'],
@@ -883,6 +925,10 @@ const MUTANTS = [
   /* the QA gate's polish (2026-11-17) */
   ['TW-6 QA: the floor clock runs past the floor\'s limit', 'src/shell/widgets/tower-bar.js', 'Math.min(limit, Math.max(0, live.endsAtMs - shown))', 'Math.max(0, live.endsAtMs - shown)'],
   ['TW-1 QA: the Tower has no Town menu line', 'src/data/shell-windows.js', "key: null, noShortcut: true, group: 'town', section: 'tower'", "key: null, noShortcut: true, launcher: false, section: 'tower'"],
+  /* QA audit 2026-11-18 N2: the Hearth Chest's own line in the Town menu */
+  ['TW-2 N2: the Hearth Chest has no Town menu line', 'src/data/shell-windows.js', ", menuTabs: Object.freeze([Object.freeze({ tab: 'chest', label: 'Hearth Chest', glyph: 'uiKey' })])", ''],
+  ['TW-2 N2: the Hearth Chest line opens the Tower on its Climb', 'src/shell/launcher-menu.js', 'if (tab) ctx.wm.openTab(id, tab); else ctx.wm.open(id);', 'ctx.wm.open(id);'],
+  ['TW-2 N2: the menu draws no line of a row\'s tabs', 'src/shell/launcher.js', " + (r.menuTabs || []).map((m) => tabItemHtml(ctx, r, m)).join('')", ''],
   ['TW-2 QA: an opening reads nothing', 'src/shell/windows/tower.js', "if (!(h && !h.ended) && typeof cs.load === 'function') cs.load();", 'void h;'],
   ['TW-2 QA: the Story stays over a tab', 'src/shell/windows/tower.js', "sc.msg = ''; sc.story = false; sc.scrolled = false;", "sc.msg = ''; sc.scrolled = false;"],
   ['TW-4 QA: the chest\'s chance is a bare number', 'src/shell/windows/tower-chest.js', "t('tower.weapon_chance', { pct: ppmWords(k.basePm * 1000) })", 'ppmWords(k.basePm * 1000)'],

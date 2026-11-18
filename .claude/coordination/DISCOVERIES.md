@@ -4,6 +4,15 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-18 · systems-engineer (lane/d-late-items-rescue) · the late-items chain re-landed on v0.2.139
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P1 tests · `tests/hunt-core/fixtures/h2.js` planted mutant copies without `src/render`, so every mutant in damage, pull-cycle, roles, targeting and temper threw "Cannot find module ... player-text.js" and counted as caught. Fixed (the 11-15 fix never merged); with real plants all five stay green, and roles' "ranged distance measured from the leader" had gone vacuous (a ReferenceError: leaderOf no longer imported), re-armed. Still caught by a throw, not its rule: roles' "a bow is one-handed again" (chests.js refuses the data at load) | hunt-core suites | qa-engineer: a mutant caught by "threw" is not a proof; H2_WHY=1 prints why |
+| 2 | P2 grader · the `--uniques` kit counts a Hearth Chest weapon as gettable (catalogue-coherence reach), so from 88 every hero wears its family's Platinum Tower weapon (Dawnsteel +4 skill) wherever no hidden unique beats it there. A weekly lottery read as a drop | tools/balance-sim/gear.mjs bestOf | game-designer: should a grade assume a chest piece? (a `--chest` opt-in is one line in `can`) |
+| 3 | P2 data · special-attributes.js files +skill as `skillB`; the engine reads `meleePlus`/`rangedPlus`/`magicPlus`/`defensePlus` (combat.js SKILL_PLUS_FIELDS). The Mudlark's Mitts would ship as nothing | special-attributes.js, tests/special-attributes.mjs | game-designer + systems: move the catalogue to the engine's fields; uniques-proof U4 re-aims then |
+| 4 | P3 · since Deadly brings six on the late grounds (lane/d-flat-party-xp), a healerless four holds Deadly on Carter's Rest, the Ox Road and the Roost (1 / 3 / 4 per 16 hero-hours at the floor); only the Vaults is a Healer's tier | late packs | none (measured, built) |
+
 ## 2026-11-18 · systems-engineer (lane/a-honesty-rescue) · three finished 11-16 lanes re-landed; one red found on the set
 
 | # | Found | Affected | Action |
@@ -20,7 +29,7 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 | # | Found | Affected | Action |
 |---|---|---|---|
-| 1 | P1 design, every post-Morrow ground · Dawnsteel (tier 7, worn from 88) is the last armor, but the stat formula keeps aiming a ground's monsters at a same-Level hero. On one tree (the Morrow's three packs open, quick grade) Carter's Rest at 110 reads a lone tank's Normal low 73% and a four's Deadly 2 deaths; the Pauper Vaults at 165 read 59% and 38. Spells are 6% of what lands. | src/data/balance-sheet.js STAT_FORMULA, the unique pieces (the Morrow's section 9), every ground past 128 | Tyler's call, on the board's "2026-11-15 The Pauper Vaults" section 8: the uniques carry the armor curve, or the formula reads the gear a hero can have at that Level. Not papered over with a named exception |
+| 1 | P1 design, every post-Morrow ground · Dawnsteel (tier 7, worn from 88) is the last armor, but the stat formula keeps aiming a ground's monsters at a same-Level hero. On one tree (the Morrow's three packs open, quick grade) Carter's Rest at 110 reads a lone tank's Normal low 73% and a four's Deadly 2 deaths; Unmarked Catacombs at 165 read 59% and 38. Spells are 6% of what lands. | src/data/balance-sheet.js STAT_FORMULA, the unique pieces (the Morrow's section 9), every ground past 128 | Tyler's call, on the board's "2026-11-15 Unmarked Catacombs" section 8: the uniques carry the armor curve, or the formula reads the gear a hero can have at that Level. Not papered over with a named exception |
 | 2 | P2 economy, printed only · A lone melee at 165 eats about 300-350 Salted Lobster an hour (216 HP each against a 2,291 HP tank) and nets -33k to -34k; a bow +14k, a Mage +44k. The store's food stops at Level-50 sizes | src/data/supply-basics.js heal rows | NO PROFIT MOLDS: brought to Tyler as a case-by-case look, not tuned |
 
 ## 2026-11-14 · art-director (lane/b-map-audit) · a unit's feet land on its tile's SOUTH pixel row, so a bridge drawn on the tile rows misses them

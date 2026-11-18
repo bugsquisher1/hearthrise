@@ -163,7 +163,7 @@ function patchStokes(host, k, pending) {
       + '<b class="tc-stoke-n"></b><span class="tc-stoke-cost"></span></button>'),
     patch: (b, r) => {
       text(b.querySelector('.tc-stoke-n'), r.n ? t('tower.stoke_x', { count: r.n }) : t('tower.stoke_none'));
-      text(b.querySelector('.tc-stoke-cost'), r.n ? whole(r.cost) : '');
+      text(b.querySelector('.tc-stoke-cost'), r.n ? t('tower.stoke_cost', { cost: whole(r.cost) }) : '');
       attr(b, 'aria-checked', String(k.stokesDefault === r.n));
       attr(b, 'aria-label', r.n ? t('tower.stoke_option', { label: t('tower.stoke_x', { count: r.n }), cost: whole(r.cost) }) : t('tower.stoke_none'));
       prop(b, 'disabled', pending);

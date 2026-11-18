@@ -242,6 +242,24 @@ const cases = {
     if (d('ranger', ['ranger']).tmode !== M.RS.DEFAULT_TARGET_MODE) return 'a party of one has no leader to follow';
     return d('melee_dps', ['tank', 'melee_dps']).tmode === 'follow' ? null : 'the Melee DPS should follow the tank';
   },
+  /* KNOWN-F1 (tests/settle-properties.mjs, 2026-11-18): a setting the player left unset is its role's default for the party
+     STANDING at that instant, which only the engine knows. settingsOf lays the hero's own picks over the defaults for the
+     roles it is handed (none: a party of one), and heroSetup carries the picks alone, whatever party read it (the engine's
+     half, a survivor switching at its partner's end however the settles fall: tests/hunt-sessions-settle.mjs PARTY-ROSTER). */
+  'settings-read-the-party-standing': (M) => {
+    const s = M.roles.settingsOf;
+    const pair = s('ranger', {}, ['tank', 'ranger']), alone = s('ranger', {}, ['ranger']);
+    if (pair.chase !== true || pair.tmode !== 'follow' || pair.dist !== 3) return 'a ranger beside a tank plays ' + JSON.stringify(pair);
+    if (alone.chase !== false || alone.tmode !== M.RS.DEFAULT_TARGET_MODE) return 'a ranger left alone plays ' + JSON.stringify(alone) + ' (no Melee: it kites; alone: no one to follow)';
+    const own = s('ranger', { chase: true, tmode: 'strongest', dist: 5, stance: 'defensive' }, ['ranger']);
+    if (own.chase !== true || own.tmode !== 'strongest' || own.dist !== 5 || own.stance !== 'defensive') return 'the player\'s own settings lost to the party\'s defaults: ' + JSON.stringify(own);
+    const none = s('mage', null, []);
+    if (none.tmode !== M.RS.DEFAULT_TARGET_MODE || none.chase !== false) return 'a hero with no party read is no party of one: ' + JSON.stringify(none);
+    const bare = M.hs.heroSetup({ weaponType: 'ranged', options: {}, bar: [] }).settings;
+    if (Object.keys(bare).length) return 'a hero with no settings of its own carries ' + JSON.stringify(bare) + ' (a default is the party\'s, read by the engine)';
+    const set = M.hs.heroSetup({ weaponType: 'ranged', options: { distance: 4, stance: 'defensive', chase: null }, bar: [] }).settings;
+    return JSON.stringify(set) === JSON.stringify({ dist: 4, stance: 'defensive' }) ? null : 'heroSetup carries ' + JSON.stringify(set) + ' for the picks distance 4, stance defensive (chase unset)';
+  },
   /* spec §3.2 #3: the pull leader is the first hero by role order (tank, Melee DPS, Ranger, Mage, Healer), ties by id. */
   'pull-leader-order': (M) => {
     const u = (id, role) => ({ id, side: 'hero', role });
@@ -341,7 +359,9 @@ const mutants = [
   { name: 'the Melee DPS ignores the tank\'s target', case: 'melee-dps-slot',
     edits: [[R, "closeIn(inst, h, unitById(inst, h.target));", 'closeIn(inst, h, nearestTo(mons, h));']] },
   { name: 'ranged distance measured from the leader', case: 'ranged-distance-from-own-target',
-    edits: [[R, "  const tgt = unitById(inst, h.target);\n  if (!tgt) return;\n  const nearMon", "  const tgt = Object.assign({}, leaderOf(inst), { pocket: unitById(inst, h.target).pocket });\n  if (!tgt) return;\n  const nearMon"]] },
+    /* roles.js no longer imports leaderOf, so the mutant brings it (without, it threw a ReferenceError and was "caught" by that) */
+    edits: [[R, "  const tgt = unitById(inst, h.target);\n  if (!tgt) return;\n  const nearMon", "  const tgt = Object.assign({}, leaderOf(inst), { pocket: unitById(inst, h.target).pocket });\n  if (!tgt) return;\n  const nearMon"],
+      [R, 'import { atRest, unitById, setGoal,', 'import { atRest, unitById, leaderOf, setGoal,']] },
   { name: 'the spot band ignores the setting', case: 'ranged-distance-from-own-target', edits: [[R, '  const want = h.dist;\n  const living', '  const want = 6;\n  const living']] },
   { name: 'kiting needs only chase off', case: 'kite-predicate', edits: [[R, 'export const kites = (u) => !u.chase && u.dist > 1;', 'export const kites = (u) => !u.chase;']] },
   { name: 'the kiter never closes in', case: 'kiter-closes-in-when-out-of-range', edits: [[R, '    if (best) setGoal(inst, h, best[0], best[1]);\n    return;', '    return;']] },
@@ -349,6 +369,12 @@ const mutants = [
     edits: [[R, '    for (const [x, y] of candidateTiles(inst, h, pocket, n.x, n.y, want)) {', '    for (const [x, y] of [[4, 8], [5, 8], [6, 8], [7, 8], [8, 8], [9, 8], [10, 8], [11, 8], [12, 8], [13, 8], [14, 8]]) {']] },
   { name: 'the retreat may go toward the pack', case: 'kite-retreats-away-from-pack', edits: [[R, '    if (fromMean(x, y) - here <= KITE.awayMin) continue;\n', '']] },
   { name: 'no Melee does not change chase', case: 'defaults-per-role', edits: [[R, '    chase: HUNT_ROLES[role].melee ? d.chase : (noMelee ? false : d.chase),', '    chase: d.chase,']] },
+  { name: 'the party\'s defaults beat the player\'s own settings', case: 'settings-read-the-party-standing',
+    edits: [[R, '  if (own && typeof own === \'object\') for (const k of SETTING_KEYS)', '  if (false) for (const k of SETTING_KEYS)']] },
+  { name: 'no party read is no party of one', case: 'settings-read-the-party-standing',
+    edits: [[R, '  const s = defaultSettings(role, partyRoles.length ? partyRoles : [role]);', '  const s = defaultSettings(role, partyRoles);']] },
+  { name: 'heroSetup bakes a default in (KNOWN-F1: the party a read saw)', case: 'settings-read-the-party-standing',
+    edits: [['src/core/hunt-spawn.js', "  const own = (k, as) => (opt[k] === undefined || opt[k] === null ? {} : { [as]: opt[k] });", "  const own = (k, as) => ({ [as]: pick(k, as === 'chase') });"]] },
   { name: 'the leader is the first hero by id', case: 'pull-leader-order', edits: [[R, "    const r = u.side === 'hero' ? ROLE_ORDER.indexOf(u.role) : -1;", "    const r = u.side === 'hero' && ROLE_ORDER.includes(u.role) ? 0 : -1;"]] },
   { name: 'a staff offers the Mage too', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  staff: key(['healer'], 'restoration'),", "  staff: key(['mage', 'healer'], 'restoration'),"]] },
   { name: 'a wand plays the Healer', case: 'role-from-weapon', edits: [['src/data/hunt-roles.js', "  wand: key(['mage'], 'destruction'),", "  wand: key(['healer'], 'destruction'),"]] },

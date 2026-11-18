@@ -87,19 +87,19 @@ const CLAIMS = {
     /* Gear names the hero's LEVEL (Tyler 2026-10-24): a Level-14 hero with Defense 99 is still short of the Iron Platelegs. */
     const with1 = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' },
       csWith({ defense: { xp: 0, level: 99 } }, 14, M.XP.charXpForLevel(15)));   // the XP this build's curve calls Level 15: the server says 14
-    if (with1 !== 'Iron Platelegs needs Level 15, now 14.') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
+    if (with1 !== 'Iron Platelegs requires Level 15, now 14.') out.push('RW3 the Iron Platelegs refusal reads ' + JSON.stringify(with1));
     /* The refusal's own numbers (hr_apply's need / have, through the session reader) win over the sections. */
     const served = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'scholar_helmet', counts: { have: 28, need: 30 } },
       csWith({}, 5, M.XP.charXpForLevel(5)));
-    if (served !== 'Scholar Hat needs Level 30, now 28.') out.push('RW3 the server\'s own Level reads ' + JSON.stringify(served));
+    if (served !== 'Scholar Hat requires Level 30, now 28.') out.push('RW3 the server\'s own Level reads ' + JSON.stringify(served));
     /* A supply keeps its skill ("Supplies/runes stick to skill level"). */
     const arrows = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'barbed_arrows' }, csWith({ ranged: { xp: 0, level: 3 } }, 1));
-    if (arrows !== 'Barbed Arrows needs Ranged 15, now 3.') out.push('RW3 the Barbed Arrows refusal reads ' + JSON.stringify(arrows));
+    if (arrows !== 'Barbed Arrows requires Ranged 15, now 3.') out.push('RW3 the Barbed Arrows refusal reads ' + JSON.stringify(arrows));
     /* whatever the requirement names (Tyler 2026-10-24: gear moves to Level gates, supplies and runes keep skills) */
     const words = [M.IL.needWords('level', 30, 28), M.IL.needWords('magic', 20, 14), M.IL.needWords('level', 30, null)].join('|');
-    if (words !== 'Needs Level 30, now 28|Needs Magic 20, now 14|Needs Level 30') out.push('RW3 the requirement words read ' + JSON.stringify(words));
+    if (words !== 'Requires Level 30, now 28|Requires Magic 20, now 14|Requires Level 30') out.push('RW3 the requirement words read ' + JSON.stringify(words));
     const bare = M.IW.refusalText({ ok: false, error: 'requirement_not_met', item: 'iron_platelegs' });
-    if (bare !== 'Iron Platelegs needs Level 15.') out.push('RW3 without a character it reads ' + JSON.stringify(bare));
+    if (bare !== 'Iron Platelegs requires Level 15.') out.push('RW3 without a character it reads ' + JSON.stringify(bare));
     const noItem = M.IW.refusalText({ ok: false, error: 'requirement_not_met' });
     if (noItem === M.RW.REFUSAL_FALLBACK || !/Requirement/.test(noItem)) out.push('RW3 with no item named it reads ' + JSON.stringify(noItem));
     /* "You no longer have that many." of WHAT (blind playtest 2026-10-31): the item the server named. */
@@ -147,7 +147,7 @@ const MUTANTS = [
   ['RW1', 'the old one-word fallback for every unlisted code', 'src/shell/intent-words.js', '  return (typeof code === \'string\' && familyWords(code)) || REFUSAL_FALLBACK;', '  return REFUSAL_FALLBACK;'],
   ['RW2', 'the fallback says nothing about what changed', 'src/data/refusal-words.js', "export const REFUSAL_FALLBACK = 'Didn\\'t go through, nothing changed';", "export const REFUSAL_FALLBACK = 'Not done: the server refused it.';"],
   ['RW3', 'the requirement is not said with its numbers', 'src/shell/intent-words.js', '    const w = requirementWords(r.item, cs, r.counts);', '    const w = null;'],
-  ['RW3', 'the refusal\'s own number is not read', 'src/shell/intent-words.js', '  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) {', '  if (false) {'],
+  ['RW3', 'the refusal\'s own number is not read', 'src/shell/intent-words.js', '  if (it && it.reqSkill && counts && Number.isInteger(counts.have) && counts.need === it.reqLv) return said(', '  if (false) return said('],
   ['RW3', 'the hero\'s own level is not read', 'src/shell/intent-words.js', '  const need = it ? needOf(item, cs ? skillsOf(cs) : null, lv ? lv.level : null) : null;', '  const need = it ? needOf(item, null, null) : null;'],
   ['RW3', 'a Level requirement reads as a skill', 'src/shell/item-lore.js', "  return level ? t(known ? 'item.need_level_have'", "  return false ? t(known ? 'item.need_level_have'"],
   ['RW5', 'an equip mid-hunt reads as the generic hunt line', 'src/shell/intent-words.js', '  return refusalWords(r && r.error, r && r.verb);', '  return refusalWords(r && r.error);'],

@@ -5,7 +5,7 @@
 //   node tests/hunt-summary.mjs             the tests, on the real modules
 //   node tests/hunt-summary.mjs --selftest  every planted defect must turn a test red
 //
-// mutant-anchors: src/hunt-view/death-explain.js src/hunt-view/summary-model.js src/session/hunt-summaries.js src/hunt-view/summary-recorder.js src/session/character-session.js src/session/residue.js src/shell/back-in-town.js src/shell/next-buy.js
+// mutant-anchors: src/hunt-view/death-explain.js src/hunt-view/summary-model.js src/session/hunt-summaries.js src/hunt-view/summary-recorder.js src/session/character-session.js src/session/residue.js src/shell/back-in-town.js src/shell/next-buy.js src/shell/hunt-list.js
 //
 //   D1  a death from a fixture event stream names the killing blows with their
 //       amounts, the healing gap, the empty mana, and the heal rule that waited
@@ -22,6 +22,7 @@
 //   S6  a forfeited hunt (the server's `forfeit`) reads why in plain words; a plain server end keeps its own
 //   S8  a training session's card is the skill's XP, its levels and the yard's fee (the server's last stop, the tally's XP first),
 //       never Monsters / Level XP / Gold zeros; why it ended in the Training window's words; no Hunt again
+//   S9  a climb the Burning Tower spat out (a mode whose death takes nothing) reads "Spat out", never "Died", on the card and in Earlier hunts
 //   S7  an ended hunt names the tier it ran at (the server's session `tier`) on the card and in Earlier hunts; Normal and a forged tier name the ground alone
 //   A1  Hunt again sends ONE hr_hunt_enter with the same ground, set, limits and
 //       bag; a call missing its ground sends nothing
@@ -45,6 +46,10 @@
 //       material in hand), else the cheapest room rung the house is ready for, else the dummy's next skill (a house, nobody on it): the
 //       designer's order (board 2026-11-15 F8/F12); in label words (Tyler 2026-11-14), never sentences; last on the card, Show its press,
 //       never the gold press
+//   T6  THE NEXT GROUND (hunt-list.js nextGroundFrom; audit 2026-11-18 A12: on a phone Hunt again kept a hero in the Mill Cellar all night after
+//       Level 5 and nothing said so): back from a ground the Hunts list no longer recommends, ONE line names the step up it does recommend, read
+//       for the server's Level (its level block, never level_xp) or the party's seats, Show opening that ground; never a step down, never for a
+//       ground the list does not hold (the Tower), never the gold press
 // No ?v= on imports here (tests/**).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
@@ -61,6 +66,7 @@ const RESIDUE = 'src/session/residue.js';
 const SUMMARIES = 'src/session/hunt-summaries.js';
 const TOWN = 'src/shell/back-in-town.js';
 const NEXT = 'src/shell/next-buy.js';
+const HLIST = 'src/shell/hunt-list.js';
 const clone = (o) => JSON.parse(JSON.stringify(o));
 
 /* The names the recorder stamps on events as they arrive (the pose forgets a unit once it is gone). */
@@ -234,6 +240,16 @@ async function runTests(M) {
     ok(/^Left the hunt\. .*did not count$/.test(MD.endWords(left.reason, left.forfeit)), 'a forfeit after Leave says both');
     eq(MD.endWords('died', true), MD.END_WORDS.died, 'a forfeit flag never rewrites another reason');
     for (const w of Object.values(MD.FORFEIT_WORDS).concat(Object.values(MD.END_WORDS))) ok(!/maintenance/i.test(w), 'no maintenance claim: ' + w);
+  });
+
+  /* S9 (audit 2026-11-18 A5): the hunt history listed a Burning Tower climb as "Died", though the Tower spits you out and takes nothing. A death in a
+     mode that takes nothing for one (session-modes.js deathLossPm 0) reads as the climb's own end, in the summary and in Earlier hunts; a hunt's death keeps "Died". */
+  await t('S9 a climb the Tower spat out never reads Died; a hunt\'s death still does', () => {
+    eq(MD.endWords('died', false, null, 'Wren', null, 'the_burning_tower'), 'Spat out, no XP lost', 'a Tower death');
+    eq(MD.reasonWords({ reason: 'died', hunt: 'the_burning_tower' }, 'Wren', null), 'Spat out, no XP lost', 'the end card\'s reason');
+    eq(MD.endWords('died', false, null, 'Wren', null, 'wickstead'), MD.END_WORDS.died, 'a hunt\'s death keeps Died');
+    eq(MD.endWords('died'), MD.END_WORDS.died, 'no hunt named: Died');
+    eq(MD.endWords('floor_time', false, null, 'Wren', null, 'the_burning_tower'), MD.END_WORDS.floor_time, 'another Tower end keeps its own words');
   });
 
   await t('S7 an ended hunt names the tier it ran at, on the card and in Earlier hunts', () => {
@@ -591,6 +607,8 @@ async function runTests(M) {
       'a heavy hero is never sold the medium pair: the heavy gloves it can wear, and where they come from');
     eq(buy({ equipment: noGloves, shop: gloves, prefer: 'medium' }).title, 'Next buy: Leather Gloves (160 gp)', 'a medium hero is still sold them');
     eq(buy({ equipment: { ...dressed, gloves: 'leather_gloves' }, shop: gloves }).kind, 'find', 'a slot worn in another weight names the hero\'s weight too');
+    /* (a worn Leather Helmet and a better Studded Helmet in the Shop: a better piece of the WORN weight is still off the hero's, so never the buy) */
+    eq(buy({ equipment: { ...dressed, helmet: 'leather_helmet' }, shop: shop(['studded_helmet', 300]) }).kind, 'find', 'a better piece of a worn off weight is never the buy');
     eq(buy({ equipment: dressed, shop: gloves }), null, 'a full set of the hero\'s weight: nothing to find');
     /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */
     const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });
@@ -628,6 +646,45 @@ async function runTests(M) {
       'with the bag sorted the card still names the buy, and Hunt again stays the press');
     const all = steps({ buy: shield });
     eq([all.steps.map((s) => s.id), all.primary], [['equip', 'sell', 'deposit', 'bless', 'buy'], 'equip'], 'after the other steps, never ahead of them');
+  });
+
+  await t('T6 THE NEXT GROUND: back from a ground the Hunts list no longer recommends, the card names the step up it does, by the server\'s Levels, and Show opens it', async () => {
+    /* audit 2026-11-18 A12: on a phone "Hunt again" kept a hero in the Mill Cellar all night after Level 5 and the summary never said so */
+    const { levelBlock } = await import(pathToFileURL(join(ROOT, 'tests/_server-level.mjs')).href);
+    const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href);
+    /* the hero home from `hunt` at the SERVER's Level `lv` (its level block; level_xp left as the fixture's, so a Level read off it is wrong) */
+    const home = async (hunt, lv, party) => {
+      const e = clone(FIX);
+      e.version = 9;
+      /* the server's hunt section (hr_hunt_view) for a session it holds ended */
+      e.hunt = Object.assign({}, e.hunt, { hunt_id: hunt, ended: true, session: { end_reason: 'left', ended_at: '2026-10-18T10:01:00Z' } });
+      delete e.hunt_analyzer;
+      delete e.hunt_events;
+      e.level = levelBlock(charXpForLevel(lv));
+      e.party = party || null;
+      const cs = sessionOn([], () => e);
+      ok(await cs.load(), 'the envelope applied');
+      return TN.townStepsOf(cs, new Map());
+    };
+    const ground = (r) => { const g = r.steps.find((s) => s.id === 'ground'); return g ? [g.title, g.words, g.verb, g.glyph, g.place] : null; };
+    const at7 = await home('mill_cellar', 7);
+    eq(ground(at7), ['Next ground: Meadowbrook Thicket', 'Levels 5–15, recommended for Level 7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'meadowbrook_thicket' }],
+      'the Cellar at the server\'s Level 7: the Thicket, the Hunts list\'s Recommended ground, its Show opening it');
+    ok(at7.primary !== 'ground', 'it points, so it is never the gold press');
+    const ids = at7.steps.map((s) => s.id), gi = ids.indexOf('ground');
+    ok(ids.slice(0, gi).every((x) => ['equip', 'sell', 'deposit', 'bless'].includes(x)) && ids.slice(gi + 1).every((x) => x === 'buy'), 'after the chores, before the next buy: ' + ids.join());
+    /* the server's Level, never one worked out here: a block saying Level 3 over the fixture's level_xp (a Level 7's) keeps the Cellar the advice */
+    eq(ground(await home('mill_cellar', 3)), null, 'at Level 3 the Cellar is still the advice: no line');
+    eq(ground(await home('mill_cellar', 9))[0], 'Next ground: Wickstead', 'at Level 9 the list recommends Wickstead, and so does the card');
+    /* never a step down, and never a ground the list does not hold */
+    eq(ground(await home('wickstead', 7)), null, 'a ground above the advice names nothing');
+    eq(ground(await home('meadowbrook_thicket', 7)), null, 'on the recommended ground already, nothing');
+    eq(ground(await home('the_burning_tower', 30)), null, 'the Tower is no ground of the list');
+    /* a party: every seat's Level, as the Hunts window reads them, and the party's tie goes to the party ground */
+    const party = { id: '00000000-0000-4000-8000-000000000001', self_seat: 0, leader_seat: 0,
+      members: [{ seat: 0, name: 'Tyler', level: 7, weapon: 'shield' }, { seat: 1, name: 'Mira', level: 6, weapon: 'bow' }, { seat: 2, name: 'Oren', level: 6, weapon: 'staff' }, { seat: 3, name: 'Sef', level: 7, weapon: 'sword' }] };
+    eq(ground(await home('mill_cellar', 7, party)), ['Next ground: The Sewer', 'Levels 5–25, recommended for Levels 6–7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'millrace_sewer' }],
+      'a party of four at 6 and 7: the Sewer, for the seats\' Levels');
   });
 
   return fails;
@@ -680,6 +737,7 @@ const MUTANTS = [
   { test: 'S7', file: SUMMARIES, from: "    tier: typeof v.tier === 'string' && REASON.test(v.tier) ? v.tier : null,\n", to: '' },
   { test: 'S7', file: MODEL, from: "s.tier !== DEFAULT_TIER && Object.prototype.hasOwnProperty.call(TIER_NAME, s.tier)", to: "s.tier && TIER_NAME[s.tier]" },
   { test: 'S8', file: MODEL, from: "  if (train && reason && !forfeit) return trainingEndWords({ reason, skill: train.skill });\n", to: '' },
+  { test: 'S9', file: MODEL, from: "if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return", to: "if (false) return" },
   { test: 'S8', file: MODEL, from: "fee: mine ? mine.paid : null,", to: "fee: null," },
   { test: 'S8', file: MODEL, from: "  if (train) {\n    const dur", to: "  if (false) {\n    const dur" },
   { test: 'S8', file: SUMMARIES, from: "    train: trainOf(v.train),\n", to: '' },
@@ -705,9 +763,13 @@ const MUTANTS = [
   { test: 'T1', file: TOWN, from: "const can = missing.length > 0 && (purse === null || purse >= missing[0].price);", to: "const can = missing.length > 0;" },
   { test: 'T1', file: TOWN, from: 'const offer = can && !(o && o.free);', to: 'const offer = can;' },
   { test: 'T1', file: TOWN, from: "if (step.count > 0) out.push(Object.assign(step, { done: false }));", to: "if (step.count >= 0) out.push(Object.assign(step, { done: false }));" },
-  { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy');", to: "const first = out[0];" },
-  { test: 'T5', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy');", to: "const first = out.find((s) => !s.done);" },
+  { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out[0];" },
+  { test: 'T5', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out.find((s) => !s.done && s.id !== 'ground');" },
   { test: 'T5', file: TOWN, from: "  if (buy) out.push(", to: "  if (false) out.push(" },
+  { test: 'T6', file: TOWN, from: 'free, ground: groundOf(cs, h) });', to: 'free, ground: null });' },
+  { test: 'T6', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out.find((s) => !s.done && s.id !== 'buy');" },
+  { test: 'T6', file: TOWN, from: 'const levels = [].concat(adviceLevels(lv.level, party)).filter(Number.isInteger);', to: 'const levels = [lv.level];' },
+  { test: 'T6', file: HLIST, from: 'rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;', to: 'rec.row.hunt !== hunt ? rec.row : null;' },
   { test: 'T5', file: NEXT, from: "(Number(!!a.replaces) - Number(!!b.replaces)) || ", to: '' },
   { test: 'T5', file: NEXT, from: "x.kind === 'gear' && x.price <= o.purse && ", to: "x.kind === 'gear' && " },
   { test: 'T5', file: NEXT, from: "|| row.needs.some((n) => n.short > 0) ", to: '' },

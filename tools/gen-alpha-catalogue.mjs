@@ -57,7 +57,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-03-25-death-share is APPLIED history; the Fang Studs, the Wolfbone Necklace (3,000 g) and the
    Seam Jasper Band (12,000 g) join the outfitter at their premium (src/data/jewelry.js JEWEL_SHOP_PRICE, Tyler 2026-11-05 call 5: plain jewelry stays in
    the Shop), the same full delete+insert replace. No other row moves. ORDER: after this lane's items catalogue (the rows in hr_items). */
-export const OUT_NAME = '2027-05-07-jewelry-sample-alpha-catalogue.generated.sql';
+export const OUT_NAME = '2027-05-09-jewelry-sample-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */

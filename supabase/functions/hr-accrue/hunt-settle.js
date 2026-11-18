@@ -127,9 +127,10 @@ function frozenAt(inst) {
   const world = typeof inst.world === 'string' && !play.restart ? inst.world : null;
   const where = play.level === null ? null : huntGroundOf(String(inst.hunt));
   /* THE BURNING TOWER: the floor the server says stands (or stands next), the live engine's ctx.towerFloor; its table is the peers' rows */
-  const tower = towerOf((huntGroundOf(String(inst.hunt)) || {}).ground) && Number.isInteger(inst.tower_floor) ? inst.tower_floor : null;
+  const run = towerOf((huntGroundOf(String(inst.hunt)) || {}).ground);
+  const tower = run && Number.isInteger(inst.tower_floor) ? inst.tower_floor : null;
   /* a peer's frozen rolls against the rows the instance plays (null: member.js reads the catalogue, as before) */
-  const rows = tower !== null ? towerMonsters(tower) : where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
+  const rows = tower !== null ? towerMonsters(tower, run) : where ? huntPlayOf(where.ground.id, { level: play.level }).monsters : null;
   const atMs = Number(inst.next_swing_at_ms);
   /* the kinds, read once and only for a frozen row (a lone viewer's start point parses no world for them) */
   let kinds = null;
@@ -185,7 +186,7 @@ function kindsOf(inst, worldText, tower) {
   const out = new Set();
   const where = huntGroundOf(String(inst.hunt));
   for (const p of (where && where.ground.pockets) || []) for (const sp of [...(p.spawns || []), ...(p.pack || [])]) if (sp && MONSTERS[sp.monster]) out.add(sp.monster);
-  if (Number.isInteger(tower)) for (const id of towerRoom(tower).monsters) out.add(id);
+  if (Number.isInteger(tower)) for (const id of towerRoom(tower, towerOf(where && where.ground)).monsters) out.add(id);
   if (worldText) for (const u of JSON.parse(worldText).u || []) for (const v of u) if (typeof v === 'string' && MONSTERS[v]) out.add(v);
   return Array.from(out).sort();
 }
@@ -579,9 +580,10 @@ export async function readHuntSettle(o, mode) {
   inst.play = scalePlanOf(inst, where);
   const members = [];
   for (const m of r.members) members.push(await memberInput(exec, m, inst));
-  const partyRoles = members.map((m) => m._role).filter(Boolean);
+  /* EACH HERO AS ITS OWN CHARACTER READS (heroSetup): never the party this read saw. A setting the player left unset is the
+     role's default for the party standing in the world at each boundary, the engine's to read (KNOWN-F1, 2026-11-18). */
   for (const m of members) {
-    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, partyRoles, leaveTogether: m._leaveTogether, lead: m._leads, hold: m._hold });
+    m.hero = heroSetup({ weaponType: m._weaponType, options: m._options, bar: m._bar, leaveTogether: m._leaveTogether, lead: m._leads, hold: m._hold });
     if (!m.hero) return { answer: { outcome: 'refused', reason: 'no_role', ...refusal(409, 'no_role') } };
   }
   /* Below the floor a player door that asked for the live view gets the instance's start point
@@ -679,7 +681,6 @@ async function memberInput(exec, m, inst) {
      combat style stays equipmentStats' weaponType in the engine. */
   const weaponType = wornRoleKey(e.equipment, ITEMS);
   const options = (m.session.options && typeof m.session.options === 'object') ? m.session.options : {};
-  const pre = heroSetup({ weaponType, options, bar: m.session.bar, partyRoles: null });
   return {
     key: String(m.user) + ':' + String(m.slot),
     user: String(m.user), slot: Number(m.slot), seat: Number(m.seat) || 0,
@@ -696,7 +697,7 @@ async function memberInput(exec, m, inst) {
        (account_bestiary.relic_mult: { monster kind: mult }), never from the request */
     relicMults: env.account_bestiary && typeof env.account_bestiary === 'object' && env.account_bestiary.relic_mult
       && typeof env.account_bestiary.relic_mult === 'object' ? env.account_bestiary.relic_mult : null,
-    _weaponType: weaponType, _options: options, _bar: m.session.bar, _role: pre ? pre.role : null,
+    _weaponType: weaponType, _options: options, _bar: m.session.bar,
     /* THE PARTY LEADER (hr_hunt_instance_read `leads`, 2026-11-01-party-leader-density.sql): its density is the pull. */
     _leads: m.leads === true,
     /* WHO HOLDS THE PACK (Tyler 2026-10-22): the party's hold seat (hr_hunt_instance_read `hold_seat`, the server's

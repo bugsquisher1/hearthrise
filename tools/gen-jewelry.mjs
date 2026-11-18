@@ -6,7 +6,7 @@
 // for how much gold, at which level of the piece's own skill), the jewel reforge (which Hallmarked piece becomes the next tier's,
 // with which metal, gem, fee difference and level), the steps' day limit and the market's per-row ceiling for each graded row.
 // Postgres needs them to price both steps by itself (hr_hallmark, 2027-03-14-jewelry-hallmark.sql; hr_jewel_reforge,
-// 2027-05-07-jewel-reforge.sql: a client never names a price it isn't quoted) and to let a Hallmarked ring list above 100x its
+// 2027-05-09-jewel-reforge.sql: a client never names a price it isn't quoted) and to let a Hallmarked ring list above 100x its
 // book. Emitted as four tables, each a full delete + insert. The roll's odds are NOT here: the bench rolls in the engine
 // (src/core/artisan.js rollJewel), which imports the data itself.
 //
@@ -31,7 +31,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    THE PHASE 2 SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-03-14-jewelry-catalogue is APPLIED history. Every Hallmark offer names the
    piece's own bench (Smithing for every jewel: Tyler 2026-11-18), the Seam Jasper Band and the Fang Studs bring their offers and ceilings,
    and the jewel reforge's table is new: the same full delete + insert of each table. */
-export const OUT_FILE = '2027-05-07-jewelry-sample-catalogue.generated.sql';
+export const OUT_FILE = '2027-05-09-jewelry-sample-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 const ID = /^[a-z0-9_]{1,48}$/;
 
@@ -112,7 +112,7 @@ export function build(offers = HALLMARK_OFFERS, limit = HALLMARK_DAY_LIMIT, ceil
 -- 45, 100,000 g, a Seam Jasper) and the Fang Studs' two (Smithing 30, 25,000 g, a Road Carnelian) are new; hr_jewel_reforge_offers is new.
 -- A row moves no value: each verb re-quotes from it under the hero's lock and answers quote_changed if the gold moved.
 -- RLS on, no policy, no client grant. No begin/commit. ON THE EA SECURITY LIST (a money surface).
--- APPLY ORDER: after 2027-05-07-jewelry-sample-items-catalogue.generated.sql (hr_items holds the rows); before 2027-05-07-jewel-reforge.sql.
+-- APPLY ORDER: after 2027-05-09-jewelry-sample-items-catalogue.generated.sql (hr_items holds the rows); before 2027-05-09-jewel-reforge.sql.
 -- REVERSIBLE: drop the tables with the verbs and the view's join that read them.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_hallmark_offers (

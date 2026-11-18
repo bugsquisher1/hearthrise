@@ -786,6 +786,19 @@ jobs:
         run: |
           node tests/tower-board.mjs
           node tools/mutant-gate.mjs node tests/tower-board.mjs --mutate
+      # THE UNMARKED CATACOMBS' DESCENT (2027-05-08-catacombs.sql and its five catalogues; Tyler 2026-11-16, the board's "2026-11-16 The Unmarked
+      # Catacombs descent"): two wings on the Tower's engine (their rosters, Dunn at every vault door), a descent browser closed and hunt viewed
+      # landing the same (the catacomb mode, the wing's record, a Bone Key a door, no death price, coin or Bestiary, the solo board); the door
+      # (switch, wing, Level, checkpoints per wing, a replayed key); six a family a week and the held cap across the account; both families on one
+      # chest, each its warmth, the 70/30 slot lean and the worn weight; the solo and party boards and the clamp; a second apply. --mutate (13).
+      # The 24 armor rows' own rules (src/data/catacomb-armor.js: twin + one attribute, the twelve that ship are items): --mutate (29).
+      - name: Catacombs descent — wings, both paths, keys per family, the lean, two boards (13 + 29 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/catacombs.mjs
+          node tools/mutant-gate.mjs node tests/catacombs.mjs --mutate
+          node tests/catacomb-armor.mjs
+          node tools/mutant-gate.mjs node tests/catacomb-armor.mjs --mutate
       # ONE SAVED SETUP READ WHOLE, IN USE OR NOT (2027-04-13-hunt-preset-read.sql, the Hunt prep builder): two setups read back their own
       # bars and options, parity with hunt_settings on the one in use, an unset number reads the role default, own hero only, every number
       # the data allows, the name clamp, the shape, a read writes nothing. --mutate: the number ignored, the role default dropped, the filled
@@ -6405,6 +6418,48 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # ── settle-properties ── PROPERTY TESTS OVER THE HUNT SETTLE (lane/b-settle-properties, 2026-11-18; fast-check, MIT,
+  # a dev dependency only). The hunt core's sibling, in its own job: economy-selftests measured 25.9 min, and this guard's
+  # full sweep (the nightly's ten-times run plus its proof) would make that the longest job of the matrix, while here it
+  # runs beside the others and moves no release's wall clock. One cold chain build (the DB tier), reused by the proof step.
+  # MEASURED locally 2026-11-18, the PC shared with other lanes: plain (250 engine + 40 DB hunts) 66 s + a cold chain build
+  # ~1 min, --mutate 68-90 s; the nightly size (2500 + 400 on a day's seed) 8.0 + 3.2 min. Full sweep ~14 min, ~18 with a
+  # slower runner's margin, x2 = 36. Re-measure on the first nightly.
+  settle-properties:
+    runs-on: ubuntu-latest
+    needs: release-proven
+    if: ${{ !cancelled() && needs.release-proven.outputs.proven != 'true' }}
+    timeout-minutes: 36
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Do NOT leave the token in .git/config where every later step —
+          # including npm lifecycle scripts — can read it and `git push`.
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install node modules (no browser)
+        run: npm install --no-audit --no-fund
+
+      # fast-check GENERATES hunts (a real ground, a party of 1-4, bags, purses, stamina, Leave, stop rules, buffs, tiers)
+      # and settle cadences (cuts anywhere, attended cuts just before each end and death, lost commits, retries), drives the
+      # world tick's settle (accrual.js accrueHunt) and the real replayed chain (readHuntSettle / commitHuntSettle), and on
+      # a red SHRINKS the case and prints `--seed S --path P` to replay it. Any cut list == one window (TICK-1, AWAY-1), a
+      # window plays only itself, a lost or retried proposal moves nothing, nothing goes negative, a replayed key moves
+      # nothing twice, the ledger conserves gold and items, and a run that exercised too little is red. A fixed seed here;
+      # the nightly (schedule) runs ten times the hunts on a seed per UTC day. KNOWN-F1 (a survivor's default settings
+      # switch at a settle-dependent instant when a partner's hunt ends) is reported and pinned until fixed. --mutate: 5
+      # engine + 3 database defects, each caught and shrunk to at most 2 heroes and 2 cuts, green on the clean tree.
+      - name: Settle properties — generated hunts and cadences, shrunk counterexamples (engine + replayed chain)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/settle-properties.mjs
+          node tools/mutant-gate.mjs node tests/settle-properties.mjs --mutate
+
   # ── client-guards ── STATIC AND SOURCE-SCANNING GUARDS: censuses, ratchets,
   # parity checks, the cache-buster invariant. No database, no browser, no
   # network; the whole family is text in this repository. Seconds, not minutes —
@@ -7238,6 +7293,20 @@ jobs:
           node tools/mutant-gate.mjs node tools/gen-temper.mjs --selftest
           node tests/temper-buy.mjs
           node tools/mutant-gate.mjs node tests/temper-buy.mjs --mutate
+
+      # PAST DAWNSTEEL (Tyler 2026-11-14/15/16: unique gear past tier 7, the armor and weapon lines as power budgets, a small Tempering cap;
+      # designed on lane/d-armor-line-v2's chain, brought onto v0.2.139 by lane/d-late-items-rescue): each hidden sample sits under its
+      # line on every late ground (the engine's own rolls), wins somewhere and stays hidden; the unique armor bands are shut until a piece
+      # is real, and the smith's row reads the server's bands. Seconds each; the proofs plant in memory (TU7 on a copy of src/).
+      - name: Past Dawnsteel - the armor and weapon lines, the unique Tempering bands
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/armor-line.mjs
+          node tools/mutant-gate.mjs node tests/armor-line.mjs --mutate
+          node tests/weapon-line.mjs
+          node tools/mutant-gate.mjs node tests/weapon-line.mjs --mutate
+          node tests/temper-uniques.mjs
+          node tools/mutant-gate.mjs node tests/temper-uniques.mjs --mutate
 
       # CRAFTED JEWELRY (Tyler 2026-11-05, the sample): the designer's odds and the dice, a bench watched and one with the browser closed on the
       # server's settle (no gold moves on a roll), jewelry crafted not dropped, and the Hallmark step's generated catalogue. The verb's own

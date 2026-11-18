@@ -433,9 +433,25 @@ function partyViewOf(v, hero, price) {
 }
 
 /** `hunt_analyzer`: the server's session stats, hero and party. Null for a free character or no hunt. */
+/** The gold this hero keeps, the server's floor (hunt_settings.gold_floor, hr_hunt_settings_view: the floor it keeps, hr_hunt_limits
+    gold_floor_default when unset, 2027-01-25-town-defaults.sql): a store use never takes the purse below it, and a hunt that cannot
+    pay past it ends `gold_out`. Null when the server has not said. The bar's field and the end cards read it here. */
+export function goldFloorOf(cs) {
+  const raw = section(cs, 'hunt_settings');
+  if (!raw) return null;
+  const v = raw.gold_floor;
+  return Number.isSafeInteger(v) && v >= 0 ? v : null;
+}
+
 export function analyzerOf(cs) {
   const a = section(cs, 'hunt_analyzer');
-  if (!a) return null;
+  return analyzerFrom(cs, a);
+}
+
+/** The same reading of one analyzer answer `a` (the section's shape: hr_hunt_analyzer_of), here an earlier session's that the server
+    sent on request (src/session/past-hunt.js, the hunt a yard took over). Null when it is not one. */
+export function analyzerFrom(cs, a) {
+  if (!isObj(a)) return null;
   const price = pricesOf(cs);
   const hero = viewOf(a.hero, price);
   if (!hero) return null;

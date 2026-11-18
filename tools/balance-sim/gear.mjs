@@ -15,21 +15,50 @@
 // `openAlso` (a list of ground ids) adds those grounds' drops to (b), as if they were open: a STAGED ground graded by name
 // (tools/pack.mjs check) is played as it ships, the same ladder every open ground is graded on. Without it a staged ground at a
 // tier's first Level was graded one tier under, because that tier's pieces drop only there (Hask's Ford at 45 in the tier-3
-// set, 2026-11-10); the ship step ends that state, so the check would flip green on shipping with nothing changed.
-import { pathToFileURL } from 'node:url';
-import { join } from 'node:path';
+// set, 2026-11-10); the ship step ends that state, so the check would flip green on shipping with nothing changed. The open
+// keyed halls stay reachable beside it, and an opened pack's own hall opens with it (a hall pays like its ground: Krell's
+// tier-7 prize was off the ladder whenever a staged ground was graded, until lane/a-grader-uniques).
+//
+// `uniques` (lane/a-grader-uniques, brought onto v0.2.139 by lane/d-late-items-rescue; the armor and weapon lines past Dawnsteel):
+// past tier 7 the gear is unique pieces, not a ladder (Tyler 2026-11-14), so a hero dressed off the ladder alone stops getting
+// better at 88. With `uniques` each slot takes the best piece of its family the hero can get at its Level: the ladder's, any
+// other gettable row of the same family (slot, weight or weapon kind), and the STAGED GEAR rows (STAGED_GEAR below: hidden rows
+// a design lane measured and has not shipped), each gettable where its own row says it drops, as a staged ground is with
+// `openAlso`. Best is the higher tier, then more of the family's number (armor, or on a graded ground a piece's score there,
+// armor-power.mjs, the armor line's own measure; a shield's guard; a weapon's power on the graded ground, weapon-power.mjs, the
+// weapon line's own measure, or its attack and strength off a ground), then an attribute that answers this ground (a resistance
+// to an element cast here, a bane of a class that lives here, + the style's own skill), then the ladder's own piece. A staged
+// row is put into the engine's ITEMS as it would ship (both module instances, the edge's and src/core's), so its armor and its
+// attribute reach the fight through the hooks the live settle uses (member.js memberSide -> combat.js equipmentStats,
+// mitigation.js, the unit's resistPm); `engineView` reads that, and `uniquesIn` says, per piece, whether its attribute reaches
+// the engine at all (one with no hook yet is worn and plays as nothing). `tierOffset` moves the ladder only: a slot group with
+// an offset is dressed off the ladder, as before.
+import { pathToFileURL, fileURLToPath } from 'node:url';
+import { join, dirname } from 'node:path';
+import { weaponPower } from './weapon-power.mjs';
+import { armorPower, loadArmorPower } from './armor-power.mjs';
+import { STYLES } from './styles.mjs';
 
-/* The styles the simulator plays. `role` is the src/data/hunt-roles.js id the party is built with. */
-export const STYLES = Object.freeze({
-  tank: Object.freeze({ role: 'tank', weapon: 'weapon:sword', offhand: 'shield', line: 'plate', label: 'Sword + shield (tank)' }),
-  sword: Object.freeze({ role: 'melee_dps', weapon: 'weapon:sword', offhand: null, line: 'plate', label: 'Sword alone (Melee)' }),
-  hammer: Object.freeze({ role: 'melee_dps', weapon: 'weapon:warhammer', offhand: null, line: 'plate', label: 'Two-hand hammer (Melee)' }),
-  axes: Object.freeze({ role: 'melee_dps', weapon: 'weapon:hatchets', offhand: null, line: 'plate', label: 'Dual axes (Melee)' }),
-  bow: Object.freeze({ role: 'ranger', weapon: 'weapon:bow', offhand: null, line: 'leather', label: 'Bow (Ranger)' }),
-  crossbow: Object.freeze({ role: 'ranger', weapon: 'weapon:crossbow', offhand: 'shield', line: 'leather', label: 'Crossbow + shield (Ranger)' }),
-  mage: Object.freeze({ role: 'mage', weapon: 'weapon:wand', offhand: 'spellbook', line: 'cloth', label: 'Wand + spellbook (Mage)' }),
-  healer: Object.freeze({ role: 'healer', weapon: 'weapon:staff', offhand: null, line: 'cloth', label: 'Staff (Healer)' }),
-});
+/* The tools' own tree. A staged sample under tools/ (tools/balance-sim/staged/) is read from HERE, never from the `root` a guard plants:
+   a planted copy carries src/ and the edge, not the simulator's data (party-class-xp-line's mutants plant one and load this file). */
+const TOOLS_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const fileUrl = (root, p) => pathToFileURL(join(p.startsWith('tools/') ? TOOLS_ROOT : root, p)).href;
+
+/* THE STAGED GEAR CATALOGUES: [module, export]. Each export is { id: { row, source: { ground, monster, how }, attr } } (the
+   design lanes' sample shape). A row whose id is already in ITEMS has shipped: the shipped row stands and the staged one is not read.
+   One line per catalogue; the next design lane's hidden rows join here. */
+export const STAGED_GEAR = Object.freeze([
+  Object.freeze(['tools/balance-sim/staged/armor-line.js', 'LINE_SAMPLE']),
+  Object.freeze(['src/data/special-attributes.js', 'SPECIAL_SAMPLE']),
+  Object.freeze(['tools/balance-sim/staged/weapon-line.js', 'WEAPON_SAMPLE']),
+]);
+
+/* The combat skill each role fights with (a `skillB` key that answers the style). */
+const ROLE_SKILL = Object.freeze({ tank: 'melee', melee_dps: 'melee', ranger: 'ranged', mage: 'magic', healer: 'magic' });
+
+/* The styles the simulator plays (./styles.mjs: the list alone, so the Balance Lab's browser bundle reads it without this file's node-only
+   uniques kit). */
+export { STYLES };
 
 const ARMOUR_SLOT_KEYS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'gloves', 'belt']);
 
@@ -43,22 +72,39 @@ export async function loadGear(root) {
   const { SHIELD_ITEMS } = await import(u('src/data/shields.js') + v);
   const { STARTER_SETS, START_EQUIPMENT } = await import(u('src/data/start-kit.js') + v);
   const CC = await import(u('src/data/catalogue-coherence.js') + v);
-  const { OPEN_GROUNDS, OPEN_HALL_GROUNDS, HUNT_GROUNDS } = await import(u('src/data/hunt-grounds.js') + v);
+  const { OPEN_GROUNDS, OPEN_HALL_GROUNDS, HUNT_GROUNDS, HALL_GROUNDS } = await import(u('src/data/hunt-grounds.js') + v);
+  const own = (o, k) => !!o && Object.prototype.hasOwnProperty.call(o, k);
   const reach = CC.reachableSources();
+  /* the grounds a player can enter with `ids` opened: the open grounds and open halls, each opened ground, and its pack's hall */
+  const groundsWith = (ids) => {
+    const out = { ...OPEN_GROUNDS, ...OPEN_HALL_GROUNDS };
+    for (const g of ids) {
+      out[g] = HUNT_GROUNDS[g];
+      for (const [hid, h] of Object.entries(HALL_GROUNDS)) if (h.hall === g) out[hid] = h;
+    }
+    return out;
+  };
+  const openIds = (also) => [...new Set(also || [])].filter((g) => !own(OPEN_GROUNDS, g)).sort();
   /* the reachable set with `also` grounds opened (one per distinct list, built once) */
   const reaches = new Map();
   const reachWith = (also) => {
-    const ids = [...new Set(also || [])].filter((g) => !Object.prototype.hasOwnProperty.call(OPEN_GROUNDS, g)).sort();
+    const ids = openIds(also);
     if (!ids.length) return reach;
     const key = ids.join(',');
     if (!reaches.has(key)) {
-      for (const g of ids) if (!Object.prototype.hasOwnProperty.call(HUNT_GROUNDS, g)) throw new Error('balance-sim gear: openAlso names no ground ' + g);
-      /* the open keyed halls too (reachableSources' own default: an open pack's hall pays like its ground). Without them a staged ground
-         was graded without Lord Krell's drops, so at Carter's Rest a Level 110 hammer wore the Ember Warhammer and a bow the Runewood Bow
-         while the Mage kept its Duskwood wand (lane/d-mage-110) */
-      reaches.set(key, CC.reachableSources({ grounds: { ...OPEN_GROUNDS, ...OPEN_HALL_GROUNDS, ...Object.fromEntries(ids.map((g) => [g, HUNT_GROUNDS[g]])) } }));
+      for (const g of ids) if (!own(HUNT_GROUNDS, g)) throw new Error('balance-sim gear: openAlso names no ground ' + g);
+      /* the open keyed halls too (reachableSources' own default: an open pack's hall pays like its ground), and each opened pack's own hall.
+         Without them a staged ground was graded without Lord Krell's drops, so at Carter's Rest a Level 110 hammer wore the Ember Warhammer
+         and a bow the Runewood Bow while the Mage kept its Duskwood wand (lane/d-mage-110) */
+      reaches.set(key, CC.reachableSources({ grounds: groundsWith(ids) }));
     }
     return reaches.get(key);
+  };
+  /* the ground ids a staged row may drop on with `also` opened: every enterable ground, and the pack a hall belongs to */
+  const dropGroundsWith = (also) => {
+    const out = new Set();
+    for (const [id, g] of Object.entries(groundsWith(openIds(also)))) { out.add(id); if (g && g.hall) out.add(g.hall); }
+    return out;
   };
   const ladder = Object.fromEntries(GT.GEAR_LADDERS.map((l) => [l.key, l.ids]));
   const starters = new Set([...Object.values(STARTER_SETS).flat(), ...Object.values(START_EQUIPMENT)]);
@@ -88,6 +134,167 @@ export async function loadGear(root) {
   const shieldIds = (heavy) => Object.keys(SHIELD_ITEMS).filter((id) => ITEMS[id] && !!heavy === Object.keys(ITEMS[id]).some((k) => /AtkB$/.test(k) && ITEMS[id][k] < 0));
   const armourLadder = (line, slot) => ladder[line + ':' + slot] || [];
 
+  /* ── THE UNIQUES (opts.uniques) ── */
+  /* the edge's ITEMS (hr-accrue imports src/data/items.js bare) beside src/core's (?v=): a staged row goes into both, as a shipped row is in both */
+  const EDGE_ITEMS = (await import(u('src/data/items.js'))).ITEMS;
+  const { MONSTERS } = await import(u('src/data/monsters.js') + v);
+  const { spellRow } = await import(u('src/data/monster-spells.js') + v);
+  const MEMBER = await import(u('src/core/member.js'));
+  /* THE WEAPON LINE'S MEASURE (weapon-power.mjs, lane/d-weapon-line): a weapon's power on the ground being graded, the engine's own rolls
+     over its spawn, so the grader picks the weapon the guard (tests/weapon-line.mjs) holds under the line */
+  const WP = weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS: { ...HUNT_GROUNDS }, HUNT_INDEX: (await import(u('src/data/hunts.js') + v)).HUNT_INDEX,
+    combat: await import(u('src/core/combat.js')), deriveProfile: MEMBER.deriveProfile, skillXpForLevel: (await import(u('src/core/xp.js'))).skillXpForLevel,
+    line: await import(fileUrl(root, 'tools/balance-sim/staged/weapon-line.js')) });
+  /* THE ARMOR LINE'S MEASURE (armor-power.mjs, lane/d-armor-line-v2): a piece's score on the graded ground, so the grader wears the piece the
+     guard (tests/armor-line.mjs) holds under the line */
+  const APL = await loadArmorPower(root);
+  const AP = armorPower(APL.mods), AP_WEIGHTS = new Set(Object.keys(APL.line.LINE_BASE)), AP_CACHE = new Map();
+  const staged = new Map();
+  for (const [file, name] of STAGED_GEAR) {
+    const cat = (await import(fileUrl(root, file)))[name] || {};
+    for (const [id, s] of Object.entries(cat)) {
+      if (own(ITEMS, id)) continue;
+      if (staged.has(id)) throw new Error('balance-sim gear: staged row ' + id + ' is in two catalogues');
+      if (!s || !s.row || !s.row.slot || !s.source || !s.source.ground) throw new Error('balance-sim gear: staged row ' + id + ' (' + file + ') has no row, slot or drop ground');
+      staged.set(id, Object.freeze({ id, row: s.row, ground: s.source.ground, attr: s.attr || null, from: file + ' ' + name }));
+    }
+  }
+  /* Put every staged row into both ITEMS instances, once, before any fight reads one (a clone: the catalogue's frozen row stays as it is). */
+  let registered = false;
+  const registerStaged = () => {
+    if (registered) return;
+    for (const table of new Set([ITEMS, EDGE_ITEMS])) for (const [id, s] of staged) {
+      if (own(table, id)) throw new Error('balance-sim gear: staged row ' + id + ' is already an item');
+      table[id] = JSON.parse(JSON.stringify(s.row));
+    }
+    registered = true;
+  };
+  const rowOf = (id) => (own(ITEMS, id) ? ITEMS[id] : staged.has(id) ? staged.get(id).row : null);
+  /* a family: what makes two rows the same kind of piece (a sword is not a hammer, a bow is not a crossbow, a codex is not a shield) */
+  const familyOf = (it) => [it.slot, it.armourClass || '', it.weaponType || '', it.discipline || '', !!it.twoHanded, it.offhand || '',
+    it.slot === 'shield' ? Object.keys(it).some((k) => /AtkB$/.test(k) && it[k] < 0) : ''].join('|');
+  const worn = (it) => !!it && !!it.slot && it.slot !== 'ammo' && (it.type === 'armor' || it.type === 'weapon' || it.slot === 'shield');
+  const families = new Map();
+  for (const id of [...Object.keys(ITEMS), ...staged.keys()]) {
+    const it = rowOf(id);
+    if (!worn(it)) continue;
+    const f = familyOf(it);
+    if (!families.has(f)) families.set(f, []);
+    families.get(f).push(id);
+  }
+  const familyIds = (ids) => { const ref = ids.map(rowOf).find(Boolean); return ref ? families.get(familyOf(ref)) || [] : []; };
+  /* the family's number: armor for armor and a shield, a weapon's (or a spellbook's) attack and strength in the style it hits with */
+  const powerOf = (it) => (it.slot === 'weapon' || it.offhand === 'spellbook'
+    ? (it.weaponType === 'magic' || it.offhand === 'spellbook' ? (it.magicAtkB || 0) + (it.magicStrB || 0)
+      : it.weaponType === 'ranged' ? (it.rangeAtkB || 0) + (it.rangeStrB || 0) : (it.atkB || 0) + (it.strB || 0))
+    : it.defB || 0);
+  /* what a ground asks of an attribute: the elements its monsters cast, and the classes that live there (a staged ground's too) */
+  const grounds = new Map();
+  const groundAsks = (gid) => {
+    if (!gid) return null;
+    if (!grounds.has(gid)) {
+      const g = HUNT_GROUNDS[gid] || HALL_GROUNDS[gid] || null;
+      const el = new Set(), cls = new Set();
+      for (const p of (g && g.pockets) || []) for (const s of (p.pack || []).concat(p.spawns || [], p.adds || [])) {
+        const m = MONSTERS[s.monster];
+        if (!m) continue;
+        if (m.cls) cls.add(m.cls);
+        for (const sp of m.spells || []) { const r = spellRow(sp); if (r && r.element) el.add(r.element); }
+      }
+      grounds.set(gid, { el, cls });
+    }
+    return grounds.get(gid);
+  };
+  const answers = (it, asks, role) => {
+    let n = 0;
+    for (const [k, pm] of Object.entries(it.resistPm || {})) if (pm > 0 && (k === 'physical' || (asks && asks.el.has(k)))) n++;
+    if (it.bane && asks && asks.cls.has(it.bane.class)) n++;
+    for (const [k, lv] of Object.entries(it.skillB || {})) if (lv > 0 && (k === 'defense' || k === ROLE_SKILL[role])) n++;
+    return n;
+  };
+  const tierOf2 = (it) => Number(it && it.tier) || 1;
+  /* A WEAPON'S NUMBER ON A GROUND (lane/d-weapon-line): past Dawnsteel a weapon spends one budget its own way (more accuracy, more damage,
+     a critical chance, a bane), so attack plus damage no longer ranks it. On a graded ground a weapon's number is its power there at the
+     hero's Level (weapon-power.mjs score: the mean of its pace and its safety), rounded to a tenth so two pieces a hair apart fall to the next key; anywhere else, or for a
+     spellbook, the family's number as before */
+  /* A PIECE OF ARMOR'S NUMBER ON A GROUND (lane/d-armor-line-v2): past Dawnsteel a piece spends one budget its own way (more armor and a
+     lighter swing, less armor and an element, dodge over crit), so armor alone no longer ranks it. On a graded ground a piece of a weight
+     the line knows ranks by its score there at the hero's Level (armor-power.mjs scoreOnDawn: the mean of its pace and safety worn in
+     untempered Dawnsteel, its slot's Dawnsteel piece 1.000), to a thousandth; anywhere else its armor as before */
+  const armorScoreOf = (it, L, gid) => {
+    let m = AP_CACHE.get(it);
+    if (!m) AP_CACHE.set(it, (m = new Map()));
+    const k = L + '|' + gid;
+    if (!m.has(k)) m.set(k, AP.scoreOnDawn(it, gid, L, false));
+    return m.get(k);
+  };
+  const rankOf = (it, L, gid) => {
+    if (it.slot === 'weapon' && gid && Number.isFinite(L)) { const p = WP.score(it, gid, L); if (p !== null) return Math.round(p * 10); }
+    if (ARMOUR_SLOT_KEYS.includes(it.slot) && AP_WEIGHTS.has(it.armourClass) && gid && Number.isFinite(L)) { const p = armorScoreOf(it, L, gid); if (p !== null) return Math.round(p * 1000); }
+    return powerOf(it);
+  };
+  /* rank: tier, the family's number, an attribute that answers the ground, the ladder's own piece, the id (a total order: no tie is left to the sort) */
+  const better = (asks, role, onLadder, L, gid) => (a, b) => {
+    const A = rowOf(a), B = rowOf(b);
+    return (tierOf2(B) - tierOf2(A)) || (rankOf(B, L, gid) - rankOf(A, L, gid)) || (answers(B, asks, role) - answers(A, asks, role))
+      || ((onLadder.has(b) ? 1 : 0) - (onLadder.has(a) ? 1 : 0)) || (a < b ? -1 : a > b ? 1 : 0);
+  };
+  /** The best piece of `ladderIds`' family a hero of `role` can get at Level L, beside the ladder's own pick (null: none). */
+  const bestOf = (ladderIds, ladderPick, L, role, ctx) => {
+    const onLadder = new Set(ladderIds);
+    const can = (id) => {
+      const it = rowOf(id);
+      if (!it || (Number(it.reqLv) || 1) > L) return false;
+      if (ctx.exclude && ctx.exclude.includes(id)) return false;
+      if (staged.has(id)) return ctx.drops.has(staged.get(id).ground);
+      return ctx.reach.has(id);
+    };
+    const ids = familyIds(ladderPick ? [ladderPick, ...ladderIds] : ladderIds).filter(can);
+    if (ladderPick && !ids.includes(ladderPick)) ids.push(ladderPick);
+    if (!ids.length) return null;
+    return ids.sort(better(ctx.asks, role, onLadder, L, ctx.ground))[0];
+  };
+
+  /**
+   * THE ENGINE'S VIEW of a worn set: what the live settle's member (src/core/member.js memberSide, the hr-accrue settle's own builder) carries
+   * onto the hero's unit (armor by weight, the to-hit defence, the resistances, accuracy, max hit) and the loadout's critical chance and banes.
+   * `items` is the ITEMS table it reads (the edge's by default).
+   */
+  function engineView(kit, L, items = EDGE_ITEMS) {
+    const s = MEMBER.memberSide({ key: 'view', seat: 0, equipment: { ...kit }, skills: {}, levelXp: 0, hp: 1, huntSession: {}, hero: {} }, { items });
+    const snap = s.member.snapshot(s.state);
+    return { armour: snap.armour, def: snap.def, acc: snap.acc, maxHit: snap.maxHit, resistPm: snap.resistPm || null, skillPlus: snap.skillPlus || null, critB: s.eq.critB, bane: s.eq.bane || null };
+  }
+  /* an attribute's field on a row (special-attributes.js SPECIAL_ATTRIBUTES[kind].field) */
+  const ATTR_FIELD = Object.freeze({ resist_element: 'resistPm', resist_physical: 'resistPm', defense: 'skillB', skill: 'skillB', crit: 'critB', bane: 'bane' });
+  /**
+   * The pieces of `kit` past the ladder (a staged row, or a gettable row the ladder does not list), each with its attribute and whether
+   * that attribute reaches the engine: the engine's view of the set with the piece, against the same set with the piece's attribute
+   * key taken off (a copy of the table: the real ITEMS are not touched). A key the engine drops (no hook yet) reads `hooked: false`.
+   */
+  function uniquesIn(kit, L) {
+    const onLadder = new Set(Object.values(ladder).flat());
+    const out = [];
+    for (const [slot, id] of Object.entries(kit)) {
+      if (!id || onLadder.has(id) || slot === 'ammo' || starters.has(id)) continue;
+      const it = rowOf(id);
+      if (!it) continue;
+      const s = staged.get(id) || null;
+      const [kind, key] = (s && s.attr) || [null, null];
+      const field = kind ? ATTR_FIELD[kind] : null;
+      let hooked = null;
+      if (field && own(it, field)) {
+        const cut = JSON.parse(JSON.stringify(it));
+        if (key && cut[field] && typeof cut[field] === 'object' && field !== 'bane') { delete cut[field][key]; if (!Object.keys(cut[field]).length) delete cut[field]; }
+        else delete cut[field];
+        const was = JSON.stringify(engineView(kit, L)), now = JSON.stringify(engineView(kit, L, { ...EDGE_ITEMS, [id]: cut }));
+        hooked = was !== now;
+      }
+      out.push({ slot, id, n: it.n, staged: !!s, armor: it.defB || 0, attr: kind ? kind + (key ? ':' + key : '') : null, hooked });
+    }
+    return out;
+  }
+
   /**
    * The worn set of `style` at Level `L`. opts: { tierOffset, only, heavyShield, line (another armour line),
    * armourSlots (default all six; the reachable ones are filled), noArmour, ammo (an item for the ammo slot),
@@ -110,19 +317,27 @@ export async function loadGear(root) {
     const okR = opts.openAlso ? canIn(reachWith(opts.openAlso)) : can;
     /* `exclude`: pieces this hero can't hold yet, whatever drops them (a hall's own prize before its first win) */
     const ok = opts.exclude ? (id, L) => !opts.exclude.includes(id) && okR(id, L) : okR;
+    /* THE UNIQUES: each slot group with no tier offset takes the best gettable piece of its family (see the header) */
+    let ctx = null;
+    if (opts.uniques === true) {
+      registerStaged();
+      ctx = { reach: opts.openAlso ? reachWith(opts.openAlso) : reach, drops: dropGroundsWith(opts.openAlso), asks: groundAsks(opts.ground || null),
+        ground: opts.ground && own(HUNT_GROUNDS, opts.ground) ? opts.ground : null, exclude: opts.exclude || null };
+    }
+    const best = (ids, id, o) => (ctx && !o ? bestOf(ids, id, L, S.role, ctx) || id : id);
     const set = {};
-    set.weapon = pick(ladder[S.weapon] || [], L, off('weapon'), practiceFor(S.weapon), ok);
+    set.weapon = best(ladder[S.weapon] || [], pick(ladder[S.weapon] || [], L, off('weapon'), practiceFor(S.weapon), ok), off('weapon'));
     if (S.offhand === 'shield') {
       const ids = shieldIds(opts.heavyShield === true);
-      set.shield = pick(ids, L, off('shield'), ITEMS.practice_shield ? 'practice_shield' : null, ok);
+      set.shield = best(ids, pick(ids, L, off('shield'), ITEMS.practice_shield ? 'practice_shield' : null, ok), off('shield'));
     } else if (S.offhand === 'spellbook') {
-      set.shield = pick(ladder.spellbook || [], L, off('weapon'), practiceFor('spellbook'), ok);
+      set.shield = best(ladder.spellbook || [], pick(ladder.spellbook || [], L, off('weapon'), practiceFor('spellbook'), ok), off('weapon'));
     }
     if (opts.noArmour !== true) {
       const line = opts.line || S.line;
       for (const slot of opts.armourSlots || ARMOUR_SLOT_KEYS) {
         const o = off(slot) || off('armour');
-        const id = pick(armourLadder(line, slot), L, o, null, ok);
+        const id = best(armourLadder(line, slot), pick(armourLadder(line, slot), L, o, null, ok), o);
         if (id) set[slot] = id;
       }
     }
@@ -143,5 +358,5 @@ export async function loadGear(root) {
     }
     return rows;
   }
-  return { kitOf, gearCensus, ITEMS, reach, reachWith, ladder };
+  return { kitOf, gearCensus, ITEMS, EDGE_ITEMS, reach, reachWith, ladder, staged, registerStaged, engineView, uniquesIn };
 }

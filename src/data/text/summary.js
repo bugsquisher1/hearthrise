@@ -16,11 +16,13 @@ export const SUMMARY_TEXT = Object.freeze({
   lv_arrow: '→',
   skill_up: '{skill} {from} → {to}',
   fig_xp: 'Level XP',
+  /* Gold is what the purse kept, the coins less the store's supplies (src/shell/result-block.js goldFig); a record that sent no spend says
+     its coins under Coins, never as Gold (post-patch audit 2026-11-18). */
   fig_gold: 'Gold',
+  fig_coins: 'Coins',
   fig_kills: 'Kills',
   fig_time: 'Time',
   fig_per_hour: '{amount} per hour',
-  fig_loot: '{gold} in loot',
   fig_in: 'in {time}',
   /* The hunt on now (src/hunt-view/summary-recorder.js liveSummaryOf): its card's time line, and its row under Earlier hunts. */
   live_when: 'In progress, started {time}',
@@ -62,6 +64,10 @@ export const SUMMARY_TEXT = Object.freeze({
   buy_dummy_words: 'Train at home, no hourly fee',
   buy_room: 'Next buy: {room} upgrade ({price})',
   buy_room_words: 'Next: {rung}',
+  /* THE NEXT GROUND (src/shell/hunt-list.js nextGroundFrom; audit 2026-11-18 A12: Hunt again kept a hero in the Mill Cellar all night after Level 5):
+     the Hunts list's Recommended ground when it is a step up from the one just hunted. {band} its Levels, {levels} the hero's (or the party's) */
+  ground_up: 'Next ground: {ground}',
+  ground_up_words: '{band}, recommended for {levels}',
   /* The answers. */
   selling: 'Selling…',
   depositing: 'Depositing…',
@@ -71,6 +77,8 @@ export const SUMMARY_TEXT = Object.freeze({
 
   /* WHY THE HUNT ENDED (src/hunt-view/summary-model.js END_WORDS, one per END_ORDER name): labels on the end card. */
   end_died: 'Died',
+  /* a death in a mode that takes nothing for one (the Burning Tower spits you out: session-modes.js deathLossPm 0) */
+  end_spat: 'Spat out, no XP lost',
   died_in: '{name} died in {ground}',
   end_boss_felled: 'Boss defeated, new title earned',
   end_party_member_died: 'Party member died',
@@ -80,6 +88,11 @@ export const SUMMARY_TEXT = Object.freeze({
   end_runes_out: 'Out of runes',
   end_no_fight: 'No hits landed',
   end_gold_out: 'Gold reserve reached',
+  /* ...said with the numbers that ended it (post-patch audit 2026-11-18 B3: "Gold reserve reached" beside Gold +2,679 gp, nothing said why).
+     {spent} the store's supplies, {coins} the coins, both the hunt's own tally; {floor} the Gold reserve, the server's setting. Loot is not
+     gold until it is sold, so it is not in the sum. The _floor form is for a card that has no tally to say it with. */
+  end_gold_out_why: 'Gold reserve reached. Store supplies cost {spent} and the coins brought in {coins}, so your gold fell to your {floor} reserve.',
+  end_gold_out_floor: 'Gold reserve reached. Your gold fell to your {floor} reserve.',
   end_rule: 'Stop rule met',
   end_stamina: 'Out of stamina · Stamina refills 1 h per hour',
   end_hours: 'Time limit reached',

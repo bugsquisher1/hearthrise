@@ -130,11 +130,17 @@ export default definePack({
     hot_coal: { n: 'Hot Coal', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: 'ember' },
     goad: { n: 'Goad', shape: 'mend', range: 4, windupMs: 1600, cdMs: 16000, hitPm: 500, element: null },
   },
-  /* THE BAG: the Hold's store food, and the fire rune (three of the five are Undead, fire does 15% more). Not measured for cost. */
+  /* THE BAG: the Hold's store food, and the fire rune (three of the five are Undead, fire does 15% more). */
+  /* THE COUNTS, MEASURED (lane/d-late-nearmisses' rule, re-measured on v0.2.139 by lane/d-late-items-rescue). A bag is BAG_TARGET_HOURS (3) of
+     its style's eating, a lone hero at the floor on Normal in the uniques kit (tools/balance-sim/gear.mjs, the four late grounds open), Salted
+     Lobster an hour turned into Cooked Lobster (300 HP to the store's 216), to the nearest 5: Melee the median of the four Melee ways, Ranged
+     the mean of bow and crossbow, Magic 10 (a caster eats none alone, so 10 for a stray pull).
+     Measured: the full grade --uniques, eats an hour tank 23.8, hammer 47.7, axes 95.5, sword 121.4, bow 11.3, crossbow 3.2, casters 0; Melee 71.6 =
+     155, Ranged 7.25 = 15. */
   bagGuide: { tier: 4,
-    melee: { heal: { id: 'cooked_lobster', qty: 100 } },
-    ranged: { heal: { id: 'cooked_lobster', qty: 80 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
-    magic: { heal: { id: 'cooked_lobster', qty: 100 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
+    melee: { heal: { id: 'cooked_lobster', qty: 155 } },
+    ranged: { heal: { id: 'cooked_lobster', qty: 15 }, ammo: { id: 'barbed_arrows', qty: 5100 } },
+    magic: { heal: { id: 'cooked_lobster', qty: 10 }, mana: { id: 'carrot_juice', qty: 40 }, ammo: { id: 'chalked_fire_rune', qty: 650 } } },
   /* THE XP FIT AND PARTY LEVEL XP (lane/d-morrow-grounds 2026-11-14, the Hold's method; quick grade, 1 seed x 1 h, every Barrow March and Morrow pack open
      on the ladder). The median lone way read 1.16 / 1.10 of the contract at the floor and middle (the hammer 1.24, Undead), so 0.91. A four of four classes read
      0.57 / 0.53 and a tank and Healer 0.80 / 0.74, so the four 1000 x 1.20 / 0.489 = 2455, the pair 1000 x 1.10 / 0.684 = 1610, the cells between at the

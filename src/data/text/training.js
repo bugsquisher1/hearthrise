@@ -74,7 +74,8 @@ export const TRAINING_TEXT = Object.freeze({
   gear_in_bag: '{count} in bag',
   gear_in_storage: '{count} in Storage',
   gear_price: '{gold} gold',
-  gear_today: 'Daily limit: {today}/{max}',
+  /* what the day's count counts (audit 2026-11-18 A14: "Daily limit: 0/10" named nothing) */
+  gear_today: 'Bought today: {today} / {max}',
   gear_card: 'Effect: 200% {skill} XP while training',
   gear_closed: 'Not for sale yet',
   press_buy: 'Buy',

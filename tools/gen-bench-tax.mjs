@@ -36,7 +36,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-bench-tax-rates (APPLIED with v0.2.139) is the file before. Rolled
    jobs have no row (a roll moves no gold, decision 5); the Wolfbone Necklace (Smithing) and the Warband Bulwark (Crafting) are plain jobs, new rows at
    their skill's rate. ORDER: after this lane's items catalogue. */
-export const OUT_FILE = '2027-05-07-jewelry-sample-bench-tax-rates.generated.sql';
+export const OUT_FILE = '2027-05-09-jewelry-sample-bench-tax-rates.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /** What is wrong with the rows, as sentences. */

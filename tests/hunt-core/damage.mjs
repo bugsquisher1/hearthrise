@@ -104,6 +104,21 @@ const cases = {
     const r = M.damage.hurt(inst, slime, 100, src(M), 'ember', null);
     return r.dmg === 50 && slime.hp === 750 && !('immune' in r) ? null : 'the slime took ' + JSON.stringify(r) + ' of a 100 ember blow, want 50';
   },
+  /* HALF A WEAKNESS (abilities.js `weakPm`, the fist line's strikes, itemization plan §7): a hit tagged weakPm 500 lands half a
+     weakness's bonus, a resistance in full, and a tag without it the whole bonus (every shipped row). */
+  'weak-share': (M) => {
+    const weakId = Object.keys(M.MONSTERS).find((id) => M.C.defenceReduction(M.MONSTERS[id]) === 0
+      && Object.values(M.MONSTERS[id].elements).some((p) => p < 0));
+    if (!weakId) return 'fixture: no monster with an element weakness';
+    const [el, pct] = Object.entries(M.MONSTERS[weakId].elements).find(([, p]) => p < 0);
+    const inst = fight(M, []);
+    const hit = (kind, element, tag) => M.damage.hurt(inst, E(M, 2, 0, 12, 3, 1, { kind, hp: 100000, maxHp: 100000 }), 1000, src(M), element, tag).dmg;
+    const half = hit(weakId, el, { id: 'x', weakPm: 500 }), whole = hit(weakId, el, { id: 'x' });
+    if (whole !== 1000 - 10 * pct) return weakId + ': an untagged ' + el + ' hit dealt ' + whole + ', want ' + (1000 - 10 * pct);
+    if (half !== 1000 - 5 * pct) return weakId + ': a weakPm 500 ' + el + ' hit dealt ' + half + ', want ' + (1000 - 5 * pct) + ' (half of the ' + -pct + '% bonus)';
+    const resisted = hit('slime', 'ember', { id: 'x', weakPm: 500 });
+    return resisted === 500 ? null : 'a weakPm 500 ember hit on the slime (50% less) dealt ' + resisted + ', want 500: a resistance lands in full';
+  },
   /* The monster's defence takes combat.js defenceReduction off every blow (one source with playerCombatRolls). */
   'def-reduction': (M) => {
     const id = Object.keys(M.MONSTERS).sort((a, b) => M.C.defenceReduction(M.MONSTERS[b]) - M.C.defenceReduction(M.MONSTERS[a]))[0];
@@ -411,6 +426,8 @@ const mutants = [
   { name: 'the 11-02 term comes back: atk x 1.05 per Level under the floor', case: 'same-blow-at-any-level',
     edits: [[D, 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'const foe = Object.assign({}, blowRow, { atk: blowRow.atk * (1 + 0.05 * Math.max(0, 32 - (t.heroLv || 32))) }); swing(inst, sc, u, t, monsterAccuracy(foe, t.def), monsterMaxHit(foe));']] },
   { name: 'the element is ignored', case: 'weak-resist-half', edits: [[D, '  const el = elementOn(target, element);', '  const el = 1000;']] },
+  { name: 'a hit\'s weakness share is ignored', case: 'weak-share', edits: [[D, 'el > 1000 && ability && Number.isInteger(ability.weakPm)', 'false && ability']] },
+  { name: 'a weakness share also cuts a resistance', case: 'weak-share', edits: [[D, 'el > 1000 && ability && Number.isInteger(ability.weakPm)', 'el !== 1000 && ability && Number.isInteger(ability.weakPm)']] },
   { name: 'a slime is immune to ember again', case: 'weak-resist-half', edits: [[D, '  const el = elementOn(target, element);', "  const el = element === 'ember' && target.kind === 'slime' ? 0 : elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false, immune: true };"]] },
   { name: 'defence is ignored', case: 'def-reduction', edits: [[D, " - defenceReduction(rowOf(inst, target.kind));", ';']] },
   { name: 'the dealer\'s stance is ignored', case: 'stance-dealt-and-taken', edits: [[D, '  n = Math.floor((n * stanceOf(source).dealt) / 1000);\n', '']] },

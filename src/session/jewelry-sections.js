@@ -1,7 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/session/jewelry-sections.js — CRAFTED JEWELRY AS THE SERVER STATES IT (src/data/jewelry.js).
 //
-// Two reads. The `hallmark` section (hr_hallmark_view, 2027-05-07-jewel-reforge.sql): the Hallmark step for each Fine piece and the
+// Two reads. The `hallmark` section (hr_hallmark_view, 2027-05-09-jewel-reforge.sql): the Hallmark step for each Fine piece and the
 // reforge for each Hallmarked piece this hero holds in its bag or the account's Storage, each at the server's gold and level in the
 // piece's own bench (Tyler 2026-11-18: all jewelry is Smithing, cloaks Crafting), and the account's counts against the day's limit;
 // every envelope replaces it and nothing here prices a step. And a rolled job's odds, shown BEFORE the roll (Tyler 2026-11-05, call 6):

@@ -18,12 +18,12 @@
 // ============================================================================
 
 import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.139';
-import { TEMPER_TIERS, temperLadder, temperUnlockId } from '../data/temper.js?v=0.2.139';
+import { temperLadder, temperTierOf, temperUnlockId } from '../data/temper.js?v=0.2.139';
 
 /* The armor points a piece wears: a shield or a cape wears none here (mitigation.js armourValues reads the same pieces). */
 const armorPointsOf = (it) => (it && it.slot && ARMOUR_WEIGHT[it.armourClass] ? Math.floor(Number(it.defB) || 0) : 0);
 
-/** The rung this hero holds on one ladder, clamped to that ladder; 0 for a tier with no ladder. */
+/** The rung this hero holds on one ladder, clamped to that ladder; 0 for a tier (or a band past Dawnsteel) with no ladder. */
 export function temperRung(temper, track, tier) {
   const ladder = temperLadder(track, tier);
   if (!temper || typeof temper !== 'object' || !ladder) return 0;
@@ -31,8 +31,8 @@ export function temperRung(temper, track, tier) {
   return Number.isFinite(n) && n > 0 ? Math.min(n, ladder.rungs) : 0;
 }
 
-/* A rung's worth on one ladder, permille: 1% on tiers 2 to 6, 0.4% on Dawnsteel's (src/data/temper.js TEMPER_TIER_RUNG_PM). Read from the
-   ladder, never a constant here. */
+/* A rung's worth on one ladder, permille: 1% on tiers 2 to 6, 0.4% on Dawnsteel's (src/data/temper.js TEMPER_TIER_RUNG_PM), 0.5% on a
+   unique band's (TEMPER_UNIQUE_RUNG_PM). Read from the ladder, never a constant here. */
 const rungPmOf = (track, tier) => { const l = temperLadder(track, tier); return l ? l.pm : 0; };
 
 /** The permille this hero's blows and heals gain: its WEAPON's tier's Blows rung, at that ladder's worth a rung. 0 with none. */
@@ -42,38 +42,40 @@ export function blowsPmOf(equipment, items, temper) {
 }
 
 /**
- * The permille every blow at this hero loses: each worn armor piece's own tier's Armor rung, at that ladder's worth a rung,
- * weighted by the armor the piece wears. So a mixed set reads piece by piece, and moving one piece up a tier costs that
- * piece's share of the rung, never the whole ladder.
+ * The permille every blow at this hero loses: each worn armor piece's own ladder's Armor rung (its tier's, or past Dawnsteel
+ * its band's: src/data/temper.js temperTierOf), at that ladder's worth a rung, weighted by the armor the piece wears. So a
+ * mixed set reads piece by piece, and moving one piece up a tier costs that piece's share of the rung, never the whole ladder.
  */
 export function armorPmOf(equipment, items, temper) {
   if (!temper || !equipment || !items) return 0;
   let worn = 0, rungs = 0;
   for (const id of Object.values(equipment)) {
     const it = id ? items[id] : null;
-    const def = armorPointsOf(it);
-    if (def > 0) { worn += def; rungs += def * temperRung(temper, 'armor', it.tier) * rungPmOf('armor', it.tier); }
+    const def = armorPointsOf(it), t = def > 0 ? temperTierOf(it) : 0;
+    if (def > 0) { worn += def; rungs += def * temperRung(temper, 'armor', t) * rungPmOf('armor', t); }
   }
   return worn > 0 ? Math.floor(rungs / worn) : 0;
 }
 
 /**
  * The line of armor this hero wears most, among the pieces with a ladder: { tier, armourClass }, the row the smith's window
- * offers (the most armor points, the higher tier on a tie). Null with no such piece.
+ * offers (the most armor points, the higher tier on a tie). `tier` is the ladder's key: past Dawnsteel, the band's first Level.
+ * Null with no such piece.
  */
 export function armorLineOf(equipment, items) {
   const worn = {};
   for (const id of Object.values(equipment || {})) {
     const it = id && items ? items[id] : null;
     const def = armorPointsOf(it);
+    const t = def > 0 ? temperTierOf(it) : 0;
     if (def > 0) {
-      const k = (worn[it.tier] = worn[it.tier] || { tier: it.tier, armourClass: it.armourClass, def: 0, best: 0 });
+      const k = (worn[t] = worn[t] || { tier: t, armourClass: it.armourClass, def: 0, best: 0 });
       k.def += def;
       if (def > k.best) { k.best = def; k.armourClass = it.armourClass; }
     }
   }
   const lines = Object.values(worn).sort((a, b) => b.def - a.def || b.tier - a.tier);
-  const top = lines.find((l) => TEMPER_TIERS[l.tier]) || lines[0];
+  const top = lines.find((l) => temperLadder('armor', l.tier)) || lines[0];
   return top ? { tier: top.tier, armourClass: top.armourClass } : null;
 }
 

@@ -38,6 +38,8 @@
 //   LV-K  THE LEADER CHOOSES (Tyler 2026-10-20): a party whose leader (seat 1, a peer of the
 //         viewer) picked 7 and the viewer 3 runs 7 on the server, and the viewer's browser
 //         predicts that pull (every commit matches): the peer's frozen hero carries `lead`.
+//   LV-ROSTER THE PARTY AS IT STANDS, VIEWED (KNOWN-F1, 2026-11-18): a ranger on her default settings follows beside her tank
+//         and kites from the boundary his hunt ends, on the server's commits and in her browser: every commit matches.
 //   LV-B  A FULL BOX IS PULLED, VIEWED (Andy 10-20): a Thicket duo at its leader's 8 (the member never
 //         picked) pulls the designer's ring of 8 from its edge and kills it; every commit matches.
 //   LV-OPEN THE OPEN GROUND (Tyler + Andy 10-25: "the tank doesn't stand next to the wall"): a lone tank pulls the
@@ -714,6 +716,34 @@ function rules(M) {
     ok('LV-K', r.verdicts.length >= 2 && bad.length === 0, `the viewer's browser did not predict the leader's pull: ${bad.length} of ${r.verdicts.length} commits diverged`);
     const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
     ok('LV-K', /_leads: m\.leads === true/.test(src) && /lead: m\._leads/.test(src), 'hunt-settle.js does not hand the engine hr_hunt_instance_read `leads`');
+  }
+
+  { // LV-ROSTER: THE PARTY AS IT STANDS, VIEWED (KNOWN-F1, tests/settle-properties.mjs 2026-11-18): a tank (the peer, his Leave
+    // already pressed) and the viewer's ranger, both on settings they never set. The ranger follows beside her tank and kites
+    // from the boundary his hunt ends (a party with no Melee kites: roles.js settingsOf), on the server's commits (each read
+    // hands only the hunts still open, as the database does) and in her browser, which held him since its start point: every
+    // commit matches. The settle's half, browser closed (the tick's windows against a player's instants): hunt-sessions-settle
+    // PARTY-ROSTER.
+    const LEAVE = T0 + 41000;
+    const mis = [memberOf(M, 'a', 0, 'tank', 6), memberOf(M, 'b', 1, 'ranger', 6)];
+    mis[0].huntSession.leaveAtMs = LEAVE;
+    mis[1].hero = Object.assign({}, mis[1].hero, { leaveTogether: false });
+    const ranger = (world) => { const w = world ? M.WS.decode(JSON.parse(world)) : null; const u = w && w.units.find((x) => x.side === 'hero' && x.role === 'ranger'); return u ? { chase: u.chase, tmode: u.tmode } : null; };
+    const seen = [];
+    let ended = null;
+    const r = run(M, mis, 96000, { viewer: { user: 'b', slot: 0 }, onCommit: ({ t, c, srv }) => {
+      seen.push([t, ranger(srv.inst.world)]);
+      if (c.ends.length && !ended) ended = c.ends[0];
+      /* the database's read: an ended hunt's session is no longer handed to the engine */
+      for (let i = mis.length - 1; i >= 0; i--) if (mis[i].unitId === null && mis[i].huntSession.swingIndex > 0) mis.splice(i, 1);
+    } });
+    const bad = r.verdicts.filter((x) => x.v !== 'match');
+    const before = seen.filter(([t]) => t < LEAVE).map(([, s]) => s), after = seen.filter(([t]) => t > LEAVE + 2000).map(([, s]) => s);
+    ok('LV-ROSTER', !!ended && ended.reason === 'left' && mis.length === 1, `CONTROL: the tank's hunt ended ${JSON.stringify(ended)}, ${mis.length} hunt(s) left open`);
+    ok('LV-ROSTER', before.length > 0 && before.every((s) => s && s.chase === true && s.tmode === 'follow') && after.length > 0 && after.every((s) => s && s.chase === false && s.tmode !== 'follow'),
+      `the ranger played ${JSON.stringify(before)} beside her tank and ${JSON.stringify(after)} alone (want chase on and follow, then kiting on her own target)`);
+    ok('LV-ROSTER', r.verdicts.length >= 5 && bad.length === 0, `viewed: the browser's prediction left the server's world at ${bad.length} of ${r.verdicts.length} commits (${bad.map((x) => x.t - T0).join(', ')} ms) across the tank's end`);
+    console.log(`  LV-ROSTER the tank leaves at +${LEAVE - T0} ms: ${r.verdicts.length} commits, ${r.verdicts.length - bad.length} matched; the ranger ${JSON.stringify(before[0])} -> ${JSON.stringify(after[0])}`);
   }
 
   { // LV-B: A FULL BOX IS PULLED, VIEWED (Andy 10-20): a Thicket duo, its leader at 8 and the member never picked. The
@@ -2096,7 +2126,9 @@ const MUTANTS = [
   ['a member keeps the unit id of a world that is gone (LV-O)', 'src/core/combat-sim.js',
     '  if (!world) for (const m of members) m.unitId = null;\n', '', /^LV-O/],
   ['members run in another order than the server (LV-D)', 'src/hunt-view/live-engine.js', '.slice().sort((a, b) => (a.key < b.key ? -1 : 1))', '.slice().reverse()', /^LV-D/],
-  ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'if (s.stance !== undefined) u.stance = s.stance;', 'void 0;', /^LV-S/],
+  ['a setup change is not written onto a standing hero (LV-S)', 'src/core/combat-sim.js', 'u.stance = s.stance;', 'void 0;', /^LV-S/],
+  ['the party defaults read every member the read handed in, not the party standing (KNOWN-F1, LV-ROSTER)', 'src/core/combat-sim.js',
+    '    const roles = rolesOf(inWorld(members));', '    const roles = rolesOf(members);', /^LV-ROSTER/],
   ['every start point reads as the setup already run (LV-S)', 'src/hunt-view/live-engine.js', 'setupOf(live) === st.setup,', 'true,', /^LV-S/],
   ['an empty own slot buys its store partner instead of falling to slot 2 (LV-$)', 'src/core/action-rules.js',
     "  if (c && c.source === 'own') return leftOf(hs, want) > 0 ? { id: want, source: 'own', price: 0 } : { why: 'none' };",

@@ -47,7 +47,7 @@ import { HUNT_GROUNDS, OPEN_GROUNDS, HALL_GROUNDS, OPEN_HALL_GROUNDS, CALLED_GRO
 import { BOSS_CALLS } from './boss-calls.js?v=0.2.139';
 import { HUNT_INDEX } from './hunts.js?v=0.2.139';
 import { TRAINING_GEAR_ITEMS } from './training.js?v=0.2.139';
-import { CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js?v=0.2.139';
+import { CHEST_KEYS, CATACOMB_KEYS, HEARTH_CHEST_KEYS, CINDERS, CHEST_OUTFITS } from './chests.js?v=0.2.139';
 import {
   gatherProductIds, cropProductIds, seedIds, combatDropIds, artisanOutputIds,
 } from './item-authority.js?v=0.2.139';
@@ -122,7 +122,7 @@ export const VENDOR_TRASH = Object.freeze(['sticky_core', 'goblin_ear', 'goblin_
   'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
   'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
   'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
-  /* the Pauper Vaults (lane/d-catacombs), the same promise, and the Vault Leech's own Common, Junk that only sells */
+  /* Unmarked Catacombs (lane/d-catacombs), the same promise, and the Vault Leech's own Common, Junk that only sells */
   'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
 ]);
 
@@ -209,7 +209,7 @@ export const UNREACHABLE = Object.freeze({
     'pewter_spoon', 'roof_slate', 'stable_bit', 'coal_tongs', 'cellar_tally',
     'wagon_pin', 'runners_tin', 'ox_shoe', 'drovers_goad', 'waybill',
     'eggshell', 'gizzard_stone', 'tail_spur', 'fire_gland', 'stolen_fleece',
-    /* THE PAUPER VAULTS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and the Vault Leech's Live Leech */
+    /* UNMARKED CATACOMBS, staged (lane/d-catacombs, 2026-11-15): five imbuement items and the Vault Leech's Live Leech */
     'owing_tag', 'leech_jaw', 'lime_mortar', 'carters_hook', 'candle_snuffer', 'live_leech',
   ]),
   premium: Object.freeze(['oak_practice_blade']),
@@ -283,6 +283,9 @@ export function reachableSources(opts = {}) {
   for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) put(g.id, 'the Arms Master');
   /* the Burning Tower: a landing's Keeper mints its key (2027-04-27-tower-chest.sql hr_tower_key_mint), the Hearth Chest pays the Cinders */
   for (const k of CHEST_KEYS) put(k.item, 'a Burning Tower landing');
+  /* the Unmarked Catacombs' descent: a wing's vault door mints its key (hr_tower_key_mint on the wing's run), the chest pays its armor */
+  for (const k of CATACOMB_KEYS) put(k.item, 'a Catacomb vault door');
+  for (const k of CATACOMB_KEYS) for (const id of Object.values(k.armor)) put(id, 'the Hearth Chest');
   put(CINDERS, 'the Hearth Chest');
   /* the tower weapons: a key's weapon roll at the Hearth Chest (2027-04-27-tower-chest.sql hr_chest_open, hr_chest_weapons) */
   for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) put(id, 'the Hearth Chest');
@@ -363,6 +366,9 @@ export function itemSources() {
   for (const g of TRAINING_GEAR_ITEMS) if (!g.bound) push(m, g.id, 'the Arms Master');
   /* The Burning Tower (src/data/chests.js; 2027-04-27-tower-chest.sql): a landing mints its key, the Hearth Chest pays the Cinders. */
   for (const k of CHEST_KEYS) push(m, k.item, 'a Burning Tower landing');
+  /* The Unmarked Catacombs' descent: a wing's vault door mints its key, the chest pays its armor (hr_chest_open reads hr_chest_armor). */
+  for (const k of CATACOMB_KEYS) push(m, k.item, 'a Catacomb vault door');
+  for (const k of CATACOMB_KEYS) for (const id of Object.values(k.armor)) push(m, id, 'the Hearth Chest');
   push(m, CINDERS, 'the Hearth Chest');
   /* The tower weapons (src/data/tower-weapons.js): a key's weapon roll at the Hearth Chest (hr_chest_open reads hr_chest_weapons). */
   for (const k of CHEST_KEYS) for (const id of Object.values(k.weapons)) push(m, id, 'the Hearth Chest');
@@ -403,7 +409,7 @@ export function itemUses() {
   /* a training item is opened into its hero's training hours for its skill (hr_training_gear_open; the settle opens the next by itself) */
   for (const g of TRAINING_GEAR_ITEMS) push(m, g.id, 'opened into training hours');
   /* a Tower key is used at the Hearth Chest (hr_chest_open); the Cinders also stoke it (and burn in the Hearth, a HEARTH_FUELS rung) */
-  for (const k of CHEST_KEYS) push(m, k.item, 'used at the Hearth Chest');
+  for (const k of HEARTH_CHEST_KEYS) push(m, k.item, 'used at the Hearth Chest');
   push(m, CINDERS, 'stokes the Hearth Chest');
   /* an outfit's bundle is used once: its hero owns the outfit for good (hr_outfit_bundle_use, 2027-04-30-sweeps-coat.sql) */
   for (const o of CHEST_OUTFITS) push(m, o.item, 'used: the hero owns the outfit');

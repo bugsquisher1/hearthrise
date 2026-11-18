@@ -23,6 +23,7 @@
 
 import { DISCIPLINES } from './abilities.js?v=0.2.139';
 import { isShield } from './shields.js?v=0.2.139';
+import { FIST_LINE } from './fists.js?v=0.2.139';
 
 /* role id → row.
    melee     true = attacks only from an adjacent tile, and only standing on it (RO-19)
@@ -80,6 +81,8 @@ export const ROLE_KEYS = Object.freeze({
   ranged: key(['ranger'], 'ranged'),
   staff: key(['healer'], 'restoration'),
   wand: key(['mage'], 'destruction'),
+  /* wraps: the fist line (src/data/fists.js), a Melee seat on its own list; only while the sample is live */
+  ...(FIST_LINE.live ? { [FIST_LINE.family]: key(['melee_dps'], FIST_LINE.family) } : {}),
 });
 /* ROLE KEY → the roles it can play (ROLE_KEYS' `roles`), the shape every reader takes. */
 export const WEAPON_ROLES = Object.freeze(Object.fromEntries(Object.entries(ROLE_KEYS).map(([k, r]) => [k, r.roles])));

@@ -24,7 +24,7 @@ import { cameHomeWords } from '../data/party-words.js?v=0.2.139';
 import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.139';
 import { lossLine, seriesLine } from './boss-loss.js?v=0.2.139';
 import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.139';
-import { callOf } from '../session/hunt-sections.js?v=0.2.139';
+import { callOf, sessionModeOfHunt } from '../session/hunt-sections.js?v=0.2.139';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.139';
 import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.139';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.139';
@@ -32,6 +32,7 @@ import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.139';
 import { ITEMS } from '../data/items.js?v=0.2.139';
 import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.139';
 import { t } from '../render/player-text.js?v=0.2.139';
+import { gold as gp } from '../render/format.js?v=0.2.139';
 
 export { sanitizeSummaries };
 
@@ -84,13 +85,45 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
   /* A CALL OUT SERIES that ended short of its count: the hero could not pay another fight (src/data/boss-calls.js series.ended). */
   const short = BOSS_CALL_WORDS.series.ended;
   if (forfeit !== true && hunt && Object.hasOwn(short, reason) && (roomOfHunt(hunt) || {}).kind === 'call') return short[reason];
+  /* A MODE THAT TAKES NOTHING FOR A DEATH (session-modes.js deathLossPm 0: the Burning Tower spits you out) never reads "Died" (audit 2026-11-18
+     A5: the hunt history listed a climb as Died, though the Tower says it can't kill you) */
+  if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return t('summary.end_spat');
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || t('summary.end_plain');
+}
+
+/**
+ * A HUNT THAT RAN OUT OF GOLD SAYS WHY, IN ITS OWN NUMBERS (post-patch audit 2026-11-18 B3: a solo Level 5 in the Sewer read "Gold reserve
+ * reached" beside Gold +2,679 gp and Balance +871 gp; played on the local world, 680 gp of coins against 1,160 gp of store food took the purse
+ * from 787 gp to the 300 gp reserve in 19 min, a real stop). What the store's supplies cost is the server's tally (its balance is coins plus
+ * loot value less those supplies, so they are coins + loot value - balance), the coins are its tally too, and `floor` is the reserve the
+ * server keeps (hunt-sections.js goldFloorOf). Loot is not gold until it is sold, so it is no part of the sum. Short of either number it
+ * says the reserve alone, and short of that the plain label.
+ */
+export function goldOutWords(s, floor) {
+  const reserve = Number.isSafeInteger(floor) && floor >= 0 ? gp(floor) : null;
+  const kept = goldKeptOf(s);
+  if (reserve && kept && kept.spent > 0) return t('summary.end_gold_out_why', { spent: gp(kept.spent), coins: gp(kept.coins), floor: reserve });
+  return reserve ? t('summary.end_gold_out_floor', { floor: reserve }) : END_WORDS.gold_out;
+}
+
+/**
+ * WHAT THE PURSE KEPT FROM A HUNT, from its server tally (`s`: a stored summary's, or the analyzer's hero view in that shape: gold = the coins,
+ * lootValue, balance): the coins, what the store's supplies cost (the balance is coins + loot value - those supplies, so they are
+ * coins + loot value - balance) and the difference, `net`. Loot is not gold until it is sold, so it is no part of it. Null when the tally
+ * lacks any of the three (an older record): the cards then say Coins (../shell/result-block.js goldFig). The away card's reading too.
+ */
+export function goldKeptOf(s) {
+  const coins = int(s && s.gold), loot = int(s && s.lootValue), balance = int(s && s.balance);
+  if (coins === null || loot === null || balance === null) return null;
+  const spent = Math.max(0, coins + loot - balance);
+  return { coins, spent, net: coins - spent };
 }
 
 /** The end card's reason line. `msLeft`: the stamina the server says the hero has now, given only for the newest hunt with none running:
     out of stamina, the card says what it has rested back, so Hunt again is a decision and not a guess (panel 2026-11-01). */
-export function reasonWords(s, hero, msLeft) {
-  const why = s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why, s.hunt) : t('summary.end_plain');
+export function reasonWords(s, hero, msLeft, floor) {
+  const why = s.reason === 'gold_out' && s.forfeit !== true ? goldOutWords(s, floor)
+    : s.reason ? endWords(s.reason, s.forfeit, s.by, hero, s.why, s.hunt) : t('summary.end_plain');
   if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;
   const m = Math.floor(msLeft / 60000);
   return t('summary.stamina_now', { why, left: (m >= 60 ? Math.floor(m / 60) + ' h ' : '') + (m % 60) + ' min' });

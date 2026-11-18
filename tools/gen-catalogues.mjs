@@ -151,7 +151,12 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    Cinders' Inner Flame rung (hr_activities artisan:fuel_tower_cinders), the Hearth Chest's 28 weapons and the Key Warden's bundle
    (sweeps_coat_bundle, tradeable, book value 20,000). ORDER: the FIRST Tower file, after every v0.2.135 file; before the Tower's hunt-sessions
    file (its weapons and the bundle's bid read these rows). */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-02-tower-items-catalogue.generated.sql');
+/* DROP HOMES (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18, answering the itemization audit: armor, weapons and shields drop, a bench
+   makes none, and a smith only reforges a named shield): 2027-05-02-tower-items-catalogue (applied with v0.2.135) is the file before this one and this
+   one carries it whole. The 24 armor, weapon and plain-shield recipes leave hr_activities (artisan rows: the tier-2 weapons, the tier-1 and tier-2 cloth,
+   the first gloves and sashes, the tier-4 hatchets and crossbow, the Ironbound, Coppercap and Mithril-Faced shields); Klappa's Club and the Steelgrate
+   stay. No hr_items row moves. ORDER: after everything applied with v0.2.138; before the drop-homes bench-inputs, bench-tax and hunt-sessions files. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-06-drop-homes-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -1324,7 +1329,9 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
 /* THE BURNING TOWER'S CHEST AND THE MARCH'S MADE PIECES (lane/c-tower-chest; lane/a-next-steps with d-audit-balance-2; set v0.2.135): 2027-03-27-phase0-tier4
    is APPLIED history. ONE forward file for both: the Tower Cinders' Inner Flame bench (fuel_tower_cinders), the Mithril-Faced Shield's forge and the March
    salts' mixes and packs (2027-05-01-v0135-bench-inputs, never applied, folded in here on the assembled set). */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-04-27-tower-chest-bench-inputs.generated.sql');
+/* DROP HOMES (lane/d-drop-homes, designer 2026-11-18; Tyler 2026-11-18: armor, weapons and shields drop, a bench makes none): 2027-04-27-tower-chest is
+   APPLIED history; the 24 cut recipes' inputs leave the function, no other recipe's inputs move. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-06-drop-homes-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

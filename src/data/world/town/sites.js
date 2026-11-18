@@ -184,14 +184,15 @@ export const BLEND = Object.freeze({
    section (src/world/world-boot.js ambientHide), so it is no press that leads nowhere.
    lane/fix138-hearth-chest-big (Tyler 2026-11-17, "more 'special' ... some sort of low glow, maybe some black / green smoke leaking out maybe
    bigger as well"): the chest is 52 px wide now, so it stands on the ledge in front of the east wood bays, its left side to the firebox, its
-   foot at the hearth frame's px (262, 311): tile (120, 48) lifted 37 and 10 left. It is three rows on ONE seat (CHEST_SEAT), drawn in this
-   order: its light on the stone (under it), the chest, its smoke (over it); the town hides all three together (CHEST_LAYERS). The seat is
+   foot at the hearth frame's px (262, 311): tile (120, 48) lifted 37 and 10 left. It is two rows on ONE seat (CHEST_SEAT), drawn in this
+   order: the chest, its smoke (over it); the town hides both together (CHEST_LAYERS). It casts no light on the stone (lane/a-chest-glow-139,
+   Tyler 2026-11-18, "concentrate the color around the keyhole and fittings": its green is its keyholes' and hasps'). The seat is
    the Hearth's: a redrawn Hearth moves CHEST_SEAT, and the Tower window follows it (tools/world-art/tower-window-art.mjs chestFoot).
    THE HEARTH REDRAWN (2026-11-17, art/world/hearth/great_hearth.json): its firebox's centre is hearth px (178, 313), tile (117, 48) lifted 99
    and 2 across (the fire loop's anchor, tools/world-art/hearth-fire.mjs), and it was built with a stone DAIS right of the firebox for the
    chest, two iron chain rings at its front: the chest's foot is the dais top's front edge, hearth px (290, 364), tile (121, 48) lifted 48
    and 14 left. */
 const CHEST_SEAT = Object.freeze({ x: 121, y: 48, lift: 48, dx: -14 });
-export const CHEST_LAYERS = Object.freeze(['hearth_chest_glow', 'hearth_chest', 'hearth_chest_smoke']);
+export const CHEST_LAYERS = Object.freeze(['hearth_chest', 'hearth_chest_smoke']);
 export const AMBIENT = Object.freeze([Object.freeze({ id: 'hearth_fire', x: 117, y: 48, lift: 99, dx: 2 }),
   ...CHEST_LAYERS.map((id) => Object.freeze(Object.assign({ id }, CHEST_SEAT)))]);

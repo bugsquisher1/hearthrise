@@ -22,7 +22,7 @@
       "fps": 8,
       "loop": true,
       "dirs": {
-        "s": 24
+        "s": 40
       }
     },
     {
@@ -31,6 +31,14 @@
       "loop": false,
       "dirs": {
         "s": 8
+      }
+    },
+    {
+      "name": "flash",
+      "fps": 8,
+      "loop": false,
+      "dirs": {
+        "s": 6
       }
     }
   ],

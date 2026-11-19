@@ -10,7 +10,7 @@
 //   node tests/tower-climb.mjs --mutate     every planted defect must turn its arm red (--mutant=<part of a name>)
 //
 // mutant-anchors: src/core/hunt/tower.js, src/data/tower.js, src/core/hunt-rewards.js, src/core/hunt/xp-share.js, src/core/combat-sim.js,
-//   supabase/migrations/2027-04-24-tower-climb.sql, supabase/migrations/2027-05-03-tower-arm.sql
+//   supabase/migrations/2027-04-24-tower-climb.sql, supabase/migrations/2027-05-03-tower-arm.sql, supabase/migrations/2027-05-29-tower-party-floor.sql
 //
 //   TC-ROOM    the room: floor F's five at Level F (the stat formula), a Keeper on every landing at the boss role and no second of his kind,
 //              the same room every read (no dice), a floor past the top playing the top's rows; past the heat's floor (src/data/tower.js
@@ -38,8 +38,9 @@
 //   TC-CHECKPOINT  Tyler 2026-11-16 (the 60-below week is gone): a hero of best 50 picks landing 30 and climbs from 31; no pick is the best
 //              (51); a forged landing 60 and a landing 35 (no checkpoint) are refused with the list and open nothing; a PARTY of best 50 and
 //              best 20, started by its leader, climbs from 21 (the highest landing both reached), one run a seat, every seat or none: a
-//              pick of 30 opens nobody; a seat that isn't the leader starts nothing
-//   TC-ARM     2027-05-03-tower-arm.sql: the switch is OFF on the chain up to the file before it and ON for everyone (a stranger included)
+//              pick of 30 opens nobody; a seat that isn't the leader starts nothing; mid-climb each seat's Tower window draws the other on
+//              the climb's floor, its own run.floor, never its best (Andy 2026-11-19, 2027-05-29-tower-party-floor.sql)
+//   TC-ARM    2027-05-03-tower-arm.sql: the switch is OFF on the chain up to the file before it and ON for everyone (a stranger included)
 //              on the whole chain; on the chain before it, with another switch moved, the file turns it on and moves no other switch row; a
 //              second apply moves nothing, the schema included; 2027-04-24-tower-climb.sql applied again over the armed row re-applies (its
 //              probe puts the switch back as it found it) and leaves it armed
@@ -557,6 +558,9 @@ async function checkpointArm(db, M) {
     out.open0 = (await openOf(db)).length;
     out.start = await as(db, UID, 'select public.hr_tower_start(0, null, $1::uuid)', [idem()]);
     out.runs = await openOf(db);
+    /* the Tower window's tower, each side: the hero's own floor (run.floor) and the other seat's (party[0].floor) */
+    out.seen = [];
+    for (const u of [UID, UID2]) { const s = await one(db, 'select public.hr_tower_section($1::uuid, 0)', [u]); out.seen.push([s && s.run ? s.run.floor : null, s && s.party[0] ? s.party[0].floor : null]); }
     return out;
   });
   if (party.err) { bad.push('TC-CHECKPOINT HARNESS: ' + party.err); return bad; }
@@ -566,6 +570,11 @@ async function checkpointArm(db, M) {
   }
   if (party.start.ok !== true || party.start.landing !== 20 || party.runs.length !== 2 || party.runs.some((x) => x.start_floor !== 21 || x.party !== 2)) {
     bad.push(`TC-CHECKPOINT a party of best 50 and best 20 answered ${JSON.stringify(party.start).slice(0, 200)}, runs ${JSON.stringify(party.runs)}`);
+  }
+  /* ONE CLIMB, ONE FLOOR (Andy 2026-11-19, 2027-05-29-tower-party-floor.sql): mid-climb each seat's section draws the other seat on the floor the
+     climb stands on (21), the hero's own run.floor, never its best (53 and 27): "Other party members showed 1 floor less" */
+  if (JSON.stringify(party.seen) !== '[[21,21],[21,21]]') {
+    bad.push(`TC-CHECKPOINT a party's climb reads [own floor, other seat's floor] ${JSON.stringify(party.seen)} for its two seats, not one floor`);
   }
   return bad;
 }
@@ -661,6 +670,8 @@ const MUTANTS = [
   { name: 'a party start leaves the second seat runless', arm: 'checkpoint', want: /^TC-CHECKPOINT a party of/, fn: 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)',
     find: '                                       else exists (select 1 from public.hunt_party_members m where m.party_id = v_party\n                                                     and m.user_id = h.user_id and m.slot = h.slot) end);\n    insert into public.tower_runs',
     replace: '                                       else exists (select 1 from public.hunt_party_members m where m.party_id = v_party\n                                                     and m.user_id = h.user_id and m.slot = h.slot) end);\n    v_party := null;\n    insert into public.tower_runs' },
+  { name: 'a climbing seat is drawn at its best', arm: 'checkpoint', want: /^TC-CHECKPOINT a party's climb reads/, fn: 'public.hr_tower_section(uuid,integer)',
+    find: "                                 order by t.started_at desc limit 1), tp.best_floor, 0),", replace: "                                 order by t.started_at desc limit 0), tp.best_floor, 0)," },
   { name: 'the ordinary door admits the Tower', arm: 'start', want: /^TC-START the ordinary door/, fn: 'public.hr_hunt_admit(uuid,integer,text)',
     find: "    if current_setting('hr.tower', true) is distinct from p_hunt then", replace: '    if false then' },
   { name: 'the best is not written', arm: 'doors', want: /^TC-DOORS/, fn: 'public.hr_tower_write(uuid,integer,uuid,jsonb,bigint,timestamp with time zone)',

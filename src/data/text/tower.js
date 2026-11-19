@@ -146,6 +146,10 @@ export const TOWER_TEXT = Object.freeze({
   end_withheld: 'Key limit reached',
   end_not_dropped: '{count} not dropped',
   end_key_count: '{key} x{count}',
+  /* the end card's keys: what this climb earned, and the landings each kind came from (Andy 2026-11-19: 18 keys from one climb read as
+     keys the chest gave back) */
+  end_keys_head: 'Keys earned',
+  end_key_floors: 'Floors {from} to {to}',
   end_new_best: 'New Best',
   end_old_best: 'Old best',
   /* the climb's place on the board (the section's last.board): "Rank: #12 (+3)", "Passed: <the best-placed hero it passed>" */

@@ -19,7 +19,7 @@
 //               worn one about half the time, even thirds where nothing is worn.
 //   CB-BOARD    a descent alone raises "Catacombs, Deepest" alone, a party's raises the party board (never the other), raise-only; a forged
 //               window (more rooms than the stair allows) is refused and moves no board: the clamp.
-//   CB-IDEM     a second apply of 2027-05-08-catacombs.sql is byte-identical (schema, every body it states, its rows).
+//   CB-IDEM     a second apply of 2027-05-08-catacombs.sql, on the chain up to it, is byte-identical (schema, every body it states, its rows).
 //
 //   node tests/catacombs.mjs              the guard (credential-free)
 //   node tests/catacombs.mjs --arm=lean   one arm
@@ -28,7 +28,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { isMain } from './_is-main.mjs';
-import { inventory } from './schema-replay.mjs';
+import { bootReplay, inventory } from './schema-replay.mjs';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const TC = (await import('./tower-climb.mjs')).HARNESS;
@@ -442,7 +442,12 @@ const fileText = () => {
   const t = readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
   return SQL_EDIT ? SQL_EDIT.reduce((s, [a, b]) => s.replace(a, () => b), t) : t;
 };
-async function idemArm(db) {
+/* The second apply is judged on the chain UP TO this file: a later file may restate a body this one pins (2027-05-29-tower-party-floor.sql
+   restates hr_tower_section), and on the whole chain the pin rightly refuses to restate over it. Booted once, for this arm alone. */
+let IDEM_DB = null;
+async function idemArm() {
+  if (!IDEM_DB) IDEM_DB = (await bootReplay({ upTo: FILE })).db;
+  const db = IDEM_DB;
   return H.inTx(db, async () => {
     const bad = [];
     const snap = async () => JSON.stringify([await inventory(db),

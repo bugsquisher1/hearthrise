@@ -277,7 +277,7 @@ async function checks(overrides, shots, { arm = null } = {}) {
       if (!v || v.fams.join(' || ') !== 'Catacomb Keys | Opens left 4 / 6 | Keys held 5 / 120 || Tower Keys | Opens left 5 / 6 | Keys held 0 / 30')
         fails.push('CT-2 the key families read ' + JSON.stringify(v && v.fams));
       if (!v || v.keys.join(' || ') !== 'Bronze Bone Key x3 Open chest || Gold Bone Key x1 Armor coming soon Open chest') fails.push('CT-2 the keys held read ' + JSON.stringify(v && v.keys));
-      if (!v || v.last.join(' | ') !== 'Wing: Bone Wing | Rooms cleared: 11 to 23 | Keys: Bronze Bone Key x1 | Key limit reached: 1 not dropped | Rank: #7')
+      if (!v || v.last.join(' | ') !== 'Wing: Bone Wing | Rooms cleared: 11 to 23 | Keys earned: Bronze Bone Key x1 | Key limit reached: 1 not dropped | Rank: #7')
         fails.push('CT-2 the last descent reads ' + JSON.stringify(v && v.last));
       if (!v || v.party.join() !== 'Bram: Room 19') fails.push('CT-2 the party reads ' + JSON.stringify(v && v.party));
       if (!v || v.rules.join(' | ') !== 'Kill XP: 37.5% of hunting | Death penalty: None | Uses: Stamina, supplies | Time limit: 3 min per room | Vault door time limit: 10 min')

@@ -151,11 +151,11 @@ export function renderHuntSummary() {
     + '<div class="hsum-foot"><div class="hsum-actions">'
     /* a tutorial card's next step is a press here, never the gold one (Tyler 2026-11-11: after 4 h the summary's gold button was still
        the first card); the gold press is the first open Back in town step, else "Hunt again" */
-    + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="tower" hidden>' + esc(t('tower.end_open')) + '</button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="tower" hidden>' + esc(t('tower.end_open')) + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="tower-climb" hidden>' + esc(t('tower.climb_again')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'

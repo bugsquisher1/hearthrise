@@ -130,9 +130,9 @@ export function renderTally(ctx) {
     + '<header class="ht-say"><b class="ht-who"></b><span class="ht-day"><span class="ht-day-paid"></span>' + sepHtml('ht-day-sep', true) + '<span class="ht-day-new"></span></span><p class="ht-voice"></p></header>'
     + '<h3 class="hw-ledger-head ht-head ht-mine-head"><span></span><small></small></h3><ul class="ht-mine"></ul>'
     + '<h3 class="hw-ledger-head is-on ht-head ht-board-head"><span></span></h3>'
-    + '<p class="ht-board-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden></button></p>'
+    + '<p class="ht-board-why"><span></span><button type="button" class="hh-tool is-link" data-hs-act="to-weight" hidden></button></p>'
     + '<p class="hh-empty ht-wait"></p><ul class="ht-list"></ul><p class="ht-board-once"></p>'
-    + '<div class="ht-pick"><span class="ht-pick-line"></span><button type="button" class="hh-tool" data-hs-act="pick-toggle"></button></div>'
+    + '<div class="ht-pick"><span class="ht-pick-line"></span><button type="button" class="hh-tool is-link" data-hs-act="pick-toggle"></button></div>'
     + '<div class="ht-pick-open" hidden><div class="ht-weights" role="group">'
     + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false" title="' + esc(weightSentence(w)) + '"></button>').join('')
     + '</div><p class="ht-weight-words"></p><p class="ht-order-how"></p><ol class="ht-slots"></ol><p class="ht-rule"></p></div>'
@@ -247,7 +247,7 @@ function patchPick(root, st) {
   attr(root.querySelector('.ht-slots'), 'aria-label', t('tally.order_label'));
   rows(root.querySelector('.ht-slots'), order, {
     key: String,
-    build: (s) => element(st.doc, '<li><button type="button" data-hs-act="first" data-slot-name="' + esc(s) + '"><small></small><span></span></button></li>'),
+    build: (s) => element(st.doc, '<li><button type="button" class="hh-seg" data-hs-act="first" data-slot-name="' + esc(s) + '"><small></small><span></span></button></li>'),
     patch: (li, s) => {
       const b = li.querySelector('button');
       text(b.querySelector('small'), String(order.indexOf(s) + 1));

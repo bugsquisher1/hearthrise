@@ -27,7 +27,7 @@ export function crierMarkHtml() {
 
 /** The button on the input's row (built once, with the chat's skeleton). */
 export function crierButtonHtml() {
-  return '<button type="button" class="hh-tool hc-crier-open" data-hs-act="crier" aria-expanded="false">' + esc(CRIER.label) + '</button>';
+  return '<button type="button" class="hh-tool is-link hc-crier-open" data-hs-act="crier" aria-expanded="false">' + esc(CRIER.label) + '</button>';
 }
 
 /** The bar under the input (built once, with the chat's skeleton). */

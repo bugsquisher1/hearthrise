@@ -521,7 +521,7 @@ export function renderHudSettings(ctx) {
       + esc(row.label) + (row.when === 'hunt' ? ' <small>in a hunt</small>' : '') + '</label>'
       + '<input type="range" min="40" max="100" step="5" value="' + pct + '" data-hs-wop="' + esc(row.id) + '" aria-label="' + esc(row.label) + ' opacity">'
       + '<span class="hs-hudset-pct">' + pct + '%</span>'
-      + (hud.isMoved(row.id) ? '<button type="button" class="hs-quiet hs-hudset-put" data-hs-act="put-back" data-wid="' + esc(row.id) + '" aria-label="Put the ' + esc(row.label) + ' back">Put back</button>' : '')
+      + (hud.isMoved(row.id) ? '<button type="button" class="hh-tool hs-hudset-put" data-hs-act="put-back" data-wid="' + esc(row.id) + '" aria-label="Put the ' + esc(row.label) + ' back">Put back</button>' : '')
       + '</li>';
   };
   const move = hud.sizeClass() === 'desktop' ? ' Drag a panel title to move it.' : '';
@@ -531,7 +531,7 @@ export function renderHudSettings(ctx) {
   const listed = (row) => !row.section || (!!cs && typeof cs.read === 'function' && cs.read(row.section) != null);
   return '<p class="hs-note">Show, hide or fade any part of the screen.' + move + '</p>'
     + '<ul class="hs-hudset">' + hud.rows().filter(listed).map(line).join('') + '</ul>'
-    + '<div class="hs-foot"><button type="button" class="hs-quiet" data-hs-wreset>Reset layout</button></div>';
+    + '<div class="hs-foot"><button type="button" class="hh-tool" data-hs-wreset>Reset layout</button></div>';
 }
 
 /* Put back: one moved widget at its own place again, and this list redrawn without its button. */

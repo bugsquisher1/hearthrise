@@ -51,7 +51,7 @@
 /* THE LEGAL LINE (src/app/sign-in.js): under the pitch, in the crest's column, which has room where the card has none on a phone.
    The sign-up's is a sentence with two links in it; the sign-in's is the two links alone, pressed like any link here. */
 .auth-legal { max-width: 311px; margin: 8px 0 0; font-size: var(--t-small); line-height: 1.35; color: var(--ink-2); text-align: center; }
-.auth-legal:not(.is-links) .auth-link { display: inline; min-height: 0; padding: 0; font-size: inherit; text-decoration: underline; text-underline-offset: 3px; }
+.auth-legal:not(.is-links) .auth-link { display: inline; min-height: 0; padding: 0; font-size: inherit; }
 .auth-legal.is-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 0 16px; }
 /* THE READER (src/app/legal-reader.js): the Privacy Policy or the Terms over the screen, the card's own frame and title band, the text scrolling inside it. */
 .auth-doc { position: fixed; inset: 0; z-index: 40; box-sizing: border-box; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg-0) 92%, transparent); }
@@ -116,23 +116,14 @@
 .auth-submit { min-height: 44px; font-size: var(--t-body); letter-spacing: .1em; }
 .auth-submit:disabled { cursor: progress; }
 .auth-links { margin: 0; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
-.auth-link {
-  font-family: var(--f-ui); font-size: var(--t-small);
-  color: var(--gold-2);
-  background: none;
-  border: 0;
-  padding: 2px 0;
-  cursor: pointer;
-  text-decoration: none;
-}
-.auth-link:hover, .auth-link:focus-visible { text-decoration: underline; text-underline-offset: 3px; }
-.auth-link:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* The account cards' text link: its gold words are shell.css's (ONE BUTTON SYSTEM); here its size and its press's room. */
+.auth-link { font-size: var(--t-small); padding: 2px 0; }
 /* THE ACCOUNT ID (the closed notice, closed-notice.js): sunk like a field, whole on one line wherever it fits, one press selects it all. */
 .auth-id { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .auth-id-value { flex: 1 1 18em; min-height: 36px; box-sizing: border-box; display: flex; align-items: center; padding: 4px 10px; background: var(--bg-0); box-shadow: var(--steel-well);
   font-family: var(--f-ui); font-size: var(--t-micro); font-variant-numeric: tabular-nums; color: var(--ink); overflow-wrap: anywhere; -webkit-user-select: all; user-select: all; }
 .auth-id-value::selection { background: var(--gold); color: var(--bg-0); }
-.auth-id .hh-tool { min-height: 36px; padding: 0 14px; box-shadow: inset 0 0 0 2px var(--steel-sep); }
+.auth-id .hh-tool { min-height: 36px; padding: 0 14px; }
 /* A card's foot with a way back and a way on (hero creation): back at the left, the gold plate at the right. */
 .auth-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 -20px -18px; padding: 10px 20px 12px; border-top: 2px solid var(--steel-sep); background: var(--bg-1); }
 .auth-foot .auth-submit { padding: 0 16px 0 20px; }
@@ -201,24 +192,13 @@
 .slot-offer-purse, .slot-offer-short { white-space: nowrap; font-variant-numeric: lining-nums tabular-nums; }
 .slot-offer-purse { color: var(--ink-2); }
 .slot-offer-short { color: var(--ink-3); }
-.slot-offer-buy {
-  flex: none; margin-left: auto; min-height: 40px; padding: 0 12px; white-space: nowrap;
-  border: 2px solid var(--steel-btn); border-radius: 0; background: var(--bg-2); color: var(--ink);
-  font-family: var(--f-ui); font-weight: 700; font-size: var(--t-small); line-height: 1.2; font-variant-numeric: lining-nums tabular-nums; cursor: pointer;
-}
-.slot-offer-buy:hover:not(:disabled) { background: var(--bg-3); border-color: var(--gold-3); }
-.slot-offer-buy:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
-.slot-offer-buy:disabled { opacity: .5; cursor: default; }
+/* Buy and Cancel are the framed secondary (shell.css ONE BUTTON SYSTEM); here their size. */
+.slot-offer-buy { flex: none; margin-left: auto; min-height: 40px; padding: 0 12px; white-space: nowrap; font-size: var(--t-small); line-height: 1.2; font-variant-numeric: lining-nums tabular-nums; }
 /* The one question before the purchase (audit 2026-11-18 A7): the price asked under the gold, Buy for N beside Cancel. */
 .slot-offer-ask { margin: 2px 0 0; font-size: var(--t-small); line-height: 1.4; color: var(--gold-2); white-space: nowrap; }
 .slot-offer-do { display: flex; flex: none; gap: 8px; margin-left: auto; }
 .slot-offer-do .slot-offer-buy { margin-left: 0; }
-.slot-offer-no {
-  flex: none; min-height: 40px; padding: 0 12px; border: 2px solid var(--steel-sep); border-radius: 0; background: transparent; color: var(--ink-2);
-  font-family: var(--f-ui); font-size: var(--t-small); line-height: 1.2; cursor: pointer;
-}
-.slot-offer-no:hover { color: var(--ink); border-color: var(--steel-btn); }
-.slot-offer-no:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.slot-offer-no { flex: none; min-height: 40px; padding: 0 12px; font-size: var(--t-small); line-height: 1.2; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .char-pick { min-height: 48px; padding: 4px 12px 4px 16px; }
   .slot-offer { gap: 2px 12px; padding-top: 6px; }

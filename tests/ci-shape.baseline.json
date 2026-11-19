@@ -597,6 +597,8 @@
     "node tools/mutant-gate.mjs node tests/typecheck-ratchet.mjs --selftest": "client-guards",
     "node tests/breakpoint-guard.mjs --report": "client-guards",
     "node tools/mutant-gate.mjs node tests/breakpoint-guard.mjs --selftest": "client-guards",
+    "node tests/button-system.mjs": "client-guards",
+    "node tools/mutant-gate.mjs node tests/button-system.mjs --selftest": "client-guards",
     "node tests/https-upgrade.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tests/https-upgrade.mjs --selftest": "client-guards",
     "node tests/copy-lint.mjs --report": "client-guards",

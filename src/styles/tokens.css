@@ -1037,6 +1037,9 @@ body[data-theme="hearthlight"] {
   --steel-edge: color-mix(in srgb, var(--ink-3) 30%, var(--bg-1));
   --steel-sep: color-mix(in srgb, var(--ink-3) 18%, var(--bg-1));
   --steel-btn: color-mix(in srgb, var(--ink-3) 45%, var(--bg-1));
+  /* The framed secondary's frame (shell.css ONE BUTTON SYSTEM): the steel button's 2 px drawn inside on three sides, its bottom
+     border the fourth, so a press framed takes no room the bare one did not. */
+  --steel-frame: inset 2px 0 0 var(--steel-btn), inset -2px 0 0 var(--steel-btn), inset 0 2px 0 var(--steel-btn);
   /* A sunk well, one art px deep (2 screen px): shadow up-left, a lit lip down-right (light from the upper left). */
   --steel-well: inset 2px 2px 0 color-mix(in srgb, var(--world-shadow) 80%, transparent), inset -2px -2px 0 color-mix(in srgb, var(--hl) 9%, transparent);
   /* THE ONE SCROLLBAR (Tyler 2026-10-25: the browser's light grey "feels really out of place"; app.css draws it): a

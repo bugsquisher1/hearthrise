@@ -6866,6 +6866,14 @@ jobs:
           node tests/breakpoint-guard.mjs --report
           node tools/mutant-gate.mjs node tests/breakpoint-guard.mjs --selftest
 
+      # UI audit 2026-11-18 #3: ONE BUTTON SYSTEM. A window's press is the gold primary, the framed secondary or the text link,
+      # painted in shell.css alone; every window press has a role or is a listed tab, choice or row. Static, under a second.
+      - name: Presentation floor - one button system
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/button-system.mjs
+          node tools/mutant-gate.mjs node tests/button-system.mjs --selftest
+
       # 2026-10-20 (Coordinator QA): http://hearthrise.net served the game and
       # hr-accrue answers https origins only, so every hunt call was refused.
       # Every root page moves an http visit to https as its FIRST script, before

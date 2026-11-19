@@ -31,7 +31,7 @@ export function renderDeath() {
     + '<div class="hsum-actions hdeath-actions">'
     /* the way to the Blessings a death used up (the Shop's Services tab), while the hero lacks one */
     + '<button type="button" class="hh-tool" data-hs-act="death-bless" hidden></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="death-summary">Hunt summary</button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="death-summary">Hunt summary</button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="death-ok">OK</button></div>'
     + '</section></div>';
 }

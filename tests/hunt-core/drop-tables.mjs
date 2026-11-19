@@ -787,7 +787,7 @@ const plantMutants = [
   /* the floor hour (NO PROFIT MOLDS, Tyler 2026-11-13: the old coin-cut mutants of the +25% floor are retired with it). Planted, since the
      clone's monsters feed only the loot stream: the Drain Rat at ten times its bite ends the Sewer's floor hour in a death. */
   { name: 'the Drain Rat hits ten times as hard (the Sewer floor hour ends in a death)', rule: 'floor-hour: millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [5, 16]', 'hp: 41, atk: 60, baseAcc: 0.31, def: 0, xp: 84, gp: [5, 16]']] },
+    edits: [['src/data/monsters.js', 'hp: 45, atk: 6, baseAcc: 0.31, def: 0, xp: 93, gp: [6, 17]', 'hp: 45, atk: 60, baseAcc: 0.31, def: 0, xp: 93, gp: [6, 17]']] },
   { name: 'worn gear sells at full book again', rule: 'gear-faucet: meadowbrook_thicket', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([1, 1, 1, 1, 1, 1, 1]);']] },
   { name: 'tier-3 gear sells at the tier-1 rate', rule: 'gear-faucet: coppercap_warrens', edits: [['src/data/loot-bands.js', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.14, 0.075, 0.033, 0.015, 0.007]);', 'export const VENDOR_GEAR_RATES = Object.freeze([0.5, 0.5, 0.5, 0.075, 0.033, 0.015, 0.007]);']] },
   { name: 'the roller reveals nothing (a Rare credited with no hint)', rule: 'reveal-path: meadowbrook_thicket', fresh: true,
@@ -816,7 +816,7 @@ const warrensMutants = [
 /* NO PROFIT MOLDS (Tyler 2026-11-13): the shot-price and Drain Rat coin mutants (gold only) are retired with the +25% bar; the floor still
    bites on a party that does not live the hour. */
 const rangerMutants = [
-  { name: 'the Drain Rat hits ten times as hard (the Sewer party dies)', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 41, atk: 6, baseAcc: 0.31, def: 0, xp: 84, gp: [5, 16]', 'hp: 41, atk: 60, baseAcc: 0.31, def: 0, xp: 84, gp: [5, 16]']] },
+  { name: 'the Drain Rat hits ten times as hard (the Sewer party dies)', dice: { millrace_sewer: 1, coppercap_warrens: 1 }, edits: [['src/data/monsters.js', 'hp: 45, atk: 6, baseAcc: 0.31, def: 0, xp: 93, gp: [6, 17]', 'hp: 45, atk: 60, baseAcc: 0.31, def: 0, xp: 93, gp: [6, 17]']] },
 ];
 const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',

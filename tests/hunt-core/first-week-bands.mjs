@@ -304,9 +304,9 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 109', 'hp: 30, atk: 2, def: 1, xp: 109'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 121', 'hp: 26, atk: 2, def: 1, xp: 121'],
-  ['hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 217', 'hp: 48, atk: 2, def: 6, xp: 217'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 374', 'hp: 74, atk: 2, def: 11, xp: 374'],
-  ['hp: 81, atk: 22, baseAcc: 0.84, def: 14, xp: 427', 'hp: 81, atk: 2, def: 14, xp: 427'], ['hp: 51, atk: 16, baseAcc: 0.76, def: 8, xp: 239', 'hp: 51, atk: 2, def: 8, xp: 239']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 33, atk: 13, baseAcc: 0.76, def: 1, xp: 119', 'hp: 33, atk: 2, def: 1, xp: 119'], ['hp: 29, atk: 15, baseAcc: 0.83, def: 1, xp: 135', 'hp: 29, atk: 2, def: 1, xp: 135'],
+  ['hp: 52, atk: 12, baseAcc: 0.8, def: 6, xp: 235', 'hp: 52, atk: 2, def: 6, xp: 235'], ['hp: 81, atk: 23, baseAcc: 0.76, def: 11, xp: 409', 'hp: 81, atk: 2, def: 11, xp: 409'],
+  ['hp: 90, atk: 24, baseAcc: 0.8, def: 14, xp: 475', 'hp: 90, atk: 2, def: 14, xp: 475'], ['hp: 57, atk: 17, baseAcc: 0.74, def: 8, xp: 267', 'hp: 57, atk: 2, def: 8, xp: 267']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
@@ -362,17 +362,17 @@ const mutants = [
   /* RE-AIMED (NO PROFIT MOLDS, Tyler 2026-11-13): def 60 was caught only by the retired +25% bar (the kills slowed, the bill stood); twenty times
      the health is a Cellar a fresh hero cannot clear at pace */
   { name: 'the Cellar\'s rats, slimes and wasps with twenty times their health: a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,'],
+    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, baseAcc: 0.34, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 18, gp: [1, 1], formula: true, speed: 3400,'],
       ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1],', 'hp: 160, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1],']] },
+      ['src/data/monsters.js', 'hp: 9, atk: 3, baseAcc: 0.47, def: 0, xp: 28, gp: [1, 2],', 'hp: 160, atk: 3, baseAcc: 0.47, def: 0, xp: 28, gp: [1, 2],']] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 15, atk: 4, baseAcc: 0.46, def: 0, xp: 45, gp: [2, 6], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.46, def: 0, xp: 45, gp: [2, 6], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, baseAcc: 0.44, def: 0, xp: 51, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, baseAcc: 0.44, def: 0, xp: 51, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (floor-hour, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
   { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 53, atk: 6, baseAcc: 0.46, def: 1, xp: 154, gp: [7, 21], formula: true, speed: 4400', 'hp: 53, atk: 14, baseAcc: 0.46, def: 1, xp: 154, gp: [7, 21], formula: true, speed: 4400']] },
+    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, baseAcc: 0.44, def: 1, xp: 172, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, baseAcc: 0.44, def: 1, xp: 172, gp: [8, 23], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

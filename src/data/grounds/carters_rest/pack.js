@@ -70,34 +70,34 @@ export default definePack({
       /* the swarm: the young ones, going through the inn's rooms and the last wagon for anything that shines. Humanoid, no override. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'pewter_spoon', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_boots', ch: 0.013, band: 'scarce' }, { id: 'dawnhide_boots', ch: 0.013, band: 'scarce' }, { id: 'duskweave_boots', ch: 0.013, band: 'scarce' }],
-      hp: 146, atk: 97, baseAcc: 0.94, def: 50, xp: 1567, gp: [21, 65], formula: true },
+      hp: 160, atk: 107, baseAcc: 0.74, def: 50, xp: 1718, gp: [24, 70], formula: true },
     slate_thrower: {
       name: 'Slate Thrower', icon: '🧌', tier: 6, level: 114, cls: 'humanoid', family: 'Troll', speed: 3000,
       /* the glass: a lanky troll on the roof, pulling slates and throwing them at whoever stands farthest back. Poacher's Volley stands in for the throw. */
       spells: ['poachers_volley'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'roof_slate', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_gauntlets', ch: 0.0022, band: 'rare' }, { id: 'dawnhide_gloves', ch: 0.0022, band: 'rare' }, { id: 'duskweave_gloves', ch: 0.0022, band: 'rare' }],
-      hp: 140, atk: 129, baseAcc: 0.45, def: 52, xp: 1823, gp: [21, 61], formula: true },
+      hp: 154, atk: 142, baseAcc: 0.19, def: 52, xp: 2005, gp: [23, 68], formula: true },
     stable_troll: {
       name: 'Stable Troll', icon: '🧌', tier: 6, level: 117, cls: 'humanoid', family: 'Troll', speed: 2400,
       /* the heavy: the big one that sleeps in the stable and swings the water trough. Lash Sweep stands in for the swing, a marked cone. */
       spells: ['lash_sweep'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.5, band: 'common' }, { id: 'stable_bit', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_platelegs', ch: 0.033, band: 'scarce' }, { id: 'dawnhide_pants', ch: 0.033, band: 'scarce' }, { id: 'duskweave_pants', ch: 0.033, band: 'scarce' }],
-      hp: 230, atk: 96, baseAcc: 1.02, def: 77, xp: 2774, gp: [34, 101], formula: true },
+      hp: 253, atk: 106, baseAcc: 0.82, def: 77, xp: 3051, gp: [37, 112], formula: true },
     troll_brewer: {
       name: 'Troll Brewer', icon: '🧌', tier: 6, level: 119, cls: 'humanoid', family: 'Troll', speed: 3000,
       /* the regular: she kept the inn's kettles going and throws the boiling mash over everyone. Blasting Charge stands in for it, a group fire
          spell. The tongs came off a priest of Krell's who came through with a live coal. */
       spells: ['blasting_charge'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'coal_tongs', ch: 0.08, band: 'uncommon' }],
-      hp: 195, atk: 122, baseAcc: 0.64, def: 59, xp: 2153, gp: [29, 86], formula: true },
+      hp: 214, atk: 134, baseAcc: 0.4, def: 59, xp: 2362, gp: [31, 95], formula: true },
     the_landlord: {
       name: 'The Landlord', icon: '🧌', tier: 6, level: 123, cls: 'humanoid', family: 'Troll', speed: 2800,
       /* the elite and the rare carrier: the biggest troll, in the innkeeper's apron, sitting on the cellar. He has the last ore wagon's Dawnstone. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'cellar_tally', ch: 0.1, band: 'uncommon' },
         { id: 'dawn_belt', ch: 0.0048, band: 'rare' }, { id: 'dawnhide_belt', ch: 0.0048, band: 'rare' }, { id: 'duskweave_belt', ch: 0.0048, band: 'rare' }],
-      hp: 322, atk: 125, baseAcc: 0.66, def: 91, xp: 4142, gp: [47, 142], formula: true },
+      hp: 354, atk: 138, baseAcc: 0.4, def: 91, xp: 4554, gp: [52, 156], formula: true },
   },
   roster: { troll_picker: 'swarm', slate_thrower: 'glass', stable_troll: 'heavy', troll_brewer: 'regular', the_landlord: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw). */

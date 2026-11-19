@@ -183,7 +183,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    applied first) is the file before this one and this one carries it whole. hr_items loses the three cookbook scrolls and their three feasts
    (Hunter's Feast, Dragon Stew, Lich Soul Soup); hr_activities loses their three Cooking recipes; hr_feast_foods follows. ORDER: after the three
    2027-05-16 files; before this lane's bench-inputs, bench-tax, hunt-sessions and unlocks files. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-22-cookbook-cut-items-catalogue.generated.sql');
+/* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-22-cookbook-cut-items-catalogue
+   (STAGED, applied first) is the file before this one and this one carries it whole. Only hr_activities moves: each combat activity's max_hp is its monster's
+   row, x1.1 on the formula's HP line (src/data/balance-sheet.js STAT_FORMULA). ORDER: after every 2027-05-22 file. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-23-harder-monsters-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

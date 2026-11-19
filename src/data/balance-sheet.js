@@ -98,7 +98,18 @@ export const contractXpPerH = (L) => LEVEL_PACE.contract.a * Math.max(1, L) ** L
    READ AS PER-LEVEL DIALS (Tyler 2026-11-07): each curve below is a share of a same-Level hero or a rate per
    Level, so "+x% damage, +x% HP, +x% XP, +x% gold" are multipliers on them, and a ground SCALED up to a
    party's Level (a future paid option) is the same formula read at every monster's Level + the shift and the
-   floor + the shift: HP keeps its own curve, so a Level 60 can't one-shot a scaled Level 10 ground. */
+   floor + the shift: HP keeps its own curve, so a Level 60 can't one-shot a scaled Level 10 ground.
+   MONSTERS A LITTLE HARDER (Tyler 2026-11-19: "I think we should raise HP and damage done by all monsters in the game slightly.
+   Everything is a bit too easy it seems"; lane/d-harder-monsters): ONE STEP, x1.10 on the blow dials (lo, hi and the gentle cap)
+   and on the HP line, read that way: every monster of every ground, the Burning Tower's floors and the Catacombs' rooms (they read
+   this formula at Level F) and every boss (its blow is the regular's x its role) hits a tenth harder and has a tenth more HP.
+   Its XP and coin a kill follow its HP (per point, below), so a kill pays a tenth more and takes about a tenth longer.
+   The fitted values it steps from: blow 0.12 / 0.20, gentle cap 0.10, HP 4.5 + 1.6 a Level. Where a ruling holds a monster
+   under the step, the row is a named exception (FORMULA_EXCEPTIONS, the Rat King), and where a spell would pass the 35% a floor
+   hero may take (designer 2026-10-21), the spell's multiple holds it where it stood (the Ox Road's Hot Coal, the Catacombs' Bone
+   Slide and Snuff the Candles). Measured on the real settle (quick grade before and after, the pace careers re-run): on Normal in
+   range no lone hero or four dies on any open ground, a kill pays about a tenth more XP and coin and takes about a tenth longer
+   (Level XP an hour +0-5% alone, +3-10% a four's head), and the store bill rises with the blows. */
 export const STAT_FORMULA = Object.freeze({
   /* THE REFERENCE HERO a curve is anchored on: a hero of the monster's own Level, base HP 150 + 10 a Level
      (VITALS), Defense at its Level, no guard. */
@@ -116,12 +127,13 @@ export const STAT_FORMULA = Object.freeze({
      A monster above its hero's Level hits a bigger share of that hero (10 HP a Level), and more often (2% a Level). */
   /* gentleCap: on a gentle ground no blow passes this share of the FLOOR hero's HP (its deep monsters meet fresh heroes 8-10 Levels under them),
      climbing to no cap on a full ground. 0.10: the Thicket's fresh melee dipped under 25% 1-6 times in 4 h (1 at 0.10, 1-5 at 0.14;
-     the sheet allows 0), lane/b-ground-formula-2. */
-  blow: Object.freeze({ lo: 0.12, hi: 0.20, gentleCap: 0.10 }),
+     the sheet allows 0), lane/b-ground-formula-2. All three x1.10 since 2026-11-19 (MONSTERS A LITTLE HARDER, above). */
+  blow: Object.freeze({ lo: 0.132, hi: 0.22, gentleCap: 0.11 }),
   /* A REGULAR's HP (the row's: a party of four's, the engine scales it 55-100% by party size): base + perLevel x
      its Level, a straight line like a hero's damage, so it grows by perLevel / HP a Level (13% at 5, 7% at 16, 3%
-     at 50). Fitted on every open ground's rows (Cellar 9 at Level 2, Glade 30 at 16, Warrens 150 at 34 / 2.5). */
-  hp: Object.freeze({ base: 4.5, perLevel: 1.6 }),
+     at 50). Fitted on every open ground's rows (Cellar 9 at Level 2, Glade 30 at 16, Warrens 150 at 34 / 2.5) as 4.5 + 1.6 a Level;
+     x1.10 since 2026-11-19 (MONSTERS A LITTLE HARDER, above). */
+  hp: Object.freeze({ base: 4.95, perLevel: 1.76 }),
   /* A REGULAR's defense: perLevel x its Level (x the role), plus `past.perLevel` a Level past `past.from` for every role. A hero's
      to-hit is 0.55 + (skill + weapon accuracy - defense) x 0.01, held to 95%: at 0.08 a Level a Warrens goblin (def 2-17) left a
      Level 45 hero at the cap, so a better weapon's accuracy bought nothing (first-week-bands weapon-rungs: the hatchets' tier 3
@@ -289,14 +301,17 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
      retired: NO PROFIT MOLDS, Tyler 2026-11-13) */
   /* KRELL'S LOOKOUT, A DANGER EXCEPTION (lane/b-barrow-packs 2026-11-13, after NO PROFIT MOLDS): on the glass role's 0.22 blow a lone hero at the
      Hold's floor on Normal read 2.81 close calls in 12 h on the full grade (the sheet allows 1). While engine piece 2 is unbuilt he swings in melee,
-     and he is the floor's top damage. His blow is the Farmhands' 0.17 (designer Q3 measured close calls 3.2 to 0.63); his to-hit stays the role's 0.75. */
+     and he is the floor's top damage. His blow is the Farmhands' 0.17 (designer Q3 measured close calls 3.2 to 0.63); his to-hit stays the role's 0.75.
+     Since 2026-11-19 (MONSTERS A LITTLE HARDER) the Farmhands' blow is 0.187, so his is too: the rule (the Farmhands' blow) is kept and takes the step. */
   /* THE RAT KING, A DANGER EXCEPTION (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): his Tail Lash lands twice his blow, and with the Sewer's floor at 5
      the formula's attack 7 lands it for 74, 39% of the floor hero's 190 HP, over the 35% a boss may take of the floor hero (tests/hunt-core/hunt-data.mjs
-     blow-share; Andy died to 108). Attack 6 lands 64 (34%); his to-hit at a same-Level hero is the formula's, restated for the lower blow. */
-  rat_king: Object.freeze({ atk: "his Tail Lash, twice his blow, held at 35% of the floor hero's HP since the Sewer opens at 5: 64 of 190 at attack 6, where the formula's 7 lands 74",
+     blow-share; Andy died to 108). Attack 6 lands 64 (34%); his to-hit at a same-Level hero is the formula's, restated for the lower blow.
+     So he is the one monster the 2026-11-19 step (MONSTERS A LITTLE HARDER) can't reach with damage: the formula's attack is 8 since then (Tail Lash 86,
+     45%), and the 35% boss rule holds him at 6. His HP takes the step. */
+  rat_king: Object.freeze({ atk: "his Tail Lash, twice his blow, held at 35% of the floor hero's HP since the Sewer opens at 5: 64 of 190 at attack 6, where the formula's 8 lands 86",
     baseAcc: "the formula's to-hit at a same-Level hero, restated for the lower blow: 0.76 + 1 x 0.02" }),
-  hasks_lookout: Object.freeze({ atk: "a blow of 0.17 of a same-Level hero, the Farmhands', so a lone hero at the floor on Normal is safe (close calls, not gold)",
-    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, restated for the lower blow: 0.75 + (88 - 80) x 0.02" }),
+  hasks_lookout: Object.freeze({ atk: "a blow of the Farmhands' share of a same-Level hero (0.187 since the 11-19 step, was 0.17), not the glass role's, so a lone hero at the floor on Normal is safe (close calls, not gold)",
+    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, restated for his blow: 0.75 + (88 - 88) x 0.02" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */

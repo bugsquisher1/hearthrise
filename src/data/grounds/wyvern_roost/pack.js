@@ -69,7 +69,7 @@ export default definePack({
          fire, so fire does 25% less and ice 15% more (the Dragon class sets its element per monster). */
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'eggshell', ch: 0.08, band: 'uncommon' }],
-      hp: 165, atk: 109, baseAcc: 1, def: 58, xp: 1825, gp: [24, 73], formula: true },
+      hp: 181, atk: 120, baseAcc: 0.78, def: 58, xp: 2002, gp: [27, 79], formula: true },
     ledge_wyvern: {
       name: 'Ledge Wyvern', icon: '🐲', tier: 6, level: 130, cls: 'dragon', family: 'Dragon', speed: 3000,
       /* the glass: a thin one that sits on a ledge and spits at whoever's standing farthest back. HE SHOOTS (`range`, src/core/hunt/shooters.js)
@@ -77,7 +77,7 @@ export default definePack({
       range: 5,
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'gizzard_stone', ch: 0.08, band: 'uncommon' }],
-      hp: 159, atk: 145, baseAcc: 0.45, def: 60, xp: 2137, gp: [23, 70], formula: true },
+      hp: 175, atk: 160, baseAcc: 0.15, def: 60, xp: 2352, gp: [26, 77], formula: true },
     bull_wyvern: {
       name: 'Bull Wyvern', icon: '🐲', tier: 6, level: 133, cls: 'dragon', family: 'Dragon', speed: 2400,
       /* the heavy: an old male, slow and huge. He swings his tail round and hits everyone standing next to him (Tail Sweep, `spells`), so
@@ -85,7 +85,7 @@ export default definePack({
       spells: ['tail_sweep'],
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'dragon_scale', ch: 0.2, band: 'common' }, { id: 'tail_spur', ch: 0.08, band: 'uncommon' }],
-      hp: 261, atk: 108, baseAcc: 1.1, def: 88, xp: 3245, gp: [38, 115], formula: true },
+      hp: 287, atk: 118, baseAcc: 0.9, def: 88, xp: 3568, gp: [42, 127], formula: true },
     crag_wyvern: {
       name: 'Crag Wyvern', icon: '🐲', tier: 6, level: 136, cls: 'dragon', family: 'Dragon', speed: 3000,
       /* the regular: a grown wyvern. She breathes fire in a cone in front of her (Fire Breath, a marked hit, `spells`): the tank stands in it,
@@ -93,14 +93,14 @@ export default definePack({
       spells: ['fire_breath'],
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 0.5, band: 'common' }, { id: 'dragon_scale', ch: 0.2, band: 'common' }, { id: 'fire_gland', ch: 0.08, band: 'uncommon' }],
-      hp: 222, atk: 137, baseAcc: 0.68, def: 69, xp: 2531, gp: [33, 98], formula: true },
+      hp: 244, atk: 151, baseAcc: 0.4, def: 69, xp: 2782, gp: [36, 107], formula: true },
     brood_wyvern: {
       name: 'Brood Wyvern', icon: '🐲', tier: 6, level: 140, cls: 'dragon', family: 'Dragon', speed: 2800,
       /* the elite: a big female sitting on her eggs. No trick, she's just the hardest thing in the pass. The Roost Mother (the boss, board
          section 9) is the oldest of these, and she waits for her own lane. */
       elements: { ember: 25, frost: -15 },
       drops: [{ id: 'dragon_bones', ch: 1, band: 'common' }, { id: 'dragon_scale', ch: 0.5, band: 'common' }, { id: 'stolen_fleece', ch: 0.1, band: 'uncommon' }],
-      hp: 366, atk: 141, baseAcc: 0.68, def: 105, xp: 4855, gp: [54, 161], formula: true },
+      hp: 402, atk: 155, baseAcc: 0.4, def: 105, xp: 5333, gp: [59, 177], formula: true },
   },
   roster: { wyvern_fledgling: 'swarm', ledge_wyvern: 'glass', bull_wyvern: 'heavy', crag_wyvern: 'regular', brood_wyvern: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five kinds. */

@@ -48,21 +48,31 @@ function secondTankDefense(P, quiet) {
 
 /* THE TANK HOLDS (Tyler 2026-10-16: "The tank holds and auto-casts Challenge whenever an engaged on-screen monster is not targeting him.
    Monsters can switch targets"; designer 2026-10-21: the hold equals the Challenge cooldown): a party of one tank, a Ranger, a Mage and a
-   Healer plays the Sewer 10 min on the real settle, and no monster's swing ever reaches a hero that is not a tank. With a 6 s hold under the
+   Healer plays a party ground 10 min on the real settle (the Muster Barrows since 2026-11-19, below), and no monster's swing ever reaches a hero that is not a tank. With a 6 s hold under the
    8 s cooldown the pack was free 2 s in every 8 and the Healer's peel drew it.
    RE-DERIVED 2026-11-05, the fixture on the server's map: the old bar counted the `target` event, zero read off the old map. Here a straggler
    that walks in after the Challenge is unheld, so the peel can draw it, 0-3 times an hour at density 8, and the Challenge has it back inside the
    same 100 ms step: six seeds, 6 h, 36,648 monster swings, none at a non-tank. The rule allows the switch and protects the party from the swing.
    A PEEL IS DICE, AND WITH NONE THE CASE PROVES NOTHING (lane/c-caster-party-line, run 42043301135): the caster bars moved it off the fixture's one seed, a Challenge that took nothing back had nothing to take, and the mutant
-   below escaped. So the case plays seeds until a peel really happens, the ones it is known on first (3 of 7 seeds in 30 min, at 4 min on two of them, 2026-11-05), and no peel is a CONTROL red, never a green. */
+   below escaped. So the case plays seeds until a peel really happens, the ones it is known on first (3 of 7 seeds in 30 min, at 4 min on two of them, 2026-11-05), and no peel is a CONTROL red, never a green.
+   RE-DERIVED 2026-11-19 ON THE MUSTER BARROWS (lane/d-party-defense-fixture, set/v0.2.142). The peel needs a monster QUEUED on the tank (no free
+   tile beside him) at the moment the Healer swings. Every Sewer peel came from how the runner seated the party: it entered heroes by role NAME, so
+   the Healer created the world on the entrance's first tile and the tank joined onto that same tile, and the pack queued on him 13 times in 1,766
+   Healer swings (8 seeds). Since the runner enters a party in seat order, as one player's heroes enter live (play-ground.mjs memberKey), the tank
+   enters first and the Healer at her own tile: 1 queue in 1,688 swings, 0 peels in 16 seeds (67 tried on set/v0.2.142); the bow's Flame Volley
+   default moved nothing (0 with it taken back too). The Muster Barrows, the party ground whose barrows queue a full box on the tank, peels in a
+   party seated as built: 9 peels on 6 of the same 16 seeds (Level 60, density 8), 0 swings reaching a non-tank. Its seeds go first. */
 const DENSITY = Number(process.env.PD_DENSITY || 8);
-const PEEL_SEEDS = Object.freeze(['-987654321987', '7777777777777', '42', ...Array.from({ length: 13 }, (_, i) => String(BigInt(i + 1) * 982451653n))]);
+const GROUND = 'muster_barrows', LEVEL = 60;
+/* the seeds a Muster peel is known on first (2026-11-19: 1, 2, 1, 1, 2 and 2 peels in 10 min), then the rest of the old list */
+const PEEL_SEEDS = Object.freeze(['982451653', '1964903306', '2947354959', '9824516530', '10806968183', '12771871489',
+  '-987654321987', '7777777777777', '42', '3929806612', '4912258265', '5894709918', '6877161571', '7859613224', '8842064877', '11789419836']);
 function loneTankHolds(P, quiet) {
   const roles = ['tank', 'ranger', 'mage', 'healer'];
   let off = 0, switches = 0, swings = 0, reached = 0, played = 0, x = null;
   for (const secret of PEEL_SEEDS) {
     played++;
-    x = P.run('millrace_sewer', 15, roles, { spanMs: 600000, density: DENSITY, secret, onWindow: (out, members) => {
+    x = P.run(GROUND, LEVEL, roles, { spanMs: 600000, density: DENSITY, secret, onWindow: (out, members) => {
       const ids = new Map(out.members.map((p) => [p.hunt.unit_id, members.find((m) => m.key === p.key)]));
       const nonTank = new Set([...ids].filter(([, m]) => m && m.hero.role !== 'tank').map(([id]) => id));
       /* A SPELL IS NO SWING (lane/b-area-data): the Rat King's Squeal strikes every hero by design (Tyler 2026-11-08), so the hits
@@ -76,7 +86,7 @@ function loneTankHolds(P, quiet) {
     } });
     if (off) break;
   }
-  if (!quiet) console.log('  lone-tank-holds: Sewer, tank + ranger + mage + healer at L15, 10 min, browser closed: ' + swings + ' monster swings at heroes, ' + reached + ' at a non-tank, ' + switches + ' target switch(es), ' + off + ' onto a non-tank, ' + x.kills + ' kills/h, falls ' + x.falls);
+  if (!quiet) console.log('  lone-tank-holds: ' + GROUND + ', tank + ranger + mage + healer at L' + LEVEL + ', ' + played + ' seed(s) of 10 min, browser closed: ' + swings + ' monster swings at heroes, ' + reached + ' at a non-tank, ' + switches + ' target switch(es), ' + off + ' onto a non-tank, ' + x.kills + ' kills/h, falls ' + x.falls);
   if (!(x.kills > 0) || swings < 50) return 'CONTROL: the party killed ' + x.kills + '/h and took ' + swings + ' swings (no fight to measure)';
   if (!off) return 'CONTROL: no peel in ' + played + ' seeds of 10 min, so nothing tested the Challenge taking one back: add seeds to PEEL_SEEDS';
   return reached === 0 ? null : reached + ' monster swing(s) reached a hero that is not the tank';

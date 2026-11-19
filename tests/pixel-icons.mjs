@@ -30,7 +30,10 @@
 //   heads     a HEAD_ART id (src/data/monster-art.js) with no creature row, or an id in both head lists; the heads folder also runs
 //             the missing, orphan, size, palette, alpha and empty rules (32x32 busts, one file per listed id)
 //   drawn     the same for the icons tools/world-art/twin-icons.mjs, march-shield-icons.mjs, ladder-icons.mjs, ability-tiles.mjs and
-//             krell-icons.mjs (Lord Krell's two unique pieces) draw
+//             krell-icons.mjs (Lord Krell's two unique pieces) draw, and for the factions' icons tools/world-art/faction-icons.mjs finishes
+//   factions  src/data/item-art.js FACTION_ART is not exactly the sides (src/data/grounds/shape.js STANDING_SIDES) and the pieces
+//             standing buys (src/data/factions.js FACTION_OUTFITS); the factions folder also runs the missing, orphan, size, palette,
+//             alpha, empty and duplicate rules (one 32x32 icon per listed id)
 //
 // The SAME rules (missing, orphan, size, palette, alpha, empty) also hold for the shop's
 // basic supplies: one icon per row of src/data/supply-basics.js BASIC_SUPPLIES (salted
@@ -39,7 +42,7 @@
 // --selftest plants each defect into a copy of real shipped icons and requires it
 // to be caught BY ITS NAMED RULE; the clean copy must stay silent.
 //
-// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/heads/ src/data/monster-art.js assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/march-shield-icons.mjs tools/world-art/ladder-icons.mjs tools/world-art/ability-tiles.mjs tools/world-art/krell-icons.mjs
+// mutant-anchors: assets/icons-bundle/pixel/items/ assets/icons-bundle/pixel/heads/ src/data/monster-art.js assets/icons-bundle/pixel/supplies/ assets/icons-bundle/pixel/abilities/ src/data/item-art.js art/world/palette.json tools/world-art/longbow-icon.mjs tools/world-art/twin-icons.mjs tools/world-art/march-shield-icons.mjs tools/world-art/ladder-icons.mjs tools/world-art/ability-tiles.mjs tools/world-art/krell-icons.mjs assets/icons-bundle/pixel/factions/ tools/world-art/faction-icons.mjs art/world-src/gen-2026-11-18/faction-icons/picks/ src/data/factions.js
 //
 // Exit: 0 green · 1 a finding or a mutant escaped · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -58,12 +61,27 @@ import { DRAW as LADDER_ICONS } from '../tools/world-art/ladder-icons.mjs';
 import { DRAW as MARCH_SHIELD_ICONS } from '../tools/world-art/march-shield-icons.mjs';
 import { DRAW as ABILITY_TILES, toImage as tileImage } from '../tools/world-art/ability-tiles.mjs';
 import { DRAW as KRELL_ICONS, toImage as krellImage } from '../tools/world-art/krell-icons.mjs';
+import { factionIcon } from '../tools/world-art/faction-icons.mjs';
+import { FACTION_ART } from '../src/data/item-art.js';
+import { STANDING_SIDES } from '../src/data/grounds/shape.js';
+import { FACTION_OUTFITS } from '../src/data/factions.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIR = 'assets/icons-bundle/pixel/items';
 const SUPPLY = 'assets/icons-bundle/pixel/supplies';
 const HEADS = 'assets/icons-bundle/pixel/heads';
 const ABILITY = 'assets/icons-bundle/pixel/abilities';
+const FACTION = 'assets/icons-bundle/pixel/factions';
+/** The factions' finish as checkDrawn's pair: each id "draws" itself, factionIcon finishes its pick. */
+const FACTION_DRAW = Object.fromEntries(FACTION_ART.map((id) => [id, () => id]));
+
+/** The faction icon list `list` against the sides and the pieces: exactly those ids (a side or piece with no icon falls back to a glyph). */
+export function checkFactionList(list, sides = STANDING_SIDES, pieces = Object.keys(FACTION_OUTFITS)) {
+  const want = [...sides, ...pieces], out = [];
+  for (const id of want) if (!list.includes(id)) out.push({ rule: 'factions', id, detail: id + ' is a side or a piece with no icon in FACTION_ART (src/data/item-art.js)' });
+  for (const id of list) if (!want.includes(id)) out.push({ rule: 'factions', id, detail: id + ' is in FACTION_ART and is no side or piece (src/data/factions.js)' });
+  return out;
+}
 /** Pairs of items that share one icon. The second of each is a later or cut item no hero can reach today, so the two never
     share a shelf (src/data/catalogue-coherence.js reachableSources); it gets its own when it opens. A new pair is a finding. */
 const KNOWN_TWINS = [
@@ -340,8 +358,23 @@ async function selftest(ids) {
     const ok = quiet && axeShape && unreviewed && same;
     console.log(`  ${ok ? 'caught ' : 'ESCAPED'} pickaxe`);
     if (!ok) escaped++; }
+  // factions: the shipped list and folder are silent; a piece left out of the list, an id that is no side or piece, a one-pixel edit to a
+  // finished icon and a side's mark under a piece's name each trip it
+  { const quiet = checkFactionList(FACTION_ART).length === 0 && checkIcons(join(ROOT, FACTION), FACTION_ART).length === 0
+      && checkDrawn(join(ROOT, FACTION), FACTION_DRAW, factionIcon).length === 0;
+    const dropped = checkFactionList(FACTION_ART.filter((id) => id !== 'emberkeeper_coal')).some((f) => f.rule === 'factions' && f.id === 'emberkeeper_coal');
+    const stray = checkFactionList([...FACTION_ART, 'flamebearer_cloak']).some((f) => f.rule === 'factions' && f.id === 'flamebearer_cloak');
+    const d = mkdtempSync(join(tmp, 'fx-'));
+    for (const id of FACTION_ART) copyFileSync(join(ROOT, FACTION, id + '.png'), join(d, id + '.png'));
+    rewrite(d, 'last_ember', (img) => { const i = firstOpaque(img); img.data[i] = img.data[i] ^ 8; });
+    const onepx = checkDrawn(d, FACTION_DRAW, factionIcon).some((f) => f.rule === 'drawn' && f.id === 'last_ember');
+    copyFileSync(join(ROOT, FACTION, 'first_flame.png'), join(d, 'flamebearer_light.png'));
+    const worn = checkDrawn(d, FACTION_DRAW, factionIcon).some((f) => f.rule === 'drawn' && f.id === 'flamebearer_light');
+    const ok = quiet && dropped && stray && onepx && worn;
+    console.log(`  ${ok ? 'caught ' : 'ESCAPED'} factions`);
+    if (!ok) escaped++; }
   rmSync(tmp, { recursive: true, force: true });
-  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 14 planted defects caught; clean control silent');
+  console.log(escaped ? `pixel-icons --selftest: RED — ${escaped} planted defect(s) escaped` : 'pixel-icons --selftest: all 15 planted defects caught; clean control silent');
   process.exit(escaped ? 1 : 0);
 }
 
@@ -362,6 +395,8 @@ const findings = [...checkIcons(join(ROOT, HEADS), headIds), ...checkDuplicates(
   ...checkDrawn(join(ROOT, DIR), TWIN_ICONS, twinImage), ...checkDrawn(join(ROOT, DIR), MARCH_SHIELD_ICONS, twinImage), ...checkDrawn(join(ROOT, DIR), PICKAXE_ICONS, pickImage), ...checkPickaxes(join(ROOT, DIR)),
   ...(Object.keys(PICKAXE_ICONS).sort().join() === PICKAXE_REGENERATE.map((s) => s.replace('items/', '')).sort().join() ? [] : [{ rule: 'pickaxe', id: 'worklist', detail: 'PICKAXE_REGENERATE (src/data/item-art.js) must list exactly the pickaxes tools/world-art/pickaxe-icons.mjs re-dyes' }]),
   ...checkDrawn(join(ROOT, ABILITY), ABILITY_TILES, tileImage), ...checkDrawn(join(ROOT, DIR), LADDER_ICONS, (img) => img),
-  ...checkDrawn(join(ROOT, DIR), KRELL_ICONS, krellImage)];
-report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies + ${headIds.length} heads`, findings);
+  ...checkDrawn(join(ROOT, DIR), KRELL_ICONS, krellImage),
+  ...checkFactionList(FACTION_ART), ...checkIcons(join(ROOT, FACTION), FACTION_ART), ...checkDuplicates(join(ROOT, FACTION), FACTION_ART, []),
+  ...checkDrawn(join(ROOT, FACTION), FACTION_DRAW, factionIcon)];
+report(`pixel-icons: ${ids.length} items + ${supplyIds.length} supplies + ${headIds.length} heads + ${FACTION_ART.length} faction icons`, findings);
 process.exit(findings.length ? 1 : 0);

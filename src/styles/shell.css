@@ -111,8 +111,10 @@
 .ht-stick i { display: block; height: 100%; background: var(--ink-2); }
 .is-done > .ht-stick i, .is-done .ht-stick i { background: var(--gold); }
 
-/* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ── */
-.hs-launchers { display: flex; align-items: stretch; height: 40px; padding-left: 10px; background: var(--bg-1); border-left: 2px solid var(--steel-sep); }
+/* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ──
+   The top bar's right end: the character strip's band height (app.css .char-strip, 54 px less its steel rule), so the row, its rule
+   at the left and a ring on an icon stand on the one bar (UI-10: a 40 px row on the 55 px strip ended 15 px short of it). */
+.hs-launchers { display: flex; align-items: stretch; height: calc(54px - var(--art-3)); padding-left: 10px; background: var(--bg-1); border-left: 2px solid var(--steel-sep); }
 .hs-launch { position: relative; width: 40px; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: none; cursor: pointer; color: var(--ink-3); font: inherit; }
 .hs-launch:hover, .hs-launch:focus-visible { color: var(--ink); }
 /* The first-minute pointer (launcher.js): one line hanging under the Hunts icon, the first in the row. */
@@ -147,13 +149,16 @@
 .hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer::before { display: none; }
 /* ITS OWN SLOT IN THE WIDGET STACK (hud-room.js dockTownCoach; UI audit 2026-11-18 UI-6: hung under the row it lay over the Tally and reached
    Town and Home): on a desktop the town's card stands in the World's right column under the Tally, at the place and in the room measured; a
-   long card scrolls its words there. It points at nothing from there, so it carries no tip. A group's menu open steps it left of the menu. */
-.hs-launchers.is-coach-docked > .hs-pointer { left: auto; right: var(--coach-r); top: var(--coach-y); }
-.hs-launchers.is-coach-docked > .hs-pointer::before { display: none; }
-.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; box-sizing: border-box; max-height: var(--coach-h); }
-.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) > .hs-coach-text { min-height: 0; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; }
-.hs-launchers.is-coach-docked > .hs-pointer:not(.is-min) > .hs-coach-foot { flex: none; }
-.hs-launchers.is-coach-docked:has(> .hs-launch-group.is-menu) > .hs-pointer { right: max(var(--coach-r), calc(100% - var(--hs-menu-left, 100%) + 8px)); }
+   long card scrolls its words there. Under the Tally it points at nothing, so it carries no tip. A group's menu open steps it left of the menu.
+   The marks sit on the row's widget (hud-room.js), so a redraw of the row by its menu or the card's fold keeps the card where it stands. */
+.is-coach-docked > .hs-launchers > .hs-pointer { left: auto; right: var(--coach-r); top: var(--coach-y); }
+.is-coach-docked > .hs-launchers > .hs-pointer::before { display: none; }
+/* ...but straight under the row (nothing above it in the column) it hangs from the ringed icon, its tip under the ring (hud-room.js hangFromRing). */
+.is-coach-docked.has-coach-tip > .hs-launchers:not(:has(> .hs-launch-group.is-menu)) > .hs-pointer::before { display: block; left: auto; right: calc(var(--coach-tip) - 6px); }
+.is-coach-docked > .hs-launchers > .hs-pointer:not(.is-min) { display: flex; flex-direction: column; box-sizing: border-box; max-height: var(--coach-h); }
+.is-coach-docked > .hs-launchers > .hs-pointer:not(.is-min) > .hs-coach-text { min-height: 0; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto; }
+.is-coach-docked > .hs-launchers > .hs-pointer:not(.is-min) > .hs-coach-foot { flex: none; }
+.is-coach-docked > .hs-launchers:has(> .hs-launch-group.is-menu) > .hs-pointer { right: max(var(--coach-r), calc(100% - var(--hs-menu-left, 100%) + 8px)); }
 /* A town card's body never ends on one lone word ("…she pays you gold and a" / "helmet.", the v0.2.130 gate, both sizes): the words wrap
    pretty. Only the town's cards: a card inside a window is sized with the window (window-fit.js), so it keeps its lines. */
 :is(.hs-launchers, .hs-widget) > .hs-pointer { text-wrap: pretty; }
@@ -218,6 +223,9 @@
    box would cut an outer ring), inside the picked row's own gold outline. */
 [data-coach-ring] { outline: 2px solid var(--gold-2); outline-offset: 3px; animation: hs-coach-ring 400ms steps(1) 6; }
 :is(.hw-skill, .hb-slot)[data-coach-ring] { outline-offset: -4px; }
+/* ON THE TOP BAR (UI-10): an icon, a hero's tab or a press of the strip rings inside its own edge, so the ring is whole (an outer ring ran
+   off the screen's top edge and read as the open icon's box) and never laps the bar's steel rule. */
+:is(.hs-launchers, .char-strip) [data-coach-ring] { outline-offset: -4px; }
 .hw-hunt[data-coach-ring] { outline-offset: -6px; }
 @keyframes hs-coach-ring { 50% { outline-color: var(--world-shadow); } }
 @media (prefers-reduced-motion: reduce) { [data-coach-ring] { animation: none; } }
@@ -460,7 +468,7 @@
   /* The row gives 60 px back at the left for the strip's one word (app.css): at 667 px each icon gives up its last 4 px,
      and a row of more icons narrows them rather than covering it. */
   .hs-launch { flex: 0 1 auto; width: 44px; min-width: 0; }
-  .hs-launchers { padding-left: 4px; max-width: calc(100vw - 60px); }
+  .hs-launchers { height: 40px; padding-left: 4px; max-width: calc(100vw - 60px); }
   .hs-win-head .hs-key, .hs-launch::before { display: none; }
   /* A GROUP'S MENU IS A SHEET (CLAUDE.md §7: never a bottom nav): it slides out at the right under the icon row, where a window's sheet
      stands, with the sheet's steel spine; its windows two to a line at a thumb's height, so eight fit the shortest phone unscrolled. */
@@ -472,15 +480,14 @@
   }
   .hs-launch-menu-h { grid-column: 1 / -1; padding: 6px 4px 8px; font-size: var(--t-small); }
   .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: var(--tap); padding: 0 6px; }
-  /* IN TOWN THE CARD STANDS AT THE LEFT (phone playtest 2026-10-31: under the first icon it lay on the hero's name): below
-     the place's name, clear of the hero at the centre and of the alerts at the right; the gold ring shows the icon, so
-     no tip. A card about the bar keeps its own foot (below). */
+  /* IN TOWN THE CARD STANDS AT THE LEFT (phone playtest 2026-10-31: under the first icon it lay on the hero's name): under
+     the top bar (the place's name is in it since UI audit #10), clear of the hero at the centre and of the alerts at the right;
+     the gold ring shows the icon, so no tip. A card about the bar keeps its own foot (below). */
   .hs-launchers > .hs-pointer { left: auto; right: calc(100vw - 268px); }
   .hs-launchers > .hs-pointer::before { display: none; }
   /* Open, it runs from the left edge to just short of the hero's column: wide words, few lines. */
   .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { width: min(340px, calc(50vw - 56px)); right: calc(100vw - 8px - min(340px, calc(50vw - 56px))); }
-  .hs-launchers > .hs-pointer:not(.is-min) { top: calc(100% + 50px); max-height: calc(var(--coach-room) - 58px); }
-  .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) > .hs-coach-text { max-height: calc(round(down, var(--coach-room) - 114px - var(--coach-foot) - .5lh, 1lh) + .5lh); }
+  .hs-launchers > .hs-pointer:not(.is-min) { top: calc(100% + 12px); }
   /* An alert under the card leaves it too little room (shell.js roomForCoach): the card keeps its title until it closes. */
   .hs-widget.is-short-room > .hs-pointer:not(.is-min) > :is(.hs-coach-text, .hs-coach-foot) { display: none; }
   .hs-widget.is-no-room > .hs-pointer { display: none; }
@@ -544,8 +551,8 @@
   /* A CARD ABOUT A SHEET STANDS BESIDE THE SHEET (phone panel v0.2.83: inside it, it took 60 px of the 166 a ground's page had,
      and cut its own words at a line and a half): where the town's card stands, in the World's half, so the sheet keeps its whole
      height and the words their room, and the card does not jump when a sheet opens. Its left is the sheet's own (min(400px, 48vw)
-     wide, 8 px off the screen's right, its 12 px spine outside this box) brought back to 8 px; its top clears the place's name
-     in town and the hunt bar in a hunt. A full-screen window (Configure action) has no World beside it: its card stays in it. */
+     wide, 8 px off the screen's right, its 12 px spine outside this box) brought back to 8 px; its top is the town card's own
+     (under the top bar) in town and clears the hunt bar in a hunt. A full-screen window (Configure action) has no World beside it: its card stays in it. */
   .hs-win-coach > .hs-pointer.is-line { gap: 0; white-space: normal; }
   .hs-win-coach > .hs-pointer.is-line > .hs-coach-text { overflow-y: auto; text-overflow: clip; }
   .hs-pointer.is-line > .hs-coach-more { display: none; }
@@ -553,15 +560,13 @@
   .hs-coach-also { max-height: 96px; overflow-y: auto; }
   .hs-win-coach > .hs-pointer { margin: 6px 10px 0; }
   .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh / 3 - 100px - var(--coach-foot), 1lh) + .5lh); }
-  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 50px; left: calc(min(400px, 48vw) + 5px - 100vw); }
+  .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { position: absolute; margin: 0; top: 10px; left: calc(min(400px, 48vw) + 5px - 100vw); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { width: min(340px, calc(50vw - 56px)); max-height: calc(100vh - 200px); }
   .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 256px - var(--coach-foot) - .5lh, 1lh) + .5lh); }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer { top: 64px; }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) { max-height: calc(100vh - 216px); }
   #panel-world[data-scene="hunt"] .hs-win:not(.is-modal) > .hs-win-coach > .hs-pointer:not(.is-min) > .hs-coach-text { max-height: calc(round(down, 100vh - 272px - var(--coach-foot) - .5lh, 1lh) + .5lh); }
   [data-hs-win="hunts"]:has(.hs-win-coach .hs-pointer) .hw-hunts-now { display: none; }
-  /* The town card's own cap, past the general one above (same weight, later wins): its 50 px drop stays inside the room. */
-  .hs-launchers > .hs-pointer:not(.is-min):not([data-anchor="action_bar"]) { max-height: calc(var(--coach-room) - 58px); }
   /* The card under the hunt bar stands at the bar's right end, its tip under Leave (first-hour playtest 10-29 #10:
      at the left end it lay over the hero mid-fight); the camera frames the World beside it (shell.js insetNow). */
   .hs-widget.is-hunt-topbar > .hs-pointer { left: auto; right: 0; }
@@ -585,11 +590,7 @@
     border-width: 0 0 0 var(--art-6);
     border-image: url('../../assets/ui/steel-frame.png') 6 / 0 0 0 var(--art-6) stretch;
   }
-  /* A SHEET IS FULL HEIGHT IN TOWN TOO: up over the place's row (the 44 px Town and Home, the panel's 2 px, its 4 px gap) to the
-     icon row, as it stands in a hunt, where that row is gone. It cost every sheet 50 px of a 340 px screen. The stage's clip lets
-     it out while it is open (the panel's own clip still holds the page from panning). */
-  #panel-world:not([data-scene="hunt"]) .hs-win:not(.is-modal) { top: calc(-1 * (var(--tap) + 6px)); }
-  #panel-world:not([data-scene="hunt"]):has(.hs-win:not(.is-modal)) .world-stage { overflow: visible; }
+  /* A sheet is full height in town as in a hunt: the place's row it once rose over is in the top bar now (UI audit #10). */
   .hs-win.is-modal {
     top: 50%; bottom: auto; left: 50%; right: auto;
     max-width: calc(100vw - 16px); max-height: calc(100% - 8px);

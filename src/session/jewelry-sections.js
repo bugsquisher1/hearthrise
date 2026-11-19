@@ -6,11 +6,14 @@
 // piece's own bench (Tyler 2026-11-18: all jewelry is Smithing, cloaks Crafting), and the account's counts against the day's limit;
 // every envelope replaces it and nothing here prices a step. And a rolled job's odds, shown BEFORE the roll (Tyler 2026-11-05, call 6):
 // the catalogue's table at the hero's level in the job's own skill as the server holds it, the same table the engine rolls with
-// (src/core/artisan.js rollJewel). Display only: the bench rolls on the server, and this client never rolls.
+// (src/core/artisan.js rollJewel). Display only: the bench rolls on the server, and this client never rolls. A guarantee job (a boss drop
+// set in place of the tier's gem, JEWEL_GUARANTEES) says what it fixes, and is offered only where the server's `features` section lists
+// its switch (jobShown).
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.140';
-import { rollOdds, perksFor, JEWEL_PERKS, ODDS_SCALE, JEWEL_SKILLS, jewelSkillOf } from '../data/jewelry.js?v=0.2.140';
+import { rollOdds, jobRolls, JEWEL_PERKS, ODDS_SCALE, JEWEL_SKILLS, jewelSkillOf } from '../data/jewelry.js?v=0.2.140';
 import { skillsOf, bankOf } from './item-sections.js?v=0.2.140';
+import { featureOn } from './character-sections.js?v=0.2.140';
 
 const whole = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : 0);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -50,8 +53,9 @@ export function oddsPct(n) {
 }
 
 /**
- * A rolled job's odds for this hero, before the roll: { fine, hallmarked, plain } as words, the perks it can roll as names, and the level
- * (in the job's own skill, `skill`) they were read at; null for a job that doesn't roll or before the server sends the level.
+ * A rolled job's odds for this hero, before the roll: { fine, hallmarked, plain } as words, the perk a guarantee fixes (its name, or
+ * null: src/data/jewelry.js JEWEL_GUARANTEES), the perks the roll may still draw as names, and the level (in the job's own skill,
+ * `skill`) they were read at; null for a job that doesn't roll or before the server sends the level.
  */
 export function rollOddsOf(cs, recipe) {
   const skill = recipe && recipe.roll ? jewelSkillOf(recipe.output) : null;
@@ -59,7 +63,16 @@ export function rollOddsOf(cs, recipe) {
   if (!recipe || !recipe.roll || lv === null) return null;
   const o = rollOdds(recipe.roll, lv);
   return { level: lv, skill, fine: oddsPct(o.fine), hallmarked: oddsPct(o.hallmarked), plain: o.plain > 0 ? oddsPct(o.plain) : null,
-    perks: perksFor(recipe.output).map((p) => JEWEL_PERKS[p].name) };
+    perk: recipe.perk && JEWEL_PERKS[recipe.perk] ? JEWEL_PERKS[recipe.perk].name : null, perks: jobRolls(recipe).map((p) => JEWEL_PERKS[p].name) };
+}
+
+/**
+ * Does the bench offer this job to this hero? A job behind a server switch (a row's `switch`: the guarantee jobs, JEWEL_SWITCH) only
+ * when the server's `features` section lists that switch for the account; every other job, yes. Hidden until the server says: hr-accrue's
+ * set_activity asks the same switch and refuses the job for an account it is off for.
+ */
+export function jobShown(cs, recipe) {
+  return !recipe || !recipe.switch || featureOn(cs, recipe.switch);
 }
 
 /** How many of `id` this hero can spend on a Hallmark or a reforge, as the server counts them: { bag, storage, all } (hr_materials_take: the bag, then Storage). */

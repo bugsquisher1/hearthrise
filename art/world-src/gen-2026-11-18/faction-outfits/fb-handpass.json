@@ -1,0 +1,8 @@
+[
+  { "why": "the knight's sword-hilt stub left of the left hand, read by v3 as a held blade: cleared, the hand's edge outlined",
+    "pixels": [[21, 42, "clear"], [22, 42, "#0b0a0c"]] },
+  { "why": "the diagonal pale sash over the tabard (v3 turned it into a sword in the side views): its steels and bone repainted in the tabard's own golds, its dark edges in the tabard's fold brown",
+    "region": [27, 41, 35, 46],
+    "map": { "#c4ccd2": "#cfa25c", "#969aa1": "#cfa25c", "#6e727a": "#a8743a", "#e6dcbc": "#cfa25c", "#4a4d54": "#a8743a",
+      "#2c2e33": "#7a4f26", "#231d1f": "#7a4f26", "#17141a": "#7a4f26", "#4a2e18": "#7a4f26" } }
+]

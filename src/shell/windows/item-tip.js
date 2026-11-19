@@ -12,7 +12,8 @@
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { whole, gold } from '../../render/format.js?v=0.2.140';
 import { itemName } from '../widgets/bits.js?v=0.2.140';
-import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, groundEdgeWords } from '../item-lore.js?v=0.2.140';
+import { kindWords, sourcesOf, usesOf, flavourOf, needOf, saleWords, groundEdgeWords, possiblePerksOf } from '../item-lore.js?v=0.2.140';
+import { t } from '../../render/player-text.js?v=0.2.140';
 import { statLines, compare, rarityOf } from '../bag-model.js?v=0.2.140';
 import { planWords } from '../loot-dispatch.js?v=0.2.140';
 import { pieceWords } from '../../data/armour-weights.js?v=0.2.140';
@@ -24,8 +25,9 @@ const GAP = 10;
 /**
  * The tooltip's HTML for one item.
  * @param {string} id
- * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object, level?:number|null, ground?:string|null}} o
+ * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object, level?:number|null, ground?:string|null, features?:string[]}} o
  *   ground: the hunt id of the hero's ground (widgets/first-target.js heroGroundOf), for the line on what the piece does there
+ *   features: the server switches on for the hero's account (character-sections.js featuresOf), so a use behind one is named only there
  */
 function tipHtml(id, o) {
   const opt = o || {};
@@ -42,6 +44,9 @@ function tipHtml(id, o) {
   const perks = ITEMS[id] && ITEMS[id].jewelPerks ? Object.entries(ITEMS[id].jewelPerks) : [];
   if (perks.length) h += '<dl class="hw-tip-stats hw-tip-perks">' + perks.map(([p, pm]) => '<dt>' + esc(JEWEL_PERKS[p] ? JEWEL_PERKS[p].name : p) + '</dt><dd>' + esc(perkWords(p, pm)) + '</dd>').join('') + '</dl>'
     + '<p class="hw-tip-line"><small>Perks</small>No stacking across pieces</p>';
+  /* a plain crafted piece: the perks a gem set in it at its bench can add (item-lore.js possiblePerksOf) */
+  const may = possiblePerksOf(id);
+  if (may.length) h += '<p class="hw-tip-line"><small>' + esc(t('item.perks_possible')) + '</small>' + esc(may.join(', ')) + '</p>';
   /* ON THIS GROUND (lane/a-honest-lines): a unique that reads worse than the ladder's piece can still win where the hero hunts, by its
      bane or its resistance against the monsters there. Nothing when it does nothing special there, or no ground is known. */
   const edge = groundEdgeWords(id, opt.ground);
@@ -64,7 +69,7 @@ function tipHtml(id, o) {
   if (need) h += '<p class="hw-tip-need' + (need.short ? ' is-short' : '') + '">' + esc(need.text) + '</p>';
   const src = sourcesOf(id, opt.offers);
   if (src.length) h += '<p class="hw-tip-line"><small>Comes from</small>' + esc(src.join('. ')) + '</p>';
-  h += '<p class="hw-tip-line"><small>Used for</small>' + esc(usesOf(id).join('. ')) + '</p>';
+  h += '<p class="hw-tip-line"><small>Used for</small>' + esc(usesOf(id, opt.features).join('. ')) + '</p>';
   /* The server's bid, for what the bag holds. No bid: the row says who won't buy it; the shop bids only on bag stacks, so an
      item the bag doesn't hold (a Buy row) just has no value line. */
   const sale = saleWords(id);

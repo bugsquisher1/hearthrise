@@ -121,7 +121,7 @@ export const TUTORIAL_ANCHORS = Object.freeze({
   /* no icon of its own since the top bar's groups (2026-11-16): its way starts at the bar's setup press, a hook */
   hunt_prep: anchor('Hunt prep (src/shell/windows/hunt-prep.js), the bar\'s setup corner, then New setup', 'hunt-prep'),
   house: anchor('the House (src/shell/windows/house.js), its icon, then Buy', 'house', true),
-  characters: anchor('the character strip\'s Characters button, then Create hero on the characters screen', 'characters'),
+  characters: anchor('the character strip\'s Character list (a phone: Heroes, then its sheet\'s), then Create hero on the characters screen', 'characters'),
   strip: anchor('the character strip (src/app/character-strip.js), another hero\'s tab'),
 });
 
@@ -313,7 +313,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     /* A card that asks never walls: played 2026-11-01, a hero who wants one hero sat on this card in every hunt past 5 minutes, ahead of the Thicket's lessons. */
     'characters', orGotIt({ kind: 'heroes', atLeast: 2 }),
     { reactive: true, knowledge: true, gotIt: true, when: [{ kind: 'hunt_age', min: MORE_HEROES_MS, past: CELLAR }, { kind: 'one_hero' }],
-      hooks: ['.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
+      /* the strip's Character list on a desktop; on a phone, whose strip shows only Heroes, Heroes and then its sheet's Character list (UI-10) */
+      hooks: ['.char-tool.is-all', '[data-hs-win="characters"] [data-app="characters"]', '.char-tool[data-app="characters"]', '.char-pick[data-app="create"]'] }),
   /* Gated on THIS hero's Level (the server's level_xp), not only on the account having a second hero in town: a
      reactive card here interrupts the chain, so a Level 2 hero beside an older one was asked to party before its own
      Cellar steps (played on live 10-28, Pellow beside Corliss). Past the Cellar stretch it fits. */

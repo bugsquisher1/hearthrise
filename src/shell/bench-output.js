@@ -46,10 +46,11 @@ export function outputVsWorn(out, worn) {
 
 /**
  * THE WHOLE LADDER: the locked rows past the ones a station shows in full, one rung a Level, lowest first. `locked`: the work rows
- * above the hero's level ({ row: { req } }), in any order. Pure.
- * @template {{row: {req?: number}}} W
+ * above the hero's level ({ row: { req } }), in any order. Pure. `items` is what a rung SHOWS: one row a thing it opens, so a piece that
+ * three jobs make (a crafted jewel from its metal, with its gem, with a boss drop) reads once (post-140 audit C11: "Banded Signet" twice).
+ * @template {{row: {req?: number, output?: string|null}}} W
  * @param {W[]} locked
- * @returns {{level: number, rows: W[]}[]}
+ * @returns {{level: number, rows: W[], items: W[]}[]}
  */
 export function ladderOf(locked) {
   const by = new Map();
@@ -58,5 +59,17 @@ export function ladderOf(locked) {
     if (!by.has(lv)) by.set(lv, []);
     by.get(lv).push(w);
   }
-  return Array.from(by.entries()).sort((a, b) => a[0] - b[0]).map(([level, rows]) => ({ level, rows }));
+  return Array.from(by.entries()).sort((a, b) => a[0] - b[0]).map(([level, rows]) => ({ level, rows, items: onePerItem(rows) }));
+}
+
+/* The first row that makes each thing; a row that makes nothing (a rite) stands for itself. */
+function onePerItem(rows) {
+  const seen = new Set();
+  return rows.filter((w) => {
+    const out = w.row.output;
+    if (!out) return true;
+    if (seen.has(out)) return false;
+    seen.add(out);
+    return true;
+  });
 }

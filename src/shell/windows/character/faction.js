@@ -7,7 +7,8 @@
 // Every number is the server's (src/session/faction-sections.js): the standing per side, the swap's credited time and its need, the
 // next-swap instant, each piece's need and whether it is held. A Claim, Swap or Finish press is ONE intent (src/session/faction-
 // intents.js) and stays off until the server's own numbers allow it; the row changes only from the re-read envelope.
-// PLACEHOLDER ART: the mark and the pieces draw a glyph (uiFlame, uiFire) until the art lane's marks and outfit icons land.
+// THE ART: a side shows its mark and a piece its own icon (assets/icons-bundle/pixel/factions/, bits.js factionIconHtml); the worn
+// outfits themselves are still to be drawn, so a claim is a record until they land (factions.pieces_note).
 // ════════════════════════════════════════════════════════════════════════
 import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.140';
 import { claimPiece, startSwap, finishSwap } from '../../../session/faction-intents.js?v=0.2.140';
@@ -15,12 +16,8 @@ import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../../intent-words.js?v=0.2.140';
 import { t } from '../../../render/player-text.js?v=0.2.140';
-import { glyphSvg } from '../../widgets/bits.js?v=0.2.140';
+import { factionIconHtml } from '../../widgets/bits.js?v=0.2.140';
 import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.140';
-
-/** The placeholder mark of a side (a glyph, until the art lane's 16 px marks land). */
-export const MARK_GLYPH = Object.freeze({ first_flame: 'uiFlame', last_ember: 'uiFire' });
-const markHtml = (glyphs, side) => glyphSvg(glyphs, MARK_GLYPH[side] || 'uiFlame', 'hs-glyph hw-fx-glyph');
 
 /** The tab's name. */
 export const FACTION_TAB = t('factions.tab');
@@ -51,9 +48,8 @@ export function factionHtml() {
 function patchMark(el, glyphs, side) {
   const key = side || '-';
   if (el.getAttribute('data-for') === key) return;
-  el.innerHTML = side ? markHtml(glyphs, side) : '';
+  el.innerHTML = side ? factionIconHtml(glyphs, side) : '';
   attr(el, 'data-for', key);
-  for (const s of Object.keys(MARK_GLYPH)) cls(el, 'is-' + s, s === side);
 }
 
 /** Patch the Faction tab. */
@@ -76,7 +72,7 @@ export function patchFaction(body, ctx, sc) {
 
   rows(root.querySelector('.hw-fx-standing'), f ? f.sides : [], {
     key: (s) => s,
-    build: (s) => element(ctx.doc, '<li class="hw-line hw-fx-stand"><span class="hw-ico hw-fx-mark is-' + esc(s) + '" aria-hidden="true">' + markHtml(ctx.glyphs, s) + '</span>'
+    build: (s) => element(ctx.doc, '<li class="hw-line hw-fx-stand"><span class="hw-ico hw-fx-mark" aria-hidden="true">' + factionIconHtml(ctx.glyphs, s) + '</span>'
       + '<span class="hw-line-name"><b></b><small></small></span></li>'),
     patch: (li, s) => {
       cls(li, 'is-current', s === side);
@@ -113,7 +109,7 @@ export function patchFaction(body, ctx, sc) {
   /* THE PIECES: each side's, its need in hours of that side's standing; Claim on only when the server's standing covers it. */
   rows(root.querySelector('.hw-fx-pieces'), f ? f.pieces : [], {
     key: (p) => p.id,
-    build: (p) => element(ctx.doc, '<li class="hw-line hw-fx-piece"><span class="hw-ico hw-fx-mark is-' + esc(p.side) + '" aria-hidden="true">' + markHtml(ctx.glyphs, p.side) + '</span>'
+    build: (p) => element(ctx.doc, '<li class="hw-line hw-fx-piece"><span class="hw-ico hw-fx-mark" aria-hidden="true">' + factionIconHtml(ctx.glyphs, p.id) + '</span>'
       + '<span class="hw-line-name"><b></b><small></small></span>'
       + '<button type="button" class="hh-tool" data-hs-act="fx-claim" data-piece="' + esc(p.id) + '"></button></li>'),
     patch: (li, p) => {

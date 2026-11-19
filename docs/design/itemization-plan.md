@@ -245,7 +245,7 @@ The jewel skill becomes a field on each piece. A gem is set at the piece's own b
 | The whole set, one tier up, fully Hallmarked | At most one weapon step (5 to 9% XP) and half an armor step |
 | Split | About half plain stats, half perks |
 | One perk, in an ordinary hunt | About 1% XP or 2% less damage |
-| One perk, in the case it's built for | About three times that |
+| One perk, in the case it's built for | About 3% XP, measured in that case (not 3x the same hero's ordinary hunt: Steady at 20% reads 2.9% for a melee hero 10 skill levels under and 1.3% across all ways at the Level, lane/d-jewelry-2b) |
 | Check | Every tier's full set is measured with all six pieces worn before it ships |
 
 Perk sizes on paper (tiers 2 and 3 built, 4 to 7 proposed):
@@ -293,7 +293,7 @@ Cloak and belt materials are common drops: pelts, Bear Pelt, Silk Thread and coa
 | Chip pace | Sized so chips alone give a gem about every band-hours divided by 8: every 5 hours at tier 2, every 15 later |
 | Stirred grounds | Each hour the server marks a few open grounds as stirred. Their elites are a little tougher and drop extra chips while it lasts. Monster stats and drops only, shown on the Hunts page, the same for every group size |
 | Weekly orders | Tamsin posts orders for drops and crafted staples. They pay chips and salts |
-| Old Rare prizes | Alpha Fang, Rook's Whistle and Crown Shard each cut into one gem of their tier. War Crown is left out because the House uses it |
+| Old Rare prizes | Alpha Fang, Rook's Whistle and Crown Shard each cut into one gem of their tier. War Crown is left out because the House uses it. The Crown Shard KEEPS its second use (designer 2026-11-18): set in a Banded Signet in place of the Road Carnelian it would cut into, it guarantees Follow-through, so the guarantee costs exactly the gem the cut would make. Its card names both uses as labels |
 
 Stirred grounds and weekly orders are extra chip sources on top of the base pace, sized so a hero who ignores both still meets the six gems a band.
 

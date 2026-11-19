@@ -34,6 +34,8 @@ const PHONE_BAR_GAP = 2;
 /* The least room the hunt's coach card docks into (its title, three lines and its foot), and the card's width (shell.css .hs-pointer). */
 const COACH_MIN_ROOM = 120;
 const COACH_WIDE = 260;
+/* The town card's tip stands at least this far in from its corners (shell.css: a 12 px notch, clear of the frame's corner stud). */
+const COACH_TIP_IN = 18;
 /* The hero's spot around the point the camera frames: the sprite with its name plate and bars (docs/ART_DIRECTION.md §4: about 40 art px, drawn at up to x3). */
 const HERO_HALF_W = 48, HERO_UP = 80, HERO_DOWN = 44;
 
@@ -137,32 +139,59 @@ export function createHudRoom({ hud, worldHud, screenHud, layer, isPhone, gap, h
      Home tabs). On a desktop it stands in the World's right column, in the widget stack: under the Tally and whatever else stands there (where
      the Tally would stand when there is none), its right edge on theirs. It takes a free place and moves nothing, so the Tally stays where the
      player left it, moved or not. --coach-r / --coach-y place it from the icon row's box (it is drawn there, launcher.js), --coach-h is its room
-     down to the bar; with less room than a card needs it hangs under the row as before. A group's menu open steps it left (shell.css). */
+     down to the bar, --coach-tip where it hangs from its ring (hangFromRing); with less room than a card needs it hangs under the row as before.
+     A group's menu open steps it left (shell.css). */
   function dockTownCoach() {
-    const host = screenHud.querySelector('[data-hs-widget="launchers"] .hs-launchers');
+    /* The place is kept on the row's WIDGET, not on the row: a group's menu or the card's own fold redraws the row (launcher-menu.js
+       setMenu, launcher.js actCoach) outside a widget pass, and a mark on the row went with it, so the card jumped back under the row. */
+    const widget = screenHud.querySelector('[data-hs-widget="launchers"]');
+    const host = widget && widget.querySelector('.hs-launchers');
     if (!host) return;
     const card = host.querySelector(':scope > .hs-pointer');
     let at = null;
     if (card && !isPhone() && host.offsetWidth) {
       const hb = host.getBoundingClientRect(), wb = worldHud.getBoundingClientRect();
-      const right = wb.right - gap, w = card.offsetWidth || COACH_WIDE, h = card.offsetHeight;
-      const way = worldEls().filter((e) => e.offsetWidth && !isBar(e) && !e.classList.contains('is-under-dock')).map((e) => e.getBoundingClientRect())
-        .filter((q) => q.left < right && q.right > right - w);
+      const w = card.offsetWidth || COACH_WIDE, h = card.offsetHeight;
+      let right = wb.right - gap;
+      const shown = worldEls().filter((e) => e.offsetWidth && !isBar(e) && !e.classList.contains('is-under-dock')).map((e) => e.getBoundingClientRect());
+      const way = shown.filter((q) => q.left < right && q.right > right - w);
       let top = wb.top + gap;
       for (let moved = true, n = 0; moved && n <= way.length; n++) {
         moved = false;
         for (const q of way) if (q.top < top + h + gap && q.bottom + gap > top) { top = q.bottom + gap; moved = true; }
       }
+      const tip = hangFromRing(host, top === wb.top + gap, right, top, w, h, shown);
+      right = tip ? tip.right : right;
       const bars = worldEls().filter(isBar).map((e) => e.getBoundingClientRect()).filter((q) => q.left < right && q.right > right - w);
       const floor = (bars.length ? Math.min(...bars.map((q) => q.top)) : wb.bottom) - gap;
-      if (floor - top >= Math.min(COACH_MIN_ROOM, h)) at = { r: Math.round(hb.right - right), y: Math.round(top - hb.top), h: Math.floor(floor - top) };
+      if (floor - top >= Math.min(COACH_MIN_ROOM, h)) at = { r: Math.round(hb.right - right), y: Math.round(top - hb.top), h: Math.floor(floor - top), tip: tip ? tip.at : null };
     }
-    const now = at ? [at.r + 'px', at.y + 'px', at.h + 'px'].join() : ',,';
-    if ([host.style.getPropertyValue('--coach-r'), host.style.getPropertyValue('--coach-y'), host.style.getPropertyValue('--coach-h')].join() !== now) {
-      for (const k of ['--coach-r', '--coach-y', '--coach-h']) host.style.removeProperty(k);
-      if (at) { host.style.setProperty('--coach-r', at.r + 'px'); host.style.setProperty('--coach-y', at.y + 'px'); host.style.setProperty('--coach-h', at.h + 'px'); }
+    const now = at ? [at.r + 'px', at.y + 'px', at.h + 'px', at.tip === null ? '' : at.tip + 'px'].join() : ',,,';
+    const keys = ['--coach-r', '--coach-y', '--coach-h', '--coach-tip'];
+    if (keys.map((k) => widget.style.getPropertyValue(k)).join() !== now) {
+      for (const k of keys) widget.style.removeProperty(k);
+      if (at) { widget.style.setProperty('--coach-r', at.r + 'px'); widget.style.setProperty('--coach-y', at.y + 'px'); widget.style.setProperty('--coach-h', at.h + 'px'); }
+      if (at && at.tip !== null) widget.style.setProperty('--coach-tip', at.tip + 'px');
     }
-    host.classList.toggle('is-coach-docked', !!at);
+    widget.classList.toggle('is-coach-docked', !!at);
+    widget.classList.toggle('has-coach-tip', !!at && at.tip !== null);
+  }
+
+  /* HUNG FROM ITS RING (UI-10: docked in the column the card named an icon it no longer pointed at). With nothing above it in the column
+     (`clear`) the card stands just under the icon row, so it points at the icon its words are about: it slides left (never right, never onto
+     another widget) until the ringed icon is over it, and its tip points up at the ring's middle. Under the Tally, or with no icon ringed
+     (a hero's tab, a press inside a window), it has nothing to point at from there: no tip. Answers { right, at } (the card's right edge in
+     page px, the tip's middle from that edge) or null. A group's open menu hides the tip (shell.css). */
+  function hangFromRing(host, clear, right, top, w, h, shown) {
+    const ring = clear ? host.querySelector('.hs-launch[data-coach-ring]') : null;
+    if (!ring || w < 2 * COACH_TIP_IN) return null;
+    const rb = ring.getBoundingClientRect(), mid = (rb.left + rb.right) / 2;
+    let edge = right;
+    if (mid < right - w + COACH_TIP_IN) {
+      const slid = Math.round(mid - COACH_TIP_IN + w);
+      if (!shown.some((q) => q.left < slid && q.right > slid - w && q.top < top + h + gap && q.bottom + gap > top)) edge = slid;
+    }
+    return { right: edge, at: Math.round(Math.max(COACH_TIP_IN, Math.min(w - COACH_TIP_IN, edge - mid))) };
   }
 
   /* THE HUNT'S COACH CARD, DOCKED (see the header). --coach-x / --coach-y: the card's place from its host's corner (it is drawn inside the hunt

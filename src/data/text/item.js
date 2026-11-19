@@ -25,6 +25,8 @@ export const ITEM_TEXT = Object.freeze({
   type_gear: 'Gear',
   type_item: 'Item',
   tier: 'Tier {tier}',
+  /* A plain crafted jewel's card (src/shell/windows/item-tip.js): the perks a gem set in it at its bench can add (post-140 audit C11). */
+  perks_possible: 'Possible perks',
   kind_drink: 'Drink that restores {mana} mana',
   kind_rune: 'Rune',
   kind_whetstone: 'Whetstone',

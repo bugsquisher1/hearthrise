@@ -36,8 +36,10 @@ const heroOf = (ctx, a) => ctx.peers().find((p) => p.slot === a.slot) || null;
 const restartable = (hunt) => !!hunt && !roomOfHunt(hunt) && !trainedBy(hunt) && !runRulesOf(hunt);
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
 /* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, the end card's
-   own reading (../result-block.js goldFig); none when the line has no store spend to set against the coins (../away-recap.js says no gold then). */
-const awayGoldFig = (f) => goldFig(Number.isFinite(f.gold) && Number.isFinite(f.looted) && Number.isFinite(f.paid) ? { net: f.gold, coins: f.looted, spent: f.paid } : null, null);
+   own reading (../result-block.js goldFig); none when the line has no store spend to set against the coins (../away-recap.js says no gold then).
+   A yard that took over from the hunt billed the same purse: `yard`, out of the Gold and said under it (post-140 audit C3). */
+const awayGoldFig = (f) => goldFig(Number.isFinite(f.gold) && Number.isFinite(f.looted) && Number.isFinite(f.paid)
+  ? { net: f.gold, coins: f.looted, spent: f.paid, yard: Number.isFinite(f.yard) ? f.yard : null } : null, null);
 
 /**
  * One hero's block as it reads now: the result (a hunt's, two server answers), the best find, the line under it, and its press.

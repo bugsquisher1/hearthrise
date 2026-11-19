@@ -2,6 +2,12 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-18 · lane/a-analyzer-coins (analyzer coins vs cover sales; N4; post-140 audit C1 C3 C9 C13)
+1. *A purse figure is every gold row of its session, not the one the read was written for.* hr_hunt_stats_of folded kill coins only; the settle's sell-to-cover (vendor_cover, tally cover_gold/covered) also credits the purse, and the sold units stayed priced as loot. Fixed at the read (2027-05-15-analyzer-cover-coins.sql): coins += cover_gold, loot_value prices looted less covered. Latent today (no junk row, hr_hunt_cover_items empty), so the regression plants bones as coverable (as PARTY-GRIEF does): kill coins 26, cover 28, store 154, purse -100; the old read said -128.
+2. *A yard that takes over bills the same purse from another session.* Its fee is a `shop` row (never session-stamped), so no analyzer sees it; the training section's run.paid / last_stop.paid is the server's figure. A fee the server has not said makes no Gold, never a short one.
+3. *"so X fell to Y" is a claim the numbers can deny.* The reserve line now states the rule the server applied (no supply under the reserve) and the tally, no cause. The server keeps no purse at the stop, so none is printed.
+4. *N4 was already fixed in v0.2.138* (5600403a4, DP-0 + its mutant); the 11-18 full sweep ran on 137.
+
 ## 2026-11-18 · lane/a-end-card-gold (the end card's Gold, kill the class)
 1. *One figure, one reader.* `result-block.js goldFig` (fed by `summary-model.js goldKeptOf`, coins + loot value − balance) is the Gold on both cards; a record with no spend is labelled Coins, never Gold. The analyzer's coins row says Coins on both tabs.
 2. *Known gap, server work:* the analyzer's `coins` leave out loot sold to cover supplies (the tally's `cover_gold`), so after a cover sale the net under-reads the purse by that much.

@@ -3606,7 +3606,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const picked = await afterOf();
         if (!picked || picked.value !== 'train:melee' || picked.options[0] !== 'Go back to mining the Copper Rock'
-          || picked.note !== '122 gold/h, up to 12 h · Can\'t pay: waits in town') fails.push('AW-35 a hero that picked the yard reads ' + JSON.stringify(picked));
+          || picked.note !== '122 gp/h, paid hourly in advance · up to 12 h · Out of gold: waits in town') fails.push('AW-35 a hero that picked the yard reads ' + JSON.stringify(picked));
         if (shots) { await page.evaluate((w) => document.querySelector(w + '.hw-after').scrollIntoView({ block: 'center' }), W); await page.waitForTimeout(150); await shot(page, 'alpha-1440x900-hunt-after'); }
         /* a change sends ONE ask: the choice and the skill, nothing else */
         const h0 = sent(s, 'hr_hunt_after_set').length;

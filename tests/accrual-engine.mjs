@@ -3,7 +3,7 @@
 //
 // Three claims, all mechanical, none of them provable from a browser:
 //
-//   1. PARITY (the contract). A GATHER / ARTISAN / CREW span computed by the
+//   1. PARITY (the contract). A GATHER / ARTISAN span computed by the
 //      SERVER engine (supabase/functions/hr-accrue/accrual.js) is identical —
 //      ticks, every XP grant, every item — to the same span computed the way
 //      the CLIENT computes it, for the same state and the same seed. (The
@@ -62,13 +62,9 @@ import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { indexArtisanRecipes, benchPayable } from '../src/core/artisan-sim.js';
 
 import {
-  computeAccrual, zeroBonus, accrueWorkers,
-  TOWN_SETTLE_MIN_MS, ACCRUE_MAX_SPAN_MS, WORKER_ACCRUE_CAP_MS,
+  computeAccrual, zeroBonus,
+  TOWN_SETTLE_MIN_MS, ACCRUE_MAX_SPAN_MS,
 } from '../supabase/functions/hr-accrue/accrual.js';
-/* CREW-BACKLOG reads the crew's rate from the SHARED model both engines import,
-   never from a number retyped here: a retuned efficiency curve must retune the
-   expectation, not turn the guard red. */
-import { workerTickMs } from '../src/core/workers.js';
 import { parseIntent, readSlot, MAX_SLOT, INTENT_KEYS } from '../supabase/functions/hr-accrue/request.js';
 import { isMain } from './_is-main.mjs';
 
@@ -151,7 +147,7 @@ const EQUIPMENT = pickEquipment();
 // compared against: closed rebuild, lane C2. A fight is a hunt session, priced
 // by ONE engine (combat-sim.js simulateHuntInstance, lane S1) and guarded by
 // tests/hunt-sessions-settle.mjs (TICK-1 split-settle parity, attended and away)
-// and tests/hunt-core/*. What stays here is the gather / artisan / crew engine and the shell.
+// and tests/hunt-core/*. What stays here is the gather / artisan engine and the shell.
 
 // ── Server call helper ──────────────────────────────────────────────────────
 /* A GATHERING night (closed rebuild, lane C2): a fight outside a hunt session
@@ -1201,8 +1197,6 @@ async function shellGuard() {
     'perks',            // hr_perks_of, the seed transaction
     'unlockedRecipes',  // hr_perks_of's own field
     'bestiaryKills',    // hr_bestiary_of, behind its own savepoint
-    'crew',             // env.workers, but consumed by accrueWorkers, not computeAccrual
-    'workersAccruedToMs', // ditto — the crew's own watermark
     'actionBudget',     // the degrade ladder's knob, from the engine's own answer
     'caller',           // a server literal per call site
     'callerAuthority',  // an imported object identity
@@ -2102,189 +2096,6 @@ async function settableKindsGuard() {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
-// CREW-BACKLOG — a worker is never paid for time before it was hired.
-//
-// THE LIVE ROW THIS REPRODUCES (QA 0a47ba77, slot 2, 2026-09-09 03:06:57Z,
-// b527, engine payload 50c6d492): one `player_ledger` kind='gather'
-// intent='accrue' row, node copper_rock, meta.ms = 440,102, and
-// meta.delta.i.copper_ore = 1,891 — about 21x the node's rate, against
-// neighbouring rows of 62,862 ms -> 13 and 64,016 ms -> 13. Mining XP over the
-// window did NOT move by 21x, and that asymmetry is the whole diagnosis:
-// gathering XP is granted per ACTION, so no per-action multiplier can inflate
-// the items and leave the XP alone. The 1,891 is a SUM of two settles that
-// index.ts merges into one delta and one journal line (`mergeWorkers`):
-//
-//      91  the player's own gathering   floor(440,102 / 4,800 ms)
-//   1,800  the hired crew               a full 24h WORKER_ACCRUE_CAP at
-//                                       copper_rock (86,400,000 / 48,000 ms)
-//   -----
-//   1,891
-//
-// The crew half is the mint. `workers_accrued_to` is a SHARED watermark that
-// index.ts advances only on a settle that PRODUCED, and a character with no
-// crew never produces — so the watermark sits where the character was created
-// while the calendar runs, and the first accrual after the first hire pays the
-// whole backlog. Aldric was hired at 03:00:33; six minutes later he was paid a
-// day. The mint signs itself: 1,800 ticks is 18,900 worker xp, which is worker
-// level 4, and every worker row after it lands at 38.7 s — exactly the level-4
-// tick that burst created. It is NOT a one-off and it is NOT a fire/re-hire
-// exploit — there is no dismiss RPC and hr_worker_hire is player_workers'
-// only writer. The repeat vectors are ordinary play: every character's FIRST
-// hire made 24h+ after the character was created (the case measured here), a
-// hire into a fresh SLOT on an older account, and a WHOLE crew left idle then
-// re-assigned (the assigned_at half, which hired_at does not close).
-//
-// BOTH HALVES ARE ASSERTED, because a fix must not pay for itself out of the
-// honest one: the player's own 91 ore and their mining XP are unchanged.
-// ════════════════════════════════════════════════════════════════════════════
-const CREW_ROW = {
-  nowMs: Date.parse('2026-09-09T03:06:57Z'),
-  grantMs: 440102,                      // meta.ms, verbatim
-  nodeId: 'copper_rock',
-  hiredAgoMs: 384000,                   // 03:00:33 -> 03:06:57
-  staleWatermarkAgoMs: 40 * 3600000,    // no producing settle since the character existed
-  liveMint: 1891,
-};
-
-function crewBacklogGuard() {
-  const C = 'CREW-BACKLOG';
-  const t = CREW_ROW;
-  const entry = GATHER_INDEX[t.nodeId];
-  const node = entry && entry.node;
-  if (!node) {
-    ok(false, `${C}0: ${t.nodeId} is not in the gather index — the fixture cannot be built`);
-    return;
-  }
-  const PROD = node.prod;
-  const crew = (over) => [{
-    uid: 'w1', name: 'Aldric', skill: 'mining', target_id: t.nodeId, xp: 0, acc_ms: 0,
-    hired_at: new Date(t.nowMs - t.hiredAgoMs).toISOString(), ...over,
-  }];
-  const settle = (over) => accrueWorkers({
-    nowMs: t.nowMs,
-    workersAccruedToMs: t.nowMs - t.staleWatermarkAgoMs,
-    crew: crew(),
-    nodes: GATHER_INDEX, items: ITEMS, ...over,
-  });
-  const oreOf = (r) => (r && r.accrued && r.items && r.items[PROD]) ? r.items[PROD] : 0;
-
-  // ── 1. THE MINT ITSELF. ───────────────────────────────────────────────────
-  /* The ceiling is DERIVED from the shared rate model, never a typed 8. */
-  const perTickMs = workerTickMs(node.ms, 0);
-  const honest = Math.floor(t.hiredAgoMs / perTickMs);
-  const paid = settle({});
-  ok(oreOf(paid) <= honest,
-    `${C}1: a worker hired ${Math.round(t.hiredAgoMs / 1000)}s ago was paid ${oreOf(paid)} `
-    + `${PROD} against a ceiling of ${honest}. The shared workers_accrued_to watermark, stale `
-    + 'since before the hire existed, is being paid out as a backlog — the live 1,800-ore mint.');
-  ok(oreOf(paid) === honest,
-    `${C}2: the crew was paid ${oreOf(paid)} ${PROD} where its lifetime buys exactly ${honest} — `
-    + 'a worker is paid for every ms it HAS existed, and not one before.');
-
-  // ── 2. THE FULL LIVE ROW, COMPOSED THE WAY index.ts COMPOSES IT. ──────────
-  /* `mergeWorkers` folds the crew items into the pointer's `items` map while the
-     journal keeps the POINTER's kind and ms — which is why this mint arrived
-     wearing a `gather` label and a 440-second window. */
-  const pointer = computeAccrual({
-    userId: '00000000-0000-4000-8000-000000000001', slot: 2,
-    nowMs: t.nowMs, accruedToMs: t.nowMs - t.grantMs, activeSinceMs: t.nowMs - t.grantMs,
-    activeKind: 'gather', activeId: t.nodeId, capMs: 12 * 3600000, seed: SEED,
-    hp: 60, maxHp: 60, gold: 0, skills: { mining: 0 }, equipment: {},
-    inventory: {},
-    items: ITEMS, monsters: MONSTERS, nodes: GATHER_INDEX,
-  });
-  ok(pointer.accrued === true,
-    `${C}3: the pointer half of the live row did not accrue (${pointer.reason}) — the fixture `
-    + 'would be vacuous');
-  if (pointer.accrued) {
-    const own = (pointer.delta.items && pointer.delta.items[PROD]) || 0;
-    eq(own, Math.floor(t.grantMs / pacedActionMs(node.ms)),
-      `${C}4: the PLAYER's own half of the row moved. The crew fix must not touch it — this is `
-      + `the ore a ${t.grantMs} ms window at ${t.nodeId} is worth.`);
-    ok(pointer.delta.xp && pointer.delta.xp.mining > 0,
-      `${C}5: the player's mining XP left the row. The diagnosis rests on XP being per-action `
-      + 'and honest, so a fix that moved it would have moved the wrong thing.');
-    ok(own + oreOf(paid) < t.liveMint,
-      `${C}6: the composed delta still totals ${own + oreOf(paid)} ${PROD} — the live mint was `
-      + `${t.liveMint}.`);
-  }
-
-  // ── 3. NOT A NEW CONFISCATION. ────────────────────────────────────────────
-  const ancient = settle({
-    crew: crew({ hired_at: new Date(t.nowMs - 40 * 3600000).toISOString() }),
-  });
-  ok(oreOf(ancient) > 0 && oreOf(ancient) <= Math.floor(WORKER_ACCRUE_CAP_MS / perTickMs),
-    `${C}7: a genuinely long-serving worker must still be paid its (24h-capped) backlog — the `
-    + `fix is a floor at hire time, not a second cap. Paid ${oreOf(ancient)}.`);
-
-  // ── 4. FAIL CLOSED. ───────────────────────────────────────────────────────
-  /* The engine cannot read a column hr_state_of does not project, and here the
-     "absent => previous behaviour" default IS the mint. So absence pays NOTHING.
-     This is the deploy-order contract in executable form:
-     2026-09-12-worker-hired-at-projection.sql is applied BEFORE this engine. */
-  const blind = settle({ crew: crew({ hired_at: undefined }) });
-  ok(oreOf(blind) === 0,
-    `${C}8: a crew row with no hired_at was paid ${oreOf(blind)} ${PROD}. A missing hire time `
-    + 'must fail CLOSED — an under-paying crew is a redeploy, a backlog faucet is a wipe.');
-
-  // ── 5. THE CREW'S SHARE IS JOURNALLED (C2, 2026-09-08 security review). ───
-  /* This mint was found by DIVIDING meta.ms by the node rate, because on the
-     merged path the crew's items disappear into the pointer's `meta.delta.i`
-     under the pointer's own kind/intent/ms. After the floor lands the faucet is
-     shut, but the NEXT crew defect would be exactly as invisible — so
-     `mergeWorkers` folds `journal.meta.crew` into the delta and hr_apply's
-     existing `|| coalesce(v_j->'meta','{}')` merge carries it onto the row.
-
-     EXECUTED, not string-matched, and executed on the SHIPPED BYTES: Node
-     cannot import a Deno .ts file, so `mergeWorkers` is sliced out of index.ts's
-     source, its (only) type annotations stripped, and run — the
-     tests/delta-transport.mjs T1 idiom. Deleting, renaming or gutting the merge
-     makes this red; so does a type annotation the strip does not know, which
-     throws rather than passing vacuously. */
-  if (paid.accrued) {
-    const shell = readFileSync(join(FN_DIR, 'index.ts'), 'utf8').replace(/\r\n/g, '\n');
-    const OPEN = 'const mergeWorkers = ';
-    const CLOSE = '\n    };\n';
-    const from = shell.indexOf(OPEN);
-    const to = from < 0 ? -1 : shell.indexOf(CLOSE, from);
-    if (from < 0 || to < 0) {
-      ok(false, `${C}9: index.ts no longer contains a \`${OPEN}…\` arrow closing at the expected `
-        + 'indent, so this guard can no longer see the merge it grades. That is a failure, not a '
-        + 'pass.');
-    } else {
-      const js = shell.slice(from, to + CLOSE.length - 1)
-        .replace(/\s+as\s+Record<string,\s*any>/g, '')
-        .replace(/:\s*Record<string,\s*(?:any|number)>/g, '');
-      const pointerDelta = {
-        journal: { kind: 'gather', intent: 'accrue', meta: { ms: t.grantMs } },
-        items: { [PROD]: 91 },
-      };
-      let merged = null;
-      let boom = null;
-      try {
-        merged = new Function('wout', js + '\nreturn mergeWorkers;')(paid)(pointerDelta);
-      } catch (e) { boom = e; }
-      ok(!boom, `${C}9: index.ts's mergeWorkers could not be executed off its own bytes `
-        + `(${boom && boom.message}) — most likely a new TypeScript annotation the strip above `
-        + 'does not know about.');
-      const fold = merged && merged.journal && merged.journal.meta && merged.journal.meta.crew;
-      eq(JSON.stringify(fold && fold.items), JSON.stringify(paid.items),
-        `${C}10: the merged delta's journal.meta.crew.items must be EXACTLY the crew half `
-        + `(${JSON.stringify(paid.items)}), and it is ${JSON.stringify(fold && fold.items)}. `
-        + "Without it a merged row's crew contribution cannot be reconstructed — which is how "
-        + 'the 1,800-ore mint hid inside a `gather` row for a day.');
-      eq(merged && merged.journal && merged.journal.kind, 'gather',
-        `${C}11: folding meta.crew disturbed the pointer's journal kind. hr_apply coalesces a `
-        + "kindless journal to kind='admin', so the row would be mislabelled in the ledger.");
-      eq(merged && merged.journal && merged.journal.meta && merged.journal.meta.ms, t.grantMs,
-        `${C}12: the pointer's own meta.ms was overwritten by the crew fold. meta.crew.ms is the `
-        + "crew's span; meta.ms stays the pointer's, or the arithmetic that found this bug stops "
-        + 'working.');
-    }
-  }
-}
-
 /* TIMBERLINE-S1 — THE EDGE PAYLOAD CARRIES THE NEW STANDS (the server half of
    the in-page TIMBERLINE-1..4). Credential-free: the index is the one the edge
    imports (hr-accrue/catalogue.js GATHER_NODES), not a local rebuild, so a
@@ -2423,7 +2234,6 @@ export async function runAll() {
   await timberlineServerGuard();
   await deepWatersServerGuard();
   toolCarryContinuityGuard();
-  crewBacklogGuard();
   hostileGuard();
   await shapeGuard();
   requestGuard();
@@ -2461,7 +2271,7 @@ if (isMain(import.meta.url) && FUSE_ARG) {
     process.exit(1);
   }
   const s = serverAccrual();
-  console.log('Accrual engine guard — gather/artisan/crew parity with the client, hostile inputs inert.');
+  console.log('Accrual engine guard — gather/artisan parity with the client, hostile inputs inert.');
   /* Printed on every run, deliberately. A headroom number nobody sees is a
      number nobody notices tightening. */
   for (const line of clampGuard.report || []) console.log(`  clamp headroom: ${line}`);

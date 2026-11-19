@@ -48,7 +48,8 @@ export function lootList(items) {
  *   rows   [{ id, k, v, gold }]  New Best (+N) when the climb set the record (best_before), and then its place on the board (last.board:
  *                               Rank #N (+ heroes passed), Passed <the best of them>), Floors cleared, Spat out / Ended, XP lost, and
  *                               the keys the held limit kept back
- *   keys   [{ key, item, name, count, landing }]  every landing the run cleared mints its key, one entry a kind (the highest landing's)
+ *   keys   [{ key, item, name, count, landing, from }]  every landing the run cleared mints its key, one entry a kind: `landing` its highest,
+ *                               `from` its lowest (the card says where this climb's keys came from: "Floors 100 to 180")
  *   run    { start, top, best, before } | null   the climb drawn on the tower; `before` the old best when it set a new one
  */
 export function climbEnd(tw, card, towerHunt) {
@@ -79,7 +80,8 @@ export function climbEnd(tw, card, towerHunt) {
     const k = tw.chest ? tw.chest.keys.find((x) => x.key === m.key) : null;
     if (!k) continue;
     const had = keys.find((x) => x.key === k.key);
-    if (had) { had.count++; had.landing = Math.max(had.landing, m.landing); } else keys.push({ key: k.key, item: k.item, name: k.name || itemName(k.item), count: 1, landing: m.landing });
+    if (had) { had.count++; had.landing = Math.max(had.landing, m.landing); had.from = Math.min(had.from, m.landing); }
+    else keys.push({ key: k.key, item: k.item, name: k.name || itemName(k.item), count: 1, landing: m.landing, from: m.landing });
   }
   return { rows, keys, run: run ? { start: run.start, top: run.top, best: newBest, before: newBest ? run.bestBefore : null } : null };
 }

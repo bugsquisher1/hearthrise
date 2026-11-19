@@ -264,6 +264,9 @@
 //              commit starts the count over. A member's own-state refusal counts on
 //              its seat; a world code (#73: kills_over, value_over, ...) and an
 //              instance refusal on the instance; each count starts over.
+//   FORFEIT-PLAN  a forfeit ends the seat `server`, an automatic end, so the hunt's frozen
+//              plan runs (back to the gathering job it had at Enter), once, both doors
+//              (2027-05-29-forfeit-plan.sql; Andy's Tower four stayed idle, 2026-11-19).
 //   DEPLOY     a deploy never ends a hunt: a catalogue world-shape move with the edge
 //              landing before or after it (v0.2.32 live). Catalogue first: the old
 //              engine's settles are held (never counted); edge first: the new engine
@@ -2965,6 +2968,39 @@ const DB_ARMS = {
     }
     return problems;
   }),
+  /* A FORFEIT RUNS THE HERO'S PLAN (2027-05-29-forfeit-plan.sql; Andy 2026-11-19: "Finishing tower didn't restart the crafting I was doing").
+     A forfeit ends the seat `server`, an automatic end (hr_hunt_end_reasons.resumes), so the hunt's frozen plan runs as after any other:
+     here the default, back to the gathering job the hero had at Enter. Andy's four ended that way and three "back to the job" seats stayed
+     idle (after_done null). BOTH DOORS: the browser closed (the tick) and the hunt viewed (the player's settle). */
+  'FORFEIT-PLAN': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const exec = makeExec(db);
+    const DOORS = {
+      'the browser closed': { mode: 'tick', project: null },
+      'the hunt viewed': { mode: 'settle', project: { user: UID, slot: 0 } },
+    };
+    for (const [path, door] of Object.entries(DOORS)) {
+      const h = await hunter(db, M, { ...WEAK, minutesAgo: 2, lastActivity: { kind: 'gather', id: 'shrimp_s' } });
+      let r = null;
+      for (let i = 0; i < 6 && !r?.forfeit; i++) {
+        const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, grounds: groundsOf(M), atMs: h.from + 30000 }, door.mode);
+        if (plan.answer) { problems.push(`${path}: refusal ${i + 1} was not offered: ${JSON.stringify(plan.answer).slice(0, 200)}`); break; }
+        const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+        p.commit.members[0].delta.journal.meta.kills = 100000;
+        r = await M.HS.commitHuntSettle(exec, { ...p.commit, project: door.project });
+      }
+      const s = await one(db, `select jsonb_build_object('end', h.end_reason, 'forfeit', h.forfeit, 'done', h.after_done,
+          'active', ps.active_kind || ':' || coalesce(ps.active_id, ''),
+          'resumes', (select count(*) from public.player_ledger l where l.session_id = h.id and l.intent = 'resume'))
+        from public.hunt_sessions h join public.player_state ps on ps.user_id = h.user_id and ps.slot = h.slot where h.id = $1`, [h.sid]);
+      if (!r?.forfeit || !s || s.end !== 'server' || s.forfeit !== true) problems.push(`${path}: CONTROL: six refusals did not forfeit the hunt server: ${JSON.stringify([r, s]).slice(0, 300)}`);
+      else if (!s.done || s.done.state !== 'resumed' || s.done.id !== 'shrimp_s' || s.active !== 'gather:shrimp_s' || Number(s.resumes) !== 1) {
+        problems.push(`${path}: a forfeited hunt's plan came to ${JSON.stringify(s.done)} with the hero ${s.active} (${s.resumes} resume rows), not back to gather:shrimp_s once`);
+      }
+      await db.query('rollback'); await db.query('begin');
+    }
+    return problems;
+  }),
   STAMINA: async (db, M) => inTx(db, async () => {
     const problems = [];
     const { sid, from } = await hunter(db, M, { ...STRONG, stamina: 30 * 2000 });
@@ -5354,6 +5390,8 @@ const DB_MUTANTS = [
   /* (re-anchored on 2027-01-22-party-settle-isolation.sql: every seat ends through hr_hunt_forfeit_seat) */
   { arm: 'FORFEIT', name: 'a forfeit ends the hunt now instead of at the last accepted boundary', fn: 'public.hr_hunt_forfeit_seat(uuid,uuid,text,jsonb,integer)',
     find: "  perform public.hr_hunt_close(v_s.id, v_end, v_i.settled_to, true);", replace: "  perform public.hr_hunt_close(v_s.id, v_end, now(), true);" },
+  { arm: 'FORFEIT-PLAN', name: 'a forfeit runs no plan (Andy\'s Tower four stayed idle)', fn: 'public.hr_hunt_forfeit_seat(uuid,uuid,text,jsonb,integer)',
+    find: '  perform public.hr_hunt_resume(v_s.user_id, v_s.slot, v_s.id, v_end, v_ev0);\n', replace: '' },
   { arm: 'FORFEIT-HOME-WHOLE', name: 'a forfeited hero keeps the HP it had (the close writes no max HP)', fn: 'public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)',
     find: "       set hp = (public.hr_vitals_of(v_s.user_id, v_s.slot) ->> 'max_hp')::int\n", replace: '       set hp = hp\n' },
   { arm: 'DEPLOY', name: '[deploy v0.2.32] a world of the shape the catalogue just replaced counts toward the forfeit again', fn: AI,

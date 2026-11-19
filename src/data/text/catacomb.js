@@ -66,7 +66,7 @@ export const CATACOMB_TEXT = Object.freeze({
   last_wing: 'Wing',
   last_rooms: 'Rooms cleared',
   last_rooms_value: '{from} to {to}',
-  last_keys: 'Keys',
+  last_keys: 'Keys earned',
   last_withheld: 'Key limit reached',
   last_not_dropped: '{count} not dropped',
   last_rank: 'Rank',

@@ -50,9 +50,9 @@
         "why": "lane/d-first-day-path: the Cellar's exit at Level 5 (hunt-grounds.js endsAtLevel, END_ORDER outgrown, combat-sim.js readLevels, the Warrens' soloFrom note), +2.3 KB"
       },
       {
-        "bytes": 3092143,
+        "bytes": 3083360,
         "on": "2026-11-19",
-        "why": "lane/d-harder-monsters (Tyler 2026-11-19, monsters a little harder) merged last on set/v0.2.142 10c476ce5: +8,896 bytes, all src/data the edge already reaches: the measured notes behind the step (balance-sheet.js), the three back-row spells and their notes (krells_hold, pyre_field, the_slake), the held spells' notes (ox_road, unmarked_catacombs), monsters.js rows, scaled-hunts.js"
+        "why": "lane/a-tower-andy, +113 B over the set's ceiling: hunt-rewards.js livingAt/fallsAt read the heroes alive at each kill, not at the swing's end (a hero who kills and falls in one swing journals the kill it was paid XP for; Andy's Tower forfeit 2026-11-19)"
       }
     ]
   }

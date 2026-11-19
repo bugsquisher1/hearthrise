@@ -85,7 +85,7 @@ const SEED = '-4611686018427387904';
    Jasper Rare (src/data/monsters.js) is a new item in the tally. glade-4, sewer-2 and the lone ranger hold. Proof: this lane's tree with origin/main's
    src/data/monsters.js laid back alone holds every pin (exit 0), so Steady and Focus (combat.js, damage.js) move none: no pinned hero wears them.
    RE-PINNED 2026-11-19 (lane/d-harder-monsters; Tyler 2026-11-19 "raise HP and damage done by all monsters in the game slightly"), DATA ONLY, A
-   BALANCE CHANGE MEANT TO MOVE THEM, pinned last on set/v0.2.142 (529f354ea, the tank runes in): all four scenarios move (kills against the set's pins: warrens-4
+   BALANCE CHANGE MEANT TO MOVE THEM, pinned last on set/v0.2.142 (10c476ce5): all four scenarios move (kills against the set's pins: warrens-4
    217 -> 198, glade-4 527 -> 488, glade-1-kite 143 -> 139, sewer-2 120 -> 113).
    Cause: src/data/balance-sheet.js STAT_FORMULA's blows and HP line x1.1 and
    XP a point x0.96, so every formula row on the pinned grounds (src/data/monsters.js, rewritten by tools/gen-ground-stats.mjs --write) has a tenth

@@ -987,7 +987,10 @@ async function loop4(S, M, tag, rows) {
 async function loop5(S, M, tag, rows) {
   const step = makeLoop('LOOP-5', rows);
   const p = makePlayer(S, `00000000-0000-4000-a500-${tag}00000005`);
-  const KIT = { weapon: 'rune_sword', helmet: 'rune_helm', body: 'rune_platebody' };
+  /* THE WHOLE RUNE SET (lane/d-harder-monsters, 2026-11-19: monsters a tenth harder). In three pieces (sword, helm, body: five slots bare) on shop
+     shrimp the hero fell at Krell's Hold after 2 h of the 12 (taken 67k an hour, healed 20k); in all seven rune pieces it hunts the 12 h to the
+     stamina end (1,517 kills). The loop is the day turning, not a bare-legged hero's luck. */
+  const KIT = { weapon: 'rune_sword', helmet: 'rune_helm', body: 'rune_platebody', pants: 'rune_platelegs', boots: 'rune_boots', gloves: 'rune_gauntlets', belt: 'rune_belt' };
   let day = null;
 
   await step(1, 'a Combat-99 character', async (t) => {

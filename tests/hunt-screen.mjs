@@ -1828,14 +1828,28 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
          wears the lock, can still be picked, and the sentence says why it will stay struck (art spec §5, §8). */
       const sp = await page.evaluate(() => ({ tab: (document.querySelector('.ca-tab[aria-selected="true"]') || { getAttribute: () => null }).getAttribute('data-tab'),
         rows: Array.from(document.querySelectorAll('.ca-run[data-run="spells"] .ca-row')).map((b) => ({ id: b.getAttribute('data-id'),
-          locked: b.classList.contains('is-locked'), lock: getComputedStyle(b.querySelector('.ca-lock')).display !== 'none' })) }));
+          locked: b.classList.contains('is-locked'), lock: getComputedStyle(b.querySelector('.ca-lock')).display !== 'none',
+          need: (b.querySelector('.ca-need-t') || {}).textContent || '' })) }));
       const firstLocked = sp.rows.findIndex((r) => r.locked);
       if (sp.tab !== 'spells') fails.push('HS-8 an empty slot opened on ' + sp.tab + ', not Spells');
       if (firstLocked < 1 || sp.rows.slice(firstLocked).some((r) => !r.locked) || sp.rows.some((r) => r.locked !== r.lock)) fails.push('HS-8 the Spells list is not castable first, then locked with the lock showing: ' + JSON.stringify(sp.rows));
       else {
-        await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + sp.rows[firstLocked].id + '"]');
-        const why = await wait(page, () => /^Requires an? \S.*$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
-        if (!why) fails.push('HS-8 a locked spell picked does not say which weapon casts it: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
+        /* a row locked by its WEAPON says which weapon casts it; one the weapon casts at a later LEVEL in its skill ("Melee 12": the tank's
+           Frost Slam and Shelter, lane/b-tank-runes) is no weapon problem: it says its unlock instead, and no weapon sentence */
+        const byWeapon = sp.rows.find((r) => r.locked && r.need && !/\d/.test(r.need)), byLevel = sp.rows.find((r) => r.locked && /\d/.test(r.need));
+        if (!byWeapon) fails.push('HS-8 no spell is locked by its weapon: ' + JSON.stringify(sp.rows));
+        else {
+          await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + byWeapon.id + '"]');
+          const why = await wait(page, () => /^Requires an? \S.*$/.test((document.querySelector('.ca-weapon') || {}).textContent || ''), null);
+          if (!why) fails.push('HS-8 a locked spell picked does not say which weapon casts it: ' + JSON.stringify(await page.evaluate(() => document.querySelector('.ca-weapon').textContent)));
+        }
+        if (byLevel) {
+          await page.click('.ca-run[data-run="spells"] .ca-row[data-id="' + byLevel.id + '"]');
+          const said = await wait(page, (need) => (document.querySelector('.ca-req') || {}).textContent.includes('Unlocks at ' + need + '.')
+            && ((document.querySelector('.ca-weapon') || {}).textContent || '') === '', byLevel.need);
+          if (!said) fails.push('HS-8 a spell its weapon casts at ' + byLevel.need + ' does not say its unlock, or blames the weapon: '
+            + JSON.stringify(await page.evaluate(() => [document.querySelector('.ca-weapon').textContent, document.querySelector('.ca-req').textContent])));
+        }
       }
       await page.click('.ca-tab[data-tab="food"]');
       const food = await page.$$eval('.ca-run[data-run="food"] .ca-list .ca-row', (n) => n.map((b) => ({ id: b.getAttribute('data-id'),
@@ -2253,6 +2267,9 @@ const MUTANTS = [
   ['the client fills an unset option with its own pick (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return v === undefined ? null : v === null ? 'nearest' : v;"],
   ['the gold to keep shows a client default while unset (HS-27)', 'src/session/hunt-sections.js', "  return Number.isSafeInteger(v) && v >= 0 ? v : null;\n}\n\nexport function analyzerOf", "  return Number.isSafeInteger(v) && v >= 0 ? v : 300;\n}\n\nexport function analyzerOf"],
   ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (sup && !(ownCount(a, bag) > 0)', '    if (false && sup && !(ownCount(a, bag) > 0)'],
+  /* lane/b-tank-runes: the shield casts Frost Slam at Melee 12; picked under it, Configure action says the unlock, never the weapon */
+  ['a spell its weapon casts later says nothing of its unlock (HS-8)', 'src/shell/action-facts.js', 'effect, unlock: unlockLine(r),', 'effect, unlock: null,'],
+  ['a spell its weapon casts later blames the weapon (HS-8)', 'src/shell/action-facts.js', "  if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';", "  if (!r || r.universal || (disc && r.disciplines.includes(disc) && !r.unlock)) return '';"],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],
   ['the gold to keep sends nothing', 'src/shell/widgets/settings-intent.js', ": { gold_floor: n };", ": null;"],

@@ -1582,8 +1582,11 @@ const { BASIC_SUPPLIES: RUNE_STORE } = await imp('src/data/supply-basics.js');
    eleventh rune spell lands in this forward file, the same create or replace.
    AREA SPELLS (lane/b-area-set, Tyler 2026-11-08: "our heros some more aoe spells", and the Healer's long-cooldown party heal): 2027-03-24-undertow-rune-spells is the
    file before this one and this one carries it (Undertow and every spell before it, unchanged); Hoarfrost on the Ice family and Spring Tide on the Water family land in
-   this forward file, the same create or replace. */
-const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-04-15-area-spells-rune-spells.generated.sql');
+   this forward file, the same create or replace.
+   THE TANK'S RUNE SPELLS (lane/b-tank-runes, Tyler 2026-11-19: "tanks should have rune spells that are tank spells"): 2027-04-15-area-spells-rune-spells
+   is APPLIED history and this forward file carries it (every spell before, unchanged); Frost Slam on the Ice family and Shelter on the Earth family,
+   both the shield's (their versions read Melee), land in it, the same create or replace. */
+const OUT_RUNE_SPELLS = join(ROOT, 'supabase', 'migrations', '2027-05-25-tank-runes-rune-spells.generated.sql');
 const runeSpells = {};
 for (const id of Object.keys(RUNE_ABILITIES).sort()) {
   const row = RUNE_ABILITIES[id];
@@ -1619,13 +1622,14 @@ const sqlRuneSpells = `-- ══════════════════
 -- WHAT THIS IS FOR. hr_hunt_rune_state (2027-02-21-hunt-carry-in.sql) and hr_hunt_rune_store_state + hr_hunt_slot_check
 -- (2027-03-08-rune-ladder-slots.sql), which hr_hunt_settings_view's \`usable\` reads: { ability: { skill,
 -- runes: { item: the level in that skill its version needs }, store: { store row: the level its version needs } } }.
--- Server-only. New in this file (lane/b-area-set, the area spells, Tyler 2026-11-08): Hoarfrost on the Ice family and
--- Spring Tide on the Water family, so a slot naming either with a rune of its family (carried, or the store's) is
--- accepted and read usable. Carried from 2027-03-24-undertow-rune-spells.generated.sql: Undertow (Tyler 2026-11-09) and
--- every spell before it; no other spell's runes or store rows move.
+-- Server-only. New in this file (lane/b-tank-runes, the tank's rune spells, Tyler 2026-11-19): Frost Slam on the Ice
+-- family and Shelter on the Earth family, both the shield's (their versions read MELEE: skill 'melee'), so a tank's slot
+-- naming either with a rune of its family (carried, or the store's) is accepted and read usable. Carried from
+-- 2027-04-15-area-spells-rune-spells.generated.sql (APPLIED): Hoarfrost, Spring Tide, Undertow and every spell before them;
+-- no other spell's runes or store rows move.
 --
--- APPLY ORDER: right after 2027-04-15-area-spells-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries
---              Hoarfrost and Spring Tide, and this file's self-check compares the two), before the hr-accrue deploy
+-- APPLY ORDER: right after 2027-05-25-tank-runes-hunt-sessions-catalogue.generated.sql (hr_hunt_abilities carries
+--              Frost Slam and Shelter, and this file's self-check compares the two), before the hr-accrue deploy
 --              and the client that offers the two spells. SAFE TO RE-RUN (create or replace).
 -- ══════════════════════════════════════════════════════════════
 

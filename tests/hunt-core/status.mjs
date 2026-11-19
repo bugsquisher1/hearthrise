@@ -5,6 +5,18 @@ const bleed = (M) => M.status.statusRow('bleed');
 const inst = (w) => ({ world: w, ground: null, grid: null, occ: null });
 const ticks = (sc) => sc.events.filter((e) => e.type === 'status_tick');
 
+/* A SLOWING ROW BY RUNE TIER (the tank rune spells, 2026-11-19: Chill 30 / 35 / 40 / 45 / 50%): a slowing row may carry tierPermille, never
+   one that falls or slows past 1000; a marking row never carries it (Green Sickness's mark is fixed, Bible §17). */
+function slowRows(M) {
+  const chill = M.status.statusRow('chill'), sick = M.status.statusRow('sickness');
+  const bad = (row, o) => M.statuses.validateStatus(Object.assign({}, row, o)).length > 0;
+  if (bad(chill, {})) return 'Chill with its tier list is refused: ' + M.statuses.validateStatus(chill);
+  if (!bad(chill, { tierPermille: [1000, 900] })) return 'a slowing tier list that falls passed';
+  if (!bad(chill, { tierPermille: [1000, 4000] })) return 'a slowing tier that slows past 1000 permille passed';
+  if (!bad(chill, { tierPermille: [] })) return 'an empty slowing tier list passed';
+  return bad(sick, { tierPermille: [1000, 1100] }) ? null : 'a marking status with a tier list passed';
+}
+
 const cases = {
   'statuses-valid': (M) => {
     const bad = M.statuses.validate();
@@ -14,7 +26,8 @@ const cases = {
     return refused({ everyMs: 1050 }, 'a tick off the sub-step grid passed')
       || refused({ tick: [3, 1] }, 'a tick range min > max passed')
       || refused({ tierPermille: [1000, 900] }, 'a tier that lowers the tick passed')
-      || refused({ maxStacks: 0 }, 'zero max stacks passed');
+      || refused({ maxStacks: 0 }, 'zero max stacks passed')
+      || slowRows(M);
   },
   /* ST-02 (DECIDED, week plan item 6): 5 stacks at most, whatever the sources. */
   'bleed-max-5': (M) => {
@@ -142,6 +155,10 @@ const mutants = [
     edits: [['src/core/hunt/status.js', 'if (st.next > 0 || st.left < 0) continue;', 'if (st.next > 0 || st.left <= 0) continue;']] },
   { name: 'the rune tier does not scale', case: 'scales-with-melee-and-tier',
     edits: [['src/core/hunt/status.js', ' * row.tierPermille[tier - 1]) / 1000);', ' * 1000) / 1000);']] },
+  { name: '[tank runes] a slowing tier list is never checked', case: 'statuses-valid',
+    edits: [['src/data/statuses.js', "    if (kind === 'slowPm' && row.tierPermille !== undefined) {", "    if (false) {"]] },
+  { name: '[tank runes] a marking status takes a tier list', case: 'statuses-valid',
+    edits: [['src/data/statuses.js', "    const own = kind === 'slowPm' ? ['tierPermille'] : [];", "    const own = ['tierPermille'];"]] },
   { name: 'the ruling drifts to 6 stacks', case: 'bleed-max-5',
     edits: [['src/data/statuses.js', 'durationMs: 6000, maxStacks: 5,', 'durationMs: 6000, maxStacks: 6,']] },
   { name: 'bleed deals ember', case: 'bleed-is-physical',

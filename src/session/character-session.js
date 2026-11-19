@@ -33,7 +33,7 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, withResidue } from './envelope.js?v=0.2.140';
+import { applyEnvelope, frameEnvelope, refusalEnvelope, withResidue } from './envelope.js?v=0.2.140';
 import { createTimeline } from '../hunt-view/timeline.js?v=0.2.140';
 import { LiveLink } from './live-link.js?v=0.2.140';
 import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.140';
@@ -45,8 +45,7 @@ import { AskPacer } from './ask-pacer.js?v=0.2.140';
 import { createIntentLedger } from './intent-ledger.js?v=0.2.140';
 import { ReadGate } from './read-gate.js?v=0.2.140';
 import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.140';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.140';
-import { quoted } from './quoted-ask.js?v=0.2.140';
+import { refusalOf, refusedByServer, settleRefusalOf } from './refusal.js?v=0.2.140';
 import { catchUpLink, newIdem } from './catch-up.js?v=0.2.140';
 import { pageAway } from './page-away.js?v=0.2.140';
 import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.140';
@@ -281,9 +280,7 @@ export class CharacterSession {
   async moveStorage(item, qty, dir) {
     if (this._closed || !ITEM.test(String(item)) || !Number.isSafeInteger(qty) || qty < 1 || qty > 1000000 || (dir !== 'deposit' && dir !== 'withdraw')) return { ok: false, error: 'bad_intent' };
     return this.intents.track('bank_move', async () => {
-      const r = await this._settled(await this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
-      if (!r.ok && r.error !== 'closed') await this.resync();   // the window held counts the server no longer has
-      return r;
+      return this._settled(await this._server.rpc('hr_bank_move', { p_slot: this.slot, p_item: item, p_qty: qty, p_dir: dir, p_idem: newIdem() }));
     });
   }
 
@@ -402,25 +399,25 @@ export class CharacterSession {
   }
 
   /* ── Services (lane S2): each sends the QUOTE the player was shown (the server's section price, never one of the client's own); the server
-     refuses `quote_changed` rather than charge another sum, and any refusal re-reads the hero first (quoted-ask.js): the next press is at its price. ── */
+     refuses `quote_changed` rather than charge another sum, and any refusal re-reads the hero first (_settled): the next press is at its price. ── */
 
   /** Buy the next stamina refill at the server's quoted price. */
   async buyStamina(quotedPrice) {
     if (this._closed || !Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
-    return this._ask('stamina_refill', quoted(this, () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() })));
+    return this._ask('stamina_refill', () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /** Buy one blessing tier at the server's quoted price (0 under the free level). */
   async buyBlessing(tier, quotedPrice) {
     if (this._closed || !Number.isInteger(tier) || tier < 1 || tier > 9 || !Number.isSafeInteger(quotedPrice) || quotedPrice < 0) return { ok: false, error: 'bad_intent' };
-    return this._ask('blessing_buy', quoted(this, () => this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() })));
+    return this._ask('blessing_buy', () => this._server.rpc('hr_blessing_buy', { p_slot: this.slot, p_tier: tier, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /** Activate a bestiary stage for one monster kind at the server's quoted fee (refused `quote_changed` otherwise). */
   async activateBestiaryStage(monster, stage, quotedFee) {
     if (this._closed || !ITEM.test(String(monster)) || !Number.isInteger(stage) || stage < 1 || stage > 4
       || !Number.isSafeInteger(quotedFee) || quotedFee < 0) return { ok: false, error: 'bad_intent' };
-    return this._ask('bestiary_activate', quoted(this, () => this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() })));
+    return this._ask('bestiary_activate', () => this._server.rpc('hr_bestiary_activate', { p_slot: this.slot, p_monster: monster, p_stage: stage, p_price: quotedFee, p_idem: newIdem() }));
   }
 
   /** Change this hero's name at the price the `rename` section quoted (Tyler 10-22: the first name is free,
@@ -430,7 +427,7 @@ export class CharacterSession {
     const n = String(name || '').trim().replace(/\s+/g, ' ');
     if (this._closed || n.length < 3 || n.length > 20) return { ok: false, error: 'bad_name' };
     if (!Number.isSafeInteger(quotedPrice) || quotedPrice < 1) return { ok: false, error: 'bad_intent' };
-    return this._ask('hero_rename', quoted(this, () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() })));
+    return this._ask('hero_rename', () => this._server.rpc('hr_hero_rename', { p_slot: this.slot, p_name: n, p_price: quotedPrice, p_idem: newIdem() }));
   }
 
   /** Wear an outfit (or null: the role's own look). ONE intent (hr_outfit_set): the server checks ownership; the window shows the
@@ -457,13 +454,16 @@ export class CharacterSession {
   /* ONE ASK, tracked (intent-ledger.js) from the send to the re-read envelope: the press shows it in flight (press-ack.js). */
   _ask(verb, send, carries) { return this.intents.track(verb, async () => this._settled(await send(), carries === true)); }
 
-  /* An intent's answer: on ok the screen shows the server's result. `carries`: the engine's body IS the whole envelope,
-     applied as it stands; refused by envelope.js, or any other answer: re-read, and a re-read that did not land is resync'd. */
+  /* An intent's answer: on ok the server's result (`carries`: the engine's body IS the whole envelope; else re-read, resync'd if that
+     did not land). REFUSED (A20, two tabs: the screen was behind): a refusal carrying the whole character is the record (envelope.js E7);
+     any other the server answered re-reads ONCE (read-gate.js); no answer, a closed door or a rate limit reads nothing (refusal.js). */
   async _settled(ans, carries) {
     if (this._closed) return { ok: false, error: 'closed' };
     /* below_range: the server admitted a hunt under its level floor (the floor is a warning, Tyler 10-18). */
     if (ans.ok && ans.body && ans.body.ok === true && ans.body.below_range === true) { await this.load(); return { ok: true, belowRange: true }; }
     if (ans.ok && ans.body && ans.body.ok === true) { if (!(carries && this._take(ans.body, 'load')) && !(await this.load())) await this.resync(); return { ok: true }; }
+    const restated = carries ? refusalEnvelope(ans.body) : null;
+    if (!(restated && this._take(restated, 'load')) && refusedByServer(ans)) await this.resync();
     return refusalOf(ans);   // the server's detail (slot, condition, field, item) back to the editor as sent
   }
 

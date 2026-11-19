@@ -43,6 +43,17 @@ export function refusalOf(ans) {
     reason: typeof b.reason === 'string' && /^[a-z_]{1,24}$/.test(b.reason) ? b.reason : null };
 }
 
+/**
+ * True when the server was reached and said no to the press: a Postgres verb's { ok:false } (HTTP 200) or the engine's (HTTP
+ * 409). The screen that sent it was behind the server (another tab, another hero, the server's clock), so the hero is re-read.
+ * Not a dropped network, a lost token, a closed door or a server error (no answer), nor a rate limit (nothing was written,
+ * the last envelope still stands; a re-read would feed the storm it guards). Pure.
+ */
+export function refusedByServer(ans) {
+  if (!ans || ans.closed || !ans.body || typeof ans.body !== 'object' || ans.body.ok !== false) return false;
+  return (ans.ok === true || ans.status === 409) && ans.body.error !== 'rate_limited';
+}
+
 /* A settle that paid nothing is NOT a refusal when it says why it waits: the window is under the town floor
    (below_min_span), under one action (nothing_accrued), already paid (replayed), or nothing runs (idle). */
 const SETTLE_WAITS = Object.freeze(['below_min_span', 'nothing_accrued', 'replayed', 'idle']);

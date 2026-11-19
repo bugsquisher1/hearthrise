@@ -45,7 +45,7 @@
 -- ── REVERSIBILITY ───────────────────────────────────────────────────────────
 -- Re-apply hr_hunt_stats_of §1 from 2026-11-10-hunt-xp-split.sql (its own §0 accepts
 -- only its pre-image or its image, so restate the body by hand from that file).
--- ORDER: after 2027-05-10-tally-catacomb-armor.generated.sql (last in the chain).
+-- ORDER: after 2027-05-11-party-alone.sql (last in the chain).
 -- No begin/commit.
 -- ════════════════════════════════════════════════════════════════════════
 

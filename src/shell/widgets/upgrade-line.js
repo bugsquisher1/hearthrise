@@ -23,11 +23,12 @@ import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.140';
 import { whyLine } from './why-line.js?v=0.2.140';
 
 /** This character's plan, from what the server sent (empty `ops` when nothing is better); a tie between armor weights
-    goes to the weight the hero chose at Tamsin's (the server's tally row), else the one it wears, else its role's. */
+    goes to the weight the hero chose at Tamsin's (the server's tally row), else the one it wears, else its role's, and
+    a worn piece moves only to the one chosen there (upgrade-plan.js weightFits). */
 export function upgradeOf(cs) {
   const lv = levelOf(cs), t = tallyOf(cs), eq = equipmentOf(cs) || {}, s = settingsOf(cs);
   return upgradePlan({ bag: bagOf(cs) || [], equipment: eq, skills: skillsOf(cs), level: lv ? lv.level : null,
-    prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });
+    chosen: t ? t.weight : null, prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });
 }
 
 /** The line's skeleton. */

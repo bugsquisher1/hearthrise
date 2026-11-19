@@ -217,6 +217,8 @@
   "ticker: \"too soon for one action\" reads as a refusal": "TK-7",
   "ticker: a bench runs past its \"N left\"": "TK-8",
   "ticker: a bench spends inputs the bag does not hold": "TK-8",
+  "ticker: a counted run's work line forgets what it has made": "TK-8d",
+  "ticker: a counted run's work line says the stock and that materials stop it": "TK-8d",
   "ticker: a dish that may burn is counted as cooked": "TK-9",
   "ticker: a hunter's town work ticks": "TK-6",
   "ticker: a payout does not restart the count (the old record is kept)": "TK-2",

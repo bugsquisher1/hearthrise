@@ -92,9 +92,9 @@ export async function loadCellRunner(root) {
     }
     return bag;
   };
-  const bandOf = (huntId) => {
+  const bandOf = (ground) => {
     const m = {};
-    for (const p of G.HUNT_GROUNDS[huntId].pockets) for (const s of (p.pack || []).concat(p.spawns)) {
+    for (const p of ground.pockets) for (const s of (p.pack || []).concat(p.spawns)) {
       for (const d of (MONSTERS[s.monster] || {}).drops || []) if (!m[d.id]) m[d.id] = d.band || (d.ch >= 0.05 ? 'common' : 'rare');
     }
     return m;
@@ -102,8 +102,13 @@ export async function loadCellRunner(root) {
 
   /** Play one cell; answers its measured metrics (per hero and per party). */
   function runCell(cell) {
-    const ground = G.HUNT_GROUNDS[cell.ground];
-    if (!ground) throw new Error('balance-sim: no ground ' + cell.ground);
+    /* cell.tower { floor }: A RUN (the Burning Tower, a Catacomb wing; tower-curve.mjs) from that floor, in the run ground's own session mode, as the
+       server runs it: an ended hero is settled no more, and the climb is ONE segment a seed (a death or a floor's time ends it, nothing re-enters).
+       Every encounter (one floor's room, pull to pull) is tagged with its floor: heroes[i].towerEnc [[floor, low HP %]], and the party's
+       tower { from, top, cleared [[floor, ms from the start]] }. A cell without it plays exactly as before. */
+    const run = cell.tower && Number.isInteger(cell.tower.floor) ? cell.tower : null;
+    const ground = run ? G.groundOfHunt(cell.ground) : G.HUNT_GROUNDS[cell.ground];
+    if (!ground || (run && ground.tower !== true)) throw new Error('balance-sim: no ' + (run ? 'run ' : '') + 'ground ' + cell.ground);
     /* cell.seats [{ role, style?, levelXp, skills { skill: xp }, equipment, bar, options, bag }]: REAL HEROES, seat by seat (calibrate.mjs:
        a recorded hunt's party as the server held it: its own XP, worn set, stored bar, hunt options and carried stock). Nothing is dressed
        or defaulted for such a seat: the kit rule, the reference bar and the supply policy stand aside. */
@@ -158,7 +163,7 @@ export async function loadCellRunner(root) {
     };
     /* the runner's own member keys (play-ground.mjs memberKey: seat order, as one player's heroes enter live) */
     const keys = roles.map((r, i) => play.memberKey(r, i));
-    const band = bandOf(cell.ground);
+    const band = bandOf(ground);
     /* skills: 'level' = every combat skill at the hero's Level (the harness default); or per seat { skill: level } */
     const startFor = (role, seat) => {
       if (cell.startBySeat) return { levelXp: cell.startBySeat[seat].levelXp, skills: { ...cell.startBySeat[seat].skills } };
@@ -173,8 +178,8 @@ export async function loadCellRunner(root) {
       rareItems: [], gear: {}, store: 0, buys: {}, uses: {}, deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [],
       xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {}, healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0,
       blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 }, drinks: { own: 0, store: 0 }, casts: {}, castGold: 0,
-      manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} }));
-    const P = { kills: 0, killsBy: {}, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
+      manaShots: 0, enc: [], towerEnc: [], close: 0, dips: 0, ttdClose: [], ended: {} }));
+    const P = { kills: 0, killsBy: {}, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0, ...(run ? { tower: { from: run.floor, top: null, cleared: [] } } : {}) };
     const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
     for (let seed = 0; seed < cell.seeds; seed++) {
       let left = cell.hours * 3600000, seg = 0;
@@ -184,17 +189,20 @@ export async function loadCellRunner(root) {
         const live = {};
         for (const h of H) live[h.key] = { unit: null, cur: null, max: null, enc: null, recent: [], at: T0, rate: 0 };
         let winFrom = T0;
+        /* a run's floor standing (or standing next): its start, then one past each floor the room's fall cleared */
+        let floorNow = run ? run.floor : null;
         const unitKey = {};
         const firstHit = {};
         const close = (h, x) => {
           if (!x.enc || x.max === null) return;
           const pct = (100 * x.enc.min) / x.max;
           h.enc.push(Math.round(pct * 10) / 10);
+          if (run) h.towerEnc.push([x.enc.floor, Math.round(pct * 10) / 10]);
           if (pct < CLOSE_PCT) { h.close++; h.ttdClose.push(x.enc.ttd); }
           if (pct < DIP_PCT) h.dips++;
           x.enc = null;
         };
-        const open = (x) => { x.enc = { min: x.cur, ttd: Infinity }; };
+        const open = (x) => { x.enc = { min: x.cur, ttd: Infinity, floor: floorNow }; };
         const lower = (x, at) => {
           if (!x.enc) open(x);
           if (x.cur < x.enc.min) {
@@ -215,6 +223,8 @@ export async function loadCellRunner(root) {
           const hp = [];
           for (const e of out.events || []) {
             if (e.type === 'pull') { P.pulls++; hp.push([e.atMs, null, 0]); continue; }
+            /* a run's floor cleared (tower.js towerCleared): the stair, kept in time order with the HP moves so a pull after it opens the next floor */
+            if (e.type === 'floor' && run) { hp.push([e.atMs, 'floor', e.floor]); P.tower.cleared.push([e.floor, e.atMs - T0]); P.tower.top = Math.max(P.tower.top ?? 0, e.floor); continue; }
             const tk = unitKey[e.t], uk = unitKey[e.u];
             switch (e.type) {
               case 'dmg': {
@@ -289,8 +299,9 @@ export async function loadCellRunner(root) {
           /* pass two: the HP each hero stood at through the window */
           const step = (x, at) => { if (x.rate > 0 && at > x.at) x.cur = Math.min(x.max, x.cur + x.rate * (at - x.at)); x.at = Math.max(x.at, at); };
           for (const [at, k, n] of hp) {
+            if (k === 'floor') { floorNow = n + 1; continue; }
             if (k === null) {
-              for (const h of H) { const x = live[h.key]; if (x.unit !== null && x.cur !== null) { step(x, at); close(h, x); open(x); } }
+              for (const h of H) { const x = live[h.key]; if (x.unit !== null && x.cur !== null && !x.done) { step(x, at); close(h, x); open(x); } }
               continue;
             }
             const x = live[k];
@@ -324,6 +335,8 @@ export async function loadCellRunner(root) {
               for (const [k, n] of Object.entries(dl.xpLost || {})) if (k !== 'level') h.xpLostSkill[k] = (h.xpLostSkill[k] || 0) + n;
             }
             if (hu.ended) h.ended[hu.ended.reason] = (h.ended[hu.ended.reason] || 0) + 1;
+            /* a run's ended hero is settled no more (dropEnded): it opens no later floor's encounter */
+            if (hu.ended && run) x.done = true;
             /* the engine's HP at the window's end: the anchor for the next window */
             if (Number.isInteger(d.hp) && !hu.ended) { x.cur = d.hp; if (x.enc) x.enc.min = Math.min(x.enc.min, x.cur); }
           }
@@ -351,11 +364,13 @@ export async function loadCellRunner(root) {
         if (cell.temper) opts.temper = cell.temper;
         /* a what-if on the ground's own row (respawnMs, pockets ...): a copy, never the frozen table */
         if (cell.groundPatch) opts.ground = { ...ground, ...cell.groundPatch };
+        if (run) Object.assign(opts, { ground: opts.ground || ground, sessionMode: ground.mode, tower: { floor: run.floor }, dropEnded: true });
         const res = play.run(cell.ground, levels.length > 1 ? levels : levels[0], roles, opts);
         for (const h of H) close(h, live[h.key]);
         const played = Math.max(res.playedMs, 60000);
         P.hours += played / 3600000; P.segments++;
         left -= played; seg++;
+        if (run) break;
       }
     }
     return summarise(cell, H, P, ground);
@@ -405,6 +420,8 @@ export async function loadCellRunner(root) {
         /* the raw totals a career run carries into its next chunk (gains, and what deaths took back) */
         raw: { levelXp: h.levelXp, skillXp: h.skillXp, xpLostLevel: h.xpLostLevel, xpLostSkill: h.xpLostSkill, coin: h.coin,
           income, store: h.store, rares },
+        /* a run's encounters, each its floor and its low HP % (0: the hero fell there) */
+        ...(P.tower ? { towerEnc: h.towerEnc } : {}),
       };
     });
     const hours = P.hours || 1e-9;
@@ -418,7 +435,8 @@ export async function loadCellRunner(root) {
         rareRolls: P.rareRolls, rareWins: P.rareWins, rareGini: gini(wins),
         levelXpPerHeroPerH: round(heroes.reduce((s, h) => s + (h.levelXpPerH || 0), 0) / heroes.length, 0),
         createdPerH: round(heroes.reduce((s, h) => s + h.incomePerH + h.raresPerH, 0), 0),
-        destroyedPerH: round(heroes.reduce((s, h) => s + h.storePerH, 0), 0) },
+        destroyedPerH: round(heroes.reduce((s, h) => s + h.storePerH, 0), 0),
+        ...(P.tower ? { tower: P.tower } : {}) },
       heroes,
     };
   }

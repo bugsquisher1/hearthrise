@@ -27,6 +27,20 @@
 //   fit             the stat formula's fit for every Tower room (balance-sheet.js STAT_FORMULA.fit): one difficulty for one hero or four
 //   minLevel        the Level a hero, and every seat of its party, needs to start a climb (Tyler 2026-11-18: "A minimum level to enter the
 //                   tower"; hr_tower_start, the envelope's entry_gates.tower). The evidence: 2027-05-05-entry-gates.sql's header
+//   heat            PAST `from` THE FIRE BURNS HOTTER (designer 2026-11-19, lane/d-tower-curve): every floor above it is the formula at its
+//                   Level with its blows x(1 + perFloorPm/1000) a floor, compounding (src/core/hunt/tower.js towerHeatPm). Only the blows: HP,
+//                   defense, to-hit and kill XP stay the formula's, so a floor takes as long and pays what it did, and the server's per-floor
+//                   bound (hr_tower_floors) doesn't move. A Keeper's blow keeps the boss role's cap. WHY: Andy, live 2026-11-19, a Level 74
+//                   four, 1 to 182 in 52 minutes: "Everything between floor 100 > 170 felt the same. I was mid yellow at worse, then the last
+//                   floor or two i started getting into red, then died pretty quickly." The formula grows by Levels on a straight line (a blow
+//                   is a share of 150 + 10 HP a Level), so a band of ten floors hits 16% harder than the one below at floor 70, 9% at 100 and
+//                   4-8% from 150 (the rooms' summed max hits), while the healer's output is one fixed number: past 100 the bands blur, the
+//                   healer soaks the growth, and the climb ends the first time a long fight (a Keeper's landing) outruns it. At 10 a floor
+//                   every band past 100 hits 15-19% harder than the one below. Measured on his four's recorded seats (tools/balance-sim/
+//                   tower-curve.mjs, 8 climbs from floor 1; the board's "2026-11-19 The Tower's curve"): before, 159-184 (he reached 182) with
+//                   the typical low 69% at 101-110 and still 50% at 131-140; at 10, 129-151 with 69 / 54 / 47 / 37%, and the climbs end over
+//                   four bands, not two. `from` is 100: the first Platinum landing, inside today's last ground (Krell's Hold, 85-110), so
+//                   floor F still fights like a Level F ground wherever a ground exists. When a region past 110 opens, move `from` up with it
 //
 // TOWER_PARTY_XP: a kill's Level XP, in permille, shared by the heroes alive at it (xp-share.js reads it itself; the one hunting table,
 //   party-class-xp.js, never names the Tower): a hero alone takes the plain kill (no +15%: the solo boost keeps hunting alone up with a party, and in the Tower the
@@ -48,6 +62,7 @@ export const TOWER_RULES = Object.freeze({
   floorTop: 300,
   fit: 'both',
   minLevel: 10,
+  heat: Object.freeze({ from: 100, perFloorPm: 10 }),
 });
 
 export const TOWER_PARTY_XP = Object.freeze({ 1: 1000, 2: 1100, 3: 1200, 4: 1300 });
@@ -65,6 +80,15 @@ export function validateTower(rules, partyXp, swingMs) {
   if (Number.isInteger(rules.stairMs) && Number.isInteger(swingMs) && rules.stairMs < 2 * swingMs) out.push('stairMs is under two engine swings, so a floor\'s rows could change inside the swing it was cleared in');
   if (Number.isInteger(rules.floorLimitMs) && Number.isInteger(rules.landingLimitMs) && rules.landingLimitMs < rules.floorLimitMs) out.push('a landing gets less time than a floor');
   if (!['both', 'party'].includes(rules.fit)) out.push('fit is not both or party');
+  /* the heat: a landing to start from, under the top, and a step a floor a room can carry to the top (HP and XP stay exact whole numbers:
+     1.05 to the 300th is about 2.3 million, the most this allows) */
+  const h = rules.heat;
+  if (!h || typeof h !== 'object') out.push('heat is no row');
+  else {
+    if (!Number.isInteger(h.from) || h.from < 0 || (Number.isInteger(rules.landingEvery) && h.from % rules.landingEvery) || (Number.isInteger(rules.floorTop) && h.from >= rules.floorTop)) {
+      out.push('heat.from is not a landing under the top (or 0)'); }
+    if (!Number.isInteger(h.perFloorPm) || h.perFloorPm < 0 || h.perFloorPm > 50) out.push('heat.perFloorPm is not a whole permille 0..50');
+  }
   const sizes = Object.keys(partyXp || {}).map(Number).sort((a, b) => a - b);
   if (sizes.join(',') !== '1,2,3,4') out.push('the party row is not one cell for each of 1 to 4 heroes');
   let prev = 0;
@@ -106,6 +130,8 @@ export const CATACOMB_RULES = Object.freeze({
   floorTop: 300,
   fit: 'both',
   minLevel: 10,
+  /* the Tower's own heat: one bound table serves every run (tools/gen-tower.mjs), so a room of a wing pays what the Tower's floor pays */
+  heat: TOWER_RULES.heat,
 });
 
 export const CATACOMB_WINGS = Object.freeze([

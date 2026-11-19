@@ -44,6 +44,10 @@
 //        a view that draws a held sheet waits for it, a shadow falling off it does not (v0.2.97); a failed sheet, a read that never
 //        answers and a sheet whose decode() never settles (v0.2.106) do not hold it shut (judged under a 10-minute hold, so never by the
 //        limit); a view sheet that never comes (report #81) keeps it shut under SHEET_HOLD_MS and opens it, with placeholders, after. Its pixels: PB-VIEW
+//   B-22 THE FACTION LOOKS COME WITH THE HERO WHO WEARS ONE (v0.2.142: `factionwear` loaded for everyone): a hero in colors and no
+//        faction look fetches no file of the worn set (its manifest, sheet or masks) on the characters screen, in town, in the
+//        Character window or its Outfit tab; the same hero puts the Flamebearer on (an envelope) and the World fetches the set and
+//        draws the hero from it, no hero ever a stub box on the way (src/world/worn-sets.js, src/data/world/atlas-sets.js WORN_SETS)
 //   B-15 A SESSION THAT ENDS WHILE THE TOWN PREWARM RUNS STOPS IT (v0.2.71 merge; run 41045835796: 6 sheets):
 //        signed out with the atlas manifests still held, the page asks for no sheet afterwards
 //   B-17 "WHILE YOU WERE AWAY" IS WRITTEN ON THE WAY OUT (beta cost 11-01: a put a minute per hero): a hunt on screen with a young
@@ -251,14 +255,26 @@ async function stubServer(page, o) {
         return r.fulfill({ contentType: 'application/json', body: JSON.stringify(name === 'hr-accrue' ? Object.assign({ accrued: true }, b) : b) });
       }
     }
-    if (url.endsWith('/rpc/hr_load')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(o.hunt ? Object.assign({}, HUNT, { version: 1 }) : envelope(body.p_slot, 1)) });
-    if (url.split('?')[0].endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2))) });
+    /* B-22: what the hero wears ({ worn, base, owned }, the `outfit` section), when a case names it */
+    const worn = o.outfit ? { outfit: o.outfit } : undefined;
+    if (url.endsWith('/rpc/hr_load')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(o.hunt ? Object.assign({}, HUNT, { version: 1 }) : envelope(body.p_slot, 1, worn)) });
+    if (url.split('?')[0].endsWith('/functions/v1/hr-accrue')) return r.fulfill({ contentType: 'application/json', body: JSON.stringify(Object.assign({ accrued: true }, o.hunt ? Object.assign({}, HUNT, { version: 2 }) : envelope(body.slot, 2, worn))) });
     return r.fulfill({ contentType: 'application/json', body: JSON.stringify({ ok: true }) });
   });
   await pinFonts(page);
 }
 
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
+/* a window by its hotkey, every open one closed first: true once it is built */
+async function openPane(page, key, id) {
+  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) {
+    await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(160);
+  }
+  await page.keyboard.press(key);
+  return wait(page, (w) => document.querySelector('[data-hs-win="' + w + '"] [data-hs-built]'), id, 3000);
+}
 /* wait, for a page that reloads itself: a navigation under a waitForFunction answers false at once. */
 const until = async (page, fn, arg, ms = 60000) => {
   for (const end = Date.now() + ms; Date.now() < end; await new Promise((k) => setTimeout(k, 200))) {
@@ -885,6 +901,61 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       else if (!during.includes(TOWN_NAME)) fails.push('B-12 the World showed "' + during + '" while the cellar\'s sheet (' + added.join() + ') was still on its way');
       else if (!after) fails.push('B-12 the cellar never showed after its sheet arrived (title: ' + await title() + ')');
       if (errors.length) fails.push('B-12 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+
+    { // B-22 the faction looks come with the hero who wears one (v0.2.142, src/world/worn-sets.js): none of `factionwear` before, drawn after
+      const BASE = { head: 1, body: 2, legs: 3, feet: 4 };
+      const o = { outfit: { worn: null, base: BASE, owned: [] } };
+      const { ctx, page, errors } = await fresh(o);
+      /* every file of the worn set asked for (its manifest, its sheet, its masks), by name */
+      const fw = [];
+      page.on('request', (q) => { const m = /\/assets\/world\/(atlas-factionwear[a-z-]*\.(?:json|png))/.exec(q.url()); if (m) fw.push(m[1]); });
+      /* the World's runtime on window.__world (read-only: its stats()) */
+      let exposed = false;
+      await page.route('**/src/app/world-pane.js*', async (r) => {
+        const res = await r.fetch(), body = await res.text(), out = body.replace('    runtime.sync();\n', '    runtime.sync();\n    window.__world = runtime;\n');
+        exposed = out !== body;
+        return r.fulfill({ response: res, body: out });
+      });
+      await page.goto(base + '/play.html', { waitUntil: 'load' });
+      await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+      await page.fill('input[name=email]', 'qa@example.test');
+      await page.fill('input[name=password]', 'not-a-real-password');
+      await page.click('.auth-submit');
+      /* the characters screen draws the hero's figure in its colors (src/app/roster-faces.js: the hero sheet and its masks) */
+      const faced = await wait(page, () => document.querySelector('canvas[data-face="0"][data-drawn="outfit_knight"]'), null, 15000);
+      await page.click('[data-app="play"][data-slot="0"]');
+      const inTown = await wait(page, () => window.__world && document.querySelector('#panel-world[data-slot="0"] .world-stage canvas')
+        && !document.querySelector('#panel-world[data-slot="0"] .world-status'), null, 20000);
+      /* the Character window: the portrait, then the Outfit tab's every card (the factions are off: no faction card) */
+      let cards = false;
+      if (await openPane(page, 'c', 'character')) {
+        await page.click('[data-hs-win="character"] .hw-tab[data-tab="outfit"]');
+        cards = await wait(page, () => document.querySelectorAll('[data-hs-win="character"] [data-hs-act="of-pick"] canvas[data-sig]').length >= 3, null, 8000);
+        await page.keyboard.press('Escape');
+      }
+      await page.waitForTimeout(800);
+      const before = fw.slice();
+      /* the same hero puts the Flamebearer on: the next envelope says so */
+      o.outfit = { worn: 'flamebearer', base: BASE, owned: ['flamebearer'] };
+      await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 20, env }, 'frame'), [UID, envelope(0, 20, { outfit: o.outfit })]);
+      let stub = null, seen = null;
+      for (let i = 0; i < 200; i++) {
+        seen = await page.evaluate(() => { const s = window.__world.stats(); return { hero: s.walk && s.walk.hero ? s.walk.hero.id : null, stubbed: s.stubbed }; });
+        if (seen.stubbed.some((id) => /^outfit_/.test(id))) stub = stub || seen;
+        if (seen.hero === 'outfit_flamebearer' && fw.includes('atlas-factionwear.png')) break;
+        await page.waitForTimeout(50);
+      }
+      await page.waitForTimeout(300);
+      seen = await page.evaluate(() => { const s = window.__world.stats(); return { hero: s.walk && s.walk.hero ? s.walk.hero.id : null, stubbed: s.stubbed }; });
+      if (!exposed) fails.push('B-22 harness: world-pane.js was served without its runtime.sync() line, so the World could not be read');
+      else if (!faced || !inTown || !cards) fails.push('B-22 harness: the hero was not shown (roster face ' + faced + ', town ' + inTown + ', Outfit cards ' + cards + ')');
+      else if (before.length) fails.push('B-22 a hero in no faction look fetched ' + [...new Set(before)].join(', ') + ' (characters screen, town and Character window): every player would download the faction looks');
+      else if (!['atlas-factionwear.json', 'atlas-factionwear.png'].every((f) => fw.includes(f))) fails.push('B-22 the hero put the Flamebearer on and the World fetched only ' + (fw.join(', ') || 'nothing') + ' of its set');
+      else if (seen.hero !== 'outfit_flamebearer' || seen.stubbed.includes('outfit_flamebearer')) fails.push('B-22 the hero in the Flamebearer is not drawn from its sheet: ' + JSON.stringify(seen));
+      else if (stub) fails.push('B-22 a hero was drawn as a stub box while the Flamebearer was on its way: ' + JSON.stringify(stub));
+      if (errors.length) fails.push('B-22 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
 
@@ -1594,6 +1665,8 @@ const MUTANTS = [
   ['the World downloads every sheet on Play', 'src/world/world-boot.js', '    const sets = await setsOf(id);\n    if (!viewSheets.opensOnView(id)) await sheets.ensure(sets);',
     '    await setsOf(id);\n    await sheets.ensure(Array.from(new Set(Object.keys(book.sprites).map((sid) => book.frame(sid).set))));'],
   ['the town waits for all its sheets again (B-21)', 'src/world/world-boot.js', '    if (!viewSheets.opensOnView(id)) await sheets.ensure(sets);', '    await sheets.ensure(sets);'],
+  ['every hero fetches the faction looks again (B-22)', 'src/world/world-boot.js', '    const own = worn.ensure([heroSprite(character)]);', "    const own = worn.ensure(['outfit_flamebearer']);"],
+  ['a hero who puts on a faction look is drawn before its set is in (B-22)', 'src/world/world-boot.js', 'heroSprite: () => worn.hero(heroSprite(character)),', 'heroSprite: () => heroSprite(character),'],
   ['the first view asks before the server names its stand (B-21)', 'src/world/view-sheets.js', 'if (!waited && town && !town.placeOn(now.id)) {', 'if (false) {'],
   ['the sheets behind the view are never asked for (B-21)', 'src/world/view-sheets.js', '    sheets.ensure(needs.get(id));\n', ''],
   ['a frame asks for the sheets of the town start while the first view waits for its stand (B-21)', 'src/world/view-sheets.js', 'const held = (id, cast) => (opening ? opensOnView(id) : check(id, cast));', 'const held = check;'],

@@ -87,7 +87,11 @@ export function huntRows() {
       /* A ground with a hall built for a party (a forParty pocket: the Rat King) is a PARTY ground to the advice,
          whatever its workbook column says (Tyler 2026-10-21: "The Sewer is a party hunt"): its fight is
          built for a party, so a lone hero is never pointed at it and is told it is best with one. */
-      hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
+      /* A GROUND WITH AN EXIT (hunt-grounds.js endsAtLevel: the Mill Cellar's hunt ends at Level 5): its band's top reads the Level under the
+         exit, so the list, the advice and the summary's next ground never hold a Level the server would refuse it at. */
+      hunt: g.hunt, name: h.name, theme: h.theme || '',
+      band: Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice(),
+      endsAt: Number.isInteger(g.endsAtLevel) ? g.endsAtLevel : null,
       groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
       soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,
       partyBest: partyBestOf(g.id),
@@ -208,10 +212,13 @@ export function shareWords(r, party, myLevel) {
  * harder a hero alone dies more on Wickstead's Deadly, and a mixed pair's line there read 0 (was -5): at ">= 0" the highest floor that broke even
  * took a pair at 8-15 off the Sewer, where the same pair earns +10 to +15 (tests/hunt-floor-warning.mjs G4, G8). Breaking even is no reason to send
  * a party anywhere; Tyler 2026-11-16's ">= the same heroes alone" is the bar the harder tiers are tuned to, not where the advice sends a party.
+ * ALONE FROM ITS soloFrom (hunt-grounds.js; the board's 2026-11-19 complete balance look, change 8): a party ground suits a hero alone at `level`
+ * (the hero's own, the server's) from the Level its row measures a lone hero safe there, so the advice stops holding a lone hero on the Glade from
+ * 32 to 44 while the Warrens sit unadvised. Without a Level, never.
  */
-export function fitsGroup(r, partySize) {
+export function fitsGroup(r, partySize, level = null) {
   const n = Number(partySize) || 1;
-  if (n < 2) return r.groupFit !== 'party';
+  if (n < 2) return r.groupFit !== 'party' || (Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom);
   const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;
   return Number.isInteger(best) && best > 0;
 }
@@ -247,7 +254,7 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
   if (!lv.length) return { row: rows[0] || null, note: null };
   const lo = Math.min(...lv), hi = Math.max(...lv);
   const holds = (r, from, to) => r.band[0] <= from && to <= r.band[1];
-  const fit = rows.filter((r) => fitsGroup(r, partySize));
+  const fit = rows.filter((r) => fitsGroup(r, partySize, lo));
   const sure = best(fit.filter((r) => holds(r, lo, hi))) || best(fit.filter((r) => holds(r, lo, lo)));
   if (sure) return { row: sure, note: null };
   const alone = (Number(partySize) || 1) < 2;
@@ -255,7 +262,7 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
   if (below) {
     /* NO GROUND IS SOLO OR PARTY TO THE PLAYER (Tyler 2026-11-08: "So some of those are solo only and party only? That isn't really matching up
        with how we are planning the game"): the note says where the Levels are and what the tough ground costs, never who it is for. */
-    const inBand = best(rows.filter((r) => !fitsGroup(r, partySize) && holds(r, lo, lo)));
+    const inBand = best(rows.filter((r) => !fitsGroup(r, partySize, lo) && holds(r, lo, lo)));
     const easier = { easier: below.name, lo: below.band[0], hi: below.band[1] };
     if (!inBand) return { row: below, note: [t('hunts.no_ground', { levels: levelsWords(lo, hi) }), t('hunts.nearest_below', { ground: below.name, lo: below.band[0], hi: below.band[1] })].join(ADVICE) };
     const levels2 = holds(inBand, lo, hi) ? levelsWords(lo, hi) : levelsWords(lo, lo);
@@ -353,6 +360,8 @@ export function bestLine(bests, hunt) {
  */
 export function fitWords(r, level) {
   if (!Number.isInteger(level)) return null;
+  /* A GROUND THIS HERO HAS OUTGROWN (its endsAt: the server refuses it, 2027-05-28-cellar-outgrown.sql) */
+  if (Number.isInteger(r.endsAt) && level >= r.endsAt) return { words: t('hunts.fit_outgrown'), tone: 'below' };
   if (rangeWords(r, level)) return r.band[0] - level < FAR_UNDER_LEVELS ? { words: t('hunts.fit_above'), tone: 'above' } : { words: t('hunts.fit_far'), tone: 'far' };
   return level > r.band[1] ? { words: t('hunts.fit_below'), tone: 'below' } : { words: t('hunts.fit_in'), tone: 'in' };
 }

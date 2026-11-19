@@ -146,8 +146,9 @@ const MUTATIONS = {
   },
   emit_site_dropped: {
     what: 'the not-accrued boot response stops carrying the count', file: 'index', expect: 'C4',
-    find: '        ...(bestiary ? { bestiary } : {}),\n        ...(collection ? { collection } : {}),\n        ...(Array.isArray((env',
-    repl: '        ...(bestiary ? { bestiary } : {}),\n        ...(Array.isArray((env',
+    /* the not-accrued boot response's own emit (re-anchored 2026-11-19: the edge trim cut the field that followed the collection spread) */
+    find: '      return await respond({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,\n        ...(bestiary ? { bestiary } : {}),\n        ...(collection ? { collection } : {}) });',
+    repl: '      return await respond({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,\n        ...(bestiary ? { bestiary } : {}) });',
   },
   control_comment_only: {
     what: 'NEGATIVE CONTROL — an inert comment inside the lifted read', file: 'index', expect: null,

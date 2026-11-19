@@ -23,7 +23,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.141';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { itemIconHtml, actionIconHtml } from '../widgets/bits.js?v=0.2.141';
+import { itemIconHtml, actionIconHtml, factionIconHtml } from '../widgets/bits.js?v=0.2.141';
+import { factionOf } from '../../session/faction-sections.js?v=0.2.141';
+import { sideName } from '../faction-words.js?v=0.2.141';
 import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.141';
 import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.141';
 import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.141';
@@ -57,7 +59,8 @@ const asked = new Set();
 export function detailHtml() {
   return '<header class="hw-hd-head">'
     + '<h3 class="hw-hd-name"></h3><p class="hw-hd-band"><span class="hw-hd-levels"></span>' + sepHtml('hw-hunt-sep', true) + '<span class="hw-hunt-fit"></span></p>'
-    + '<p class="hw-hd-who"></p><div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
+    + '<p class="hw-hd-who"></p><p class="hw-hd-side" hidden><span class="hw-fx-mark" aria-hidden="true"></span><span class="hw-hd-side-name"></span></p>'
+    + '<div class="hw-hd-events"></div><p class="hw-hunt-warn"></p></header>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_lives') + '</h4><ul class="hw-hd-lineup" aria-label="' + t('hunts.head_lives') + '"></ul><p class="hs-note hw-hd-casts" hidden></p><p class="hs-note hw-hd-bigpull" hidden></p>'
     /* the ground's words under who lives there: on a short screen the first row of creatures shows whole (Tyler 2026-11-11) */
     + '<p class="hw-hd-theme"></p>'
@@ -198,6 +201,13 @@ export function patchGround(det, ctx, r, o) {
   prop(band.querySelector('.hw-hunt-sep'), 'hidden', !fitWordsShown);
   attr(fitEl, 'data-tone', fit ? fit.tone : null);
   text(det.querySelector('.hw-hd-who'), heroWords(r));
+  /* THE SIDE THIS GROUND PAYS STANDING TO (the hunt row's standingFor; the faction QA 2026-11-19 #9), its mark and name, only while the
+     server sends this hero the `factions` section */
+  const pays = factionOf(ctx.character) && HUNT_INDEX[r.hunt] ? HUNT_INDEX[r.hunt].standingFor || null : null;
+  const sideEl = det.querySelector('.hw-hd-side'), mark = sideEl.querySelector('.hw-fx-mark');
+  prop(sideEl, 'hidden', !pays);
+  text(sideEl.querySelector('.hw-hd-side-name'), pays ? t('factions.ground_side', { side: sideName(pays) }) : '');
+  if (mark.getAttribute('data-for') !== (pays || '-')) { mark.innerHTML = pays ? factionIconHtml(ctx.glyphs, pays) : ''; attr(mark, 'data-for', pays || '-'); }
   /* A live event that reaches this ground, the server's (live-events-view.js): nothing at all while every switch is off. */
   rows(det.querySelector('.hw-hd-events'), groundLines(ctx.character, r.hunt), {
     key: (l) => l.id,

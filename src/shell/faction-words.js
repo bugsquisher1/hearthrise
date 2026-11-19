@@ -11,7 +11,7 @@ import { hoursWords } from '../render/format.js?v=0.2.141';
 import { factionOf } from '../session/faction-sections.js?v=0.2.141';
 
 const DAY_MS = 86400000;
-const VERBS = Object.freeze(['faction_join', 'faction_swap_start', 'faction_swap_finish', 'faction_outfit_claim']);
+const VERBS = Object.freeze(['faction_join', 'faction_swap_start', 'faction_swap_finish', 'faction_swap_cancel', 'faction_outfit_claim']);
 const num = (v) => Number.isSafeInteger(v) && v >= 0;
 
 /** The names a line may say, from the one row each. */

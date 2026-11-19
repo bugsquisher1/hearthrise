@@ -262,6 +262,12 @@ function server(M, mis, o) {
   /* `o` (tests/hunt-scene-live.mjs LV-9): another ground, instance id and start instant */
   const hunt = (o && o.hunt) || 'mill_cellar', t0 = (o && o.t0) || T0;
   const where = M.HG.huntGroundOf(hunt);
+  /* A GROUND WITH AN EXIT (hunt-grounds.js endsAtLevel: the Mill Cellar's hunt ends `outgrown` at Level 5, lane/d-first-day-path): these rules
+     stand their heroes there with skills at Level 6 to 40, so each hero's Level XP stands at the bottom of the Level under the exit, its skills
+     as the rule set them (a yard-trained hero: Level XP comes from kills only), and the hunt plays as it always did. The exit is LV-OUTGROWN's
+     subject (o.exit: the heroes keep the Level the rule gave them). A scaled instance plays at its leader's Level and has no exit. */
+  const exitAt = where && Number.isInteger(where.ground.endsAtLevel) && !(o && (o.exit || o.scale)) ? where.ground.endsAtLevel : null;
+  if (exitAt !== null) for (const mi of mis) if (M.XP.charLevelFromXp(mi.levelXp) >= exitAt) mi.levelXp = M.XP.charXpForLevel(exitAt - 1);
   const inst = { id: (o && o.id) || 'i-live', hunt, world: null, settled_to_ms: t0, next_swing_at_ms: t0, world_swing: 0, secret: SECRET };
   /* LV-SCALE: the server's scale of this instance (hunt-settle.js scalePlanOf's `play`; the hours never run out here) */
   inst.play = { level: (o && o.scale) || null, restart: false, stopMs: Infinity };
@@ -1760,6 +1766,34 @@ function rules(M) {
     ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
     ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
   }
+  { /* LV-OUTGROWN THE MILL CELLAR ENDS ITS HUNT AT LEVEL 5, viewed and with the browser closed (the board's 2026-11-19 complete balance look,
+       change 1; hunt-grounds.js endsAtLevel): a lone tank twenty rats under the exit. Browser closed: the server's 16 s commits end it `outgrown`
+       with the hero at the exit's Level, and one ten-minute commit ends it at the same instant (the XP is stored, so a cut between the kill
+       and the end moves nothing). Viewed: every commit before the end matches the prediction, and the browser's engine stops there too. */
+    const exit = M.HG.huntGroundOf('mill_cellar').ground.endsAtLevel;
+    const hero = () => Object.assign(memberOf(M, 'a', 0, 'tank', exit - 1), { levelXp: M.XP.charXpForLevel(exit) - 20 * M.MONSTERS.rat.xp });
+    const mi = hero();
+    const srv = server(M, [mi], { exit: true });
+    const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+    E.seed(srv.live(mi.user, 0));
+    const verdicts = []; let end = null, lv = null;
+    for (let t = T0; t <= T0 + 20 * 60000 && !end; t += 100) {
+      E.advance(t, () => {});
+      if ((t - T0) % 16000 === 0 && t > T0) {
+        const c = srv.commit(t);
+        if (!c) continue;
+        if (c.ends.length) { end = c.ends[0]; lv = M.XP.charLevelFromXp(mi.levelXp); } else verdicts.push(E.reconcile(c.check));
+      }
+    }
+    const one = hero(), longSrv = server(M, [one], { exit: true }), long = longSrv.commit(T0 + 20 * 60000);
+    const longEnd = long && long.ends.length ? long.ends[0] : null;
+    const off = verdicts.filter((v) => v !== 'match');
+    console.log('  LV-OUTGROWN: browser closed, ' + JSON.stringify(end) + ' at Level ' + lv + ' (one long commit: ' + JSON.stringify(longEnd) + '); viewed, '
+      + verdicts.length + ' commits before it, ' + off.length + ' off, the browser ended ' + E.ended());
+    ok('LV-OUTGROWN', !!end && end.reason === 'outgrown' && lv >= exit, 'browser closed: a tank twenty rats under Level ' + exit + ' in the Cellar ended ' + JSON.stringify(end) + ' at Level ' + lv + ', want outgrown at ' + exit);
+    ok('LV-OUTGROWN', !!end && !!longEnd && longEnd.reason === end.reason && longEnd.at === end.at, 'browser closed: one long commit ended ' + JSON.stringify(longEnd) + ', 16 s commits ' + JSON.stringify(end));
+    ok('LV-OUTGROWN', verdicts.length >= 3 && off.length === 0 && E.ended(), 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction, the browser ended ' + E.ended());
+  }
   { /* LV-YARD the yard never ends for no blows (Tyler 2026-11-16), viewed and with the browser closed */
     const SPAN = (M.HSD.NO_FIGHT_END_MIN + 2) * 60000;
     for (const [hunt, role, skill, weapon] of [['training_yard_ranged', 'ranger', 'ranged', 'shortbow'], ['training_yard_magic', 'mage', 'magic', 'apprentice_wand']]) {
@@ -1799,7 +1833,7 @@ function rules(M) {
     const SPAN = 240000;
     const cast = { mixed: ['tank', 'ranger'], same: ['tank', 'melee_dps'] };
     for (const [name, roles] of Object.entries(cast)) {
-      const heroes = () => roles.map((r, i) => memberOf(M, 'ab'[i], i, r, 6));
+      const heroes = () => roles.map((r, i) => memberOf(M, 'ab'[i], i, r, 4));   // under the Cellar's exit at 5 (server's own note)
       /* BROWSER CLOSED: one long settle, nobody watching. */
       const closedMis = heroes();
       const closed = server(M, closedMis);

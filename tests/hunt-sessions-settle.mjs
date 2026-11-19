@@ -1548,11 +1548,14 @@ async function installGround(db, row = groundRow) {
   fixtureRow = row;
   const GEN = await import(pathToFileURL(join(ROOT, 'tools', 'gen-hunt-sessions.mjs')).href);
   const { rows, spawns } = GEN.groundRows({ h1_fixture: row() });
+  /* every column the generator writes, ends_at_level too where the chain has it (2027-05-28: the fixture row's own, none), so the installed
+     ground is the fixture's whole and never keeps the real Cellar's Level 5 exit under a fixture that has no such row (lane/d-first-day-path) */
+  const ends = !!(await one(db, `select count(*)::int = 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_hunt_grounds' and column_name = 'ends_at_level'`));
   for (const g of rows) {
-    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values ($1,$2,$3,$4,$5,$6,$7::int[])
+    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max${ends ? ', ends_at_level' : ''}) values ($1,$2,$3,$4,$5,$6,$7::int[]${ends ? ',$8' : ''})
                     on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
-                      respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max`,
-                    [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax]);
+                      respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max${ends ? ', ends_at_level = excluded.ends_at_level' : ''}`,
+                    [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax, ...(ends ? [g.ends] : [])]);
     await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);
@@ -1615,8 +1618,11 @@ async function character(db, M, uid, o) {
   }
 }
 
-/* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. */
+/* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. `o.hunt` (with realGround) another
+   real ground: the Cellar's hunt ends at Level 5 (hunt-grounds.js endsAtLevel, lane/d-first-day-path), so an arm whose hero is past it and
+   whose subject is not that exit hunts a ground with none. */
 async function hunter(db, M, o) {
+  const HUNT = o.realGround && o.hunt ? o.hunt : 'mill_cellar';
   if (o.realGround) fixtureRow = null; else await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
@@ -1633,7 +1639,7 @@ async function hunter(db, M, o) {
     party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [UIDS[0]]);
     /* The ground is the leader's pick at Start (hr_hunt_party_start); these arms enter member by member, so the
        fixture binds it as the retired create did. */
-    await db.query("update public.hunt_parties set hunt_id = 'mill_cellar' where id = $1", [party]);
+    await db.query('update public.hunt_parties set hunt_id = $2 where id = $1', [party, HUNT]);
     /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
     const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
     if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));
@@ -1648,7 +1654,7 @@ async function hunter(db, M, o) {
   const sids = [];
   for (let i = 0; i < who.length; i++) {
     await asUser(db, UIDS[i]);
-    const e = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', $1::jsonb, 0, null, $2::uuid)`, [JSON.stringify(who[i].bag || []), idem()]);
+    const e = await one(db, `select public.hr_hunt_enter(0, $3, $1::jsonb, 0, null, $2::uuid)`, [JSON.stringify(who[i].bag || []), idem(), HUNT]);
     if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
     sids.push(e.session.id);
   }
@@ -4062,7 +4068,8 @@ const DB_ARMS = {
     const DOORS = { 'the browser closed': { mode: 'tick' }, 'the hunt viewed': { mode: 'settle', bucket: null, project: true, live: true } };
     for (const [path, door] of Object.entries(DOORS)) {
       await db.query('savepoint role_worn');
-      const h = await hunter(db, M, { realGround: true, party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+      /* a real ground with no exit: the Cellar's hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and these heroes are Level 25 */
+      const h = await hunter(db, M, { realGround: true, hunt: 'meadowbrook_thicket', party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_sword')
                         on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[0]]);
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'shield', 'practice_shield')
@@ -4448,7 +4455,8 @@ const DB_ARMS = {
         }
         const s = await snapshot(db, h.sid);
         if (!r || r.outcome === 'refused') problems.push(`${variant}/${door}: the stuck density-8 hunt was refused ${r && r.reason}: ${JSON.stringify(r && r.body && r.body.detail).slice(0, 300)}`);
-        else if (!s.session.ended_at || !['left', 'died'].includes(s.session.end_reason)) {
+        /* outgrown too (the Cellar ends its hunt at Level 5, hunt-grounds.js endsAtLevel): the club clears full packs and passes 5 before the Leave lands */
+        else if (!s.session.ended_at || !['left', 'died', 'outgrown'].includes(s.session.end_reason)) {
           problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
         }
         /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */
@@ -5304,7 +5312,8 @@ const DB_MUTANTS = [
     find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave_pending(uuid,integer)', /* gm-tools moved the pending leave into this helper */
-    find: '    update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;',
+    /* 2027-05-20-yard-stop.sql restated it: leave_at is hr_hunt_close_at (a hunt's horizon, a training session's press) */
+    find: '    update public.hunt_sessions set leave_at = public.hr_hunt_close_at(v_s.id), version = version + 1 where id = v_s.id;',
     replace: "    perform public.hr_hunt_close(v_s.id, 'left', now(), true);" },
   { arm: 'VALUE', name: 'the gold bound is gone', fn: AM,
     find: "  if jsonb_typeof(p_delta->'gold') = 'number' and (p_delta->>'gold')::numeric > v_kills * v_vb_gold * v_vb_h then", replace: '  if false then' },

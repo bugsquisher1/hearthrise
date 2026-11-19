@@ -3,9 +3,10 @@
 //
 // A set (src/data/world/atlas-sets.js) is its manifest, a JSON module, and its
 // atlas image, both with the build's cache-buster (paths: atlasPaths() in
-// src/data/world/art-budget.js). The World pane reads EVERY manifest on its
-// first open (small JSON: the book, core/book.js, must know every sprite's
-// footprint and set before any map compiles) but an image only when a scene
+// src/data/world/art-budget.js). The World pane reads EVERY manifest but the worn
+// sets' on its first open (small JSON: the book, core/book.js, must know every sprite's
+// footprint and set before any map compiles; a worn set joins the book when a hero
+// in view wears one of its looks, src/world/worn-sets.js) but an image only when a scene
 // that draws from it is about to show (createSceneImages, the sets
 // src/world/scene-sets.js derives): the town never downloads a hunting
 // ground's sheet. A manifest or an image that fails is logged and left out —
@@ -13,7 +14,7 @@
 // The one exception is the town's own sets, asked for once an account is known
 // (src/world/prewarm.js), so the first Play after a release does not wait for them.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.141';
+import { FIRST_OPEN_SETS } from '../data/world/atlas-sets.js?v=0.2.141';
 import { atlasPaths } from '../data/world/art-budget.js?v=0.2.141';
 import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../data/world/terrain.js?v=0.2.141';
 import { createBook, STUB_SPRITE } from './core/book.js?v=0.2.141';
@@ -52,10 +53,11 @@ export function baseTables(book) {
   return { materials: MATERIALS, sprites: new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE }), openClasses: OPEN_CLASSES, lights: LIGHTS };
 }
 
-/** Every base-grid manifest that arrived, by set; a set that failed is logged and left out. */
+/** Every base-grid manifest a first open reads (all but the worn sets: src/world/worn-sets.js fetches those on need) that arrived, by
+    set; a set that failed is logged and left out. */
 export async function loadManifests(o) {
   const manifests = {};
-  await Promise.all(ATLAS_SETS.map((set) => loadAtlasManifest(o, set).then((m) => { manifests[set] = m; },
+  await Promise.all(FIRST_OPEN_SETS.map((set) => loadAtlasManifest(o, set).then((m) => { manifests[set] = m; },
     (e) => console.warn('[world] atlas "' + set + '" did not load; its sprites draw as stubs', e && e.message))));
   return manifests;
 }

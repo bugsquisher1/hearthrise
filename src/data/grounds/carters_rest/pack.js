@@ -3,15 +3,11 @@
 // after this boss"). Shape: src/data/grounds/shape.js. Started from `node tools/pack.mjs new carters_rest --like wickstead --band 110,125`, then every
 // row rewritten. The stat lines are the formula's (`node tools/pack.mjs propose carters_rest --write`): tier 6, floor 110, fit both.
 //
-// STAGED, A SAMPLE. The map is still Wickstead's layout under a new id (map.js): the inn is not drawn and there is no art. The three spells are
-// stand-ins from rows that exist (the Slate Thrower's Poacher's Volley, the Stable Troll's Lash Sweep, the Troll Brewer's Blasting Charge), so the
-// grader plays something close to the design. The ground's own spell rows, a monster that shoots from range and its drop chances fitted on
-// drop-tables are the pack lane's. Nothing here is served or listed.
+// STAGED: Wickstead's layout under a new id (map.js), no art. Opens with the Ox Road and both grounds' art and maps (board 2026-11-19).
 //
 // THE PLACE. Carter's Rest was the halfway inn on the road from Krell's Hold up to Morrow. Krell shut the road years ago, the carters stopped
 // coming, and a family of hill trolls moved in. Harry's cart is parked in the yard, because the trolls are between him and Morrow.
 // STANDING (the board's section 6): it pays the LAST EMBER. Everything here is alive and sitting on the road the next Morrow needs.
-// The tier-7 leather and cloth are Dawnhide and Duskweave (Tyler 2026-11-14, renamed from voidhide_ and voidweave_ on main).
 // NAMING VOICE: inn and carter words (taproom, stable, cellar, slate, sign, yard). Trolls are named for the job they took over at the inn.
 // THE LESSON: trolls are Humanoid, so a sword cuts them and poison does 15% more. The Slate Thrower goes for whoever stands farthest back, the
 // Stable Troll's swing is a marked hit the tank holds, and the Brewer's boiling mash lands on everyone (a Fire Lining from the March answers it).
@@ -73,23 +69,22 @@ export default definePack({
       hp: 160, atk: 107, baseAcc: 0.74, def: 50, xp: 1649, gp: [24, 70], formula: true },
     slate_thrower: {
       name: 'Slate Thrower', icon: '🧌', tier: 6, level: 114, cls: 'humanoid', family: 'Troll', speed: 3000,
-      /* the glass: a lanky troll on the roof, pulling slates and throwing them at whoever stands farthest back. Poacher's Volley stands in for the throw. */
-      spells: ['poachers_volley'],
+      /* the glass: a lanky troll on the roof, throwing slates from 5 tiles at whoever stands farthest back (`range`) */
+      range: 5,
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.3, band: 'common' }, { id: 'roof_slate', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_gauntlets', ch: 0.0022, band: 'rare' }, { id: 'dawnhide_gloves', ch: 0.0022, band: 'rare' }, { id: 'duskweave_gloves', ch: 0.0022, band: 'rare' }],
       hp: 154, atk: 142, baseAcc: 0.19, def: 52, xp: 1925, gp: [23, 68], formula: true },
     stable_troll: {
       name: 'Stable Troll', icon: '🧌', tier: 6, level: 117, cls: 'humanoid', family: 'Troll', speed: 2400,
-      /* the heavy: the big one that sleeps in the stable and swings the water trough. Lash Sweep stands in for the swing, a marked cone. */
-      spells: ['lash_sweep'],
+      /* the heavy: the big one that sleeps in the stable and swings the water trough */
+      spells: ['trough_swing'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'troll_hide', ch: 0.5, band: 'common' }, { id: 'stable_bit', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_platelegs', ch: 0.033, band: 'scarce' }, { id: 'dawnhide_pants', ch: 0.033, band: 'scarce' }, { id: 'duskweave_pants', ch: 0.033, band: 'scarce' }],
       hp: 253, atk: 106, baseAcc: 0.82, def: 77, xp: 2929, gp: [37, 112], formula: true },
     troll_brewer: {
       name: 'Troll Brewer', icon: '🧌', tier: 6, level: 119, cls: 'humanoid', family: 'Troll', speed: 3000,
-      /* the regular: she kept the inn's kettles going and throws the boiling mash over everyone. Blasting Charge stands in for it, a group fire
-         spell. The tongs came off a priest of Krell's who came through with a live coal. */
-      spells: ['blasting_charge'],
+      /* the regular: she kept the inn's kettles going and throws the boiling mash over everyone */
+      spells: ['boiling_mash'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'coal_tongs', ch: 0.08, band: 'uncommon' }],
       hp: 214, atk: 134, baseAcc: 0.4, def: 59, xp: 2268, gp: [31, 95], formula: true },
     the_landlord: {
@@ -114,6 +109,11 @@ export default definePack({
     stable_bit: 'A horse\'s bit from the stable. There haven\'t been horses here since Krell closed the road',
     coal_tongs: 'One of Krell\'s priests came through here carrying a live coal in these. The trolls kept the tongs',
     cellar_tally: 'The innkeeper\'s tally stick for the cellar. The Landlord can\'t read it, and he won\'t give it up',
+  },
+  /* Trough Swing: Lash Sweep's numbers. Boiling Mash: 24 s, not Blasting Charge's 32, so a Fire Lining is worth wearing here */
+  spells: {
+    trough_swing: { n: 'Trough Swing', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },
+    boiling_mash: { n: 'Boiling Mash', shape: 'group', range: 6, windupMs: 2000, cdMs: 24000, hitPm: 1000, element: 'ember' },
   },
   /* THE BAG: the Hold's store food and the fire rune (Humanoid: poison does 15% more, a caster may swap). */
   /* THE COUNTS, MEASURED (lane/d-late-nearmisses' rule, re-measured on v0.2.139 by lane/d-late-items-rescue). A bag is BAG_TARGET_HOURS (3) of

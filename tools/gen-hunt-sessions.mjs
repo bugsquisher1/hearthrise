@@ -356,10 +356,14 @@ export const WORLD_FIELDS_READ = Object.freeze({
    carries who cast its shell (abilities.js PERSISTED shieldBy: a recast refunds only the caster's own), so hr_hunt_world_shape MOVES (its shape and fields).
    No ground, spawn, kill bound, limit, bid or end reason moves. THE SHAPE MOVES: the hr-accrue carrying the same src/core follows AT ONCE (each running
    hunt's world restarts once, as on any shape change; 2026-12-11-hunt-deploy-no-forfeit holds a settle across the gap, never forfeits it). */
-/* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-25-tank-runes-hunt-sessions-catalogue
+/* THE CELLAR ENDS AT LEVEL 5 (lane/d-first-day-path, systems-engineer, 2026-11-19; the board's 2026-11-19 complete balance look, change 1):
+   2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) is the file before this one and this one carries it whole. END_ORDER's
+   outgrown joins hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, and hr_hunt_grounds gains ends_at_level (hunt-grounds.js endsAtLevel).
+   Read by 2027-05-28-cellar-outgrown.sql (the door's refusal and the settle's proof), applied right after it. */
+/* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-28-cellar-outgrown-hunt-sessions-catalogue
    (STAGED on set/v0.2.142, applied first) is the file before this one and this one carries it whole. hr_hunt_kill_bounds moves (and the called Chief's Cauldron rate in hr_boss_calls, the field Chief's): every formula monster's HP
    is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
-   end reason, vendor value or world shape moves. ORDER: after every 2027-05-25 file. */
+   end reason, vendor value or world shape moves. ORDER: after every 2027-05-28 file. */
 export const OUT_NAME = '2027-06-05-harder-monsters-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
@@ -418,7 +422,11 @@ export function groundRows(grounds, refs = {}) {
     /* THE KILL BOUND'S BASE (hr_hunt_apply_member v_pass = spawns + pockets x the instance's frozen pick): the most the ground
        presents with NO pick, its as-built rows, for every group (Tyler 2026-11-11: a party's own Normal pull is gone, so the
        2027-02-16 widening by pockets x the largest partyPull comes back out; a harder tier's pull is the frozen pick). */
-    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length, dmax });
+    /* THE LEVEL THE GROUND IS OUTGROWN AT (hunt-grounds.js endsAtLevel; END_ORDER's outgrown), or null: the door refuses a hero at it
+       (hr_hunt_admit) and the settle proves the end by it (hr_hunt_settle_session), 2027-05-28-cellar-outgrown.sql. */
+    const ends = g.endsAtLevel === undefined || g.endsAtLevel === null ? null : g.endsAtLevel;
+    if (ends !== null && !(whole(ends) && ends >= 2 && ends <= 10000)) throw new Error(`ground ${id} endsAtLevel ${ends} is not a whole Level 2..10000`);
+    rows.push({ hunt: g.hunt, ground: id, pockets: g.pockets.length, spawns: n, respawn: g.respawnMs, seats: g.start.length, dmax, ends });
     for (const m of Object.keys(counts).sort()) spawns.push({ hunt: g.hunt, monster: m, n: counts[m] });
   }
   return { rows, spawns };
@@ -1073,7 +1081,7 @@ export function render(src) {
   const resumeList = r.resumable.map(sq).join(', ');
   const abilityValues = r.abilities.map((a) => `  (${sq(a.id)}, array[${a.disciplines.map(sq).join(', ')}]::text[], ${sq(a.lane)}, ${a.cd}, `
     + `${a.mana}, ${a.rune ? sq(a.rune) : 'null'}, ${a.ammo}, ${a.active}, ${a.ord})`).join(',\n');
-  const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats}, '{${g.dmax.join(',')}}'::int[])`).join(',\n');
+  const groundValues = r.grounds.map((g) => `  (${sq(g.hunt)}, ${sq(g.ground)}, ${g.pockets}, ${g.spawns}, ${g.respawn}, ${g.seats}, '{${g.dmax.join(',')}}'::int[], ${g.ends === null ? 'null' : g.ends})`).join(',\n');
   const weaponValues = r.weapons.map((w) => `  (${sq(w.id)}, ${sq(w.t)})`).join(',\n');
   const weaponRoleValues = r.weaponRoles.map((w) => `  (${sq(w.t)}, array[${w.roles.map(sq).join(', ')}]::text[], ${sq(w.d)}, ${w.arm === null ? 'null' : sq(w.arm)})`).join(',\n');
   const shieldValues = r.shields.map((id) => `  (${sq(id)})`).join(',\n');
@@ -1112,10 +1120,18 @@ export function render(src) {
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
 -- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
--- slightly"). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
+-- slightly"). It carries 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
 -- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill
 -- Cellar's Slime XP falls 35 -> 33, its fit 1.22). hr_boss_calls' called Chief carries the field Chief's Cauldron at its new rate. No ground, spawn,
 -- limit, bid, end reason or world shape moves. ORDER: after this lane's items file. EDGE: hr-accrue with this lane's src/data right after its five files.
+--
+-- CARRIED FROM 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (lane/d-first-day-path, systems-engineer, 2026-11-19; the board's 2026-11-19 complete balance look, change 1: three of seven
+-- first heroes sat in the Mill Cellar 6 to 12 hours past it). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142)
+-- whole. END_ORDER's outgrown (the hero's Level stands at its ground's endsAtLevel; an automatic end, it resumes) joins hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK, and hr_hunt_grounds gains ends_at_level (hunt-grounds.js endsAtLevel: the Mill Cellar's 5, null elsewhere).
+-- No spawn, kill bound, limit or world shape moves. ORDER: after 2027-05-25-tank-runes-rune-spells.generated.sql, right before
+-- 2027-05-28-cellar-outgrown.sql, which reads both. EDGE: either side of
+-- the hr-accrue that proposes the end (an engine without it proposes none; one with it before this file is refused bad_end until it applies).
 --
 -- CARRIED FROM 2027-05-25-tank-runes-hunt-sessions-catalogue (lane/b-tank-runes, systems-engineer, 2026-11-19; Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank
 -- spells should be party only I think"). It carries 2027-05-22-cookbook-cut-hunt-sessions-catalogue (APPLIED with v0.2.141) whole. hr_hunt_abilities gains
@@ -1594,6 +1610,11 @@ alter table public.hr_hunt_grounds drop constraint if exists hr_hunt_grounds_den
 alter table public.hr_hunt_grounds add constraint hr_hunt_grounds_density_max_ck check (density_max is null
   or (cardinality(density_max) between 1 and 8 and array_position(density_max, null) is null
       and 0 <= all (density_max) and ${DENSITY_PICK.max} >= all (density_max)));
+-- THE LEVEL THE GROUND IS OUTGROWN AT (hunt-grounds.js endsAtLevel; END_ORDER's outgrown), null on a ground with none: the door refuses a
+-- hero at it (hr_hunt_admit) and the settle proves the end by it (hr_hunt_settle_session), 2027-05-28-cellar-outgrown.sql.
+alter table public.hr_hunt_grounds add column if not exists ends_at_level int;
+alter table public.hr_hunt_grounds drop constraint if exists hr_hunt_grounds_ends_at_level_ck;
+alter table public.hr_hunt_grounds add constraint hr_hunt_grounds_ends_at_level_ck check (ends_at_level is null or ends_at_level between 2 and 10000);
 create table if not exists public.hr_hunt_ground_spawns (
   hunt_id    text not null references public.hr_hunt_grounds (hunt_id) on delete cascade,
   monster_id text not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
@@ -1767,7 +1788,7 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
 ${abilityValues};
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
-${r.grounds.length ? `insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
+${r.grounds.length ? `insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max, ends_at_level) values
 ${groundValues};
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
 ${groundSpawnValues};` : '-- (no hunt ground ships yet: every hunt answers no_ground until the content lane adds one)'}
@@ -1892,6 +1913,11 @@ begin
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
      or (select count(*) from public.hr_hunt_end_reasons where resumes) <> ${r.ends.filter((e) => e.resumes).length} then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
+  -- Every ground's outgrown Level is the data's (hunt-grounds.js endsAtLevel; the door and the settle's proof read it), null where it has none.
+  if (select count(*) from public.hr_hunt_grounds where ends_at_level is not null) <> ${r.grounds.filter((g) => g.ends !== null).length}
+     ${r.grounds.filter((g) => g.ends !== null).length ? `or exists (select 1 from public.hr_hunt_grounds g where g.ends_at_level is not null and (g.ground_id, g.ends_at_level) not in
+               (${r.grounds.filter((g) => g.ends !== null).map((g) => `(${sq(g.ground)}, ${g.ends})`).join(', ')}))` : ''} then
+    raise exception 'a hunt ground''s ends_at_level is not hunt-grounds.js endsAtLevel'; end if;
   -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
                (${r.grounds.length ? r.grounds.map((g) => `(${sq(g.ground)}, ${g.respawn})`).join(', ') : `(null::text, null::int)`})) then

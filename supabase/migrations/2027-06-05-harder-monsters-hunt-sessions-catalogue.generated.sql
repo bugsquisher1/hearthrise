@@ -8,16 +8,24 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 405713632309b8e9d3d05dc61bf58c4c15d6b0069286ea4abe1929b127132ce9
---   79 supplies, 168 hunts (named + training), 47 limits, 17 end reasons,
+--   digest: 83e5b62f6332cca203440c902d2c19ba2586d4fb0c2e677b8f479e818a01a7bb
+--   79 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
 --   669 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
 -- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
--- slightly"). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
+-- slightly"). It carries 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
 -- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill
 -- Cellar's Slime XP falls 35 -> 33, its fit 1.22). hr_boss_calls' called Chief carries the field Chief's Cauldron at its new rate. No ground, spawn,
 -- limit, bid, end reason or world shape moves. ORDER: after this lane's items file. EDGE: hr-accrue with this lane's src/data right after its five files.
+--
+-- CARRIED FROM 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (lane/d-first-day-path, systems-engineer, 2026-11-19; the board's 2026-11-19 complete balance look, change 1: three of seven
+-- first heroes sat in the Mill Cellar 6 to 12 hours past it). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142)
+-- whole. END_ORDER's outgrown (the hero's Level stands at its ground's endsAtLevel; an automatic end, it resumes) joins hr_hunt_end_reasons and
+-- hunt_sessions.end_reason's CHECK, and hr_hunt_grounds gains ends_at_level (hunt-grounds.js endsAtLevel: the Mill Cellar's 5, null elsewhere).
+-- No spawn, kill bound, limit or world shape moves. ORDER: after 2027-05-25-tank-runes-rune-spells.generated.sql, right before
+-- 2027-05-28-cellar-outgrown.sql, which reads both. EDGE: either side of
+-- the hr-accrue that proposes the end (an engine without it proposes none; one with it before this file is refused bad_end until it applies).
 --
 -- CARRIED FROM 2027-05-25-tank-runes-hunt-sessions-catalogue (lane/b-tank-runes, systems-engineer, 2026-11-19; Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank
 -- spells should be party only I think"). It carries 2027-05-22-cookbook-cut-hunt-sessions-catalogue (APPLIED with v0.2.141) whole. hr_hunt_abilities gains
@@ -496,6 +504,11 @@ alter table public.hr_hunt_grounds drop constraint if exists hr_hunt_grounds_den
 alter table public.hr_hunt_grounds add constraint hr_hunt_grounds_density_max_ck check (density_max is null
   or (cardinality(density_max) between 1 and 8 and array_position(density_max, null) is null
       and 0 <= all (density_max) and 16 >= all (density_max)));
+-- THE LEVEL THE GROUND IS OUTGROWN AT (hunt-grounds.js endsAtLevel; END_ORDER's outgrown), null on a ground with none: the door refuses a
+-- hero at it (hr_hunt_admit) and the settle proves the end by it (hr_hunt_settle_session), 2027-05-28-cellar-outgrown.sql.
+alter table public.hr_hunt_grounds add column if not exists ends_at_level int;
+alter table public.hr_hunt_grounds drop constraint if exists hr_hunt_grounds_ends_at_level_ck;
+alter table public.hr_hunt_grounds add constraint hr_hunt_grounds_ends_at_level_ck check (ends_at_level is null or ends_at_level between 2 and 10000);
 create table if not exists public.hr_hunt_ground_spawns (
   hunt_id    text not null references public.hr_hunt_grounds (hunt_id) on delete cascade,
   monster_id text not null check (monster_id ~ '^[a-z0-9_]{1,64}$'),
@@ -1001,32 +1014,32 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
   ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 21);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
-insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
-  ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[]),
-  ('coppercap_warrens_called', 'coppercap_warrens_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
-  ('hasks_ford', 'hasks_ford', 6, 12, 60000, 4, '{8,8,8,8}'::int[]),
-  ('krells_hold', 'krells_hold', 5, 10, 60000, 4, '{8,8,8,8}'::int[]),
-  ('krells_hold_hall', 'krells_hold_hall', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
-  ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
-  ('mill_cellar', 'mill_cellar', 2, 5, 32000, 4, '{8,8,8,8}'::int[]),
-  ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[]),
-  ('millrace_sewer_called', 'millrace_sewer_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[]),
-  ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[]),
-  ('muster_barrows', 'muster_barrows', 7, 23, 90000, 4, '{8,8,8,8}'::int[]),
-  ('pyre_field', 'pyre_field', 6, 12, 60000, 4, '{8,8,8,8}'::int[]),
-  ('the_burning_tower', 'the_burning_tower', 1, 5, 4000, 4, '{8,8,8,8}'::int[]),
-  ('the_slake', 'the_slake', 6, 12, 60000, 4, '{8,8,8,8}'::int[]),
-  ('training_house_defense', 'training_house_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('training_house_magic', 'training_house_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('training_house_melee', 'training_house_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('training_house_ranged', 'training_house_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('training_yard_defense', 'training_yard_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('training_yard_magic', 'training_yard_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('training_yard_melee', 'training_yard_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('training_yard_ranged', 'training_yard_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[]),
-  ('unmarked_bone_wing', 'unmarked_bone_wing', 1, 5, 4000, 4, '{8,8,8,8}'::int[]),
-  ('unmarked_flooded_wing', 'unmarked_flooded_wing', 1, 5, 4000, 4, '{8,8,8,8}'::int[]),
-  ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[]);
+insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max, ends_at_level) values
+  ('coppercap_warrens', 'coppercap_warrens', 6, 18, 90000, 4, '{8,8,8,8}'::int[], null),
+  ('coppercap_warrens_called', 'coppercap_warrens_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[], null),
+  ('hasks_ford', 'hasks_ford', 6, 12, 60000, 4, '{8,8,8,8}'::int[], null),
+  ('krells_hold', 'krells_hold', 5, 10, 60000, 4, '{8,8,8,8}'::int[], null),
+  ('krells_hold_hall', 'krells_hold_hall', 1, 4, 600000, 4, '{8,8,8,8}'::int[], null),
+  ('meadowbrook_thicket', 'meadowbrook_thicket', 6, 13, 60000, 4, '{8,8,8,8}'::int[], null),
+  ('mill_cellar', 'mill_cellar', 2, 5, 32000, 4, '{8,8,8,8}'::int[], 5),
+  ('millrace_sewer', 'millrace_sewer', 6, 19, 90000, 4, '{8,8,10,12}'::int[], null),
+  ('millrace_sewer_called', 'millrace_sewer_called', 1, 4, 600000, 4, '{8,8,8,8}'::int[], null),
+  ('mosslight_glade', 'mosslight_glade', 6, 13, 60000, 4, '{8,8,8,8}'::int[], null),
+  ('muster_barrows', 'muster_barrows', 7, 23, 90000, 4, '{8,8,8,8}'::int[], null),
+  ('pyre_field', 'pyre_field', 6, 12, 60000, 4, '{8,8,8,8}'::int[], null),
+  ('the_burning_tower', 'the_burning_tower', 1, 5, 4000, 4, '{8,8,8,8}'::int[], null),
+  ('the_slake', 'the_slake', 6, 12, 60000, 4, '{8,8,8,8}'::int[], null),
+  ('training_house_defense', 'training_house_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('training_house_magic', 'training_house_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('training_house_melee', 'training_house_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('training_house_ranged', 'training_house_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('training_yard_defense', 'training_yard_defense', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('training_yard_magic', 'training_yard_magic', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('training_yard_melee', 'training_yard_melee', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('training_yard_ranged', 'training_yard_ranged', 1, 1, 10000, 1, '{8,8,8,8}'::int[], null),
+  ('unmarked_bone_wing', 'unmarked_bone_wing', 1, 5, 4000, 4, '{8,8,8,8}'::int[], null),
+  ('unmarked_flooded_wing', 'unmarked_flooded_wing', 1, 5, 4000, 4, '{8,8,8,8}'::int[], null),
+  ('wickstead', 'wickstead', 6, 12, 60000, 4, '{8,8,8,8}'::int[], null);
 insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values
   ('coppercap_warrens', 'chief_coppercap', 1),
   ('coppercap_warrens', 'goblin_digger', 12),
@@ -1519,19 +1532,20 @@ insert into public.hr_hunt_end_reasons (reason, ord, resumes) values
   ('boss_felled', 2, true),
   ('party_member_died', 3, true),
   ('party_member_left', 4, true),
-  ('heals_out', 5, true),
-  ('ammo_out', 6, true),
-  ('runes_out', 7, true),
-  ('gold_out', 8, true),
-  ('rule', 9, true),
-  ('stamina', 10, true),
-  ('hours', 11, true),
-  ('boss_time', 12, true),
-  ('floor_time', 13, true),
-  ('left', 14, false),
-  ('changed', 15, false),
-  ('no_fight', 16, true),
-  ('server', 17, true);
+  ('outgrown', 5, true),
+  ('heals_out', 6, true),
+  ('ammo_out', 7, true),
+  ('runes_out', 8, true),
+  ('gold_out', 9, true),
+  ('rule', 10, true),
+  ('stamina', 11, true),
+  ('hours', 12, true),
+  ('boss_time', 13, true),
+  ('floor_time', 14, true),
+  ('left', 15, false),
+  ('changed', 16, false),
+  ('no_fight', 17, true),
+  ('server', 18, true);
 delete from public.hr_hunt_resumable_kinds;
 insert into public.hr_hunt_resumable_kinds (kind) values
   ('gather'),
@@ -1540,7 +1554,7 @@ insert into public.hr_hunt_resumable_kinds (kind) values
 -- hunt_sessions.end_reason's CHECK is END_ORDER (the generator owns it).
 alter table public.hunt_sessions drop constraint if exists hunt_sessions_end_reason_check;
 alter table public.hunt_sessions add constraint hunt_sessions_end_reason_check
-  check (end_reason in ('died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server'));
+  check (end_reason in ('died', 'boss_felled', 'party_member_died', 'party_member_left', 'outgrown', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server'));
 -- The bar's size is ACTION_SET_LIMITS.slots (Huntera's two rows of ten).
 alter table public.player_action_sets drop constraint if exists player_action_sets_slots_check;
 alter table public.player_action_sets add constraint player_action_sets_slots_check
@@ -2288,7 +2302,7 @@ begin
   if (select count(*) from public.hr_hunt_supplies) <> 79
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 47
-     or (select count(*) from public.hr_hunt_end_reasons) <> 17
+     or (select count(*) from public.hr_hunt_end_reasons) <> 18
      or (select count(*) from public.hr_hunt_vendor_value) <> 669
      or (select count(*) from public.hr_hunt_basic_supplies) <> 49
      or (select count(*) from public.hr_hunt_cover_items) <> 0
@@ -2318,8 +2332,13 @@ begin
      or exists (select 1 from public.hr_hunt_weapon_roles where discipline is null)
      or exists (select 1 from public.hr_hunt_weapon_roles w where w.with_shield is not null
                  and not exists (select 1 from public.hr_hunt_weapon_roles k where k.weapon_type = w.with_shield))
-     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 15 then
+     or (select count(*) from public.hr_hunt_end_reasons where resumes) <> 16 then
     raise exception 'hunt-session catalogue row counts moved from the generator''s'; end if;
+  -- Every ground's outgrown Level is the data's (hunt-grounds.js endsAtLevel; the door and the settle's proof read it), null where it has none.
+  if (select count(*) from public.hr_hunt_grounds where ends_at_level is not null) <> 1
+     or exists (select 1 from public.hr_hunt_grounds g where g.ends_at_level is not null and (g.ground_id, g.ends_at_level) not in
+               (('mill_cellar', 5))) then
+    raise exception 'a hunt ground''s ends_at_level is not hunt-grounds.js endsAtLevel'; end if;
   -- Every ground's respawn is the data's (the settle's kill bound reads it: 2027-02-09, the Cellar at 32 s).
   if exists (select 1 from public.hr_hunt_grounds g where (g.ground_id, g.respawn_ms) not in
                (('coppercap_warrens', 90000), ('coppercap_warrens_called', 600000), ('hasks_ford', 60000), ('krells_hold', 60000), ('krells_hold_hall', 600000), ('meadowbrook_thicket', 60000), ('mill_cellar', 32000), ('millrace_sewer', 90000), ('millrace_sewer_called', 600000), ('mosslight_glade', 60000), ('muster_barrows', 90000), ('pyre_field', 60000), ('the_burning_tower', 4000), ('the_slake', 60000), ('training_house_defense', 10000), ('training_house_magic', 10000), ('training_house_melee', 10000), ('training_house_ranged', 10000), ('training_yard_defense', 10000), ('training_yard_magic', 10000), ('training_yard_melee', 10000), ('training_yard_ranged', 10000), ('unmarked_bone_wing', 4000), ('unmarked_flooded_wing', 4000), ('wickstead', 60000))) then

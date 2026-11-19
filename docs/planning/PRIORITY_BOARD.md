@@ -29,6 +29,113 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-19 First-day path, changes 1 and 8 built (systems-engineer, lane/d-first-day-path, rides v0.2.142)
+**1. The Mill Cellar ends its hunt at Level 5.** A data field, `endsAtLevel` on the ground row (`src/data/hunt-grounds.js`; only the Cellar has one). The engine ends a hunt `outgrown` at the first boundary the hero's Level stands at it (both paths, any cut), back to town like any automatic end; the server's door refuses a hero at it (`outgrown`) unless the hunt plays scaled, and the settle proves the end from the Level it holds (`2027-05-28-cellar-outgrown.sql` + its catalogue). The end card says "Ground outgrown at Level 5", drops Hunt again and makes the Next ground row its press; the away card says why and points at Hunts. The Hunts list reads the Cellar as Levels 1-4.
+| Start kit lone hero (sword and shield, start bar), `life.mjs --policy idle` | Level at 6 h | 12 h | 20 h | Level 10 at |
+|---|---|---|---|---|
+| Before (6 h in the Cellar) | 8 | 10 | 13 | 10.6 h |
+| After (the Cellar until 5, then the named ground) | 9 | 11 | 14 | 7.7 h |
+| Target table | 10 | about 13 | 17 | 6 h |
+
+The sword and shield is slow alone on purpose (11-19), so the start kit stays under the table. Hours are hunted hours: a hero whose Cellar ends while the player is away waits in town (stamina refills) until the player picks the ground.
+
+**8. A lone hero goes to the Warrens from Level 36.** `soloFrom: 36` on the Warrens (was 45), and the advice now reads it (`src/shell/hunt-list.js fitsGroup`). Played lone heroes, Normal, every supply bought (`life.mjs --policy rec --to 50`):
+| Lone hero | Glade hours (Levels) | Level 50 at | Deaths | Net gold at 50 | Typical low HP, Levels 40-54 |
+|---|---|---|---|---|---|
+| Hammer, before / after | 97 (16-44) / 46 (16-35) | 132.7 / 103.1 h | 0 / 0 | 1,285k / 825k | 87% / 73% |
+| Bow, before / after | 91 / 43 | 127.1 / 101.3 h | 0 / 0 | 398k / 174k | 81% / 61% |
+| Mage, before / after | 75 / 35 | 104.8 / 80.1 h | 0 / 0 | -29k / -96k | 89% / 79% |
+
+36 kills nobody, so 36 it is. **The cost is pace:** the lone road to 50 is 22-24% shorter (the table says 168 h), and the Warrens' bill takes 0.2-0.5M off a life's gold. `tests/level-curve.mjs` C1 is red until the pace is re-measured (its fingerprint holds the advice); do it once on the assembled set after the +10% monsters lane, then judge C2/C3 (designer).
+### 2026-11-19 The Morrow Hills: what opens, and when (game-designer, lane/d-morrow-open; the Coordinator's brief: factions can't open until a ground pays standing, and only the Hills' grounds do. QA's blind faction play, finding 1: no live ground pays, so the tab counts to zero forever): RULED (b), the three staged packs MEASURED with the played hero, Carter's Rest's own spells BUILT, one lint ADDED, nothing served, no migration
+**The call.** Carter's Rest and the Ox Road open together, with the factions switch, in the big patch that carries their art and real maps. Not v0.2.142. Standing stays on the Hills' grounds. That patch is due before the lead heroes reach about Level 100, so the art is the critical path from today.
+
+**Why, in player terms.**
+- A hero who kills Krell at 74 loses nothing by waiting. The kill is on record, so the day the pair opens, Holly and Venn are waiting for them. One patch that opens the road north, both sides, both outfits and the last Dawnsteel weapons is a bigger day than a faction tab that sits at 0 hours for weeks, which is exactly what QA found.
+- **(a) can't be done well in v0.2.142.** Each ground owes a region kit, five bodies with their clips and five heads (below), and both maps are Wickstead's farm under a new id. Opened as they are, the first region after Krell would look like an early farm with trolls in it.
+- **(c) breaks the rule it leans on.** Tyler's rule is equal sides in every region after Krell. The March's enemies are Krell's men and his dead, which both sides hate, so no March ground can honestly pay one side. "A small amount" is a second rate the wiki has to explain, and the first 25 h outfit would be earned before the Hills, which takes the reward out of the region built for it. All that to cover a gap of about two weeks for one group.
+
+**When.** The lead four is 72-74 (the 11-19 balance look). On the pace contract a hero needs 243 hunting hours from 74 to 100 and 345 to 110. At their measured 3x that's about 80 and 115 hours. They already push Deadly 8 to 13 under a floor, so they'll walk into Carter's Rest at about 97-100. Krell's Hold (85-110) is the top open ground, so at 110 nothing is in their band. If the art slips past that, the top players stall.
+
+**Readiness** (`node tools/pack.mjs check <g> --mode quick --with <the pair>`, 89 cells, 1 seed x 1 h, the played hero on parties and harder tiers; `pack.mjs art`; `tests/world-assets.mjs` EXIT 0 with no Morrow sprite in it).
+| | Carter's Rest, 110-125 | The Ox Road, 112-128 | Wyvern Roost, 125-142 |
+|---|---|---|---|
+| Pays | Last Ember | First Flame | Last Ember |
+| Lint and formula | clean | clean | clean |
+| Normal alone at the floor | 0 deaths, low point 69-94%, the median way 1.04 of the contract at the middle (xpFit 0.96 holds) | 0 deaths, 73-98%, 1.04 (0.91 holds) | 0 deaths, 65-95%, 1.01 (0.94 holds) |
+| Mage alone, Normal floor, plain / played | 1.40 / 1.55 | 1.34 / 1.40 | 1.33 / 1.39 |
+| Gold alone at the floor (printed, gpFit 0.7) | 14.6k net | 13.2k | 5.4k |
+| Grade | FAIL only four-xp and seat-below-solo on Normal, 0.85-0.99 | the same, 0.80-0.88 | the same, 0.87-0.92 |
+| Art owed | region kit, 5 troll bodies, 5 heads (11 of 62 pieces, about 160-285 gens). Every item icon exists | kit, 5 bodies (2 people, 3 creatures), 5 heads (11 of 58, 184-240) | kit, 5 wyverns, 5 heads (11 of 46, 200-210) |
+| Map | Wickstead's farm. The inn's six rooms aren't drawn | Wickstead's farm. Road, wagons, bridge and Holly's Vigil aren't drawn | Wickstead's farm. Crags and nests aren't drawn |
+| Spells | own rows now (this lane) | own: Trample, Hot Coal, Goad | own: Tail Sweep, Fire Breath, and the Ledge Wyvern shoots |
+| Text (DESIGN_STANDARDS §2-3) | reads right. The one miss was the trolls casting Poacher's Volley, Lash Sweep and Blasting Charge (fixed) | reads right | reads right |
+| Loot | tier-7 boots and legs Scarce, gloves and belts Rare, fitted | all eight tier-7 weapons, fitted | no gear: no tier 8, its uniques and the Roost Mother are owed |
+| Verdict | opens with the Ox Road | opens with Carter's Rest | the next pair, with the Night Shift (First Flame, not drafted) |
+
+The four-xp fail is not these grounds. The live Krell's Hold reads 0.62-0.66 on the same grader today (and its median lone way 1.16 of the contract, over the 1.10 line). It belongs to the one party table, so it goes to whoever owns that table, not to the Hills.
+
+**What the pair still needs, in order.**
+| # | Piece | Owner |
+|---|---|---|
+| 1 | A Morrow Hills region kit (road, dry stone wall, moor grass, the inn, ore wagons, the broken bridge, Harry's cart, Holly's brazier), then the two maps drawn on it, rooms as the 11-14 design lists them | Art director with the designer. Sample first: the Troll Picker and one run of inn wall at x2 beside Krell's Hold |
+| 2 | 10 bodies with clips and 10 heads (the pack's art list, `node tools/pack.mjs art <g> --write`) | Art director |
+| 3 | The full grade on the real maps (6 seeds x 4 h). The farm layout is only a first read | Designer |
+| 4 | The Tower's top key stays worth chasing once the Ox Road drops Dawnsteel weapons hourly (coherence C6: the 130 key, or Tyler's 11-18 "Tower weapons should be pretty major upgrades") | Tower lane |
+| 5 | Faction screen fixes from QA's play (`agent-aab9077aed963d567/.scratch/factions-findings.md` 2-9): a confirm on Join and Swap, the swap line that says the opposite of the server, the First Flame in gold by default, add-ons that show, the labels, and where standing comes from on hunt cards and the summary | Client lane, the designer for the words, art director for #5 |
+| 6 | `node tools/pack.mjs ship` for each (one additive file each, dated 2027-06-01 or later), the switch on, both grounds played in `tools/qa/local-world.mjs` | Systems, Coordinator applies |
+
+**Not blockers, and why.** Bulwark and Reap: I'm taking back my own 11-16 condition 2. The faction loop works without a skill (join, earn, claim, wear), and the skill is a combat-engine change on its own spacing. The rare uniques: the pair finishes the standard tier, and the uniques start with the Roost. The four-xp fail: above.
+
+**Built.** Carter's Rest's trolls cast their own rows: the Stable Troll's Trough Swing (Lash Sweep's measured numbers) and the Brewer's Boiling Mash (a group fire spell every 24 s, where the stand-in was 32, so a Fire Lining is worth wearing here). The Slate Thrower throws from 5 tiles at whoever stands farthest back (`range`, Hask's Lookout's piece) instead of casting a line. Re-graded: the same verdicts, Normal still 0 deaths and the drops still fitted (Scarce every 0.95-0.97 h, Rare every 13.9-14.2 h). The cost is the back line's: a lone bow on Dangerous at the floor now dies 12 times in the hour, where the first grade had two lone ways holding Dangerous. That's the Thrower doing his job, and it fits Tyler's 11-19 "struggling more" note. A four and a tank-and-Healer pair still hold Dangerous and Deadly with no death. `tools/pack.mjs` lintFields now refuses a pack whose monster casts a row that isn't its own (the stand-ins turned `pack.mjs --selftest` red, seen).
+
+**Walk-through: a hero who killed Krell, to the first outfit.**
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Kills `lord_krell` in his hall (`hall_key` off the Gatekeeper) | A four, about Level 74 or more | Yes, live. Andy's four did it |
+| 2 | The pair's patch: `carters_rest` and `ox_road` open, the `factions` switch on. The Choose a side prompt opens | The kill on record (`player_progress ev:kill_monster:lord_krell`) | Once shipped. QA saw the prompt open from a recorded kill |
+| 3 | Joins through Holly (First Flame) or Quartermaster Venn (Last Ember), `hr_faction_join` | Step 2 | Yes, built. Needs the confirm (QA 2) |
+| 4 | Hunts their side's ground: Carter's Rest for the Last Ember, the Ox Road for the First Flame | Level about 97-100 with the warning and some deaths, or 110 safely | Once open |
+| 5 | Earns one standing point a settled minute | Step 4 | Yes, built. QA: 60 min gave 1 h, with the browser closed too |
+| 6 | Claims the Emberkeeper or the Flamebearer at 25 h and wears it | Step 5 | Yes, built. Both read crimson by default (QA 5) |
+| 7 | Swaps: 10 h on the other side's ground | Both sides have a ground | Only with the pair open, which is why one ground can't open alone (FG-EVEN) |
+
+**Not verified.** Nothing was played in the browser or the local world: neither ground opens now, so the brief's step 3 doesn't apply. The quick grade is 1 seed x 1 h a cell on a layout that isn't the real one. The lone-way split before the spell change wasn't kept (the second before-run was stopped when the PC hit 100% CPU), so the "two lone ways held Dangerous" line comes from the first grade's verdict rows, not a per-way table. Andy's Levels are the brief's and the 11-19 balance look's, not a production read.
+### 2026-11-19 The Tower's curve: past floor 100 the fire burns hotter (game-designer, lane/d-tower-curve, for v0.2.142. Andy on live, a Level 74 four, 1 to 182 in 52 minutes: "Everything between floor 100 > 170 felt the same. I was mid yellow at worse, then the last floor or two i started getting into red, then died pretty quickly"): BUILT as one data row, MEASURED on the real engine with his own four, a guard added, no server row changed
+**Why it felt flat, then walled.** Floor F is the stat formula at Level F, and the formula grows on a straight line: a blow is a share of a Level-F hero's 150 + 10 HP a Level. So in relative terms each band of ten floors adds less than the band before: the rooms' summed max hits (`combat.js` monsterMaxHit, the guard's band line) grow 16% a band at floor 70, 9% at 100 and 4-8% from 150. His healer's output is one fixed number. Past 100 the healer soaks each small step, the tank's typical low drifts down about 5 points a band (70% at 101-110, still 49% at 131-140), and the climb ends the first time a long fight outruns the healing, which is a Keeper landing (five times the HP) at 170-180, two floors after the first red. That is the complete look's "risk has no middle" inside the Tower. Past floor 110 every room is also Krell's Hold's five kinds, so nothing looks different either.
+
+**The ruling (the curve, by band, for a party).** Floors under the party's Level are the warm-up: quick, 80%+ low. From its Level to about 25 over, the low sits at 65-80% with no deaths. Past floor 100 every band should be a step you can see: the typical low 8-10 points lower each band, the deep dips (p10) in the red two or three bands in, and the climb ending somewhere over three or four bands (a 15-50% chance a band to stop in the middle ones), never on one floor. A set-up Level 74 four like his should usually stop around floor 135-145 (Level + 60 to 70), so the top key (Platinum, from 100) stays the best party's reward and today's Level 90-110 fours top out near 145-160 instead of 180-205. The design of record said "a good four holds about 25 floors higher" (11-14), but that was the plain harness hero. The played hero is far stronger, and +25 would keep the game's top party off Platinum.
+
+**What changed (one row).** `src/data/tower.js` TOWER_RULES `heat: { from: 100, perFloorPm: 10 }`: past floor 100 a room's blows are x1.01 a floor, compounding (x1.105 at 110, x1.35 at 130, x1.64 at 150), on top of the formula. Only the blows. HP, defense, to-hit at a hero and kill XP stay the formula's, so a floor takes as long and pays what it did, the server's per-floor XP bound (`hr_tower_floors`) doesn't move (`gen-tower --check` OK, **nothing staged**), and a Keeper's blow keeps the boss cap. `src/core/hunt/tower.js` reads it (whole-permille steps, no pow). The descent's CATACOMB_RULES copies the Tower's row (its own rule: the descent plays the Tower's numbers, and it is switched off). Every band past 100 now hits 15-19% harder than the one below. HP heat was measured too (6 a floor gave the same curve) and dropped: it slows the floors and moves the server's bounds. `from` sits on the first Platinum landing, inside today's last ground (Krell's Hold, 85-110), so floor F still fights like a Level F ground wherever a ground exists. When a region past 110 opens, move `from` up with it.
+
+**Measured** (`node tools/balance-sim/tower-curve.mjs --seats <his four> --from 1 --seeds 8`, NEW: the Tower in `cell.mjs` with each floor's encounters tagged. His four as the server held it at the climb's start, read-only, raw rows local: Level 74/74/74/72, a sword alone in front (Melee 57, Defense 57, no shield, no Challenge), a bow (59), a Mage (57), a Healer (61), each seat's own worn set, stored bar and options, own stock as spent). **Sim against real: 176-186 floors (he reached 182), 47-55 minutes (52), 272k-288k Level XP an hour a head (275k), every climb ended by a death on the tank** (the set before lane/b-tank-runes read 159-184 and 37-54 minutes). "+10%" is lane/d-harder-monsters' tree (STAT_FORMULA x1.1 HP and blows, its new area spells), which the Tower reads as every ground does: the two stack, so the heat is sized on both.
+| His four, floors | Live (set/v0.2.142 529f354ea): typical low / p10 / climbs that fell here | + heat (this branch) | +10% monsters (lane/d-harder-monsters 8be5f4374) | +10% and heat |
+|---|---|---|---|---|
+| 91-100 | 76% / 62% / 0 of 8 | 76 / 62 / 0 of 8 | 66 / 53 / 0 of 8 | 66 / 53 / 0 of 8 |
+| 101-110 | 70 / 58 / 0 of 8 | 66 / 51 / 0 of 8 | 60 / 46 / 0 of 8 | 56 / 39 / 0 of 8 |
+| 111-120 | 66 / 50 / 0 of 8 | 59 / 45 / 0 of 8 | 54 / 40 / 0 of 8 | 47 / 31 / 0 of 8 |
+| 121-130 | 55 / 42 / 0 of 8 | 47 / 29 / 1 of 8 | 48 / 33 / 0 of 8 | 40 / 17 / 2 of 8 |
+| 131-140 | 49 / 37 / 0 of 8 | 39 / 21 / 0 of 7 | 44 / 25 / 1 of 8 | 30 / 7 / 3 of 6 |
+| 141-150 | 46 / 34 / 0 of 8 | 23 / 0 / 7 of 7 | 39 / 20 / 1 of 7 | 16 / 0 / 3 of 3 |
+| 151-160 | 42 / 28 / 0 of 8 | | 34 / 15 / 2 of 6 | |
+| 161-170 | 37 / 23 / 0 of 8 | | 23 / 0 / 3 of 4 | |
+| 171-180 | 32 / 13 / 4 of 8 | | 26 / 0 / 1 of 1 | |
+| 181-190 | 16 / 0 / 4 of 4 | | | |
+| Top floor (median) | 176-186 (180) | 129-149 (146) | 132-172 (162) | 124-145 (137) |
+| Minutes a climb | 47-55 | 25-32 | 27-47 | 23-32 |
+| Level XP an hour a head | 272k-288k | 262k-282k | 267k-281k | 261k-280k |
+| Keys a climb from floor 1, each hero | 17-18: 3 Bronze, 3 Silver, 3 Gold, 8-9 Platinum | 12-14: 3-5 Platinum (5 in 7 of 8) | 13-17: 4-8 Platinum | 12-14: 3-5 Platinum (median 4) |
+
+Typical low: the median, over a band's floors, of the lowest seat's low HP on that floor (the bar a player watches, and seat 0, the sword, on every band). Keys: a hero opens 6 a week a family (11-16), so one climb from floor 1 still fills the week. What moves is how many of them are Platinum. From landing 100 the four now takes 2-5 Platinum keys in 10-19 minutes (live: 7-8 in 33-35).
+
+**Everyone else** (played heroes, `profile: 'played'`, from floor 1, the +10% tree before and after the heat). Fours (tank, bow, Mage, Healer): Level 45 113-125 to 108-119, Level 74 146-159 to 129-131, Level 90 179-187 to 143-149, Level 110 201-204 to 149-159. Without the heat the Level 90 four sits at a 69-77% low for seven bands (91-160, +10% tree) before its wall: the plateau in its plainest form. Lone heroes (live tree) mostly stop under 100 and don't move: a Mage at 74 reaches 90, a hammer at 90 reaches 79, a Mage at 90 reaches 109 (108-109 after). The lone Healer does reach the heat: Level 74 130 (the 90-minute cap) to 128, Level 90 143-144 (the cap) to 129-141.
+
+**The guard** (`tests/tower-climb.mjs` TC-CURVE, in smoke.yml already): past the heat's floor every band hits at least x1.12 the band below (no heat: x1.04-1.09), and a played Level 74 four from floor 91 (6 climbs) sees its typical low never rise more than 3 points band to band and the band 30 floors past 101-110 at least 15 points lower, or most climbs over before it (as built 23 and 20 on two seed sets, no heat 4 to 9). TC-ROOM now holds a hot room's blow to the formula x the heat and its HP, defense and XP to the plain formula's. `--mutate` 22/22, three new: the heat off (caught by the played-four line), the rooms that never read it (the band line), a heat that thickens HP (TC-ROOM).
+
+**Not changed:** Krell, STAT_FORMULA, every hunting ground, the server's Tower rows, the key table. **Handoffs.** (1) Coordinator, the patch note: his heroes' default start is their best landing, 180, and a climb from 181 now falls on floor 181 in about a minute (live: 180-184 in 1-4 minutes). Tell players with a best past about 140 to pick a lower landing (100 is the fast Platinum run). No server change: the record is raise-only and his 182 stays on the board. (2) Systems/Backend: his live climb ended `server`, not `died`. `hr_rejections` holds 6 `value_over` refusals on `hunt_settle` at 05:37:55-05:38:12 UTC (detail: max 0, what level_xp, kills 0, level_xp 911, counted instance), and the tally says 0 deaths. Replayed from floor 171 on the live tree (4 climbs, 10 s windows) no window paid Level XP without a kill, so it isn't reproduced: read the edge logs for that climb (his account, 05:37 UTC). (3) Designer backlog: the lone Healer outclimbs every lone way by 20-40 floors (its own heals). (4) The edge bundle moves (`src/core/hunt/tower.js`, `src/data/tower.js`): it ships with the release's edge deploy, and the edge-bundle ceiling is raised +1,909 B with that reason.
+
+**Limits.** One recorded party, one climb of his to check against. A seat's start is today's XP minus what the climb and the four later hunts paid. Its worn set is today's but for the sword (ledger: worn 11-17 to 11-19 06:52), its bar is today's with Challenge taken off (added after the climb), the Healer's set was saved after the climb. The sim's HP between settle windows is reconstructed (`cell.mjs`), 30 s windows. Not played in the browser.
+
 ### 2026-11-19 Complete balance look (game-designer, lane/d-balance-audit-2; **Tyler 2026-11-19, after the first audit: "I feel like we need a complete look"**): every system a player meets, MEASURED on set/v0.2.141 with the played hero and on the live record, no balance row changed
 **One screen.** Measured two ways. The live record, read-only: 7 accounts, 22 heroes, every ledger row since 10-19 (1,548 hunted hero-hours, 1,995 gathering, 538 at a bench, every gold movement). The real engine with the played hero: 966 cells on the 11 open grounds, and whole lives that carry their XP and skills from Level 1.
 

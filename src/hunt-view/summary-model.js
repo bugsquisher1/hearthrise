@@ -28,6 +28,7 @@ import { callOf, sessionModeOfHunt } from '../session/hunt-sections.js?v=0.2.141
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.141';
 import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.141';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.141';
 import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.141';
 import { ITEMS } from '../data/items.js?v=0.2.141';
 import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.141';
@@ -43,6 +44,7 @@ export const END_WORDS = Object.freeze({
   boss_felled: t('summary.end_boss_felled'),
   party_member_died: t('summary.end_party_member_died'),
   party_member_left: t('summary.end_party_member_left'),
+  outgrown: t('summary.end_outgrown_plain'),
   heals_out: t('summary.end_heals_out'),
   ammo_out: t('summary.end_ammo_out'),
   runes_out: t('summary.end_runes_out'),
@@ -89,6 +91,9 @@ export function endWords(reason, forfeit, by, hero, why, hunt) {
      A5: the hunt history listed a climb as Died, though the Tower says it can't kill you) */
   /* ...and in the Unmarked Catacombs Keeper Dunn carries the hero up (session-modes.js `catacomb`) */
   if (reason === 'died' && hunt && sessionModeOfHunt(hunt).deathLossPm === 0) return sessionModeOfHunt(hunt).id === 'catacomb' ? t('catacomb.end_carried') : t('summary.end_spat');
+  /* A GROUND OUTGROWN names the Level its hunt ends at (src/data/hunt-grounds.js endsAtLevel, the row the server's catalogue is generated from) */
+  const ends = reason === 'outgrown' && hunt ? (groundOfHunt(hunt) || {}).endsAtLevel : null;
+  if (Number.isInteger(ends) && forfeit !== true) return t('summary.end_outgrown', { level: ends });
   return (forfeit === true && FORFEIT_WORDS[reason]) || END_WORDS[reason] || t('summary.end_plain');
 }
 
@@ -253,6 +258,25 @@ export function levelLine(sessionId, start, lv, levels, trained) {
   return { lvFrom, lvTo, ups: ups.sort((a, b) => (b[2] - b[1]) - (a[2] - a[1]) || (a[0] < b[0] ? -1 : 1)) };
 }
 
+/**
+ * THE STANDING LINE (the faction QA 2026-11-19 #9: "11 h of standing earned in one hunt does not appear on its summary"), from TWO
+ * SERVER ANSWERS: `start` the stamp's standing per side (residue `huntStart.fx`, taken at the hunt's start), `now` the `factions`
+ * section's standing per side at its end. Each side the hunt raised, [side, ms gained], the larger first; none for a stamp of another
+ * session or a hero with no section. Display only: nothing reads it but the card. Pure.
+ * @returns {[string, number][]}
+ */
+export function standingLine(sessionId, start, now) {
+  const was = isObj(start) && start.s === sessionId && isObj(start.fx) ? start.fx : null;
+  if (!was || !isObj(now)) return [];
+  /** @type {[string, number][]} */
+  const out = [];
+  for (const [side, ms] of Object.entries(now)) {
+    const from = Number.isSafeInteger(was[side]) ? was[side] : null;
+    if (ID.test(side) && from !== null && Number.isSafeInteger(ms) && ms > from) out.push([side, ms - from]);
+  }
+  return out.sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
+}
+
 /** The skills a session's tally paid XP to (its `xp` keys but the Level's), or the analyzer's training rows. Pure. */
 export function trainedIn(s, an) {
   const xp = s && isObj(s.tally) && isObj(s.tally.xp) ? s.tally.xp : null;
@@ -267,7 +291,8 @@ export function trainedIn(s, an) {
  * @param {string[]} deaths  the death explanations' headlines (death-explain.js)
  * @param {string|null} [role]  this hero's role, for a called fight's losing line
  * @param {object|null} [stop]  the `training` section's last stop (training-sections.js), for a training session's card
- * @param {{lvFrom: number|null, lvTo: number|null, ups: [string, number, number][]}|null} [line]  levelLine's, for a hunt's card
+ * @param {{lvFrom: number|null, lvTo: number|null, ups: [string, number, number][], standing?: [string, number][]}|null} [line]  levelLine's
+ *   (and standingLine's `standing`), for a hunt's card
  */
 export function buildSummary(s, an, deaths, role, stop, line) {
   const train = trainingCard(s, stop || null);
@@ -303,6 +328,7 @@ export function buildSummary(s, an, deaths, role, stop, line) {
     xpH: ph ? ph.levelXp : null,
     /* THE LEVEL LINE (levelLine): the Level the hunt began at and ended at, and the skills it raised, each the server's. */
     lvFrom: line ? line.lvFrom : null, lvTo: line ? line.lvTo : null, ups: line ? line.ups : [],
+    standing: line && Array.isArray(line.standing) ? line.standing : [],
     died: s.died, loot, supplies,
     preset: s.preset, hoursLimit: s.hoursLimit, bag: s.bag, deaths,
     loss: lossLine({ hunt: s.hunt, reason: s.reason, fight: s.fight || null, role: role || null }),
@@ -341,6 +367,8 @@ export function huntAgainOf(summary) {
   if (!summary || !summary.hunt || summary.preset === null || roomOfHunt(summary.hunt)) return null;
   /* ...and training has its own, the Training window's Start (hr_training_start): never an hr_hunt_enter */
   if (trainedBy(summary.hunt)) return null;
+  /* ...and a ground this hero outgrew has none: the server refuses it (2027-05-28-cellar-outgrown.sql), and the card's Next ground row is the way on */
+  if (summary.reason === 'outgrown') return null;
   return {
     hunt: summary.hunt, preset: summary.preset, hours: summary.hoursLimit,
     bag: summary.bag.map(([item, qty, ess]) => (ess ? { item, qty, essential: true } : { item, qty })),

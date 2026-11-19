@@ -14,7 +14,8 @@ import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.1
 import { roleIdOf } from '../session/party-sections.js?v=0.2.141';
 import { monsterName } from '../shell/widgets/bits.js?v=0.2.141';
 import { explainDeaths } from './death-explain.js?v=0.2.141';
-import { createRecorder, endedSessionOf, buildSummary, withSummary, withPastSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.141';
+import { createRecorder, endedSessionOf, buildSummary, withSummary, withPastSummary, withTrainingStop, atStart, levelLine, standingLine, trainedIn } from './summary-model.js?v=0.2.141';
+import { factionOf } from '../session/faction-sections.js?v=0.2.141';
 import { trainingOf } from '../session/training-sections.js?v=0.2.141';
 import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.141';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.141';
@@ -94,7 +95,9 @@ function stampStart(cs, s) {
   if ((was && was.s === s.id) || !lv || !atStart(s) || typeof cs.setResidue !== 'function') return;
   const sk = {};
   for (const [id, r] of Object.entries(skillLevelsOf(cs) || {})) sk[id] = r.level;
-  cs.setResidue('huntStart', { s: s.id, lv: lv.level, sk });
+  /* the server's standing per side as the hunt began, while it sends the `factions` section: the card's "First Flame standing: +11 h" */
+  const f = factionOf(cs);
+  cs.setResidue('huntStart', f ? { s: s.id, lv: lv.level, sk, fx: Object.assign({}, f.standing) } : { s: s.id, lv: lv.level, sk });
 }
 
 /**
@@ -130,7 +133,9 @@ export function attach(cs) {
     a.fresh = s.id;
     a.recorded = { id: s.id, at: Date.now() };
     const an = analyzerOf(cs);
-    const line = levelLine(s.id, startOf(cs), levelOf(cs), skillLevelsOf(cs), trainedIn(s, an));
+    const f = factionOf(cs);
+    const line = Object.assign(levelLine(s.id, startOf(cs), levelOf(cs), skillLevelsOf(cs), trainedIn(s, an)),
+      { standing: standingLine(s.id, startOf(cs), f ? f.standing : null) });
     cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, an, deaths, roleIdOf(cs), stop, line)));
   });
   return a;

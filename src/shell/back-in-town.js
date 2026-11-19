@@ -112,7 +112,10 @@ export function townSteps(o) {
   const buy = o && o.buy;
   if (buy) out.push({ id: 'buy', count: 1, done: false, title: buy.title, words: buy.words, verb: t('controls.show'), icon: buy.icon || null, glyph: buy.glyph || null, place: buy.place });
   const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');
-  return { steps: out, primary: first ? first.id : 'again' };
+  /* A GROUND OUTGROWN (`outgrown`: the hunt ended at its endsAtLevel, src/data/hunt-grounds.js) has no Hunt again (the server refuses it), so
+     once the chores are done the card's press is the next ground, where the hero goes now */
+  const next = o && o.outgrown && out.some((s) => s.id === 'ground') ? 'ground' : 'again';
+  return { steps: out, primary: first ? first.id : next };
 }
 
 /** This character's steps, from what the server sent. `did`: the steps pressed on this card (the window's scratch). */
@@ -121,7 +124,8 @@ export function townStepsOf(cs, did) {
   /* the steps follow the hunt the server holds ended (the summary shows them on that hunt's card only) */
   const h = huntOf(cs);
   const free = !!h && h.ended && sessionModeOfHunt(h.huntId).deathLossPm === 0;
-  return townSteps({ plan, bag: bagOf(cs), rules: rulesOf(cs), bids: shop ? shop.bids : null, blessings: blessingsOf(cs), purse: goldOf(cs), did, buy: nextBuyOf(cs, plan), free, ground: groundOf(cs, h) });
+  return townSteps({ plan, bag: bagOf(cs), rules: rulesOf(cs), bids: shop ? shop.bids : null, blessings: blessingsOf(cs), purse: goldOf(cs), did, buy: nextBuyOf(cs, plan), free, ground: groundOf(cs, h),
+    outgrown: !!h && h.ended && h.endReason === 'outgrown' });
 }
 
 /* The next ground off the hunt the server holds ended (hunt-list.js nextGroundFrom), read for the server's Levels: this hero's, or its

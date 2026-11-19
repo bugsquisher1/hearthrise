@@ -84,8 +84,8 @@ end $mig$;
 -- (a) the rows: everyone, no account list
 -- (b) on for any account, a stranger on no list included; a null account still reads off (the fail-safe read is untouched); the
 --     stranger's `features` section names both
--- (c) THE CALENDAR REACHES A STRANGER, on the catalogue's own next window of each event (read from the rows, never a date typed here,
---     so it holds on any day the file is applied): inside the next xp window its Level XP dial on the Mill Cellar is the row's pm; at the
+-- (c) THE CALENDAR REACHES A STRANGER, on the catalogue's own next window of each event (read from the rows by their own rule, never a
+--     date typed here and never a span of now(), so it holds on any day the file is applied or replayed): inside the next xp window its Level XP dial on the Mill Cellar is the row's pm; at the
 --     next fee window the rat_king call's fee dial is the row's pm and names the event; the `live_events` section lists every event
 --     whose next window starts within its week
 -- (d) nothing else: no client or service_role privilege on the table, no policy on it; the grant hygiene baseline holds
@@ -108,9 +108,12 @@ begin
   end loop;
   -- (c) each event's next window, from its own row
   v_n := 0;
-  for v_r in select e.event_id, e.pm, e.every_days, t.dial from public.hr_live_events e join public.hr_live_event_types t on t.type_id = e.type_id
+  -- THE NEXT WINDOW BY THE CALENDAR'S OWN RULE: the first one at or after the later of now() and the row's own first start (a row whose
+  -- first window is still months ahead, as on a replay pinned to an earlier day, has one; tests/utc-midnight-replay.mjs, run 44476966121)
+  for v_r in select e.event_id, e.pm, e.every_days, e.first_at, t.dial from public.hr_live_events e join public.hr_live_event_types t on t.type_id = e.type_id
               where t.switch_id in ('event_xp_bonus', 'event_open_halls') order by e.event_id loop
-    select w.starts, w.ends into v_win from public.hr_live_event_windows(v_r.event_id, now(), now() + make_interval(days => coalesce(v_r.every_days, 400) + 1)) w
+    select w.starts, w.ends into v_win from public.hr_live_event_windows(v_r.event_id, greatest(now(), v_r.first_at),
+                                                                         greatest(now(), v_r.first_at) + make_interval(days => coalesce(v_r.every_days, 400) + 1)) w
      order by w.starts limit 1;
     if v_win.starts is null then continue; end if;   -- a one-off already over, or an `until` passed: nothing left to arm
     v_n := v_n + 1;

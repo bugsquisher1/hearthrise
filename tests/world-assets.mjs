@@ -69,7 +69,8 @@
 // same frame, anchor, clips and facings ([mask]). It counts as loaded only while that set is (style 1).
 // THE HERO SETS (src/data/world/atlas-sets.js HERO_SETS: `heroes`, and `factionwear` since `heroes` is full): every worn outfit's
 // sprite (src/data/hunt-outfits.js OUTFITS) is in one of them, which is all the Character window, the roster and creation load
-// (src/render/outfit-sprite.js), and each of them has its mask set ([hero-set]).
+// (src/render/outfit-sprite.js), and each of them has its mask set; a worn set (WORN_SETS, `factionwear`: fetched only with a hero who
+// wears one of its looks, so its manifest is not there to ask) lists exactly the sprites its built manifest carries ([hero-set]).
 // --selftest plants a drawn sprite into a mask set, a misnamed mask, a key nudged off its colour, a mask of a
 // sprite that does not exist, and a mask set whose base set nobody loads.
 //
@@ -104,7 +105,7 @@ import { restyle, restyleProblems, LINE } from '../tools/world-art/restyle.mjs';
 import { style1Findings, reachableRefs, codeSets, RETIRED_SETS } from '../tools/world-art/style1.mjs';
 import { readSidecars, listSets, setGrid, framesOf } from '../tools/world-art/build.mjs';
 /* every set the renderer can load, on any art grid (the sandbox's hd64 set loads on its first entry) */
-import { LOADED_SETS as ATLAS_SETS, MASK_SETS, HERO_SETS } from '../src/data/world/atlas-sets.js';
+import { LOADED_SETS as ATLAS_SETS, MASK_SETS, HERO_SETS, WORN_SETS } from '../src/data/world/atlas-sets.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
@@ -346,8 +347,9 @@ function loadAtlases(root = ROOT) {
   });
 }
 
-/** [hero-set]: every OUTFITS sprite is a sprite of a hero set, and every hero set has a mask set. Strings. */
-function heroSetLinks(atlases, outfits = Object.values(OUTFITS), heroSets = HERO_SETS, maskSets = MASK_SETS) {
+/** [hero-set]: every OUTFITS sprite is a sprite of a hero set, and every hero set has a mask set; every worn set (WORN_SETS, fetched on
+    need by its sprite ids, the manifest unread until then) is a hero set listing exactly its built manifest's sprites. Strings. */
+function heroSetLinks(atlases, outfits = Object.values(OUTFITS), heroSets = HERO_SETS, maskSets = MASK_SETS, wornSets = WORN_SETS) {
   const out = [];
   for (const id of outfits) {
     const a = atlases.find((x) => !maskSets[x.manifest.set] && x.manifest.sprites[id]);
@@ -355,6 +357,12 @@ function heroSetLinks(atlases, outfits = Object.values(OUTFITS), heroSets = HERO
     else if (!heroSets.includes(a.manifest.set)) out.push(`hero-set: ${id} is in set ${a.manifest.set}, not a hero set (atlas-sets.js HERO_SETS): the Character window would draw it blank`);
   }
   for (const h of heroSets) if (!Object.values(maskSets).includes(h)) out.push(`hero-set: hero set ${h} has no mask set (atlas-sets.js MASK_SETS)`);
+  for (const [set, ids] of Object.entries(wornSets)) {
+    if (!heroSets.includes(set)) out.push(`hero-set: worn set ${set} is not a hero set (atlas-sets.js HERO_SETS)`);
+    const a = atlases.find((x) => x.manifest.set === set);
+    const built = a ? Object.keys(a.manifest.sprites).sort() : [];
+    if (JSON.stringify([...ids].sort()) !== JSON.stringify(built)) out.push(`hero-set: worn set ${set} lists ${[...ids].sort().join(', ')} but its manifest carries ${built.join(', ') || 'nothing'} (atlas-sets.js WORN_SETS): a look it leaves out would never load`);
+  }
   return out;
 }
 
@@ -724,6 +732,8 @@ function selftest(atlases) {
   heroCase('a worn outfit in a set the Character window does not load', 'not a hero set', [atlases, Object.values(OUTFITS), HERO_SETS.filter((h) => h !== 'factionwear')]);
   heroCase('a worn outfit with no art at all', 'in no shipped set', [atlases, Object.values(OUTFITS).concat(['outfit_nobody'])]);
   heroCase('a hero set with no mask set', 'has no mask set', [atlases, Object.values(OUTFITS), HERO_SETS, { 'hunt-masks': 'heroes' }]);
+  heroCase('a worn look built into its set but missing from WORN_SETS', 'would never load', [atlases, Object.values(OUTFITS), HERO_SETS, MASK_SETS,
+    Object.fromEntries(Object.entries(WORN_SETS).map(([set, ids]) => [set, ids.slice(1)]))]);
   linkCase('a mask laid out unlike its sprite (a facing short a frame)', 'not laid out', relinked((sp) => {
     const a = sp[mId].anims, clip = Object.keys(a).find((n) => Object.values(a[n].dirs).some((l) => l.length > 1));
     const d = Object.keys(a[clip].dirs).find((k) => a[clip].dirs[k].length > 1);

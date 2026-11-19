@@ -21,6 +21,7 @@ import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.141';
 import { awayNowOf } from '../away-recap.js?v=0.2.141';
 import { deathWords, blessingsMissing } from '../death-popup.js?v=0.2.141';
 import { deathLogOf } from '../../session/character-sections.js?v=0.2.141';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.141';
 import { spanWords } from '../after-hunt.js?v=0.2.141';
 import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.141';
 import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.141';
@@ -34,6 +35,9 @@ const heroOf = (ctx, a) => ctx.peers().find((p) => p.slot === a.slot) || null;
 /* A hunt the server can start again with its own settings: never a boss room (its one door is a paid press), a training session (its
    Start is the Training window's) or a run (a climb or a descent: the Tower window's). */
 const restartable = (hunt) => !!hunt && !roomOfHunt(hunt) && !trainedBy(hunt) && !runRulesOf(hunt);
+/* ...nor a ground the hero outgrew (its hunt ended `outgrown`, hunt-grounds.js endsAtLevel): the server refuses it, and the press is the Hunt
+   summary, whose Next ground row is the way on */
+const outgrownOf = (cs) => { const h = cs ? huntOf(cs) : null; return !!h && h.ended === true && h.endReason === 'outgrown'; };
 const OPENS = Object.freeze({ bag: 'inventory', show: null });
 /* THE GOLD THE PURSE KEPT (audit 2026-11-18 A6: "+6,182 gold" while the purse rose 1,843): the coins less the store's supplies, the end card's
    own reading (../result-block.js goldFig); none when the line has no store spend to set against the coins (../away-recap.js says no gold then).
@@ -75,7 +79,7 @@ export function awayBlockOf(cs, a) {
     why = now.why;
     when = [now.ago ? t('away.card_ended_when', { time: now.ago }) : '', now.next].filter(Boolean).join(' ');
     stamina = now.stamina ? t('away.card_stamina', { time: now.stamina }) : '';
-    if (restartable(f.hunt) && a.session) { go = 'again'; label = t('controls.hunt_again'); } else { go = 'summary'; label = t('away.card_summary'); }
+    if (restartable(f.hunt) && a.session && !outgrownOf(cs)) { go = 'again'; label = t('controls.hunt_again'); } else { go = 'summary'; label = t('away.card_summary'); }
   } else if (now) why = now.stamina ? t('away.card_still_stamina', { time: now.stamina }) : t('away.card_still');
   return { name: f.name || '', place: a.work ? '' : f.place || '', result, best: hunt && f.best ? f.best : null, why, when, stamina, go, label,
     /* the card's foot offers the viewed hero's Hunt summary once its hunt has ended (the loot, the trip home) */

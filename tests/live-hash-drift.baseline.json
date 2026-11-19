@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-19",
- "replay_ms": 192570,
+ "replay_ms": 112988,
  "counts": {
-  "tracked_names": 964,
-  "entries": 815
+  "tracked_names": 965,
+  "entries": 816
  },
  "functions": [
   {
@@ -7535,7 +7535,8 @@
     "2027-01-22-party-settle-isolation.sql",
     "2027-03-21-scaled-hunts.sql",
     "2027-03-31-watched-settle-cost.sql",
-    "2027-04-24-boss-call-series.sql"
+    "2027-04-24-boss-call-series.sql",
+    "2027-05-17-scaled-best.sql"
    ],
    "live": {
     "md5": "79ea06c28174d95f11d03965bdbd8be5",
@@ -7544,11 +7545,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "79ea06c28174d95f11d03965bdbd8be5",
-    "norm_len": 21130,
+    "md5": "10d5ba85de3cd36b7105f6c5f3d050ee",
+    "norm_len": 21654,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-best.sql splices the scaled-window mark into this body; production keeps the pre-05-17 body until that file applies with the v0.2.141 release."
   },
   {
    "sig": "hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)",
@@ -7577,7 +7579,8 @@
     "2027-04-24-bench-resume.sql",
     "2027-04-24-boss-call-series.sql",
     "2027-04-24-tower-climb.sql",
-    "2027-04-25-boss-daily.sql"
+    "2027-04-25-boss-daily.sql",
+    "2027-05-17-scaled-loot.sql"
    ],
    "live": {
     "md5": "bd93399758d4c0de8cbfc9a5e6d03550",
@@ -7586,11 +7589,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "bd93399758d4c0de8cbfc9a5e6d03550",
-    "norm_len": 40073,
+    "md5": "7a2b60b2f0d97e5cec8cecc61631a4e2",
+    "norm_len": 40385,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-loot.sql multiplies the item bound by the scaled rolls; production keeps the pre-05-17 body until that file applies with the v0.2.141 release (after the edge deploy)."
   },
   {
    "sig": "hr_hunt_bag_fuse()",
@@ -7715,7 +7719,8 @@
    "touched_by": [
     "2026-11-04-hunt-bests.sql",
     "2026-12-06-hunt-bests-supply.sql",
-    "2027-03-22-live-events.sql"
+    "2027-03-22-live-events.sql",
+    "2027-05-17-scaled-best.sql"
    ],
    "live": {
     "md5": "fa7421f3a9d55fff27ae53d254196540",
@@ -7724,11 +7729,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "fa7421f3a9d55fff27ae53d254196540",
-    "norm_len": 2578,
+    "md5": "4bfba427c9f416601ea621598b547af6",
+    "norm_len": 2827,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-best.sql makes the best fold skip sessions with scaled time; production keeps the pre-05-17 body until that file applies with the v0.2.141 release."
   },
   {
    "sig": "hr_hunt_best_min()",
@@ -7804,23 +7810,25 @@
    "sig": "hr_hunt_change(p_slot integer, p_hunt text, p_idem uuid)",
    "name": "hr_hunt_change",
    "tracked_by": [
+    "chain",
     "pin",
     "restate"
    ],
    "touched_by": [
     "2026-10-21-hunt-sessions.sql",
     "2026-10-23-hunt-party.sql",
-    "2026-10-31-live-horizon.sql"
+    "2026-10-31-live-horizon.sql",
+    "2027-05-20-yard-stop.sql"
    ],
    "live": {
-    "md5": "5c3e72a57ca341e5cd230b19fde9a938",
-    "norm_len": 2939,
+    "md5": "f922fc3e3590ca1a41307a7f7641366d",
+    "norm_len": 3036,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5c3e72a57ca341e5cd230b19fde9a938",
-    "norm_len": 2939,
+    "md5": "f922fc3e3590ca1a41307a7f7641366d",
+    "norm_len": 3036,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7869,6 +7877,29 @@
    "replay": {
     "md5": "70deff7d6fbf79df81a7dcbb0027715d",
     "norm_len": 1889,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_close_at(p_session uuid)",
+   "name": "hr_hunt_close_at",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-20-yard-stop.sql"
+   ],
+   "live": {
+    "md5": "86c75e3b83ff4bd4ccd7b8dfdd22e6f7",
+    "norm_len": 907,
+    "measured": "2026-11-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "86c75e3b83ff4bd4ccd7b8dfdd22e6f7",
+    "norm_len": 907,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8290,17 +8321,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-03-13-gm-tools.sql"
+    "2027-03-13-gm-tools.sql",
+    "2027-05-20-yard-stop.sql"
    ],
    "live": {
-    "md5": "d22a6caa86fedc90188d01a5c8d17eee",
-    "norm_len": 843,
+    "md5": "ffe82fa2c412e9675ef0d71a07273051",
+    "norm_len": 941,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "d22a6caa86fedc90188d01a5c8d17eee",
-    "norm_len": 843,
+    "md5": "ffe82fa2c412e9675ef0d71a07273051",
+    "norm_len": 941,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8355,6 +8387,7 @@
    "sig": "hr_hunt_live_horizon_at(p_settled_to timestamp with time zone)",
    "name": "hr_hunt_live_horizon_at",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
@@ -14691,7 +14724,8 @@
    ],
    "touched_by": [
     "2027-03-21-scaled-hunts.sql",
-    "2027-03-22-live-events.sql"
+    "2027-03-22-live-events.sql",
+    "2027-05-17-scaled-best.sql"
    ],
    "live": {
     "md5": "54a04356df8b489ef10ea955a1ca455d",
@@ -18552,17 +18586,18 @@
     "restate"
    ],
    "touched_by": [
-    "2027-04-16-combat-training.sql"
+    "2027-04-16-combat-training.sql",
+    "2027-05-20-yard-stop.sql"
    ],
    "live": {
-    "md5": "ced454cc4439b2a7370b0b427ac2c0d2",
-    "norm_len": 3003,
+    "md5": "c52e83c3c01204087e894558951a3c16",
+    "norm_len": 3614,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ced454cc4439b2a7370b0b427ac2c0d2",
-    "norm_len": 3003,
+    "md5": "c52e83c3c01204087e894558951a3c16",
+    "norm_len": 3614,
     "source": "computed-from-replay"
    },
    "agree": true

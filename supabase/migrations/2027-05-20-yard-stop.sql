@@ -225,10 +225,14 @@ begin
       raise exception 'VERIFY(a): a stranger''s Leave answered % and the yard''s leave_at is %', v, (select leave_at from public.hunt_sessions where id = v_sid); end if;
     perform set_config('request.jwt.claim.sub', v_uid::text, true);
 
-    -- (b) THE PRESS AT 59:50 CLOSES AT THE PRESS: pending, at now(), never before a settled step, before the next hour's first instant.
+    -- (b) THE PRESS AT 59:50 CLOSES AT THE PRESS: pending, at now() ON THE HUNT CLOCK, never before a settled step, before the next hour's
+    -- first instant. THE HUNT CLOCK IS WHOLE MILLISECONDS (2026-10-22-hunt-sessions-settle.sql hr_hunt_clock_ms truncates every session
+    -- instant as it is written) while production's now() carries microseconds: the press is date_trunc('milliseconds', now()). (The first
+    -- apply of this file, 2026-11-19, compared leave_at with the bare now() and refused itself on production; a replay's clock is
+    -- already whole milliseconds, the 2026-10-15 GATE(f) class.)
     v := public.hr_hunt_leave(0, gen_random_uuid());
     select * into v_s from public.hunt_sessions where id = v_sid;
-    if coalesce(v->>'ok', '') <> 'true' or coalesce(v->>'pending', '') <> 'true' or v_s.leave_at is distinct from now()
+    if coalesce(v->>'ok', '') <> 'true' or coalesce(v->>'pending', '') <> 'true' or v_s.leave_at is distinct from date_trunc('milliseconds', now())
        or v_s.leave_at < v_s.settled_to or v_s.leave_at >= v_edge or (v->'session'->>'leave_at') is null then
       raise exception 'VERIFY(b): the yard''s Leave answered % with leave_at % (now %, settled_to %, the hour''s edge %)', v, v_s.leave_at, now(), v_s.settled_to, v_edge; end if;
 

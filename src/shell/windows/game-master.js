@@ -8,8 +8,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { gmOf } from '../../session/character-sections.js?v=0.2.141';
 
-/* Not a literal import(): play.html's preload block (tests/module-preload.mjs) names every literal one, and everyone's page would fetch this. */
-const BODY_URL = new URL('./game-master-body.js?v=0.2.141', import.meta.url).href;
+/* Not a literal import(): play.html's preload block (tests/module-preload.mjs) names every literal one, and everyone's page would fetch this.
+   At this module's own stamp (the site build writes one on every import), so the body's own imports are the page's instances. */
+const BODY_URL = new URL('./game-master-body.js', import.meta.url).href + new URL(import.meta.url).search;
 let body = null;
 let loading = null;
 

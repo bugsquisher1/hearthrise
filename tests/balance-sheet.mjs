@@ -18,11 +18,12 @@
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync } from 'node:child_process';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const { BUILD } = await import(u('src/build-info.js'));
-const V = '?v=' + BUILD.version;
+const V = sourceQuery(ROOT);
 const REAL = await import(u('src/data/balance-sheet.js'));
 const C = await import(u('src/core/combat.js') + V);
 const { MONSTERS } = await import(u('src/data/monsters.js'));

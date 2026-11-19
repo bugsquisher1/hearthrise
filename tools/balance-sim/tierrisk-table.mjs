@@ -17,6 +17,7 @@ import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCell } from './tiers-table.mjs';
 import { hoursTo, referenceRate, loadPaceData, SNAPSHOT } from './pace.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -25,7 +26,7 @@ const load = (dir) => (existsSync(join(dir, 'cells.jsonl')) ? readFileSync(join(
 const PF = load(resolve(arg('pacefinal', join(HERE, 'out', 'pacefinal'))));
 const TR = load(resolve(arg('in', join(HERE, 'out', 'tierrisk'))));
 const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).href);
-const XP = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href + '?v=' + BUILD.version);
+const XP = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href + sourceQuery(ROOT));
 const { LEVEL_PACE } = await import(pathToFileURL(join(ROOT, 'src/data/core-model.js')).href);
 const SHORT = { wickstead: 'Wickstead', mosslight_glade: 'Glade', meadowbrook_thicket: 'Thicket', millrace_sewer: 'Sewer', coppercap_warrens: 'Warrens' };
 const k = (n) => (Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(Math.round(n)));

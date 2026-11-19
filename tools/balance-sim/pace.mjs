@@ -33,6 +33,7 @@ import { execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { simplex } from './lp.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -71,7 +72,7 @@ export async function loadPaceData(root = ROOT) {
   const { HUNT_INDEX } = await import(v('src/data/hunts.js'));
   const { MONSTERS } = await import(v('src/data/monsters.js'));
   const { BUILD } = await import(v('src/build-info.js'));
-  const { recommendedHunt } = await import(v('src/shell/hunt-list.js') + '?v=' + BUILD.version);
+  const { recommendedHunt } = await import(v('src/shell/hunt-list.js') + sourceQuery(ROOT));
   return { OPEN_GROUNDS: G.OPEN_GROUNDS, HUNT_INDEX, MONSTERS, recommend: (L) => { const r = recommendedHunt([L], 1); return r ? r.hunt : null; } };
 }
 
@@ -259,11 +260,11 @@ async function main() {
   const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
   const flag = (k) => process.argv.includes('--' + k);
   const { BUILD } = await import(u('src/build-info.js'));
-  const XP = await import(u('src/core/xp.js') + '?v=' + BUILD.version);
-  const AR = await import(u('src/core/action-rules.js') + '?v=' + BUILD.version);
+  const XP = await import(u('src/core/xp.js') + sourceQuery(ROOT));
+  const AR = await import(u('src/core/action-rules.js') + sourceQuery(ROOT));
   const { LEVEL_CURVE, LEVEL_PACE } = await import(u('src/data/core-model.js'));
   const { BLESSING_TIERS } = await import(u('src/data/blessings.js'));
-  const HS = await import(u('src/data/hunt-sessions.js') + '?v=' + BUILD.version);
+  const HS = await import(u('src/data/hunt-sessions.js') + sourceQuery(ROOT));
   const D = await loadPaceData();
   const PACE = resolve(arg('pace', join(HERE, 'out', 'pace')));
   const careers = readRows(PACE).filter((r) => r.kind === 'career' && r.party.length === 1 && !Number.isInteger(r.density));

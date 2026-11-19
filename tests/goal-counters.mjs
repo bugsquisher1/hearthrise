@@ -1029,7 +1029,7 @@ async function loadMutant(m) {
   const goalsUrl = pathToFileURL(goalsFile).href;
   /* The member assembly imports the goals module too: its copy reads the same (possibly mutant) one. */
   memberSrc = memberSrc
-    .replace(/from '\.\/goals\.js\?v=[^']*'/g, `from '${goalsUrl}'`)
+    .replace(/from '\.\/goals\.js(?:\?v=[^']*)?'/g, `from '${goalsUrl}'`)
     .replace(/from '\.\//g, `from '${rootUrl}src/core/`)
     .replace(/from '\.\.\/data\//g, `from '${rootUrl}src/data/`);
   if (/from '\.\.?\//.test(memberSrc)) throw new Error('MUTATION HARNESS: a relative import survived the member rewrite');

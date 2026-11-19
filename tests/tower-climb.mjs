@@ -53,6 +53,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { bootReplay, chainFiles, inventory } from './schema-replay.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q, makeExec } = H;
@@ -60,7 +61,7 @@ const ROOT = H.ROOT;
 const UID = H.UIDS[0];
 const FN = join('supabase', 'functions', 'hr-accrue');
 const SPAN = 20 * 60000;
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const rewind = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
 const idem = () => crypto.randomUUID();
 

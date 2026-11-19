@@ -32,6 +32,7 @@ import { groundOfHunt, monstersOn } from '../src/data/hunt-grounds.js';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = '2027-04-22-target-kind.sql';
@@ -46,7 +47,7 @@ const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub',
 
 /* THE HEALER (the engine's own rows, the module instance src/core imports with the build's ?v=; tests/hunt-live.mjs LV-KINDS): the
    Cellar's Slime mends its pull, and every Cellar monster stands ten times its health. Set once for the process, every door alike. */
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src', 'build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const ENGINE_MONSTERS = (await import(pathToFileURL(join(ROOT, 'src', 'data', 'monsters.js')).href + V)).MONSTERS;
 const ENGINE_SPELLS = await import(pathToFileURL(join(ROOT, 'src', 'data', 'monster-spells.js')).href + V);
 const MEND = 'tk_mend';

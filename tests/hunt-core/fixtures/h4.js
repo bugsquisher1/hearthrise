@@ -1,6 +1,7 @@
 // tests/hunt-core/fixtures/h4.js — lane H4's fixtures: a hero with a supply session, a fight to cast into,
 // and a sub-step driver for consumables.js / abilities.js. Built on fixtures/h1.js (spec §1.6).
 import { hero, mon, world, instOf, subStep, loadCore, plant, makeReport, ROOT } from './h1.js';
+import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
 
 export const STORE_FOOD = 'salted_shrimp';
 export const STORE_DRINK = 'thin_turnip_juice';
@@ -65,7 +66,7 @@ export async function loadData(M) {
   const { readFileSync, existsSync } = await import('node:fs');
   const { join } = await import('node:path');
   const { pathToFileURL } = await import('node:url');
-  const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(M.root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const v = sourceQuery(M.root);
   const imp = (p) => import(pathToFileURL(join(M.root, p)).href + v);
   /* THE BAR'S SHELL (bar-draft, action-facts), when the tree holds it: the repo, or a mutant planted with `also: ['src']`. */
   const shell = existsSync(join(M.root, 'src/shell/bar-draft.js')) ? { draft: await imp('src/shell/bar-draft.js'), facts: await imp('src/shell/action-facts.js'), table: await imp('src/shell/action-table.js') } : null;

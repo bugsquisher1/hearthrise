@@ -8,17 +8,14 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const GROUNDS_DIR = (root = ROOT) => join(root, 'src', 'data', 'grounds');
 const ID = /^[a-z0-9_]{1,40}$/;
 
-/** The build's cache-buster (src/build-info.js BUILD.version), read as text so no module is evaluated. */
-export function buildVersion(root = ROOT) {
-  const m = readFileSync(join(root, 'src', 'build-info.js'), 'utf8').match(/version:\s*'(\d+\.\d+\.\d+)'/);
-  if (!m) throw new Error('pack: no BUILD.version in src/build-info.js');
-  return m[1];
-}
+/** The query a written import carries: the source's own ('?v=X.Y.Z' until the flag day, '' after; the site build stamps it). */
+export const sourceStamp = (root = ROOT) => sourceQuery(root);
 
 /** Every pack folder under src/data/grounds (a folder with a pack.js), sorted. */
 export function packIds(root = ROOT) {
@@ -28,10 +25,10 @@ export function packIds(root = ROOT) {
 
 const camel = (id) => 'pack_' + id;
 /** src/data/grounds/index.js for these pack ids. */
-export function indexText(ids, version) {
+export function indexText(ids, query) {
   const head = readFileSync(join(GROUNDS_DIR(), 'index.js'), 'utf8').split('/* pack imports (tools/pack.mjs index) */')[0];
   return head + '/* pack imports (tools/pack.mjs index) */\n'
-    + ids.map((id) => `import ${camel(id)} from './${id}/pack.js?v=${version}';\n`).join('')
+    + ids.map((id) => `import ${camel(id)} from './${id}/pack.js${query}';\n`).join('')
     + '\nexport const GROUND_PACKS = Object.freeze([\n  /* pack rows (tools/pack.mjs index) */\n'
     + ids.map((id) => `  ${camel(id)},\n`).join('')
     + ']);\n';
@@ -41,7 +38,7 @@ export function indexText(ids, version) {
 export function writeIndex(root = ROOT, only = null) {
   const ids = only || packIds(root);
   const file = join(GROUNDS_DIR(root), 'index.js');
-  const next = indexText(ids, buildVersion(root));
+  const next = indexText(ids, sourceStamp(root));
   const was = existsSync(file) ? readFileSync(file, 'utf8') : '';
   if (was === next) return false;
   writeFileSync(file, next);
@@ -49,7 +46,7 @@ export function writeIndex(root = ROOT, only = null) {
 }
 
 /** A pack's source: pack.js (the rows) and map.js (the map row), as data literals. */
-export function packSources(pack, version) {
+export function packSources(pack, query) {
   const { map, ...rest } = pack;
   const lit = (o) => JSON.stringify(o, null, 1).replace(/\n\s*/g, ' ');
   const head = (what) => `// src/data/grounds/${pack.id}/${what} — written by tools/pack.mjs (lane/b-ground-pack). Shape: src/data/grounds/shape.js.\n`;
@@ -66,7 +63,7 @@ export function packSources(pack, version) {
   const field = ([k, v]) => (k === 'monsters' ? '  monsters: {\n' + Object.entries(v).map(([id, m]) => monster(id, m)).join('') + '  },\n' : `  ${k}: ${lit(v)},\n`);
   return {
     'map.js': head('map.js') + `export default Object.freeze(${lit(map)});\n`,
-    'pack.js': head('pack.js') + `import { definePack } from '../shape.js?v=${version}';\nimport map from './map.js?v=${version}';\n\n`
+    'pack.js': head('pack.js') + `import { definePack } from '../shape.js${query}';\nimport map from './map.js${query}';\n\n`
       + 'export default definePack({\n' + Object.entries(rest).map(field).join('') + '  map,\n});\n',
   };
 }
@@ -75,7 +72,7 @@ export function packSources(pack, version) {
 export function writePack(root, pack) {
   const dir = join(GROUNDS_DIR(root), pack.id);
   mkdirSync(dir, { recursive: true });
-  for (const [f, text] of Object.entries(packSources(pack, buildVersion(root)))) writeFileSync(join(dir, f), text);
+  for (const [f, text] of Object.entries(packSources(pack, sourceStamp(root)))) writeFileSync(join(dir, f), text);
   writeIndex(root);
   return dir;
 }

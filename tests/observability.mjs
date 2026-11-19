@@ -82,10 +82,11 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
-const V = '?v=' + /cache:\s*'([^']+)'/.exec(BUILD_SRC)[1];
+const V = sourceQuery(ROOT);
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const SENTRY = /\.ingest\.us\.sentry\.io\//;
 /* What the project's own /flags/?config=true and /array/<key>/config answer (read from the live endpoints 2026-10-31): the SDK's

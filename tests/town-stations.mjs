@@ -45,9 +45,10 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const imp = (p) => import(pathToFileURL(join(ROOT, p)).href + V);
 
 /* THE PLAN'S COUNTS (worst → stands, PRIORITY_BOARD "Real town plan" rev 2): a station may hold more, never fewer */

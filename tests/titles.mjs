@@ -35,6 +35,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ownHeroSlots, asOldLadder } from './_slots.mjs';
 import { OUT_FILE } from '../tools/gen-title-catalogue.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d7c01';
@@ -539,8 +540,7 @@ function plantSql(text, [, find, repl]) {
 }
 
 async function loadReaders(root) {
-  const v = (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
-  const u = (p) => pathToFileURL(join(root, p)).href + '?v=' + v;
+  const u = (p) => pathToFileURL(join(root, p)).href + sourceQuery(root);
   return {
     T: await import(u('src/data/titles.js')),
     GEN: await import(pathToFileURL(join(ROOT, 'tools/gen-title-catalogue.mjs')).href),

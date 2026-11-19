@@ -47,6 +47,7 @@ import { ROOT, plant } from './hunt-core/fixtures/h1.js';
 import { PLAY_TREES } from './hunt-core/fixtures/play-ground.mjs';
 import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
 import { runPool } from '../tools/balance-sim/pool.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const BAR = 1.0;
 const WIDE = process.argv.includes('--wide');
@@ -90,7 +91,7 @@ const TIER_HOURS = 0.5;
 
 const argOf = (name, dflt) => { const i = process.argv.indexOf(name); return i > 0 ? Number(process.argv[i + 1]) : dflt; };
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href + V);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href + V);
 const { PARTY_CLASSES } = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);

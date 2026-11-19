@@ -29,6 +29,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { writeFileSync } from 'node:fs';
 import { loadGear, STYLES } from './gear.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -77,7 +78,7 @@ const { loadPlay } = await import(u('tests/hunt-core/fixtures/play-ground.mjs'))
 const play = await loadPlay(ROOT);
 const gear = await loadGear(ROOT);
 const { BUILD } = await import(u('src/build-info.js'));
-const v = '?v=' + BUILD.version;
+const v = sourceQuery(ROOT);
 const G = await import(u('src/data/hunt-grounds.js'));
 const { BOSS_CALLS, BOSS_CALL_RULES } = await import(u('src/data/boss-calls.js'));
 const { BOSS_HALLS, BOSS_HALL_RULES, hallBossOf, isNamedAdd } = await import(u('src/data/boss-halls.js'));

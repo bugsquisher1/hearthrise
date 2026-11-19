@@ -20,7 +20,9 @@
 //                XP at least 1.25x the ground unscaled (worth buying); alone, the fee a real sink (15-60% of the scaled gold) that
 //                never turns the hour into a loss
 //   no-deaths    nobody dies on Normal at the leader's Level: every four, and every lone way on a solo ground
-//   coin-scales  coin a kill scales (2x or more), drops a kill don't (commons' value a kill within 0.75-1.33x of the ground unscaled)
+//   loot-scales  LOOT SCALES (Tyler 2026-11-07, "difficulty, XP and loot scale"; the designer 2026-11-18: change the item multiple, not the price):
+//                coin a kill 2x or more, and the items a kill (commons' value) the card's "Drops ×" (scaleFor dropsPm) of the ground unscaled,
+//                within 0.75-1.33x of it, where it equals Gold × (the Thicket at 41) and where the min binds under it (the Cellar at 20)
 //
 // --mutate: each check against a planted wrong module (the engine ones replay only the scaled cells) must go red.
 import { join, dirname, resolve } from 'node:path';
@@ -46,7 +48,9 @@ const CASES = [
   ['mosslight_glade', 32, 1], ['mosslight_glade', 41, 4], ['mosslight_glade', 50, 4],
 ];
 const COIN_CASE = ['meadowbrook_thicket', 41, 1];
-const BAR = Object.freeze({ xpUnderRight: 1, xpOverOwn: 1.25, feeShare: [0.15, 0.6], coinPerKill: 2, commonsPerKill: [0.75, 1.33] });
+/* where the drops multiple is the coin's (the Thicket) and where the designer's min binds well under it (the Cellar: Drops x2.42 against Gold x6) */
+const LOOT_CASES = [COIN_CASE, ['mill_cellar', 20, 1]];
+const BAR = Object.freeze({ xpUnderRight: 1, xpOverOwn: 1.25, feeShare: [0.15, 0.6], coinPerKill: 2, lootPerKill: [0.75, 1.33] });
 
 const band = (gid) => HUNT_INDEX[G.OPEN_GROUNDS[gid].hunt].band;
 const fitOf = (gid) => (G.HUNT_GROUNDS[gid].pockets.some((p) => p.forParty) ? 'party' : G.HUNT_GROUNDS[gid].groupFit || 'both');
@@ -63,7 +67,7 @@ const whatIfOf = (S, gid, L) => {
   for (const id of Object.keys(B.GROUND_ROSTER[gid])) {
     const r = S.scaledRow(MONSTERS[id], id, gid, L);
     if (r === MONSTERS[id]) throw new Error('scaled-hunts: ' + gid + ' did not scale ' + id + ' for a Level ' + L + ' leader');
-    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm'].map((k) => [k, r[k]]));
+    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
   }
   return { monsters: rows };
 };
@@ -129,11 +133,16 @@ function noDeaths(S, cells, tag) {
   }
   return bad;
 }
-function coinScales(S, cells, tag) {
-  const [gid, L, size] = COIN_CASE, s = readOf(cells, 'scaled', gid, L, size, tag), own = readOf(cells, 'free', gid, L, size);
-  const coin = s.coinPerKill / own.coinPerKill, commons = s.commonsPerKill / Math.max(1e-9, own.commonsPerKill), bad = [];
+function lootScales(S, cells, tag) {
+  return LOOT_CASES.flatMap((c) => lootScalesAt(c, cells, tag));
+}
+function lootScalesAt([gid, L, size], cells, tag) {
+  const s = readOf(cells, 'scaled', gid, L, size, tag), own = readOf(cells, 'free', gid, L, size);
+  const card = REAL.scaleFor(gid, L).dropsPm / 1000;
+  const coin = s.coinPerKill / own.coinPerKill, items = s.commonsPerKill / Math.max(1e-9, own.commonsPerKill) / card, bad = [];
   if (!(coin >= BAR.coinPerKill)) bad.push(gid + ' L' + L + ': coin a kill ' + coin.toFixed(2) + 'x the ground unscaled (bar ' + BAR.coinPerKill + 'x)');
-  if (!(commons >= BAR.commonsPerKill[0] && commons <= BAR.commonsPerKill[1])) bad.push(gid + ' L' + L + ': commons a kill ' + commons.toFixed(2) + 'x the ground unscaled (drops must not scale)');
+  if (!(items >= BAR.lootPerKill[0] && items <= BAR.lootPerKill[1])) bad.push(gid + ' L' + L + ': items a kill ' + (items * card).toFixed(2) + 'x the ground unscaled, '
+    + items.toFixed(2) + 'x the card\'s Drops x' + card.toFixed(2) + ' (bar ' + BAR.lootPerKill.join('-') + ')');
   return bad;
 }
 /* THE GROUND DATA IS THE LIST: the module's table is scaleLadderOf on the open grounds, a ground opened above the top is picked up,
@@ -201,6 +210,11 @@ function rules(S) {
         if (r.xp !== Math.max(1, Math.round((f.xp * H.xpPm) / 1000))) bad.push(k + ': xp ' + r.xp + ', the formula x ' + H.xpPm + ' permille');
         if (Math.abs(got - mean) > 1) bad.push(k + ': coin mean ' + got + ', its own ' + oMean.toFixed(1) + ' + ' + H.coinPm[g.fit] + ' permille of the rise ' + mean.toFixed(1));
         if (r.drops !== m.drops) bad.push(k + ': its drops are not the row\'s');
+        /* the drops multiple: the card's one "Drops ×" for the ground and Level (lootPmFor), the same on every monster of the roster, one roll at
+           least and never past the card's Gold × (the designer's rule) */
+        const card = S.scaleFor(gid, L) || {};
+        if (r.lootPm !== S.lootPmFor(gid, L) || r.lootPm !== card.dropsPm || !(r.lootPm >= 1000) || !(r.lootPm <= Math.max(1000, card.coinPm)))
+          bad.push(k + ': drops multiple ' + r.lootPm + ', the card\'s Drops ' + card.dropsPm + ' and Gold ' + card.coinPm);
         if (!table[id] || JSON.stringify(table[id]) !== JSON.stringify(r)) bad.push(k + ': scaledMonsters is not scaledRow');
       }
       /* the tiers stack: the sheet's row for a ground of the scaled floor, its own pulls and named dials; Deadly never, nor a tier the ground lacks */
@@ -237,7 +251,7 @@ function rules(S) {
 const plant = (patch) => ({ ...REAL, ...patch });
 /* a mutant row (and the table built from it, so only the planted fault differs from the module) */
 const rowPatch = (fn) => {
-  const scaledRow = (row, id, g, L) => { const r = REAL.scaledRow(row, id, g, L); return r === row ? r : fn(r, row, g); };
+  const scaledRow = (row, id, g, L) => { const r = REAL.scaledRow(row, id, g, L); return r === row ? r : fn(r, row, g, L); };
   return plant({ scaledRow, scaledMonsters: (M, g, L) => Object.fromEntries(Object.keys(REAL.scaledMonsters(M, g, L)).map((id) => [id, scaledRow(M[id], id, g, L)])) });
 };
 const OLD_TABLE = Object.freeze({ topLevel: 50, grounds: REAL.SCALABLE_GROUNDS });
@@ -261,8 +275,11 @@ const MUTANTS = [
   ['fee-guard', 'Level XP x1.5 a kill', () => rowPatch((r) => ({ ...r, xp: Math.round(r.xp * 1.5) })), 'engine'],
   ['fee-guard', 'coin x2 a kill', () => rowPatch((r) => ({ ...r, gp: r.gp.map((x) => x * 2) })), 'engine'],
   ['no-deaths', 'blows x2.5 (atk)', () => rowPatch((r) => ({ ...r, atk: Math.round(r.atk * 2.5) })), 'engine'],
-  ['coin-scales', 'drops x3 a kill', () => rowPatch((r) => ({ ...r, drops: r.drops.map((d) => ({ ...d, ch: Math.min(1, d.ch * 3) })) })), 'engine'],
-  ['coin-scales', 'coin left at the ground\'s own', () => rowPatch((r, row) => ({ ...r, gp: row.gp.slice() })), 'engine'],
+  ['loot-scales', 'drops x3 a kill', () => rowPatch((r) => ({ ...r, drops: r.drops.map((d) => ({ ...d, ch: Math.min(1, d.ch * 3) })) })), 'engine'],
+  ['loot-scales', 'coin left at the ground\'s own', () => rowPatch((r, row) => ({ ...r, gp: row.gp.slice() })), 'engine'],
+  ['loot-scales', 'the drops left at the ground\'s own rate', () => rowPatch((r) => ({ ...r, lootPm: undefined })), 'engine'],
+  ['loot-scales', 'drops at Gold \u00d7 (the Cellar out-earns the free grounds)', () => rowPatch((r, row, g, L) => ({ ...r, lootPm: Math.max(1000, REAL.scaleFor(g, L).coinPm) })), 'engine'],
+  ['rules', 'a monster\'s loot rate off the card', () => plant({ scaledRow: (row, id, g, L) => { const r = REAL.scaledRow(row, id, g, L); return r === row ? r : { ...r, lootPm: r.lootPm + 500 }; } })],
 ];
 
 const mutate = process.argv.includes('--mutate');
@@ -280,15 +297,16 @@ for (const r of rows) {
     + (r.k.endsWith('x4') ? '/4' : '') + ' = ' + Math.round(r.after) + ' (best free ' + r.best[0].replace(/_.*/, '') + ' ' + Math.round(r.best[1]) + ', own ' + Math.round(r.own.net) + ')  deaths ' + r.s.deaths);
 }
 say('no-deaths', noDeaths(REAL, cells, ''));
-say('coin-scales', coinScales(REAL, cells, ''));
-{ const [gid, L, size] = COIN_CASE, s = readOf(cells, 'scaled', gid, L, size, ''), o = readOf(cells, 'free', gid, L, size, '');
-  console.log('       ' + gid + ' L' + L + ': coin a kill ' + s.coinPerKill.toFixed(1) + ' vs ' + o.coinPerKill.toFixed(1) + ', commons a kill ' + s.commonsPerKill.toFixed(2) + ' vs ' + o.commonsPerKill.toFixed(2)); }
+say('loot-scales', lootScales(REAL, cells, ''));
+for (const [gid, L, size] of LOOT_CASES) { const s = readOf(cells, 'scaled', gid, L, size, ''), o = readOf(cells, 'free', gid, L, size, ''), c = REAL.scaleFor(gid, L);
+  console.log('       ' + gid + ' L' + L + ': coin a kill ' + s.coinPerKill.toFixed(1) + ' vs ' + o.coinPerKill.toFixed(1) + ', items a kill ' + s.commonsPerKill.toFixed(2) + ' vs ' + o.commonsPerKill.toFixed(2)
+    + ' = x' + (s.commonsPerKill / Math.max(1e-9, o.commonsPerKill)).toFixed(2) + ' (card Gold x' + (c.coinPm / 1000).toFixed(2) + ', Drops x' + (c.dropsPm / 1000).toFixed(2) + ')'); }
 console.log('  (' + cells.size + ' cells on the engine, ' + Math.round((Date.now() - t0) / 1000) + ' s)');
 if (mutate) {
-  const CHECK = { derived: (S) => derived(S), rules: (S) => rules(S), 'fee-guard': (S, c, t) => feeGuard(S, c, t), 'no-deaths': (S, c, t) => noDeaths(S, c, t), 'coin-scales': (S, c, t) => coinScales(S, c, t) };
+  const CHECK = { derived: (S) => derived(S), rules: (S) => rules(S), 'fee-guard': (S, c, t) => feeGuard(S, c, t), 'no-deaths': (S, c, t) => noDeaths(S, c, t), 'loot-scales': (S, c, t) => lootScales(S, c, t) };
   const made = MUTANTS.map(([name, what, make, engine], i) => ({ name, what, S: make(), tag: engine ? 'm' + i : '' }));
   /* the engine mutants' scaled cells, all on one pool run (the free cells are the module's own, reused) */
-  const extra = await play(made.filter((m) => m.tag).flatMap((m) => (m.name === 'coin-scales' ? [COIN_CASE] : CASES).flatMap(([gid, L, size]) => compsOf(size).map((p) => job('scaled', gid, L, p, { whatIf: whatIfOf(m.S, gid, L) }, m.tag)))));
+  const extra = await play(made.filter((m) => m.tag).flatMap((m) => (m.name === 'loot-scales' ? LOOT_CASES : CASES).flatMap(([gid, L, size]) => compsOf(size).map((p) => job('scaled', gid, L, p, { whatIf: whatIfOf(m.S, gid, L) }, m.tag)))));
   const all = new Map([...cells, ...extra]);
   for (const m of made) {
     let bad;

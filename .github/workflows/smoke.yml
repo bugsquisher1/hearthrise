@@ -8206,6 +8206,16 @@ jobs:
           node tests/live-events.mjs
           node tools/mutant-gate.mjs node tests/live-events.mjs --mutate
 
+      # THE ARMED FEATURES, PLAYED BY A STRANGER (2027-05-14-arm-switches.sql, lane/c-arm-switches): on the live calendar a stranger buys a
+      # scaled hour and hunts the Cellar at its Level, earns the Bonus XP weekend's +25% and calls the Rat King for no gold in Open Halls;
+      # a second apply moves nothing. Every other guard boots the quiet calendar (tests/schema-replay.mjs quietCalendar), so no guard reads
+      # another fee or Level XP on a Wednesday evening or a bonus weekend: AS-QUIET holds that. A scaled run sets no best. --mutate: 8 defects.
+      - name: Armed switches — scaled hunts, the Bonus XP weekend and Open Halls for a stranger, and the guards' quiet calendar
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/arm-switches.mjs
+          node tools/mutant-gate.mjs node tests/arm-switches.mjs --mutate
+
       # AREA SPELLS, THE SERVER HALF (the three 2027-03-28-area-* files, lane/b-area-set): a monster's whole-group spell and a marked one
       # land on a party of four with the browser closed and the hunt viewed, the same world and tallies; Turning Cut, Hoarfrost and
       # Spring Tide are saved through the real bar check and cast on both doors; the Defense bound has room; against the chain as one

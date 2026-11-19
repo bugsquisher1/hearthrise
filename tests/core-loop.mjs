@@ -71,7 +71,8 @@
 //    3    back to work              the pointer is the last activity, fishing       4
 //                                   (default resume), journalled `resume`
 //    4    never stranded            fishing pays, shop_buy food still accepted      5
-//    5    back on the hunt          a new session pays                              -
+//    5    back on the hunt          a new session pays, where the advice sends it   -
+//                                   (the Cellar ended at Level 5: outgrown)
 //
 //   LOOP-5, an L100 day (Combat 99, 12 h of stamina)
 //    1    a Combat-99 character     fixture levels + gold + a big bag, a gather     2
@@ -973,9 +974,11 @@ async function loop4(S, M, tag, rows) {
   });
 
   await step(5, 'back on the hunt', async (t) => {
-    await p.enter(t, 'mill_cellar', { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
+    /* where the Hunts window sends the hero now: the night ended the Cellar at Level 5 (src/data/hunt-grounds.js endsAtLevel), whose door refuses it */
+    const back = recommendedHunt(combatOf(p.env), 1).hunt;
+    await p.enter(t, back, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     const h = await p.hunt(t, 10);
-    t.ok(h.kills > 0, `ten minutes back on Mill Cellar killed ${h.kills}`);
+    t.ok(h.kills > 0, `ten minutes back on ${back} killed ${h.kills}`);
     t.note(huntNote(h));
   });
 }

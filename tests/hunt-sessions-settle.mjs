@@ -4068,7 +4068,8 @@ const DB_ARMS = {
     const DOORS = { 'the browser closed': { mode: 'tick' }, 'the hunt viewed': { mode: 'settle', bucket: null, project: true, live: true } };
     for (const [path, door] of Object.entries(DOORS)) {
       await db.query('savepoint role_worn');
-      const h = await hunter(db, M, { realGround: true, party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
+      /* a real ground with no exit: the Cellar's hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and these heroes are Level 25 */
+      const h = await hunter(db, M, { realGround: true, hunt: 'meadowbrook_thicket', party: [{ ...STRONG }, { ...STRONG }], beforeEnter: async () => {
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'weapon', 'practice_sword')
                         on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id`, [UIDS[0]]);
         await db.query(`insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, 'shield', 'practice_shield')
@@ -4454,7 +4455,8 @@ const DB_ARMS = {
         }
         const s = await snapshot(db, h.sid);
         if (!r || r.outcome === 'refused') problems.push(`${variant}/${door}: the stuck density-8 hunt was refused ${r && r.reason}: ${JSON.stringify(r && r.body && r.body.detail).slice(0, 300)}`);
-        else if (!s.session.ended_at || !['left', 'died'].includes(s.session.end_reason)) {
+        /* outgrown too (the Cellar ends its hunt at Level 5, hunt-grounds.js endsAtLevel): the club clears full packs and passes 5 before the Leave lands */
+        else if (!s.session.ended_at || !['left', 'died', 'outgrown'].includes(s.session.end_reason)) {
           problems.push(`${variant}/${door}: the stuck hunt did not end through its own settle (${s.session.end_reason}; ${r.outcome}/${r.reason})`);
         }
         /* CONTROL: a landed window carried more kills than the as-built bound allowed (density is under test). */

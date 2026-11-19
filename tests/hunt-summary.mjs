@@ -759,6 +759,14 @@ async function runTests(M) {
       members: [{ seat: 0, name: 'Tyler', level: 7, weapon: 'shield' }, { seat: 1, name: 'Mira', level: 6, weapon: 'bow' }, { seat: 2, name: 'Oren', level: 6, weapon: 'staff' }, { seat: 3, name: 'Sef', level: 7, weapon: 'sword' }] };
     eq(ground(await home('mill_cellar', 7, party)), ['Next ground: The Sewer', 'Levels 5–25, recommended for Levels 6–7', 'Show', 'uiMap', { kind: 'hunt', hunt: 'millrace_sewer' }],
       'a party of four at 6 and 7: the Sewer, for the seats\' Levels');
+    /* AN OUTGROWN CELLAR (hunt-grounds.js endsAtLevel; the board's 2026-11-19 complete balance look, change 1): the reason names the Level, Hunt
+       again has nothing to send (the server refuses it), and once the chores are done the card's press is the next ground, never Hunt again */
+    eq(MD.endWords('outgrown', false, null, 'Tyler', null, 'mill_cellar'), 'Ground outgrown at Level 5', 'an outgrown Cellar names its Level');
+    eq(MD.huntAgainOf({ hunt: 'mill_cellar', preset: 0, bag: [], reason: 'outgrown' }), null, 'an outgrown Cellar has a Hunt again');
+    ok(MD.huntAgainOf({ hunt: 'mill_cellar', preset: 0, bag: [], reason: 'stamina' }) !== null, 'CONTROL: a Cellar that ran out of stamina lost its Hunt again');
+    const bare = (outgrown) => TN.townSteps({ plan: null, bag: [], rules: null, bids: null, blessings: null, purse: 0, did: new Map(), buy: null, free: false, outgrown,
+      ground: { row: { hunt: 'meadowbrook_thicket', name: 'Meadowbrook Thicket', band: [5, 15] }, levels: [5] } }).primary;
+    eq([bare(true), bare(false)], ['ground', 'again'], 'with no chore left, an outgrown card presses the next ground and any other Hunt again');
   });
 
   return fails;
@@ -851,6 +859,10 @@ const MUTANTS = [
   { test: 'T6', file: TOWN, from: 'free, ground: groundOf(cs, h),', to: 'free, ground: null,' },
   { test: 'T6', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out.find((s) => !s.done && s.id !== 'buy');" },
   { test: 'T6', file: TOWN, from: 'const levels = [].concat(adviceLevels(lv.level, party)).filter(Number.isInteger);', to: 'const levels = [lv.level];' },
+  /* T6 the outgrown card (lane/d-first-day-path): its press, its Hunt again, its reason */
+  { test: 'T6', file: TOWN, from: "const next = o && o.outgrown && out.some((s) => s.id === 'ground') ? 'ground' : 'again';", to: "const next = 'again';" },
+  { test: 'T6', file: MODEL, from: "  if (summary.reason === 'outgrown') return null;\n", to: '' },
+  { test: 'T6', file: MODEL, from: "if (Number.isInteger(ends) && forfeit !== true) return t('summary.end_outgrown', { level: ends });", to: '' },
   { test: 'T6', file: HLIST, from: 'rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;', to: 'rec.row.hunt !== hunt ? rec.row : null;' },
   { test: 'T5', file: NEXT, from: "(Number(!!a.replaces) - Number(!!b.replaces)) || ", to: '' },
   { test: 'T5', file: NEXT, from: "x.kind === 'gear' && x.price <= o.purse && ", to: "x.kind === 'gear' && " },

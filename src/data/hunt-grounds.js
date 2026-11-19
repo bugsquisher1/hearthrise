@@ -24,14 +24,9 @@
 //     soloFrom    (optional, a 'party' ground only) the Level from which a LONE hero breaks even
 //                 here, measured on the real settle; the Hunts window's advice sends a hero alone
 //                 here from it (src/shell/hunt-list.js fitsGroup). Advice, like groupFit.
-//     endsAtLevel (optional) THE LEVEL A HERO OUTGROWS THE GROUND AT (the board's 2026-11-19 complete
-//                 balance look, change 1: three of seven first heroes sat in the Mill Cellar 6 to 12
-//                 hours past it). A hero's hunt here ends `outgrown` at the first boundary its Level
-//                 stands at it or over (src/core/action-rules.js END_ORDER), back to town like any
-//                 automatic end, and the server refuses a hunt here to a hero already at it
-//                 (hr_hunt_admit, 2027-05-28-cellar-outgrown.sql). The Hunts list reads the band's
-//                 top as the Level under it. A whole number above the band's floor, at most one over
-//                 its top. Only the Cellar carries one.
+//     endsAtLevel (optional) the Level a hero outgrows the ground at: its hunt ends `outgrown` there
+//                 (action-rules.js END_ORDER) unless scaled, and the server's door refuses it
+//                 (2027-05-28-cellar-outgrown.sql). Above the band's floor, at most one over its top.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //     mode        (optional) the session mode a hunt here plays (src/data/session-modes.js: what a death costs and what a
@@ -195,8 +190,7 @@ const BASE_GROUNDS = Object.freeze({
        measured floor pay (L1 solo 1,829.5 g/h, was 1,828.5; 30 s would be 1,930, over the Thicket's: forest-cave
        first-grounds-net-chain) and the first Levels' pace. */
     respawnMs: 32000, pullDist: 1.5, groupFit: 'both',
-    /* THE TUTORIAL ROOM ENDS AT THE THICKET'S FLOOR (the board's 2026-11-19 complete balance look, change 1): the Cellar pays
-       9.5k-11k Level XP an hour at every Level from 1 to 8, the Thicket 25k-32k at 5, and nothing moved an idle hero on. */
+    /* the Thicket's floor (the board's 2026-11-19 complete balance look, change 1: idle first heroes sat here for hours past it) */
     endsAtLevel: 5,
     /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
     densityMax: Object.freeze([8, 8, 8, 8]),
@@ -277,12 +271,8 @@ const BASE_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
-    /* ALONE FROM 36 (the board's 2026-11-19 complete balance look, change 8, lane/d-first-day-path): the advice held a lone hero on the
-       Glade from 16 to 44, 97 of a lone hammer's 576 hours, while the Glade's band ends at 31. Measured on the real engine
-       (tools/balance-sim/life.mjs, played, Normal, every supply bought at the store) for a lone hammer, bow and Mage sent here from 36:
-       the PRIORITY_BOARD 2026-11-19 section has the hours, deaths and gold. Was 45 (designer 2026-10-21, CONFLICTS item 2: a lone
-       Melee at 32 billed 14,000 g/h of store food; the 2026-11-13 formula's softer party to-hit, hitFull -0.3, since let it hold the
-       room on its armor). The advice reads it (src/shell/hunt-list.js fitsGroup); nothing gates a Level. */
+    /* ALONE FROM 36 (the board's 2026-11-19 complete balance look, change 8; was 45): a played lone hammer, bow and Mage sent here
+       from 36 die 0 times (tools/balance-sim/life.mjs; numbers on the board, "2026-11-19 First-day path"). Advice only. */
     soloFrom: 36,
     densityMax: Object.freeze([8, 8, 8, 8]),
     gather: gather(12000, [

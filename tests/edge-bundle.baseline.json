@@ -28,6 +28,11 @@
         "bytes": 3068095,
         "on": "2026-11-19",
         "why": "maps/grids.js fills its Map with set() calls, not a constructor array (typecheck-ratchet TS2769 on the array form): +9 bytes"
+      },
+      {
+        "bytes": 3072002,
+        "on": "2026-11-19",
+        "why": "lane/d-first-day-path: the Cellar's exit (hunt-grounds.js endsAtLevel, END_ORDER outgrown, combat-sim.js readLevels, the Warrens' soloFrom note) +2.3 KB; the set tip was already 1.6 KB over the ceiling before this lane (lane/c-guard-batch-142 reported it, not its own)"
       }
     ]
   }

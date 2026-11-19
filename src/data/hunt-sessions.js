@@ -196,11 +196,8 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    (tools/gen-hunt-sessions.mjs). */
 /* `floor_time` (the Burning Tower, src/core/hunt/tower.js; the board's §2 "Three minutes a floor, ten on a landing"): the room of the floor
    standing was not cleared in its time, and the climb ends for everyone in it. Beside `boss_time`, the other room's limit. */
-/* `outgrown` (the board's 2026-11-19 complete balance look, change 1): the hero's Level stands at its ground's `endsAtLevel`
-   (src/data/hunt-grounds.js; the Mill Cellar's 5) or over. Read off the hero's Level XP at every boundary, so it ends at the first
-   boundary after the swing that crossed it however the windows are cut. Ahead of the supply and clock ends: the end card then names
-   the next ground (src/shell/back-in-town.js), which tells the player more than "Out of stamina" on the same swing. The server proves
-   it from the Level it holds (hr_hunt_settle_session, 2027-05-28-cellar-outgrown.sql) and refuses a hunt there to a hero at it. */
+/* `outgrown`: the hero's Level stands at its ground's endsAtLevel (hunt-grounds.js) or over. Ahead of the supply and clock ends, so
+   the end card names the next ground rather than "Out of stamina" on the same swing. Proven by 2027-05-28-cellar-outgrown.sql. */
 export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'outgrown', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server']);
 
 /* THE NO-FIGHT SPAN, in hunt minutes (the server reads it as hr_hunt_limits.no_fight_min). MEASURED on the real settle,

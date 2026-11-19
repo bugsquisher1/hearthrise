@@ -252,9 +252,8 @@ const END_CHECKS = Object.freeze({
      the hunt or dies" is ticked (combat-sim.js cascadeFrom); a flag of the span, never stored. */
   party_member_died: (hs) => hs.partyEnd === 'died' && hs.died !== true,
   party_member_left: (hs) => hs.partyEnd === 'left' && hs.died !== true,
-  /* OUTGROWN (the board's 2026-11-19 complete balance look, change 1): the hero's Level at this boundary (`levelNow`, combat-sim.js reads it
-     off the hero's Level XP at every boundary) stands at its ground's `endsAtLevel` (src/data/hunt-grounds.js) or over; working values of
-     the span, never stored. A ground with none never ends this way. */
+  /* OUTGROWN: the hero's Level at this boundary stands at its ground's endsAtLevel (hunt-grounds.js) or over; both working values of
+     the span, set by combat-sim.js readLevels, never stored. */
   outgrown: (hs) => Number.isInteger(hs.endsAtLevel) && Number.isInteger(hs.levelNow) && hs.levelNow >= hs.endsAtLevel,
   heals_out: (hs) => essentialOut(hs, 'heal'),
   ammo_out: (hs) => essentialOut(hs, 'ammo'),

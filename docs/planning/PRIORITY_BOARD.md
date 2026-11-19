@@ -29,6 +29,125 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-19 Tank rune spells (game-designer, lane/d-tank-runes; Tyler 2026-11-19: "The sword and shield is meant to be slow at solo leveling since they're a tank and the only class that can use challenge...", "the idea for the sword is mainly to tank", "tanks should have rune spells that are tank spells"): a SAMPLE of two DESIGNED and MEASURED on the real engine (a scratch copy carrying the engine pieces in section 6), nothing built because both need engine pieces, the edge does not move
+**Read first.** The rulings this rests on: TANK RUNE SPELLS and SWORD AND SHIELD LEVELS SLOW ALONE (11-19), the rune families (10-23, Storm and Bone 11-18), the lanes (10-23: offense 2 s, support 2 s, heal 1 s), TANK SOAKS, CASTERS DODGE and the monster spells' purpose (11-08: "so the whole party takes damage"), THE PLAYER PICKS EVERY SUPPLY (10-21), and Undertow's rule (11-09: "a new spell that can only be used when not in a party. Make that callout clear to the player"). Nothing here needs Tyler: no money or monetization call.
+
+**1. What a tank in a party is missing, measured before designing anything.** As built on set/v0.2.141 7501e7f1e: the Glade at 24, the Warrens at 40 and the Slake at 55, Normal, Dangerous and Deadly, a four (tank, Healer, bow, wand), a four with no Healer (tank, hammer, bow, wand) and a pair (tank, Healer), 3 seeds x 1 h a party cell.
+- The tank takes 71-98% of the party's damage (65-99% in a four with no Healer).
+- Everything the other heroes take is monster spells: 99-101% of their damage, in all 27 party cells. The group spells (Spore Cloud, Blasting Charge, Cold Bilge) are the only thing that reaches them.
+- The Challenge fires 0 to 3.7 times an hour in every party cell. The pack never leaves the tank, so a stronger taunt or a spell that takes an ally's hits would have nothing to do.
+- The tank deals 15-21% of a four's damage (44-49% of a pair's), and it drinks nothing: its mana sits unused.
+- A four with no Healer lives on food at the band's middle (the tank eats 280-460 store meals an hour on Deadly) and dies at the floor (the Glade at 16 on Deadly: 12 deaths and 69 close calls in 3 h).
+
+So the tank has no tool for the one job only it does. The sample gives it two: one that cuts what the held pack does to it, and one that covers the party against the spells that reach them.
+
+**2. The sample**
+| | **Frost Slam** | **Shelter** |
+|---|---|---|
+| Job | Hold: every monster beside the tank swings and casts slower | Protect: a stone shell on every hero near the tank, before a group spell lands |
+| The player problem | Holding six to eight monsters is the tank's job, and food is its only tool for it | A group spell hits every hero, and only the Healer's heals answer it, after it lands |
+| The decision it adds | Which Ice rune: the 1 g Plain one chills 30%, a deeper one up to 50% for far more gold (it casts about 450 times an hour on the harder tiers). How many beside you before it fires. Whether Power Strike stays on the party setup: it is worth 1-6% of a four's kills and 4-17% of a pair's (measured with it off) | When: on a monster's cast warning (its default), on cooldown, or under a party HP line. Which Earth rune: the 1 g Plain one is a small shell, a deeper one soaks a whole group spell |
+| Rune | **Ice.** Chill is frost (Hoarfrost's). One status and one look for every Ice spell | **Earth**, the stone shields' family (Arcane Barrier, Protective Ward). The Chalked Earth Rune's own text says "Your Earth spells, the stone shields". A third use for Earth runes |
+| Effect | Every monster beside the tank, up to 8, is Chilled for 4 s: its swings and its spell windups run slower. It deals no damage, so it adds no kills | Every living hero within 8 tiles, the tank too, gets a shell. It never lowers a bigger shell already standing, and it fires only while a wounded hero in reach holds no shell |
+| By rune version (I to V at Melee 1 / 15 / 30 / 45 / 60) | Chill 30 / 35 / 40 / 45 / 50% slower. The store's rune chills at its version's full strength: a status is never cut by the store's share (Rend's bleed isn't). Mana 6 / 7 / 8 / 10 / 12 | Shell 30 / 56 / 84 / 112 / 141 at each version's own Melee (base 30 on the standard ladder 1000 / 1740 / 2520 / 3310 / 4100, +1% of base a Melee level). The store's rune lands 75%. Mana 25 / 30 / 36 / 43 / 52 |
+| Lane, cooldown | Support, 6 s (two thirds of the time chilled) | Support, 30 s |
+| Unlocks (`unlock`, Melee) | Melee 12, about Level 6: the Sewer, the first party ground, opens at 5 | Melee 20, about Level 10: before the group spells a party meets (Wickstead's Smoke Pot from 8, the Glade's Spore Cloud from 16) |
+| **Party only** | Yes (section 4) | Yes (section 4) |
+| A new slot starts with | "it would hit at least 2 monsters" (the area default) | "the pack has at least 1 monster casting at anyone" (`enemy_casting`, any: its row's `trigger`) |
+| The default bar | **Not on it.** Tyler 11-19: "Do not add rune spells or XP to the tank's default bar". The hunt prep builder's basic tank setup stays basic (`basic-setups.js`). The new spell prompt offers each at its unlock (`src/shell/spell-news.js` reads `unlock`), and Add to bar writes the starting condition and buys the Plain store rune (`basic-setup.js moveSlot`, `conditions.js runeSupplyOf`'s store default). A player keeps a party setup and switches to it, mid-hunt too (11-17) | Same |
+| Text (genre labels) | Frost Slam · Party only · Chills monsters next to you · {pct}% slower attacks and casts · Cost: 6 mana · 1 Ice Rune (1 g) · Cooldown 6s | Shelter · Party only · Shields every hero near you · Blocks the next {n} damage · Cost: 25 mana · 1 Earth Rune (1 g) · Cooldown 30s |
+
+What they plug into: the Challenge (they keep what it pulls), the monsters' cast warning (`enemy_casting`), the shield field the Healer's Protective Ward already reads (a shelled ally is skipped, so no heal or shell is wasted), the Chill status, the Earth and Ice rune ladders (Runecrafting gets a buyer that casts 50-500 times an hour), and setups (one party setup, saved once). Still useful at hour 100 and 1,000: the version ladder runs to Melee 60 and the monster spells grow with every tier. Depth, not count: two rows on four small engine pieces, no new system.
+
+**3. Measured.** The real settle (`tools/balance-sim` cells through hr-accrue), the same dice in every arm, 3 seeds x 1 h a party cell. Each tank slot was added after its default Challenge and Power Strike, on the store's Plain rune unless the column says deeper. "Deeper runes" is Shelter on the store's rune of the tier the Level can cast (Scored at 24, Etched at 40, Carved at 55, all at the store's 75%) with Frost Slam at 50%, version V's chill. These Levels can cast only 35-45%, so that column is an upper bound for the slam's half of it. Every other seat plays its default bar.
+
+A tank-led four (tank, Healer, bow, wand):
+| Cell | Shelter: the other three's damage, Healer drinks an hour | Frost Slam: the tank's damage, tank meals an hour | Both: party damage, Level XP | Both, deeper runes: party damage, Healer drinks |
+|---|---|---|---|---|
+| Glade 24, Normal | −50%, 0→0 | +4%, 0→0 | +1%, 0% | −1%, 0→0 |
+| Glade 24, Dangerous | −57%, 42→34 | −11%, 12→6 | −19%, 0% | −28%, 42→8 |
+| Glade 24, Deadly | −43%, 113→101 | −9%, 141→119 | −16%, −1% | −25%, 113→72 |
+| Warrens 40, Normal | −79%, 0→0 | −7%, 0→0 | −33%, 0% | −49%, 0→0 |
+| Warrens 40, Dangerous | −51%, 48→41 | −16%, 30→14 | −25%, 0% | −41%, 48→4 |
+| Warrens 40, Deadly | −39%, 93→83 | −13%, 84→63 | −19%, +1% | −36%, 93→40 |
+| Slake 55, Normal | −29%, 0→0 | 0%, 0→0 | 0%, 0% | −3%, 0→0 |
+| Slake 55, Dangerous | −14%, 55→44 | −7%, 92→73 | −16%, 0% | −26%, 55→14 |
+| Slake 55, Deadly | −6%, 103→92 | −10%, 280→210 | −12%, 0% | −25%, 103→49 |
+
+The tank and a Healer:
+| Cell | Shelter: the Healer's damage, Healer drinks | Frost Slam: the tank's damage, tank meals | Both: party damage, Level XP | Both, deeper runes: party damage, Healer drinks |
+|---|---|---|---|---|
+| Glade 24, Normal | −74%, 0→0 | −8%, 0→0 | −15%, +1% | −20%, 0→0 |
+| Glade 24, Dangerous | −57%, 141→131 | −14%, 49→29 | −18%, 0% | −32%, 141→81 |
+| Glade 24, Deadly | −43%, 207→200 | −13%, 234→177 | −16%, −1% | −28%, 207→152 |
+| Warrens 40, Normal | −92%, 0→0 | −8%, 0→0 | −23%, +1% | −42%, 0→0 |
+| Warrens 40, Dangerous | −53%, 82→80 | −13%, 36→22 | −20%, 0% | −38%, 82→30 |
+| Warrens 40, Deadly | −49%, 127→118 | −13%, 94→69 | −18%, 0% | −35%, 127→69 |
+| Slake 55, Normal | −43%, 0→0 | −10%, 0→0 | −13%, 0% | −20%, 0→0 |
+| Slake 55, Dangerous | −15%, 169→156 | −12%, 260→188 | −16%, 0% | −29%, 169→98 |
+| Slake 55, Deadly | −9%, 207→204 | −14%, 539→409 | −14%, 0% | −27%, 207→150 |
+
+A four with no Healer (tank, hammer, bow, wand) reads the same way: both spells cut the party's damage 5-30% (7-49% on deeper runes) and the tank's meals on the harder tiers 18-37% (30-56% on deeper runes). Level XP moved −1.2% to +2.4% and kills −1.3% to +3.2% in every party cell, so neither spell levels a party faster at the same tier. The Plain Earth Rune's shell is small for the Slake's Cold Bilge (it hits a cloth hero for 80-160): there Shelter needs the deeper rune, which is the rune ladder doing its job.
+
+At the band's floor, where a party first dies (the Glade at 16, the Warrens at 32, the Slake at 50), deaths and close calls in 3 h:
+| Party | Cell | As built | Shelter | Frost Slam | Both | Both, deeper runes | Both: Level XP, kills |
+|---|---|---|---|---|---|---|---|
+| No Healer | Glade 16 Deadly | 12, 69 | 8, 69 | 1, 25 | 2, 24 | 0, 22 | +2%, +1% |
+| No Healer | Slake 50 Deadly | 3, 20 | 0, 12 | 0, 7 | 0, 7 | 0, 4 | +1%, +1% |
+| No Healer | Glade 16 Dangerous | 0, 9 | 0, 9 | 0, 3 | 0, 3 | 0, 2 | 0%, 0% |
+| Tank and Healer | Slake 50 Deadly | 10, 42 | 4, 35 | 0, 19 | 1, 9 | 0, 4 | +2%, +1% |
+| Tank and Healer | Glade 16 Deadly | 1, 21 | 1, 19 | 1, 9 | 0, 5 | 0, 4 | 0%, 0% |
+| Four | Glade 16 Deadly | 0, 11 | 0, 7 | 0, 2 | 0, 0 | 0, 2 | +1%, +1% |
+| Four | Slake 50 Deadly | 0, 4 | 0, 1 | 0, 0 | 0, 1 | 0, 1 | 0%, 0% |
+The Warrens at 32 had no death in any party in any arm. **A four with no Healer that died 12 times in 3 h on the Glade's Deadly at its floor dies about once with both spells, and never on deeper runes.** That is the tank doing the job, not the party out-killing it.
+
+**4. Why both are Party only.** Neither adds kills alone (a lone tank's kills move −0.9% to +0.7% with either in every cell where it doesn't die). But Frost Slam lets a lone tank live a tier up, and that can raise its lone pace by the tier. A lone tank, deaths in the cell's hours (9 h at the band's middle, 6 h at the floor) and NET Level XP an hour (what it gained less what its deaths took, where the cells' "XP an hour" is the gain alone):
+| Lone tank | Tier | As built | Shelter | Frost Slam |
+|---|---|---|---|---|
+| Glade 24 | Normal | 0, 63k | 0, 63k | 0, 64k |
+| Glade 24 | Deadly | 116, −1,425k | 93, −1,128k | 9, −53k |
+| Warrens 32 | Dangerous | 0, 121k | 0, 121k | 0, 121k |
+| Warrens 32 | Deadly | 1, 82k | 1, 82k | **0, 127k** |
+| Slake 55 | Normal | 0, 210k | 0, 210k | 0, 209k |
+| Slake 55 | Dangerous | 8, −999k | 9, −1,157k | **0, 267k** |
+| Glade 16 | Normal | 0, 57k | not run | not run |
+| Glade 16 | Dangerous | 9, −16k | 9, −16k | 0, 52k |
+| Slake 50 | Dangerous | 46, −7,620k | 40, −6,586k | 13, −1,977k |
+At the Slake at 55 the lone tank dies 8 times in 9 h on Dangerous, and with Frost Slam never: its best lone hour goes from 210k (Normal) to 267k (Dangerous), +27%, past the lone sword, bow and axes there (219k, 240k and 251k on Normal, each dying on Dangerous). The Warrens at 32 flips the same way (+5%: Deadly 127k against Dangerous 121k). At the Glade at 16, Dangerous turns safe but stays under Normal (52k against 57k). That breaks Tyler's 11-19 ruling, so Frost Slam is **Party only**: the mirror of Undertow's "only when not in a party", read at each cast the same way (another living hero shares the world), with the same kind of label. Shelter alone flips nothing (its lone best moves 0%), but alone it only shells the tank, which section 5 shows is weak, and one rule for both is easier to learn and to put in the wiki: the tank's rune spells are party spells. A player's own two heroes hunting together are a party, so a tank and its Healer both get them.
+
+**5. Cut from the sample, on the numbers.**
+- **A spell that takes an ally's hits.** What reaches the others is group spells, which land on everyone. Moving them onto the tank adds to the hero already taking 71-98%. Shelter covers all three at once.
+- **A stronger or longer taunt.** The Challenge fires 0-3.7 times an hour.
+- **Stone Skin, a self shell** (the only spell today's engine could take as pure data: Arcane Barrier's row on the shield discipline, Earth, 40, under 85% HP). Alone it cuts the tank's damage 13-22% on Normal but 4-9% on Deadly, where a flat shell pops in one round of eight swings. Frost Slam cuts 13-17% there (26-30% at 50%). It is the First Flame's faction skill Bulwark's kind, and it does nothing for the party.
+- **A hit on Frost Slam.** Today a `ring` must deal damage, so a pure-data slam needs one. Even 1 damage a monster a cast is up to +2% kills in a four and +2 to +9% alone, because the tank deals only 1.7-6.6 damage a second. The slam lands no damage (engine piece 2).
+- **Storm and Bone.** Approved 11-18, not built (no rune items, icons or recipes). Tyler wants every weapon to get a Storm and a Necrotic spell. The shield's pair should keep this section's rule: hold, protect or control, Party only, no kills alone. Not designed here.
+
+**6. Build steps.** One combat lane (proposed `lane/b-tank-runes`): the systems-engineer builds the engine pieces, the rows are the designer's numbers above. It ships as a combat-engine batch under the world-tick parity rule (CLAUDE.md §3.3b), the edge before the client.
+| Where | What |
+|---|---|
+| Piece 1, a party SHIELD (`src/core/hunt/abilities.js` targetFor and effect, `src/data/abilities.js` validate) | A `party` row heals or shields, never both. A shield row needs a living, wounded hero within `radius` holding no shell. Every living hero within `radius`, the caster too, gets `max(standing, scaled(shield))`, with a `shield` event only where it rose. **`shieldRefund` must refund only the caster's own shell:** today it refunds any standing shell, so a Mage recasting Arcane Barrier over Shelter's shell would turn the tank's rune into its own mana. Carry who cast a shell (a `shieldBy` unit field in PERSISTED) or refund only a self-cast one |
+| Piece 2, a shape that lands only its status (`abilities.js` effect and validate) | An `area`, `line` or `ring` row with a `status` and no `dmg` or `hitPm` is valid, lands no blow (no `dmg` event, no kill, no Melee XP) and puts its status on every monster the shape covers. The scratch edit was one line |
+| Piece 3, Chill by rune tier (`src/data/statuses.js`, `src/core/hunt/status.js` stackScale, `damage.js` slowPmOf) | A slowing row may carry `tierPermille`, and its stack's slow is `slowPm x tierPermille[tier - 1] / 1000`, fixed as it lands. Chill gets [1000, 1167, 1333, 1500, 1667]: 30, 35, 40, 45 and 50%. One rule for every Ice spell, so Hoarfrost's chill grows with its rune too: re-measure its cells (the Mage cast it 0.3 to 41 times an hour in the cells above, so the move is small). Wiki formula: slow = 30% x the rune tier's share |
+| Piece 4, Party only (`abilities.js`) | A row field `party: true`, the mirror of `alone`: firstUsable skips the slot while `aloneIn(world, hero)`, read at each cast. validate refuses `alone` with `party`. The bar and Configure action say "Party only", as Undertow's slot says it is solo only |
+| The rows (`src/data/abilities.js`) | `frost_slam`: disciplines shield, lane support, cdMs 6000, mana 6, rune `chalked_ice_rune`, target `ring` with maxHits 8, status chill, magicXpMult 250, unlock 12, `party: true`, versions [[6,1000],[7,1000],[8,1000],[10,1000],[12,1000]] (its version changes the chill through the rune tier, and the mana). `shelter`: disciplines shield, lane support, cdMs 30000, mana 25, rune `chalked_earth_rune`, target `party` with shield 30 and radius 8, magicXpMult 250, unlock 20, `party: true`, trigger [enemy_casting, subject any, at least 1], versions [[25,1000],[30,1740],[36,2520],[43,3310],[52,4100]], lvPm 10 |
+| The server (`tools/gen-hunt-sessions.mjs`) | Regenerate the hunt-sessions catalogue so `hr_hunt_abilities` holds both rows for `shield` and `hr_hunt_slot_check` accepts their slots. Staged, applied by the Coordinator, regenerated once on the assembled set |
+| Art (`src/data/item-art.js` ABILITY_ART, `tools/world-art/ability-tiles.mjs`) | Two 32 px tiles, drawn in the family as Mend, Rend and Protective Ward were. No PixelLab spend. `tests/pixel-icons.mjs` holds it |
+| Text (`src/data/text/bar.js`, the Configure action facts) | The effect lines for a party shell and a chill-only ring, and "Party only". Fix the Chalked Ice Rune's text ("Frost Lance uses one of these each cast", stale since Hoarfrost) to name every Ice spell. A fresh reader judges each new line (`tools/player-read.local.mjs`) |
+| Tests | `tests/hunt-core/abilities.mjs`: rows-validate (a party row with neither heal nor shield, a shape row with no numbers and no status, `alone` with `party`: each refused), the two effects (every hero in reach shelled and never lowered, and the refund reading only the caster's own shell, then every monster beside the tank chilled with no `dmg` event), the Chill tier rule, and Party only with a mutant (the slot fires alone). Both paths (CLAUDE.md §4): a cast in the live view and the same span with the browser closed land the same world (`tests/hunt-live.mjs`) |
+| What doesn't move | No default bar, the hunt prep builder's basic setups, the pace (`level-curve`), the party advice and the drop or gold guards read these rows. CHANGELOG line: "Tanks get two party spells: Frost Slam slows the monsters next to you, and Shelter shields everyone near you before a big spell lands." |
+
+How a tank meets them (a walk-through: each step uses only the steps before it and the real kit, and every name was grepped):
+| Step | What the player has and does | Proof |
+|---|---|---|
+| 1 | A new hero wears the Practice Sword and Practice Shield, so it fights as the tank: Challenge and Power Strike | `start-kit.js` START_EQUIPMENT, `hunt-roles.js` SHIELD_ARM, `rule-subjects.js` ROLE_RULES.tank |
+| 2 | Melee 12 (about Level 6, the Sewer is open from 5): a corner prompt names Frost Slam, with Add to bar | `src/shell/spell-news.js` unlockedBetween reads `unlock` for the worn weapon's list |
+| 3 | Add to bar: the slot starts "it would hit at least 2 monsters" and buys the Plain Ice Rune (1 g) each cast | `bar-assign.js` assignMoves, `basic-setup.js` moveSlot (suggestedConditions), `conditions.js` runeSupplyOf's store default, `plain_ice_rune` in BASIC_SUPPLIES |
+| 4 | Alone, the slot says "Party only" and waits. With a friend, or the player's own second hero, it fires on the Sewer's packs | Piece 4, the Sewer's band 5-25 |
+| 5 | Melee 20 (about Level 10): the prompt names Shelter. Its slot starts on a monster's cast warning and buys the Plain Earth Rune | the row's `trigger`, `condition-metrics.js` enemy_casting, `plain_earth_rune` |
+| 6 | Wickstead (8-18) and the Glade (16-31) bring the first group spells, Smoke Pot and Spore Cloud, and Shelter fires on their 2 s warning | `monsters.js` spells smoke_pot and spore_cloud, `monster-spells.js` windupMs 2000 |
+
+**7. Measured / assumed.** Measured: every number in sections 1, 3, 4 and 5, on set/v0.2.141 7501e7f1e. 3 seeds, 1 h a party cell, 3 h alone at the band's middle and 2 h at the floor. The engine pieces and rows were scratch edits on a copy of the tree (`.scratch/tree`, untracked). The as-built arm on that copy answered byte-identical numbers to the clean tree on all 36 mid-band cells, so the edits change nothing while the slots are empty. Drivers in this lane's `.scratch/tank/` (untracked): `run.mjs` (arms), `cmp.mjs` and `tables.mjs`. Proxies: version I's 30% chill is the shipped Chill row, version V's 50% a scratch row, so the tier rule itself is unmeasured. The deeper-rune arms are the store's rune at 75%: a crafted rune lands a third more shell. Assumed: the unlock Levels (from the area-spells section's Melee-to-Level reads), versions II-IV's mana (with both on version I the tank went from 0 drinks to 0-42 an hour), one cooldown each (6 s and 30 s), Circle of Renewal's 8-tile reach, and the deeper rune bills, which are measured casts times the listed price: about 450 Frost Slams an hour on the harder tiers is 3.6k g/h on Scored and 20k g/h on Graven, and 50-100 Shelters an hour 0.4-0.8k g/h on Scored and 2.2-4.4k g/h on Graven. Not measured: Levels over 55, bosses (the Rat King, Chief Coppercap, Krell), the Barrow March. A 6-seed grade comes before it ships.
+
 ### 2026-11-19 Level pace (game-designer, lane/d-level-pace-141; the post-140 audit's "Level 22 at 36 h", `tools/qa/audit-2026-11-18-140/findings.md`): MEASURED on set/v0.2.141 69b046c72 and again on b685e920f (the same hours), the pace rows KEPT, one default-bar change RULED for its own lane, nothing built, the edge does not move
 **The targets used, quoted.** Balance ruling 2026-10-25 §2: "Level / cumulative hunting hours / days at 12h: 10 / 6 / 0.5 · 25 / 36 / 3 · 50 / 168 / 14", "Assume reasonably efficient hunting; benchmarks, not guarantees." Rulings of record 2026-11-06: "the pace stays held on Normal (L50 in about 168 h)". In the data (`src/data/core-model.js` LEVEL_PACE): targets [10, 6] and [25, 36], tolerance 0.1, Level 5 in 0.15-0.35 h, judged on the MEDIAN of the eight lone ways where the Hunts window sends them (`tests/level-curve.mjs` C2/C3, exit 0 on this build).
 
@@ -76,7 +195,7 @@ Flame Strike, cells (3 seeds x 2 h, same dice, as built vs with it): alone +17.4
 
 **Ruling.**
 1. **KEEP the pace rows:** the Level curve, every monster's XP row, the lone advice and every band. The median holds Tyler's targets on this build (Level 10 6.2 h, Level 25 35.7 h, 36.5 h arriving), and no XP row, advice step or band can close one way's kill-speed gap without moving the other six off target. `level-pace.json` needs no re-pin (its numbers are this build's).
-2. **The sword ways' default sets get Flame Strike: designer call, built in its own lane.** The 10-29 starter-bars ruling (`lane/a-starter-bars`, guarded by `tests/hunt-core/roles.mjs`, "a sword alone (no Flame Strike)") took it off for two reasons, and neither stands. The slot was struck "no Fire runes left" from minute one: every default rune spell now names its store rune. The other was "net -20% on the first grounds": measured today it is -121 to +17 g/h there and better on the Glade. Every new hero starts in the sword and shield, the slowest lone way by a fifth. The fix is the move its own weapon already has, not more XP for everyone. A player who wants the gold can still take it off.
+2. **WITHDRAWN by Tyler 2026-11-19** ("The sword and shield is meant to be slow at solo leveling", "the idea for the sword is mainly to tank": the sword ways' slow lone pace is intended, `lane/d-sword-bar` stopped; see "2026-11-19 Tank rune spells"). As written before that: **The sword ways' default sets get Flame Strike: designer call, built in its own lane.** The 10-29 starter-bars ruling (`lane/a-starter-bars`, guarded by `tests/hunt-core/roles.mjs`, "a sword alone (no Flame Strike)") took it off for two reasons, and neither stands. The slot was struck "no Fire runes left" from minute one: every default rune spell now names its store rune. The other was "net -20% on the first grounds": measured today it is -121 to +17 g/h there and better on the Glade. Every new hero starts in the sword and shield, the slowest lone way by a fifth. The fix is the move its own weapon already has, not more XP for everyone. A player who wants the gold can still take it off.
 3. **Not built here, on purpose.** It moves every tank-led party line. `lane/a-party-advice-glade` landed on the set (0cefe5df3) while this lane measured, and its advice now reads those lines (`PARTY_VS_ALONE`, each ground's `partyBest`): a lone tank 20% faster lowers what a four with a tank reads against the same heroes alone. So it needs its own lane, now unblocked. **`lane/d-sword-bar`** does this:
    - `src/data/rule-subjects.js` ROLE_RULES: `tank` gets `slot('flame_strike')` after Power Strike. `melee_dps` gets it as well. The server keeps only the slots a discipline holds (Flame Strike is `['shield', 'sword']`), so the hammer and the axes are untouched. It goes before Turning Cut, so the area move stays last on the set. Measured here: last. Re-measure if the order moves.
    - `tests/hunt-core/roles.mjs` re-aimed to this ruling, and the "OFF THE DEFAULT BARS" note in `rule-subjects.js` ("Sword Flame Strike likewise ... net -20%, XP +15%") rewritten to today's numbers.

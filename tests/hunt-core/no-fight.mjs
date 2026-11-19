@@ -61,7 +61,7 @@ function trapped(P, spanMin) {
   for (const [label, windowMs] of [['ten-minute windows', 600000], ['90 s windows', 90000], ['16 s windows', 16000], ['seven-minute windows', 420000]]) {
     const r = play(P, 'mill_cellar', 30, ['ranger'], { spanMs: 3 * spanMs, windowMs, session: OFF, equipment: bareBow, bag: () => ({}), bar: noBar });
     if (r.kills || r.blows.length) return 'CONTROL: the trapped bow (' + label + ') landed ' + r.blows.length + ' blows, ' + r.kills + ' kills';
-    const e = r.ends.ranger0;
+    const e = r.ends[P.memberKey('ranger', 0)];
     if (!e || e.reason !== 'no_fight') return 'a bow with nothing to shoot (' + label + ') ended ' + JSON.stringify(e) + ', not no_fight';
     if (e.at !== want) return label + ': it ended at +' + ((e.at - T0) / 60000) + ' min, not at +' + spanMin + ' min';
     say[label] = e.at;
@@ -74,7 +74,7 @@ function driedUp(P, spanMin) {
   /* The bag's line is not `essential`, so `ammo_out` does not fire: this is the trap the end exists for. */
   const r = play(P, 'mill_cellar', 30, ['ranger'], { spanMs: 3 * spanMs, session: OFF, equipment: () => ({ weapon: 'practice_bow', ammo: 'iron_arrows' }),
     bag: () => ({ iron_arrows: { loaded: 30, essential: false } }), bar: noBar });
-  const e = r.ends.ranger0;
+  const e = r.ends[P.memberKey('ranger', 0)];
   if (!r.blows.length) return 'CONTROL: the 30 arrows landed nothing';
   if (!e || e.reason !== 'no_fight') return 'a bow out of arrows with the store closed ended ' + JSON.stringify(e) + ', not no_fight';
   const last = Math.max(...r.blows);
@@ -88,7 +88,7 @@ function partyFights(P, spanMin) {
     equipment: (role, seat, L) => (role === 'ranger' ? bareBow() : P.kitFor(L, role)),
     bag: (role) => (role === 'tank' ? { cooked_shrimp: { loaded: 500 } } : {}), bar: (role) => (role === 'ranger' ? [] : undefined) });
   if (!(r.kills > 50)) return 'CONTROL: the party killed ' + r.kills + ' in ' + 4 * spanMin + ' minutes';
-  if (r.dealt.ranger0) return 'CONTROL: the bare bow dealt ' + r.dealt.ranger0 + ' (a member who deals nothing is the point)';
+  if (r.dealt[P.memberKey('ranger', 0)]) return 'CONTROL: the bare bow dealt ' + r.dealt[P.memberKey('ranger', 0)] + ' (a member who deals nothing is the point)';
   return Object.keys(r.ends).length ? 'a party that kills was sent home: ' + JSON.stringify(r.ends) : null;
 }
 
@@ -97,7 +97,7 @@ function lateJoiner(P, spanMin) {
   const late = 5 * 60000;
   const r = play(P, 'mill_cellar', 30, ['ranger', 'ranger'], { spanMs: 3 * spanMin * 60000, equipment: bareBow, bag: () => ({}), bar: noBar,
     session: (role, seat) => ({ ...OFF, ...(seat === 1 ? { huntFromMs: T0 + late, nextSwingAtMs: T0 + late } : {}) }) });
-  const a = r.ends.ranger0, b = r.ends.ranger1;
+  const a = r.ends[P.memberKey('ranger', 0)], b = r.ends[P.memberKey('ranger', 1)];
   if (!a || !b || a.reason !== 'no_fight' || b.reason !== 'no_fight') return 'the two bows ended ' + JSON.stringify(r.ends);
   if (a.at !== T0 + spanMin * 60000) return 'the first ended at +' + (a.at - T0) + ' ms';
   return b.at === T0 + late + spanMin * 60000 ? null : 'the late joiner ended at +' + (b.at - T0) + ' ms, not its own span after its +' + late + ' ms';

@@ -286,7 +286,7 @@ const ARMS = {
     const some = fight(X, roles, { prizeLeft: (role, seat) => !gone.has(seat) });
     const S = read(some);
     roles.forEach((role, seat) => {
-      const e = S[role + seat], a = A[role + seat];
+      const e = S[X.play.memberKey(role, seat)], a = A[X.play.memberKey(role, seat)];
       if (!e) { bad.push('HL-DAILY CONTROL: ' + role + seat + ' never settled'); return; }
       const want = gone.has(seat) ? 0 : 1;
       if (e.prize !== want || e.claims !== want) bad.push('HL-DAILY ' + role + seat + (want ? ' with the day\'s to take' : ' who took it today') + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims');

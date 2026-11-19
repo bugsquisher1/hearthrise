@@ -114,7 +114,7 @@ async function guard(X) {
   for (const [skill, role] of SKILLS) {
     for (const L of POINTS) {
       const { res, members } = yard(X, skill, role, { L, spanMs: HOUR, windowMs: 10 * MINUTE });
-      const xp = res.heroXp[role + '0'] || {};
+      const xp = res.heroXp[X.play.memberKey(role, 0)] || {};
       if (xp[skill] !== rate || res.playedMs !== HOUR) bad.push(`CT-PAY the ${skill} yard at Level ${L} paid ${xp[skill]} ${skill} in ${res.playedMs} ms (want exactly ${rate} an hour)`);
       for (const k of Object.keys(xp)) if (k !== skill && xp[k] > 0) bad.push('CT-PAY the ' + skill + ' yard paid ' + k + ' ' + xp[k]);
       if (res.levelXp || res.coin || Object.keys(res.items).length || res.kills || res.falls) bad.push('CT-PAY the ' + skill + ' yard paid ' + JSON.stringify({ levelXp: res.levelXp, coin: res.coin, items: res.items, kills: res.kills, falls: res.falls }));
@@ -132,7 +132,7 @@ async function guard(X) {
     /* half an hour and thirty seconds: the item time runs out inside a window (2-minute cuts), not on its edge */
     for (const [boost, want] of [[HOUR, item], [HOUR / 2 + 30000, rate + (item - rate) * (HOUR / 2 + 30000) / HOUR], [0, rate]]) {
       const { res, members } = yard(X, skill, role, { L: 30, spanMs: HOUR, windowMs: 2 * MINUTE, session: { trainBoostMs: boost } });
-      const xp = res.heroXp[role + '0'] || {};
+      const xp = res.heroXp[X.play.memberKey(role, 0)] || {};
       const claimed = members.reduce((n, p) => n + (p.delta.journal.meta.boost_ms || 0), 0);
       if (xp[skill] !== want || claimed !== boost || Object.keys(xp).some((k) => k !== skill && xp[k] > 0)) bad.push(`CT-BOOST ${skill} with ${boost} ms of item time paid ${JSON.stringify(xp)} and claimed ${claimed} ms (want ${want}, ${boost})`);
     }

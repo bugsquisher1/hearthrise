@@ -412,7 +412,7 @@ async function guard(X) {
   const lastFight = (f, key) => { let out = null; for (const m of f.members) if (m.key === key && m.analyzer && m.analyzer.fight) out = m.analyzer.fight; return out; };
   {
     const f = fight(X, king, ['tank', 'healer'], { L: 30, start: (role, i, L) => ({ levelXp: X.XP.charXpForLevel(L) + 2000 }) });
-    const k = kinds(f), tank = f.members.find((m) => /^tank/.test(m.key)).key;
+    const k = kinds(f), tank = X.play.memberKey('tank', 0);
     const book = Object.values(f.windows[0].units).find((u) => u[0] === king.monster);
     const dealt = eventsOf(f).filter((e) => e.type === 'dmg' && k[e.t] === king.monster).reduce((a, e) => a + e.amount, 0);
     const rec = lastFight(f, tank);

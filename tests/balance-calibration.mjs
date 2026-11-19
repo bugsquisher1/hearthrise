@@ -12,6 +12,11 @@
 //   BC-4  the PLAYED profile (played.mjs: how a hero is dressed and barred when a cell doesn't name its own) lands inside PLAYED_TOL on the
 //         recorded parties, with the recorded skills. The plain harness hero's gap is printed beside it and never judged: it is the
 //         measured distance between an untouched hero and a real one (kills 0.55-0.83x, taken 1.4-2.4x on 2026-11-19).
+//   BC-5  in each judged party, every SEAT takes its recorded share of the party's damage, within SEAT_SHARE_PTS points (lane/d-audit-fixes-sim,
+//         the board's fix 8). The party's sum can land while the wrong hero bleeds: the harness entered a party by role NAME (healer, mage,
+//         melee_dps, ranger) where the server enters one player's heroes by slot, so the Krell's Hold Lookout, who shoots the hero farthest
+//         back at the pull, shot the replay's Ranger (18% of the party's damage) where the tally had the Healer taking 25%, and BC-3 saw a
+//         party total within 3%. play-ground.mjs memberKey now enters in seat order: every seat lands within a point of its record.
 //
 // JUDGED = `kit: 'held'` (the hunt began after the hero's last setup change, so today's worn set and bar are the ones it hunted in) and
 // an hour or more long. The other samples are context: `node tools/balance-sim/calibrate.mjs --run` prints them all.
@@ -42,6 +47,11 @@ export const TOL = Object.freeze({
 export const PLAYED_TOL = Object.freeze({ killsPerH: { pct: 20 }, levelXpPerH: { pct: 20 }, takenPerH: { pct: 25, min: 2000 } });
 /* one death in four party-hours (the replay is 2 seeds of 2 h), as a rate summed over the party's seats */
 const DEATHS_OVER = 0.26;
+/* BC-5: a seat's share of its party's damage taken, sim against the record, in points (measured 2026-11-19 on the two Krell's Hold fours: every
+   seat within 1 point once the party enters in seat order; 7 to 25 points apart when it entered by role name). Judged where the party took
+   TAKEN_MIN an hour or more. */
+const SEAT_SHARE_PTS = 10;
+const TAKEN_MIN = 10000;
 const HOURS = 2, SEEDS = 2;
 
 /* DECLARED SHIFTS: [{ after: 'YYYY-MM-DD' (hunts recorded on or before it), why, mult: { metric: x } }]. The recorded rate is multiplied
@@ -83,6 +93,22 @@ function judge(rows, tol, fxById) {
   return fails;
 }
 
+/** BC-5: who in the party bleeds. Each seat's share of the party's damage taken, replay against record (a party of two or more). */
+export function seatShareFails(rows, fxById) {
+  const fails = [];
+  for (const r of rows) {
+    if (r.real.length < 2) continue;
+    const realSum = r.real.reduce((a, x) => a + (x.takenPerH || 0), 0), simSum = r.sim.seats.reduce((a, x) => a + (x.takenPerH || 0), 0);
+    if (!(realSum >= TAKEN_MIN) || !(simSum > 0)) continue;
+    r.real.forEach((x, i) => {
+      const want = (100 * (x.takenPerH || 0)) / realSum, got = (100 * (r.sim.seats[i].takenPerH || 0)) / simSum;
+      const role = ((fxById[r.id] || {}).seats || [])[i] ? fxById[r.id].seats[i].role : '?';
+      if (Math.abs(got - want) > SEAT_SHARE_PTS) fails.push(`${r.id}: seat ${i} (${role}) takes ${got.toFixed(1)}% of the party's damage in the replay, ${want.toFixed(1)}% in the record, past ${SEAT_SHARE_PTS} points`);
+    });
+  }
+  return fails;
+}
+
 /** The whole guard on a fixture (and an optional planted drift); answers { fails, lines }. */
 async function check(fx, runner, plant = {}) {
   const fails = [], lines = [];
@@ -94,7 +120,8 @@ async function check(fx, runner, plant = {}) {
   const base = { fx, runner, hours: HOURS, seeds: SEEDS, quiet: true, pick, monsters: plant.monsters || null };
   const exact = await run({ ...base, use: plant.use || null });
   for (const f of judge(exact, TOL, byId)) fails.push('BC-3 ' + f);
-  const fmt = (r) => ['killsPerH', 'levelXpPerH', 'coinPerH', 'dealtPerH', 'takenPerH', 'healedPerH', 'storePerH'].map((k) => (r.cmp[k].ratio === null ? '  -  ' : r.cmp[k].ratio.toFixed(2).padStart(5))).join(' ');
+  for (const f of seatShareFails(exact, byId)) fails.push('BC-5 ' + f);
+  const fmt =(r) => ['killsPerH', 'levelXpPerH', 'coinPerH', 'dealtPerH', 'takenPerH', 'healedPerH', 'storePerH'].map((k) => (r.cmp[k].ratio === null ? '  -  ' : r.cmp[k].ratio.toFixed(2).padStart(5))).join(' ');
   lines.push('recorded heroes (sim over real)   kills    xp  coin dealt taken heald store   deaths real/sim');
   for (const r of exact) lines.push(`  ${r.id.padEnd(30)} ${fmt(r)}   ${r.cmp.deathsPerH.real}/${r.cmp.deathsPerH.sim}`);
   if (!plant.skipPlayed) {
@@ -122,7 +149,9 @@ const MUTANTS = [
   ['the played profile is lost (a cell asking for it gets the plain hero)', 'BC-4', (fx) => ({ fx, plant: { profileLost: true } })],
   ['an account key rides in the fixture', 'BC-1', (fx) => { const f = clone(fx); f.samples[0].seats[0].user8 = '00000000'; return { fx: f, plant: { skipPlayed: true } }; }],
   ['a stored slot id rides in a bar', 'BC-1', (fx) => { const f = clone(fx); const s = f.bars[0].find(Boolean); s.id = 'r25044e1b'; return { fx: f, plant: { skipPlayed: true } }; }],
-  ['no hunt is judged (every kit assumed)', 'BC-2', (fx) => { const f = clone(fx); for (const s of f.samples) s.kit = 'assumed'; return { fx: f, plant: { skipPlayed: true } }; }],
+  /* the pre-fix harness: a party entered by role NAME (play-ground.mjs keyed members `role + seat`), each seat's record moving with it */
+  ['the replay enters a party by role name, not by seat', 'BC-5', (fx) => { const f = clone(fx); for (const s of f.samples) s.seats.sort((a, b) => (a.role < b.role ? -1 : a.role > b.role ? 1 : 0)); return { fx: f, plant: { skipPlayed: true } }; }],
+  ['no hunt is judged (every kit assumed)', 'BC-2',(fx) => { const f = clone(fx); for (const s of f.samples) s.kit = 'assumed'; return { fx: f, plant: { skipPlayed: true } }; }],
 ];
 
 const fx0 = JSON.parse(readFileSync(FIXTURE, 'utf8'));

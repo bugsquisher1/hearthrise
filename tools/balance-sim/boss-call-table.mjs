@@ -246,7 +246,7 @@ function tryOnce(call, c, seed) {
           ms = Math.max(ms, Date.parse(p.hunt.ended.at) - Date.UTC(2026, 9, 18, 12, 0, 0));
         }
         deaths += (p.summary.deathLog || []).length;
-        for (const d of p.summary.deathLog || []) if (!fell) fell = phase + ' ' + (roles[Number(String(p.key).split(':').pop())] || p.key) + ' by ' + d.monster;
+        for (const d of p.summary.deathLog || []) if (!fell) fell = phase + ' ' + (roles[Number.parseInt(String(p.key), 10)] || p.key) + ' by ' + d.monster;
         xp += Object.values(p.delta.xp || {}).reduce((a, b) => a + b, 0);
         lvl += p.delta.level_xp || 0;
         coin += p.delta.gold || 0;

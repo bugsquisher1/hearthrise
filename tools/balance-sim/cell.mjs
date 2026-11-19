@@ -139,7 +139,8 @@ export async function loadCellRunner(root) {
       if (spends(kits[i].ammo)) bag[kits[i].ammo] = { loaded: 100000 };
       return bag;
     };
-    const keys = roles.map((r, i) => r + i);
+    /* the runner's own member keys (play-ground.mjs memberKey: seat order, as one player's heroes enter live) */
+    const keys = roles.map((r, i) => play.memberKey(r, i));
     const band = bandOf(cell.ground);
     /* skills: 'level' = every combat skill at the hero's Level (the harness default); or per seat { skill: level } */
     const startFor = (role, seat) => {

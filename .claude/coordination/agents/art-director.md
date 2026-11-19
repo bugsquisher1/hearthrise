@@ -3827,4 +3827,9 @@ so opening the Town menu dropped the card back under the row; they sit on the ro
 sewer D4 ring order, selectors moved in client-boot / town-walk / death-popup. Known limit: at 1280 px with four open heroes the place
 costs the tabs about 40 px each (names ellipsize sooner). Lessons: (1) state a later pass reads must live on an element that outlives the
 markup swaps between passes; (2) a control beside a label whose width changes moves under the pointer: put the control first; (3) a coach
-ring on an element at the screen's edge must draw inside it.
+ring on an element at the screen's edge must draw inside it. Round 2 (the touched-test run): (4) a bar sized "48 px + the art rule" is
+52.8 CSS px at 125%, so the World under it was 0.2 px off a whole number and the canvas resampled (window-camera WC-10): a box above the
+World is a whole number of CSS px at every scale (54 px, the rule inside it, the icon row 54 less the rule); (5) giving the World 45 px
+moved 1024x768 across the 480 px dock threshold, so the Hunts window stopped rising over the bar and cut its first creature card
+(alpha-windows AW-93): a layout threshold measured in World px moves with the World (DOCK_ROOM_PX 525, the same screens rise as before);
+(6) B-21's pinned phone frame (H 290 -> 338) and every `#panel-world .world-*` selector had to follow the chrome into the bar.

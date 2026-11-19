@@ -13,6 +13,15 @@
 // the conversion, not in any JSON) keeps its own sidecar, and the output is byte-identical for the
 // same input. Run twice, the second run says "already converted" and writes nothing.
 //
+// THE TWO MERGES THIS IS FOR (in the lane that merges, never by hand in the Coordinator's tree):
+//   · this conversion meets a branch that still EDITED the JSON (the 0.2.142 apply commit's flips):
+//     `git merge` stops on tests/schema-apply-order.json (modified there, deleted here). Take
+//     theirs (`git checkout --theirs -- tests/schema-apply-order.json`), run this, then
+//     node tests/migration-names.mjs and node tests/apply-order-honesty.mjs, and commit.
+//   · a lane cut before the conversion ADDED a date-named migration: take the deletion
+//     (`git rm tests/schema-apply-order.json`), then node tools/new-migration.mjs --adopt <its file>
+//     --note "<its note>" names it at the next sequence and rewrites every spelling of the old name.
+//
 // It REFUSES (exit 2, nothing written) a tree it cannot convert faithfully:
 //   · no JSON and the sidecars do not place every file (a half-converted or hand-merged tree);
 //   · a JSON that names a sequence-named file (that file postdates the conversion; a JSON naming it

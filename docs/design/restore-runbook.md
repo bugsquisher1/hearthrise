@@ -137,8 +137,10 @@ daily across all 8** ✅.
 
 ### 2a. The schema half is proven, and it is proven by execution ✅
 
-`tests/schema-drift.mjs` replays `supabase/schema.sql` + every migration in the order
-declared by `tests/schema-apply-order.json` into a real PostgreSQL and fingerprints the
+`tests/schema-drift.mjs` replays `supabase/schema.sql` + every migration in the apply order
+(since 2026-11-19 each migration's sidecar in `supabase/migration-notes/`, derived by
+`tools/lib/apply-order.mjs`; `supabase/migrations-retired/` holds superseded catalogues a
+rebuild skips, each with its end-state proof) into a real PostgreSQL and fingerprints the
 result. **Re-run 2026-08-15 20:5x UTC: green** ✅, at digest
 **`f166dc74f8e0…`** — *not* the `df0fbe3178…` earlier revisions of this file pinned; twelve
 migrations landed on 2026-08-15/16 and moved it. Current shape: **76 relations, 175

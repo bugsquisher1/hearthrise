@@ -6,11 +6,11 @@
 // follows (hud.js FOLD_RULES): the hero has no party (`alone`) and the screen is narrower than the fold width
 // (`narrow`, tokens.css --hud-fold-below). Display only: gates and spends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.140';
-import { createHud, residueStore } from './hud.js?v=0.2.140';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.140';
-import { summaryDone } from '../hunt-view/summary-recorder.js?v=0.2.140';
-import { heroIsAlone } from './widgets/party-panel.js?v=0.2.140';
+import { HUD_WIDGETS } from '../data/hud-widgets.js?v=0.2.141';
+import { createHud, residueStore } from './hud.js?v=0.2.141';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.141';
+import { summaryDone } from '../hunt-view/summary-recorder.js?v=0.2.141';
+import { heroIsAlone } from './widgets/party-panel.js?v=0.2.141';
 
 /** A hunt is running on this shell's character (not over, its summary aside): its bar's controls are in play. Display only. */
 export function fightOn(opts) {

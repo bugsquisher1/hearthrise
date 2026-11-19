@@ -6,11 +6,11 @@
 // what the screen already knows from the server's own outfit section: this hero owns the outfit already (the bundle is kept to sell).
 // The outfit shows as owned only from the re-read envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.140';
-import { OUTFIT_ROWS } from '../../../data/outfits.js?v=0.2.140';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.140';
-import { useOutfitBundle } from '../../../session/outfit-intents.js?v=0.2.140';
-import { t } from '../../../render/player-text.js?v=0.2.140';
+import { ITEMS } from '../../../data/items.js?v=0.2.141';
+import { OUTFIT_ROWS } from '../../../data/outfits.js?v=0.2.141';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.141';
+import { useOutfitBundle } from '../../../session/outfit-intents.js?v=0.2.141';
+import { t } from '../../../render/player-text.js?v=0.2.141';
 
 /** The outfit item `id` is the bundle of, or null. Pure. */
 export function bundleOutfitOf(id) {

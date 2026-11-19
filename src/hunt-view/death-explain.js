@@ -25,8 +25,8 @@
 // only. Nothing is guessed.
 // ════════════════════════════════════════════════════════════════════════
 
-import { listWords } from '../render/format.js?v=0.2.140';
-import { spellRow } from '../data/monster-spells.js?v=0.2.140';
+import { listWords } from '../render/format.js?v=0.2.141';
+import { spellRow } from '../data/monster-spells.js?v=0.2.141';
 
 export const EXPLAIN_WINDOW_MS = 10000;
 /* A fall on a ground whose death costs (every hunt): "Knight died: ...", "The killing blow was ...". */

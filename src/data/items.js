@@ -1,25 +1,25 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.140';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.140';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.140';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.140';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.140';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.140';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.140';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.140';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.140';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.140';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.140';
-import { CALL_ITEMS } from './boss-calls.js?v=0.2.140';
-import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.140';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.140';
-import { foldRows } from './grounds/shape.js?v=0.2.140';
-import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.140';
-import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.140';
-import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.140';
-import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.140';
-import { PATTERN_ITEMS } from './patterns.js?v=0.2.140';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.141';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.141';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.141';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.141';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.141';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.141';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.141';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.141';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.141';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.141';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.141';
+import { CALL_ITEMS } from './boss-calls.js?v=0.2.141';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.141';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
+import { foldRows } from './grounds/shape.js?v=0.2.141';
+import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.141';
+import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.141';
+import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.141';
+import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.141';
+import { PATTERN_ITEMS } from './patterns.js?v=0.2.141';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -471,8 +471,8 @@ export const ITEMS={
      spots now climbs 7,031 / 7,200 / 7,435 / 7,615 / 8,036. The same numbers
      live in hr_items.heals and hr_feast_foods (2026-09-26-deep-waters.sql).
      RULED, STATED HONESTLY (the pack's "stays under" claim was false):
-     (i)  Cooked Moonfish 50 is ABOVE the gated Dragon Stew 45 and EQUAL to
-          Lich Soul Soup 50; only Void Banquet 60 stays above it. It is the top
+     (i)  Cooked Moonfish 50: only Void Banquet 60 stays above it (the gated
+          cookbook feasts at 45 and 50 were cut 2026-11-18). It is the top
           auto-eatable healing Provision (above Moonbloom Elixir 40). The
           ceiling is 50 for a foodClass 'healing' item — pinned by DEEPWATERS-4.
      (ii) The auto-eat fallback (biggest healer, when nothing covers the

@@ -18,7 +18,7 @@
 // tests/world-sandbox.mjs prints a reminder while it is open.
 // ════════════════════════════════════════════════════════════════════════
 
-import { at, TOWN_MAP, TOWN_NAME } from './town/plan.js?v=0.2.140';
+import { at, TOWN_MAP, TOWN_NAME } from './town/plan.js?v=0.2.141';
 
 export const SANDBOX = Object.freeze({
   open: true,

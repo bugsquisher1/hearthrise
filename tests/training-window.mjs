@@ -224,10 +224,15 @@ async function checks() {
           const w = document.querySelector('[data-hs-win="training"]'), body = w.querySelector('[data-hs-body]'), b = body.getBoundingClientRect();
           const k = (e) => { const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; };
           return { win: Math.round(w.getBoundingClientRect().height), body: [Math.round(b.top), Math.round(Math.min(b.bottom, innerHeight))], run: k(w.querySelector('.tw-run')),
-            foot: k(w.querySelector('.tw-foot')), stop: k(w.querySelector('.tw-stop')), shown: !w.querySelector('.tw-run').hidden };
+            foot: k(w.querySelector('.tw-foot')), stop: k(w.querySelector('.tw-stop')), shown: !w.querySelector('.tw-run').hidden,
+            footPos: getComputedStyle(w.querySelector('.tw-foot')).position, lead: !!w.querySelector('.tw-lead').getClientRects().length };
         });
         if (!v.shown) fails.push('TR-10 CONTROL: the status box is not shown');
+        else if (v.win > 330) fails.push('TR-10 CONTROL: the sheet is not held above the bar (' + v.win + ' px), so this proves nothing');
         else if (v.run[1] > v.foot[0] + 1 || v.stop[0] < v.body[0] - 1 || v.stop[1] > v.body[1] + 1) fails.push('TR-10 on a phone the status box runs under Stop or Stop is off the sheet: ' + JSON.stringify(v));
+        /* ...and Stop stands in the flow right under the box, never in a sticky foot that grows with its answer over the box (the gate's state, just
+           after Start: the answer in the foot and the lead line above the box), and the lead line steps aside while a session runs */
+        else if (v.footPos === 'sticky' || v.stop[0] - v.run[1] > 24 || v.lead) fails.push('TR-10 on a phone a running session keeps the sticky foot or the lead line: ' + JSON.stringify(v));
         if (SHOTS) await page.screenshot({ path: join(SHOTS, 'training-running-phone.png') });
       }
       if (errors.length) fails.push('TR-10 console: ' + errors.slice(0, 2).join(' | '));

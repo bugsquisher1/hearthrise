@@ -63,6 +63,11 @@
         "bytes": 3092715,
         "on": "2026-11-19",
         "why": "+124 B lane/d-142-rulings: LEVEL_CURVE re-fit to Tyler's table (core-model.js rows and a two-line why) and the Warrens' soloFrom back to 45 (hunt-grounds.js)"
+      },
+      {
+        "bytes": 3093093,
+        "on": "2026-11-19",
+        "why": "lane/d-142-rulings (the no-Level-loss route): a Level curve bracket from 110 fit to the re-pinned contract, and the why of XP a kill x0.88, the Levels 1-9 re-split and the Warrens alone from 45 in three data files the engine reads; comments trimmed first (1265 -> 378 B)"
       }
     ]
   }

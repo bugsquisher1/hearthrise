@@ -351,10 +351,12 @@ function swingsOnly(events) {
 
 /* Run `fn` with no monster casting (the engine's own rows: LV-SPELL's table, put back after), for an arm whose subject is not
    the spells and whose party cannot live through them. */
-/* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them */
+/* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them.
+   Their XP is the rows' as the arm last passed (set/v0.2.142, before lane/d-142-rulings' XP a kill x0.88): a kill's XP moves when a Level lands,
+   and a Level moves the laps, so a balance-blind arm holds it too. */
 const WARRENS_BEFORE_STEP = Object.freeze({
-  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76 },
-  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88 },
+  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72, xp: 659 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77, xp: 689 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76, xp: 1079 },
+  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86, xp: 1815 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88, xp: 6975 },
 });
 /* `fn` with these monsters' fields set on both module instances of the rows (the engine's ?v= one and the plain one the live engine is handed), put back after */
 function withRows(M, rows, fn) {

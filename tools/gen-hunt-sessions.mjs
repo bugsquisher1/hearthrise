@@ -350,8 +350,14 @@ export const WORLD_FIELDS_READ = Object.freeze({
    (applied with v0.2.140) is the file before this one and this one carries it whole. Only hr_hunt_vendor_value moves: the twelve Gold and Platinum
    pieces get their bids. ORDER: after this lane's items catalogue. */
 /* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18, designer): 2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue (STAGED on set/v0.2.141, applied first) is the file before; the cut scrolls and feasts leave the vendor values. */
+/* THE TANK'S RUNE SPELLS (lane/b-tank-runes, systems-engineer, 2026-11-19; Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank
+   spells should be party only I think"): 2027-05-22-cookbook-cut-hunt-sessions-catalogue (APPLIED with v0.2.141) is the file before this one
+   and this one carries it whole. hr_hunt_abilities gains frost_slam and shelter (the shield's, so a tank's slot naming either is accepted), and a unit
+   carries who cast its shell (abilities.js PERSISTED shieldBy: a recast refunds only the caster's own), so hr_hunt_world_shape MOVES (its shape and fields).
+   No ground, spawn, kill bound, limit, bid or end reason moves. THE SHAPE MOVES: the hr-accrue carrying the same src/core follows AT ONCE (each running
+   hunt's world restarts once, as on any shape change; 2026-12-11-hunt-deploy-no-forfeit holds a settle across the gap, never forfeits it). */
 /* THE CELLAR ENDS AT LEVEL 5 (lane/d-first-day-path, systems-engineer, 2026-11-19; the board's 2026-11-19 complete balance look, change 1):
-   2027-05-22-cookbook-cut-hunt-sessions-catalogue (applied with v0.2.141) is the file before this one and this one carries it whole. END_ORDER's
+   2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) is the file before this one and this one carries it whole. END_ORDER's
    outgrown joins hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, and hr_hunt_grounds gains ends_at_level (hunt-grounds.js endsAtLevel).
    Read by 2027-05-28-cellar-outgrown.sql (the door's refusal and the settle's proof), applied right after it. */
 export const OUT_NAME = '2027-05-28-cellar-outgrown-hunt-sessions-catalogue.generated.sql';
@@ -1110,13 +1116,26 @@ export function render(src) {
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
 -- NEW IN THIS FILE (lane/d-first-day-path, systems-engineer, 2026-11-19; the board's 2026-11-19 complete balance look, change 1: three of seven
--- first heroes sat in the Mill Cellar 6 to 12 hours past it). It carries 2027-05-22-cookbook-cut-hunt-sessions-catalogue (applied with v0.2.141)
+-- first heroes sat in the Mill Cellar 6 to 12 hours past it). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142)
 -- whole. END_ORDER's outgrown (the hero's Level stands at its ground's endsAtLevel; an automatic end, it resumes) joins hr_hunt_end_reasons and
 -- hunt_sessions.end_reason's CHECK, and hr_hunt_grounds gains ends_at_level (hunt-grounds.js endsAtLevel: the Mill Cellar's 5, null elsewhere).
--- No spawn, kill bound, limit or world shape moves. ORDER: right before 2027-05-28-cellar-outgrown.sql, which reads both. EDGE: either side of
+-- No spawn, kill bound, limit or world shape moves. ORDER: after 2027-05-25-tank-runes-rune-spells.generated.sql, right before
+-- 2027-05-28-cellar-outgrown.sql, which reads both. EDGE: either side of
 -- the hr-accrue that proposes the end (an engine without it proposes none; one with it before this file is refused bad_end until it applies).
 --
--- CARRIED FROM 2027-05-22-cookbook-cut-hunt-sessions-catalogue: the cut scrolls and feasts leave the vendor values (lane/d-kingsgrate-rivets).
+-- CARRIED FROM 2027-05-25-tank-runes-hunt-sessions-catalogue (lane/b-tank-runes, systems-engineer, 2026-11-19; Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank
+-- spells should be party only I think"). It carries 2027-05-22-cookbook-cut-hunt-sessions-catalogue (APPLIED with v0.2.141) whole. hr_hunt_abilities gains
+-- frost_slam (Ice, a ring that only chills) and shelter (Earth, a shell on every hero near the tank), both the shield discipline's, so a tank's bar slot
+-- naming either is accepted (hr_hunt_slot_check) and projected. Party only is the engine's rule (abilities.js party: true); no column carries it, as none
+-- carries Undertow's alone: true. A unit now carries who cast its shell (shieldBy, src/core/hunt/abilities.js PERSISTED: a recast refunds only the caster's
+-- own), so hr_hunt_world_shape MOVES (its shape and fields). No ground, spawn, kill bound, limit, bid or end reason moves. ORDER: after
+-- every set/v0.2.142 file, the last 2027-05-25-volley-default-bar.sql (it replaces hr_hunt_role_rules alone, which this file never writes), right before 2027-05-25-tank-runes-rune-spells.generated.sql (its
+-- self-check compares hr_hunt_abilities' rune rows). EDGE: THE SHAPE MOVES, so the hr-accrue carrying the same src/core deploys AT ONCE after this file
+-- (2026-12-11-hunt-deploy-no-forfeit holds the settles across the gap; each running hunt's world restarts once).
+--
+-- CARRIED FROM 2027-05-22-cookbook-cut-hunt-sessions-catalogue (lane/d-kingsgrate-rivets, systems-engineer, 2026-11-18; the designer: patterns teach worn
+-- recipes per hero, so the scroll-gated cookbook recipes, their scrolls and their feasts are cut). It carries 2027-05-12-catacomb-gold-platinum (STAGED) whole.
+-- Only hr_hunt_vendor_value moves: the cut scrolls and feasts leave it. ORDER: before the items file that cuts them.
 --
 -- CARRIED FROM 2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18; Tyler 2026-11-16: the descent's keys by Bronze / Silver / Gold /
 -- Platinum). It carries 2027-05-09-jewelry-sample-hunt-sessions-catalogue (applied with v0.2.140) whole. Only hr_hunt_vendor_value moves: the twelve

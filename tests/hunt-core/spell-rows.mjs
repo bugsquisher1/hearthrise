@@ -80,7 +80,8 @@ const cases = {
       if (p) return r.id + "'s new slot rule is refused: " + JSON.stringify(p);
     }
     /* THE LONG PARTY HEAL beside the steady one: a row on the heal lane whose own rule waits for the fight and for two hurt allies */
-    const heals = Object.values(M.AD.ABILITIES).filter((r) => r.target === PARTY_HEAL);
+    /* (a party row that HEALS: a party shield, the tank's Shelter, is no heal and keeps its own rule, a monster's cast warning) */
+    const heals = Object.values(M.AD.ABILITIES).filter((r) => r.target === PARTY_HEAL && r.heal);
     const save = heals.find((r) => Array.isArray(r.trigger));
     if (!save) return 'no party heal carries its own rule (Tyler 2026-11-08: "make sure the conditions are available that make sense")';
     const on = (metric) => save.trigger.find((c) => c.metric === metric);

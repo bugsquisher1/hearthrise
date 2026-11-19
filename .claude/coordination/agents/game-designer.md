@@ -1033,3 +1033,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Under Level 50 the level curve is fitted to the measured ladder, so "x the pace contract" only means something past 50. Under it, compare to the same-profile lone Normal hero.
 - A session row s tier can be null on a continued hunt. Read the tier from the row, then the instance (same ground), never assume Normal.
 - A sample is only judged if the hero s setup (presets AND action sets) was last changed before the hunt began. One recorded hunt had its store rune changed mid-hunt and read store gold x1.5 for that reason alone.
+
+## 2026-11-19 lane/d-tower-curve (Andy: "Everything between floor 100 > 170 felt the same"; board "2026-11-19 The Tower's curve")
+- A straight-line formula reads flatter the higher you go: a Tower band adds 16% at floor 70 and 4-8% at 150. For any "felt the same past X" on a Level-keyed curve, read the RELATIVE step per band, not the absolute numbers.
+- A healer turns smooth damage into a cliff: reactive heals soak each small step, so the low drifts while the healer has room, then one long fight (a Keeper landing) ends the run. Fix the step size, not the wall.
+- Compounding difficulty compresses Levels: at 2% a floor a Level 90 four topped out a floor above a Level 74 one. Size it by the spread you want between Levels as well as the slope (1% a floor kept Level 74 / 90 / 110 fours near 130 / 145 / 155).
+- Heat the blows only. HP heat gave the same curve but slowed the floors and moved the server's per-floor XP bound (a catalogue to stage). Blows alone left the server untouched.
+- Recorded seats replay a Tower climb to the floor (159-184 against his 182, 274-284k XP an hour against 275k). Rebuild a seat's worn set from the ledger's equip rows: his front seat held a sword at the climb, not today's hammer.
+- Tuning on top of another lane's formula change: `git archive <branch> src tools/balance-sim tests/hunt-core tests/_is-main.mjs supabase/functions/hr-accrue` into .scratch, overlay your files, measure both trees and say which one each number is from.

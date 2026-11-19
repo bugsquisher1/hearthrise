@@ -99,6 +99,9 @@
 //         peer's level and its largest blow reach the browser in its frozen row). Every melee weapon without a shield casts it (Tyler
 //         2026-11-16): a club at its unlock in the Thicket's full box casts it on its own rule, each cast on 3 or more, and the tank's sword
 //         and shield with the same slot never does, both paths.
+//   LV-TANK THE TANK RUNE SPELLS, BOTH PATHS (Tyler 2026-11-19, lane/b-tank-runes): a sword and shield with Frost Slam and Shelter on the
+//         store's Plain runes in the Thicket's full box, watched by its partner (the tank is the frozen peer). Browser closed: Frost Slam
+//         chills with no blow, Shelter shells both heroes. Viewed: every commit matches. Alone (party only) it casts neither, both paths.
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -2077,11 +2080,53 @@ function rules(M) {
     ok('LV-AREA', castBy(mis[0].unitId).length === 0, `a sword and shield: browser closed: cast Turning Cut ${castBy(mis[0].unitId).length} time(s)`);
     ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `a club beside a sword and shield: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
   }
+
+  { // LV-TANK: THE TANK RUNE SPELLS, BOTH PATHS (Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank spells should be
+    // party only I think"; lane/b-tank-runes). A sword and shield at Melee 20 with Frost Slam (a ring that only chills) and Shelter (a shell on
+    // every hero near it) on the store's Plain runes, in the Thicket's full box (8 a pull), WATCHED BY ITS PARTNER: the tank is the browser's
+    // frozen peer, so its level (both unlocks, the rune versions) and its runes reach the prediction only through its frozen row. Browser
+    // closed: both spells cast, every Frost Slam chills with no blow, Shelter shells both heroes. Viewed: every commit matches the prediction.
+    // ALONE (party only): the same tank, viewed by itself, casts neither on the server's commits, and every commit matches.
+    const slam = M.ENGINE_ABILITIES.frost_slam, shell = M.ENGINE_ABILITIES.shelter;
+    ok('LV-TANK', slam && shell && slam.party === true && shell.party === true && slam.target === 'ring' && !slam.dmg && shell.target === 'party' && shell.shield > 0,
+      'the tank rune spells are no longer a party-only chill ring and party shell: ' + JSON.stringify([slam, shell]));
+    const bar = [{ action: { type: 'ability', id: 'frost_slam', store: 'plain_ice_rune' }, conditions: slam.trigger || [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }], join: 'and' },
+      { action: { type: 'ability', id: 'shelter', store: 'plain_earth_rune' }, conditions: [], join: 'and' }];
+    const tankOf = (seat, partyRoles) => {
+      const k = memberOf(M, seat ? 'b' : 'a', seat, 'tank', shell.unlock);
+      k.hero = M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, bar, partyRoles, leaveTogether: true });
+      return k;
+    };
+    const into = (ms) => { for (const m of ms) { m.huntId = 'meadowbrook_thicket'; m.hp = 1e9; m.hero = Object.assign({}, m.hero, { density: 8 }); } return ms; };
+    const look = (r, tank) => {
+      const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+      const castBy = (id) => server.filter((e) => e.type === 'cast' && e.ability === id && e.u === tank);
+      const chills = server.filter((e) => e.type === 'status_on' && e.status === 'chill').length;
+      const blows = server.filter((e) => e.type === 'dmg' && e.ability === 'frost_slam').length;
+      const shelled = new Set(server.filter((e) => e.type === 'shield' && e.u === tank).map((e) => e.t));
+      return { slams: castBy('frost_slam').length, shelters: castBy('shelter').length, chills, blows, shelled: shelled.size, off: r.verdicts.filter((x) => x.v !== 'match') };
+    };
+    const pair = into([memberOf(M, 'a', 0, 'melee_dps', shell.unlock), tankOf(1, ['melee_dps', 'tank'])]);
+    const rp = run(M, pair, 96000, { viewer: { user: 'a', slot: 0 } });
+    const t = look(rp, pair[1].unitId);
+    console.log(`  LV-TANK beside a partner (Melee ${shell.unlock}): ${t.slams} Frost Slams, ${t.chills} chills, ${t.blows} blows; ${t.shelters} Shelters, shells on ${t.shelled} hero(es); ${rp.verdicts.length - t.off.length} of ${rp.verdicts.length} commits matched`);
+    ok('LV-TANK', t.slams >= 3 && t.chills >= t.slams && t.blows === 0, `a tank beside a partner: browser closed: ${t.slams} Frost Slams landing ${t.chills} chills and ${t.blows} blows in 96 s (want some, each chilling, none striking)`);
+    ok('LV-TANK', t.shelters >= 1 && t.shelled === 2, `a tank beside a partner: browser closed: ${t.shelters} Shelters shelled ${t.shelled} hero(es), want both`);
+    ok('LV-TANK', rp.verdicts.length >= 5 && t.off.length === 0, `a tank beside a partner: viewed: ${t.off.length} of ${rp.verdicts.length} commits did not match the prediction (first at +${t.off.length ? t.off[0].t - T0 : 0} ms)`);
+    const lone = into([tankOf(0, [])]);
+    const rl = run(M, lone, 96000, { viewer: { user: 'a', slot: 0 } });
+    const l = look(rl, lone[0].unitId);
+    console.log(`  LV-TANK alone: ${l.slams} Frost Slams, ${l.shelters} Shelters; ${rl.verdicts.length - l.off.length} of ${rl.verdicts.length} commits matched`);
+    ok('LV-TANK', l.slams === 0 && l.shelters === 0, `a tank alone: browser closed: cast Frost Slam ${l.slams} and Shelter ${l.shelters} time(s) (party only)`);
+    ok('LV-TANK', rl.verdicts.length >= 5 && l.off.length === 0, `a tank alone: viewed: ${l.off.length} of ${rl.verdicts.length} commits did not match the prediction`);
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].party))\n", '', /^LV-TANK: a tank alone: browser closed/],
+  ['a party shell reaches nobody but its caster (LV-TANK)', 'src/core/hunt/abilities.js', "        if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;\n", "        if (a !== u) continue;\n", /^LV-TANK: a tank beside a partner: browser closed: \d+ Shelters shelled/],
   ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 'xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,', 'xpMultOf: null,', /^LV-EVENT: \d+ of the server's/],
   ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],
   ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],

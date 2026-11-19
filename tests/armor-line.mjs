@@ -40,6 +40,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ITEMS, MONSTERS, AWAITING_ROSTER } from '../src/data/catalogue-coherence.js';
+import { HEARTH_CHEST_KEYS } from '../src/data/chests.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { MONSTER_SPELLS } from '../src/data/monster-spells.js';
@@ -96,6 +97,8 @@ function attributesOf(row) {
 }
 /* the shipped pieces a hero can wear past Dawnsteel, by slot and weight: tier 7 or more, not Dawnsteel itself, not awaiting a roster */
 const awaiting = new Set(AWAITING_ROSTER);
+/* every Hearth Chest armor piece (chests.js HEARTH_CHEST_KEYS: the Catacomb keys' helmets and boots) */
+const CHEST_ARMOR = new Set(HEARTH_CHEST_KEYS.flatMap((k) => Object.values(k.armor || {})));
 const { mods: MODS } = await loadArmorPower(ROOT);
 
 /** Every broken rule, as strings. Empty = sound. `open`: what importers() and homes() answer, the region grid (`grid`) and the monsters the
@@ -192,8 +195,11 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
      Dawnsteel piece of its slot (1.000) and every other piece of its slot and weight a hero of its Level can wear (the sample's and the
      shipped tier-7+ rows past Dawnsteel) */
   const ids = Object.keys(S).filter((id) => ITEMS[S[id].base]);
+  /* a Hearth Chest piece is no rival: the chest's pieces are the all-rounders and a unique is best in its own case (plan §3, the sidegrade rule),
+     and the grade wears ground and boss drops only (the designer 2026-11-18 row 1f). WL4 never read the Tower's weapons either. Without this the
+     Catacombs' Platinum Vault-Cutter's Helm (Dawnsteel's helm + 3 Melee, a chest piece) out-won the Watchman's Helm (set/v0.2.141) */
   const shipped = Object.entries(ITEMS).filter(([iid, it]) => it && it.type === 'armor' && B[it.armourClass] && Number(it.tier) >= 7 && !awaiting.has(iid)
-    && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
+    && !CHEST_ARMOR.has(iid) && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
   for (const id of ids) {
     const s = S[id], R = s.row.reqLv, H = P.huntedAt(R, G);
     const rivals = ids.filter((o) => o !== id && S[o].row.slot === s.row.slot && S[o].row.armourClass === s.row.armourClass && S[o].row.reqLv <= R).map((o) => S[o].row)

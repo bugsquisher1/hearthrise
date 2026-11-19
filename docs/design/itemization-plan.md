@@ -792,8 +792,8 @@ The template was wrong: two weapons a ground gives 12, and two appearances per f
 | Carter's Rest | Legs plate, gloves leather (Slater's Mitts), boots cloth (Carter's Boots), shield (Stable Door) |
 | The Ox Road | Helmet plate, body leather, legs cloth, spellbook |
 | The Night Shift | Body plate, boots leather, gloves cloth, gloves plate |
-| Wyvern Roost | Boots plate, legs leather, helmet cloth |
-| The Roost Mother | Helmet leather (Eggshell Cap), legs plate (Roost Mother's Hide), body cloth |
+| Wyvern Roost | Boots plate, legs plate (Burnt Crag Leg Plates, fire: the Roost's wall answer), helmet cloth |
+| The Roost Mother | Helmet leather (Eggshell Cap), legs leather (Roost Mother's Hide), body cloth |
 | The Old Guard | Helmet plate, boots leather, body cloth, spellbook |
 | The Bellows | Body plate, helmet leather, legs cloth, shield |
 | Father Gault | Gloves cloth (Furnace Mitts), boots plate, body leather, legs leather |

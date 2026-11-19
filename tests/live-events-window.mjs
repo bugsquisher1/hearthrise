@@ -174,7 +174,7 @@ async function checks(overrides) {
         fails.push('LW-PLAY the boss grounds\' lines read ' + JSON.stringify({ sewer: r.rows.millrace_sewer, warrens: r.rows.coppercap_warrens }));
       const others = Object.entries(r.rows).filter(([h, l]) => h !== 'millrace_sewer' && h !== 'coppercap_warrens' && l.length);
       if (others.length) fails.push('LW-PLAY a world-wide XP event writes on every line: ' + JSON.stringify(others));
-      const pageWant = [{ text: 'Open Halls is on. You can call out the Rat King for no gold until 11:00 PM.', plain: true }, { text: '+25% Level XP this weekend Ends Saturday 6:00 AM', plain: false }];
+      const pageWant = [{ text: 'Open Halls is on. Calling out the Rat King costs no gold until 11:00 PM.', plain: true }, { text: '+25% Level XP this weekend Ends Saturday 6:00 AM', plain: false }];
       if (JSON.stringify(r.page) !== JSON.stringify(pageWant)) fails.push('LW-PLAY the page reads ' + JSON.stringify(r.page));
       if (r.line !== 'Open Halls is on until 11:00 PM. A fight costs 2 min of stamina and no gold.') fails.push('LW-PLAY Call out\'s line reads ' + JSON.stringify(r.line));
       if (r.press !== 'Call out the Rat King') fails.push('LW-PLAY the press reads ' + JSON.stringify(r.press));
@@ -259,7 +259,7 @@ async function checks(overrides) {
       const r = await read(page);
       if (r.plates.length !== 2 || r.plates.some((p) => p.when !== 'ends in 42 min' || !p.ending)) fails.push('LW-CLOCK the last hour reads ' + JSON.stringify(r.plates));
       if (r.line !== 'Open Halls ends in 42 min. A fight costs 2 min of stamina and no gold.') fails.push('LW-CLOCK Call out in the last hour reads ' + JSON.stringify(r.line));
-      if (!r.page.some((p) => p.text === '+25% Level XP this weekend Ends in 42 min') || !r.page.some((p) => p.text === 'Open Halls is on. You can call out the Rat King for no gold. Ends in 42 min'))
+      if (!r.page.some((p) => p.text === '+25% Level XP this weekend Ends in 42 min') || !r.page.some((p) => p.text === 'Open Halls is on. Calling out the Rat King costs no gold. Ends in 42 min'))
         fails.push('LW-CLOCK the page in the last hour reads ' + JSON.stringify(r.page));
       await ctx.close();
     }

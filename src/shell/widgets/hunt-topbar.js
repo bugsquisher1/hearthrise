@@ -22,6 +22,7 @@ import { connection } from '../../net/connection.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
 import { trainingNowOf } from '../training-now.js?v=0.2.140';
 import { patchTowerBar } from './tower-bar.js?v=0.2.140';
+import { scalePlaying } from '../windows/scale-pane.js?v=0.2.140';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'hud.leaving', now: 'hud.leaving_now', late: 'hud.leaving_late' });
@@ -68,9 +69,12 @@ renderHuntTopbar.patch = function patchHuntTopbar(el, ctx) {
   /* Over, the hero stands in town: the plaque names the hunt as the LAST one, never as where the hero is (core-loop
      play 2026-10-30: Corliss in Havora read "Wickstead · Summary"). */
   const gname = ground ? ground.name : h ? t('hud.hunting') : '';
-  /* The harder tier this hunt froze, in the same plain word as the picker (Normal says nothing: it is the ground as it stands). */
+  /* The harder tier this hunt froze, in the same plain word as the picker (Normal says nothing: it is the ground as it stands),
+     and a scaled hunt's Level as the server proved it (scale-pane.js scalePlaying): "Mill Cellar (Scaled: Level 9)". */
   const tiers = h && !h.ended ? huntTierOf(ctx.character) : null;
-  const hard = tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? ' (' + TIER_NAME[tiers.playing] + ')' : '';
+  const marks = [tiers && tiers.playing && tiers.playing !== DEFAULT_TIER ? TIER_NAME[tiers.playing] : '',
+    h && !h.ended && h.huntId ? scalePlaying(ctx.character, h.huntId) : ''].filter(Boolean);
+  const hard = marks.length ? ' (' + marks.join(', ') + ')' : '';
   const now = serverNowOf(ctx.character);
   const train = trainingNowOf(ctx.character, now);
   text(el.querySelector('.ht-name'), train ? train.doing : h && h.ended && ground ? t('hud.last_hunt', { ground: gname }) : gname + hard);

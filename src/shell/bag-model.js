@@ -26,6 +26,7 @@
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.140';
+import { FAMILY_SKILL } from '../data/skills.js?v=0.2.140';
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.140';
 import { MONSTERS } from '../data/monsters.js?v=0.2.140';
 import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';
@@ -460,6 +461,26 @@ export function compare(id, worn) {
     if (Math.abs(d) > 1e-9) out.push({ label: baneLabel(c), delta: d, text: (d > 0 ? '+' : '−') + pctWords(Math.abs(d)) });
   }
   return out;
+}
+
+/* A WEAPON'S FIGHTING STYLE (skills.js FAMILY_SKILL: melee, ranged or magic, by its weaponType) and the stats that style fights with: a
+   weapon never uses another style's numbers. */
+const STYLE_STATS = Object.freeze({ melee: ['atkB', 'strB', 'meleePlus'], ranged: ['rangeAtkB', 'rangeStrB', 'rangedPlus'], magic: ['magicAtkB', 'magicStrB', 'magicPlus'] });
+const styleOf = (id) => (id && ITEMS[id] ? FAMILY_SKILL[ITEMS[id].weaponType] || null : null);
+const styleGain = (id, worn, style) => (STYLE_STATS[style] || []).reduce((n, k) => n + statValue(ITEMS[id], k) - statValue(worn ? ITEMS[worn] : null, k), 0);
+
+/**
+ * THE ORDER A SLOT'S FITS ARE LISTED IN, best first (the doll's list, windows/inventory/doll.js). `fits` [{ id, delta: compare(id, worn) }].
+ * Any slot but the weapon: by the sum of its changes. THE WEAPON (post-140 audit C6: an Oak Wand read +2 over a worse sword to an Iron Sword
+ * hero, its magic numbers summed against the sword's melee ones): the hero's own style first (the worn weapon's), each by its gain in the
+ * stats that style fights with; another style's weapons after, by their own style's. No weapon worn: one list, each by its own style. Pure.
+ */
+export function sortFits(slot, fits, worn) {
+  const sum = (f) => f.delta.reduce((n, d) => n + d.delta, 0);
+  if (slot !== 'weapon') return fits.slice().sort((a, b) => sum(b) - sum(a));
+  const mine = styleOf(worn);
+  const rank = new Map(fits.map((f) => { const st = styleOf(f.id); return [f, { other: mine && st !== mine ? 1 : 0, gain: styleGain(f.id, worn, st) }]; }));
+  return fits.slice().sort((a, b) => rank.get(a).other - rank.get(b).other || rank.get(b).gain - rank.get(a).gain || sum(b) - sum(a));
 }
 
 /** The equip slot an item goes into: its own slot, or the free one of a pair (rings). Null when it is not worn. */

@@ -41,6 +41,9 @@
 //        whole as the card opens, Hunt again is its one gold press and sends ONE hr_hunt_restart for that session, OK reads it, a reload does not
 //        bring it back. Every press the card shows (Hunt again, Hunt summary, OK) lies whole in view as it opens, no scroll (UI audit wave 2: at
 //        922x423 Hunt again lay under the fold behind the best find and the why, OK further down)
+//   HR-13 A SHEET HELD ABOVE THE BAR KEEPS THE CARD'S PRESS IN VIEW (v0.2.141 visual gate: with a yard session open the phone's sheet stops
+//        above the action bar, 275 px, and Open Training lay under the sticky OK): at 922x423 on a hunt's screen, the card's one gold press
+//        is the hero's, in the foot beside OK, and every press is whole in view as it opens
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -502,6 +505,36 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       }
     }
 
+    { // HR-13 a sheet held above the bar keeps the card's press in view (v0.2.141 gate: a yard session's sheet, 275 px, hid Open Training)
+      const AWAY = '[data-hs-win="away"]';
+      /* a hunt's screen on a phone (signIn's control waits for the desktop's panels, which a solo phone folds away: the bar is the control) */
+      const { ctx, page } = await open((env) => stamped(env), { width: 922, height: 423 });
+      if (!(await wait(page, () => document.querySelector('.hb-bar')))) fails.push('HR-13 the hunt screen did not mount');
+      else if (!(await wait(page, (q) => !!document.querySelector(q + ' .haway-hero'), AWAY))) fails.push('HR-13 CONTROL: no away card came up');
+      else {
+        await page.waitForTimeout(800);
+        await settle(page);
+        const seen = await page.evaluate((q) => {
+          const win = document.querySelector(q), body = win.querySelector('[data-hs-body]') || win;
+          body.scrollTop = 0;
+          const b = body.getBoundingClientRect(), fold = Math.min(b.bottom, innerHeight);
+          /* a press above the sticky foot must end above it: one under the foot is covered, not shown */
+          const footTop = body.querySelector('.haway-foot')?.getBoundingClientRect().top ?? fold;
+          const shown = Array.from(body.querySelectorAll('button')).filter((x) => !x.hidden && x.getClientRects().length);
+          return { winH: Math.round(win.getBoundingClientRect().height), fold: Math.round(fold),
+            presses: shown.map((x) => { const r = x.getBoundingClientRect(), inFoot = !!x.closest('.haway-foot');
+              return { act: x.getAttribute('data-hs-act'), gold: x.classList.contains('is-primary'), inFoot,
+                whole: r.height > 0 && r.top >= b.top - 1 && r.bottom <= (inFoot ? fold : footTop) + 1 }; }) };
+        }, AWAY);
+        const gold = seen.presses.filter((p) => p.gold);
+        if (seen.winH > 330) fails.push('HR-13 CONTROL: the sheet is not held above the hunt bar (' + seen.winH + ' px), so this proves nothing');
+        if (gold.length !== 1 || gold[0].act !== 'away-go' || !gold[0].inFoot) fails.push('HR-13 the card\'s one gold press is not the hero\'s, in the foot beside OK: ' + JSON.stringify(seen.presses));
+        if (!seen.presses.length || seen.presses.some((p) => !p.whole)) fails.push('HR-13 a press lies under the fold of a sheet held above the bar: ' + JSON.stringify(seen));
+        if (shots) await page.screenshot({ path: join(shots, 'hud-reachable-away-held-922x423.png') });
+      }
+      await ctx.close();
+    }
+
     { // HR-8 the phone keeps its own rules
       const { ctx, page, up } = await open((env) => { partyOf4(env); stamped(env); }, { width: 922, height: 423 });
       if (await wait(page, () => document.querySelector('.hb-bar') && document.querySelector('.hp-m'))) {
@@ -623,7 +656,8 @@ const MUTANTS = [
   ['Hunt again sends nothing (HR-12)', 'src/shell/windows/away.js', 'try { r = await cs.restartHunt(a.session); }', 'try { r = { ok: true }; }'],
   ['the card reads the stamp\'s Level as none (HR-12)', 'src/shell/windows/away.js', "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: f.lvFrom, to: f.lvTo } : null", "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: null, to: f.lvTo } : null"],
   ['OK leaves the lines unread (HR-12)', 'src/shell/windows/away.js', '    if (open && !up) dismissAll(ctx);\n', ''],
-  ['the away card\'s presses fall under a phone\'s fold again, after the why (HR-12)', 'src/styles/summary.css', '  .haway-hero > :is(.haway-acts, .haway-msg) { order: 1; }\n', ''],
+  ['the card\'s press stays in the hero\'s row on a phone, under a held sheet\'s foot (HR-13)', 'src/styles/summary.css', '  .haway-foot > .haway-foot-go:not([hidden]) { display: revert; }\n', ''],
+  ['the hero\'s row keeps its press beside the foot\'s on a phone (HR-13)', 'src/styles/summary.css', '  .haway-hero:first-child .haway-acts > [data-hs-act="away-go"] { display: none; }\n', ''],
   ['the away card\'s OK scrolls off a phone (HR-12)', 'src/styles/summary.css', '  .haway-foot { position: sticky; z-index: 1; bottom: -10px;', '  .haway-foot { position: static; z-index: 1; bottom: -10px;'],
   ['the desktop\'s room reaches the phone (HR-8)', 'src/shell/hud-room.js', 'if (phone) { if (!room.has(e)) room.set(e, null); continue; }', ''],
   ['the launcher row stays at the top of the page, over the banner (HR-10)', 'src/styles/app.css', '.client-page.has-new-version .app { position: relative; flex: 1;', '.client-page.has-new-version .app { flex: 1;'],

@@ -864,14 +864,14 @@ async function pureRules(M, base) {
       /* the one table (Tyler 2026-11-16): a mixed pair on the first grounds earns under its heroes alone, and the number stands (no label hides it) */
       [['tank', 'ranger'], 'meadowbrook_thicket', full(2, 10, 'Meadowbrook Thicket')],
       /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 45, 'Meadowbrook Thicket')],
+      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
       [['tank', 'melee_dps'], 'millrace_sewer', less(1, 35, 'The Sewer')],
       [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 30, 'Coppercap Warrens')],
-      [['tank', 'ranger'], 'millrace_sewer', more(2, 10, 'The Sewer')],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 10, 'The Sewer')],
+      [['tank', 'ranger'], 'millrace_sewer', more(2, 15, 'The Sewer')],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 5, 'The Sewer')],
       /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', full(2, 10, 'Wickstead')],
-      [[null, 'tank'], 'wickstead', less(1, 45, 'Wickstead')],
+      [[null, 'ranger'], 'wickstead', full(2, 15, 'Wickstead')],
+      [[null, 'tank'], 'wickstead', less(1, 50, 'Wickstead')],
       /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6). */
       [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', less(1, 70, 'Meadowbrook Thicket')],
       [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
@@ -880,7 +880,7 @@ async function pureRules(M, base) {
       [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
       [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
-      [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 65, 'Wickstead')],
+      [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 70, 'Wickstead')],
       /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): Hask's Ford's mixed pair reads -5; the Pyre Field's reads even */
       [['tank', 'ranger'], 'hasks_ford', full(2, 5, 'Hask\'s Ford')],
       [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about the same as solo in The Pyre Field'],

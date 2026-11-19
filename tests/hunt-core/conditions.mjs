@@ -32,6 +32,8 @@
 //   undertow-both-paths     the Healer's alone spell (Tyler 2026-11-09): a lone Healer casts it watched and closed alike; a tank and a
 //                           Healer, both alive, never do on either path
 //   area-moves-default every weapon key and role: an unedited bar holds its discipline's area moves (playtest v0.2.127)
+//   default-rune-spells the bow's unedited set ends Raking Shot, Flame Volley on the Plain Fire Rune (the balance audit's fix 7); no tank or
+//                     sword-alone way casts a rune spell by default (Tyler 2026-11-19)
 //   sql-rows          the migration's catalogue rows equal the registry, the action ids and ROLE_RULES
 //
 //   node tests/hunt-core/conditions.mjs            cases + mutants
@@ -57,8 +59,9 @@ const AREA_MIGRATION = 'supabase/migrations/2027-04-15-area-conditions.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
-   and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09). */
-const BAR_MIGRATION = 'supabase/migrations/2027-04-18-area-moves-bar.sql';
+   and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09), (the area moves, 2027-04-18), and Flame Volley back on the bow's set
+   (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19). */
+const BAR_MIGRATION = 'supabase/migrations/2027-05-25-volley-default-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -863,6 +866,23 @@ const cases = {
      4. every slot earns its place: in 30 minutes at the Thicket's floor each default ability slot casts, but for WAITS_FOR_OTHERS. */
   /* THE AREA MOVES ON AN UNEDITED BAR (playtest v0.2.127 P1: a Level 14 sword, a Level 24 mage and a Level 36 party saw none).
      Every weapon key and role: a hero whose stored bar is empty holds every skill-unlock move of its discipline. */
+  /* THE DEFAULT RUNE SPELLS BY WAY (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19). Every recorded Ranger casts Flame Volley and no
+     default bar did; measured (rule-subjects.js, above ROLE_RULES) a plain lone bow at Level 1-31 earns +11.6% Level XP with it and nets 5.3% more gold,
+     so it stands last on the bow's set, on its family's Plain store rune. No tank or sword-alone way gets one (Tyler 2026-11-19: the sword and shield
+     levels slow alone on purpose; a tank spell holds, it never speeds a lone tank up). */
+  'default-rune-spells': (M) => {
+    const set = (role) => M.RS.ROLE_RULES[role];
+    const tail = set('ranger').slice(-2).map((s) => s.action.id).join(', ');
+    if (tail !== 'raking_shot, flame_volley') return 'the bow\'s default set ends ' + tail + ', not Raking Shot, Flame Volley';
+    const v = set('ranger').find((s) => s.action.id === 'flame_volley');
+    const rune = M.AD.ABILITIES.flame_volley.rune;
+    if (!M.basics.BASIC_SUPPLIES.some((b) => b.id === v.action.store && b.partner === rune && b.price === 1)) return 'the bow\'s Flame Volley names ' + v.action.store + ', not its family\'s 1 g Plain store rune';
+    for (const role of ['tank', 'melee_dps']) {
+      const spells = set(role).filter((s) => M.AD.ABILITIES[s.action.id] && M.AD.ABILITIES[s.action.id].rune).map((s) => s.action.id);
+      if (spells.length) return 'the ' + role + ' default set casts a rune spell (' + spells.join(', ') + '): no tank or sword-alone way gets one by default (Tyler 2026-11-19)';
+    }
+    return null;
+  },
   'area-moves-default': (M) => {
     const gated = Object.values(M.AD.ABILITIES).filter((r) => r.active && r.unlock && !r.universal);
     if (gated.length < 4) return 'CONTROL: ' + gated.length + ' unlock-gated moves, want the four area moves';
@@ -902,11 +922,12 @@ const cases = {
     return null;
   },
   /* BOTH PATHS (CLAUDE.md §4): a new caster's bar, watched (the 10 s settle the open client asks for) and with the browser closed (the world tick's long window):
-     one settle, one result: the same casts at the same moments, the same store bill, gold, XP and bag. A guard on the rows, so a bar that buys has its proof. */
+     one settle, one result: the same casts at the same moments, the same store bill, gold, XP and bag. A guard on the rows, so a bar that buys has its proof.
+     The bow's and the crossbow's too, since their default set casts Flame Volley on a store rune (the balance audit's fix 7, 2026-11-19). */
   'starter-bars-both-paths': (M) => {
     const roleOf = (worn) => M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] }).role;
-    const casters = starterWorn(M).filter((w) => ['mage', 'healer'].includes(roleOf(w)));
-    if (casters.length < 2) return 'CONTROL: ' + casters.length + ' caster sets in the kit';
+    const casters = starterWorn(M).filter((w) => ['mage', 'healer', 'ranger'].includes(roleOf(w)));
+    if (casters.filter((w) => roleOf(w) === 'ranger').length < 2 || casters.length < 4) return 'CONTROL: ' + casters.length + ' sets in the kit buy runes by default, want the two casters and the two Rangers';
     for (const worn of casters) {
       const play = (windowMs) => {
         const casts = [];
@@ -930,8 +951,11 @@ const cases = {
       const casts = [];
       const r = M.play.run('meadowbrook_thicket', L, roles, { spanMs: 10 * 60000, windowMs, secret: '42', bar: () => [],
         onWindow: (w) => { for (const e of w.events || []) if (e.type === 'cast') casts.push([e.atMs, e.u, e.ability]); } });
+      /* each hero's store bill as sorted pairs: the tally names a hero when it first buys, and a short window can see the Healer buy before the tank where a
+         long one settles the tank first (the members enter in seat order since lane/d-audit-fixes-sim; the bills themselves are the same) */
+      const bills = Object.entries(r.totals.buys).map(([k, b]) => [k, Object.entries(b).sort()]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
       return { casts, n: casts.filter((c) => c[2] === 'undertow').length, falls: r.totals.falls,
-        sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, Object.entries(r.items).sort()]) };
+        sum: JSON.stringify([bills, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, Object.entries(r.items).sort()]) };
       /* (a party's loot tallies its windows in another key order: the bag compared as sorted pairs) */
     };
     for (const roles of [['healer'], ['tank', 'healer']]) {
@@ -1160,8 +1184,9 @@ const mutants = [
     edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([NO_STORE('flame_strike'), slot('power_strike'), slot('cleave'), slot('turning_cut')]),"], NO_STORE_ROW] },
   { name: 'Rend comes back on the axes\' default set with no store rune', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), NO_STORE('rend'), slot('turning_cut')]),"], NO_STORE_ROW] },
-  { name: 'Flame Volley comes back on the Ranger\'s default set with no store rune', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),", "  ranger: Object.freeze([slot('hunters_mark'), NO_STORE('flame_volley'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),"], NO_STORE_ROW] },
+  /* Flame Volley stands on the bow's default set since the balance audit's fix 7 (lane/d-audit-fixes-sim, 2026-11-19): its store rune is what lets it fire */
+  { name: 'Flame Volley on the Ranger\'s default set names no store rune', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", "slot('raking_shot', RAKING_WHEN), NO_STORE('flame_volley')]),"], NO_STORE_ROW] },
   { name: 'a cooldown is lost at a window cut (watched and closed part ways)', case: 'starter-bars-both-paths',
     edits: [['src/core/hunt/abilities.js', "['lanes', 'json'], ['cds', 'json'],", "['lanes', 'json'],"]] },
   { name: 'Frost Lance names no store rune (the Mage\'s slot 2 struck again)', case: 'starter-bar-fires',
@@ -1200,7 +1225,11 @@ const mutants = [
       ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n'],
       ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),", ", slot('spring_tide')]),"]] },
   { name: 'the area moves fall off the default bars (the v0.2.127 P1)', case: 'area-moves-default',
-    edits: [['src/data/rule-subjects.js', ", slot('raking_shot', RAKING_WHEN)]),", ']),']] },
+    edits: [['src/data/rule-subjects.js', ", slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", ", slot('flame_volley')]),"]] },
+  { name: 'Flame Volley falls off the bow\'s default set again', case: 'default-rune-spells',
+    edits: [['src/data/rule-subjects.js', "slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", "slot('raking_shot', RAKING_WHEN)]),"]] },
+  { name: 'the tank\'s default set casts Flame Strike (a rune spell to speed a lone tank, ruled out 2026-11-19)', case: 'default-rune-spells',
+    edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), slot('flame_strike'), slot('power_strike')]),"]] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },

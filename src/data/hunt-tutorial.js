@@ -368,7 +368,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON] }),
   /* WHY IT WAITS (designer 2026-11-05, lane/d-caster-first-fights): a default bar no longer reaches "Spells need runes", so a caster
      would lose the lesson about what a cast costs and why a slot waits. It sits on a real slot, the one the bar marks (src/shell/slot-waits.js).
-     A bar with no slot waiting on a count (a tank, a Ranger) passes it by. */
+     A bar with no slot waiting on a count (a tank, a melee weapon) passes it by; a bow meets it on Flame Volley's slot since its default set
+     casts it (2+ in its area; the balance audit's fix 7, 2026-11-19). */
   step('why_it_waits', 'Why it waits',
     'Press the waiting slot to change when it fires',
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON, { kind: 'slot_waits' }] }),
@@ -383,8 +384,9 @@ export const HUNT_TUTORIAL = Object.freeze([
   step('food_order', 'Own food first',
     'Move your own food ahead of store food',
     'action_bar', orGotIt({ kind: 'food_order' }), { gotIt: true, when: [LESSON, SPENDING_FOOD, { kind: 'food_order_bad' }], hooks: ['[data-hs-win="configure-action"] .ca-cond[data-cond="0"] [data-x="dec"]'] }),
-  /* A SPELL IS A CHOICE (designer 2026-10-29, lane/a-starter-bars; 2026-11-05 for the bow and the axes): a weapon hero's default bar
-     holds no rune spell (Flame Strike, Flame Volley and Rend each measured against the first grounds, rule-subjects.js), so the hero
+  /* A SPELL IS A CHOICE (designer 2026-10-29, lane/a-starter-bars; 2026-11-05 for the bow and the axes): a melee hero's default bar
+     holds no rune spell (Flame Strike and Rend each measured against the first grounds, rule-subjects.js; the bow's holds Flame Volley
+     since the balance audit's fix 7, 2026-11-19, so a bow, like a caster, is offered nothing here), so the hero
      would meet neither "Spells need runes" nor "Make your own runes" (Tyler 2026-10-25: the tutorial teaches spells and their runes).
      Here a bar with no rune spell is offered one of its own style: what it adds, what each cast costs, and the store rune to
      pick, on the real controls. Adding it or Got it finishes it; a hero who adds it with no rune met "Spells need runes". */

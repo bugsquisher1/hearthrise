@@ -42,7 +42,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    APPLIED March packs' rows folded in) is the file before 2027-05-02-flat-party-xp-ground-tiers (THE ONE PARTY TABLE, lane/d-flat-party-xp), never
    edited in place. MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19) carries 2027-05-02 whole and moves four rows: a gentle ground's harder
    tier is the swing a full ground's tier is worth (balance-sheet.js tierRowFor), and the formula's blows are x1.1, so the scaling that reaches it eases. */
-export const OUT_NAME = '2027-05-23-harder-monsters-ground-tiers.generated.sql';
+export const OUT_NAME = '2027-05-26-harder-monsters-ground-tiers.generated.sql';
 /* THIS FILE'S OWN NOTE (what moved, its order, how to undo it), written into its header: the rest of the header is every file's. */
 const FILE_NOTE = `-- THIS FILE (lane/d-harder-monsters, Tyler 2026-11-19: "I think we should raise HP and damage done by all monsters in the game slightly.
 -- Everything is a bit too easy it seems"): the stat formula's blows and HP line are x1.1 (src/data/balance-sheet.js STAT_FORMULA), every

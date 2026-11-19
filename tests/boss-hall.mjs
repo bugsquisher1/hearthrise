@@ -286,7 +286,7 @@ const ARMS = {
     const some = fight(X, roles, { prizeLeft: (role, seat) => !gone.has(seat) });
     const S = read(some);
     roles.forEach((role, seat) => {
-      const e = S[role + seat], a = A[role + seat];
+      const e = S[X.play.memberKey(role, seat)], a = A[X.play.memberKey(role, seat)];
       if (!e) { bad.push('HL-DAILY CONTROL: ' + role + seat + ' never settled'); return; }
       const want = gone.has(seat) ? 0 : 1;
       if (e.prize !== want || e.claims !== want) bad.push('HL-DAILY ' + role + seat + (want ? ' with the day\'s to take' : ' who took it today') + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims');
@@ -316,7 +316,7 @@ const ARMS = {
       const firsts = (o) => read(fight(X, roles, { prizeFirst: (role, seat) => seat !== 1, ...o }));
       for (const cut of [undefined, 10000, 4 * MINUTE]) {
         for (const [key, e] of Object.entries(firsts(cut ? { cut } : {}))) {
-          const seat = Number(key.slice(-1)), want = seat === 1 ? 0 : 1;
+          const seat = Number.parseInt(key, 10) /* play-ground.mjs memberKey: the seat first */, want = seat === 1 ? 0 : 1;
           if (e.prize !== want || e.claims !== 1) bad.push('HL-DAILY first win' + (cut ? ' cut at ' + cut + ' ms' : '') + ': ' + key + (want ? ' on its first roll' : ' on a later roll') + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims (want ' + want + ' and one)');
         }
       }

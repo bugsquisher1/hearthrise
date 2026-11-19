@@ -219,7 +219,8 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const tw = towerOf(cs);
     const climb = climbEnd(tw, cur, TOWER_RULES.hunt);
     const why = climb || cur.live ? '' : reasonWords(cur, nameOf(cs), st ? st.msLeft : null, goldFloorOf(cs));
-    text(root.querySelector('.hsum-reason'), [why, after].filter(Boolean).join(' '));
+    /* two sentences: the reason may end on a label ("Stamina now: 17 min"), so it takes its full stop before what came after (v0.2.141 gate) */
+    text(root.querySelector('.hsum-reason'), [why && after && !/[.!?…]$/.test(why) ? why + '.' : why, after].filter(Boolean).join(' '));
     prop(root.querySelector('.hsum-reason'), 'hidden', !why && !after);
     patchClimbCard(root.querySelector('.hsum-climb'), cs, tw, climb);
     /* its presses: Open chest when it earned keys, Climb again (the Tower window's own door) */

@@ -354,7 +354,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
    (STAGED on set/v0.2.141, applied first) is the file before this one and this one carries it whole. hr_hunt_kill_bounds moves (and the called Chief's Cauldron rate in hr_boss_calls, the field Chief's): every formula monster's HP
    is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
    end reason, vendor value or world shape moves. ORDER: after every 2027-05-22 file. */
-export const OUT_NAME = '2027-05-23-harder-monsters-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '2027-05-26-harder-monsters-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

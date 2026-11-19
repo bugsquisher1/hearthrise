@@ -34,7 +34,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    2027-05-08-catacombs-tower-catalogue.generated.sql is carried whole by the next one: MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler:
    "raise HP and damage done by all monsters in the game slightly") moves the stat formula's HP line x1.1 (balance-sheet.js STAT_FORMULA), which a floor's
    rows are read from, so each floor's XP bound (hr_tower_floors) rises with its monsters' HP. The run grounds' rules don't move. */
-export const OUT_NAME = '2027-05-23-harder-monsters-tower-catalogue.generated.sql';
+export const OUT_NAME = '2027-05-26-harder-monsters-tower-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. `runs` is the run table (the Tower's row is the one whose hunt is

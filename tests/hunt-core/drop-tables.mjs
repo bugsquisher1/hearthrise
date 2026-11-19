@@ -594,7 +594,7 @@ function casterFloor(M, P, R, print) {
   const T = x.totals, h = x.playedMs / H || 1, share = (T.coin + T.commons) / h / PARTY.length;
   R.ok(x.playedMs >= H && T.falls === 0, 'caster-floor: the ' + gid + ' party of four (ladder kit) ended after ' + (x.playedMs / 60000).toFixed(1)
     + ' min with ' + T.falls + ' death(s) (' + T.ended.join(', ') + ')');
-  const mage = x.heroes.find((k) => k.startsWith('mage'));
+  const mage = x.heroes[PARTY.indexOf('mage')];
   R.ok((spells[mage] || 0) > 0, 'caster-floor: the Mage (wand + book) cast no spell in ' + (x.playedMs / 60000).toFixed(1) + ' min');
   const bills = x.heroes.map((k) => [k, Object.entries(T.buys[k] || {}).reduce((s, [id, q]) => s + q * ((P.basics[id] || {}).price || 0), 0) / h]);
   /* each role's margin is printed, never graded (NO PROFIT MOLDS, Tyler 2026-11-13) */
@@ -648,7 +648,7 @@ function rangerFloor(M, P, R, print, dice = RANGER_FLOOR_DICE) {
     const x = P.run(gid, L, PARTY, { spanMs: H, bag: () => ({}), ...(secret ? { secret } : {}),
       equipment: (role, i, LL) => (role === 'ranger' ? crossbowSet(LL, P.kitFor(LL, role, false)) : P.kitFor(LL, role, false)) });
     const T = x.totals, h = x.playedMs / H || 1, coin = T.coin / h / PARTY.length, share = (T.coin + T.commons) / h / PARTY.length;
-    const rk = x.heroes.find((k) => k.startsWith('ranger')), buys = Object.entries(T.buys[rk] || {});
+    const rk = x.heroes[PARTY.indexOf('ranger')], buys = Object.entries(T.buys[rk] || {});
     const gold = (rows) => rows.reduce((s, [id, q]) => s + q * ((P.basics[id] || {}).price || 0), 0) / h;
     const bolts = buys.filter(([id]) => id === 'plain_iron_bolts' || id === 'plain_iron_arrows'), bill = gold(buys), shots = gold(bolts), m = bill > 0 ? (share / bill - 1) * 100 : Infinity;
     return { x, T, rk, coin, share, bolts, bill, shots, m };

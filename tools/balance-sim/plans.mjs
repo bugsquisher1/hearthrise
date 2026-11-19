@@ -50,7 +50,16 @@ const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
 const levelsOf = (band, wide) => uniq([band[0] - 10, band[0] - 5, band[0], Math.round((band[0] + band[1]) / 2), band[1], band[1] + 5, ...(wide ? [band[1] + 10] : [])].filter((l) => l >= 1));
 const inBand = (band) => uniq([band[0], Math.round((band[0] + band[1]) / 2), band[1]]);
 const tag = (o) => Object.entries(o).filter(([, v]) => v !== undefined && v !== null).map(([k, v]) => k + '=' + (Array.isArray(v) ? v.join('+') : typeof v === 'object' ? JSON.stringify(v) : v)).join(',');
-const cellOf = (o) => ({ id: tag({ g: o.ground, p: o.party, L: o.level, d: o.density, gear: o.gear, bar: o.bar, sup: o.supply, h: o.hours, s: o.seeds, seg: o.segmentH, x: o.x }), ...o });
+/* EVERY CELL PLAYS THE PLAYED HERO (the balance audit's fix 1, lane/d-audit-fixes-sim 2026-11-19: the plain hero was 0.55-0.83x a real one in
+   the seats of recorded hunts, so every party, tier and death number read off it understated real players): cell.mjs `profile: 'played'`,
+   the recorded bars, accessories and options, each seat's skills from its career (skill-lines.mjs). A plan that measures the PACE OF RECORD
+   names `profile: 'plain'` (the ladder: LEVEL_PACE.contract is the trend of the plain hero, the reference the Level curve is fitted on). The id
+   says a played cell, so a cell played as one is never resumed as the other (a plain cell's id is what it always was). */
+export const PLAN_PROFILE = 'played';
+const cellOf = (o) => {
+  const profile = o.profile || PLAN_PROFILE;
+  return { id: tag({ g: o.ground, p: o.party, L: o.level, d: o.density, gear: o.gear, bar: o.bar, sup: o.supply, h: o.hours, s: o.seeds, seg: o.segmentH, x: o.x, pr: profile === 'plain' ? null : profile }), ...o, profile };
+};
 
 /* The Levels the tier plans play each ground at: in range, past it, and pushing. */
 export const TIER_LEVELS = Object.freeze({
@@ -62,7 +71,7 @@ export const TIER_RUNGS = Object.freeze([['meadowbrook_thicket', 'wickstead', [8
 /* One cell on a tier as written: its pull from the ground's own row, its size's entry. */
 const tierCell = (axes, o) => {
   const row = axes.tierRowOf(o.ground, o.tier), pull = row.pull[o.party.length - 1];
-  return { ...cellOf({ ground: o.ground, party: o.party, level: o.level, density: pull || null, gear: o.gear, bar: o.bar, supply: o.supply, hours: o.hours, seeds: o.seeds, x: o.x }), ...(o.tier === 'normal' ? {} : { options: { tier: o.tier } }), windowMs: 120000 };
+  return { ...cellOf({ ground: o.ground, party: o.party, level: o.level, density: pull || null, gear: o.gear, bar: o.bar, supply: o.supply, hours: o.hours, seeds: o.seeds, x: o.x, profile: o.profile }), ...(o.tier === 'normal' ? {} : { options: { tier: o.tier } }), windowMs: 120000 };
 };
 /**
  * The plans. `scale` multiplies hours (the smoke and estimate modes). Each answers [cells | careers].
@@ -101,7 +110,8 @@ export function buildPlan(name, axes, scale = 1) {
       const from = g.groupFit === 'party' ? g.soloFrom : g.band[0];
       if (!Number.isInteger(from)) continue;
       for (const s of SOLO_STYLES) for (const L of uniq([from, Math.round((from + g.band[1]) / 2), g.band[1]])) {
-        out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(2), seeds: 2, x: 'LAD' }));
+        /* the pace of record's own trend: the plain hero (cellOf above) */
+        out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(2), seeds: 2, x: 'LAD', profile: 'plain' }));
       }
     }
     return out;

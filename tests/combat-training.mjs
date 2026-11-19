@@ -114,7 +114,7 @@ async function guard(X) {
   for (const [skill, role] of SKILLS) {
     for (const L of POINTS) {
       const { res, members } = yard(X, skill, role, { L, spanMs: HOUR, windowMs: 10 * MINUTE });
-      const xp = res.heroXp[role + '0'] || {};
+      const xp = res.heroXp[X.play.memberKey(role, 0)] || {};
       if (xp[skill] !== rate || res.playedMs !== HOUR) bad.push(`CT-PAY the ${skill} yard at Level ${L} paid ${xp[skill]} ${skill} in ${res.playedMs} ms (want exactly ${rate} an hour)`);
       for (const k of Object.keys(xp)) if (k !== skill && xp[k] > 0) bad.push('CT-PAY the ' + skill + ' yard paid ' + k + ' ' + xp[k]);
       if (res.levelXp || res.coin || Object.keys(res.items).length || res.kills || res.falls) bad.push('CT-PAY the ' + skill + ' yard paid ' + JSON.stringify({ levelXp: res.levelXp, coin: res.coin, items: res.items, kills: res.kills, falls: res.falls }));
@@ -132,7 +132,7 @@ async function guard(X) {
     /* half an hour and thirty seconds: the item time runs out inside a window (2-minute cuts), not on its edge */
     for (const [boost, want] of [[HOUR, item], [HOUR / 2 + 30000, rate + (item - rate) * (HOUR / 2 + 30000) / HOUR], [0, rate]]) {
       const { res, members } = yard(X, skill, role, { L: 30, spanMs: HOUR, windowMs: 2 * MINUTE, session: { trainBoostMs: boost } });
-      const xp = res.heroXp[role + '0'] || {};
+      const xp = res.heroXp[X.play.memberKey(role, 0)] || {};
       const claimed = members.reduce((n, p) => n + (p.delta.journal.meta.boost_ms || 0), 0);
       if (xp[skill] !== want || claimed !== boost || Object.keys(xp).some((k) => k !== skill && xp[k] > 0)) bad.push(`CT-BOOST ${skill} with ${boost} ms of item time paid ${JSON.stringify(xp)} and claimed ${claimed} ms (want ${want}, ${boost})`);
     }
@@ -193,7 +193,7 @@ async function guard(X) {
         let late = 0;
         const { res, members } = yard(X, skill, 'ranger', { L: 30, spanMs: span, windowMs, ...bare,
           onWindow: (w, mems) => { late += onDummy(w).filter((e) => e.atMs > mems[0].huntSession.huntFromMs + quietMs).length; } });
-        const xp = (res.heroXp.ranger0 || {})[skill];
+        const xp = (res.heroXp[X.play.memberKey('ranger', 0)] || {})[skill];
         const ends = members.filter((p) => p.hunt.ended).map((p) => p.hunt.ended.reason);
         if (ends.length || res.playedMs !== span || xp !== rate * span / HOUR) bad.push(`CT-NOBLOW ${cut}: a bow with no arrows at the ${skill} yard ended ${JSON.stringify(ends)} after ${res.playedMs} ms, paid ${xp} (want no end, ${span} ms, ${rate * span / HOUR})`);
         if (!(late > 0)) bad.push(`CT-NOBLOW ${cut}: a bow with no arrows landed no blow on the dummy past the no-fight span at the ${skill} yard`);
@@ -250,7 +250,7 @@ async function guard(X) {
   {
     const a = yard(X, 'melee', 'melee_dps', { spanMs: 6 * MINUTE, windowMs: 6 * MINUTE, session: { trainBoostMs: 150000 } });
     const b = yard(X, 'melee', 'melee_dps', { spanMs: 6 * MINUTE, windowMs: 10000, session: { trainBoostMs: 150000 } });
-    const xa = a.res.heroXp.melee_dps0 || {}, xb = b.res.heroXp.melee_dps0 || {};
+    const xa = a.res.heroXp[X.play.memberKey('melee_dps', 0)] || {}, xb = b.res.heroXp[X.play.memberKey('melee_dps', 0)] || {};
     const wa = X.HT.worldHash(a.windows[a.windows.length - 1].world), wb = X.HT.worldHash(b.windows[b.windows.length - 1].world);
     if (JSON.stringify(a.res.members) !== JSON.stringify(b.res.members) || wa !== wb || xa.melee !== xb.melee) bad.push('CT-CUT one window ' + JSON.stringify(xa) + ' ' + wa + ' vs many ' + JSON.stringify(xb) + ' ' + wb);
   }

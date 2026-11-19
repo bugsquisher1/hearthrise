@@ -63,11 +63,11 @@ revoke all on public.hr_scaled_hunt_rule from public, anon, authenticated, servi
 revoke all on public.hr_scaled_grounds from public, anon, authenticated, service_role;
 revoke all on public.hr_scaled_kill_bounds from public, anon, authenticated, service_role;
 comment on table public.hr_scaled_hunt_rule is
-  '2027-05-23-harder-monsters-scaled-hunts-catalogue.generated.sql: the scaled hunts'' one rule row (src/data/scaled-hunts.js SCALED_HUNTS through tools/gen-scaled-hunts.mjs): the slider, the bank, the day''s clamp, the top Level, the price a Level. Server-only.';
+  '2027-05-26-harder-monsters-scaled-hunts-catalogue.generated.sql: the scaled hunts'' one rule row (src/data/scaled-hunts.js SCALED_HUNTS through tools/gen-scaled-hunts.mjs): the slider, the bank, the day''s clamp, the top Level, the price a Level. Server-only.';
 comment on table public.hr_scaled_grounds is
-  '2027-05-23-harder-monsters-scaled-hunts-catalogue.generated.sql: the grounds a leader may scale and their bands (src/data/scaled-hunts.js SCALABLE_GROUNDS). Server-only. No row = not scalable.';
+  '2027-05-26-harder-monsters-scaled-hunts-catalogue.generated.sql: the grounds a leader may scale and their bands (src/data/scaled-hunts.js SCALABLE_GROUNDS). Server-only. No row = not scalable.';
 comment on table public.hr_scaled_kill_bounds is
-  '2027-05-23-harder-monsters-scaled-hunts-catalogue.generated.sql: per scalable ground and scaled Level, the most one kill of its roster pays on the scaled rows (gold, XP), the highest scaled monster Level (src/data/scaled-hunts.js scaledMonsters) and the drops multiple (loot_pm, lootPmFor). Read by hr_hunt_apply_member on a window the commit proved scaled. Server-only.';
+  '2027-05-26-harder-monsters-scaled-hunts-catalogue.generated.sql: per scalable ground and scaled Level, the most one kill of its roster pays on the scaled rows (gold, XP), the highest scaled monster Level (src/data/scaled-hunts.js scaledMonsters) and the drops multiple (loot_pm, lootPmFor). Read by hr_hunt_apply_member on a window the commit proved scaled. Server-only.';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_scaled_hunt_rule;

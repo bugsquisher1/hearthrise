@@ -34,6 +34,15 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue']);
 
+/** A HERO'S MEMBER KEY, in SEAT ORDER (lane/d-audit-fixes-sim, the board's fix 8, 2026-11-19). The settle orders a party's members by
+    key (hr-accrue accrual.js accrueHunt), and that order is the order heroes enter the world: the first creates it, the rest join, so it
+    sets unit ids, entry tiles and who walks last. Live a key is `user:slot`, so one player's heroes (every recorded party) enter in slot
+    order. This key was `role + seat` until 2026-11-19, which entered a party alphabetically by ROLE NAME (healer, mage, melee_dps,
+    ranger, tank): a replayed Krell's Hold four put its Ranger last where the record had its Healer, and the Lookout, who shoots the hero
+    farthest back at the pull (shooters.js aimOf), shot the Ranger 38k an hour where the server's tally had the Healer taking 47k.
+    The seat comes first, zero-padded, so any party sorts in seat order. */
+export const memberKey = (role, seat) => String(seat).padStart(2, '0') + ':' + role;
+
 export async function loadPlay(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const AC = await import(u('supabase/functions/hr-accrue/accrual.js'));
@@ -104,7 +113,7 @@ export async function loadPlay(root) {
     /* opts.equipment: a worn set given whole (the start kit, start-kit.js START_EQUIPMENT), for every hero. */
     const equipment = typeof worn === 'function' ? worn(role, i, L) : worn ? { ...worn } : fullSet ? fullKit(L, role) : kit(L, role);
     return {
-      key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
+      key: memberKey(role, i), user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
       huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
         bag: typeof bag === 'function' ? bag(role, i, L) : role === 'ranger' ? { bronze_arrows: { loaded: 1 } } : {},
         staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics, goldFloor: 0, supplySource: 'mine', onEmpty: 'switch', cover: {}, ...(typeof session === 'function' ? session(role, i, L) : session || {}) },
@@ -220,7 +229,7 @@ export async function loadPlay(root) {
      test can wear one hero differently and the rest as measured (drop-tables.mjs ranger-floor: the crossbow and shield). */
   const kitFor = (L, role, full) => (full ? fullKit(L, role) : kit(L, role));
   /* refBar(huntId): the reference bar a measured hero runs (above), so a test can add its own ability lane beside the ground's food and drink. */
-  return { run, kitFor, refBar, MONSTERS, ITEMS, vendorPriceOf: CAT.vendorPriceOf, basics: SB.BASIC_INDEX };
+  return { run, kitFor, refBar, memberKey, MONSTERS, ITEMS, vendorPriceOf: CAT.vendorPriceOf, basics: SB.BASIC_INDEX };
 }
 
 export async function play(root, only) {

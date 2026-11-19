@@ -11,8 +11,11 @@
 // parties (Tyler 2026-11-16) and the leader picks the tier. Exit 1 when a Level disagrees (a reading, not a CI guard). `--party hammer` reads a
 // hero alone against the lone advice.
 //
+// THE PLAYED HERO (the balance audit's fix 1, lane/d-audit-fixes-sim 2026-11-19): a party plays as players set one up (cell.mjs `profile:
+// 'played'`, a party-levelled hero's skills, skill-lines.mjs), a hero alone on its own career's; `--profile plain` the old harness hero.
+//
 //   node tools/balance-sim/party-advice-table.mjs [--levels 5,8,13,16,25,28,45,50] [--party tank,healer,bow,mage] [--seeds 2] [--hours 0.5]
-//                                                 [--outgrown 5] [--within 0.95] [--workers 3] [--cache file.jsonl]
+//                                                 [--outgrown 5] [--within 0.95] [--workers 3] [--cache file.jsonl] [--profile played|plain]
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -31,6 +34,8 @@ const LEVELS = arg('--levels', '5,8,13,16,25,28,45,50').split(',').map(Number);
 const PARTY = arg('--party', 'tank,healer,bow,mage').split(',');
 const SEEDS = Number(arg('--seeds', 2)), HOURS = Number(arg('--hours', 0.5)), WORKERS = Number(arg('--workers', 3)), OUTGROWN = Number(arg('--outgrown', 5));
 const WITHIN = Number(arg('--within', 0.95));
+const PROFILE = arg('--profile', 'played');
+if (!['played', 'plain'].includes(PROFILE)) throw new Error('party-advice-table: --profile played|plain');
 for (const w of PARTY) if (!STYLES[w]) throw new Error('no style ' + w + ' (tools/balance-sim/styles.mjs)');
 
 const ROWS = huntRows();
@@ -42,14 +47,15 @@ const tierOpts = (g, tier, n) => {
   const pull = T.pullOfTier(T.tierRowOf(g, tier), n);
   return { options: { tier }, ...(pull ? { density: pull } : {}) };
 };
-const idOf = (L, g, tier, s) => ['L' + L, g, tier, s].join(':');
+const idOf = (L, g, tier, s) => ['L' + L, g, tier, s, PROFILE].join(':');
 
 function plan() {
   const jobs = [];
   for (const L of LEVELS) for (const r of nearRows(L)) {
     const g = groundOf(r.hunt);
     for (const tier of T.tiersOf(g)) for (let s = 0; s < SEEDS; s++) {
-      jobs.push({ id: idOf(L, g, tier, s), ground: g, party: PARTY, level: PARTY.map(() => L), hours: HOURS, seeds: 1, seedBase: s, ...tierOpts(g, tier, PARTY.length), ...stagedGear(g) });
+      jobs.push({ id: idOf(L, g, tier, s), ground: g, party: PARTY, level: PARTY.map(() => L), hours: HOURS, seeds: 1, seedBase: s, ...tierOpts(g, tier, PARTY.length), ...stagedGear(g),
+        ...(PROFILE === 'played' ? { profile: 'played' } : {}) });
     }
   }
   return jobs;
@@ -59,7 +65,7 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
 const k = (x) => (Math.round(x / 100) / 10).toFixed(1) + 'k';
 
 function report(played) {
-  console.log('party-advice-table: ' + PARTY.join(' + ') + ', every seat at the Level; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell; a head\'s Level XP an hour (deaths, a head\'s profit an hour)');
+  console.log('party-advice-table: ' + PARTY.join(' + ') + ', every seat at the Level, the ' + PROFILE + ' hero; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell; a head\'s Level XP an hour (deaths, a head\'s profit an hour)');
   let off = 0;
   for (const L of LEVELS) {
     const lines = [];

@@ -37,9 +37,15 @@ export function runCareer(R, job) {
     const levels = seats.map(lv);
     const chunkH = chunkOf(Math.min(...levels));
     const ground = job.ground || rec(levels, n);
+    /* job.tier (skill-lines.mjs, the party-levelled line): each chunk on that tier where the ground offers it, at the tier's own pull for the
+       party's size, as a party picks Deadly on the ground the advice names (the recorded fours, 2026-11-16 to 11-18); Normal where it doesn't */
+    const tier = job.tier && R.tiers && R.tiers.tiersOf(ground).includes(job.tier) && job.tier !== 'normal' ? job.tier : null;
+    const pull = tier ? R.tiers.pullOfTier(R.tiers.tierRowOf(ground, tier), n) : 0;
     const cell = { id: job.id + ':' + chunk, ground, party: job.party, startBySeat: seats.map((s) => ({ levelXp: s.levelXp, skills: { ...s.skills } })),
       hours: chunkH, seeds: 1, seedBase: (job.seed || 0) * 100000 + chunk, segmentH: chunkH, windowMs: 600000,
-      ...(Number.isInteger(job.density) ? { density: job.density } : {}), ...(job.gear ? { gear: job.gear } : {}) };
+      ...(Number.isInteger(job.density) ? { density: job.density } : pull ? { density: pull } : {}), ...(job.gear ? { gear: job.gear } : {}),
+      /* job.profile 'played' (played.mjs) + job.supply: the hero as players set one up, its own career's skills (startBySeat) */
+      ...(job.profile ? { profile: job.profile } : {}), ...(job.supply ? { supply: job.supply } : {}), ...(tier ? { options: { tier } } : {}) };
     const m = R.runCell(cell);
     const h = m.party.hours;
     const before = seats.map((s) => s.levelXp);
@@ -60,10 +66,12 @@ export function runCareer(R, job) {
       }
     });
     hours += h;
-    trace.push({ chunk, hours: Math.round(hours * 100) / 100, ground, levels, deaths: m.heroes.map((x) => x.deaths),
+    trace.push({ chunk, hours: Math.round(hours * 100) / 100, ground, ...(tier ? { tier } : {}), levels, deaths: m.heroes.map((x) => x.deaths),
       xpPerH: m.heroes.map((x) => x.levelXpPerH), profitPerH: m.heroes.map((x) => x.profitPerH), netPerH: m.heroes.map((x) => x.netWithRaresPerH),
       coinPerH: m.heroes.map((x) => x.coinPerH), storePerH: m.heroes.map((x) => x.storePerH), minHp: m.heroes.map((x) => x.encMinHpPct.p10),
-      skills: seats.map((s) => Object.fromEntries(R.COMBAT_SKILLS.map((k) => [k, XP.skillLevelFromXp(k, s.skills[k] || 0)]))) });
+      skills: seats.map((s) => Object.fromEntries(R.COMBAT_SKILLS.map((k) => [k, XP.skillLevelFromXp(k, s.skills[k] || 0)]))),
+      /* the Levels the chunk ended on, beside the skills it ended on (skill-lines.mjs reads the pair) */
+      levelsAfter: seats.map(lv) });
     chunk++;
   }
   return { id: job.id, kind: 'career', party: job.party, ...(Number.isInteger(job.density) ? { density: job.density } : {}), startLevel: job.startLevel || 1, targetLevel: job.targetLevel, hours: Math.round(hours * 100) / 100,

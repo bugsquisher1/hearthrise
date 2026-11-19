@@ -271,7 +271,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.80-0.86, threes 0.73-0.81, fours 0.65-0.77), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.02-1.06, threes 1.01-1.08, the four 1.07); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-30, 30], 3: [-25, 30, 35], 4: [-30, 25, 30, 30] }, dangerous: { 2: [-25, 30], 3: [-15, 35, 45], 4: [-20, 25, 35, 35] }, deadly: { 2: [-25, 30], 3: [-10, 45, 50], 4: [-15, 35, 45, 50] } },
+  partyVsAlone: { normal: { 2: [-30, 25], 3: [-25, 25, 35], 4: [-30, 20, 25, 25] }, dangerous: { 2: [-30, 20], 3: [-20, 30, 40], 4: [-25, 20, 25, 30] }, deadly: { 2: [-25, 25], 3: [-20, 35, 40], 4: [-20, 25, 35, 35] } },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's

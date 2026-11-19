@@ -125,6 +125,30 @@ export function dyeKeyOf(c) {
   return head + '.' + body + '.' + legs + '.' + feet;
 }
 
+/* sprite id -> outfit id, for a reader that holds only the sprite (the World's units, a portrait) */
+const OUTFIT_OF_SPRITE = Object.freeze(Object.fromEntries(Object.entries(OUTFITS).map(([id, s]) => [s, id])));
+
+/**
+ * A FACTION LOOK WEARS ITS SIDE'S COLORS AS DRAWN (blind faction QA 2026-11-19 #5: a default Flamebearer took the creation default's crimson body dye
+ * and stood red beside a red Emberkeeper; the First Flame's color is the antique gold its tabard and its icon are drawn in). A look owned through
+ * faction pieces keeps its art's own colors while every region it shows still holds the creation default (BASE_DEFAULT_COLORS); a dye the player
+ * chose there wins and recolors it as any outfit. `look`: an outfit id or its sprite id; `colors`: { head, body, legs, feet } dye indices.
+ * Returns the colors to draw with, or null: draw it as drawn. Pure.
+ */
+export function lookColors(look, colors) {
+  if (!colors) return null;
+  const r = OUTFIT_ROWS[look] || OUTFIT_ROWS[OUTFIT_OF_SPRITE[look]];
+  if (!r || !r.pieces || !r.regions.length) return colors;
+  return r.regions.every((g) => colors[g] === BASE_DEFAULT_COLORS[g]) ? null : colors;
+}
+
+/** The World's form of lookColors: sprite `sprite` drawn with dye key `key` ("head.body.legs.feet"), or null when it draws as drawn. Pure. */
+export function lookDyeKey(sprite, key) {
+  if (!key) return null;
+  const [head, body, legs, feet] = String(key).split('.').map(Number);
+  return lookColors(sprite, { head, body, legs, feet }) ? key : null;
+}
+
 /** The outfit ids in display order. */
 export const OUTFIT_IDS = Object.freeze(Object.keys(OUTFIT_ROWS));
 

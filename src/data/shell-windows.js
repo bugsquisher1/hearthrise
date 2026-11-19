@@ -107,7 +107,8 @@ export const SHELL_WINDOWS = Object.freeze([
      (src/data/world/stations.js), so does the Havora window's Hearth tab, and so does its line in the Town menu (QA gate 2026-11-17: the
      Hearth click was its only door); while it is hidden the Hearth opens the bag, as before, and the Town menu has no line for it. */
   /* `rise` (audit 2026-11-18 A5): its column grew a Before entering box, so the window rises over the bar in town when the rules, the supplies and
-     Enter need more than the room above it (in a hunt no window rises: window-fit.js) */
+     Enter need more than the room above it (in a hunt no window rises: window-fit.js). Kept at 1440x900 (v0.2.141 gate P3, measured: the column is
+     734 px against 558 above the bar, and without the rise the Climb rules lay wholly under the sticky door again) */
   /* `menuTabs` (QA audit 2026-11-18 N2: the Hearth Chest was reached only through Burning Tower, then Chest): its own line in the Town menu,
      opening the window on its Chest tab */
   Object.freeze({ id: 'tower', label: 'Burning Tower', title: 'The Burning Tower', key: null, noShortcut: true, group: 'town', section: 'tower', orElse: 'inventory',
@@ -124,8 +125,10 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'characters', label: 'All characters', key: 'o', glyph: 'navProfile', width: 460, object: 'ledger', launcher: false }),
   /* UI audit 2026-11-18 #2: the return is ONE card, docked where the summary docks (src/shell/windows/away.js opens it from the alert centre's away lines) */
   Object.freeze({ id: 'away', label: 'While you were away', key: null, noShortcut: true, glyph: 'uiHourglass', width: 420, object: 'ledger', launcher: false, rise: true }),
-  /* rise: the result, the loot, the steps and the presses open whole, over the bottom bar in town (UI audit 2026-11-18 #1: 404 px of a 1,194 px card) */
-  Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false, rise: true }),
+  /* No `rise` (v0.2.141 gate: at 1440x900 the card lay over the action bar): the result leads and the presses' foot is sticky, so the card reads
+     from the top and its presses stay in view while it scrolls above the bar; on a short World (UI audit 2026-11-18 #1: 404 px of a 1,194 px
+     card) it rises as any window does (window-fit.js, DOCK_ROOM_PX) */
+  Object.freeze({ id: 'hunt-summary', label: 'Hunt summary', key: 'l', glyph: 'uiCheck', width: 420, object: 'ledger', launcher: false }),
   Object.freeze({ id: 'hud', label: 'HUD layout', key: 'u', glyph: 'uiSettings', width: 380, object: 'plain', launcher: false }),
   /* One bar slot: what it does and when (opened by a press on a bar slot, in town or in a hunt). */
   Object.freeze({ id: 'configure-action', label: 'Configure action', key: 'k', glyph: 'uiTarget', width: 880, object: 'plain', launcher: false, modal: true,

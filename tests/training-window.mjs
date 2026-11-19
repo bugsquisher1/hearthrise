@@ -25,6 +25,7 @@
 //         items closed, no press shows and the note says so
 //   TR-7  LABELS (Tyler 2026-11-14; lane/c-training-gear-arm before the items opened): the quote, the run, the stop and the item box
 //         show no line that says "you" or ends in a period; the refusals read as labels with the server's numbers (TR-0)
+//   TR-10 A SESSION RUNNING ON A PHONE (v0.2.141 gate, 922x423, the sheet held above the action bar): the status box whole above Stop, Stop in view
 //   TR-9  A STOP PENDING SAYS SO (post-140 audit C10): with the yard session in the hunt section and its Leave pending to the server's
 //         leave_at, Stop is off and the window says the hunt bar's words ("Leaving in Ns"), until the server ends the run
 //   TR-8  BUY ASKS FIRST: one click on Buy sends nothing and shows "Training Sword (12 h): 250,000 gold"; Cancel sends nothing; Buy in
@@ -207,6 +208,34 @@ async function checks() {
         await labelsOnly(page, 'after Stop');
       }
       if (errors.length) fails.push('TR-2 console: ' + errors.slice(0, 2).join(' | '));
+      await ctx.close();
+    }
+    /* TR-10 A SESSION RUNNING ON A PHONE (v0.2.141 gate, 922x423: the sheet stands above the action bar while the yard runs, 275 px, and the sticky
+       foot, Stop and its answer, covered the status box's last lines): the box is whole above Stop, and Stop is whole in the sheet's view */
+    {
+      const yard = Object.assign(clone(BASE_ENV.hunt), { session_id: '00000000-0000-4000-a000-0000000000b0', hunt_id: 'training_yard_melee', ended: false });
+      yard.session = { id: yard.session_id, hunt: 'training_yard_melee', phase: 'hunting' };
+      const s = world({ hunt: yard, training: SECTION({ run: { skill: 'melee', where: 'yard', since: iso(Date.now() - 20 * 60000), fee_h: 272, paid: 272 } }) });
+      const { ctx, page, errors } = await open(s, { width: 922, height: 423 });
+      if (!await openTraining(page, true)) fails.push('TR-10 the Training window did not open on a running yard session on a phone');
+      else {
+        await page.waitForTimeout(400);
+        const v = await page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="training"]'), body = w.querySelector('[data-hs-body]'), b = body.getBoundingClientRect();
+          const k = (e) => { const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.bottom)]; };
+          return { win: Math.round(w.getBoundingClientRect().height), body: [Math.round(b.top), Math.round(Math.min(b.bottom, innerHeight))], run: k(w.querySelector('.tw-run')),
+            foot: k(w.querySelector('.tw-foot')), stop: k(w.querySelector('.tw-stop')), shown: !w.querySelector('.tw-run').hidden,
+            footPos: getComputedStyle(w.querySelector('.tw-foot')).position, lead: !!w.querySelector('.tw-lead').getClientRects().length };
+        });
+        if (!v.shown) fails.push('TR-10 CONTROL: the status box is not shown');
+        else if (v.win > 330) fails.push('TR-10 CONTROL: the sheet is not held above the bar (' + v.win + ' px), so this proves nothing');
+        else if (v.run[1] > v.foot[0] + 1 || v.stop[0] < v.body[0] - 1 || v.stop[1] > v.body[1] + 1) fails.push('TR-10 on a phone the status box runs under Stop or Stop is off the sheet: ' + JSON.stringify(v));
+        /* ...and Stop stands in the flow right under the box, never in a sticky foot that grows with its answer over the box (the gate's state, just
+           after Start: the answer in the foot and the lead line above the box), and the lead line steps aside while a session runs */
+        else if (v.footPos === 'sticky' || v.stop[0] - v.run[1] > 24 || v.lead) fails.push('TR-10 on a phone a running session keeps the sticky foot or the lead line: ' + JSON.stringify(v));
+        if (SHOTS) await page.screenshot({ path: join(SHOTS, 'training-running-phone.png') });
+      }
+      if (errors.length) fails.push('TR-10 console: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
     }
     /* TR-9 A STOP PENDING SAYS SO (post-140 audit C10: the window stood unchanged for 16 s after Stop). The yard session is the hunt section;

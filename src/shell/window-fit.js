@@ -92,11 +92,25 @@ function clearTrims(root) {
   for (const e of root.querySelectorAll('[' + TRIM + ']')) if (!held.has(e)) { e.style.maxHeight = ''; e.removeAttribute(TRIM); }
 }
 
+/* WHAT A PASS MEASURES, as the last pass left it: the view, the frame's box, and each scroll region's content, size, scroll and hold. While
+   it is unchanged the pass would make the same trims again, so it writes nothing (perf-budget PB-QUIET, v0.2.142: a trimmed Hunt summary
+   repainting in a still town undid and re-made the same trim four times a second, 16 DOM changes a second). */
+const lastPass = new WeakMap();
+function passInputs(frame, view) {
+  let sig = view.innerWidth + 'x' + view.innerHeight + '|' + frame.offsetWidth + 'x' + frame.offsetHeight + '|' + frame.style.maxHeight;
+  for (const s of frame.querySelectorAll('*')) {
+    if (!s.hasAttribute(TRIM) && !scrolls(s, view)) continue;
+    sig += '|' + s.scrollHeight + ',' + s.clientHeight + ',' + s.scrollTop + ',' + s.childElementCount + (held.has(s) ? ',held' : '');
+  }
+  return sig;
+}
+
 /** Rules 2 and 3 for one window: each scroll region in it ends on a whole row. Run after a layout pass and a repaint. */
 export function trimEnds(frame) {
   if (!frame || frame.classList.contains('is-sized')) return;   // a window the player sized (Chat) keeps the size it was given
   const view = frame.ownerDocument.defaultView;
   watch(frame, view);
+  if (lastPass.get(frame) === passInputs(frame, view)) return;   // nothing the pass measures has moved: its trims stand, nothing is written
   clearTrims(frame);
   /* outer regions first (document order): a region that a nested one crosses gives the nested one the cut */
   for (const s of frame.querySelectorAll('*')) {
@@ -104,6 +118,7 @@ export function trimEnds(frame) {
     const at = restCut(s, view);
     if (at) shrink(at.el, at.cut, view);
   }
+  lastPass.set(frame, passInputs(frame, view));
 }
 
 /* Does `e` scroll on y, with more than it shows? */

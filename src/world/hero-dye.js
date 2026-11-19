@@ -90,10 +90,12 @@ let MASKS = null;
 export function loadMasks(doc, version) {
   if (!MASKS) {
     MASKS = Promise.allSettled(Object.keys(MASK_SETS).map((set) => loadAtlasSet({ doc, version }, set))).then((all) => {
-      const sets = all.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+      /* each result narrowed by its status: the sets that came, and why the others did not */
+      const sets = [], why = [];
+      for (const r of all) { if (r.status === 'fulfilled') sets.push(r.value); else why.push(r.reason); }
       /* a set that failed is asked for again next time; the sets that came draw now */
-      if (sets.length < all.length) MASKS = null;
-      if (!sets.length) throw (all[0] && all[0].reason) || new Error('no mask set loaded');
+      if (why.length) MASKS = null;
+      if (!sets.length) throw why[0] || new Error('no mask set loaded');
       return { sets };
     });
     MASKS.catch(() => { MASKS = null; });

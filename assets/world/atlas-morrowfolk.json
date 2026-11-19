@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-morrowfolk.png",
   "size": [2048,1348],
-  "pixels": "9abafc8ccf8ef58b010419297ea163816295944ce4134638301311b87c678272",
+  "pixels": "22266f3846be3276f06151a8bd0ef25938e297680f573af33e78997956f2831a",
   "sprites": {
     "slate_thrower": {
       "class": "character",

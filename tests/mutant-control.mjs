@@ -51,6 +51,8 @@ export const REGISTERED = [
   ['tests/progress-coalesce.mjs', '--mutate'],
   ['tests/world-tick-writer-authz.mjs', '--mutate'],
   ['tests/leaderboard-lockdown-guard.mjs', '--mutate'],
+  /* lane/c-guard-batch-142: its four edge mutants read caught with nothing planted until plant() honoured the control */
+  ['tests/jewel-guarantees-db.mjs', '--mutate'],
 ];
 
 /* A PUSH CONTROLS WHAT IT PROVES (lane r-release-gate, 2026-11-04). This is the half of a mutation proof nobody ran, so it belongs

@@ -16,8 +16,8 @@
 // else steps off). Wyverns breathe fire, so fire does 25% less and ice 15% more: the caster brings ice.
 // THE LOOT. No standard gear: Dawnsteel is the last tier (Tyler 2026-11-14) and Carter's Rest, the Ox Road and Lord Krell drop all of it.
 // The bow's unique pieces and the Roost Mother's boss pieces (board section 9) wait on Carter's Rest's sample of five. Until then the Roost
-// pays in coin, Dragon Bones (Hearth fuel, Inner Flame 35) and Dragon Scales (Hearth fuel, Inner Flame 79, and the top house tiers ask for
-// them), two rows that had no source in the game. Each body drops one imbuement item. The odds are the band's (no gear to fit).
+// pays in coin, Dragon Bones (Hearth fuel, Inner Flame 35) and Dragon Scales (Hearth fuel, Inner Flame 79, their only use now), two rows
+// that had no source in the game. Each body drops one imbuement item. The odds are the band's (no gear to fit).
 import { definePack, box, gather } from '../shape.js?v=0.2.141';
 import map from './map.js?v=0.2.141';
 

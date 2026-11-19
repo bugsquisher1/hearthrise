@@ -417,6 +417,71 @@ async function runTests(M) {
     eq(card3 && [card3.lvFrom, card3.lvTo, card3.ups], [null, 8, []], 'MID-WAY: Level 8, no start and no skill line');
   });
 
+  /* C4 EVERY HUNT REACHES EARLIER HUNTS (post-140 audit C4: both Wickstead days and the Glade death never did, and "Training Yard ... Training
+     stopped" took 5 of 7 rows). Both paths. VIEWED: the hunt ends in view, then the yard its plan opens runs and stops again and again: the hunt
+     stays, beside ONE yard row. CLOSED: the hunt ended with the page shut and the yard took over, so the page's first read is the yard; the
+     server names the hunt (hunt_after.last while the yard runs, the start stamp once it has stopped too), its card is built from the server's
+     answer for that session (summary-recorder.js recordPast, the alert centre's one read), placed by its end time, once; never a yard's. */
+  await t('C4 a hunt that ended unseen under the yard reaches Earlier hunts, and yard rows never push hunts out', async () => {
+    const HUNT = '00000000-0000-4000-a000-00000000c401', YARD = (n) => '00000000-0000-4000-a000-0000000c40' + String(n).padStart(2, '0');
+    const yardEnv = (v, id, ended, after) => {
+      const e = clone(FIX); e.version = v;
+      e.hunt = { session: Object.assign({ id, hunt: 'training_yard_melee', preset: 0, entered_at: '2026-11-18T08:00:0' + (v % 10) + 'Z', bag: [], tally: { xp: { melee: 500 } } },
+        ended ? { ended_at: '2026-11-18T09:00:0' + (v % 10) + 'Z', end_reason: 'left', phase: 'ended' } : { phase: 'hunting' }), pose: ended ? null : FIX.hunt.pose };
+      e.hunt_after = { choice: 'train', skill: 'melee', grace_s: 300, job: null, now: ended ? null : { session: id, choice: 'wait', skill: null }, last: after || null };
+      delete e.hunt_analyzer; delete e.hunt_events;
+      return e;
+    };
+    /* the server's answer for the Wickstead session (hr_hunt_analyzer, the basic block) */
+    const answer = (cs, id, hunt) => M.HS.analyzerFrom(cs, { tier: 'basic', hunt_ms: 6.6 * 3600000,
+      session: { id, hunt, entered_at: '2026-11-17T20:00:00Z', ended_at: '2026-11-18T02:36:00Z', end_reason: 'stamina', phase: 'ended' },
+      hero: { kills: 2924, xp: { level: 52000 }, coins: 14568, loot_value: 900, balance: 15000, loot: { iron_platebody: 1 }, supplies: { own: {}, store: {} } } });
+    /* CLOSED: the first read is the yard running, the hunt it took over is the server's last ended session */
+    let env = yardEnv(7, YARD(1), false, { session: HUNT, choice: 'train', skill: 'melee', done: { state: 'started' } });
+    env.client_state = { huntStart: { s: HUNT, lv: 9, sk: {} } };
+    const cs = sessionOn([], () => env);
+    await cs._take(env, 'load');
+    eq(M.REC.pastToRead(cs), [HUNT], 'the hunt the yard took over is the one to read');
+    ok(!M.REC.recordPast(cs, YARD(9), answer(cs, YARD(9), 'training_yard_melee')), 'a training session read this way is never a row');
+    ok(M.REC.recordPast(cs, HUNT, answer(cs, HUNT, 'wickstead')), 'the hunt\'s card went in');
+    ok(!M.REC.recordPast(cs, HUNT, answer(cs, HUNT, 'wickstead')) && M.REC.summariesOf(cs).length === 1, 'once');
+    const card = M.REC.summariesOf(cs)[0];
+    eq(card && [card.id, card.hunt, card.kills, card.gold, card.reason, card.train], [HUNT, 'wickstead', 2924, 14568, 'stamina', null], 'its card is the server\'s tally of that session');
+    eq(M.REC.pastToRead(cs), [], 'nothing left to read');
+    ok(!M.REC.takeFresh(cs), 'it never opens the summary by itself (the away card is the return\'s notice)');
+    /* the yard stops: its card is the newest, the hunt stays under it */
+    env = yardEnv(8, YARD(1), true, { session: YARD(1), choice: 'wait', skill: null, done: null });
+    await cs.load();
+    eq(M.REC.summariesOf(cs).map((x) => x.id), [YARD(1), HUNT], 'the yard\'s card first, the hunt under it (by end time)');
+    /* CLOSED, the yard already stopped too: the server's last is the yard, the start stamp still names the hunt */
+    const late = yardEnv(9, YARD(2), true, { session: YARD(2), choice: 'wait', skill: null, done: null });
+    late.client_state = { huntStart: { s: HUNT, lv: 9, sk: {} } };
+    const cs2 = sessionOn([], () => late);
+    await cs2._take(late, 'load');
+    eq(M.REC.pastToRead(cs2), [HUNT], 'the start stamp names the hunt once the yard has stopped');
+    ok(M.REC.recordPast(cs2, HUNT, answer(cs2, HUNT, 'wickstead')), 'its card went in');
+    eq(M.REC.summariesOf(cs2).map((x) => x.id), [YARD(2), HUNT], 'under the yard that ended after it, never ahead of it');
+    /* a session the server names that is a yard's (an older one the list keeps no row for) is judged once, then never asked again */
+    const next = clone(FIX); next.version = 30; next.hunt = { session: { id: 'sess-n', hunt: 'wickstead', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    next.hunt_after = { choice: 'wait', skill: null, grace_s: 300, job: null, now: { session: 'sess-n', choice: 'wait', skill: null }, last: { session: YARD(5), choice: 'wait', skill: null, done: null } };
+    const cs4 = sessionOn([], () => next);
+    await cs4._take(next, 'load');
+    eq(M.REC.pastToRead(cs4), [YARD(5)], 'the server\'s last ended session is read');
+    ok(!M.REC.recordPast(cs4, YARD(5), answer(cs4, YARD(5), 'training_yard_melee')), 'a yard\'s is no row');
+    eq(M.REC.pastToRead(cs4), [], 'and is not read again');
+    /* VIEWED: the hunt ended in view (its card), then nine yard sessions run and stop: the hunt keeps its row beside ONE yard row */
+    let v = 10;
+    const run = clone(FIX); run.version = v++; run.hunt = { session: { id: 'sess-h', hunt: 'wickstead', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    let cur = run;
+    const cs3 = sessionOn([], () => cur);
+    await cs3._take(run, 'load');
+    cur = Object.assign(endedEnv(v++), {}); cur.hunt.session.id = 'sess-h'; cur.hunt.session.hunt = 'wickstead';
+    await cs3.load();
+    for (let n = 1; n <= 9; n++) { cur = yardEnv(v++, YARD(10 + n), false, null); await cs3.load(); cur = yardEnv(v++, YARD(10 + n), true, null); await cs3.load(); }
+    const rows = M.REC.summariesOf(cs3);
+    eq([rows.filter((x) => x.train).length, rows.some((x) => x.id === 'sess-h'), rows[0] && rows[0].id], [1, true, YARD(19)], 'one yard row (the newest) and the hunt still listed');
+  });
+
   await t('A5 a new hunt after an ended one says so once (the shell closes the old summary: playtest v0.2.127)', async () => {
     const calls = [];
     const cs = sessionOn(calls, () => endedEnv(8));
@@ -707,6 +772,7 @@ async function load(base) {
     CS: Object.assign({}, await import(u(SESSION))), RES: await import(u(RESIDUE)),
     TN: await import(u(TOWN)), UP: await import(u('src/shell/upgrade-plan.js')), NB: await import(u(NEXT)),
     END_ORDER: (await import(u('src/data/hunt-sessions.js'))).END_ORDER,
+    HS: await import(u('src/session/hunt-sections.js')),
   };
 }
 
@@ -727,7 +793,14 @@ const MUTANTS = [
   { test: 'S1', file: MODEL, from: "if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;", to: 'return why;' },
   { test: 'S1', file: MODEL, from: "  stamina: t('summary.end_stamina'),\n", to: '' },
   { test: 'S2', file: SUMMARIES, from: "    if (out.length >= HISTORY_MAX) break;", to: '' },
-  { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id)) continue;", to: "if (!s) continue;" },
+  { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id) || (s.train && yard)) continue;", to: "if (!s || (s.train && yard)) continue;" },
+  /* C4: every hunt reaches Earlier hunts (post-140 audit C4) */
+  { test: 'C4', file: SUMMARIES, from: "if (!s || seen.has(s.id) || (s.train && yard)) continue;", to: "if (!s || seen.has(s.id)) continue;" },
+  { test: 'C4', file: RECORDER, from: "  const ids = [after && after.last ? after.last.session : null, st ? st.s : null, a ? a.prevStart : null];", to: "  const ids = [];" },
+  { test: 'C4', file: RECORDER, from: "  const ids = [after && after.last ? after.last.session : null, st ? st.s : null, a ? a.prevStart : null];", to: "  const ids = [after && after.last ? after.last.session : null];" },
+  { test: 'C4', file: RECORDER, from: " || trainedBy(f.hunt) || ", to: ' || ' },
+  { test: 'C4', file: RECORDER, from: "withPastSummary(summariesOf(cs), card)", to: "withSummary(summariesOf(cs), card)" },
+  { test: 'C4', file: RECORDER, from: "  if (a) a.pastDone.add(id);\n", to: '' },
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
   { test: 'S4', file: MODEL, from: ".map((x) => [x.item, x.source, x.count])", to: ".map((x) => [x.item, 'own', x.count])" },
   { test: 'S4', file: MODEL, from: "(standout(b.item) - standout(a.item)) || ", to: '' },
@@ -761,7 +834,7 @@ const MUTANTS = [
   { test: 'L1', file: MODEL, from: "return !!s && !s.ended && !(int(paid.kills) > 0) && !(xp > 0);", to: "return !!s && !s.ended;" },
   { test: 'L1', file: RESIDUE, from: "    if (++n >= HUNT_START_SKILLS) break;\n", to: '' },
   { test: 'L2', file: RECORDER, from: "if ((was && was.s === s.id) || !lv || !atStart(s) || typeof cs.setResidue !== 'function') return;", to: "if (!lv || typeof cs.setResidue !== 'function') return;" },
-  { test: 'L2', file: RECORDER, from: " stampStart(cs, s); return; }", to: " return; }" },
+  { test: 'L2', file: RECORDER, from: "      stampStart(cs, s);\n      return;\n", to: "      return;\n" },
   { test: 'L2', file: SUMMARIES, from: "lvFrom: level(v.lvFrom), lvTo: level(v.lvTo),", to: "lvFrom: null, lvTo: level(v.lvTo)," },
   { test: 'L2', file: RESIDUE, from: "  huntStart: sanitizeHuntStart, ", to: "  huntStartGone: sanitizeHuntStart, " },
   /* Back in town (T1..T4) */

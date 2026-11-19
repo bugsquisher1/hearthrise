@@ -31,6 +31,7 @@ import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.140';
 import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.140';
 import { whole, localWhen } from '../../render/format.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
+import { busyWords } from '../training-words.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.140';
@@ -90,7 +91,7 @@ export function useBlock(cs, tw, k) {
   const c = tw && tw.chest;
   if (!c || !k || k.heldAll < 1) return t('tower.off_no_key');
   const h = huntOf(cs);
-  if (h && !h.ended) return t('tower.off_hunting');
+  if (h && !h.ended) return busyWords(cs, t('tower.off_hunting'));
   if (!k.ready) return k.gear === 'armor' ? t('catacomb.not_ready') : t('tower.not_ready');
   const f = familyRow(tw, k);
   if (f && f.openedWeek >= f.maxWeek) return t('tower.off_week', { max: f.maxWeek });

@@ -1440,10 +1440,12 @@ async function runTests(mods) {
       await tick();
       eq(calls, [['hr_hunt_analyzer', { p_slot: 0, p_session: S1 }]], 'one read, of that session');
       centre.destroy();
-      /* THE HUNT IN VIEW: the page watched it end and roll into the yard, so no card and no read */
+      /* THE HUNT IN VIEW: the page watched it end and roll into the yard, so no card and no read (its end card is in Earlier hunts, recorded
+         as it ended: summary-recorder.js, so Earlier hunts has nothing to read either, post-140 audit C4) */
       const seen = [];
       const watched = heroOf(Object.assign(yard(), { hunt: { session_id: S1, hunt_id: 'mosslight_glade', ended: false, session: {}, hero: {}, pose: { units: [] } } }),
         Object.assign({}, STAMP, { at: T0 + 13 * H - MIN }), T0 + 13 * H);
+      watched.record.residue.huntSummaries = [{ id: S1, hunt: 'mosslight_glade', at: T0 + 12 * H, reason: 'stamina' }];
       const wc = centreWith(watched, { rpc: async (n, a) => { seen.push([n, a]); return { ok: false }; } });
       watched.env = yard();
       for (const fn of watched.subs) fn(watched, 'changed');
@@ -1692,7 +1694,7 @@ const MUTANTS = [
   { test: 'R3m', file: 'src/data/text/summary.js', from: "coins brought in {coins}. The store stopped selling supplies at your {floor} reserve.'", to: "coins brought in {coins}, so your gold fell to your {floor} reserve.'" },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "      if (a.kind === 'away') askPast(cs, a);\n", to: '' },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "if (!session || !a.stamp || pastAsked.has(cs.slot + ':' + session)) return;", to: 'if (!session || !a.stamp) return;',
-    also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) return pastHuntOf(cs, session);\n', to: '' }] },
+    also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) { const v = m.get(session); return v instanceof Promise ? v : pastHuntOf(cs, session); }\n', to: '' }] },
   { test: 'R3l', file: 'src/shell/windows/away.js', from: "summary: go === 'again', bless: blessOf(cs, f) };", to: "summary: go === 'again', bless: '' };" },
   { test: 'R3l', file: 'src/shell/windows/away.js', from: "if (ctx.character && ctx.character.slot === a.slot) ctx.wm.openTab('shop', 'services'); else", to: "if (false) ctx.wm.openTab('shop', 'services'); else" },
   { test: 'R3l', file: 'src/shell/away-recap.js', from: ": h.ended && h.endReason === 'died' ? h.sessionId : null },", to: ': null },' },

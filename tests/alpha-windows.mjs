@@ -1484,6 +1484,26 @@ async function panelLeftovers(base) {
   const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
   const aCard = { id: 'x', title: 'A title', text: 'Some words', done: { kind: 'read' }, gotIt: true };
   if (!/hs-pointer is-line/.test(coachHtml(reader, aCard, true)) || !/data-hs-act="coach-more"/.test(coachHtml(reader, aCard, true)) || /is-line|coach-more/.test(coachHtml(reader, aCard, false))) fails.push('AW-62 a card in a window is not one line, or one outside is');
+  /* AW-62 A LINE WITH NO ROOM FOR ITS WORDS IS NO LINE (post-140 audit C12: in the Farm window the title, More and Got it took the whole line, the words
+     had 0 px and More "opened" a card that only said them, "...empty plotLess"). Measured as the Farm window measured: the card stands whole, More
+     goes; a line that shows a readable share keeps More; a line whose words fit has none; and More/Less stands a word apart from the words. */
+  {
+    const { fitCoachLine } = await imp('src/shell/launcher.js');
+    const lineAt = (client, scroll) => {
+      const cl = new Set(['hs-pointer', 'is-line']), attrs = {};
+      const more = { hidden: true }, words = { clientWidth: client, scrollWidth: scroll };
+      const p = { classList: { contains: (c) => cl.has(c), remove: (c) => cl.delete(c) }, getAttribute: (k) => (k in attrs ? attrs[k] : null),
+        setAttribute: (k, v) => { attrs[k] = v; }, querySelector: (q) => (q.includes('more') ? more : words) };
+      const slot = { querySelector: () => p };
+      fitCoachLine(slot);
+      fitCoachLine(slot);   // the next paint keeps it
+      return { line: cl.has('is-line'), more: !more.hidden };
+    };
+    const fit = { farm: lineAt(0, 190), cut: lineAt(160, 300), whole: lineAt(190, 190) };
+    if (JSON.stringify(fit) !== JSON.stringify({ farm: { line: false, more: false }, cut: { line: true, more: true }, whole: { line: true, more: false } })
+      || !/<\/span> <button type="button" class="hs-coach-more"/.test(coachHtml(reader, aCard, true)))
+      fails.push('AW-62 a one-line card in a narrow window reads ' + JSON.stringify(fit));
+  }
   const { takeWhyOf, suggestedWeight } = await imp('src/shell/windows/tally.js');
   /* What a first Take asks for: the weight worn most, else the role's; neither said, nothing (blind panel 11-03: "no recommendation") */
   const bySuggest = [[{ boots: 'leather_boots' }, 'tank', 'medium'], [{ helmet: 'iron_helm' }, 'mage', 'heavy'], [{}, 'tank', 'heavy'], [{}, 'melee_dps', 'heavy'], [{}, 'ranger', 'medium'], [{}, 'mage', 'light'], [{}, 'healer', 'light']];
@@ -1545,6 +1565,24 @@ async function planRules(base) {
   const bagCs = (inventory, loot) => ({ read: (k) => ({ inventory, bag_rules: { locked: [], loot } })[k] });
   const ran = dispatchBlock(bagCs({ bones: 3 }, { rat_tail: 'sell', wolf_pelt: 'deposit' })), none = dispatchBlock(bagCs({ bones: 3 }, {})), ready = dispatchBlock(bagCs({ rat_tail: 3 }, { rat_tail: 'sell' }));
   if (!/^Nothing left to move/.test(ran) || !/^No loot plans set/.test(none) || ready !== '') fails.push('AW-32 the Dispatch loot why reads ' + JSON.stringify([ran, none, ready]));
+  /* AW-32 THE YARD IS THE REASON, NOT A HUNT (post-140 audit C7: at the Training Yard Equip upgrades said "Leave the hunt to put these on.", the chest's
+     Use "Not available while hunting", Dispatch loot "works in town"). A training session is a hunt session, so the server refuses each of these
+     during it (hr_hunt_lock's open session, equip.js hunt_open) and the control stays off; it says the training. In a hunt each keeps the hunt's words. */
+  {
+    const { gearLockWhy, wearBlock } = await imp('src/shell/gear-gate.js');
+    const { useBlock } = await imp('src/shell/windows/tower-chest.js');
+    const { buryBlock } = await imp('src/shell/windows/inventory/bury.js');
+    const at = (huntId) => ({ read: (k) => ({ hunt: { session_id: 's-1', hunt_id: huntId, ended: false, session: {}, hero: {}, pose: { units: [] } },
+      state: { active_kind: 'combat' }, inventory: { bones: 3 }, bag_rules: { locked: [], loot: { bones: 'sell' } } })[k] });
+    const said = (cs) => [gearLockWhy(cs), gearLockWhy(cs, 'upgrades'), wearBlock(cs, 'iron_sword'), dispatchBlock(cs), useBlock(cs, { chest: {} }, { heldAll: 1, ready: true }),
+      buryBlock(cs, { skill: 'prayer' })];
+    const yard = said(at('training_yard_melee')), hunt = said(at('wickstead'));
+    const busy = 'Not available while training';
+    if (JSON.stringify(yard) !== JSON.stringify(['Stop training to change gear', 'Stop training to put these on.', 'Stop training to change gear', busy, busy, busy])
+      || JSON.stringify(hunt) !== JSON.stringify(['Leave the hunt to change gear', 'Leave the hunt to put these on.', 'Leave the hunt to change gear', 'Dispatch loot works in town',
+        'Not available while hunting', 'Not while a hunt is running.']))
+      fails.push('AW-32 the town controls\' why at the yard and on a hunt read ' + JSON.stringify({ yard, hunt }));
+  }
   /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
   const wire = (id) => ({ action: { type: 'ability', id }, conditions: [], enabled: true });
@@ -1570,6 +1608,28 @@ async function planRules(base) {
   /* KRELL'S HOLD WARNS LIKE THE BARROWS (the full-game audit's A25, 2026-11-18: a Level 85 tank on the start bar died there in 81 minutes and its
      page said nothing). The Hold names its measured floor (Salted Trout, in the kit a hero arrives in), so the start bar's Salted Shrimp is
      told on its page, naming the slot; a bar on Salted Trout is not. */
+  /* AW-27 HUNT PREP'S CHECKLIST SAYS IT TOO (post-140 audit C5): the page where slot 4 is changed read "Oren: ready" under a ground's
+     "Pick Salted Lobster". The checklist runs the one weak-food line against the hero's ground, with the server's Level and HP; at the Glade
+     a 384 HP Level 16 hero on Salted Shrimp is told nothing on the card or the checklist, because Shrimp is MEASURED safe there (re-measured
+     on the real settle for this lane: audit-table storefood, Level 16 and 23, tank / hammer / bow / mage, 0 deaths in 2 h each, lowest HP
+     p10 53% to 75%), and a line there would be false (PRIORITY_BOARD F14). */
+  {
+    const { readinessOf, readinessLine } = await imp('src/shell/readiness.js');
+    const heroAt = (store, level, hp) => sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_lobster', 100), slot('consume', store, null)], store: STORE },
+      inventory: { cooked_lobster: 100 }, state: { gold: 500, hp, max_hp: hp }, level: { xp: 1, level, into: 0, need: 1000 } });
+    const card = (cs, hunt) => say(cs, { hunt }).split(' | ').find((l) => /heals/.test(l)) || '';
+    const prepSays = (cs, hunt) => { const r = readinessOf(cs, hunt); return { line: readinessLine(r), food: (r.checks.find((c) => c.id === 'food_weak') || {}).text || '' }; };
+    const barrows = heroAt('salted_shrimp', 55, 845), glade = heroAt('salted_shrimp', 16, 384);
+    const got = { barrowsCard: card(barrows, 'muster_barrows'), barrowsPrep: prepSays(barrows, 'muster_barrows'), gladeCard: card(glade, 'mosslight_glade'),
+      gladePrep: prepSays(glade, 'mosslight_glade'), lobsterPrep: prepSays(heroAt('salted_lobster', 55, 845), 'muster_barrows'),
+      /* under the Barrows' band (Level 5) its floor says nothing, as its page does (the 139 audit's B2): the range line says what is wrong */
+      underPrep: prepSays(heroAt('salted_shrimp', 5, 190), 'muster_barrows') };
+    const want = 'Slot 2: Salted Shrimp heals 72 of 845 HP. Pick Salted Lobster';
+    if (got.barrowsCard !== '!' + want || got.barrowsPrep.food !== want || !/: weak food$/.test(got.barrowsPrep.line)
+      || got.gladeCard || got.gladePrep.food || /weak food/.test(got.gladePrep.line) || got.lobsterPrep.food || /weak food/.test(got.lobsterPrep.line)
+      || got.underPrep.food || /weak food/.test(got.underPrep.line))
+      fails.push('AW-27 the weak store food on the card and in Hunt prep reads ' + JSON.stringify(got));
+  }
   const holdReads = [fedAt('krells_hold', 'salted_shrimp'), fedAt('krells_hold', 'salted_trout')];
   if (!holdReads[0].includes('!Slot 2: Salted Shrimp heals too little here. Pick Salted Trout') || /heals too little/.test(holdReads[1]))
     fails.push('AW-27 Krell\'s Hold\'s page on the start bar reads ' + JSON.stringify(holdReads));
@@ -5665,6 +5725,10 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
+  /* post-140 audit C12: a one-line card with no room for its words stands whole; More/Less a word apart */
+  ['item truth: panel: a line with no room for its words stays a line (post-140 C12)', 'src/shell/launcher.js', "  if (p.classList.contains('is-line') && words.clientWidth < Math.min(words.scrollWidth, LINE_WORDS_MIN_PX)) {", '  if (false) {'],
+  ['item truth: panel: a card stood whole goes back to a line on the next paint (post-140 C12)', 'src/shell/launcher.js', "  if (p.getAttribute('data-fit') === 'whole') { if (!more.hidden) more.hidden = true; return; }\n", ''],
+  ['item truth: panel: More runs into the words (post-140 C12)', 'src/shell/launcher.js', "    + (line ? ' <button type=\"button\" class=\"hs-coach-more\"", "    + (line ? '<button type=\"button\" class=\"hs-coach-more\""],
   ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
   ['item truth: panel: Burn all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
@@ -5795,6 +5859,13 @@ const MUTANTS = [
   ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);\n    if (weak) out.push(weak);\n', ''],
   ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/weak-food.js', 'if (food === null || heal === null || heal >= want) return null;', 'if (food === null || heal === null || heal * 2 >= want) return null;'],
   ['plans: AW-27 a floor speaks under its band (139 audit B2)', 'src/shell/weak-food.js', 'return !Number.isInteger(level) || !Array.isArray(band) || level >= band[0];', 'return true;'],
+  /* post-140 audit C5: Hunt prep's checklist says the weak food the ground's page says; C7: at the yard every town control says the training */
+  ['plans: AW-27 Hunt prep\'s checklist reads ready over a weak store food (post-140 C5)', 'src/shell/readiness.js', "    if (weak) { checks.push({ id: weak.id, ok: false, text: weak.text }); short.push(t('prep.ready_short_food_weak')); }\n", ''],
+  ['plans: AW-27 Hunt prep judges the bar with no Level (post-140 C5)', 'src/shell/readiness.js', 'const weak = weakFoodLine(s, ground || null, v.level, v.hpMax);', 'const weak = weakFoodLine(s, ground || null, null, v.hpMax);'],
+  ['plans: AW-32 the yard reads as a hunt (post-140 C7)', 'src/shell/training-words.js', '  return h && !h.ended && trainedBy(h.huntId) ? t(key) : huntWords;', '  return huntWords;'],
+  ['plans: AW-32 the yard reads as a hunt to the gear (post-140 C7)', 'src/shell/gear-gate.js', "  return which === 'upgrades' ? busyWords(cs, GEAR_HUNT_WORDS.upgrades, 'training.busy_upgrades') : busyWords(cs, GEAR_HUNT_WORDS.one, 'training.busy_gear');", "  return which === 'upgrades' ? GEAR_HUNT_WORDS.upgrades : GEAR_HUNT_WORDS.one;"],
+  ['plans: AW-32 Dispatch loot at the yard says in town (post-140 C7)', 'src/shell/loot-dispatch.js', "  if (h && !h.ended) return busyWords(cs, 'Dispatch loot works in town');", "  if (h && !h.ended) return 'Dispatch loot works in town';"],
+  ['plans: AW-32 the chest at the yard says hunting (post-140 C7)', 'src/shell/windows/tower-chest.js', "  if (h && !h.ended) return busyWords(cs, t('tower.off_hunting'));", "  if (h && !h.ended) return t('tower.off_hunting');"],
   ['plans: AW-27 the weak food line names no slot', 'src/shell/weak-food.js', "return t('prep.food_weak' + hp, Object.assign(vars, { where }));", "return t('prep.food_weak' + hp, Object.assign(vars, { where: '' }));"],
   ['plans: AW-27 a heal read from the client copy when the server sent none', 'src/shell/weak-food.js', 'return r && Number.isInteger(r.amount) ? r.amount : null;', "return r && Number.isInteger(r.amount) ? r.amount : ((CONSUMABLES[id] || {}).amount || null);"],
   ['plans: AW-27 Krell\'s Hold names no store food floor (audit A25)', 'src/data/grounds/krells_hold/pack.js', "bagGuide: { tier: 4, storeFloor: 'salted_trout', storeFloorFrom: { 88: 'salted_shrimp' },", 'bagGuide: { tier: 4,'],

@@ -92,7 +92,9 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tt-pip.is-on { background: var(--gold); box-shadow: inset -2px -2px 0 var(--gold-3), inset 2px 2px 0 var(--gold-2); }
 .tt-rows { display: flex; flex-direction: column; }
 .tt-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--steel-sep); font-size: var(--t-small); }
-.tt-row:last-child { border-bottom: 0; }
+/* the last row SHOWN draws no divider (rows the server leaves empty are hidden, so :last-child was often a hidden one, and the last shown
+   row's divider stood 4 px over the door's own rule: v0.2.141 gate) */
+.tt-row:not(:has(~ .tt-row:not([hidden]))) { border-bottom: 0; }
 .tt-row .tt-v { margin-left: auto; text-align: right; }
 .tt-foot { position: sticky; bottom: -12px; margin: auto 0 -12px; padding: 4px 0 12px; background: var(--bg-1); }
 .tt-start-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; font-size: var(--t-small); }
@@ -300,8 +302,16 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
   .tt-pip { width: 7px; height: 8px; }
   .tt-big { font-size: var(--t-h2); }
   .tt-foot, .tt-foot.tc-foot { position: static; margin: auto 0 0; padding-bottom: 4px; }
-  .tt-start-row { flex-direction: column; align-items: stretch; gap: 4px; margin-bottom: 6px; }
-  .tt-start-row .hh-select { margin-left: 0; min-width: 0; padding: 0 2px 0 6px; font-size: var(--t-micro); }
+  /* THE DOOR UNDER THE TOWER (v0.2.141 visual gate, 922x423: the side column beside the 264 px stage was 96 px and held the whole door,
+     "When / the hunt / ends" on three lines, the plan's select cut to "Train Mele", its cost on six, and the stage blank once scrolled
+     past): the side's boxes stand beside the stage, the door (Before entering, When the hunt ends, the start, Enter) under both at the
+     sheet's full width. The Catacombs' door the same, under the doors list. */
+  .tt-climb > .tt-side, .tk-body > .tk-side { display: contents; }
+  .tt-climb, .tk-body { row-gap: 8px; }
+  .tt-climb > .tt-climb-stage { grid-column: 1; grid-row: 1 / span 3; }
+  .tk-body > .tk-doors-box { grid-column: 1; grid-row: 1 / span 5; }
+  .tt-climb > .tt-side > .tt-box, .tk-body > .tk-side > .tt-box { grid-column: 2; }
+  .tt-climb > .tt-side > .tt-foot, .tk-body > .tk-side > .tt-foot { grid-column: 1 / -1; margin: 6px 0 0; }
   .tc-scene { width: var(--tr-pvw); height: var(--tr-pvh); }
   .tc-scene-art { left: 0; top: calc(-1 * var(--tr-pvy)); margin-left: calc(-1 * var(--tr-pvx)); }
   .tc-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }

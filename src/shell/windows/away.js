@@ -93,7 +93,11 @@ function blessOf(cs, f) {
 /** The skeleton (built once): how long the player was away, the heroes, OK. */
 export function renderAway() {
   return '<div class="haway"><p class="haway-gone"></p><ol class="haway-heroes"></ol>'
-    + '<div class="hsum-actions haway-foot"><button type="button" class="hh-tool" data-hs-act="away-summary" hidden>' + t('away.card_summary') + '</button>'
+    /* THE FIRST HERO'S PRESS IN THE FOOT TOO (v0.2.141 visual gate, 922x423: with a yard session open the sheet stops above the action bar,
+       275 px tall, and Open Training lay under the sticky OK): the same press as the hero's row (its alert, its go), shown in the foot on a
+       phone only (summary.css), where the row's own one is hidden, so the one gold press is in view as the card opens */
+    + '<div class="hsum-actions haway-foot"><button type="button" class="hh-tool is-primary haway-foot-go" data-hs-act="away-go" hidden></button>'
+    + '<button type="button" class="hh-tool" data-hs-act="away-summary" hidden>' + t('away.card_summary') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="away-ok">' + t('away.card_ok') + '</button></div></div>';
 }
 
@@ -145,6 +149,15 @@ renderAway.patch = function patchAway(body, ctx) {
       text(li.querySelector('.haway-msg'), a.msg || '');
     },
   });
+  /* the foot's copy of the first hero's press (shown on a phone only): its words, its go, its alert, off while that ask is out */
+  const first = list[0] || null, lead = first ? awayBlockOf(heroOf(ctx, first), first) : null;
+  const pending = !!(first && first.pending);   // that hero's ask is out: the press says "Sending…", as the row's does
+  const footGo = root.querySelector('.haway-foot-go');
+  prop(footGo, 'hidden', !first);
+  text(footGo, !first ? '' : pending ? t('heroes.sending') : lead.label);
+  attr(footGo, 'data-alert', first ? first.key : null);
+  attr(footGo, 'data-go', lead ? lead.go : null);
+  prop(footGo, 'disabled', pending);
 };
 
 /* Every away line is read: the card closing (OK, the close, Esc) or a press that leaves it. */

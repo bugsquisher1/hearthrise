@@ -73,7 +73,22 @@ export function patchResult(el, r) {
     attr(cell, 'data-fig', f ? f.key : null);
     text(cell.querySelector('dt'), f ? f.label : '');
     text(cell.querySelector('dd'), f ? f.value : '');
-    text(cell.querySelector('small'), f && f.sub ? f.sub : '');
+    subParts(cell.querySelector('small'), f && f.sub ? f.sub : '');
   }
   cls(root.querySelector('.hres-figs'), 'is-empty', !figs.length);
+}
+
+/* The line under a figure, each of its comma-separated parts its own span and the ", " between them plain text, so a card can keep a part
+   whole and break only between parts ("187 gp in coins," / "402 gp at the yard", summary.css). The same words as one line; rebuilt only when
+   they change. */
+function subParts(el, sub) {
+  if (el.getAttribute('data-sub') === sub) return;
+  el.setAttribute('data-sub', sub);
+  el.textContent = '';
+  sub.split(', ').filter(Boolean).forEach((part, i) => {
+    if (i) el.appendChild(el.ownerDocument.createTextNode(', '));
+    const s = el.ownerDocument.createElement('span');
+    s.textContent = part;
+    el.appendChild(s);
+  });
 }

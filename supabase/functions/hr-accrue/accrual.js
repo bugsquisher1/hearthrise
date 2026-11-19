@@ -1303,19 +1303,14 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   }
   const goldDelta = Math.floor(state.gold || 0);
   /* THE ITEM DELTA is the loot (store uses and own bag uses are the session
-     half's). Unknown ids are dropped and reported; a recipe scroll is an
-     UNLOCK row, never an inventory row. */
+     half's). Unknown ids are dropped and reported. Every drop is an item: a
+     pattern is learned per hero through hr_recipe_learn, never on a drop
+     (tests/catalogue-coherence.mjs C16). */
   const items = s.catalogue || {};
   const items_ = {};
   let itemKinds = 0;
-  const recipeOps = [];
   for (const id in s.itemDelta) {
     if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
-    if (items[id] && items[id].recipe) {
-      const got = Math.floor(s.itemDelta[id]);
-      if (got > 0) recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
-      continue;
-    }
     const n = Math.floor(s.itemDelta[id]);
     if (n <= 0) continue;
     items_[id] = n;
@@ -1323,7 +1318,6 @@ function memberDelta(s, summary, fromMs, toMs, tickMs) {
   }
   const stats = state.stats || {};
   const progress = [];
-  for (const op of recipeOps) progress.push(op);
   const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
   stat('kills', stats.kills);
   stat('crits', stats.crits);
@@ -1843,25 +1837,12 @@ function accrueGather(inp, span) {
 
   const items_ = {};
   let itemKinds = 0;
-  const recipeOps = [];
   for (const id in itemDelta) {
     /* Unknown ids are refused by hr_apply against the generated hr_items
        catalogue, which would reject the WHOLE delta — one renamed product id
        would cost a player their entire night. Filter here against the same
        authored data the catalogue is generated from, and report it. */
     if (!catalogueHas(items, id)) { events.push({ type: 'unknown_item_skipped', item: id }); continue; }
-    /* b352: a recipe scroll is an UNLOCK, not an inventory row — same rule as
-       the combat builder above, `add` included; `flag` is in hr_apply's
-       allowlist. No gather node drops a scroll today, so this arm is
-       unreachable at runtime and is held to the combat arm by the structural
-       census in tests/artisan-progress-model.mjs A10(v). */
-    if (items[id] && items[id].recipe) {
-      const got = Math.floor(itemDelta[id]);
-      if (got > 0) {
-        recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
-      }
-      continue;
-    }
     const n = Math.floor(itemDelta[id]);
     if (n <= 0) continue;          // gathering never debits; a zero is not a no-op to hr_apply
     items_[id] = n;
@@ -1887,7 +1868,6 @@ function accrueGather(inp, span) {
 
   const stats = state.stats || {};
   const progress = [];
-  for (const op of recipeOps) progress.push(op);   // b352: scroll drops become unlock rows
   const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
   stat('gathered', stats.gathered);
   stat('tool_doubles', stats.toolDoubles);
@@ -2275,7 +2255,6 @@ function accrueArtisan(inp, span) {
      span, it 409s it. */
   const items_ = {};
   let itemKinds = 0;
-  const recipeOps = [];
   /* ── C5: THE SKIPPED IDS ARE JOURNALLED, NOT ONLY RETURNED ────────────────
      `events` rides the HTTP response and is gone the moment the tab closes. On
      the artisan path that is not good enough, and it is worse here than on the
@@ -2299,23 +2278,6 @@ function accrueArtisan(inp, span) {
     if (!catalogueHas(items, id)) {
       events.push({ type: 'unknown_item_skipped', item: id });
       if (skipped.length < SKIPPED_MAX && skipped.indexOf(id) === -1) skipped.push(id);
-      continue;
-    }
-    /* b352: a recipe scroll is an UNLOCK, not an inventory row — the same rule
-       both other builders apply, `add` included; `flag` is in hr_apply's
-       allowlist. No authored recipe OUTPUTS a scroll today, so this arm is
-       unreachable at runtime and is held to the combat arm by the structural
-       census in tests/artisan-progress-model.mjs A10(v).
-       ⚠ Only a positive delta becomes a flag. A scroll cannot be CONSUMED as a
-         recipe input either (nothing authored does it), but if one ever were,
-         proposing a negative `add` would be refused by hr_apply with the whole
-         night attached — so it falls through to the item path, where the signed
-         contract is the one that exists. */
-    if (items[id] && items[id].recipe) {
-      const got = Math.floor(itemDelta[id]);
-      if (got > 0) {
-        recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: got, state: 'active' });
-      }
       continue;
     }
     const n = Math.floor(itemDelta[id]);
@@ -2358,7 +2320,6 @@ function accrueArtisan(inp, span) {
 
   const stats = state.stats || {};
   const progress = [];
-  for (const op of recipeOps) progress.push(op);
   const stat = (key, n) => { if (n > 0) progress.push({ kind: 'stat', key, period: '', add: Math.floor(n), state: 'active' }); };
   /* THE PER-BENCH LIFETIME COUNTERS, read out of core's BENCH_COUNTERS — the
      same table `resolveArtisanAction` increments live — plus the two every

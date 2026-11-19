@@ -80,6 +80,10 @@
 //       "Klappa's Club needs to be 'Klappa's Klub' and it CANNOT be removed from the game"): its ITEMS row carries the ruled
 //       name, its recipe is on its bench making it under that name, its coach card still rings that recipe, and a player can
 //       reach it (reachableSources). One row now, room for more: a row leaves only on Tyler's word.
+//   C16 A DROP NEVER TEACHES (designer 2026-11-19: a pattern is learned per hero through hr_recipe_learn; the hr-accrue "b352"
+//       arms that turned any item carrying `recipe` into an instant unlock for whoever got it were cut 2026-11-18, dead since
+//       the cookbook cut): C16a no ITEMS row carries `recipe` (a pattern says `teaches`); C16b no engine source the edge
+//       ships (supabase/functions/hr-accrue, src/core) spells a `recipe:` key, the flag such an arm would write.
 //
 // THE PENDING LIST is shrink-only. It names the few gaps the audit assigned to
 // OTHER W0 lanes, with the lane. An id that gains a use must be removed from it
@@ -88,10 +92,11 @@
 // Exit 0 clean, 1 on any violation, 2 harness error.
 // ============================================================
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain as isEntryModule } from './_is-main.mjs';
+import { strip } from './_js-strip.mjs';
 import { GEAR_ITEMS } from '../src/data/gear-tiers.js';
 import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../src/data/core-model.js';
 import { armourWeights, maxHpFor, maxManaFor } from '../src/core/vitals.js';
@@ -175,6 +180,41 @@ export function cutCapabilityFails({ offers = SHOP_OFFERS, ladder = LADDER_PLANT
   }
   for (const r of ladder) if (r && CUT_UNLOCK(r.unlock_id)) out.push(`C14b gold-ladder rung ${r.offer_id} sells the cut ${r.unlock_id}: nothing reads it`);
   for (const u of ladders) if (u && CUT_UNLOCK(u.unlock_id)) out.push(`C14b gold-ladder row ${u.unlock_id} is a cut ladder: nothing reads it`);
+  return out;
+}
+
+/* C16. A DROP NEVER TEACHES. An item row with `recipe` was the b352 scroll shape: three hr-accrue arms (the hunt, gather and
+   bench builders) turned it into a `recipe:<id>` flag for whoever got it instead of an item. They were cut 2026-11-18; a
+   pattern is an item that `teaches`, read per hero through hr_recipe_learn. So the shape stays out of the data, and no engine
+   source the edge ships spells the flag key it would write (comments blanked; hr_recipe_learn writes it in SQL). */
+let ENGINE_PLANT = null;
+function engineSources() {
+  if (ENGINE_PLANT) return ENGINE_PLANT;
+  const out = [];
+  const walk = (rel) => {
+    for (const e of readdirSync(join(ROOT, rel), { withFileTypes: true })) {
+      const r = rel + '/' + e.name;
+      if (e.isDirectory()) walk(r);
+      else if (/\.(m?js|ts)$/.test(e.name)) out.push({ name: r, text: realRead(r) });
+    }
+  };
+  walk('supabase/functions/hr-accrue');
+  walk('src/core');
+  return out;
+}
+export function dropTeachFails({ items = ITEMS, sources = engineSources() } = {}) {
+  const out = [];
+  for (const [id, it] of Object.entries(items)) {
+    if (it && typeof it === 'object' && 'recipe' in it) {
+      out.push(`C16a item ${id} carries \`recipe\`, the old scroll shape: a drop is an item, and a pattern \`teaches\` (learned per hero through hr_recipe_learn)`);
+    }
+  }
+  if (sources.length < 20) out.push(`C16b only ${sources.length} engine source(s) read: the scan is reading the wrong tree`);
+  for (const s of sources) {
+    if (/[`'"]recipe:/.test(strip(s.text).noC)) {
+      out.push(`C16b ${s.name} spells a \`recipe:\` key: a recipe unlock is hr_recipe_learn's (per hero), never an engine grant on a drop`);
+    }
+  }
   return out;
 }
 
@@ -346,6 +386,8 @@ export function check({ read = realRead, unreachable = UNREACHABLE } = {}) {
   fails.push(...cutCapabilityFails());
   // C15 — a protected piece stays, under its name, with its way in.
   fails.push(...protectedFails());
+  // C16 — a drop never teaches.
+  fails.push(...dropTeachFails());
   return { fails, counts: { items: ids.length, skills: Object.keys(SKILLS_DEF).length, pendingUse: Object.keys(PENDING_USE).length, pendingConsumer: Object.keys(PENDING_CONSUMER).length, pendingSource: Object.keys(PENDING_SOURCE).length, awaiting: AWAITING_ROSTER.length, ...far.counts } };
 }
 
@@ -754,6 +796,25 @@ function mutate() {
   run('Klappa\'s Klub: its coach card is gone', 'C15', () => {
     CARDS_PLANT = HUNT_TUTORIAL.filter((c) => c.id !== 'klappas_club');
     return { restore: () => { CARDS_PLANT = null; } };
+  });
+
+  /* C16 — a drop never teaches (the hr-accrue b352 arms, cut 2026-11-18). */
+  run('a pattern authored as a b352 scroll (`recipe` on its row)', 'C16a', () => {
+    const was = ITEMS.klappas_club; ITEMS.klappas_club = { ...was, recipe: true };
+    return { restore: () => { ITEMS.klappas_club = was; } };
+  });
+  run('the hunt settle\'s drop-unlock arm comes back', 'C16b', () => {
+    const real = engineSources();
+    const at = real.findIndex((s) => s.name.endsWith('hr-accrue/accrual.js'));
+    if (at < 0) throw new Error('C16 plant: accrual.js is not among the engine sources');
+    const arm = "\n    if (items[id] && items[id].recipe) { recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: 1 }); continue; }\n";
+    ENGINE_PLANT = real.map((s, i) => (i === at ? { ...s, text: s.text.replace('const n = Math.floor(s.itemDelta[id]);', arm + '    const n = Math.floor(s.itemDelta[id]);') } : s));
+    if (ENGINE_PLANT[at].text === real[at].text) throw new Error('C16 plant: the hunt builder\'s anchor moved');
+    return { restore: () => { ENGINE_PLANT = null; } };
+  });
+  run('the scan reads no engine source', 'C16b only', () => {
+    ENGINE_PLANT = [];
+    return { restore: () => { ENGINE_PLANT = null; } };
   });
 
   let bad = 0;

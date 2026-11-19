@@ -18,6 +18,11 @@
         "bytes": 3044181,
         "on": "2026-11-18",
         "why": "first pin (lane/b-edge-trim, arch audit item 4): hr-accrue after the crew-settle cut and the engine-only map index, 3,142,985 -> 3,044,181 bytes; bug-report-bridge as it stands"
+      },
+      {
+        "bytes": 3068086,
+        "on": "2026-11-19",
+        "why": "set/v0.2.141 merged into lane/b-edge-trim: the set's own content reaches the edge, +25,890 bytes (jewelry.js +7.0 KB, the new patterns.js 6.4 KB, scaled-hunts.js +4.3 KB, set-activity.js +1.4 KB, recipes, party-class-xp, the wyvern_roost pack, drops.js, special-attributes, monsters); then the b352 drop-unlock cut, -1,985"
       }
     ]
   }

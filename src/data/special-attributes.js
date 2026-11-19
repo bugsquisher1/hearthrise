@@ -22,7 +22,11 @@ export const SPECIAL_TIERS = Object.freeze([2, 3, 4, 5, 6, 7]);
 /* ── THE ATTRIBUTES. One a piece. `field` is the item field the engine reads and `keys` what it may name; `at` is the
    strength at each gear tier (a tier the table doesn't name has no piece of that kind); `cap` is the most a hero gets from
    everything worn, and where that cap lives (NEW: the build lane adds it). `hook` is null when the engine reads the field
-   today (physical resistance since lane/c-krell-uniques: src/core/elements.js heroElementPermille). Every size was measured or is marked in the design (tools/balance-sim/special-table.mjs). ── */
+   today (physical resistance since lane/c-krell-uniques: src/core/elements.js heroElementPermille). Every size was measured or is marked in the design (tools/balance-sim/special-table.mjs).
+   A + skill attribute's `field` is one item field PER KEY (the designer's ruling 2026-11-18 row 1c, PRIORITY_BOARD "2026-11-18 Designer
+   rulings"): the engine's own `<skill>Plus` (src/core/combat.js SKILL_PLUS_FIELDS, the Tower weapons' and the Catacombs armor's), read by
+   every blow, spell and guard. It was `skillB`, which nothing reads, so the Mudlark's Mitts would have shipped as nothing.
+   tests/special-attributes.mjs SA3 holds the map to the engine's. A reader asks `typeof field === 'string' ? field : field[key]`. ── */
 export const SPECIAL_ATTRIBUTES = Object.freeze({
   /* 10% less damage from one element, the same at every tier. Linings (imbuements.js) share the cap, so a Sealed lining
      (30%) and one piece is the top, and so is a Stitched lining (20%) and two. Only fire has a job today (the bosses). */
@@ -39,20 +43,22 @@ export const SPECIAL_ATTRIBUTES = Object.freeze({
     cap: Object.freeze({ value: 100, where: 'src/data/elements.js HERO_RESIST_PM.physicalMax' }),
     slots: Object.freeze(['pants', 'boots', 'belt', 'shield']), hook: null,
   }),
-  /* + Defense while worn. One level is 4 to 6% less damage taken at Levels 40 to 90, so it is +1 at every tier and capped at +2. */
+  /* + Defense while worn. One level is 4 to 6% less damage taken at Levels 40 to 90, so it is +1 at every tier and capped at +2.
+     Never on a helmet (the designer 2026-11-18, row 1c; measured 2026-11-16 by lane/d-catacomb-armor: +1 Defense on a helm out-guards the
+     NEXT tier's helm), so a cape alone carries it. */
   defense: Object.freeze({
-    field: 'skillB', keys: Object.freeze(['defense']), unit: 'levels',
+    field: Object.freeze({ defense: 'defensePlus' }), keys: Object.freeze(['defense']), unit: 'levels',
     at: Object.freeze({ 2: 1, 3: 1, 4: 1, 5: 1, 6: 1, 7: 1 }),
     cap: Object.freeze({ value: 2, where: 'NEW: src/data/special-attributes.js GEAR_SKILL_CAP.defense' }),
-    slots: Object.freeze(['helmet', 'cape']), hook: 'skill',
+    slots: Object.freeze(['cape']), hook: null,
   }),
   /* + levels of the skill you fight with while worn. Armor only: a weapon's + skill is the Burning Tower's (its key table).
      Magic is in the vocabulary and on NO piece: + Magic measured as nothing for a wand at 40, 60 and 90. */
   skill: Object.freeze({
-    field: 'skillB', keys: Object.freeze(['melee', 'ranged', 'magic']), unit: 'levels',
+    field: Object.freeze({ melee: 'meleePlus', ranged: 'rangedPlus', magic: 'magicPlus' }), keys: Object.freeze(['melee', 'ranged', 'magic']), unit: 'levels',
     at: Object.freeze({ 2: 2, 3: 2, 4: 2, 5: 3, 6: 3, 7: 3 }),
     cap: Object.freeze({ value: 6, where: 'NEW: src/data/special-attributes.js GEAR_SKILL_CAP.weaponSkill, armor and cape together; the weapon adds its own on top' }),
-    slots: Object.freeze(['helmet', 'gloves', 'body', 'cape']), hook: 'skill', unproven: Object.freeze(['magic']),
+    slots: Object.freeze(['helmet', 'gloves', 'body', 'cape']), hook: null, unproven: Object.freeze(['magic']),
   }),
   /* + critical chance on basic blows. Weapons only (leather armor carries its own small crit as a standard stat). */
   crit: Object.freeze({
@@ -94,7 +100,7 @@ export const SPECIAL_SAMPLE = Object.freeze({
   }),
   mudlarks_mitts: Object.freeze({
     row: Object.freeze({ n: 'Mudlark\'s Mitts', icon: '🎽', v: 735, type: 'armor', slot: 'gloves', defB: 4, armourClass: 'leather', rangeAtkB: 4, critB: 0.016, magicAtkB: -1,
-      skillB: Object.freeze({ ranged: 2 }), tier: 4, rarity: 'epic', reqSkill: 'level', reqLv: 45 }),
+      rangedPlus: 2, tier: 4, rarity: 'epic', reqSkill: 'level', reqLv: 45 }),
     base: 'snakeskin_gloves', attr: Object.freeze(['skill', 'ranged']),
     source: Object.freeze({ monster: 'mudlark', ground: 'the_slake', how: 'rare' }), use: 'worn',
     text: 'Your Ranged counts as 2 higher while you wear them. A Mudlark finds things in the river by feel, and these are worn thin at every fingertip.',
@@ -110,7 +116,7 @@ export const SPECIAL_SAMPLE = Object.freeze({
   /* The wave-3 staff, re-fitted to the tier-6 staff's numbers (the id and the name stay; its old row is untouched, as above). */
   demoncaller_staff: Object.freeze({
     row: Object.freeze({ n: 'Demoncaller', icon: '🪄', v: 13000, type: 'weapon', slot: 'weapon', weaponType: 'magic', discipline: 'restoration', twoHanded: true,
-      atkB: 28, strB: 38, magicAtkB: 28, magicStrB: 38, bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']),
+      magicAtkB: 28, magicStrB: 38, bane: Object.freeze({ class: 'undead', mult: 1.1 }), effects: Object.freeze(['bane']),
       tier: 6, rarity: 'legendary', reqSkill: 'level', reqLv: 75 }),
     base: 'runewood_staff', attr: Object.freeze(['bane', 'undead']),
     source: Object.freeze({ monster: 'provost', ground: 'pyre_field', how: 'rare' }), use: 'worn',

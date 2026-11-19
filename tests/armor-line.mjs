@@ -12,16 +12,21 @@
 //        than LINE_TRADE over (tools/balance-sim/armor-power.mjs, the engine's own rolls and armor chain).
 //   AL4  A BUDGET, NOT A TEMPLATE: each piece wins somewhere (on a ground its Level is sent to, worn in fully tempered Dawnsteel, it
 //        beats the tempered Dawnsteel piece of its slot and every other piece of its slot and weight a hero of its Level can wear),
-//        and a piece under its weight's first Level wins on its own ground. A piece with the line's own armor and its base's style
+//        and a piece under its weight's first Level wins on its own ground (once that ground is built: a planned place has no
+//        monsters to read, so until then the first clause is the whole rule). A piece with the line's own armor and its base's style
 //        numbers (an attribute on top or not) is a template, not a unique: the first sample's twins.
-//   AL5  THE ROW: every field but its words, numbers, Level, book and rarity is its Dawnsteel base's; it is worn from its ground's
-//        floor; its book is the base's times the line; a caster's damage (magicStrB, rangeStrB) is never over its base's, so the
-//        line can't re-open the Mage gap (lane/d-mage-110).
-//   AL6  AT MOST ONE ATTRIBUTE, AT TIER 7's SIZE: from special-attributes.js, on a slot it allows, a key it knows, one the engine
-//        reads today (no hook owed), so the measure sees what the player gets.
+//   AL5  THE ROW: every field but its words, numbers, Level, book and rarity is its Dawnsteel base's; it is worn from its home's
+//        floor (staged/morrow-grid.js homeOf); its book is the base's times the line; a caster's damage (magicStrB, rangeStrB) is never
+//        over its base's, so the line can't re-open the Mage gap (lane/d-mage-110).
+//   AL6  AT MOST ONE ATTRIBUTE, AT TIER 7's SIZE: from special-attributes.js, on a slot it allows, a key it knows, on the field the
+//        catalogue names for that key (a + skill is the engine's `<skill>Plus`, the designer 2026-11-18 row 1c), one the engine reads
+//        today (no hook owed), so the measure sees what the player gets.
 //   AL7  A HOME AND A USE: the source monster is placed on the ground named, the band is Rare, a daily kill or a trophy, a kill's
-//        chance is under 5%, no monster gives more than two armor slots, and the use is to be worn.
-//   AL8  THE ELEMENT HAS A JOB THERE: a resistance names an element a monster on its own ground casts.
+//        chance is under 5%, no monster gives more than two armor slots, and the use is to be worn. A Morrow piece sits on its place's
+//        armor cell on the region grid (the designer 2026-11-18 row 1b: "the grid wins"); on a place not built yet it says `planned`
+//        and names no monster, and the day the place is built it must name one.
+//   AL8  THE ELEMENT HAS A JOB THERE: a resistance names an element a monster on its own ground casts (a boss's: the ground it is
+//        called from), so a piece on a ground not built yet carries none.
 //   AL9  WORDS: no banned filler word, no semicolon or em dash, the first sentence carries a number.
 //   AL10 THE FIRST LEVEL IS MEASURED: LINE_FIRST_LEVEL is what armor-power.mjs firstLevel measures for each weight, and the anchor is 110.
 //
@@ -35,18 +40,24 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ITEMS, MONSTERS, AWAITING_ROSTER } from '../src/data/catalogue-coherence.js';
+import { HEARTH_CHEST_KEYS } from '../src/data/chests.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { MONSTER_SPELLS } from '../src/data/monster-spells.js';
 import { SPECIAL_ATTRIBUTES, SPECIAL_SAMPLE } from '../src/data/special-attributes.js';
+import { SKILL_PLUS_FIELDS } from '../src/core/combat.js';
 import { WEAPON_SAMPLE } from '../tools/balance-sim/staged/weapon-line.js';
 import * as LINE from '../tools/balance-sim/staged/armor-line.js';
+import { MORROW_GRID, homeOf } from '../tools/balance-sim/staged/morrow-grid.js';
 import { armorPower, loadArmorPower } from '../tools/balance-sim/armor-power.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
-/* the fields a sample row may differ from its base in: its words, its numbers, Level, value, rarity and its one attribute */
-const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'rarity', 'defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB', 'resistPm', 'skillB']);
+/* the fields a sample row may differ from its base in: its words, its numbers, Level, value, rarity and its one attribute (a + skill on the
+   engine's own field, row 1c) */
+const OWN = new Set(['n', 'icon', 'v', 'reqLv', 'rarity', 'defB', 'atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB', 'critB', 'resistPm', ...Object.values(SKILL_PLUS_FIELDS)]);
+/* the item field attribute `def` writes for `key`: its one field, or the one its key names */
+const fieldOf = (def, key) => (typeof def.field === 'string' ? def.field : (def.field || {})[key]);
 const CASTER_DAMAGE = ['magicStrB', 'rangeStrB'];
 const ATTR_TIER = 7;
 /* a piece's style numbers: what it does to the hero's own blow */
@@ -81,17 +92,22 @@ function castOn(gid, H) {
 function attributesOf(row) {
   const out = [];
   for (const [k, v] of Object.entries(row.resistPm || {})) out.push({ field: 'resistPm', key: k, value: v });
-  for (const [k, v] of Object.entries(row.skillB || {})) out.push({ field: 'skillB', key: k, value: v });
+  for (const [k, f] of Object.entries(SKILL_PLUS_FIELDS)) if (row[f] !== undefined) out.push({ field: f, key: k, value: row[f] });
   return out;
 }
 /* the shipped pieces a hero can wear past Dawnsteel, by slot and weight: tier 7 or more, not Dawnsteel itself, not awaiting a roster */
 const awaiting = new Set(AWAITING_ROSTER);
+/* every Hearth Chest armor piece (chests.js HEARTH_CHEST_KEYS: the Catacomb keys' helmets and boots) */
+const CHEST_ARMOR = new Set(HEARTH_CHEST_KEYS.flatMap((k) => Object.values(k.armor || {})));
 const { mods: MODS } = await loadArmorPower(ROOT);
 
-/** Every broken rule, as strings. Empty = sound. */
-export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers: importers(), homes: homes() }) {
+/** Every broken rule, as strings. Empty = sound. `open`: what importers() and homes() answer, the region grid (`grid`) and the monsters the
+    grid's bosses are looked up in (`monsters`; a mutant plants one). */
+export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
+  open = { importers: importers(), homes: homes(), grid: MORROW_GRID, ...open };
   const out = [];
   const S = line.LINE_SAMPLE, B = line.LINE_BASE;
+  const homeFor = (src) => homeOf(src, { HUNT_GROUNDS, HUNT_INDEX, MONSTERS: open.monsters || MONSTERS }, open.grid);
   /* AL1 */
   for (const [cls, b] of Object.entries(B)) for (const [slot, id] of Object.entries(b.ids)) {
     const it = ITEMS[id];
@@ -134,9 +150,9 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
       if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('AL5 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', its base ' + s.base + ' has ' + JSON.stringify(base[k]));
     }
     for (const k of CASTER_DAMAGE) if ((Number(row[k]) || 0) > (Number(base[k]) || 0)) out.push('AL5 ' + id + '.' + k + ' = ' + row[k] + ' over its base\'s ' + (base[k] || 0) + ': a caster\'s damage never climbs with the line (the Mage gap)');
-    const src = s.source || {}, g = HUNT_GROUNDS[src.ground], band = g && HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].band;
-    if (!band) out.push('AL5 ' + id + ': ' + src.ground + ' has no band');
-    else if (row.reqLv !== band[0]) out.push('AL5 ' + id + ': worn from ' + row.reqLv + ', its ground ' + src.ground + ' opens at ' + band[0]);
+    const src = s.source || {}, home = homeFor(src);
+    if (home.floor === null) out.push('AL5 ' + id + ': ' + (src.place || src.ground) + ' has no band');
+    else if (row.reqLv !== home.floor) out.push('AL5 ' + id + ': worn from ' + row.reqLv + ', its home ' + (src.place || src.ground) + ' opens at ' + home.floor);
     if (!(row.reqLv > line.LINE_ANCHOR_LEVEL)) out.push('AL5 ' + id + ': worn from ' + row.reqLv + ', the line starts past ' + line.LINE_ANCHOR_LEVEL);
     if (row.v !== round5(base.v * line.lineScale(row.reqLv))) out.push('AL5 ' + id + ': book ' + row.v + ', its base\'s times the line is ' + round5(base.v * line.lineScale(row.reqLv)));
     /* AL6 */
@@ -147,23 +163,28 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
     else if (def && found.length !== 1) out.push('AL6 ' + id + ': names ' + s.attr[0] + ' and carries ' + found.length);
     else if (def) {
       const f = found[0];
-      if (f.field !== def.field || f.key !== s.attr[1]) out.push('AL6 ' + id + ': the row carries ' + f.field + '.' + f.key + ', the sample says ' + def.field + '.' + s.attr[1]);
+      if (f.field !== fieldOf(def, s.attr[1]) || f.key !== s.attr[1]) out.push('AL6 ' + id + ': the row carries ' + f.field + '.' + f.key + ', the sample says ' + fieldOf(def, s.attr[1]) + '.' + s.attr[1]);
       if (def.keys && !def.keys.includes(f.key)) out.push('AL6 ' + id + ': ' + f.key + ' is not a key of ' + s.attr[0]);
       if ((def.unproven || []).includes(f.key)) out.push('AL6 ' + id + ': ' + f.key + ' is unproven');
       if (def.hook) out.push('AL6 ' + id + ': ' + s.attr[0] + ' waits on an engine hook (' + def.hook + '), so it would play as nothing');
       if (def.at[ATTR_TIER] === undefined || Math.abs(def.at[ATTR_TIER] - f.value) > 1e-9) out.push('AL6 ' + id + ': ' + f.value + ', the catalogue says ' + def.at[ATTR_TIER] + ' at tier ' + ATTR_TIER);
       if (!def.slots.includes(row.slot)) out.push('AL6 ' + id + ': ' + s.attr[0] + ' is not carried on the ' + row.slot + ' slot');
     }
-    /* AL7 */
-    const gs = open.homes.get(src.monster);
-    if (!MONSTERS[src.monster]) out.push('AL7 ' + id + ': source ' + src.monster + ' is not a monster');
-    else if (!gs || !gs.has(src.ground)) out.push('AL7 ' + id + ': ' + src.monster + ' is not placed on ' + src.ground);
+    /* AL7: the home, and the grid cell */
+    for (const p of home.problems) out.push('AL7 ' + id + ': ' + p);
+    if (!home.planned) {
+      const gs = open.homes.get(src.monster);
+      if (!MONSTERS[src.monster]) out.push('AL7 ' + id + ': source ' + src.monster + ' is not a monster');
+      else if (!gs || !gs.has(src.ground)) out.push('AL7 ' + id + ': ' + src.monster + ' is not placed on ' + src.ground);
+      if (src.how === 'rare' && !(src.ch > 0 && src.ch < 0.05)) out.push('AL7 ' + id + ': a Rare\'s chance a kill is over 0 and under 5% (got ' + src.ch + ')');
+    }
+    const cell = row.slot + ':' + row.armourClass;
+    if (home.place && !(home.place.armor || []).includes(cell)) out.push('AL7 ' + id + ': ' + cell + ' on ' + src.place + ', whose grid cells are ' + (home.place.armor || []).join(', ') + ' (the grid wins)');
     if (!['rare', 'trophy', 'daily'].includes(src.how)) out.push('AL7 ' + id + ': a unique drops in the Rare band, as a trophy or on a daily kill');
-    if (src.how === 'rare' && !(src.ch > 0 && src.ch < 0.05)) out.push('AL7 ' + id + ': a Rare\'s chance a kill is over 0 and under 5% (got ' + src.ch + ')');
     if (s.use !== 'worn') out.push('AL7 ' + id + ': its use is to be worn');
-    perMonster.set(src.monster, (perMonster.get(src.monster) || 0) + 1);
-    /* AL8 */
-    for (const f of found) if (f.field === 'resistPm' && f.key !== 'physical' && !castOn(src.ground, open.homes).has(f.key)) out.push('AL8 ' + id + ': ' + f.key + ' resistance on ' + src.ground + ', where nothing casts ' + f.key);
+    if (src.monster) perMonster.set(src.monster, (perMonster.get(src.monster) || 0) + 1);
+    /* AL8: the element is cast on the built ground it drops on (a boss's: the one it is called from) */
+    for (const f of found) if (f.field === 'resistPm' && f.key !== 'physical' && !(home.ground && castOn(home.ground, open.homes).has(f.key))) out.push('AL8 ' + id + ': ' + f.key + ' resistance on ' + (home.ground || (src.place + ' (not built)')) + ', where nothing casts ' + f.key);
     /* AL9 */
     if (BANNED.test(row.n) || BANNED.test(s.text)) out.push('AL9 ' + id + ': a banned filler word (DESIGN_STANDARDS §2)');
     if (/[;—]/.test(s.text)) out.push('AL9 ' + id + ': no semicolon or em dash in item text');
@@ -174,16 +195,19 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
      Dawnsteel piece of its slot (1.000) and every other piece of its slot and weight a hero of its Level can wear (the sample's and the
      shipped tier-7+ rows past Dawnsteel) */
   const ids = Object.keys(S).filter((id) => ITEMS[S[id].base]);
+  /* a Hearth Chest piece is no rival: the chest's pieces are the all-rounders and a unique is best in its own case (plan §3, the sidegrade rule),
+     and the grade wears ground and boss drops only (the designer 2026-11-18 row 1f). WL4 never read the Tower's weapons either. Without this the
+     Catacombs' Platinum Vault-Cutter's Helm (Dawnsteel's helm + 3 Melee, a chest piece) out-won the Watchman's Helm (set/v0.2.141) */
   const shipped = Object.entries(ITEMS).filter(([iid, it]) => it && it.type === 'armor' && B[it.armourClass] && Number(it.tier) >= 7 && !awaiting.has(iid)
-    && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
+    && !CHEST_ARMOR.has(iid) && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
   for (const id of ids) {
     const s = S[id], R = s.row.reqLv, H = P.huntedAt(R, G);
     const rivals = ids.filter((o) => o !== id && S[o].row.slot === s.row.slot && S[o].row.armourClass === s.row.armourClass && S[o].row.reqLv <= R).map((o) => S[o].row)
       .concat(shipped.filter(([, it]) => it.slot === s.row.slot && it.armourClass === s.row.armourClass && (Number(it.reqLv) || 1) <= R).map(([, it]) => it));
     const wins = H.filter((g) => { const p = P.scoreOnDawn(s.row, g, R); return p > 1 + 1e-9 && rivals.every((r) => p > P.scoreOnDawn(r, g, R)); });
     if (!wins.length) out.push('AL4 ' + id + ': at Level ' + R + ' it wins on no ground that Level is sent to (' + H.join(', ') + ') against tempered Dawnsteel' + (rivals.length ? ' and ' + rivals.map((r) => r.n).join(', ') : ''));
-    const first = (line.LINE_FIRST_LEVEL || {})[s.row.armourClass];
-    if (wins.length && first && R < first && !wins.includes(s.source.ground)) out.push('AL4 ' + id + ': worn from ' + R + ', under ' + s.row.armourClass + '\'s first Level ' + first + ', it must win on its own ground ' + s.source.ground + ' (wins on ' + wins.join(', ') + ')');
+    const first = (line.LINE_FIRST_LEVEL || {})[s.row.armourClass], own = homeFor(s.source).ground;
+    if (wins.length && first && R < first && own && !wins.includes(own)) out.push('AL4 ' + id + ': worn from ' + R + ', under ' + s.row.armourClass + '\'s first Level ' + first + ', it must win on its own ground ' + own + ' (wins on ' + wins.join(', ') + ')');
   }
   return out;
 }
@@ -206,23 +230,38 @@ const MUTANTS = [
   ['fire resistance at the line\'s armor (over on the capped Ox Road)', 'AL3', (L) => { const r = L.LINE_SAMPLE.burnt_crag_leg_plates.row; r.defB = 73; delete r.strB; }],
   ['a jerkin far past the trade (dodge for a bow that hits much lighter)', 'AL3', (L) => { const r = L.LINE_SAMPLE.haulers_jerkin.row; r.defB = 200; r.rangeStrB = -15; }],
   ['the line read at a lower Level (the scale lies)', 'AL3', (L) => { L.lineScale = () => 1; }],
+  ['the Visor re-sized by the ratio alone, 71 (1.0005 of the line at the Catacombs)', 'AL3', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 71; }],
   ['a template: the line\'s own armor, Dawnsteel\'s numbers', 'AL4', (L) => { const r = L.LINE_SAMPLE.limewashed_plate.row; r.defB = 135; delete r.atkB; }],
   ['the Visor under tempered Dawnsteel everywhere', 'AL4', (L) => { L.LINE_SAMPLE.outriders_visor.row.defB = 40; }],
   ['a second Vaults helm out-wins the Watchman\'s everywhere', 'AL4', (L) => { L.LINE_SAMPLE.rival_helm = { ...structuredClone(L.LINE_SAMPLE.watchmans_helm), row: { ...L.LINE_SAMPLE.watchmans_helm.row, n: 'Rival Helm', defB: 85 } }; L.LINE_SAMPLE.rival_helm.source = { ...L.LINE_SAMPLE.rival_helm.source, monster: 'bone_wall' }; }],
-  ['a plate piece under its first Level wins only off its own ground', 'AL4', (L) => { L.LINE_FIRST_LEVEL.plate = 200; L.LINE_SAMPLE.burnt_crag_leg_plates.source = { monster: 'troll_brewer', ground: 'carters_rest', how: 'rare', ch: 0.002 }; L.LINE_SAMPLE.burnt_crag_leg_plates.row.reqLv = 110; }],
+  /* the Leg Plates at 125 (under plate's 129) win on the Roost alone (1.004 measured): dropped on the Ox Road, they win only off their own ground */
+  ['a plate piece under its first Level wins only off its own ground', 'AL4', (L) => { L.LINE_SAMPLE.burnt_crag_leg_plates.source = { monster: 'dead_teamster', ground: 'ox_road', how: 'rare', ch: 0.002 }; }],
   ['the jerkin changes weight', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.armourClass = 'plate'; }],
   ['worn under its ground\'s floor', 'AL5', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.reqLv = 150; }],
+  ['the Breastplate kept at the Roost\'s 125 on the Night Shift (122)', 'AL5', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.row.reqLv = 125; }],
   ['a book under the base', 'AL5', (L) => { L.LINE_SAMPLE.limewashed_plate.row.v = 108000; }],
   ['the shroud carries a caster\'s damage up (the old red)', 'AL5', (L) => { L.LINE_SAMPLE.paupers_shroud.row.magicStrB = 36; }],
-  ['a second attribute', 'AL6', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.skillB = { ranged: 3 }; }],
+  ['a second attribute', 'AL6', (L) => { L.LINE_SAMPLE.keepers_leg_plates.row.rangedPlus = 3; }],
   ['the resistance at 20%', 'AL6', (L) => { L.LINE_SAMPLE.keepers_leg_plates.row.resistPm = { frost: 200 }; }],
-  /* +1 Defense: its `skill` hook is still owed (special-attributes.js). The first cut named physical resistance, hooked since lane/c-krell-uniques. */
-  ['an attribute the engine doesn\'t read yet', 'AL6', (L) => { L.LINE_SAMPLE.watchmans_helm.row.skillB = { defense: 1 }; L.LINE_SAMPLE.watchmans_helm.attr = ['defense', 'defense']; }],
+  /* every attribute is hooked since row 1c (+ skill on the engine's `<skill>Plus`), so a hook still owed is planted on the catalogue's copy */
+  ['an attribute the engine doesn\'t read yet', 'AL6', (L, A) => { A.skill.hook = 'owed'; L.LINE_SAMPLE.haulers_jerkin.row.rangedPlus = 3; L.LINE_SAMPLE.haulers_jerkin.attr = ['skill', 'ranged']; }],
+  ['+ Ranged on `skillB`, the field nothing reads (the catalogue\'s until 11-18)', 'AL6', (L) => { L.LINE_SAMPLE.haulers_jerkin.row.skillB = { ranged: 3 }; L.LINE_SAMPLE.haulers_jerkin.attr = ['skill', 'ranged']; }],
+  ['a + Defense helm (one point out-guards the next tier\'s helm)', 'AL6', (L) => { L.LINE_SAMPLE.watchmans_helm.row.defensePlus = 1; L.LINE_SAMPLE.watchmans_helm.attr = ['defense', 'defense']; }],
   ['an unnamed attribute', 'AL6', (L) => { L.LINE_SAMPLE.watchmans_helm.row.resistPm = { frost: 100 }; }],
   ['a home that is not there', 'AL7', (L) => { L.LINE_SAMPLE.haulers_jerkin.source.monster = 'troll_picker'; }],
   ['a common drop', 'AL7', (L) => { L.LINE_SAMPLE.paupers_shroud.source.ch = 0.08; }],
   ['three armor slots off one monster', 'AL7', (L) => { L.LINE_SAMPLE.haulers_jerkin.source.monster = 'shrouded_pauper'; L.LINE_SAMPLE.haulers_jerkin.source.ch = 0.0007; }],
+  /* row 1b: the grid wins */
+  ['the Breastplate back on the Roost (boots plate, legs plate, helmet cloth: the 11-16 placement)', 'AL7', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.source = { place: 'wyvern_roost', monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }; }],
+  /* row 2: the legs cells swapped, so the plate legs are the Roost's and the Roost Mother's are leather */
+  ['the Leg Plates on the Roost Mother again (her legs cell is leather since row 2)', 'AL7', (L) => { L.LINE_SAMPLE.burnt_crag_leg_plates.source = { place: 'roost_mother', planned: true, how: 'rare' }; }],
+  ['a piece on a place not built names a monster as if it were', 'AL7', (L) => { L.LINE_SAMPLE.outriders_visor.source = { place: 'old_guard', planned: true, monster: 'ledge_wyvern', how: 'rare' }; }],
+  /* her one cell a sample could fill is legs leather: a leather piece planted there, then the Roost Mother made a monster */
+  ['the Roost Mother is built and a piece of hers still says planned', 'AL7', (L, A, o) => {
+    const s = L.LINE_SAMPLE.haulers_jerkin; s.row = { ...s.row, slot: 'pants', reqLv: 125 }; s.source = { place: 'roost_mother', planned: true, how: 'rare' };
+    o.monsters = { ...MONSTERS, roost_mother: { ...MONSTERS.brood_wyvern, boss: true } }; }],
   ['frost resistance where nothing casts ice', 'AL8', (L) => { const s = L.LINE_SAMPLE.burnt_crag_leg_plates; s.row.resistPm = { frost: 100 }; s.attr = ['resist_element', 'frost']; }],
+  ['a resistance on a place not built (no spells to read)', 'AL8', (L) => { const s = L.LINE_SAMPLE.outriders_visor; s.row.resistPm = { ember: 100 }; s.attr = ['resist_element', 'ember']; }],
   ['a banned word', 'AL9', (L) => { L.LINE_SAMPLE.paupers_shroud.text = 'You take 10% less ice damage. Woven in the Void.'; }],
   ['text that leads with flavour', 'AL9', (L) => { L.LINE_SAMPLE.haulers_jerkin.text = 'A coat stiff with lime. It helps with poison.'; }],
   ['the first Level written, not measured', 'AL10', (L) => { L.LINE_FIRST_LEVEL.plate = 110; }],
@@ -249,5 +288,6 @@ if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) process.exit(mutate());
   const bad = problems();
   if (bad.length) { console.error('armor-line: RED\n  ' + bad.join('\n  ')); process.exit(1); }
-  console.log('armor-line: ' + Object.keys(LINE.LINE_SAMPLE).length + ' sample pieces under the line past Dawnsteel on every late ground, each winning somewhere, no template, at most one attribute each, hidden, the first Levels measured');
+  console.log('armor-line: ' + Object.keys(LINE.LINE_SAMPLE).length + ' sample pieces under the line past Dawnsteel on every late ground, each winning somewhere, no template, at most one attribute each, '
+    + 'on its grid cell (' + Object.values(LINE.LINE_SAMPLE).filter((s) => s.source && s.source.planned).length + ' on a place not built yet), hidden, the first Levels measured');
 }

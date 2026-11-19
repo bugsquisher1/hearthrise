@@ -298,10 +298,14 @@ async function runAll(db) {
   const catalogued = (await db.query(
     "select unlock_id, substring(unlock_id from 8) as item from public.hr_unlocks "
     + "where namespace = 'recipe' and progress_kind = 'flag' order by unlock_id")).rows;
-  ok(catalogued.length > 0, 'hr_unlocks catalogues at least one recipe scroll');
-  const authored = Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].recipe).sort();
+  /* The three cookbook scrolls were CUT (designer 2026-11-18: patterns teach worn recipes, per hero); until a pattern ships, the shipped
+     catalogue may hold none, and the parity below still holds both ways (0 = 0). The verb is then proven on a FIXTURE pattern (below). */
+  /* What tools/gen-unlocks.mjs catalogues, the same union: every recipe's gate (a pattern, src/data/patterns.js, names its recipe as
+     `teaches` and is catalogued through that gate) and every item carrying `recipe`. */
+  const gates = Object.values(ARTISAN_RECIPES).flat().filter((r) => r && r.gated).map((r) => r.gated);
+  const authored = [...new Set(Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].recipe).concat(gates))].sort();
   ok(catalogued.length === authored.length,
-     `hr_unlocks carries ${catalogued.length} recipe scrolls, src/data/items.js authors ${authored.length}`);
+     `hr_unlocks carries ${catalogued.length} recipe scrolls, src/data authors ${authored.length} (gates and recipe items)`);
   for (const r of catalogued) {
     ok(authored.includes(r.item),
        `hr_unlocks catalogues "${r.item}", which src/data/items.js does not mark as a recipe scroll`);
@@ -310,7 +314,7 @@ async function runAll(db) {
   }
   for (const id of authored) {
     ok(catalogued.some((r) => r.item === id),
-       `src/data/items.js authors recipe scroll "${id}" and hr_unlocks omits it`);
+       `src/data authors recipe scroll or gate "${id}" and hr_unlocks omits it`);
   }
 
   // THE PROBE SCROLL: one that a REAL gated recipe depends on, so R9 can flip a
@@ -326,7 +330,18 @@ async function runAll(db) {
     }
     if (probe) break;
   }
-  ok(!!probe, 'at least one shipped ARTISAN_RECIPES entry is gated on a catalogued scroll — without '
+  /* NO SHIPPED PATTERN YET (the cookbooks cut, the first pattern dark behind its data flag): a FIXTURE pattern in THIS replay only, a copy
+     of a real item row and a real recipe row with its gate, so the verb, the flag, the journal and the engine's gate are proven exactly as
+     before. A shipped gated recipe, once one exists, is preferred above. Test catalogue rows, never player state. */
+  if (!probe && catalogued.length === 0 && authored.length === 0) {
+    const FIX = 'probe_pattern';
+    await db.query(`insert into public.hr_items select (jsonb_populate_record(null::public.hr_items, to_jsonb(i) || jsonb_build_object('item_id', $1::text, 'name', 'Probe Pattern'))).*
+                      from public.hr_items i order by i.item_id limit 1`, [FIX]);
+    await db.query(`insert into public.hr_unlocks (unlock_id, namespace, merge, progress_kind, max_value, rungs) values ($1, 'recipe', 'flag', 'flag', null, null)`, ['recipe:' + FIX]);
+    const [skill, rec] = Object.entries(ARTISAN_RECIPES).flatMap(([s, l]) => l.map((r) => [s, r])).find(([, r]) => r.output && !r.roll && !r.switch);
+    probe = { item: FIX, recipe: Object.assign({}, rec, { gated: FIX }), skill };
+  }
+  ok(!!probe, 'a gated recipe on a catalogued scroll (shipped, or the fixture when none ships) — without '
      + 'one, R9 would prove nothing about the engine');
   if (!probe) return;
 

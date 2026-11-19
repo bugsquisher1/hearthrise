@@ -25,7 +25,7 @@ import { buyHome, buildChest } from '../../session/home-intents.js?v=0.2.140';
 import { bagOf, bankOf, goldOf, nameOf } from '../../session/item-sections.js?v=0.2.140';
 import { PROPERTY_TIERS } from '../../data/homestead-tiers.js?v=0.2.140';
 import { ROOM_PERKS } from '../../data/perks.js?v=0.2.140';
-import { text, cls, prop, attr, rows, element } from '../../render/paint.js?v=0.2.140';
+import { text, cls, prop, attr, style, rows, element } from '../../render/paint.js?v=0.2.140';
 import { whole, gold } from '../../render/format.js?v=0.2.140';
 import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
@@ -105,7 +105,8 @@ function patchCost(ctx, ul, step, purse, bag, bank) {
 /** The skeleton (built once per opening). */
 export function renderHouse() {
   return '<div class="hw-house">'
-    + '<header class="hw-house-head"><b class="hw-house-name"></b><small class="hw-house-note"></small></header>'
+    + '<header class="hw-house-head"><span class="hw-house-pic" aria-hidden="true" hidden></span>'
+    + '<span class="hw-house-id"><b class="hw-house-name"></b><small class="hw-house-note"></small></span></header>'
     + '<h3 class="hs-sub">' + esc(t('house.deed_head')) + '</h3><ol class="hw-ledger hw-deed" aria-label="' + esc(t('house.deed_aria')) + '"></ol>'
     + '<h3 class="hs-sub">' + esc(t('house.rooms_head')) + '</h3><ul class="hw-ledger hw-rooms" aria-label="' + esc(t('house.rooms_head')) + '"></ul>'
     + '<h3 class="hs-sub">' + esc(t('house.chests_head')) + ' <small class="hw-chest-n"></small></h3><ul class="hw-ledger hw-chests" aria-label="' + esc(t('house.chests_head')) + '"></ul>'
@@ -136,7 +137,12 @@ renderHouse.patch = function patchHouse(body, ctx) {
   const home = homeOf(cs), chests = chestsOf(cs);
   const purse = goldOf(cs), bag = bagOf(cs), bank = bankOf(cs);
   const tierName = (n) => (n === 0 ? PROPERTY_TIERS[0].name : ((home && home.tiers.find((x) => x.tier === n)) || {}).name || t('house.tier_n', { n }));
-  /* THE HEAD */
+  /* THE HEAD: the picture of the tier the server says the account holds (house-tiers.png, one cell a PROPERTY_TIERS row), none
+     while it is unknown */
+  const pic = root.querySelector('.hw-house-pic');
+  const drawn = !!home && Number.isInteger(home.tier) && home.tier >= 0 && home.tier < PROPERTY_TIERS.length;
+  prop(pic, 'hidden', !drawn);
+  style(pic, '--hw-tier', drawn ? String(home.tier) : null);
   text(root.querySelector('.hw-house-name'), home ? tierName(home.tier) : t('house.your_house'));
   const who = nameOf(cs);
   text(root.querySelector('.hw-house-note'), !home ? t('house.loading') : who ? t('house.head_note_named', { name: who }) : t('house.head_note'));

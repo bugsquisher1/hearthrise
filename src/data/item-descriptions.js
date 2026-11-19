@@ -22,6 +22,7 @@ import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.140';
 import { CHEST_ITEM_DESC } from './chests.js?v=0.2.140';
 import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.140';
 import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.140';
+import { PATTERN_DESC } from './patterns.js?v=0.2.140';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -74,6 +75,7 @@ export const ITEM_DESC = {
   ...Object.fromEntries(CATACOMB_ARMOR_SHIPPED.map((r) => [r.id, r.line.replace(/\.$/, '')])),
   ...TOWER_WEAPON_DESC,  // lane/d-tower-weapons: who left each tower weapon on the Hearth's ledge
   ...CALL_ITEM_DESC,  // lane/d-boss-call-drops: the call-only pieces
+  ...PATTERN_DESC,    // lane/d-rivets-learn: the patterns (src/data/patterns.js; empty while hidden)
   /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */
   'chalked_earth_rune': 'Your Earth spells, the stone shields, use one of these each cast. It feels heavy for something with just a chalk mark',
   'scored_earth_rune': 'A better Earth rune that needs a bit more skill to use. Grit collects in the scratched-in lines',
@@ -233,7 +235,6 @@ export const ITEM_DESC = {
   'dragon_gem': 'A gem out of a dragon\'s hoard, and about as rare as stones get',
   'dragon_relic': 'A relic from a dead dragon. It\'s the top prize from the deepest dungeons',
   'dragon_scale': 'A single scale pried off a dragon. Cooks put it in Dragon Stew',
-  'dragon_stew': 'A spicy stew of dragon meat. Eat it and your combat skills train faster',
   'dragonfang_pike': 'A pike tipped with a fang from Elderscale, the Great Wyrm itself',
   'dragonhide_belt': 'A scaly dragonhide belt that\'s almost impossible to break',
   'dragonhide_body': 'A dragon-scale vest for a ranger who hunts the oldest, biggest monsters',
@@ -286,7 +287,6 @@ export const ITEM_DESC = {
   'emberfruit': 'A red-hot fruit grown in volcanic soil. It\'s warm in your hand and worth a lot',
   'emberfruit_seed': 'Emberfruit seed that grows fruit for some of the best recipes',
   'emberstone_ore': 'Glowing emberstone ore, deep rock that forges into Emberforged bars',
-  'field_cookbook': 'A hunter\'s cookbook for laying out the Hunter\'s Feast',
   'field_ration': 'A dense loaf of bread made for long trips. The castle stores will take it',
   /* "Deep Seam" — the nine verdite rows (alphabetical, like the rest). */
   'flux_salt': 'Bitter gray crust scraped from a deep pocket, the flux that makes verdite pour clean',
@@ -306,7 +306,6 @@ export const ITEM_DESC = {
   'herring': 'A small, bony silver fish. It\'s cheap practice for a new cook',
   'hollow_sigil': 'A sigil that makes the air around it go quiet. It only drops in the Hunt',
   'hunter_necklace': 'A beaded hunter\'s necklace that helps your hits land',
-  'hunters_feast': 'A big spread of roast and sides. Eat it and your loot gets better',
   'iron_bolts': 'Short, heavy iron bolts. They miss more than an arrow and hit harder when they land',
   'iron_arrows': 'Iron-tipped arrows that hit a little harder when you crit',
   'iron_axe': 'Iron-headed axe that bites deeper and drops trees faster',
@@ -331,7 +330,6 @@ export const ITEM_DESC = {
   'leather_boots': 'Simple leather boots, light enough to keep you a little quicker',
   'leather_gloves': 'Tanned-leather gloves for a surer grip and a little cover',
   'lich_soul': 'A lich\'s trapped soul, cold and muttering. Cooks use it for Lich Soul Soup',
-  'lich_soul_soup': 'A cold, creepy soup made from trapped souls. Eat it and you find more gold',
   'lobster': 'A big-clawed lobster from the deep rocks. It\'s worth cooking right',
   'longbow': 'A tall longbow that shoots farther and hits harder than a shortbow',
   'magic_essence': 'A glowing speck of raw magic. It goes into rune bars and Moonbloom Elixir',
@@ -340,7 +338,6 @@ export const ITEM_DESC = {
   'maple_plank': 'A fine maple plank, timber for advanced crafting',
   'maple_rod': 'A springy maple fishing rod for someone who\'s done some fishing',
   'maple_staff': 'A good maple staff that makes your heals go further',
-  'marrow_cookbook': 'A cook\'s book for simmering rich Dragon Stew',
   'mithril_axe': 'Light mithril axe that swings quick and never seems to dull',
   'mithril_bar': 'A light, strong mithril bar, high-tier smithing metal',
   'mithril_belt': 'A light mithril belt that protects you without the bulk',
@@ -442,7 +439,6 @@ export const ITEM_DESC = {
   'sorcerer_gloves': 'A sorcerer\'s rich cloth gloves. Spells hit hard coming out of them',
   'sorcerer_helmet': 'A sorcerer\'s richly woven hat, for someone in full control of their magic',
   'sorcerer_pants': 'A sorcerer\'s rich cloth robe bottoms, for a caster near the top',
-  'soul_recipe': 'A creepy scroll that tells you how to make the Lich\'s soul soup',
   'spider_eye': 'The glassy eye of a giant spider. It\'s creepy, and it still looks like it\'s watching you',
   'steel_axe': 'A tempered steel axe for a woodcutter who chops every day',
   'steel_bar': 'Iron and coal forged into steel. It\'s solid metal for mid-level smithing',

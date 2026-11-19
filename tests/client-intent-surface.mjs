@@ -152,6 +152,7 @@ export const CLIENT_RPCS = Object.freeze({
   /* The Unmarked Catacombs (2027-05-08-catacombs.sql, behind the `unmarked_catacombs` switch): a slot, a wing id and a vault door the server
      lists for that wing, with a fresh key; the same door rules as a climb. */
   hr_catacomb_start: 'start a descent on a wing the server lists, after a vault door it lists for this hero in that wing (a party: its leader, every seat); refused bad_wing / bad_landing otherwise (tower-intents.js startDescent)',
+  hr_recipe_learn: 'learn one pattern for this hero: the pattern\'s item id, the slot and a fresh key; the server checks its own catalogue, refuses one this hero knows before it takes anything, takes one from this hero\'s bag and journals it (recipe-intents.js learnRecipe; 2026-09-14-recipe-learn.sql)',
   hr_outfit_bundle_use: 'use one outfit bundle (the Sweep\'s Coat): the slot and the bundle\'s item id, with a fresh key; the server reads the outfit from its catalogue, takes the bundle from the bag or Storage and owns it for this hero (outfit-intents.js useOutfitBundle; 2027-04-30-sweeps-coat.sql)',
   hr_chest_open: 'use keys at the Hearth Chest, stoked with the hero\'s SAVED default (p_stokes null); the server prices the stokes and rolls on its own dice (tower-intents.js openChest)',
   hr_chest_stoke_default: 'the hero\'s own default stoke count for one kind of key; moves no value (tower-intents.js saveStokes)',

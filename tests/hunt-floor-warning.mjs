@@ -16,8 +16,10 @@
 //       no margin; hr_hunt_enter_for answers below_range from hr_hunt_below_range. The executed proof is that file's own self-check in the chain replay.
 //   S2  NOTHING IN THE FIGHT READS IT (Tyler 2026-11-04: "They are just simply harder"): no gap row in the data, no Level in damage.js or combat.js; hunt-core/damage.mjs
 //       same-blow-at-any-level plays it. The only reader of a unit's Level is the party's level share (xp-share.js), which Tyler is deciding on separately.
-//   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground whose
-//       groupFit suits the party; a party ground tells a lone hero "Best with a party of 2–4"
+//   G1  the ONE recommendation (src/shell/hunt-list.js recommendedHunt) prefers a ground that suits the group
+//       (fitsGroup: a lone hero any ground not built for a party, a party its measured line)
+//   G8  a party is sent where it is measured to pay: a four at 16, 25 and 28 to the Glade (no note), a four at 13 and a pair at 15
+//       to the Sewer; Wickstead (under alone on every tier) never suits a party; a tie of floors goes to the higher measured line
 //   G2  a ground with a hall built for a party (forParty: the Rat King) is a party ground: a lone hero
 //       is never recommended one; past every solo band the pick is the nearest solo ground below
 //       and the Hunts window says so plainly; a party is recommended by its seats' levels
@@ -89,7 +91,8 @@ async function run(base) {
   }
   const duo = HL.recommendation([12, 20], 2, rows);
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
-  /* G4: where the advice stands until the pace is re-measured (level-curve reads it: a pair sent to the Glade and a lone 45 sent to the Warrens re-land together, 2026-11-04): the Warrens is a party's, and a pair's first ground is the Sewer. */
+  /* G4: where a hero alone's advice stands (level-curve reads it: a lone 45 sent to the Warrens re-lands only with a pace re-measure, 2026-11-04), and a pair's first ground is the Sewer.
+     A party's advice was re-measured on 2026-11-18 (G8): a pair from 16 goes to the Glade. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
   ok('G4', lone(44).row.hunt === 'mosslight_glade' && lone(44).note === 'Coppercap Warrens: right for Level 44, tough monsters. Easier: Mosslight Glade (Levels 16–31)'
     && !/party|one hero|solo/i.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
@@ -106,6 +109,22 @@ async function run(base) {
     const got = HL.recommendation(levels, size, rows).row.hunt;
     ok('G4', got === want, 'a group of ' + size + ' at ' + levels.join('/') + ' is sent to ' + got + ', wanted ' + want);
   }
+  /* G8 A PARTY IS SENT WHERE IT IS MEASURED TO PAY (lane/a-party-advice-glade; lane/d-party-pace's "also seen"): the workbook's groupFit 'solo' on Wickstead and
+     the Glade kept a party's advice off them, so a four at 16-25 was sent to the Sewer and at 26-31 below it with a note. A party's fit is now its measured line
+     (hunt-list.js fitsGroup). tools/balance-sim/party-advice-table.mjs (real settle, 2 seeds x 0.5 h, every seat at the Level), a head's Level XP an hour for a
+     four (tank, Healer, bow, wand): at 16 the Sewer's best tier 52.4k against the Glade's Normal 55.7k, Dangerous 74.1k, Deadly 93.6k; at 25 the Sewer 58.2k
+     against 57.8k / 81.3k / 105.5k (no deaths); at 13 the Sewer 42.7k against Wickstead's best 23.1k, so a four from 8 to 15 stays on the Sewer. */
+  for (const [lv, size, want] of [[16, 4, 'mosslight_glade'], [25, 4, 'mosslight_glade'], [28, 4, 'mosslight_glade'], [20, 2, 'mosslight_glade'], [13, 4, 'millrace_sewer'], [15, 2, 'millrace_sewer']]) {
+    const got = HL.recommendation(Array(size).fill(lv), size, rows);
+    ok('G8', !!got.row && got.row.hunt === want && got.note === null, 'a group of ' + size + ' at ' + lv + ' is sent to ' + (got.row && got.row.hunt) + (got.note ? ' (' + got.note + ')' : '') + ', wanted ' + want);
+  }
+  const gladeRow = rows.find((r) => r.hunt === 'mosslight_glade'), wick = rows.find((r) => r.hunt === 'wickstead');
+  ok('G8', !!gladeRow && !!wick && HL.fitsGroup(gladeRow, 4) && !HL.fitsGroup(wick, 4) && HL.fitsGroup(gladeRow, 1) && HL.fitsGroup(wick, 1),
+    'a party\'s fit is not its measure (the Glade earns a four over alone on its harder tiers, Wickstead on none; a hero alone fits both): ' + JSON.stringify([gladeRow && gladeRow.partyBest, wick && wick.partyBest]));
+  /* two grounds a party suits on one floor: the one it is measured to earn more on, whatever their names (planted rows) */
+  const twin = (hunt, name, line) => ({ ...gladeRow, hunt, name, partyBest: { 2: line, 3: line, 4: line } });
+  const tie = HL.recommendation([20, 20, 20, 20], 4, [twin('a_low', 'A', 10), twin('b_high', 'B', 40)]);
+  ok('G8', !!tie.row && tie.row.hunt === 'b_high', 'on a tie of floors a four is sent to ' + (tie.row && tie.row.hunt) + ', not the higher measured line');
   /* G5 (first principle, played 11-04): the window opens on the harder ground this hero last hunted and came home from; never on one that killed it, and never on one below the advice. */
   const rec22 = HL.recommendation(22, 1, rows);
   const open = (last) => HL.openingPick(rec22, rows, last).hunt;
@@ -226,8 +245,13 @@ const MUTANTS = [
   ['the session drops below_range', 'src/session/character-session.js', 'return { ok: true, belowRange: true };', 'return { ok: true };'],
   ['the gate keeps a hard floor', 'supabase/migrations/2027-02-24-risk-no-level-block.sql', "  -- SECURITY C2: every spawn's OWN gate", "  if public.hr_level_of(p_user, p_slot) < 1 then perform 1; end if;\n  -- SECURITY C2: every spawn's OWN gate"],
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],
-  /* G4 (lane/d-party-pace): the party ground loses the tie at 5, so a fresh four is sent to the Thicket again */
-  ['a fresh four at 5 is sent to the Thicket again (the Sewer from 5)', 'src/shell/hunt-list.js', "(group ? Number(y.groupFit === 'party') - Number(x.groupFit === 'party') : 0) || ", ''],
+  /* G4/G8 (lane/a-party-advice-glade): a party's fit and its tie of floors read the measured line (the old tie-break on groupFit 'party', lane/d-party-pace's mutant
+     anchor, is gone: the Thicket's measure keeps it out of a party's advice, and G4 still plays a four at 5 to the Sewer) */
+  /* (lane/a-party-coach-card: groupFit 'solo' is retired, so the hand-tag mutant reads the lone rule, the only tag left) */
+  ['a party\'s advice reads the lone rule (any ground not built for a party)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best >= 0;", "  return r.groupFit !== 'party';"],
+  ['a party\'s advice reads no measure (Wickstead from 8)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best >= 0;", '  return true;'],
+  ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/data/party-class-xp.js', 'const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier))', 'const lines = [DEFAULT_TIER].map((tier) => partyVsAlone(groundId, roles, tier))'],
+  ['a tie of floors ignores what a party is measured to earn', 'src/shell/hunt-list.js', '(group ? lineOf(y) - lineOf(x) : 0) || ', ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
   ['a party\'s advice claims the ground for the party again (A1)', 'src/shell/hunt-list.js', "export function adviceTag(r, rec, step) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');",
     "export function adviceTag(r, rec, step, party) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return party ? 'Recommended for the party' : t('hunts.tag_right_level');"],

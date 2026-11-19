@@ -19,6 +19,7 @@ import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.140';
 import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.140';
 import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.140';
 import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.140';
+import { PATTERN_ITEMS } from './patterns.js?v=0.2.140';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -60,6 +61,8 @@ export const ITEMS={
   ...SHIELD_ITEMS,
   /* The fist line's wraps, tiers 1 and 2 (src/data/fists.js): HIDDEN, in the catalogue only while its sample is live. New ids only. */
   ...(FIST_LINE.live ? FIST_ITEMS : {}),
+  /* The patterns (src/data/patterns.js): a Rare that teaches one hero a recipe. HIDDEN: empty while PATTERN_LINE.live is false. New ids only. */
+  ...PATTERN_ITEMS,
   /* The training items (src/data/training.js, Tyler 2026-11-14): one a combat skill in 12 and 24 hours, the Arms Master's for gold and the Crowns store's bound copy. New ids only. */
   ...TRAINING_GEAR_ITEM_ROWS,
   /* The Burning Tower's chest (src/data/chests.js, Tyler 2026-11-14): the four keys a landing mints and the Hearth Cinders the chest pays. Bound to the account. New ids only. */
@@ -178,8 +181,8 @@ export const ITEMS={
      user of the companion equipment slot), was cut with the slot (Tyler,
      2026-10-22). */
   traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',steadyPm: 15,reqSkill:'level',reqLv:1},
-  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1,reqSkill:'level',reqLv:1},
-  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2,reqSkill:'level',reqLv:1},
+  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1,rangeAtkB:1,rangeStrB:1,magicAtkB:1,magicStrB:1,reqSkill:'level',reqLv:1},
+  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2,rangeAtkB:2,magicAtkB:2,reqSkill:'level',reqLv:1},
   /* Wave 4 (audit fix): Gold ore/bar was a near dead-end — an entire mining tier
      with one necklace as its only sink. These give gold_bar real demand and flesh
      out the thin jewelry lane. Stats are read by getEquipmentStats (real combat). */
@@ -252,21 +255,21 @@ export const ITEMS={
   practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,type:'offhand',slot:'shield',offhand:'shield',defB:2,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_hatchets:{n:'Practice Hatchets',icon:'🪓',v:0,type:'weapon',slot:'weapon',weaponType:'axe',twoHanded:true,atkB:4,strB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_club:{n:'Practice Club',icon:'🏏',v:0,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:7,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:4,strB:4,rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_wand:{n:'Practice Wand',icon:'🪄',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_wand:{n:'Practice Wand',icon:'🪄',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   /* Klappa's Klub (Tyler 2026-11-03, the tribute to Andy; style-gear.js holds the reforge): the club hero's rung between the Practice Club and the Iron Warhammer. */
   klappas_club:{n:'Klappa\'s Klub',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:16,tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
-  apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',atkB:3,strB:5,magicAtkB:3,magicStrB:5},
+  apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',magicAtkB:3,magicStrB:5},
   /* v: the ladder's generated value (designer 2026-10-22, style-gear.js SG-4: a made piece sells for no more than its inputs' book). */
-  oak_staff:{n:'Oak Staff',icon:'🪄',v:130,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
-  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
-  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
+  oak_staff:{n:'Oak Staff',icon:'🪄',v:130,type:'weapon',slot:'weapon',weaponType:'magic',magicAtkB:6,magicStrB:9},
+  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:5,rangeStrB:3},
+  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:9,rangeStrB:6},
   stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
   iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:145,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:16},
   iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},
@@ -593,18 +596,12 @@ export const ITEMS={
   vegetable_stew:  {n:'Vegetable Stew', icon:'🍲', v:140, heals:288, foodClass:'buff', buff:{type:'all_xp',       magnitude:2,  durationMs:900000}},
   // Tier 3 buff foods
   bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:384, foodClass:'buff', buff:{type:'damage',          magnitude:3,  durationMs:600000}},
-  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:420, foodClass:'buff', buff:{type:'drop_rate', magnitude:5, durationMs:900000}}, // b238: was dead monster_respawn — a hunter's feast earns you more loot
-  dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:540, foodClass:'buff', buff:{type:'combat_xp',       magnitude:4, durationMs:1200000}},
-  lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:600, foodClass:'buff', buff:{type:'gold_find',       magnitude:5, durationMs:300000}},
   void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:720, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
   // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
   bronze_bar: {n:'Bronze Bar', icon:'🟫', v:25},
   steel_bar:  {n:'Steel Bar',  icon:'⬜', v:125},
   rune_bar:   {n:'Rune Bar',   icon:'🔷', v:500},
-  // Recipe scrolls — single-use unlocks for the gated cooking recipes
-  soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},
-  marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
-  field_cookbook:       {n:'Field Cookbook',            icon:'📜', v:0, recipe:'hunters_feast'},
+  // The three cookbook scrolls (and their feasts) were cut 2026-11-18: a pattern teaches the hero who reads it a worn recipe (designer)
 
 
   /* ── Bind-on-Pickup high-tier rewards ──────────────────────────
@@ -765,14 +762,14 @@ export const ITEMS={
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // haunted_archive — The Pale Archivist (Lv 45)
-  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:15, strB:14, magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'level', reqLv:45, rarity:'unique'},
+  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'level', reqLv:45, rarity:'unique'},
   lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // obsidian_keep — The Ashen King (Lv 65)
   ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, type:'weapon', slot:'weapon', weaponType:'sword', atkB:34, strB:40, critB:.03, reqSkill:'level', reqLv:65, rarity:'unique'},
 
   // voidbringer — The Riftmaw (Lv 80)
-  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'level', reqLv:80, rarity:'unique'},
+  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'level', reqLv:80, rarity:'unique'},
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
 
@@ -865,8 +862,8 @@ for (const [id, row] of Object.entries(towerWeaponItems(ITEMS))) {
 }
 
 /* THE CATACOMB ARMOR (src/data/catacomb-armor.js catacombArmorItems; Tyler 2026-11-16, the descent): each the standard helmet or boots of its
-   slot, weight and key tier as the ladder stands NOW, its own name and its one attribute. The pieces that ship now (CATACOMB_ARMOR_SHIPPED: Bronze
-   and Silver). New ids only, the Hearth Chest's Catacomb keys'. */
+   slot, weight and key tier as the ladder stands NOW, its own name and its one attribute. The pieces that ship (CATACOMB_ARMOR_SHIPPED: Bronze,
+   Silver, Gold and Platinum). New ids only, the Hearth Chest's Catacomb keys'. */
 for (const [id, row] of Object.entries(catacombArmorItems(ITEMS, CATACOMB_ARMOR_SHIPPED))) {
   if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('catacomb armor ' + id + ' is already an item');
   ITEMS[id] = row;

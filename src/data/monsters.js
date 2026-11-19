@@ -67,6 +67,8 @@ import { applyClassProfiles } from './monster-classes.js?v=0.2.140';
 import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.140';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.140';
 import { foldRows } from './grounds/shape.js?v=0.2.140';
+import { PATTERN_DROPS } from './patterns.js?v=0.2.140';
+import { LOOT_BANDS } from './loot-bands.js?v=0.2.140';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -355,7 +357,7 @@ export const MONSTERS = {
 
   plague_swarm: { name: 'Plague Swarm', icon: '🪰', tier: 4, cls: 'vermin', family: 'Vermin',
     hp: 100, atk: 26, def: 13, xp: 210, gp: [38, 82],
-    drops: [{ id: 'plague_ichor', ch: .6 }, { id: 'venom_sac', ch: .25 }, { id: 'swarm_heart', ch: .018 }, { id: 'field_cookbook', ch: .02 }] },
+    drops: [{ id: 'plague_ichor', ch: .6 }, { id: 'venom_sac', ch: .25 }, { id: 'swarm_heart', ch: .018 }] },
   giant_spider: { name: 'Giant Spider', icon: '🕸️', tier: 4, cls: 'vermin', family: 'Vermin',
     /* the silk faucet the arrow chain is starved of. */
     hp: 118, atk: 32, def: 14, xp: 252, gp: [44, 98],
@@ -580,10 +582,10 @@ export const MONSTERS = {
     drops: [{ id: 'war_crown', ch: .12 }, { id: 'captain_medal', ch: .45 }, { id: 'death_steel', ch: .3 }, { id: 'warlord_badge', ch: .8 }] },
   necromancer: { name: 'Necromancer', icon: '🕯️', tier: 6, cls: 'human', family: 'Human', boss: true,
     hp: 356, atk: 100, def: 34, xp: 1195, gp: [302, 650],
-    drops: [{ id: 'lich_soul', ch: .4 }, { id: 'ancient_rune', ch: .35 }, { id: 'hollow_sigil', ch: .05 }, { id: 'grave_dust', ch: 1 }, { id: 'soul_recipe', ch: .015 }, { id: 'runewood_wand', ch: .0015 }] },
+    drops: [{ id: 'lich_soul', ch: .4 }, { id: 'ancient_rune', ch: .35 }, { id: 'hollow_sigil', ch: .05 }, { id: 'grave_dust', ch: 1 }, { id: 'runewood_wand', ch: .0015 }] },
   lich: { name: 'Ancient Lich', icon: '☠️', tier: 6, cls: 'undead', family: 'Undead', boss: true,
     hp: 350, atk: 55, def: 30, xp: 800, gp: [200, 500],
-    drops: [{ id: 'lich_soul', ch: .8 }, { id: 'ancient_rune', ch: .3 }, { id: 'vamp_dust', ch: .30 }, { id: 'hollow_sigil', ch: .025 }, { id: 'soul_recipe', ch: .01 }, { id: 'runewood_codex', ch: .0013 }] },
+    drops: [{ id: 'lich_soul', ch: .8 }, { id: 'ancient_rune', ch: .3 }, { id: 'vamp_dust', ch: .30 }, { id: 'hollow_sigil', ch: .025 }, { id: 'runewood_codex', ch: .0013 }] },
   revenant: { name: 'Revenant', icon: '🦴', tier: 6, cls: 'undead', family: 'Undead',
     /* the `big_bones` endgame faucet, and the Great Hearth's best supplier. */
     hp: 448, atk: 86, def: 50, xp: 1035, gp: [252, 512],
@@ -607,7 +609,7 @@ export const MONSTERS = {
     elements: { ember: 50, frost: -15 },
     dropBonus: 1.15,
     hp: 520, atk: 105, def: 62, xp: 1250, gp: [320, 700],
-    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .5 }, { id: 'dragon_gem', ch: .02 }, { id: 'ancient_claw', ch: .08 }, { id: 'marrow_cookbook', ch: .005 }] },
+    drops: [{ id: 'dragon_bones', ch: 1 }, { id: 'dragon_scale', ch: .5 }, { id: 'dragon_gem', ch: .02 }, { id: 'ancient_claw', ch: .08 }] },
   draconia: { name: 'Draconia', icon: '🐉', tier: 6, cls: 'dragon', family: 'Dragon', boss: true,
     /* breathes Frost: Frost-resistant, Ember-weak. Ashwing's mirror. */
     elements: { ember: -15, frost: 25 },
@@ -939,6 +941,19 @@ export const MONSTERS = {
 for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => (p.hall ? { ...p.monsters, ...p.hall.monsters } : p.monsters)))) {
   if (Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('ground pack: monster ' + id + ' is already taken; a pack only adds');
   MONSTERS[id] = { ...row };
+}
+
+/* THE PATTERNS (src/data/patterns.js): each live pattern's row joins its monsters' tables among their Rares, before the first row of a
+   later band (a key, a trophy), so the band order holds and no earlier row's draw moves. Nothing while the patterns are hidden. */
+for (const [id, rows] of Object.entries(PATTERN_DROPS)) {
+  if (!Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('patterns: no monster ' + id + ' to carry ' + rows.map((r) => r.id).join(', '));
+  const drops = MONSTERS[id].drops.slice();
+  for (const r of rows) {
+    const rank = LOOT_BANDS.indexOf(r.band);
+    const at = drops.findIndex((d) => LOOT_BANDS.indexOf(d.band) > rank);
+    drops.splice(at < 0 ? drops.length : at, 0, { ...r });
+  }
+  MONSTERS[id] = { ...MONSTERS[id], drops };
 }
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

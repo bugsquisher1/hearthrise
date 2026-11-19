@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-18",
+ "generated": "2026-11-19",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -1083,7 +1083,7 @@
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 137,
+   "replay": 134,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -1169,8 +1169,8 @@
   },
   "hr_chest_armor": {
    "class": "seeded",
-   "replay": 24,
-   "note": "Generated catalogue (2027-05-08-catacombs-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js and src/data/catacomb-armor.js): each Catacomb key's armor piece a slot and weight (Bronze and Silver of both wings today). Empty, every Catacomb key is refused chest_not_ready (the key kept). Rebuilt from repo, never restored."
+   "replay": 48,
+   "note": "Generated catalogue (2027-05-12-catacomb-gold-platinum-chest-catalogue.generated.sql, tools/gen-chests.mjs from src/data/chests.js and src/data/catacomb-armor.js): each Catacomb key's armor piece a slot and weight (all four metals of both wings since lane/d-catacomb-gold-platinum; 2027-05-08-catacombs-chest-catalogue held Bronze and Silver). Empty, every Catacomb key is refused chest_not_ready (the key kept). Rebuilt from repo, never restored."
   },
   "hr_chest_families": {
    "class": "seeded",
@@ -1333,7 +1333,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 8,
+   "replay": 9,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-14",
@@ -1361,7 +1361,11 @@
     ],
     "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    },
-   "note": "THE SERVER FEATURE SWITCHES (2027-03-21-feature-switches.sql): one row per switch, its scope (off, accounts, testers = hr_access_allowlist, everyone) and the accounts it names. Each feature seeds its own row OFF with on conflict do nothing (scaled_hunts, 2027-03-21-scaled-hunts.sql; event_xp_bonus and event_open_halls, 2027-03-22-live-events.sql), and the Coordinator moves it by a migration, so a rebuild restores each switch as the last file in the chain left it (training_gear on for everyone, 2027-04-30-training-gear-arm.sql; burning_tower on for everyone, 2027-05-03-tower-arm.sql; the rest off) and silently closes what live had opened by any other means: re-apply the flips from the apply order after a restore. No client or service_role privilege, no policy; the owner is the only writer. Coming back empty is the SAFE direction (a missing row is off)."
+   "note": "THE SERVER FEATURE SWITCHES (2027-03-21-feature-switches.sql): one row per switch, its scope (off, accounts, testers = hr_access_allowlist, everyone) and the accounts it names. Each feature seeds its own row OFF with on conflict do nothing (scaled_hunts, 2027-03-21-scaled-hunts.sql; event_xp_bonus and event_open_halls, 2027-03-22-live-events.sql), and the Coordinator moves it by a migration, so a rebuild restores each switch as the last file in the chain left it (training_gear on for everyone, 2027-04-30-training-gear-arm.sql; burning_tower on for everyone, 2027-05-03-tower-arm.sql; event_xp_bonus and event_open_halls on for everyone, 2027-05-14-arm-switches.sql; scaled_hunts on for everyone, 2027-05-18-arm-scaled-hunts.sql (staged and held); the rest off; the replay harness then turns the event switches off for its guards, tests/schema-replay.mjs quietCalendar) and silently closes what live had opened by any other means: re-apply the flips from the apply order after a restore. No client or service_role privilege, no policy; the owner is the only writer. Coming back empty is the SAFE direction (a missing row is off).",
+   "expected_after": {
+    "2027-05-14-arm-switches.sql": "event_xp_bonus and event_open_halls move to everyone (accounts emptied). Re-measure live_value with node tests/restore-census.mjs --live-sql + --live-compare after the apply; the census does not read this field, it is a note for the operator who does.",
+    "2027-05-18-arm-scaled-hunts.sql": "scaled_hunts moves to everyone (accounts emptied), once it is released from its hold (loot scales, 2027-05-17-scaled-best.sql applied). Re-measure live_value the same way after the apply."
+   }
   },
   "hr_flags": {
    "class": "operator_tunable",
@@ -1603,7 +1607,7 @@
   },
   "hr_hunt_supplies": {
    "class": "seeded",
-   "replay": 82,
+   "replay": 79,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the 52 supplies a hunt bag may hold (kind, essential flag, heal amount, combat buff type), from src/data/supplies.js. hr_hunt_enter / hr_hunt_restock refuse anything else; an EMPTY rebuild would refuse every bag (fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_target_modes": {
@@ -1618,7 +1622,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 660,
+   "replay": 669,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1648,17 +1652,17 @@
   },
   "hr_item_buffs": {
    "class": "seeded",
-   "replay": 30,
+   "replay": 27,
    "note": "Generated catalogue (2026-09-13-item-buffs-catalogue.generated.sql, tools/gen-catalogues.mjs --check) holding item_id -> {type, magnitude, duration_ms} for every consumable buff food in src/data/items.js. It is the PRICE LIST hr_apply's buff_apply block resolves a buff from under the character lock, so it is an ALLOWLIST: a rebuild with a smaller set refuses real foods as bad_buff_item, and one with different numbers pays a buff nobody authored. Holds nothing per player (player_state.buffs does) and is rebuilt from the repo, never restored."
   },
   "hr_item_slots": {
    "class": "seeded",
-   "replay": 411,
+   "replay": 423,
    "note": "Generated catalogue — which items may occupy which equipment slot. 222 rows on 2026-08-15, 275 now. Rebuilt from repo, never restored."
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 706,
+   "replay": 712,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_jewel_reforge_offers": {
@@ -1768,8 +1772,8 @@
   },
   "hr_outfits": {
    "class": "seeded",
-   "replay": 9,
-   "note": "The outfit catalogue (2026-10-25-character-sheet.sql, mirrors src/data/outfits.js; tests/character-window.mjs CW-D1): id, premium, the regions its masks define. Rebuilt from repo, never restored; nothing player-owned."
+   "replay": 15,
+   "note": "The outfit catalogue (2026-10-25-character-sheet.sql, mirrors src/data/outfits.js; tests/character-window.mjs CW-D1): id, premium, the regions its masks define. Rebuilt from repo, never restored; nothing player-owned. 15 IN THE REPLAY SINCE 2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql added the six staged faction looks (hr_outfits.pieces; lane/c-faction-outfit-path). STAGED, NOT APPLIED: production stays at 9 until the Coordinator applies it. Updated BY HAND, not --write (this row only)."
   },
   "hr_players_online_cache": {
    "class": "operational",
@@ -1929,7 +1933,7 @@
   },
   "hr_tally_tiers": {
    "class": "seeded",
-   "replay": 167,
+   "replay": 179,
    "note": "Generated catalogue (2027-04-08-tally-worn.generated.sql by tools/gen-tally-tasks.mjs from src/data/items.js and gear-tiers.js): the gear tier of every item a hero can wear in one of Tamsin's slots, read by hr_tally_pick to skip a slot the hero already wears at the piece's tier or better. Rebuilt from repo, never restored. Empty, her pick fails open to paying a piece the hero wears (the pre-2027-04-08 behaviour, no extra mint)."
   },
   "hr_tick_cohort": {
@@ -2089,7 +2093,7 @@
   },
   "hr_unlocks": {
    "class": "seeded",
-   "replay": 64,
+   "replay": 61,
    "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
   },
   "hr_wipe_log": {

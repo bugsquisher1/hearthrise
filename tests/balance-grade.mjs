@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid, isProfitRule } from '../tools/balance-sim/grade.mjs';
+import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid, isProfitRule, wornReport } from '../tools/balance-sim/grade.mjs';
 import { loadGear } from '../tools/balance-sim/gear.mjs';
 import { monstersOfGround } from '../tools/pack.mjs';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -177,6 +177,42 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
   const uq = await buildGrid(ROOT, 'quick', { grounds: [open], uniques: true });
   check(uq.length > 0 && uq.every((j) => j.id.includes(',uniq') && (j.grade.gear === 'practice' ? j.gear.starter === true && !j.gear.uniques : j.gear.uniques === true)),
     'uniques: every cell id says ,uniq and every ladder cell wears the uniques kit (the practice cells the start kit)');
+  /* GROUND AND BOSS DROPS ONLY (the designer 2026-11-18 row 1f): the chest's pieces are graded only under --chest, in cells of their own,
+     and a plain uniques run prints the swap each way would make with one (the what-if row) */
+  check(uq.every((j) => !j.id.includes(',chest') && !(j.gear && j.gear.chest)), 'uniques: no plain uniques cell wears the Hearth Chest\'s pieces (row 1f)');
+  const uc = await buildGrid(ROOT, 'quick', { grounds: [open], uniques: true, chest: true });
+  check(uc.length === uq.length && uc.every((j) => j.id.includes(',chest') && (j.grade.gear === 'practice' || j.gear.chest === true)), 'uniques --chest: the what-if cells say ,chest and wear the chest\'s pieces');
+  const late = 'carters_rest', gl = gear || await loadGear(ROOT), OPEN4 = ['carters_rest', 'ox_road', 'wyvern_roost', 'unmarked_catacombs'].filter((g) => G.HUNT_GROUNDS[g]);
+  if (G.HUNT_GROUNDS[late]) {
+    const g4 = { uniques: true, openAlso: OPEN4 }, kit = gl.kitOf('sword', 110, { ground: late, ...g4 });
+    const cell = (gearOpts) => ({ cell: { ground: late, gear: gearOpts }, heroes: [{ style: 'sword', level: 110, kit: gl.kitOf('sword', 110, { ground: late, ...gearOpts }) }] });
+    const plain = wornReport([cell(g4)], gl), what = wornReport([cell({ ...g4, chest: true })], gl);
+    /* the what-if column of the sword's row lists every chest swap ("A for B (slot); C for D (slot)"): since the Catacombs' Platinum armor shipped
+       (set/v0.2.141) a helm swap follows the weapon's, so the row is read by its columns, not by how it ends */
+    const swaps = (report) => ((report.split('\n').find((l) => l.startsWith('| ' + late + ' / sword / 110 |')) || '').split('|')[3] || '').split(';').map((x) => x.trim());
+    const chestWeapons = [...gl.CHEST_IDS].filter((id) => gl.ITEMS[id] && gl.ITEMS[id].type === 'weapon').map((id) => gl.ITEMS[id].n);
+    check(!Object.values(kit).some((id) => gl.CHEST_IDS.has(id)) && /ground and boss drops only/.test(plain),
+      'uniques: a sword at Carter\'s Rest 110 is graded in no chest piece (row 1f: ground and boss drops only)');
+    check(swaps(plain).some((s) => / \(weapon\)$/.test(s) && chestWeapons.some((n) => s.startsWith(n + ' for '))),
+      'uniques: the report\'s what-if row names the chest weapon that sword would swap in (' + swaps(plain).join('; ') + ')');
+    check(/--chest/.test(what) && Object.values(gl.kitOf('sword', 110, { ground: late, ...g4, chest: true })).some((id) => gl.CHEST_IDS.has(id)), 'uniques --chest: the same sword wears the chest weapon');
+  }
+}
+
+/* THE STORE-FOOD FLOOR'S KIT (the designer 2026-11-18 row 2a, tools/balance-sim/audit-table.mjs storefood): by default the kit a hero ARRIVES in,
+   one gear tier under the Level's best with every combat skill ARRIVING_SKILL_GAP under the Level; `--kit level` the old one */
+{
+  const AT = await import('../tools/balance-sim/audit-table.mjs');
+  const arr = AT.storeFoodCell({ ground: 'krells_hold', level: 85, style: 'tank', storeFood: 'salted_shrimp' });
+  const lvl = AT.storeFoodCell({ ground: 'krells_hold', level: 85, style: 'tank', storeFood: 'salted_shrimp', kit: 'level' });
+  check(arr.gear && arr.gear.tierOffset === -1 && arr.gear.only === 'all' && JSON.stringify(arr.skillsBySeat) === JSON.stringify([{ melee: 75, ranged: 75, magic: 75, defense: 75 }]),
+    'storefood: the default is the arriving kit (a tier under, Melee, Ranged, Magic and Defense 75 at Level 85)');
+  check(!lvl.gear && !lvl.skillsBySeat && lvl.id !== arr.id, 'storefood: --kit level is the Level\'s own kit, in a cell of its own');
+  const pair = AT.storeFoodCell({ ground: 'krells_hold', level: 5, style: 'tank', storeFood: 'salted_shrimp', mate: 'healer' });
+  check(pair.skillsBySeat.length === 2 && pair.skillsBySeat.every((s) => s.melee === 1), 'storefood: both seats of a pair arrive, and a skill never reads under 1');
+  const gl = await loadGear(ROOT), tierOf = (id) => Number((gl.ITEMS[id] || {}).tier) || 1;
+  const best = gl.kitOf('tank', 85), came = gl.kitOf('tank', 85, arr.gear);
+  check(tierOf(came.weapon) === tierOf(best.weapon) - 1 && tierOf(came.body) === tierOf(best.body) - 1, 'storefood: the arriving tank at 85 wears tier ' + tierOf(came.weapon) + ', one under the Level\'s ' + tierOf(best.weapon));
 }
 
 if (fails.length) { console.error('balance-grade: ' + fails.length + ' FAILED'); process.exit(1); }

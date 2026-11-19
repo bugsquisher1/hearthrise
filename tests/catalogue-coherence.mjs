@@ -216,6 +216,9 @@ export const PENDING_USE = Object.freeze({
   keystone:         'the next region (lane/d-next-region, designer): a use, or the cut list with UNREACHABLE later',
   ancient_rune:     'the next region (lane/d-next-region, designer): a use, or the cut list with UNREACHABLE later',
   dragon_gem:       'the next region (lane/d-next-region, designer): a use, or the cut list with UNREACHABLE later',
+  /* Its one use, the Hunter's Feast, was cut with the cookbooks (designer 2026-11-18); the designer keeps the hide for the tier 7 cloak
+     (itemization plan §4: the Trollhide Cape re-tiered to 7, crafted at the ladder's cloak). The row leaves when that recipe lands. */
+  troll_hide:       'the tier 7 cloak recipe (itemization plan §4, ladder phase 8): the Trollhide Cape',
 });
 /* Items with NO source today, each with the ruling and the lane that closes it. SHRINK-ONLY like PENDING_USE: a
    row whose id gained a source or left ITEMS fails; no id may be added without a ruling and an owner. They are the

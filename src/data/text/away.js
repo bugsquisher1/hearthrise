@@ -43,6 +43,9 @@ export const AWAY_TEXT = Object.freeze({
   /* Under the Gold figure, which is what the purse kept (QA audit 2026-11-18 A6): {looted} the coins, {paid} the store's supplies. */
   card_gold_both: '{looted} in coins, {paid} on supplies',
   card_gold_looted: '{looted} in coins',
+  /* ...and when the yard took over from the hunt (post-140 audit C3: the card said +29,219 while the purse moved +25,925), {yard} what the yard billed. */
+  card_gold_yard_both: '{looted} in coins, {paid} on supplies, {yard} at the yard',
+  card_gold_yard: '{looted} in coins, {yard} at the yard',
   /* A hero still training: its door is the Training window (a training session is no hunt, Tyler 2026-11-16). */
   card_training: 'Open Training',
   /* {doing} is the server's job in words ("mining the Copper Rock", party-sections.js townActivityWords). */
@@ -50,7 +53,10 @@ export const AWAY_TEXT = Object.freeze({
   /* {time} is "5 h 45 min", from the hunt's end (plus the walk home) to the server's now. */
   after_waited: 'Then {name} waited in town for {time}.',
   /* The one next thing that would have filled the time, by what ended the hunt (after-hunt.js NEXT). */
-  next_gather: 'Start a gathering job before a hunt to resume it after',
+  /* Any other automatic end: what comes next is the hunt page's own control (Tyler 2026-11-15, the itinerary). */
+  next_gather: 'Tip: set When the hunt ends to a job or the yard',
+  /* A party end the hero's own box chose (party_member_left / party_member_died; Tyler 2026-10-22, on by default): src/data/party.js leaveTogether. */
+  next_party: 'Party: untick Leave if anyone leaves to keep hunting',
   next_longer: 'Set a longer hunt, up to the stamina left',
   next_food: 'Pack more food for a longer hunt.',
   next_ammo: 'Pack more ammo for a longer hunt.',
@@ -70,8 +76,9 @@ export const AWAY_TEXT = Object.freeze({
   /* {n} what the bench still had to make, the server's count. */
   note_job_left: 'Makes the last {n}',
   note_no_job: 'Waits in town (no job to resume)',
-  /* {fee} the yard's fee for an hour at this hero's skill, {hours} its longest stay; both the server's. */
-  train_cost: '{fee} gold/h, up to {hours} h · Can\'t pay: waits in town',
+  /* {fee} the yard's fee for an hour at this hero's skill, {hours} its longest stay; both the server's. Each hour is billed whole at its
+     start (src/data/training.js; Tyler 2026-11-08, 11-15): the Training window's own label (post-140 audit C13). */
+  train_cost: '{fee} gp/h, paid hourly in advance · up to {hours} h · Out of gold: waits in town',
   train_level: 'Yard from Level {level}',
   train_party: 'Training is solo',
   after_hunting: 'Change this after the hunt',

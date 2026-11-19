@@ -8,7 +8,7 @@
 // (a purse, to reach the price). A manual walk (tests/guards-unregistered.json); the rules are mutation-proven in CI by tests/hero-colors.mjs.
 //
 //   CW-1  the sign-in and the first screens fetch no mask: first load doesn't grow
-//   CW-2  the creation step previews the real hero: a pick repaints the big preview; Legs repaints only the outfit that shows legs; it says what the first outfit changes
+//   CW-2  the creation step previews the real hero: a pick repaints the big preview; Legs repaints only the outfit that shows legs; it names the outfit the hero starts in
 //   CW-3  Enter town: the colors are the picks, creation cost nothing, and the hero draws from a baked sheet
 //   CW-4  the Outfit tab: the knight's parts by name; the druid offers none and says why; trying on charges nothing and moves nothing on the server
 //   CW-5  Save colors shows the server's price, charges exactly it once, and the window comes back from the envelope
@@ -23,6 +23,13 @@
 import { mkdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
+/* The words come from their homes, never a pasted copy that drifts: the creation step's line from the text home over the starting outfit's
+   row, an outfit's parts and its no-colors line from the outfit rows (src/data/outfits.js), the try-on's frame from the Outfit tab's own
+   showsWords (src/shell/windows/character/outfit.js). */
+import { t } from '../src/render/player-text.js';
+import { OUTFIT_ROWS } from '../src/data/outfits.js';
+import { START_OUTFIT } from '../src/app/hero-create.js';
+import { showsWords } from '../src/shell/windows/character/outfit.js';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -66,7 +73,8 @@ try {
   step('CW-2 a Legs pick shows on the outfit with legs, and not on the plate', big2 === big3 && ranger1 !== ranger2 && ranger0 !== ranger1, JSON.stringify({ plate: big2 === big3, ranger: ranger1 !== ranger2 }));
   await page.click('[data-hero-region="feet"][data-hero-dye="6"]');
   const note = await page.evaluate(() => document.querySelector('.hero-note').textContent);
-  step('CW-2 the step says what the first outfit changes', /plume and waist cloth/.test(note) && /every outfit/.test(note), note);
+  const startLine = t('heroes.create_start', { outfit: OUTFIT_ROWS[START_OUTFIT].label });
+  step('CW-2 the step names the outfit the hero starts in', note === startLine, note + ' vs ' + startLine);
   if (shots) await a.shot('create-picked');
 
   /* ── CW-3 ── */
@@ -103,12 +111,14 @@ try {
   await page.waitForTimeout(200);
   step('CW-4 the knight offers its plume and its waist cloth, by name', (await tabs()).join() === 'Plume,Waist cloth', (await tabs()).join());
   const says = () => page.evaluate(() => document.querySelector('.hw-of-shows').textContent);
-  step('CW-4 the try-on says exactly what changes', /Plume, Waist cloth/.test(await says()) && /rest stays as drawn/.test(await says()), await says());
+  /* the knight's own parts, as its row names them, and nothing said of other outfits (no hidden change yet) */
+  const knight = OUTFIT_ROWS.knight, knightParts = knight.regions.map((g) => knight.parts[g]).join(', ');
+  step('CW-4 the try-on says exactly what changes', (await says()) === showsWords(knight, false) && (await says()).includes(knightParts), (await says()) + ' vs ' + showsWords(knight, false));
   if (shots) await a.shot('outfit-knight');
   await page.click('[data-hs-act="of-pick"][data-outfit="druid"]');
   await page.waitForTimeout(200);
   const druid = await page.evaluate(() => ({ on: document.querySelector('.hw-of-dye').classList.contains('is-on'), save: document.querySelector('[data-hs-act="of-colors"]').classList.contains('is-on') }));
-  step('CW-4 the druid offers no colors and says why', !druid.on && !druid.save && /green/.test(await says()) && /every other outfit/.test(await says()), JSON.stringify(druid) + ' ' + await says());
+  step('CW-4 the druid offers no colors and says why', !druid.on && !druid.save && !!OUTFIT_ROWS.druid.plain && (await says()) === OUTFIT_ROWS.druid.plain, JSON.stringify(druid) + ' ' + await says() + ' vs ' + OUTFIT_ROWS.druid.plain);
   if (shots) await a.shot('outfit-druid');
   await page.click('[data-hs-act="of-pick"][data-outfit="sorcerer"]');
   await page.waitForTimeout(200);

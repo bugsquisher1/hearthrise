@@ -36,14 +36,14 @@
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.140';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';
+import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';   // the dark (switched) jobs too: a running one is shown; the bench offers one only where the server lists it
 import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.140';
 import { ITEMS } from '../data/items.js?v=0.2.140';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.140';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.140';
 import { indexGatherNodes, gatherIntervalMs, gatherBagFullFor } from '../core/skill-sim.js?v=0.2.140';
 import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.140';
-import { recipeInputs } from '../core/artisan.js?v=0.2.140';
+import { recipeInputs, gateOk } from '../core/artisan.js?v=0.2.140';
 import { pacedXp } from '../core/pacing.js?v=0.2.140';
 import { whole } from '../render/format.js?v=0.2.140';
 import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.140';
@@ -56,6 +56,7 @@ import { skillShortWords } from './intent-words.js?v=0.2.140';
 import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.140';
 import { bestTool } from '../core/tools.js?v=0.2.140';
 import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.140';
+import { benchTaxOf, benchRunOf, learnedRecipesOf } from '../session/bench-sections.js?v=0.2.140';
 import { whereToGet, wherePlaces, toolEffect } from './item-lore.js?v=0.2.140';
 import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.140';
 
@@ -248,7 +249,9 @@ export function workBlock(cs, w, huntRunning) {
   if (lv === null) return 'Loading ' + skillWord(w.skill) + ' level…';
   if (lv < (w.row.req || 1)) return skillShortWords(w.skill, w.row.req, lv, doWords(w));
   if (w.kind === 'artisan') {
-    if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
+    /* A PATTERN'S RECIPE (src/data/patterns.js) opens for THIS hero once the server says it has read the pattern: the engine's own gate
+       (artisan.js gateOk) on the envelope's learned set, fail-closed while unread (bench-sections.js learnedRecipesOf). */
+    if (w.row.gated && !gateOk(w.row, learnedRecipesOf(cs))) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
     /* The row that says what is short says where it comes from (panel 2026-11-01: "No Silk Thread", and no word on where). A worn piece is
        not in the bag, and the bench spends the bag's: said last, so nobody takes a weapon off for a job the rest of the row can't do yet. */
     const short = inputShortOf(cs, w);
@@ -466,14 +469,33 @@ export function gatherBagWords(cs, w, running) {
 }
 
 /**
+ * A COUNTED bench run as the server holds it, or null for a run until an input runs out (Andy 2026-11-18: the work line read
+ * "8,300 Blank Rune left. Stops when materials run out" over a run of 300). { left, of, ahead, short }: `left` the server's
+ * bench_run.left less the ticker's certain actions (`ahead`: it took some); `of` the run's whole count, the server's tally of this
+ * run's crafts (bench_tax.run, one run per recipe and start: 2027-02-19-bench-tax.sql) plus its count left, null when no tally is
+ * sent; `short` when the server's bag and Storage cover fewer actions than the count left, so the inputs stop it first.
+ */
+function countedRun(cs, w) {
+  const left = w && w.kind === 'artisan' ? leftOf(cs) : null;
+  if (left === null) return null;
+  const tick = tickOf(cs);
+  const done = tick ? tick.actions : 0;
+  const st = stateOf(cs);
+  const run = benchTaxOf(cs) ? benchRunOf(cs) : undefined;
+  const mine = !!run && run.recipe === w.id && run.since === Date.parse(st && st.active_since);
+  return { left: Math.max(0, left - done), of: run === undefined ? null : left + (mine ? run.crafts : 0), ahead: done > 0,
+    short: runsOf(w.row, supplyOf(cs)) < left };
+}
+
+/**
  * How far the run has got, as the line's parts [{ key, text, ahead }]: "12 cooked so far", "2 burnt", "2 more on
  * the fire", "30 Raw Shrimp left" ("1 to go", byRun below). Each number is the SERVER's bag plus the ticker's certain part (`ahead`: it
  * includes some). "So far" counts from the envelope the start answered with (this tab only); after a reload a node
  * says what the bag holds and a bench what is left. Every envelope replaces it; nothing spends it. `byRun`: a COUNTED run (the
- * server's bench_run.left) says what the run has to go, not the stock behind it: the bag's line, where nothing else says the
- * run's count (the Work window's row does: "Working on it now, 37 left").
+ * server's bench_run.left) says what the run has to go, not the stock behind it: the bag's line. `counted` (countedRun): the work
+ * line's count, "45 of 300 left", where the row under it says "Working on it now, 45 left".
  */
-export function runParts(cs, w, byRun) {
+export function runParts(cs, w, byRun, counted) {
   if (!w) return [];
   const bag = invOf(cs);
   const tick = tickOf(cs);
@@ -495,7 +517,10 @@ export function runParts(cs, w, byRun) {
   }
   /* A dish that may burn: the actions done, not yet cooked or burnt (the payout says which). */
   if (tick && tick.unsure > 0) parts.push({ key: 'fire', text: whole(tick.unsure) + (w.row.roll ? ' more at the bench, grade still to come' : ' more on the fire'), ahead: true });
-  if (w.kind === 'artisan') {
+  if (counted) {
+    const n = whole(counted.left);
+    parts.push({ key: 'left', text: counted.of === null ? t('work.now_left', { n }) : t('work.now_left_of', { n, count: whole(counted.of) }), ahead: counted.ahead });
+  } else if (w.kind === 'artisan') {
     const first = Object.keys(recipeInputs(w.row))[0];
     if (first) {
       /* What is left to spend: the bag plus the Storage the bench draws on, less the ticker's certain spend of both. */
@@ -517,7 +542,9 @@ export function nowParts(cs) {
   const w = workOf(cs);
   if (!w) return [];
   const words = workWords(w);
-  const how = runParts(cs, w);
-  const tail = w.kind === 'gather' ? 'Runs offline until a hunt starts' : 'Stops when materials run out';
-  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);
+  /* A counted run says its own count and ends at it; it says the inputs stop it only where they run out first. */
+  const run = countedRun(cs, w);
+  const how = runParts(cs, w, false, run);
+  const tail = w.kind === 'gather' ? t('work.now_gather') : run && !run.short ? '' : t('work.now_stops_out');
+  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, tail && '. ' + tail);
 }

@@ -229,9 +229,9 @@ export const UNREACHABLE = Object.freeze({
     'keystone',
     'vamp_dust', 'demon_shard', 'lich_soul', 'ancient_rune',
     'dragon_gem', 'void_chitin', 'void_core', 'ancient_claw', 'raw_panther_meat', 'cooked_panther_meat',
-    /* the Hunter's Feast waits on its troll hide (the Bear Pelt it also asks for drops from the Brook Bear) */
-    'hunters_feast', 'dragon_stew', 'lich_soul_soup', 'void_banquet', 'soul_recipe', 'marrow_cookbook',
-    'field_cookbook', 'emberheart',
+    /* the Void Banquet waits on its void core and dragon bones (the cookbook feasts were cut 2026-11-18) */
+    'void_banquet',
+    'emberheart',
   ]),
   /* Vendor trash of creatures with no home in the plan: no recipe, room or quest reads them. */
   cut: Object.freeze([
@@ -256,7 +256,7 @@ export const UNREACHABLE = Object.freeze({
    (33 rows: boots, gauntlets, belts, gloves, the bows, staves, wands and spellbooks, the Runewood codex), Grave Dust, Razor Claw and
    Wraith Veil; they move to `staged`, which only a ground's proven opening may hold. */
 /* 64 -> 61 (lane/d-morrow-grounds, 2026-11-14): Carter's Rest stages Troll Hide, Wyvern Roost Dragon Bones and Dragon Scale. */
-export const UNREACHABLE_CEILING = 61;
+export const UNREACHABLE_CEILING = 55;
 
 /**
  * id -> the first reachable door (a label). `opts` opens planned doors for C11's proof:

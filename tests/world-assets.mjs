@@ -67,6 +67,9 @@
 // validateMask (only exact region keys, binary alpha, <sprite>_mask names) instead of the scale budget and
 // palette, its manifest says palette MASK_PALETTE, and every mask names a sprite of the set it masks with the
 // same frame, anchor, clips and facings ([mask]). It counts as loaded only while that set is (style 1).
+// THE HERO SETS (src/data/world/atlas-sets.js HERO_SETS: `heroes`, and `factionwear` since `heroes` is full): every worn outfit's
+// sprite (src/data/hunt-outfits.js OUTFITS) is in one of them, which is all the Character window, the roster and creation load
+// (src/render/outfit-sprite.js), and each of them has its mask set ([hero-set]).
 // --selftest plants a drawn sprite into a mask set, a misnamed mask, a key nudged off its colour, a mask of a
 // sprite that does not exist, and a mask set whose base set nobody loads.
 //
@@ -101,7 +104,7 @@ import { restyle, restyleProblems, LINE } from '../tools/world-art/restyle.mjs';
 import { style1Findings, reachableRefs, codeSets, RETIRED_SETS } from '../tools/world-art/style1.mjs';
 import { readSidecars, listSets, setGrid, framesOf } from '../tools/world-art/build.mjs';
 /* every set the renderer can load, on any art grid (the sandbox's hd64 set loads on its first entry) */
-import { LOADED_SETS as ATLAS_SETS, MASK_SETS } from '../src/data/world/atlas-sets.js';
+import { LOADED_SETS as ATLAS_SETS, MASK_SETS, HERO_SETS } from '../src/data/world/atlas-sets.js';
 import { WORLD_MAPS } from '../src/data/world/maps/index.js';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../src/data/world/house-layouts.js';
 import { OUTFITS } from '../src/data/hunt-outfits.js';
@@ -343,6 +346,18 @@ function loadAtlases(root = ROOT) {
   });
 }
 
+/** [hero-set]: every OUTFITS sprite is a sprite of a hero set, and every hero set has a mask set. Strings. */
+function heroSetLinks(atlases, outfits = Object.values(OUTFITS), heroSets = HERO_SETS, maskSets = MASK_SETS) {
+  const out = [];
+  for (const id of outfits) {
+    const a = atlases.find((x) => !maskSets[x.manifest.set] && x.manifest.sprites[id]);
+    if (!a) out.push(`hero-set: ${id} (an OUTFITS sprite) is in no shipped set`);
+    else if (!heroSets.includes(a.manifest.set)) out.push(`hero-set: ${id} is in set ${a.manifest.set}, not a hero set (atlas-sets.js HERO_SETS): the Character window would draw it blank`);
+  }
+  for (const h of heroSets) if (!Object.values(maskSets).includes(h)) out.push(`hero-set: hero set ${h} has no mask set (atlas-sets.js MASK_SETS)`);
+  return out;
+}
+
 /** [mask]: every sprite of a mask set names a sprite of the set it masks, in the same layout. Strings. */
 function maskLinks(atlases, maskSets = MASK_SETS) {
   const out = [];
@@ -454,6 +469,7 @@ function guard() {
     for (const [a, dirs] of needs) for (const d of dirs) if (!got.sprite.anims[a] || !(got.sprite.anims[a].dirs[d] || []).length) fails.push(`content: "${id}" has no ${a} facing ${d}`);
   }
   for (const f of maskLinks(atlases)) fails.push(f);
+  for (const f of heroSetLinks(atlases)) fails.push(f);
   const atlasOf = (set) => (atlases.find((a) => a.manifest.set === set) || {}).atlas;
   for (const f of liveFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
   for (const f of twinFindings(liveMonsters(), seen, atlasOf)) fails.push(f);
@@ -681,7 +697,7 @@ function selftest(atlases) {
   if (!maskAtlas) { console.error('world-assets --selftest: harness — needs a shipped mask set (src/data/world/atlas-sets.js MASK_SETS)'); process.exit(2); }
   const mm = maskAtlas.manifest, mId = Object.keys(mm.sprites)[0];
   const cleanMask = spriteFromAtlas(mm, maskAtlas.atlas, mId);
-  const shippedMasks = maskLinks(atlases).concat(validateMask(cleanMask).map((f) => f.detail));
+  const shippedMasks = maskLinks(atlases).concat(validateMask(cleanMask).map((f) => f.detail), heroSetLinks(atlases));
   if (shippedMasks.length) { console.error('world-assets --selftest: harness — the shipped masks are not clean: ' + shippedMasks.slice(0, 3).join('; ')); process.exit(2); }
   const maskCase = (name, rule, sp) => {
     const rules = new Set(validateMask(sp).map((f) => f.rule));
@@ -699,13 +715,22 @@ function selftest(atlases) {
     else { escaped++; console.log(`  ✗ ${name}: NOT caught by [mask] (wanted "${want}")`); }
   };
   linkCase('a mask of a sprite that does not exist', 'masks no sprite', relinked((sp) => { sp.ghost_mask = sp[mId]; return sp; }));
+  /* [hero-set] */
+  const heroCase = (name, want, args) => {
+    const hits = heroSetLinks(...args).filter((f) => f.includes(want));
+    if (hits.length) console.log(`  ✓ ${name}: caught by [hero-set]`);
+    else { escaped++; console.log(`  ✗ ${name}: NOT caught by [hero-set] (wanted "${want}")`); }
+  };
+  heroCase('a worn outfit in a set the Character window does not load', 'not a hero set', [atlases, Object.values(OUTFITS), HERO_SETS.filter((h) => h !== 'factionwear')]);
+  heroCase('a worn outfit with no art at all', 'in no shipped set', [atlases, Object.values(OUTFITS).concat(['outfit_nobody'])]);
+  heroCase('a hero set with no mask set', 'has no mask set', [atlases, Object.values(OUTFITS), HERO_SETS, { 'hunt-masks': 'heroes' }]);
   linkCase('a mask laid out unlike its sprite (a facing short a frame)', 'not laid out', relinked((sp) => {
     const a = sp[mId].anims, clip = Object.keys(a).find((n) => Object.values(a[n].dirs).some((l) => l.length > 1));
     const d = Object.keys(a[clip].dirs).find((k) => a[clip].dirs[k].length > 1);
     sp[mId] = { ...sp[mId], anims: { ...a, [clip]: { ...a[clip], dirs: { ...a[clip].dirs, [d]: a[clip].dirs[d].slice(1) } } } };
     return sp;
   }));
-  const MASK_MUTANTS = 5;
+  const MASK_MUTANTS = 5 + 3;   // + the three [hero-set] cases
 
   // THE LIVE-GROUND CONTRACT: each planted gap must be named by its own finding; the shipped sprites stay silent.
   const sprites = {};

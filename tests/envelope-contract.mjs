@@ -197,6 +197,12 @@ function contract(R, cs, body, tl) {
   // This hero is hunting: the section sends no rooms and no fees to a hunter (settle cost), only the carry; a town hero's rooms: tests/bench-tax.mjs T-HOUSE.
   need('bench_tax', R.BT.benchTaxOf(cs) !== null && Number.isInteger(body.bench_tax && body.bench_tax.carry_mg) && R.BT.benchTaxOf(cs).carry === body.bench_tax.carry_mg,
     'benchTaxOf reads ' + JSON.stringify(body.bench_tax).slice(0, 160));
+  // the recipes this hero has learned from a pattern (2026-09-14-recipe-learn.sql hr_recipes_of; src/data/patterns.js): the gated bench reads
+  // it, so a hero that read none is an EMPTY object (closed), never a missing key (null, read as closed too, but no longer the server's word)
+  const learned = R.BT.learnedRecipesOf(cs);
+  need('unlocked_recipes', !!learned && !!body.unlocked_recipes && typeof body.unlocked_recipes === 'object' && !Array.isArray(body.unlocked_recipes)
+    && JSON.stringify(learned) === JSON.stringify(body.unlocked_recipes),
+    'learnedRecipesOf reads ' + JSON.stringify(learned) + ' from ' + JSON.stringify(body.unlocked_recipes));
   // combat training (2027-04-16-combat-training.sql): the yard's four quotes at the server's fee and the house dummy's ladder; a hunter has no run
   const tr = R.TR.trainingOf(cs);
   need('training', !!tr && tr.skills.length === 4 && tr.maxHours > 0 && tr.run === null && tr.quotes.length === 4
@@ -308,6 +314,11 @@ function contract(R, cs, body, tl) {
     'staminaRefillOf yields ' + JSON.stringify(sr) + ' from ' + JSON.stringify(body.stamina_refill));
   /* The Game Master's section (2027-03-13-gm-tools.sql): the key stands on every envelope, and a real hero reads false. */
   need('gm', 'gm' in body && body.gm === null && R.CS.gmOf(cs) === false, 'gmOf yields ' + JSON.stringify(R.CS.gmOf(cs)) + ' from ' + JSON.stringify(body.gm));
+  /* The server switches on for this account (2027-03-21-feature-switches.sql): a list of ids, read by featureOn (the bench's dark jobs,
+     src/session/jewelry-sections.js jobShown). The chain as applied holds jewel_guarantees off, so no hero reads it on. */
+  const sw = body.features;
+  need('features', Array.isArray(sw) && sw.length > 0 && sw.every((x) => typeof x === 'string' && R.CS.featureOn(cs, x)) && !R.CS.featureOn(cs, 'jewel_guarantees'),
+    'featureOn reads ' + JSON.stringify((Array.isArray(sw) ? sw : []).map((x) => [x, R.CS.featureOn(cs, x)])) + ' from ' + JSON.stringify(sw));
   /* the Characters window's Rename (2026-12-04-hero-rename.sql): what a new name costs this hero now */
   const rn = R.IS.renameOf(cs);
   need('rename', !!rn && isNum(rn.price) && rn.price > 0 && isNum(rn.level) && typeof rn.available === 'boolean',
@@ -380,7 +391,7 @@ export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
   'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
-  'tower', 'key_ring', 'entry_gates', 'catacomb']);
+  'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes']);
 
 /* What lane S2's sections are seeded with before the settle (each verb through the real RPC). */
 const SEED = Object.freeze({ name: 'Contract Hero', inviter: 'Contract Inviter', lock: 'cooked_shrimp', loot: 'normal_log',
@@ -582,8 +593,11 @@ const DB_MUTANTS = [
   ['tally', 'public.hr_tally_count(uuid,integer,uuid,jsonb)', "coalesce((p_meta->'km'->>v_r.monster_id)::bigint, 0)", '0::bigint'],
   ['skill_inputs', 'public.hr_skill_inputs_view(uuid,integer)', "jsonb_build_object('from', jsonb_build_array('bag', 'storage'))", "jsonb_build_object('sources', jsonb_build_array('bag', 'storage'))"],
   ['bench_tax', 'public.hr_bench_tax_view(uuid,integer)', "'carry_mg', v_st.carry,", "'carry', v_st.carry,"],
+  /* lane/d-rivets-learn: a gated bench opens off this key (src/session/bench-sections.js learnedRecipesOf) */
+  ['unlocked_recipes', 'public.hr_state_of(uuid,integer)', "'unlocked_recipes', public.hr_recipes_of(p_user, v_st.slot),", "'unlockedRecipes', public.hr_recipes_of(p_user, v_st.slot),"],
   ['temper', 'public.hr_temper_view(uuid,integer)', "'rung', coalesce(pp.value, 0),", "'level', coalesce(pp.value, 0),"],
   ['hallmark', 'public.hr_hallmark_view(uuid,integer)', "'per_day', v_limit);", "'perday', v_limit);"],
+  ['features', 'public.hr_features_view(uuid,integer)', 'jsonb_agg(f.switch_id order by f.switch_id)', "jsonb_agg(jsonb_build_object('id', f.switch_id) order by f.switch_id)"],
   /* lane/c-level-from-server: the client reads the Level from the server's block and nowhere else, so each of its fields is contract */
   ['level', 'public.hr_level_block(bigint)', "jsonb_build_object('xp', x, 'level', lv,", "jsonb_build_object('xp', x, 'lv', lv,"],
   ['level', 'public.hr_level_block(bigint)', "'into', x - public.hr_char_xp_for_level(lv),", "'in_to', x - public.hr_char_xp_for_level(lv),"],

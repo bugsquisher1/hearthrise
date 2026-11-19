@@ -385,17 +385,54 @@ async function applyOrder(sources) {
 const EXEC_STMT = /^[ \t]*execute[ \t\r\n]+(?!function\b|procedure\b)([\s\S]{0,600}?);/gim;
 const EXEC_LITERAL_HEAD = /^\s*(?:format\s*\(\s*)?(?:'|\$[a-z0-9_]*\$)/i;
 
+/* ── ONE BLOCK, ONE SCOPE (2026-11-19, set/v0.2.141) ───────────────────────────
+   A PL/pgSQL variable lives in its own `do $tag$ … $tag$` (or function) body. Read as one namespace, a file
+   whose §0 checks pins in a LOOP (`v_def := pg_get_functiondef(v_r.fn::regprocedure)`, a signature nothing
+   resolves) and whose §2 patches a named body in ANOTHER block (its own `v_def`, then `execute`) looked like a
+   loop-driven patcher: `all`, so every literal the file names was attributed. 2027-05-17-scaled-best.sql
+   names hr_scaled_hunt_of only in a §0 existence check (`to_regprocedure('…') is null`) and was made its
+   last toucher: apply-order-honesty called its honest STAGED note `stale-staged`. Each top-level
+   dollar-quoted body is now read alone (anything outside them is one more scope); a real loop-driven
+   patcher reads and executes in ONE block and is still `all`. The body stays TRACKED (rule `pin`). */
+export function plpgsqlScopes(sql) {
+  const scopes = [];
+  let outer = '';
+  let at = 0;
+  const open = /\$([A-Za-z_][A-Za-z0-9_]*)?\$/g;
+  for (let m = open.exec(sql); m; m = open.exec(sql)) {
+    const close = sql.indexOf(m[0], m.index + m[0].length);
+    outer += sql.slice(at, m.index) + '\n';
+    scopes.push(sql.slice(m.index + m[0].length, close < 0 ? sql.length : close));
+    at = close < 0 ? sql.length : close + m[0].length;
+    open.lastIndex = at;
+  }
+  outer += sql.slice(at);
+  return [outer, ...scopes];
+}
+
 /**
  * Which tracked bodies does THIS file restate through the anchored-patch idiom?
  * @param {string} sql the file, `--` lines already stripped
  * @returns {{names:Set<string>, all:boolean}} `all:true` means the file patches
  *   but the patched signature cannot be read statically (a loop-driven patcher,
- *   or an `execute` of a variable nothing in the file connects to a body read).
+ *   or an `execute` of a variable nothing in its block connects to a body read).
  *   Every body the file reads is then attributed — the over-collection the sweep
  *   has always preferred over a silent miss, and the direction that keeps the
- *   apply-order guard LOUD rather than quiet.
+ *   apply-order guard LOUD rather than quiet. Each block is its own scope (above).
  */
-export function anchoredPatches(sql) {
+export function anchoredPatches(sql, { oneScope = false } = {}) {
+  const names = new Set();
+  let all = false;
+  for (const scope of oneScope ? [sql] : plpgsqlScopes(sql)) {
+    const r = anchoredPatchesIn(scope);
+    for (const n of r.names) names.add(n);
+    all = all || r.all;
+  }
+  return { names, all };
+}
+
+/* anchoredPatches over ONE scope: a variable here is the same variable everywhere in `sql`. */
+function anchoredPatchesIn(sql) {
   /* The signatures a single statement reads back — the same four shapes the pin
      sweep below understands. `null` is a read whose signature is a loop or
      record expression (`r.sig::regprocedure`) that no static reading resolves. */
@@ -466,9 +503,11 @@ export function anchoredPatches(sql) {
  * @param {Map<string,[string,string][]>} [patches] filename -> [[find, replace]] applied to the disk
  *        text (LF), each anchor exactly once — the --mutate plants, so the sweep reads the same
  *        mutated chain the replay builds.
+ * @param {{oneScope?: boolean}} [plant] the selftest's planted reader: `oneScope` reads a file as ONE
+ *        variable namespace, as the sweep did before 2026-11-19 (anchoredPatches)
  * @returns {Promise<Map<string,{rules:Set<string>, files:Set<string>}>>} name -> provenance
  */
-export async function sweep(sources, patches) {
+export async function sweep(sources, patches, plant = {}) {
   const files = sources
     ? [...sources.keys()].sort()
     : (await readdir(MIGDIR)).filter((f) => f.endsWith('.sql')).sort();
@@ -531,7 +570,7 @@ export async function sweep(sources, patches) {
     /* (attribution) the two shapes that RESTATE a body — see ATTRIBUTION above.
        Everything the pin rules below derive is TRACKED; only a name this
        predicate accepts is ATTRIBUTED to this file in `touched_by`. */
-    const patched = anchoredPatches(sql);
+    const patched = anchoredPatches(sql, { oneScope: !!plant.oneScope });
     const restates = (n) => authored.has(n) || patched.all || patched.names.has(n);
 
     // (drop) the one shape above — read BEFORE any early `continue`, since a
@@ -1760,6 +1799,72 @@ select pg_get_functiondef('public.${V}(p_user uuid, p_slot integer)'::regprocedu
         + `${JSON.stringify(got)}\n     ${c.what}`);
       process.exitCode = 1; bad += 1;
     }
+  }
+
+  /* ── ONE BLOCK, ONE SCOPE: AN EXISTENCE CHECK IS NOT A TOUCH (2027-05-17-scaled-best.sql, set/v0.2.141) ──
+     The shape that made apply-order-honesty call an honest STAGED note `stale-staged`: §0 checks A exists
+     (`to_regprocedure('…') is null`) and pins B in a LOOP (`pg_get_functiondef(v_r.fn::regprocedure)`), §2
+     patches B in its own block with its own `v_def`. A is only named; B is really patched. Graded on touched_by
+     AND through apply-order-honesty's own classify(), with a planted whole-file reader that must still produce
+     the false verdict (so the case bites) and a real restatement of A that must still be `stale-staged`. */
+  const B = 'hr_selftest_scope_patched';
+  const BSIG = `public.${B}(p_slot integer)`;
+  const B_MAKE = `create or replace function ${BSIG} returns int language sql as $b$ select 1 $b$;`;
+  const GATE = 'do $mig$\ndeclare v_r record; v_def text;\nbegin\n'
+    + `  if to_regprocedure('${ASIG.replace('(p_slot integer)', '(integer)')}') is null then raise exception 'PRECONDITION: A first'; end if;\n`
+    + `  for v_r in select * from (values ('${BSIG}', '${'0'.repeat(32)}')) t(fn, pre) loop\n`
+    + '    v_def := pg_get_functiondef(v_r.fn::regprocedure);\n'
+    + "    if md5(v_def) is distinct from v_r.pre then raise exception 'PIN: % moved', v_r.fn; end if;\n  end loop;\nend $mig$;\n";
+  const SPLICE = 'do $mig$\ndeclare v_def text;\nbegin\n'
+    + `  v_def := pg_get_functiondef('${BSIG}'::regprocedure);\n`
+    + "  execute replace(v_def, 'select 1', 'select 2');\nend $mig$;\n";
+  const SCOPED = GATE + SPLICE;
+  const RESTATED = SCOPED + `${A_MAKE.replace('select 1', 'select 3')}\n`;
+  /* a real loop-driven patcher reads and executes in ONE block: still `all`, so A (named in it) is still attributed */
+  const ONE_BLOCK_LOOP = 'do $mig$\ndeclare v_r record; v_def text;\nbegin\n'
+    + `  if to_regprocedure('${ASIG}') is null then raise exception 'A first'; end if;\n`
+    + `  for v_r in select * from (values ('${BSIG}')) t(fn) loop\n`
+    + "    v_def := pg_get_functiondef(v_r.fn::regprocedure);\n    execute replace(v_def, 'select 1', 'select 2');\n  end loop;\nend $mig$;\n";
+  const filesOf = (third) => [['9100-01-make-a.sql', A_MAKE], ['9100-02-make-b.sql', B_MAKE], ['9100-03-last.sql', third]];
+  const SCOPE = {
+    existence_check_beside_a_patch_block: { files: filesOf(SCOPED), a: ['9100-01-make-a.sql'], b: ['9100-02-make-b.sql', '9100-03-last.sql'],
+      what: 'A named only in a §0 existence check, B pinned in a loop there and patched in its own block: A is not touched by the file, B is' },
+    restatement_beside_the_same_blocks: { files: filesOf(RESTATED), a: ['9100-01-make-a.sql', '9100-03-last.sql'], b: ['9100-02-make-b.sql', '9100-03-last.sql'],
+      what: 'the same file restating A outright is A\'s toucher (the narrowing never hides a real install)' },
+    loop_patcher_in_one_block: { files: filesOf(ONE_BLOCK_LOOP), a: ['9100-01-make-a.sql', '9100-03-last.sql'], b: ['9100-02-make-b.sql', '9100-03-last.sql'],
+      what: 'a loop-driven patcher that reads and executes in one block cannot name its target, so every literal it names is attributed (the loud direction stays)' },
+  };
+  const filesFor = (t, n) => [...(t.get(n) || { files: new Set() }).files].sort();
+  for (const [id, c] of Object.entries(SCOPE)) {
+    const t = await sweep(new Map(c.files));
+    const ga = filesFor(t, A), gb = filesFor(t, B);
+    if (t.has(A) && ga.join('|') === c.a.join('|') && gb.join('|') === c.b.join('|')) console.log(`  ok  ${id.padEnd(26)} A ${JSON.stringify(ga)}, B ${JSON.stringify(gb)}`);
+    else {
+      console.error(`  ✗  ${id} — A tracked ${t.has(A)}, touched_by A ${JSON.stringify(ga)} (want ${JSON.stringify(c.a)}), B ${JSON.stringify(gb)} (want ${JSON.stringify(c.b)})\n     ${c.what}`);
+      process.exitCode = 1; bad += 1;
+    }
+  }
+  /* the planted whole-file reader (the pre-2026-11-19 sweep) must read SCOPED as a loop patcher: the case bites */
+  const oldAll = anchoredPatches(codeOnly(SCOPED), { oneScope: true }).all, newAll = anchoredPatches(codeOnly(SCOPED)).all;
+  if (oldAll && !newAll) console.log('  ok  planted_whole_file_reader      the old one-namespace reading calls the file a loop patcher; the scoped one does not');
+  else { console.error(`  ✗  planted_whole_file_reader — whole-file all=${oldAll} (want true), scoped all=${newAll} (want false)`); process.exitCode = 1; bad += 1; }
+  /* ...and through apply-order-honesty: the file last in the order, its note STAGED, production carrying A's body */
+  const { classify } = await import('./apply-order-honesty.mjs');
+  const verdict = async (third, plant = false) => {
+    const touched = filesFor(await sweep(new Map(filesOf(third)), undefined, { oneScope: plant }), A);
+    const order = { order: filesOf(third).map(([f]) => f), _order_notes: { '9100-03-last.sql': 'STAGED, NOT APPLIED - REVIEW ONLY; the Coordinator applies.' } };
+    const md5 = 'c'.repeat(32);
+    const base = { functions: [{ sig: `${A}(p_slot integer)`, name: A, touched_by: touched, live: { md5 }, replay: { md5 } }] };
+    return classify(order, base).findings.map((f) => f.key);
+  };
+  for (const [id, third, plant, want] of [
+    ['honesty_existence_check_is_silent', SCOPED, false, []],
+    ['honesty_planted_old_reader_is_red', SCOPED, true, ['stale-staged 9100-03-last.sql']],
+    ['honesty_restatement_stays_red', RESTATED, false, ['stale-staged 9100-03-last.sql']],
+  ]) {
+    const got = await verdict(third, plant);
+    if (got.join('|') === want.join('|')) console.log(`  ok  ${id.padEnd(32)} ${got.join(', ') || 'no finding'}`);
+    else { console.error(`  ✗  ${id} — apply-order-honesty said ${JSON.stringify(got)}, want ${JSON.stringify(want)}`); process.exitCode = 1; bad += 1; }
   }
 
   for (const [id, c] of Object.entries(cases)) {

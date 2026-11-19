@@ -88,40 +88,49 @@ export const LINE_BANDS = Object.freeze([
   Object.freeze({ reqLv: 200, where: 'Level 200' }),
 ]);
 
-/* ── THE SAMPLE OF EIGHT: Wyvern Roost's plate (125) for the sword and the tank on the bow's ground, and the Unmarked Catacombs' five (165),
-   one per way of spending the budget. `row` is the item row as it would ship, `base` the Dawnsteel piece of its slot and weight (every
-   field but its words, numbers, Level, book and rarity is the base's), `attr` its one special attribute or null (the special-attribute catalogue,
-   SPECIAL_ATTRIBUTES, tier-7 size; only one the engine reads), `spend` how it spends the budget (its identity, one line), `source`
-   where it drops (`ch` a kill, proposed: about one every 15 hours for a lone hero at the floor at 172 kills an hour, by the monster's
-   share of the spawn; the drop guard fits it when the rows go in), `use` what catalogue-coherence files it under, `text` the item
-   card's line. Every element a piece resists is a spell on its own ground: Fire Breath (the Crag Wyvern) and, at the Catacombs, Lime Sack
-   (poison) and Snuff the Candles (ice). Each power and each "wins where" is measured by tests/armor-line.mjs and printed by
-   `node tools/balance-sim/armor-power.mjs`. ── */
+/* ── THE SAMPLE OF EIGHT: three Morrow plate pieces on their grid cells (the Night Shift's body, the Roost's legs, the Old Guard's helm)
+   and the Unmarked Catacombs' five (165), one per way of spending the budget. `row` is the item row as it would ship, `base` the Dawnsteel
+   piece of its slot and weight (every field but its words, numbers, Level, book and rarity is the base's), `attr` its one special attribute or
+   null (the special-attribute catalogue, SPECIAL_ATTRIBUTES, tier-7 size; only one the engine reads), `spend` how it spends the budget (its
+   identity, one line), `source` where it drops (`place` its Morrow grid row, staged/morrow-grid.js, for a Morrow piece, and `planned: true`
+   while that place is not built: no monster to name yet, so it drops nowhere; `ch` a kill, proposed: about one every 15 hours for a lone hero
+   at the floor at 172 kills an hour, by the monster's share of the spawn; the drop guard fits it when the rows go in), `use` what
+   catalogue-coherence files it under, `text` the item card's line. Every element a piece resists is a spell on its own ground: Fire Breath
+   (the Crag Wyvern) and, at the Catacombs, Lime Sack (poison) and Snuff the Candles (ice). Each power and each "wins where" is measured by
+   tests/armor-line.mjs and printed by `node tools/balance-sim/armor-power.mjs`.
+   THE GRID WINS (the designer 2026-11-18 row 1b): the three were all at the Roost (the bow's ground) to close a lone sword's Normal low point
+   there. The Breastplate and the Visor moved to their Appendix A cells and were re-sized by the line to the cell's Level: the most armor that
+   keeps its trade under the line on every late ground (AL3, measured), so the Breastplate is 105 at 122 (108 at 125) and the Visor 70 at 138
+   (64 at 125; 71 read 1.0005 of the line at the Catacombs). The Leg Plates went to the Roost Mother and came back (row 2): the Roost's healerless
+   Deadly four died 17.3 times in 16 hero-hours without them, 9.3 with the plate back, every death the tank's (the Crag Wyvern's marked Fire
+   Breath), so the grid swapped the legs cells: the Roost drops legs plate, the Roost Mother legs leather (Roost Mother's Hide). ── */
 export const LINE_SAMPLE = Object.freeze({
-  /* ── WYVERN ROOST, 125 ── */
+  /* ── THE NIGHT SHIFT, 122 (not built: planned) ── */
   wagon_guards_breastplate: Object.freeze({
-    row: Object.freeze({ n: 'Wagon Guard\'s Breastplate', icon: '🛡️', v: 122725, type: 'armor', slot: 'body', defB: 108, armourClass: 'plate', atkB: -1, rangeAtkB: -23, magicAtkB: -45,
-      tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 125 }),
+    row: Object.freeze({ n: 'Wagon Guard\'s Breastplate', icon: '🛡️', v: 119780, type: 'armor', slot: 'body', defB: 105, armourClass: 'plate', atkB: -1, rangeAtkB: -23, magicAtkB: -45,
+      tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 122 }),
     base: 'dawn_platebody', attr: null,
     spend: 'heavy: more armor than the line, and a stiff shoulder takes a point off your Melee',
-    source: Object.freeze({ monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }), use: 'worn',
-    text: 'It carries 108 armor, more than any other breastplate at Level 125, and your Melee lands a little less often in it. The wagon guards who rode the pass wore these thick, and one of them is still up in the nest.',
+    source: Object.freeze({ place: 'night_shift', planned: true, how: 'rare' }), use: 'worn',
+    text: 'It carries 105 armor, more than any other breastplate at Level 122, and your Melee lands a little less often in it. The wagon guards who rode out of Morrow wore these thick, and Gault put the dead ones to work in the mine, armor and all.',
   }),
+  /* ── WYVERN ROOST, 125: the ground's own fire answer (row 2 swapped the legs back from the Roost Mother) ── */
   burnt_crag_leg_plates: Object.freeze({
     row: Object.freeze({ n: 'Burnt Crag Leg Plates', icon: '🛡️', v: 90000, type: 'armor', slot: 'pants', defB: 86, armourClass: 'plate', strB: -2, rangeAtkB: -16, magicAtkB: -32,
       resistPm: Object.freeze({ ember: 100 }), tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 125 }),
     base: 'dawn_platelegs', attr: Object.freeze(['resist_element', 'ember']),
     spend: 'fireproof and heavy: the Crag Wyvern\'s fire, more armor, and they cost you some of your swing',
-    source: Object.freeze({ monster: 'crag_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0023 }), use: 'worn',
+    source: Object.freeze({ place: 'wyvern_roost', monster: 'crag_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0023 }), use: 'worn',
     text: 'You take 10% less fire damage, and your blows land 2 lighter. They came off the Burnt Crag black, and the wyverns\' fire never got through them.',
   }),
+  /* ── THE OLD GUARD, 138 (not built: planned) ── */
   outriders_visor: Object.freeze({
-    row: Object.freeze({ n: 'Outrider\'s Visor', icon: '🛡️', v: 49090, type: 'armor', slot: 'helmet', defB: 64, armourClass: 'plate', atkB: -2, rangeAtkB: -11, magicAtkB: -22,
-      tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 125 }),
+    row: Object.freeze({ n: 'Outrider\'s Visor', icon: '🛡️', v: 54195, type: 'armor', slot: 'helmet', defB: 70, armourClass: 'plate', atkB: -2, rangeAtkB: -11, magicAtkB: -22,
+      tier: 7, rarity: 'unique', reqSkill: 'level', reqLv: 138 }),
     base: 'dawn_helm', attr: null,
     spend: 'closed: the most armor a helm has here, and a narrow slit costs your Melee 2',
-    source: Object.freeze({ monster: 'ledge_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0023 }), use: 'worn',
-    text: 'It carries 64 armor and costs your Melee 2. The outriders rode ahead of the wagons with these shut, because the Ledge Wyverns spit at faces.',
+    source: Object.freeze({ place: 'old_guard', planned: true, how: 'rare' }), use: 'worn',
+    text: 'It carries 70 armor and costs your Melee 2. The outriders rode ahead of the wagons with these shut against the wind on the stair, and the stone guards there still have the ones that never came back down.',
   }),
   /* ── THE UNMARKED CATACOMBS, 165 ── */
   watchmans_helm: Object.freeze({

@@ -163,7 +163,6 @@ export const STAT_FORMULA = Object.freeze({
                32 netted 8,759 g an hour, the Glade's floor 1,977), more gold into the world than the loot model was built for; 0.53
                is the least that still pays a kill there more than the Glade's (harder pays more, Tyler 11-03, a per-kill rule). */
   fit: Object.freeze({
-    solo: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
     both: Object.freeze({ hp: 1, blow: 1, xp: 1, tierLift: true }),
     party: Object.freeze({ hp: 2.5, blow: 0.75, xp: 0.8, tierLift: false, bossBlow: true, hit: 0, hitFull: -0.3, gp: 1.17, gpFull: 0.53, blowShape: 1.6 }),
   }),
@@ -316,7 +315,7 @@ export function dangerAt(floor, lift = 0, F = STAT_FORMULA) {
 
 /**
  * A monster's stats from the formula. spec { level, role, tier, floor, fit } (floor: its ground's band floor;
- * fit: 'solo' | 'both' | 'party', default solo); opts { formula, roles } (the lab moves the dials). Answers
+ * fit: 'both' | 'party', default both); opts { formula, roles } (the lab moves the dials). Answers
  * { hp, atk, baseAcc, def, xp, gp: [lo, hi], hitVsSameLevel, blowShare }: whole numbers where the row stores
  * them, baseAcc to two places.
  * @param {any} spec
@@ -329,7 +328,7 @@ export function formulaStats(spec, opts = {}) {
   if (!Number.isFinite(Number(spec.floor))) throw new Error('balance-sheet: no ground floor for a ' + spec.role);
   const L = Math.max(1, Math.floor(Number(spec.level) || 1));
   const scale = DAMAGE_SCALE_BY_TIER[spec.tier] || DAMAGE_SCALE_BY_TIER[1];
-  const fit = (F.fit && F.fit[spec.fit || 'solo']) || { hp: 1, blow: 1, xp: 1 };
+  const fit = (F.fit && F.fit[spec.fit || 'both']) || { hp: 1, blow: 1, xp: 1 };
   const dz = dangerAt(Number(spec.floor), 0, F);
   const h0 = fit.hit || 0, fitHit = fit.hitFull === undefined ? h0 : h0 + (fit.hitFull - h0) * dz.ramp;
   const shape0 = R.floorCap ? 1 : 1 + ((fit.blowShape || 1) - 1) * (1 - dz.ramp);
@@ -474,7 +473,7 @@ export function tierRowFor(floor, tierId, opts = {}) {
   if (!T) throw new Error('balance-sheet: no tier ' + tierId);
   const F = opts.formula || STAT_FORMULA;
   /* a party ground's tiers lift nothing (STAT_FORMULA.fit): the table's own scaling on its own Normal */
-  const fit = F.fit && F.fit[opts.fit || 'solo'];
+  const fit = F.fit && F.fit[opts.fit || 'both'];
   const o0 = opts.ground ? (opts.overrides || TIER_PULL_OVERRIDES)[opts.ground] : null, d0 = (o0 && o0.dials && o0.dials[tierId]) || {};
   const want = swingWorth(floor, fit && fit.tierLift === false ? 0 : T.lift, (d0.dmgPm || T.dmgPm) / 1000, F);
   /* the scaling of this ground's Normal regular that reaches `want` (it only grows with k): bisection */

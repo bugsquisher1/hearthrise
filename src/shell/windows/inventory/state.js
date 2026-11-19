@@ -28,6 +28,7 @@ import { barKind, barIndexOf } from '../../bar-assign.js?v=0.2.140';
 import { itemName } from '../../widgets/bits.js?v=0.2.140';
 import { buryRecipeOf, buryLabel, buryQty } from './bury.js?v=0.2.140';
 import { bundleOutfitOf, bundleUseBlock } from './outfit-bundle.js?v=0.2.140';
+import { patternRowOf, learnBlock } from './pattern.js?v=0.2.140';
 import { upgradeOf } from '../../widgets/upgrade-line.js?v=0.2.140';
 import { tickOf } from '../../town-work.js?v=0.2.140';
 import { ITEMS } from '../../../data/items.js?v=0.2.140';
@@ -125,6 +126,8 @@ export function primaryOf(st, id) {
   /* an outfit's bundle is USED (QA gate 2026-11-17: the strip offered only Sell for the Key Warden); once the server says the hero owns the
      outfit, the bundle is kept to sell or trade and Sell is its press */
   if (bundleOutfitOf(id) && !bundleUseBlock(st.cs, id)) return ['use', t('controls.use')];
+  /* a pattern is LEARNED by this hero (pattern.js); once the server says it knows it, the pattern is kept to sell or trade */
+  if (patternRowOf(id) && !learnBlock(st.cs, id)) return ['learn', t('controls.learn')];
   if (st.shop && st.shop.bids.has(id) && !(st.rules && st.rules.locked.has(id))) return ['sell', t('controls.sell')];
   return null;
 }

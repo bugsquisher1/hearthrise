@@ -141,9 +141,9 @@ export const SHIPPED = Object.freeze({
     'baked_potato', 'bear_claw_pie', 'burnt_food', 'carrot', 'carrot_seed', 'carrot_stew',
     'cooked_bear_meat', 'cooked_frostfin', 'cooked_herring', 'cooked_lobster',
     'cooked_moonfish', 'cooked_panther_meat', 'cooked_shark', 'cooked_shrimp',
-    'cooked_swordfish', 'cooked_trout', 'cooked_wolf_meat', 'dragon_stew', 'ember_tart',
+    'cooked_swordfish', 'cooked_trout', 'cooked_wolf_meat', 'ember_tart',
     'emberfruit', 'emberfruit_seed', 'frostfin', 'goldenroot', 'goldenroot_roast',
-    'goldenroot_seed', 'goldgill', 'herring', 'hunters_feast', 'lich_soul_soup', 'lobster', 'moonbloom',
+    'goldenroot_seed', 'goldgill', 'herring', 'lobster', 'moonbloom',
     'moonbloom_elixir', 'moonbloom_seed', 'moonfish', 'pikeperch', 'potato', 'potato_seed', 'pumpkin',
     'pumpkin_pie', 'pumpkin_seed', 'raw_bear_meat', 'raw_panther_meat', 'raw_wolf_meat',
     'roasted_carrot', 'roasted_pumpkin', 'shark', 'shrimp', 'silverfin', 'swordfish', 'tomato',
@@ -165,21 +165,21 @@ export const SHIPPED = Object.freeze({
     'dragonrend_greatblade',
     'duskwood_log', 'elderscale_heart', 'ember_bar',
     'emberfang_blade', 'emberstone_ore', 'fang_studs', 'fangdart_recurve',
-    'field_cookbook', 'field_ration',
+    'field_ration',
     'goblin_ear',
     'goblin_totem', 'gold_amulet', 'gold_bar', 'gold_ore', 'gold_ring',
     'grave_dust', 'hearth_token', 'hell_ember', 'hollow_sigil',
     'hollow_sigil_ring', 'houndskin_cloak', 'hunter_necklace', 'iron_bar', 'iron_fitting',
     'iron_ore', 'iron_whetstone', 'keystone',
     'lexarch_seal', 'lich_soul',
-    'magic_essence', 'maple_log', 'maple_plank', 'marrow_cookbook', 'mithril_bar',
+    'magic_essence', 'maple_log', 'maple_plank', 'mithril_bar',
     'mithril_ore', 'mithril_whetstone', 'night_fang', 'nightstalker_pelt', 'normal_log',
     'normal_plank', 'oak_log', 'oak_plank', 'panthers_eye_pendant', 'plague_ichor',
     'plaguewarden_greaves', 'quiet_coat', 'rat_tail', 'razor_claw', 'regent_helm',
     'riftmaw_husk', 'ruby', 'ruby_signet', 'rubyfire_studs', 'rune_bar', 'rune_blank',
     'rune_frag', 'rune_whetstone', 'runewood_log', 'shadow_pelt', 'shadow_thread',
     'shadowsilk_cape', 'silk_thread', 'slagheart_core', 'slagheart_platebody', 'slime_gel',
-    'small_fang', 'soul_recipe', 'spellstone_ring', 'spider_eye',
+    'small_fang', 'spellstone_ring', 'spider_eye',
     'spidereye_studs', 'spidersilk_choker', 'steel_bar', 'steel_whetstone', 'sticky_core',
     'swarm_heart', 'timber_beam', 'traveler_cape', 'troll_hide', 'trollhide_cape',
     'vamp_dust', 'venom_sac', 'verdite_bar', 'void_chitin',
@@ -360,6 +360,14 @@ export const SUPPLY_DIR = 'assets/icons-bundle/pixel/supplies/';
 /* Supply icons drawn before their BASIC_SUPPLIES row lands (the store rune for Flame Strike). Delete the id here
    the day its row ships: the row itself then carries it. tests/pixel-icons.mjs requires the file for each. */
 export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row landed (supply-basics.js)
+
+/* THE FACTIONS' ICONS are not items either: each side's mark (src/data/grounds/shape.js STANDING_SIDES) and each piece standing buys
+   (src/data/factions.js FACTION_OUTFITS), one 32x32 pixel icon per id under assets/icons-bundle/pixel/factions/<id>.png. PixelLab picks
+   (art/world-src/gen-2026-11-18/faction-icons) finished by tools/world-art/faction-icons.mjs. The ids are listed here, not read from
+   factions.js, which the page never imports; tests/pixel-icons.mjs holds this list to exactly the sides and the pieces, a file for each. */
+export const FACTION_DIR = 'assets/icons-bundle/pixel/factions/';
+export const FACTION_ART = Object.freeze(['first_flame', 'last_ember',
+  'flamebearer', 'flamebearer_shield', 'flamebearer_light', 'emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal']);
 
 /* ICONS DRAWN BEFORE THEIR ITEM ROW LANDS (the Krell's Hold, Muster Barrows and Hask's Ford drops, the Pyre Field's shroud pin),
    imported from art/world-src/gen-2026-11-12 by tools/world-art/import-heads-icons-2026-11-12.mjs. They sit under items/ like

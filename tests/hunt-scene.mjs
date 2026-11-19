@@ -258,7 +258,8 @@ async function rules(M) {
     const vfx = M.manifests.vfx.sprites;
     const missing = M.X.effectIds().filter((id) => !vfx[id] || !vfx[id].anims.play);
     ok('SC-5', M.X.effectIds().length >= 20 && !missing.length, 'every named effect must ship in the vfx atlas; missing ' + missing.join(', '));
-    const hunt = M.manifests.heroes.sprites;
+    /* every hero set (src/data/world/atlas-sets.js HERO_SETS: heroes, and factionwear since heroes is full) */
+    const hunt = Object.assign({}, ...M.SETS.HERO_SETS.map((set) => (M.manifests[set] || { sprites: {} }).sprites));
     for (const [o, id] of Object.entries(M.O.OUTFITS)) {
       const s = hunt[id];
       const short = s ? M.AB.FACINGS.filter((d) => !(s.anims.walk && s.anims.walk.dirs[d] && s.anims.walk.dirs[d].length) || !(s.anims.idle && s.anims.idle.dirs[d])) : M.AB.FACINGS;

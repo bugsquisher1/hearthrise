@@ -21,13 +21,16 @@ const FIGS = 3;
  * food took the purse down 485). `net` is what the purse kept, the coins less what the store's supplies cost, with both under it: "+130 gp"
  * over "615 gp in coins, 485 gp on supplies" (a minus sign when the supplies cost more). Every number is the caller's, the server's tally;
  * with no spend to set against the coins (an older record that sent none) the cell says Coins, so it never calls the coins Gold.
- * @param {{net: number, coins: number, spent: number}|null} kept  what the purse kept, or null
+ * `yard`: what a yard that took over from the hunt billed (the away card's, post-140 audit C3), already out of `net`, said beside the rest.
+ * @param {{net: number, coins: number, spent: number, yard?: number|null}|null} kept  what the purse kept, or null
  * @param {number|null} coins  the coins alone, the fallback
  */
 export function goldFig(kept, coins) {
   if (kept && Number.isFinite(kept.net) && Number.isFinite(kept.coins) && Number.isFinite(kept.spent)) {
-    return { key: 'gold', label: t('summary.fig_gold'), value: (kept.net < 0 ? '−' : '+') + gold(Math.abs(kept.net)),
-      sub: kept.spent > 0 ? t('away.card_gold_both', { looted: gold(kept.coins), paid: gold(kept.spent) }) : t('away.card_gold_looted', { looted: gold(kept.coins) }) };
+    const looted = gold(kept.coins), paid = gold(kept.spent), yard = Number.isFinite(kept.yard) && kept.yard > 0 ? gold(kept.yard) : null;
+    const sub = yard ? t(kept.spent > 0 ? 'away.card_gold_yard_both' : 'away.card_gold_yard', { looted, paid, yard })
+      : kept.spent > 0 ? t('away.card_gold_both', { looted, paid }) : t('away.card_gold_looted', { looted });
+    return { key: 'gold', label: t('summary.fig_gold'), value: (kept.net < 0 ? '−' : '+') + gold(Math.abs(kept.net)), sub };
   }
   return Number.isFinite(coins) ? { key: 'gold', label: t('summary.fig_coins'), value: '+' + gold(coins), sub: '' } : null;
 }

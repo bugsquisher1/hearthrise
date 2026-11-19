@@ -1,0 +1,15 @@
+{
+  "lane": "lane/b-farm-house-faction-art (2026-11-18): the Farm window's plot, which until now was a flat furrow-coloured box (windows.css .hw-soil, --scene-furrow). ART_DIRECTION §12: the Farm is soil plots from the world's tiles. PixelLab subscription gens only (credits $0 before and after)",
+  "tool": "create_1_direction_object, view top-down, palette hr-world-56-v2 (all 56), 16 candidates a round (10 gens)",
+  "finish": "tools/world-art/farm-house-art.mjs: the pick cut to its opaque box (42x44), nothing scaled, palette and alpha checked, written to assets/ui/farm-plot.png; windows.css lays it at x2 in every .hw-soil (84x88 at 100 %, inside the 104x88 well on desktop and the 88-wide one on the phone). picks/plot.png is the raw candidate; candidates-round1.png and candidates-round2.png every candidate at x3; preview.png the shipped plot at x3",
+  "round1 (object f4170a24-baa2-4619-80ed-91cdfaa8a118, 10 gens; 48 px canvas; style: the town's tilled soil (atlas-havora havora_grass_tilled, interior tile 1111 x4, centre crop), a tilled square ringed by grass (its four outer corner tiles), the cottage flower_bed and barrel_planter, each centred on 48; item_descriptions: five plank beds, four grass-edged patches, three stone-edged beds, four wattle beds)": {
+    "kept": {},
+    "picked then replaced": "c04, a raised plank bed with a front face, 36x35. In the window it was too small: the crop's icon is drawn at x2 (64 px, ART_DIRECTION §7 one density), so it covered the 72x70 bed and no soil showed round it",
+    "refused": "c00 (planks run past the corners, read as a crate); c01 (a pale grey frame, reads as metal); c02 (the same bed seen flat overhead); c03 (corner posts, busy at x2); c05-c08 (bare soil patches, read as dirt rather than a plot); c09-c11 (stone rings, flat overhead); c12-c15 (wattle, noisy at x2)"
+  },
+  "round2 (object f44ce628-0dfb-4b16-81b0-22018074d4af, 10 gens; 56 px canvas so the bed comes out bigger; style: round 1's c04 as the look to keep, the tilled square, the tilled field and the flower bed, each centred on 56; sixteen wide plank beds)": {
+    "kept": { "plot": "c02: a plank bed of the town's furrowed soil lit from the upper left, two front planks showing their face (the world's 3/4 view), 42x44: its soil is about 34x32, so a crop at x2 stands on soil with a margin" },
+    "refused": "c00, c04, c07, c13 (crate-like corners or vertical boards, read as a box); c01, c14 (vertical furrows, a crate's slats); c05, c06 (dark, the furrows lost); c08, c09, c11 (fine, but 44-46 wide, past the phone's 88 px plot); c10, c15 (over 44 tall or wide); c12 (straw tufts at the corners, noisy); c03 (corner posts, close second)"
+  },
+  "gens": 20
+}

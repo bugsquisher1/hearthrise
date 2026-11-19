@@ -33,6 +33,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { partyMembershipOf } from './party-sections.js?v=0.2.140';
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 
 const HUNT_ID = /^[a-z0-9_]{1,64}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -58,13 +59,15 @@ function seatsOf(b) {
   }));
 }
 
-/* One answer: on ok every touched character is re-read; a refusal re-reads nobody and carries the server's detail. */
-async function settled(ans, reread) {
+/* One answer: on ok every touched character is re-read; a refusal re-reads the asking hero ONCE (quoted-ask.js afterRefusal, A20)
+   and carries the server's detail. */
+async function settled(cs, ans, reread) {
   const b = ans && ans.body && typeof ans.body === 'object' ? ans.body : {};
   if (ans && ans.ok && b.ok === true) {
     await Promise.all(Array.from(new Set(reread)).filter((o) => o && o.status !== 'closed').map((o) => o.load()));
     return { ok: true };
   }
+  await afterRefusal(cs, ans);
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', seats: seatsOf(b),
     name: typeof b.name === 'string' ? b.name.slice(0, 40) : null };
 }
@@ -92,7 +95,7 @@ export async function startPartyHunt(account, cs, hunt) {
   const peers = partyPeersOf(account, cs);
   return askVia(cs, 'hunt_party_start', async () => {
     for (const o of peers) await settleTownActivity(o);
-    return settled(await account.server.rpc('hr_hunt_party_start', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), peers);
+    return settled(cs, await account.server.rpc('hr_hunt_party_start', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), peers);
   });
 }
 
@@ -103,14 +106,14 @@ export async function startPartyHunt(account, cs, hunt) {
  */
 export async function warnPartyGround(account, cs, hunt) {
   if (!usable(account, cs) || !HUNT_ID.test(String(hunt))) return { ok: false, error: 'bad_intent', seats: [] };
-  return askVia(cs, 'hunt_party_warn', async () => settled(await account.server.rpc('hr_hunt_party_warn', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), []));
+  return askVia(cs, 'hunt_party_warn', async () => settled(cs, await account.server.rpc('hr_hunt_party_warn', { p_slot: cs.slot, p_hunt: hunt, p_idem: newIdem() }), []));
 }
 
 /** The leader closes the party (in town only; the server refuses `party_hunting` otherwise). */
 export async function disbandParty(account, cs) {
   if (!usable(account, cs)) return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
-  return askVia(cs, 'hunt_party_disband', async () => settled(await account.server.rpc('hr_hunt_party_disband', { p_slot: cs.slot, p_idem: newIdem() }), peers));
+  return askVia(cs, 'hunt_party_disband', async () => settled(cs, await account.server.rpc('hr_hunt_party_disband', { p_slot: cs.slot, p_idem: newIdem() }), peers));
 }
 
 /** One of this account's own characters joins `cs`'s party at once (the party is made if `cs` has none). */
@@ -120,7 +123,7 @@ export async function inviteOwn(account, cs, otherSlot) {
   }
   const other = typeof account.character === 'function' ? account.character(otherSlot) : null;
   const peers = partyPeersOf(account, cs).concat(other ? [other] : []);
-  return askVia(cs, 'hunt_party_invite_own', async () => settled(await account.server.rpc('hr_hunt_party_invite_own', { p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }), peers));
+  return askVia(cs, 'hunt_party_invite_own', async () => settled(cs, await account.server.rpc('hr_hunt_party_invite_own', { p_slot: cs.slot, p_other_slot: otherSlot, p_idem: newIdem() }), peers));
 }
 
 /**
@@ -133,14 +136,14 @@ export async function invitePlayer(account, cs, userId, slot) {
     return { ok: false, error: 'bad_intent', seats: [] };
   }
   const peers = partyPeersOf(account, cs);
-  return askVia(cs, 'hunt_party_invite_player', async () => settled(await account.server.rpc('hr_hunt_party_invite_player', { p_slot: cs.slot, p_target: String(userId), p_target_slot: Number.isInteger(slot) ? slot : null, p_idem: newIdem() }), peers));
+  return askVia(cs, 'hunt_party_invite_player', async () => settled(cs, await account.server.rpc('hr_hunt_party_invite_player', { p_slot: cs.slot, p_target: String(userId), p_target_slot: Number.isInteger(slot) ? slot : null, p_idem: newIdem() }), peers));
 }
 
 /** The leader shows its party in the finder (`on`) or hides it; until listed, a party is joined by invite only. */
 export async function listParty(account, cs, on) {
   if (!usable(account, cs) || typeof on !== 'boolean') return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
-  return askVia(cs, 'hunt_party_list', async () => settled(await account.server.rpc('hr_hunt_party_list', { p_slot: cs.slot, p_listed: on, p_idem: newIdem() }), peers));
+  return askVia(cs, 'hunt_party_list', async () => settled(cs, await account.server.rpc('hr_hunt_party_list', { p_slot: cs.slot, p_listed: on, p_idem: newIdem() }), peers));
 }
 
 /**
@@ -151,7 +154,7 @@ export async function listParty(account, cs, on) {
 export async function setHoldSeat(account, cs, seat) {
   if (!usable(account, cs) || !(seat === null || (Number.isInteger(seat) && seat >= 0 && seat <= 7))) return { ok: false, error: 'bad_intent', seats: [] };
   const peers = partyPeersOf(account, cs);
-  return askVia(cs, 'party_hold_set', async () => settled(await account.server.rpc('hr_party_hold_set', { p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), peers));
+  return askVia(cs, 'party_hold_set', async () => settled(cs, await account.server.rpc('hr_party_hold_set', { p_slot: cs.slot, p_seat: seat, p_idem: newIdem() }), peers));
 }
 
 /**
@@ -161,7 +164,7 @@ export async function setHoldSeat(account, cs, seat) {
  */
 export async function setLeaveTogether(account, cs, on) {
   if (!usable(account, cs) || typeof on !== 'boolean') return { ok: false, error: 'bad_intent', seats: [] };
-  return askVia(cs, 'party_leave_together', async () => settled(await account.server.rpc('hr_party_leave_together_set', { p_slot: cs.slot, p_on: on, p_idem: newIdem() }), [cs]));
+  return askVia(cs, 'party_leave_together', async () => settled(cs, await account.server.rpc('hr_party_leave_together_set', { p_slot: cs.slot, p_on: on, p_idem: newIdem() }), [cs]));
 }
 
 /**

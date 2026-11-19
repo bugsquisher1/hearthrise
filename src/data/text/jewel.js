@@ -11,6 +11,9 @@ export const JEWEL_TEXT = Object.freeze({
   /* The job an input names in item lore ("Used in Smithing: the Hallmark"). */
   job_hallmark: 'the Hallmark',
   job_reforge: 'the reforge',
+  /* A boss drop's use on its card (src/shell/item-lore.js usesOf): what it fixes when set in a crafted piece in place of the gem. */
+  guarantees: 'Guarantees {what} ({pieces})',
+  grade_hallmarked: 'Hallmarked',
   /* What stops a row, the first thing missing, in the server's order. */
   requires: 'Requires {skill} {need}, have {have}',
   limit_hallmark: 'Daily limit: {limit} Hallmarks, resets at midnight UTC',

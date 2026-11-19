@@ -44,8 +44,8 @@ const B = '000000c0-0000-4000-a000-0000901dc102';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const FILE = '2027-03-05-hero-colors.sql';
-/* the outfits catalogue the chain lands last (tools/gen-outfits.mjs OUT_FILE; 2027-03-05's is applied history) */
-const CATALOGUE = '2027-04-30-sweeps-coat-outfits-catalogue.generated.sql';
+/* the outfits catalogue the chain lands last (tools/gen-outfits.mjs OUT_FILE; 2027-03-05's and 2027-04-30's are applied history) */
+const CATALOGUE = '2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql';
 const SET = 'public.hr_hero_colors_set(integer,jsonb,bigint,uuid)';
 const WEAR = 'public.hr_outfit_set(integer,text,jsonb,uuid)';
 const PRICE = 'public.hr_hero_colors_price(uuid,integer)';
@@ -96,7 +96,7 @@ export const MUTANTS = {
   figures_dropped: { arm: 'HC-CLIENT', why: 'the session drops the limit\'s number', js: ['src/session/refusal.js', [["'slots', 'price', 'per_day']", "'slots', 'price']"]]] },
   press_own_price: { arm: 'HC-CLIENT', why: 'the press sends a price of its own', js: ['src/session/hero-color-intents.js', [['p_colors, p_price: price,', 'p_colors, p_price: 1,']]] },
   press_sends_color: { arm: 'HC-CLIENT', why: 'the press sends a color value', js: ['src/session/hero-color-intents.js', [['const p_colors = { head: colors.head, body: colors.body, legs: colors.legs, feet: colors.feet };', "const p_colors = { head: '#ff00ff', body: colors.body, legs: colors.legs, feet: colors.feet };"]]] },
-  stale_not_reread: { arm: 'HC-CLIENT', why: 'a stale quote stays on the button', js: ['src/session/hero-color-intents.js', [["const RE_READS = Object.freeze(['quote_changed', 'colors_same']);", 'const RE_READS = Object.freeze([]);']]] },
+  stale_not_reread: { arm: 'HC-CLIENT', why: 'a stale quote stays on the button', js: ['src/session/hero-color-intents.js', [['  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', '']]] },
   reader_invents_price: { arm: 'HC-CLIENT', why: 'an answer with no price reads as a price', js: ['src/session/hero-color-intents.js', [['b.ok === true && Number.isSafeInteger(b.price) && b.price > 0) return', 'b.ok === true) return']]] },
   price_in_section: { arm: 'HC-SETTLE', why: 'the envelope prices a save on every settle', db: [VIEW, "'owned', to_jsonb(v_owned)", "'owned', to_jsonb(v_owned), 'colors_price', public.hr_hero_colors_price(p_user, p_slot)"] },
   read_open_to_anon: { arm: 'HC-GRANT', why: 'anon can read a hero\'s price', ddl: `grant execute on function ${READ} to anon` },
@@ -453,11 +453,15 @@ const ARMS = {
     if (X.OF.validate().length) out.push('outfits.js: ' + X.OF.validate().join('; '));
     /* WHAT THE PICKER OFFERS IS WHAT THE ART SHOWS: read off the shipped atlas, pixel by pixel. */
     const { decodePNG } = await import(pathToFileURL(join(ROOT, 'tools/world-art/png.mjs')).href);
-    const manifest = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-hunt-masks.json'), 'utf8'));
-    const img = decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-hunt-masks.png')));
+    /* every mask set (src/data/world/atlas-sets.js MASK_SETS: hunt-masks for `heroes`, factionwear-masks for `factionwear`) */
+    const { MASK_SETS } = await import(pathToFileURL(join(ROOT, 'src/data/world/atlas-sets.js')).href);
+    const maskAtlases = Object.keys(MASK_SETS).map((set) => ({ manifest: JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8')),
+      img: decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.png'))) }));
     const { OUTFITS } = X.HO;
     for (const [id, r] of Object.entries(OUTFIT_ROWS)) {
-      const m = manifest.sprites[OUTFITS[id] + '_mask'];
+      const at = maskAtlases.find((a) => a.manifest.sprites[OUTFITS[id] + '_mask']);
+      const m = at ? at.manifest.sprites[OUTFITS[id] + '_mask'] : null;
+      const img = at ? at.img : null;
       if (!m) { if (r.regions.length) out.push(`${id}: it offers ${r.regions} and has no mask`); else if (!r.plain) out.push(`${id}: no mask, no words`); continue; }
       const seen = new Set();
       const [fw, fh] = m.frame;
@@ -568,7 +572,8 @@ const ARMS = {
     let loads = 0;
     const answers = [{ ok: true, body: { ok: true } }, { ok: true, body: { ok: false, error: 'quote_changed' } }, { ok: true, body: { ok: false, error: 'colors_same' } }];
     const account = { server: { rpc: async (name, body) => { calls.push({ name, body }); return answers.shift(); } } };
-    const c = { slot: 2, status: 'open', load: async () => { loads++; return true; } };
+    /* a refusal's re-read is the session's bounded resync (quoted-ask.js afterRefusal), counted with the loads */
+    const c = { slot: 2, status: 'open', load: async () => { loads++; return true; }, resync: async () => { loads++; return true; } };
     const a1 = await X.HI.saveHeroColors(account, c, C2, 2400);
     if (!a1.ok || calls.length !== 1 || calls[0].name !== 'hr_hero_colors_set' || calls[0].body.p_slot !== 2 || calls[0].body.p_price !== 2400 || !calls[0].body.p_idem || !same(calls[0].body.p_colors, C2)) out.push('the press sent ' + JSON.stringify(calls));
     if (calls[0] && Object.values(calls[0].body.p_colors).some((v) => !Number.isInteger(v))) out.push('the press sent a color value');

@@ -29,10 +29,12 @@ import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.140';
 import { text, cls, attr, prop, rows, element } from '../../render/paint.js?v=0.2.140';
 import { whole } from '../../render/format.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
+import { busyWords } from '../training-words.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { rankWords, keyFamilyWord } from '../tower-words.js?v=0.2.140';
 import { itemName } from '../widgets/bits.js?v=0.2.140';
+import { afterHtml } from './hunt-after-pane.js?v=0.2.140';
 
 /* the column's label rows, in order: [id, label row] (each value filled from the section, a row the server does not say hidden) */
 const STATS = Object.freeze([['xp', 'tower.stat_xp'], ['death', 'tower.stat_death'], ['uses', 'tower.stat_uses'], ['time', 'tower.stat_time'],
@@ -60,7 +62,7 @@ export function doorPicked(sc, w) {
 /** Why Enter is off now, said above it, or '' when the server is to judge. Only what the screen already knows from the server's record. */
 export function descentBlock(cs, cat, w, door) {
   const h = huntOf(cs);
-  if (h && !h.ended) { const run = runRulesOf(h.huntId); return run && run.family === 'catacomb' ? t('catacomb.off_descending') : t('tower.off_hunting'); }
+  if (h && !h.ended) { const run = runRulesOf(h.huntId); return run && run.family === 'catacomb' ? t('catacomb.off_descending') : busyWords(cs, t('tower.off_hunting')); }
   /* a party descends together on its leader's press (hr_catacomb_start: every seat or none, from its lowest seat's checkpoints) */
   const party = partyMembershipOf(cs);
   if (party && !party.isLeader) return t('tower.off_leader');
@@ -94,7 +96,10 @@ export function catacombHtml() {
     /* Before entering stands IN the foot, over the Start Room (2026-11-18 shots: in the column it scrolled under the foot, clipped
        mid-line), so what the bar buys is read whole beside the press it is for */
     + '<div class="tt-foot tk-foot"><section class="tk-before-box"><h3 class="hw-hd-h tt-hd">' + esc(t('hunts.head_before')) + '</h3>'
-    + '<ul class="hw-before tk-before"></ul></section><label class="tt-start-row"><span class="tt-k">' + esc(t('catacomb.start_head')) + '</span>'
+    + '<ul class="hw-before tk-before"></ul></section>'
+    /* WHEN THE HUNT ENDS under it (the designer, 2026-11-18: a descent's end runs the hero's plan as a hunt's does, so the door shows it;
+       ./hunt-after-pane.js, patched and sent by tower.js) */
+    + afterHtml() + '<label class="tt-start-row"><span class="tt-k">' + esc(t('catacomb.start_head')) + '</span>'
     + '<select class="hh-select tk-start-pick" data-hs-act="cat-door"></select></label>'
     + '<p class="hw-why tk-off-why"></p><ul class="hw-before tk-gate"></ul>'
     + '<button type="button" class="hh-tool is-primary tk-go" data-hs-act="cat-enter">' + esc(t('controls.enter')) + '</button></div>'
@@ -240,6 +245,7 @@ export function patchCatacombs(pane, cs, cat, sc, before) {
       if (row && host.clientHeight > 0) { host.scrollTop = Math.max(0, row.offsetTop - host.offsetTop - host.clientHeight / 2); sc.catScrolled = true; }
     }
   }
+  /* a wing never descended reads the Tower's empty mark, "—" (the game's, as the wing slot says it; 2026-11-18 phone review) */
   text(pane.querySelector('.tk-big'), w && w.best > 0 ? whole(w.best) : t('tower.best_none'));
   /* "Catacombs, Deepest": the hero's place alone and in a party (one board for both wings), each only when the server sends it */
   /* ...never beside a wing the hero has not descended (2026-11-18 shots: "None" next to "Rank #1" earned in the other wing) */

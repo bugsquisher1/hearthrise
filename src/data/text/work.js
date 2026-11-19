@@ -15,6 +15,13 @@ export const WORK_TEXT = Object.freeze({
   /* The bag's line for a counted bench run (src/shell/town-work.js runParts byRun): what the run has to go, never the stock behind it
      ("Fueling the Great Hearth with Bones: 1 to go" for one Bone fed, live v0.2.135 read "2,529 Bones left"). */
   run_to_go: '{n} to go',
+  /* THE WORK LINE OVER THE ROWS (src/shell/town-work.js nowParts): a counted run says its own count, never the stock behind it (Andy
+     2026-11-18: a run of 300 read "8,300 Blank Rune left. Stops when materials run out"). The server's count left, of the run's whole
+     count when the server sends its tally; the stop sentence only where the bag and Storage stop it, or the job runs until stopped. */
+  now_left_of: '{n} of {count} left',
+  now_left: '{n} left',
+  now_stops_out: 'Stops when materials run out',
+  now_gather: 'Runs offline until a hunt starts',
   /* THE LINE WHEN A BENCH RUN FINISHES IN VIEW (src/shell/town-news.js; QA audit 2026-11-18 A17: "Fuel all" ended with no word): what it
      made or burned, the server's count, then the skill's level as a label. */
   done_made: '{name} made {count} {item}.',
@@ -44,6 +51,16 @@ export const WORK_TEXT = Object.freeze({
   is_empty: 'Empty {slot} slot',
   /* The station's whole ladder past the rows in full: one rung a Level, what it opens. */
   ladder_head: 'Unlocks',
+  /* A rolled job's odds before the roll (src/shell/windows/work.js oddsWords; src/data/jewelry.js): the grade at the hero's server level
+     in the job's own skill, the perks it may roll, and what a boss drop set in place of the gem always gives. */
+  odds_at: 'Odds at {skill} {level}: {grade}. {perks}. No bench fee on a roll.',
+  odds_plain: 'Fine {fine}, Hallmarked {hallmarked}, otherwise plain',
+  odds_fine: 'Hallmarked {hallmarked}, otherwise Fine',
+  odds_sealed: 'always Hallmarked',
+  odds_perks: 'Perks: {perks}',
+  odds_second: 'Second perk: {perks}',
+  odds_or: '{list} or {last}',
+  odds_always: 'Always {perk}. {rest}',
   /* The bench fee the picked count takes before Start (src/shell/bench-fee.js feeLineWords), with its share of the purse from 10% up. */
   fee_all: '{gold} gold for all {n}',
   fee_n: '{gold} gold for {n}',

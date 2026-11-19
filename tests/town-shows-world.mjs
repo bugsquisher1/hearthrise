@@ -23,6 +23,11 @@ import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
 import { pressBar, groupOf } from './_bar.mjs';
 import { answered } from './_press.mjs';
+/* The refusals read from their homes, never a pasted copy that drifts: the Crier's from the one refusal table (src/data/refusal-words.js),
+   a stale price's from the sink sentences around the server's number (src/shell/sink-words.js). */
+import { REFUSAL_WORDS } from '../src/data/refusal-words.js';
+import { sinkRefusal } from '../src/shell/sink-words.js';
+const exactly = (words) => new RegExp('^' + words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -90,7 +95,7 @@ try {
   await sql("insert into public.player_ledger (user_id, slot, kind, intent, gold, meta) values ($1, 0, 'shop', 'town_show:borax:6000', -6000, '{\"probe\":true}'::jsonb)", [uid]);
   const purse6 = await purse();
   await page.click('[data-hs-win="havora"] [data-hs-act="powder"]');
-  const moved = await waitText('[data-hs-win="havora"] .hh-intent-msg', /Price changed to 8,000 gp, not charged\. Press again to pay\./);
+  const moved = await waitText('[data-hs-win="havora"] .hh-intent-msg', exactly(sinkRefusal({ verb: 'town_powder', error: 'quote_changed', price: 8000 }, null)));
   step('SW-6 a stale price says so and charges nothing', moved && (await purse()) === purse6, JSON.stringify({ msg: await textOf('[data-hs-win="havora"] .hh-intent-msg'), purse: await purse(), was: purse6 }));
   const reread = await waitText('[data-hs-win="havora"] [data-hs-act="powder"]', /Throw Borax: 8,000 gp/);
   step('SW-6 the window shows the new price', reread, await textOf('[data-hs-win="havora"] [data-hs-act="powder"]'));
@@ -124,7 +129,7 @@ try {
   const purse0 = await purse();
   await page.fill('[data-hs-win="chat"] .hc-field', 'see www.example.test for rat tails');
   await page.click('[data-hs-win="chat"] .hc-cry');
-  const said = await waitText('[data-hs-win="chat"] .hc-crier-msg', /won't shout web addresses/);
+  const said = await waitText('[data-hs-win="chat"] .hc-crier-msg', exactly(REFUSAL_WORDS.crier_link));
   step('SW-5 a web address is refused in words, charging nothing', said && (await purse()) === purse0, await textOf('[data-hs-win="chat"] .hc-crier-msg'));
   /* the refusal's re-quote is still the Cry press's own ask: press again once it is answered (tests/_press.mjs) */
   step('SW-5 the Cry button is given back after its refusal', await answered(page, '[data-hs-win="chat"] .hc-cry', 30000), await textOf('[data-hs-win="chat"] .hc-crier'));

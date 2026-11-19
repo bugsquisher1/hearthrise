@@ -14,8 +14,10 @@ import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.1
 import { roleIdOf } from '../session/party-sections.js?v=0.2.140';
 import { monsterName } from '../shell/widgets/bits.js?v=0.2.140';
 import { explainDeaths } from './death-explain.js?v=0.2.140';
-import { createRecorder, endedSessionOf, buildSummary, withSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.140';
+import { createRecorder, endedSessionOf, buildSummary, withSummary, withPastSummary, withTrainingStop, atStart, levelLine, trainedIn } from './summary-model.js?v=0.2.140';
 import { trainingOf } from '../session/training-sections.js?v=0.2.140';
+import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.140';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.140';
 import { levelOf } from '../session/character-sections.js?v=0.2.140';
 import { skillLevelsOf } from '../session/item-sections.js?v=0.2.140';
 import { runRulesOf } from '../data/tower.js?v=0.2.140';
@@ -103,13 +105,20 @@ export function attach(cs) {
   let a = ATTACHED.get(cs);
   if (a) return a;
   const names = namerOf(cs);
-  a = { rec: createRecorder({ names }), sid: null, hunt: null, done: new Set(), fresh: null, live: null, liveSig: '' };
+  /* `prevStart`: the start stamp a newer session's replaced, `pastDone`: the earlier sessions recordPast has judged (recordPast) */
+  a = { rec: createRecorder({ names }), sid: null, hunt: null, done: new Set(), fresh: null, live: null, liveSig: '', prevStart: null, pastDone: new Set() };
   ATTACHED.set(cs, a);
   cs.timeline.subscribe((ev) => { a.rec.add(ev, (u) => vitalsOf(cs, u)); });
   cs.subscribe(() => {
     const s = endedSessionOf(cs);
     if (!s) return;
-    if (!s.ended) { if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.hunt = s.hunt; a.live = null; a.liveSig = ''; } stampStart(cs, s); return; }
+    if (!s.ended) {
+      if (a.sid !== s.id) { a.started = a.sid !== null || a.done.size > 0; a.rec.reset(); a.sid = s.id; a.hunt = s.hunt; a.live = null; a.liveSig = ''; }
+      const was = startOf(cs);
+      if (was && was.s !== s.id) a.prevStart = was.s;
+      stampStart(cs, s);
+      return;
+    }
     const tr = trainingOf(cs);
     const stop = tr ? tr.lastStop : null;
     if (a.done.has(s.id)) return fillTraining(cs, stop);
@@ -125,6 +134,40 @@ export function attach(cs) {
     cs.setResidue('huntSummaries', withSummary(summariesOf(cs), buildSummary(s, an, deaths, roleIdOf(cs), stop, line)));
   });
   return a;
+}
+
+/**
+ * EVERY HUNT REACHES EARLIER HUNTS (post-140 audit C4: both Wickstead days and the Glade death never did, the list filled with yard rows).
+ * attach() keeps a card when the `hunt` section shows its session ended, but a hunt that ended with the page closed and was followed by a
+ * training session (its plan, src/data/hunt-after.js) is never the section's again. The server still names it: hunt_after.last while the
+ * yard runs (the newest ended session), and this page's start stamp (residue huntStart), or the one a newer start replaced. These are the
+ * sessions the list lacks; the alert centre reads each once (src/shell/alerts.js, src/session/past-hunt.js) and hands it to recordPast.
+ * @returns {string[]}
+ */
+export function pastToRead(cs) {
+  const s = endedSessionOf(cs);
+  if (!s) return [];
+  /* every CharacterSession is attached as it is made (observeSessions); a reader with no recorder has no replaced stamp to name */
+  const a = ATTACHED.get(cs), have = new Set(summariesOf(cs).map((x) => x.id)), after = huntAfterOf(cs), st = startOf(cs);
+  const ids = [after && after.last ? after.last.session : null, st ? st.s : null, a ? a.prevStart : null];
+  return [...new Set(ids)].filter((id) => typeof id === 'string' && id !== s.id && !have.has(id) && !(a && a.pastDone.has(id)));
+}
+
+/**
+ * An earlier session's card from the server's answer for it (`an`: past-hunt.js, the analyzer's reading with its `session` facts): an
+ * ended hunt, never a training session (its own newest card is kept by attach, older ones add nothing). The server's tally only: no Level
+ * line and no death lines (this page saw none of its events), Hunt again only when the server named the setup. Placed by its end time and
+ * never opened by itself (the away card is the return's notice). True when stored. Display only.
+ */
+export function recordPast(cs, id, an) {
+  const a = ATTACHED.get(cs);
+  if (a) a.pastDone.add(id);
+  const f = an && an.session;
+  if (!f || f.id !== id || !an.ended || !f.hunt || trainedBy(f.hunt) || summariesOf(cs).some((x) => x.id === id) || typeof cs.setResidue !== 'function') return false;
+  const s = { id, ended: true, hunt: f.hunt, reason: f.reason, forfeit: false, by: null, why: null, preset: f.preset, hoursLimit: f.hoursLimit,
+    enteredMs: f.enteredMs, endedMs: f.endedMs, bag: [], tally: null, died: null, tier: f.tier, fight: null, call: null };
+  const card = buildSummary(s, an, [], roleIdOf(cs), null, null);
+  return !!card && cs.setResidue('huntSummaries', withPastSummary(summariesOf(cs), card)) === true;
 }
 
 /**

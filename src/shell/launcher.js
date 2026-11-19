@@ -26,6 +26,7 @@ import { draftOf, serverBar } from './bar-draft.js?v=0.2.140';
 import { trackOnce } from '../net/observability.js?v=0.2.140';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.140';
 import { barPlan, menuOpenOf, actMenu } from './launcher-menu.js?v=0.2.140';
+import { partyGroundFor } from './hunt-list.js?v=0.2.140';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -147,6 +148,8 @@ export function coachFactsOf(cs, account) {
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
     back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
     slotCost: account && account.slotOffer ? account.slotOffer.cost : null,
+    /* the party pitch's ground: where the Hunts window's party advice sends a party of this hero's Level (the server's), null when none suits */
+    partyGround: partyGroundFor((levelOf(cs) || {}).level),
   };
   if (cs.record) FACTS.set(cs, { record: cs.record, account, open: open.map((c) => ({ cs: c, record: c.record })), sh });
   return sh;
@@ -293,18 +296,31 @@ export function coachHtml(cs, card, inWin, rest) {
   const open = !!also && ALSO_OPEN.get(cs) === card.id;
   return head + '<button type="button" class="hs-coach-min" data-hs-act="coach-min" aria-expanded="true" aria-label="Minimize '
     + esc(card.title) + '" title="Minimize"></button>' + close + '<b>' + esc(keepLastWords(card.title)) + '</b> <span class="hs-coach-text">' + esc(card.text) + '</span>'
-    + (line ? '<button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '')
+    + (line ? ' <button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="false" hidden>More</button>' : '')
     + (also ? ' <button type="button" class="hs-coach-more" data-hs-act="coach-more" aria-expanded="' + open + '">' + (open ? 'Less' : 'More') + '</button><span class="hs-coach-also"' + (open ? '' : ' hidden') + '>'
       + also.map((g) => '<span class="hs-coach-goal">' + esc(g) + '</span>').join('') + '</span>' : '')
     + foot + '</p>';
 }
 
-/** A window's one-line card offers More only when its words do not fit. Reads one element's width, writes only a change. */
+/* A one-line card shows at least this much of its words (px), or it is no line: the card stands whole. */
+const LINE_WORDS_MIN_PX = 120;
+
+/** A window's one-line card offers More only when its words do not fit. Reads one element's width, writes only a change.
+    A LINE WITH NO ROOM FOR ITS WORDS IS NO LINE (post-140 audit C12: in the Farm window the title, More and Got it took the whole
+    line, "Press Plant on each empty plot" had 0 px, and More opened a card that only said those words): when the line would show
+    less than LINE_WORDS_MIN_PX of words it cannot show whole, the card stands whole for this window's stay, with no More. */
 export function fitCoachLine(slot) {
   const p = slot.querySelector(':scope > .hs-pointer');
   const more = p && p.querySelector(':scope > .hs-coach-more');
   if (!more) return;
+  if (p.getAttribute('data-fit') === 'whole') { if (!more.hidden) more.hidden = true; return; }
   const words = p.querySelector(':scope > .hs-coach-text');
+  if (p.classList.contains('is-line') && words.clientWidth < Math.min(words.scrollWidth, LINE_WORDS_MIN_PX)) {
+    p.setAttribute('data-fit', 'whole');
+    p.classList.remove('is-line');
+    more.hidden = true;
+    return;
+  }
   const off = p.classList.contains('is-line') && words.scrollWidth <= words.clientWidth;
   if (more.hidden !== off) more.hidden = off;
 }

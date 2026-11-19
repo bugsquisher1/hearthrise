@@ -64,7 +64,7 @@ export function validateTower(rules, partyXp, swingMs) {
   if (Number.isInteger(rules.floorTop) && Number.isInteger(rules.landingEvery) && rules.floorTop % rules.landingEvery) out.push('floorTop is not a landing');
   if (Number.isInteger(rules.stairMs) && Number.isInteger(swingMs) && rules.stairMs < 2 * swingMs) out.push('stairMs is under two engine swings, so a floor\'s rows could change inside the swing it was cleared in');
   if (Number.isInteger(rules.floorLimitMs) && Number.isInteger(rules.landingLimitMs) && rules.landingLimitMs < rules.floorLimitMs) out.push('a landing gets less time than a floor');
-  if (!['solo', 'both', 'party'].includes(rules.fit)) out.push('fit is not solo, both or party');
+  if (!['both', 'party'].includes(rules.fit)) out.push('fit is not both or party');
   const sizes = Object.keys(partyXp || {}).map(Number).sort((a, b) => a - b);
   if (sizes.join(',') !== '1,2,3,4') out.push('the party row is not one cell for each of 1 to 4 heroes');
   let prev = 0;

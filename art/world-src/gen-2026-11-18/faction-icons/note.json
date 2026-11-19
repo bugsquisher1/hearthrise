@@ -1,0 +1,21 @@
+{
+  "lane": "lane/b-farm-house-faction-art (2026-11-18): the factions' two marks and six piece icons, in place of the glyph placeholders (uiFlame, uiFire) src/shell/windows/character/faction.js drew since lane/b-faction-ui. PixelLab subscription gens only (credits $0 before and after)",
+  "spec": "the board's \"2026-11-14 The Morrow Hills\" §6 (docs/planning/PRIORITY_BOARD.md): the First Flame's mark a rising flame in antique gold, the Last Ember's a glowing ember in deep crimson; Flamebearer (steel plate under an antique gold tabard, the rising flame on the chest), Hearth Shield (a tall gold-edged steel shield, the rising flame on its face), Holly's Light (the ring of light behind the head, the light off her brazier), Emberkeeper (a peaked charcoal hood, a plain iron face plate, crimson at the collar), Harry's Lantern (a small iron pot on a chain with a live coal in it), Kept Coal (the coal in the chest with cracks of light around it). Mood only from art/reference/faction-first-flame-mood-2026-11-14.webp and faction-last-ember-mood-2026-11-14.webp (untracked): no crosses, no skull, no spikes",
+  "tool": "create_1_direction_object, view top-down, palette hr-world-56-v2 (all 56), 64 candidates on a 30 px canvas (10 gens), item_descriptions eight a piece in slot order",
+  "style": "30x30 centre crops of shipped icons: torn_company_badge, hell_ember, dawn_platebody, mithril_faced_shield, tower_cinders",
+  "finish": "tools/world-art/faction-icons.mjs, by import-drop-icons-2026-11-17.mjs iconOf: the 30x30 pick centred on 32x32, the outline closed in #0b0a0c, palette and alpha checked. picks/<id>.png are the raw candidates as PixelLab returned them; fill is the larger side of the pick's opaque box over the 32 px cell. candidates-round1.png is every candidate at x3, rows in slot order (a row a piece); preview.png the eight finished icons at x3",
+  "round1 (object d10bddad-88f5-4fee-8a10-52d5e3a8eb95, 10 gens)": {
+    "kept": {
+      "first_flame": "c00: three tongues of antique gold rising to one point, bare (88%)",
+      "last_ember": "c08: a charcoal lump glowing deep crimson through orange cracks (75%)",
+      "flamebearer": "c18: steel pauldrons and plate under a long antique gold tabard, the flame on the chest (91%)",
+      "flamebearer_shield": "c28: a tall steel shield with a rounded top and a thick gold edge, the gold flame on its face (91%); taller than the heater shapes, so it never reads as an item shield",
+      "flamebearer_light": "c38: a pale gold ring of light with short rays, a flame at its heart (84%)",
+      "emberkeeper": "c43: a peaked charcoal hood over a plain iron face plate, deep crimson at the collar (91%)",
+      "emberkeeper_lantern": "c50: a black iron pot hung on a short chain, a live coal glowing in it (88%)",
+      "emberkeeper_coal": "c56: a charcoal chest plate with a coal set in it and orange cracks of light running out (84%)"
+    },
+    "refused": "the marks on badges, rings and shields (c01-c03, c05, c07: a mark is the bare symbol); c12 (the ember came back heart-shaped); c36 and c39 (pale filled discs, read as a moon); c41 (the face plate reads as a skull, which the spec cut); c49, c52, c55 (cage lanterns: Harry's Lantern is a pot)"
+  },
+  "gens": 10
+}

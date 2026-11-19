@@ -336,6 +336,8 @@ function viewOf(v, price) {
        server's `gold` is coins + loot value; the loot's unsold value is its own line, and balance keeps the server's
        definition (coins + loot value - store supplies), labelled so. */
     kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.coins), lootValue: num(v.loot_value),
+    /* the Level XP a live event added: the session's (analyzerFrom sets the hero's), 0 for a view that has none */
+    eventXp: 0,
     waste: num(v.waste), balance: num(v.balance),
     trainingXp: isObj(v.xp) ? total(Object.fromEntries(train)) : null,
     /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour and the
@@ -460,8 +462,23 @@ export function analyzerFrom(cs, a) {
   const next = etaMs(a.hero.level);
   const sess = isObj(a.session) ? a.session : {};
   const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
+  /* THE LEVEL XP A LIVE EVENT ADDED (hr_hunt_view's tally `xp_event`, 2027-03-22-live-events.sql): this hero's own, already inside its
+     Level XP; the server sends it only when it is more than 0. The party's view has none (each account's dial is its own). */
+  const party = partyViewOf(a.party, hero, price);
+  hero.eventXp = isObj(sess.tally) ? (int(sess.tally.xp_event) ?? 0) : 0;
   return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,
-    ended: typeof sess.ended_at === 'string', hero, party: partyViewOf(a.party, hero, price) };
+    ended: typeof sess.ended_at === 'string', hero, party, session: sessionFacts(sess) };
+}
+
+/* WHICH SESSION AN ANALYZER IS OF, as the server's `session` block says it (the basic block: id, hunt, entered_at, ended_at, end_reason; the
+   premium one is the whole hr_hunt_view, so its preset, hours limit and tier too): what an earlier hunt's card is built from (summary-
+   recorder.js recordPast, post-140 audit C4). Each field the server's or null. */
+const WORD = /^[a-z0-9_]{1,64}$/;
+const word = (v) => (typeof v === 'string' && WORD.test(v) ? v : null);
+const when = (v) => { const at = str(v) ? Date.parse(v) : NaN; return Number.isFinite(at) ? at : null; };
+function sessionFacts(s) {
+  return { id: str(s.id), hunt: word(s.hunt) || word(s.hunt_id), enteredMs: when(s.entered_at), endedMs: when(s.ended_at), reason: word(s.end_reason),
+    preset: int(s.preset), hoursLimit: int(s.hours_limit), tier: word(s.tier) };
 }
 
 /** A character's server clock now (ms), or null before it has one or for a reader without one. */

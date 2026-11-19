@@ -68,8 +68,8 @@ export const SUPPLY_ROWS = Object.freeze([
   [H, 'cooked_moonfish', true],
   // buff — PARKED: feasts and draughts whose buff pays in a fight
   [B, 'tomato_soup', false], [B, 'vegetable_stew', false], [B, 'bear_claw_pie', false],
-  [B, 'pumpkin_pie', false], [B, 'fishers_pie', false], [B, 'hunters_feast', false],
-  [B, 'ember_tart', false], [B, 'dragon_stew', false], [B, 'lich_soul_soup', false],
+  [B, 'pumpkin_pie', false], [B, 'fishers_pie', false],
+  [B, 'ember_tart', false],
   [B, 'moonbloom_elixir', false], [B, 'void_banquet', false],
   // ammo — arrows (Crafting), runes (Runecrafting), whetstones (Stonemason)
   [A, 'bronze_arrows', true], [A, 'iron_arrows', true], [A, 'barbed_arrows', true], [A, 'iron_bolts', true],

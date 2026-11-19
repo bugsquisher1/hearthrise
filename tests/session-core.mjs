@@ -70,6 +70,11 @@
 //          four heroes), and the account's other heroes open at once after Play, within the limit
 //   QUOTE-1 a priced press the server refused (quote_changed, the bar already full) re-reads the hero before it resolves: the quote
 //          shown is the server's, for every verb that sends a quoted price; an answer that is no refusal reads nothing
+//   REFUSE-A20 (the full-game sweep's A20, two tabs) a refused ask of the hero's own leaves no stale screen: the engine's refusal
+//          carries the whole character and is the record (no read on top); a Postgres verb's refusal re-reads ONCE; a dropped
+//          network or a rate limit reads nothing
+//   REFUSE-ASKVIA (A20, the class) every askVia call site is classified; each module intent on the shared rule (quoted-ask.js
+//          afterRefusal), driven: a refusal re-reads the hero ONCE, a dropped network or a rate limit reads nothing
 //   ACC-5  a hero slot is bought at the SERVER's offer (account.hero_slot_offer; none at the cap or
 //          unstated): ONE hr_buy_hero_slot with the slot, the paying hero and a fresh idem key, no
 //          price; a refusal comes back by name (short_by kept); a yes re-reads the open paying hero
@@ -206,6 +211,90 @@ function fakeHub() {
   };
 }
 const timers = { setTimer: () => 0, clearTimer: () => {} };
+
+/* REFUSE-ASKVIA's table: EVERY askVia call site in src/session and src/social, by file. `rule`: the sites that hold the one rule of
+   a refused ask (quoted-ask.js afterRefusal), each driven by ASKVIA_RULE_CALLS; `read`: a read (its refusal is no news); `account`:
+   an account's ask (no hero to re-read); `own`: a site that still keeps its module's own refusal handling (the next lane moves it). */
+const ASKVIA_SITES = Object.freeze({
+  'src/session/boss-intents.js': { rule: 2 },
+  'src/session/carry-intents.js': { rule: 1 },
+  'src/session/farm-intents.js': { rule: 6 },
+  'src/session/hearth-intents.js': { rule: 1 },
+  'src/session/hunt-after-intents.js': { rule: 1 },
+  'src/session/loot-intents.js': { rule: 2 },
+  'src/session/tally-intents.js': { rule: 4, read: 1 },
+  'src/session/target-intents.js': { rule: 1 },
+  'src/session/town-intents.js': { rule: 2, read: 2 },
+  'src/session/home-intents.js': { rule: 1 },
+  'src/session/training-intents.js': { rule: 5 },
+  'src/session/faction-intents.js': { rule: 1 },
+  'src/session/hero-color-intents.js': { read: 1, rule: 1 },
+  'src/session/outfit-intents.js': { rule: 1 },
+  'src/session/recipe-intents.js': { rule: 1 },
+  'src/session/party-intents.js': { rule: 9 },
+  'src/session/preset-intents.js': { rule: 1 },
+  'src/session/title-intents.js': { rule: 1 },
+  /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
+  'src/session/scaled-hunts.js': { rule: 1, own: 1 },   // the switch (hr_scaled_hunt_switch): the arm-switches lane
+  'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
+  'src/session/storage-intents.js': { own: 1 },         // the UI lane (Storage's bulk moves)
+  'src/session/tower-intents.js': { own: 1 },           // the Catacombs lane (its RE_READS list)
+  'src/session/preset-read.js': { read: 1 },
+  'src/session/honor-roll.js': { read: 1 },
+  'src/session/gm-intents.js': { account: 1 },
+  'src/social/blocks.js': { account: 1 },
+  'src/social/chat-store.js': { account: 2 },
+  'src/social/friends.js': { account: 1 },
+  'src/social/whispers.js': { account: 1 },
+});
+/* [file, export, the RPC it sends, its arguments after (account, cs), or a function of the hero making them]: one row per distinct
+   RPC of every `rule` site. */
+const ASKVIA_RULE_CALLS = Object.freeze([
+  ['src/session/boss-intents.js', 'callOut', 'hr_boss_call', ['rat_king', 1, 0]],
+  ['src/session/boss-intents.js', 'openHall', 'hr_boss_hall_enter', ['krells_hall']],
+  ['src/session/carry-intents.js', 'carryIntoHunt', 'hr_hunt_restock', ['cooked_shrimp', 5]],
+  ['src/session/farm-intents.js', 'plantCrop', 'hr_farm_plant', [0, 'turnip']],
+  ['src/session/farm-intents.js', 'waterPlot', 'hr_farm_water', [0]],
+  ['src/session/farm-intents.js', 'harvestPlot', 'hr_farm_harvest_replant', [0, true]],
+  ['src/session/farm-intents.js', 'harvestPlot', 'hr_farm_harvest', [0, false]],
+  ['src/session/farm-intents.js', 'clearPlot', 'hr_farm_harvest_clear', [0]],
+  ['src/session/farm-intents.js', 'upgradePlot', 'hr_farm_upgrade_plot', [2]],
+  ['src/session/hearth-intents.js', 'burnNamedFuel', 'hr_hearth_burn', ['queens_comb']],
+  ['src/session/hunt-after-intents.js', 'setHuntAfter', 'hr_hunt_after_set', ['wait', null]],
+  ['src/session/loot-intents.js', 'dispatchLoot', 'hr_loot_dispatch', []],
+  ['src/session/loot-intents.js', 'copyLootPlan', 'hr_loot_plan_copy', [1]],
+  ['src/session/tally-intents.js', 'takeTask', 'hr_tally_accept', ['rat_task']],
+  ['src/session/tally-intents.js', 'dropTask', 'hr_tally_drop', ['rat_task']],
+  ['src/session/tally-intents.js', 'setTally', 'hr_tally_set', [{ task: 'rat_task', keep: true }]],
+  ['src/session/tally-intents.js', 'collectTally', 'hr_tally_collect', []],
+  ['src/session/target-intents.js', 'setTargetKind', 'hr_hunt_target_kind_set', ['mill_cellar', null]],
+  ['src/session/town-intents.js', 'throwPowder', 'hr_town_show', ['cinnabar', 100]],
+  ['src/session/town-intents.js', 'standRound', 'hr_town_show', [100]],
+  ['src/session/town-intents.js', 'giveToWorks', 'hr_town_works_give', ['the_well', 10]],
+  ['src/session/home-intents.js', 'buildChest', 'hr_storage_chest_build', ['chest_1', 197]],
+  ['src/session/training-intents.js', 'startTraining', 'hr_training_start', [{ skill: 'melee', where: 'yard', feeSeen: 197 }]],
+  ['src/session/training-intents.js', 'buyGear', 'hr_training_gear_buy', ['training_sword', 197]],
+  ['src/session/training-intents.js', 'unlockDummy', 'hr_house_dummy_unlock', ['melee', 197]],
+  ['src/session/scaled-hunts.js', 'buyScaledHours', 'hr_scaled_hunt_buy', ['mill_cellar', 1, 197]],
+  ['src/session/training-intents.js', 'openGear', 'hr_training_gear_open', ['training_sword']],
+  ['src/session/training-intents.js', 'useGear', 'hr_training_gear_switch', ['melee', true]],
+  ['src/session/faction-intents.js', 'joinFaction', 'hr_faction_join', ['wardens']],
+  ['src/session/hero-color-intents.js', 'saveHeroColors', 'hr_hero_colors_set', [{ head: 1, body: 2, legs: 1, feet: 2 }, 2400]],
+  ['src/session/outfit-intents.js', 'useOutfitBundle', 'hr_outfit_bundle_use', ['sweeps_coat_bundle']],
+  ['src/session/recipe-intents.js', 'learnRecipe', 'hr_recipe_learn', ['kingsgrate_rivets']],
+  ['src/session/preset-intents.js', 'buySetupSlot', 'hr_setup_slot_buy', [100]],
+  ['src/session/title-intents.js', 'buyTitle', 'hr_title_buy', ['ratcatcher', 1500]],
+  ['src/session/party-intents.js', 'startPartyHunt', 'hr_hunt_party_start', ['millrace_sewer']],
+  ['src/session/party-intents.js', 'warnPartyGround', 'hr_hunt_party_warn', ['millrace_sewer']],
+  ['src/session/party-intents.js', 'disbandParty', 'hr_hunt_party_disband', []],
+  ['src/session/party-intents.js', 'inviteOwn', 'hr_hunt_party_invite_own', [1]],
+  ['src/session/party-intents.js', 'invitePlayer', 'hr_hunt_party_invite_player', ['11111111-0000-4000-8000-00000000000a', null]],
+  ['src/session/party-intents.js', 'listParty', 'hr_hunt_party_list', [true]],
+  ['src/session/party-intents.js', 'setHoldSeat', 'hr_party_hold_set', [null]],
+  ['src/session/party-intents.js', 'setLeaveTogether', 'hr_party_leave_together_set', [true]],
+  /* afterLeave wraps the hero's own Leave party (CharacterSession._settled holds the rule): its arguments are made from the hero */
+  ['src/session/party-intents.js', 'afterLeave', 'hr_hunt_party_leave', (cs) => [() => cs.leaveParty()]],
+]);
 
 async function rules(M) {
   const fails = [];
@@ -1648,6 +1737,97 @@ async function rules(M) {
     }
     return true;
   });
+  /* REFUSE-A20 (the full-game sweep's A20, two tabs, one sell at the same instant): the tab whose sell the engine refused kept
+     showing 39 Goblin Totems and the old gold after "Not enough Goblin Totem left". The engine's refusal carries the whole
+     character (supabase/functions/hr-accrue/envelope.js refusalBody; envelope.js E7): it IS the record, with no read on top. A
+     Postgres verb's refusal carries none: the hero is re-read ONCE before the refusal is said. A dropped network reads nothing. */
+  await t('REFUSE-A20', async () => {
+    const bySlot = { 0: env(1, { inventory: { goblin_totem: 39 }, state: { gold: 100 } }) };
+    const srv = fakeServer(bySlot);
+    const base = srv.rpc;
+    const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: fakeHub().channel, ...timers });
+    await cs.load();
+    const loads = () => srv.calls.filter((c) => c[0] === 'hr_load').length;
+    const shows = () => JSON.stringify([cs.read('inventory'), (cs.read('state') || {}).gold]);
+    /* the other tab sold the stack first: the server holds none, and the gold it paid */
+    bySlot[0] = env(2, { inventory: {}, state: { gold: 4000 } });
+    srv.accrue = async (body) => {
+      srv.calls.push(['accrue', body]);
+      return { ok: false, status: 409, closed: false, error: 'http_409',
+        body: Object.assign({}, bySlot[0], { ok: false, verb: 'vendor_sell_many', error: 'insufficient_qty', detail: { item_id: 'goblin_totem' } }) };
+    };
+    let l0 = loads();
+    const sold = await cs.edgeIntent('vendor_sell_many', { lines: [{ item: 'goblin_totem', qty: 39 }] });
+    if (sold.ok || sold.error !== 'insufficient_qty' || sold.item !== 'goblin_totem') return 'the refused sell answered ' + JSON.stringify(sold);
+    if (shows() !== '[{},4000]') return 'after the refused sell the tab shows ' + shows() + ' (the server holds [{},4000])';
+    if (loads() !== l0) return 'a refusal that carried the whole character was read again (' + (loads() - l0) + ' hr_load)';
+    /* a Postgres verb's refusal ({ ok:false } at 200, no envelope): ONE re-read, before it resolves */
+    bySlot[0] = env(3, { inventory: {}, state: { gold: 3000 } });
+    srv.rpc = async (name, args) => (name === 'hr_item_lock' ? (srv.calls.push([name, args]), { ok: true, status: 200, closed: false, body: { ok: false, error: 'no_item' } }) : base(name, args));
+    l0 = loads();
+    const locked = await cs.lockItem('goblin_totem', true);
+    if (locked.ok || locked.error !== 'no_item') return 'the refused lock answered ' + JSON.stringify(locked);
+    if (loads() - l0 !== 1 || shows() !== '[{},3000]') return 'a refused verb sent ' + (loads() - l0) + ' re-read(s) and the tab shows ' + shows() + ' (want 1, [{},3000])';
+    /* no answer, no news: a dropped network and a rate limit read nothing */
+    for (const ans of [{ ok: false, status: 0, closed: false, error: 'network' },
+      { ok: true, status: 200, closed: false, body: { ok: false, error: 'rate_limited' } }]) {
+      srv.rpc = async (name, args) => (name === 'hr_item_lock' ? (srv.calls.push([name, args]), ans) : base(name, args));
+      l0 = loads();
+      await cs.lockItem('goblin_totem', false);
+      if (loads() !== l0) return 'a ' + (ans.error || ans.body.error) + ' answer was read as a refusal (' + (loads() - l0) + ' hr_load)';
+    }
+    return true;
+  });
+  /* REFUSE-ASKVIA (A20, the class): every module intent sent through askVia for a hero holds the ONE rule of a refused ask
+     (quoted-ask.js afterRefusal). ASKVIA_SITES names every askVia call site in src/session and src/social: `rule` sites are driven
+     below (a refusal the server answered re-reads the hero ONCE and the screen is the server's; a dropped network and a rate limit
+     read nothing); a `read` is a read (its refusal is no news); `account` asks have no hero to re-read; `own` sites keep their
+     module's own refusal handling until they move onto the rule. A call site in no row turns this red until it is classified. */
+  await t('REFUSE-ASKVIA', async () => {
+    const strip = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"\\])\/\/.*$/gm, '$1');
+    const sites = {};
+    for (const dir of ['src/session', 'src/social']) {
+      for (const f of readdirSync(join(M.BASE, dir)).filter((x) => x.endsWith('.js') && x !== 'intent-ledger.js')) {
+        const n = (strip(readFileSync(join(M.BASE, dir, f), 'utf8')).match(/\baskVia\(/g) || []).length;
+        if (n) sites[dir + '/' + f] = n;
+      }
+    }
+    const want = Object.fromEntries(Object.entries(ASKVIA_SITES).map(([f, c]) => [f, Object.values(c).reduce((a, b) => a + (Number.isInteger(b) ? b : 0), 0)]));
+    const odd = [...new Set([...Object.keys(sites), ...Object.keys(want)])].filter((f) => sites[f] !== want[f]).map((f) => f + ': ' + (sites[f] || 0) + ' site(s), the table ' + (want[f] || 0));
+    if (odd.length) return 'askVia call sites the table does not classify: ' + odd.join('; ');
+    const driven = {};
+    for (const [file, fn, rpc, args] of ASKVIA_RULE_CALLS) {
+      (driven[file] = driven[file] || new Set()).add(rpc);
+      const mod = await import(pathToFileURL(join(M.BASE, file)).href);
+      const bySlot = { 0: env(1, { inventory: { cooked_shrimp: 9 }, state: { gold: 100 } }) };
+      const srv = fakeServer(bySlot);
+      const base = srv.rpc;
+      let reply = null;
+      srv.rpc = async (name, a) => (name === rpc ? (srv.calls.push([name, a]), reply) : base(name, a));
+      const cs = new C.CharacterSession({ slot: 0, uid: UID, server: srv, channel: fakeHub().channel, ...timers });
+      await cs.load();
+      const account = { server: srv, characters: () => [cs], character: () => cs };
+      const loads = () => srv.calls.filter((c) => c[0] === 'hr_load').length;
+      const sent = () => srv.calls.filter((c) => c[0] === rpc).length;
+      /* another tab moved the hero: the server's record is newer than the one the press was sent from */
+      bySlot[0] = env(2, { inventory: {}, state: { gold: 40 } });
+      reply = { ok: true, status: 200, closed: false, body: { ok: false, error: 'stale_here' } };
+      let l0 = loads(), s0 = sent();
+      const argsOf = () => (typeof args === 'function' ? args(cs) : args);
+      const r = await mod[fn](account, cs, ...argsOf());
+      if (sent() !== s0 + 1) return file + ' ' + fn + ' never sent ' + rpc + ' (HARNESS: its arguments are refused before the ask)';
+      if (!r || r.ok !== false || loads() - l0 !== 1 || cs.record.version !== 2) {
+        return file + ' ' + fn + ': a refused ' + rpc + ' sent ' + (loads() - l0) + ' re-read(s) and left the record at version ' + cs.record.version + ' (want 1 and the server\'s 2)';
+      }
+      for (const ans of [{ ok: false, status: 0, closed: false, error: 'network' }, { ok: true, status: 200, closed: false, body: { ok: false, error: 'rate_limited' } }]) {
+        reply = ans; l0 = loads(); s0 = sent();
+        await mod[fn](account, cs, ...argsOf());
+        if (sent() !== s0 + 1 || loads() !== l0) return file + ' ' + fn + ': a ' + (ans.error || ans.body.error) + ' answer was read as a refusal (' + (loads() - l0) + ' hr_load)';
+      }
+    }
+    const short = Object.entries(ASKVIA_SITES).filter(([f, c]) => c.rule && (driven[f] ? driven[f].size : 0) !== c.rule);
+    return !short.length || 'rule sites the rule calls do not drive: ' + short.map(([f, c]) => f + ' ' + (driven[f] ? driven[f].size : 0) + ' of ' + c.rule).join('; ');
+  });
   /* ONE ACCOUNT DEPOT on a fake server (hr_bank_move / hr_state_of keep one for every slot): each envelope states it
      with the server's clock (`now`, hr_state_of's transaction instant); `spend` is a town skill on some hero drawing
      on it (2027-01-24-skills-from-storage.sql); `loads(slot)` counts the full reads sent. */
@@ -2442,10 +2622,28 @@ async function viewRules(base) {
 /* ── THE MUTANTS: each must turn at least one rule red. ── */
 const MUTANTS = [
   ['a refused priced press leaves the stale quote on screen (lane/a-quote-changed)', 'src/session/quoted-ask.js', 'if (refusedByServer(ans) && cs', 'if (false && cs'],
-  ['the stamina refill keeps its quote after quote_changed (lane/a-quote-changed)', 'src/session/character-session.js',
-    "this._ask('stamina_refill', quoted(this, () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() })));",
-    "this._ask('stamina_refill', () => this._server.rpc('hr_stamina_refill', { p_slot: this.slot, p_price: quotedPrice, p_idem: newIdem() }));"],
-  ['a dropped network is read as a refusal (lane/a-quote-changed)', 'src/session/quoted-ask.js', '!!ans && ans.ok === true && !!ans.body', '!!ans'],
+  /* the full-game sweep's A20 (two tabs): every refusal of a hero's own ask (a sell, a move, a priced press) re-reads, in _settled */
+  ['a refusal of the hero\'s own ask leaves the screen behind the server (A20; lane/a-quote-changed)', 'src/session/character-session.js',
+    "    if (!(restated && this._take(restated, 'load'))) await afterRefusal(this, ans);\n", ''],
+  /* A20, the class: the one rule of a refused ask (quoted-ask.js afterRefusal) and the module sites that hold it (REFUSE-ASKVIA) */
+  ['a module ask reads twice on a refusal (the rule is ONE re-read)', 'src/session/quoted-ask.js',
+    "  if (refusedByServer(ans) && cs && cs.status !== 'closed' && typeof cs.resync === 'function') await cs.resync();\n",
+    "  if (refusedByServer(ans) && cs && cs.status !== 'closed' && typeof cs.resync === 'function') { await cs.resync(); await cs.load(); }\n"],
+  ['a refused farm press leaves the farm behind the server (A20)', 'src/session/farm-intents.js', '  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', ''],
+  ['a refused gift to the works leaves the purse behind the server (A20)', 'src/session/town-intents.js',
+    "    if (!(ans && ans.ok && b.ok === true)) {\n      await afterRefusal(cs, ans);\n      return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'town_works', project,",
+    "    if (!(ans && ans.ok && b.ok === true)) {\n      return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'town_works', project,"],
+  ['a refused after-hunt choice is not re-read (A20)', 'src/session/hunt-after-intents.js', '      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', ''],
+  ['a refused party press leaves the party behind the server (A20)', 'src/session/party-intents.js',
+    "  await afterRefusal(cs, ans);\n  return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', seats: seatsOf(b),",
+    "  return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', seats: seatsOf(b),"],
+  ['a refused training item open is not re-read (A20)', 'src/session/training-intents.js',
+    "{ await afterRefusal(cs, ans); return refused(ans, 'training_gear_open'); }", "return refused(ans, 'training_gear_open');"],
+  ['a refused faction press is not re-read (A20)', 'src/session/faction-intents.js', '      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', ''],
+  ['a new askVia call site goes unclassified (REFUSE-ASKVIA)', 'src/session/town-intents.js',
+    'export function readSinks(account, cs) {', "export const unclassifiedAsk = (account, cs) => askVia(cs, 'x', async () => ({ ok: true }));\nexport function readSinks(account, cs) {"],
+  ['a dropped network is read as a refusal (lane/a-quote-changed)', 'src/session/refusal.js',
+    "  return (ans.ok === true || ans.status === 409) && ans.body.error !== 'rate_limited';", "  return ans.body.error !== 'rate_limited';"],
   ['a refused training start keeps the stale fee (lane/a-quote-changed)', 'src/session/training-intents.js',
     "await quoted(cs, () => account.server.rpc('hr_training_start', { p_slot: cs.slot, p_skill: skill, p_where: where, p_fee_seen: feeSeen, p_idem: newIdem() }))();",
     "await account.server.rpc('hr_training_start', { p_slot: cs.slot, p_skill: skill, p_where: where, p_fee_seen: feeSeen, p_idem: newIdem() });"],
@@ -2614,7 +2812,8 @@ const MUTANTS = [
   ['the Storage is the envelope\'s own copy', 'src/session/item-sections.js', '  return acct && isObj(acct[key]) ? acct[key] : read(cs, key);', '  return read(cs, key);'],
   ['the Storage is the last answer, not the newest', 'src/session/account-session.js', '    if (this._storage && next.at < this._storage.at) return;\n', ''],
   ['two heroes re-render each other forever', 'src/session/account-session.js', '    if (!next || this._seenBanks.has(next.bank)) return;', '    if (!next) return;'],
-  ['a refused move keeps the stale window', 'src/session/character-session.js', "      if (!r.ok && r.error !== 'closed') await this.resync();", ''],
+  ['a refusal that carries the whole character is thrown away and read again (envelope.js E7, A20)', 'src/session/character-session.js',
+    "if (!(restated && this._take(restated, 'load'))) await afterRefusal(this, ans);", 'await afterRefusal(this, ans);'],
   ['every refusal re-reads', 'src/session/read-gate.js', '    if (wait <= 0) return this._resyncNow();', '    return this._resyncNow();'],
   ['every read is sent on its own', 'src/session/read-gate.js', '    if (!this._out) return this._send();', '    return this._send();'],
   ['a farm action never tells the account', 'src/session/farm-intents.js', "    if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);\n", ''],

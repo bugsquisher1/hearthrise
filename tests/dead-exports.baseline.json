@@ -67,7 +67,6 @@
     "src/data/recipes.js recipeCategory",
     "src/data/scaled-hunts.js priceFor",
     "src/data/settings.js validateSettings",
-    "src/data/shops.js DERIVED_PRICES",
     "src/data/special-attributes.js SPECIAL_ATTRIBUTES",
     "src/data/special-attributes.js SPECIAL_TIERS",
     "src/data/stamina-refill.js refillPrice",

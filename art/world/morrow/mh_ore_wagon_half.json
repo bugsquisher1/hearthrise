@@ -1,0 +1,70 @@
+{
+  "id": "mh_ore_wagon_half",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_ore_wagon_half.png",
+  "frame": [
+    64,
+    47
+  ],
+  "anchor_px": [
+    32,
+    46
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text) on its base prop",
+    "image": "5a45faa8-1d9d-58cd-ad36-1b53f78f8060",
+    "job": "3b05da8f"
+  },
+  "notes": "The ore wagon half unloaded: its back emptied onto the road, a low heap left at its front, lumps dropped by its back wheel (an edit of mh_ore_wagon). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+}

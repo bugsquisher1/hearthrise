@@ -1,0 +1,70 @@
+{
+  "id": "mh_ore_wagon_broken",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_ore_wagon_broken.png",
+  "frame": [
+    64,
+    48
+  ],
+  "anchor_px": [
+    32,
+    47
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text) on its base prop",
+    "image": "f84eca75-9378-58cb-abb6-68738da1b75a",
+    "job": "03ca1845"
+  },
+  "notes": "The ore wagon broken down: its front near wheel off and lying flat, the box sunk onto its broken axle, ore spilled over the low corner (an edit of mh_ore_wagon). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+}

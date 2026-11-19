@@ -69,7 +69,18 @@ export default Object.freeze({
   "faces": [],
   "objects": [
     {"id":"cw_coal_seam","x":29,"y":8},
-    {"id":"cw_coal_seam","x":35,"y":14}
+    {"id":"cw_coal_seam","x":35,"y":14},
+    {"id":"mh_yoked_dead","x":11,"y":22},
+    {"id":"mh_ore_wagon","x":13,"y":22},
+    {"id":"mh_yoked_dead","x":17,"y":22},
+    {"id":"mh_ore_wagon_half","x":19,"y":22},
+    {"id":"mh_yoked_dead","x":24,"y":22},
+    {"id":"mh_ore_wagon_broken","x":26,"y":22},
+    {"id":"mh_yoked_dead","x":34,"y":22},
+    {"id":"mh_ore_wagon","x":36,"y":22},
+    {"id":"mh_yoked_dead","x":7,"y":25},
+    {"id":"mh_ore_wagon_half","x":9,"y":25},
+    {"id":"mh_ore_wagon_tipped","x":39,"y":27}
   ],
   "buildings": [],
   "path": [[1,20],[3,20],[3,22],[1,22]],
@@ -77,5 +88,5 @@ export default Object.freeze({
   "stations": {},
   "exits": [{"x":0,"y":21,"to":"town_common"}],
   "start": [1,21],
-  "maskHash": "40e3a8f2"
+  "maskHash": "77a72958"
 });

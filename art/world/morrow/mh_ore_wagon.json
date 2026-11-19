@@ -1,0 +1,71 @@
+{
+  "id": "mh_ore_wagon",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_ore_wagon.png",
+  "frame": [
+    64,
+    47
+  ],
+  "anchor_px": [
+    32,
+    46
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text) from a free sketch",
+    "image": "c82c9cc1-55e3-5866-93ab-0d4329a4551e",
+    "job": "966f892e",
+    "sketch": "art/review/morrow-kit/ox-props/wagon-sketch.png"
+  },
+  "notes": "An ore wagon of the last train out of Morrow, laden with Dawnstone, facing west (.scratch/kit/ox-props-sketch.mjs). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+}

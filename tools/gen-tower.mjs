@@ -233,7 +233,8 @@ function selftest() {
   bites('a floor that pays nothing', 'not a whole XP of 1 or more', { xpMax: (f) => (f === 3 ? 0 : towerXpMax(f)) });
   /* THE RUN GROUNDS (lane/c-catacombs): one bound table serves every run, and every wing is a whole row */
   const W = Object.values(RUN_GROUNDS).find((r) => r.wing !== null);
-  bites('a wing whose rooms pay off the Tower\'s bound', 'room 40 pays 3061, the Tower', { xpMax: (f, run) => (run && run.wing && f === 40 ? towerXpMax(f) + 1 : towerXpMax(f, run)) });
+  /* the bound the wing's room 40 reads, from the formula (3061 until monsters a little harder, 2026-11-19), so a re-tuned XP dial needs no hand edit here */
+  bites('a wing whose rooms pay off the Tower\'s bound', 'room 40 pays ' + (towerXpMax(40) + 1) + ', the Tower', { xpMax: (f, run) => (run && run.wing && f === 40 ? towerXpMax(f) + 1 : towerXpMax(f, run)) });
   bites('a wing with its own top room', 'is not the Tower\'s', { runs: { ...RUN_GROUNDS, [W.hunt]: { ...W, floorTop: 200 } } });
   bites('a wing with no Keeper beside its roster', 'are not all set or all null', { runs: { ...RUN_GROUNDS, [W.hunt]: { ...W, keeper: null } } });
   bites('a wing whose party board is its solo board', 'board and boardParty', { runs: { ...RUN_GROUNDS, [W.hunt]: { ...W, boardParty: W.board } } });

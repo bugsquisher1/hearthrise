@@ -43,6 +43,7 @@ import { trainingNowOf } from '../training-now.js?v=0.2.140';
 import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.140';
 import { skillBarHtml, patchSkillProgress } from '../windows/skills.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
+import { LIVE_EVENTS } from '../../data/live-events.js?v=0.2.140';
 
 /* A TRAINING SESSION (../training-now.js; lane/a-training-display): it showed "Monsters killed 0, Level XP 0, Gold 0". While one runs the
    panel shows the trained skill's level and its progress (the server's skill_levels), its XP an hour, the hour's fee and the gold paid
@@ -82,10 +83,15 @@ const TABS = Object.freeze([['session', t('hud.an_tab_session')], ['training', t
 const PREMIUM_STATS = new Set(['totals.waste', 'rates.rawLevelXp', 'rates.waste', 'rates.balance']);
 const premiumTab = (tab) => tab !== 'session';
 
+/* THE LEVEL XP A LIVE EVENT ADDED (the session's tally xp_event, hunt-sections.js analyzerFrom): its own row under Level XP, named by the
+   XP event's own words (src/data/live-events.js `analyzer`: "Weekend bonus"), shown only when the server counted some (§6: the browser
+   never hides what the server counted; local world 2026-11-18, the weekend's 1,230 Level XP read nowhere). */
+const EVENT_XP_LABEL = Object.values(LIVE_EVENTS).map((e) => (e.type === 'xp_bonus' ? /** @type {{ analyzer?: string }} */ (e.words).analyzer : '')).find(Boolean) || '';
+
 /* Each section: its tab, its title and its body (a fixed list of stat rows, or a keyed list). A stat row is
    [key, label, format, from?]: v[key], or v[from][key]; its node is data-stat="key" (from-prefixed: "perHour.key"). */
 const SECTIONS = Object.freeze([
-  { id: 'totals', tab: 'session', title: t('hud.an_sec_totals'), stats: [['kills', t('hud.an_kills'), whole], ['levelXp', t('hud.an_level_xp'), whole], ['gold', t('hud.an_gold'), gold], ['lootValue', t('hud.an_loot_value'), gold], ['waste', t('hud.an_supplies_cost'), gold], ['balance', t('hud.an_balance'), gold]] },
+  { id: 'totals', tab: 'session', title: t('hud.an_sec_totals'), stats: [['kills', t('hud.an_kills'), whole], ['levelXp', t('hud.an_level_xp'), whole], ...(EVENT_XP_LABEL ? [['eventXp', EVENT_XP_LABEL, whole]] : []), ['gold', t('hud.an_gold'), gold], ['lootValue', t('hud.an_loot_value'), gold], ['waste', t('hud.an_supplies_cost'), gold], ['balance', t('hud.an_balance'), gold]] },
   { id: 'rates', tab: 'session', title: t('hud.an_sec_rates'), stats: [['levelXp', t('hud.an_level_xp_h'), whole, 'perHour'], ['rawLevelXp', t('hud.an_raw_xp_h'), whole, 'perHour'], ['goldAndLoot', t('hud.an_gold_loot_h'), gold, 'perHour'], ['waste', t('hud.an_supplies_h'), gold, 'perHour'], ['balance', t('hud.an_balance_h'), gold, 'perHour']] },
   { id: 'supplies', tab: 'session', title: t('hud.an_sec_supplies'), list: 'supplies' },
   { id: 'loot', tab: 'session', title: t('hud.an_sec_loot'), list: 'loot' },
@@ -167,6 +173,8 @@ function patchView(root, v, ctx, premium) {
         const dd = sec.querySelector('[data-stat="' + statId(k, from) + '"]');
         text(dd, !premium && PREMIUM_STATS.has(s.id + '.' + k) ? '' : fmt(from ? v[from][k] : v[k]));
         if (k === 'balance') cls(dd, 'is-loss', (from ? v[from][k] : v[k]) < 0);
+        /* the event's row stands only while the server counted an event's part (the party's view has none) */
+        if (k === 'eventXp') { const off = !(v.eventXp > 0); prop(dd, 'hidden', off); prop(dd.previousElementSibling, 'hidden', off); }
       }
       if (s.id === 'rates') { prop(sec.querySelector('.ha-stats'), 'hidden', !v.rated); prop(sec.querySelector('.ha-later'), 'hidden', v.rated); }
     } else if (s.list === 'training') {

@@ -781,6 +781,8 @@
     "node tools/mutant-gate.mjs node tools/gen-live-events.mjs --selftest": "db-replay-11",
     "node tests/live-events.mjs": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/live-events.mjs --mutate": "db-replay-11",
+    "node tests/arm-switches.mjs": "db-replay-11",
+    "node tools/mutant-gate.mjs node tests/arm-switches.mjs --mutate": "db-replay-11",
     "node tests/area-spells-server.mjs": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/area-spells-server.mjs --mutate": "db-replay-11",
     "node tools/mutant-gate.mjs node tests/hero-slot-buy.mjs --selftest": "db-replay-11",

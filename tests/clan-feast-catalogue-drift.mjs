@@ -158,7 +158,7 @@ async function selftest() {
   /* The newest seed is DERIVED (the last file in apply order that seeds hr_feast_foods), never typed: it was
      2026-09-13-reed-and-tide.sql until the core rebuild's catalogue (2026-10-27-core-catalogue.generated.sql)
      re-seeded every heal, and a typed name kept mutating a file the fold had already overridden. */
-  const order = JSON.parse(await readFile(ORDER, 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const seeders = [];
   for (const f of order) {
     let t; try { t = await readFile(join(MIG_DIR, f), 'utf8'); } catch { continue; }

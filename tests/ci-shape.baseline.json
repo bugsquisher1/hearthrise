@@ -630,6 +630,7 @@
     "node tests/mutant-anchors.mjs": "client-guards",
     "node tests/hunt-screen.mjs --shard-plan": "client-guards",
     "node tests/alpha-windows.mjs --shard-plan": "client-guards",
+    "node tools/mutant-gate.mjs node tools/mutant-times.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tests/_mutant-verdict.mjs --selftest": "client-guards",
     "node tests/_mutant-verdict.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tools/mutant-gate.mjs --selftest": "client-guards",

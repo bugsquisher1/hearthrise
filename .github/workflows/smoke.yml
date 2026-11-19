@@ -7175,6 +7175,12 @@ jobs:
       # (tests/alpha-windows.mutant-times.json); the same four planted defects caught. No browser, ~1 s.
       - name: Alpha windows shard plan — every mutant in exactly one shard, every shard in budget
         run: node tests/alpha-windows.mjs --shard-plan
+      # THE TIMES THE PLANS BOOK ARE MEASURED (set/v0.2.141: 63 new mutants unmeasured put all 27 alpha-windows shards
+      # over budget). tools/mutant-times.mjs writes a guard's mutant-times.json from GitHub runs' logs (or a local
+      # run); its --selftest proves the method on a planted log: verdict to verdict, under a second books 1, an escape
+      # books nothing, the longer of two, only the unmeasured added. 4 planted defects. No browser, no network.
+      - name: Mutant times — the shard plans' seconds are read off real runs
+        run: node tools/mutant-gate.mjs node tools/mutant-times.mjs --selftest
 
       # CATCH BY RULE (2026-10-22). alpha-windows' AW-8 click threw, its catch-all
       # filed "AW-x a step failed", and the --mutate loop counted every later

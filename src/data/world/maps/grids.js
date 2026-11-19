@@ -27,12 +27,11 @@ import { GROUND_PACKS } from '../../grounds/index.js?v=0.2.140';
 
 const terrain = (id, rows, legend) => Object.freeze({ id, rows, legend });
 
-const GRIDS = new Map([
-  ...[millCellar, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, burningTower,
-    ...GROUND_PACKS.map((p) => p.map)].map((m) => [m.id, terrain(m.id, m.rows, m.legend)]),
-  /* Havora is built from ../town/*.js; its terrain is the ground's rows and legend alone. */
-  [TOWN_MAP, terrain(TOWN_MAP, GROUND_ROWS, GROUND_LEGEND)],
-]);
+const GRIDS = new Map();
+for (const m of [millCellar, homeCottage, millraceSewer, meadowbrookThicket, coppercapWarrens, mosslightGlade, wickstead, burningTower,
+  ...GROUND_PACKS.map((p) => p.map)]) GRIDS.set(m.id, terrain(m.id, m.rows, m.legend));
+/* Havora is built from ../town/*.js; its terrain is the ground's rows and legend alone. */
+GRIDS.set(TOWN_MAP, terrain(TOWN_MAP, GROUND_ROWS, GROUND_LEGEND));
 
 /** The terrain { id, rows, legend } of map `id` when a hunt can be fought on it, or null: the engine's grid reader. */
 export function gridMapOf(id) {

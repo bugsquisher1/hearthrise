@@ -1,0 +1,13 @@
+{
+  "tool": "create_character",
+  "mode": "v3",
+  "reference": "art/world-src/gen-2026-11-18/faction-outfits/ek-south-pass.png (r1/ek-s23, an edit_image_pro_flash of the shipped Knight's south still, locked to the port's ramps, then a hand pass: the hood's spike cut to a rounded top and the sword's three pale pixels painted charcoal, ek-handpass.json)",
+  "groups": {
+    "walk": "484fa8c9-f569-4cee-a672-d33c968e97c4 (template walking-6-frames)",
+    "idle": "aa21f6d4-3a89-4690-b8dd-6a55bd4b1e7e (its smoke and sparks cleared by rule; frames with a raised arm removed before the pick)",
+    "hit_s": "0f16fc61-8bd7-42c0-a99b-f8de826e9ab3",
+    "hit_ew": "2c33f483-1134-461e-8d63-ae5a78837b11; north refused: that roll and skeleton-v3 taking-punch b656e294"
+  },
+  "generations": 40,
+  "note": "art/world-src/gen-2026-11-18/faction-outfits/note.json"
+}

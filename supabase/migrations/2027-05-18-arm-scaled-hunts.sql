@@ -57,7 +57,9 @@ begin
   if strpos(pg_get_functiondef('public.hr_hunt_best_fold(uuid)'::regprocedure), 'SCALED-BEST (2027-05-17-scaled-best.sql)') = 0 then
     raise exception 'PRECONDITION: a scaled run must set no best first: apply 2027-05-17-scaled-best.sql'; end if;
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_scaled_kill_bounds' and column_name = 'loot_pm')
-     or strpos(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), 'SCALED-LOOT (2027-05-17-scaled-loot.sql)') = 0 then
+     -- the body's source text (pg_proc.prosrc): a READ, so tests/alpha-server.mjs staleAnchors never takes this file for one of the member's authors
+     or strpos((select p.prosrc from pg_proc p where p.oid = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure),
+               'SCALED-LOOT (2027-05-17-scaled-loot.sql)') = 0 then
     raise exception 'PRECONDITION: loot must scale first: apply 2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql and 2027-05-17-scaled-loot.sql'; end if;
 end $mig$;
 

@@ -343,7 +343,7 @@ const mutants = [
     edits: [['src/data/balance-sheet.js', 'mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1450 }) }),',
       'mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1000 }) }),']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
-    edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
+    edits: [['supabase/functions/hr-accrue/accrue-hunt.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
     edits: [['src/data/hunt-grounds.js', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = Array.isArray(ground && ground.densityMax) ? ground.densityMax[n - 1] : DENSITY_FULL_BOX;', 'const n = Math.min(MAX_HEROES, Math.max(1, Math.floor(Number(partySize) || 1)));\n  const max = 1;']] },
   { name: 'a cape reads nothing on the hook, so it does nothing in a fight', case: 'cape-cut', edits: [['src/core/mitigation.js', 'nat(eq && eq.steadyPm) + ', '']] },

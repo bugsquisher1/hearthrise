@@ -534,7 +534,7 @@ const MUTANTS = [
   /* THE DAILY PRIZE (lane/c-krell-daily) */
   { name: 'a hero who took it today rolls again', edits: [['src/core/hunt-rewards.js', '    if (m.prizeLeft !== true) return;\n', '']], want: /HL-DAILY/ },
   { name: 'his rows roll the shared way', edits: [['src/core/combat-sim.js', "...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ", '']], want: /HL-DAILY|HL-PAY/ },
-  { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrual.js', '              ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
+  { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', '              ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
   { name: 'a roll that lands nothing sends no claim', edits: [['src/core/hunt-rewards.js', '    m.hs.prizeRolled = true;\n', ''], ['src/core/hunt-rewards.js', '    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);', '    if (ev) { m.hs.prizeRolled = true; giveDrop(m, ids[i], ev, ctx, atMs); }']], want: /HL-DAILY/ },
   { name: 'the engine rolls a prize the read never offered', edits: [['src/core/member.js', '      prizeLeft: mi.prizeLeft === true,', '      prizeLeft: mi.prizeLeft !== false,']], want: /HL-DAILY/ },
   { name: 'Krell\'s unique pieces are off his prize roll', edits: [['src/data/grounds/krells_hold/pack.js', "          ...UNIQUES.map((id) => ({ id, ch: SPECIAL_SAMPLE[id].source.pm / 1000, band: 'rare' }))],", '          ],']], want: /HL-DAILY Krell's unique pieces read/ },
@@ -551,7 +551,7 @@ const MUTANTS = [
   { name: 'prize slices may make more than one roll', edits: [['tools/gen-hunt-sessions.mjs', '  if (sum > 1 + 1e-9) throw', '  if (false) throw']], want: /HL-ROW took prize slices/ },
   { name: 'Krell\'s rows are the old shared 3.5%', edits: [['src/data/grounds/krells_hold/pack.js', "({ id, ch: 0.4 / 14, band: 'rare', first: true }))", "({ id, ch: 0.035, band: 'rare', first: true }))"]], want: /HL-DAILY Krell/ },
   { name: 'the limit is a call\'s only', edits: [['src/core/combat-sim.js', '  if (room) {\n', '  if (call) {\n']], want: /HL-TIME|HL-DEATH/ },
-  { name: 'the record is a call\'s only', edits: [['supabase/functions/hr-accrue/accrual.js', '} else if (inp.ground.hall && Number.isInteger(summary.unitIdEver)) {', '} else if (false) {']], want: /HL-RECORD/ },
+  { name: 'the record is a call\'s only', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', '} else if (inp.ground.hall && Number.isInteger(summary.unitIdEver)) {', '} else if (false) {']], want: /HL-RECORD/ },
   { name: 'the hasted spell waits its whole cooldown', edits: [['src/core/hunt/boss-phases.js', '  return hastened(cdMs, h);\n}', '  return cdMs;\n}']], want: /HL-HASTE/ },
   { name: 'the crossing cuts no running wait', edits: [['src/core/hunt/boss-phases.js', '    hastenNow(t, ph);\n', '']], want: /HL-HASTE/ },
   { name: 'the crossing raises a short wait', edits: [['src/core/hunt/boss-phases.js', '  if (left > top) t.spellCds', '  if (left > 0) t.spellCds']], want: /HL-HASTE/ },

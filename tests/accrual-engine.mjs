@@ -67,6 +67,7 @@ import {
 } from '../supabase/functions/hr-accrue/accrual.js';
 import { parseIntent, readSlot, MAX_SLOT, INTENT_KEYS } from '../supabase/functions/hr-accrue/request.js';
 import { isMain } from './_is-main.mjs';
+import { engineSource } from './_accrual-engine.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FN_DIR = join(ROOT, 'supabase', 'functions', 'hr-accrue');
@@ -905,23 +906,24 @@ async function shapeGuard() {
     'SHAPE: accrued_to must be an ISO timestamp');
 
   // ── Source-level rules that no runtime test can see ──────────────────────
-  const engine = await readFile(join(FN_DIR, 'accrual.js'), 'utf8');
+  /* The whole engine: the door (accrual.js) and every piece it reaches (tests/_accrual-engine.mjs). */
+  const engine = engineSource(FN_DIR);
   const shell = await readFile(join(FN_DIR, 'index.ts'), 'utf8');
   const code = (src) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const engineCode = code(engine);
   const shellCode = code(shell);
 
   ok(!/\.\.\.\s*(inp|input|req|body|opts|ctx)\b/.test(engineCode),
-    'SOURCE: accrual.js spreads a caller object — minTickMs would ride in through the same door as tickMs');
+    'SOURCE: the accrual engine spreads a caller object — minTickMs would ride in through the same door as tickMs');
   /* Reading COMBAT_BALANCE.minTickMs is correct (it IS the floor); ASSIGNING
      `minTickMs:` into a ctx is the opt-in that would defeat the clamp. Match
      the assignment, not the identifier. */
   ok(!/\bminTickMs\s*:/.test(engineCode),
-    'SOURCE: accrual.js sets minTickMs in a ctx — the accrual path must use the real 600ms floor');
+    'SOURCE: the accrual engine sets minTickMs in a ctx — the accrual path must use the real 600ms floor');
   ok(!/\bMath\s*\.\s*random\s*\(/.test(engineCode) && !/\bMath\s*\.\s*random\s*\(/.test(shellCode),
     'SOURCE: Math.random() is banned server-side — accrual must be replayable');
   ok(!/\bDate\s*\.\s*now\s*\(\)/.test(engineCode),
-    'SOURCE: accrual.js reads a wall clock — atMs must come from now() in Postgres');
+    'SOURCE: the accrual engine reads a wall clock — atMs must come from now() in Postgres');
   ok(/service_role/.test(shellCode) === false,
     'SOURCE: index.ts references the service role — it bypasses RLS and holds every table privilege (defect S1)');
   ok(!/:5432\b/.test(shellCode),
@@ -1186,7 +1188,7 @@ async function shellGuard() {
      of names it reads is greppable and is the truth. Subtract the inputs that
      do NOT come from the envelope — each one named here with where it does
      come from — and what remains must be exactly what the map declares. */
-  const engineSrc = await readFile(join(FN_DIR, 'accrual.js'), 'utf8');
+  const engineSrc = engineSource(FN_DIR);
   const engineCode = engineSrc.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
   const read = new Set([...engineCode.matchAll(/\binp\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]));
   /* NOT FROM `hr_state_of`, each from a named other read or a server literal. */

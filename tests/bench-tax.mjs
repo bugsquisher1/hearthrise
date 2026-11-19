@@ -377,11 +377,11 @@ const JS_MUTANTS = [
     from: "        if (!c.tax || canPayNext(c.tax)) return false;", to: '        return false;' },
   { id: 'no_carry', arm: 'T-VIEWED', file: 'src/core/bench-tax.js', why: 'the carry is dropped: a fee under a gold is free however many crafts run',
     from: '  tax.carry = (tax.carry + tax.mg) % 1000;', to: '  tax.carry = 0;' },
-  { id: 'no_tax', arm: 'T-VIEWED', file: `${FN}/accrual.js`, why: 'the engine proposes no tax at all (hr_apply refuses it, owed, never free)',
+  { id: 'no_tax', arm: 'T-VIEWED', file: `${FN}/accrue-artisan.js`, why: 'the engine proposes no tax at all (hr_apply refuses it, owed, never free)',
     from: '  const tax = taxFor(inp.benchTax, inp.benchTax && inp.benchTax.now_mg, inp.gold);', to: '  const tax = null;' },
-  { id: 'runs_on', arm: 'T-GOLD', file: `${FN}/accrual.js`, why: 'a gold stop leaves the pointer on the bench',
+  { id: 'runs_on', arm: 'T-GOLD', file: `${FN}/accrue-artisan.js`, why: 'a gold stop leaves the pointer on the bench',
     from: '                || summary.stoppedBy === ARTISAN_STOP.GOLD\n', to: '' },
-  { id: 'purse_ignored', arm: 'T-GOLD', file: `${FN}/accrual.js`, why: 'the engine reads an endless purse',
+  { id: 'purse_ignored', arm: 'T-GOLD', file: `${FN}/accrue-artisan.js`, why: 'the engine reads an endless purse',
     from: 'inp.benchTax.now_mg, inp.gold);', to: 'inp.benchTax.now_mg, 1e12);' },
 ];
 /* On the migration: caught when its own §5 refuses the file, or by the arm on the chain it built. */

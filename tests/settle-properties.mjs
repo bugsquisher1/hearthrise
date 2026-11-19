@@ -632,7 +632,7 @@ export async function runDb(env, o) {
    finding, pinned) can never pass for a catch. */
 const SHRUNK = Object.freeze({ heroes: 2, cuts: 2 });
 const ENGINE_MUTANTS = [
-  { name: 'a settle drops the remainder: the watermark is the window end, not the next swing', file: 'supabase/functions/hr-accrue/accrual.js',
+  { name: 'a settle drops the remainder: the watermark is the window end, not the next swing', file: 'supabase/functions/hr-accrue/accrue-hunt.js',
     from: '    settledTo: sim.nextSwingAtMs,', to: '    settledTo: toMs,' },
   { name: 'an off-by-one window: the swing ON the window end is played in it', file: 'src/core/combat-sim.js',
     from: '  while (atMs < toMs && members.some((m) => !m.left)) {', to: '  while (atMs <= toMs && members.some((m) => !m.left)) {' },

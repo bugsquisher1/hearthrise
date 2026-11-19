@@ -2224,7 +2224,7 @@ const MUTANTS = [
   ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
-  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrual.js',
+  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrue-hunt.js',
     "import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';",
     "import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';", /^LV-O/],
   ['the browser refuses a stored world of another shape (LV-O)', 'src/hunt-view/live-engine.js',

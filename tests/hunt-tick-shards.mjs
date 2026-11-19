@@ -795,7 +795,7 @@ async function runArms(root, db, only) {
 const MUTANTS = [
   { arm: 'BUDGET', name: 'the hunt body ignores its time budget', file: join(FN, 'tick.js'),
     from: "      if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; continue; }\n", to: '' },
-  { arm: 'WORLD', name: 'accrueHunt commits a world past the bound', file: join(FN, 'accrual.js'),
+  { arm: 'WORLD', name: 'accrueHunt commits a world past the bound', file: join(FN, 'accrue-hunt.js'),
     from: '  if (world !== null && utf8Bytes(world) > maxBytes) {', to: '  if (false) {' },
   { arm: 'WORLD', name: 'the settle treats a refused world as nothing owed (no retry, answered nothing)', file: join(FN, 'hunt-settle.js'),
     from: '    if (!p.out.accrued && p.out.refused) {', to: '    if (false) {' },

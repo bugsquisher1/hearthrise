@@ -187,8 +187,14 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
     const g4 = { uniques: true, openAlso: OPEN4 }, kit = gl.kitOf('sword', 110, { ground: late, ...g4 });
     const cell = (gearOpts) => ({ cell: { ground: late, gear: gearOpts }, heroes: [{ style: 'sword', level: 110, kit: gl.kitOf('sword', 110, { ground: late, ...gearOpts }) }] });
     const plain = wornReport([cell(g4)], gl), what = wornReport([cell({ ...g4, chest: true })], gl);
-    check(!Object.values(kit).some((id) => gl.CHEST_IDS.has(id)) && /ground and boss drops only/.test(plain) && /\| [^|]+ for [^|]+ \(weapon\) \|$/m.test(plain),
-      'uniques: a sword at Carter\'s Rest 110 is graded in no chest piece, and the report prints the chest weapon it would swap in');
+    /* the what-if column of the sword's row lists every chest swap ("A for B (slot); C for D (slot)"): since the Catacombs' Platinum armor shipped
+       (set/v0.2.141) a helm swap follows the weapon's, so the row is read by its columns, not by how it ends */
+    const swaps = (report) => ((report.split('\n').find((l) => l.startsWith('| ' + late + ' / sword / 110 |')) || '').split('|')[3] || '').split(';').map((x) => x.trim());
+    const chestWeapons = [...gl.CHEST_IDS].filter((id) => gl.ITEMS[id] && gl.ITEMS[id].type === 'weapon').map((id) => gl.ITEMS[id].n);
+    check(!Object.values(kit).some((id) => gl.CHEST_IDS.has(id)) && /ground and boss drops only/.test(plain),
+      'uniques: a sword at Carter\'s Rest 110 is graded in no chest piece (row 1f: ground and boss drops only)');
+    check(swaps(plain).some((s) => / \(weapon\)$/.test(s) && chestWeapons.some((n) => s.startsWith(n + ' for '))),
+      'uniques: the report\'s what-if row names the chest weapon that sword would swap in (' + swaps(plain).join('; ') + ')');
     check(/--chest/.test(what) && Object.values(gl.kitOf('sword', 110, { ground: late, ...g4, chest: true })).some((id) => gl.CHEST_IDS.has(id)), 'uniques --chest: the same sword wears the chest weapon');
   }
 }

@@ -40,6 +40,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ITEMS, MONSTERS, AWAITING_ROSTER } from '../src/data/catalogue-coherence.js';
+import { HEARTH_CHEST_KEYS } from '../src/data/chests.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { MONSTER_SPELLS } from '../src/data/monster-spells.js';
@@ -96,6 +97,8 @@ function attributesOf(row) {
 }
 /* the shipped pieces a hero can wear past Dawnsteel, by slot and weight: tier 7 or more, not Dawnsteel itself, not awaiting a roster */
 const awaiting = new Set(AWAITING_ROSTER);
+/* every Hearth Chest armor piece (chests.js HEARTH_CHEST_KEYS: the Catacomb keys' helmets and boots) */
+const CHEST_ARMOR = new Set(HEARTH_CHEST_KEYS.flatMap((k) => Object.values(k.armor || {})));
 const { mods: MODS } = await loadArmorPower(ROOT);
 
 /** Every broken rule, as strings. Empty = sound. `open`: what importers() and homes() answer, the region grid (`grid`) and the monsters the
@@ -192,8 +195,11 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
      Dawnsteel piece of its slot (1.000) and every other piece of its slot and weight a hero of its Level can wear (the sample's and the
      shipped tier-7+ rows past Dawnsteel) */
   const ids = Object.keys(S).filter((id) => ITEMS[S[id].base]);
+  /* a Hearth Chest piece is no rival: the chest's pieces are the all-rounders and a unique is best in its own case (plan §3, the sidegrade rule),
+     and the grade wears ground and boss drops only (the designer 2026-11-18 row 1f). WL4 never read the Tower's weapons either. Without this the
+     Catacombs' Platinum Vault-Cutter's Helm (Dawnsteel's helm + 3 Melee, a chest piece) out-won the Watchman's Helm (set/v0.2.141) */
   const shipped = Object.entries(ITEMS).filter(([iid, it]) => it && it.type === 'armor' && B[it.armourClass] && Number(it.tier) >= 7 && !awaiting.has(iid)
-    && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
+    && !CHEST_ARMOR.has(iid) && !Object.values(B).some((b) => Object.values(b.ids).includes(iid)));
   for (const id of ids) {
     const s = S[id], R = s.row.reqLv, H = P.huntedAt(R, G);
     const rivals = ids.filter((o) => o !== id && S[o].row.slot === s.row.slot && S[o].row.armourClass === s.row.armourClass && S[o].row.reqLv <= R).map((o) => S[o].row)
@@ -246,9 +252,14 @@ const MUTANTS = [
   ['a common drop', 'AL7', (L) => { L.LINE_SAMPLE.paupers_shroud.source.ch = 0.08; }],
   ['three armor slots off one monster', 'AL7', (L) => { L.LINE_SAMPLE.haulers_jerkin.source.monster = 'shrouded_pauper'; L.LINE_SAMPLE.haulers_jerkin.source.ch = 0.0007; }],
   /* row 1b: the grid wins */
-  ['the Breastplate back on the Roost (boots plate, legs leather, helmet cloth: the 11-16 placement)', 'AL7', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.source = { place: 'wyvern_roost', monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }; }],
+  ['the Breastplate back on the Roost (boots plate, legs plate, helmet cloth: the 11-16 placement)', 'AL7', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.source = { place: 'wyvern_roost', monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }; }],
+  /* row 2: the legs cells swapped, so the plate legs are the Roost's and the Roost Mother's are leather */
+  ['the Leg Plates on the Roost Mother again (her legs cell is leather since row 2)', 'AL7', (L) => { L.LINE_SAMPLE.burnt_crag_leg_plates.source = { place: 'roost_mother', planned: true, how: 'rare' }; }],
   ['a piece on a place not built names a monster as if it were', 'AL7', (L) => { L.LINE_SAMPLE.outriders_visor.source = { place: 'old_guard', planned: true, monster: 'ledge_wyvern', how: 'rare' }; }],
-  ['the Roost Mother is built and her legs still say planned', 'AL7', (L, A, o) => { o.monsters = { ...MONSTERS, roost_mother: { ...MONSTERS.brood_wyvern, boss: true } }; }],
+  /* her one cell a sample could fill is legs leather: a leather piece planted there, then the Roost Mother made a monster */
+  ['the Roost Mother is built and a piece of hers still says planned', 'AL7', (L, A, o) => {
+    const s = L.LINE_SAMPLE.haulers_jerkin; s.row = { ...s.row, slot: 'pants', reqLv: 125 }; s.source = { place: 'roost_mother', planned: true, how: 'rare' };
+    o.monsters = { ...MONSTERS, roost_mother: { ...MONSTERS.brood_wyvern, boss: true } }; }],
   ['frost resistance where nothing casts ice', 'AL8', (L) => { const s = L.LINE_SAMPLE.burnt_crag_leg_plates; s.row.resistPm = { frost: 100 }; s.attr = ['resist_element', 'frost']; }],
   ['a resistance on a place not built (no spells to read)', 'AL8', (L) => { const s = L.LINE_SAMPLE.outriders_visor; s.row.resistPm = { ember: 100 }; s.attr = ['resist_element', 'ember']; }],
   ['a banned word', 'AL9', (L) => { L.LINE_SAMPLE.paupers_shroud.text = 'You take 10% less ice damage. Woven in the Void.'; }],

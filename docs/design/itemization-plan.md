@@ -134,7 +134,7 @@ Rules: one property a piece (two only on late chest pieces). A new kind needs it
 | Kind | What it is | Best where |
 |---|---|---|
 | Chest weapon | The plain numbers of the next step up, plus +1 to +4 of its skill. Built in lane/d-defense-tower: +3 to +10% at its own Level, 1.00 to 1.03 times the next tier's drop | Everywhere a little. The best all-rounder |
-| Boss or ground unique | Its own stat mix inside the band's budget, never the line's own numbers (the line is a ceiling, not a template: Tyler 11-16, tests/weapon-line.mjs and armor-line.mjs WL4/AL4), no skill bonus, plus one property from the catalogue. Krell's tier-7 pieces follow the same rule (designer 2026-11-18) | Clearly best in the case its property is for. Slightly behind elsewhere |
+| Boss or ground unique | Past tier 7 (worn from past 110): its own stat mix inside the band's budget, never the line's own numbers (the line is a ceiling, not a template: Tyler 11-16, tests/weapon-line.mjs and armor-line.mjs WL4/AL4), no skill bonus, plus one property from the catalogue. At tier 7 and below: the standard piece of its slot and tier plus one attribute (Tyler 11-14, special-attribute gear; the Banded Legguards, and Krell's five, follow it; tests/special-attributes.mjs SA2) | Clearly best in the case its property is for. Slightly behind elsewhere |
 
 Krell's weapons become the first of these. Sample of five (proposed, unmeasured):
 
@@ -792,8 +792,8 @@ The template was wrong: two weapons a ground gives 12, and two appearances per f
 | Carter's Rest | Legs plate, gloves leather (Slater's Mitts), boots cloth (Carter's Boots), shield (Stable Door) |
 | The Ox Road | Helmet plate, body leather, legs cloth, spellbook |
 | The Night Shift | Body plate, boots leather, gloves cloth, gloves plate |
-| Wyvern Roost | Boots plate, legs leather, helmet cloth |
-| The Roost Mother | Helmet leather (Eggshell Cap), legs plate (Roost Mother's Hide), body cloth |
+| Wyvern Roost | Boots plate, legs plate (Burnt Crag Leg Plates, fire: the Roost's wall answer), helmet cloth |
+| The Roost Mother | Helmet leather (Eggshell Cap), legs leather (Roost Mother's Hide), body cloth |
 | The Old Guard | Helmet plate, boots leather, body cloth, spellbook |
 | The Bellows | Body plate, helmet leather, legs cloth, shield |
 | Father Gault | Gloves cloth (Furnace Mitts), boots plate, body leather, legs leather |

@@ -9,16 +9,17 @@
 -- balance ruling 2026-10-25 §2: L10 6 h, L25 36 h, L50 168 h ... L1000 23,520 h of
 -- efficient hunting, held on the real engine by tools/balance-sim): from a bracket's
 -- start Level the step to the next Level costs first + rise x m + bend x m^2 (m Levels
--- into the bracket). hr_level_curve holds 12 rows, rewritten whole. ROWS ONLY: the two
+-- into the bracket). hr_level_curve holds 13 rows, rewritten whole. ROWS ONLY: the two
 -- curve functions read this table and are not restated (hr_char_xp_for_level is LANGUAGE
 -- plpgsql since 2027-02-11-settle-plan-cache-2.generated.sql: a SQL copy is re-planned on
 -- every call on PostgreSQL 17), so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
--- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the Cellar ends at Level 5, so Level 6 -> 7
--- took 2.01x Level 5 -> 6 (level-curve C6). Steps 6 / 7 / 8 re-split to 12,500 / 25,300 / 68,440 XP
--- (were 12,870 / 26,255 / 67,115): the same total to Level 9, so every Level from 9 costs what it
--- did. Level 10 at 198367 XP, Level 50 at 17032267. Only the thresholds of Levels 7 and 8 fall
--- (370 and 1,325 XP); no live hero stood in either gap (read 2026-11-19). LIVE CHARACTERS: nothing is stored per Level, so a
+-- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the Cellar ends at Level 5 and a kill pays 12%
+-- less (balance-sheet.js STAT_FORMULA), so the early steps read 2.01-2.11x the one before (level-curve
+-- C6). Steps 2 to 8 re-split to about 1.95x each, the total to Level 9 held, so every Level from 9
+-- costs what it did; a new bracket at Level 110 and the one at 300 re-fit to the re-pinned contract
+-- (no hero past 110). Level 10 at 198367 XP, Level 50 at 17032267. No live hero stood in a moved
+-- gap (read 2026-11-19: 22 heroes, 0 change Level). LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
 -- once the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:
@@ -52,18 +53,19 @@ revoke all on public.hr_level_curve from public, anon, authenticated, service_ro
 
 delete from public.hr_level_curve;
 insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) values
-  (1, 0, 159, 159, 0),
-  (2, 159, 318, 317, 0),
-  (3, 477, 635, 634, 0),
-  (4, 1112, 1269, 5000, 0),
-  (5, 2381, 6269, 6231, 0),
-  (6, 8650, 12500, 12800, 0),
-  (7, 21150, 25300, 43140, 0),
-  (8, 46450, 68440, 15037, 0),
+  (1, 0, 210, 199, 0),
+  (2, 210, 409, 389, 0),
+  (3, 619, 798, 955, 0),
+  (4, 1417, 1753, 4495, 0),
+  (5, 3170, 6248, 6065, 0),
+  (6, 9418, 12313, 12759, 0),
+  (7, 21731, 25072, 43015, 0),
+  (8, 46803, 68087, 15390, 0),
   (9, 114890, 83477, 1, 0),
   (10, 198367, 83478, 0, 657),
   (50, 17032267, 1134678, 78689, 162),
-  (300, 3588591142, 30931928, 203586, 598);
+  (110, 235766497, 6439218, 70000, 100),
+  (300, 2942899417, 23349218, 350000, 100);
 
 -- ── §2 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The rows are exactly the generated set; both functions answer the JS values at every pinned Level (bracket edges,
@@ -73,29 +75,30 @@ insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) va
 do $$
 declare v_bad text; v_role text;
 begin
-  if (select count(*) from public.hr_level_curve) <> 12
+  if (select count(*) from public.hr_level_curve) <> 13
      or exists (select 1 from (values
-  (1, 0, 159, 159, 0),
-  (2, 159, 318, 317, 0),
-  (3, 477, 635, 634, 0),
-  (4, 1112, 1269, 5000, 0),
-  (5, 2381, 6269, 6231, 0),
-  (6, 8650, 12500, 12800, 0),
-  (7, 21150, 25300, 43140, 0),
-  (8, 46450, 68440, 15037, 0),
+  (1, 0, 210, 199, 0),
+  (2, 210, 409, 389, 0),
+  (3, 619, 798, 955, 0),
+  (4, 1417, 1753, 4495, 0),
+  (5, 3170, 6248, 6065, 0),
+  (6, 9418, 12313, 12759, 0),
+  (7, 21731, 25072, 43015, 0),
+  (8, 46803, 68087, 15390, 0),
   (9, 114890, 83477, 1, 0),
   (10, 198367, 83478, 0, 657),
   (50, 17032267, 1134678, 78689, 162),
-  (300, 3588591142, 30931928, 203586, 598)) d(from_level, base_xp, first_xp, rise, bend)
+  (110, 235766497, 6439218, 70000, 100),
+  (300, 2942899417, 23349218, 350000, 100)) d(from_level, base_xp, first_xp, rise, bend)
                  where not exists (select 1 from public.hr_level_curve k where k.from_level = d.from_level and k.base_xp = d.base_xp
                                      and k.first_xp = d.first_xp and k.rise = d.rise and k.bend = d.bend)) then
-    raise exception 'level-curve: hr_level_curve is not the generated 12-row set'; end if;
+    raise exception 'level-curve: hr_level_curve is not the generated 13-row set'; end if;
   select string_agg(p.l || ': ' || public.hr_char_xp_for_level(p.l) || ' <> ' || p.x, ', ') into v_bad
-    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 21150), (8, 46450), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (200, 1247015092), (299, 3557818741), (300, 3588591142), (301, 3619523070), (500, 15409064742), (750, 56178981742), (1000, 143273148742), (5000, 23085877820742)) p(l, x)
+    from (values (1, 0), (2, 210), (3, 619), (4, 1417), (5, 3170), (6, 9418), (7, 21731), (8, 46803), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (109, 229425246), (110, 235766497), (111, 242205715), (200, 1119542617), (299, 2919658099), (300, 2942899417), (301, 2966248635), (500, 14842413017), (750, 51836180017), (1000, 116323697017), (5000, 7437273969017)) p(l, x)
    where public.hr_char_xp_for_level(p.l) <> p.x;
   if v_bad is not null then raise exception 'level-curve: hr_char_xp_for_level disagrees with src/core/xp.js at %', v_bad; end if;
   select string_agg(p.l::text, ', ') into v_bad
-    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 21150), (8, 46450), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (200, 1247015092), (299, 3557818741), (300, 3588591142), (301, 3619523070), (500, 15409064742), (750, 56178981742), (1000, 143273148742), (5000, 23085877820742)) p(l, x)
+    from (values (1, 0), (2, 210), (3, 619), (4, 1417), (5, 3170), (6, 9418), (7, 21731), (8, 46803), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (109, 229425246), (110, 235766497), (111, 242205715), (200, 1119542617), (299, 2919658099), (300, 2942899417), (301, 2966248635), (500, 14842413017), (750, 51836180017), (1000, 116323697017), (5000, 7437273969017)) p(l, x)
    where public.hr_char_level(p.x) <> p.l
       or (p.l > 1 and public.hr_char_level(p.x - 1) <> p.l - 1)
       or public.hr_char_level(public.hr_char_xp_for_level(p.l + 1) - 1) <> p.l;
@@ -106,8 +109,8 @@ begin
       from generate_series(1, 3000) l) s
    where s.step < 1 or s.step <= s.before;
   if v_bad is not null then raise exception 'level-curve: the step to Level(s) % does not cost more than the one before', v_bad; end if;
-  if public.hr_level_block(0) <> jsonb_build_object('xp', 0, 'level', 1, 'into', 0, 'need', 159) then
-    raise exception 'level-curve: a fresh hero does not project Level 1 needing % XP', 159; end if;
+  if public.hr_level_block(0) <> jsonb_build_object('xp', 0, 'level', 1, 'into', 0, 'need', 210) then
+    raise exception 'level-curve: a fresh hero does not project Level 1 needing % XP', 210; end if;
   foreach v_role in array array['anon', 'authenticated'] loop
     if has_table_privilege(v_role, 'public.hr_level_curve', 'select,insert,update,delete')
        or has_function_privilege(v_role, 'public.hr_char_level(bigint)', 'execute')

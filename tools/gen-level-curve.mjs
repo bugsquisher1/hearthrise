@@ -60,8 +60,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    plans pace + ladder were re-measured. Every bracket under Level 50 holds (C2); the ladder now trends 975 x L^1.421 (the Glade +5.1%, the Warrens
    +8.7% from lanes since 11-09), LEVEL_PACE.contract follows it (C5), and the brackets from Level 50 re-fit (pace.mjs --fit --fit-past). Same table,
    new rows; 2027-03-23 stays history. */
-/* 1000-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 6-8 re-split for level-curve C6 (the Cellar ends at 5), the total to Level 9
-   held, so no live Level moves; core-model.js LEVEL_CURVE says why. Same table, new rows; 2027-04-07 stays history. */
+/* 1000-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 2-8 re-split for level-curve C6, the total to Level 9 held (no live Level moves),
+   and the brackets past the ceiling re-fit to the re-pinned contract; core-model.js LEVEL_CURVE says why. Same table, 13 rows; 2027-04-07 stays history. */
 export const OUT_NAME = '1000-level-curve-early.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
@@ -98,11 +98,12 @@ export function buildSql(XP) {
 -- plpgsql since 2027-02-11-settle-plan-cache-2.generated.sql: a SQL copy is re-planned on
 -- every call on PostgreSQL 17), so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
--- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the Cellar ends at Level 5, so Level 6 -> 7
--- took 2.01x Level 5 -> 6 (level-curve C6). Steps 6 / 7 / 8 re-split to 12,500 / 25,300 / 68,440 XP
--- (were 12,870 / 26,255 / 67,115): the same total to Level 9, so every Level from 9 costs what it
--- did. Level 10 at ${l10} XP, Level 50 at ${l50}. Only the thresholds of Levels 7 and 8 fall
--- (370 and 1,325 XP); no live hero stood in either gap (read 2026-11-19). LIVE CHARACTERS: nothing is stored per Level, so a
+-- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the Cellar ends at Level 5 and a kill pays 12%
+-- less (balance-sheet.js STAT_FORMULA), so the early steps read 2.01-2.11x the one before (level-curve
+-- C6). Steps 2 to 8 re-split to about 1.95x each, the total to Level 9 held, so every Level from 9
+-- costs what it did; a new bracket at Level 110 and the one at 300 re-fit to the re-pinned contract
+-- (no hero past 110). Level 10 at ${l10} XP, Level 50 at ${l50}. No live hero stood in a moved
+-- gap (read 2026-11-19: 22 heroes, 0 change Level). LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
 -- once the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:

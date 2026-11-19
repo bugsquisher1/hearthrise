@@ -11,7 +11,8 @@
 // A PLACE is a ground (`ground`: its HUNT_GROUNDS id) or a boss fought from one (`boss: true`, `at`: the ground its room is called from).
 // A place not built yet carries `planned: { band }` (its band from the region plan, docs/design/itemization-plan.md §2 and the board's
 // "2026-11-14 The Morrow Hills"); a planned boss reads its ground's band. A sample on a planned place says so (`source.planned: true`): it
-// drops nowhere yet, so the grader never wears it (gear.mjs) and its home, its element and its own-ground win wait for the place. The day
+// drops nowhere yet, so the grader never wears it (gear.mjs), it names no monster, it carries no element resistance (no spells to read it
+// against, AL8) and its own-ground win (AL4) waits for the place. A boss called from a built ground reads that ground's spells. The day
 // the place is built, its row here loses `planned` and names its ground, and the guards hold every sample on it to a real monster
 // (WL7/AL7: a built place with a planned sample is red).
 //

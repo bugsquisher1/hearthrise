@@ -142,6 +142,8 @@ async function solo(db, M, uid, { level = 60, gold: g = 200000, gear = GEAR, nam
   const named = await as(db, uid, 'select public.hr_character_name_set(0, $1, $2::uuid)', [name, idem()]);
   if (!named || named.ok !== true) throw new Error('harness: name refused: ' + JSON.stringify(named));
 }
+/* A NORMAL GROUND (no call, no exit) for a hero of these arms' Level 20: BD-DOOR's lone hero hunts it, BD-ALONE reads it hunting elsewhere. */
+const NORMAL = 'meadowbrook_thicket';
 const bare = async (db, M, uid, g = 100000) => { await db.query('begin'); await H.character(db, M, uid, { level: 20, gold: g }); await earned(db, uid); await db.query('commit'); };
 
 /* ── THE VERB ─────────────────────────────────────────────────────────────── */
@@ -228,7 +230,8 @@ async function verbArms(db, M) {
   await bare(db, M, c);
   v = await as(db, c, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, $2::uuid)`, [KING.hunt, idem()]);
   if (v.error !== 'call_only') bad.push('BD-DOOR a lone hero\'s enter answered ' + JSON.stringify(v));
-  v = await as(db, c, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
+  /* a normal ground a Level 20 hero still enters: the Thicket (the Mill Cellar's hunt ends at Level 5 and its door refuses this hero: hunt-grounds.js endsAtLevel) */
+  v = await as(db, c, `select public.hr_hunt_enter(0, $2, '[]'::jsonb, 0, null, $1::uuid)`, [idem(), NORMAL]);
   if (v.ok !== true) bad.push('BD-DOOR a normal ground refused a lone hero: ' + JSON.stringify(v));
   v = await as(db, c, 'select public.hr_hunt_change(0, $1, $2::uuid)', [KING.hunt, idem()]);
   if (v.error !== 'call_only') bad.push('BD-DOOR a move mid-hunt answered ' + JSON.stringify(v));
@@ -258,11 +261,11 @@ async function verbArms(db, M) {
   if (await purse(db, d) !== 100000 - FEE || await pool(db, d) !== dPool - STAM || (await calls(db, d)).length !== 1) bad.push('BD-ALONE a replay charged again: ' + JSON.stringify({ ...dAgain, boss_call: null }));
   v = await call(db, d, 3, FEE);
   if (v.ok === true || await purse(db, d) !== 100000 - FEE || await pool(db, d) !== dPool - STAM) bad.push('BD-ALONE a hero in the room called again: ' + JSON.stringify(v));
-  /* a hero hunting elsewhere (c, on the Cellar since BD-DOOR) is refused by the start, charged nothing, and stays where it was */
+  /* a hero hunting elsewhere (c, on the normal ground since BD-DOOR) is refused by the start, charged nothing, and stays where it was */
   const cPurse = await purse(db, c);
   v = await call(db, c, 1, FEE);
   if (v.ok === true || await purse(db, c) !== cPurse
-      || Number(await one(db, `select count(*) from public.hunt_sessions where user_id = $1 and ended_at is null and hunt_id = 'mill_cellar'`, [c])) !== 1) bad.push('BD-ALONE a hero hunting elsewhere answered ' + JSON.stringify(v));
+      || Number(await one(db, `select count(*) from public.hunt_sessions where user_id = $1 and ended_at is null and hunt_id = $2`, [c, NORMAL])) !== 1) bad.push('BD-ALONE a hero hunting elsewhere answered ' + JSON.stringify(v));
 
   /* BD-CHARGE: every seat pays the first fight, its own stamina and its own fee */
   const aPool = await poolNow(db, a), bPool = await poolNow(db, b);

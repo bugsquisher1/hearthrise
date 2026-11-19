@@ -1673,6 +1673,7 @@ jobs:
   # db-replay-15: the last steps of db-replay-7, from "Party flow" on, split out 2026-11-18 (lane/ci-speed). db-replay-7 took up to 44.5 min
   # (the sum of each step's slowest run on the full sweeps 44139839256, 44144849725 and 43931474595). Here about 25.7 min with setup and
   # one chain build; x2 = 52.
+  # + mutant-control of jewel-guarantees-db (7 arms, 2026-11-19, lane/c-guard-batch-142, measured locally 41 s template-warm); still under 52.
   db-replay-15:
     runs-on: ubuntu-latest
     needs: release-proven

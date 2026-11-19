@@ -23,6 +23,11 @@
 //   node tests/jewel-guarantees-db.mjs            the guard
 //   node tests/jewel-guarantees-db.mjs --mutate   planted defects (edge copy, or the migration)
 //
+//   --mutate speaks tests/mutant-control.mjs's protocol (`[mutants] N`, `[mutant] <id> caught|survived`) and is on its register.
+//   Under HR_MUTANT_CONTROL=1 it plants NOTHING: an edge mutant's copy is made with its anchor checked and left as it was (before
+//   lane/c-guard-batch-142, plant() wrote the defect regardless, so all four edge mutants read caught with nothing planted), and the
+//   SQL mutants' patches and G-IDEM's re-plant are dropped. Every arm must then read survived.
+//
 // mutant-anchors: supabase/functions/hr-accrue/set-activity.js src/core/artisan.js supabase/functions/hr-accrue/catalogue.js supabase/migrations/2027-05-16-jewel-guarantees.sql
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -36,6 +41,7 @@ import { JEWEL_SWITCH, JEWELRY_ITEMS } from '../src/data/jewelry.js';
 import { recipeInputs } from '../src/core/artisan.js';
 
 const MUTATE = process.argv.includes('--mutate');
+const CONTROL = !!process.env.HR_MUTANT_CONTROL;
 const FN = 'supabase/functions/hr-accrue';
 const MIG = '2027-05-16-jewel-guarantees.sql';
 const FILES = ['2027-05-16-jewel-guarantees-items-catalogue.generated.sql', '2027-05-16-jewel-guarantees-bench-inputs.generated.sql', MIG];
@@ -43,7 +49,11 @@ const COLORS = '{"head": 13, "body": 5, "legs": 3, "feet": 0}';
 const BENCH = 'smithing';
 const DARK = ARTISAN_RECIPES_EVERY[BENCH].filter((r) => r.switch === JEWEL_SWITCH);
 const BOTH = DARK.find((r) => r.perk && r.roll === 'seal');
-const CRAFTS = 6;
+/* How many jobs each bench path runs. The job's ring rolls two of three perks (keen, surge, follow); a bench that forgot the boss gem's
+   perk still draws Follow-through on a piece 2 times in 3, from a stream seeded per run. At 6 jobs that mutant (edge-perk-forgotten)
+   survived (2/3)^6 = 8.8% of runs (lane/c-guard-batch-142 saw it MISSED once in its first run); at 40 it survives (2/3)^40 < 1e-7.
+   40 jobs of 3 s fit the 600 s each path rewinds. */
+const CRAFTS = 40;
 
 let seq = 0;
 const nextUid = () => `000000c2-0000-4000-8000-0000000d${String(++seq).padStart(4, '0')}`;
@@ -208,7 +218,7 @@ async function arms(db, edge) {
    activities, the bench inputs and the switch read the same. `edits` re-plants a migration mutant in the re-applied switch file; the mutant
    control (HR_MUTANT_CONTROL, or a replay-scope control that drops the chain's patches) plants nothing here either. */
 const IDEM_ACCOUNTS = ['000000c2-0000-4000-8000-0000000e0001', '000000c2-0000-4000-8000-0000000e0002'];
-const UNPLANTED = !!process.env.HR_MUTANT_CONTROL || ['scoped', 'full'].includes(process.env.HR_REPLAY_SCOPE_CONTROL);
+const UNPLANTED = CONTROL || ['scoped', 'full'].includes(process.env.HR_REPLAY_SCOPE_CONTROL);
 async function idemAt(db, edits = []) {
   const SNAP = `select (select md5(string_agg(a::text, ',' order by a.kind, a.activity_id)) from public.hr_activities a) a,
                        md5(public.hr_bench_inputs()::text) b,
@@ -237,23 +247,33 @@ async function prepare(db) {
   await db.query('update public.hr_tick_config set enabled = true where id');
 }
 
-/* An edge mutant runs the arms on a planted copy; a migration mutant must be refused by the file's own §4 or turn an arm (or G-IDEM) red. */
+/* An edge mutant runs the arms on a planted copy; a migration mutant must be refused by the file's own §4 or turn an arm (or G-IDEM) red.
+   An edge catch counts only when its named arm is red for the mutant's own reason (`want`, read against the arm's whole message): an arm
+   red for anything else is not this defect's proof. */
 const EDGE_MUTANTS = [
-  { arm: 'G-OFF', why: 'set_activity never asks the switch', file: `${FN}/set-activity.js`, from: '  if (!sw) return true;\n  const on', to: '  return true;\n  const on' },
-  { arm: 'G-VIEWED', why: 'set_activity reads the switch inside `state` (so it is never on)', file: `${FN}/set-activity.js`, from: 'const on = env && env.features;', to: 'const on = env && env.state && env.state.features;' },
-  { arm: 'G-VIEWED', why: 'the bench forgets the boss gem\'s perk', file: 'src/core/artisan.js', from: 'const fixed = recipe.perk || null;', to: 'const fixed = null;' },
-  { arm: 'G-VIEWED', why: 'the engine indexes only the open jobs', file: `${FN}/catalogue.js`,
+  { id: 'edge-switch-unasked', arm: 'G-OFF', why: 'set_activity never asks the switch', want: /"answer":\{"status":200\b/,
+    file: `${FN}/set-activity.js`, from: '  if (!sw) return true;\n  const on', to: '  return true;\n  const on' },
+  { id: 'edge-switch-in-state', arm: 'G-VIEWED', why: 'set_activity reads the switch inside `state` (so it is never on)', want: /"start":409,"startErr":"activity_unsupported"/,
+    file: `${FN}/set-activity.js`, from: 'const on = env && env.features;', to: 'const on = env && env.state && env.state.features;' },
+  { id: 'edge-perk-forgotten', arm: 'G-VIEWED', why: 'the bench forgets the boss gem\'s perk', want: /"start":200,"stop":200,"why":"made \w+(, not one of the job's outcomes| without )/,
+    file: 'src/core/artisan.js', from: 'const fixed = recipe.perk || null;', to: 'const fixed = null;' },
+  { id: 'edge-open-jobs-only', arm: 'G-VIEWED', why: 'the engine indexes only the open jobs', want: /"startErr":"unknown_activity"/,
+    file: `${FN}/catalogue.js`,
     from: "import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../../../src/data/recipes.js';", to: "import { ARTISAN_RECIPES } from '../../../src/data/recipes.js';" },
 ];
 const SQL_MUTANTS = [
-  { why: 'the file opens the switch for everyone', expect: /^$/, edits: [["('jewel_guarantees', 'off',", "('jewel_guarantees', 'everyone',"]], arm: 'G-DARK' },
-  { why: 'the self-check lets the switch read on while off', expect: /jewel-guarantees §4\(c\)/,
+  { id: 'sql-opens-everyone', why: 'the file opens the switch for everyone', expect: /^$/, edits: [["('jewel_guarantees', 'off',", "('jewel_guarantees', 'everyone',"]], arm: 'G-DARK' },
+  { id: 'sql-selfcheck-blind', why: 'the self-check lets the switch read on while off', expect: /jewel-guarantees §4\(c\)/,
     edits: [["update public.hr_feature_switches set scope = 'off', accounts = '{}' where switch_id = 'jewel_guarantees';\n    if public",
       "update public.hr_feature_switches set scope = 'everyone', accounts = '{}' where switch_id = 'jewel_guarantees';\n    if public"]] },
   /* applies clean and reads dark (the arms stay green): only a second apply over a scope the Coordinator set shows it */
-  { why: 'a re-apply resets the scope the Coordinator set', expect: /^$/, idem: true,
+  { id: 'sql-reapply-resets', why: 'a re-apply resets the scope the Coordinator set', expect: /^$/, idem: true,
     edits: [['  on conflict (switch_id) do nothing;', "  on conflict (switch_id) do update set scope = 'off', accounts = '{}';"]] },
 ];
+
+/* The edge copy a mutant runs on. Under the control the copy is made the same way, its anchor still checked once by plant(), but the
+   text is written back unchanged: nothing is planted, so the arms judge the shipped engine. */
+const plantEdge = (mu) => plant([[mu.file, mu.from, CONTROL ? mu.from : mu.to]], [FN]);
 
 async function main() {
   let db;
@@ -280,16 +300,28 @@ async function main() {
     } finally { await db.close().catch(() => {}); }
     return;
   }
-  console.log('\njewel-guarantees-db --mutate\n');
+  const total = EDGE_MUTANTS.length + SQL_MUTANTS.length;
+  console.log(`\njewel-guarantees-db --mutate${CONTROL ? ' (HR_MUTANT_CONTROL: nothing planted)' : ''}\n`);
+  console.log(`[mutants] ${total}`);
   let survived = 0;
+  const verdict = (mu, caught) => {
+    console.log(`[mutant] ${mu.id} ${caught ? 'caught' : 'survived'}`);
+    if (caught) console.log(`  CAUGHT  ${mu.why} -> ${caught.slice(0, 220)}`);
+    else {
+      survived++;
+      if (CONTROL) console.log(`  held    ${mu.why}${mu.arm ? ` (${mu.arm})` : ''}, nothing planted`);
+      else console.error(`  MISSED  ${mu.why}${mu.arm ? ` (${mu.arm})` : ''}`);
+    }
+  };
   for (const mu of EDGE_MUTANTS) {
-    const p = plant([[mu.file, mu.from, mu.to]], [FN]);
+    const p = plantEdge(mu);
     try {
       ({ db } = await bootReplay());
       await prepare(db);
       const red = await arms(db, await loadEdge(p.root));
-      if (red.has(mu.arm)) console.log(`  CAUGHT  ${mu.why} -> ${mu.arm}: ${String(red.get(mu.arm)).slice(0, 160)}`);
-      else { console.error(`  MISSED  ${mu.why} (${mu.arm})`); survived++; }
+      const bad = red.has(mu.arm) ? String(red.get(mu.arm)) : '';
+      if (bad && !mu.want.test(bad)) console.error(`  ${mu.arm} red, but not for this defect (${mu.want}): ${bad.slice(0, 300)}`);
+      verdict(mu, bad && mu.want.test(bad) ? `${mu.arm}: ${bad}` : null);
     } catch (e) { console.error(`jewel-guarantees-db: HARNESS — ${mu.why}: ${e.message}`); process.exit(2); }
     finally { await db.close().catch(() => {}); p.done(); }
   }
@@ -314,10 +346,14 @@ async function main() {
         }
       } finally { await mdb.close().catch(() => {}); }
     } else if (mdb) await mdb.close().catch(() => {});
-    if (caught) console.log(`  CAUGHT  ${mu.why} -> ${caught.slice(0, 200)}`);
-    else { console.error(`  MISSED  ${mu.why}`); survived++; }
+    verdict(mu, caught);
   }
-  const total = EDGE_MUTANTS.length + SQL_MUTANTS.length;
+  if (CONTROL) {
+    /* tests/mutant-control.mjs judges the arm lines; every one must read survived */
+    console.log(`\nHR_MUTANT_CONTROL: nothing planted; ${total - survived} arm(s) read caught`);
+    process.exitCode = 0;
+    return;
+  }
   console.log(survived ? `\njewel-guarantees-db --mutate: ${survived} of ${total} survived` : `\njewel-guarantees-db --mutate: ${total} mutants, 0 survived`);
   process.exitCode = survived ? 1 : 0;
 }

@@ -116,6 +116,10 @@ export const HUNTS_TEXT = Object.freeze({
   /* @sentence: the first line a new player reads in the window; it teaches the loop */
   lead_solo: 'Pick a hunt, then Enter',
   off_follower: 'Party: {leader} picks the hunt',
+  /* A ground whose hunt ends at a Level (hunt-grounds.js endsAtLevel), reached by this hero or a seat (hunt-list.js seatsOutgrown): Enter is off,
+     the door would refuse it. {level} the exit Level, {who} "Wren, Level 5" per seat. */
+  off_outgrown: 'Ground outgrown at Level {level}, pick a harder one',
+  off_outgrown_party: 'Ground outgrown at Level {level}: {who}',
   your_leader: 'the leader',
   bag_empty: 'Hunt bag: empty',
   bag_holds: 'Hunt bag: {items}',

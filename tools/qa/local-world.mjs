@@ -771,10 +771,11 @@ async function smoke({ shots, viewport, touch, site }) {
     step('the end card opens by itself: why, the next ground, no Hunt again',
       ended && /Level XP/.test(summary) && /Ground outgrown at Level 5/.test(summary) && /Next ground: Meadowbrook Thicket/.test(summary) && againOff,
       JSON.stringify({ againOff, summary: summary.slice(0, 400) }));
-    await p.page.click('.hsum-step[data-step="ground"] [data-hs-act="town"]');
+    /* the card's one gold press after an outgrown end is the foot's Go to (audit 2026-11-19 L2), the Next ground row's own link */
+    await p.page.click('[data-hs-win="hunt-summary"] [data-hs-act="next-ground"].is-primary');
     const shown = await p.page.waitForSelector('.hw-hunt.is-picked[data-hunt="meadowbrook_thicket"]', { timeout: 15000 }).then(() => true, () => false);
     await p.shot('next-ground');
-    step('its Next ground button opens Hunts on that ground', shown, await p.page.evaluate(() => Array.from(document.querySelectorAll('.hw-hunt.is-picked')).map((li) => li.dataset.hunt).join()));
+    step('its Go to press opens Hunts on that ground', shown, await p.page.evaluate(() => Array.from(document.querySelectorAll('.hw-hunt.is-picked')).map((li) => li.dataset.hunt).join()));
     /* A second hunt, on that ground, skipped further than the first one lasted: still the newest, so the analyzer reads IT (the skip moves
        ended sessions too; without that the open hunt's entered_at fell behind the ended one's and read "Hunt ended"). */
     await p.page.click('.hw-hunt-enter');

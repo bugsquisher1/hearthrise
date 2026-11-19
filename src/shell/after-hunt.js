@@ -25,7 +25,8 @@
 // (the Burning Tower, hunts.js `tower`): its card says how it ended in its own label rows (tower-words.js climbEnd), never a hunt's advice
 // (QA gate 2026-11-17: "Start a gathering job" topped a Tower card after a fall and a party member leaving).
 // STAMINA (the designer's coherence pass 2026-11-15, walk row 6): the hours it takes to come back are the first day's dead moment, so
-// its line names everything that uses none: the yard (from its Level, src/data/training.js), a bench, gathering, and gathering's resume.
+// its line names everything that uses none AND is open to this hero, from the server's sections (staminaFreeOf, audit 2026-11-19 L4: the
+// yard from its Level and solo, gathering and crafting, the farm); the away card offers the same loops as presses when stamina is short.
 // A TRAINING SESSION (src/data/training.js) uses no stamina and has its own cap (walk row 7: its 12-hour end read "Set a longer hunt
 // next time, up to the stamina you have."): that end says to start it again; any other says nothing more.
 //
@@ -34,13 +35,16 @@
 import { t } from '../render/player-text.js?v=0.2.141';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
 import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.141';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.141';
-import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.141';
+import { townActivityWords, partyMembershipOf } from '../session/party-sections.js?v=0.2.141';
+import { huntOf, serverNowOf, settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.141';
 import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.141';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.141';
 import { roomOfHunt } from '../data/boss-halls.js?v=0.2.141';
 import { itemName } from './widgets/bits.js?v=0.2.141';
-import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.141';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.141';
+import { trainingOf } from '../session/training-sections.js?v=0.2.141';
+import { farmFieldOf } from '../session/farm-sections.js?v=0.2.141';
+import { listWords } from '../render/format.js?v=0.2.141';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;
@@ -86,6 +90,33 @@ export function spareSupplyOf(cs) {
   return spare ? spare.id : null;
 }
 
+/* THE STAMINA-FREE LOOPS (audit 2026-11-19 L4, the day-2 return: 1 h 9 min of 12 h stamina and the card's one press Hunt again, the same
+   ground): what this hero has OPEN that uses no stamina, each read off the server's sections and failing safe to "not open" (CLAUDE.md §6,
+   never a client-held Level):
+     yard  the yard's rate says the hero's Level reaches its first (training-sections.js rate.level, rate.min_level), with no party: training is solo
+     work  gathering and crafting, open from Level 1 (every gathering skill and bench has Level 1 rows): the Gathering and crafting window
+     farm  the server sent a field with room for a plot (farm-sections.js farmFieldOf)
+   `words` name it in the after-the-hunt sentence, `go` is the away card's press (windows/away.js), `label` its words. */
+const LOOPS = Object.freeze([
+  { id: 'yard', go: 'train', words: ['away.free_yard'], label: 'away.free_go_yard',
+    open: (cs) => { const tr = trainingOf(cs), r = tr && tr.rate; return !!r && r.level !== null && r.minLevel !== null && r.level >= r.minLevel && !partyMembershipOf(cs); } },
+  { id: 'work', go: 'work', words: ['away.free_gather', 'away.free_craft'], label: 'away.free_go_work', open: () => true },
+  { id: 'farm', go: 'farm', words: ['away.free_farm'], label: 'away.free_go_farm', open: (cs) => { const f = farmFieldOf(cs); return !!f && f.cap > 0; } },
+]);
+
+/** The stamina-free loops open to this hero, in the order above: [{ id, go, words: string[], label }]. Pure. */
+export function staminaFreeOf(cs) {
+  return LOOPS.filter((l) => l.open(cs)).map((l) => ({ id: l.id, go: l.go, words: l.words.map((k) => t(k)), label: t(l.label) }));
+}
+
+/* Under this share of the server's cap, stamina covers no hunt worth the trip, and the return card names the loops that use none. */
+const STAMINA_SHORT_PART = 0.25;
+/** The server's stamina is under STAMINA_SHORT_PART of its cap; false when it has not sent both. Pure. */
+export function staminaShort(cs) {
+  const st = staminaOf(cs);
+  return !!st && Number.isFinite(st.msLeft) && Number.isFinite(st.capMs) && st.capMs > 0 && st.msLeft < st.capMs * STAMINA_SHORT_PART;
+}
+
 /**
  * What the hero did after hunt `h` (huntOf's shape) ended, from the server's `state` section, or null when the server
  * does not say. `spare`: spareSupplyOf's item, or null. Pure.
@@ -112,14 +143,19 @@ export function afterHuntOf(st, h, nowMs, spare) {
   return { kind: 'waited', idleMs, next: NEXT[h.endReason] || 'away.next_gather' };
 }
 
-/** The after-the-hunt sentences for `name`, or '' when the server does not say (afterHuntOf). `spare` as afterHuntOf's. Pure. */
-export function afterHuntWords(st, h, nowMs, name, spare) {
+/**
+ * The after-the-hunt sentences for `name`, or '' when the server does not say (afterHuntOf). `spare` as afterHuntOf's; `free` the words of
+ * the stamina-free loops open to the hero (staminaFreeOf), which the stamina end names. Pure.
+ */
+export function afterHuntWords(st, h, nowMs, name, spare, free) {
   const a = afterHuntOf(st, h, nowMs, spare);
   if (!a) return '';
   if (a.kind === 'went') return t('away.after_went', { name, doing: a.went });
-  const next = a.next === null ? ''
+  const loops = Array.isArray(free) ? free : [];
+  /* out of stamina, only what this hero has open (never the yard below its Level: audit 2026-11-19 L4) */
+  const next = a.next === null || (a.next === 'away.next_stamina' && !loops.length) ? ''
     : t(a.next, a.next === 'away.next_bar' ? { name, item: itemName(a.item) }
-      : a.next === 'away.next_stamina' ? { name, level: TRAINING_RULES.minLevel } : undefined);
+      : a.next === 'away.next_stamina' ? { loops: listWords(loops, loops.length, 'or') } : undefined);
   const waited = a.idleMs >= WAITED_FROM_MS ? t('away.after_waited', { name, time: spanWords(a.idleMs) }) : '';
   return waited && next ? waited + ' ' + next : waited || next;
 }
@@ -131,5 +167,5 @@ export function afterHuntWords(st, h, nowMs, name, spare) {
 export function endCardAfter(cs, id) {
   const h = huntOf(cs);
   if (!h || !h.ended || h.sessionId !== id || typeof cs.read !== 'function') return '';
-  return afterHuntWords(cs.read('state'), h, serverNowOf(cs), nameOf(cs) || t('away.your_hero'), spareSupplyOf(cs));
+  return afterHuntWords(cs.read('state'), h, serverNowOf(cs), nameOf(cs) || t('away.your_hero'), spareSupplyOf(cs), staminaFreeOf(cs).flatMap((l) => l.words));
 }

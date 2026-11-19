@@ -3013,6 +3013,43 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (shots) await shot(phone.page, 'alpha-922x423-back-in-town');
       }
       await phone.ctx.close();
+
+      /* AW-105 THE NEXT GROUND LEADS AFTER A GROUND OUTGROWN (audit 2026-11-19 L2, played at 1440x900: the Cellar's Level 5 end opened on a greyed
+         Hunt again and "Hunt again off: Ground outgrown", and the Next ground row lay under the sticky foot, below the window's edge). The same
+         Level 5 hero, its Cellar hunt ended `outgrown`: the window's ONE gold press is the foot's "Go to Meadowbrook Thicket", inside the window as it
+         opens, Hunt again gone; on a phone too; the press opens Hunts on that ground (the Next ground row's own link) */
+      for (const [vp, tag] of [[{ width: 1440, height: 900 }, '1440x900'], [{ width: 667, height: 375 }, '667x375']]) {
+        const o = await open({ viewport: vp, mutateEnv: home5, residue: { coach: { read: ['bar_intro'] } } });
+        if (!o.up) { fails.push('AW-105 the page did not mount at ' + tag); await o.ctx.close(); continue; }
+        o.s.env.hunt = Object.assign({}, o.s.env.hunt, { ended: true, session: { end_reason: 'outgrown', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        o.s.env.state = Object.assign({}, o.s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(o.page, o.s);
+        await wait(o.page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await o.page.waitForTimeout(300);
+        const lead = await o.page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const box = w.querySelector('[data-hs-body]').getBoundingClientRect();
+          const shown = (b) => !b.hidden && b.getClientRects().length > 0;
+          const gold = Array.from(w.querySelectorAll('button.is-primary')).filter(shown);
+          const r = gold.length === 1 ? gold[0].getBoundingClientRect() : null;
+          const again = w.querySelector('[data-hs-act="again"]');
+          return { gold: gold.map((b) => b.getAttribute('data-hs-act') + ':' + b.textContent + ':' + b.getAttribute('data-hs-goto')),
+            inView: !!r && r.top >= box.top && r.bottom <= Math.min(box.bottom, window.innerHeight) && r.right <= window.innerWidth,
+            again: shown(again), msg: w.querySelector('.hh-intent-msg').textContent };
+        });
+        if (JSON.stringify(lead.gold) !== '["next-ground:Go to Meadowbrook Thicket:hunts|meadowbrook_thicket|"]' || !lead.inView || lead.again || /Hunt again off/.test(lead.msg))
+          fails.push('AW-105 at ' + tag + ' the outgrown card leads with ' + JSON.stringify(lead) + ', want Go to Meadowbrook Thicket alone, in view, no Hunt again');
+        if (shots) await shot(o.page, 'alpha-' + tag + '-outgrown-next-ground');
+        if (tag === '1440x900') {
+          await o.page.click('[data-hs-win="hunt-summary"] [data-hs-act="next-ground"]');
+          await wait(o.page, () => !!document.querySelector('[data-hs-win="hunts"] [data-hs-built]'), null, 3000);
+          await o.page.waitForTimeout(200);
+          const on = await o.page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'); return w ? w.textContent.includes('Meadowbrook Thicket') : false; });
+          if (!on) fails.push('AW-105 Go to did not open Hunts on Meadowbrook Thicket');
+        }
+        if (o.errors.length) fails.push('AW-105 console errors at ' + tag + ': ' + o.errors.join(' | ').slice(0, 300));
+        await o.ctx.close();
+      }
     }
 
     { // AW-98 THE NEXT BUY (lane/a-next-steps; audit 2026-11-15 F12/F20: gold piled up and Back in town said nothing once the bag was sorted)

@@ -126,6 +126,8 @@
 .haway-acts .hh-tool { min-height: 36px; }
 .haway-acts .hh-tool.is-primary { min-height: 40px; }
 .haway-acts [hidden] { display: none; }
+.haway-rest-head { margin: 8px 2px 0; font-size: var(--t-micro); line-height: 1.4; color: var(--ink-2); }
+.haway-rest-head:empty { display: none; }
 .haway-stamina { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 .haway-msg:empty { display: none; }
 .haway-foot { justify-content: flex-end; margin: 0; padding-top: 10px; border-top: 2px solid var(--steel-sep); }
@@ -162,6 +164,8 @@
   /* the steps come before the foot (the same list, stacked), so the first open step's gold press is the first thing under the reason */
   .hsum-card > .hsum-town { order: 1; }
   .hsum-foot { position: static; order: 1; margin: 0 0 8px; padding: 0; background: none; }
+  /* ...after a ground outgrown the press is the foot's Go to (audit 2026-11-19 L2; 667x375 hid it under the steps), so the foot leads them */
+  .hsum-card.is-onward > .hsum-foot { order: 0; }
   .hsum-card > .hsum-h-loot, .hsum-card > .hsum-loot { order: 2; }
   .hsum-actions { margin-top: 0; }
   .hsum-actions .hh-tool, .hsum-actions .hh-tool.is-primary { min-height: 44px; flex: 1 1 30%; }

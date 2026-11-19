@@ -27,11 +27,17 @@
 //     permille, rolled from half that to that (the rule a monster's spell hits by), so it grows
 //     with the weapon and the skill; element (an elements.js id), hits, maxHits, status (a
 //     statuses.js id, H3), bonusPct + durMs (mark), shield, heal [lo, hi], whenBelowPct, minHurt,
-//   radius (party heal, tiles)
+//   radius (party heal or party shield, tiles)
+//     A SHAPE (area, line, ring) with a `status` and no dmg or hitPm lands only its status: no blow,
+//     no kill, no weapon XP (Frost Slam). A `party` row heals or shields every living hero in its
+//     radius, never both; a party shield never lowers a bigger shell already standing.
 //   alone: true = cast only while no other living hero shares the caster's world (Tyler 2026-11-09:
 //     "a new spell that can only be used when not in a party"), read at each cast as the kill XP
 //     reads the living heroes (src/core/hunt/abilities.js aloneIn); a death or a leave changes the
 //     next cast. Otherwise the slot falls through to the next, as a slot that cannot act does.
+//   party: true = its mirror, cast only while another living hero shares the caster's world (the
+//     tank's rune spells, Tyler 2026-11-19: "Tank spells should be party only I think"). Never with
+//     `alone`; the bar and Configure action say "Party only", as an alone row says "Solo only".
 //   skill: THE ROW'S OWN SKILL, when it is not its discipline's (itemization plan §7: the fist line's strikes level on
 //     Magic while its blows read Melee). Its unlock, rune versions and numbers read that skill (abilitySkill), and its
 //     hits train it: a weapon skill by damage, Magic by none (Magic is paid per mana spent, magicXpMult; ownHitSkill,
@@ -135,6 +141,24 @@ export const ABILITIES = Object.freeze([
   /* shield — the tank's Melee. The Challenge is a SUPPORT cast (it strikes nothing): the bar fires it like every
      other ability, and its target rule finds a monster only while one is off the tank (targeting.js challengeable). */
   ab({ id: 'challenge', n: 'Challenge', disciplines: ['shield'], lane: 'support', cdMs: 8000, mana: 0, target: 'taunt' }),
+  /* THE TANK'S RUNE SPELLS (Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank spells should be party only
+     I think"; the designer's board section "2026-11-19 Tank rune spells"). They hold and protect, never kill: a tank alone levels
+     slowly on purpose (Tyler 2026-11-19), so both are PARTY ONLY (`party`) and neither is on a default bar (the new-spell prompt
+     offers each at its `unlock`). Their versions read Melee, the shield's skill (I-V at Melee 1 / 15 / 30 / 45 / 60).
+     FROST SLAM: an ICE rune spell, every monster beside the tank (up to 8) Chilled for 4 s, no damage (a ring that lands only its
+     status); its version is the rune tier, so its chill is 30 / 35 / 40 / 45 / 50% (statuses.js chill tierPermille) at the
+     version's full strength (a status is never cut by the store's share). Every 6 s: chilled two thirds of the time. */
+  ab({ id: 'frost_slam', n: 'Frost Slam', disciplines: ['shield'], party: true, lane: 'support', cdMs: 6000, mana: 6, rune: 'chalked_ice_rune', unlock: 12,
+    target: 'ring', maxHits: 8, status: 'chill', magicXpMult: 250,
+    versions: [[6, 1000], [7, 1000], [8, 1000], [10, 1000], [12, 1000]] }),
+  /* SHELTER: an EARTH rune spell, the stone shields' family. Every living hero within 8 tiles, the tank too, gets a shell of 30
+     (version I; 56 / 84 / 112 / 140 at each version's own Melee, +1% of the base a Melee level; the store's rune lands 75%),
+     never lowering a bigger shell already standing. A new slot starts on a monster's cast warning (`trigger`): it shells the
+     party before a group spell lands. Every 30 s. */
+  ab({ id: 'shelter', n: 'Shelter', disciplines: ['shield'], party: true, lane: 'support', cdMs: 30000, mana: 25, rune: 'chalked_earth_rune', unlock: 20,
+    target: 'party', shield: 30, radius: 8, magicXpMult: 250,
+    trigger: [{ metric: 'enemy_casting', op: 'gte', value: 1, subject: 'any' }],
+    versions: [[25, 1000], [30, 1740], [36, 2520], [43, 3310], [52, 4100]], lvPm: LV_PM }),
   /* The blade's own strikes: a sword swings them with a shield (the tank) or alone (Melee damage, Tyler 2026-10-23). */
   ab({ id: 'flame_strike', n: 'Flame Strike', disciplines: ['shield', 'sword'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_fire_rune',
     target: 'enemy', dmg: [8, 14], element: 'ember', magicXpMult: 250,
@@ -267,6 +291,9 @@ export const AREA_TARGETS = Object.freeze(['area', 'line', 'ring']);
 /* The targets that land damage on monsters. */
 const DAMAGING = Object.freeze(['enemy', 'cleave', ...AREA_TARGETS]);
 
+/** Does `row` land a BLOW (dmg or a share of the hero's own blow)? A shape row with only a `status` lands none (Frost Slam). */
+export const landsBlow = (row) => !!row && (!!row.dmg || Number.isInteger(row.hitPm));
+
 /** The shape spec an area row strikes (src/core/hunt/shapes.js): the 3x3 on its aim, a line of `len` from the hero
     through its aim, a ring of `r` round the hero; null for a row that strikes no shape. */
 export function areaSpec(row) {
@@ -326,14 +353,14 @@ export function outputPm(row, n, level) {
   return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);
 }
 
-/** Every problem with the table, as strings. Empty = valid. */
-export function validate() {
+/** Every problem with the table (or `rows`, a table of the same shape: a test plants a defective row), as strings. Empty = valid. */
+export function validate(rows = ABILITIES) {
   const out = [];
   const step = HUNT_TUNING.stepMs;
   for (const [lane, ms] of Object.entries(ABILITY_LANES)) if (!Number.isInteger(ms) || ms <= 0 || ms % step) out.push('lane ' + lane + ' ' + ms + ' ms is not a whole number of sub-steps');
   for (const [d, row] of Object.entries(DISCIPLINES)) if (!/^[a-z_]{1,32}$/.test(d) || !['melee', 'ranged', 'magic'].includes(row.skill)) out.push('discipline ' + d + ': a [a-z_] id leveling on melee, ranged or magic');
   const per = Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, 0]));
-  for (const r of Object.values(ABILITIES)) {
+  for (const r of Object.values(rows)) {
     const bad = (m) => out.push(r.id + ': ' + m);
     if (!ABILITY_LANES[r.lane]) bad('unknown lane ' + r.lane);
     if (!TARGETS.includes(r.target)) bad('unknown target ' + r.target);
@@ -348,8 +375,13 @@ export function validate() {
     if (r.weakPm !== undefined && (!Number.isInteger(r.weakPm) || r.weakPm < 0 || r.weakPm > 1000 || !r.element || !DAMAGING.includes(r.target))) bad('weakPm is a whole permille 0..1000 on a damaging row with an element');
     if (new Set(r.disciplines).size !== r.disciplines.length) bad('a discipline is listed twice');
     for (const k of ['dmg', 'heal']) if (r[k] && !(r[k].length === 2 && r[k].every(Number.isInteger) && r[k][0] > 0 && r[k][0] <= r[k][1])) bad(k + ' must be [lo, hi]');
-    /* A damaging target lands dmg [lo, hi] OR a share of the hero's own largest blow (hitPm), never both. */
-    if (DAMAGING.includes(r.target) && !r.dmg && r.hitPm === undefined) bad('a damaging target with no dmg and no hitPm');
+    /* A damaging target lands dmg [lo, hi] OR a share of the hero's own largest blow (hitPm), never both. A SHAPE may land only
+       its status instead (Frost Slam: no blow, no kill); a shape with neither numbers nor a status does nothing. */
+    if (DAMAGING.includes(r.target) && !r.dmg && r.hitPm === undefined && !(AREA_TARGETS.includes(r.target) && r.status)) {
+      bad(AREA_TARGETS.includes(r.target) ? 'a shape with no dmg, no hitPm and no status' : 'a damaging target with no dmg and no hitPm');
+    }
+    /* A row that lands no blow has no element to land it as (its words would name one that never strikes). */
+    if (DAMAGING.includes(r.target) && !landsBlow(r) && 'element' in r) bad('an element on a row that lands no blow');
     if (r.hitPm !== undefined && (!DAMAGING.includes(r.target) || r.dmg || !Number.isInteger(r.hitPm) || r.hitPm < 100 || r.hitPm > 4000)) bad('hitPm is a damaging row\'s whole share of the blow, 100..4000, in place of dmg');
     /* The shape an area row strikes, in the one geometry's bounds (shapes.js: a line at most 4 long, a ring at most 2 out). */
     const spec = areaSpec(r);
@@ -364,7 +396,10 @@ export function validate() {
     /* A friendly target heals or shields: `heal` [lo, hi] or a whole `shield` (an ally one: the friend shield). */
     if (['ally', 'self'].includes(r.target) && !r.heal && !(Number.isInteger(r.shield) && r.shield > 0)) bad('a friendly target with no heal and no shield');
     if (['ally', 'self'].includes(r.target) && r.heal && r.shield !== undefined) bad('a friendly target heals or shields, never both');
-    if (r.target === 'party' && !r.heal) bad('a heal target with no heal');
+    /* A PARTY row heals or shields every living hero within its radius (the tiles round the caster), never both. */
+    if (r.target === 'party' && !r.heal && !(Number.isInteger(r.shield) && r.shield > 0)) bad('a party row with neither heal nor shield');
+    if (r.target === 'party' && r.heal && r.shield !== undefined) bad('a party row heals or shields, never both');
+    if (r.target === 'party' && !(Number.isInteger(r.radius) && r.radius >= 1)) bad('a party row reaches a whole radius of 1 or more tiles');
     /* One vocabulary (elements.js): a name outside it would match no monster's element profile. */
     if ('element' in r && !isElement(r.element)) bad('unknown element ' + r.element);
     /* No ability may name a missing item (spec §1.2): an active rune is a carried supply line of a rune family. */
@@ -374,6 +409,9 @@ export function validate() {
     if (r.lvPm !== undefined && !(Number.isInteger(r.lvPm) && r.lvPm >= 0)) bad('lvPm must be an integer >= 0');
     /* Alone-only is a strike's rule: a row everyone holds (the self-heal) or one that helps a friend would never help one. */
     if (r.alone !== undefined && (r.alone !== true || r.universal || !['enemy', 'area', 'cleave'].includes(r.target))) bad('alone is true on a damaging, non-universal row, or absent');
+    /* Party-only is the mirror (the tank's rune spells): never on a row everyone holds, never beside `alone` (it could never fire). */
+    if (r.party !== undefined && (r.party !== true || r.universal)) bad('party is true on a non-universal row, or absent');
+    if (r.party === true && r.alone === true) bad('a row is alone or party only, never both');
     if (!r.universal && new Set(r.disciplines.map((d) => DISCIPLINE_SKILL[d])).size !== 1) bad('its disciplines level on different skills');
     if (r.versions !== undefined) {
       const vs = r.versions;

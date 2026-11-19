@@ -7,23 +7,35 @@
 // Every number is the server's (src/session/faction-sections.js): the standing per side, the swap's credited time and its need, the
 // next-swap instant, each piece's need and whether it is held. A Claim, Swap or Finish press is ONE intent (src/session/faction-
 // intents.js) and stays off until the server's own numbers allow it; the row changes only from the re-read envelope.
-// THE ART: a side shows its mark and a piece its own icon (assets/icons-bundle/pixel/factions/, bits.js factionIconHtml); the worn
-// outfits themselves are still to be drawn, so a claim is a record until they land (factions.pieces_note).
+// THE ART: a side shows its mark and a piece its own icon (assets/icons-bundle/pixel/factions/, bits.js factionIconHtml). A piece is
+// offered only while a look it dresses has its art (src/data/outfits.js OUTFIT_ROWS with a sheet in hunt-outfits.js OUTFITS): the
+// add-ons whose looks are still STAGED_OUTFITS are not offered as claims that show nothing (the faction QA 2026-11-19 #6); one already
+// claimed still reads Claimed.
+// ASKS FIRST (the faction QA 2026-11-19 #2, #4): Swap and Cancel swap each open a confirm in the swap box that says what happens (the
+// swap's cost and the side lock after it; the swap time a cancel loses) before ONE intent is sent. During a swap the hero is still on its
+// side: its own grounds pay its standing, the new side's pay swap time only (#3: the line says so, hr_faction_credit does so).
 // ════════════════════════════════════════════════════════════════════════
 import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.141';
-import { claimPiece, startSwap, finishSwap } from '../../../session/faction-intents.js?v=0.2.141';
+import { claimPiece, startSwap, finishSwap, cancelSwap } from '../../../session/faction-intents.js?v=0.2.141';
+import { OUTFIT_ROWS } from '../../../data/outfits.js?v=0.2.141';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.141';
 import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.141';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
 import { runIntent } from '../../intent-words.js?v=0.2.141';
 import { t } from '../../../render/player-text.js?v=0.2.141';
 import { factionIconHtml } from '../../widgets/bits.js?v=0.2.141';
-import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.141';
+import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, waitWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.141';
 
 /** The tab's name. */
 export const FACTION_TAB = t('factions.tab');
 
 /** Is the tab offered for this hero (the server sends the section)? */
 export const factionShown = (cs) => factionOf(cs) !== null;
+
+/* THE PIECES WITH ART: every piece a listed look with a sheet needs. A piece outside it dresses only staged looks. */
+const DRAWN_PIECES = new Set(Object.entries(OUTFIT_ROWS).filter(([id, r]) => r.pieces && OUTFITS[id]).flatMap(([, r]) => r.pieces));
+/* Is this piece offered on the tab: held, or dressing a look that has its art? */
+const pieceOffered = (p) => !!p && (p.held || DRAWN_PIECES.has(p.id));
 
 /** The Faction tab's skeleton. */
 export function factionHtml() {
@@ -32,15 +44,18 @@ export function factionHtml() {
     + '<p class="hs-note hw-fx-neutral"></p>'
     + '<div class="hw-fx-acts"><button type="button" class="hh-tool is-primary hw-fx-choose" data-hs-act="fx-choose">' + esc(t('factions.press_choose')) + '</button></div>'
     + '<h3 class="hw-cs-head is-on">' + esc(t('factions.standing_head')) + '</h3><ul class="hw-ledger hw-fx-standing"></ul>'
-    + '<p class="hs-note">' + esc(t('factions.standing_note')) + '</p>'
+    + '<p class="hs-note">' + esc(t('factions.standing_note')) + '<br>' + esc(t('factions.standing_kept')) + '</p>'
     + '<div class="hw-fx-swap"><h3 class="hw-cs-head">' + esc(t('factions.swap_head')) + '</h3>'
-    + '<p class="hw-fx-line hw-fx-swap-state"></p><p class="hs-note hw-fx-swap-to"></p>'
+    + '<p class="hw-fx-line hw-fx-swap-state"></p><p class="hs-note hw-fx-swap-to"></p><p class="hw-fx-line hw-fx-swap-from"></p>'
     + '<blockquote class="hw-fx-said"><p></p><cite></cite></blockquote>'
     + '<p class="hw-fx-line hw-fx-swap-cost"></p>'
+    + '<div class="hw-fx-confirm" hidden><p class="hw-fx-line hw-fx-confirm-q"></p><p class="hw-fx-line hw-fx-confirm-a"></p><p class="hw-fx-line hw-fx-confirm-b"></p>'
+    + '<div class="hw-fx-acts"><button type="button" class="hh-tool is-primary" data-hs-act="fx-confirm">' + esc(t('factions.press_confirm')) + '</button>'
+    + '<button type="button" class="hh-tool" data-hs-act="fx-back">' + esc(t('factions.press_back')) + '</button></div></div>'
     + '<div class="hw-fx-acts"><button type="button" class="hh-tool hw-fx-swap-go" data-hs-act="fx-swap"></button>'
-    + '<button type="button" class="hh-tool is-primary hw-fx-finish" data-hs-act="fx-finish">' + esc(t('factions.press_finish')) + '</button></div></div>'
+    + '<button type="button" class="hh-tool is-primary hw-fx-finish" data-hs-act="fx-finish">' + esc(t('factions.press_finish')) + '</button>'
+    + '<button type="button" class="hh-tool hw-fx-cancel" data-hs-act="fx-cancel">' + esc(t('factions.press_cancel_swap')) + '</button></div></div>'
     + '<h3 class="hw-cs-head is-on">' + esc(t('factions.pieces_head')) + '</h3><ul class="hw-ledger hw-fx-pieces"></ul>'
-    + '<p class="hs-note">' + esc(t('factions.pieces_note')) + '</p>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></section>';
 }
 
@@ -89,6 +104,7 @@ export function patchFaction(body, ctx, sc) {
   const toLine = root.querySelector('.hw-fx-swap-to');
   cls(toLine, 'is-on', !!(f && f.swap));
   text(toLine, f && f.swap ? t('factions.swap_to', { side: sideName(f.swap.to) }) : '');
+  text(root.querySelector('.hw-fx-swap-from'), f && f.swap ? t('factions.swap_earns', { side: sideName(f.swap.to) }) : '');
   const face = to ? faceOf(to) : null;
   const quote = root.querySelector('.hw-fx-said');
   cls(quote, 'is-on', !!side && !!face);
@@ -98,16 +114,32 @@ export function patchFaction(body, ctx, sc) {
   const costMs = f && f.swap ? f.swap.needMs : f ? f.swapNeedMs : null;
   cls(cost, 'is-on', !!side && !(f && f.swap) && costMs !== null && !!to);
   text(cost, side && to && costMs !== null ? t('factions.swap_cost', { time: spanWords(costMs), side: sideName(to) }) : '');
+  /* THE CONFIRM (sc.fxAsk 'swap' | 'cancel'): what the press does, from the server's numbers, then Confirm or Back. It goes by itself
+     once the server's state no longer allows the press (the swap opened or closed elsewhere). */
+  if (sc.fxAsk === 'swap' && !(swapReady(f, now) && to)) sc.fxAsk = null;
+  if (sc.fxAsk === 'cancel' && !(f && f.swap)) sc.fxAsk = null;
+  const ask = sc.fxAsk || null;
+  const confirm = root.querySelector('.hw-fx-confirm');
+  prop(confirm, 'hidden', !ask);
+  text(root.querySelector('.hw-fx-confirm-q'), ask === 'swap' ? t('factions.confirm_swap', { side: sideName(to) }) : ask === 'cancel' ? t('factions.confirm_cancel') : '');
+  text(root.querySelector('.hw-fx-confirm-a'), ask === 'swap' && costMs !== null ? t('factions.swap_cost', { time: spanWords(costMs), side: sideName(to) })
+    : ask === 'cancel' ? t('factions.cancel_loses', { time: spanWords(f.swap.ms) }) : '');
+  text(root.querySelector('.hw-fx-confirm-b'), ask === 'swap' && f.cooldownMs !== null ? t('factions.confirm_swap_lock', { days: waitWords(f.cooldownMs) }) : '');
+  for (const b of confirm.querySelectorAll('button')) prop(b, 'disabled', sc.pending);
   const go = root.querySelector('.hw-fx-swap-go');
-  prop(go, 'hidden', !side || !!f.swap || !to);
+  prop(go, 'hidden', !side || !!f.swap || !to || !!ask);
   text(go, to ? t('factions.press_swap', { side: sideName(to) }) : '');
   prop(go, 'disabled', sc.pending || !swapReady(f, now));
   const fin = root.querySelector('.hw-fx-finish');
-  prop(fin, 'hidden', !(f && f.swap));
+  prop(fin, 'hidden', !(f && f.swap) || !!ask);
   prop(fin, 'disabled', sc.pending || !(f && f.swap && f.swap.ms >= f.swap.needMs));
+  const cancel = root.querySelector('.hw-fx-cancel');
+  prop(cancel, 'hidden', !(f && f.swap) || !!ask);
+  prop(cancel, 'disabled', sc.pending);
 
-  /* THE PIECES: each side's, its need in hours of that side's standing; Claim on only when the server's standing covers it. */
-  rows(root.querySelector('.hw-fx-pieces'), f ? f.pieces : [], {
+  /* THE PIECES: each side's, its need in hours of that side's standing; Claim on only when the server's standing covers it. A piece whose
+     looks have no art yet is not offered (pieceOffered). */
+  rows(root.querySelector('.hw-fx-pieces'), f ? f.pieces.filter(pieceOffered) : [], {
     key: (p) => p.id,
     build: (p) => element(ctx.doc, '<li class="hw-line hw-fx-piece"><span class="hw-ico hw-fx-mark" aria-hidden="true">' + factionIconHtml(ctx.glyphs, p.id) + '</span>'
       + '<span class="hw-line-name"><b></b><small></small></span>'
@@ -128,21 +160,30 @@ export function patchFaction(body, ctx, sc) {
 
 /** One press on the Faction tab; true when it was the tab's. */
 export function actFaction(ctx, sc, action, ev, el, repaint) {
-  if (ev.type !== 'click' || !['fx-choose', 'fx-claim', 'fx-swap', 'fx-finish'].includes(action)) return false;
+  if (ev.type !== 'click' || !['fx-choose', 'fx-claim', 'fx-swap', 'fx-finish', 'fx-cancel', 'fx-confirm', 'fx-back'].includes(action)) return false;
   const cs = ctx.character;
   const f = factionOf(cs);
   if (!f || sc.pending) return true;
   if (action === 'fx-choose') { if (f.canJoin) ctx.wm.open('faction-join'); return true; }
+  /* Swap and Cancel swap ask first (the confirm in the swap box); only Confirm sends */
+  if (action === 'fx-back') { sc.fxAsk = null; repaint(); return true; }
+  if (action === 'fx-swap') { if (otherSide(f) && swapReady(f, serverNowOf(cs))) { sc.fxAsk = 'swap'; sc.msg = ''; repaint(); } return true; }
+  if (action === 'fx-cancel') { if (f.swap) { sc.fxAsk = 'cancel'; sc.msg = ''; repaint(); } return true; }
+  if (action === 'fx-confirm') {
+    const ask = sc.fxAsk;
+    sc.fxAsk = null;
+    if (ask === 'cancel' && f.swap) runIntent(sc, repaint, () => cancelSwap(ctx.account, cs), t('factions.busy_cancel'), () => t('factions.swap_cancelled'), cs);
+    else if (ask === 'swap') {
+      const to = otherSide(f);
+      if (to && swapReady(f, serverNowOf(cs))) runIntent(sc, repaint, () => startSwap(ctx.account, cs, to), t('factions.busy_swap'), () => t('factions.swap_started', { side: sideName(to) }), cs);
+      else repaint();
+    } else repaint();
+    return true;
+  }
   if (action === 'fx-claim') {
     const p = f.pieces.find((x) => x.id === el.getAttribute('data-piece'));
     if (!p || !claimable(f, p)) return true;
     runIntent(sc, repaint, () => claimPiece(ctx.account, cs, p.id), t('factions.busy_claim'), () => t('factions.claimed', { piece: pieceName(p.id) }), cs);
-    return true;
-  }
-  if (action === 'fx-swap') {
-    const to = otherSide(f);
-    if (!to || !swapReady(f, serverNowOf(cs))) return true;
-    runIntent(sc, repaint, () => startSwap(ctx.account, cs, to), t('factions.busy_swap'), () => t('factions.swap_started', { side: sideName(to) }), cs);
     return true;
   }
   if (!f.swap || f.swap.ms < f.swap.needMs) return true;

@@ -135,7 +135,7 @@ renderCharacter.events = Object.freeze(['input']);
 renderCharacter.act = function actCharacter(ctx, body, action, ev, t) {
   const sc = scratchOf(ctx.character);
   const repaint = () => renderCharacter.patch(body, ctx);
-  if (action === 'cs-tab' && ev.type === 'click') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; repaint(); return true; }
+  if (action === 'cs-tab' && ev.type === 'click') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; sc.fxAsk = null; repaint(); return true; }
   if (sc.tab === 'outfit' && actOutfit(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'titles' && actTitles(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'faction' && actFaction(ctx, sc, action, ev, t, repaint)) return true;

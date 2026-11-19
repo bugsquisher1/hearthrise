@@ -124,15 +124,15 @@ begin
     end loop;
     -- (a) a hero of no side, then a member with no swap
     perform set_config('request.jwt.claim.sub', v_n::text, true);
-    v := public.hr_faction_swap_cancel(0, (k || '0000001')::uuid);
+    v := public.hr_faction_swap_cancel(0, (k || '001')::uuid);
     if v->>'error' is distinct from 'not_member' then raise exception 'swap-cancel §4(a): a hero of no side answered %', v; end if;
     perform set_config('request.jwt.claim.sub', v_u::text, true);
     insert into public.player_progress (user_id, slot, kind, key, period_key, value, updated_at) values (v_u, 0, 'stat', 'ev:kill_monster:' || r.join_monster, '', 1, now());
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_faction_join(0, v_a, (k || '0000002')::uuid);
+    v := public.hr_faction_join(0, v_a, (k || '002')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'swap-cancel §4(a): the join answered %', v; end if;
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_faction_swap_cancel(0, (k || '0000003')::uuid);
+    v := public.hr_faction_swap_cancel(0, (k || '003')::uuid);
     if v->>'error' is distinct from 'no_swap' then raise exception 'swap-cancel §4(a): a member with no swap answered %', v; end if;
     if exists (select 1 from public.hr_faction_ledger where user_id in (v_u, v_n) and kind = 'swap_cancel') then
       raise exception 'swap-cancel §4(a): a refused cancel wrote a journal row'; end if;
@@ -140,11 +140,11 @@ begin
     v_changed := now() - make_interval(secs => r.cooldown_ms / 1000.0 + 60);
     update public.hr_faction_members set changed_at = v_changed where user_id = v_u and slot = 0;
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_faction_swap_start(0, v_b, (k || '0000004')::uuid);
+    v := public.hr_faction_swap_start(0, v_b, (k || '004')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'swap-cancel §4(b): the swap start answered %', v; end if;
     update public.hr_faction_members set swap_ms = 3600000 where user_id = v_u and slot = 0;
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_faction_swap_cancel(0, (k || '0000005')::uuid);
+    v := public.hr_faction_swap_cancel(0, (k || '005')::uuid);
     select * into m from public.hr_faction_members where user_id = v_u and slot = 0;
     if coalesce(v->>'ok', '') <> 'true' or m.faction is distinct from v_a or m.changed_at is distinct from v_changed
        or m.swap_to is not null or m.swap_at is not null or m.swap_ms <> 0 then
@@ -154,16 +154,16 @@ begin
     if (select count(*) from public.hr_faction_ledger where user_id = v_u and kind = 'swap_cancel' and faction = v_b and swap_ms = 3600000) <> 1 then
       raise exception 'swap-cancel §4(b): the cancel was not journalled once with its side and time'; end if;
     delete from public.hr_rate_counters where user_id = v_u;
-    v2 := public.hr_faction_swap_cancel(0, (k || '0000005')::uuid);
+    v2 := public.hr_faction_swap_cancel(0, (k || '005')::uuid);
     if v2 is distinct from v or (select count(*) from public.hr_faction_ledger where user_id = v_u and kind = 'swap_cancel') <> 1 then
       raise exception 'swap-cancel §4(b): the same key again answered % and journalled twice', v2; end if;
     -- (c) the switch off: the door shuts, an open swap stays
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_faction_swap_start(0, v_b, (k || '0000006')::uuid);
+    v := public.hr_faction_swap_start(0, v_b, (k || '006')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'swap-cancel §4(c): the second start answered %', v; end if;
     update public.hr_feature_switches set scope = 'off' where switch_id = 'factions';
     delete from public.hr_rate_counters where user_id = v_u;
-    v := public.hr_faction_swap_cancel(0, (k || '0000007')::uuid);
+    v := public.hr_faction_swap_cancel(0, (k || '007')::uuid);
     if v->>'error' is distinct from 'feature_off' or (select swap_to from public.hr_faction_members where user_id = v_u and slot = 0) is distinct from v_b then
       raise exception 'swap-cancel §4(c): with the switch off the cancel answered %', v; end if;
     raise exception using errcode = 'HRF28', message = 'swap-cancel §4 complete - rolling back';

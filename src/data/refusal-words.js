@@ -168,7 +168,7 @@ export const REFUSAL_WORDS = Object.freeze({
   same_faction: 'Already on that side',
   swap_open: 'Swap already under way',
   swap_cooldown: 'Changed sides too recently',
-  no_swap: 'No swap to finish',
+  no_swap: 'No swap under way',
   swap_short: 'Swap needs more hunting on their grounds',
   piece_owned: 'Already owned',
   standing_short: 'Not enough standing',

@@ -145,6 +145,7 @@ export const CLIENT_RPCS = Object.freeze({
   hr_faction_join: 'join a side once, after the server counted this hero\'s Krell kill (faction-intents.js joinFaction)',
   hr_faction_swap_start: 'start a swap to the other side, a cooldown after the last change (faction-intents.js startSwap)',
   hr_faction_swap_finish: 'finish the open swap once the settle credited its hunting time (faction-intents.js finishSwap)',
+  hr_faction_swap_cancel: 'cancel the open swap, its swap time lost, the side and the week kept (faction-intents.js cancelSwap; 2027-05-28-faction-swap-cancel.sql)',
   hr_faction_outfit_claim: 'claim a cosmetic piece this hero\'s server standing has earned (faction-intents.js claimPiece)',
   /* The Burning Tower (2027-04-24-tower-climb.sql, 2027-04-27-tower-chest.sql, behind the `burning_tower` switch): a slot, a floor or a
      catalogue id and a count, with a fresh key; never a chance, a warmth, a Cinder count, a weapon or a price. */

@@ -417,6 +417,29 @@ async function runTests(M) {
     eq(card3 && [card3.lvFrom, card3.lvTo, card3.ups], [null, 8, []], 'MID-WAY: Level 8, no start and no skill line');
   });
 
+  /* L3 THE STANDING LINE (the faction QA 2026-11-19 #9: "11 h of standing earned in one hunt does not appear on its summary"): the server's
+     standing per side stamped at the start beside the Level, and the `factions` section's at the end; the card says what the hunt raised. */
+  await t('L3 the end card says the standing a hunt earned, from the server\'s standing at its start and end', async () => {
+    const H = 3600000;
+    const sided = (v, ended, tally, flame) => Object.assign(levelled(v, ended, tally, 5, 3), { factions: { faction: 'first_flame', can_join: false,
+      joined_at: '2026-10-17T00:00:00Z', swap: null, swap_ready_at: '2026-10-24T00:00:00Z', standing: { last_ember: 2 * H, first_flame: flame },
+      today_ms: 0, day_cap_ms: 24 * H, pieces: [{ id: 'flamebearer', faction: 'first_flame', need_ms: 25 * H, held: false }], swap_need_ms: 10 * H, cooldown_ms: 7 * 24 * H } });
+    let env = sided(7, false, {}, H);
+    const cs = sessionOn([], () => env);
+    await cs._take(env, 'load');
+    eq(cs.record.residue.huntStart && cs.record.residue.huntStart.fx, { last_ember: 2 * H, first_flame: H }, 'the start stamps the server\'s standing per side');
+    env = sided(8, true, PAID, 12 * H);
+    ok(await cs.load(), 'the ended envelope applied');
+    const card = M.REC.summariesOf(cs)[0];
+    eq(card && card.standing, [['first_flame', 11 * H]], 'the card holds First Flame +11 h and nothing for the side the hunt did not raise');
+    const W = await import(pathToFileURL(join(ROOT, 'src/shell/windows/hunt-summary.js')).href);
+    eq(W.resultOf(card).ups, ['First Flame standing +11 h'], 'the card\'s line');
+    eq(MD.standingLine('sess-8', cs.record.residue.huntStart, { first_flame: 12 * H }), [], 'another session\'s stamp gives no line');
+    eq(MD.standingLine('sess-9', { s: 'sess-9', lv: 5, sk: {} }, { first_flame: 12 * H }), [], 'a stamp from before the factions gives no line');
+    const S = M.RES.sanitizeResidueField('huntStart', { s: 'sess-9', lv: 5, sk: {}, fx: { first_flame: -1, 'x y': 3, last_ember: 5 } });
+    eq(S.fx, { last_ember: 5 }, 'the stamp keeps only a side id with a whole, unsigned number');
+  });
+
   /* C4 EVERY HUNT REACHES EARLIER HUNTS (post-140 audit C4: both Wickstead days and the Glade death never did, and "Training Yard ... Training
      stopped" took 5 of 7 rows). Both paths. VIEWED: the hunt ends in view, then the yard its plan opens runs and stops again and again: the hunt
      stays, beside ONE yard row. CLOSED: the hunt ended with the page shut and the yard took over, so the page's first read is the yard; the
@@ -777,6 +800,8 @@ async function load(base) {
 }
 
 const MUTANTS = [
+  { test: 'L3', file: MODEL, from: '    if (ID.test(side) && from !== null && Number.isSafeInteger(ms) && ms > from) out.push([side, ms - from]);', to: '    if (ID.test(side) && Number.isSafeInteger(ms) && ms > 0) out.push([side, ms]);' },
+  { test: 'L3', file: RECORDER, from: "cs.setResidue('huntStart', f ? { s: s.id, lv: lv.level, sk, fx: Object.assign({}, f.standing) } : { s: s.id, lv: lv.level, sk });", to: "cs.setResidue('huntStart', { s: s.id, lv: lv.level, sk });" },
   { test: 'A6', file: RECORDER, from: "return card ? Object.assign(card, { live: true, since: s.enteredMs }) : null;", to: 'return null;' },
   { test: 'A6', file: RECORDER, from: "  if (!s || s.ended) return null;\n  const an = analyzerOf(cs);", to: "  if (!s) return null;\n  const an = analyzerOf(cs);" },
   { test: 'A3', file: SESSION, from: 'for (const [f, v] of Object.entries({ ...this._sent, ...this._pending })) this._record', to: 'for (const [f, v] of Object.entries({ ...this._sent })) this._record' },

@@ -21,7 +21,9 @@ export function scratchOf(cs) {
       draft: null, dir: 0, query: '', ownedOnly: false, region: null,
       /* what a color save costs, as this window last read it (hr_hero_colors_view), null until it answers: never in the envelope */
       price: null, priceAsking: false, priceAskedAt: 0,
-      openDeath: null };
+      openDeath: null,
+      /* the Faction tab's open confirm: 'swap' or 'cancel' while it asks, else null (faction.js) */
+      fxAsk: /** @type {string|null} */ (null) };
     SCRATCH.set(cs, s);
   }
   return s;

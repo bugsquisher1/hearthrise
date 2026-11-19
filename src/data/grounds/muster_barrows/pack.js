@@ -138,7 +138,7 @@ export default definePack({
         { id: 'rune_sword', ch: 0.016, band: 'scarce' },
         /* the shield he was buried holding (shields.js, the audit's F8): a Rare beside his Scarce sword */
         { id: 'runebound_shield', ch: 0.0011, band: 'rare' }],
-      hp: 211, atk: 25, baseAcc: 1, def: 21, xp: 1171, gp: [16, 50], formula: true },
+      hp: 211, atk: 25, baseAcc: 1, def: 21, xp: 1124, gp: [16, 50], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -149,7 +149,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
         { id: 'yew_staff', ch: 0.048, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 207, atk: 34, baseAcc: 0.97, def: 22, xp: 1407, gp: [16, 49], formula: true },
+      hp: 207, atk: 34, baseAcc: 0.97, def: 22, xp: 1351, gp: [16, 49], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -161,7 +161,7 @@ export default definePack({
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' },
         { id: 'rune_hatchets', ch: 0.0033, band: 'rare' }],
-      hp: 484, atk: 45, baseAcc: 0.82, def: 44, xp: 3276, gp: [38, 113], formula: true },
+      hp: 484, atk: 45, baseAcc: 0.82, def: 44, xp: 3145, gp: [38, 113], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
@@ -174,7 +174,7 @@ export default definePack({
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
       /* HIS LINES ARE BACK with the ground-boss engine (lane/b-barrow-integrate 2026-11-14, from lane/b-muster-barrows 36a7a2d1b; carried as a
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
-      hp: 1712, atk: 54, baseAcc: 0.82, def: 52, xp: 12727, gp: [133, 401], formula: true,
+      hp: 1712, atk: 54, baseAcc: 0.82, def: 52, xp: 12218, gp: [133, 401], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {
@@ -271,7 +271,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.80-0.86, threes 0.73-0.81, fours 0.65-0.77), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.02-1.06, threes 1.01-1.08, the four 1.07); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-30, 25], 3: [-25, 25, 35], 4: [-30, 20, 25, 30] }, dangerous: { 2: [-25, 25], 3: [-15, 35, 40], 4: [-25, 25, 35, 35] }, deadly: { 2: [-25, 30], 3: [-15, 40, 45], 4: [-20, 30, 40, 40] } },
+  partyVsAlone: { normal: { 2: [-30, 30], 3: [-25, 30, 35], 4: [-30, 25, 30, 30] }, dangerous: { 2: [-25, 30], 3: [-15, 35, 45], 4: [-20, 25, 35, 35] }, deadly: { 2: [-25, 30], 3: [-10, 45, 50], 4: [-15, 35, 45, 50] } },
   /* THE PACK'S TEST FACTS. Hask holds his barrow (no spawn weight). dropRef: the four the ground is built for, at the floor in the
      harness's own-tier set (tests/hunt-core/drop-tables.mjs, as the Warrens'). valueToday is COMPUTED, not a pre-conversion pin: that
      four's measured coin a head (7,178 g/h) and commons (499) plus the gear-faucet's half of the coin (3,589), the most the hour's

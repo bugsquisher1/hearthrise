@@ -123,7 +123,7 @@ export default definePack({
         { id: 'mithril_boots', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.008, band: 'scarce' }, { id: 'warlock_boots', ch: 0.008, band: 'scarce' },
         { id: 'mithril_helm', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.008, band: 'scarce' },
         { id: 'maple_crossbow', ch: 0.006, band: 'scarce' }],
-      hp: 67, atk: 28, baseAcc: 1, def: 14, xp: 533, gp: [10, 29], formula: true },
+      hp: 67, atk: 28, baseAcc: 1, def: 14, xp: 511, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
@@ -132,7 +132,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platelegs', ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0325, band: 'scarce' },
         { id: 'mithril_hatchets', ch: 0.026, band: 'scarce' }],
-      hp: 112, atk: 29, baseAcc: 1.02, def: 27, xp: 1022, gp: [16, 50], formula: true },
+      hp: 112, atk: 29, baseAcc: 1.02, def: 27, xp: 981, gp: [16, 50], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
       /* the glass: the company's dead quartermasters, still keeping the books by the stores. It hits hard and breaks fast. A
@@ -141,7 +141,7 @@ export default definePack({
       weaponResist: ['magic'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'ledger_leaf', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' }],
-      hp: 71, atk: 40, baseAcc: 0.97, def: 18, xp: 712, gp: [10, 32], formula: true },
+      hp: 71, atk: 40, baseAcc: 0.97, def: 18, xp: 684, gp: [10, 32], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. His shield,
@@ -151,7 +151,7 @@ export default definePack({
         { id: 'mithril_faced_shield', ch: 0.05, band: 'scarce' },
         { id: 'mithril_gauntlets', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0042, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0042, band: 'rare' },
         { id: 'mithril_belt', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0042, band: 'rare' }, { id: 'warlock_belt', ch: 0.0042, band: 'rare' }],
-      hp: 166, atk: 39, baseAcc: 1.04, def: 36, xp: 1656, gp: [24, 74], formula: true },
+      hp: 166, atk: 39, baseAcc: 1.04, def: 36, xp: 1590, gp: [24, 74], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the
      pace contract (254,360 an hour at 53). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.15 the middle
@@ -199,7 +199,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.70, threes 0.55-0.65, fours 0.44-0.58), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.06-1.17, threes 1.06-1.14, the four 1.17); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, -5], 3: [-50, -20, -15], 4: [-60, -35, -35, -35] }, dangerous: { 2: [-30, 20], 3: [-25, 20, 25], 4: [-35, 5, 10, 15] }, deadly: { 2: [-30, 20], 3: [-25, 20, 30], 4: [-35, 10, 15, 15] } },
+  partyVsAlone: { normal: { 2: [-40, -5], 3: [-50, -20, -15], 4: [-60, -35, -30, -30] }, dangerous: { 2: [-30, 20], 3: [-25, 15, 25], 4: [-35, 5, 15, 15] }, deadly: { 2: [-10, 50], 3: [-10, 40, 50], 4: [-25, 20, 25, 30] } },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Slake's bag. Salted Lobster is the cheapest heal an HP at this Level
      (0.83 g an HP). The melee line holds about three hours of a lone tank's bill at the floor (5.8k g an hour, drop-tables). */
   bagGuide: { tier: 4,

@@ -46,7 +46,15 @@ const HOURS = 2, SEEDS = 2;
 
 /* DECLARED SHIFTS: [{ after: 'YYYY-MM-DD' (hunts recorded on or before it), why, mult: { metric: x } }]. The recorded rate is multiplied
    by `mult` before it is judged. Measured on this fixture, by `calibrate.mjs --run --monsters ...` or the change's own before/after run. */
-export const DECLARED_SHIFTS = Object.freeze([]);
+export const DECLARED_SHIFTS = Object.freeze([
+  /* MONSTERS A LITTLE HARDER (Tyler 2026-11-19, lane/d-harder-monsters; balance-sheet.js STAT_FORMULA): blows and HP x1.1, XP a point x0.96
+     (the pace of record holds), the Cellar's XP fit 1.22. MEASURED on this fixture's three judged hunts: `calibrate.mjs --run --hours 2
+     --seeds 2` on set/v0.2.141 (2eed3d57b) and on the change, sim over sim, pooled (summed) per metric. By hunt: the Warrens alone
+     kills 0.91 / XP 0.96 / coin 0.97 / taken 1.08 / healed 1.14 / store 1.08; Krell's two Deadly fours kills 0.94-0.95 / XP 0.99-1.00 /
+     coin 1.04-1.05 / taken 1.17-1.18 / healed 1.22-1.23 / store 1.71-2.16 (the Healer's mana and the tank's food follow the blows). */
+  Object.freeze({ after: '2026-11-18', why: 'monsters a little harder: STAT_FORMULA blows and HP x1.1 (Tyler 2026-11-19), XP a point x0.96',
+    mult: Object.freeze({ killsPerH: 0.941, levelXpPerH: 0.994, coinPerH: 1.038, dealtPerH: 1.039, takenPerH: 1.166, healedPerH: 1.218, storePerH: 1.744 }) }),
+]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);
 const shiftOf = (s, key) => DECLARED_SHIFTS.filter((d) => s.date <= d.after).reduce((m, d) => m * ((d.mult && d.mult[key]) || 1), 1);

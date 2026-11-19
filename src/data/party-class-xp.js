@@ -100,17 +100,21 @@ export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 16
    Dangerous and Deadly two of two, three of three and four of four are the played mixes (a pair the mean of tank + Healer and tank + bow), every other cell
    the size's mix times the table's cell ratio (a cell moves no blow; on Normal that reading lands within 5 of the measured one-class cells).
    first-week-bands vs-alone plays a harder tier's full mix against its line. The Normal lines were re-measured by that run on set v0.2.138 (2026-11-18,
-   3 seeds): one ground's moved, the Warrens' (5 points on six cells; its three of three +25 -> +30). */
+   3 seeds): one ground's moved, the Warrens' (5 points on six cells; its three of three +25 -> +30).
+   EVERY LINE RE-MEASURED 2026-11-19 (lane/d-harder-monsters, `tests/party-class-xp-line.mjs --mixed --write`, 3 seeds) on monsters a tenth harder with a
+   tenth more HP (balance-sheet.js STAT_FORMULA). Most cells moved 0-10 points; the Glade's Deadly most (a four +40 -> +70, a pair -15/+45 -> +15/+95):
+   its heroes ALONE now die there far more often (the quick grade: 434 -> 657 deaths in 16 lone hero-hours at the floor and middle), so a party's
+   head reads further over them. */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 /* a ground's lines, one per tier it offers: { normal: said(..), dangerous: said(..), deadly: said(..) } */
 const lines = (byTier) => Object.freeze(Object.fromEntries(Object.entries(byTier).map(([tier, l]) => [tier, said(l[2], l[3], l[4])])));
 const BASE_VS_ALONE = Object.freeze({
-  mill_cellar: lines({ normal: said([-60, -30], [-70, -45, -45], [-80, -60, -60, -60]) }),
-  meadowbrook_thicket: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), dangerous: said([-45, -10], [-50, -25, -20], [-65, -40, -40, -40]), deadly: said([-45, -5], [-50, -25, -20], [-65, -40, -40, -35]) }),
-  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]), dangerous: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), deadly: said([-45, -5], [-50, -20, -15], [-60, -40, -35, -35]) }),
-  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-30, 15, 20], [-40, 0, 5, 10]), deadly: said([-15, 45], [-10, 50, 60], [-20, 30, 40, 40]) }),
-  millrace_sewer: lines({ normal: said([-35, 10], [-35, 10, 20], [-45, 5, 10, 10]), dangerous: said([-30, 15], [-30, 15, 20], [-35, 5, 15, 15]), deadly: said([-30, 20], [-25, 20, 30], [-30, 15, 20, 25]) }),
-  coppercap_warrens: lines({ normal: said([-25, 20], [-25, 25, 30], [-30, 20, 25, 25]), dangerous: said([-25, 25], [-20, 35, 40], [-20, 30, 35, 40]), deadly: said([-25, 25], [-15, 35, 45], [-20, 30, 35, 40]) }),
+  mill_cellar: lines({ normal: said([-55, -25], [-70, -45, -40], [-80, -60, -60, -60]) }),
+  meadowbrook_thicket: lines({ normal: said([-45, -10], [-55, -20, -15], [-65, -40, -35, -35]), dangerous: said([-45, -5], [-50, -20, -15], [-60, -40, -35, -35]), deadly: said([-45, -5], [-50, -20, -15], [-65, -40, -35, -35]) }),
+  wickstead: lines({ normal: said([-45, -5], [-55, -20, -15], [-65, -40, -35, -35]), dangerous: said([-45, -5], [-50, -20, -15], [-60, -35, -30, -30]), deadly: said([-40, 0], [-50, -15, -10], [-60, -30, -25, -25]) }),
+  mosslight_glade: lines({ normal: said([-40, 0], [-45, -5, 0], [-55, -20, -15, -15]), dangerous: said([-30, 20], [-30, 15, 20], [-35, 5, 10, 10]), deadly: said([15, 95], [15, 85, 95], [-5, 55, 65, 70]) }),
+  millrace_sewer: lines({ normal: said([-40, 10], [-35, 10, 15], [-45, 5, 10, 10]), dangerous: said([-35, 15], [-25, 20, 25], [-30, 15, 20, 25]), deadly: said([-35, 15], [-30, 15, 20], [-30, 10, 15, 20]) }),
+  coppercap_warrens: lines({ normal: said([-30, 20], [-25, 25, 30], [-30, 25, 30, 30]), dangerous: said([-25, 30], [-15, 35, 45], [-20, 30, 35, 40]), deadly: said([-25, 30], [-15, 35, 45], [-20, 35, 40, 45]) }),
 });
 /* A ground pack's measured lines (src/data/grounds/<id>/pack.js `partyVsAlone`: { normal: { 2, 3, 4 }, dangerous: .., deadly: .. }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: lines(p.partyVsAlone) } : {})));

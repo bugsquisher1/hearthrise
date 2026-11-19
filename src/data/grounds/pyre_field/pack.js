@@ -123,7 +123,7 @@ export default definePack({
         { id: 'rune_boots', ch: 0.0115, band: 'scarce' }, { id: 'wyvernhide_boots', ch: 0.0115, band: 'scarce' }, { id: 'sorcerer_boots', ch: 0.0115, band: 'scarce' },
         { id: 'rune_sword', ch: 0.0115, band: 'scarce' }],
       /* (his Rare Runebound Shield, 0.08%, left for the Lurchers' hourly row: one home on a ground, lane/d-drop-homes 2026-11-18) */
-      hp: 103, atk: 53, baseAcc: 1, def: 28, xp: 853, gp: [15, 46], formula: true },
+      hp: 103, atk: 53, baseAcc: 1, def: 28, xp: 818, gp: [15, 46], formula: true },
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Hold's woodmen who fed the pyres and forged in their heat. Worked in the
@@ -133,7 +133,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.029, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.029, band: 'scarce' },
         { id: 'rune_belt', ch: 0.0019, band: 'rare' }, { id: 'wyvernhide_belt', ch: 0.0019, band: 'rare' }, { id: 'sorcerer_belt', ch: 0.0019, band: 'rare' }],
-      hp: 162, atk: 52, baseAcc: 1.04, def: 45, xp: 1508, gp: [24, 71], formula: true },
+      hp: 162, atk: 52, baseAcc: 1.04, def: 45, xp: 1448, gp: [24, 71], formula: true },
     lurcher: {
       name: 'Lurcher', icon: '🐕', tier: 5, level: 72, cls: 'mammal', family: 'Mammal', speed: 4600,
       /* the skirmisher: the company's camp dogs, lean and quick enough to run down a kiter, who never left their dead. Living, so the
@@ -144,7 +144,7 @@ export default definePack({
         { id: 'rune_helm', ch: 0.05, band: 'scarce' }, { id: 'wyvernhide_helmet', ch: 0.05, band: 'scarce' }, { id: 'sorcerer_helmet', ch: 0.05, band: 'scarce' },
         { id: 'runebound_shield', ch: 0.05, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0039, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0039, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0039, band: 'rare' }],
-      hp: 99, atk: 70, baseAcc: 0.79, def: 29, xp: 994, gp: [15, 43], formula: true },
+      hp: 99, atk: 70, baseAcc: 0.79, def: 29, xp: 955, gp: [15, 43], formula: true },
     pyre_wraith: {
       name: 'Pyre Wraith', icon: '👻', tier: 5, level: 76, cls: 'undead', family: 'Undead', speed: 3600,
       /* the regular: a dead man Krell's rite bound into the pyre smoke, still in his shroud. A spell undoes the binding and a blade goes
@@ -154,7 +154,7 @@ export default definePack({
       drops: [{ id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wraith_veil', ch: 0.2, band: 'common' }, { id: 'shroud_pin', ch: 0.08, band: 'uncommon' },
         { id: 'yew_staff', ch: 0.028, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0019, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0019, band: 'rare' }],
-      hp: 139, atk: 67, baseAcc: 0.88, def: 34, xp: 1189, gp: [20, 62], formula: true },
+      hp: 139, atk: 67, baseAcc: 0.88, def: 34, xp: 1141, gp: [20, 62], formula: true },
     provost: {
       name: 'Provost', icon: '⚔️', tier: 5, level: 80, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's provosts, who hanged its deserters (Wickstead's Turncoats ran from them), burned
@@ -170,7 +170,7 @@ export default definePack({
         { id: 'ember_hatchets', ch: 0.002, band: 'rare' }, { id: 'runewood_crossbow', ch: 0.002, band: 'rare' },
         /* the tier-6 shield beside every tier-6 weapon (shields.js, the audit's F8) */
         { id: 'ember_tower_shield', ch: 0.002, band: 'rare' }],
-      hp: 233, atk: 70, baseAcc: 0.9, def: 56, xp: 2340, gp: [34, 103], formula: true },
+      hp: 233, atk: 70, baseAcc: 0.9, def: 56, xp: 2246, gp: [34, 103], formula: true },
   },
   roster: {
     charred_pikeman: 'swarm',   // the common majority
@@ -230,7 +230,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.60-0.72, threes 0.48-0.70, fours 0.36-0.57), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.92-1.05, threes 0.91-1.00, the four 1.02: a Mage or a Healer alone earns the most here, so a mix reads near even against its own heroes while it reads 1.20 against the median lone way, the band the grader binds); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-30, 15], 3: [-30, 10, 15], 4: [-35, 5, 10, 10] }, deadly: { 2: [-30, 20], 3: [-30, 15, 25], 4: [-35, 5, 10, 15] } },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -20, -20, -15] }, dangerous: { 2: [-30, 20], 3: [-30, 15, 20], 4: [-35, 5, 15, 15] }, deadly: { 2: [-25, 25], 3: [-25, 25, 30], 4: [-30, 15, 20, 20] } },
   /* THE PACK'S TEST FACTS (re-pinned 2026-11-10 for one difficulty). dropRef: a lone tank at the floor in its full own-tier set
      (tests/hunt-core/drop-tables.mjs, the harness's tier-5 kit). valueToday is COMPUTED, the 11-09 method: the hour's expected coin
      (10,090 g) and commons (3,930; re-pinned 2026-11-13 with the commons reverted) plus the gear-faucet's half of the coin (5,045). The

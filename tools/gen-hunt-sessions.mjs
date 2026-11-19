@@ -351,7 +351,7 @@ export const WORLD_FIELDS_READ = Object.freeze({
    pieces get their bids. ORDER: after this lane's items catalogue. */
 /* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18, designer): 2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue (STAGED on set/v0.2.141, applied first) is the file before; the cut scrolls and feasts leave the vendor values. */
 /* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-22-cookbook-cut-hunt-sessions-catalogue
-   (STAGED on set/v0.2.141, applied first) is the file before this one and this one carries it whole. Only hr_hunt_kill_bounds moves: every formula monster's HP
+   (STAGED on set/v0.2.141, applied first) is the file before this one and this one carries it whole. hr_hunt_kill_bounds moves (and the called Chief's Cauldron rate in hr_boss_calls, the field Chief's): every formula monster's HP
    is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
    end reason, vendor value or world shape moves. ORDER: after every 2027-05-22 file. */
 export const OUT_NAME = '2027-05-23-harder-monsters-hunt-sessions-catalogue.generated.sql';

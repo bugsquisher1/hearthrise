@@ -83,7 +83,12 @@ const SEED = '-4611686018427387904';
    the Warrens' loot rolls. Proof: set/v0.2.139 alone (f5ec21295) reads the same red, and with origin/main's src/data/monsters.js laid in it holds every pin (exit 0).
    RE-PINNED 2026-11-18 (lane/d-jewelry-sample on v0.2.139, 5b58e0b6e), WARRENS-4'S TALLY ONLY (world and timeline hold, kills 211): the Goblin Digger's Seam
    Jasper Rare (src/data/monsters.js) is a new item in the tally. glade-4, sewer-2 and the lone ranger hold. Proof: this lane's tree with origin/main's
-   src/data/monsters.js laid back alone holds every pin (exit 0), so Steady and Focus (combat.js, damage.js) move none: no pinned hero wears them. */
+   src/data/monsters.js laid back alone holds every pin (exit 0), so Steady and Focus (combat.js, damage.js) move none: no pinned hero wears them.
+   RE-PINNED 2026-11-19 (lane/d-harder-monsters; Tyler 2026-11-19 "raise HP and damage done by all monsters in the game slightly"), DATA ONLY, A
+   BALANCE CHANGE MEANT TO MOVE THEM: all four scenarios move from settle 1. Cause: src/data/balance-sheet.js STAT_FORMULA's blows and HP line x1.1 and
+   XP a point x0.96, so every formula row on the pinned grounds (src/data/monsters.js, rewritten by tools/gen-ground-stats.mjs --write) has a tenth
+   more HP and a blow a tenth harder: other kills, other swings, other rolls. This lane's diff touches no file under src/core or
+   supabase/functions (git diff set/v0.2.141...HEAD --stat -- src/core supabase/functions: empty), so the engine is the pin's. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

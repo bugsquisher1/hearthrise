@@ -20,7 +20,7 @@
 //   FO-DOORS  the other three doors answer exactly as the reader before this file (2027-04-30-sweeps-coat.sql's body, put back in a
 //             savepoint): a free row is everyone's, a premium row the premium hero's, a bundle row its user's; a faction look is owned
 //             exactly when every piece it names is claimed
-//   FO-GRANT  the reader is no client's, no client verb is added; hr_outfits_pieces_shape refuses a premium look, a bundle look, an
+//   FO-GRANT  the reader is no client's, the client outfit and faction verbs are exactly the listed seven (the swap cancel 2027-05-28 one of them; an unlisted one is red, verb_unlisted); hr_outfits_pieces_shape refuses a premium look, a bundle look, an
 //             empty, a null, a malformed and a fifth piece
 //   FO-AGAIN  both files applied a second time at the chain end move nothing (bodies, rows, the column, the CHECK); the catalogue
 //             refuses to land while the reader is the one before the hand file (every hero would own every look)
@@ -259,9 +259,9 @@ const ARMS = {
         bad.push(`FO-GRANT ${role} reaches the outfit catalogue or the claims`);
       }
     }
-    /* no new client verb: the outfit and faction verbs on the baseline are exactly these six */
+    /* no new client verb: the outfit and faction verbs on the baseline are exactly these seven (hr_faction_swap_cancel: 2027-05-28-faction-swap-cancel.sql); one nobody listed here is red */
     const verbs = (await q(db, `select proname from public.hr_client_rpc_baseline where grantee = 'authenticated' and (proname like 'hr\\_outfit%' or proname like 'hr\\_faction%') order by proname`)).map((r) => r.proname);
-    if (verbs.join() !== 'hr_faction_join,hr_faction_outfit_claim,hr_faction_swap_finish,hr_faction_swap_start,hr_outfit_bundle_use,hr_outfit_set') bad.push('FO-GRANT the client outfit and faction verbs are ' + JSON.stringify(verbs));
+    if (verbs.join() !== 'hr_faction_join,hr_faction_outfit_claim,hr_faction_swap_cancel,hr_faction_swap_finish,hr_faction_swap_start,hr_outfit_bundle_use,hr_outfit_set') bad.push('FO-GRANT the client outfit and faction verbs are ' + JSON.stringify(verbs));
     /* THE CHECK: each malformed look refused */
     const tries = [['a premium look', "true, '{}', 990, null, '{flamebearer}'"], ['a bundle look', "false, '{}', 990, 'sweeps_coat_bundle', '{flamebearer}'"],
       ['no piece', "false, '{}', 990, null, '{}'"], ['a null piece', "false, '{}', 990, null, array['flamebearer', null]::text[]"],
@@ -394,6 +394,11 @@ export const MUTANTS = {
   premium_door_moved: { arm: 'FO-DOORS', why: 'a free hero owns the premium outfits', db: [OWNED, 'else not o.premium or public.hr_premium_active(p_user, p_slot, now()) end);', 'else true end);'] },
   reader_to_client: { arm: 'FO-GRANT', why: 'a client can read any hero\'s owned list', ddl: 'grant execute on function public.hr_outfit_owned(uuid, integer) to authenticated' },
   check_dropped: { arm: 'FO-GRANT', why: 'a premium faction look can be stored', ddl: 'alter table public.hr_outfits drop constraint hr_outfits_pieces_shape' },
+  /* a faction verb nobody listed, granted and baselined the house way (so only the list can catch it) */
+  verb_unlisted: { arm: 'FO-GRANT', why: 'a client faction verb lands that this guard never listed',
+    ddl: "create function public.hr_faction_unlisted(p_slot int) returns jsonb language sql security definer set search_path = public, pg_catalog as $$ select '{}'::jsonb $$;\n"
+      + 'revoke all on function public.hr_faction_unlisted(int) from public, anon, service_role;\ngrant execute on function public.hr_faction_unlisted(int) to authenticated;\n'
+      + "insert into public.hr_client_rpc_baseline (proname, identity_args, grantee, note) values ('hr_faction_unlisted', 'p_slot integer', 'authenticated', 'a planted verb');" },
   pin_lost: { arm: 'FO-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [HAND, "'cfe9a082905a659b73b0b9ca8c4e565e', 'e96a36a681fe324d084ce26baa25ac44')", "'cfe9a082905a659b73b0b9ca8c4e565e', '00000000000000000000000000000000')"] },
   catalogue_unguarded: { arm: 'FO-AGAIN', why: 'the catalogue lands before the reader reads the claims',
     sql: [CATALOGUE, "     or strpos((select prosrc from pg_proc where oid = 'public.hr_outfit_owned(uuid,integer)'::regprocedure), 'hr_faction_claims') = 0\n", ''] },

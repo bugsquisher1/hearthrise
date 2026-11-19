@@ -19,7 +19,7 @@
 -- naming either is accepted (hr_hunt_slot_check) and projected. Party only is the engine's rule (abilities.js party: true); no column carries it, as none
 -- carries Undertow's alone: true. A unit now carries who cast its shell (shieldBy, src/core/hunt/abilities.js PERSISTED: a recast refunds only the caster's
 -- own), so hr_hunt_world_shape MOVES (its shape and fields). No ground, spawn, kill bound, limit, bid or end reason moves. ORDER: after
--- 2027-05-22-cookbook-cut-items-catalogue.generated.sql (the set's last file), right before 2027-05-25-tank-runes-rune-spells.generated.sql (its
+-- every set/v0.2.141 file (2027-05-22-cookbook-cut-items-catalogue.generated.sql its last staged one), right before 2027-05-25-tank-runes-rune-spells.generated.sql (its
 -- self-check compares hr_hunt_abilities' rune rows). EDGE: THE SHAPE MOVES, so the hr-accrue carrying the same src/core deploys AT ONCE after this file
 -- (2026-12-11-hunt-deploy-no-forfeit holds the settles across the gap; each running hunt's world restarts once).
 --

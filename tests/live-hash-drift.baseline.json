@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-19",
- "replay_ms": 3186,
+ "replay_ms": 101906,
  "counts": {
-  "tracked_names": 965,
-  "entries": 816
+  "tracked_names": 966,
+  "entries": 817
  },
  "functions": [
   {
@@ -10027,6 +10027,28 @@
    "agree": true
   },
   {
+   "sig": "hr_hunt_tier_open()",
+   "name": "hr_hunt_tier_open",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "2027-05-24-session-tier-open.sql"
+   ],
+   "live": {
+    "md5": "71e49bf1faf51c15474d99f73a797ed1",
+    "norm_len": 867,
+    "measured": "2026-11-19",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "71e49bf1faf51c15474d99f73a797ed1",
+    "norm_len": 867,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_hunt_tier_pick(p_instance uuid, p_user uuid, p_slot integer)",
    "name": "hr_hunt_tier_pick",
    "tracked_by": [
@@ -10076,20 +10098,22 @@
    "sig": "hr_hunt_tier_stamp()",
    "name": "hr_hunt_tier_stamp",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
-    "2027-03-16-ended-hunt-tier.sql"
+    "2027-03-16-ended-hunt-tier.sql",
+    "2027-05-24-session-tier-open.sql"
    ],
    "live": {
-    "md5": "7325b2ea4adf30e40eb6d365f30e8d2b",
-    "norm_len": 415,
+    "md5": "e8d261ec54323c1868ee7fd5dcf030ca",
+    "norm_len": 576,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7325b2ea4adf30e40eb6d365f30e8d2b",
-    "norm_len": 415,
+    "md5": "e8d261ec54323c1868ee7fd5dcf030ca",
+    "norm_len": 576,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -12328,7 +12352,8 @@
    "touched_by": [
     "2026-10-25-character-sheet.sql",
     "2027-02-10-settle-plan-cache.generated.sql",
-    "2027-04-30-sweeps-coat.sql"
+    "2027-04-30-sweeps-coat.sql",
+    "2027-05-19-faction-outfit-path.sql"
    ],
    "live": {
     "md5": "cfe9a082905a659b73b0b9ca8c4e565e",
@@ -12337,11 +12362,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "cfe9a082905a659b73b0b9ca8c4e565e",
-    "norm_len": 774,
+    "md5": "e96a36a681fe324d084ce26baa25ac44",
+    "norm_len": 1229,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-19-faction-outfit-path.sql makes hr_outfit_owned read hr_faction_claims for looks with hr_outfits.pieces (faction looks wearable); production keeps the sweeps-coat reader until it applies with the v0.2.141 release."
   },
   {
    "sig": "hr_outfit_set(p_slot integer, p_outfit text, p_colors jsonb, p_idem uuid)",

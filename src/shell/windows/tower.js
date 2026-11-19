@@ -32,6 +32,7 @@ import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.140';
 import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.140';
 import { whole } from '../../render/format.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
+import { busyWords } from '../training-words.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { rankWords } from '../tower-words.js?v=0.2.140';
@@ -74,7 +75,7 @@ export function landingPicked(sc, tw) {
 /** Why Enter is off now, said above it, or '' when the server is to judge. Only what the screen already knows from the server's record. */
 export function enterBlock(cs, tw, landing) {
   const h = huntOf(cs);
-  if (h && !h.ended) return t(h.huntId === tw.hunt ? 'tower.off_climbing' : 'tower.off_hunting');
+  if (h && !h.ended) return h.huntId === tw.hunt ? t('tower.off_climbing') : busyWords(cs, t('tower.off_hunting'));
   /* a party climbs together on its leader's press (hr_tower_start: every seat or none, from its lowest seat's checkpoints) */
   const party = partyMembershipOf(cs);
   if (party && !party.isLeader) return t('tower.off_leader');

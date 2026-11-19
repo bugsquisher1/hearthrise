@@ -322,6 +322,14 @@ export function withSummary(list, summary) {
   return sanitizeSummaries([summary, ...rest]);
 }
 
+/** An EARLIER hunt's card, recorded after a newer session took the envelope (summary-recorder.js recordPast): placed by the server's end
+    time in the newest-first list, never ahead of a card that ended after it; with no end time, last. Bounded. */
+export function withPastSummary(list, summary) {
+  const rest = (Array.isArray(list) ? list : []).filter((x) => x.id !== summary.id);
+  const i = Number.isFinite(summary.at) ? rest.findIndex((x) => Number.isFinite(x.at) && x.at < summary.at) : -1;
+  return sanitizeSummaries(i < 0 ? [...rest, summary] : [...rest.slice(0, i), summary, ...rest.slice(i)]);
+}
+
 /**
  * The ONE hr_hunt_enter argument set that puts the same hunt back on: the same
  * ground, preset, limits and bag. The party is the server's (the character's

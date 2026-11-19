@@ -23,6 +23,7 @@ import { whole, gold } from '../render/format.js?v=0.2.140';
 import { dispatchLoot } from '../session/loot-intents.js?v=0.2.140';
 import { runIntent, refusalWords } from './intent-words.js?v=0.2.140';
 import { t } from '../render/player-text.js?v=0.2.140';
+import { busyWords } from './training-words.js?v=0.2.140';
 
 /** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
 export const LOOT_CHOICES = Object.freeze([
@@ -52,7 +53,7 @@ export function planBlock(id, plan, bids, held = true) {
 /** Why Dispatch loot is off for this hero now, or '' (from the server's bag, rules and hunt; nothing planned = off). */
 export function dispatchBlock(cs) {
   const h = huntOf(cs);
-  if (h && !h.ended) return 'Dispatch loot works in town';
+  if (h && !h.ended) return busyWords(cs, 'Dispatch loot works in town');
   const rules = rulesOf(cs), bag = bagOf(cs);
   if (!rules || !bag) return 'Loading bag…';
   const planned = bag.some((r) => MOVES.has(rules.loot[r.id]) && !rules.locked.has(r.id) && !(rules.loot[r.id] === 'sell' && isStartKit(r.id)));

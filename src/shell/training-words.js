@@ -8,7 +8,8 @@
 import { t } from '../render/player-text.js?v=0.2.140';
 import { whole, gold } from '../render/format.js?v=0.2.140';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.140';
-import { TRAINING_RULES } from '../data/training.js?v=0.2.140';
+import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.140';
+import { huntOf } from '../session/hunt-sections.js?v=0.2.140';
 
 const MINUTE = 60000;
 const num = (v) => Number.isSafeInteger(v);
@@ -33,6 +34,18 @@ export function endedWords(last) {
   if (last.reason === 'hours') return t('training.ended_hours', { hours: TRAINING_RULES.maxHours });
   if (last.reason === 'left') return t('training.ended_left');
   return t('training.ended_other');
+}
+
+/**
+ * THE YARD IS THE REASON, NOT A HUNT (post-140 audit C7: while a hero trained, Equip upgrades said "Leave the hunt to put these on.", the
+ * chest's Use "Not available while hunting", Dispatch loot "works in town"). A training session IS a hunt session on a training ground
+ * (src/data/training.js), and the server refuses every town-only press during it as it does in a hunt (hr_hunt_lock's open session: equip,
+ * the chest, Storage, Dispatch loot, another hunt's Enter), so the control stays off; what it says is the training, whose press is Stop.
+ * `huntWords` while the hero's open session is a hunt (or none), the training row `key` while it trains. Pure over the server's `hunt`.
+ */
+export function busyWords(cs, huntWords, key = 'training.busy') {
+  const h = huntOf(cs);
+  return h && !h.ended && trainedBy(h.huntId) ? t(key) : huntWords;
 }
 
 /** A training refusal that carries the server's numbers, as a label, or null (the shared table then says it). */

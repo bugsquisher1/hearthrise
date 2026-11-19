@@ -40,6 +40,7 @@ import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } fro
 import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.140';
 import { runIntent } from '../../intent-words.js?v=0.2.140';
 import { t } from '../../../render/player-text.js?v=0.2.140';
+import { busyWords } from '../../training-words.js?v=0.2.140';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.140';
 import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.140';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.140';
@@ -236,7 +237,7 @@ function doDeposit(st, repaint) {
   const ids = selectedIds(st.sc, st.items);
   if (!ids.length) return;
   const h = huntOf(st.cs);
-  if (h && !h.ended) { say(st, repaint, t('bag.storage_away')); return; }
+  if (h && !h.ended) { say(st, repaint, busyWords(st.cs, t('bag.storage_away'))); return; }
   bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');
 }
 

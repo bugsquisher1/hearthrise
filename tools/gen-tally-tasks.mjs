@@ -51,8 +51,12 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    file, the same full rewrite of the same tables (167 worn tiers, was 155): without it her pick would read a hero in a Tinker's Kettle as
    wearing no helmet and hand over one under it. No function body moves; no task, piece, material or gold moves. It applies LAST of
    v0.2.140's staged files, after the jewelry sample's 2027-05-09 files (the Coordinator's order, 2026-11-18), so the tier book it
-   writes is generated over every item those files serve. */
-export const OUT_FILE = '2027-05-10-tally-catacomb-armor.generated.sql';
+   writes is generated over every item those files serve. 2027-05-10-tally-catacomb-armor.generated.sql is APPLIED history now (v0.2.140).
+   THE GOLD AND PLATINUM CATACOMB ARMOR (lane/d-catacomb-gold-platinum, 2026-11-18): the twelve Gold and Platinum pieces ship (shipped by
+   2027-05-12-catacomb-gold-platinum-items-catalogue), so hr_tally_tiers gains their twelve rows in this forward file, the same full rewrite
+   of the same tables, for the same reason. No function body moves; no task, piece, material or gold moves. ORDER: after this lane's items
+   catalogue. */
+export const OUT_FILE = '2027-05-12-catacomb-gold-platinum-tally.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 
 /**

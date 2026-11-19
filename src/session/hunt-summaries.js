@@ -66,15 +66,19 @@ function trainOf(v) {
   return { skill: v.skill, xp: nat(v.xp), fee: nat(v.fee), from: nat(v.from), to: nat(v.to) };
 }
 
-/** The residue field: newest first, one entry per session id, at most HISTORY_MAX. */
+/** The residue field: newest first, one entry per session id, at most HISTORY_MAX, and ONE training card, the newest (post-140 audit C4:
+    "Training Yard ... Training stopped" took 5 of 7 rows and pushed the hunts out; the newest yard card is its own end card, an older one
+    says nothing a player looks back for). */
 export function sanitizeSummaries(v) {
   if (!Array.isArray(v)) return [];
   const seen = new Set();
   const out = [];
+  let yard = false;
   for (const e of v) {
     const s = sanitizeSummary(e);
-    if (!s || seen.has(s.id)) continue;
+    if (!s || seen.has(s.id) || (s.train && yard)) continue;
     seen.add(s.id);
+    yard = yard || !!s.train;
     out.push(s);
     if (out.length >= HISTORY_MAX) break;
   }

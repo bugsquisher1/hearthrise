@@ -15,6 +15,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
 import { refusalOf } from './refusal.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { partyPeersOf, settleTownActivity } from './party-intents.js?v=0.2.140';
 import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.140';
 import { quoteOf } from './boss-quote.js?v=0.2.140';
@@ -34,6 +35,7 @@ export function callOut(account, cs, call, fights, price) {
     const ans = await account.server.rpc('hr_boss_call', { p_slot: cs.slot, p_call: call, p_fights: fights, p_price: price, p_idem: newIdem() });
     const body = ans && ans.body && typeof ans.body === 'object' ? ans.body : null;
     if (!(ans && ans.ok && body && body.ok === true)) {
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       const r = refusalOf(ans || {});
       const quote = quoteOf(body && body.boss_call);
       /* the refusal's own facts, the server's: the seat that can't pay (its name), and the most fights a call may queue */
@@ -62,6 +64,7 @@ export function openHall(account, cs, hall) {
     const ans = await account.server.rpc('hr_boss_hall_enter', { p_slot: cs.slot, p_hall: hall, p_idem: newIdem() });
     const body = ans && ans.body && typeof ans.body === 'object' ? ans.body : null;
     if (!(ans && ans.ok && body && body.ok === true)) {
+      await afterRefusal(cs, ans);
       const r = refusalOf(ans || {});
       return Object.assign(r, { verb: r.verb || HALL_VERB, seats: Array.isArray(body && body.seats) ? body.seats.slice(0, 8) : [] });
     }

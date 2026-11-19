@@ -25,9 +25,10 @@ import { rows, text, cls, attr, prop, element } from '../../../render/paint.js?v
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.140';
 import { glyphSvg } from '../../launcher.js?v=0.2.140';
 import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.140';
-import { compare, rarityOf } from '../../bag-model.js?v=0.2.140';
+import { compare, rarityOf, sortFits } from '../../bag-model.js?v=0.2.140';
 import { needOf } from '../../item-lore.js?v=0.2.140';
 import { gearLocked, GEAR_HUNT_WORDS } from '../../gear-gate.js?v=0.2.140';
+import { busyWords } from '../../training-words.js?v=0.2.140';
 import { whyLine } from '../../widgets/why-line.js?v=0.2.140';
 import { levelOf } from '../../../session/character-sections.js?v=0.2.140';
 import { showTip } from '../item-tip.js?v=0.2.140';
@@ -119,11 +120,10 @@ export function slotLineHtml() {
     + '<ul class="hw-fits"></ul><p class="hh-empty hw-nofit">Nothing in bag fits here</p></div>';
 }
 
-/* Bag stacks that fit an equip slot, best first by the change against what is worn. */
+/* Bag stacks that fit an equip slot, best first by the change against what is worn (bag-model.js sortFits: a weapon by its gain in the
+   style it fights in, the hero's own style first). */
 function fitsFor(slot, bag, eq) {
-  return bag.filter((r) => fitsSlot(r.id, slot))
-    .map((r) => ({ id: r.id, qty: r.qty, delta: compare(r.id, eq[slot] || null) }))
-    .sort((a, b) => b.delta.reduce((s, d) => s + d.delta, 0) - a.delta.reduce((s, d) => s + d.delta, 0));
+  return sortFits(slot, bag.filter((r) => fitsSlot(r.id, slot)).map((r) => ({ id: r.id, qty: r.qty, delta: compare(r.id, eq[slot] || null) })), eq[slot] || null);
 }
 
 /** Patch the worn slots from the server's `equipment`. */
@@ -161,13 +161,15 @@ export function patchSlotLine(root, st, ctx) {
   cls(wr, 'is-on', !!worn);
   if (wr.getAttribute('data-item') !== (worn || '')) { attr(wr, 'data-item', worn || ''); wr.querySelector('.hw-ico').innerHTML = worn ? itemIconHtml(ctx.glyphs, worn) : ''; }
   text(wr.querySelector('.hw-worn-name'), worn ? itemName(worn) : '');
-  /* A running hunt turns every gear press here off (gear-gate.js: the engine refuses it), and the line says why;
-     else the line holds its last press's answer. */
+  /* A running hunt turns every gear press here off (gear-gate.js: the engine refuses it), and the line says why: the hunt's words
+     (GEAR_HUNT_WORDS.one), or the yard's while the hero trains (training-words.js busyWords, post-140 audit C7); else the line holds
+     its last press's answer. */
   const locked = gearLocked(st.cs);
+  const lockWhy = locked ? busyWords(st.cs, GEAR_HUNT_WORDS.one, 'training.busy_gear') : '';
   prop(wr.querySelector('button'), 'disabled', sc.pending || !worn || locked);
-  attr(wr.querySelector('button'), 'data-off-why', locked ? GEAR_HUNT_WORDS.one : null);
+  attr(wr.querySelector('button'), 'data-off-why', locked ? lockWhy : null);
   const said = sc.msgAt === 'slot' && !!sc.msg;
-  whyLine(line.querySelector('.hw-slot-why'), said ? sc.msg : locked ? GEAR_HUNT_WORDS.one : '', said);
+  whyLine(line.querySelector('.hw-slot-why'), said ? sc.msg : lockWhy, said);
   const fits = fitsFor(sc.slot, bagOf(st.cs) || [], eq);
   const skills = skillsOf(st.cs);
   const lv = levelOf(st.cs);
@@ -188,7 +190,7 @@ export function patchSlotLine(root, st, ctx) {
       const short = !!need && need.short;
       text(li.querySelector('.hw-fit-need'), short ? need.text : '');
       prop(li.querySelector('button'), 'disabled', sc.pending || locked || short);
-      attr(li.querySelector('button'), 'data-off-why', short ? need.text : locked ? GEAR_HUNT_WORDS.one : null);
+      attr(li.querySelector('button'), 'data-off-why', short ? need.text : locked ? lockWhy : null);
     },
   });
   cls(line.querySelector('.hw-nofit'), 'is-on', !fits.length);

@@ -15,6 +15,7 @@
 // control waits on it.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { TALLY_RULES } from '../data/tally-tasks.js?v=0.2.140';
 import { parseTally } from './tally-sections.js?v=0.2.140';
 
@@ -42,6 +43,7 @@ async function settled(ans, cs) {
     const paid = Array.isArray(b.paid) ? b.paid.length : 0;
     return { ok: true, paid, wait: typeof b.wait === 'string' ? b.wait : null };
   }
+  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused' };
 }
 

@@ -19,15 +19,16 @@ import { settingsOf } from '../../session/hunt-sections.js?v=0.2.140';
 import { text, cls, prop, attr } from '../../render/paint.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { upgradePlan, upgradeWords, preferredWeight } from '../upgrade-plan.js?v=0.2.140';
-import { gearLocked, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.140';
+import { gearLockWhy, GEAR_HUNT_WORDS } from '../gear-gate.js?v=0.2.140';
 import { whyLine } from './why-line.js?v=0.2.140';
 
 /** This character's plan, from what the server sent (empty `ops` when nothing is better); a tie between armor weights
-    goes to the weight the hero chose at Tamsin's (the server's tally row), else the one it wears, else its role's. */
+    goes to the weight the hero chose at Tamsin's (the server's tally row), else the one it wears, else its role's, and
+    a worn piece moves only to the one chosen there (upgrade-plan.js weightFits). */
 export function upgradeOf(cs) {
   const lv = levelOf(cs), t = tallyOf(cs), eq = equipmentOf(cs) || {}, s = settingsOf(cs);
   return upgradePlan({ bag: bagOf(cs) || [], equipment: eq, skills: skillsOf(cs), level: lv ? lv.level : null,
-    prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });
+    chosen: t ? t.weight : null, prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });
 }
 
 /** The line's skeleton. */
@@ -40,7 +41,8 @@ export function upgradeLineHtml() {
 /**
  * Show the line (only when `on` and the plan puts something on or leaves a tie for the player), its words and the
  * button's state. A tie alone shows its words with the button off (nothing to put on; upgradeWords says why).
- * `o.locked`: the server holds the hero's hunt open (the button is off, the line says why); `o.msg`: the last
+ * `o.locked`: the server holds the hero's session open (the button is off, the line says why: the words, gear-gate.js gearLockWhy, a hunt's
+ * or the yard's; `true` reads as the hunt's); `o.msg`: the last
  * press's own words.
  */
 export function patchUpgradeLine(root, plan, on, pending, o) {
@@ -52,8 +54,9 @@ export function patchUpgradeLine(root, plan, on, pending, o) {
   const b = line.querySelector('button');
   prop(b, 'disabled', !!pending || !plan.picks.length || !show || !!opt.locked);
   attr(b, 'title', show ? upgradeWords(plan, Infinity, Infinity) : null);
-  attr(b, 'data-off-why', show && opt.locked ? GEAR_HUNT_WORDS.upgrades : null);
-  whyLine(line.querySelector('.hw-upgrade-why'), show ? opt.msg || (opt.locked ? GEAR_HUNT_WORDS.upgrades : '') : '', !!opt.msg);
+  const lockWhy = typeof opt.locked === 'string' ? opt.locked : GEAR_HUNT_WORDS.upgrades;
+  attr(b, 'data-off-why', show && opt.locked ? lockWhy : null);
+  whyLine(line.querySelector('.hw-upgrade-why'), show ? opt.msg || (opt.locked ? lockWhy : '') : '', !!opt.msg);
 }
 
 /**
@@ -64,7 +67,8 @@ export function equipUpgrades(cs, sc, repaint, plan) {
   const slots = Object.keys(plan.ops);
   if (!slots.length || sc.pending) return Promise.resolve({ ok: false, error: 'busy' });
   sc.msgAt = 'upgrade';
-  if (gearLocked(cs)) { sc.msg = GEAR_HUNT_WORDS.upgrades; repaint(); return Promise.resolve({ ok: false, error: 'hunt_open' }); }
+  const locked = gearLockWhy(cs, 'upgrades');
+  if (locked) { sc.msg = locked; repaint(); return Promise.resolve({ ok: false, error: 'hunt_open' }); }
   sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };
   const n = slots.length;
   return runIntent(sc, repaint, async () => {

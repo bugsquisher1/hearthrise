@@ -5,7 +5,7 @@
 //   node tests/party-flow.mjs            the guard (every arm)
 //   node tests/party-flow.mjs --mutate   every planted defect must be CAUGHT by its arm
 //
-// mutant-anchors: supabase/migrations/2027-04-26-party-stamina-truth.sql supabase/migrations/2027-04-09-own-hunt-nudge.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
+// mutant-anchors: supabase/migrations/2027-05-11-party-alone.sql supabase/migrations/2027-04-26-party-stamina-truth.sql supabase/migrations/2027-04-09-own-hunt-nudge.sql supabase/migrations/2027-02-20-party-leader-starts.sql supabase/migrations/2027-02-18-party-truth.sql supabase/migrations/2027-02-11-party-nudge.sql supabase/migrations/2026-10-28-party-flow.sql supabase/migrations/2026-10-29-party-security.sql supabase/migrations/2026-10-30-party-invite-player.sql supabase/migrations/2026-10-30-town-activity-yields.sql supabase/migrations/2026-12-05-hunt-setup-per-ground.sql supabase/migrations/2026-12-07-party-finder.sql supabase/migrations/2027-01-19-play-cap.sql supabase/migrations/2027-02-10-party-instance-reset.sql src/shell/menu-providers.js
 // mutant-writes-tree: no — each mutant is ONE statement of its migration, patched in memory and run on the chain end inside a rolled-back transaction
 //
 // Ships with supabase/migrations/2026-10-28-party-flow.sql (PARTY_SPEC.md,
@@ -18,6 +18,11 @@
 //               member's own solo enter is refused (one way in: the start)
 //   PF-ACCEPT   a stranger's accept takes the seat and uses the invite up
 //   PF-LEAVE    leave frees the seat; the leader leaving hands the lead on
+//   PF-ALONE    (2027-05-11-party-alone.sql, the full-game sweep's A9) a party a leave, a kick or a lost seat leaves with one seat
+//               and nothing to wait for closes, the seat left pushed once; a declined invite's leftover goes on the next sweep; a
+//               live invite, a listing and a running hunt are worth waiting for; the hunt viewed (Leave party in town) and the
+//               browser closed (the other seat swept while this one hunts on): the after-hunt start reads no leftover
+//   PF-ALONE-IDEM a second apply of 2027-05-11-party-alone.sql is byte-identical
 //   PF-KICK     only the leader kicks, by seat
 //   PF-DISBAND  only the leader, only in town; then every seat goes
 //   PF-START    start waits for everyone: an away member refuses it, nobody
@@ -26,7 +31,7 @@
 //   PF-LEADER   (2027-02-20-party-leader-starts.sql) a seated member cannot open the party's ground when nobody is on it
 //               (`not_party_leader`, nothing written), own second character included; the leader can; then the member goes in
 //   PF-KEEP     a member unseen 9 minutes keeps the seat, 11 loses it; the
-//               leader dropped hands the lead on; a hunter is never dropped;
+//               leader dropped hands the lead on (a party of three); a hunter is never dropped;
 //               the last one swept closes the party
 //   PF-LISTED   (2026-10-29-party-security.sql, Security reopen #1) no seat without an invite or
 //               a listing: an unlisted party refuses the finder's Join and is not listed; only
@@ -102,6 +107,8 @@ const TRUTH = '2027-02-18-party-truth.sql';
 const POOL = '2027-04-26-party-stamina-truth.sql';
 /* 2027-02-20-party-leader-starts.sql restates hr_hunt_enter last: only the leader starts. */
 const LEAD = '2027-02-20-party-leader-starts.sql';
+/* 2027-05-11-party-alone.sql restates the kick, leave and sweep bodies last (and hr_hunt_after_start): their mutants plant there. */
+const ALONE = '2027-05-11-party-alone.sql';
 const SRC = (f = FILE) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const U = ['000000c0-0000-4000-8000-0000000f1001', '000000c0-0000-4000-8000-0000000f1002', '000000c0-0000-4000-8000-0000000f1003'];
 const [A, B, C] = U;
@@ -226,10 +233,90 @@ const ARMS = {
     await world(db);
     const p = await threeOf(db);
     const pid = await partyOf(db, A);
-    if (err(await leave(db, B)) !== 'ok' || await partyOf(db, B)) p.push('B could not leave');
+    /* the leader goes first: two seats are left, so the party stays and the lead passes (one left alone closes: PF-ALONE) */
     if (err(await leave(db, A)) !== 'ok' || await partyOf(db, A)) p.push('the leader could not leave');
     const lead = (await db.query('select leader_user, leader_slot, closed_at from public.hunt_parties where id = $1', [pid])).rows[0];
     if (lead.leader_user !== A || lead.leader_slot !== 1 || lead.closed_at !== null) p.push('the lead did not pass to the next seat: ' + JSON.stringify(lead));
+    if (err(await leave(db, B)) !== 'ok' || await partyOf(db, B)) p.push('B could not leave');
+    return p;
+  },
+
+  /* THE FULL-GAME SWEEP'S A9 (2027-05-11-party-alone.sql): a player invited their own second hero and pressed Leave party on the
+     first; the second sat on alone in "Bryony's party", so her after-hunt yard was refused "training is solo" on every return for
+     nine days. Both paths: the hunt viewed (Leave party in town, a kick, a decline) and the browser closed (the other seat is swept
+     while this one hunts on, then this hunt ends with a training plan: the deferred start finds no party). */
+  'PF-ALONE': async (db) => {
+    const { hunt } = await world(db);
+    const p = [];
+    const gate = () => db.query('delete from public.hr_rate_counters');
+    const closed = async (pid) => !!(await one(db, 'select closed_at from public.hunt_parties where id = $1', [pid]));
+    /* LEAVE PARTY (the finding): A's own second hero, seated at once; A leaves; A/1 is in no party, the party closed */
+    if (err(await own(db, A, 0, 1)) !== 'ok') return ['HARNESS: the own invite was refused'];
+    let pid = await partyOf(db, A, 1);
+    if (err(await leave(db, A, 0)) !== 'ok' || await partyOf(db, A, 1) || !(await closed(pid))) p.push('[A9] after Leave party the other hero sits on in ' + (await partyOf(db, A, 1)));
+    /* A KICK: the leader left alone is in no party, and its answer says so */
+    await gate();
+    await invite(db, A, 'Flow B'); await accept(db, B);
+    pid = await partyOf(db, A);
+    const k = await kick(db, A, Number(await one(db, 'select seat from public.hunt_party_members where user_id = $1', [B])));
+    if (err(k) !== 'ok' || k.party !== null || await partyOf(db, A) || !(await closed(pid))) p.push('a leader a kick left alone answered ' + JSON.stringify(k && k.party) + ' and sits in ' + (await partyOf(db, A)));
+    /* ONE PUSH A SEAT: B leaves A alone in town, or B's browser closes and the sweep drops its seat. A's open client hears the
+       party go ONCE (its own seat row), never twice (the seat that went, then its own): the rule PF-NOTICE keeps for a decline */
+    await pushProbe(db);
+    await db.query('insert into public.character_presence (user_id, slot, seen_at) values ($1, 0, now()) on conflict (user_id, slot) do update set seen_at = now()', [A]);
+    for (const how of ['leave', 'sweep']) {
+      await gate();
+      await invite(db, A, 'Flow B'); await accept(db, B);
+      pid = await partyOf(db, A);
+      const n0 = await nudgesOn(db, A);
+      if (how === 'leave') await leave(db, B);
+      else { await seen(db, B, '11 minutes'); await joined(db, B, '11 minutes'); await db.query('select public.hr_hunt_party_sweep(200)'); await seen(db, B, '0 seconds'); }
+      const heard = (await nudgesOn(db, A)) - n0;
+      if (await partyOf(db, A) || !(await closed(pid)) || heard !== 1) p.push(`[A9] B's ${how} left A in ${await partyOf(db, A)} and pushed A ${heard} time(s), want no party and 1`);
+    }
+    /* A LIVE INVITE IS WORTH WAITING FOR (the first invite makes the party); after the decline the sweep closes it (closing it
+       inside the decline would push the idle inviter twice: its seat and the `declined` notice) */
+    await gate();
+    await invite(db, A, 'Flow B');
+    pid = await partyOf(db, A);
+    await db.query('select public.hr_hunt_party_sweep(200)');
+    /* (returned at once: the decline below needs the invite this would have taken with the party) */
+    if (await partyOf(db, A) !== pid) return [...p, 'a party waiting on a live invite was closed'];
+    const inv = await one(db, "select public.hr_state_of($1, 0)->'party_invites'", [B]);
+    await as(db, B, 'select public.hr_hunt_party_decline(0, $1::uuid, $2::uuid)', [inv[0].id, idem()]);
+    await db.query('select public.hr_hunt_party_sweep(200)');
+    if (await partyOf(db, A) || !(await closed(pid))) p.push('the inviter sits on in its party of one after the decline and a sweep');
+    /* A LISTING IS WORTH WAITING FOR: a joiner leaves a listed party; it stays for the next */
+    await gate();
+    await invite(db, A, 'Flow C'); await accept(db, C);
+    pid = await partyOf(db, A);
+    await list(db, A, true);
+    await leave(db, C);
+    await db.query('select public.hr_hunt_party_sweep(200)');
+    if (await partyOf(db, A) !== pid) p.push('a listed party was closed under its leader');
+    await gate();
+    await list(db, A, false);
+    await db.query('select public.hr_hunt_party_sweep(200)');
+    if (await partyOf(db, A)) p.push('a listing taken down left a party of one');
+    /* THE BROWSER CLOSED: A and B hunt; B goes home and its browser closes (unseen, swept); A hunts on, so the party waits */
+    await gate();
+    await invite(db, A, 'Flow B'); await accept(db, B);
+    pid = await partyOf(db, A);
+    if (err(await start(db, A, hunt)) !== 'ok') return [...p, 'HARNESS: the start was refused'];
+    const sid = (u) => one(db, 'select id from public.hunt_sessions where user_id = $1 and slot = 0 and instance_id = $2 order by entered_at desc limit 1', [u, pid]);
+    await db.query("select public.hr_hunt_close($1::uuid, 'left', now(), true)", [await sid(B)]);
+    await seen(db, B, '11 minutes'); await joined(db, B, '11 minutes');
+    await db.query('select public.hr_hunt_party_sweep(200)');
+    if (await partyOf(db, B)) return [...p, 'HARNESS: the sweep kept B\'s seat'];
+    if (await partyOf(db, A) !== pid) p.push('a party was closed under its running hunt');
+    /* ...A's hunt ends with a training plan; the deferred start (hr_hunt_after_start, before any sweep) finds A in no party */
+    const sa = await sid(A);
+    await db.query("select public.hr_hunt_close($1::uuid, 'stamina', now(), true)", [sa]);
+    await db.query("update public.player_state set active_kind = 'idle', active_id = null where user_id = $1 and slot = 0", [A]);
+    await db.query(`update public.hunt_sessions set after_choice = (select c.choice from public.hr_hunt_after_choices c where c.runs = 'training' order by c.choice limit 1),
+                    after_done = '{"state": "pending"}'::jsonb where id = $1`, [sa]);
+    const done = await one(db, 'select public.hr_hunt_after_start($1::uuid)', [sa]);
+    if (await partyOf(db, A) || (done && done.why === 'in_party')) p.push('[A9] the after-hunt yard read a party of one: ' + JSON.stringify(done));
     return p;
   },
 
@@ -310,18 +397,22 @@ const ARMS = {
   'PF-KEEP': async (db) => {
     const { hunt } = await world(db);
     const p = [];
+    /* a party of three: the leader's lost seat leaves two, so the party stays and the lead passes (one left alone closes: PF-ALONE) */
     await invite(db, A, 'Flow B');
+    await invite(db, A, 'Flow C');
     await accept(db, B);
+    await accept(db, C);
     const pid = await partyOf(db, A);
     await joined(db, A, '1 hour');
     await joined(db, B, '1 hour');
+    await joined(db, C, '1 hour');
     await seen(db, A, '9 minutes');
     await db.query('select public.hr_hunt_party_sweep(200)');
     if (await partyOf(db, A) !== pid) p.push('a seat unseen for 9 minutes was dropped');
     await seen(db, A, '11 minutes');
     await db.query('select public.hr_hunt_party_sweep(200)');
     const lead = await one(db, 'select leader_user from public.hunt_parties where id = $1', [pid]);
-    if (await partyOf(db, A) || await partyOf(db, B) !== pid || lead !== B) p.push('the 11-minute sweep left A seated or the lead with ' + lead);
+    if (await partyOf(db, A) || await partyOf(db, B) !== pid || await partyOf(db, C) !== pid || lead !== B) p.push('the 11-minute sweep left A seated or the lead with ' + lead);
     /* A hunter keeps its seat however long unseen (it hunts on, server-side). */
     await seen(db, A, '0 seconds');
     await invite(db, B, 'Flow A');
@@ -333,8 +424,7 @@ const ARMS = {
     await db.query('select public.hr_hunt_party_sweep(200)');
     if (await partyOf(db, A) !== pid) p.push('the sweep dropped a hunter');
     await db.query("select public.hr_hunt_close(h.id, 'left', now(), true) from public.hunt_sessions h where h.instance_id = $1 and h.ended_at is null", [pid]);
-    await seen(db, B, '1 hour');
-    await joined(db, B, '1 hour');
+    for (const u of [B, C]) { await seen(db, u, '1 hour'); await joined(db, u, '1 hour'); }
     await db.query('select public.hr_hunt_party_sweep(200)');
     if (!(await one(db, 'select closed_at from public.hunt_parties where id = $1', [pid]))) p.push('the last seats swept did not close the party');
     return p;
@@ -865,6 +955,23 @@ const ARMS = {
     return before === after ? [] : ['a second apply moved the schema, a body, a grant or a row'];
   },
 
+  /* A second apply of 2027-05-11-party-alone.sql over its own state is byte-identical: §0 accepts its own post-images, §4 closes
+     nothing more, §5's probe rows roll back. */
+  'PF-ALONE-IDEM': async (chainDb) => {
+    void chainDb;
+    const { db } = await bootReplay({ upTo: ALONE });
+    const snap = async () => JSON.stringify([await inventory(db),
+      (await db.query(`select p.oid::regprocedure::text f, md5(p.prosrc) h, coalesce(p.proacl::text, '') a from pg_proc p
+                       where p.pronamespace = 'public'::regnamespace order by 1`)).rows,
+      (await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows,
+      (await db.query('select id, closed_at from public.hunt_parties order by 1')).rows]);
+    const before = await snap();
+    try { await db.exec(SRC(ALONE)); } catch (e) { await db.close().catch(() => {}); return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
+    const after = await snap();
+    await db.close().catch(() => {});
+    return before === after ? [] : ['a second apply moved the schema, a body, a grant or a party row'];
+  },
+
   /* A second apply of 2027-04-09-own-hunt-nudge.sql over its own state is byte-identical, trigger definitions included. */
   'PF-OWN-IDEM': async (chainDb) => {
     void chainDb;
@@ -913,7 +1020,8 @@ const ARMS = {
       if (await can('anon', fn)) p.push('anon can call ' + fn);
     }
     for (const fn of ['public.hr_hunt_party_sweep(integer)', 'public.hr_party_seat_own(uuid,integer,integer)', 'public.hr_party_drop(uuid,uuid,integer)',
-      'public.hr_party_open(uuid,integer)', 'public.hr_party_seat_into(uuid,uuid,integer)', 'public.hr_party_away(uuid,integer,timestamp with time zone)']) {
+      'public.hr_party_open(uuid,integer)', 'public.hr_party_seat_into(uuid,uuid,integer)', 'public.hr_party_away(uuid,integer,timestamp with time zone)',
+      'public.hr_party_alone(uuid,uuid,integer)', 'public.hr_party_close_if_alone(uuid,boolean,uuid,integer)']) {
       if (await can('authenticated', fn) || await can('anon', fn)) p.push('a client role can call ' + fn);
     }
     if (await one(db, "select to_regprocedure('public.hr_hunt_party_start(integer,uuid)') is not null")) p.push('the ground-less start (int, uuid) is still installed');
@@ -985,7 +1093,7 @@ const MUTANTS = [
     find: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '10 minutes' $$;",
     repl: "returns interval language sql immutable set search_path = public, pg_catalog as $$ select interval '75 seconds' $$;" },
   /* (the sweep proves "not hunting" twice, in its scan and again under the party lock: the mutant drops both) */
-  { arm: 'PF-KEEP', file: TRUTH, why: 'the sweep drops a hunter',
+  { arm: 'PF-KEEP', file: ALONE, why: 'the sweep drops a hunter',
     find: '     where not exists (select 1 from public.hunt_sessions h where h.user_id = m.user_id and h.slot = m.slot and h.ended_at is null)\n       and public.hr_party_last_seen',
     repl: '     where true\n       and public.hr_party_last_seen',
     also: ['               or exists (select 1 from public.hunt_sessions h where h.user_id = v_m.user_id and h.slot = v_m.slot and h.ended_at is null);',
@@ -1012,9 +1120,9 @@ MUTANTS.push(
   { arm: 'PF-RESTART', file: RESET, why: '[#60] a restarted party instance keeps its first hunt\'s density and strikes',
     find: '                                       density = null, refusals = 0, version = version + 1\n',
     repl: '                                       version = version + 1\n' },
-  { arm: 'PF-KICK-HUNT', file: TRUTH, why: 'a kicked hunter keeps hunting and sharing',
+  { arm: 'PF-KICK-HUNT', file: ALONE, why: 'a kicked hunter keeps hunting and sharing',
     find: '  if v_s.id is not null and v_s.instance_id = v_pid then\n    v_leaving := true;', repl: '  if false then\n    v_leaving := true;' },
-  { arm: 'PF-KICK-HUNT', file: TRUTH, why: 'a kick pends a walking hunter at now(), inside the look-ahead its viewer was shown',
+  { arm: 'PF-KICK-HUNT', file: ALONE, why: 'a kick pends a walking hunter at now(), inside the look-ahead its viewer was shown',
     find: '      update public.hunt_sessions set leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to), version = version + 1 where id = v_s.id;\n    end if;\n  end if;\n  delete from public.hunt_party_members',
     repl: '      update public.hunt_sessions set leave_at = now(), version = version + 1 where id = v_s.id;\n    end if;\n  end if;\n  delete from public.hunt_party_members' },
 );
@@ -1043,13 +1151,13 @@ MUTANTS.push(
     repl: '(v_own = p_party)' },
   { arm: 'PF-NOTICE', file: TRUTH, why: 'a refused invite tells nobody',
     find: "  perform public.hr_party_notice(v_from, v_from_slot, 'declined', v_uid, p_slot);\n", repl: '' },
-  { arm: 'PF-NOTICE', file: TRUTH, why: 'a removed hero is told nothing',
+  { arm: 'PF-NOTICE', file: ALONE, why: 'a removed hero is told nothing',
     find: "  perform public.hr_party_notice(v_t.user_id, v_t.slot, 'removed', v_uid, p_slot);\n", repl: '' },
   { arm: 'PF-NOTICE', file: TRUTH, why: 'a closed party tells no seat',
     find: "    perform public.hr_party_notice(v_m.user_id, v_m.slot, 'disbanded', v_uid, p_slot);\n", repl: '    perform 1;\n' },
-  { arm: 'PF-NOTICE', file: TRUTH, why: 'a leaver tells no seat',
+  { arm: 'PF-NOTICE', file: ALONE, why: 'a leaver tells no seat',
     find: "    perform public.hr_party_notice(v_m.user_id, v_m.slot, 'left', v_uid, p_slot);\n", repl: '    perform 1;\n' },
-  { arm: 'PF-NOTICE', file: TRUTH, why: 'a lost seat tells nobody',
+  { arm: 'PF-NOTICE', file: ALONE, why: 'a lost seat tells nobody',
     find: "      perform public.hr_party_notice(v_o.user_id, v_o.slot, 'dropped', v_m.user_id, v_m.slot);\n", repl: '      perform 1;\n' },
   { arm: 'PF-NOTICE', file: OWN, why: 'a decline reaches no idle inviter\'s screen',
     find: "    perform public.hr_party_nudge(new.user_id, new.slot);\n    return null;\n  elsif tg_table_name = 'player_equipment' then", repl: "    return null;\n  elsif tg_table_name = 'player_equipment' then" },
@@ -1074,6 +1182,31 @@ MUTANTS.push(
     find: 'case when v_stam <= 900000 then', repl: 'case when v_stam is not null then' },
   { arm: 'PF-END-WHY', file: POOL, why: 'a seat in town is read too: its stored pool warns the party',
     find: 'v_stam := case when v_r.sid is not null then public.hr_stamina_of(', repl: 'v_stam := case when true then public.hr_stamina_of(' },
+);
+
+/* A PARTY OF ONE WITH NOTHING TO WAIT FOR IS NO PARTY (2027-05-11-party-alone.sql, the full-game sweep's A9): each rule, dropped. */
+MUTANTS.push(
+  { arm: 'PF-ALONE', file: ALONE, why: '[A9] a leave leaves a party of one (the finding)',
+    find: '  if not public.hr_party_close_if_alone(v_pid, true, v_uid, p_slot) then\n', repl: '  if true then\n' },
+  { arm: 'PF-ALONE', file: ALONE, why: 'a leave pushes the seat it leaves alone twice (the seat that went, then its own)',
+    find: '  if not public.hr_party_close_if_alone(v_pid, true, v_uid, p_slot) then\n    delete from public.hunt_party_members where party_id = v_pid and user_id = v_uid and slot = p_slot;\n',
+    repl: '  delete from public.hunt_party_members where party_id = v_pid and user_id = v_uid and slot = p_slot;\n  if not public.hr_party_close_if_alone(v_pid) then\n' },
+  { arm: 'PF-ALONE', file: ALONE, why: 'a lost seat pushes the seat it leaves alone twice (the drop, then the pass)',
+    find: '    if not public.hr_party_close_if_alone(v_m.party_id, true, v_m.user_id, v_m.slot) then\n', repl: '    if true then\n' },
+  { arm: 'PF-ALONE', file: ALONE, why: 'a kick leaves its leader in a party of one',
+    find: "  perform public.hr_party_close_if_alone(v_pid);\n  v_r := jsonb_build_object('ok', true, 'leaving'", repl: "  v_r := jsonb_build_object('ok', true, 'leaving'" },
+  { arm: 'PF-ALONE', file: ALONE, why: 'the sweep never closes a party alone now (a declined invite, a listing taken down)',
+    find: '     where p.closed_at is null and public.hr_party_alone(p.id)\n     order by p.created_at, p.id\n     limit greatest',
+    repl: '     where false\n     order by p.created_at, p.id\n     limit greatest' },
+  { arm: 'PF-ALONE', file: ALONE, why: 'a party waiting on a live invite is closed',
+    find: '\n                     and not exists (select 1 from public.hunt_party_invites i\n                                      where i.party_id = p.id and i.created_at > now() - public.hr_party_invite_ttl()) end',
+    repl: ' end' },
+  { arm: 'PF-ALONE', file: ALONE, why: 'a listed party is closed under its leader',
+    find: '                else c.n = 1 and not p.listed\n', repl: '                else c.n = 1\n' },
+  { arm: 'PF-ALONE', file: ALONE, why: 'a party is closed under its running hunt',
+    find: '                     and not exists (select 1 from public.hunt_sessions h where h.instance_id = p.id and h.ended_at is null)\n', repl: '' },
+  { arm: 'PF-ALONE', file: ALONE, why: '[A9] the deferred after-hunt start reads a party of one (the browser closed)',
+    find: '    perform public.hr_party_close_if_alone(public.hr_hunt_party_of(v_s.user_id, v_s.slot), false);\n', repl: '' },
 );
 
 /* A seat's low stamina is its POOL (2027-04-26-party-stamina-truth.sql; the full-game audit's F7, 2026-11-15). */

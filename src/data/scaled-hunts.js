@@ -14,8 +14,9 @@
 //           its to-hit, its defense and its HP are the formula's at that Level, so a high party can't one-shot it.
 //   WHEN    Only once the leader has outgrown the ground (its Level past the band's top), and never past `topLevel`, the top of
 //           the highest open ground's band: past it there is no right-Level ground to stay under.
-//   PAYS    Level XP a kill: the formula's x `xpPm`. Coin a kill: its own plus `coinPm` of the formula's rise, by the ground's fit. Item drops stay
-//           the ground's own rows at their own rates (early materials don't flood the market). Bestiary: a kill is a kill.
+//   PAYS    Level XP a kill: the formula's x `xpPm`. Coin a kill: its own plus `coinPm` of the formula's rise, by the ground's fit. Item drops are
+//           the ground's own rows, falling at the card's "Drops ×" (lootPmFor; Tyler 11-07 "loot scales"): they gain as much gold a kill as the
+//           coin does, and never fall faster than Gold ×. Bestiary: a kill is a kill.
 //   NEVER THE BEST GRIND   at every tested gap a scaled hour pays less Level XP than the right-Level ground and less gold
 //           (before the fee) than the best free ground at that Level, so gold never buys faster leveling.
 //   COSTS   `pricePerHour` gold a banked hour, the leader's purse. One banked hour is spent per hour the party hunts that
@@ -29,6 +30,11 @@
 import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES, GROUND_XP_FIT, GROUND_GP_FIT } from './balance-sheet.js?v=0.2.140';
 import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.140';
 import { HUNT_INDEX } from './hunts.js?v=0.2.140';
+import { MONSTERS } from './monsters.js?v=0.2.140';
+import { ITEMS } from './items.js?v=0.2.140';
+import { gearSaleRate, VENDOR_GEAR_TYPES } from './loot-bands.js?v=0.2.140';
+import { dialedSale } from './loot-sale.js?v=0.2.140';
+import { DERIVED_PRICES } from './shops.js?v=0.2.140';
 
 /* NAMED EXCEPTIONS a scaled ground carries, each with its why. `danger`: the share of full danger it reaches at its scaled floor.
    A row here never makes a ground scalable: the ground data does. */
@@ -163,14 +169,61 @@ function scaledStats(level, role, tier, g, groundId, to) {
 
 /**
  * A monster row as it fights on its ground scaled for a leader of `leaderLevel`: the formula at its Level + the gap, on the ground's
- * floor + the gap, its own role, art tier and fit; Level XP x xpPm and coin its own plus coinPm of the rise. Drops and everything else stay the row's.
+ * floor + the gap, its own role, art tier and fit; Level XP x xpPm and coin its own plus coinPm of the rise; its drop rows fall at the ground's
+ * drops multiple (`lootPm`, lootPmFor). The drop rows themselves and everything else stay the row's.
  * The row itself when the ground can't be scaled for that leader, or the monster is on no roster of the ground.
  */
 export function scaledRow(row, monsterId, groundId, leaderLevel) {
   const to = scaleLevelFor(groundId, leaderLevel);
   const role = GROUND_ROSTER[groundId] && GROUND_ROSTER[groundId][monsterId];
   if (to === null || !role || !row || !Number.isInteger(row.level)) return row;
-  return { ...row, ...scaledStats(row.level, role, row.tier, SCALABLE_GROUNDS[groundId], groundId, to) };
+  return { ...row, ...scaledStats(row.level, role, row.tier, SCALABLE_GROUNDS[groundId], groundId, to), lootPm: lootPmFor(groundId, leaderLevel) };
+}
+
+/* WHAT A DROP SELLS FOR, as the trader prices it (supabase/functions/hr-accrue/catalogue.js vendorPriceOf), from data, since data can't import
+   the edge: worn gear at its tier's share of book (loot-bands.js gearSaleRate), a raw at the vendor's raw rate (shops.js DERIVED_PRICES
+   vendor.sell, held equal to the edge's VENDOR_RAW_RATE by tests/gold-intents.mjs), then the ground's income dial (loot-sale.js dialedSale).
+   The shop buy-back cap and a dialed piece's twin floor are left out (they need the shop's unit prices, src/core): neither moves a row a
+   scalable ground drops by more than a gold piece. */
+const RAW_RATE = (DERIVED_PRICES.find((d) => d.id === 'vendor.sell') || { params: { VENDOR_RAW_RATE: 1 } }).params.VENDOR_RAW_RATE;
+function saleOf(id) {
+  const it = ITEMS[id];
+  const book = it ? Number(it.v) || 0 : 0;
+  if (!(book > 0)) return 0;
+  const v = VENDOR_GEAR_TYPES.includes(it.type) ? Math.max(1, Math.floor(book * gearSaleRate(it))) : book;
+  return dialedSale(it.raw ? Math.max(1, Math.floor(v * RAW_RATE)) : v, id);
+}
+const meanOf = (gp) => (Array.isArray(gp) ? (Number(gp[0]) + Number(gp[1])) / 2 : 0);
+
+/**
+ * THE DROPS MULTIPLE OF A SCALED GROUND (Tyler 2026-11-07, binding: "difficulty, XP and loot scale"; "if they are already paying for the
+ * boosted hunt maybe the loot should scale with it"; the designer's rule 2026-11-18: change the item multiple, not the price, and every
+ * ground stays scalable): a scaled kill's drops gain as much gold as its coin does, and never fall faster than Gold ×.
+ *   lootPm = min(Gold ×, 1000 + 1000 x coinRise / itemValue)
+ * coinRise: the ground's spawn-weighted mean (its route's pockets as built) of the coin a kill gains, scaledRow's mean less the row's own;
+ * itemValue: the same mean of a kill's own drops, each row's chance x what it sells for (saleOf). Permille of the ground's own item rate,
+ * ONE number a ground and Level (the server's bound reads it: hr_scaled_kill_bounds.loot_pm), the card's "Drops ×". The items stay the
+ * ground's own rows; only how often they fall moves (src/core/drops.js rollDropTable `lootPm`). Null when it can't be scaled for that leader.
+ */
+const DROPS_PM = new Map();
+export function lootPmFor(groundId, leaderLevel) {
+  const to = scaleLevelFor(groundId, leaderLevel);
+  if (to === null) return null;
+  const key = groundId + ':' + to;
+  if (DROPS_PM.has(key)) return DROPS_PM.get(key);
+  const g = SCALABLE_GROUNDS[groundId], ground = OPEN_GROUNDS[groundId], roster = GROUND_ROSTER[groundId] || {};
+  const coinPm = coinPmAt(groundId, to);
+  let n = 0, rise = 0, items = 0;
+  for (const i of (ground && ground.route) || []) for (const sp of ground.pockets[i].spawns) {
+    const m = MONSTERS[sp.monster], role = roster[sp.monster];
+    if (!m || !role || !Number.isInteger(m.level)) continue;
+    n++;
+    rise += meanOf(scaledStats(m.level, role, m.tier, g, groundId, to).gp) - meanOf(m.gp);
+    for (const d of m.drops || []) items += Math.min(d.ch >= 1 ? 1 : 0.95, Math.max(0, Number(d.ch) || 0)) * saleOf(d.id);
+  }
+  const pm = Math.max(1000, n && items > 0 ? Math.min(coinPm, Math.round(1000 + (1000 * rise) / items)) : coinPm);
+  DROPS_PM.set(key, pm);
+  return pm;
 }
 
 /** Every roster monster of a scaled ground as it fights: { id: row }, the table the settle plays instead of those rows ({} when unscaled). */
@@ -202,8 +255,18 @@ export function scaleFor(groundId, leaderLevel) {
   const g = SCALABLE_GROUNDS[groundId];
   const own = formulaStats({ level: g.floor, role: 'regular', tier: 1, floor: g.floor, fit: g.fit, ground: groundId });
   const s = scaledStats(g.floor, 'regular', 1, g, groundId, to);
-  const pm = (a, b) => Math.round((1000 * a) / b), coin = (r) => r.gp[0] + r.gp[1];
-  return { band: [to, to + g.top - g.floor], dmgPm: pm(s.atk, own.atk), hpPm: pm(s.hp, own.hp), xpPm: pm(s.xp, own.xp), coinPm: pm(coin(s), coin(own)) };
+  const pm = (a, b) => Math.round((1000 * a) / b);
+  /* coinPm: the card's "Gold ×"; dropsPm: its "Drops ×", the multiple the drop rows fall at (lootPmFor, never past Gold ×) */
+  return { band: [to, to + g.top - g.floor], dmgPm: pm(s.atk, own.atk), hpPm: pm(s.hp, own.hp), xpPm: pm(s.xp, own.xp), coinPm: coinPmAt(groundId, to),
+    dropsPm: lootPmFor(groundId, leaderLevel) };
+}
+
+/* The card's Gold ×: the reference monster's (a regular of art tier 1 at the floor) coin at the scaled Level over its own, permille. */
+function coinPmAt(groundId, to) {
+  const g = SCALABLE_GROUNDS[groundId];
+  const own = formulaStats({ level: g.floor, role: 'regular', tier: 1, floor: g.floor, fit: g.fit, ground: groundId });
+  const s = scaledStats(g.floor, 'regular', 1, g, groundId, to);
+  return Math.round((1000 * (s.gp[0] + s.gp[1])) / (own.gp[0] + own.gp[1]));
 }
 
 /** Gold a banked hour costs a leader of `leaderLevel` on this ground (whole gold), or null when it can't be scaled for them. */

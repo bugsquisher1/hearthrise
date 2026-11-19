@@ -134,6 +134,18 @@ export const offersFor = (tr, skill) => (tr ? tr.offers.filter((o) => o.skill ==
 /** The server's quote for one skill, or null. Pure. */
 export const quoteFor = (tr, skill) => (tr && tr.quotes.find((q) => q.skill === skill)) || null;
 
+/**
+ * THE GOLD THE YARD BILLED one training session, `h` (hunt-sections.js huntOf, the session the record says now): the run's fee rows while it
+ * runs, the last stop's once it has ended and the server names it as that session. The house dummy bills nothing. Null when the server has
+ * not said (no section, or a last stop of another session): a caller then says no gold rather than a figure short of the yard. Pure.
+ */
+export function yardPaidOf(cs, h) {
+  const tr = trainingOf(cs);
+  if (!tr || !h || typeof h.sessionId !== 'string') return null;
+  if (!h.ended) return tr.run ? (tr.run.where === 'yard' ? tr.run.paid : 0) : null;
+  return tr.lastStop && tr.lastStop.session === h.sessionId ? tr.lastStop.paid : null;
+}
+
 /** How long the run has gone (ms) at `serverNowMs`; display only, never under 0. */
 export function runForMs(run, serverNowMs) {
   if (!run || !Number.isFinite(serverNowMs)) return 0;

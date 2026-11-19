@@ -58,6 +58,13 @@ export const TRAINING_TEXT = Object.freeze({
   /* Why Start is off, said before the press; the same words answer the server's refusal. */
   closed: 'Training Yard closed',
   hunting: 'Not available while hunting',
+  /* WHILE A HERO TRAINS, a town-only control is off for the training, never for "the hunt" (src/shell/training-words.js busyWords, post-140
+     audit C7): the server refuses it during any open session, and the press that frees it is Stop. */
+  busy: 'Not available while training',
+  busy_gear: 'Stop training to change gear',
+  busy_upgrades: 'Stop training to put these on.',
+  /* the Hunts window's lead line while the hero trains: {doing} "Training Melee", {at} "at the Training Yard" (trainingPhrase) */
+  busy_hunts: '{doing} {at}. Stop training to pick a hunt',
   in_party: 'Not available in a party',
   short_gold: 'Not enough gold (need {fee}, have {purse})',
   low_level: 'Requires Level {need}',

@@ -18,6 +18,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
 import { refusalOf } from './refusal.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { catchingUp, newIdem } from './catch-up.js?v=0.2.140';
 
 const VERB = 'hunt_restock';
@@ -38,6 +39,7 @@ export function carryIntoHunt(account, cs, item, qty) {
     }
     const body = ans && ans.body && typeof ans.body === 'object' ? ans.body : null;
     if (!(ans && ans.ok && body && body.ok === true)) {
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       const r = refusalOf(ans || {});
       /* the words name the item asked for ("You no longer have that many Cooked Shrimp.") */
       return Object.assign(r, { verb: r.verb || VERB, item: r.item || item });

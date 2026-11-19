@@ -50,6 +50,8 @@ export const CONTROLS_TEXT = Object.freeze({
   equip: 'Equip',
   unequip: 'Unequip',
   use: 'Use',
+  /* a pattern in the bag: read it, and its recipe opens for this hero (src/data/patterns.js) */
+  learn: 'Learn',
   use_equipped: 'Use equipped',
   /* the Hearth Chest: every key of the kind held, one press (the board's Burning Tower §5 (c)) */
   use_all: 'Use all',

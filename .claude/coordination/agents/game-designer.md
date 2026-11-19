@@ -1018,3 +1018,18 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - XP rows can't fix one way's gap: the curve is fitted to the median, so XP x1.12 that lifts the tank inside 10% pushes the median to -9.8% and the next re-fit takes it back. Look at the slow way's default bar first (the sword ways hold no rune spell; Flame Strike closed 80% of the gap at flat gold).
 - Re-check an old reason before keeping a ruling built on it: the 10-29 "Flame Strike off, net -20%" reads -121 to +17 g/h today, and its struck-slot cause is gone.
 - Read the set's log before reporting a sequence ("waits for lane X"): the lane I was told to wait for landed while I measured.
+## 2026-11-19 lane/d-tank-runes (Tyler: "tanks should have rune spells that are tank spells"; board "2026-11-19 Tank rune spells")
+- Measure what the role is missing before designing its tools. In every tank-led party cell the others took only monster spells (99-101%) and the Challenge fired 0-4 times an hour, which cut "guard an ally" and "a stronger taunt" before any prototype.
+- A cell's `levelXpPerH` is the GAIN. Deaths sit in `raw.xpLostLevel`, so a lone Deadly cell reading "+12% XP" was −53k an hour net. Judge lone pace as the best deathless tier per ground, net.
+- A damage cut that adds no kills can still raise lone pace by a whole tier: Frost Slam took the lone tank at the Slake 55 from 8 deaths to 0 on Dangerous, +27% to its best hour. Look for the tier flip, not the cell's delta. "Party only" (the mirror of `alone`) is the clean guarantee.
+- The tank deals 1.7-6.6 damage a second, so any hit on a tank's area spell is a big kill bump (1 damage a monster was +2 to +9% alone). A holding spell must land no damage.
+- Prototype engine pieces on a scratch copy of the tree (src, supabase/functions/hr-accrue, tests/hunt-core/fixtures) and pass `--root` to the pool. Prove the copy is a no-op first: its as-built arm matched the clean tree byte for byte on 36 cells.
+- Three pools on this PC ran about 7 jobs a minute, and lone Deadly cells with 100+ deaths dominate (every death is a new segment). Split arms across pools by output file, never two pools on one file, and stop a pool with `taskkill /T` by its command line: it resumes by job id.
+
+## 2026-11-19 lane/d-balance-audit (real hunts against the sim)
+- The engine is not where the sim and the game disagree: fed a recorded party (its own XP, kit, bar, options, stock) the sim lands within 5% on kills, XP and coin. The gap is the HERO the audits play: `node tools/balance-sim/calibrate.mjs --run --as harness` then `--swap kit|bar|skills` names which assumption moves a number.
+- The plain audit hero is 0.55-0.83x a real one (no rune spells on melee or bow, no accessories or spent ammo, skills pinned to Level). Before quoting a party, tier or death number, play it with `profile: "played"` and say which hero it was.
+- "Skill = Level" is wrong both ways past 25: a lone yard-trained hero is 6-15 above, a Deadly-party hero 15 below on its main skill. Take skills from a career or a record.
+- Under Level 50 the level curve is fitted to the measured ladder, so "x the pace contract" only means something past 50. Under it, compare to the same-profile lone Normal hero.
+- A session row s tier can be null on a continued hunt. Read the tier from the row, then the instance (same ground), never assume Normal.
+- A sample is only judged if the hero s setup (presets AND action sets) was last changed before the hunt began. One recorded hunt had its store rune changed mid-hunt and read store gold x1.5 for that reason alone.

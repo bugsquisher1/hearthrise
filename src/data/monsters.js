@@ -67,6 +67,8 @@ import { applyClassProfiles } from './monster-classes.js?v=0.2.140';
 import { MONSTER_LEVEL_BY_TIER } from './core-model.js?v=0.2.140';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.140';
 import { foldRows } from './grounds/shape.js?v=0.2.140';
+import { PATTERN_DROPS } from './patterns.js?v=0.2.140';
+import { LOOT_BANDS } from './loot-bands.js?v=0.2.140';
 
 /* HUNT SPEED (HUNT_SCREEN_SPEC §3.1 #4): a row's `speed` is MILLITILES per second
    (src/data/hunt-tuning.js units; the sewer roster's values are the sim's, ASSUMED).
@@ -939,6 +941,19 @@ export const MONSTERS = {
 for (const [id, row] of Object.entries(foldRows('monster', {}, GROUND_PACKS, (p) => (p.hall ? { ...p.monsters, ...p.hall.monsters } : p.monsters)))) {
   if (Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('ground pack: monster ' + id + ' is already taken; a pack only adds');
   MONSTERS[id] = { ...row };
+}
+
+/* THE PATTERNS (src/data/patterns.js): each live pattern's row joins its monsters' tables among their Rares, before the first row of a
+   later band (a key, a trophy), so the band order holds and no earlier row's draw moves. Nothing while the patterns are hidden. */
+for (const [id, rows] of Object.entries(PATTERN_DROPS)) {
+  if (!Object.prototype.hasOwnProperty.call(MONSTERS, id)) throw new Error('patterns: no monster ' + id + ' to carry ' + rows.map((r) => r.id).join(', '));
+  const drops = MONSTERS[id].drops.slice();
+  for (const r of rows) {
+    const rank = LOOT_BANDS.indexOf(r.band);
+    const at = drops.findIndex((d) => LOOT_BANDS.indexOf(d.band) > rank);
+    drops.splice(at < 0 ? drops.length : at, 0, { ...r });
+  }
+  MONSTERS[id] = { ...MONSTERS[id], drops };
 }
 
 /* SEAL: write each class's profile onto its members, so `m.weaponWeak` is a

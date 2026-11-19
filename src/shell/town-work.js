@@ -43,7 +43,7 @@ import { SKILLS_DEF } from '../data/skills.js?v=0.2.140';
 import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.140';
 import { indexGatherNodes, gatherIntervalMs, gatherBagFullFor } from '../core/skill-sim.js?v=0.2.140';
 import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.140';
-import { recipeInputs } from '../core/artisan.js?v=0.2.140';
+import { recipeInputs, gateOk } from '../core/artisan.js?v=0.2.140';
 import { pacedXp } from '../core/pacing.js?v=0.2.140';
 import { whole } from '../render/format.js?v=0.2.140';
 import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.140';
@@ -56,7 +56,7 @@ import { skillShortWords } from './intent-words.js?v=0.2.140';
 import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.140';
 import { bestTool } from '../core/tools.js?v=0.2.140';
 import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.140';
-import { benchTaxOf, benchRunOf } from '../session/bench-sections.js?v=0.2.140';
+import { benchTaxOf, benchRunOf, learnedRecipesOf } from '../session/bench-sections.js?v=0.2.140';
 import { whereToGet, wherePlaces, toolEffect } from './item-lore.js?v=0.2.140';
 import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.140';
 
@@ -249,7 +249,9 @@ export function workBlock(cs, w, huntRunning) {
   if (lv === null) return 'Loading ' + skillWord(w.skill) + ' level…';
   if (lv < (w.row.req || 1)) return skillShortWords(w.skill, w.row.req, lv, doWords(w));
   if (w.kind === 'artisan') {
-    if (w.row.gated) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
+    /* A PATTERN'S RECIPE (src/data/patterns.js) opens for THIS hero once the server says it has read the pattern: the engine's own gate
+       (artisan.js gateOk) on the envelope's learned set, fail-closed while unread (bench-sections.js learnedRecipesOf). */
+    if (w.row.gated && !gateOk(w.row, learnedRecipesOf(cs))) return 'Needs the ' + itemName(w.row.gated) + ' recipe.';
     /* The row that says what is short says where it comes from (panel 2026-11-01: "No Silk Thread", and no word on where). A worn piece is
        not in the bag, and the bench spends the bag's: said last, so nobody takes a weapon off for a job the rest of the row can't do yet. */
     const short = inputShortOf(cs, w);

@@ -55,11 +55,18 @@ export const BAG_TEXT = Object.freeze({
   bundle_confirm: 'Press again to unlock for good',
   bundle_busy: 'Unpacking…',
   bundle_used: 'Outfit unlocked: {outfit}',
+  /* A pattern (src/data/patterns.js): Learn opens its recipe for this hero (src/shell/windows/inventory/pattern.js). Labels. */
+  pattern_known: 'Pattern already learned',
+  /* the first press arms the learn (a tradeable Rare, used up): the second learns it */
+  pattern_confirm: 'Press again to learn it for this hero',
+  pattern_busy: 'Learning…',
+  pattern_learned: 'Recipe learned: {recipe}',
   /* The Storage window (src/shell/windows/storage.js). Its Expand reads the server's offer (hr_bag_expand_view). */
   store_search: 'Search items',
   store_in_storage: 'In storage',
   store_in_bag: 'In bag',
-  store_bag_of: 'Bag {n} / {cap}',
+  /* the bag's count beside its head, worded as the storage's beside it ('3 of 100 stacks'): side by side, 'In bag Bag 23 / 100' said Bag twice */
+  store_bag_of: '{n} of {cap} stacks',
   store_no_match: 'Nothing here matches.',
   store_empty: 'Storage empty',
   store_bag_empty: 'Bag empty',

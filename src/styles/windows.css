@@ -372,11 +372,41 @@
 .hw-fit-need { font-size: var(--t-micro); color: var(--red); }
 .hw-fit-need:empty { display: none; }
 
-/* ── Storage (src/shell/windows/storage.js): the same pockets, two grids ── */
-.hw-store .hw-pockets { min-height: max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px)); padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+/* ── Storage (src/shell/windows/storage.js): the same pockets, TWO CONTAINERS SIDE BY SIDE (UI audit 2026-11-18 #4) ──
+   The search and the kinds over both; the storage's head and well at the left, the bag's at the right, the wells starting on one line
+   and running the window's height, each scrolling on its own; under each, how it gets more room; under both, the bulk moves; at the foot
+   ONE line, how a press moves a stack until a press answers, then its answer in that line's place (sized to the answer, so its coming
+   never shortens the wells and slides a stack from under the hand: AW-65). The window does not scroll: its wells do (a phone's sheet
+   scrolls as one, below). */
+.hs-win[data-hs-win="storage"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.hw-store { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "find find" "cats cats" "bankh bagh" "bank bag" "room grow" "do do" "msg msg"; column-gap: 12px; }
+.hw-store > .hw-find { grid-area: find; }
+.hw-store > .hw-cats { grid-area: cats; }
+.hw-store > .hw-store-note { grid-area: msg; align-self: center; margin: 6px 2px 0; }
+.hw-store:has(> .hh-intent-msg:not(:empty)) > .hw-store-note { visibility: hidden; }
+.hw-store > .hh-intent-msg:empty { display: block; visibility: hidden; min-height: calc(1lh + 12px); }
+.hw-store > .hw-store-bankhead { grid-area: bankh; }
+.hw-store > .hw-store-baghead { grid-area: bagh; }
+.hw-store > [data-well="bank"] { grid-area: bank; }
+.hw-store > [data-well="bag"] { grid-area: bag; }
+.hw-store > .hw-store-room { grid-area: room; }
+.hw-store > .hw-store-grow { grid-area: grow; }
+.hw-store > .hw-store-do { grid-area: do; }
+.hw-store > .hh-intent-msg { grid-area: msg; }
+.hw-store .hw-ledger-head.is-on { margin: 4px 2px 4px; }
+/* the well is the container: sunk, at least two rows of pockets, scrolling on its own */
+.hw-store-well { min-height: calc(2 * max(round(down, clamp(36px, 36px + (100vw - 1024px) / 32, 44px), 2px), calc(var(--icon-1) + 4px)) + round(down, clamp(2px, 2px + (100vw - 1024px) / 128, 4px), 1px) + 8px);
+  overflow-y: auto; overscroll-behavior: contain; padding: 4px; background: var(--surf-sunken); box-shadow: var(--hw-well); }
+.hw-store-well > .hw-store-none { margin: 2px 2px 6px; }
 .hw-store.is-off .hw-pocket { cursor: default; opacity: .6; }
 .hw-store-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
-.hw-store-note { margin: 0 2px 4px; }
+/* under the storage, the House's next chest; under the bag, Expand with why it is off beside it; under both, the bulk moves and their words */
+.hw-store > .hw-store-room { margin: 6px 2px 0; }
+.hw-store > .hw-store-room:empty { display: none; }
+.hw-store > .hw-store-grow { margin-top: 6px; align-self: start; }
+.hw-store > .hw-store-do { margin-top: 8px; padding-top: 8px; border-top: 2px solid var(--steel-sep); }
+.hw-store > :is(.hw-store-grow, .hw-store-do) > .hw-why { flex: 0 1 auto; margin: 0; }
 
 /* ── Hunts (src/shell/windows/hunts.js): the grounds as lines, the picked one's page beside them ──
    FORGED STEEL (Tyler approved 2026-10-24): two panels in steel, the list and the page. The window does not scroll:
@@ -814,10 +844,22 @@
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
-  /* Storage on a phone: the bag's head and Expand come up under the search and chips, above the storage help (Expand was below the fold at 922x423). */
+  /* STORAGE ON A PHONE: the half-wide sheet holds one container to a row, so they stack and the sheet scrolls as one. The bag first: its head
+     and Expand in view as the sheet opens (Expand was below the fold at 922x423), two rows of its pockets right under them, then how a press
+     moves them and the bulk moves; the storage under it, its head, its pockets and the House's next chest; the press's answer last. */
+  .hs-win[data-hs-win="storage"] .hs-win-body { display: block; overflow: auto; }
   .hw-store { display: flex; flex-direction: column; }
-  .hw-store > .hw-find, .hw-store > .hw-cats { order: -2; }
-  .hw-store > .hw-store-baghead, .hw-store > .hw-store-grow { order: -1; }
+  .hw-store > [data-well="bag"] { order: 1; }
+  .hw-store > :is(.hw-store-note, .hw-store-do) { order: 2; }
+  .hw-store > :is(.hw-store-bankhead, [data-well="bank"], .hw-store-room) { order: 3; }
+  .hw-store > .hh-intent-msg { order: 4; }
+  .hw-store > .hw-store-note { align-self: stretch; margin: 6px 2px 0; }
+  .hw-store:has(> .hh-intent-msg:not(:empty)) > .hw-store-note { visibility: visible; }
+  .hw-store > .hh-intent-msg:empty { display: none; }
+  .hw-store-well { min-height: 0; overflow: visible; }
+  .hw-store > [data-well="bag"] { margin-top: 6px; }
+  .hw-store > .hw-store-do { margin-top: 6px; padding-top: 0; border-top: 0; }
+  .hw-store > .hw-store-bankhead { margin-top: 14px; }
   .hw-shop > .hw-tabs { top: -8px; margin-top: -8px; padding-top: 8px; }   /* the sheet's body padding */
   /* A Shop row on the half-wide sheet: the icon and name on one line, the count and the price under them (the name had 23 px and read "C…"). */
   .hw-shop .hw-line { flex-wrap: wrap; justify-content: flex-end; }

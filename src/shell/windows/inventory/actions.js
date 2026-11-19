@@ -25,6 +25,7 @@
 //                          Cooking recipe (bury.js): the server spends the stack (or one:
 //                          "Burn") and pays; the hero walks to a fuel stand
 //   a named fuel           hr_hearth_burn (bury.js burnNamed): one, alone, the square's colour
+//   learn a pattern        hr_recipe_learn (pattern.js learnPattern): one, read by this hero, its recipe opens for it
 // While one is in flight every action control is off; the counts change only
 // when the re-read envelope replaces the bag and the worn set.
 //
@@ -40,12 +41,12 @@ import { kindOf, equipSlotFor, equipOps, markSeen, namedFuelOf, styleWords } fro
 import { assignToBar, barKind, barIndexOf, barKeyLabel, tidyBarAfterSwap } from '../../bar-assign.js?v=0.2.140';
 import { runIntent } from '../../intent-words.js?v=0.2.140';
 import { t } from '../../../render/player-text.js?v=0.2.140';
-import { busyWords } from '../../training-words.js?v=0.2.140';
 import { huntOf } from '../../../session/hunt-sections.js?v=0.2.140';
 import { pressSelect, toggleSelect, rangeTo, selectKey, clearSelection, selectedIds, settleSelection, selectOutgrown } from './selection.js?v=0.2.140';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.140';
 import { gold } from '../../../render/format.js?v=0.2.140';
 import { moveStorageMany, lockItems } from '../../../session/storage-intents.js?v=0.2.140';
+import { storeAwayWords } from '../../storage-model.js?v=0.2.140';
 import { itemName } from '../../widgets/bits.js?v=0.2.140';
 import { showTip, hideTip } from '../item-tip.js?v=0.2.140';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.140';
@@ -62,6 +63,7 @@ import { wearBlock } from '../../gear-gate.js?v=0.2.140';
 import { levelOf, featuresOf } from '../../../session/character-sections.js?v=0.2.140';
 import { unlockRing } from './key-ring.js?v=0.2.140';
 import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.140';
+import { patternRowOf, learnBlock, armLearn, learnPattern } from './pattern.js?v=0.2.140';
 import { actPlanCopy } from './plan-copy.js?v=0.2.140';
 import { text, attr } from '../../../render/paint.js?v=0.2.140';
 import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.140';
@@ -167,7 +169,22 @@ function doPrimary(st, id, repaint) {
   else if (namedFuelOf(id)) doNamed(st, id, repaint);
   /* the strip's press is the one it shows (state.js primaryOf): Use while the bundle can be used, Sell once the server says it is owned */
   else if (bundleOutfitOf(id) && !bundleUseBlock(cs, id)) doBundle(st, id, repaint);
+  /* a pattern: Learn while this hero has not read it, Sell once the server says it has (state.js primaryOf) */
+  else if (patternRowOf(id) && !learnBlock(cs, id)) doLearn(st, id, repaint);
   else askSell(st, [id], t('controls.sell'), repaint);
+}
+
+/* Learn ONE pattern (pattern.js): refused here only for what the server's learned set already says (this hero knows it); the first press
+   arms it and asks for a second (a tradeable Rare, used up). From the context menu (`btn`, its Learn) the ask is that button's own words
+   and the menu stays open for the second press, as a bundle's Use. */
+function doLearn(st, id, repaint, btn) {
+  const why = learnBlock(st.cs, id);
+  if (why) { say(st, repaint, why, 'pick:' + id); return; }
+  if (!armLearn(st.sc, id)) {
+    if (btn) { text(btn, t('bag.pattern_confirm')); attr(btn, 'data-armed', 'true'); return; }
+    say(st, repaint, t('bag.pattern_confirm'), 'pick:' + id); return;
+  }
+  learnPattern(st.account, st.cs, id, (fn, busy, done) => send(st, repaint, fn, busy, done, 'pick:' + id));
 }
 
 /* Use ONE outfit bundle (outfit-bundle.js): refused here only for what the server's outfit section already says (owned); the first
@@ -238,7 +255,7 @@ function doDeposit(st, repaint) {
   const ids = selectedIds(st.sc, st.items);
   if (!ids.length) return;
   const h = huntOf(st.cs);
-  if (h && !h.ended) { say(st, repaint, busyWords(st.cs, t('bag.storage_away'))); return; }
+  if (h && !h.ended) { say(st, repaint, storeAwayWords(st.cs)); return; }
   bulk(st, repaint, () => moveStorageMany(st.account, st.cs, ids, 'deposit'), t('bag.putting_away'), 'bag.put_away');
 }
 
@@ -296,6 +313,9 @@ function openMenu(ctx, body, st, id, at, repaint) {
   /* an outfit's bundle: Use owns the outfit for this hero (off, with why, once the server says it owns it already) */
   const ubWhy = bundleOutfitOf(id) ? bundleUseBlock(st.cs, id) : '';
   if (bundleOutfitOf(id)) h += item('m-use', t('controls.use'), !ubWhy, '', ubWhy);
+  /* a pattern: Learn opens its recipe for this hero (off, with why, once the server says it knows it) */
+  const lpWhy = patternRowOf(id) ? learnBlock(st.cs, id) : '';
+  if (patternRowOf(id)) h += item('m-learn', t('controls.learn'), !lpWhy, '', lpWhy);
   if (barKind(id)) h += item('m-bar', bi >= 0 ? 'On the bar (key ' + barKeyLabel(bi) + ')' : 'Put on the bar', !!st.bar && bi < 0, '', st.bar ? '' : 'Loading the bar…');
   const sellWhy = locked ? '' : !st.shop ? 'Loading the shop…' : st.shop.bids.has(id) ? '' : 'The shop does not buy this.';
   /* "Sell now", never a second "Sell": the Loot plan below holds Sell too (UI audit 2026-11-18) */
@@ -514,6 +534,7 @@ export function actInventory(ctx, body, action, ev, el, repaint) {
     case 'm-fuel-one': doBury(st, id, repaint, 1); return true;
     case 'm-hearth': doNamed(st, id, repaint); return true;
     case 'm-use': doBundle(st, id, repaint, el); return true;
+    case 'm-learn': doLearn(st, id, repaint, el); return true;
     case 'm-bar': send(st, repaint, () => assignToBar(st.cs, id), 'Putting it on the bar…'); return true;
     case 'm-sell': askSell(st, [id], t('controls.sell'), repaint); return true;
     case 'm-market': closeMenu(ctx, st); offerForSale(ctx, id, 'bag'); return true;

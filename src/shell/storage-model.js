@@ -18,8 +18,22 @@
 //   queuePress(queue, press)     a press made while another is out joins the
 //                                queue, merged with one on the same stack
 //   nextBatch(queue)             what the queue sends next: { take, rest }
+//   storeAwayWords(cs)           why a move is off while the hero's session is open: the hunt's
+//                                "Storage is in town", or at the yard "Stop training to use Storage"
 // ════════════════════════════════════════════════════════════════════════
 import { BAG_CATS, BAG_SORTS, kindOf } from './bag-model.js?v=0.2.140';
+import { busyWords } from './training-words.js?v=0.2.140';
+import { t } from '../render/player-text.js?v=0.2.140';
+
+/**
+ * WHY STORAGE IS OFF WHILE THE HERO IS OUT, IN THE PLAYER'S TERMS (post-140 audit C7, Storage's half): the server refuses every bank move during
+ * any open session (hr_hunt_lock), so the moves stay off; on a hunt the chest is at home and the hero is not ("Storage is in town"), at the
+ * Training Yard the press that frees it is Stop ("Stop training to use Storage", training-words.js busyWords). The Storage window's note, its
+ * press's answer and the bag's Deposit all say this one sentence. Pure over the server's `hunt`.
+ */
+export function storeAwayWords(cs) {
+  return busyWords(cs, t('bag.storage_away'), 'training.busy_storage');
+}
 
 const CAT_IDS = new Set(BAG_CATS.map(([id]) => id));
 const SORT_IDS = new Set(BAG_SORTS.map(([id]) => id));

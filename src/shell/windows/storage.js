@@ -8,7 +8,16 @@
 // (T) opens it.
 //
 // Two grids of the same pocket the Inventory uses (inventory/pockets.js):
-// what is in storage, and what is in the bag. A press on a stack moves ONE
+// what is in storage, and what is in the bag, SIDE BY SIDE on a desktop (UI audit
+// 2026-11-18 #4: one stacked list read as one long grid, its search and the
+// storage's head scrolled away above a full bag): two sunk wells, the storage at
+// the left and the bag at the right, each under its own head and scrolling on its
+// own, each drawing the room it has left as empty pockets (the Inventory's bag
+// does, inventory/grid.js freeSpaces), so a move reads as a stack crossing from
+// one container to the other. Under each, how it gets more room (the House's
+// chests; Expand); under both, the bulk moves. A phone's sheet is too narrow for
+// two: there the bag comes first (its head, Expand and the bulk moves in view as
+// the sheet opens), the storage under it, and the sheet scrolls as one. A press on a stack moves ONE
 // across; Shift moves all of it; a right-click (or a long press) asks how many
 // (src/shell/widgets/amount.js: Store X / Take X). Tyler 10-18: "it's all or
 // nothing." Each is ONE hr_bank_move naming that exact count (the server moves
@@ -45,7 +54,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.140';
 import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.140';
-import { storePrefsOf, markStored, materialsToStore, queuePress, nextBatch } from '../storage-model.js?v=0.2.140';
+import { storePrefsOf, markStored, materialsToStore, queuePress, nextBatch, storeAwayWords } from '../storage-model.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.140';
 import { showTip, hideTip } from './item-tip.js?v=0.2.140';
@@ -55,6 +64,7 @@ import { dispatchBlock, runDispatch } from '../loot-dispatch.js?v=0.2.140';
 import { toolLossWords } from '../town-work.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
 import { heroGroundOf } from '../widgets/first-target.js?v=0.2.140';
+import { MOBILE_QUERY } from '../../world/core/camera.js?v=0.2.140';
 import { featuresOf } from '../../session/character-sections.js?v=0.2.140';
 
 const SCRATCH = new WeakMap();
@@ -73,28 +83,32 @@ export function renderStorage(ctx) {
     + '<label class="hw-sort"><span>' + t('controls.sort') + '</span><select class="hh-select" data-hs-act="sort">' + BAG_SORTS.map(([id, l]) => '<option value="' + id + '">' + esc(l) + '</option>').join('') + '</select></label></div>'
     + '<div class="hw-cats" role="group" aria-label="Show">' + BAG_CATS.map(([id, l]) => '<button type="button" class="hw-cat" data-hs-act="cat" data-cat="' + id + '" aria-pressed="false">' + esc(l) + '</button>').join('') + '</div>'
     + '<p class="hs-note hw-store-note"></p>'
-    + '<h3 class="hw-ledger-head is-on">' + t('bag.store_in_storage') + ' <small class="hw-store-n" data-n="bank"></small></h3>'
-    + '<ul class="hw-pockets" data-side="bank" role="listbox" aria-label="' + t('bag.store_in_storage') + '"></ul><p class="hh-empty hw-store-none" data-none="bank"></p>'
-    + '<p class="hs-note hw-store-room"></p>'
+    /* the two containers: their heads on one line, their wells on the next (windows.css lays them out; a phone stacks them, the bag first).
+       Each well's first class is its own: window-fit.js reads boxes of one tag and first class side by side as rows, and on a phone's sheet
+       pushed the whole bag below the fold as one "row" instead of ending on a row of pockets */
+    + '<h3 class="hw-ledger-head is-on hw-store-bankhead">' + t('bag.store_in_storage') + ' <small class="hw-store-n" data-n="bank"></small></h3>'
     + '<h3 class="hw-ledger-head is-on hw-store-baghead">' + t('bag.store_in_bag') + ' <small class="hw-store-n" data-n="bag"></small></h3>'
+    + '<div class="hw-store-bank hw-store-well" data-well="bank"><p class="hh-empty hw-store-none" data-none="bank"></p><ul class="hw-pockets" data-side="bank" role="listbox" aria-label="' + t('bag.store_in_storage') + '"></ul></div>'
+    + '<div class="hw-store-bag hw-store-well" data-well="bag"><p class="hh-empty hw-store-none" data-none="bag"></p><ul class="hw-pockets" data-side="bag" role="listbox" aria-label="' + t('bag.store_in_bag') + '"></ul></div>'
+    + '<p class="hs-note hw-store-room"></p>'
     /* Expand: the bag's next rung, at the server's price (hr_bag_expand_view); one unlock_buy naming the offer and no number. */
     + '<div class="hw-tools hw-store-grow"><button type="button" class="hh-tool" data-hs-act="expand"></button><p class="hw-why"></p></div>'
     + '<div class="hw-tools hw-store-do"><button type="button" class="hh-tool" data-hs-act="dispatch">' + t('controls.dispatch_loot') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="deposit-materials"></button><p class="hw-why"></p><p class="hw-why hw-store-mats-why"></p></div>'
-    + '<ul class="hw-pockets" data-side="bag" role="listbox" aria-label="In bag"></ul><p class="hh-empty hw-store-none" data-none="bag"></p>'
     /* The press's answer: "Putting it away…", then the result or the refusal. At the foot, it stands in view however the window is scrolled
        (windows.css, sticky), and its coming moves no stack from under the hand. Above the grids, a bag scrolled into reach left it out of sight, and a
        press read as nothing at all (Andy 10-26, a refused 12k-arrow press; 11-02, 14 presses in 25 s). */
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-/* The one sentence the bag's Deposit says too (src/data/text/bag.js). */
+/* The one sentence the bag's Deposit says too (storage-model.js storeAwayWords): on a hunt STORE_AWAY, at the yard STORE_TRAINING. */
 const STORE_AWAY = t('bag.storage_away');
+const STORE_TRAINING = t('training.busy_storage');
 
 /* SAY WHY: a press on a stack with the hero out hunting moves nothing, and the note that says so has scrolled away by the time the bag is in reach. */
 function sayAway(cs, sc, repaint) {
   const h = huntOf(cs);
-  if (h && !h.ended && !sc.pending) { sc.msg = STORE_AWAY; repaint(); }
+  if (h && !h.ended && !sc.pending) { sc.msg = storeAwayWords(cs); repaint(); }
 }
 
 /* Why Expand is off, in words, or '' when it can be pressed. Every number is the server's: the cap, the offer, the price and the purse. */
@@ -105,11 +119,28 @@ export function expandBlock(grow, purse) {
   return purse < grow.next.gold ? t('bag.store_grow_short', { gold: gold(grow.next.gold - purse) }) : '';
 }
 
-function patchSide(root, ctx, side, list, shown, off, depot, grow) {
-  rows(root.querySelector('.hw-pockets[data-side="' + side + '"]'), shown, {
-    key: (r) => r.id,
-    build: (r) => element(ctx.doc, pocketHtml(r.id, ctx.glyphs, side === 'bank' ? 'withdraw' : 'deposit')),
+/**
+ * THE ROOM A CONTAINER HAS LEFT, DRAWN (UI audit 2026-11-18 #4, as the Inventory's bag draws it: inventory/grid.js freeSpaces): on a desktop,
+ * a whole container with nothing filtered out shows each stack it can still take as an empty pocket after its stacks. Storage: the account's
+ * cap less its stacks and the ones kept free for market listings (the server's depot); the bag: its cap less its stacks (hr_bag_expand_view).
+ * Never under a category or a search, never on a phone's sheet (it scrolls as one), never before the server has said. Pure.
+ * @param {{cat: string, query: string}} o  the view's filter
+ * @param {boolean} phone
+ * @param {number} stacks  the container's stacks now
+ * @param {{cap?: number, used?: number, reserved?: number}|null} room  the server's depot (storage) or bag size (bag)
+ */
+function freeRoom(o, phone, stacks, room) {
+  if (phone || !room || o.cat !== 'all' || o.query || !Number.isSafeInteger(room.cap)) return 0;
+  const used = Number.isSafeInteger(room.used) ? room.used : stacks;
+  return Math.max(0, room.cap - used - (Number.isSafeInteger(room.reserved) ? room.reserved : 0));
+}
+
+function patchSide(root, ctx, side, list, shown, off, depot, grow, spaces) {
+  rows(root.querySelector('.hw-pockets[data-side="' + side + '"]'), shown.concat(Array.from({ length: spaces }, (_, i) => ({ space: i }))), {
+    key: (r) => (r.space === undefined ? r.id : ' space:' + r.space),
+    build: (r) => element(ctx.doc, r.space === undefined ? pocketHtml(r.id, ctx.glyphs, side === 'bank' ? 'withdraw' : 'deposit') : '<li class="hw-pocket is-space" aria-hidden="true"></li>'),
     patch: (li, r) => {
+      if (r.space !== undefined) return;
       patchCount(li, r.qty);
       attr(li, 'aria-label', t(side === 'bank' ? 'bag.store_aria_take' : 'bag.store_aria_put', { item: itemName(r.id) + (r.qty > 1 ? ', ' + whole(r.qty) : '') }));
       attr(li, 'aria-disabled', String(off));
@@ -120,8 +151,52 @@ function patchSide(root, ctx, side, list, shown, off, depot, grow) {
   text(root.querySelector('[data-n="' + side + '"]'), side === 'bank' && depot ? whole(depot.used) + ' of ' + whole(depot.cap) + ' stacks'
     : grow ? t('bag.store_bag_of', { n: whole(list.length), cap: whole(grow.cap) }) : whole(list.length) + (list.length === 1 ? ' stack' : ' stacks'));
   const none = root.querySelector('[data-none="' + side + '"]');
-  cls(none, 'is-on', !shown.length);
+  /* a container drawn with its free room reads as empty by itself: the words stand only where no pocket does */
+  cls(none, 'is-on', !shown.length && !spaces);
   text(none, list.length ? t('bag.store_no_match') : side === 'bank' ? t('bag.store_empty') : t('bag.store_bag_empty'));
+}
+
+/* THE TWO WELLS END TOGETHER, ON A WHOLE ROW (UI audit 2026-11-18 #4): side by side they share the window's height, and each scroll box ends at
+   the top of the first row of pockets its foot would cut, both at the shorter of the two, so the containers stand the same height with every
+   pocket in view whole. Measured with both wells at their top only (a well the player scrolled keeps its height, nothing jumps under the hand),
+   on every patch and when the window's box changes. A phone's sheet scrolls as one and is left alone. Layout reads, then style writes. */
+function snapWells(root, phone) {
+  const wells = Array.from(root.querySelectorAll('.hw-store-well'));
+  if (wells.some((w) => w.scrollTop > 0)) return;
+  for (const w of wells) if (w.style.maxHeight) w.style.maxHeight = '';
+  if (phone || wells.length < 2) return;
+  let end = Infinity;
+  for (const w of wells) {
+    if (w.scrollHeight <= w.clientHeight + 1) continue;
+    const top = w.getBoundingClientRect().top, foot = top + w.clientTop + w.clientHeight;
+    let cut = foot;
+    for (const li of w.querySelectorAll('.hw-pocket')) {
+      const q = li.getBoundingClientRect();
+      if (q.height > 0 && q.top < foot - 0.5 && q.bottom > foot + 0.5) cut = Math.min(cut, q.top);
+    }
+    end = Math.min(end, Math.floor(cut - top));
+  }
+  if (Number.isFinite(end)) for (const w of wells) w.style.maxHeight = end + 'px';
+}
+
+const WATCHED = new WeakSet();
+/* Snap now, and again one frame after the window's box or the World changes (the shell caps a docked window after the first patch). */
+function fitWells(root) {
+  const view = root.ownerDocument.defaultView;
+  if (!view) return;
+  const fit = () => snapWells(root, view.matchMedia(MOBILE_QUERY).matches);
+  fit();
+  const frame = root.closest('.hs-win');
+  if (WATCHED.has(root) || !frame || !view.ResizeObserver) return;
+  WATCHED.add(root);
+  let queued = false;
+  const ro = new view.ResizeObserver(() => {
+    if (queued) return;
+    queued = true;
+    view.requestAnimationFrame(() => { queued = false; if (root.isConnected) fit(); else ro.disconnect(); });
+  });
+  ro.observe(frame);
+  if (frame.parentElement) ro.observe(frame.parentElement);
 }
 
 renderStorage.patch = function patchStorage(body, ctx) {
@@ -142,17 +217,20 @@ renderStorage.patch = function patchStorage(body, ctx) {
   if (ctx.doc.activeElement !== input) prop(input, 'value', sc.query);
   prop(root.querySelector('[data-hs-act="sort"]'), 'value', prefs.sort);
   for (const b of root.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(b.getAttribute('data-cat') === prefs.cat));
-  text(root.querySelector('.hw-store-note'), away ? STORE_AWAY
+  text(root.querySelector('.hw-store-note'), away ? storeAwayWords(cs)
     : !bank ? t('bag.store_reading') : (ctx.isPhone && ctx.isPhone() ? t('bag.store_help_touch') : t('bag.store_help_mouse')));
   const depot = depotOf(cs);
-  patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot);
+  const phone = !!(ctx.isPhone && ctx.isPhone());
+  patchSide(root, ctx, 'bank', bank || [], view(bank || [], Object.assign({ seen: marks || residueOf(cs).storeSeen || {} }, o)), off, depot, null,
+    bank ? freeRoom(o, phone, bank.length, depot) : 0);
   /* "73 of 100 stacks. 2 more are kept free for your market listings." (a listing's return always has its place) */
   const kept = depot && depot.reserved ? t('bag.store_kept', { count: depot.reserved }) + '. ' : '';
   text(root.querySelector('.hw-store-room'), !depot ? '' : kept + (depot.next
     ? t('bag.store_more_room', { name: depot.next.name, n: whole(depot.next.stacks) })
     : t('bag.store_all_built')));
   const grow = bagExpandOf(cs);
-  patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off, null, grow);
+  patchSide(root, ctx, 'bag', bag || [], view(bag || [], Object.assign({ seen: bagSeenOf(cs, bag || []) }, o)), off, null, grow,
+    bag && grow ? freeRoom(o, phone, bag.length, { cap: grow.cap }) : 0);
   const gWhy = expandBlock(grow, goldOf(cs));
   const gb = root.querySelector('[data-hs-act="expand"]');
   text(gb, grow && grow.next ? t('bag.store_expand_at', { n: whole(grow.next.adds), gold: gold(grow.next.gold) }) : t('controls.expand'));
@@ -176,8 +254,9 @@ renderStorage.patch = function patchStorage(body, ctx) {
   text(root.querySelector('.hw-store-mats-why'), away || !mats.left ? '' : t('bag.store_mats_left', { count: mats.left }));
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);
-  if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds
+  if (!away && (sc.msg === STORE_AWAY || sc.msg === STORE_TRAINING)) sc.msg = '';   // back in town, it no longer holds
   text(root.querySelector('.hh-intent-msg'), sc.msg);
+  fitWells(root);
 };
 
 renderStorage.events = Object.freeze(['input', 'mouseover', 'mouseout', 'contextmenu', 'pointerdown', 'pointerup', 'pointercancel']);

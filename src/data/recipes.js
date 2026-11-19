@@ -24,6 +24,7 @@ import { HEARTH_FUELS, fuelRecipeId } from './hearth.js?v=0.2.140';
 import { STYLE_GEAR_RECIPES } from './style-gear.js?v=0.2.140';
 import { SHIELD_RECIPES } from './shields.js?v=0.2.140';
 import { JEWELRY_RECIPES_BY_SKILL } from './jewelry.js?v=0.2.140';
+import { patternGated } from './patterns.js?v=0.2.140';
 const BASE_RECIPES = {
   cooking: [
     // Fish — original starter chain
@@ -305,8 +306,9 @@ const BASE_RECIPES = {
 
 /* Every lane is sorted by required level so each artisan panel reads as a
    ladder rather than as authoring order. Crafting appends the fletching rows
-   (slot-ladders.js); nothing else is generated into a lane any more. */
-const byReq = (list) => list.slice().sort((a, b) => (a.req || 0) - (b.req || 0));
+   (slot-ladders.js); nothing else is generated into a lane any more. A recipe a live pattern teaches takes its gate here, the one
+   place every lane passes (src/data/patterns.js patternGated: the same row while the patterns are hidden). */
+const byReq = (list) => list.map(patternGated).sort((a, b) => (a.req || 0) - (b.req || 0));
 
 export const ARTISAN_RECIPES = {
   cooking:  byReq(BASE_RECIPES.cooking.concat(DRINK_RECIPES)),

@@ -341,6 +341,19 @@ function swingsOnly(events) {
 
 /* Run `fn` with no monster casting (the engine's own rows: LV-SPELL's table, put back after), for an arm whose subject is not
    the spells and whose party cannot live through them. */
+/* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them */
+const WARRENS_BEFORE_STEP = Object.freeze({
+  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76 },
+  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88 },
+});
+/* `fn` with these monsters' fields set on both module instances of the rows (the engine's ?v= one and the plain one the live engine is handed), put back after */
+function withRows(M, rows, fn) {
+  const tables = [...new Set([M.ENGINE_MONSTERS, M.MONSTERS].filter(Boolean))];
+  const kept = tables.flatMap((T) => Object.entries(rows).map(([k, o]) => [T, k, Object.fromEntries(Object.keys(o).map((f) => [f, T[k][f]]))]));
+  for (const T of tables) for (const [k, o] of Object.entries(rows)) Object.assign(T[k], o);
+  try { return fn(); } finally { for (const [T, k, o] of kept) Object.assign(T[k], o); }
+}
+
 function withoutSpells(M, fn) {
   const kept = Object.entries(M.ENGINE_MONSTERS).filter(([, m]) => Object.prototype.hasOwnProperty.call(m, 'spells')).map(([k, m]) => [k, m.spells]);
   for (const [k] of kept) delete M.ENGINE_MONSTERS[k].spells;
@@ -626,12 +639,14 @@ function rules(M) {
     };
     for (const [name, n, viewer] of [['solo', 1, null], ['party', 2, { user: 'sc1', slot: 0 }]]) {
       const mis = pair(n);
-      const r = run(M, mis, 64000, { server: { scale: L }, ...(viewer ? { viewer } : {}) });
+      /* EVERY COMMIT'S WORLD (lane/d-harder-monsters, 2026-11-19): the last one alone can stand between pulls with no monster in it (since monsters a tenth harder
+         the party's 64th second falls after a pull); every monster the server's world stood on any commit carries the scaled row's health */
+      const stood = [];
+      const r = run(M, mis, 64000, { server: { scale: L }, ...(viewer ? { viewer } : {}), onCommit: ({ srv }) => { if (srv.inst.world) stood.push(...M.WS.decode(JSON.parse(srv.inst.world)).units.filter((u) => u.side === 'mon')); } });
       const bad = r.verdicts.filter((x) => x.v !== 'match');
       ok('LV-SCALE', r.verdicts.length >= 3 && bad.length === 0, name + ': ' + bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction');
-      const w = r.srv.inst.world ? M.WS.decode(JSON.parse(r.srv.inst.world)) : null;
-      const off = (w ? w.units : []).filter((u) => u.side === 'mon' && Math.max(1, play.monsters[u.kind].hp) !== u.maxHp);
-      ok('LV-SCALE', !!w && w.units.some((u) => u.side === 'mon') && off.length === 0,
+      const off = stood.filter((u) => Math.max(1, play.monsters[u.kind].hp) !== u.maxHp);
+      ok('LV-SCALE', stood.length > 0 && off.length === 0,
         name + ': ' + off.length + ' monster(s) of the server\'s world stand off the scaled rows\' health: ' + off.slice(0, 3).map((u) => u.kind + ' ' + u.maxHp).join(', '));
       if (name !== 'party') continue;
       const scaled = stats(r, mis), ownMis = pair(2), own = stats(run(M, ownMis, 64000, { viewer }), ownMis);
@@ -677,13 +692,14 @@ function rules(M) {
 
   { // LV-EVENT: A LIVE EVENT, VIEWED (lane/c-live-events). The peer leader's account holds a +25% Level XP window for 40 s of a 64 s run; the
     // viewer's doesn't. The browser reads both from the start point and earns, kill by kill, what the server's commits pay.
-    const W = [T0 + 20000, T0 + 60000, 1250];
+    /* 20-100 s of 128 s (was 20-60 s of 64 s): more kills judged, each on its own (below) */
+    const W = [T0 + 20000, T0 + 100000, 1250];
     const pair = () => [memberOf(M, 'ev0', 0, 'tank', 6), memberOf(M, 'ev1', 1, 'melee_dps', 6)].map((mi, i) => {
       mi.hero = Object.assign({}, mi.hero, { lead: i === 0 });
       return mi;
     });
     const mis = pair(); mis[0].liveXp = [W];
-    const r = run(M, mis, 64000, { viewer: { user: 'ev1', slot: 0 } });
+    const r = run(M, mis, 128000, { viewer: { user: 'ev1', slot: 0 } });
     const bad = r.verdicts.filter((x) => x.v !== 'match');
     ok('LV-EVENT', r.verdicts.length >= 3 && bad.length === 0, bad.length + ' of ' + r.verdicts.length + ' commits did not match the prediction');
     const fedEvents = new Set(r.fed.events.map(ekey));
@@ -695,14 +711,19 @@ function rules(M) {
     const wrong = xps.filter((e) => (e.u === lead && inWin(e) && !(e.ev > 0)) || ((e.u !== lead || !inWin(e)) && e.ev !== undefined));
     ok('LV-EVENT', xps.some((e) => e.u === lead && inWin(e)) && wrong.length === 0,
       wrong.length + ' xp event(s) pay the dial at the wrong time or to the wrong hero: ' + wrong.slice(0, 2).map(ekey).join(' '));
-    const ctl = pair(), rc = run(M, ctl, 64000, { viewer: { user: 'ev1', slot: 0 } });
+    const ctl = pair(), rc = run(M, ctl, 128000, { viewer: { user: 'ev1', slot: 0 } });
     const xpc = rc.verdicts.flatMap((x) => x.tl.hunt_events).filter((e) => e.type === 'xp');
     const sum = (list, u, f) => list.filter((e) => e.u === u && f(e)).reduce((a, e) => a + e.amount, 0);
     const with_ = sum(xps, lead, inWin), without = sum(xpc, lead, inWin);
-    ok('LV-EVENT', without > 0 && Math.abs(with_ / without - 1.25) < 0.05 && sum(xps, other, () => true) === sum(xpc, other, () => true)
+    /* KILL BY KILL (lane/d-harder-monsters, 2026-11-19): a hero's paid XP is whole, so a kill paid w with no dial was w..w+1 before the floor, and with the
+       dial it pays floor(1.25 x that): from floor(1.25 w) to floor(1.25 (w + 1)). The window's TOTAL read x1.17 on the Cellar's 7-13 XP kills by
+       truncation alone (x1.256 on the rows before monsters a little harder, by luck), so each kill is held to its own bound on the same dice. */
+    const kw = xps.filter((e) => e.u === lead && inWin(e)).sort((a, b) => a.atMs - b.atMs), kc = xpc.filter((e) => e.u === lead && inWin(e)).sort((a, b) => a.atMs - b.atMs);
+    const offDial = kw.filter((e, i) => !kc[i] || kc[i].atMs !== e.atMs || e.amount < Math.floor(1.25 * kc[i].amount) || e.amount > Math.floor(1.25 * (kc[i].amount + 1)));
+    ok('LV-EVENT', without > 0 && kw.length === kc.length && offDial.length === 0 && sum(xps, other, () => true) === sum(xpc, other, () => true)
       && sum(xps, lead, (e) => !inWin(e)) === sum(xpc, lead, (e) => !inWin(e)),
-      'the leader earned ' + with_ + ' inside the window against ' + without + ' with none (want x1.25), the viewer ' + sum(xps, other, () => true) + ' against ' + sum(xpc, other, () => true));
-    console.log('  LV-EVENT Cellar pair, +25% for the leader 20-60 s of 64 s: ' + r.verdicts.length + ' commits, ' + (r.verdicts.length - bad.length) + ' matched; '
+      'the leader earned ' + with_ + ' inside the window against ' + without + ' with none (want each kill x1.25 of its floor: ' + offDial.length + ' of ' + kw.length + ' off), the viewer ' + sum(xps, other, () => true) + ' against ' + sum(xpc, other, () => true));
+    console.log('  LV-EVENT Cellar pair, +25% for the leader 20-100 s of 128 s: ' + r.verdicts.length + ' commits, ' + (r.verdicts.length - bad.length) + ' matched; '
       + xps.length + ' xp events, all the browser\'s; the leader ' + with_ + ' Level XP inside the window against ' + without + ' with none');
   }
 
@@ -1012,7 +1033,8 @@ function rules(M) {
        next (since bug #61 the lap's holder pulls its own lap, so no Challenge yanks a pack), and every commit matches. */
     const mis = [memberOf(M, 'a', 0, 'tank', 19), memberOf(M, 'b', 1, 'tank', 19)];
     for (const m of mis) { m.huntId = 'millrace_sewer'; m.hero = Object.assign({}, M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, bar: [], partyRoles: ['tank', 'tank'] }), { density: 7 }); }
-    const v = run(M, mis, 480000, { server: { hunt: 'millrace_sewer' } });
+    /* 600 s (was 480): since monsters a little harder (2026-11-19, balance-sheet.js STAT_FORMULA x1.1) a Sewer lap for this pair runs about 490 s, so 480 s saw one */
+    const v = run(M, mis, 600000, { server: { hunt: 'millrace_sewer' } });
     const ids = [mis[0].unitId, mis[1].unitId];
     const route0 = M.HG.huntGroundOf('millrace_sewer').ground.route[0];
     const laps = [];
@@ -1026,7 +1048,7 @@ function rules(M) {
     const mixed = laps.filter((l) => Object.keys(l.swings).length > 1).length;
     const unmatched = v.verdicts.filter((x) => x.v !== 'match').length;
     const words = laps.map((l) => Object.entries(l.swings).map(([u, n]) => (Number(u) === ids[0] ? 'leader ' : 'second ') + n).join('+') + ' / ' + l.casts + ' cast(s)').join(', ');
-    console.log(`  LV-T viewed (browser engine, sewer d7, 480 s): ${laps.length} lap(s), monster swings and Challenges by lap [${words}], ${mixed} lap(s) with both tanks hit; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
+    console.log(`  LV-T viewed (browser engine, sewer d7, 600 s): ${laps.length} lap(s), monster swings and Challenges by lap [${words}], ${mixed} lap(s) with both tanks hit; ${unmatched} of ${v.verdicts.length} commits off the prediction`);
     ok('LV-T', laps.length >= 2 && mixed === 0 && unmatched === 0, `viewed: ${laps.length} lap(s), ${mixed} lap(s) with both tanks hit, ${unmatched} commits off the prediction (want 2+, 0, 0)`);
     ok('LV-T', laps.length >= 2 && (laps[0].swings[ids[0]] || 0) > 0 && (laps[1].swings[ids[1]] || 0) > 0,
       `viewed: by lap [${words}]: want the leader holding the first lap and the second tank the next`);
@@ -1056,7 +1078,8 @@ function rules(M) {
     const mis = mk();
     const srv = server(M, mis, { hunt: 'millrace_sewer' });
     const evs = []; const seen = []; let changeAt = null;
-    for (let t = T0 + M.CB.tickMs; t <= T0 + 1400000; t += M.CB.tickMs) {
+    /* to 1,600 s (was 1,400): since monsters a little harder (2026-11-19) the laps end about 490 s apart (490 s, 980 s), so the lap after the change ends near 1,470 s */
+    for (let t = T0 + M.CB.tickMs; t <= T0 + 1600000; t += M.CB.tickMs) {
       if (t === T0 + 1000000) { mis[1].hero = Object.assign({}, mis[1].hero, { hold: null }); changeAt = t; }
       const c = srv.commit(t);
       if (!c) break;
@@ -1130,7 +1153,10 @@ function rules(M) {
     /* SPELLS OFF HERE (lane/b-area-data): the bug #61 party in its 10-22 gear (bronze bodies, Practice Shields, Offensive) cannot
        live 600 s through the Warrens' spells (Fremulon falls at 516 s under Take turns, and a fallen holder ends the laps this arm
        reads). Who pulls and holds is spell-blind; LV-SPELL and LV-4P play the spells on both paths. */
-    withoutSpells(M, () => {
+    /* ...AND THE WARRENS' FIVE ON THEIR ROWS BEFORE 2026-11-19 (monsters a little harder, balance-sheet.js STAT_FORMULA x1.1): on the new rows the bug #61 party
+       in its 10-22 gear loses Fremulon mid-lap (Eddie holds his laps under "One tank holds", 85 packs held by another), and a fallen holder ends the laps
+       this arm reads. Who pulls and holds is balance-blind; LV-4P plays the Warrens as they ship. */
+    withRows(M, WARRENS_BEFORE_STEP, () => withoutSpells(M, () => {
     for (const [mode, hold] of [['Take turns', null], ['One tank holds: Fremulon', 1]]) {
       /* the holder of lap i (by `runs`): the lap's turn, or Fremulon every lap */
       const holderOf = (ids, i) => (hold === null ? ids[i % 2] : ids[1]);
@@ -1180,7 +1206,7 @@ function rules(M) {
       ok('LV-PULL', moves >= 1 && v.refreshes.length >= 1 && v.refreshes.length <= moves, `${mode}, viewed: the peers' levels moved at ${moves} commit(s) and the prediction restarted for them ${v.refreshes.length} time(s) (want 1+ moves; 1+ restarts, never more than the moves)`);
       ok('LV-PULL', wire, `${mode}, viewed: a peer's frozen row keys otherwise in the browser (through JSON) than on the server`);
     }
-    });
+    }));
   }
 
   { // LV-TGT: "STRONGEST" AND "FOLLOW" ON A MIXED PACK, BOTH PATHS (Andy a08, live v0.2.33: "Strongest and Follow

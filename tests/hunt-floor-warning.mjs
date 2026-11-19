@@ -248,8 +248,10 @@ const MUTANTS = [
   /* G4/G8 (lane/a-party-advice-glade): a party's fit and its tie of floors read the measured line (the old tie-break on groupFit 'party', lane/d-party-pace's mutant
      anchor, is gone: the Thicket's measure keeps it out of a party's advice, and G4 still plays a four at 5 to the Sewer) */
   /* (lane/a-party-coach-card: groupFit 'solo' is retired, so the hand-tag mutant reads the lone rule, the only tag left) */
-  ['a party\'s advice reads the lone rule (any ground not built for a party)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best >= 0;", "  return r.groupFit !== 'party';"],
-  ['a party\'s advice reads no measure (Wickstead from 8)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best >= 0;", '  return true;'],
+  ['a party\'s advice reads the lone rule (any ground not built for a party)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best > 0;", "  return r.groupFit !== 'party';"],
+  ['a party\'s advice reads no measure (Wickstead from 8)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best > 0;", '  return true;'],
+  /* lane/d-harder-monsters (2026-11-19): a party suits a ground it is measured to earn OVER alone on; at ">= 0" a mixed pair's break-even line on Wickstead's Deadly took it off the Sewer */
+  ['a party suits a ground it only breaks even on (Wickstead from 8)', 'src/shell/hunt-list.js', 'return Number.isInteger(best) && best > 0;', 'return Number.isInteger(best) && best >= 0;'],
   ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/data/party-class-xp.js', 'const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier))', 'const lines = [DEFAULT_TIER].map((tier) => partyVsAlone(groundId, roles, tier))'],
   ['a tie of floors ignores what a party is measured to earn', 'src/shell/hunt-list.js', '(group ? lineOf(y) - lineOf(x) : 0) || ', ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */

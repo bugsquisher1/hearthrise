@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-oxroadfolk.png",
   "size": [2048,1348],
-  "pixels": "905d69e4edb6e87852c939525d85e495fab9bfe201a7e06032a529e60f763105",
+  "pixels": "1703e846e21bad8a6a1a5bcc22ae3eafb089129cbe22cc7c7d706e27e8c4f516",
   "sprites": {
     "coal_runner": {
       "class": "character",

@@ -222,10 +222,12 @@ export const REGION_KITS = Object.freeze({
         maps: ids(''),
       }),
     }),
-    /* the inn's props (art/world/morrow), the coal seam the kit's gather node (the Dawnstone Vein has no node kind yet), and the
-       Greenhaven and Hold clutter an inn yard and stable already have */
-    props: ids(`mh_harrys_cart mh_trough mh_kegs mh_taproom_table cw_coal_seam hay_bale straw sack_pile sack_stack crates barrel_broken
-      chopping_block`),
+    /* the inn's props (art/world/morrow: the cart, kegs, tables and the sixteen of the inn sheet 903b5d01, every one a value step under
+       the trolls), the coal seam the kit's gather node (the Dawnstone Vein has no node kind yet), and the Greenhaven and Hold clutter an
+       inn yard and stable already have */
+    props: ids(`mh_harrys_cart mh_kegs mh_taproom_table mh_sacks mh_sack_spilt mh_straw_bale mh_straw_burst mh_stone_trough mh_bar_counter
+      mh_table_over mh_bench mh_inn_sign mh_lantern_post mh_gate_pillar mh_gate_broken mh_slate_stack mh_keg_spilt mh_round_table
+      mh_stool_broken mh_chopping_block cw_coal_seam hay_bale straw sack_pile sack_stack crates barrel_broken chopping_block`),
     units: ids('troll_picker slate_thrower troll_brewer stable_troll the_landlord'),
     sets: ids('morrowfolk morrow'),
     grounds: Object.freeze({

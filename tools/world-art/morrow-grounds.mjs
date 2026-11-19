@@ -28,6 +28,8 @@ import { reseam } from './seams.mjs';
 import { varietyTiles, decalOf } from './variety.mjs';
 import { stepPatches, bakeDecals, noise, hash2 } from './ground-finish.mjs';
 import { toneAt, varietyIndex } from '../../src/world/core/ground-variety.js';
+import { roofMass, faceTop, walkedRoof, tornEdges, doorwayOf, dividersOf, dimStone, chimney, sills } from './morrow-roofs.mjs';
+import { brewBricks, stableStraw } from './morrow-floors.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const T = 32;
@@ -71,7 +73,7 @@ export function materials() {
   const cellar = fillOf(F('3-cellar-slate'), '0000'), slate = fillOf(F('3-cellar-slate'), '1111');
   return {
     H: { fill: hillsShade(rd(F('0-moor-road/fill-moor.png'))), v: { seed: 41, tone: 'soft', shift: true, details: tufts } },
-    R: { fill: shadeGround(rd(F('0-moor-road/fill-road-ranked.png')), 1), v: { seed: 43, tone: 'soft', shift: true } },
+    R: { fill: rd(F('0-moor-road/fill-road-ranked.png')), v: { seed: 43, tone: 'soft', shift: true } },
     Y: { fill: fillOf(F('1-cobble-flagstone'), '0000'), v: { seed: 51, tone: 'soft', spots: 'down' } },
     S: { fill: shadeGround(fillOf(F('2-straw-boards'), '0000'), 1), v: { seed: 53, tone: 'soft', shift: true } },
     B: { fill: fillOf(F('2-straw-boards'), '1111'), v: { seed: 57, tone: 'soft', spots: 'down' } },
@@ -92,6 +94,8 @@ export function materials() {
 /** The inn's three ranges (their '#' cells are its mass), and the dry stone wall's cells: [x0, y0, x1, y1] inclusive. */
 export const RANGES = Object.freeze([[11, 22, 46, 35], [1, 4, 15, 18], [42, 4, 56, 20]]);
 export const DRY_STONE = Object.freeze([[16, 13, 41, 13]]);
+/** The chimney stacks' feet (left end, px): the taproom's on its north roof over the hearth, the brewhouse's on its east range. */
+export const CHIMNEYS = Object.freeze([[856, 762], [1768, 330]]);
 const LEG = Object.freeze({ ':': 'R', e: 'E', p: 'P', '.': 'Y', y: 'S', '=': 'B', f: 'F', c: 'C', r: 'O' });
 const inR = (rs, x, y) => rs.some(([a, b, c, d]) => x >= a && x <= c && y >= b && y <= d);
 export function paintGrid(rows, ranges = RANGES, dry = DRY_STONE) {
@@ -168,31 +172,49 @@ function roadWear(g, grid) {
   for (let a = 0; a < len; a++) {
     if (raw[a] == null) continue;
     let s = 0, k = 0; for (let d = -48; d <= 48; d++) { const v = raw[a + d]; if (v != null) { s += v; k++; } }
-    const c = s / k, wob = (noise(0, a, 90, 5) - 0.5) * 12 + (noise(0, a, 23, 6) - 0.5) * 3;
-    for (const off of [-11, 10]) {
-      if (noise(off, a, 18, 9) < 0.3) continue;
-      const b = Math.round(c + off + wob + (noise(off, a, 31, 7) - 0.5) * 2);
-      rut += step(...at(a, b), -1) + step(...at(a, b + 1), -1);
-      if (hash2(off, a, 3) > 0.35) step(...at(a, b - 1), 1);
+    const c = s / k, wob = (noise(0, a, 150, 5) - 0.5) * 22 + (noise(0, a, 37, 6) - 0.5) * 5;
+    /* two ruts a cart's width apart, wandering with the road's line and each a little on its own (they pinch and part), broken where
+       the road dried hard. A rut is a trough seen from above: its north wall in shade (a dark lip), its floor two steps down, its south
+       wall lit (the light is the upper left), and between the two ruts the crown a step up in soft patches */
+    const ruts = [];
+    for (const off of [-13, 12]) {
+      const b = Math.round(c + off + wob + (noise(off, a, 61, 7) - 0.5) * 9);
+      ruts.push(b);
+      if (noise(off, a, 19, 9) < 0.3) continue;
+      const wide = noise(off, a, 33, 10) > 0.55;
+      step(...at(a, b - 1), -1);
+      rut += step(...at(a, b), -2) + step(...at(a, b + 1), wide ? -2 : -1) + (wide ? step(...at(a, b + 2), -1) : 0);
+      step(...at(a, b + (wide ? 3 : 2)), 1);
+      /* a puddle standing in the rut: dark water 2 px deep, its north rim lit where it catches the sky */
+      if (noise(off, a, 41, 11) > 0.74) for (const [db, col] of [[0, '#2b4a6a'], [1, '#1a2c44'], [2, '#1a2c44']]) {
+        if (db === 2 && !wide) continue;
+        const [qx, qy] = at(a, b + db), p = (qy * g.width + qx) * 4;
+        if (EARTH.has(hexAt(g, p)) || hexAt(g, p) === '#231d1f') { g.data.set(rgb(db === 0 && hash2(off, a, 4) > 0.45 ? col : '#1a2c44'), p); rut++; }
+      }
     }
+    for (let bb = ruts[0] + 4; bb < ruts[1] - 2; bb++) if (noise(a, bb, 21, 15) > 0.58) step(...at(a, bb), 1);
   }
-  /* the verge: road pixels within 3-8 px of the moor, worn a step lighter, broken by noise so it never rules a line */
-  const moorNear = (px, py, r) => { for (let d = -r; d <= r; d++) for (const [qx, qy] of [[px + d, py], [px, py + d]]) {
-    if (qx < 0 || qy < 0 || qx >= g.width || qy >= g.height) continue; const hx = hexAt(g, (qy * g.width + qx) * 4); if (RAMPS.leaf.includes(hx) || RAMPS.moss.includes(hx)) return true; } return false; };
+  /* the verge: road pixels within 4-12 px of the moor. The south verge is worn a step lighter (a lit bank); the north one sits in the
+     moor's shade, a step down, and narrower. Broken by noise, so it never rules a line */
+  const moorNear = (px, py, r) => { let n = 0; for (let d = 1; d <= r; d++) for (const [qx, qy, dir] of [[px, py - d, 'N'], [px, py + d, 'S'], [px - d, py, 'W'], [px + d, py, 'E']]) {
+    if (qx < 0 || qy < 0 || qx >= g.width || qy >= g.height) continue; const hx = hexAt(g, (qy * g.width + qx) * 4); if (RAMPS.leaf.includes(hx) || RAMPS.moss.includes(hx)) return dir; } return null; };
   for (let py = 0; py < g.height; py++) for (let px = 0; px < g.width; px++) {
     if (!isR(Math.floor(px / T), Math.floor(py / T))) continue;
     const p = (py * g.width + px) * 4; if (!EARTH.has(hexAt(g, p))) continue;
-    const r = 3 + Math.floor(noise(px, py, 24, 13) * 5);
-    if (noise(px, py, 11, 17) > 0.15 && moorNear(px, py, r)) verge += step(px, py, hexAt(g, p) === '#2a1c14' ? 2 : 1);
+    const r = 4 + Math.floor(noise(px, py, 24, 13) * 9), side = noise(px, py, 11, 17) > 0.12 ? moorNear(px, py, r) : null;
+    if (side === 'N') { if (moorNear(px, py, Math.ceil(r / 2)) === 'N') verge += step(px, py, -1); }
+    else if (side) verge += step(px, py, hexAt(g, p) === '#2a1c14' ? 2 : 1);
   }
-  /* pebbles: a 2-3 px stone a step up (stone 2-3, a lit top-left pixel, a dark foot), on a jittered grid, never two touching */
-  for (let gy = 0; gy < g.height; gy += 13) for (let gx = 0; gx < g.width; gx += 13) {
-    const px = gx + Math.floor(hash2(gx, gy, 21) * 10), py = gy + Math.floor(hash2(gx, gy, 22) * 10);
-    if (px + 3 >= g.width || py + 3 >= g.height || hash2(gx, gy, 23) > 0.5 || noise(px, py, 40, 25) < 0.35) continue;
-    if (![[0, 0], [2, 2]].every(([dx, dy]) => isR(Math.floor((px + dx) / T), Math.floor((py + dy) / T)) && EARTH.has(hexAt(g, ((py + dy) * g.width + px + dx) * 4)))) continue;
-    const big = hash2(gx, gy, 24) > 0.35;
-    const put = (x, y, h) => g.data.set(rgb(h), ((py + y) * g.width + px + x) * 4);
-    put(0, 0, '#8a867d'); put(1, 0, '#6a6865'); if (big) { put(0, 1, '#6a6865'); put(1, 1, '#6a6865'); put(2, 1, '#2a1c14'); put(1, 2, '#2a1c14'); } else put(1, 1, '#2a1c14');
+  /* stones: in clusters (where the road is stonier), 2-4 px each, a dark foot and outline, the top a step over the road and its
+     upper-left pixel lit; never two touching. The floor cap (capFloor) keeps every lit pixel under the dimmest actor */
+  for (let gy = 0; gy < g.height; gy += 7) for (let gx = 0; gx < g.width; gx += 7) {
+    const px = gx + Math.floor(hash2(gx, gy, 21) * 5), py = gy + Math.floor(hash2(gx, gy, 22) * 5);
+    if (px + 5 >= g.width || py + 5 >= g.height || noise(px, py, 56, 25) < 0.6 || hash2(gx, gy, 23) > 0.7) continue;
+    if (![[0, 0], [4, 4]].every(([dx, dy]) => isR(Math.floor((px + dx) / T), Math.floor((py + dy) / T)) && EARTH.has(hexAt(g, ((py + dy) * g.width + px + dx) * 4)))) continue;
+    const sz = 2 + Math.floor(hash2(gx, gy, 24) * 3), put = (x, y, h) => g.data.set(rgb(h), ((py + y) * g.width + px + x) * 4);
+    for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) if (!(sz > 2 && (x + y === 0 || (x === sz - 1 && y === sz - 1)))) put(x, y, x + y === (sz > 2 ? 1 : 0) ? '#6a6865' : '#4f4e52');
+    for (let x = 0; x < sz; x++) put(x + 1, sz, '#17141a');
+    put(sz, sz - 1, '#17141a');
     peb++;
   }
   return { rut, verge, peb };
@@ -202,34 +224,6 @@ const BRACKEN = { '#1f3322': '#3d2a1d', '#2c4a2c': '#553a26', '#16241a': '#2a1c1
 const OLIVE = { '#2c4a2c': '#4a5a2a' };
 /* the heather in clumps (the sample): outside soft blobs its sprigs go to the grass's dark step */
 const HEATH = { '#8a6440': '#16241a', '#553a26': '#16241a', '#4a2e18': '#16241a' };
-/* the walked roof stripped: slates pulled off in blobs, the boards under them showing (the taproom's own boards, the battens) */
-function stripRoof(g, grid, boards) {
-  let n = 0;
-  for (let py = 0; py < g.height; py++) for (let px = 0; px < g.width; px++) {
-    const cx = Math.floor(px / T), cy = Math.floor(py / T);
-    if (grid[cy][cx] !== 'O' || noise(px, py, 30, 81) < 0.66) continue;
-    const p = (py * g.width + px) * 4, q = ((py % T) * T + (px % T)) * 4;
-    g.data.set(boards.data.subarray(q, q + 3), p);
-    /* the slates' broken edge: a dark line where the hole's upper edge meets the slates */
-    if (noise(px, py - 1, 30, 81) < 0.66) g.data.set(rgb('#17141a'), p);
-    n++;
-  }
-  return n;
-}
-/* the inn's intact roof is old: here and there a slate has slipped, the batten under it showing, its upper edge a dark line */
-function slipSlates(g, grid, boards) {
-  let n = 0;
-  for (let py = 0; py < g.height; py++) for (let px = 0; px < g.width; px++) {
-    const cx = Math.floor(px / T), cy = Math.floor(py / T);
-    if (grid[cy][cx] !== 'M') continue;
-    const hole = (y) => noise(px * 1.6, y * 2.4, 9, 83) > 0.86;
-    if (!hole(py)) continue;
-    const p = (py * g.width + px) * 4, q = ((py % T) * T + (px % T)) * 4;
-    g.data.set(hole(py - 1) ? boards.data.subarray(q, q + 3) : rgb('#17141a'), p);
-    n++;
-  }
-  return n;
-}
 /* the clutter rule (ART_DIRECTION 4): nothing on the floor is brighter than the dimmest actor body. A floor pixel over FLOOR_MAX (a
    decal's glint, a speck) steps down its ramp until it is under; the walls are laid after and are no floor */
 const FLOOR_MAX = 0.12;
@@ -264,10 +258,11 @@ const DECALS = Object.freeze({
   every: 4.6, seed: 73,
   decals: {
     Y: ['common/square_decal_chips_a'],
-    E: ['common/square_decal_chips_b', 'sewer/exposed_dirt', 'common/square_decal_chips_a'],
-    S: ['common/square_decal_chips_b', 'sewer/exposed_dirt'],
-    B: ['common/square_decal_soot'],
-    F: ['common/square_decal_puddle_a', 'common/square_decal_soot', 'sewer/cracked_flagstone'],
+    /* the de-dup: the sewer's exposed-dirt ring (ten of it read as one stamp) and the taproom's soot splats (read as holes) are out */
+    E: ['common/square_decal_chips_b', 'common/square_decal_chips_a', 'common/square_decal_leaves_b'],
+    S: ['common/square_decal_chips_b', 'common/square_decal_leaves_a'],
+    B: ['common/square_decal_chips_a', 'common/square_decal_chips_b'],
+    F: ['common/square_decal_chips_b'],
     C: ['sewer/moss_puddle', 'common/square_decal_puddle_b', 'sewer/cracked_flagstone'],
   },
 });
@@ -284,13 +279,13 @@ function wallPieces() {
   const ds = snap(rd(`${W_SRC}/drystone-run.png`)), dsl = snap(rd(`${W_SRC}/drystone-left.png`));
   return {
     /* the plain cycle: four slices of one seamless 128 px run (its two joints inpainted, a9fa1bdc), so no joint shows every 128 px */
-    plain: [0, 32, 64, 96].map((x) => crop(cycle, x, 0, 32, 60)),
-    window: crop(run, 64, 0, 64, 60), door: crop(door, 64, 0, 64, 60), hearth: crop(hearth, 48, 0, 96, 60),
-    endL: crop(ends, 0, 0, 32, 60), endR: right,
+    plain: [0, 32, 64, 96].map((x) => dimStone(crop(cycle, x, 0, 32, 60))),
+    window: dimStone(crop(run, 64, 0, 64, 60)), door: dimStone(crop(door, 64, 0, 64, 60)), hearth: dimStone(crop(hearth, 48, 0, 96, 60)),
+    endL: dimStone(crop(ends, 0, 0, 32, 60)), endR: dimStone(right),
     cap: crop(run, 0, 5, 32, 8),
     /* the tumbled ends are two cells each: the right is the run's own fall (x128-191), the left its inpainted fall and the run's
        first slice after it (678621ce), so neither meets the run on a step */
-    stub: [0, 32, 64, 96].map((x) => crop(ds, x, 0, 32, 24)), stubR: crop(ds, 128, 0, 64, 24), stubL: crop(dsl, 0, dsl.height - 24, 64, 24),
+    stub: [0, 32, 64, 96].map((x) => dimStone(crop(ds, x, 0, 32, 24))), stubR: dimStone(crop(ds, 128, 0, 64, 24)), stubL: dimStone(crop(dsl, 0, dsl.height - 24, 64, 24)),
   };
 }
 const transpose = (im) => { const o = createImage(im.height, im.width); for (let y = 0; y < im.height; y++) for (let x = 0; x < im.width; x++) o.data.set(im.data.subarray((y * im.width + x) * 4, (y * im.width + x) * 4 + 4), (x * o.width + y) * 4); return o; };
@@ -301,19 +296,12 @@ function featureAt(i, n, kind) {
   if (kind === 'yard') return [2, Math.floor(i / 6) % 2 ? 'door' : 'window'];
   return [2, 'window'];
 }
-function layWalls(img, grid, P) {
+function layWalls(img, grid, P, indoor) {
   const h = grid.length, w = grid[0].length;
   const mass = (x, y) => x < 0 || y < 0 || x >= w || y >= h || grid[y][x] === 'M';
   const open = (x, y) => !mass(x, y);
-  let faces = 0, caps = 0, stubs = 0;
-  /* the caps first: seen from above along each edge of the mass that meets open ground (a face cell carries its own) */
-  const capV = transpose(P.cap);
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    if (!mass(x, y) || open(x, y + 1)) continue;
-    if (open(x, y - 1)) { blit(img, P.cap, 0, 0, T, 8, x * T, y * T, true); caps++; }
-    if (open(x - 1, y)) { blit(img, capV, 0, 0, 8, T, x * T, y * T, true); caps++; }
-    if (open(x + 1, y)) { blit(img, capV, 0, 0, 8, T, x * T + T - 8, y * T, true); caps++; }
-  }
+  let faces = 0, stubs = 0;
+  /* no cap ring: the roof's own edges (tools/world-art/morrow-roofs.mjs) finish every edge seen from above */
   /* the faces, north to south so a nearer wall stands over a farther one */
   for (let y = 0; y < h; y++) {
     let x = 0;
@@ -321,17 +309,19 @@ function layWalls(img, grid, P) {
       if (!(mass(x, y) && open(x, y + 1))) { x++; continue; }
       let e = x; while (e + 1 < w && mass(e + 1, y) && open(e + 1, y + 1)) e++;
       const n = e - x + 1, below = grid[y + 1] ? grid[y + 1][x] : 'H';
+      /* the face's top: an eave where it looks out, the roof's cut section where it stands in a room */
+      const outdoor = !(grid[y + 1] && indoor(grid[y + 1][x], x, y + 1));
       const kind = below === 'B' && grid[y + 2] && grid[y + 2][x] === 'B' ? 'hearth' : 'EYRBP'.includes(below) ? 'yard' : 'out';
       for (let i = 0; i < n; i++) {
         const c = x + i;
         const freeL = i === 0 && open(x - 1, y) && n > 1, freeR = i === n - 1 && open(e + 1, y) && n > 1;
         const f = !freeL && !freeR ? featureAt(i, n, kind) : null;
         if (f && i + f[0] - 1 < n - 1) {
-          blit(img, P[f[1]], 0, 0, f[0] * T, 60, c * T, y * T + T - 60, true);
+          blit(img, faceTop(P[f[1]], outdoor, c * T), 0, 0, f[0] * T, 60, c * T, y * T + T - 60, true);
           faces += f[0]; i += f[0] - 1; continue;
         }
         const s = freeL ? P.endL : freeR ? P.endR : P.plain[c % P.plain.length];
-        blit(img, s, 0, 0, T, 60, c * T, y * T + T - 60, true);
+        blit(img, faceTop(s, outdoor, c * T), 0, 0, T, 60, c * T, y * T + T - 60, true);
         faces++;
       }
       x = e + 1;
@@ -355,11 +345,12 @@ function layWalls(img, grid, P) {
       x = e + 1;
     }
   }
-  return { faces, caps, stubs };
+  return { faces, stubs };
 }
 
 /** The whole painter: grid (paint chars) -> the ground image and what each step did. `skip(x, y)`: no decal under a placed object. */
-export function paintGround(grid, { skip = () => false } = {}) {
+export function paintGround(grid, { skip = () => false, ranges = RANGES } = {}) {
+  const indoor = (ch, x, y) => 'SBFCO'.includes(ch) && inR(ranges, x, y);
   const mats = materials();
   let img = paintCells(grid, mats);
   const fills = Object.fromEntries(Object.entries(mats).map(([ch, m]) => [ch, m.fill]));
@@ -391,13 +382,21 @@ export function paintGround(grid, { skip = () => false } = {}) {
   const bracken = stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 44, cut: 0.74, seed: 91, map: BRACKEN });
   const olive = stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 52, cut: 0.6, seed: 93, map: OLIVE });
   const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
-  const stripped = stripRoof(img, grid, mats.B.fill);
-  const slipped = slipSlates(img, grid, mats.B.fill);
+  const walked = walkedRoof(img, grid, mats.E.fill, ranges, shadeGround(mats.B.fill, 3));
+  const doorway = doorwayOf(grid), P = wallPieces();
+  /* two floors of their own (tools/world-art/morrow-floors.mjs): the brewhouse's wet brick and drain, the stable's stalls and straw */
+  const brew = brewBricks(img, grid, doorway), straw = stableStraw(img, grid, doorway);
   const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
   const skirting = skirt(img, grid);
   const capped = capFloor(img, grid);
-  const walls = layWalls(img, grid, wallPieces());
-  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, stripped, slipped, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...walls } };
+  const divOf = dividersOf(grid, indoor), wallTop = dimStone(dimStone(P.cap));
+  const roof = roofMass(img, grid, ranges, indoor, doorway, divOf, dimStone(P.cap));
+  const torn = tornEdges(img, grid, ranges, indoor, doorway, wallTop, divOf);
+  const sill = sills(img, grid, indoor, doorway);
+  /* the chimneys: the taproom's over its hearth, the brewhouse's on its east range (CHIMNEYS: a foot's left end, in px) */
+  for (const [x, y] of CHIMNEYS) chimney(img, P.plain[1], x, y);
+  const walls = layWalls(img, grid, P, indoor);
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: CHIMNEYS.length, ...walls } };
 }
 
 export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);
@@ -422,8 +421,8 @@ async function ground() {
     pixellab: { tool: 'create-tileset (pro) fills, variety paint + reseam', tileset: TILESETS.join(','), grid: GRID_FILE,
       walls: 'inpaint_image_pro_flash 1ff1ca22 (door), 24506cff (hearth), 9ed6db86 (ends), 678621ce (dry stone left end); the run and the dry stone wall from the approved Morrow sample (round 3)' },
     notes: 'Carter\'s Rest, painted by tools/world-art/morrow-grounds.mjs from ' + GRID_FILE + ': every cell a variety tile of its floor\'s fill (the moor and road of the approved Morrow sample, the inn\'s floors from three pro tilesets born on the palette), '
-      + report.seams + ' px of borders redrawn from the fills\' own pixels, the road worn (' + report.rut + ' px of ruts, ' + report.verge + ' px of lighter verge, ' + report.peb + ' pebbles), the moor in heather clumps and bracken and olive patches, the walked roof stripped in '
-      + report.stripped + ' px, ' + report.decals + ' kept decals (' + report.decalIds.join(', ') + '), and the inn\'s walls laid over the paint: ' + report.faces + ' face slices, ' + report.caps + ' cap edges, ' + report.stubs + ' dry stone slices. Pixels unscaled, nothing drawn.' };
+      + report.seams + ' px of borders redrawn from the fills\' own pixels, the road worn (' + report.rut + ' px of ruts, ' + report.verge + ' px of lighter verge, ' + report.peb + ' pebbles), the moor in heather clumps and bracken and olive patches, the walked roof re-laid by rule (' + report.roof + ' px, ' + report.holes + ' px stripped to its rafters, ' + report.stacks + ' stacks of pulled slates), '
+      + report.decals + ' kept decals (' + report.decalIds.join(', ') + '), the inn\'s roofs laid by rule (tools/world-art/morrow-roofs.mjs: ' + report.slates + ' px of slate courses and ridges, ' + report.cuts + ' px cut over the rooms, ' + report.eaves + ' px of eaves, ' + report.gables + ' px of barge boards) and its walls over them: ' + report.faces + ' face slices (an eave or the cut section on each), ' + report.stubs + ' dry stone slices. Pixels unscaled.' };
   writeFileSync(join(dir, GROUND + '.json'), JSON.stringify(sc, null, 2) + '\n');
   console.log('  ✓ ' + SET + '/' + GROUND + ' ' + w + 'x' + h + ': ' + JSON.stringify(report));
 }

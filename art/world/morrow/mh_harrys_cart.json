@@ -3,14 +3,46 @@
   "class": "wreck",
   "style": "s1",
   "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
   "source": "mh_harrys_cart.png",
   "frame": [
     64,
-    46
+    47
   ],
   "anchor_px": [
     32,
-    45
+    46
   ],
   "footprint": [
     2,
@@ -27,8 +59,10 @@
     }
   ],
   "pixellab": {
-    "tool": "create_object_pro_flash",
-    "object": "01637186"
+    "tool": "edit_image_pro_flash (text) from a free sketch",
+    "image": "32820273-4892-5170-b975-c5efab0611da",
+    "job": "e553fda8",
+    "sketch": "art/review/morrow-kit/cart/cart-sketch.png (.scratch/kit/cart-sketch.mjs)"
   },
-  "notes": "Ported from PixelLab object 01637186 (style 1) by tools/world-art/port-pixellab.mjs: pixels unscaled, bottom-centre anchor as Map Workshop places it."
+  "notes": "Harry's cart, redrawn from a free sketch (the first cart read as an upright board): PixelLab edit_image_pro_flash e553fda8 on the sketch, 21 stray white pixels at the wheel's foot taken to the spokes' dark, ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor, 2x1 footprint); a step of shade so it sits under the trolls (ART_DIRECTION 4). Pixels unscaled."
 }

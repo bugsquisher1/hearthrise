@@ -197,7 +197,7 @@ export function buildPlan(name, axes, scale = 1) {
         out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' }));
         if (L <= 8) out.push(cellOf({ ground: g.id, party: [s], level: L, gear: STARTER, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' }));
       }
-      if (g.groupFit !== 'solo') for (const pk of ['duo', 'four']) {
+      for (const pk of ['duo', 'four']) {   // every ground: none is solo (Tyler 2026-11-16; the 'solo' tag retired, lane/a-party-coach-card)
         out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, hours: H(12), seeds: 2, segmentH: 12, x: 'V6' + pk }));
         /* a fresh party in the practice sets at the first party floor (the tutorial's "Into the sewer, together") */
         if (L <= 8) out.push(cellOf({ ground: g.id, party: PARTIES[pk], level: L, gear: STARTER, hours: H(12), seeds: 4, segmentH: 12, x: 'V6' + pk }));

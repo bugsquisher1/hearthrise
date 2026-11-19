@@ -71,6 +71,8 @@
 import { HUNT_INDEX } from './hunts.js?v=0.2.140';
 import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.140';
 import { tiersOf } from './hunt-tiers.js?v=0.2.140';
+import { partyBestLine } from './party-class-xp.js?v=0.2.140';
+import { PARTY } from './party.js?v=0.2.140';
 import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.140';
 import { nextUnlock } from './skill-unlocks.js?v=0.2.140';
 import { SKILLS_DEF } from './skills.js?v=0.2.140';
@@ -1182,16 +1184,18 @@ const partyGround = (hunt) => Object.values(HUNT_GROUNDS).some((g) => g.hunt ===
 /* THE NEXT STEP UP (Tyler 2026-11-04: "if someone wants to try and 'rush' exp then they should be able to try harder content to get there faster, but it comes with risk"; played 11-04: a Level 12 in
    Bronze earned 55,106 Level XP/h in the Glade at +3,042 g/h, while the list's "Fits your level" stood on Wickstead's 28,388 at +3,017 g/h). The lowest floor above the hero's Level, and at most this far
    above it: past that it is a dare for a player to find, never advice. From the Thicket's Level on: the first hour keeps its lessons. Words only: nothing is refused or allowed by it. Pure.
-   `rows`: [{ band, groupFit }]. `alone`: on a tie of floors, the ground built for a lone hero; a party, the one built for a party. */
+   `rows`: [{ hunt, band, groupFit }]. `alone`: on a tie of floors, a ground not built for a party; a party, the one it is measured to earn the most on
+   (party-class-xp.js partyBestLine, as the Hunts window's own party advice breaks the tie: lane/a-party-coach-card retired the workbook's 'solo' tag). */
 const STEP_UP = Object.freeze({ fromLevel: HUNT_INDEX.meadowbrook_thicket.band[0], mostUnder: 15 });
+const partyLineOf = (hunt) => { const g = Object.values(HUNT_GROUNDS).find((x) => x.hunt === hunt); const v = g ? partyBestLine(g.id, PARTY.maxSize) : null; return Number.isInteger(v) ? v : -1000; };
 export function nextStepUp(rows, level, alone = true) {
   if (!Number.isInteger(level) || level < STEP_UP.fromLevel) return null;
   const above = (rows || []).filter((r) => r.band[0] > level && r.band[0] - level <= STEP_UP.mostUnder);
   if (!above.length) return null;
   const floor = Math.min(...above.map((r) => r.band[0]));
   const here = above.filter((r) => r.band[0] === floor);
-  const wrong = alone ? 'party' : 'solo';
-  return here.find((r) => r.groupFit !== wrong) || here[0];
+  if (!alone) return here.slice().sort((x, y) => partyLineOf(y.hunt) - partyLineOf(x.hunt))[0];
+  return here.find((r) => r.groupFit !== 'party') || here[0];
 }
 /* "Iron Sword (sword), Ironbound Shield (shield) and 2 more" (skill-unlocks.js nextUnlock's list) as a card line says it: the first name, the rest
    counted ("Iron Sword and 3 more"). A card is one short line (Tyler 2026-11-16); the item's own page says what each is. */
@@ -1227,7 +1231,7 @@ function madeWords(lv, first, role) {
  * role's skill's level, or null when unknown; defenseXp: the server's Defense XP, or null when unknown; land: the account's field, { planted: plots holding a crop, ready: { crop: ready plots } },
  * or null when the server has not sent it; inParty: the hero sits in a party of 2+; roster: the account's heroes; visited: a Set of the grounds this hero has hunted; refill: the server's next
  * stamina quote; tally: { held }; training: the running training session, { skill, level, hoursToNext } from the server's
- * training section, or null). Answers { id, title, text, also }; the id names every goal, so it changes whenever a goal comes or goes (the hunt top bar redraws on a new id, and a number
+ * training section, or null; partyGround: the hunt the Hunts window's party advice picks at this Level, or null). Answers { id, title, text, also }; the id names every goal, so it changes whenever a goal comes or goes (the hunt top bar redraws on a new id, and a number
  * changing inside a goal follows in place: launcher.js sameCardWords).
  */
 export function nextGoal(facts) {
@@ -1292,8 +1296,10 @@ export function nextGoal(facts) {
     ids.push('saving', String(offer.slot));
   }
   /* THE PARTY PITCH (designer playtest 2026-10-24): the solo chain ends here, not behind a party card, so a hero with
-     no party hears of the party ground its Level fits, and how to make a party: once, on whichever line names it. */
-  const fits = solo ? groundHunts().find((h) => partyGround(h) && HUNT_INDEX[h].band[0] <= facts.charLevel && facts.charLevel <= HUNT_INDEX[h].band[1]) : null;
+     no party hears of the party ground its Level fits, and how to make a party: once, on whichever line names it. The ground is the one the
+     Hunts window's party advice picks (facts.partyGround, the shell's src/shell/hunt-list.js partyGroundFor; lane/a-party-coach-card: the Rat
+     King's hall named the Sewer to a lone hero at 16-25, where a party is sent to the Glade); none when no ground a party suits holds the Level. */
+  const fits = solo && typeof facts.partyGround === 'string' && Object.hasOwn(HUNT_INDEX, facts.partyGround) ? facts.partyGround : null;
   if (fits) {
     lines.push(t('coach.goal_party', { ground: HUNT_INDEX[fits].name }));
     ids.push('party', fits);

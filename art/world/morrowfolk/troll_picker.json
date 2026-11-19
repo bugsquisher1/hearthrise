@@ -82,7 +82,7 @@
     "tool": "create_character v3 (reference = the locked still) + animate_character v3",
     "object": "faeae47d-2f66-46f3-ac21-28cdd0b5fe4b",
     "n_directions": 8,
-    "name": "S1 Troll Picker",
+    "name": "Troll Picker",
     "character": "faeae47d-2f66-46f3-ac21-28cdd0b5fe4b",
     "prep": ".scratch/morrow/full/prep.mjs: despeck, lift 2 with the carried thing kept, per-facing picks and cuts",
     "idle": {

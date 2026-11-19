@@ -82,7 +82,7 @@
     "tool": "create_character v3 (reference = the locked still) + animate_character v3",
     "object": "f05564eb-37b2-4688-9488-2eb56e223305",
     "n_directions": 8,
-    "name": "S1 Troll Brewer",
+    "name": "Troll Brewer",
     "character": "f05564eb-37b2-4688-9488-2eb56e223305",
     "prep": ".scratch/morrow/full/prep.mjs: despeck, lift 2 with the carried thing kept, per-facing picks and cuts",
     "idle": {
@@ -142,5 +142,5 @@
       }
     }
   },
-  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object f05564eb-37b2-4688-9488-2eb56e223305 (style 1, 68 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the stone, shadow, moss, leaf, earth, bone, bronze ramps before the lock (lock.mjs snapTo): its hue is its identity."
+  "notes": "Idle from a v3 clip on its own still (port-pixellab.mjs idle): a ping-pong from the still through two of the 8 frames, whole-pixel registered, in the colours of the still. Ported from PixelLab object f05564eb-37b2-4688-9488-2eb56e223305 (style 1, 96 px canvas, 8 rotations and a v3 walk) by tools/world-art/port-pixellab.mjs: pixels unscaled, each facing seated on the class anchor by whole pixels. Snapped to the stone, shadow, moss, leaf, earth, bone, bronze ramps before the lock (lock.mjs snapTo): its hue is its identity."
 }

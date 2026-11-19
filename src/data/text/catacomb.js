@@ -73,7 +73,7 @@ export const CATACOMB_TEXT = Object.freeze({
 
   /* AN ARMOR KEY AT THE HEARTH CHEST (2027-05-08-catacombs.sql): its chance, the slot it leans to, and what came out. */
   armor_chance: 'Armor chance: {pct}',
-  /* a key whose armor is not in the chest yet (the server's chest_not_ready, `ready` false: Gold and Platinum until their pieces ship) */
+  /* a key whose armor is not in the chest yet (the server's chest_not_ready, `ready` false: a later tier or wing until its pieces ship) */
   not_ready: 'Armor coming soon',
   helmet_lean: 'Helmets: {pct}',
   slot_helmet: 'Helmet',

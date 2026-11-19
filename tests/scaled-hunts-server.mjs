@@ -49,7 +49,7 @@ const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const HOUR = 3600000, SWING = 2000;
-const ARMS = ['SH-PLAY', 'SH-PLAN', 'SH-CAT', 'SH-BUY', 'SH-CLOSED', 'SH-VIEWED', 'SH-OUT', 'SH-SWITCH', 'SH-PARTY', 'SH-FEATURE', 'SH-FORGE'];
+const ARMS = ['SH-PLAY', 'SH-PLAN', 'SH-CAT', 'SH-BUY', 'SH-CLOSED', 'SH-VIEWED', 'SH-OUT', 'SH-SWITCH', 'SH-PARTY', 'SH-FEATURE', 'SH-FORGE', 'SH-LOOT'];
 
 // ═══════════════════════════════════════════════════════════════════════
 // ENGINE ARMS
@@ -178,8 +178,8 @@ const DB_ARMS = {
         || r.top_level !== c.rule.top || r.price_per_level !== c.rule.perLevel) bad.push('the rule row is ' + JSON.stringify(r));
     const gs = await q(db, 'select hunt_id, floor, top from public.hr_scaled_grounds order by hunt_id');
     if (JSON.stringify(gs.map((g) => [g.hunt_id, g.floor, g.top])) !== JSON.stringify(c.grounds.map((g) => [g.hunt, g.floor, g.top]))) bad.push('the grounds are ' + JSON.stringify(gs));
-    const bs = await q(db, 'select hunt_id, level, gold_max::int g, xp_max::int x, level_max l from public.hr_scaled_kill_bounds order by hunt_id, level');
-    const want = c.bounds.map((b) => [b.hunt, b.level, b.gold, b.xp, b.levelMax].join(',')), have = bs.map((b) => [b.hunt_id, b.level, b.g, b.x, b.l].join(','));
+    const bs = await q(db, 'select hunt_id, level, gold_max::int g, xp_max::int x, level_max l, loot_pm d from public.hr_scaled_kill_bounds order by hunt_id, level');
+    const want = c.bounds.map((b) => [b.hunt, b.level, b.gold, b.xp, b.levelMax, b.loot].join(',')), have = bs.map((b) => [b.hunt_id, b.level, b.g, b.x, b.l, b.d].join(','));
     if (want.join(';') !== have.join(';')) bad.push('the kill bounds differ from the data at ' + (want.findIndex((w, i) => w !== have[i])) + ' (' + bs.length + ' rows, want ' + want.length + ')');
     return bad;
   },
@@ -377,6 +377,45 @@ const DB_ARMS = {
     if (!honest || honest.ok !== true) bad.push('CONTROL: the honest window answered ' + JSON.stringify(honest).slice(0, 200));
     return bad;
   },
+
+  /* SCALED LOOT (2027-05-17-scaled-loot.sql; Tyler 11-07 "loot scales"): a scaled window may pay each item up to kills x the most rows one
+     kill names it x the rolls a row takes at that Level (ceil(loot_pm / 1000)), and no more; the honest window (the engine's rolls) lands. */
+  'SH-LOOT': async (db, M) => {
+    const bad = [];
+    const h = await scaledHunter(db, M, { buys: [[UID, 'mill_cellar', 1]], level: 50 });
+    const loot = Number(await one(db, "select loot_pm::text from public.hr_scaled_kill_bounds where hunt_id = 'mill_cellar' and level = 50"));
+    const rolls = Math.ceil(loot / 1000);
+    if (!(rolls >= 2) || loot !== M.S.lootPmFor('mill_cellar', 50)) return ['CONTROL: the Cellar at 50 rolls ' + rolls + ' a row (loot_pm ' + loot + ', the data ' + M.S.lootPmFor('mill_cellar', 50) + ')'];
+    const exec = makeExec(db);
+    const attempt = async (toMs, edit) => {
+      const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, atMs: toMs }, 'tick');
+      if (plan.answer) return { skipped: plan.answer.reason };
+      const p = await M.HS.proposeHuntSettle(plan, plan.toMs, 0);
+      if (edit) await edit(p.commit);
+      return M.HS.commitHuntSettle(exec, { ...p.commit, project: null });
+    };
+    /* the item every Cellar monster names once a kill (rows per kill 1): its bound is exactly kills x rolls */
+    const item = 'rat_tail';
+    const rows = Number(await one(db, `select max(coalesce((b.drops->>$1)::numeric, 0))::text from public.hr_hunt_kill_bounds b
+      where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = 'mill_cellar')`, [item]));
+    const set = (n) => async (c) => { const m = c.members[0]; const k = Number(m.delta.journal && m.delta.journal.meta && m.delta.journal.meta.kills); m.delta.items = { ...(m.delta.items || {}), [item]: n(k) }; };
+    await db.query('savepoint sh_loot');
+    const cases = [
+      ['kills x rows x the rolls', set((k) => k * rows * rolls), true],
+      ['one past kills x rows x the rolls', set((k) => k * rows * rolls + 1), 'value_over'],
+    ];
+    for (const [what, edit, want] of cases) {
+      const r = await attempt(h.from + 2 * 60000, edit);
+      const ok = want === true ? r && r.ok === true : r && r.ok !== true && r.error === want;
+      if (!ok) bad.push(what + ' answered ' + JSON.stringify(r).slice(0, 200) + ', want ' + (want === true ? 'ok' : want));
+      await db.query('rollback to savepoint sh_loot');
+    }
+    /* the honest window: the engine rolled the rows at the multiple and the bound took it */
+    const honest = await attempt(h.from + 2 * 60000, null);
+    if (!honest || honest.ok !== true) bad.push('CONTROL: the honest scaled window answered ' + JSON.stringify(honest).slice(0, 200));
+    if (!rows) bad.push('CONTROL: no Cellar monster names ' + item);
+    return bad;
+  },
 };
 
 async function runArms(db, M, only) {
@@ -399,6 +438,10 @@ async function runArms(db, M, only) {
 
 /* DB mutants: one anchored edit of a live body, the arm that must go red. Engine mutants: one anchored edit of a temp copy. */
 const DB_MUTANTS = [
+  { arm: 'SH-LOOT', name: 'a scaled window\'s items are held to one roll a row (honest scaled loot refused)', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
+    find: '* coalesce((select ceil(b.loot_pm / 1000.0) from public.hunt_instances i join public.hr_scaled_kill_bounds b', replace: '* coalesce((select 1 from public.hunt_instances i join public.hr_scaled_kill_bounds b' },
+  { arm: 'SH-LOOT', name: 'a scaled window\'s items are unbounded', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
+    find: '* coalesce((select ceil(b.loot_pm / 1000.0) from public.hunt_instances i join public.hr_scaled_kill_bounds b', replace: '* coalesce((select 1000000 from public.hunt_instances i join public.hr_scaled_kill_bounds b' },
   { arm: 'SH-FORGE', name: 'a scaled window is bounded by the ground\'s own kills (honest scaled XP refused)', fn: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
     find: 'select greatest(v_vb_gold, coalesce(max(b.gold_max), 0)), greatest(v_vb_xp, coalesce(max(b.xp_max), 0)) into v_vb_gold, v_vb_xp', replace: 'select v_vb_gold, v_vb_xp into v_vb_gold, v_vb_xp' },
   { arm: 'SH-CLOSED', name: 'the settle never spends the hours', fn: 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)',
@@ -425,6 +468,8 @@ const DB_MUTANTS = [
     find: '  v_price := r.price_per_level::bigint * v_to * p_hours;', replace: '  v_price := r.price_per_level::bigint * (v_top + 1) * p_hours;' },
 ];
 const JS_MUTANTS = [
+  { arm: 'SH-CAT', name: 'the server\'s drops multiple drifts from the data (the generator moved, the file not regenerated)', file: 'tools/gen-scaled-hunts.mjs',
+    from: '      bounds.push({ hunt: gid, level: L, gold, xp, levelMax: level, loot });', to: '      bounds.push({ hunt: gid, level: L, gold, xp, levelMax: level, loot: loot + 1 });' },
   { arm: 'SH-CAT', name: 'the server\'s kill bounds drift from the data (the generator\'s formula moved, the file not regenerated)', file: 'tools/gen-scaled-hunts.mjs',
     from: 'xp: Math.ceil(Math.max(1, Number(m.hp) || 1) * xpPerHp + Math.max(0, Number(m.xp) || 0)),', to: 'xp: Math.ceil(Math.max(1, Number(m.hp) || 1) * xpPerHp + Math.max(0, Number(m.xp) || 0)) + 1,' },
   { arm: 'SH-PLAY', name: 'a Deadly pick plays Deadly while scaled', file: 'src/core/combat-sim.js', from: "normalOf: (id) => id !== DEFAULT_TIER && own(id) === null };", to: 'normalOf: () => false };' },

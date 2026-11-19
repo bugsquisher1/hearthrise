@@ -1095,10 +1095,12 @@
   .rp-text { height: 96px; min-height: 96px; }
 }
 
-/* ── The Farm (src/shell/windows/farm.js): a row of soil plots, sunk into the window, crops at ×2 ── */
+/* ── The Farm (src/shell/windows/farm.js): a row of soil plots, each the town's tilled soil in a plank bed at ×2
+   (assets/ui/farm-plot.png, tools/world-art/farm-house-art.mjs, which holds the size below to the picture's), crops at ×2 on it ── */
 .hw-field { display: flex; flex-wrap: wrap; gap: 12px; margin: 4px 0 10px; padding: 0; list-style: none; }
 .hw-plot { width: 104px; display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
-.hw-soil { width: 104px; height: 88px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; background: var(--scene-furrow); box-shadow: var(--hw-well); cursor: pointer; }
+.hw-soil { width: 104px; height: 88px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 0; cursor: pointer;
+  background: url('../../assets/ui/farm-plot.png') 50% 50% / calc(42 * var(--art-px)) calc(44 * var(--art-px)) no-repeat; image-rendering: pixelated; }
 .hw-soil:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 .hw-plot.is-picked .hw-soil { outline: 2px solid var(--ink); outline-offset: 2px; }
 .hw-plot:not(.is-empty) .hw-soil { cursor: default; }
@@ -1130,13 +1132,17 @@
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hw-field { gap: 8px; }
   .hw-plot, .hw-soil { width: 88px; }
-  .hw-soil { height: 76px; }
 }
 /* ── The House (src/shell/windows/house.js): the account's estate ledger, read like a deed.
    The numeral column is the deed's schedule; a held line is quiet, the next one carries
    its cost as a plain list (what is short reads in the cost colour), a locked room sits
    back. One primary: the confirmation's Pay. ── */
-.hw-house-head { display: flex; flex-direction: column; gap: 2px; margin: 0 2px 6px; }
+.hw-house-head { display: flex; align-items: center; gap: 12px; margin: 0 2px 6px; }
+/* The home the account holds, at ×2: one cell of assets/ui/house-tiers.png (tools/world-art/farm-house-art.mjs), the server's tier its --hw-tier. */
+.hw-house-pic { flex: none; width: calc(64 * var(--art-px)); height: calc(64 * var(--art-px)); image-rendering: pixelated;
+  background: url('../../assets/ui/house-tiers.png') calc(var(--hw-tier, 0) * -64 * var(--art-px)) 0 / calc(384 * var(--art-px)) calc(64 * var(--art-px)) no-repeat; }
+.hw-house-pic[hidden] { display: none; }
+.hw-house-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .hw-house-name { font-size: var(--t-lead); font-weight: 700; color: var(--ink); }
 .hw-house-note { font-size: var(--t-micro); color: var(--ink-2); }
 .hw-chest-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); font-variant-numeric: lining-nums tabular-nums; }

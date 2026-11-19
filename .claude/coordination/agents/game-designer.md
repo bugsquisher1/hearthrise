@@ -1012,3 +1012,9 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - A gold promise below the Level where bills bite is a kill-speed promise in disguise. If it can only be met by out-killing the specialists, it contradicts "great at nothing": scope it rather than tune it.
 - Call the real `upgradePlan` from node with a hand-made bag (`src/shell/upgrade-plan.js` imports cleanly with `?v=`): one call settled whether the Leather Gloves beat bare for a Mage (they do, the heavy belt doesn't).
 - Check a hidden-row system against the drop homes before moving it: 11 of 24 lucky items and all 45 salvage items already dropped on a walked ground, so the rows were pure duplicates.
+## 2026-11-19 lane/d-level-pace-141 (the post-140 audit's Level 22 at 36 h; board "2026-11-19 Level pace")
+- A blind audit is one WAY, not one sample of the pace. Match its style and kit to a career before calling it noise: the arriving-kit sword-and-shield career read Level 22 at 36.3 h, the audit's number to the tenth. The median (the pace of record) was on target.
+- The pace plan to Level 31 takes 2 minutes on 3 workers (each career 20-45 s), not hours: run careers, not cells, for any "behind pace" report. Careers carry real skills (Melee 30 at 16), so cells with skills at the Level read lower but rank the ways the same.
+- XP rows can't fix one way's gap: the curve is fitted to the median, so XP x1.12 that lifts the tank inside 10% pushes the median to -9.8% and the next re-fit takes it back. Look at the slow way's default bar first (the sword ways hold no rune spell; Flame Strike closed 80% of the gap at flat gold).
+- Re-check an old reason before keeping a ruling built on it: the 10-29 "Flame Strike off, net -20%" reads -121 to +17 g/h today, and its struck-slot cause is gone.
+- Read the set's log before reporting a sequence ("waits for lane X"): the lane I was told to wait for landed while I measured.

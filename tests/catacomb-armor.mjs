@@ -151,7 +151,8 @@ const row = (d, id) => d.rows.find((r) => r.id === id);
 const MUTANTS = [
   ['a src file imports the armor', 'CA1', (d) => d, (f) => f.concat([['src/shell/windows/market.js', "import { X } from '../../data/catacomb-armor.js';"]])],
   ['a tier that does not ship is an item', 'CA1', (d) => { d.now = ['bronze']; return d; }],
-  ['a tier that ships is no item', 'CA1', (d) => { d.now = ['bronze', 'silver', 'gold']; return d; }],
+  ['a tier that ships is no item', 'CA1', (d) => { delete d.items.coffer_guards_helm; return d; }],
+  ['a shipped tier leaves the list and stays an item', 'CA1', (d) => { d.now = ['bronze', 'silver', 'gold']; return d; }],
   ['a shipped piece is not its generated row', 'CA1', (d) => { d.items.tinkers_kettle.defB += 1; return d; }],
   ['a row takes an item\'s id', 'CA1', (d) => { row(d, 'tinkers_kettle').id = 'iron_helm'; return d; }],
   ['a row takes an item\'s name', 'CA1', (d) => { row(d, 'ratters_hood').name = 'Iron Helm'; return d; }],

@@ -59,7 +59,7 @@ import { skillsOf, bagOf } from '../../../session/item-sections.js?v=0.2.140';
 import { buryRecipeOf, buryLabel, buryBlock, startBury, stopBury, buryQty, namedBlock, burnNamed } from './bury.js?v=0.2.140';
 import { equipUpgrades } from '../../widgets/upgrade-line.js?v=0.2.140';
 import { wearBlock } from '../../gear-gate.js?v=0.2.140';
-import { levelOf } from '../../../session/character-sections.js?v=0.2.140';
+import { levelOf, featuresOf } from '../../../session/character-sections.js?v=0.2.140';
 import { unlockRing } from './key-ring.js?v=0.2.140';
 import { bundleOutfitOf, bundleUseBlock, armBundle, useBundle } from './outfit-bundle.js?v=0.2.140';
 import { actPlanCopy } from './plan-copy.js?v=0.2.140';
@@ -102,6 +102,7 @@ function tipFor(ctx, st, li) {
     skills: skillsOf(st.cs),
     level: heroLevel(st.cs),
     ground: heroGroundOf(st.cs),
+    features: featuresOf(st.cs),
   });
 }
 

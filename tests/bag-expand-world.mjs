@@ -18,6 +18,9 @@
 import { mkdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
+/* The words come from the text home and the formatter the window uses (src/data/text/bag.js, src/render/format.js), never a pasted copy that drifts. */
+import { t } from '../src/render/player-text.js';
+import { gold } from '../src/render/format.js';
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -59,7 +62,8 @@ try {
   let r = await read();
   step('BE-1 the header reads N of 100 stacks', /^\d+ of 100 stacks$/.test(r.head), r.head);
   step('BE-1 Expand shows the server\'s price', r.btn === 'Expand (+20) for ' + fmt(p0), r.btn + ' vs ' + p0);
-  step('BE-2 short of gold: off, and says why', r.off && r.why === 'Need ' + fmt(p0 - 10) + ' more to expand', JSON.stringify(r));
+  /* the shortfall in the Storage window's own words for it (storage.js expandBlock: bag.store_grow_short over the server's price less the purse) */
+  step('BE-2 short of gold: off, and says why', r.off && r.why === t('bag.store_grow_short', { gold: gold(p0 - 10) }), JSON.stringify(r) + ' vs ' + t('bag.store_grow_short', { gold: gold(p0 - 10) }));
   if (shots) await a.shot('storage-short');
 
   /* ── BE-3 ── */

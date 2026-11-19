@@ -1,0 +1,57 @@
+{
+  "id": "outfit_emberkeeper_mask",
+  "class": "character",
+  "mask_of": "outfit_emberkeeper",
+  "source": "outfit_emberkeeper_mask.png",
+  "anchor_px": [
+    32,
+    58
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 5,
+      "loop": true,
+      "dirs": {
+        "s": 4,
+        "e": 4,
+        "n": 4,
+        "w": 4,
+        "se": 4,
+        "sw": 4,
+        "ne": 4,
+        "nw": 4
+      }
+    },
+    {
+      "name": "walk",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 6,
+        "e": 6,
+        "n": 6,
+        "w": 6,
+        "se": 6,
+        "sw": 6,
+        "ne": 6,
+        "nw": 6
+      }
+    },
+    {
+      "name": "hit",
+      "fps": 12,
+      "loop": false,
+      "dirs": {
+        "s": 5,
+        "e": 5,
+        "w": 5
+      }
+    }
+  ],
+  "notes": "Region mask of outfit_emberkeeper (dyes): each pixel a dye recolours keyed by region, src/data/outfits.js MASK_COLOURS in BASE_REGIONS order. Written by tools/world-art/outfit-masks.mjs from art/world/factionwear/outfit_emberkeeper.png; free, no generation."
+}

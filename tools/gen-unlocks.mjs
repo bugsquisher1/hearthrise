@@ -318,6 +318,8 @@ const RETIRED_UNLOCKS = Object.freeze([
   'worker',
   /* The fifth hero slot is no longer sold: four heroes an account (Tyler 2026-11-07, 2027-03-22-four-slots.sql). */
   'character_slot:4',
+  /* The three cookbook scrolls are cut with their recipes (designer 2026-11-18: patterns teach worn recipes, per hero). */
+  'recipe:field_cookbook', 'recipe:marrow_cookbook', 'recipe:soul_recipe',
 ]);
 for (const id of RETIRED_UNLOCKS) {
   if (rows.some((r) => r.unlock_id === id)) die(`retired unlock ${id} is still derived — take it off RETIRED_UNLOCKS or remove its source`);

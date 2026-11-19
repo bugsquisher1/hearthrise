@@ -434,7 +434,6 @@ body[data-theme="hearthlight"] {
   --scene-tree:      #080605;
   --scene-build:     #090705;
   --scene-build-2:   #16100b;
-  --scene-furrow:    rgba(236,225,204,.05);
   --scene-lit:       #ffb457;   /* candle / hearth window */
   --scene-litglow:   rgba(255,168,74,.30);
   --scene-firelight: rgba(255,178,92,.16);

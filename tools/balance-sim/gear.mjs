@@ -33,6 +33,13 @@
 // mitigation.js, the unit's resistPm); `engineView` reads that, and `uniquesIn` says, per piece, whether its attribute reaches
 // the engine at all (one with no hook yet is worn and plays as nothing). `tierOffset` moves the ladder only: a slot group with
 // an offset is dressed off the ladder, as before.
+//
+// GROUND AND BOSS DROPS ONLY (the designer's ruling 2026-11-18 row 1f, PRIORITY_BOARD "2026-11-18 Designer rulings"): a ground is graded
+// on "a hero in the last band's gear" (docs/design/itemization-plan.md §3), and THE Platinum chest weapon takes 7 weeks median and 18 at
+// the 90th alone (Appendix A Finding 2). So past the ladder the kit wears what a ground or a boss drops (and a staged row whose home is
+// built), never a Hearth Chest piece (the Tower's weapons, the Catacombs' armor: chests.js HEARTH_CHEST_KEYS). `chest: true` lets them
+// back in, for the grader's printed what-if row (grade.mjs --uniques prints which chest piece each way would swap in). A staged row
+// whose source is `planned` (a Morrow grid cell on a ground or boss not built yet, staged/morrow-grid.js) drops nowhere, so no kit wears it.
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';
 import { weaponPower } from './weapon-power.mjs';
@@ -53,7 +60,7 @@ export const STAGED_GEAR = Object.freeze([
   Object.freeze(['tools/balance-sim/staged/weapon-line.js', 'WEAPON_SAMPLE']),
 ]);
 
-/* The combat skill each role fights with (a `skillB` key that answers the style). */
+/* The combat skill each role fights with (a `<skill>Plus` field's skill that answers the style, combat.js SKILL_PLUS_FIELDS). */
 const ROLE_SKILL = Object.freeze({ tank: 'melee', melee_dps: 'melee', ranger: 'ranged', mage: 'magic', healer: 'magic' });
 
 /* The styles the simulator plays (./styles.mjs: the list alone, so the Balance Lab's browser bundle reads it without this file's node-only
@@ -140,6 +147,12 @@ export async function loadGear(root) {
   const { MONSTERS } = await import(u('src/data/monsters.js') + v);
   const { spellRow } = await import(u('src/data/monster-spells.js') + v);
   const MEMBER = await import(u('src/core/member.js'));
+  /* the engine's + skill fields (combat.js SKILL_PLUS_FIELDS) and the attribute catalogue that names them (special-attributes.js) */
+  const { SKILL_PLUS_FIELDS } = await import(u('src/core/combat.js'));
+  const { SPECIAL_ATTRIBUTES } = await import(u('src/data/special-attributes.js') + v);
+  /* THE HEARTH CHEST'S PIECES (chests.js HEARTH_CHEST_KEYS: the Tower keys' weapons, the Catacomb keys' armor): worn only with `chest` */
+  const { HEARTH_CHEST_KEYS } = await import(u('src/data/chests.js') + v);
+  const CHEST_IDS = new Set(HEARTH_CHEST_KEYS.flatMap((k) => [...Object.values(k.weapons || {}), ...Object.values(k.armor || {})]));
   /* THE WEAPON LINE'S MEASURE (weapon-power.mjs, lane/d-weapon-line): a weapon's power on the ground being graded, the engine's own rolls
      over its spawn, so the grader picks the weapon the guard (tests/weapon-line.mjs) holds under the line */
   const WP = weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS: { ...HUNT_GROUNDS }, HUNT_INDEX: (await import(u('src/data/hunts.js') + v)).HUNT_INDEX,
@@ -155,6 +168,8 @@ export async function loadGear(root) {
     for (const [id, s] of Object.entries(cat)) {
       if (own(ITEMS, id)) continue;
       if (staged.has(id)) throw new Error('balance-sim gear: staged row ' + id + ' is in two catalogues');
+      /* a planned home (a grid cell on a ground or boss not built yet): nothing drops it, so no hero can wear it */
+      if (s && s.row && s.source && s.source.planned === true) continue;
       if (!s || !s.row || !s.row.slot || !s.source || !s.source.ground) throw new Error('balance-sim gear: staged row ' + id + ' (' + file + ') has no row, slot or drop ground');
       staged.set(id, Object.freeze({ id, row: s.row, ground: s.source.ground, attr: s.attr || null, from: file + ' ' + name }));
     }
@@ -209,7 +224,7 @@ export async function loadGear(root) {
     let n = 0;
     for (const [k, pm] of Object.entries(it.resistPm || {})) if (pm > 0 && (k === 'physical' || (asks && asks.el.has(k)))) n++;
     if (it.bane && asks && asks.cls.has(it.bane.class)) n++;
-    for (const [k, lv] of Object.entries(it.skillB || {})) if (lv > 0 && (k === 'defense' || k === ROLE_SKILL[role])) n++;
+    for (const [k, f] of Object.entries(SKILL_PLUS_FIELDS)) if (it[f] > 0 && (k === 'defense' || k === ROLE_SKILL[role])) n++;
     return n;
   };
   const tierOf2 = (it) => Number(it && it.tier) || 1;
@@ -247,6 +262,8 @@ export async function loadGear(root) {
       if (!it || (Number(it.reqLv) || 1) > L) return false;
       if (ctx.exclude && ctx.exclude.includes(id)) return false;
       if (staged.has(id)) return ctx.drops.has(staged.get(id).ground);
+      /* ground and boss drops only past the ladder (row 1f): a Hearth Chest piece only with `chest` */
+      if (!onLadder.has(id) && CHEST_IDS.has(id) && !ctx.chest) return false;
       return ctx.reach.has(id);
     };
     const ids = familyIds(ladderPick ? [ladderPick, ...ladderIds] : ladderIds).filter(can);
@@ -265,29 +282,36 @@ export async function loadGear(root) {
     const snap = s.member.snapshot(s.state);
     return { armour: snap.armour, def: snap.def, acc: snap.acc, maxHit: snap.maxHit, resistPm: snap.resistPm || null, skillPlus: snap.skillPlus || null, critB: s.eq.critB, bane: s.eq.bane || null };
   }
-  /* an attribute's field on a row (special-attributes.js SPECIAL_ATTRIBUTES[kind].field) */
-  const ATTR_FIELD = Object.freeze({ resist_element: 'resistPm', resist_physical: 'resistPm', defense: 'skillB', skill: 'skillB', crit: 'critB', bane: 'bane' });
+  /* an attribute's field on a row for its key (special-attributes.js SPECIAL_ATTRIBUTES[kind].field: one field, or one a key, a + skill's
+     the engine's `<skill>Plus`, row 1c) */
+  const attrFieldOf = (kind, key) => {
+    const def = SPECIAL_ATTRIBUTES[kind];
+    return !def ? null : typeof def.field === 'string' ? def.field : (def.field && own(def.field, key) ? def.field[key] : null);
+  };
   /**
    * The pieces of `kit` past the ladder (a staged row, or a gettable row the ladder does not list), each with its attribute and whether
    * that attribute reaches the engine: the engine's view of the set with the piece, against the same set with the piece's attribute
    * key taken off (a copy of the table: the real ITEMS are not touched). A key the engine drops (no hook yet) reads `hooked: false`.
+   * opts: { items (the table the engine reads, the edge's by default), fieldOf (kind, key) -> field (the catalogue's by default) }: the
+   * grader's proof plants a field the engine never reads (uniques-proof.mjs U4).
    */
-  function uniquesIn(kit, L) {
+  function uniquesIn(kit, L, opts = {}) {
+    const table = opts.items || EDGE_ITEMS, fieldFor = opts.fieldOf || attrFieldOf;
     const onLadder = new Set(Object.values(ladder).flat());
     const out = [];
     for (const [slot, id] of Object.entries(kit)) {
       if (!id || onLadder.has(id) || slot === 'ammo' || starters.has(id)) continue;
-      const it = rowOf(id);
+      const it = own(table, id) ? table[id] : rowOf(id);
       if (!it) continue;
       const s = staged.get(id) || null;
       const [kind, key] = (s && s.attr) || [null, null];
-      const field = kind ? ATTR_FIELD[kind] : null;
+      const field = kind ? fieldFor(kind, key) : null;
       let hooked = null;
       if (field && own(it, field)) {
         const cut = JSON.parse(JSON.stringify(it));
         if (key && cut[field] && typeof cut[field] === 'object' && field !== 'bane') { delete cut[field][key]; if (!Object.keys(cut[field]).length) delete cut[field]; }
         else delete cut[field];
-        const was = JSON.stringify(engineView(kit, L)), now = JSON.stringify(engineView(kit, L, { ...EDGE_ITEMS, [id]: cut }));
+        const was = JSON.stringify(engineView(kit, L, table)), now = JSON.stringify(engineView(kit, L, { ...table, [id]: cut }));
         hooked = was !== now;
       }
       out.push({ slot, id, n: it.n, staged: !!s, armor: it.defB || 0, attr: kind ? kind + (key ? ':' + key : '') : null, hooked });
@@ -298,7 +322,7 @@ export async function loadGear(root) {
   /**
    * The worn set of `style` at Level `L`. opts: { tierOffset, only, heavyShield, line (another armour line),
    * armourSlots (default all six; the reachable ones are filled), noArmour, ammo (an item for the ammo slot),
-   * starter (the start kit's pieces only), openAlso (ground ids played as open: see the header), exclude (item ids held out) }.
+   * starter (the start kit's pieces only), openAlso (ground ids played as open: see the header), exclude (item ids held out), uniques (past the ladder: see the header), chest (the Hearth Chest's pieces too, the what-if) }.
    */
   function kitOf(style, L, opts = {}) {
     const S = STYLES[style];
@@ -322,7 +346,7 @@ export async function loadGear(root) {
     if (opts.uniques === true) {
       registerStaged();
       ctx = { reach: opts.openAlso ? reachWith(opts.openAlso) : reach, drops: dropGroundsWith(opts.openAlso), asks: groundAsks(opts.ground || null),
-        ground: opts.ground && own(HUNT_GROUNDS, opts.ground) ? opts.ground : null, exclude: opts.exclude || null };
+        ground: opts.ground && own(HUNT_GROUNDS, opts.ground) ? opts.ground : null, exclude: opts.exclude || null, chest: opts.chest === true };
     }
     const best = (ids, id, o) => (ctx && !o ? bestOf(ids, id, L, S.role, ctx) || id : id);
     const set = {};
@@ -358,5 +382,5 @@ export async function loadGear(root) {
     }
     return rows;
   }
-  return { kitOf, gearCensus, ITEMS, EDGE_ITEMS, reach, reachWith, ladder, staged, registerStaged, engineView, uniquesIn };
+  return { kitOf, gearCensus, ITEMS, EDGE_ITEMS, reach, reachWith, ladder, staged, registerStaged, engineView, uniquesIn, attrFieldOf, CHEST_IDS };
 }

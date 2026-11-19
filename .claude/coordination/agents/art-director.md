@@ -3838,3 +3838,27 @@ storeAwayWords over training-words.js busyWords; AW-32 plan line + mutant). From
 (gearLockWhy), and alpha-windows --shard-plan is over budget on the set itself (62 untimed mutants; needs ~30 shards).
 Lessons: (6) any line that appears inside a fixed-height layout must own its room before it appears, or it moves what is under the
 hand; (7) window-fit's row heuristic is tag + first class: give sibling containers distinct first classes.
+## 2026-11-18 lane/b-ui-topbar (UI audit wave 2: #10 the Havora strip into the top bar, UI-10 the top bar and the town coach's ring)
+ONE TOP BAR: the World pane's place name and Town / Home switch (world-pane.js .world-chrome) mount into the character strip's new
+`.char-place` slot after the hero tabs (world-boot.js takes the element as opts.chrome; a pane with no strip keeps it over its stage);
+the switch stands first so it never moves under the pointer when "Havora" becomes "Your Home". The strip is one 48 px band over its
+steel rule and the icon row is the same 48 px (it was 40 on a 55 px strip). In a hunt the slot goes (the hunt bar is the title), keyed on
+the pane's scene as before. The World gains 45 px at 1440x900 and 48 px at 922x423; a phone sheet in town starts under the icon row with
+no rule of its own (the "rise over the place's row" pair is gone; PH-25's mutant now plants the row back instead). Phone: the name shows
+only where the strip keeps room for a tab (container <= 420 px hides it). UI-10: the strip's character-screen press reads "Character
+list" (the phone sheet's word; "All characters" beside "Characters" were two names nobody could tell apart), and the more-heroes card says
+"Character list -> Create hero" and rings Heroes, then the sheet's Character list, on a phone, whose strip has no such press (it rang
+nothing there). A ring on the bar draws inside its control (outline-offset -4): outside, it ran off the screen's top edge and read as
+the open icon's box. THE TOWN CARD HANGS FROM ITS RING: with nothing above it in the World's right column it slides left (never onto a
+widget) until the ringed icon is over it, its tip under the ring (hud-room.js hangFromRing, --coach-tip); under the Tally it has no tip.
+Found and fixed on the way: the dock's marks sat on the row's <nav>, which a group menu or the card's fold redraws outside a widget pass,
+so opening the Town menu dropped the card back under the row; they sit on the row's widget now. Tests: TW-20 (+4 mutants, 4/4 caught),
+sewer D4 ring order, selectors moved in client-boot / town-walk / death-popup. Known limit: at 1280 px with four open heroes the place
+costs the tabs about 40 px each (names ellipsize sooner). Lessons: (1) state a later pass reads must live on an element that outlives the
+markup swaps between passes; (2) a control beside a label whose width changes moves under the pointer: put the control first; (3) a coach
+ring on an element at the screen's edge must draw inside it. Round 2 (the touched-test run): (4) a bar sized "48 px + the art rule" is
+52.8 CSS px at 125%, so the World under it was 0.2 px off a whole number and the canvas resampled (window-camera WC-10): a box above the
+World is a whole number of CSS px at every scale (54 px, the rule inside it, the icon row 54 less the rule); (5) giving the World 45 px
+moved 1024x768 across the 480 px dock threshold, so the Hunts window stopped rising over the bar and cut its first creature card
+(alpha-windows AW-93): a layout threshold measured in World px moves with the World (DOCK_ROOM_PX 525, the same screens rise as before);
+(6) B-21's pinned phone frame (H 290 -> 338) and every `#panel-world .world-*` selector had to follow the chrome into the bar.

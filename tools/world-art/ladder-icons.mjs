@@ -72,7 +72,8 @@ export const DRAW = Object.freeze({
 /* caster-icons.mjs's spellbook: field_cookbook's cover leather (dark -> light) re-dyed, here to a reference icon's ramp. */
 const COVER = [0x2a1c14, 0x3d2a1d, 0x4a2e18, 0x553a26, 0x6e4c30, 0x7a4f26, 0x8a6440];
 export function book(ref) {
-  const to = ramp(read(ref)).slice(1), img = read('field_cookbook');   // [0] is the outline
+  /* the leather source: the cut Field Cookbook's icon, kept beside the tools (tools/world-art/leather/, 2026-11-18) */
+  const to = ramp(read(ref)).slice(1), img = decodePNG(readFileSync(join(ROOT, 'tools', 'world-art', 'leather', 'field_cookbook.png')));   // [0] is the outline
   for (let i = 0; i < img.data.length; i += 4) {
     if (!img.data[i + 3]) continue;
     const at = COVER.indexOf(key(img.data, i));

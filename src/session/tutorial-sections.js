@@ -73,6 +73,8 @@ function shellFacts(sh) {
     roster, slotsOwned: nat(o.slotsOwned), playLimit: nat(o.playLimit), sellable: nat(o.sellable),
     upgrades: Array.isArray(o.upgrades) ? o.upgrades.filter((id) => typeof id === 'string' && ID.test(id)).slice(0, 14) : null,
     back: typeof o.back === 'string' ? o.back : null, slotCost: nat(o.slotCost),
+    /* the ground the Hunts window's party advice picks at this hero's Level (src/shell/hunt-list.js partyGroundFor), or null */
+    partyGround: typeof o.partyGround === 'string' && ID.test(o.partyGround) ? o.partyGround : null,
   };
 }
 
@@ -215,7 +217,7 @@ export function pointerCardOf(cs, sh) {
     defenseXp: sk && sk.defense ? sk.defense.xp : null, land: landOf(cs), inParty: f.inParty,
     gold: f.gold, slotCost: f.slotCost, slotsOwned: f.slotsOwned, home: f.home,
     roster: f.roster, visited: f.visited, staminaMs: f.staminaMs, refill: staminaRefillOf(cs), tally: f.tally, temper: f.temper,
-    training: trainingRunOf(cs) });
+    training: trainingRunOf(cs), partyGround: f.partyGround });
 }
 
 /* The running training session as the server's `training` section states it: its run's skill, and that skill's level and hours to the next

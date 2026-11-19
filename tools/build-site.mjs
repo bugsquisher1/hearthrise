@@ -55,6 +55,7 @@ export const PUBLISH = Object.freeze([
   'assets/icons-bundle/pixel/abilities/*.png',               // one tile per ability
   'assets/icons-bundle/pixel/supplies/*.png',                // one icon per basic supply
   'assets/icons-bundle/pixel/heads/*.png',                   // one 32 px head per creature
+  'assets/icons-bundle/pixel/factions/*.png',                // each side's mark and each piece standing buys
   'legal/PRIVACY_POLICY.md', 'legal/TERMS_OF_SERVICE.md',    // read by the sign-in screens
 ]);
 
@@ -65,7 +66,8 @@ export const PUBLISH = Object.freeze([
 export const LEFT_OUT = Object.freeze({
   prefixes: Object.freeze(['assets/icons-bundle/hearthfire/', 'assets/icons-bundle/painted/']),
   names: Object.freeze({
-    'item-art.js': Object.freeze(['PIXEL_DIR', 'ABILITY_DIR', 'ABILITY_ART', 'SUPPLY_DIR', 'SUPPLY_ART_AHEAD', 'ITEM_ART_AHEAD', 'ITEM_ART_SET', 'fileFor']),
+    'item-art.js': Object.freeze(['PIXEL_DIR', 'ABILITY_DIR', 'ABILITY_ART', 'SUPPLY_DIR', 'SUPPLY_ART_AHEAD', 'ITEM_ART_AHEAD', 'ITEM_ART_SET', 'fileFor',
+      'FACTION_DIR', 'FACTION_ART']),
     'monster-art.js': Object.freeze(['HUNT_ART_ALIAS', 'HUNT_WALK_ART', 'HEAD_DIR', 'HEAD_ART', 'HEAD_ART_AHEAD', 'headPathFor']),
   }),
 });

@@ -169,7 +169,21 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    drop-homes files and everything applied with v0.2.139 (2027-05-07-open-halls-words-live-events-catalogue last); before this lane's bench-inputs, bench-tax, hunt-sessions, alpha and jewelry files. */
 /* THE JEWELRY SAMPLE, ON THE CATACOMBS (set/v0.2.140): 2027-05-08-catacombs-items-catalogue (STAGED on the set, applied first) is the file before this one and
    this one carries it whole, the descent's keys and armor included; the sample's rows below are the only difference. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-09-jewelry-sample-items-catalogue.generated.sql');
+/* THE CATACOMBS' GOLD AND PLATINUM ARMOR (lane/d-catacomb-gold-platinum, systems-engineer 2026-11-18): 2027-05-09-jewelry-sample-items-catalogue
+   (applied with v0.2.140) is the file before this one and this one carries it whole. Twelve new hr_items rows: the Gold and Platinum Catacomb
+   pieces (src/data/catacomb-armor.js CATACOMB_ARMOR_NOW: all four metals; tradeable, each its twin's book value). No other row moves. ORDER:
+   after everything applied with v0.2.140; before this lane's hunt-sessions file (the pieces' bids), its chest catalogue (every piece is
+   checked against hr_items) and its tally file. */
+/* THE JEWEL GUARANTEES (lane/d-jewelry-2b, rescued from lane/c-crafted-jewelry, 2026-11-18; Tyler 2026-11-14 "with some items that can guarantee some
+   things"): 2027-05-12-catacomb-gold-platinum-items-catalogue (STAGED on set/v0.2.141, applied first) is the file before this one and this one carries it whole, the Gold and Platinum Catacomb armor included. hr_activities
+   gains the three guarantee jobs on the Banded Signet's Smithing bench (a Crown Shard, the Rat King's Crown, both), dark behind jewel_guarantees
+   (hr-accrue set_activity asks the switch); no hr_items row moves. ORDER: after the four 05-12 files and 2027-05-15-analyzer-cover-coins; before this lane's bench-inputs file
+   and 2027-05-16-jewel-guarantees.sql. It replaces lane/c-crafted-jewelry's 2027-04-24 files, which were never merged or applied. */
+/* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18; the designer: patterns teach worn recipes, per hero): 2027-05-16-jewel-guarantees-items-catalogue (STAGED,
+   applied first) is the file before this one and this one carries it whole. hr_items loses the three cookbook scrolls and their three feasts
+   (Hunter's Feast, Dragon Stew, Lich Soul Soup); hr_activities loses their three Cooking recipes; hr_feast_foods follows. ORDER: after the three
+   2027-05-16 files; before this lane's bench-inputs, bench-tax, hunt-sessions and unlocks files. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-22-cookbook-cut-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -178,7 +192,8 @@ const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-09-jewelry-sample-item
    a new, LAST-registered file is additive for an operator and for the replay.
    Both files are covered by the same `--check`. */
 const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
-  '2026-09-13-item-buffs-catalogue.generated.sql');
+  /* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18): 2026-09-13 is APPLIED history; the three cut feasts' buff rows leave, ONE forward file, the same wholesale replace. */
+  '2027-05-22-cookbook-cut-item-buffs-catalogue.generated.sql');
 /* THE THIRD GENERATED FILE (2026-09-13, buffs step 3). hr_room_perks is the
    ROOM RUNG -> PERK payload, the same table src/data/perks.js holds for the two
    JS runtimes, so hr_apply can price the Cellar's buffDuration under the
@@ -1330,7 +1345,7 @@ end $$;
    does, so the server's check and the bench's stop cannot disagree. A function, not a table: one constant,
    read by one SQL body, no rows to census. */
 const { recipeInputs } = await imp('src/core/artisan.js');
-const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
+const { ARTISAN_RECIPES_EVERY: BENCH_RECIPES } = await imp('src/data/recipes.js');   // the dark (switched) jobs too: a resume reads their inputs
 /* INNER FLAME (lane b-inner-flame, 2026-10-27): 2027-01-20 is APPLIED history; the fuel_<item> rows (the bury_* rows retire). */
 /* THE FIRST-HOUR RUNG (lane b-first-hour, 2026-10-28): 2027-01-31 is APPLIED history; stitch_graypelt_cloak's six Wolf Pelts. */
 /* THE UNSOURCED ITEMS (lane b-unsourced-items, 2026-10-28): 2027-02-05 is APPLIED history; the four new recipes' inputs. */
@@ -1346,7 +1361,11 @@ const { ARTISAN_RECIPES: BENCH_RECIPES } = await imp('src/data/recipes.js');
    APPLIED history; the 24 cut recipes' inputs leave the function, no other recipe's inputs move. */
 /* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-06-drop-homes-bench-inputs (APPLIED with v0.2.139) is the file before; the five new
    pieces' jobs bring their inputs, and the Banded Signet's keep theirs on Smithing's bench. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-09-jewelry-sample-bench-inputs.generated.sql');
+/* THE JEWEL GUARANTEES (lane/d-jewelry-2b, rescued from lane/c-crafted-jewelry, 2026-11-18): 2027-05-09-jewelry-sample-bench-inputs (APPLIED with v0.2.140)
+   is the file before; the three guarantee jobs on the Banded Signet's Smithing bench (dark behind jewel_guarantees) bring their inputs, no other
+   recipe's move. It replaces lane/c-crafted-jewelry's 2027-04-24-jewel-guarantees-bench-inputs, which was never merged or applied. */
+/* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18): 2027-05-16-jewel-guarantees-bench-inputs (STAGED, applied first) is the file before; the three cut Cooking recipes leave. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-22-cookbook-cut-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

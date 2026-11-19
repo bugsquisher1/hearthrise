@@ -11,7 +11,10 @@
 // A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth']);
+export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth', 'factionwear']);
+/* `factionwear` (lane/b-farm-house-faction-art 2026-11-18): the faction outfits worn (outfit_flamebearer, outfit_emberkeeper), a hero set of
+   their own because `heroes` is full (nine outfits fill 2048x1756 of ATLAS_MAX 2048x2048). Drawn by nobody until hunt-outfits.js OUTFITS
+   names them, and src/world/scene-sets.js then finds the set from the sprite ids, as for every hero. */
 
 /* THE SETS OF ANOTHER ART GRID (src/data/world/art-budget.js GRIDS), by grid. They are not loaded
    on the pane's first open: the first scene drawn on that grid loads them into a book of their own
@@ -26,4 +29,10 @@ export const LOADED_SETS = Object.freeze(ATLAS_SETS.concat(...Object.values(GRID
    pane's first open: the dye code loads one on first need (src/world/atlas.js loadAtlasSet). Its sprite
    `<id>_mask` is sprite <id>'s frames keyed by region (src/data/outfits.js MASK_COLOURS), built unpalette-locked by
    tools/world-art/build.mjs, written by tools/world-art/outfit-masks.mjs and held to <id> by tests/outfit-masks.mjs. */
-export const MASK_SETS = Object.freeze({ 'hunt-masks': 'heroes' });
+export const MASK_SETS = Object.freeze({ 'hunt-masks': 'heroes', 'factionwear-masks': 'factionwear' });
+
+/* THE HERO SETS: every set a worn outfit's sheet (src/data/hunt-outfits.js OUTFITS) may be in, in the order the Character window, the
+   roster and creation load them (src/render/outfit-sprite.js outfitArt). `heroes` is full at ATLAS_MAX (law, never raised), so the
+   faction looks are in `factionwear` (lane/c-faction-outfit-path 2026-11-18). Each has its mask set above (the dyes); the World finds a
+   hero's set from its sprite id (src/world/scene-sets.js). tests/world-assets.mjs holds every OUTFITS sprite to one of these. */
+export const HERO_SETS = Object.freeze(['heroes', 'factionwear']);

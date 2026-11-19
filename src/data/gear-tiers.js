@@ -276,16 +276,18 @@ export const GEAR_ITEMS = (() => {
         type: 'weapon',
         slot: 'weapon',
         weaponType: fam.weaponType,
-        atkB: fam.atk[i],
-        strB: fam.str[i],
+        /* A weapon carries ITS OWN style's accuracy and damage, the fields the combat engine rolls it on (src/core/member.js
+           deriveProfile): every melee kind the Melee pair here, a bow or crossbow the Ranged pair and a wand or staff the Magic
+           pair below. Only those: the post-140 audit's C6 found every bow, crossbow, wand and staff also carrying a Melee pair
+           that copied its own numbers, which combat never read but the item card showed as "Melee accuracy/damage" and the
+           doll ranked on. tests/style-gear.mjs SG-9 holds it. */
+        ...(fam.weaponType === 'ranged' || fam.weaponType === 'magic' ? {} : { atkB: fam.atk[i], strB: fam.str[i] }),
         rarity: mat.rarity,
         tier: mat.tier,
         /* Worn by the hero's Level at the tier's level, whatever the style (LEVEL_REQ, Tyler 2026-10-24). */
         reqSkill: LEVEL_REQ,
         reqLv: mat.level,
       };
-      // Ranged and magic weapons carry their style's own attack/strength too,
-      // so the combat engine rolls them against the right stats.
       if (fam.weaponType === 'ranged') { item.rangeAtkB = fam.atk[i]; item.rangeStrB = fam.str[i]; }
       if (fam.weaponType === 'magic')  { item.magicAtkB = fam.atk[i]; item.magicStrB = fam.str[i]; }
       if (fam.discipline) item.discipline = fam.discipline;

@@ -34,7 +34,7 @@
 import { roleForWeapon, WEAPON_ROLES } from '../data/hunt-roles.js?v=0.2.140';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
 import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.140';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';
+import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';   // the dark (switched) jobs too: only a hero the server let start one runs one
 import { huntOf, staminaOf, tierMapOf } from './hunt-sections.js?v=0.2.140';
 import { trainingPhrase } from './training-sections.js?v=0.2.140';
 import { heroVitalsOf } from './character-sections.js?v=0.2.140';

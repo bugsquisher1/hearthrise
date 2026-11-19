@@ -295,10 +295,13 @@ export async function closeReplays() {
  * @param {string}  [opts.fullChain] the REASON a patched (mutant) replay must run
  *        past its own file — only when a LATER file is the thing meant to catch
  *        the mutant, by name. Mutually exclusive with upTo. See replayScopeError.
+ * @param {boolean} [opts.liveCalendar] keep the live events' switches as the
+ *        chain left them (armed: 2027-05-14-arm-switches.sql), so the calendar's
+ *        windows run on the wall clock. Default false: quietCalendar below.
  * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[]}>}
  */
 export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, fullChain,
-                                   sessionTimeZone = 'UTC', keepClosed = false } = {}) {
+                                   sessionTimeZone = 'UTC', keepClosed = false, liveCalendar = false } = {}) {
   const scopeErr = replayScopeError({ patches, upTo, fullChain });
   if (scopeErr) { const e = new Error(scopeErr); e.harness = true; e.replayScope = true; throw e; }
   let PGlite;
@@ -514,6 +517,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
       // Windows libuv asserts at process.exit (measured 2026-10-14).
       if (!keepClosed) await openTheGame(db);
       await premiumPerCharacter(db);
+      if (!liveCalendar) await quietCalendar(db);
       endCapture();
       return { db, applied, failures };
     }
@@ -550,6 +554,7 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
   }
   if (!keepClosed) await openTheGame(db);   // before endCapture — see the prefix return above
   await premiumPerCharacter(db);
+  if (!liveCalendar) await quietCalendar(db);
   endCapture();
   return { db, applied, failures };
 }
@@ -586,6 +591,28 @@ async function premiumPerCharacter(db) {
       update public.hr_flags set enabled = false where key = 'beta_premium' and enabled;
     end if;
   end $beta$;`);
+}
+
+/* THE LIVE CALENDAR (2027-05-14-arm-switches.sql arms the live events for
+   everyone). An event is live when its catalogue window holds the SERVER
+   INSTANT, and PGlite's now() is this machine's wall clock: armed, a guard
+   that reads Level XP or a Call out fee would read one number on a Wednesday
+   evening (Open Halls) or a bonus weekend and another on a Tuesday, a red that
+   comes and goes with the calendar. So after the chain the harness turns every
+   event TYPE's switch back off (the switches the catalogue names, so a new
+   type is covered by its row), as every guard was written against. Moves one
+   column of a few rows: no schema object, no row count. The events are proven
+   by their own: the arm's §2, tests/live-events.mjs (which sets its own
+   windows and switches) and tests/arm-switches.mjs, which boot with
+   `liveCalendar: true`; so does the QA world (tools/qa/local-world.mjs serve /
+   smoke), which plays the calendar production plays. */
+async function quietCalendar(db) {
+  await db.exec(`do $cal$ begin
+    if to_regclass('public.hr_live_event_types') is not null and to_regclass('public.hr_feature_switches') is not null then
+      update public.hr_feature_switches f set scope = 'off', accounts = '{}'
+       where f.scope <> 'off' and f.switch_id in (select t.switch_id from public.hr_live_event_types t);
+    end if;
+  end $cal$;`);
 }
 
 // ── The inventory: what a rebuilt database actually contains ───────────────

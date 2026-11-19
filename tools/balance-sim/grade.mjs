@@ -13,7 +13,10 @@
 //                                                                                   the gear ladder too (a staged graded ground's own always are)
 //   ... [--uniques]                                                                each hero in the best piece it can get per slot, the
 //                                                                                   staged gear catalogues' hidden rows included (gear.mjs
-//                                                                                   uniques: the armor and weapon lines past Dawnsteel); cells of their own
+//                                                                                   uniques: the armor and weapon lines past Dawnsteel); cells of their own.
+//                                                                                   Ground and boss drops only (row 1f); the report prints
+//                                                                                   each way's Hearth Chest swap as a what-if row
+//   ... [--uniques --chest]                                                        the what-if played: the Hearth Chest's pieces worn too
 //   node tools/balance-sim/grade.mjs --in DIR                                       grade cells already played (no play)
 //   node tools/balance-sim/grade.mjs --mode quick --what-if '{"monsters":{"*":{"atk":"*3"}}}'   a candidate on the same dice
 //   node tools/balance-sim/grade.mjs --selftest                                     every rule bites a synthetic mutant
@@ -98,8 +101,10 @@ export async function buildGrid(root, mode, opts = {}) {
     /* --uniques (gear.mjs, lane/a-grader-uniques): the best gettable piece per slot, past the ladder; its cells say so, so a ladder cell is never
        resumed as one. The practice cells stay the start kit's. */
     const uq = opts.uniques === true;
-    const og = (opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '') + (uq ? ',uniq' : '');
-    const ogear = opens.length || uq ? { ...(opens.length ? { openAlso: opens } : {}), ...(uq ? { uniques: true } : {}) } : null;
+    /* --chest (with --uniques): the Hearth Chest's pieces worn too, the what-if the designer's row 1f keeps off the grade (gear.mjs `chest`) */
+    const ch = uq && opts.chest === true;
+    const og = (opens.length ? ',open' + (extra.length ? '=' + opens.join('+') : '') : '') + (uq ? ',uniq' : '') + (ch ? ',chest' : '');
+    const ogear = opens.length || uq ? { ...(opens.length ? { openAlso: opens } : {}), ...(uq ? { uniques: true } : {}), ...(ch ? { chest: true } : {}) } : null;
     for (const tier of T.tiersOf(g.id).filter((t) => !opts.tiers || opts.tiers.includes(t))) {
       const row = T.tierRowOf(g.id, tier);
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
@@ -440,20 +445,30 @@ export function synthSet(mut = {}) {
   return cells;
 }
 
-/** The pieces past the ladder each way wore in a uniques run, one line per ground, way and Level (gear.mjs uniquesIn). */
+/** The pieces past the ladder each way wore in a uniques run, one line per ground, way and Level (gear.mjs uniquesIn), and THE CHEST'S
+    WHAT-IF (the designer's row 1f: the grade is ground and boss drops only): the Hearth Chest piece the same hero would swap in if it had one,
+    printed, never graded (`--chest` plays it). */
 export function wornReport(cells, gearLib) {
   const seen = new Map();
+  let chested = false;
   for (const c of cells) {
     if (!(c.cell && c.cell.gear && c.cell.gear.uniques) || !c.heroes) continue;
+    chested = chested || c.cell.gear.chest === true;
     for (const h of c.heroes) {
       const k = c.cell.ground + ' / ' + h.style + ' / ' + h.level;
       if (seen.has(k)) continue;
       gearLib.kitOf(h.style, h.level, { ground: c.cell.ground, ...c.cell.gear }); /* registers the staged rows the kit names */
       const ps = gearLib.uniquesIn(h.kit, h.level);
-      seen.set(k, ps.length ? ps.map((p) => p.n + ' (' + p.slot + ', armor ' + p.armor + (p.attr ? ', ' + p.attr + (p.hooked === false ? ' NO ENGINE HOOK: plays as nothing' : '') : '') + ')').join('; ') : 'the ladder');
+      const worn = ps.length ? ps.map((p) => p.n + ' (' + p.slot + ', armor ' + p.armor + (p.attr ? ', ' + p.attr + (p.hooked === false ? ' NO ENGINE HOOK: plays as nothing' : '') : '') + ')').join('; ') : 'the ladder';
+      /* the what-if: the kit with the chest's pieces allowed, slot by slot where it differs */
+      const withChest = c.cell.gear.chest === true ? h.kit : gearLib.kitOf(h.style, h.level, { ground: c.cell.ground, ...c.cell.gear, chest: true });
+      const swaps = Object.entries(withChest).filter(([slot, id]) => gearLib.CHEST_IDS.has(id) && h.kit[slot] !== id).map(([slot, id]) => gearLib.ITEMS[id].n + ' for ' + (h.kit[slot] ? gearLib.ITEMS[h.kit[slot]] ? gearLib.ITEMS[h.kit[slot]].n : h.kit[slot] : 'nothing') + ' (' + slot + ')');
+      seen.set(k, [worn, swaps.length ? swaps.join('; ') : '-']);
     }
   }
-  return '\n\nWORN PAST THE LADDER (--uniques)\n| Ground / way / Level | Pieces |\n|---|---|\n' + [...seen].sort().map(([k, v]) => '| ' + k + ' | ' + v + ' |').join('\n');
+  return '\n\nWORN PAST THE LADDER (--uniques' + (chested ? ' --chest: the Hearth Chest\'s pieces worn too, a what-if' : ', ground and boss drops only') + ')\n'
+    + '| Ground / way / Level | Pieces | With a Hearth Chest piece (what-if, not graded) |\n|---|---|---|\n'
+    + [...seen].sort().map(([k, [v, w]]) => '| ' + k + ' | ' + v + ' | ' + w + ' |').join('\n');
 }
 
 if (isMain(import.meta.url)) {
@@ -509,13 +524,13 @@ if (isMain(import.meta.url)) {
   const mode = arg('mode', 'quick');
   if (!OFFSETS[mode]) { console.error('grade: --mode quick|full'); process.exit(2); }
   const inDir = arg('in', null);
-  const uniques = process.argv.includes('--uniques');
-  const out = resolve(inDir || arg('out', join(HERE, 'out', 'grade-' + mode + (uniques ? '-uniques' : ''))));
+  const uniques = process.argv.includes('--uniques'), chest = uniques && process.argv.includes('--chest');
+  const out = resolve(inDir || arg('out', join(HERE, 'out', 'grade-' + mode + (uniques ? '-uniques' : '') + (chest ? '-chest' : ''))));
   if (!inDir) {
     const whatIf = arg('what-if', null) ? JSON.parse(arg('what-if')) : null;
     const grounds = arg('grounds', null) ? arg('grounds').split(',') : null, tiers = arg('tiers', null) ? arg('tiers').split(',') : null;
     const openAlso = arg('open-also', null) ? arg('open-also').split(',') : null;
-    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers, openAlso, uniques });
+    const jobs = await buildGrid(ROOT, mode, { whatIf, grounds, tiers, openAlso, uniques, chest });
     if (process.argv.includes('--estimate')) { console.log('grade ' + mode + ': ' + jobs.length + ' cells, ' + jobs.reduce((s, j) => s + j.seeds * j.hours * j.party.length, 0) + ' hero-hours'); process.exit(0); }
     const { runPool } = await import('./pool.mjs');
     mkdirSync(out, { recursive: true });

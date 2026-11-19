@@ -49,6 +49,7 @@ async function load(root) {
   M.sets = await imp('src/data/world/atlas-sets.js');
   M.classes = await imp('src/data/monster-classes.js');
   M.tut = await imp('src/data/hunt-tutorial.js');
+  M.hl = await imp('src/shell/hunt-list.js');
   M.cm = await imp('src/data/condition-metrics.js');
   M.kit = await imp('src/data/start-kit.js');
   M.xp = await imp('src/core/xp.js');
@@ -344,7 +345,7 @@ const cases = {
     /* WHAT NEXT IS ONE GOAL (played 2026-11-04, Level 17: eight sentences, the Farm first and the third hero not named; blind 20-hour panel: "a five-sentence paragraph"). The walk-through, one lone sword
        and shield through the hours as played: at each stop the first goal is the one the card says, and the others wait behind More. Prices are the server's, passed in. */
     const roster = (n) => Array.from({ length: n }, (_, i) => ({ slot: i, level: 10, name: 'H' + i, open: i === 0, hunting: false }));
-    const at = (charLevel, more) => M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 90, land: { planted: 0, ready: {} }, inParty: false, gold: 0, slotCost: 50000, slotsOwned: 2, roster: roster(2), visited: new Set(), staminaMs: 28800000, refill: null, tally: { held: 1 }, home: null, ...more });
+    const at = (charLevel, more) => M.tut.nextGoal({ charLevel, role: 'tank', skillLevel: charLevel, defenseXp: 90, land: { planted: 0, ready: {} }, inParty: false, gold: 0, slotCost: 50000, slotsOwned: 2, roster: roster(2), visited: new Set(), staminaMs: 28800000, refill: null, tally: { held: 1 }, home: null, partyGround: M.hl.partyGroundFor(charLevel), ...more });
     const THICKET = 'meadowbrook_thicket', WICK = 'wickstead', GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens';
     const walk = [
       /* Level, the facts of the stop, what the card's one line must say */
@@ -353,7 +354,7 @@ const cases = {
       ['the Glade walked, 41k: the hero, never the Farmstead', 17, { gold: 41172, visited: new Set([THICKET, WICK, GLADE, WARRENS]), home: { owned: true, next: { name: 'Fieldworth Farmstead', gold: 2500, items: [{ id: 'normal_log', qty: 40 }] } } }, 'Next goal: a third hero slot, 50,000 gp'],
       ['the purse is there', 18, { gold: 50000, visited: new Set([THICKET, WICK, GLADE]) }, 'Buy a third hero slot for 50,000 gp'],
       ['the Warrens fifteen Levels up, unwalked', 17, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Next step up: Coppercap Warrens, Level 32'],
-      ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for The Sewer'],
+      ['sixteen Levels under names no dare', 16, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE]) }, 'Find a party for Mosslight Glade'],
       ['out of stamina, gold in hand', 20, { gold: 9000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), staminaMs: 60000, refill: { available: true, price: 6000, restoreMs: 14400000 } }, 'Press + beside stamina: 4 h for 6,000 gp'],
       ['no task held, past the Sewer', 27, { gold: 1000, slotCost: 200000, slotsOwned: 3, roster: roster(3), visited: new Set([GLADE, WARRENS]), tally: { held: 0, paid: 0, weight: true } }, 'Take a task on Tamsin\'s tally (Q)'],
       /* THE GLADE'S RUNG: the longest stretch with nothing new to wear ends at Level 22, on a piece made from what the Glade drops */
@@ -376,6 +377,9 @@ const cases = {
     /* a party hears the step for the party, and no pitch */
     const inParty = at(11, { inParty: true, visited: new Set([THICKET]), gold: 0 });
     if (inParty.text !== 'Next step up: Mosslight Glade, Level 16' || [inParty.text, ...inParty.also].some((t) => /Invite/.test(t))) return 'in a party it reads ' + JSON.stringify(inParty);
+    /* no ground a party suits holds Levels 1-4 (the Cellar: a four earns 0.42 of its heroes alone), so a lone Level 3 hears no pitch (lane/a-party-coach-card) */
+    const cellar = at(3, { visited: new Set(['mill_cellar']) });
+    if (M.hl.partyGroundFor(3) !== null || [cellar.text, ...cellar.also].some((t) => /^Find a party for/.test(t))) return 'a lone Level 3 hears a party pitch: ' + JSON.stringify(cellar);
     /* a stamina quote the purse can't pay, or a hero with plenty left, says nothing */
     const q = { available: true, price: 6000, restoreMs: 14400000 };
     const tops = (more) => whatNext(at(20, { visited: new Set([GLADE, WARRENS]), refill: q, ...more })).includes('beside stamina');
@@ -1065,7 +1069,7 @@ const cases = {
     /* more than one hero: 5 minutes into a hunt past the Cellar, one hero on an account that owns an empty slot */
     const one = { roster: [{ slot: 0, level: 6, name: 'Corliss', open: true, hunting: true }], slotsOwned: 2, playLimit: 4, name: 'Corliss' };
     const more = say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }));
-    if (!more || more.id !== 'more_heroes' || more.text !== 'Characters → Create hero') return 'the heroes card reads ' + JSON.stringify(more && more.text);
+    if (!more || more.id !== 'more_heroes' || more.text !== 'Character list → Create hero') return 'the heroes card reads ' + JSON.stringify(more && more.text);
     if ((say(R({ ...inThicket, ...one, huntMs: 4 * 60000 })) || {}).id === 'more_heroes') return 'the heroes card came before 5 minutes';
     /* a card that asks never walls (played 2026-11-01: it sat ahead of the Thicket's lessons in every hunt past 5 minutes) */
     if (!more.gotIt || (say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }, 'more_heroes')) || {}).id === 'more_heroes') return 'Got it does not pass the heroes card';
@@ -1474,9 +1478,10 @@ const cases = {
     if (!goal.startsWith('goal_')) return 'after the guide (Level ' + L + ', in the Sewer) the pointer shows ' + (goal || 'nothing');
     if (next && !html.includes(next.name)) return 'the what-next line does not name ' + next.name + ': ' + html;
     /* THE PARTY PITCH, NOT A PARTY WALL (playtest 2026-10-24): a solo hero hears of the party ground its Level fits and
-       how to make a party; a hero in a party does not. */
-    const pitch = 'Find a party for The Sewer';
-    if (!html.includes(pitch)) return 'a solo Level ' + L + ' hero hears no party pitch: ' + html;
+       how to make a party; a hero in a party does not. The ground is the one the Hunts window's party advice picks (lane/a-party-coach-card): at
+       Level 16 it named the Sewer, where a four earns 52.4k a head against the Glade's 93.6k and the window sends that party to the Glade. */
+    const pg = M.hl.partyGroundFor(L), pitch = 'Find a party for ' + (pg && M.HUNTS[pg] ? M.HUNTS[pg].name : '(none)');
+    if (pitch !== 'Find a party for Mosslight Glade' || !html.includes(pitch) || html.includes('Find a party for The Sewer')) return 'a solo Level ' + L + ' hero hears ' + JSON.stringify(pitch) + ', not the party advice\'s ground: ' + html;
     const partyEnv = { ...sewerEnv, party: { id: '0a47c0de-0000-4000-a000-00000000aa01', members: [{ seat: 0, name: 'Mira' }, { seat: 1, name: 'Tyler' }], self_seat: 0, leader_seat: 0 } };
     const withParty = renderLaunchers({ character: { read: (k) => partyEnv[k] }, glyphs: {}, hud: { isShown: () => false }, wm: { openIds: () => [], rows: () => [], row: () => null } });
     if (withParty.includes('make a second hero')) return 'a hero in a party is told to make a party: ' + withParty;
@@ -1984,7 +1989,7 @@ const cases = {
     if (L.coachHtml(hero(town(), { read: [] }), srv).includes('coach-close')) return srv.id + ' (finished by the server) offers a close';
 
     /* D4 MORE THAN ONE HERO: 5 minutes into the Thicket, one hero, two slots owned: the server's play limit and the
-       roster's slots in the words; Characters, then Create hero ringed; a second hero finishes it */
+       roster's slots in the words; Character list (a phone: Heroes, its sheet's), then Create hero ringed; a second hero finishes it */
     const thicket = (sessionMs) => Object.assign(JSON.parse(JSON.stringify(base)), {
       state: { active_kind: 'combat', active_id: 'meadowbrook_thicket', gold: 5200, level_xp: M.xp.charXpForLevel(6) },
       hunt: { ...base.hunt, hunt_id: 'meadowbrook_thicket', ended: false },
@@ -1993,10 +1998,12 @@ const cases = {
     const solo = hero(thicket(6 * 60000), { read: KNOWN });
     const rows1 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: false }];
     const d4 = card(solo, acct([solo], rows1, 4));
-    if (!d4 || d4.id !== 'more_heroes' || d4.text !== 'Characters → Create hero')
+    if (!d4 || d4.id !== 'more_heroes' || d4.text !== 'Character list → Create hero')
       return '5 minutes into the Thicket with one hero the coach shows ' + JSON.stringify(d4 && [d4.id, d4.text]);
     const d4ring = L.ringPlan(d4, at(null));
-    if (d4ring[0] !== '.char-pick[data-app="create"]' || d4ring[1] !== '.char-tool[data-app="characters"]') return 'More than one hero rings ' + JSON.stringify(d4ring);
+    /* Create hero, then the strip's Character list (a desktop), the Heroes sheet's (a phone, its strip shows only Heroes), then Heroes (UI-10) */
+    if (JSON.stringify(d4ring) !== JSON.stringify(['.char-pick[data-app="create"]', '.char-tool[data-app="characters"]', '[data-hs-win="characters"] [data-app="characters"]', '.char-tool.is-all']))
+      return 'More than one hero rings ' + JSON.stringify(d4ring);
     if ((card(hero(thicket(4 * 60000), { read: KNOWN }), acct([solo], rows1, 4)) || {}).id === 'more_heroes') return 'the more-heroes card came before 5 minutes in the Thicket';
     if ((card(solo, acct([solo], rows1, null)) || {}).id === 'more_heroes') return 'the more-heroes card stated a play limit the server never sent';
     const rows2 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: true, level: 1, name: 'Wren' }];

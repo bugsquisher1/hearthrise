@@ -10,11 +10,16 @@
 //   node tools/balance-sim/audit-table.mjs shield [--hours 2]             F8: a lone tank on each March ground at its floor and middle,
 //                                                                         in the Coppercap Shield (the best there was) and in the tier's own
 //
-//   node tools/balance-sim/audit-table.mjs storefood [--hours 2] [--ground id] [--styles tank,hammer] [--with healer]
+//   node tools/balance-sim/audit-table.mjs storefood [--hours 2] [--ground id] [--styles tank,hammer] [--with healer] [--kit arriving|level]
 //                                                                         F14: a lone hero on Normal at each ground's floor and middle,
 //                                                                         every way to fight, on each store food and nothing carried:
 //                                                                         deaths, the food bill, what the hunt pays. `--with healer`
-//                                                                         adds that seat beside the hero (a pair)
+//                                                                         adds that seat beside the hero (a pair). THE KIT A HERO
+//                                                                         ARRIVES IN by default (the designer's ruling 2026-11-18 row
+//                                                                         2a: every store-food floor is measured in it): one gear tier
+//                                                                         under the Level's best, every combat skill 10 under the
+//                                                                         Level (Krell's Hold's A25 measure). `--kit level` plays the
+//                                                                         old kit (the Level's best, skills at the Level)
 //
 // Every number is read off the engine's own events (cell.mjs, career.mjs). Nothing here computes a combat or gold number.
 import { dirname, resolve } from 'node:path';
@@ -22,6 +27,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadCellRunner } from './cell.mjs';
 import { runCareer } from './career.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -100,13 +106,29 @@ const STORE_FOODS = ['salted_shrimp', 'salted_trout', 'salted_lobster', 'salted_
 const STORE_GROUNDS = { meadowbrook_thicket: [5, 10], wickstead: [8, 13], millrace_sewer: [8, 16], mosslight_glade: [16, 23], coppercap_warrens: [32, 41],
   hasks_ford: [45, 52], the_slake: [50, 57], muster_barrows: [55, 60, 65], pyre_field: [70, 80], krells_hold: [85, 97] };
 
+/* THE KIT A STORE-FOOD FLOOR IS MEASURED IN (the designer's ruling 2026-11-18 row 2a, PRIORITY_BOARD "2026-11-18 Designer rulings"): the
+   kit a hero ARRIVES in, one gear tier under the Level's best (gear.mjs tierOffset -1 on every slot group) with every combat skill
+   ARRIVING_SKILL_GAP under the Level (at least 1). The Level's own kit, skills at the Level, is a kit nobody walks in wearing: the March
+   floors were measured in it and missed the Hold's 8 deaths in 4 h on Salted Shrimp at 85 (lane/a-hunt-prep-truth, the full-game audit's
+   A25). `level` keeps it for a what-if. Every seat of a pair arrives the same way. */
+export const ARRIVING_SKILL_GAP = 10;
+export function storeFoodCell({ ground, level, style, storeFood, mate = '', hours = 2, kit = 'arriving' }) {
+  const party = mate ? [style, mate] : [style];
+  const cell = { id: ['F14', ground, level, style, storeFood, mate, kit].join(':'), ground, party, level, hours, seeds: 1, bar: { storeFood } };
+  if (kit === 'level') return cell;
+  if (kit !== 'arriving') throw new Error('audit-table storefood: --kit arriving|level, not ' + kit);
+  const sk = Math.max(1, level - ARRIVING_SKILL_GAP);
+  return { ...cell, gear: { tierOffset: -1, only: 'all' }, skillsBySeat: party.map(() => ({ melee: sk, ranged: sk, magic: sk, defense: sk })) };
+}
+
 async function storefood() {
   const R = await loadCellRunner(ROOT);
   const hours = Number(arg('hours', 2)), only = arg('ground', ''), styles = arg('styles', FOOD_STYLES.join(',')).split(','), mate = arg('with', '');
-  const foods = arg('foods', STORE_FOODS.join(',')).split(',');
+  const foods = arg('foods', STORE_FOODS.join(',')).split(','), kit = arg('kit', 'arriving');
+  console.log('kit: ' + (kit === 'arriving' ? 'arriving (one gear tier under the Level\'s best, combat skills ' + ARRIVING_SKILL_GAP + ' under the Level)' : 'the Level\'s best, skills at the Level'));
   console.log('ground | Level | way | store food | max HP | eats/h | store g/h | coin+loot g/h | net g/h | low HP p10 % | deaths | XP/h');
   for (const [ground, levels] of Object.entries(STORE_GROUNDS)) if (!only || only.split(',').includes(ground)) for (const level of levels) for (const s of styles) for (const storeFood of foods) {
-    const cell = { id: ['F14', ground, level, s, storeFood, mate].join(':'), ground, party: mate ? [s, mate] : [s], level, hours, seeds: 1, bar: { storeFood } };
+    const cell = storeFoodCell({ ground, level, style: s, storeFood, mate, hours, kit });
     let m;
     try { m = R.runCell(cell); } catch (e) { console.log([ground, level, s, storeFood, 'ERROR ' + e.message].join(' | ')); continue; }
     const h = m.heroes[0];
@@ -129,9 +151,12 @@ async function tally() {
   }
 }
 
-if (mode === 'food') await food();
-else if (mode === 'tally') await tally();
-else if (mode === 'storefood') await storefood();
-else if (mode === 'shield') await shield();
-else if (mode === 'gold') await gold();
-else { console.error('usage: node tools/balance-sim/audit-table.mjs food|gold|shield|storefood|tally'); process.exit(2); }
+/* a module too (tests/balance-grade.mjs reads storeFoodCell): the modes run only when this is the program */
+if (isMain(import.meta.url)) {
+  if (mode === 'food') await food();
+  else if (mode === 'tally') await tally();
+  else if (mode === 'storefood') await storefood();
+  else if (mode === 'shield') await shield();
+  else if (mode === 'gold') await gold();
+  else { console.error('usage: node tools/balance-sim/audit-table.mjs food|gold|shield|storefood|tally'); process.exit(2); }
+}

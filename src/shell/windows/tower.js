@@ -40,6 +40,7 @@ import { stageHtml, stageModel, patchStage, climbLabels, scrollToFloor } from '.
 import { chestHtml, patchChest, actChest } from './tower-chest.js?v=0.2.140';
 import { catacombOf } from '../../session/catacomb-sections.js?v=0.2.140';
 import { catacombHtml, patchCatacombs, actCatacomb } from './tower-catacombs.js?v=0.2.140';
+import { afterHtml, patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.140';
 
 /* The tabs, in order, each with its label row. Catacombs (./tower-catacombs.js) shows only while the server sends the `catacomb` section
    (the unmarked_catacombs switch, 2027-05-08-catacombs.sql). */
@@ -121,10 +122,11 @@ export function renderTower(ctx) {
     + '<section class="tt-box tt-rules-box"><h3 class="hw-hd-h tt-hd">' + esc(t('tower.climb_head')) + '</h3><div class="tt-rows">'
     + STATS.map(([id, key]) => '<div class="tt-row" data-row="' + id + '"><span class="tt-k">' + esc(t(key)) + '</span><span class="tt-v"></span></div>').join('')
     + '</div></section>'
-    /* Before entering (audit 2026-11-18 A5): what the bar buys from the store and the gold it is paid from, a box in the column under the rules */
-    + '<section class="tt-box tt-before-box"><h3 class="hw-hd-h tt-hd">' + esc(t('hunts.head_before')) + '</h3><ul class="hw-before tt-before"></ul></section>'
-    /* the Start Floor stands on the foot beside Enter: the floor the press sends is never scrolled away from it */
-    + '<div class="tt-foot"><label class="tt-start-row"><span class="tt-k">' + esc(t('tower.start_head')) + '</span>'
+    /* THE DOOR, on the foot beside Enter, read whole and never scrolled away from the press it is for (the Catacombs' foot, 2026-11-18):
+       Before entering (audit 2026-11-18 A5: what the bar buys from the store and the gold it is paid from), WHEN THE HUNT ENDS (the
+       designer, 2026-11-18: the one plan, run after a climb too, so shown at the door that starts one; ./hunt-after-pane.js), the Start Floor */
+    + '<div class="tt-foot tt-climb-foot"><section class="tt-before-box"><h3 class="hw-hd-h tt-hd">' + esc(t('hunts.head_before')) + '</h3><ul class="hw-before tt-before"></ul></section>'
+    + afterHtml() + '<label class="tt-start-row"><span class="tt-k">' + esc(t('tower.start_head')) + '</span>'
     + '<select class="hh-select tt-start-pick" data-hs-act="floor"></select></label>'
     + '<p class="hw-why tt-off-why"></p><ul class="hw-before tt-gate"></ul>'
     + '<button type="button" class="hh-tool is-primary tt-go" data-hs-act="tower-enter">' + esc(t('controls.enter')) + '</button></div>'
@@ -263,6 +265,12 @@ renderTower.patch = function patchTower(body, ctx) {
   if (sc.tab === 'climb') patchClimb(root, cs, tw, sc);
   else if (sc.tab === 'catacomb' && cat) patchCatacombs(root.querySelector('[data-pane="catacomb"]'), cs, cat, sc, towerBeforeLines);
   else patchChest(root.querySelector('[data-pane="chest"]'), cs, tw, sc);
+  /* WHEN THE HUNT ENDS at both doors (a climb's end and a descent's run the hero's plan as a hunt's does): the server's choice and fee,
+     off while a press is out; while a run or hunt goes, that run's own plan (frozen at Enter) */
+  if (sc.tab !== 'chest') {
+    const h = huntOf(cs);
+    patchAfter(root.querySelector('[data-pane="' + sc.tab + '"]'), ctx, { off: sc.pending, now: !!(h && !h.ended) });
+  }
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 
@@ -290,6 +298,8 @@ renderTower.act = function actTower(ctx, body, action, ev, el) {
   if (!tw) return false;
   if (action === 'floor') { if (ev.type === 'change') { pick(sc, tw, el.value); repaint(); } return true; }
   if (actCatacomb(ctx, cs, sc, action, ev, el, repaint)) return true;
+  /* When the hunt ends: the one select at both doors (its change); ONE hr_hunt_after_set, and the answer's section repaints it */
+  if (action === 'after') return actAfter(ctx, action, ev, el, (send) => runIntent(sc, repaint, send, t('away.saving'), () => '', cs));
   if (ev.type !== 'click') return false;
   if (action === 'floor-pick') { if (!sc.pending && pick(sc, tw, el.getAttribute('data-landing'))) repaint(); return true; }
   if (action === 'tab') {

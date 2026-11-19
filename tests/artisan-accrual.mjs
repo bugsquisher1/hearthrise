@@ -71,7 +71,7 @@ import { levelOf } from '../src/core/xp.js';
 import { makeBonus } from '../src/core/perks.js';
 import { ITEMS } from '../src/data/items.js';
 import { MONSTERS } from '../src/data/monsters.js';
-import { ARTISAN_RECIPES } from '../src/data/recipes.js';
+import { ARTISAN_RECIPES, ARTISAN_RECIPES_EVERY } from '../src/data/recipes.js';   // EVERY: the server's index holds the dark (switched) jobs too
 import { isMain } from './_is-main.mjs';
 
 const problems = [];
@@ -407,10 +407,10 @@ function parityGuard() {
   const seen = { ticks: 0, doubles: 0, benches: new Set(), speeds: new Set(), consumedKinds: 0 };
 
   ok(Object.keys(ARTISAN_RECIPES_ALL).length
-     === Object.values(ARTISAN_RECIPES).reduce((a, l) => a + l.length, 0),
+     === Object.values(ARTISAN_RECIPES_EVERY).reduce((a, l) => a + l.length, 0),
     `T2: the index holds ${Object.keys(ARTISAN_RECIPES_ALL).length} recipes and the data holds `
-    + `${Object.values(ARTISAN_RECIPES).reduce((a, l) => a + l.length, 0)} — a recipe id is claimed twice`);
-  eq(duplicateRecipeIds(ARTISAN_RECIPES), [],
+    + `${Object.values(ARTISAN_RECIPES_EVERY).reduce((a, l) => a + l.length, 0)} — a recipe id is claimed twice`);
+  eq(duplicateRecipeIds(ARTISAN_RECIPES_EVERY), [],
     'T2: two benches claim the same recipe id — the index would resolve it to one bench and the '
     + "other bench's recipe would be unreachable");
   /* The prototype hazard, measured rather than asserted about. `active_id` is
@@ -644,12 +644,19 @@ function materialGuard() {
 // T5. THE RECIPE GATE IS SERVER-SIDE, AND FAILS CLOSED.
 // ════════════════════════════════════════════════════════════════════════
 function gateGuard() {
-  const gatedEntries = Object.entries(ARTISAN_RECIPES_ALL)
+  let index = ARTISAN_RECIPES_ALL;
+  let gatedEntries = Object.entries(ARTISAN_RECIPES_ALL)
     .filter(([, e]) => e.recipe.gated && benchPayable(e.skill));
-  ok(gatedEntries.length > 0,
-    'T5: no GATED recipe exists on a payable bench, so the whole `unlockedRecipes` model is untested '
-    + 'here. Eight recipes are gated in shipped data; if that changed, this guard needs a new anchor.');
+  /* NO SHIPPED GATE YET: the three cookbook recipes were cut (designer 2026-11-18) and the first pattern ships dark behind its data
+     flag, so the gate is proven on a FIXTURE: a real payable recipe with a gate, in this test's index only. A shipped gate is preferred. */
+  if (!gatedEntries.length) {
+    const [fid, fe] = Object.entries(ARTISAN_RECIPES_ALL).find(([, e]) => benchPayable(e.skill) && e.recipe.output && !e.recipe.roll && !e.recipe.switch);
+    index = Object.assign(Object.create(null), ARTISAN_RECIPES_ALL, { [fid]: { skill: fe.skill, recipe: Object.assign({}, fe.recipe, { gated: 'probe_pattern' }) } });
+    gatedEntries = [[fid, index[fid]]];
+  }
+  ok(gatedEntries.length > 0, 'T5: no gated recipe, shipped or fixture: the whole `unlockedRecipes` model is untested here.');
   if (!gatedEntries.length) return;
+  const gcall = (over) => call({ recipes: index, ...over });
 
   const [id, entry] = gatedEntries[0];
   const recipe = entry.recipe;
@@ -657,7 +664,7 @@ function gateGuard() {
 
   /* THE CONTROL FIRST: with the scroll, the night runs. Without it, everything
      below would be "refuses everything" wearing a gate's clothes. */
-  const open = call({ activeId: id, inventory, unlockedRecipes: { [recipe.gated]: true } });
+  const open = gcall({ activeId: id, inventory, unlockedRecipes: { [recipe.gated]: true } });
   ok(open.accrued === true && open.summary.ticks > 0,
     `T5 CONTROL: with '${recipe.gated}' unlocked, '${id}' produced ${open.accrued ? open.summary.ticks : 0} `
     + 'actions — the gate refuses even when it is satisfied, so every refusal below proves nothing');
@@ -671,7 +678,7 @@ function gateGuard() {
     ['a different scroll', { some_other_scroll: true }],
     ['a falsy value on the right key', { [recipe.gated]: false }],
   ]) {
-    const r = call({ activeId: id, inventory, unlockedRecipes });
+    const r = gcall({ activeId: id, inventory, unlockedRecipes });
     ok(r.accrued === true, `T5 [${why}]: refused (${r.reason}) instead of stopping at tick 0`);
     if (!r.accrued) continue;
     ok(r.summary.ticks === 0,

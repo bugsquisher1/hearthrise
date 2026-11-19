@@ -66,11 +66,8 @@ const BASE_RECIPES = {
     {id:'cook_baked_potato', name:'Baked Potato',    icon:'🥔', inputs:{potato:2},                       output:'baked_potato',   xp:90,  req:25, ms:3200},
     {id:'cook_carrot_stew',  name:'Carrot Stew',     icon:'🍲', inputs:{carrot:3, potato:1},             output:'carrot_stew',    xp:150, req:45, ms:4000},
     {id:'cook_pumpkin_pie',  name:'Pumpkin Pie',     icon:'🥧', inputs:{pumpkin:1, wheat:2},             output:'pumpkin_pie',    xp:240, req:60, ms:4800},
-    // Tier 3 — unlocked by recipe scrolls (gated check at runtime)
+    // Tier 3 (the three scroll-gated cookbook recipes were cut 2026-11-18: patterns teach worn recipes only, designer)
     {id:'cook_bear_pie',     name:'Bear Claw Pie',   icon:'🥧', inputs:{bear_claw:1, wheat:3}, output:'bear_claw_pie',  xp:280, req:70, ms:5000},
-    {id:'cook_hunters_feast',name:"Hunter's Feast",  icon:'🍱', inputs:{troll_hide:1, bear_pelt:1, cooked_trout:2}, output:'hunters_feast', xp:320, req:75, ms:5500, gated:'field_cookbook'},
-    {id:'cook_dragon_stew',  name:'Dragon Stew',     icon:'🍜', inputs:{dragon_scale:1, carrot:1, tomato:1, pumpkin:1, potato:1}, output:'dragon_stew', xp:450, req:85, ms:6000, gated:'marrow_cookbook'},
-    {id:'cook_lich_soup',    name:'Lich Soul Soup',  icon:'🥣', inputs:{lich_soul:1, wheat:1}, output:'lich_soul_soup', xp:600, req:90, ms:6500, gated:'soul_recipe'},
     {id:'cook_void_banquet', name:'Void Banquet',    icon:'🎂', inputs:{void_core:1, dragon_bones:1, cooked_shark:3}, output:'void_banquet', xp:900, req:99, ms:7000},
     /* b215: sinks for the three late-game crops */
     {id:'cook_goldenroot',  name:'Goldenroot Roast',  icon:'🍠', inputs:{goldenroot:2},                 output:'goldenroot_roast', xp:300, req:65, ms:5000},
@@ -316,12 +313,26 @@ export const ARTISAN_RECIPES = {
   /* The reforges of named pieces (Tyler 2026-11-18: armor, weapons and shields drop, a bench only reforges a named piece):
      Klappa's Klub (style-gear.js) and the Steelgrate (shields.js). And ALL JEWELRY (Tyler 2026-11-18): each crafted piece's jobs
      on its own bench (src/data/jewelry.js JEWEL_PIECES skill), a piece from the metal and a gem set in a plain piece. */
-  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES, JEWELRY_RECIPES_BY_SKILL.smithing)),
+  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES, openJobs(JEWELRY_RECIPES_BY_SKILL.smithing))),
   /* Crafting's cloaks (src/data/jewelry.js, the same table). */
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, JEWELRY_RECIPES_BY_SKILL.crafting)),
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, openJobs(JEWELRY_RECIPES_BY_SKILL.crafting))),
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
+
+/* ── DARK JOBS: recipe rows behind a server switch (a row's `switch`; src/data/jewelry.js JEWEL_SWITCH, the guarantee jobs) ─────────
+   They are NOT in ARTISAN_RECIPES, so nothing that reads the catalogue without asking the server (item tips, the bag's Junk and
+   Materials, skill unlocks, the coherence guard, the tutorial, the bench tax) shows or counts them. Only the switch-aware read
+   ARTISAN_RECIPES_EVERY: the server's own catalogues (hr-accrue's index, hr_activities, the bench inputs) and the client's running-job
+   indexes; the bench window offers a dark job only where the server's `jewel_jobs` section lists it (src/session/jewelry-sections.js
+   jobShown). A row joins ARTISAN_RECIPES the day its switch opens for everyone and loses its `switch`. */
+function openJobs(list) { return list.filter((r) => !r.switch); }
+/** The dark jobs by bench (a bench with none is absent). */
+const SWITCHED_RECIPES = Object.freeze(Object.fromEntries(Object.entries(JEWELRY_RECIPES_BY_SKILL)
+  .map(([skill, list]) => [skill, Object.freeze(byReq(list.filter((r) => r.switch)))]).filter(([, list]) => list.length)));
+/** Every artisan recipe, the dark ones included, by bench: for the switch-aware readers only (above). */
+export const ARTISAN_RECIPES_EVERY = Object.freeze(Object.fromEntries(Object.entries(ARTISAN_RECIPES)
+  .map(([skill, list]) => [skill, SWITCHED_RECIPES[skill] ? byReq(list.concat(SWITCHED_RECIPES[skill])) : list])));
 
 /* isCastleGood(item) — the single predicate behind the "Building Materials"
    lane: the goods the Homestead's rooms and properties are built from. A

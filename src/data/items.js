@@ -865,8 +865,8 @@ for (const [id, row] of Object.entries(towerWeaponItems(ITEMS))) {
 }
 
 /* THE CATACOMB ARMOR (src/data/catacomb-armor.js catacombArmorItems; Tyler 2026-11-16, the descent): each the standard helmet or boots of its
-   slot, weight and key tier as the ladder stands NOW, its own name and its one attribute. The pieces that ship now (CATACOMB_ARMOR_SHIPPED: Bronze
-   and Silver). New ids only, the Hearth Chest's Catacomb keys'. */
+   slot, weight and key tier as the ladder stands NOW, its own name and its one attribute. The pieces that ship (CATACOMB_ARMOR_SHIPPED: Bronze,
+   Silver, Gold and Platinum). New ids only, the Hearth Chest's Catacomb keys'. */
 for (const [id, row] of Object.entries(catacombArmorItems(ITEMS, CATACOMB_ARMOR_SHIPPED))) {
   if (Object.prototype.hasOwnProperty.call(ITEMS, id)) throw new Error('catacomb armor ' + id + ' is already an item');
   ITEMS[id] = row;

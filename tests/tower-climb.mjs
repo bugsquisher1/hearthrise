@@ -22,6 +22,9 @@
 //              the hero's best (the record its checkpoints are read from), the end `died` with no death_xp row and the
 //              Blessings untouched, no coin credited, no item but one key a landing (the chest lane), no ev: count; the run's end stamped and journalled once; the two doors
 //              land the same rows
+//   TC-AFTER   WHEN THE HUNT ENDS after a climb (designer 2026-11-18: one plan, shown at the Tower's door): the hero's choice, set by the real
+//              verb, is frozen on the climb's row and its automatic end runs it as a ground hunt's, both doors, the same rows: the yard at
+//              the server's fee (one fee row, one plan row), or waiting in town with no gold moved
 //   TC-FORGED  the settle refuses a forged window: a skipped floor, a repeated floor, a floor added past what the engine cleared, a floor
 //              claimed off the Tower, coin, an item, a Bestiary count, inflated Level XP; the untampered window lands (the control)
 //   TC-START   the one door: off while the switch is off, `tower_only` through the ordinary door, an unreached checkpoint refused with the
@@ -276,6 +279,69 @@ async function doorsArm(db, M) {
   return bad;
 }
 
+/* ── TC-AFTER ─────────────────────────────────────────────────────────────── */
+/* WHEN THE HUNT ENDS, AFTER A CLIMB (the designer's ruling, 2026-11-18: one plan, shown at the Tower's door, run after a climb too): the
+   hero's choice, stored by the real verb before the door, is frozen on the climb's hunt_sessions row (2027-04-25-hunt-itinerary.sql
+   hr_hunt_after_freeze, a trigger on every hunt row) and the climb's automatic end runs it as a ground hunt's does (hr_hunt_resume, then
+   the minute's sweep for the yard), both doors, the same rows: the yard started at the server's fee (one fee row, one plan row), or waiting
+   in town with no gold moved. tests/hunt-sessions-settle.mjs ITINERARY proves the same rows for a ground hunt. */
+const fee = async (db) => Number(await one(db, `select public.hr_training_fee(public.hr_skill_level('melee', coalesce((select xp from public.player_skills
+    where user_id = $1 and slot = 0 and skill_id = 'melee'), 0)))::text`, [UID]));
+const purse = async (db) => Number(await one(db, 'select coalesce((select w.gold from public.account_wallet w where w.user_id = $1), 0)::text', [UID]));
+async function afterArm(db, M) {
+  const bad = [];
+  const CASES = [
+    { tag: 'the yard', pick: ['train', 'melee'], want: { state: 'started', active: 'combat:training_yard_melee', ran: 1 } },
+    { tag: 'waiting in town', pick: ['wait', null], want: { state: 'waited', why: 'chose_wait', active: 'idle:', ran: 0 } },
+  ];
+  for (const c of CASES) {
+    const lands = {};
+    for (const door of ['closed', 'viewed']) {
+      const tag = `TC-AFTER ${c.tag}, the ${door === 'closed' ? 'browser closed' : 'hunt viewed'}:`;
+      const r = await H.inTx(db, async () => {
+        const h = await climber(db, M, { before: async () => {
+          await db.query('delete from public.hr_rate_counters');
+          await db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [UID]);
+          const p = await one(db, 'select public.hr_hunt_after_set(0, $1, $2, $3::uuid)', [c.pick[0], c.pick[1], idem()]);
+          await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
+          await db.query('delete from public.hr_rate_counters');
+          if (!p || p.ok !== true) throw new Error('hr_hunt_after_set answered ' + JSON.stringify(p));
+        } });
+        const frozen = await one(db, `select jsonb_build_object('choice', after_choice, 'skill', after_skill) from public.hunt_sessions where id = $1`, [h.sid]);
+        try { await drive(db, M, door, h); } catch (e) { return { err: String(e.message).slice(0, 400) }; }
+        const end = await one(db, 'select end_reason from public.hunt_sessions where id = $1', [h.sid]);
+        const gold0 = await purse(db);
+        await db.query('delete from public.hr_rate_counters');
+        const ran = Number(await one(db, 'select public.hr_hunt_after_sweep(50)'));
+        const done = await one(db, 'select after_done from public.hunt_sessions where id = $1', [h.sid]);
+        const active = await one(db, `select coalesce(active_kind, '') || ':' || coalesce(active_id, '') from public.player_state where user_id = $1 and slot = 0`, [UID]);
+        const rows = await one(db, `select jsonb_agg(jsonb_build_object('intent', regexp_replace(l.intent, ':[0-9]+$', ''), 'gold', l.gold,
+                                          'meta', l.meta - 'at' - 'session' - 'hunt_session') order by l.id)
+                                      from public.player_ledger l where l.user_id = $1
+                                       and (l.intent in ('resume', 'after_hunt') or l.intent like 'training_start:%')`, [UID]);
+        return { frozen, end, ran, done, active, rows, gold0, gold1: await purse(db), fee: await fee(db) };
+      });
+      if (r.err) { bad.push(`${tag} ${r.err}`); continue; }
+      if (!r.frozen || r.frozen.choice !== c.pick[0] || (r.frozen.skill ?? null) !== c.pick[1]) bad.push(`${tag} the climb froze ${JSON.stringify(r.frozen)}, not the hero's ${JSON.stringify(c.pick)}`);
+      if (r.end !== 'died') { bad.push(`${tag} CONTROL: the climb ended ${r.end}, not an automatic end`); continue; }
+      const d = r.done || {};
+      if (d.state !== c.want.state || (d.why ?? null) !== (c.want.why ?? null)) bad.push(`${tag} the climb's plan came to ${JSON.stringify(r.done)}, wanted ${c.want.state}${c.want.why ? ' / ' + c.want.why : ''}`);
+      if (r.active !== c.want.active) bad.push(`${tag} the hero is ${r.active}, not ${c.want.active}`);
+      if (r.ran !== c.want.ran) bad.push(`${tag} the sweep ran ${r.ran} hunt(s), not ${c.want.ran}`);
+      const fees = (r.rows || []).filter((x) => x.intent === 'training_start:training_yard_melee');
+      const outs = (r.rows || []).filter((x) => x.intent === 'after_hunt');
+      if (c.want.state === 'started') {
+        /* a ground hunt's rows (hunt-sessions-settle.mjs ITINERARY): the server's fee once, the plan's outcome once, the yard's own place */
+        if (!(r.fee > 0) || d.fee !== r.fee || d.skill !== 'melee' || d.place !== 'yard' || r.gold1 !== r.gold0 - r.fee) bad.push(`${tag} the yard charged ${d.fee} (purse ${r.gold0} -> ${r.gold1}), not the server's ${r.fee}`);
+        if (fees.length !== 1 || Number(fees[0].gold) !== -r.fee || outs.length !== 1) bad.push(`${tag} the fee and the plan's outcome are not journalled once each: ${JSON.stringify(r.rows).slice(0, 300)}`);
+      } else if (r.gold1 !== r.gold0 || fees.length || outs.length) bad.push(`${tag} gold or a fee moved with nothing started (${r.gold0} -> ${r.gold1}, ${JSON.stringify(r.rows).slice(0, 200)})`);
+      lands[door] = JSON.stringify([r.frozen, r.end, { ...d, at: null, session: null }, r.active, r.rows, r.gold0 - r.gold1]);
+    }
+    if (lands.closed && lands.viewed && lands.closed !== lands.viewed) bad.push(`TC-AFTER ${c.tag}: the browser closed lands ${lands.closed.slice(0, 240)}, the hunt viewed ${lands.viewed.slice(0, 240)}`);
+  }
+  return bad;
+}
+
 /* ── TC-FORGED ────────────────────────────────────────────────────────────── */
 const FORGERIES = [
   ['a skipped floor', 'tower_floor_forged', (m) => { m.hunt.tower.floors = m.hunt.tower.floors.map((f) => f + 1); }],
@@ -494,7 +560,7 @@ async function armArm(db) {
   return bad;
 }
 
-const ARMS = { room: roomArm, engine: engineArm, doors: doorsArm, forged: forgedArm, start: startArm, checkpoint: checkpointArm, arm: armArm };
+const ARMS = { room: roomArm, engine: engineArm, doors: doorsArm, after: afterArm, forged: forgedArm, start: startArm, checkpoint: checkpointArm, arm: armArm };
 /* THE CLIMB'S HARNESS, shared (tests/tower-chest.mjs mints its keys through these climbs, both doors). */
 export const HARNESS = Object.freeze({ boot, load, climber, drive, rows, UID, SPAN });
 
@@ -509,6 +575,12 @@ const MUTANTS = [
     from: '  const raw = (xpPm === 1000 ? xp : (xp * xpPm) / 1000) / heroes.length;', to: '  const raw = xp / heroes.length;' },
   { name: 'the floor\'s time is never asked', arm: 'engine', want: /^TC-ENGINE/, file: 'src/core/combat-sim.js',
     from: '    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world, tw) : null;', to: '' },
+  { name: 'a climb freezes no plan of its hero\'s', arm: 'after', want: /^TC-AFTER .*froze/, fn: 'public.hr_hunt_after_freeze()',
+    find: '  new.after_choice := coalesce(new.after_choice, v_def);',
+    replace: "  new.after_choice := case when exists (select 1 from public.hr_tower_rules r where r.hunt_id = new.hunt_id) then v_def else coalesce(new.after_choice, v_def) end;" },
+  { name: 'a climb\'s end runs no plan', arm: 'after', want: /^TC-AFTER .*plan came to/, fn: 'public.hr_hunt_resume(uuid,integer,uuid,text,bigint)',
+    find: '  if p_end is null or not coalesce((select r.resumes from public.hr_hunt_end_reasons r where r.reason = p_end), false) then',
+    replace: '  if p_end is null or exists (select 1 from public.hunt_sessions s join public.hr_tower_rules r on r.hunt_id = s.hunt_id where s.id = p_session)\n     or not coalesce((select r.resumes from public.hr_hunt_end_reasons r where r.reason = p_end), false) then' },
   { name: 'the order check is gone', arm: 'forged', want: /^TC-FORGED (a skipped|a repeated)/, fn: 'public.hr_tower_check(uuid,jsonb,timestamp with time zone,timestamp with time zone)',
     find: "  if exists (select 1 from jsonb_array_elements(v_f) with ordinality e(v, i) where (e.v #>> '{}')::bigint <> v_lo + e.i - 1) then",
     replace: '  if false then' },
@@ -594,7 +666,7 @@ async function main() {
     bad.push(...got);
   }
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? `tower-climb: ${bad.length} FAILED` : 'tower-climb: green (the room, the engine, both doors, forged windows refused, the one door, the arm)');
+  console.log(bad.length ? `tower-climb: ${bad.length} FAILED` : 'tower-climb: green (the room, the engine, both doors, a climb runs its hero\'s plan when it ends, forged windows refused, the one door, the arm)');
   process.exit(bad.length ? 1 : 0);
 }
 

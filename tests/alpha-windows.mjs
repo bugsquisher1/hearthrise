@@ -5950,6 +5950,9 @@ const MUTANTS = [
   ['AW-78 Hunt again stays gold beside an open step', 'src/shell/windows/hunt-summary.js', "cls(go, 'is-primary', town.primary === 'again');", "cls(go, 'is-primary', true);"],
   ['AW-78 the coach takes the gold press again', 'src/shell/windows/hunt-summary.js', '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden>', '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden>'],
   ['AW-78 a step pressed never reads Done', 'src/shell/windows/hunt-summary.js', 'const mark = (r) => { if (r && (r.ok || r.moved > 0)) {', 'const mark = (r) => { if (false) {'],
+  /* audit 2026-11-19 L2 (AW-105): the outgrown card leads with Go to the next ground, in view on a phone too */
+  ['AW-105 the outgrown card leads with a greyed Hunt again again', 'src/shell/windows/hunt-summary.js', "    const way = town.primary === 'ground' ? town.steps.find((s) => s.id === 'ground') : null;", '    const way = null;'],
+  ['AW-105 a phone stacks the Go to press under the steps', 'src/styles/summary.css', '  .hsum-card.is-onward > .hsum-foot { order: 0; position: sticky;', '  .hsum-card.is-onward > .hsum-foot { order: 1; position: static;'],
   ['AW-78 the steps are not the newest card\'s', 'src/shell/windows/hunt-summary.js', "const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };", "const town = { steps: [], primary: 'again' };"],
   ['AW-78 the return card rings the Shop, never the summary\'s row', 'src/data/hunt-tutorial.js', "      hooks: ['[data-hs-win=\"hunt-summary\"] [data-hs-act=\"town\"][data-step=\"sell\"]',\n        '[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',", "      hooks: ['[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',"],
   ['AW-61 the leader enters alone', 'src/shell/windows/hunt-summary.js', "if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);\n    else if (how === 'enter')", "if (how)"],

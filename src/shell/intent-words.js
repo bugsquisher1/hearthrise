@@ -76,7 +76,7 @@ export function skillShortWords(skill, need, have, doing) {
 /* Why one seat held the party's start back, after its name. */
 const SEAT_WORDS = Object.freeze({
   away: 'is away', no_stamina: 'has no stamina left', hunt_open: 'is still hunting', activity_running: 'is busy in town',
-  insufficient_item: 'is short of supplies', activity_locked: 'is too low a level for that hunt', outgrown: 'has outgrown that ground', hunts_paused: 'cannot go while hunts are paused',
+  insufficient_item: 'is short of supplies', activity_locked: 'is too low a level for that hunt', hunts_paused: 'cannot go while hunts are paused',
   too_many_playing: 'would be a fifth hero playing on that account', too_many_playing_here: 'would be a fifth hero playing from that connection',
 });
 
@@ -106,8 +106,8 @@ export function refusalText(r, cs) {
   if (r && r.error === 'not_ready' && seats.length) {
     /* an outgrown seat names the ground it outgrew (blind playthrough 2026-11-19, P1: the leader's own `outgrown` read "Wren is not ready") */
     const why = seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]
-      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : x.error === 'outgrown' && x.hunt && HUNT_INDEX[x.hunt]
-        ? 'has outgrown ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready'));
+      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : x.error === 'outgrown'
+        ? t('hunts.seat_outgrown', { ground: x.hunt && HUNT_INDEX[x.hunt] ? HUNT_INDEX[x.hunt].name : t('hunts.seat_outgrown_that') }) : SEAT_WORDS[x.error] || 'is not ready'));
     return 'Nobody went in. ' + listWords(why, Infinity) + '.';
   }
   /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */

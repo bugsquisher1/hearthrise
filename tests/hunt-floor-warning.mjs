@@ -259,7 +259,7 @@ const MUTANTS = [
   /* G9 (blind playthrough 2026-11-19, P1): an outgrown ground offered to a party with Enter on, its refusal blaming the wrong reason */
   ['the advice keeps a ground the leader has outgrown', 'src/shell/hunt-list.js', 'rows = top === null ? rows : rows.filter(', 'rows = true ? rows : rows.filter('],
   ['Enter stays on for an outgrown seat', 'src/shell/windows/hunts.js', 'enterOffWords(party) || outgrownWords(r, grown, party);', "enterOffWords(party) || '';"],
-  ['an outgrown seat reads "is not ready"', 'src/shell/intent-words.js', ": x.error === 'outgrown' && x.hunt && HUNT_INDEX[x.hunt]\n", ": false && x.hunt && HUNT_INDEX[x.hunt]\n"],
+  ['an outgrown seat reads "is not ready"', 'src/shell/intent-words.js', ": x.error === 'outgrown'\n", ": x.error === 'never'\n"],
   ['the leader is left out of who outgrew it', 'src/shell/hunt-list.js', 'level: s.seat === party.me ? level : s.level, me:', 'level: s.seat === party.me ? null : s.level, me:'],
   ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize, lo));', 'const fit = rows;'],
   ['a lone hero is never sent to a party ground past its soloFrom (the Glade to 44 again)', 'src/shell/hunt-list.js',

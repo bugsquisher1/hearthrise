@@ -120,6 +120,9 @@ export const HUNTS_TEXT = Object.freeze({
      the door would refuse it. {level} the exit Level, {who} "Wren, Level 5" per seat. */
   off_outgrown: 'Ground outgrown at Level {level}, pick a harder one',
   off_outgrown_party: 'Ground outgrown at Level {level}: {who}',
+  /* ...and the server's own seat refusal of it (hr_hunt_party_start not_ready, a seat's `outgrown`), after the hero's name: "Wren has outgrown Mill Cellar" */
+  seat_outgrown: 'has outgrown {ground}',
+  seat_outgrown_that: 'that ground',
   your_leader: 'the leader',
   bag_empty: 'Hunt bag: empty',
   bag_holds: 'Hunt bag: {items}',

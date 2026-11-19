@@ -169,7 +169,7 @@ renderAway.patch = function patchAway(body, ctx) {
       text(rest.querySelector('.haway-rest-head'), b.rest ? b.rest.head : '');
       rows(rest.querySelector('.haway-rest-go'), b.rest ? b.rest.loops : [], {
         key: (l) => l.go,
-        build: () => { const btn = element(ctx.doc, '<button type="button" class="hh-tool" data-hs-act="away-go"></button>'); btn.setAttribute('data-alert', a.key); return btn; },
+        build: () => { const btn = element(ctx.doc, '<button type="button" class="hh-tool" data-hs-act="away-free"></button>'); btn.setAttribute('data-alert', a.key); return btn; },
         patch: (el, l) => { text(el, l.label); attr(el, 'data-go', l.go); prop(el, 'disabled', !!a.pending); },
       });
       text(li.querySelector('.haway-msg'), a.msg || '');
@@ -192,7 +192,8 @@ function dismissAll(ctx) { for (const a of linesOf(ctx)) ctx.alerts.dismiss(a.ke
 renderAway.act = function actAway(ctx, body, action, ev, el) {
   if (ev.type !== 'click') return false;
   if (action === 'away-ok') { ctx.wm.close('away'); return true; }
-  if (action !== 'away-go' && action !== 'away-summary' && action !== 'away-bless') return false;
+  /* away-free: a stamina-free loop's press (its own act: a phone hides the first hero's row copy of away-go, summary.css) */
+  if (action !== 'away-go' && action !== 'away-summary' && action !== 'away-bless' && action !== 'away-free') return false;
   const a = linesOf(ctx).find((x) => x.key === el.getAttribute('data-alert'));
   if (!a || a.pending) return true;
   /* Bless again: the Shop on its Services tab, the hero on screen's; another hero's is shown first (as the death popup's press does) */

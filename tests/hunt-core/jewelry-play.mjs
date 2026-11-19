@@ -93,12 +93,13 @@ const cases = {
     return null;
   },
   'earrings-show': (P) => {
-    /* Steady at T2: 15% of the basic blows that would miss land. The miss share must fall by near that, never by nothing and never by half. */
+    /* Steady at T2: 20% of the basic blows that would miss land (re-sized from 15%, lane/d-jewelry-2b). The miss share must fall by near
+       that, never by nothing and never by half. */
     const missOf = (rs) => sum(rs, 'misses') / Math.max(1, sum(rs, 'misses') + sum(rs, 'basics'));
     const steady = SEEDS.map((secret) => play(P, GLADE, 24, ['tank'], { secret, rings: EARS.steady }));
     const plain = SEEDS.map((secret) => play(P, GLADE, 24, ['tank'], { secret, rings: EARS.plain }));
     const cut = 1 - missOf(steady) / Math.max(1e-9, missOf(plain));
-    if (!(sum(plain, 'misses') > 100 && cut > 0.07 && cut < 0.25)) return 'Steady cut the miss share ' + (100 * missOf(plain)).toFixed(1) + '% -> ' + (100 * missOf(steady)).toFixed(1) + '%';
+    if (!(sum(plain, 'misses') > 100 && cut > 0.1 && cut < 0.3)) return 'Steady cut the miss share ' + (100 * missOf(plain)).toFixed(1) + '% -> ' + (100 * missOf(steady)).toFixed(1) + '%';
     /* Focus at T2: 2% of max mana on each kill. A mage's mana basic is its pace, so it swings it more; a plain-stud mage gets nothing back. */
     const focus = SEEDS.map((secret) => play(P, GLADE, 24, ['mage'], { secret, rings: EARS.focus }));
     const bare = SEEDS.map((secret) => play(P, GLADE, 24, ['mage'], { secret, rings: EARS.plain }));
@@ -121,7 +122,7 @@ const cases = {
     const perked = X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), RINGS.blows), X.ITEMS);
     if (JSON.stringify(perked.jewel) !== JSON.stringify({ keen: 40, follow: 40 })) return 'Hallmarked rings read ' + JSON.stringify(perked.jewel);
     const ears = X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), EARS.both), X.ITEMS);
-    if (JSON.stringify(ears.jewel) !== JSON.stringify({ steady: 150, focus: 20 })) return 'Hallmarked Fang Studs read ' + JSON.stringify(ears.jewel);
+    if (JSON.stringify(ears.jewel) !== JSON.stringify({ steady: 200, focus: 20 })) return 'Hallmarked Fang Studs read ' + JSON.stringify(ears.jewel);
     if (X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), EARS.plain), X.ITEMS).jewel !== undefined) return 'plain Fang Studs carry perks';
     return null;
   },

@@ -47,8 +47,15 @@ export const JEWEL_PERKS = Object.freeze({
      about 1% XP or 2% less damage, about three times that in the case it is built for). Measured 2026-11-18 at the Glade, Level 24, lone,
      3 seeds x 3 h, over plain Fang Studs (tools/balance-sim/itemization-table.mjs sample / built-for): Steady 15% gave +0.3 to +1.7% XP
      by way (20% gave up to +2.4%); Focus 2% gave a mage +3.2% and 6% less damage taken (its case: the mana basic) and a healer +0.4%,
-     where 4% gave the mage +16% and 1% nothing, since a kill returns whole mana. T3 is half again, as Keen's is. */
-  steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 150, 3: 225 }), what: '{pct} of your basic blows that would miss land anyway' }),
+     where 4% gave the mage +16% and 1% nothing, since a kill returns whole mana. T3 is half again, as Keen's is.
+     STEADY RE-SIZED 15% -> 20% (lane/d-jewelry-2b, 2026-11-18: "weak in its intended case"). Measured on the real settle, Fang Studs (Steady)
+     against plain Fang Studs, paired dice, 8 ways x the Glade (24) and the Sewer (18), 3 seeds x 3 h: XP gain, all ways / melee, at the
+     Level and with the main skill 10 under: 15% 1.0 / 1.8 and 1.7 / 2.2; 20% 1.3 / 2.1 and 2.2 / 2.9; 25% 1.9 / 2.8 and 2.7 / 3.7; 30%
+     2.1 / 3.2 and 3.2 / 4.4. The case it is built for is a melee hero under its Level (bows and casters barely miss: 0.2-0.5% at the Level
+     at 15-20%), and 20% puts that case at about 3% while the all-ways hunt stays near the peers' 1% (Keen 1.0, Follow-through 1.1, Surge
+     0.9, Focus 0.3 all ways / a Glade mage 3.1, same harness). No size reaches the plan's 3x over the ordinary hunt: the gain under the
+     Level is 1.4 to 1.7 times the gain at it at every size measured (15 to 70%), because a miss only rises a point a skill level. */
+  steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 200, 3: 300 }), what: '{pct} of your basic blows that would miss land anyway' }),
   focus: Object.freeze({ name: 'Focus', pm: Object.freeze({ 2: 20, 3: 30 }), what: '{pct} of your max mana back on each kill' }),
 });
 

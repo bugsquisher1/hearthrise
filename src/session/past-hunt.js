@@ -10,29 +10,34 @@
 //                                      up, src/shell/alerts.js); the answer read by the analyzer's own reader (hunt-sections.js
 //                                      analyzerFrom). A refusal is remembered as nothing; a network failure may be asked again.
 //   pastHuntOf(cs, session)            the answer, or null (not asked, asking, or nothing): the away line reads it (away-recap.js).
+// Two askers of one session share ONE read: the away line and Earlier hunts (summary-recorder.js recordPast, post-140 audit C4) both
+// ask for the hunt a yard took over, and a second ask while the first is out waits on that same answer, never a second call.
 // Display only: nothing here gates, prices or spends, and the residue holds none of it.
 // ════════════════════════════════════════════════════════════════════════
 import { analyzerFrom } from './hunt-sections.js?v=0.2.140';
 
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-const READS = new WeakMap();   // cs -> Map(session -> analyzer | null | 'asking')
+const READS = new WeakMap();   // cs -> Map(session -> analyzer | null | Promise while asking)
 const readsOf = (cs) => { let m = READS.get(cs); if (!m) { m = new Map(); READS.set(cs, m); } return m; };
 
 /** The server's analyzer of `session` for this hero once it has answered, else null. */
 export function pastHuntOf(cs, session) {
   const v = cs && READS.has(cs) ? READS.get(cs).get(session) : undefined;
-  return v && typeof v === 'object' ? v : null;
+  return v && typeof v === 'object' && !(v instanceof Promise) ? v : null;
 }
 
 /** Read `session`'s analyzer once (see the header); resolves to it, or null. */
 export async function askPastHunt(account, cs, session) {
   if (!account || !account.server || !cs || cs.status === 'closed' || !Number.isInteger(cs.slot) || typeof session !== 'string' || !SESSION.test(session)) return null;
   const m = readsOf(cs);
-  if (m.has(session)) return pastHuntOf(cs, session);
-  m.set(session, 'asking');
-  let ans;
-  try { ans = await account.server.rpc('hr_hunt_analyzer', { p_slot: cs.slot, p_session: session }); } catch (e) { m.delete(session); return null; }
-  const a = ans && ans.ok && ans.body && ans.body.ok === true ? analyzerFrom(cs, ans.body) : null;
-  m.set(session, a);
-  return a;
+  if (m.has(session)) { const v = m.get(session); return v instanceof Promise ? v : pastHuntOf(cs, session); }
+  const read = (async () => {
+    let ans;
+    try { ans = await account.server.rpc('hr_hunt_analyzer', { p_slot: cs.slot, p_session: session }); } catch (e) { m.delete(session); return null; }
+    const a = ans && ans.ok && ans.body && ans.body.ok === true ? analyzerFrom(cs, ans.body) : null;
+    m.set(session, a);
+    return a;
+  })();
+  m.set(session, read);
+  return read;
 }

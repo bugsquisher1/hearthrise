@@ -21,6 +21,7 @@
 // waits on it.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 
 const CROP = /^[a-z_]{1,32}$/;
 const MAX_PLOT = 127;   // the server's index fuse (an extra plot may sit past 63)
@@ -46,6 +47,7 @@ async function settled(ans, cs) {
     if (typeof cs.onShared === 'function') cs.onShared('farm', cs.slot);
     return { ok: true, body: factsOf(b) };
   }
+  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', body: factsOf(b) };
 }
 

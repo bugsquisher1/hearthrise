@@ -49,7 +49,8 @@
 //
 // THE RETURN NEVER LIES OR GOES SILENT (full-game audit 2026-11-18, A2 A6 A22):
 //   GOLD is what the purse kept: the coins the absence looted less the store gold its supplies took (the analyzer's `coins` and `waste`,
-//     both stamped), never the coins alone ("+6,182 gold" while the purse rose 1,843).
+//     both stamped), never the coins alone ("+6,182 gold" while the purse rose 1,843), and less the fee of a yard that took over (the
+//     training section's, post-140 audit C3: +29,219 said while the purse rose 25,925); a yard fee the server has not said, no Gold.
 //   THE YARD THAT TOOK OVER a hunt (its plan, src/shell/hunt-after.js) leaves the hunt's line standing: the stamp's hunt ended while the
 //     player was away and the server opened the training session after the stamp, so the line tells that hunt from what outlives it (the
 //     Level, the death row) and then the yard. A 12 h hunt and a death went untold because the newest session was the yard's.
@@ -77,7 +78,7 @@ import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS }
 import { afterDoneWords } from './hunt-after.js?v=0.2.140';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
 import { trainingOf as trainedBy } from '../data/training.js?v=0.2.140';
-import { trainingPhrase } from '../session/training-sections.js?v=0.2.140';
+import { trainingPhrase, yardPaidOf } from '../session/training-sections.js?v=0.2.140';
 import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.140';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
@@ -150,13 +151,14 @@ function awayStampOf(cs, h) {
     ...(gold !== null && sp !== null ? { sp } : {}), ...(kills !== null ? { kills } : {}), ...(sk ? { k, sx: sk.xp, sl: sk.level } : {}) };
 }
 
-/** The gold the purse kept over the absence: { net, looted, paid }, each two server answers, or null when the stamp kept no store spend
-    (a stamp from before `sp`: the coins alone are never said as gold). */
-function goldOf(was, a) {
+/** The gold the purse kept over the absence: { net, looted, paid, yard }, each two server answers, or null when the stamp kept no store spend
+    (a stamp from before `sp`: the coins alone are never said as gold). `yard`: what the yard that took over billed (all of it inside the
+    absence: it opened after the stamp), the server's; null when it has not said, and then no gold is said (post-140 audit C3). */
+function goldOf(was, a, yard = 0) {
   const coins = coinsOf(a), spent = spentOf(a);
-  if (!Number.isSafeInteger(was.gold) || !Number.isSafeInteger(was.sp) || coins === null || spent === null) return null;
+  if (!Number.isSafeInteger(was.gold) || !Number.isSafeInteger(was.sp) || coins === null || spent === null || !Number.isSafeInteger(yard)) return null;
   const looted = Math.max(0, coins - was.gold), paid = Math.max(0, spent - was.sp);
-  return looted || paid ? { net: looted - paid, looted, paid } : null;
+  return looted || paid || yard ? { net: looted - paid - yard, looted, paid, yard } : null;
 }
 
 /** The trained skill's levels over the absence: { skill, from, to, xp }, two server answers, or null (no skill stamped, no gain). */
@@ -232,7 +234,8 @@ export function awayRecapFrom(cs, was) {
   /* the hunt's own tally (gold, kills, its best find) is the session's. Once the yard took over, the envelope's analyzer is the yard's: the
      hunt's is the server's answer for that session (src/session/past-hunt.js, audit 2026-11-18-139 B4), and until it has come nothing is guessed */
   const a = over ? pastHuntOf(cs, was.s) : analyzerOf(cs);
-  const gold = goldOf(was, a);
+  /* ...and the yard that took over bills the same purse: its fee is in the Gold, or the card says more than the purse moved (C3) */
+  const gold = goldOf(was, a, over ? yardPaidOf(cs, h) : 0);
   if (gold) parts.push(signed(gold.net, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
@@ -256,7 +259,7 @@ export function awayRecapFrom(cs, was) {
   return { id: 'away:' + was.s.replace(/[^A-Za-z0-9_:.-]/g, '_').slice(0, 64) + ':' + was.at, kind: 'away', session: h.sessionId, said, ended: h.ended,
     at: was.at, cameAt: now, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
     facts: { name, hunt, place: yard ? yard.doing : hunt ? huntName(hunt) : '', gone, lvFrom: from, lvTo: lv.level, xp: Math.max(0, lv.xp - was.xp),
-      gold: gold ? gold.net : null, looted: gold ? gold.looted : null, paid: gold ? gold.paid : null, kills: kills !== null ? Math.max(0, kills) : null, best,
+      gold: gold ? gold.net : null, looted: gold ? gold.looted : null, paid: gold ? gold.paid : null, yard: gold ? gold.yard : null, kills: kills !== null ? Math.max(0, kills) : null, best,
       train, died: over ? diedWords(cs, was.s, true) : '', after: then, tookOver: over,
       /* `ask`: the session whose tally the line still waits for; `deathSession`: a death during the absence (the card's Bless again) */
       ask: over && !a ? was.s : null, deathSession: over ? (deathRow ? was.s : null) : h.ended && h.endReason === 'died' ? h.sessionId : null },

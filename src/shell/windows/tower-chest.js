@@ -31,6 +31,7 @@ import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.140';
 import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.140';
 import { whole, localWhen } from '../../render/format.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
+import { busyWords } from '../training-words.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.140';
@@ -48,17 +49,19 @@ export function familyShown(sc, tw) {
   if (fams.length < 2) return null;
   const listed = (id) => (fams.some((f) => f.family === id) ? id : null);
   const held = tw.chest.keys.filter((k) => k.heldAll > 0);
-  const key = held.find((k) => k.key === sc.key);
+  const key = tw.chest.keys.find((k) => k.key === sc.key);
   return listed(sc.fam) || (key && listed(key.family)) || (held[0] && listed(held[0].family)) || fams[0].family;
 }
 
 /** The key rows the pane shows: the shown family's (every row with one family), in the server's order. Pure. */
 const shownKeys = (sc, tw) => { const f = familyShown(sc, tw); return tw && tw.chest ? tw.chest.keys.filter((k) => f === null || k.family === f) : []; };
 
-/** The key the panel shows: the one picked while still held, else the first held, else null (of the family shown). Pure. */
+/** The key the panel shows: the one picked (or last used), held or not, else the first held, else null (of the family shown). A
+    picked key that ran out STAYS picked with Use off (useBlock): a press never spends a key the player did not choose (the
+    full-game sweep's A20: a stale tab spent a Bronze key while it showed Silver picked). Pure. */
 export function keyPicked(sc, tw) {
-  const held = shownKeys(sc, tw).filter((k) => k.heldAll > 0);
-  return held.find((k) => k.key === sc.key) || held[0] || null;
+  const keys = shownKeys(sc, tw);
+  return keys.find((k) => k.key === sc.key) || keys.find((k) => k.heldAll > 0) || null;
 }
 
 /** The metal a key's art is drawn in (the reveal's strips are the Tower's four): a Tower key's own id, another family's the Tower row at
@@ -88,7 +91,7 @@ export function useBlock(cs, tw, k) {
   const c = tw && tw.chest;
   if (!c || !k || k.heldAll < 1) return t('tower.off_no_key');
   const h = huntOf(cs);
-  if (h && !h.ended) return t('tower.off_hunting');
+  if (h && !h.ended) return busyWords(cs, t('tower.off_hunting'));
   if (!k.ready) return k.gear === 'armor' ? t('catacomb.not_ready') : t('tower.not_ready');
   const f = familyRow(tw, k);
   if (f && f.openedWeek >= f.maxWeek) return t('tower.off_week', { max: f.maxWeek });
@@ -352,7 +355,8 @@ export function actChest(ctx, cs, tw, sc, action, el, repaint) {
   if (useBlock(cs, tw, k)) { repaint(); return true; }
   const count = action === 'chest-use-all' ? useAllCount(tw, k) : 1;
   if (count < 1) { repaint(); return true; }
-  sc.result = null;
+  /* the key pressed is the pick from now on: a refusal's re-read that finds it gone leaves it picked, Use off (A20) */
+  sc.result = null; sc.key = k.key;
   runIntent(sc, repaint, async () => { const r = await openChest(ctx.account, cs, CHEST_ID, k.key, count); if (r.ok) sc.result = Object.assign({}, r, { key: k.key, metal: metalOfKey(tw, k) }); return r; },
     t('tower.busy_open'), () => '', cs);
   return true;

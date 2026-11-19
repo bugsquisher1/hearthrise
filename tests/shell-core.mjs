@@ -1074,7 +1074,7 @@ async function runTests(mods) {
     ok(nextOf('ammo_out').includes('Pack more ammo for a longer hunt'), 'out of ammo: ' + nextOf('ammo_out'));
     ok(nextOf('runes_out').includes('Pack more runes for a longer hunt'), 'out of runes: ' + nextOf('runes_out'));
     ok(nextOf('gold_out').includes('Lower the gold reserve or pack your own supplies'), 'out of gold: ' + nextOf('gold_out'));
-    ok(nextOf('died').includes('Start a gathering job before a hunt'), 'a death resumes a job too: ' + nextOf('died'));
+    ok(nextOf('died').includes('Tip: set When the hunt ends to a job or the yard'), 'a death points at When the hunt ends: ' + nextOf('died'));
     /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
     ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
     ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
@@ -1096,7 +1096,17 @@ async function runTests(mods) {
   t('R3n out of stamina, the next line names the yard and a bench as well as gathering', () => {
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1'), STAMINA_NEXT, 'the stamina end');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'died'), 's-1'),
-      'Start a gathering job before a hunt to resume it after', 'a death keeps the gathering line');
+      'Tip: set When the hunt ends to a job or the yard', 'a death keeps the When the hunt ends line');
+  });
+  /* R3p (post-140 audit C1): a party end the hero's own box chose (Leave if anyone leaves the hunt or dies, Tyler 2026-10-22, on by default)
+     fell to the gathering tip, stale advice under a party end. It names the box, on the end card and the away card alike. */
+  t('R3p a party end names the Leave box, never the gathering tip', () => {
+    const BOX = 'Party: untick Leave if anyone leaves to keep hunting';
+    for (const reason of ['party_member_left', 'party_member_died']) {
+      eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason), 's-1'), BOX, 'the end card after ' + reason);
+      const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
+      ok(away.includes(BOX + '.') && !/When the hunt ends/.test(away), 'the away card after ' + reason + ': ' + away);
+    }
   });
   /* R3t (walk row 7): a 12-hour yard session ended "Set a longer hunt next time, up to the stamina you have." Training uses no stamina
      and stops at its own cap: that end says to start it again, and no other training end gives hunting advice. */
@@ -1149,7 +1159,7 @@ async function runTests(mods) {
     /* training: the yard's fee and its longest stay, the server's; under its Level, why the hero would wait */
     const d = HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: ROCK }));
     eq(d.picked, 'train:melee', 'a training choice is picked with its skill');
-    eq(d.note, '122 gold/h, up to 12 h · Can\'t pay: waits in town', 'the yard\'s cost, and what a short purse does');
+    eq(d.note, '122 gp/h, paid hourly in advance · up to 12 h · Out of gold: waits in town', 'the yard\'s cost, and what a short purse does');
     eq(HA.afterChoices(hero({ choice: 'train', skill: 'melee', job: null }, { ...TR, rate: { ...TR.rate, level: 5 } })).note,
       'Yard from Level 10', 'under the yard\'s Level');
     /* a server that sends no training offers none; one that sends no section draws no control */
@@ -1396,12 +1406,15 @@ async function runTests(mods) {
       { track: () => {}, clock: () => 0 });
     const blessed = (held) => ({ permille: 0, free_until: 30, tiers: [1, 2, 3].map((tier) => ({ tier, permille: 250 * tier, price: 0, held })) });
 
-    ta('R3k a hunt the yard took over keeps its Gold, Kills and Best find: the server\'s tally of that session, read once (post-patch audit B4)', async () => {
+    /* THE YARD THAT TOOK OVER BILLS THE SAME PURSE (post-140 audit C3: the card said +29,219 while the purse moved +25,925, the Training window
+       "Paid: 3,294 gold"): its training section's run, two hours paid so far */
+    const YARD_RUN = { skills: ['melee'], max_hours: 12, quotes: [], run: { skill: 'melee', where: 'yard', since: iso(T0 + 12 * H), fee_h: 302, paid: 604 } };
+    ta('R3k a hunt the yard took over keeps its Gold, Kills and Best find: the server\'s tally of that session, read once (post-patch audit B4), less the yard\'s fee (C3)', async () => {
       const calls = [];
       const server = { rpc: async (name, args) => { calls.push([name, args]);
         return { ok: true, body: { ok: true, hunt_ms: 12 * H, session: {}, hero: { kills: 400, coins: 2600, waste: 900, loot: { bones: 50, iron_platebody: 1 } } } }; } };
       /* THE BROWSER CLOSED: the card comes up with no Gold or Kills guessed, then the server's tally of the stamped hunt fills them */
-      const cs = heroOf(yard(), STAMP, T0 + 13 * H);
+      const cs = heroOf(Object.assign(yard(), { training: YARD_RUN }), STAMP, T0 + 13 * H);
       const centre = centreWith(cs, server);
       const first = awayLine(centre);
       ok(first && first.facts.gold === null && first.facts.kills === null, 'CONTROL: before the read nothing is guessed: ' + JSON.stringify(first && first.facts));
@@ -1409,18 +1422,30 @@ async function runTests(mods) {
       for (const fn of cs.subs) fn(cs, 'changed');
       await tick();
       const line = awayLine(centre);
-      eq([line.facts.gold, line.facts.looted, line.facts.paid, line.facts.kills, line.facts.best], [1650, 2500, 850, 390, 'iron_platebody'], 'the hunt\'s own tally over the absence');
-      ok(/\+1,650 gold, 390 kills\. Best find: Iron Platebody\./.test(line.text) && /Then Ashwick went to the yard to train Melee\./.test(line.text), 'the line: ' + line.text);
+      /* the purse moved 2,500 of coins less 850 of store supplies less the yard's 604: +1,046, never the hunt's +1,650 alone */
+      eq([line.facts.gold, line.facts.looted, line.facts.paid, line.facts.yard, line.facts.kills, line.facts.best], [1046, 2500, 850, 604, 390, 'iron_platebody'],
+        'the hunt\'s own tally over the absence, less the yard that took over');
+      ok(/\+1,046 gold, 390 kills\. Best find: Iron Platebody\./.test(line.text) && /Then Ashwick went to the yard to train Melee\./.test(line.text), 'the line: ' + line.text);
       const block = AW.awayBlockOf(cs, line);
       eq([block.result.figs.map((f) => f.key), block.best, block.result.ups], [['xp', 'gold', 'kills'], 'iron_platebody', ['Melee 40 → 42']], 'the card\'s result block is whole, the yard\'s levels beside it');
+      const fig = block.result.figs.find((f) => f.key === 'gold');
+      eq([fig.value, fig.sub], ['+1,046 gp', '2,500 gp in coins, 850 gp on supplies, 604 gp at the yard'], 'the card\'s Gold is the purse\'s move, the yard said under it');
+      /* the yard ended: its last stop names this session and what it billed; a last stop of another session, or no section, says no Gold */
+      const at = (training, ended) => AR.awayRecapFrom(Object.assign(cs, { env: Object.assign(yard({ ended, from: T0 + 12 * H }), training === undefined ? {} : { training }) }), STAMP);
+      const stop = (session) => ({ skills: ['melee'], run: null, last_stop: { reason: 'hours', skill: 'melee', at: iso(T0 + 24 * H), session, xp: 1, paid: 3294 } });
+      eq(((at(stop(S2), true) || {}).facts || {}).gold, 2500 - 850 - 3294, 'an ended yard: its whole bill');
+      eq([((at(stop('another'), true) || {}).facts || {}).gold, ((at(undefined, false) || {}).facts || {}).gold], [null, null], 'a yard fee the server has not said: no Gold');
+      cs.env = Object.assign(yard(), { training: YARD_RUN });
       for (const fn of cs.subs) fn(cs, 'changed');
       await tick();
       eq(calls, [['hr_hunt_analyzer', { p_slot: 0, p_session: S1 }]], 'one read, of that session');
       centre.destroy();
-      /* THE HUNT IN VIEW: the page watched it end and roll into the yard, so no card and no read */
+      /* THE HUNT IN VIEW: the page watched it end and roll into the yard, so no card and no read (its end card is in Earlier hunts, recorded
+         as it ended: summary-recorder.js, so Earlier hunts has nothing to read either, post-140 audit C4) */
       const seen = [];
       const watched = heroOf(Object.assign(yard(), { hunt: { session_id: S1, hunt_id: 'mosslight_glade', ended: false, session: {}, hero: {}, pose: { units: [] } } }),
         Object.assign({}, STAMP, { at: T0 + 13 * H - MIN }), T0 + 13 * H);
+      watched.record.residue.huntSummaries = [{ id: S1, hunt: 'mosslight_glade', at: T0 + 12 * H, reason: 'stamina' }];
       const wc = centreWith(watched, { rpc: async (n, a) => { seen.push([n, a]); return { ok: false }; } });
       watched.env = yard();
       for (const fn of watched.subs) fn(watched, 'changed');
@@ -1460,12 +1485,18 @@ async function runTests(mods) {
     });
 
     t('R3m a hunt out of gold says why with the numbers that ended it, on the end card and the away card (post-patch audit B3)', () => {
-      const WHY = 'Gold reserve reached. Store supplies cost 1,160 gp and the coins brought in 680 gp, so your gold fell to your 300 gp reserve.';
+      const WHY = 'Gold reserve reached. Store supplies cost 1,160 gp and coins brought in 680 gp. The store stopped selling supplies at your 300 gp reserve.';
       /* THE HUNT IN VIEW: its end card (the stored summary's server tally: coins 680, loot 311, balance -169, so 1,160 gp of store supplies) */
       const card = { reason: 'gold_out', gold: 680, lootValue: 311, balance: -169 };
       eq(SM.reasonWords(card, 'Solo', null, 300), WHY, 'the end card');
       eq(SM.reasonWords(card, 'Solo', null, null), 'Gold reserve reached', 'no reserve from the server: the label alone');
-      eq(SM.reasonWords({ reason: 'gold_out' }, 'Solo', null, 300), 'Gold reserve reached. Your gold fell to your 300 gp reserve.', 'no tally: the reserve alone');
+      eq(SM.reasonWords({ reason: 'gold_out' }, 'Solo', null, 300), 'Gold reserve reached. The store stopped selling supplies at your 300 gp reserve.', 'no tally: the reserve alone');
+      /* NO CAUSE IS CLAIMED (post-140 audit C9): the coins beat the supplies and the reserve was raised over the purse mid-hunt. It read
+         "the coins brought in 14,325 gp, so your gold fell to your 20,000 gp reserve": a cause the numbers deny. */
+      const raised = SM.reasonWords({ reason: 'gold_out', gold: 14325, lootValue: 0, balance: 14325 - 9706 }, 'Solo', null, 20000);
+      eq(raised, 'Gold reserve reached. Store supplies cost 9,706 gp and coins brought in 14,325 gp. The store stopped selling supplies at your 20,000 gp reserve.',
+        'coins over supplies, a reserve over the purse');
+      ok(!/so your gold fell|fell to/.test(raised), 'a cause the numbers deny: ' + raised);
       /* THE BROWSER CLOSED: the away card's line and its why, from the hunt's analyzer and the server's reserve */
       const S7 = '77777777-7777-4777-8777-777777777777';
       const away = heroOf({ name: 'Solo', level: { xp: XP57 + 500, level: 57, into: 0, need: 1 }, hunt_settings: { gold_floor: 300 },
@@ -1655,9 +1686,15 @@ const MUTANTS = [
   { test: 'R8', file: 'src/shell/alerts.js', from: '    const titled = titleNewsOf(cs, (id) => wasSeen(cs, id));', to: '    const titled = null;' },
   /* R3k-R3m: the post-patch audit's return findings (2026-11-18 v0.2.139 B4 B5 B3) */
   { test: 'R3k', file: 'src/shell/away-recap.js', from: '  const a = over ? pastHuntOf(cs, was.s) : analyzerOf(cs);', to: '  const a = over ? null : analyzerOf(cs);' },
+  /* R3k (post-140 audit C3): the yard that took over is out of the Gold; a fee the server has not said is no Gold, never a short figure */
+  { test: 'R3k', file: 'src/shell/away-recap.js', from: '  const gold = goldOf(was, a, over ? yardPaidOf(cs, h) : 0);', to: '  const gold = goldOf(was, a);' },
+  { test: 'R3k', file: 'src/session/training-sections.js', from: "  return tr.lastStop && tr.lastStop.session === h.sessionId ? tr.lastStop.paid : null;", to: '  return tr.lastStop ? tr.lastStop.paid : 0;' },
+  { test: 'R3k', file: 'src/shell/result-block.js', from: "    const sub = yard ? t(", to: "    const sub = false ? t(" },
+  /* R3m (post-140 audit C9): the reserve line claims no cause */
+  { test: 'R3m', file: 'src/data/text/summary.js', from: "coins brought in {coins}. The store stopped selling supplies at your {floor} reserve.'", to: "coins brought in {coins}, so your gold fell to your {floor} reserve.'" },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "      if (a.kind === 'away') askPast(cs, a);\n", to: '' },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "if (!session || !a.stamp || pastAsked.has(cs.slot + ':' + session)) return;", to: 'if (!session || !a.stamp) return;',
-    also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) return pastHuntOf(cs, session);\n', to: '' }] },
+    also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) { const v = m.get(session); return v instanceof Promise ? v : pastHuntOf(cs, session); }\n', to: '' }] },
   { test: 'R3l', file: 'src/shell/windows/away.js', from: "summary: go === 'again', bless: blessOf(cs, f) };", to: "summary: go === 'again', bless: '' };" },
   { test: 'R3l', file: 'src/shell/windows/away.js', from: "if (ctx.character && ctx.character.slot === a.slot) ctx.wm.openTab('shop', 'services'); else", to: "if (false) ctx.wm.openTab('shop', 'services'); else" },
   { test: 'R3l', file: 'src/shell/away-recap.js', from: ": h.ended && h.endReason === 'died' ? h.sessionId : null },", to: ': null },' },
@@ -1733,7 +1770,9 @@ const MUTANTS = [
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: " || !RESUME_AFTER_END.includes(h.endReason)) return null;", to: ') return null;' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "if (st.active_kind !== 'idle') return null;", to: '' },
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "hours: 'away.next_longer', ", to: '' },
-  { test: 'R3n', file: 'src/shell/after-hunt.js', from: "\n  stamina: 'away.next_stamina' });", to: ' });' },
+  { test: 'R3n', file: 'src/shell/after-hunt.js', from: "\n  stamina: 'away.next_stamina', party_member_left:", to: '\n  party_member_left:' },
+  /* R3p: a party end the hero's box chose names the box (post-140 audit C1) */
+  { test: 'R3p', file: 'src/shell/after-hunt.js', from: ", party_member_left: 'away.next_party', party_member_died: 'away.next_party' });", to: ' });' },
   { test: 'R3t', file: 'src/shell/after-hunt.js', from: "  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };\n", to: '' },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };\n", to: '' },

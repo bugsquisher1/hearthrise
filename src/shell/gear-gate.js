@@ -16,6 +16,7 @@ import { skillsOf } from '../session/item-sections.js?v=0.2.140';
 import { levelOf } from '../session/character-sections.js?v=0.2.140';
 import { REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.140';
 import { needOf } from './item-lore.js?v=0.2.140';
+import { busyWords } from './training-words.js?v=0.2.140';
 
 /** The words beside a gear control a running hunt turns off (one piece: the engine's own refusal line). */
 export const GEAR_HUNT_WORDS = Object.freeze({
@@ -31,6 +32,14 @@ export function gearLocked(cs) {
   return !!h && !h.ended && !!st && st.active_kind === 'combat';
 }
 
+/** Why the open session turns gear off, in words ('' when it does not): a hunt's (GEAR_HUNT_WORDS), or the yard's while the hero trains
+    (training-words.js busyWords, post-140 audit C7: "Leave the hunt to put these on." stood over a hero at the Training Yard). `which`:
+    'one' a piece, 'upgrades' Equip upgrades. */
+export function gearLockWhy(cs, which = 'one') {
+  if (!gearLocked(cs)) return '';
+  return which === 'upgrades' ? busyWords(cs, GEAR_HUNT_WORDS.upgrades, 'training.busy_upgrades') : busyWords(cs, GEAR_HUNT_WORDS.one, 'training.busy_gear');
+}
+
 /** The hero's requirement for `id` in words against the server's numbers: { text, short }, or null (none). */
 function gearNeed(cs, id) {
   const lv = levelOf(cs);
@@ -42,7 +51,7 @@ function gearNeed(cs, id) {
  * sections say nothing against it (or do not know yet).
  */
 export function wearBlock(cs, id) {
-  if (gearLocked(cs)) return GEAR_HUNT_WORDS.one;
+  if (gearLocked(cs)) return gearLockWhy(cs);
   const need = id ? gearNeed(cs, id) : null;
   return need && need.short ? need.text + '.' : '';
 }

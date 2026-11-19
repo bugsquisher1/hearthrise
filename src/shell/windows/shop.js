@@ -34,7 +34,7 @@ import { toolLossWords } from '../town-work.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { showTip, hideTip } from './item-tip.js?v=0.2.140';
 import { upgradeOf, upgradeLineHtml, patchUpgradeLine, equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.140';
-import { gearLocked } from '../gear-gate.js?v=0.2.140';
+import { gearLockWhy } from '../gear-gate.js?v=0.2.140';
 import { revealInWindow } from '../widgets/bits.js?v=0.2.140';
 import { servicesPaneHtml, patchServicesPane, actServicesPane } from './services.js?v=0.2.140';
 import { CROPS } from '../../data/gathering.js?v=0.2.140';
@@ -135,7 +135,7 @@ function patchBuy(root, st, ctx) {
   cls(root.querySelector('.hw-buy-none'), 'is-on', !offers.length);
   /* Right after a gear purchase: put on what is now better, without four menus (designer, gold-sinks 2026-10-22). */
   patchUpgradeLine(root, st.sc.wear ? upgradeOf(st.cs) : { picks: [] }, st.sc.wear, st.sc.pending,
-    { locked: gearLocked(st.cs), msg: st.sc.msgAt === 'upgrade' ? st.sc.msg : '' });
+    { locked: gearLockWhy(st.cs, 'upgrades'), msg: st.sc.msgAt === 'upgrade' ? st.sc.msg : '' });
 }
 
 /* Sell spare gear, as its button shows and sends it: what Equip upgrades would put on stays (upgrade-line.js upgradeOf, the same plan). */

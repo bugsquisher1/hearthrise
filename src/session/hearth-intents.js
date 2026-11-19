@@ -15,6 +15,7 @@
 // One ask in the account's intent ledger (askVia), so the pressed control waits.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { NAMED_FUELS } from '../data/hearth.js?v=0.2.140';
 
 const usable = (account, cs) => !!account && !!account.server && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
@@ -32,6 +33,7 @@ export function burnNamedFuel(account, cs, item) {
     const ans = await account.server.rpc('hr_hearth_burn', { p_slot: cs.slot, p_item: item, p_idem: globalThis.crypto.randomUUID() });
     const b = ans && ans.body && typeof ans.body === 'object' && !Array.isArray(ans.body) ? ans.body : {};
     if (!(ans && ans.ok && b.ok === true)) {
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       /* `verb` and `item` let intent-words.js refusalText say it in the Hearth's words, with the server's numbers */
       return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'hearth_burn', item,
         need: int(b.need), have: int(b.have), hunt: word(b.hunt), waitS: int(b.wait_s), perDay: int(b.per_day) };

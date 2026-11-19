@@ -99,6 +99,9 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 .tt-start-row .hh-select { flex: 0 1 auto; margin-left: auto; min-width: 96px; min-height: 36px; font-size: var(--t-small); font-weight: 700; }
 .tt-foot .hw-why { margin: 0 2px 6px; }
 .tt-foot .hw-why:empty { display: none; }
+/* Before entering and When the hunt ends on the foot, over the start row (./hunt-after-pane.js): the Tower's head spacing, not the Hunts page's */
+.tt-foot .tt-before-box, .tt-foot .hw-after { margin: 0 0 8px; }
+.tt-foot .hw-after .hw-hd-h { margin: 4px 0 6px; }
 /* Before entering: what the bar buys from the store, a box under the rules (audit 2026-11-18 A5); none while a climb runs */
 .tt-before-box:has(.tt-before:empty) { display: none; }
 .tt-go { display: block; width: 100%; min-height: 40px; }
@@ -268,8 +271,9 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
 /* Before entering, in the foot over the Start Room (read whole beside Enter), none while a descent runs; Enter the width of the column
    (the Climb's own look, its own class: one window, two doors) */
 .tk-before-box { margin: 0 0 8px; }
-/* the foot is the column's scroll edge: a rule over it, so a box sliding under it reads as scrolled, not cut */
-.tk-foot { border-top: 2px solid var(--steel-sep); padding-top: 8px; }
+/* the foot is the column's scroll edge (the Catacombs' and the Climb's, each holding its whole door): a rule over it, so a box sliding
+   under it reads as scrolled, not cut */
+.tk-foot, .tt-climb-foot { border-top: 2px solid var(--steel-sep); padding-top: 8px; }
 .tk-before-box:has(.tk-before:empty) { display: none; }
 .tk-go { display: block; width: 100%; min-height: 40px; }
 
@@ -313,6 +317,10 @@ button.tt-lbl:focus-visible { outline: 2px solid var(--gold); outline-offset: -2
   /* the deepest room over its two places, one a line */
   .tk-pane .tt-best { flex-direction: column; align-items: flex-start; gap: 2px; }
   .tk-rank + .tk-rank { margin-left: 0; }
+  /* a key row in the narrow column: Open chest under the name, so a long key name ("Waterlogged") wraps in the row's whole width and never
+     runs under it (2026-11-18 local-world read at 922x423) */
+  .tk-key { flex-wrap: wrap; row-gap: 2px; padding-block: 4px; }
+  .tk-key-open { flex-basis: 100%; padding-left: calc(var(--icon-1) + 8px); }
 }
 
 /* ── A CLIMB'S END CARD (the hunt summary, src/shell/tower-end-card.js): the run up the stack, the rows and the keys under it ── */

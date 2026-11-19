@@ -17,7 +17,8 @@ export const TOWER_TEXT = Object.freeze({
 
   /* THE CLIMB TAB's column: label, value (each value the server's: the mode's pay, the rules, the hero's best). */
   best_head: 'Best Floor',
-  best_none: 'None',
+  /* a record never set (Best Floor, and the Catacombs' Deepest Room): the game's empty mark, never the word None (2026-11-18 review) */
+  best_none: '—',
   rank: 'Rank',
   rank_n: '#{rank}',
   /* past the board's depth (the server's `over`, 1,000): the genre's "#1,000+" */

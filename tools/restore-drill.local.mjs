@@ -639,7 +639,8 @@ async function main() {
   if (!keep) TEMP_DIR = dir;
   const tAll = performance.now();
   const ex = from ? loadExport(from) : await exportFrom(src, dir);
-  const { db } = await step('2 rebuild: schema + catalogues from the repo (bootReplay)', async () => ({ ...(await bootReplay()), note: 'PGlite (PostgreSQL 18), the repo chain' }));
+  /* liveCalendar: a disaster rebuild runs the chain as written, the live events armed (tests/schema-replay.mjs quietCalendar is the guards' view) */
+  const { db } = await step('2 rebuild: schema + catalogues from the repo (bootReplay)', async () => ({ ...(await bootReplay({ liveCalendar: true })), note: 'PGlite (PostgreSQL 18), the repo chain' }));
   const ld = await step('3 load: rows from the export files', () => restoreInto(db, from || dir));
   const rto = Math.round(performance.now() - tAll);
   const census = v4census(db, ex, dir);

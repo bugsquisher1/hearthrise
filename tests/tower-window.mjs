@@ -33,6 +33,10 @@
 //         the Level it reads "Requires Level 10" (the server's need) and sends nothing, a seat under it is named ("Bran: Level 8") after a
 //         reload, no gate from the server reads "Checking…" and stays off; at the Level the press is sent; with the window open a
 //         tower_party_level refusal says "Bran: Level 8, requires 10", re-reads, and Enter shuts on the new gate; tower_level says the need
+//   TW-11 WHEN THE HUNT ENDS AT THE DOOR (the designer, 2026-11-18: a climb's end runs the one plan, so it is shown before Enter): the
+//         Climb's foot draws the server's plan (hr_hunt_after_section) over Enter, its choices, the picked one and the yard's fee
+//         (hr_training_section); a change sends ONE hr_hunt_after_set and no Tower verb, the re-read shows the server's choice; with no
+//         section from the server, no control
 //   TW-4  THE CHEST: the firebox with THE CHEST ON THE LEDGE BESIDE THE FIRE, never over it (Tyler 2026-11-16 on mock A); a slot a key
 //         row in its metal with the count held and its weapon chance (one not held is no press); the saved stokes as presses with their
 //         Cinders, "Chance" = the server's chance_ppm; a stoke press saves the default (ONE hr_chest_stoke_default); Use sends ONE
@@ -223,7 +227,7 @@ const chestView = (page) => page.evaluate(() => {
    red a whole run prints, since no arm reads another's state. It stops at its first red (hunt-screen's stopAtFirst), so the waits
    its defect leaves hanging cost nothing: the 53 took 6.1 min after the clean control (1.8), at the runner's pace. The plain run and
    the clean control run every arm, every rule and the tail. */
-const ARMS = ['TW-1', 'TW-2', 'TW-3', 'TW-10', 'TW-4', 'TW-7', 'TW-5', 'TW-6', 'TW-9'];
+const ARMS = ['TW-1', 'TW-2', 'TW-3', 'TW-10', 'TW-11', 'TW-4', 'TW-7', 'TW-5', 'TW-6', 'TW-9'];
 const armOf = (name) => ARMS.find((a) => name.startsWith(a + ' ')) || null;
 const STOP = Symbol('first red');
 
@@ -473,6 +477,53 @@ async function checks(overrides, shots, { arm = null } = {}) {
       await page.click('[data-hs-win="tower"] .tt-go');
       if (!(await wait(page, () => (document.querySelector('[data-hs-win="tower"] .hh-intent-msg')?.textContent || '') === 'Requires Level 10'))) fails.push('TW-10 a tower_level refusal reads ' + JSON.stringify((await climbView(page)).msg));
       if (errors.length) fails.push('TW-10 console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+    if (runs('TW-11')) { // TW-11 WHEN THE HUNT ENDS AT THE DOOR (the designer, 2026-11-18: a climb's end runs the one plan, so the door shows it)
+      const { ctx, page, errors, s } = await open({ width: 1440, height: 900 }, { tower: section() });
+      /* the server's plan and the yard's quotes, as hr_hunt_after_section and hr_training_section answer them (alpha-windows AW-35's) */
+      s.env.hunt_after = { choice: 'train', skill: 'melee', grace_s: 60, job: null, now: null, last: null };
+      s.env.training = { skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12, quotes: ['melee', 'ranged', 'magic', 'defense'].map((skill) => ({ skill, level: 12, fee_h: 122 })),
+        rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 12 } };
+      await replay(page); await openTower(page);
+      const afterOf = () => page.evaluate(() => {
+        const w = document.querySelector('[data-hs-win="tower"]'), sec = w && w.querySelector('[data-pane="climb"] .tt-foot .hw-after');
+        if (!sec) return null;
+        const sel = sec.querySelector('.hw-after-pick'), go = w.querySelector('.tt-go');
+        return { shown: !sec.hidden && !!sec.getClientRects().length, head: sec.querySelector('.hw-hd-h').textContent, options: Array.from(sel.options).map((o) => o.textContent),
+          value: sel.value, off: sel.disabled, note: sec.querySelector('.hw-after-note').textContent,
+          overEnter: !!(sec.compareDocumentPosition(go) & Node.DOCUMENT_POSITION_FOLLOWING), go: go.disabled ? 'off' : 'on',
+          /* Before entering, on the same foot and read whole: every line inside the window's body, over the plan */
+          beforeWhole: (() => {
+            const lis = Array.from(w.querySelectorAll('.tt-foot .tt-before li')).filter((li) => li.getClientRects().length);
+            const body = (w.querySelector('[data-pane="climb"]').closest('[data-hs-body]') || w).getBoundingClientRect(), top = sec.getBoundingClientRect().top;
+            return lis.length > 0 && lis.every((li) => { const r = li.getBoundingClientRect(); return r.top >= body.top - 1 && r.bottom <= body.bottom + 1 && r.bottom <= top + 1; });
+          })() };
+      });
+      const v = await afterOf();
+      if (!v || !v.shown || v.head !== 'When the hunt ends' || v.options.join('|') !== 'Wait in town|Train Melee at the yard|Train Ranged at the yard|Train Magic at the yard|Train Defense at the yard'
+        || v.value !== 'train:melee' || v.note !== '122 gp/h, paid hourly in advance · up to 12 h · Out of gold: waits in town' || v.off || !v.overEnter || v.go !== 'on' || !v.beforeWhole)
+        fails.push('TW-11 the Climb\'s door reads ' + JSON.stringify(v));
+      if (shots) { await page.waitForTimeout(150); await page.screenshot({ path: join(shots, 'tower-climb-after-1440x900.png') }); }
+      /* a change sends ONE hr_hunt_after_set (the choice and the skill, nothing else) and no Tower verb */
+      const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_after_set');
+      const n0 = asks().length;
+      await page.selectOption('[data-hs-win="tower"] [data-pane="climb"] .hw-after-pick', 'wait');
+      for (let i = 0; i < 30 && asks().length === n0; i++) await page.waitForTimeout(100);
+      await page.waitForTimeout(400);
+      const asked = asks().slice(n0).map((c) => c.body);
+      if (asked.length !== 1 || asked[0].p_choice !== 'wait' || asked[0].p_skill !== null || Object.keys(asked[0]).sort().join() !== 'p_choice,p_idem,p_skill,p_slot')
+        fails.push('TW-11 picking Wait in town at the door sent ' + JSON.stringify(asked));
+      if (verbs(s).length) fails.push('TW-11 a change of plan sent a Tower verb: ' + verbs(s).map((c) => c.name));
+      /* the answer's re-read is what shows: the server still says the yard */
+      const back = await afterOf();
+      if (!back || back.value !== 'train:melee') fails.push('TW-11 the door kept a pick the server did not send back: ' + JSON.stringify(back && back.value));
+      /* a server with no plan section: no control at the door */
+      delete s.env.hunt_after; delete s.env.training;
+      await replay(page); await openTower(page);
+      const bare = await afterOf();
+      if (!bare || bare.shown) fails.push('TW-11 with no hunt_after section the door still draws the plan: ' + JSON.stringify(bare));
+      if (errors.length) fails.push('TW-11 console errors: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
     }
     if (runs('TW-4')) { // TW-4
@@ -886,6 +937,10 @@ async function checks(overrides, shots, { arm = null } = {}) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
+  /* TW-11, When the hunt ends at the door (lane/d-catacomb-gold-platinum, the designer's ruling 2026-11-18) */
+  ['TW-11 the Climb\'s door hides When the hunt ends', 'src/shell/windows/tower.js', "    + afterHtml() + '<label class=\"tt-start-row\">", "    + '<label class=\"tt-start-row\">"],
+  ['TW-11 the door draws no plan from the server', 'src/shell/windows/tower.js', "    patchAfter(root.querySelector('[data-pane=\"' + sc.tab + '\"]'), ctx, { off: sc.pending, now: !!(h && !h.ended) });", "    void h;"],
+  ['TW-11 a change of plan at the door is never sent', 'src/shell/windows/tower.js', "  if (action === 'after') return actAfter(", "  if (action === 'after-x') return actAfter("],
   /* TW-10, the door's Level (lane/c-entry-gates) */
   ['TW-10 Enter ignores the door\'s Level', 'src/shell/windows/tower.js', "  if (!gate.ok) return t('tower.off_level', { level: gate.need });", '  if (false) return \'\';'],
   ['TW-10 a gate not read yet opens Enter', 'src/shell/windows/tower.js', "  if (!gate) return t('tower.off_checking');", "  if (!gate) return '';"],

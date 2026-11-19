@@ -169,10 +169,15 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    drop-homes files and everything applied with v0.2.139 (2027-05-07-open-halls-words-live-events-catalogue last); before this lane's bench-inputs, bench-tax, hunt-sessions, alpha and jewelry files. */
 /* THE JEWELRY SAMPLE, ON THE CATACOMBS (set/v0.2.140): 2027-05-08-catacombs-items-catalogue (STAGED on the set, applied first) is the file before this one and
    this one carries it whole, the descent's keys and armor included; the sample's rows below are the only difference. */
+/* THE CATACOMBS' GOLD AND PLATINUM ARMOR (lane/d-catacomb-gold-platinum, systems-engineer 2026-11-18): 2027-05-09-jewelry-sample-items-catalogue
+   (applied with v0.2.140) is the file before this one and this one carries it whole. Twelve new hr_items rows: the Gold and Platinum Catacomb
+   pieces (src/data/catacomb-armor.js CATACOMB_ARMOR_NOW: all four metals; tradeable, each its twin's book value). No other row moves. ORDER:
+   after everything applied with v0.2.140; before this lane's hunt-sessions file (the pieces' bids), its chest catalogue (every piece is
+   checked against hr_items) and its tally file. */
 /* THE JEWEL GUARANTEES (lane/d-jewelry-2b, rescued from lane/c-crafted-jewelry, 2026-11-18; Tyler 2026-11-14 "with some items that can guarantee some
-   things"): 2027-05-09-jewelry-sample-items-catalogue (APPLIED with v0.2.140) is the file before this one and this one carries it whole. hr_activities
+   things"): 2027-05-12-catacomb-gold-platinum-items-catalogue (STAGED on set/v0.2.141, applied first) is the file before this one and this one carries it whole, the Gold and Platinum Catacomb armor included. hr_activities
    gains the three guarantee jobs on the Banded Signet's Smithing bench (a Crown Shard, the Rat King's Crown, both), dark behind jewel_guarantees
-   (hr-accrue set_activity asks the switch); no hr_items row moves. ORDER: after everything applied with v0.2.140; before this lane's bench-inputs file
+   (hr-accrue set_activity asks the switch); no hr_items row moves. ORDER: after the four 05-12 files and 2027-05-15-analyzer-cover-coins; before this lane's bench-inputs file
    and 2027-05-16-jewel-guarantees.sql. It replaces lane/c-crafted-jewelry's 2027-04-24 files, which were never merged or applied. */
 const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-16-jewel-guarantees-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own

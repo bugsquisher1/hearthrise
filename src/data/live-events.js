@@ -70,8 +70,10 @@ export const WORDS = Object.freeze({
     end: 'The halls are closed again. Calling out costs gold again.',
     hunts: 'Call out {boss} for no gold',
     page: 'Open Halls is on.',
-    pageUntil: 'You can call out {boss} for no gold until {end}.',
-    pageFree: 'You can call out {boss} for no gold.',
+    /* Said to every hero on the ground's page, one who hasn't met Call out's wins yet too (its own section says "Requires 10 Rat King
+       wins" right under it), so it says what the event does, never "you can" (local world 2026-11-18, a Level 1 hero during Open Halls). */
+    pageUntil: 'Calling out {boss} costs no gold until {end}.',
+    pageFree: 'Calling out {boss} costs no gold.',
     callLine: 'Open Halls is on until {end}.',
     callEnding: 'Open Halls ends in {mins} min.',
   }),

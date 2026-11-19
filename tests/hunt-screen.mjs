@@ -1701,10 +1701,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!shown || got.balance !== want.balance || got.balanceH !== want.balanceH || got.rawXpH !== want.rawXpH) fails.push('HS-25 the ' + tag + ' summary shows ' + JSON.stringify(got) + '; the server sent ' + JSON.stringify(want));
         /* THE RAW ROW SAYS WHICH BONUS IT LEAVES OUT (lane/a-honest-lines 2026-11-16, re-landed by lane/a-honesty-rescue): "before bonuses" read as a
            party cutting a hero's XP; it is the even share of each kill, less the party's class cell or the solo boost. The card says the analyzer's
-           own row (hud.an_raw_xp_h, which widgets/analyzer.js prints), so the two never drift. */
+           own row (hud.an_raw_xp_h, which widgets/analyzer.js prints), so the two never drift. A live event's part is left out too, and the row
+           says so (lane/c-arm-switches 2026-11-18: the weekend's Level XP read nowhere; its own row is the analyzer's "Weekend bonus"). */
         const rawWords = (await import(pathToFileURL(join(ROOT, 'src/render/player-text.js')).href)).t('hud.an_raw_xp_h');
-        if (premium && !(got.rawLabel === rawWords && /\bparty\b/i.test(rawWords) && /\bsolo bonus\b/i.test(rawWords) && !/before bonuses/i.test(rawWords)))
-          fails.push('HS-25 the raw Level XP row reads ' + JSON.stringify(got.rawLabel) + ' on the card and ' + JSON.stringify(rawWords) + ' in the analyzer: both must be the one row naming the party and solo bonus it leaves out');
+        if (premium && !(got.rawLabel === rawWords && /\bparty\b/i.test(rawWords) && /\bsolo\b/i.test(rawWords) && /\bevent bonus\b/i.test(rawWords) && !/before bonuses/i.test(rawWords)))
+          fails.push('HS-25 the raw Level XP row reads ' + JSON.stringify(got.rawLabel) + ' on the card and ' + JSON.stringify(rawWords) + ' in the analyzer: both must be the one row naming the party, solo and event bonus it leaves out');
       } else fails.push('HS-25 the ' + tag + ' screen did not mount');
       await ctx.close();
     }

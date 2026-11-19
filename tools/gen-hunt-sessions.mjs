@@ -346,7 +346,10 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-05-08-catacombs-hunt-sessions-catalogue (STAGED on set/v0.2.140, applied first) is the file before this
    one and this one carries it whole. Only kill bounds' drop sets and vendor values move: the Goblin Digger carries the Seam Jasper (a Rare), the Turncoat's
    Wolfbone Necklace and Fang Studs leave (crafted now), and the new rows get their bids. ORDER: after this lane's items catalogue. */
-export const OUT_NAME = '2027-05-09-jewelry-sample-hunt-sessions-catalogue.generated.sql';
+/* THE CATACOMBS' GOLD AND PLATINUM ARMOR (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18): 2027-05-09-jewelry-sample-hunt-sessions-catalogue
+   (applied with v0.2.140) is the file before this one and this one carries it whole. Only hr_hunt_vendor_value moves: the twelve Gold and Platinum
+   pieces get their bids. ORDER: after this lane's items catalogue. */
+export const OUT_NAME = '2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1097,8 +1100,15 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2; Tyler 2026-11-18: the two dropped Wickstead jewels
--- become crafted). It carries 2027-05-08-catacombs-hunt-sessions-catalogue (STAGED on set/v0.2.140) whole. Only kill bounds' drop sets and vendor values
+-- NEW IN THIS FILE (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18; Tyler 2026-11-16: the descent's keys by Bronze / Silver / Gold /
+-- Platinum). It carries 2027-05-09-jewelry-sample-hunt-sessions-catalogue (applied with v0.2.140) whole. Only hr_hunt_vendor_value moves: the twelve
+-- Gold and Platinum Catacomb pieces (src/data/catacomb-armor.js CATACOMB_ARMOR_NOW: all four metals) get their bids. No ground, spawn, kill bound,
+-- limit, end reason or world shape moves. ORDER: after 2027-05-12-catacomb-gold-platinum-items-catalogue.generated.sql (the pieces in hr_items).
+-- EDGE: no hunt drops a Catacomb piece (only the Hearth Chest pays one), so this file goes either side of the hr-accrue deploy; that deploy (the
+-- bundle moves: its ITEMS gain the twelve) precedes this lane's chest catalogue, the file that lets a hero hold one.
+--
+-- CARRIED FROM 2027-05-09-jewelry-sample-hunt-sessions-catalogue (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2; Tyler
+-- 2026-11-18: the two dropped Wickstead jewels become crafted). It carries 2027-05-08-catacombs-hunt-sessions-catalogue (STAGED on set/v0.2.140) whole. Only kill bounds' drop sets and vendor values
 -- move: the Warrens' Goblin Digger gains the Seam Jasper (a Rare, tier 3's jewel gem), the Turncoat loses the Wolfbone Necklace and the Fang Studs (Smithing
 -- makes both now), and the new crafted rows get their bids. No ground, spawn, gold or XP bound, limit, end reason or world shape moves. ORDER: after
 -- 2027-05-09-jewelry-sample-items-catalogue.generated.sql (its self-check wants every dropped item in hr_items). EDGE: this file BEFORE the hr-accrue

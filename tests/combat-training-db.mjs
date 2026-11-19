@@ -6,7 +6,7 @@
 //   node tests/combat-training-db.mjs            the guard
 //   node tests/combat-training-db.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: supabase/migrations/2027-04-16-combat-training.sql supabase/migrations/2027-04-24-boss-call-series.sql
+// mutant-anchors: supabase/migrations/2027-04-16-combat-training.sql supabase/migrations/2027-04-24-boss-call-series.sql supabase/migrations/2027-05-20-yard-stop.sql
 //
 //   TD-VERB    the view quotes the catalogue's price; a forged price is quote_changed and charges nothing; the first hour is charged on the
 //              server's number, one shop row on the caller's key, and a replay charges once; a hero in a party is refused; no other door
@@ -18,6 +18,9 @@
 //   TD-FORGED  a training window that pays Level XP, coin, an item, another skill or a kill is refused whole by the settle, whatever the
 //              engine proposed; the clean window lands
 //   TD-AGAIN   the lane's four files applied a second time move nothing: the schema's inventory, every body they write, the catalogue rows
+//   TD-STOP    (2027-05-20-yard-stop.sql, post-140 audit C10) a Stop pressed 2.5 s before the next hour, with the browser closed (the world tick)
+//              and with the hunt viewed (the player's settle), the same on both: the leave lands at the press (never before a settled step),
+//              the session ends `left` before the hour's first instant, no hourly row, the purse paid hour 1 only
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -185,6 +188,36 @@ async function doorArm(bootFn, door) {
   return { bad, end: { reason: s2.end_reason, at: new Date(s2.ended_at).getTime() - A, melee: xp1 - xp0, purse: await purse(db, uid) } };
 }
 
+/* ── A STOP BEFORE THE HOUR (post-140 audit C10; 2027-05-20-yard-stop.sql) ───── */
+/* The press is the server's own clock (hr_hunt_leave's now()), so this arm runs on the real clock: hour 1 ends 2.5 s after the press, the
+   settle runs once that instant has passed. A Stop pressed before the next hour began closes at the press, ends `left` there and never
+   buys that hour, through both doors alike. (Was: leave_at = settled_to + 32 s, past the edge, and the settle walking to it bought hour 2.) */
+async function stopArm(bootFn, door) {
+  const bad = [];
+  const { db, M } = await bootFn();
+  await db.query('update public.hr_tick_config set enabled = true where id');
+  const uid = UIDS[5];
+  await hero(db, M, uid);
+  const fee = await feeOf(db, uid);
+  const v = await start(db, uid, fee);
+  if (v.ok !== true) return ['TD-STOP ' + door + ' the start answered ' + JSON.stringify(v)];
+  const sid = v.session_id;
+  const A = Date.now() - (Date.now() % 1000), edge = A + 2500;
+  await moveClock(db, sid, edge - HOUR, A - 5000);
+  const leave = await as(db, uid, 'select public.hr_hunt_leave(0, $1::uuid)', [idem()]);
+  const pressed = (await q(db, 'select leave_at, settled_to from public.hunt_sessions where id = $1', [sid]))[0];
+  const leaveAt = pressed.leave_at ? new Date(pressed.leave_at).getTime() : null;
+  if (!leave || leave.pending !== true || leaveAt === null || leaveAt >= edge || leaveAt < new Date(pressed.settled_to).getTime() || Date.now() - leaveAt > 2000)
+    bad.push(`TD-STOP ${door} the Stop answered ${JSON.stringify(leave && { ok: leave.ok, pending: leave.pending })}, leave_at ${pressed.leave_at} (the hour's edge ${new Date(edge).toISOString()})`);
+  while (Date.now() < edge + 800) await new Promise((r) => setTimeout(r, 100));
+  try { await settleTo(db, M, door, uid, sid, Date.now() - 200); } catch (e) { return [...bad, 'TD-STOP ' + door + ' the settle: ' + String(e.message).slice(0, 300)]; }
+  const s = (await q(db, 'select end_reason, ended_at, hours_limit from public.hunt_sessions where id = $1', [sid]))[0];
+  const hr2 = Number(await one(db, `select count(*) from public.player_ledger where user_id = $1 and intent like 'training\\_fee:%'`, [uid]));
+  if (s.end_reason !== 'left' || !s.ended_at || new Date(s.ended_at).getTime() >= edge || Number(s.hours_limit) !== 1 || hr2 !== 0 || await purse(db, uid) !== 100000 - fee)
+    bad.push(`TD-STOP ${door} a Stop before the hour's edge ended ${JSON.stringify(s)} with ${hr2} hourly row(s) and the purse at ${await purse(db, uid)} (want left before ${new Date(edge).toISOString()}, hour 1 only: ${100000 - fee})`);
+  return { bad, end: { reason: s.end_reason, hours: Number(s.hours_limit), fees: hr2, purse: await purse(db, uid) } };
+}
+
 /* ── A FORGED WINDOW ──────────────────────────────────────────────────────── */
 async function forgedArm(bootFn) {
   const bad = [];
@@ -256,12 +289,19 @@ const ARMS = {
     return bad;
   },
   forged: (b) => forgedArm(b),
+  stop: async (b) => {
+    const fire = await stopArm(b, 'fire');
+    const viewed = await stopArm(b, 'viewed');
+    const bad = [...(fire.bad || fire), ...(viewed.bad || viewed)];
+    if (fire.end && viewed.end && JSON.stringify(fire.end) !== JSON.stringify(viewed.end)) bad.push('TD-STOP the browser closed ended ' + JSON.stringify(fire.end) + ', the hunt viewed ' + JSON.stringify(viewed.end));
+    return bad;
+  },
 };
 
 const FN = { hour: 'public.hr_training_hour(uuid,integer,uuid,timestamp with time zone,bigint,bigint,jsonb)', window: 'public.hr_training_window(uuid,integer,text,timestamp with time zone,timestamp with time zone,jsonb)',
   start: 'public.hr_training_start(integer,text,text,bigint,uuid)', member: 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)',
   admit: 'public.hr_hunt_admit(uuid,integer,text)', quote: 'public.hr_training_quote(uuid,integer,text,text)',
-  section: 'public.hr_training_section(uuid,integer)' };
+  section: 'public.hr_training_section(uuid,integer)', closeAt: 'public.hr_hunt_close_at(uuid)', leave: 'public.hr_hunt_leave_pending(uuid,integer)' };
 const MUTANTS = [
   { name: 'the next hour is never bought', fn: FN.hour, find: 'if v_s.hours_limit >= v_max or p_to is distinct from', repl: 'if true or p_to is distinct from', arm: 'doors', want: /TD-DOORS/ },
   { name: 'a short purse trains on', fn: FN.hour, find: "    perform public.hr_hunt_close(p_session, 'gold_out', p_to, true);\n", repl: '', arm: 'doors', want: /TD-DOORS/ },
@@ -278,6 +318,9 @@ const MUTANTS = [
   { name: 'the section counts only the first hour', fn: FN.section, find: "and l.intent like 'training\\_%' and l.meta->>'session' = v_s.id::text", repl: "and l.intent like 'training\\_start%' and l.meta->>'session' = v_s.id::text", arm: 'doors', want: /TD-DOORS .* section mid-run/ },
   { name: 'the section forgets the last stop', fn: FN.section, find: "   where h.user_id = p_user and h.slot = p_slot and h.ended_at is not null\n", repl: "   where false\n", arm: 'doors', want: /TD-DOORS .* section after the end/ },
   { name: 'a party may train', fn: FN.quote, find: "when public.hr_hunt_party_of(p_user, p_slot) is not null then 'in_party'", repl: "when false then 'in_party'", arm: 'verb', want: /TD-VERB/ },
+  /* 2027-05-20-yard-stop.sql: a training Stop closes at the press, so it never buys an hour it came before */
+  { name: 'a training Stop waits out the horizon', fn: FN.closeAt, find: 'then greatest(now(), s.settled_to, coalesce(i.settled_to, s.settled_to))', repl: 'then public.hr_hunt_live_horizon_at(s.settled_to)', arm: 'stop', want: /TD-STOP/ },
+  { name: 'the Leave skips the shared close', fn: FN.leave, find: 'leave_at = public.hr_hunt_close_at(v_s.id)', repl: 'leave_at = public.hr_hunt_live_horizon_at(v_s.settled_to)', arm: 'stop', want: /TD-STOP/ },
 ];
 
 async function main() {
@@ -311,7 +354,7 @@ async function main() {
   const bad = [];
   for (const arm of Object.keys(ARMS)) if (!only || arm === only) bad.push(...await ARMS[arm]((o) => boot(o)));
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? 'combat-training-db: ' + bad.length + ' FAILED' : 'combat-training-db: green (the verb, the one door, the hourly charge and gold_out through both doors, the forged windows)');
+  console.log(bad.length ? 'combat-training-db: ' + bad.length + ' FAILED' : 'combat-training-db: green (the verb, the one door, the hourly charge and gold_out through both doors, the forged windows, a Stop before the hour through both doors)');
   process.exit(bad.length ? 1 : 0);
 }
 

@@ -4,7 +4,9 @@
 //   Tyler 2026-11-16, the board's "2026-11-16 The Unmarked Catacombs descent"; supabase/migrations/2027-05-08-catacombs.sql and its catalogues).
 //
 //   CB-DATA     the run rows (two wings: their rosters, Keeper Dunn, the boards), the `catacomb` mode a copy of `tower`, the eight keys (each
-//               wing's metal, the Tower's doors and odds, the 70/30 lean), the twelve pieces that ship, and the server's rows the data's.
+//               wing's metal, the Tower's doors and odds, the 70/30 lean), every key holding its six, the 24 pieces, and the server's rows the data's.
+//   CB-METALS   THE DEEP KEYS OPEN (lane/d-catacomb-gold-platinum): a Gold Bone Key and a Platinum Waterlogged Key at the Hearth Chest each pay a
+//               piece of their own metal (the key's six, the bag holds it), never chest_not_ready, and the keys are spent.
 //   CB-ROOM     a wing's room is its own roster, Dunn at every door, never the Tower's ladder; the engine's call sites pass the wing's run.
 //   CB-DOORS    a descent, the BROWSER CLOSED (the world tick) and the HUNT VIEWED (the player's settle), land the same: the `catacomb` mode,
 //               the run on its wing, the wing's own record, one Bone Key a door to each hero alive (catacomb_key), no death price, no coin,
@@ -69,7 +71,7 @@ async function dataArm(db, M) {
     .map(([m, from, pm]) => [lean + '_' + m, lean === 'bone' ? bo.hunt : fl.hunt, from, pm, lean === 'bone' ? 700 : 300, 'armor', 'catacomb'].join(':'))).join('|');
   if (sum !== want) bad.push('CB-DATA the Catacomb keys read ' + sum);
   const ready = CK.filter((k) => Object.keys(k.armor).length === 6).map((k) => k.id).sort().join(',');
-  if (ready !== 'bone_bronze,bone_silver,waterlogged_bronze,waterlogged_silver') bad.push('CB-DATA the keys with their six pieces are ' + ready + ' (Bronze and Silver ship now)');
+  if (ready !== CK.map((k) => k.id).sort().join(',')) bad.push('CB-DATA the keys with their six pieces are ' + ready + ' (all four metals ship: every key the descent drops opens)');
   if (M.CH.keyForLanding(30, undefined, bo.hunt).id !== 'bone_bronze' || M.CH.keyForLanding(130, undefined, fl.hunt).id !== 'waterlogged_platinum'
       || M.CH.keyForLanding(30).id !== 'bronze') bad.push('CB-DATA a door hands out another ground\'s key');
   /* the server's rows are the data's */
@@ -80,7 +82,7 @@ async function dataArm(db, M) {
   const aw = CK.flatMap((k) => Object.entries(k.armor).map(([sw, it]) => [k.id, ...sw.split(':'), it].join(':'))).sort().join('|');
   if (armor.map((r) => [r.key_id, r.slot, r.weight, r.item_id].join(':')).sort().join('|') !== aw) bad.push('CB-DATA hr_chest_armor reads ' + JSON.stringify(armor).slice(0, 300));
   const items = await q(db, "select item_id, tradeable, value from public.hr_items where item_id = any($1::text[]) order by item_id", [CK.map((k) => k.item).concat(M.CA.CATACOMB_ARMOR_SHIPPED.map((r) => r.id))]);
-  if (items.length !== 20 || items.some((r) => (r.item_id.includes('_key_') ? r.tradeable !== false || Number(r.value) !== 0 : r.tradeable !== true || !(Number(r.value) > 0)))) {
+  if (items.length !== 32 || items.some((r) => (r.item_id.includes('_key_') ? r.tradeable !== false || Number(r.value) !== 0 : r.tradeable !== true || !(Number(r.value) > 0)))) {
     bad.push('CB-DATA the keys are not bound or the pieces do not trade: ' + JSON.stringify(items).slice(0, 300));
   }
   const mode = await q(db, "select death_loss_pm, blessings, xp_pm, coin, drops, bestiary, stamina, checkpoint_every from public.hr_session_modes where mode_id = 'catacomb'");
@@ -354,6 +356,42 @@ async function leanArm(db, M) {
   return bad;
 }
 
+/* ── CB-METALS ────────────────────────────────────────────────────────────── */
+/* The deep keys open: a Gold Bone Key and a Platinum Waterlogged Key, each pressed at the chest, pay a piece of their own metal into the bag
+   (before lane/d-catacomb-gold-platinum the chest refused both chest_not_ready, the key kept). The chance is CB-DATA's and TCH-DATA's to
+   prove, so both are made a sure find here: what this arm reads is that the key opens and what it pays. */
+const N_METAL = 3;
+async function metalsArm(db, M) {
+  const bad = [];
+  const DEEP = [['bone_gold', 'gold'], ['waterlogged_platinum', 'platinum']];
+  const r = await H.inTx(db, async () => {
+    const out = { answers: {} };
+    await rewind(db);
+    await H.character(db, M, UID, { level: 50, inv: { bone_key_gold: N_METAL, waterlogged_key_platinum: N_METAL, tower_cinders: 1000 }, gold: 200000 });
+    await switchOn(db, [UID]);
+    await db.query("update public.hr_chest_keys set weapon_pm = 1000 where key_id = any($1::text[])", [DEEP.map(([k]) => k)]);
+    for (const [k] of DEEP) out.answers[k] = await as(db, UID, "select public.hr_chest_open(0, 'great_hearth', $1, $2, 0, $3::uuid)", [k, N_METAL, idem()]);
+    out.rows = await q(db, 'select key_id, armor, armor_slot, armor_weight, weapon from public.chest_opens where user_id = $1 order by n', [UID]);
+    out.bag = Object.fromEntries((await q(db, 'select item_id, qty from public.player_inventory where user_id = $1 and slot = 0', [UID])).map((x) => [x.item_id, Number(x.qty)]));
+    return out;
+  });
+  for (const [k, metal] of DEEP) {
+    const key = M.CH.CATACOMB_KEYS.find((c) => c.id === k);
+    const v = r.answers[k];
+    if (!v || v.ok !== true) { bad.push(`CB-METALS the ${key.name} answered ${JSON.stringify(v).slice(0, 200)}`); continue; }
+    const rows = r.rows.filter((x) => x.key_id === k);
+    if (rows.length !== N_METAL || rows.some((x) => !x.armor || x.weapon)) { bad.push(`CB-METALS ${N_METAL} sure ${key.name}s wrote ${rows.length} opens, ${rows.filter((x) => !x.armor).length} without a piece`); continue; }
+    for (const x of rows) {
+      const piece = M.CA.CATACOMB_ARMOR.find((p) => p.id === x.armor);
+      if (key.armor[x.armor_slot + ':' + x.armor_weight] !== x.armor || !piece || piece.key !== metal) { bad.push(`CB-METALS the ${key.name} paid ${x.armor} for ${x.armor_slot}:${x.armor_weight}, not a ${metal} piece of its six`); break; }
+    }
+    const paid = rows.reduce((o, x) => ({ ...o, [x.armor]: (o[x.armor] || 0) + 1 }), {});
+    for (const [id, n] of Object.entries(paid)) if ((r.bag[id] || 0) !== n) bad.push(`CB-METALS the bag holds ${r.bag[id] || 0} ${id}, the ${key.name}s paid ${n}`);
+    if (r.bag[key.item]) bad.push(`CB-METALS ${r.bag[key.item]} ${key.name}s are still in the bag after ${N_METAL} opened`);
+  }
+  return bad;
+}
+
 /* ── CB-BOARD ─────────────────────────────────────────────────────────────── */
 async function boardArm(db, M) {
   const bad = [];
@@ -419,7 +457,7 @@ async function idemArm(db) {
   });
 }
 
-const ARMS = { data: dataArm, room: roomArm, doors: doorsArm, start: startArm, cap: capArm, lean: leanArm, board: boardArm, idem: idemArm };
+const ARMS = { data: dataArm, room: roomArm, doors: doorsArm, start: startArm, cap: capArm, lean: leanArm, metals: metalsArm, board: boardArm, idem: idemArm };
 
 /* ── THE MUTANTS: each a defect the descent exists to refuse ─────────────── */
 const RUN = 'public.hr_run_start(uuid,integer,text,integer,uuid,text,text,text)';
@@ -432,6 +470,8 @@ const MUTANTS = [
   { name: 'one warmth for both families', arm: 'lean', want: /^CB-LEAN the Tower family's warmth/, fn: OPEN,
     find: "    update public.chest_warmth set dry = v_dry, updated_at = now() where user_id = v_uid and slot = p_slot and key_family = v_k.key_family;",
     replace: "    update public.chest_warmth set dry = v_dry, updated_at = now() where user_id = v_uid and slot = p_slot;" },
+  { name: 'the chest still refuses the deep keys', arm: 'metals', want: /^CB-METALS the Gold Bone Key answered .*chest_not_ready/, fn: OPEN,
+    find: '    if v_kinds <> 6 then\n', replace: '    if v_kinds <> 6 or v_k.from_landing >= 70 then\n' },
   { name: 'the week counts every family', arm: 'cap', want: /^CB-CAP the Tower's family was refused/, fn: OPEN,
     find: "  v_week := (select count(*) from public.chest_opens o where o.user_id = v_uid and o.slot = p_slot and o.key_family = v_k.key_family",
     replace: "  v_week := (select count(*) from public.chest_opens o where o.user_id = v_uid and o.slot = p_slot and o.key_family is not null" },
@@ -502,7 +542,7 @@ async function main() {
     bad.push(...got);
   }
   for (const p of bad) console.log('FAIL  ' + p);
-  console.log(bad.length ? `catacombs: ${bad.length} FAILED` : 'catacombs: green (the data, a wing\'s rooms, a descent viewed and closed, the door, six a family a week and the account\'s held cap, the lean, both boards and the clamp, a second apply)');
+  console.log(bad.length ? `catacombs: ${bad.length} FAILED` : 'catacombs: green (the data, a wing\'s rooms, a descent viewed and closed, the door, six a family a week and the account\'s held cap, the lean, the Gold and Platinum keys open, both boards and the clamp, a second apply)');
   process.exit(bad.length ? 1 : 0);
 }
 

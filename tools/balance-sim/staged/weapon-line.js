@@ -46,16 +46,22 @@ export const WEAPON_LINE_BASE = Object.freeze({
   sword: Object.freeze({ id: 'dawn_sword', atkB: 42, strB: 35 }),
   hatchets: Object.freeze({ id: 'dawn_hatchets', atkB: 42, strB: 38 }),
   warhammer: Object.freeze({ id: 'dawn_warhammer', atkB: 32, strB: 68 }),
-  bow: Object.freeze({ id: 'duskwood_bow', atkB: 45, strB: 36, rangeAtkB: 45, rangeStrB: 36 }),
-  crossbow: Object.freeze({ id: 'duskwood_crossbow', atkB: 43, strB: 37, rangeAtkB: 43, rangeStrB: 37 }),
-  wand: Object.freeze({ id: 'duskwood_wand', atkB: 42, strB: 45, magicAtkB: 42, magicStrB: 45 }),
-  staff: Object.freeze({ id: 'duskwood_staff', atkB: 36, strB: 49, magicAtkB: 36, magicStrB: 49 }),
+  bow: Object.freeze({ id: 'duskwood_bow', rangeAtkB: 45, rangeStrB: 36 }),
+  crossbow: Object.freeze({ id: 'duskwood_crossbow', rangeAtkB: 43, rangeStrB: 37 }),
+  wand: Object.freeze({ id: 'duskwood_wand', magicAtkB: 42, magicStrB: 45 }),
+  staff: Object.freeze({ id: 'duskwood_staff', magicAtkB: 36, magicStrB: 49 }),
 });
 
 /* TEMPERED DAWNSTEEL IS THE FLOOR A UNIQUE MUST CLEAR (lane/d-temper-dawnsteel, board "2026-11-16 Tempering Dawnsteel": tier 7 tempers
    5 rungs x 0.4%, so a fully tempered Dawnsteel weapon's blows read x1.02). A unique counts as winning somewhere only where it beats
    that, so the line's first unique Level is where the line clears it (`node tools/balance-sim/weapon-power.mjs` prints it per family). */
 export const TEMPERED_DAWNSTEEL = 1.02;
+
+/* THE LINE'S FIRST LEVEL by family: the lowest Level from the anchor where the line's weapon beats fully tempered Dawnsteel on every late
+   ground, pace and safety (weapon-power.mjs firstLevel; tests/weapon-line.mjs WL10 re-measures it). Under it the line can't carry a
+   unique: at the anchor the line IS Dawnsteel, so nothing can stay under it and beat tempered Dawnsteel anywhere. A unique whose home opens
+   under its family's first Level is worn from that Level (WL5): Carter's Rest opens at the anchor, 110, so its sword is worn from 117. */
+export const WEAPON_FIRST_LEVEL = Object.freeze({ sword: 117, hatchets: 119, warhammer: 116, bow: 115, crossbow: 116, wand: 114, staff: 115 });
 
 /** The fields the line scales: a weapon's attack and damage, in every style it carries them. */
 export const LINE_FIELDS = Object.freeze(['atkB', 'strB', 'rangeAtkB', 'rangeStrB', 'magicAtkB', 'magicStrB']);
@@ -72,22 +78,28 @@ export function lineWeapon(family, reqLv) {
   return out;
 }
 
-/* ── THE SAMPLE OF FIVE. Wyvern Roost's sword (its one red), and the Unmarked Catacombs' Melee: two swords that split one budget two
-   ways, the hatchets and the warhammer. Shape as the armor line's sample: `row` is the item row as it would ship, `family` the
+/* ── THE SAMPLE OF FIVE. Carter's Rest's sword, and the Unmarked Catacombs' Melee: two swords that split one budget two ways, the
+   hatchets and the warhammer. Shape as the armor line's sample: `row` is the item row as it would ship, `family` the
    line it sits under (its Dawnsteel base copies every field but its own), `attr` the special-attribute catalogue's attribute and key,
-   `spend` how it spends the budget (the identity, one line), `source` where it drops (`ch` a kill, proposed: about one every 15
-   hours for a lone hero at the floor at 172 kills an hour, by the monster's share of the spawn, as the armor line's; the drop
-   guard fits it when the rows go in), `use` what catalogue-coherence files it under, `text` the item card's line. Every bane
-   names a class that lives on the piece's own ground. Each power and each "wins where" is measured by tests/weapon-line.mjs and
-   printed by `node tools/balance-sim/weapon-power.mjs`. ── */
+   `spend` how it spends the budget (the identity, one line), `source` where it drops (`place` its Morrow grid row, staged/morrow-grid.js,
+   when it is a Morrow piece; `ch` a kill, proposed: about one every 15 hours for a lone hero at the floor at 172 kills an hour, by the
+   monster's share of the spawn, as the armor line's; the drop guard fits it when the rows go in), `use` what catalogue-coherence files it
+   under, `text` the item card's line. Every bane names a class that lives on the piece's own ground. Each power and each "wins where" is
+   measured by tests/weapon-line.mjs and printed by `node tools/balance-sim/weapon-power.mjs`.
+   THE GRID WINS (the designer 2026-11-18 row 1b): the Wagon Guard's Sword left the Roost (the bow's ground; the sword's low point there it was
+   for reads 63.9 on the ladder kit, bar 60) for Carter's Rest's sword cell. It can't keep its Dragon bane there (no dragon lives at the inn,
+   and the trolls are `Troll` to the engine's bane, src/core/bane.js classOfMonster, so no class bane bites there either), so it went keen, and
+   it is worn from the sword's first Level, 117 (Carter's Rest opens at the anchor). Its numbers are the line's at 117 spent its own way:
+   measured, the most accuracy and damage under the line on every late ground that still beats tempered Dawnsteel on a ground a 117 hero is
+   sent to (the Ox Road). ── */
 export const WEAPON_SAMPLE = Object.freeze({
   wagon_guards_sword: Object.freeze({
-    row: Object.freeze({ n: 'Wagon Guard\'s Sword', icon: '⚔️', v: 40910, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 43, strB: 32,
-      bane: Object.freeze({ class: 'dragon', mult: 1.1 }), effects: Object.freeze(['bane']), rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 125 }),
-    family: 'sword', attr: Object.freeze(['bane', 'dragon']),
-    spend: 'all of it on wyverns: the line\'s blow on the Roost, under Dawnsteel anywhere else',
-    source: Object.freeze({ monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }), use: 'worn',
-    text: 'It hits Dragons 10% harder. The wagon guards who rode the pass ground their swords thin to slip under a wyvern\'s scales. One of them is still up in the nest.',
+    row: Object.freeze({ n: 'Wagon Guard\'s Sword', icon: '⚔️', v: 38290, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 47, strB: 31,
+      critB: 0.1, rarity: 'unique', tier: 7, reqSkill: 'level', reqLv: 117 }),
+    family: 'sword', attr: Object.freeze(['crit', null]),
+    spend: 'keen: a little more accuracy than the line, a sixth less damage, and one blow in ten more lands critical',
+    source: Object.freeze({ place: 'carters_rest', monster: 'the_landlord', ground: 'carters_rest', how: 'rare', ch: 0.0093 }), use: 'worn',
+    text: 'It lands a critical hit 10% more often. The wagon guards stopped at Carter\'s Rest on every trip, and the Landlord kept the swords of the ones who couldn\'t pay.',
   }),
   watchmans_sword: Object.freeze({
     row: Object.freeze({ n: 'Watchman\'s Sword', icon: '⚔️', v: 54000, type: 'weapon', slot: 'weapon', weaponType: 'sword', atkB: 84, strB: 46,

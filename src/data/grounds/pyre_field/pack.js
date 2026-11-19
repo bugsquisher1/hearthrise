@@ -127,8 +127,10 @@ export default definePack({
     stoker: {
       name: 'Stoker', icon: '🪵', tier: 5, level: 74, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the field: the Hold's woodmen who fed the pyres and forged in their heat. Worked in the
-         fire all their lives (one override, element). The coal they carry, their smith's hammer, the apron's legs and belts. */
+         fire all their lives (one override, element). The coal they carry, their smith's hammer, the apron's legs and belts.
+         BURNING ASH (`spells` below): he still feeds the pyres, and throws a shovel of it over the whole party. */
       elements: BURNED,
+      spells: ['burning_ash'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'rake_tine', ch: 0.08, band: 'uncommon' },
         { id: 'rune_platelegs', ch: 0.029, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.029, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.029, band: 'scarce' },
         { id: 'rune_warhammer', ch: 0.029, band: 'scarce' },
@@ -189,6 +191,14 @@ export default definePack({
     warrant_seal: { n: 'Warrant Seal', icon: '🔘', v: 160, raw: true, imbue: { kind: 'element_ward', tier: 3 } },
   },
   /* THE ITEM LINES are player text (Tyler 2026-11-11, the voice rule): short, plain, everyday words, nothing poetic. Names stay. */
+  /* THE PYRE FIELD'S SPELL (lane/d-harder-monsters, 2026-11-19; the balance audit's fix 2, board "2026-11-19 Balance audit (real hunts)"): the field had
+     none, and over 99.9 recorded hero-hours on its Deadly a four's bow, Mage and Healer took no damage at all while one Healer kept the sword up. Tyler
+     2026-11-08: a monster's area spell is there "so the whole party takes damage", and "more monsters = more aoe spells" is the harder tier's wall. The
+     designer's seed row (monster-spells.js "Ash Bloom": group, fire, 1.5x, 16 s) on the Stoker, the field's heavy, as the Glade's Vine, the Warrens'
+     Digger and the Slake's Bargeman carry theirs: his swing tops out at 156, so it lands up to 234 on every hero, 28% of a bare floor hero (the 35% rule). */
+  spells: {
+    burning_ash: { n: 'Burning Ash', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'ember' },
+  },
   itemText: {
     pike_ferrule: 'The metal cap off the end of a Charred Pikeman\'s spear. The fire burned the rest of it',
     rake_tine: 'A bent prong off a Stoker\'s fire rake. It\'s black from years in the fire',

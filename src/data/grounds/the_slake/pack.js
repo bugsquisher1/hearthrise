@@ -167,9 +167,12 @@ export default definePack({
      death at 465k XP a head. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet also asks that pair to die. It never
      did. Every solo ground fails that row today. */
   /* THE BARGEMAN'S SPELL (the area spells board's seed row, lane/b-pack-fields): river water over the whole group, frost. One of
-     the Slake's own rows, folded into MONSTER_SPELLS (monster-spells.js); the Corded Frost Lining is its answer. */
+     the Slake's own rows, folded into MONSTER_SPELLS (monster-spells.js); the Corded Frost Lining is its answer.
+     1800 EVERY 12 S (was 1500 every 16; lane/d-harder-monsters, 2026-11-19, the balance audit's fix 2): it was the Slake's one spell on the back
+     seats and a recorded Deadly four's bow, Mage and Healer took about 2.7k an hour from it. The Bargeman's swing tops out at 120, so it lands up to
+     216 on every hero, 33% of a bare floor hero (the 35% rule binds just above), and a third more often. */
   spells: {
-    cold_bilge: { n: 'Cold Bilge', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'frost' },
+    cold_bilge: { n: 'Cold Bilge', shape: 'group', range: 6, windupMs: 2000, cdMs: 12000, hitPm: 1800, element: 'frost' },
   },
   roster: {
     greened_pikeman: 'swarm',   // the common majority

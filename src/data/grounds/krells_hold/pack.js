@@ -95,7 +95,8 @@ export default definePack({
       name: 'Farmhand', icon: '🗡️', tier: 6, level: 86, cls: 'human', family: 'Human', speed: 3400,
       /* the swarm, the common majority: farmhands Krell pressed off the March's fields to hold his walls, in quilted jacks with a bill hook. Young
          and scared. Living, so the Human class with no override: weak to arrows, poison does 15% more. Their tithe grain, the press token they
-         showed at the gate, the tier-6 boots and the Emberforged sword off the gate rack. */
+         showed at the gate, the tier-6 boots and the Emberforged sword off the gate rack. HOT PITCH (`spells` below): a pot off the wall walk, on everyone. */
+      spells: ['hot_pitch'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
@@ -383,8 +384,14 @@ export default definePack({
          16 s a lone sword at the floor read a typical low of 59.6% HP on Normal, under the sheet's 60, and at 1.2x every 20 s only 60.5.
        Mend the Dead: the Pyre Priest's mend. From 4 tiles, every 16 s, it puts up to half his own biggest hit back on the most hurt body
          in his pull. He never mends himself. At a full hit every 8 s a lone tank at Level 110 on Dangerous (three Priests in the Chapel's
-         pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it. */
+         pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it.
+       Hot Pitch (lane/d-harder-monsters, 2026-11-19; the balance audit's fix 2): the Farmhands on the wall walk tip a pot of burning pitch over the
+         whole party. The Hold's two reached only the tank (a cone) and the monsters (a mend), so the back seats of a recorded Deadly four took next to
+         nothing but the Lookout's bolts (Tyler 2026-11-08: area spells are there "so the whole party takes damage"). On the swarm, the common majority, so
+         a bigger pull brings more pots ("more monsters = more aoe spells"), at 1.0x every 24 s like the Glade's and the Warrens' crowd spells: the
+         Farmhand's swing tops out at 189, 18% of a bare floor hero. */
   spells: {
+    hot_pitch: { n: 'Hot Pitch', shape: 'group', range: 6, windupMs: 2000, cdMs: 24000, hitPm: 1000, element: 'ember' },
     rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 960, element: 'ember' },
     hall_fire: { n: 'Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 650, element: 'ember' },
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1400, element: null },

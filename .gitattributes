@@ -47,3 +47,19 @@ CHANGELOG.md merge=union
 art/world/hunt-masks/*.json text eol=lf
 # OM-4 compares a mask sidecar to a fresh run byte for byte: every mask set keeps LF (factionwear-masks: lane/c-faction-outfit-path).
 art/world/factionwear-masks/*.json text eol=lf
+
+# Images, audio and fonts are bytes. src/**, tests/** and tools/** above pin text to LF, and a PNG that lands under one of
+# them (tools/world-art/leather/field_cookbook.png, moved there 2026-11-19 by the cookbook cut) was converted on checkout
+# (843 -> 842 bytes on Windows). Later rules win, so these keep every binary byte-exact wherever it lives.
+*.png binary
+*.webp binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.mp3 binary
+*.ogg binary
+*.wav binary

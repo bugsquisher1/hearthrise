@@ -132,10 +132,14 @@ const ARMS = {
     /* a hunting hero may cry: chat works in a hunt, and only the shows are in town */
     await theGapPasses(db);
     await db.query('update public.player_state set stamina_ms = 28800000, stamina_at = now() where user_id = $1 and slot = 0', [A]);
-    const hunt = await one(db, 'select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id order by coalesce(h.band_min, 0), g.hunt_id limit 1');
+    /* the lowest ground the door admits this hero to (hr_hunt_admit): never one it has outgrown (hr_hunt_grounds.ends_at_level: the Mill Cellar's
+       hunt ends at Level 5, 2027-05-28-cellar-outgrown.sql), nor a room with a door of its own */
+    const hunt = await one(db, `select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id
+                                 where public.hr_hunt_admit($1::uuid, 0, g.hunt_id) is null
+                                 order by coalesce(h.band_min, 0), g.hunt_id limit 1`, [A]);
     const entered = await as(db, A, "select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())", [hunt]);
     if (!entered || entered.ok !== true) return out.concat('hr_hunt_enter: ' + JSON.stringify(entered));
-    const hunting = await cry(db, A, 0, 'from the Mill Cellar', 4000);
+    const hunting = await cry(db, A, 0, 'from the hunt', 4000);
     if (!hunting || hunting.ok !== true) out.push('a hunting hero\'s line answered ' + JSON.stringify(hunting));
     return out;
   },

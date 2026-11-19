@@ -54,9 +54,10 @@ export const AWAY_TEXT = Object.freeze({
   after_waited: 'Then {name} waited in town for {time}.',
   /* The one next thing that would have filled the time, by what ended the hunt (after-hunt.js NEXT). */
   /* Any other automatic end: what comes next is the hunt page's own control (Tyler 2026-11-15, the itinerary). */
-  next_gather: 'Tip: set When the hunt ends to a job or the yard',
-  /* A party end the hero's own box chose (party_member_left / party_member_died; Tyler 2026-10-22, on by default): src/data/party.js leaveTogether. */
-  next_party: 'Party: untick Leave if anyone leaves to keep hunting',
+  next_gather: 'Tip: under When the hunt ends, pick a job or the yard',
+  /* A party end the hero's own box chose (party_member_left / party_member_died; Tyler 2026-10-22, on by default): it names the box by
+     the party panel's own label, src/data/party.js PARTY_COPY.leaveTogether, word for word (shell-core R3p). */
+  next_party: 'Party: to keep hunting when someone leaves, uncheck Leave if anyone leaves the hunt or dies',
   next_longer: 'Set a longer hunt, up to the stamina left',
   next_food: 'Pack more food for a longer hunt.',
   next_ammo: 'Pack more ammo for a longer hunt.',

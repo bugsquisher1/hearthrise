@@ -7,8 +7,8 @@
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on
 -- its passing §2. MONEY SURFACE (the items a settle may pay): ON THE EA SECURITY LIST with 2027-03-21-scaled-hunts.sql.
 -- ORDER: after 2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql (hr_scaled_kill_bounds.loot_pm, read here) and
---   2027-05-17-scaled-best.sql; before 2027-05-18-arm-scaled-hunts.sql. §0 pins hr_hunt_apply_member as production runs it
---   (tests/live-hash-drift.baseline.json, measured 2026-11-18).
+--   2027-05-17-scaled-best.sql; before 2027-05-18-arm-scaled-hunts.sql. §0 pins hr_hunt_apply_member as 2027-05-17-scaled-best.sql leaves it
+--   (production's bd933997, tests/live-hash-drift.baseline.json 2026-11-18, plus that file's one SCALED-BEST splice).
 -- EDGE: the hr-accrue that rolls a scaled row's drops at its multiple deploys BEFORE 2027-05-18-arm-scaled-hunts.sql. Either order with this
 --   file is safe while the switch is off (no window is proved scaled, the multiplier below reads 1); an engine that rolls more than one roll a
 --   row before this file lands would be refused value_over on a scaled window, which is why the arm waits on both.
@@ -32,7 +32,7 @@
 -- ── COST ────────────────────────────────────────────────────────────────────
 -- One primary-key join a settle that carries items; nothing else.
 --
--- REVERSIBILITY: re-apply the pinned pre-image (bd93399758d4c0de8cbfc9a5e6d03550). No begin/commit (CLAUDE.md §2).
+-- REVERSIBILITY: re-apply the pinned pre-image (225e3b72e36375eeafd625e9c4315a25, the body 2027-05-17-scaled-best.sql leaves). No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
@@ -42,9 +42,9 @@ begin
   if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_scaled_kill_bounds' and column_name = 'loot_pm') then
     raise exception 'PRECONDITION: hr_scaled_kill_bounds.loot_pm: apply 2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql first'; end if;
   v_def := pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure);
-  if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from 'bd93399758d4c0de8cbfc9a5e6d03550'
+  if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from '225e3b72e36375eeafd625e9c4315a25'
      and strpos(v_def, 'SCALED-LOOT (2027-05-17-scaled-loot.sql)') = 0 then
-    raise exception 'PIN: hr_hunt_apply_member is neither its live image (bd933997) nor this file''s: md5 % - another file moved it',
+    raise exception 'PIN: hr_hunt_apply_member is neither the image 2027-05-17-scaled-best.sql leaves (225e3b72) nor this file''s: md5 % - another file moved it',
       md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')); end if;
 end $mig$;
 

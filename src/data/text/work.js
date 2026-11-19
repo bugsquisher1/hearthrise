@@ -53,7 +53,7 @@ export const WORK_TEXT = Object.freeze({
   ladder_head: 'Unlocks',
   /* A rolled job's odds before the roll (src/shell/windows/work.js oddsWords; src/data/jewelry.js): the grade at the hero's server level
      in the job's own skill, the perks it may roll, and what a boss drop set in place of the gem always gives. */
-  odds_at: 'Odds at {skill} {level}: {grade}. {perks}. No bench fee on a roll.',
+  odds_at: 'Odds at {skill} {level}: {grade}. {perks}. No bench fee.',
   odds_plain: 'Fine {fine}, Hallmarked {hallmarked}, otherwise plain',
   odds_fine: 'Hallmarked {hallmarked}, otherwise Fine',
   odds_sealed: 'always Hallmarked',

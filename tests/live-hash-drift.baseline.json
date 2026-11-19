@@ -25,7 +25,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-19",
- "replay_ms": 101906,
+ "replay_ms": 65990,
  "counts": {
   "tracked_names": 966,
   "entries": 817
@@ -7534,8 +7534,7 @@
     "2027-01-22-party-settle-isolation.sql",
     "2027-03-21-scaled-hunts.sql",
     "2027-03-31-watched-settle-cost.sql",
-    "2027-04-24-boss-call-series.sql",
-    "2027-05-17-scaled-best.sql"
+    "2027-04-24-boss-call-series.sql"
    ],
    "live": {
     "md5": "79ea06c28174d95f11d03965bdbd8be5",
@@ -7544,12 +7543,11 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "10d5ba85de3cd36b7105f6c5f3d050ee",
-    "norm_len": 21654,
+    "md5": "79ea06c28174d95f11d03965bdbd8be5",
+    "norm_len": 21130,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-best.sql splices the scaled-window mark into this body; production keeps the pre-05-17 body until that file applies with the v0.2.141 release."
+   "agree": true
   },
   {
    "sig": "hr_hunt_apply_member(p_instance uuid, p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_delta jsonb, p_hunt jsonb, p_analyzer jsonb)",
@@ -7579,6 +7577,7 @@
     "2027-04-24-boss-call-series.sql",
     "2027-04-24-tower-climb.sql",
     "2027-04-25-boss-daily.sql",
+    "2027-05-17-scaled-best.sql",
     "2027-05-17-scaled-loot.sql"
    ],
    "live": {
@@ -7588,12 +7587,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "7a2b60b2f0d97e5cec8cecc61631a4e2",
-    "norm_len": 40385,
+    "md5": "ad6fa73288844952f3e87a5c1ad98db2",
+    "norm_len": 41033,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-loot.sql multiplies the item bound by the scaled rolls; production keeps the pre-05-17 body until that file applies with the v0.2.141 release (after the edge deploy)."
+   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-best.sql marks the scaled window on the member's own tally row, then 2027-05-17-scaled-loot.sql multiplies the item bound by the scaled rolls; production keeps the pre-05-17 body until both apply with the v0.2.141 release (scaled-loot after the edge deploy)."
   },
   {
    "sig": "hr_hunt_bag_fuse()",

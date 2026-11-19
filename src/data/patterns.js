@@ -43,7 +43,7 @@ export const PATTERNS = Object.freeze({
      called boss pays his own ground rows at the ground's rates) carry it alike. */
   kingsgrate_rivets: pattern('Kingsgrate Rivets', 150, 'reforge_steelgrate',
     [{ monster: 'rat_king', ch: 0.014 }, { monster: 'rat_king_called', ch: 0.014 }],
-    'A smith\'s pattern for riveting the Rat King\'s grate onto a steel frame. Learn it to reforge a Kingsgrate as the Steelgrate'),
+    'A smith\'s pattern for riveting the Rat King\'s grate onto a steel frame. Learn it to reforge a Kingsgrate into a Steelgrate'),
 });
 
 const LIVE = PATTERN_LINE.live ? Object.entries(PATTERNS) : [];

@@ -29,6 +29,61 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-19 The Morrow Hills: what opens, and when (game-designer, lane/d-morrow-open; the Coordinator's brief: factions can't open until a ground pays standing, and only the Hills' grounds do. QA's blind faction play, finding 1: no live ground pays, so the tab counts to zero forever): RULED (b), the three staged packs MEASURED with the played hero, Carter's Rest's own spells BUILT, one lint ADDED, nothing served, no migration
+**The call.** Carter's Rest and the Ox Road open together, with the factions switch, in the big patch that carries their art and real maps. Not v0.2.142. Standing stays on the Hills' grounds. That patch is due before the lead heroes reach about Level 100, so the art is the critical path from today.
+
+**Why, in player terms.**
+- A hero who kills Krell at 74 loses nothing by waiting. The kill is on record, so the day the pair opens, Holly and Venn are waiting for them. One patch that opens the road north, both sides, both outfits and the last Dawnsteel weapons is a bigger day than a faction tab that sits at 0 hours for weeks, which is exactly what QA found.
+- **(a) can't be done well in v0.2.142.** Each ground owes a region kit, five bodies with their clips and five heads (below), and both maps are Wickstead's farm under a new id. Opened as they are, the first region after Krell would look like an early farm with trolls in it.
+- **(c) breaks the rule it leans on.** Tyler's rule is equal sides in every region after Krell. The March's enemies are Krell's men and his dead, which both sides hate, so no March ground can honestly pay one side. "A small amount" is a second rate the wiki has to explain, and the first 25 h outfit would be earned before the Hills, which takes the reward out of the region built for it. All that to cover a gap of about two weeks for one group.
+
+**When.** The lead four is 72-74 (the 11-19 balance look). On the pace contract a hero needs 243 hunting hours from 74 to 100 and 345 to 110. At their measured 3x that's about 80 and 115 hours. They already push Deadly 8 to 13 under a floor, so they'll walk into Carter's Rest at about 97-100. Krell's Hold (85-110) is the top open ground, so at 110 nothing is in their band. If the art slips past that, the top players stall.
+
+**Readiness** (`node tools/pack.mjs check <g> --mode quick --with <the pair>`, 89 cells, 1 seed x 1 h, the played hero on parties and harder tiers; `pack.mjs art`; `tests/world-assets.mjs` EXIT 0 with no Morrow sprite in it).
+| | Carter's Rest, 110-125 | The Ox Road, 112-128 | Wyvern Roost, 125-142 |
+|---|---|---|---|
+| Pays | Last Ember | First Flame | Last Ember |
+| Lint and formula | clean | clean | clean |
+| Normal alone at the floor | 0 deaths, low point 69-94%, the median way 1.04 of the contract at the middle (xpFit 0.96 holds) | 0 deaths, 73-98%, 1.04 (0.91 holds) | 0 deaths, 65-95%, 1.01 (0.94 holds) |
+| Mage alone, Normal floor, plain / played | 1.40 / 1.55 | 1.34 / 1.40 | 1.33 / 1.39 |
+| Gold alone at the floor (printed, gpFit 0.7) | 14.6k net | 13.2k | 5.4k |
+| Grade | FAIL only four-xp and seat-below-solo on Normal, 0.85-0.99 | the same, 0.80-0.88 | the same, 0.87-0.92 |
+| Art owed | region kit, 5 troll bodies, 5 heads (11 of 62 pieces, about 160-285 gens). Every item icon exists | kit, 5 bodies (2 people, 3 creatures), 5 heads (11 of 58, 184-240) | kit, 5 wyverns, 5 heads (11 of 46, 200-210) |
+| Map | Wickstead's farm. The inn's six rooms aren't drawn | Wickstead's farm. Road, wagons, bridge and Holly's Vigil aren't drawn | Wickstead's farm. Crags and nests aren't drawn |
+| Spells | own rows now (this lane) | own: Trample, Hot Coal, Goad | own: Tail Sweep, Fire Breath, and the Ledge Wyvern shoots |
+| Text (DESIGN_STANDARDS §2-3) | reads right. The one miss was the trolls casting Poacher's Volley, Lash Sweep and Blasting Charge (fixed) | reads right | reads right |
+| Loot | tier-7 boots and legs Scarce, gloves and belts Rare, fitted | all eight tier-7 weapons, fitted | no gear: no tier 8, its uniques and the Roost Mother are owed |
+| Verdict | opens with the Ox Road | opens with Carter's Rest | the next pair, with the Night Shift (First Flame, not drafted) |
+
+The four-xp fail is not these grounds. The live Krell's Hold reads 0.62-0.66 on the same grader today (and its median lone way 1.16 of the contract, over the 1.10 line). It belongs to the one party table, so it goes to whoever owns that table, not to the Hills.
+
+**What the pair still needs, in order.**
+| # | Piece | Owner |
+|---|---|---|
+| 1 | A Morrow Hills region kit (road, dry stone wall, moor grass, the inn, ore wagons, the broken bridge, Harry's cart, Holly's brazier), then the two maps drawn on it, rooms as the 11-14 design lists them | Art director with the designer. Sample first: the Troll Picker and one run of inn wall at x2 beside Krell's Hold |
+| 2 | 10 bodies with clips and 10 heads (the pack's art list, `node tools/pack.mjs art <g> --write`) | Art director |
+| 3 | The full grade on the real maps (6 seeds x 4 h). The farm layout is only a first read | Designer |
+| 4 | The Tower's top key stays worth chasing once the Ox Road drops Dawnsteel weapons hourly (coherence C6: the 130 key, or Tyler's 11-18 "Tower weapons should be pretty major upgrades") | Tower lane |
+| 5 | Faction screen fixes from QA's play (`agent-aab9077aed963d567/.scratch/factions-findings.md` 2-9): a confirm on Join and Swap, the swap line that says the opposite of the server, the First Flame in gold by default, add-ons that show, the labels, and where standing comes from on hunt cards and the summary | Client lane, the designer for the words, art director for #5 |
+| 6 | `node tools/pack.mjs ship` for each (one additive file each, dated 2027-06-01 or later), the switch on, both grounds played in `tools/qa/local-world.mjs` | Systems, Coordinator applies |
+
+**Not blockers, and why.** Bulwark and Reap: I'm taking back my own 11-16 condition 2. The faction loop works without a skill (join, earn, claim, wear), and the skill is a combat-engine change on its own spacing. The rare uniques: the pair finishes the standard tier, and the uniques start with the Roost. The four-xp fail: above.
+
+**Built.** Carter's Rest's trolls cast their own rows: the Stable Troll's Trough Swing (Lash Sweep's measured numbers) and the Brewer's Boiling Mash (a group fire spell every 24 s, where the stand-in was 32, so a Fire Lining is worth wearing here). The Slate Thrower throws from 5 tiles at whoever stands farthest back (`range`, Hask's Lookout's piece) instead of casting a line. Re-graded: the same verdicts, Normal still 0 deaths and the drops still fitted (Scarce every 0.95-0.97 h, Rare every 13.9-14.2 h). The cost is the back line's: a lone bow on Dangerous at the floor now dies 12 times in the hour, where the first grade had two lone ways holding Dangerous. That's the Thrower doing his job, and it fits Tyler's 11-19 "struggling more" note. A four and a tank-and-Healer pair still hold Dangerous and Deadly with no death. `tools/pack.mjs` lintFields now refuses a pack whose monster casts a row that isn't its own (the stand-ins turned `pack.mjs --selftest` red, seen).
+
+**Walk-through: a hero who killed Krell, to the first outfit.**
+| Step | Does | Has from earlier steps | Doable? |
+|---|---|---|---|
+| 1 | Kills `lord_krell` in his hall (`hall_key` off the Gatekeeper) | A four, about Level 74 or more | Yes, live. Andy's four did it |
+| 2 | The pair's patch: `carters_rest` and `ox_road` open, the `factions` switch on. The Choose a side prompt opens | The kill on record (`player_progress ev:kill_monster:lord_krell`) | Once shipped. QA saw the prompt open from a recorded kill |
+| 3 | Joins through Holly (First Flame) or Quartermaster Venn (Last Ember), `hr_faction_join` | Step 2 | Yes, built. Needs the confirm (QA 2) |
+| 4 | Hunts their side's ground: Carter's Rest for the Last Ember, the Ox Road for the First Flame | Level about 97-100 with the warning and some deaths, or 110 safely | Once open |
+| 5 | Earns one standing point a settled minute | Step 4 | Yes, built. QA: 60 min gave 1 h, with the browser closed too |
+| 6 | Claims the Emberkeeper or the Flamebearer at 25 h and wears it | Step 5 | Yes, built. Both read crimson by default (QA 5) |
+| 7 | Swaps: 10 h on the other side's ground | Both sides have a ground | Only with the pair open, which is why one ground can't open alone (FG-EVEN) |
+
+**Not verified.** Nothing was played in the browser or the local world: neither ground opens now, so the brief's step 3 doesn't apply. The quick grade is 1 seed x 1 h a cell on a layout that isn't the real one. The lone-way split before the spell change wasn't kept (the second before-run was stopped when the PC hit 100% CPU), so the "two lone ways held Dangerous" line comes from the first grade's verdict rows, not a per-way table. Andy's Levels are the brief's and the 11-19 balance look's, not a production read.
+
 ### 2026-11-19 Complete balance look (game-designer, lane/d-balance-audit-2; **Tyler 2026-11-19, after the first audit: "I feel like we need a complete look"**): every system a player meets, MEASURED on set/v0.2.141 with the played hero and on the live record, no balance row changed
 **One screen.** Measured two ways. The live record, read-only: 7 accounts, 22 heroes, every ledger row since 10-19 (1,548 hunted hero-hours, 1,995 gathering, 538 at a bench, every gold movement). The real engine with the played hero: 966 cells on the 11 open grounds, and whole lives that carry their XP and skills from Level 1.
 

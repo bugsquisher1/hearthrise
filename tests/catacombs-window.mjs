@@ -67,6 +67,10 @@ function chest(o = {}) {
   return { on: true, dry: 0, opens: 3, per_call: 20, own_pm: 500, own_family: 'bow', warmth_pm: 1000, week_ends: new Date(Date.now() + 3 * DAY).toISOString(),
     cinders: { bag: 400, storage: 0, ring: 0 }, families: [fam('catacomb', 'Catacomb', 2, 5), fam('tower', 'Tower', 1, 0)], keys };
 }
+/* The hero's plan for when a hunt ends and the yard's quotes, as hr_hunt_after_section and hr_training_section answer them (alpha-windows AW-35's). */
+const AFTER = Object.freeze({ choice: 'train', skill: 'melee', grace_s: 60, job: null, now: null, last: null });
+const TRAINING = Object.freeze({ skills: ['melee', 'ranged', 'magic', 'defense'], max_hours: 12,
+  quotes: ['melee', 'ranged', 'magic', 'defense'].map((skill) => ({ skill, level: 12, fee_h: 122 })), rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 12 } });
 /* The Tower's section (the window needs it: the Tower window is the Catacombs' home). */
 const towerSection = (o = {}) => ({ hunt: 'the_burning_tower', rules: { room_size: 5, landing_every: 10, floor_limit_ms: 180000, landing_limit_ms: 600000, floor_top: 300 },
   pays: { xp_pm: 375, coin: false, drops: false, bestiary: false, death_loss_pm: 0, blessings: false, stamina: true },
@@ -169,6 +173,14 @@ const tabView = (page) => page.evaluate(() => {
       return Array.from(w.querySelectorAll('.tk-before li')).filter((li) => li.getClientRects().length)
         .every((li) => { const r = li.getBoundingClientRect(); return r.top >= b.top - 1 && r.bottom <= b.bottom + 1 && r.bottom <= start.top + 1; });
     })(),
+    /* When the hunt ends on the foot (./hunt-after-pane.js): shown, the server's pick and fee, over Enter */
+    after: (() => {
+      const sec = w.querySelector('.tk-foot .hw-after');
+      if (!sec) return null;
+      const sel = sec.querySelector('.hw-after-pick');
+      return { shown: !sec.hidden && !!sec.getClientRects().length, value: sel.value, off: sel.disabled, note: sec.querySelector('.hw-after-note').textContent,
+        overEnter: !!(sec.compareDocumentPosition(w.querySelector('.tk-go')) & Node.DOCUMENT_POSITION_FOLLOWING) };
+    })(),
     /* each wing slot's "Deepest" line on one line */
     wingLines: Array.from(w.querySelectorAll('.tk-wing-best')).map((e) => { const lh = parseFloat(getComputedStyle(e).lineHeight) || 18; return e.getBoundingClientRect().height < lh * 1.5 ? 1 : 2; }),
     last: rowsOf('.tk-last-box'), party: rowsOf('.tk-party-box'), rules: rowsOf('.tk-rules-box'),
@@ -239,7 +251,7 @@ async function checks(overrides, shots, { arm = null } = {}) {
     }
     if (runs('CT-2')) { // CT-2
       const { ctx, page, errors, s } = await open({ width: 1440, height: 900 },
-        { catacomb: catSection({ held: { bone_bronze: { bag: 2, storage: 1, ring: 0 }, bone_gold: { bag: 1, storage: 0, ring: 0 } }, party: [{ seat: 1, name: 'Bram', best: { bone: 19, flooded: 0 }, outfit: null }] }) });
+        { env: Object.assign(clone(BASE_ENV), clone(TOWN), { hunt_after: AFTER, training: TRAINING }), catacomb: catSection({ held: { bone_bronze: { bag: 2, storage: 1, ring: 0 }, bone_gold: { bag: 1, storage: 0, ring: 0 } }, party: [{ seat: 1, name: 'Bram', best: { bone: 19, flooded: 0 }, outfit: null }] }) });
       s.answer = (name) => (name === 'hr_catacomb_start' ? { ok: true, session_id: SID, wing: 'bone', landing: 20, floor: 21, checkpoints: [0, 10, 20] } : { ok: true });
       if (!(await openTower(page, 'catacomb'))) fails.push('CT-2 the Catacombs tab never opened');
       let v = await tabView(page);
@@ -250,6 +262,10 @@ async function checks(overrides, shots, { arm = null } = {}) {
       if (!v || v.title !== 'Unmarked Catacombs') fails.push('CT-2 the window\'s band on the Catacombs tab reads ' + JSON.stringify(v && v.title));
       if (!v || v.keysTwice) fails.push('CT-2 the keys held are said twice');
       if (!v || v.before.length < 3 || !v.beforeWhole) fails.push('CT-2 Before entering is cut or missing: ' + JSON.stringify(v && [v.before, v.beforeWhole]));
+      /* WHEN THE HUNT ENDS at the door (the designer, 2026-11-18: a descent's end runs the one plan): the server's pick and the yard's fee,
+         on the foot under Before entering, over Enter */
+      if (!v || !v.after || !v.after.shown || v.after.value !== 'train:melee' || v.after.note !== '122 gp/h, paid hourly in advance · up to 12 h · Out of gold: waits in town'
+        || !v.after.overEnter || v.after.off) fails.push('CT-2 When the hunt ends at the Catacombs\' door reads ' + JSON.stringify(v && v.after));
       /* the Bone Wing's doors: the entrance, then 10, 20, 30, 40 (two past the deepest 23), each with the BONE key its rows give, the last
          descent's start (door 10) picked, the first door past the deepest the next key, only the wing's checkpoints pressable */
       const DOORS = ['0|Room 1 Entrance||on|', '10|Room 10 Bronze Bone Key|Start 11|on|bone_key_bronze.png', '20|Room 20 Bronze Bone Key||on|bone_key_bronze.png',
@@ -414,7 +430,9 @@ async function checks(overrides, shots, { arm = null } = {}) {
       /* the Flooded Wing never descended (the 2026-11-18 phone shots: "Deepest Room: None" wrapped, and "Rank #1" stood beside it) */
       const wings = [{ wing: 'bone', hunt: BONE, name: 'Bone Wing', best: 23, record: 23, checkpoints: [0, 10, 20], last_start: 10 },
         { wing: 'flooded', hunt: FLOODED, name: 'Flooded Wing', best: 0, record: 0, checkpoints: [0], last_start: null }];
-      const { ctx, page, errors } = await open({ width: 922, height: 423 }, { catacomb: catSection({ wings, held: { bone_bronze: { bag: 2, storage: 0, ring: 0 } } }) });
+      /* a Waterlogged key held too: its long name is the one that ran under Open chest in the narrow column (2026-11-18 local-world read) */
+      const { ctx, page, errors } = await open({ width: 922, height: 423 }, { catacomb: catSection({ wings, held: { bone_bronze: { bag: 2, storage: 0, ring: 0 },
+        waterlogged_silver: { bag: 1, storage: 0, ring: 0 } } }) });
       if (!(await openTower(page, 'catacomb'))) fails.push('CT-6 the Catacombs tab never opened on the phone');
       await page.waitForTimeout(400);
       let pv = await tabView(page);
@@ -423,7 +441,7 @@ async function checks(overrides, shots, { arm = null } = {}) {
       await page.click('[data-hs-win="tower"] .tk-wing[data-wing="flooded"]');
       await wait(page, () => document.querySelector('[data-hs-win="tower"] .tk-wing[data-wing="flooded"]')?.getAttribute('aria-checked') === 'true');
       pv = await tabView(page);
-      if (!pv || pv.best !== 'None' || pv.ranks.length) fails.push('CT-6 a wing never descended shows ' + JSON.stringify(pv && [pv.best, pv.ranks]));
+      if (!pv || pv.best !== '—' || pv.ranks.length) fails.push('CT-6 a wing never descended shows ' + JSON.stringify(pv && [pv.best, pv.ranks]));
       if (shots) await page.screenshot({ path: join(shots, 'catacombs-tab-phone-922x423-flooded.png') });
       await page.click('[data-hs-win="tower"] .tk-wing[data-wing="bone"]');
       await page.waitForTimeout(300);
@@ -439,10 +457,17 @@ async function checks(overrides, shots, { arm = null } = {}) {
         const br = body.getBoundingClientRect();
         const over = body.scrollWidth > body.clientWidth + 1 ? Array.from(pane.querySelectorAll('*')).filter((e) => e.getClientRects().length && e.getBoundingClientRect().right > br.right + 1)
           .map((e) => e.className || e.tagName).slice(0, 6) : [];
+        /* a key row whose name sticks out of its box or runs under its Open chest label (the text's own line boxes, a Range's) */
+        const keysCut = Array.from(pane.querySelectorAll('.tk-key')).filter((k) => k.getClientRects().length).filter((k) => {
+          const name = k.querySelector('.tk-key-name'), o = k.querySelector('.tk-key-open').getBoundingClientRect(), rg = document.createRange();
+          rg.selectNodeContents(name);
+          return name.scrollWidth > name.clientWidth + 1
+            || [...rg.getClientRects()].some((x) => x.right > o.left + 1 && x.left < o.right - 1 && x.bottom > o.top + 1 && x.top < o.bottom - 1);
+        }).map((k) => k.getAttribute('data-key'));
         return { inside: r.left >= 0 && r.right <= innerWidth + 1 && r.top >= 0 && r.bottom <= innerHeight + 1, wings: pane.querySelectorAll('.tk-wing').length,
-          sideways: body.scrollWidth > body.clientWidth + 1, small, wide, over };
+          sideways: body.scrollWidth > body.clientWidth + 1, small, wide, over, keysCut, keys: pane.querySelectorAll('.tk-key').length };
       });
-      if (!fit.inside || fit.wings !== 2 || fit.sideways || fit.small.length || fit.wide.length) fails.push('CT-6 the phone sheet reads ' + JSON.stringify(fit));
+      if (!fit.inside || fit.wings !== 2 || fit.sideways || fit.small.length || fit.wide.length || fit.keysCut.length || fit.keys !== 2) fails.push('CT-6 the phone sheet reads ' + JSON.stringify(fit));
       if (shots) await page.screenshot({ path: join(shots, 'catacombs-tab-phone-922x423.png') });
       /* Enter is reachable: scrolled into the sheet, it is on screen and pressable */
       const reach = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="tower"] .tk-go'); b.scrollIntoView({ block: 'nearest' });
@@ -496,6 +521,7 @@ const MUTANTS = [
   ['CT-1 the tab shows with the switch off', 'src/shell/windows/tower.js', "prop(root.querySelector('.hw-tab[data-tab=\"catacomb\"]'), 'hidden', !cat);", "prop(root.querySelector('.hw-tab[data-tab=\"catacomb\"]'), 'hidden', false);"],
   ['CT-1 a forged tab press shows the tab with no section', 'src/shell/windows/tower.js', "const offered = (cs, id) => TABS.includes(id) && (id !== 'catacomb' || !!catacombOf(cs));", 'const offered = (cs, id) => TABS.includes(id);'],
   ['CT-2 Enter sends the entrance, not the pick', 'src/shell/windows/tower-catacombs.js', 'startDescent(ctx.account, cs, w.wing, door)', 'startDescent(ctx.account, cs, w.wing, 0)'],
+  ['CT-2 the Catacombs\' door hides When the hunt ends', 'src/shell/windows/tower-catacombs.js', "    + afterHtml() + '<label class=\"tt-start-row\">", "    + '<label class=\"tt-start-row\">"],
   ['CT-2 the start the last descent used is forgotten', 'src/shell/windows/tower-catacombs.js', '  if (w.lastStart !== null && w.checkpoints.includes(w.lastStart)) return w.lastStart;', '  if (false) return 0;'],
   ['CT-2 a door past the record is a press', 'src/shell/windows/tower-catacombs.js', "      prop(b, 'disabled', pending || !listed);", "      prop(b, 'disabled', pending);"],
   ['CT-2 a door names another wing\'s key', 'src/session/catacomb-sections.js', '  return cat.chest.keys.filter((k) => k.ground === w.hunt)', '  return cat.chest.keys.filter((k) => k.family === \'catacomb\')'],
@@ -513,6 +539,8 @@ const MUTANTS = [
   ['CT-2 the band says The Burning Tower on the Catacombs tab', 'src/shell/windows/tower.js', "return cs && scratchOf(cs).tab === 'catacomb' && offered(cs, 'catacomb') ? t('catacomb.title') : null;", 'return null;'],
   ['CT-6 a Rank beside a wing never descended', 'src/shell/windows/tower-catacombs.js', "prop(el, 'hidden', !f || !ranked);", "prop(el, 'hidden', !f);"],
   ['CT-6 the empty wing says the long label', 'src/data/text/catacomb.js', "wing_none: 'Deepest: —',", "wing_none: 'Deepest Room: None',"],
+  ['CT-6 a long key name runs under Open chest on the phone', 'src/styles/tower.css', '  .tk-key-open { flex-basis: 100%; padding-left: calc(var(--icon-1) + 8px); }\n', ''],
+  ['CT-6 Deepest Room says None for a wing never descended', 'src/data/text/tower.js', "  best_none: '—',", "  best_none: 'None',"],
   ['CT-5 the hunt bar says nothing in the Catacombs','src/shell/widgets/tower-bar.js', '  if (!w) return null;', '  return null;'],
   ['CT-7 a descent watched draws the town','src/world/hunt-maps.js', 'export const HUNT_MAP_INDEX = huntMapIndex(DRAWN_MAPS, HUNT_INDEX);', 'export const HUNT_MAP_INDEX = huntMapIndex(WORLD_MAPS, HUNT_INDEX);'],
   ['CT-7 the staged hunting ground routes to its map', 'src/world/hunt-maps.js', '{ hunts: Object.freeze(m.hunts.filter((h) => runRulesOf(h))) }', '{ hunts: m.hunts }'],

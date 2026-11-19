@@ -12,17 +12,24 @@
 //        tools/balance-sim/weapon-power.mjs) is at or under the line's weapon of its family.
 //   WL4  A BUDGET, NOT A TEMPLATE: each piece wins somewhere (on some late ground, at its Level, it beats every other piece of its
 //        family a hero of that Level can wear, fully tempered Dawnsteel included: x1.02), and where two pieces of a family are worn from the same Level
-//        neither wins everywhere. A piece whose attack and damage are the line's own is a template, not a unique.
+//        neither wins everywhere. A piece whose attack and damage are the line's own is a template, not a unique: every sample, and
+//        every tier-7 unique weapon a catalogue holds or stages (the designer 2026-11-18 row 1a: a unique is its own stat mix inside the
+//        band's budget plus one property; Krell's five sidegrades too, whose line under 110 is Dawnsteel's own numbers). A Hearth Chest
+//        weapon is not a unique (the next step's plain numbers plus its skill, by design) and a ladder rung is the line.
 //   WL5  THE ROW: everything but its own numbers is its Dawnsteel base's (type, slot, weapon kind, hands, tier); it is worn from its
-//        ground's floor; its book is the base's times the line, so it never sells under Dawnsteel.
+//        home's floor (staged/morrow-grid.js homeOf), or from its family's first Level if the floor is under it; its book is the
+//        base's times the line, so it never sells under Dawnsteel.
 //   WL6  ONE ATTRIBUTE, AT TIER 7's SIZE: one weapon attribute from special-attributes.js (a critical chance or a bane), at its
-//        tier-7 size; a bane names a class that lives on the piece's own ground.
+//        tier-7 size; a bane names a class that lives on the piece's own ground (so a piece on a place not built yet carries none).
 //   WL7  A HOME AND A USE: the source monster is placed on the named ground, the band is Rare, a daily kill or a trophy, a kill's
-//        chance is under 5%, a monster gives at most one weapon, and the use is to be worn.
+//        chance is under 5%, a monster gives at most one weapon, and the use is to be worn. A Morrow piece sits on its place's
+//        weapon cell on the region grid (the designer 2026-11-18 row 1b: "the grid wins"); on a place not built yet it says
+//        `planned` and names no monster, and the day the place is built it must name one.
 //   WL8  WORDS: no banned filler word, no semicolon or em dash, the first sentence carries the number.
 //   WL9  THE MAGE BAR HOLDS ON THE LINE: at every Level the line names and at each sample warhammer's, a Mage with the wand on
 //        the line, the Duskwood Codex and full Duskweave hits at most 1.3 times the warhammer (style-gear SG-8's bar,
 //        lane/d-mage-110), so the line can't re-open the Mage gap.
+//   WL10 THE FIRST LEVEL IS MEASURED: WEAPON_FIRST_LEVEL is what weapon-power.mjs firstLevel measures for each family.
 //
 //   node tests/weapon-line.mjs            the guard
 //   node tests/weapon-line.mjs --mutate   each rule driven red by a defect planted on a copy of the data
@@ -38,8 +45,10 @@ import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
 import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
 import { SPECIAL_ATTRIBUTES, SPECIAL_SAMPLE } from '../src/data/special-attributes.js';
+import { HEARTH_CHEST_KEYS } from '../src/data/chests.js';
 import { LINE_SAMPLE } from '../tools/balance-sim/staged/armor-line.js';
 import * as LINE from '../tools/balance-sim/staged/weapon-line.js';
+import { MORROW_GRID, homeOf } from '../tools/balance-sim/staged/morrow-grid.js';
 import * as combat from '../src/core/combat.js';
 import { classOfMonster } from '../src/core/bane.js';
 import { deriveProfile } from '../src/core/member.js';
@@ -75,6 +84,21 @@ function homes() {
   return m;
 }
 const ladderTop = (fam) => { const l = GEAR_LADDERS.find((x) => x.key === 'weapon:' + fam); return l ? l.ids[l.ids.length - 1] : null; };
+/* the rows that are not uniques: every ladder rung (the line itself) and every Hearth Chest weapon (the next step's plain numbers plus its skill) */
+const NOT_UNIQUE = new Set([...GEAR_LADDERS.flatMap((l) => l.ids || []), ...HEARTH_CHEST_KEYS.flatMap((k) => Object.values(k.weapons || {}))]);
+/* the line family a weapon row belongs to (its Dawnsteel base's kind, discipline and hands), or null */
+function familyOfRow(row, B) {
+  for (const [fam, b] of Object.entries(B)) {
+    const base = ITEMS[b.id];
+    if (base && row.weaponType === base.weaponType && (row.discipline || null) === (base.discipline || null) && !!row.twoHanded === !!base.twoHanded) return fam;
+  }
+  return null;
+}
+/* WL4's template rows past the sample: every tier-7-or-later unique weapon in the catalogue or staged as a special piece: [id, row, family] */
+const tierSevenUniques = (B, items = ITEMS, special = SPECIAL_SAMPLE) => [
+  ...Object.entries(items).filter(([id, it]) => it && it.type === 'weapon' && Number(it.tier) >= 7 && !NOT_UNIQUE.has(id)),
+  ...Object.entries(special).filter(([id, s]) => !Object.prototype.hasOwnProperty.call(items, id) && s.row.type === 'weapon' && Number(s.row.tier) >= 7).map(([id, s]) => [id, s.row]),
+].map(([id, row]) => [id, row, familyOfRow(row, B)]).filter(([, , fam]) => fam);
 const powerOf = (line) => weaponPower({ ITEMS, MONSTERS, HUNT_GROUNDS, HUNT_INDEX, combat, deriveProfile, skillXpForLevel, line });
 /* the attributes a weapon row carries, from the catalogue's weapon kinds */
 function attributesOf(row) {
@@ -86,10 +110,13 @@ function attributesOf(row) {
 const maxHitOf = (equipment, items, L) => combat.playerCombatRolls({ def: 0, tier: 1 }, { items, equipment,
   skills: { melee: skillXpForLevel('melee', L), magic: skillXpForLevel('magic', L) }, profile: deriveProfile(items[equipment.weapon].weaponType) }).maxHit;
 
-/** Every broken rule, as strings. Empty = sound. */
-export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers: importers(), homes: homes() }) {
+/** Every broken rule, as strings. Empty = sound. `open`: what importers() and homes() answer, the catalogue's ITEMS (`items`, WL4's
+    tier-7 uniques; a mutant plants a row) and the region grid (`grid`). */
+export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
+  open = { importers: importers(), homes: homes(), items: ITEMS, special: SPECIAL_SAMPLE, grid: MORROW_GRID, ...open };
   const out = [];
   const S = line.WEAPON_SAMPLE, B = line.WEAPON_LINE_BASE;
+  const homeFor = (src) => homeOf(src, { HUNT_GROUNDS, HUNT_INDEX, MONSTERS }, open.grid);
   /* WL1 */
   for (const [fam, b] of Object.entries(B)) {
     const it = ITEMS[b.id], top = ladderTop(fam);
@@ -123,9 +150,12 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
       if (OWN.has(k)) continue;
       if (JSON.stringify(base[k]) !== JSON.stringify(row[k])) out.push('WL5 ' + id + '.' + k + ' = ' + JSON.stringify(row[k]) + ', its base ' + b.id + ' has ' + JSON.stringify(base[k]));
     }
-    const src = s.source || {}, g = HUNT_GROUNDS[src.ground], band = g && HUNT_INDEX[g.hunt] && HUNT_INDEX[g.hunt].band;
-    if (!band) out.push('WL5 ' + id + ': ' + src.ground + ' has no band');
-    else if (row.reqLv !== band[0]) out.push('WL5 ' + id + ': worn from ' + row.reqLv + ', its ground ' + src.ground + ' opens at ' + band[0]);
+    const src = s.source || {}, home = homeFor(src);
+    /* worn from its home's floor, or from its family's first Level when the floor is under it (at the anchor the line is Dawnsteel itself) */
+    const first = (line.WEAPON_FIRST_LEVEL || {})[s.family];
+    const wornFrom = home.floor === null ? null : Math.max(home.floor, Number(first) || 0);
+    if (wornFrom === null) out.push('WL5 ' + id + ': ' + (src.place || src.ground) + ' has no band');
+    else if (row.reqLv !== wornFrom) out.push('WL5 ' + id + ': worn from ' + row.reqLv + ', its home ' + (src.place || src.ground) + ' opens at ' + home.floor + ' and the ' + s.family + ' line\'s first Level is ' + first + ', so ' + wornFrom);
     if (!(row.reqLv > line.WEAPON_LINE_ANCHOR)) out.push('WL5 ' + id + ': worn from ' + row.reqLv + ', the line starts past ' + line.WEAPON_LINE_ANCHOR);
     if (row.v !== round5(base.v * line.weaponLineScale(row.reqLv))) out.push('WL5 ' + id + ': book ' + row.v + ', its base\'s times the line is ' + round5(base.v * line.weaponLineScale(row.reqLv)));
     /* WL6 */
@@ -138,25 +168,41 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = { importers
       if (!def.slots.includes(row.slot)) out.push('WL6 ' + id + ': ' + want[0] + ' is not carried on the ' + row.slot + ' slot');
       if (def.at[ATTR_TIER] === undefined || Math.abs(def.at[ATTR_TIER] - f.value) > 1e-9) out.push('WL6 ' + id + ': ' + f.value + ', the catalogue says ' + def.at[ATTR_TIER] + ' at tier ' + ATTR_TIER);
       if (f.kind === 'bane') {
-        const lives = [...open.homes].some(([mon, gs]) => gs.has(src.ground) && MONSTERS[mon] && classOfMonster(MONSTERS[mon]) === f.key);
-        if (!lives) out.push('WL6 ' + id + ': a bane of ' + f.key + ' on ' + src.ground + ', where no ' + f.key + ' lives');
+        /* the engine's class (bane.js classOfMonster), on the built ground it drops on: a place not built yet has nobody to bane */
+        const lives = !!home.ground && [...open.homes].some(([mon, gs]) => gs.has(home.ground) && MONSTERS[mon] && classOfMonster(MONSTERS[mon]) === f.key);
+        if (!lives) out.push('WL6 ' + id + ': a bane of ' + f.key + ' on ' + (home.ground || (src.place + ' (not built)')) + ', where no ' + f.key + ' lives');
         if (!(row.effects || []).includes('bane')) out.push('WL6 ' + id + ': a bane row names it in `effects` (the card reads it)');
       }
     }
-    /* WL7 */
-    const gs = open.homes.get(src.monster);
-    if (!MONSTERS[src.monster]) out.push('WL7 ' + id + ': source ' + src.monster + ' is not a monster');
-    else if (!gs || !gs.has(src.ground)) out.push('WL7 ' + id + ': ' + src.monster + ' is not placed on ' + src.ground);
+    /* WL7: the home, and the grid cell */
+    for (const p of home.problems) out.push('WL7 ' + id + ': ' + p);
+    if (!home.planned) {
+      const gs = open.homes.get(src.monster);
+      if (!MONSTERS[src.monster]) out.push('WL7 ' + id + ': source ' + src.monster + ' is not a monster');
+      else if (!gs || !gs.has(src.ground)) out.push('WL7 ' + id + ': ' + src.monster + ' is not placed on ' + src.ground);
+      if (src.how === 'rare' && !(src.ch > 0 && src.ch < 0.05)) out.push('WL7 ' + id + ': a Rare\'s chance a kill is over 0 and under 5% (got ' + src.ch + ')');
+    }
+    if (home.place && !(home.place.weapons || []).includes(s.family)) out.push('WL7 ' + id + ': a ' + s.family + ' on ' + src.place + ', whose grid weapons are ' + (home.place.weapons || []).join(', ') + ' (the grid wins)');
     if (!['rare', 'trophy', 'daily'].includes(src.how)) out.push('WL7 ' + id + ': a unique drops in the Rare band, as a trophy or on a daily kill');
-    if (src.how === 'rare' && !(src.ch > 0 && src.ch < 0.05)) out.push('WL7 ' + id + ': a Rare\'s chance a kill is over 0 and under 5% (got ' + src.ch + ')');
     if (s.use !== 'worn') out.push('WL7 ' + id + ': its use is to be worn');
-    perMonster.set(src.monster, (perMonster.get(src.monster) || 0) + 1);
+    if (src.monster) perMonster.set(src.monster, (perMonster.get(src.monster) || 0) + 1);
     /* WL8 */
     if (BANNED.test(row.n) || BANNED.test(s.text)) out.push('WL8 ' + id + ': a banned filler word (DESIGN_STANDARDS §2)');
     if (/[;—]/.test(s.text)) out.push('WL8 ' + id + ': no semicolon or em dash in item text');
     if (!/\d/.test(String(s.text).split('. ')[0])) out.push('WL8 ' + id + ': the first sentence says what the piece does, with its number');
   }
   for (const [mon, n] of perMonster) if (n > 1) out.push('WL7 ' + mon + ' gives ' + n + ' weapons, at most one a monster (loot redesign 10-23)');
+  /* WL4 past the sample (row 1a): no tier-7 unique a catalogue holds or stages carries its family's line numbers at its Level (under the
+     anchor, Dawnsteel's own: "the band's plain numbers plus one property" is a template) */
+  for (const [id, row, fam] of tierSevenUniques(B, open.items, open.special)) {
+    const ln = line.lineWeapon(fam, Number(row.reqLv) || 1);
+    if (ln && line.LINE_FIELDS.every((k) => (ln[k] === undefined) === (row[k] === undefined) && (ln[k] === undefined || ln[k] === row[k]))) out.push('WL4 ' + id + ': a tier-' + row.tier + ' unique ' + fam + ' with the line\'s own attack and damage at Level ' + row.reqLv + ' (' + B[fam].id + '\'s numbers), a template and not a unique');
+  }
+  /* WL10 */
+  for (const fam of Object.keys(B)) {
+    const f = P.firstLevel(fam, G);
+    if (f !== (line.WEAPON_FIRST_LEVEL || {})[fam]) out.push('WL10 ' + fam + ': WEAPON_FIRST_LEVEL says ' + (line.WEAPON_FIRST_LEVEL || {})[fam] + ', the measure says ' + f);
+  }
   /* WL4: each piece wins somewhere, at its own Level, on the score (pace and safety's mean), against its family's pieces a hero of that Level
      can wear and fully tempered Dawnsteel (line.TEMPERED_DAWNSTEEL, lane/d-temper-dawnsteel) */
   const ids = Object.keys(S).filter((id) => B[S[id].family] && ITEMS[B[S[id].family].id]);
@@ -202,27 +248,40 @@ const MUTANTS = [
   ['a sample takes an item\'s name', 'WL2', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.n = 'Dawnsteel Sword'; }],
   ['a sample takes the armor line\'s name', 'WL2', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.n = 'Watchman\'s Helm'; }],
   ['the mallet hits over the line', 'WL3', (L) => { L.WEAPON_SAMPLE.dunns_mallet.row.strB = 102; }],
-  ['the Roost sword over the line on its own ground', 'WL3', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.strB = 36; }],
+  ['the Carter\'s Rest sword over the line', 'WL3', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.strB = 37; }],
   ['the line read at a lower Level (the scale lies)', 'WL3', (L) => { L.weaponLineScale = () => 1; }],
   ['a template: the line\'s own numbers', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 63, strB: 53, critB: 0.1 }); }],
   ['one sword wins everywhere (the other gave up too much)', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.limewashed_sword.row, { atkB: 40, strB: 36 }); }],
-  ['the Roost sword under Dawnsteel even on the Roost', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.wagon_guards_sword.row, { atkB: 30, strB: 22 }); }],
-  ['tempered Dawnsteel out-hits the Roost sword (the tempering read as x1.1)', 'WL4', (L) => { L.TEMPERED_DAWNSTEEL = 1.1; }],
+  ['the Carter\'s Rest sword under tempered Dawnsteel everywhere', 'WL4', (L) => { Object.assign(L.WEAPON_SAMPLE.wagon_guards_sword.row, { atkB: 30, strB: 22 }); }],
+  ['tempered Dawnsteel out-hits the Carter\'s Rest sword (the tempering read as x1.1)', 'WL4', (L) => { L.TEMPERED_DAWNSTEEL = 1.1; }],
+  /* row 1a: Krell's sidegrades are tier-7 uniques under the anchor, where the line is Dawnsteel's own numbers */
+  ['Krell\'s sword ships as Dawnsteel\'s numbers plus a bane (the plan\'s old "band\'s plain numbers")', 'WL4', (L, A, o) => {
+    o.items = { ...ITEMS, krells_sword: { ...ITEMS.dawn_sword, n: 'Krell\'s Sword', rarity: 'unique', bane: { class: 'undead', mult: 1.1 }, effects: ['bane'], reqLv: 95 } }; }],
+  ['a named tier-7 wand on Dawnsteel\'s numbers plus a critical chance', 'WL4', (L, A, o) => {
+    o.items = { ...ITEMS, dawn_keen: { ...ITEMS.duskwood_wand, n: 'A Keen Wand', rarity: 'legendary', critB: 0.1, reqLv: 110 } }; }],
+  ['a tier-7 special-attribute weapon staged as "the standard piece plus one attribute"', 'WL4', (L, A, o) => {
+    o.special = { ...SPECIAL_SAMPLE, keen_dawn: { row: { ...ITEMS.dawn_hatchets, n: 'Keen Hatchets', critB: 0.1 }, base: 'dawn_hatchets', attr: ['crit', null] } }; }],
   ['the hooks lose a hand', 'WL5', (L) => { delete L.WEAPON_SAMPLE.hoist_hooks.row.twoHanded; }],
   ['the sword becomes a hammer', 'WL5', (L) => { L.WEAPON_SAMPLE.limewashed_sword.row.weaponType = 'hammer'; }],
   ['worn under its ground\'s floor', 'WL5', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.reqLv = 150; }],
+  ['worn from Carter\'s Rest\'s floor, the anchor, where the line is Dawnsteel itself', 'WL5', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.reqLv = 110; }],
   ['a book under the base', 'WL5', (L) => { L.WEAPON_SAMPLE.dunns_mallet.row.v = 39600; }],
   ['a second attribute', 'WL6', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.critB = 0.1; }],
   ['the bane at 1.2', 'WL6', (L) => { L.WEAPON_SAMPLE.watchmans_sword.row.bane = { class: 'human', mult: 1.2 }; }],
   ['the critical chance at 0.15', 'WL6', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.critB = 0.15; }],
-  ['a bane of what isn\'t there', 'WL6', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.row.bane = { class: 'undead', mult: 1.1 }; L.WEAPON_SAMPLE.wagon_guards_sword.attr = ['bane', 'undead']; }],
+  ['a bane of what isn\'t there (the trolls are no class the engine banes)', 'WL6', (L) => { const s = L.WEAPON_SAMPLE.wagon_guards_sword; delete s.row.critB; s.row.bane = { class: 'humanoid', mult: 1.1 }; s.row.effects = ['bane']; s.attr = ['bane', 'humanoid']; }],
   ['a bane the card can\'t read', 'WL6', (L) => { delete L.WEAPON_SAMPLE.dunns_mallet.row.effects; }],
   ['a home that is not there', 'WL7', (L) => { L.WEAPON_SAMPLE.hoist_hooks.source.monster = 'troll_picker'; }],
   ['a common drop', 'WL7', (L) => { L.WEAPON_SAMPLE.limewashed_sword.source.ch = 0.08; }],
   ['two weapons off one monster', 'WL7', (L) => { L.WEAPON_SAMPLE.limewashed_sword.source.monster = 'shrouded_pauper'; }],
+  /* row 1b: the grid wins */
+  ['the sword back on the Roost (the bow and staff\'s cells, the 11-16 placement)', 'WL7', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.source = { place: 'wyvern_roost', monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }; }],
+  ['a place not built named as if it were (a monster on the Night Shift)', 'WL7', (L) => { L.WEAPON_SAMPLE.wagon_guards_sword.source = { place: 'night_shift', monster: 'troll_picker', how: 'rare', ch: 0.0093 }; }],
+  ['the grid still calls a built ground planned', 'WL7', (L, A, o) => { o.grid = { ...MORROW_GRID, carters_rest: { ...MORROW_GRID.carters_rest, ground: null, planned: { band: [110, 125] } } }; }],
   ['a banned word', 'WL8', (L) => { L.WEAPON_SAMPLE.dunns_mallet.text = 'It hits Constructs 10% harder. Forged in the Void.'; }],
   ['text that leads with flavour', 'WL8', (L) => { L.WEAPON_SAMPLE.hoist_hooks.text = 'The Carters dragged the dead on these. They hurt the dead.'; }],
   ['the wand line carries the Mage past the bar', 'WL9', (L) => { L.WEAPON_LINE_BASE.wand.magicStrB = 90; }],
+  ['the first Level written, not measured', 'WL10', (L) => { L.WEAPON_FIRST_LEVEL = { ...LINE.WEAPON_FIRST_LEVEL, hatchets: 112 }; }],
 ];
 
 function mutate() {
@@ -245,5 +304,6 @@ if (isMain(import.meta.url)) {
   if (process.argv.includes('--mutate')) process.exit(mutate());
   const bad = problems();
   if (bad.length) { console.error('weapon-line: RED\n  ' + bad.join('\n  ')); process.exit(1); }
-  console.log('weapon-line: ' + Object.keys(LINE.WEAPON_SAMPLE).length + ' sample weapons under the line past Dawnsteel on every late ground, each winning somewhere, one attribute each, hidden, the Mage bar held');
+  console.log('weapon-line: ' + Object.keys(LINE.WEAPON_SAMPLE).length + ' sample weapons under the line past Dawnsteel on every late ground, each winning somewhere, one attribute each, '
+    + 'on its grid cell, hidden, the Mage bar held; ' + tierSevenUniques(LINE.WEAPON_LINE_BASE).length + ' catalogue tier-7 unique(s) off the line\'s numbers; the first Levels measured');
 }

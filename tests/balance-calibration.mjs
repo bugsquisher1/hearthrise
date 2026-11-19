@@ -68,20 +68,21 @@ const HOURS = 2, SEEDS = 2;
    absent), why, mult: { metric: x } }]. The recorded rate is multiplied by `mult` before it is judged. Measured on this fixture, by
    `calibrate.mjs --run --monsters ...` or the change's own before/after run. A change that moves one ground's hunts (a spell, a row) names it:
    a multiplier pooled over grounds it moves differently fits none of them (lane/d-harder-monsters: the step moved the Warrens' lone store
-   bill x1.08 and Krell's fours' x1.71, so one row pooled over both left Krell's over the line once his Hold's own spell came on top). */
+   bill x1.08 and Krell's fours' x1.6, so one row pooled over both left Krell's over the line once his Hold's own spell came on top). */
 export const DECLARED_SHIFTS = Object.freeze([
   /* MONSTERS A LITTLE HARDER (Tyler 2026-11-19, lane/d-harder-monsters; balance-sheet.js STAT_FORMULA): blows and HP x1.1, XP a point x0.96
      (the pace of record holds), the Cellar's XP fit 1.22. MEASURED on this fixture's three judged hunts: `calibrate.mjs --run --hours 2
-     --seeds 2` on set/v0.2.142 (db99d405a) and on the change merged over it (Hot Pitch off), sim over sim, pooled (summed) within each ground:
-     the Warrens alone, and Krell's two Deadly fours (the Healer's mana and the tank's food follow the blows). */
+     --seeds 2` on set/v0.2.142 (529f354ea, the tank runes in) and on the change merged over it (Hot Pitch off), sim over sim, within each ground the geometric mean of
+     its hunts' own shifts: the Warrens alone, and Krell's two Deadly fours, whose store bills moved x1.90 and x1.46 (the Healer's mana and the
+     tank's food follow the blows; a summed pool fits the bigger spender alone and left the other x1.40 over its record). */
   Object.freeze({ after: '2026-11-18', grounds: Object.freeze(['coppercap_warrens']), why: 'monsters a little harder: STAT_FORMULA blows and HP x1.1 (Tyler 2026-11-19), XP a point x0.96',
     mult: Object.freeze({ killsPerH: 0.908, levelXpPerH: 0.955, coinPerH: 0.971, dealtPerH: 1.005, takenPerH: 1.084, healedPerH: 1.138, storePerH: 1.077 }) }),
   Object.freeze({ after: '2026-11-18', grounds: Object.freeze(['krells_hold']), why: 'monsters a little harder: STAT_FORMULA blows and HP x1.1 (Tyler 2026-11-19), XP a point x0.96',
-    mult: Object.freeze({ killsPerH: 0.942, levelXpPerH: 0.994, coinPerH: 1.043, dealtPerH: 1.037, takenPerH: 1.175, healedPerH: 1.208, storePerH: 1.706 }) }),
+    mult: Object.freeze({ killsPerH: 0.942, levelXpPerH: 0.994, coinPerH: 1.039, dealtPerH: 1.039, takenPerH: 1.16, healedPerH: 1.19, storePerH: 1.666 }) }),
   /* KRELL'S HOLD'S HOT PITCH (lane/d-harder-monsters, the balance audit's fix 2, 2026-11-19): the Gatekeeper's group spell reaches the back seats.
      MEASURED the same way on the merged code, Hot Pitch (1.0x every 16 s) off against on. */
   Object.freeze({ after: '2026-11-18', grounds: Object.freeze(['krells_hold']), why: 'Krell\'s Hold\'s Gatekeeper throws Hot Pitch on the whole party (the audit\'s fix 2)',
-    mult: Object.freeze({ killsPerH: 1, levelXpPerH: 0.999, coinPerH: 1, dealtPerH: 1.001, takenPerH: 1.039, healedPerH: 1.028, storePerH: 1.048 }) }),
+    mult: Object.freeze({ killsPerH: 1.002, levelXpPerH: 1.002, coinPerH: 1.003, dealtPerH: 1.003, takenPerH: 1.047, healedPerH: 1.041, storePerH: 1.112 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);

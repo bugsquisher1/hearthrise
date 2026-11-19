@@ -1212,8 +1212,10 @@ const mutants = [
   { name: 'Green Sickness waits for two monsters (a new Healer fires nothing on a lone one)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"],
       ['src/data/rule-subjects.js', "slot('undertow', UNDERTOW_WHEN)", "slot('undertow', [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }])"]] },
+  /* (re-aimed, lane/d-harder-monsters 2026-11-19: with monsters a tenth harder a lone Healer at the Thicket's floor dips under 70% inside the half
+     hour, so a wait at 70 casts a few times and the slot reads earned; the same slip at 50 never casts there) */
   { name: 'Green Sickness waits for someone hurt (the old Healer: nothing until it hurts)', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'lt', value: 70, subject: 'lowest' }])"]] },
+    edits: [['src/data/rule-subjects.js', "slot('green_sickness', SICKNESS_WHEN)", "slot('green_sickness', [{ metric: 'ally_hp_pct', op: 'lt', value: 50, subject: 'lowest' }])"]] },
   { name: 'Arcane Barrier can never fire (HP under 0%)', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "slot('arcane_barrier')", "slot('arcane_barrier', [{ metric: 'self_hp_pct', op: 'lt', value: 0 }])"]] },
   { name: 'a new style holds a slot that waits for nobody and never fires', case: 'starter-bar-fires',

@@ -38,6 +38,11 @@
         "bytes": 3079003,
         "on": "2026-11-19",
         "why": "set/v0.2.142 merged into lane/b-tank-runes: the set's own content reaches the edge, +1,572 bytes (lane/d-audit-fixes-sim fix 7 and the re-pinned lines: rule-subjects.js Flame Volley on the bow's default set, party-class-xp.js and nine packs' partyVsAlone, hunt-tutorial.js); set/v0.2.142 alone ships 3,069,667 against its 3,068,095 ceiling, the same 1,572 over"
+      },
+      {
+        "bytes": 3088216,
+        "on": "2026-11-19",
+        "why": "lane/d-harder-monsters (Tyler 2026-11-19, monsters a little harder) merged last on set/v0.2.142: +9,213 bytes, all src/data the edge already reaches: the measured notes behind the step (balance-sheet.js +3.4 KB), the three back-row spells and their notes (krells_hold +1.7 KB, pyre_field +1.1 KB, the_slake +0.5 KB), held spell notes (ox_road, unmarked_catacombs +1.4 KB), monsters.js rows +0.6 KB, scaled-hunts.js +0.5 KB"
       }
     ]
   }

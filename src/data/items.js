@@ -19,6 +19,7 @@ import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.140';
 import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.140';
 import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.140';
 import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.140';
+import { PATTERN_ITEMS } from './patterns.js?v=0.2.140';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×
@@ -60,6 +61,8 @@ export const ITEMS={
   ...SHIELD_ITEMS,
   /* The fist line's wraps, tiers 1 and 2 (src/data/fists.js): HIDDEN, in the catalogue only while its sample is live. New ids only. */
   ...(FIST_LINE.live ? FIST_ITEMS : {}),
+  /* The patterns (src/data/patterns.js): a Rare that teaches one hero a recipe. HIDDEN: empty while PATTERN_LINE.live is false. New ids only. */
+  ...PATTERN_ITEMS,
   /* The training items (src/data/training.js, Tyler 2026-11-14): one a combat skill in 12 and 24 hours, the Arms Master's for gold and the Crowns store's bound copy. New ids only. */
   ...TRAINING_GEAR_ITEM_ROWS,
   /* The Burning Tower's chest (src/data/chests.js, Tyler 2026-11-14): the four keys a landing mints and the Hearth Cinders the chest pays. Bound to the account. New ids only. */

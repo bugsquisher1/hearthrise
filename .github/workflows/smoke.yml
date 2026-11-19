@@ -6211,6 +6211,14 @@ jobs:
           node tests/recipe-learn.mjs
           node tools/mutant-gate.mjs node tests/recipe-learn.mjs --selftest
 
+      # PATTERNS (src/data/patterns.js; designer 2026-11-19: learned PER HERO through hr_recipe_learn). The patterns ship hidden; this
+      # holds the hidden tree and plays a planted copy switched on: the Kingsgrate Rivets is an item (never `recipe`, the engine's
+      # auto-unlock scroll) a Rat King kill credits to a bag, and on the replayed chain the bag's own Learn opens the Steelgrate bench for
+      # the hero who read it and for no other hero of the account, on screen and on the engine. Happy path; PGlite, no credential.
+      - name: Pattern learn — a pattern teaches the hero who reads it, and no other
+        if: ${{ !cancelled() }}
+        run: node tests/pattern-learn.mjs
+
       # THE PROJECTED KEY SET, BY EXECUTION. hr_state_of is created once and then
       # programmatically PATCHED by later migrations, so its shipped body is in no
       # file and a grep is a guess. This replays the chain, calls hr_state_of on a

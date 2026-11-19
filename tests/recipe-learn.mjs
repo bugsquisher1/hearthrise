@@ -300,9 +300,12 @@ async function runAll(db) {
     + "where namespace = 'recipe' and progress_kind = 'flag' order by unlock_id")).rows;
   /* The three cookbook scrolls were CUT (designer 2026-11-18: patterns teach worn recipes, per hero); until a pattern ships, the shipped
      catalogue may hold none, and the parity below still holds both ways (0 = 0). The verb is then proven on a FIXTURE pattern (below). */
-  const authored = Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].recipe).sort();
+  /* What tools/gen-unlocks.mjs catalogues, the same union: every recipe's gate (a pattern, src/data/patterns.js, names its recipe as
+     `teaches` and is catalogued through that gate) and every item carrying `recipe`. */
+  const gates = Object.values(ARTISAN_RECIPES).flat().filter((r) => r && r.gated).map((r) => r.gated);
+  const authored = [...new Set(Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].recipe).concat(gates))].sort();
   ok(catalogued.length === authored.length,
-     `hr_unlocks carries ${catalogued.length} recipe scrolls, src/data/items.js authors ${authored.length}`);
+     `hr_unlocks carries ${catalogued.length} recipe scrolls, src/data authors ${authored.length} (gates and recipe items)`);
   for (const r of catalogued) {
     ok(authored.includes(r.item),
        `hr_unlocks catalogues "${r.item}", which src/data/items.js does not mark as a recipe scroll`);
@@ -311,7 +314,7 @@ async function runAll(db) {
   }
   for (const id of authored) {
     ok(catalogued.some((r) => r.item === id),
-       `src/data/items.js authors recipe scroll "${id}" and hr_unlocks omits it`);
+       `src/data authors recipe scroll or gate "${id}" and hr_unlocks omits it`);
   }
 
   // THE PROBE SCROLL: one that a REAL gated recipe depends on, so R9 can flip a

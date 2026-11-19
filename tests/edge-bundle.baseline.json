@@ -28,6 +28,11 @@
         "bytes": 3068095,
         "on": "2026-11-19",
         "why": "maps/grids.js fills its Map with set() calls, not a constructor array (typecheck-ratchet TS2769 on the array form): +9 bytes"
+      },
+      {
+        "bytes": 3077431,
+        "on": "2026-11-19",
+        "why": "lane/b-tank-runes (Tyler 2026-11-19, the tank rune spells): the engine's four pieces (a party shield with shieldBy and the caster-only refund, a ring that lands only its status, Chill by rune tier with a stronger refresh lifting, party: true) in src/core/hunt/abilities.js, status.js, damage.js, and the two rows plus their validation in src/data/abilities.js and statuses.js: +9,336 bytes, all of it engine the settle runs"
       }
     ]
   }

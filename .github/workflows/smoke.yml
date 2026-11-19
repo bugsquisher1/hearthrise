@@ -773,6 +773,16 @@ jobs:
         run: |
           node tests/entry-gates.mjs
           node tools/mutant-gate.mjs node tests/entry-gates.mjs --mutate
+      # THE CELLAR'S EXIT (2027-05-28-cellar-outgrown.sql; the board's 2026-11-19 complete balance look, change 1): the number is the data's
+      # (hunt-grounds.js endsAtLevel); a hero at it is refused `outgrown` by the door and nothing opens, unless the hunt plays scaled; the
+      # settle proves the end from the Level it holds; the engine ends a hunt at the exit at the same instant on any cut, and a hero already
+      # past it at its first boundary; a second apply moves nothing. --mutate (7): the door's Level, a Level early, the scale, the proof, and
+      # the engine's end, early and once a window. The hunt viewed and with the browser closed: tests/hunt-live.mjs LV-OUTGROWN.
+      - name: Cellar exit — the door at Level 5, the settle's proof, the engine on any cut (7 mutants)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/cellar-outgrown.mjs
+          node tools/mutant-gate.mjs node tests/cellar-outgrown.mjs --mutate
       # THE HEARTH CHEST (2027-04-27-tower-chest.sql; Tyler 2026-11-14, the Burning Tower board §5): a key from every landing row, both paths
       # (browser closed, hunt viewed), once; the open on the server's seeded dice at 16 / 8 / 4.5 / 2% x the warmth x the stoke, half the
       # family worn; the warmth grows and caps, a weapon cools it, a stoke burns its Cinders bag then Storage; every forged chest, key,

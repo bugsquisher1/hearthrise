@@ -105,7 +105,10 @@ const { one, q, inTx, makeExec, UIDS } = H;
 const UID = UIDS[0];
 const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
 const key = () => crypto.randomUUID();
-const HERO = { level: 20, inv: { cooked_shrimp: 60 }, bag: [{ item: 'cooked_shrimp', qty: 50 }], gold: 1000000, realGround: true };
+/* THE GROUND: a real one with no exit (the Mill Cellar's hunt ends at Level 5, hunt-grounds.js endsAtLevel, lane/d-first-day-path): these arms are the
+   event's, so a Level 20 hero hunts the Thicket, whose band it is past, as it hunted the Cellar before. */
+const GROUND = 'meadowbrook_thicket';
+const HERO = { level: 20, inv: { cooked_shrimp: 60 }, bag: [{ item: 'cooked_shrimp', qty: 50 }], gold: 1000000, realGround: true, hunt: GROUND };
 const flip = (db, sw, scope, accounts = []) => db.query('update public.hr_feature_switches set scope = $2, accounts = $3::uuid[], updated_at = now() where switch_id = $1', [sw, scope, accounts]);
 /* An event row of the arm's own (the catalogue's two cleared first, so a real weekend on the clock never joins in) */
 async function event(db, id, type, pm, scope, firstMs, hours, o = {}) {
@@ -116,7 +119,7 @@ async function event(db, id, type, pm, scope, firstMs, hours, o = {}) {
 const nowMs = async (db) => Number(await one(db, 'select floor(extract(epoch from now()) * 1000)::bigint::text'));
 /* the session's end, then its fold now (hr_hunt_best_on_end is a deferred constraint trigger: it folds at COMMIT, and an arm rolls back) */
 const close = async (db, sid) => { await db.query(`select public.hr_hunt_close($1::uuid, 'server', now(), true)`, [sid]); await db.query('select public.hr_hunt_best_fold($1::uuid)', [sid]); };
-const bestOf = async (db, uid) => (await q(db, `select xp_h::text as x from public.hunt_bests where user_id = $1 and slot = 0 and hunt_id = 'mill_cellar' and mode = 'solo'`, [uid]))[0];
+const bestOf = async (db, uid) => (await q(db, `select xp_h::text as x from public.hunt_bests where user_id = $1 and slot = 0 and hunt_id = $2 and mode = 'solo'`, [uid, GROUND]))[0];
 const lx = (s) => Number(s.level_xp);
 const xpEventOf = (s) => Number((s.tally && s.tally.xp_event) || 0);
 /* every field a live event must leave alone (the snapshot less Level XP, the tally's XP and the instance world, whose open "+XP" group carries the paid amounts) */
@@ -196,7 +199,7 @@ const DB_ARMS = {
   'LE-SWITCH': async (db, M) => {
     const bad = [];
     const h = await H.hunter(db, M, { ...HERO, minutesAgo: 10 });
-    await event(db, 'zz_le_bonus', 'xp_bonus', 1250, ['mill_cellar'], h.from + MIN, 2);
+    await event(db, 'zz_le_bonus', 'xp_bonus', 1250, [GROUND], h.from + MIN, 2);
     await flip(db, 'event_xp_bonus', 'everyone');
     await cuts(db, M, [h.from + 3 * MIN]);
     const e1 = xpEventOf(await H.snapshot(db, h.sid, UID));
@@ -235,7 +238,7 @@ const DB_ARMS = {
     const exec = makeExec(db);
     const hd = Number(await one(db, `select public.hr_hunt_limit('value_headroom')::text`));
     const best = Number(await one(db, `select max(b.xp_max)::text from public.hr_hunt_kill_bounds b
-                                         where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = 'mill_cellar')`));
+                                         where b.monster_id in (select sp.monster_id from public.hr_hunt_ground_spawns sp where sp.hunt_id = '${GROUND}')`));
     const attempt = async (edit) => {
       const plan = await M.HS.readHuntSettle({ exec, user: UID, slot: 0, atMs: h.from + MIN }, 'tick');
       if (plan.answer) return { skipped: plan.answer.reason };

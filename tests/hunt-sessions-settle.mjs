@@ -1618,8 +1618,11 @@ async function character(db, M, uid, o) {
   }
 }
 
-/* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. */
+/* A hunter: one character (or, with o.party, every character of a party) on mill_cellar `minutesAgo` minutes ago. `o.hunt` (with realGround) another
+   real ground: the Cellar's hunt ends at Level 5 (hunt-grounds.js endsAtLevel, lane/d-first-day-path), so an arm whose hero is past it and
+   whose subject is not that exit hunts a ground with none. */
 async function hunter(db, M, o) {
+  const HUNT = o.realGround && o.hunt ? o.hunt : 'mill_cellar';
   if (o.realGround) fixtureRow = null; else await installGround(db, o.row || (o.deadly ? deadlyRow : groundRow));
   await db.query('update public.hr_hunt_config set enabled = true where id');
   const who = o.party ? o.party : [o];
@@ -1636,7 +1639,7 @@ async function hunter(db, M, o) {
     party = await one(db, 'select public.hr_hunt_party_of($1::uuid, 0)', [UIDS[0]]);
     /* The ground is the leader's pick at Start (hr_hunt_party_start); these arms enter member by member, so the
        fixture binds it as the retired create did. */
-    await db.query("update public.hunt_parties set hunt_id = 'mill_cellar' where id = $1", [party]);
+    await db.query('update public.hunt_parties set hunt_id = $2 where id = $1', [party, HUNT]);
     /* A party is joined only by invite or once its leader LISTS it (2026-10-29-party-security.sql). */
     const listed = await one(db, 'select public.hr_hunt_party_list(0, true, $1::uuid)', [idem()]);
     if (!listed || listed.ok !== true) throw new Error('party list refused: ' + JSON.stringify(listed));
@@ -1651,7 +1654,7 @@ async function hunter(db, M, o) {
   const sids = [];
   for (let i = 0; i < who.length; i++) {
     await asUser(db, UIDS[i]);
-    const e = await one(db, `select public.hr_hunt_enter(0, 'mill_cellar', $1::jsonb, 0, null, $2::uuid)`, [JSON.stringify(who[i].bag || []), idem()]);
+    const e = await one(db, `select public.hr_hunt_enter(0, $3, $1::jsonb, 0, null, $2::uuid)`, [JSON.stringify(who[i].bag || []), idem(), HUNT]);
     if (!e || e.ok !== true) throw new Error('enter refused: ' + JSON.stringify(e));
     sids.push(e.session.id);
   }

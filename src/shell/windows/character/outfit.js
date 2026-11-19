@@ -13,8 +13,13 @@
 // "Waist cloth"), and the druid's picker says why it has none. Everything here is display
 // scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
 // the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
+// FACTION LOOKS (the designer 2026-11-18, ./outfit-looks.js): one card an outfit, its add-on picked under the preview ("Add-on: None,
+// Shield, Light"), an add-on not owned greyed with its requirement; while the factions are on, an outfit not owned shows locked with
+// the server's own requirement. The pick is the look Equip names: one hr_outfit_set, no other verb.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.140';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, outfitOfLook } from '../../../data/outfits.js?v=0.2.140';
+import { factionOf } from '../../../session/faction-sections.js?v=0.2.140';
+import { wardrobeIds, teaserWords, addonChoices, lookForCard } from './outfit-looks.js?v=0.2.140';
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.140';
 import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.140';
 import { outfitOf } from '../../../session/character-sections.js?v=0.2.140';
@@ -38,6 +43,8 @@ export function outfitHtml(g) {
     + '<div class="hw-of-left"><div class="hw-of-stage"><canvas class="hw-of-preview" width="192" height="192" aria-label="Outfit preview"></canvas>'
     + '<button type="button" class="hh-tool hw-of-turn" data-hs-act="of-turn">Turn</button></div>'
     + '<p class="hw-of-name"></p>'
+    + '<div class="hw-of-addons" role="radiogroup" aria-label="' + esc(t('factions.addon_head')) + '"><span class="hw-of-addons-head">' + esc(t('factions.addon_head'))
+    + '</span><div class="hw-of-addon-list"></div></div>'
     + '<p class="hw-of-shows"></p><p class="hs-note hw-of-looks">Cosmetic only</p>'
     + '<div class="hw-of-dye"><div class="hw-of-regions" role="tablist"></div><div class="hw-of-swatches"></div></div>'
     + '<div class="hw-of-save"><button type="button" class="hh-tool" data-hs-act="of-save">' + t('controls.equip') + '</button>'
@@ -109,10 +116,28 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const cs = ctx.character;
   const root = body.querySelector('.hw-cs-outfit');
   const o = outfitOf(cs);
+  const f = factionOf(cs);
   const d = draftOf(cs, sc);
   const row = OUTFIT_ROWS[d.outfit];
+  /* the card an add-on's look is picked on: its outfit's (the name is the outfit's, the picker says the add-on) */
+  const base = outfitOfLook(d.outfit);
+  const baseRow = OUTFIT_ROWS[base] || row;
   const owned = !!o && o.owned.has(d.outfit);
-  text(root.querySelector('.hw-of-name'), (row ? row.label : d.outfit) + (row && row.premium ? ', Premium' : '') + (o && !owned ? ', not owned' : ''));
+  text(root.querySelector('.hw-of-name'), (baseRow ? baseRow.label : d.outfit) + (baseRow && baseRow.premium ? ', Premium' : '') + (o && !owned ? ', not owned' : ''));
+  /* THE ADD-ON PICKER: None, then each add-on; one not owned is greyed and says what it takes */
+  const choices = addonChoices(base, o, f);
+  cls(root.querySelector('.hw-of-addons'), 'is-on', choices.length > 0);
+  rows(root.querySelector('.hw-of-addon-list'), choices, {
+    key: (c) => c.look,
+    build: (c) => element(ctx.doc, '<button type="button" role="radio" class="hh-tool hw-of-addon" data-hs-act="of-addon" data-outfit="' + esc(c.look) + '"><b></b><small></small></button>'),
+    patch: (b, c) => {
+      text(b.querySelector('b'), c.label);
+      text(b.querySelector('small'), c.need);
+      attr(b, 'aria-checked', String(c.look === d.outfit));
+      prop(b, 'disabled', !c.owned);
+      attr(b, 'title', c.need || null);
+    },
+  });
   const shown = colorsShown(cs, d);
   const changedColors = !!d.colors && !!o && dyeKeyOf(d.colors) !== dyeKeyOf(o.base);
   /* The picker: this outfit's parts, by their names, once the masks are here. The druid's row says why it has none. */
@@ -132,24 +157,25 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
       patch: (b, i) => { style(b, 'background-color', 'var(--dye-' + i + ')'); attr(b, 'aria-pressed', String(!!shown && shown[sc.region] === i)); },
     });
   }
-  /* The grid: search and the owned filter; premium and not-owned marked. A bundle outfit (the Key Warden) shows only once the server
-     says this hero owns it: it is a find, never a shop window, and until its server half lands no hero owns it. */
+  /* The grid: one card an outfit (./outfit-looks.js wardrobeIds), search and the owned filter; premium and not-owned marked. A find or
+     an earning shows once the server says this hero owns it; a faction outfit shows locked, with its requirement, while the factions are on. */
   const q = sc.query.trim().toLowerCase();
-  const ids = OUTFIT_IDS.filter((id) => (!q || OUTFIT_ROWS[id].label.toLowerCase().includes(q)) && (!sc.ownedOnly || (o && o.owned.has(id)))
-    && (!OUTFIT_ROWS[id].bundle || (!!o && o.owned.has(id))));
+  const ids = wardrobeIds(o, f).filter((id) => (!q || OUTFIT_ROWS[id].label.toLowerCase().includes(q)) && (!sc.ownedOnly || (o && o.owned.has(id))));
   rows(root.querySelector('.hw-of-grid'), ids, {
     key: (id) => id,
     build: (id) => element(ctx.doc, '<li><button type="button" class="hw-of-card" data-hs-act="of-pick" data-outfit="' + esc(id) + '">'
       + '<canvas class="hw-of-face" width="42" height="45" aria-hidden="true"></canvas><b>' + esc(OUTFIT_ROWS[id].label) + '</b><small class="hw-of-mark"></small></button></li>'),
     patch: (li, id) => {
       const b = li.firstChild;
-      attr(b, 'aria-pressed', String(id === d.outfit));
-      cls(b, 'is-worn', !!o && o.worn === id);
+      attr(b, 'aria-pressed', String(id === base));
+      const worn = !!o && !!o.worn && outfitOfLook(o.worn) === id;
+      cls(b, 'is-worn', worn);
       const have = !!o && o.owned.has(id);
       cls(b, 'is-locked', !!o && !have);
-      /* the caption is one short word under the figure; a locked one is dimmed and says why on the pointer */
-      text(b.querySelector('.hw-of-mark'), o && o.worn === id ? 'Worn' : OUTFIT_ROWS[id].premium ? 'Premium' : '');
-      attr(b, 'title', o && !have ? OUTFIT_ROWS[id].label + (OUTFIT_ROWS[id].premium ? ', Premium' : '') + ', not owned' : null);
+      /* the caption is one short word under the figure, or a locked faction outfit's requirement; a locked one is dimmed and says why on the pointer */
+      const teaser = teaserWords(id, o, f);
+      text(b.querySelector('.hw-of-mark'), worn ? 'Worn' : OUTFIT_ROWS[id].premium ? 'Premium' : teaser);
+      attr(b, 'title', o && !have ? OUTFIT_ROWS[id].label + (OUTFIT_ROWS[id].premium ? ', Premium' : '') + ', ' + (teaser || 'not owned') : null);
       drawTile(b.querySelector('canvas'), id);
     },
   });
@@ -184,7 +210,17 @@ export function actOutfit(ctx, sc, action, ev, el, repaint) {
   if (action === 'of-pick') {
     const id = el.getAttribute('data-outfit');
     if (!OUTFIT_ROWS[id]) return true;
-    /* the colors stay: they are one set, across every outfit */
+    /* the colors stay: they are one set, across every outfit; an outfit worn with an add-on opens on that add-on */
+    sc.draft = { outfit: lookForCard(id, outfitOf(cs)), colors: draftOf(cs, sc).colors };
+    sc.msg = '';
+    repaint();
+    return true;
+  }
+  if (action === 'of-addon') {
+    /* an add-on is tried on only once the server says the hero owns its look; Equip then names that look */
+    const id = el.getAttribute('data-outfit');
+    const o = outfitOf(cs);
+    if (!OUTFIT_ROWS[id] || !o || !o.owned.has(id)) return true;
     sc.draft = { outfit: id, colors: draftOf(cs, sc).colors };
     sc.msg = '';
     repaint();

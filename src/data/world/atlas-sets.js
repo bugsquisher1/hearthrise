@@ -12,13 +12,17 @@
 // failed load never blanks a scene. A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth', 'factionwear', 'morrowfolk']);
+export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth', 'factionwear', 'morrowfolk', 'oxroadfolk']);
 /* `factionwear` (lane/b-farm-house-faction-art 2026-11-18): the faction outfits worn (outfit_flamebearer, outfit_emberkeeper), a hero set of
    their own because `heroes` is full (nine outfits fill 2048x1756 of ATLAS_MAX 2048x2048). A worn set (WORN_SETS): fetched only when a
    hero in view wears one of its looks. */
 
 /* `morrowfolk` (lane/b-morrow-art 2026-11-19): the Morrow Hills' creatures (Carter's Rest's five trolls), for grounds still staged: nothing
    places them until a map row names them. */
+
+/* `oxroadfolk` (lane/b-morrow-art 2026-11-19, batch 2): the Ox Road's five (the Dead Teamster, the Coal Runner, the Drover, the
+   Wagonmaster, the Yoke Ox), their own set because morrowfolk's five trolls fill 2048x1348 of ATLAS_MAX and these five would take it past
+   2048. Staged like morrowfolk: nothing places them until the Ox Road's map names them. */
 
 /* THE WORN SETS: a hero set whose looks only some heroes wear (the faction looks, earned with standing), with the sprite ids it carries.
    Nothing of one is fetched on a first open, by the sign-in roster or by the Character window: its manifest, its sheet and its mask set

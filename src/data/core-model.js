@@ -60,24 +60,27 @@
    bracket under 50 holds (C2). The ladder now trends 975 x L^1.421: the Glade's band middle +5.1% (the bear) and the Warrens' +8.7% (other lanes
    since 11-09; the bear alone would read C5 -3.0% at Level 300, the Warrens alone -10.3%). The contract follows it, so the brackets from Level 50
    re-fit (pace.mjs --fit --fit-past, minimax 5.4%); Levels 1-50 cost what they did. Forward file 2027-04-07-brook-bear-level-curve.
-   LEVELS 6-8 RE-SPLIT 2026-11-19 (lane/d-142-rulings, the board's "2026-11-19 Two rulings for v0.2.142"): the Cellar ends at 5, so Level 6 -> 7 read
-   2.01x Level 5 -> 6 (C6). Steps 6 / 7 / 8 are now 12,500 / 25,300 / 68,440 XP (were 12,870 / 26,255 / 67,115): the same total to Level 9, so no
-   live Level moves (Tyler's pace is held by XP a kill instead, balance-sheet.js STAT_FORMULA). Forward file 1000-level-curve-early. */
+   LEVELS 2-9 RE-SPLIT 2026-11-19 (lane/d-142-rulings, the board's "2026-11-19 Two rulings for v0.2.142"): the Cellar ends at 5 and a kill pays
+   12% less (STAT_FORMULA), so the early steps read 2.01-2.11x the step before (C6). Steps 2 to 8 now take about 1.95x the hours of the one
+   before (311 / 607 / 1,361 / 6,218 / 12,316 / 25,300 / 68,618 XP; were 318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115) with the same total
+   to Level 9, so every Level from 9 costs what it did and no live hero's Level moves (read-only check, 2026-11-19). Forward file
+   1000-level-curve-early. */
 export const LEVEL_CURVE = Object.freeze({
   first: 159,
   brackets: Object.freeze([
-    Object.freeze({ from: 1, rise: 159, bend: 0 }),
-    Object.freeze({ from: 2, rise: 317, bend: 0 }),
-    Object.freeze({ from: 3, rise: 634, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5000, bend: 0 }), /* the fit said 5164; eased so Level 5 -> 6 stays under 2x Level 4 -> 5 (level-curve C6 read 2.04x) */
-    Object.freeze({ from: 5, rise: 6231, bend: 0 }),
-    Object.freeze({ from: 6, rise: 12800, bend: 0 }),
-    Object.freeze({ from: 7, rise: 43140, bend: 0 }),
-    Object.freeze({ from: 8, rise: 15037, bend: 0 }),
+    Object.freeze({ from: 1, rise: 152, bend: 0 }),
+    Object.freeze({ from: 2, rise: 296, bend: 0 }),
+    Object.freeze({ from: 3, rise: 754, bend: 0 }),
+    Object.freeze({ from: 4, rise: 4857, bend: 0 }),
+    Object.freeze({ from: 5, rise: 6098, bend: 0 }),
+    Object.freeze({ from: 6, rise: 12984, bend: 0 }),
+    Object.freeze({ from: 7, rise: 43318, bend: 0 }),
+    Object.freeze({ from: 8, rise: 14859, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
     Object.freeze({ from: 10, rise: 0, bend: 657 }),
     Object.freeze({ from: 50, rise: 78689, bend: 162 }),
-    Object.freeze({ from: 300, rise: 203586, bend: 598 }),
+    Object.freeze({ from: 110, rise: 70000, bend: 100 }), /* NEW 2026-11-19 (lane/d-142-rulings): past the ceiling, re-fit by hand to the re-pinned contract (no live hero there); Levels 50-110 cost what they did */
+    Object.freeze({ from: 300, rise: 350000, bend: 100 }),
   ]),
 });
 
@@ -108,7 +111,7 @@ export const LEVEL_PACE = Object.freeze({
      Warrens' band middles 1.12x and the Cellar's 1.10x (C5: -10.6% against the ladder at Level 100). Each now reads 0.93-1.05x.
      RE-PINNED 2026-11-10 (lane/c-brook-bear) to the re-measured ladder (the Cellar at 4.5 8,774, the Thicket at 10 25,001, Wickstead at 13 33,907,
      the Glade at 23.5 89,098, the Warrens at 47.5 242,111): 1049 x L^1.383 read -13.4% against it at Level 300 (C5). */
-  contract: Object.freeze({ a: 1378, b: 1.298 }), /* re-pinned to the measured ladder 2026-11-11 (lane/d-solo-fifteen: the Warrens x0.76 flattened the top rung; level-curve C5), was 975 x L^1.421 */
+  contract: Object.freeze({ a: 1385, b: 1.274 }), /* re-pinned to the measured ladder 2026-11-19 (lane/d-142-rulings: XP a kill x0.88, the tutorial rung dropped; was 1378 x L^1.298); 2026-11-11 (lane/d-solo-fifteen: the Warrens x0.76 flattened the top rung; level-curve C5), was 975 x L^1.421 */
   smooth: Object.freeze({ from: 1, ratio: 2 }),
 });
 

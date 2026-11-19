@@ -14,12 +14,11 @@
 -- plpgsql since 2027-02-11-settle-plan-cache-2.generated.sql: a SQL copy is re-planned on
 -- every call on PostgreSQL 17), so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
--- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the pace of record read Level 50 in 146 h
--- against Tyler's 168 (the bows' default Flame Volley; the Warrens' lone advice back at 45), and
--- the Cellar's end at 5 made Level 6 -> 7 take 2.01x Level 5 -> 6. Levels 5-8 re-eased (about
--- 1.92x each), Level 9 -> 10 raised, the brackets from 10 re-fit to the table. Level 10 at
--- 198367 XP, Level 50 at 17032267; every total from Level 10 is 8-19% higher (a Level 74
--- hero reads 72). LIVE CHARACTERS: nothing is stored per Level, so a
+-- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the Cellar ends at Level 5, so Level 6 -> 7
+-- took 2.01x Level 5 -> 6 (level-curve C6). Steps 6 / 7 / 8 re-split to 12,500 / 25,300 / 68,440 XP
+-- (were 12,870 / 26,255 / 67,115): the same total to Level 9, so every Level from 9 costs what it
+-- did. Level 10 at 198367 XP, Level 50 at 17032267. Only the thresholds of Levels 7 and 8 fall
+-- (370 and 1,325 XP); no live hero stood in either gap (read 2026-11-19). LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
 -- once the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:

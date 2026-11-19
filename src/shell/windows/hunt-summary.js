@@ -58,6 +58,8 @@ const againOffWords = (cur) => {
   if (run) return run.family === 'catacomb' ? t('catacomb.again_off') : t('tower.again_off');
   const room = roomOfHunt(cur.hunt);
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
+  /* a ground this hero outgrew (its hunt ended `outgrown`): the server refuses it, and the card's Next ground row is the way on */
+  if (cur.reason === 'outgrown') return t('summary.again_outgrown');
   return callOfHunt(cur.hunt) ? 'Call him out from the ground\'s page' : 'Hunt settings not saved';
 };
 

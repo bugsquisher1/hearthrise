@@ -80,8 +80,8 @@ const cases = {
       }
     }
     /* Tier 1 has no ladder: the first hours are not touched, even by a hero who bought every rung. */
-    const fresh = P.run('mill_cellar', 6, ['tank'], { spanMs: HOUR / 4, secret: SEEDS[0] });
-    const rich = P.run('mill_cellar', 6, ['tank'], { spanMs: HOUR / 4, secret: SEEDS[0], temper: { ...MAX, 'temper:blows:1': 5, 'temper:armor:1': 5 } });
+    const fresh = P.run('mill_cellar', 4, ['tank'], { spanMs: HOUR / 4, secret: SEEDS[0] });
+    const rich = P.run('mill_cellar', 4, ['tank'], { spanMs: HOUR / 4, secret: SEEDS[0], temper: { ...MAX, 'temper:blows:1': 5, 'temper:armor:1': 5 } });
     return JSON.stringify(fresh.totals) === JSON.stringify(rich.totals) && rich.totals.kills > 0 ? null : 'a Bronze hero with every rung changed its hunt';
   },
   'both-paths': (P) => {

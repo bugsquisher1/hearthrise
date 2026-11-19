@@ -848,7 +848,7 @@ const MUTANTS = [
   { test: 'T2', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out[0];" },
   { test: 'T5', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out.find((s) => !s.done && s.id !== 'ground');" },
   { test: 'T5', file: TOWN, from: "  if (buy) out.push(", to: "  if (false) out.push(" },
-  { test: 'T6', file: TOWN, from: 'free, ground: groundOf(cs, h) });', to: 'free, ground: null });' },
+  { test: 'T6', file: TOWN, from: 'free, ground: groundOf(cs, h),', to: 'free, ground: null,' },
   { test: 'T6', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out.find((s) => !s.done && s.id !== 'buy');" },
   { test: 'T6', file: TOWN, from: 'const levels = [].concat(adviceLevels(lv.level, party)).filter(Number.isInteger);', to: 'const levels = [lv.level];' },
   { test: 'T6', file: HLIST, from: 'rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;', to: 'rec.row.hunt !== hunt ? rec.row : null;' },

@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 
-const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
+const { loadPlay, PLAY_TREES, stageOf } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const imp = (root, p) => import(pathToFileURL(join(root, p)).href);
 
 const T0 = Date.UTC(2026, 9, 18, 12, 0, 0);
@@ -59,7 +59,7 @@ function trapped(P, spanMin) {
   const want = T0 + spanMs;
   const say = {};
   for (const [label, windowMs] of [['ten-minute windows', 600000], ['90 s windows', 90000], ['16 s windows', 16000], ['seven-minute windows', 420000]]) {
-    const r = play(P, 'mill_cellar', 30, ['ranger'], { spanMs: 3 * spanMs, windowMs, session: OFF, equipment: bareBow, bag: () => ({}), bar: noBar });
+    const r = play(P, 'mill_cellar', 30, ['ranger'], { ground: CELLAR, spanMs: 3 * spanMs, windowMs, session: OFF, equipment: bareBow, bag: () => ({}), bar: noBar });
     if (r.kills || r.blows.length) return 'CONTROL: the trapped bow (' + label + ') landed ' + r.blows.length + ' blows, ' + r.kills + ' kills';
     const e = r.ends[P.memberKey('ranger', 0)];
     if (!e || e.reason !== 'no_fight') return 'a bow with nothing to shoot (' + label + ') ended ' + JSON.stringify(e) + ', not no_fight';
@@ -72,7 +72,7 @@ function trapped(P, spanMin) {
 function driedUp(P, spanMin) {
   const spanMs = spanMin * 60000;
   /* The bag's line is not `essential`, so `ammo_out` does not fire: this is the trap the end exists for. */
-  const r = play(P, 'mill_cellar', 30, ['ranger'], { spanMs: 3 * spanMs, session: OFF, equipment: () => ({ weapon: 'practice_bow', ammo: 'iron_arrows' }),
+  const r = play(P, 'mill_cellar', 30, ['ranger'], { ground: CELLAR, spanMs: 3 * spanMs, session: OFF, equipment: () => ({ weapon: 'practice_bow', ammo: 'iron_arrows' }),
     bag: () => ({ iron_arrows: { loaded: 30, essential: false } }), bar: noBar });
   const e = r.ends[P.memberKey('ranger', 0)];
   if (!r.blows.length) return 'CONTROL: the 30 arrows landed nothing';
@@ -84,7 +84,7 @@ function driedUp(P, spanMin) {
 }
 
 function partyFights(P, spanMin) {
-  const r = play(P, 'mill_cellar', [10, 10], ['tank', 'ranger'], { spanMs: 4 * spanMin * 60000, session: OFF,
+  const r = play(P, 'mill_cellar', [10, 10], ['tank', 'ranger'], { ground: CELLAR, spanMs: 4 * spanMin * 60000, session: OFF,
     equipment: (role, seat, L) => (role === 'ranger' ? bareBow() : P.kitFor(L, role)),
     bag: (role) => (role === 'tank' ? { cooked_shrimp: { loaded: 500 } } : {}), bar: (role) => (role === 'ranger' ? [] : undefined) });
   if (!(r.kills > 50)) return 'CONTROL: the party killed ' + r.kills + ' in ' + 4 * spanMin + ' minutes';
@@ -95,7 +95,7 @@ function partyFights(P, spanMin) {
 /* Two bare bows, the second walking in five minutes later: the first goes at its span, the second at its own. */
 function lateJoiner(P, spanMin) {
   const late = 5 * 60000;
-  const r = play(P, 'mill_cellar', 30, ['ranger', 'ranger'], { spanMs: 3 * spanMin * 60000, equipment: bareBow, bag: () => ({}), bar: noBar,
+  const r = play(P, 'mill_cellar', 30, ['ranger', 'ranger'], { ground: CELLAR, spanMs: 3 * spanMin * 60000, equipment: bareBow, bag: () => ({}), bar: noBar,
     session: (role, seat) => ({ ...OFF, ...(seat === 1 ? { huntFromMs: T0 + late, nextSwingAtMs: T0 + late } : {}) }) });
   const a = r.ends[P.memberKey('ranger', 0)], b = r.ends[P.memberKey('ranger', 1)];
   if (!a || !b || a.reason !== 'no_fight' || b.reason !== 'no_fight') return 'the two bows ended ' + JSON.stringify(r.ends);
@@ -106,7 +106,7 @@ function lateJoiner(P, spanMin) {
 /* A hunt older than the span whose world restarted: the instance's stored world is gone, its clock is not. */
 async function restart(root, P, spanMin) {
   const AR = await imp(root, 'src/core/action-rules.js');
-  const r = play(P, 'mill_cellar', 5, ['tank'], { spanMs: 5 * 60000, session: { huntFromMs: T0 - 2 * spanMin * 60000 },
+  const r = play(P, 'mill_cellar', 5, ['tank'], { ground: CELLAR, spanMs: 5 * 60000, session: { huntFromMs: T0 - 2 * spanMin * 60000 },
     equipment: () => P.kitFor(5, 'tank'), bag: () => ({ cooked_shrimp: { loaded: 500 } }) });
   if (Object.keys(r.ends).length) return 'a hunt older than the span, in a fresh world, ended ' + JSON.stringify(r.ends);
   /* The check itself: a clock older than the span trips, one a swing younger does not, none at all never does. */
@@ -144,6 +144,9 @@ const HUNTS = await imp(ROOT, 'src/data/hunts.js');
 const SPAN = H.NO_FIGHT_END_MIN;
 const P = await loadPlay(ROOT);
 MON = P.MONSTERS;
+/* THE CELLAR'S QUIET ROOM AS A STAGE (play-ground.mjs stageOf): these arms stand Level 5 to 30 heroes there, past its Level 5 exit (hunt-grounds.js
+   endsAtLevel), and their subject is the no-fight end, not that exit. */
+const CELLAR = stageOf(G.HUNT_GROUNDS.mill_cellar);
 
 async function allCases(root, p) {
   const out = [];

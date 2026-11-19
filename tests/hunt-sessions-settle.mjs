@@ -1548,11 +1548,14 @@ async function installGround(db, row = groundRow) {
   fixtureRow = row;
   const GEN = await import(pathToFileURL(join(ROOT, 'tools', 'gen-hunt-sessions.mjs')).href);
   const { rows, spawns } = GEN.groundRows({ h1_fixture: row() });
+  /* every column the generator writes, ends_at_level too where the chain has it (2027-05-28: the fixture row's own, none), so the installed
+     ground is the fixture's whole and never keeps the real Cellar's Level 5 exit under a fixture that has no such row (lane/d-first-day-path) */
+  const ends = !!(await one(db, `select count(*)::int = 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_hunt_grounds' and column_name = 'ends_at_level'`));
   for (const g of rows) {
-    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values ($1,$2,$3,$4,$5,$6,$7::int[])
+    await db.query(`insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max${ends ? ', ends_at_level' : ''}) values ($1,$2,$3,$4,$5,$6,$7::int[]${ends ? ',$8' : ''})
                     on conflict (hunt_id) do update set ground_id = excluded.ground_id, pockets = excluded.pockets, spawns = excluded.spawns,
-                      respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max`,
-                    [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax]);
+                      respawn_ms = excluded.respawn_ms, seats = excluded.seats, density_max = excluded.density_max${ends ? ', ends_at_level = excluded.ends_at_level' : ''}`,
+                    [g.hunt, g.ground, g.pockets, g.spawns, g.respawn, g.seats, g.dmax, ...(ends ? [g.ends] : [])]);
     await db.query('delete from public.hr_hunt_ground_spawns where hunt_id = $1', [g.hunt]);
   }
   for (const s of spawns) await db.query('insert into public.hr_hunt_ground_spawns (hunt_id, monster_id, n) values ($1,$2,$3) on conflict do nothing', [s.hunt, s.monster, s.n]);

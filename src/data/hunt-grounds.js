@@ -277,11 +277,13 @@ const BASE_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
-    /* ALONE FROM 45 (designer 2026-10-21, CONFLICTS item 2; six seeds, the real settle, the own-tier
-       heavy set, tier-3 store food): a lone Melee at 32 bills about 14,000 g/h against 3,069 of income
-       (-78%; it was -38% before armour weights, at a 5% to-hit), at 40 still -2% median, at 45 eats no
-       store food at all. Goblins of lv 34-52 out-hit a lone hero under 45; the ground is a party's. */
-    soloFrom: 45,
+    /* ALONE FROM 36 (the board's 2026-11-19 complete balance look, change 8, lane/d-first-day-path): the advice held a lone hero on the
+       Glade from 16 to 44, 97 of a lone hammer's 576 hours, while the Glade's band ends at 31. Measured on the real engine
+       (tools/balance-sim/life.mjs, played, Normal, every supply bought at the store) for a lone hammer, bow and Mage sent here from 36:
+       the PRIORITY_BOARD 2026-11-19 section has the hours, deaths and gold. Was 45 (designer 2026-10-21, CONFLICTS item 2: a lone
+       Melee at 32 billed 14,000 g/h of store food; the 2026-11-13 formula's softer party to-hit, hitFull -0.3, since let it hold the
+       room on its armor). The advice reads it (src/shell/hunt-list.js fitsGroup); nothing gates a Level. */
+    soloFrom: 36,
     densityMax: Object.freeze([8, 8, 8, 8]),
     gather: gather(12000, [
       /* P0 the Spoil Heap: what the scavengers missed */

@@ -34,6 +34,14 @@ const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
 /** The trees loadPlay reads beyond src/core and src/data: a planted copy (h1.js plant) needs them too. */
 export const PLAY_TREES = Object.freeze(['supabase/functions/hr-accrue']);
 
+/** A GROUND AS A STAGE (lane/d-first-day-path, 2026-11-19), for opts.ground: `row` (a hunt-grounds.js row) with no outgrown exit
+    (endsAtLevel), every other number its own, for a test whose heroes stand past that exit and whose subject is not it. The Mill Cellar's
+    quiet room staged Level 10 to 30 heroes long before its hunt ended at Level 5 (tests/hunt-core/no-fight.mjs). The exit itself is
+    tests/cellar-outgrown.mjs's. */
+export function stageOf(row) {
+  return Object.freeze(Object.fromEntries(Object.entries(row).filter(([k]) => k !== 'endsAtLevel')));
+}
+
 /** A HERO'S MEMBER KEY, in SEAT ORDER (lane/d-audit-fixes-sim, the board's fix 8, 2026-11-19). The settle orders a party's members by
     key (hr-accrue accrual.js accrueHunt), and that order is the order heroes enter the world: the first creates it, the rest join, so it
     sets unit ids, entry tiles and who walks last. Live a key is `user:slot`, so one player's heroes (every recorded party) enter in slot
@@ -235,7 +243,7 @@ export async function loadPlay(root) {
 export async function play(root, only) {
   const { run } = await loadPlay(root);
   const PLAN = [
-    ['mill_cellar', [['in range, combat ~6', 6, ['tank']], ['fresh kit level (combat 3)', 1, ['tank']]]],
+    ['mill_cellar', [['in range, combat ~4 (it ends at 5: hunt-grounds.js endsAtLevel)', 4, ['tank']], ['fresh kit level (combat 3)', 1, ['tank']]]],
     ['meadowbrook_thicket', [['in range, combat ~10', 10, ['tank']], ['below range (combat ~3)', 2, ['tank']]]],
     ['millrace_sewer', [['in range, a party of four at ~20', 20, ['tank', 'ranger', 'mage', 'healer']], ['the floor, a party of four at ~5', 5, ['tank', 'ranger', 'mage', 'healer']]]],
     ['coppercap_warrens', [['in range, a party of four at ~40', 40, ['tank', 'ranger', 'mage', 'healer']], ['below range, a party of four at ~27', 27, ['tank', 'ranger', 'mage', 'healer']]]],

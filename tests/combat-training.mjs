@@ -228,7 +228,7 @@ async function guard(X) {
     const { members } = yard(X, 'melee', 'melee_dps', { spanMs: 3 * MINUTE, session: { staminaMs: 0 } });
     if (!members.length || members.some((p) => p.hunt.stamina !== null) || members.some((p) => p.hunt.ended && p.hunt.ended.reason === 'stamina')) bad.push('CT-STAMINA a yard window proposed ' + JSON.stringify(members.map((p) => [p.hunt.stamina, p.hunt.ended])).slice(0, 160));
     if (!members.some((p) => p.delta.xp && p.delta.xp.melee > 0)) bad.push('CT-STAMINA an empty pool trained nothing');
-    const hunt = X.play.run('mill_cellar', 6, ['tank'], { spanMs: 3 * MINUTE, windowMs: 60000, onWindow: (w) => { for (const p of w.members) if (p.hunt.stamina === null) bad.push('CT-STAMINA a hunting ground stopped proposing stamina'); } });
+    const hunt = X.play.run('mill_cellar', 4, ['tank'], { spanMs: 3 * MINUTE, windowMs: 60000, onWindow: (w) => { for (const p of w.members) if (p.hunt.stamina === null) bad.push('CT-STAMINA a hunting ground stopped proposing stamina'); } });
     if (!hunt) bad.push('CT-STAMINA no hunt ran');
   }
 

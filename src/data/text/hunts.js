@@ -85,6 +85,8 @@ export const HUNTS_TEXT = Object.freeze({
   fit_far: 'Far above level',
   fit_below: 'Below level',
   fit_in: 'In range',
+  /* a ground whose hunt ends at a Level this hero stands at (hunt-grounds.js endsAtLevel: the Mill Cellar's 5): the server refuses it */
+  fit_outgrown: 'Outgrown',
   heroes_up_to: 'Players: 1 to {max}',
   heroes_one: 'Players: 1',
 

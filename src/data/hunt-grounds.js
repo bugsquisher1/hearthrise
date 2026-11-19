@@ -22,8 +22,11 @@
 //                 ground is solo; the workbook's 'solo' was retired by lane/a-party-coach-card). A
 //                 PARTY's advice never reads this: it reads the measured party lines (hunt-list.js fitsGroup).
 //     soloFrom    (optional, a 'party' ground only) the Level from which a LONE hero breaks even
-//                 here, measured on the real settle; the Hunts card offers the ground alone
-//                 only from it ("Best with 2 to 4, and alone it pays from Level 45"). Advice, like groupFit.
+//                 here, measured on the real settle; the Hunts window's advice sends a hero alone
+//                 here from it (src/shell/hunt-list.js fitsGroup). Advice, like groupFit.
+//     endsAtLevel (optional) the Level a hero outgrows the ground at: its hunt ends `outgrown` there
+//                 (action-rules.js END_ORDER) unless scaled, and the server's door refuses it
+//                 (2027-05-28-cellar-outgrown.sql). Above the band's floor, at most one over its top.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //     mode        (optional) the session mode a hunt here plays (src/data/session-modes.js: what a death costs and what a
@@ -187,6 +190,8 @@ const BASE_GROUNDS = Object.freeze({
        measured floor pay (L1 solo 1,829.5 g/h, was 1,828.5; 30 s would be 1,930, over the Thicket's: forest-cave
        first-grounds-net-chain) and the first Levels' pace. */
     respawnMs: 32000, pullDist: 1.5, groupFit: 'both',
+    /* the Thicket's floor (the board's 2026-11-19 complete balance look, change 1: idle first heroes sat here for hours past it) */
+    endsAtLevel: 5,
     /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
     densityMax: Object.freeze([8, 8, 8, 8]),
   }),
@@ -266,11 +271,9 @@ const BASE_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
-    /* ALONE FROM 45 (designer 2026-10-21, CONFLICTS item 2; six seeds, the real settle, the own-tier
-       heavy set, tier-3 store food): a lone Melee at 32 bills about 14,000 g/h against 3,069 of income
-       (-78%; it was -38% before armour weights, at a 5% to-hit), at 40 still -2% median, at 45 eats no
-       store food at all. Goblins of lv 34-52 out-hit a lone hero under 45; the ground is a party's. */
-    soloFrom: 45,
+    /* ALONE FROM 36 (the board's 2026-11-19 complete balance look, change 8; was 45): a played lone hammer, bow and Mage sent here
+       from 36 die 0 times (tools/balance-sim/life.mjs; numbers on the board, "2026-11-19 First-day path"). Advice only. */
+    soloFrom: 36,
     densityMax: Object.freeze([8, 8, 8, 8]),
     gather: gather(12000, [
       /* P0 the Spoil Heap: what the scavengers missed */
@@ -617,6 +620,10 @@ export function validateGround(row, refs) {
     const band = (hunts[row.hunt] || {}).band || [];
     if (row.groupFit !== 'party') bad('soloFrom is for a party ground only');
     if (!(Number.isInteger(row.soloFrom) && row.soloFrom > band[0] && row.soloFrom <= band[1])) bad('soloFrom must be a Level inside the band, above its floor');
+  }
+  if (row.endsAtLevel !== undefined) {
+    const band = (hunts[row.hunt] || {}).band || [];
+    if (!(Number.isInteger(row.endsAtLevel) && row.endsAtLevel > band[0] && row.endsAtLevel <= band[1] + 1)) bad('endsAtLevel must be a Level above the band\'s floor, at most one over its top');
   }
   /* A BOSS'S WAVE (shape.js addRows; the Muster Barrows' Captain Hask): only in a pocket that holds a boss with two lines (boss-phases.js), each a
      known monster that is no boss and has no lines of its own, standing inside the room. A wave nothing can call would be a row the engine never plays. */

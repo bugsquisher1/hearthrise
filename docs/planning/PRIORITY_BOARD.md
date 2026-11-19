@@ -29,6 +29,24 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-19 First-day path, changes 1 and 8 built (systems-engineer, lane/d-first-day-path, rides v0.2.142)
+**1. The Mill Cellar ends its hunt at Level 5.** A data field, `endsAtLevel` on the ground row (`src/data/hunt-grounds.js`; only the Cellar has one). The engine ends a hunt `outgrown` at the first boundary the hero's Level stands at it (both paths, any cut), back to town like any automatic end; the server's door refuses a hero at it (`outgrown`) unless the hunt plays scaled, and the settle proves the end from the Level it holds (`2027-05-28-cellar-outgrown.sql` + its catalogue). The end card says "Ground outgrown at Level 5", drops Hunt again and makes the Next ground row its press; the away card says why and points at Hunts. The Hunts list reads the Cellar as Levels 1-4.
+| Start kit lone hero (sword and shield, start bar), `life.mjs --policy idle` | Level at 6 h | 12 h | 20 h | Level 10 at |
+|---|---|---|---|---|
+| Before (6 h in the Cellar) | 8 | 10 | 13 | 10.6 h |
+| After (the Cellar until 5, then the named ground) | 9 | 11 | 14 | 7.7 h |
+| Target table | 10 | about 13 | 17 | 6 h |
+
+The sword and shield is slow alone on purpose (11-19), so the start kit stays under the table. Hours are hunted hours: a hero whose Cellar ends while the player is away waits in town (stamina refills) until the player picks the ground.
+
+**8. A lone hero goes to the Warrens from Level 36.** `soloFrom: 36` on the Warrens (was 45), and the advice now reads it (`src/shell/hunt-list.js fitsGroup`). Played lone heroes, Normal, every supply bought (`life.mjs --policy rec --to 50`):
+| Lone hero | Glade hours (Levels) | Level 50 at | Deaths | Net gold at 50 | Typical low HP, Levels 40-54 |
+|---|---|---|---|---|---|
+| Hammer, before / after | 97 (16-44) / 46 (16-35) | 132.7 / 103.1 h | 0 / 0 | 1,285k / 825k | 87% / 73% |
+| Bow, before / after | 91 / 43 | 127.1 / 101.3 h | 0 / 0 | 398k / 174k | 81% / 61% |
+| Mage, before / after | 75 / 35 | 104.8 / 80.1 h | 0 / 0 | -29k / -96k | 89% / 79% |
+
+36 kills nobody, so 36 it is. **The cost is pace:** the lone road to 50 is 22-24% shorter (the table says 168 h), and the Warrens' bill takes 0.2-0.5M off a life's gold. `tests/level-curve.mjs` C1 is red until the pace is re-measured (its fingerprint holds the advice); do it once on the assembled set after the +10% monsters lane, then judge C2/C3 (designer).
 ### 2026-11-19 The Morrow Hills: what opens, and when (game-designer, lane/d-morrow-open; the Coordinator's brief: factions can't open until a ground pays standing, and only the Hills' grounds do. QA's blind faction play, finding 1: no live ground pays, so the tab counts to zero forever): RULED (b), the three staged packs MEASURED with the played hero, Carter's Rest's own spells BUILT, one lint ADDED, nothing served, no migration
 **The call.** Carter's Rest and the Ox Road open together, with the factions switch, in the big patch that carries their art and real maps. Not v0.2.142. Standing stays on the Hills' grounds. That patch is due before the lead heroes reach about Level 100, so the art is the critical path from today.
 

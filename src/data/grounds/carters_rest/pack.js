@@ -38,20 +38,20 @@ export default definePack({
   ground: {
     map: 'carters_rest',
     /* the road in from Krell's Hold, by Harry's cart */
-    start: [[29, 41], [28, 41], [30, 41], [29, 40]],
+    start: [[28, 38], [27, 38], [29, 38], [28, 39]],
     pockets: [
       /* P0 the Yard: Pickers going through the last wagon. The soft door */
-      box([18, 16, 41, 32], [24, 26], [PK, PK], [TH, PK, PK, BR, PK, PK]),
+      box([16, 14, 41, 21], [28, 17], [PK, PK], [TH, PK, PK, BR, PK, PK]),
       /* P1 the Stable: a Stable Troll asleep in the straw and a Picker in the tack room */
-      box([4, 18, 13, 30], [8, 24], [ST, PK], [PK, ST, PK, TH, PK, ST]),
+      box([3, 6, 12, 16], [8, 11], [ST, PK], [PK, ST, PK, TH, PK, ST]),
       /* P2 the Roof: Slate Throwers up top, pulling the inn apart to throw it */
-      box([5, 4, 19, 12], [12, 8], [TH, PK], [TH, PK, ST, PK, TH, PK]),
+      box([13, 24, 20, 33], [17, 28], [TH, PK], [TH, PK, ST, PK, TH, PK]),
       /* P3 the Brewhouse: the Brewers and their kettles */
-      box([46, 18, 55, 30], [51, 24], [BR, BR], [PK, ST, BR, PK, TH, PK]),
+      box([44, 6, 54, 18], [49, 12], [BR, BR], [PK, ST, BR, PK, TH, PK]),
       /* P4 the Taproom: a Stable Troll at the bar and a Thrower on the stairs */
-      box([23, 4, 36, 12], [29, 8], [ST, TH], [BR, PK, ST, PK, TH, PK]),
+      box([23, 25, 34, 33], [28, 29], [ST, TH], [BR, PK, ST, PK, TH, PK]),
       /* P5 the Cellar: the Landlord sits on the last of the ale. The hardest pull and the rare carrier */
-      box([40, 4, 54, 12], [47, 8], [LL, PK], [ST, BR, TH, PK, ST, PK]),
+      box([37, 25, 44, 33], [40, 29], [LL, PK], [ST, BR, TH, PK, ST, PK]),
     ],
     route: [0, 1, 2, 3, 4, 5],
     /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08), ONE PACK ON NORMAL (Tyler 2026-11-11). */
@@ -59,7 +59,7 @@ export default definePack({
     densityMax: [8, 8, 8, 8],
     /* THE GATHER SLIDER (inert until the hunt-gathering engine lands): two coal seams in the Cellar, standing in for a Dawnstone Vein
        (gathering.js dawnstone_rock, Mining 90, has no node kind or sprite yet; the Night Shift gets the first real one). refKillMs the Hold's. */
-    gather: gather(12000, [['coal_rock', 41, 5, 5], ['coal_rock', 53, 5, 5]]),
+    gather: gather(12000, [['coal_rock', 44, 27, 5], ['coal_rock', 37, 32, 5]]),
   },
   monsters: {
     troll_picker: {

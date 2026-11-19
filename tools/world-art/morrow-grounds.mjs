@@ -81,14 +81,18 @@ export function materials() {
     O: { fill: remap(slate, SLATE_1), v: { seed: 63, tone: 'soft', spots: 'down' } },
     /* the inn's intact roof over the mass: the slate as it was drawn (nobody stands on it); the walked roof is a step under it */
     M: { fill: slate, v: { seed: 67, tone: 'soft', spots: 'down' } },
+    /* layout A (Tyler's pick, 2026-11-19): the yard and the cart lane are the road's packed earth (no ruts: they are no road), its paths
+       the stable's straw trodden out of the door; cobble only on the wheel track */
+    E: { fill: shadeGround(rd(F('0-moor-road/fill-road-ranked.png')), 1), v: { seed: 71, tone: 'soft', shift: true } },
+    P: { fill: shadeGround(fillOf(F('2-straw-boards'), '0000'), 1), v: { seed: 73, tone: 'soft', shift: true } },
   };
 }
 
 /* ── the grid: the map's rows to paint chars ── */
 /** The inn's three ranges (their '#' cells are its mass), and the dry stone wall's cells: [x0, y0, x1, y1] inclusive. */
-export const RANGES = Object.freeze([[3, 2, 56, 15], [2, 16, 17, 32], [42, 16, 57, 32]]);
-export const DRY_STONE = Object.freeze([[18, 33, 27, 33], [32, 33, 41, 33]]);
-const LEG = Object.freeze({ ':': 'R', '.': 'Y', y: 'S', '=': 'B', f: 'F', c: 'C', r: 'O' });
+export const RANGES = Object.freeze([[11, 22, 46, 35], [1, 4, 15, 18], [42, 4, 56, 20]]);
+export const DRY_STONE = Object.freeze([[16, 13, 41, 13]]);
+const LEG = Object.freeze({ ':': 'R', e: 'E', p: 'P', '.': 'Y', y: 'S', '=': 'B', f: 'F', c: 'C', r: 'O' });
 const inR = (rs, x, y) => rs.some(([a, b, c, d]) => x >= a && x <= c && y >= b && y <= d);
 export function paintGrid(rows, ranges = RANGES, dry = DRY_STONE) {
   return rows.map((row, y) => [...row].map((ch, x) => {
@@ -100,10 +104,15 @@ export function paintGrid(rows, ranges = RANGES, dry = DRY_STONE) {
 /* ── the painter ── */
 const SEAMS = Object.freeze({
   seed: 71, keep: 'MW',
-  mats: { H: { z: 1 }, R: { z: 0 }, Y: { z: 2, unit: true, mortar: 0.3 }, S: { z: 1 }, B: { z: 1 }, F: { z: 3, unit: true, mortar: 0.12 },
+  mats: { H: { z: 1 }, R: { z: 0 }, E: { z: 0 }, P: { z: 1 }, Y: { z: 2, unit: true, mortar: 0.3 }, S: { z: 1 }, B: { z: 1 }, F: { z: 3, unit: true, mortar: 0.12 },
     C: { z: 3, unit: true, mortar: 0.12 }, O: { z: 1, unit: true, mortar: 0.1 } },
   pairs: [
     { a: 'R', b: 'H', style: 'ragged', sweep: 9, warp: 7, scale: 26, mid: 2 },
+    { a: 'E', b: 'H', style: 'ragged', sweep: 7, warp: 6, scale: 24, mid: 2 }, { a: 'E', b: 'R', style: 'ragged', sweep: 5, warp: 5 },
+    { a: 'E', b: 'P', style: 'ragged', sweep: 4, warp: 5, scale: 16, mid: 2 }, { a: 'S', b: 'P', style: 'ragged', sweep: 4, warp: 4 },
+    { a: 'Y', b: 'E', style: 'scatter', jitter: 2, loose: 0.35, holes: 0.08, sweep: 3, warp: 4 },
+    { a: 'E', b: 'S', style: 'ragged', sweep: 4, warp: 4 }, { a: 'E', b: 'B', style: 'stagger' }, { a: 'R', b: 'B', style: 'stagger' },
+    { a: 'E', b: 'O', style: 'stagger' }, { a: 'E', b: 'F', style: 'kerb', course: 'F' }, { a: 'E', b: 'C', style: 'kerb', course: 'C' },
     { a: 'Y', b: 'R', style: 'scatter', jitter: 2, holes: 0.06, sweep: 3, warp: 4 },
     { a: 'Y', b: 'S', style: 'scatter', jitter: 2, loose: 0.3, holes: 0.08, sweep: 3, warp: 4 },
     { a: 'Y', b: 'B', style: 'kerb', course: 'Y' }, { a: 'Y', b: 'O', style: 'stagger' },
@@ -118,7 +127,7 @@ function paintCells(grid, mats) {
   const h = grid.length, w = grid[0].length, img = createImage(w * T, h * T);
   const vs = Object.fromEntries(Object.entries(mats).map(([ch, m]) => [ch, varietyTiles(m.fill, m.v)]));
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-    const ch = grid[y][x] === 'W' ? 'Y' : grid[y][x], seed = mats[ch].v.seed, v = vs[ch];
+    const ch = grid[y][x] === 'W' ? 'E' : grid[y][x], seed = mats[ch].v.seed, v = vs[ch];
     blit(img, v[varietyIndex(0, x, y, seed) % v.length], 0, 0, T, T, x * T, y * T);
     if (ch === 'B') planks(img, x, y, mats.B.fill);
   }
@@ -149,18 +158,22 @@ function roadWear(g, grid) {
   const step = (px, py, d, only = EARTH) => { const p = (py * g.width + px) * 4, hx = hexAt(g, p), a = RAMP_AT.get(hx); if (!a || !only.has(hx)) return 0;
     g.data.set(rgb(a.ramp[Math.max(0, Math.min(a.ramp.length - 1, a.k + d))]), p); return 1; };
   let rut = 0, verge = 0, peb = 0;
-  /* the road runs north-south here: per pixel row, its middle is the mean of its cells' centres, smoothed over three cells so the
-     ruts bend where the road does and never jump a step at a cell row */
-  const raw = []; for (let py = 0; py < g.height; py++) { const cy = Math.floor(py / T), xs = []; for (let x = 0; x < w; x++) if (isR(x, cy)) xs.push(x * T + T / 2); raw.push(xs.length ? xs.reduce((a, b) => a + b) / xs.length : null); }
-  for (let py = 0; py < g.height; py++) {
-    if (raw[py] == null) continue;
-    let s = 0, k = 0; for (let d = -48; d <= 48; d++) { const v = raw[py + d]; if (v != null) { s += v; k++; } }
-    const c = s / k, wob = (noise(0, py, 90, 5) - 0.5) * 12 + (noise(0, py, 23, 6) - 0.5) * 3;
+  /* along the road: per pixel line across it, its middle is the mean of its cells' centres, smoothed over three cells so the ruts bend
+     where the road does and never jump a step at a cell line. The road runs the way its cells spread furthest (east-west on Carter's Rest) */
+  let rx0 = w, rx1 = -1, ry0 = h, ry1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (isR(x, y)) { rx0 = Math.min(rx0, x); rx1 = Math.max(rx1, x); ry0 = Math.min(ry0, y); ry1 = Math.max(ry1, y); }
+  const ew = rx1 - rx0 > ry1 - ry0, len = ew ? g.width : g.height;
+  const at = (a, b) => (ew ? [a, b] : [b, a]);   /* a along the road, b across it -> [px, py] */
+  const raw = []; for (let a = 0; a < len; a++) { const ca = Math.floor(a / T), bs = []; for (let b = 0; b < (ew ? h : w); b++) if (isR(...at(ca, b))) bs.push(b * T + T / 2); raw.push(bs.length ? bs.reduce((u, v) => u + v) / bs.length : null); }
+  for (let a = 0; a < len; a++) {
+    if (raw[a] == null) continue;
+    let s = 0, k = 0; for (let d = -48; d <= 48; d++) { const v = raw[a + d]; if (v != null) { s += v; k++; } }
+    const c = s / k, wob = (noise(0, a, 90, 5) - 0.5) * 12 + (noise(0, a, 23, 6) - 0.5) * 3;
     for (const off of [-11, 10]) {
-      if (noise(off, py, 18, 9) < 0.3) continue;
-      const x = Math.round(c + off + wob + (noise(off, py, 31, 7) - 0.5) * 2);
-      rut += step(x, py, -1) + step(x + 1, py, -1);
-      if (hash2(off, py, 3) > 0.35) step(x - 1, py, 1);
+      if (noise(off, a, 18, 9) < 0.3) continue;
+      const b = Math.round(c + off + wob + (noise(off, a, 31, 7) - 0.5) * 2);
+      rut += step(...at(a, b), -1) + step(...at(a, b + 1), -1);
+      if (hash2(off, a, 3) > 0.35) step(...at(a, b - 1), 1);
     }
   }
   /* the verge: road pixels within 3-8 px of the moor, worn a step lighter, broken by noise so it never rules a line */
@@ -250,7 +263,8 @@ function skirt(g, grid) {
 const DECALS = Object.freeze({
   every: 4.6, seed: 73,
   decals: {
-    Y: ['common/square_decal_chips_a', 'sewer/exposed_dirt'],
+    Y: ['common/square_decal_chips_a'],
+    E: ['common/square_decal_chips_b', 'sewer/exposed_dirt', 'common/square_decal_chips_a'],
     S: ['common/square_decal_chips_b', 'sewer/exposed_dirt'],
     B: ['common/square_decal_soot'],
     F: ['common/square_decal_puddle_a', 'common/square_decal_soot', 'sewer/cracked_flagstone'],
@@ -307,7 +321,7 @@ function layWalls(img, grid, P) {
       if (!(mass(x, y) && open(x, y + 1))) { x++; continue; }
       let e = x; while (e + 1 < w && mass(e + 1, y) && open(e + 1, y + 1)) e++;
       const n = e - x + 1, below = grid[y + 1] ? grid[y + 1][x] : 'H';
-      const kind = below === 'B' ? 'hearth' : below === 'Y' ? 'yard' : 'out';
+      const kind = below === 'B' && grid[y + 2] && grid[y + 2][x] === 'B' ? 'hearth' : 'EYRBP'.includes(below) ? 'yard' : 'out';
       for (let i = 0; i < n; i++) {
         const c = x + i;
         const freeL = i === 0 && open(x - 1, y) && n > 1, freeR = i === n - 1 && open(e + 1, y) && n > 1;
@@ -350,7 +364,7 @@ export function paintGround(grid, { skip = () => false } = {}) {
   let img = paintCells(grid, mats);
   const fills = Object.fromEntries(Object.entries(mats).map(([ch, m]) => [ch, m.fill]));
   /* the dry stone wall's line is the yard behind it, so the road and the cobbles meet round its foot as anywhere else */
-  const seamRows = grid.map((r) => r.replace(/W/g, 'Y'));
+  const seamRows = grid.map((r) => r.replace(/W/g, 'E'));
   /* THE STONE FLOORS RE-LAID: one fill tile repeats every 32 px. The yard's cobbles and the cellar's and brewhouse's flags are each a
      patchwork of their fill at five phases, a phase a cell, and every border between two phases is laid stone by stone (seams.mjs
      stagger), so no stone is cut and the lattice breaks. The phases are the same pixels, so each is still the one floor. */

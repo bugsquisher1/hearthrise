@@ -12,11 +12,12 @@
 // failed load never blanks a scene. A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth', 'factionwear', 'morrowfolk']);
+export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth', 'factionwear', 'morrowfolk', 'morrow']);
 /* `factionwear` (lane/b-farm-house-faction-art 2026-11-18): the faction outfits worn (outfit_flamebearer, outfit_emberkeeper), a hero set of
    their own because `heroes` is full (nine outfits fill 2048x1756 of ATLAS_MAX 2048x2048). A worn set (WORN_SETS): fetched only when a
    hero in view wears one of its looks. */
 
+/* `morrow` (lane/b-morrow-kit 2026-11-19): the Morrow Hills' kit (the inn's props) and Carter's Rest's painted ground, staged with it. */
 /* `morrowfolk` (lane/b-morrow-art 2026-11-19): the Morrow Hills' creatures (Carter's Rest's five trolls), for grounds still staged: nothing
    places them until a map row names them. */
 

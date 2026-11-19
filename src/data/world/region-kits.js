@@ -199,6 +199,42 @@ export const REGION_KITS = Object.freeze({
     pending: ids(''),
   }),
 
+  /* THE MORROW HILLS, the 110-142 region past Krell (the board's "2026-11-14 The Morrow Hills" and "2026-11-19 ... what opens, and when";
+     lane/b-morrow-kit 2026-11-19). One tile family, `morrow`: the approved sample's moor and road (5adbc664, the moor its base 0b13b11c),
+     and the inn's floors born dim on the palette in three pro tilesets (gen-2026-11-19/morrow-kit): the yard's cobble and a flagstone,
+     the stable's straw and the taproom's boards, the cellar's stone and the roof's slate. A ground paints every cell from its floor's fill
+     and redraws every border from the fills' own pixels (tools/world-art/morrow-grounds.mjs), so the pairs' transition tiles are not used.
+     The walls are laid over the paint: the inn's stone run (door, boarded window, hearth, quoin ends) and the dry stone wall with its two
+     tumbled ends. Rules: art/briefs/morrow-hills-art-rules.txt (the floors paint dim; no pocket on bright grass). */
+  morrow_hills: Object.freeze({
+    name: 'The Morrow Hills',
+    families: Object.freeze({
+      morrow: Object.freeze({
+        terrains: Object.freeze({
+          road: 'd10e4fb9-6ade-4b86-b600-ccd669b08d14', moor: '0b13b11c-4266-4441-a441-6cede87e7a30',
+          cobble: '6dac5e15-84b8-47be-a380-494d89a1e6ab', flagstone: '098ba500-a861-415b-932a-162b1519f10f',
+          straw: '4d9faa74-4e52-4538-bb41-d45f61204d9a', boards: '34f6f747-0eda-446f-bb7d-b83798f12a1c',
+          cellar: 'd4df0805-172d-4917-b698-597fc3966f2c', slate: 'f322fdd4-c07b-4fdc-a321-7f1ec3c956e7',
+        }),
+        /* moor/road, cobble/flagstone, straw/boards, cellar/slate */
+        tilesets: ids(`5adbc664-7ece-4d86-8ecf-b04be989b72a a8f9871d-1c2a-4e9d-883b-9128f0a7aefe 8b3fd314-40e7-4e7c-9b70-03d4272a1e15
+          aed84cba-58a9-4ccd-963f-2dc400b9dcec`),
+        maps: ids(''),
+      }),
+    }),
+    /* the inn's props (art/world/morrow), the coal seam the kit's gather node (the Dawnstone Vein has no node kind yet), and the
+       Greenhaven and Hold clutter an inn yard and stable already have */
+    props: ids(`mh_harrys_cart mh_trough mh_kegs mh_taproom_table cw_coal_seam hay_bale straw sack_pile sack_stack crates barrel_broken
+      chopping_block`),
+    units: ids('troll_picker slate_thrower troll_brewer stable_troll the_landlord'),
+    sets: ids('morrowfolk morrow'),
+    grounds: Object.freeze({
+      /* STAGED (src/data/grounds/carters_rest): the Brewhouse's copper */
+      carters_rest: Object.freeze({ family: 'morrow', signature: ids('cr_brew_kettle') }),
+    }),
+    pending: ids(''),
+  }),
+
   /* THE GREAT HEARTH'S FLUE (lane/a-tower-art-gen, 2026-11-16): the Burning Tower's one room. One tile family on the Pyre Field's own ash
      (the ash pair chains to the ash family above: base tile ed88d179 is shared byte for byte), an iron plate for the landing and swept
      hearthstone for patches. The walls are slices of two kept soot-brick runs laid over the paint (tools/world-art/tower-flue.mjs). */

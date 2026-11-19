@@ -196,7 +196,7 @@ export const gridOf = (id) => GRIDS[id] || GRIDS.base;
 // it stands on (the painted ground's median under its map's spawn tiles), in its four cardinal idle stills. Held by
 // tests/world-assets.mjs rule [ring] on the grounds of these region kits: the shipped grounds before them fail it today (the
 // Giant Rat 2.36:1), and are held when their art is redone. Pass with a body's `lift` or a floor's `shade` (build.mjs lockOf).
-export const READABLE = Object.freeze({ ring: 3, kits: Object.freeze(['barrow_march']) });
+export const READABLE = Object.freeze({ ring: 3, kits: Object.freeze(['barrow_march', 'morrow_hills']) });
 
 // ── THE ATLAS MANIFEST (assets/world/atlas-<set>.json) ──────────────────────
 // The contract between tools/world-art/build.mjs and the world renderer.

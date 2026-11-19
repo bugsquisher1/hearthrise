@@ -239,7 +239,8 @@ async function guard(X) {
   const PATHS = [
     ['a lone seat', king, ['tank'], {}],
     ['a pair', king, ['tank', 'healer'], {}],
-    ['a four, mixed', king, ['tank', 'healer', 'melee_dps', 'mage'], {}],
+    /* (seated in the order the runner entered it until lane/d-audit-fixes-sim made the entry order the seats': the same fight, where an add falls) */
+    ['a four, mixed', king, ['healer', 'mage', 'melee_dps', 'tank'], {}],
     ['a four on the Chief', chief, ['tank', 'healer', 'melee_dps', 'ranger'], {}],
     ['Tempering at every rung', king, ['tank', 'melee_dps'], { temper: { 'temper:blows:2': 5, 'temper:armor:2': 5, 'temper:blows:3': 5, 'temper:armor:3': 5 } }],
   ];

@@ -368,7 +368,8 @@ export const HUNT_TUTORIAL = Object.freeze([
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON] }),
   /* WHY IT WAITS (designer 2026-11-05, lane/d-caster-first-fights): a default bar no longer reaches "Spells need runes", so a caster
      would lose the lesson about what a cast costs and why a slot waits. It sits on a real slot, the one the bar marks (src/shell/slot-waits.js).
-     A bar with no slot waiting on a count (a tank, a Ranger) passes it by. */
+     A bar with no slot waiting on a count (a tank, a melee weapon) passes it by; a bow meets it on Flame Volley's slot since its default set
+     casts it (2+ in its area; the balance audit's fix 7, 2026-11-19). */
   step('why_it_waits', 'Why it waits',
     'Press the waiting slot to change when it fires',
     'action_bar', READ, { knowledge: true, gotIt: true, when: [LESSON, { kind: 'slot_waits' }] }),

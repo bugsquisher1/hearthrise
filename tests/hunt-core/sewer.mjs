@@ -944,8 +944,12 @@ const cases = {
   'why-it-waits': (M) => {
     const up = (T, more) => { const f = tutAt(M, T, 3, { huntId: 'mill_cellar', visited: new Set(['mill_cellar']), skillXp: { farming: 28, cooking: 0, melee: 0 }, landPlanted: true, read: new Set(['bar_intro']), ...more }); return { f, c: M.tut.currentCard(f) }; };
     const mage = tutKit(M, null, 'practice_wand', 'practice_spellbook'), healer = tutKit(M, null, 'practice_staff');
-    const WORDS = { mage: 'Press slot 1 to change when it fires', healer: 'Press slot 2 to change when it fires' };
-    for (const [set, T] of [['mage', mage], ['healer', healer]]) {
+    /* the bow's default set ends with Flame Volley on its own count (2+ in its area) since the balance audit's fix 7 (lane/d-audit-fixes-sim, 2026-11-19),
+       so a new bow meets the card on that slot, as a caster does on its first area spell */
+    const bowK = tutKit(M, null, 'practice_bow');
+    const WORDS = { mage: 'Press slot 1 to change when it fires', healer: 'Press slot 2 to change when it fires',
+      bow: 'Press slot ' + (bowK.slots.findIndex((s) => s && s.id === 'flame_volley') + 1) + ' to change when it fires' };
+    for (const [set, T] of [['mage', mage], ['healer', healer], ['bow', bowK]]) {
       const { f, c } = up(T);
       const card = c && M.tut.cardFor(c, f);
       if (!card || card.id !== 'why_it_waits' || card.text !== WORDS[set]) return set + ': the card reads ' + JSON.stringify(card && { id: card.id, text: card.text });
@@ -954,7 +958,7 @@ const cases = {
       if (read && read.id === 'why_it_waits') return set + ': Got it did not finish the card';
       if (walkChain(M, T).map((x) => x.id).indexOf('why_it_waits') !== walkChain(M, T).map((x) => x.id).indexOf('bar_intro') + 1) return set + ': the card does not follow Your action bar: ' + walkChain(M, T).map((x) => x.id).join(' > ');
     }
-    for (const [set, T] of [['tank', tutKit(M, 'tank')], ['axes', tutKit(M, null, 'practice_hatchets')], ['bow', tutKit(M, null, 'practice_bow')], ['hammer', tutKit(M, null, 'practice_club')]]) {
+    for (const [set, T] of [['tank', tutKit(M, 'tank')], ['axes', tutKit(M, null, 'practice_hatchets')], ['hammer', tutKit(M, null, 'practice_club')]]) {
       if (walkChain(M, T).some((x) => x.id === 'why_it_waits')) return set + ': nothing on its bar waits, yet the card came';
     }
     /* AN AREA MOVE UNDER ITS UNLOCK waits for the level, not its count (v0.2.129: Raking Shot on the Ranger's default bar

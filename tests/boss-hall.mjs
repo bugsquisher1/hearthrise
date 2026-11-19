@@ -316,7 +316,7 @@ const ARMS = {
       const firsts = (o) => read(fight(X, roles, { prizeFirst: (role, seat) => seat !== 1, ...o }));
       for (const cut of [undefined, 10000, 4 * MINUTE]) {
         for (const [key, e] of Object.entries(firsts(cut ? { cut } : {}))) {
-          const seat = Number(key.slice(-1)), want = seat === 1 ? 0 : 1;
+          const seat = Number.parseInt(key, 10) /* play-ground.mjs memberKey: the seat first */, want = seat === 1 ? 0 : 1;
           if (e.prize !== want || e.claims !== 1) bad.push('HL-DAILY first win' + (cut ? ' cut at ' + cut + ' ms' : '') + ': ' + key + (want ? ' on its first roll' : ' on a later roll') + ' got ' + e.prize + ' pieces and sent ' + e.claims + ' claims (want ' + want + ' and one)');
         }
       }

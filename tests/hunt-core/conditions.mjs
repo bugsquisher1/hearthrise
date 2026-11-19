@@ -951,8 +951,11 @@ const cases = {
       const casts = [];
       const r = M.play.run('meadowbrook_thicket', L, roles, { spanMs: 10 * 60000, windowMs, secret: '42', bar: () => [],
         onWindow: (w) => { for (const e of w.events || []) if (e.type === 'cast') casts.push([e.atMs, e.u, e.ability]); } });
+      /* each hero's store bill as sorted pairs: the tally names a hero when it first buys, and a short window can see the Healer buy before the tank where a
+         long one settles the tank first (the members enter in seat order since lane/d-audit-fixes-sim; the bills themselves are the same) */
+      const bills = Object.entries(r.totals.buys).map(([k, b]) => [k, Object.entries(b).sort()]).sort((a, b) => (a[0] < b[0] ? -1 : 1));
       return { casts, n: casts.filter((c) => c[2] === 'undertow').length, falls: r.totals.falls,
-        sum: JSON.stringify([r.totals.buys, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, Object.entries(r.items).sort()]) };
+        sum: JSON.stringify([bills, r.totals.coin, r.totals.levelXp, r.totals.xp, r.totals.kills, r.totals.falls, Object.entries(r.items).sort()]) };
       /* (a party's loot tallies its windows in another key order: the bag compared as sorted pairs) */
     };
     for (const roles of [['healer'], ['tank', 'healer']]) {

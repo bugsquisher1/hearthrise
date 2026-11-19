@@ -91,15 +91,20 @@ async function run(base) {
   }
   const duo = HL.recommendation([12, 20], 2, rows);
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
-  /* G4: where a hero alone's advice stands (level-curve reads it), and a pair's first ground is the Sewer. ALONE TO THE WARRENS FROM ITS soloFrom
-     (the board's 2026-11-19 complete balance look, change 8; hunt-grounds.js soloFrom, measured on tools/balance-sim/life.mjs): under it the Glade
-     with the note, from it the Warrens with none. A party's advice was re-measured on 2026-11-18 (G8): a pair from 16 goes to the Glade. */
+  /* G4: where a hero alone's advice stands (level-curve reads it), and a pair's first ground is the Sewer. THE WARRENS FITS A LONE HERO FROM ITS
+     soloFrom (hunt-grounds.js; the advice reads it, src/shell/hunt-list.js fitsGroup), and that is 45 again (designer ruling 2026-11-19, the board's
+     "2026-11-19 Two rulings for v0.2.142": from 36 the lone road reached Level 50 in 123 h against the ruled 168), so no lone Level under it is sent
+     there: a lone 44 is held on the Glade with the note. A party's advice was re-measured on 2026-11-18 (G8): a pair from 16 goes to the Glade. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  const soloAt = (rows.find((r) => r.hunt === 'coppercap_warrens') || {}).soloFrom;
+  const warrens = rows.find((r) => r.hunt === 'coppercap_warrens') || {};
+  const soloAt = warrens.soloFrom;
   ok('G4', Number.isInteger(soloAt) && lone(soloAt - 1).row.hunt === 'mosslight_glade' && lone(soloAt - 1).note === 'Coppercap Warrens: right for Level ' + (soloAt - 1) + ', tough monsters. Easier: Mosslight Glade (Levels 16–31)'
     && !/party|one hero|solo/i.test(lone(soloAt - 1).note || ''), 'a lone Level ' + (soloAt - 1) + ' reads ' + JSON.stringify(Number.isInteger(soloAt) && lone(soloAt - 1).note));
-  ok('G4', Number.isInteger(soloAt) && [soloAt, 44].every((lv) => lone(lv).row.hunt === 'coppercap_warrens' && lone(lv).note === null),
-    'a lone hero from the Warrens\' soloFrom (' + soloAt + ') to 44 is sent to ' + [soloAt, 44].map((lv) => lone(lv).row.hunt + ' ' + JSON.stringify(lone(lv).note)).join(' / '));
+  ok('G4', Number.isInteger(soloAt) && HL.fitsGroup(warrens, 1, soloAt) && !HL.fitsGroup(warrens, 1, soloAt - 1) && !HL.fitsGroup(warrens, 1, null),
+    'the Warrens fits a lone hero at ' + [soloAt - 1, soloAt, null].map((lv) => lv + ': ' + HL.fitsGroup(warrens, 1, lv)).join(', ') + ' (from its soloFrom ' + soloAt + ' only)');
+  const sentEarly = [];
+  for (let lv = 32; lv < 45; lv++) if (lone(lv).row.hunt === 'coppercap_warrens') sentEarly.push(lv);
+  ok('G4', sentEarly.length === 0, 'a lone hero under 45 is sent to the Warrens at Levels ' + sentEarly.join(', ') + ' (the ruled pace: alone from 45)');
   const under = soloAt - 2;
   const lostThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: -1250 }, party: null } } });
   const wonThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: 800 }, party: null } } });

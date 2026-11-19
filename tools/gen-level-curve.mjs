@@ -59,7 +59,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    plans pace + ladder were re-measured. Every bracket under Level 50 holds (C2); the ladder now trends 975 x L^1.421 (the Glade +5.1%, the Warrens
    +8.7% from lanes since 11-09), LEVEL_PACE.contract follows it (C5), and the brackets from Level 50 re-fit (pace.mjs --fit --fit-past). Same table,
    new rows; 2027-03-23 stays history. */
-export const OUT_NAME = '2027-04-07-brook-bear-level-curve.generated.sql';
+/* 2027-06-06-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 5-8 re-eased (the Cellar ends at 5, so Level 6 -> 7 read 2.01x 5 -> 6,
+   level-curve C6), Level 9 -> 10 raised and the brackets from 10 re-fit to Tyler's table (the pace of record read Level 50 in 146 h against 168;
+   core-model.js LEVEL_CURVE says why). Same table, new rows; 2027-04-07 stays history. */
+export const OUT_NAME = '2027-06-06-level-curve-early.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -95,10 +98,12 @@ export function buildSql(XP) {
 -- plpgsql since 2027-02-11-settle-plan-cache-2.generated.sql: a SQL copy is re-planned on
 -- every call on PostgreSQL 17), so every reader (the settle's death floor, hr_level_block,
 -- hr_level_of, the analyzer's ETA) follows with no edit.
--- NEW IN THIS FILE (lane/c-brook-bear, 2026-11-10): the Brook Bear stands in the Glade as
--- built, so the pace was re-measured; the ground ladder now pays 975 x L^1.421 Level XP an
--- hour, so the brackets from Level 50 re-fit to it. Level 10 at ${l10} XP, Level 50 at ${l50};
--- Levels 1-51 cost what they did; only the Levels past them move. LIVE CHARACTERS: nothing is stored per Level, so a
+-- NEW IN THIS FILE (lane/d-142-rulings, 2026-11-19): the pace of record read Level 50 in 146 h
+-- against Tyler's 168 (the bows' default Flame Volley; the Warrens' lone advice back at 45), and
+-- the Cellar's end at 5 made Level 6 -> 7 take 2.01x Level 5 -> 6. Levels 5-8 re-eased (about
+-- 1.92x each), Level 9 -> 10 raised, the brackets from 10 re-fit to the table. Level 10 at
+-- ${l10} XP, Level 50 at ${l50}; every total from Level 10 is 8-19% higher (a Level 74
+-- hero reads 72). LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
 -- once the hr-accrue deploy carrying the same LEVEL_CURVE follows this file (AT ONCE:

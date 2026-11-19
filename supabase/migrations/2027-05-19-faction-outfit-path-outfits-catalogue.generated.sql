@@ -6,7 +6,8 @@
 -- window's outfit save and hr_hero_colors_set are checked against. Cosmetic: nothing here moves value.
 -- THE FORWARD FILE (lane/c-faction-outfit-path, 2026-11-18): 2027-04-30-sweeps-coat-outfits-catalogue.generated.sql is APPLIED history;
 -- this carries every row again plus each FACTION LOOK with the pieces it needs (hr_outfits.pieces: the Flamebearer and the Emberkeeper,
--- alone and with one of their add-ons each, owned only by a hero holding every piece; staged, so no sheet and no regions yet). STAGED,
+-- alone and with one of their add-ons each, owned only by a hero holding every piece; the two outfits with their factionwear sheets' regions,
+-- the four add-on looks staged, no sheet and no regions yet). STAGED,
 -- NOT APPLIED. ORDER: right after 2027-05-19-faction-outfit-path.sql, which adds the column and makes hr_outfit_owned read the claims;
 -- §0 refuses before it, because under the old body every hero would own every faction look.
 -- Rows are UPSERTED (player_outfits references hr_outfits); a removed row is
@@ -54,15 +55,15 @@ insert into public.hr_outfits (outfit_id, premium, regions, sort, bundle, pieces
   ('witch', true, '{head,body,feet}', 7, null, null),
   ('dawnward', true, '{body}', 8, null, null),
   ('sweeps_coat', false, '{head,body,feet}', 9, 'sweeps_coat_bundle', null),
-  ('flamebearer', false, '{}', 10, null, '{flamebearer}'),
-  ('flamebearer_shield', false, '{}', 11, null, '{flamebearer,flamebearer_shield}'),
-  ('flamebearer_light', false, '{}', 12, null, '{flamebearer,flamebearer_light}'),
-  ('emberkeeper', false, '{}', 13, null, '{emberkeeper}'),
+  ('flamebearer', false, '{body}', 10, null, '{flamebearer}'),
+  ('emberkeeper', false, '{body}', 11, null, '{emberkeeper}'),
+  ('flamebearer_shield', false, '{}', 12, null, '{flamebearer,flamebearer_shield}'),
+  ('flamebearer_light', false, '{}', 13, null, '{flamebearer,flamebearer_light}'),
   ('emberkeeper_lantern', false, '{}', 14, null, '{emberkeeper,emberkeeper_lantern}'),
   ('emberkeeper_coal', false, '{}', 15, null, '{emberkeeper,emberkeeper_coal}')
   on conflict (outfit_id) do update set premium = excluded.premium, regions = excluded.regions, sort = excluded.sort, bundle = excluded.bundle,
     pieces = excluded.pieces;
-delete from public.hr_outfits where outfit_id <> all (array['knight', 'berserker', 'ranger', 'sorcerer', 'druid', 'brute', 'witch', 'dawnward', 'sweeps_coat', 'flamebearer', 'flamebearer_shield', 'flamebearer_light', 'emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal']);
+delete from public.hr_outfits where outfit_id <> all (array['knight', 'berserker', 'ranger', 'sorcerer', 'druid', 'brute', 'witch', 'dawnward', 'sweeps_coat', 'flamebearer', 'emberkeeper', 'flamebearer_shield', 'flamebearer_light', 'emberkeeper_lantern', 'emberkeeper_coal']);
 
 insert into public.hr_outfit_dyes (idx, hex) values
   (0, '#2f2723'),

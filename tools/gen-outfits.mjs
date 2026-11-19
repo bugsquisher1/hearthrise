@@ -102,7 +102,8 @@ export function buildSql(O, dyes, palette, factionPieces) {
 -- window's outfit save and hr_hero_colors_set are checked against. Cosmetic: nothing here moves value.
 -- THE FORWARD FILE (lane/c-faction-outfit-path, 2026-11-18): 2027-04-30-sweeps-coat-outfits-catalogue.generated.sql is APPLIED history;
 -- this carries every row again plus each FACTION LOOK with the pieces it needs (hr_outfits.pieces: the Flamebearer and the Emberkeeper,
--- alone and with one of their add-ons each, owned only by a hero holding every piece; staged, so no sheet and no regions yet). STAGED,
+-- alone and with one of their add-ons each, owned only by a hero holding every piece; the two outfits with their factionwear sheets' regions,
+-- the four add-on looks staged, no sheet and no regions yet). STAGED,
 -- NOT APPLIED. ORDER: right after 2027-05-19-faction-outfit-path.sql, which adds the column and makes hr_outfit_owned read the claims;
 -- §0 refuses before it, because under the old body every hero would own every faction look.
 -- Rows are UPSERTED (player_outfits references hr_outfits); a removed row is
@@ -236,8 +237,10 @@ async function selftest() {
   if (looks.length < 2 || looks.some(([id, pieces]) => freeRowIn(sql, id) || !withPieces(id, pieces)) || !sql.includes("'hr_faction_claims') = 0")) {
     console.error('  MISSED  a faction look reached hr_outfits as a free row, or the file lands before hr_outfit_owned reads the claims'); bad++;
   } else console.log('  caught  a faction look carries its pieces, behind the claims precondition');
-  const unpieced = { ...O, STAGED_OUTFITS: {}, OUTFIT_IDS: [...O.OUTFIT_IDS, ...looks.map(([id]) => id)],
-    OUTFIT_ROWS: { ...O.OUTFIT_ROWS, ...Object.fromEntries(looks.map(([id]) => [id, { premium: false, regions: [], bundle: null, pieces: null }])) } };
+  /* every faction look, listed or staged, written with no pieces (the listed ones keep their regions) */
+  const unpieced = { ...O, STAGED_OUTFITS: {}, OUTFIT_IDS: [...O.OUTFIT_IDS, ...Object.keys(O.STAGED_OUTFITS)],
+    OUTFIT_ROWS: { ...Object.fromEntries(Object.entries(O.OUTFIT_ROWS).map(([id, r]) => [id, { ...r, pieces: null }])),
+      ...Object.fromEntries(Object.keys(O.STAGED_OUTFITS).map((id) => [id, { premium: false, regions: [], bundle: null, pieces: null }])) } };
   const loose = buildSql(unpieced, dyes, palette, {});
   if (looks.some(([id]) => !freeRowIn(loose, id))) { console.error('  MISSED  the free-row probe reads no faction look'); bad++; }
   else console.log('  caught  the free-row probe sees a faction look written without its pieces');

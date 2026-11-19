@@ -282,7 +282,13 @@ const ARMS = {
 
   'FO-AGAIN': async (db, X, mutant) => {
     const bad = [];
-    const text = (f) => (mutant && mutant.sql && mutant.sql[0] === f ? MIG(f).replace(mutant.sql[1], mutant.sql[2]) : MIG(f));
+    /* a mutant's edit must land: an anchor that matches nothing is the harness's failure, never a silent clean run */
+    const text = (f) => {
+      if (!(mutant && mutant.sql && mutant.sql[0] === f)) return MIG(f);
+      const t = MIG(f), out = t.replace(mutant.sql[1], mutant.sql[2]);
+      if (out === t) throw harness('FO-AGAIN the mutant\'s edit is not in ' + f + ': ' + String(mutant.sql[1]).slice(0, 80));
+      return out;
+    };
     const image = () => one(db, `select jsonb_build_object(
         'defs', (select jsonb_object_agg(p.oid::regprocedure::text, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, ''))
                    from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('hr_outfit_owned', 'hr_outfit_set', 'hr_outfit_view', 'hr_town_look')),
@@ -347,7 +353,7 @@ const ARMS = {
       }
       /* THE PLANTS: each must be refused by validate */
       const plants = [
-        ['a staged look whose sheet landed', { 'hunt-outfits.js': [["  sweeps_coat: 'outfit_sweeps_coat',\n", "  sweeps_coat: 'outfit_sweeps_coat',\n  flamebearer: 'outfit_flamebearer',\n"]] }, /flamebearer: its sheet has landed/],
+        ['a staged look whose sheet landed', { 'hunt-outfits.js': [["  sweeps_coat: 'outfit_sweeps_coat',\n", "  sweeps_coat: 'outfit_sweeps_coat',\n  flamebearer_shield: 'outfit_flamebearer_shield',\n"]] }, /flamebearer_shield: its sheet has landed/],
         ['an add-on look not on its outfit', { 'outfits.js': [["  flamebearer_shield: Object.freeze(['flamebearer', 'flamebearer_shield']),", "  flamebearer_shield: Object.freeze(['flamebearer_shield', 'flamebearer']),"]] }, /flamebearer_shield: its first piece flamebearer_shield owns no outfit/],
         ['a piece twice', { 'outfits.js': [["  emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper_coal']),", "  emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper']),"]] }, /emberkeeper_coal: it names a piece twice/],
         /* the designer 2026-11-18: a hero holding both add-ons shows one, so no look shows two */
@@ -391,7 +397,7 @@ export const MUTANTS = {
   pin_lost: { arm: 'FO-AGAIN', why: 'a second apply refuses because the pin forgot this file\'s own image', sql: [HAND, "'cfe9a082905a659b73b0b9ca8c4e565e', 'e96a36a681fe324d084ce26baa25ac44')", "'cfe9a082905a659b73b0b9ca8c4e565e', '00000000000000000000000000000000')"] },
   catalogue_unguarded: { arm: 'FO-AGAIN', why: 'the catalogue lands before the reader reads the claims',
     sql: [CATALOGUE, "     or strpos((select prosrc from pg_proc where oid = 'public.hr_outfit_owned(uuid,integer)'::regprocedure), 'hr_faction_claims') = 0\n", ''] },
-  look_written_free: { arm: 'FO-AGAIN', why: 'the catalogue writes a faction look with no pieces', sql: [CATALOGUE, "  ('flamebearer', false, '{}', 10, null, '{flamebearer}'),", "  ('flamebearer', false, '{}', 10, null, null),"] },
+  look_written_free: { arm: 'FO-AGAIN', why: 'the catalogue writes a faction look with no pieces', sql: [CATALOGUE, "  ('flamebearer', false, '{body}', 10, null, '{flamebearer}'),", "  ('flamebearer', false, '{body}', 10, null, null),"] },
   earned_drops_pieces: { arm: 'FO-DATA', why: 'a faction look would list for a hero who does not own it', js: ['outfits.js', 'export const earnedOnly = (r) => !!r && (!!r.bundle || !!r.pieces);', 'export const earnedOnly = (r) => !!r && !!r.bundle;'] },
   staged_sheet_unchecked: { arm: 'FO-DATA', why: 'a landed sheet leaves its look hidden', js: ['outfits.js', "    if (OUTFITS[id]) out.push(id + ': its sheet has landed, so its row moves into OUTFIT_ROWS with its label, regions and parts');\n", ''] },
   two_addons_one_look: { arm: 'FO-DATA', why: 'a look may show both add-ons', js: ['outfits.js', "    if (Array.isArray(pieces) && pieces.length > 2) out.push(id + ': it shows ' + (pieces.length - 1) + ' add-ons, and a look shows one');\n", ''] },

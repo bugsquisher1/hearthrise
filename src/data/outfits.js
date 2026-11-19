@@ -51,6 +51,11 @@ export const OUTFIT_ROWS = Object.freeze({
   dawnward: row('Dawnward', true, { body: 'Cape' }),
   /* round 6 (Tyler's hooded keeper): the hood and its cape, the robe, the apron with the boots; the key, the singed edges and the rope stay as drawn, so no legs */
   sweeps_coat: row('Key Warden', false, { head: 'Hood', body: 'Robe', feet: 'Apron and boots' }, null, 'sweeps_coat_bundle'),
+  /* the faction outfits (the designer 2026-11-18, ./outfits.js STAGED_OUTFITS below for their add-ons): owned while the hero holds the outfit's own
+     piece (hr_faction_claims), listed once owned or, locked, while the factions are on. The dye keys the cloth only: the Flamebearer's antique gold
+     tabard and trim, the Emberkeeper's crimson cloth (the steel, the charcoal plate, the neck cloth, the flame and the lit eyes stay as drawn) */
+  flamebearer: row('Flamebearer', false, { body: 'Tabard' }, null, null, ['flamebearer']),
+  emberkeeper: row('Emberkeeper', false, { body: 'Cloth' }, null, null, ['emberkeeper']),
 });
 
 /* THE FACTION LOOKS, STAGED (Tyler 2026-11-14: "more paladin like outfits vs grim reaper type outfit unlocks. (Both can be unlocked by
@@ -58,15 +63,13 @@ export const OUTFIT_ROWS = Object.freeze({
    (the designer 2026-11-18): the outfit alone and the outfit with ONE of its add-ons are each a look on its own sheet, owned while the
    hero holds every piece it names. A hero holding both add-ons shows one, by choice: the Outfit tab's one card for the outfit picks the
    look (Add-on: None, Shield, Light), worn through hr_outfit_set. The first piece is the outfit's own. The glows (the ring, the coals)
-   are lit palette pixels on the sheets, not effects. The server serves these rows now (tools/gen-outfits.mjs, hr_outfits.pieces); the
-   page lists none, because no sheet has landed (validate: every OUTFIT_ROWS row has a sprite; CLAUDE.md §3.5). The base looks ship
-   first, the add-on looks after their art review: as a look's sheet lands, its id goes into hunt-outfits.js OUTFITS and its row moves
-   from here into OUTFIT_ROWS with its label, regions and parts, and the same pieces. */
+   are lit palette pixels on the sheets, not effects. The two base looks are listed above (their sheets in `factionwear`, 2026-11-18).
+   The add-on looks here are served by the server now (tools/gen-outfits.mjs, hr_outfits.pieces) and listed by no page until their
+   sheets land after art review (validate: every OUTFIT_ROWS row has a sprite; CLAUDE.md §3.5): as one lands, its id goes into
+   hunt-outfits.js OUTFITS and its row moves from here into OUTFIT_ROWS with its label, regions and parts, and the same pieces. */
 export const STAGED_OUTFITS = Object.freeze({
-  flamebearer: Object.freeze(['flamebearer']),
   flamebearer_shield: Object.freeze(['flamebearer', 'flamebearer_shield']),
   flamebearer_light: Object.freeze(['flamebearer', 'flamebearer_light']),
-  emberkeeper: Object.freeze(['emberkeeper']),
   emberkeeper_lantern: Object.freeze(['emberkeeper', 'emberkeeper_lantern']),
   emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper_coal']),
 });

@@ -453,11 +453,15 @@ const ARMS = {
     if (X.OF.validate().length) out.push('outfits.js: ' + X.OF.validate().join('; '));
     /* WHAT THE PICKER OFFERS IS WHAT THE ART SHOWS: read off the shipped atlas, pixel by pixel. */
     const { decodePNG } = await import(pathToFileURL(join(ROOT, 'tools/world-art/png.mjs')).href);
-    const manifest = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-hunt-masks.json'), 'utf8'));
-    const img = decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-hunt-masks.png')));
+    /* every mask set (src/data/world/atlas-sets.js MASK_SETS: hunt-masks for `heroes`, factionwear-masks for `factionwear`) */
+    const { MASK_SETS } = await import(pathToFileURL(join(ROOT, 'src/data/world/atlas-sets.js')).href);
+    const maskAtlases = Object.keys(MASK_SETS).map((set) => ({ manifest: JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8')),
+      img: decodePNG(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.png'))) }));
     const { OUTFITS } = X.HO;
     for (const [id, r] of Object.entries(OUTFIT_ROWS)) {
-      const m = manifest.sprites[OUTFITS[id] + '_mask'];
+      const at = maskAtlases.find((a) => a.manifest.sprites[OUTFITS[id] + '_mask']);
+      const m = at ? at.manifest.sprites[OUTFITS[id] + '_mask'] : null;
+      const img = at ? at.img : null;
       if (!m) { if (r.regions.length) out.push(`${id}: it offers ${r.regions} and has no mask`); else if (!r.plain) out.push(`${id}: no mask, no words`); continue; }
       const seen = new Set();
       const [fw, fh] = m.frame;

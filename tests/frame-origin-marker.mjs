@@ -115,7 +115,7 @@ export function check(files) {
 async function loadChain() {
   const order = loadApplyOrder(ROOT);
   const names = order.order || order.files || order.migrations;
-  if (!Array.isArray(names)) throw Object.assign(new Error('schema-apply-order.json has no order array'), { harness: true });
+  if (!Array.isArray(names)) throw Object.assign(new Error('the apply order has no chain (tools/lib/apply-order.mjs)'), { harness: true });
   const out = [];
   for (const name of names) {
     if (!name.endsWith('.sql')) continue;

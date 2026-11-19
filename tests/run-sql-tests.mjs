@@ -2486,11 +2486,11 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     const order = loadApplyOrder(ROOT).order;
     const positions = SPEC.chain.map((f) => order.indexOf(f));
     if (positions.some((p) => p < 0)) {
-      fail(`a ${SPEC.fn} file is missing from schema-apply-order.json's "order": `
+      fail(`a ${SPEC.fn} file is missing from the apply order's chain (supabase/migration-notes): `
          + SPEC.chain.filter((_, i) => positions[i] < 0).join(', '));
       chainOk = false;
     } else if (Math.max(...positions) !== order.indexOf(last)) {
-      fail(`${last} is the last file in ${SPEC.chainName} but schema-apply-order.json applies another `
+      fail(`${last} is the last file in ${SPEC.chainName} but the apply order applies another `
          + `${SPEC.fn} file AFTER it. Whichever applies last wins, and it would silently delete this `
          + "one's change while every self-check still passed.");
       chainOk = false;

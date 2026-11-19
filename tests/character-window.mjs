@@ -7,7 +7,7 @@
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/shell/windows/character/titles.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
+// mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/shell/windows/character/outfit-looks.js src/shell/windows/character/titles.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the three sections
@@ -40,12 +40,19 @@
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line's tooltip names each
 //         thing and its kind ("Bronze Axe (woodcutting tool)")
+//   CW-11 THE FACTION LOOKS (the designer 2026-11-18; the six staged looks listed here on borrowed sheets, the test's alone): ONE card an
+//         outfit, never an add-on's; with the factions off no locked faction card; on, both sides' outfits show locked, captioned with
+//         the SECTION's own number ("Requires First Flame standing: 37 h", not the data's 25); owned, the card's add-on picker offers
+//         None and the owned add-on, greys the unowned one with its requirement, and Equip sends ONE hr_outfit_set naming the picked
+//         add-on's look; off again, the owned outfit stays and the locked ones go. THE SECOND HERO SET: the two worn faction looks are
+//         in `factionwear` (heroes is full): the Outfit tab's card and preview draw them, the portrait's recolour and the World's dye
+//         both reach their masks (factionwear-masks)
 //   CW-10 THE SHEET READS AS A CHARACTER SHEET (UI audit 2026-11-18 #8), at 1440x900
 //         and 922x423: the portrait is the 42x45 FIGURE at a whole 2x or more; every
 //         combat skill's bar is 40% of its entry or more and its unlock one line; no
 //         stat value wraps; nothing is cut at 1440x900; the Outfit wardrobe stands
 //         every figure at one whole scale, three or more to a row; and the FIGURE
-//         holds every outfit's idle art in every facing
+//         holds every outfit's idle art in every facing, in every hero set (heroes, factionwear)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -164,6 +171,34 @@ async function pure() {
   return fails;
 }
 
+/* CW-11's STAND-INS: the staged add-on looks listed on borrowed sheets (this test's alone, never shipped; the two base looks are the real
+   rows on their `factionwear` sheets), on top of any mutant's text. */
+const LOOK_SHEETS = Object.freeze({ flamebearer_shield: 'outfit_berserker', flamebearer_light: 'outfit_ranger',
+  emberkeeper_lantern: 'outfit_witch', emberkeeper_coal: 'outfit_brute' });
+/* the files CW-11 reads: a mutant elsewhere is judged by the other rules, so CW-11 runs only on the clean tree and on these */
+const LOOK_FILES = Object.freeze(['src/render/outfit-sprite.js', 'src/world/hero-dye.js', 'src/data/world/atlas-sets.js', 'src/shell/windows/character/outfit.js', 'src/shell/windows/character/outfit-looks.js', 'src/shell/windows/character/index.js',
+  'src/data/outfits.js', 'src/data/hunt-outfits.js', 'src/data/text/factions.js', 'src/session/faction-sections.js', 'src/session/character-sections.js', 'src/shell/faction-words.js']);
+async function lookPlants(overrides) {
+  const src = async (f) => (overrides && overrides[f]) || readFile(join(ROOT, f), 'utf8');
+  const plant = (text, find, repl, f) => { if (!find.test(text)) throw new Error('CW-11 HARNESS: the stand-in anchor is not in ' + f); return text.replace(find, repl); };
+  const { STAGED_OUTFITS } = await import(pathToFileURL(join(ROOT, 'src/data/outfits.js')).href);
+  const rows = Object.entries(STAGED_OUTFITS).map(([id, pieces]) => "  " + id + ": row('" + (pieces.length === 1 ? id[0].toUpperCase() + id.slice(1) : id) + "', false, {}, 'Stand-in art', null, "
+    + JSON.stringify(pieces).replace(/"/g, "'") + '),\n').join('');
+  let outfits = await src('src/data/outfits.js');
+  outfits = plant(outfits, /(  sweeps_coat: row\('Key Warden'[^\n]*\n)/, '$1' + rows, 'src/data/outfits.js');
+  outfits = plant(outfits, /export const STAGED_OUTFITS = Object\.freeze\(\{[\s\S]*?\n\}\);/, 'export const STAGED_OUTFITS = Object.freeze({});', 'src/data/outfits.js');
+  let sheets = await src('src/data/hunt-outfits.js');
+  sheets = plant(sheets, /(  sweeps_coat: 'outfit_sweeps_coat',\n)/, '$1' + Object.entries(LOOK_SHEETS).map(([k, v]) => "  " + k + ": '" + v + "',\n").join(''), 'src/data/hunt-outfits.js');
+  return Object.assign({}, overrides || {}, { 'src/data/outfits.js': outfits, 'src/data/hunt-outfits.js': sheets });
+}
+/* The `factions` section as hr_faction_section answers it: every need a number NO data row has, so a label that reads the data, or a
+   literal, is caught. */
+const H_MS = 3600000;
+const LOOK_NEEDS = Object.freeze({ flamebearer: 37, flamebearer_shield: 101, flamebearer_light: 301, emberkeeper: 38, emberkeeper_lantern: 102, emberkeeper_coal: 302 });
+const factionsSection = () => ({ faction: 'first_flame', can_join: false, joined_at: '2026-11-10T10:00:00Z', swap: null, swap_ready_at: '2026-11-17T10:00:00Z',
+  standing: { first_flame: 30 * H_MS, last_ember: 0 }, today_ms: 0, day_cap_ms: 86400000, swap_need_ms: 36000000, cooldown_ms: 604800000,
+  pieces: Object.entries(LOOK_NEEDS).map(([id, h]) => ({ id, faction: id.startsWith('flame') ? 'first_flame' : 'last_ember', need_ms: h * H_MS, held: false })) });
+
 async function checks(overrides, shots) {
   const fails = overrides ? [] : await pure();
   const { server, port } = await serve(overrides || {});
@@ -178,7 +213,7 @@ async function checks(overrides, shots) {
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const s = scripted(o.sections);
     await stub(page, s);
-    const up = await signInAndPlay(page, base);
+    const up = await signInAndPlay(page, o.base || base);
     return { ctx, page, errors, s, up };
   };
   const shot = async (page, name) => { if (shots) await page.screenshot({ path: join(shots, name + '.png') }); };
@@ -555,22 +590,123 @@ async function checks(overrides, shots) {
       if (up) {
         const out = await page.evaluate(async () => {
           const { FIGURE } = await import('/src/render/outfit-sprite.js');
-          const man = await (await fetch('/assets/world/atlas-heroes.json')).json();
-          const img = new Image(); img.src = '/assets/world/atlas-heroes.png'; await img.decode();
-          const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-          const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+          /* every hero set the portrait draws from (heroes, and factionwear since heroes is full) */
+          const { HERO_SETS } = await import('/src/data/world/atlas-sets.js');
           const [fx, fy, fw, fh] = FIGURE, bad = [];
-          for (const [id, s] of Object.entries(man.sprites)) for (const [dir, frames] of Object.entries(s.anims.idle.dirs)) for (const [sx, sy] of frames) {
-            const d = g.getImageData(sx, sy, s.frame[0], s.frame[1]).data;
-            for (let y = 0; y < s.frame[1]; y++) for (let x = 0; x < s.frame[0]; x++) {
-              if (d[(y * s.frame[0] + x) * 4 + 3] && (x < fx || y < fy || x >= fx + fw || y >= fy + fh)) { bad.push(id + ' ' + dir + ' at ' + x + ',' + y); y = s.frame[1]; break; }
+          let n = 0;
+          for (const set of HERO_SETS) {
+            const man = await (await fetch('/assets/world/atlas-' + set + '.json')).json();
+            const img = new Image(); img.src = '/assets/world/atlas-' + set + '.png'; await img.decode();
+            const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+            const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+            n += Object.keys(man.sprites).length;
+            for (const [id, s] of Object.entries(man.sprites)) for (const [dir, frames] of Object.entries(s.anims.idle.dirs)) for (const [sx, sy] of frames) {
+              const d = g.getImageData(sx, sy, s.frame[0], s.frame[1]).data;
+              for (let y = 0; y < s.frame[1]; y++) for (let x = 0; x < s.frame[0]; x++) {
+                if (d[(y * s.frame[0] + x) * 4 + 3] && (x < fx || y < fy || x >= fx + fw || y >= fy + fh)) { bad.push(id + ' ' + dir + ' at ' + x + ',' + y); y = s.frame[1]; break; }
+              }
             }
           }
-          return { n: Object.keys(man.sprites).length, bad: [...new Set(bad)].slice(0, 6) };
+          return { n, bad: [...new Set(bad)].slice(0, 6) };
         });
         if (out.n < 5 || out.bad.length) fails.push('CW-10 the FIGURE cuts an outfit: ' + JSON.stringify(out));
       } else fails.push('CW-10 the figure check did not mount');
       await ctx.close();
+    }
+    if (!overrides || Object.keys(overrides).some((f) => LOOK_FILES.includes(f))) { // CW-11 THE FACTION LOOKS, on the stand-ins
+      const looks = await serve(await lookPlants(overrides));
+      try {
+        const { ctx, page, s, up } = await open({ base: 'http://127.0.0.1:' + looks.port });
+        if (!up || !(await openWin(page, 'c', 'character'))) fails.push('CW-11 the Character window did not open on the stand-ins');
+        else {
+          await page.click('[data-hs-win="character"] .hw-tab[data-tab="outfit"]');
+          await page.waitForTimeout(300);
+          const cards = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-act="of-pick"]')).map((b) => ({ id: b.getAttribute('data-outfit'),
+            locked: b.classList.contains('is-locked'), mark: b.querySelector('.hw-of-mark').textContent })));
+          const faction = (list) => list.filter((c) => c.id.startsWith('flamebearer') || c.id.startsWith('emberkeeper'));
+          /* OFF: no faction card at all */
+          let list = faction(await cards());
+          if (list.length) fails.push('CW-11 with the factions off the grid shows ' + JSON.stringify(list));
+          /* ON: both sides' outfits, locked, each with the section's own requirement; never an add-on's card; never the Key Warden */
+          s.env.factions = factionsSection();
+          await push(page, s);
+          await wait(page, () => !!document.querySelector('[data-hs-act="of-pick"][data-outfit="emberkeeper"]'), null, 4000);
+          list = await cards();
+          const want = [{ id: 'flamebearer', locked: true, mark: 'Requires First Flame standing: 37 h' }, { id: 'emberkeeper', locked: true, mark: 'Requires Last Ember standing: 38 h' }];
+          if (JSON.stringify(faction(list)) !== JSON.stringify(want)) fails.push('CW-11 with the factions on the faction cards are ' + JSON.stringify(faction(list)));
+          /* the cards draw from the second hero set: each face is painted from its own sheet (the canvas keeps the sprite it drew) */
+          const faces = await wait(page, () => ['flamebearer', 'emberkeeper'].every((id) => { const c = document.querySelector('[data-hs-act="of-pick"][data-outfit="' + id + '"] canvas');
+            return !!c && String(c.getAttribute('data-sig') || '').startsWith('outfit_' + id + '|'); }), null, 6000);
+          if (!faces) fails.push('CW-11 a faction card\'s face was not drawn from its factionwear sheet');
+          /* the portrait's recolour and the World's dye both reach the faction looks' masks */
+          const dyedOk = await page.evaluate(async () => {
+            const S = await import('/src/render/outfit-sprite.js');
+            const D = await import('/src/world/hero-dye.js');
+            const A = await import('/src/world/atlas.js');
+            const [art, masks] = await Promise.all([S.outfitArt(document, ''), S.outfitMasks(document, '')]);
+            const out = {};
+            for (const id of ['outfit_flamebearer', 'outfit_emberkeeper']) {
+              const draw = (dyes) => { const c = document.createElement('canvas'); S.drawOutfit(c, art, id, { dir: 's', scale: 1, dyes, masks }); return c.getContext('2d').getImageData(0, 0, c.width, c.height).data; };
+              const a = draw([]), b = draw(['#00ff00', '#00ff00', '#00ff00', '#00ff00']);
+              let moved = 0;
+              for (let i = 0; i < a.length; i += 4) if (a[i] !== b[i] || a[i + 1] !== b[i + 1] || a[i + 2] !== b[i + 2]) moved++;
+              out[id] = { portrait: moved };
+            }
+            const fw = await A.loadAtlasSet({ doc: document, version: '' }, 'factionwear');
+            const dye = D.createHeroDye({ doc: document, version: '' });
+            for (let t = 0; t < 40; t++) {
+              for (const id of ['outfit_flamebearer', 'outfit_emberkeeper']) dye.want(id, '11.11.11.11', true, fw.manifest.sprites[id], fw.image);
+              dye.pump();
+              if (['outfit_flamebearer', 'outfit_emberkeeper'].every((id) => dye.has(id, '11.11.11.11'))) break;
+              await new Promise((ok) => setTimeout(ok, 100));
+            }
+            for (const id of ['outfit_flamebearer', 'outfit_emberkeeper']) out[id].world = dye.has(id, '11.11.11.11');
+            return out;
+          });
+          if (!(dyedOk.outfit_flamebearer.portrait > 0 && dyedOk.outfit_emberkeeper.portrait > 0 && dyedOk.outfit_flamebearer.world && dyedOk.outfit_emberkeeper.world)) {
+            fails.push('CW-11 the faction looks do not take their colors (portrait px moved, World look baked): ' + JSON.stringify(dyedOk));
+          }
+          if (list.some((c) => c.id === 'sweeps_coat')) fails.push('CW-11 the Key Warden shows to a hero who does not own it');
+          /* OWNED: the outfit and its Shield; the card's picker offers None and Shield, greys Light with its requirement */
+          s.env.outfit = Object.assign({}, s.env.outfit, { owned: s.env.outfit.owned.concat(['flamebearer', 'flamebearer_shield']) });
+          await push(page, s);
+          await wait(page, () => { const b = document.querySelector('[data-hs-act="of-pick"][data-outfit="flamebearer"]'); return !!b && !b.classList.contains('is-locked'); }, null, 4000);
+          await page.click('[data-hs-act="of-pick"][data-outfit="flamebearer"]');
+          await page.waitForTimeout(150);
+          const picker = () => page.evaluate(() => { const box = document.querySelector('.hw-of-addons');
+            return { on: !!box && box.classList.contains('is-on'), head: box ? box.querySelector('.hw-of-addons-head').textContent : '',
+              opts: Array.from(document.querySelectorAll('[data-hs-act="of-addon"]')).map((b) => ({ look: b.getAttribute('data-outfit'), label: b.querySelector('b').textContent,
+                need: b.querySelector('small').textContent, off: b.disabled, on: b.getAttribute('aria-checked') === 'true' })) }; });
+          let pk = await picker();
+          const wantPk = { on: true, head: 'Add-on', opts: [{ look: 'flamebearer', label: 'None', need: '', off: false, on: true }, { look: 'flamebearer_shield', label: 'Shield', need: '', off: false, on: false },
+            { look: 'flamebearer_light', label: 'Light', need: 'Requires First Flame standing: 301 h', off: true, on: false }] };
+          if (JSON.stringify(pk) !== JSON.stringify(wantPk)) fails.push('CW-11 the Flamebearer\'s picker reads ' + JSON.stringify(pk));
+          if (faction(await cards()).length !== 2) fails.push('CW-11 an add-on\'s look has a card of its own: ' + JSON.stringify(faction(await cards())));
+          /* the pick is the look Equip names: ONE hr_outfit_set */
+          await page.click('[data-hs-act="of-addon"][data-outfit="flamebearer_shield"]');
+          await page.waitForTimeout(150);
+          pk = await picker();
+          const shieldOn = pk.opts.find((x) => x.look === 'flamebearer_shield');
+          if (!shieldOn || !shieldOn.on) fails.push('CW-11 the Shield press did not try it on: ' + JSON.stringify(pk.opts));
+          const before = s.calls.filter((c) => c.name === 'hr_outfit_set').length;
+          const saveOn = await page.evaluate(() => !document.querySelector('[data-hs-act="of-save"]').disabled);
+          if (saveOn) await page.click('[data-hs-act="of-save"]');
+          await page.waitForTimeout(700);
+          const sent = s.calls.filter((c) => c.name === 'hr_outfit_set').slice(before);
+          if (!saveOn || sent.length !== 1 || sent[0].body.p_outfit !== 'flamebearer_shield') fails.push('CW-11 Equip on the Shield sent ' + JSON.stringify(sent.map((c) => c.body)) + (saveOn ? '' : ' (Equip was off)'));
+          /* OFF AGAIN: the owned outfit stays, the locked one goes, the unowned add-on has no number to say and is not offered */
+          delete s.env.factions;
+          await push(page, s);
+          await wait(page, () => !document.querySelector('[data-hs-act="of-pick"][data-outfit="emberkeeper"]'), null, 4000);
+          list = faction(await cards());
+          if (JSON.stringify(list.map((c) => c.id)) !== '["flamebearer"]') fails.push('CW-11 with the factions off again the faction cards are ' + JSON.stringify(list));
+          await page.click('[data-hs-act="of-pick"][data-outfit="flamebearer"]');
+          await page.waitForTimeout(150);
+          pk = await picker();
+          if (pk.opts.map((x) => x.look).join() !== 'flamebearer,flamebearer_shield') fails.push('CW-11 with the factions off the picker offers ' + JSON.stringify(pk.opts));
+        }
+        await ctx.close();
+      } finally { looks.server.close(); }
     }
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
@@ -597,6 +733,14 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  ['an add-on not owned can be picked (CW-11)', 'src/shell/windows/character/outfit-looks.js', '    const own = owns(o, look);', '    const own = true;'],
+  ['the requirement is a literal, not the server\'s number (CW-11)', 'src/shell/windows/character/outfit-looks.js', 'time: spanWords(p.needMs) })', 'time: spanWords(25 * 3600000) })'],
+  ['a locked faction outfit shows with the factions off (CW-11)', 'src/shell/windows/character/outfit-looks.js', "    return !!r.pieces && requiresWords(f, r.pieces[0]) !== '';", '    return !!r.pieces;'],
+  ['an add-on\'s look gets a card of its own (CW-11)', 'src/shell/windows/character/outfit-looks.js', '    if (outfitOfLook(id) !== id) return false;\n', ''],
+  ['the Character window loads only the first hero set (CW-11)', 'src/render/outfit-sprite.js', 'Promise.allSettled(HERO_SETS.map((set) =>', 'Promise.allSettled(HERO_SETS.slice(0, 1).map((set) =>'],
+  ['the portrait finds only the first hero set\'s masks (CW-11)', 'src/render/outfit-sprite.js', "  const masks = dyes.some(Boolean) ? setsOf(opt.masks).find(", "  const masks = dyes.some(Boolean) ? setsOf(opt.masks).slice(0, 1).find("],
+  ['the World dyes from the first mask set only (CW-11)', 'src/world/hero-dye.js', "(Array.isArray(m.sets) ? m.sets : [m]).find(", "(Array.isArray(m.sets) ? m.sets.slice(0, 1) : [m]).find("],
+  ['Equip names the outfit, not the picked add-on (CW-11)', 'src/shell/windows/character/outfit.js', '    sc.draft = { outfit: id, colors: draftOf(cs, sc).colors };', '    sc.draft = { outfit: outfitOfLook(id), colors: draftOf(cs, sc).colors };'],
   ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 190px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
   ['the absorb is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.absorbPct !== null ? c.absorbPct + '%' : null", "c && c.absorbPct !== null ? Math.round(c.defence * 1.5) + '%' : null"],
@@ -619,11 +763,11 @@ const MUTANTS = [
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],
   ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), true);"],
   ['Save sends the outfit twice', 'src/shell/windows/character/outfit.js', "runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',", "cs.saveOutfit(d.outfit); runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',"],
-  ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', "cls(b, 'is-worn', !!o && o.worn === id);", "cls(b, 'is-worn', id === d.outfit);"],
+  ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', 'const worn = !!o && !!o.worn && outfitOfLook(o.worn) === id;', 'const worn = id === d.outfit;'],
   ['Save colors stays live on a short purse (CW-4b)', 'src/shell/windows/character/outfit.js', "prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);", "prop(save, 'disabled', sc.pending || !offer || sc.price === null);"],
   ['a short purse says nothing under Save colors (CW-4b)', 'src/shell/windows/character/outfit.js', "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '');", "text(root.querySelector('.hw-of-why'), '');"],
   ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || (o.worn || null) === d.outfit", "sc.pending || !o || (o.worn || null) === d.outfit"],
-  ['a bundle outfit shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit.js', "    && (!OUTFIT_ROWS[id].bundle || (!!o && o.owned.has(id))));", "    && true);"],
+  ['an earned outfit (a bundle, faction pieces) shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit-looks.js', '    if (!earnedOnly(r) || owns(o, id)) return true;', '    return true;'],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],
   ['the portrait is the whole 64 px frame at 1x again (CW-10)', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc), null), sc.opening === 'done');"],

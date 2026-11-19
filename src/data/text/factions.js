@@ -68,6 +68,16 @@ export const FACTIONS_TEXT = Object.freeze({
   piece_emberkeeper_coal: 'Kept Coal',
   piece_unknown: 'Outfit piece',
   piece_needs: 'Unlocks at: {time} {side} standing',
+  /* The Outfit tab's faction looks (the designer 2026-11-18): a locked outfit's or add-on's requirement, from the server's own number;
+     the outfit's one card picks its add-on, each by a short name. */
+  look_requires: 'Requires {side} standing: {time}',
+  addon_head: 'Add-on',
+  addon_none: 'None',
+  addon_flamebearer_shield: 'Shield',
+  addon_flamebearer_light: 'Light',
+  addon_emberkeeper_lantern: 'Lantern',
+  addon_emberkeeper_coal: 'Coal',
+  addon_unknown: 'Add-on',
   piece_held: 'Claimed',
   press_claim: 'Claim',
   busy_claim: 'Claiming…',

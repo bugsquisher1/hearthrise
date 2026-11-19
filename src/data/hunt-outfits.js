@@ -22,6 +22,9 @@ export const OUTFITS = Object.freeze({
   dawnward: 'outfit_dawnward',
   druid: 'outfit_druid',
   sweeps_coat: 'outfit_sweeps_coat',
+  /* the faction outfits worn (lane/b-farm-house-faction-art 2026-11-18): their own hero set, `factionwear` (src/data/world/atlas-sets.js HERO_SETS) */
+  flamebearer: 'outfit_flamebearer',
+  emberkeeper: 'outfit_emberkeeper',
 });
 
 /* role (src/data/hunt-roles.js) → the outfit it wears when the server names none. */

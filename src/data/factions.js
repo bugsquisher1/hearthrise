@@ -41,7 +41,10 @@ export const FACTION_RULES = Object.freeze({
 });
 
 /* WHAT STANDING BUYS: each side's outfit and two add-ons, claimed once each at its standing (hours, the designer's proposed numbers).
-   The mark by the name plate comes with joining and is no claim. Looks only: the art lane makes them, the outfit catalogue serves them. */
+   The mark by the name plate comes with joining and is no claim. Looks only: the art lane makes them, the outfit catalogue serves them:
+   each piece dresses the looks of src/data/outfits.js STAGED_OUTFITS that name it (the outfit alone, and with each set of its add-ons),
+   owned while every piece a look names is claimed (hr_outfit_owned, 2027-05-19-faction-outfit-path.sql; tools/gen-outfits.mjs refuses a
+   piece no look is owned by). */
 export const FACTION_OUTFITS = Object.freeze({
   flamebearer: Object.freeze({ side: 'first_flame', hours: 25 }),
   flamebearer_shield: Object.freeze({ side: 'first_flame', hours: 100 }),

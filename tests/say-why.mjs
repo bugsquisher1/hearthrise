@@ -335,6 +335,7 @@ export const REASONS = Object.freeze({
     { cond: '!owned || (o.worn || null) === d.outfit', words: "(o && !owned ? ', not owned' : '')", where: 'the picked outfit\'s name under the preview says not owned (a tile not owned is dimmed and says so on the pointer); Equip needs another outfit' },
     { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
     { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
+    { cond: '!c.owned', words: "text(b.querySelector('small'), c.need)", where: 'a faction add-on not owned (the designer 2026-11-18) carries its requirement on the button itself, "Requires First Flame standing: 100 h", the server\'s number' },
   ],
   'src/shell/windows/house.js': [
     { cond: '!on', words: "t('house.cost_gold_short'", where: 'each step\'s cost lines mark what is short, with your counts' },

@@ -226,12 +226,13 @@
 
 /* Forged Steel: the strip stands on a steel edge (the thin frame's bottom run, 3 art px = 6 px) over the World.
    ONE TOP BAR (UI audit 2026-11-18 #10, UI-10): the hero tabs, the place (its name and the Town / Home switch, src/app/world-pane.js)
-   and the account's presses share one 48 px band with the icon row (shell.css .hs-launchers, the same height), over the one rule. */
+   and the account's presses share one band with the icon row (shell.css .hs-launchers, the band's height), over the one rule. 54 CSS px
+   at every display scale, the rule inside it: a whole number, so the World under it stays a whole number of px (window-camera WC-10 at 125%). */
 .char-strip {
   display: flex;
   align-items: stretch;
   box-sizing: border-box;
-  height: calc(48px + var(--art-3));
+  height: 54px;
   gap: 0.25rem;
   padding: 0 0.5rem;
   background: var(--bg-1);

@@ -112,9 +112,9 @@
 .is-done > .ht-stick i, .is-done .ht-stick i { background: var(--gold); }
 
 /* ── The launcher row: icons only, a tooltip with label and key, the open one lit gold ──
-   The top bar's right end: the character strip's band height (app.css .char-strip, 48 px over its steel rule), so the row, its rule
+   The top bar's right end: the character strip's band height (app.css .char-strip, 54 px less its steel rule), so the row, its rule
    at the left and a ring on an icon stand on the one bar (UI-10: a 40 px row on the 55 px strip ended 15 px short of it). */
-.hs-launchers { display: flex; align-items: stretch; height: 48px; padding-left: 10px; background: var(--bg-1); border-left: 2px solid var(--steel-sep); }
+.hs-launchers { display: flex; align-items: stretch; height: calc(54px - var(--art-3)); padding-left: 10px; background: var(--bg-1); border-left: 2px solid var(--steel-sep); }
 .hs-launch { position: relative; width: 40px; height: 100%; padding: 0; display: grid; place-items: center; border: 0; background: none; cursor: pointer; color: var(--ink-3); font: inherit; }
 .hs-launch:hover, .hs-launch:focus-visible { color: var(--ink); }
 /* The first-minute pointer (launcher.js): one line hanging under the Hunts icon, the first in the row. */

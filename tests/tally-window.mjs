@@ -941,7 +941,7 @@ const MUTANTS = [
   /* TW-20 one top bar, the town card hung from its ring (UI audit 2026-11-18 #10, UI-10) */
   ['TW-20 the place\'s row is back over the World', 'src/app/world-pane.js', '  if (placeSlot) placeSlot.replaceChildren(chrome);\n', ''],
   ['TW-20 the town card points at nothing', 'src/shell/hud-room.js', 'const tip = hangFromRing(host, top === wb.top + gap, right, top, w, h, shown);', 'const tip = null;'],
-  ['TW-20 the icon row stands short of the bar', 'src/styles/shell.css', '.hs-launchers { display: flex; align-items: stretch; height: 48px;', '.hs-launchers { display: flex; align-items: stretch; height: 40px;'],
+  ['TW-20 the icon row stands short of the bar', 'src/styles/shell.css', '.hs-launchers { display: flex; align-items: stretch; height: calc(54px - var(--art-3));', '.hs-launchers { display: flex; align-items: stretch; height: 40px;'],
   ['TW-20 the ring runs off the top bar', 'src/styles/shell.css', ':is(.hs-launchers, .char-strip) [data-coach-ring] { outline-offset: -4px; }', ''],
   /* TW-8 docked (v0.2.130 gate D1) */
   ['the Tally stacks under an analyzer waiting under the dock', 'src/shell/widget-stack.js', ".filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);", '.filter(Boolean).map(rel);'],

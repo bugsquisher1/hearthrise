@@ -148,7 +148,8 @@ const CELLAR_SHEETS = await sheetsOf('mill_cellar');
    sheets read over a little more than a phone's 422x195, so no camera detail can add one, and a stand whose small view is sure to draw the Havora sheet. */
 /* THE PHONE'S WORLD FRAME in B-21's page (844x390): the canvas in device px, the zoom, and the bottom inset the HUD leaves in CSS px, as
    window.__world.stats() says there (dpr 1). B-21 reads the page's own and says so when it moves: re-pin it here then. */
-const PHONE_FRAME = Object.freeze({ W: 826, H: 290, z: 2, bottom: 93 });
+/* H 290 -> 338 (UI audit 2026-11-18 #10): the place's row went into the top bar, so the phone's World is 48 px taller. */
+const PHONE_FRAME = Object.freeze({ W: 826, H: 338, z: 2, bottom: 93 });
 async function townStands() {
   const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
   const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }, { FOLK }, { castBox }, cam] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',

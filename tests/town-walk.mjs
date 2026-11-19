@@ -1011,7 +1011,8 @@ async function switchRules(overrides) {
     await page.click('.char-tab[data-slot="1"]');
     await shows(1);
     await page.click('.char-tab[data-slot="0"]');
-    const home = await wait(page, () => !!document.querySelector('#panel-world[data-slot="0"] [data-world-choice="home"][aria-pressed="true"]'), null, 4000);
+    /* the pane on screen is Tyler's, and its Town / Home switch (in the top bar since UI audit #10) has Home pressed */
+    const home = await wait(page, () => !!document.querySelector('#panel-world[data-slot="0"]') && !!document.querySelector('.char-place [data-world-choice="home"][aria-pressed="true"]'), null, 4000);
     if (!home) fail('TW-14 Tyler was at Home; after a switch away and back the World shows ' + await page.evaluate(() => (document.querySelector('.world-title') || {}).textContent));
     if (errors.length) fail('TW-14 console errors: ' + errors.slice(0, 3).join(' | '));
     await ctx.close();

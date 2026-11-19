@@ -2197,7 +2197,7 @@ const MUTANTS = [
   ['PH-24 the inviter is told nothing', 'src/shell/windows/party.js', "() => { box.value = ''; return 'Invite sent to ' + name + '.'; }", "() => { box.value = ''; return ''; }"],
   ['PH-24 no toast beside a sheet', 'src/styles/hunt.css', '  :root:has(.hs-win:not(.is-modal):not(.is-leaving)) .hs-widget.is-alerts { transform: translateX(calc(-1 * min(400px, 48vw) - 8px)); }\n', ''],
   ['PH-24 the red count says nothing', 'src/shell/windows/characters.js', "text(li.querySelector('.hw-char-waits'), wait ? wait.text : '');", ''],
-  ['PH-24 Expand below the Storage fold on a phone', 'src/styles/windows.css', '  .hw-store > .hw-store-baghead, .hw-store > .hw-store-grow { order: -1; }\n', ''],
+  ['PH-24 Expand below the Storage fold on a phone', 'src/styles/windows.css', '  .hw-store > :is(.hw-store-bankhead, [data-well="bank"], .hw-store-room) { order: 3; }\n', ''],
   ['PH-24 Storage tells a thumb to shift-press', 'src/shell/windows/storage.js', "(ctx.isPhone && ctx.isPhone() ? t('bag.store_help_touch') : ", '(false ? "" : '],
   ['PH-24 the sheet\'s presses stay 30 px', 'src/styles/windows.css', '  .hs-win .hh-tool, .hs-win .hh-select, .hs-win .hh-seg, .hs-win .hh-num, .hs-win .hw-search, .hs-win .hf-name, .hs-win .st-search, .hs-win .hs-close { min-height: 40px; }\n', ''],
   ['PH-24 the town card lies over the invite beside a sheet', 'src/shell/shell.js', "(w.matches('.is-hunt-topbar') || beside) ? at.top - 8", "w.matches('.is-hunt-topbar') ? at.top - 8"],

@@ -83,7 +83,8 @@ export const SHELL_WINDOWS = Object.freeze([
   Object.freeze({ id: 'shop', label: 'Shop', key: 'v', group: 'town', glyph: 'navStore', width: 480, object: 'ledger', help: 'windows.help_shop', tabKeys: Object.freeze({ r: 'services' }) }),
   /* The Weighhouse (market design 2026-10-24): one window with four tabs, for every hero, hunting or not. */
   Object.freeze({ id: 'market', label: 'Market', title: 'The Weighhouse', key: 'm', group: 'town', glyph: 'navMarket', width: 820, object: 'ledger' }),
-  Object.freeze({ id: 'storage', label: 'Storage', key: 't', group: 'town', glyph: 'uiChest', width: 540, object: 'satchel', help: 'windows.help_storage' }),
+  /* Two containers side by side (UI audit 2026-11-18 #4): six pockets a row in each at 1280 and up, and still beside the bag (560) at 1280 (W18). */
+  Object.freeze({ id: 'storage', label: 'Storage', key: 't', group: 'town', glyph: 'uiChest', width: 660, object: 'satchel', help: 'windows.help_storage' }),
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): kill tasks counted by the server, paid in town. Her board on the
      Common opens it too (src/data/world/stations.js TAP_OPENS), and so does the HUD's tally. */
   Object.freeze({ id: 'tally', label: 'Tamsin\'s tally', key: 'q', group: 'town', glyph: 'navBounty', width: 460, object: 'ledger' }),

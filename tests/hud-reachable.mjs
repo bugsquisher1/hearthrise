@@ -7,7 +7,7 @@
 //   node tests/hud-reachable.mjs --mutate --only <words>   only the mutants whose name holds <words>
 //   node tests/hud-reachable.mjs --shots <dir>   also write a screenshot per size, solo and in a party of 4
 //
-// mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css src/styles/app.css src/shell/widgets/alerts.js src/shell/windows/away.js
+// mutant-anchors: src/shell/shell.js src/shell/hud-room.js src/shell/hud.js src/shell/window-manager.js src/shell/away-recap.js src/shell/alerts.js src/styles/hunt.css src/styles/app.css src/shell/widgets/alerts.js src/shell/windows/away.js src/styles/summary.css
 // mutant-writes-tree: no — page mutants are served overrides
 //
 // Three friends' panel, 2026-11-01 (art/review/player-feedback-2026-11-01/friends.txt on lane/f3-friends): below about 1550 px
@@ -39,7 +39,8 @@
 //        1440x900 and 922x423, a hunt that ended while the page was closed: the card is docked, the alert lines and the hunt summary say nothing
 //        beside it, the result leads (the Level from the stamp's server Level to the server's now, the Level XP the two stamps differ by) and is
 //        whole as the card opens, Hunt again is its one gold press and sends ONE hr_hunt_restart for that session, OK reads it, a reload does not
-//        bring it back
+//        bring it back. Every press the card shows (Hunt again, Hunt summary, OK) lies whole in view as it opens, no scroll (UI audit wave 2: at
+//        922x423 Hunt again lay under the fold behind the best find and the why, OK further down)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -434,6 +435,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const back = (env) => {
         stamped(env, {});
         env.client_state.awaySeen.lv = 1;
+        /* the card as a real return reads it (local-world, 922x423): Gold with its coins and supplies under it, and a best find, so the card is
+           as long as the one whose Hunt again lay under the fold */
+        env.client_state.awaySeen.sp = 0;
+        env.hunt_analyzer = Object.assign({}, env.hunt_analyzer, { hero: Object.assign({}, env.hunt_analyzer.hero, { loot: Object.assign({}, env.hunt_analyzer.hero.loot, { bronze_helm: 1 }) }) });
         env.hunt.ended = true;
         env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'stamina', ended_at: new Date(env.hunt_server_now_ms - HOURS).toISOString() });
         env.stamina = Object.assign({}, env.stamina, { ms: 2 * HOURS, hunting: false });
@@ -451,7 +456,13 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           body.scrollTop = 0;
           const b = body.getBoundingClientRect(), r = win.querySelector('.hres').getBoundingClientRect();
           const gold = Array.from(win.querySelectorAll('button.is-primary')).filter((x) => !x.hidden && x.getClientRects().length);
-          return { gone: win.querySelector('.haway-gone').textContent, heroes: win.querySelectorAll('.haway-hero').length,
+          /* every press the card shows (the hero's and the card's own), whole inside the body's visible box as it opens, no scroll */
+          const presses = Array.from(body.querySelectorAll('button')).filter((x) => !x.hidden && x.getClientRects().length).map((x) => {
+            const q = x.getBoundingClientRect();
+            return { act: x.getAttribute('data-hs-act'), whole: q.top >= b.top - 1 && q.bottom <= Math.min(b.bottom, innerHeight) + 1, top: Math.round(q.top), bottom: Math.round(q.bottom) };
+          });
+          return { presses, foldAt: Math.round(Math.min(b.bottom, innerHeight)), best: !!win.querySelector('.haway-best:not([hidden])'),
+            goldSub: win.querySelector('.hres-fig[data-fig="gold"] small')?.textContent || '', gone: win.querySelector('.haway-gone').textContent, heroes: win.querySelectorAll('.haway-hero').length,
             level: win.querySelector('.hres-lv').textContent.replace(/\s+/g, ' ').trim(), xp: win.querySelector('.hres-fig[data-fig="xp"] dd')?.textContent || null,
             whole: r.height > 0 && r.top >= b.top - 1 && r.bottom <= Math.min(b.bottom, innerHeight) + 1, docked: !win.classList.contains('is-modal'),
             gold: gold.map((x) => x.getAttribute('data-hs-act') + ':' + x.textContent), lines: document.querySelectorAll('.hw-alert[data-kind="away"]').length,
@@ -460,6 +471,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (seen.gone !== 'Away 2 h 0 min' || seen.heroes !== 1) fails.push('HR-12 ' + at + ': the card reads ' + JSON.stringify(seen));
         if (!/^Level 1 → \d+$/.test(seen.level) || seen.xp !== '+500') fails.push('HR-12 ' + at + ': the result is not the two stamps\' difference: ' + JSON.stringify([seen.level, seen.xp]));
         if (!seen.whole) fails.push('HR-12 ' + at + ': the result block is cut as the card opens');
+        if (!seen.best || !/in coins, .+ on supplies/.test(seen.goldSub)) fails.push('HR-12 ' + at + ' CONTROL: the card is not a full return (a best find, Gold with its coins and supplies): ' + JSON.stringify([seen.best, seen.goldSub]));
+        if (!['away-go', 'away-ok'].every((act) => seen.presses.some((p) => p.act === act))) fails.push('HR-12 ' + at + ' CONTROL: the card shows no Hunt again or OK: ' + JSON.stringify(seen.presses));
+        else if (seen.presses.some((p) => !p.whole)) fails.push('HR-12 ' + at + ': a press lies under the fold as the card opens (fold at ' + seen.foldAt + '): ' + JSON.stringify(seen.presses));
         if (JSON.stringify(seen.gold) !== '["away-go:Hunt again"]') fails.push('HR-12 ' + at + ': the gold presses are ' + JSON.stringify(seen.gold));
         if (seen.lines || seen.summary) fails.push('HR-12 ' + at + ': beside the card, ' + (seen.lines ? 'an away line in the alerts' : '') + (seen.summary ? ' the hunt summary' : ''));
         if (w === 1440) {
@@ -609,6 +623,8 @@ const MUTANTS = [
   ['Hunt again sends nothing (HR-12)', 'src/shell/windows/away.js', 'try { r = await cs.restartHunt(a.session); }', 'try { r = { ok: true }; }'],
   ['the card reads the stamp\'s Level as none (HR-12)', 'src/shell/windows/away.js', "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: f.lvFrom, to: f.lvTo } : null", "level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: null, to: f.lvTo } : null"],
   ['OK leaves the lines unread (HR-12)', 'src/shell/windows/away.js', '    if (open && !up) dismissAll(ctx);\n', ''],
+  ['the away card\'s presses fall under a phone\'s fold again, after the why (HR-12)', 'src/styles/summary.css', '  .haway-hero > :is(.haway-acts, .haway-msg) { order: 1; }\n', ''],
+  ['the away card\'s OK scrolls off a phone (HR-12)', 'src/styles/summary.css', '  .haway-foot { position: sticky; z-index: 1; bottom: -10px;', '  .haway-foot { position: static; z-index: 1; bottom: -10px;'],
   ['the desktop\'s room reaches the phone (HR-8)', 'src/shell/hud-room.js', 'if (phone) { if (!room.has(e)) room.set(e, null); continue; }', ''],
   ['the launcher row stays at the top of the page, over the banner (HR-10)', 'src/styles/app.css', '.client-page.has-new-version .app { position: relative; flex: 1;', '.client-page.has-new-version .app { flex: 1;'],
 ];

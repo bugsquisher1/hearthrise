@@ -63,6 +63,8 @@ export const TRAINING_TEXT = Object.freeze({
   busy: 'Not available while training',
   busy_gear: 'Stop training to change gear',
   busy_upgrades: 'Stop training to put these on.',
+  /* Storage and the bag's Deposit at the yard (src/shell/storage-model.js storeAwayWords): "Storage is in town" read as if the hero had left it */
+  busy_storage: 'Stop training to use Storage',
   /* the Hunts window's lead line while the hero trains: {doing} "Training Melee", {at} "at the Training Yard" (trainingPhrase) */
   busy_hunts: '{doing} {at}. Stop training to pick a hunt',
   in_party: 'Not available in a party',

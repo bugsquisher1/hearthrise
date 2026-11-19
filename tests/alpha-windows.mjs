@@ -4045,7 +4045,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const well = s.closest('.hw-store-well');
         const b = body.getBoundingClientRect(), r = m.getBoundingClientRect(), k = s.getBoundingClientRect(), v = (well || body).getBoundingClientRect();
         return { text: m.textContent, scrolled: body.scrollTop + (well ? well.scrollTop : 0), inView: r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1, onStack: r.height > 0 && r.top < k.bottom && k.top < r.bottom,
-          sending: s.classList.contains('is-sending'), stackTop: Math.round(k.top), stackWhole: k.top >= v.top - 1 && k.bottom <= v.bottom + 1 };
+          sending: s.classList.contains('is-sending'), stackTop: Math.round(k.top), stackWhole: k.top >= v.top - 1 && k.bottom <= v.bottom + 1, lineH: Math.round(r.height) };
       }, [W65, STACK]);
       const reach = async (page) => {
         await openWin(page, 't', 'storage');
@@ -4073,6 +4073,9 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (done.onStack) fails.push('AW-65 the answer lies on the stack just pressed: ' + JSON.stringify(done));
           /* the answer's coming takes no room from the bag: the stack pressed is still whole in view, where it was */
           if (!done.stackWhole || done.stackTop !== before.stackTop) fails.push('AW-65 the answer slid the stack from under the hand: ' + JSON.stringify([before, done]));
+          /* ...whatever room the window has left under its cap: the answer's line holds its height before any answer comes (at the cap a
+             line that arrived would shorten the wells: 583 then 558 on the first side-by-side build) */
+          if (!(before.lineH > 0) || Math.abs(before.lineH - done.lineH) > 1) fails.push('AW-65 the answer\'s line has no room of its own before it comes: ' + JSON.stringify([before.lineH, done.lineH]));
           /* The next press lands where the hand is: its answer moves nothing now the line is up. */
           await page.click(STACK);
           await page.waitForTimeout(100);

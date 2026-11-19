@@ -3829,3 +3829,12 @@ AR-10's shape (died, then the yard took over); (3) two scroll regions side by si
 region alone and can leave them a row apart; (4) a mutant anchor in another test goes DOUBLE when you add a similar declaration
 (death-popup's "position: sticky; bottom: -10px; z-index: 1;"): reorder your own declaration, never their anchor; (5) a phone
 order that puts every control first can open a sheet on no content at all: count the fold before choosing what leads.
+Round 2 (AW-65 caught it): the press's answer was a new grid row, so its coming shortened both wells and slid a bottom-row stack half
+out of view. Desktop now has ONE foot line: the help ("Press: move one...") at rest, the answer in its place, the row sized to the
+answer (an empty answer keeps min-height 1lh + 12px), so nothing above it moves. window-fit read the two wells (same tag + first
+class) as two "rows" and on the phone pushed the whole bag below the fold: each well has its own first class now. Coordinator add-on:
+at the Training Yard, Storage's note, its press's answer and the bag's Deposit say "Stop training to use Storage" (storage-model.js
+storeAwayWords over training-words.js busyWords; AW-32 plan line + mutant). From set/v0.2.141: say-why's doll.js row re-pinned
+(gearLockWhy), and alpha-windows --shard-plan is over budget on the set itself (62 untimed mutants; needs ~30 shards).
+Lessons: (6) any line that appears inside a fixed-height layout must own its room before it appears, or it moves what is under the
+hand; (7) window-fit's row heuristic is tag + first class: give sibling containers distinct first classes.

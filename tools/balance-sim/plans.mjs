@@ -462,8 +462,8 @@ export function buildPlan(name, axes, scale = 1) {
     for (const s of ['tank', 'hammer', 'mage']) out.push({ ...life, id: 'C:life:' + s, party: [s] });
     out.push({ ...life, id: 'C:duo', party: PARTIES.duo });
     out.push({ ...life, id: 'C:four', party: PARTIES.four, maxHours: 50 });
-    const WEAPONS = { iron_sword: { atkB: 7, strB: 6 }, iron_warhammer: { atkB: 7, strB: 16 }, longbow: { atkB: 9, strB: 6, rangeAtkB: 9, rangeStrB: 6 }, oak_wand: { atkB: 7, strB: 8, magicAtkB: 7, magicStrB: 8 }, oak_staff: { atkB: 6, strB: 9, magicAtkB: 6, magicStrB: 9 },
-      steel_sword: { atkB: 12, strB: 10 }, steel_warhammer: { atkB: 9, strB: 23 }, willow_longbow: { atkB: 14, strB: 10, rangeAtkB: 14, rangeStrB: 10 }, willow_wand: { atkB: 12, strB: 13, magicAtkB: 12, magicStrB: 13 }, willow_staff: { atkB: 10, strB: 14, magicAtkB: 10, magicStrB: 14 } };
+    const WEAPONS = { iron_sword: { atkB: 7, strB: 6 }, iron_warhammer: { atkB: 7, strB: 16 }, longbow: { rangeAtkB: 9, rangeStrB: 6 }, oak_wand: { magicAtkB: 7, magicStrB: 8 }, oak_staff: { magicAtkB: 6, magicStrB: 9 },
+      steel_sword: { atkB: 12, strB: 10 }, steel_warhammer: { atkB: 9, strB: 23 }, willow_longbow: { rangeAtkB: 14, rangeStrB: 10 }, willow_wand: { magicAtkB: 12, magicStrB: 13 }, willow_staff: { magicAtkB: 10, magicStrB: 14 } };
     const weaponsAt = (m) => Object.fromEntries(Object.entries(WEAPONS).map(([id, f]) => [id, Object.fromEntries(Object.entries(f).map(([k, v]) => [k, Math.round(v * m * 100) / 100]))]));
     const ARMOR = { 10: { iron_platebody: 16, studded_body: 9, adept_body: 5, steel_platebody: 29, boarhide_body: 16, scholar_body: 9 }, 20: { iron_platebody: 19, studded_body: 11, adept_body: 6, steel_platebody: 35, boarhide_body: 19, scholar_body: 11 } };
     const armorAt = (pct) => Object.fromEntries(Object.entries(ARMOR[pct]).map(([id, defB]) => [id, { defB }]));

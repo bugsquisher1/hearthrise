@@ -252,21 +252,21 @@ export const ITEMS={
   practice_shield:{n:'Practice Shield',icon:'🛡️',v:0,type:'offhand',slot:'shield',offhand:'shield',defB:2,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_hatchets:{n:'Practice Hatchets',icon:'🪓',v:0,type:'weapon',slot:'weapon',weaponType:'axe',twoHanded:true,atkB:4,strB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_club:{n:'Practice Club',icon:'🏏',v:0,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:7,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',atkB:4,strB:4,rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_wand:{n:'Practice Wand',icon:'🪄',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',atkB:4,strB:4,magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_bow:{n:'Practice Bow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:5,rangeStrB:3,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_crossbow:{n:'Practice Crossbow',icon:'🏹',v:0,type:'weapon',slot:'weapon',weaponType:'ranged',rangeAtkB:4,rangeStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_wand:{n:'Practice Wand',icon:'🪄',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'destruction',magicAtkB:4,magicStrB:4,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   practice_spellbook:{n:'Practice Spellbook',icon:'📕',v:0,type:'offhand',slot:'shield',offhand:'spellbook',discipline:'destruction',magicAtkB:1,magicStrB:2,defB:1,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
-  practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,atkB:3,strB:5,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
+  practice_staff:{n:'Practice Staff',icon:'🔮',v:0,type:'weapon',slot:'weapon',weaponType:'magic',discipline:'restoration',twoHanded:true,magicAtkB:3,magicStrB:5,tier:1,rarity:'common',reqSkill:'level',reqLv:1},
   /* Klappa's Klub (Tyler 2026-11-03, the tribute to Andy; style-gear.js holds the reforge): the club hero's rung between the Practice Club and the Iron Warhammer. */
   klappas_club:{n:'Klappa\'s Klub',icon:'🏏',v:100,type:'weapon',slot:'weapon',weaponType:'hammer',twoHanded:true,atkB:3,strB:16,tier:1,rarity:'uncommon',reqSkill:'level',reqLv:5},
   iron_sword:{n:'Iron Sword',icon:'⚔️',v:200,type:'weapon',slot:'weapon',weaponType:'sword',atkB:7,strB:6},
   steel_sword:{n:'Steel Sword',icon:'⚔️',v:800,type:'weapon',slot:'weapon',weaponType:'sword',atkB:12,strB:10},
   rune_sword:{n:'Rune Sword',icon:'⚔️',v:5000,type:'weapon',slot:'weapon',weaponType:'sword',atkB:25,strB:20},
-  apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',atkB:3,strB:5,magicAtkB:3,magicStrB:5},
+  apprentice_staff:{n:'Apprentice Staff',icon:'🔮',v:80,type:'weapon',slot:'weapon',weaponType:'magic',magicAtkB:3,magicStrB:5},
   /* v: the ladder's generated value (designer 2026-10-22, style-gear.js SG-4: a made piece sells for no more than its inputs' book). */
-  oak_staff:{n:'Oak Staff',icon:'🪄',v:130,type:'weapon',slot:'weapon',weaponType:'magic',atkB:6,strB:9,magicAtkB:6,magicStrB:9},
-  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:5,strB:3,rangeAtkB:5,rangeStrB:3},
-  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,atkB:9,strB:6,rangeAtkB:9,rangeStrB:6},
+  oak_staff:{n:'Oak Staff',icon:'🪄',v:130,type:'weapon',slot:'weapon',weaponType:'magic',magicAtkB:6,magicStrB:9},
+  shortbow:{n:'Shortbow',icon:'🏹',v:90,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:5,rangeStrB:3},
+  longbow:{n:'Longbow',icon:'🏹',v:135,type:'weapon',slot:'weapon',weaponType:'ranged',twoHanded:true,rangeAtkB:9,rangeStrB:6},
   stone_maul:{n:'Stone Maul',icon:'🔨',v:110,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:3,strB:7},
   iron_warhammer:{n:'Iron Warhammer',icon:'🔨',v:145,type:'weapon',slot:'weapon',weaponType:'hammer',atkB:7,strB:16},
   iron_helm:{n:'Iron Helm',icon:'⛑️',v:150,type:'armor',slot:'helmet',defB:5},
@@ -765,14 +765,14 @@ export const ITEMS={
   warboss_standard: {n:'Warboss Standard', icon:'🚩', v:1200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // haunted_archive — The Pale Archivist (Lv 45)
-  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:15, strB:14, magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'level', reqLv:45, rarity:'unique'},
+  whispering_codex: {n:'Whispering Codex', icon:'📖', v:6500,  type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', magicAtkB:18, magicStrB:20, critB:.04, reqSkill:'level', reqLv:45, rarity:'unique'},
   lexarch_seal:     {n:'Archivist Seal',   icon:'🔖', v:2200,  type:'trophy', tag:'cosmetic', rarity:'epic'},
 
   // obsidian_keep — The Ashen King (Lv 65)
   ashcrown_greatsword: {n:'Ashcrown Greatsword', icon:'🗡️', v:40000, type:'weapon', slot:'weapon', weaponType:'sword', atkB:34, strB:40, critB:.03, reqSkill:'level', reqLv:65, rarity:'unique'},
 
   // voidbringer — The Riftmaw (Lv 80)
-  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', atkB:32, strB:30, magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'level', reqLv:80, rarity:'unique'},
+  voidmaw_scepter:  {n:'Voidmaw Scepter',  icon:'🔱', v:65000, type:'weapon', slot:'weapon', weaponType:'magic', discipline:'destruction', magicAtkB:40, magicStrB:46, critB:.06, reqSkill:'level', reqLv:80, rarity:'unique'},
   voidwoven_sigil:  {n:'Voidwoven Sigil',  icon:'🕸️', v:5000,  type:'trophy', tag:'cosmetic', rarity:'legendary'},
   riftmaw_husk:     {n:'Riftmaw Husk',     icon:'🐚', v:4200,  tag:'crafting-mat', rarity:'epic'},
 

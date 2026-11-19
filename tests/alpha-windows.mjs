@@ -646,7 +646,7 @@ async function benchRules(base) {
   const tool = outputVsWorn('bronze_pickaxe', {});
   if (!tool || tool.stats.length !== 1 || tool.stats[0].stat !== L.toolEffect('bronze_pickaxe')) fails.push('AW-102 a tool does not say what it does: ' + JSON.stringify(tool));
   /* the whole ladder: rows in full + rungs hold each recipe once, the rungs low to high, one a Level */
-  let cases = 0;
+  let cases = 0, twins = 0;
   for (const skill of Object.keys(SKILLS_DEF).filter((s) => SKILLS_DEF[s].cat === 'artisan')) {
     const cat = Object.keys(BENCH_INDEX).filter((id) => BENCH_INDEX[id].skill === skill);
     if (!cat.length) continue;
@@ -664,9 +664,21 @@ async function benchRules(base) {
         break;
       }
       if (rungs.length) cases++;
+      /* what a rung SHOWS names each thing once and every thing its rows make (post-140 audit C11: Smithing's Unlocks read "Banded Signet",
+         "Fang Studs" and "Seam Jasper Band" twice each, a crafted jewel's metal job and its gem job both making the piece) */
+      for (const r of rungs) {
+        const outs = r.items.map((w) => w.row.output).filter(Boolean);
+        const made = new Set(r.rows.map((w) => w.row.output).filter(Boolean));
+        if (new Set(outs).size !== outs.length || outs.length !== made.size) {
+          fails.push('AW-102 ' + skill + ' at ' + lv + ': the Lv ' + r.level + ' rung shows ' + JSON.stringify(outs) + ' for ' + JSON.stringify([...made]));
+          break;
+        }
+        if (r.rows.length > r.items.length) twins++;
+      }
     }
   }
   if (!cases) fails.push('AW-102 no station had a ladder: the cases prove nothing');
+  if (!twins) fails.push('AW-102 no rung held two jobs that make one thing: the one-name-a-thing case proves nothing');
   /* #10: a drop no open ground gives names nothing (the catalogue keeps creatures no open ground spawns) */
   const dropped = new Set(Object.values(MONSTERS).flatMap((m) => (m.drops || []).map((d) => d.id)));
   const closed = [...dropped].filter((id) => ITEMS[id] && !G.dropWhereWords(id));
@@ -1582,6 +1594,15 @@ async function planRules(base) {
       || JSON.stringify(hunt) !== JSON.stringify(['Leave the hunt to change gear', 'Leave the hunt to put these on.', 'Leave the hunt to change gear', 'Dispatch loot works in town',
         'Not available while hunting', 'Not while a hunt is running.']))
       fails.push('AW-32 the town controls\' why at the yard and on a hunt read ' + JSON.stringify({ yard, hunt }));
+  }
+  /* AW-104 THE DOLL'S WEAPON LIST, BY THE HERO'S OWN STYLE (post-140 audit C6: to an Iron Sword hero an Oak Wand read +2, above a worse sword, its
+     magic numbers summed against the sword's melee ones): swords by their melee gain, then the other styles (a staff is magic too, with the wand) */
+  {
+    const { sortFits, compare } = await imp('src/shell/bag-model.js');
+    const list = (worn, ids) => sortFits('weapon', ids.map((id) => ({ id, delta: compare(id, worn) })), worn).map((f) => f.id);
+    const got = [list('iron_sword', ['oak_wand', 'bronze_sword', 'oak_staff', 'steel_sword']), list('oak_wand', ['iron_sword', 'apprentice_staff', 'willow_staff'])];
+    if (JSON.stringify(got) !== JSON.stringify([['steel_sword', 'bronze_sword', 'oak_wand', 'oak_staff'], ['willow_staff', 'apprentice_staff', 'iron_sword']]))
+      fails.push('AW-104 the doll\'s weapon lists read ' + JSON.stringify(got));
   }
   /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
@@ -5654,7 +5675,7 @@ const MUTANTS = [
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
   ['bench: a row compares to nothing worn', 'src/shell/bench-output.js', 'const deltas = on && on !== out ? compare(out, on) : [];', 'const deltas = [];'],
   ['bench: a bare slot is not said', 'src/shell/bench-output.js', "slot: on ? null : ((EQUIP_SLOT_META[slot] || {}).label || slot || '').toLowerCase()", 'slot: null'],
-  ['bench: the ladder drops a rung', 'src/shell/bench-output.js', '.sort((a, b) => a[0] - b[0]).map(([level, rows]) => ({ level, rows }));', '.sort((a, b) => a[0] - b[0]).slice(1).map(([level, rows]) => ({ level, rows }));'],
+  ['bench: the ladder drops a rung', 'src/shell/bench-output.js', '.sort((a, b) => a[0] - b[0]).map(([level, rows]) => ({ level, rows, items: onePerItem(rows) }));', '.sort((a, b) => a[0] - b[0]).slice(1).map(([level, rows]) => ({ level, rows, items: onePerItem(rows) }));'],
   ['bench: the card names a closed ground again', 'src/shell/item-lore.js', '  if (drop) out.push(drop);', '  if (r && r.drops.length) out.push(drop || "Dropped by creatures on grounds no one can reach yet");'],
   ['station sort: Level runs high to low', 'src/shell/station-sort.js', "if (sort === 'level') return all.sort((a, b) => reqOf(a) - reqOf(b));", "if (sort === 'level') return all.sort((a, b) => reqOf(b) - reqOf(a));"],
   ['station sort: Name is not a sort', 'src/shell/station-sort.js', "  if (sort === 'name') return all.sort(byName);\n", ''],
@@ -5704,7 +5725,7 @@ const MUTANTS = [
   ['prep builder: Clear leaves the bar', 'src/shell/windows/hunt-prep/builder.js', "  if (action === 'clear' && click) { d.slots = clearedBar(); sc.cleared = true;", "  if (action === 'clear' && click) { sc.cleared = true;"],
   ['prep builder: the setup in use is read from the server', 'src/session/preset-read.js', '  if (live && live.preset === preset) return { ok: true, set: live, live: true, name: null };\n', ''],
   ['prep builder: the read asks for another number', 'src/session/preset-read.js', "{ p_slot: cs.slot, p_preset: preset }", "{ p_slot: cs.slot, p_preset: preset + 1 }"],
-  ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort)', 'rowsFor(skill, lv, heldOf(cs))'],
+  ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort, ', 'rowsFor(skill, lv, heldOf(cs), undefined, '],
   ['AW-22 an input chip shows no icon', 'src/shell/windows/work.js', "    + itemIconHtml(g, id) + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');", "    + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');"],
   ['AW-22 a row is a paragraph again', 'src/shell/windows/work.js', "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })", "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) }) + ', ' + stat.textContent"],
   ['AW-22T the band reads Gathering and crafting again', 'src/data/shell-windows.js', "label: 'Gathering and crafting', title: 'Skills',", "label: 'Gathering and crafting',"],
@@ -5865,6 +5886,7 @@ const MUTANTS = [
   ['plans: AW-32 the yard reads as a hunt (post-140 C7)', 'src/shell/training-words.js', '  return h && !h.ended && trainedBy(h.huntId) ? t(key) : huntWords;', '  return huntWords;'],
   ['plans: AW-32 the yard reads as a hunt to the gear (post-140 C7)', 'src/shell/gear-gate.js', "  return which === 'upgrades' ? busyWords(cs, GEAR_HUNT_WORDS.upgrades, 'training.busy_upgrades') : busyWords(cs, GEAR_HUNT_WORDS.one, 'training.busy_gear');", "  return which === 'upgrades' ? GEAR_HUNT_WORDS.upgrades : GEAR_HUNT_WORDS.one;"],
   ['plans: AW-32 Dispatch loot at the yard says in town (post-140 C7)', 'src/shell/loot-dispatch.js', "  if (h && !h.ended) return busyWords(cs, 'Dispatch loot works in town');", "  if (h && !h.ended) return 'Dispatch loot works in town';"],
+  ['plans: AW-104 the doll\'s weapon list sums every style (post-140 C6)', 'src/shell/bag-model.js', "  if (slot !== 'weapon') return fits.slice().sort((a, b) => sum(b) - sum(a));", "  if (true) return fits.slice().sort((a, b) => sum(b) - sum(a));"],
   ['plans: AW-32 the chest at the yard says hunting (post-140 C7)', 'src/shell/windows/tower-chest.js', "  if (h && !h.ended) return busyWords(cs, t('tower.off_hunting'));", "  if (h && !h.ended) return t('tower.off_hunting');"],
   ['plans: AW-27 the weak food line names no slot', 'src/shell/weak-food.js', "return t('prep.food_weak' + hp, Object.assign(vars, { where }));", "return t('prep.food_weak' + hp, Object.assign(vars, { where: '' }));"],
   ['plans: AW-27 a heal read from the client copy when the server sent none', 'src/shell/weak-food.js', 'return r && Number.isInteger(r.amount) ? r.amount : null;', "return r && Number.isInteger(r.amount) ? r.amount : ((CONSUMABLES[id] || {}).amount || null);"],

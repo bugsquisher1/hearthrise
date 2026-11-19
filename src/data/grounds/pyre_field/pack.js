@@ -96,8 +96,8 @@ export default definePack({
     ],
     route: [0, 1, 2, 3, 4, 5],
     /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): a monster has its row's HP and pays its whole kill whoever fights it. There
-       is no party scale, no solo or party label and no gate. `groupFit: 'both'` only picks the formula's stats (the same as 'solo')
-       and orders the Hunts window's advice; no pocket asks for a party size and there is no soloFrom. On Normal every group meets the
+       is no party scale, no solo or party label and no gate. `groupFit: 'both'` only picks the formula's stats (a ground not built
+       for a party); no pocket asks for a party size and there is no soloFrom. On Normal every group meets the
        room as built (Tyler 2026-11-11: no party pull; the old [0, 3, 3, 4] is gone). Each harder tier brings ONE pull for every group
        (the tier row below). */
     respawnMs: 60000, pullDist: 1.5, groupFit: 'both',

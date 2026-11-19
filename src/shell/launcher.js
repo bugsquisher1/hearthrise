@@ -26,6 +26,7 @@ import { draftOf, serverBar } from './bar-draft.js?v=0.2.140';
 import { trackOnce } from '../net/observability.js?v=0.2.140';
 import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.140';
 import { barPlan, menuOpenOf, actMenu } from './launcher-menu.js?v=0.2.140';
+import { partyGroundFor } from './hunt-list.js?v=0.2.140';
 
 /** The chip text for a row's shortcut key: 'b' -> 'B', 'enter' -> 'Enter'. */
 export function keyLabel(key) {
@@ -147,6 +148,8 @@ export function coachFactsOf(cs, account) {
     upgrades: bag && eq ? upgradeOf(cs).picks.map((p) => p.id) : null,
     back: (cs.record && cs.record.residue && cs.record.residue.coach && cs.record.residue.coach.back) || null,
     slotCost: account && account.slotOffer ? account.slotOffer.cost : null,
+    /* the party pitch's ground: where the Hunts window's party advice sends a party of this hero's Level (the server's), null when none suits */
+    partyGround: partyGroundFor((levelOf(cs) || {}).level),
   };
   if (cs.record) FACTS.set(cs, { record: cs.record, account, open: open.map((c) => ({ cs: c, record: c.record })), sh });
   return sh;

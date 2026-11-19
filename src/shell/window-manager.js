@@ -67,8 +67,11 @@ export const RESIZE_MIN = Object.freeze({ w: 280, h: 160 });
 export const HOME_BOTTOM = 44;
 /* A docked window ends above the bottom bar while that leaves it this tall; on a shorter World (1280x720, 1024x768) a window whose
    content needs more rises over the bar to the World's height (Tyler 2026-11-11: "when I open a menu, part of it shouldn't
-   automatically be cut off"; the Hunts window had 338 px of a 652 px screen). src/shell/window-fit.js applies it. */
-export const DOCK_ROOM_PX = 480;
+   automatically be cut off"; the Hunts window had 338 px of a 652 px screen). src/shell/window-fit.js applies it.
+   525, was 480 (UI audit 2026-11-18 #10): the place's row went into the top bar and every World grew 45 px, so the same screens keep
+   the same rule, measured: 1024x768 and 1366x768 have 498 px above the bar and still rise (at 498 the Hunts page cut its first creature
+   card by 18 px, alpha-windows AW-93), 1280x800 has 530 and still docks above it. */
+export const DOCK_ROOM_PX = 525;
 /** Does a docked window with `cap` px above the bar and `need` px of content rise over the bar? A row with `rise` (shell-windows.js) does
     whenever its content needs more, whatever the World's height. Pure. */
 export function overBar(cap, need, rise = false) { return Number.isFinite(cap) && (rise || cap < DOCK_ROOM_PX) && need > cap; }

@@ -32,6 +32,7 @@
 import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.140';
 import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier } from '../data/hunt-tiers.js?v=0.2.140';
 import { PARTY } from '../data/party.js?v=0.2.140';
+import { partyBestLine } from '../data/party-class-xp.js?v=0.2.140';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
 import { MONSTERS } from '../data/monsters.js?v=0.2.140';
 import { SUPPLIES, healerWanted } from '../data/supplies.js?v=0.2.140';
@@ -65,6 +66,15 @@ export function healerNote(hunt, level, discipline, healed) {
   return top ? t('hunts.wants_healer', { monster: top.name }) : '';
 }
 
+/* WHAT A PARTY EARNS HERE, MEASURED (lane/a-party-advice-glade): by party size 2..PARTY.maxSize, the most a mixed party earns against the same heroes
+   alone on any tier this ground offers, whole percent (party-class-xp.js partyBestLine: the Party window's own lines, written from the real settle by
+   tests/party-class-xp-line.mjs --mixed --write); null for a size with no line. */
+function partyBestOf(groundId) {
+  const out = {};
+  for (let n = 2; n <= PARTY.maxSize; n++) out[n] = partyBestLine(groundId, n);
+  return Object.freeze(out);
+}
+
 /** One line per hunt ground, lowest band first (ties by name). */
 export function huntRows() {
   const out = [];
@@ -80,6 +90,7 @@ export function huntRows() {
       hunt: g.hunt, name: h.name, theme: h.theme || '', band: h.band.slice(),
       groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
       soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,
+      partyBest: partyBestOf(g.id),
       /* WHO MAY COME is the server's party size on every ground, never the ground's start tiles: two tiles read "up to 1 more"
          on the Thicket while the server walked in four (panel 2026-11-01; heroes past the tiles stand beside them). */
       heroes: PARTY.maxSize,
@@ -184,9 +195,21 @@ export function shareWords(r, party, myLevel) {
     : t('hunts.share_seat', { name: s.name, pct: Math.max(1, Math.round(s.pm / 10)), top }))).join(LINES);
 }
 
-/** Is this ground built for a group of `partySize` (1 = alone)? A 'both' ground always is. */
+/**
+ * Does the advice send a group of `partySize` (1 = alone) here? A hero alone: any ground not built for a party (groupFit 'party', or a hall that
+ * needs one: Tyler 2026-10-21, "a fresh solo melee should be starting in the thicket"). A PARTY: a ground where a mixed party of its size earns at
+ * least what the same heroes earn alone on some tier it offers, MEASURED (partyBest; Tyler 2026-11-16's bar, "every Dangerous/Deadly party mix stays
+ * >= the same heroes alone"), never a hand tag. The workbook's groupFit 'solo' sat on Wickstead and the Glade (Tyler 2026-11-16: no ground is solo)
+ * and sent a four at 16-31 to the Sewer: tools/balance-sim/party-advice-table.mjs, a four at 16 earns a head 52.4k Level XP an hour on the Sewer's
+ * best tier against 55.7k / 74.1k / 93.6k on the Glade's Normal / Dangerous / Deadly. The first grounds' small packs leave a four walk-bound
+ * (the Cellar, the Thicket and Wickstead read under alone on every tier), so a four from 8 to 15 still goes to the Sewer (42.7k at 13 against
+ * Wickstead's 23.1k).
+ */
 export function fitsGroup(r, partySize) {
-  return r.groupFit === 'both' || r.groupFit === ((Number(partySize) || 1) >= 2 ? 'party' : 'solo');
+  const n = Number(partySize) || 1;
+  if (n < 2) return r.groupFit !== 'party';
+  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;
+  return Number.isInteger(best) && best >= 0;
 }
 
 /* The party's levels in words: "Level 20", or "Levels 12 to 20" when they differ. */
@@ -195,7 +218,8 @@ const levelsWords = (lo, hi) => (lo === hi ? t('hunts.level_one', { level: lo })
 /**
  * THE ONE RECOMMENDATION (the Hunts window's default pick; tests/core-loop.mjs plays it), from the
  * rows alone. `levels` is the hero's Level, or every known Level in its party; `partySize` 1 = alone.
- * Among the grounds whose groupFit suits the group, highest floor first:
+ * Among the grounds that suit the group (fitsGroup: a party's is measured), highest floor first (harder pays more:
+ * tools/balance-sim/party-advice-table.mjs plays it for a party), a party breaking a tie of floors by its measured line:
  *   1. one whose band holds every level;  2. one whose band holds the lowest level;
  *   3. none holds it: the nearest one BELOW the lowest level. The note says so plainly: when a ground
  *      built otherwise holds the Level, it names THAT ground as right for the Level (the list reads
@@ -209,10 +233,13 @@ const levelsWords = (lo, hi) => (lo === hi ? t('hunts.level_one', { level: lo })
  */
 export function recommendation(levels, partySize = 1, rows = huntRows(), bests = null) {
   const lv = [].concat(levels).filter(Number.isInteger);
-  /* A PARTY TAKES THE PARTY GROUND ON A TIE (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): the Sewer and the Thicket both open at 5, and a four at
-     5-7 earns about 1.6x the same heroes alone in the Thicket there (the board's "2026-11-18 Party pace"). A hero alone never sees a party ground here (fit). */
+  /* A PARTY TAKES THE GROUND THAT PAYS IT MORE ON A TIE OF FLOORS (lane/d-party-pace, Tyler 2026-11-18 "Yes, open at 5"; measured since lane/a-party-advice-glade):
+     the Sewer and the Thicket both open at 5, a four at 5-7 earns about 1.6x the same heroes alone in the Thicket there, and the Thicket's measured lines keep it
+     out of a party's advice (fitsGroup). On two grounds a party suits on one floor, the higher measured line wins. A hero alone never sees a party ground here. */
   const group = (Number(partySize) || 1) >= 2;
-  const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (group ? Number(y.groupFit === 'party') - Number(x.groupFit === 'party') : 0) || (x.name < y.name ? -1 : 1))[0] || null;
+  const size = Math.min(Number(partySize) || 1, PARTY.maxSize);
+  const lineOf = (r) => (r.partyBest && Number.isInteger(r.partyBest[size]) ? r.partyBest[size] : -1000);
+  const best = (l) => l.slice().sort((x, y) => y.band[0] - x.band[0] || (group ? lineOf(y) - lineOf(x) : 0) || (x.name < y.name ? -1 : 1))[0] || null;
   if (!lv.length) return { row: rows[0] || null, note: null };
   const lo = Math.min(...lv), hi = Math.max(...lv);
   const holds = (r, from, to) => r.band[0] <= from && to <= r.band[1];
@@ -234,6 +261,15 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
     return { row: below, note: [t(key, { ground: inBand.name, levels: levels2, gold: lost }), t('hunts.easier', easier)].join(ADVICE) };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
+}
+
+/** THE GROUND THE PARTY ADVICE PICKS for a party of `size` at `level` (recommendation, the Hunts window's own pick), or null when no ground a party
+    suits holds that Level (the advice falls back or carries a note). The coach's "Find a party for …" names it (lane/a-party-coach-card: it named the
+    Sewer to a lone hero at 16-25, where the window sends that party to the Glade). Size 2: the first party a hero alone makes. */
+export function partyGroundFor(level, size = 2, rows = huntRows()) {
+  if (!Number.isInteger(level)) return null;
+  const rec = recommendation(Array(size).fill(level), size, rows);
+  return rec.row && !rec.note && fitsGroup(rec.row, size) ? rec.row.hunt : null;
 }
 
 /** The recommended ground's row alone (see recommendation). */

@@ -1073,7 +1073,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 369,
+   "replay": 372,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1333,7 +1333,7 @@
   },
   "hr_feature_switches": {
    "class": "operator_tunable",
-   "replay": 8,
+   "replay": 9,
    "wiped_at_cutover": false,
    "live_value": {
     "measured": "2026-11-14",
@@ -1361,7 +1361,11 @@
     ],
     "_source": "measured on production (read-only) by the restore drill, tools/restore-drill.local.mjs; tests/restore-census.mjs --live-sql then --live-compare is the re-measurement."
    },
-   "note": "THE SERVER FEATURE SWITCHES (2027-03-21-feature-switches.sql): one row per switch, its scope (off, accounts, testers = hr_access_allowlist, everyone) and the accounts it names. Each feature seeds its own row OFF with on conflict do nothing (scaled_hunts, 2027-03-21-scaled-hunts.sql; event_xp_bonus and event_open_halls, 2027-03-22-live-events.sql), and the Coordinator moves it by a migration, so a rebuild restores each switch as the last file in the chain left it (training_gear on for everyone, 2027-04-30-training-gear-arm.sql; burning_tower on for everyone, 2027-05-03-tower-arm.sql; the rest off) and silently closes what live had opened by any other means: re-apply the flips from the apply order after a restore. No client or service_role privilege, no policy; the owner is the only writer. Coming back empty is the SAFE direction (a missing row is off)."
+   "note": "THE SERVER FEATURE SWITCHES (2027-03-21-feature-switches.sql): one row per switch, its scope (off, accounts, testers = hr_access_allowlist, everyone) and the accounts it names. Each feature seeds its own row OFF with on conflict do nothing (scaled_hunts, 2027-03-21-scaled-hunts.sql; event_xp_bonus and event_open_halls, 2027-03-22-live-events.sql), and the Coordinator moves it by a migration, so a rebuild restores each switch as the last file in the chain left it (training_gear on for everyone, 2027-04-30-training-gear-arm.sql; burning_tower on for everyone, 2027-05-03-tower-arm.sql; event_xp_bonus and event_open_halls on for everyone, 2027-05-14-arm-switches.sql; scaled_hunts on for everyone, 2027-05-18-arm-scaled-hunts.sql (staged and held); the rest off; the replay harness then turns the event switches off for its guards, tests/schema-replay.mjs quietCalendar) and silently closes what live had opened by any other means: re-apply the flips from the apply order after a restore. No client or service_role privilege, no policy; the owner is the only writer. Coming back empty is the SAFE direction (a missing row is off).",
+   "expected_after": {
+    "2027-05-14-arm-switches.sql": "event_xp_bonus and event_open_halls move to everyone (accounts emptied). Re-measure live_value with node tests/restore-census.mjs --live-sql + --live-compare after the apply; the census does not read this field, it is a note for the operator who does.",
+    "2027-05-18-arm-scaled-hunts.sql": "scaled_hunts moves to everyone (accounts emptied), once it is released from its hold (loot scales, 2027-05-17-scaled-best.sql applied). Re-measure live_value the same way after the apply."
+   }
   },
   "hr_flags": {
    "class": "operator_tunable",

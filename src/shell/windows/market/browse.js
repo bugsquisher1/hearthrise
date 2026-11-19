@@ -31,6 +31,7 @@ import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGest
 import { gotoAttr } from '../../goto.js?v=0.2.140';
 import { t } from '../../../render/player-text.js?v=0.2.140';
 import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.140';
+import { featuresOf } from '../../../session/character-sections.js?v=0.2.140';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer, safe to press again';
@@ -311,7 +312,7 @@ export function actBrowse(o, action, ev, el) {
   const { ctx, cs, sc, repaint } = o;
   if (action === 'mk-pick') {
     const id = el.getAttribute('data-item');
-    if (ev.type === 'mouseover') { showTip(ctx.doc, el, id, { ground: heroGroundOf(cs) }); return false; }
+    if (ev.type === 'mouseover') { showTip(ctx.doc, el, id, { ground: heroGroundOf(cs), features: featuresOf(cs) }); return false; }
     if (ev.type === 'mouseout') { if (!el.contains(ev.relatedTarget)) hideTip(ctx.doc); return false; }
     if (ev.type !== 'click') return false;
     hideTip(ctx.doc);

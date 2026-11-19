@@ -5,7 +5,7 @@
 //
 // One section under the ground's words, on a ground the server lists in its `scaled_hunts` section (src/session/scaled-hunts.js;
 // nothing at all while the server's switch is off). Labels only: the Level the ground is fought at, the price an hour and the hours
-// banked, the four dials (Tyler 11-07 "+x% exp +x% more damage from monsters +x% more gold from monsters", and HP) read from the one
+// banked, the five dials (Tyler 11-07 "+x% exp +x% more damage from monsters +x% more gold from monsters", HP, and the drops) read from the one
 // data module the engine plays at the server's Level, "Use scaled hours", the hours slider, Buy and its one confirm. Every number a
 // press spends is the server's: the price an hour, the bank, the day's hours and their caps. The slider is display scratch.
 // The list's line says it too (scaleTag, hunts.js), so a player scanning the Hunts list finds it. hunts.js owns the window, its status
@@ -48,6 +48,13 @@ export function scaleView(sh, hunt, o) {
     bankMaxH: Math.floor(sh.bankMaxMs / HOUR_MS), dayMaxH: sh.dayMaxHours, active: !!sh.playing && sh.playing.hunt === hunt ? sh.playing.level : null };
 }
 
+/** The hunt bar's word for the open hunt on `hunt`: "Scaled: Level 41" while the server says it plays scaled (the section's `playing`,
+    the Level its last settle proved), else ''. A paid hour ticks only in the spawn, so the hunt itself says when it is being spent. */
+export function scalePlaying(cs, hunt) {
+  const sh = scaledHuntsOf(cs);
+  return sh && sh.playing && sh.playing.hunt === hunt ? t('hunts.scale_tag_on', { level: sh.playing.level }) : '';
+}
+
 /** The Hunts list line's tag for `hunt`: "Scaled: Level 41" while its hours are on and banked, "Scalable" where it can be bought, else ''. */
 export function scaleTag(cs, hunt) {
   const g = scaledGroundOf(scaledHuntsOf(cs), hunt);
@@ -79,8 +86,9 @@ export function patchScale(det, ctx, v) {
   const dials = open ? scaleFor(v.hunt, s.level) : null;
   patchParts(box.querySelector('.hw-scale-facts'), open ? withSeps([t('hunts.scale_level', { level: s.level }), t('hunts.scale_price', { price: gold(s.price) }),
     s.bankedMs > 0 ? t('hunts.scale_banked', { time: hoursWords(s.bankedMs) }) : t('hunts.scale_banked_none')]) : [t('hunts.scale_locked', { level: s.locked })]);
+  /* Gold × and Drops × side by side (the designer 2026-11-18: "Gold ×13 · Drops ×4.4"): the drops fall at their own multiple, never past the gold's */
   patchParts(box.querySelector('.hw-scale-dials'), dials ? withSeps([t('hunts.scale_xp', { times: times(dials.xpPm) }), t('hunts.scale_gold', { times: times(dials.coinPm) }),
-    t('hunts.scale_dmg', { times: times(dials.dmgPm) }), t('hunts.scale_hp', { times: times(dials.hpPm) }), t('hunts.scale_drops')]) : []);
+    t('hunts.scale_drops', { times: times(dials.dropsPm) }), t('hunts.scale_dmg', { times: times(dials.dmgPm) }), t('hunts.scale_hp', { times: times(dials.hpPm) })]) : []);
   prop(box.querySelector('.hw-scale-dials'), 'hidden', !dials);
   /* the line under it: where this hunt stands now (the server's), the party's rule, and why Buy is off */
   const note = !open ? [] : [s.active ? t('hunts.scale_active', { level: s.active }) : '', v.party && !v.party.isLeader ? t('hunts.scale_party') : '',

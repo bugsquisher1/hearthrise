@@ -10,8 +10,10 @@
 //   hr_scaled_kill_bounds    a row per scalable ground and every Level it can be scaled to (top + 1 .. top_level): the most one kill of
 //                            its roster on its scaled rows can pay (gold: the top coin roll; XP: every HP of damage at the Melee / Ranged
 //                            rate plus the kill's Level XP, gen-hunt-sessions.mjs killBounds' own formula) and the highest scaled monster
-//                            Level (what a blow trains Defense by). hr_hunt_apply_member bounds a window the commit proved scaled by
-//                            these, beside the ground's own (2027-03-21-scaled-hunts.sql), so the server never clamps an honest scaled kill.
+//                            Level (what a blow trains Defense by), and its DROPS MULTIPLE (loot_pm, scaled-hunts.js lootPmFor: the engine
+//                            rolls each row ceil(loot_pm / 1000) times). hr_hunt_apply_member bounds a window the commit proved scaled by
+//                            these, beside the ground's own (2027-03-21-scaled-hunts.sql, 2027-05-17-scaled-loot.sql), so the server never
+//                            clamps an honest scaled kill.
 // tests/scaled-hunts-server.mjs `catalogue` holds the file's rows equal to the data digit for digit; --check is the CI half.
 //
 // THE FORWARD-FILE RULE: an applied file is history and is never regenerated in place; new rows are a new dated file (OUT_NAME).
@@ -43,7 +45,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    GROUND_GP_FIT): the dialed grounds' own kills and every scaled coin rise (the top ground's dial) pay x0.7, so the scaled gold bounds fall: a new dated file. */
 /* 2027-04-27-income-dial-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.135). The Sewer from Level 5 (lane/d-party-pace; Tyler 2026-11-18 "Yes,
    open at 5"): its band's floor and its monsters' floor-5 purse move the Sewer's scaled rows: a new dated file, applied AFTER the two 2027-05-06-sewer-from-five files. */
-export const OUT_NAME = '2027-05-06-sewer-from-five-scaled-hunts-catalogue.generated.sql';
+/* 2027-05-06-sewer-from-five-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.139). Scaled loot (lane/c-arm-switches, 2026-11-18; Tyler 11-07 "loot
+   scales", the designer's drops multiple lootPmFor): every bound row gains loot_pm, a new column, so a new dated file, applied BEFORE 2027-05-17-scaled-loot.sql. */
+export const OUT_NAME = '2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;
@@ -88,7 +92,10 @@ export function catalogueOf(D) {
         for (const k of ['hpPm', 'xpPm']) if (!(Number.isInteger(row[k]) && row[k] <= D.headroom * 1000)) throw new Error(at + ' L' + L + ' ' + t + ': ' + k + ' ' + row[k] + ' is past the value bound (' + D.headroom + 'x a kill)');
         if (!(Number.isInteger(row.dmgPm) && row.dmgPm <= 4000)) throw new Error(at + ' L' + L + ' ' + t + ': dmgPm ' + row.dmgPm + ' is past the Defense term (4000)');
       }
-      bounds.push({ hunt: gid, level: L, gold, xp, levelMax: level });
+      /* the drops multiple: whole permille, one roll at least, never past the card's Gold × (the designer's rule, lootPmFor) */
+      const loot = D.S.lootPmFor(gid, L), card = D.S.scaleFor(gid, L);
+      if (!Number.isInteger(loot) || loot < 1000 || !card || loot > Math.max(1000, card.coinPm)) throw new Error(at + ' L' + L + ': a drops multiple of ' + loot + ' (want whole, 1000 to the card\'s ' + (card && card.coinPm) + ')');
+      bounds.push({ hunt: gid, level: L, gold, xp, levelMax: level, loot });
     }
   }
   return { rule, grounds, bounds };
@@ -98,11 +105,11 @@ export function catalogueOf(D) {
 export function buildSql(c) {
   const r = c.rule;
   const groundValues = c.grounds.map((g) => `  ('${g.hunt}', ${g.floor}, ${g.top})`).join(',\n');
-  const boundValues = c.bounds.map((b) => `  ('${b.hunt}', ${b.level}, ${b.gold}, ${b.xp}, ${b.levelMax})`).join(',\n');
+  const boundValues = c.bounds.map((b) => `  ('${b.hunt}', ${b.level}, ${b.gold}, ${b.xp}, ${b.levelMax}, ${b.loot})`).join(',\n');
   /* the self-check's copy, written another way on purpose: the catalogue guard reads the inserts' form only */
   const sums = c.grounds.map((g) => {
     const mine = c.bounds.filter((b) => b.hunt === g.hunt);
-    return `('${g.hunt}', ${mine.length}, ${mine.reduce((s, b) => s + b.gold, 0)}, ${mine.reduce((s, b) => s + b.xp, 0)}, ${mine.reduce((s, b) => s + b.levelMax, 0)})`;
+    return `('${g.hunt}', ${mine.length}, ${mine.reduce((s, b) => s + b.gold, 0)}, ${mine.reduce((s, b) => s + b.xp, 0)}, ${mine.reduce((s, b) => s + b.levelMax, 0)}, ${mine.reduce((s, b) => s + b.loot, 0)})`;
   }).join(',\n      ');
   return `-- ════════════════════════════════════════════════════════════════════════
 -- Hearthrise — THE SCALED HUNTS' CATALOGUE  (GENERATED — DO NOT EDIT)
@@ -116,7 +123,8 @@ export function buildSql(c) {
 -- WHAT: three server-only catalogues, each rewritten whole. hr_scaled_hunt_rule (one row: the slider ${r.min}-${r.max} h, the bank ${r.bank} h,
 -- the day ${r.day} h, the top Level ${r.top}, ${r.perLevel} gold a banked hour for each Level scaled to); hr_scaled_grounds (${c.grounds.length} grounds and
 -- their bands); hr_scaled_kill_bounds (${c.bounds.length} rows: per ground and every Level it scales to, the most one kill of its roster pays on the
--- scaled rows, and the highest scaled monster Level). No function, grant or client verb here: 2027-03-21-scaled-hunts.sql reads them.
+-- scaled rows, the highest scaled monster Level and the drops multiple, loot_pm). No function, grant or client verb here: 2027-03-21-scaled-hunts.sql
+-- and 2027-05-17-scaled-loot.sql read them.
 -- ORDER: before 2027-03-21-scaled-hunts.sql; after the hunt-sessions catalogue (hr_hunt_grounds: every ground here is one of its rows).
 -- Idempotent: the tables are made if absent and every row rewritten whole, so a second apply is byte-identical. No begin/commit.
 -- REVERSIBLE: drop the three tables (2027-03-21-scaled-hunts.sql first: it reads them).
@@ -151,8 +159,16 @@ create table if not exists public.hr_scaled_kill_bounds (
   gold_max  bigint not null check (gold_max >= 0),
   xp_max    bigint not null check (xp_max >= 1),
   level_max int    not null check (level_max >= 1),
+  loot_pm   int    not null default 1000 check (loot_pm >= 1000),
   primary key (hunt_id, level)
 );
+/* the drops multiple joins a table an older catalogue file made (2027-03-21-scaled-hunts-catalogue.generated.sql): added where it is absent */
+alter table public.hr_scaled_kill_bounds add column if not exists loot_pm int not null default 1000;
+do $col$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'hr_scaled_kill_bounds_loot_pm_check') then
+    alter table public.hr_scaled_kill_bounds add constraint hr_scaled_kill_bounds_loot_pm_check check (loot_pm >= 1000); end if;
+end $col$;
 alter table public.hr_scaled_hunt_rule enable row level security;
 alter table public.hr_scaled_grounds enable row level security;
 alter table public.hr_scaled_kill_bounds enable row level security;
@@ -164,7 +180,7 @@ comment on table public.hr_scaled_hunt_rule is
 comment on table public.hr_scaled_grounds is
   '${OUT_NAME}: the grounds a leader may scale and their bands (src/data/scaled-hunts.js SCALABLE_GROUNDS). Server-only. No row = not scalable.';
 comment on table public.hr_scaled_kill_bounds is
-  '${OUT_NAME}: per scalable ground and scaled Level, the most one kill of its roster pays on the scaled rows (gold, XP) and the highest scaled monster Level (src/data/scaled-hunts.js scaledMonsters). Read by hr_hunt_apply_member on a window the commit proved scaled. Server-only.';
+  '${OUT_NAME}: per scalable ground and scaled Level, the most one kill of its roster pays on the scaled rows (gold, XP), the highest scaled monster Level (src/data/scaled-hunts.js scaledMonsters) and the drops multiple (loot_pm, lootPmFor). Read by hr_hunt_apply_member on a window the commit proved scaled. Server-only.';
 
 -- ── §2 THE ROWS ──────────────────────────────────────────────────────────────
 delete from public.hr_scaled_hunt_rule;
@@ -174,7 +190,7 @@ delete from public.hr_scaled_grounds;
 insert into public.hr_scaled_grounds (hunt_id, floor, top) values
 ${groundValues};
 delete from public.hr_scaled_kill_bounds;
-insert into public.hr_scaled_kill_bounds (hunt_id, level, gold_max, xp_max, level_max) values
+insert into public.hr_scaled_kill_bounds (hunt_id, level, gold_max, xp_max, level_max, loot_pm) values
 ${boundValues};
 
 -- ── §3 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
@@ -197,11 +213,12 @@ begin
      or exists (select 1 from public.hr_scaled_kill_bounds b where not exists (select 1 from public.hr_scaled_grounds s where s.hunt_id = b.hunt_id)) then
     raise exception 'scaled-hunts-catalogue: a ground does not hold one bound a Level from its top + 1 to the top Level'; end if;
   if exists (select 1 from (values
-      ${sums}) d(hunt_id, n, gold, xp, lv)
+      ${sums}) d(hunt_id, n, gold, xp, lv, loot)
               where (select count(*) from public.hr_scaled_kill_bounds b where b.hunt_id = d.hunt_id) <> d.n
                  or (select sum(b.gold_max) from public.hr_scaled_kill_bounds b where b.hunt_id = d.hunt_id) <> d.gold
                  or (select sum(b.xp_max) from public.hr_scaled_kill_bounds b where b.hunt_id = d.hunt_id) <> d.xp
-                 or (select sum(b.level_max) from public.hr_scaled_kill_bounds b where b.hunt_id = d.hunt_id) <> d.lv) then
+                 or (select sum(b.level_max) from public.hr_scaled_kill_bounds b where b.hunt_id = d.hunt_id) <> d.lv
+                 or (select sum(b.loot_pm) from public.hr_scaled_kill_bounds b where b.hunt_id = d.hunt_id) <> d.loot) then
     raise exception 'scaled-hunts-catalogue: hr_scaled_kill_bounds is not the generated set'; end if;
   if exists (select 1 from public.hr_scaled_kill_bounds a join public.hr_scaled_kill_bounds b on b.hunt_id = a.hunt_id and b.level = a.level + 1
               where b.xp_max < a.xp_max or b.level_max < a.level_max) then
@@ -246,12 +263,14 @@ async function selftest() {
   { const top = D.S.topGroundOf(), band = D.HUNT_INDEX[D.OPEN_GROUNDS[top].hunt].band;
     expectThrow('the top ground (' + top + ') offered (no right-Level ground above it)', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, [top]: { floor: band[0], top: band[1], fit: D.OPEN_GROUNDS[top].groupFit } } }))); }
   expectThrow('a band restated wrong', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, wickstead: { ...S.SCALABLE_GROUNDS.wickstead, top: 20 } } })));
-  expectThrow('a ground nobody can open', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, nowhere: { floor: 1, top: 5, fit: 'solo' } } })));
+  expectThrow('a ground nobody can open', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, nowhere: { floor: 1, top: 5, fit: 'both' } } })));
   expectThrow('a scaled Dangerous past the value bound', plant((S) => ({ scaledTierRow: (g, t, L) => { const r = S.scaledTierRow(g, t, L); return r && t === 'dangerous' ? { ...r, xpPm: 3500 } : r; } })));
   expectThrow('a scaled kill that pays less than its own row', plant((S) => ({ scaledMonsters: (M, g, L) => Object.fromEntries(Object.entries(S.scaledMonsters(M, g, L)).map(([id, r]) => [id, { ...r, hp: 1, xp: 1 }])) })));
   expectThrow('a tighter value bound', { ...D, headroom: 1 });
+  expectThrow('drops past the card\'s Gold ×', plant((S) => ({ lootPmFor: (g, L) => S.scaleFor(g, L).coinPm + 1 })));
+  expectThrow('a drops multiple under one roll', plant(() => ({ lootPmFor: () => 900 })));
   const sql = buildSql(catalogueOf(D));
-  const inserts = [...sql.matchAll(/^ {2}\('([a-z_]+)', (\d+), (\d+), (\d+), (\d+)\)/gm)].length;
+  const inserts = [...sql.matchAll(/^ {2}\('([a-z_]+)', (\d+), (\d+), (\d+), (\d+), (\d+)\)/gm)].length;
   if (inserts !== catalogueOf(D).bounds.length) { console.error('  MISSED  the catalogue guard would read ' + inserts + ' bound rows'); bad++; }
   else console.log('  caught  a self-check the catalogue guard would read twice');
   if (bad) { console.error('gen-scaled-hunts --selftest: ' + bad + ' refusal(s) did not bite'); process.exit(1); }

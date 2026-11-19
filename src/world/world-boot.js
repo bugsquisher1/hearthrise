@@ -137,13 +137,15 @@ function createEnvReader(homeNow, town) {
  * @param {() => object[]} [opts.peers]  the account's open CharacterSessions (your other heroes' looks in a hunt)
  * @param {(kind: string, detail: object) => boolean} [opts.emit]  what a tap names: 'entrance' {hunt},
  *        'station' {skill}, 'room' {room}, 'house' {room}; true when the pane opened something
+ * @param {HTMLElement} [opts.chrome]  the pane's place name and Town / Home switch, where it stands (else the panel's own)
  */
 export async function bootWorld(panel, opts) {
   const win = window, doc = document;
   if (!opts || typeof opts.view !== 'function') throw new TypeError('bootWorld needs opts.view: the character this pane shows');
   const view = () => opts.view() || {};
   const stage = panel.querySelector('.world-stage');
-  const chrome = panel.querySelector('.world-chrome');
+  /* the place's name and its Town / Home switch: the pane's, wherever it stands (src/app/world-pane.js puts it in the top bar) */
+  const chrome = opts.chrome || panel.querySelector('.world-chrome');
   const styles = win.getComputedStyle(doc.body);
   /* THE WORLD'S TOKENS, READ ONCE (a read per colour re-ran style dozens of times a frame), until an <html>/<body> attribute or a resize can change them. */
   const tokens = new Map();

@@ -51,7 +51,7 @@ import { feeLineWords, feeFullWords, feeHeadWords, benchEndWords } from '../benc
 import { outputVsWorn, ladderOf } from '../bench-output.js?v=0.2.140';
 import { showTip, hideTip } from './item-tip.js?v=0.2.140';
 import { kindOf, equipSlotFor } from '../bag-model.js?v=0.2.140';
-import { rollOddsOf } from '../../session/jewelry-sections.js?v=0.2.140';
+import { rollOddsOf, jobShown } from '../../session/jewelry-sections.js?v=0.2.140';
 import { JEWEL_STEP_BENCHES } from '../../data/jewelry.js?v=0.2.140';
 import { hallmarkPaneHtml, patchHallmarkPane, actHallmarkPane } from './hallmark-pane.js?v=0.2.140';
 import { DEFAULT_SORT, stationSortOf, withStationSort, orderStation, sortMenuHtml, patchSortMenu } from '../station-sort.js?v=0.2.140';
@@ -88,24 +88,26 @@ export function elsewhereOf(skill) {
 /**
  * The rows a skill shows at the server's level: what it can do now, then the next AHEAD above the level, in
  * the station's picked order (src/shell/station-sort.js; by default what the bag covers first, best first,
- * the locked ones last). Pure over (skill, level, bag, sort).
+ * the locked ones last). Pure over (skill, level, bag, sort, shown). `shown` keeps a row the server offers this hero (a job behind a
+ * server switch only where its `features` list it: jewelry-sections.js jobShown); none keeps every row.
  */
-export function rowsFor(skill, level, inv, sort) {
-  const all = BY_SKILL.get(skill) || [];
+export function rowsFor(skill, level, inv, sort, shown) {
   const lv = Number.isInteger(level) ? level : 1;
-  const open = all.filter((w) => (w.row.req || 1) <= lv);
-  return orderStation(open, lockedOf(skill, lv).slice(0, AHEAD), sort, (w) => w.kind === 'artisan' && runsOf(w.row, inv) > 0);
+  const open = rowsOf(skill, shown).filter((w) => (w.row.req || 1) <= lv);
+  return orderStation(open, lockedOf(skill, lv, shown).slice(0, AHEAD), sort, (w) => w.kind === 'artisan' && runsOf(w.row, inv) > 0);
 }
 
-/* A skill's rows above the level, lowest first: the next AHEAD in full (rowsFor), the rest its ladder (bench-output.js ladderOf). */
-const lockedOf = (skill, lv) => (BY_SKILL.get(skill) || []).filter((w) => (w.row.req || 1) > lv).sort((a, b) => (a.row.req || 1) - (b.row.req || 1));
+/* A skill's rows this hero is offered (`shown`, rowsFor), and those above the level, lowest first: the next AHEAD in full (rowsFor), the
+   rest its ladder (bench-output.js ladderOf). */
+const rowsOf = (skill, shown) => (BY_SKILL.get(skill) || []).filter((w) => !shown || shown(w));
+const lockedOf = (skill, lv, shown) => rowsOf(skill, shown).filter((w) => (w.row.req || 1) > lv).sort((a, b) => (a.row.req || 1) - (b.row.req || 1));
 
 /* THE WHOLE LADDER (itemization audit 2026-11-18 #1): every rung past the rows in full, one line a Level, each thing it opens an icon and a
    name whose card (the item tooltip, against what the hero wears) shows on the pointer. Built once a skill and level. */
 function ladderHtml(g, rungs) {
   if (!rungs.length) return '';
   return '<h4 class="hw-hd-h">' + esc(t('work.ladder_head')) + '</h4><ul class="hw-ladder">' + rungs.map((r) => '<li class="hw-ladder-rung"><b class="hw-ladder-lv">'
-    + esc(t('work.row_level', { level: r.level })) + '</b><span class="hw-ladder-items">' + r.rows.map((w) => {
+    + esc(t('work.row_level', { level: r.level })) + '</b><span class="hw-ladder-items">' + r.items.map((w) => {
       const out = productOf(w);
       return '<span class="hw-ladder-item"' + (out ? ' data-hs-act="work-tip" data-item="' + esc(out) + '"' : '') + '>'
         + itemIconHtml(g, out || Object.keys(recipeInputs(w.row))[0]) + '<span>' + esc(out ? itemName(out) : w.row.name) + '</span></span>';
@@ -143,14 +145,21 @@ function saleTag(out) {
   return !s ? '' : s === t('item.own_use') ? t('work.sale_none') : t('work.sale_shop');
 }
 
-/* A rolled job's odds at the server's level in the job's own bench, BEFORE the roll (Tyler 2026-11-05, call 6). No gold moves on a roll. */
-function oddsWords(cs, w) {
+/* A rolled job's odds at the server's level in the job's own bench, BEFORE the roll (Tyler 2026-11-05, call 6), and what a guarantee
+   fixes (a boss drop set in place of the gem: src/data/jewelry.js JEWEL_GUARANTEES). No gold moves on a roll. */
+export function oddsWords(cs, w) {
   const o = rollOddsOf(cs, w.row);
   if (!o) return '';
-  const perks = o.perks.length > 1 ? o.perks.slice(0, -1).join(', ') + ' or ' + o.perks[o.perks.length - 1] : o.perks.join('');
-  return 'Odds at ' + SKILLS_DEF[o.skill].name + ' ' + o.level + ': ' + (o.plain ? 'Fine ' + o.fine + ', Hallmarked ' + o.hallmarked + ', otherwise plain'
-    : 'Hallmarked ' + o.hallmarked + ', otherwise Fine') + '. Perks: ' + perks + '. No bench fee on a roll.';
+  const n = o.perks.length;
+  const perks = n > 1 ? t('work.odds_or', { list: o.perks.slice(0, -1).join(', '), last: o.perks[n - 1] }) : o.perks.join('');
+  const grade = o.plain ? t('work.odds_plain', { fine: o.fine, hallmarked: o.hallmarked })
+    : o.fine === '0%' ? t('work.odds_sealed') : t('work.odds_fine', { hallmarked: o.hallmarked });
+  const line = t('work.odds_at', { skill: SKILLS_DEF[o.skill].name, level: o.level, grade,
+    perks: t(o.perk ? 'work.odds_second' : 'work.odds_perks', { perks }) });
+  return o.perk ? t('work.odds_always', { perk: o.perk, rest: line }) : line;
 }
+/* The rows the server offers this hero: a dark job only where its switch is on (jewelry-sections.js jobShown). */
+const shownBy = (cs) => (w) => jobShown(cs, w.row);
 
 function rowHtml(g, w) {
   const icon = productOf(w) || Object.keys(recipeInputs(w.row))[0];
@@ -311,7 +320,7 @@ renderWork.patch = function patchWork(body, ctx) {
     const sort = bench ? stationSortOf(residueOf(cs), skill) : DEFAULT_SORT;
     patchSortMenu(view.querySelector('.hw-work-sort'), bench && lv !== null, sort);
     const worn = equipmentOf(cs);
-    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs), sort), {
+    rows(view.querySelector('.hw-work-rows'), lv === null ? [] : rowsFor(skill, lv, heldOf(cs), sort, shownBy(cs)), {
       key: (w) => w.id,
       build: (w) => element(ctx.doc, rowHtml(ctx.glyphs, w)),
       patch: (li, w) => patchRow(li, w, cs, sc, on, hunting, lv, worn),
@@ -320,10 +329,11 @@ renderWork.patch = function patchWork(body, ctx) {
   /* the ladder past those rows, redrawn when the skill or its server level moves */
   const ladder = view.querySelector('.hw-work-ladder');
   const lvNow = skill ? ((skillsOf(cs) || {})[skill] || {}).level : null;
-  const ladderKey = skill && Number.isInteger(lvNow) ? skill + ':' + lvNow : '';
+  /* (the rows the server offers join the key, so the ladder redraws the moment a dark job's switch opens) */
+  const ladderKey = skill && Number.isInteger(lvNow) ? skill + ':' + lvNow + ':' + rowsOf(skill, shownBy(cs)).length : '';
   if (ladder.getAttribute('data-key') !== ladderKey) {
     ladder.setAttribute('data-key', ladderKey);
-    ladder.innerHTML = ladderKey ? ladderHtml(ctx.glyphs, ladderOf(lockedOf(skill, lvNow).slice(AHEAD))) : '';
+    ladder.innerHTML = ladderKey ? ladderHtml(ctx.glyphs, ladderOf(lockedOf(skill, lvNow, shownBy(cs)).slice(AHEAD))) : '';
   }
   /* The Hallmark step and the reforge belong to each crafted piece's own bench (src/data/jewelry.js JEWEL_STEP_BENCHES: Smithing for jewelry; Crafting's
      cloaks join once they roll): above its rows, one line until the hero holds a piece to work on. */

@@ -23,6 +23,11 @@ import { mkdirSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { openWorld } from '../tools/qa/local-world.mjs';
 import { pressBar, groupOf } from './_bar.mjs';
+/* The Works' words come from their homes, never a pasted copy that drifts: the place line from the tab's own meWords over the server's
+   numbers (src/shell/windows/havora/works.js), the finished line from the works_done sentence it repeats (src/shell/sink-words.js). */
+import { meWords } from '../src/shell/windows/havora/works.js';
+import { sinkRefusal } from '../src/shell/sink-words.js';
+const exactly = (words) => new RegExp('^' + words.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$');
 
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? resolvePath(args[args.indexOf('--shots') + 1]) : null;
@@ -137,7 +142,7 @@ try {
   const ledger = await sql("select intent, slot from public.player_ledger where user_id = $1 and kind = 'shop' order by at", [uid]);
   step('WW-3 one journal row, kind shop', ledger.length === 1 && ledger[0].intent === 'town_works:weighhouse:1000', JSON.stringify(ledger));
   const onPlaque = await waitText(WIN + ' .hv-works-plaque', /Marlow.*1,000 gp/);
-  const placed = await waitText(WIN + ' .hv-works-me', /You're 1st, with 1,000 gp given\./);
+  const placed = await waitText(WIN + ' .hv-works-me', exactly(meWords({ gold: 1000, place: 1 })));
   step('WW-3 the plaque names the hero, the window its place', onPlaque && placed, JSON.stringify({ plaque: await textOf(WIN + ' .hv-works-plaque'), me: await textOf(WIN + ' .hv-works-me') }));
   await page.waitForTimeout(300);
   await p.shot('works-gave');
@@ -230,7 +235,7 @@ try {
   await closeWindow('market');
   await pressBar(page, 'havora');
   await page.click(WIN + ' [data-tab="works"]');
-  const doneWords = await waitText(WIN + ' .hv-works-next', /The Weighhouse is finished\. Nothing else is being built right now\./);
+  const doneWords = await waitText(WIN + ' .hv-works-next', exactly(sinkRefusal({ verb: 'town_works', error: 'works_done', project: 'weighhouse' }, null)));
   const stays = await waitText(WIN + ' .hv-works-plaque', /Marlow/);
   step('WW-7 the window says it\'s finished, the plaque stays', doneWords && stays, await textOf(WIN));
   await page.waitForTimeout(300);

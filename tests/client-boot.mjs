@@ -148,7 +148,8 @@ const CELLAR_SHEETS = await sheetsOf('mill_cellar');
    sheets read over a little more than a phone's 422x195, so no camera detail can add one, and a stand whose small view is sure to draw the Havora sheet. */
 /* THE PHONE'S WORLD FRAME in B-21's page (844x390): the canvas in device px, the zoom, and the bottom inset the HUD leaves in CSS px, as
    window.__world.stats() says there (dpr 1). B-21 reads the page's own and says so when it moves: re-pin it here then. */
-const PHONE_FRAME = Object.freeze({ W: 826, H: 290, z: 2, bottom: 93 });
+/* H 290 -> 338 (UI audit 2026-11-18 #10): the place's row went into the top bar, so the phone's World is 48 px taller. */
+const PHONE_FRAME = Object.freeze({ W: 826, H: 338, z: 2, bottom: 93 });
 async function townStands() {
   const imp = (p) => import(pathToFileURL(join(ROOT, p)).href);
   const [{ ATLAS_SETS }, { WORLD_MAPS }, bookm, mapc, ter, comp, { STATIONS }, { FOLK }, { castBox }, cam] = await Promise.all(['src/data/world/atlas-sets.js', 'src/data/world/maps/index.js',
@@ -862,7 +863,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         if (added.includes(sheetOf(r.request().url()))) { asked++; await held; }
         return r.continue();
       });
-      const title = () => page.evaluate(() => (document.querySelector('#panel-world .world-title') || {}).textContent || '');
+      const title = () => page.evaluate(() => (document.querySelector('.world-title') || {}).textContent || '');
       await page.goto(base + '/play.html', { waitUntil: 'load' });
       await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
       await page.fill('input[name=email]', 'qa@example.test');
@@ -870,14 +871,14 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await page.click('[data-app="play"][data-slot="0"]');
-      const inTown = await wait(page, (name) => ((document.querySelector('#panel-world .world-title') || {}).textContent || '').includes(name), TOWN_NAME);
+      const inTown = await wait(page, (name) => ((document.querySelector('.world-title') || {}).textContent || '').includes(name), TOWN_NAME);
       o.hunt = true;
       await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 10, env }, 'frame'), [UID, Object.assign({}, HUNT, { version: 10 })]);
       for (let i = 0; i < 60 && !asked; i++) await page.waitForTimeout(50);
       await page.waitForTimeout(500);
       const during = await title();
       release();
-      const after = await wait(page, () => /Mill Cellar/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      const after = await wait(page, () => /Mill Cellar/.test((document.querySelector('.world-title') || {}).textContent || ''));
       if (!added.length) fails.push('B-12 harness: the cellar adds no sheet to the Common\'s (' + CELLAR_SHEETS.sets.join() + ')');
       else if (!inTown) fails.push('B-12 the hero never stood in the Common');
       else if (!asked) fails.push('B-12 the hunt in the cellar never asked for its sheet ' + added.join());
@@ -1076,7 +1077,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       await page.click('.auth-submit');
       await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
       await page.click('[data-app="play"][data-slot="0"]');
-      const inCellar = await wait(page, () => /Mill Cellar/.test((document.querySelector('#panel-world .world-title') || {}).textContent || ''));
+      const inCellar = await wait(page, () => /Mill Cellar/.test((document.querySelector('.world-title') || {}).textContent || ''));
       o.hunt = false;
       const sent = Date.now();
       await page.evaluate(([uid, env]) => window.__hub.send('hr:' + uid + ':0', { t: 'state', frame: 20, env }, 'frame'), [UID, envelope(0, 20)]);

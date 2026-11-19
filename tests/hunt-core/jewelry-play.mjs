@@ -59,6 +59,7 @@ function play(P, ground, L, roles, o) {
     heals: count((e) => e.type === 'heal'),
     surgedHeals: count((e) => e.type === 'heal' && e.crit === true),
     casts: count((e) => e.type === 'cast'),
+    drinks: events.filter((e) => e.type === 'drink' && (mine(e) || ids.has(e.t))).length,
   };
 }
 const sum = (rs, k) => rs.reduce((a, x) => a + x[k], 0);
@@ -93,17 +94,20 @@ const cases = {
     return null;
   },
   'earrings-show': (P) => {
-    /* Steady at T2: 15% of the basic blows that would miss land. The miss share must fall by near that, never by nothing and never by half. */
+    /* Steady at T2: 20% of the basic blows that would miss land (re-sized from 15%, lane/d-jewelry-2b). The miss share must fall by near
+       that, never by nothing and never by half. */
     const missOf = (rs) => sum(rs, 'misses') / Math.max(1, sum(rs, 'misses') + sum(rs, 'basics'));
     const steady = SEEDS.map((secret) => play(P, GLADE, 24, ['tank'], { secret, rings: EARS.steady }));
     const plain = SEEDS.map((secret) => play(P, GLADE, 24, ['tank'], { secret, rings: EARS.plain }));
     const cut = 1 - missOf(steady) / Math.max(1e-9, missOf(plain));
-    if (!(sum(plain, 'misses') > 100 && cut > 0.07 && cut < 0.25)) return 'Steady cut the miss share ' + (100 * missOf(plain)).toFixed(1) + '% -> ' + (100 * missOf(steady)).toFixed(1) + '%';
-    /* Focus at T2: 2% of max mana on each kill. A mage's mana basic is its pace, so it swings it more; a plain-stud mage gets nothing back. */
+    if (!(sum(plain, 'misses') > 100 && cut > 0.1 && cut < 0.3)) return 'Steady cut the miss share ' + (100 * missOf(plain)).toFixed(1) + '% -> ' + (100 * missOf(steady)).toFixed(1) + '%';
+    /* Focus at T2: 2% of max mana on each kill; a plain-stud mage gets nothing back. Since plain studs help all three styles (designer
+       2026-11-18: +2 Magic attack and strength) a Glade mage's casts no longer wait on mana, so the kill's mana shows in the drinks it
+       spares: 37 and 34 a seed with plain studs, 18 and 17 with Focus (lane/d-jewelry-2b). Its hunt XP is the cell harness's (+3.6%). */
     const focus = SEEDS.map((secret) => play(P, GLADE, 24, ['mage'], { secret, rings: EARS.focus }));
     const bare = SEEDS.map((secret) => play(P, GLADE, 24, ['mage'], { secret, rings: EARS.plain }));
-    const more = sum(focus, 'casts') / Math.max(1, sum(bare, 'casts'));
-    if (!(sum(bare, 'casts') > 100 && more > 1.05 && more < 1.6)) return 'Focus moved a mage\'s casts ' + sum(bare, 'casts') + ' -> ' + sum(focus, 'casts') + ' (mana swings ' + sum(bare, 'manaSwings') + ' -> ' + sum(focus, 'manaSwings') + ')';
+    const fewer = sum(focus, 'drinks') / Math.max(1, sum(bare, 'drinks'));
+    if (!(sum(bare, 'drinks') > 20 && fewer > 0.3 && fewer < 0.75)) return 'Focus moved a mage\'s drinks ' + sum(bare, 'drinks') + ' -> ' + sum(focus, 'drinks') + ' (casts ' + sum(bare, 'casts') + ' -> ' + sum(focus, 'casts') + ')';
     return null;
   },
   'once-per-hero': (P) => {
@@ -121,7 +125,7 @@ const cases = {
     const perked = X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), RINGS.blows), X.ITEMS);
     if (JSON.stringify(perked.jewel) !== JSON.stringify({ keen: 40, follow: 40 })) return 'Hallmarked rings read ' + JSON.stringify(perked.jewel);
     const ears = X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), EARS.both), X.ITEMS);
-    if (JSON.stringify(ears.jewel) !== JSON.stringify({ steady: 150, focus: 20 })) return 'Hallmarked Fang Studs read ' + JSON.stringify(ears.jewel);
+    if (JSON.stringify(ears.jewel) !== JSON.stringify({ steady: 200, focus: 20 })) return 'Hallmarked Fang Studs read ' + JSON.stringify(ears.jewel);
     if (X.C.equipmentStats(Object.assign(P.kitFor(24, 'tank'), EARS.plain), X.ITEMS).jewel !== undefined) return 'plain Fang Studs carry perks';
     return null;
   },

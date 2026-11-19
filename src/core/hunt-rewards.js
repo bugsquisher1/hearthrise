@@ -151,7 +151,8 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
 /* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll. */
 function payDrops(present, ids, lead, row, ctx, world, atMs) {
   const rng = ctx.rng;
-  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate') }, rng);
+  /* a scaled ground's row carries its loot rate (src/data/scaled-hunts.js scaledRow `lootPm`, the card's "Loot ×"); every other row none */
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), lootPm: row.lootPm }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
   for (const ev of rolled.events) {

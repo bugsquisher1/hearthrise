@@ -17,7 +17,7 @@
 // Inner Flame 46.
 //
 // ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08). A monster has its row's HP and pays its whole kill whoever fights it. There is
-// no party scale and no party gate. `groupFit: 'solo'` only picks the formula's solo stats and orders the Hunts window's advice.
+// no party scale and no party gate. `groupFit: 'both'` only picks the formula's stats; a party's advice reads its measured lines.
 // On Normal every group meets the room as built (Tyler 2026-11-11: no party pull). Each harder tier brings ONE pull for every group.
 //
 // THE COUSIN OF THE FORD: same dead, other answers. The Ford's dead all break to a hammer. Here the commonest is weak to a sword,
@@ -86,7 +86,7 @@ export default definePack({
       box([13, 15, 26, 24], [20, 19], [CS, PK], [BG, CS, BG, PK, PK, ML]),
     ],
     route: [0, 1, 2, 3, 4, 5],
-    respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
+    respawnMs: 60000, pullDist: 1.5, groupFit: 'both',
     densityMax: [8, 8, 8, 8],
     /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11, "if they want bigger pulls they need to up the difficulty"; lane/d-packs-retune): a party
        meets the room as built, the same as a hero alone. A bigger pull is Dangerous or Deadly (the tier row), never a party's own. */

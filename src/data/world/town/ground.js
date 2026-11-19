@@ -1,11 +1,14 @@
 // src/data/world/town/ground.js — HAVORA'S GROUND: Town Blueprint v0.5 traced x2 (one blueprint square = 2 x 2
 // tiles) plus the Westwood (map columns 0-23), with the plan's districts painted in (Hearth Square, the mine and
-// quarry, the yards, the farm plots, the site footprints). 192 x 116. Legend: maps/town_common.js. Edit by hand.
+// quarry, the yards, the farm plots, the site footprints). 192 x 116. Legend: GROUND_LEGEND below. Edit by hand.
 // THE TRAINING YARD (art lane 2026-11-09; plan x58-79, y60-77 = map x82-103): a ring of raked training sand ('S') on its earth floor, under the dummies.
 // A change to what blocks a step changes the mask hash (maps/town_common.js maskHash).
 // THE MOUNTAIN'S EDGE (lane/a-havora-rock 2026-11-17, Tyler's gate: its edges ran straight with tile staircases): the rock's cells along
 // open ground and along its upper tier were redrawn by a smooth noise into bays and spurs a cell or two deep, never on a stand, an
 // exit or a placed thing's footprint, every open cell still reachable; the grass patch east of the market lost its ruled west column.
+/** What each ground character is (src/data/world/terrain.js MATERIALS). The town map (maps/town_common.js) and the engine's
+    terrain index (maps/grids.js) both read it here, so the grid the server walks and the ground the client draws cannot disagree. */
+export const GROUND_LEGEND = Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel', ';': 'setts', 'S': 'sand', 'B': 'deck', '-': 'beach', 'M': 'peak' });
 export const GROUND_ROWS = Object.freeze([
   '......................................................................................................................~~~~~~....................................................................',
   '......................................................................................................................~~~~~~....................................................................',

@@ -10,7 +10,7 @@
 //   PL-1 HIDDEN       the shipped tree holds no pattern: no item, no flavour line, no gated recipe, no drop row (nothing a generated
 //                     catalogue reads moves while the switch is off)
 //   PL-2 THE ROWS     switched on, the Kingsgrate Rivets is an item that `teaches` the Steelgrate reforge and never carries `recipe`
-//                     (the engine's b352 auto-unlock scroll), the reforge's gate names it, gen-unlocks' gate ids catalogue it, and both
+//                     (the old b352 scroll shape, cut from the engine 2026-11-18), the reforge's gate names it, gen-unlocks' gate ids catalogue it, and both
 //                     Rat Kings carry it among their Rares, before the trophy
 //   PL-3 AN ITEM      on the real settle (play-ground: hr-accrue accrueHunt) a Rat King kill credits the pattern to the bag as an ITEM, so a
 //                     hero can read, store or trade it (the row's chance raised in this fixture only, so the first kill lands it)
@@ -87,7 +87,7 @@ async function loadLive(root) {
 function rows(L) {
   const it = L.ITEMS[PATTERN];
   ok(!!it && it.teaches === RECIPE, 'PL-2 the live item ' + PATTERN + ' reads ' + JSON.stringify(it) + ', want teaches ' + RECIPE);
-  ok(!!it && !('recipe' in it), 'PL-2 the live pattern carries `recipe`: the engine reads that as a b352 auto-unlock scroll and the drop never reaches a bag');
+  ok(!!it && !('recipe' in it), 'PL-2 the live pattern carries `recipe`: the old b352 scroll shape, refused by tests/catalogue-coherence.mjs C16: a pattern is an item that teaches');
   const r = L.REC.ARTISAN_RECIPES.smithing.find((x) => x.id === RECIPE);
   ok(!!r && r.gated === PATTERN, 'PL-2 ' + RECIPE + ' is gated by ' + (r && r.gated) + ', want ' + PATTERN);
   const every = L.REC.ARTISAN_RECIPES_EVERY.smithing.find((x) => x.id === RECIPE);

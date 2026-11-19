@@ -14,7 +14,7 @@
 // scratch until the re-read envelope says what is worn and what the colors are. A price the purse can't pay leaves Save colors off with
 // the line under it saying how much more (the house style; v0.2.97 gate: 1,550 gp live on a 400 gp purse, refused only after the press).
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf } from '../../../data/outfits.js?v=0.2.140';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, earnedOnly } from '../../../data/outfits.js?v=0.2.140';
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.140';
 import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.140';
 import { outfitOf } from '../../../session/character-sections.js?v=0.2.140';
@@ -132,11 +132,11 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
       patch: (b, i) => { style(b, 'background-color', 'var(--dye-' + i + ')'); attr(b, 'aria-pressed', String(!!shown && shown[sc.region] === i)); },
     });
   }
-  /* The grid: search and the owned filter; premium and not-owned marked. A bundle outfit (the Key Warden) shows only once the server
-     says this hero owns it: it is a find, never a shop window, and until its server half lands no hero owns it. */
+  /* The grid: search and the owned filter; premium and not-owned marked. An earned look (the Key Warden's bundle, a faction look's
+     pieces) shows only once the server says this hero owns it: it is a find or an earning, never a shop window. */
   const q = sc.query.trim().toLowerCase();
   const ids = OUTFIT_IDS.filter((id) => (!q || OUTFIT_ROWS[id].label.toLowerCase().includes(q)) && (!sc.ownedOnly || (o && o.owned.has(id)))
-    && (!OUTFIT_ROWS[id].bundle || (!!o && o.owned.has(id))));
+    && (!earnedOnly(OUTFIT_ROWS[id]) || (!!o && o.owned.has(id))));
   rows(root.querySelector('.hw-of-grid'), ids, {
     key: (id) => id,
     build: (id) => element(ctx.doc, '<li><button type="button" class="hw-of-card" data-hs-act="of-pick" data-outfit="' + esc(id) + '">'

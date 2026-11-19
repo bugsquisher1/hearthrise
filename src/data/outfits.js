@@ -21,6 +21,9 @@
 //             hr_outfits carries the bundle (tools/gen-outfits.mjs), hr_outfit_owned owns such a row only for a hero with its
 //             player_cosmetics 'outfit' row, written once by hr_outfit_bundle_use (2027-04-30-sweeps-coat.sql), and the Character
 //             window lists it only once the server says the hero owns it.
+//   pieces    the faction pieces (src/data/factions.js FACTION_OUTFITS) a hero must hold, EVERY one, to own this look: claimed with
+//             standing (hr_faction_claims), never taken back, kept across a swap. hr_outfit_owned reads the claims for such a row
+//             (2027-05-19-faction-outfit-path.sql); never premium, never a bundle; listed, like a bundle row, only once owned.
 // DYES are the colours a region may take: DYE_COUNT tokens --dye-N in
 // src/styles/tokens.css, each a colour of the world palette. A saved colour is an
 // INDEX; the server checks it against hr_outfit_dyes.
@@ -32,8 +35,9 @@
 
 import { OUTFITS } from './hunt-outfits.js?v=0.2.140';
 
-const row = (label, premium, parts, plain, bundle) => Object.freeze({
+const row = (label, premium, parts, plain, bundle, pieces) => Object.freeze({
   label, premium, regions: Object.freeze(Object.keys(parts)), parts: Object.freeze(parts), plain: plain || null, bundle: bundle || null,
+  pieces: pieces ? Object.freeze([...pieces]) : null,
 });
 
 export const OUTFIT_ROWS = Object.freeze({
@@ -48,6 +52,27 @@ export const OUTFIT_ROWS = Object.freeze({
   /* round 6 (Tyler's hooded keeper): the hood and its cape, the robe, the apron with the boots; the key, the singed edges and the rope stay as drawn, so no legs */
   sweeps_coat: row('Key Warden', false, { head: 'Hood', body: 'Robe', feet: 'Apron and boots' }, null, 'sweeps_coat_bundle'),
 });
+
+/* THE FACTION LOOKS, STAGED (Tyler 2026-11-14: "more paladin like outfits vs grim reaper type outfit unlocks. (Both can be unlocked by
+   swapping factions)"; the board's "2026-11-14 The Morrow Hills" §6). Look id -> the pieces it needs. AN ADD-ON IS PART OF ITS OUTFIT:
+   the outfit alone, and the outfit with each set of its add-ons, is each its own look on its own sheet, owned while the hero holds every
+   piece it names, and the hero wears the one it picks (hr_outfit_set, free). The first piece is the outfit's own. The server serves these
+   rows now (tools/gen-outfits.mjs, hr_outfits.pieces); the page lists none, because no sheet has landed (validate: every OUTFIT_ROWS row
+   has a sprite; CLAUDE.md §3.5). When a look's sheet lands, its id goes into hunt-outfits.js OUTFITS and its row moves from here into
+   OUTFIT_ROWS with its label, regions and parts, and the same pieces. */
+export const STAGED_OUTFITS = Object.freeze({
+  flamebearer: Object.freeze(['flamebearer']),
+  flamebearer_shield: Object.freeze(['flamebearer', 'flamebearer_shield']),
+  flamebearer_light: Object.freeze(['flamebearer', 'flamebearer_light']),
+  flamebearer_shield_light: Object.freeze(['flamebearer', 'flamebearer_shield', 'flamebearer_light']),
+  emberkeeper: Object.freeze(['emberkeeper']),
+  emberkeeper_lantern: Object.freeze(['emberkeeper', 'emberkeeper_lantern']),
+  emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper_coal']),
+  emberkeeper_lantern_coal: Object.freeze(['emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal']),
+});
+
+/** Is this row a find or an earning (a bundle, or faction pieces): listed only once the server says the hero owns it? Pure. */
+export const earnedOnly = (r) => !!r && (!!r.bundle || !!r.pieces);
 
 /* A region's name in the creation step. */
 export const REGION_LABEL = Object.freeze({ head: 'Head', body: 'Body', legs: 'Legs', feet: 'Feet' });
@@ -84,6 +109,15 @@ export function dyeKeyOf(c) {
 /** The outfit ids in display order. */
 export const OUTFIT_IDS = Object.freeze(Object.keys(OUTFIT_ROWS));
 
+/* A look's pieces: one to four piece ids, none twice (hr_outfits_pieces_shape holds the server's copy to the same). */
+function piecesProblems(id, pieces) {
+  if (!Array.isArray(pieces) || pieces.length < 1 || pieces.length > 4) return [id + ': its pieces are not one to four piece ids'];
+  const out = [];
+  for (const p of pieces) if (typeof p !== 'string' || !/^[a-z0-9_]{1,32}$/.test(p)) out.push(id + ': ' + p + ' is not a piece id');
+  if (new Set(pieces).size !== pieces.length) out.push(id + ': it names a piece twice');
+  return out;
+}
+
 /** Every problem with the table, as strings. Empty = valid. */
 export function validate() {
   const out = [];
@@ -100,6 +134,20 @@ export function validate() {
     if (r.regions.length && r.plain) out.push(id + ': it has regions, and words saying it has none');
     if (r.bundle !== null && (typeof r.bundle !== 'string' || !/^[a-z0-9_]{1,40}$/.test(r.bundle))) out.push(id + ': its bundle is not an item id');
     if (r.bundle && r.premium) out.push(id + ': owned through its bundle, so premium cannot own it too');
+    if (r.pieces !== null) out.push(...piecesProblems(id, r.pieces));
+    if (r.pieces && (r.premium || r.bundle)) out.push(id + ': owned through faction pieces, so neither premium nor a bundle can own it too');
+  }
+  const single = new Set(Object.values(STAGED_OUTFITS).concat(OUTFIT_IDS.map((id) => OUTFIT_ROWS[id].pieces))
+    .filter((p) => p && p.length === 1).map((p) => p[0]));
+  for (const [id, pieces] of Object.entries(STAGED_OUTFITS)) {
+    if (!/^[a-z0-9_]{1,32}$/.test(id)) out.push(id + ': not an outfit id');
+    if (OUTFIT_ROWS[id]) out.push(id + ': staged and listed both');
+    if (OUTFITS[id]) out.push(id + ': its sheet has landed, so its row moves into OUTFIT_ROWS with its label, regions and parts');
+    out.push(...piecesProblems(id, pieces));
+  }
+  /* an add-on is worn on its outfit: a look of several pieces starts with the piece a one-piece look is owned by */
+  for (const [id, pieces] of Object.entries(STAGED_OUTFITS).concat(OUTFIT_IDS.map((id) => [id, OUTFIT_ROWS[id].pieces]))) {
+    if (Array.isArray(pieces) && pieces.length > 1 && !single.has(pieces[0])) out.push(id + ': its first piece ' + pieces[0] + ' owns no outfit of its own');
   }
   if (BASE_REGIONS.length !== MASK_COLOURS.length) out.push('a mask key for each of the hero\'s regions');
   if (!Number.isInteger(DYE_COUNT) || DYE_COUNT < 1 || DYE_COUNT > 64) out.push('DYE_COUNT must be 1..64');

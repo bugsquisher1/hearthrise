@@ -1768,8 +1768,8 @@
   },
   "hr_outfits": {
    "class": "seeded",
-   "replay": 9,
-   "note": "The outfit catalogue (2026-10-25-character-sheet.sql, mirrors src/data/outfits.js; tests/character-window.mjs CW-D1): id, premium, the regions its masks define. Rebuilt from repo, never restored; nothing player-owned."
+   "replay": 17,
+   "note": "The outfit catalogue (2026-10-25-character-sheet.sql, mirrors src/data/outfits.js; tests/character-window.mjs CW-D1): id, premium, the regions its masks define. Rebuilt from repo, never restored; nothing player-owned. 17 IN THE REPLAY SINCE 2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql added the eight staged faction looks (hr_outfits.pieces; lane/c-faction-outfit-path). STAGED, NOT APPLIED: production stays at 9 until the Coordinator applies it. Updated BY HAND, not --write (this row only)."
   },
   "hr_players_online_cache": {
    "class": "operational",

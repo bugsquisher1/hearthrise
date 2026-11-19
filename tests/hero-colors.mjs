@@ -44,8 +44,8 @@ const B = '000000c0-0000-4000-a000-0000901dc102';
 const idem = () => crypto.randomUUID();
 const MIG = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
 const FILE = '2027-03-05-hero-colors.sql';
-/* the outfits catalogue the chain lands last (tools/gen-outfits.mjs OUT_FILE; 2027-03-05's is applied history) */
-const CATALOGUE = '2027-04-30-sweeps-coat-outfits-catalogue.generated.sql';
+/* the outfits catalogue the chain lands last (tools/gen-outfits.mjs OUT_FILE; 2027-03-05's and 2027-04-30's are applied history) */
+const CATALOGUE = '2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql';
 const SET = 'public.hr_hero_colors_set(integer,jsonb,bigint,uuid)';
 const WEAR = 'public.hr_outfit_set(integer,text,jsonb,uuid)';
 const PRICE = 'public.hr_hero_colors_price(uuid,integer)';

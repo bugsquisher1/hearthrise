@@ -1248,8 +1248,11 @@ async function huntsPure(imp) {
   if (worn !== 'medium,,heavy') fails.push('AW-25 the worn weight reads ' + worn);
   /* The list line: the band against the Level in words and a tone; the best, or No best yet. */
   const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
-  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
-  if (fits !== 'in:In range|above:Above level|far:Far above level|below:Below level|-') fails.push('AW-25 the band words read ' + fits);
+  /* A ground past the hero's Level reads Below level; only a ground whose hunt ends at a Level the hero has reached reads Outgrown
+     (hunt-grounds.js endsAtLevel: the Mill Cellar from 5, whose band then reads 1-4; lane/d-first-day-path) */
+  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.meadowbrook_thicket, 20], [rows.mill_cellar, 4], [rows.mill_cellar, 5],
+    [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
+  if (fits !== 'in:In range|above:Above level|far:Far above level|below:Below level|in:In range|below:Outgrown|below:Outgrown|-') fails.push('AW-25 the band words read ' + fits);
   const bests = { minMs: 600000, grounds: { mill_cellar: { solo: { xpH: 7141, balanceH: 1859 }, party: { xpH: 9000, balanceH: 10 } } } };
   const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
   if (lines !== '|Best 9,000 Level XP/h|No record yet') fails.push('AW-25 the list bests read ' + lines);
@@ -3559,7 +3562,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
           li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
-        const want = ['mill_cellar:picked:Levels 1–8:in:In range:Recommended:No record yet:Players: 1 to 4',
+        /* the Cellar reads Levels 1-4: its hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and the list reads the band's top as the Level under it */
+        const want = ['mill_cellar:picked:Levels 1–4:in:In range:Recommended:No record yet:Players: 1 to 4',
           'meadowbrook_thicket::Levels 5–15:above:Above level::No record yet:Players: 1 to 4',
           'millrace_sewer::Levels 5–25:above:Above level::No record yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
@@ -3578,7 +3582,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
           const seen = (n) => (n ? n.innerText.replace(/\u00a0/g, ' ') : null);
           return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band'))]; }, W);
-        if (readLine[0] !== 'Levels 1–8 · In range' || readLine[1] !== 'Recommended · No record yet' || !/ · In range$/.test(readLine[2] || ''))
+        if (readLine[0] !== 'Levels 1–4 · In range' || readLine[1] !== 'Recommended · No record yet' || !/ · In range$/.test(readLine[2] || ''))
           fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
@@ -5977,6 +5981,10 @@ const MUTANTS = [
   ['plans: AW-21 a worn off-hand stays for a better one of its kind (F8)', 'src/shell/upgrade-plan.js', '    for (const slot of UPGRADE_SLOTS.concat(OFFHAND)) {', '    for (const slot of UPGRADE_SLOTS) {'],
   ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return tradeOf(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
+  /* AW-25 Outgrown only past a ground's endsAtLevel (lane/d-first-day-reds): never on every ground under the hero, never lost on the Cellar */
+  ['hunts: AW-25 Outgrown leaks to every ground under the hero', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (level > r.band[1]) return'],
+  ['hunts: AW-25 the Cellar past its exit reads Below level', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (false) return'],
+  ['AW-25 the Cellar\'s band reads past its exit', 'src/shell/hunt-list.js', 'band: Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice(),', 'band: h.band.slice(),'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} in slot {slot} when both are ready',", "  shared_cooldown: 'Shares a cooldown with {action} in slot {slot}',"],
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],

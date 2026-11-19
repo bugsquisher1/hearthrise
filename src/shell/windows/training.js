@@ -29,10 +29,16 @@ import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.140';
 import { TRAINING_GEAR } from '../../data/training.js?v=0.2.140';
+import { leavingLine } from '../widgets/hunt-topbar.js?v=0.2.140';
+import { connection } from '../../net/connection.js?v=0.2.140';
 
 /* The ground a training session runs on (src/data/hunts.js, the server half): its hunt is the run, not "out hunting". */
 const YARD_GROUND = 'training_yard';
 const CLOCK_MS = 30000;
+/* While a Stop pends the line counts the seconds to the server's close, so the window repaints every second. */
+const STOPPING_MS = 1000;
+/* The window -> when its pending Stop was first drawn (display only): the hunt bar's own wait timing (widgets/hunt-topbar.js). */
+const STOP_SINCE = new WeakMap();
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => {
   let s = SCRATCH.get(cs);
@@ -195,10 +201,10 @@ function patchGear(root, tr, skill, sc) {
 }
 
 /* A minute clock while the window shows a run: the patch asks itself again; a closed window drops it. */
-function armClock(ctx, root, sc, on) {
+function armClock(ctx, root, sc, on, ms = CLOCK_MS) {
   if (sc.clock) { clearTimeout(sc.clock); sc.clock = null; }
   if (!on) return;
-  sc.clock = setTimeout(() => { sc.clock = null; if (root.isConnected) ctx.refresh('training'); }, CLOCK_MS);
+  sc.clock = setTimeout(() => { sc.clock = null; if (root.isConnected) ctx.refresh('training'); }, ms);
 }
 
 renderTraining.patch = function patchTraining(body, ctx) {
@@ -254,9 +260,18 @@ renderTraining.patch = function patchTraining(body, ctx) {
   prop(go, 'hidden', !!run);
   prop(stop, 'hidden', !run);
   prop(go, 'disabled', sc.pending || !!block);
-  prop(stop, 'disabled', sc.pending);
+  /* A STOP PENDING (post-140 audit C10: the window stood unchanged for 16 s after Stop): Stop off, and the words the hunt bar says
+     (widgets/hunt-topbar.js leavingLine), counted to the SERVER's close (CharacterSession.leaveCountdown: a training leave closes at
+     the press, 2027-05-20-yard-stop.sql), until the server's run is over. */
+  const cd = run && typeof cs.leaveCountdown === 'function' ? cs.leaveCountdown() : null;
+  const at = typeof ctx.now === 'function' ? ctx.now() : Date.now();
+  if (cd === null) STOP_SINCE.delete(root);
+  else if (!STOP_SINCE.has(root) || cd.phase === 'counting') STOP_SINCE.set(root, at);
+  const stopping = cd !== null ? leavingLine(cd, at - STOP_SINCE.get(root), connection.state()) : '';
+  if (stopping) armClock(ctx, root, sc, true, STOPPING_MS);
+  prop(stop, 'disabled', sc.pending || !!stopping);
   attr(go, 'data-off-why', block || null);
-  text(root.querySelector('.tw-off-why'), block);
+  text(root.querySelector('.tw-off-why'), block || stopping);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 

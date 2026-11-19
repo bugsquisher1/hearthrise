@@ -6,11 +6,11 @@
   "schema change was intended — the diff of this file is the review surface.",
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
- "generated": "2026-11-18",
- "digest": "fdaf50943f0403704d610d035e6788c3c41b956edbfe67ecc1a35e87141746ad",
+ "generated": "2026-11-19",
+ "digest": "6832b2aafe44d66084960885a532204fab2d1a632f04fddf31ed8f12c6d90dbb",
  "counts": {
   "relations": 317,
-  "functions": 815,
+  "functions": 816,
   "policies": 127,
   "indexes": 453,
   "triggers": 112,
@@ -674,6 +674,7 @@
    "hr_hunt_change(p_slot integer, p_hunt text, p_idem uuid)",
    "hr_hunt_clock_ms()",
    "hr_hunt_close(p_session uuid, p_reason text, p_at timestamp with time zone, p_return_bag boolean)",
+   "hr_hunt_close_at(p_session uuid)",
    "hr_hunt_cond_check(p_c jsonb, p_stop boolean)",
    "hr_hunt_conds_check(p_conds jsonb, p_join jsonb, p_stop boolean)",
    "hr_hunt_density_freeze()",

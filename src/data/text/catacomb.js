@@ -23,8 +23,6 @@ export const CATACOMB_TEXT = Object.freeze({
 
   /* THE COLUMN: label, value (each value the server's: the wing's deepest room, the boards, the mode's pay, the rules). */
   best_head: 'Deepest Room',
-  /* a wing never descended: the game's empty mark, as the wing slot says it (2026-11-18 phone review: "None" under Deepest Room) */
-  best_none: '—',
   rank_solo: 'Rank',
   rank_party: 'Party Rank',
   descent_head: 'Descent',

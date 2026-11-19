@@ -345,8 +345,8 @@ async function mutate() {
      refuses a pack's own pay cell at definePack) is caught by that refusal: its message is the reason. */
   const staticOn = async (root) => {
     try {
-      return oneTableProblems(await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V + '&m=' + Math.random()),
-        (await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href + V + '&m=' + Math.random())).GROUND_PACKS);
+      return oneTableProblems(await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random()),
+        (await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random())).GROUND_PACKS);
     } catch (e) { return ['the data refuses to load: ' + (e && e.message ? e.message : String(e))]; }
   };
   const here = await staticOn(ROOT);

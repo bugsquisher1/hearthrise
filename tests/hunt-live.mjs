@@ -1907,7 +1907,7 @@ function rules(M) {
     const SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 1200, cdMs: 2400, hitPm: 2000, element: 'frost' }, SID = 'lv_squall';
     const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
       .filter((k) => M.ENGINE_MONSTERS[k]);
-    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const rows = [...new Set([M.ENGINE_MONSTERS, M.MONSTERS])];   // one table once: on a bare source the two are the same rows
     const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
     const shield = M.ITEMS.practice_shield, hadResist = Object.prototype.hasOwnProperty.call(shield, 'resistPm'), oldResist = shield.resistPm;
     M.ENGINE_SPELLS[SID] = SPELL;
@@ -1958,7 +1958,7 @@ function rules(M) {
     const SPELL = { n: 'Test Drizzle', shape: 'group', range: 6, windupMs: 1200, cdMs: 8000, hitPm: 100, element: null }, SID = 'lv_drizzle';
     const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
       .filter((k) => M.ENGINE_MONSTERS[k]);
-    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const rows = [...new Set([M.ENGINE_MONSTERS, M.MONSTERS])];   // one table once: on a bare source the two are the same rows
     const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
     const wasLive = M.ENGINE_SPELL_SWITCH.live;
     M.ENGINE_SPELLS[SID] = SPELL;
@@ -1998,7 +1998,7 @@ function rules(M) {
     // matches the prediction, and every mend and every wasp blow the server played is the browser's, instant for instant.
     const SID = 'lv_mend', SPELL = { n: 'Test Mend', shape: 'mend', range: 4, windupMs: 1200, cdMs: 4000, hitPm: 1000, element: null };
     const kinds = ['rat', 'slime', 'hive_wasp'];
-    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const rows = [...new Set([M.ENGINE_MONSTERS, M.MONSTERS])];   // one table once: on a bare source the two are the same rows
     const had = (t, k, f) => [Object.prototype.hasOwnProperty.call(t[k], f), t[k][f]];
     const keep = kinds.map((k) => rows.map((t) => ({ hp: t[k].hp, range: had(t, k, 'range'), spells: had(t, k, 'spells') })));
     const wasLive = M.ENGINE_SPELL_SWITCH.live;

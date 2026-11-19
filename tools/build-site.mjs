@@ -88,7 +88,7 @@ const VENDOR = 'src/vendor/';   // third-party bundles, pinned by hash: they loa
 /* SITE-1's floor: play.html's tags name the sign-in screen's files only since lane b-first-load (2026-11-13: 63 tags; the game's
    modules are named by src/app/game-modules.js and reached by SITE-2), so the floor reads a broken reader, not the old count. */
 const FLOORS = Object.freeze({ 'SITE-1': 40, 'SITE-2': 300, 'SITE-3': 10, 'SITE-4': 5, 'SITE-5': 100 });
-/* SITE-9's floor: 2026-11-19 the site carries 2,995 module specifiers and 64 page tags; a reader under these finds nothing to hold. */
+/* SITE-9's floor: 2026-11-19 the site carries 2,994 module specifiers and 64 page tags; a reader under these finds nothing to hold. */
 const STAMP_FLOORS = Object.freeze({ specifiers: 1500, tags: 40 });
 
 // ── THE PLAN ─────────────────────────────────────────────────────────────

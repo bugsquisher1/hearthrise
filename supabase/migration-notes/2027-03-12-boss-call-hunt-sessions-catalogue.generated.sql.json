@@ -1,0 +1,4 @@
+{
+  "seq": 582,
+  "note": "APPLIED 2026-11-06 01:47 UTC (engine 102cb3fc deployed 01:49) (lane/c-boss-call). The rooms in hr_hunt_grounds, _ground_spawns (his adds too) and _travel, the called rows' kill bounds of nothing (hr_hunt_kill_bounds_xp_max_check holds them there), END_ORDER's boss_felled and boss_time, and hr_boss_calls. No world shape moves: either order against the edge. ORDER: after the hunts catalogue. Source: gen-hunt-sessions."
+}

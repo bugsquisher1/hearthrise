@@ -1,0 +1,4 @@
+{
+  "seq": 574,
+  "note": "APPLIED 2026-11-05 14:11 UTC (lane/c-rune-ladder, 2026-11-05; pre-EA: applies on its passing §3; on the EA Security list). hr_hunt_slot_check and hr_hunt_settings_view restated (§0 pins both to their live images) over a new server-only hr_hunt_rune_store_state: a spell's slot may name any store rune of its family, and one above the hero's level says store_level. No player row moves; a saved Plain slot reads as it did. ORDER: last of the five, then the hr-accrue at once, then the client."
+}

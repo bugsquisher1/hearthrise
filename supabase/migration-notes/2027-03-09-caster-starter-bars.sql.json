@@ -1,0 +1,4 @@
+{
+  "seq": 569,
+  "note": "APPLIED 2026-11-05 14:11 UTC (lane/c-caster-starter-bars, systems-engineer, 2026-11-05; designer lane/d-caster-first-fights; pre-EA: applies on its passing §3). hr_hunt_role_rules full replace from src/data/rule-subjects.js ROLE_RULES, pinned by tests/hunt-core/conditions.mjs sql-rows and starter-bar-fires: every default rune spell names its store rune, Frost Lance at mana 70%, Green Sickness also at mana 78%, Flame Volley and Rend off the default bars (14 -> 12 rows). No function, grant, table or player row moves, so live-hash-drift wants nothing. ORDER: last in this list; it reads only hr_hunt_role_rules, hr_hunt_abilities, the store rows and hr_hunt_slot_check, so nothing staged beside it depends on it. EDGE MOVES: ROLE_RULES rides the hr-accrue payload, so apply, deploy at once, then the client; between the two the only difference is a slot the view shows live that the engine does not fire yet."
+}

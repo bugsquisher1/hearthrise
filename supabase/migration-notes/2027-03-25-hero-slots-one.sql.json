@@ -1,0 +1,4 @@
+{
+  "seq": 623,
+  "note": "APPLIED 2026-11-10 (Coordinator; edge 99874906 deployed after the hunt-sessions file). Was: STAGED (lane/c-death-and-slots, backend-architect, 2026-11-09; Tyler 2026-11-09 \"like a week to afford the first alt\"; MONEY SURFACE, on the EA Security list). hr_hero_slots: slot 1 stops being a starter, 300,000 / 750,000 / 1,500,000 on slots 1-3; no body, grant or policy moves. §0 pins the 2027-03-22 ladder (or this file's own); §1 snapshots every live account and asserts its heroes and every slot it holds a hero in or bought are untouched (an EMPTY free slot 1 is no longer owned: Tyler 2026-11-09, say so in the Discord note); §2 rolled back: a new account owns [0], is offered slot 1 at 300,000, can't make a slot-1 hero unpaid, climbs 1-2-3 at exactly the prices, slot 4 slot_cap; a slot-1 hero is kept. ORDER: after the 2027-03-22 sequence, then its two generated siblings. EDGE: shops.js is in hr-accrue, one redeploy, either order."
+}

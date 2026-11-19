@@ -1,0 +1,4 @@
+{
+  "seq": 660,
+  "note": "APPLIED 2026-11-13 (Coordinator; hr_bank_cap_for_rungs md5 9d12384997436831f944375758a19e4a, plpgsql, same answers rungs -1..31 and NULL); was: STAGED (lane/a-bag-expand-r2, systems-engineer, 2026-11-12; pre-EA: applies on its passing §4). hr_bank_cap_for_rungs restated as plpgsql (settle-budget SB-3), identical over rungs -1..31 and NULL. No table, no grant, no edge. After 2027-04-15-bag-expand-view.sql."
+}

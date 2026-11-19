@@ -1,0 +1,4 @@
+{
+  "seq": 544,
+  "note": "APPLIED 2026-11-04 06:23 UTC (lane/c-gold-matters, 2026-11-03). hr_stamina_refill_rule: 400 + 100 a Level -> 1,000 + 250 a Level; the shop, seed and Blessing rows are carried unchanged. No edge. Any order after 2027-01-13-alpha-catalogue.generated.sql."
+}

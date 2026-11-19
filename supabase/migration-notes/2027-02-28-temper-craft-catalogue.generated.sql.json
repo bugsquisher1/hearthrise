@@ -1,0 +1,4 @@
+{
+  "seq": 566,
+  "note": "APPLIED 2026-11-05 11:44 UTC (lane/c-temper-craft, 2026-11-05). Every rung's material joins its gold in hr_unlock_offers.items (rows only, source gen-temper). A hero on a v0.2.91 client then sees the old row and is refused in plain words until the client lands. ORDER: after the items catalogue, which holds the salts, and before 2027-02-28-temper-craft.sql."
+}

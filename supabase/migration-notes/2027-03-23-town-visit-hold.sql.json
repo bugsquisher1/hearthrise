@@ -1,0 +1,4 @@
+{
+  "seq": 616,
+  "note": "APPLIED 2026-11-08 ~22:25 UTC by the Coordinator (Tyler's hearth-walk report; live hashes re-measured: hr_town_place a905f061, hr_town_moves_settle 4f1a4496, hr_town_visit_hold new; edge unchanged). Was: STAGED (lane/a-hearth-walk, systems-engineer, 2026-11-08; Tyler: \"Fingerguns didn't run all the way to the hearth to throw his borax in\"). Restates hr_town_place and hr_town_moves_settle whole (pinned to their live md5s) + town_bodies.visit_until and hr_town_visit_hold: a visit (a powder, a named fuel, a counter) holds the body for the walk from where it stood and the throw; a pointer write meanwhile waits; the visit's end sets a hero still working a town job back at its station. Display presence only (no Security review pre-EA). No edge. After 2027-01-28-town-stands.sql and the catalogue; nothing depends on it. Client half (src/world/hearth-burn.js, src/session/town-presence.js) is safe either side of the apply."
+}

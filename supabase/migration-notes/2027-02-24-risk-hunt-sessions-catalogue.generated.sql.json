@@ -1,0 +1,4 @@
+{
+  "seq": 542,
+  "note": "APPLIED 2026-11-04 06:23 UTC (lane/c-risk-ladder, 2026-11-03). hr_hunt_limits loses below_range_refuse; no kill bound, spawn or other limit moves, and the world's shape is unchanged (no world_shape_pending on either order against the edge). ORDER: after 2027-02-24-risk-no-level-block.sql. THEN deploy hr-accrue: the harder level gap (underFloorAtkPm 200) and the level share live in the engine; until it lands hunts play today's rule."
+}

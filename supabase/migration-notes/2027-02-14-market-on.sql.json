@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "APPLIED 2026-10-31 UTC (market ON). Was: apply only on the Coordinator's go for the release carrying the market window, after both 2027-02-13-market-*.sql and before the client push (lane/b-market-window, 2026-10-31). EXCLUDED: a rebuilt database ships the market OFF (tests/market-v2.mjs M0); tools/qa/local-world.mjs applies it to its own memory only."
+}

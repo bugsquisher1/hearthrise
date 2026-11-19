@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - KILL SWITCH (cohort half) for the gather widen, apply ONLY on a runbook kill trigger, after or with 2026-10-07-world-tick-disarm.sql. One call: select public.hr_tick_unenrol('gather') - permille 0, every journal-enrolled ownership row removed and journalled unenrol, operator rows untouched. EXCLUDED: a rebuilt database has no enrolled rows, so the chain is correct without it."
+}

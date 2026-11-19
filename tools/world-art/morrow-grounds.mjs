@@ -110,7 +110,7 @@ const SEAMS = Object.freeze({
     { a: 'Y', b: 'F', style: 'kerb', course: 'F' }, { a: 'Y', b: 'C', style: 'kerb', course: 'C' },
   ],
 });
-const PHASES = Object.freeze(['Y', '1', '2', '3', '4']);
+const PHASES = Object.freeze({ Y: 'Y1234', C: 'C5678', F: 'Fabcd' });
 const PHASE_AT = Object.freeze([[0, 0], [13, 9], [21, 19], [7, 23], [26, 5]]);
 /** Each cell an UNTONED variety tile of its floor (key 0: the texture shifted, a spot or a kept decal, as ground-variety.js picks j);
     the tone patches go on after the borders (tonePatches), so a redrawn border band is toned like the rest and never shows as a box. */
@@ -214,6 +214,21 @@ function slipSlates(g, grid, boards) {
     const p = (py * g.width + px) * 4, q = ((py % T) * T + (px % T)) * 4;
     g.data.set(hole(py - 1) ? boards.data.subarray(q, q + 3) : rgb('#17141a'), p);
     n++;
+  }
+  return n;
+}
+/* the clutter rule (ART_DIRECTION 4): nothing on the floor is brighter than the dimmest actor body. A floor pixel over FLOOR_MAX (a
+   decal's glint, a speck) steps down its ramp until it is under; the walls are laid after and are no floor */
+const FLOOR_MAX = 0.12;
+function capFloor(g, grid) {
+  const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
+  let n = 0;
+  for (let p = 0; p < g.data.length; p += 4) {
+    const px = (p / 4) % g.width, py = Math.floor(p / 4 / g.width); if ('MHW'.includes(grid[Math.floor(py / T)][Math.floor(px / T)])) continue;
+    let h = hexAt(g, p); if (LUM(h) <= FLOOR_MAX) continue;
+    const a = RAMP_AT.get(h); if (!a) continue;
+    let k = a.k; while (k > 0 && LUM(a.ramp[k]) > FLOOR_MAX) k--;
+    g.data.set(rgb(a.ramp[k]), p); n++;
   }
   return n;
 }
@@ -336,19 +351,24 @@ export function paintGround(grid, { skip = () => false } = {}) {
   const fills = Object.fromEntries(Object.entries(mats).map(([ch, m]) => [ch, m.fill]));
   /* the dry stone wall's line is the yard behind it, so the road and the cobbles meet round its foot as anywhere else */
   const seamRows = grid.map((r) => r.replace(/W/g, 'Y'));
-  /* THE COBBLES RE-LAID: one fill tile repeats every 32 px. The yard is a patchwork of the fill at three phases (noise blobs a few
-     cells across), and every border between two phases is laid stone by stone (seams.mjs stagger), so no stone is cut and the
-     lattice breaks at the patch scale. The phases are the same pixels, so it is still the one cobble. */
-  const phased = seamRows.map((r, y) => [...r].map((c, x) => (c !== 'Y' ? c : PHASES[Math.min(PHASES.length - 1, Math.floor(hash2(x, y, 97) * PHASES.length))])).join(''));
-  for (const [k, ch] of PHASES.entries()) if (k) {
-    const [dx, dy] = PHASE_AT[k], f = fills.Y, s = createImage(T, T);
-    for (let v = 0; v < T; v++) for (let u = 0; u < T; u++) { const q = (((v + dy) % T) * T + ((u + dx) % T)) * 4; s.data.set(f.data.subarray(q, q + 4), (v * T + u) * 4); }
-    fills[ch] = s;
-    for (let y = 0; y < phased.length; y++) for (let x = 0; x < phased[0].length; x++) if (phased[y][x] === ch) blit(img, s, 0, 0, T, T, x * T, y * T);
+  /* THE STONE FLOORS RE-LAID: one fill tile repeats every 32 px. The yard's cobbles and the cellar's and brewhouse's flags are each a
+     patchwork of their fill at five phases, a phase a cell, and every border between two phases is laid stone by stone (seams.mjs
+     stagger), so no stone is cut and the lattice breaks. The phases are the same pixels, so each is still the one floor. */
+  let phased = seamRows, pairs = SEAMS.pairs;
+  const mats2 = Object.assign({}, SEAMS.mats);
+  for (const [base, chars] of Object.entries(PHASES)) {
+    phased = phased.map((r, y) => [...r].map((c, x) => (c !== base ? c : chars[Math.min(chars.length - 1, Math.floor(hash2(x, y, 97 + base.charCodeAt(0)) * chars.length))])).join(''));
+    for (const [k, ch] of [...chars].entries()) if (k) {
+      const [dx, dy] = PHASE_AT[k], f = fills[base], s = createImage(T, T);
+      for (let v = 0; v < T; v++) for (let u = 0; u < T; u++) { const q = (((v + dy) % T) * T + ((u + dx) % T)) * 4; s.data.set(f.data.subarray(q, q + 4), (v * T + u) * 4); }
+      fills[ch] = s; mats2[ch] = SEAMS.mats[base];
+      for (let y = 0; y < phased.length; y++) for (let x = 0; x < phased[0].length; x++) if (phased[y][x] === ch) blit(img, s, 0, 0, T, T, x * T, y * T);
+    }
+    const as = (p, c) => Object.assign({}, p, p.a === base ? { a: c } : { b: c }, p.course === base ? { course: c } : {});
+    pairs = pairs.flatMap((p) => (p.a === base || p.b === base ? [...chars].map((c) => as(p, c)) : [p]))
+      .concat([...chars].flatMap((a, i) => [...chars].slice(i + 1).map((b) => ({ a, b, style: 'stagger' }))));
   }
-  const r = reseam(img, Object.assign({ rows: phased, fills }, SEAMS, {
-    mats: Object.assign({}, SEAMS.mats, Object.fromEntries(PHASES.slice(1).map((c) => [c, SEAMS.mats.Y]))),
-    pairs: SEAMS.pairs.flatMap((p) => (p.a === 'Y' ? PHASES.map((c) => Object.assign({}, p, { a: c, course: p.course === 'Y' ? c : p.course })) : [p])).concat(PHASES.flatMap((a, i) => PHASES.slice(i + 1).map((b) => ({ a, b, style: 'stagger' })))) }));
+  const r = reseam(img, Object.assign({ rows: phased, fills }, SEAMS, { mats: mats2, pairs }));
   img = r.img;
   let toned = 0;
   for (const [ch, m] of Object.entries(mats)) toned += stepPatches(img, { rows: seamRows, on: (c) => c === ch, scale: 70, cut: 0.56, seed: m.v.seed + 100, map: toneMap(m.fill) });
@@ -361,8 +381,9 @@ export function paintGround(grid, { skip = () => false } = {}) {
   const slipped = slipSlates(img, grid, mats.B.fill);
   const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
   const skirting = skirt(img, grid);
+  const capped = capFloor(img, grid);
   const walls = layWalls(img, grid, wallPieces());
-  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, stripped, slipped, skirting, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...walls } };
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, stripped, slipped, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...walls } };
 }
 
 export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);

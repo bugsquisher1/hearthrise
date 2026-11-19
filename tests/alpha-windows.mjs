@@ -4116,6 +4116,29 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (errors.length) fails.push('AW-65 console errors: ' + errors.slice(0, 2).join(' | '));
         await ctx.close();
       }
+      { /* ON A PHONE (922x423) THE SHEET SCROLLS AS ONE, the bag first and the answer's line last (windows.css; the side-by-side desktop window above
+           keeps its line in a row of its own, so since v0.2.141 only here does the line stand at the foot of a scrolled body: run 44476966121).
+           A stack pressed at the foot of the view: its answer stands in view (sticky at the body's foot), and off the stack (press-ack.js
+           clearOfAnswer moves the bag up from under it). */
+        const { ctx, page, errors, up } = await open({ viewport: { width: 922, height: 423 }, mutateEnv: (e) => { long(e); for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, bank_cap: 400 }); } });
+        if (!up) fails.push('AW-65 the phone\'s town did not mount');
+        else {
+          await reach(page);
+          const before = await lineNow(page);
+          /* the stack stands at the foot of the sheet's view, where the line comes: else neither rule is reached */
+          const atFoot = await page.evaluate(([w, st]) => { const b = document.querySelector(w + '[data-hs-body]').getBoundingClientRect(), k = document.querySelector(st).getBoundingClientRect();
+            return k.bottom > b.bottom - 40 && k.bottom <= b.bottom + 1; }, [W65, STACK]);
+          if (!before.scrolled || !atFoot) fails.push('AW-65 CONTROL: the phone\'s sheet does not scroll the stack to its foot, so this proves nothing: ' + JSON.stringify(before));
+          await page.click(STACK);
+          await wait(page, (w) => /^Put away/.test(document.querySelector(w + '.hh-intent-msg').textContent), W65, 4000);
+          await page.waitForTimeout(150);
+          const done = await lineNow(page);
+          if (!done.inView) fails.push('AW-65 on a phone the result of a press in a scrolled bag is out of sight: ' + JSON.stringify(done));
+          if (done.onStack) fails.push('AW-65 on a phone the answer lies on the stack just pressed: ' + JSON.stringify(done));
+        }
+        if (errors.length) fails.push('AW-65 console errors (phone): ' + errors.slice(0, 2).join(' | '));
+        await ctx.close();
+      }
       {
         const { ctx, page, errors, s, up } = await open({ viewport: { width: 1366, height: 768 }, mutateEnv: long });
         if (!up) fails.push('AW-65 the hunt did not mount');
@@ -5389,7 +5412,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 
     { // AW-101 the bar in Hunt prep is whole (Coordinator review 2026-11-17: at 1518x845 slots 11-20 ran under the Close/Save foot)
       const inTown = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k]; e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null }); };
-      const SIZES = [[1280, 720], [1366, 768], [1518, 845], [1920, 1080], [922, 423]];
+      /* 1280x800: the World is tall enough that a docked window stays above the bar (530 px, DOCK_ROOM_PX 525) and Hunt prep needs more, so only
+         its `rise` lifts it. Since the place's row went into the top bar (v0.2.141, every World 45 px taller) Hunt prep fits whole above the
+         bar at 1518x845, so no size here was left where `rise` was the only thing between its bar and Close and Save (run 44476966121). */
+      const SIZES = [[1280, 720], [1280, 800], [1366, 768], [1518, 845], [1920, 1080], [922, 423]];
       for (const scene of ['town', 'hunt']) for (const [w, h] of SIZES) {
         const at = w + 'x' + h + ' (' + scene + ')';
         const { ctx, page, up } = await open(scene === 'town' ? { viewport: { width: w, height: h }, mutateEnv: inTown } : { viewport: { width: w, height: h } });

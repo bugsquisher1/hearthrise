@@ -110,6 +110,7 @@ function fakeServer(o = {}) {
   const next = (slot) => Object.assign(clone(st.env[slot]), { version: ++st.version, client_state: clone(st.residue[slot] || {}) });
   st.rpc = async (name, args) => {
     st.calls.push([name, args]);
+    if (st.onRpc) st.onRpc(name, args);
     if (name === 'hr_load') return { ok: true, status: 200, body: st.env[args.p_slot] ? next(args.p_slot) : { ok: false, error: 'no_character' }, closed: false };
     if (name === 'hr_put_client_state') { st.residue[args.p_slot] = Object.assign(st.residue[args.p_slot] || {}, args.p_patch); return { ok: true, status: 200, body: { ok: true } }; }
     if (name === 'hr_hunt_party_finder') return { ok: true, status: 200, body: { ok: true, parties: [] } };
@@ -445,11 +446,18 @@ async function pureRules(M, base) {
       ['answerInvite', [P, true]], ['answerInvite', [P, false]], ['restartHunt', [P]]];
     /* createParty and the 2-arg startPartyHunt are gone (2026-10-29-party-create-retired.sql): a party is made by an invite. */
     if (typeof cs.createParty === 'function' || typeof cs.startPartyHunt === 'function') return 'CharacterSession still carries createParty / startPartyHunt';
+    /* THE RECORD AS THE ASK LEAVES (v0.2.141 run 44476966121: A20's one re-read after a refusal replaces the record, so the record after the
+       answer can no longer tell a record the verb wrote BEFORE the server from the re-read's): the record is read the moment the party rpc
+       goes, and must still be the one the verb was pressed on. */
+    let atAsk = null;
+    srv.onRpc = (name) => { if (atAsk === null && PARTY_RPCS.includes(name)) atAsk = cs.record; };
     for (const [verb, args] of verbs) {
       srv.calls.length = 0;
       srv.reply = { ok: false, error: 'not_leader' };
       const rec = cs.record;
+      atAsk = null;
       const r = await cs[verb](...args);
+      if (atAsk !== rec) return verb + ' changed the record before the server answered';
       if (r.ok || r.error !== 'not_leader') return verb + ' did not pass the refusal through: ' + JSON.stringify(r);
       /* the one rpc, then at most ONE re-read: a refusal means the screen was behind (the full-game sweep's A20), bounded by read-gate.js */
       const names = srv.calls.map((c) => c[0]);
@@ -460,8 +468,10 @@ async function pureRules(M, base) {
       if (cs.record.version < rec.version) return verb + ' rolled the record back on a refusal';
       srv.calls.length = 0;
       srv.reply = { ok: true, party: { id: P, seats: [] } };
-      const v = cs.record.version;
+      const v = cs.record.version, pressed = cs.record;
+      atAsk = null;
       await cs[verb](...args);
+      if (atAsk !== pressed) return verb + ' changed the record before the server said ok';
       if (srv.calls.map((c) => c[0]).join() !== srv.calls[0][0] + ',hr_load') return verb + ' answered ok without the one re-read: ' + srv.calls.map((c) => c[0]).join();
       if (!(cs.record.version > v)) return verb + ' left the record unread';
     }

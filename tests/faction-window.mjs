@@ -124,6 +124,8 @@ async function groundSide(page, hunt) {
 
 async function checks(overrides, shots) {
   const fails = [];
+  /* a press the rule needs: a control that is not on screen is that rule's red, never a thrown harness (a mutant can take it away) */
+  const press = (page, sel, rule) => page.click(sel, { timeout: 2500 }).then(() => true, () => { fails.push(rule + ' the press ' + sel + ' is not on screen'); return false; });
   const { server, port } = await serve(Object.assign(await groundPlant(), overrides || {}));
   const browser = await leaseBrowser(chromium);
   const open = async (viewport, s0, touch) => {
@@ -196,16 +198,16 @@ async function checks(overrides, shots) {
           /* JOIN ASKS FIRST (QA 2026-11-19 #2): the press sends nothing and says what joining starts; Back takes it back */
           const asking = () => page.evaluate(() => { const c = document.querySelector('[data-hs-win="faction-join"] .hfx-confirm');
             return c && !c.hidden ? [c.querySelector('.hfx-confirm-q').textContent, c.querySelector('.hfx-confirm-a').textContent, c.querySelector('.hfx-confirm-b').textContent].join(' | ') : null; });
-          await page.click('[data-hs-win="faction-join"] [data-side="first_flame"]');
+          await press(page, '[data-hs-win="faction-join"] [data-side="first_flame"]', 'FW-2');
           await page.waitForTimeout(300);
           const asked = await asking();
           if (verbs(s).length) fails.push('FW-2 a Join press sent ' + verbs(s).map((c) => c.name) + ' before its Confirm');
           if (asked !== 'Join the First Flame? | Side lock: 7 days from now | Swap cost: 10 h on the new side\'s grounds') fails.push('FW-2 the Join confirm reads ' + JSON.stringify(asked));
-          await page.click('[data-hs-act="fx-join-back"]');
+          await press(page, '[data-hs-act="fx-join-back"]', 'FW-2');
           await page.waitForTimeout(200);
           if (await asking() !== null || !(await page.isVisible('[data-hs-win="faction-join"] [data-side="first_flame"]'))) fails.push('FW-2 Back left the confirm up');
-          await page.click('[data-hs-win="faction-join"] [data-side="first_flame"]');
-          await page.click('[data-hs-act="fx-join-confirm"]');
+          await press(page, '[data-hs-win="faction-join"] [data-side="first_flame"]', 'FW-2');
+          await press(page, '[data-hs-act="fx-join-confirm"]', 'FW-2');
           const said = await wait(page, () => document.querySelector('[data-hs-win="faction-join"] .hh-intent-msg')?.textContent === 'Joined the First Flame');
           const sent = verbs(s);
           const keys = sent.length ? Object.keys(sent[0].body).sort().join(',') : '';
@@ -215,7 +217,7 @@ async function checks(overrides, shots) {
           if (!said) fails.push('FW-2 the prompt did not stay to say "Joined the First Flame": ' + JSON.stringify(await page.evaluate(() => document.querySelector('[data-hs-win="faction-join"]')?.innerText.slice(0, 200))));
           const close = await page.evaluate(() => document.querySelector('[data-hs-win="faction-join"] [data-hs-act="fx-not-now"]')?.textContent);
           if (close !== 'Close') fails.push('FW-2 after the join the prompt\'s press reads ' + JSON.stringify(close));
-          await page.click('[data-hs-win="faction-join"] [data-hs-act="fx-not-now"]');
+          await press(page, '[data-hs-win="faction-join"] [data-hs-act="fx-not-now"]', 'FW-2');
           const closed = await wait(page, () => !document.querySelector('[data-hs-win="faction-join"]'));
           if (!closed) fails.push('FW-2 Close left the prompt open after the join');
           await factionTab(page);
@@ -294,16 +296,16 @@ async function checks(overrides, shots) {
       x = await again({ faction: 'first_flame', readyAt: Date.now() - H });
       if (x.line !== 'Next swap: ready' || x.swap !== 'on' || x.press !== 'Swap to the Last Ember') fails.push('FW-4 past the cooldown the swap reads ' + JSON.stringify(x));
       /* SWAP ASKS FIRST (QA 2026-11-19 #4): the press sends nothing and says the cost and the lock after it; Back takes it back; Confirm sends ONE */
-      await page.click('[data-hs-act="fx-swap"]');
+      await press(page, '[data-hs-act="fx-swap"]', 'FW-4');
       await page.waitForTimeout(200);
       x = await state();
       if (verbs(s).length) fails.push('FW-4 a Swap press sent ' + verbs(s).map((c) => c.name) + ' before its Confirm');
       if (x.ask !== 'Swap to the Last Ember? | Swap cost: 10 h on Last Ember grounds | Side lock: 7 days after the swap' || x.swap !== 'none') fails.push('FW-4 the swap confirm reads ' + JSON.stringify(x));
-      await page.click('.hw-cs-faction [data-hs-act="fx-back"]');
+      await press(page, '.hw-cs-faction [data-hs-act="fx-back"]', 'FW-4');
       await page.waitForTimeout(200);
       if ((await state()).ask !== null || (await state()).swap !== 'on') fails.push('FW-4 Back left the confirm up: ' + JSON.stringify(await state()));
-      await page.click('[data-hs-act="fx-swap"]');
-      await page.click('.hw-cs-faction [data-hs-act="fx-confirm"]');
+      await press(page, '[data-hs-act="fx-swap"]', 'FW-4');
+      await press(page, '.hw-cs-faction [data-hs-act="fx-confirm"]', 'FW-4');
       await page.waitForTimeout(500);
       let sent = verbs(s);
       if (sent.length !== 1 || sent[0].name !== 'hr_faction_swap_start' || Object.keys(sent[0].body).sort().join(',') !== 'p_faction,p_idem,p_slot' || sent[0].body.p_faction !== 'last_ember')
@@ -315,18 +317,18 @@ async function checks(overrides, shots) {
       if (x.to !== 'Swapping to: Last Ember' || x.from !== 'Swap time from: Last Ember grounds' || /no standing/i.test(await tabText(page))) fails.push('FW-4 an open swap says ' + JSON.stringify([x.to, x.from]) + ' in ' + (await tabText(page)).slice(0, 240));
       /* CANCEL (QA #4): asks first with the swap time it loses, then ONE hr_faction_swap_cancel naming the slot and a key */
       s.calls.length = 0;
-      await page.click('[data-hs-act="fx-cancel"]');
+      await press(page, '[data-hs-act="fx-cancel"]', 'FW-4');
       await page.waitForTimeout(200);
       x = await state();
       if (verbs(s).length || x.ask !== 'Cancel the swap? | Swap time lost: 5 h 50 m' || x.cancel !== 'none' || x.finish !== 'none') fails.push('FW-4 Cancel swap asks ' + JSON.stringify(x) + ', sent ' + verbs(s).map((c) => c.name));
-      await page.click('.hw-cs-faction [data-hs-act="fx-confirm"]');
+      await press(page, '.hw-cs-faction [data-hs-act="fx-confirm"]', 'FW-4');
       await page.waitForTimeout(500);
       sent = verbs(s);
       if (sent.length !== 1 || sent[0].name !== 'hr_faction_swap_cancel' || Object.keys(sent[0].body).sort().join(',') !== 'p_idem,p_slot') fails.push('FW-4 the cancel\'s Confirm sent ' + JSON.stringify(sent));
       s.calls.length = 0;
       x = await again({ faction: 'first_flame', swap: { to: 'last_ember', started_at: iso(Date.now() - DAY), ms: 10 * H, need_ms: 10 * H } });
       if (x.line !== 'Swap: ready to finish' || x.finish !== 'on') fails.push('FW-4 a swap with its time reads ' + JSON.stringify(x));
-      await page.click('[data-hs-act="fx-finish"]');
+      await press(page, '[data-hs-act="fx-finish"]', 'FW-4');
       await page.waitForTimeout(500);
       sent = verbs(s);
       if (sent.length !== 1 || sent[0].name !== 'hr_faction_swap_finish' || Object.keys(sent[0].body).sort().join(',') !== 'p_idem,p_slot') fails.push('FW-4 Finish sent ' + JSON.stringify(sent));

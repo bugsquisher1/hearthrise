@@ -354,6 +354,45 @@ const cases = {
     }
     return null;
   },
+  /* A KILL IS COUNTED FOR EVERY HERO IT PAID (Andy's Tower wipe, 2026-11-19, floor 182). xp-share.js pays a kill's Level XP to the heroes alive
+     at the kill's own instant; its count, coin and loot go to the same heroes, never to those still alive when the swing ends. A hero who falls
+     LATER in the swing was there (its share, its count); one who fell BEFORE the kill in the swing was not. The server bounds a window's Level XP
+     by the kills it journals (hr_hunt_apply_member value_over): a party that wiped after its last kill proposed 911 Level XP a hero with 0
+     kills, was refused six times and forfeited (end `server`, no death, no after-hunt plan). Both ctx shapes (viewed, closed). The events are
+     in a swing's own order: the kill, its `xp` to each hero alive at it, then the falls. */
+  'kill-counts-who-it-paid': async (M) => {
+    const rw = await import(new URL('src/core/hunt-rewards.js', rootUrl(M)).href + M.V);
+    const monsters = { testmon: { gp: [10, 10], drops: [] } };
+    const mk = () => {
+      const got = { level: 0 };
+      return { got, family: 'sword', armoured: false, shield: false, bonus: () => 0, weakness: () => ({ dropMult: 1 }),
+        fx: { addLevelXp: (n) => { got.level += n; } }, state: { stats: {} }, hs: { tally: { kills: 0 } } };
+    };
+    const kill = { type: 'kill', u: 1, t: 9, atMs: 1100 };
+    const xp = (u) => ({ type: 'xp', u, amount: 50, raw: 50, atMs: 1100 });
+    const fall = (t, atMs) => ({ type: 'kill', u: 8, t, atMs });
+    const plays = [
+      ['the party wipes after its last kill', [kill, xp(1), xp(2), fall(1, 1600), fall(2, 1700)], [false, false], '5,5,1,1'],
+      ['one hero falls after the kill', [kill, xp(1), xp(2), fall(2, 1600)], [true, false], '5,5,1,1'],
+      ['one hero fell before the kill', [fall(2, 600), kill, xp(1)], [true, false], '10,0,1,0'],
+      ['CONTROL: both stand', [kill, xp(1), xp(2)], [true, true], '5,5,1,1'],
+    ];
+    for (const away of [false, true]) {
+      const path = away ? 'closed' : 'viewed';
+      for (const [what, events, alive, want] of plays) {
+        const a = mk(), b = mk();
+        const w = { swing: 0, units: [{ id: 1, side: 'hero', alive: alive[0] }, { id: 2, side: 'hero', alive: alive[1] },
+          { id: 8, side: 'mon', kind: 'testmon', alive: true, hp: 5 }, { id: 9, side: 'mon', kind: 'testmon', alive: false, hp: 0 }] };
+        const deaths = rw.rewardSwing(new Map([[1, a], [2, b]]), events, w, { rng: { int: (lo) => lo, chance: () => false }, monsters, away });
+        const got = [a.state.gold || 0, b.state.gold || 0, a.hs.tally.kills, b.hs.tally.kills].join();
+        if (got !== want) return `${path}: ${what}: gold,gold,kills,kills ${got}, want ${want}`;
+        const unpaid = [a, b].filter((m) => m.got.level > 0 && m.hs.tally.kills === 0).length;
+        if (unpaid) return `${path}: ${what}: ${unpaid} hero(es) paid Level XP for a kill nobody counted for them`;
+        if (deaths.length !== events.filter((e) => e.type === 'kill' && e.t !== 9).length) return `${path}: ${what}: ${deaths.length} falls answered`;
+      }
+    }
+    return null;
+  },
   /* AB-04: Magic XP = mana x 1.5 x the ability's multiplier. */
   'magic-xp-from-mana': (M) => {
     const f = M.xpshare.magicXpFor;
@@ -378,7 +417,12 @@ const cases = {
 
 const mutants = [
   { name: 'the dead share the kill\'s gold and loot', case: 'kill-pays-the-living',
-    edits: [['src/core/hunt-rewards.js', "u.side === 'hero' && u.alive === true && members.has(u.id)", "u.side === 'hero' && members.has(u.id)"]] },
+    edits: [['src/core/hunt-rewards.js', "u.side === 'hero' && (u.alive === true || (fallsAfter ? fallsAfter(u.id) : false)) && members.has(u.id)", "u.side === 'hero' && members.has(u.id)"]] },
+  /* ANDY'S TOWER WIPE (2026-11-19): the kill is counted at the swing's end, so a party that falls after its last kill journals none of it */
+  { name: 'the kill is counted for who stands at the swing\'s end', case: 'kill-counts-who-it-paid',
+    edits: [['src/core/hunt-rewards.js', "(u.alive === true || (fallsAfter ? fallsAfter(u.id) : false))", 'u.alive === true']] },
+  { name: 'a hero who fell before the kill in the swing shares it', case: 'kill-counts-who-it-paid',
+    edits: [['src/core/hunt-rewards.js', 'const presentIds = (i) => livingIds(world, members, (id) => fell.has(id) && fell.get(id) > i);', 'const presentIds = (i) => livingIds(world, members, (id) => fell.has(id));']] },
   { name: 'the dead share the kill', case: 'share-split-by-living',
     edits: [['src/core/hunt/xp-share.js', "units.filter((u) => u.side === 'hero' && u.alive === true)", "units.filter((u) => u.side === 'hero')"]] },
   { name: 'the multiplier is ignored', case: 'each-hero-own-multiplier',

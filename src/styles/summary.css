@@ -175,7 +175,9 @@
   .haway-head { margin-bottom: 4px; }
   .haway-hero > .hres { margin-bottom: 6px; }
   .haway-acts { margin: 0 2px 8px; }
-  .haway-hero .hres-figs { grid-template-columns: max-content minmax(0, 1fr) max-content; }
+  .haway-hero .hres-figs:not(.is-empty) { display: flex; gap: 0 12px; }
+  .haway-hero .hres-fig { flex: none; }
+  .haway-hero .hres-fig[data-fig="gold"] { flex: 1 1 0; }
   .haway-foot { position: sticky; z-index: 1; bottom: -10px; margin: 0 -10px -10px; padding: 6px 10px 8px; background: var(--bg-1); }
   .hres-level { margin-bottom: 4px; }
   .hres-figs { padding: 4px 0 6px; }

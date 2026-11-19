@@ -53,6 +53,7 @@ export const PUBLISH = Object.freeze([
   'CNAME',                                                   // the custom domain (a branch deploy reads it; kept for the rollback)
   'src/**/*.js', 'src/**/*.css',                             // every module and stylesheet
   'assets/brand/hearthrise-crest.png',                       // the loading shell, the sign-in screens, the notice
+  'assets/brand/hearth-square.png',                          // Hearth Square behind the account screens (src/app/auth-backdrop.js)
   'assets/brand/hearthrise-mark.png',                        // the tab icon
   'assets/brand/og-image.png',                               // the link preview
   'assets/ui/*.png',                                         // the frames and plates the stylesheets draw

@@ -7,7 +7,7 @@
 //     [--shard=K/N]  every Nth mutant from the Kth (smoke.yml's in-page-41..43); [--only <fragment>]  the mutants whose name holds it
 //   node tests/client-boot.mjs --selftest  the sweep itself: a thrown or hung arm is HARNESS and never ends the sweep (no browser)
 //
-// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/render/canvas-backend.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js
+// mutant-anchors: src/app/sign-in.js src/app/legal-reader.js src/session/server.js src/styles/app.css src/data/outfits.js src/platform/load-shell.js play.html src/app/boot.js src/app/slot-offer.js src/app/world-pane.js src/net/auth.js src/world/world-boot.js src/world/view-sheets.js src/world/atlas.js src/world/render/canvas-backend.js src/world/prewarm.js src/render/images.js index.html src/app/closed-notice.js src/session/account-session.js src/app/auth-backdrop.js
 //
 // The server is stubbed at the edges the client really uses: supabase-js (the
 // vendored UMD is replaced by a fake whose auth keeps its session in the
@@ -56,6 +56,9 @@
 //        a hunt this page has not stamped yet is stamped at once, so a tab killed with no goodbye still has an answer
 //   B-18 RESIDUE IN THE DEBOUNCE SURVIVES A RELOAD (coach's Got it, lost for 1.5 s after every press): Got it, reload at once, over a real
 //        server (a real page's way out; Playwright's routes never see it): the server holds the read and the card stays dismissed
+//   B-23 THE HEARTH BEHIND THE ACCOUNT SCREENS (art audit 2026-11-19 §5: the sign-in stood on a black void): at Windows' 125 % the sign-in
+//        and the characters screens stand on Hearth Square (assets/brand/hearth-square.png, 1024x640 art px) drawn at a whole number of
+//        device px an art px, pixelated, fixed, under the scrim; it is asked for once, only after the crest has arrived, and Play leaves it
 //   B-4  a second character opens beside the first (two topics, one strip)
 //   B-5  sign out -> the sign-in screen, and no copy of the session is left in
 //        localStorage or sessionStorage (auth key, sb-*, the tab id, the heroes it had open)
@@ -586,6 +589,53 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       else if (order.slice(firstHero).some((t) => !/^hr:/.test(t))) fails.push('B-5 a hero closed before the social side ended: topics left in the order ' + order.join(', '));
       if (errors.length) fails.push('B-1 console errors in B-1..B-5: ' + errors.slice(0, 3).join(' | '));
       await ctx.close();
+    }
+
+    { // B-23 THE HEARTH BEHIND THE ACCOUNT SCREENS (art audit 2026-11-19 §5: the sign-in stood on a black void). At Windows' 125 %.
+      const c2 = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1.25 });
+      const p2 = await c2.newPage();
+      const errors = [];
+      p2.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+      p2.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+      await stubServer(p2, {});
+      /* the crest held on the wire for 2 s (a slow phone's first visit): the loading shell and the sign-in screen are up without it, and
+         the picture must still wait for it. Unheld, the shell's own crest has arrived before the sign-in screen and the order proves nothing. */
+      await p2.route('**/assets/brand/hearthrise-crest.png*', async (r) => { await new Promise((k) => setTimeout(k, 2000)); await r.fallback(); });
+      const seen = [];   // the crest's arrival and the picture's ask, in the order the page made them
+      p2.on('requestfinished', (q) => { if (/hearthrise-crest\.png/.test(q.url())) seen.push('crest in'); });
+      p2.on('request', (q) => { if (/hearth-square\.png/.test(q.url())) seen.push('backdrop asked'); });
+      /* what an account screen's backdrop draws: the picture, its size in DEVICE px over the art's 1024 x 640, under a scrim */
+      const drawn = () => p2.evaluate(() => {
+        const app = document.getElementById('app'), b = getComputedStyle(app, '::before'), s = getComputedStyle(app, '::after');
+        const [w, h] = b.backgroundSize.split(',')[0].split(' ').map((v) => parseFloat(v) * devicePixelRatio);
+        return { url: /hearth-square\.png/.test(b.backgroundImage), k: [w / 1024, h / 640], pixelated: b.imageRendering === 'pixelated',
+          fixed: b.position === 'fixed', scrim: s.content !== 'none' && s.backgroundColor !== 'rgba(0, 0, 0, 0)', state: app.dataset.backdrop || '' };
+      });
+      const whole = (d) => d.url && d.k[0] === d.k[1] && Number.isInteger(d.k[0]) && d.k[0] >= 1 && d.pixelated && d.fixed && d.scrim;
+      await p2.goto(base + '/play.html', { waitUntil: 'load' });
+      if (!(await wait(p2, () => document.querySelector('form[data-auth="sign-in"]')))) fails.push('B-23 no sign-in screen');
+      else if (!(await wait(p2, () => document.getElementById('app').dataset.backdrop === 'shown'))) fails.push('B-23 the sign-in screen stands on a black void: no Hearth Square behind the crest and the card (src/app/auth-backdrop.js)');
+      else {
+        const d = await drawn();
+        if (!whole(d)) fails.push('B-23 the Hearth behind the sign-in is not drawn whole: ' + JSON.stringify(d) + ' (a whole number of device px an art px, pixelated, fixed, under the scrim)');
+        if (seen[0] !== 'crest in' || seen.filter((x) => x === 'backdrop asked').length !== 1) fails.push('B-23 the backdrop was asked for before the crest had arrived, or more than once: ' + seen.join(', '));
+        const size = await p2.evaluate(async () => { const i = new Image(); i.src = getComputedStyle(document.getElementById('app'), '::before').backgroundImage.match(/url\("([^"]+)"\)/)[1]; await i.decode(); return i.naturalWidth + 'x' + i.naturalHeight; });
+        if (size !== '1024x640') fails.push('B-23 the backdrop picture is ' + size + ', not the 1024x640 art px app.css draws it at');
+        await p2.fill('input[name=email]', 'qa@example.test');
+        await p2.fill('input[name=password]', 'not-a-real-password');
+        await p2.click('.auth-submit');
+        if (!(await wait(p2, () => document.querySelectorAll('[data-app="play"]').length === 2))) fails.push('B-23 the characters screen did not come');
+        else {
+          const c = await drawn();
+          if (!whole(c)) fails.push('B-23 the characters screen lost the Hearth behind it: ' + JSON.stringify(c));
+          if (seen.filter((x) => x === 'backdrop asked').length !== 1) fails.push('B-23 the characters screen asked for the backdrop again: ' + seen.join(', '));
+          await p2.click('[data-app="play"][data-slot="0"]');
+          if (!(await wait(p2, () => document.querySelector('#panel-world[data-slot="0"] .world-stage canvas')))) fails.push('B-23 Play did not open the World');
+          else if ((await drawn()).url) fails.push('B-23 the still picture of the Hearth stays behind the live World after Play');
+        }
+      }
+      if (errors.length) fails.push('B-23 console errors: ' + errors.slice(0, 3).join(' | '));
+      await c2.close();
     }
 
     { // B-6
@@ -1595,6 +1645,9 @@ const MUTANTS = [
   ['a made hero\'s press asks the server again', 'src/app/hero-create.js', "    if (made) { enter(); return; }\n", ''],
   ['Enter town comes back live under a slow town', 'src/app/hero-create.js', "    hold(t('heroes.entering'));\n", ''],
   ['a lost answer\'s retry gets a new key', 'src/app/hero-create.js', "    if (!tried || tried.name !== name) tried =", '    tried ='],
+  ['no Hearth behind the sign-in (B-23)', 'src/app/boot.js', "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });\n    raiseBackdrop(root, win);", "renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });"],
+  ['the Hearth is asked for before the crest is in (B-23)', 'src/app/auth-backdrop.js', '  if (!crest || crest.complete) after();\n', '  ask();\n  if (!crest || crest.complete) after();\n'],
+  ['the Hearth is drawn at a fraction of a device px (B-23)', 'src/styles/app.css', 'calc(1024 * var(--art-px)) calc(640 * var(--art-px))', '2048px 1280px'],
   ['a sign-up sent keeps its fields', 'src/styles/app.css', '.auth-card.is-sent .auth-field, .auth-card.is-sent .auth-submit { display: none; }\n', ''],
   ['the sign-in says nothing of the game', 'src/styles/app.css', '.auth:has(.auth-card[data-auth]) .auth-pitch { display: block; }\n', ''],
   ['Enter town runs under the fold at 1366x768', 'src/styles/app.css', '.auth:has(.auth-card.is-create) .auth-brand { display: none; }\n', ''],

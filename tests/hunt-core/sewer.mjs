@@ -897,7 +897,9 @@ const cases = {
       axes: ['practice_hatchets'], bow: ['practice_bow'], crossbow: ['practice_crossbow'], mage: ['practice_wand', 'practice_spellbook'], healer: ['practice_staff'],
       'mage, Carried runes only': ['practice_wand', 'practice_spellbook', ['frost_lance', 'arcane_barrier']], 'healer, Carried runes only': ['practice_staff', null, ['circle_of_renewal', 'green_sickness']],
       'axes, Carried runes only': ['practice_hatchets', null, ['rend']] };
-    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/-', axes: '-/first_spell', bow: '-/first_spell', crossbow: '-/first_spell',
+    /* (the bow and the crossbow carry Flame Volley on their default set since the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19: like a
+       caster's, their spell is already on the bar, so nothing is offered) */
+    const want = { tank: '-/first_spell', sword: '-/first_spell', hammer: '-/-', axes: '-/first_spell', bow: '-/-', crossbow: '-/-',
       mage: '-/-', healer: '-/-', 'mage, Carried runes only': 'frost_lance+arcane_barrier/-', 'healer, Carried runes only': 'circle_of_renewal+green_sickness/-', 'axes, Carried runes only': 'rend/-' };
     const seen = [];
     for (const [set, [weapon, shield, carriedRunes]] of Object.entries(sets)) {

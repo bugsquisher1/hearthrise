@@ -57,8 +57,9 @@ const AREA_MIGRATION = 'supabase/migrations/2027-04-15-area-conditions.sql';
 /* The settings view that places the starter bar, at the chain's end (restated: a slot may name any store rune of its family): lane/c-rune-ladder, 2026-11-05. */
 const VIEW_MIGRATION = 'supabase/migrations/2027-03-08-rune-ladder-slots.sql';
 /* The role rule sets once more (every default rune spell names its store rune, Flame Volley and Rend off the default bars: lane/c-caster-starter-bars, designer 2026-11-05),
-   and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09). */
-const BAR_MIGRATION = 'supabase/migrations/2027-04-18-area-moves-bar.sql';
+   and again (Undertow on the Healer's set: lane/b-one-difficulty, Tyler 2026-11-09), (the area moves, 2027-04-18), and Flame Volley back on the bow's set
+   (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19). */
+const BAR_MIGRATION = 'supabase/migrations/2027-05-23-volley-default-bar.sql';
 
 async function load(root) {
   const M = await loadCore(root);
@@ -1160,8 +1161,9 @@ const mutants = [
     edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([NO_STORE('flame_strike'), slot('power_strike'), slot('cleave'), slot('turning_cut')]),"], NO_STORE_ROW] },
   { name: 'Rend comes back on the axes\' default set with no store rune', case: 'starter-bar-fires',
     edits: [['src/data/rule-subjects.js', "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),", "  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), NO_STORE('rend'), slot('turning_cut')]),"], NO_STORE_ROW] },
-  { name: 'Flame Volley comes back on the Ranger\'s default set with no store rune', case: 'starter-bar-fires',
-    edits: [['src/data/rule-subjects.js', "  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),", "  ranger: Object.freeze([slot('hunters_mark'), NO_STORE('flame_volley'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),"], NO_STORE_ROW] },
+  /* Flame Volley stands on the bow's default set since the balance audit's fix 7 (lane/d-audit-fixes-sim, 2026-11-19): its store rune is what lets it fire */
+  { name: 'Flame Volley on the Ranger\'s default set names no store rune', case: 'starter-bar-fires',
+    edits: [['src/data/rule-subjects.js', "slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", "slot('raking_shot', RAKING_WHEN), NO_STORE('flame_volley')]),"], NO_STORE_ROW] },
   { name: 'a cooldown is lost at a window cut (watched and closed part ways)', case: 'starter-bars-both-paths',
     edits: [['src/core/hunt/abilities.js', "['lanes', 'json'], ['cds', 'json'],", "['lanes', 'json'],"]] },
   { name: 'Frost Lance names no store rune (the Mage\'s slot 2 struck again)', case: 'starter-bar-fires',
@@ -1200,7 +1202,7 @@ const mutants = [
       ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n'],
       ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),", ", slot('spring_tide')]),"]] },
   { name: 'the area moves fall off the default bars (the v0.2.127 P1)', case: 'area-moves-default',
-    edits: [['src/data/rule-subjects.js', ", slot('raking_shot', RAKING_WHEN)]),", ']),']] },
+    edits: [['src/data/rule-subjects.js', ", slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", ", slot('flame_volley')]),"]] },
   { name: 'a migration row drifts from the registry', case: 'sql-rows', edits: [['src/data/condition-metrics.js', "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq'])", "say: 'my target is a boss', value: 'bool', ops: Object.freeze(['eq', 'ne'])"]] },
   { name: 'the start kit bar drifts from the server one', case: 'sql-rows', edits: [['src/data/start-kit.js', "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 30)", "startSlot('d_drink', 'thin_turnip_juice', 'self_mana_pct', 35)"]] },
   { name: 'a store food is no slot item', case: 'sql-rows', edits: [['src/data/consumables.js', "    .map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),", "    .filter(() => false).map((b) => row(b.id, b.kind === 'heal' ? 'food' : 'drink', b.kind === 'heal' ? b.heals : b.mana, 'store', b.price)),"]] },

@@ -3,8 +3,8 @@
 // Started from `node tools/pack.mjs new ox_road --like wickstead --band 112,128`, then every row rewritten. The stat lines are the
 // formula's (`node tools/pack.mjs propose ox_road --write`): tier 6, floor 112, fit both.
 //
-// STAGED, A SAMPLE. The map is still Wickstead's layout under a new id (map.js): the road, the wagons and the broken bridge are not drawn
-// and there is no art. Nothing here is served or listed. It opens only with its own map and art, and after the full grade.
+// STAGED, A SAMPLE. The map is layout A (Tyler's pick 2026-11-19, map.js): one long road, the train nose to tail on it, the bridge down under
+// its last wagon. Its art is being drawn (lane/b-morrow-kit). Nothing here is served or listed. It opens only with its art, after the full grade.
 //
 // THE PLACE. When Krell shut the crossing, the last ore wagons coming down from Morrow had nowhere to go, so they stopped on the road and
 // the men and oxen driving them died there. Gault got them back up. Now they haul for him, and his Drovers walk them with a goad. Those
@@ -43,29 +43,30 @@ export default definePack({
   },
   ground: {
     map: 'ox_road',
-    /* the road up from Carter's Rest, by Holly's Vigil (her brazier and wood stack) */
-    start: [[1, 20], [1, 19], [2, 20], [1, 21]],
+    /* the road in from Carter's Rest at the west, by Holly's Vigil (her brazier and wood stack on the north verge) */
+    start: [[1, 21], [1, 20], [2, 21], [1, 22]],
+    /* LAYOUT A (map.js): the pockets in route order, a lap about 87 tiles walked (the sketch's measure; Carter's Rest walks 162) */
     pockets: [
-      /* P0 the Turnout: dead teamsters standing by the first stopped wagon. The soft door */
-      box([6, 13, 21, 26], [15, 19], [TM, TM], [RN, TM, TM, OX, TM, TM]),
-      /* P1 the Yoke: a Yoke Ox still in its harness and the teamster who drove it */
-      box([4, 2, 22, 9], [14, 5], [OX, TM], [TM, DR, TM, RN, TM, OX]),
-      /* P2 the Coal Path: the short cut up the hill, where Gault's runners carry fire between his camps */
-      box([36, 2, 55, 11], [46, 6], [RN, TM], [RN, TM, OX, TM, RN, TM]),
-      /* P3 the Broken Bridge: a Drover and his ox at the bridge the wagons couldn't cross */
-      box([38, 16, 57, 25], [48, 20], [DR, OX], [TM, OX, DR, TM, RN, TM]),
-      /* P4 the Wagon Line: the long row of stopped wagons, a Drover walking it and a runner with him */
-      box([36, 29, 55, 37], [45, 33], [DR, RN], [OX, TM, DR, TM, RN, TM]),
+      /* P0 the Turnout: dead teamsters standing by the wagon pulled off the road south of the start. The soft door */
+      box([8, 25, 19, 34], [13, 29], [TM, TM], [RN, TM, TM, OX, TM, TM]),
+      /* P1 the Yoke: a wagon slewed off the road, its Yoke Ox still in the harness and the teamster who drove it */
+      box([20, 26, 32, 36], [26, 31], [OX, TM], [TM, DR, TM, RN, TM, OX]),
+      /* P2 the Wagon Line: the train's back half by the tipped wagon, a Drover walking it and a runner with him */
+      box([33, 25, 44, 36], [38, 31], [DR, RN], [OX, TM, DR, TM, RN, TM]),
+      /* P3 the Broken Bridge: a Drover and his ox at the bridge that went down under the last wagon */
+      box([36, 12, 44, 20], [42, 17], [DR, OX], [TM, OX, DR, TM, RN, TM]),
+      /* P4 the Coal Path: the short cut up the hill from the ford, where Gault's runners carry fire between his camps */
+      box([25, 5, 35, 15], [31, 10], [RN, TM], [RN, TM, OX, TM, RN, TM]),
       /* P5 the Lead Wagon: the Wagonmaster on the box of the first wagon, sitting on the Dawnstone. The hardest pull */
-      box([4, 29, 22, 37], [13, 33], [WM, TM], [OX, DR, RN, TM, OX, TM]),
+      box([10, 11, 22, 19], [16, 16], [WM, TM], [OX, DR, RN, TM, OX, TM]),
     ],
     route: [0, 1, 2, 3, 4, 5],
     /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08), ONE PACK ON NORMAL (Tyler 2026-11-11). */
     respawnMs: 60000, pullDist: 1.5, groupFit: 'both',
     densityMax: [8, 8, 8, 8],
-    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands): two coal seams on the Coal Path, where Gault's runners fill their
+    /* THE GATHER SLIDER (inert until the hunt-gathering engine lands): two coal seams by the Coal Path, where Gault's runners fill their
        tins. refKillMs the Hold's. */
-    gather: gather(12000, [['coal_rock', 40, 3, 2], ['coal_rock', 51, 3, 2]]),
+    gather: gather(12000, [['coal_rock', 29, 8, 2], ['coal_rock', 35, 14, 2]]),
   },
   monsters: {
     dead_teamster: {

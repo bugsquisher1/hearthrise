@@ -2,7 +2,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/world-art/morrow-grounds.mjs — THE MORROW HILLS' KIT ON THE GROUND: CARTER'S REST (lane/b-morrow-kit, 2026-11-19).
 //
-//   node tools/world-art/morrow-grounds.mjs ground          paint art/world/morrow/carters_rest_ground.png from the map's rows
+//   node tools/world-art/morrow-grounds.mjs ground [id]     paint art/world/morrow/<id>_ground.png from the map's rows (carters_rest, ox_road)
 //   node tools/world-art/morrow-grounds.mjs patch OUT.png   the same painter on a small review patch (moor, road, yard, wall, gate)
 //
 // The rules are art/briefs/morrow-hills-art-rules.txt (the sample's, three unanchored rounds) on top of ART_DIRECTION.md:
@@ -30,6 +30,7 @@ import { stepPatches, bakeDecals, noise, hash2 } from './ground-finish.mjs';
 import { toneAt, varietyIndex } from '../../src/world/core/ground-variety.js';
 import { roofMass, faceTop, walkedRoof, tornEdges, doorwayOf, dividersOf, dimStone, chimney, sills } from './morrow-roofs.mjs';
 import { brewBricks, stableStraw } from './morrow-floors.mjs';
+import { oxFills, cragFace, OX_MATS, OX_TRAILS, oxPairs, fordStones, bridgeDeck, coalLumps, CRAG } from './morrow-ox.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const T = 32;
@@ -87,6 +88,8 @@ export function materials() {
        the stable's straw trodden out of the door; cobble only on the wheel track */
     E: { fill: shadeGround(rd(F('0-moor-road/fill-road-ranked.png')), 1), v: { seed: 71, tone: 'soft', shift: true } },
     P: { fill: shadeGround(fillOf(F('2-straw-boards'), '0000'), 1), v: { seed: 73, tone: 'soft', shift: true } },
+    /* the Ox Road's (tools/world-art/morrow-ox.mjs): the stream, the ford, the coal path, the bridge's deck, the crag */
+    ...oxFills({ rd, fillOf, boards: fillOf(F('2-straw-boards'), '1111'), road: rd(F('0-moor-road/fill-road-ranked.png')) }),
   };
 }
 
@@ -98,7 +101,10 @@ export const DRY_STONE = Object.freeze([[16, 13, 41, 13]]);
 export const CHIMNEYS = Object.freeze([[856, 762], [1768, 330]]);
 const LEG = Object.freeze({ ':': 'R', e: 'E', p: 'P', '.': 'Y', y: 'S', '=': 'B', f: 'F', c: 'C', r: 'O' });
 const inR = (rs, x, y) => rs.some(([a, b, c, d]) => x >= a && x <= c && y >= b && y <= d);
-export function paintGrid(rows, ranges = RANGES, dry = DRY_STONE) {
+/* the Ox Road's map chars (src/data/grounds/ox_road/map.js): its '#' is crag, its ',' the open moor */
+export const LEG_OX = Object.freeze({ ',': 'H', ':': 'R', e: 'E', j: 'J', '~': 'Q', o: 'V', '=': 'G', '#': 'K' });
+export function paintGrid(rows, ranges = RANGES, dry = DRY_STONE, leg = null) {
+  if (leg) return rows.map((row) => [...row].map((ch) => { if (!leg[ch]) throw new Error('no paint for map char ' + ch); return leg[ch]; }).join(''));
   return rows.map((row, y) => [...row].map((ch, x) => {
     if (ch !== '#') { if (!LEG[ch]) throw new Error('no paint for map char ' + ch); return LEG[ch]; }
     return inR(dry, x, y) ? 'W' : inR(ranges, x, y) ? 'M' : 'H';
@@ -231,7 +237,7 @@ function capFloor(g, grid) {
   const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
   let n = 0;
   for (let p = 0; p < g.data.length; p += 4) {
-    const px = (p / 4) % g.width, py = Math.floor(p / 4 / g.width); if ('MHW'.includes(grid[Math.floor(py / T)][Math.floor(px / T)])) continue;
+    const px = (p / 4) % g.width, py = Math.floor(p / 4 / g.width); if ('MHWK'.includes(grid[Math.floor(py / T)][Math.floor(px / T)])) continue;
     let h = hexAt(g, p); if (LUM(h) <= FLOOR_MAX) continue;
     const a = RAMP_AT.get(h); if (!a) continue;
     let k = a.k; while (k > 0 && LUM(a.ramp[k]) > FLOOR_MAX) k--;
@@ -349,7 +355,8 @@ function layWalls(img, grid, P, indoor) {
 }
 
 /** The whole painter: grid (paint chars) -> the ground image and what each step did. `skip(x, y)`: no decal under a placed object. */
-export function paintGround(grid, { skip = () => false, ranges = RANGES } = {}) {
+export function paintGround(grid, { skip = () => false, ranges = RANGES, chimneys = CHIMNEYS } = {}) {
+  const ox = grid.some((r) => /[QVJGK]/.test(r)), inn = grid.some((r) => r.includes('M'));
   const indoor = (ch, x, y) => 'SBFCO'.includes(ch) && inR(ranges, x, y);
   const mats = materials();
   let img = paintCells(grid, mats);
@@ -360,7 +367,8 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES } = {}) 
      patchwork of their fill at five phases, a phase a cell, and every border between two phases is laid stone by stone (seams.mjs
      stagger), so no stone is cut and the lattice breaks. The phases are the same pixels, so each is still the one floor. */
   let phased = seamRows, pairs = SEAMS.pairs;
-  const mats2 = Object.assign({}, SEAMS.mats);
+  const mats2 = Object.assign({}, SEAMS.mats, ox ? OX_MATS : {});
+  if (ox) pairs = pairs.concat(oxPairs(cragFace(rd(`${CRAG.dir}/${CRAG.id}-sheet.png`))));
   for (const [base, chars] of Object.entries(PHASES)) {
     phased = phased.map((r, y) => [...r].map((c, x) => (c !== base ? c : chars[Math.min(chars.length - 1, Math.floor(hash2(x, y, 97 + base.charCodeAt(0)) * chars.length))])).join(''));
     for (const [k, ch] of [...chars].entries()) if (k) {
@@ -373,7 +381,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES } = {}) 
     pairs = pairs.flatMap((p) => (p.a === base || p.b === base ? [...chars].map((c) => as(p, c)) : [p]))
       .concat([...chars].flatMap((a, i) => [...chars].slice(i + 1).map((b) => ({ a, b, style: 'stagger' }))));
   }
-  const r = reseam(img, Object.assign({ rows: phased, fills }, SEAMS, { mats: mats2, pairs }));
+  const r = reseam(img, Object.assign({ rows: phased, fills }, SEAMS, { mats: mats2, pairs }, ox ? { trails: OX_TRAILS } : {}));
   img = r.img;
   let toned = 0;
   for (const [ch, m] of Object.entries(mats)) toned += stepPatches(img, { rows: seamRows, on: (c) => c === ch, scale: 70, cut: 0.56, seed: m.v.seed + 100, map: toneMap(m.fill) });
@@ -382,6 +390,13 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES } = {}) 
   const bracken = stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 44, cut: 0.74, seed: 91, map: BRACKEN });
   const olive = stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 52, cut: 0.6, seed: 93, map: OLIVE });
   const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
+  /* the Ox Road's own pieces (tools/world-art/morrow-ox.mjs): the ford's stones, the bridge's beams and broken span, coal on the runners' path */
+  const oxr = ox ? { stones: fordStones(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid) } : {};
+  if (!inn) {
+    const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
+    const capped = capFloor(img, grid);
+    return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...oxr, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))] } };
+  }
   const walked = walkedRoof(img, grid, mats.E.fill, ranges, shadeGround(mats.B.fill, 3));
   const doorway = doorwayOf(grid), P = wallPieces();
   /* two floors of their own (tools/world-art/morrow-floors.mjs): the brewhouse's wet brick and drain, the stable's stalls and straw */
@@ -394,13 +409,41 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES } = {}) 
   const torn = tornEdges(img, grid, ranges, indoor, doorway, wallTop, divOf);
   const sill = sills(img, grid, indoor, doorway);
   /* the chimneys: the taproom's over its hearth, the brewhouse's on its east range (CHIMNEYS: a foot's left end, in px) */
-  for (const [x, y] of CHIMNEYS) chimney(img, P.plain[1], x, y);
+  for (const [x, y] of chimneys) chimney(img, P.plain[1], x, y);
   const walls = layWalls(img, grid, P, indoor);
-  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: CHIMNEYS.length, ...walls } };
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls } };
 }
 
 export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);
 const GRID_FILE = 'art/briefs/carters-rest-grid-2026-11-19.txt';
+
+const OX_GRID_FILE = 'art/briefs/ox-road-grid-2026-11-19.txt';
+/* the Ox Road (layout A): its own map chars, no inn */
+async function oxGround() {
+  const MAP = (await import('../../src/data/grounds/ox_road/map.js')).default, G = 'ox_road_ground', OXSET = 'oxroad-floor';
+  const grid = paintGrid(MAP.rows, RANGES, DRY_STONE, LEG_OX);
+  writeFileSync(abs(OX_GRID_FILE), ['THE OX ROAD\'S PAINT GRID (lane/b-morrow-kit, 2026-11-19; layout A): src/data/grounds/ox_road/map.js rows through LEG_OX in',
+    'tools/world-art/morrow-grounds.mjs. H the open moor, R the road, E the turnout\'s packed earth, J the coal path, Q the stream, V the ford\'s',
+    'stones, G the bridge\'s planks (its middle span down: Q between them), K the crag (raised, seams.mjs rise).', '', 'PAINT', ...grid].join('\n') + '\n');
+  const cells = new Set(MAP.objects.map((o) => o.x + ',' + o.y));
+  const { img, report } = paintGround(grid, { skip: (x, y) => cells.has(x + ',' + y), chimneys: [] });
+  const dir = abs(join(ART_DIR, OXSET));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, G + '.png'), encodePNG(lock(img, 'native')));
+  const h = grid.length, w = grid[0].length, all = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) all.push([x, y]);
+  const sc = { id: G, class: 'terrain', kind: 'fill', painted: true, style: 's1', material: 'native', source: G + '.png', lower: 'painted', upper: 'painted',
+    cycle: [w, h], tiles: { 1111: all },
+    pixellab: { tool: 'create-tileset (pro) fills, variety paint + reseam', tileset: [TILESETS[0], TILESETS[2], CRAG.id].join(','), grid: OX_GRID_FILE,
+      reused: 'the stream: the March\'s slow river (gen-2026-11-14/22-river-mud); the coal path: the Hold\'s dark grit (gen-2026-11-14/29-hold-tiles/2-gravel-earth)' },
+    notes: 'The Ox Road, painted by tools/world-art/morrow-grounds.mjs from ' + OX_GRID_FILE + ' (tools/world-art/morrow-ox.mjs for its own pieces): every cell a variety tile of its floor\'s fill, '
+      + report.seams + ' px of borders redrawn from the fills\' own pixels (the stream\'s banks wet, the crag raised on its own drawn face), the road worn (' + report.rut + ' px of ruts, '
+      + report.verge + ' px of lighter verge, ' + report.peb + ' pebbles), the moor in heather clumps and bracken and olive patches, ' + report.stones + ' stepping stones across the ford, the bridge\'s beams ('
+      + report.beams + ' px) and its broken span (' + report.ends + ' plank ends, ' + report.planks + ' planks down in the stream), ' + report.coal + ' lumps of coal on the runners\' path, '
+      + report.decals + ' kept decals. Pixels unscaled.' };
+  writeFileSync(join(dir, G + '.json'), JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ ' + OXSET + '/' + G + ' ' + w + 'x' + h + ': ' + JSON.stringify(report));
+}
 
 async function ground() {
   const MAP = (await import('../../src/data/grounds/carters_rest/map.js')).default;
@@ -429,7 +472,7 @@ async function ground() {
 
 async function main() {
   const [cmd, out] = process.argv.slice(2);
-  if (cmd === 'ground') return ground();
+  if (cmd === 'ground') return out === 'ox_road' ? oxGround() : ground();
   if (cmd === 'patch') {
     const rows = JSON.parse(readFileSync(process.argv[4], 'utf8'));
     const { img, report } = paintGround(paintGrid(rows, [[0, 0, 0, 0]].concat(JSON.parse(process.argv[5] || '[]')), JSON.parse(process.argv[6] || '[]')));

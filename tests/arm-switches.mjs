@@ -131,6 +131,13 @@ const ARM_FNS = {
     /* the hunt bar says the open hunt is spending scaled hours (local world 2026-11-18: nothing on the hunt screen said so) */
     const bar = SP.scalePlaying(csOf(e1, await nowMs(db)), 'mill_cellar');
     if (bar !== 'Scaled: Level 20' || SP.scalePlaying(csOf(e1, await nowMs(db)), 'meadowbrook_thicket') !== '') bad.push('the hunt bar reads "' + bar + '" on the Cellar');
+    /* THE CARD SAYS BOTH MULTIPLES (the designer 2026-11-18): Gold × and Drops ×, the drops the server's own row (hr_scaled_kill_bounds.loot_pm) */
+    const S = await import(pathToFileURL(join(ROOT, 'src/data/scaled-hunts.js')).href + V);
+    const W = await import(pathToFileURL(join(ROOT, 'src/render/player-text.js')).href + V);
+    const card = S.scaleFor('mill_cellar', 20), lootPm = Number(await one(db, "select loot_pm::text from public.hr_scaled_kill_bounds where hunt_id = 'mill_cellar' and level = 20"));
+    const words = [W.t('hunts.scale_gold', { times: '6' }), W.t('hunts.scale_drops', { times: '2.4' })].join(' · ');
+    if (!card || card.dropsPm !== lootPm || !(card.dropsPm > 1000 && card.dropsPm < card.coinPm) || words !== 'Gold ×6 · Drops ×2.4')
+      bad.push('the Cellar at 20 reads Gold ' + (card && card.coinPm) + ', Drops ' + (card && card.dropsPm) + ' (the server\'s ' + lootPm + ') as "' + words + '"');
     /* A SCALED RUN SETS NO BEST (2027-05-17-scaled-best.sql; local world 2026-11-18: 15 scaled minutes moved a Cellar best 9,235 -> 18,521) */
     await db.query("select public.hr_hunt_close($1::uuid, 'server', now(), true)", [h.sid]);
     await db.query('select public.hr_hunt_best_fold($1::uuid)', [h.sid]);

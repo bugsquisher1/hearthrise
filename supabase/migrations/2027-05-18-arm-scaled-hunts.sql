@@ -4,18 +4,19 @@
 --   11-18 lining ruling relies on them: "we already have a way to raise old spawns up"; split from 2027-05-14-arm-switches.sql by the
 --   Coordinator the same day).
 --
--- STATUS: STAGED, NOT APPLIED, AND HELD. Apply ONLY once both of these are applied and live:
---   (1) LOOT SCALES (Tyler 2026-11-07, binding: "difficulty, XP and loot scale"): today the engine scales coin only and a scaled kill rolls
---       the ground's own item rates. The engine half is measured on branch wip/scaled-loot 350f2337d and waits on the designer's re-dial of
---       the Mill Cellar (with items at the card's multiple a lone scaled Cellar out-earns the best free ground: tests/scaled-hunts.mjs
---       fee-guard), then the server item bound (hr_scaled_kill_bounds.loot_pm) and the card's one "Loot ×" row.
---   (2) A SCALED RUN SETS NO BEST: 2027-05-17-scaled-best.sql (§0 below refuses without it).
+-- STATUS: STAGED, NOT APPLIED, AND HELD. Apply LAST, only once all of these are applied and live:
+--   (1) LOOT SCALES (Tyler 2026-11-07, binding: "difficulty, XP and loot scale"; the designer's drops multiple, src/data/scaled-hunts.js
+--       lootPmFor): 2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql (hr_scaled_kill_bounds.loot_pm) and 2027-05-17-scaled-loot.sql
+--       (the item bound at the rolls), AND the hr-accrue that rolls a scaled row's drops at its multiple (src/core/drops.js rollsOf) deployed.
+--   (2) A SCALED RUN SETS NO BEST: 2027-05-17-scaled-best.sql.
+--   §0 below refuses without the three server pieces; the edge deploy is the Coordinator's to order before this apply.
 -- The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on its passing §2. MONEY
 -- SURFACE OPENED (a gold purchase): ON THE EA SECURITY LIST with 2027-03-21-scaled-hunts.sql and 2027-04-19-key-under-lock.sql, whose
 -- contracts, concurrency and exploit notes are unchanged by this file.
--- ORDER: LAST, after 2027-05-17-scaled-best.sql and every scaled-hunts catalogue. 2027-03-21-scaled-hunts.sql seeds the row OFF with
+-- ORDER: LAST, after 2027-05-17-scaled-best.sql, 2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql and 2027-05-17-scaled-loot.sql.
+--   2027-03-21-scaled-hunts.sql seeds the row OFF with
 --   `on conflict do nothing`, so a re-apply never reverts this flip.
--- EDGE: none (the hr-accrue live since v0.2.109 reads `scale` from the instance read). CLIENT: none (a ground's page shows its Scaled hunt
+-- EDGE: none in this file (the scaled-drops hr-accrue deploys before it, (1) above). CLIENT: none (a ground's page shows its Scaled hunt
 --   section, the Hunts list its "Scalable" tag and the hunt bar "(Scaled: Level N)" from the `scaled_hunts` section's next envelope).
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
@@ -55,6 +56,9 @@ begin
     raise exception 'PRECONDITION: the scaled hunts (2027-03-21-scaled-hunts.sql and a scaled-hunts catalogue) are not installed'; end if;
   if strpos(pg_get_functiondef('public.hr_hunt_best_fold(uuid)'::regprocedure), 'SCALED-BEST (2027-05-17-scaled-best.sql)') = 0 then
     raise exception 'PRECONDITION: a scaled run must set no best first: apply 2027-05-17-scaled-best.sql'; end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_scaled_kill_bounds' and column_name = 'loot_pm')
+     or strpos(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), 'SCALED-LOOT (2027-05-17-scaled-loot.sql)') = 0 then
+    raise exception 'PRECONDITION: loot must scale first: apply 2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql and 2027-05-17-scaled-loot.sql'; end if;
 end $mig$;
 
 -- ── §1 THE FLIP (one row; every other switch row compared before and after) ─────

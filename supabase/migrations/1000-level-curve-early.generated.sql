@@ -18,7 +18,7 @@
 -- against Tyler's 168 (the bows' default Flame Volley; the Warrens' lone advice back at 45), and
 -- the Cellar's end at 5 made Level 6 -> 7 take 2.01x Level 5 -> 6. Levels 5-8 re-eased (about
 -- 1.92x each), Level 9 -> 10 raised, the brackets from 10 re-fit to the table. Level 10 at
--- 216855 XP, Level 50 at 18352095; every total from Level 10 is 8-19% higher (a Level 74
+-- 198367 XP, Level 50 at 17032267; every total from Level 10 is 8-19% higher (a Level 74
 -- hero reads 72). LIVE CHARACTERS: nothing is stored per Level, so a
 -- character whose Level XP now makes a different Level simply shows it; no row is written.
 -- The death floor is re-read at each settle, so the edge's and the server's floors agree
@@ -57,14 +57,14 @@ insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) va
   (2, 159, 318, 317, 0),
   (3, 477, 635, 634, 0),
   (4, 1112, 1269, 5000, 0),
-  (5, 2381, 6269, 6011, 0),
-  (6, 8650, 12280, 12330, 0),
-  (7, 20930, 24610, 42505, 0),
-  (8, 45540, 67115, 37085, 0),
-  (9, 112655, 104200, 1, 0),
-  (10, 216855, 104201, 0, 680),
-  (50, 18352095, 1192201, 91397, 43),
-  (300, 3383750345, 26728951, 405818, 105);
+  (5, 2381, 6269, 6231, 0),
+  (6, 8650, 12500, 12800, 0),
+  (7, 21150, 25300, 43140, 0),
+  (8, 46450, 68440, 15037, 0),
+  (9, 114890, 83477, 1, 0),
+  (10, 198367, 83478, 0, 657),
+  (50, 17032267, 1134678, 78689, 162),
+  (300, 3588591142, 30931928, 203586, 598);
 
 -- ── §2 SELF-CHECK (CLAUDE.md §4) ──────────────────────────────────────────────
 -- The rows are exactly the generated set; both functions answer the JS values at every pinned Level (bracket edges,
@@ -80,23 +80,23 @@ begin
   (2, 159, 318, 317, 0),
   (3, 477, 635, 634, 0),
   (4, 1112, 1269, 5000, 0),
-  (5, 2381, 6269, 6011, 0),
-  (6, 8650, 12280, 12330, 0),
-  (7, 20930, 24610, 42505, 0),
-  (8, 45540, 67115, 37085, 0),
-  (9, 112655, 104200, 1, 0),
-  (10, 216855, 104201, 0, 680),
-  (50, 18352095, 1192201, 91397, 43),
-  (300, 3383750345, 26728951, 405818, 105)) d(from_level, base_xp, first_xp, rise, bend)
+  (5, 2381, 6269, 6231, 0),
+  (6, 8650, 12500, 12800, 0),
+  (7, 21150, 25300, 43140, 0),
+  (8, 46450, 68440, 15037, 0),
+  (9, 114890, 83477, 1, 0),
+  (10, 198367, 83478, 0, 657),
+  (50, 17032267, 1134678, 78689, 162),
+  (300, 3588591142, 30931928, 203586, 598)) d(from_level, base_xp, first_xp, rise, bend)
                  where not exists (select 1 from public.hr_level_curve k where k.from_level = d.from_level and k.base_xp = d.base_xp
                                      and k.first_xp = d.first_xp and k.rise = d.rise and k.bend = d.bend)) then
     raise exception 'level-curve: hr_level_curve is not the generated 12-row set'; end if;
   select string_agg(p.l || ': ' || public.hr_char_xp_for_level(p.l) || ' <> ' || p.x, ', ') into v_bad
-    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 20930), (8, 45540), (9, 112655), (10, 216855), (11, 321056), (25, 2470070), (49, 17213614), (50, 18352095), (51, 19544296), (100, 191661745), (200, 1266436045), (299, 3357134248), (300, 3383750345), (301, 3410479296), (500, 17083222245), (750, 59588293370), (1000, 133356676995), (5000, 8242961314995)) p(l, x)
+    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 21150), (8, 46450), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (200, 1247015092), (299, 3557818741), (300, 3588591142), (301, 3619523070), (500, 15409064742), (750, 56178981742), (1000, 143273148742), (5000, 23085877820742)) p(l, x)
    where public.hr_char_xp_for_level(p.l) <> p.x;
   if v_bad is not null then raise exception 'level-curve: hr_char_xp_for_level disagrees with src/core/xp.js at %', v_bad; end if;
   select string_agg(p.l::text, ', ') into v_bad
-    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 20930), (8, 45540), (9, 112655), (10, 216855), (11, 321056), (25, 2470070), (49, 17213614), (50, 18352095), (51, 19544296), (100, 191661745), (200, 1266436045), (299, 3357134248), (300, 3383750345), (301, 3410479296), (500, 17083222245), (750, 59588293370), (1000, 133356676995), (5000, 8242961314995)) p(l, x)
+    from (values (1, 0), (2, 159), (3, 477), (4, 1112), (5, 2381), (6, 8650), (7, 21150), (8, 46450), (9, 114890), (10, 198367), (11, 281845), (25, 2117392), (49, 15949492), (50, 17032267), (51, 18166945), (100, 176709042), (200, 1247015092), (299, 3557818741), (300, 3588591142), (301, 3619523070), (500, 15409064742), (750, 56178981742), (1000, 143273148742), (5000, 23085877820742)) p(l, x)
    where public.hr_char_level(p.x) <> p.l
       or (p.l > 1 and public.hr_char_level(p.x - 1) <> p.l - 1)
       or public.hr_char_level(public.hr_char_xp_for_level(p.l + 1) - 1) <> p.l;

@@ -60,8 +60,9 @@
    bracket under 50 holds (C2). The ladder now trends 975 x L^1.421: the Glade's band middle +5.1% (the bear) and the Warrens' +8.7% (other lanes
    since 11-09; the bear alone would read C5 -3.0% at Level 300, the Warrens alone -10.3%). The contract follows it, so the brackets from Level 50
    re-fit (pace.mjs --fit --fit-past, minimax 5.4%); Levels 1-50 cost what they did. Forward file 2027-04-07-brook-bear-level-curve.
-   RE-FITTED FROM LEVEL 5 2026-11-19 (lane/d-142-rulings, the board's "2026-11-19 Two rulings for v0.2.142"): the pace read Level 50 in 146 h against
-   the table's 168, so 5-8 re-eased (C6), 9 -> 10 raised and 10+ re-fit (--fit-from 10). Forward file 1000-level-curve-early. */
+   LEVELS 6-8 RE-SPLIT 2026-11-19 (lane/d-142-rulings, the board's "2026-11-19 Two rulings for v0.2.142"): the Cellar ends at 5, so Level 6 -> 7 read
+   2.01x Level 5 -> 6 (C6). Steps 6 / 7 / 8 are now 12,500 / 25,300 / 68,440 XP (were 12,870 / 26,255 / 67,115): the same total to Level 9, so no
+   live Level moves (Tyler's pace is held by XP a kill instead, balance-sheet.js STAT_FORMULA). Forward file 1000-level-curve-early. */
 export const LEVEL_CURVE = Object.freeze({
   first: 159,
   brackets: Object.freeze([
@@ -69,14 +70,14 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 2, rise: 317, bend: 0 }),
     Object.freeze({ from: 3, rise: 634, bend: 0 }),
     Object.freeze({ from: 4, rise: 5000, bend: 0 }), /* the fit said 5164; eased so Level 5 -> 6 stays under 2x Level 4 -> 5 (level-curve C6 read 2.04x) */
-    Object.freeze({ from: 5, rise: 6011, bend: 0 }),
-    Object.freeze({ from: 6, rise: 12330, bend: 0 }),
-    Object.freeze({ from: 7, rise: 42505, bend: 0 }),
-    Object.freeze({ from: 8, rise: 37085, bend: 0 }),
+    Object.freeze({ from: 5, rise: 6231, bend: 0 }),
+    Object.freeze({ from: 6, rise: 12800, bend: 0 }),
+    Object.freeze({ from: 7, rise: 43140, bend: 0 }),
+    Object.freeze({ from: 8, rise: 15037, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 680 }),
-    Object.freeze({ from: 50, rise: 91397, bend: 43 }),
-    Object.freeze({ from: 300, rise: 405818, bend: 105 }),
+    Object.freeze({ from: 10, rise: 0, bend: 657 }),
+    Object.freeze({ from: 50, rise: 78689, bend: 162 }),
+    Object.freeze({ from: 300, rise: 203586, bend: 598 }),
   ]),
 });
 

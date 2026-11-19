@@ -45,3 +45,19 @@ tests/fixtures/fonts/*.ttf binary
 docs/planning/PRIORITY_BOARD.md merge=union
 CHANGELOG.md merge=union
 art/world/hunt-masks/*.json text eol=lf
+
+# Images, audio and fonts are bytes. src/**, tests/** and tools/** above pin text to LF, and a PNG that lands under one of
+# them (tools/world-art/leather/field_cookbook.png, moved there 2026-11-19 by the cookbook cut) was converted on checkout
+# (843 -> 842 bytes on Windows). Later rules win, so these keep every binary byte-exact wherever it lives.
+*.png binary
+*.webp binary
+*.gif binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.mp3 binary
+*.ogg binary
+*.wav binary

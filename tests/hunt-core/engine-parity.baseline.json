@@ -5,277 +5,277 @@
  "scenarios": {
   "warrens-4": {
    "settles": 12,
-   "kills": 211,
-   "world": "d44bef8e206c",
-   "timeline": "6867c7cb3c32",
-   "tally": "93b9beebecf6",
+   "kills": 217,
+   "world": "b7099a201b7a",
+   "timeline": "af59a933d5c2",
+   "tally": "a4ff86c24c4f",
    "each": [
     {
-     "world": "a93c77f8c670",
-     "timeline": "ef1d433d95b9",
-     "tally": "de7839980756"
+     "world": "352215d7df49",
+     "timeline": "3980f81ab55e",
+     "tally": "09ac4dfdb2db"
     },
     {
-     "world": "f797cb276fb5",
-     "timeline": "cfe4d63db919",
-     "tally": "4e9b3fa7e674"
+     "world": "13458803a71b",
+     "timeline": "c107fa3ec69e",
+     "tally": "dc2bf4c3d099"
     },
     {
-     "world": "509121cb20f5",
-     "timeline": "2ba6da7d6abd",
-     "tally": "49854e65a7cf"
+     "world": "0cf842caf331",
+     "timeline": "957292c5b920",
+     "tally": "82fedf28e608"
     },
     {
-     "world": "bce9f72e3cf1",
-     "timeline": "f9d475d1a2d2",
-     "tally": "02805df147bb"
+     "world": "93dba7fe63f6",
+     "timeline": "d0328d34a379",
+     "tally": "112ae82db517"
     },
     {
-     "world": "2b8785fee079",
-     "timeline": "48d4d95f6556",
-     "tally": "299cf6dbf4dc"
+     "world": "b11db7f8549b",
+     "timeline": "b007f2e519a3",
+     "tally": "fda2a1f6522f"
     },
     {
-     "world": "96349e368f74",
-     "timeline": "37191e74c42d",
-     "tally": "c9a30cb06253"
+     "world": "87b4ed679c9e",
+     "timeline": "7ccce08e78ee",
+     "tally": "0067b81ee8c7"
     },
     {
-     "world": "b473044435e8",
-     "timeline": "6243c626e880",
-     "tally": "e2027bdad6d6"
+     "world": "20a4d5777ea4",
+     "timeline": "5724809b26ce",
+     "tally": "af370a3baf9a"
     },
     {
-     "world": "9b2bda77a852",
-     "timeline": "5f5555b3da21",
-     "tally": "9db6052356cf"
+     "world": "a424fe4f0d4d",
+     "timeline": "bdbbb9fda078",
+     "tally": "24215477567c"
     },
     {
-     "world": "fa5ea15f3d9f",
-     "timeline": "c5d606cbb55b",
-     "tally": "b02ba07b6a21"
+     "world": "830c1a62cc1f",
+     "timeline": "d9854b28651f",
+     "tally": "52b643a2c200"
     },
     {
-     "world": "167e3b018dfd",
-     "timeline": "594413831c99",
-     "tally": "b6a9e6e0c6b8"
+     "world": "f0f63e3b5fc6",
+     "timeline": "c4007da17f6e",
+     "tally": "026b49b2da60"
     },
     {
-     "world": "0b1a44786ed4",
-     "timeline": "083f0b0aa215",
-     "tally": "0b18b3f1ea3e"
+     "world": "4e8a82c092fd",
+     "timeline": "b1ff5f41c34b",
+     "tally": "26b407f71a95"
     },
     {
-     "world": "fdf1de8b5b13",
-     "timeline": "5390ad2d6142",
-     "tally": "23a7dcb4068e"
+     "world": "e6ad7c78adc6",
+     "timeline": "e8c626204d22",
+     "tally": "be98ec6b02ac"
     }
    ]
   },
   "glade-4": {
    "settles": 12,
-   "kills": 515,
-   "world": "f72b58aaef74",
-   "timeline": "d5b5a30e56d6",
-   "tally": "556eb6636bb1",
+   "kills": 527,
+   "world": "89948e96a653",
+   "timeline": "69841a9778c0",
+   "tally": "81236cd22109",
    "each": [
     {
-     "world": "7081eb5f9358",
-     "timeline": "2f32b27b0c5b",
-     "tally": "beef410a2fca"
+     "world": "7fb35b7c0cb1",
+     "timeline": "295c0dbe890f",
+     "tally": "ba6cf3f28a10"
     },
     {
-     "world": "1d38ec25cee0",
-     "timeline": "d085d1b6d405",
-     "tally": "8e4e594dadc9"
+     "world": "5144169ebca3",
+     "timeline": "c366f2e3d164",
+     "tally": "5b839c783cec"
     },
     {
-     "world": "81fa53d57b6c",
-     "timeline": "e9da68c04777",
-     "tally": "2be62ea8c3af"
+     "world": "bc6edcb70230",
+     "timeline": "ecd532e08a51",
+     "tally": "821fa40871c6"
     },
     {
-     "world": "737bdd95323a",
-     "timeline": "b69c18312da3",
-     "tally": "7d61035a8cf6"
+     "world": "1d637482d265",
+     "timeline": "57392ed64c43",
+     "tally": "d5cd730ae89c"
     },
     {
-     "world": "f6567e41a17e",
-     "timeline": "4ccd26a112a6",
-     "tally": "2080dd9c18ca"
+     "world": "1babd516dcfd",
+     "timeline": "0b334fc098c9",
+     "tally": "39d4f820fbd6"
     },
     {
-     "world": "47bc720fcf33",
-     "timeline": "b5d806b71d50",
-     "tally": "5fa6f7ae422e"
+     "world": "a5a7c0a89529",
+     "timeline": "08f88f7218f6",
+     "tally": "dfb0d0a5f0e9"
     },
     {
-     "world": "90c449a97869",
-     "timeline": "d005a3c919e3",
-     "tally": "d3aa01aed7db"
+     "world": "2fce3fb71e4b",
+     "timeline": "c6e56513d768",
+     "tally": "818054ab418f"
     },
     {
-     "world": "623d96e2c5da",
-     "timeline": "5b190b0358a1",
-     "tally": "67594f61188a"
+     "world": "45a9597e054b",
+     "timeline": "ffe5d1d37d51",
+     "tally": "93bdca505b3e"
     },
     {
-     "world": "85e6e57dfe98",
-     "timeline": "92f5e2b39835",
-     "tally": "04de34b2109a"
+     "world": "2b5eac3bec01",
+     "timeline": "818d8b32d27c",
+     "tally": "170b85b9e18c"
     },
     {
-     "world": "b707bba6865a",
-     "timeline": "c90aa6b845f2",
-     "tally": "fa39775c7a34"
+     "world": "59a7adb7abb9",
+     "timeline": "6230957e5908",
+     "tally": "f29bfaf91571"
     },
     {
-     "world": "25ae68fbd3dd",
-     "timeline": "ec6b15fdbb8d",
-     "tally": "db164c11bfe7"
+     "world": "f5a1a82cf342",
+     "timeline": "0ba2bbbff157",
+     "tally": "bf27b1e90cad"
     },
     {
-     "world": "d412df2edad7",
-     "timeline": "66150a7a84a1",
-     "tally": "8c69c398a250"
+     "world": "f26e8a84a019",
+     "timeline": "0b1ac6ce68ad",
+     "tally": "2a761d33f1a6"
     }
    ]
   },
   "glade-1-kite": {
    "settles": 12,
-   "kills": 128,
-   "world": "5600808e8d6e",
-   "timeline": "b04097c13474",
-   "tally": "6ee8fcc37db6",
+   "kills": 143,
+   "world": "da81a1f587fd",
+   "timeline": "48fb1c32390b",
+   "tally": "8c3aff13301d",
    "each": [
     {
-     "world": "b1710357b9b1",
-     "timeline": "bfb64e8726fb",
-     "tally": "956b0190aa4e"
+     "world": "b06fea67243d",
+     "timeline": "fdde2f35013b",
+     "tally": "3683f7fae02f"
     },
     {
-     "world": "7c9daa53b242",
-     "timeline": "2f0b24b502b9",
-     "tally": "8858dba57afb"
+     "world": "0b198382e7df",
+     "timeline": "807da519b498",
+     "tally": "16804b2e15ca"
     },
     {
-     "world": "88666c4b7010",
-     "timeline": "0d0e8f175a2f",
-     "tally": "2d782d0cc2a3"
+     "world": "302c0faf320e",
+     "timeline": "8cf91cb949e3",
+     "tally": "22218678405c"
     },
     {
-     "world": "4fc2e2fdb464",
-     "timeline": "7a1205aac749",
-     "tally": "13fd4072dff5"
+     "world": "b30a30fd322f",
+     "timeline": "527c89228ccb",
+     "tally": "d8adc48ae3bc"
     },
     {
-     "world": "c621f8671dfa",
-     "timeline": "9c8dc6940ef8",
-     "tally": "20d2c248952d"
+     "world": "d56362e37c3e",
+     "timeline": "cdf74e28aefc",
+     "tally": "86abfd4b257e"
     },
     {
-     "world": "62964d648c86",
-     "timeline": "7143fb4b526e",
-     "tally": "35b2712f8016"
+     "world": "9edd11f0227e",
+     "timeline": "be8584eb16a4",
+     "tally": "b0fb27dbe906"
     },
     {
-     "world": "c17b24d3780a",
-     "timeline": "d4f46748c847",
-     "tally": "87e7c41d60d8"
+     "world": "2b726dea32fb",
+     "timeline": "0335ebd320c7",
+     "tally": "121971818b5a"
     },
     {
-     "world": "3820b17c0381",
-     "timeline": "3d8b309303d9",
-     "tally": "ea9aacdee60b"
+     "world": "45b31bae06a3",
+     "timeline": "3fb9e1509e22",
+     "tally": "be37073a4107"
     },
     {
-     "world": "1a0f97b48b76",
-     "timeline": "d64e9c9b37f8",
-     "tally": "8ae03bc424a1"
+     "world": "6e5704a0e61d",
+     "timeline": "4a2cbd439190",
+     "tally": "299124f699a5"
     },
     {
-     "world": "16f4117382a8",
-     "timeline": "d2121989c60f",
-     "tally": "167dacbfc8df"
+     "world": "f3e8bc290bba",
+     "timeline": "58856feb0ee2",
+     "tally": "ae39044a0628"
     },
     {
-     "world": "001880cee403",
-     "timeline": "5a3beabf4e2b",
-     "tally": "edfcc8af1f1a"
+     "world": "afc61855ff7a",
+     "timeline": "788b262dd706",
+     "tally": "de2c2da5e518"
     },
     {
-     "world": "674a767e8cfb",
-     "timeline": "184d3b8efb66",
-     "tally": "86f4e9334a00"
+     "world": "f502a33ea65b",
+     "timeline": "2f2fcc18c765",
+     "tally": "d8185da6f943"
     }
    ]
   },
   "sewer-2": {
    "settles": 12,
-   "kills": 114,
-   "world": "551c4bbf626e",
-   "timeline": "89632ad70395",
-   "tally": "8e2ea0f364fc",
+   "kills": 120,
+   "world": "bef970520bd2",
+   "timeline": "b4814ad59661",
+   "tally": "b532746c2e49",
    "each": [
     {
-     "world": "c05d4ac3a97e",
-     "timeline": "614ec543e5df",
-     "tally": "27b835e1e4ec"
+     "world": "fa6eead8a8e0",
+     "timeline": "a3a6f7ae847d",
+     "tally": "db28b630db4f"
     },
     {
-     "world": "76f7639cb036",
-     "timeline": "a37422552505",
-     "tally": "4839730ac74a"
+     "world": "e3839badfe27",
+     "timeline": "66eadee72cea",
+     "tally": "3cc95fc3083b"
     },
     {
-     "world": "8d51d8bdd0e5",
-     "timeline": "966b6eb8f73f",
-     "tally": "fdfafded6811"
+     "world": "418de806e5c6",
+     "timeline": "3f16c2448738",
+     "tally": "2f2162311cfc"
     },
     {
-     "world": "8aa38c41f7ff",
-     "timeline": "778ad2772479",
-     "tally": "2410da8727cb"
+     "world": "950b1444d085",
+     "timeline": "483ad2996319",
+     "tally": "fa615f8bb61c"
     },
     {
-     "world": "0cdb53be8202",
-     "timeline": "8c2963754562",
-     "tally": "e46a117474f9"
+     "world": "2320b49f05e1",
+     "timeline": "b7f3c5a755b0",
+     "tally": "a8c15fddf98e"
     },
     {
-     "world": "d11a8e8e1880",
-     "timeline": "0fde44cac03a",
-     "tally": "450a3076e639"
+     "world": "422f082cd490",
+     "timeline": "902040ffd496",
+     "tally": "47ada424e7ba"
     },
     {
-     "world": "929fbefbc0a7",
-     "timeline": "38e0c833a4ed",
-     "tally": "285357abf8ae"
+     "world": "7ec51e5582c3",
+     "timeline": "62a4b170ae30",
+     "tally": "d6abe32d0ac4"
     },
     {
-     "world": "47466f73325b",
-     "timeline": "a9e9b8256ccd",
-     "tally": "71c0a1677840"
+     "world": "b4e5f5a2348a",
+     "timeline": "ac7e8f59b092",
+     "tally": "f6819839c267"
     },
     {
-     "world": "51af833cbe0d",
-     "timeline": "8c862df9b996",
-     "tally": "14d78054b743"
+     "world": "4c1443c8d150",
+     "timeline": "be9074a9cbdf",
+     "tally": "bab00690aa0a"
     },
     {
-     "world": "afe268caa55a",
-     "timeline": "7b2c5a231d9a",
-     "tally": "7cfa3d0c486f"
+     "world": "b88ba1d63eb5",
+     "timeline": "806efb906bb3",
+     "tally": "bb17e1993610"
     },
     {
-     "world": "4a1811bfdbd9",
-     "timeline": "9ed9d16c2dc9",
-     "tally": "10e5032af1a9"
+     "world": "9b29e4dfb82d",
+     "timeline": "977906c03ac1",
+     "tally": "81526dcdde31"
     },
     {
-     "world": "9d3aafa785f9",
-     "timeline": "552b424cad05",
-     "tally": "4e2bd0f751d3"
+     "world": "629145cdf78b",
+     "timeline": "cc23583da730",
+     "tally": "c56e8d263f44"
     }
    ]
   }

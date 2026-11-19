@@ -225,6 +225,12 @@ function starterWorn(M) {
 const kitBag = (M) => Object.fromEntries(Object.entries(M.kit.START_INVENTORY).filter(([id]) => M.SUP.SUPPLIES[id]).map(([id, n]) => [id, { loaded: n }]));
 /* Why a default slot may never cast alone at the Thicket's floor. Add an ability here only with its reason. */
 const WAITS_FOR_OTHERS = Object.freeze({ challenge: 'nothing leaves a lone tank', circle_of_renewal: 'it needs two hurt heroes, and this hero is alone' });
+/* Skill-unlock moves RULED OFF every default bar, each with its ruling. The new-spell prompt offers them at their unlock (src/shell/spell-news.js).
+   Add an ability here only with its ruling: area-moves-default holds every other such move ON its default bar, and every one listed here OFF. */
+const OFF_THE_DEFAULT_BAR = Object.freeze({
+  frost_slam: 'Tyler 2026-11-19: "Do not add rune spells or XP to the tank\'s default bar" (the tank rune spells, party only)',
+  shelter: 'Tyler 2026-11-19: "Do not add rune spells or XP to the tank\'s default bar" (the tank rune spells, party only)',
+});
 /* A new hero on the real settle: an empty stored bar, the kit's bag. Each cast of its own ability, by the first pull's clock. */
 function newHeroCasts(M, worn, huntId, L, ground, spanMs, secret) {
   const setup = M.heroSetup({ weaponType: M.roles.wornRoleKey(worn, M.ITEMS), options: {}, bar: [], partyRoles: [] });
@@ -864,8 +870,6 @@ const cases = {
      2. the first pull fires: a cast of the style's own ability within 5 s of the first pull, the Cellar as built;
      3. a lone monster fires: the same within 30 s, on a Cellar copy with one monster a pocket;
      4. every slot earns its place: in 30 minutes at the Thicket's floor each default ability slot casts, but for WAITS_FOR_OTHERS. */
-  /* THE AREA MOVES ON AN UNEDITED BAR (playtest v0.2.127 P1: a Level 14 sword, a Level 24 mage and a Level 36 party saw none).
-     Every weapon key and role: a hero whose stored bar is empty holds every skill-unlock move of its discipline. */
   /* THE DEFAULT RUNE SPELLS BY WAY (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19). Every recorded Ranger casts Flame Volley and no
      default bar did; measured (rule-subjects.js, above ROLE_RULES) a plain lone bow at Level 1-31 earns +11.6% Level XP with it and nets 5.3% more gold,
      so it stands last on the bow's set, on its family's Plain store rune. No tank or sword-alone way gets one (Tyler 2026-11-19: the sword and shield
@@ -883,14 +887,21 @@ const cases = {
     }
     return null;
   },
+  /* THE AREA MOVES ON AN UNEDITED BAR (playtest v0.2.127 P1: a Level 14 sword, a Level 24 mage and a Level 36 party saw none).
+     Every weapon key and role: a hero whose stored bar is empty holds every skill-unlock move of its discipline, but for the moves ruled
+     off every default bar (OFF_THE_DEFAULT_BAR, the tank rune spells), which none holds. */
   'area-moves-default': (M) => {
     const gated = Object.values(M.AD.ABILITIES).filter((r) => r.active && r.unlock && !r.universal);
     if (gated.length < 4) return 'CONTROL: ' + gated.length + ' unlock-gated moves, want the four area moves';
+    const stale = Object.keys(OFF_THE_DEFAULT_BAR).filter((id) => !gated.some((r) => r.id === id));
+    if (stale.length) return 'OFF_THE_DEFAULT_BAR names ' + stale.join(', ') + ', no skill-unlock move';
     for (const [k, rk] of Object.entries(M.roles.ROLE_KEYS)) for (const role of rk.roles) {
       const setup = M.heroSetup({ weaponType: k, options: { role }, bar: [], partyRoles: [] });
       const held = new Set(setup.slots.filter((r) => r.slot.action.type === 'ability').map((r) => r.slot.action.id));
-      const miss = gated.filter((r) => r.disciplines.includes(rk.discipline) && !held.has(r.id)).map((r) => r.id);
+      const miss = gated.filter((r) => r.disciplines.includes(rk.discipline) && !held.has(r.id) && !OFF_THE_DEFAULT_BAR[r.id]).map((r) => r.id);
       if (miss.length) return k + ' as ' + role + ': its default bar lacks ' + miss.join(', ');
+      const ruledOff = [...held].filter((id) => OFF_THE_DEFAULT_BAR[id]);
+      if (ruledOff.length) return k + ' as ' + role + ': its default bar holds ' + ruledOff.join(', ') + ' (' + OFF_THE_DEFAULT_BAR[ruledOff[0]] + ')';
     }
     return null;
   },
@@ -1224,6 +1235,8 @@ const mutants = [
     edits: [['src/core/elements.js', '  if (!monster || !isElement(element)) return 1000;', "  if (element === 'poison' && monster && monster.elements && monster.elements.poison === 50) return 0;\n  if (!monster || !isElement(element)) return 1000;"],
       ['src/core/hunt/damage.js', '  const el = elementOn(target, element);\n', '  const el = elementOn(target, element);\n  if (el === 0) return { dmg: 0, absorbed: 0, killed: false };\n'],
       ['src/data/rule-subjects.js', ", slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),", ", slot('spring_tide')]),"]] },
+  { name: '[tank runes] Frost Slam on the tank\'s default bar (Tyler 2026-11-19: not on it)', case: 'area-moves-default',
+    edits: [['src/data/rule-subjects.js', "  tank: Object.freeze([slot('challenge'), slot('power_strike')]),", "  tank: Object.freeze([slot('challenge'), slot('frost_slam'), slot('power_strike')]),"]] },
   { name: 'the area moves fall off the default bars (the v0.2.127 P1)', case: 'area-moves-default',
     edits: [['src/data/rule-subjects.js', ", slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),", ", slot('flame_volley')]),"]] },
   { name: 'Flame Volley falls off the bow\'s default set again', case: 'default-rune-spells',

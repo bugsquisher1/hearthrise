@@ -1,0 +1,14 @@
+{
+  "tool": "create_character",
+  "mode": "v3",
+  "reference": "art/world-src/gen-2026-11-18/faction-outfits/fb-south-pass.png (r1/fb-s23, an edit_image_pro_flash of the shipped Knight's south still, locked to the port's ramps, then a hand pass: the sword-hilt stub cleared and the diagonal sash painted into the tabard, fb-handpass.json)",
+  "groups": {
+    "walk": "b32c5241-ab04-4692-827c-dbad42d81a10 (template walking-6-frames; s, se, sw, n, ne, nw)",
+    "walk_ew": "808b9cde-2397-4a9e-bd53-b8a8e57424d4 (v3 6 frames: the template's east and west walks dropped the tabard)",
+    "idle": "3b05728c-57c2-4163-932d-a7c6adb65365 (its smoke and flames cleared by rule; frames with a raised arm removed before the pick)",
+    "hit_s": "c4eda9f0-c7e4-4aa6-bf0f-a040a00814c7",
+    "hit_ew": "d5ad222f-7b75-40ff-bd5e-a4d75b713ca1 (second roll); north refused: v3 rolls cddc8b8c, d5ad222f, e56913d7 and skeleton-v3 taking-punch 2feafa50"
+  },
+  "generations": 46,
+  "note": "art/world-src/gen-2026-11-18/faction-outfits/note.json"
+}

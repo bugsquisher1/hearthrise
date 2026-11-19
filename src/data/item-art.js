@@ -361,6 +361,14 @@ export const SUPPLY_DIR = 'assets/icons-bundle/pixel/supplies/';
    the day its row ships: the row itself then carries it. tests/pixel-icons.mjs requires the file for each. */
 export const SUPPLY_ART_AHEAD = Object.freeze([]);   // plain_fire_rune's row landed (supply-basics.js)
 
+/* THE FACTIONS' ICONS are not items either: each side's mark (src/data/grounds/shape.js STANDING_SIDES) and each piece standing buys
+   (src/data/factions.js FACTION_OUTFITS), one 32x32 pixel icon per id under assets/icons-bundle/pixel/factions/<id>.png. PixelLab picks
+   (art/world-src/gen-2026-11-18/faction-icons) finished by tools/world-art/faction-icons.mjs. The ids are listed here, not read from
+   factions.js, which the page never imports; tests/pixel-icons.mjs holds this list to exactly the sides and the pieces, a file for each. */
+export const FACTION_DIR = 'assets/icons-bundle/pixel/factions/';
+export const FACTION_ART = Object.freeze(['first_flame', 'last_ember',
+  'flamebearer', 'flamebearer_shield', 'flamebearer_light', 'emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal']);
+
 /* ICONS DRAWN BEFORE THEIR ITEM ROW LANDS (the Krell's Hold, Muster Barrows and Hask's Ford drops, the Pyre Field's shroud pin),
    imported from art/world-src/gen-2026-11-12 by tools/world-art/import-heads-icons-2026-11-12.mjs. They sit under items/ like
    every item icon; tests/pixel-icons.mjs requires the file for each and does not call it an orphan. Delete an id here the day its

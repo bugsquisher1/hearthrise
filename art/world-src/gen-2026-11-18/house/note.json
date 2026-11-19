@@ -1,0 +1,22 @@
+{
+  "lane": "lane/b-farm-house-faction-art (2026-11-18): the House window's picture, the home the account holds, one per property tier (src/data/homestead-tiers.js PROPERTY_TIERS: camp, homestead, farmstead, manor, keep, castle), so the head never shows a cottage over a Wanderer's Camp. PixelLab subscription gens only (credits $0 before and after)",
+  "tool": "create_1_direction_object, view top-down, palette hr-world-56-v2 (all 56), 16 candidates on a 64 px canvas (10 gens a round), item_descriptions: two to three a tier",
+  "finish": "tools/world-art/farm-house-art.mjs: each pick kept as its 64x64 cell (every pick stands its base on row 61, so the six line up), palette and alpha checked, laid side by side in PROPERTY_TIERS order as assets/ui/house-tiers.png; the House window's head shows the server's tier at x2. picks/<tier id>.png are the raw candidates; candidates-round1.png and candidates-round2.png every candidate at x3; preview.png the shipped sheet at x2",
+  "round1 (object 23300284-9c10-4713-a6d5-a304c81ab73c, 10 gens; style the torn tent (march hf_tent_torn) and the bread oven (havora_bread_oven), centred on 64)": {
+    "kept": {},
+    "refused": "all sixteen: the look was right (thatch, timber, slate, stone, the town's muted ramps) but every one was drawn corner-on on a diamond of grass, an isometric view beside the town's front-facing homes (ART_DIRECTION §2 one perspective, never isometric)"
+  },
+  "sketch (free, pixelart_workbench draw 660b7db3-1abd-4733-9ace-9b6efc0c2cb7)": "sketch-front.png: a flat 64x64 front-facing cottage on a strip of grass, the town's 3/4 view (front wall square on, roof seen from above), made before generating again so round 2 had a composition to follow",
+  "round2 (object b7f3e34e-9ec8-4550-9d6a-d55ec069aa93, 10 gens; style the sketch, the tent and the oven; every description opens \"front view\")": {
+    "kept": {
+      "camp": "c00: a canvas tent facing out, a fire in a stone ring and a bedroll before it, on a patch of grass",
+      "homestead": "c03: a whitewashed cottage under a thick thatch, smoke from the stone chimney",
+      "farmstead": "c07: a stone farmhouse with a plank gable and a lean-to, a fenced field and a track in front",
+      "manor": "c09: a stone ground floor under a timber-framed upper floor and a slate roof, a door up two steps",
+      "keep": "c11: a square stone keep with a corbelled crown of battlements and an iron-bound door",
+      "castle": "c15: a keep behind a curtain wall with a gate and round corner towers, pennants up"
+    },
+    "refused": "c01 (a patched lean-to, flatter than c00); c02, c04 (timber cottages, the white one reads as a hearth home); c05, c06 (thatched farmhouses, no field to say farmstead); c08, c10 (manors, fine, c09 has more character at x2); c12 (a plainer keep); c13 (a walled keep, too close to the castle); c14 (a curtain wall only, 34 px tall, short beside the others)"
+  },
+  "gens": 20
+}

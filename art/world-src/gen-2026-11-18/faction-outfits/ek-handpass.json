@@ -1,0 +1,8 @@
+[
+  { "why": "the hood's 2-px spike (rows 20-21), which v3 drew as a 53 px witch's cone in every other facing: cut, and the hood closed in a rounded 3-px top two rows lower, so the south stands 37 px like the heroes",
+    "pixels": [[31, 20, "clear"], [32, 20, "clear"], [30, 21, "clear"], [31, 21, "clear"], [32, 21, "clear"], [33, 21, "clear"],
+      [30, 22, "clear"], [31, 22, "#0b0a0c"], [32, 22, "#0b0a0c"], [33, 22, "#0b0a0c"], [34, 22, "clear"],
+      [29, 23, "clear"], [30, 23, "#0b0a0c"], [34, 23, "#0b0a0c"]] },
+  { "why": "three pale steel pixels the knight's sword left (at the right fist and by the left shin), which v3 could read as a blade: the charcoal of the plate round them",
+    "pixels": [[40, 47, "#4f4e52"], [26, 52, "#4f4e52"], [26, 53, "#3a3a3e"]] }
+]

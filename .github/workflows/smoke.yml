@@ -534,9 +534,12 @@ jobs:
       # THE FARM WINDOW (2026-10-22, lane b-farm-window): plots at the server's cap
       # (`farm_land`), plant / water / harvest / harvest-and-replant as intents,
       # the plot tier at its quoted price, refusals in words. --mutate plants its defects.
+      # The window's art: tools/world-art/farm-house-art.mjs (--check: the plot and the House's tier pictures fresh from their PixelLab
+      # picks, and windows.css laying each at its own size).
       - name: Farm window (play.html)
         if: ${{ !cancelled() }}
         run: |
+          node tools/world-art/farm-house-art.mjs --check
           node tests/farm-window.mjs
           node tools/mutant-gate.mjs node tests/farm-window.mjs --mutate
 

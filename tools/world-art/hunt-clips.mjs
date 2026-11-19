@@ -20,6 +20,7 @@ const B10 = 'art/world-src/gen-2026-11-08b';    // brief 10: the live 30's flinc
 const S11 = 'art/world-src/gen-2026-11-09';     // brief 11 samples: M1 first fights, M2 falls, M3 and H1d flinches
 const B13 = 'art/world-src/gen-2026-11-09b';    // brief 13: Q1 sample, B3 first fights, Q4 sample, B6 falls
 const SWEEP = 'art/world-src/gen-2026-11-16/05-keykeeper/r5-2abf0617';     // lane/a-tower-art-gen round 6: the Sweep's Coat's own flinch (the hooded keeper)
+const FACTION = 'art/world-src/gen-2026-11-18/faction-outfits';             // lane/b-farm-house-faction-art: the Flamebearer's and Emberkeeper's flinches
 
 export const NAME = Object.freeze({ s: 'south', e: 'east', n: 'north', w: 'west', se: 'south-east', sw: 'south-west', ne: 'north-east', nw: 'north-west' });
 const ALL = [0, 1, 2, 3, 4, 5];
@@ -189,4 +190,10 @@ export const HUNT_CLIPS = Object.freeze([
   { set: 'heroes', id: 'outfit_sweeps_coat', clips: {
     hit: { fps: 12, dirs: Object.fromEntries(CARD.map((f) => [f, { dir: `${SWEEP}/hit/${NAME[f]}`, still: `${SWEEP}/hit/${NAME[f]}.png`, lay: HIT5 }])) },
   } },
+  /* the faction outfits (lane/b-farm-house-faction-art 2026-11-18): the Sweep's Coat's recipe on their v3 characters, frames 0-4 of a 6-frame
+     roll, each cleaned by its rule (art/world-src/gen-2026-11-18/faction-outfits/note.json). South, east and west only: every north roll grew
+     the helm or the hood over the head (five rolls in all), so from behind both take the engine's 1 px recoil, as the druid does in e and n. */
+  ...[['outfit_flamebearer', 'flamebearer-b79926f4'], ['outfit_emberkeeper', 'emberkeeper-3c9e676d']].map(([id, src]) => ({ set: 'factionwear', id, clips: {
+    hit: { fps: 12, dirs: Object.fromEntries(['s', 'e', 'w'].map((f) => [f, { dir: `${FACTION}/${src}/hit/${NAME[f]}`, still: `${FACTION}/${src}/hit/${NAME[f]}.png`, lay: HIT5 }])) },
+  } })),
 ]);

@@ -220,13 +220,14 @@ async function checks() {
       if (!await openTraining(page)) fails.push('TR-9 the Training window did not open on a running yard session');
       else {
         const before = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="training"]'); const b = w.querySelector('[data-hs-act="train-stop"]');
-          return { off: b.disabled, hidden: b.hidden, why: w.querySelector('.tw-off-why').textContent }; });
+          const line = w.querySelector('.tw-stop-why'); return { off: b.disabled, hidden: b.hidden, why: line.hidden ? '' : line.textContent }; });
         if (before.hidden || before.off || before.why) fails.push('TR-9 before the press Stop reads ' + JSON.stringify(before));
         await page.click('[data-hs-act="train-stop"]');
-        const said = await wait(page, () => /^Leaving in \ds$/.test((document.querySelector('[data-hs-win="training"] .tw-off-why') || {}).textContent || ''), null, 4000);
+        /* the line beside Stop says it, shown (say-why: a control off for a rule shows why), and the press carries it too */
+        const said = await wait(page, () => { const e = document.querySelector('[data-hs-win="training"] .tw-stop-why'); return !!e && !e.hidden && /^Leaving in \ds$/.test(e.textContent); }, null, 4000);
         const during = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="training"]'); const b = w.querySelector('[data-hs-act="train-stop"]');
-          return { off: b.disabled, why: w.querySelector('.tw-off-why').textContent, bar: (document.querySelector('.ht-leaving') || {}).textContent || '' }; });
-        if (!said || !during.off || (during.bar && during.bar !== during.why)) fails.push('TR-9 while the Stop pends the window reads ' + JSON.stringify(during));
+          return { off: b.disabled, why: w.querySelector('.tw-stop-why').textContent, offWhy: b.getAttribute('data-off-why'), bar: (document.querySelector('.ht-leaving') || {}).textContent || '' }; });
+        if (!said || !during.off || during.offWhy !== during.why || (during.bar && during.bar !== during.why)) fails.push('TR-9 while the Stop pends the window reads ' + JSON.stringify(during));
         /* the server closes it: the hunt section ends and the yard's end card takes the screen (the summary's Training Yard card), no Stop left pending */
         s.hunt = Object.assign({}, s.hunt, { ended: true });
         s.training = SECTION({ last_stop: { reason: 'left', skill: 'melee', at: iso(Date.now()) } });

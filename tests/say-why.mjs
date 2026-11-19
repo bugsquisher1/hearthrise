@@ -185,6 +185,8 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
 export const REASONS = Object.freeze({
   'src/shell/windows/training.js': [
     { cond: '!!block', words: "text(root.querySelector('.tw-off-why'), block)", where: 'Start training: the line above it says why (out hunting, in a party, no quote, a purse under the first hour, the dummy in use), and data-off-why says it on a press' },
+    /* 2027-05-20-yard-stop.sql, post-140 audit C10: a Stop pending to the server's close */
+    { cond: '!!stopping', words: "text(root.querySelector('.tw-stop-why'), stopping)", where: 'Stop training while its Stop pends: the line beside it says the hunt bar\'s words ("Leaving in 3s", "Leaving now…"), and data-off-why says it on a press' },
   ],
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },

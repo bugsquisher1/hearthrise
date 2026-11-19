@@ -5,7 +5,7 @@
 //   node tests/farm-window.mjs            the rules
 //   node tests/farm-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/farm.js src/session/farm-sections.js src/session/farm-intents.js src/shell/goto.js src/shell/shell.js
+// mutant-anchors: src/shell/windows/farm.js src/session/farm-sections.js src/session/farm-intents.js src/shell/goto.js src/shell/shell.js src/styles/windows.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `farm_land` section
@@ -170,6 +170,15 @@ async function checks(overrides) {
         if (errors.length) fails.push('FW-1 console errors: ' + errors.join(' | ').slice(0, 300));
         const plots = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot')].map((li) => li.querySelector('.hw-plot-say').textContent));
         if (plots.length !== 3 || !/^Turnip1 h 30 m left$/.test(plots[0]) || plots[1] !== 'TurnipReady' || plots[2] !== 'Empty') fails.push('FW-1 the field reads ' + JSON.stringify(plots));
+        /* THE PLOT'S WORDS STAND CENTRED UNDER IT, as its press does (v0.2.141 gate: "Empty" at the left edge over a centred Plant): the words' own
+           extent, not their box (a box can stretch the plot's width and still hold its words at the left) */
+        const off = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-plot')].map((li) => {
+          const p = li.getBoundingClientRect(), range = document.createRange();
+          range.selectNodeContents(li.querySelector('.hw-plot-say span'));
+          const s = range.getBoundingClientRect();
+          return Math.round(Math.abs((s.left + s.right) / 2 - (p.left + p.right) / 2));
+        }));
+        if (off.some((d) => d > 2)) fails.push('FW-1 a plot\'s words stand off its centre (px): ' + JSON.stringify(off));
         // FW-3 (before anything changes): Harvest only on the server's ready plot
         if (await shown(page, W + '.hw-plot[data-plot="0"] .hw-harvest')) fails.push('FW-3 the growing plot shows Harvest');
         if (!(await shown(page, W + '.hw-plot[data-plot="1"] .hw-harvest'))) fails.push('FW-3 the ready plot shows no Harvest');
@@ -373,6 +382,7 @@ const MUTANTS = [
   ['the reader invents room', 'src/session/farm-sections.js', 'cap: Math.min(cap, MAX_PLOTS)', 'cap: Math.max(cap, 4)'],
   ['the reader invents a field', 'src/session/farm-sections.js', "  const raw = read(cs, 'farm_land');\n", "  const raw = read(cs, 'farm_land') || { cap: 2, plot_level: 1, plots: [] };\n"],
   ['plant names another plot', 'src/session/farm-intents.js', 'p_plot_idx: plot, p_crop: crop', 'p_plot_idx: plot + 1, p_crop: crop'],
+  ['a plot\'s words stand at its left edge (v0.2.141 gate)', 'src/styles/windows.css', '.hw-plot-say { display: flex; flex-direction: column; align-items: center; text-align: center;', '.hw-plot-say { display: flex; flex-direction: column;'],
   ['a refusal reads as a generic line', 'src/data/text/farm.js', "  refused_plot_cap: 'No room for another plot',\n", ''],
   ['the window never says the land is shared', 'src/shell/windows/farm.js', "    + '<p class=\"hs-note hw-farm-shared\">' + esc(t('farm.shared')) + '</p>'\n", ''],
   ['a plot never says who planted it', 'src/shell/windows/farm.js', "text(li.querySelector('.hw-plot-by'), !p ? '' :", "text(li.querySelector('.hw-plot-by'), true ? '' :"],

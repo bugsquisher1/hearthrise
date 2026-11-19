@@ -3876,3 +3876,19 @@ reason takes a full stop before what came after when it ends on a label.
 Lessons: (1) a press in a scroll region with a sticky foot is "in view" only above the foot's top: measure against it, not the fold;
 (2) `[hidden]` rows break `:last-child` styling: style the last shown one; (3) a harness's mount control can encode a desktop layout
 (signIn wanted the party panel): a phone rule waits for its own screen.
+## 2026-11-19 lane/b-142-ui-p3 (v0.2.141 gate P3s, for v0.2.142)
+(1) Phone band step: the strip is 40 px with its 6 px steel rule inside, the icon row a full 40 px band painted over it; the row now redraws
+the rule along its foot (`.hs-launchers::before`), keeping 40 px presses. (7) The shown hero tab 180 px on a phone (others stay 110). (3) Farm
+plot words centred. (4) Prep foot drops its -12 px margin while the checklist is open. (5) Inventory: a slot change scrolls its list's head
+into view once (index.js showSlotLine). (2) Training on a phone while a session runs: the box and Stop in the flow, Stop under the box, the
+lead line aside. (6) Hunt summary no longer `rise`s (fits above the bar at 1440); the TOWER KEEPS `rise`: measured 734 px of column against
+558 above the bar, and without it the Climb rules (audit A5) lay wholly under the sticky door: a trade, reported, not swapped.
+(8) Mage + Bronze Belt: not a bug, not the weight rule: plate costs -1 Magic accuracy, and a bare slot takes only a piece that beats bare on
+every number. Lessons: (1) before removing a rule another audit added, re-run that audit's own complaint; (2) center checks measure the
+text's extent (a Range), not its box; (3) a fixture name decides whether a truncation guard can bite.
+Blind faction QA, same lane: (#5) a faction look at the creation dye defaults draws its side's own colours (the art's, no new colour):
+data/outfits.js lookColors/lookDyeKey, used by the World's compose, the portrait, the wardrobe, the preview and the roster; the picker presses
+the dye the preview wears, none at the side's colours. Known gap: a deliberate crimson is indistinguishable from the default (handoff to the
+backend architect). (#10) not codable: outfit art carries its weapon in every frame and the faction sheets were drawn bare (handoff to the
+designer and asset director). Lesson: (4) a dye that means "default" in the data needs a mark of its own before a look can treat default
+differently; a display rule that guesses from the value leaves one swatch that cannot be chosen.

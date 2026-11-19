@@ -469,6 +469,10 @@
      and a row of more icons narrows them rather than covering it. */
   .hs-launch { flex: 0 1 auto; width: 44px; min-width: 0; }
   .hs-launchers { height: 40px; padding-left: 4px; max-width: calc(100vw - 60px); }
+  /* ONE RULE UNDER THE WHOLE BAND (v0.2.141 gate: the icon row's own band ran down over the strip's steel rule, so the rule stopped at its
+     edge, a 4 px step): the row keeps its 40 px presses, the strip's rule drawn along its foot too, under the presses */
+  .hs-launchers::before { content: ''; position: absolute; left: -2px; right: 0; bottom: 0; border-bottom: var(--art-3) solid transparent;
+    border-image: url('../../assets/ui/steel-frame-thin.png') 3 / 0 0 var(--art-3) 0 stretch; image-rendering: pixelated; pointer-events: none; }
   .hs-win-head .hs-key, .hs-launch::before { display: none; }
   /* A GROUP'S MENU IS A SHEET (CLAUDE.md §7: never a bottom nav): it slides out at the right under the icon row, where a window's sheet
      stands, with the sheet's steel spine; its windows two to a line at a thumb's height, so eight fit the shortest phone unscrolled. */

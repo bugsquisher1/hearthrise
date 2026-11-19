@@ -40,7 +40,12 @@
         "why": "set/v0.2.142 merged into lane/b-tank-runes: the set's own content reaches the edge, +1,572 bytes (lane/d-audit-fixes-sim fix 7 and the re-pinned lines: rule-subjects.js Flame Volley on the bow's default set, party-class-xp.js and nine packs' partyVsAlone, hunt-tutorial.js); set/v0.2.142 alone ships 3,069,667 against its 3,068,095 ceiling, the same 1,572 over"
       },
       {
-        "bytes": 3079433,
+        "bytes": 3080912,
+        "on": "2026-11-19",
+        "why": "+1,927 B lane/d-tower-curve: the Tower's heat (src/data/tower.js heat row and its validation, src/core/hunt/tower.js heatOpts): past floor 100 a room's blows x1.01 a floor"
+      },
+      {
+        "bytes": 3081360,
         "on": "2026-11-19",
         "why": "lane/a-tower-andy +448 B: hunt-rewards.js reads the heroes alive at each kill (fallsAt), not at the swing's end, so a hero who kills and falls in one swing journals the kill it was paid XP for (Andy's Tower forfeit 2026-11-19)"
       }

@@ -15,7 +15,7 @@
 //     the room's kinds no other slot takes, in a wing its fixed Keeper (Keeper Dunn). Bosses of the grounds never stand in a run.
 //   ITS ROWS ARE THE STAT FORMULA AT LEVEL F (towerMonsters): every kind the run can field at its own role and art tier, Level F, on a
 //     floor-F ground of the run's fit, no coin and no drops: the ONE table a swing reads while room F stands. A room above floorTop plays
-//     floorTop's rows.
+//     floorTop's rows. Past the run's heat.from its blows are x the room's heat (heatOpts).
 //   THE STAIR (towerCleared, from pull-cycle.js runPhase): when the room's last monster falls, every hero standing in it clears room F (a
 //     `floor` event naming them), F moves on, and the next room stands stairMs later (the pocket's respawn).
 //   THE ROOM'S TIME (towerEndsAt -> action-rules.js `floor_time`): a room not cleared floorLimitMs after it stood (landingLimitMs at a door)
@@ -33,7 +33,7 @@
 // ============================================================
 
 import { TOWER_RULES, TOWER_PARTY_XP, RUN_GROUNDS, runRulesOf, validateTower } from '../../data/tower.js?v=0.2.141';
-import { formulaStats, GROUND_ROSTER, MONSTER_ROLES } from '../../data/balance-sheet.js?v=0.2.141';
+import { formulaStats, GROUND_ROSTER, MONSTER_ROLES, STAT_FORMULA } from '../../data/balance-sheet.js?v=0.2.141';
 import { MONSTERS } from '../../data/monsters.js?v=0.2.141';
 import { OPEN_HUNTS } from '../../data/hunts.js?v=0.2.141';
 import { COMBAT_BALANCE } from '../combat.js?v=0.2.141';
@@ -138,11 +138,23 @@ export function towerRoom(floor, run = TOWER) {
   return { monsters, keeper };
 }
 
-/* One monster as it fights in room F at `role`: the catalogue row with the formula's numbers at Level F, no coin, no drops. */
+/* THE HEAT of room `floor` (src/data/tower.js `heat`): the formula with its blows x(1 + perFloorPm/1000) a floor past heat.from, whole
+   permille steps (no pow: every runtime reads the same room). HP, defense and XP stay the formula's, the to-hit at a hero is re-derived
+   unchanged and a Keeper keeps the boss cap. Undefined at no heat. */
+function heatOpts(floor, run) {
+  const h = run.heat, L = towerLevelOf(floor, run);
+  let pm = 1000;
+  if (h && h.perFloorPm > 0) for (let f = h.from + 1; f <= L; f++) pm = Math.round((pm * (1000 + h.perFloorPm)) / 1000);
+  if (pm === 1000) return undefined;
+  const k = pm / 1000, F = STAT_FORMULA;
+  return { formula: { ...F, blow: { ...F.blow, lo: F.blow.lo * k, hi: F.blow.hi * k } } };
+}
+
+/* One monster as it fights in room F at `role`: the catalogue row with the formula's numbers at Level F (heated), no coin, no drops. */
 function rowAt(id, role, floor, run) {
   const row = MONSTERS[id];
   const L = towerLevelOf(floor, run);
-  const s = formulaStats({ level: L, role, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt });
+  const s = formulaStats({ level: L, role, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt }, heatOpts(floor, run));
   return Object.freeze({ ...row, level: L, hp: s.hp, atk: s.atk, baseAcc: s.baseAcc, def: s.def, xp: s.xp, gp: Object.freeze([0, 0]),
     drops: Object.freeze([]) });
 }
@@ -175,10 +187,10 @@ export function towerMonsters(floor, run = TOWER) {
  * serves every run ground, so the generator refuses a run whose bounds differ from the Tower's.
  */
 export function towerXpMax(floor, run = TOWER) {
-  const L = towerLevelOf(floor, run);
+  const L = towerLevelOf(floor, run), hot = heatOpts(floor, run);
   let best = 0;
   for (const role of Object.keys(MONSTER_ROLES)) {
-    best = Math.max(best, formulaStats({ level: L, role, tier: 1, floor: L, fit: run.fit, ground: run.hunt }).xp);
+    best = Math.max(best, formulaStats({ level: L, role, tier: 1, floor: L, fit: run.fit, ground: run.hunt }, hot).xp);
   }
   return best;
 }

@@ -3,7 +3,7 @@
 // 2026-11-19; Andy on live: "Everything between floor 100 > 170 felt the same. I was mid yellow at worse, then the last floor or two i started
 // getting into red, then died pretty quickly"). A what-if tool: it writes nothing to src/.
 //
-//   node tools/balance-sim/tower-curve.mjs [--party tank,ranger,mage,healer] [--level 74] [--seats <file.json>] [--from 1] [--minutes 70]
+//   node tools/balance-sim/tower-curve.mjs [--party tank,bow,mage,healer] [--level 74] [--seats <file.json>] [--from 1] [--minutes 70]
 //        [--seeds 4] [--bands 50:200] [--json <out>]
 //
 //   --party/--level  a PLAYED party (cell.mjs profile 'played': the recorded bars, accessories, own stock, the party skill line) of those styles
@@ -21,7 +21,7 @@
 //              and the seat that was lowest most often
 //   p10        the deep dips: the 10th percentile of the same lows
 //   fell       climbs that ended with a death in the band / climbs that reached it (the chance a climb that gets here stops here)
-// and per start: the top floor each climb reached, how it ended, its minutes, and the keys it minted (each landing cleared, by key: chests.js
+// and per start: the top floor each climb reached, how it ended, its minutes, its Level XP an hour a head, and the keys it minted (each landing cleared, by key: chests.js
 // keyForLanding).
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -109,7 +109,7 @@ if (isMain(import.meta.url)) {
   const seats = val('--seats', null) ? JSON.parse(readFileSync(val('--seats'), 'utf8')) : null;
   const [lo, hi] = val('--bands', '50:200').split(':').map(Number);
   const o = { starts: val('--from', '1').split(',').map(Number), minutes: Number(val('--minutes', 70)), seeds: Number(val('--seeds', 4)), seedBase: Number(val('--seed-base', 0)),
-    party: val('--party', 'tank,ranger,mage,healer').split(','), level: Number(val('--level', 74)), seats, windowMs: Number(val('--window', 30000)), say: console.log };
+    party: val('--party', 'tank,bow,mage,healer').split(','), level: Number(val('--level', 74)), seats, windowMs: Number(val('--window', 30000)), say: console.log };
   const { keyForLanding } = await import(u('src/data/chests.js'));
   console.log(`THE BURNING TOWER BY FLOOR BAND: ${seats ? seats.length + ' recorded seats' : 'a played ' + o.party.join('+') + ' at Level ' + o.level}, from ${o.starts.join(', ')}, ${o.seeds} seed(s), ${o.minutes} min at most`);
   const climbs = await measure(o);

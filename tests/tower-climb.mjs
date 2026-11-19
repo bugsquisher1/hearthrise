@@ -188,12 +188,13 @@ function floorTimeRun(M) {
 }
 
 /* ── TC-CURVE ─────────────────────────────────────────────────────────────── */
-/* THE CLIMB GETS HARDER EVERY BAND (lane/d-tower-curve, 2026-11-19; src/data/tower.js `heat` says why). Engine only, no database.
-   The rows: a band's mean of its rooms' summed max hits (combat.js monsterMaxHit), band over band, for the ten bands past the heat's floor.
-   The felt shape: a PLAYED four at Level 74 (tools/balance-sim/cell.mjs profile 'played': the recorded bars, accessories, own stock, the party
-   skill line; no player's data) climbs from floor 91, 6 climbs on the real settle, read by tools/balance-sim/tower-curve.mjs bandTable. Measured
-   (the board's "2026-11-19 The Tower's curve"): its typical low 77 / 74 / 69 / 64 / 54% from 91-100 to 131-140 (the 101-110 to 131-140 drop
-   20 on two seed sets); with no heat 77 / 75 / 72 / 69 / 66 (drop 4 and 9); with the 11-19 monsters +10% and the heat most climbs end at 128-131. */
+/* THE CLIMB GETS HARDER EVERY BAND (lane/d-tower-curve, 2026-11-19; the board's "2026-11-19 The Tower's curve" says why). Engine only, no
+   database. The rows: a band's mean of its rooms' summed max hits (combat.js monsterMaxHit), band over band, for the ten bands past the heat's
+   floor (x1.15-1.19 as built, x1.04-1.09 with no heat). The felt shape: a PLAYED four at Level 74 (tools/balance-sim/cell.mjs profile 'played':
+   the recorded bars, accessories, own stock, the party skill line; no player's data) climbs from floor 91, 6 climbs on the real settle, read
+   by tools/balance-sim/tower-curve.mjs bandTable. Measured on set/v0.2.142 529f354ea: its typical low 77 / 74 / 70 / 61 / 51% from 91-100 to
+   131-140 (the 101-110 to 131-140 drop 23, and 20 on a second seed set); with no heat 77 / 75 / 72 / 71 / 69 (drop 6); with the 11-19
+   monsters +10% and the heat most climbs end at 128-131. */
 const CURVE = Object.freeze({ bandStepMin: 1.12, level: 74, party: Object.freeze(['tank', 'bow', 'mage', 'healer']), from: 91, seeds: 6, minutes: 40, riseMax: 3, dropMin: 15 });
 async function curveArm(_db, M) {
   const bad = [];

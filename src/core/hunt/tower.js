@@ -15,8 +15,7 @@
 //     the room's kinds no other slot takes, in a wing its fixed Keeper (Keeper Dunn). Bosses of the grounds never stand in a run.
 //   ITS ROWS ARE THE STAT FORMULA AT LEVEL F (towerMonsters): every kind the run can field at its own role and art tier, Level F, on a
 //     floor-F ground of the run's fit, no coin and no drops: the ONE table a swing reads while room F stands. A room above floorTop plays
-//     floorTop's rows. PAST THE RUN'S heat.from (towerHeatPm) the formula's blows are x the room's heat, compounding a floor, so each band
-//     past it hits harder than the last by about as much as the band before did (the data's `heat` says why).
+//     floorTop's rows. Past the run's heat.from its blows are x the room's heat (heatOpts).
 //   THE STAIR (towerCleared, from pull-cycle.js runPhase): when the room's last monster falls, every hero standing in it clears room F (a
 //     `floor` event naming them), F moves on, and the next room stands stairMs later (the pocket's respawn).
 //   THE ROOM'S TIME (towerEndsAt -> action-rules.js `floor_time`): a room not cleared floorLimitMs after it stood (landingLimitMs at a door)
@@ -139,30 +138,19 @@ export function towerRoom(floor, run = TOWER) {
   return { monsters, keeper };
 }
 
-/**
- * THE HEAT of room `floor`, permille (src/data/tower.js `heat`): 1000 to the run's heat.from, then x(1000 + perFloorPm)/1000 a floor,
- * compounding, each step rounded to a whole permille (no pow anywhere, so the edge and every tool that reads a room
- * get the same number on every runtime). A room above floorTop plays floorTop's.
- */
-function towerHeatPm(floor, run = TOWER) {
+/* THE HEAT of room `floor` (src/data/tower.js `heat`): the formula with its blows x(1 + perFloorPm/1000) a floor past heat.from, whole
+   permille steps (no pow: every runtime reads the same room). HP, defense and XP stay the formula's, the to-hit at a hero is re-derived
+   unchanged and a Keeper keeps the boss cap. Undefined at no heat. */
+function heatOpts(floor, run) {
   const h = run.heat, L = towerLevelOf(floor, run);
   let pm = 1000;
   if (h && h.perFloorPm > 0) for (let f = h.from + 1; f <= L; f++) pm = Math.round((pm * (1000 + h.perFloorPm)) / 1000);
-  return pm;
-}
-
-/* The stat formula a hot room reads: its blows x the heat, nothing else. To-hit is re-derived for the bigger blow, so a hero is hit as often;
-   HP, defense and XP stay the formula's at Level F (so a kill pays what it did and the server's per-floor bound never moves), and a
-   Keeper's blow keeps the boss role's cap. Undefined at no heat: the formula itself. */
-function heatOpts(floor, run) {
-  const pm = towerHeatPm(floor, run);
   if (pm === 1000) return undefined;
   const k = pm / 1000, F = STAT_FORMULA;
   return { formula: { ...F, blow: { ...F.blow, lo: F.blow.lo * k, hi: F.blow.hi * k } } };
 }
 
-/* One monster as it fights in room F at `role`: the catalogue row with the formula's numbers at Level F (hot past the heat's floor), no coin,
-   no drops. */
+/* One monster as it fights in room F at `role`: the catalogue row with the formula's numbers at Level F (heated), no coin, no drops. */
 function rowAt(id, role, floor, run) {
   const row = MONSTERS[id];
   const L = towerLevelOf(floor, run);

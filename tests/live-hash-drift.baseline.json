@@ -25,7 +25,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-19",
- "replay_ms": 124698,
+ "replay_ms": 3186,
  "counts": {
   "tracked_names": 965,
   "entries": 816
@@ -1774,7 +1774,8 @@
     "2027-04-27-tower-chest-bench-inputs.generated.sql",
     "2027-05-06-drop-homes-bench-inputs.generated.sql",
     "2027-05-09-jewelry-sample-bench-inputs.generated.sql",
-    "2027-05-16-jewel-guarantees-bench-inputs.generated.sql"
+    "2027-05-16-jewel-guarantees-bench-inputs.generated.sql",
+    "2027-05-22-cookbook-cut-bench-inputs.generated.sql"
    ],
    "live": {
     "md5": "350c8663cecc7587ed597b9fbcc76534",
@@ -1783,12 +1784,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "f52b079da01e2e0a4ea8be0acabef3ea",
-    "norm_len": 7638,
+    "md5": "fb6374e4c59a3ff2a9088590f67e3486",
+    "norm_len": 7443,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-16-jewel-guarantees-bench-inputs.generated.sql restates this catalogue with the three dark guarantee jobs; production keeps the pre-05-16 body until that file applies with the v0.2.141 release."
+   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-16-jewel-guarantees-bench-inputs.generated.sql (three dark guarantee jobs) and then 2027-05-22-cookbook-cut-bench-inputs.generated.sql (the three cut cookbook recipes leave) restate this catalogue; production keeps the pre-05-16 body until both apply with the v0.2.141 release."
   },
   {
    "sig": "hr_bench_makes(p_user uuid, p_slot integer, p_bench text)",

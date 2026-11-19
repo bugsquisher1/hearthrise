@@ -78,6 +78,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isMain } from './_is-main.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const ORDER_FILE = join(ROOT, 'tests', 'schema-apply-order.json');
@@ -367,7 +368,10 @@ async function main() {
   return undefined;
 }
 
-main().catch((e) => {
-  console.error(e.harness ? `HARNESS: ${e.message}` : e);
-  process.exit(e.harness ? 2 : 1);
-});
+/* imported (tests/live-hash-drift.mjs --selftest grades its attribution through classify()): no run */
+if (isMain(import.meta.url)) {
+  main().catch((e) => {
+    console.error(e.harness ? `HARNESS: ${e.message}` : e);
+    process.exit(e.harness ? 2 : 1);
+  });
+}

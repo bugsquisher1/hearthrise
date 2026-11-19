@@ -153,7 +153,7 @@ export const HUNTS_TEXT = Object.freeze({
   scale_gold: 'Gold ×{times}',
   scale_dmg: 'Monster damage ×{times}',
   scale_hp: 'Monster HP ×{times}',
-  scale_drops: 'Drops unchanged',
+  scale_drops: 'Drops ×{times}',
   scale_active: 'Active: Level {level}',
   scale_party: 'Party: leader\'s hours apply',
   scale_bank_full: 'Bank full: {max} h',

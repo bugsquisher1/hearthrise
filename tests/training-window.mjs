@@ -25,6 +25,8 @@
 //         items closed, no press shows and the note says so
 //   TR-7  LABELS (Tyler 2026-11-14; lane/c-training-gear-arm before the items opened): the quote, the run, the stop and the item box
 //         show no line that says "you" or ends in a period; the refusals read as labels with the server's numbers (TR-0)
+//   TR-9  A STOP PENDING SAYS SO (post-140 audit C10): with the yard session in the hunt section and its Leave pending to the server's
+//         leave_at, Stop is off and the window says the hunt bar's words ("Leaving in Ns"), until the server ends the run
 //   TR-8  BUY ASKS FIRST: one click on Buy sends nothing and shows "Training Sword (12 h): 250,000 gold"; Cancel sends nothing; Buy in
 //         the confirm sends the one hr_training_gear_buy at the price shown
 // Exit: 0 green · 1 red · 2 harness.
@@ -76,6 +78,12 @@ async function stub(page, s) {
       /* 65.5 min, off the minute's edge: at exactly 65 a server clock a few ms behind this one floored to "1 hour 4 minutes" (TR-2 flake, 2026-11-16) */
       s.training = SECTION({ run: { skill: body.p_skill, where: body.p_where, since: iso(Date.now() - 65 * 60000 - 30000), fee_h: body.p_fee_seen, paid: body.p_fee_seen * 2 } });
       return json({ ok: true });
+    }
+    /* TR-9: a yard session in the hunt section, its Leave PENDING to the server's leave_at (2027-05-20-yard-stop.sql: at the press, here a few seconds on) */
+    if (name === 'hr_hunt_leave' && s.hunt && s.leaveInMs) {
+      const at = iso(Date.now() + s.leaveInMs);
+      s.hunt = Object.assign({}, s.hunt, { session: Object.assign({}, s.hunt.session, { leave_at: at }) });
+      return json({ ok: true, pending: true, session: { id: s.hunt.session_id, leave_at: at } });
     }
     if (name === 'hr_hunt_leave') { s.training = SECTION({ last_stop: { reason: 'left', skill: 'melee', at: iso(Date.now()) } }); return json({ ok: true, pending: false }); }
     if (name === 'hr_house_dummy_unlock') { s.training = SECTION({ dummy: DUMMY({ owned: ['defense', body.p_skill], next_price: 400000 }) }); return json({ ok: true }); }
@@ -199,6 +207,35 @@ async function checks() {
         await labelsOnly(page, 'after Stop');
       }
       if (errors.length) fails.push('TR-2 console: ' + errors.slice(0, 2).join(' | '));
+      await ctx.close();
+    }
+    /* TR-9 A STOP PENDING SAYS SO (post-140 audit C10: the window stood unchanged for 16 s after Stop). The yard session is the hunt section;
+       Stop's Leave is pending to the server's leave_at, so Stop goes off and the window says what the hunt bar says ("Leaving in Ns"),
+       counted to that instant on the server's clock, until the server's run is over; then the window says why it ended. */
+    {
+      const yard = Object.assign(clone(BASE_ENV.hunt), { session_id: '00000000-0000-4000-a000-0000000000a9', hunt_id: 'training_yard_melee', ended: false });
+      yard.session = { id: yard.session_id, hunt: 'training_yard_melee', phase: 'hunting' };
+      const s = world({ hunt: yard, leaveInMs: 6000, training: SECTION({ run: { skill: 'melee', where: 'yard', since: iso(Date.now() - 20 * 60000), fee_h: 272, paid: 272 } }) });
+      const { ctx, page, errors } = await open(s);
+      if (!await openTraining(page)) fails.push('TR-9 the Training window did not open on a running yard session');
+      else {
+        const before = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="training"]'); const b = w.querySelector('[data-hs-act="train-stop"]');
+          return { off: b.disabled, hidden: b.hidden, why: w.querySelector('.tw-off-why').textContent }; });
+        if (before.hidden || before.off || before.why) fails.push('TR-9 before the press Stop reads ' + JSON.stringify(before));
+        await page.click('[data-hs-act="train-stop"]');
+        const said = await wait(page, () => /^Leaving in \ds$/.test((document.querySelector('[data-hs-win="training"] .tw-off-why') || {}).textContent || ''), null, 4000);
+        const during = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="training"]'); const b = w.querySelector('[data-hs-act="train-stop"]');
+          return { off: b.disabled, why: w.querySelector('.tw-off-why').textContent, bar: (document.querySelector('.ht-leaving') || {}).textContent || '' }; });
+        if (!said || !during.off || (during.bar && during.bar !== during.why)) fails.push('TR-9 while the Stop pends the window reads ' + JSON.stringify(during));
+        /* the server closes it: the hunt section ends and the yard's end card takes the screen (the summary's Training Yard card), no Stop left pending */
+        s.hunt = Object.assign({}, s.hunt, { ended: true });
+        s.training = SECTION({ last_stop: { reason: 'left', skill: 'melee', at: iso(Date.now()) } });
+        const ended = await wait(page, () => /Training Yard/.test((document.querySelector('[data-hs-win="hunt-summary"] .hsum-title') || {}).textContent || ''), null, 12000);
+        const after = await page.evaluate(() => ({ stop: !!document.querySelector('[data-hs-win="training"] [data-hs-act="train-stop"]:not([hidden])'), bar: (document.querySelector('.ht-leaving:not([hidden])') || {}).textContent || '' }));
+        if (!ended || after.stop || after.bar) fails.push('TR-9 after the close the screen reads ' + JSON.stringify({ ended, after }));
+        if (s.calls.filter((c) => c.name === 'hr_hunt_leave').length !== 1) fails.push('TR-9 Stop sent ' + s.calls.filter((c) => c.name === 'hr_hunt_leave').length + ' Leaves');
+      }
+      if (errors.length) fails.push('TR-9 console: ' + errors.slice(0, 2).join(' | '));
       await ctx.close();
     }
     /* TR-3 */

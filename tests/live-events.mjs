@@ -15,7 +15,8 @@
 //   LE-KILL    a kill pays the dial of ITS OWN time, to the hero whose account holds the window only: inside, Level XP x1.25 with the
 //              added part as `ev`; at the end instant and before the start, the row as written and no `ev`
 // ARMS (the real replayed chain, PGlite, as hr_engine; the real Mill Cellar; a Level 20 hero; an event row +25% from minute 3)
-//   LE-CAT     the server's two catalogues are tools/gen-live-events.mjs catalogueOf(the data), row for row; both switches are off
+//   LE-CAT     the server's two catalogues are tools/gen-live-events.mjs catalogueOf(the data), row for row; both switches are off, as
+//              every guard boots them (tests/schema-replay.mjs quietCalendar; the chain arms them, tests/arm-switches.mjs AS-ROWS)
 //   LE-CLOSED  BROWSER CLOSED (the tick's slices): the hero's Level XP is the switch-off run's plus exactly the tally's xp_event (> 0, less
 //              than a quarter of the run: the first minutes are outside); coin, items, skill XP, kills, deaths, the bag and the hunt
 //              ledger are the switch-off run's to the unit; the closed session's personal best is the switch-off run's (the event's

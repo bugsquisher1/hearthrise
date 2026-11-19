@@ -35,9 +35,9 @@
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
 // GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's 0.45 to-hit and the Dangerous dmgPm 1300 that
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
-import { definePack, box, gather } from '../shape.js?v=0.2.140';
-import map from './map.js?v=0.2.140';
-import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.140';
+import { definePack, box, gather } from '../shape.js?v=0.2.141';
+import map from './map.js?v=0.2.141';
+import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.141';
 
 /* KRELL'S TWO UNIQUE PIECES (Tyler 2026-11-14: "a pair of pally legs a tank shield ... just no weapon", "by unique i mean having a special
    attribute"). Their rows and lines are the designer's sample rows (src/data/special-attributes.js: the standard piece plus ONE attribute),
@@ -224,7 +224,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-60, -30, -30, -25] }, dangerous: { 2: [-30, 20], 3: [-25, 20, 30], 4: [-30, 10, 15, 20] }, deadly: { 2: [-25, 30], 3: [-15, 35, 40], 4: [-25, 20, 25, 30] } },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-60, -30, -30, -25] }, dangerous: { 2: [-30, 25], 3: [-25, 20, 30], 4: [-30, 10, 20, 20] }, deadly: { 2: [-25, 30], 3: [-20, 30, 35], 4: [-30, 15, 25, 25] } },
   /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 89 (the designer's Q4 2026-11-12 "Deadly keeps six, bring a Healer", checks.deadlyFourNeeds below;
      the page says it since lane/a-honesty-rescue 2026-11-18). MEASURED on set/v0.2.139 (Deadly: pull 6, blows 1330, HP 1150), the ladder kit, 6 seeds
      x 2 h a four, deaths in 16 hero-hours, a tank, hammer, bow and Mage against a tank, Healer, bow and Mage: Level 85 (the floor) 6.7 / 0, 88 1 / 0,

@@ -14,16 +14,16 @@
 // Stats the engine does not have (leech, element protections, a character
 // XP bar) have no line at all.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.140';
-import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.140';
-import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.140';
-import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.140';
-import { roleIdOf } from '../../../session/party-sections.js?v=0.2.140';
-import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.140';
-import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.140';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.140';
-import { combatLedger } from '../skills.js?v=0.2.140';
-import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.140';
+import { HUNT_ROLES } from '../../../data/hunt-roles.js?v=0.2.141';
+import { characterSheetOf, heroVitalsOf, wornTitleOf } from '../../../session/character-sections.js?v=0.2.141';
+import { nameOf, bagCapOf } from '../../../session/item-sections.js?v=0.2.141';
+import { staminaOf } from '../../../session/hunt-sections.js?v=0.2.141';
+import { roleIdOf } from '../../../session/party-sections.js?v=0.2.141';
+import { text, cls, style, attr } from '../../../render/paint.js?v=0.2.141';
+import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.141';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
+import { combatLedger } from '../skills.js?v=0.2.141';
+import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.141';
 
 /* [key, label] of each number line; a line shows only when its value exists. A value is a number and its unit, a genre stat
    line ("Hit chance 69%"); what it is measured against is its tooltip, so no value wraps (UI audit 2026-11-18 #8). */

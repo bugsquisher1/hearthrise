@@ -40,7 +40,7 @@ export const ITEM_RATE = 60000;
 export async function yardTable(root, o = {}) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-  const { run } = await loadPlay(root);
+  const { run, memberKey } = await loadPlay(root);
   const G = await import(u('src/data/hunt-grounds.js'));
   const T = await import(u('src/data/training.js'));
   const XP = await import(u('src/core/xp.js'));
@@ -56,9 +56,9 @@ export async function yardTable(root, o = {}) {
           const play = (windowMs) => run(id, level, [role], { ground: G.TRAINING_GROUNDS[id], spanMs: HOUR, windowMs, xpFrac: true, start,
             session: { trainBoostMs: item ? HOUR : 0 } });
           const r = play(10 * 60000);
-          const xp = r.heroXp[role + '0'] || {};
+          const xp = r.heroXp[memberKey(role, 0)] || {};
           /* one long window against the ten-minute cut: at the Level 30 point (the cut is the same arithmetic at every point) */
-          const cut = (o.cut !== false && level === 30) ? (play(HOUR).heroXp[role + '0'] || {})[skill] : xp[skill];
+          const cut = (o.cut !== false && level === 30) ? (play(HOUR).heroXp[memberKey(role, 0)] || {})[skill] : xp[skill];
           rows.push({ skill, place, level, skillLevel: sk, item, xp: xp[skill] || 0, want: item ? ITEM_RATE : RATE, playedMs: r.playedMs,
             other: Object.entries(xp).filter(([k, v]) => k !== skill && v > 0).map(([k, v]) => k + ' ' + v),
             levelXp: r.levelXp, coin: r.coin, items: Object.keys(r.items).length, cut });
@@ -84,7 +84,7 @@ function print(rows) {
 async function huntTable(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const { loadPlay } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-  const { run } = await loadPlay(root);
+  const { run, memberKey } = await loadPlay(root);
   const G = await import(u('src/data/hunt-grounds.js'));
   const H = await import(u('src/data/hunts.js'));
   const T = await import(u('src/data/training.js'));
@@ -100,7 +100,7 @@ async function huntTable(root) {
       let best = 0, ground = null;
       for (const g of fit) {
         const x = run(g, level, [role], { spanMs: HOUR, xpFrac: true });
-        const h = ((x.heroXp[role + '0'] || {})[skill] || 0) * HOUR / Math.max(1, x.playedMs);
+        const h = ((x.heroXp[memberKey(role, 0)] || {})[skill] || 0) * HOUR / Math.max(1, x.playedMs);
         if (h > best) { best = h; ground = g; }
       }
       const vs = (n) => (best >= n ? 'hunting ahead' : 'training ahead');

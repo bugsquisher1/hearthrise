@@ -18,8 +18,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES, suggestedTrigger } from './abilities.js?v=0.2.140';
-import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.140';
+import { ABILITIES, suggestedTrigger } from './abilities.js?v=0.2.141';
+import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.141';
 
 /* WHICH FOE A HERO TAKES FIRST (spec §3.2 #11; src/core/hunt/targeting.js
    ORDER implements each). `follow` takes the leader's target; in a party of
@@ -91,10 +91,16 @@ const SICKNESS_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 
 /* UNDERTOW, the Healer's strike when it hunts alone (abilities.js `alone`; in a party the slot never fires): like Green
    Sickness it waits while the Healer itself is under 70%, so Greater Mend has the mana first. */
 const UNDERTOW_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }]);
-/* OFF THE DEFAULT BARS, measured with their store runes on: Flame Volley (ranger-floor: a crossbow Ranger buying every shot
-   +3.3% over its bill at the Sewer floor, three shots a Volley; +30.1% without it) and Rend (weapon-rungs: axes at Level 45
-   read +4% from a rung; about +1% XP at the Thicket for 23 casts an hour). Sword Flame Strike likewise (playtest 2026-10-29
-   #9, CONFLICTS.md: net -20%, XP +15%). None is needed for a first pull: each style's free moves already fire. */
+/* OFF THE DEFAULT BARS, measured with their store runes on: Rend (weapon-rungs: axes at Level 45 read +4% from a rung; about +1%
+   XP at the Thicket for 23 casts an hour) and Sword Flame Strike (playtest 2026-10-29 #9, CONFLICTS.md: net -20%, XP +15%), and
+   no tank or sword-alone way gets a rune spell to speed it up (Tyler 2026-11-19: the sword and shield levels slow alone on purpose).
+   FLAME VOLLEY IS ON THE BOW'S (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19; every recorded Ranger casts it): it was
+   off for a fifth of net gold (ranger-floor 10-29: a crossbow buying every shot +3.3% over its bill at the Sewer floor against +30.1%
+   without it). Re-measured on set v0.2.141 with a plain bow and crossbow buying every rune, arrow, meal and drink at the store (2 seeds
+   x 1 h, every open ground's floor and middle, last on the set): alone at Level 1-31 Level XP +11.6% (median of 20 cells, 4.4 to 15.9%)
+   for 148 Volleys and 366 g an hour, the runes 3.9% of income, and net gold UP 5.3% (the kills pay the runes back); alone from 32 XP
+   +6.9%, net +15.7%; in a four the bow's own net falls 10.2% (the runes are its own, the coin is shared) for +2.6% XP. Last on the set
+   (the area moves' place, below), its rune the family's Plain one at 1 g. */
 /* THE AREA MOVES (playtest v0.2.127, P1: a Level 14 sword, a Level 24 mage and a Level 36 party never saw one): each style's
    area move stands LAST on its default set, so a bar the player never edited holds it. Each waits for its skill level
    (abilities.js `unlock`: the engine skips it and the bar strikes it until then) and fires on its own trigger; the server keeps
@@ -110,7 +116,7 @@ export const ROLE_RULES = Object.freeze({
      sword alone casts Power Strike and Turning Cut, two axes and a club or bare hands Power Strike, Cleave and Turning Cut
      (roadmap p15; Turning Cut on every melee weapon without a shield, Tyler 2026-11-16). */
   melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),
-  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN)]),
+  ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier'), slot('hoarfrost', HOARFROST_WHEN)]),
   healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),
 });

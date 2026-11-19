@@ -31,16 +31,16 @@
 //
 // Display only: nothing here is spendable or gates an intent (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.140';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
-import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.140';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.140';
-import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.140';
-import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.140';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.140';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.140';
-import { itemName } from './widgets/bits.js?v=0.2.140';
-import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.140';
+import { t } from '../render/player-text.js?v=0.2.141';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
+import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.141';
+import { townActivityWords } from '../session/party-sections.js?v=0.2.141';
+import { huntOf, serverNowOf, settingsOf } from '../session/hunt-sections.js?v=0.2.141';
+import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.141';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.141';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.141';
+import { itemName } from './widgets/bits.js?v=0.2.141';
+import { TRAINING_RULES, trainingOf as trainedBy } from '../data/training.js?v=0.2.141';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;

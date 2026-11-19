@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { loadGear, STYLES } from './gear.mjs';
 import { rateCI, quantile, round, gini } from './stats.mjs';
 import { playedBar, runeTierAt, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
+import { loadLines, skillsAt } from './skill-lines.mjs';
 
 /* the settle's cut: 10 s alone, 30 s for a party (the tracked HP is re-anchored on the engine's at every cut; a
    party pays for every cut: about +40% an hour at 10 s, measured) */
@@ -57,6 +58,8 @@ export async function loadCellRunner(root) {
   const { BAG_GUIDE_BY_HUNT } = await import(u('src/data/supplies.js'));
   const SB = await import(u('src/data/supply-basics.js'));
   const COMBAT = ['melee', 'ranged', 'magic', 'defense'];
+  /* the skill lines a played cell reads (skill-lines.mjs): the tree's own snapshot, else this file's (a planted copy carries none) */
+  const SKILL_LINES = loadLines(join(root, 'tools', 'balance-sim', 'skill-lines.json')) || loadLines();
   const ITEMS = play.ITEMS, MONSTERS = play.MONSTERS, vendor = (id) => play.vendorPriceOf(ITEMS, id), basics = play.basics;
 
   /* THE BAR a cell names: the reference bar (the start bar's three slots naming the ground's guide food and drink,
@@ -107,13 +110,27 @@ export async function loadCellRunner(root) {
     const seats = Array.isArray(cell.seats) ? cell.seats : null;
     const party = seats ? seats.map((s) => s.style || s.role) : cell.party;
     const roles = seats ? seats.map((s) => s.role) : party.map((s) => STYLES[s].role);
-    /* A seat field left out falls back to the harness's own rule for it (the ladder kit of `style`, every combat skill at the Level, the
-       reference bar, the supply policy), so one field at a time can be swapped between the recorded hero and the harness's hero. */
+    /* THE SKILL LINE (skill-lines.mjs, the board's fix 1): a PLAYED hero whose cell names no skills has the skills its career gave it at its
+       Level, not every skill at the Level: `cell.skillLine` 'alone' | 'party' | 'level' (the old hero), by default 'alone' for a hero on its own
+       and 'party' for a party. A plain cell is untouched. */
+    const asPlayed = cell.profile === 'played';
+    const line = asPlayed ? cell.skillLine || (party.length > 1 ? 'party' : 'alone') : 'level';
+    const lineLevels = (style, L) => {
+      if (line !== 'level' && !SKILL_LINES) throw new Error('balance-sim: a played cell reads the skill lines and tools/balance-sim/skill-lines.json is missing (skill-lines.mjs --run, --write)');
+      return skillsAt(SKILL_LINES, line, style, L);
+    };
+    const lineXp = (style, L) => { const lv = lineLevels(style, L); return Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, lv[k])])); };
+    /* A seat field left out falls back to the harness's own rule for it (the ladder kit of `style`, the skill line (every combat skill at the
+       Level for a plain cell), the reference bar, the supply policy), so one field at a time can be swapped between the recorded hero and the
+       harness's hero. */
     if (seats) {
       cell = { ...cell, party, startBySeat: seats.map((s) => {
         const L = XP.charLevelFromXp(s.levelXp);
-        return { levelXp: s.levelXp, skills: s.skills || Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)])) };
+        return { levelXp: s.levelXp, skills: s.skills || lineXp(s.style || s.role, L) };
       }) };
+    } else if (line !== 'level' && !cell.startBySeat && !cell.skillsBySeat) {
+      const lv0 = (i) => (Array.isArray(cell.level) ? cell.level[i] : cell.level);
+      cell = { ...cell, skillsBySeat: party.map((s, i) => lineLevels(s, lv0(i))) };
     }
     /* cell.startBySeat [{ levelXp, skills: { skill: xp } }]: a hero's exact XP (a career run's carry); its Level is the curve's */
     const levels = party.map((_, i) => (cell.startBySeat ? XP.charLevelFromXp(cell.startBySeat[i].levelXp)
@@ -121,8 +138,8 @@ export async function loadCellRunner(root) {
     /* the ground rides along so a `uniques` kit picks the attribute this ground asks for (gear.mjs); a ladder kit never reads it */
     /* cell.profile 'played' (played.mjs): the hero as real players set one up, wherever the cell doesn't name its own: accessories and spent
        ammo on the kit, the recorded bar for the role (rune spells on its Magic's tier), the recorded hunt options, and with supply 'own' its
-       own runes, arrows and whetstones beside the guide food. A seat's skill level is its own XP's, else the cell's, else its Level. */
-    const asPlayed = cell.profile === 'played';
+       own runes, arrows and whetstones beside the guide food. A seat's skill level is its own XP's, else the cell's (its skill line's, above),
+       else its Level. */
     const skillLv = (i, k) => (cell.startBySeat ? XP.skillLevelFromXp(k, (cell.startBySeat[i].skills || {})[k] || 0) : cell.skillsBySeat ? (cell.skillsBySeat[i] || {})[k] || 1 : levels[i]);
     const dress = (style, i) => (asPlayed ? { accessories: true, ammoSkill: skillLv(i, STYLES[style].role === 'ranger' ? 'ranged' : 'melee') } : {});
     const kits = seats ? seats.map((s, i) => (s.equipment ? { ...s.equipment } : gear.kitOf(s.style, levels[i], { ground: cell.ground, ...dress(s.style, i), ...(cell.gear || {}) }))) : party.map((s, i) => gear.kitOf(s, levels[i], { ground: cell.ground, ...dress(s, i), ...((cell.gearBySeat && cell.gearBySeat[i]) || cell.gear || {}) }));
@@ -146,7 +163,8 @@ export async function loadCellRunner(root) {
       if (spends(kits[i].ammo)) bag[kits[i].ammo] = { loaded: 100000 };
       return bag;
     };
-    const keys = roles.map((r, i) => r + i);
+    /* the runner's own member keys (play-ground.mjs memberKey: seat order, as one player's heroes enter live) */
+    const keys = roles.map((r, i) => play.memberKey(r, i));
     const band = bandOf(cell.ground);
     /* skills: 'level' = every combat skill at the hero's Level (the harness default); or per seat { skill: level } */
     const startFor = (role, seat) => {
@@ -442,7 +460,9 @@ export async function loadCellRunner(root) {
     return out;
   }
 
-  return { runCell, armorRungs, STYLES, gear, XP, COMBAT_SKILLS };
+  /* the tiers (src/data/hunt-tiers.js): a career on a party's tier reads each ground's own row (career.mjs job.tier) */
+  const tiers = await import(u('src/data/hunt-tiers.js'));
+  return { runCell, armorRungs, STYLES, gear, XP, COMBAT_SKILLS, tiers };
 }
 
 /* THE RULING'S DIFFICULTY BANDS (§3): a cell's band by its typical encounter minimum HP and by its deaths per

@@ -29,8 +29,8 @@
 // DUNN'S CANDLE, the ground's named Hearth fuel and Dunn's Rare (the board's section 6), is NOT a row yet: a Rare is revealed with its own pixel
 // icon (tests/hunt-core/drop-tables.mjs loot-structure), and the icon is owed art. It comes in with its icon, as the pack's `fuel` (shape.js):
 // { item: 'dunns_candle', xp: 12000, req: 70, flame: 'tallow', secs: 120, chunk: 'fuel_dunns_candle' }, a Rare row at 0.0067 a Dunn kill.
-import { definePack, box, gather } from '../shape.js?v=0.2.140';
-import map from './map.js?v=0.2.140';
+import { definePack, box, gather } from '../shape.js?v=0.2.141';
+import map from './map.js?v=0.2.141';
 
 const PA = 'shrouded_pauper', LE = 'vault_leech', BW = 'bone_wall', CA = 'night_carter', DU = 'keeper_dunn';
 
@@ -170,7 +170,7 @@ export default definePack({
      way: one class is the mean of its five one-class parties (0.69 / 0.63 / 0.52), two of two the mean of three duos (1.16), three of three of two
      trios (1.10), four of four the one played (1.08), the cells between the size's mix times the cell ratio. Whole fives. Every same-class party is
      under solo (worst 0.75, two bows). */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [0, 70], 3: [0, 60, 70], 4: [-20, 30, 35, 40] }, deadly: { 2: [-15, 40], 3: [0, 60, 70], 4: [-20, 35, 40, 45] } },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-5, 65], 3: [-5, 55, 60], 4: [-20, 30, 35, 40] }, deadly: { 2: [-10, 50], 3: [0, 60, 65], 4: [-20, 35, 40, 45] } },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value

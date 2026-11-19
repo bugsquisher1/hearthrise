@@ -3862,3 +3862,17 @@ World is a whole number of CSS px at every scale (54 px, the rule inside it, the
 moved 1024x768 across the 480 px dock threshold, so the Hunts window stopped rising over the bar and cut its first creature card
 (alpha-windows AW-93): a layout threshold measured in World px moves with the World (DOCK_ROOM_PX 525, the same screens rise as before);
 (6) B-21's pinned phone frame (H 290 -> 338) and every `#panel-world .world-*` selector had to follow the chrome into the bar.
+## 2026-11-19 lane/b-141-phone-fixes (v0.2.141 visual gate FAILED two phone screens)
+(1) AWAY CARD, yard took over: a session open (a yard counts as a hunt) holds the phone's sheet above the action bar, 275 px, and the
+hero's Open Training lay under the sticky OK. Chose the foot over "let the sheet rise" (that would special-case the shell's hunt rule
+for every sheet): away.js draws the first hero's press in the foot too, shown on a phone only, the row's own copy hidden there, so the
+one gold press sits beside OK in any held sheet. Bless again stays in the row, one scroll down (no room in 233 px). Desktop Gold: the
+figure takes the row's spare width at every size and its line breaks only between parts (result-block.js subParts: span per part).
+HR-13 (922x423, a hunt's screen: one gold press, in the foot, every press above the foot's top) + 2 mutants; HR-12's row-order mutant
+retired (its press moved to the foot). (2) TOWER DOOR on a phone: `.tt-side`/`.tk-side` display: contents, the stage spans the rows
+beside the side's boxes, the door (`.tt-foot`) spans the sheet under both; desktop: the last SHOWN stat row loses its divider
+(`:not(:has(~ .tt-row:not([hidden])))`; :last-child was a hidden Party row). TW-5 + TW-11 lines, a mutant each. (3) The summary's
+reason takes a full stop before what came after when it ends on a label.
+Lessons: (1) a press in a scroll region with a sticky foot is "in view" only above the foot's top: measure against it, not the fold;
+(2) `[hidden]` rows break `:last-child` styling: style the last shown one; (3) a harness's mount control can encode a desktop layout
+(signIn wanted the party panel): a phone rule waits for its own screen.

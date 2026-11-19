@@ -239,7 +239,8 @@ async function guard(X) {
   const PATHS = [
     ['a lone seat', king, ['tank'], {}],
     ['a pair', king, ['tank', 'healer'], {}],
-    ['a four, mixed', king, ['tank', 'healer', 'melee_dps', 'mage'], {}],
+    /* (seated in the order the runner entered it until lane/d-audit-fixes-sim made the entry order the seats': the same fight, where an add falls) */
+    ['a four, mixed', king, ['healer', 'mage', 'melee_dps', 'tank'], {}],
     ['a four on the Chief', chief, ['tank', 'healer', 'melee_dps', 'ranger'], {}],
     ['Tempering at every rung', king, ['tank', 'melee_dps'], { temper: { 'temper:blows:2': 5, 'temper:armor:2': 5, 'temper:blows:3': 5, 'temper:armor:3': 5 } }],
   ];
@@ -412,7 +413,7 @@ async function guard(X) {
   const lastFight = (f, key) => { let out = null; for (const m of f.members) if (m.key === key && m.analyzer && m.analyzer.fight) out = m.analyzer.fight; return out; };
   {
     const f = fight(X, king, ['tank', 'healer'], { L: 30, start: (role, i, L) => ({ levelXp: X.XP.charXpForLevel(L) + 2000 }) });
-    const k = kinds(f), tank = f.members.find((m) => /^tank/.test(m.key)).key;
+    const k = kinds(f), tank = X.play.memberKey('tank', 0);
     const book = Object.values(f.windows[0].units).find((u) => u[0] === king.monster);
     const dealt = eventsOf(f).filter((e) => e.type === 'dmg' && k[e.t] === king.monster).reduce((a, e) => a + e.amount, 0);
     const rec = lastFight(f, tank);

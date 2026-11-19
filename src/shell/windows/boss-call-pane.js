@@ -17,16 +17,16 @@
 // NATURAL WINS BEFORE THE CALL (2027-05-05-entry-gates.sql, Tyler 2026-11-18): "Rat King wins: 2/10" and each seat still short, from the quote's
 // `wins`, or before a quote and after a reload from the envelope's `entry_gates` section; a gate the server says is shut holds the press off.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.140';
-import { itemName, monsterName } from '../widgets/bits.js?v=0.2.140';
-import { whole } from '../../render/format.js?v=0.2.140';
-import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.140';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.140';
-import { callOut } from '../../session/boss-intents.js?v=0.2.140';
-import { readCall } from '../../session/boss-quote.js?v=0.2.140';
-import { callGateOf } from '../../session/gate-sections.js?v=0.2.140';
-import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.140';
-import { partyNote } from '../hunt-list.js?v=0.2.140';
+import { text, prop, cls, attr, rows, element } from '../../render/paint.js?v=0.2.141';
+import { itemName, monsterName } from '../widgets/bits.js?v=0.2.141';
+import { whole } from '../../render/format.js?v=0.2.141';
+import { BOSS_CALL_RULES, BOSS_CALL_WORDS, callFromGround, isGuarded } from '../../data/boss-calls.js?v=0.2.141';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.141';
+import { callOut } from '../../session/boss-intents.js?v=0.2.141';
+import { readCall } from '../../session/boss-quote.js?v=0.2.141';
+import { callGateOf } from '../../session/gate-sections.js?v=0.2.141';
+import { callEventWords, feeKey } from '../live-events-view.js?v=0.2.141';
+import { partyNote } from '../hunt-list.js?v=0.2.141';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { call: null, key: '', quote: null, asking: false, warned: false, fights: 1 }; SCRATCH.set(cs, s); } return s; };

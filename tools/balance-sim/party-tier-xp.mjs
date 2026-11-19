@@ -17,7 +17,12 @@
 // reads every party number as it would stand on that table (each mix scaled by its new cell over this tree's), the lone ones untouched. A kill's
 // share floors, so where a kill pays a few XP (the first grounds) re-measure on the edited tree, never trust the scaled read alone.
 //
-//   node tools/balance-sim/party-tier-xp.mjs [--grounds a,b] [--seeds 2] [--hours 0.5] [--workers 4] [--cap 2.5] [--table ...] [--cache file.jsonl]
+// THE PLAYED HERO (the balance audit's fix 1, lane/d-audit-fixes-sim 2026-11-19): every cell plays the hero players set up (cell.mjs
+// `profile: 'played'`: the recorded bars, accessories and options) with a PARTY-LEVELLED hero's skills (skill-lines.mjs 'party'), the lone
+// cells too, since "the same heroes alone" are those heroes with those skills. `--profile plain` reads the old harness hero (every skill at
+// its Level, the default bar) for a before/after.
+//
+//   node tools/balance-sim/party-tier-xp.mjs [--grounds a,b] [--seeds 2] [--hours 0.5] [--workers 4] [--cap 2.5] [--table ...] [--cache file.jsonl] [--profile played|plain]
 import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -35,6 +40,10 @@ const PCX = await import(u('src/data/party-class-xp.js'));
 const { STYLES } = await import(u('tools/balance-sim/gear.mjs'));
 
 const SEEDS = Number(arg('--seeds', 2)), HOURS = Number(arg('--hours', 0.5)), WORKERS = Number(arg('--workers', 4)), CAP = Number(arg('--cap', 2.5));
+const PROFILE = arg('--profile', 'played');
+if (!['played', 'plain'].includes(PROFILE)) throw new Error('party-tier-xp: --profile played|plain');
+/* every cell: the played hero on the party line (the same heroes, alone or together), or the plain harness hero */
+const asPlayed = PROFILE === 'played' ? { profile: 'played', skillLine: 'party' } : {};
 const grounds = arg('--grounds', null) ? arg('--grounds').split(',') : Object.keys(G.HUNT_GROUNDS);
 const WAYS = ['tank', 'hammer', 'bow', 'mage', 'healer'];
 /* name -> [ways, Level offset per seat] */
@@ -64,7 +73,7 @@ const tierOpts = (g, tier, n) => {
 function plan() {
   const jobs = [];
   for (const g of grounds) for (const tier of T.tiersOf(g)) for (const [at, L] of levelsOf(g)) for (let s = 0; s < SEEDS; s++) {
-    const base = (id, party, level) => ({ id: [g, tier, at, s, id].join(':'), ground: g, party, level, hours: HOURS, seeds: 1, seedBase: s, ...tierOpts(g, tier, party.length), ...stagedGear(g) });
+    const base = (id, party, level) => ({ id: [g, tier, at, s, id, PROFILE].join(':'), ground: g, party, level, hours: HOURS, seeds: 1, seedBase: s, ...tierOpts(g, tier, party.length), ...stagedGear(g), ...asPlayed });
     for (const w of WAYS) jobs.push(base('solo-' + w + '@0', [w], L));
     jobs.push(base('solo-healer@-5', ['healer'], Math.max(1, L - 5)));
     for (const [name, [ways, off]] of Object.entries(PARTIES)) jobs.push(base(name, ways, off.map((o) => Math.max(1, L + o))));
@@ -76,7 +85,7 @@ const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
 const median = (a) => { const b = [...a].sort((x, y) => x - y); return b.length % 2 ? b[(b.length - 1) / 2] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2; };
 
 function judge(played) {
-  const at = (g, tier, lv, s, id) => played.get([g, tier, lv, s, id].join(':'));
+  const at = (g, tier, lv, s, id) => played.get([g, tier, lv, s, id, PROFILE].join(':'));
   const rows = [];
   for (const g of grounds) for (const tier of T.tiersOf(g)) for (const [lvName, L] of levelsOf(g)) {
     const seeds = [...Array(SEEDS).keys()];
@@ -105,7 +114,7 @@ const fours = (x) => x.name === 'andy' || x.name === 'four';
 
 function report(rows) {
   const tab = WHAT_IF || PCX.PARTY_CLASS_XP;
-  console.log('party-tier-xp: the party table ' + JSON.stringify(tab) + (WHAT_IF ? ' (a what-if: this tree pays ' + JSON.stringify(PCX.PARTY_CLASS_XP) + ')' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell');
+  console.log('party-tier-xp: the party table ' + JSON.stringify(tab) + (WHAT_IF ? ' (a what-if: this tree pays ' + JSON.stringify(PCX.PARTY_CLASS_XP) + ')' : '') + '; ' + SEEDS + ' seeds x ' + HOURS + ' h a cell; the ' + PROFILE + ' hero' + (PROFILE === 'played' ? ' (party-levelled skills, skill-lines.mjs)' : ''));
   console.log('  xC = Level XP a head over the pace contract (solo: the median lone way); vs same = a head over the same heroes alone (mean), seat = over its best way alone; ' + MIXES.join(', '));
   console.log('ground               tier       at       L | solo xC  andy xC  four xC | vs same: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | seat: ' + MIXES.map((n) => n.split(' ')[0]).join(' ') + ' | deaths');
   for (const g of grounds) for (const tier of T.tiersOf(g)) for (const lv of ['floor', 'middle']) {

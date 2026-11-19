@@ -27,10 +27,10 @@
 // PURE ESM. Data, and the one reader of it (the engine and the party window both).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_ROLES } from './hunt-roles.js?v=0.2.140';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.140';
-import { foldRows } from './grounds/shape.js?v=0.2.140';
-import { TIER_IDS, DEFAULT_TIER, tiersOf } from './hunt-tiers.js?v=0.2.140';
+import { HUNT_ROLES } from './hunt-roles.js?v=0.2.141';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
+import { foldRows } from './grounds/shape.js?v=0.2.141';
+import { TIER_IDS, DEFAULT_TIER, tiersOf } from './hunt-tiers.js?v=0.2.141';
 
 /* THE CLASSES a party can hold: class id → the word the player reads and the hunt roles it covers.
    Tank is a function of a Melee, not a class of its own (Tyler 2026-10-16). */
@@ -100,17 +100,22 @@ export const PARTY_CLASS_XP = row([880, 1500], [990, 1600, 1700], [970, 1580, 16
    Dangerous and Deadly two of two, three of three and four of four are the played mixes (a pair the mean of tank + Healer and tank + bow), every other cell
    the size's mix times the table's cell ratio (a cell moves no blow; on Normal that reading lands within 5 of the measured one-class cells).
    first-week-bands vs-alone plays a harder tier's full mix against its line. The Normal lines were re-measured by that run on set v0.2.138 (2026-11-18,
-   3 seeds): one ground's moved, the Warrens' (5 points on six cells; its three of three +25 -> +30). */
+   3 seeds): one ground's moved, the Warrens' (5 points on six cells; its three of three +25 -> +30).
+   RE-WRITTEN 2026-11-19 ON SET v0.2.141 (lane/d-audit-fixes-sim, party-class-xp-line --mixed --write, 3 seeds): the harness now enters a party in seat
+   order, as one player's heroes enter live (tests/hunt-core/fixtures/play-ground.mjs memberKey; it entered by role name), and the bow's default set casts
+   Flame Volley (rule-subjects.js). Most moved cells moved 5 points; the most, 10 (the Warrens' Deadly three of three +45 -> +35, the Glade's Deadly
+   four +40 -> +35, the Catacombs' Deadly pair +40 -> +50). Every harder-tier mix still reads at or over its heroes alone, every Deadly four under
+   2.5x the contract. Still the plain harness hero on both sides of each line (the board's fix 1 moved the balance tables to the played hero, not these). */
 const said = (two, three, four) => Object.freeze({ 2: Object.freeze(two), 3: Object.freeze(three), 4: Object.freeze(four) });
 /* a ground's lines, one per tier it offers: { normal: said(..), dangerous: said(..), deadly: said(..) } */
 const lines = (byTier) => Object.freeze(Object.fromEntries(Object.entries(byTier).map(([tier, l]) => [tier, said(l[2], l[3], l[4])])));
 const BASE_VS_ALONE = Object.freeze({
   mill_cellar: lines({ normal: said([-60, -30], [-70, -45, -45], [-80, -60, -60, -60]) }),
-  meadowbrook_thicket: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), dangerous: said([-45, -10], [-50, -25, -20], [-65, -40, -40, -40]), deadly: said([-45, -5], [-50, -25, -20], [-65, -40, -40, -35]) }),
-  wickstead: lines({ normal: said([-45, -10], [-55, -25, -20], [-65, -45, -40, -40]), dangerous: said([-45, -10], [-55, -25, -20], [-65, -40, -35, -35]), deadly: said([-45, -5], [-50, -20, -15], [-60, -40, -35, -35]) }),
-  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-55, -25, -20, -20]), dangerous: said([-30, 20], [-30, 15, 20], [-40, 0, 5, 10]), deadly: said([-15, 45], [-10, 50, 60], [-20, 30, 40, 40]) }),
-  millrace_sewer: lines({ normal: said([-35, 10], [-35, 10, 20], [-45, 5, 10, 10]), dangerous: said([-30, 15], [-30, 15, 20], [-35, 5, 15, 15]), deadly: said([-30, 20], [-25, 20, 30], [-30, 15, 20, 25]) }),
-  coppercap_warrens: lines({ normal: said([-25, 20], [-25, 25, 30], [-30, 20, 25, 25]), dangerous: said([-25, 25], [-20, 35, 40], [-20, 30, 35, 40]), deadly: said([-25, 25], [-15, 35, 45], [-20, 30, 35, 40]) }),
+  meadowbrook_thicket: lines({ normal: said([-50, -10], [-55, -25, -20], [-65, -40, -40, -35]), dangerous: said([-50, -10], [-55, -25, -25], [-65, -45, -40, -40]), deadly: said([-45, -10], [-55, -25, -25], [-65, -45, -40, -40]) }),
+  wickstead: lines({ normal: said([-50, -15], [-60, -30, -25], [-70, -45, -45, -40]), dangerous: said([-50, -15], [-55, -25, -25], [-65, -45, -40, -40]), deadly: said([-50, -10], [-55, -25, -20], [-65, -40, -40, -40]) }),
+  mosslight_glade: lines({ normal: said([-40, 0], [-45, -10, -5], [-60, -30, -25, -25]), dangerous: said([-30, 15], [-30, 10, 15], [-40, 0, 5, 5]), deadly: said([-15, 40], [-10, 45, 50], [-25, 25, 30, 35]) }),
+  millrace_sewer: lines({ normal: said([-35, 15], [-35, 10, 15], [-45, 0, 5, 5]), dangerous: said([-30, 20], [-30, 15, 25], [-35, 10, 15, 15]), deadly: said([-30, 20], [-25, 15, 25], [-35, 10, 15, 20]) }),
+  coppercap_warrens: lines({ normal: said([-30, 20], [-25, 25, 30], [-30, 15, 25, 25]), dangerous: said([-30, 25], [-20, 30, 40], [-25, 25, 35, 35]), deadly: said([-30, 25], [-20, 25, 35], [-25, 25, 30, 35]) }),
 });
 /* A ground pack's measured lines (src/data/grounds/<id>/pack.js `partyVsAlone`: { normal: { 2, 3, 4 }, dangerous: .., deadly: .. }, whole fives, measured on the real settle). */
 export const PARTY_VS_ALONE = Object.freeze(foldRows('party line', BASE_VS_ALONE, GROUND_PACKS, (p) => (p.partyVsAlone ? { [p.id]: lines(p.partyVsAlone) } : {})));

@@ -163,12 +163,16 @@ function bandOf(huntId) {
 
 /* ── ONE HUNT ON THE REAL SETTLE (play-ground.mjs run, the parts a cell reads) ───────────────────────────────── */
 const SESSION_BASICS = Object.fromEntries(BASIC_SUPPLIES.map((b) => [b.id, { kind: b.kind, price: b.price, heals: b.heals || 0, mana: b.mana || 0, partner: b.partner }]));
+/* A hero's member key in SEAT ORDER: play-ground.mjs memberKey's rule, restated because this file is bundled for the browser and
+   play-ground imports node: modules (tools/balance-lab/parity.mjs holds the two runners equal). The settle enters a party in key order,
+   as one player's heroes enter live by `user:slot`; `role + seat` entered it by role name (lane/d-audit-fixes-sim, the Lookout fix). */
+const memberKey = (role, seat) => String(seat).padStart(2, '0') + ':' + role;
 function heroOf(huntId, role, i, L, roles, o) {
   const st = (o.start && o.start(role, i, L)) || {};
   const skills = st.skills ? { ...st.skills } : Object.fromEntries(COMBAT.map((k) => [k, skillXpForLevel(k, L)]));
   const equipment = o.equipment(role, i, L);
   return {
-    key: role + i, user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
+    key: memberKey(role, i), user: role + i, slot: 0, seat: i, unitId: null, sessionId: 's-' + role + i, version: 1, huntId,
     huntSession: { id: 's-' + role + i, instanceId: IID, huntFromMs: T0, nextSwingAtMs: T0, swingIndex: 0,
       bag: o.bag(role, i, L), staminaMs: 12 * 3600000, staminaMaxMs: 12 * 3600000, basics: SESSION_BASICS, goldFloor: 0,
       supplySource: 'mine', onEmpty: 'switch', cover: {} },
@@ -233,7 +237,7 @@ export function playCell(cell, seeds, hooks = {}) {
   const roles = party.map((s) => { if (!STYLES[s]) throw new Error('balance-lab: unknown style ' + s); return STYLES[s].role; });
   const levels = cellLevels(cell);
   const kits = cellKits(cell, levels);
-  const keys = roles.map((r, i) => r + i);
+  const keys = roles.map((r, i) => memberKey(r, i));
   const band = bandOf(cell.ground);
   const list = Array.isArray(seeds) ? seeds : Array.from({ length: cell.seeds || 1 }, (_, i) => i);
   const startFor = (role, seat) => {

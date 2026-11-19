@@ -215,5 +215,33 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
   check(tierOf(came.weapon) === tierOf(best.weapon) - 1 && tierOf(came.body) === tierOf(best.body) - 1, 'storefood: the arriving tank at 85 wears tier ' + tierOf(came.weapon) + ', one under the Level\'s ' + tierOf(best.weapon));
 }
 
+/* THE PLAYED HERO (the balance audit's fix 1, lane/d-audit-fixes-sim 2026-11-19): parties and harder tiers are graded on the played hero, a hero alone on
+   Normal on the plain one (the pace of record's), with a played twin beside it that only a played cell is read against. */
+{
+  const grid = await buildGrid(ROOT, 'quick', { grounds: ['mosslight_glade'] });
+  const lone = grid.filter((j) => j.grade.size === 1 && j.grade.tier === 'normal' && j.grade.gear === 'ladder');
+  const party = grid.filter((j) => j.grade.size > 1), harder = grid.filter((j) => j.grade.tier !== 'normal');
+  check(party.length > 0 && party.every((j) => j.profile === 'played' && j.grade.profile === 'played' && j.id.endsWith(',pr=played')), 'played: every party cell plays the played hero, and its id says so');
+  check(harder.length > 0 && harder.every((j) => j.profile === 'played'), 'played: every harder-tier cell plays the played hero, alone or not');
+  const plain = lone.filter((j) => j.grade.profile === 'plain'), twins = lone.filter((j) => j.grade.profile === 'played');
+  check(plain.length > 0 && plain.length === twins.length && plain.every((j) => !j.profile) && twins.every((j) => j.profile === 'played'), 'played: a hero alone on Normal plays plain (' + plain.length + ') with a played twin each (' + twins.length + ')');
+  check(grid.filter((j) => j.grade.gear !== 'ladder').every((j) => !j.profile && j.grade.profile === 'plain'), 'played: the practice set and the store-food cell stay plain');
+  check(new Set(grid.map((j) => j.id)).size === grid.length, 'played: no two cells share an id');
+  /* the scoping, on synthetic cells: a played twin's death fails no Normal rule; a played four is read against the played twins alone, not the plain hero */
+  const prof = (cells) => cells.flatMap((c) => {
+    const g = c.cell.grade;
+    if (g.size === 1 && g.tier === 'normal') return [{ ...c, cell: { ...c.cell, grade: { ...g, profile: 'plain' } } }, { ...c, cell: { ...c.cell, grade: { ...g, profile: 'played' } }, heroes: c.heroes.map((h) => ({ ...h, levelXpPerH: h.levelXpPerH * 1.3 })) }];
+    return [{ ...c, cell: { ...c.cell, grade: { ...g, profile: 'played' } }, heroes: c.heroes.map((h) => ({ ...h, levelXpPerH: h.levelXpPerH * 1.3 })) }];
+  });
+  check(failsOf(prof(synthSet())).length === 0, 'played: the good set split by profile has no binding FAIL (' + failsOf(prof(synthSet())).map((v) => v.rule + ' ' + v.key).join('; ') + ')');
+  const twinDies = prof(synthSet()); twinDies.find((c) => c.cell.grade.profile === 'played' && c.cell.grade.size === 1 && c.cell.grade.tier === 'normal' && c.cell.grade.offset === 'floor').heroes[0].deaths = 12;
+  check(!failsOf(twinDies).some((v) => v.rule === 'normal-deaths'), 'played: a played twin\'s deaths fail no Normal rule (the plain hero is graded there)');
+  const plainDies = prof(synthSet()); plainDies.find((c) => c.cell.grade.profile === 'plain' && c.cell.grade.size === 1 && c.cell.grade.offset === 'floor').heroes[0].deaths = 12;
+  check(failsOf(plainDies).some((v) => v.rule === 'normal-deaths'), 'played: the plain hero alone dying on Normal still FAILS normal-deaths');
+  /* a four at 1.2x the played twins reads ok; read against the plain hero (1.56x) it would FAIL four-xp */
+  const fourOk = gradeCells(prof(synthSet()), SHEET, flat).verdicts.filter((v) => v.rule === 'four-xp');
+  check(fourOk.length > 0 && fourOk.every((v) => v.verdict === 'ok' && Math.abs(v.value - 1.2) < 1e-9), 'played: a four is read against the played twins alone (' + fourOk.map((v) => v.value.toFixed(2)).join(', ') + ')');
+}
+
 if (fails.length) { console.error('balance-grade: ' + fails.length + ' FAILED'); process.exit(1); }
 console.log('balance-grade: all checks pass');

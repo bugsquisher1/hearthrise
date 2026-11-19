@@ -58,8 +58,8 @@
 // tier-4 weapons are the Slake's, so opened alone a sword alone at 45 swings its tier-3 sword and nets +5% over its store bill
 // (`node tools/pack.mjs check hasks_ford --mode full`, 6 seeds x 4 h), where the rule is +25% for every way. With the Slake's
 // mithril sword gettable it nets +45%, and that full grade passes every row (`--with the_slake`, exit 0, 66 rows).
-import { definePack, box, gather } from '../shape.js?v=0.2.140';
-import map from './map.js?v=0.2.140';
+import { definePack, box, gather } from '../shape.js?v=0.2.141';
+import map from './map.js?v=0.2.141';
 
 const PK = 'banded_pikeman', FS = 'fordsunk', LW = 'ledger_wight', BN = 'bannerman';
 
@@ -199,7 +199,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.70, threes 0.55-0.65, fours 0.44-0.58), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.06-1.17, threes 1.06-1.14, the four 1.17); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, -5], 3: [-50, -20, -15], 4: [-60, -35, -35, -35] }, dangerous: { 2: [-30, 20], 3: [-25, 20, 25], 4: [-35, 5, 10, 15] }, deadly: { 2: [-30, 20], 3: [-25, 20, 30], 4: [-35, 10, 15, 15] } },
+  partyVsAlone: { normal: { 2: [-40, -5], 3: [-50, -20, -15], 4: [-60, -40, -35, -35] }, dangerous: { 2: [-30, 15], 3: [-30, 10, 20], 4: [-40, 0, 5, 10] }, deadly: { 2: [-30, 20], 3: [-30, 15, 20], 4: [-35, 5, 10, 10] } },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Slake's bag. Salted Lobster is the cheapest heal an HP at this Level
      (0.83 g an HP). The melee line holds about three hours of a lone tank's bill at the floor (5.8k g an hour, drop-tables). */
   bagGuide: { tier: 4,

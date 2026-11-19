@@ -26,7 +26,9 @@ export function seatRatios(cells) {
   for (const c of rows) {
     const m = c.cell.grade;
     if (m.tier !== 'normal' || !IN.includes(m.offset) || m.size < 2) continue;
-    const solo = median(rows.filter((o) => o.cell.grade.ground === m.ground && o.cell.grade.tier === 'normal' && o.cell.grade.offset === m.offset && o.cell.grade.size === 1).map((o) => metricsOf(o).xp));
+    /* the same hero alone: a played party against the played twins (grade.mjs gradedProfile), a cell with no profile against the same */
+    const solo = median(rows.filter((o) => o.cell.grade.ground === m.ground && o.cell.grade.tier === 'normal' && o.cell.grade.offset === m.offset && o.cell.grade.size === 1
+      && (o.cell.grade.profile || null) === (m.profile || null)).map((o) => metricsOf(o).xp));
     if (solo > 0) out[[m.ground, m.offset, m.comp].join(' / ')] = Math.min(...c.heroes.map((h) => h.levelXpPerH)) / solo;
   }
   return out;

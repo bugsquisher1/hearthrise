@@ -16,10 +16,10 @@
 // stock (display only) and the character is RE-READ: every count changes only
 // from the server's envelope. A refusal keeps the server's code and its verb.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.140';
-import { refusalOf } from './refusal.js?v=0.2.140';
-import { afterRefusal } from './quoted-ask.js?v=0.2.140';
-import { catchingUp, newIdem } from './catch-up.js?v=0.2.140';
+import { askVia } from './intent-ledger.js?v=0.2.141';
+import { refusalOf } from './refusal.js?v=0.2.141';
+import { afterRefusal } from './quoted-ask.js?v=0.2.141';
+import { catchingUp, newIdem } from './catch-up.js?v=0.2.141';
 
 const VERB = 'hunt_restock';
 const ITEM = /^[a-z0-9_]{1,64}$/;

@@ -19,8 +19,8 @@
 // so a ground drops those only as Rares, tests/hunt-core/forest-cave.mjs shop-outfits-defense, the Hold's pattern). Lord Krell has the bodies and helms. Worn from 88, so every
 // piece is wearable the hour it drops. Each body drops one imbuement item. FITTED on the floor hour's kills (tests/hunt-core/drop-tables.mjs, a lone
 // tank in its full set, lane/d-morrow-grounds 2026-11-14).
-import { definePack, box, gather } from '../shape.js?v=0.2.140';
-import map from './map.js?v=0.2.140';
+import { definePack, box, gather } from '../shape.js?v=0.2.141';
+import map from './map.js?v=0.2.141';
 
 const PK = 'troll_picker', TH = 'slate_thrower', ST = 'stable_troll', BR = 'troll_brewer', LL = 'the_landlord';
 
@@ -134,7 +134,7 @@ export default definePack({
   /* (Its own party cells are retired: one party table for every ground, Tyler 2026-11-16, src/data/party-class-xp.js.) */
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -15, -5], 4: [-55, -25, -25, -20] }, dangerous: { 2: [-30, 20], 3: [-30, 10, 20], 4: [-40, 0, 5, 5] }, deadly: { 2: [-20, 35], 3: [-25, 25, 30], 4: [-35, 10, 15, 15] } },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -15, -5], 4: [-60, -30, -25, -25] }, dangerous: { 2: [-30, 20], 3: [-30, 10, 20], 4: [-40, 0, 5, 10] }, deadly: { 2: [-25, 30], 3: [-25, 25, 30], 4: [-35, 10, 15, 15] } },
   /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, the Hold's and the Roost's row). Its own party cells went with the one
      table (Tyler 2026-11-16), and on the table's eight a Melee and bow pair at the floor died 58 times an hour on Deadly and earned 0.92 of the same
      heroes alone. On six every Dangerous and Deadly mix stands at or over its heroes alone (1.13-1.50; party-tier-xp, 2 seeds x 0.5 h) and Andy's four

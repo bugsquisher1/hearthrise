@@ -53,7 +53,7 @@ function fremulonHour(P) {
     bar: (role) => JSON.parse(JSON.stringify((role === 'ranger' ? FREMULON : HANK).bar)),
     options: (role) => (role === 'ranger' ? { ...FREMULON.options } : {}),
     onWindow: (out) => {
-      const r = out.members.find((p) => p.key === 'ranger0');
+      const r = out.members.find((p) => p.key === P.memberKey('ranger', 0));
       if (!r) return;
       if (Number.isInteger(r.hunt.unit_id)) unit = r.hunt.unit_id;
       for (const e of out.events || []) {
@@ -220,7 +220,7 @@ async function shotSpellWords(root) {
       bag: (role) => (role === 'ranger' ? JSON.parse(JSON.stringify(bag)) : {}),
       bar: (role) => (role === 'ranger' ? [ab('precision_shot'), ...extra] : []),
       onWindow: (out) => {
-        const r = out.members.find((p) => p.key === 'ranger0');
+        const r = out.members.find((p) => p.key === P.memberKey('ranger', 0));
         unit = r.hunt.unit_id ?? unit;
         for (const e of out.events || []) if (e.u === unit && e.type === 'cast' && e.ability === 'precision_shot') n++;
       },

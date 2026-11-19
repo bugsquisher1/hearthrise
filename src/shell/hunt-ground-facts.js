@@ -33,18 +33,18 @@
 //   (combat.js weaknessInfo, what the settle hands the roller: hunt-rewards.js payKill), the same for every party size (Tyler 2026-11-08:
 //   one difficulty for every group), before any hero's bonus. Never a number typed here (ART_DIRECTION §8).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, OPEN_GROUNDS, OPEN_HALL_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.140';
-import { hallOfHunt, hallBossOf } from '../data/boss-halls.js?v=0.2.140';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
-import { MONSTERS } from '../data/monsters.js?v=0.2.140';
-import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.140';
-import { ITEMS } from '../data/items.js?v=0.2.140';
-import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.140';
-import { weaknessInfo } from '../core/combat.js?v=0.2.140';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.140';
-import { armourLineWord } from '../data/gear-tiers.js?v=0.2.140';
-import { listWords } from '../render/format.js?v=0.2.140';
-import { isSpentMaterial, isRareRow, isRareItem, isRareOnly } from './bag-model.js?v=0.2.140';
+import { HUNT_GROUNDS, OPEN_GROUNDS, OPEN_HALL_GROUNDS, DENSITY_PICK, pullRows } from '../data/hunt-grounds.js?v=0.2.141';
+import { hallOfHunt, hallBossOf } from '../data/boss-halls.js?v=0.2.141';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
+import { MONSTERS } from '../data/monsters.js?v=0.2.141';
+import { castsOf, spellRow } from '../data/monster-spells.js?v=0.2.141';
+import { ITEMS } from '../data/items.js?v=0.2.141';
+import { bandOf, effectiveDropChance } from '../core/drops.js?v=0.2.141';
+import { weaknessInfo } from '../core/combat.js?v=0.2.141';
+import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.141';
+import { armourLineWord } from '../data/gear-tiers.js?v=0.2.141';
+import { listWords } from '../render/format.js?v=0.2.141';
+import { isSpentMaterial, isRareRow, isRareItem, isRareOnly } from './bag-model.js?v=0.2.141';
 
 /* How common a creature is, by its share of the ground's spawn points: at least `common` is common,
    under `rare` is rare, between is uncommon (Tyler 10-18: a common majority, some uncommon, one or two rare). */

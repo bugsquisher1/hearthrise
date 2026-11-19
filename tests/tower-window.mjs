@@ -6,7 +6,7 @@
 //   node tests/tower-window.mjs --mutate   every planted defect must turn a named rule RED, each run in only its arm (`TW-4 …`)
 //   node tests/tower-window.mjs --shots <dir>   also write the desktop (1440x900) and phone (922x423) screenshots
 //
-// mutant-anchors: src/data/text/tower.js src/styles/shell.css src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js src/data/shell-windows.js src/shell/back-in-town.js src/shell/windows/inventory/state.js src/shell/windows/inventory/actions.js src/shell/item-lore.js src/session/gate-sections.js src/shell/launcher-menu.js src/shell/launcher.js
+// mutant-anchors: src/data/text/tower.js src/styles/shell.css src/shell/windows/tower.js src/shell/windows/tower-chest.js src/shell/tower-stage.js src/shell/tower-words.js src/shell/tower-end-card.js src/shell/windows/hunt-summary.js src/session/tower-sections.js src/session/tower-intents.js src/shell/windows/havora/index.js src/shell/death-popup.js src/shell/widgets/tower-bar.js src/hunt-view/summary-recorder.js src/data/shell-windows.js src/shell/back-in-town.js src/shell/windows/inventory/state.js src/shell/windows/inventory/actions.js src/shell/item-lore.js src/session/gate-sections.js src/shell/launcher-menu.js src/shell/launcher.js src/styles/tower.css
 //
 // THE QA GATE (2026-11-17): the Town menu's Burning Tower line (only with the section) and one re-read each opening (TW-1, TW-2); the Story
 // folds on a tab press and greets with Keeper Rowe (TW-2); the chest's "Weapon chance: 16%" (TW-4); a free fall upsells no Blessing and no
@@ -504,6 +504,15 @@ async function checks(overrides, shots, { arm = null } = {}) {
       if (!v || !v.shown || v.head !== 'When the hunt ends' || v.options.join('|') !== 'Wait in town|Train Melee at the yard|Train Ranged at the yard|Train Magic at the yard|Train Defense at the yard'
         || v.value !== 'train:melee' || v.note !== '122 gp/h, paid hourly in advance · up to 12 h · Out of gold: waits in town' || v.off || !v.overEnter || v.go !== 'on' || !v.beforeWhole)
         fails.push('TW-11 the Climb\'s door reads ' + JSON.stringify(v));
+      /* ONE RULE OVER THE DOOR (v0.2.141 gate: the last shown stat row's divider stood 4 px over the foot's own rule): the last row the Climb's
+         column shows draws no divider, whatever rows the server left empty (a solo hero: no Party row) */
+      const rule = await page.evaluate(() => {
+        const rows = Array.from(document.querySelectorAll('[data-hs-win="tower"] .tt-rules-box .tt-row')), shown = rows.filter((r) => r.getClientRects().length);
+        const last = shown[shown.length - 1];
+        return { rows: rows.length, shown: shown.length, last: last ? last.getAttribute('data-row') : null, border: last ? getComputedStyle(last).borderBottomWidth : null };
+      });
+      if (!(rule.shown > 0 && rule.shown < rule.rows)) fails.push('TW-11 CONTROL: no stat row is left empty, so the last shown one is not judged: ' + JSON.stringify(rule));
+      else if (rule.border !== '0px') fails.push('TW-11 a second rule over the door: the last shown stat row keeps its divider ' + JSON.stringify(rule));
       if (shots) { await page.waitForTimeout(150); await page.screenshot({ path: join(shots, 'tower-climb-after-1440x900.png') }); }
       /* a change sends ONE hr_hunt_after_set (the choice and the skill, nothing else) and no Tower verb */
       const asks = () => s.calls.filter((c) => c.name === 'hr_hunt_after_set');
@@ -735,6 +744,16 @@ async function checks(overrides, shots, { arm = null } = {}) {
           if (!m || m.left < 0 || m.right > m.vw || m.over > 1 || m.out) fails.push('TW-5 the phone ' + tab + ' tab is ' + JSON.stringify(m));
           if (m && m.small) fails.push('TW-5 text under 12 px on the phone ' + tab + ' tab: ' + JSON.stringify(m.small));
           if (tab === 'climb' && (!m || !(m.stage >= 240))) fails.push('TW-5 the phone draws no tower beside its column: ' + JSON.stringify(m && m.stage));
+          /* THE DOOR UNDER THE TOWER (v0.2.141 gate: squeezed into the 96 px column beside it, "When / the hunt / ends" on three lines and the
+             plan's select cut): the foot spans the sheet's width, under the stage, from its left edge */
+          if (tab === 'climb') {
+            const d = await page.evaluate(() => {
+              const w = document.querySelector('[data-hs-win="tower"]'), body = w.querySelector('[data-hs-body]'), cs = getComputedStyle(body);
+              const f = w.querySelector('.tt-climb-foot').getBoundingClientRect(), st = w.querySelector('.tt-climb-stage').getBoundingClientRect();
+              return { foot: Math.round(f.width), inner: Math.round(body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)), under: f.top >= st.bottom - 1, left: Math.round(f.left - st.left) };
+            });
+            if (!(d.foot >= d.inner * 0.9) || !d.under || Math.abs(d.left) > 1) fails.push('TW-5 the phone\'s door is not under the tower at the sheet\'s width: ' + JSON.stringify(d));
+          }
           if (tab === 'chest') {
             const sc = (await chestView(page)).scene;
             if (!besideFire(sc)) fails.push('TW-5 the phone\'s scene loses the chest or the fire: ' + JSON.stringify(sc));
@@ -990,6 +1009,8 @@ const MUTANTS = [
   ['TW-4 the chest sits over the fire', 'src/shell/windows/tower-chest.js', '`--tr-cx:${px(C.x)}`', '`--tr-cx:${px(F.x)}`'],
   ['TW-4 the reveal plays away from the chest', 'src/shell/windows/tower-chest.js', '`--tr-rx:${px(R.x)}`', '`--tr-rx:${px(R.x + 40)}`'],
   ['TW-5 the phone\'s view left on the west ledge, the chest cut off', 'src/shell/windows/tower-chest.js', '`--tr-pvx:${px(P.x)}`', '`--tr-pvx:${px(P.x - 100)}`'],
+  ['TW-5 the phone\'s door squeezed into the column beside the tower again', 'src/styles/tower.css', '  .tt-climb > .tt-side, .tk-body > .tk-side { display: contents; }\n', ''],
+  ['TW-11 the last shown stat row keeps its divider over the door', 'src/styles/tower.css', '.tt-row:not(:has(~ .tt-row:not([hidden]))) { border-bottom: 0; }', '.tt-row:last-child { border-bottom: 0; }'],
   ['TW-4 a stoke press sends the page\'s count', 'src/shell/windows/tower-chest.js', "    const n = Number(el.getAttribute('data-n'));", '    const n = 3;'],
   ['TW-6 New Best is said for a climb that set no record', 'src/shell/tower-words.js', '  const newBest = !!run && run.top !== null && run.bestBefore !== null && run.top > run.bestBefore;', '  const newBest = !!run && run.top !== null;'],
   ['TW-6 the end card draws no run', 'src/shell/tower-end-card.js', ' run: [r.start, top], lo:', ' run: null, lo:'],

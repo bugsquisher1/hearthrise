@@ -29,6 +29,63 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-19 Level pace (game-designer, lane/d-level-pace-141; the post-140 audit's "Level 22 at 36 h", `tools/qa/audit-2026-11-18-140/findings.md`): MEASURED on set/v0.2.141 69b046c72, the pace rows KEPT, one default-bar change RULED for its own lane, nothing built, the edge does not move
+**The targets used, quoted.** Balance ruling 2026-10-25 §2: "Level / cumulative hunting hours / days at 12h: 10 / 6 / 0.5 · 25 / 36 / 3 · 50 / 168 / 14", "Assume reasonably efficient hunting; benchmarks, not guarantees." Rulings of record 2026-11-06: "the pace stays held on Normal (L50 in about 168 h)". In the data (`src/data/core-model.js` LEVEL_PACE): targets [10, 6] and [25, 36], tolerance 0.1, Level 5 in 0.15-0.35 h, judged on the MEDIAN of the eight lone ways where the Hunts window sends them (`tests/level-curve.mjs` C2/C3, exit 0 on this build).
+
+**How it was measured.** The real settle (`tools/balance-sim/career.mjs`): the pace plan's eight lone careers (seed 0, 15-minute chunks to Level 10, then hourly), Level 1 to 31, on Normal, where `recommendedHunt` sends a lone hero (the Mill Cellar 1-4, the Thicket 5-7, Wickstead 8-15, the Glade 16 on). Two kits: as built (`gear.mjs`, the best piece the Level may wear and can get) and ARRIVING (one tier under on every slot group, `tierOffset -1`, the 11-18 row 2a kit). Every what-if below plays the same dice. No career died. The as-built numbers equal 139's re-measure (`tools/balance-sim/level-pace.json`, v0.2.138 content) to the hundredth of an hour: nothing since has moved the lone pace.
+
+**1. Level against hunted hours, a lone hero of each way** (hours; as built, arriving kit in brackets where it differs).
+| Way | 5 | 10 (target 6) | 15 | 16 | 20 | 22 | 25 (target 36) | 30 | 25 against target |
+|---|---|---|---|---|---|---|---|---|---|
+| Hammer | 0.2 | 5.4 | 15.5 | 17.8 | 23.1 (23.6) | 26.3 (27.0) | 32.1 (33.4) | 45.4 (47.9) | -10.8% (-7.2%) |
+| Axes | 0.2 | 5.7 | 16.3 | 18.6 (18.7) | 23.8 (24.3) | 27.1 (27.8) | 33.1 (34.3) | 47.0 (49.0) | -7.9% (-4.8%) |
+| Sword alone | 0.3 | 7.6 | 20.7 | 23.5 (23.7) | 30.1 (30.7) | 34.1 (35.0) | 41.6 (42.7) | 58.6 (60.4) | **+15.7% (+18.6%)** |
+| Sword and shield | 0.3 | 7.6 | 21.1 | 23.9 (24.0) | 31.2 (31.8) | 35.5 (**36.3**) | 43.3 (44.6) | 61.2 (63.4) | **+20.4% (+23.8%)** |
+| Bow | 0.2 | 6.2 | 17.5 | 20.0 | 25.7 (26.1) | 29.3 (29.8) | 35.8 (36.6) | 50.8 (52.3) | -0.5% (+1.8%) |
+| Crossbow | 0.2 | 6.2 | 17.3 | 19.8 | 25.6 (25.9) | 29.1 (29.5) | 35.5 (36.3) | 50.2 (51.8) | -1.4% (+0.8%) |
+| Mage | 0.2 | 5.5 | 15.1 | 17.3 | 22.5 (23.0) | 25.8 (26.6) | 31.8 (33.1) | 45.6 (47.9) | -11.7% (-8.1%) |
+| Healer | 0.3 | 7.2 | 18.9 | 21.3 (21.5) | 27.8 (28.7) | 31.6 (32.9) | 38.4 (40.5) | 54.1 (57.6) | +6.7% (+12.5%) |
+| **Median** | 0.2 | **6.2 (+2.8%)** | 17.4 | 19.9 | 25.6 (26.0) | 29.2 (29.7) | **35.7 (36.5)** | 50.5 (52.0) | **-1.0% (+1.3%)** |
+
+**The audit was not noise, and it is not a pace bug.** Oren fought with a sword in heavy armor (the audit's C6 and C8, Melee at the yard), as every new hero starts (`start-kit.js` START_EQUIPMENT wears the Practice Sword and Practice Shield). The arriving-kit sword careers reach Level 22 at 35.0 h (alone) and 36.3 h (with a shield): the audit read 36.3 h (139's audit about 40 h). The median, the pace of record, is on target at both of Tyler's Levels in both kits. What the audit found is the slowest lone way: both sword ways sit outside the 10% band, which binds the median and not each way. The arriving kit costs every way 2-6% of the hours by Level 25-30 (it bites from the Iron tier at 15); it is not the cause.
+
+**2. Why the sword ways fall behind: kill speed, nothing else.** Mean Level XP an hour on each ground the career walked, and that against the median of the eight:
+| Way | Thicket | Wickstead | Glade |
+|---|---|---|---|
+| Sword and shield | 20.0k (0.77x) | 32.5k (0.84x) | 75.6k (0.83x) |
+| Sword alone | 21.0k (0.81x) | 32.9k (0.85x) | 79.9k (0.87x) |
+| Healer | 21.6k (0.83x) | 37.0k (0.96x) | 87.1k (0.95x) |
+| Hammer | 30.6k (1.18x) | 42.9k (1.11x) | 102.2k (1.12x) |
+| Median | 25.9k | 38.7k | 91.6k |
+The same share on every ground, so no ground or advice step is the cause. Cells (2 seeds x 2 h, every combat skill at the Level, `.scratch` drivers named below):
+- **XP per kill is the same for every way** (the monster rows plus the +15% alone): 54 on the Thicket at 6, 73 on Wickstead at 10, 218-219 on the Glade at 20.
+- **Kills an hour are not.** Thicket 6: sword and shield 370, sword 382, bow 473, hammer 560. Wickstead 10: 384 / 391 / 477 / 553. Glade 20: 276 / 292 / 361 / 414. The hammer and the axes cast Cleave about 400 times an hour on the Glade, 31% of the hammer's damage. The tank's default set is Challenge and Power Strike, the sword's Power Strike and Turning Cut (2.8% of its damage). Neither holds a rune spell.
+- **Travel and food:** every way takes 2.0-2.2 kills a pull on the same pockets, so walking follows the kills. Food doesn't stop a blow (its own lane), but on the Glade at 16 the sword ways eat 87-112 store foods an hour (3.5k-4.5k g/h, typical low HP 62-68%) against the hammer's 65 (75%).
+- **Deaths:** none in any career or cell.
+- **The advice:** from 16 the Glade is the best lone ground (the Sewer pays the median 0.73x there). From 5 to 15 the Sewer pays a lone hero 1.62x the Thicket at 6 and 1.24-1.27x Wickstead at 10-13 (no death in 2 seeds x 2 h for any way, the tank's 10th-percentile low 54-56% against 87-94%). The advice is right to keep the Thicket and Wickstead (below).
+
+**3. Every lever, measured on the same dice** (Level 25 hours: median / sword and shield / sword alone).
+| Lever | Level 25 | Verdict |
+|---|---|---|
+| As built | 35.7 (-1.0%) / 43.3 (+20.4%) / 41.6 (+15.7%) | KEEP |
+| XP x1.12 on the 11 Wickstead and Glade monster rows (`monsters.js`) | 32.5 (-9.8%) / 39.1 (+8.7%) / 38.0 (+5.5%); hammer -20.3%, mage -19.7%, L10 median 5.75 h | REJECTED. It buys the two sword ways inside 10% by pushing the median to the band's edge and four ways 16-20% fast. The curve is fitted to the median, so the next re-fit takes it back |
+| The advice sends a lone hero to the Sewer at 5-15 | 29.6 (-17.7%) / 37.8 (+5.0%) / 33.2 (-7.9%); hammer -34.2%, L10 median 4.7 h (-21%) | REJECTED. It speeds up every way, the fast ones most, and Tyler ruled the Thicket the lone start (10-21; row 6 of the 11-18 rulings kept it). The Sewer stays the in-band harder ground a lone hero can find (the audit hero did, at 5-9) |
+| A band: the Glade from 14 | not run | REJECTED on the cells above. The Glade at 16 already doubles every way's rate and is hardest on exactly the sword ways |
+| Flame Strike in the sword ways' next slot (the coach's "Try a rune spell", the store's Plain Fire Rune bought per cast) | 36.0 (0.0%) / 37.6 (+4.6%) / 36.2 (+0.6%) | **THE LEVER**, ruled below |
+Flame Strike, cells (3 seeds x 2 h, same dice, as built vs with it): alone +17.4% to +23.5% Level XP an hour. Net gold -121 to +17 g/h on the Thicket and Wickstead (the runes about 650 g/h, paid back by the extra kills), +0.6k to +1.5k on the Glade (fewer foods). The typical low is the same or higher (Glade 16: sword and shield 67.6 to 74.0%, sword 62.3 to 69.2%), no death. In a four with a tank: the Sewer at 8 +4.8% a head, the Glade at 20 +1.6% (tank, healer, bow, Mage) and +0.9% (tank, hammer, bow, Mage).
+
+**Ruling.**
+1. **KEEP the pace rows:** the Level curve, every monster's XP row, the lone advice and every band. The median holds Tyler's targets on this build (Level 10 6.2 h, Level 25 35.7 h, 36.5 h arriving), and no XP row, advice step or band can close one way's kill-speed gap without moving the other six off target. `level-pace.json` needs no re-pin (its numbers are this build's).
+2. **The sword ways' default sets get Flame Strike: designer call, built in its own lane.** The 10-29 starter-bars ruling (`lane/a-starter-bars`, guarded by `tests/hunt-core/roles.mjs`, "a sword alone (no Flame Strike)") took it off for two reasons, and neither stands. The slot was struck "no Fire runes left" from minute one: every default rune spell now names its store rune. The other was "net -20% on the first grounds": measured today it is -121 to +17 g/h there and better on the Glade. Every new hero starts in the sword and shield, the slowest lone way by a fifth. The fix is the move its own weapon already has, not more XP for everyone. A player who wants the gold can still take it off.
+3. **Not built here, on purpose.** It moves every tank-led party line, which `lane/a-party-advice-glade` is measuring now, so it waits until that lane lands. **`lane/d-sword-bar`** then does this:
+   - `src/data/rule-subjects.js` ROLE_RULES: `tank` gets `slot('flame_strike')` after Power Strike. `melee_dps` gets it as well. The server keeps only the slots a discipline holds (Flame Strike is `['shield', 'sword']`), so the hammer and the axes are untouched. It goes before Turning Cut, so the area move stays last on the set. Measured here: last. Re-measure if the order moves.
+   - `tests/hunt-core/roles.mjs` re-aimed to this ruling, and the "OFF THE DEFAULT BARS" note in `rule-subjects.js` ("Sword Flame Strike likewise ... net -20%, XP +15%") rewritten to today's numbers.
+   - Re-measure `party-class-xp-line`, `first-week-bands` (the solo bars and vs-alone), `forest-cave`, then the pace (`sim --plan pace` + `pace.mjs --write`). The median moves 35.7 to 36.0 h. `level-curve`'s fingerprint doesn't read bars, so it won't ask.
+   - Walk-through: the sword hero no longer meets "Try a rune spell", because `rune_spell_none` is false from minute one. It still meets "Make your own runes" (`own_runes` reads `rune_unowned` at the Day One Level). The lane decides how the sword hero still practices adding a slot.
+   - The edge moves (`hunt-spawn.js` fills an empty ability lane from ROLE_RULES). No migration: `hr_hunt_abilities` already holds `flame_strike` for shield and sword (`2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue.generated.sql:967`).
+
+**Measured / assumed.** Measured: every number above, on 69b046c72, seed 0 for the careers, 2-3 seeds x 2 h for the cells. The drivers are in this lane's `.scratch/`, untracked: `pace30.mjs` (careers, `--gear` and `--what` what-ifs through the worker's `whatIf`), `alt.mjs` (grounds), `flame.mjs` and `flamecells.mjs` (Flame Strike), `sewerpath.mjs`. The as-built careers are `level-pace.json`'s own `hoursTo`, so they can be read from the repo. The cells hold every combat skill at the Level, so they read lower than the careers, which carry the skills their XP brought (Melee 30 at Level 16), but they rank the eight ways as the careers do (only the axes and the Mage swap). Assumed: that Oren played Normal on Wickstead and the Glade with no rune spell on his bar (the audit doesn't say), and that one seed a career is enough.
+
 ### 2026-11-18 Designer rulings (game-designer, lane/d-designer-rulings-1118; the six questions the 11-18 lanes queued on the designer in CONFLICTS.md): SIX RULED, nothing built, fresh reads on the real settle below, plan §3 and §7 rows corrected
 Read first: rulings-of-record, newest wins. What decides most of these: NO PROFIT MOLDS (11-13), ONE DIFFICULTY (11-08, which retired 11-06's "tiers carry real risk alone"), "the lines are budgets, never a template" (11-16), sinks above a band's gold so heroes choose (11-18), the fist identity and its promise (11-18 Q7), FORMULAS ARE PUBLIC (11-08). **None needs Tyler**: no money or monetization call. Row 3 narrows the gold leg of his Q7 "yes" under Level 40, with the reason, for him to correct if he reads it otherwise.
 

@@ -975,7 +975,7 @@ async function switchRules(overrides) {
     await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
     await page.click('[data-app="play"][data-slot="0"]');
     const shows = (slot) => wait(page, ([n, name]) => !!document.querySelector('#panel-world[data-slot="' + n + '"] .world-canvas')
-      && ((document.querySelector('#panel-world .world-title') || {}).textContent || '').includes(name), [slot, TOWN_NAME]);
+      && ((document.querySelector('.world-title') || {}).textContent || '').includes(name), [slot, TOWN_NAME]);
     if (!await shows(0) || !await wait(page, () => document.querySelectorAll('.char-tab[data-slot]').length === 2)) {
       fail('TW-14 the World did not open on town with both heroes in the strip'); await ctx.close(); return fails;
     }
@@ -1011,8 +1011,9 @@ async function switchRules(overrides) {
     await page.click('.char-tab[data-slot="1"]');
     await shows(1);
     await page.click('.char-tab[data-slot="0"]');
-    const home = await wait(page, () => !!document.querySelector('#panel-world[data-slot="0"] [data-world-choice="home"][aria-pressed="true"]'), null, 4000);
-    if (!home) fail('TW-14 Tyler was at Home; after a switch away and back the World shows ' + await page.evaluate(() => (document.querySelector('#panel-world .world-title') || {}).textContent));
+    /* the pane on screen is Tyler's, and its Town / Home switch (in the top bar since UI audit #10) has Home pressed */
+    const home = await wait(page, () => !!document.querySelector('#panel-world[data-slot="0"]') && !!document.querySelector('.char-place [data-world-choice="home"][aria-pressed="true"]'), null, 4000);
+    if (!home) fail('TW-14 Tyler was at Home; after a switch away and back the World shows ' + await page.evaluate(() => (document.querySelector('.world-title') || {}).textContent));
     if (errors.length) fail('TW-14 console errors: ' + errors.slice(0, 3).join(' | '));
     await ctx.close();
   } finally {
@@ -1076,7 +1077,7 @@ const PURE_MUTANTS = [
 ];
 const PAGE_MUTANTS = [
   ['the World never tells the presence it is in town', 'src/world/sandbox-scene.js', "  else town.show(map.kind === 'town' ? map.id : null);\n", ''],
-  ['the pane never hands the World its presence', 'src/app/world-pane.js', 'runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });', 'runtime = await bootWorld(pane, { view, character, emit, peers: opts.peers });'],
+  ['the pane never hands the World its presence', 'src/app/world-pane.js', 'runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers, chrome });', 'runtime = await bootWorld(pane, { view, character, emit, peers: opts.peers, chrome });'],
   ['a switch starts the hero at the map start', 'src/world/world-boot.js', "const at = held ? town.placeOn(map.id) : heroPosOn(G, map.id);", 'const at = heroPosOn(G, map.id);'],
   ['each pane mount makes a new display scratch', 'src/app/world-pane.js', '  const scratch = scratchOf(character);', "  const scratch = { choice: 'town' };"],
   ['the home scene stays in town', 'src/world/sandbox-scene.js', "  else town.show(map.kind === 'town' ? map.id : null);", "  else if (map.kind === 'town') town.show(map.id);"],

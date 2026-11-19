@@ -10,14 +10,14 @@
 // THE ART: a side shows its mark and a piece its own icon (assets/icons-bundle/pixel/factions/, bits.js factionIconHtml); the worn
 // outfits themselves are still to be drawn, so a claim is a record until they land (factions.pieces_note).
 // ════════════════════════════════════════════════════════════════════════
-import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.140';
-import { claimPiece, startSwap, finishSwap } from '../../../session/faction-intents.js?v=0.2.140';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.140';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.140';
-import { runIntent } from '../../intent-words.js?v=0.2.140';
-import { t } from '../../../render/player-text.js?v=0.2.140';
-import { factionIconHtml } from '../../widgets/bits.js?v=0.2.140';
-import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.140';
+import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.141';
+import { claimPiece, startSwap, finishSwap } from '../../../session/faction-intents.js?v=0.2.141';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.141';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
+import { runIntent } from '../../intent-words.js?v=0.2.141';
+import { t } from '../../../render/player-text.js?v=0.2.141';
+import { factionIconHtml } from '../../widgets/bits.js?v=0.2.141';
+import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.141';
 
 /** The tab's name. */
 export const FACTION_TAB = t('factions.tab');

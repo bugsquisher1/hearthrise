@@ -23,10 +23,10 @@
 // PURE ESM, Node + Deno + browser.
 // ============================================================================
 
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.140';
-import { gridMapOf } from '../data/world/maps/grids.js?v=0.2.140';
-import { MATERIALS } from '../data/world/terrain.js?v=0.2.140';
-import { makeGrid } from './hunt/grid.js?v=0.2.140';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.141';
+import { gridMapOf } from '../data/world/maps/grids.js?v=0.2.141';
+import { MATERIALS } from '../data/world/terrain.js?v=0.2.141';
+import { makeGrid } from './hunt/grid.js?v=0.2.141';
 
 /** The walkable grid of world map `mapId` (materials only) when a ground names it (maps/grids.js), or null. */
 export function gridOfMap(mapId) {

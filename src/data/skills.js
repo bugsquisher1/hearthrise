@@ -20,7 +20,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { FIST_LINE } from './fists.js?v=0.2.140';
+import { FIST_LINE } from './fists.js?v=0.2.141';
 
 export const SKILLS_DEF = {
   melee: { name: 'Melee', icon: '⚔️', cat: 'combat' },

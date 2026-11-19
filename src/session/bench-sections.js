@@ -6,11 +6,11 @@
 // remainder; the gold the hero set to keep; its latest bench run. Every envelope replaces it and nothing here computes a fee.
 // And the envelope's `unlocked_recipes`: the recipes this hero has learned from a pattern (learnedRecipesOf), the set a gated bench reads.
 // ════════════════════════════════════════════════════════════════════════
-import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';   // the dark (switched) jobs too: only a hero the server let start one runs one
-import { ITEMS } from '../data/items.js?v=0.2.140';
-import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.140';
-import { recipeInputs } from '../core/artisan.js?v=0.2.140';
-import { heldOf } from './item-sections.js?v=0.2.140';
+import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.141';   // the dark (switched) jobs too: only a hero the server let start one runs one
+import { ITEMS } from '../data/items.js?v=0.2.141';
+import { indexArtisanRecipes, artisanIntervalMs } from '../core/artisan-sim.js?v=0.2.141';
+import { recipeInputs } from '../core/artisan.js?v=0.2.141';
+import { heldOf } from './item-sections.js?v=0.2.141';
 
 const BENCH = indexArtisanRecipes(ARTISAN_RECIPES);
 const whole = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : 0);

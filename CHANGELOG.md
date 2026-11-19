@@ -5,6 +5,24 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.141 — 2026-11-19 (Scaled Hunts and Bonus Weekends)
+
+**Scaled hunts.** Pay gold to raise an early ground to your Level. XP, gold and drops all go up, and the card shows by how much.
+
+**Live events.** Bonus XP weekends are here: +25% Level XP from Friday to Monday (12:00 UTC), every other week, starting this Friday. Open Halls runs Wednesday 17:00 to Thursday 05:00 UTC, and calling out a boss costs no gold while it's on.
+
+**Training Yard.** Training now ends the moment you stop it, and you won't be charged for another hour after that. Gear, Storage and the Hunts window tell you to stop training first instead of saying you're hunting.
+
+**Parties.** When everyone else leaves a party, the last hero is no longer stuck in it alone. Mosslight Glade is now Recommended for a party of four from Level 16, since that's where it earns the most.
+
+**Gear.** The Equip upgrades button now fills an empty armor slot with anything better than nothing, and switches you to your chosen armor weight when it can. Wands, staves and bows no longer show melee numbers they don't use. Plain earrings and the Shop's rings and necklace now help every fighting style. Steady is stronger.
+
+**Coming back.** Hunts that ended while you were away show in Earlier hunts. The gold on the away card now takes out the yard fee, so it matches the gold you have. On a phone, the Hunt again button shows without scrolling.
+
+**Town.** Storage shows your bag and your storage side by side. Town, Home and Havora sit in the top bar, so the world has more room. The Farm and the House have their own pictures. The Tower door shows what happens when your run ends, and what it costs.
+
+**Fixes.** The crafting banner counts down what's left to make. If an action fails, your bag and gold no longer show old numbers. Hunt prep warns you when your food is too weak. Three cookbook recipes nobody could get are gone.
+
 ## v0.2.140 — 2026-11-18 (Jewelry and First Hours)
 
 **Jewelry.** Two new pieces. Fang Studs help your swings land, or give you some mana back each time you finish a monster. The Seam Jasper Band takes a stone: amber for more crits, pale blue for harder spells, red for swings that carry into the monster next to your target. Goblin Diggers in the Warrens can drop a Seam Jasper. You can now reforge a Hallmarked piece into the next tier and keep both of its perks.

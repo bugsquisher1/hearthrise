@@ -21,9 +21,9 @@
 //   storeAwayWords(cs)           why a move is off while the hero's session is open: the hunt's
 //                                "Storage is in town", or at the yard "Stop training to use Storage"
 // ════════════════════════════════════════════════════════════════════════
-import { BAG_CATS, BAG_SORTS, kindOf } from './bag-model.js?v=0.2.140';
-import { busyWords } from './training-words.js?v=0.2.140';
-import { t } from '../render/player-text.js?v=0.2.140';
+import { BAG_CATS, BAG_SORTS, kindOf } from './bag-model.js?v=0.2.141';
+import { busyWords } from './training-words.js?v=0.2.141';
+import { t } from '../render/player-text.js?v=0.2.141';
 
 /**
  * WHY STORAGE IS OFF WHILE THE HERO IS OUT, IN THE PLAYER'S TERMS (post-140 audit C7, Storage's half): the server refuses every bank move during

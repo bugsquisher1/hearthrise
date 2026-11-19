@@ -17,6 +17,9 @@
 //         melee_dps, ranger) where the server enters one player's heroes by slot, so the Krell's Hold Lookout, who shoots the hero farthest
 //         back at the pull, shot the replay's Ranger (18% of the party's damage) where the tally had the Healer taking 25%, and BC-3 saw a
 //         party total within 3%. play-ground.mjs memberKey now enters in seat order: every seat lands within a point of its record.
+//   BC-6  the SKILL LINES (skill-lines.mjs: the skills a career gives a hero at its Level, which a played cell plays when it names none) sit on
+//         the recorded heroes: each recorded hero's main skill within LINE_PTS levels of its line at its Level ('alone' for a hero alone, 'party'
+//         for a party's seat). The old harness hero (every skill at its Level) reads a Level 72 party hero's main skill 72 against 56-59.
 //
 // JUDGED = `kit: 'held'` (the hunt began after the hero's last setup change, so today's worn set and bar are the ones it hunted in) and
 // an hour or more long. The other samples are context: `node tools/balance-sim/calibrate.mjs --run` prints them all.
@@ -36,6 +39,10 @@
 import { readFileSync } from 'node:fs';
 import { run, FIXTURE } from '../tools/balance-sim/calibrate.mjs';
 import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
+import { loadLines, skillsAt } from '../tools/balance-sim/skill-lines.mjs';
+import { charLevelFromXp, skillLevelFromXp } from '../src/core/xp.js';
+import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
+import { HUNT_INDEX } from '../src/data/hunts.js';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 
@@ -52,6 +59,9 @@ const DEATHS_OVER = 0.26;
    TAKEN_MIN an hour or more. */
 const SEAT_SHARE_PTS = 10;
 const TAKEN_MIN = 10000;
+/* BC-6: a recorded hero's main skill against its skill line, in levels (set from the measure below the header) */
+const LINE_PTS = 6;
+const SKILL_LINES = loadLines();
 const HOURS = 2, SEEDS = 2;
 
 /* DECLARED SHIFTS: [{ after: 'YYYY-MM-DD' (hunts recorded on or before it), why, mult: { metric: x } }]. The recorded rate is multiplied
@@ -109,6 +119,27 @@ export function seatShareFails(rows, fxById) {
   return fails;
 }
 
+/** BC-6: each recorded hero's main skill against its skill line at its Level ('alone' for a hero alone, 'party' for a party's seat), one hero a
+    role, Level and size. Answers { fails, rows }. `snap`: the skill lines (skill-lines.mjs), or the string 'level' (every skill at the Level). */
+export function lineFails(fx, snap) {
+  const STYLE = { tank: 'tank', melee_dps: 'hammer', ranger: 'bow', mage: 'mage', healer: 'healer' };
+  const MAIN = { tank: 'melee', melee_dps: 'melee', ranger: 'ranged', mage: 'magic', healer: 'magic' };
+  const fails = [], rows = [], seen = new Set();
+  /* a hero alone is judged on the lone line where it hunts a ground of its own Level (its band's top + 10 at most): a Level 61 party hero
+     visiting the Cellar (1-8) for an hour was levelled in a party, which no lone sample can say */
+  const topOf = (ground) => (HUNT_INDEX[(HUNT_GROUNDS[ground] || {}).hunt] || { band: [0, Infinity] }).band[1];
+  for (const s of fx.samples) for (const x of s.seats) {
+    const L = charLevelFromXp(x.levelXp), k = MAIN[x.role], key = x.role + ':' + L + ':' + (s.size > 1 ? 'party' : 'alone');
+    if (!k || seen.has(key) || (s.size === 1 && L > topOf(s.ground) + 10)) continue;
+    seen.add(key);
+    const rec = skillLevelFromXp(k, (x.skills || {})[k] || 0), line = s.size > 1 ? 'party' : 'alone';
+    const got = snap === 'level' ? L : skillsAt(snap, line, STYLE[x.role], L)[k];
+    rows.push(`  ${(x.role + ' ' + line + ' L' + L).padEnd(24)} ${k} record ${rec}, line ${got}`);
+    if (Math.abs(got - rec) > LINE_PTS) fails.push(`a ${x.role} at Level ${L} (${line}): its ${k} line reads ${got}, the recorded hero ${rec}, past ${LINE_PTS} levels`);
+  }
+  return { fails, rows };
+}
+
 /** The whole guard on a fixture (and an optional planted drift); answers { fails, lines }. */
 async function check(fx, runner, plant = {}) {
   const fails = [], lines = [];
@@ -121,6 +152,9 @@ async function check(fx, runner, plant = {}) {
   const exact = await run({ ...base, use: plant.use || null });
   for (const f of judge(exact, TOL, byId)) fails.push('BC-3 ' + f);
   for (const f of seatShareFails(exact, byId)) fails.push('BC-5 ' + f);
+  const sl = lineFails(fx, plant.lines || SKILL_LINES);
+  for (const f of sl.fails) fails.push('BC-6 ' + f);
+  lines.push('skill lines against the recorded heroes (BC-6, within ' + LINE_PTS + ' levels)', ...sl.rows);
   const fmt =(r) => ['killsPerH', 'levelXpPerH', 'coinPerH', 'dealtPerH', 'takenPerH', 'healedPerH', 'storePerH'].map((k) => (r.cmp[k].ratio === null ? '  -  ' : r.cmp[k].ratio.toFixed(2).padStart(5))).join(' ');
   lines.push('recorded heroes (sim over real)   kills    xp  coin dealt taken heald store   deaths real/sim');
   for (const r of exact) lines.push(`  ${r.id.padEnd(30)} ${fmt(r)}   ${r.cmp.deathsPerH.real}/${r.cmp.deathsPerH.sim}`);
@@ -151,7 +185,8 @@ const MUTANTS = [
   ['a stored slot id rides in a bar', 'BC-1', (fx) => { const f = clone(fx); const s = f.bars[0].find(Boolean); s.id = 'r25044e1b'; return { fx: f, plant: { skipPlayed: true } }; }],
   /* the pre-fix harness: a party entered by role NAME (play-ground.mjs keyed members `role + seat`), each seat's record moving with it */
   ['the replay enters a party by role name, not by seat', 'BC-5', (fx) => { const f = clone(fx); for (const s of f.samples) s.seats.sort((a, b) => (a.role < b.role ? -1 : a.role > b.role ? 1 : 0)); return { fx: f, plant: { skipPlayed: true } }; }],
-  ['no hunt is judged (every kit assumed)', 'BC-2',(fx) => { const f = clone(fx); for (const s of f.samples) s.kit = 'assumed'; return { fx: f, plant: { skipPlayed: true } }; }],
+  ['the skill lines are every skill at the Level again (the old harness hero)', 'BC-6', (fx) => ({ fx, plant: { lines: 'level', skipPlayed: true } })],
+  ['no hunt is judged (every kit assumed)', 'BC-2', (fx) => { const f = clone(fx); for (const s of f.samples) s.kit = 'assumed'; return { fx: f, plant: { skipPlayed: true } }; }],
 ];
 
 const fx0 = JSON.parse(readFileSync(FIXTURE, 'utf8'));

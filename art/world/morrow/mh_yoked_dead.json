@@ -1,6 +1,6 @@
 {
   "id": "mh_yoked_dead",
-  "class": "wreck",
+  "class": "wagon",
   "style": "s1",
   "material": "wood",
   "restyle": {
@@ -41,11 +41,11 @@
   "source": "mh_yoked_dead.png",
   "frame": [
     64,
-    34
+    63
   ],
   "anchor_px": [
     32,
-    33
+    62
   ],
   "footprint": [
     2,
@@ -63,9 +63,9 @@
   ],
   "pixellab": {
     "tool": "edit_image_pro_flash (text) from a free sketch",
-    "image": "8add00f8-c9a4-51a6-8704-c8ca0cda85aa",
-    "job": "ebe67b0a",
-    "sketch": "art/review/morrow-kit/ox-props/oxen-sketch.png"
+    "image": "5755bc31-1098-5f7f-ae40-f46e52d65ca6",
+    "job": "985e7e17",
+    "sketch": "art/review/morrow-kit/ox-props4/team-ox3.png"
   },
-  "notes": "A team of two oxen dead in the yoke, heads west, the tongue out east to its wagon (a prop; the live Yoke Ox is a creature). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "A team of two oxen dead in their yoke at beast size, back to back on their sides with their legs stiff and splayed, heavy heads west with pale muzzles, the hide a grey dun (dead, apart from the warm road), the tongue between their backs 24 px over the foot where its wagon's dragged tongue meets it (a prop; the live Yoke Ox is a creature). Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
 }

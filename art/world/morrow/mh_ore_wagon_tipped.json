@@ -1,6 +1,6 @@
 {
   "id": "mh_ore_wagon_tipped",
-  "class": "wreck",
+  "class": "wagon",
   "style": "s1",
   "material": "wood",
   "restyle": {
@@ -40,12 +40,12 @@
   },
   "source": "mh_ore_wagon_tipped.png",
   "frame": [
-    64,
-    48
+    72,
+    55
   ],
   "anchor_px": [
-    32,
-    47
+    36,
+    54
   ],
   "footprint": [
     2,
@@ -63,9 +63,9 @@
   ],
   "pixellab": {
     "tool": "edit_image_pro_flash (text) from a free sketch",
-    "image": "7306215f-df4a-5621-8264-f4ce6e105370",
-    "job": "dfd3cb1f",
-    "sketch": "art/review/morrow-kit/ox-props/tipped-sketch.png"
+    "image": "1d6a7ad5-38c3-50ed-9742-ca00b64b438a",
+    "job": "9721b816",
+    "sketch": "art/review/morrow-kit/ox-props3/over-sketch3.png"
   },
-  "notes": "An ore wagon tipped on its side, its Dawnstone poured out over the ground. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "The ore wagon over on its back, seen from below: wooden floor boards, beams and two axles up to us, its four wheels in the air, a splintered tongue stub at the west end, the ore spilled round it (sketch .scratch/kit/ox-props2-sketch.mjs over; palette held to it). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
 }

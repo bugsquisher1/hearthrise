@@ -115,6 +115,9 @@ export const CLASSES = Object.freeze({
   span: row({ body: [64, 160], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
   // Wreckage wider than a crate (the Sewer's collapsed cart): something of it reaches the floor.
   wreck: row({ body: [28, 44], measure: 'h', maxW: 64, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
+  // A wagon of the Ox Road's ore train seen whole in high top-down, slewed across the way or dead in its yoke (lane/b-morrow-kit
+  // 2026-11-19): it lies across both ruts, so a turned bed or a team with its stiff legs in the air stands taller than a wreck.
+  wagon: row({ body: [36, 60], measure: 'h', maxW: 72, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
   // A long floor hearth (Krell's Hall Fire): a low stone trough of logs and flame four tiles wide, resting along its whole length.
   // It is fire, so it casts no shadow. Its flicker and its flare are clips of the one sprite.
   hallfire: row({ body: [20, 40], measure: 'h', maxW: 128, contact: 'solid', shadow: null, layer: 'prop' }),

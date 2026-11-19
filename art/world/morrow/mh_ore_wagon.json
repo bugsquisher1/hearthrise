@@ -63,9 +63,9 @@
   ],
   "pixellab": {
     "tool": "edit_image_pro_flash (text) from a free sketch",
-    "image": "c82c9cc1-55e3-5866-93ab-0d4329a4551e",
-    "job": "966f892e",
-    "sketch": "art/review/morrow-kit/ox-props/wagon-sketch.png"
+    "image": "d2de4441-6bb9-51cf-85a4-06b2f3fbb607",
+    "job": "69a695f1",
+    "sketch": "art/review/morrow-kit/ox-props4/wagon-w3.png"
   },
-  "notes": "An ore wagon of the last train out of Morrow, laden with Dawnstone, facing west (.scratch/kit/ox-props-sketch.mjs). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "An ore wagon of the last train out of Morrow, laden with Dawnstone, facing west, its tongue dragged to the north-west to meet its team. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
 }

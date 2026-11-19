@@ -62,9 +62,10 @@
     }
   ],
   "pixellab": {
-    "tool": "edit_image_pro_flash (text) on its base prop",
-    "image": "5a45faa8-1d9d-58cd-ad36-1b53f78f8060",
-    "job": "3b05da8f"
+    "tool": "edit_image_pro_flash (text) from a free sketch",
+    "image": "b33ed42b-cda5-513e-952b-ebef5096b3dd",
+    "job": "5eee96b9",
+    "sketch": "art/review/morrow-kit/ox-props4/half-w3.png"
   },
-  "notes": "The ore wagon half unloaded: its back emptied onto the road, a low heap left at its front, lumps dropped by its back wheel (an edit of mh_ore_wagon). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "The ore wagon half unloaded, the back of its bed empty to its floor boards, its tail board down. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
 }

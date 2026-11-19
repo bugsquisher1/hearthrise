@@ -30,7 +30,7 @@ import { stepPatches, bakeDecals, noise, hash2 } from './ground-finish.mjs';
 import { toneAt, varietyIndex } from '../../src/world/core/ground-variety.js';
 import { roofMass, faceTop, walkedRoof, tornEdges, doorwayOf, dividersOf, dimStone, chimney, sills } from './morrow-roofs.mjs';
 import { brewBricks, stableStraw } from './morrow-floors.mjs';
-import { oxFills, OX_MATS, OX_TRAILS, oxPairs, fordStones, bridgeDeck, coalLumps, cragDual, oxRoad, CRAG } from './morrow-ox.mjs';
+import { oxFills, OX_MATS, OX_TRAILS, oxPairs, fordStones, bridgeDeck, coalLumps, cragDual, oxRoad, CRAG, fordGrade, fordReeds } from './morrow-ox.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const T = 32;
@@ -401,7 +401,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
      moor's patches: its edge is warped across the cell line, and the heath pass (cell by cell) would cut it back to the grid */
   if (ox) road = oxRoad(img, grid);
   /* the Ox Road's own pieces (tools/world-art/morrow-ox.mjs): the ford's stones, the bridge's beams and broken span, coal on the runners' path */
-  const oxr = ox ? { stones: fordStones(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid) } : {};
+  const oxr = ox ? { graded: fordGrade(img, grid), stones: fordStones(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid), reeds: fordReeds(img, grid) } : {};
   if (!inn) {
     const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
     const crag = ox ? cragDual(img, cragGrid, metaOf(CRAG.dir)) : {};

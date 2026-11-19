@@ -327,6 +327,9 @@ export function cragDual(g, grid, { sheet, meta }) {
 const EARTHS = new Set(RAMPS.earth.concat(RAMPS.bronze));
 /** The row the train stands on (src/data/grounds/ox_road/map.js objects): its wheels run in the ruts. */
 export const TRAIN_ROW = 22;
+/** Where mh_ore_wagon_slewed stands (map.js objects, x23-24 on TRAIN_ROW): its tail swung south out of the ruts, so the ruts kink south
+    under it (review b2: ruts ruler-straight under an even line of rigs). */
+export const SLEW = Object.freeze({ at: 24 * T + 20, half: 34, dy: 6 });
 export function oxRoad(g, grid) {
   const h = grid.length, w = grid[0].length, W = g.width;
   const isR = (x, y) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 'R';
@@ -354,17 +357,17 @@ export function oxRoad(g, grid) {
   /* the road's middle per pixel column: its cells' centres averaged over three cells (the road runs east-west) */
   /* the line it runs on: the wheels' line of the train, which stands on one row (TRAIN_ROW) the whole way, so the wagons stand in their
      own ruts (review b1d: a line from the road's cells kinked the ruts into a V at the turnout); a column with no road has none */
-  const raw = []; for (let a = 0; a < W; a++) { let any = false; for (let b = 0; b < h; b++) if (isR(a >> 5, b)) any = true; raw.push(any ? TRAIN_ROW * T + 21 : null); }
-  const mid = raw.map((_, a) => { let s = 0, k = 0; for (let d = -96; d <= 96; d++) { const v = raw[a + d]; if (v != null) { s += v; k++; } } return k ? s / k : null; });
+  /* the wheels' line sits so a wagon's near wheels (its frame's bottom row) stand in the near rut's bed and its far wheels, 22 px up, in the far one */
+  const raw = []; for (let a = 0; a < W; a++) { let any = false; for (let b = 0; b < h; b++) if (isR(a >> 5, b)) any = true; raw.push(any ? TRAIN_ROW * T + 16 : null); }
+  const mid = raw.map((_, a) => { let s = 0, k = 0; for (let d = -96; d <= 96; d++) { const v = raw[a + d]; if (v != null) { s += v; k++; } } return k ? s / k + SLEW.dy * Math.exp(-(((a - SLEW.at) / SLEW.half) ** 2)) : null; });
   /* 1 the body: the lit grain down to the body, grey grit in clumps (dulls the brown), the darkest grain kept */
   for (let y = 0; y < g.height; y++) for (let x = 0; x < W; x++) {
     if (!onRoad(x, y)) continue;
     const c = at(x, y);
     if (c === '#6e4c30' || c === '#8a6440' || c === '#a88457') put(x, y, '#553a26');
-    /* the dust: grey dithered into the earth on a 4x4 ordered pattern at a share that drifts in soft patches (review b1d: random grey
-       salt read as plastic, the brown as the most saturated mass) */
-    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-    if (at(x, y) === '#553a26' && (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16 < 0.18 + 0.42 * noise(x, y, 40, 403)) { put(x, y, '#3a3a3e'); grit++; }
+    /* the dust: grey grit in CLUMPS of 2-4 px (a fine value noise under a share that drifts in soft patches). Review b1d: random grey
+       salt read as plastic; review b4: the 4x4 ordered dither that replaced it read as a screen-door mesh at x2, the loudest tell */
+    if (at(x, y) === '#553a26' && noise(x, y, 2.4, 401) < 0.08 + 0.36 * noise(x, y, 40, 403)) { put(x, y, '#3a3a3e'); grit++; }
   }
   /* 2 across the road: the crown clean, the verges darker with grass creeping in, the south verge's lip lit */
   for (let x = 0; x < W; x++) {
@@ -391,8 +394,9 @@ export function oxRoad(g, grid) {
       const wet = noise(off, a, 37, 11) > 0.7;
       for (let r = 0; r < wd; r++) {
         if (!onCell(a, b + r)) continue;
-        let col = r === 0 ? '#17141a' : r === wd - 1 ? '#553a26' : r === wd - 2 ? '#3d2a1d' : hash2(a, b + r, 419) > 0.7 ? '#3d2a1d' : '#2a1c14';
-        if (wet && r > 0 && r < wd - 1) { col = r === 1 ? '#17141a' : '#231d1f'; if (r === 2 && hash2(a, b, 421) > 0.88) col = '#3a3a3e'; puddle++; }
+        /* review b4: a near-black north wall read as a crevice; the wall is the earth's own darkest */
+        let col = r === 0 ? '#2a1c14' : r === wd - 1 ? '#553a26' : r === wd - 2 ? '#3d2a1d' : hash2(a, b + r, 419) > 0.7 ? '#3d2a1d' : '#2a1c14';
+        if (wet && r > 0 && r < wd - 1) { col = r === 1 ? '#231d1f' : '#2f2723'; if (r === 2 && hash2(a, b, 421) > 0.88) col = '#3a3a3e'; puddle++; }
         put(a, b + r, col); rut++;
       }
     }
@@ -411,4 +415,54 @@ export function oxRoad(g, grid) {
     stones++;
   }
   return { warped, grit, crown, verge, creep, rut, puddle, loose: stones };
+}
+
+/* ── THE FORD'S GRADE (b1d review: "a teal rectangle on hard horizontal seams"): where the ford's shallows (V) meet the peat stream (Q) above
+   and below, the two waters mix over ~22 px each side in clumps (a fine noise against the distance), the shallow's colours stepping down
+   into the peat's and the peat's up into the shallow's, so the ford reads as the stream running shallow over its stones. ── */
+const TO_PEAT = Object.freeze({ '#86b4b4': '#3a4652', '#4f7a80': '#2e4a52', '#2e4a52': '#2c2e33' });
+const TO_SHALLOW = Object.freeze({ '#2c2e33': '#2e4a52', '#2e4a52': '#4f7a80', '#3a4652': '#4f7a80', '#5c6c7a': '#86b4b4' });
+export function fordGrade(g, grid) {
+  const h = grid.length, w = grid[0].length, W = g.width; let n = 0;
+  const cell = (x, y) => grid[Math.min(h - 1, Math.max(0, y >> 5))][Math.min(w - 1, Math.max(0, x >> 5))];
+  for (let y = 0; y < g.height; y++) for (let x = 0; x < W; x++) {
+    const c = cell(x, y); if (c !== 'V' && c !== 'Q') continue;
+    /* the distance to the other water up or down this column */
+    let d = 99; for (let k = 1; k < 40; k++) { const o = c === 'V' ? 'Q' : 'V'; if (cell(x, y - k) === o || cell(x, y + k) === o) { d = k; break; } }
+    if (d > 39) continue;
+    /* the mix is thickest at the line and thins over 40 px; near the line a pixel can step twice (teal -> dark teal -> peat), so the
+       middle of the band is the dark teal the two waters share (whole-map pass: one step over 24 px still read as a band) */
+    const p = 0.62 * (1 - d / 40) ** 1.2, map = c === 'V' ? TO_PEAT : TO_SHALLOW, q = (y * W + x) * 4, wob = 0.14 * (noise(x, y, 14, 455) - 0.5);
+    let hx = hexAt(g, q), steps = 0;
+    if (map[hx] && noise(x, y, 3.2, c === 'V' ? 451 : 453) < p + wob) { hx = map[hx]; steps++; if (map[hx] && noise(x, y, 4.1, 457) < p * 0.7 + wob) { hx = map[hx]; steps++; } }
+    if (steps) { g.data.set(rgb(hx), q); n++; }
+  }
+  return n;
+}
+/* ── REEDS AT THE FORD: clumps of reed on the moor where it meets the stream within a few cells of the ford, standing strokes 3-7 px in
+   the moor's own dark greens with a lit tip, a few brown seed heads, a dark foot; never on the water, never on a walked path ── */
+export function fordReeds(g, grid) {
+  const h = grid.length, w = grid[0].length, W = g.width; let n = 0;
+  let fx0 = w, fx1 = -1, fy0 = h, fy1 = -1; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (grid[y][x] === 'V') { fx0 = Math.min(fx0, x); fx1 = Math.max(fx1, x); fy0 = Math.min(fy0, y); fy1 = Math.max(fy1, y); }
+  if (fx1 < 0) return 0;
+  const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < g.height) g.data.set(rgb(c), (y * W + x) * 4); };
+  const moor = (x, y) => { if (x < 0 || y < 0 || x >= W || y >= g.height) return false; const c = hexAt(g, (y * W + x) * 4); return RAMPS.leaf.includes(c) || RAMPS.moss.includes(c); };
+  const wet = (x, y) => { const c = grid[y >> 5] && grid[y >> 5][x >> 5]; return c === 'Q' || c === 'V'; };
+  for (let i = 0; i < 900; i++) {
+    const x = Math.floor((fx0 - 2) * 32 + hash2(i, 1, 461) * (fx1 - fx0 + 5) * 32), y = Math.floor((fy0 - 3) * 32 + hash2(i, 2, 463) * (fy1 - fy0 + 7) * 32);
+    if (!moor(x, y) || grid[y >> 5][x >> 5] !== 'H') continue;
+    /* only near the water's edge: water within 7 px left or right */
+    let near = false; for (let k = 1; k <= 7 && !near; k++) if (wet(x - k, y) || wet(x + k, y)) near = true;
+    if (!near || hash2(i, 3, 465) > 0.55) continue;
+    const blades = 3 + Math.floor(hash2(i, 4, 467) * 4);
+    for (let b = 0; b < blades; b++) {
+      const bx = x + Math.round((hash2(i, 10 + b, 469) - 0.5) * 6), ht = 3 + Math.floor(hash2(i, 20 + b, 471) * 5), lean = hash2(i, 30 + b, 473) > 0.5 ? 1 : -1;
+      if (!moor(bx, y)) continue;
+      for (let t = 0; t < ht; t++) put(bx + (t > ht * 0.6 ? lean : 0), y - t, t === ht - 1 ? '#3d6234' : t < 2 ? '#1f3322' : '#2c4a2c');
+      if (hash2(i, 40 + b, 475) > 0.8) { put(bx + lean, y - ht, '#553a26'); put(bx + lean, y - ht - 1, '#3d2a1d'); }
+      put(bx, y + 1, '#16241a');
+    }
+    n++;
+  }
+  return n;
 }

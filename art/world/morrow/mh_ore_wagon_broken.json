@@ -62,9 +62,10 @@
     }
   ],
   "pixellab": {
-    "tool": "edit_image_pro_flash (text) on its base prop",
-    "image": "f84eca75-9378-58cb-abb6-68738da1b75a",
-    "job": "03ca1845"
+    "tool": "edit_image_pro_flash (text) from a free sketch",
+    "image": "abb9c196-1786-5da2-bc92-93521c0b9435",
+    "job": "248e87fb",
+    "sketch": "art/review/morrow-kit/ox-props4/broken-w3.png"
   },
-  "notes": "The ore wagon broken down: its front near wheel off and lying flat, the box sunk onto its broken axle, ore spilled over the low corner (an edit of mh_ore_wagon). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "The ore wagon's rigid bed dropped onto its near back corner (that wheel gone: mh_lost_wheel), the rail sloped, the load slumped and run out of the low corner. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
 }

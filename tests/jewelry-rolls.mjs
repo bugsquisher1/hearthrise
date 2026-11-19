@@ -54,6 +54,7 @@ async function load(root) {
     AC: await imp('supabase/functions/hr-accrue/accrual.js', ''), CAT: await imp('supabase/functions/hr-accrue/catalogue.js', ''),
     BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'), TT: await imp('src/shell/town-ticker.js'), IL: await imp('src/shell/item-lore.js'),
     SA: await imp('supabase/functions/hr-accrue/set-activity.js', ''), JS: await imp('src/session/jewelry-sections.js'), WK: await imp('src/shell/windows/work.js'),
+    PT: await imp('src/render/player-text.js'),
   };
 }
 
@@ -376,11 +377,17 @@ const claims = {
     const jobs = guaranteeJobs(M), both = jobs.find((x) => x.perk && x.roll === 'seal'), shard = jobs.find((x) => x.perk && x.roll === 'gem');
     const seal = jobs.find((x) => !x.perk && x.roll === 'seal'), base = M.RC.ARTISAN_RECIPES.smithing.find((x) => x.id === 'craft_banded_signet');
     const pct = (kind, g) => M.JS.oddsPct(M.J.rollOdds(kind, lv)[g]);
+    /* the words are the text home's (src/data/text/work.js), read, never pasted; which row says each job, the skill, the level, the perks
+       and the odds are this claim's */
+    const T = M.PT.t, at = (grade, perks) => T('work.odds_at', { skill: 'Smithing', level: lv, grade, perks });
+    const always = (rest) => T('work.odds_always', { perk: 'Follow-through', rest });
+    const second = T('work.odds_second', { perks: T('work.odds_or', { list: 'Keen', last: 'Surge' }) });
+    const all = T('work.odds_perks', { perks: T('work.odds_or', { list: 'Keen, Surge', last: 'Follow-through' }) });
     const want = [
-      [both, 'Always Follow-through. Odds at Smithing 41: always Hallmarked. Second perk: Keen or Surge. No bench fee on a roll.'],
-      [shard, 'Always Follow-through. Odds at Smithing 41: Hallmarked ' + pct('gem', 'hallmarked') + ', otherwise Fine. Second perk: Keen or Surge. No bench fee on a roll.'],
-      [seal, 'Odds at Smithing 41: always Hallmarked. Perks: Keen, Surge or Follow-through. No bench fee on a roll.'],
-      [base, 'Odds at Smithing 41: Fine ' + pct('base', 'fine') + ', Hallmarked ' + pct('base', 'hallmarked') + ', otherwise plain. Perks: Keen, Surge or Follow-through. No bench fee on a roll.'],
+      [both, always(at(T('work.odds_sealed'), second))],
+      [shard, always(at(T('work.odds_fine', { hallmarked: pct('gem', 'hallmarked') }), second))],
+      [seal, at(T('work.odds_sealed'), all)],
+      [base, at(T('work.odds_plain', { fine: pct('base', 'fine'), hallmarked: pct('base', 'hallmarked') }), all)],
     ];
     for (const [job, line] of want) {
       const got = M.WK.oddsWords(cs, { row: job });

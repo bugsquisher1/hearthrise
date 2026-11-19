@@ -8,7 +8,8 @@
 // (hr_hunt_enter refuses `no_ground` from the generated hr_hunt_grounds) and a
 // settle of it prices nothing. There is no single-foe fallback (spec §1.1).
 //
-// THE GRID is the ground's world map (src/data/world/maps) read through the
+// THE GRID is the ground's world map, its terrain only (src/data/world/maps/grids.js: rows and legend, none of the
+// scenery the renderer's index carries, so the edge payload ships none of it), read through the
 // material table (src/data/world/terrain.js MATERIALS): a `solid` material
 // blocks walking and sight. ⚠ OBJECT FOOTPRINTS ARE NOT IN IT: what a placed
 // sprite blocks is known only from the atlas manifests the client loads, so
@@ -23,13 +24,13 @@
 // ============================================================================
 
 import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.140';
-import { mapRowOf } from '../data/world/maps/index.js?v=0.2.140';
+import { gridMapOf } from '../data/world/maps/grids.js?v=0.2.140';
 import { MATERIALS } from '../data/world/terrain.js?v=0.2.140';
 import { makeGrid } from './hunt/grid.js?v=0.2.140';
 
-/** The walkable grid of world map `mapId` (materials only), shipped or staged (maps/index.js), or null. */
+/** The walkable grid of world map `mapId` (materials only) when a ground names it (maps/grids.js), or null. */
 export function gridOfMap(mapId) {
-  const map = mapRowOf(mapId);
+  const map = gridMapOf(mapId);
   if (!map || !Array.isArray(map.rows) || !map.rows.length) return null;
   const solid = (x, y) => {
     const mat = MATERIALS[map.legend[map.rows[y][x]]];

@@ -4941,20 +4941,18 @@ jobs:
 
       # RETIRED 2026-10-22 (old-client reward cut, Tyler): tests/goal-counter-kinds.mjs guarded the ev:planted backfill against hr_claim_goal and hr_claim_quest; both doors are dropped, and their revival is red in old-rewards-gone OR-4. tests/old-rewards-gone.mjs keeps it cut.
 
-      # ORPHAN ADOPTED. W1-W13 on the shipped hired-crew accrual engine. Its
-      # header claimed run-smoke.mjs invoked it; nothing did, so thirteen
-      # assertions about an economy faucet went uncollected. --selftest plants
-      # six real rebalances/refactors against a scratch copy of the engine —
-      # including WA6, which proved the file's own "no second copy" assertion
-      # was vacuous (=== on a number cannot tell a re-export from an equal
-      # mirror, the exact state b389 shipped at 1.60x from). Now structural.
-      - name: Hired-crew accrual — mutation proof
-        if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs node tests/worker-accrual.mjs --selftest
+      # RETIRED 2026-11-18 (lane/b-edge-trim): tests/worker-accrual.mjs proved the hired-crew settle (accrueWorkers),
+      # cut from the edge with src/core/workers.js once 2027-01-18-dead-surfaces-cut.sql had left it nothing to settle.
 
-      - name: Hired-crew accrual — base run
+      # THE EDGE PAYLOAD ONLY SHRINKS (architecture audit 2026-11-18, item 4). Each edge function's packed bytes
+      # (tools/pack-edge.mjs, what the deploy ships) stay under a ceiling that rises only with a written reason
+      # (--raise), and the engine reads maps through src/data/world/maps/grids.js, never the renderer's index.
+      # --selftest plants 17 defects and checks the writer 4 ways; about 2 s, no credentials.
+      - name: Edge bundle ceiling + the engine's map index
         if: ${{ !cancelled() }}
-        run: node tests/worker-accrual.mjs
+        run: |
+          node tests/edge-bundle.mjs
+          node tools/mutant-gate.mjs node tests/edge-bundle.mjs --selftest
 
       # TWO MORE PROOFS ADOPTED (b569), both RED on origin/main and registered
       # nowhere (plain runs are in run-smoke). delta-transport --selftest died as

@@ -686,6 +686,9 @@ delete from public.hr_start_inventory;
 delete from public.hr_start_equipment;
 delete from public.hr_runes;
 delete from public.hr_skill_curve;
+-- THE FEAST TABLE TOO (lane/c-cookbook-cut-guards, 2026-11-18): it was upserted only, so the cookbook cut's three feasts
+-- stayed priced for the clan feast after hr_items lost them (tests/clan-feast-catalogue-drift.mjs). Replaced like the rest.
+delete from public.hr_feast_foods;
 
 insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable, armour_weight, two_handed) values
 ${valuesBlock(items, (r) => `  (${q(r.item_id)},${q(r.name)},${b(r.tradeable)},${q(r.kind)},${n(r.value)},${q(r.req_skill)},${n(r.req_lv)},${n(r.heals)},${b(r.auto_eatable)},${q(r.armour_weight)},${b(r.two_handed)})`)};
@@ -734,8 +737,7 @@ ${valuesBlock(runes, (r) => `  (${q(r.rune_id)},${q(r.element)})`)};` : '-- (no 
 
 -- The feast heal values (the clan feast's table), from the same items.js heals.
 insert into public.hr_feast_foods (item_id, heals) values
-${valuesBlock(feastFoods, (r) => `  (${q(r.item_id)},${n(r.heals)})`)}
-on conflict (item_id) do update set heals = excluded.heals;
+${valuesBlock(feastFoods, (r) => `  (${q(r.item_id)},${n(r.heals)})`)};
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
   values (true, ${q(DIGEST)}, now())
@@ -830,6 +832,14 @@ begin
   select count(*) into v_bad from public.hr_items
    where auto_eatable and coalesce(heals, 0) <= 0;
   if v_bad > 0 then raise exception '% auto-eatable items heal nothing', v_bad; end if;
+
+  -- THE FEAST TABLE lands whole: the count the generator emitted, and every row an hr_items food with the same heal,
+  -- so an item a catalogue cut cannot stay on the clan feast's price list.
+  select count(*) into v_n from public.hr_feast_foods;
+  if v_n <> ${feastFoods.length} then raise exception 'hr_feast_foods has % rows, generator emitted ${feastFoods.length}', v_n; end if;
+  select count(*) into v_bad from public.hr_feast_foods f
+   where not exists (select 1 from public.hr_items i where i.item_id = f.item_id and i.heals = f.heals);
+  if v_bad > 0 then raise exception '% hr_feast_foods row(s) are not an hr_items food with that heal', v_bad; end if;
 
   -- Every item-slot pair must name a real equip slot, or hr_apply's slot check
   -- would accept an equip into a slot the player does not have.

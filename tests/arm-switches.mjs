@@ -8,8 +8,9 @@
 //   node tests/arm-switches.mjs --mutate   every planted defect must turn its arm red
 //   node tests/arm-switches.mjs --only=AS-SCALED,AS-XP   those arms alone
 //
-// mutant-anchors: supabase/migrations/2027-05-17-scaled-best.sql (the body mutants read the replay's own body back; the rest plant a switch row
-//   or boot the guards' calendar where the live one is asked for)
+// mutant-anchors: supabase/migrations/2027-05-17-scaled-best.sql
+//   (the body mutants read the replay's own body back; the rest plant a switch row or boot the guards' calendar where the live one
+//   is asked for)
 //
 // The real replayed chain (PGlite) booted with `liveCalendar: true` (tests/schema-replay.mjs), so the switches read as the chain leaves
 // them; the real edge settle (H.loadEdge); fixture accounts on NO switch list and with no flip written by the test: what a new player
@@ -53,7 +54,7 @@ const MIN = 60000, HOUR = 3600000;
 const ARM_FILES = ['2027-05-14-arm-switches.sql', '2027-05-18-arm-scaled-hunts.sql'];
 const SWITCHES = ['event_open_halls', 'event_xp_bonus', 'scaled_hunts'];
 const ARMS = ['AS-ROWS', 'AS-SCALED', 'AS-XP', 'AS-HALLS', 'AS-QUIET'];
-const BEST_FN = 'public.hr_hunt_best_fold(uuid)', APPLY_FN = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
+const BEST_FN = 'public.hr_hunt_best_fold(uuid)', MEMBER_FN = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)';
 const LIVE_ARMS = ARMS.filter((a) => a !== 'AS-QUIET');
 
 const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
@@ -93,7 +94,7 @@ const ARM_FNS = {
     /* 2027-05-17-scaled-best.sql applied a second time: both spliced bodies and the column byte for byte (its markers skip the splices) */
     const shape = async () => JSON.stringify(await q(db, `select md5(pg_get_functiondef($1::regprocedure)) as a, md5(pg_get_functiondef($2::regprocedure)) as b,
       (select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d join pg_attribute t on t.attrelid = d.adrelid and t.attnum = d.adnum
-        where d.adrelid = 'public.hunt_session_tally'::regclass and t.attname = 'scaled_ms') as c`, [APPLY_FN, BEST_FN]));
+        where d.adrelid = 'public.hunt_session_tally'::regclass and t.attname = 'scaled_ms') as c`, [MEMBER_FN, BEST_FN]));
     const b0 = await shape();
     await db.exec(readFileSync(join(ROOT, 'supabase/migrations', '2027-05-17-scaled-best.sql'), 'utf8').replace(/\r\n/g, '\n'));
     if (await shape() !== b0) bad.push('a second apply of 2027-05-17-scaled-best.sql moved a body or the column');
@@ -259,8 +260,8 @@ const STATE_MUTANTS = [
   /* the body mutants: the replay's own body read back, one line taken out, re-created inside the arm's transaction (rolled back with it) */
   { arm: 'AS-SCALED', name: 'a scaled run folds its best', fn: BEST_FN,
     find: '  if coalesce((select t.scaled_ms from public.hunt_session_tally t where t.session_id = p_session), 0) > 0 then return; end if;\n', replace: '' },
-  { arm: 'AS-SCALED', name: 'the settle never marks a scaled window', fn: APPLY_FN,
-    find: '        on conflict (session_id) do update set scaled_ms = t.scaled_ms + excluded.scaled_ms;', replace: '        on conflict (session_id) do nothing;' },
+  { arm: 'AS-SCALED', name: 'the settle never marks a scaled window', fn: MEMBER_FN,
+    find: '      on conflict (session_id) do update set scaled_ms = t.scaled_ms + excluded.scaled_ms;', replace: '      on conflict (session_id) do nothing;' },
 ];
 
 async function main() {

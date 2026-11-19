@@ -81,7 +81,7 @@ function memStore(initial) {
 }
 
 async function runTests(mods) {
-  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, AW, SM, HSUM, AN, SHELL_CSS } = mods;
+  const { WM, HUD, CS, AR, AL, AH, HA, XP, WH, SW, AW, SM, HSUM, AN, PT, PARTY_COPY, SHELL_CSS } = mods;
   const fails = [];
   const t = (id, fn) => { try { fn(); } catch (e) { fails.push(id + ': ' + e.message); } };
   /* an async rule (a read the alert centre waits on): run with the rest, judged before the verdict */
@@ -1074,7 +1074,7 @@ async function runTests(mods) {
     ok(nextOf('ammo_out').includes('Pack more ammo for a longer hunt'), 'out of ammo: ' + nextOf('ammo_out'));
     ok(nextOf('runes_out').includes('Pack more runes for a longer hunt'), 'out of runes: ' + nextOf('runes_out'));
     ok(nextOf('gold_out').includes('Lower the gold reserve or pack your own supplies'), 'out of gold: ' + nextOf('gold_out'));
-    ok(nextOf('died').includes('Tip: set When the hunt ends to a job or the yard'), 'a death points at When the hunt ends: ' + nextOf('died'));
+    ok(nextOf('died').includes(PT.t('away.next_gather')), 'a death points at When the hunt ends: ' + nextOf('died'));
     /* never a guess: the player's own end, a pointer moved since the end, a job started later, a state that has not said */
     ok(!/Then Wrenna/.test(nextOf('left')), 'leaving is the player\'s own choice and resumes nothing: ' + nextOf('left'));
     ok(!/Then Wrenna/.test((AR.awayRecapOf(wrenna(NOW, idleSince(END + 2 * H))) || {}).text || ''), 'idle since long after the end: something happened between');
@@ -1096,12 +1096,15 @@ async function runTests(mods) {
   t('R3n out of stamina, the next line names the yard and a bench as well as gathering', () => {
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000)), 's-1'), STAMINA_NEXT, 'the stamina end');
     eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), 'died'), 's-1'),
-      'Tip: set When the hunt ends to a job or the yard', 'a death keeps the When the hunt ends line');
+      PT.t('away.next_gather'), 'a death keeps the When the hunt ends line');
+    ok(PT.t('away.next_gather').includes(PT.t('away.when_ends')), 'the tip names the hunt page\'s own control: ' + PT.t('away.next_gather'));
   });
   /* R3p (post-140 audit C1): a party end the hero's own box chose (Leave if anyone leaves the hunt or dies, Tyler 2026-10-22, on by default)
      fell to the gathering tip, stale advice under a party end. It names the box, on the end card and the away card alike. */
   t('R3p a party end names the Leave box, never the gathering tip', () => {
-    const BOX = 'Party: untick Leave if anyone leaves to keep hunting';
+    const BOX = PT.t('away.next_party');
+    /* the box by the party panel's own label, word for word (the v0.2.141 read: "Leave if anyone leaves" named no box on screen) */
+    ok(BOX.includes(PARTY_COPY.leaveTogether), 'the line names the box as the party panel labels it: ' + BOX);
     for (const reason of ['party_member_left', 'party_member_died']) {
       eq(AH.endCardAfter(wrenna(END + MIN, idleSince(END + 8000), reason), 's-1'), BOX, 'the end card after ' + reason);
       const away = (AR.awayRecapOf(wrenna(NOW, idleSince(END), reason)) || {}).text || '';
@@ -1485,16 +1488,17 @@ async function runTests(mods) {
     });
 
     t('R3m a hunt out of gold says why with the numbers that ended it, on the end card and the away card (post-patch audit B3)', () => {
-      const WHY = 'Gold reserve reached. Store supplies cost 1,160 gp and coins brought in 680 gp. The store stopped selling supplies at your 300 gp reserve.';
+      /* the words are the text home's (summary.js, a genre label since the v0.2.141 read); the numbers in each slot are this test's */
+      const WHY = PT.t('summary.end_gold_out_why', { floor: '300 gp', spent: '1,160 gp', coins: '680 gp' });
       /* THE HUNT IN VIEW: its end card (the stored summary's server tally: coins 680, loot 311, balance -169, so 1,160 gp of store supplies) */
       const card = { reason: 'gold_out', gold: 680, lootValue: 311, balance: -169 };
       eq(SM.reasonWords(card, 'Solo', null, 300), WHY, 'the end card');
-      eq(SM.reasonWords(card, 'Solo', null, null), 'Gold reserve reached', 'no reserve from the server: the label alone');
-      eq(SM.reasonWords({ reason: 'gold_out' }, 'Solo', null, 300), 'Gold reserve reached. The store stopped selling supplies at your 300 gp reserve.', 'no tally: the reserve alone');
+      eq(SM.reasonWords(card, 'Solo', null, null), PT.t('summary.end_gold_out'), 'no reserve from the server: the label alone');
+      eq(SM.reasonWords({ reason: 'gold_out' }, 'Solo', null, 300), PT.t('summary.end_gold_out_floor', { floor: '300 gp' }), 'no tally: the reserve alone');
       /* NO CAUSE IS CLAIMED (post-140 audit C9): the coins beat the supplies and the reserve was raised over the purse mid-hunt. It read
          "the coins brought in 14,325 gp, so your gold fell to your 20,000 gp reserve": a cause the numbers deny. */
       const raised = SM.reasonWords({ reason: 'gold_out', gold: 14325, lootValue: 0, balance: 14325 - 9706 }, 'Solo', null, 20000);
-      eq(raised, 'Gold reserve reached. Store supplies cost 9,706 gp and coins brought in 14,325 gp. The store stopped selling supplies at your 20,000 gp reserve.',
+      eq(raised, PT.t('summary.end_gold_out_why', { floor: '20,000 gp', spent: '9,706 gp', coins: '14,325 gp' }),
         'coins over supplies, a reserve over the purse');
       ok(!/so your gold fell|fell to/.test(raised), 'a cause the numbers deny: ' + raised);
       /* THE BROWSER CLOSED: the away card's line and its why, from the hunt's analyzer and the server's reserve */
@@ -1505,7 +1509,8 @@ async function runTests(mods) {
         { s: S7, at: T0, xp: XP57, lv: 57, gold: 0, sp: 0, kills: 0 }, T0 + 4 * H);
       const line = AR.awayRecapOf(away);
       ok(line && line.text.includes(WHY), 'the away line: ' + JSON.stringify(line && line.text));
-      eq(AW.awayBlockOf(away, line).why, WHY, 'the away card');
+      /* the card closes its why with a full stop, as it does every end's (away-recap.js dot) */
+      eq(AW.awayBlockOf(away, line).why, /[.!?…]$/.test(WHY) ? WHY : WHY + '.', 'the away card');
     });
 
     t('R9 the end card\'s Gold is what the purse kept, the away card\'s own reading, and a record with no spend says Coins (post-patch audit, end card)', () => {
@@ -1565,6 +1570,9 @@ async function load(base) {
     XP: await import(u('src/core/xp.js')),
     WH: await import(u('src/shell/window-head.js')),
     SW: (await import(u('src/data/shell-windows.js'))).SHELL_WINDOWS,
+    /* the words themselves are the text home's (src/data/text/), read here, never pasted; the party panel's own label for R3p */
+    PT: await import(u('src/render/player-text.js')),
+    PARTY_COPY: (await import(u('src/data/party.js'))).PARTY_COPY,
   };
 }
 
@@ -1691,7 +1699,10 @@ const MUTANTS = [
   { test: 'R3k', file: 'src/session/training-sections.js', from: "  return tr.lastStop && tr.lastStop.session === h.sessionId ? tr.lastStop.paid : null;", to: '  return tr.lastStop ? tr.lastStop.paid : 0;' },
   { test: 'R3k', file: 'src/shell/result-block.js', from: "    const sub = yard ? t(", to: "    const sub = false ? t(" },
   /* R3m (post-140 audit C9): the reserve line claims no cause */
-  { test: 'R3m', file: 'src/data/text/summary.js', from: "coins brought in {coins}. The store stopped selling supplies at your {floor} reserve.'", to: "coins brought in {coins}, so your gold fell to your {floor} reserve.'" },
+  { test: 'R3m', file: 'src/data/text/summary.js', from: "· Supplies {spent} · Coins {coins}'", to: "· Supplies {spent} · Coins {coins}, so your gold fell to your {floor} reserve'" },
+  /* R3p / R3n (the v0.2.141 read): the tips name the controls by the words on screen */
+  { test: 'R3p', file: 'src/data/text/away.js', from: "uncheck Leave if anyone leaves the hunt or dies'", to: "uncheck Leave if anyone leaves'" },
+  { test: 'R3n', file: 'src/data/text/away.js', from: "next_gather: 'Tip: under When the hunt ends, pick", to: "next_gather: 'Tip: under After the hunt, pick" },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "      if (a.kind === 'away') askPast(cs, a);\n", to: '' },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "if (!session || !a.stamp || pastAsked.has(cs.slot + ':' + session)) return;", to: 'if (!session || !a.stamp) return;',
     also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) { const v = m.get(session); return v instanceof Promise ? v : pastHuntOf(cs, session); }\n', to: '' }] },

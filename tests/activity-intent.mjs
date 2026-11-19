@@ -1801,8 +1801,8 @@ async function run(mutate) {
     /* 2026-08-31 (found when the ammo lane surfaced this test as orphaned-red):
        two SIDE-BANK accruers were added to accrual.js after this scan was
        written — `accrueRested` (reasons 'absent'/'nothing') and `accrueWorkers`
-       ('no_crew'/'no_span'/'nothing_accrued'). Their `reason:` fields are their
-       OWN envelope contracts: they never reach classifySkip or the pointer
+       ('no_crew'/'no_span'/'nothing_accrued'; cut 2026-11-18 with the crew).
+       Their `reason:` fields are their OWN envelope contracts: they never reach classifySkip or the pointer
        partition, so demanding SKIP members of them would couple two unrelated
        vocabularies. Exempted BY ENCLOSING FUNCTION, not by literal, so a new
        side-bank reason doesn't reopen this file — with two tripwires: the
@@ -1810,7 +1810,7 @@ async function run(mutate) {
        exempted literal may appear in the partition's own vocabulary (else a
        side-bank word has leaked into the activity contract and the exemption
        is hiding exactly what A17 hunts). */
-    const A17_EXEMPT_FNS = ['accrueRested', 'accrueWorkers'];
+    const A17_EXEMPT_FNS = ['accrueRested'];
     const fnSpans = [...code.matchAll(/(?:export )?(?:async )?function\s+([A-Za-z_][A-Za-z0-9_]*)/g)]
       .map((m) => ({ name: m[1], at: m.index }));
     for (const fn of A17_EXEMPT_FNS) {
@@ -1821,7 +1821,7 @@ async function run(mutate) {
     const allSites = [...code.matchAll(/reason:\s*([^,}\n]+)/g)]
       .map((m) => ({ s: m[1].trim(), fn: enclosing(m.index) }));
     /* Only BARE LITERALS in the exempt functions need the vocabulary tripwire —
-       a site that names a SKIP member (e.g. accrueWorkers' SKIP.NOTHING) is
+       a site that names a SKIP member (e.g. SKIP.NOTHING) is
        already speaking the partition's language by name, which is the whole
        point; it is checked by the main loop's membership assertion instead. */
     const exempted = allSites.filter((x) => A17_EXEMPT_FNS.includes(x.fn) && !/SKIP\./.test(x.s));

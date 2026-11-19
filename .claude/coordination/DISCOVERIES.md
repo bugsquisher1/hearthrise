@@ -4,6 +4,16 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-19 · game-designer (lane/d-balance-audit-2) · the complete balance look (board "2026-11-19 Complete balance look")
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | The ledger rebuilds any hero's life: `player_ledger` combat rows carry `meta.delta.lx` (Level XP), `meta.ms` and `meta.mon`, so a running sum gives the hero's Level at every gold movement, hunted hours by ground, and first-hours paths. `hunt_sessions` keeps only about 20 rows a hero | economy and first-hour audits | Use the ledger, not the session table, for anything older than a few days |
+| 2 | Scaled hunts and the Catacombs are OFF in `hr_feature_switches`. The first audit read their absence as zero use. The Tower went on 11-17 18:08 UTC | vitals, audits | Read the switch before calling a feature unused |
+| 3 | A played life (XP and skills carried, the advised ground) reproduces real accounts: the newest player's first 12 h to the Level, the busiest four's Level 25 / 50 / 70 within 10% | tools/balance-sim | A life is a better pace check than a cell with skills set to the Level |
+| 4 | Handoff, Art Director: the Rare reveal fires every few minutes in a four (a Rare-band drop every 0.5-1.0 hero-hours), so the big moment should be the Trophy band's. A stamina refill is one press a hero (18 presses in a minute in the record): it wants one press for all heroes with the total shown. The Hunts card for a party ground could say what it costs alone (the Warrens: twice the XP, no profit) | loot reveal, action bar, Hunts window | Board fixes 8 and 9 |
+| 5 | Handoff, Systems: the Mill Cellar needs an end at Level 5 for a hero who entered under it (board fix 1), and the monster to-hit slope is the Defense training lever (`combat.js` monsterAccuracyPerPoint, board fix 4) | hunt sessions, combat | Board fixes 1 and 4 |
+
 ## 2026-11-18 · systems-engineer (lane/d-late-items-rescue) · the late-items chain re-landed on v0.2.139
 
 | # | Found | Affected | Action |

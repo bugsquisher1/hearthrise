@@ -7,8 +7,9 @@
 -- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit). Pre-EA: applies on
 -- its passing §4. ON THE EA SECURITY LIST with 2027-03-21-scaled-hunts.sql (a settle body and a best a player reads).
 -- ORDER: BEFORE 2027-05-18-arm-scaled-hunts.sql (the switch opens the scaled hunts to everyone only once a scaled run stays out of the
---   bests), after every file that moved hr_hunt_apply_instance (2027-04-24-boss-call-series.sql, the last) or hr_hunt_best_fold
---   (2027-03-22-live-events.sql, the last): §0 pins both as production runs them (tests/live-hash-drift.baseline.json, measured 2026-11-18).
+--   bests) and BEFORE 2027-05-17-scaled-loot.sql (which splices the same member body after this file, and pins this file's image), after
+--   every file that moved hr_hunt_apply_member (2027-04-25-boss-daily.sql, the last) or hr_hunt_best_fold (2027-03-22-live-events.sql, the
+--   last): §0 pins both as production runs them (tests/live-hash-drift.baseline.json, measured 2026-11-18).
 -- EDGE: none (the engine sends nothing new; the server marks the window it already proved scaled). CLIENT: none (the Hunts row's "Best"
 --   and the advice read hunt_bests, which a scaled run no longer writes).
 --
@@ -21,26 +22,31 @@
 --   writes no best at all; its own analyzer and summary still show every figure it earned.
 --
 -- ── WHAT ─────────────────────────────────────────────────────────────────────
---   hunt_session_tally.scaled_ms (NEW, >= 0)   the world time this session's hunt played scaled (the leader's bank debit of each window the
---                                               commit proved scaled: the window's world swings x the swing). An aggregate, no new row.
---   hr_hunt_apply_instance   ONE anchored splice (marker SCALED-BEST): right after the leader's bank pays a scaled window, every member of
---                            that window's tally gains the window's scaled time (insert .. on conflict: a tally row is made if none yet).
+--   hunt_session_tally.scaled_ms (NEW, >= 0)   the time this session's hunt played scaled (each window the commit proved scaled, its own
+--                                               span). An aggregate, no new row.
+--   hr_hunt_apply_member     ONE anchored splice (marker SCALED-BEST), the member's OWN write: on a window the commit proved scaled
+--                            (hunt_instances.scale_level, which hr_hunt_apply_instance writes before any member lands) this session's tally
+--                            gains the window's span (insert .. values .. on conflict: a tally row is made if none yet). Its chain is 0 deep
+--                            since 2027-04-24-tower-climb.sql restated it. hr_hunt_apply_instance is NOT touched (its chain is 4 deep:
+--                            tests/patch-chain-guard.mjs; restating it whole would read to tests/selfcheck-no-global-dml.mjs as a new global
+--                            writer behind every self-check that settles a probe).
 --   hr_hunt_best_fold        ONE anchored splice (marker SCALED-BEST): a session with scaled time folds nothing.
 --
 -- ── CONCURRENCY AND IDEMPOTENCY ───────────────────────────────────────────────
--- The tally write runs inside hr_hunt_apply_instance under every member's character lock and purse lock (taken first), after the bank row,
--- on rows of this instance's own sessions only: the lock order is unchanged and no new lock is taken. A replayed settle key answers
--- `replayed` before this point, so a window's time is added once. The fold is a deferred constraint trigger at COMMIT, after the mark.
--- A second apply finds both markers and changes nothing; §0 refuses a body that is neither its pinned image nor this file's.
+-- The mark is the member's own row (session_id = p_session), written inside hr_hunt_apply_member, which hr_hunt_apply_instance calls under
+-- every member's character lock and purse lock: no new lock, no other row. A replayed settle key answers `replayed` before any member lands,
+-- so a window's span is added once. The fold is a deferred constraint trigger at COMMIT, after the mark. A second apply finds both markers
+-- and changes nothing; §0 refuses a body that is neither its pinned image nor this file's.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
 -- No client reaches the column or the bodies' new lines. The mark comes from the server's own proved scale (hr_scaled_hunt_of under the
 -- instance lock), never an edge or client number. It can only take a best away from a scaled session, never give one.
 --
 -- ── COST (100x players) ──────────────────────────────────────────────────────
--- Per scaled settle, one upsert a member on its tally row (primary key); unscaled settles pay nothing. Per fold, one primary-key read.
+-- Per settle, one primary-key read of the instance's scale_level a member; per scaled window, one upsert a member on its own tally row.
+-- Per fold, one primary-key read.
 --
--- REVERSIBILITY: re-apply the two pinned pre-images (the md5s §0 names), then drop hunt_session_tally.scaled_ms. Bests stay as written.
+-- REVERSIBILITY: re-apply the two pinned pre-images (bd933997 and fa7421f3, §0), then drop hunt_session_tally.scaled_ms. Bests stay as written.
 -- No begin/commit (CLAUDE.md §2).
 -- ════════════════════════════════════════════════════════════════════════
 
@@ -53,10 +59,11 @@ begin
     raise exception 'PRECONDITION: the scaled hunts (2027-03-21-scaled-hunts.sql) first'; end if;
   -- each body is EXACTLY its live image (tests/live-hash-drift.baseline.json, measured 2026-11-18) or already carries this file's marker
   for v_r in select * from (values
-    ('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)', '79ea06c28174d95f11d03965bdbd8be5'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', 'bd93399758d4c0de8cbfc9a5e6d03550'),
     ('public.hr_hunt_best_fold(uuid)', 'fa7421f3a9d55fff27ae53d254196540')) t(fn, pre) loop
     v_def := pg_get_functiondef(v_r.fn::regprocedure);
-    if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from v_r.pre and strpos(v_def, 'SCALED-BEST (2027-05-17-scaled-best.sql)') = 0 then
+    if md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')) is distinct from v_r.pre
+       and strpos(v_def, 'SCALED-BEST (2027-05-17-scaled-best.sql)') = 0 then
       raise exception 'PIN: % is neither its live image (%) nor this file''s: md5 % - another file moved it', v_r.fn, v_r.pre,
         md5(regexp_replace(v_def, '[[:space:]]+', ' ', 'g')); end if;
   end loop;
@@ -70,23 +77,25 @@ begin
     alter table public.hunt_session_tally add constraint hunt_session_tally_scaled_ms_check check (scaled_ms >= 0); end if;
 end $mig$;
 comment on column public.hunt_session_tally.scaled_ms is
-  '2027-05-17-scaled-best.sql: the world time this session played scaled (each window the commit proved scaled, its bank debit). Written only by hr_hunt_apply_instance; a session with any keeps out of hunt_bests (hr_hunt_best_fold).';
+  '2027-05-17-scaled-best.sql: the time this session played scaled (each window the commit proved scaled, its span). Written only by hr_hunt_apply_member, on the member''s own row; a session with any keeps out of hunt_bests (hr_hunt_best_fold).';
 
--- ── §2 THE MARK: hr_hunt_apply_instance (one anchored splice) ─────────────────
+-- ── §2 THE MARK: hr_hunt_apply_member (one anchored splice, the member's own row) ───────
 do $mig$
 declare v_def text; v_old text; v_new text; v_n int;
 begin
-  v_def := pg_get_functiondef('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure);
+  v_def := pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure);
   if strpos(v_def, 'SCALED-BEST (2027-05-17-scaled-best.sql)') > 0 then return; end if;
-  v_old := $a$      if not found then perform public.hr_reject('scale_over', jsonb_build_object('ms', v_sms)); end if;$a$;
-  v_new := v_old || $a$
-      -- SCALED-BEST (2027-05-17-scaled-best.sql): every member of this scaled window keeps its scaled time on its tally, so the
-      --   session's personal best is never folded (hr_hunt_best_fold): a scaled run is not the ground's own.
-      insert into public.hunt_session_tally as t (session_id, user_id, slot, scaled_ms)
-        select (e.value->>'session')::uuid, (e.value->>'user')::uuid, (e.value->>'slot')::int, v_sms from jsonb_array_elements(p_members) e
-        on conflict (session_id) do update set scaled_ms = t.scaled_ms + excluded.scaled_ms;$a$;
+  v_old := $a$  -- MEMBER-WRITE-ONCE: written only when it moves (the session half already took this row's version forward).$a$;
+  v_new := $a$  -- SCALED-BEST (2027-05-17-scaled-best.sql): a window the commit proved scaled (hunt_instances.scale_level, written by
+  --   hr_hunt_apply_instance before any member lands) keeps its span on THIS session's tally, so its personal best is never folded
+  --   (hr_hunt_best_fold): a scaled run is not the ground's own.
+  if exists (select 1 from public.hunt_instances i where i.id = p_instance and i.scale_level is not null) then
+    insert into public.hunt_session_tally as t (session_id, user_id, slot, scaled_ms) values (p_session, p_user, p_slot, greatest(v_win, 1))
+      on conflict (session_id) do update set scaled_ms = t.scaled_ms + excluded.scaled_ms;
+  end if;
+$a$ || v_old;
   v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
-  if v_n <> 1 then raise exception 'hr_hunt_apply_instance: the bank anchor matched % times (need 1): the body moved', v_n; end if;
+  if v_n <> 1 then raise exception 'hr_hunt_apply_member: the unit write anchor matched % times (need 1): the body moved', v_n; end if;
   execute replace(v_def, v_old, v_new);
 end $mig$;
 
@@ -124,7 +133,7 @@ begin
       raise exception 'scaled-best §4(a): % can write hunt_session_tally.scaled_ms', v_role; end if;
   end loop;
   -- (b)
-  if strpos(pg_get_functiondef('public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)'::regprocedure),
+  if strpos(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure),
             'on conflict (session_id) do update set scaled_ms = t.scaled_ms + excluded.scaled_ms;') = 0
      or strpos(pg_get_functiondef('public.hr_hunt_best_fold(uuid)'::regprocedure),
             'where t.session_id = p_session), 0) > 0 then return; end if;') = 0 then

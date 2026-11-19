@@ -1,0 +1,4 @@
+{
+  "seq": 670,
+  "note": "APPLIED 2026-11-14 ~02:40 UTC by the Coordinator (tools/apply-migration.mjs, md5 28507c89cfda505a2edf981828a0e873; self-check passed, live-hash re-measured 712). (lane/c-feast-call-drift, backend-architect, 2026-11-14; the first restore drill's V7 finding). A §4 self-check and nothing else: no function, grant, table or row. It asserts that clan_feast_call__ungated pays all_xp 0.01 / 0.02 / 0.03 / 0.04 by Tavern level (Tyler's 2026-08-09 rebase), keeps the vice gate, has production's normalised md5 20a039c0a533d3f4ca252fcb4af47cc2 (measured read-only 2026-11-14), and that neither it nor the clan_feast_call door is executable by anon, authenticated or service_role. ORDER: last; any position after 2027-01-18-dead-surfaces-cut.sql holds. It is what turns the 2026-08-09 order back into a red replay. After apply: live-hash-drift --live --write (it pins clan_feast_call__ungated, already live); restore-census unchanged (no table, no row)."
+}

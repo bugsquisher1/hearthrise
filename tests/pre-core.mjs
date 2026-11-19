@@ -11,10 +11,11 @@
 // wallet's PRE_WALLET (tests/wallet-fixture.mjs) is the same idea.
 // ============================================================================
 import { readFileSync } from 'node:fs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 export const CORE_MIGRATION = '2026-10-27-core-schema.sql';
 export const PRE_CORE = (() => {
-  const order = JSON.parse(readFileSync(new URL('./schema-apply-order.json', import.meta.url), 'utf8')).order;
+  const order = loadApplyOrder().order;
   const i = order.indexOf(CORE_MIGRATION);
   if (i < 1) throw new Error(`tests/pre-core.mjs: ${CORE_MIGRATION} is not in the apply order`);
   return order[i - 1];

@@ -1,0 +1,4 @@
+{
+  "seq": 513,
+  "note": "APPLIED 2026-11-01 05:21 UTC (lane/a-panel-truth, systems-engineer, 2026-10-31): hr_tally_pick no longer skips a carried or worn piece, so her board's line is what she pays; hr_resume_has_inputs answers false for every bench, so a hunt's automatic end never restarts one. Bodies only, no table, no edge. Before the client half that says a found piece does not move her pick."
+}

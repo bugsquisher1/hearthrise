@@ -18,7 +18,9 @@
 //   IMPORTS   a picked .mjs under tests/ or tools/ is itself a dependency: every
 //             file that IMPORTS it is picked too, transitively (a changed
 //             tests/_chrome.mjs re-proves every page guard that boots Chromium).
-//   MIGRATION a changed supabase/migrations/*.sql picks the two replay guards and the self-check guard (town-hp-whole was applied before GitHub read it).
+//   MIGRATION a changed supabase/migrations/*.sql picks the two replay guards and the self-check guard (town-hp-whole was applied before GitHub read it);
+//             so does a changed apply note or retirement (supabase/migration-notes/, supabase/migrations-retired/), with the
+//             migration-names guard (CLAUDE.md rule 12) — a note's seq or placement IS the order.
 //   HUB       (opt-in, the CI gate only) a file named by more than `hubAt` guards —
 //             play.html is named by ~80 page guards — picks none of them by name; the
 //             gate re-proves only the guards whose MUTANTS anchor on a LINE the diff
@@ -66,7 +68,9 @@ function importPattern(path) {
 }
 
 const isHelperModule = (p) => /^(tests|tools)\/.+\.mjs$/.test(p);
-const CHAIN_REGISTRY = new Set(['tests/schema-apply-order.json']);
+/* The apply order's own files (tools/lib/apply-order.mjs): every migration's sidecar and the chain config. */
+const isChainRegistry = (f) => f.startsWith('supabase/migration-notes/');
+const isChainFile = (f) => f.startsWith('supabase/migrations/') || f.startsWith('supabase/migrations-retired/') || isChainRegistry(f);
 
 /**
  * Every file in `sources` the diff touches, with the reason.
@@ -86,10 +90,10 @@ export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [] } = {}
     /* A changed tests/tools module reaches others only by being IMPORTED (below): a
        guard that names another guard in a message string does not load it. */
     if (isHelperModule(f)) { if (!sources.has(f)) queue.push(f); continue; }
-    /* The chain's order file is named by the replay harness every chain guard imports; a new
-       entry in it is a new migration, judged by the MIGRATION rule and guard-anchors' per-object
+    /* The chain's order files (the sidecars) are read by the replay harness every chain guard imports;
+       a new one is a new migration, judged by the MIGRATION rule and guard-anchors' per-object
        migration scope — not by re-proving all ~85 replay guards. */
-    if (CHAIN_REGISTRY.has(f)) continue;
+    if (isChainRegistry(f)) continue;
     const re = refPattern(f);
     if (!re) continue;
     const hits = [...sources].filter(([t, s]) => t !== f && re.test(s)).map(([t]) => t);
@@ -103,8 +107,8 @@ export function touchedBy(changed, sources, { hubAt = Infinity, hubs = [] } = {}
     const re = importPattern(h);
     for (const [t, s] of sources) if (t !== h && re.test(s)) add(t, `imports ${basename(h)} (${pick.get(h)})`);
   }
-  if (changed.some((f) => f.startsWith('supabase/migrations/') || CHAIN_REGISTRY.has(f))) {
-    for (const t of ['tests/schema-drift.mjs', 'tests/apply-order-honesty.mjs', 'tests/selfcheck-no-global-dml.mjs']) if (sources.has(t)) add(t, 'migration changed');
+  if (changed.some(isChainFile)) {
+    for (const t of ['tests/schema-drift.mjs', 'tests/apply-order-honesty.mjs', 'tests/selfcheck-no-global-dml.mjs', 'tests/migration-names.mjs']) if (sources.has(t)) add(t, 'migration changed');
   }
   return pick;
 }

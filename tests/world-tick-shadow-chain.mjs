@@ -50,6 +50,7 @@ import { readFile } from 'node:fs/promises';
 import { bootReplay, LAST_PATCHED } from './schema-replay.mjs';
 import { goldOf } from './_gold.mjs';
 import { applyShadowState, SHADOW_STATE_V } from '../supabase/functions/hr-accrue/tick-contract.js';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 /* ── THE MUTATION PROOF (Security S-2, 2026-09-23) ──────────────────────────
    Until today this file took `--mutate` and IGNORED it: the flag parsed
@@ -144,7 +145,7 @@ console.log('  SC-1..SC-3 the watermark reaches the edge · SC-4..SC-10 the CHAR
    2026-10-06-world-tick-channel-arm.sql since this arm was written), sliced to
    that one function so another body's jsonb_agg cannot answer for it. */
 const SRC = await (async () => {
-  const order = JSON.parse(await readFile('tests/schema-apply-order.json', 'utf8')).order;
+  const order = loadApplyOrder().order;
   for (const f of order.slice().reverse()) {
     const text = (await readFile(`supabase/migrations/${f}`, 'utf8')).replace(/\r\n/g, '\n');
     const at = text.search(/create\s+or\s+replace\s+function\s+public\.hr_tick_cron_run\s*\(/i);

@@ -1,0 +1,4 @@
+{
+  "seq": 617,
+  "note": "APPLIED 2026-11-10 ~01:30 UTC by the Coordinator with v0.2.111 (live hr_titles reads the five new words; no function body moved; live-hash re-measured). Was: STAGED, NOT APPLIED - Tyler 11-09 renamed five titles (Wolfslayer, Warden, Crownbreaker, Sewerlord, Slagbreaker); hr_titles full replace from src/data/titles.js (gen-title-catalogue OUT_FILE moved here, the 2027-03-12 file is history); ids unchanged."
+}

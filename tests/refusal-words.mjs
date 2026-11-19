@@ -160,7 +160,7 @@ if (process.argv.includes('--mutate')) {
   for (const [claim, name, file, from, to] of MUTANTS) {
     const tmp = mkdtempSync(join(tmpdir(), 'rw-'));
     try {
-      for (const d of ['src', 'supabase', 'tests/schema-apply-order.json']) cpSync(join(ROOT, d), join(tmp, d), { recursive: true });
+      for (const d of ['src', 'supabase']) cpSync(join(ROOT, d), join(tmp, d), { recursive: true });
       const p = join(tmp, file);
       const s = readFileSync(p, 'utf8');
       if (s.split(from).length !== 2) { console.log('  HARNESS anchor moved: ' + name); missed++; continue; }

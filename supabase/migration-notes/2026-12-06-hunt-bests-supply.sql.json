@@ -1,0 +1,4 @@
+{
+  "seq": 413,
+  "note": "APPLIED 2026-10-22 23:10 UTC by the Coordinator (v0.2.32; edge hr-accrue 13356555 deployed 23:11:33, right after the 12-09 catalogue). Was STAGED, NOT APPLIED (lane/c-hunt-screens-server, backend-architect, 2026-10-22; designer plan A #6, the gold runway; game CLOSED: applies on its passing §4; Security reviews it at the reopen gate). NEW hunt_bests.supply_h (store gold an hour of the run that holds xp_h, its analyzer per_hour.waste; moves only with xp_h). hr_hunt_best_fold RESTATED WHOLE (md5 pin ed412fd5) and hr_hunt_bests_view RESTATED WHOLE (md5 pin a4f882fe): each mode object gains supply_h. ONCE: backfill from each best's xp_session where it is still kept. No RPC, no grant, no value moved. After 2026-12-05-hunt-setup-per-ground.sql. After apply: live-hash-drift wants hr_hunt_best_fold and hr_hunt_bests_view re-measured; restore-census: the hunt_bests column."
+}

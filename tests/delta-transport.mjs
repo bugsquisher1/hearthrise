@@ -703,7 +703,7 @@ async function run(mutate) {
           + 'T3 would drive the real collect into that absence, and over pglite-socket a SQL error '
           + 'closes the connection instead of returning 42883, so the failure would read as '
           + '`harness/runtime failure: write CONNECTION_CLOSED` and name nothing. Add the migration '
-          + 'to the apply order this file boots (tests/schema-apply-order.json).');
+          + 'to the apply order this file boots (supabase/migration-notes, tools/lib/apply-order.mjs).');
       }
     }
 

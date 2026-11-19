@@ -1,0 +1,4 @@
+{
+  "seq": 379,
+  "note": "APPLIED 2026-10-22 00:53 UTC by the Coordinator (v0.2.26). Was STAGED, NOT APPLIED (lane/c-tick-shards, backend-architect, 2026-10-21; game CLOSED: applies on its passing §5 self-check; Security reviews it at the reopen gate). The world tick's hunt settles, packed by load: hr_tick_config.hunt_body_max (default 12, CHECK 1..50) instances a body, one edge invocation a body (<= 16 a fire), every member of an instance in one body, instances ordered by md5(instance id), each body leased to its own holder <cron prefix>:h<k>; a live lease is never re-claimed. New owner-only hr_hunt_roster_sharded; hr_tick_cron_run restated from 2026-10-22-hunt-sessions-settle.sql (md5 pinned in §0); hr_hunt_roster unchanged (no caller left). Moves no value. Any time after 2026-10-22-hunt-sessions-settle.sql; no edge prerequisite (the deployed edge settles the bodies it posts)."
+}

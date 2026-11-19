@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED, NOT APPLIED, and it REFUSES to apply by design: its precondition needs a real clan_ledger row of kind='member', i.e. a player who joined through clan_join(). A fresh rebuild has no such row, so the file correctly raises. That refusal is the file working, not the chain failing."
+}

@@ -1,0 +1,4 @@
+{
+  "seq": 528,
+  "note": "APPLIED 05:39 UTC 11-03, hr_tick_cron_run be4b9fb2, legacy-keys --live green, tick posts 200 (lane/c-legacy-keys, backend-architect, 2026-11-01; pre-EA: applies on its passing §5; on the EA Security list). hr_tick_cron_run restated from the live body (md5 6ccf4026...) to send the PUBLISHABLE key on apikey and no Authorization, read from a new Vault row this file creates; hr_tick_gateway_headers refuses a secret key. The first step of retiring the legacy keys: applies BEFORE they are deactivated. EDGE: no prerequisite. No character row. ROLLBACK while legacy is active: delete the Vault row. Guard: tests/legacy-keys.mjs."
+}

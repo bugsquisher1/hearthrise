@@ -41,6 +41,7 @@ import { join, normalize, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const HERE_ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const argv = process.argv.slice(2);
@@ -242,7 +243,7 @@ export function sqlCopyFindings(files, fns = SQL_COPY_FUNCTIONS) {
   return out;
 }
 function chainSql(root) {
-  const order = JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(root).order;
   return order.map((n) => [n, readFileSync(join(root, 'supabase', 'migrations', n), 'utf8').replace(/\r\n/g, '\n')]);
 }
 

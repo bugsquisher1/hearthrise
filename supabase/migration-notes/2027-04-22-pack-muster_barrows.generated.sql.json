@@ -1,0 +1,4 @@
+{
+  "seq": 679,
+  "note": "APPLIED 2026-11-15 by the Coordinator (tools/apply-migration.mjs, md5 1a1ed16d; self-check passed, live-hash re-measured). Was: STAGED, NOT APPLIED (ground pack muster_barrows, tools/pack.mjs ship): the pack's own rows, 35 in 11 tables, upserted on their keys; additive and commuting (tests/ground-pack.mjs). Order: this file, then the hr-accrue deploy, then the client."
+}

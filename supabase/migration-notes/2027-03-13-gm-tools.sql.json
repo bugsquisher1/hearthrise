@@ -1,0 +1,4 @@
+{
+  "seq": 585,
+  "note": "APPLIED 2026-11-06 01:48 UTC (engine 102cb3fc deployed 01:49) (lane/c-gm-tools, backend-architect, 2026-11-05; Tyler: admin tools like a Tibia game master, and a walled test hero). Pre-EA: applies on its §9, ON THE EA SECURITY LIST. ORDER: last (re-dated 2027-03-13 from 03-05 so it sorts after 2027-03-11-etched-12g; its §0 now also requires Gold Given, the shows and the Town Works tables), then edge deploy (gm_stop + the Hearthfind gate), then the client. Nobody is a GM until tools/gm-allow.mjs writes one row. After apply: live-hash-drift --live --write. VERIFY after apply: the GM account signs in (the door reads request.path, fail closed for that account only)."
+}

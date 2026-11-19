@@ -1,0 +1,60 @@
+{
+  "_readme": [
+    "THE APPLY ORDER OF supabase/migrations/** lives in the files themselves (tools/lib/apply-order.mjs).",
+    "Each migration has a sidecar here, <file>.sql.json, holding its placement and its apply note.",
+    "This file holds what belongs to the whole chain: the replay GUCs, why a file runs before",
+    "supabase/schema.sql, and history.last_seq.",
+    "",
+    "ORDER. The replay applies pre_schema, then supabase/schema.sql, then the chain:",
+    "  history  every date-named file (YYYY-MM-DD-*.sql), at the \"seq\" its sidecar carries",
+    "           (1..history.last_seq, frozen from tests/schema-apply-order.json on 2026-11-19).",
+    "           Filename order does NOT replay: measured 2026-08-14, 23 of 41 files applied in name",
+    "           order ('2026-08-08-clan-seat-2.sql' sorts before '2026-08-08-clan-seat.sql', and five",
+    "           2026-08-11 files sort before the player-state foundation they depend on).",
+    "  new      every later file is NNNN-<slug>.sql, NNNN >= 1000: one more than the highest sequence",
+    "           on the lane's base (node tools/new-migration.mjs <slug>). The name is the position.",
+    "",
+    "RULES:",
+    "  · Every .sql in supabase/migrations/ is placed: a history sidecar, or a sequence name.",
+    "    A file that is neither fails every replay, so a migration cannot be silently left out.",
+    "  · \"excluded\": true is a claim that a rebuilt database is CORRECT without the file.",
+    "    Never add one to make the chain go green.",
+    "  · \"retired\": the file moved to supabase/migrations-retired/ because a later full-replace",
+    "    catalogue of the same tables makes it dead; its record says which file and how that was",
+    "    proven (tools/chain-retire.mjs). Production ran it; the replay no longer needs to.",
+    "  · The apply note leads with its claim: STAGED / NOT APPLIED, or APPLIED <date> (flipped by",
+    "    node tools/migration-note.mjs applied <file> \"<evidence>\"). tests/apply-order-honesty.mjs",
+    "    grades it against tests/live-hash-drift.baseline.json."
+  ],
+  "gucs": {
+    "hearthrise.beta_invites_lockdown_ok": "yes",
+    "hearthrise.market_wipe_ok": "yes",
+    "_why": [
+      "GUCs production was actually applied with, not shortcuts.",
+      "beta_invites_lockdown_ok: 2026-08-11-live-market-rls.sql Â§3b RAISES without",
+      "it, and production was applied with it set on 2026-08-13 (that is what closed",
+      "A11). A rebuild that omitted it would leave beta_invites world-readable and",
+      "the file would tell you so, loudly.",
+      "market_wipe_ok: read by 2026-08-17-market-v2.sql, which is in 'order'",
+      "(staged; it supersedes and deletes the old 2026-08-11-market-v2.sql). The",
+      "GUC gates that file's DROP...CASCADE of the live market tables."
+    ]
+  },
+  "_pre_schema_why": [
+    "supabase/schema.sql creates game_saves and game_events with `create table if",
+    "not exists` as a bootstrap fallback, and its own header says they are assumed",
+    "to already exist. Those fallback definitions do not match production: different",
+    "primary key on game_saves, different COLUMN NAMES on game_events (kind vs",
+    "event_type, created_at vs occurred_at). Running the true shapes first makes",
+    "schema.sql's fallback no-op on a rebuild exactly as it no-ops on production.",
+    "The alternative â€” ALTER + rename the columns afterwards â€” is a rename on the",
+    "table holding every player's save, which cannot be rolled forward past a",
+    "failure. Ordering is reversible; that is not."
+  ],
+  "history": {
+    "last_seq": 796
+  },
+  "_legacy_notes": {
+    "_2026-08-15-tool-carry.sql-original": "TAKES OVER from intent-key-hygiene as the last file that may replace hr_apply: its body is the b346 body, extracted programmatically and patched at four anchors, so applying intent-key-hygiene AFTER this would silently delete the tool_carry key while the Edge Function keeps proposing it â€” every gather accrual would then 409 with unknown_delta_key and cost a whole night. Its Â§0 refuses to install against an hr_apply with no `v_prev_slot` (i.e. one older than b346), which is the closest a migration can get to 'do not replace a body you cannot account for'. It also REPLACES hr_state_of, so it must follow auto-eat.sql (whose three columns its restated body reads). Real predecessors: player-state (the table), catalogue (hr_skills, which the carry validation checks against), apply-engine + intent-key-hygiene (the body), auto-eat (hr_state_of), character-bootstrap (Â§5(b) drives a real character)."
+  }
+}

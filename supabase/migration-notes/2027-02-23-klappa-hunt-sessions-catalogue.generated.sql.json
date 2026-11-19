@@ -1,0 +1,4 @@
+{
+  "seq": 538,
+  "note": "APPLIED 2026-11-03 23:37 UTC (lane/c-klappa-club, 2026-11-03). hr_hunt_weapons gains klappas_club as a hammer and hr_hunt_vendor_value its 50 g bid. No kill bound or spawn moves; hr_hunt_world_shape unchanged, so it cannot pause a hunt. ORDER: after 2027-02-23-klappa-items-catalogue.generated.sql, before the hr-accrue deploy."
+}

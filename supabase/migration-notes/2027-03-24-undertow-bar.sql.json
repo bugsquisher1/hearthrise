@@ -1,0 +1,4 @@
+{
+  "seq": 631,
+  "note": "APPLIED 2026-11-10 (Coordinator, v0.2.114; edge 6a49a49c deployed after the six one-difficulty files). Was: STAGED (lane/b-one-difficulty, systems-engineer, 2026-11-09; Tyler 2026-11-09 answer d; pre-EA: applies on its passing §3; not a money surface, a store rune bought per cast at 1 g through the existing path). hr_hunt_role_rules full replace from src/data/rule-subjects.js ROLE_RULES, 12 -> 13 rows: the Healer's default set gains d_undertow (ord 3, the Plain Water Rune, waiting while the lowest ally is under 70%). No function, grant, table or player row. ORDER: after 2027-03-24-undertow-rune-spells.generated.sql (hr_hunt_slot_check reads its store rows), then the hr-accrue deploy carrying the alone gate. After apply: restore-census re-pin of hr_hunt_role_rules in this lane if it counts rows (12 -> 13); live-hash-drift unchanged (no body)."
+}

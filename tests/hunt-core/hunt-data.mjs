@@ -3,13 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { suite, groundRow, ROOT } from './fixtures/h1.js';
+import { loadApplyOrder } from '../../tools/lib/apply-order.mjs';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
 const MS = await import(pathToFileURL(join(ROOT, 'src/data/monster-spells.js')).href + sourceQuery(ROOT));
 
 /* The last migration in the apply order that writes hr_hunt_stats_of: the server's analyzer body. */
 function statsBody() {
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const files = (Array.isArray(order) ? order : []).filter((f) => readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8').includes('create or replace function public.hr_hunt_stats_of('));
   return files.length ? readFileSync(join(ROOT, 'supabase/migrations', files[files.length - 1]), 'utf8') : '';
 }

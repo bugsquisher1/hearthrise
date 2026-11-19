@@ -4,7 +4,7 @@
 // src/data/gold-ladders.js.
 //
 //   node tools/gen-gold-ladders.mjs           → (re)write the newest STAGED file it owns
-//   node tools/gen-gold-ladders.mjs --new <YYYY-MM-DD-name>.generated.sql → start a forward file
+//   node tools/gen-gold-ladders.mjs --new <slug> → start a forward file
 //   node tools/gen-gold-ladders.mjs --check   → exit 1 if the newest file it owns differs
 //   node tools/gen-gold-ladders.mjs --report  → print the extraction
 //

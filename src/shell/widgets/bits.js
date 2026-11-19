@@ -12,7 +12,7 @@ import { MONSTERS } from '../../data/monsters.js?v=0.2.140';
 import { ABILITIES } from '../../data/abilities.js?v=0.2.140';
 import { spellRow } from '../../data/monster-spells.js?v=0.2.140';
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.140';
-import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD } from '../../data/item-art.js?v=0.2.140';
+import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD, FACTION_DIR, FACTION_ART } from '../../data/item-art.js?v=0.2.140';
 import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.140';
 import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
@@ -86,6 +86,13 @@ export function itemIconHtml(glyphs, id, fallback) {
   if (ITEMS[id]) return '<img class="hh-icon" src="' + esc(PIXEL_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
   if (hasSupplyArt(id)) return '<img class="hh-icon" src="' + esc(SUPPLY_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
   return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, fallback || (DRINK_ITEMS[id] ? 'uiPotion' : 'uiChest')) + '</span>';
+}
+
+/** A faction's 32 px pixel icon at x2 (a side's mark or a piece standing buys, src/data/item-art.js FACTION_ART), or a flame glyph for an
+ *  id this client has no art for (a side or a piece the server added since). */
+export function factionIconHtml(glyphs, id) {
+  if (FACTION_ART.includes(id)) return '<img class="hh-icon" src="' + esc(FACTION_DIR + id + '.png') + '" alt="" width="32" height="32" decoding="async">';
+  return '<span class="hh-icon is-glyph">' + glyphSvg(glyphs, 'uiFlame') + '</span>';
 }
 
 /* A glyph for an ability with no pixel tile yet, and for the slot kinds that name no one item. */

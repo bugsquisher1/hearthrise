@@ -108,11 +108,10 @@
 .hw-fx-id { display: flex; flex-direction: column; min-width: 0; }
 .hw-fx-side { font-family: var(--f-label); font-size: var(--t-lead); color: var(--ink); }
 .hw-fx-motto { font-size: var(--t-micro); color: var(--ink-2); }
-.hw-fx-mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; color: var(--ink-3); }
+/* A side's mark or a piece's icon (bits.js factionIconHtml): the 32 px pixel icon at the screen's one density, never smoothed. */
+.hw-fx-mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: max(32px, var(--icon-1)); height: max(32px, var(--icon-1)); color: var(--ink-3); }
 .hw-fx-mark:empty { display: none; }
-.hw-fx-mark .hw-fx-glyph { width: 24px; height: 24px; fill: currentColor; }
-.hw-fx-mark.is-first_flame { color: var(--gold-2); }
-.hw-fx-mark.is-last_ember { color: var(--red); }
+.hw-fx-mark .hh-icon { width: var(--icon-1); height: var(--icon-1); image-rendering: pixelated; }
 .hw-fx-neutral { display: none; }
 .hw-fx-neutral.is-on { display: block; }
 .hw-fx-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 8px; }

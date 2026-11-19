@@ -27,6 +27,9 @@
 //         pure helpers (sharedPieces, cutMarks, resetWords, keeperSay)
 //   TW-18 THE COACH CARD HAS ITS OWN SLOT (UI audit 2026-11-18 UI-6): in town the coach card stands under the Tally in the World's right
 //         column, on neither the Tally nor the Town and Home tabs, and the Tally keeps its own place
+//   TW-20 ONE TOP BAR (UI audit 2026-11-18 #10, UI-10): the place's name and Town / Home stand in the character strip, the World starts
+//         under it, the icon row is the bar's height and a ring on it stands inside its icon; with nothing above it in the column the
+//         town's card hangs from the ringed icon, its tip under the ring's middle
 //   TW-17 THE CREATURE'S HEAD (art brief 15, 2026-11-12): an entry draws the 32 px head of its creature in its own 44 px well when the head set
 //         has it (assets/icons-bundle/pixel/heads/<monster>.png, src/data/monster-art.js) and nothing, no broken image, when it does not (faceOf)
 //   TW-16 TAKE ME THERE: an entry's ground link opens the Hunts window on that ground
@@ -647,6 +650,38 @@ async function checks(overrides, shots) {
       }
       await ctx.close();
     }
+    { // TW-20 ONE TOP BAR, AND THE TOWN'S CARD HANGS FROM ITS RING (UI audit 2026-11-18 #10, UI-10)
+      /* in town at 1440x900, no Tally up (a hero who has not met Tamsin): the place's name and its Town / Home switch stand in the character
+         strip, the World starts under it (no second strip), the icon row is the strip's height, and the coach's card, nothing above it in the
+         column, hangs from the icon its words are about: its tip under the ringed icon's middle, the ring whole inside the bar */
+      const fresh = Object.assign(clone(TALLY), { held: [], recent: [], weight: null, paid_today: 0 });
+      const { ctx, page, up } = await open(Object.assign(clone(TOWN), { tally: fresh }));
+      if (!up) fails.push('TW-20 the town did not mount');
+      else {
+        await wait(page, () => document.querySelector('.hs-launchers > .hs-pointer') && document.querySelector('.hs-launch[data-coach-ring]'), null, 4000);
+        await page.waitForTimeout(600);
+        const m = await page.evaluate(() => {
+          const r = (e) => { if (!e || !e.getClientRects().length) return null; const q = e.getBoundingClientRect(); return { l: Math.round(q.left), t: Math.round(q.top), r: Math.round(q.right), b: Math.round(q.bottom) }; };
+          const strip = r(document.querySelector('nav.char-strip')), town = r(document.querySelector('[data-world-choice="town"]')), title = r(document.querySelector('.world-title'));
+          const stage = r(document.querySelector('.world-stage')), row = r(document.querySelector('.hs-launchers'));
+          const ring = document.querySelector('.hs-launch[data-coach-ring]'), card = document.querySelector('.hs-launchers > .hs-pointer');
+          const widget = document.querySelector('[data-hs-widget="launchers"]');
+          const tip = widget && widget.classList.contains('has-coach-tip') && card && getComputedStyle(card, '::before').display !== 'none' ? parseFloat(widget.style.getPropertyValue('--coach-tip')) : null;
+          const rb = ring && ring.getBoundingClientRect();
+          const offset = ring ? parseFloat(getComputedStyle(ring).outlineOffset) : null;
+          return { strip, town, title, stage, row, ring: rb ? Math.round((rb.left + rb.right) / 2) : null, card: r(card), tipAt: tip === null || !card ? null : Math.round(card.getBoundingClientRect().right - tip), offset };
+        });
+        const inBar = (x) => !!x && !!m.strip && x.t >= m.strip.t && x.b <= m.strip.b;
+        if (!inBar(m.town) || !inBar(m.title)) fails.push('TW-20 the place\'s name and Town / Home stand outside the top bar (a second strip): ' + JSON.stringify(m));
+        if (!m.stage || !m.strip || m.stage.t - m.strip.b > 10) fails.push('TW-20 the World starts ' + (m.stage && m.strip ? m.stage.t - m.strip.b : '?') + ' px under the top bar');
+        if (!m.row || !m.strip || m.row.b > m.strip.b || m.strip.b - m.row.b > 8) fails.push('TW-20 the icon row is not the top bar\'s height: ' + JSON.stringify({ row: m.row, strip: m.strip }));
+        if (m.ring === null || !m.card) fails.push('TW-20 CONTROL: no ringed icon or no card in town: ' + JSON.stringify(m));
+        else if (m.tipAt === null || Math.abs(m.tipAt - m.ring) > 2) fails.push('TW-20 the town\'s card does not hang from its ring (tip at ' + m.tipAt + ', ring at ' + m.ring + ')');
+        if (m.offset !== null && m.offset > 0) fails.push('TW-20 the ring on the top bar stands outside its icon (runs off the screen\'s top edge): offset ' + m.offset);
+        if (shots) await page.screenshot({ path: join(shots, 'tw-top-bar-1440x900.png') });
+      }
+      await ctx.close();
+    }
     { // TW-11 move and fold, desktop (Tyler 2026-10-25)
       const { ctx, page, errors, s, up } = await open({ tally: clone(TALLY3) });
       const shown = up && await wait(page, () => document.querySelectorAll('[data-hs-widget="tally"] .hs-tally-row').length === 3
@@ -903,6 +938,11 @@ const MUTANTS = [
   /* TW-18 the coach card's own slot (UI audit 2026-11-18 UI-6) */
   ['the town coach card hangs under the icon row over the Tally again', 'src/shell/hud-room.js', '  function dockCoach() {\n    dockTownCoach();', '  function dockCoach() {'],
   ['the town coach card docks on top of the Tally', 'src/shell/hud-room.js', '        for (const q of way) if (q.top < top + h + gap && q.bottom + gap > top) { top = q.bottom + gap; moved = true; }', ''],
+  /* TW-20 one top bar, the town card hung from its ring (UI audit 2026-11-18 #10, UI-10) */
+  ['TW-20 the place\'s row is back over the World', 'src/app/world-pane.js', '  if (placeSlot) placeSlot.replaceChildren(chrome);\n', ''],
+  ['TW-20 the town card points at nothing', 'src/shell/hud-room.js', 'const tip = hangFromRing(host, top === wb.top + gap, right, top, w, h, shown);', 'const tip = null;'],
+  ['TW-20 the icon row stands short of the bar', 'src/styles/shell.css', '.hs-launchers { display: flex; align-items: stretch; height: calc(54px - var(--art-3));', '.hs-launchers { display: flex; align-items: stretch; height: 40px;'],
+  ['TW-20 the ring runs off the top bar', 'src/styles/shell.css', ':is(.hs-launchers, .char-strip) [data-coach-ring] { outline-offset: -4px; }', ''],
   /* TW-8 docked (v0.2.130 gate D1) */
   ['the Tally stacks under an analyzer waiting under the dock', 'src/shell/widget-stack.js', ".filter((a) => a && !a.classList.contains('is-under-dock')).map(rel);", '.filter(Boolean).map(rel);'],
   ['Take stays on while hunting', 'src/shell/windows/tally.js', "prop(btn, 'disabled', r.held || full || st.sc.pending || st.hunting || !tally || (!tally.weight && !st.suggest));", "prop(btn, 'disabled', r.held || full || st.sc.pending || !tally || !tally.weight);"],

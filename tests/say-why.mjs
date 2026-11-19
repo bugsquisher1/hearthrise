@@ -257,7 +257,7 @@ export const REASONS = Object.freeze({
     { cond: '!cur', words: "cls(pick, 'is-on', !!cur)", where: 'More sits on the picked line, which shows only with a stack picked' },
   ],
   'src/shell/windows/inventory/doll.js': [
-    { cond: '!worn || locked', words: 'GEAR_HUNT_WORDS.one', where: 'the slot line says a hunt is running' },
+    { cond: '!worn || !!locked', words: "whyLine(line.querySelector('.hw-slot-why'), said ? sc.msg : locked, said)", where: 'the slot line says why: the hunt, or at the yard the training (gear-gate.js gearLockWhy, post-140 C7)' },
     { cond: 'locked || short', words: "text(li.querySelector('.hw-fit-need'), short ? need.text : '')", where: 'the fit row\'s need line ("Needs Level 30 — you\'re 28")' },
   ],
   'src/shell/windows/shop.js': [
@@ -268,7 +268,7 @@ export const REASONS = Object.freeze({
   'src/shell/windows/storage.js': [
     { cond: 'sc.pending || !!gWhy', words: "text(root.querySelector('.hw-store-grow .hw-why'), gWhy);", where: 'Expand in Storage: the line under it says the bag is being read, at its top, the gold is being read, or how much more gold (expandBlock)' },
     { cond: 'sc.pending || !!dWhy', words: "text(root.querySelector('.hw-store-do .hw-why'), away ? '' : dWhy);", where: 'Dispatch loot in Storage: its own line (the store note says a hunt)' },
-    { cond: 'sc.pending || off', words: "text(root.querySelector('.hw-store-note'), away ? STORE_AWAY", where: 'Deposit all materials (audit 2026-11-18 A8): off only while a hunt runs or Storage loads, which the store note says; with no material in the bag it is not drawn' },
+    { cond: 'sc.pending || off', words: "text(root.querySelector('.hw-store-note'), away ? storeAwayWords(cs)", where: 'Deposit all materials (audit 2026-11-18 A8): off only while a hunt runs or Storage loads, which the store note says; with no material in the bag it is not drawn' },
   ],
   'src/shell/windows/services.js': [
     { cond: '!canStam', words: "', need ' + gold(q.price - purse) + ' more'", where: 'the stamina quote line: full, all bought today, or how much more gold' },

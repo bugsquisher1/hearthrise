@@ -1584,6 +1584,10 @@ async function planRules(base) {
       || JSON.stringify(hunt) !== JSON.stringify(['Leave the hunt to change gear', 'Leave the hunt to put these on.', 'Leave the hunt to change gear', 'Dispatch loot works in town',
         'Not available while hunting', 'Not while a hunt is running.']))
       fails.push('AW-32 the town controls\' why at the yard and on a hunt read ' + JSON.stringify({ yard, hunt }));
+    /* Storage's note, its press's answer and the bag's Deposit (storage-model.js storeAwayWords): "Storage is in town" read as if the hero had left town */
+    const { storeAwayWords } = await imp('src/shell/storage-model.js');
+    const store = [storeAwayWords(at('training_yard_melee')), storeAwayWords(at('wickstead'))];
+    if (JSON.stringify(store) !== JSON.stringify(['Stop training to use Storage', 'Storage is in town'])) fails.push('AW-32 Storage\'s why at the yard and on a hunt reads ' + JSON.stringify(store));
   }
   /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
@@ -5790,7 +5794,7 @@ const MUTANTS = [
   ['AW-65 a result lies on the stack pressed', 'src/shell/press-ack.js', '    clearOfAnswer(p.el);\n', '    if (p.refused) clearOfAnswer(p.el);\n'],
   ['AW-65 a press mid-hunt says nothing', 'src/shell/windows/storage.js', 'if (off || !row) { sayAway(cs, sc, repaint); return true; }', 'if (off || !row) return true;'],
   ['AW-65 a right-click mid-hunt says nothing', 'src/shell/windows/storage.js', '    else sayAway(cs, sc, repaint);\n', ''],
-  ['AW-65 the why stays up in town', 'src/shell/windows/storage.js', "  if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds\n", ''],
+  ['AW-65 the why stays up in town', 'src/shell/windows/storage.js', "  if (!away && (sc.msg === STORE_AWAY || sc.msg === STORE_TRAINING)) sc.msg = '';   // back in town, it no longer holds\n", ''],
   ['item truth: panel: a request already answered still toasts (AW-61)', 'src/shell/social-watch.js', "(a.kind === 'friend' && !asked.has(a.id)) || ", ''],
   ['item truth: panel: a message already read still toasts (AW-61)', 'src/shell/social-watch.js', " || (a.kind === 'whisper' && !unread.has(a.peer))", ''],
   ['AW-66 "Setting out." outlives its hunt', 'src/shell/windows/hunt-summary.js', "  if (sc.huntNow !== huntNow) { if (!sc.pending) sc.msg = ''; sc.huntNow = huntNow; }\n", ''],
@@ -5900,6 +5904,7 @@ const MUTANTS = [
   ['plans: AW-32 the yard reads as a hunt (post-140 C7)', 'src/shell/training-words.js', '  return h && !h.ended && trainedBy(h.huntId) ? t(key) : huntWords;', '  return huntWords;'],
   ['plans: AW-32 the yard reads as a hunt to the gear (post-140 C7)', 'src/shell/gear-gate.js', "  return which === 'upgrades' ? busyWords(cs, GEAR_HUNT_WORDS.upgrades, 'training.busy_upgrades') : busyWords(cs, GEAR_HUNT_WORDS.one, 'training.busy_gear');", "  return which === 'upgrades' ? GEAR_HUNT_WORDS.upgrades : GEAR_HUNT_WORDS.one;"],
   ['plans: AW-32 Dispatch loot at the yard says in town (post-140 C7)', 'src/shell/loot-dispatch.js', "  if (h && !h.ended) return busyWords(cs, 'Dispatch loot works in town');", "  if (h && !h.ended) return 'Dispatch loot works in town';"],
+  ['plans: AW-32 Storage at the yard says in town (post-140 C7)', 'src/shell/storage-model.js', "  return busyWords(cs, t('bag.storage_away'), 'training.busy_storage');", "  return t('bag.storage_away');"],
   ['plans: AW-32 the chest at the yard says hunting (post-140 C7)', 'src/shell/windows/tower-chest.js', "  if (h && !h.ended) return busyWords(cs, t('tower.off_hunting'));", "  if (h && !h.ended) return t('tower.off_hunting');"],
   ['plans: AW-27 the weak food line names no slot', 'src/shell/weak-food.js', "return t('prep.food_weak' + hp, Object.assign(vars, { where }));", "return t('prep.food_weak' + hp, Object.assign(vars, { where: '' }));"],
   ['plans: AW-27 a heal read from the client copy when the server sent none', 'src/shell/weak-food.js', 'return r && Number.isInteger(r.amount) ? r.amount : null;', "return r && Number.isInteger(r.amount) ? r.amount : ((CONSUMABLES[id] || {}).amount || null);"],

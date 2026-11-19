@@ -54,7 +54,7 @@ import { glyphSvg } from '../launcher.js?v=0.2.140';
 import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { BAG_CATS, BAG_SORTS, view } from '../bag-model.js?v=0.2.140';
-import { storePrefsOf, markStored, materialsToStore, queuePress, nextBatch } from '../storage-model.js?v=0.2.140';
+import { storePrefsOf, markStored, materialsToStore, queuePress, nextBatch, storeAwayWords } from '../storage-model.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { pocketHtml, patchCount } from './inventory/pockets.js?v=0.2.140';
 import { showTip, hideTip } from './item-tip.js?v=0.2.140';
@@ -100,13 +100,14 @@ export function renderStorage(ctx) {
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>';
 }
 
-/* The one sentence the bag's Deposit says too (src/data/text/bag.js). */
+/* The one sentence the bag's Deposit says too (storage-model.js storeAwayWords): on a hunt STORE_AWAY, at the yard STORE_TRAINING. */
 const STORE_AWAY = t('bag.storage_away');
+const STORE_TRAINING = t('training.busy_storage');
 
 /* SAY WHY: a press on a stack with the hero out hunting moves nothing, and the note that says so has scrolled away by the time the bag is in reach. */
 function sayAway(cs, sc, repaint) {
   const h = huntOf(cs);
-  if (h && !h.ended && !sc.pending) { sc.msg = STORE_AWAY; repaint(); }
+  if (h && !h.ended && !sc.pending) { sc.msg = storeAwayWords(cs); repaint(); }
 }
 
 /* Why Expand is off, in words, or '' when it can be pressed. Every number is the server's: the cap, the offer, the price and the purse. */
@@ -215,7 +216,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   if (ctx.doc.activeElement !== input) prop(input, 'value', sc.query);
   prop(root.querySelector('[data-hs-act="sort"]'), 'value', prefs.sort);
   for (const b of root.querySelectorAll('.hw-cat')) attr(b, 'aria-pressed', String(b.getAttribute('data-cat') === prefs.cat));
-  text(root.querySelector('.hw-store-note'), away ? STORE_AWAY
+  text(root.querySelector('.hw-store-note'), away ? storeAwayWords(cs)
     : !bank ? t('bag.store_reading') : (ctx.isPhone && ctx.isPhone() ? t('bag.store_help_touch') : t('bag.store_help_mouse')));
   const depot = depotOf(cs);
   const phone = !!(ctx.isPhone && ctx.isPhone());
@@ -252,7 +253,7 @@ renderStorage.patch = function patchStorage(body, ctx) {
   text(root.querySelector('.hw-store-mats-why'), away || !mats.left ? '' : t('bag.store_mats_left', { count: mats.left }));
   cls(root, 'is-pending', sc.pending);
   cls(root, 'is-off', off);
-  if (!away && sc.msg === STORE_AWAY) sc.msg = '';   // back in town, it no longer holds
+  if (!away && (sc.msg === STORE_AWAY || sc.msg === STORE_TRAINING)) sc.msg = '';   // back in town, it no longer holds
   text(root.querySelector('.hh-intent-msg'), sc.msg);
   fitWells(root);
 };

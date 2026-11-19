@@ -757,6 +757,75 @@ Nothing is open. Tyler confirmed the 48-hour lining cap on 11-18. Still his to n
 
 ---
 
+## 15. Luck (PROPOSAL, designer 2026-11-19, awaiting Tyler; nothing built)
+
+Asked by Tyler 2026-11-19 ("permanent magic find buffs"). Measured with `tools/balance-sim/staged/luck-measure.mjs` (the bonus applied in the real roll, same dice as today); the staged rule is `tools/balance-sim/staged/luck.js`.
+
+**Pitch.** Every creature has six Bestiary stages. Finish one and you get 1 Luck, for every hero on your account, forever. More Luck means Rare and Trophy drops come more often, on every ground. It never goes down and nothing sells it. When Luck is why a Rare dropped, the reveal says "Lucky find".
+
+**Purpose.** Problem: hour 200 on a ground plays like hour 2, the Bestiary pays nothing (undecided since 11-11), and the late game thins. Decision: where to hunt next (finish a stage here, or spend tonight's stamina on an old ground for cheap stages instead of Level XP). Plugs into kill counters, loot bands, the Hunts card and the return card.
+
+| Rule | Value |
+|---|---|
+| Feed | Kills only: 100 / 500 / 2,500 / 5,000 / 10,000 / 20,000 of one creature, +1 Luck each. Counts what the Bestiary counts (no Tower, yard or boss calls) |
+| Scope | Account-wide: each creature's best count among your heroes, not the sum, so four own heroes in a party earn like four friends |
+| Formula (public) | Bonus = 25% x Luck / (Luck + 100). It never passes 25% |
+| Moves | Rare and Trophy rows on hunted kills: uniques, whole gems, patterns, named fuels, boss-call drops |
+| Never moves | Common and uncommon stock, Scarce gear, keys, gem chips, Krell's daily prize, the Hearth Chest, Hearthfinds, coin, XP |
+| Party | The hero who lands the kill rolls on their Luck (today's rule for drop odds) |
+| Other sources | None, ever: no Luck gear, perk, lining, food, event or purchase |
+| Seen | Sheet: "Luck 38. Rares drop 6.8% more often." Bestiary rows with the next stage. Hunts card: "Luck here: 9 of 30". A log line per stage. Return card: "Luck 36 to 38". "Lucky find" on the reveal |
+| Can't be bought | Derived from server kill counters on every read, never stored. No item, currency, column or RPC carries Luck, and kills don't trade |
+
+Gold stamina refills buy hunting hours, so they speed Luck as they speed Level (board fix 7). That is not new.
+
+**Measured** (played lives on advised grounds)
+
+| | Lone hammer, Normal | | | Four on Deadly, a hero | | |
+|---|---|---|---|---|---|---|
+| Hunted hours | 10 | 100 | 500 | 10 | 100 | 500 |
+| Level | 11 | 40 | 95 | 12 | 63 | 132 |
+| Luck | 11 | 38 | 103 | 13 | 82 | 141 |
+| Bonus | +2.4% | +6.8% | +12.6% | +2.8% | +11.2% | +14.6% |
+| Rares an hour, today to Luck | 0.77 to 0.79 | 1.06 to 1.13 | 0.88 to 0.99 | 0.70 to 0.72 | 1.26 to 1.40 | 0.99 to 1.14 |
+| Rares rolled so far | 7 to 7 | 96 to 102 | 596 to 651 | 4 to 4 | 125 to 133 | 574 to 643 |
+
+- Pace: first Luck at 0.5 h (100 Giant Rats, Mill Cellar, Level 3-4). Luck 25 / 50 / 100 at 27 / 149 / 470 h alone and 18 / 54 / 136 h in a four.
+- Gold: lone income identical in both runs (8,029,983). Rares' shop value 50,977 to 56,579 over 500 h, 0.07% of income. Rare supply to the market rises by the bonus, never past 25%.
+- Room: today's 52 creatures hold 312 Luck (+18.9%). After about 285 h on Deadly a four is parked on Krell's Hold with all five of its creatures full, so its next Luck is on old grounds.
+- Cost: over-leveling barely speeds kills (Thicket: 587 an hour at Level 10, 676 at 60), so a stage costs hours, not Levels.
+
+**Changes to this plan**
+
+| Section | Change |
+|---|---|
+| 1 | New row: Luck, the Bestiary's reward |
+| 3 | Rare paces are quoted at Luck 0. `loot-bands.js` trophy `boostMax 1.25` becomes Luck's cap, so a Trophy still never beats 100 h. Each new creature brings 6 Luck |
+| 4 | No Luck perk. Whole gems speed up and chips don't, so six gems a band holds at Luck 0 |
+| 6 | The chest ignores Luck. The wait table stands |
+| 10 | Luck doesn't trade and takes no gold |
+| 11 | New phase 2b, below |
+| 12 | "Studies" (parked) is closed by this. Its "never a Rare" limit is reversed on purpose: Studies aimed at one monster, Luck is global and capped |
+
+**The charms.** No kill-memory bonus reaches the roll today: `charmDropMultFor`, `trophyDropMultFor`, `memoryDropMult` and `member.relicMult` have no caller, and `weaknessInfo` returns only the monster's own `dropBonus`. Cut the class ladder (`bestiary-charms.js`, `charms.js`) and those four. Studied and Marked become the 100 and 500 stages; Quarry, Stalker, Slayer and Nemesis keep theirs. Four foods carry a 1-3% drop-rate buff on every row (read, unmeasured): give them another buff.
+
+**Build (phase 2b)**
+
+| Lane | Work | Notes |
+|---|---|---|
+| C, Backend | Generated stage catalogue, `hr_luck_of(account)`, the settle reads each member's Luck, `hr_state_of` projects `luck {points, pm}` | No client input anywhere. `hr_hunt_apply_member` item bounds must allow the capped rate. Guard: only the settle writes `ev:kill_monster:*`. Deleting a hero must not lower Luck |
+| Engine, Systems | `src/data/luck.js`, `src/core/luck.js`, `drops.js effectiveDropChance` (reveal bands only, a `lucky` flag), `hunt-rewards.js payDrops`, `member.js`, the cuts, drop-tables guard at Luck 0 and at the cap, viewed and closed-browser tests | One draw a row as today, so seeded replays match at Luck 0. Edge deploy |
+| B, client and Art Director | Sheet line, Bestiary window, Hunts card, log line, return card row, Lucky find tag, text rows | The Bestiary window isn't built yet |
+
+**Walk-through, first Luck.** Enter the Mill Cellar in the start kit. Kill 100 Giant Rats (`ev:kill_monster:rat`, measured at 0.5 h). The return card shows Luck 0 to 1 beside the existing "Best find" row (the Luck row is new, not built).
+
+**For Tyler**
+1. The ceiling. +25% keeps the 10-19 ruling. +50% would read +25% at 500 h alone, with Trophies as fast as 83 h. Designer's call: +25%.
+2. The feed. Kills only, so nothing buys it. Feeding it salvaged junk (the Guild Wars 2 way) lets gold-bought gear, and so Crowns, buy drop rate. Designer's call: kills only.
+3. The cuts: the class charm ladder and the food drop-rate buffs.
+
+**Measured vs assumed.** Measured: both lives, the roll, gold, kill rates. Read: the dead callers, the food buffs. Unmeasured: market prices, friends with unequal Luck, a player farming stages on purpose, content past 110. Not played in a browser; no screen exists.
+
 # APPENDIX A. Answers to Tyler's five roadmap findings
 
 ## Finding 1. Weapon coverage in the Morrow Hills

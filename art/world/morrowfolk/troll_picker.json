@@ -84,7 +84,7 @@
     "n_directions": 8,
     "name": "Troll Picker",
     "character": "faeae47d-2f66-46f3-ac21-28cdd0b5fe4b",
-    "prep": ".scratch/morrow/full/prep.mjs: despeck, lift 2 with the carried thing kept, per-facing picks and cuts",
+    "prep": ".scratch/morrow/full/prep.mjs: despeck, lift 2 with the carried thing kept, per-facing picks and cuts; then .scratch/morrow/b1/body.mjs (one species, ring lift, Thrower head, trough)",
     "idle": {
       "tool": "animate_object",
       "mode": "v3",

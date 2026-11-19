@@ -59,7 +59,7 @@ try {
   let r = await read();
   step('BE-1 the header reads N of 100 stacks', /^\d+ of 100 stacks$/.test(r.head), r.head);
   step('BE-1 Expand shows the server\'s price', r.btn === 'Expand (+20) for ' + fmt(p0), r.btn + ' vs ' + p0);
-  step('BE-2 short of gold: off, and says why', r.off && r.why === 'You need ' + fmt(p0 - 10) + ' more to expand your bag.', JSON.stringify(r));
+  step('BE-2 short of gold: off, and says why', r.off && r.why === 'Need ' + fmt(p0 - 10) + ' more to expand', JSON.stringify(r));
   if (shots) await a.shot('storage-short');
 
   /* ── BE-3 ── */

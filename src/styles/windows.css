@@ -373,15 +373,19 @@
 .hw-fit-need:empty { display: none; }
 
 /* ── Storage (src/shell/windows/storage.js): the same pockets, TWO CONTAINERS SIDE BY SIDE (UI audit 2026-11-18 #4) ──
-   The search, the kinds and the help over both; the storage's head and well at the left, the bag's at the right, the wells starting on
-   one line and running the window's height, each scrolling on its own; under each, how it gets more room; under both, the bulk moves.
-   The window does not scroll: its wells do (a phone's sheet scrolls as one, below). */
+   The search and the kinds over both; the storage's head and well at the left, the bag's at the right, the wells starting on one line
+   and running the window's height, each scrolling on its own; under each, how it gets more room; under both, the bulk moves; at the foot
+   ONE line, how a press moves a stack until a press answers, then its answer in that line's place (sized to the answer, so its coming
+   never shortens the wells and slides a stack from under the hand: AW-65). The window does not scroll: its wells do (a phone's sheet
+   scrolls as one, below). */
 .hs-win[data-hs-win="storage"] .hs-win-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-.hw-store { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto auto auto auto minmax(0, 1fr) auto auto auto;
-  grid-template-areas: "find find" "cats cats" "note note" "bankh bagh" "bank bag" "room grow" "do do" "msg msg"; column-gap: 12px; }
+.hw-store { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto auto auto minmax(0, 1fr) auto auto auto;
+  grid-template-areas: "find find" "cats cats" "bankh bagh" "bank bag" "room grow" "do do" "msg msg"; column-gap: 12px; }
 .hw-store > .hw-find { grid-area: find; }
 .hw-store > .hw-cats { grid-area: cats; }
-.hw-store > .hw-store-note { grid-area: note; }
+.hw-store > .hw-store-note { grid-area: msg; align-self: center; margin: 6px 2px 0; }
+.hw-store:has(> .hh-intent-msg:not(:empty)) > .hw-store-note { visibility: hidden; }
+.hw-store > .hh-intent-msg:empty { display: block; visibility: hidden; min-height: calc(1lh + 12px); }
 .hw-store > .hw-store-bankhead { grid-area: bankh; }
 .hw-store > .hw-store-baghead { grid-area: bagh; }
 .hw-store > [data-well="bank"] { grid-area: bank; }
@@ -397,7 +401,6 @@
 .hw-store-well > .hw-store-none { margin: 2px 2px 6px; }
 .hw-store.is-off .hw-pocket { cursor: default; opacity: .6; }
 .hw-store-n { font-family: var(--f-ui); font-weight: 400; letter-spacing: 0; color: var(--ink-3); }
-.hw-store-note { margin: 0 2px 4px; }
 /* under the storage, the House's next chest; under the bag, Expand with why it is off beside it; under both, the bulk moves and their words */
 .hw-store > .hw-store-room { margin: 6px 2px 0; }
 .hw-store > .hw-store-room:empty { display: none; }
@@ -850,7 +853,9 @@
   .hw-store > :is(.hw-store-note, .hw-store-do) { order: 2; }
   .hw-store > :is(.hw-store-bankhead, [data-well="bank"], .hw-store-room) { order: 3; }
   .hw-store > .hh-intent-msg { order: 4; }
-  .hw-store > .hw-store-note { margin: 6px 2px 0; }
+  .hw-store > .hw-store-note { align-self: stretch; margin: 6px 2px 0; }
+  .hw-store:has(> .hh-intent-msg:not(:empty)) > .hw-store-note { visibility: visible; }
+  .hw-store > .hh-intent-msg:empty { display: none; }
   .hw-store-well { min-height: 0; overflow: visible; }
   .hw-store > [data-well="bag"] { margin-top: 6px; }
   .hw-store > .hw-store-do { margin-top: 6px; padding-top: 0; border-top: 0; }

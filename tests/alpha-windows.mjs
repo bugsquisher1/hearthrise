@@ -3923,12 +3923,14 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const stored = Object.fromEntries(Object.keys(ITEMS).slice(0, 60).map((i) => [i, 3]));
       const bagFull = Object.fromEntries(Object.keys(ITEMS).slice(60, 100).map((i) => [i, 14]));
       const long = (e) => { e.bank = Object.assign({}, stored); e.inventory = Object.assign({}, e.inventory, bagFull, { copper_ore: 14 }); };
-      /* The line as a player sees it: its words, in the scrolled body's view or not, and whether it lies on the stack. */
+      /* The line as a player sees it: its words, in the scrolled body's view or not, and whether it lies on the stack. The bag scrolled into
+         reach is the window's body or, side by side (UI audit 2026-11-18 #4), the bag's own well; the stack is whole in view or not. */
       const lineNow = (page) => page.evaluate(([w, st]) => {
         const body = document.querySelector(w + '[data-hs-body]'), m = document.querySelector(w + '.hh-intent-msg'), s = document.querySelector(st);
-        const b = body.getBoundingClientRect(), r = m.getBoundingClientRect(), k = s.getBoundingClientRect();
-        return { text: m.textContent, scrolled: body.scrollTop, inView: r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1, onStack: r.height > 0 && r.top < k.bottom && k.top < r.bottom,
-          sending: s.classList.contains('is-sending'), stackTop: Math.round(k.top) };
+        const well = s.closest('.hw-store-well');
+        const b = body.getBoundingClientRect(), r = m.getBoundingClientRect(), k = s.getBoundingClientRect(), v = (well || body).getBoundingClientRect();
+        return { text: m.textContent, scrolled: body.scrollTop + (well ? well.scrollTop : 0), inView: r.height > 0 && r.top >= b.top - 1 && r.bottom <= b.bottom + 1, onStack: r.height > 0 && r.top < k.bottom && k.top < r.bottom,
+          sending: s.classList.contains('is-sending'), stackTop: Math.round(k.top), stackWhole: k.top >= v.top - 1 && k.bottom <= v.bottom + 1 };
       }, [W65, STACK]);
       const reach = async (page) => {
         await openWin(page, 't', 'storage');
@@ -3954,6 +3956,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           const done = await lineNow(page);
           if (!done.inView) fails.push('AW-65 the result of a press in a scrolled bag is out of sight: ' + JSON.stringify(done));
           if (done.onStack) fails.push('AW-65 the answer lies on the stack just pressed: ' + JSON.stringify(done));
+          /* the answer's coming takes no room from the bag: the stack pressed is still whole in view, where it was */
+          if (!done.stackWhole || done.stackTop !== before.stackTop) fails.push('AW-65 the answer slid the stack from under the hand: ' + JSON.stringify([before, done]));
           /* The next press lands where the hand is: its answer moves nothing now the line is up. */
           await page.click(STACK);
           await page.waitForTimeout(100);
@@ -5529,6 +5533,7 @@ const MUTANTS = [
   ['AW-33 Storage stacks its two grids again', 'src/styles/windows.css', '.hw-store { flex: 1 1 auto; min-height: 0; display: grid;', '.hw-store { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;'],
   ['AW-33 the two wells end apart, a row cut at a foot', 'src/shell/windows/storage.js', "  if (Number.isFinite(end)) for (const w of wells) w.style.maxHeight = end + 'px';\n", ''],
   ['AW-33 Storage draws no room left', 'src/shell/windows/storage.js', '  return Math.max(0, room.cap - used - (Number.isSafeInteger(room.reserved) ? room.reserved : 0));', '  return 0;'],
+  ['AW-65 a press\'s answer takes its row from the bag (UI audit #4)', 'src/styles/windows.css', '.hw-store > .hh-intent-msg:empty { display: block; visibility: hidden; min-height: calc(1lh + 12px); }\n', ''],
   ['AW-28b nobody to bring tells heroes already playing to play one (audit F23)', 'src/shell/windows/hunt-detail.js', '  if (away.length) {\n', '  if (false) {\n'],
   ['AW-25 a creature card\'s dot can end its line','src/shell/windows/hunt-detail.js', "text(how.querySelector('.hw-hd-mon-lv'), lv);", "text(how.querySelector('.hw-hd-mon-lv'), lv && lv + ' ·');"],
   ['AW-25 the dot outlives the break that took its space', 'src/styles/hunt.css', '.hh-sep-t { font-size: 0; word-spacing: 0; }', '.hh-sep-t { word-spacing: 0; }'],

@@ -435,6 +435,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       const back = (env) => {
         stamped(env, {});
         env.client_state.awaySeen.lv = 1;
+        /* the card as a real return reads it (local-world, 922x423): Gold with its coins and supplies under it, and a best find, so the card is
+           as long as the one whose Hunt again lay under the fold */
+        env.client_state.awaySeen.sp = 0;
+        env.hunt_analyzer = Object.assign({}, env.hunt_analyzer, { hero: Object.assign({}, env.hunt_analyzer.hero, { loot: Object.assign({}, env.hunt_analyzer.hero.loot, { bronze_helm: 1 }) }) });
         env.hunt.ended = true;
         env.hunt.session = Object.assign({}, env.hunt.session, { end_reason: 'stamina', ended_at: new Date(env.hunt_server_now_ms - HOURS).toISOString() });
         env.stamina = Object.assign({}, env.stamina, { ms: 2 * HOURS, hunting: false });
@@ -457,7 +461,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
             const q = x.getBoundingClientRect();
             return { act: x.getAttribute('data-hs-act'), whole: q.top >= b.top - 1 && q.bottom <= Math.min(b.bottom, innerHeight) + 1, top: Math.round(q.top), bottom: Math.round(q.bottom) };
           });
-          return { presses, foldAt: Math.round(Math.min(b.bottom, innerHeight)), gone: win.querySelector('.haway-gone').textContent, heroes: win.querySelectorAll('.haway-hero').length,
+          return { presses, foldAt: Math.round(Math.min(b.bottom, innerHeight)), best: !!win.querySelector('.haway-best:not([hidden])'),
+            goldSub: win.querySelector('.hres-fig[data-fig="gold"] small')?.textContent || '', gone: win.querySelector('.haway-gone').textContent, heroes: win.querySelectorAll('.haway-hero').length,
             level: win.querySelector('.hres-lv').textContent.replace(/\s+/g, ' ').trim(), xp: win.querySelector('.hres-fig[data-fig="xp"] dd')?.textContent || null,
             whole: r.height > 0 && r.top >= b.top - 1 && r.bottom <= Math.min(b.bottom, innerHeight) + 1, docked: !win.classList.contains('is-modal'),
             gold: gold.map((x) => x.getAttribute('data-hs-act') + ':' + x.textContent), lines: document.querySelectorAll('.hw-alert[data-kind="away"]').length,
@@ -466,6 +471,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (seen.gone !== 'Away 2 h 0 min' || seen.heroes !== 1) fails.push('HR-12 ' + at + ': the card reads ' + JSON.stringify(seen));
         if (!/^Level 1 → \d+$/.test(seen.level) || seen.xp !== '+500') fails.push('HR-12 ' + at + ': the result is not the two stamps\' difference: ' + JSON.stringify([seen.level, seen.xp]));
         if (!seen.whole) fails.push('HR-12 ' + at + ': the result block is cut as the card opens');
+        if (!seen.best || !/in coins, .+ on supplies/.test(seen.goldSub)) fails.push('HR-12 ' + at + ' CONTROL: the card is not a full return (a best find, Gold with its coins and supplies): ' + JSON.stringify([seen.best, seen.goldSub]));
         if (!['away-go', 'away-ok'].every((act) => seen.presses.some((p) => p.act === act))) fails.push('HR-12 ' + at + ' CONTROL: the card shows no Hunt again or OK: ' + JSON.stringify(seen.presses));
         else if (seen.presses.some((p) => !p.whole)) fails.push('HR-12 ' + at + ': a press lies under the fold as the card opens (fold at ' + seen.foldAt + '): ' + JSON.stringify(seen.presses));
         if (JSON.stringify(seen.gold) !== '["away-go:Hunt again"]') fails.push('HR-12 ' + at + ': the gold presses are ' + JSON.stringify(seen.gold));

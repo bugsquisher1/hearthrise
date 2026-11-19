@@ -2,6 +2,11 @@
 
 _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md` / `HANDOFFS.md`._
 
+## 2026-11-19 · lane/c-cookbook-cut-guards (v0.2.141 run-smoke: feast drift + unlock repair list reds)
+1. *Read which file a fold names before regenerating it.* The feast guard named 05-16 only because 05-16 was the LAST seed of the cut feasts; with 05-16 regenerated (injected) it named 05-12. The real defect: gen-catalogues only upserted hr_feast_foods, so a cut food stayed on the clan feast's price list (34 rows at chain end, 31 foods; restore-census had pinned the 34). The generator now empties it with the other tables, its self-check pins the count and each row's hr_items heal (mutant: the upsert-only file over a planted ghost raises "32 rows, generator emitted 31"), and the guard folds a top-level unscoped delete; any other delete shape is a problem, never skipped.
+2. *A generated file is a snapshot of its own chain point.* 05-16 stays as generated (its digest is the data it shipped); the forward file carries the cut.
+3. *Seen, not mine:* selfcheck-no-global-dml EXIT 1 on the set tip (17 call findings): 05-17-scaled-best restates hr_hunt_apply_instance whole, so the tally-clearing `update … from hunt_sessions h where h.instance_id = p_instance` acknowledged as a 04-24 splice is now a literal body.
+
 ## 2026-11-19 · lane/c-jewel-idem (v0.2.141 preflight: jewel-guarantees-db G-IDEM red)
 1. *A generated catalogue is idempotent only at its own chain point.* G-IDEM re-applied the 05-16 files at head; since the 05-22 cookbook-cut catalogues restate hr_activities (372 -> 369) and hr_bench_inputs() (163 -> 160) whole, the re-apply put 05-16's catalogue back (the red's after-md5s equal the 05-16 state exactly). The switch never moved; the switch file is a true no-op. G-IDEM now boots `upTo: MIG` (the bounty-gems-close G1 / boss-call-db BD-AGAIN pattern); the arms stay at head.
 2. *Moving a check's chain point needs a mutant at the new point.* `on conflict do update set scope = 'off'` applies clean, keeps every arm green and only G-IDEM catches it; MISSED under HR_MUTANT_CONTROL.

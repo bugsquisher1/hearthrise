@@ -115,8 +115,10 @@ export async function loadCellRunner(root) {
        and 'party' for a party. A plain cell is untouched. */
     const asPlayed = cell.profile === 'played';
     const line = asPlayed ? cell.skillLine || (party.length > 1 ? 'party' : 'alone') : 'level';
-    if (line !== 'level' && !SKILL_LINES) throw new Error('balance-sim: a played cell reads the skill lines and tools/balance-sim/skill-lines.json is missing (skill-lines.mjs --run, --write)');
-    const lineLevels = (style, L) => skillsAt(SKILL_LINES, line, style, L);
+    const lineLevels = (style, L) => {
+      if (line !== 'level' && !SKILL_LINES) throw new Error('balance-sim: a played cell reads the skill lines and tools/balance-sim/skill-lines.json is missing (skill-lines.mjs --run, --write)');
+      return skillsAt(SKILL_LINES, line, style, L);
+    };
     const lineXp = (style, L) => { const lv = lineLevels(style, L); return Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, lv[k])])); };
     /* A seat field left out falls back to the harness's own rule for it (the ladder kit of `style`, the skill line (every combat skill at the
        Level for a plain cell), the reference bar, the supply policy), so one field at a time can be swapped between the recorded hero and the

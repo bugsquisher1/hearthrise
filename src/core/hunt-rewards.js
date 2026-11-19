@@ -176,14 +176,11 @@ function payDrops(present, ids, lead, row, ctx, world, atMs) {
    only the boss's own `ev:kill_monster:<called row>`, the one number his title reads (the Bestiary's read leaves it out, and no kill is journalled). No XP on
    any route, no coin, no Hearthfind; a death or the limit ends the fight before any kill, so it rolls nothing; an add's kill pays nothing. The only
    die drawn is the table's, on his kill. SHUT while BOSS_CALL_RULES.dropsLive is false (the live allowlist still refuses an item). One door, so a route added above can't reach it. hr_hunt_apply_member holds a window to the same (tests/boss-call.mjs). */
-/* The heroes alive AT A KILL, in unit-id order: they share its gold, loot and rare roll, as its XP (xp-share.js reads the world at the kill's own
-   instant). `world` is the world AFTER the swing, so a hero who fell LATER in the same swing is dead there: `fallsAfter(id)` says whether its
-   fall comes after this kill in the swing's events (fallsAt), and it counts as alive then. Andy's Tower wipe (2026-11-19, floor 182): the
-   party's last kill paid four heroes its Level XP, all four fell before the swing ended, the kill was counted for nobody, and the server
-   refused the window six times (value_over level_xp, 0 kills) and forfeited it. */
-const livingIds = (world, members, fallsAfter) => world.units.filter((u) => u.side === 'hero' && (u.alive === true || (fallsAfter ? fallsAfter(u.id) : false)) && members.has(u.id)).map((u) => u.id).sort((a, b) => a - b);
+/* The heroes alive at kill `i` (its index in the swing's events), in unit-id order: they share its gold, loot and rare roll, as its XP
+   (xp-share.js). `world` is AFTER the swing, so a hero who fell later in it (`fell`) was there (Andy's Tower wipe 2026-11-19: XP, no kill). */
+const livingAt = (world, members, fell, i) => world.units.filter((u) => u.side === 'hero' && members.has(u.id) && (u.alive === true || fell.get(u.id) > i)).map((u) => u.id).sort((a, b) => a - b);
 
-/* Each member hero's fall in this swing, by its index in `events` (a hero falls once: its hunt ends at its next boundary). */
+/* Each member hero's fall in this swing: its index in `events`. */
 function fallsAt(members, events) {
   const at = new Map();
   events.forEach((ev, i) => { if (ev.type === 'kill' && members.has(ev.t) && !at.has(ev.t)) at.set(ev.t, i); });
@@ -198,7 +195,7 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
     if (ev.type !== 'kill') continue;
     const t = unitOf(ev.t);
     if (t && t.side === 'mon' && t.kind === boss) {
-      const ids = livingIds(world, members, (id) => fell.has(id) && fell.get(id) > i);
+      const ids = livingAt(world, members, fell, i);
       const row = (ctx.monsters || MONSTERS)[boss];
       if (BOSS_CALL_RULES.dropsLive === true && ids.length && row) { const present = ids.map((id) => members.get(id)); payDrops(present, ids, members.get(ev.u) || present[0], row, ctx, world, ev.atMs); }
       for (const m of members.values()) call(m.fx, 'updateQuest', 'kill_monster', 1, { target: t.kind });
@@ -227,10 +224,7 @@ export function rewardSwing(members, events, world, ctx) {
   if (ctx.call) return calledSwing(members, events, world, unitOf, ctx.call.monster, ctx);
   /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
   if (ctx.train) return trainingSwing(members, events, unitOf);
-  /* The heroes alive at the kill share its gold, loot and rare roll, as its XP (xp-share.js): one who died in the same sub-step before it does
-     not, one who falls after it in the same swing does (livingIds). */
   const fell = fallsAt(members, events);
-  const presentIds = (i) => livingIds(world, members, (id) => fell.has(id) && fell.get(id) > i);
   /* A SESSION MODE'S SHARE OF EVERY SKILL ROUTE (session-modes.js xpPm; Level XP takes it at the split, xp-share.js): never multiplied at 1000. */
   const pm = ctx.pay && Number.isInteger(ctx.pay.xpPm) && ctx.pay.xpPm !== 1000 ? ctx.pay.xpPm : null;
   const share = (n) => (pm === null ? n : (n * pm) / 1000);
@@ -277,7 +271,7 @@ export function rewardSwing(members, events, world, ctx) {
         const t = unitOf(ev.t);
         if (!t) break;
         if (t.side === 'mon') {
-          const ids = presentIds(i);
+          const ids = livingAt(world, members, fell, i);
           if (ids.length) payKill(ids.map((id) => members.get(id)), ids, members.get(ev.u) || null, t.kind, ctx, world, ev.atMs, ev.t);
         } else if (members.has(ev.t)) {
           const k = unitOf(ev.u);

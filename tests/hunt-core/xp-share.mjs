@@ -417,12 +417,12 @@ const cases = {
 
 const mutants = [
   { name: 'the dead share the kill\'s gold and loot', case: 'kill-pays-the-living',
-    edits: [['src/core/hunt-rewards.js', "u.side === 'hero' && (u.alive === true || (fallsAfter ? fallsAfter(u.id) : false)) && members.has(u.id)", "u.side === 'hero' && members.has(u.id)"]] },
+    edits: [['src/core/hunt-rewards.js', "u.side === 'hero' && members.has(u.id) && (u.alive === true || fell.get(u.id) > i)", "u.side === 'hero' && members.has(u.id)"]] },
   /* ANDY'S TOWER WIPE (2026-11-19): the kill is counted at the swing's end, so a party that falls after its last kill journals none of it */
   { name: 'the kill is counted for who stands at the swing\'s end', case: 'kill-counts-who-it-paid',
-    edits: [['src/core/hunt-rewards.js', "(u.alive === true || (fallsAfter ? fallsAfter(u.id) : false))", 'u.alive === true']] },
+    edits: [['src/core/hunt-rewards.js', '(u.alive === true || fell.get(u.id) > i)', 'u.alive === true']] },
   { name: 'a hero who fell before the kill in the swing shares it', case: 'kill-counts-who-it-paid',
-    edits: [['src/core/hunt-rewards.js', 'const presentIds = (i) => livingIds(world, members, (id) => fell.has(id) && fell.get(id) > i);', 'const presentIds = (i) => livingIds(world, members, (id) => fell.has(id));']] },
+    edits: [['src/core/hunt-rewards.js', '(u.alive === true || fell.get(u.id) > i)', '(u.alive === true || fell.has(u.id))']] },
   { name: 'the dead share the kill', case: 'share-split-by-living',
     edits: [['src/core/hunt/xp-share.js', "units.filter((u) => u.side === 'hero' && u.alive === true)", "units.filter((u) => u.side === 'hero')"]] },
   { name: 'the multiplier is ignored', case: 'each-hero-own-multiplier',

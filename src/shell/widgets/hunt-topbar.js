@@ -31,7 +31,8 @@ const LEAVING = Object.freeze({ asked: 'hud.leaving', now: 'hud.leaving_now', la
 const WAIT_WORDS_MS = 4000;
 const LEAVE_WAIT = Object.freeze({ lost: 'hud.leaving_lost', slow: 'hud.leaving_slow' });
 const LEAVE_SINCE = new WeakMap();   // the bar -> when its pending leave was first drawn (display only)
-function leavingLine(cd, waitedMs, state) {
+/** The pending leave's words (the Training window says the same while a Stop pends: windows/training.js). */
+export function leavingLine(cd, waitedMs, state) {
   if (cd && cd.phase === 'counting') return t('hud.leaving_in', { s: cd.s });
   if (state === 'lost') return t(LEAVE_WAIT.lost);
   if (cd && cd.phase === 'late') return t(LEAVING.late);

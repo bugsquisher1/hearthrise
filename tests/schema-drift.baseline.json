@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-19",
- "digest": "590086b853e359aa4038bdf46a335a9ae5dcc29ca5d018f9902795dd973ae373",
+ "digest": "be9100c1c6fb841322e360f6f1ef1e2d25fed57ed42f2a18013874f758b116a8",
  "counts": {
   "relations": 317,
-  "functions": 815,
+  "functions": 816,
   "policies": 127,
   "indexes": 453,
   "triggers": 112,
@@ -674,6 +674,7 @@
    "hr_hunt_change(p_slot integer, p_hunt text, p_idem uuid)",
    "hr_hunt_clock_ms()",
    "hr_hunt_close(p_session uuid, p_reason text, p_at timestamp with time zone, p_return_bag boolean)",
+   "hr_hunt_close_at(p_session uuid)",
    "hr_hunt_cond_check(p_c jsonb, p_stop boolean)",
    "hr_hunt_conds_check(p_conds jsonb, p_join jsonb, p_stop boolean)",
    "hr_hunt_density_freeze()",

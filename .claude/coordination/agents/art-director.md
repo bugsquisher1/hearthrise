@@ -3834,8 +3834,8 @@ out of view. Desktop now has ONE foot line: the help ("Press: move one...") at r
 answer (an empty answer keeps min-height 1lh + 12px), so nothing above it moves. window-fit read the two wells (same tag + first
 class) as two "rows" and on the phone pushed the whole bag below the fold: each well has its own first class now. Coordinator add-on:
 at the Training Yard, Storage's note, its press's answer and the bag's Deposit say "Stop training to use Storage" (storage-model.js
-storeAwayWords over training-words.js busyWords; AW-32 plan line + mutant). From set/v0.2.141: say-why's doll.js row re-pinned
-(gearLockWhy), and alpha-windows --shard-plan is over budget on the set itself (62 untimed mutants; needs ~30 shards).
+storeAwayWords over training-words.js busyWords; AW-32 plan line + mutant). Merged set/v0.2.141 twice (b4f50c6b6, then its tip:
+3 conflicts, all keep-both or take-theirs); alpha-windows --shard-plan is over budget on the set itself (62 untimed mutants; ~30 shards).
 Lessons: (6) any line that appears inside a fixed-height layout must own its room before it appears, or it moves what is under the
 hand; (7) window-fit's row heuristic is tag + first class: give sibling containers distinct first classes.
 ## 2026-11-18 lane/b-ui-topbar (UI audit wave 2: #10 the Havora strip into the top bar, UI-10 the top bar and the town coach's ring)

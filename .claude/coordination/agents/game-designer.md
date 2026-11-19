@@ -1041,3 +1041,10 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Heat the blows only. HP heat gave the same curve but slowed the floors and moved the server's per-floor XP bound (a catalogue to stage). Blows alone left the server untouched.
 - Recorded seats replay a Tower climb to the floor (159-184 against his 182, 274-284k XP an hour against 275k). Rebuild a seat's worn set from the ledger's equip rows: his front seat held a sword at the climb, not today's hammer.
 - Tuning on top of another lane's formula change: `git archive <branch> src tools/balance-sim tests/hunt-core tests/_is-main.mjs supabase/functions/hr-accrue` into .scratch, overlay your files, measure both trees and say which one each number is from.
+
+## 2026-11-19 lane/d-142-rulings (level-curve and party-class-xp-line red on the assembled v0.2.142; board "2026-11-19 Two rulings for v0.2.142")
+- Diff the careers, not the median: `level-pace.json` careers' hoursTo, old snapshot against new, named the bows (Flame Volley on their default bar) as the other 13% once the advice was reverted. The median moves when its middle two ways move.
+- A shrunk band breaks every plan that reads it: the Cellar ending at 5 left the ladder playing Levels where the hunt ends at once (3,411 XP an hour), which bent the contract fit. `plans.mjs` loadAxes now plays a ground's playable band.
+- An early-curve step can't be moved alone: brackets chain (a bracket's first step is the one before plus its rise), so a rise change shifts every later step. Pair it (-d, +2d, -d) to hold every total past it, or accept a constant shift.
+- A Healer's tier is data (HEALER_TIERS): a guard judging parties there should read it rather than hand-list grounds. A plain hero at 165 dies in every lone way, so a staged ground past the gear ladder measures deaths, not pay.
+- The pace plan is about 45 min and the ladder 13 min on one worker. A played life to 70 is 1-2 min. Reuse ladder cells by id: copy cells.jsonl and drop the changed ground's rows.

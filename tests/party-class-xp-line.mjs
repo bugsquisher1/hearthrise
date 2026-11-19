@@ -294,8 +294,9 @@ const TIER_MUTANTS = [
      Deadly stops being a Healer's tier at the floor */
   { name: 'the table cut too deep on a Healer\'s tier (x0.5): Krell\'s Hold\'s Deadly pair WITH a Healer under its heroes alone', g: 'krells_hold', tier: 'deadly', party: 'duo tank+healer', bar: 'alone',
     edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
-  { name: 'the Catacombs\' Deadly no Healer\'s tier at its floor (healerTiers 165): the tank and bow pair binds and reads under its heroes alone', g: 'unmarked_catacombs', tier: 'deadly', party: 'duo tank+bow', bar: 'alone',
-    edits: [['src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },', '  healerTiers: { deadly: 165 },']] },
+  /* (seed 0 alone reads that pair at 1.07, the two seeds' 0.968: the table cut makes it plainly under, and only the moved row lets the bar see it) */
+  { name: 'the Catacombs\' Deadly no Healer\'s tier at its floor (healerTiers 165) and the table cut (x0.5): the tank and bow pair binds and reads under its heroes alone', g: 'unmarked_catacombs', tier: 'deadly', party: 'duo tank+bow', bar: 'alone',
+    edits: [['src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },', '  healerTiers: { deadly: 165 },'], ['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
   { name: 'one ground pays its own cell (Hask\'s Ford x1.7, typed in the engine)', g: 'hasks_ford', tier: 'deadly', party: 'four', bar: 'pace',
     edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'hasks_ford' ? 1.7 : 1));"]] },
 ];

@@ -90,7 +90,10 @@ const SEED = '-4611686018427387904';
    Cause: src/data/balance-sheet.js STAT_FORMULA's blows and HP line x1.1 and
    XP a point x0.96, so every formula row on the pinned grounds (src/data/monsters.js, rewritten by tools/gen-ground-stats.mjs --write) has a tenth
    more HP and a blow a tenth harder: other kills, other swings, other rolls. This lane's diff touches no file under src/core or
-   supabase/functions (git diff set/v0.2.142...HEAD --stat -- src/core supabase/functions: empty), so the engine is the pin's. */
+   supabase/functions (git diff set/v0.2.142...HEAD --stat -- src/core supabase/functions: empty), so the engine is the pin's.
+   RE-PINNED 2026-11-19 (lane/d-142-rulings; the board's "2026-11-19 Two rulings for v0.2.142"), ALL FOUR TALLIES ONLY (every world and timeline holds,
+   kills as pinned: 198 / 488 / 139 / 113): src/data/core-model.js LEVEL_CURVE re-fit to Tyler's table (Levels 5-8 re-eased, 9 -> 10 raised, the
+   brackets from 10 re-fit), so a hero placed at its Level holds other Level XP and the tally's XP state moves; not one swing does. */
 const SCENARIOS = Object.freeze({
   'warrens-4': { hunt: 'coppercap_warrens', L: 40, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },
   'glade-4': { hunt: 'mosslight_glade', L: 24, roles: ['tank', 'healer', 'ranger', 'mage'], fullSet: true, density: 8, settles: 12 },

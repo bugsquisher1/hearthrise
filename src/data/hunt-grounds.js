@@ -271,10 +271,8 @@ const BASE_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
-    /* ALONE FROM 45 (designer ruling 2026-11-19, the board's "2026-11-19 Two rulings for v0.2.142"; it undoes the complete look's change 8, 36 for
-       one patch): sent here from 36 a lone hero dies 0 times but skips the Glade's back half at 2-3x its Level XP, and the lone road to Level 50
-       took 123 h on the pace of record against Tyler's 168 (10-25, binding; tests/level-curve.mjs C2/C3). At 45 Hask's Ford (45-60) is the
-       advice and the Warrens stays a lone hero's second pick. Advice only. */
+    /* ALONE FROM 45 (designer ruling 2026-11-19, the board's "2026-11-19 Two rulings for v0.2.142"): from 36 the lone road to Level 50 took 123 h
+       against Tyler's 168. At 45 Hask's Ford is the advice. Advice only. */
     soloFrom: 45,
     densityMax: Object.freeze([8, 8, 8, 8]),
     gather: gather(12000, [

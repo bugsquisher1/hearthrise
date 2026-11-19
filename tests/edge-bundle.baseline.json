@@ -58,6 +58,11 @@
         "bytes": 3092591,
         "on": "2026-11-19",
         "why": "lane/d-harder-monsters (Tyler 2026-11-19, monsters a little harder) merged last on set/v0.2.142 00205fa4a: +9,231 bytes, all src/data the edge already reaches: the measured notes behind the step (balance-sheet.js), the three back-row spells and their notes (krells_hold, pyre_field, the_slake), the held spells' notes (ox_road, unmarked_catacombs), monsters.js rows, scaled-hunts.js"
+      },
+      {
+        "bytes": 3092715,
+        "on": "2026-11-19",
+        "why": "+124 B lane/d-142-rulings: LEVEL_CURVE re-fit to Tyler's table (core-model.js rows and a two-line why) and the Warrens' soloFrom back to 45 (hunt-grounds.js)"
       }
     ]
   }

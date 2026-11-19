@@ -60,13 +60,8 @@
    bracket under 50 holds (C2). The ladder now trends 975 x L^1.421: the Glade's band middle +5.1% (the bear) and the Warrens' +8.7% (other lanes
    since 11-09; the bear alone would read C5 -3.0% at Level 300, the Warrens alone -10.3%). The contract follows it, so the brackets from Level 50
    re-fit (pace.mjs --fit --fit-past, minimax 5.4%); Levels 1-50 cost what they did. Forward file 2027-04-07-brook-bear-level-curve.
-   RE-FITTED FROM LEVEL 8 2026-11-19 (designer, lane/d-142-rulings; the board's "2026-11-19 Two rulings for v0.2.142"). With the Warrens' lone advice
-   back at 45 the pace of record still read Level 10 in 5.4 h, 25 in 32.3 h and 50 in 145.7 h (-10% / -10% / -13% of Tyler's table, 10-25,
-   binding): v0.2.142's bows cast Flame Volley on their default bar (lane/d-audit-fixes-sim), so two of the eight ways climb 7% faster and the
-   median moved. The table holds, so Levels cost more: 5-8 re-eased so each step takes about 1.92x the one before (the Cellar ends at 5, so Level 5
-   is the Thicket's from its first minute and 6 -> 7 had read 2.01x 5 -> 6, C6), Level 9 -> 10 raised to 104,200 so Level 10 sits at 6 h, and the
-   brackets from 10 re-fit (pace.mjs --fit --fit-from 10, minimax 5.4%). Every total from Level 10 is 8-19% higher: a live hero keeps its XP and may
-   read 1-3 Levels lower (74 reads 72). Forward file 1000-level-curve-early. */
+   RE-FITTED FROM LEVEL 5 2026-11-19 (lane/d-142-rulings, the board's "2026-11-19 Two rulings for v0.2.142"): the pace read Level 50 in 146 h against
+   the table's 168, so 5-8 re-eased (C6), 9 -> 10 raised and 10+ re-fit (--fit-from 10). Forward file 1000-level-curve-early. */
 export const LEVEL_CURVE = Object.freeze({
   first: 159,
   brackets: Object.freeze([
@@ -74,7 +69,7 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 2, rise: 317, bend: 0 }),
     Object.freeze({ from: 3, rise: 634, bend: 0 }),
     Object.freeze({ from: 4, rise: 5000, bend: 0 }), /* the fit said 5164; eased so Level 5 -> 6 stays under 2x Level 4 -> 5 (level-curve C6 read 2.04x) */
-    Object.freeze({ from: 5, rise: 6011, bend: 0 }), /* 5-8 hand-eased 2026-11-19 (above); was 6601 / 13385 / 40860 / 16362 */
+    Object.freeze({ from: 5, rise: 6011, bend: 0 }),
     Object.freeze({ from: 6, rise: 12330, bend: 0 }),
     Object.freeze({ from: 7, rise: 42505, bend: 0 }),
     Object.freeze({ from: 8, rise: 37085, bend: 0 }),

@@ -195,6 +195,9 @@ delete from public.hr_start_inventory;
 delete from public.hr_start_equipment;
 delete from public.hr_runes;
 delete from public.hr_skill_curve;
+-- THE FEAST TABLE TOO (lane/c-cookbook-cut-guards, 2026-11-18): it was upserted only, so the cookbook cut's three feasts
+-- stayed priced for the clan feast after hr_items lost them (tests/clan-feast-catalogue-drift.mjs). Replaced like the rest.
+delete from public.hr_feast_foods;
 
 insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, req_lv, heals, auto_eatable, armour_weight, two_handed) values
   ('abyssal_greaves','Abyssal Leg Plates',true,'armor',198000,'level',88,null,false,'heavy',false),
@@ -2292,8 +2295,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('turnip_mash',60),
   ('vegetable_stew',288),
   ('void_banquet',720),
-  ('wheat_bread',216)
-on conflict (item_id) do update set heals = excluded.heals;
+  ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
   values (true, '2020875df0c871fa2d480ef8659fec89cbd038218d55c7ffd1a6d48e0344b8b4', now())
@@ -2388,6 +2390,14 @@ begin
   select count(*) into v_bad from public.hr_items
    where auto_eatable and coalesce(heals, 0) <= 0;
   if v_bad > 0 then raise exception '% auto-eatable items heal nothing', v_bad; end if;
+
+  -- THE FEAST TABLE lands whole: the count the generator emitted, and every row an hr_items food with the same heal,
+  -- so an item a catalogue cut cannot stay on the clan feast's price list.
+  select count(*) into v_n from public.hr_feast_foods;
+  if v_n <> 31 then raise exception 'hr_feast_foods has % rows, generator emitted 31', v_n; end if;
+  select count(*) into v_bad from public.hr_feast_foods f
+   where not exists (select 1 from public.hr_items i where i.item_id = f.item_id and i.heals = f.heals);
+  if v_bad > 0 then raise exception '% hr_feast_foods row(s) are not an hr_items food with that heal', v_bad; end if;
 
   -- Every item-slot pair must name a real equip slot, or hr_apply's slot check
   -- would accept an equip into a slot the player does not have.

@@ -3440,6 +3440,7 @@ jobs:
           node tools/mutant-gate.mjs node tools/apply-order-convert.mjs --selftest
           node tools/mutant-gate.mjs node tools/new-migration.mjs --selftest
           node tools/mutant-gate.mjs node tools/migration-note.mjs --selftest
+          node tools/mutant-gate.mjs node tools/chain-retire.mjs --selftest
 
       # THE SERVER TIER'S STATIC LINTS, REGISTERED 2026-11-10. tests/run-sql-tests.mjs
       # (grant hygiene, rate-limit refusals recorded, the hr_apply / hr_state_of

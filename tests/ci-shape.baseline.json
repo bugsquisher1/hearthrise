@@ -303,6 +303,7 @@
     "node tools/mutant-gate.mjs node tools/apply-order-convert.mjs --selftest": "db-replay-2",
     "node tools/mutant-gate.mjs node tools/new-migration.mjs --selftest": "db-replay-2",
     "node tools/mutant-gate.mjs node tools/migration-note.mjs --selftest": "db-replay-2",
+    "node tools/mutant-gate.mjs node tools/chain-retire.mjs --selftest": "db-replay-2",
     "node tests/run-sql-tests.mjs": "db-replay-2",
     "node tools/mutant-gate.mjs node tests/run-sql-tests.mjs --selftest": "db-replay-2",
     "node tests/readonly-rpc.mjs": "db-replay-2",

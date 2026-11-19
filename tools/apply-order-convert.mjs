@@ -198,10 +198,9 @@ export function convert(root, { check = false, log = () => {} } = {}) {
   const want = new Map([...target.sidecars].map(([f, sc]) => [noteFileOf(f), sidecarText(sc)]));
   want.set('_chain.json', chainText(target.chain));
   const have = existsSync(notesDir) ? readdirSync(notesDir) : [];
-  for (const [n, text] of want) {
-    const p = join(notesDir, n);
-    if (!existsSync(p) || readFileSync(p, 'utf8') !== text) written.push(n);
-  }
+  /* compared without CR: a Windows checkout (core.autocrlf) hands back CRLF for the LF this writes */
+  const same = (p, text) => existsSync(p) && readFileSync(p, 'utf8').replace(/\r\n/g, '\n') === text;
+  for (const [n, text] of want) if (!same(join(notesDir, n), text)) written.push(n);
   for (const n of have) if (!want.has(n)) removed.push(n);
   if (check) return { status: 'pending', written, removed };
 

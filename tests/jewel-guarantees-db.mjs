@@ -14,7 +14,11 @@
 //   G-CLOSED   the same job with the browser closed (the world tick): the same spend, the same guarantee on every piece made
 //   G-FORGED   no client door makes a roll or a perk: hr_apply is the engine's alone, a Hallmark to a pair the catalogue doesn't hold is
 //              refused, and a recipe id that isn't a catalogue job is unknown_activity
-//   G-IDEM     a second apply of the three files (their self-checks included) moves nothing, and a re-apply keeps the switch where it was
+//   G-IDEM     a second apply of the three files (their self-checks included) moves nothing, and a re-apply keeps the switch where it was.
+//              Judged on the chain as it stood when they landed (upTo: the switch file), not at head: the two generated files are
+//              catalogue snapshots that every later generation restates whole (2027-05-22-cookbook-cut-* cut three cookbook jobs), so a
+//              05-16 re-apply at head puts 05-16's catalogue back. That is apply order's business, not this file's second apply.
+//              The other arms run at head.
 //
 //   node tests/jewel-guarantees-db.mjs            the guard
 //   node tests/jewel-guarantees-db.mjs --mutate   planted defects (edge copy, or the migration)
@@ -200,6 +204,29 @@ async function arms(db, edge) {
   return red;
 }
 
+/* ── G-IDEM, on a database booted upTo MIG (see the header): the Coordinator's scope set, the three files applied again in order, the
+   activities, the bench inputs and the switch read the same. `edits` re-plants a migration mutant in the re-applied switch file; the mutant
+   control (HR_MUTANT_CONTROL, or a replay-scope control that drops the chain's patches) plants nothing here either. */
+const IDEM_ACCOUNTS = ['000000c2-0000-4000-8000-0000000e0001', '000000c2-0000-4000-8000-0000000e0002'];
+const UNPLANTED = !!process.env.HR_MUTANT_CONTROL || ['scoped', 'full'].includes(process.env.HR_REPLAY_SCOPE_CONTROL);
+async function idemAt(db, edits = []) {
+  const SNAP = `select (select md5(string_agg(a::text, ',' order by a.kind, a.activity_id)) from public.hr_activities a) a,
+                       md5(public.hr_bench_inputs()::text) b,
+                       (select scope || ':' || accounts::text from public.hr_feature_switches where switch_id = '${JEWEL_SWITCH}') s`;
+  await db.query("update public.hr_feature_switches set scope = 'testers', accounts = $2::uuid[] where switch_id = $1", [JEWEL_SWITCH, IDEM_ACCOUNTS]);
+  const s1 = (await db.query(SNAP)).rows[0];
+  for (const f of FILES) {
+    let src = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
+    if (f === MIG && !UNPLANTED) for (const [from, to] of edits) src = src.replace(from, () => to);
+    try { await db.exec(`begin;\n${src}\ncommit;`); }
+    catch (e) { await db.exec('rollback').catch(() => {}); return `${f} refused a second apply: ${String(e.message).split('\n')[0]}`; }
+  }
+  const s2 = (await db.query(SNAP)).rows[0];
+  const set = `testers:{${IDEM_ACCOUNTS.join(',')}}`;
+  if (s1.s !== set) return `the switch never read the scope set before the re-apply: ${js(s1)}`;
+  return js(s1) === js(s2) ? null : `the second apply moved state: ${js(s1)} -> ${js(s2)}`;
+}
+
 async function loadEdge(root) {
   const tick = await import(pathToFileURL(join(root, FN, 'tick.js')).href + `?m=${seq}`);
   const sa = await import(pathToFileURL(join(root, FN, 'set-activity.js')).href + `?m=${seq}`);
@@ -210,7 +237,7 @@ async function prepare(db) {
   await db.query('update public.hr_tick_config set enabled = true where id');
 }
 
-/* An edge mutant runs the arms on a planted copy; a migration mutant must be refused by the file's own §4 or turn an arm red. */
+/* An edge mutant runs the arms on a planted copy; a migration mutant must be refused by the file's own §4 or turn an arm (or G-IDEM) red. */
 const EDGE_MUTANTS = [
   { arm: 'G-OFF', why: 'set_activity never asks the switch', file: `${FN}/set-activity.js`, from: '  if (!sw) return true;\n  const on', to: '  return true;\n  const on' },
   { arm: 'G-VIEWED', why: 'set_activity reads the switch inside `state` (so it is never on)', file: `${FN}/set-activity.js`, from: 'const on = env && env.features;', to: 'const on = env && env.state && env.state.features;' },
@@ -223,6 +250,9 @@ const SQL_MUTANTS = [
   { why: 'the self-check lets the switch read on while off', expect: /jewel-guarantees §4\(c\)/,
     edits: [["update public.hr_feature_switches set scope = 'off', accounts = '{}' where switch_id = 'jewel_guarantees';\n    if public",
       "update public.hr_feature_switches set scope = 'everyone', accounts = '{}' where switch_id = 'jewel_guarantees';\n    if public"]] },
+  /* applies clean and reads dark (the arms stay green): only a second apply over a scope the Coordinator set shows it */
+  { why: 'a re-apply resets the scope the Coordinator set', expect: /^$/, idem: true,
+    edits: [['  on conflict (switch_id) do nothing;', "  on conflict (switch_id) do update set scope = 'off', accounts = '{}';"]] },
 ];
 
 async function main() {
@@ -234,23 +264,15 @@ async function main() {
       await prepare(db);
       const edge = await loadEdge(ROOT);
       console.log('\njewel-guarantees-db — a boss gem fixes a perk, a boss Trophy fixes Hallmarked, dark until the switch names you\n');
-      /* the arms first: G-DARK reads the switch as the chain applied it */
+      /* the arms at head: G-DARK reads the switch as the chain applied it */
       const red = await arms(db, edge);
-      const SNAP = `select (select md5(string_agg(a::text, ',' order by a.kind, a.activity_id)) from public.hr_activities a) a,
-                           md5(public.hr_bench_inputs()::text) b,
-                           (select scope || ':' || accounts::text from public.hr_feature_switches where switch_id = '${JEWEL_SWITCH}') s`;
-      await db.query("update public.hr_feature_switches set scope = 'testers' where switch_id = $1", [JEWEL_SWITCH]);
-      const s1 = js((await db.query(SNAP)).rows);
-      let again = null;
-      for (const f of FILES) {
-        const src = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
-        try { await db.exec(`begin;\n${src}\ncommit;`); } catch (e) { await db.exec('rollback').catch(() => {}); again = f + ': ' + String(e.message).split('\n')[0]; }
-      }
-      const s2 = js((await db.query(SNAP)).rows);
-      const idemOk = again === null && s1 === s2 && /testers/.test(s2);
-      console.log(idemOk ? '  ✓ G-IDEM — a second apply of the three files (their self-checks included) moves nothing, the switch stays where it was set'
-        : `  ✗ G-IDEM — ${again || 'the second apply moved state: ' + s1 + ' -> ' + s2}`);
-      if (!idemOk) red.set('G-IDEM', 'second apply');
+      /* G-IDEM on the chain as of the three files (the header says why not at head) */
+      const { db: at } = await bootReplay({ upTo: MIG });
+      let idemWhy;
+      try { idemWhy = await idemAt(at); } finally { await at.close().catch(() => {}); }
+      console.log(!idemWhy ? `  ✓ G-IDEM — on the chain as of ${MIG}, a second apply of the three files (their self-checks included) moves nothing, the switch stays where it was set`
+        : `  ✗ G-IDEM — ${idemWhy}`);
+      if (idemWhy) red.set('G-IDEM', idemWhy);
       console.log(red.size ? `\njewel-guarantees-db: RED (${red.size})` : '\njewel-guarantees-db: green');
       process.exitCode = red.size ? 1 : 0;
     } catch (e) {
@@ -285,6 +307,10 @@ async function main() {
           await prepare(mdb);
           const red = await arms(mdb, await loadEdge(ROOT));
           if (red.has(mu.arm)) caught = mu.arm + ': ' + String(red.get(mu.arm)).slice(0, 160);
+        }
+        if (mu.idem) {
+          const why = await idemAt(mdb, mu.edits);
+          if (why) caught = 'G-IDEM: ' + why.slice(0, 160);
         }
       } finally { await mdb.close().catch(() => {}); }
     } else if (mdb) await mdb.close().catch(() => {});

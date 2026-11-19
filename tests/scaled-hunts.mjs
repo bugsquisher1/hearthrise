@@ -71,7 +71,13 @@ const whatIfOf = (S, gid, L) => {
   }
   return { monsters: rows };
 };
-const job = (kind, gid, L, party, extra = {}, tag = '') => ({ id: idOf(kind, gid, L, party, tag), ground: gid, party, level: L, hours: 1, seeds: 1, windowMs: 120000, ...extra });
+/* A GROUND WITH AN EXIT (hunt-grounds.js endsAtLevel: the Mill Cellar's hunt ends at Level 5, lane/d-first-day-path) and a hero at it or past it.
+   SCALED: the server's settle hands the engine the scale (ctx.scale), and a scaled window has no exit (combat-sim.js), which the server proves
+   end to end (tests/scaled-hunts-server.mjs SH-CLOSED: a Level 20 hero's paid Cellar hour commits every window and kills); these cells carry
+   the scale as what-if rows instead, so the row they stand on drops the exit as the scale does. FREE: the yardstick a scale multiplies, the
+   ground's own rows a kill; a hero this far past the exit can't hunt it unscaled any more, so it is read on the same row. */
+const exitPatch = (gid, L) => { const e = G.HUNT_GROUNDS[gid] && G.HUNT_GROUNDS[gid].endsAtLevel; return Number.isInteger(e) && L >= e ? { groundPatch: { endsAtLevel: null } } : {}; };
+const job = (kind, gid, L, party, extra = {}, tag = '') => ({ id: idOf(kind, gid, L, party, tag), ground: gid, party, level: L, hours: 1, seeds: 1, windowMs: 120000, ...exitPatch(gid, L), ...extra });
 async function play(jobs) {
   const dir = mkdtempSync(join(tmpdir(), 'scaled-hunts-'));
   try {

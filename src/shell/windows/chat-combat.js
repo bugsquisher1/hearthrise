@@ -51,7 +51,7 @@ export function combatHtml() {
     + '<span class="ha-scope" role="group" aria-label="Whose lines">'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="hero" aria-pressed="false">This hero</button>'
     + '<button type="button" class="hh-tool" data-hs-act="scope" data-scope="party" aria-pressed="true">Party</button></span>'
-    + '<details class="hc-more"><summary class="hh-tool">' + t('controls.filter') + '</summary><span class="hc-types" role="group" aria-label="Line types">'
+    + '<details class="hc-more"><summary class="hh-tool is-link">' + t('controls.filter') + '</summary><span class="hc-types" role="group" aria-label="Line types">'
     + LOG_TYPES.map((lt) => '<label class="hc-type"><input type="checkbox" data-hs-act="type" data-type="' + esc(lt.id) + '" checked> ' + esc(lt.label) + '</label>').join('')
     + '</span></details></div>'
     + '<ol class="hc-log is-combat" aria-live="off"></ol><p class="hh-empty hc-none is-combat">No combat yet</p>';

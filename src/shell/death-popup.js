@@ -18,20 +18,20 @@
 // alert centre (alerts.js) reads the same id, so a seen death never comes back
 // as a side line. A party member's death stays an alert line.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.140';
-import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.140';
-import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.140';
-import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.140';
-import { huntName } from '../session/party-sections.js?v=0.2.140';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.140';
-import { MONSTERS } from '../data/monsters.js?v=0.2.140';
-import { runRulesOf } from '../data/tower.js?v=0.2.140';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.140';
-import { whole } from '../render/format.js?v=0.2.140';
-import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.140';
-import { monsterName } from './widgets/bits.js?v=0.2.140';
-import { t } from '../render/player-text.js?v=0.2.140';
+import { ALERTS_SEEN_MAX } from '../session/residue.js?v=0.2.141';
+import { huntOf, partyOf, settingsOf } from '../session/hunt-sections.js?v=0.2.141';
+import { deathLogOf, levelOf } from '../session/character-sections.js?v=0.2.141';
+import { nameOf, blessingsOf } from '../session/item-sections.js?v=0.2.141';
+import { huntName } from '../session/party-sections.js?v=0.2.141';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.141';
+import { MONSTERS } from '../data/monsters.js?v=0.2.141';
+import { runRulesOf } from '../data/tower.js?v=0.2.141';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.141';
+import { whole } from '../render/format.js?v=0.2.141';
+import { summariesOf } from '../hunt-view/summary-recorder.js?v=0.2.141';
+import { monsterName } from './widgets/bits.js?v=0.2.141';
+import { t } from '../render/player-text.js?v=0.2.141';
 
 const seenOf = (cs) => {
   const r = cs && cs.record && cs.record.residue && cs.record.residue.alerts;

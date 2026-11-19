@@ -20,22 +20,22 @@
 // is the server's (CLAUDE.md §6): nothing here is a gate the server trusts, and the press only opens the window where the
 // buy is made (goto.js targetOf), where the server prices it again.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.140';
-import { ROOM_PERKS } from '../data/perks.js?v=0.2.140';
-import { EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.140';
-import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.140';
-import { upgradePlan, preferredWeight, meets, offWeight, weightFits } from './upgrade-plan.js?v=0.2.140';
-import { wherePlaces } from './item-lore.js?v=0.2.140';
-import { itemName } from './widgets/bits.js?v=0.2.140';
-import { gold } from '../render/format.js?v=0.2.140';
-import { t } from '../render/player-text.js?v=0.2.140';
-import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.140';
-import { levelOf } from '../session/character-sections.js?v=0.2.140';
-import { tallyOf } from '../session/tally-sections.js?v=0.2.140';
-import { settingsOf } from '../session/hunt-sections.js?v=0.2.140';
-import { temperRowsOf } from '../session/temper-sections.js?v=0.2.140';
-import { trainingOf } from '../session/training-sections.js?v=0.2.140';
-import { homeOf } from '../session/home-sections.js?v=0.2.140';
+import { ITEMS } from '../data/items.js?v=0.2.141';
+import { ROOM_PERKS } from '../data/perks.js?v=0.2.141';
+import { EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.141';
+import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.141';
+import { upgradePlan, preferredWeight, meets, offWeight, weightFits } from './upgrade-plan.js?v=0.2.141';
+import { wherePlaces } from './item-lore.js?v=0.2.141';
+import { itemName } from './widgets/bits.js?v=0.2.141';
+import { gold } from '../render/format.js?v=0.2.141';
+import { t } from '../render/player-text.js?v=0.2.141';
+import { shopOf, bagOf, bankOf, goldOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.141';
+import { levelOf } from '../session/character-sections.js?v=0.2.141';
+import { tallyOf } from '../session/tally-sections.js?v=0.2.141';
+import { settingsOf } from '../session/hunt-sections.js?v=0.2.141';
+import { temperRowsOf } from '../session/temper-sections.js?v=0.2.141';
+import { trainingOf } from '../session/training-sections.js?v=0.2.141';
+import { homeOf } from '../session/home-sections.js?v=0.2.141';
 
 const pct = (pm) => String(pm / 10) + '%';
 /* A room whose rungs do something (the House window offers no purchase for one that does nothing yet). */

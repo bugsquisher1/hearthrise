@@ -35,9 +35,9 @@
 // tank in its tier-6 set, 2026-11-10): Scarce 0.88-1.17 h a piece, Rare 14.6-15.0 h, the Hall Key about every 2.0 h (19 Gatekeepers an hour).
 // GOLD IS PRINTED, NEVER A TARGET (NO PROFIT MOLDS, Tyler 2026-11-13): the Lookout's 0.45 to-hit and the Dangerous dmgPm 1300 that
 // chased a food share are reverted. His 0.17 blow stays as a danger fix (close calls at the floor) and Deadly brings six, also danger.
-import { definePack, box, gather } from '../shape.js?v=0.2.140';
-import map from './map.js?v=0.2.140';
-import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.140';
+import { definePack, box, gather } from '../shape.js?v=0.2.141';
+import map from './map.js?v=0.2.141';
+import { SPECIAL_SAMPLE } from '../../special-attributes.js?v=0.2.141';
 
 /* KRELL'S TWO UNIQUE PIECES (Tyler 2026-11-14: "a pair of pally legs a tank shield ... just no weapon", "by unique i mean having a special
    attribute"). Their rows and lines are the designer's sample rows (src/data/special-attributes.js: the standard piece plus ONE attribute),

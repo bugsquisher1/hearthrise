@@ -12,9 +12,9 @@
 // window's own line. The words are REFUSAL_WORDS'; a party's start also says who
 // held it back. The server sends no count on purpose, so none is shown.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls } from '../../render/paint.js?v=0.2.140';
-import { REFUSAL_WORDS } from '../../data/refusal-words.js?v=0.2.140';
-import { playCapOf, refusalText } from '../intent-words.js?v=0.2.140';
+import { text, cls } from '../../render/paint.js?v=0.2.141';
+import { REFUSAL_WORDS } from '../../data/refusal-words.js?v=0.2.141';
+import { playCapOf, refusalText } from '../intent-words.js?v=0.2.141';
 
 /* What this shell's popup says now, by its window manager. */
 const SHOWN = new WeakMap();

@@ -13,17 +13,17 @@
 // two indexes agree on every ground's map (EB-5..EB-7), and its ceiling (EB-1) fails if the edge reaches ./index.js again.
 //
 // PURE ESM, Node + Deno + browser.
-import millCellar from './mill_cellar.js?v=0.2.140';
-import homeCottage from './home_cottage.js?v=0.2.140';
-import millraceSewer from './millrace_sewer.js?v=0.2.140';
-import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.140';
-import coppercapWarrens from './coppercap_warrens.js?v=0.2.140';
-import mosslightGlade from './mosslight_glade.js?v=0.2.140';
-import wickstead from './wickstead.js?v=0.2.140';
-import burningTower from './burning_tower.js?v=0.2.140';
-import { TOWN_MAP } from '../town/plan.js?v=0.2.140';
-import { GROUND_ROWS, GROUND_LEGEND } from '../town/ground.js?v=0.2.140';
-import { GROUND_PACKS } from '../../grounds/index.js?v=0.2.140';
+import millCellar from './mill_cellar.js?v=0.2.141';
+import homeCottage from './home_cottage.js?v=0.2.141';
+import millraceSewer from './millrace_sewer.js?v=0.2.141';
+import meadowbrookThicket from './meadowbrook_thicket.js?v=0.2.141';
+import coppercapWarrens from './coppercap_warrens.js?v=0.2.141';
+import mosslightGlade from './mosslight_glade.js?v=0.2.141';
+import wickstead from './wickstead.js?v=0.2.141';
+import burningTower from './burning_tower.js?v=0.2.141';
+import { TOWN_MAP } from '../town/plan.js?v=0.2.141';
+import { GROUND_ROWS, GROUND_LEGEND } from '../town/ground.js?v=0.2.141';
+import { GROUND_PACKS } from '../../grounds/index.js?v=0.2.141';
 
 const terrain = (id, rows, legend) => Object.freeze({ id, rows, legend });
 

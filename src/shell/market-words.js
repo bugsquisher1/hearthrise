@@ -6,8 +6,8 @@
 // or section gives. intent-words.js refusalText asks here first for a market verb; a code
 // not named here reads from src/data/refusal-words.js like every other.
 // ════════════════════════════════════════════════════════════════════════
-import { whole, listWords } from '../render/format.js?v=0.2.140';
-import { depotOf } from '../session/item-sections.js?v=0.2.140';
+import { whole, listWords } from '../render/format.js?v=0.2.141';
+import { depotOf } from '../session/item-sections.js?v=0.2.141';
 
 /** Why the Weighhouse won't list a stack, by the server's `why` (hr_market_items: its one listable rule). The sentence is the rule, never a guess. */
 const NO_BUYER = 'not bought by the shop, own use only';

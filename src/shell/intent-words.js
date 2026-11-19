@@ -10,22 +10,22 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
-import { ITEMS } from '../data/items.js?v=0.2.140';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.140';
-import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.140';
-import { levelOf } from '../session/character-sections.js?v=0.2.140';
-import { needOf, needWords } from './item-lore.js?v=0.2.140';
-import { listWords, whole } from '../render/format.js?v=0.2.140';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.140';
-import { marketRefusal } from './market-words.js?v=0.2.140';
-import { setupFullWords } from './setup-words.js?v=0.2.140';
-import { TITLES } from '../data/titles.js?v=0.2.140';
-import { sinkRefusal } from './sink-words.js?v=0.2.140';
-import { t } from '../render/player-text.js?v=0.2.140';
-import { trainingRefusal } from './training-words.js?v=0.2.140';
-import { factionRefusal } from './faction-words.js?v=0.2.140';
-import { towerRefusal } from './tower-words.js?v=0.2.140';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
+import { ITEMS } from '../data/items.js?v=0.2.141';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.141';
+import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.141';
+import { levelOf } from '../session/character-sections.js?v=0.2.141';
+import { needOf, needWords } from './item-lore.js?v=0.2.141';
+import { listWords, whole } from '../render/format.js?v=0.2.141';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.141';
+import { marketRefusal } from './market-words.js?v=0.2.141';
+import { setupFullWords } from './setup-words.js?v=0.2.141';
+import { TITLES } from '../data/titles.js?v=0.2.141';
+import { sinkRefusal } from './sink-words.js?v=0.2.141';
+import { t } from '../render/player-text.js?v=0.2.141';
+import { trainingRefusal } from './training-words.js?v=0.2.141';
+import { factionRefusal } from './faction-words.js?v=0.2.141';
+import { towerRefusal } from './tower-words.js?v=0.2.141';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 

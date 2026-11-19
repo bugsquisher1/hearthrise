@@ -79,7 +79,23 @@ const dice = (mode, size, tier, offset) => (mode === 'quick' ? { seeds: 1, hours
     party, whose dips no rule judges (its lines read deaths, XP and gold, all the engine's own), keeps 120 s, which it pays for per cut. */
 export const windowFor = (size) => (size === 1 ? 10000 : 120000);
 
-/** Every job of a mode:{ id, ground, party, level, density, hours, seeds, options, windowMs, whatIf, grade: { ground, tier, offset, size, comp } }. */
+/* WHICH HERO A CELL PLAYS (the balance audit's fix 1, lane/d-audit-fixes-sim 2026-11-19). The plain harness hero (the ladder kit, every skill at
+   its Level, the default bar, every supply bought) killed 0.55-0.83x as fast as the real heroes in the seats of recorded hunts and its Deadly
+   fours died 0.5-6.5 times an hour where the recorded ones never did, so parties and harder tiers are graded on the PLAYED hero (cell.mjs
+   `profile: 'played'`: the recorded bars, accessories and options, each seat's skills from its career, skill-lines.mjs: 'alone' for a hero alone,
+   'party' for a party). A hero ALONE ON NORMAL is still graded plain: the pace of record (LEVEL_PACE, the contract) is the plain hero's, and Normal
+   in range is safe for a hero whose bar was never touched. It also plays a PLAYED TWIN, graded by no rule of its own, the "same way alone" a played
+   party or a played harder tier is read against (four-xp, the tier lines, the weight class). The practice set and the store-food cell stay plain
+   (a fresh hero, an untouched bar). A cell carrying no profile (an older cells file, the selftest's synthetic set) is read as before. */
+/** The profile a rule grades a cell on: the plain hero alone on Normal, the practice set and the store-food cell; the played hero everywhere else. */
+export const gradedProfile = (m) => ((m.size === 1 && m.tier === 'normal') || m.gear === 'practice' || m.gear === 'storefood' ? 'plain' : 'played');
+/* THE PACE RULES read the plain hero wherever they reach: the pace of record and its contract are the plain hero's (pace.mjs, the ladder) */
+const PACE_READS = Object.freeze(['xpVsPace', 'xpVsContract']);
+const paceRule = (rule) => PACE_READS.includes(rule.metric) || PACE_READS.includes(rule.aggregate);
+/** Is cell `m` one rule `rule` grades, by profile? A cell with none is legacy (one profile for all, as before). */
+export const profileIn = (rule, m) => !m.profile || m.profile === (paceRule(rule) ? 'plain' : gradedProfile(m));
+
+/** Every job of a mode:{ id, ground, party, level, density, hours, seeds, options, windowMs, whatIf, profile, grade: { ground, tier, offset, size, comp, profile } }. */
 export async function buildGrid(root, mode, opts = {}) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const G = await import(u('src/data/hunt-grounds.js'));
@@ -109,16 +125,21 @@ export async function buildGrid(root, mode, opts = {}) {
       const row = T.tierRowOf(g.id, tier);
       for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const [size, comps] of Object.entries(COMPS[mode])) for (const comp of comps) {
         const n = Number(size), pull = tier === 'normal' ? 0 : row.pull[n - 1], { seeds, hours } = dice(mode, n, tier, offset);
-        const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + og + tag;
-        jobs.push({ id, ground: g.id, party: comp, level, ...(ogear ? { gear: ogear } : {}), ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
-          windowMs: windowFor(n), ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder' } });
+        /* the graded profile, and a lone hero on Normal's played twin (above) */
+        const graded = gradedProfile({ size: n, tier, gear: 'ladder' });
+        for (const profile of graded === 'plain' ? ['plain', 'played'] : ['played']) {
+          const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + comp.join('+'), 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + og + tag + ',pr=' + profile;
+          jobs.push({ id, ground: g.id, party: comp, level, ...(ogear ? { gear: ogear } : {}), ...(pull ? { density: pull } : {}), hours, seeds, ...(tier === 'normal' ? {} : { options: { tier } }),
+            ...(profile === 'played' ? { profile } : {}), windowMs: windowFor(n), ...(wi ? { whatIf: wi } : {}),
+            grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder', profile } });
+        }
       }
       /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
       if (tier === 'normal' && band[0] <= 15 && fitOf(g) === 'solo') for (const [s] of COMPS[mode][1]) {
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
-        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + og + tag;
+        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=' + s, 'L=' + band[0], 'gear=practice', 's=' + seeds, 'h=' + hours].join(',') + og + tag + ',pr=plain';
         jobs.push({ id, ground: g.id, party: [s], level: band[0], gear: { starter: true }, hours, seeds, windowMs: windowFor(1), ...(wi ? { whatIf: wi } : {}),
-          grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice' } });
+          grade: { ground: g.id, band, groupFit: 'solo', tier, offset: 'floor', size: 1, comp: s, gear: 'practice', profile: 'plain' } });
       }
       /* THE STORE FOOD THE PAGE CALLS SAFE (lane/d-march-balance 2026-11-14). Every other cell eats the ground's guide food's store row, which
          no bar names until the player picks it: the start bar buys Salted Shrimp, and a Level 55 tank on it died 2 of 2 in the Muster Barrows
@@ -127,9 +148,9 @@ export async function buildGrid(root, mode, opts = {}) {
       if (tier === 'normal') {
         const guide = BAG[g.id] || null, storeFood = (guide && guide.storeFloor) || START_STORE_FOOD;
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
-        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=tank', 'L=' + band[0], 'food=' + storeFood, 's=' + seeds, 'h=' + hours].join(',') + og + tag;
+        const id = ['grade', 'g=' + g.id, 't=normal', 'o=floor', 'p=tank', 'L=' + band[0], 'food=' + storeFood, 's=' + seeds, 'h=' + hours].join(',') + og + tag + ',pr=plain';
         jobs.push({ id, ground: g.id, party: ['tank'], level: band[0], ...(ogear ? { gear: ogear } : {}), bar: { storeFood }, hours, seeds, windowMs: windowFor(1), ...(wi ? { whatIf: wi } : {}),
-          grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset: 'floor', size: 1, comp: 'tank', gear: 'storefood' } });
+          grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset: 'floor', size: 1, comp: 'tank', gear: 'storefood', profile: 'plain' } });
       }
     }
   }
@@ -177,7 +198,7 @@ export const isProfitRule = (rule) => PROFIT_METRICS.includes(rule.metric) || PR
 /* a rule's scope: tier, offset, size, the ground's fit, the gear (`ladder` unless it says `practice`), the floor's Level, a skip */
 const scoped = (rule, m) => (!rule.tiers || rule.tiers.includes(m.tier)) && (!rule.offsets || rule.offsets.includes(m.offset)) && (!rule.sizes || rule.sizes.includes(m.size))
   && (!rule.fit || rule.fit === m.groupFit) && (rule.gear || 'ladder') === (m.gear || 'ladder') && (rule.floorFrom == null || m.band[0] >= rule.floorFrom)
-  && (rule.floorMax == null || m.band[0] <= rule.floorMax) && !(rule.skip && rule.skip(m));
+  && (rule.floorMax == null || m.band[0] <= rule.floorMax) && !(rule.skip && rule.skip(m)) && profileIn(rule, m);
 export const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Math.max(Math.abs(rule.min), 1e-9) : rule.max != null && v > rule.max ? (v - rule.max) / Math.max(Math.abs(rule.max), 1e-9) : 0);
 
@@ -193,7 +214,8 @@ export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
   const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit,
     deadlyFourNeeds: (packs[c.cell.grade.ground] && packs[c.cell.grade.ground].deadlyFourNeeds) || null }, x: metricsOf(c) }));
   const key = (m, extra) => [m.ground, m.tier, m.offset, 'size ' + m.size, extra].filter(Boolean).join(' / ');
-  const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && pred(r.m));
+  /* a comparator is the same hero: the same profile as the cell it is read against (a played four against the played twins alone) */
+  const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && (r.m.profile || null) === (m.profile || null) && pred(r.m));
   const verdicts = [];
   const push = (rule, m, value, extra, ci) => {
     /* the pace contract is fitted on lone heroes (pace.mjs, the ladder plan), so its lone reading binds on a party ground too (Coordinator ruling 2026-11-11, lane/d-solo-fifteen) */
@@ -328,21 +350,24 @@ export function feelVerdicts(cells, fits = {}) {
     .filter((r) => (r.m.gear || 'ladder') === 'ladder');
   const out = [], v = (rule, verdict, key, ground, value, extra) => out.push({ rule, binding: true, verdict, key, ground, value, lo: null, hi: null, k: null, hours: null, min: null, max: null, off: 0, why: '', ...extra });
   const inRange = (o) => ['floor', 'middle', 'plus10', 'top'].includes(o);
+  /* by profile (gradedProfile above): a cell's own reading is the graded hero's; a comparator is the same hero as the cell it is read against */
+  const graded = (m) => !m.profile || m.profile === gradedProfile(m);
+  const same = (a, b) => (a.profile || null) === (b.profile || null);
   const groups = new Map();
-  for (const r of rows) if (r.m.tier === 'normal' && inRange(r.m.offset)) { const k = r.m.ground + '|' + r.m.size; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
+  for (const r of rows) if (r.m.tier === 'normal' && inRange(r.m.offset) && graded(r.m)) { const k = r.m.ground + '|' + r.m.size; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
   for (const g of groups.values()) {
     const k = g.reduce((s, r) => s + r.x.deaths, 0), hours = g.reduce((s, r) => s + r.x.hours, 0), ci = rateCI(k, hours, 1000);
     if (k > 0) v('feel-normal-deaths', ci.lo > 1 ? 'FAIL' : 'UNPROVEN', g[0].m.ground + ' / normal / at or above the floor / size ' + g[0].m.size + ' / ' + g.filter((r) => r.x.deaths).map((r) => r.m.comp + ' ' + r.m.offset + ' L' + r.c.cell.level + ' x' + r.x.deaths).join(', '),
       g[0].m.ground, ci.rate, { lo: ci.lo, hi: ci.hi, k, hours: ci.hours, max: 1, off: ci.rate, why: '11-04 in range is safe; 10-25 Normal at most 1 death per 1,000 h' });
   }
-  const at = (m, tier) => rows.find((o) => o.m.ground === m.ground && o.m.tier === tier && o.m.offset === m.offset && o.m.comp === m.comp);
-  for (const r of rows) if (r.m.tier !== 'normal' && inRange(r.m.offset) && r.x.held) {
+  const at = (m, tier) => rows.find((o) => o.m.ground === m.ground && o.m.tier === tier && o.m.offset === m.offset && o.m.comp === m.comp && same(o.m, m));
+  for (const r of rows) if (r.m.tier !== 'normal' && inRange(r.m.offset) && r.x.held && graded(r.m)) {
     const n = at(r.m, 'normal');
     if (n && r.x.xp < n.x.xp) v('feel-tier-less', 'FAIL', r.m.ground + ' / ' + r.m.tier + ' / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level, r.m.ground, r.x.xp / n.x.xp,
       { min: 1, off: 1 - r.x.xp / n.x.xp, why: '11-05: a harder tier held pays more XP a kill; this one pays less an hour than Normal' });
   }
-  for (const r of rows) if (r.m.tier === 'normal' && inRange(r.m.offset) && r.m.size > 1) {
-    const solo = median(rows.filter((o) => o.m.ground === r.m.ground && o.m.tier === 'normal' && o.m.offset === r.m.offset && o.m.size === 1).map((o) => o.x.xp));
+  for (const r of rows) if (r.m.tier === 'normal' && inRange(r.m.offset) && r.m.size > 1 && graded(r.m)) {
+    const solo = median(rows.filter((o) => o.m.ground === r.m.ground && o.m.tier === 'normal' && o.m.offset === r.m.offset && o.m.size === 1 && same(o.m, r.m)).map((o) => o.x.xp));
     const seat = Math.min(...r.c.heroes.map((h) => h.levelXpPerH));
     if (solo > 0 && seat < solo) v('feel-seat-below-solo', 'FAIL', r.m.ground + ' / normal / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level + ' (lowest seat ' + r.c.heroes.reduce((a, h) => (h.levelXpPerH < a.levelXpPerH ? h : a)).style + ')',
       r.m.ground, seat / solo, { min: 1, off: 1 - seat / solo, why: '10-25: parties are advantaged; a seat here levels slower than going alone' });
@@ -358,7 +383,9 @@ export function feelVerdicts(cells, fits = {}) {
  * harder tiers (any size); a spread reads "median (lowest to highest cell)". A cell the run did not play reads '-'.
  */
 export function goldRows(cells, fits = {}) {
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade && (c.cell.grade.gear || 'ladder') === 'ladder').map((c) => ({ m: c.cell.grade, x: metricsOf(c) }));
+  /* the graded hero's gold (a lone hero on Normal plain, parties and harder tiers played), never a played twin's beside it */
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade && (c.cell.grade.gear || 'ladder') === 'ladder' && (!c.cell.grade.profile || c.cell.grade.profile === gradedProfile(c.cell.grade)))
+    .map((c) => ({ m: c.cell.grade, x: metricsOf(c) }));
   return [...new Set(rows.map((r) => r.m.ground))].map((g) => {
     const mine = rows.filter((r) => r.m.ground === g);
     const med = (pred, k) => median(mine.filter(pred).map((r) => r.x[k]));

@@ -206,7 +206,7 @@ async function bossRoom(spec, variants) {
         ...(plus ? { start: (role, i) => ({ skills: Object.fromEntries(COMBAT.map((sk) => [sk, XP.skillXpForLevel(sk, L + ((plus[i] || {})[sk] || 0))])) }) } : {}),
         onWindow: (o) => {
           for (const p of o.members) {
-            const seat = Number(String(p.key).replace(/^\D+/, '').split(':').pop());
+            const seat = Number.parseInt(String(p.key), 10); /* play-ground.mjs memberKey: the seat comes first */
             const uid = p.summary && Number.isInteger(p.summary.unitIdEver) ? p.summary.unitIdEver : p.hunt && p.hunt.unit_id;
             if (Number.isInteger(uid) && Number.isInteger(seat)) unitSeat[uid] = seat;
             if (p.hunt.ended) { const r = p.hunt.ended.reason; if (r === 'boss_felled') how = 'felled'; else if (r === 'boss_time' && how !== 'felled') how = 'time'; else if ((r === 'died' || r === 'party_member_died') && how === 'other') how = 'death'; }

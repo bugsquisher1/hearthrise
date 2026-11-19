@@ -6,6 +6,9 @@
 //   node tools/balance-sim/sim.mjs --plan tierrisk  --out tools/balance-sim/out/tierrisk
 //   node tools/balance-sim/tierrisk-table.mjs [--pacefinal DIR] [--in DIR]
 //
+// THE PLAYED HERO (the balance audit's fix 1, lane/d-audit-fixes-sim 2026-11-19): both plans' cells play it (plans.mjs cellOf: `profile: 'played'`,
+// each seat's skills from its career, skill-lines.mjs), Normal and the harder tiers alike, so each ratio is the same hero's; the path's base
+// rate stays the pace of record's (the plain hero's: pace.mjs). A folder played before 2026-11-19 holds plain cells under ids with no `pr=`.
 // Honest = no death in the cell's 2 seeds x 2 h and net gold at or above zero. The fastest honest path: each Level's reference rate (the pace
 // snapshot) times the median way to fight's best honest tier on the ground the game sends a lone hero to, nearest Level of the grid; grounds
 // not in the plan keep plan pacefinal's tiers. Every number is read off the cells; the only arithmetic is pooling, medians and ratios.

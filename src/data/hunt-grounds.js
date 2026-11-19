@@ -16,10 +16,11 @@
 //     route       pocket indexes in walking order (each pocket at most once)
 //     respawnMs   a cleared pack is back this long after it was cleared
 //     pullDist    tiles from the pack centre at which the leader pulls
-//     groupFit    'solo' | 'party' | 'both': who the ground is built for (the world workbook's
-//                 "Group fit" column; a ground the workbook does not list is 'both'). It only
-//                 orders the recommendation (src/shell/hunt-list.js recommendedHunt): a party
-//                 ground stays enterable alone, and says it is best with a party.
+//     groupFit    'party' | 'both': 'party' is a ground BUILT for a party (the formula's party rows,
+//                 balance-sheet.js STAT_FORMULA.fit), which the Hunts window never advises to a hero
+//                 alone; it stays enterable alone. Every other ground is 'both' (Tyler 2026-11-16: no
+//                 ground is solo; the workbook's 'solo' was retired by lane/a-party-coach-card). A
+//                 PARTY's advice never reads this: it reads the measured party lines (hunt-list.js fitsGroup).
 //     soloFrom    (optional, a 'party' ground only) the Level from which a LONE hero breaks even
 //                 here, measured on the real settle; the Hunts card offers the ground alone
 //                 only from it ("Best with 2 to 4, and alone it pays from Level 45"). Advice, like groupFit.
@@ -307,7 +308,7 @@ const BASE_GROUNDS = Object.freeze({
       box([3, 2, 17, 13], [10, 8], ['walking_vine', 'brook_bear'], ['carrion_crow', 'walking_vine', 'glade_poacher', 'carrion_crow', 'carrion_crow', 'walking_vine']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
+    respawnMs: 60000, pullDist: 1.5, groupFit: 'both',
     densityMax: Object.freeze([8, 8, 8, 8]),
     gather: gather(9000, [
       /* P0 the Crow Field: pines by the trail */
@@ -341,7 +342,7 @@ const BASE_GROUNDS = Object.freeze({
       box([4, 29, 22, 37], [13, 33], ['granary_rat', 'barn_spider'], ['turncoat', 'granary_rat', 'granary_rat', 'barn_wasp', 'granary_rat', 'barn_spider']),
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
-    respawnMs: 60000, pullDist: 1.5, groupFit: 'solo',
+    respawnMs: 60000, pullDist: 1.5, groupFit: 'both',
     densityMax: Object.freeze([8, 8, 8, 8]),
     gather: gather(9000, [
       /* P0 the Rick Yard: the hedge pines */
@@ -407,7 +408,7 @@ export const TRAINING_GROUNDS = Object.freeze(Object.fromEntries(Object.keys(TRA
   const id = trainingHuntId(place, skill);
   return [id, Object.freeze({ id, hunt: id, map: at.map, train: Object.freeze({ place, skill }),
     start: Object.freeze([at.start]), pockets: Object.freeze([pocket(at.room, ['yard_dummy', at.dummy[0], at.dummy[1]])]),
-    route: Object.freeze([0]), respawnMs: 10000, pullDist: 1.5, groupFit: 'solo' })];
+    route: Object.freeze([0]), respawnMs: 10000, pullDist: 1.5, groupFit: 'both' })];
 }))));
 
 /* THE BURNING TOWER (src/data/tower.js; Tyler 2026-11-14; the board's "2026-11-14 The Burning Tower" §2): one pocket, one room a floor, reached by one
@@ -505,7 +506,7 @@ export function monstersOn(ground) {
 export const DENSITY_FULL_BOX = 8;
 
 /* Who a ground is built for (the workbook's "Group fit"): see the row shape's groupFit. */
-export const GROUP_FITS = Object.freeze(['solo', 'party', 'both']);
+export const GROUP_FITS = Object.freeze(['party', 'both']);
 export const DENSITY_PICK = Object.freeze({ min: 0, max: 16 });
 
 /** The density an instance spawns at: the pick (partyPick's, for a party: a harder tier's pull) clamped to the ground's max

@@ -247,9 +247,10 @@ const MUTANTS = [
   ['the enter answer loses its flag', 'supabase/migrations/2026-10-25-party-invites.sql', "'below_range', public.hr_hunt_below_range(v_uid, p_slot, p_hunt)", "'below_range', false"],
   /* G4/G8 (lane/a-party-advice-glade): a party's fit and its tie of floors read the measured line (the old tie-break on groupFit 'party', lane/d-party-pace's mutant
      anchor, is gone: the Thicket's measure keeps it out of a party's advice, and G4 still plays a four at 5 to the Sewer) */
-  ['a party\'s advice reads the hand tag again (groupFit solo on the Glade)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best >= 0;", "  return r.groupFit !== 'solo';"],
+  /* (lane/a-party-coach-card: groupFit 'solo' is retired, so the hand-tag mutant reads the lone rule, the only tag left) */
+  ['a party\'s advice reads the lone rule (any ground not built for a party)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best >= 0;", "  return r.groupFit !== 'party';"],
   ['a party\'s advice reads no measure (Wickstead from 8)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best >= 0;", '  return true;'],
-  ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/shell/hunt-list.js', 'const lines = tiersOf(groundId).map(', 'const lines = [DEFAULT_TIER].map('],
+  ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/data/party-class-xp.js', 'const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier))', 'const lines = [DEFAULT_TIER].map((tier) => partyVsAlone(groundId, roles, tier))'],
   ['a tie of floors ignores what a party is measured to earn', 'src/shell/hunt-list.js', '(group ? lineOf(y) - lineOf(x) : 0) || ', ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
   ['a party\'s advice claims the ground for the party again (A1)', 'src/shell/hunt-list.js', "export function adviceTag(r, rec, step) {\n  if (rec && rec.row && !rec.note && rec.row.hunt === r.hunt) return t('hunts.tag_right_level');",

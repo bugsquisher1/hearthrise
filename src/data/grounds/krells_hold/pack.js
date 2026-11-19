@@ -78,8 +78,8 @@ export default definePack({
       box([42, 10, 54, 20], [48, 15], [CS, PK], [CS, WD, PK, WD, WD, PK]),
     ],
     route: [0, 1, 2, 3, 4],
-    /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): no solo or party label, no gate. groupFit 'both' (the formula's rows are the same as
-       for 'solo'); no pocket asks for a party size and there is no soloFrom. */
+    /* ONE DIFFICULTY FOR EVERY GROUP (Tyler 2026-11-08): no solo or party label, no gate. groupFit 'both' (the formula's rows for a ground
+       not built for a party); no pocket asks for a party size and there is no soloFrom. */
     respawnMs: 60000, pullDist: 1.5, groupFit: 'both',
     densityMax: [8, 8, 8, 8],
     /* ONE PACK ON NORMAL FOR EVERY GROUP (Tyler 2026-11-11, "if they want bigger pulls they need to up the difficulty"; lane/d-packs-retune): a party

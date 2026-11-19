@@ -30,9 +30,9 @@
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
 import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.140';
-import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier, tiersOf } from '../data/hunt-tiers.js?v=0.2.140';
+import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier } from '../data/hunt-tiers.js?v=0.2.140';
 import { PARTY } from '../data/party.js?v=0.2.140';
-import { PARTY_CLASSES, partyVsAlone } from '../data/party-class-xp.js?v=0.2.140';
+import { partyBestLine } from '../data/party-class-xp.js?v=0.2.140';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.140';
 import { MONSTERS } from '../data/monsters.js?v=0.2.140';
 import { SUPPLIES, healerWanted } from '../data/supplies.js?v=0.2.140';
@@ -66,19 +66,12 @@ export function healerNote(hunt, level, discipline, healed) {
   return top ? t('hunts.wants_healer', { monster: top.name }) : '';
 }
 
-/* A PARTY THAT HOLDS EVERY CLASS IT CAN (party-class-xp.js PARTY_CLASSES order: a Melee, a Ranger, a Mage, a Healer, then round again): the party the
-   advice is for, and the one the measured lines below are read for. */
-const MIXED_ROLES = Object.values(PARTY_CLASSES).map((c) => c.roles[0]);
-const mixedParty = (n) => Array.from({ length: n }, (_, i) => MIXED_ROLES[i % MIXED_ROLES.length]);
 /* WHAT A PARTY EARNS HERE, MEASURED (lane/a-party-advice-glade): by party size 2..PARTY.maxSize, the most a mixed party earns against the same heroes
-   alone on any tier this ground offers, whole percent (the Party window's own lines, party-class-xp.js PARTY_VS_ALONE, written from the real settle by
+   alone on any tier this ground offers, whole percent (party-class-xp.js partyBestLine: the Party window's own lines, written from the real settle by
    tests/party-class-xp-line.mjs --mixed --write); null for a size with no line. */
 function partyBestOf(groundId) {
   const out = {};
-  for (let n = 2; n <= PARTY.maxSize; n++) {
-    const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, mixedParty(n), tier)).filter(Number.isInteger);
-    out[n] = lines.length ? Math.max(...lines) : null;
-  }
+  for (let n = 2; n <= PARTY.maxSize; n++) out[n] = partyBestLine(groundId, n);
   return Object.freeze(out);
 }
 
@@ -268,6 +261,15 @@ export function recommendation(levels, partySize = 1, rows = huntRows(), bests =
     return { row: below, note: [t(key, { ground: inBand.name, levels: levels2, gold: lost }), t('hunts.easier', easier)].join(ADVICE) };
   }
   return { row: best(rows.filter((r) => holds(r, lo, lo))) || rows[0] || null, note: null };
+}
+
+/** THE GROUND THE PARTY ADVICE PICKS for a party of `size` at `level` (recommendation, the Hunts window's own pick), or null when no ground a party
+    suits holds that Level (the advice falls back or carries a note). The coach's "Find a party for …" names it (lane/a-party-coach-card: it named the
+    Sewer to a lone hero at 16-25, where the window sends that party to the Glade). Size 2: the first party a hero alone makes. */
+export function partyGroundFor(level, size = 2, rows = huntRows()) {
+  if (!Number.isInteger(level)) return null;
+  const rec = recommendation(Array(size).fill(level), size, rows);
+  return rec.row && !rec.note && fitsGroup(rec.row, size) ? rec.row.hunt : null;
 }
 
 /** The recommended ground's row alone (see recommendation). */

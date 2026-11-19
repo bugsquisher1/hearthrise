@@ -159,6 +159,19 @@ export function partyVsAlone(groundId, roles, tier = DEFAULT_TIER) {
   return cells[Math.min(Math.max(classes.length, 1), cells.length) - 1];
 }
 
+/* A PARTY THAT HOLDS EVERY CLASS IT CAN (PARTY_CLASSES order: a Melee, a Ranger, a Mage, a Healer, then round again): the party the lines are the most for. */
+const MIXED_ROLES = Object.values(PARTY_CLASSES).map((c) => c.roles[0]);
+
+/** THE MOST A MIXED PARTY OF `size` EARNS ON THIS GROUND against the same heroes alone, on the tier that pays it best (PARTY_VS_ALONE), whole percent;
+    null under two heroes or with no line. The one reading of "does a party belong here" (lane/a-party-advice-glade): the Hunts window's party advice
+    (src/shell/hunt-list.js fitsGroup, at or over 0) and its Next step up on a tie of floors (hunt-tutorial.js nextStepUp) read it. */
+export function partyBestLine(groundId, size) {
+  if (!Number.isInteger(size) || size < 2) return null;
+  const roles = Array.from({ length: size }, (_, i) => MIXED_ROLES[i % MIXED_ROLES.length]);
+  const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier)).filter(Number.isInteger);
+  return lines.length ? Math.max(...lines) : null;
+}
+
 /** Every problem with the tables, as strings. Empty = valid. `grounds`: the ground ids a row may name. */
 export function validate(grounds) {
   const out = [];

@@ -110,6 +110,15 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 **Why the sword changed more than its place.** Carter's Rest opens at 110, the line's anchor, where the line IS Dawnsteel: no weapon can stay under it and beat tempered Dawnsteel anywhere. So a unique is worn from its home's floor or its family's first line Level, whichever is later (WEAPON_FIRST_LEVEL, measured: sword 117, hatchets 119, warhammer 116, bow 115, crossbow 116, wand 114, staff 115; WL10 re-measures it). And it can't keep a bane there: no dragon lives at the inn, and the trolls are `cls: 'humanoid'` to the weakness table but `family: 'Troll'` to src/core/bane.js classOfMonster, so a Humanoid bane plays as nothing at Carter's Rest. It went keen (the most accuracy and damage under the line that still wins on a ground a 117 hero is sent to).
 
+**Re-graded on the real settle, row 1f's kit** (`grade.mjs --mode full --grounds <g> --open-also <the other three> --uniques`, the pack check's grid, 295 cells a ground, the four Morrow packs open):
+
+| Ground | FAILs (11-18 rescue, Platinum worn) | What fails | Lone Normal at the floor, 192 hero-hours | Lowest lone low point (bar 60) |
+|---|---|---|---|---|
+| Carter's Rest | 13 (14) | 10 feel-seat-below-solo, 3 four-xp: every one a Normal party line, the open CONFLICTS 2026-11-16 item | 0 deaths | axes 66.5, sword 69.3 (L110) |
+| The Ox Road | 20 (20) | 16 feel-seat-below-solo, 3 four-xp, and the lone Healer on Dangerous at the floor (1.02 of Normal, bar 1.1), as on 11-18 | 0 deaths | sword 63.5, axes 68.2 (L112) |
+
+So without the chest weapon both grounds stay huntable on Normal by a hero in the last band's gear, and no new kind of FAIL appears (the designer expected the move to be small: Platinum is Dawnsteel +4 skill). The what-if row each report prints: every way would swap its Tower weapon in (a sword at Carter's Rest 120 and 125 "Coalbearer's Sword for Wagon Guard's Sword"). From 120 the lone sword and the tank wear the Wagon Guard's Sword. `--chest` plays the what-if when someone wants its numbers.
+
 **For the designer** (not built here): (1) the trolls' bane class: the plan's Krell warhammer ("Bane: Humanoids, wins at Carter's Rest") and the Brewer's Ladle ("Hits Humanoids 20% harder") would both play as nothing there until bane.js reads `cls` or aliases `troll` to `humanoid` (an engine change, the edge moves). (2) The special-attribute rule (SA2: the standard piece plus one attribute) is 1a's template at tier 7: the shipped Banded Legguards are Dawnsteel's legs plus 3% physical; WL4 now refuses a tier-7 special weapon written that way. Does tier-7 special armor follow 1a too? (3) The Breastplate's own-ground win (plate under 129) waits for the Night Shift's monsters; on the built grounds it wins on Carter's Rest and the Ox Road.
 
 **Routed, not this lane's file:** after C6 the inventory doll's list (src/shell/windows/inventory/doll.js `fitsFor`, the sum of bag-model.js `compare` deltas across every style) ranks an Oak Wand at +2 for a hero in an Iron Sword (Melee -7 -6, Magic +7 +8; was +17), under a Steel Sword (+9) but still over a worse sword (the Practice Sword -6).

@@ -349,7 +349,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* THE CATACOMBS' GOLD AND PLATINUM ARMOR (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18): 2027-05-09-jewelry-sample-hunt-sessions-catalogue
    (applied with v0.2.140) is the file before this one and this one carries it whole. Only hr_hunt_vendor_value moves: the twelve Gold and Platinum
    pieces get their bids. ORDER: after this lane's items catalogue. */
-export const OUT_NAME = '2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue.generated.sql';
+/* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18, designer): 2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue (STAGED on set/v0.2.141, applied first) is the file before; the cut scrolls and feasts leave the vendor values. */
+export const OUT_NAME = '2027-05-22-cookbook-cut-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

@@ -55,7 +55,8 @@ function wand(staff) {
 }
 
 function book(ramp) {
-  const img = read('field_cookbook');
+  /* the leather source: the cut Field Cookbook's icon, kept beside the tools (tools/world-art/leather/, 2026-11-18) */
+  const img = decodePNG(readFileSync(join(ROOT, 'tools', 'world-art', 'leather', 'field_cookbook.png')));
   for (let i = 0; i < img.data.length; i += 4) {
     if (!img.data[i + 3]) continue;
     const at = COVER.indexOf(hex(img.data, i));

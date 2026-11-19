@@ -26,7 +26,13 @@ CREATURES
    idle frame and in every facing's still (a hand pass pastes it from a frame where it shows).
 10. A side attack whose prop drifts (v3 turned the Picker's sack to stone, doubled it, faced the camera) is redrawn from a profile
    keyframe SKETCH of the strike, made from a still where the prop shows; animate_image from the still to the sketch.
-11. Heads are drawn from the finished body's south still (the body crop as a style image), never before it.
+11. Heads are drawn from the finished body's south still (the body crop as a style image), never before it. Each head shows what
+   its troll carries (the sack's neck, a raised slate, the ladle, the trough's end, the tankard): without it two heads are twins.
+11a. (batch 1, 2026-11-19) v3 attack clips drift the carried prop in most facings (a keg turns to a pail or doubles, a trough to a
+   shield, a slate to a stick, the clip turns to the camera). Every attack facing starts from a strike KEYFRAME made from that
+   facing's own still (animate_character end_frame), never from a text prompt alone. A death keeps its prop on the ground.
+11b. A body drawn in light grey lifts ONE step, not two (the Slate Thrower at lift 2 read as a white ghoul; at lift 1 it reads
+   3.7:1 like the rest). Measure the ring after the lift, not before.
 
 PROCESS
 12. Batches of at most five creatures. After each batch an UNANCHORED review by a fresh reader (the images and ART_DIRECTION only),

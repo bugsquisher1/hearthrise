@@ -73,7 +73,7 @@ const ARMOUR_SLOT_KEYS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'glo
 export async function loadGear(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const { BUILD } = await import(u('src/build-info.js'));
-  const v = sourceQuery();
+  const v = sourceQuery(root);
   /* the engine's own module instances (src/core imports src/data with ?v=): the same ITEMS the fight reads */
   const { ITEMS } = await import(u('src/data/items.js') + v);
   const GT = await import(u('src/data/gear-tiers.js') + v);

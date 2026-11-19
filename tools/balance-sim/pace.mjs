@@ -72,7 +72,7 @@ export async function loadPaceData(root = ROOT) {
   const { HUNT_INDEX } = await import(v('src/data/hunts.js'));
   const { MONSTERS } = await import(v('src/data/monsters.js'));
   const { BUILD } = await import(v('src/build-info.js'));
-  const { recommendedHunt } = await import(v('src/shell/hunt-list.js') + sourceQuery(ROOT));
+  const { recommendedHunt } = await import(v('src/shell/hunt-list.js') + sourceQuery(root));
   return { OPEN_GROUNDS: G.OPEN_GROUNDS, HUNT_INDEX, MONSTERS, recommend: (L) => { const r = recommendedHunt([L], 1); return r ? r.hunt : null; } };
 }
 

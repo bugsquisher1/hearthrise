@@ -45,7 +45,7 @@ export async function loadCellRunner(root) {
   const play = await loadPlay(root);
   const gear = await loadGear(root);
   const { BUILD } = await import(u('src/build-info.js'));
-  const v = sourceQuery();
+  const v = sourceQuery(root);
   const XP = await import(u('src/core/xp.js') + v);
   const MIT = await import(u('src/core/mitigation.js') + v);
   const VIT = await import(u('src/core/vitals.js') + v);

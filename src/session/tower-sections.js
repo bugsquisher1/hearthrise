@@ -26,8 +26,9 @@
 // week per hero per family (`max`), not keys earned, and a family's held keys stop dropping at `held_max`. Each family row is the server's
 // whole week: the window never guesses a 6 or a 30, and with no row it draws no cap line and gates nothing on one. Keys count where they
 // are held: the bag, the account's Storage and the hero's Key Ring (lane/c-key-ring).
-// THE CLIMB DRAWN (direction A, Tyler 2026-11-16): `party` is every OTHER seat of the hero's party with its best floor (the Climb tab's
-// party markers); `last.best_before` the hero's best before that climb, or null when it set no record (the end card's "New Best +N").
+// THE CLIMB DRAWN (direction A, Tyler 2026-11-16): `party` is every OTHER seat of the hero's party with the floor it stands on (the Climb
+// tab's party markers): a seat in an open climb its run's floor, the same rule as `run.floor`, so one party's climb reads one floor for
+// every seat (2027-05-29-tower-party-floor.sql, Andy 2026-11-19); any other seat its best floor. `last.best_before` the hero's best before that climb, or null when it set no record (the end card's "New Best +N").
 // THE BOARD (2027-04-30-tower-board.sql, lane/c-tower-board): `field` is the hero's place (`rank`, or `over` when more heroes are ahead
 // than the board counts to: "#1,000+") and the two heroes just above and below it, top-down, never a seat of its own party (those are
 // `party`); absent for a hero with no floor on the board, so the window draws no rank and no rivals, never a guess. `last.board` is that

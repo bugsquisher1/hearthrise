@@ -52,7 +52,8 @@
 //   TW-5  THE PHONE (922x423): the Tower window is a sheet inside the screen, the tower and its column side by side, nothing overflows
 //         sideways, no text under 12 px, the chest still beside the fire in the phone's view of the scene, Enter and Use reachable
 //   TW-6  A CLIMB RUNNING: the hunt bar says the floor (a landing says Keeper); a climb's end card draws the run on the tower (start to
-//         top) and says spat out with the floors and the key as label rows, New Best +N only when the server's best_before says the climb
+//         top) and says spat out with the floors as label rows and, under Keys earned, each kind of key the run minted with the landings
+//         it came from ("Bronze Key x3", "Floors 10 to 30"), New Best +N only when the server's best_before says the climb
 //         set the record, and then the board's Rank #N (+ heroes passed) and Passed <name> (last.board), never on a climb that set
 //         none, never "died"; Open chest and Climb again open the Tower's tabs, Hunt again is off, and the death popup never opens for the Tower; its "What happened" (and Just now) says a fall in
 //         the Tower's own words ("was spat out", "The last blow") while a hunt's still says "died"
@@ -792,6 +793,7 @@ async function checks(overrides, shots, { arm = null } = {}) {
         const press = (a) => { const b = w.querySelector('[data-hs-act="' + a + '"]'); return !b ? null : b.hidden ? 'hidden' : (b.disabled ? 'off' : 'on') + (b.classList.contains('is-primary') ? '*' : '') + ':' + b.textContent; };
         return { rows: Array.from(c.querySelectorAll('.te-rows .tt-row')).map((r) => r.querySelector('.tt-k').textContent + ': ' + r.querySelector('.tt-v').textContent),
           keys: Array.from(c.querySelectorAll('.te-key')).map((k) => k.querySelector('.tt-next-name').textContent + ' | ' + k.querySelector('.tt-next-floor').textContent),
+          keysHead: c.querySelector('.te-keys-box').hidden ? null : c.querySelector('.te-keys-box .tt-hd').textContent,
           labels: Array.from(st.querySelectorAll('.tt-lbl')).map((l) => (Array.from(l.querySelector('.tt-l1').children).map((c) => c.textContent).filter(Boolean).join(' ') + ' ' + (l.querySelector('.tt-tag').hidden ? '' : l.querySelector('.tt-tag').textContent)).trim()),
           marks: Array.from(st.querySelectorAll('.tt-mk')).map((m) => m.getAttribute('data-who') + ':' + m.querySelector('.tt-mk-who span').textContent),
           run: run.hidden ? null : Math.round(parseFloat(run.style.height)), text: c.textContent, reason: w.querySelector('.hsum-reason').hidden ? '' : w.querySelector('.hsum-reason').textContent,
@@ -807,10 +809,22 @@ async function checks(overrides, shots, { arm = null } = {}) {
       if (!got || got.keys.join() !== 'Bronze Key x1 | Floor 30' || got.run !== 12 * 8 || got.marks.join() !== 'you:32'
         || got.labels.join(' | ') !== 'New Best | 30 Bronze | 27 Old best | 21 Start') fails.push('TW-6 the run on the tower reads ' + JSON.stringify(got && [got.keys, got.run, got.marks, got.labels]));
       if (!got || got.again !== 'hidden' || got.tower !== 'on:Open chest' || got.climb !== 'on:Climb again') fails.push('TW-6 the card\'s presses read ' + JSON.stringify(got));
+      /* THE KEYS THIS CLIMB EARNED (Andy 2026-11-19: one climb minted 18 keys a hero and the chest's 6 opens left 12, which read as keys the
+         chest gave back): the box says Keys earned, and each kind the landings it came from on this run, never only the highest */
+      if (!got || got.keysHead !== 'Keys earned') fails.push('TW-6 the end card\'s keys are headed ' + JSON.stringify(got && got.keysHead) + ', not Keys earned');
       if (got && got.death) fails.push('TW-6 the death popup opened for the Tower');
       /* a fall that cost nothing (QA gate 2026-11-17): no Bless step and no "Defeated" coach, no hunt advice on the top line */
       if (!got || got.steps.includes('bless') || /Defeated/.test(got.next) || /gathering/i.test(got.reason)) fails.push('TW-6 a free fall upsells: ' + JSON.stringify(got && [got.steps, got.next, got.reason]));
       if (shots) { await page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] .hs-win-body'); if (b) b.scrollTop = 0; }); await page.screenshot({ path: join(shots, 'tower-end-card-desktop-1440x900.png') }); }
+      /* ...and a climb past four landings says each kind once with the landings it came from on this run, never only the highest */
+      s.tower = section({ best: 47, checkpoints: [0, 10, 20, 30, 40], last: Object.assign(last(27), { top: 47, floors: 27, withheld: 0,
+        keys: [{ landing: 30, key: 'bronze' }, { landing: 40, key: 'silver' }, { landing: 10, key: 'bronze' }, { landing: 20, key: 'bronze' }] }) });
+      await replay(page);
+      await page.keyboard.press('l');
+      await wait(page, () => document.querySelectorAll('[data-hs-win="hunt-summary"] .hsum-climb:not([hidden]) .te-key').length === 2, null, 8000);
+      got = await cardOf();
+      if (!got || got.keys.join() !== 'Bronze Key x3 | Floors 10 to 30,Silver Key x1 | Floor 40' || got.keysHead !== 'Keys earned')
+        fails.push('TW-6 a climb past four landings says its keys ' + JSON.stringify(got && [got.keysHead, got.keys]));
       /* a climb that set no record (the server's best_before null): no New Best, no old best, no Rank or Passed (its board place is no news); with no key, Climb again is the press */
       s.tower = section({ best: 40, checkpoints: [0, 10, 20, 30, 40], last: Object.assign(last(null), { keys: [], withheld: 0 }) });
       await replay(page);
@@ -956,6 +970,11 @@ async function checks(overrides, shots, { arm = null } = {}) {
 
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
+  /* TW-6, the keys a climb earned (lane/a-tower-andy: Andy 2026-11-19 read 18 keys from one climb as keys the chest gave back) */
+  ['TW-6 the end card\'s keys are headed Keys, not Keys earned', 'src/shell/tower-end-card.js', "esc(t('tower.end_keys_head'))", "esc(t('tower.keys_head'))"],
+  ['TW-6 a kind\'s keys name only its highest landing', 'src/shell/tower-end-card.js',
+    "k.from < k.landing ? t('tower.end_key_floors', { from: whole(k.from), to: whole(k.landing) }) : t('tower.start_floor', { floor: k.landing })", "t('tower.start_floor', { floor: k.landing })"],
+  ['TW-6 a kind\'s lowest landing is not kept', 'src/shell/tower-words.js', ' had.from = Math.min(had.from, m.landing); }', ' }'],
   /* TW-11, When the hunt ends at the door (lane/d-catacomb-gold-platinum, the designer's ruling 2026-11-18) */
   ['TW-11 the Climb\'s door hides When the hunt ends', 'src/shell/windows/tower.js', "    + afterHtml() + '<label class=\"tt-start-row\">", "    + '<label class=\"tt-start-row\">"],
   ['TW-11 the door draws no plan from the server', 'src/shell/windows/tower.js', "    patchAfter(root.querySelector('[data-pane=\"' + sc.tab + '\"]'), ctx, { off: sc.pending, now: !!(h && !h.ended) });", "    void h;"],

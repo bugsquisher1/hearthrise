@@ -24,7 +24,7 @@ const BELOW = 4, ABOVE = 7;
 export function climbCardHtml() {
   return '<section class="hsum-climb" hidden><div class="te-wrap">' + stageHtml('te-stage', false)
     + '<div class="te-side"><h4 class="hw-hd-h tt-hd">' + esc(t('tower.climb_head')) + '</h4><div class="tt-rows te-rows"></div>'
-    + '<div class="te-keys-box" hidden><h4 class="hw-hd-h tt-hd">' + esc(t('tower.keys_head')) + '</h4><div class="te-keys"></div></div></div></div></section>';
+    + '<div class="te-keys-box" hidden><h4 class="hw-hd-h tt-hd">' + esc(t('tower.end_keys_head')) + '</h4><div class="te-keys"></div></div></div></div></section>';
 }
 
 /** The tower's words for the run: New Best at the top, the old best, each key landing cleared, the start. Pure. */
@@ -68,7 +68,8 @@ export function patchClimbCard(host, cs, tw, end) {
       + '<span class="tt-next-words"><b class="tt-next-name"></b><span class="tt-next-floor"></span></span></div>'),
     patch: (el, k) => {
       text(el.querySelector('.tt-next-name'), t('tower.end_key_count', { key: k.name, count: whole(k.count) }));
-      text(el.querySelector('.tt-next-floor'), t('tower.start_floor', { floor: k.landing }));
+      /* the landings this climb cleared for that kind: where the keys came from, never the chest */
+      text(el.querySelector('.tt-next-floor'), k.from < k.landing ? t('tower.end_key_floors', { from: whole(k.from), to: whole(k.landing) }) : t('tower.start_floor', { floor: k.landing }));
     },
   });
 }

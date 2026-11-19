@@ -26,6 +26,7 @@
 //         the session (no intent can be sent from it)
 //   SB-8  THE SWITCH: with SANDBOX.open false (a planted copy) there is no sign and the choice
 //         is refused
+//   SB-9  SHUT IN THE REPO (2026-11-19): SANDBOX.open is false where players are (the rules above play switched copies)
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, cpSync, rmSync, mkdirSync, readdirSync } from 'node:fs';
 import { join, dirname, posix } from 'node:path';
@@ -199,6 +200,20 @@ function copyTree() {
   for (const f of readdirSync(join(ROOT, 'assets/world'))) if (f.endsWith('.json')) cpSync(join(ROOT, 'assets/world', f), join(tmp, 'assets/world', f));
   return tmp;
 }
+/* THE SWITCH, EITHER WAY (closed in the repo since 2026-11-19, the art audit's free fix): the open rules play a copy switched ON and
+   the closed rules (SB-8) a copy switched OFF, whatever the repo holds, so neither side goes unguarded while it is shut. */
+function setSwitch(dir, open) {
+  const p = join(dir, 'src/data/world/sandbox.js');
+  const text = readFileSync(p, 'utf8');
+  const on = '  open: true,', off = '  open: false,';
+  if (!text.includes(on) && !text.includes(off)) throw new Error('anchor not found in src/data/world/sandbox.js: the open switch');
+  writeFileSync(p, open ? text.replace(off, on) : text.replace(on, off));
+}
+function switched(open) {
+  const dir = copyTree();
+  setSwitch(dir, open);
+  return dir;
+}
 function plant(dir, file, from, to) {
   const text = readFileSync(join(dir, file), 'utf8');
   if (!text.includes(from)) throw new Error('anchor not found in ' + file + ': ' + from);
@@ -217,24 +232,24 @@ const MUTANTS = [
 ];
 
 async function main() {
-  const fails = await rules(await load(ROOT));
-  const closed = copyTree();
-  try {
-    plant(closed, 'src/data/world/sandbox.js', '  open: true,', '  open: false,');
-    fails.push(...await closedRules(await load(closed)));
-  } finally { rmSync(closed, { recursive: true, force: true }); }
+  const fails = [];
+  const opened = switched(true);
+  try { fails.push(...await rules(await load(opened))); } finally { rmSync(opened, { recursive: true, force: true }); }
+  const closed = switched(false);
+  try { fails.push(...await closedRules(await load(closed))); } finally { rmSync(closed, { recursive: true, force: true }); }
+  /* SB-9 the repo ships it SHUT (§3.5, half-built features stay hidden; the art audit 2026-11-19): a player never meets the sign */
+  if ((await load(ROOT)).SANDBOX.open) fails.push('SB-9 SANDBOX.open is true in the repo: the practice yard is half-built and stays hidden (src/data/world/sandbox.js)');
   if (!process.argv.includes('--mutate')) {
     for (const f of fails) console.log('  ✗ ' + f);
-    const open = (await load(ROOT)).SANDBOX.open;
     console.log(fails.length ? 'world-sandbox: ' + fails.length + ' rule(s) RED'
-      : 'world-sandbox: in by the sign, walked, the wanderer wandered, out by the sign; nothing sent but the parked keepalive' + (open ? '\n  REMINDER: SANDBOX.open is true. Close or delete the sandbox before the game reopens (src/data/world/sandbox.js).' : ''));
+      : 'world-sandbox: in by the sign, walked, the wanderer wandered, out by the sign; nothing sent but the parked keepalive; shut in the repo');
     process.exit(fails.length ? 1 : 0);
   }
   if (fails.length) { console.log('  ✗ clean control RED: ' + fails.join('; ')); process.exit(1); }
   console.log('  ✓ clean control green');
   let bad = 0;
   for (const [id, why, file, from, to] of MUTANTS) {
-    const dir = copyTree();
+    const dir = switched(true);
     try {
       plant(dir, file, from, to);
       let f;

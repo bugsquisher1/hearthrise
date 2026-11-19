@@ -94,8 +94,8 @@ export const SUMMARY_TEXT = Object.freeze({
      NO CAUSE IS CLAIMED (post-140 audit C9: "the coins brought in 14,325 gp, so your gold fell to your 20,000 gp reserve" while the coins beat
      the supplies and the purse sat under a reserve raised mid-hunt). What the server did is the rule: it sells no store supply that would
      leave the purse under the reserve. It keeps no purse at the stop, so none is said. */
-  end_gold_out_why: 'Gold reserve reached. Store supplies cost {spent} and coins brought in {coins}. The store stopped selling supplies at your {floor} reserve.',
-  end_gold_out_floor: 'Gold reserve reached. The store stopped selling supplies at your {floor} reserve.',
+  end_gold_out_why: 'Gold reserve reached ({floor}) · Supplies {spent} · Coins {coins}',
+  end_gold_out_floor: 'Gold reserve reached ({floor}) · No more store supplies',
   end_rule: 'Stop rule met',
   end_stamina: 'Out of stamina · Stamina refills 1 h per hour',
   end_hours: 'Time limit reached',

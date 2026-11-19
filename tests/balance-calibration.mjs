@@ -72,7 +72,7 @@ const HOURS = 2, SEEDS = 2;
 export const DECLARED_SHIFTS = Object.freeze([
   /* MONSTERS A LITTLE HARDER (Tyler 2026-11-19, lane/d-harder-monsters; balance-sheet.js STAT_FORMULA): blows and HP x1.1, XP a point x0.96
      (the pace of record holds), the Cellar's XP fit 1.22. MEASURED on this fixture's three judged hunts: `calibrate.mjs --run --hours 2
-     --seeds 2` on set/v0.2.142 (10c476ce5) and on the change merged over it (Hot Pitch off), sim over sim, within each ground the geometric mean of
+     --seeds 2` on set/v0.2.142 (00205fa4a) and on the change merged over it (Hot Pitch off), sim over sim, within each ground the geometric mean of
      its hunts' own shifts: the Warrens alone, and Krell's two Deadly fours, whose store bills moved x1.90 and x1.46 (the Healer's mana and the
      tank's food follow the blows; a summed pool fits the bigger spender alone and left the other x1.40 over its record). */
   Object.freeze({ after: '2026-11-18', grounds: Object.freeze(['coppercap_warrens']), why: 'monsters a little harder: STAT_FORMULA blows and HP x1.1 (Tyler 2026-11-19), XP a point x0.96',

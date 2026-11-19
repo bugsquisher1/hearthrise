@@ -53,6 +53,11 @@
         "bytes": 3083360,
         "on": "2026-11-19",
         "why": "lane/a-tower-andy, +113 B over the set's ceiling: hunt-rewards.js livingAt/fallsAt read the heroes alive at each kill, not at the swing's end (a hero who kills and falls in one swing journals the kill it was paid XP for; Andy's Tower forfeit 2026-11-19)"
+      },
+      {
+        "bytes": 3092591,
+        "on": "2026-11-19",
+        "why": "lane/d-harder-monsters (Tyler 2026-11-19, monsters a little harder) merged last on set/v0.2.142 00205fa4a: +9,231 bytes, all src/data the edge already reaches: the measured notes behind the step (balance-sheet.js), the three back-row spells and their notes (krells_hold, pyre_field, the_slake), the held spells' notes (ox_road, unmarked_catacombs), monsters.js rows, scaled-hunts.js"
       }
     ]
   }

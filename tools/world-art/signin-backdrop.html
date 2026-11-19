@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- tools/world-art/signin-backdrop.html — THE HEARTH SQUARE, DRAWN ONCE FOR THE SIGN-IN SCREENS. A local page that only
+     tools/world-art/signin-backdrop.mjs opens (never linked from the game, signs nobody in, talks to no server). It draws the
+     real town (src/data/world/maps/town_common.js) with the real renderer (src/world/render/canvas-backend.js) at ONE device
+     px an art px, no hero, no crowd, the camera on `at` (tiles), and hands the frame back as window.backdrop (a PNG data URL).
+       ?w=<art px>&h=<art px>&at=<tile x>,<tile y>
+-->
+<html><head><meta charset="utf-8"><title>backdrop</title>
+<!-- the site root: the atlases resolve against the document, as on play.html -->
+<base href="../../">
+<link rel="stylesheet" href="src/styles/tokens.css">
+<style>html,body{margin:0;overflow:hidden}#stage{position:relative;overflow:hidden}#stage canvas{position:absolute;inset:0;width:100%;height:100%}</style>
+</head><body><div id="stage"></div>
+<script type="module">
+import { loadAtlases } from '../../src/world/atlas.js';
+import { STUB_SPRITE } from '../../src/world/core/book.js';
+import { compileMap } from '../../src/world/core/map-compile.js';
+import { createCanvasBackend } from '../../src/world/render/canvas-backend.js';
+import { WORLD_MAPS } from '../../src/data/world/maps/index.js';
+import { MATERIALS, OPEN_CLASSES, LIGHTS } from '../../src/data/world/terrain.js';
+import { BUILD } from '../../src/build-info.js';
+
+const q = new URLSearchParams(location.search);
+const AW = +q.get('w'), AH = +q.get('h');
+const [AX, AY] = q.get('at').split(',').map(Number);
+/* the stage is 2 CSS px an art px at a ratio of 0.5: the renderer's zoom (camera.js zoomFor, density 2) is 1 device px an art px */
+const W = 2 * AW, H = 2 * AH, DPR = 0.5;
+const stage = document.getElementById('stage');
+stage.style.width = W + 'px'; stage.style.height = H + 'px';
+const win = new Proxy(window, { get: (t, k) => (k === 'innerWidth' ? W : k === 'innerHeight' ? H : k === 'devicePixelRatio' ? DPR
+  : (typeof t[k] === 'function' ? t[k].bind(t) : t[k])) });
+const styles = getComputedStyle(document.documentElement);
+const css = (name) => styles.getPropertyValue(name).trim();
+
+try {
+  const { book, images } = await loadAtlases({ doc: document, version: BUILD.cache });
+  const sprites = new Proxy(book.sprites, { get: (t, k) => t[k] || STUB_SPRITE });
+  const tables = { materials: MATERIALS, sprites, openClasses: OPEN_CLASSES, lights: LIGHTS };
+  const map = compileMap(WORLD_MAPS.find((m) => m.id === 'town_common'), tables);
+  const backend = createCanvasBackend({ win, doc: document, book, images, tables, css });
+  backend.mount(stage);
+  backend.setMap(map);
+  /* one still moment: the clock is fixed, so the fire, the smoke and the embers stand at the same frame on every run */
+  const t = 1700000000000;
+  const state = { hero: { x: AX, y: AY }, camera: { x: AX, y: AY }, name: '', t, units: [], roofAlpha: {} };
+  /* frames until every chunk under the view is baked (the ground bakes ahead in idle time) and the picture holds */
+  for (let i = 0; i < 40; i++) { backend.sync(state); await new Promise((r) => setTimeout(r, 50)); }
+  const snap = backend.snapshot();
+  const canvas = stage.querySelector('canvas');
+  window.backdrop = { url: canvas.toDataURL('image/png'), w: canvas.width, h: canvas.height, z: snap.z, stubbed: snap.stubbed.length };
+} catch (e) { window.backdrop = { error: String(e && e.stack || e) }; }
+document.title = 'done';
+</script></body></html>

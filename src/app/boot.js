@@ -63,6 +63,7 @@ import { liveOverlayWanted, mountLiveOverlay } from './live-overlay.js?v=0.2.141
 import { mountNewVersion } from './new-version.js?v=0.2.141';
 import { lowerFirst } from '../render/format.js?v=0.2.141';
 import { mountDevicePx } from '../render/device-px.js?v=0.2.141';
+import { raiseBackdrop } from './auth-backdrop.js?v=0.2.141';
 
 const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 
@@ -160,6 +161,7 @@ function startApp(win) {
     box.className = 'auth';
     root.appendChild(box);
     renderAuthScreen(box, auth, mode, { signedIn: () => startAccount(false) });
+    raiseBackdrop(root, win);
   }
 
   function showClosed() {
@@ -167,8 +169,9 @@ function startApp(win) {
     obs.screen('closed');
     root.className = 'app is-auth';
     const a = account;
-    if (a.server.banned()) { renderBannedNotice(root, { discord: DISCORD }); return; }
-    renderClosedNotice(root, { id: auth.userId(), discord: DISCORD, win, admission: () => a.admission() });
+    if (a.server.banned()) renderBannedNotice(root, { discord: DISCORD });
+    else renderClosedNotice(root, { id: auth.userId(), discord: DISCORD, win, admission: () => a.admission() });
+    raiseBackdrop(root, win);
   }
 
   /* The session ended under the game: close everything, then say so on the sign-in screen. */
@@ -258,6 +261,7 @@ function startApp(win) {
       root.className = 'app is-auth';
       root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card"><h1 class="auth-title">Characters</h1>'
         + '<p class="auth-lead" role="status">Loading characters…</p></div></main>';
+      raiseBackdrop(root, win);
     }
     const a = account;
     const seq = paneSeq;
@@ -350,6 +354,7 @@ function startApp(win) {
     clear();
     root.className = 'app is-auth';
     root.innerHTML = '<main class="auth">' + AUTH_BRAND + '<div class="auth-card is-create"></div></main>';
+    raiseBackdrop(root, win);
     const tokens = win.getComputedStyle(doc.documentElement);
     creating = G.renderHeroCreate(root.querySelector('.auth-card'), {
       slot,

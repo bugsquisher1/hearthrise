@@ -1,13 +1,15 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tests/arm-switches.mjs — THE ARMED FEATURES, PLAYED BY A STRANGER (lane/c-arm-switches; supabase/migrations/2027-05-14-arm-switches.sql:
-// the live events and the scaled hunts on for everyone, Tyler's "ARM features built but OFF", master backlog 2026-11-18 item 4).
+// tests/arm-switches.mjs — THE ARMED FEATURES, PLAYED BY A STRANGER (lane/c-arm-switches; supabase/migrations/2027-05-14-arm-switches.sql,
+// the live events, and 2027-05-18-arm-scaled-hunts.sql, the scaled hunts, on for everyone; 2027-05-17-scaled-best.sql, a scaled run sets
+// no best; Tyler's "ARM features built but OFF", master backlog 2026-11-18 item 4).
 //
 //   node tests/arm-switches.mjs            the guard
 //   node tests/arm-switches.mjs --mutate   every planted defect must turn its arm red
 //   node tests/arm-switches.mjs --only=AS-SCALED,AS-XP   those arms alone
 //
-// mutant-anchors: none — every mutant plants a switch row, or boots the guards' calendar where the live one is asked for; none patches a file
+// mutant-anchors: supabase/migrations/2027-05-17-scaled-best.sql (the body mutants read the replay's own body back; the rest plant a switch row
+//   or boot the guards' calendar where the live one is asked for)
 //
 // The real replayed chain (PGlite) booted with `liveCalendar: true` (tests/schema-replay.mjs), so the switches read as the chain leaves
 // them; the real edge settle (H.loadEdge); fixture accounts on NO switch list and with no flip written by the test: what a new player
@@ -16,14 +18,16 @@
 //
 // ARMS (the live calendar)
 //   AS-ROWS    the chain leaves event_xp_bonus, event_open_halls and scaled_hunts at everyone with no account list, a stranger's
-//              `features` names all three, and a second apply of the arm moves no switch row (updated_at included)
+//              `features` names all three, and a second apply of both arm files moves no switch row (updated_at included)
 //   AS-SCALED  SCALED HUNTS: a Level 20 stranger in its Level's iron hunting the Mill Cellar reads it in its `scaled_hunts` section at Level 20 for 40 x 20
 //              gold an hour, buys one hour at that price (one shop row, the purse down by exactly it), and its next settles play the
 //              Cellar at Level 20 and spend the hour by the world's swings; a re-read of the hero (a reload) projects the hours left,
-//              on, and the hunt playing at Level 20; the Hunts list's tag and the hunt bar read "Scaled: Level 20" from that section
+//              on, and the hunt playing at Level 20; the Hunts list's tag and the hunt bar read "Scaled: Level 20" from that section;
+//              the hunt ends past the best's ten minutes and sets NO personal best (its tally keeps the scaled time)
 //   AS-XP      THE BONUS XP WEEKEND: the catalogue's own row, its window moved to hold the server instant (a test cannot wait for Friday):
 //              a stranger's hunt earns +25% Level XP a kill on the tally's xp_event (the event's part a quarter of the rest, to rounding),
-//              its `live_events` section lists the weekend live at the row's dial, and the World's plate reads "+25% Level XP"
+//              its `live_events` section lists the weekend live at the row's dial, the World's plate reads "+25% Level XP", and the
+//              analyzer reads the event's part on its own "Weekend bonus" row (the server's xp_event)
 //   AS-HALLS   OPEN HALLS: the catalogue's own row moved to hold now: a stranger with the Rat King's natural wins is quoted 0 gold
 //              naming open_halls, calls one fight at 0 (seated, the purse untouched, one journalled row with the dial and the event,
 //              the fight's stamina spent), and Call out's line reads the event
@@ -45,9 +49,10 @@ const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const { one, q, inTx, UIDS } = H;
 const MIN = 60000, HOUR = 3600000;
-const ARM_FILE = '2027-05-14-arm-switches.sql';
+const ARM_FILES = ['2027-05-14-arm-switches.sql', '2027-05-18-arm-scaled-hunts.sql'];
 const SWITCHES = ['event_open_halls', 'event_xp_bonus', 'scaled_hunts'];
 const ARMS = ['AS-ROWS', 'AS-SCALED', 'AS-XP', 'AS-HALLS', 'AS-QUIET'];
+const BEST_FN = 'public.hr_hunt_best_fold(uuid)', APPLY_FN = 'public.hr_hunt_apply_instance(uuid,bigint,jsonb,jsonb,uuid,integer)';
 const LIVE_ARMS = ARMS.filter((a) => a !== 'AS-QUIET');
 
 const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
@@ -81,8 +86,7 @@ const ARM_FNS = {
     const f = await one(db, 'select public.hr_features_view($1::uuid, 0)', [stranger]);
     for (const s of SWITCHES) if (!(f || []).includes(s)) bad.push('a stranger\'s features section reads ' + JSON.stringify(f) + ', without ' + s);
     const before = JSON.stringify(await q(db, 'select switch_id, scope, accounts::text as a, note, updated_at::text as t from public.hr_feature_switches order by switch_id'));
-    const sql = readFileSync(join(ROOT, 'supabase/migrations', ARM_FILE), 'utf8').replace(/\r\n/g, '\n');
-    await db.exec(sql);
+    for (const f of ARM_FILES) await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8').replace(/\r\n/g, '\n'));
     const after = JSON.stringify(await q(db, 'select switch_id, scope, accounts::text as a, note, updated_at::text as t from public.hr_feature_switches order by switch_id'));
     if (after !== before) bad.push('a second apply of the arm moved a switch row');
     return bad;
@@ -91,7 +95,7 @@ const ARM_FNS = {
   'AS-SCALED': async (db, M) => {
     const bad = [];
     const U = UIDS[0];
-    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8, beforeEnter: () => wear(db, U) });
+    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 13, beforeEnter: () => wear(db, U) });
     const e0 = await env(db, U);
     const g0 = e0.scaled_hunts && e0.scaled_hunts.grounds && e0.scaled_hunts.grounds.mill_cellar;
     const price = Number(await one(db, 'select price_per_level::text from public.hr_scaled_hunt_rule where id')) * 20;
@@ -104,10 +108,10 @@ const ARM_FNS = {
     const rows = await q(db, `select gold::text as g from public.player_ledger where user_id = $1 and intent like 'scaled\\_hunt\\_buy:%'`, [U]);
     if (!r || r.ok !== true || await purse(db, U) !== gold0 - price || rows.length !== 1 || Number(rows[0].g) !== -price || await bankOf(db, U) !== HOUR)
       bad.push('the purchase answered ' + JSON.stringify(r).slice(0, 200) + ' (purse ' + (gold0 - await purse(db, U)) + ' down, rows ' + JSON.stringify(rows) + ', bank ' + await bankOf(db, U) + ')');
-    await cuts(db, M, [h.from + 3 * MIN, h.from + 6 * MIN]);
+    await cuts(db, M, [h.from + 3 * MIN, h.from + 6 * MIN, h.from + 12 * MIN]);
     const inst = await one(db, 'select scale_level from public.hunt_instances where id = $1', [h.inst]);
     const left = await bankOf(db, U);
-    if (inst !== 20 || !(left < HOUR) || !(left > HOUR - 7 * MIN)) bad.push('six minutes on the Cellar played at ' + inst + ' and left ' + left + ' ms banked (want Level 20, under an hour, about six minutes spent)');
+    if (inst !== 20 || !(left < HOUR) || !(left > HOUR - 13 * MIN)) bad.push('twelve minutes on the Cellar played at ' + inst + ' and left ' + left + ' ms banked (want Level 20, under an hour, about twelve minutes spent)');
     /* THE RELOAD: the hero as the server projects it now */
     const e1 = await env(db, U);
     const s1 = e1.scaled_hunts, g1 = s1 && s1.grounds && s1.grounds.mill_cellar;
@@ -119,7 +123,15 @@ const ARM_FNS = {
     /* the hunt bar says the open hunt is spending scaled hours (local world 2026-11-18: nothing on the hunt screen said so) */
     const bar = SP.scalePlaying(csOf(e1, await nowMs(db)), 'mill_cellar');
     if (bar !== 'Scaled: Level 20' || SP.scalePlaying(csOf(e1, await nowMs(db)), 'meadowbrook_thicket') !== '') bad.push('the hunt bar reads "' + bar + '" on the Cellar');
-    console.log('  AS-SCALED a stranger at Level 20 bought 1 h for ' + price + ' gp; six minutes on the Cellar at Level ' + inst + ' left ' + Math.round(left / 1000) + ' s banked; tag "' + tag + '"');
+    /* A SCALED RUN SETS NO BEST (2027-05-17-scaled-best.sql; local world 2026-11-18: 15 scaled minutes moved a Cellar best 9,235 -> 18,521) */
+    await db.query("select public.hr_hunt_close($1::uuid, 'server', now(), true)", [h.sid]);
+    await db.query('select public.hr_hunt_best_fold($1::uuid)', [h.sid]);
+    const scaledMs = Number(await one(db, 'select coalesce((select scaled_ms from public.hunt_session_tally where session_id = $1), 0)::text', [h.sid]));
+    const wallMin = Number(await one(db, 'select (extract(epoch from ended_at - entered_at) / 60)::int::text from public.hunt_sessions where id = $1', [h.sid]));
+    const best = await q(db, "select xp_h::text as x from public.hunt_bests where user_id = $1 and slot = 0 and hunt_id = 'mill_cellar'", [U]);
+    if (!(wallMin >= 10)) bad.push('CONTROL: the hunt lasted ' + wallMin + ' min, under the best\'s ten');
+    if (!(scaledMs >= HOUR - left - 2000) || best.length) bad.push('the scaled run kept ' + scaledMs + ' ms scaled on its tally and wrote the best ' + JSON.stringify(best) + ' (want the scaled time kept, no best)');
+    console.log('  AS-SCALED a stranger at Level 20 bought 1 h for ' + price + ' gp; twelve minutes on the Cellar at Level ' + inst + ' left ' + Math.round(left / 1000) + ' s banked; tag "' + tag + '"; ended after ' + wallMin + ' min, ' + Math.round(scaledMs / 1000) + ' s scaled, bests ' + best.length);
     return bad;
   },
 
@@ -129,7 +141,8 @@ const ARM_FNS = {
     const row = (await q(db, `select e.pm from public.hr_live_events e join public.hr_live_event_types t on t.type_id = e.type_id where e.event_id = 'bonus_weekend' and t.dial = 'xpPm'`))[0];
     if (!row) return ['the catalogue has no bonus_weekend xp row'];
     await holdNow(db, 'bonus_weekend');
-    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8 });
+    /* premium: the replay turns the betas' every-hero premium off (schema-replay.mjs premiumPerCharacter), and the analyzer section is premium's */
+    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8, premium: true });
     const lx0 = Number(M.XP.charXpForLevel(20));
     await cuts(db, M, [h.from + 7 * MIN]);
     const s = await H.snapshot(db, h.sid, U);
@@ -142,6 +155,14 @@ const ARM_FNS = {
     const LV = await import(pathToFileURL(join(ROOT, 'src/shell/live-events-view.js')).href + V);
     const plate = LV.plateLines(csOf(e, await nowMs(db))).find((l) => l.id === 'bonus_weekend');
     if (!plate || plate.head !== '+' + (100 * want) + '% Level XP' || plate.soon !== false) bad.push('the World\'s plate reads ' + JSON.stringify(plate));
+    /* THE ANALYZER SAYS IT (§6): the hero's view carries the server's xp_event, the row named by the event's own words */
+    const HS = await import(pathToFileURL(join(ROOT, 'src/session/hunt-sections.js')).href + V);
+    const view = HS.analyzerFrom(csOf(e, await nowMs(db)), e.hunt_analyzer);
+    if (!view || view.hero.eventXp !== ev || !(view.hero.levelXp >= ev)) bad.push('the analyzer reads the event\'s part as ' + (view && view.hero.eventXp) + ', the tally ' + ev);
+    const T = await import(pathToFileURL(join(ROOT, 'src/data/live-events.js')).href + V);
+    if (T.LIVE_EVENTS.bonus_weekend.words.analyzer !== 'Weekend bonus') bad.push('the weekend\'s analyzer row is named ' + T.LIVE_EVENTS.bonus_weekend.words.analyzer);
+    const W = await import(pathToFileURL(join(ROOT, 'src/render/player-text.js')).href + V);
+    if (!/event bonus\)$/.test(W.t('hud.an_raw_xp_h'))) bad.push('the raw Level XP line reads "' + W.t('hud.an_raw_xp_h') + '", silent on the event');
     console.log('  AS-XP seven minutes on the Cellar at Level 20 inside the weekend: ' + gained + ' Level XP, ' + ev + ' the event\'s; the plate "' + (plate && plate.head) + ' ' + (plate && plate.when) + '"');
     return bad;
   },
@@ -197,7 +218,11 @@ async function runArms(db, M, names, plant) {
   for (const name of names) {
     try {
       out[name] = await inTx(db, async () => {
-        if (plant) await db.exec(plant);
+        if (plant && plant.fn) {
+          const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [plant.fn])).split(String.fromCharCode(13)).join('');
+          if (def.split(plant.find).length !== 2) throw new Error('HARNESS: ' + plant.fn + ' has no ' + JSON.stringify(plant.find.slice(0, 70)));
+          await db.exec(def.replace(plant.find, () => plant.replace));
+        } else if (plant) await db.exec(plant);
         return ARM_FNS[name](db, M);
       });
     } catch (e) {
@@ -216,6 +241,11 @@ const STATE_MUTANTS = [
   { arm: 'AS-HALLS', name: 'event_open_halls left for one other account', plant: "update public.hr_feature_switches set scope = 'accounts', accounts = array['000000c0-0000-4000-a000-0000a2e5ff02'::uuid] where switch_id = 'event_open_halls'" },
   { arm: 'AS-QUIET', name: 'the harness keeps the live calendar for every guard', calendar: 'live' },
   { arm: 'AS-QUIET', name: 'the guards\' calendar quiets scaled_hunts too (the arm unseen by every guard)', plant: "update public.hr_feature_switches set scope = 'off' where switch_id = 'scaled_hunts'" },
+  /* the body mutants: the replay's own body read back, one line taken out, re-created inside the arm's transaction (rolled back with it) */
+  { arm: 'AS-SCALED', name: 'a scaled run folds its best', fn: BEST_FN,
+    find: '  if coalesce((select t.scaled_ms from public.hunt_session_tally t where t.session_id = p_session), 0) > 0 then return; end if;\n', replace: '' },
+  { arm: 'AS-SCALED', name: 'the settle never marks a scaled window', fn: APPLY_FN,
+    find: '        on conflict (session_id) do update set scaled_ms = t.scaled_ms + excluded.scaled_ms;', replace: '        on conflict (session_id) do nothing;' },
 ];
 
 async function main() {
@@ -231,7 +261,7 @@ async function main() {
   if (MUTATE) {
     let bad = 0;
     for (const m of STATE_MUTANTS) {
-      const res = await runArms(dbOf(m.arm, m.calendar), M, [m.arm], m.plant);
+      const res = await runArms(dbOf(m.arm, m.calendar), M, [m.arm], m.fn ? m : m.plant);
       const p = (res[m.arm] || [])[0];
       if (!p) { console.error('✗ ' + m.arm + ' stayed GREEN on: ' + m.name); bad++; continue; }
       if (/^threw/.test(p)) { console.error('✗ harness: ' + m.arm + ' threw on: ' + m.name + ' (' + p.slice(0, 160) + ')'); bad++; continue; }

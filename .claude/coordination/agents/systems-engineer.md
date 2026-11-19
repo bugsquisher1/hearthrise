@@ -7,6 +7,8 @@ _Your private journal. Newest at top. Team-wide items also go to `DISCOVERIES.md
 2. *A test of the calendar moves the catalogue's own row to now* (holdNow), never waits for Friday and never invents a probe row.
 3. *A naked Level 20 dies in the scaled Cellar inside six minutes* (scaled-hunts-server already knew: KIT_20). A happy path wears its Level's gear.
 4. *Read a label against the engine before shipping it:* the designer's "Loot ×N" would be false (only coin scales), so it is a CONFLICTS item, not a row.
+5. *Measure the economy before building the server half of a faucet.* Scaled loot at the card's multiple was ~40 lines of engine (multi-roll at chance × x / ceil(x), so unscaled hunts keep one draw a row and byte parity) and matched the card to ±10% a kill, but the designer's fee-guard went red on the Cellar alone (a lone L20 scaled Cellar out-earns the Sewer after the fee). Parked on wip/scaled-loot; the arm file is staged and HELD behind it.
+6. *A per-session fact the fold needs goes on the tally, not hunt_sessions:* hunt_sessions carries before-update triggers (hr_hunt_clock_ms) and end-of-hunt triggers; hunt_session_tally carries none. A scaled window marks every member's tally inside hr_hunt_apply_instance, under the locks it already holds.
 
 ## 2026-11-18 · lane/a-end-card-gold (the end card's Gold, kill the class)
 1. *One figure, one reader.* `result-block.js goldFig` (fed by `summary-model.js goldKeptOf`, coins + loot value − balance) is the Gold on both cards; a record with no spend is labelled Coins, never Gold. The analyzer's coins row says Coins on both tabs.

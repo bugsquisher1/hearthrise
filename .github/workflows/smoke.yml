@@ -8199,7 +8199,7 @@ jobs:
       # THE ARMED FEATURES, PLAYED BY A STRANGER (2027-05-14-arm-switches.sql, lane/c-arm-switches): on the live calendar a stranger buys a
       # scaled hour and hunts the Cellar at its Level, earns the Bonus XP weekend's +25% and calls the Rat King for no gold in Open Halls;
       # a second apply moves nothing. Every other guard boots the quiet calendar (tests/schema-replay.mjs quietCalendar), so no guard reads
-      # another fee or Level XP on a Wednesday evening or a bonus weekend: AS-QUIET holds that. --mutate plants 6 switch defects.
+      # another fee or Level XP on a Wednesday evening or a bonus weekend: AS-QUIET holds that. A scaled run sets no best. --mutate: 8 defects.
       - name: Armed switches — scaled hunts, the Bonus XP weekend and Open Halls for a stranger, and the guards' quiet calendar
         if: ${{ !cancelled() }}
         run: |

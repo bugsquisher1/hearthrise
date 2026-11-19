@@ -336,6 +336,8 @@ function viewOf(v, price) {
        server's `gold` is coins + loot value; the loot's unsold value is its own line, and balance keeps the server's
        definition (coins + loot value - store supplies), labelled so. */
     kills: num(v.kills), levelXp: levelOf(v.xp), rawLevelXp: levelOf(v.raw_xp), gold: num(v.coins), lootValue: num(v.loot_value),
+    /* the Level XP a live event added: the session's (analyzerFrom sets the hero's), 0 for a view that has none */
+    eventXp: 0,
     waste: num(v.waste), balance: num(v.balance),
     trainingXp: isObj(v.xp) ? total(Object.fromEntries(train)) : null,
     /* Each combat skill trained this session, most first: its XP and (the hero's, rated) its XP an hour and the
@@ -460,8 +462,12 @@ export function analyzerFrom(cs, a) {
   const next = etaMs(a.hero.level);
   const sess = isObj(a.session) ? a.session : {};
   const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
+  /* THE LEVEL XP A LIVE EVENT ADDED (hr_hunt_view's tally `xp_event`, 2027-03-22-live-events.sql): this hero's own, already inside its
+     Level XP; the server sends it only when it is more than 0. The party's view has none (each account's dial is its own). */
+  const party = partyViewOf(a.party, hero, price);
+  hero.eventXp = isObj(sess.tally) ? (int(sess.tally.xp_event) ?? 0) : 0;
   return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,
-    ended: typeof sess.ended_at === 'string', hero, party: partyViewOf(a.party, hero, price) };
+    ended: typeof sess.ended_at === 'string', hero, party };
 }
 
 /** A character's server clock now (ms), or null before it has one or for a reader without one. */

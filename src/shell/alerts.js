@@ -60,7 +60,7 @@ import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.140';
 import { noShotWords } from './hunt-go.js?v=0.2.140';
 import { CONSUMABLES } from '../data/consumables.js?v=0.2.140';
 import { deathSeen } from './death-popup.js?v=0.2.140';
-import { summaryClosedFor, forgetUnreadSummary } from '../hunt-view/summary-recorder.js?v=0.2.140';
+import { summaryClosedFor, forgetUnreadSummary, pastToRead, recordPast } from '../hunt-view/summary-recorder.js?v=0.2.140';
 import { awayRecapOf, awayRecapFrom, awayLineNow, awaySettled, stampAway as stampNow, markBack, backWithNoStamp } from './away-recap.js?v=0.2.140';
 import { askPastHunt } from '../session/past-hunt.js?v=0.2.140';
 import { benchStopRecapOf } from './bench-fee.js?v=0.2.140';
@@ -342,6 +342,17 @@ export function createAlertCenter(account, opts) {
     }).catch(() => {});
   }
 
+  /* EARLIER HUNTS KEEP EVERY HUNT (post-140 audit C4): a hunt that ended unseen under a newer session (the yard its plan opened) is read
+     once, as the away line's is (one read for both, src/session/past-hunt.js), and its card goes into the list (summary-recorder.js). */
+  const historyAsked = new Set();
+  function readPast(cs) {
+    for (const id of pastToRead(cs)) {
+      if (historyAsked.has(cs.slot + ':' + id)) continue;
+      historyAsked.add(cs.slot + ':' + id);
+      askPastHunt(account, cs, id).then((past) => { if (past) recordPast(cs, id, past); }).catch(() => {});
+    }
+  }
+
   /* A live line the server stopped saying is forgotten, on this page and in the saved list: said again, it fires again. */
   function forget(cs, unsaid) {
     const mine = seenOf(cs.slot), r = residueOf(cs);
@@ -374,6 +385,7 @@ export function createAlertCenter(account, opts) {
   function scan(cs) {
     let any = false;
     noteGear(cs);
+    readPast(cs);
     const hu = huntOf(cs);
     if (hu && Number.isInteger(hu.hero.unit)) heroUnit.set(cs.slot, { session: hu.sessionId, unit: hu.hero.unit });
     /* ON SCREEN: the viewed slot, or, while the first character is still loading (a reload, a sign-in), the one the

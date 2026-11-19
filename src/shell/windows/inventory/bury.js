@@ -51,6 +51,7 @@ import { namedFuelOf } from '../../bag-model.js?v=0.2.140';
 import { HUNT_INDEX } from '../../../data/hunts.js?v=0.2.140';
 import { nameOf } from '../../../session/item-sections.js?v=0.2.140';
 import { burnNamedFuel } from '../../../session/hearth-intents.js?v=0.2.140';
+import { busyWords } from '../../training-words.js?v=0.2.140';
 
 /* The Hearth's skill: every output-less bench row is a fuel (src/data/hearth.js). */
 const FLAME = 'inner_flame';
@@ -115,7 +116,7 @@ export function buryBlock(cs, e) {
   const on = buryingOf(cs);
   if (on) return 'Already ' + (on.skill === FLAME ? 'fueling the Great Hearth with ' + itemName(on.input) : buryingWord(on).toLowerCase()) + '. Stop it first.';
   const h = huntOf(cs);
-  if (h && !h.ended) return e.skill === FLAME ? huntingWords(cs, h) : 'Not while a hunt is running.';
+  if (h && !h.ended) return busyWords(cs, e.skill === FLAME ? huntingWords(cs, h) : 'Not while a hunt is running.');
   const sk = skillsOf(cs);
   const lv = sk && sk[e.skill] ? sk[e.skill].level : null;
   const name = skillName(e.skill);
@@ -151,7 +152,7 @@ export function namedBlock(cs, id) {
   const f = namedFuelOf(id);
   if (!f) return '';
   const h = huntOf(cs);
-  if (h && !h.ended) return huntingWords(cs, h);
+  if (h && !h.ended) return busyWords(cs, huntingWords(cs, h));
   if (!(heldOf(cs)[id] > 0)) return 'No ' + itemName(id) + ' in bag';
   const sk = skillsOf(cs);
   const lv = sk && sk[FLAME] ? sk[FLAME].level : null;

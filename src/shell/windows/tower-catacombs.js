@@ -29,6 +29,7 @@ import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.140';
 import { text, cls, attr, prop, rows, element } from '../../render/paint.js?v=0.2.140';
 import { whole } from '../../render/format.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
+import { busyWords } from '../training-words.js?v=0.2.140';
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { rankWords, keyFamilyWord } from '../tower-words.js?v=0.2.140';
@@ -60,7 +61,7 @@ export function doorPicked(sc, w) {
 /** Why Enter is off now, said above it, or '' when the server is to judge. Only what the screen already knows from the server's record. */
 export function descentBlock(cs, cat, w, door) {
   const h = huntOf(cs);
-  if (h && !h.ended) { const run = runRulesOf(h.huntId); return run && run.family === 'catacomb' ? t('catacomb.off_descending') : t('tower.off_hunting'); }
+  if (h && !h.ended) { const run = runRulesOf(h.huntId); return run && run.family === 'catacomb' ? t('catacomb.off_descending') : busyWords(cs, t('tower.off_hunting')); }
   /* a party descends together on its leader's press (hr_catacomb_start: every seat or none, from its lowest seat's checkpoints) */
   const party = partyMembershipOf(cs);
   if (party && !party.isLeader) return t('tower.off_leader');

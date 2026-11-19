@@ -175,6 +175,8 @@ export const PREP_TEXT = Object.freeze({
   ready_stamina: 'Stamina: {left} left',
   ready_no_stamina: 'Stamina: none',
   ready_short_stamina: 'no stamina',
+  /* the bar's store food heals less than the hero's ground is measured safe on (readiness.js, the one weak-food rule) */
+  ready_short_food_weak: 'weak food',
   gold_only: 'Gold: {gold} gp',
   gold_spend_now: 'Gold: {gold} gp, about {hours} h at {spend} gp/h on this hunt',
   gold_spend_last: 'Gold: {gold} gp, about {hours} h at {spend} gp/h last hunt',

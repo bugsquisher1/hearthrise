@@ -461,7 +461,18 @@ export function analyzerFrom(cs, a) {
   const sess = isObj(a.session) ? a.session : {};
   const settled = str(sess.settled_to) ? Date.parse(sess.settled_to) : NaN;
   return { sessionMs: num(a.hunt_ms), settledMs: Number.isFinite(settled) ? settled : null, nextLevelMs: next,
-    ended: typeof sess.ended_at === 'string', hero, party: partyViewOf(a.party, hero, price) };
+    ended: typeof sess.ended_at === 'string', hero, party: partyViewOf(a.party, hero, price), session: sessionFacts(sess) };
+}
+
+/* WHICH SESSION AN ANALYZER IS OF, as the server's `session` block says it (the basic block: id, hunt, entered_at, ended_at, end_reason; the
+   premium one is the whole hr_hunt_view, so its preset, hours limit and tier too): what an earlier hunt's card is built from (summary-
+   recorder.js recordPast, post-140 audit C4). Each field the server's or null. */
+const WORD = /^[a-z0-9_]{1,64}$/;
+const word = (v) => (typeof v === 'string' && WORD.test(v) ? v : null);
+const when = (v) => { const at = str(v) ? Date.parse(v) : NaN; return Number.isFinite(at) ? at : null; };
+function sessionFacts(s) {
+  return { id: str(s.id), hunt: word(s.hunt) || word(s.hunt_id), enteredMs: when(s.entered_at), endedMs: when(s.ended_at), reason: word(s.end_reason),
+    preset: int(s.preset), hoursLimit: int(s.hours_limit), tier: word(s.tier) };
 }
 
 /** A character's server clock now (ms), or null before it has one or for a reader without one. */

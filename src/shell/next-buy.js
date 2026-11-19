@@ -5,11 +5,12 @@
 // hunt summary's Back in town card said nothing once the bag was sorted. With gold to spend it now names ONE buy the
 // purse covers, never a wall of options, in this order (lane/a-next-steps; the designer's handoff, board "2026-11-15 The audit's balance
 // findings" F8 and F12: a Shop piece over a practice one, then the next room rung, then the dummy; gear and Tempering ahead as power):
-//   gear     a Shop piece better than what is worn (upgrade-plan.js: the same "strictly better" every Equip press uses,
-//            over the worn set after the bag's own upgrades go on): a bare slot first, then the cheapest; never armor of
-//            another weight than the hero's (the full-game audit's A11)
-//   find     no Shop piece of the hero's weight for a bare or off-weight armor slot: the piece of that weight and where it
-//            comes from (a bench, a ground's drop), its Show opening there (findPiece)
+//   gear     a Shop piece Equip upgrades would put on (upgrade-plan.js upgradePlan, the one plan every Equip press uses,
+//            over the worn set after the bag's own upgrades go on): a bare slot first, then the cheapest. Its weight rule
+//            is the plan's (weightFits, designer ruling 2b of 2026-11-18): a bare slot any weight, a worn piece off the
+//            weight chosen at Tamsin's only that weight at its tier or higher, so a better piece of a worn off weight is never the buy
+//   find     no Shop piece fills a bare armor slot, or one worn off the chosen weight: the piece of the hero's weight the plan
+//            would then put on and where it comes from (a bench, a ground's drop), its Show opening there (findPiece)
 //   temper   the next Tempering rung of the worn weapon, then of the armor worn (temper-sections.js), gold and material in hand
 //   room     the cheapest next House room rung the house is ready for and the purse and materials cover (home-sections.js; the
 //            first rung of a bench's room also ends its tax, bench-tax.js BENCH_TAX_ROOMS)
@@ -23,7 +24,7 @@ import { ITEMS } from '../data/items.js?v=0.2.140';
 import { ROOM_PERKS } from '../data/perks.js?v=0.2.140';
 import { EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.140';
 import { ARMOUR_WEIGHT, ARMOUR_SLOTS } from '../data/core-model.js?v=0.2.140';
-import { upgradePlan, preferredWeight, meets } from './upgrade-plan.js?v=0.2.140';
+import { upgradePlan, preferredWeight, meets, offWeight, weightFits } from './upgrade-plan.js?v=0.2.140';
 import { wherePlaces } from './item-lore.js?v=0.2.140';
 import { itemName } from './widgets/bits.js?v=0.2.140';
 import { gold } from '../render/format.js?v=0.2.140';
@@ -47,22 +48,22 @@ const holds = (items, bag, bank) => {
 
 /* An armor piece's weight ('heavy' | 'medium' | 'light'), or null for a piece with none (jewelry, a weapon, a shield, a cape). */
 const weightOf = (it) => (it && ARMOUR_WEIGHT[it.armourClass]) || null;
-/* NEVER AN OFF-WEIGHT BUY (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to a heavy hero at Level 9, and they
-   stayed on to 85): with the hero's weight known (preferredWeight), an armor piece of another weight is never offered. */
-const ownWeight = (it, prefer) => !prefer || !weightOf(it) || weightOf(it) === prefer;
 
-/* A Shop piece better than the worn set: the plan over the shop's affordable gear of the hero's weight as if it were in the bag. */
+/* A Shop piece Equip upgrades would put on: the plan over the shop's affordable gear as if it were in the bag. The full-game audit's A11 (Next
+   buy sold Leather Gloves, medium, to a heavy hero at Level 9 and they stayed on to 85) is the plan's weight rule now: the pair still fills a
+   bare slot, and a heavy piece of their tier or higher moves them off (designer ruling 2b of 2026-11-18). */
 function gearBuy(o) {
-  const offers = (o.shop && o.shop.offers ? o.shop.offers : []).filter((x) => x.kind === 'gear' && x.price <= o.purse && ITEMS[x.item] && ITEMS[x.item].slot && ownWeight(ITEMS[x.item], o.prefer));
+  const offers = (o.shop && o.shop.offers ? o.shop.offers : []).filter((x) => x.kind === 'gear' && x.price <= o.purse && ITEMS[x.item] && ITEMS[x.item].slot);
   if (!offers.length) return null;
   const price = new Map(offers.map((x) => [x.item, x.price]));
-  const plan = upgradePlan({ bag: offers.map((x) => ({ id: x.item, qty: 1 })), equipment: o.equipment, skills: o.skills, level: o.level, prefer: o.prefer });
+  const plan = upgradePlan({ bag: offers.map((x) => ({ id: x.item, qty: 1 })), equipment: o.equipment, skills: o.skills, level: o.level, prefer: o.prefer, chosen: o.chosen });
   const picks = plan.picks.filter((p) => price.has(p.id));
   if (!picks.length) return null;
   /* a bare slot first, then the cheapest, then by id (one answer for one envelope) */
   picks.sort((a, b) => (Number(!!a.replaces) - Number(!!b.replaces)) || (price.get(a.id) - price.get(b.id)) || (a.id < b.id ? -1 : 1));
   const p = picks[0];
-  const gains = p.gains.slice(0, 2).map((g) => g.text).join(", ");
+  /* a move to the chosen weight names what it gives up too, as the Equip upgrades line does (upgrade-plan.js `costs`) */
+  const gains = p.gains.slice(0, 2).concat((p.costs || []).slice(0, 1)).map((g) => g.text).join(", ");
   return { kind: 'gear', title: t('summary.buy_gear', { item: itemName(p.id), price: gold(price.get(p.id)) }),
     words: gains ? (p.replaces ? t('summary.buy_gear_better', { gains, worn: itemName(p.replaces) })
       : t('summary.buy_gear_empty', { gains, slot: ((EQUIP_SLOT_META[p.slot] || {}).label || p.slot).toLowerCase() })) : '',
@@ -85,17 +86,20 @@ function piecesFor(slot, weight) {
   return BY_SLOT.get(slot + ':' + weight) || [];
 }
 
-/* WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11): an armor slot bare, or worn in another weight, that no Shop piece of the hero's
-   weight fills. Names the best piece of that weight for the slot the hero can wear now that the game hands out somewhere (item-lore.js wherePlaces:
-   a bench, the Shop, a ground's drop), else the first one it grows into, and where it comes from, linked there. From the catalogue rows, so the
-   drop homes move the answer with no code here. Bare slots first, in the doll's order. */
+/* WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11): an armor slot bare, or worn off the weight chosen at Tamsin's, that no Shop piece
+   fills. Names the best piece of the hero's weight for the slot the hero can wear now that the game hands out somewhere (item-lore.js wherePlaces:
+   a bench, the Shop, a ground's drop), else the first one it grows into, and where it comes from, linked there. For a worn slot only a piece the
+   plan would move it to (weightFits: the same tier or higher), so the line never names one Equip upgrades leaves in the bag. From the catalogue
+   rows, so the drop homes move the answer with no code here. Bare slots first, in the doll's order. */
 function findPiece(o) {
   const w = o.prefer, eq = o.equipment || {};
   if (!w) return null;
   const level = Number.isInteger(o.level) ? o.level : null;
-  const open = ARMOUR_SLOTS.filter((s) => !eq[s]).concat(ARMOUR_SLOTS.filter((s) => eq[s] && weightOf(ITEMS[eq[s]]) !== w));
+  const open = ARMOUR_SLOTS.filter((s) => !eq[s]).concat(ARMOUR_SLOTS.filter((s) => eq[s] && offWeight(ITEMS[eq[s]], o.chosen)));
   for (const slot of open) {
-    const found = piecesFor(slot, w).map((id) => ({ id, it: ITEMS[id], where: wherePlaces(id)[0] || null })).filter((x) => x.where && x.where.place);
+    const worn = eq[slot] ? ITEMS[eq[slot]] : null;
+    const found = piecesFor(slot, w).filter((id) => weightFits(worn, ITEMS[id], o.chosen))
+      .map((id) => ({ id, it: ITEMS[id], where: wherePlaces(id)[0] || null })).filter((x) => x.where && x.where.place);
     const now = found.filter((x) => meets(x.it, o.skills, level)).sort((a, b) => (b.it.tier || 0) - (a.it.tier || 0) || (b.it.reqLv || 0) - (a.it.reqLv || 0) || (a.id < b.id ? -1 : 1));
     const later = found.filter((x) => !meets(x.it, o.skills, level)).sort((a, b) => (a.it.reqLv || 0) - (b.it.reqLv || 0) || (a.id < b.id ? -1 : 1));
     const p = now[0] || later[0];
@@ -141,9 +145,10 @@ function roomBuy(o) {
 
 /**
  * The one buy to name, or null (no purse read yet, or nothing the purse covers).
- * @param {{ purse: number|null, equipment: object, skills: object|null, level: number|null, prefer?: string|null, shop: {offers:{item:string,kind:string,price:number}[]}|null,
+ * @param {{ purse: number|null, equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null, shop: {offers:{item:string,kind:string,price:number}[]}|null,
  *           temper: object|null, dummy: object|null, home: object|null, bag: {id:string,qty:number}[]|null, bank: {id:string,qty:number}[]|null }} o
- *        `equipment`: the worn set with the bag's own Equip upgrades already on (so a piece the bag holds is never bought)
+ *        `equipment`: the worn set with the bag's own Equip upgrades already on (so a piece the bag holds is never bought);
+ *        `chosen`: the weight picked at Tamsin's and `prefer`: preferredWeight's, as upgradePlan reads them
  * @returns {{ kind: string, title: string, words: string, icon: string|null, glyph?: string, place: object }|null}  `icon` an item's, else `glyph` (data/glyphs.js)
  */
 export function nextBuy(o) {
@@ -156,6 +161,6 @@ export function nextBuyOf(cs, plan) {
   const eq = equipmentOf(cs) || {};
   const lv = levelOf(cs), tally = tallyOf(cs), s = settingsOf(cs), tr = trainingOf(cs);
   return nextBuy({ purse: goldOf(cs), equipment: Object.assign({}, eq, plan && plan.ops ? plan.ops : {}), skills: skillsOf(cs), level: lv ? lv.level : null,
-    prefer: preferredWeight(tally ? tally.weight : null, eq, s ? s.role : null), shop: shopOf(cs), temper: temperRowsOf(cs), dummy: tr ? tr.dummy : null,
+    chosen: tally ? tally.weight : null, prefer: preferredWeight(tally ? tally.weight : null, eq, s ? s.role : null), shop: shopOf(cs), temper: temperRowsOf(cs), dummy: tr ? tr.dummy : null,
     home: homeOf(cs), bag: bagOf(cs), bank: bankOf(cs) });
 }

@@ -90,9 +90,12 @@ export const SUMMARY_TEXT = Object.freeze({
   end_gold_out: 'Gold reserve reached',
   /* ...said with the numbers that ended it (post-patch audit 2026-11-18 B3: "Gold reserve reached" beside Gold +2,679 gp, nothing said why).
      {spent} the store's supplies, {coins} the coins, both the hunt's own tally; {floor} the Gold reserve, the server's setting. Loot is not
-     gold until it is sold, so it is not in the sum. The _floor form is for a card that has no tally to say it with. */
-  end_gold_out_why: 'Gold reserve reached. Store supplies cost {spent} and the coins brought in {coins}, so your gold fell to your {floor} reserve.',
-  end_gold_out_floor: 'Gold reserve reached. Your gold fell to your {floor} reserve.',
+     gold until it is sold, so it is not in the sum. The _floor form is for a card that has no tally to say it with.
+     NO CAUSE IS CLAIMED (post-140 audit C9: "the coins brought in 14,325 gp, so your gold fell to your 20,000 gp reserve" while the coins beat
+     the supplies and the purse sat under a reserve raised mid-hunt). What the server did is the rule: it sells no store supply that would
+     leave the purse under the reserve. It keeps no purse at the stop, so none is said. */
+  end_gold_out_why: 'Gold reserve reached. Store supplies cost {spent} and coins brought in {coins}. The store stopped selling supplies at your {floor} reserve.',
+  end_gold_out_floor: 'Gold reserve reached. The store stopped selling supplies at your {floor} reserve.',
   end_rule: 'Stop rule met',
   end_stamina: 'Out of stamina · Stamina refills 1 h per hour',
   end_hours: 'Time limit reached',

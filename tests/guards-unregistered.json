@@ -157,16 +157,6 @@
         "selftest": false,
         "runner": "by hand: node tests/tower-world.mjs --shots DIR"
       }
-    },
-    "special-attributes.mjs": {
-      "reason": "THE HIDDEN SAMPLE'S RULES (designer, lane/d-special-attributes, PRIORITY_BOARD 2026-11-15): the five special-attribute rows in src/data/special-attributes.js; since lane/c-krell-uniques two of them (Krell's Tollgate, the Banded Legguards) ship through the Hold's pack, and SA1 holds them to exactly what is written there (hidden, or shipped as written). It is not in smoke.yml because lane/a-133-ci-time holds smoke.yml and tests/ci-shape.baseline.json this cycle (a lane does not edit another lane's files). lane/c-krell-uniques moved two rows into a catalogue while smoke.yml is still lane/a-133-ci-time's, so it is registered, plain and --mutate, by the Coordinator once that lane lands (the step is `node tests/special-attributes.mjs --mutate`).",
-      "owner": "game-designer",
-      "disposition": "register-when-the-sample-ships",
-      "verified": {
-        "asserts": true,
-        "selftest": true,
-        "runner": "by hand: node tests/special-attributes.mjs && node tests/special-attributes.mjs --mutate (both EXIT 0 on lane/d-special-attributes, 14 of 14 mutants caught)"
-      }
     }
   },
   "$proof_baseline_comment": [
@@ -217,12 +207,6 @@
       "owner": "game-designer",
       "disposition": "needs-a-local-plan-run",
       "runner": "by hand: node tools/balance-sim/sim.mjs --plan formula --out tools/balance-sim/out/formula && node tools/balance-sim/sheet-check.mjs --selftest"
-    },
-    "tests/special-attributes.mjs": {
-      "reason": "THE HIDDEN SAMPLE'S RULES (designer, lane/d-special-attributes, PRIORITY_BOARD 2026-11-15): the five special-attribute rows in src/data/special-attributes.js; since lane/c-krell-uniques two of them (Krell's Tollgate, the Banded Legguards) ship through the Hold's pack, and SA1 holds them to exactly what is written there (hidden, or shipped as written). It is not in smoke.yml because lane/a-133-ci-time holds smoke.yml and tests/ci-shape.baseline.json this cycle (a lane does not edit another lane's files). lane/c-krell-uniques moved two rows into a catalogue while smoke.yml is still lane/a-133-ci-time's, so it is registered, plain and --mutate, by the Coordinator once that lane lands (the step is `node tests/special-attributes.mjs --mutate`).",
-      "owner": "game-designer",
-      "disposition": "register-when-the-sample-ships",
-      "runner": "by hand: node tests/special-attributes.mjs --mutate"
     }
   }
 }

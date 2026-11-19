@@ -115,7 +115,7 @@ import { SHEET_HOLD_MS } from '../src/world/view-sheets.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
-import { pressBar } from './_bar.mjs';
+import { pressBar, rowIcon } from './_bar.mjs';
 import { judge, verdict, report, exitOf, harnessFail, HARNESS } from './_mutant-verdict.mjs';
 /* Level 10's total on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
 const LEVEL_10_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(10);
@@ -296,7 +296,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         text: document.body.innerText, scripts: Array.from(document.scripts).map((s) => s.getAttribute('src')) }));
       if (!n.link || !/Discord gets the [a-z ]*date first/i.test(n.text)) fails.push('N-1 the notice page lost its copy or Discord link');
       if (n.scripts.some((s) => !/^src\/platform\/(https-upgrade|sw-killswitch)\.js\?v=\d[\d.]*$/.test(String(s)))) fails.push('N-1 the notice page loads an app script: ' + n.scripts.join(', '));
-      await page.click('a[href="play.html"]').catch(() => fails.push('N-1 someone invited who typed the bare domain has no way in'));
+      /* the way in is read off the page (the rule); a press on a link that is there and still throws is the harness's */
+      if (!(await page.isVisible('a[href="play.html"]'))) fails.push('N-1 someone invited who typed the bare domain has no way in');
+      else await page.click('a[href="play.html"]').catch((e) => fails.push(harnessFail('N-1 the press on the way in', e)));
       /* The client page itself answers; its boot is B-1's and B-16's rule, and how long 372 modules take on a busy disk is the machine's. */
       if (!(await wait(page, () => /\/play\.html$/.test(location.pathname) && document.querySelector('.boot-shell, form[data-auth="sign-in"]'), null, 30000))) fails.push('N-1 the way in does not reach the client page: ' + page.url());
       const hs = await page.request.get(base + '/prototypes/hunt-sim/');
@@ -677,9 +679,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
         });
         if (link.ok !== 'page' || link.bad.some((x) => x !== null) || link.asked.length !== 1 || !/\/legal\/PRIVACY_POLICY\.md$/.test(link.asked[0])) fails.push('B-20 ' + tag + 'the server link read a path outside its list, or refused one on it: ' + JSON.stringify(link));
         if (errors.length) fails.push('B-20 ' + tag + 'console errors: ' + errors.slice(0, 3).join(' | '));
-        } catch (e) {
+        } catch (e) {   // a step that throws is HARNESS (tests/_mutant-verdict.mjs), never B-20's catch and never the end of the run
           if (e === STOP) throw e;
-          fails.push('B-20 ' + tag + 'stopped: ' + String(e && e.message).split('\n')[0]);
+          fails.push(harnessFail('B-20 ' + tag.trim(), e));
         } finally { await ctx.close().catch(() => {}); }
       }
     }
@@ -774,7 +776,10 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       const c = await opened(false);
       if (seen(c.o) !== '0,1') fails.push('B-17 a hunt not stamped yet was not stamped at once (a killed tab would have no answer): slots [' + seen(c.o) + ']');
       await c.ctx.close();
-      } catch (e) { fails.push('B-17 threw: ' + String(e && e.message).split('\n')[0]); }   // as B-18: a red, never the end of the run
+      } catch (e) {   // as B-18: a step that throws is HARNESS (tests/_mutant-verdict.mjs), never B-17's catch and never the end of the run
+        if (e === STOP) throw e;
+        fails.push(harnessFail('B-17', e));
+      }
     }
 
     if (leaving) { // B-18 a Got it pressed just before a reload stays pressed
@@ -797,7 +802,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
       };
       const boot = await readFile(join(ROOT, 'src/net/supabase-bootstrap.js'), 'utf8');
       const here = boot.replace("url: 'https://nezapsylztqbbwuwembx.supabase.co',", 'url: globalThis.location.origin,');
-      if (here === boot) fails.push('B-18 harness: the project URL in supabase-bootstrap.js moved');
+      if (here === boot) fails.push(HARNESS + ' B-18: the project URL in supabase-bootstrap.js moved');
       const real = await serve(Object.assign({}, overrides, { 'src/net/supabase-bootstrap.js': here }), api);
       const { ctx, page, errors } = await fresh();
       try {
@@ -819,8 +824,10 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           }).filter((x) => x.lines > 1));
           if (wrapped.length) fails.push('B-18b a card button wraps at 1280 px: ' + JSON.stringify(wrapped));
         }
-        if (await wait(page, () => document.querySelector('.hs-launchers .hs-launch'), null, 15000)) await pressBar(page, 'tally').catch((e) => fails.push('B-18 the top bar has no way to her tally: ' + String(e.message).split('\n')[0]));
-        else fails.push('B-18 the game screen never showed its launchers');
+        /* the way to her tally is read off the bar (a real rule); a press on a control that is there and still throws is the harness's */
+        if (!(await wait(page, () => document.querySelector('.hs-launchers .hs-launch'), null, 15000))) fails.push('B-18 the game screen never showed its launchers');
+        else if (!(await page.$(rowIcon('tally')))) fails.push('B-18 the top bar has no way to her tally');
+        else await pressBar(page, 'tally').catch((e) => fails.push(harnessFail('B-18 the press on her tally', e)));
         if (!(await wait(page, (q) => document.querySelector(q), got, 15000))) fails.push('B-18 CONTROL: a fresh hero shows no card with Got it');
         else {
           await page.waitForTimeout(2000);   // what the first paint wrote has landed: only the press is left to lose
@@ -830,7 +837,7 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           await page.evaluate((q) => document.querySelector(q).click(), got);
           await page.reload({ waitUntil: 'commit' });
           const ms = Date.now() - t0;
-          if (ms > 1200) fails.push('B-18 CONTROL: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
+          if (ms > 1200) fails.push(HARNESS + ' B-18: the reload began ' + ms + ' ms after the press, past the debounce: this run proves nothing');
           await wait(page, () => document.querySelector('.hs-launchers'), null, 15000);
           await page.waitForTimeout(1500);
           const read = residue.coach && residue.coach.read;
@@ -839,8 +846,9 @@ async function checks(overrides, leaving = true, notice = true, reloads = true, 
           if (again) fails.push('B-18 the card "' + card + '" came back after the reload');
         }
         if (errors.length) fails.push('B-18 console errors: ' + errors.slice(0, 3).join(' | '));
-      } catch (e) {   // a press that cannot land is this check's red, never the end of the run (--mutate plants a page with no game on it)
-        fails.push('B-18 threw: ' + String(e && e.message).split('\n')[0]);
+      } catch (e) {   // a step that throws is HARNESS (tests/_mutant-verdict.mjs), never B-18's catch and never the end of the run
+        if (e === STOP) throw e;
+        fails.push(harnessFail('B-18', e));
       } finally { await ctx.close(); real.server.close(); }
     }
 

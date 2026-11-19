@@ -16,8 +16,9 @@
 //
 // WHY THE NEXT LINES ARE THESE (rules of record, not the brief's draft): a Blessing cuts what a death costs and
 // touches no stamina, and nothing starts a hunt by itself, so "a Blessing or a rest would have let the next hunt
-// start" is false and is not said. What fills idle time after ANY automatic end is a gathering job, because the server
-// resumes it and it never runs out (a bench resumes only for the count it had left). A limit the player set (`hours`) is filled by a
+// start" is false and is not said. What fills idle time after an automatic end is what the hunt page's When the hunt ends picks (a job
+// the server resumes, or the yard), so the generic line points there; a party end the hero's own Leave box chose names that box
+// (post-140 audit C1). A limit the player set (`hours`) is filled by a
 // longer hunt; a bag that ran dry by packing more; a purse that ran dry by keeping gold or packing your own, and when the bag
 // held food or drink of a kind the bar eats that no slot named, by putting THAT on the bar (the store sold what the bag had).
 // A BOSS ROOM (a call or a hall: boss-halls.js roomOfHunt) is one fight, not a night: no next line, only what the hero did. Nor A CLIMB
@@ -48,10 +49,11 @@ const SAME_MS = 1000;
 /* An idle pointer is stamped when the settle ends the hunt; one stamped later than this means the player moved it since. */
 const MOVED_AFTER_MS = 10 * 60 * 1000;
 
-/* The one next thing per end reason; every other automatic end (stamina, a death, a stop rule, a party end ...) is
-   filled by a gathering job, which the server resumes after each of them. */
+/* The one next thing per end reason. A PARTY END the hero's own box chose (Leave if anyone leaves the hunt or dies, Tyler 2026-10-22,
+   on by default) names that box: the gathering tip under it was stale advice (post-140 audit C1). Every other automatic end (a death, a
+   stop rule ...) points at the hunt page's When the hunt ends, which picks the job or the yard the server goes on to (Tyler 2026-11-15). */
 const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_food', ammo_out: 'away.next_ammo', runes_out: 'away.next_runes', gold_out: 'away.next_gold',
-  stamina: 'away.next_stamina' });
+  stamina: 'away.next_stamina', party_member_left: 'away.next_party', party_member_died: 'away.next_party' });
 /* A training session's: its cap reached, start it again; the purse's end and every other say it all already. */
 const TRAIN_NEXT = Object.freeze({ hours: 'away.next_train_again' });
 const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);

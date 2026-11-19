@@ -20,6 +20,7 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadGear, STYLES } from './gear.mjs';
 import { rateCI, quantile, round, gini } from './stats.mjs';
+import { playedBar, runeTierAt, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
 
 /* the settle's cut: 10 s alone, 30 s for a party (the tracked HP is re-anchored on the engine's at every cut; a
    party pays for every cut: about +40% an hour at 10 s, measured) */
@@ -100,13 +101,44 @@ export async function loadCellRunner(root) {
   function runCell(cell) {
     const ground = G.HUNT_GROUNDS[cell.ground];
     if (!ground) throw new Error('balance-sim: no ground ' + cell.ground);
-    const party = cell.party;
-    const roles = party.map((s) => STYLES[s].role);
+    /* cell.seats [{ role, style?, levelXp, skills { skill: xp }, equipment, bar, options, bag }]: REAL HEROES, seat by seat (calibrate.mjs:
+       a recorded hunt's party as the server held it: its own XP, worn set, stored bar, hunt options and carried stock). Nothing is dressed
+       or defaulted for such a seat: the kit rule, the reference bar and the supply policy stand aside. */
+    const seats = Array.isArray(cell.seats) ? cell.seats : null;
+    const party = seats ? seats.map((s) => s.style || s.role) : cell.party;
+    const roles = seats ? seats.map((s) => s.role) : party.map((s) => STYLES[s].role);
+    /* A seat field left out falls back to the harness's own rule for it (the ladder kit of `style`, every combat skill at the Level, the
+       reference bar, the supply policy), so one field at a time can be swapped between the recorded hero and the harness's hero. */
+    if (seats) {
+      cell = { ...cell, party, startBySeat: seats.map((s) => {
+        const L = XP.charLevelFromXp(s.levelXp);
+        return { levelXp: s.levelXp, skills: s.skills || Object.fromEntries(COMBAT.map((k) => [k, XP.skillXpForLevel(k, L)])) };
+      }) };
+    }
     /* cell.startBySeat [{ levelXp, skills: { skill: xp } }]: a hero's exact XP (a career run's carry); its Level is the curve's */
     const levels = party.map((_, i) => (cell.startBySeat ? XP.charLevelFromXp(cell.startBySeat[i].levelXp)
       : Array.isArray(cell.level) ? cell.level[i] : cell.level));
     /* the ground rides along so a `uniques` kit picks the attribute this ground asks for (gear.mjs); a ladder kit never reads it */
-    const kits = party.map((s, i) => gear.kitOf(s, levels[i], { ground: cell.ground, ...((cell.gearBySeat && cell.gearBySeat[i]) || cell.gear || {}) }));
+    /* cell.profile 'played' (played.mjs): the hero as real players set one up, wherever the cell doesn't name its own: accessories and spent
+       ammo on the kit, the recorded bar for the role (rune spells on its Magic's tier), the recorded hunt options, and with supply 'own' its
+       own runes, arrows and whetstones beside the guide food. A seat's skill level is its own XP's, else the cell's, else its Level. */
+    const asPlayed = cell.profile === 'played';
+    const skillLv = (i, k) => (cell.startBySeat ? XP.skillLevelFromXp(k, (cell.startBySeat[i].skills || {})[k] || 0) : cell.skillsBySeat ? (cell.skillsBySeat[i] || {})[k] || 1 : levels[i]);
+    const dress = (style, i) => (asPlayed ? { accessories: true, ammoSkill: skillLv(i, STYLES[style].role === 'ranger' ? 'ranged' : 'melee') } : {});
+    const kits = seats ? seats.map((s, i) => (s.equipment ? { ...s.equipment } : gear.kitOf(s.style, levels[i], { ground: cell.ground, ...dress(s.style, i), ...(cell.gear || {}) }))) : party.map((s, i) => gear.kitOf(s, levels[i], { ground: cell.ground, ...dress(s, i), ...((cell.gearBySeat && cell.gearBySeat[i]) || cell.gear || {}) }));
+    const spends = (id) => !!id && ITEMS[id] && (ITEMS[id].ammoPerShot || 0) > 0;
+    const playedBarFor = (role, i) => {
+      const g = guideOf(cell.ground), own = (cell.supply || 'store') === 'own';
+      return playedBar(role, { magic: skillLv(i, 'magic'), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
+        storeDrink: g ? storeOf('mana', g.magic.mana.id) : 'thin_turnip_juice', arrows: role === 'ranger' && spends(kits[i].ammo) ? kits[i].ammo : null });
+    };
+    const playedBagFor = (role, i) => {
+      const bag = bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]);
+      if ((cell.supply || 'store') !== 'own') return bag;
+      for (const f of PLAYED_RUNES[role] || []) bag[runeTierAt(f === 'earth' && role === 'mage' ? 1 : skillLv(i, 'magic')) + '_' + f + '_rune'] = { loaded: 100000 };
+      if (spends(kits[i].ammo)) bag[kits[i].ammo] = { loaded: 100000 };
+      return bag;
+    };
     const keys = roles.map((r, i) => r + i);
     const band = bandOf(cell.ground);
     /* skills: 'level' = every combat skill at the hero's Level (the harness default); or per seat { skill: level } */
@@ -284,13 +316,15 @@ export async function loadCellRunner(root) {
           /* `startBar`: the bar a hero who never touched it plays: START_BAR as shipped (Salted Shrimp, Thin Turnip Juice), not the ground's guide food */
           /* `slotsByRole` { role: [slot] }: a stored ability lane for that role beside the cell's consumables (the bar a
              player set: a deeper store rune, another trigger), so the role's defaults (rule-subjects.js ROLE_RULES) stand aside */
-          bar: cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar || cell.slotsByRole
-            ? (role) => barFor(cell.ground, cell.bar || {}).concat(JSON.parse(JSON.stringify((cell.slotsByRole && cell.slotsByRole[role]) || []))) : undefined,
-          bag: (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]),
+          bar: seats ? (role, i) => (seats[i].bar ? JSON.parse(JSON.stringify(seats[i].bar)) : asPlayed ? playedBarFor(role, i) : barFor(cell.ground, cell.bar || {})) : cell.startBar ? () => JSON.parse(JSON.stringify(START_BAR)) : cell.bar || cell.slotsByRole
+            ? (role) => barFor(cell.ground, cell.bar || {}).concat(JSON.parse(JSON.stringify((cell.slotsByRole && cell.slotsByRole[role]) || []))) : asPlayed ? playedBarFor : undefined,
+          bag: seats ? (role, i) => (seats[i].bag ? JSON.parse(JSON.stringify(seats[i].bag)) : asPlayed ? playedBagFor(role, i) : bagFor(cell.ground, cell.supply || 'store', kits[i], null)) : asPlayed ? playedBagFor : (role, i) => bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]),
           buffs: cell.buffs ? () => cell.buffs : undefined,
           start: cell.skillsBySeat || cell.startBySeat ? startFor : undefined,
           leaveTogether: party.length > 1 && cell.leaveTogether !== false,
-          options: cell.options ? (role, i) => (Array.isArray(cell.options) ? cell.options[i] : cell.options) : undefined,
+          options: seats ? (role, i) => ({ ...(seats[i].options || (asPlayed ? PLAYED_OPTIONS[role] : {})), ...(cell.options && !Array.isArray(cell.options) ? cell.options : {}) })
+            : asPlayed ? (role, i) => ({ ...PLAYED_OPTIONS[role], ...(Array.isArray(cell.options) ? cell.options[i] : cell.options || {}) })
+              : cell.options ? (role, i) => (Array.isArray(cell.options) ? cell.options[i] : cell.options) : undefined,
         };
         if (!opts.bar) delete opts.bar;
         if (!opts.start) delete opts.start;

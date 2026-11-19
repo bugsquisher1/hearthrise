@@ -367,6 +367,23 @@ export async function loadGear(root) {
     }
     if (S.role === 'ranger') set.ammo = opts.ammo || 'bronze_arrows';
     else if (opts.ammo) set.ammo = opts.ammo;
+    /* `accessories` (played.mjs, the played profile: recorded heroes wear them, the ladder kit never did): two rings, earrings, a necklace
+       and a cloak, each the gettable piece at the Level with the most of the style's own attack numbers (then steadiness, then tier; the
+       plain piece, never a rolled one: a roll is the player's luck, not the Level's); and the ammo the style SPENDS, the best its skill
+       (`ammoSkill`, default the Level) may use: a whetstone for Melee, tier arrows for the bow. */
+    if (opts.accessories === true) {
+      const main = S.role === 'ranger' ? ['rangeAtkB', 'rangeStrB'] : S.role === 'mage' || S.role === 'healer' ? ['magicAtkB', 'magicStrB'] : ['atkB', 'strB'];
+      const score = (it) => main.reduce((s, k) => s + (it[k] || 0), 0) * 1000 + (it.steadyPm || 0);
+      const bestAcc = (slot) => Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].slot === slot && !ITEMS[id].jewelGrade && ok(id, L))
+        .sort((a, b) => score(ITEMS[b]) - score(ITEMS[a]) || tierOf(b) - tierOf(a) || a.localeCompare(b))[0] || null;
+      const ring = bestAcc('ring');
+      Object.assign(set, { ring1: ring, ring2: ring, earrings: bestAcc('earrings'), necklace: bestAcc('necklace'), cape: bestAcc('cape') });
+      const sk = Number.isInteger(opts.ammoSkill) ? opts.ammoSkill : L;
+      const spent = (skill, field) => Object.keys(ITEMS).filter((id) => ITEMS[id] && ITEMS[id].slot === 'ammo' && ITEMS[id].reqSkill === skill && lvOf(id) <= sk && (ITEMS[id][field] || 0) > 0 && !/bolts$/.test(id))
+        .sort((a, b) => ITEMS[b][field] - ITEMS[a][field] || tierOf(b) - tierOf(a))[0] || null;
+      if (S.weapon === 'weapon:bow') set.ammo = spent('ranged', 'rangeStrB') || set.ammo;
+      if (S.role === 'tank' || S.role === 'melee_dps') set.ammo = spent('melee', 'strB') || set.ammo;
+    }
     Object.assign(set, opts.also || {});
     for (const k of Object.keys(set)) if (!set[k]) delete set[k];
     return set;

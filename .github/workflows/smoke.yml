@@ -1609,6 +1609,21 @@ jobs:
         if: ${{ !cancelled() }}
         run: node tools/balance-sim/sim.mjs --smoke
 
+      # THE SIMULATOR REPRODUCES REAL HUNTS (Tyler 2026-11-19: "rebuild the audit auto hunts to make sure what we are testing is
+      # accurate to the game"): the recorded parties in tests/fixtures/balance-calibration.json (aggregated, anonymous) replayed on
+      # the real engine with each seat's own XP, kit, bar and stock must land on the server's tally: 10% on kills, Level XP, coin
+      # and damage dealt, 15% on damage taken, 25% on healing, 40% on store gold, no deaths where the record has none; and the
+      # played profile (tools/balance-sim/played.mjs) within 20%. A balance change made on purpose declares its shift in the
+      # guard. --mutate: monsters harder, more HP, more XP, more coin, the recorded bars ignored, a bent record, the played
+      # profile lost, an account key or a stored slot id in the fixture, nothing judged.
+      - name: Balance calibration — the simulator against recorded hunts
+        if: ${{ !cancelled() }}
+        run: node tests/balance-calibration.mjs
+
+      - name: Balance calibration — mutation proof
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tests/balance-calibration.mjs --mutate
+
       # A SAME-CLASS PARTY NEVER BEATS SOLO, PER HEAD (Tyler 2026-10-31: "Party exp should only be better if there are
       # different classes in the party"): every ground, at the party's default pull and at 8 each, several seeds on the real
       # engine, bar 1.00. --mutate: a same-class cut gone, a cell over the identity, classes ignored, the shield counted as

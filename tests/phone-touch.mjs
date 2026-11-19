@@ -33,8 +33,8 @@
 //        back clear of the hunt bar; a pending leave ("Leaving in Ns") stands where Leave hunt was and keeps the
 //        hunt bar on one line, inside the screen and off the Party panel (on screen: a party of two ends above the
 //        action bar). At 1440x900 the analyzer shows by default and the same toggle works. Over the town (a training
-//        session, 667x375 and 922x423: the World's title row lowers the hunt bar) Details opens it wholly on screen,
-//        clear of both bars, its close in reach
+//        session, 667x375, 922x423 and 667x320, where its room over the action bar is under its floor) Details opens it
+//        wholly on screen, clear of both bars, its close in reach
 //   PH-3 PORTRAIT: a touch phone held upright (390x844, 375x812) sees ONE full-screen "turn your phone
 //        sideways" card on top of everything, its words >= 12 px; a phone in landscape, a touch tablet either
 //        way up and a desktop (a narrow window included) never see it
@@ -142,6 +142,8 @@ const { charXpForLevel } = await import(pathToFileURL(join(ROOT, 'src/core/xp.js
 const { CROPS } = await import(pathToFileURL(join(ROOT, 'src/data/gathering.js')).href);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
 const { HUNT_TUTORIAL } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tutorial.js')).href);
+/* the analyzer's floor (its height at the least, shell.js), which a phone's room under the hunt bar may undercut (PH-2 over the town) */
+const ANALYZER_FLOOR = (await import(pathToFileURL(join(ROOT, 'src/data/hud-widgets.js')).href)).HUD_WIDGETS.find((w) => w.id === 'analyzer').min[1];
 /* A long bag (the playtest's hero carried 42 stacks): thirty more stacks of plain materials. */
 const MATERIALS = Object.keys(ITEMS).filter((id) => !ITEMS[id].kind && !ITEMS[id].type && !(id in ALPHA.inventory)).slice(0, 30);
 /* The town prep: that long bag, and a tool and a piece of gear for sale (the Shop sells no supplies, AW-7). */
@@ -410,9 +412,10 @@ async function analyzerToggles(page, base, tag, fails, phone) {
   if (!a.an) fails.push('PH-2 [' + tag + '] an open analyzer did not come back after a reload');
   else if (window_cross(a.an, a.bar)) fails.push('PH-2 [' + tag + '] after a reload the analyzer covers the hunt bar: ' + JSON.stringify([a.an, a.bar]));
 }
-/* A FIGHT SHOWN OVER THE TOWN (a training session at the yard: the World keeps its title row, so the hunt bar's foot is 48 px lower than in a
-   hunt). At 667x375 the room left above the action bar (110 px) was under the analyzer's 120 px floor: Details stepped it below the bar, off
-   the screen, and showed nothing (lane/a-training-leftovers). Opened, it lies wholly on screen, clear of both bars, its close a thumb's. */
+/* A FIGHT SHOWN OVER THE TOWN (a training session at the yard). Before v0.2.141 the World kept its title row there, so the hunt bar's foot was
+   48 px lower than in a hunt and 667x375 left 110 px above the action bar, under the analyzer's 120 px floor: Details stepped it below the bar,
+   off the screen, and showed nothing (lane/a-training-leftovers). The row is in the top bar now (667x375: 156 px), so 667x320 is where the floor
+   must yield. Opened, it lies wholly on screen, clear of both bars, its close a thumb's. */
 const atTheYard = (env) => {
   env.hunt = Object.assign({}, env.hunt, { hunt_id: 'training_yard_melee' });
   env.state = Object.assign({}, env.state, { active_kind: 'combat', active_id: 'training_yard_melee' });
@@ -420,13 +423,18 @@ const atTheYard = (env) => {
     run: { skill: 'melee', where: 'yard', since: new Date(env.hunt_server_now_ms - 20 * 60000).toISOString(), fee_h: 170, paid: 340, boosted: false, boost_ms: 0 },
     last_stop: null, rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: 20 }, gear: [], offers: [], shop: { on: false, today: 0, max: 10 } };
 };
-async function analyzerOverTown(page, tag, fails) {
+async function analyzerOverTown(page, tag, fails, underFloor = false) {
   if (!(await wait(page, () => /^Training Melee/.test((document.querySelector('.ht-bar .ht-name') || {}).textContent || '')
     && document.querySelector('#panel-world[data-scene]') && document.querySelector('#panel-world').getAttribute('data-scene') !== 'hunt', null, 6000))) {
     fails.push('PH-2 [' + tag + '] CONTROL: no training session shown over the town'); return;
   }
   if (!(await page.click('.ht-bar [data-hs-act="details"]', { timeout: 2500 }).then(() => true, () => false))) { fails.push('PH-2 [' + tag + '] Details cannot be pressed'); return; }
   await page.waitForTimeout(400);
+  /* where the floor must yield, the room hud-room.js gives the analyzer is under its floor (HUD_WIDGETS min), or this size proves nothing of it */
+  if (underFloor) {
+    const room = await page.evaluate(() => parseFloat((document.querySelector('[data-hs-widget="analyzer"]') || { style: { getPropertyValue: () => '' } }).style.getPropertyValue('--hs-room')));
+    if (!(room < ANALYZER_FLOOR)) { fails.push('PH-2 [' + tag + '] CONTROL: the analyzer has ' + room + ' px over the action bar, not under its ' + ANALYZER_FLOOR + ' px floor'); return; }
+  }
   const a = await page.evaluate(() => { const c = document.querySelector('.ha-analyzer .ha-close');
     return { an: window.__r('.ha-analyzer'), hub: window.__r('.hb-bar'), bar: window.__r('.ht-bar'), close: !!c && window.__onScreen(window.__r(c)) && window.__hits(c),
       on: window.__onScreen(window.__r('.ha-analyzer')), train: !!window.__r('.ha-analyzer .ha-train') }; });
@@ -1680,11 +1688,14 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
       }
       await done(leaving, tag);
     }
-    for (const vp of run('hunt') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }] : []) { // PH-2 over the town (a training session)
+    /* 667x320: the 667 phone with a browser's bar over the page. Since the place's row went into the top bar (v0.2.141, run 44494376765) the
+       hunt bar's foot over the town is 103 px, as in a hunt, and 667x375 leaves the analyzer 156 px over the action bar, above its 120 px floor:
+       only a shorter screen still needs the floor to yield (hud-room.js, shell.js). */
+    for (const vp of run('hunt') ? [{ width: 667, height: 375 }, { width: 922, height: 423 }, { width: 667, height: 320 }] : []) { // PH-2 over the town (a training session)
       const tag = tagOf(vp) + ' training';
       const o = await open(vp, HUNT, atTheYard);
       if (!o.up) { fails.push('PH-2 [' + tag + '] the training session did not mount'); await o.ctx.close(); continue; }
-      await analyzerOverTown(o.page, tag, fails);
+      await analyzerOverTown(o.page, tag, fails, vp.height === 320);
       await shot(o.page, 'training-analyzer-open-' + tagOf(vp));
       await done(o, tag);
     }

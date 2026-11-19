@@ -188,6 +188,9 @@
      and the hero's row under the result lay under the foot): the first hero's own copy steps aside, the rest of its row (Bless again,
      the stamina) stays where it was */
   .haway-foot > .haway-foot-go:not([hidden]) { display: revert; }
+  /* ...on one row with Hunt summary and OK, each its own width (three at a third each wrapped OK onto a row of its own) */
+  .haway-foot > .hh-tool { flex: 1 1 auto; }
+  .haway-foot > [data-hs-act="away-ok"] { flex: 0 0 auto; min-width: 64px; }
   .haway-hero:first-child .haway-acts > [data-hs-act="away-go"] { display: none; }
   .hres-level { margin-bottom: 4px; }
   .hres-figs { padding: 4px 0 6px; }

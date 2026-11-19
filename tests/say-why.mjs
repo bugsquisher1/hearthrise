@@ -185,6 +185,8 @@ const BUSY = /!?\(?\b(?:st\.|sc\.|s\.|o\.|a\.|party\.|st\.sc\.)*(?:pending|sendi
 export const REASONS = Object.freeze({
   'src/shell/windows/training.js': [
     { cond: '!!block', words: "text(root.querySelector('.tw-off-why'), block)", where: 'Start training: the line above it says why (out hunting, in a party, no quote, a purse under the first hour, the dummy in use), and data-off-why says it on a press' },
+    /* 2027-05-20-yard-stop.sql, post-140 audit C10: a Stop pending to the server's close */
+    { cond: '!!stopping', words: "text(root.querySelector('.tw-stop-why'), stopping)", where: 'Stop training while its Stop pends: the line beside it says the hunt bar\'s words ("Leaving in 3s", "Leaving now…"), and data-off-why says it on a press' },
   ],
   'src/shell/windows/house-dummy.js': [
     { cond: '!canBuy', words: "text(box.querySelector('.hd-why'), block)", where: 'Unlock on the dummy: the line under the ladder says why (no Homestead, short of the next price); every skill held reads "Every skill is unlocked" and hides the buttons' },
@@ -335,6 +337,7 @@ export const REASONS = Object.freeze({
     { cond: '!owned || (o.worn || null) === d.outfit', words: "(o && !owned ? ', not owned' : '')", where: 'the picked outfit\'s name under the preview says not owned (a tile not owned is dimmed and says so on the pointer); Equip needs another outfit' },
     { cond: '!offer', words: "cls(save, 'is-on', offer)", where: 'with nothing to pay for the button isn\'t shown at all, and the line above the picker says what this outfit shows or why it has no colors' },
     { cond: 'short > 0', words: "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '')", where: 'Save colors over the envelope\'s purse: the line under it says how much more, and data-off-why on a press' },
+    { cond: '!c.owned', words: "text(b.querySelector('small'), c.need)", where: 'a faction add-on not owned (the designer 2026-11-18) carries its requirement on the button itself, "Requires First Flame standing: 100 h", the server\'s number' },
   ],
   'src/shell/windows/house.js': [
     { cond: '!on', words: "t('house.cost_gold_short'", where: 'each step\'s cost lines mark what is short, with your counts' },

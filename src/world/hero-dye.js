@@ -3,8 +3,8 @@
 //
 // A hero's colors are four dye INDICES the server holds (player_outfits.base_colors; the key "head.body.legs.feet",
 // src/data/outfits.js dyeKeyOf). A dye's colour is the token --dye-N, so no client colour value ever crosses to another player.
-// A LOOK is one outfit in one set of colors: every frame of its sprite (the `heroes` atlas), recoloured where its mask
-// (`hunt-masks`, tools/world-art/outfit-masks.mjs) keys a region: each pixel keeps its value and takes the dye's hue and
+// A LOOK is one outfit in one set of colors: every frame of its sprite (a hero set: `heroes`, `factionwear`), recoloured where its mask
+// (its set's mask set, `hunt-masks` or `factionwear-masks`: src/data/world/atlas-sets.js MASK_SETS, tools/world-art/outfit-masks.mjs) keys a region: each pixel keeps its value and takes the dye's hue and
 // saturation, so the shading stays (dyeRamp, recolourPixels). Two sets that differ only in a region this outfit doesn't show are the
 // same look (a knight has no legs to dye), so they share a sheet.
 //
@@ -12,7 +12,7 @@
 //   memory   a sheet holds an outfit's frames and nothing else: 56 x 64 x 64 x 4 bytes = 0.92 MB, 21 MB at the cap. Each outfit in use keeps its source pixels once more
 //            (0.92 MB, at most 7: 6.4 MB), so a bake copies them rather than reading a canvas back. The masks' image is 6.9 MB decoded.
 //   time     at most ONE bake per frame (pump): about 1.2 ms, at worst 2.3 ms, on a desktop core. A look not ready draws undyed for that frame, never a stub and never a wait.
-//   first load  nothing: the masks load on the first dyed hero in view (MASK_SET is not in ATLAS_SETS), and only then.
+//   first load  nothing: the masks load on the first dyed hero in view (no mask set is in ATLAS_SETS), and only then.
 // THE CAP IS AN LRU THAT NEVER FIGHTS THE SCREEN: only a look not drawn for STALE_MS may be evicted. With DYE_LOOKS on screen a 25th look
 // draws undyed rather than evict one someone is looking at (evicting per frame would re-bake forever). The hero you play is the one exception: yours
 // takes the slot of the least recently drawn other look, because you just paid for it.
@@ -21,12 +21,12 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BASE_REGIONS, MASK_COLOURS } from '../data/outfits.js?v=0.2.140';
 import { loadAtlasSet } from './atlas.js?v=0.2.140';
+import { MASK_SETS } from '../data/world/atlas-sets.js?v=0.2.140';
 
 /** How many dyed looks stay in memory: past this, heroes draw undyed. */
 export const DYE_LOOKS = 24;
 /** A look not drawn for this long may give up its place. */
 export const STALE_MS = 3000;
-const MASK_SET = 'hunt-masks';
 const COLS = 8;
 const ALPHA_OPAQUE = 128;
 
@@ -84,12 +84,24 @@ export function recolourPixels(px, mask, dyes) {
   return px;
 }
 
-/** The masks, loaded once per page on first need: Promise<{ manifest, image }>. */
+/** Every mask set, loaded once per page on first need: Promise<{ sets: [{ manifest, image }] }>, the sets that loaded (a hero whose
+    mask set failed draws undyed); rejects when none loads. */
 let MASKS = null;
 export function loadMasks(doc, version) {
-  if (!MASKS) MASKS = loadAtlasSet({ doc, version }, MASK_SET).catch((e) => { MASKS = null; throw e; });
+  if (!MASKS) {
+    MASKS = Promise.allSettled(Object.keys(MASK_SETS).map((set) => loadAtlasSet({ doc, version }, set))).then((all) => {
+      const sets = all.filter((r) => r.status === 'fulfilled').map((r) => r.value);
+      /* a set that failed is asked for again next time; the sets that came draw now */
+      if (sets.length < all.length) MASKS = null;
+      if (!sets.length) throw (all[0] && all[0].reason) || new Error('no mask set loaded');
+      return { sets };
+    });
+    MASKS.catch(() => { MASKS = null; });
+  }
   return MASKS;
 }
+/* The mask set carrying `<id>_mask` in a masks answer ({ sets }, or one atlas), or null. */
+const maskSetOf = (m, id) => (!m ? null : (Array.isArray(m.sets) ? m.sets : [m]).find((a) => a && a.manifest && a.manifest.sprites[id + '_mask']) || null);
 
 /**
  * THE PAGE'S DYED LOOKS, ONE PER DOCUMENT: a World pane is remounted on every switch of the viewed character, and a look baked for it stays good.
@@ -132,7 +144,8 @@ export function createHeroDye(o) {
   /* AN OUTFIT'S SOURCE, once: its frames laid out in a compact sheet, their pixels and every masked pixel's offset and region. */
   function sourceOf(id, row, image) {
     if (sources.has(id)) return sources.get(id);
-    const m = masks.manifest.sprites[id + '_mask'];
+    const ms = maskSetOf(masks, id);
+    const m = ms ? ms.manifest.sprites[id + '_mask'] : null;
     if (!m) { sources.set(id, null); return null; }
     const [fw, fh] = row.frame;
     const cells = new Map();
@@ -157,7 +170,7 @@ export function createHeroDye(o) {
     for (const p of pairs) g.drawImage(image, p.sx, p.sy, fw, fh, p.dx, p.dy, fw, fh);
     const px = g.getImageData(0, 0, W, H).data;
     g.clearRect(0, 0, W, H);
-    for (const p of pairs) if (p.mask) g.drawImage(masks.image, p.mask[0], p.mask[1], fw, fh, p.dx, p.dy, fw, fh);
+    for (const p of pairs) if (p.mask) g.drawImage(ms.image, p.mask[0], p.mask[1], fw, fh, p.dx, p.dy, fw, fh);
     const mk = g.getImageData(0, 0, W, H).data;
     const shows = new Set();
     const offs = [], regs = [];

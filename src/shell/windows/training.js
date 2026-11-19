@@ -108,7 +108,7 @@ export function renderTraining(ctx) {
     + '<button type="button" class="hw-primary" data-hs-act="gear-yes">' + esc(t('controls.buy')) + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="gear-no">' + esc(t('controls.cancel')) + '</button></div></div>'
     + '<p class="hs-note tw-gear-note"></p><p class="hs-note tw-gear-day"></p></section>'
-    + '<div class="tw-foot"><p class="hw-why tw-off-why"></p>'
+    + '<div class="tw-foot"><p class="hw-why tw-off-why"></p><p class="hw-why tw-stop-why" role="status" hidden></p>'
     + '<button type="button" class="hh-tool is-primary tw-go" data-hs-act="train-start">' + esc(t('training.press_start')) + '</button>'
     + '<button type="button" class="hh-tool tw-stop" data-hs-act="train-stop" hidden>' + esc(t('controls.stop')) + '</button>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div></div>';
@@ -270,8 +270,11 @@ renderTraining.patch = function patchTraining(body, ctx) {
   const stopping = cd !== null ? leavingLine(cd, at - STOP_SINCE.get(root), connection.state()) : '';
   if (stopping) armClock(ctx, root, sc, true, STOPPING_MS);
   prop(stop, 'disabled', sc.pending || !!stopping);
+  attr(stop, 'data-off-why', stopping || null);
+  text(root.querySelector('.tw-stop-why'), stopping);
+  prop(root.querySelector('.tw-stop-why'), 'hidden', !stopping);
   attr(go, 'data-off-why', block || null);
-  text(root.querySelector('.tw-off-why'), block || stopping);
+  text(root.querySelector('.tw-off-why'), block);
   text(root.querySelector('.hh-intent-msg'), sc.msg);
 };
 

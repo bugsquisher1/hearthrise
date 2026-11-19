@@ -409,7 +409,10 @@ jobs:
       # settle's own window on a ground that pays a side (both doors), the day's ceiling, a swap of ten hours a week apart, pieces on server
       # standing; the data rule (every ground after Krell pays one side, evenly per region); the catalogue's drift. Measured locally:
       # faction-standing-db plain 26 s + --mutate 95 s (22 mutants); the other four under 10 s each.
-      - name: Factions - standing from the settle, the even rule, the catalogue (22 + 12 mutants)
+      # THE FACTION LOOKS (lane/c-faction-outfit-path): a claim owns its look through the one outfit reader, worn, reloaded, shown to a
+      # party mate and the town, kept across a swap; the other doors unchanged; both files re-apply byte-identical. Measured locally:
+      # faction-outfit-db plain 21 s, --mutate about 4 min (15 mutants).
+      - name: Factions - standing from the settle, the even rule, the catalogue, the looks (22 + 12 + 15 mutants)
         if: ${{ !cancelled() }}
         run: |
           node tools/gen-factions.mjs --check
@@ -418,6 +421,8 @@ jobs:
           node tools/mutant-gate.mjs node tests/faction-ground-balance.mjs --mutate
           node tests/faction-standing-db.mjs
           node tools/mutant-gate.mjs node tests/faction-standing-db.mjs --mutate
+          node tests/faction-outfit-db.mjs
+          node tools/mutant-gate.mjs node tests/faction-outfit-db.mjs --mutate
 
       # WHEN THE HUNT ENDS (Tyler 2026-11-15, lane/c-hunt-itinerary): the server's copy of the choices is generated from
       # src/data/hunt-after.js; this holds the drift and the generator's refusals. The behaviour (each choice through an automatic

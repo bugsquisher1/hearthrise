@@ -26,6 +26,19 @@ function shotFixture(M, bag, ammo, stored, o) {
 }
 
 const cases = {
+  /* A BANE BITES THE CLASS A MONSTER IS (src/core/bane.js classOfMonster; the designer 2026-11-18 row 3a). Carter's Rest's trolls carry
+     `family: 'Troll'` and the weakness table's `cls: 'humanoid'`; reading class then family alone gave them no class, so a Humanoid bane
+     played as nothing on them. The same Dawnsteel Sword with and without a Humanoid bane, on the Troll Picker: the bane's 10% is in the blow. */
+  'a-humanoid-bane-lands-on-a-troll': (M) => {
+    const troll = M.MONSTERS.troll_picker, sword = M.ITEMS.dawn_sword;
+    if (!troll || !sword) return 'fixture: no troll_picker or dawn_sword';
+    if (troll.cls !== 'humanoid' || troll.class) return 'fixture: the Troll Picker is no longer the case (cls ' + troll.cls + ', class ' + troll.class + ')';
+    const items = { __plain: sword, __bane: { ...sword, bane: { class: 'humanoid', mult: 1.1 }, effects: ['bane'] } };
+    const mult = (id) => M.C.weaknessInfo(troll, M.C.equipmentStats({ weapon: id }, items)).damageMult;
+    const plain = mult('__plain'), bane = mult('__bane');
+    if (!(Math.abs(bane - plain * 1.1) < 1e-9)) return 'a Humanoid bane on the Troll Picker multiplies the blow by ' + (bane / plain).toFixed(3) + ', not 1.1';
+    return null;
+  },
   /* TYLER 2026-11-04: "They are just simply harder ... it's inherent in the game, not a penalty driven system." A monster's blow reads its own stats against the hero's own stats:
      at the same stats and on the same dice, every swing of a hero at any Level is the same swing. Both paths: this hook is the one both a watched hunt and a closed browser step through. */
   'same-blow-at-any-level': (M) => {
@@ -411,6 +424,8 @@ const blowsAtLevel = (M, heroLv, tier, bare) => {
 };
 
 const mutants = [
+  { name: 'a monster\'s class reads class and family only (the trolls had none, 11-18)', case: 'a-humanoid-bane-lands-on-a-troll',
+    edits: [['src/core/bane.js', 'return normalizeClass(monster.class) || normalizeClass(monster.family) || normalizeClass(monster.cls);', 'return normalizeClass(monster.class) || normalizeClass(monster.family);']] },
   { name: 'a tier does not raise the blow', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'const row = atTier(rowOf(inst, u.kind), inst.tier);', 'const row = MONSTERS[u.kind];']] },
   { name: 'armor ignores the tier', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'levelAtTier(monsterLevelOf(rowOf(inst, source.kind)), inst.tier)', 'monsterLevelOf(MONSTERS[source.kind])']] },
   { name: 'a kill pays no tier XP', case: 'a-tier-is-the-monsters-stats', edits: [[D, 'atTier(row, inst.tier).xp', 'MONSTERS[target.kind].xp']] },

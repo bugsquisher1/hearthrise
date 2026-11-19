@@ -30,11 +30,14 @@ export const MORROW_GRID = Object.freeze({
     armor: Object.freeze(['helmet:plate', 'body:leather', 'pants:cloth']), offhands: Object.freeze(['spellbook']) }),
   night_shift: Object.freeze({ ground: null, planned: Object.freeze({ band: Object.freeze([122, 140]) }), weapons: Object.freeze(['fists', 'wand']),
     armor: Object.freeze(['body:plate', 'boots:leather', 'gloves:cloth', 'gloves:plate']), offhands: Object.freeze([]) }),
+  /* LEGS SWAPPED WITH THE ROOST MOTHER (the designer 2026-11-18, row 2): the Roost's Deadly is meant to need fire resistance (Tyler 11-08,
+     plan §3: a ground carries its wall element's answer), so the Roost drops the plate legs (the Burnt Crag Leg Plates, fire) and its
+     call-out boss the leather legs (Roost Mother's Hide). Both open at 125, so the grid covers the same cells by the same Level */
   wyvern_roost: Object.freeze({ ground: 'wyvern_roost', weapons: Object.freeze(['bow', 'staff']),
-    armor: Object.freeze(['boots:plate', 'pants:leather', 'helmet:cloth']), offhands: Object.freeze([]) }),
+    armor: Object.freeze(['boots:plate', 'pants:plate', 'helmet:cloth']), offhands: Object.freeze([]) }),
   /* the call-out boss, the oldest Brood Wyvern (src/data/grounds/wyvern_roost/pack.js); her room is called from the Roost */
   roost_mother: Object.freeze({ ground: null, boss: true, at: 'wyvern_roost', planned: Object.freeze({}), weapons: Object.freeze(['bow', 'fists']),
-    armor: Object.freeze(['helmet:leather', 'pants:plate', 'body:cloth']), offhands: Object.freeze([]) }),
+    armor: Object.freeze(['helmet:leather', 'pants:leather', 'body:cloth']), offhands: Object.freeze([]) }),
   old_guard: Object.freeze({ ground: null, planned: Object.freeze({ band: Object.freeze([138, 155]) }), weapons: Object.freeze(['wand', 'staff', 'crossbow']),
     armor: Object.freeze(['helmet:plate', 'boots:leather', 'body:cloth']), offhands: Object.freeze(['spellbook']) }),
   the_bellows: Object.freeze({ ground: null, planned: Object.freeze({ band: Object.freeze([145, 165]) }), weapons: Object.freeze(['sword', 'warhammer', 'hatchets']),

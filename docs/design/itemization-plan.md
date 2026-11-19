@@ -134,7 +134,7 @@ Rules: one property a piece (two only on late chest pieces). A new kind needs it
 | Kind | What it is | Best where |
 |---|---|---|
 | Chest weapon | The plain numbers of the next step up, plus +1 to +4 of its skill. Built in lane/d-defense-tower: +3 to +10% at its own Level, 1.00 to 1.03 times the next tier's drop | Everywhere a little. The best all-rounder |
-| Boss or ground unique | Its own stat mix inside the band's budget, never the line's own numbers (the line is a ceiling, not a template: Tyler 11-16, tests/weapon-line.mjs and armor-line.mjs WL4/AL4), no skill bonus, plus one property from the catalogue. Krell's tier-7 pieces follow the same rule (designer 2026-11-18) | Clearly best in the case its property is for. Slightly behind elsewhere |
+| Boss or ground unique | Past tier 7 (worn from past 110): its own stat mix inside the band's budget, never the line's own numbers (the line is a ceiling, not a template: Tyler 11-16, tests/weapon-line.mjs and armor-line.mjs WL4/AL4), no skill bonus, plus one property from the catalogue. At tier 7 and below: the standard piece of its slot and tier plus one attribute (Tyler 11-14, special-attribute gear; the Banded Legguards, and Krell's five, follow it; tests/special-attributes.mjs SA2) | Clearly best in the case its property is for. Slightly behind elsewhere |
 
 Krell's weapons become the first of these. Sample of five (proposed, unmeasured):
 

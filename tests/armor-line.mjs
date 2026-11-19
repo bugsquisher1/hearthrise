@@ -246,9 +246,14 @@ const MUTANTS = [
   ['a common drop', 'AL7', (L) => { L.LINE_SAMPLE.paupers_shroud.source.ch = 0.08; }],
   ['three armor slots off one monster', 'AL7', (L) => { L.LINE_SAMPLE.haulers_jerkin.source.monster = 'shrouded_pauper'; L.LINE_SAMPLE.haulers_jerkin.source.ch = 0.0007; }],
   /* row 1b: the grid wins */
-  ['the Breastplate back on the Roost (boots plate, legs leather, helmet cloth: the 11-16 placement)', 'AL7', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.source = { place: 'wyvern_roost', monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }; }],
+  ['the Breastplate back on the Roost (boots plate, legs plate, helmet cloth: the 11-16 placement)', 'AL7', (L) => { L.LINE_SAMPLE.wagon_guards_breastplate.source = { place: 'wyvern_roost', monster: 'brood_wyvern', ground: 'wyvern_roost', how: 'rare', ch: 0.0093 }; }],
+  /* row 2: the legs cells swapped, so the plate legs are the Roost's and the Roost Mother's are leather */
+  ['the Leg Plates on the Roost Mother again (her legs cell is leather since row 2)', 'AL7', (L) => { L.LINE_SAMPLE.burnt_crag_leg_plates.source = { place: 'roost_mother', planned: true, how: 'rare' }; }],
   ['a piece on a place not built names a monster as if it were', 'AL7', (L) => { L.LINE_SAMPLE.outriders_visor.source = { place: 'old_guard', planned: true, monster: 'ledge_wyvern', how: 'rare' }; }],
-  ['the Roost Mother is built and her legs still say planned', 'AL7', (L, A, o) => { o.monsters = { ...MONSTERS, roost_mother: { ...MONSTERS.brood_wyvern, boss: true } }; }],
+  /* her one cell a sample could fill is legs leather: a leather piece planted there, then the Roost Mother made a monster */
+  ['the Roost Mother is built and a piece of hers still says planned', 'AL7', (L, A, o) => {
+    const s = L.LINE_SAMPLE.haulers_jerkin; s.row = { ...s.row, slot: 'pants', reqLv: 125 }; s.source = { place: 'roost_mother', planned: true, how: 'rare' };
+    o.monsters = { ...MONSTERS, roost_mother: { ...MONSTERS.brood_wyvern, boss: true } }; }],
   ['frost resistance where nothing casts ice', 'AL8', (L) => { const s = L.LINE_SAMPLE.burnt_crag_leg_plates; s.row.resistPm = { frost: 100 }; s.attr = ['resist_element', 'frost']; }],
   ['a resistance on a place not built (no spells to read)', 'AL8', (L) => { const s = L.LINE_SAMPLE.outriders_visor; s.row.resistPm = { ember: 100 }; s.attr = ['resist_element', 'ember']; }],
   ['a banned word', 'AL9', (L) => { L.LINE_SAMPLE.paupers_shroud.text = 'You take 10% less ice damage. Woven in the Void.'; }],

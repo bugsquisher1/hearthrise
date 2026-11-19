@@ -51,7 +51,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): the formula's HP line and blows are x1.1
    (balance-sheet.js STAT_FORMULA), and a scaled hunt is that formula read at the shifted Levels, so every scaled kill bound moves: a new dated file,
    applied AFTER every 2027-05-17 and 2027-05-22 file. */
-export const OUT_NAME = '2027-05-26-harder-monsters-scaled-hunts-catalogue.generated.sql';
+export const OUT_NAME = '2027-06-05-harder-monsters-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;

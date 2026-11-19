@@ -8,12 +8,32 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 19dc2f71eda4212da92f35c1b36fc57e3850a6a0ca86e6f592bfbf438de679b4
+--   digest: 405713632309b8e9d3d05dc61bf58c4c15d6b0069286ea4abe1929b127132ce9
 --   79 supplies, 168 hunts (named + training), 47 limits, 17 end reasons,
 --   669 vendor values, 49 store supplies paid per use, 5 target modes,
---   4 lanes, 21 abilities, 10 action-set options, 25 hunt grounds
+--   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
--- NEW IN THIS FILE (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18; Tyler 2026-11-16: the descent's keys by Bronze / Silver / Gold /
+-- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
+-- slightly"). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
+-- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill
+-- Cellar's Slime XP falls 35 -> 33, its fit 1.22). hr_boss_calls' called Chief carries the field Chief's Cauldron at its new rate. No ground, spawn,
+-- limit, bid, end reason or world shape moves. ORDER: after this lane's items file. EDGE: hr-accrue with this lane's src/data right after its five files.
+--
+-- CARRIED FROM 2027-05-25-tank-runes-hunt-sessions-catalogue (lane/b-tank-runes, systems-engineer, 2026-11-19; Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank
+-- spells should be party only I think"). It carries 2027-05-22-cookbook-cut-hunt-sessions-catalogue (APPLIED with v0.2.141) whole. hr_hunt_abilities gains
+-- frost_slam (Ice, a ring that only chills) and shelter (Earth, a shell on every hero near the tank), both the shield discipline's, so a tank's bar slot
+-- naming either is accepted (hr_hunt_slot_check) and projected. Party only is the engine's rule (abilities.js party: true); no column carries it, as none
+-- carries Undertow's alone: true. A unit now carries who cast its shell (shieldBy, src/core/hunt/abilities.js PERSISTED: a recast refunds only the caster's
+-- own), so hr_hunt_world_shape MOVES (its shape and fields). No ground, spawn, kill bound, limit, bid or end reason moves. ORDER: after
+-- every set/v0.2.142 file, the last 2027-05-25-volley-default-bar.sql (it replaces hr_hunt_role_rules alone, which this file never writes), right before 2027-05-25-tank-runes-rune-spells.generated.sql (its
+-- self-check compares hr_hunt_abilities' rune rows). EDGE: THE SHAPE MOVES, so the hr-accrue carrying the same src/core deploys AT ONCE after this file
+-- (2026-12-11-hunt-deploy-no-forfeit holds the settles across the gap; each running hunt's world restarts once).
+--
+-- CARRIED FROM 2027-05-22-cookbook-cut-hunt-sessions-catalogue (lane/d-kingsgrate-rivets, systems-engineer, 2026-11-18; the designer: patterns teach worn
+-- recipes per hero, so the scroll-gated cookbook recipes, their scrolls and their feasts are cut). It carries 2027-05-12-catacomb-gold-platinum (STAGED) whole.
+-- Only hr_hunt_vendor_value moves: the cut scrolls and feasts leave it. ORDER: before the items file that cuts them.
+--
+-- CARRIED FROM 2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18; Tyler 2026-11-16: the descent's keys by Bronze / Silver / Gold /
 -- Platinum). It carries 2027-05-09-jewelry-sample-hunt-sessions-catalogue (applied with v0.2.140) whole. Only hr_hunt_vendor_value moves: the twelve
 -- Gold and Platinum Catacomb pieces (src/data/catacomb-armor.js CATACOMB_ARMOR_NOW: all four metals) get their bids. No ground, spawn, kill bound,
 -- limit, end reason or world shape moves. ORDER: after 2027-05-12-catacomb-gold-platinum-items-catalogue.generated.sql (the pieces in hr_items).
@@ -956,27 +976,29 @@ insert into public.hr_hunt_target_modes (mode) values
   ('weakest');
 delete from public.hr_hunt_abilities;
 insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana, rune, ammo, active, ord) values
-  ('arcane_barrier', array['destruction']::text[], 'support', 20000, 30, 'chalked_earth_rune', 0, true, 13),
+  ('arcane_barrier', array['destruction']::text[], 'support', 20000, 30, 'chalked_earth_rune', 0, true, 15),
   ('challenge', array['shield']::text[], 'support', 8000, 0, null, 0, true, 0),
-  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 15),
-  ('cleave', array['club', 'dual_axe']::text[], 'offense', 6000, 8, null, 0, true, 4),
-  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 10),
-  ('flame_strike', array['shield', 'sword']::text[], 'offense', 8000, 10, 'chalked_fire_rune', 0, true, 1),
-  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 7),
-  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'chalked_ice_rune', 0, true, 11),
-  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 14),
-  ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 17),
-  ('hoarfrost', array['destruction']::text[], 'offense', 10000, 22, 'chalked_ice_rune', 0, true, 12),
-  ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 6),
-  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 20),
-  ('power_strike', array['club', 'dual_axe', 'shield', 'sword']::text[], 'offense', 6000, 6, null, 0, true, 2),
-  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 8),
-  ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 18),
-  ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 9),
-  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 5),
-  ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 16),
-  ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 3),
-  ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 19);
+  ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 17),
+  ('cleave', array['club', 'dual_axe']::text[], 'offense', 6000, 8, null, 0, true, 6),
+  ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 12),
+  ('flame_strike', array['shield', 'sword']::text[], 'offense', 8000, 10, 'chalked_fire_rune', 0, true, 3),
+  ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 9),
+  ('frost_lance', array['destruction']::text[], 'offense', 6000, 20, 'chalked_ice_rune', 0, true, 13),
+  ('frost_slam', array['shield']::text[], 'support', 6000, 6, 'chalked_ice_rune', 0, true, 1),
+  ('greater_mend', array['restoration']::text[], 'heal', 2000, 25, 'chalked_water_rune', 0, true, 16),
+  ('green_sickness', array['restoration']::text[], 'offense', 10000, 20, 'chalked_poison_rune', 0, true, 19),
+  ('hoarfrost', array['destruction']::text[], 'offense', 10000, 22, 'chalked_ice_rune', 0, true, 14),
+  ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 8),
+  ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 22),
+  ('power_strike', array['club', 'dual_axe', 'shield', 'sword']::text[], 'offense', 6000, 6, null, 0, true, 4),
+  ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 10),
+  ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 20),
+  ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 11),
+  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 7),
+  ('shelter', array['shield']::text[], 'support', 30000, 25, 'chalked_earth_rune', 0, true, 2),
+  ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 18),
+  ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 5),
+  ('undertow', array['restoration']::text[], 'offense', 20000, 15, 'chalked_water_rune', 0, true, 21);
 delete from public.hr_hunt_ground_spawns;
 delete from public.hr_hunt_grounds;
 insert into public.hr_hunt_grounds (hunt_id, ground_id, pockets, spawns, respawn_ms, seats, density_max) values
@@ -1269,7 +1291,7 @@ insert into public.hr_hunt_shields (item_id) values
   ('steelgrate');
 delete from public.hr_hunt_roles;
 delete from public.hr_hunt_world_shape;
-insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 1048296377, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"markPm":45,"markUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"ruleHold":51,"ruleWait":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb);
+insert into public.hr_hunt_world_shape (id, version, shape, fields) values (true, 1, 2858418573, '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"shieldBy":45,"markPm":46,"markUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb);
 delete from public.hr_premium_login_reward;
 insert into public.hr_premium_login_reward (id, item_id, qty) values (true, 'oak_practice_blade', 1);
 delete from public.hr_hunt_travel;
@@ -2277,7 +2299,7 @@ begin
      or (select count(*) from public.hr_hunt_lanes) <> 4
      or (select count(*) from public.hr_hunt_set_options) <> 10
      or (select count(*) from public.hr_hunt_kill_bounds) <> 170
-     or (select count(*) from public.hr_hunt_abilities) <> 21
+     or (select count(*) from public.hr_hunt_abilities) <> 23
      or (select count(*) from public.hr_hunt_grounds) <> 25
      or (select count(*) from public.hr_hunt_grounds where density_max is null) <> 0
      or (select count(*) from public.hr_hunt_ground_spawns) <> 70
@@ -2307,7 +2329,7 @@ begin
                (('coppercap_warrens', 6, 18), ('coppercap_warrens_called', 1, 4), ('hasks_ford', 6, 12), ('krells_hold', 5, 10), ('krells_hold_hall', 1, 4), ('meadowbrook_thicket', 6, 13), ('mill_cellar', 2, 5), ('millrace_sewer', 6, 19), ('millrace_sewer_called', 1, 4), ('mosslight_glade', 6, 13), ('muster_barrows', 7, 23), ('pyre_field', 6, 12), ('the_burning_tower', 1, 5), ('the_slake', 6, 12), ('training_house_defense', 1, 1), ('training_house_magic', 1, 1), ('training_house_melee', 1, 1), ('training_house_ranged', 1, 1), ('training_yard_defense', 1, 1), ('training_yard_magic', 1, 1), ('training_yard_melee', 1, 1), ('training_yard_ranged', 1, 1), ('unmarked_bone_wing', 1, 5), ('unmarked_flooded_wing', 1, 5), ('wickstead', 6, 12))) then
     raise exception 'a hunt ground''s spawns is not its rows as built (no party pull on Normal)'; end if;
   -- The world fields the party section reads by name are all there, at the generator's positions.
-  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"markPm":45,"markUntil":46,"statuses":47,"laneAt":48,"otHp":49,"otMana":50,"ruleHold":51,"ruleWait":52},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb
+  if (select fields from public.hr_hunt_world_shape) is distinct from '{"unit":{"id":0,"side":1,"kind":2,"pocket":3,"alive":4,"hp":5,"maxHp":6,"target":7,"home":8,"x":9,"y":10,"fx":11,"fy":12,"prog":13,"speed":14,"dir":15,"goal":16,"path":17,"waitMs":18,"repathMs":19,"spot":20,"holdMs":21,"role":22,"dist":23,"chase":24,"tmode":25,"queued":26,"aiMs":27,"deadMs":28,"hpMilli":29,"stance":30,"acc":31,"maxHit":32,"def":33,"element":34,"swingLeftMs":35,"spellCds":36,"cast":37,"mana":38,"maxMana":39,"manaMilli":40,"regenPm":41,"lanes":42,"cds":43,"shield":44,"shieldBy":45,"markPm":46,"markUntil":47,"statuses":48,"laneAt":49,"otHp":50,"otMana":51,"ruleHold":52,"ruleWait":53},"world":{"ground":0,"swing":1,"leader":2,"trail":3,"leaderLast":4,"hold":5,"holdNext":6,"phase":7,"routeIdx":8,"phaseMs":9,"regroupNext":10,"runs":11,"nextId":12,"density":13,"fightAt":14,"xpGroup":15,"rareWon":16}}'::jsonb
      or exists (select 1 from unnest(array['id', 'side', 'kind', 'alive', 'x', 'y', 'hp', 'maxHp', 'target', 'mana', 'maxMana', 'shield', 'otHp', 'otMana', 'role', 'dist', 'chase', 'tmode', 'stance']) n
                  where not ((select fields->'unit' from public.hr_hunt_world_shape) ? n)) then
     raise exception 'hr_hunt_world_shape.fields is not world-state.js FIELDS'; end if;
@@ -2336,9 +2358,11 @@ begin
     ('circle_of_renewal', 'heal', array['restoration']::text[], 'chalked_water_rune', 0),
     ('fireball', 'offense', array['destruction']::text[], 'chalked_fire_rune', 0),
     ('flame_volley', 'offense', array['ranged']::text[], 'chalked_fire_rune', 3),
+    ('frost_slam', 'support', array['shield']::text[], 'chalked_ice_rune', 0),
     ('green_sickness', 'offense', array['restoration']::text[], 'chalked_poison_rune', 0),
     ('hoarfrost', 'offense', array['destruction']::text[], 'chalked_ice_rune', 0),
     ('raking_shot', 'offense', array['ranged']::text[], null::text, 2),
+    ('shelter', 'support', array['shield']::text[], 'chalked_earth_rune', 0),
     ('spring_tide', 'heal', array['restoration']::text[], 'chalked_water_rune', 0),
     ('turning_cut', 'offense', array['club', 'dual_axe', 'sword']::text[], null::text, 0)
   ) want (ability_id, lane, disciplines, rune, ammo)

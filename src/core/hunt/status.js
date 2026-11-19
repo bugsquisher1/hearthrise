@@ -16,6 +16,8 @@
 //                of that status on the unit, then adds one if under maxStacks
 //                (ST-01). The scale is fixed now (spec §3.3 #6):
 //                (1000 + skillLv x skillPermillePerLevel) x tierPermille[tier-1] / 1000
+//                (a slowing status: tierPermille[tier-1] alone, or 1000; a refresh of a
+//                status that does not tick lifts the refreshed stack to a stronger scale)
 //   tickStatuses each sub-step, units in id order, stacks in landing order:
 //                left and next fall by dtMs; a due stack ticks (left >= 0, so
 //                a 6 s stack ticks six times); the tick is round(roll x scale
@@ -46,15 +48,17 @@ export function statusRow(id) {
 }
 
 /** The permille scale a stack of `row` lands with, from its source's level and rune tier. Refuses, never clamps.
-    A status that does not tick (a MARKING one, takenPm, or a SLOWING one, slowPm) is never scaled: 1000. */
+    A MARKING status (takenPm) is never scaled: 1000. A SLOWING one (slowPm) is scaled by its rune tier alone when its row
+    carries `tierPermille` (statuses.js slowAt reads the stack's slow off it), else 1000. */
 export function stackScale(row, source) {
-  if (!row.tick) return 1000;
+  if (!row.tick && !row.tierPermille) return 1000;
   const lv = source && source.skillLv !== undefined && source.skillLv !== null ? source.skillLv : 0;
   const tier = source && source.runeTier !== undefined && source.runeTier !== null ? source.runeTier : 1;
   if (!Number.isInteger(lv) || lv < 0) throw new Error('status: source skillLv must be an integer >= 0, got ' + lv);
   if (!Number.isInteger(tier) || tier < 1 || tier > row.tierPermille.length) {
     throw new Error('status: rune tier ' + tier + ' is outside 1..' + row.tierPermille.length + ' for ' + row.id);
   }
+  if (!row.tick) return row.tierPermille[tier - 1];
   return Math.floor(((1000 + lv * row.skillPermillePerLevel) * row.tierPermille[tier - 1]) / 1000);
 }
 
@@ -77,6 +81,9 @@ export function applyStatus(inst, unit, row, source, sc) {
   const scale = stackScale(row, source);
   const list = stacksOf(unit).slice();
   for (const st of list) if (st.s === row.id) st.left = row.durationMs;
+  /* A status that does not tick acts as its strongest stack (damage.js slowed, takenPmOf), so a refresh by a stronger landing
+     lifts the refreshed stack to it, never lowers it: a Graven Frost Slam on a monster a Chalked Hoarfrost chilled slows it 50%. */
+  if (!row.tick) for (const st of list) if (st.s === row.id && scale > st.scale) st.scale = scale;
   const before = countOf({ statuses: list }, row.id);
   if (before < row.maxStacks) {
     const src = source && Number.isSafeInteger(source.u) ? source.u : null;

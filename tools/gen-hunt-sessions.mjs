@@ -350,11 +350,17 @@ export const WORLD_FIELDS_READ = Object.freeze({
    (applied with v0.2.140) is the file before this one and this one carries it whole. Only hr_hunt_vendor_value moves: the twelve Gold and Platinum
    pieces get their bids. ORDER: after this lane's items catalogue. */
 /* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18, designer): 2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue (STAGED on set/v0.2.141, applied first) is the file before; the cut scrolls and feasts leave the vendor values. */
-/* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-22-cookbook-cut-hunt-sessions-catalogue
-   (STAGED on set/v0.2.141, applied first) is the file before this one and this one carries it whole. hr_hunt_kill_bounds moves (and the called Chief's Cauldron rate in hr_boss_calls, the field Chief's): every formula monster's HP
+/* THE TANK'S RUNE SPELLS (lane/b-tank-runes, systems-engineer, 2026-11-19; Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank
+   spells should be party only I think"): 2027-05-22-cookbook-cut-hunt-sessions-catalogue (APPLIED with v0.2.141) is the file before this one
+   and this one carries it whole. hr_hunt_abilities gains frost_slam and shelter (the shield's, so a tank's slot naming either is accepted), and a unit
+   carries who cast its shell (abilities.js PERSISTED shieldBy: a recast refunds only the caster's own), so hr_hunt_world_shape MOVES (its shape and fields).
+   No ground, spawn, kill bound, limit, bid or end reason moves. THE SHAPE MOVES: the hr-accrue carrying the same src/core follows AT ONCE (each running
+   hunt's world restarts once, as on any shape change; 2026-12-11-hunt-deploy-no-forfeit holds a settle across the gap, never forfeits it). */
+/* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-25-tank-runes-hunt-sessions-catalogue
+   (STAGED on set/v0.2.142, applied first) is the file before this one and this one carries it whole. hr_hunt_kill_bounds moves (and the called Chief's Cauldron rate in hr_boss_calls, the field Chief's): every formula monster's HP
    is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
-   end reason, vendor value or world shape moves. ORDER: after every 2027-05-22 file. */
-export const OUT_NAME = '2027-05-26-harder-monsters-hunt-sessions-catalogue.generated.sql';
+   end reason, vendor value or world shape moves. ORDER: after every 2027-05-25 file. */
+export const OUT_NAME = '2027-06-05-harder-monsters-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1105,7 +1111,27 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18; Tyler 2026-11-16: the descent's keys by Bronze / Silver / Gold /
+-- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
+-- slightly"). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
+-- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill
+-- Cellar's Slime XP falls 35 -> 33, its fit 1.22). hr_boss_calls' called Chief carries the field Chief's Cauldron at its new rate. No ground, spawn,
+-- limit, bid, end reason or world shape moves. ORDER: after this lane's items file. EDGE: hr-accrue with this lane's src/data right after its five files.
+--
+-- CARRIED FROM 2027-05-25-tank-runes-hunt-sessions-catalogue (lane/b-tank-runes, systems-engineer, 2026-11-19; Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank
+-- spells should be party only I think"). It carries 2027-05-22-cookbook-cut-hunt-sessions-catalogue (APPLIED with v0.2.141) whole. hr_hunt_abilities gains
+-- frost_slam (Ice, a ring that only chills) and shelter (Earth, a shell on every hero near the tank), both the shield discipline's, so a tank's bar slot
+-- naming either is accepted (hr_hunt_slot_check) and projected. Party only is the engine's rule (abilities.js party: true); no column carries it, as none
+-- carries Undertow's alone: true. A unit now carries who cast its shell (shieldBy, src/core/hunt/abilities.js PERSISTED: a recast refunds only the caster's
+-- own), so hr_hunt_world_shape MOVES (its shape and fields). No ground, spawn, kill bound, limit, bid or end reason moves. ORDER: after
+-- every set/v0.2.142 file, the last 2027-05-25-volley-default-bar.sql (it replaces hr_hunt_role_rules alone, which this file never writes), right before 2027-05-25-tank-runes-rune-spells.generated.sql (its
+-- self-check compares hr_hunt_abilities' rune rows). EDGE: THE SHAPE MOVES, so the hr-accrue carrying the same src/core deploys AT ONCE after this file
+-- (2026-12-11-hunt-deploy-no-forfeit holds the settles across the gap; each running hunt's world restarts once).
+--
+-- CARRIED FROM 2027-05-22-cookbook-cut-hunt-sessions-catalogue (lane/d-kingsgrate-rivets, systems-engineer, 2026-11-18; the designer: patterns teach worn
+-- recipes per hero, so the scroll-gated cookbook recipes, their scrolls and their feasts are cut). It carries 2027-05-12-catacomb-gold-platinum (STAGED) whole.
+-- Only hr_hunt_vendor_value moves: the cut scrolls and feasts leave it. ORDER: before the items file that cuts them.
+--
+-- CARRIED FROM 2027-05-12-catacomb-gold-platinum-hunt-sessions-catalogue (lane/d-catacomb-gold-platinum, systems-engineer, 2026-11-18; Tyler 2026-11-16: the descent's keys by Bronze / Silver / Gold /
 -- Platinum). It carries 2027-05-09-jewelry-sample-hunt-sessions-catalogue (applied with v0.2.140) whole. Only hr_hunt_vendor_value moves: the twelve
 -- Gold and Platinum Catacomb pieces (src/data/catacomb-armor.js CATACOMB_ARMOR_NOW: all four metals) get their bids. No ground, spawn, kill bound,
 -- limit, end reason or world shape moves. ORDER: after 2027-05-12-catacomb-gold-platinum-items-catalogue.generated.sql (the pieces in hr_items).

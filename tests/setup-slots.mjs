@@ -122,7 +122,7 @@ export const MUTANTS = {
   figures_dropped: { arm: 'SS-CLIENT', why: 'the session drops the refusal\'s numbers', js: ['src/session/refusal.js', [["'min_skill_level', 'slots', 'price', 'per_day']", "'min_skill_level', 'per_day']"]]] },
   reader_invents: { arm: 'SS-CLIENT', why: 'a section with no count reads as the limit', js: ['src/session/item-sections.js', [["if (!isObj(s) || count(s.count) === null || count(s.max) === null) return null;", "if (!isObj(s)) return { count: 5, max: 5, price: null };"]]] },
   buy_own_price: { arm: 'SS-CLIENT', why: 'the press sends a price of its own', js: ['src/session/preset-intents.js', [["p_slot: cs.slot, p_price: price, p_idem: newIdem()", 'p_slot: cs.slot, p_price: 1, p_idem: newIdem()']]] },
-  stale_not_reread: { arm: 'SS-CLIENT', why: 'a stale quote stays on the button', js: ['src/session/preset-intents.js', [["if (r.error === 'quote_changed' && cs.status !== 'closed') await cs.load();", '']]] },
+  stale_not_reread: { arm: 'SS-CLIENT', why: 'a stale quote stays on the button', js: ['src/session/preset-intents.js', [['  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', '']]] },
   /* SETUPS SWITCH MID-HUNT, BAR ONLY (2027-05-04-setup-swap-mid-hunt.sql) */
   swap_town_only: { arm: 'SS-SWAP-CLOSED', why: 'Use is refused hunt_open again, as before the ruling',
     db: [APPLY, "  if v_s.id is not null then\n    -- THE BAR ONLY, MID-HUNT.", "  if v_s.id is not null then\n    return public.hr_note_rejection('hunt_preset_apply', p_slot, jsonb_build_object('ok', false, 'error', 'hunt_open', 'session', v_s.id));\n    -- THE BAR ONLY, MID-HUNT."] },
@@ -694,7 +694,8 @@ const ARMS = {
     let loads = 0;
     const answers = [{ ok: true, body: { ok: true } }, { ok: true, body: { ok: false, error: 'quote_changed' } }];
     const account = { server: { rpc: async (name, body) => { calls.push({ name, body }); return answers.shift(); } } };
-    const c = { slot: 2, status: 'open', load: async () => { loads++; return true; } };
+    /* a refusal's re-read is the session's bounded resync (quoted-ask.js afterRefusal), counted with the loads */
+    const c = { slot: 2, status: 'open', load: async () => { loads++; return true; }, resync: async () => { loads++; return true; } };
     const a1 = await X.PI.buySetupSlot(account, c, R.prices[0]);
     if (!a1.ok || calls.length !== 1 || calls[0].name !== 'hr_setup_slot_buy' || calls[0].body.p_slot !== 2 || calls[0].body.p_price !== R.prices[0] || !calls[0].body.p_idem) out.push('the press sent ' + JSON.stringify(calls));
     if (loads !== 1) out.push('an accepted purchase re-read ' + loads + ' times');

@@ -226,17 +226,18 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/target-intents.js': { rule: 1 },
   'src/session/town-intents.js': { rule: 2, read: 2 },
   'src/session/home-intents.js': { rule: 1 },
-  'src/session/training-intents.js': { rule: 3, own: 2 },
-  'src/session/scaled-hunts.js': { rule: 1, own: 1 },
-  'src/session/faction-intents.js': { own: 1 },
-  'src/session/hallmark-intents.js': { own: 1 },
-  'src/session/hero-color-intents.js': { read: 1, own: 1 },
-  'src/session/outfit-intents.js': { own: 1 },
-  'src/session/party-intents.js': { own: 9 },
-  'src/session/preset-intents.js': { own: 1 },
-  'src/session/storage-intents.js': { own: 1 },
-  'src/session/title-intents.js': { own: 1 },
-  'src/session/tower-intents.js': { own: 1 },
+  'src/session/training-intents.js': { rule: 5 },
+  'src/session/faction-intents.js': { rule: 1 },
+  'src/session/hero-color-intents.js': { read: 1, rule: 1 },
+  'src/session/outfit-intents.js': { rule: 1 },
+  'src/session/party-intents.js': { rule: 9 },
+  'src/session/preset-intents.js': { rule: 1 },
+  'src/session/title-intents.js': { rule: 1 },
+  /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
+  'src/session/scaled-hunts.js': { rule: 1, own: 1 },   // the switch (hr_scaled_hunt_switch): the arm-switches lane
+  'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
+  'src/session/storage-intents.js': { own: 1 },         // the UI lane (Storage's bulk moves)
+  'src/session/tower-intents.js': { own: 1 },           // the Catacombs lane (its RE_READS list)
   'src/session/preset-read.js': { read: 1 },
   'src/session/honor-roll.js': { read: 1 },
   'src/session/gm-intents.js': { account: 1 },
@@ -245,7 +246,8 @@ const ASKVIA_SITES = Object.freeze({
   'src/social/friends.js': { account: 1 },
   'src/social/whispers.js': { account: 1 },
 });
-/* [file, export, the RPC it sends, its arguments after (account, cs)]: one row per distinct RPC of every `rule` site. */
+/* [file, export, the RPC it sends, its arguments after (account, cs), or a function of the hero making them]: one row per distinct
+   RPC of every `rule` site. */
 const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/boss-intents.js', 'callOut', 'hr_boss_call', ['rat_king', 1, 0]],
   ['src/session/boss-intents.js', 'openHall', 'hr_boss_hall_enter', ['krells_hall']],
@@ -273,6 +275,23 @@ const ASKVIA_RULE_CALLS = Object.freeze([
   ['src/session/training-intents.js', 'buyGear', 'hr_training_gear_buy', ['training_sword', 197]],
   ['src/session/training-intents.js', 'unlockDummy', 'hr_house_dummy_unlock', ['melee', 197]],
   ['src/session/scaled-hunts.js', 'buyScaledHours', 'hr_scaled_hunt_buy', ['mill_cellar', 1, 197]],
+  ['src/session/training-intents.js', 'openGear', 'hr_training_gear_open', ['training_sword']],
+  ['src/session/training-intents.js', 'useGear', 'hr_training_gear_switch', ['melee', true]],
+  ['src/session/faction-intents.js', 'joinFaction', 'hr_faction_join', ['wardens']],
+  ['src/session/hero-color-intents.js', 'saveHeroColors', 'hr_hero_colors_set', [{ head: 1, body: 2, legs: 1, feet: 2 }, 2400]],
+  ['src/session/outfit-intents.js', 'useOutfitBundle', 'hr_outfit_bundle_use', ['sweeps_coat_bundle']],
+  ['src/session/preset-intents.js', 'buySetupSlot', 'hr_setup_slot_buy', [100]],
+  ['src/session/title-intents.js', 'buyTitle', 'hr_title_buy', ['ratcatcher', 1500]],
+  ['src/session/party-intents.js', 'startPartyHunt', 'hr_hunt_party_start', ['millrace_sewer']],
+  ['src/session/party-intents.js', 'warnPartyGround', 'hr_hunt_party_warn', ['millrace_sewer']],
+  ['src/session/party-intents.js', 'disbandParty', 'hr_hunt_party_disband', []],
+  ['src/session/party-intents.js', 'inviteOwn', 'hr_hunt_party_invite_own', [1]],
+  ['src/session/party-intents.js', 'invitePlayer', 'hr_hunt_party_invite_player', ['11111111-0000-4000-8000-00000000000a', null]],
+  ['src/session/party-intents.js', 'listParty', 'hr_hunt_party_list', [true]],
+  ['src/session/party-intents.js', 'setHoldSeat', 'hr_party_hold_set', [null]],
+  ['src/session/party-intents.js', 'setLeaveTogether', 'hr_party_leave_together_set', [true]],
+  /* afterLeave wraps the hero's own Leave party (CharacterSession._settled holds the rule): its arguments are made from the hero */
+  ['src/session/party-intents.js', 'afterLeave', 'hr_hunt_party_leave', (cs) => [() => cs.leaveParty()]],
 ]);
 
 async function rules(M) {
@@ -1792,14 +1811,15 @@ async function rules(M) {
       bySlot[0] = env(2, { inventory: {}, state: { gold: 40 } });
       reply = { ok: true, status: 200, closed: false, body: { ok: false, error: 'stale_here' } };
       let l0 = loads(), s0 = sent();
-      const r = await mod[fn](account, cs, ...args);
+      const argsOf = () => (typeof args === 'function' ? args(cs) : args);
+      const r = await mod[fn](account, cs, ...argsOf());
       if (sent() !== s0 + 1) return file + ' ' + fn + ' never sent ' + rpc + ' (HARNESS: its arguments are refused before the ask)';
       if (!r || r.ok !== false || loads() - l0 !== 1 || cs.record.version !== 2) {
         return file + ' ' + fn + ': a refused ' + rpc + ' sent ' + (loads() - l0) + ' re-read(s) and left the record at version ' + cs.record.version + ' (want 1 and the server\'s 2)';
       }
       for (const ans of [{ ok: false, status: 0, closed: false, error: 'network' }, { ok: true, status: 200, closed: false, body: { ok: false, error: 'rate_limited' } }]) {
         reply = ans; l0 = loads(); s0 = sent();
-        await mod[fn](account, cs, ...args);
+        await mod[fn](account, cs, ...argsOf());
         if (sent() !== s0 + 1 || loads() !== l0) return file + ' ' + fn + ': a ' + (ans.error || ans.body.error) + ' answer was read as a refusal (' + (loads() - l0) + ' hr_load)';
       }
     }
@@ -2612,6 +2632,12 @@ const MUTANTS = [
     "    if (!(ans && ans.ok && b.ok === true)) {\n      await afterRefusal(cs, ans);\n      return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'town_works', project,",
     "    if (!(ans && ans.ok && b.ok === true)) {\n      return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'town_works', project,"],
   ['a refused after-hunt choice is not re-read (A20)', 'src/session/hunt-after-intents.js', '      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', ''],
+  ['a refused party press leaves the party behind the server (A20)', 'src/session/party-intents.js',
+    "  await afterRefusal(cs, ans);\n  return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', seats: seatsOf(b),",
+    "  return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', seats: seatsOf(b),"],
+  ['a refused training item open is not re-read (A20)', 'src/session/training-intents.js',
+    "{ await afterRefusal(cs, ans); return refused(ans, 'training_gear_open'); }", "return refused(ans, 'training_gear_open');"],
+  ['a refused faction press is not re-read (A20)', 'src/session/faction-intents.js', '      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', ''],
   ['a new askVia call site goes unclassified (REFUSE-ASKVIA)', 'src/session/town-intents.js',
     'export function readSinks(account, cs) {', "export const unclassifiedAsk = (account, cs) => askVia(cs, 'x', async () => ({ ok: true }));\nexport function readSinks(account, cs) {"],
   ['a dropped network is read as a refusal (lane/a-quote-changed)', 'src/session/refusal.js',

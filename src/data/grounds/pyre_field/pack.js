@@ -230,7 +230,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.60-0.72, threes 0.48-0.70, fours 0.36-0.57), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.92-1.05, threes 0.91-1.00, the four 1.02: a Mage or a Healer alone earns the most here, so a mix reads near even against its own heroes while it reads 1.20 against the median lone way, the band the grader binds); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-30, 15], 3: [-30, 10, 15], 4: [-35, 5, 10, 10] }, deadly: { 2: [-30, 20], 3: [-30, 15, 25], 4: [-35, 5, 10, 15] } },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-30, 15], 3: [-30, 10, 20], 4: [-35, 5, 10, 10] }, deadly: { 2: [-30, 20], 3: [-30, 15, 25], 4: [-35, 10, 15, 15] } },
   /* THE PACK'S TEST FACTS (re-pinned 2026-11-10 for one difficulty). dropRef: a lone tank at the floor in its full own-tier set
      (tests/hunt-core/drop-tables.mjs, the harness's tier-5 kit). valueToday is COMPUTED, the 11-09 method: the hour's expected coin
      (10,090 g) and commons (3,930; re-pinned 2026-11-13 with the commons reverted) plus the gear-faucet's half of the coin (5,045). The

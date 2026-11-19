@@ -227,8 +227,8 @@ async function main(argv) {
   const measured = local ? await fromLocal(guard, dash < 0 ? [] : argv.slice(dash + 1), names) : fromRuns(guard, runs, names);
   if (!measured.size) { console.log('  ✗ nothing timed: no caught mutant of ' + guard + ' in that source'); return 1; }
   const source = local ? `measured here (${process.platform}), node ${guard} --mutate ${argv.slice(dash + 1).join(' ')}` : `GitHub run(s) ${runs.join(', ')}`;
-  const note = `${new Date().toISOString().slice(0, 10)}, tools/mutant-times.mjs: ${source}`;
   const replace = own.includes('--replace');
+  const note = `${new Date().toISOString().slice(0, 10)}, tools/mutant-times.mjs: ${source}${replace ? ' (--replace: every mutant timed there re-booked)' : ''}`;
   /* how the source compares with the file on the mutants both hold (a slower or faster machine shows here) */
   const both = names.filter((n) => measured.has(n) && file.seconds && file.seconds[n] > 0);
   if (both.length) {

@@ -16,7 +16,7 @@
 //   (2027-04-23-training-gear.sql, Tyler 2026-11-14: the training items, one a skill, 200%.)
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
-import { quoted } from './quoted-ask.js?v=0.2.140';
+import { afterRefusal, quoted } from './quoted-ask.js?v=0.2.140';
 import { PLACES } from './training-sections.js?v=0.2.140';
 
 const WORD = /^[a-z0-9_]{1,64}$/;
@@ -77,7 +77,7 @@ export function openGear(account, cs, item) {
   if (!usable(account, cs) || !WORD.test(String(item))) return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'training_gear_open' });
   return askVia(cs, 'training_gear_open', async () => {
     const ans = await account.server.rpc('hr_training_gear_open', { p_slot: cs.slot, p_item: item, p_idem: newIdem() });
-    if (!(ans && ans.ok && bodyOf(ans).ok === true)) return refused(ans, 'training_gear_open');
+    if (!(ans && ans.ok && bodyOf(ans).ok === true)) { await afterRefusal(cs, ans); return refused(ans, 'training_gear_open'); }
     if (typeof cs.load === 'function') await cs.load();
     return { ok: true, item };
   });
@@ -88,7 +88,7 @@ export function useGear(account, cs, skill, on) {
   if (!usable(account, cs) || !WORD.test(String(skill)) || typeof on !== 'boolean') return Promise.resolve({ ok: false, error: 'bad_intent', verb: 'training_gear_switch' });
   return askVia(cs, 'training_gear_switch', async () => {
     const ans = await account.server.rpc('hr_training_gear_switch', { p_slot: cs.slot, p_skill: skill, p_on: on, p_idem: newIdem() });
-    if (!(ans && ans.ok && bodyOf(ans).ok === true)) return refused(ans, 'training_gear_switch');
+    if (!(ans && ans.ok && bodyOf(ans).ok === true)) { await afterRefusal(cs, ans); return refused(ans, 'training_gear_switch'); }
     if (typeof cs.load === 'function') await cs.load();
     return { ok: true, skill, on };
   });

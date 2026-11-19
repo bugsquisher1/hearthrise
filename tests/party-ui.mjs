@@ -45,7 +45,7 @@
 //         when dismissed
 //   PI-2  THE ONE-WAY FLOW'S VERBS (src/session/party-intents.js, PARTY_SPEC 2026-10-19): Start
 //         names the picked hunt, Disband and an own invite by slot are each ONE rpc (slot, hunt,
-//         own slot only); a refusal re-reads nobody and `not_ready` names each seat in words;
+//         own slot only); a refusal re-reads the asking hero once and nobody else (A20) and `not_ready` names each seat in words;
 //         an ok re-reads every own character the verb touched; a malformed one sends nothing
 //   UI-3  the Hunts window is where a party starts: the leader's Enter reads "Enter with party"
 //         and is ONE hr_hunt_party_start naming the picked hunt, off until the server
@@ -495,11 +495,12 @@ async function pureRules(M, base) {
     const bad = [await M.PI.startPartyHunt(acc, c0, 'Bad Hunt!'), await M.PI.inviteOwn(acc, c0, 0), await M.PI.inviteOwn(acc, c0, 9), await M.PI.inviteOwn(acc, c0, 1.5),
       await M.PI.listParty(acc, c0, 'yes')];
     if (bad.some((r) => r.ok) || srv.calls.length) return 'a malformed party intent was sent: ' + JSON.stringify(srv.calls);
-    /* Start waits for everyone: the refusal names the seat, in words, and re-reads nobody. */
+    /* Start waits for everyone: the refusal names the seat, in words, and re-reads the asking hero ONCE, nobody else (A20). */
     srv.reply = { ok: false, error: 'not_ready', seats: [{ seat: 1, name: 'Mira', error: 'away' }] };
     const rec = c0.record;
     const r = await M.PI.startPartyHunt(acc, c0, 'millrace_sewer');
-    if (r.ok || r.error !== 'not_ready' || srv.calls.length !== 1 || c0.record !== rec) return 'a refused start answered ' + JSON.stringify(r) + ' after ' + JSON.stringify(srv.calls.map((c) => c[0]));
+    const reread = srv.calls.slice(1).map((c) => c[0] + ':' + c[1].p_slot).join();
+    if (r.ok || r.error !== 'not_ready' || reread !== 'hr_load:0' || c0.record.version < rec.version) return 'a refused start answered ' + JSON.stringify(r) + ' after ' + JSON.stringify(srv.calls.map((c) => c[0] + ':' + c[1].p_slot));
     const a = srv.calls[0][1];
     if (srv.calls[0][0] !== 'hr_hunt_party_start' || Object.keys(a).sort().join() !== 'p_hunt,p_idem,p_slot' || a.p_slot !== 0 || a.p_hunt !== 'millrace_sewer') return 'the start sent ' + JSON.stringify(srv.calls[0]);
     if (M.IW.refusalText(r) !== 'Nobody went in. Mira is away.') return 'the not-ready words are ' + JSON.stringify(M.IW.refusalText(r));
@@ -659,14 +660,14 @@ async function pureRules(M, base) {
     const dom2 = fakeDom();
     const v2 = panelShown(M, dom2, { character: cs2, account: acc2, doc: dom2.doc, glyphs: {} });
     if (dom2.el.querySelector('[data-hs-act="hold-one"]').getAttribute('aria-pressed') !== 'true' || v2.note !== EDDIE) return 'after a reload the pick reads ' + JSON.stringify(v2.note);
-    /* a refusal reads in words and changes nothing; then Fremulon by his seat */
+    /* a refusal reads in words, re-reads the leader ONCE (A20) and changes nothing; then Fremulon by his seat */
     const fremulon = () => dom.el.querySelector('.hp-hold-tanks').kids.find((b) => b.textContent === 'Fremulon');
     srv.calls.length = 0;
     srv.reply = { ok: false, error: 'not_a_tank' };
     await press('hold-seat', fremulon());
     v = panelShown(M, dom, ctx);
     if (dom.el.querySelector('.hp-msg').textContent !== 'Requires a sword and shield') return 'the refusal reads ' + JSON.stringify(dom.el.querySelector('.hp-msg').textContent);
-    if (srv.calls.some((c) => c[0] === 'hr_load') || tanksShown() !== 'Eddie*,Fremulon') return 'a refusal changed the switch: ' + tanksShown();
+    if (srv.calls.filter((c) => c[0] === 'hr_load').length !== 1 || tanksShown() !== 'Eddie*,Fremulon') return 'a refusal changed the switch (or re-read ' + srv.calls.filter((c) => c[0] === 'hr_load').length + ' times, want 1): ' + tanksShown();
     srv.calls.length = 0;
     srv.reply = { ok: true };
     await press('hold-seat', fremulon());

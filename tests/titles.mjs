@@ -87,7 +87,7 @@ export const MUTANTS = {
   reader_keeps_junk: { arm: 'TT-CLIENT', why: 'a title that is not plain words reaches the sheet', js: ['src/session/character-sections.js', [["typeof r.words !== 'string' || !TITLE_WORDS.test(r.words) || nat(r.price) === null", 'nat(r.price) === null']]] },
   words_no_numbers: { arm: 'TT-CLIENT', why: 'the refusal loses the server\'s count', js: ['src/shell/intent-words.js', [["' has ' + whole(r.figures.have) + '. Gold can\\'t skip kills.'", "'. Gold can\\'t skip kills.'"]]] },
   buy_own_price: { arm: 'TT-CLIENT', why: 'the press sends a price of its own', js: ['src/session/title-intents.js', [["p_title: title, p_price: price, p_idem: newIdem()", 'p_title: title, p_price: 1, p_idem: newIdem()']]] },
-  stale_not_reread: { arm: 'TT-CLIENT', why: 'a stale quote stays on the row', js: ['src/session/title-intents.js', [["if (r.error === 'quote_changed' && cs.status !== 'closed') await cs.load();", '']]] },
+  stale_not_reread: { arm: 'TT-CLIENT', why: 'a stale quote stays on the row', js: ['src/session/title-intents.js', [['  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)\n', '']]] },
   title_lost: { arm: 'TT-CLIENT', why: 'the refusal stops naming its title', js: ['src/session/title-intents.js', [["Object.assign(refusalOf(ans), { title: typeof b.title === 'string' && ID.test(b.title) ? b.title : null })", 'refusalOf(ans)']]] },
   own_label_dropped: { arm: 'TT-CLIENT', why: 'the hero\'s own town label loses the title', js: ['src/app/world-view.js', [["view.playerTitle = worn && typeof worn.words === 'string' && TITLE_WORDS.test(worn.words) ? worn.words : null;", 'view.playerTitle = null;']]] },
   inspect_keeps_junk: { arm: 'TT-CLIENT', why: 'markup reaches Inspect', js: ['src/social/inspect.js', [["title: typeof b.title === 'string' && TITLE_WORDS.test(b.title) ? b.title : null,", 'title: b.title,']]] },
@@ -500,7 +500,8 @@ const ARMS = {
     let loads = 0;
     const answers = [{ ok: true, body: { ok: true } }, { ok: true, body: { ok: false, error: 'quote_changed' } }, { ok: true, body: { ok: false, error: 'title_kills', title: id, need: 5, have: 1 } }, { ok: true, body: { ok: true } }];
     const account = { server: { rpc: async (name, body) => { calls.push({ name, body }); return answers.shift(); } } };
-    const session = { slot: 1, status: 'open', load: async () => { loads++; return true; } };
+    /* a refusal's re-read is the session's bounded resync (quoted-ask.js afterRefusal), counted with the loads */
+    const session = { slot: 1, status: 'open', load: async () => { loads++; return true; }, resync: async () => { loads++; return true; } };
     const a1 = await X.TI.buyTitle(account, session, id, d.price);
     if (!a1.ok || calls[0].name !== 'hr_title_buy' || calls[0].body.p_slot !== 1 || calls[0].body.p_title !== id || calls[0].body.p_price !== d.price || !calls[0].body.p_idem) out.push('the press sent ' + JSON.stringify(calls[0]));
     if (Object.keys(calls[0].body).sort().join() !== 'p_idem,p_price,p_slot,p_title') out.push('the press sends more than it should: ' + Object.keys(calls[0].body));
@@ -509,7 +510,8 @@ const ARMS = {
     if (a2.ok || a2.error !== 'quote_changed' || loads !== 2) out.push('a stale quote: ' + JSON.stringify(a2) + ', re-reads ' + loads);
     const a3 = await X.TI.buyTitle(account, session, id, d.price);
     if (a3.title !== id || !a3.figures || a3.figures.need !== 5 || a3.figures.have !== 1) out.push('a refusal lost its title or numbers: ' + JSON.stringify(a3));
-    if (loads !== 2) out.push('a kills refusal re-read');
+    /* every refusal the server answered re-reads once (A20): the kill count on the row is the server's again */
+    if (loads !== 3) out.push('a kills refusal re-read ' + (loads - 2) + ' times, want once');
     const a4 = await X.TI.wearTitle(account, session, null);
     if (!a4.ok || calls[3].name !== 'hr_title_wear' || calls[3].body.p_title !== null) out.push('Take off sent ' + JSON.stringify(calls[3]));
     const bad = await X.TI.buyTitle(account, session, 'Bad Id', 1);

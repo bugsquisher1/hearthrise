@@ -13,7 +13,8 @@
 //            walls), every frame lookup recorded. No second copy of the
 //            placement rules.
 //   actors   what walks or plays over it (actorIds): every hero outfit (yours
-//            and everyone else's); on a hunt map every monster its grounds and
+//            and everyone else's) but a worn set's (src/data/world/atlas-sets.js
+//            WORN_SETS: fetched when a hero in view wears one, src/world/worn-sets.js); on a hunt map every monster its grounds and
 //            hunts spawn, their gather nodes and every hunt effect; at home
 //            every piece of furniture, its signposts and the trophy mounts; in
 //            the Common the sandbox's entry sign and its townsfolk (town/folk.js).
@@ -26,16 +27,21 @@ import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
 import { HUNT_GROUNDS, HALL_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.141';
 import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.141';
 import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.141';
+import { wornSetOf } from '../data/world/atlas-sets.js?v=0.2.141';
 import { effectIds } from '../data/hunt-vfx.js?v=0.2.141';
 import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.141';
 import { SANDBOX } from '../data/world/sandbox.js?v=0.2.141';
 import { FOLK } from '../data/world/town/folk.js?v=0.2.141';
 import { furnish } from './home-scene.js?v=0.2.141';
 
+/* THE OUTFITS A SCENE LOADS WITH ITSELF: every one but a worn set's (the faction looks), which no scene fetches until a hero in view
+   wears one (src/world/worn-sets.js), so an account that never meets one downloads none of it. */
+const SCENE_OUTFITS = Object.freeze(Object.values(OUTFITS).filter((id) => !wornSetOf(id)));
+
 /* WHAT TO FETCH FIRST (phone, first visit: about 6 s for the town's six sheets): what nearly every first view draws, the hero's own
    sheet and the one most of the ground comes from, then small before big, so the heaviest is the last thing anything waits for. */
 function fetchOrder(sets, groundTiles, book) {
-  const heroes = new Set(Object.values(OUTFITS).map((id) => book.frame(id).set));
+  const heroes = new Set(SCENE_OUTFITS.map((id) => book.frame(id).set));
   let ground = null;
   for (const [s, n] of groundTiles) if (ground === null || n > groundTiles.get(ground)) ground = s;
   const rank = (s) => (heroes.has(s) ? 0 : s === ground ? 1 : 2);
@@ -56,7 +62,7 @@ function groundIds(row, ids) {
 
 /** Every sprite id a scene on map row `row` may draw that the map itself does not place. */
 function actorIds(row) {
-  const ids = new Set(Object.values(OUTFITS));
+  const ids = new Set(SCENE_OUTFITS);
   if (row.kind === 'hunt') {
     groundIds(row, ids);
     for (const id of effectIds()) ids.add(id);

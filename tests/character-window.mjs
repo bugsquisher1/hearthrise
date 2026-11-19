@@ -45,8 +45,8 @@
 //         the SECTION's own number ("Requires First Flame standing: 37 h", not the data's 25); owned, the card's add-on picker offers
 //         None and the owned add-on, greys the unowned one with its requirement, and Equip sends ONE hr_outfit_set naming the picked
 //         add-on's look; off again, the owned outfit stays and the locked ones go. THE SECOND HERO SET: the two worn faction looks are
-//         in `factionwear` (heroes is full): the Outfit tab's card and preview draw them, the portrait's recolour and the World's dye
-//         both reach their masks (factionwear-masks)
+//         in `factionwear` (heroes is full), a worn set fetched only for a sprite drawn from it: the Outfit tab's card and preview draw
+//         them, the portrait's recolour and the World's dye both reach their masks (factionwear-masks)
 //   CW-10 THE SHEET READS AS A CHARACTER SHEET (UI audit 2026-11-18 #8), at 1440x900
 //         and 922x423: the portrait is the 42x45 FIGURE at a whole 2x or more; every
 //         combat skill's bar is 40% of its entry or more and its unlock one line; no
@@ -643,9 +643,11 @@ async function checks(overrides, shots) {
             const S = await import('/src/render/outfit-sprite.js');
             const D = await import('/src/world/hero-dye.js');
             const A = await import('/src/world/atlas.js');
-            const [art, masks] = await Promise.all([S.outfitArt(document, ''), S.outfitMasks(document, '')]);
+            /* asked by the sprites drawn: a worn set (factionwear) comes only for a sprite of its own */
+            const ids = ['outfit_flamebearer', 'outfit_emberkeeper'];
+            const [art, masks] = await Promise.all([S.outfitArt(document, '', ids), S.outfitMasks(document, '', ids)]);
             const out = {};
-            for (const id of ['outfit_flamebearer', 'outfit_emberkeeper']) {
+            for (const id of ids) {
               const draw = (dyes) => { const c = document.createElement('canvas'); S.drawOutfit(c, art, id, { dir: 's', scale: 1, dyes, masks }); return c.getContext('2d').getImageData(0, 0, c.width, c.height).data; };
               const a = draw([]), b = draw(['#00ff00', '#00ff00', '#00ff00', '#00ff00']);
               let moved = 0;
@@ -737,7 +739,7 @@ const MUTANTS = [
   ['the requirement is a literal, not the server\'s number (CW-11)', 'src/shell/windows/character/outfit-looks.js', 'time: spanWords(p.needMs) })', 'time: spanWords(25 * 3600000) })'],
   ['a locked faction outfit shows with the factions off (CW-11)', 'src/shell/windows/character/outfit-looks.js', "    return !!r.pieces && requiresWords(f, r.pieces[0]) !== '';", '    return !!r.pieces;'],
   ['an add-on\'s look gets a card of its own (CW-11)', 'src/shell/windows/character/outfit-looks.js', '    if (outfitOfLook(id) !== id) return false;\n', ''],
-  ['the Character window loads only the first hero set (CW-11)', 'src/render/outfit-sprite.js', 'Promise.allSettled(HERO_SETS.map((set) =>', 'Promise.allSettled(HERO_SETS.slice(0, 1).map((set) =>'],
+  ['the Character window never loads a worn set (CW-11)', 'src/render/outfit-sprite.js', '  return Promise.allSettled(heroSetsFor(sprites).map((set) => {', '  return Promise.allSettled(heroSetsFor([]).map((set) => {'],
   ['the portrait finds only the first hero set\'s masks (CW-11)', 'src/render/outfit-sprite.js', "  const masks = dyes.some(Boolean) ? setsOf(opt.masks).find(", "  const masks = dyes.some(Boolean) ? setsOf(opt.masks).slice(0, 1).find("],
   ['the World dyes from the first mask set only (CW-11)', 'src/world/hero-dye.js', "(Array.isArray(m.sets) ? m.sets : [m]).find(", "(Array.isArray(m.sets) ? m.sets.slice(0, 1) : [m]).find("],
   ['Equip names the outfit, not the picked add-on (CW-11)', 'src/shell/windows/character/outfit.js', '    sc.draft = { outfit: id, colors: draftOf(cs, sc).colors };', '    sc.draft = { outfit: outfitOfLook(id), colors: draftOf(cs, sc).colors };'],

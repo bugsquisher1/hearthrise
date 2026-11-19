@@ -46,7 +46,8 @@
 //   A  art by scene (src/world/scene-sets.js): every shipped scene loads every
 //      sheet it draws from (the whole map, every hero, its monsters and effects,
 //      every room's furniture), and a walked scene loads nothing more: the
-//      Common never pulls a hunting ground's sheet
+//      Common never pulls a hunting ground's sheet; A3 no scene loads a worn set
+//      (atlas-sets.js WORN_SETS, the faction looks: they come with the hero who wears one)
 //
 // --selftest copies the module closure (and the manifests) to a temp dir,
 // plants one defect per rule family into the copy (never the tree), and
@@ -808,7 +809,9 @@ async function check(M) {
 
   fam('A', () => {
     const setOf = (id) => book.frame(id).set;
-    const heroes = Object.values(M.outfits.OUTFITS);
+    /* every hero outfit but a worn set's (the faction looks): those come with the hero who wears one (src/world/worn-sets.js), A3 */
+    const worn = new Set(Object.keys(M.atlasSets.WORN_SETS));
+    const heroes = Object.values(M.outfits.OUTFITS).filter((id) => !M.atlasSets.wornSetOf(id));
     const drawn = (id) => {
       const row = rows[id], m = compiled(id), at = row.start || [1, 1];
       const units = heroes.slice();
@@ -848,7 +851,13 @@ async function check(M) {
         const extra = [...loads].filter((s) => !draws.has(s));
         ok('A2', !extra.length, row.id + ' loads ' + extra.join(', ') + ' that nothing in it draws');
       }
+      const early = [...loads].filter((s) => worn.has(s));
+      ok('A3', !early.length, row.id + ' loads the worn set ' + early.join(', ') + ' with the scene: every player would fetch the faction looks');
     }
+    /* non-vacuity: a worn set exists, it is a hero set, and every sprite it lists is a worn outfit the book draws from it (else A3 proves nothing) */
+    const wornIds = Object.entries(M.atlasSets.WORN_SETS).flatMap(([set, ids]) => ids.map((id) => [set, id]));
+    ok('A3', wornIds.length > 0 && wornIds.every(([set, id]) => M.atlasSets.HERO_SETS.includes(set) && Object.values(M.outfits.OUTFITS).includes(id) && setOf(id) === set),
+      'the worn sets ' + JSON.stringify(M.atlasSets.WORN_SETS) + ' are not hero sets whose outfits the book draws from them');
     /* non-vacuity: the Common leaves out a sheet the hunting grounds need (else A2 proves nothing about boot) */
     const town = new Set(M.sceneSets.sceneSets(compiled('town_common'), rows.town_common, book, tables));
     const ground = new Set(base.filter((r) => r.kind === 'hunt').flatMap((r) => M.sceneSets.sceneSets(compiled(r.id), r, book, tables)));
@@ -1076,7 +1085,8 @@ const MUTANTS = [
   ['G5', 'the Tower fought on the Sewer\'s grid under the flue\'s art again', 'src/data/hunt-grounds.js', [["map: 'burning_tower', tower: true", "map: 'millrace_sewer', tower: true"]]],
   ['G5', 'a Tower seat in the flue\'s brick', 'src/data/hunt-grounds.js', [['start: Object.freeze([[30, 21], [29, 21]', 'start: Object.freeze([[30, 21], [22, 21]']]],
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
-  ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(Object.values(OUTFITS));', '  const ids = new Set();']]],
+  ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(SCENE_OUTFITS);', '  const ids = new Set();']]],
+  ['A3', 'every scene loads the faction looks again', 'src/world/scene-sets.js', [['  const ids = new Set(SCENE_OUTFITS);', '  const ids = new Set(Object.values(OUTFITS));']]],
   ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],
   ['A1', 'the scene sheets forget the home\'s furniture', 'src/world/scene-sets.js', [['  const layout = ROOM_LAYOUTS[row.id];', '  const layout = null;']]],  ['A2', 'every scene loads every sheet', 'src/world/scene-sets.js', [['  return fetchOrder(sets, groundTiles, book);', '  for (const id of Object.keys(book.sprites)) note(book.frame(id).set);\n  return fetchOrder(sets, groundTiles, book);']]],
   ['G4', 'the bleed badge floors at 11 px again', 'src/world/render/canvas-backend.js', [['const px = Math.max(Math.round(4.5 * zs), Math.round(12 * dpr));', 'const px = Math.max(Math.round(4.5 * zs), Math.round(11 * dpr));']]],

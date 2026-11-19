@@ -12,7 +12,8 @@
 //   memory   a sheet holds an outfit's frames and nothing else: 56 x 64 x 64 x 4 bytes = 0.92 MB, 21 MB at the cap. Each outfit in use keeps its source pixels once more
 //            (0.92 MB, at most 7: 6.4 MB), so a bake copies them rather than reading a canvas back. The masks' image is 6.9 MB decoded.
 //   time     at most ONE bake per frame (pump): about 1.2 ms, at worst 2.3 ms, on a desktop core. A look not ready draws undyed for that frame, never a stub and never a wait.
-//   first load  nothing: the masks load on the first dyed hero in view (no mask set is in ATLAS_SETS), and only then.
+//   first load  nothing: the masks load on the first dyed hero in view (no mask set is in ATLAS_SETS), and only then; a worn set's masks
+//            (`factionwear-masks`) only on the first dyed hero in view wearing one of its looks (atlas-sets.js maskSetsFor).
 // THE CAP IS AN LRU THAT NEVER FIGHTS THE SCREEN: only a look not drawn for STALE_MS may be evicted. With DYE_LOOKS on screen a 25th look
 // draws undyed rather than evict one someone is looking at (evicting per frame would re-bake forever). The hero you play is the one exception: yours
 // takes the slot of the least recently drawn other look, because you just paid for it.
@@ -21,7 +22,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { BASE_REGIONS, MASK_COLOURS } from '../data/outfits.js?v=0.2.141';
 import { loadAtlasSet } from './atlas.js?v=0.2.141';
-import { MASK_SETS } from '../data/world/atlas-sets.js?v=0.2.141';
+import { maskSetsFor } from '../data/world/atlas-sets.js?v=0.2.141';
 
 /** How many dyed looks stay in memory: past this, heroes draw undyed. */
 export const DYE_LOOKS = 24;
@@ -84,23 +85,27 @@ export function recolourPixels(px, mask, dyes) {
   return px;
 }
 
-/** Every mask set, loaded once per page on first need: Promise<{ sets: [{ manifest, image }] }>, the sets that loaded (a hero whose
-    mask set failed draws undyed); rejects when none loads. */
-let MASKS = null;
-export function loadMasks(doc, version) {
-  if (!MASKS) {
-    MASKS = Promise.allSettled(Object.keys(MASK_SETS).map((set) => loadAtlasSet({ doc, version }, set))).then((all) => {
-      /* each result narrowed by its status: the sets that came, and why the others did not */
-      const sets = [], why = [];
-      for (const r of all) { if (r.status === 'fulfilled') sets.push(r.value); else why.push(r.reason); }
+/* every mask set asked for on this page: mask set -> Promise<{ manifest, image }> */
+const MASK_LOADS = new Map();
+/** The mask sets dyeing `sprites` takes (src/data/world/atlas-sets.js maskSetsFor: the hero sets every first open has, and a worn set's
+    only for a sprite drawn from it), each loaded once per page on first need: Promise<{ sets: [{ manifest, image }] }>, the sets that
+    loaded (a hero whose mask set failed draws undyed); rejects when none loads. */
+export function loadMasks(doc, version, sprites) {
+  return Promise.allSettled(maskSetsFor(sprites).map((set) => {
+    if (!MASK_LOADS.has(set)) {
+      const p = loadAtlasSet({ doc, version }, set);
+      MASK_LOADS.set(set, p);
       /* a set that failed is asked for again next time; the sets that came draw now */
-      if (why.length) MASKS = null;
-      if (!sets.length) throw why[0] || new Error('no mask set loaded');
-      return { sets };
-    });
-    MASKS.catch(() => { MASKS = null; });
-  }
-  return MASKS;
+      p.catch(() => { if (MASK_LOADS.get(set) === p) MASK_LOADS.delete(set); });
+    }
+    return MASK_LOADS.get(set);
+  })).then((all) => {
+    /* each result narrowed by its status: the sets that came, and why the others did not */
+    const sets = [], why = [];
+    for (const r of all) { if (r.status === 'fulfilled') sets.push(r.value); else why.push(r.reason); }
+    if (!sets.length) throw why[0] || new Error('no mask set loaded');
+    return { sets };
+  });
 }
 /* The mask set carrying `<id>_mask` in a masks answer ({ sets }, or one atlas), or null. */
 const maskSetOf = (m, id) => (!m ? null : (Array.isArray(m.sets) ? m.sets : [m]).find((a) => a && a.manifest && a.manifest.sprites[id + '_mask']) || null);
@@ -118,15 +123,19 @@ export function heroDyeOf(o) {
 
 /**
  * @param {{doc: Document, version: string, css?: (token: string) => string, now?: () => number,
- *          masks?: () => Promise<{manifest: object, image: object}>, cap?: number}} o   css, now, masks, cap: a test's own
+ *          masks?: (sprites: string[]) => Promise<object>, cap?: number}} o   css, now, masks, cap: a test's own
+ *   masks: the mask sets dyeing `sprites` (loadMasks): { sets: [{manifest, image}] } or one atlas
  */
 export function createHeroDye(o) {
   const now = o.now || (() => o.doc.defaultView.performance.now());
   const cap = o.cap || DYE_LOOKS;
-  const getMasks = o.masks || (() => loadMasks(o.doc, o.version));
+  const getMasks = o.masks || ((sprites) => loadMasks(o.doc, o.version, sprites));
   const css = o.css || ((t) => o.doc.defaultView.getComputedStyle(o.doc.documentElement).getPropertyValue(t));
   const hexes = new Map();
-  let masks = null, asked = false, failed = false;
+  /* THE MASKS, BY NEED: every mask atlas that has landed, and each mask set's state once asked for (false: on its way, true: settled,
+     landed or failed). A sprite is dyed once every mask set it takes has settled (maskSetsFor: a worn set's only for its own looks). */
+  const masks = { sets: [] }, asked = new Map();
+  let warned = false;
   /* sprite id -> its source (below), or null when the art has no mask (the druid draws undyed, and costs nothing) */
   const sources = new Map();
   /* every baked look: `<sprite>|<look key>` -> { canvas, at, own, id, key } */
@@ -142,6 +151,22 @@ export function createHeroDye(o) {
     return hexes.get(i);
   };
   const out = { img: null, sx: 0, sy: 0 };
+
+  /* Have the mask sets dyeing sprite `id` all settled? Each one not asked for yet is asked for now, once: until then the hero draws as
+     its art is (a failed set settles too, and its heroes stay undyed). */
+  function masksIn(id) {
+    const need = maskSetsFor([id]);
+    const ask = need.filter((s) => !asked.has(s));
+    if (ask.length) {
+      for (const s of ask) asked.set(s, false);
+      getMasks([id]).then((m) => {
+        for (const a of (m && Array.isArray(m.sets) ? m.sets : [m])) if (a && !masks.sets.includes(a)) masks.sets.push(a);
+      }, (e) => {
+        if (!warned) { warned = true; console.warn('[world] the color masks did not load; heroes draw undyed', e && e.message); }
+      }).then(() => { for (const s of ask) asked.set(s, true); });
+    }
+    return need.every((s) => asked.get(s) === true);
+  }
 
   /* AN OUTFIT'S SOURCE, once: its frames laid out in a compact sheet, their pixels and every masked pixel's offset and region. */
   function sourceOf(id, row, image) {
@@ -260,14 +285,7 @@ export function createHeroDye(o) {
   return {
     /** This frame will draw sprite `id` in colors `key` (`row`: its manifest row; `image`: its atlas; `own`: the hero you play). */
     want(id, key, own, row, image) {
-      if (failed || !key) return;
-      if (!masks) {
-        if (!asked) {
-          asked = true;
-          getMasks().then((m) => { masks = m; }, (e) => { failed = true; console.warn('[world] the color masks did not load; heroes draw undyed', e && e.message); });
-        }
-        return;
-      }
+      if (!key || !masksIn(id)) return;
       if (!row || !image || !row.frame || !row.anims) return;
       const s = sourceOf(id, row, image);
       if (!s) return;

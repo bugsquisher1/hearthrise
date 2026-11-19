@@ -30,7 +30,9 @@ export async function drawRosterFaces(root, roster) {
   const version = new URL(import.meta.url).searchParams.get('v') || '';
   const manifest = await loadAtlasManifest({ doc, version }, 'heroes').catch(() => null);
   if (!manifest || !root.isConnected) return;
-  const art = await outfitArt(doc, version).catch(() => null);
+  /* the hero sets these looks take: a worn set's (the faction looks) only when a hero on the list wears one */
+  const sprites = [...looks.values()].map((l) => l.sprite);
+  const art = await outfitArt(doc, version, sprites).catch(() => null);
   if (!art || !root.isConnected) return;
   const paint = (masks) => {
     for (const c of canvases) {
@@ -41,6 +43,6 @@ export async function drawRosterFaces(root, roster) {
   };
   paint(null);
   if (![...looks.values()].some((l) => l.base)) return;
-  const masks = await outfitMasks(doc, version).catch(() => null);
+  const masks = await outfitMasks(doc, version, sprites).catch(() => null);
   if (masks && root.isConnected) paint(masks);
 }

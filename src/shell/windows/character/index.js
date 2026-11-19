@@ -26,6 +26,7 @@ import { heroSprite } from '../../../session/hero-look.js?v=0.2.141';
 import { attr, cls, prop } from '../../../render/paint.js?v=0.2.141';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
 import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.141';
+import { heroSetsFor } from '../../../data/world/atlas-sets.js?v=0.2.141';
 import { scratchOf } from './state.js?v=0.2.141';
 import { sheetHtml, patchSheet } from './sheet.js?v=0.2.141';
 import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.141';
@@ -37,15 +38,27 @@ const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titl
 /* The portrait and the wardrobe draw the FIGURE at art size; character.css sets them 2 whole device px an art px (--art-px). */
 const PORTRAIT_SCALE = 1;
 
-/* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in), and the color masks (null: the outfit draws as it is). */
-let ART = null, MASKS = null, masksAsked = false;
-function wantArt(doc) {
-  if ((ART && masksAsked) || !doc || !doc.baseURI) return;
+/* The hero art and the color masks for every sprite this page's window has drawn (null until they land; the canvases stay blank, never
+   a stand-in; MASKS null: the outfit draws as it is). A worn set's art (the faction looks) is asked for only once a canvas draws one of
+   its sprites (src/data/world/atlas-sets.js heroSetsFor), so a hero who never sees a faction look fetches none of it. `gen` moves when
+   either lands, so every canvas drawn before is drawn again with it. */
+let ART = null, MASKS = null, gen = 0;
+const wanted = new Set();
+let artKey = null, maskKey = null;
+function wantArt(doc, sprites) {
+  if (!doc || !doc.baseURI) return;
+  let more = artKey === null;
+  for (const s of sprites || []) if (!wanted.has(s)) { wanted.add(s); more = true; }
+  if (!more) return;
   /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
   const v = new URL(import.meta.url).searchParams.get('v') || '';
-  if (!ART) outfitArt(doc, v).then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
-  /* asked once a page: a failed fetch draws the outfit as it is and keeps the picker off, it doesn't ask again on every patch */
-  if (!masksAsked) { masksAsked = true; outfitMasks(doc, v).then((m) => { MASKS = m; }).catch(() => {}); }
+  const list = [...wanted], key = heroSetsFor(list).join();
+  if (key !== artKey) {
+    artKey = key;
+    outfitArt(doc, v, list).then((a) => { if (artKey === key) { ART = a; gen++; } }).catch(() => { if (artKey === key) artKey = null; });
+  }
+  /* asked once per set of sets: a failed fetch draws the outfit as it is and keeps the picker off, it doesn't ask again on every patch */
+  if (key !== maskKey) { maskKey = key; outfitMasks(doc, v, list).then((m) => { if (maskKey === key) { MASKS = m; gen++; } }).catch(() => {}); }
 }
 
 /** The skeleton (built once per opening). */
@@ -74,10 +87,12 @@ function askSheet(cs, sc) {
   Promise.resolve(cs.edgeIntent('sheet', {})).catch(() => null).then(() => { sc.sheetAsking = false; sc.opening = 'done'; });
 }
 
-/* Draw `sprite` into a canvas once per (sprite, facing, dyes): the canvas keeps its signature. */
+/* Draw `sprite` into a canvas once per (sprite, facing, dyes, art landed): the canvas keeps its signature. */
 function paintCanvas(canvas, sprite, dir, scale, dyes, crop) {
-  if (!ART || !canvas) return;
-  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + !!MASKS + '|' + !!crop;
+  if (!canvas) return;
+  wantArt(canvas.ownerDocument, [sprite]);
+  if (!ART) return;
+  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + gen + '|' + !!crop;
   if (canvas.getAttribute('data-sig') === sig) return;
   if (drawOutfit(canvas, ART, sprite, { dir, scale, dyes, masks: MASKS, crop })) attr(canvas, 'data-sig', sig);
 }

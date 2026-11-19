@@ -11,7 +11,10 @@
 // A new set is one row here; nothing else changes.
 // ════════════════════════════════════════════════════════════════════════
 
-export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth']);
+export const ATLAS_SETS = Object.freeze(['hunt', 'vfx', 'sewer', 'mill', 'common', 'cottage', 'forest', 'warren', 'glade', 'havora', 'stead', 'heroes', 'yard', 'march', 'ford', 'muster', 'slake', 'pyre', 'pyrefolk', 'hold', 'holdguard', 'holdkeep', 'tower', 'vaultdead', 'vaultliving', 'vault', 'forest-floor', 'glade-floor', 'slake-floor', 'muster-floor', 'stead-floor', 'havora-floor', 'townlife', 'townsfolk', 'hearth', 'factionwear']);
+/* `factionwear` (lane/b-farm-house-faction-art 2026-11-18): the faction outfits worn (outfit_flamebearer, outfit_emberkeeper), a hero set of
+   their own because `heroes` is full (nine outfits fill 2048x1756 of ATLAS_MAX 2048x2048). Drawn by nobody until hunt-outfits.js OUTFITS
+   names them, and src/world/scene-sets.js then finds the set from the sprite ids, as for every hero. */
 
 /* THE SETS OF ANOTHER ART GRID (src/data/world/art-budget.js GRIDS), by grid. They are not loaded
    on the pane's first open: the first scene drawn on that grid loads them into a book of their own

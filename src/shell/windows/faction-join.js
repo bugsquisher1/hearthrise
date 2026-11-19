@@ -17,9 +17,8 @@ import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.140'
 import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.140';
 import { runIntent } from '../intent-words.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
-import { glyphSvg } from '../widgets/bits.js?v=0.2.140';
+import { factionIconHtml } from '../widgets/bits.js?v=0.2.140';
 import { sideName, sideMotto, faceOf, said, waitWords, spanWords } from '../faction-words.js?v=0.2.140';
-import { MARK_GLYPH } from './character/faction.js?v=0.2.140';
 
 /** The dismissal id in the residue's alerts.seen. */
 const JOIN_SEEN = 'faction:join';
@@ -66,7 +65,7 @@ renderFactionJoin.patch = function patchFactionJoin(body, ctx) {
   rows(root.querySelector('.hfx-sides'), f ? f.sides : [], {
     key: (s) => s,
     build: (s) => element(ctx.doc, '<li class="hfx-side is-' + esc(s) + '">'
-      + '<div class="hfx-head"><span class="hw-fx-mark is-' + esc(s) + '" aria-hidden="true">' + glyphSvg(ctx.glyphs, MARK_GLYPH[s] || 'uiFlame', 'hs-glyph hw-fx-glyph') + '</span>'
+      + '<div class="hfx-head"><span class="hw-fx-mark" aria-hidden="true">' + factionIconHtml(ctx.glyphs, s) + '</span>'
       + '<span><b class="hfx-name"></b><small class="hfx-motto"></small></span></div>'
       + '<blockquote class="hw-fx-said is-on"><p></p><cite></cite></blockquote>'
       + '<button type="button" class="hh-tool" data-hs-act="fx-join" data-side="' + esc(s) + '"></button></li>'),

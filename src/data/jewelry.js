@@ -47,8 +47,15 @@ export const JEWEL_PERKS = Object.freeze({
      about 1% XP or 2% less damage, about three times that in the case it is built for). Measured 2026-11-18 at the Glade, Level 24, lone,
      3 seeds x 3 h, over plain Fang Studs (tools/balance-sim/itemization-table.mjs sample / built-for): Steady 15% gave +0.3 to +1.7% XP
      by way (20% gave up to +2.4%); Focus 2% gave a mage +3.2% and 6% less damage taken (its case: the mana basic) and a healer +0.4%,
-     where 4% gave the mage +16% and 1% nothing, since a kill returns whole mana. T3 is half again, as Keen's is. */
-  steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 150, 3: 225 }), what: '{pct} of your basic blows that would miss land anyway' }),
+     where 4% gave the mage +16% and 1% nothing, since a kill returns whole mana. T3 is half again, as Keen's is.
+     STEADY RE-SIZED 15% -> 20% (lane/d-jewelry-2b, 2026-11-18: "weak in its intended case"). Measured on the real settle, Fang Studs (Steady)
+     against plain Fang Studs, paired dice, 8 ways x the Glade (24) and the Sewer (18), 3 seeds x 3 h: XP gain, all ways / melee, at the
+     Level and with the main skill 10 under: 15% 1.0 / 1.8 and 1.7 / 2.2; 20% 1.3 / 2.1 and 2.2 / 2.9; 25% 1.9 / 2.8 and 2.7 / 3.7; 30%
+     2.1 / 3.2 and 3.2 / 4.4. The case it is built for is a melee hero under its Level (bows and casters barely miss: 0.2-0.5% at the Level
+     at 15-20%), and 20% puts that case at about 3% while the all-ways hunt stays near the peers' 1% (Keen 1.0, Follow-through 1.1, Surge
+     0.9, Focus 0.3 all ways / a Glade mage 3.1, same harness). No size reaches the plan's 3x over the ordinary hunt: the gain under the
+     Level is 1.4 to 1.7 times the gain at it at every size measured (15 to 70%), because a miss only rises a point a skill level. */
+  steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 200, 3: 300 }), what: '{pct} of your basic blows that would miss land anyway' }),
   focus: Object.freeze({ name: 'Focus', pm: Object.freeze({ 2: 20, 3: 30 }), what: '{pct} of your max mana back on each kill' }),
 });
 
@@ -91,8 +98,38 @@ export const JEWEL_SHOP_SLOTS = Object.freeze(['ring', 'necklace', 'earrings']);
 export const ROLL_ODDS = Object.freeze({
   base: Object.freeze({ at: Object.freeze([15, 30, 60, 99]), fine: Object.freeze([500, 650, 950, 1200]), hallmarked: Object.freeze([0, 4, 7, 10]) }),
   gem: Object.freeze({ at: Object.freeze([15, 30, 60, 99]), hallmarked: Object.freeze([1000, 1300, 1900, 2500]) }),
+  /* A MINIMUM QUALITY (the board's "Master's Seal", PRIORITY_BOARD 2026-11-15 (d)): always Hallmarked, at every level. Its perks still roll. */
+  seal: Object.freeze({ at: Object.freeze([15, 30, 60, 99]), hallmarked: Object.freeze([10000, 10000, 10000, 10000]) }),
 });
 export const ODDS_SCALE = 10000;
+
+/* ── THE GUARANTEE LAYER (Tyler 2026-11-14: "with some items that can guarantee some things"; the designer's board section
+   "2026-11-15 Special-attribute gear" (d), "Boss gems: the guarantee layer on crafted jewelry"). A boss drop set in a plain piece IN
+   PLACE of its tier's gem fixes ONE thing about the roll and leaves the rest to the same shown odds:
+     perk    the piece ALWAYS carries that perk; the grade rolls at the gem roll's odds and, on a Hallmarked roll, the second perk
+             rolls from the others the piece can carry.
+     grade   the roll is ALWAYS Hallmarked (a minimum quality); its perks roll, or only the second when a perk gem is set with it.
+   Both are found, never bought, and neither moves a price: no gold on the roll. Each row names the pieces it sets in; its jobs sit on
+   each piece's own bench (JEWEL_PIECES `skill`: the Banded Signet is Smithing). A piece whose slot has no played perk ships plain and
+   takes no guarantee, and a perk gem names a perk its piece can roll (a named piece, a perk its slot lacks, is a later phase's): the
+   module throws on either. The sample is the Rat King's: his Crown Shard (Rare) fixes Follow-through, and his Crown (his Trophy, the
+   board's "Master's Seal" role) fixes Hallmarked. The Crown Shard KEEPS both its uses (designer 2026-11-18): the itemization plan's cut
+   into its tier's gem (§4 "Old Rare prizes", built with the gem chips) and this guarantee, which takes the shard IN PLACE of that gem with
+   the gem job's own time, XP and level, so it costs exactly what cutting it would make (tests/jewelry-rolls.mjs J10). Its card names the
+   guarantee as a label where the switch is on (src/shell/item-lore.js usesOf, J17). ── */
+/** @typedef {{ perk?: string, grade?: string, words: string, pieces: readonly string[] }} JewelGuarantee */
+/** @type {Readonly<Record<string, JewelGuarantee>>} */
+export const JEWEL_GUARANTEES = Object.freeze({
+  /* `words` is how a job's name says the item: its article and its catalogue name (tests/jewelry-rolls.mjs J14 holds the name). */
+  crown_shard: Object.freeze({ perk: 'follow', words: 'a Crown Shard', pieces: Object.freeze(['banded_signet']) }),
+  rat_kings_crown: Object.freeze({ grade: 'hallmarked', words: 'the Rat King\'s Crown', pieces: Object.freeze(['banded_signet']) }),
+});
+
+/** THE SWITCH the guarantee jobs sit behind until they are played (hr_feature_switches, 2027-03-21-feature-switches.sql: off, accounts,
+    testers, everyone). A job row naming it is in no catalogue a client reads without asking the server (src/data/recipes.js
+    ARTISAN_RECIPES leaves it out), hr-accrue's set_activity refuses it for an account the switch is off for, and the server's
+    `jewel_jobs` section leaves it out there, so the bench never shows it. */
+export const JEWEL_SWITCH = 'jewel_guarantees';
 
 /** The most Hallmark steps one ACCOUNT takes in a UTC day: a blast-radius bound on a money surface, not a pace (a gem is
     about 11 hours of hunting). hr_hallmark reads its generated copy. */
@@ -212,9 +249,50 @@ function jobsOfPiece(plain, p) {
   ];
 }
 
-/** Each bench's crafted-piece jobs, by skill: { smithing: [...], crafting: [...] }. */
+/* THE GUARANTEE JOBS of one piece (JEWEL_GUARANTEES), on the piece's own bench: each perk gem alone, each grade item alone, and each
+   perk gem with each grade item, set in the plain piece IN PLACE of its tier's gem. Behind JEWEL_SWITCH. Its XP, time and level are
+   the piece's gem job's, and its name says the piece as the gem job does ("in a Banded Signet", "in Fang Studs"). PROVISIONAL. */
+function guaranteeJobs(plain, p) {
+  const mine = Object.entries(JEWEL_GUARANTEES).filter(([, g]) => g.pieces.includes(plain));
+  if (!mine.length) return [];
+  const rolls = perksFor(plain);
+  const bad = (why) => { throw new Error('jewelry.js: ' + mine.map(([id]) => id).join(', ') + ' on ' + plain + ': ' + why); };
+  /* a guarantee needs a piece that rolls two perks (a Hallmarked outcome draws a second), and its gem job to set in place of */
+  if (rolls.length < 2 || !p.gem) bad('the piece ships plain or rolls fewer than two perks, so nothing is left to guarantee');
+  for (const [, g] of mine) {
+    if (!!g.perk === !!g.grade || (g.grade && g.grade !== 'hallmarked')) bad('a guarantee fixes one perk or the Hallmarked grade, never both or another');
+    if (g.perk && !rolls.includes(g.perk)) bad(g.perk + ' is not a perk the piece rolls (a named piece is a later phase\'s)');
+  }
+  const into = p.gem.name.slice(p.gem.name.lastIndexOf(' in ') + 4);
+  const perkGems = mine.filter(([, g]) => g.perk), seals = mine.filter(([, g]) => g.grade);
+  const sets = perkGems.map((x) => [x]).concat(seals.map((x) => [x]), perkGems.flatMap((x) => seals.map((y) => [x, y])));
+  return sets.map((set) => {
+    const withPerk = set.find(([, g]) => g.perk);
+    const perk = withPerk ? withPerk[1].perk : null;
+    const seal = set.some(([, g]) => g.grade);
+    const rest = rolls.filter((k) => k !== perk);
+    const outcomes = (seal ? [] : [jewelId(plain, [perk])])
+      .concat(perk ? rest.map((k) => jewelId(plain, [perk, k])) : pairsOf(rest).map((pair) => jewelId(plain, pair)));
+    return Object.freeze({
+      id: 'set_' + set.map(([id]) => id).join('_') + '_' + plain,
+      name: 'Set ' + set.map(([, g]) => g.words).join(' and ') + ' in ' + into,
+      icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms,
+      inputs: Object.freeze(Object.assign({ [plain]: 1 }, ...set.map(([id]) => ({ [id]: 1 })))),
+      output: plain, roll: seal ? 'seal' : 'gem', ...(perk ? { perk } : {}), switch: JEWEL_SWITCH,
+      outcomes: Object.freeze(outcomes),
+    });
+  });
+}
+
+/** Each bench's crafted-piece jobs, by skill: { smithing: [...], crafting: [...] }, the guarantee jobs (a row with `switch`) included:
+    src/data/recipes.js keeps those out of ARTISAN_RECIPES and joins them only in ARTISAN_RECIPES_EVERY. */
 export const JEWELRY_RECIPES_BY_SKILL = Object.freeze(Object.fromEntries(JEWEL_SKILLS.map((skill) => [skill,
-  Object.freeze(Object.entries(JEWEL_PIECES).filter(([, p]) => p.skill === skill).flatMap(([plain, p]) => jobsOfPiece(plain, p)))])));
+  Object.freeze(Object.entries(JEWEL_PIECES).filter(([, p]) => p.skill === skill).flatMap(([plain, p]) => jobsOfPiece(plain, p).concat(guaranteeJobs(plain, p))))])));
+
+/** The perks a job's roll may still draw (its guarantee left out), in the order the bench names them. */
+export function jobRolls(r) {
+  return r && r.roll ? perksFor(r.output).filter((k) => k !== r.perk) : [];
+}
 
 /** Every id a recipe row can make: its rolled outcomes, else its one output. */
 export function recipeOutcomes(r) {
@@ -238,7 +316,8 @@ export function rollOdds(kind, level) {
     return ys[ys.length - 1];
   };
   const hallmarked = at('hallmarked');
-  const fine = kind === 'gem' ? ODDS_SCALE - hallmarked : at('fine');
+  /* a kind with no Fine column (a gem roll, a minimum quality) is never plain: what isn't Hallmarked is Fine */
+  const fine = !t.fine ? ODDS_SCALE - hallmarked : at('fine');
   return { fine, hallmarked, plain: ODDS_SCALE - fine - hallmarked };
 }
 

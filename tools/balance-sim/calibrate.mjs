@@ -40,7 +40,8 @@ export const METRICS = Object.freeze([
 
 /* ── BUILD (local only) ─────────────────────────────────────────────────────────────────────────────────────────────── */
 async function build(exportPath, heroesPath, outPath, instPath, since) {
-  /* the tier: the session row's, else (a continued hunt's row carries none) the instance's when it still stands on the same ground, else Normal */
+  /* the tier: the session row's, else the instance's when it still stands on the same ground, else Normal. The row is null only on an OPEN session read
+     before 2027-05-24-session-tier-open.sql applied (the end stamp alone, 2027-03-16) or one that ended before 2026-11-06; no row has ever been continued. */
   const INST = Object.fromEntries((instPath ? JSON.parse(readFileSync(instPath, 'utf8')) : []).map((r) => [r.id, r]));
   const tierOf = (r) => r.tier || ((INST[r.instance_id] || {}).hunt_id === r.hunt_id && INST[r.instance_id].tier) || 'normal';
   const d = JSON.parse(readFileSync(exportPath, 'utf8')), H = JSON.parse(readFileSync(heroesPath, 'utf8'));

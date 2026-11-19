@@ -95,6 +95,25 @@ function keepPickClear(root, st) {
   if (over > 0) col.scrollTop += over + 4;
 }
 
+/* THE PICKED SLOT'S LIST COMES INTO VIEW (v0.2.141 gate, 922x423: a press on the doll's weapon opened its list 65 px under the phone sheet's
+   fold, with nothing on screen to say it had opened): when the picked slot changes, the box that scrolls it brings the line's head up to its top,
+   once, and only when the head and a row of the list are not already in view; the player's own scrolling is never fought. */
+const SLOT_LINE_SHOWN_PX = 80;   // the slot line's head and its first row: in view, the list reads as opened
+function showSlotLine(root, st) {
+  const slot = st.sc.slot || '';
+  if (st.sc.slotShown === slot) return;
+  st.sc.slotShown = slot;
+  const line = slot ? root.querySelector('.hw-slotline') : null;
+  if (!line || !line.getClientRects().length) return;
+  const view = root.ownerDocument.defaultView;
+  const col = [root.querySelector('.hw-inv-side'), root, root.closest('[data-hs-body]')]
+    .find((e) => e && e.clientHeight && e.scrollHeight > e.clientHeight + 1 && view.getComputedStyle(e).overflowY !== 'visible');
+  if (!col) return;
+  const box = col.getBoundingClientRect(), top = line.getBoundingClientRect().top;
+  if (top >= box.top - 1 && top + SLOT_LINE_SHOWN_PX <= box.bottom) return;
+  col.scrollTop += top - box.top - 4;
+}
+
 /* The doll's wells fit its column on each patch, and at once when the window's box, its columns' box or the World changes (the cap the
    shell puts on a docked window lands after the first patch; a coach card squeezes a capped window's columns, not its frame): one frame
    later, so the shell's own observer of the frame is never re-run. */
@@ -169,6 +188,7 @@ renderInventory.patch = function patchInventory(body, ctx) {
   cls(root, 'is-pending', st.sc.pending);
   fitNow(root);
   keepPickClear(root, st);
+  showSlotLine(root, st);
   if (!st.sc.menu) closeFloatMenu(ctx.doc, st.sc.menuOwner || null);   // its own menu only: a world or chat menu stays open
 };
 

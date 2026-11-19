@@ -3147,6 +3147,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (await page.evaluate(() => !!document.querySelector('[data-hs-act="refill"]'))) fails.push('AW-7 Hunt prep still offers a refill');
         const line = await page.evaluate(() => document.querySelector('.hw-ready-line b').textContent);
         if (line !== AW8_LINE) fails.push('AW-8 the readiness line reads "' + line + '"');
+        /* THE CHECKLIST OPENS UNDER THE FOOT, NOT BEHIND IT (v0.2.141 gate: "Ready to hunt" sat 12 px under the foot, whose negative margin is for a
+           foot that is last); closed again so the rest reads the window as it was */
+        await page.click('[data-hs-win="hunt-prep"] [data-hs-act="ready"]');
+        await page.waitForTimeout(250);
+        const under = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-prep"]'), h = w.querySelector('.hpb-ready-head.is-on');
+          return h ? { foot: Math.round(w.querySelector('.hpb-foot').getBoundingClientRect().bottom), head: Math.round(h.getBoundingClientRect().top) } : null; });
+        if (!under || under.head < under.foot) fails.push('AW-8 the readiness checklist\'s head lies under the foot: ' + JSON.stringify(under));
+        await page.click('[data-hs-win="hunt-prep"] [data-hs-act="ready"]');
+        await page.waitForTimeout(150);
         if (shots) await shot(page, 'alpha-1440x900-hunt-prep');
         await page.click('[data-hs-act="apply"][data-preset="0"]');
         /* Use is TWO round trips here (stop the bury, then the apply): wait for the apply itself, not a fixed 600 ms
@@ -5669,6 +5678,8 @@ const MUTANTS = [
   /* QA audit 2026-11-18 N9, N11 and the UI audit's bag items */
   ['AW-25L the card lists materials only again', 'src/shell/windows/hunt-detail.js', '  const loot = lootOf(r.hunt), all =', '  const loot = lootOf(r.hunt).filter((x) => /gel|bones|wheat|fang|jelly|thread/.test(x.id)), all ='],
   ['AW-32b the item menu says Sell twice', 'src/shell/windows/inventory/actions.js', "h += item('m-sell', t('controls.sell_now'),", "h += item('m-sell', t('controls.sell'),"],
+  /* v0.2.141 gate P3: the prep checklist under its foot */
+  ['AW-8 the readiness checklist\'s head slides under the foot', 'src/styles/windows.css', '.hpb-foot:has(~ .hpb-ready-head.is-on) { margin-bottom: 0; }\n', ''],
   /* UI audit 2026-11-18 #4: Storage's two containers side by side */
   ['AW-33 Storage stacks its two grids again', 'src/styles/windows.css', '.hw-store { flex: 1 1 auto; min-height: 0; display: grid;', '.hw-store { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;'],
   ['AW-33 the two wells end apart, a row cut at a foot', 'src/shell/windows/storage.js', "  if (Number.isFinite(end)) for (const w of wells) w.style.maxHeight = end + 'px';\n", ''],

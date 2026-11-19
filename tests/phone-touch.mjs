@@ -8,7 +8,7 @@
 //   node tests/phone-touch.mjs --shots <dir>  also write the visual-gate screenshots (667x375, 844x390,
 //                                             922x423, portrait 390x844 and desktop 1440x900, fonts loaded)
 //
-// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js
+// mutant-anchors: src/render/format.js src/shell/windows/hunts.js src/shell/window-head.js src/app/hero-create.js src/shell/context-menu.js src/styles/market.css src/shell/launcher.js src/shell/widgets/party-panel.js src/shell/windows/item-tip.js src/shell/windows/party.js src/shell/windows/storage.js src/styles/hunt.css src/styles/windows.css src/styles/shell.css src/styles/app.css src/shell/shell.js src/shell/shell-hud.js play.html src/shell/windows/configure-action.js src/shell/action-facts.js src/data/text/bar.js src/shell/widgets/hunt-topbar.js src/shell/widgets/analyzer.js src/shell/windows/settings.js src/data/hud-widgets.js src/shell/windows/characters.js src/shell/widgets/action-bar.js src/shell/launcher-names.js src/shell/off-why.js src/shell/windows/tally.js src/shell/windows/shop.js src/app/world-pane.js src/app/sign-in.js src/app/boot.js src/net/connection.js src/shell/windows/boss-hall-pane.js src/shell/windows/inventory/index.js
 // mutant-writes-tree: no — page mutants are served overrides
 // mutant-rule-functions: huntsWholeRows bagReach configureFits analyzerToggles analyzerOverTown portrait settingsTouch tallEnough bagByTouch coachFits coachOffFight barFits desktopBar staminaBuy coachSheet coachSheetHunting gotItRests huntBarApart partyActs tappedItem createDoor heroDoor groundPage groundBackHunting detailsTabs wordsFit partyFolds barPresses weighhouse sorts partyInvite menuSending inviteToast sheetWords mouseWordsAndTargets stripReach inviteByPress slotPage chatFoot touchMeaning touchHunt alertStack townCard waitWords leaveWords doorRule hallDoor barBesideSheet rules
 // mutant-runner-functions: main
@@ -536,6 +536,13 @@ async function bagByTouch(page, tag, fails) {
   await page.waitForTimeout(200);
   const eq = await page.evaluate(() => { const b = document.querySelector('.hw-pick.is-on .hw-primary'); if (!b) return 'none'; return window.__onScreen(window.__r(b)) && window.__hits(b) ? 'ok' : 'off screen ' + JSON.stringify(window.__r(b)); });
   if (eq !== 'ok') fails.push('PH-5 [' + tag + '] with a long bag the picked item\'s Equip is not on screen (' + eq + ')');
+  /* THE PICKED SLOT'S LIST OPENS IN VIEW (v0.2.141 gate, 922x423: a press on the doll's weapon opened its list 65 px under the sheet's fold) */
+  await page.click('[data-hs-win="inventory"] .hw-doll .hw-slot[data-slot="weapon"]', { timeout: 2500 }).catch(() => null);
+  await page.waitForTimeout(300);
+  const head = await page.evaluate(() => { const h = document.querySelector('[data-hs-win="inventory"] .hw-slothead'), b = document.querySelector('[data-hs-win="inventory"] [data-hs-body]');
+    if (!h || !h.getClientRects().length) return null; const r = h.getBoundingClientRect(), k = b.getBoundingClientRect();
+    return { top: Math.round(r.top), bottom: Math.round(r.bottom), from: Math.round(k.top), fold: Math.round(Math.min(k.bottom, innerHeight)) }; });
+  if (!head || head.top < head.from - 1 || head.bottom > head.fold + 1) fails.push('PH-5 [' + tag + '] the weapon slot\'s list opens out of view: ' + JSON.stringify(head));
 }
 
 /* ── PH-6 ── A high Level's "What next" (the Coordinator's 10-24 gate: a Level 29 mage at 844x390, the card ran down
@@ -1337,8 +1344,17 @@ async function stripReach(page, tag, fails) {
       tabsBox: shown(box) ? window.__r(box) : null, tabs: shown(box) ? Array.from(box.querySelectorAll('.char-tab')).map((e) => window.__r(e)) : [],
       tools: Array.from(document.querySelectorAll('.char-tool:not(.is-all)')).filter(shown).length,
       now: (() => { const n = document.querySelector('.char-tool-now'); return n && shown(n) ? n.textContent : null; })(),
-      viewed: (document.querySelector('.char-tab.is-shown .char-tab-name') || {}).textContent };
+      viewed: (document.querySelector('.char-tab.is-shown .char-tab-name') || {}).textContent,
+      viewedCut: (() => { const n = document.querySelector('.char-tab.is-shown .char-tab-name'); return n && shown(n) ? n.scrollWidth > n.clientWidth + 1 : null; })(),
+      /* the icon row stands over the strip's foot: its band then draws the strip's steel rule along its own foot (a ::before), at the strip's width */
+      band: (() => { const row = document.querySelector('.hs-launchers'), st = document.querySelector('.char-strip'), a = getComputedStyle(row, '::before');
+        return { rowBottom: Math.round(row.getBoundingClientRect().bottom), stripBottom: Math.round(st.getBoundingClientRect().bottom), rule: a.content !== 'none' ? a.borderBottomWidth : '0px',
+          stripRule: getComputedStyle(st).borderBottomWidth }; })() };
   });
+  /* ONE RULE UNDER THE BAND (v0.2.141 gate: the icon row's band ran over the strip's rule, a 4 px step at its edge) */
+  if (f.band.rowBottom >= f.band.stripBottom && f.band.rule !== f.band.stripRule) fails.push('PH-11 [' + tag + '] the icon row\'s band steps over the strip\'s rule: ' + JSON.stringify(f.band));
+  /* THE HERO ON SCREEN READS WHOLE where the tabs have room (v0.2.141 gate: "Bre…" at 110 px with a strip of room beside it) */
+  if (f.tabsBox && f.tabsBox.width >= 180 && f.viewedCut) fails.push('PH-11 [' + tag + '] the hero on screen is cut with room beside it: ' + JSON.stringify([f.viewed, f.tabsBox.width]));
   /* The hero on screen is named whichever way the strip fits: a tab, or the press to every hero (667 px: no tab, no name anywhere, QA 2026-11-04). */
   if (!f.tabsBox && (!f.now || f.now !== f.viewed)) fails.push('PH-11 [' + tag + '] no tabs and the hero on screen is not named: ' + JSON.stringify([f.now, f.viewed]));
   if (f.tabsBox && f.now) fails.push('PH-11 [' + tag + '] the tabs and Heroes both name the hero');
@@ -1769,7 +1785,8 @@ async function rules(overrides, shots, { stopAtFirst = false, blocks = null } = 
     const townOnly = (env) => { env.hunt = null; env.state = Object.assign({}, env.state, { active_kind: null, active_id: null }); };
     for (const vp of run('strip') ? PHONES : []) { // PH-11, PH-12
       const tag = tagOf(vp);
-      const o = await open(vp, ALPHA, townOnly);
+      /* a name long enough that a tab held to 110 px cuts it (the gate's "Bre…") */
+      const o = await open(vp, ALPHA, (env) => { townOnly(env); env.name = 'Wilhelmina'; });
       if (!o.up) { fails.push('PH-11 [' + tag + '] the town did not mount'); await o.ctx.close(); continue; }
       await shot(o.page, 'strip-' + tag);
       await stripReach(o.page, tag, fails);
@@ -2114,6 +2131,10 @@ const MUTANTS = [
   ['PH-5 the Shop\'s Buy is 30 px', 'src/styles/windows.css', '  .hs-win .hh-tool, .hs-win .hh-select,', '  .hs-win .hh-select,'],
   ['PH-5 the tooltip runs off a short screen', 'src/styles/windows.css', '  .hw-tip { width: 460px; columns: 2;', '  .hw-tip { width: 240px; columns: 1;'],
   ['PH-5 the picked item scrolls away', 'src/styles/windows.css', '  .hw-pick.is-on { position: sticky;', '  .hw-pick.is-on { position: static;'],
+  /* v0.2.141 gate P3s */
+  ['PH-5 the weapon slot\'s list opens under the fold', 'src/shell/windows/inventory/index.js', '  showSlotLine(root, st);\n', ''],
+  ['PH-11 the icon row\'s band steps over the strip\'s rule', 'src/styles/shell.css', "  .hs-launchers::before { content: ''; position: absolute; left: -2px;", '  .hs-launchers::before { content: none; position: absolute; left: -2px;'],
+  ['PH-11 the hero on screen is cut at 110 px', 'src/styles/app.css', '  .char-tab.is-shown { max-width: 180px; }\n', ''],
   ['PH-5 the analyzer tabs are 30 px', 'src/styles/hunt.css', '  .ha-tab, .ht-bar .hh-tool { min-height: 40px; }', '  .ha-tab, .ht-bar .hh-tool { min-height: 30px; }', ['hunt']],
   /* the card's cap is the fallback where round() or lh is missing (the words' box is the tighter cap in Chromium): undo both */
   ['PH-6 nothing caps the phone coach', 'src/styles/shell.css', '{ max-height: calc(var(--coach-room) - 20px); }\n  .hs-pointer:not(.is-min) > .hs-coach-text {\n    grid-area: 2 / 1 / 3 / -1; padding-right: 14px;\n    min-height: 0; max-height: calc(round(down, var(--coach-room) - 76px - var(--coach-foot) - .5lh, 1lh) + .5lh);',

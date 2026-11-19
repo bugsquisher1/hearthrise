@@ -35,6 +35,17 @@
 // row seeded by a LATER file that items.js does not back), and it no longer
 // forces history to be rewritten. `--selftest` is the mutation proof.
 //
+// ── THE COOKBOOK CUT: A DELETE IS PART OF THE FOLD (2026-11-18) ──────────
+// Every generated catalogue only UPSERTED this table, so cutting a food from
+// items.js left its row priced for the clan feast forever (the cut's three
+// feasts: Hunter's Feast, Dragon Stew, Lich Soul Soup — still 34 rows at chain
+// end against 31 foods). This guard named that correctly. The generator now
+// opens the table with an unscoped `delete from public.hr_feast_foods;`, and the
+// fold reads it the way Postgres does: a top-level unscoped delete empties the
+// fold at its place in the file. A delete or truncate it cannot model (scoped,
+// or any other shape) is a problem, never skipped: a guard that ignored it
+// would fold rows the database no longer holds.
+//
 // Exit: 0 in sync · 1 drift · 2 harness problem.
 // ════════════════════════════════════════════════════════════════════════
 
@@ -51,15 +62,26 @@ const ORDER = join(ROOT, 'tests', 'schema-apply-order.json');
  *  in one file's text, as [item_id, heals] pairs in source order. A file may
  *  hold more than one (none does today; the parse does not care). */
 function seedRowsIn(sql) {
+  return feastWritesIn(sql).flatMap((w) => w.rows || []);
+}
+
+/** One file's hr_feast_foods writes, in file order: {rows} for an insert block,
+ *  {reset:true} for a top-level unscoped `delete from public.hr_feast_foods;`, and
+ *  {unreadable} for any other top-level delete/truncate of the table. A statement
+ *  starts a line (after indentation), so a `--   delete from …` comment is not one. */
+function feastWritesIn(sql) {
   const out = [];
-  const blocks = sql.matchAll(
-    /insert\s+into\s+public\.hr_feast_foods\s*\(\s*item_id\s*,\s*heals\s*\)\s*values([\s\S]*?);/gi);
-  for (const b of blocks) {
-    for (const m of b[1].matchAll(/\(\s*'([a-z0-9_]+)'\s*,\s*(\d+)\s*\)/gi)) {
-      out.push([m[1], Number(m[2])]);
-    }
+  for (const b of sql.matchAll(
+    /insert\s+into\s+public\.hr_feast_foods\s*\(\s*item_id\s*,\s*heals\s*\)\s*values([\s\S]*?);/gi)) {
+    const rows = [];
+    for (const m of b[1].matchAll(/\(\s*'([a-z0-9_]+)'\s*,\s*(\d+)\s*\)/gi)) rows.push([m[1], Number(m[2])]);
+    out.push({ at: b.index, rows });
   }
-  return out;
+  for (const d of sql.matchAll(/^[ \t]*(?:delete\s+from|truncate(?:\s+table)?)\s+(?:only\s+)?(?:public\.)?hr_feast_foods\b[^;]*;/gim)) {
+    if (/^[ \t]*delete\s+from\s+public\.hr_feast_foods\s*;$/i.test(d[0])) out.push({ at: d.index, reset: true });
+    else out.push({ at: d.index, unreadable: d[0].trim().replace(/\s+/g, ' ').slice(0, 120) });
+  }
+  return out.sort((a, b) => a.at - b.at);
 }
 
 export async function feastCatalogueDriftGuard(opts = {}) {
@@ -89,6 +111,8 @@ export async function feastCatalogueDriftGuard(opts = {}) {
   const fromSql = new Map();          // item_id -> heals, after the fold
   const seededBy = new Map();         // item_id -> the file that last set it
   const files = [];
+  const problems = [];
+  let seededRows = 0;
   for (const file of order) {
     let sql;
     if (Object.prototype.hasOwnProperty.call(inject, file)) sql = inject[file];
@@ -96,19 +120,23 @@ export async function feastCatalogueDriftGuard(opts = {}) {
       try { sql = await readFile(join(MIG_DIR, file), 'utf8'); }
       catch { continue; }            // 'excluded'/missing files are not an error here
     }
-    const rows = seedRowsIn(sql);
-    if (rows.length === 0) continue;
-    files.push(`${file} (${rows.length})`);
-    for (const [id, heals] of rows) { fromSql.set(id, heals); seededBy.set(id, file); }
+    const writes = feastWritesIn(sql);
+    if (writes.length === 0) continue;
+    const n = writes.reduce((s, w) => s + (w.rows ? w.rows.length : 0), 0);
+    files.push(`${file} (${writes.some((w) => w.reset) ? 'emptied, ' : ''}${n})`);
+    for (const w of writes) {
+      if (w.unreadable) { problems.push(`${file} writes hr_feast_foods with a statement this guard cannot fold: "${w.unreadable}"`); continue; }
+      if (w.reset) { fromSql.clear(); seededBy.clear(); continue; }
+      for (const [id, heals] of w.rows) { fromSql.set(id, heals); seededBy.set(id, file); seededRows++; }
+    }
   }
 
-  if (fromSql.size === 0) {
+  if (seededRows === 0) {
     return ['parsed 0 hr_feast_foods rows from the whole apply chain — the anchor moved, or the '
       + 'seed is no longer a literal `values` list (this guard can only read one)'];
   }
 
   // ── compare ──
-  const problems = [];
   for (const [id, heals] of fromData) {
     if (!fromSql.has(id)) problems.push(`items.js has feast food "${id}" (heals ${heals}) — MISSING from every hr_feast_foods seed in the chain`);
     else if (fromSql.get(id) !== heals) problems.push(`"${id}": items.js heals=${heals} but the chain seeds heals=${fromSql.get(id)} (${seededBy.get(id)})`);
@@ -122,10 +150,10 @@ export async function feastCatalogueDriftGuard(opts = {}) {
 }
 
 /* ── MUTATION PROOF (CLAUDE.md §4: a guard that has never been red is not a
-      guard). Four defects, each injected as migration TEXT so nothing is
-      written to the repo, and each must be CAUGHT. Arm 4 is the one that
-      matters for b544: it is the shape this guard used to be blind to — a
-      correct forward patch in a NEW file — and it must now be ACCEPTED. */
+      guard). Seven defects, each injected as migration TEXT so nothing is
+      written to the repo, and each must be CAUGHT. The ABSENT arm is the one
+      that matters for b544: it is the shape this guard used to be blind to.
+      The upsert-only arm is the 2027-05-22 cookbook cut as first generated. */
 async function selftest() {
   /* The newest seed is DERIVED (the last file in apply order that seeds hr_feast_foods), never typed: it was
      2026-09-13-reed-and-tide.sql until the core rebuild's catalogue (2026-10-27-core-catalogue.generated.sql)
@@ -149,6 +177,11 @@ async function selftest() {
   const drop = (t) => t.replace(new RegExp(`\\(\\s*'${id1}'\\s*,\\s*\\d+\\s*\\)\\s*,`), '');
   if (drifted === real || drop(real) === real) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
   const inTail = (fn) => Object.fromEntries(TAIL.map(([f, t]) => [f, fn(t)]));
+  /* THE COOKBOOK CUT, PLANTED: the newest seed without its unscoped delete is the upsert-only file the 2027-05-22 cut first
+     shipped, and the cut feasts an older seed still carries must come back red. */
+  const RESET = /^[ \t]*delete\s+from\s+public\.hr_feast_foods\s*;[ \t]*\r?\n/im;
+  const upsertOnly = real.replace(RESET, '');
+  if (upsertOnly === real) { process.stdout.write(`  FAIL  selftest anchor missed: no unscoped hr_feast_foods delete in ${LAST}\n`); return 1; }
   const arms = [
     ['control (unmutated chain)', {}, false],
     [`a heal value drifts in the newest seed (${LAST})`, { [LAST]: drifted }, true],
@@ -157,6 +190,10 @@ async function selftest() {
       { [LAST]: real + "\ninsert into public.hr_feast_foods (item_id, heals) values ('not_a_food', 9)"
                      + '\n  on conflict (item_id) do update set heals = excluded.heals;\n' }, true],
     ['the newest seed is ABSENT (the pre-b544 blind spot)', inTail(() => '-- nothing\n'), true],
+    [`the newest seed only upserts, so a cut food stays priced (the 2027-05-22 cookbook cut, ${LAST})`, { [LAST]: upsertOnly }, true],
+    ['a LATER file empties the table and seeds nothing', { [LAST]: `${real}\ndelete from public.hr_feast_foods;\n` }, true],
+    ['a LATER file deletes with a shape the fold cannot model',
+      { [LAST]: `${real}\ndelete from public.hr_feast_foods where item_id = 'not_a_food';\n` }, true],
   ];
   let bad = 0;
   for (const [name, inject, mustFail] of arms) {

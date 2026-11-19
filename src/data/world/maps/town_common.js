@@ -4,7 +4,7 @@
 //
 // The plan (docs/planning/PRIORITY_BOARD.md "Real town plan (2026-10-25)") is authored in plan
 // coordinates in ../town/*.js and ../stations.js; this file only puts it together:
-//   ground     ../town/ground.js (the blueprint's ground, traced x2, with the plan's districts)
+//   ground     ../town/ground.js (the blueprint's ground, traced x2, with the plan's districts, and its legend)
 //   buildings  ../town/sites.js SITES: PLACEHOLDER FOOTPRINTS (painted, closed: they block a step,
 //              their art is the art lane's) on `site` ground; none is left (every lot is a SCENERY sprite)
 //   objects    the road wear (../town/wear.js), the style-1 scenery (every building and lot a whole sprite), every
@@ -18,7 +18,7 @@
 // (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
 // (a placeholder site) stays a placeholder tone.
 import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.140';
-import { GROUND_ROWS } from '../town/ground.js?v=0.2.140';
+import { GROUND_ROWS, GROUND_LEGEND } from '../town/ground.js?v=0.2.140';
 import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.140';
 import { GREENERY } from '../town/greenery.js?v=0.2.140';
 import { WEAR } from '../town/wear.js?v=0.2.140';
@@ -46,7 +46,7 @@ export default Object.freeze({
   outdoor: true,
   light: 'day',
   ground: null,
-  legend: Object.freeze({ '.': 'grass', ':': 'cobble', '=': 'earth', '_': 'flagstone', '#': 'planks', '~': 'water', '^': 'cliff', '|': 'palisade', 'o': 'site', '%': 'tilled', ',': 'gravel', ';': 'setts', 'S': 'sand', 'B': 'deck', '-': 'beach', 'M': 'peak' }),
+  legend: GROUND_LEGEND,
   rows: GROUND_ROWS,
   blend: BLEND,
   patches: Object.freeze(PATCHES.map((p) => Object.freeze({ terrain: p.terrain, rect: Object.freeze(at(p.rect[0], p.rect[1]).concat(p.rect[2], p.rect[3])) }))),

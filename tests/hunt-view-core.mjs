@@ -27,7 +27,8 @@
 //   FP-1  float defaults: the bleed badge off over regular monsters, on over
 //         bosses; a saved toggle wins; a forged residue is bounded
 //   INT-1 a settings change is ONE intent (hr_action_set_options with slot,
-//         preset, options); ok re-reads the character; a refusal says why and re-reads it once (A20)
+//         preset, options); ok re-reads the character; a refusal says why and re-reads it once (A20);
+//         a dropped network or a rate limit reads nothing and leaves the record the very one it was (never written by the intent)
 //   LOG-1 the combat log writes each event once, in plain words, by type
 //   LOG-6 a monster's spell winding up is named in the log (the screen marks it), and its hits read with the spell's own name
 // ════════════════════════════════════════════════════════════════════════
@@ -257,6 +258,15 @@ async function rules(M) {
        says why, and nothing of the press survives (the record is the read's, never the one the refused press was sent from) */
     ok('INT-1', !r2.ok && r2.error === 'bad_option' && loads === 3 && cs.record !== before && cs.record.version === FIXTURE.version + 3,
       'a refusal must say why and re-read the hero once: ' + JSON.stringify(r2) + ' (loads ' + loads + ')');
+    /* NO NEWS: a dropped network and a rate limit read nothing, so the record is the very one the last read left. The intent never
+       writes the record itself: only a server answer replaces it (a refusal's re-read above would hide such a write) */
+    for (const a of [{ ok: false, status: 0, error: 'network' }, { ok: true, body: { ok: false, error: 'rate_limited' } }]) {
+      answers.hr_action_set_options = a;
+      const held = cs.record;
+      const r3 = await cs.setHuntOptions(0, { stance: 'defensive' });
+      ok('INT-1', !r3.ok && loads === 3 && cs.record === held,
+        'a ' + (a.error || a.body.error) + ' answer must leave the record untouched and read nothing: ' + JSON.stringify(r3) + ' (loads ' + loads + ', record ' + (cs.record === held ? 'kept' : 'rewritten') + ')');
+    }
   }
 
   { // LOG-1

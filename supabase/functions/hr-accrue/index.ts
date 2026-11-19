@@ -70,7 +70,7 @@
 // ============================================================================
 
 import postgres from 'npm:postgres@3.4.5';
-import { computeAccrual, degradeStep, accrueWorkers, accrueRested, CALLER_AUTHORITY, SKIP } from './accrual.js';
+import { computeAccrual, degradeStep, accrueRested, CALLER_AUTHORITY, SKIP } from './accrual.js';
 import { levelsOf } from '../../../src/core/xp.js';
 /* THE ENVELOPE -> ENGINE INPUT MAP, shared with the world tick (2026-09-22).
    ONE field list for a two-level projection; see ./envelope.js. */
@@ -1001,83 +1001,19 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     let out = runAccrual({ capMs, actionBudget: null });
 
-    /* ── THE PARALLEL WORKER SETTLE (worker-settlement slice) ───────────────
-       Hired-crew production is a CONTINUOUS activity that runs ALONGSIDE the
-       pointer, on its OWN watermark `workers_accrued_to`. It is settled here —
-       NOT through KIND_ACCRUERS — and it is settled EVEN WHEN the pointer
-       accrual refused (idle / below-min / unsupported), because a pointer that
-       owes nothing does not mean a crew that owes nothing. That is the whole bug
-       the design closes: the early `!out.accrued` return below MUST NOT skip a
-       pending worker window. `accrueWorkers` is pure and draws no rng, so its
-       output is server-owned and deterministic. The crew + watermark are read
-       from the SAME hr_state_of transaction as everything else, never a body. */
-    const wout = accrueWorkers({
-      nowMs,
-      workersAccruedToMs: st.workers_accrued_to ? new Date(st.workers_accrued_to).getTime() : null,
-      crew: Array.isArray(env.workers) ? env.workers : [],
-      nodes: GATHER_NODES,
-      items: ITEMS,
-    });
-
-    /* Merge the worker delta into ANY delta bound for hr_apply: worker items
-       fold into the signed `items` map (so hr_apply's qty_in counts them against
-       the day budget), `workers` is the per-worker xp sub-delta, and
-       `workers_accrued_to:'now'` advances the crew watermark. Applied to a COPY
-       at every apply site — including each degrade rung — because the worker
-       figures are small, constant across attempts, and must ride the ONE
-       hr_apply call the pointer makes. */
-    const mergeWorkers = (delta: Record<string, any>): Record<string, any> => {
-      if (!wout.accrued) return delta;
-      const d: Record<string, any> = { ...delta };
-      const items: Record<string, number> = { ...(d.items || {}) };
-      for (const id of Object.keys(wout.items)) {
-        items[id] = (Number(items[id]) || 0) + Number(wout.items[id]);
-      }
-      d.items = items;
-      d.workers = wout.workers;
-      d.workers_accrued_to = 'now';
-      /* C2 (2026-09-08 security review) — JOURNAL THE CREW SHARE. On this merged
-         path the crew's items ride the POINTER's delta and the row keeps the
-         pointer's kind/intent/meta.ms, so the ledger showed a `gather` row whose
-         item count no rate could explain: the first-hire backlog mint was found
-         only by dividing meta.ms by the node rate. `meta.crew` names the crew
-         half of the row explicitly — span, quantity, worker count and the exact
-         items — so the next crew defect is one query away instead of arithmetic.
-         hr_apply already merges `journal.meta` into the row
-         (jsonb_build_object('delta', v_meta) || coalesce(v_j->'meta','{}')), so
-         this needs no SQL change and adds no write surface; a <=6-worker item map
-         is far inside the 2 KB journal backstop. Spread-merged so a caller that
-         already set a journal (the standalone worker settle below) keeps its
-         kind/intent and its own meta keys. */
-      /* Folded into an EXISTING journal only. Both call sites (the pointer's
-         out.delta and the standalone settle below) always carry one with a
-         `kind`; hr_apply coalesces a kindless journal to kind='admin', so
-         inventing one here to hang meta.crew off would mislabel the row. */
-      if (d.journal && typeof d.journal === 'object') {
-        const j: Record<string, any> = { ...(d.journal as Record<string, any>) };
-        j.meta = {
-          ...((j.meta as Record<string, any>) || {}),
-          crew: {
-            ms: wout.summary.spanMs,
-            qty: wout.summary.qty,
-            workers: wout.summary.workers,
-            items: wout.items,
-          },
-        };
-        d.journal = j;
-      }
-      return d;
-    };
-
     /* ── THE PARALLEL RESTED SETTLE (b437) ──────────────────────────────────
        Rested XP banks on WALL-CLOCK, independent of the pointer — you rest
-       whether or not an activity is running — so it is settled here alongside the
-       crew, on its OWN watermark `rested_at`, and EVEN WHEN the pointer accrual
-       refused. `accrueRested` is pure, draws no rng, and is watermark-idempotent.
+       whether or not an activity is running — so it is settled here, on its OWN
+       watermark `rested_at`, and EVEN WHEN the pointer accrual refused.
+       `accrueRested` is pure, draws no rng, and is watermark-idempotent.
        The bank cap is left at the server default (a Great Library owner's raised
        120 bank is a named arm-blocker — under-pays the SIZE only, never the rate).
        `restedAtMs === null` (the column is absent) omits the keys entirely — the
-       same self-configuring switch tool_carry/fight use. */
+       same self-configuring switch tool_carry/fight use.
+       (The hired crew's parallel settle, accrueWorkers on `workers_accrued_to`,
+       was cut with its last reader on 2026-11-18: 2027-01-18-dead-surfaces-cut.sql
+       dropped the hire doors and took the crew and its watermark out of
+       hr_state_of, so it settled nothing for anyone.) */
     const rout = accrueRested({
       nowMs,
       restedAtMs: st.rested_at ? new Date(st.rested_at).getTime() : null,
@@ -1089,9 +1025,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
        `rested_at` is an ISO STRING (hr_apply casts `::timestamptz`); it is the
        exact advanced watermark (old + granted*CHARGE_MS), NOT `now()`, so the
        bank cannot be double-paid on the next call. Applied to a COPY at every
-       apply site — including each degrade rung and the parallel settles — because
-       the figures are small, constant across attempts, and must ride the ONE
-       hr_apply call the pointer makes. */
+       apply site — including each degrade rung and the standalone settle below —
+       because the figures are small, constant across attempts, and must ride the
+       ONE hr_apply call the pointer makes. */
     const mergeRested = (delta: Record<string, any>): Record<string, any> => {
       if (!rout.accrued) return delta;
       return {
@@ -1100,20 +1036,16 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         rested_at: new Date(Number(rout.restedAt)).toISOString(),
       };
     };
-    /* The two parallel settles compose: crew items + rested bank both ride the
-       pointer's hr_apply (or the standalone settle below). */
-    const mergeAux = (delta: Record<string, any>): Record<string, any> =>
-      mergeRested(mergeWorkers(delta));
 
     if (!out.accrued) {
       /* ── A HUNTER'S ACCRUE (lane C2) ───────────────────────────────────────
          The engine answered SKIP.HUNT_OPEN: the session owns the pointer's
-         window. The crew and rested settle below run EXACTLY as for any idle
-         pointer (their own watermarks, their own apply), and THEN the hunt is
-         settled through the one hunt settle (./hunt-settle.js, a fresh read,
-         so the version the aux apply moved is not stale). That is what keeps
-         the shipped client's `settle_first` recovery — "run accrue, retry" —
-         working for a hunter, and why a hunter's crew never stops banking. */
+         window. The rested settle below runs EXACTLY as for any idle pointer
+         (its own watermark, its own apply), and THEN the hunt is settled
+         through the one hunt settle (./hunt-settle.js, a fresh read, so the
+         version the aux apply moved is not stale). That is what keeps the
+         shipped client's `settle_first` recovery — "run accrue, retry" —
+         working for a hunter, and why a hunter's rested bank never stops. */
       const huntOpenHere = out.reason === SKIP.HUNT_OPEN;
       const respond = async (auxOut: Record<string, any>): Promise<Response> => {
         if (!huntOpenHere) return json(auxOut);
@@ -1125,31 +1057,22 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
           accrued: hv.outcome === 'paid' || auxOut.accrued === true,
           reason: hv.outcome === 'paid' ? null : (hv.reason ?? auxOut.reason ?? null) });
       };
-      // The pointer owes nothing. If the CREW and/or the RESTED bank owe
-      // something, settle whichever do in ONE hr_apply call — the watermarks that
-      // advance are workers_accrued_to and/or rested_at, NEVER accrued_to (so the
-      // daily streak does not bump on a pointer-idle settle). No degrade ladder:
-      // a crew haul + a handful of rested charges are tiny and cannot trip a
+      // The pointer owes nothing. If the RESTED bank owes something, settle it
+      // in ONE hr_apply call — the watermark that advances is rested_at, NEVER
+      // accrued_to (so the daily streak does not bump on a pointer-idle settle).
+      // No degrade ladder: a handful of rested charges is tiny and cannot trip a
       // per-call clamp.
-      if (wout.accrued || rout.accrued) {
-        // The journal names the dominant reason; when only rested banked it is a
-        // plain `accrue` row (kind is allowlisted), intent `accrue:rested`.
-        const journal = wout.accrued
-          ? { kind: 'worker', intent: 'accrue',
-              meta: { ms: wout.summary.spanMs, qty: wout.summary.qty,
-                workers: wout.summary.workers, capped: wout.summary.capped,
-                ...(rout.accrued ? { rested: rout.granted } : {}) } }
-          : { kind: 'accrue', intent: 'accrue:rested', meta: { rested: rout.granted } };
-        // Named `delta` (not `workerDelta`) so the `::text::jsonb` transport is
+      if (rout.accrued) {
+        // A plain `accrue` row (kind is allowlisted), intent `accrue:rested`.
+        const journal = { kind: 'accrue', intent: 'accrue:rested', meta: { rested: rout.granted } };
+        // Named `delta` (not `restedDelta`) so the `::text::jsonb` transport is
         // the SAME shape tests/delta-transport.mjs grades on every apply site —
         // a bare ::jsonb here would double-serialise and answer bad_delta.
-        const delta = mergeAux({ journal });
-        // Key idempotency on whichever watermark drove the settle. Either way a
-        // replay dedups on this intent id; and even a fresh call cannot double-pay
-        // because accrueRested/accrueWorkers recompute from the ADVANCED watermark.
-        const auxWatermark = wout.accrued
-          ? ('workers:' + String(st.workers_accrued_to ?? ''))
-          : ('rested:' + String(st.rested_at ?? ''));
+        const delta = mergeRested({ journal });
+        // Keyed on the watermark that drove the settle: a replay dedups on this
+        // intent id, and even a fresh call cannot double-pay because
+        // accrueRested recomputes from the ADVANCED watermark.
+        const auxWatermark = 'rested:' + String(st.rested_at ?? '');
         const wIntentId = await intentIdFor({
           user, slot, watermark: auxWatermark,
           version: env.version, salt, attempt: 0,
@@ -1164,9 +1087,9 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
         });
         const wr = wres?.res as Record<string, any>;
         if (wr && wr.ok === true && wr.replayed !== true) {
-          /* THE ENVELOPE CONTRACT (b475). A standalone rested/worker settle
-             applied a delta and advanced its watermark(s) exactly like the main
-             away path, so it MUST carry an `away` receipt or the client gate
+          /* THE ENVELOPE CONTRACT (b475). A standalone rested settle applied a
+             delta and advanced its watermark exactly like the main away path,
+             so it MUST carry an `away` receipt or the client gate
              `isEnvelopeApplicable` (src/net/accrue.js) rejects the 200 as
              malformed — three of those trip ACCRUE_HALT_AFTER_TRIES and raise
              the alarming "Away progress is paused" modal while HIDING a grant
@@ -1175,17 +1098,12 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
              Math.random, so AWAY-1 determinism holds and no forgery surface is
              added (it only reports values the server minted).
 
-             `grantMs` is the wall span from the OLDEST driving watermark that
-             actually accrued to `now`; rested banks on wall-clock for everyone,
-             workers on their own watermark. The rested BANK is surfaced through
-             the existing `rested:{granted}` field, NOT folded into `away.xp` —
-             summaryFromAway would otherwise misreport a bank charge as skill
-             XP. `items` carries the worker haul so the welcome-back card credits
-             the crew's production. */
-          const driveMsList: number[] = [];
-          if (wout.accrued && st.workers_accrued_to) driveMsList.push(new Date(st.workers_accrued_to).getTime());
-          if (rout.accrued && st.rested_at) driveMsList.push(new Date(st.rested_at).getTime());
-          const driveMs = driveMsList.length ? Math.min(...driveMsList) : nowMs;
+             `grantMs` is the wall span from the rested watermark to `now`
+             (rested banks on wall-clock for everyone). The rested BANK is
+             surfaced through the existing `rested:{granted}` field, NOT folded
+             into `away.xp` — summaryFromAway would otherwise misreport a bank
+             charge as skill XP. */
+          const driveMs = st.rested_at ? new Date(st.rested_at).getTime() : nowMs;
           const grantMs = Math.max(0, nowMs - driveMs);
           const away = {
             grantMs,
@@ -1205,26 +1123,14 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
             foodEaten: 0,
             gold: 0,
             xp: {},
-            items: wout.accrued ? wout.items : {},
+            items: {},
             levelUps: [],
             events: [],
           };
-          /* ⚠ THE ROSTER, NOT THE SUMMARY, LIVES AT `workers` (2026-08-25).
-             `...wr` is hr_state_of and already carries `workers` as the CREW
-             ROSTER — the array src/net/accrue.js reconcileWorkers reads. An
-             earlier revision spread the worker SUMMARY at that same key here,
-             which OVERWROTE that array with a stats object; reconcileWorkers saw
-             a non-array, returned null, and left G.workers.hired = [] — so an
-             idle player with a PRODUCING crew (their own pointer idle, crew
-             mining) saw an empty roster and re-hired a worker they already had
-             (QA 0a47ba77, live). The crew haul is already surfaced on
-             `away.items`; the summary is telemetry only, so it moves to a
-             non-colliding key and the roster survives. */
           return await respond({ ok: true, accrued: true, ...wr, away,
             ...(bestiary ? { bestiary } : {}),
             ...(collection ? { collection } : {}),
-            ...(wout.accrued ? { workerSummary: wout.summary } : {}),
-            ...(rout.accrued ? { rested: { granted: rout.granted } } : {}) });
+            rested: { granted: rout.granted } });
         }
         // A refused / replayed aux settle falls through to the plain not-accrued
         // response: nothing was minted, no watermark moved.
@@ -1233,13 +1139,6 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
       // advanced, so a sub-threshold call cannot confiscate the time it
       // declined to pay for. The rate budget HAS been spent (see the gate
       // above), so this path is not free to loop.
-      // ⚠ BUT THE CREW ROSTER STILL RIDES (2026-08-25). This is the boot path for
-      //   an idle player with an idle crew: the pointer owes nothing and the
-      //   workers produced nothing, yet the client must still render the crew it
-      //   HAS. `env` is hr_state_of, so its `workers` is the authoritative
-      //   roster; passing it lets reconcileWorkers paint the crew. An empty roster
-      //   is a truthful [] (the player has no crew) — reconcile treats that as
-      //   "the crew is genuinely empty", which is correct.
       /* ⚠ THE BESTIARY BLOCK RIDES THE NOT-ACCRUED PATH TOO, and that is the
          whole difference between a feature that works and one that is
          "forgotten on reload". This is the COMMON BOOT RESPONSE — an idle
@@ -1249,8 +1148,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          Bestiary after a reload. Nothing is minted here; it is a read. */
       return await respond({ ok: true, accrued: false, reason: out.reason, version: env.version, now: env.now,
         ...(bestiary ? { bestiary } : {}),
-        ...(collection ? { collection } : {}),
-        ...(Array.isArray((env as Record<string, any>).workers) ? { workers: (env as Record<string, any>).workers } : {}) });
+        ...(collection ? { collection } : {}) });
     }
 
     // ── APPLY. The single writer — `applyOnce` is the statement, `apply`
@@ -1296,7 +1194,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
 
     const apply = (delta: unknown, attempt: number) => applyOnce(delta, attempt);
 
-    let res = await apply(mergeAux(out.delta), 0);
+    let res = await apply(mergeRested(out.delta), 0);
     let degraded: Record<string, unknown> | null = null;
 
     /* THE DEGRADE LADDER (S8). Only ever entered on a clamp — never on a
@@ -1325,7 +1223,7 @@ Deno.serve(withCors(async (req: Request): Promise<Response> => {
          instead of grinding down to the forfeit. */
       if (Number(next.summary?.ticks) >= Number(out.summary?.ticks)) break;
       out = next;
-      res = await apply(mergeAux(out.delta), attempt);
+      res = await apply(mergeRested(out.delta), attempt);
     }
 
     if (res && res.ok !== true && degraded && DEGRADABLE.has(String(res.error))) {

@@ -143,6 +143,13 @@ export const REFUSAL_VERB_WORDS = Object.freeze({
     none_held: 'Not in bag or Storage',
     bad_item: 'Not an outfit',
   }),
+  /* A pattern (2026-09-14-recipe-learn.sql hr_recipe_learn, src/data/patterns.js): labels, as the bundle's are. */
+  recipe_learn: Object.freeze({
+    already_learned: 'Pattern already learned',
+    insufficient_item: 'Not in bag',
+    unknown_recipe: 'Not a pattern',
+    recipe_daily_cap: 'Daily limit reached',
+  }),
   house_dummy: Object.freeze({
     quote_changed: 'Price changed, check it and try again',
     no_home: 'Requires the Hearthside Homestead',

@@ -4,6 +4,7 @@
 // Reads the envelope's `bench_tax` section (hr_bench_tax_view, 2027-02-19-bench-tax.sql): what each recipe this hero's level
 // opens takes at a public bench, in milligold; per skill the share, the room and whether the account owns it; the carried
 // remainder; the gold the hero set to keep; its latest bench run. Every envelope replaces it and nothing here computes a fee.
+// And the envelope's `unlocked_recipes`: the recipes this hero has learned from a pattern (learnedRecipesOf), the set a gated bench reads.
 // ════════════════════════════════════════════════════════════════════════
 import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.140';   // the dark (switched) jobs too: only a hero the server let start one runs one
 import { ITEMS } from '../data/items.js?v=0.2.140';
@@ -20,6 +21,17 @@ export function benchTaxOf(cs) {
   const s = cs && typeof cs.read === 'function' ? cs.read('bench_tax') : null;
   if (!isObj(s)) return null;
   return { rooms: isObj(s.rooms) ? s.rooms : {}, fees: isObj(s.fees) ? s.fees : {}, carry: whole(s.carry_mg), keep: whole(s.keep), run: isObj(s.run) ? s.run : null };
+}
+
+/**
+ * THE RECIPES THIS HERO HAS LEARNED, as the server holds them (2026-09-14-recipe-learn.sql: hr_state_of's `unlocked_recipes`, from
+ * hr_recipes_of, the same rows hr_perks_of hands the engine's gate): { <pattern id>: true }, replaced whole by every envelope. null while
+ * the server has not said (not read yet), which every gate reads as NOT learned (src/core/artisan.js gateOk), never as learned.
+ */
+export function learnedRecipesOf(cs) {
+  const s = cs && typeof cs.read === 'function' ? cs.read('unlocked_recipes') : null;
+  if (!isObj(s)) return null;
+  return Object.freeze(Object.fromEntries(Object.entries(s).filter(([, v]) => v === true)));
 }
 
 /** This recipe's fee in milligold at this account's benches, or 0 (no fee, the room is owned, or not sent yet). */

@@ -22,6 +22,7 @@ import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.140';
 import { CHEST_ITEM_DESC } from './chests.js?v=0.2.140';
 import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.140';
 import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.140';
+import { PATTERN_DESC } from './patterns.js?v=0.2.140';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */
@@ -74,6 +75,7 @@ export const ITEM_DESC = {
   ...Object.fromEntries(CATACOMB_ARMOR_SHIPPED.map((r) => [r.id, r.line.replace(/\.$/, '')])),
   ...TOWER_WEAPON_DESC,  // lane/d-tower-weapons: who left each tower weapon on the Hearth's ledge
   ...CALL_ITEM_DESC,  // lane/d-boss-call-drops: the call-only pieces
+  ...PATTERN_DESC,    // lane/d-rivets-learn: the patterns (src/data/patterns.js; empty while hidden)
   /* THE RUNES, family x tier (lane b-spell-content, 2026-10-23): what the rune casts, then one line of the mark. */
   'chalked_earth_rune': 'Your Earth spells, the stone shields, use one of these each cast. It feels heavy for something with just a chalk mark',
   'scored_earth_rune': 'A better Earth rune that needs a bit more skill to use. Grit collects in the scratched-in lines',

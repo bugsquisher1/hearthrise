@@ -224,13 +224,13 @@ function calledSwing(members, events, world, unitOf, boss, ctx) {
  */
 export function rewardSwing(members, events, world, ctx) {
   const unitOf = (id) => world.units.find((u) => u.id === id) || null;
+  if (ctx.call) return calledSwing(members, events, world, unitOf, ctx.call.monster, ctx);
+  /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
+  if (ctx.train) return trainingSwing(members, events, unitOf);
   /* The heroes alive at the kill share its gold, loot and rare roll, as its XP (xp-share.js): one who died in the same sub-step before it does
      not, one who falls after it in the same swing does (livingIds). */
   const fell = fallsAt(members, events);
   const presentIds = (i) => livingIds(world, members, (id) => fell.has(id) && fell.get(id) > i);
-  if (ctx.call) return calledSwing(members, events, world, unitOf, ctx.call.monster, ctx);
-  /* A TRAINING GROUND (src/core/hunt/training.js): the trained skill only, at its share; nothing else by any route. */
-  if (ctx.train) return trainingSwing(members, events, unitOf);
   /* A SESSION MODE'S SHARE OF EVERY SKILL ROUTE (session-modes.js xpPm; Level XP takes it at the split, xp-share.js): never multiplied at 1000. */
   const pm = ctx.pay && Number.isInteger(ctx.pay.xpPm) && ctx.pay.xpPm !== 1000 ? ctx.pay.xpPm : null;
   const share = (n) => (pm === null ? n : (n * pm) / 1000);

@@ -1,0 +1,3566 @@
+{
+ "note": "Real hunts, aggregated and anonymous (seats by index, rates an hour, a date). Built by tools/balance-sim/calibrate.mjs --build from a local read-only export; never edit by hand.",
+ "built": "2026-11-19",
+ "kits": [
+  {
+   "pants": "wyvernhide_pants",
+   "belt": "wyvernhide_belt",
+   "gloves": "wyvernhide_gloves",
+   "necklace": "wolfbone_torc",
+   "cape": "houndskin_cloak",
+   "earrings": "fang_studs",
+   "weapon": "yew_bow",
+   "boots": "wyvernhide_boots",
+   "ammo": "mithril_arrows",
+   "ring1": "banded_signet_follow",
+   "ring2": "banded_signet_follow",
+   "body": "wyvernhide_body",
+   "helmet": "wyvernhide_helmet"
+  },
+  {
+   "weapon": "yew_wand",
+   "shield": "yew_spellbook",
+   "belt": "sorcerer_belt",
+   "earrings": "copper_studs",
+   "necklace": "hunter_necklace",
+   "ring1": "banded_signet_surge",
+   "cape": "houndskin_cloak",
+   "gloves": "sorcerer_gloves",
+   "ring2": "banded_signet_follow",
+   "body": "sorcerer_body",
+   "helmet": "sorcerer_helmet",
+   "boots": "sorcerer_boots",
+   "pants": "sorcerer_pants"
+  },
+  {
+   "belt": "sorcerer_belt",
+   "pants": "sorcerer_pants",
+   "earrings": "copper_studs",
+   "necklace": "hunter_necklace",
+   "helmet": "sorcerer_helmet",
+   "cape": "graypelt_cloak",
+   "gloves": "sorcerer_gloves",
+   "ring1": "banded_signet",
+   "ring2": "banded_signet",
+   "weapon": "yew_staff",
+   "body": "sorcerer_body",
+   "boots": "sorcerer_boots"
+  },
+  {
+   "gloves": "rune_gauntlets",
+   "body": "rune_platebody",
+   "belt": "rune_belt",
+   "boots": "rune_boots",
+   "pants": "rune_platelegs",
+   "ring2": "banded_signet_follow",
+   "ring1": "banded_signet_keen_follow",
+   "earrings": "fang_studs",
+   "necklace": "wolfbone_torc",
+   "cape": "houndskin_cloak",
+   "weapon": "rune_sword",
+   "helmet": "rune_helm",
+   "ammo": "steel_whetstone"
+  },
+  {
+   "shield": "practice_shield",
+   "body": "iron_platebody",
+   "weapon": "bramble_blade",
+   "belt": "studded_belt",
+   "cape": "houndskin_cloak",
+   "boots": "iron_boots",
+   "pants": "iron_platelegs",
+   "gloves": "studded_gloves",
+   "helmet": "iron_helm",
+   "necklace": "wolfbone_torc"
+  },
+  {
+   "shield": "practice_shield",
+   "weapon": "practice_sword",
+   "helmet": "bronze_helm"
+  },
+  {
+   "belt": "steel_belt",
+   "shield": "practice_shield",
+   "body": "boarhide_body",
+   "pants": "steel_platelegs",
+   "weapon": "steel_sword",
+   "helmet": "steel_helm",
+   "boots": "steel_boots",
+   "gloves": "steel_gauntlets"
+  }
+ ],
+ "bars": [
+  [
+   {
+    "id": "s0",
+    "join": "and",
+    "action": {
+     "id": "flame_volley",
+     "own": [
+      "chalked_fire_rune",
+      "scored_fire_rune",
+      "etched_fire_rune",
+      "carved_fire_rune",
+      "graven_fire_rune"
+     ],
+     "type": "ability",
+     "store": "plain_etched_fire_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 2,
+      "metric": "enemies_in_aoe"
+     }
+    ]
+   },
+   {
+    "id": "s1",
+    "join": "and",
+    "action": {
+     "id": "raking_shot",
+     "type": "ability"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 2,
+      "metric": "enemies_in_aoe"
+     }
+    ]
+   },
+   {
+    "id": "s2",
+    "join": "and",
+    "action": {
+     "id": "hunters_mark",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s3",
+    "join": "and",
+    "action": {
+     "id": "precision_shot",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s4",
+    "join": "and",
+    "action": {
+     "id": "power_strike",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s5",
+    "join": "and",
+    "action": {
+     "id": "cleave",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s6",
+    "join": "and",
+    "action": {
+     "id": "cooked_frostfin",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 40,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s7",
+    "join": "and",
+    "action": {
+     "id": "salted_shrimp",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 60,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s8",
+    "join": "and",
+    "action": {
+     "id": "mithril_arrows",
+     "type": "attack_with_item"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s9",
+    "join": "and",
+    "action": {
+     "id": "iron_arrows",
+     "type": "attack_with_item"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s10",
+    "join": "and",
+    "action": {
+     "id": "turning_cut",
+     "type": "ability"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 3,
+      "metric": "enemies_in_aoe"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   {
+    "id": "s19",
+    "join": "and",
+    "action": {
+     "id": "thin_tomato_juice",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_mana_pct"
+     }
+    ]
+   }
+  ],
+  [
+   {
+    "id": "s0",
+    "join": "and",
+    "action": {
+     "id": "fireball",
+     "own": [
+      "chalked_fire_rune",
+      "scored_fire_rune",
+      "etched_fire_rune",
+      "carved_fire_rune",
+      "graven_fire_rune"
+     ],
+     "type": "ability",
+     "store": "plain_carved_fire_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 2,
+      "metric": "enemies_in_aoe"
+     }
+    ]
+   },
+   {
+    "id": "s1",
+    "join": "and",
+    "action": {
+     "id": "hoarfrost",
+     "own": [
+      "chalked_ice_rune",
+      "scored_ice_rune",
+      "etched_ice_rune",
+      "carved_ice_rune",
+      "graven_ice_rune"
+     ],
+     "type": "ability",
+     "store": "plain_carved_ice_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 2,
+      "metric": "enemies_in_aoe"
+     }
+    ]
+   },
+   {
+    "id": "s2",
+    "join": "and",
+    "action": {
+     "id": "frost_lance",
+     "own": [
+      "chalked_ice_rune",
+      "scored_ice_rune",
+      "etched_ice_rune",
+      "carved_ice_rune",
+      "graven_ice_rune"
+     ],
+     "type": "ability",
+     "store": "plain_carved_ice_rune",
+     "onEmpty": "store"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s3",
+    "join": "and",
+    "action": {
+     "id": "arcane_barrier",
+     "own": [
+      "chalked_earth_rune",
+      "scored_earth_rune",
+      "etched_earth_rune",
+      "carved_earth_rune",
+      "graven_earth_rune"
+     ],
+     "type": "ability",
+     "store": "plain_earth_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 85,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   {
+    "id": "s6",
+    "join": "and",
+    "action": {
+     "id": "cooked_frostfin",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 35,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s7",
+    "join": "and",
+    "action": {
+     "id": "cooked_shrimp",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 60,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s8",
+    "join": "and",
+    "action": {
+     "id": "salted_shrimp",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 60,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s9",
+    "join": "and",
+    "action": {
+     "id": "thin_tomato_juice",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_mana_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  [
+   {
+    "id": "s0",
+    "join": "and",
+    "action": {
+     "id": "green_sickness",
+     "own": [
+      "chalked_poison_rune",
+      "scored_poison_rune",
+      "etched_poison_rune",
+      "carved_poison_rune",
+      "graven_poison_rune"
+     ],
+     "type": "ability",
+     "store": "plain_etched_poison_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 2,
+      "metric": "enemies_in_aoe"
+     }
+    ]
+   },
+   {
+    "id": "s1",
+    "join": "and",
+    "action": {
+     "id": "undertow",
+     "own": [
+      "chalked_water_rune",
+      "scored_water_rune",
+      "etched_water_rune",
+      "carved_water_rune",
+      "graven_water_rune"
+     ],
+     "type": "ability",
+     "store": "plain_carved_water_rune",
+     "onEmpty": "store"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s2",
+    "join": "and",
+    "action": {
+     "id": "spring_tide",
+     "own": [
+      "chalked_water_rune",
+      "scored_water_rune",
+      "etched_water_rune",
+      "carved_water_rune",
+      "graven_water_rune"
+     ],
+     "type": "ability",
+     "store": "plain_carved_water_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 85,
+      "metric": "party_hp_pct"
+     },
+     {
+      "op": "eq",
+      "value": true,
+      "metric": "in_fight"
+     },
+     {
+      "op": "gte",
+      "value": 30,
+      "metric": "self_mana_pct"
+     }
+    ]
+   },
+   {
+    "id": "s3",
+    "join": "and",
+    "action": {
+     "id": "circle_of_renewal",
+     "own": [
+      "chalked_water_rune",
+      "scored_water_rune",
+      "etched_water_rune",
+      "carved_water_rune",
+      "graven_water_rune"
+     ],
+     "type": "ability",
+     "store": "plain_etched_water_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 2,
+      "metric": "allies_below",
+      "subject": "under_90"
+     }
+    ]
+   },
+   {
+    "id": "s4",
+    "join": "and",
+    "action": {
+     "id": "greater_mend",
+     "own": [
+      "chalked_water_rune",
+      "scored_water_rune",
+      "etched_water_rune",
+      "carved_water_rune",
+      "graven_water_rune"
+     ],
+     "type": "ability",
+     "store": "plain_etched_water_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 80,
+      "metric": "ally_hp_pct",
+      "subject": "lowest"
+     }
+    ]
+   },
+   {
+    "id": "s5",
+    "join": "and",
+    "action": {
+     "id": "protective_ward",
+     "own": [
+      "chalked_earth_rune",
+      "scored_earth_rune",
+      "etched_earth_rune",
+      "carved_earth_rune",
+      "graven_earth_rune"
+     ],
+     "type": "ability",
+     "store": "plain_etched_earth_rune",
+     "onEmpty": "store"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 95,
+      "metric": "ally_hp_pct",
+      "subject": "lowest"
+     }
+    ]
+   },
+   {
+    "id": "s6",
+    "join": "and",
+    "action": {
+     "id": "mend",
+     "type": "ability"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 50,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s7",
+    "join": "and",
+    "action": {
+     "id": "cooked_frostfin",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s8",
+    "join": "and",
+    "action": {
+     "id": "salted_trout",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 50,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s9",
+    "join": "and",
+    "action": {
+     "id": "salted_shrimp",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 60,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s10",
+    "join": "and",
+    "action": {
+     "id": "thin_pumpkin_cider",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 10,
+      "metric": "self_mana_pct"
+     }
+    ]
+   },
+   {
+    "id": "s11",
+    "join": "and",
+    "action": {
+     "id": "thin_tomato_juice",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 35,
+      "metric": "self_mana_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  [
+   {
+    "id": "s0",
+    "join": "and",
+    "action": {
+     "id": "challenge",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s1",
+    "join": "and",
+    "action": {
+     "id": "turning_cut",
+     "type": "ability"
+    },
+    "conditions": [
+     {
+      "op": "gte",
+      "value": 3,
+      "metric": "enemies_in_aoe"
+     }
+    ]
+   },
+   {
+    "id": "s2",
+    "join": "and",
+    "action": {
+     "id": "flame_strike",
+     "own": [
+      "chalked_fire_rune",
+      "scored_fire_rune",
+      "etched_fire_rune",
+      "carved_fire_rune",
+      "graven_fire_rune"
+     ],
+     "type": "ability",
+     "store": "plain_carved_fire_rune",
+     "onEmpty": "store"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s3",
+    "join": "and",
+    "action": {
+     "id": "power_strike",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s4",
+    "join": "and",
+    "action": {
+     "id": "cleave",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s5",
+    "join": "and",
+    "action": {
+     "id": "mend",
+     "type": "ability"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 50,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   {
+    "id": "s9",
+    "join": "and",
+    "action": {
+     "id": "cooked_frostfin",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   null,
+   {
+    "id": "s15",
+    "join": "and",
+    "action": {
+     "id": "cooked_swordfish",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 45,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s16",
+    "join": "and",
+    "action": {
+     "id": "salted_shark",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s17",
+    "join": "and",
+    "action": {
+     "id": "salted_swordfish",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 45,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   null,
+   {
+    "id": "s19",
+    "join": "and",
+    "action": {
+     "id": "thin_turnip_juice",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_mana_pct"
+     }
+    ]
+   }
+  ],
+  [
+   {
+    "id": "s0",
+    "join": "and",
+    "action": {
+     "id": "challenge",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s1",
+    "join": "and",
+    "action": {
+     "id": "flame_strike",
+     "own": [
+      "chalked_fire_rune",
+      "scored_fire_rune",
+      "etched_fire_rune",
+      "carved_fire_rune",
+      "graven_fire_rune"
+     ],
+     "type": "ability",
+     "store": "plain_etched_fire_rune",
+     "onEmpty": "store"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s2",
+    "join": "and",
+    "action": {
+     "id": "power_strike",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s3",
+    "join": "and",
+    "action": {
+     "id": "mend",
+     "type": "ability"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 80,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   null,
+   {
+    "id": "s5",
+    "join": "and",
+    "action": {
+     "id": "salted_shrimp",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 50,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s6",
+    "join": "and",
+    "action": {
+     "id": "thin_turnip_juice",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_mana_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   {
+    "id": "s13",
+    "join": "and",
+    "action": {
+     "id": "cooked_shrimp",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 50,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ],
+  [],
+  [
+   {
+    "id": "s0",
+    "join": "and",
+    "action": {
+     "id": "challenge",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s1",
+    "join": "and",
+    "action": {
+     "id": "power_strike",
+     "type": "ability"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s2",
+    "join": "and",
+    "action": {
+     "id": "flame_strike",
+     "own": [
+      "chalked_fire_rune",
+      "scored_fire_rune",
+      "etched_fire_rune",
+      "carved_fire_rune",
+      "graven_fire_rune"
+     ],
+     "type": "ability",
+     "store": "plain_carved_fire_rune",
+     "onEmpty": "store"
+    },
+    "conditions": []
+   },
+   {
+    "id": "s3",
+    "join": "and",
+    "action": {
+     "id": "cooked_shrimp",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 60,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s4",
+    "join": "and",
+    "action": {
+     "id": "emberfruit_cordial",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 60,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   {
+    "id": "s5",
+    "join": "and",
+    "action": {
+     "id": "thin_turnip_juice",
+     "type": "consume"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 30,
+      "metric": "self_mana_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   {
+    "id": "s10",
+    "join": "and",
+    "action": {
+     "id": "mend",
+     "type": "ability"
+    },
+    "conditions": [
+     {
+      "op": "lt",
+      "value": 50,
+      "metric": "self_hp_pct"
+     }
+    ]
+   },
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null,
+   null
+  ]
+ ],
+ "samples": [
+  {
+   "ground": "meadowbrook_thicket",
+   "tier": "normal",
+   "size": 1,
+   "date": "2026-11-16",
+   "hours": 5.718,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 415
+   },
+   "seats": [
+    {
+     "role": "tank",
+     "levelXp": 60015,
+     "skills": {
+      "melee": 29157,
+      "ranged": 0,
+      "magic": 0,
+      "defense": 5740,
+      "inner_flame": 0,
+      "prayer": 0
+     },
+     "kit": 5,
+     "bar": 5,
+     "options": {
+      "stance": "offensive"
+     },
+     "ownPerH": {
+      "cooked_shrimp": 1.224
+     },
+     "real": {
+      "hours": 5.718,
+      "levelXpPerH": 22480,
+      "rawXpPerH": 19638,
+      "coinPerH": 1630,
+      "storePerH": 10,
+      "takenPerH": 3788,
+      "healedPerH": 100,
+      "dealtPerH": 7377,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_turnip_juice": 1.049
+      },
+      "dealtShare": {
+       "basic": 0.471,
+       "power_strike": 0.529
+      }
+     }
+    }
+   ],
+   "id": "meadowbrook_thicket:normal:1:1"
+  },
+  {
+   "ground": "mill_cellar",
+   "tier": "normal",
+   "size": 1,
+   "date": "2026-11-16",
+   "hours": 1.016,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 499
+   },
+   "seats": [
+    {
+     "role": "healer",
+     "levelXp": 28436766,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 3355219,
+      "defense": 40408,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 1.016,
+      "levelXpPerH": 10470,
+      "rawXpPerH": 9274,
+      "coinPerH": 499,
+      "storePerH": 1716,
+      "takenPerH": 61,
+      "healedPerH": 0,
+      "dealtPerH": 3391,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_carved_poison_rune": 107.272
+      },
+      "dealtShare": {
+       "basic": 0.689,
+       "green_sickness": 0.311
+      }
+     }
+    }
+   ],
+   "id": "mill_cellar:normal:1:1"
+  },
+  {
+   "ground": "mill_cellar",
+   "tier": "normal",
+   "size": 1,
+   "date": "2026-11-16",
+   "hours": 1.016,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 517
+   },
+   "seats": [
+    {
+     "role": "mage",
+     "levelXp": 34426938,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 2953093,
+      "defense": 18913,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 1.016,
+      "levelXpPerH": 10856,
+      "rawXpPerH": 9615,
+      "coinPerH": 517,
+      "storePerH": 3277,
+      "takenPerH": 67,
+      "healedPerH": 0,
+      "dealtPerH": 3515,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_carved_ice_rune": 176.258,
+       "plain_carved_fire_rune": 28.556
+      },
+      "dealtShare": {
+       "basic": 0.594,
+       "fireball": 0.107,
+       "frost_lance": 0.299
+      }
+     }
+    }
+   ],
+   "id": "mill_cellar:normal:1:2"
+  },
+  {
+   "ground": "mill_cellar",
+   "tier": "normal",
+   "size": 1,
+   "date": "2026-11-16",
+   "hours": 1.015,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 509
+   },
+   "seats": [
+    {
+     "role": "ranger",
+     "levelXp": 34920583,
+     "skills": {
+      "melee": 147424,
+      "ranged": 3604545,
+      "magic": 118738,
+      "defense": 144415,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 1.015,
+      "levelXpPerH": 10689,
+      "rawXpPerH": 9467,
+      "coinPerH": 509,
+      "storePerH": 2593,
+      "takenPerH": 44,
+      "healedPerH": 0,
+      "dealtPerH": 3462,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_mithril_arrows": 577.34,
+       "plain_carved_fire_rune": 17.734
+      },
+      "dealtShare": {
+       "basic": 0.63,
+       "flame_volley": 0.05,
+       "precision_shot": 0.319
+      }
+     }
+    }
+   ],
+   "id": "mill_cellar:normal:1:3"
+  },
+  {
+   "ground": "the_slake",
+   "tier": "deadly",
+   "size": 3,
+   "date": "2026-11-16",
+   "hours": 8.67,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 2086
+   },
+   "seats": [
+    {
+     "role": "ranger",
+     "levelXp": 21717064,
+     "skills": {
+      "melee": 147424,
+      "ranged": 2721112,
+      "magic": 93045,
+      "defense": 136094,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 184.544
+     },
+     "real": {
+      "hours": 8.67,
+      "levelXpPerH": 1295129,
+      "rawXpPerH": 454597,
+      "coinPerH": 18294,
+      "storePerH": 11118,
+      "takenPerH": 4295,
+      "healedPerH": 0,
+      "dealtPerH": 53297,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_turnip_juice": 1.499,
+       "plain_mithril_arrows": 1732.987,
+       "plain_carved_fire_rune": 260.669
+      },
+      "dealtShare": {
+       "basic": 0.27,
+       "flame_volley": 0.683,
+       "precision_shot": 0.047
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 21223376,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 2363779,
+      "defense": 10604,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_ice_rune": 267.013,
+      "carved_fire_rune": 261.13,
+      "chalked_earth_rune": 19.146
+     },
+     "real": {
+      "hours": 8.67,
+      "levelXpPerH": 1295129,
+      "rawXpPerH": 454597,
+      "coinPerH": 18293,
+      "storePerH": 1640,
+      "takenPerH": 4683,
+      "healedPerH": 0,
+      "dealtPerH": 92958,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 36.448
+      },
+      "dealtShare": {
+       "basic": 0.176,
+       "fireball": 0.748,
+       "frost_lance": 0.076
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 15235906,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 2138502,
+      "defense": 32052,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_poison_rune": 258.939,
+      "chalked_earth_rune": 244.521
+     },
+     "real": {
+      "hours": 8.67,
+      "levelXpPerH": 1295129,
+      "rawXpPerH": 454597,
+      "coinPerH": 18300,
+      "storePerH": 16869,
+      "takenPerH": 6026,
+      "healedPerH": 83086,
+      "dealtPerH": 19416,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 149.596,
+       "plain_carved_water_rune": 633.564
+      },
+      "dealtShare": {
+       "basic": 0.734,
+       "green_sickness": 0.266
+      }
+     }
+    }
+   ],
+   "id": "the_slake:deadly:3:1"
+  },
+  {
+   "ground": "the_slake",
+   "tier": "deadly",
+   "size": 3,
+   "date": "2026-11-16",
+   "hours": 1.129,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 2111
+   },
+   "seats": [
+    {
+     "role": "ranger",
+     "levelXp": 32945833,
+     "skills": {
+      "melee": 147424,
+      "ranged": 3414246,
+      "magic": 113385,
+      "defense": 142516,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 1.129,
+      "levelXpPerH": 883260,
+      "rawXpPerH": 459661,
+      "coinPerH": 18581,
+      "storePerH": 10809,
+      "takenPerH": 3994,
+      "healedPerH": 0,
+      "dealtPerH": 48628,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_mithril_arrows": 1913.33,
+       "plain_etched_fire_rune": 262.961
+      },
+      "dealtShare": {
+       "basic": 0.322,
+       "flame_volley": 0.625,
+       "precision_shot": 0.053
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 32452145,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 2816649,
+      "defense": 17026,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_ice_rune": 257.649,
+      "carved_fire_rune": 263.847,
+      "chalked_earth_rune": 19.479
+     },
+     "real": {
+      "hours": 1.129,
+      "levelXpPerH": 883260,
+      "rawXpPerH": 459661,
+      "coinPerH": 18595,
+      "storePerH": 1355,
+      "takenPerH": 4795,
+      "healedPerH": 0,
+      "dealtPerH": 100166,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 30.103
+      },
+      "dealtShare": {
+       "basic": 0.169,
+       "fireball": 0.757,
+       "frost_lance": 0.074
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 26464675,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 3075986,
+      "defense": 38501,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_poison_rune": 260.305,
+      "chalked_earth_rune": 124.84
+     },
+     "real": {
+      "hours": 1.129,
+      "levelXpPerH": 883260,
+      "rawXpPerH": 459661,
+      "coinPerH": 18577,
+      "storePerH": 16536,
+      "takenPerH": 5611,
+      "healedPerH": 75661,
+      "dealtPerH": 19572,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 134.579,
+       "plain_carved_water_rune": 566.65,
+       "plain_etched_earth_rune": 117.757
+      },
+      "dealtShare": {
+       "basic": 0.732,
+       "green_sickness": 0.268
+      }
+     }
+    }
+   ],
+   "id": "the_slake:deadly:3:2"
+  },
+  {
+   "ground": "the_slake",
+   "tier": "deadly",
+   "size": 3,
+   "date": "2026-11-16",
+   "hours": 0.597,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 1835
+   },
+   "seats": [
+    {
+     "role": "ranger",
+     "levelXp": 33943426,
+     "skills": {
+      "melee": 147424,
+      "ranged": 3496630,
+      "magic": 115761,
+      "defense": 143236,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 0.597,
+      "levelXpPerH": 716284,
+      "rawXpPerH": 399267,
+      "coinPerH": 16252,
+      "storePerH": 10455,
+      "takenPerH": 5561,
+      "healedPerH": 0,
+      "dealtPerH": 49007,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_mithril_arrows": 1925.581,
+       "plain_etched_fire_rune": 229.395
+      },
+      "dealtShare": {
+       "basic": 0.363,
+       "flame_volley": 0.577,
+       "precision_shot": 0.06
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 33449738,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 2875095,
+      "defense": 17746,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 0.597,
+      "levelXpPerH": 716284,
+      "rawXpPerH": 399267,
+      "coinPerH": 16223,
+      "storePerH": 7058,
+      "takenPerH": 7294,
+      "healedPerH": 0,
+      "dealtPerH": 65348,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_earth_rune": 30.14,
+       "thin_tomato_juice": 15.07,
+       "plain_etched_ice_rune": 298.047,
+       "plain_etched_fire_rune": 231.07
+      },
+      "dealtShare": {
+       "basic": 0.303,
+       "fireball": 0.61,
+       "frost_lance": 0.087
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 27462268,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 3193100,
+      "defense": 39221,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 0.597,
+      "levelXpPerH": 716284,
+      "rawXpPerH": 399267,
+      "coinPerH": 16187,
+      "storePerH": 25657,
+      "takenPerH": 8521,
+      "healedPerH": 106585,
+      "dealtPerH": 22837,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 172.465,
+       "plain_carved_water_rune": 775.256,
+       "plain_etched_earth_rune": 227.721,
+       "plain_carved_poison_rune": 1.674,
+       "plain_etched_poison_rune": 227.721
+      },
+      "dealtShare": {
+       "basic": 0.865,
+       "green_sickness": 0.135
+      }
+     }
+    }
+   ],
+   "id": "the_slake:deadly:3:3"
+  },
+  {
+   "ground": "the_slake",
+   "tier": "deadly",
+   "size": 3,
+   "date": "2026-11-16",
+   "hours": 0.706,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 1962
+   },
+   "seats": [
+    {
+     "role": "ranger",
+     "levelXp": 34371207,
+     "skills": {
+      "melee": 147424,
+      "ranged": 3540532,
+      "magic": 116857,
+      "defense": 143783,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 0.706,
+      "levelXpPerH": 765897,
+      "rawXpPerH": 426922,
+      "coinPerH": 17303,
+      "storePerH": 11633,
+      "takenPerH": 4330,
+      "healedPerH": 0,
+      "dealtPerH": 56354,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_mithril_arrows": 1927.559,
+       "plain_carved_fire_rune": 245.197
+      },
+      "dealtShare": {
+       "basic": 0.293,
+       "flame_volley": 0.662,
+       "precision_shot": 0.045
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 33877519,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 2901601,
+      "defense": 18293,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 0.706,
+      "levelXpPerH": 765897,
+      "rawXpPerH": 426922,
+      "coinPerH": 17340,
+      "storePerH": 9166,
+      "takenPerH": 5566,
+      "healedPerH": 0,
+      "dealtPerH": 76506,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_earth_rune": 24.094,
+       "thin_tomato_juice": 25.512,
+       "plain_carved_ice_rune": 178.583,
+       "plain_etched_ice_rune": 99.213,
+       "plain_carved_fire_rune": 246.614
+      },
+      "dealtShare": {
+       "basic": 0.241,
+       "fireball": 0.685,
+       "frost_lance": 0.074
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 27890049,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 3266901,
+      "defense": 39768,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 0.706,
+      "levelXpPerH": 765897,
+      "rawXpPerH": 426922,
+      "coinPerH": 17330,
+      "storePerH": 24858,
+      "takenPerH": 6503,
+      "healedPerH": 82334,
+      "dealtPerH": 20013,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 157.323,
+       "plain_carved_earth_rune": 243.78,
+       "plain_carved_water_rune": 622.205,
+       "plain_carved_poison_rune": 245.197
+      },
+      "dealtShare": {
+       "basic": 0.8,
+       "green_sickness": 0.2
+      }
+     }
+    }
+   ],
+   "id": "the_slake:deadly:3:4"
+  },
+  {
+   "ground": "the_slake",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-16",
+   "hours": 1.821,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 2021
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 34934645,
+     "skills": {
+      "melee": 3154491,
+      "ranged": 0,
+      "magic": 15,
+      "defense": 2832450,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "steel_whetstone": 35.703
+     },
+     "real": {
+      "hours": 1.821,
+      "levelXpPerH": 789758,
+      "rawXpPerH": 440222,
+      "coinPerH": 17471,
+      "storePerH": 31,
+      "takenPerH": 72527,
+      "healedPerH": 119,
+      "dealtPerH": 30318,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_shrimp": 2.197
+      },
+      "dealtShare": {
+       "basic": 0.663,
+       "cleave": 0.219,
+       "power_strike": 0.118
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 34941211,
+     "skills": {
+      "melee": 147424,
+      "ranged": 3610872,
+      "magic": 118927,
+      "defense": 144571,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 1.821,
+      "levelXpPerH": 789758,
+      "rawXpPerH": 440222,
+      "coinPerH": 17464,
+      "storePerH": 11662,
+      "takenPerH": 5070,
+      "healedPerH": 0,
+      "dealtPerH": 56113,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_mithril_arrows": 1904.913,
+       "plain_carved_fire_rune": 252.67
+      },
+      "dealtShare": {
+       "basic": 0.275,
+       "flame_volley": 0.68,
+       "precision_shot": 0.045
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 34447742,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 2972321,
+      "defense": 19035,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 1.821,
+      "levelXpPerH": 789758,
+      "rawXpPerH": 440222,
+      "coinPerH": 17473,
+      "storePerH": 9676,
+      "takenPerH": 5041,
+      "healedPerH": 0,
+      "dealtPerH": 78159,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_earth_rune": 17.028,
+       "thin_tomato_juice": 29.112,
+       "plain_carved_ice_rune": 269.149,
+       "plain_carved_fire_rune": 252.67
+      },
+      "dealtShare": {
+       "basic": 0.242,
+       "fireball": 0.683,
+       "frost_lance": 0.075
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 28447405,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 3365377,
+      "defense": 40570,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 1.821,
+      "levelXpPerH": 789758,
+      "rawXpPerH": 440222,
+      "coinPerH": 17475,
+      "storePerH": 22923,
+      "takenPerH": 6836,
+      "healedPerH": 70161,
+      "dealtPerH": 20984,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 142.814,
+       "plain_carved_earth_rune": 244.98,
+       "plain_carved_water_rune": 533.903,
+       "plain_carved_poison_rune": 252.121
+      },
+      "dealtShare": {
+       "basic": 0.805,
+       "green_sickness": 0.195
+      }
+     }
+    }
+   ],
+   "id": "the_slake:deadly:4:1"
+  },
+  {
+   "ground": "coppercap_warrens",
+   "tier": "normal",
+   "size": 1,
+   "date": "2026-11-17",
+   "hours": 12,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 165
+   },
+   "seats": [
+    {
+     "role": "tank",
+     "levelXp": 5796066,
+     "skills": {
+      "melee": 1889881,
+      "ranged": 0,
+      "magic": 0,
+      "defense": 2679842,
+      "inner_flame": 93532,
+      "prayer": 0
+     },
+     "kit": 6,
+     "bar": 6,
+     "options": {
+      "chase": true,
+      "stance": "balanced",
+      "distance": 1,
+      "gold_floor": 300,
+      "target_mode": "nearest"
+     },
+     "ownPerH": {
+      "cooked_shrimp": 27.417
+     },
+     "real": {
+      "hours": 12,
+      "levelXpPerH": 214690,
+      "rawXpPerH": 186752,
+      "coinPerH": 5781,
+      "storePerH": 10364,
+      "takenPerH": 10965,
+      "healedPerH": 2557,
+      "dealtPerH": 36782,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_fire_rune": 0.167,
+       "thin_turnip_juice": 7.833,
+       "plain_carved_fire_rune": 367.333
+      },
+      "dealtShare": {
+       "basic": 0.566,
+       "flame_strike": 0.286,
+       "power_strike": 0.149
+      }
+     }
+    }
+   ],
+   "id": "coppercap_warrens:normal:1:1"
+  },
+  {
+   "ground": "pyre_field",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-17",
+   "hours": 12,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 1380
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 39599575,
+     "skills": {
+      "melee": 3384293,
+      "ranged": 0,
+      "magic": 6279,
+      "defense": 3080589,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "steel_whetstone": 36,
+      "cooked_swordfish": 0.083
+     },
+     "real": {
+      "hours": 12,
+      "levelXpPerH": 985534,
+      "rawXpPerH": 455349,
+      "coinPerH": 16997,
+      "storePerH": 6741,
+      "takenPerH": 126929,
+      "healedPerH": 8450,
+      "dealtPerH": 24126,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_shrimp": 135,
+       "plain_carved_fire_rune": 303.167
+      },
+      "dealtShare": {
+       "basic": 0.619,
+       "flame_strike": 0.278,
+       "power_strike": 0.103
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 39606141,
+     "skills": {
+      "melee": 147424,
+      "ranged": 4110721,
+      "magic": 131115,
+      "defense": 147264,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 1112.667,
+      "etched_fire_rune": 230.417
+     },
+     "real": {
+      "hours": 12,
+      "levelXpPerH": 985534,
+      "rawXpPerH": 455349,
+      "coinPerH": 16999,
+      "storePerH": 4644,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 43795,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_mithril_arrows": 1161.083
+      },
+      "dealtShare": {
+       "basic": 0.452,
+       "raking_shot": 0.173,
+       "flame_volley": 0.322,
+       "precision_shot": 0.053
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 39112672,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 3296210,
+      "defense": 21727,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_ice_rune": 82.833,
+      "carved_fire_rune": 180.917
+     },
+     "real": {
+      "hours": 12,
+      "levelXpPerH": 985534,
+      "rawXpPerH": 455349,
+      "coinPerH": 16986,
+      "storePerH": 8709,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 78604,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 50,
+       "plain_carved_ice_rune": 351,
+       "plain_carved_fire_rune": 52.667
+      },
+      "dealtShare": {
+       "basic": 0.417,
+       "fireball": 0.325,
+       "hoarfrost": 0.139,
+       "frost_lance": 0.119
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 33112335,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 3844721,
+      "defense": 43263,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "etched_water_rune": 3.083,
+      "chalked_earth_rune": 132
+     },
+     "real": {
+      "hours": 12,
+      "levelXpPerH": 985534,
+      "rawXpPerH": 455349,
+      "coinPerH": 16998,
+      "storePerH": 19718,
+      "takenPerH": 0,
+      "healedPerH": 84811,
+      "dealtPerH": 32073,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 113.583,
+       "plain_carved_earth_rune": 102.75,
+       "plain_carved_water_rune": 580,
+       "plain_carved_poison_rune": 230.167
+      },
+      "dealtShare": {
+       "basic": 0.915,
+       "green_sickness": 0.085
+      }
+     }
+    }
+   ],
+   "id": "pyre_field:deadly:4:1"
+  },
+  {
+   "ground": "the_slake",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-17",
+   "hours": 3.092,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 2347
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 36372443,
+     "skills": {
+      "melee": 3237284,
+      "ranged": 0,
+      "magic": 15,
+      "defense": 2907716,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "steel_whetstone": 35.897
+     },
+     "real": {
+      "hours": 3.092,
+      "levelXpPerH": 917348,
+      "rawXpPerH": 511343,
+      "coinPerH": 20509,
+      "storePerH": 4548,
+      "takenPerH": 52851,
+      "healedPerH": 0,
+      "dealtPerH": 25543,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_carved_fire_rune": 284.262
+      },
+      "dealtShare": {
+       "basic": 0.601,
+       "flame_strike": 0.285,
+       "power_strike": 0.115
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 36379009,
+     "skills": {
+      "melee": 147424,
+      "ranged": 3764107,
+      "magic": 123067,
+      "defense": 145983,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 2114.984,
+      "etched_fire_rune": 291.7
+     },
+     "real": {
+      "hours": 3.092,
+      "levelXpPerH": 917348,
+      "rawXpPerH": 511343,
+      "coinPerH": 20492,
+      "storePerH": 0,
+      "takenPerH": 2700,
+      "healedPerH": 0,
+      "dealtPerH": 64451,
+      "deathsPerH": 0,
+      "boughtPerH": {},
+      "dealtShare": {
+       "basic": 0.22,
+       "raking_shot": 0.084,
+       "flame_volley": 0.661,
+       "precision_shot": 0.035
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 35885540,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 3065965,
+      "defense": 20446,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_ice_rune": 353.791,
+      "carved_fire_rune": 293.317
+     },
+     "real": {
+      "hours": 3.092,
+      "levelXpPerH": 917348,
+      "rawXpPerH": 511343,
+      "coinPerH": 20495,
+      "storePerH": 2280,
+      "takenPerH": 2844,
+      "healedPerH": 0,
+      "dealtPerH": 107807,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_earth_rune": 9.378,
+       "thin_tomato_juice": 50.449
+      },
+      "dealtShare": {
+       "basic": 0.152,
+       "fireball": 0.743,
+       "hoarfrost": 0.04,
+       "frost_lance": 0.065
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 29885203,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 3561877,
+      "defense": 41982,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "etched_water_rune": 7.438,
+      "carved_poison_rune": 198.239,
+      "chalked_earth_rune": 215.702
+     },
+     "real": {
+      "hours": 3.092,
+      "levelXpPerH": 917348,
+      "rawXpPerH": 511343,
+      "coinPerH": 20496,
+      "storePerH": 9835,
+      "takenPerH": 3824,
+      "healedPerH": 46018,
+      "dealtPerH": 17723,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 71.146,
+       "plain_carved_water_rune": 327.596,
+       "plain_carved_poison_rune": 86.992
+      },
+      "dealtShare": {
+       "basic": 0.733,
+       "green_sickness": 0.267
+      }
+     }
+    }
+   ],
+   "id": "the_slake:deadly:4:2"
+  },
+  {
+   "ground": "coppercap_warrens",
+   "tier": "normal",
+   "size": 1,
+   "date": "2026-11-18",
+   "hours": 10.783,
+   "kit": "held",
+   "real": {
+    "killsPerH": 130
+   },
+   "seats": [
+    {
+     "role": "tank",
+     "levelXp": 2368493,
+     "skills": {
+      "melee": 662482,
+      "ranged": 0,
+      "magic": 47823,
+      "defense": 415986,
+      "inner_flame": 29202,
+      "prayer": 0
+     },
+     "kit": 4,
+     "bar": 4,
+     "options": {},
+     "ownPerH": {},
+     "real": {
+      "hours": 10.783,
+      "levelXpPerH": 168384,
+      "rawXpPerH": 146472,
+      "coinPerH": 4565,
+      "storePerH": 7744,
+      "takenPerH": 30563,
+      "healedPerH": 19581,
+      "dealtPerH": 28856,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_shrimp": 100.531,
+       "thin_turnip_juice": 113.514,
+       "plain_etched_fire_rune": 433.469
+      },
+      "dealtShare": {
+       "basic": 0.523,
+       "flame_strike": 0.335,
+       "power_strike": 0.142
+      }
+     }
+    }
+   ],
+   "id": "coppercap_warrens:normal:1:2"
+  },
+  {
+   "ground": "krells_hold",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-18",
+   "hours": 2.096,
+   "kit": "held",
+   "real": {
+    "killsPerH": 1163
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 61563369,
+     "skills": {
+      "melee": 4947752,
+      "ranged": 0,
+      "magic": 50290,
+      "defense": 4903437,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "steel_whetstone": 35.79,
+      "cooked_swordfish": 4.295,
+      "chalked_fire_rune": 288.706
+     },
+     "real": {
+      "hours": 2.096,
+      "levelXpPerH": 1002298,
+      "rawXpPerH": 589506,
+      "coinPerH": 12598,
+      "storePerH": 160,
+      "takenPerH": 140710,
+      "healedPerH": 1814,
+      "dealtPerH": 41833,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_carved_fire_rune": 5.726
+      },
+      "dealtShare": {
+       "basic": 0.309,
+       "turning_cut": 0.524,
+       "flame_strike": 0.114,
+       "power_strike": 0.053
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 61569935,
+     "skills": {
+      "melee": 147424,
+      "ranged": 5822113,
+      "magic": 177363,
+      "defense": 147264,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 2302.492,
+      "etched_fire_rune": 7.635,
+      "scored_fire_rune": 213.309
+     },
+     "real": {
+      "hours": 2.096,
+      "levelXpPerH": 1002298,
+      "rawXpPerH": 589506,
+      "coinPerH": 12589,
+      "storePerH": 0,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 45959,
+      "deathsPerH": 0,
+      "boughtPerH": {},
+      "dealtShare": {
+       "basic": 0.539,
+       "raking_shot": 0.164,
+       "flame_volley": 0.243,
+       "precision_shot": 0.054
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 61076466,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 4878865,
+      "defense": 21798,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_ice_rune": 488.176,
+      "carved_fire_rune": 241.941
+     },
+     "real": {
+      "hours": 2.096,
+      "levelXpPerH": 1002298,
+      "rawXpPerH": 589506,
+      "coinPerH": 12597,
+      "storePerH": 2406,
+      "takenPerH": 154,
+      "healedPerH": 0,
+      "dealtPerH": 81466,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_earth_rune": 0.477,
+       "thin_tomato_juice": 53.446
+      },
+      "dealtShare": {
+       "basic": 0.334,
+       "fireball": 0.37,
+       "hoarfrost": 0.157,
+       "frost_lance": 0.138
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 55076129,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 6264753,
+      "defense": 46902,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "etched_water_rune": 824.125,
+      "etched_poison_rune": 149.841
+     },
+     "real": {
+      "hours": 2.096,
+      "levelXpPerH": 1002298,
+      "rawXpPerH": 589506,
+      "coinPerH": 12577,
+      "storePerH": 11566,
+      "takenPerH": 47433,
+      "healedPerH": 143058,
+      "dealtPerH": 31122,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_trout": 1.432,
+       "salted_shrimp": 17.179,
+       "thin_tomato_juice": 166.543,
+       "plain_etched_earth_rune": 253.871,
+       "plain_etched_poison_rune": 60.604
+      },
+      "dealtShare": {
+       "basic": 0.818,
+       "green_sickness": 0.182
+      }
+     }
+    }
+   ],
+   "id": "krells_hold:deadly:4:1"
+  },
+  {
+   "ground": "krells_hold",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-18",
+   "hours": 2.542,
+   "kit": "held",
+   "real": {
+    "killsPerH": 1177
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 63663740,
+     "skills": {
+      "melee": 5079246,
+      "ranged": 0,
+      "magic": 52237,
+      "defense": 5050282,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "cooked_frostfin": 0.393,
+      "steel_whetstone": 35.795,
+      "cooked_swordfish": 3.934
+     },
+     "real": {
+      "hours": 2.542,
+      "levelXpPerH": 1014512,
+      "rawXpPerH": 596691,
+      "coinPerH": 12801,
+      "storePerH": 8305,
+      "takenPerH": 138395,
+      "healedPerH": 1805,
+      "dealtPerH": 45610,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_carved_fire_rune": 296.591
+      },
+      "dealtShare": {
+       "basic": 0.277,
+       "turning_cut": 0.488,
+       "flame_strike": 0.188,
+       "power_strike": 0.047
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 63670306,
+     "skills": {
+      "melee": 147424,
+      "ranged": 5966577,
+      "magic": 180173,
+      "defense": 147264,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 2289.729,
+      "scored_fire_rune": 220.673
+     },
+     "real": {
+      "hours": 2.542,
+      "levelXpPerH": 1014512,
+      "rawXpPerH": 596691,
+      "coinPerH": 12777,
+      "storePerH": 0,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 46437,
+      "deathsPerH": 0,
+      "boughtPerH": {},
+      "dealtShare": {
+       "basic": 0.545,
+       "raking_shot": 0.162,
+       "flame_volley": 0.24,
+       "precision_shot": 0.053
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 63176837,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 5024231,
+      "defense": 21891,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_ice_rune": 384.309,
+      "carved_fire_rune": 245.061
+     },
+     "real": {
+      "hours": 2.542,
+      "levelXpPerH": 1014512,
+      "rawXpPerH": 596691,
+      "coinPerH": 12777,
+      "storePerH": 5192,
+      "takenPerH": 146,
+      "healedPerH": 0,
+      "dealtPerH": 81586,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_earth_rune": 0.393,
+       "thin_tomato_juice": 52.71,
+       "plain_carved_ice_rune": 100.699
+      },
+      "dealtShare": {
+       "basic": 0.34,
+       "fireball": 0.37,
+       "hoarfrost": 0.148,
+       "frost_lance": 0.142
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 57176500,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 6536377,
+      "defense": 86074,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "etched_water_rune": 805.988
+     },
+     "real": {
+      "hours": 2.542,
+      "levelXpPerH": 1014512,
+      "rawXpPerH": 596691,
+      "coinPerH": 12778,
+      "storePerH": 12920,
+      "takenPerH": 47079,
+      "healedPerH": 138884,
+      "dealtPerH": 29548,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_trout": 2.36,
+       "salted_shrimp": 10.227,
+       "thin_tomato_juice": 157.736,
+       "plain_etched_earth_rune": 251.355,
+       "plain_etched_poison_rune": 213.986
+      },
+      "dealtShare": {
+       "basic": 0.856,
+       "green_sickness": 0.144
+      }
+     }
+    }
+   ],
+   "id": "krells_hold:deadly:4:2"
+  },
+  {
+   "ground": "mosslight_glade",
+   "tier": "normal",
+   "size": 1,
+   "date": "2026-11-18",
+   "hours": 1.231,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 433
+   },
+   "seats": [
+    {
+     "role": "tank",
+     "levelXp": 2251848,
+     "skills": {
+      "melee": 628534,
+      "ranged": 0,
+      "magic": 45867,
+      "defense": 401922,
+      "inner_flame": 29202,
+      "prayer": 0
+     },
+     "kit": 4,
+     "bar": 4,
+     "options": {},
+     "ownPerH": {},
+     "real": {
+      "hours": 1.231,
+      "levelXpPerH": 94791,
+      "rawXpPerH": 82563,
+      "coinPerH": 5377,
+      "storePerH": 2985,
+      "takenPerH": 10310,
+      "healedPerH": 64,
+      "dealtPerH": 18392,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "plain_fire_rune": 135.711,
+       "thin_turnip_juice": 4.063,
+       "plain_etched_fire_rune": 234.041
+      },
+      "dealtShare": {
+       "basic": 0.522,
+       "flame_strike": 0.318,
+       "power_strike": 0.16
+      }
+     }
+    }
+   ],
+   "id": "mosslight_glade:normal:1:1"
+  },
+  {
+   "ground": "pyre_field",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-18",
+   "hours": 3.994,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 1267
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 51425986,
+     "skills": {
+      "melee": 3980670,
+      "ranged": 0,
+      "magic": 28242,
+      "defense": 3979443,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "steel_whetstone": 35.805
+     },
+     "real": {
+      "hours": 3.994,
+      "levelXpPerH": 710678,
+      "rawXpPerH": 417754,
+      "coinPerH": 10937,
+      "storePerH": 10485,
+      "takenPerH": 129216,
+      "healedPerH": 6594,
+      "dealtPerH": 26588,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_shrimp": 103.909,
+       "plain_carved_fire_rune": 322.493
+      },
+      "dealtShare": {
+       "basic": 0.631,
+       "flame_strike": 0.27,
+       "power_strike": 0.1
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 51432552,
+     "skills": {
+      "melee": 147424,
+      "ranged": 4899033,
+      "magic": 153235,
+      "defense": 147264,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 2379.385,
+      "etched_fire_rune": 214.327
+     },
+     "real": {
+      "hours": 3.994,
+      "levelXpPerH": 710678,
+      "rawXpPerH": 417754,
+      "coinPerH": 10912,
+      "storePerH": 0,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 47113,
+      "deathsPerH": 0,
+      "boughtPerH": {},
+      "dealtShare": {
+       "basic": 0.451,
+       "raking_shot": 0.208,
+       "flame_volley": 0.289,
+       "precision_shot": 0.053
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 50939083,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 4061571,
+      "defense": 21727,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {},
+     "real": {
+      "hours": 3.994,
+      "levelXpPerH": 710678,
+      "rawXpPerH": 417754,
+      "coinPerH": 10932,
+      "storePerH": 21292,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 70315,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 49.075,
+       "plain_carved_ice_rune": 455.696,
+       "plain_carved_fire_rune": 225.845
+      },
+      "dealtShare": {
+       "basic": 0.423,
+       "fireball": 0.283,
+       "hoarfrost": 0.162,
+       "frost_lance": 0.132
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 44938746,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 5052757,
+      "defense": 43263,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "etched_water_rune": 1.252
+     },
+     "real": {
+      "hours": 3.994,
+      "levelXpPerH": 710678,
+      "rawXpPerH": 417754,
+      "coinPerH": 10914,
+      "storePerH": 35065,
+      "takenPerH": 0,
+      "healedPerH": 88747,
+      "dealtPerH": 27529,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 121.936,
+       "plain_carved_earth_rune": 235.109,
+       "plain_carved_water_rune": 607.678,
+       "plain_carved_poison_rune": 213.576
+      },
+      "dealtShare": {
+       "basic": 0.905,
+       "green_sickness": 0.095
+      }
+     }
+    }
+   ],
+   "id": "pyre_field:deadly:4:2"
+  },
+  {
+   "ground": "pyre_field",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-18",
+   "hours": 0.687,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 1441
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 54264356,
+     "skills": {
+      "melee": 4139953,
+      "ranged": 0,
+      "magic": 36010,
+      "defense": 4302141,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "steel_whetstone": 34.923,
+      "carved_fire_rune": 257.559
+     },
+     "real": {
+      "hours": 0.687,
+      "levelXpPerH": 807199,
+      "rawXpPerH": 474490,
+      "coinPerH": 12310,
+      "storePerH": 896,
+      "takenPerH": 116063,
+      "healedPerH": 4117,
+      "dealtPerH": 49592,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_shrimp": 64.026
+      },
+      "dealtShare": {
+       "basic": 0.292,
+       "turning_cut": 0.52,
+       "flame_strike": 0.145,
+       "power_strike": 0.043
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 54270922,
+     "skills": {
+      "melee": 147424,
+      "ranged": 5181280,
+      "magic": 160083,
+      "defense": 147264,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 2205.982,
+      "etched_fire_rune": 240.097
+     },
+     "real": {
+      "hours": 0.687,
+      "levelXpPerH": 807199,
+      "rawXpPerH": 474490,
+      "coinPerH": 12310,
+      "storePerH": 0,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 45447,
+      "deathsPerH": 0,
+      "boughtPerH": {},
+      "dealtShare": {
+       "basic": 0.469,
+       "raking_shot": 0.142,
+       "flame_volley": 0.338,
+       "precision_shot": 0.051
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 53777453,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 4321227,
+      "defense": 21727,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_ice_rune": 261.924,
+      "etched_ice_rune": 146.968,
+      "carved_fire_rune": 244.462
+     },
+     "real": {
+      "hours": 0.687,
+      "levelXpPerH": 807199,
+      "rawXpPerH": 474490,
+      "coinPerH": 12308,
+      "storePerH": 1637,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 74318,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 36.378
+      },
+      "dealtShare": {
+       "basic": 0.329,
+       "fireball": 0.399,
+       "hoarfrost": 0.154,
+       "frost_lance": 0.117
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 47777116,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 5480962,
+      "defense": 43263,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_water_rune": 413.258,
+      "carved_poison_rune": 240.097
+     },
+     "real": {
+      "hours": 0.687,
+      "levelXpPerH": 807199,
+      "rawXpPerH": 474490,
+      "coinPerH": 12312,
+      "storePerH": 6490,
+      "takenPerH": 0,
+      "healedPerH": 81793,
+      "dealtPerH": 25500,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 75.667,
+       "plain_carved_earth_rune": 11.641,
+       "plain_etched_earth_rune": 229.911
+      },
+      "dealtShare": {
+       "basic": 0.841,
+       "green_sickness": 0.159
+      }
+     }
+    }
+   ],
+   "id": "pyre_field:deadly:4:3"
+  },
+  {
+   "ground": "pyre_field",
+   "tier": "deadly",
+   "size": 4,
+   "date": "2026-11-18",
+   "hours": 8.282,
+   "kit": "assumed",
+   "real": {
+    "killsPerH": 1408
+   },
+   "seats": [
+    {
+     "role": "melee_dps",
+     "levelXp": 54819081,
+     "skills": {
+      "melee": 4191075,
+      "ranged": 0,
+      "magic": 37072,
+      "defense": 4346156,
+      "inner_flame": 434,
+      "prayer": 0
+     },
+     "kit": 3,
+     "bar": 3,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 1,
+      "gold_floor": 1000,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "steel_whetstone": 17.266,
+      "carved_fire_rune": 26.925
+     },
+     "real": {
+      "hours": 8.282,
+      "levelXpPerH": 789890,
+      "rawXpPerH": 464317,
+      "coinPerH": 12153,
+      "storePerH": 7438,
+      "takenPerH": 121862,
+      "healedPerH": 4402,
+      "dealtPerH": 46501,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "salted_shrimp": 68.339,
+       "plain_carved_fire_rune": 231.46
+      },
+      "dealtShare": {
+       "basic": 0.312,
+       "turning_cut": 0.515,
+       "flame_strike": 0.127,
+       "power_strike": 0.046
+      }
+     }
+    },
+    {
+     "role": "ranger",
+     "levelXp": 54825647,
+     "skills": {
+      "melee": 147424,
+      "ranged": 5228128,
+      "magic": 161403,
+      "defense": 147264,
+      "inner_flame": 327,
+      "prayer": 0
+     },
+     "kit": 0,
+     "bar": 0,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 4,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "mithril_arrows": 2243.601,
+      "etched_fire_rune": 234.961
+     },
+     "real": {
+      "hours": 8.282,
+      "levelXpPerH": 789890,
+      "rawXpPerH": 464317,
+      "coinPerH": 12156,
+      "storePerH": 0,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 46538,
+      "deathsPerH": 0,
+      "boughtPerH": {},
+      "dealtShare": {
+       "basic": 0.467,
+       "raking_shot": 0.16,
+       "flame_volley": 0.325,
+       "precision_shot": 0.048
+      }
+     }
+    },
+    {
+     "role": "mage",
+     "levelXp": 54332178,
+     "skills": {
+      "melee": 7666,
+      "ranged": 0,
+      "magic": 4362670,
+      "defense": 21727,
+      "inner_flame": 202,
+      "prayer": 0
+     },
+     "kit": 1,
+     "bar": 1,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 6,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "etched_ice_rune": 139.938,
+      "carved_fire_rune": 142.715
+     },
+     "real": {
+      "hours": 8.282,
+      "levelXpPerH": 789890,
+      "rawXpPerH": 464317,
+      "coinPerH": 12160,
+      "storePerH": 12200,
+      "takenPerH": 0,
+      "healedPerH": 0,
+      "dealtPerH": 71171,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 39.12,
+       "plain_carved_ice_rune": 275.771,
+       "plain_carved_fire_rune": 97.075
+      },
+      "dealtShare": {
+       "basic": 0.373,
+       "fireball": 0.363,
+       "hoarfrost": 0.141,
+       "frost_lance": 0.123
+      }
+     }
+    },
+    {
+     "role": "healer",
+     "levelXp": 48331841,
+     "skills": {
+      "melee": 66838,
+      "ranged": 0,
+      "magic": 5539664,
+      "defense": 43263,
+      "inner_flame": 21590,
+      "prayer": 0
+     },
+     "kit": 2,
+     "bar": 2,
+     "options": {
+      "chase": true,
+      "stance": "offensive",
+      "distance": 3,
+      "gold_floor": 300,
+      "target_mode": "follow"
+     },
+     "ownPerH": {
+      "carved_water_rune": 146.82,
+      "etched_water_rune": 341.092,
+      "carved_poison_rune": 89.952,
+      "etched_poison_rune": 144.647
+     },
+     "real": {
+      "hours": 8.282,
+      "levelXpPerH": 789890,
+      "rawXpPerH": 464317,
+      "coinPerH": 12153,
+      "storePerH": 6264,
+      "takenPerH": 0,
+      "healedPerH": 83140,
+      "dealtPerH": 26378,
+      "deathsPerH": 0,
+      "boughtPerH": {
+       "thin_tomato_juice": 76.187,
+       "plain_etched_earth_rune": 236.289
+      },
+      "dealtShare": {
+       "basic": 0.858,
+       "green_sickness": 0.142
+      }
+     }
+    }
+   ],
+   "id": "pyre_field:deadly:4:4"
+  }
+ ]
+}

@@ -85,7 +85,8 @@ async function verbArm(bootFn) {
   /* no other door */
   v = await as(db, a, `select public.hr_hunt_enter(0, 'training_yard_melee', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
   if (v.ok === true || !JSON.stringify(v).includes('training_only')) bad.push('TD-VERB an enter answered ' + JSON.stringify(v));
-  v = await as(db, a, `select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
+  /* a normal ground this Level 20 hero still enters: the Thicket (the Mill Cellar's hunt ends at Level 5 and its door refuses him: hunt-grounds.js endsAtLevel) */
+  v = await as(db, a, `select public.hr_hunt_enter(0, 'meadowbrook_thicket', '[]'::jsonb, 0, null, $1::uuid)`, [idem()]);
   if (v.ok !== true) bad.push('TD-VERB a normal ground refused: ' + JSON.stringify(v));
   v = await as(db, a, `select public.hr_hunt_change(0, 'training_yard_melee', $1::uuid)`, [idem()]);
   if (v.ok === true || !JSON.stringify(v).includes('training_only')) bad.push('TD-VERB a move mid-hunt answered ' + JSON.stringify(v));

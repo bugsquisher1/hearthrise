@@ -561,7 +561,8 @@ async function body(db, call, exec) {
     const worn = await call({ equip: { weapon: 'iron_sword' } });
     ok(worn.status === 200, `E10-SETUP: the sword did not go on in town — ${JSON.stringify(worn.body).slice(0, 200)}`);
     await db.query('update public.hr_hunt_config set enabled = true where id');
-    const e = (await db.query("select public.hr_hunt_enter(0, 'mill_cellar', '[]'::jsonb, 0, null, $1::uuid) r", [uuid()])).rows[0].r;
+    /* the Thicket, a ground this Level 15 hero still enters (the Mill Cellar's hunt ends at Level 5 and its door refuses him: hunt-grounds.js endsAtLevel) */
+    const e = (await db.query("select public.hr_hunt_enter(0, 'meadowbrook_thicket', '[]'::jsonb, 0, null, $1::uuid) r", [uuid()])).rows[0].r;
     ok(e && e.ok === true, `E10-SETUP: the hunt was not entered — ${JSON.stringify(e).slice(0, 200)}`);
     if (e && e.ok === true) {
       const sid = e.session.id;

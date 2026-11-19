@@ -18,7 +18,8 @@
 //     one happened to have run first, a self-check that now raises, a file that
 //     depends on an object nobody creates — all caught, credential-free.
 //  2. A MIGRATION LEFT OUT OF THE APPLY ORDER. Every .sql in
-//     supabase/migrations/ must be placed in tests/schema-apply-order.json.
+//     supabase/migrations/ must be placed by the apply order (its sidecar in
+//     supabase/migration-notes/, tools/lib/apply-order.mjs).
 //     A new file that nobody positioned fails the build rather than being
 //     silently omitted from every future rebuild.
 //  3. AN UNINTENDED SCHEMA CHANGE. The rebuilt schema is fingerprinted —
@@ -106,6 +107,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { ROOT, bootReplay, inventory, CATEGORIES, manifest, QUERIES, chainFiles } from './schema-replay.mjs';
+import { CHAIN_FILE } from '../tools/lib/apply-order.mjs';
 
 const BASELINE = join(ROOT, 'tests', 'schema-drift.baseline.json');
 const argv = process.argv.slice(2);
@@ -1236,9 +1238,10 @@ async function main() {
       let caught = null;
       try {
         if (m.manifestPatch) {
-          // Mutating the manifest means mutating a file on disk; do it in a
-          // temp copy so a crashed run cannot leave the repo modified.
-          const path = join(ROOT, 'tests', 'schema-apply-order.json');
+          // Mutating the manifest means mutating a file on disk: the chain's own
+          // config (the GUCs live there since the sidecars, tools/lib/apply-order.mjs).
+          // Restored in `finally`; a manifestPatch touches only what the chain file holds.
+          const path = join(ROOT, CHAIN_FILE);
           const original = await readFile(path, 'utf8');
           try {
             await writeFile(path, JSON.stringify(m.manifestPatch(JSON.parse(original)), null, 2));
@@ -1290,7 +1293,7 @@ async function main() {
     const out = {
       _readme: [
         'Fingerprint of the schema that supabase/schema.sql + supabase/migrations/**',
-        'produce when replayed in the order declared by tests/schema-apply-order.json.',
+        'produce when replayed in the apply order (tools/lib/apply-order.mjs).',
         'Regenerate ONLY with `node tests/schema-drift.mjs --write`, and only when the',
         'schema change was intended — the diff of this file is the review surface.',
         'What it can and cannot see is documented in the header of tests/schema-drift.mjs.',

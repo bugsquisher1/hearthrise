@@ -87,6 +87,8 @@ const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/party-envel
 const clone = (o) => JSON.parse(JSON.stringify(o));
 /* UI-5: each ground's party note, read off ITS catalogue row (the pocket with forParty and the boss in it): a warning, never a gate (Tyler 2026-11-08). */
 const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href);
+/* the Party window's measured lines (the page's class line reads the data's figure, never a pinned one: lane/d-party-ui-class) */
+const { PARTY_VS_ALONE } = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href);
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
 /* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
 const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
@@ -867,37 +869,60 @@ async function pureRules(M, base) {
   await t('PR-CLASS', async () => {
     const L = M.PRO.classXpLine;
     const head = (k) => 'Classes: ' + k + ' of 4. ';
-    const more = (k, vs, place) => head(k) + 'Level XP each: about +' + vs + '% vs solo in ' + place;
-    const less = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place + '. Mix Melee, Ranger, Mage and Healer for more';
-    const full = (k, vs, place) => head(k) + 'Level XP each: about -' + vs + '% vs solo in ' + place;
-    for (const [roles, hunt, want] of [
+    /* THE FIGURE IS THE MEASURED TABLE'S, read here on its own (lane/d-party-ui-class, 2026-11-19: the pinned numbers went stale twice in a day as
+       party-class-xp-line --mixed --write re-measured the lines, while the window read the table right). Each case states the RULE: how many classes
+       the seats hold (a seat with no weapon fights bare-handed, a Melee: hunt-roles.js ROLE_KEYS.neutral), which cell of PARTY_VS_ALONE that is,
+       and which words its sign takes. The class map and the cell are worked out from the raw rows, never through the window's reader. */
+    const classOf = (role) => Object.keys(M.PCX.PARTY_CLASSES).find((c) => M.PCX.PARTY_CLASSES[c].roles.includes(role));
+    const BARE = M.ROLES.roleForWeapon('neutral');
+    const ground = (g) => Object.values(HUNT_GROUNDS).find((x) => x.id === g);
+    const cellOf = (roles, g) => {
+      const seats = roles.map((r) => r || BARE), k = new Set(seats.map(classOf)).size;
+      const row = M.PCX.PARTY_VS_ALONE[g].normal[Math.min(seats.length, 4)];
+      return { k, vs: row[Math.min(k, row.length) - 1], seats };
+    };
+    const words = (k, vs, place, canMix) => head(k) + (vs === 0 ? 'Level XP each: about the same as solo in ' + place
+      : vs > 0 ? 'Level XP each: about +' + vs + '% vs solo in ' + place
+        : 'Level XP each: about -' + -vs + '% vs solo in ' + place + (canMix ? '. Mix Melee, Ranger, Mage and Healer for more' : ''));
+    const seen = new Set();
+    for (const [roles, g, oneRole] of [
       /* the one table (Tyler 2026-11-16): a mixed pair on the first grounds earns under its heroes alone, and the number stands (no label hides it) */
-      [['tank', 'ranger'], 'meadowbrook_thicket', full(2, 10, 'Meadowbrook Thicket')],
-      /* one class: with one pack for every group a one-class party loses a lot on Normal, measured */
-      [['tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 50, 'Meadowbrook Thicket')],
-      [['tank', 'melee_dps'], 'millrace_sewer', less(1, 35, 'The Sewer')],
-      [['tank', 'mage', 'healer'], 'coppercap_warrens', more(3, 30, 'Coppercap Warrens')],
-      [['tank', 'ranger'], 'millrace_sewer', more(2, 15, 'The Sewer')],
-      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer', more(4, 5, 'The Sewer')],
-      /* a seat with no weapon fights bare-handed, a Melee (hunt-roles.js ROLE_KEYS.neutral): it holds the Melee class */
-      [[null, 'ranger'], 'wickstead', full(2, 15, 'Wickstead')],
-      [[null, 'tank'], 'wickstead', less(1, 50, 'Wickstead')],
-      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6). */
-      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', less(1, 70, 'Meadowbrook Thicket')],
-      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', less(1, 60, 'Meadowbrook Thicket')],
-      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', less(1, 70, 'Meadowbrook Thicket')],
-      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
-      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
+      [['tank', 'ranger'], 'meadowbrook_thicket'],
+      /* one class: with one pack for every group a one-class party loses a lot on Normal, measured, and is told to mix */
+      [['tank', 'melee_dps'], 'meadowbrook_thicket'],
+      [['tank', 'melee_dps'], 'millrace_sewer'],
+      [['tank', 'mage', 'healer'], 'coppercap_warrens'],
+      [['tank', 'ranger'], 'millrace_sewer'],
+      [['tank', 'ranger', 'mage', 'healer'], 'millrace_sewer'],
+      /* a seat with no weapon fights bare-handed, a Melee: it holds the Melee class */
+      [[null, 'ranger'], 'wickstead'],
+      [[null, 'tank'], 'wickstead'],
+      /* A Thicket four who all share one role reads its own measured line (ONE_ROLE_VS_ALONE, CLAUDE.md §6): `oneRole` */
+      [['mage', 'mage', 'mage', 'mage'], 'meadowbrook_thicket', true],
+      [['tank', 'tank', 'tank', 'tank'], 'meadowbrook_thicket', true],
+      [['melee_dps', 'melee_dps', 'melee_dps', 'melee_dps'], 'meadowbrook_thicket', true],
+      [['ranger', 'ranger', 'ranger', 'ranger'], 'meadowbrook_thicket', true],
+      [['healer', 'healer', 'healer', 'healer'], 'meadowbrook_thicket', true],
       /* one class of two roles reads the ground's row, and another ground's wands keep theirs */
-      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket', less(1, 65, 'Meadowbrook Thicket')],
-      [['mage', 'mage', 'mage', 'mage'], 'wickstead', less(1, 70, 'Wickstead')],
-      /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier): Hask's Ford's mixed pair reads -5; the Pyre Field's reads even */
-      [['tank', 'ranger'], 'hasks_ford', full(2, 5, 'Hask\'s Ford')],
-      [['tank', 'ranger'], 'pyre_field', head(2) + 'Level XP each: about the same as solo in The Pyre Field'],
-      [['tank', 'melee_dps'], 'pyre_field', less(1, 40, 'The Pyre Field')],
+      [['tank', 'melee_dps', 'tank', 'melee_dps'], 'meadowbrook_thicket'],
+      [['mage', 'mage', 'mage', 'mage'], 'wickstead'],
+      /* a party that already holds every class it can at its size is never told to mix (lane/a-party-xp-tier) */
+      [['tank', 'ranger'], 'hasks_ford'],
+      [['tank', 'ranger'], 'pyre_field'],
+      [['tank', 'melee_dps'], 'pyre_field'],
     ]) {
-      if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + hunt + ' reads ' + JSON.stringify(L(roles, hunt));
+      const hunt = ground(g).hunt, place = M.PS.huntName(hunt), c = cellOf(roles, g);
+      /* the one-role line is data the table's rows don't carry: read through the data module's own reader, and proved in force below */
+      const vs = oneRole ? M.PCX.partyVsAlone(g, c.seats) : c.vs;
+      if (oneRole && vs !== c.vs) seen.add('one-role');
+      const canMix = c.k < Math.min(c.seats.length, 4);
+      seen.add(vs === 0 ? 'same' : vs > 0 ? 'more' : canMix ? 'less' : 'full');
+      const want = words(c.k, vs, place, canMix);
+      if (L(roles, hunt) !== want) return JSON.stringify(roles) + ' on ' + g + ' reads ' + JSON.stringify(L(roles, hunt)) + ', the measured line is ' + JSON.stringify(want);
     }
+    /* THE CASES STILL TEST EVERY WORDING (a re-measure can move a sign): over, even, under with a class to add, under with none, and the one-role line */
+    const missing = ['more', 'same', 'less', 'full', 'one-role'].filter((k) => !seen.has(k));
+    if (missing.length) return 'CONTROL: the measured lines leave no case reading ' + missing.join(', ') + ' (pick a party or ground whose line does)';
     const all = ['tank', 'ranger', 'mage', 'healer'];
     /* EVERY TIER'S LINE (lane/d-party-pace): the leader's tier picks its own measured line, and the line names the tier when it is not Normal */
     const TN = { normal: null, dangerous: 'Dangerous', deadly: 'Deadly' };
@@ -922,7 +947,9 @@ async function pureRules(M, base) {
       return M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs));
     };
     const shown = tab([seat(0, 'shield'), seat(1, 'ranged')], 'mill_cellar');
-    if (shown !== full(2, 30, 'Mill Cellar')) return 'in town the tab reads ' + JSON.stringify(shown);
+    const cellar = cellOf(['tank', 'ranger'], 'mill_cellar');
+    const cellarSaid = words(cellar.k, cellar.vs, M.PS.huntName(ground('mill_cellar').hunt), cellar.k < Math.min(cellar.seats.length, 4));
+    if (shown !== cellarSaid) return 'in town the tab reads ' + JSON.stringify(shown) + ', the measured line is ' + JSON.stringify(cellarSaid);
     if (tab([seat(0, 'shield', true), seat(1, 'ranged', true)], 'mill_cellar') !== '') return 'the line stayed once the party hunts';
     if (tab([seat(0, 'shield')], 'mill_cellar') !== '') return 'a party of one reads a class line';
     /* the leader's tier on the party's ground (the party section's leader_tiers) picks the line (lane/d-party-pace) */
@@ -945,7 +972,10 @@ async function pureRules(M, base) {
     const look = (p) => { const cs = { read: (k) => (k === 'party' ? p : undefined) }; return [M.PP.rosterOf(cs).members.map((m) => m.role).join(), M.PS.partyMembershipOf(cs).seats.map((s) => s.role).join(), M.PRO.classLineOf(M.PS.partyMembershipOf(cs), M.PP.rosterOf(cs))]; };
     const before = look(party('shield', 'shield')), after = look(party('shield', 'ranged'));
     if (before[0] !== 'tank,tank' || !/^Classes: 1 of 4\./.test(before[2])) return 'two shields read ' + JSON.stringify(before);
-    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || !/Classes: 2 of 4\. Level XP each: about -10% vs solo in Meadowbrook Thicket$/.test(after[2])) return 'a swap to a bow reads ' + JSON.stringify(after);
+    /* the Thicket's two-of-two cell, the measured figure (lane/d-party-ui-class: never a pinned number) */
+    const thicket2 = PARTY_VS_ALONE.meadowbrook_thicket.normal[2][1];
+    const thicketSaid = 'Classes: 2 of 4. Level XP each: ' + (thicket2 === 0 ? 'about the same as solo in Meadowbrook Thicket' : 'about ' + (thicket2 > 0 ? '+' : '-') + Math.abs(thicket2) + '% vs solo in Meadowbrook Thicket');
+    if (after[0] !== 'tank,ranger' || after[1] !== 'tank,ranger' || after[2] !== thicketSaid) return 'a swap to a bow reads ' + JSON.stringify(after) + ', the measured line is ' + JSON.stringify(thicketSaid);
     /* (2) WHY A FRIEND CAME HOME, on both surfaces. */
     const why = (r, by, w) => M.AL.cameHomeLine({ endReason: r, endBy: by, endWhy: w }, 'Wrenna');
     if (why('party_member_left', 'Bramwell', 'stamina') !== 'Bramwell ran out of stamina, so Wrenna came home too.') return 'a stamina end reads ' + why('party_member_left', 'Bramwell', 'stamina');
@@ -1498,7 +1528,12 @@ async function pageRules(overrides, shots) {
           if (v.tab !== 'party' || names !== 'Tyler*:In town|Mira (you):In town' || !v.seats.every((x) => x.shown) || !v.leave || v.memberPicks
             || v.next !== 'Waiting for Tyler to pick a hunt.') fails.push('UI-9 [' + tag + '] the Party window in town reads ' + JSON.stringify(v));
           /* PR-CLASS on the page: the fixture's shield and bow, on the party's Sewer row (2 heroes of 2 classes). */
-          if (v.classLine !== 'Classes: 2 of 4. Level XP each: about +10% vs solo in The Sewer') fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine));
+          {
+            /* the Sewer row's two-of-two cell, in its words (the measured figure, whichever sign it has) */
+            const vs = PARTY_VS_ALONE.millrace_sewer.normal[2][1];
+            const said = 'Classes: 2 of 4. Level XP each: ' + (vs === 0 ? 'about the same as solo in The Sewer' : 'about ' + (vs > 0 ? '+' : '-') + Math.abs(vs) + '% vs solo in The Sewer');
+            if (v.classLine !== said) fails.push('UI-9 [' + tag + '] the class line reads ' + JSON.stringify(v.classLine) + ', the measured line is ' + JSON.stringify(said));
+          }
           if (!v.opts.includes('Needs a shield') || !v.opts.includes('Needs a sword (Melee)') || v.opts.some((o) => o.includes('((') || /^No /.test(o)))
             fails.push('UI-9 [' + tag + '] the finder’s weapon words read ' + JSON.stringify(v.opts));
           await shot('party-town');

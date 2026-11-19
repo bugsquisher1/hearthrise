@@ -1,0 +1,4 @@
+{
+  "seq": 516,
+  "note": "APPLIED 2026-11-01 12:00 UTC (lane/c-house-pelts, systems-engineer, 2026-10-31; pre-EA: applies on its passing self-check). The house's prices: five Keep-era rungs re-costed to items that exist, the Castle and the eight rung 5s held (refused by name, hidden from hr_home_view). Self-check: held rows refused, no sellable row costs an unreachable item. No edge order of its own: hr_unlock_buy reads this table, and a held row is refused with either edge."
+}

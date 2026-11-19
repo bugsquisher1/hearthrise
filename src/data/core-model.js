@@ -66,7 +66,7 @@
    median moved. The table holds, so Levels cost more: 5-8 re-eased so each step takes about 1.92x the one before (the Cellar ends at 5, so Level 5
    is the Thicket's from its first minute and 6 -> 7 had read 2.01x 5 -> 6, C6), Level 9 -> 10 raised to 104,200 so Level 10 sits at 6 h, and the
    brackets from 10 re-fit (pace.mjs --fit --fit-from 10, minimax 5.4%). Every total from Level 10 is 8-19% higher: a live hero keeps its XP and may
-   read 1-3 Levels lower (74 reads 72). Forward file 2027-06-06-level-curve-early. */
+   read 1-3 Levels lower (74 reads 72). Forward file 1000-level-curve-early. */
 export const LEVEL_CURVE = Object.freeze({
   first: 159,
   brackets: Object.freeze([

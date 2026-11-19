@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - KILL SWITCH for the M4 combat arm only (array_remove of combat; gather stays armed), apply ONLY on an M4 kill trigger. EXCLUDED: a rebuilt database is already disarmed."
+}

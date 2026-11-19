@@ -1,0 +1,4 @@
+{
+  "seq": 533,
+  "note": "APPLIED 2026-11-03 13:12 UTC (lane/c-carry-in, backend-architect, 2026-11-02; pre-EA: applies on its passing self-check). hr_hunt_rune_spells(): each rune spell's skill and the level each tier of its family needs (tools/gen-catalogues.mjs, through the engine's own calls). Server-only, read by nothing until 2027-02-21-hunt-carry-in.sql. EDGE: none. No character row. ORDER: after 2027-02-21-tally-glade-steel.generated.sql; BEFORE 2027-02-21-hunt-carry-in.sql."
+}

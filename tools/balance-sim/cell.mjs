@@ -22,6 +22,7 @@ import { loadGear, STYLES } from './gear.mjs';
 import { rateCI, quantile, round, gini } from './stats.mjs';
 import { playedBar, runeTierAt, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
 import { loadLines, skillsAt } from './skill-lines.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 /* the settle's cut: 10 s alone, 30 s for a party (the tracked HP is re-anchored on the engine's at every cut; a
    party pays for every cut: about +40% an hour at 10 s, measured) */
@@ -44,7 +45,7 @@ export async function loadCellRunner(root) {
   const play = await loadPlay(root);
   const gear = await loadGear(root);
   const { BUILD } = await import(u('src/build-info.js'));
-  const v = '?v=' + BUILD.version;
+  const v = sourceQuery(root);
   const XP = await import(u('src/core/xp.js') + v);
   const MIT = await import(u('src/core/mitigation.js') + v);
   const VIT = await import(u('src/core/vitals.js') + v);

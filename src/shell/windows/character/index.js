@@ -51,7 +51,7 @@ function wantArt(doc, sprites) {
   let more = artKey === null;
   for (const s of sprites || []) if (!wanted.has(s)) { wanted.add(s); more = true; }
   if (!more) return;
-  /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
+  /* The release's stamp is this module's own ?v= (one stamp on every module: tools/lib/version-stamp.mjs). */
   const v = new URL(import.meta.url).searchParams.get('v') || '';
   const list = [...wanted], key = heroSetsFor(list).join();
   if (key !== artKey) {

@@ -37,6 +37,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootReplay, ROOT, LAST_PATCHED } from './schema-replay.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const OWN = '2026-12-25-frame-push-revive.sql';
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
@@ -138,7 +139,7 @@ const SQL_MUTANTS = [
 ];
 
 async function loadFiles() {
-  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   return Promise.all(order.map(async (name) => ({
     name, text: (await readFile(join(ROOT, 'supabase', 'migrations', name), 'utf8')).replace(/\r\n/g, '\n') })));
 }

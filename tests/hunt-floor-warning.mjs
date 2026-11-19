@@ -226,6 +226,14 @@ async function run(base) {
   return red;
 }
 
+/* A measured break-even line, planted where the advice reads the lines (a code anchor, so a re-measure of the numbers never moves it): Wickstead's
+   mixed pair earns exactly what the same heroes earn alone. */
+const BREAK_EVEN = ['src/shell/hunt-list.js', '  for (let n = 2; n <= PARTY.maxSize; n++) out[n] = partyBestLine(groundId, n);',
+  "  for (let n = 2; n <= PARTY.maxSize; n++) out[n] = groundId === 'wickstead' && n === 2 ? 0 : partyBestLine(groundId, n);"];
+/* CONTROLS: plants that must leave every arm GREEN, so the mutant built on them is caught for its own slip. */
+const CONTROLS = [
+  ['a pair that only breaks even on Wickstead is not sent there (the line alone, read with "> 0")', ...BREAK_EVEN],
+];
 const MUTANTS = [
   ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize, lo));', 'const fit = rows;'],
   ['a lone hero is never sent to a party ground past its soloFrom (the Glade to 44 again)', 'src/shell/hunt-list.js',
@@ -262,8 +270,11 @@ const MUTANTS = [
   /* (lane/a-party-coach-card: groupFit 'solo' is retired, so the hand-tag mutant reads the lone rule, the only tag left) */
   ['a party\'s advice reads the lone rule (any ground not built for a party)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best > 0;", "  return r.groupFit !== 'party';"],
   ['a party\'s advice reads no measure (Wickstead from 8)', 'src/shell/hunt-list.js', "  const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;\n  return Number.isInteger(best) && best > 0;", '  return true;'],
-  /* lane/d-harder-monsters (2026-11-19): a party suits a ground it is measured to earn OVER alone on; at ">= 0" a mixed pair's break-even line on Wickstead's Deadly took it off the Sewer */
-  ['a party suits a ground it only breaks even on (Wickstead from 8)', 'src/shell/hunt-list.js', 'return Number.isInteger(best) && best > 0;', 'return Number.isInteger(best) && best >= 0;'],
+  /* lane/d-harder-monsters (2026-11-19): a party suits a ground it is measured to earn OVER alone on; at ">= 0" a mixed pair's break-even line on Wickstead's Deadly took it off the Sewer.
+     RE-DERIVED (lane/d-floor-warning-plant, 2026-11-19): the measured lines moved (set/v0.2.142's re-measure reads Wickstead's best pair -5, and no ground's
+     best line is 0), so ">= 0" alone changed no advice and the plant missed. It now plants the break-even line itself (Wickstead's pair at 0, BREAK_EVEN)
+     with the slip, and CONTROLS below proves that line alone, read with "> 0", stays green: the red is the comparator's, not the data's. */
+  ['a party suits a ground it only breaks even on (Wickstead from 8)', 'src/shell/hunt-list.js', 'return Number.isInteger(best) && best > 0;', 'return Number.isInteger(best) && best >= 0;', [BREAK_EVEN]],
   ['the measure reads Normal only (the Glade\'s harder tiers forgotten)', 'src/data/party-class-xp.js', 'const lines = tiersOf(groundId).map((tier) => partyVsAlone(groundId, roles, tier))', 'const lines = [DEFAULT_TIER].map((tier) => partyVsAlone(groundId, roles, tier))'],
   ['a tie of floors ignores what a party is measured to earn', 'src/shell/hunt-list.js', '(group ? lineOf(y) - lineOf(x) : 0) || ', ''],
   /* G6 (lane/d-party-pace): the party claim on the Level tag again, where a four earns 60% under solo */
@@ -274,21 +285,38 @@ const MUTANTS = [
 if (SELFTEST) {
   const clean = await run(ROOT);
   if (clean.length) { console.error('hunt-floor-warning selftest: the CLEAN arm is red\n  ' + clean.join('\n  ')); process.exit(1); }
-  let caught = 0;
-  for (const [why, rel, from, to] of MUTANTS) {
+  /* a planted tree: each [rel, from, to] edit applied in turn; null when an anchor is missing */
+  const plantTree = (edits) => {
     const tmp = mkdtempSync(join(tmpdir(), 'hunt-floor-'));
-    try {
-      for (const d of ['src', 'supabase/migrations']) { mkdirSync(join(tmp, d), { recursive: true }); cpSync(join(ROOT, d), join(tmp, d), { recursive: true }); }
+    for (const d of ['src', 'supabase/migrations']) { mkdirSync(join(tmp, d), { recursive: true }); cpSync(join(ROOT, d), join(tmp, d), { recursive: true }); }
+    for (const [rel, from, to] of edits) {
       const p = join(tmp, rel);
       const src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');
-      if (!src.includes(from)) { console.error('  ✗ mutant anchor missing: ' + why); continue; }
+      if (!src.includes(from)) { rmSync(tmp, { recursive: true, force: true }); return null; }
       writeFileSync(p, src.replace(from, to));
+    }
+    return tmp;
+  };
+  let held = 0;
+  for (const [why, ...edit] of CONTROLS) {
+    const tmp = plantTree([edit]);
+    if (!tmp) { console.error('  ✗ control anchor missing: ' + why); continue; }
+    try {
+      const red = await run(tmp);
+      if (red.length) console.error('  ✗ CONTROL RED: ' + why + '\n      ' + red.join('\n      ')); else { held++; console.log('  ✓ control green: ' + why); }
+    } finally { rmSync(tmp, { recursive: true, force: true }); }
+  }
+  let caught = 0;
+  for (const [why, rel, from, to, more] of MUTANTS) {
+    const tmp = plantTree([...(more || []), [rel, from, to]]);
+    if (!tmp) { console.error('  ✗ mutant anchor missing: ' + why); continue; }
+    try {
       const red = await run(tmp);
       if (red.length) { caught++; console.log('  ✓ caught: ' + why); } else console.error('  ✗ MISSED: ' + why);
     } finally { rmSync(tmp, { recursive: true, force: true }); }
   }
-  console.log('hunt-floor-warning selftest: ' + caught + '/' + MUTANTS.length + ' planted defects caught');
-  process.exit(caught === MUTANTS.length ? 0 : 1);
+  console.log('hunt-floor-warning selftest: ' + caught + '/' + MUTANTS.length + ' planted defects caught, ' + held + '/' + CONTROLS.length + ' controls green');
+  process.exit(caught === MUTANTS.length && held === CONTROLS.length ? 0 : 1);
 } else {
   const red = await run(ROOT);
   if (red.length) { console.error('hunt-floor-warning: ' + red.length + ' failing\n  ' + red.join('\n  ')); process.exit(1); }

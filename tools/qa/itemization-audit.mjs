@@ -3,8 +3,9 @@
 //   probe | grounds | gear | recipes | dead | shop
 // Reads the data modules only. Changes nothing.
 import { readFileSync } from 'node:fs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 /* the data modules at the build's own ?v= (src/build-info.js), so they are the same instances their own imports load (no version is written here) */
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(new URL('../../src/build-info.js', import.meta.url), 'utf8')) || [, ''])[1];
+const V = sourceQuery();
 const imp = (p) => import(new URL('../../src/data/' + p, import.meta.url).href + V);
 const { ITEMS } = await imp('items.js');
 const CC = await imp('catalogue-coherence.js');

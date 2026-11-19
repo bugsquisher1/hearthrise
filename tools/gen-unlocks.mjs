@@ -93,7 +93,7 @@ function die(msg) {
 }
 
 /* THE OUTPUT: the newest migration this tool wrote, in apply order (tools/lib/generated-target.mjs); an
-   APPLIED one is never rewritten - `--new <YYYY-MM-DD-name>.generated.sql` starts the next forward file. */
+   APPLIED one is never rewritten - `--new <slug>` starts the next forward file. */
 const OUT = generatedTarget(ROOT, 'gen-unlocks.mjs', argv, { write: !CHECK && !REPORT, die });
 
 /* ══════════════════════════════════════════════════════════════════════════

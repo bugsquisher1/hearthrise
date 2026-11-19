@@ -36,6 +36,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
+import { sourceQuery } from './lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-02-07-level-curve-wickstead (lane/a-v0263-reds): Wickstead opened (8-18 solo, v0.2.63), so the pace was re-measured
@@ -59,10 +60,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    plans pace + ladder were re-measured. Every bracket under Level 50 holds (C2); the ladder now trends 975 x L^1.421 (the Glade +5.1%, the Warrens
    +8.7% from lanes since 11-09), LEVEL_PACE.contract follows it (C5), and the brackets from Level 50 re-fit (pace.mjs --fit --fit-past). Same table,
    new rows; 2027-03-23 stays history. */
-/* 2027-06-06-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 5-8 re-eased (the Cellar ends at 5, so Level 6 -> 7 read 2.01x 5 -> 6,
+/* 1000-level-curve-early (lane/d-142-rulings, 2026-11-19): Levels 5-8 re-eased (the Cellar ends at 5, so Level 6 -> 7 read 2.01x 5 -> 6,
    level-curve C6), Level 9 -> 10 raised and the brackets from 10 re-fit to Tyler's table (the pace of record read Level 50 in 146 h against 168;
    core-model.js LEVEL_CURVE says why). Same table, new rows; 2027-04-07 stays history. */
-export const OUT_NAME = '2027-06-06-level-curve-early.generated.sql';
+export const OUT_NAME = '1000-level-curve-early.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /* The Levels the self-check pins: every bracket's edge, Tyler's target Levels and a deep one. */
@@ -183,7 +184,7 @@ end $$;
 
 async function loadXp(root) {
   const { BUILD } = await import(pathToFileURL(join(root, 'src/build-info.js')).href);
-  return import(pathToFileURL(join(root, 'src/core/xp.js')).href + '?v=' + BUILD.version);
+  return import(pathToFileURL(join(root, 'src/core/xp.js')).href + sourceQuery(root));
 }
 
 async function selftest() {

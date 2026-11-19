@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - M2 ARM, apply ONLY per docs/planning/SEC_GATHER_ARM_RUNBOOK_2026-10-06.md. EXCLUDED deliberately: arming is earned on the live database's own evidence (pinned-payload probe rows, a fresh owned cohort); a rebuilt or restored database must come back DISARMED and re-earn it. The file raises anywhere that evidence is absent, by design."
+}

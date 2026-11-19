@@ -28,6 +28,7 @@ import { join } from 'node:path';
 import { loadCellRunner } from './cell.mjs';
 import { runCareer } from './career.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -62,7 +63,7 @@ async function food() {
 async function gold() {
   const R = await loadCellRunner(ROOT);
   const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).href);
-  const { recommendedHunt } = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-list.js')).href + '?v=' + BUILD.version);
+  const { recommendedHunt } = await import(pathToFileURL(join(ROOT, 'src/shell/hunt-list.js')).href + sourceQuery(ROOT));
   const recommend = (levels, n) => recommendedHunt(levels, n).hunt;
   const to = Number(arg('to', 50)), style = arg('style', 'tank');
   const c = runCareer(R, { id: 'F12:' + style, party: [style], startLevel: 1, targetLevel: to, maxHours: Number(arg('max', 400)), chunkH: 1,

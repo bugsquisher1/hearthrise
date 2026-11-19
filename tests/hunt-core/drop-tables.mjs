@@ -52,8 +52,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync, existsSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const imp = (root, p) => import(pathToFileURL(join(root, p)).href + V);
 
 /* THE NUMBERS THE RULINGS NAME (the designer's picks inside them, stated once). */

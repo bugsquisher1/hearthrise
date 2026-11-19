@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - a Coordinator step, after the Tower files and its edge (lane/b-tower-window, systems-engineer, 2026-11-16). An operational switch for ONE production account: burning_tower to scope accounts, listing the QA account (0a47ba77). A rebuilt database is correct without it (no such account exists there), as 2026-10-19-alpha-premium-grant.sql; replayed, it would turn the switch on for an id no fixture has and the off-path tests would no longer start from the seeded state."
+}

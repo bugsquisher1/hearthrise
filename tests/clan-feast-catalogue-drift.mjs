@@ -53,10 +53,10 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG_DIR = join(ROOT, 'supabase', 'migrations');
-const ORDER = join(ROOT, 'tests', 'schema-apply-order.json');
 
 /** Every `insert into public.hr_feast_foods (item_id, heals) values (…)` block
  *  in one file's text, as [item_id, heals] pairs in source order. A file may
@@ -103,9 +103,9 @@ export async function feastCatalogueDriftGuard(opts = {}) {
   // `opts.inject` is the --selftest seam: {file: sqlText} overrides/adds a
   // file's text without writing to the repo.
   let order;
-  try { order = JSON.parse(await readFile(ORDER, 'utf8')).order; }
-  catch (e) { return [`cannot read tests/schema-apply-order.json — ${e.message}`]; }
-  if (!Array.isArray(order) || order.length === 0) return ['schema-apply-order.json has no `order` array'];
+  try { order = loadApplyOrder(ROOT).order; }
+  catch (e) { return [`cannot derive the apply order — ${e.message}`]; }
+  if (!Array.isArray(order) || order.length === 0) return ['the apply order has no chain'];
 
   const inject = opts.inject || {};
   const fromSql = new Map();          // item_id -> heals, after the fold
@@ -158,7 +158,7 @@ async function selftest() {
   /* The newest seed is DERIVED (the last file in apply order that seeds hr_feast_foods), never typed: it was
      2026-09-13-reed-and-tide.sql until the core rebuild's catalogue (2026-10-27-core-catalogue.generated.sql)
      re-seeded every heal, and a typed name kept mutating a file the fold had already overridden. */
-  const order = JSON.parse(await readFile(ORDER, 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const seeders = [];
   for (const f of order) {
     let t; try { t = await readFile(join(MIG_DIR, f), 'utf8'); } catch { continue; }

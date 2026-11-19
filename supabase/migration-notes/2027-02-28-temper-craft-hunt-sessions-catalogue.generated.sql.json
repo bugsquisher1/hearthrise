@@ -1,0 +1,4 @@
+{
+  "seq": 565,
+  "note": "APPLIED 2026-11-05 11:44 UTC (lane/c-temper-craft, 2026-11-05). hr_hunt_vendor_value gains the salts' bids, which are also the Weighhouse's floor. No kill bound or spawn moves; hr_hunt_world_shape unchanged, so it cannot pause a hunt. ORDER: after 2027-02-28-temper-craft-items-catalogue.generated.sql, before the hr-accrue deploy."
+}

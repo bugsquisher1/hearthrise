@@ -7,7 +7,8 @@
 //   node tests/apply-order-honesty.mjs --selftest  plant both defects, require each caught
 //
 // ── THE FAILURE THIS EXISTS TO KILL ─────────────────────────────────────────
-// 2026-09-06: tests/schema-apply-order.json's `_order_notes` said "STAGED, NOT
+// 2026-09-06: the apply-order record's notes (then tests/schema-apply-order.json's `_order_notes`, since
+// 2026-11-19 one sidecar per migration: supabase/migration-notes/<file>.sql.json) said "STAGED, NOT
 // APPLIED" for FOURTEEN migrations that were measurably LIVE on production —
 // among them 2026-09-08-hero-slot-buy.sql, 2026-09-09-import-apply-slot-
 // entitlement.sql and 2026-09-12-bounty-accept-bh-clamp.sql, whose own note
@@ -20,7 +21,7 @@
 // "we got away with it" is not a control.
 //
 // The two records already existed and already disagreed. Nothing compared them.
-// This does, in the only place it is cheap: two JSON files, no database, no
+// This does, in the only place it is cheap: the sidecars and the baseline, no database, no
 // credential, no replay — so it can run on every push next to the guards whose
 // measurements it consumes.
 //
@@ -79,9 +80,9 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder, knownFiles } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
-const ORDER_FILE = join(ROOT, 'tests', 'schema-apply-order.json');
 const BASELINE_FILE = join(ROOT, 'tests', 'live-hash-drift.baseline.json');
 
 const argv = process.argv.slice(2);
@@ -112,7 +113,7 @@ export function claimOf(note) {
 
 // ── THE PER-FILE VERDICT, DERIVED FROM THE BASELINE ────────────────────────
 /**
- * @param {object} order the parsed schema-apply-order.json
+ * @param {object} order the apply order (tools/lib/apply-order.mjs loadApplyOrder: the old JSON's shape)
  * @param {object} base  the parsed live-hash-drift.baseline.json
  * @returns {{evidence:Map<string,{how:string,fn:string}[]>, absent:Map<string,string[]>,
  *            orphans:string[], replayed:Set<string>}}
@@ -120,9 +121,8 @@ export function claimOf(note) {
 export function derive(order, base) {
   const replayed = [...(order.pre_schema || []), ...(order.order || [])];
   const idx = new Map(replayed.map((f, i) => [f, i]));
-  const excluded = new Set(Array.isArray(order.excluded)
-    ? order.excluded : Object.keys(order.excluded || {}));
-  const known = new Set([...idx.keys(), ...excluded]);
+  /* excluded and RETIRED files are accounted for: a retired catalogue is history the replay skips, not an orphan */
+  const known = knownFiles(order);
 
   const evidence = new Map();   // file -> [{how, fn}]  proven ON production
   const absent = new Map();     // file -> [fn]         proven NOT on production
@@ -154,7 +154,7 @@ export function classify(order, base) {
   for (const f of orphans) {
     say(`orphan-file ${f}`,
       'tests/live-hash-drift.baseline.json names this migration in a touched_by list and '
-      + 'tests/schema-apply-order.json accounts for it in neither order, pre_schema nor excluded. '
+      + 'the apply order (supabase/migration-notes) accounts for it in neither order, pre_schema, excluded nor retired. '
       + 'The two records of what this database is made of have structurally drifted; fix that '
       + 'before trusting either.');
   }
@@ -192,7 +192,7 @@ export function classify(order, base) {
 // state the repository was already in.
 function assertNotVacuous(order, base, d) {
   if (!Object.keys(order._order_notes || {}).length) {
-    throw harness('schema-apply-order.json has no _order_notes to check');
+    throw harness('the apply order carries no notes to check (supabase/migration-notes)');
   }
   if (!(base.functions || []).length) throw harness('the live-hash baseline lists no functions');
   if (!d.evidence.size) {
@@ -207,7 +207,10 @@ const load = async () => {
     try { return JSON.parse(await readFile(p, 'utf8')); }
     catch (e) { throw harness(`cannot read ${p}: ${String(e.message || e).split('\n')[0]}`); }
   };
-  return { order: await one(ORDER_FILE), base: await one(BASELINE_FILE) };
+  let order;
+  try { order = loadApplyOrder(ROOT); }
+  catch (e) { throw harness(`cannot derive the apply order: ${String(e.message || e)}`); }
+  return { order, base: await one(BASELINE_FILE) };
 };
 
 // ════════════════════════════════════════════════════════════════════════
@@ -275,6 +278,19 @@ async function selftest() {
         b.functions[0] = { ...b.functions[0],
           touched_by: [...b.functions[0].touched_by, '9999-99-99-planted-orphan.sql'] };
         return [order, b];
+      },
+    },
+    retired_file_is_not_an_orphan: {
+      what: 'THE RETIREMENT CONTROL (2026-11-19). A superseded catalogue moved to supabase/migrations-retired/ is '
+          + 'still accounted for: the baseline may name it in touched_by and it is not an orphan. Paired with the '
+          + 'orphan case above, which proves an UNaccounted name still is',
+      expect: null,
+      make: () => {
+        const o = clone(order); const b = clone(base);
+        o.retired = { ...(o.retired || {}), '9999-99-98-planted-retired.sql': { seq: 1, superseded_by: o.order[o.order.length - 1] } };
+        b.functions[0] = { ...b.functions[0],
+          touched_by: [...b.functions[0].touched_by, '9999-99-98-planted-retired.sql'] };
+        return [o, b];
       },
     },
     honest_applied_note_is_not_a_finding: {

@@ -1,0 +1,4 @@
+{
+  "seq": 555,
+  "note": "APPLIED 2026-11-05 07:56 UTC (lane/c-town-shows, backend-architect, 2026-11-04; Tyler the same day: Town Crier; pre-EA: applies on its passing §4; on the EA Security list: a paid line to every player, and no per-account mute exists yet). hr_crier_send, the flag town_crier (the server-wide stop), hr_town_crier_quote. After 2027-02-27-gold-given.sql, before 2027-02-27-town-shows.sql, whose window read calls the quote. No edge move."
+}

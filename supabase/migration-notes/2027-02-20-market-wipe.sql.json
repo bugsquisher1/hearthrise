@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - apply ONLY on Tyler's word, as part of a declared wipe (lane/c-beta-server, backend-architect, 2026-11-01; Security market review change 3, threat model #12). Empties market_listings, market_sales and market_item_daily and unschedules hr-market-expire, once (hr_wipe_log 'market-first-wipe'); refuses with the market on or the game open. IRREVERSIBLE except by the backup. Procedure in its header: market-off, this, the character wipe, -resume, market-on. EXCLUDED: an operator one-shot against live data; a rebuilt database has nothing to empty. Guard: tests/market-wipe.mjs."
+}

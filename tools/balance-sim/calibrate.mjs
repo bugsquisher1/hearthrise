@@ -18,6 +18,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { join, dirname, resolve } from 'node:path';
 import { isMain } from '../../tests/_is-main.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const FIXTURE = join(ROOT, 'tests', 'fixtures', 'balance-calibration.json');
@@ -173,7 +174,7 @@ export function compare(s, sim) {
  */
 export async function scaleMonsters(mult) {
   const { BUILD } = await import(u('src/build-info.js'));
-  const tables = [(await import(u('src/data/monsters.js') + '?v=' + BUILD.version)).MONSTERS, (await import(u('src/data/monsters.js'))).MONSTERS];
+  const tables = [(await import(u('src/data/monsters.js') + sourceQuery(ROOT))).MONSTERS, (await import(u('src/data/monsters.js'))).MONSTERS];
   const undo = [];
   for (const T of new Set(tables)) for (const row of Object.values(T)) for (const [k, m] of Object.entries(mult || {})) {
     if (!(m > 0) || m === 1 || row[k] === undefined) continue;

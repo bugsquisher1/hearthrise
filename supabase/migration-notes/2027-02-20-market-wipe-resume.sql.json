@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - apply ONLY after 2027-02-20-market-wipe.sql and the character wipe. Schedules hr-market-expire again exactly as the wipe journalled it; 2027-02-14-market-on.sql refuses until it ran. EXCLUDED with its wipe. Guard: tests/market-wipe.mjs."
+}

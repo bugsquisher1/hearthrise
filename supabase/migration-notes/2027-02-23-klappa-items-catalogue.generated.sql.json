@@ -1,0 +1,4 @@
+{
+  "seq": 535,
+  "note": "APPLIED 2026-11-03 23:36 UTC (lane/c-klappa-club, designer, 2026-11-03; pre-EA: applies on its self-check). Klappa's Club: hr_items and hr_item_slots gain klappas_club, hr_activities gains reforge_klappas_club. No character row, no world shape change. ORDER: first of the four; the three after it name these rows. APPLY ALL FOUR, THEN deploy hr-accrue (its bundle carries the new item and recipe), THEN the client."
+}

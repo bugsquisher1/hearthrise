@@ -95,8 +95,8 @@
 // literals in the block, so they are attributed that way and the block is named
 // in --report as a bulk patch, so the attribution is never silent folklore.
 //
-// ORDER: taken from tests/schema-apply-order.json (`order`), the same list
-// tests/schema-drift.mjs replays — NOT filename order, which does not replay
+// ORDER: the apply order (tools/lib/apply-order.mjs: each migration's sidecar or
+// sequence name), the same list tests/schema-drift.mjs replays — NOT filename order, which does not replay
 // here and would compute "since the last restatement" against a history that
 // never happened. Any .sql not in that list is appended in filename order and
 // flagged, because an unordered migration is a separate, real problem.
@@ -110,10 +110,10 @@ import { join, normalize } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder, NOTES_DIR, CHAIN_FILE, sidecarText, noteFileOf } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGRATIONS = join(ROOT, 'supabase', 'migrations');
-const APPLY_ORDER = join(ROOT, 'tests', 'schema-apply-order.json');
 const BASELINE = join(ROOT, 'tests', 'patch-chain-guard.baseline.json');
 
 /** The audit's standing rule. A chain at or past this depth must be restated. */
@@ -302,7 +302,7 @@ export function applyOrder(root) {
     ? readdirSync(join(root, 'supabase', 'migrations')).filter((f) => f.endsWith('.sql')).sort()
     : [];
   let order = [];
-  try { order = JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order || []; }
+  try { order = loadApplyOrder(root).order || []; }
   catch { order = []; }
   const known = new Set(order);
   const unordered = files.filter((f) => !known.has(f));
@@ -435,13 +435,13 @@ export function compare(now, base) {
     for (const f of (b.files || [])) {
       if (present.has(f)) continue;
       fail('PATCH-5', `${f} contributed a patch to public.${fn} and is no longer in the apply order `
-        + '(deleted, renamed, or dropped from tests/schema-apply-order.json). An applied migration '
+        + '(deleted, renamed, retired, or its sidecar lost). An applied migration '
         + 'is history: removing it does not change production, it changes what a rebuild produces.');
     }
   }
 
   if (now.unordered.length) {
-    notes.push(`${now.unordered.length} migration(s) are not in tests/schema-apply-order.json and were `
+    notes.push(`${now.unordered.length} migration(s) are not placed by the apply order and were `
       + `appended in filename order: ${now.unordered.join(', ')}`);
   }
   return { problems, notes };
@@ -450,7 +450,7 @@ export function compare(now, base) {
 // ── output ───────────────────────────────────────────────────────────────
 function printReport(now) {
   console.log('  PATCH CHAINS — anchored programmatic edits since each body\'s last full restatement');
-  console.log('  order: tests/schema-apply-order.json (the list schema-drift replays), not filenames\n');
+  console.log('  order: the apply order (supabase/migration-notes; the list schema-drift replays), not filenames\n');
   console.log('  function                              depth  files  total  restated  last full restatement');
   for (const r of now.rows) {
     console.log('    public.' + r.fn.padEnd(32)
@@ -497,7 +497,7 @@ export function run(argv = []) {
       _method: 'per do-block: a variable bound to pg_get_functiondef(<sig>), flowed through '
         + 'replace()/regexp_replace(), and executed. Each replace() is one patch. A block that reads '
         + 'a body without executing it is a §4 self-check, not a patch. Order from '
-        + 'tests/schema-apply-order.json.',
+        + 'the apply order (tools/lib/apply-order.mjs).',
       measured: new Date().toISOString().slice(0, 10),
       maxChainDepth: MAX_CHAIN_DEPTH,
       knownMigrations: now.order,
@@ -807,38 +807,43 @@ function selftest() {
   // ── END TO END, ON REAL FILES ────────────────────────────────────────────
   // Everything above bends objects, which proves the comparator and the reader
   // separately. This proves the thing that actually runs: a temp root with real
-  // .sql files and a real apply-order.json, walked by census(), the ack read off
+  // .sql files and real apply-order sidecars, walked by census(), the ack read off
   // real file text, and the verdict taken from compare(). If the plumbing that
   // joins the two halves is broken, every arm above still passes.
   console.log('\n  ── END TO END (a temp migrations tree, real files) ──');
   const tmp = mkdtempSync(join(tmpdir(), 'hr-patchchain-'));
   try {
     const mig = join(tmp, 'supabase', 'migrations');
+    const notesDir = join(tmp, NOTES_DIR);
     mkdirSync(mig, { recursive: true });
-    mkdirSync(join(tmp, 'tests'), { recursive: true });
+    mkdirSync(notesDir, { recursive: true });
+    writeFileSync(join(tmp, CHAIN_FILE), JSON.stringify({ history: { last_seq: 0 } }));
     const patchFile = (fn, n, header = '') => `${header}do $m$ declare v_def text; begin\n`
       + `  v_def := pg_get_functiondef('public.${fn}(int)'::regprocedure);\n`
       + Array.from({ length: n }, (_, i) => `  v_def := replace(v_def, 'a${i}', 'b${i}');\n`).join('')
       + '  execute v_def;\nend $m$;\n';
 
+    /* sequence-named, each with its sidecar: the apply order is the names (tools/lib/apply-order.mjs) */
     const files = {
-      '0001-base.sql': 'create or replace function public.hr_demo(a int) returns int\n'
+      '1001-base.sql': 'create or replace function public.hr_demo(a int) returns int\n'
         + 'language plpgsql as $$ begin return a; end $$;\n',
-      '0002-first.sql': patchFile('hr_demo', 1),
-      '0003-second.sql': patchFile('hr_demo', 1),
+      '1002-first.sql': patchFile('hr_demo', 1),
+      '1003-second.sql': patchFile('hr_demo', 1),
     };
-    const order = ['0001-base.sql', '0002-first.sql', '0003-second.sql'];
-    const writeTree = (extra = {}, ord = order) => {
+    const writeTree = (extra = {}) => {
       for (const f of readdirSync(mig)) rmSync(join(mig, f));
-      for (const [n, t] of Object.entries({ ...files, ...extra })) writeFileSync(join(mig, n), t);
-      writeFileSync(join(tmp, 'tests', 'schema-apply-order.json'),
-        JSON.stringify({ order: [...ord, ...Object.keys(extra)] }, null, 2));
+      for (const f of readdirSync(notesDir)) rmSync(join(notesDir, f));
+      writeFileSync(join(tmp, CHAIN_FILE), JSON.stringify({ history: { last_seq: 0 } }));
+      for (const [n, t] of Object.entries({ ...files, ...extra })) {
+        writeFileSync(join(mig, n), t);
+        writeFileSync(join(notesDir, noteFileOf(n)), sidecarText({ note: 'STAGED, NOT APPLIED (selftest)' }));
+      }
     };
 
     writeTree();
     const c0 = census(tmp);
     const demo0 = c0.rows.find((r) => r.fn === 'hr_demo');
-    say(demo0 && demo0.depth === 2 && demo0.lastRestatement === '0001-base.sql',
+    say(demo0 && demo0.depth === 2 && demo0.lastRestatement === '1001-base.sql',
       'census() on real files: hr_demo restated once, then 2 patches',
       `  → depth ${demo0 ? demo0.depth : 'n/a'}, last ${demo0 ? demo0.lastRestatement : 'n/a'}`);
 
@@ -846,20 +851,20 @@ function selftest() {
       chains: { hr_demo: { depth: demo0.depth, files: demo0.files, lastRestatement: demo0.lastRestatement } } };
     say(compare(c0, b0).problems.length === 0, 'the fixture is green against its own baseline');
 
-    writeTree({ '0004-third.sql': patchFile('hr_demo', 1) });
+    writeTree({ '1004-third.sql': patchFile('hr_demo', 1) });
     const red = compare(census(tmp), b0);
     say(red.problems.some((p) => p.check === 'PATCH-1'),
       'a REAL new migration file patching a 2-deep chain is caught',
       `  → ${red.problems.map((p) => p.check).join(',') || 'nothing'}`);
 
-    writeTree({ '0004-third.sql': patchFile('hr_demo', 1,
+    writeTree({ '1004-third.sql': patchFile('hr_demo', 1,
       '-- RESTATEMENT-DEBT-ACK: security hotfix on the money path, restatement is slice 7\n') });
     const acked = compare(census(tmp), b0);
     say(acked.problems.length === 0 && acked.notes.some((n) => n.includes('RESTATEMENT-DEBT-ACK')),
       'the same file WITH a real ack in its header is allowed, and noted',
       `  → ${acked.problems.length} problem(s)`);
 
-    writeTree({ '0004-third.sql': 'create or replace function public.hr_demo(a int) returns int\n'
+    writeTree({ '1004-third.sql': 'create or replace function public.hr_demo(a int) returns int\n'
       + 'language plpgsql as $$ begin return a + 1; end $$;\n' });
     const rest = compare(census(tmp), b0);
     say(rest.problems.length === 0 && rest.notes.some((n) => n.includes('hr_demo')),

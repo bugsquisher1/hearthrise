@@ -244,6 +244,7 @@ import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scop
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel, levelBlock } from './_server-level.mjs';
 import { pressBar, barWindows, hasIcon } from './_bar.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -827,7 +828,7 @@ async function prepBuilderRules(base) {
      slot back as it opened */
   {
     /* the instance configure-action.js holds (its import carries the build's ?v=): one host map, not two */
-    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const CA = await imp('src/shell/windows/configure-action.js');
     const cs = fakeCs(fx), sc = scratch();
     sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0; sc.view = set;
@@ -1023,9 +1024,8 @@ async function selectRules(base) {
      and from a bulk button, stops the browser's own select-all, and selects every shown stack; the search box keeps its own Ctrl+A */
   {
     const A = await imp('src/shell/windows/inventory/actions.js');
-    /* the same state.js instance actions.js holds (its ?v= query names the module): one scratch per character */
-    const v = (/\.\/state\.js\?v=([0-9.]+)'/.exec(readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8')) || [])[1];
-    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + '?v=' + v);
+    /* the same state.js instance actions.js holds (at the source's own query): one scratch per character */
+    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + sourceQuery(base));
     const env = { inventory: { rat_tail: 3, bones: 2 }, state: { gold: 5 }, bag_rules: { locked: [], loot: {} } };
     const cs = { slot: 0, status: 'open', record: { residue: {} }, read: (k) => (Object.prototype.hasOwnProperty.call(env, k) ? env[k] : null), setResidue() {}, clock: 0 };
     const ctx = { character: cs, account: null, doc: { activeElement: null }, glyphs: {} };
@@ -1084,7 +1084,7 @@ async function huntsPure(imp) {
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
      (hunt-tiers.js, the build's ?v= instance), put back after, so the designer moving a number never turns a words check red. */
-  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + sourceQuery(ROOT));
   const kept = { glade: TV.GROUND_TIERS.mosslight_glade, thicket: TV.GROUND_TIERS.meadowbrook_thicket };
   const tierRow = (id, pull, dmgPm, hpPm, xpPm) => ({ id, pull, dmgPm, hpPm, xpPm });
   try {
@@ -1117,7 +1117,7 @@ async function huntsPure(imp) {
      and their pages never said it (each pack carries its measurement). */
   {
     const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
-    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + sourceQuery(ROOT));
     let named = 0;
     if (!healerLine || healerLine === 'hunts.tier_healer') fails.push('AW-25 hunts.tier_healer has no words');
     const rows = huntRows();
@@ -1198,7 +1198,7 @@ async function huntsPure(imp) {
      lands) at the multiplier the settle hands it (hunt-rewards.js payKill: weakness(row).dropMult, combat.js weaknessInfo, the monster's own). */
   {
     const { materialsOf } = await imp('src/shell/hunt-ground-facts.js');
-    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version)).MONSTERS;
+    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + sourceQuery(ROOT))).MONSTERS;
     const { rollDropTable } = await imp('src/core/drops.js');
     const { weaknessInfo } = await imp('src/core/combat.js');
     const rolls = (id) => { const seen = []; rollDropTable(MV[id].drops, { dropMult: weaknessInfo(MV[id], null).dropMult }, { chance: (c) => { seen.push(c); return false; } }); return MV[id].drops.map((d, i) => ({ d, c: seen[i] })); };
@@ -1248,8 +1248,11 @@ async function huntsPure(imp) {
   if (worn !== 'medium,,heavy') fails.push('AW-25 the worn weight reads ' + worn);
   /* The list line: the band against the Level in words and a tone; the best, or No best yet. */
   const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
-  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
-  if (fits !== 'in:In range|above:Above level|far:Far above level|below:Below level|-') fails.push('AW-25 the band words read ' + fits);
+  /* A ground past the hero's Level reads Below level; only a ground whose hunt ends at a Level the hero has reached reads Outgrown
+     (hunt-grounds.js endsAtLevel: the Mill Cellar from 5, whose band then reads 1-4; lane/d-first-day-path) */
+  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.meadowbrook_thicket, 20], [rows.mill_cellar, 4], [rows.mill_cellar, 5],
+    [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
+  if (fits !== 'in:In range|above:Above level|far:Far above level|below:Below level|in:In range|below:Outgrown|below:Outgrown|-') fails.push('AW-25 the band words read ' + fits);
   const bests = { minMs: 600000, grounds: { mill_cellar: { solo: { xpH: 7141, balanceH: 1859 }, party: { xpH: 9000, balanceH: 10 } } } };
   const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
   if (lines !== '|Best 9,000 Level XP/h|No record yet') fails.push('AW-25 the list bests read ' + lines);
@@ -1774,8 +1777,7 @@ async function planRules(base) {
   {
     const { renderConfigureAction } = await imp('src/shell/windows/configure-action.js');
     /* the instance the window itself imports (its scratch is per module instance) */
-    const { BUILD } = await imp('src/build-info.js');
-    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + BUILD.version);
+    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const sec = { hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'power_strike', 0)], store: STORE } };
     const cs = { read: (k) => sec[k] };
     openSlot(cs, 0);
@@ -2136,7 +2138,7 @@ async function planRules(base) {
        Banded Legguards physical). Level 17 hunts Wickstead, where the Turncoat's Smoke Pot is fire; Level 20 has no fire on any ground. The rows are made here for the
        test (Bronze Platelegs with a resistance) and put back after. */
     /* the build's ?v= instance of the catalogue, the one upgrade-plan.js reads */
-    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + sourceQuery(base));
     const threats = (lv) => Array.from(UP.threatsAt(lv)).sort().join();
     if (threats(17) !== 'ember,physical,poison' || threats(20) !== 'physical,poison') fails.push('AW-21 the damage in range reads ' + threats(17) + ' at 17 and ' + threats(20) + ' at 20');
     IT.aw21_fire_legs = { ...IT.bronze_platelegs, n: 'Fireproof Legs', resistPm: { ember: 100 } };
@@ -3559,7 +3561,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
           li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
-        const want = ['mill_cellar:picked:Levels 1–8:in:In range:Recommended:No record yet:Players: 1 to 4',
+        /* the Cellar reads Levels 1-4: its hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and the list reads the band's top as the Level under it */
+        const want = ['mill_cellar:picked:Levels 1–4:in:In range:Recommended:No record yet:Players: 1 to 4',
           'meadowbrook_thicket::Levels 5–15:above:Above level::No record yet:Players: 1 to 4',
           'millrace_sewer::Levels 5–25:above:Above level::No record yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
@@ -3578,7 +3581,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
           const seen = (n) => (n ? n.innerText.replace(/\u00a0/g, ' ') : null);
           return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band'))]; }, W);
-        if (readLine[0] !== 'Levels 1–8 · In range' || readLine[1] !== 'Recommended · No record yet' || !/ · In range$/.test(readLine[2] || ''))
+        if (readLine[0] !== 'Levels 1–4 · In range' || readLine[1] !== 'Recommended · No record yet' || !/ · In range$/.test(readLine[2] || ''))
           fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
@@ -5977,6 +5980,10 @@ const MUTANTS = [
   ['plans: AW-21 a worn off-hand stays for a better one of its kind (F8)', 'src/shell/upgrade-plan.js', '    for (const slot of UPGRADE_SLOTS.concat(OFFHAND)) {', '    for (const slot of UPGRADE_SLOTS) {'],
   ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return tradeOf(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
+  /* AW-25 Outgrown only past a ground's endsAtLevel (lane/d-first-day-reds): never on every ground under the hero, never lost on the Cellar */
+  ['hunts: AW-25 Outgrown leaks to every ground under the hero', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (level > r.band[1]) return'],
+  ['hunts: AW-25 the Cellar past its exit reads Below level', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (false) return'],
+  ['AW-25 the Cellar\'s band reads past its exit', 'src/shell/hunt-list.js', 'band: Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice(),', 'band: h.band.slice(),'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} in slot {slot} when both are ready',", "  shared_cooldown: 'Shares a cooldown with {action} in slot {slot}',"],
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],

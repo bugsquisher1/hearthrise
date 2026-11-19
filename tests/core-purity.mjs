@@ -27,9 +27,11 @@ import { dirname, join, normalize, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const CORE_DIR = join(ROOT, 'src', 'core');
+const SOURCE_Q = sourceQuery(ROOT);
 const DATA_DIR = join(ROOT, 'src', 'data');
 
 /* Every .js under src/core, recursively, as a posix path relative to it. The
@@ -119,8 +121,10 @@ export async function corePurityGuard() {
       if (!lawfulImport(name, s)) {
         problems.push(`src/core/${name}: imports "${s}" — core may only import src/core/** or src/data/**`);
       }
-      /* CLAUDE.md cache-buster rule: every ESM import specifier carries ?v= */
-      if (!/\?v=\d[\d.]*/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);
+      /* one key per module: every import at the source's own query (tools/lib/version-stamp.mjs; '' once the source is bare,
+         the site build stamps it), so Node and the edge read the instance the engine reads */
+      const q = (/\?v=[^'"]*$/.exec(s) || [''])[0];
+      if (q !== SOURCE_Q) problems.push(`src/core/${name}: import "${s}" is at "${q}" and the source's imports at "${SOURCE_Q}": two keys are two module instances`);
     }
   }
 
@@ -219,7 +223,7 @@ export async function coreAnchorGuard() {
        v0.2.63, 2027-02-07-level-curve-wickstead; was 137,918 on the 10-25 pace curve, 21,591 on the old quartic), and a
        combat skill is uncapped (the full JS = SQL parity is tests/core-curves.mjs). */
     /* 198,367 since the +15% solo boost and the re-pinned pace contract (lane/d-solo-fifteen, 2026-11-11: LEVEL_CURVE re-fitted whole by tools/balance-sim/pace.mjs --fit, Levels 4-7 eased by hand; 2027-04-07-brook-bear-level-curve regenerated in place) */
-    /* 216,855 since the re-fit to the table (lane/d-142-rulings, 2026-11-19, 2027-06-06-level-curve-early: Levels 5-8 re-eased, Level 9 -> 10 raised, the brackets from 10 re-fit; core-model.js LEVEL_CURVE says why) */
+    /* 216,855 since the re-fit to the table (lane/d-142-rulings, 2026-11-19, 1000-level-curve-early: Levels 5-8 re-eased, Level 9 -> 10 raised, the brackets from 10 re-fit; core-model.js LEVEL_CURVE says why) */
     if (xp.charLevelFromXp(0) !== 1 || xp.charXpForLevel(10) !== 216855) problems.push('the Level curve anchors drifted (L1 at 0, L10 at 216,855)');
     if (xp.skillLevelFromXp('melee', xp.skillXpForLevel('melee', 150)) !== 150) problems.push('a combat skill no longer climbs past 99');
     if (xp.skillLevelFromXp('mining', 99999999) !== 99) problems.push('a gathering skill no longer caps at 99');

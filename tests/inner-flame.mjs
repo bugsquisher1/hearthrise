@@ -46,6 +46,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const U1 = '000000c0-0000-4000-a000-00000f1a3e11';
@@ -421,7 +422,7 @@ async function errandArm(db, M, closed) {
 }
 
 async function loadReaders(root) {
-  const u = (p) => pathToFileURL(join(root, p)).href + '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const u = (p) => pathToFileURL(join(root, p)).href + sourceQuery(root);
   return {
     BU: await import(u('src/shell/windows/inventory/bury.js')),
     ST: await import(u('src/shell/windows/inventory/state.js')),

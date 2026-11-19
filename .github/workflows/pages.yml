@@ -10,6 +10,15 @@
 # browser asks for into _site and fails if the game names a file that is
 # not there; this workflow deploys that folder as the Pages artifact.
 #
+# THE RELEASE STAMP IS WRITTEN HERE (architecture audit 2026-11-18, item 1).
+# The build writes ?v=<BUILD.version> onto every import and page tag as it
+# copies (tools/build-site.mjs SITE-9), so a browser fetches each release
+# fresh and the service worker kill-switch reads the release off the page's
+# own tags. The source carries no stamp once tools/strip-version-stamps.mjs
+# has run, which is why that codemod runs only after this switch is on: a
+# branch deploy of bare source would serve every module unstamped. Until
+# then the build normalises the source's own stamps to the same bytes.
+#
 # THE SWITCH IS A REPOSITORY SETTING, NOT THIS FILE. While Pages still
 # builds from the branch (build_type "legacy") this workflow builds, checks
 # and uploads the artifact, then stops: the branch deploy stays the only
@@ -131,8 +140,14 @@ jobs:
           for i in $(seq 1 18); do
             got="$(curl -fsS --max-time 15 "https://${HOST}/src/build-info.js?n=${GITHUB_RUN_ID}-${i}" | sed -n "s/.*version:[[:space:]]*'\([0-9][0-9.]*\)'.*/\1/p" | head -n 1 || true)"
             if [ "$got" = "$WANT" ]; then
-              echo "https://${HOST} serves v${got}"
-              exit 0
+              # ...and the game page carries that release's stamp (the build writes it; a page without it is cached stale)
+              if curl -fsS --max-time 15 "https://${HOST}/play.html?n=${GITHUB_RUN_ID}-${i}" | grep -qF "src/app/boot.js?v=${WANT}\""; then
+                echo "https://${HOST} serves v${got}, play.html stamped ?v=${WANT}"
+                exit 0
+              fi
+              echo "https://${HOST} serves v${got} but play.html does not load src/app/boot.js?v=${WANT} (try ${i} of 18)"
+              sleep 10
+              continue
             fi
             echo "https://${HOST} serves v${got:-?}, want v${WANT} (try ${i} of 18)"
             sleep 10

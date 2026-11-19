@@ -40,6 +40,7 @@ import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BAG = 'src/shell/bag-model.js';
@@ -48,10 +49,10 @@ const RES = 'src/session/residue.js';
 
 async function load(base) {
   const u = (p) => pathToFileURL(join(base, p)).href;
-  /* the recipe rows bag-model.js reads, at the same URL it imports them by (the build's ?v=), so V6 can add one */
-  const v = (await import(u('src/build-info.js'))).BUILD.version;
+  /* the recipe rows bag-model.js reads, at the same URL it imports them by (sourceQuery), so V6 can add one */
+  const v = sourceQuery(base);
   return { B: await import(u(BAG)), S: await import(u(STORE)), R: await import(u(RES)), H: await import(u('src/data/homestead-tiers.js')),
-    REC: await import(u('src/data/recipes.js') + '?v=' + v), MON: await import(u('src/data/monsters.js') + '?v=' + v), ITM: await import(u('src/data/items.js') + '?v=' + v) };
+    REC: await import(u('src/data/recipes.js') + v), MON: await import(u('src/data/monsters.js') + v), ITM: await import(u('src/data/items.js') + v) };
 }
 
 async function runTests({ B, S, R, H, REC, MON, ITM }) {

@@ -32,15 +32,17 @@
 // pass, STOP: that is a missing migration, and adding it here hides exactly
 // the failure this file exists to expose.
 //
-// ── ORDER: tests/schema-apply-order.json ────────────────────────────────────
+// ── ORDER: tools/lib/apply-order.mjs (each migration's sidecar) ──────────────
 // FILENAME ORDER DOES NOT REPLAY. Measured 2026-08-14: 23 of 41 files apply,
 // 18 fail — '2026-08-08-clan-seat-2.sql' sorts before '2026-08-08-clan-seat.sql'
 // ('-' < '.'), and five 2026-08-11 files sort before the player-state
 // foundation they depend on. Before that manifest existed, the order needed to
 // rebuild the database was written down NOWHERE: two test files each held a
-// hand-maintained const array covering a different subset. The manifest is now
-// the single source of truth, and this engine fails if any file on disk is
-// absent from it — a new migration must declare where it runs.
+// hand-maintained const array covering a different subset. The order then lived in
+// tests/schema-apply-order.json; since 2026-11-19 each migration carries it
+// (supabase/migration-notes/<file>.sql.json for history, the NNNN- name for a
+// new file; tools/lib/apply-order.mjs). This engine fails if any file on disk is
+// unplaced or any placed file is missing — a new migration must say where it runs.
 //
 // ── WHAT THIS CANNOT SEE ────────────────────────────────────────────────────
 //   · An object that exists in PRODUCTION and in no file. The replay cannot
@@ -60,6 +62,7 @@ import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 export const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 // HR_MIGRATIONS_DIR points a replay at a COPY of the chain. It exists so a
@@ -74,10 +77,9 @@ const MIGDIR = process.env.HR_MIGRATIONS_DIR
   ? normalize(process.env.HR_MIGRATIONS_DIR)
   : join(ROOT, 'supabase', 'migrations');
 
-export const MANIFEST_PATH = join(ROOT, 'tests', 'schema-apply-order.json');
-
+/** The apply order, derived from the files (tools/lib/apply-order.mjs), in the old JSON's shape. */
 export async function manifest() {
-  return JSON.parse(await readFile(MANIFEST_PATH, 'utf8'));
+  return loadApplyOrder(ROOT);
 }
 
 /**
@@ -108,10 +110,9 @@ export async function chainFiles() {
   for (const f of onDisk) {
     if (!seen.has(f)) {
       problems.push(
-        `${f} is in supabase/migrations/ but in neither "order" nor "excluded" of\n`
-        + '    tests/schema-apply-order.json. A migration that is not placed in the apply\n'
-        + '    order would be silently omitted from any rebuild. Add it where it actually\n'
-        + '    has to run — its date is not its position.');
+        `${f} is in the migrations directory but the apply order (tools/lib/apply-order.mjs)\n`
+        + '    places it nowhere. A migration that is not placed would be silently omitted\n'
+        + '    from any rebuild. New files: node tools/new-migration.mjs <slug>.');
     }
   }
   if (problems.length) {

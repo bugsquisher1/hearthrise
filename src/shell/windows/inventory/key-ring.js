@@ -53,9 +53,6 @@ export function unlockRing(st, repaint) {
   const offer = ring.offer.offer;
   st.sc.menu = null;
   st.sc.msgAt = null;
-  return runIntent(st.sc, repaint, async () => {
-    const r = await st.cs.edgeIntent('unlock_buy', { offer });
-    if (!r.ok && r.error !== 'closed') await st.cs.resync();
-    return r;
-  }, t('bag.ring_unlocking'), () => t('bag.ring_unlocked'), st.cs);
+  /* a refusal re-reads the hero in the session (character-session.js _settled): the offer shown is the server's again */
+  return runIntent(st.sc, repaint, () => st.cs.edgeIntent('unlock_buy', { offer }), t('bag.ring_unlocking'), () => t('bag.ring_unlocked'), st.cs);
 }

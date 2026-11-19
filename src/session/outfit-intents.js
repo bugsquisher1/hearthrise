@@ -8,10 +8,10 @@
 //   useOutfitBundle(account, cs, item)   hr_outfit_bundle_use   ok: { ok, outfit }; refuses already_owned { outfit }, none_held, bad_item
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { refusalOf } from './refusal.js?v=0.2.140';
 
 const WORD = /^[a-z0-9_]{1,64}$/;
-const RE_READS = Object.freeze(['already_owned', 'none_held', 'bad_item']);
 
 /** Use one bundle of `item`: this hero owns its outfit for good. Resolves to { ok, outfit } or the refusal. */
 export function useOutfitBundle(account, cs, item) {
@@ -26,7 +26,7 @@ export function useOutfitBundle(account, cs, item) {
       return { ok: true, outfit: typeof b.outfit === 'string' && WORD.test(b.outfit) ? b.outfit : null };
     }
     const r = Object.assign(refusalOf(ans), { verb: 'outfit_bundle_use' });
-    if (RE_READS.includes(r.error) && cs.status !== 'closed' && typeof cs.load === 'function') await cs.load();
+    await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
     return r;
   });
 }

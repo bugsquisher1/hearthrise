@@ -18,7 +18,8 @@
 //
 // ARMS (the live calendar)
 //   AS-ROWS    the chain leaves event_xp_bonus, event_open_halls and scaled_hunts at everyone with no account list, a stranger's
-//              `features` names all three, and a second apply of both arm files moves no switch row (updated_at included)
+//              `features` names all three, a second apply of both arm files moves no switch row (updated_at included), and a second
+//              apply of 2027-05-17-scaled-best.sql leaves both its bodies and its column byte for byte
 //   AS-SCALED  SCALED HUNTS: a Level 20 stranger in its Level's iron hunting the Mill Cellar reads it in its `scaled_hunts` section at Level 20 for 40 x 20
 //              gold an hour, buys one hour at that price (one shop row, the purse down by exactly it), and its next settles play the
 //              Cellar at Level 20 and spend the hour by the world's swings; a re-read of the hero (a reload) projects the hours left,
@@ -89,6 +90,13 @@ const ARM_FNS = {
     for (const f of ARM_FILES) await db.exec(readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8').replace(/\r\n/g, '\n'));
     const after = JSON.stringify(await q(db, 'select switch_id, scope, accounts::text as a, note, updated_at::text as t from public.hr_feature_switches order by switch_id'));
     if (after !== before) bad.push('a second apply of the arm moved a switch row');
+    /* 2027-05-17-scaled-best.sql applied a second time: both spliced bodies and the column byte for byte (its markers skip the splices) */
+    const shape = async () => JSON.stringify(await q(db, `select md5(pg_get_functiondef($1::regprocedure)) as a, md5(pg_get_functiondef($2::regprocedure)) as b,
+      (select pg_get_expr(d.adbin, d.adrelid) from pg_attrdef d join pg_attribute t on t.attrelid = d.adrelid and t.attnum = d.adnum
+        where d.adrelid = 'public.hunt_session_tally'::regclass and t.attname = 'scaled_ms') as c`, [APPLY_FN, BEST_FN]));
+    const b0 = await shape();
+    await db.exec(readFileSync(join(ROOT, 'supabase/migrations', '2027-05-17-scaled-best.sql'), 'utf8').replace(/\r\n/g, '\n'));
+    if (await shape() !== b0) bad.push('a second apply of 2027-05-17-scaled-best.sql moved a body or the column');
     return bad;
   },
 

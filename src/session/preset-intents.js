@@ -15,6 +15,7 @@
 // both names are one name on the server: either verb renames both.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { ACTION_SET_LIMITS } from '../data/rule-subjects.js?v=0.2.140';
 
 /* Setups saved before the one-model rule (numbers 5 to 7) can still be renamed or deleted. */
@@ -30,6 +31,7 @@ function setupName(name) {
 async function settled(cs, ans) {
   const b = ans && ans.body && typeof ans.body === 'object' ? ans.body : {};
   if (ans && ans.ok && b.ok === true) { if (cs.status !== 'closed') await cs.load(); return { ok: true }; }
+  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
   return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused' };
 }
 
@@ -58,8 +60,7 @@ export function deleteSetup(account, cs, preset) {
     price moved; that answer re-reads too, so the button shows the new price before the next press. */
 export function buySetupSlot(account, cs, price) {
   if (!Number.isSafeInteger(price) || price < 1) return Promise.resolve({ ok: false, error: 'bad_intent' });
-  return ask(account, cs, 'setup_slot_buy', (server) => server.rpc('hr_setup_slot_buy', { p_slot: cs.slot, p_price: price, p_idem: newIdem() }))
-    .then(async (r) => { if (r.error === 'quote_changed' && cs.status !== 'closed') await cs.load(); return r; });
+  return ask(account, cs, 'setup_slot_buy', (server) => server.rpc('hr_setup_slot_buy', { p_slot: cs.slot, p_price: price, p_idem: newIdem() }));
 }
 
 /** Name the action set the bar shows. */

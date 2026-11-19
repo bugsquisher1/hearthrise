@@ -346,9 +346,10 @@ export function beforeLines(cs, o) {
    a lone hero at this Level (its pack's bagGuide.storeFloor and storeFloorFrom, supplies.js storeFloorFor); a bar whose best store food
    heals less is told the fix by THE ONE RULE (weak-food.js: the slot, the server's heal and HP, "Slot 4: Salted Shrimp heals 72 of 1,208 HP.
    Pick Salted Trout"), and the page drops "Safe at your level" (hunts.js). A ground that names none says nothing: the start bar is measured
-   safe there. A heads-up, never a stop. { id, text, short } or null. */
+   safe there. A heads-up, never a stop. { id, text, short } or null. Hunt prep's checklist says the same line (readiness.js, post-140
+   audit C5: the page where slot 4 is changed said "Oren: ready" under a ground's "Pick Salted Trout"). */
 export const FOOD_WEAK_ID = 'food_weak';
-function weakFoodLine(s, hunt, level, hpMax) {
+export function weakFoodLine(s, hunt, level, hpMax) {
   const floor = groundFloor(hunt, level);
   const words = weakFoodWords('prep', weakFoodOf(s, floor), hpMax);
   return words ? { id: FOOD_WEAK_ID, text: words, short: true } : null;

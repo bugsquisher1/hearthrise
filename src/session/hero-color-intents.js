@@ -8,10 +8,10 @@
 //   saveHeroColors(account, cs, colors, price)  hr_hero_colors_set
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { refusalOf } from './refusal.js?v=0.2.140';
 import { dyeKeyOf } from '../data/outfits.js?v=0.2.140';
 
-const RE_READS = Object.freeze(['quote_changed', 'colors_same']);
 
 /** What a save costs this hero right now, as the server says: { ok: true, price } or { ok: false, error }. */
 export function readColorsPrice(account, cs) {
@@ -28,7 +28,7 @@ async function settled(cs, ans) {
   const b = ans && ans.body && typeof ans.body === 'object' ? ans.body : {};
   if (ans && ans.ok && b.ok === true) { if (cs.status !== 'closed') await cs.load(); return { ok: true }; }
   const r = refusalOf(ans);
-  if (RE_READS.includes(r.error) && cs.status !== 'closed') await cs.load();
+  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
   return r;
 }
 

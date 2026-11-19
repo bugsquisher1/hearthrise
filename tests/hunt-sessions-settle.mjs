@@ -1117,6 +1117,23 @@ const ENGINE_ARMS = {
     if (!both.a || both.a.reason !== 'left' || !both.c || both.c.reason !== 'left' || !both.b || both.b.reason !== 'party_member_left') {
       problems.push(`two leavers and one ticked hero ended ${canon(both)} (each leaver keeps its own reason)`);
     }
+    /* own reason wins against a STAMPED end too (settle-properties DB-SPLIT, nightly 2026-11-19): a eats its last meal and says
+       end (heals_out), b can't pay the store (gold_out, stamped at its next boundary when a window ends first); both ticked, both
+       ending at one boundary. a keeps heals_out however the windows are cut: a window ending one ms in must not send it home
+       `party_member_left` off b's stamp, when one window reads both own ends at that boundary. */
+    const dry = (cuts) => endsOf(runCut(M, () => [
+      memberIn(M, 'a', { seat: 0, level: 3, hp: 5, together: true, empty: 'end', bag: { cooked_shrimp: { loaded: 1, left: 1 } } }),
+      memberIn(M, 'b', { seat: 1, level: 3, hp: 5, together: true, empty: 'switch', gold: 0 }),
+    ], 2001, cuts));
+    const dry0 = dry([]);
+    if (!dry0.a || dry0.a.reason !== 'heals_out' || !dry0.b || dry0.b.reason !== 'gold_out' || dry0.a.at !== dry0.b.at) {
+      problems.push(`CONTROL: the dry pair in one span ended ${canon(dry0)} (want a heals_out and b gold_out at one boundary)`);
+    } else {
+      for (const cuts of [[T0 + 1], [T0 + 1000], [T0 + tick - 1]]) {
+        const dc = dry(cuts);
+        if (canon(dc) !== canon(dry0)) problems.push(`the dry pair cut at ${cuts.map((t) => t - T0)} ms ended ${canon(dc)}, one span ${canon(dry0)}`);
+      }
+    }
     /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): c, removed by the leader (the read's `kicked`), leaves;
        a and b, both ticked, hunt on */
     const kickedParty = () => party(['a', 'b'], ['c'])().map((m) => { if (m.key === 'c') m.huntSession.kicked = true; return m; });
@@ -5104,6 +5121,8 @@ const MUTANTS = [
     to: '    const here = [];\n    for (const m of members) {\n      if (m.left || m.hs.nextSwingAtMs > atMs) continue;\n      const why = endReasonAt(m.hs, atMs);\n      if (why) { endMember(m, why, atMs, world, out.get(m.key)); cascadeFrom(m, why, members, own, atMs); continue; }' },
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a hero with its own end at the boundary is renamed by the cascade', file: 'src/core/combat-sim.js',
     from: ' || o.hs.partyEnd || (own && own.has(o))) continue;', to: ' || o.hs.partyEnd) continue;' },
+  { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a window\'s stamp renames a hero whose own end holds at its next boundary (nightly 2026-11-19)', file: 'src/core/combat-sim.js',
+    from: '  for (const [m, why] of stamped) cascadeFrom(m, why, members, ownNext, m.hs.nextSwingAtMs);', to: '  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped, m.hs.nextSwingAtMs);' },
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] the assembled hero drops its box', file: 'src/core/member.js',
     from: '        leaveTogether: h.leaveTogether === true,\n', to: '' },
   { arm: 'PARTY-LEAVE-RULE', name: '[leave together] a read with no box is on (the deploy-order fuse)', file: 'src/core/hunt-spawn.js',

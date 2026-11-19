@@ -1583,6 +1583,15 @@ async function planRules(base) {
         'Not available while hunting', 'Not while a hunt is running.']))
       fails.push('AW-32 the town controls\' why at the yard and on a hunt read ' + JSON.stringify({ yard, hunt }));
   }
+  /* AW-104 THE DOLL'S WEAPON LIST, BY THE HERO'S OWN STYLE (post-140 audit C6: to an Iron Sword hero an Oak Wand read +2, above a worse sword, its
+     magic numbers summed against the sword's melee ones): swords by their melee gain, then the other styles (a staff is magic too, with the wand) */
+  {
+    const { sortFits, compare } = await imp('src/shell/bag-model.js');
+    const list = (worn, ids) => sortFits('weapon', ids.map((id) => ({ id, delta: compare(id, worn) })), worn).map((f) => f.id);
+    const got = [list('iron_sword', ['oak_wand', 'bronze_sword', 'oak_staff', 'steel_sword']), list('oak_wand', ['iron_sword', 'apprentice_staff', 'willow_staff'])];
+    if (JSON.stringify(got) !== JSON.stringify([['steel_sword', 'bronze_sword', 'oak_wand', 'oak_staff'], ['willow_staff', 'apprentice_staff', 'iron_sword']]))
+      fails.push('AW-104 the doll\'s weapon lists read ' + JSON.stringify(got));
+  }
   /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
   const wire = (id) => ({ action: { type: 'ability', id }, conditions: [], enabled: true });
@@ -5865,6 +5874,7 @@ const MUTANTS = [
   ['plans: AW-32 the yard reads as a hunt (post-140 C7)', 'src/shell/training-words.js', '  return h && !h.ended && trainedBy(h.huntId) ? t(key) : huntWords;', '  return huntWords;'],
   ['plans: AW-32 the yard reads as a hunt to the gear (post-140 C7)', 'src/shell/gear-gate.js', "  return which === 'upgrades' ? busyWords(cs, GEAR_HUNT_WORDS.upgrades, 'training.busy_upgrades') : busyWords(cs, GEAR_HUNT_WORDS.one, 'training.busy_gear');", "  return which === 'upgrades' ? GEAR_HUNT_WORDS.upgrades : GEAR_HUNT_WORDS.one;"],
   ['plans: AW-32 Dispatch loot at the yard says in town (post-140 C7)', 'src/shell/loot-dispatch.js', "  if (h && !h.ended) return busyWords(cs, 'Dispatch loot works in town');", "  if (h && !h.ended) return 'Dispatch loot works in town';"],
+  ['plans: AW-104 the doll\'s weapon list sums every style (post-140 C6)', 'src/shell/bag-model.js', "  if (slot !== 'weapon') return fits.slice().sort((a, b) => sum(b) - sum(a));", "  if (true) return fits.slice().sort((a, b) => sum(b) - sum(a));"],
   ['plans: AW-32 the chest at the yard says hunting (post-140 C7)', 'src/shell/windows/tower-chest.js', "  if (h && !h.ended) return busyWords(cs, t('tower.off_hunting'));", "  if (h && !h.ended) return t('tower.off_hunting');"],
   ['plans: AW-27 the weak food line names no slot', 'src/shell/weak-food.js', "return t('prep.food_weak' + hp, Object.assign(vars, { where }));", "return t('prep.food_weak' + hp, Object.assign(vars, { where: '' }));"],
   ['plans: AW-27 a heal read from the client copy when the server sent none', 'src/shell/weak-food.js', 'return r && Number.isInteger(r.amount) ? r.amount : null;', "return r && Number.isInteger(r.amount) ? r.amount : ((CONSUMABLES[id] || {}).amount || null);"],

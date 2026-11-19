@@ -4,6 +4,7 @@
 //
 //   node tests/top-bar.mjs                 the rules
 //   node tests/top-bar.mjs --mutate        every planted defect must turn a named rule RED
+//   node tests/top-bar.mjs --mutate --only=<name fragment>   just those mutants, after the clean control (a local re-check)
 //   node tests/top-bar.mjs --shots <dir>   also write the bar and each group's menu at each size
 //
 // mutant-anchors: src/data/shell-windows.js src/shell/launcher.js src/shell/launcher-menu.js src/styles/shell.css src/styles/app.css src/shell/widgets/action-bar.js src/shell/shell.js src/render/paint.js src/styles/hunt.css src/shell/windows/hunt-detail.js
@@ -32,9 +33,11 @@
 //         that moved on may redraw it)
 //   TB-6  A PHONE'S MENU IS A SHEET (922x423 and 667x375): it stands at the right edge under the row, as tall as the screen allows,
 //         every line inside it at a thumb's height, none cut, no text under 12 px; never a bottom bar
-//   TB-7  A MENU NEVER LIES OVER THE COACH'S PRESSES (1440x900 and 922x423; the Coordinator's read 2026-11-16: the Town menu covered
+//   TB-7  A MENU NEVER LIES OVER THE COACH'S PRESSES (1440x900, 1440x420 and 922x423; the Coordinator's read 2026-11-16: the Town menu covered
 //         the card's Got it): with a card up in town, each group's menu open, no visible press of the card (Got it, Don't show tips,
-//         fold, close) overlaps the menu, and each still takes its press (the topmost element at its middle is its own)
+//         fold, close) overlaps the menu, and each still takes its press (the topmost element at its middle is its own). Both of the
+//         desktop card's places: docked in the World's right column (1440x900, hud-room.js dockTownCoach), and hung under the row when
+//         the column has no room for it (1440x420 under a full Tally): each steps left of the open menu by its own rule (shell.css)
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -67,6 +70,16 @@ function town(e) {
   for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events']) delete e[k];
   e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null });
 }
+/* ...with three of Tamsin's tasks held: her Tally fills the top of the World's right column, so on a short desktop World the coach card has no
+   room under it and hangs under the icon row instead (TB-7). */
+function townFullTally(e) {
+  town(e);
+  e.tally = { held: [1, 2, 3].map((place) => ({ place, task: 'cellar_giant_rats', hunt: 'mill_cellar', monster: 'rat', kills: place, target: 120, keep: false, done: false })),
+    paid_today: 0, per_day: 3, held_max: 3, weight: null, order: [], recent: [], day_ends_at: '2099-01-01T00:00:00Z' };
+}
+/* TB-7's sizes, each with where its card must stand (the 141 release run 44476966121: since the dock's mark moved to the row's widget, the
+   card stays docked with a menu open, so a 1440x900 run never reached the rule for a card hung under the row); a phone's card is its own */
+const TB7 = [Object.assign({ prep: town, docked: true }, SIZES[0]), Object.assign({ prep: townFullTally, docked: false }, SIZES[0], { height: 420 }), Object.assign({ prep: town, docked: null }, SIZES[1])];
 
 async function stub(page, s) {
   await page.route('**/src/vendor/supabase-js-*.js*', (r) => r.fulfill({ contentType: 'text/javascript', body: SDK_STUB }));
@@ -262,15 +275,17 @@ async function checks(overrides, shots, firstRed = false) {
       await ctx.close();
       if (firstRed && fails.length) return fails;
     }
-    for (const size of SIZES.slice(0, 2)) { // TB-7
-      const { ctx, page, up } = await open(size, town);
+    for (const size of TB7) { // TB-7
+      const { ctx, page, up } = await open(size, size.prep);
       if (!up) { fails.push('TB-7 [' + tag(size) + '] the World never came up'); await ctx.close(); continue; }
       await page.waitForTimeout(400);
       const presses = () => page.evaluate(() => Array.from(document.querySelectorAll('.hs-pointer button')).filter((b) => b.getClientRects().length && !b.closest('[hidden]')).length);
       if (!(await presses())) { fails.push('TB-7 [' + tag(size) + '] CONTROL: no coach card with a press is up in town'); await ctx.close(); continue; }
+      const docked = await page.evaluate(() => { const w = document.querySelector('[data-hs-widget="launchers"]'); return !!w && w.classList.contains('is-coach-docked'); });
+      if (size.docked !== null && docked !== size.docked) { fails.push('TB-7 [' + tag(size) + '] CONTROL: the card is ' + (size.docked ? 'not docked' : 'docked') + ' here, so this size proves nothing of its rule'); await ctx.close(); continue; }
       /* TB-8 EVERY ICON SAYS ITS NAME OVER THE CARD (QA audit 2026-11-18 N5: hovering the row's icons showed no name: the coach card under the row
          painted over each name chip). With the card up, a hovered icon's chip is shown and stacks above the card (the same stacking box, .hs-launchers). */
-      if (!size.touch) for (const id of await barReach(page)) {
+      if (!size.touch && size.docked !== false) for (const id of await barReach(page)) {
         const q = id.startsWith('group:') ? '.hs-launchers [data-hs-group="' + id.slice(6) + '"]' : '.hs-launchers > .hs-launch[data-hs-open="' + id + '"]';
         await page.hover(q);
         await page.waitForTimeout(160);
@@ -443,7 +458,10 @@ const MUTANTS = [
   ['the phone\'s menu lines lose a thumb\'s height', 'src/styles/shell.css', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: var(--tap); padding: 0 6px; }', '  .hs-launch-item { grid-template-columns: 20px 1fr; gap: 8px; min-height: 30px; padding: 0 6px; }'],
   ['every paint rebuilds the row, so an envelope takes the keyboard off the open menu', 'src/shell/shell.js', '      else markup(el, render(ctx));', "      else { const html = render(ctx); if (el.innerHTML !== html) el.innerHTML = html; }"],
   ['the menu opens past the row\'s record, so the next paint rebuilds it', 'src/shell/launcher-menu.js', '  if (el.isConnected) markup(el, draw(ctx));', '  if (el.isConnected) el.innerHTML = draw(ctx);'],
+  /* the card hung under the row (1440x420, the column full under the Tally) */
   ['the coach card stays under the open menu', 'src/styles/shell.css', '.hs-launchers:where(:has(> .hs-launch-group.is-menu)) > .hs-pointer { right: max(calc(100% - 46px), calc(100% - var(--hs-menu-left, 100%) + 8px)); }\n', ''],
+  /* the card docked in the World's right column (1440x900): its own rule steps it left of the open menu */
+  ['the docked coach card stays under the open menu', 'src/styles/shell.css', '.is-coach-docked > .hs-launchers:has(> .hs-launch-group.is-menu) > .hs-pointer { right: max(var(--coach-r), calc(100% - var(--hs-menu-left, 100%) + 8px)); }\n', ''],
   ['the open menu is never measured, so the card cannot dock clear', 'src/shell/launcher-menu.js', '  if (!id) return;\n  dockClear(el);\n', '  if (!id) return;\n'],
   ['a row redrawn under the open menu drops the keyboard', 'src/render/paint.js', "  if (back && typeof back.focus === 'function') back.focus();\n", ''],
   ['Hunt prep loses the bar\'s setup press', 'src/shell/widgets/action-bar.js', "  if (action === 'setups' && ev.type === 'click') { ctx.show('hunt-prep'); return; }", ''],
@@ -467,7 +485,10 @@ async function main() {
   const clean = await checks(null);
   if (clean.length) { console.log('  ✗ clean control RED: ' + clean.join('; ')); process.exit(1); }
   let bad = 0;
-  for (const [name, file, from, to] of MUTANTS) {
+  const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
+  const chosen = MUTANTS.filter(([name]) => name.includes(only));
+  if (!chosen.length) { console.log('  ✗ HARNESS: no mutant matches --only=' + only); process.exit(2); }
+  for (const [name, file, from, to] of chosen) {
     const text = (await readFile(join(ROOT, file), 'utf8')).replace(/\r\n/g, '\n');
     if (text.split(from).length !== 2) { console.log('  ✗ ' + name + ' — anchor not found once in ' + file); bad++; continue; }
     const fails = await checks({ [file]: text.replace(from, () => to) }, null, true);
@@ -475,7 +496,7 @@ async function main() {
     else if (fails.length) { console.log('  ✗ ' + name + ' — red by no named rule: ' + fails[0]); bad++; }
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }
-  console.log(bad ? 'top-bar --mutate: ' + bad + ' escaped' : 'top-bar --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' mutants caught');
+  console.log(bad ? 'top-bar --mutate: ' + bad + ' escaped' : 'top-bar --mutate: ' + chosen.length + '/' + chosen.length + ' mutants caught' + (only ? ' (--only=' + only + ', of ' + MUTANTS.length + ')' : ''));
   process.exit(bad ? 1 : 0);
 }
 

@@ -259,7 +259,7 @@ export const REASONS = Object.freeze({
     { cond: '!cur', words: "cls(pick, 'is-on', !!cur)", where: 'More sits on the picked line, which shows only with a stack picked' },
   ],
   'src/shell/windows/inventory/doll.js': [
-    { cond: '!worn || !!locked', words: "whyLine(line.querySelector('.hw-slot-why'), said ? sc.msg : locked, said)", where: 'the slot line says why: the hunt, or at the yard the training (gear-gate.js gearLockWhy, post-140 C7)' },
+    { cond: '!worn || locked', words: 'GEAR_HUNT_WORDS.one', where: 'the slot line says a hunt is running' },
     { cond: 'locked || short', words: "text(li.querySelector('.hw-fit-need'), short ? need.text : '')", where: 'the fit row\'s need line ("Needs Level 30 — you\'re 28")' },
   ],
   'src/shell/windows/shop.js': [

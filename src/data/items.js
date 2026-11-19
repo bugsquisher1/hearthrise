@@ -178,8 +178,8 @@ export const ITEMS={
      user of the companion equipment slot), was cut with the slot (Tyler,
      2026-10-22). */
   traveler_cape:{n:'Traveler Cape',icon:'🦸',v:150,type:'armor',slot:'cape',steadyPm: 15,reqSkill:'level',reqLv:1},
-  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1,reqSkill:'level',reqLv:1},
-  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2,reqSkill:'level',reqLv:1},
+  copper_ring:{n:'Copper Ring',icon:'💍',v:120,type:'jewelry',slot:'ring',atkB:1,strB:1,rangeAtkB:1,rangeStrB:1,magicAtkB:1,magicStrB:1,reqSkill:'level',reqLv:1},
+  hunter_necklace:{n:'Hunter Necklace',icon:'📿',v:180,type:'jewelry',slot:'necklace',atkB:2,rangeAtkB:2,magicAtkB:2,reqSkill:'level',reqLv:1},
   /* Wave 4 (audit fix): Gold ore/bar was a near dead-end — an entire mining tier
      with one necklace as its only sink. These give gold_bar real demand and flesh
      out the thin jewelry lane. Stats are read by getEquipmentStats (real combat). */

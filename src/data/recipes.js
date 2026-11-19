@@ -316,12 +316,26 @@ export const ARTISAN_RECIPES = {
   /* The reforges of named pieces (Tyler 2026-11-18: armor, weapons and shields drop, a bench only reforges a named piece):
      Klappa's Klub (style-gear.js) and the Steelgrate (shields.js). And ALL JEWELRY (Tyler 2026-11-18): each crafted piece's jobs
      on its own bench (src/data/jewelry.js JEWEL_PIECES skill), a piece from the metal and a gem set in a plain piece. */
-  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES, JEWELRY_RECIPES_BY_SKILL.smithing)),
+  smithing: byReq(BASE_RECIPES.smithing.concat(STYLE_GEAR_RECIPES.smithing, SHIELD_RECIPES, openJobs(JEWELRY_RECIPES_BY_SKILL.smithing))),
   /* Crafting's cloaks (src/data/jewelry.js, the same table). */
-  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, JEWELRY_RECIPES_BY_SKILL.crafting)),
+  crafting: byReq(BASE_RECIPES.crafting.concat(SLOT_RECIPES.crafting, openJobs(JEWELRY_RECIPES_BY_SKILL.crafting))),
   inner_flame: byReq(BASE_RECIPES.inner_flame),
   runecrafting: byReq(STONECRAFT_RECIPES.runecrafting),
 };
+
+/* ── DARK JOBS: recipe rows behind a server switch (a row's `switch`; src/data/jewelry.js JEWEL_SWITCH, the guarantee jobs) ─────────
+   They are NOT in ARTISAN_RECIPES, so nothing that reads the catalogue without asking the server (item tips, the bag's Junk and
+   Materials, skill unlocks, the coherence guard, the tutorial, the bench tax) shows or counts them. Only the switch-aware read
+   ARTISAN_RECIPES_EVERY: the server's own catalogues (hr-accrue's index, hr_activities, the bench inputs) and the client's running-job
+   indexes; the bench window offers a dark job only where the server's `jewel_jobs` section lists it (src/session/jewelry-sections.js
+   jobShown). A row joins ARTISAN_RECIPES the day its switch opens for everyone and loses its `switch`. */
+function openJobs(list) { return list.filter((r) => !r.switch); }
+/** The dark jobs by bench (a bench with none is absent). */
+const SWITCHED_RECIPES = Object.freeze(Object.fromEntries(Object.entries(JEWELRY_RECIPES_BY_SKILL)
+  .map(([skill, list]) => [skill, Object.freeze(byReq(list.filter((r) => r.switch)))]).filter(([, list]) => list.length)));
+/** Every artisan recipe, the dark ones included, by bench: for the switch-aware readers only (above). */
+export const ARTISAN_RECIPES_EVERY = Object.freeze(Object.fromEntries(Object.entries(ARTISAN_RECIPES)
+  .map(([skill, list]) => [skill, SWITCHED_RECIPES[skill] ? byReq(list.concat(SWITCHED_RECIPES[skill])) : list])));
 
 /* isCastleGood(item) — the single predicate behind the "Building Materials"
    lane: the goods the Homestead's rooms and properties are built from. A

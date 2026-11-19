@@ -91,8 +91,8 @@ export const SLOT_ITEMS = {
      rung a new player actually reaches. reqLv 1 restricts nobody (the gate is
      `level < req_lv`); it states the lane's requirement so the column is non-NULL across
      all seven rungs and the server has one shape to read. */
-  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 1, critB: 0.005 },
-  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, critB: 0.01 },
+  copper_studs:        { n: 'Copper Studs',        icon: '💎', v: priced(100, 1), type: 'jewelry', slot: 'earrings', tier: 1, rarity: 'common',    reqSkill: 'level', reqLv: 1, atkB: 1, strB: 1, rangeAtkB: 1, rangeStrB: 1, magicAtkB: 1, magicStrB: 1 },
+  fang_studs:          { n: 'Fang Studs',          icon: '💎', v: priced(100, 2), type: 'jewelry', slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 },
   spidereye_studs:     { n: 'Spider-Eye Studs',    icon: '💎', v: priced(100, 3), type: 'jewelry', slot: 'earrings', tier: 3, rarity: 'rare',      reqSkill: 'level', reqLv: 34, critB: 0.015, strB: 2 },
   wraithglass_drops:   { n: 'Wraithglass Drops',   icon: '💎', v: priced(100, 4), type: 'jewelry', slot: 'earrings', tier: 4, rarity: 'epic',      reqSkill: 'level', reqLv: 50, critB: 0.02,  strB: 3 },
   rubyfire_studs:      { n: 'Rubyfire Studs',      icon: '💎', v: priced(100, 5), type: 'jewelry', slot: 'earrings', tier: 5, rarity: 'legendary', reqSkill: 'level', reqLv: 66, critB: 0.025, strB: 3 },
@@ -239,8 +239,8 @@ export const SLOT_DESC = {
   emberhead_arrows: 'Arrows with emberforged heads that never fully cool down. They\'re still glowing when they hit',
   dawnpoint_arrows: 'Arrows with dawnsteel points. They\'re the best arrows there are, and you\'ll burn through them by the quiverful',
 
-  copper_studs: 'Two small copper earrings, the kind a village smith makes for weddings. They help you land a crit now and then',
-  fang_studs: 'Wolf fangs capped in bronze and worn as earrings. Trackers like them because they help you crit',
+  copper_studs: 'Two small copper earrings, the kind a village smith makes for weddings. Fighters wear them for luck in a scrap',
+  fang_studs: 'Wolf fangs capped in bronze and worn as earrings. Trackers wear them for an edge in every fight',
   spidereye_studs: 'A venom spider\'s eyes set in steel and worn as earrings. They help you find the soft spot on a monster',
   wraithglass_drops: 'Earrings of cold glass with a wraith\'s veil melted into them. Light looks strange coming through them',
   rubyfire_studs: 'Ruby earrings in rune-carved settings. They flash like sparks when the light hits them',

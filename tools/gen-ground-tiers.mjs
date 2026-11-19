@@ -36,6 +36,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
+import { sourceQuery } from './lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-03-23-one-difficulty is APPLIED history; 2027-04-27-march-folded-ground-tiers (lane/d-supply-prices, set v0.2.135: the same rows with the five
@@ -190,7 +191,7 @@ end $$;
 
 async function loadData(root) {
   const { BUILD } = await import(pathToFileURL(join(root, 'src/build-info.js')).href);
-  const v = '?v=' + BUILD.version;
+  const v = sourceQuery(ROOT);
   const T = await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + v);
   const { VALUE_HEADROOM } = await import(pathToFileURL(join(root, 'src/data/hunt-sessions.js')).href + v);
   const { TIER_PULL_OVERRIDES } = await import(pathToFileURL(join(root, 'src/data/balance-sheet.js')).href + v);

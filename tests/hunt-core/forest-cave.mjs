@@ -44,8 +44,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead'];
 /* THE WALKED GROUNDS, LOOPED (lane/b-ground-pack phase 2): the base four above stay the literal anchor, and every ground pack
    (src/data/grounds) is walked by definition, so a new ground is checked here with no edit. Its one-tile choke, when it has
@@ -617,7 +618,7 @@ function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-forest-cave-'));
   /* src/shell, src/session, the two generators and _is-main: staged-until-art reads the Hunts window and the generators */
   for (const d of ['src/core', 'src/data', 'src/world', 'src/shell', 'src/session', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs',
-    'tools/gen-hunts.mjs', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
+    'tools/gen-hunts.mjs', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib', 'tests/_is-main.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
     const f = join(root, file);

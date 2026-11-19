@@ -36,6 +36,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
+import { sourceQuery } from './lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* 2027-02-07-level-curve-wickstead (lane/a-v0263-reds): Wickstead opened (8-18 solo, v0.2.63), so the pace was re-measured
@@ -178,7 +179,7 @@ end $$;
 
 async function loadXp(root) {
   const { BUILD } = await import(pathToFileURL(join(root, 'src/build-info.js')).href);
-  return import(pathToFileURL(join(root, 'src/core/xp.js')).href + '?v=' + BUILD.version);
+  return import(pathToFileURL(join(root, 'src/core/xp.js')).href + sourceQuery(root));
 }
 
 async function selftest() {

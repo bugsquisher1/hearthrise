@@ -6,10 +6,11 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { suiteH4, oneHero, steps, supplySession, rngOf, loadData } from './fixtures/h4.js';
 import { hero, mon, world, instOf, subStep, ROOT, loadCore } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
 /* THE CLIENT'S SUPPLY ROWS, read from the repo (a planted copy holds only src/core and src/data): the Configure
    action table and the bar's store line must price what the engine buys, never more (CLAUDE.md §6). */
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const shellOf = (p) => import(pathToFileURL(join(ROOT, p)).href + V);
 const SHELL = { table: await shellOf('src/shell/action-table.js'), draft: await shellOf('src/shell/bar-draft.js'), facts: await shellOf('src/shell/action-facts.js') };
 

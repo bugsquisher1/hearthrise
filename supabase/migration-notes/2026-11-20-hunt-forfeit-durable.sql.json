@@ -1,0 +1,4 @@
+{
+  "seq": 391,
+  "note": "APPLIED 2026-10-22 14:02 UTC by the Coordinator (v0.2.29 fix-forward). Was STAGED, NOT APPLIED (lane/a-v0229-dbreds, backend-architect, 2026-10-22; fix-forward of v0.2.29 db-replay LEDGER PRUNE red). hunt_sessions.forfeit (durable, backfilled once) + hr_hunt_forfeit sets it + hr_hunt_view reads it instead of the pruned player_ledger. After 2026-11-17-hunt-density-home.sql (restates its hr_hunt_view) and 2026-11-16-hunt-density-bounds.sql (restates its hr_hunt_forfeit). No edge deploy; client unchanged."
+}

@@ -40,6 +40,7 @@ import { rateCI } from './stats.mjs';
 import { loadGear } from './gear.mjs';
 import { proveUniques, UNIQUES_MUTANTS } from './uniques-proof.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -319,7 +320,7 @@ export async function blowVerdicts(root, sheet, grounds = null) {
   if (!sheet.blows) return [];
   const u = (p) => pathToFileURL(join(root, p)).href;
   const { BUILD } = await import(u('src/build-info.js'));
-  const v = '?v=' + BUILD.version;
+  const v = sourceQuery(ROOT);
   const G = await import(u('src/data/hunt-grounds.js') + v), { MONSTERS } = await import(u('src/data/monsters.js') + v);
   const { monsterMaxHit } = await import(u('src/core/combat.js') + v), { VITALS } = await import(u('src/data/core-model.js') + v);
   const out = [];

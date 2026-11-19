@@ -1,0 +1,4 @@
+{
+  "seq": 551,
+  "note": "APPLIED 2026-11-05 05:05 UTC (lane/c-gear-upgrade, designer, 2026-11-04; pre-EA: applies on its self-check). hr_perks_of gains the hero's rungs (lines added only, pinned on abe004d3...), hr_temper_view and the envelope's temper section. ORDER: after the catalogue file, BEFORE the hr-accrue deploy that forwards temper.* offers and fights by the rungs, then the client."
+}

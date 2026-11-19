@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "APPLIED 2026-11-19 09:40 UTC (Coordinator; hr_feature_switches.factions = accounts [0a47ba77], read back). Was: STAGED - a Coordinator step, once v0.2.141 is live (lane/b-factions-open, systems-engineer, 2026-11-19): after the factions' files and the outfit path (2027-05-19-faction-outfit-path.sql and its outfits catalogue), so the play gate can join a side and wear a look on live as the QA account. An operational switch for ONE production account: factions to scope accounts, listing the QA account (0a47ba77). A rebuilt database is correct without it (no such account exists there), as 2027-04-29-tower-switch-qa.sql; replayed, it would turn the switch on for an id no fixture has before 2027-05-27-arm-factions.sql arms it for everyone. Superseded by that file on apply."
+}

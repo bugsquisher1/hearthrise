@@ -45,6 +45,7 @@ import { join, dirname } from 'node:path';
 import { weaponPower } from './weapon-power.mjs';
 import { armorPower, loadArmorPower } from './armor-power.mjs';
 import { STYLES } from './styles.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 /* The tools' own tree. A staged sample under tools/ (tools/balance-sim/staged/) is read from HERE, never from the `root` a guard plants:
    a planted copy carries src/ and the edge, not the simulator's data (party-class-xp-line's mutants plant one and load this file). */
@@ -72,7 +73,7 @@ const ARMOUR_SLOT_KEYS = Object.freeze(['helmet', 'body', 'pants', 'boots', 'glo
 export async function loadGear(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   const { BUILD } = await import(u('src/build-info.js'));
-  const v = '?v=' + BUILD.version;
+  const v = sourceQuery(root);
   /* the engine's own module instances (src/core imports src/data with ?v=): the same ITEMS the fight reads */
   const { ITEMS } = await import(u('src/data/items.js') + v);
   const GT = await import(u('src/data/gear-tiers.js') + v);

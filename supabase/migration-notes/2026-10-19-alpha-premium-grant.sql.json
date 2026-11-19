@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "operator one-off: premium for closed-alpha testers heroes (Tyler 2026-10-19); touches only rows that exist on prod, a rebuilt DB is correct without it"
+}

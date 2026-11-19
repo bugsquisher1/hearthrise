@@ -244,6 +244,7 @@ import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scop
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel, levelBlock } from './_server-level.mjs';
 import { pressBar, barWindows, hasIcon } from './_bar.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -827,7 +828,7 @@ async function prepBuilderRules(base) {
      slot back as it opened */
   {
     /* the instance configure-action.js holds (its import carries the build's ?v=): one host map, not two */
-    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const CA = await imp('src/shell/windows/configure-action.js');
     const cs = fakeCs(fx), sc = scratch();
     sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0; sc.view = set;
@@ -1023,9 +1024,8 @@ async function selectRules(base) {
      and from a bulk button, stops the browser's own select-all, and selects every shown stack; the search box keeps its own Ctrl+A */
   {
     const A = await imp('src/shell/windows/inventory/actions.js');
-    /* the same state.js instance actions.js holds (its ?v= query names the module): one scratch per character */
-    const v = (/\.\/state\.js\?v=([0-9.]+)'/.exec(readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8')) || [])[1];
-    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + '?v=' + v);
+    /* the same state.js instance actions.js holds (at the source's own query): one scratch per character */
+    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + sourceQuery(base));
     const env = { inventory: { rat_tail: 3, bones: 2 }, state: { gold: 5 }, bag_rules: { locked: [], loot: {} } };
     const cs = { slot: 0, status: 'open', record: { residue: {} }, read: (k) => (Object.prototype.hasOwnProperty.call(env, k) ? env[k] : null), setResidue() {}, clock: 0 };
     const ctx = { character: cs, account: null, doc: { activeElement: null }, glyphs: {} };
@@ -1084,7 +1084,7 @@ async function huntsPure(imp) {
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
      (hunt-tiers.js, the build's ?v= instance), put back after, so the designer moving a number never turns a words check red. */
-  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + sourceQuery(ROOT));
   const kept = { glade: TV.GROUND_TIERS.mosslight_glade, thicket: TV.GROUND_TIERS.meadowbrook_thicket };
   const tierRow = (id, pull, dmgPm, hpPm, xpPm) => ({ id, pull, dmgPm, hpPm, xpPm });
   try {
@@ -1117,7 +1117,7 @@ async function huntsPure(imp) {
      and their pages never said it (each pack carries its measurement). */
   {
     const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
-    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + sourceQuery(ROOT));
     let named = 0;
     if (!healerLine || healerLine === 'hunts.tier_healer') fails.push('AW-25 hunts.tier_healer has no words');
     const rows = huntRows();
@@ -1198,7 +1198,7 @@ async function huntsPure(imp) {
      lands) at the multiplier the settle hands it (hunt-rewards.js payKill: weakness(row).dropMult, combat.js weaknessInfo, the monster's own). */
   {
     const { materialsOf } = await imp('src/shell/hunt-ground-facts.js');
-    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version)).MONSTERS;
+    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + sourceQuery(ROOT))).MONSTERS;
     const { rollDropTable } = await imp('src/core/drops.js');
     const { weaknessInfo } = await imp('src/core/combat.js');
     const rolls = (id) => { const seen = []; rollDropTable(MV[id].drops, { dropMult: weaknessInfo(MV[id], null).dropMult }, { chance: (c) => { seen.push(c); return false; } }); return MV[id].drops.map((d, i) => ({ d, c: seen[i] })); };
@@ -1777,8 +1777,7 @@ async function planRules(base) {
   {
     const { renderConfigureAction } = await imp('src/shell/windows/configure-action.js');
     /* the instance the window itself imports (its scratch is per module instance) */
-    const { BUILD } = await imp('src/build-info.js');
-    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + BUILD.version);
+    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const sec = { hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'power_strike', 0)], store: STORE } };
     const cs = { read: (k) => sec[k] };
     openSlot(cs, 0);
@@ -2139,7 +2138,7 @@ async function planRules(base) {
        Banded Legguards physical). Level 17 hunts Wickstead, where the Turncoat's Smoke Pot is fire; Level 20 has no fire on any ground. The rows are made here for the
        test (Bronze Platelegs with a resistance) and put back after. */
     /* the build's ?v= instance of the catalogue, the one upgrade-plan.js reads */
-    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + sourceQuery(base));
     const threats = (lv) => Array.from(UP.threatsAt(lv)).sort().join();
     if (threats(17) !== 'ember,physical,poison' || threats(20) !== 'physical,poison') fails.push('AW-21 the damage in range reads ' + threats(17) + ' at 17 and ' + threats(20) + ' at 20');
     IT.aw21_fire_legs = { ...IT.bronze_platelegs, n: 'Fireproof Legs', resistPm: { ember: 100 } };

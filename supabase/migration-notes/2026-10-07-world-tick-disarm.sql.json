@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - KILL SWITCH for the world-tick arm, apply ONLY on a runbook kill trigger. EXCLUDED: a rebuilt database is already disarmed (armed_channels default {}), so the chain is correct without it."
+}

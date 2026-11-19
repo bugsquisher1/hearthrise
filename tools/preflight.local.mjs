@@ -86,7 +86,7 @@ export const LATE = new Set(['node tests/w0e-ammo-runecraft-prayer.mjs', 'node t
   'node tests/core-curves.mjs', 'node tests/lucky-finds.mjs']);
 
 /* From the jobs that replay the chain, when their inputs moved: each was a red in the last 30 runs. */
-const CHAIN = (f) => f.startsWith('supabase/') || f === 'tests/schema-apply-order.json';
+const CHAIN = (f) => f.startsWith('supabase/');   // the apply order lives under supabase/ too (migration-notes, tools/lib/apply-order.mjs)
 export const EXTRAS = [
   ['node tests/restore-census.mjs', (f) => CHAIN(f) || /^src\/data\/.*\.js$/.test(f) || f === 'tests/restore-census.baseline.json',
     'a catalogue or a table moved: tonight\'s 48-row pin, 4 min into the run'],

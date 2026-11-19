@@ -54,7 +54,7 @@ async function generate(edits) {
     /* the apply order: with a ground pack in the tree the generator renders the whole view, which reads it (tools/pack/whole.mjs;
        lane/d-packs-retune, the lane/b-slake-and-ford pattern) */
     await mkdir(join(tmp, 'tests'), { recursive: true });
-    await cp(join(ROOT, 'tests', 'schema-apply-order.json'), join(tmp, 'tests', 'schema-apply-order.json'));
+    await cp(join(ROOT, 'supabase', 'migration-notes'), join(tmp, 'supabase', 'migration-notes'), { recursive: true });
     let src = (await readFile(join(ROOT, GEN), 'utf8')).replace(/\r\n/g, '\n');
     for (const [find, repl] of edits || []) {
       const n = src.split(find).length - 1;

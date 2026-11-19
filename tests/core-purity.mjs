@@ -27,9 +27,11 @@ import { dirname, join, normalize, relative, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const CORE_DIR = join(ROOT, 'src', 'core');
+const SOURCE_Q = sourceQuery(ROOT);
 const DATA_DIR = join(ROOT, 'src', 'data');
 
 /* Every .js under src/core, recursively, as a posix path relative to it. The
@@ -119,8 +121,10 @@ export async function corePurityGuard() {
       if (!lawfulImport(name, s)) {
         problems.push(`src/core/${name}: imports "${s}" — core may only import src/core/** or src/data/**`);
       }
-      /* CLAUDE.md cache-buster rule: every ESM import specifier carries ?v= */
-      if (!/\?v=\d[\d.]*/.test(s)) problems.push(`src/core/${name}: import "${s}" has no ?v= cache buster`);
+      /* one key per module: every import at the source's own query (tools/lib/version-stamp.mjs; '' once the source is bare,
+         the site build stamps it), so Node and the edge read the instance the engine reads */
+      const q = (/\?v=[^'"]*$/.exec(s) || [''])[0];
+      if (q !== SOURCE_Q) problems.push(`src/core/${name}: import "${s}" is at "${q}" and the source's imports at "${SOURCE_Q}": two keys are two module instances`);
     }
   }
 

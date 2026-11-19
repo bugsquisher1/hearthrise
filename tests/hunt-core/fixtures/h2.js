@@ -4,10 +4,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { hero, mon, world, groundRow, gridOf, loadCore, plant, makeReport, ROOT } from './h1.js';
+import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
 
 export { groundRow, gridOf, subStep, mon, world } from './h1.js';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 
 /** h1's loadCore plus what lane H2 also reads: hunt-spawn, hunt-roles, combat-sim's MONSTERS row helpers. */
 async function loadCore2(root) {

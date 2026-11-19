@@ -1,0 +1,4 @@
+{
+  "seq": 562,
+  "note": "APPLIED 2026-11-05 11:44 UTC (lane/c-temper-craft, designer, 2026-11-05; pre-EA: applies on its self-check). Tempering's material: hr_items gains the salts, hr_activities their Smithing recipes. No character row, no world shape change. ORDER: after 2027-02-27-tempering.sql; first of the six. APPLY ALL SIX, THEN deploy hr-accrue (its bundle carries the items and recipes), THEN the client."
+}

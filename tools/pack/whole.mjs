@@ -16,6 +16,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { ROOT, GROUNDS_DIR, packIds } from './files.mjs';
+import { loadApplyOrder } from '../lib/apply-order.mjs';
 
 /** A pack's additive file name, read from its pack.js as text (no module evaluated), or null. */
 export function packSqlOf(id, root = ROOT) {
@@ -23,8 +24,8 @@ export function packSqlOf(id, root = ROOT) {
   return m ? m[1] : null;
 }
 
-/** The migrations in apply order (tests/schema-apply-order.json `order`). */
-export function applyOrder(root = ROOT) { return JSON.parse(readFileSync(join(root, 'tests', 'schema-apply-order.json'), 'utf8')).order; }
+/** The migrations in apply order (tools/lib/apply-order.mjs; positions only, so a partial temp tree with the notes copied serves). */
+export function applyOrder(root = ROOT) { return loadApplyOrder(root, { disk: false }).order; }
 
 /**
  * The packs a whole file `outName` carries: each pack whose own file sits before it in the apply order (a whole file not yet

@@ -55,6 +55,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { bootChain, CHAIN } from './pglite-chain.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 /* fileURLToPath, NOT .pathname — this repo lives under a path containing
    SPACES and .pathname hands back the %20-escaped form, which fs cannot open. */
@@ -150,9 +151,7 @@ const gateBucketWalk = (files) => gateBucketWalkWith(files, (p) => readFileSync(
 /** The files the PGlite harness actually applies, in the order it applies them. */
 const CHAIN_FILES = CHAIN.map(([, p]) => p);
 /** The files a real rebuild applies — the full apply order. */
-const FULL_ORDER_FILES = JSON.parse(
-  readFileSync(join(REPO_ROOT, 'tests', 'schema-apply-order.json'), 'utf8'),
-).order.map((f) => join(REPO_ROOT, 'supabase', 'migrations', f));
+const FULL_ORDER_FILES = loadApplyOrder(REPO_ROOT).order.map((f) => join(REPO_ROOT, 'supabase', 'migrations', f));
 
 const MUTATIONS = {
   anon_unrated: {

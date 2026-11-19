@@ -162,7 +162,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..');
 const MIG_DIR = path.join(ROOT, 'supabase', 'migrations');
 const CONFIG_TOML = path.join(ROOT, 'supabase', 'config.toml');
-const APPLY_ORDER = path.join(ROOT, 'tests', 'schema-apply-order.json');
+const APPLY_ORDER = 'the apply order (supabase/migration-notes, tools/lib/apply-order.mjs)';
 const PROJECT_URL = 'https://nezapsylztqbbwuwembx.supabase.co';
 const argv = process.argv.slice(2);
 
@@ -619,7 +619,7 @@ async function sources() {
   let order;
   let notes;
   try {
-    const j = JSON.parse(await readFile(APPLY_ORDER, 'utf8'));
+    const j = (await import('../tools/lib/apply-order.mjs')).loadApplyOrder(ROOT);
     order = [...(j.pre_schema || []), ...(j.order || [])];
     notes = j._order_notes || {};
   } catch (e) {

@@ -1,0 +1,4 @@
+{
+  "excluded": true,
+  "note": "STAGED - KILL SWITCH for 2027-02-14-market-on.sql, apply ONLY to stop the market; list and buy answer market_closed, cancel and the sweep keep working. EXCLUDED: a rebuilt database is already off."
+}

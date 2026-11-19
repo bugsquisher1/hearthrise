@@ -100,9 +100,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { HARNESS as LIVE_H } from './hunt-live.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const LIVE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope-live.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const BUDGET = Object.freeze({ speedSlack: 1.05, frameStepTiles: 0.1, lagMs: 2100, maxStepTiles: 0.5, maxEventSpreadMs: 100, gapMedianMs: 25, simBusyFactor: 1.25, simBusySlackMs: 2 });

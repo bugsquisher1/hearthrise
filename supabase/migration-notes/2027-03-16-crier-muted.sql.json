@@ -1,0 +1,4 @@
+{
+  "seq": 595,
+  "note": "APPLIED 2026-11-06 17:11 UTC, live==replay hr_crier_send 3a010fa6, hr_town_crier_quote fafcf08b (lane/c-small-1106, systems-engineer, 2026-11-06; found by lane/c-gm-tools; pre-EA: applies on its passing §3; on the EA Security list with the Crier, money). Two splices: hr_crier_send refuses a standing mute as {ok:false, error:muted, until} after the replay and the flag, before the rule, the words, the buckets and the charge (the chat row lock stays the second one); hr_town_crier_quote carries muted_until. No table, grant or client verb. EDGE: none. ORDER: after 2027-03-13-gm-tools.sql; either side of 2027-03-16-ended-hunt-tier.sql. The client half (the Crier tab says why before a press) rides the next release after it."
+}

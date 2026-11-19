@@ -1,0 +1,4 @@
+{
+  "seq": 584,
+  "note": "APPLIED 2026-11-06 01:48 UTC (engine 102cb3fc deployed 01:49) (lane/c-boss-call; on the EA Security list: MONEY, a gold sink). hr_boss_call, hr_boss_call_view, hr_boss_call_quote, hr_boss_call_pays, hr_boss_fight_ok; hunt_session_tally.fight, the fight's record (display only, null on every other hunt); splices into hr_hunt_admit, hr_hunt_settle_session, hr_hunt_apply_member, hr_hunt_view, hr_bestiary_of; two triggers on hunt_sessions. ORDER: last of the four, §0 refuses otherwise. The edge may land in either order, the client half after this. Guard: tests/boss-call.mjs."
+}

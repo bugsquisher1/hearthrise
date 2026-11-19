@@ -1,0 +1,8 @@
+{
+  "retired": {
+    "seq": 542,
+    "superseded_by": "2027-02-24-gold-matters-hunt-sessions-catalogue.generated.sql",
+    "proof": "2026-11-19: tools/chain-retire.mjs replayed the chain with and without the 7 file(s) retired together (plus a control replay); the end state is identical: schema fingerprint 71aa5366fca3, 1857 columns with ordinals, every sequence the control holds still, every row of 275 tables, and 14 volatile tables (now()/random rows, written by no retired file) equal but for those columns or by count. No guard or tool names a file between it and its superseder."
+  },
+  "note": "APPLIED 2026-11-04 06:23 UTC (lane/c-risk-ladder, 2026-11-03). hr_hunt_limits loses below_range_refuse; no kill bound, spawn or other limit moves, and the world's shape is unchanged (no world_shape_pending on either order against the edge). ORDER: after 2027-02-24-risk-no-level-block.sql. THEN deploy hr-accrue: the harder level gap (underFloorAtkPm 200) and the level share live in the engine; until it lands hunts play today's rule."
+}

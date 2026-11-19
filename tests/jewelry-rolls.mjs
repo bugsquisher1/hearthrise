@@ -42,8 +42,9 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { ROOT, plant } from './hunt-core/fixtures/h1.js';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 
 async function load(root) {
   const imp = (p, v = V) => import(pathToFileURL(join(root, p)).href + v);

@@ -7,7 +7,7 @@
 //   node tests/boss-hall.mjs            the guard
 //   node tests/boss-hall.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrual.js tools/gen-hunt-sessions.mjs src/data/boss-halls.js src/data/hunts.js src/data/grounds/krells_hold/pack.js src/core/hunt-rewards.js src/core/member.js src/core/drops.js
+// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrue-hunt.js tools/gen-hunt-sessions.mjs src/data/boss-halls.js src/data/hunts.js src/data/grounds/krells_hold/pack.js src/core/hunt-rewards.js src/core/member.js src/core/drops.js
 //
 // The data holds no hall yet (a ground pack's `hall` folds in later), so the arms play a FIXTURE hall: the Rat King's hall on the Millrace map,
 // its boss, a named add and two plain adds written below as paying rows, with real spells (Slag Rain stands in for the Hall Fire).

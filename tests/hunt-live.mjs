@@ -7,7 +7,7 @@
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //   node tests/hunt-live.mjs --mutate --shard=K/N      every Nth mutant from the Kth (smoke.yml's artisan-selftest and -2)
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main

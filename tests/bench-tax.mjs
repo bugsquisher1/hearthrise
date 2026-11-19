@@ -6,7 +6,7 @@
 //   node tests/bench-tax.mjs            the guard
 //   node tests/bench-tax.mjs --mutate   every planted defect (edge copy or SQL) must turn its arm red or fail the file's §5
 //
-// mutant-anchors: supabase/migrations/2027-02-19-bench-tax.sql, src/core/bench-tax.js, src/core/artisan-sim.js, supabase/functions/hr-accrue/accrual.js
+// mutant-anchors: supabase/migrations/2027-02-19-bench-tax.sql, src/core/bench-tax.js, src/core/artisan-sim.js, supabase/functions/hr-accrue/accrue-artisan.js
 //
 //   T-VIEWED   a hero stops a bench job: it pays permille x bid x count per craft, to the milligold, from the account's purse
 //   T-CLOSED   the same job with the browser closed (the world tick) charges the same gold, the same carry, the same materials

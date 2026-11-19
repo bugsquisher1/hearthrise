@@ -12,7 +12,7 @@
 //   node tests/boss-call.mjs            the guard
 //   node tests/boss-call.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrual.js src/data/boss-calls.js
+// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrue-hunt.js src/data/boss-calls.js
 //
 //   BC-ROW     a called row is xp 0, gp [0, 0], no yield trick; a called boss drops only his ground boss's rows at their rates and his call-only piece (worn, no jewelry,
 //              dropped by nothing else, never another piece's stat mix, its attribute at its tier's size in the special catalogue), an add drops nothing; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity

@@ -593,18 +593,12 @@ export const ITEMS={
   vegetable_stew:  {n:'Vegetable Stew', icon:'🍲', v:140, heals:288, foodClass:'buff', buff:{type:'all_xp',       magnitude:2,  durationMs:900000}},
   // Tier 3 buff foods
   bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:384, foodClass:'buff', buff:{type:'damage',          magnitude:3,  durationMs:600000}},
-  hunters_feast:  {n:"Hunter's Feast", icon:'🍱', v:420, heals:420, foodClass:'buff', buff:{type:'drop_rate', magnitude:5, durationMs:900000}}, // b238: was dead monster_respawn — a hunter's feast earns you more loot
-  dragon_stew:    {n:'Dragon Stew',    icon:'🍜', v:780, heals:540, foodClass:'buff', buff:{type:'combat_xp',       magnitude:4, durationMs:1200000}},
-  lich_soul_soup: {n:'Lich Soul Soup', icon:'🥣', v:1100,heals:600, foodClass:'buff', buff:{type:'gold_find',       magnitude:5, durationMs:300000}},
   void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:720, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
   // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
   bronze_bar: {n:'Bronze Bar', icon:'🟫', v:25},
   steel_bar:  {n:'Steel Bar',  icon:'⬜', v:125},
   rune_bar:   {n:'Rune Bar',   icon:'🔷', v:500},
-  // Recipe scrolls — single-use unlocks for the gated cooking recipes
-  soul_recipe:          {n:'Soul Recipe Scroll',        icon:'📜', v:0, recipe:'lich_soul_soup'},
-  marrow_cookbook:      {n:'Marrow Cookbook',           icon:'📜', v:0, recipe:'dragon_stew'},
-  field_cookbook:       {n:'Field Cookbook',            icon:'📜', v:0, recipe:'hunters_feast'},
+  // The three cookbook scrolls (and their feasts) were cut 2026-11-18: a pattern teaches the hero who reads it a worn recipe (designer)
 
 
   /* ── Bind-on-Pickup high-tier rewards ──────────────────────────

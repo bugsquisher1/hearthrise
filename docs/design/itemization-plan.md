@@ -385,7 +385,7 @@ Rings roll in this build. Earrings roll once Steady and Focus are hooked in the 
 | Salts | One a tier, either bench | 310 a track | Built |
 | Linings | Below | | Designed 11-13, widened here |
 | Salvage | Below | | Proposed |
-| Patterns | A Rare that unlocks a recipe for the account | Eight a region | Proposed |
+| Patterns | A Rare that unlocks the recipe for the hero who reads it (designer 2026-11-18: per hero, the built hr_recipe_learn) | Eight a region | Ruled |
 | Good batch | A consumable job sometimes makes double | 2% at level 1 to 10% at 99 | Ruled yes |
 | Named reforging | Kingsgrate to Steelgrate, Klappa's Klub | | Built |
 
@@ -536,7 +536,7 @@ E means it exists.
 | Layer | How |
 |---|---|
 | Patterns | Every worn recipe past tier 7. Eight a region unlock ten recipes (Appendix A, Finding 4) |
-| Staples | Bars, buckles, salts, ammo, linings, food open the first time the account brings that region's ore or hide to a bench at 99 |
+| Staples | Bars, buckles, salts, ammo, linings, food open for the hero at 99 who brings that region's ore or hide |
 | Region materials | Only from that region's kills and nodes |
 | Maker's mark | Make a set number of a region's pieces and the account's Fine chance for that region rises a little, capped |
 | Reforging | Carries Hallmarked work into the next band |
@@ -878,7 +878,7 @@ A region has 8 pattern drops: six grounds, the call-out boss, the final boss. Wo
 | Food and drink | 2 | Staple |
 | **Staple recipes** | **14** | |
 
-A staple opens for the account the first time one of its heroes brings that region's ore or hide to a bench at skill 99. For the Morrow Hills: Carter's Rest belt (the Landlord's Apron), the Ox Road ring, the Night Shift earrings, Wyvern Roost cloak, the Old Guard necklace, the Bellows the top lining, the Roost Mother her named piece, Gault the Bellows Key Ring.
+A staple opens for the hero at 99 who brings that region's ore or hide to a bench. For the Morrow Hills: Carter's Rest belt (the Landlord's Apron), the Ox Road ring, the Night Shift earrings, Wyvern Roost cloak, the Old Guard necklace, the Bellows the top lining, the Roost Mother her named piece, Gault the Bellows Key Ring.
 
 ## Finding 5. The fist benchmark, measured as a solo experience
 

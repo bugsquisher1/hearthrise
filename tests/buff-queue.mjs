@@ -935,8 +935,11 @@ async function run(mutate, blind) {
   /* THE FIXTURE FOOD, read from the CATALOGUE rather than named: a designer
      retuning items.js must never be able to make this guard vacuous. */
   const pick = (await db.query(
+    /* the longest buff of a type no other buff food shares, so no other step's queue entry stands in its way (the cut Dragon Stew,
+       2026-11-18, was the longest and alone in combat_xp; the next longest, Vegetable Stew, shares all_xp with the Moonbloom Elixir) */
     `select item_id, type, magnitude::float8 as magnitude, duration_ms::bigint as duration_ms
-       from public.hr_item_buffs order by duration_ms desc, item_id limit 1`)).rows[0];
+       from public.hr_item_buffs b where (select count(*) from public.hr_item_buffs c where c.type = b.type) = 1
+      order by duration_ms desc, item_id limit 1`)).rows[0];
   const other = (await db.query(
     `select item_id, type from public.hr_item_buffs where type <> $1 order by item_id limit 1`,
     [pick && pick.type])).rows[0];

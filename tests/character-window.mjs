@@ -7,7 +7,7 @@
 //   node tests/character-window.mjs --shots <dir>  also write the visual-gate screenshots
 //                                                  (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/shell/windows/character/titles.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
+// mutant-anchors: src/shell/widgets/vitals-hub.js src/shell/windows/character/sheet.js src/shell/windows/character/index.js src/shell/windows/character/outfit.js src/shell/windows/character/outfit-looks.js src/shell/windows/character/titles.js src/session/character-sections.js src/shell/windows/skills.js src/styles/character.css src/data/item-uses.js src/data/skill-unlocks.js supabase/functions/hr-accrue/character-sheet.js src/core/progression.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus the three sections
@@ -40,6 +40,11 @@
 //   CW-6  THE SKILLS: Gathering and crafting lists no combat skill; the combat
 //         ledger is the Character window's; an unlock line's tooltip names each
 //         thing and its kind ("Bronze Axe (woodcutting tool)")
+//   CW-11 THE FACTION LOOKS (the designer 2026-11-18; the six staged looks listed here on borrowed sheets, the test's alone): ONE card an
+//         outfit, never an add-on's; with the factions off no locked faction card; on, both sides' outfits show locked, captioned with
+//         the SECTION's own number ("Requires First Flame standing: 37 h", not the data's 25); owned, the card's add-on picker offers
+//         None and the owned add-on, greys the unowned one with its requirement, and Equip sends ONE hr_outfit_set naming the picked
+//         add-on's look; off again, the owned outfit stays and the locked ones go
 //   CW-10 THE SHEET READS AS A CHARACTER SHEET (UI audit 2026-11-18 #8), at 1440x900
 //         and 922x423: the portrait is the 42x45 FIGURE at a whole 2x or more; every
 //         combat skill's bar is 40% of its entry or more and its unlock one line; no
@@ -164,6 +169,33 @@ async function pure() {
   return fails;
 }
 
+/* CW-11's STAND-INS: the staged faction looks listed on borrowed sheets (this test's alone, never shipped), on top of any mutant's text. */
+const LOOK_SHEETS = Object.freeze({ flamebearer: 'outfit_knight', flamebearer_shield: 'outfit_berserker', flamebearer_light: 'outfit_ranger',
+  emberkeeper: 'outfit_sorcerer', emberkeeper_lantern: 'outfit_witch', emberkeeper_coal: 'outfit_brute' });
+/* the files CW-11 reads: a mutant elsewhere is judged by the other rules, so CW-11 runs only on the clean tree and on these */
+const LOOK_FILES = Object.freeze(['src/shell/windows/character/outfit.js', 'src/shell/windows/character/outfit-looks.js', 'src/shell/windows/character/index.js',
+  'src/data/outfits.js', 'src/data/hunt-outfits.js', 'src/data/text/factions.js', 'src/session/faction-sections.js', 'src/session/character-sections.js', 'src/shell/faction-words.js']);
+async function lookPlants(overrides) {
+  const src = async (f) => (overrides && overrides[f]) || readFile(join(ROOT, f), 'utf8');
+  const plant = (text, find, repl, f) => { if (!find.test(text)) throw new Error('CW-11 HARNESS: the stand-in anchor is not in ' + f); return text.replace(find, repl); };
+  const { STAGED_OUTFITS } = await import(pathToFileURL(join(ROOT, 'src/data/outfits.js')).href);
+  const rows = Object.entries(STAGED_OUTFITS).map(([id, pieces]) => "  " + id + ": row('" + (pieces.length === 1 ? id[0].toUpperCase() + id.slice(1) : id) + "', false, {}, 'Stand-in art', null, "
+    + JSON.stringify(pieces).replace(/"/g, "'") + '),\n').join('');
+  let outfits = await src('src/data/outfits.js');
+  outfits = plant(outfits, /(  sweeps_coat: row\('Key Warden'[^\n]*\n)/, '$1' + rows, 'src/data/outfits.js');
+  outfits = plant(outfits, /export const STAGED_OUTFITS = Object\.freeze\(\{[\s\S]*?\n\}\);/, 'export const STAGED_OUTFITS = Object.freeze({});', 'src/data/outfits.js');
+  let sheets = await src('src/data/hunt-outfits.js');
+  sheets = plant(sheets, /(  sweeps_coat: 'outfit_sweeps_coat',\n)/, '$1' + Object.entries(LOOK_SHEETS).map(([k, v]) => "  " + k + ": '" + v + "',\n").join(''), 'src/data/hunt-outfits.js');
+  return Object.assign({}, overrides || {}, { 'src/data/outfits.js': outfits, 'src/data/hunt-outfits.js': sheets });
+}
+/* The `factions` section as hr_faction_section answers it: every need a number NO data row has, so a label that reads the data, or a
+   literal, is caught. */
+const H_MS = 3600000;
+const LOOK_NEEDS = Object.freeze({ flamebearer: 37, flamebearer_shield: 101, flamebearer_light: 301, emberkeeper: 38, emberkeeper_lantern: 102, emberkeeper_coal: 302 });
+const factionsSection = () => ({ faction: 'first_flame', can_join: false, joined_at: '2026-11-10T10:00:00Z', swap: null, swap_ready_at: '2026-11-17T10:00:00Z',
+  standing: { first_flame: 30 * H_MS, last_ember: 0 }, today_ms: 0, day_cap_ms: 86400000, swap_need_ms: 36000000, cooldown_ms: 604800000,
+  pieces: Object.entries(LOOK_NEEDS).map(([id, h]) => ({ id, faction: id.startsWith('flame') ? 'first_flame' : 'last_ember', need_ms: h * H_MS, held: false })) });
+
 async function checks(overrides, shots) {
   const fails = overrides ? [] : await pure();
   const { server, port } = await serve(overrides || {});
@@ -178,7 +210,7 @@ async function checks(overrides, shots) {
     page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
     const s = scripted(o.sections);
     await stub(page, s);
-    const up = await signInAndPlay(page, base);
+    const up = await signInAndPlay(page, o.base || base);
     return { ctx, page, errors, s, up };
   };
   const shot = async (page, name) => { if (shots) await page.screenshot({ path: join(shots, name + '.png') }); };
@@ -572,6 +604,69 @@ async function checks(overrides, shots) {
       } else fails.push('CW-10 the figure check did not mount');
       await ctx.close();
     }
+    if (!overrides || Object.keys(overrides).some((f) => LOOK_FILES.includes(f))) { // CW-11 THE FACTION LOOKS, on the stand-ins
+      const looks = await serve(await lookPlants(overrides));
+      try {
+        const { ctx, page, s, up } = await open({ base: 'http://127.0.0.1:' + looks.port });
+        if (!up || !(await openWin(page, 'c', 'character'))) fails.push('CW-11 the Character window did not open on the stand-ins');
+        else {
+          await page.click('[data-hs-win="character"] .hw-tab[data-tab="outfit"]');
+          await page.waitForTimeout(300);
+          const cards = () => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-act="of-pick"]')).map((b) => ({ id: b.getAttribute('data-outfit'),
+            locked: b.classList.contains('is-locked'), mark: b.querySelector('.hw-of-mark').textContent })));
+          const faction = (list) => list.filter((c) => c.id.startsWith('flamebearer') || c.id.startsWith('emberkeeper'));
+          /* OFF: no faction card at all */
+          let list = faction(await cards());
+          if (list.length) fails.push('CW-11 with the factions off the grid shows ' + JSON.stringify(list));
+          /* ON: both sides' outfits, locked, each with the section's own requirement; never an add-on's card; never the Key Warden */
+          s.env.factions = factionsSection();
+          await push(page, s);
+          await wait(page, () => !!document.querySelector('[data-hs-act="of-pick"][data-outfit="emberkeeper"]'), null, 4000);
+          list = await cards();
+          const want = [{ id: 'flamebearer', locked: true, mark: 'Requires First Flame standing: 37 h' }, { id: 'emberkeeper', locked: true, mark: 'Requires Last Ember standing: 38 h' }];
+          if (JSON.stringify(faction(list)) !== JSON.stringify(want)) fails.push('CW-11 with the factions on the faction cards are ' + JSON.stringify(faction(list)));
+          if (list.some((c) => c.id === 'sweeps_coat')) fails.push('CW-11 the Key Warden shows to a hero who does not own it');
+          /* OWNED: the outfit and its Shield; the card's picker offers None and Shield, greys Light with its requirement */
+          s.env.outfit = Object.assign({}, s.env.outfit, { owned: s.env.outfit.owned.concat(['flamebearer', 'flamebearer_shield']) });
+          await push(page, s);
+          await wait(page, () => { const b = document.querySelector('[data-hs-act="of-pick"][data-outfit="flamebearer"]'); return !!b && !b.classList.contains('is-locked'); }, null, 4000);
+          await page.click('[data-hs-act="of-pick"][data-outfit="flamebearer"]');
+          await page.waitForTimeout(150);
+          const picker = () => page.evaluate(() => { const box = document.querySelector('.hw-of-addons');
+            return { on: !!box && box.classList.contains('is-on'), head: box ? box.querySelector('.hw-of-addons-head').textContent : '',
+              opts: Array.from(document.querySelectorAll('[data-hs-act="of-addon"]')).map((b) => ({ look: b.getAttribute('data-outfit'), label: b.querySelector('b').textContent,
+                need: b.querySelector('small').textContent, off: b.disabled, on: b.getAttribute('aria-checked') === 'true' })) }; });
+          let pk = await picker();
+          const wantPk = { on: true, head: 'Add-on', opts: [{ look: 'flamebearer', label: 'None', need: '', off: false, on: true }, { look: 'flamebearer_shield', label: 'Shield', need: '', off: false, on: false },
+            { look: 'flamebearer_light', label: 'Light', need: 'Requires First Flame standing: 301 h', off: true, on: false }] };
+          if (JSON.stringify(pk) !== JSON.stringify(wantPk)) fails.push('CW-11 the Flamebearer\'s picker reads ' + JSON.stringify(pk));
+          if (faction(await cards()).length !== 2) fails.push('CW-11 an add-on\'s look has a card of its own: ' + JSON.stringify(faction(await cards())));
+          /* the pick is the look Equip names: ONE hr_outfit_set */
+          await page.click('[data-hs-act="of-addon"][data-outfit="flamebearer_shield"]');
+          await page.waitForTimeout(150);
+          pk = await picker();
+          const shieldOn = pk.opts.find((x) => x.look === 'flamebearer_shield');
+          if (!shieldOn || !shieldOn.on) fails.push('CW-11 the Shield press did not try it on: ' + JSON.stringify(pk.opts));
+          const before = s.calls.filter((c) => c.name === 'hr_outfit_set').length;
+          const saveOn = await page.evaluate(() => !document.querySelector('[data-hs-act="of-save"]').disabled);
+          if (saveOn) await page.click('[data-hs-act="of-save"]');
+          await page.waitForTimeout(700);
+          const sent = s.calls.filter((c) => c.name === 'hr_outfit_set').slice(before);
+          if (!saveOn || sent.length !== 1 || sent[0].body.p_outfit !== 'flamebearer_shield') fails.push('CW-11 Equip on the Shield sent ' + JSON.stringify(sent.map((c) => c.body)) + (saveOn ? '' : ' (Equip was off)'));
+          /* OFF AGAIN: the owned outfit stays, the locked one goes, the unowned add-on has no number to say and is not offered */
+          delete s.env.factions;
+          await push(page, s);
+          await wait(page, () => !document.querySelector('[data-hs-act="of-pick"][data-outfit="emberkeeper"]'), null, 4000);
+          list = faction(await cards());
+          if (JSON.stringify(list.map((c) => c.id)) !== '["flamebearer"]') fails.push('CW-11 with the factions off again the faction cards are ' + JSON.stringify(list));
+          await page.click('[data-hs-act="of-pick"][data-outfit="flamebearer"]');
+          await page.waitForTimeout(150);
+          pk = await picker();
+          if (pk.opts.map((x) => x.look).join() !== 'flamebearer,flamebearer_shield') fails.push('CW-11 with the factions off the picker offers ' + JSON.stringify(pk.opts));
+        }
+        await ctx.close();
+      } finally { looks.server.close(); }
+    }
     if (shots) { // the phone size class
       const { ctx, page, up } = await open({ viewport: { width: 922, height: 423 } });
       if (up && await openWin(page, 'c', 'character')) {
@@ -597,6 +692,11 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  ['an add-on not owned can be picked (CW-11)', 'src/shell/windows/character/outfit-looks.js', '    const own = owns(o, look);', '    const own = true;'],
+  ['the requirement is a literal, not the server\'s number (CW-11)', 'src/shell/windows/character/outfit-looks.js', 'time: spanWords(p.needMs) })', 'time: spanWords(25 * 3600000) })'],
+  ['a locked faction outfit shows with the factions off (CW-11)', 'src/shell/windows/character/outfit-looks.js', "    return !!r.pieces && requiresWords(f, r.pieces[0]) !== '';", '    return !!r.pieces;'],
+  ['an add-on\'s look gets a card of its own (CW-11)', 'src/shell/windows/character/outfit-looks.js', '    if (outfitOfLook(id) !== id) return false;\n', ''],
+  ['Equip names the outfit, not the picked add-on (CW-11)', 'src/shell/windows/character/outfit.js', '    sc.draft = { outfit: id, colors: draftOf(cs, sc).colors };', '    sc.draft = { outfit: outfitOfLook(id), colors: draftOf(cs, sc).colors };'],
   ['the vitals no longer wrap under the identity', 'src/styles/character.css', '.hw-cs-vitals { flex: 1 1 190px; min-width: 0;', '.hw-cs-vitals { flex: none; grid-template-columns: auto auto !important;'],
   ['the damage is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.damage ? c.damage.min + '–' + c.damage.max : null", "c && c.damage ? '1–' + (Math.floor(c.defence * 0.35) + 2) : null"],
   ['the absorb is derived in the browser', 'src/shell/windows/character/sheet.js', "c && c.absorbPct !== null ? c.absorbPct + '%' : null", "c && c.absorbPct !== null ? Math.round(c.defence * 1.5) + '%' : null"],
@@ -619,11 +719,11 @@ const MUTANTS = [
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],
   ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), true);"],
   ['Save sends the outfit twice', 'src/shell/windows/character/outfit.js', "runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',", "cs.saveOutfit(d.outfit); runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',"],
-  ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', "cls(b, 'is-worn', !!o && o.worn === id);", "cls(b, 'is-worn', id === d.outfit);"],
+  ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', 'const worn = !!o && !!o.worn && outfitOfLook(o.worn) === id;', 'const worn = id === d.outfit;'],
   ['Save colors stays live on a short purse (CW-4b)', 'src/shell/windows/character/outfit.js', "prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);", "prop(save, 'disabled', sc.pending || !offer || sc.price === null);"],
   ['a short purse says nothing under Save colors (CW-4b)', 'src/shell/windows/character/outfit.js', "text(root.querySelector('.hw-of-why'), short ? 'Need ' + gold(short) + ' more' : '');", "text(root.querySelector('.hw-of-why'), '');"],
   ['a premium outfit not owned can be saved', 'src/shell/windows/character/outfit.js', "sc.pending || !o || !owned || (o.worn || null) === d.outfit", "sc.pending || !o || (o.worn || null) === d.outfit"],
-  ['an earned outfit (a bundle, faction pieces) shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit.js', "    && (!earnedOnly(OUTFIT_ROWS[id]) || (!!o && o.owned.has(id))));", "    && true);"],
+  ['an earned outfit (a bundle, faction pieces) shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit-looks.js', '    if (!earnedOnly(r) || owns(o, id)) return true;', '    return true;'],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],
   ['the portrait is the whole 64 px frame at 1x again (CW-10)', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc), null), sc.opening === 'done');"],

@@ -54,25 +54,41 @@ export const OUTFIT_ROWS = Object.freeze({
 });
 
 /* THE FACTION LOOKS, STAGED (Tyler 2026-11-14: "more paladin like outfits vs grim reaper type outfit unlocks. (Both can be unlocked by
-   swapping factions)"; the board's "2026-11-14 The Morrow Hills" §6). Look id -> the pieces it needs. AN ADD-ON IS PART OF ITS OUTFIT:
-   the outfit alone, and the outfit with each set of its add-ons, is each its own look on its own sheet, owned while the hero holds every
-   piece it names, and the hero wears the one it picks (hr_outfit_set, free). The first piece is the outfit's own. The server serves these
-   rows now (tools/gen-outfits.mjs, hr_outfits.pieces); the page lists none, because no sheet has landed (validate: every OUTFIT_ROWS row
-   has a sprite; CLAUDE.md §3.5). When a look's sheet lands, its id goes into hunt-outfits.js OUTFITS and its row moves from here into
-   OUTFIT_ROWS with its label, regions and parts, and the same pieces. */
+   swapping factions)"; the board's "2026-11-14 The Morrow Hills" §6). Look id -> the pieces it needs. AN ADD-ON IS PART OF ITS OUTFIT
+   (the designer 2026-11-18): the outfit alone and the outfit with ONE of its add-ons are each a look on its own sheet, owned while the
+   hero holds every piece it names. A hero holding both add-ons shows one, by choice: the Outfit tab's one card for the outfit picks the
+   look (Add-on: None, Shield, Light), worn through hr_outfit_set. The first piece is the outfit's own. The glows (the ring, the coals)
+   are lit palette pixels on the sheets, not effects. The server serves these rows now (tools/gen-outfits.mjs, hr_outfits.pieces); the
+   page lists none, because no sheet has landed (validate: every OUTFIT_ROWS row has a sprite; CLAUDE.md §3.5). The base looks ship
+   first, the add-on looks after their art review: as a look's sheet lands, its id goes into hunt-outfits.js OUTFITS and its row moves
+   from here into OUTFIT_ROWS with its label, regions and parts, and the same pieces. */
 export const STAGED_OUTFITS = Object.freeze({
   flamebearer: Object.freeze(['flamebearer']),
   flamebearer_shield: Object.freeze(['flamebearer', 'flamebearer_shield']),
   flamebearer_light: Object.freeze(['flamebearer', 'flamebearer_light']),
-  flamebearer_shield_light: Object.freeze(['flamebearer', 'flamebearer_shield', 'flamebearer_light']),
   emberkeeper: Object.freeze(['emberkeeper']),
   emberkeeper_lantern: Object.freeze(['emberkeeper', 'emberkeeper_lantern']),
   emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper_coal']),
-  emberkeeper_lantern_coal: Object.freeze(['emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal']),
 });
 
 /** Is this row a find or an earning (a bundle, or faction pieces): listed only once the server says the hero owns it? Pure. */
 export const earnedOnly = (r) => !!r && (!!r.bundle || !!r.pieces);
+
+/** The outfit a look is worn on: for an add-on's look, the listed look owned by its first piece alone; else the look itself. Pure. */
+export function outfitOfLook(id, rows = OUTFIT_ROWS) {
+  const r = rows[id];
+  if (!r || !r.pieces || r.pieces.length < 2) return id;
+  const base = Object.keys(rows).find((k) => rows[k].pieces && rows[k].pieces.length === 1 && rows[k].pieces[0] === r.pieces[0]);
+  return base || id;
+}
+
+/** The add-on looks of the outfit `base`, in row order: [{ look, piece }] (the add-on's piece is the look's second). Pure. */
+export function addonLooks(base, rows = OUTFIT_ROWS) {
+  const b = rows[base];
+  if (!b || !b.pieces || b.pieces.length !== 1) return [];
+  return Object.keys(rows).filter((k) => rows[k].pieces && rows[k].pieces.length === 2 && rows[k].pieces[0] === b.pieces[0])
+    .map((k) => ({ look: k, piece: rows[k].pieces[1] }));
+}
 
 /* A region's name in the creation step. */
 export const REGION_LABEL = Object.freeze({ head: 'Head', body: 'Body', legs: 'Legs', feet: 'Feet' });
@@ -145,9 +161,11 @@ export function validate() {
     if (OUTFITS[id]) out.push(id + ': its sheet has landed, so its row moves into OUTFIT_ROWS with its label, regions and parts');
     out.push(...piecesProblems(id, pieces));
   }
-  /* an add-on is worn on its outfit: a look of several pieces starts with the piece a one-piece look is owned by */
+  /* an add-on is worn on its outfit: a look of several pieces starts with the piece a one-piece look is owned by; and it shows ONE
+     add-on (the designer 2026-11-18: both add-ons held, one shown, by choice) */
   for (const [id, pieces] of Object.entries(STAGED_OUTFITS).concat(OUTFIT_IDS.map((id) => [id, OUTFIT_ROWS[id].pieces]))) {
     if (Array.isArray(pieces) && pieces.length > 1 && !single.has(pieces[0])) out.push(id + ': its first piece ' + pieces[0] + ' owns no outfit of its own');
+    if (Array.isArray(pieces) && pieces.length > 2) out.push(id + ': it shows ' + (pieces.length - 1) + ' add-ons, and a look shows one');
   }
   if (BASE_REGIONS.length !== MASK_COLOURS.length) out.push('a mask key for each of the hero\'s regions');
   if (!Number.isInteger(DYE_COUNT) || DYE_COUNT < 1 || DYE_COUNT > 64) out.push('DYE_COUNT must be 1..64');

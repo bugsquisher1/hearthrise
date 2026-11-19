@@ -6,7 +6,7 @@
 -- window's outfit save and hr_hero_colors_set are checked against. Cosmetic: nothing here moves value.
 -- THE FORWARD FILE (lane/c-faction-outfit-path, 2026-11-18): 2027-04-30-sweeps-coat-outfits-catalogue.generated.sql is APPLIED history;
 -- this carries every row again plus each FACTION LOOK with the pieces it needs (hr_outfits.pieces: the Flamebearer and the Emberkeeper,
--- alone and with each set of their add-ons, owned only by a hero holding every piece; staged, so no sheet and no regions yet). STAGED,
+-- alone and with one of their add-ons each, owned only by a hero holding every piece; staged, so no sheet and no regions yet). STAGED,
 -- NOT APPLIED. ORDER: right after 2027-05-19-faction-outfit-path.sql, which adds the column and makes hr_outfit_owned read the claims;
 -- §0 refuses before it, because under the old body every hero would own every faction look.
 -- Rows are UPSERTED (player_outfits references hr_outfits); a removed row is
@@ -57,14 +57,12 @@ insert into public.hr_outfits (outfit_id, premium, regions, sort, bundle, pieces
   ('flamebearer', false, '{}', 10, null, '{flamebearer}'),
   ('flamebearer_shield', false, '{}', 11, null, '{flamebearer,flamebearer_shield}'),
   ('flamebearer_light', false, '{}', 12, null, '{flamebearer,flamebearer_light}'),
-  ('flamebearer_shield_light', false, '{}', 13, null, '{flamebearer,flamebearer_shield,flamebearer_light}'),
-  ('emberkeeper', false, '{}', 14, null, '{emberkeeper}'),
-  ('emberkeeper_lantern', false, '{}', 15, null, '{emberkeeper,emberkeeper_lantern}'),
-  ('emberkeeper_coal', false, '{}', 16, null, '{emberkeeper,emberkeeper_coal}'),
-  ('emberkeeper_lantern_coal', false, '{}', 17, null, '{emberkeeper,emberkeeper_lantern,emberkeeper_coal}')
+  ('emberkeeper', false, '{}', 13, null, '{emberkeeper}'),
+  ('emberkeeper_lantern', false, '{}', 14, null, '{emberkeeper,emberkeeper_lantern}'),
+  ('emberkeeper_coal', false, '{}', 15, null, '{emberkeeper,emberkeeper_coal}')
   on conflict (outfit_id) do update set premium = excluded.premium, regions = excluded.regions, sort = excluded.sort, bundle = excluded.bundle,
     pieces = excluded.pieces;
-delete from public.hr_outfits where outfit_id <> all (array['knight', 'berserker', 'ranger', 'sorcerer', 'druid', 'brute', 'witch', 'dawnward', 'sweeps_coat', 'flamebearer', 'flamebearer_shield', 'flamebearer_light', 'flamebearer_shield_light', 'emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal', 'emberkeeper_lantern_coal']);
+delete from public.hr_outfits where outfit_id <> all (array['knight', 'berserker', 'ranger', 'sorcerer', 'druid', 'brute', 'witch', 'dawnward', 'sweeps_coat', 'flamebearer', 'flamebearer_shield', 'flamebearer_light', 'emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal']);
 
 insert into public.hr_outfit_dyes (idx, hex) values
   (0, '#2f2723'),
@@ -92,7 +90,7 @@ delete from public.hr_outfit_dyes where idx >= 16;
 do $$
 declare v_role text;
 begin
-  if (select count(*) from public.hr_outfits) <> 17 or (select count(*) from public.hr_outfit_dyes) <> 16
+  if (select count(*) from public.hr_outfits) <> 15 or (select count(*) from public.hr_outfit_dyes) <> 16
      or (select count(*) from public.hr_outfits where premium) <> 3 then
     raise exception 'outfits-catalogue: the rows are not the generated set'; end if;
   if (select string_agg(outfit_id || ':' || bundle, '|' order by outfit_id || ':' || bundle collate "C") from public.hr_outfits where bundle is not null)
@@ -105,7 +103,7 @@ begin
               and o.outfit_id = any (public.hr_outfit_owned('00000000-0000-4000-8000-0000005c0a70'::uuid, 0))) then
     raise exception 'outfits-catalogue: a hero that used no bundle owns a bundle outfit'; end if;
   if (select string_agg(outfit_id || ':' || array_to_string(pieces, '+'), '|' order by outfit_id collate "C") from public.hr_outfits where pieces is not null)
-     is distinct from 'emberkeeper:emberkeeper|emberkeeper_coal:emberkeeper+emberkeeper_coal|emberkeeper_lantern:emberkeeper+emberkeeper_lantern|emberkeeper_lantern_coal:emberkeeper+emberkeeper_lantern+emberkeeper_coal|flamebearer:flamebearer|flamebearer_light:flamebearer+flamebearer_light|flamebearer_shield:flamebearer+flamebearer_shield|flamebearer_shield_light:flamebearer+flamebearer_shield+flamebearer_light' then
+     is distinct from 'emberkeeper:emberkeeper|emberkeeper_coal:emberkeeper+emberkeeper_coal|emberkeeper_lantern:emberkeeper+emberkeeper_lantern|flamebearer:flamebearer|flamebearer_light:flamebearer+flamebearer_light|flamebearer_shield:flamebearer+flamebearer_shield' then
     raise exception 'outfits-catalogue: the faction looks are not the data''s'; end if;
   if exists (select 1 from public.hr_outfits o cross join lateral unnest(o.pieces) p(piece_id)
               where not exists (select 1 from public.hr_faction_outfits f where f.piece_id = p.piece_id))
@@ -119,5 +117,5 @@ begin
        or has_table_privilege(v_role, 'public.hr_outfit_dyes', 'select,insert,update,delete') then
       raise exception 'outfits-catalogue: % reaches the catalogue', v_role; end if;
   end loop;
-  raise notice 'outfits-catalogue: 17 outfits, 16 dyes; all green';
+  raise notice 'outfits-catalogue: 15 outfits, 16 dyes; all green';
 end $$;

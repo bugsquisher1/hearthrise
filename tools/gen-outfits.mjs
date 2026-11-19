@@ -102,7 +102,7 @@ export function buildSql(O, dyes, palette, factionPieces) {
 -- window's outfit save and hr_hero_colors_set are checked against. Cosmetic: nothing here moves value.
 -- THE FORWARD FILE (lane/c-faction-outfit-path, 2026-11-18): 2027-04-30-sweeps-coat-outfits-catalogue.generated.sql is APPLIED history;
 -- this carries every row again plus each FACTION LOOK with the pieces it needs (hr_outfits.pieces: the Flamebearer and the Emberkeeper,
--- alone and with each set of their add-ons, owned only by a hero holding every piece; staged, so no sheet and no regions yet). STAGED,
+-- alone and with one of their add-ons each, owned only by a hero holding every piece; staged, so no sheet and no regions yet). STAGED,
 -- NOT APPLIED. ORDER: right after 2027-05-19-faction-outfit-path.sql, which adds the column and makes hr_outfit_owned read the claims;
 -- §0 refuses before it, because under the old body every hero would own every faction look.
 -- Rows are UPSERTED (player_outfits references hr_outfits); a removed row is

@@ -25,7 +25,7 @@
 //   FO-AGAIN  both files applied a second time at the chain end move nothing (bodies, rows, the column, the CHECK); the catalogue
 //             refuses to land while the reader is the one before the hand file (every hero would own every look)
 //   FO-DATA   src/data/outfits.js: valid; a staged look has no sheet and says so the day one lands; an add-on look starts with its
-//             outfit's piece; a piece twice is refused; earnedOnly holds a pieces row back as it holds a bundle row; the looks and
+//             outfit's piece; a piece twice is refused; no look shows two add-ons (the designer 2026-11-18: both held, one shown); earnedOnly holds a pieces row back as it holds a bundle row; the looks and
 //             src/data/factions.js agree (tools/gen-outfits.mjs lookPieceProblems: every piece dresses a look, a look is one side's)
 // TRUE CONCURRENCY is unverified here (PGlite is one backend): a claim is ordered by hr_hunt_lock, a wear reads its own snapshot.
 // Exit: 0 green · 1 red · 2 harness.
@@ -221,8 +221,8 @@ const ARMS = {
     /* the faction door: A holds the outfit and the light; C the shield alone */
     await joined(db, A, flame);
     await joined(db, C, flame);
-    await standing(db, A, flame, X.need(X.looks.flamebearer_shield_light));
-    await standing(db, C, flame, X.need(X.looks.flamebearer_shield_light));
+    await standing(db, A, flame, X.need([...X.looks.flamebearer_shield, ...X.looks.flamebearer_light]));
+    await standing(db, C, flame, X.need([...X.looks.flamebearer_shield, ...X.looks.flamebearer_light]));
     for (const p of ['flamebearer', 'flamebearer_light']) await claim(db, A, p);
     await claim(db, C, 'flamebearer_shield');
     const held = { [A]: ['flamebearer', 'flamebearer_light'], [B]: [], [C]: ['flamebearer_shield'] };
@@ -350,6 +350,8 @@ const ARMS = {
         ['a staged look whose sheet landed', { 'hunt-outfits.js': [["  sweeps_coat: 'outfit_sweeps_coat',\n", "  sweeps_coat: 'outfit_sweeps_coat',\n  flamebearer: 'outfit_flamebearer',\n"]] }, /flamebearer: its sheet has landed/],
         ['an add-on look not on its outfit', { 'outfits.js': [["  flamebearer_shield: Object.freeze(['flamebearer', 'flamebearer_shield']),", "  flamebearer_shield: Object.freeze(['flamebearer_shield', 'flamebearer']),"]] }, /flamebearer_shield: its first piece flamebearer_shield owns no outfit/],
         ['a piece twice', { 'outfits.js': [["  emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper_coal']),", "  emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper']),"]] }, /emberkeeper_coal: it names a piece twice/],
+        /* the designer 2026-11-18: a hero holding both add-ons shows one, so no look shows two */
+        ['a look of both add-ons', { 'outfits.js': [["  emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper_coal']),", "  emberkeeper_coal: Object.freeze(['emberkeeper', 'emberkeeper_coal']),\n  emberkeeper_both: Object.freeze(['emberkeeper', 'emberkeeper_lantern', 'emberkeeper_coal']),"]] }, /emberkeeper_both: it shows 2 add-ons, and a look shows one/],
       ];
       for (const [what, edits, want] of plants) {
         const P = await load(edits);
@@ -392,6 +394,7 @@ export const MUTANTS = {
   look_written_free: { arm: 'FO-AGAIN', why: 'the catalogue writes a faction look with no pieces', sql: [CATALOGUE, "  ('flamebearer', false, '{}', 10, null, '{flamebearer}'),", "  ('flamebearer', false, '{}', 10, null, null),"] },
   earned_drops_pieces: { arm: 'FO-DATA', why: 'a faction look would list for a hero who does not own it', js: ['outfits.js', 'export const earnedOnly = (r) => !!r && (!!r.bundle || !!r.pieces);', 'export const earnedOnly = (r) => !!r && !!r.bundle;'] },
   staged_sheet_unchecked: { arm: 'FO-DATA', why: 'a landed sheet leaves its look hidden', js: ['outfits.js', "    if (OUTFITS[id]) out.push(id + ': its sheet has landed, so its row moves into OUTFIT_ROWS with its label, regions and parts');\n", ''] },
+  two_addons_one_look: { arm: 'FO-DATA', why: 'a look may show both add-ons', js: ['outfits.js', "    if (Array.isArray(pieces) && pieces.length > 2) out.push(id + ': it shows ' + (pieces.length - 1) + ' add-ons, and a look shows one');\n", ''] },
   addon_off_outfit: { arm: 'FO-DATA', why: 'an add-on look need not start with its outfit', js: ['outfits.js', "    if (Array.isArray(pieces) && pieces.length > 1 && !single.has(pieces[0])) out.push(id + ': its first piece ' + pieces[0] + ' owns no outfit of its own');\n", ''] },
 };
 

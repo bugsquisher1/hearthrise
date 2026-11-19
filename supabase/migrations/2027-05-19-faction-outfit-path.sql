@@ -28,9 +28,10 @@
 -- a faction look its claimers'.
 --
 -- ── THE ADD-ONS ARE PART OF THE OUTFIT, NOT A SECOND SLOT ────────────────────
--- An add-on belongs to one outfit (the Hearth Shield on the Emberkeeper means nothing), so it is not a slot of its own. Each set of an
--- outfit and its add-ons is ITS OWN LOOK: one hr_outfits row naming every piece it needs, drawn from one sheet. The Flamebearer alone, with
--- the Hearth Shield, with Holly's Light, with both; the same four for the Emberkeeper. The hero picks which owned look to wear with the
+-- An add-on belongs to one outfit (the Hearth Shield on the Emberkeeper means nothing), so it is not a slot of its own. The outfit alone
+-- and the outfit with ONE add-on are each ITS OWN LOOK: one hr_outfits row naming every piece it needs, drawn from one sheet. The
+-- Flamebearer alone, with the Hearth Shield, with Holly's Light; the same three for the Emberkeeper (the designer 2026-11-18: a hero
+-- holding both add-ons shows one, by choice; the Outfit tab picks it on the outfit's one card). The hero picks which owned look to wear with the
 -- one free verb, hr_outfit_set, so showing or hiding an add-on costs nothing and needs no new verb, column or projection: the town look,
 -- the party views and the Character window carry the worn look's id as they do today and draw its sheet. (A layer drawn over the body
 -- would have to sit behind it in some facings and in front in others, in three renderers; a sheet per look keeps the art's own order.)
@@ -60,7 +61,7 @@
 -- wearers' outfit to null: they wear their role's look; the claims stay, and the current catalogue puts the rows back).
 --
 -- ── COST (rows and bytes at 100x players: 600 heroes) ─────────────────────
--- No new row a hero. hr_outfits gains 8 rows (~1 KB). hr_outfit_owned gains one index probe of hr_faction_claims (at most 6 rows a hero)
+-- No new row a hero. hr_outfits gains 6 rows (~1 KB). hr_outfit_owned gains one index probe of hr_faction_claims (at most 6 rows a hero)
 -- a call; it is called once per hero per look (the outfit section, a town look touch, a party view seat), so at most a few thousand
 -- index probes a minute at 100x.
 --

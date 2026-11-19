@@ -3,6 +3,7 @@
 //
 //   node tests/hunt-tiers-db.mjs            the guard
 //   node tests/hunt-tiers-db.mjs --mutate   the proof: each SQL mutant turns it red
+//   node tests/hunt-tiers-db.mjs --mutate --only=HT-7   the mutants one arm owns
 //
 // THE MEASURE: the replayed chain (PGlite), the shipped world tick (tools/settle-cost.mjs).
 //   HT-1 BOTH PATHS: a hero at Mosslight Glade on Deadly, windows settled with the browser closed (the tick's `fire` door) and hunt viewed (index.ts's hello, the `viewed` door), from one
@@ -13,8 +14,13 @@
 //   HT-4 REFUSED, NEVER CLAMPED: a word nobody offers, a tier the ground doesn't offer and an unknown ground, each in words; a tier never comes in through the action set's options (bad_option).
 //   HT-6 THE DIALS ARE THE DATA'S (tools/gen-ground-tiers.mjs OUT_NAME, lane/b-tier-dials): the replayed table holds dmg_pm, hp_pm and xp_pm, never power_pm, and
 //        every ground's resolved row of src/data/hunt-tiers.js digit for digit; the catalogue file applied a second time moves no row and no constraint.
+//   HT-7 THE ROW NAMES ITS TIER FROM THE OPEN, BOTH PATHS (2027-05-24-session-tier-open.sql, lane/c-session-tier-null; balance audit 2026-11-19 fix 9:
+//        the export read an open Deadly hunt's row as null): on each door, the open Deadly hunt's row and its hr_hunt_view read deadly while it runs;
+//        a change of ground landing at that door's settle (hr_hunt_swap) opens a CONTINUED row (prev_session_id) that names its own ground's pick from
+//        the open, the tier its instance froze and the engine reads (hr_hunt_instance_read options.tier), never null and never the old ground's;
+//        the row it continued ends `changed` keeping deadly; and a second apply of the file moves no body, trigger or comment.
 //
-// The mutants are SQL patched into the booted replay; their anchors are FILE's text.
+// The mutants are SQL patched into the booted replay; their anchors are FILE's text (HT-7's: OPEN_FILE's).
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { wholeViewOrRerun, applyOrder, packSqlOf } from '../tools/pack/whole.mjs';
@@ -28,8 +34,10 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const FILE = '2027-02-27-hunt-tiers.sql';
+const OPEN_FILE = '2027-05-24-session-tier-open.sql';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const WINDOWS = 3;
+const WINDOW_MS = 90000;   /* prepare's own window (tools/settle-cost.mjs windowMs default), which door() keeps */
 const GLADE = 'mosslight_glade', WARRENS = 'coppercap_warrens', THICKET = 'meadowbrook_thicket';
 /* A hero who holds a full box for the guard's minutes: this measures the server's path, not the balance. */
 const GEAR = Object.freeze({ helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots', weapon: 'steel_sword', shield: 'coppercap_shield' });
@@ -45,7 +53,64 @@ async function door(db, which) {
   for (let w = 2; w <= WINDOWS + 1; w++) await run.step(w);
   const row = (await db.query(`select i.tier, i.density, i.world::text as world, s.user_id from public.hunt_instances i join public.hunt_sessions s on s.instance_id = i.id where i.hunt_id = $1 order by s.entered_at desc limit 1`, [GLADE])).rows[0];
   const xp = Number(await one(db, 'select level_xp from public.player_state where user_id = $1 and slot = 0', [row.user_id]));
-  return { tier: row.tier, density: row.density, world: row.world, xp, user: row.user_id };
+  return { tier: row.tier, density: row.density, world: row.world, xp, user: row.user_id, run, db };
+}
+
+/* HT-7 on one door's db, its Glade Deadly hunt still open after `door`: the open row, then a change of ground landing at that door's next settle.
+   Browser closed: the tick's fire (run.step). Hunt viewed: the viewed hero's own hunt_settle as index.ts runs it (mode settle, project, live), ONE
+   ask: run.step's early live asks are pinned to answer below_min_span, and a pending change is settled by the first ask that comes. */
+async function openRow(d, which) {
+  const name = which === 'fire' ? 'browser closed' : 'hunt viewed';
+  const problems = [];
+  const { db, run, user } = d;
+  const open = (await db.query('select id, tier, settled_to from public.hunt_sessions where user_id = $1 and slot = 0 and ended_at is null', [user])).rows[0];
+  if (!open) return ['HT-7 ' + name + ': CONTROL: no open hunt after the windows'];
+  const view = await one(db, 'select public.hr_hunt_view($1::uuid)', [open.id]);
+  if (open.tier !== 'deadly' || !view || view.tier !== 'deadly') problems.push('HT-7 ' + name + ': the open Deadly hunt\'s row reads ' + open.tier + ', its view ' + (view && view.tier));
+  /* the player's change of ground (the real verb), its own pick on the next ground first */
+  await db.query('begin');
+  await asUser(db, user);
+  await db.query('delete from public.hr_rate_counters where user_id = $1', [user]);
+  const pick = await one(db, "select public.hr_hunt_tier_set(0, $1, 'dangerous', $2::uuid)", [THICKET, idem()]);
+  await db.query('delete from public.hr_rate_counters where user_id = $1', [user]);
+  const ch = await one(db, 'select public.hr_hunt_change(0, $1, $2::uuid)', [THICKET, idem()]);
+  await db.query('commit');
+  if (!pick || pick.ok !== true || !ch || ch.ok !== true) return [...problems, 'HT-7 ' + name + ': CONTROL: the pick answered ' + JSON.stringify(pick) + ', the change ' + JSON.stringify(ch)];
+  /* FIXTURE: the change pends to the live horizon, greatest(now(), settled_to + 32 s) on the SERVER's clock, weeks past this guard's anchored hunt
+     clock; it is moved inside the next window so the door's own settle lands it (the swap is under test here, not the horizon). */
+  await db.query("update public.hunt_sessions set change_at = settled_to + interval '30 seconds' where id = $1", [open.id]);
+  try {
+    if (which === 'fire') await run.step(WINDOWS + 2);
+    else {
+      const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
+      const M = await H.loadEdge(H.ROOT);
+      const v = await M.HS.settleHunt({ exec: H.makeExec(db), user, slot: 0, mode: 'settle', bucket: null, project: true, live: true, atMs: run.fromMs + (WINDOWS + 2) * WINDOW_MS });
+      if (!v || v.outcome !== 'paid') throw new Error('the viewed settle answered ' + JSON.stringify(v && { o: v.outcome, r: v.reason }));
+    }
+  } catch (e) { return [...problems, 'HT-7 ' + name + ': the window carrying the change did not land: ' + String(e && e.message).slice(0, 300)]; }
+  const next = (await db.query(`select s.id, s.tier, s.ended_at is null as open, i.tier as inst from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id
+                                 where s.prev_session_id = $1`, [open.id])).rows[0];
+  const was = (await db.query('select tier, end_reason from public.hunt_sessions where id = $1', [open.id])).rows[0];
+  if (!next) return [...problems, 'HT-7 ' + name + ': the change opened no continued row (the old one ended ' + (was && was.end_reason) + ')'];
+  const read = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [user]);
+  const plays = read && read.members && read.members[0] && read.members[0].session && read.members[0].session.options && read.members[0].session.options.tier;
+  if (!next.open || next.tier !== 'dangerous' || next.inst !== 'dangerous' || plays !== 'dangerous') {
+    problems.push('HT-7 ' + name + ': the continued row (open ' + next.open + ') reads ' + next.tier + ', its instance froze ' + next.inst + ', the engine plays ' + plays + ', want dangerous (the Thicket\'s pick) in all three');
+  }
+  if (!was || was.end_reason !== 'changed' || was.tier !== 'deadly') problems.push('HT-7 ' + name + ': the row it continued ended ' + (was && was.end_reason) + ' at ' + (was && was.tier) + ', want changed at deadly');
+  return problems;
+}
+
+/* HT-7's second apply: OPEN_FILE again (`again`: a mutant's edit to its text) moves no body, trigger or comment. */
+async function openTwice(db, again) {
+  const shape = async () => JSON.stringify((await db.query(`select (select string_agg(md5(pg_get_functiondef(p.oid)), ',' order by p.proname) from pg_proc p
+       where p.pronamespace = 'public'::regnamespace and p.proname in ('hr_hunt_tier_open', 'hr_hunt_tier_stamp')) as bodies,
+     (select string_agg(pg_get_triggerdef(t.oid), ',' order by t.tgname) from pg_trigger t where t.tgrelid = 'public.hunt_sessions'::regclass and not t.tgisinternal) as triggers,
+     col_description('public.hunt_sessions'::regclass, (select attnum from pg_attribute where attrelid = 'public.hunt_sessions'::regclass and attname = 'tier')) as note`)).rows[0]);
+  const once = await shape();
+  const sql = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'supabase', 'migrations', OPEN_FILE), 'utf8');
+  try { await db.exec(again ? again(sql) : sql); } catch (e) { return ['HT-7 ' + OPEN_FILE + ' does not apply a second time: ' + String(e && e.message).slice(0, 200)]; }
+  return (await shape()) === once ? [] : ['HT-7 a second apply of ' + OPEN_FILE + ' moved a body, a trigger or the column\'s comment'];
 }
 
 async function bothPaths(boot) {
@@ -94,6 +159,9 @@ async function bothPaths(boot) {
   const opt = await one(viewedDb, `select public.hr_action_set_options(0, 0, '{"tier":"deadly"}'::jsonb, $1::uuid)`, [idem()]);
   if (!opt || opt.error !== 'bad_option') problems.push('HT-4 a tier through the action set answered ' + JSON.stringify(opt));
   await viewedDb.query('commit');
+
+  /* HT-7: the row names its tier from the open, on each door (the viewed one after HT-3's pick mid-hunt: the running row keeps deadly), then the file twice */
+  problems.push(...await openRow(closed, 'fire'), ...await openRow(viewed, 'viewed'), ...await openTwice(closed.db));
   return problems;
 }
 
@@ -177,16 +245,26 @@ const MUTANTS = [
      and the mutant changed nothing. What is left to hold for a four is that the freeze writes its tier's pull at all. */
   { name: 'a tier brings a party no pull: a four plays the ground as it stands', fn: 'public.hr_hunt_density_freeze()', find: "select t.pull[v_size] from", repl: "select case when v_size > 1 then 0 else t.pull[v_size] end from", want: /HT-2/, four: true },
   { name: 'a tier the ground does not offer is clamped, not refused', fn: 'public.hr_hunt_tier_set(integer,text,text,uuid)', find: "    return public.hr_note_rejection(c_verb, p_slot, jsonb_build_object('ok', false, 'error', 'bad_tier')); end if;", repl: "    p_tier := 'normal'; end if;", want: /HT-4/ },
+  /* HT-7 (OPEN_FILE): the 2027-03-16 contract alone (null until the end), the audit's guess (a continued row copies the old one's tier), a file that applies once */
+  { name: 'the row names no tier until it ends', fn: 'public.hr_hunt_tier_open()', find: "   where s.id = new.id\n", repl: "   where false\n", want: /HT-7/ },
+  { name: 'a continued row copies the tier of the row it continued', fn: 'public.hr_hunt_tier_open()',
+    find: "     set tier = coalesce((select i.tier from public.hunt_instances i where i.id = new.instance_id), 'normal')\n",
+    repl: "     set tier = coalesce((select p.tier from public.hunt_sessions p where p.id = new.prev_session_id), (select i.tier from public.hunt_instances i where i.id = new.instance_id), 'normal')\n", want: /HT-7/ },
+  { name: 'the open stamp\'s trigger is not dropped first: the file applies once', openFile: true, again: (sql) => sql.replace('drop trigger if exists hr_hunt_tier_open on public.hunt_sessions;\n', ''), want: /HT-7/ },
 ];
 
 async function main() {
   if (process.argv.includes('--mutate')) {
+    /* --only=HT-7: the mutants one arm owns (a lane's own proof); the full sweep is the default and what CI runs */
+    const only = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
+    const chosen = MUTANTS.filter((m) => !only || m.want.test(only));
+    if (!chosen.length) { console.log('hunt-tiers-db --mutate: HARNESS: no mutant is owned by ' + only); process.exitCode = 2; return; }
     let escaped = 0;
-    for (const m of MUTANTS) {
+    for (const m of chosen) {
       /* Patched into the booted replay (FILE's own self-check would refuse most of them at apply): the body as it landed, the one change, re-applied. */
       if (m.again) {
         let got = [];
-        try { got = await dialsTwice((await bootReplay()).db, m.again); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
+        try { got = await (m.openFile ? openTwice : dialsTwice)((await bootReplay()).db, m.again); } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
         const hit = got.some((p) => m.want.test(p));
         if (!hit) escaped++;
         console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got[0] || 'every check held').slice(0, 160));
@@ -205,14 +283,14 @@ async function main() {
       if (!hit) escaped++;
       console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got[0] || 'every check held').slice(0, 160));
     }
-    console.log(escaped ? 'hunt-tiers-db --mutate: ' + escaped + ' ESCAPED' : 'hunt-tiers-db --mutate: ' + MUTANTS.length + '/' + MUTANTS.length + ' caught');
+    console.log(escaped ? 'hunt-tiers-db --mutate: ' + escaped + ' ESCAPED' : 'hunt-tiers-db --mutate: ' + chosen.length + '/' + chosen.length + ' caught' + (only ? ' (' + only + ' of ' + MUTANTS.length + ')' : ''));
     process.exitCode = escaped ? 1 : 0;
     return;
   }
   const boot = () => bootReplay();
   const problems = [...await bothPaths(boot), ...await aFour(boot), ...await asItStands(boot), ...await dialsTwice((await boot()).db)];
   for (const p of problems) console.log('FAIL  ' + p);
-  console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped, a row with no more monsters, the dials are the data\'s twice)');
+  console.log(problems.length ? 'hunt-tiers-db: ' + problems.length + ' FAILED' : 'hunt-tiers-db: green (both paths, a four, the pick survives, refused not clamped, a row with no more monsters, the dials are the data\'s twice, the row names its tier from the open on both paths)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

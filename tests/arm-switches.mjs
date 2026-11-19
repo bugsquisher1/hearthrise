@@ -8,8 +8,9 @@
 //   node tests/arm-switches.mjs --mutate   every planted defect must turn its arm red
 //   node tests/arm-switches.mjs --only=AS-SCALED,AS-XP   those arms alone
 //
-// mutant-anchors: supabase/migrations/2027-05-17-scaled-best.sql (the body mutants read the replay's own body back; the rest plant a switch row
-//   or boot the guards' calendar where the live one is asked for)
+// mutant-anchors: supabase/migrations/2027-05-17-scaled-best.sql
+//   (the body mutants read the replay's own body back; the rest plant a switch row or boot the guards' calendar where the live one
+//   is asked for)
 //
 // The real replayed chain (PGlite) booted with `liveCalendar: true` (tests/schema-replay.mjs), so the switches read as the chain leaves
 // them; the real edge settle (H.loadEdge); fixture accounts on NO switch list and with no flip written by the test: what a new player

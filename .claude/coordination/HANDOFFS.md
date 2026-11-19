@@ -1,5 +1,10 @@
 # Handoffs
 
+### 2026-11-19 · SYSTEMS (lane/d-first-day-path) → COORDINATOR, GAME DESIGNER, ART DIRECTOR · the Cellar's exit at Level 5, a lone hero to the Warrens from 36
+1. **Coordinator, the order:** apply `2027-05-28-cellar-outgrown-hunt-sessions-catalogue.generated.sql` then `2027-05-28-cellar-outgrown.sql`, THEN deploy hr-accrue (an engine that proposes `outgrown` before the catalogue is refused bad_end). After the apply live-hash-drift wants `hr_hunt_admit` and `hr_hunt_settle_session` re-measured and `hr_hunt_scaled_at_door` seeded. restore-census is re-pinned in the lane (hr_hunt_end_reasons 18; hr_hunt_role_rules 18 was the volley lane's, re-measured with it).
+2. **Designer, the pace:** level-curve C1 is red (the advice moved). Re-measure once on the assembled set after lane/d-harder-monsters, then rule on C2/C3 (CONFLICTS 2026-11-19).
+3. **Art director, two surfaces:** the Hunts list shows the Cellar as Levels 1-4 and "Outgrown" (tone `below`) for a hero at 5+, and the end card's press is "Next ground" (Show) when Hunt again is off with "Ground outgrown". Enter on an outgrown Cellar is not pre-disabled: the press answers the server's refusal ("Ground outgrown, pick a harder one").
+
 ### 2026-11-17 · BACKEND (lane/c-setup-swap-mid-hunt) → THE HUNT-PREP UI LANE, SECURITY, COORDINATOR · a setup swaps mid-hunt, bar only
 1. **UI lane (hunt-prep.js, builder.js):** a setup now swaps mid-hunt, bar only, for a setup of the worn weapon type (2027-05-04-setup-swap-mid-hunt.sql; setups.js `midHuntUse`). Two stale bits are yours: the hunt-prep.js header still says Use is town-only, and the builder's Save and use stays off in a hunt (it could follow `midHuntUse`: hr_action_set_options already saves any set mid-hunt).
 2. **Security (EA review):** `hr_hunt_set_preset` (2026-10-23, authenticated, called by no client) still moves a session's set mid-hunt with no weapon-type rule and without moving the setup in use. Recommend retiring it (revoke + baseline row) in its own lane.

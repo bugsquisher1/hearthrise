@@ -1783,7 +1783,7 @@ const MUTANTS = [
   { test: 'R3c', file: 'src/shell/after-hunt.js', from: "hours: 'away.next_longer', ", to: '' },
   { test: 'R3n', file: 'src/shell/after-hunt.js', from: "\n  stamina: 'away.next_stamina', party_member_left:", to: '\n  party_member_left:' },
   /* R3p: a party end the hero's box chose names the box (post-140 audit C1) */
-  { test: 'R3p', file: 'src/shell/after-hunt.js', from: ", party_member_left: 'away.next_party', party_member_died: 'away.next_party' });", to: ' });' },
+  { test: 'R3p', file: 'src/shell/after-hunt.js', from: ", party_member_left: 'away.next_party', party_member_died: 'away.next_party',", to: ',' },
   { test: 'R3t', file: 'src/shell/after-hunt.js', from: "  if (trainedBy(h.huntId)) return { kind: 'waited', idleMs, next: TRAIN_NEXT[h.endReason] || null };\n", to: '' },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: 'a.idleMs >= WAITED_FROM_MS ?', to: 'true ?' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (roomOfHunt(h.huntId)) return { kind: 'waited', idleMs, next: null };\n", to: '' },

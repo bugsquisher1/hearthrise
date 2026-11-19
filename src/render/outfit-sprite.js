@@ -3,7 +3,8 @@
 //
 // The Character window's portrait and outfit preview draw the hero's style-1
 // outfit sprite (a hero set: src/data/world/atlas-sets.js HERO_SETS, `heroes`
-// and, since it is full, `factionwear`; the same art the World draws) into a
+// and, since it is full, `factionwear`, a worn set fetched only for a sprite
+// drawn from it; the same art the World draws) into a
 // canvas at an integer scale with smoothing off (ART_DIRECTION §2). A facing
 // is one of the art budget's FACINGS; the frame is the idle clip's.
 //
@@ -14,9 +15,10 @@
 // ════════════════════════════════════════════════════════════════════════
 import { loadAtlasSet } from '../world/atlas.js?v=0.2.141';
 import { recolourPixels, loadMasks } from '../world/hero-dye.js?v=0.2.141';
-import { HERO_SETS } from '../data/world/atlas-sets.js?v=0.2.141';
+import { heroSetsFor } from '../data/world/atlas-sets.js?v=0.2.141';
 
-let ART = null;
+/* every hero set asked for on this page: hero set -> Promise<{ manifest, image }> */
+const ART = new Map();
 
 /* THE FIGURE: the part of a 64 px hero frame a portrait shows, [x, y, w, h] (lane/b-ui-character 2026-11-18). Every style-1
    outfit's idle, in every facing, stands inside x 15..53, y 17..58 (anchor 32,58; a sword held out to the east), so this 42 x 45
@@ -24,25 +26,29 @@ let ART = null;
    drawn at twice their size. tests/character-window.mjs CW-10 proves no outfit paints outside it. */
 export const FIGURE = Object.freeze([13, 15, 42, 45]);
 
-/** Every hero set's art, loaded once: Promise<{ sets: [{manifest, image}] }>, the sets that loaded (a sprite in a set that failed draws
-    nothing); rejects when none loads. */
-export function outfitArt(doc, version) {
-  if (!ART) {
-    ART = Promise.allSettled(HERO_SETS.map((set) => loadAtlasSet({ doc, version }, set))).then((all) => {
-      /* each result narrowed by its status: the sets that came, and why the others did not */
-      const sets = [], why = [];
-      for (const r of all) { if (r.status === 'fulfilled') sets.push(r.value); else why.push(r.reason); }
+/** The hero sets drawing `sprites` takes (src/data/world/atlas-sets.js heroSetsFor: every set a first open has, and a worn set, the
+    faction looks', only for a sprite drawn from it), each loaded once a page: Promise<{ sets: [{manifest, image}] }>, the sets that loaded
+    (a sprite in a set that failed draws nothing); rejects when none loads. */
+export function outfitArt(doc, version, sprites) {
+  return Promise.allSettled(heroSetsFor(sprites).map((set) => {
+    if (!ART.has(set)) {
+      const p = loadAtlasSet({ doc, version }, set);
+      ART.set(set, p);
       /* a set that failed is asked for again next time; the sets that came draw now */
-      if (why.length) ART = null;
-      if (!sets.length) throw why[0] || new Error('no hero set loaded');
-      return { sets };
-    });
-    ART.catch(() => { ART = null; });
-  }
-  return ART;
+      p.catch(() => { if (ART.get(set) === p) ART.delete(set); });
+    }
+    return ART.get(set);
+  })).then((all) => {
+    /* each result narrowed by its status: the sets that came, and why the others did not */
+    const sets = [], why = [];
+    for (const r of all) { if (r.status === 'fulfilled') sets.push(r.value); else why.push(r.reason); }
+    if (!sets.length) throw why[0] || new Error('no hero set loaded');
+    return { sets };
+  });
 }
 
-/** The masks, loaded once on first need: Promise<{ sets: [{manifest, image}] }> (rejects when none loads: the outfit draws as it is). */
+/** The masks dyeing `sprites`, each set loaded once on first need: Promise<{ sets: [{manifest, image}] }> (rejects when none loads: the
+    outfit draws as it is). (doc, version, sprites) */
 export const outfitMasks = loadMasks;
 
 /* the sets of an art or masks answer: { sets } (outfitArt, loadMasks), or one atlas { manifest, image } */

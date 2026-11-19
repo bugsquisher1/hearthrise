@@ -45,9 +45,14 @@
         "why": "+1,927 B lane/d-tower-curve: the Tower's heat (src/data/tower.js heat row and its validation, src/core/hunt/tower.js heatOpts): past floor 100 a room's blows x1.01 a floor"
       },
       {
-        "bytes": 3081360,
+        "bytes": 3083247,
         "on": "2026-11-19",
-        "why": "lane/a-tower-andy +448 B: hunt-rewards.js reads the heroes alive at each kill (fallsAt), not at the swing's end, so a hero who kills and falls in one swing journals the kill it was paid XP for (Andy's Tower forfeit 2026-11-19)"
+        "why": "lane/d-first-day-path: the Cellar's exit at Level 5 (hunt-grounds.js endsAtLevel, END_ORDER outgrown, combat-sim.js readLevels, the Warrens' soloFrom note), +2.3 KB"
+      },
+      {
+        "bytes": 3083360,
+        "on": "2026-11-19",
+        "why": "lane/a-tower-andy, +113 B over the set's ceiling: hunt-rewards.js livingAt/fallsAt read the heroes alive at each kill, not at the swing's end (a hero who kills and falls in one swing journals the kill it was paid XP for; Andy's Tower forfeit 2026-11-19)"
       }
     ]
   }

@@ -168,7 +168,7 @@ export const REFUSAL_WORDS = Object.freeze({
   same_faction: 'Already on that side',
   swap_open: 'Swap already under way',
   swap_cooldown: 'Changed sides too recently',
-  no_swap: 'No swap to finish',
+  no_swap: 'No swap under way',
   swap_short: 'Swap needs more hunting on their grounds',
   piece_owned: 'Already owned',
   standing_short: 'Not enough standing',
@@ -367,6 +367,8 @@ export const REFUSAL_WORDS = Object.freeze({
   hunts_paused: 'Hunts paused, try again soon',
   no_stamina: 'No stamina left',
   activity_locked: 'Level too low for that hunt',
+  /* A ground whose hunt ends at a Level (2027-05-28-cellar-outgrown.sql; hunt-grounds.js endsAtLevel: the Mill Cellar's 5): the hero is at it. */
+  outgrown: 'Ground outgrown, pick a harder one',
   activity_running: 'Hero busy, stop it first',
   same_hunt: 'Already hunting there',
   training_only: 'Training spot: use the Training window',

@@ -467,6 +467,10 @@ async function blessArm(db, { H, M }, attended) {
    2027-04-24-tower-climb.sql (it applies after the whole v0.2.135 set) restates that image WHOLE with its TOWER-CLIMB arms, so that is
    the last author now. */
 export const MEMBER_LAST = '2027-04-24-tower-climb.sql';
+/* ...and its last author once a PATCH counts (staleAnchors `patches`): 2027-05-17-scaled-best.sql and then 2027-05-17-scaled-loot.sql
+   splice it in place after tower-climb's restatement (the scaled mark on the member's own row, then the scaled item bound). The memberPlant
+   mutants never read this (they plant into the live body), the anchor selftest does. */
+const MEMBER_PATCH_LAST = '2027-05-17-scaled-loot.sql';
 /* A PATCH IS AN AUTHOR: hr_hunt_section_view is restated last by READ_RESTATE_LAST and then spliced in place (anchored replaces of
    pg_get_functiondef) by READ_PATCH_LAST, so its last author is a patch. (Re-aimed 2026-11-14, lane/c-target-kind: the probe was
    hr_hunt_instance_read, which 2027-04-22-target-kind.sql restates WHOLE after its two splices, so it has no patch on top any more.) */
@@ -659,10 +663,12 @@ async function main() {
     const old = staleAnchors([{ arm: 'SELFTEST', file: '2027-02-02-settle-cost.sql', find: KICKED }], { patches });
     if (read.length || !old.some((s) => s.endsWith(`restated last by ${READ_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: hr_hunt_instance_read\'s last author is not ' + READ_LAST + ' (patches ' + patches + '): ' + JSON.stringify({ read, old })); process.exit(1); }
   }
-  /* ...and 12-15's hr_hunt_apply_member names its last restatement, MEMBER_LAST, either way. */
+  /* ...and 12-15's hr_hunt_apply_member names its last restatement, MEMBER_LAST, without patches, and its last anchored patch,
+     MEMBER_PATCH_LAST, with them (a patch is an author; a file that only READS the body, 2027-05-18-arm-scaled-hunts.sql's §0, is not). */
   for (const patches of [true, false]) {
+    const want = patches ? MEMBER_PATCH_LAST : MEMBER_LAST;
     const restated = staleAnchors([{ arm: 'SELFTEST', file: '2026-12-15-account-gold.sql', find: '    v_bless := public.hr_blessing_take(p_user, p_slot, p_session, v_dx, v_s.settled_to);' }], { patches });
-    if (!restated.some((s) => s.endsWith(`restated last by ${MEMBER_LAST}; plant it there`))) { console.error('✗ ANCHOR selftest: 12-15\'s hr_hunt_apply_member was not named as restated by ' + MEMBER_LAST + ' (patches ' + patches + '): ' + JSON.stringify(restated)); process.exit(1); }
+    if (!restated.some((s) => s.endsWith(`restated last by ${want}; plant it there`))) { console.error('✗ ANCHOR selftest: 12-15\'s hr_hunt_apply_member was not named as restated by ' + want + ' (patches ' + patches + '): ' + JSON.stringify(restated)); process.exit(1); }
   }
   /* ...and a find no live body holds is a refusal, never a quiet survivor. */
   const { db: probeDb } = await bootReplay();

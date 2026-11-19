@@ -95,6 +95,9 @@ export function lintFields(p, S, H) {
     out.push(...S.validateSpell(row, id).map((w) => p.id + ': ' + w));
     if (!cast.has(id)) out.push(p.id + ': spell ' + id + ' is cast by none of its own monsters');
   }
+  /* and the converse: a pack's monster casts only its own pack's rows, so no ground opens with another ground's spell under its name
+     (Carter's Rest's trolls cast the Glade Poacher's Volley as a stand-in until lane/d-morrow-open, 2026-11-19) */
+  for (const id of cast) if (!own(p.spells, id)) out.push(p.id + ': its monsters cast ' + id + ', which is not one of its own spell rows');
   return out;
 }
 const fieldLibs = async () => [await import(u('src/data/monster-spells.js')), await import(u('src/data/hearth.js'))];
@@ -220,6 +223,7 @@ async function selftest() {
     ['a spell row out of its bounds', fieldRefuses({ spells: { cold_bilge: { ...bilge, hitPm: 99999 } } })],
     ['a spell row under the fair warning', fieldRefuses({ spells: { cold_bilge: { ...bilge, windupMs: 400 } } })],
     ['a spell none of its monsters casts', fieldRefuses({ spells: { ...slake.spells, river_mist: { ...bilge, n: 'River Mist' } } })],
+    ['a monster casting another ground\'s spell', fieldRefuses({ monsters: Object.fromEntries(Object.entries(slake.monsters).map(([k, m]) => [k, Array.isArray(m.spells) ? { ...m, spells: [...m.spells, 'poachers_volley'] } : m])) })],
   );
   for (const [what, fn] of cases) { const n = fn().length; console.log('  ' + (n ? 'ok ' : 'RED') + ' refuses: ' + what); if (!n) bad.push(what + ' passed the lint'); }
   /* THE FIT check reads: every open ground's rows are the formula's under its own fit (S.groundFit), so `check` reaches the grader;

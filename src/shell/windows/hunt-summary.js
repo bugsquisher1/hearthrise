@@ -49,6 +49,7 @@ import { TOWER_RULES, runRulesOf } from '../../data/tower.js?v=0.2.141';
 import { climbEnd } from '../tower-words.js?v=0.2.141';
 import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.141';
 import { targetOf, gotoKey } from '../goto.js?v=0.2.141';
+import { sideName, spanWords as standingWords } from '../faction-words.js?v=0.2.141';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
@@ -58,6 +59,8 @@ const againOffWords = (cur) => {
   if (run) return run.family === 'catacomb' ? t('catacomb.again_off') : t('tower.again_off');
   const room = roomOfHunt(cur.hunt);
   if (room && room.kind === 'hall') return BOSS_HALL_WORDS.again.replace('{key}', itemName(room.key));
+  /* a ground this hero outgrew (its hunt ended `outgrown`): the server refuses it, and the card's Next ground row is the way on */
+  if (cur.reason === 'outgrown') return t('summary.again_outgrown');
   return callOfHunt(cur.hunt) ? 'Call him out from the ground\'s page' : 'Hunt settings not saved';
 };
 
@@ -103,7 +106,9 @@ export function resultOf(cur) {
   const called = !!callOfHunt(cur.hunt);
   return {
     level: cur.lvTo !== null ? { name: t('summary.lv_name'), from: cur.lvFrom, to: cur.lvTo } : null,
-    ups: (cur.ups || []).map(([sk, from, to]) => t('summary.skill_up', { skill: skillWord(sk), from, to })),
+    ups: (cur.ups || []).map(([sk, from, to]) => t('summary.skill_up', { skill: skillWord(sk), from, to }))
+      /* the standing the hunt earned, per side (the server's standing at its start and end: summary-model.js standingLine) */
+      .concat((cur.standing || []).map(([side, ms]) => t('factions.summary_standing', { side: sideName(side), time: standingWords(ms) }))),
     figs: [
       { key: 'xp', label: t('summary.fig_xp'), value: plus(cur.xp, whole), sub: Number.isFinite(cur.xpH) && cur.xpH > 0 ? t('summary.fig_per_hour', { amount: whole(cur.xpH) }) : '' },
       /* GOLD IS WHAT THE PURSE KEPT (post-patch audit 2026-11-18: "Gold +615 gp" beside a hunt whose store food took the purse down): the

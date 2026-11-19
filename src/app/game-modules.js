@@ -171,4 +171,5 @@ export const GAME_MODULES = Object.freeze([
   'src/world/steer-local.js', 'src/world/store.js', 'src/world/stub-atlas.js', 'src/world/town-farm.js',
   'src/world/town-folk.js', 'src/world/town-scene.js', 'src/world/town-shows.js', 'src/world/town-works.js',
   'src/world/town-zoom.js', 'src/world/view-sheets.js', 'src/world/walk-scene.js', 'src/world/world-boot.js',
+  'src/world/worn-sets.js',
 ]);

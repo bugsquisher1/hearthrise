@@ -21,6 +21,10 @@
 //         and the card goes
 //   AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that died with the page closed and went on to the yard ("When the hunt
 //         ends: Train Melee") comes back as its card: the Levels, the death and what the Blessings saved, then the yard, still training
+//   AR-11 THE CELLAR OUTGROWN (the board's 2026-11-19 complete balance look, change 1; hunt-grounds.js endsAtLevel): a fresh hero's Cellar ends
+//         at Level 5 with the page closed; the card says why ("Ground outgrown"), its press is the Hunt summary, never
+//         Hunt again, and the summary names the next ground
+// AR-6 and AR-9 hunt the Thicket at Level 6 (the Cellar's hunt ends at 5, so a fresh hero's Cellar can no longer run for hours).
 // The return is its own card (src/shell/windows/away.js): every check reads the card, never the alert lines.
 // mutant-anchors: none — a manual walk of the real game; the rules are mutation-proven in shell-core.mjs and hud-reachable.mjs
 // ════════════════════════════════════════════════════════════════════════
@@ -79,6 +83,15 @@ const cardOf = async (p, ms = 15000) => {
   return p.page.evaluate(() => document.querySelector('[data-hs-win="away"] [data-hs-body]')?.innerText.replace(/\s+/g, ' ').trim() || null);
 };
 const noCard = async (p) => { await p.page.waitForTimeout(6000); return cardOf(p, 500); };
+/* The setup a player reaches in hours, as this world's own rows (AR-10's way): a Level, and gold for the store's food. */
+const levelTo = async (p, L, gold) => {
+  const uid = (await world.db.query('select id from auth.users where email = $1', [p.email])).rows[0].id;
+  await world.db.query('update public.player_state set level_xp = public.hr_char_xp_for_level($2) where user_id = $1', [uid, L]);
+  if (gold) await world.db.query('update public.account_wallet set gold = $2 where user_id = $1', [uid, gold]);
+  await p.reload();
+  if (!(await p.page.$('.hs-launchers'))) await p.page.click('[data-app="play"][data-slot="0"]');
+  await p.page.waitForSelector('.hs-launchers');
+};
 
 try {
   { // AR-1 a hero who has only ever gathered
@@ -163,7 +176,8 @@ try {
     const xpOf = (page) => page.evaluate(() => { const t = document.querySelector('.ha-analyzer'); return t ? Number(((t.innerText.match(/Level XP\s+([\d,]+)/) || [])[1] || '').replace(/,/g, '')) : null; });
     const p = await open('hunter');
     await p.createHero('Hunter');
-    await p.enterHunt('mill_cellar');
+    await levelTo(p, 6, 20000);
+    await p.enterHunt('meadowbrook_thicket');
     await p.page.waitForSelector('.ha-stats dd[data-stat="kills"]');
     await world.skip(30);
     await p.page.waitForTimeout(3000);
@@ -197,22 +211,24 @@ try {
   { // AR-9 the card, played: a hunt that ran out of stamina with the page closed
     const p = await open('cardplay');
     await p.createHero('Cardy');
-    await p.enterHunt('mill_cellar');
+    await levelTo(p, 6, 20000);
+    await p.enterHunt('meadowbrook_thicket');
     await world.skip(3);
     await leave(p, '%-%-%-%-%');
     await world.wait(840, { away: true });
     const q = await enter('cardplay');
     const line = await cardOf(q, 30000);
     const beside = await q.page.evaluate(() => ({ summary: !!document.querySelector('[data-hs-win="hunt-summary"]'), lines: document.querySelectorAll('.hw-alert[data-kind="away"]').length,
-      gold: Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).map((b) => b.textContent) }));
+      /* the press a player sees (the phone foot holds a second copy, hidden on a desktop) */
+      gold: Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).filter((b) => b.offsetParent !== null).map((b) => b.textContent) }));
     await q.shot('ar10-card');
     step('AR-9 one card: the result first, why and when it ended, Hunt again its gold press, nothing beside it',
       /* Gold is what the purse kept, with the coins and the supplies under it (audit 2026-11-18 A6) */
-      !!line && /^Away 14 h \d+ min Cardy Mill Cellar Level 1 → \d+ Level XP \+[\d,]+ Gold [+−][\d,]+ gp [\d,]+ gp in coins(, [\d,]+ gp on supplies)? Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
+      !!line && /^Away 14 h \d+ min Cardy Meadowbrook Thicket Level 6 → \d+ Level XP \+[\d,]+ Gold [+−][\d,]+ gp [\d,]+ gp in coins(, [\d,]+ gp on supplies)? Kills [\d,]+/.test(line) && /Out of stamina, so Cardy came home\. Ended \d+ h \d+ min ago/.test(line)
       && !beside.summary && !beside.lines && JSON.stringify(beside.gold) === '["Hunt again"]', JSON.stringify({ line, beside }));
     await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
     const went = await q.page.waitForFunction(() => !document.querySelector('[data-hs-win="away"]') && !!document.querySelector('[data-hs-act="leave"]'), null, { timeout: 30000 }).then(() => true, () => false);
-    const open1 = (await world.db.query("select count(*)::int as n from public.hunt_sessions where ended_at is null and hunt_id = 'mill_cellar'")).rows[0].n;
+    const open1 = (await world.db.query("select count(*)::int as n from public.hunt_sessions where ended_at is null and hunt_id = 'meadowbrook_thicket'")).rows[0].n;
     step('AR-9 Hunt again: the server starts the hunt, the card goes', went && open1 >= 1, JSON.stringify({ went, open1 }));
     await q.close();
   }
@@ -248,6 +264,32 @@ try {
     step('AR-10 the card tells the hunt the yard took over: its Levels, the death and its Blessings, then the yard',
       !!line && /Yardley Hask's Ford Level 12 → 1[12]/.test(line) && /Yardley died in Hask's Ford\. Killed by .+\. Death cost: [\d,]+ Level XP/.test(line)
       && /3 Blessings saved [\d,]+ Level XP[^.]*, used up\./.test(line) && /Then Yardley went to the yard to train Melee\. Still training\./.test(line) && /Open Training/.test(line), line);
+    await q.close();
+  }
+  { // AR-11 the Cellar outgrown with the page closed
+    const p = await open('outgrow');
+    await p.createHero('Sprout');
+    await p.enterHunt('mill_cellar');
+    await world.skip(3);
+    await leave(p, '%-%-%-%-%');
+    await world.wait(180, { away: true });
+    const uid = (await world.db.query('select id from auth.users where email = $1', [p.email])).rows[0].id;
+    const ran = (await world.db.query('select end_reason from public.hunt_sessions where user_id = $1 order by entered_at', [uid])).rows;
+    step('CONTROL AR-11 the Cellar ended outgrown', ran.length === 1 && ran[0].end_reason === 'outgrown', JSON.stringify(ran));
+    const q = await enter('outgrow');
+    const line = await cardOf(q, 30000);
+    const gold = await q.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).filter((b) => b.offsetParent !== null).map((b) => b.textContent));
+    await q.shot('ar11-outgrown');
+    step('AR-11 the card says the ground was outgrown, and its press is the Hunt summary',
+      !!line && /Sprout Mill Cellar Level 1 → 5\b/.test(line) && /Ground outgrown\./.test(line) && JSON.stringify(gold) === '["Hunt summary"]',
+      JSON.stringify({ line, gold }));
+    await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
+    const summary = await q.page.waitForFunction(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); return w ? w.innerText.replace(/\s+/g, ' ') : null; }, null, { timeout: 30000 })
+      .then((h) => h.jsonValue(), () => null);
+    step('AR-11 the summary names the Level and the next ground, and offers no Hunt again',
+      !!summary && /Ground outgrown at Level 5/.test(summary) && /Next ground: Meadowbrook Thicket/.test(summary)
+      && await q.page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'); return !b || b.disabled; }),
+      summary);
     await q.close();
   }
   step('AR-8 no page error', errors.length === 0, errors.join(' | '));

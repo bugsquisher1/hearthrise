@@ -38,7 +38,8 @@
 //    8    sell the loot             vendor_sell_many (catalogue.vendorPriceOf)      9
 //    9    buy an upgrade            shop_buy a listed gear row it can wield         10
 //   10    equip it                  equip -> hr_apply equipment                     11
-//   11    hunt again, better        a new session, the same dice, the new kit       12
+//   11    hunt again, better        the Cellar ended at Level 5 (outgrown): the     12
+//                                   advised next ground with the new kit pays more
 //   12    reload                    hr_load (the boot read) == the last envelope    -
 //   13    a settle pays once        a second settle of one window writes nothing    -
 //
@@ -70,7 +71,8 @@
 //    3    back to work              the pointer is the last activity, fishing       4
 //                                   (default resume), journalled `resume`
 //    4    never stranded            fishing pays, shop_buy food still accepted      5
-//    5    back on the hunt          a new session pays                              -
+//    5    back on the hunt          a new session pays, where the advice sends it   -
+//                                   (the Cellar ended at Level 5: outgrown)
 //
 //   LOOP-5, an L100 day (Combat 99, 12 h of stamina)
 //    1    a Combat-99 character     fixture levels + gold + a big bag, a gather     2
@@ -678,16 +680,16 @@ async function loop1(S, M, tag, rows) {
   });
 
   await step(11, 'hunt again, better', async (t) => {
-    await p.enter(t, HUNT, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
+    /* THE CELLAR ENDS AT LEVEL 5 (src/data/hunt-grounds.js endsAtLevel; the board's 2026-11-19 complete balance look, change 1): a fresh hero
+       outgrows it inside its first half hour, the door refuses it there again, and the second hunt is where the Hunts window sends it now,
+       which with the new kit pays more combat XP for each hunted minute than the Cellar did. */
+    const next = recommendedHunt(combatOf(p.env), 1).hunt;
+    t.ok(hunt1.ended === 'outgrown' && next !== HUNT, `the first hunt ended ${hunt1.ended} at Level ${combatOf(p.env)}, and the advice is ${next}`);
+    await p.enter(t, next, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     const h2 = await p.hunt(t, HUNT_MIN);
-    const per = (h) => (h.kills ? h.ate / h.kills : Infinity);
-    /* Mill Cellar is SPAWN-LIMITED (src/data/hunts.js respawnMs): a better
-       weapon cannot kill foes that have not come back, so on that ground it
-       shows as fewer heals a kill at (about) the same kill count. */
-    const better = h2.kills > hunt1.kills || (h2.kills >= Math.floor(hunt1.kills * 0.95) && per(h2) < per(hunt1))
-      || (h2.kills === hunt1.kills && per(h2) <= per(hunt1)) || h2.deaths < hunt1.deaths;
-    t.ok(better, `same hunt, ${bought.id} on: ${h2.kills} kills / ${h2.ate} heals / ${h2.deaths} falls vs ${hunt1.kills} / ${hunt1.ate} / ${hunt1.deaths} before`);
-    t.note(`${hunt1.kills} -> ${h2.kills} kills, heals/kill ${per(hunt1).toFixed(2)} -> ${per(h2).toFixed(2)}, +${h2.xp} XP`);
+    const rate = (h) => { const ms = num(h.session && h.session.tally && h.session.tally.paid_ms); return ms > 0 ? h.xp / ms : 0; };
+    t.ok(rate(h2) > rate(hunt1) && h2.deaths <= hunt1.deaths, `${next} with ${bought.id} on: ${h2.xp} XP / ${h2.kills} kills / ${h2.deaths} falls vs the Cellar's ${hunt1.xp} / ${hunt1.kills} / ${hunt1.deaths}`);
+    t.note(`${HUNT} -> ${next}: ${hunt1.kills} -> ${h2.kills} kills, combat XP a hunted minute ${(rate(hunt1) * 60000).toFixed(1)} -> ${(rate(h2) * 60000).toFixed(1)}`);
   });
 
   await step(12, 'reload, everything still there', async (t) => {
@@ -939,7 +941,8 @@ async function loop4(S, M, tag, rows) {
 
   await step(2, 'the hunt ends on its own', async (t) => {
     const reason = night.session && night.session.end_reason;
-    t.ok(['died', 'heals_out', 'gold_out', 'stamina', 'ammo_out'].includes(reason),
+    /* outgrown: the Cellar's hunt ends at Level 5 (src/data/hunt-grounds.js endsAtLevel), the night's usual end since 2026-11-19 */
+    t.ok(['died', 'heals_out', 'gold_out', 'stamina', 'ammo_out', 'outgrown'].includes(reason),
       `ten hours with only the kit left the hunt ${reason || 'open'}: a night must end on an automatic reason`);
     t.note(`ended ${reason}`);
   });
@@ -971,9 +974,11 @@ async function loop4(S, M, tag, rows) {
   });
 
   await step(5, 'back on the hunt', async (t) => {
-    await p.enter(t, 'mill_cellar', { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
+    /* where the Hunts window sends the hero now: the night ended the Cellar at Level 5 (src/data/hunt-grounds.js endsAtLevel), whose door refuses it */
+    const back = recommendedHunt(combatOf(p.env), 1).hunt;
+    await p.enter(t, back, { cooked_shrimp: inv(p.env, 'cooked_shrimp') });
     const h = await p.hunt(t, 10);
-    t.ok(h.kills > 0, `ten minutes back on Mill Cellar killed ${h.kills}`);
+    t.ok(h.kills > 0, `ten minutes back on ${back} killed ${h.kills}`);
     t.note(huntNote(h));
   });
 }

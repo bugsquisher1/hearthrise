@@ -17,7 +17,7 @@
 // Shield, Light"), an add-on not owned greyed with its requirement; while the factions are on, an outfit not owned shows locked with
 // the server's own requirement. The pick is the look Equip names: one hr_outfit_set, no other verb.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, outfitOfLook } from '../../../data/outfits.js?v=0.2.141';
+import { OUTFIT_ROWS, OUTFIT_IDS, STAGED_OUTFITS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, outfitOfLook } from '../../../data/outfits.js?v=0.2.141';
 import { factionOf } from '../../../session/faction-sections.js?v=0.2.141';
 import { wardrobeIds, teaserWords, addonChoices, lookForCard } from './outfit-looks.js?v=0.2.141';
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.141';
@@ -123,7 +123,10 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   const base = outfitOfLook(d.outfit);
   const baseRow = OUTFIT_ROWS[base] || row;
   const owned = !!o && o.owned.has(d.outfit);
-  text(root.querySelector('.hw-of-name'), (baseRow ? baseRow.label : d.outfit) + (baseRow && baseRow.premium ? ', Premium' : '') + (o && !owned ? ', not owned' : ''));
+  /* a look with no row here (a staged add-on's, worn through a crafted call: the faction QA 2026-11-19 #11) reads as its outfit's name, never its id */
+  const staged = !baseRow && STAGED_OUTFITS[d.outfit] ? OUTFIT_ROWS[STAGED_OUTFITS[d.outfit][0]] : null;
+  const label = baseRow ? baseRow.label : staged ? staged.label : t('factions.look_unknown');
+  text(root.querySelector('.hw-of-name'), label + (baseRow && baseRow.premium ? ', Premium' : '') + (o && !owned ? ', not owned' : ''));
   /* THE ADD-ON PICKER: None, then each add-on; one not owned is greyed and says what it takes */
   const choices = addonChoices(base, o, f);
   cls(root.querySelector('.hw-of-addons'), 'is-on', choices.length > 0);

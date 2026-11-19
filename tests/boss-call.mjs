@@ -233,7 +233,7 @@ async function guard(X) {
     if (JSON.stringify(Object.entries(thin.ended).sort()) !== JSON.stringify(Object.entries(full.ended).sort())) bad.push('BC-STAMINA the pool moved the fight: ' + JSON.stringify(thin.ended) + ' against ' + JSON.stringify(full.ended));
     /* CONTROL: a normal ground still walks its pool down, swing by swing. */
     const seen = [];
-    X.play.run('mill_cellar', 6, ['tank'], { spanMs: 60000, windowMs: 30000, onWindow: (w) => { for (const m of w.members) seen.push(m.hunt.stamina); } });
+    X.play.run('mill_cellar', 4, ['tank'], { spanMs: 60000, windowMs: 30000, onWindow: (w) => { for (const m of w.members) seen.push(m.hunt.stamina); } });
     if (!seen.length || !seen.every((n) => Number.isInteger(n) && n < 12 * 3600000)) bad.push('BC-STAMINA CONTROL: a normal hunt proposed ' + JSON.stringify(seen.slice(0, 4)));
   }
   const PATHS = [
@@ -446,7 +446,7 @@ async function guard(X) {
   /* A normal hunt's window carries no record. */
   {
     const seen = [];
-    X.play.run('mill_cellar', 6, ['tank'], { spanMs: 60000, windowMs: 30000, onWindow: (w) => { for (const m of w.members) seen.push(m); } });
+    X.play.run('mill_cellar', 4, ['tank'], { spanMs: 60000, windowMs: 30000, onWindow: (w) => { for (const m of w.members) seen.push(m); } });
     if (!seen.length || seen.some((m) => m.analyzer && 'fight' in m.analyzer)) bad.push('BC-RECORD a normal hunt carries a record');
   }
 

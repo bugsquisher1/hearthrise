@@ -28,6 +28,7 @@ const CAME_HOME_BECAUSE = Object.freeze({
   rule: '{member}’s stop rule was met, so {name} came home too.',
   hours: '{member}’s time limit was up, so {name} came home too.',
   no_fight: '{member} landed no hits for too long. Party left the hunt',
+  outgrown: '{member} outgrew the ground, so {name} came home too.',
   changed: '{member} moved on to another hunt, so {name} came home too.',
   server: 'The server stopped {member}’s hunt, so {name} came home too.',
 });

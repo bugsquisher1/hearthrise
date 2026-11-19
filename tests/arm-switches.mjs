@@ -104,16 +104,21 @@ const ARM_FNS = {
   'AS-SCALED': async (db, M) => {
     const bad = [];
     const U = UIDS[0];
-    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 13, beforeEnter: () => wear(db, U) });
-    const e0 = await env(db, U);
-    const g0 = e0.scaled_hunts && e0.scaled_hunts.grounds && e0.scaled_hunts.grounds.mill_cellar;
+    /* THE HOUR IS BOUGHT IN TOWN, BEFORE ENTER (the Cellar's hunt ends at Level 5 unscaled, hunt-grounds.js endsAtLevel, and its door refuses a
+       Level 20 hero unless the hunt will play scaled: 2027-05-28-cellar-outgrown.sql), as a player buys it on the scale pane */
     const price = Number(await one(db, 'select price_per_level::text from public.hr_scaled_hunt_rule where id')) * 20;
+    let g0 = null, gold0 = null, r = null;
+    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 13, beforeEnter: async () => {
+      await wear(db, U);
+      const e0 = await env(db, U);
+      g0 = e0.scaled_hunts && e0.scaled_hunts.grounds && e0.scaled_hunts.grounds.mill_cellar;
+      gold0 = await purse(db, U);
+      await db.query('delete from public.hr_rate_counters where user_id = $1', [U]);
+      await asUser(db, U);
+      r = await one(db, 'select public.hr_scaled_hunt_buy(0, $1, $2, $3::bigint, $4::uuid)', ['mill_cellar', 1, price, key()]);
+      await asUser(db, '');
+    } });
     if (!g0 || g0.level !== 20 || Number(g0.price) !== price || g0.banked_ms !== 0) bad.push('the stranger reads the Cellar in its section as ' + JSON.stringify(g0) + ' (want Level 20 at ' + price + ' an hour, none banked)');
-    const gold0 = await purse(db, U);
-    await db.query('delete from public.hr_rate_counters where user_id = $1', [U]);
-    await asUser(db, U);
-    const r = await one(db, 'select public.hr_scaled_hunt_buy(0, $1, $2, $3::bigint, $4::uuid)', ['mill_cellar', 1, price, key()]);
-    await asUser(db, '');
     const rows = await q(db, `select gold::text as g from public.player_ledger where user_id = $1 and intent like 'scaled\\_hunt\\_buy:%'`, [U]);
     if (!r || r.ok !== true || await purse(db, U) !== gold0 - price || rows.length !== 1 || Number(rows[0].g) !== -price || await bankOf(db, U) !== HOUR)
       bad.push('the purchase answered ' + JSON.stringify(r).slice(0, 200) + ' (purse ' + (gold0 - await purse(db, U)) + ' down, rows ' + JSON.stringify(rows) + ', bank ' + await bankOf(db, U) + ')');
@@ -158,7 +163,8 @@ const ARM_FNS = {
     if (!row) return ['the catalogue has no bonus_weekend xp row'];
     await holdNow(db, 'bonus_weekend');
     /* premium: the replay turns the betas' every-hero premium off (schema-replay.mjs premiumPerCharacter), and the analyzer section is premium's */
-    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8, premium: true });
+    /* on a ground with no exit (the Cellar's hunt ends at Level 5 unscaled, hunt-grounds.js endsAtLevel): the weekend's XP is this arm's subject */
+    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8, premium: true, hunt: 'meadowbrook_thicket' });
     const lx0 = Number(M.XP.charXpForLevel(20));
     await cuts(db, M, [h.from + 7 * MIN]);
     const s = await H.snapshot(db, h.sid, U);

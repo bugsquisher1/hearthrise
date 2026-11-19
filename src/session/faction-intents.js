@@ -1,5 +1,5 @@
 // ════════════════════════════════════════════════════════════════════════
-// src/session/faction-intents.js — THE FACTIONS' FOUR PRESSES (supabase/migrations/2027-04-22-faction-standing.sql).
+// src/session/faction-intents.js — THE FACTIONS' FIVE PRESSES (supabase/migrations/2027-04-22-faction-standing.sql, 2027-05-28-faction-swap-cancel.sql).
 //
 // Each is ONE intent naming only this character's slot, a side or a piece id, and a fresh key. Never a number: the server reads the
 // Krell count, the standing, the swap time and the cooldown itself, under the hero's lock, on its own clock. On ok the character is
@@ -7,6 +7,7 @@
 //   joinFaction(account, cs, side)      hr_faction_join          refuses join_locked, already_joined, feature_off
 //   startSwap(account, cs, side)        hr_faction_swap_start    refuses swap_cooldown { ready_at }, swap_open, same_faction
 //   finishSwap(account, cs)             hr_faction_swap_finish   refuses swap_short { need_ms, have_ms }, no_swap
+//   cancelSwap(account, cs)             hr_faction_swap_cancel   refuses no_swap, not_member
 //   claimPiece(account, cs, piece)      hr_faction_outfit_claim  refuses standing_short { need_ms, have_ms }, piece_owned
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.141';
@@ -60,6 +61,12 @@ export function startSwap(account, cs, side) {
 export function finishSwap(account, cs) {
   if (!usable(account, cs)) return bad('faction_swap_finish');
   return send(cs, 'faction_swap_finish', () => account.server.rpc('hr_faction_swap_finish', { p_slot: cs.slot, p_idem: newIdem() }));
+}
+
+/** Cancel the open swap: its swap time is lost, the side and the week's start stay (2027-05-28-faction-swap-cancel.sql). */
+export function cancelSwap(account, cs) {
+  if (!usable(account, cs)) return bad('faction_swap_cancel');
+  return send(cs, 'faction_swap_cancel', () => account.server.rpc('hr_faction_swap_cancel', { p_slot: cs.slot, p_idem: newIdem() }));
 }
 
 /** Claim one outfit piece the hero's standing has earned. */

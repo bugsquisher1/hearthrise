@@ -78,7 +78,7 @@ async function run(base) {
   const top = Math.max(...rows.map((r) => r.band[1]));
   for (let lv = 1; lv <= top; lv++) {
     const r = HL.recommendation(lv, 1, rows);
-    if (!r.row || !HL.fitsGroup(r.row, 1)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
+    if (!r.row || !HL.fitsGroup(r.row, 1, lv)) { ok('G2', false, 'a lone Level-' + lv + ' hero is recommended ' + (r.row && r.row.hunt)); break; }
     const inBand = r.row.band[0] <= lv && lv <= r.row.band[1];
     /* G7 (Tyler 2026-11-11): "no good hunt" only when NO ground holds the Level; a ground that does (its row reads "In your range") is named right for it */
     const held = rows.filter((g) => g.band[0] <= lv && lv <= g.band[1]).sort((x, y) => y.band[0] - x.band[0])[0];
@@ -91,16 +91,21 @@ async function run(base) {
   }
   const duo = HL.recommendation([12, 20], 2, rows);
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
-  /* G4: where a hero alone's advice stands (level-curve reads it: a lone 45 sent to the Warrens re-lands only with a pace re-measure, 2026-11-04), and a pair's first ground is the Sewer.
-     A party's advice was re-measured on 2026-11-18 (G8): a pair from 16 goes to the Glade. */
+  /* G4: where a hero alone's advice stands (level-curve reads it), and a pair's first ground is the Sewer. ALONE TO THE WARRENS FROM ITS soloFrom
+     (the board's 2026-11-19 complete balance look, change 8; hunt-grounds.js soloFrom, measured on tools/balance-sim/life.mjs): under it the Glade
+     with the note, from it the Warrens with none. A party's advice was re-measured on 2026-11-18 (G8): a pair from 16 goes to the Glade. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  ok('G4', lone(44).row.hunt === 'mosslight_glade' && lone(44).note === 'Coppercap Warrens: right for Level 44, tough monsters. Easier: Mosslight Glade (Levels 16–31)'
-    && !/party|one hero|solo/i.test(lone(44).note || ''), 'a lone Level 44 reads ' + JSON.stringify(lone(44).note));
-  const lostThere = HL.recommendation(36, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: -1250 }, party: null } } });
-  const wonThere = HL.recommendation(36, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: 800 }, party: null } } });
-  ok('G7', lostThere.note === 'Coppercap Warrens: right for Level 36, but lost 1,250 gp/h solo. Easier: Mosslight Glade (Levels 16–31)'
-    && /^Coppercap Warrens: right for Level 36, tough monsters\. /.test(wonThere.note || '') && !/no good hunt/i.test(lostThere.note + wonThere.note) && (HL.recommendation(top + 5, 1, rows).note || '').startsWith('No good hunt for Level ' + (top + 5) + ' yet. '),
-    'a lone Level 36 reads ' + JSON.stringify([lostThere.note, wonThere.note]));
+  const soloAt = (rows.find((r) => r.hunt === 'coppercap_warrens') || {}).soloFrom;
+  ok('G4', Number.isInteger(soloAt) && lone(soloAt - 1).row.hunt === 'mosslight_glade' && lone(soloAt - 1).note === 'Coppercap Warrens: right for Level ' + (soloAt - 1) + ', tough monsters. Easier: Mosslight Glade (Levels 16–31)'
+    && !/party|one hero|solo/i.test(lone(soloAt - 1).note || ''), 'a lone Level ' + (soloAt - 1) + ' reads ' + JSON.stringify(Number.isInteger(soloAt) && lone(soloAt - 1).note));
+  ok('G4', Number.isInteger(soloAt) && [soloAt, 44].every((lv) => lone(lv).row.hunt === 'coppercap_warrens' && lone(lv).note === null),
+    'a lone hero from the Warrens\' soloFrom (' + soloAt + ') to 44 is sent to ' + [soloAt, 44].map((lv) => lone(lv).row.hunt + ' ' + JSON.stringify(lone(lv).note)).join(' / '));
+  const under = soloAt - 2;
+  const lostThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: -1250 }, party: null } } });
+  const wonThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: 800 }, party: null } } });
+  ok('G7', lostThere.note === 'Coppercap Warrens: right for Level ' + under + ', but lost 1,250 gp/h solo. Easier: Mosslight Glade (Levels 16–31)'
+    && (wonThere.note || '').startsWith('Coppercap Warrens: right for Level ' + under + ', tough monsters. ') && !/no good hunt/i.test(lostThere.note + wonThere.note) && (HL.recommendation(top + 5, 1, rows).note || '').startsWith('No good hunt for Level ' + (top + 5) + ' yet. '),
+    'a lone Level ' + under + ' reads ' + JSON.stringify([lostThere.note, wonThere.note]));
   const sewerPair = HL.recommendation([12, 12], 2, rows);
   ok('G4', sewerPair.row.hunt === 'millrace_sewer', 'the first party ground moved: a pair at Level 12 is sent to ' + sewerPair.row.hunt);
   /* G4 THE SEWER FROM 5 (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): a fresh four or pair at the Thicket's floor is sent below, where a four earns about
@@ -217,7 +222,9 @@ async function run(base) {
 }
 
 const MUTANTS = [
-  ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize));', 'const fit = rows;'],
+  ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize, lo));', 'const fit = rows;'],
+  ['a lone hero is never sent to a party ground past its soloFrom (the Glade to 44 again)', 'src/shell/hunt-list.js',
+    "  if (n < 2) return r.groupFit !== 'party' || (Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom);", "  if (n < 2) return r.groupFit !== 'party';"],
   ['the window forgets the harder ground the hero chose', 'src/shell/hunt-list.js', 'return was && advised && was.band[0] > advised.band[0] ? was : advised;', 'return advised;'],
   ['the window re-opens on the ground that killed the hero', 'src/shell/hunt-list.js', "const was = last && last.endReason !== 'died' ? list.find((r) => r.hunt === last.huntId) : null;", 'const was = last ? list.find((r) => r.hunt === last.huntId) : null;'],
   ['a hall built for a party leaves its ground solo (the Sewer)', 'src/shell/hunt-list.js', "groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,", 'groupFit: g.groupFit,'],
@@ -230,7 +237,7 @@ const MUTANTS = [
   ['the warning words are dropped', 'src/shell/hunt-list.js', "  if (!Number.isInteger(level) || level >= r.band[0]) return null;\n  const gap", "  return null;\n  const gap"],
   ['the note sends a lone hero to bring a party again', 'src/data/text/hunts.js', "right_but_tough: '{ground}: right for {levels}, tough monsters',", "right_but_tough: '{ground}: right for {levels}, bring a party',"],
   /* "the Warrens forgets its solo break-even" retired with the words it guarded (Tyler 2026-11-08: no ground is solo or party; the card no longer
-     says "alone it pays from Level 45"). soloFrom stays data: drop-tables reads a lone 45 there as its second sample, printed, not judged. */
+     says "alone it pays from Level 45"). soloFrom is the advice's again since 2026-11-19 (the soloFrom mutant above): no card word, a lone hero sent there from it. */
   ['far under reads as near (the words never lean harder)', 'src/shell/hunt-list.js', "(gap >= FAR_UNDER_LEVELS ? FAR_WORDS : ABOVE_LEVEL_WORDS)", 'ABOVE_LEVEL_WORDS'],
   ['the words forget what dying costs', 'src/shell/hunt-list.js', ",\n    cut ? t('hunts.range_die_blessed', { loss }) : t('hunts.range_die', { loss })]", "]"],
   ['the fight reads a hero Level again (S2)', 'src/core/hunt/damage.js', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow));', 'swing(inst, sc, u, t, monsterAccuracy(blowRow, t.def), monsterMaxHit(blowRow) + (t.heroLv ? 0 : 0));'],

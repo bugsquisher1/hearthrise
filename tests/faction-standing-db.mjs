@@ -20,7 +20,7 @@
 //   FS-END    a hunt that ends mid-window (the hero left) is credited to its end, not to the window's
 //   FS-DAY    the credit split at UTC midnight, a day's ceiling held against a window counted twice, a swap filled to its need and no more
 //   FS-TRIG   standing and days only rise and never move key; the journal is never edited or deleted
-//   FS-GRANT  the four verbs are the client's and baselined, anon reaches none, no helper or table reaches a client; the one state section
+//   FS-GRANT  the five verbs (the swap's cancel, 2027-05-28-faction-swap-cancel.sql) are the client's and baselined, anon reaches none, no helper or table reaches a client; the one state section
 //             is hr_faction_section, behind the `factions` switch (2027-04-23-faction-section.sql): off, it reads null and a verb refuses
 //             feature_off; the one client module that names a verb is the client lane's src/session/faction-intents.js
 //   FS-AGAIN  the three files applied a second time AT THEIR OWN CHAIN POSITION move nothing: every body, the settle, the catalogue rows;
@@ -97,7 +97,7 @@ const ARMS = {
     await hero(db, M, C);
     /* no verb takes a number */
     for (const [fn, want] of [['hr_faction_join', 'p_slot integer, p_faction text, p_idem uuid'], ['hr_faction_swap_start', 'p_slot integer, p_faction text, p_idem uuid'],
-      ['hr_faction_swap_finish', 'p_slot integer, p_idem uuid'], ['hr_faction_outfit_claim', 'p_slot integer, p_piece text, p_idem uuid']]) {
+      ['hr_faction_swap_finish', 'p_slot integer, p_idem uuid'], ['hr_faction_swap_cancel', 'p_slot integer, p_idem uuid'], ['hr_faction_outfit_claim', 'p_slot integer, p_piece text, p_idem uuid']]) {
       const got = await one(db, `select string_agg(pg_get_function_identity_arguments(p.oid), ' | ') from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = $1`, [fn]);
       if (got !== want) bad.push(`FS-WORDS ${fn} takes (${got})`);
     }
@@ -276,14 +276,14 @@ const ARMS = {
 
   'FS-GRANT': async (db, M, X) => {
     const bad = [];
-    const verbs = ['hr_faction_join(integer,text,uuid)', 'hr_faction_swap_start(integer,text,uuid)', 'hr_faction_swap_finish(integer,uuid)', 'hr_faction_outfit_claim(integer,text,uuid)'];
+    const verbs = ['hr_faction_join(integer,text,uuid)', 'hr_faction_swap_start(integer,text,uuid)', 'hr_faction_swap_finish(integer,uuid)', 'hr_faction_swap_cancel(integer,uuid)', 'hr_faction_outfit_claim(integer,text,uuid)'];
     for (const f of verbs) {
       const [r] = await q(db, `select has_function_privilege('anon', $1, 'execute') an, has_function_privilege('authenticated', $1, 'execute') au,
         exists (select 1 from public.hr_client_rpc_baseline b where b.grantee = 'authenticated' and b.proname = split_part($2, '(', 1)) base`, ['public.' + f, f]);
       if (r.an || !r.au || !r.base) bad.push(`FS-GRANT ${f}: anon ${r.an}, authenticated ${r.au}, baselined ${r.base}`);
     }
     const helpers = await q(db, `select p.oid::regprocedure::text f from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'hr\\_faction\\_%'
-      and p.proname not in ('hr_faction_join', 'hr_faction_swap_start', 'hr_faction_swap_finish', 'hr_faction_outfit_claim')
+      and p.proname not in ('hr_faction_join', 'hr_faction_swap_start', 'hr_faction_swap_finish', 'hr_faction_swap_cancel', 'hr_faction_outfit_claim')
       and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute'))`);
     for (const h of helpers) bad.push('FS-GRANT a client role reaches ' + h.f);
     const n = Number(await one(db, `select count(*) from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'hr\\_faction\\_%'`));

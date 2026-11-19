@@ -1328,7 +1328,7 @@
   },
   "hr_feast_foods": {
    "class": "seeded",
-   "replay": 34,
+   "replay": 31,
    "note": "Hand-seeded by 2026-08-27-clan-economy-sinks.sql: which foods a clan feast accepts and what each contributes. It prices a clan-wide sink, so a rebuild with a different set changes what a feast costs a clan. Content drift is separately guarded by tests/clan-feast-catalogue-drift.mjs. Rebuilt from repo, never restored."
   },
   "hr_feature_switches": {

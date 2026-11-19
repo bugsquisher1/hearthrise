@@ -133,7 +133,7 @@ export const MONSTER_SPELLS = {
   lash_sweep: { n: 'Lash Sweep', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },      // the Hobgoblin Foreman (the Warrens): the two tiles in front of him
   /* Cold Bilge (the Bargeman) is the Slake pack's own row (src/data/grounds/the_slake/pack.js spells). The seed row once WAITING here, the Pyre
      Field's ash caster (group, fire, 1.5x, 16 s), is that pack's Burning Ash on its Stoker (2026-11-19), and Krell's Hold's Hot Pitch on its
-     Farmhands. validate refuses a row no monster casts. */
+     Gatekeeper. validate refuses a row no monster casts. */
 };
 /* GROUND PACKS (lane/b-pack-fields): a pack's own spell rows (its `spells`) join this table, a copy each, as its monsters join
    MONSTERS. An id already taken is refused: a pack adds. Still the one table every reader and validate see. */

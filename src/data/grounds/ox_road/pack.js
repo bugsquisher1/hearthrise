@@ -154,7 +154,7 @@ export default definePack({
   /* (Its own party cells are retired: one party table for every ground, Tyler 2026-11-16, src/data/party-class-xp.js.) */
   /* MEASURED (tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, 2026-11-14): one class is the mean of its five one-class parties,
      two of two the mean of three duos, three of three of two trios, four of four the one played, the cells between the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 5], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-25, 30], 3: [-20, 30, 35], 4: [-30, 15, 20, 25] }, deadly: { 2: [-20, 35], 3: [-15, 40, 50], 4: [-25, 20, 30, 30] } },
+  partyVsAlone: { normal: { 2: [-35, 5], 3: [-45, -5, 0], 4: [-55, -20, -20, -15] }, dangerous: { 2: [-15, 45], 3: [-10, 45, 50], 4: [-25, 25, 30, 35] }, deadly: { 2: [-15, 45], 3: [-5, 55, 65], 4: [-20, 35, 40, 45] } },
   /* BOTH HARDER TIERS BRING SIX (lane/d-flat-party-xp on set v0.2.135, 2026-11-17, Carter's Rest's reason). On the table's eight a Melee and bow pair at
      the floor earned 0.60 of the same heroes alone on Deadly; on six every Dangerous and Deadly mix stands at or over them (1.23-1.64; party-tier-xp,
      2 seeds x 0.5 h), Andy's four 1.79x the pace contract. A pair with no Healer still dies often on Deadly here: the price of the tier. */

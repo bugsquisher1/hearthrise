@@ -224,7 +224,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-60, -30, -30, -25] }, dangerous: { 2: [-30, 25], 3: [-25, 20, 30], 4: [-30, 10, 20, 20] }, deadly: { 2: [-25, 30], 3: [-20, 30, 35], 4: [-30, 15, 25, 25] } },
+  partyVsAlone: { normal: { 2: [-40, 5], 3: [-45, -10, -5], 4: [-55, -30, -25, -25] }, dangerous: { 2: [-30, 20], 3: [-25, 25, 30], 4: [-30, 15, 20, 25] }, deadly: { 2: [-10, 55], 3: [0, 60, 70], 4: [-15, 35, 45, 45] } },
   /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 89 (the designer's Q4 2026-11-12 "Deadly keeps six, bring a Healer", checks.deadlyFourNeeds below;
      the page says it since lane/a-honesty-rescue 2026-11-18). MEASURED on set/v0.2.139 (Deadly: pull 6, blows 1330, HP 1150), the ladder kit, 6 seeds
      x 2 h a four, deaths in 16 hero-hours, a tank, hammer, bow and Mage against a tank, Healer, bow and Mage: Level 85 (the floor) 6.7 / 0, 88 1 / 0,
@@ -390,10 +390,12 @@ export default definePack({
          on the swarm (at 1.0x every 24 or 32 s, or 0.6x) a lone tank at the Hold's floor in its own tier read 552k / 591k / 574k Level XP an hour on
          three seeds against the Pyre Field's 574k / 582k / 570k at the same Level (585k / 605k / 597k with no pitch): the harder ground paid less
          (tests/hunt-core/forest-cave.mjs harder-pays-more; Tyler 2026-11-04 "harder mobs grant better loot and more exp"). On the Gatekeeper it reads
-         591k / 591k / 597k. 1.35x every 16 s, the seed row's rate: his swing tops out at 253, so it lands up to 341 on every hero, 34% of a bare floor
-         hero's 990 HP (the 35% rule binds at 1.38x). */
+         591k / 591k / 597k. 1.0x EVERY 16 S (the seed row's 16 s): his swing tops out at 253, so it lands up to 253 on every hero, 26% of a bare floor
+         hero's 990 HP. At 1.35x the recorded Deadly fours' Healer, already the Lookout's mark, died 0.5 and 1 times an hour in the replay where the
+         record has none (tests/balance-calibration.mjs BC-3; 0.25 at 1.35x every 24 or 32 s); at 1.0x none died, the back seats took 3-4k an hour
+         from it and the four's store bill rose about 5%. */
   spells: {
-    hot_pitch: { n: 'Hot Pitch', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1350, element: 'ember' },
+    hot_pitch: { n: 'Hot Pitch', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1000, element: 'ember' },
     rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 960, element: 'ember' },
     hall_fire: { n: 'Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 650, element: 'ember' },
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1400, element: null },

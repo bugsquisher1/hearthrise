@@ -25,8 +25,9 @@ const GAP = 10;
 /**
  * The tooltip's HTML for one item.
  * @param {string} id
- * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object, level?:number|null, ground?:string|null}} o
+ * @param {{qty?:number, bid?:number|null, worn?:string|null, locked?:boolean, rule?:string|null, offers?:object[], skills?:object, level?:number|null, ground?:string|null, features?:string[]}} o
  *   ground: the hunt id of the hero's ground (widgets/first-target.js heroGroundOf), for the line on what the piece does there
+ *   features: the server switches on for the hero's account (character-sections.js featuresOf), so a use behind one is named only there
  */
 function tipHtml(id, o) {
   const opt = o || {};
@@ -68,7 +69,7 @@ function tipHtml(id, o) {
   if (need) h += '<p class="hw-tip-need' + (need.short ? ' is-short' : '') + '">' + esc(need.text) + '</p>';
   const src = sourcesOf(id, opt.offers);
   if (src.length) h += '<p class="hw-tip-line"><small>Comes from</small>' + esc(src.join('. ')) + '</p>';
-  h += '<p class="hw-tip-line"><small>Used for</small>' + esc(usesOf(id).join('. ')) + '</p>';
+  h += '<p class="hw-tip-line"><small>Used for</small>' + esc(usesOf(id, opt.features).join('. ')) + '</p>';
   /* The server's bid, for what the bag holds. No bid: the row says who won't buy it; the shop bids only on bag stacks, so an
      item the bag doesn't hold (a Buy row) just has no value line. */
   const sale = saleWords(id);

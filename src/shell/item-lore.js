@@ -37,7 +37,7 @@ import { kindOf, riteOf, cookOf, namedFuelOf, houseSpends, isStartKit, madeFromK
 import { FLAMES } from '../data/hearth.js?v=0.2.140';
 import { SHOP_LISTED_OFFER_IDS } from '../data/supply-basics.js?v=0.2.140';
 import { dropWhereWords, dropPlaceOf, isRareItem } from './hunt-ground-facts.js?v=0.2.140';
-import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS, JEWEL_PIECES, JEWEL_PERKS, perksFor } from '../data/jewelry.js?v=0.2.140';
+import { recipeOutcomes, HALLMARK_OFFERS, REFORGE_OFFERS, JEWEL_PIECES, JEWEL_PERKS, JEWEL_GUARANTEES, JEWEL_SWITCH, perksFor } from '../data/jewelry.js?v=0.2.140';
 import { t, hasText } from '../render/player-text.js?v=0.2.140';
 import { baneIndex, baneMultFor, classOfMonster } from '../core/bane.js?v=0.2.140';
 import { resistProfile } from '../core/elements.js?v=0.2.140';
@@ -253,8 +253,9 @@ export function rareSaleWords(lines) {
 /* "A", "A, and B", "A, B, and C". */
 const jobListWords = (a) => (a.length <= 1 ? a.join('') : a.slice(0, -1).join(', ') + ', and ' + a[a.length - 1]);
 
-/** What it is for, in plain words. */
-export function usesOf(id) {
+/** What it is for, in plain words. `features`: the server switches on for the hero's account (character-sections.js featuresOf), so a
+    use behind a switch (a boss drop's guarantee, jewelry.js JEWEL_GUARANTEES) is named only where the bench offers it. */
+export function usesOf(id, features = []) {
   const it = ITEMS[id] || {};
   const r = index().get(id);
   const out = [];
@@ -295,6 +296,12 @@ export function usesOf(id) {
   if (it.type === 'outfit_bundle' && typeof it.outfit === 'string' && Object.hasOwn(OUTFIT_ROWS, it.outfit)) out.push(t('item.outfit_unlocks', { outfit: OUTFIT_ROWS[it.outfit].label }));
   if (houseSpends(id)) out.push(t('item.house_asks'));
   if (temperSpends(id)) out.push(t('item.temper_asks'));
+  /* A boss drop set in a crafted piece in place of its gem (designer 2026-11-18: the Crown Shard keeps this use beside its cut), as a label:
+     "Guarantees Follow-through (Banded Signet)". Named only where its switch is on: the bench offers the job nowhere else. */
+  const g = Object.prototype.hasOwnProperty.call(JEWEL_GUARANTEES, id) ? JEWEL_GUARANTEES[id] : null;
+  if (g && Array.isArray(features) && features.includes(JEWEL_SWITCH)) {
+    out.push(t('jewel.guarantees', { what: g.perk ? JEWEL_PERKS[g.perk].name : t('jewel.grade_hallmarked'), pieces: g.pieces.map((p) => itemName(p)).join(', ') }));
+  }
   /* The last word only where it is true: the shop bids on what has a book value (catalogue.js vendorPriceOf). */
   if (!out.length) out.push(Number(it.v) > 0 ? t('item.sell_it') : t('item.keep_only'));
   return out;

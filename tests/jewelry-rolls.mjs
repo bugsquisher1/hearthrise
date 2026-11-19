@@ -29,11 +29,13 @@
 //   J14 A JOB'S NAME SAYS ITS ITEM: a guarantee's words end in the item's catalogue name, and the jobs read as the sample's three.
 //   J15 THE BENCH SAYS THE GUARANTEE AND THE ODDS at the hero's server level in the piece's skill: "Always Follow-through", "always Hallmarked".
 //   J16 THE PLAIN CARD NAMES WHAT A GEM CAN ADD (post-140 audit C11): a plain crafted piece's card lists its bench's perks.
+//   J17 A BOSS DROP'S CARD NAMES ITS GUARANTEE as a label ("Guarantees Follow-through (Banded Signet)"), only where the switch is on.
+//   J18 PLAIN STATS HELP ALL THREE STYLES: every plain crafted jewel and the Shop's first jewelry carry Melee, Ranged and Magic attack, no crit.
 //
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
 //
-// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js src/shell/item-lore.js src/data/items.js src/data/recipes.js src/session/jewelry-sections.js src/shell/windows/work.js supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/catalogue.js
+// mutant-anchors: src/core/artisan.js src/data/jewelry.js src/data/bench-tax.js src/shell/town-work.js src/shell/town-ticker.js src/shell/item-lore.js src/data/items.js src/data/slot-ladders.js src/data/recipes.js src/session/jewelry-sections.js src/shell/windows/work.js supabase/functions/hr-accrue/set-activity.js supabase/functions/hr-accrue/catalogue.js
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -242,6 +244,14 @@ const claims = {
       if (r.perk && !g.some((x) => x.perk === r.perk)) return `${r.id} guarantees ${r.perk}, which none of its items names`;
       if ((r.roll === 'seal') !== g.some((x) => x.grade === 'hallmarked')) return `${r.id} is a ${r.roll} roll, but its items say otherwise`;
       if (r.inputs[M.J.JEWEL_TIERS[M.ITEMS[r.output].tier].gem]) return `${r.id} still takes the tier's gem: a guarantee sets in its place`;
+      /* IT COSTS THE SAME AS THE GEM JOB (designer 2026-11-18: the shard in place of the gem it would cut into): the gem job's inputs with the
+         gem swapped for the boss drop(s), and the gem job's time, XP and level */
+      const gemJob = Object.values(M.RC.ARTISAN_RECIPES_EVERY).flat().find((x) => x.roll === 'gem' && !x.switch && x.output === r.output);
+      const tierGem = M.J.JEWEL_TIERS[M.ITEMS[r.output].tier].gem;
+      const want = Object.assign({}, gemJob.inputs); delete want[tierGem];
+      for (const id of Object.keys(r.inputs)) if (M.J.JEWEL_GUARANTEES[id]) want[id] = gemJob.inputs[tierGem];
+      if (JSON.stringify(Object.entries(r.inputs).sort()) !== JSON.stringify(Object.entries(want).sort()) || r.ms !== gemJob.ms || r.xp !== gemJob.xp || r.req !== gemJob.req)
+        return `${r.id} does not cost what ${gemJob.id} costs with its gem swapped: ${JSON.stringify([r.inputs, r.ms, r.xp, r.req])} vs ${JSON.stringify([want, gemJob.ms, gemJob.xp, gemJob.req])}`;
       const bench = Object.keys(M.RC.ARTISAN_RECIPES_EVERY).find((s) => M.RC.ARTISAN_RECIPES_EVERY[s].includes(r));
       if (bench !== M.J.JEWEL_PIECES[r.output].skill) return `${r.id} sits on ${bench}, not ${r.output}'s own bench (${M.J.JEWEL_PIECES[r.output].skill})`;
       for (const lv of [1, 15, 30, 60, 99]) {
@@ -391,6 +401,30 @@ const claims = {
     for (const id of ['fang_studs_steady', 'banded_signet_keen_follow', 'bronze_bar', 'nope']) if (M.IL.possiblePerksOf(id).length) return `${id} lists possible perks`;
     return null;
   },
+  J17(M) {
+    /* A BOSS DROP'S CARD NAMES ITS GUARANTEE AS A LABEL (designer 2026-11-18: the Crown Shard keeps both uses), and only where the switch is on
+       for the account: dark, the card names no guarantee. */
+    const on = [M.J.JEWEL_SWITCH];
+    const want = { crown_shard: 'Guarantees Follow-through (Banded Signet)', rat_kings_crown: 'Guarantees Hallmarked (Banded Signet)' };
+    for (const [id, line] of Object.entries(want)) {
+      if (!M.IL.usesOf(id, on).includes(line)) return `${id}'s uses read ${JSON.stringify(M.IL.usesOf(id, on))}, without "${line}"`;
+      if (M.IL.usesOf(id, []).some((l) => /^Guarantees/.test(l)) || M.IL.usesOf(id).some((l) => /^Guarantees/.test(l))) return `${id}'s card names its guarantee with the switch off`;
+    }
+    if (M.IL.usesOf('road_carnelian', on).some((l) => /^Guarantees/.test(l))) return 'a gem that guarantees nothing names a guarantee';
+    return null;
+  },
+  J18(M) {
+    /* PLAIN STATS HELP ALL THREE STYLES (itemization plan §4, designer 2026-11-18): every plain crafted jewel and the Shop's first jewelry
+       carry an attack bonus for Melee, Ranged and Magic, and none carries a crit chance (the ring's Keen perk is the crit). */
+    const plainJewels = Object.keys(M.J.JEWEL_PIECES).filter((id) => M.J.JEWEL_SHOP_SLOTS.includes(M.ITEMS[id].slot))
+      .concat(['copper_studs', 'copper_ring', 'hunter_necklace']);
+    for (const id of plainJewels) {
+      const it = M.ITEMS[id];
+      if (!it || !(it.atkB > 0 && it.rangeAtkB > 0 && it.magicAtkB > 0)) return `${id} does not help all three styles: ${JSON.stringify(it && { atkB: it.atkB, rangeAtkB: it.rangeAtkB, magicAtkB: it.magicAtkB })}`;
+      if (it.critB) return `${id} carries a crit chance (${it.critB})`;
+    }
+    return null;
+  },
 };
 
 /* Every rolled job's guarantee jobs (the dark ones, behind the switch), on every bench. */
@@ -429,6 +463,12 @@ const MUTANTS = [
   { claim: 'J15', name: 'the bench says no guarantee', edits: [['src/session/jewelry-sections.js', 'perk: recipe.perk && JEWEL_PERKS[recipe.perk] ? JEWEL_PERKS[recipe.perk].name : null,', 'perk: null,']] },
   { claim: 'J15', name: 'the guarantee\'s perk is offered as a second roll', edits: [['src/session/jewelry-sections.js', 'perks: jobRolls(recipe).map(', 'perks: jobRolls({ roll: recipe.roll, output: recipe.output }).map(']] },
   { claim: 'J16', name: 'the plain card names no perk a gem can add', edits: [['src/shell/item-lore.js', '? perksFor(id).map((p) => JEWEL_PERKS[p].name) : [];', '? [] : [];']] },
+  { claim: 'J10', name: 'a guarantee job takes longer than the gem job it replaces', edits: [['src/data/jewelry.js', 'icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms,', 'icon: p.gem.icon, xp: p.gem.xp, req: p.gem.req, ms: p.gem.ms + 1000,']] },
+  { claim: 'J17', name: 'the card names a dark guarantee', edits: [['src/shell/item-lore.js', 'if (g && Array.isArray(features) && features.includes(JEWEL_SWITCH)) {', 'if (g) {']] },
+  { claim: 'J17', name: 'the card names no guarantee', edits: [['src/shell/item-lore.js', "    out.push(t('jewel.guarantees', {", "    if (false) out.push(t('jewel.guarantees', {"]] },
+  { claim: 'J18', name: 'Fang Studs crit again', edits: [['src/data/slot-ladders.js', "slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 },",
+    "slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, critB: 0.01 },"]] },
+  { claim: 'J18', name: 'the Hunter Necklace helps Melee only', edits: [['src/data/items.js', "slot:'necklace',atkB:2,rangeAtkB:2,magicAtkB:2,", "slot:'necklace',atkB:2,"]] },
 ];
 
 async function run(M) {

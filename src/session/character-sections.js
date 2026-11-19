@@ -74,8 +74,13 @@ export function gmOf(cs) { return read(cs, 'gm') === true; }
     lists the ids of every switch on for it. Before the server says, or for a switch it doesn't list, NO: a door stays hidden, and
     the server still decides every verb behind it. */
 export function featureOn(cs, sw) {
+  return typeof sw === 'string' && featuresOf(cs).includes(sw);
+}
+
+/** The ids of every server switch on for this hero's account (the `features` section), [] before the server says. */
+export function featuresOf(cs) {
   const on = read(cs, 'features');
-  return typeof sw === 'string' && Array.isArray(on) && on.includes(sw);
+  return Array.isArray(on) ? on.filter((x) => typeof x === 'string') : [];
 }
 /** `titles` (2027-02-28-titles.sql): every title with the server's price, the kills it takes and this hero's own count, or null. A row with words the client refuses is not drawn. */
 export function titlesOf(cs) {

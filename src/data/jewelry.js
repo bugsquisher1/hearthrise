@@ -113,7 +113,10 @@ export const ODDS_SCALE = 10000;
    each piece's own bench (JEWEL_PIECES `skill`: the Banded Signet is Smithing). A piece whose slot has no played perk ships plain and
    takes no guarantee, and a perk gem names a perk its piece can roll (a named piece, a perk its slot lacks, is a later phase's): the
    module throws on either. The sample is the Rat King's: his Crown Shard (Rare) fixes Follow-through, and his Crown (his Trophy, the
-   board's "Master's Seal" role) fixes Hallmarked. PROVISIONAL (designer: CONFLICTS 2026-11-15, lane/c-crafted-jewelry). ── */
+   board's "Master's Seal" role) fixes Hallmarked. The Crown Shard KEEPS both its uses (designer 2026-11-18): the itemization plan's cut
+   into its tier's gem (§4 "Old Rare prizes", built with the gem chips) and this guarantee, which takes the shard IN PLACE of that gem with
+   the gem job's own time, XP and level, so it costs exactly what cutting it would make (tests/jewelry-rolls.mjs J10). Its card names the
+   guarantee as a label where the switch is on (src/shell/item-lore.js usesOf, J17). ── */
 /** @typedef {{ perk?: string, grade?: string, words: string, pieces: readonly string[] }} JewelGuarantee */
 /** @type {Readonly<Record<string, JewelGuarantee>>} */
 export const JEWEL_GUARANTEES = Object.freeze({

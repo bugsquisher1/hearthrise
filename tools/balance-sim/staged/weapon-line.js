@@ -86,10 +86,9 @@ export function lineWeapon(family, reqLv) {
    monster's share of the spawn, as the armor line's; the drop guard fits it when the rows go in), `use` what catalogue-coherence files it
    under, `text` the item card's line. Every bane names a class that lives on the piece's own ground. Each power and each "wins where" is
    measured by tests/weapon-line.mjs and printed by `node tools/balance-sim/weapon-power.mjs`.
-   THE GRID WINS (the designer 2026-11-18 row 1b): the Wagon Guard's Sword left the Roost (the bow's ground; the sword's low point there it was
-   for reads 63.9 on the ladder kit, bar 60) for Carter's Rest's sword cell. It can't keep its Dragon bane there (no dragon lives at the inn,
-   and the trolls are `Troll` to the engine's bane, src/core/bane.js classOfMonster, so no class bane bites there either), so it went keen, and
-   it is worn from the sword's first Level, 117 (Carter's Rest opens at the anchor). Its numbers are the line's at 117 spent its own way:
+   THE GRID WINS (the designer 2026-11-18 row 1b): the Wagon Guard's Sword left the Roost (the bow's ground) for Carter's Rest's sword cell. It
+   can't keep its Dragon bane there (no dragon lives at the inn), so it went keen, chosen while the trolls still had no bane class (row 3a gave
+   them their `cls`, Humanoid, src/core/bane.js classOfMonster), and it is worn from the sword's first Level, 117 (Carter's Rest opens at the anchor). Its numbers are the line's at 117 spent its own way:
    measured, the most accuracy and damage under the line on every late ground that still beats tempered Dawnsteel on a ground a 117 hero is
    sent to (the Ox Road). ── */
 export const WEAPON_SAMPLE = Object.freeze({

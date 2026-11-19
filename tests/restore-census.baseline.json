@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-18",
+ "generated": "2026-11-19",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -1073,7 +1073,7 @@
   },
   "hr_activities": {
    "class": "seeded",
-   "replay": 372,
+   "replay": 369,
    "note": "Generated from src/data/*.js by tools/gen-catalogues.mjs; content guarded by --check as a smoke preflight. 344 rows on 2026-08-15, 508 now. Rebuilt from repo, never restored."
   },
   "hr_bans": {
@@ -1083,7 +1083,7 @@
   },
   "hr_bench_tax_rates": {
    "class": "seeded",
-   "replay": 137,
+   "replay": 134,
    "note": "Generated catalogue (2027-02-19-bench-tax-rates.generated.sql from src/data/bench-tax.js and src/data/recipes.js): per bench recipe, its output, count, permille, room and rung. Empty, no job has a fee and the settle's re-derivation takes nothing."
   },
   "hr_blessing_rule": {
@@ -1607,7 +1607,7 @@
   },
   "hr_hunt_supplies": {
    "class": "seeded",
-   "replay": 82,
+   "replay": 79,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the 52 supplies a hunt bag may hold (kind, essential flag, heal amount, combat buff type), from src/data/supplies.js. hr_hunt_enter / hr_hunt_restock refuse anything else; an EMPTY rebuild would refuse every bag (fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_target_modes": {
@@ -1622,7 +1622,7 @@
   },
   "hr_hunt_vendor_value": {
    "class": "seeded",
-   "replay": 672,
+   "replay": 669,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the vendor bid per item (vendorPriceOf), read only by hr_hunt_analyzer for Gold-at-vendor-value and Waste. Moves no value. Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_weapon_roles": {
@@ -1652,7 +1652,7 @@
   },
   "hr_item_buffs": {
    "class": "seeded",
-   "replay": 30,
+   "replay": 27,
    "note": "Generated catalogue (2026-09-13-item-buffs-catalogue.generated.sql, tools/gen-catalogues.mjs --check) holding item_id -> {type, magnitude, duration_ms} for every consumable buff food in src/data/items.js. It is the PRICE LIST hr_apply's buff_apply block resolves a buff from under the character lock, so it is an ALLOWLIST: a rebuild with a smaller set refuses real foods as bad_buff_item, and one with different numbers pays a buff nobody authored. Holds nothing per player (player_state.buffs does) and is rebuilt from the repo, never restored."
   },
   "hr_item_slots": {
@@ -1662,7 +1662,7 @@
   },
   "hr_items": {
    "class": "seeded",
-   "replay": 718,
+   "replay": 712,
    "note": "Generated catalogue — the market tradeable allowlist and every item's server-side truth. 426 rows on 2026-08-15, 515 on 2026-09-06, 519 now (+4 Hearthfind trophies, 2026-09-08). Content digest guarded by tools/gen-catalogues.mjs --check as a smoke preflight."
   },
   "hr_jewel_reforge_offers": {
@@ -2093,7 +2093,7 @@
   },
   "hr_unlocks": {
    "class": "seeded",
-   "replay": 64,
+   "replay": 61,
    "note": "Generated unlock catalogue (2026-08-16-unlocks.generated.sql, by tools/gen-unlocks.mjs --check): merge rule, storage kind, ceiling, rung ladder per namespace. Rebuilt from repo, never restored. ⚠ PRODUCTION RUNS 65 AND A REBUILD PRODUCES 82 — see production.divergence_vs_repo; the whole delta is namespace='companion' (4 vs 21) and it is an apply-state issue, not a DR one. RULED 2026-08-30: a wholesale `delete from public.hr_unlocks;` in this very file destroyed the 17 rows 2026-08-22-companion-grant.sql had added when it was regenerated and re-applied on 2026-08-23. The fix is forward — supabase/migrations/2026-09-05-companion-unlock-catalogue-reseed.sql, STAGED/REVIEW-ONLY — and the replay pin stays 82 because the rebuild already produced them. ⚠ NEVER re-apply this file to production to 'refresh' the catalogue: it deletes 20 rows it does not own and silently flag-shapes the four shop companions. tests/unlock-catalogue-ownership.mjs measures that and proves the declared repair."
   },
   "hr_wipe_log": {

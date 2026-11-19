@@ -134,7 +134,7 @@ Rules: one property a piece (two only on late chest pieces). A new kind needs it
 | Kind | What it is | Best where |
 |---|---|---|
 | Chest weapon | The plain numbers of the next step up, plus +1 to +4 of its skill. Built in lane/d-defense-tower: +3 to +10% at its own Level, 1.00 to 1.03 times the next tier's drop | Everywhere a little. The best all-rounder |
-| Boss or ground unique | Its own stat mix inside the band's budget, never the line's own numbers (the line is a ceiling, not a template: Tyler 11-16, tests/weapon-line.mjs and armor-line.mjs WL4/AL4), no skill bonus, plus one property from the catalogue. Krell's tier-7 pieces follow the same rule (designer 2026-11-18) | Clearly best in the case its property is for. Slightly behind elsewhere |
+| Boss or ground unique | Past tier 7 (worn from past 110): its own stat mix inside the band's budget, never the line's own numbers (the line is a ceiling, not a template: Tyler 11-16, tests/weapon-line.mjs and armor-line.mjs WL4/AL4), no skill bonus, plus one property from the catalogue. At tier 7 and below: the standard piece of its slot and tier plus one attribute (Tyler 11-14, special-attribute gear; the Banded Legguards, and Krell's five, follow it; tests/special-attributes.mjs SA2) | Clearly best in the case its property is for. Slightly behind elsewhere |
 
 Krell's weapons become the first of these. Sample of five (proposed, unmeasured):
 
@@ -385,7 +385,7 @@ Rings roll in this build. Earrings roll once Steady and Focus are hooked in the 
 | Salts | One a tier, either bench | 310 a track | Built |
 | Linings | Below | | Designed 11-13, widened here |
 | Salvage | Below | | Proposed |
-| Patterns | A Rare that unlocks a recipe for the account | Eight a region | Proposed |
+| Patterns | A Rare that unlocks the recipe for the hero who reads it (designer 2026-11-18: per hero, the built hr_recipe_learn) | Eight a region | Ruled |
 | Good batch | A consumable job sometimes makes double | 2% at level 1 to 10% at 99 | Ruled yes |
 | Named reforging | Kingsgrate to Steelgrate, Klappa's Klub | | Built |
 
@@ -536,7 +536,7 @@ E means it exists.
 | Layer | How |
 |---|---|
 | Patterns | Every worn recipe past tier 7. Eight a region unlock ten recipes (Appendix A, Finding 4) |
-| Staples | Bars, buckles, salts, ammo, linings, food open the first time the account brings that region's ore or hide to a bench at 99 |
+| Staples | Bars, buckles, salts, ammo, linings, food open for the hero at 99 who brings that region's ore or hide |
 | Region materials | Only from that region's kills and nodes |
 | Maker's mark | Make a set number of a region's pieces and the account's Fine chance for that region rises a little, capped |
 | Reforging | Carries Hallmarked work into the next band |
@@ -792,8 +792,8 @@ The template was wrong: two weapons a ground gives 12, and two appearances per f
 | Carter's Rest | Legs plate, gloves leather (Slater's Mitts), boots cloth (Carter's Boots), shield (Stable Door) |
 | The Ox Road | Helmet plate, body leather, legs cloth, spellbook |
 | The Night Shift | Body plate, boots leather, gloves cloth, gloves plate |
-| Wyvern Roost | Boots plate, legs leather, helmet cloth |
-| The Roost Mother | Helmet leather (Eggshell Cap), legs plate (Roost Mother's Hide), body cloth |
+| Wyvern Roost | Boots plate, legs plate (Burnt Crag Leg Plates, fire: the Roost's wall answer), helmet cloth |
+| The Roost Mother | Helmet leather (Eggshell Cap), legs leather (Roost Mother's Hide), body cloth |
 | The Old Guard | Helmet plate, boots leather, body cloth, spellbook |
 | The Bellows | Body plate, helmet leather, legs cloth, shield |
 | Father Gault | Gloves cloth (Furnace Mitts), boots plate, body leather, legs leather |
@@ -878,7 +878,7 @@ A region has 8 pattern drops: six grounds, the call-out boss, the final boss. Wo
 | Food and drink | 2 | Staple |
 | **Staple recipes** | **14** | |
 
-A staple opens for the account the first time one of its heroes brings that region's ore or hide to a bench at skill 99. For the Morrow Hills: Carter's Rest belt (the Landlord's Apron), the Ox Road ring, the Night Shift earrings, Wyvern Roost cloak, the Old Guard necklace, the Bellows the top lining, the Roost Mother her named piece, Gault the Bellows Key Ring.
+A staple opens for the hero at 99 who brings that region's ore or hide to a bench. For the Morrow Hills: Carter's Rest belt (the Landlord's Apron), the Ox Road ring, the Night Shift earrings, Wyvern Roost cloak, the Old Guard necklace, the Bellows the top lining, the Roost Mother her named piece, Gault the Bellows Key Ring.
 
 ## Finding 5. The fist benchmark, measured as a solo experience
 

@@ -263,7 +263,7 @@ async function selftest() {
   { const top = D.S.topGroundOf(), band = D.HUNT_INDEX[D.OPEN_GROUNDS[top].hunt].band;
     expectThrow('the top ground (' + top + ') offered (no right-Level ground above it)', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, [top]: { floor: band[0], top: band[1], fit: D.OPEN_GROUNDS[top].groupFit } } }))); }
   expectThrow('a band restated wrong', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, wickstead: { ...S.SCALABLE_GROUNDS.wickstead, top: 20 } } })));
-  expectThrow('a ground nobody can open', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, nowhere: { floor: 1, top: 5, fit: 'solo' } } })));
+  expectThrow('a ground nobody can open', plant((S) => ({ SCALABLE_GROUNDS: { ...S.SCALABLE_GROUNDS, nowhere: { floor: 1, top: 5, fit: 'both' } } })));
   expectThrow('a scaled Dangerous past the value bound', plant((S) => ({ scaledTierRow: (g, t, L) => { const r = S.scaledTierRow(g, t, L); return r && t === 'dangerous' ? { ...r, xpPm: 3500 } : r; } })));
   expectThrow('a scaled kill that pays less than its own row', plant((S) => ({ scaledMonsters: (M, g, L) => Object.fromEntries(Object.entries(S.scaledMonsters(M, g, L)).map(([id, r]) => [id, { ...r, hp: 1, xp: 1 }])) })));
   expectThrow('a tighter value bound', { ...D, headroom: 1 });

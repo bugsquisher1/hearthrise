@@ -179,7 +179,11 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
    gains the three guarantee jobs on the Banded Signet's Smithing bench (a Crown Shard, the Rat King's Crown, both), dark behind jewel_guarantees
    (hr-accrue set_activity asks the switch); no hr_items row moves. ORDER: after the four 05-12 files and 2027-05-15-analyzer-cover-coins; before this lane's bench-inputs file
    and 2027-05-16-jewel-guarantees.sql. It replaces lane/c-crafted-jewelry's 2027-04-24 files, which were never merged or applied. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-16-jewel-guarantees-items-catalogue.generated.sql');
+/* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18; the designer: patterns teach worn recipes, per hero): 2027-05-16-jewel-guarantees-items-catalogue (STAGED,
+   applied first) is the file before this one and this one carries it whole. hr_items loses the three cookbook scrolls and their three feasts
+   (Hunter's Feast, Dragon Stew, Lich Soul Soup); hr_activities loses their three Cooking recipes; hr_feast_foods follows. ORDER: after the three
+   2027-05-16 files; before this lane's bench-inputs, bench-tax, hunt-sessions and unlocks files. */
+const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-22-cookbook-cut-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already
@@ -188,7 +192,8 @@ const OUT = join(ROOT, 'supabase', 'migrations', '2027-05-16-jewel-guarantees-it
    a new, LAST-registered file is additive for an operator and for the replay.
    Both files are covered by the same `--check`. */
 const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
-  '2026-09-13-item-buffs-catalogue.generated.sql');
+  /* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18): 2026-09-13 is APPLIED history; the three cut feasts' buff rows leave, ONE forward file, the same wholesale replace. */
+  '2027-05-22-cookbook-cut-item-buffs-catalogue.generated.sql');
 /* THE THIRD GENERATED FILE (2026-09-13, buffs step 3). hr_room_perks is the
    ROOM RUNG -> PERK payload, the same table src/data/perks.js holds for the two
    JS runtimes, so hr_apply can price the Cellar's buffDuration under the
@@ -1359,7 +1364,8 @@ const { ARTISAN_RECIPES_EVERY: BENCH_RECIPES } = await imp('src/data/recipes.js'
 /* THE JEWEL GUARANTEES (lane/d-jewelry-2b, rescued from lane/c-crafted-jewelry, 2026-11-18): 2027-05-09-jewelry-sample-bench-inputs (APPLIED with v0.2.140)
    is the file before; the three guarantee jobs on the Banded Signet's Smithing bench (dark behind jewel_guarantees) bring their inputs, no other
    recipe's move. It replaces lane/c-crafted-jewelry's 2027-04-24-jewel-guarantees-bench-inputs, which was never merged or applied. */
-const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-16-jewel-guarantees-bench-inputs.generated.sql');
+/* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18): 2027-05-16-jewel-guarantees-bench-inputs (STAGED, applied first) is the file before; the three cut Cooking recipes leave. */
+const OUT_BENCH_INPUTS = join(ROOT, 'supabase', 'migrations', '2027-05-22-cookbook-cut-bench-inputs.generated.sql');
 const benchInputs = {};
 {
   const known = new Set(itemIds);

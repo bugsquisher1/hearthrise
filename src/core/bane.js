@@ -110,10 +110,14 @@ export function normalizeClass(raw) {
   return CLASS_SET.has(mapped) ? mapped : null;
 }
 
-/** The class a monster row belongs to. `class` wins over `family` if present. */
+/** The class a monster row belongs to. `class` wins over `family` if present, and `cls` (the weakness table's key,
+    src/data/monster-classes.js) answers last: Carter's Rest's five trolls are `family: 'Troll'` (no class) and
+    `cls: 'humanoid'`, so without it a Humanoid bane played as nothing on them (the designer 2026-11-18, row 3a;
+    tests/hunt-core/elements.mjs `a-humanoid-bane-lands-on-a-troll`). It only fills a gap: no monster whose class or
+    family already names a class reads it (the six Extra Dimensional rows' `cls` doesn't normalize; their family does). */
 export function classOfMonster(monster) {
   if (!monster) return null;
-  return normalizeClass(monster.class) || normalizeClass(monster.family);
+  return normalizeClass(monster.class) || normalizeClass(monster.family) || normalizeClass(monster.cls);
 }
 
 /**

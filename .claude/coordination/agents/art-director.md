@@ -3916,3 +3916,15 @@ test; (2) a guard on "who paints a button" must follow the classes written besid
 it beat before (after the gold plate: `.hh-tool:has(.hs-glyph)` and `[aria-pressed]` used to win over the plate's equal-specificity rules by
 order); (4) a lane's base can move under it: a red the set's tip already fixed (town-crier's outgrown Cellar) reads as yours until you merge;
 run the control on the set's own tree (an archive of the set in .scratch) before chasing it.
+## 2026-11-19 lane/b-tank-rune-tiles (v0.2.142: Frost Slam and Shelter get their own tiles; the stand-ins were byte copies)
+FROST SLAM: the tank's steel sabaton stamping down, one jagged ice star bursting from under its sole. SHELTER: an earth-light dome
+(torch/gold/bronze) over the party: the tank's great helm in front, a mage's pointed hat and a healer's hood behind. Both in the
+Mend/Rend/Ward family (tools/world-art/ability-tiles.mjs: same frame, field, ink and stamp), emblems ONLY on hr-world-56-v2: the
+writer refuses a stray colour (offPalette finds 3-9 off-palette colours in each of the four older family tiles, so it bites).
+Eleven render passes at x10 + x2 + x1; dropped on the way: a gauntlet fist knuckles-down (cuff + thumb = a great helm's crown and
+visor), mirrored shard fans (crab legs), a filled frost ring (a foot in a basin), three tower shields (cardboard; under an arch a
+chest with a handle), three alike helms (one knight in pauldrons). Review sheets: art/review/tank-rune-tiles/ (all tiles x4 in one
+row; the bar's x2/x1 for the frost trio, the ward trio and the tank's five). STAND-INS note removed from item-art.js.
+Lessons: (1) a symmetric front view of a hand reads as a helmet: give a body part its profile or an asymmetric pose; (2) at 32 px a
+group reads from DIFFERENT silhouettes (hat, hood, helm), never from three copies; (3) a ring under a thing reads as a dish unless
+it is jagged; (4) an arch hugging a boxy shape becomes a handle.

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
-// tools/world-art/ability-tiles.mjs — THE THREE ABILITY TILES THE SET WAS MISSING, DRAWN BY RULE
+// tools/world-art/ability-tiles.mjs — THE ABILITY TILES THE SET WAS MISSING, DRAWN BY RULE
 // (lane a-art-batch-0, 2026-11-04; art audit gap 3: Mend, Rend and Protective Ward showed a grey glyph
 // beside framed tiles in Configure action, and Mend is every hero's heal).
 //
@@ -22,11 +22,14 @@
 //         Challenge's steel one held up, and not the Barrier's blue disc.
 //   UNDERTOW (2026-11-09) a whirlpool winding down to a dark eye, foam on its lit outer turn: the Healer's own strike,
 //         water that drags, not Frost Lance's ice shard or the Barrier's disc.
+//   FROST SLAM (2026-11-19) the tank's steel sabaton stamping down, ice bursting out from under it every way.
+//   SHELTER    (2026-11-19) the earth's dome over the party: the tank's great helm in front, a mage's hat and a healer's hood.
+//         These two draw their emblems from the world palette only (ON_WORLD_PALETTE; the writer refuses a stray colour).
 //
 //   node tools/world-art/ability-tiles.mjs            write assets/icons-bundle/pixel/abilities/<id>.png
 //   node tools/world-art/ability-tiles.mjs --out <d>  write to a folder instead (a preview)
 // ════════════════════════════════════════════════════════════════════════
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createImage, encodePNG } from './png.mjs';
@@ -209,7 +212,113 @@ function undertow() {
   return g;
 }
 
-export const DRAW = Object.freeze({ mend, rend, protective_ward: ward, undertow });
+/* ── THE TANK'S TWO RUNE SPELLS (lane/b-tank-rune-tiles, 2026-11-19) ─────────────────────────────────────────────────────────────
+   Both keep the family's frame and field, and draw their emblems ONLY from the world palette (art/world/palette.json, hr-world-56-v2)
+   plus the family's ink and white: ON_WORLD_PALETTE below, and the writer refuses a tile that strays. Both lean on the tank's steel, so
+   they sit with Challenge and read as the shield's spells, not the Mage's or the Healer's. */
+
+/** Rows of characters as shape pixels at (ox, oy): each character a colour from `legend`, any other character left alone. */
+function paint(rows, legend, ox, oy) {
+  const out = [];
+  rows.forEach((row, j) => [...row].forEach((ch, i) => { if (legend[ch]) out.push([ox + i, oy + j, legend[ch]]); }));
+  return out;
+}
+
+const STEEL = { d: '#3a4652', c: '#5c6c7a', b: '#8a9aa8', a: '#c4ccd2', k: INK };                // the palette's steel ramp
+const ICE = { low: '#2b4a6a', mid: '#4fa8e8', lit: '#a8e4ff', pale: '#c8e6e0', spark: STUD };     // water, frost, mithril's top
+
+/* FROST SLAM: a steel sabaton stamping down and the ice bursting out from under it every way (the spell chills everyone beside the tank).
+   Not Hoarfrost's standing crystal or Frost Lance's flying shard: the boot is the verb. Tried and dropped: a gauntlet fist knuckles-down
+   (its cuff and thumb read as a great helm's crown and visor), shards fanned both ways (a crab's legs), a filled frost ring (a foot in a
+   basin). */
+function frostSlam() {
+  const g = frame();
+  // the burst: one jagged star round the sole, squashed onto the ground, its points uneven
+  const cx = 15.5, cy = 20, outer = [12, 10, 9, 10, 11, 12, 13, 11, 11, 13.5], inner = 6, n = outer.length;
+  const point = (i) => (i % 2 === 0 ? outer[(i / 2) % n] : inner);
+  const burst = [];
+  for (let y = 3; y < 29; y++) for (let x = 3; x < 29; x++) {
+    const dx = x - cx, dy = (y - cy) / 0.85, r = Math.hypot(dx, dy);
+    const a = ((Math.atan2(dy, dx) + 2 * Math.PI) % (2 * Math.PI)) / (2 * Math.PI) * n * 2;
+    const k = Math.floor(a), f = a - k;
+    const R = point(k % (2 * n)) * (1 - f) + point((k + 1) % (2 * n)) * f;
+    if (r > R) continue;
+    const e = r / R, lit = dx + dy < 0;
+    burst.push([x, y, e < 0.4 ? ICE.spark : e < 0.62 ? ICE.pale : e < 0.85 ? (lit ? ICE.lit : ICE.mid) : (lit ? ICE.mid : ICE.low)]);
+  }
+  stamp(g, burst);
+  // the sabaton, toe to the right, its greave running off the top: a tall shaft and a long low foot that tapers to its toe (a high
+  // instep read as a bell, a round toe as a slipper). Per row: y, left edge, right edge.
+  const rows = [[3, 8, 14], [4, 8, 14], [5, 8, 14], [6, 9, 14], [7, 9, 14], [8, 9, 14], [9, 9, 14], [10, 9, 14], [11, 9, 14],
+    [12, 9, 15], [13, 8, 17], [14, 8, 19], [15, 8, 21], [16, 8, 22]];
+  const top = (x) => rows.find(([, L, R]) => x >= L && x <= R)[0];
+  const boot = [];
+  for (const [y, L, R] of rows) for (let x = L; x <= R; x++) {
+    const c = y < 12 ? (x === L ? STEEL.b : x === L + 1 ? STEEL.a : x === R ? STEEL.d : x === R - 1 ? STEEL.c : STEEL.b)
+      : y === top(x) && x > 14 ? STEEL.a : x === L ? STEEL.b : y === 16 ? STEEL.c : STEEL.b;
+    boot.push([x, y, c]);
+  }
+  for (let x = 8; x <= 22; x++) boot.push([x, 17, x === 22 ? STEEL.c : STEEL.d]);   // the sole
+  stamp(g, boot);
+  // the greave's two bands, the ankle's rivet, and the toe's lames: a dark edge with a lit plate after it
+  for (const y of [5, 11]) for (let x = 9; x <= 14; x++) g[y][x] = STEEL.d;
+  g[13][11] = STUD; g[14][11] = STEEL.c;
+  for (const [x0, y0] of [[16, 13], [18, 14], [20, 15]]) for (let y = y0; y <= 16; y++) {
+    g[y][x0] = STEEL.d;
+    if (g[y][x0 + 1] === STEEL.b || g[y][x0 + 1] === STEEL.c) g[y][x0 + 1] = STEEL.a;
+  }
+  // a streak of frost either side of the shaft: it is coming down
+  for (const [x, y0, y1] of [[6, 7, 11], [17, 4, 8]]) for (let y = y0; y <= y1; y++) g[y][x] = y === y1 ? ICE.pale : ICE.mid;
+  return g;
+}
+
+/* SHELTER: the earth's dome over the party, the tank in front in a steel great helm, a mage's pointed hat and a healer's hood behind it.
+   Not the Ward's ring round one green shield, nor the Barrier's blue disc: three heads under one roof is the whole party. Tried and dropped:
+   three tower shields (cardboard boxes; under an arch, a chest with a handle) and three alike helms (one knight in pauldrons). */
+const EARTHLIGHT = { hi: '#ffd36a', mid: '#e8c547', low: '#cfa25c' };                             // torch, gold, bronze's top
+const SKIN = { s: '#dcae86', t: '#b5835f' };
+const TANK = { rows: ['..abbc..', '.abbbbc.', 'abbbbbcd', 'akkkkkkd', 'abbkkbcd', '.bbkkbc.', '..cddc..', '.abbbbbbcd.', 'abdbbbbdbcd'], at: -1, ink: STEEL };
+const MAGE = { rows: ['....a..', '...ab..', '...abc.', '..aabc.', '..abbc.', 'aabbbcc', '.cssst.', '.ctsst.', '.abbbc.', 'aabbbcc'], at: 0,
+  ink: { a: '#4fa8e8', b: '#2b4a6a', c: '#1a2c44', ...SKIN } };                                   // frost and water
+const HEALER = { rows: ['.abc..', 'aabbc.', 'abbbcd', 'absscd', 'abtscd', 'abbbcd'], at: 0,
+  ink: { a: '#73944c', b: '#557a3e', c: '#3d6234', d: '#2c4a2c', ...SKIN } };                     // leaf
+
+/** One of the party with the crown of its head at (x0, y0): its rows, the last two (the shoulders) set `at` px left of the head and the
+ *  last repeated down to the field's foot. */
+function partyMember(x0, y0, who) {
+  const head = who.rows.slice(0, -2), body = who.rows.slice(-2);
+  const below = 29 - (y0 + head.length);
+  const rows = [...body, ...Array(Math.max(0, below - body.length)).fill(body[1])];
+  return [...paint(head, who.ink, x0, y0), ...paint(rows, who.ink, x0 + who.at, y0 + head.length)];
+}
+
+function shelter() {
+  const g = frame();
+  // the dome: a squared arch from the ground on one side to the ground on the other, lit at its upper left
+  const arch = [];
+  for (let y = 3; y < 29; y++) for (let x = 3; x < 29; x++) {
+    const e = Math.pow(Math.pow(Math.abs(x - 15.5) / 12.4, 2.5) + Math.pow(Math.abs(y - 28.5) / 23.6, 2.5), 1 / 2.5);
+    if (e < 0.91 || e > 1.0) continue;
+    arch.push([x, y, e > 0.955 ? (x < 15.5 && y < 18 ? EARTHLIGHT.hi : EARTHLIGHT.mid) : x < 20 ? EARTHLIGHT.mid : EARTHLIGHT.low]);
+  }
+  stamp(g, arch);
+  stamp(g, partyMember(6, 10, MAGE));
+  stamp(g, partyMember(20, 13, HEALER));
+  stamp(g, partyMember(12, 15, TANK));
+  return g;
+}
+
+export const DRAW = Object.freeze({ mend, rend, protective_ward: ward, undertow, frost_slam: frostSlam, shelter });
+
+/** The tiles whose emblems are locked to the world palette (the four above them wear their sibling tiles' colours, as the header says). */
+const ON_WORLD_PALETTE = Object.freeze(['frost_slam', 'shelter']);
+
+/** The colours in tile `id` that are neither the world palette's nor the family frame's (frame, field, ink, white): [] when it is locked. */
+function offPalette(id) {
+  const ramps = JSON.parse(readFileSync(join(ROOT, 'art', 'world', 'palette.json'), 'utf8')).ramps;
+  const ok = new Set([...Object.values(ramps).flat(), ...frame().flat().filter(Boolean), INK, STUD].map((c) => c.toLowerCase()));
+  return [...new Set(DRAW[id]().flat().filter((c) => c && !ok.has(c.toLowerCase())))];
+}
 
 /** A grid (hex or null per pixel) as an opaque 32x32 image. */
 export function toImage(g) {
@@ -226,6 +335,8 @@ export function toImage(g) {
 if (isMain(import.meta.url)) {
   const at = process.argv.indexOf('--out');
   const dir = at > 0 ? process.argv[at + 1] : DEFAULT_DIR;
+  const strays = ON_WORLD_PALETTE.map((id) => [id, offPalette(id)]).filter(([, off]) => off.length);
+  if (strays.length) { console.error('ability-tiles: off the world palette, nothing written: ' + JSON.stringify(strays)); process.exit(1); }
   mkdirSync(dir, { recursive: true });
   for (const [id, draw] of Object.entries(DRAW)) writeFileSync(join(dir, id + '.png'), encodePNG(toImage(draw())));
   console.log('ability-tiles: wrote ' + Object.keys(DRAW).length + ' tiles to ' + dir);

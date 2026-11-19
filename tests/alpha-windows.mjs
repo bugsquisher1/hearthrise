@@ -646,7 +646,7 @@ async function benchRules(base) {
   const tool = outputVsWorn('bronze_pickaxe', {});
   if (!tool || tool.stats.length !== 1 || tool.stats[0].stat !== L.toolEffect('bronze_pickaxe')) fails.push('AW-102 a tool does not say what it does: ' + JSON.stringify(tool));
   /* the whole ladder: rows in full + rungs hold each recipe once, the rungs low to high, one a Level */
-  let cases = 0;
+  let cases = 0, twins = 0;
   for (const skill of Object.keys(SKILLS_DEF).filter((s) => SKILLS_DEF[s].cat === 'artisan')) {
     const cat = Object.keys(BENCH_INDEX).filter((id) => BENCH_INDEX[id].skill === skill);
     if (!cat.length) continue;
@@ -664,9 +664,21 @@ async function benchRules(base) {
         break;
       }
       if (rungs.length) cases++;
+      /* what a rung SHOWS names each thing once and every thing its rows make (post-140 audit C11: Smithing's Unlocks read "Banded Signet",
+         "Fang Studs" and "Seam Jasper Band" twice each, a crafted jewel's metal job and its gem job both making the piece) */
+      for (const r of rungs) {
+        const outs = r.items.map((w) => w.row.output).filter(Boolean);
+        const made = new Set(r.rows.map((w) => w.row.output).filter(Boolean));
+        if (new Set(outs).size !== outs.length || outs.length !== made.size) {
+          fails.push('AW-102 ' + skill + ' at ' + lv + ': the Lv ' + r.level + ' rung shows ' + JSON.stringify(outs) + ' for ' + JSON.stringify([...made]));
+          break;
+        }
+        if (r.rows.length > r.items.length) twins++;
+      }
     }
   }
   if (!cases) fails.push('AW-102 no station had a ladder: the cases prove nothing');
+  if (!twins) fails.push('AW-102 no rung held two jobs that make one thing: the one-name-a-thing case proves nothing');
   /* #10: a drop no open ground gives names nothing (the catalogue keeps creatures no open ground spawns) */
   const dropped = new Set(Object.values(MONSTERS).flatMap((m) => (m.drops || []).map((d) => d.id)));
   const closed = [...dropped].filter((id) => ITEMS[id] && !G.dropWhereWords(id));
@@ -5663,7 +5675,7 @@ const MUTANTS = [
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
   ['bench: a row compares to nothing worn', 'src/shell/bench-output.js', 'const deltas = on && on !== out ? compare(out, on) : [];', 'const deltas = [];'],
   ['bench: a bare slot is not said', 'src/shell/bench-output.js', "slot: on ? null : ((EQUIP_SLOT_META[slot] || {}).label || slot || '').toLowerCase()", 'slot: null'],
-  ['bench: the ladder drops a rung', 'src/shell/bench-output.js', '.sort((a, b) => a[0] - b[0]).map(([level, rows]) => ({ level, rows }));', '.sort((a, b) => a[0] - b[0]).slice(1).map(([level, rows]) => ({ level, rows }));'],
+  ['bench: the ladder drops a rung', 'src/shell/bench-output.js', '.sort((a, b) => a[0] - b[0]).map(([level, rows]) => ({ level, rows, items: onePerItem(rows) }));', '.sort((a, b) => a[0] - b[0]).slice(1).map(([level, rows]) => ({ level, rows, items: onePerItem(rows) }));'],
   ['bench: the card names a closed ground again', 'src/shell/item-lore.js', '  if (drop) out.push(drop);', '  if (r && r.drops.length) out.push(drop || "Dropped by creatures on grounds no one can reach yet");'],
   ['station sort: Level runs high to low', 'src/shell/station-sort.js', "if (sort === 'level') return all.sort((a, b) => reqOf(a) - reqOf(b));", "if (sort === 'level') return all.sort((a, b) => reqOf(b) - reqOf(a));"],
   ['station sort: Name is not a sort', 'src/shell/station-sort.js', "  if (sort === 'name') return all.sort(byName);\n", ''],
@@ -5713,7 +5725,7 @@ const MUTANTS = [
   ['prep builder: Clear leaves the bar', 'src/shell/windows/hunt-prep/builder.js', "  if (action === 'clear' && click) { d.slots = clearedBar(); sc.cleared = true;", "  if (action === 'clear' && click) { sc.cleared = true;"],
   ['prep builder: the setup in use is read from the server', 'src/session/preset-read.js', '  if (live && live.preset === preset) return { ok: true, set: live, live: true, name: null };\n', ''],
   ['prep builder: the read asks for another number', 'src/session/preset-read.js', "{ p_slot: cs.slot, p_preset: preset }", "{ p_slot: cs.slot, p_preset: preset + 1 }"],
-  ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort)', 'rowsFor(skill, lv, heldOf(cs))'],
+  ['AW-76 the window ignores the station\'s pick', 'src/shell/windows/work.js', 'rowsFor(skill, lv, heldOf(cs), sort, ', 'rowsFor(skill, lv, heldOf(cs), undefined, '],
   ['AW-22 an input chip shows no icon', 'src/shell/windows/work.js', "    + itemIconHtml(g, id) + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');", "    + esc(whole(n) + ' ' + itemNameFor(id, n)) + '</span>').join('');"],
   ['AW-22 a row is a paragraph again', 'src/shell/windows/work.js', "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) })", "    : pick === 'all' ? t('work.row_makes', { n: whole(runs * yieldOf(w)) }) + ', ' + stat.textContent"],
   ['AW-22T the band reads Gathering and crafting again', 'src/data/shell-windows.js', "label: 'Gathering and crafting', title: 'Skills',", "label: 'Gathering and crafting',"],

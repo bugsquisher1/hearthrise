@@ -47,13 +47,16 @@ export function tapWindowOf(kind, d, character) {
   return null;
 }
 
-const PANE_HTML = '<div class="world-chrome">'
+/* The place's name and its Town / Home switch (world-boot.js paintChrome names the scene and presses its button). ONE TOP BAR (UI audit
+   2026-11-18 #10: a second strip under the character strip held only these, 52 px of the World on a desktop and 44 of a 423 px phone):
+   they stand in the character strip's place slot (src/app/character-strip.js .char-place); a pane mounted with no strip keeps them over its stage. */
+const CHROME_HTML = '<div class="world-chrome">'
   + '<span class="world-title">World</span>'
   + '<span class="world-scenes" role="group" aria-label="Show">'
   + '<button type="button" class="world-scene" data-world-choice="town" aria-pressed="false">Town</button>'
   + '<button type="button" class="world-scene" data-world-choice="home" aria-pressed="false">Home</button>'
-  + '</span></div>'
-  + '<div class="world-stage"><p class="world-status">Loading world…</p></div>';
+  + '</span></div>';
+const PANE_HTML = CHROME_HTML + '<div class="world-stage"><p class="world-status">Loading world…</p></div>';
 
 /* Each character's own display scratch (Town or Home, where its hero stands at home), kept across
    mounts: the pane is remounted on every switch of the viewed character, and a scratch made per mount
@@ -85,6 +88,9 @@ export async function mountWorldPane(host, character, o) {
   pane.innerHTML = PANE_HTML;
   host.appendChild(pane);
   const stage = pane.querySelector('.world-stage');
+  const chrome = pane.querySelector('.world-chrome');
+  const placeSlot = opts.screen ? opts.screen.querySelector('.char-place') : null;
+  if (placeSlot) placeSlot.replaceChildren(chrome);
 
   /* The character's own display scratch (SCRATCH): Town or Home, where its hero stands at home. Never sent. */
   const scratch = scratchOf(character);
@@ -129,7 +135,7 @@ export async function mountWorldPane(host, character, o) {
       throw e;
     });
     const town = opts.account && typeof opts.account.townOf === 'function' ? opts.account.townOf(character.slot) : null;
-    runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers });
+    runtime = await bootWorld(pane, { view, character, emit, town, peers: opts.peers, chrome });
     runtime.sync();
   } catch (e) {
     console.error('[world] the world failed to load', e);
@@ -162,6 +168,7 @@ export async function mountWorldPane(host, character, o) {
       offInset();
       shell.destroy();
       if (runtime) runtime.destroy();
+      chrome.remove();
       pane.remove();
     },
   };

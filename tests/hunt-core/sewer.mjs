@@ -1065,7 +1065,7 @@ const cases = {
     /* more than one hero: 5 minutes into a hunt past the Cellar, one hero on an account that owns an empty slot */
     const one = { roster: [{ slot: 0, level: 6, name: 'Corliss', open: true, hunting: true }], slotsOwned: 2, playLimit: 4, name: 'Corliss' };
     const more = say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }));
-    if (!more || more.id !== 'more_heroes' || more.text !== 'Characters → Create hero') return 'the heroes card reads ' + JSON.stringify(more && more.text);
+    if (!more || more.id !== 'more_heroes' || more.text !== 'Character list → Create hero') return 'the heroes card reads ' + JSON.stringify(more && more.text);
     if ((say(R({ ...inThicket, ...one, huntMs: 4 * 60000 })) || {}).id === 'more_heroes') return 'the heroes card came before 5 minutes';
     /* a card that asks never walls (played 2026-11-01: it sat ahead of the Thicket's lessons in every hunt past 5 minutes) */
     if (!more.gotIt || (say(R({ ...inThicket, ...one, huntMs: 5 * 60000 }, 'more_heroes')) || {}).id === 'more_heroes') return 'Got it does not pass the heroes card';
@@ -1984,7 +1984,7 @@ const cases = {
     if (L.coachHtml(hero(town(), { read: [] }), srv).includes('coach-close')) return srv.id + ' (finished by the server) offers a close';
 
     /* D4 MORE THAN ONE HERO: 5 minutes into the Thicket, one hero, two slots owned: the server's play limit and the
-       roster's slots in the words; Characters, then Create hero ringed; a second hero finishes it */
+       roster's slots in the words; Character list (a phone: Heroes, its sheet's), then Create hero ringed; a second hero finishes it */
     const thicket = (sessionMs) => Object.assign(JSON.parse(JSON.stringify(base)), {
       state: { active_kind: 'combat', active_id: 'meadowbrook_thicket', gold: 5200, level_xp: M.xp.charXpForLevel(6) },
       hunt: { ...base.hunt, hunt_id: 'meadowbrook_thicket', ended: false },
@@ -1993,10 +1993,12 @@ const cases = {
     const solo = hero(thicket(6 * 60000), { read: KNOWN });
     const rows1 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: false }];
     const d4 = card(solo, acct([solo], rows1, 4));
-    if (!d4 || d4.id !== 'more_heroes' || d4.text !== 'Characters → Create hero')
+    if (!d4 || d4.id !== 'more_heroes' || d4.text !== 'Character list → Create hero')
       return '5 minutes into the Thicket with one hero the coach shows ' + JSON.stringify(d4 && [d4.id, d4.text]);
     const d4ring = L.ringPlan(d4, at(null));
-    if (d4ring[0] !== '.char-pick[data-app="create"]' || d4ring[1] !== '.char-tool[data-app="characters"]') return 'More than one hero rings ' + JSON.stringify(d4ring);
+    /* Create hero, then the strip's Character list (a desktop), the Heroes sheet's (a phone, its strip shows only Heroes), then Heroes (UI-10) */
+    if (JSON.stringify(d4ring) !== JSON.stringify(['.char-pick[data-app="create"]', '.char-tool[data-app="characters"]', '[data-hs-win="characters"] [data-app="characters"]', '.char-tool.is-all']))
+      return 'More than one hero rings ' + JSON.stringify(d4ring);
     if ((card(hero(thicket(4 * 60000), { read: KNOWN }), acct([solo], rows1, 4)) || {}).id === 'more_heroes') return 'the more-heroes card came before 5 minutes in the Thicket';
     if ((card(solo, acct([solo], rows1, null)) || {}).id === 'more_heroes') return 'the more-heroes card stated a play limit the server never sent';
     const rows2 = [{ slot: 0, exists: true, level: 6, name: 'Tyler' }, { slot: 1, exists: true, level: 1, name: 'Wren' }];

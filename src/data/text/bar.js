@@ -51,6 +51,9 @@ export const BAR_TEXT = Object.freeze({
   target_ally: 'Goes to the ally who needs it most.',
   target_party: 'Hero and nearby allies',
   target_ward: 'Shields the ally who needs it most.',
+  /* a party shield (Shelter), and a ring that lands only its status (Frost Slam: the status's own words, one row a status) */
+  target_party_shield: 'Shields every hero near you',
+  target_status_ring_chill: 'Chills monsters next to you',
 
   /* A spell's effect lines. */
   effect_mark: 'Target takes {pct}% more damage for {secs} s',
@@ -76,7 +79,7 @@ export const BAR_TEXT = Object.freeze({
   /* what a status does to the monster it lands on, from its row (statuses.js durationMs, slowPm, takenPm) */
   effect_status: 'Causes {status}.',
   effect_status_for: 'Causes {status} for {secs} s.',
-  effect_status_for_slow: 'Causes {status} for {secs} s, {pct}% slower swings',
+  effect_status_for_slow: 'Causes {status} for {secs} s, {pct}% slower attacks and casts',
   effect_status_for_taken: 'Causes {status} for {secs} s, {pct}% more damage taken',
   /* a spell that waits for a level in its own skill (abilities.js unlock), and its slot while the hero is under it */
   unlock: 'Unlocks at {skill} {level}.',
@@ -148,6 +151,10 @@ export const BAR_TEXT = Object.freeze({
      party, and Configure action's line in a party (Tyler 2026-11-09: "Make that callout clear to the player"). */
   alone: 'Solo only',
   alone_party: 'Solo only, does nothing in a party',
+  /* Its mirror (abilities.js `party`, the tank's rune spells, Tyler 2026-11-19: "Tank spells should be party only"): the card, the tooltip,
+     the greyed slot while the hero hunts alone, and Configure action's line for a hero with no party. */
+  party_only: 'Party only',
+  party_only_alone: 'Party only, does nothing alone',
 
   /* Why a slot cannot fire now. */
   waiting: { one: '{n} in backpack, press to carry it in', other: '{n} in backpack, press to carry them in' },

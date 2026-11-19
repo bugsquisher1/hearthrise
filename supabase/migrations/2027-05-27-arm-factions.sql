@@ -1,14 +1,16 @@
 -- ════════════════════════════════════════════════════════════════════════
 -- 2027-05-27-arm-factions.sql — THE FACTIONS ON FOR EVERYONE: the server switch `factions` moves to everyone
---   (lane/b-factions-open, systems-engineer, 2026-11-19; the First Flame and the Last Ember open in v0.2.142).
+--   (lane/b-factions-open, systems-engineer, 2026-11-19; the First Flame and the Last Ember open once a live ground pays standing).
 --
--- STATUS: STAGED, NOT APPLIED. The Coordinator applies (tools/apply-migration.mjs, one file, never inside begin/commit) with the v0.2.142
--- release. Pre-EA: applies on its passing §2. A COSMETIC SURFACE OTHERS SEE OPENED (a side's standing, the pieces it buys and the looks they
+-- STATUS: STAGED, NOT APPLIED, HELD until the Morrow Hills open (the faction QA 2026-11-19, finding 1: no live ground pays standing; the
+-- Morrow Hills' three paying grounds are all staged at Level ~112+). Not with v0.2.142: the Coordinator applies (tools/apply-migration.mjs,
+-- one file, never inside begin/commit) in the patch that opens the first Morrow pair. Pre-EA: applies on its passing §2. A COSMETIC SURFACE OTHERS SEE OPENED (a side's standing, the pieces it buys and the looks they
 -- dress, worn in town and in parties): ON THE EA SECURITY LIST with its parents, 2027-04-22-faction-standing.sql,
 -- 2027-04-23-faction-section.sql and 2027-05-19-faction-outfit-path.sql, whose contracts, concurrency and exploit notes are unchanged by
 -- this file. No gold, item, XP or power moves through any faction verb.
 -- ORDER: LAST. After every faction file (2027-04-22-faction-catalogue.generated.sql, 2027-04-22-faction-standing.sql,
---   2027-04-23-faction-section.sql, 2027-05-19-faction-outfit-path.sql, 2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql).
+--   2027-04-23-faction-section.sql, 2027-05-19-faction-outfit-path.sql, 2027-05-19-faction-outfit-path-outfits-catalogue.generated.sql,
+--   2027-05-28-faction-swap-cancel.sql).
 --   2027-04-23-faction-section.sql seeds the row off with `on conflict do nothing`, so its re-apply never reverts this flip, and its §4
 --   (like 2027-05-19-faction-outfit-path.sql's) puts the switch back as its probe found it.
 -- EDGE: none moves with this file, and none must be live first: the engine reads no switch for the factions (the settle's standing

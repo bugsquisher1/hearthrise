@@ -82,7 +82,10 @@ async function load(base) {
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(base, 'assets/world/atlas-' + set + '.json'), 'utf8'));
-  return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests,
+  /* every client module importing ATLAS_SETS (every base-grid set, the worn ones included) (A3) */
+  const atlasReaders = readdirSync(join(base, 'src'), { recursive: true }).map((f) => String(f).replace(/\\/g, '/'))
+    .filter((f) => f.endsWith('.js') && /import\s*\{[^}]*\bATLAS_SETS\b[^}]*\}\s*from/.test(readFileSync(join(base, 'src', f), 'utf8')));
+  return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests, atlasReaders,
     sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
@@ -858,6 +861,10 @@ async function check(M) {
     const wornIds = Object.entries(M.atlasSets.WORN_SETS).flatMap(([set, ids]) => ids.map((id) => [set, id]));
     ok('A3', wornIds.length > 0 && wornIds.every(([set, id]) => M.atlasSets.HERO_SETS.includes(set) && Object.values(M.outfits.OUTFITS).includes(id) && setOf(id) === set),
       'the worn sets ' + JSON.stringify(M.atlasSets.WORN_SETS) + ' are not hero sets whose outfits the book draws from them');
+    /* ...and no client module reads every set: the World's first open, the Hunts window's creatures and the rest read FIRST_OPEN_SETS */
+    ok('A3', !M.atlasReaders.length, 'src/' + M.atlasReaders.join(', src/') + ' reads ATLAS_SETS, the worn sets included: every player would fetch the faction looks\' manifest (read FIRST_OPEN_SETS)');
+    ok('A3', !M.atlasSets.FIRST_OPEN_SETS.some((s) => worn.has(s)) && M.atlasSets.FIRST_OPEN_SETS.length === M.atlasSets.ATLAS_SETS.length - worn.size,
+      'FIRST_OPEN_SETS is not every set but the worn ones: ' + M.atlasSets.FIRST_OPEN_SETS.join(', '));
     /* non-vacuity: the Common leaves out a sheet the hunting grounds need (else A2 proves nothing about boot) */
     const town = new Set(M.sceneSets.sceneSets(compiled('town_common'), rows.town_common, book, tables));
     const ground = new Set(base.filter((r) => r.kind === 'hunt').flatMap((r) => M.sceneSets.sceneSets(compiled(r.id), r, book, tables)));
@@ -986,7 +993,7 @@ async function check(M) {
 }
 
 /* src/data and src/core whole: the scene sheets (src/world/scene-sets.js) read the grounds, effects and rooms, and those their own imports */
-const COPY = ['src/world', 'src/data', 'src/core', 'src/render/images.js', 'src/build-info.js', 'src/render/player-text.js', 'assets/world'];
+const COPY = ['src/world', 'src/data', 'src/core', 'src/render/images.js', 'src/build-info.js', 'src/render/player-text.js', 'src/render/creature-sprite.js', 'assets/world'];
 function copyTree() {
   const dir = mkdtempSync(join(tmpdir(), 'world-core-'));
   for (const p of COPY) {
@@ -1087,6 +1094,8 @@ const MUTANTS = [
   ['G2', 'a missing sprite resolves to nothing', 'src/world/core/book.js', [['const sprite = (id) => sprites[id] || STUB_SPRITE;', 'const sprite = (id) => sprites[id];']]],
   ['A1', 'the scene sheets forget the heroes', 'src/world/scene-sets.js', [['  const ids = new Set(SCENE_OUTFITS);', '  const ids = new Set();']]],
   ['A3', 'every scene loads the faction looks again', 'src/world/scene-sets.js', [['  const ids = new Set(SCENE_OUTFITS);', '  const ids = new Set(Object.values(OUTFITS));']]],
+  ['A3', 'the first open reads the faction looks\' manifest again', 'src/world/atlas.js', [["import { FIRST_OPEN_SETS } from '../data/world/atlas-sets.js", "import { ATLAS_SETS as FIRST_OPEN_SETS } from '../data/world/atlas-sets.js"]]],
+  ['A3', 'the Hunts window reads the faction looks\' manifest again', 'src/render/creature-sprite.js', [["import { FIRST_OPEN_SETS } from '../data/world/atlas-sets.js", "import { ATLAS_SETS as FIRST_OPEN_SETS } from '../data/world/atlas-sets.js"]]],
   ['A1', 'the scene sheets forget the hunt effects', 'src/world/scene-sets.js', [['    for (const id of effectIds()) ids.add(id);\n', '']]],
   ['A1', 'the scene sheets forget the home\'s furniture', 'src/world/scene-sets.js', [['  const layout = ROOM_LAYOUTS[row.id];', '  const layout = null;']]],  ['A2', 'every scene loads every sheet', 'src/world/scene-sets.js', [['  return fetchOrder(sets, groundTiles, book);', '  for (const id of Object.keys(book.sprites)) note(book.frame(id).set);\n  return fetchOrder(sets, groundTiles, book);']]],
   ['G4', 'the bleed badge floors at 11 px again', 'src/world/render/canvas-backend.js', [['const px = Math.max(Math.round(4.5 * zs), Math.round(12 * dpr));', 'const px = Math.max(Math.round(4.5 * zs), Math.round(11 * dpr));']]],

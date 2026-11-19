@@ -777,7 +777,7 @@ const MUTANTS = [
   ['the sheet bar shares its row with the name again (CW-10)', 'src/styles/character.css', 'grid-template-areas: "glyph name xp lv" ". bar bar bar" ". next next next"; row-gap: 2px;', 'grid-template-areas: "glyph name bar lv" ". xp xp xp" ". next next next"; row-gap: 2px;'],
   ['every unlock is on the line again (CW-10)', 'src/shell/windows/skills.js', "text(nx.querySelector('.hw-skill-one'), u.one);", "text(nx.querySelector('.hw-skill-one'), u.all);"],
   ['a value says what it is measured against again (CW-10)', 'src/shell/windows/character/sheet.js', "c && c.dodgePct !== null ? c.dodgePct + '%' : null", "c && c.dodgePct !== null ? c.dodgePct + '% of blows vs a monster of the same Level' : null"],
-  ['the wardrobe shows the whole frame again (CW-10)', 'src/shell/windows/character/index.js', "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, FIGURE)", "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, null)"],
+  ['the wardrobe shows the whole frame again (CW-10)', 'src/shell/windows/character/index.js', "paintCanvas(ctx.doc, canvas, OUTFITS[id], 's', 1, dyes, FIGURE)", "paintCanvas(ctx.doc, canvas, OUTFITS[id], 's', 1, dyes, null)"],
   ['the FIGURE is cut to the body (CW-10)', 'src/render/outfit-sprite.js', 'export const FIGURE = Object.freeze([13, 15, 42, 45]);', 'export const FIGURE = Object.freeze([16, 19, 32, 40]);'],
 ];
 

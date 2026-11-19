@@ -26,7 +26,7 @@ import { heroSprite } from '../../../session/hero-look.js?v=0.2.141';
 import { attr, cls, prop } from '../../../render/paint.js?v=0.2.141';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
 import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.141';
-import { heroSetsFor } from '../../../data/world/atlas-sets.js?v=0.2.141';
+import { heroSetsFor, maskSetsFor } from '../../../data/world/atlas-sets.js?v=0.2.141';
 import { scratchOf } from './state.js?v=0.2.141';
 import { sheetHtml, patchSheet } from './sheet.js?v=0.2.141';
 import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.141';
@@ -63,6 +63,9 @@ function wantArt(doc, sprites) {
 
 /** The skeleton (built once per opening). */
 export function renderCharacter(ctx) {
+  /* a hero or mask set that failed to load is asked for again on the next opening (each loader asks only for what it does not hold) */
+  if (ART && ART.sets.length < heroSetsFor([...wanted]).length) artKey = null;
+  if (MASKS && MASKS.sets.length < maskSetsFor([...wanted]).length) maskKey = null;
   wantArt(ctx.doc);
   if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; sc.price = null; sc.priceAskedAt = 0; }
   return '<div class="hw-cs">'
@@ -87,10 +90,11 @@ function askSheet(cs, sc) {
   Promise.resolve(cs.edgeIntent('sheet', {})).catch(() => null).then(() => { sc.sheetAsking = false; sc.opening = 'done'; });
 }
 
-/* Draw `sprite` into a canvas once per (sprite, facing, dyes, art landed): the canvas keeps its signature. */
-function paintCanvas(canvas, sprite, dir, scale, dyes, crop) {
+/* Draw `sprite` into a canvas once per (sprite, facing, dyes, art landed): the canvas keeps its signature. `doc` is the window's own
+   document: a card just built is still in its template's inert one, whose base URL reaches no atlas. */
+function paintCanvas(doc, canvas, sprite, dir, scale, dyes, crop) {
   if (!canvas) return;
-  wantArt(canvas.ownerDocument, [sprite]);
+  wantArt(doc, [sprite]);
   if (!ART) return;
   const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + gen + '|' + !!crop;
   if (canvas.getAttribute('data-sig') === sig) return;
@@ -114,13 +118,13 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   askSheet(cs, sc);
   if (sc.tab === 'sheet') {
     const base = (outfitOf(cs) || {}).base || null;
-    patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');
+    patchSheet(body, ctx, (canvas) => paintCanvas(ctx.doc, canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');
   } else if (sc.tab === 'outfit') {
     const d = draftOf(cs, sc);
     /* every outfit in the grid and the big preview wear the colors being tried on: one set, across every outfit */
     const dyes = dyesOf(colorsShown(cs, d), ctx.doc);
-    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, FIGURE), () => renderCharacter.patch(body, ctx));
-    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyes);
+    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(ctx.doc, canvas, OUTFITS[id], 's', 1, dyes, FIGURE), () => renderCharacter.patch(body, ctx));
+    paintCanvas(ctx.doc, body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyes);
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
   else if (sc.tab === 'faction') patchFaction(body, ctx, sc);
   else patchDeaths(body, ctx, sc);

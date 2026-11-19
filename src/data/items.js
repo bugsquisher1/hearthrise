@@ -471,8 +471,8 @@ export const ITEMS={
      spots now climbs 7,031 / 7,200 / 7,435 / 7,615 / 8,036. The same numbers
      live in hr_items.heals and hr_feast_foods (2026-09-26-deep-waters.sql).
      RULED, STATED HONESTLY (the pack's "stays under" claim was false):
-     (i)  Cooked Moonfish 50 is ABOVE the gated Dragon Stew 45 and EQUAL to
-          Lich Soul Soup 50; only Void Banquet 60 stays above it. It is the top
+     (i)  Cooked Moonfish 50: only Void Banquet 60 stays above it (the gated
+          cookbook feasts at 45 and 50 were cut 2026-11-18). It is the top
           auto-eatable healing Provision (above Moonbloom Elixir 40). The
           ceiling is 50 for a foodClass 'healing' item — pinned by DEEPWATERS-4.
      (ii) The auto-eat fallback (biggest healer, when nothing covers the

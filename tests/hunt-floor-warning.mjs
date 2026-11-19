@@ -205,10 +205,12 @@ async function run(base) {
     const rec = HL.recommendation(HL.adviceLevels(5, duo), 2, rows);
     ok('G9', !!rec.row && rec.row.hunt !== 'mill_cellar' && rec.row.band[0] <= 5, 'a Level 5 and a Level 1 are advised ' + (rec.row && rec.row.hunt) + ', the ground the leader has outgrown');
     ok('G9', HL.recommendation([4, 1], 2, rows).row.hunt === 'mill_cellar', 'CONTROL: a party under the exit is still advised the Cellar: ' + HL.recommendation([4, 1], 2, rows).row.hunt);
-    const grown = HL.seatsOutgrown(cellar, duo, 5);
-    ok('G9', grown.map((s) => s.name).join() === 'Wren' && HL.outgrownWords(cellar, grown, duo) === 'Ground outgrown at Level 5: Wren, Level 5',
+    const has = typeof HL.seatsOutgrown === 'function' && typeof HL.outgrownWords === 'function';
+    ok('G9', has, 'hunt-list.js reads no seat that has outgrown a ground (seatsOutgrown, outgrownWords)');
+    const grown = has ? HL.seatsOutgrown(cellar, duo, 5) : [];
+    if (has) ok('G9', grown.map((s) => s.name).join() === 'Wren' && HL.outgrownWords(cellar, grown, duo) === 'Ground outgrown at Level 5: Wren, Level 5',
       'Enter\'s off line reads ' + JSON.stringify(HL.outgrownWords(cellar, grown, duo)));
-    ok('G9', HL.outgrownWords(cellar, HL.seatsOutgrown(cellar, null, 5), null) === 'Ground outgrown at Level 5, pick a harder one' && HL.seatsOutgrown(cellar, null, 4).length === 0
+    if (has) ok('G9', HL.outgrownWords(cellar, HL.seatsOutgrown(cellar, null, 5), null) === 'Ground outgrown at Level 5, pick a harder one' && HL.seatsOutgrown(cellar, null, 4).length === 0
       && HL.seatsOutgrown(rows.find((r) => r.hunt === 'meadowbrook_thicket'), duo, 5).length === 0, 'alone, or a ground with no exit, reads wrong');
     ok('G9', win.includes('const off = now ? \'\' : enterOffWords(party) || outgrownWords(r, grown, party);') && win.includes('if (off) prop(enter, \'disabled\', true);'),
       'the Hunts window does not turn Enter off for an outgrown seat');

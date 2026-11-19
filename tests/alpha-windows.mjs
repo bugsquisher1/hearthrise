@@ -3559,11 +3559,17 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (!opened) fails.push('AW-14 a click on the mill hatch did not open Hunts on the Mill Cellar');
         else {
           if (shots) await shot(page, 'alpha-1440x900-hunts');
+          /* the fixture hero is Level 7: the Cellar's hunt ends at 5 (hunt-grounds.js endsAtLevel) and its door refuses it, so Enter is off and
+             says so (blind playthrough 2026-11-19, P1; tests/hunt-floor-warning.mjs G9 holds the rule); the hero goes on to the Thicket */
+          const cellarOff = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'); return { off: w.querySelector('.hw-hunt-enter').disabled, why: w.querySelector('.hw-enter-why').textContent }; });
+          if (!cellarOff.off || cellarOff.why !== 'Ground outgrown at Level 5, pick a harder one') fails.push('AW-14 a Level 7 hero\'s Cellar Enter reads ' + JSON.stringify(cellarOff));
+          await page.click('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"]');
+          await page.waitForTimeout(300);
           await page.click('[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter');
           await page.waitForTimeout(700);
           const enter = sent(s, 'hr_hunt_enter');
           const b = enter[0] && enter[0].body;
-          if (enter.length !== 1 || b.p_hunt !== 'mill_cellar' || b.p_slot !== 0 || !Array.isArray(b.p_bag) || Object.keys(b).some((k) => /price|gold|total|cost/.test(k)))
+          if (enter.length !== 1 || b.p_hunt !== 'meadowbrook_thicket' || b.p_slot !== 0 || !Array.isArray(b.p_bag) || Object.keys(b).some((k) => /price|gold|total|cost/.test(k)))
             fails.push('AW-14 Enter sent ' + JSON.stringify(enter.map((c) => c.body)));
           const bread = b && b.p_bag.find((l) => l.item === 'wheat_bread');
           if (!bread || bread.qty !== 14) fails.push('AW-14 the hunt did not carry the whole bread stack: ' + JSON.stringify(b && b.p_bag));

@@ -202,6 +202,8 @@
     "node tools/mutant-gate.mjs node tests/perf-budget.mjs --mutate --shard=1/5": "perf",
     "node tests/hunt-core/run-all.mjs": "economy-selftests",
     "node tools/balance-sim/sim.mjs --smoke": "economy-selftests",
+    "node tests/balance-calibration.mjs": "economy-selftests",
+    "node tools/mutant-gate.mjs node tests/balance-calibration.mjs --mutate": "economy-selftests",
     "node tests/party-class-xp-line.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/party-class-xp-line.mjs --mutate": "economy-selftests",
     "node tests/basic-attack-interval.mjs": "economy-selftests",

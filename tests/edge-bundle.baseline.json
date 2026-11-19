@@ -48,6 +48,11 @@
         "bytes": 3083247,
         "on": "2026-11-19",
         "why": "lane/d-first-day-path: the Cellar's exit at Level 5 (hunt-grounds.js endsAtLevel, END_ORDER outgrown, combat-sim.js readLevels, the Warrens' soloFrom note), +2.3 KB"
+      },
+      {
+        "bytes": 3083360,
+        "on": "2026-11-19",
+        "why": "lane/a-tower-andy, +113 B over the set's ceiling: hunt-rewards.js livingAt/fallsAt read the heroes alive at each kill, not at the swing's end (a hero who kills and falls in one swing journals the kill it was paid XP for; Andy's Tower forfeit 2026-11-19)"
       }
     ]
   }

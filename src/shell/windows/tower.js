@@ -90,8 +90,9 @@ export function enterBlock(cs, tw, landing) {
   return '';
 }
 
-/** The heroes the tower shows: you (on the floor you climb now, else your best), your party's other seats at their bests, and the field's
-    rivals when the server sends a field. Every floor the section's. Pure over the sections. */
+/** The heroes the tower shows: you (on the floor you climb now, else your best), your party's other seats where the server stands them (on
+    the climb's floor while they climb it with you, else at their bests), and the field's rivals when the server sends a field. Every floor
+    the section's. Pure over the sections. */
 function climbHeroes(cs, tw) {
   const party = partyMembershipOf(cs);
   const roleOf = (seat) => { const s = party ? party.seats.find((x) => x.seat === seat) : null; return s ? s.role : null; };

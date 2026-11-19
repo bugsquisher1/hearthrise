@@ -1,0 +1,4 @@
+{
+  "seq": 431,
+  "note": "APPLIED 2026-10-24 02:21 UTC by the Coordinator (after v0.2.38, the Broadcast client, was live on Pages; supabase_realtime publication verified empty; no function moved, live-hash unchanged). Was STAGED (lane/c-realtime, backend-architect, 2026-10-23). ORDER-SENSITIVE: apply only AFTER the client release that listens on Broadcast (src/social/realtime.js) is LIVE; before it, the v0.2.36 client would hear no live chat line until it reloads. Drops chat_messages and chat_whispers from supabase_realtime (the publication becomes empty; the tables, rows, RLS and history reads are untouched). §0 refuses unless both broadcast triggers exist and are enabled. No function moves."
+}

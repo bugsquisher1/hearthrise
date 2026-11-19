@@ -110,7 +110,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'copper_ore', ch: 0.4, band: 'common' }, { id: 'green_rivet', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.0043, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0043, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0043, band: 'scarce' },
         { id: 'mithril_sword', ch: 0.0057, band: 'scarce' }],
-      hp: 68, atk: 28, baseAcc: 1.1, def: 17, xp: 514, gp: [10, 30], formula: true },
+      hp: 74, atk: 30, baseAcc: 1.06, def: 17, xp: 537, gp: [11, 33], formula: true },
     bargeman: {
       name: 'Bargeman', icon: '🧟', tier: 4, level: 54, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the flat: the barge's crew. Where the Fordsunk's bloat swallows arrows, the crew's cracked
@@ -121,7 +121,7 @@ export default definePack({
         { id: 'mithril_platelegs', ch: 0.0356, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0356, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0356, band: 'scarce' },
         { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
         { id: 'mithril_belt', ch: 0.0027, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0027, band: 'rare' }, { id: 'warlock_belt', ch: 0.0027, band: 'rare' }],
-      hp: 109, atk: 28, baseAcc: 1.12, def: 30, xp: 935, gp: [16, 48], formula: true },
+      hp: 120, atk: 30, baseAcc: 1.08, def: 30, xp: 988, gp: [18, 53], formula: true },
     mudlark: {
       name: 'Mudlark', icon: '🪝', tier: 4, level: 52, cls: 'undead', family: 'Undead', speed: 4400,
       /* the skirmisher: the river scavengers who picked the dead and drowned among them. Small, crouched and quick enough to catch
@@ -129,10 +129,10 @@ export default definePack({
          dead, and a bow, and the Grave Dust goes in the sack with them. */
       weaponWeak: 'magic', weaponResist: ['ranged'],
       drops: [{ id: 'bone_chips', ch: 0.4, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'mudlark_hook', ch: 0.08, band: 'uncommon' },
-        { id: 'mithril_helm', ch: 0.0158, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0158, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0158, band: 'scarce' },
+        { id: 'mithril_helm', ch: 0.0167, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0167, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0167, band: 'scarce' }, // 0.0158 -> 0.0167 (lane/d-harder-monsters 2026-11-19: 1.51 h)
         { id: 'maple_bow', ch: 0.021, band: 'scarce' },
         { id: 'mithril_gauntlets', ch: 0.0012, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0012, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0012, band: 'rare' }],
-      hp: 66, atk: 37, baseAcc: 1.05, def: 18, xp: 608, gp: [10, 29], formula: true },
+      hp: 72, atk: 41, baseAcc: 0.97, def: 18, xp: 637, gp: [11, 31], formula: true },
     color_sergeant: {
       name: 'Color Sergeant', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier, who holds the grounded barge with the company's colors. No override: the one body on the
@@ -143,7 +143,7 @@ export default definePack({
         { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' },
         /* the tank's off-hand beside the Mage's (shields.js, the audit's F8): the sergeant's own shield */
         { id: 'mithril_faced_shield', ch: 0.0033, band: 'rare' }],
-      hp: 156, atk: 37, baseAcc: 1.12, def: 38, xp: 1439, gp: [23, 69], formula: true },
+      hp: 171, atk: 40, baseAcc: 1.06, def: 38, xp: 1514, gp: [25, 76], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (58) for 0.90-1.10 of the
      pace contract (288,135 an hour at 58). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.05 the middle
@@ -167,9 +167,12 @@ export default definePack({
      death at 465k XP a head. OPEN, ONE ROW OF THE GRADE: five under on Dangerous the sheet also asks that pair to die. It never
      did. Every solo ground fails that row today. */
   /* THE BARGEMAN'S SPELL (the area spells board's seed row, lane/b-pack-fields): river water over the whole group, frost. One of
-     the Slake's own rows, folded into MONSTER_SPELLS (monster-spells.js); the Corded Frost Lining is its answer. */
+     the Slake's own rows, folded into MONSTER_SPELLS (monster-spells.js); the Corded Frost Lining is its answer.
+     1800 EVERY 12 S (was 1500 every 16; lane/d-harder-monsters, 2026-11-19, the balance audit's fix 2): it was the Slake's one spell on the back
+     seats and a recorded Deadly four's bow, Mage and Healer took about 2.7k an hour from it. The Bargeman's swing tops out at 120, so it lands up to
+     216 on every hero, 33% of a bare floor hero (the 35% rule binds just above), and a third more often. */
   spells: {
-    cold_bilge: { n: 'Cold Bilge', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1500, element: 'frost' },
+    cold_bilge: { n: 'Cold Bilge', shape: 'group', range: 6, windupMs: 2000, cdMs: 12000, hitPm: 1800, element: 'frost' },
   },
   roster: {
     greened_pikeman: 'swarm',   // the common majority
@@ -199,7 +202,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.59-0.68, threes 0.46-0.64, fours 0.18-0.51), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 1.06-1.15, threes 1.00-1.09, the four 1.09); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-45, -5], 3: [-50, -20, -15], 4: [-65, -35, -30, -30] }, dangerous: { 2: [-30, 20], 3: [-30, 15, 20], 4: [-35, 5, 10, 10] }, deadly: { 2: [-30, 20], 3: [-25, 20, 25], 4: [-35, 5, 10, 15] } },
+  partyVsAlone: { normal: { 2: [-40, 0], 3: [-50, -15, -10], 4: [-60, -30, -30, -25] }, dangerous: { 2: [-30, 20], 3: [-30, 15, 20], 4: [-35, 5, 10, 10] }, deadly: { 2: [-25, 25], 3: [-25, 25, 30], 4: [-30, 15, 20, 20] } },
   /* THE BAG (supplies.js BAG_GUIDE_BY_HUNT's shape): the Warrens' tier-3 store food, the cheapest heal an HP (Salted Lobster, 0.83 g
      an HP. The tier-4 Swordfish is 1.50). The melee line holds about three hours of a lone tank's bill at the floor (6.3k g an
      hour, drop-tables). */

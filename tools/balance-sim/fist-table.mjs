@@ -21,6 +21,7 @@
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCellRunner } from './cell.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -55,7 +56,7 @@ const flags = () => ({ ...(arg('heal') ? { heal: Number(arg('heal')) } : {}), ..
 async function withSample(o, fn) {
   const p = plant(plantedEdits(o), [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try {
-    const imp = async (f) => import(pathToFileURL(join(p.root, f)).href + '?v=' + (await import(pathToFileURL(join(p.root, 'src/build-info.js')).href)).BUILD.version);
+    const imp = async (f) => import(pathToFileURL(join(p.root, f)).href + sourceQuery(p.root));
     const R = await loadCellRunner(p.root);
     const M = { AD: await imp('src/data/abilities.js'), FISTS: await imp('src/data/fists.js'), XP: await imp('src/core/xp.js'), EL: await imp('src/core/elements.js'),
       MON: await imp('src/data/monsters.js'), G: await imp('src/data/hunt-grounds.js'), SB: await imp('src/data/supply-basics.js'), RUNES: await imp('src/data/runes.js'),

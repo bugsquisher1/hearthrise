@@ -44,6 +44,7 @@
 
 import { bootReplay } from './schema-replay.mjs';
 import { isMain as isEntryModule } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const MIG = '2026-08-16-client-write-grant-sweep-2.sql';
 const PRED = '2026-08-16-client-write-grant-sweep.sql';
@@ -552,8 +553,7 @@ async function run({ patches } = {}) {
     const _fs = await import('node:fs/promises');
     const _path = await import('node:path');
     const { ROOT: _ROOT } = await import('./schema-replay.mjs');
-    const _order = JSON.parse(await _fs.readFile(
-      _path.join(_ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const _order = loadApplyOrder(_ROOT).order;
     const _selfPos = _order.indexOf(MIG);
     const _eatenSelf = new Set();
     for (const f of sweeps) {

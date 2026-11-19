@@ -82,7 +82,7 @@ export default definePack({
       /* the swarm, the common majority: somebody's grandmother, sewn into a gray sheet and tied at the head and feet, with a wooden tag on the
          wrist. Undead, no override: a hammer breaks them, fire does 15% more. Bones and grave dust for the Hearth, and the tag. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'owing_tag', ch: 0.08, band: 'uncommon' }],
-      hp: 216, atk: 140, baseAcc: 1.18, def: 80, xp: 2838, gp: [32, 95], formula: true },
+      hp: 238, atk: 154, baseAcc: 0.9, def: 80, xp: 3002, gp: [35, 105], formula: true },
     vault_leech: {
       name: 'Vault Leech', icon: '🪱', tier: 6, level: 169, cls: 'vermin', family: 'Vermin', speed: 2800,
       /* the glass: a leech as long as your arm that came in with the river and fed on the vaults for a hundred years. Vermin, one override on the
@@ -90,7 +90,7 @@ export default definePack({
          the shop, and its jaw. */
       weaponWeak: 'sword', weaponResist: ['ranged'],
       drops: [{ id: 'live_leech', ch: 0.4, band: 'common' }, { id: 'leech_jaw', ch: 0.08, band: 'uncommon' }],
-      hp: 206, atk: 184, baseAcc: 0.45, def: 81, xp: 3271, gp: [30, 91], formula: true },
+      hp: 227, atk: 202, baseAcc: 0.09, def: 81, xp: 3460, gp: [33, 100], formula: true },
     bone_wall: {
       name: 'Bone Wall', icon: '💀', tier: 6, level: 173, cls: 'construct', family: 'Construct', speed: 2400,
       /* the heavy: a stretch of the ossuary, skulls and long bones the Keepers set in lime to make room, that pulled itself off the wall. A
@@ -98,7 +98,7 @@ export default definePack({
          (`spells` below): the tank holds, everyone else steps off. Big Bones and Bone Chips, and a lump of the lime. */
       spells: ['bone_slide'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.5, band: 'common' }, { id: 'lime_mortar', ch: 0.08, band: 'uncommon' }],
-      hp: 338, atk: 137, baseAcc: 1.32, def: 118, xp: 4966, gp: [50, 149], formula: true },
+      hp: 371, atk: 150, baseAcc: 1.06, def: 118, xp: 5232, gp: [55, 163], formula: true },
     night_carter: {
       name: 'Night Carter', icon: '🪝', tier: 6, level: 176, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of the men who dug in from the Sewer side and sold the unburned dead up the north road by the cartload. Their buyer's
@@ -106,7 +106,7 @@ export default definePack({
          party (Lime Sack, `spells` below). The gold he was paid in, and his hook. */
       spells: ['lime_sack'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'carters_hook', ch: 0.08, band: 'uncommon' }],
-      hp: 286, atk: 174, baseAcc: 0.74, def: 92, xp: 3846, gp: [42, 126], formula: true },
+      hp: 315, atk: 191, baseAcc: 0.4, def: 92, xp: 4067, gp: [46, 139], formula: true },
     keeper_dunn: {
       name: 'Keeper Dunn', icon: '🕯️', tier: 6, level: 181, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite and the rare carrier: the Keeper who locked the door from the inside and stayed. He's still reading the names out of the Wood
@@ -115,7 +115,7 @@ export default definePack({
          waits on its reveal icon (the header). */
       spells: ['snuff_the_candles'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
-      hp: 471, atk: 178, baseAcc: 0.76, def: 138, xp: 7366, gp: [69, 208], formula: true },
+      hp: 518, atk: 196, baseAcc: 0.4, def: 138, xp: 7777, gp: [76, 229], formula: true },
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },
@@ -139,11 +139,16 @@ export default definePack({
     live_leech: 'A leech off the vault floor, still alive. Somebody in town always buys leeches',
   },
   /* THE CATACOMBS' THREE (src/data/monster-spells.js rows; numbers start from rows that already play: Venom Spray's ring, Blasting Charge's group, the
-     Turncoat's rare group spell scaled down). Measured with the ground on the grade, not tuned one at a time. */
+     Turncoat's rare group spell scaled down). Measured with the ground on the grade, not tuned one at a time.
+     BONE SLIDE 1800 (was 2000; lane/d-harder-monsters, 2026-11-19): the formula's blows are x1.1 since Tyler's "raise HP and damage done by all monsters
+     slightly", so the Bone Wall's swing tops out at 330 (was 301), and at 2000 the slide landed 660, 37% of a bare floor hero's 1,790 HP, past the 35%
+     no monster may hit at a ground's floor (designer 2026-10-21, tests/hunt-core/hunt-data.mjs blow-share). At 1800 it lands 594 (33%), where it stood
+     (602): the wall's swing takes the step, the slide holds the rule. SNUFF THE CANDLES 1350 (was 1500), the same rule: Keeper Dunn's swing tops out at
+     431 (was 391), and at 1500 his snuff landed 646 on every hero, 36%; at 1350 it lands 581 (32%), where it stood (586). */
   spells: {
-    bone_slide: { n: 'Bone Slide', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 18000, hitPm: 2000, element: null },
+    bone_slide: { n: 'Bone Slide', shape: 'ring', r: 1, range: 1, windupMs: 1600, cdMs: 18000, hitPm: 1800, element: null },
     lime_sack: { n: 'Lime Sack', shape: 'group', range: 6, windupMs: 2000, cdMs: 24000, hitPm: 1000, element: 'poison' },
-    snuff_the_candles: { n: 'Snuff the Candles', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 1500, element: 'frost' },
+    snuff_the_candles: { n: 'Snuff the Candles', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 1350, element: 'frost' },
   },
   /* THE BAG: the Ox Road's store food, and the fire rune (18 heads in 24 are Undead or the Bone Wall). A caster keeps an ice slot for the Bone Wall
      (fire does 25% less on it). `storeFloor` (the March's rule, lane/d-march-balance): MEASURED on the quick grade (1 seed x 1 h, lane/d-catacombs
@@ -170,7 +175,7 @@ export default definePack({
      way: one class is the mean of its five one-class parties (0.69 / 0.63 / 0.52), two of two the mean of three duos (1.16), three of three of two
      trios (1.10), four of four the one played (1.08), the cells between the size's mix times the cell ratio. Whole fives. Every same-class party is
      under solo (worst 0.75, two bows). */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-55, -25, -20, -20] }, dangerous: { 2: [-5, 65], 3: [-5, 55, 60], 4: [-20, 30, 35, 40] }, deadly: { 2: [-10, 50], 3: [0, 60, 65], 4: [-20, 35, 40, 45] } },
+  partyVsAlone: { normal: { 2: [-35, 0], 3: [-45, -10, 0], 4: [-55, -20, -20, -15] }, dangerous: { 2: [-10, 50], 3: [0, 60, 70], 4: [-20, 35, 40, 45] }, deadly: { 2: [-30, 20], 3: [-10, 50, 55], 4: [-20, 35, 40, 45] } },
   /* THE BRIDGE (tests/hunt-core/forest-cave.mjs one-choke): the plank bridge over the deep water from the Flooded Vault to the Keepers' Room.
      THE DROP PACE'S REFERENCE (tests/hunt-core/drop-tables.mjs floor-hour): a tank and Healer in the full set. A lone tank on that guard's bar died
      in its fifth minute at the floor (the grade's lone tank on Salted Lobster lives, 0 deaths), so the pair, which holds the floor hour clean. The value

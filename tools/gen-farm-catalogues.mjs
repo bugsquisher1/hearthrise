@@ -33,7 +33,7 @@
 // drift-guarded (`--check`, a preflight in tests/run-smoke.mjs), so the copy
 // cannot rot.
 //
-//   Regenerate:  node tools/gen-farm-catalogues.mjs   (an APPLIED target is refused: --new <file>)
+//   Regenerate:  node tools/gen-farm-catalogues.mjs   (an APPLIED target is refused: --new <slug>)
 //   Verify:      node tools/gen-farm-catalogues.mjs --check   (run in run-smoke)
 //
 // DELIBERATELY NOT HERE (documented UNDER-pay of farmYield — the safe direction

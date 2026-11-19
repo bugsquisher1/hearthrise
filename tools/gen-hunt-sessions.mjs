@@ -360,7 +360,11 @@ export const WORLD_FIELDS_READ = Object.freeze({
    2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) is the file before this one and this one carries it whole. END_ORDER's
    outgrown joins hr_hunt_end_reasons and hunt_sessions.end_reason's CHECK, and hr_hunt_grounds gains ends_at_level (hunt-grounds.js endsAtLevel).
    Read by 2027-05-28-cellar-outgrown.sql (the door's refusal and the settle's proof), applied right after it. */
-export const OUT_NAME = '2027-05-28-cellar-outgrown-hunt-sessions-catalogue.generated.sql';
+/* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-28-cellar-outgrown-hunt-sessions-catalogue
+   (STAGED on set/v0.2.142, applied first) is the file before this one and this one carries it whole. hr_hunt_kill_bounds moves (and the called Chief's Cauldron rate in hr_boss_calls, the field Chief's): every formula monster's HP
+   is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
+   end reason, vendor value or world shape moves. ORDER: after every 2027-05-28 file. */
+export const OUT_NAME = '2027-06-05-harder-monsters-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1115,7 +1119,13 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/d-first-day-path, systems-engineer, 2026-11-19; the board's 2026-11-19 complete balance look, change 1: three of seven
+-- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
+-- slightly"). It carries 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
+-- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill
+-- Cellar's Slime XP falls 35 -> 33, its fit 1.22). hr_boss_calls' called Chief carries the field Chief's Cauldron at its new rate. No ground, spawn,
+-- limit, bid, end reason or world shape moves. ORDER: after this lane's items file. EDGE: hr-accrue with this lane's src/data right after its five files.
+--
+-- CARRIED FROM 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (lane/d-first-day-path, systems-engineer, 2026-11-19; the board's 2026-11-19 complete balance look, change 1: three of seven
 -- first heroes sat in the Mill Cellar 6 to 12 hours past it). It carries 2027-05-25-tank-runes-hunt-sessions-catalogue (STAGED on set/v0.2.142)
 -- whole. END_ORDER's outgrown (the hero's Level stands at its ground's endsAtLevel; an automatic end, it resumes) joins hr_hunt_end_reasons and
 -- hunt_sessions.end_reason's CHECK, and hr_hunt_grounds gains ends_at_level (hunt-grounds.js endsAtLevel: the Mill Cellar's 5, null elsewhere).

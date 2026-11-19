@@ -47,13 +47,13 @@ import { readFile } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIGDIR = join(ROOT, 'supabase', 'migrations');
 
 export async function rpcGateBucketGuard() {
-  const manifest = JSON.parse(
-    await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'));
+  const manifest = loadApplyOrder(ROOT);
   const order = [...(manifest.pre_schema || []), ...manifest.order];
 
   // Buckets whose refusal is INTENDED. A name added here needs a comment

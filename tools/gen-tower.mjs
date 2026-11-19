@@ -30,8 +30,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a changed row moves OUT_NAME to a forward file, like every generated catalogue.
    2027-04-24-tower-climb-catalogue.generated.sql (applied 2026-11-17 with v0.2.135) is history; 2027-05-05-entry-gates-tower-catalogue.generated.sql
    (lane/c-entry-gates, hr_tower_rules.min_level) is carried whole by the next one; lane/c-catacombs (2026-11-18) moved it here: hr_tower_rules
-   becomes THE RUN GROUNDS' table, one row a ground (the Tower and the Unmarked Catacombs' two wings, src/data/tower.js RUN_GROUNDS). */
-export const OUT_NAME = '2027-05-08-catacombs-tower-catalogue.generated.sql';
+   becomes THE RUN GROUNDS' table, one row a ground (the Tower and the Unmarked Catacombs' two wings, src/data/tower.js RUN_GROUNDS).
+   2027-05-08-catacombs-tower-catalogue.generated.sql is carried whole by the next one: MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler:
+   "raise HP and damage done by all monsters in the game slightly") moves the stat formula's HP line x1.1 (balance-sheet.js STAT_FORMULA), which a floor's
+   rows are read from, so each floor's XP bound (hr_tower_floors) rises with its monsters' HP. The run grounds' rules don't move. */
+export const OUT_NAME = '2027-06-05-harder-monsters-tower-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 
 /** The catalogue's rows, or a throw naming every problem. Pure. `runs` is the run table (the Tower's row is the one whose hunt is
@@ -230,7 +233,8 @@ function selftest() {
   bites('a floor that pays nothing', 'not a whole XP of 1 or more', { xpMax: (f) => (f === 3 ? 0 : towerXpMax(f)) });
   /* THE RUN GROUNDS (lane/c-catacombs): one bound table serves every run, and every wing is a whole row */
   const W = Object.values(RUN_GROUNDS).find((r) => r.wing !== null);
-  bites('a wing whose rooms pay off the Tower\'s bound', 'room 40 pays 3061, the Tower', { xpMax: (f, run) => (run && run.wing && f === 40 ? towerXpMax(f) + 1 : towerXpMax(f, run)) });
+  /* the bound the wing's room 40 reads, from the formula (3061 until monsters a little harder, 2026-11-19), so a re-tuned XP dial needs no hand edit here */
+  bites('a wing whose rooms pay off the Tower\'s bound', 'room 40 pays ' + (towerXpMax(40) + 1) + ', the Tower', { xpMax: (f, run) => (run && run.wing && f === 40 ? towerXpMax(f) + 1 : towerXpMax(f, run)) });
   bites('a wing with its own top room', 'is not the Tower\'s', { runs: { ...RUN_GROUNDS, [W.hunt]: { ...W, floorTop: 200 } } });
   bites('a wing with no Keeper beside its roster', 'are not all set or all null', { runs: { ...RUN_GROUNDS, [W.hunt]: { ...W, keeper: null } } });
   bites('a wing whose party board is its solo board', 'board and boardParty', { runs: { ...RUN_GROUNDS, [W.hunt]: { ...W, boardParty: W.board } } });

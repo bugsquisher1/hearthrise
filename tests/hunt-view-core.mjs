@@ -36,9 +36,10 @@ import { mkdtempSync, cpSync, readFileSync, writeFileSync, rmSync } from 'node:f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const FIXTURE = JSON.parse(readFileSync(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
 

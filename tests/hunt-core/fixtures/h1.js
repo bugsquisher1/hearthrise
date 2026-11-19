@@ -10,9 +10,10 @@ import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync } from 'node:f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../../../tools/lib/version-stamp.mjs';
 
 export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 
 /** Import the hunt core (and what it stands on) from `root` — the repo or a planted copy. */
 export async function loadCore(root) {

@@ -18,10 +18,13 @@
 //        (computed from the chain's own rows), a shield tank standing in every spell included; the largest share is printed.
 //   AS-4 ONLY THE AREA ROWS DIFFER: on the chain as it stands before the three files (Phase 0's 2027-03-27 files its end), every table, constraint and function is read, the three files
 //        are applied, and all of it is read again. What moved is exactly: five condition metrics and Chill; four abilities (the older rows' `ord`
-//        only); the world's shape and its two unit fields; the limit spell_windup_min_ms; two rune spells. Named, because an apply must not roll
+//        only); the world's shape and its two unit fields, judged against the shape the area catalogue itself writes (the chain at its point:
+//        the engine has moved on since, AS-8 holds today's); the limit spell_windup_min_ms; two rune spells. Named, because an apply must not roll
 //        them back: death_xp_permille 60 with no death_xp_base row, runes_out, Undertow, and every kill bound.
 //   AS-5 BEFORE AND AFTER: on the chain before the three files the same slots are refused (the regression this lane closes); after them, accepted.
 //   AS-6 A SECOND APPLY of the three files, in order, self-checks included, moves nothing.
+//   AS-8 THE NEWEST CATALOGUE CARRIES THE ENGINE'S SHAPE: on the whole chain (AS-1's), hr_hunt_world_shape is world-state.js SHAPE and FIELDS
+//        (a later forward catalogue moves it on: lane/b-tank-runes' shieldBy, 2027-05-25). AS-4 never reads the engine's import.
 //   AS-7 THE FIRST CAST'S STAGGER, BOTH PATHS (SPELL_STAGGER as shipped): the two doors store the same world from one anchor (AS-1), and on the
 //        viewer's answers the casters' first casts start at different instants, not all at once; a door that staggers otherwise stores another world.
 //
@@ -40,16 +43,38 @@ import { BUILD } from '../src/build-info.js';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE SPELLS ARE THIS GUARD'S SUBJECT: the switch on (the engine's own instance of the row: src/core imports src/data with the build's ?v=),
    whichever way it ships. Off, AS-1 would have nothing to land. */
-const ENGINE_SPELLS = await import(pathToFileURL(join(ROOT, 'src', 'data', 'monster-spells.js')).href + '?v=' + BUILD.cache);
+const ENGINE_SPELLS = await import(pathToFileURL(join(ROOT, 'src', 'data', 'monster-spells.js')).href + sourceQuery(ROOT));
 ENGINE_SPELLS.SPELL_SWITCH.live = true;
 const COND = '2027-04-15-area-conditions.sql';
 const RUNES = '2027-04-15-area-spells-rune-spells.generated.sql';
 const FILES = Object.freeze([COND, CAT, RUNES]);
 const sqlOf = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
+/* THE WORLD SHAPE A CATALOGUE FILE WRITES ({ version, shape, fields } off its hr_hunt_world_shape insert), or null. AS-4 judges the area batch
+   at its own chain point against ITS row, as jewel G-IDEM is judged at its chain point: the engine's SHAPE is today's, and once a later forward
+   catalogue moves the shape (lane/b-tank-runes' shieldBy, 2027-05-25) the area files rightly write the shape of their day. */
+const SHAPE_ROW = /\ninsert into public\.hr_hunt_world_shape \(id, version, shape, fields\) values \(true, (\d+), (\d+), '([^']+)'::jsonb\);/;
+function shapeRowOf(sql) {
+  const m = SHAPE_ROW.exec(sql);
+  return m ? { version: Number(m[1]), shape: Number(m[2]), fields: JSON.parse(m[3]) } : null;
+}
+/* THE NEWEST CATALOGUE IN THE CHAIN THAT WRITES A WORLD SHAPE (the one AS-8 holds to the engine's, and the old-shape mutant plants on) */
+async function newestShapeFile() {
+  const order = (await manifest()).order;
+  for (let i = order.length - 1; i >= 0; i--) if (/\.generated\.sql$/.test(order[i]) && shapeRowOf(sqlOf(order[i]))) return order[i];
+  return null;
+}
+/* The shape row of the newest catalogue before `file` in the apply order (the shape the chain holds when `file` applies), or null. */
+function shapeBefore(file) {
+  const order = loadApplyOrder(ROOT).order;
+  for (let i = order.indexOf(file) - 1; i >= 0; i--) { const r = /\.generated\.sql$/.test(order[i]) ? shapeRowOf(sqlOf(order[i])) : null; if (r) return r; }
+  return null;
+}
 const WARRENS = 'coppercap_warrens';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const WINDOWS = 5, WINDOW_MS = 90000;
@@ -112,6 +137,7 @@ async function doorRun(db, which) {
       levelXp: Number(await one(db, 'select level_xp from public.player_state where user_id = $1 and slot = 0', [run.users[i]])) });
   }
   const world = await one(db, 'select world::text from public.hunt_instances where id = $1', [run.instance]);
+  const shapeRow = (await rowsOf(db, 'select version, shape, fields from public.hr_hunt_world_shape'))[0] || null;
   const refusals = Number(await one(db, 'select coalesce(sum(n), 0) from public.hr_rejections where user_id = any($1::uuid[])', [run.users]));
   /* THE DEFENSE TERM hr_hunt_apply_member allows over this hunt's whole span, from the chain's own rows (its v_def: every swing interval, every foe
      the ground can engage at once, the highest level it spawns, a block's multiple). One span's term is under the sum of its windows'. */
@@ -124,7 +150,7 @@ async function doorRun(db, which) {
       from public.hr_hunt_grounds g, (select coalesce(density, 0)::bigint d from public.hunt_instances where id = $3) i
      where g.hunt_id = $2`, [spanMs, WARRENS, run.instance]));
   const answers = which === 'viewed' ? (await run.evidence()).answers : [];
-  return { landed, threw, refusedBars, seats, world, refusals, defMax, spanMs, answers };
+  return { landed, threw, refusedBars, seats, world, refusals, defMax, spanMs, answers, shapeRow };
 }
 
 const ember = (s) => Number(((s.taken || {}).byElement || {}).ember || 0);
@@ -140,6 +166,9 @@ async function bothPaths(boot, only, noStaggerAt) {
   for (const which of names) {
     const r = got[which], name = which === 'fire' ? 'browser closed' : 'hunt viewed';
     if (r.refusedBars.length) problems.push('AS-2 ' + name + ': the server refused a bar naming an area ability: ' + r.refusedBars.join('; '));
+    /* AS-8: the chain's newest catalogue carries the engine's shape and fields (by name, in their order) */
+    const sr = r.shapeRow, unitNames = sr && sr.fields && sr.fields.unit ? Object.entries(sr.fields.unit).sort((x, y) => x[1] - y[1]).map((x) => x[0]) : null;
+    if (!sr || Number(sr.shape) !== SHAPE || !same(unitNames, FIELDS.unit.map((f) => f[0]))) problems.push('AS-8 ' + name + ': the chain\'s world shape is ' + (sr && sr.shape) + ' with unit fields ' + short(unitNames, 120) + ', the engine\'s ' + SHAPE);
     if (r.threw || r.landed !== WINDOWS + 1) problems.push('AS-1 ' + name + ': window ' + (r.landed + 1) + ' of ' + (WINDOWS + 1) + ' did not land: ' + r.threw);
     if (r.refusals) problems.push('AS-1 ' + name + ': the server journalled ' + r.refusals + ' refusal(s)');
     const dry = r.seats.filter((s) => !(ember(s) > 0));
@@ -257,18 +286,22 @@ async function rowsOnly(patch, reorder) {
     if (a.death_xp_permille !== DEATH_PM || 'death_xp_base' in a) problems.push('AS-4 the death share was rolled back: death_xp_permille ' + a.death_xp_permille + ', death_xp_base ' + a.death_xp_base);
     if (!(a.spell_windup_min_ms * a.block_mult >= a.swing_interval_ms)) problems.push('AS-3 the least windup ' + a.spell_windup_min_ms + ' x block_mult ' + a.block_mult + ' is under the swing interval ' + a.swing_interval_ms);
   }
-  { // the world's shape: this engine's, its two new unit fields after the old ones' own order
-    const b = before.data.hr_hunt_world_shape[0], a = after.data.hr_hunt_world_shape[0];
-    if (!a || Number(a.shape) !== SHAPE || Number(a.version) !== Number(b.version)) problems.push('AS-4 the world shape on the server is ' + (a && a.shape) + ', the engine\'s ' + SHAPE);
+  { // the world's shape: the one the area catalogue writes (at its chain point, never the engine's import: AS-8), its two new unit fields after the old ones' own order
+    const b = before.data.hr_hunt_world_shape[0], a = after.data.hr_hunt_world_shape[0], cat = shapeRowOf(sqlOf(CAT));
+    if (!cat) { problems.push('AS-4 HARNESS: ' + CAT + ' writes no hr_hunt_world_shape row'); return problems; }
+    if (cat.shape === Number(b.shape)) problems.push('AS-4 the area catalogue writes the shape it found (' + cat.shape + '): the area batch moved it');
+    if (!a || Number(a.shape) !== cat.shape || Number(a.version) !== Number(b.version) || cat.version !== Number(b.version)) problems.push('AS-4 the world shape on the server is ' + (a && a.shape) + ', the area catalogue\'s ' + cat.shape);
     const names = (f) => Object.entries(f).sort((x, y) => x[1] - y[1]).map((x) => x[0]);
     const was = names(b.fields.unit), now = names(a.fields.unit);
     const added = now.filter((n) => !was.includes(n));
     if (added.sort().join() !== 'cast,spellCds' || !same(now.filter((n) => was.includes(n)), was)) problems.push('AS-4 the unit fields gained ' + added.join() + ' or lost their order');
     if (!same(a.fields.world, b.fields.world)) problems.push('AS-4 the world fields moved');
-    if (!same(now, FIELDS.unit.map((f) => f[0]))) problems.push('AS-4 the server\'s unit fields are not world-state.js FIELDS');
+    /* (jsonb keeps its own key order: the field maps compare as name -> index, every part) */
+    const canon = (o) => JSON.stringify(Object.keys(o || {}).sort().map((k) => [k, o[k] && typeof o[k] === 'object' ? canon(o[k]) : o[k]]));
+    if (!same(now, names(cat.fields.unit)) || canon(a.fields) !== canon(cat.fields)) problems.push('AS-4 the server\'s world fields are not the area catalogue\'s');
     /* the move is journalled with the shape it replaced: a settle of the engine still writing that one is held, not counted against the hunt */
     const mv = after.data.hunt_world_shape_move[0];
-    if (!mv || Number(mv.shape) !== SHAPE || Number(mv.prev_shape) !== Number(b.shape)) problems.push('AS-4 the shape move is journalled ' + short(mv) + ', want ' + b.shape + ' -> ' + SHAPE);
+    if (!mv || Number(mv.shape) !== cat.shape || Number(mv.prev_shape) !== Number(b.shape)) problems.push('AS-4 the shape move is journalled ' + short(mv) + ', want ' + b.shape + ' -> ' + cat.shape);
   }
   { // the rows an apply must not roll back, by name
     /* Phase 0's rows (2027-03-27): the gear sale ladder's bids and its two made weapons */
@@ -330,7 +363,16 @@ const MUTANTS = [
   /* the settle's side: a server that keeps the old shape refuses every world this engine stores */
   /* the stagger's side: a door that plays the first casts otherwise stores another world from the same seed */
   { name: 'the tick\'s door opens every pack at once (no stagger on that door)', stagger: 'fire', want: /AS-1 the two doors stored different worlds|AS-1 browser closed and hunt viewed wrote different tallies/ },
-  { name: 'the server keeps the old world shape', boot: { file: CAT, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ' }, want: /AS-1 browser closed: window 1 of/ },
+  /* (the newest catalogue that writes a shape, found in the chain: the area catalogue writes the shape of its day, not this engine's) */
+  { name: 'the server keeps the old world shape', boot: { newest: true, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ' }, want: /AS-1 browser closed: window 1 of/ },
+  { name: 'the newest catalogue writes a shape that is not the engine\'s (AS-8)', boot: { newest: true, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ' }, want: /^AS-8 browser closed: the chain's world shape is 95703826/ },
+  /* (AS-4 at its chain point: the area catalogue writes back the shape the chain held before it, the shape of the catalogue before it in the order) */
+  { name: 'the area catalogue keeps the shape it found', patch: (f, sql) => {
+    if (f !== CAT) return sql;
+    const now = shapeRowOf(sql), was = shapeBefore(CAT);
+    if (!now || !was) throw new Error('HARNESS: no shape row in ' + CAT + ' or before it');
+    return swap(CAT, '(true, ' + now.version + ', ' + now.shape + ', ', '(true, ' + now.version + ', ' + was.shape + ', ')(f, sql);
+  }, want: /AS-4 the world shape on the server is \d+, the area catalogue's|AS-4 the shape move is journalled/ },
 ];
 
 async function main() {
@@ -340,7 +382,12 @@ async function main() {
       let got = [];
       try {
         if (m.stagger) got = (await bothPaths(() => bootReplay(), null, m.stagger)).problems;
-        else if (m.boot) got = (await bothPaths(() => bootReplay({ patches: new Map([[m.boot.file, [[m.boot.find, m.boot.repl]]]]), upTo: RUNES }), 'fire')).problems;
+        else if (m.boot) {
+          const file = m.boot.newest ? await newestShapeFile() : m.boot.file;
+          if (!file) throw new Error('HARNESS: no catalogue in the chain writes a world shape');
+          /* (the replay stops at the patched catalogue, so no newer file's self-check refuses first: tests/schema-replay.mjs replayScopeError) */
+          got = (await bothPaths(() => bootReplay({ patches: new Map([[file, [[m.boot.find, m.boot.repl]]]]), upTo: m.boot.newest ? file : RUNES }), 'fire')).problems;
+        }
         else got = await rowsOnly(m.patch, m.reorder);
       } catch (e) { got = ['THREW ' + String(e && e.message).slice(0, 200)]; }
       const hit = got.some((p) => m.want.test(p));
@@ -356,7 +403,7 @@ async function main() {
   for (const p of problems) console.log('FAIL  ' + p);
   console.log('  AS-3 the most Defense XP a hero earned is ' + (both.share * 100).toFixed(1) + '% of the Defense term the settle allows for the same span');
   console.log(problems.length ? 'area-spells-server: ' + problems.length + ' FAILED'
-    : 'area-spells-server: green (a monster\'s spell on a four and three hero area abilities on both paths, the Defense bound has room, only the area rows differ, refused before and accepted after, a second apply moves nothing)');
+    : 'area-spells-server: green (a monster\'s spell on a four and three hero area abilities on both paths, the Defense bound has room, only the area rows differ, refused before and accepted after, a second apply moves nothing, the newest catalogue carries the engine\'s shape)');
   process.exitCode = problems.length ? 1 : 0;
 }
 

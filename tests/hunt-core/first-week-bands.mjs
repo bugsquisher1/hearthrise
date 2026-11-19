@@ -44,8 +44,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const { loadCellRunner } = await import(pathToFileURL(join(ROOT, 'tools/balance-sim/cell.mjs')).href);
 const { PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const PACE = JSON.parse(readFileSync(join(ROOT, 'tools/balance-sim/level-pace.json'), 'utf8'));
@@ -304,9 +305,9 @@ cases['glade-harder'] = (R) => {
   return null;
 };
 
-const GLADE_SOFT = [['hp: 30, atk: 11, baseAcc: 0.8, def: 1, xp: 109', 'hp: 30, atk: 2, def: 1, xp: 109'], ['hp: 26, atk: 14, baseAcc: 0.85, def: 1, xp: 121', 'hp: 26, atk: 2, def: 1, xp: 121'],
-  ['hp: 48, atk: 11, baseAcc: 0.82, def: 6, xp: 217', 'hp: 48, atk: 2, def: 6, xp: 217'], ['hp: 74, atk: 21, baseAcc: 0.8, def: 11, xp: 374', 'hp: 74, atk: 2, def: 11, xp: 374'],
-  ['hp: 81, atk: 22, baseAcc: 0.84, def: 14, xp: 427', 'hp: 81, atk: 2, def: 14, xp: 427'], ['hp: 51, atk: 16, baseAcc: 0.76, def: 8, xp: 239', 'hp: 51, atk: 2, def: 8, xp: 239']].map(([a, b]) => ['src/data/monsters.js', a, b]);
+const GLADE_SOFT = [['hp: 33, atk: 13, baseAcc: 0.76, def: 1, xp: 115', 'hp: 33, atk: 2, def: 1, xp: 115'], ['hp: 29, atk: 15, baseAcc: 0.83, def: 1, xp: 129', 'hp: 29, atk: 2, def: 1, xp: 129'],
+  ['hp: 52, atk: 12, baseAcc: 0.8, def: 6, xp: 226', 'hp: 52, atk: 2, def: 6, xp: 226'], ['hp: 81, atk: 23, baseAcc: 0.76, def: 11, xp: 393', 'hp: 81, atk: 2, def: 11, xp: 393'],
+  ['hp: 90, atk: 24, baseAcc: 0.8, def: 14, xp: 456', 'hp: 90, atk: 2, def: 14, xp: 456'], ['hp: 57, atk: 17, baseAcc: 0.74, def: 8, xp: 256', 'hp: 57, atk: 2, def: 8, xp: 256']].map(([a, b]) => ['src/data/monsters.js', a, b]);
 /* THE MUTANTS: each breaks one first-week way to fight, the way a data row would */
 const mutants = [
   { name: 'the Glade hits at the old accuracy: its floor is not felt', case: 'glade-harder',
@@ -338,9 +339,9 @@ const mutants = [
     edits: [['src/data/balance-sheet.js', 'mosslight_glade: Object.freeze({ dangerous: 6, dials:', 'mosslight_glade: Object.freeze({ dangerous: 6, deadly: 0, dials:']] },
   { name: 'the window reads the Normal line on every tier again (the sweep\'s A1)', case: 'vs-alone', expect: 'mosslight_glade deadly',
     edits: [['src/data/party-class-xp.js', 'const tab = PARTY_VS_ALONE[groundId][tier];', 'const tab = PARTY_VS_ALONE[groundId][DEFAULT_TIER];']] },
-  { name: 'the Glade\'s Deadly monsters carry twice the health (1450 -> 2900), and its window still says what 1450 measured', case: 'vs-alone', expect: 'mosslight_glade deadly',
+  { name: 'the Glade\'s Deadly monsters carry no more health than the table\'s Normal (1450 -> 1000), and its window still says what 1450 measured (it was twice, 2900, until the 11-19 step: on monsters a tenth harder a hero alone dies there so often that doubling both sides moved the reading under 10 points)', case: 'vs-alone', expect: 'mosslight_glade deadly',
     edits: [['src/data/balance-sheet.js', 'mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1450 }) }),',
-      'mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 2900 }) }),']] },
+      'mosslight_glade: Object.freeze({ dangerous: 6, dials: Object.freeze({ dangerous: Object.freeze({ hpPm: 1400 }), deadly: Object.freeze({ hpPm: 1000 }) }),']] },
   { name: '"before bonuses" reads what was paid again', case: 'before-bonuses',
     edits: [['supabase/functions/hr-accrue/accrual.js', 'if (Number.isInteger(t.rawLevelXp) && t.rawLevelXp > 0) rawXp.level = t.rawLevelXp;', '']] },
   { name: 'a full box brings no more kills than the room as built, and the words still say bigger pulls pay', case: 'bigger-pulls-words',
@@ -350,8 +351,8 @@ const mutants = [
   { name: 'a cape guards again: damage taken falls by half', case: 'cape-cut', edits: [['src/data/slot-ladders.js', 'reqLv: 22, steadyPm: 70,', 'reqLv: 22, defB: 4,']] },
   { name: 'the unready hero is safe: a hero in no armor takes 60% less from every blow', case: 'risk-ladder', expect: 'fifteen Levels under',
     edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 600, ward: 0, keepPm: 0 });']] },
-  { name: 'the unready hero is nearly safe: a hero in no armor takes 25% less, still dying now and then', case: 'risk-ladder', expect: 'fifteen Levels under',
-    edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 250, ward: 0, keepPm: 0 });']] },
+  { name: 'the unready hero is nearly safe: a hero in no armor takes 35% less, still dying now and then (25% until the 11-19 step: the monsters hit a tenth harder, and at 25% the practice set still died twice an hour)', case: 'risk-ladder', expect: 'fifteen Levels under',
+    edits: [['src/core/mitigation.js', 'if (!dodgePm && !absorbPm && !ward) return NO_MITIGATION;', 'if (!dodgePm && !absorbPm && !ward) return Object.freeze({ dodgePm: 0, absorbPm: 350, ward: 0, keepPm: 0 });']] },
   { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, so a push costs nothing', case: 'risk-ladder',
     edits: GLADE_SOFT },
   { name: 'the Glade\'s crows and vines bite no harder than Wickstead\'s rats, and the words still say stronger', case: 'above-your-level-words',
@@ -362,17 +363,17 @@ const mutants = [
   /* RE-AIMED (NO PROFIT MOLDS, Tyler 2026-11-13): def 60 was caught only by the retired +25% bar (the kills slowed, the bill stood); twenty times
      the health is a Cellar a fresh hero cannot clear at pace */
   { name: 'the Cellar\'s rats, slimes and wasps with twenty times their health: a fresh hero cannot clear it', case: 'solo-mill_cellar',
-    edits: [['src/data/monsters.js', 'hp: 6, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 15, gp: [1, 1], formula: true, speed: 3400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, baseAcc: 0.28, def: 0, xp: 23, gp: [1, 1], formula: true, speed: 2400,'],
-      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1],', 'hp: 160, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 1],']] },
+    edits: [['src/data/monsters.js', 'hp: 7, atk: 3, baseAcc: 0.34, def: 0, xp: 16, gp: [1, 1], formula: true, speed: 3400,', 'hp: 120, atk: 3, baseAcc: 0.34, def: 0, xp: 16, gp: [1, 1], formula: true, speed: 3400,'],
+      ['src/data/monsters.js', 'hp: 8, atk: 3, baseAcc: 0.28, def: 0, xp: 21, gp: [1, 1], formula: true, speed: 2400,', 'hp: 160, atk: 3, baseAcc: 0.28, def: 0, xp: 21, gp: [1, 1], formula: true, speed: 2400,'],
+      ['src/data/monsters.js', 'hp: 9, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 2],', 'hp: 160, atk: 3, baseAcc: 0.47, def: 0, xp: 25, gp: [1, 2],']] },
   { name: 'Wickstead\'s Granary Rats bite like a Rat King (atk 5 -> 14)', case: 'solo-wickstead',
-    edits: [['src/data/monsters.js', 'hp: 15, atk: 4, baseAcc: 0.46, def: 0, xp: 45, gp: [2, 6], formula: true, speed: 3400', 'hp: 15, atk: 14, baseAcc: 0.46, def: 0, xp: 45, gp: [2, 6], formula: true, speed: 3400']] },
+    edits: [['src/data/monsters.js', 'hp: 17, atk: 5, baseAcc: 0.44, def: 0, xp: 49, gp: [2, 7], formula: true, speed: 3400', 'hp: 17, atk: 14, baseAcc: 0.44, def: 0, xp: 49, gp: [2, 7], formula: true, speed: 3400']] },
   /* THE UNIQUE CATCH (proved when written): at atk 12 drop-tables (floor-hour, caster-floor, ranger-floor), sewer,
      conditions and forest-cave all stay green, since their heroes wear the ladder kit's armour; only a fresh party in the
      practice sets dips (the tank: 3 in 2 h). level-curve C1 asks for a re-measure, not a fix. RE-AIMED on the formula's bat (atk 6 at
      to-hit 0.63, lane/b-ground-formula-2): at 12 the duo's tank dips once (the bar allows one), at 14 three times in 2 h, as the old 12 did. */
   { name: 'the Sewer\'s Culvert Bats bite more than twice as hard (atk 6 -> 14): a fresh party\'s tank keeps dipping under 25%', case: 'party-millrace_sewer',
-    edits: [['src/data/monsters.js', 'hp: 53, atk: 6, baseAcc: 0.46, def: 1, xp: 154, gp: [7, 21], formula: true, speed: 4400', 'hp: 53, atk: 14, baseAcc: 0.46, def: 1, xp: 154, gp: [7, 21], formula: true, speed: 4400']] },
+    edits: [['src/data/monsters.js', 'hp: 59, atk: 7, baseAcc: 0.44, def: 1, xp: 165, gp: [8, 23], formula: true, speed: 4400', 'hp: 59, atk: 14, baseAcc: 0.44, def: 1, xp: 165, gp: [8, 23], formula: true, speed: 4400']] },
 ];
 
 const R = makeReport('hunt-core/first-week-bands');

@@ -308,6 +308,8 @@ import { createHmac } from 'node:crypto';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs';
 import { isMain } from './_is-main.mjs';
 import { setGold } from './_gold.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -321,7 +323,7 @@ const UID = UIDS[0];
 async function loadEdge(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   /* the engine's own instance of a src/data module: src/core imports src/data with the build's ?v= (CLAUDE.md §5) */
-  const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const V = sourceQuery(root);
   return {
     /* the engine's own spells (noCasts turns its switch off for an arm whose subject is not the spells) */
     SPELLS: await import(u('src/data/monster-spells.js') + V),
@@ -524,7 +526,7 @@ function rareRollRules(M) {
   const monsters = { x: { gp: [0, 0], drops: [{ id: 'a', ch: 1 }, { id: 'b', ch: 1 }, { id: 'r', ch: 0.01 }] } };
   const kill = (heroes, script, rareWon) => {
     const got = []; const events = [];
-    /* every hero alive, as hunt-spawn.js makes them: a kill pays only heroes alive at it (hunt-rewards.js presentIds, b5bb6cf6d) */
+    /* every hero alive, as hunt-spawn.js makes them: a kill pays only heroes alive at it (hunt-rewards.js livingAt, b5bb6cf6d) */
     const world = { units: [...heroes.map((id) => ({ id, side: 'hero', alive: true })), { id: 9, side: 'mon', kind: 'x' }], rareWon: rareWon ?? null };
     const members = new Map(heroes.map((id) => [id, { unitId: id, state: {}, hs: { tally: { kills: 0 } }, bonus: () => 0, weakness: () => ({ dropMult: 1 }),
       fx: { addItem: (item) => got.push(item + '>' + id) } }]));
@@ -1514,7 +1516,7 @@ const BETA_FILE = '2026-12-17-beta-premium.sql';
 const BETA_SIGS = ['public.hr_premium_until(uuid,integer)', 'public.hr_premium_active(uuid,integer,timestamp with time zone)',
   'public.hr_premium_view(uuid,integer)', 'public.hr_stamina_of(uuid,integer,timestamp with time zone)'];
 async function betaSecondApply(main) {
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const later = order.slice(order.indexOf(BETA_FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
   const authoredLater = (sig) => {
     const fn = sig.slice('public.'.length, sig.indexOf('('));
@@ -3132,7 +3134,7 @@ const DB_ARMS = {
   'RESUME-IDEM': async (main) => {
     const FILE = '2027-04-24-bench-resume.sql';
     const SIGS = [AM, HR, RP, AL, BM, LN, 'public.hr_resume_has_inputs(uuid,integer,text,text)'];
-    const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     const later = order.slice(order.indexOf(FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
     const authoredLater = (sig) => {
       const fn = sig.slice('public.'.length, sig.indexOf('('));
@@ -3379,7 +3381,7 @@ const DB_ARMS = {
   'ITINERARY-IDEM': async (main) => {
     const FILES = ['2027-04-25-hunt-after-catalogue.generated.sql', '2027-04-25-hunt-itinerary.sql'];
     const SIGS = [HR, LN, AS, AV, AJ, AF, AT, AW];
-    const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     const later = order.slice(order.indexOf(FILES[1]) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
     const authoredLater = (sig) => {
       const fn = sig.slice('public.'.length, sig.indexOf('('));
@@ -4011,7 +4013,7 @@ const DB_ARMS = {
     const FILE = '2026-12-18-party-leave-together.sql';
     const SIGS = ['public.hr_hunt_party_view(uuid,integer)', 'public.hr_hunt_instance_read(uuid,integer)',
       'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', 'public.hr_hunt_view(uuid)', 'public.hr_party_leave_together_set(integer,boolean,uuid)'];
-    const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     const later = order.slice(order.indexOf(FILE) + 1).map((f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8'));
     const authoredLater = (sig) => {
       const fn = sig.slice('public.'.length, sig.indexOf('('));

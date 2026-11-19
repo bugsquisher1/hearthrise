@@ -1,0 +1,4 @@
+{
+  "seq": 491,
+  "note": "APPLIED 08:37 UTC 10-29. Was STAGED (lane/a-first-hour-leftovers, systems-engineer, 2026-10-29; pre-EA: applies on its passing §3; no value moves). Playtest 2026-10-29 #9: hr_hunt_role_rules full replace from src/data/rule-subjects.js ROLE_RULES (pinned by tests/hunt-core/conditions.mjs sql-rows): d_flame_strike leaves the tank and Melee damage default sets (16 -> 14 rows), so a new hero's bar holds no spell it cannot cast. No function body, grant, table or player row moves. EDGE: hr-accrue carries the same ROLE_RULES; the ONE deploy after 2027-02-09-walk-on-level-curve.generated.sql carries it (between, the only difference is a struck Flame Strike slot the settle never fires). ORDER: after 2027-02-08-unsourced-level-curve.generated.sql, before 2027-02-09-walk-on-level-curve.generated.sql. After apply: restore-census hr_hunt_role_rules replay 16 -> 14 (re-pinned in the lane); live-hash-drift: no function moves."
+}

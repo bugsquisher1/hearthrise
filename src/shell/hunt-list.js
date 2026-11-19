@@ -208,6 +208,10 @@ export function shareWords(r, party, myLevel) {
  * best tier against 55.7k / 74.1k / 93.6k on the Glade's Normal / Dangerous / Deadly. The first grounds' small packs leave a four walk-bound
  * (the Cellar, the Thicket and Wickstead read under alone on every tier), so a four from 8 to 15 still goes to the Sewer (42.7k at 13 against
  * Wickstead's 23.1k).
+ * OVER ALONE, NOT EVEN (lane/d-harder-monsters, 2026-11-19): a party suits a ground its line puts OVER its heroes alone (> 0). With monsters a tenth
+ * harder a hero alone dies more on Wickstead's Deadly, and a mixed pair's line there read 0 (was -5): at ">= 0" the highest floor that broke even
+ * took a pair at 8-15 off the Sewer, where the same pair earns +10 to +15 (tests/hunt-floor-warning.mjs G4, G8). Breaking even is no reason to send
+ * a party anywhere; Tyler 2026-11-16's ">= the same heroes alone" is the bar the harder tiers are tuned to, not where the advice sends a party.
  * ALONE FROM ITS soloFrom (hunt-grounds.js; the board's 2026-11-19 complete balance look, change 8): a party ground suits a hero alone at `level`
  * (the hero's own, the server's) from the Level its row measures a lone hero safe there, so the advice stops holding a lone hero on the Glade from
  * 32 to 44 while the Warrens sit unadvised. Without a Level, never.
@@ -216,7 +220,7 @@ export function fitsGroup(r, partySize, level = null) {
   const n = Number(partySize) || 1;
   if (n < 2) return r.groupFit !== 'party' || (Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom);
   const best = r.partyBest ? r.partyBest[Math.min(n, PARTY.maxSize)] : null;
-  return Number.isInteger(best) && best >= 0;
+  return Number.isInteger(best) && best > 0;
 }
 
 /* The party's levels in words: "Level 20", or "Levels 12 to 20" when they differ. */

@@ -28,8 +28,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT, hero, mon, world, instOf, groundRow, gridOf, spanFixture, runSpan, member, T0 } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const V = (root) => '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = (root) => sourceQuery(root);
 async function load(root) {
   const M = await loadCore(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V(root));

@@ -27,10 +27,11 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(REPO, 'src/build-info.js'), 'utf8')) || [, ''])[1];
-const TREES = [...PLAY_TREES, 'src/session', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs'];
+const V = sourceQuery(REPO);
+const TREES = [...PLAY_TREES, 'src/session', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib', 'tests/_is-main.mjs'];
 const GROUND = 'muster_barrows', BOSS = 'captain_hask', MINUTE = 60000;
 /* The three cuts every both-paths check plays: a viewed hunt's short confirms, a longer one, and a closed browser's ten minutes. */
 const CUTS = [10000, 30000, 10 * MINUTE];
@@ -142,6 +143,10 @@ async function guard(X) {
      party would land one add on the tank): GB-LINES' "whoever isn't holding him". His Knights can't hurt, so nobody falls before him. */
   setRow(X, BOSS, { hp: 4000, atk: 10, baseAcc: 3, phases: { ...EM[BOSS].phases, enrageAtkPm: 3000 } });
   if (holds[0]) setRow(X, holds[0].adds[0].monster, { atk: 1, baseAcc: 0 });
+  /* ...AND THE KNIGHTS BUILT INTO HIS BARROW (its spawns, not his wave: the wave is Pikemen) can't hurt either. Unpinned they hit the pair with their own
+     rows, and since monsters a little harder (2026-11-19, balance-sheet.js STAT_FORMULA x1.1: atk 41 -> 45, up to 134 a blow on the Healer) they felled the
+     tank before he reached his first line (0 adds, no enrage: the CONTROL went red, not the rule). Restored with the rest at the end (`keep`). */
+  if (holds[0]) for (const kind of new Set(holds[0].spawns.map((s) => s.monster))) if (kind !== BOSS) setRow(X, kind, { atk: 1, baseAcc: 0 });
   {
     const NO_CHALLENGE = (role) => (role === 'tank' ? [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }] : []);
     /* a Level 50 tank in steel, so his blows land and the armor does not swallow the raise (at Level 75 in the ladder kit nine in ten miss) */

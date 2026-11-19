@@ -1,0 +1,4 @@
+{
+  "seq": 568,
+  "note": "APPLIED 2026-11-05 11:44 UTC (lane/c-market-lock, backend-architect, 2026-11-04; the designer's ruling, priority board \"market_locked: ships alone\"; pre-EA: applies on its self-check; on the EA Security list, Threat #9). A hero who never hunts can trade: hr_market_config + min_skill_level (default 30); hr_market_eligible opens at any hero's Level >= min_level OR any hero's bench skill (hr_skills.cat = 'artisan') >= min_skill_level; the two gates and hr_market_rules carry the new number. No edge, no new row, no table, no grant. ORDER: any time after 2027-02-13-market-eligibility.sql (its four bodies are this file's pins), and BEFORE the client that says both numbers."
+}

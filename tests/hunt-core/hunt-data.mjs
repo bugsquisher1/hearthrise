@@ -3,12 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { suite, groundRow, ROOT } from './fixtures/h1.js';
+import { loadApplyOrder } from '../../tools/lib/apply-order.mjs';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const MS = await import(pathToFileURL(join(ROOT, 'src/data/monster-spells.js')).href + '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1]);
+const MS = await import(pathToFileURL(join(ROOT, 'src/data/monster-spells.js')).href + sourceQuery(ROOT));
 
 /* The last migration in the apply order that writes hr_hunt_stats_of: the server's analyzer body. */
 function statsBody() {
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const files = (Array.isArray(order) ? order : []).filter((f) => readFileSync(join(ROOT, 'supabase/migrations', f), 'utf8').includes('create or replace function public.hr_hunt_stats_of('));
   return files.length ? readFileSync(join(ROOT, 'supabase/migrations', files[files.length - 1]), 'utf8') : '';
 }
@@ -114,11 +116,11 @@ const mutants = [
   { name: 'the biggest blow leaves the spells out again (the audit\'s Wickstead 21 against a Smoke Pot of 52)', case: 'blow-counts-spells',
     edits: [['src/core/hunt/pull-cycle.js', '    const hit = Math.max(swing, spell);', '    const hit = swing;']] },
   { name: 'the Rat King hits for 108 again (Andy\'s death)', case: 'blow-share',
-    edits: [['src/data/monsters.js', 'hp: 556, atk: 6, baseAcc: 0.78, def: 11,', 'hp: 556, atk: 20, baseAcc: 0.78, def: 11,']] },
+    edits: [['src/data/monsters.js', 'hp: 612, atk: 6, baseAcc: 0.78, def: 11,', 'hp: 612, atk: 20, baseAcc: 0.78, def: 11,']] },
   { name: 'a walked ground\'s pockets are not read (the boss who holds a room is missed)', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '(pk.pack || pk.spawns).concat(pk.spawns)', '[]']] },
   { name: 'Chief Coppercap swings 54 again (63% of the Warrens floor)', case: 'blow-share',
-    edits: [['src/data/monsters.js', 'hp: 1096, atk: 28, baseAcc: 0.88, def: 33,', 'hp: 1096, atk: 69, baseAcc: 0.88, def: 33,']] },
+    edits: [['src/data/monsters.js', 'hp: 1206, atk: 30, baseAcc: 0.84, def: 33,', 'hp: 1206, atk: 69, baseAcc: 0.84, def: 33,']] },
   { name: 'the King\'s hall is left off the monsters a hunt meets', case: 'blow-share',
     edits: [['src/data/hunt-grounds.js', '  for (const i of ground.route) {\n    const pk', '  for (const i of ground.route.filter((j) => !ground.pockets[j].forParty)) {\n    const pk']] },
   /* the hall's written cap (designer 2026-11-14): held to it, never skipped, never past 60 */

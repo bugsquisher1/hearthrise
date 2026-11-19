@@ -14,6 +14,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { plant, makeReport, ROOT } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
 /* Fields a player reads, not the engine. */
 const DISPLAY = Object.freeze({ ability: ['n'], status: ['name'] });
@@ -78,7 +79,7 @@ const textOf = (root, dirs, skip) => dirs.flatMap((d) => walk(root, d))
 const reads = (text, key) => new RegExp('\\.' + key + '\\b(?!\\s*=[^=])').test(text);
 
 async function load(root) {
-  const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const v = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + v);
   const M = { root, AD: await imp('src/data/abilities.js'), ST: await imp('src/data/statuses.js'), mods: [] };
   for (const n of ['movement', 'targeting', 'roles', 'pull-cycle', 'damage', 'monster-spells', 'abilities', 'status', 'consumables', 'xp-share', 'conditions']) {

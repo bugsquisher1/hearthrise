@@ -14,6 +14,7 @@ import { resolve, join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readCell } from './tiers-table.mjs';
 import { hoursTo, referenceRate, loadPaceData, SNAPSHOT } from './pace.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -22,7 +23,7 @@ const DIRS = arg('in', join(HERE, 'out', 'pacefinal')).split(',').map((d) => res
 const cells = [...new Map(DIRS.filter((d) => existsSync(join(d, 'cells.jsonl'))).flatMap((d) => readFileSync(join(d, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)))
   .filter((r) => r.heroes).map((r) => [r.id, r])).values()];
 const { BUILD } = await import(pathToFileURL(join(ROOT, 'src/build-info.js')).href);
-const XP = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href + '?v=' + BUILD.version);
+const XP = await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href + sourceQuery(ROOT));
 const { LEVEL_PACE } = await import(pathToFileURL(join(ROOT, 'src/data/core-model.js')).href);
 const SHORT = { meadowbrook_thicket: 'Thicket', wickstead: 'Wickstead', millrace_sewer: 'Sewer', mosslight_glade: 'Glade', coppercap_warrens: 'Warrens', mill_cellar: 'Cellar' };
 const k = (n) => (Math.abs(n) >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(Math.round(n)));

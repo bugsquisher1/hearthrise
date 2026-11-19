@@ -47,7 +47,11 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    open at 5"): its band's floor and its monsters' floor-5 purse move the Sewer's scaled rows: a new dated file, applied AFTER the two 2027-05-06-sewer-from-five files. */
 /* 2027-05-06-sewer-from-five-scaled-hunts-catalogue.generated.sql is APPLIED history (v0.2.139). Scaled loot (lane/c-arm-switches, 2026-11-18; Tyler 11-07 "loot
    scales", the designer's drops multiple lootPmFor): every bound row gains loot_pm, a new column, so a new dated file, applied BEFORE 2027-05-17-scaled-loot.sql. */
-export const OUT_NAME = '2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql';
+/* 2027-05-17-scaled-loot-scaled-hunts-catalogue.generated.sql is STAGED on set/v0.2.141 and carried whole (loot_pm included). Monsters a little harder
+   (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): the formula's HP line and blows are x1.1
+   (balance-sheet.js STAT_FORMULA), and a scaled hunt is that formula read at the shifted Levels, so every scaled kill bound moves: a new dated file,
+   applied AFTER every 2027-05-17 and 2027-05-22 file. */
+export const OUT_NAME = '2027-06-05-harder-monsters-scaled-hunts-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const whole = (n) => Number.isInteger(n) && n >= 1;

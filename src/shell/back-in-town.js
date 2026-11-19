@@ -57,10 +57,11 @@ function planned(bag, rules, rule) {
  * @param {{ plan: object|null, bag: {id:string,qty:number}[]|null, rules: {locked:Set<string>, loot:object}|null, bids: Bids|null,
  *           blessings: {tiers:{tier:number,price:number,held:boolean}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string>,
  *           buy?: {title:string, words:string, icon:string|null, glyph?:string|null, place:object}|null, free?: boolean,
- *           ground?: {row:{hunt:string,name:string,band:number[]}, levels:number[]}|null }} o
+ *           ground?: {row:{hunt:string,name:string,band:number[]}, levels:number[]}|null, outgrown?: boolean }} o
  *        plan: upgradePlan's answer (upgrade-line.js upgradeOf); bids: the shop's (shopOf); purse: goldOf; did: the steps pressed on this
  *        card, each with its title as it was pressed (a done row keeps saying what it did: "Sell 17 stacks for 5,407 gp · Done"); buy: next-buy.js nextBuy's answer;
- *        free: the hunt's mode takes nothing for a death (the Tower), so no Bless step; ground: the next ground (nextGroundFrom) and the Levels it was read for
+ *        free: the hunt's mode takes nothing for a death (the Tower), so no Bless step; ground: the next ground (nextGroundFrom) and the Levels it was read for;
+ *        outgrown: the hunt ended `outgrown` (hunt-grounds.js endsAtLevel), so it has no Hunt again and the next ground is the press
  * @returns {{ steps: {id:string, title:string, words:string, verb:string, icon:string|null, done:boolean, count:number,
  *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object}[], primary: string }}
  */

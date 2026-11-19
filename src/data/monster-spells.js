@@ -131,8 +131,9 @@ export const MONSTER_SPELLS = {
   muck_fling: { n: 'Muck Fling', shape: 'blast', r: 1, range: 4, windupMs: 1600, cdMs: 14000, hitPm: 1500, element: 'poison' },   // the Kobold Tosher (the Sewer): thrown from up to 4 tiles at its target's tile
   poachers_volley: { n: "Poacher's Volley", shape: 'line', len: 4, range: 4, windupMs: 1600, cdMs: 16000, hitPm: 1200, element: null }, // the Glade Poacher: through its target and the heroes lined up behind it
   lash_sweep: { n: 'Lash Sweep', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 20000, hitPm: 1000, element: null },      // the Hobgoblin Foreman (the Warrens): the two tiles in front of him
-  /* Cold Bilge (the Bargeman) is the Slake pack's own row (src/data/grounds/the_slake/pack.js spells). WAITING on its monster: Ash
-     Bloom (the Pyre Field's ash caster, not designed yet: group, fire, 1.5x, 16 s). validate refuses a row no monster casts. */
+  /* Cold Bilge (the Bargeman) is the Slake pack's own row (src/data/grounds/the_slake/pack.js spells). The seed row once WAITING here, the Pyre
+     Field's ash caster (group, fire, 1.5x, 16 s), is that pack's Burning Ash on its Stoker (2026-11-19), and Krell's Hold's Hot Pitch on its
+     Gatekeeper. validate refuses a row no monster casts. */
 };
 /* GROUND PACKS (lane/b-pack-fields): a pack's own spell rows (its `spells`) join this table, a copy each, as its monsters join
    MONSTERS. An id already taken is refused: a pack adds. Still the one table every reader and validate see. */

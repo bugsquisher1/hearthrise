@@ -32,6 +32,7 @@ import { existsSync, statSync, readdirSync, readFileSync, writeFileSync, renameS
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
 import { isMain } from '../tests/_is-main.mjs';
+import { loadApplyOrder, nextMigrationName, registerNew } from './lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
@@ -284,7 +285,7 @@ async function ship(id, argv) {
   /* --in-place: an OPEN pack whose file is STAGED (never applied: its apply-order note says so) re-renders into that same file from
      today's data, folded or not (the whole files that fold it carry the same rows). An applied file is history: refused. */
   if (argv.includes('--in-place')) {
-    const cur = W.packSqlOf(id), note = cur ? String(JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8'))._order_notes[cur] || '') : '';
+    const cur = W.packSqlOf(id), note = cur ? String(loadApplyOrder(ROOT)._order_notes[cur] || '') : '';
     if (!cur || !note.startsWith('STAGED')) { console.error('pack ship --in-place: ' + id + (cur ? ": its file " + cur + " is not STAGED (an applied file is history)" : " has no file")); process.exit(1); }
     let out;
     try { out = S.shipText(id); if (out.moved.length) throw new Error(id + ' moves the schema or a function body of ' + out.moved.join(', ')); }
@@ -301,10 +302,9 @@ async function ship(id, argv) {
   const order = W.applyOrder();
   const was = W.packSqlOf(id);
   const dir = join(ROOT, 'supabase', 'migrations');
-  /* a new forward file: dated with the chain's newest date, a -N suffix past the first (an applied file is history) */
-  const date = order.map((f) => f.slice(0, 10)).filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().pop();
-  const n = order.filter((f) => new RegExp('^\\d{4}-\\d{2}-\\d{2}-pack-' + id + '(-\\d+)?\\.generated\\.sql$').test(f)).length;
-  const file = date + '-pack-' + id + (n ? '-' + (n + 1) : '') + '.generated.sql';
+  /* a new forward file at the next sequence (CLAUDE.md rule 12), a -N suffix past the first (an applied file is history) */
+  const n = order.filter((f) => new RegExp('^(?:\\d{4}-\\d{2}-\\d{2}|\\d{4,})-pack-' + id + '(-\\d+)?\\.generated\\.sql$').test(f)).length;
+  const file = nextMigrationName(ROOT, 'pack-' + id + (n ? '-' + (n + 1) : ''), { generated: true });
   /* OPEN FIRST, THEN RENDER: a staged ground is never served, so its rows exist only once it is open (gen-hunts and gen-hunt-sessions
      read the open grounds). Put back as it was if the render refuses. */
   const packFile = join(F.GROUNDS_DIR(), id, 'pack.js');
@@ -321,13 +321,9 @@ async function ship(id, argv) {
   if (was && existsSync(join(dir, was)) && readFileSync(join(dir, was), 'utf8') === out.sql) { console.log('pack ship: ' + was + ' is current'); return; }
   writeFileSync(join(dir, file), out.sql);
   writeFileSync(packFile, readFileSync(packFile, 'utf8').replace(/^(\s*)sql: (null|"[^"]*"),$/m, '$1sql: "' + file + '",'));
-  const manifest = join(ROOT, 'tests', 'schema-apply-order.json');
-  const j = JSON.parse(readFileSync(manifest, 'utf8'));
-  j.order.push(file);
-  j._order_notes[file] = 'STAGED, NOT APPLIED (ground pack ' + id + ', tools/pack.mjs ship): the pack\'s own rows, ' + out.added.reduce((s, t) => s + t.rows.length, 0)
-    + ' in ' + out.added.length + ' tables, upserted on their keys; additive and commuting (tests/ground-pack.mjs). Order: this file, then the hr-accrue deploy, then the client.';
-  writeFileSync(manifest, JSON.stringify(j, null, 2) + '\n');
-  console.log('pack ship: wrote ' + file + ' (' + out.sql.split('\n').length + ' lines), opened ' + id + ', added its apply-order line');
+  registerNew(ROOT, file, 'STAGED, NOT APPLIED (ground pack ' + id + ', tools/pack.mjs ship): the pack\'s own rows, ' + out.added.reduce((s, t) => s + t.rows.length, 0)
+    + ' in ' + out.added.length + ' tables, upserted on their keys; additive and commuting (tests/ground-pack.mjs). Order: this file, then the hr-accrue deploy, then the client.');
+  console.log('pack ship: wrote ' + file + ' (' + out.sql.split('\n').length + ' lines), opened ' + id + ', and its STAGED sidecar');
   console.log('  then: node tests/ground-pack.mjs, node tests/schema-drift.mjs, node tests/restore-census.mjs (re-pin its counts in this lane)');
 }
 

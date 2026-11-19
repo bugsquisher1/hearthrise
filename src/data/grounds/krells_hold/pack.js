@@ -99,7 +99,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
-      hp: 114, atk: 78, baseAcc: 0.82, def: 36, xp: 1128, gp: [17, 50], formula: true },
+      hp: 125, atk: 86, baseAcc: 0.66, def: 36, xp: 1188, gp: [18, 56], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
@@ -112,7 +112,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 109, atk: 80, baseAcc: 0.91, def: 38, xp: 1306, gp: [16, 48], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
+      hp: 120, atk: 88, baseAcc: 0.75, def: 38, xp: 1381, gp: [18, 53], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -126,7 +126,7 @@ export default definePack({
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
         { id: 'ember_tower_shield', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
-      hp: 182, atk: 78, baseAcc: 0.88, def: 58, xp: 2035, gp: [27, 80], formula: true },
+      hp: 200, atk: 86, baseAcc: 0.72, def: 58, xp: 2147, gp: [29, 89], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
@@ -134,9 +134,9 @@ export default definePack({
          wand and codex. He mends the dead in his pull, so the Grave Guards beside him take far longer to drop (Mend the Dead, `spells` below). Kill him first. */
       spells: ['pyre_rite'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
-        { id: 'runewood_staff', ch: 0.045, band: 'scarce' },
-        { id: 'runewood_wand', ch: 0.0035, band: 'rare' }, { id: 'runewood_codex', ch: 0.0035, band: 'rare' }],
-      hp: 157, atk: 100, baseAcc: 0.6, def: 45, xp: 1617, gp: [23, 69], formula: true },
+        { id: 'runewood_staff', ch: 0.049, band: 'scarce' }, // 0.045 -> 0.049 and the two Rares 0.0035 -> 0.0037 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Priests met an hour: 1.59 h and 20.4 h)
+        { id: 'runewood_wand', ch: 0.0037, band: 'rare' }, { id: 'runewood_codex', ch: 0.0037, band: 'rare' }],
+      hp: 172, atk: 110, baseAcc: 0.4, def: 45, xp: 1700, gp: [25, 76], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
@@ -144,12 +144,12 @@ export default definePack({
          his key chain, the tier-6 bodies and his mace, the Emberforged Warhammer (lane/d-drop-homes, 2026-11-18, off the Grave Guard: about
          15 met an hour, so the 5% ceiling). He is the first monster whose drop opens a fight: the Hall Key off his ring (the Key band,
          loot-bands.js, about one every two hours). */
-      weaponWeak: 'hammer', weaponResist: [], // designer round 3, 2026-11-12: no sword resist, the hammer edge stays
+      spells: ['hot_pitch'], weaponWeak: 'hammer', weaponResist: [], // designer round 3, 2026-11-12: no sword resist, the hammer edge stays
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'gatekeepers_chain', ch: 0.1, band: 'uncommon' },
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
         { id: 'ember_warhammer', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
-      hp: 263, atk: 105, baseAcc: 0.6, def: 72, xp: 3179, gp: [39, 116], formula: true },
+      hp: 290, atk: 115, baseAcc: 0.4, def: 72, xp: 3365, gp: [43, 128], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority
@@ -224,7 +224,7 @@ export default definePack({
   /* RE-MEASURED 2026-11-12 (lane/d-packs-retune; tests/party-class-xp-line.mjs --table --mixed, 3 seeds, the floor, the room as built, every pack
      under this one open on the ladder). One class is the mean of its five one-class parties (pairs 0.54-0.73, threes 0.42-0.70, fours 0.32-0.59), two of two the mean of three mixes, three of three of two,
      four of four the one played (pairs 0.96-1.08, threes 0.93-1.07, the four 1.02: the Pyre Field's shape, a Mage or a Healer alone earns the most); the cells between are the size's mix times the cell ratio. Whole fives. */
-  partyVsAlone: { normal: { 2: [-40, 0], 3: [-45, -10, -5], 4: [-60, -30, -30, -25] }, dangerous: { 2: [-30, 25], 3: [-25, 20, 30], 4: [-30, 10, 20, 20] }, deadly: { 2: [-25, 30], 3: [-20, 30, 35], 4: [-30, 15, 25, 25] } },
+  partyVsAlone: { normal: { 2: [-40, 5], 3: [-45, -10, -5], 4: [-55, -30, -25, -25] }, dangerous: { 2: [-30, 20], 3: [-25, 25, 30], 4: [-30, 15, 20, 25] }, deadly: { 2: [-10, 55], 3: [0, 60, 70], 4: [-15, 35, 45, 45] } },
   /* DEADLY IS A HEALER'S TIER HERE, UNDER LEVEL 89 (the designer's Q4 2026-11-12 "Deadly keeps six, bring a Healer", checks.deadlyFourNeeds below;
      the page says it since lane/a-honesty-rescue 2026-11-18). MEASURED on set/v0.2.139 (Deadly: pull 6, blows 1330, HP 1150), the ladder kit, 6 seeds
      x 2 h a four, deaths in 16 hero-hours, a tank, hammer, bow and Mage against a tank, Healer, bow and Mage: Level 85 (the floor) 6.7 / 0, 88 1 / 0,
@@ -383,8 +383,19 @@ export default definePack({
          16 s a lone sword at the floor read a typical low of 59.6% HP on Normal, under the sheet's 60, and at 1.2x every 20 s only 60.5.
        Mend the Dead: the Pyre Priest's mend. From 4 tiles, every 16 s, it puts up to half his own biggest hit back on the most hurt body
          in his pull. He never mends himself. At a full hit every 8 s a lone tank at Level 110 on Dangerous (three Priests in the Chapel's
-         pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it. */
+         pull) healed slower than he killed: 7.5k XP an hour, no death, a fight that never ended. A mend must slow a kill, never stop it.
+       Hot Pitch (lane/d-harder-monsters, 2026-11-19; the balance audit's fix 2): the Gatekeeper calls the gatehouse's pitch down on the whole party.
+         The Hold's two reached only the tank (a cone) and the monsters (a mend), so the back seats of a recorded Deadly four took next to nothing but
+         the Lookout's bolts (Tyler 2026-11-08: area spells are there "so the whole party takes damage"). ON THE GATEKEEPER, NOT THE FARMHANDS, MEASURED:
+         on the swarm (at 1.0x every 24 or 32 s, or 0.6x) a lone tank at the Hold's floor in its own tier read 552k / 591k / 574k Level XP an hour on
+         three seeds against the Pyre Field's 574k / 582k / 570k at the same Level (585k / 605k / 597k with no pitch): the harder ground paid less
+         (tests/hunt-core/forest-cave.mjs harder-pays-more; Tyler 2026-11-04 "harder mobs grant better loot and more exp"). On the Gatekeeper it reads
+         591k / 591k / 597k. 1.0x EVERY 16 S (the seed row's 16 s): his swing tops out at 253, so it lands up to 253 on every hero, 26% of a bare floor
+         hero's 990 HP. At 1.35x the recorded Deadly fours' Healer, already the Lookout's mark, died 0.5 and 1 times an hour in the replay where the
+         record has none (tests/balance-calibration.mjs BC-3; 0.25 at 1.35x every 24 or 32 s); at 1.0x none died, the back seats took 3-4k an hour
+         from it and the four's store bill rose about 5%. */
   spells: {
+    hot_pitch: { n: 'Hot Pitch', shape: 'group', range: 6, windupMs: 2000, cdMs: 16000, hitPm: 1000, element: 'ember' },
     rake_the_coals: { n: 'Rake the Coals', shape: 'cone', len: 4, range: 1, windupMs: 1800, cdMs: 14000, hitPm: 960, element: 'ember' },
     hall_fire: { n: 'Hall Fire', shape: 'group', range: 6, windupMs: 2000, cdMs: 20000, hitPm: 650, element: 'ember' },
     hasks_cleave: { n: 'Cleave', shape: 'cone', len: 2, range: 1, windupMs: 1600, cdMs: 14000, hitPm: 1400, element: null },

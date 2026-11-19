@@ -64,6 +64,7 @@ import { join } from 'node:path';
 import { bootReplay, inventory, ROOT } from './schema-replay.mjs';
 import { goldOf as purseGold, setGold as setPurse } from './_gold.mjs';
 import { isMain } from './_is-main.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const MIG = '2026-09-08-hero-slot-buy.sql';
 const HERO_GOLD = '2026-10-23-demolition-hero-slots-gold.sql';
@@ -569,7 +570,7 @@ async function offerArm(db, q, asUser, catalogue, clean) {
     /* A LATER file that restates the buy body (2026-12-15-account-gold.sql: the account purse) makes this one's
        second apply at chain end a stale restatement: it must REFUSE at its §0 pin and change nothing, never
        install its older body over the one that ships. The later file's own re-apply is graded by its guard. */
-    const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     for (const f of order.slice(order.indexOf(OFFER_MIG) + 1)) {
       const t = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8').catch(() => '');
       if (/create\s+or\s+replace\s+function\s+public\.hr_buy_hero_slot__ungated\s*\(/i.test(t)) y.laterRestater = f;

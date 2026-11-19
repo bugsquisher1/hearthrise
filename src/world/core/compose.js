@@ -40,6 +40,7 @@ import { heroBuilding } from './roofs.js?v=0.2.141';
 import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.141';
 import { vertexGrid, tileKey } from './wang.js?v=0.2.141';
 import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.141';
+import { lookDyeKey } from '../../data/outfits.js?v=0.2.141';
 import { markShapes } from './mark-shapes.js?v=0.2.141';
 import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.141';
 import { roughEdges } from './ground-rough.js?v=0.2.141';
@@ -538,8 +539,10 @@ export function composeFrame(map, book, state, view, tables, T) {
     const i = Number.isInteger(u.frame) ? u.frame : clipFrame(book, u.id, anim, dir, u.age == null ? state.t || 0 : u.age);
     const d = place(u.id, u.x, u.y, { anim, dir, i, kind: 'unit', alpha: u.alpha, ref: u.ref, bias: u.under ? -UNDER : 0, shadow: u.under ? false : undefined });
     if (u.grey) d.grey = Math.max(0, Math.min(1, u.grey));
-    /* its colors, dye indices the server sent ("head.body.legs.feet"; the backend draws them, hero-dye.js). The hero you play is first in line for a sheet. */
-    if (u.dye) Object.assign(d, { dye: u.dye, dyeOwn: isHero });
+    /* its colors, dye indices the server sent ("head.body.legs.feet"; the backend draws them, hero-dye.js). The hero you play is first in line for a sheet.
+       A faction look at the creation defaults draws as drawn, in its side's colors (data/outfits.js lookDyeKey). */
+    const dye = u.dye ? lookDyeKey(u.id, u.dye) : null;
+    if (dye) Object.assign(d, { dye, dyeOwn: isHero });
     /* its pour (src/world/pour.js: the Burning Tower's fire), baked once a kind by the backend (monster-pour.js) */
     if (u.pour) Object.assign(d, { pour: u.pour });
     const { cx, foot, top } = head(d);

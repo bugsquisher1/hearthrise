@@ -98,7 +98,10 @@ import { isMain as isEntryModule } from './_is-main.mjs';
 /* THE BURNING TOWER (Tyler 2026-11-14; the board's "2026-11-14 The Burning Tower" §2, "What ends a climb": "Every one is an END_ORDER reason
    that exists today, plus one new one for the floor's time"; "Time on a floor: Three minutes a floor, ten on a landing. Then the climb ends"):
    `floor_time`, the Tower room's limit, right after `boss_time`, the called room's. */
-const RULING_END_ORDER = ['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server'];
+/* THE CELLAR ENDS ITS HUNT AT LEVEL 5 (the board's 2026-11-19 complete balance look, change 1: "the Mill Cellar ends its hunt at Level 5 and
+   names the next ground", like any other end): `outgrown`, a ground's endsAtLevel reached (src/data/hunt-grounds.js). After the party ends,
+   ahead of the bag's and the clock's: on the swing it lands with "Out of stamina" the card names the next ground, which is the change's point. */
+const RULING_END_ORDER = ['died', 'boss_felled', 'party_member_died', 'party_member_left', 'outgrown', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server'];
 /* vigour_low -> stamina_low (master plan row 4); `cover` = sell-to-cover (row 3). */
 const RULING_EVENTS = ['entered', 'level_up', 'rare_drop', 'death', 'slot_dry', 'stamina_low', 'cover', 'ended'];
 const PER_USE_KINDS = ['heal', 'mana', 'ammo'];   // buff is parked
@@ -433,6 +436,9 @@ function selftest() {
     ['C1', 'stamina never ends a hunt', (d) => { d.endOrder = END_ORDER.filter((r) => r !== 'stamina'); }],
     ['C1', 'the floor\'s time never ends a climb', (d) => { d.endOrder = END_ORDER.filter((r) => r !== 'floor_time'); }],
     ['C1', 'the floor\'s time ends a climb with no words', (d) => { const { floor_time: _gone, ...rest } = END_REASON_COPY; d.endCopy = rest; }],
+    ['C1', 'an outgrown ground never ends a hunt', (d) => { d.endOrder = END_ORDER.filter((r) => r !== 'outgrown'); }],
+    ['C1', 'outgrown behind stamina (the card says Out of stamina, not the next ground)', (d) => { d.endOrder = END_ORDER.filter((r) => r !== 'outgrown').flatMap((r) => (r === 'stamina' ? ['stamina', 'outgrown'] : [r])); }],
+    ['C1', 'an outgrown ground ends a hunt with no words', (d) => { const { outgrown: _gone, ...rest } = END_REASON_COPY; d.endCopy = rest; }],
     ['C1', 'a "(s)" plural hack in end copy', (d) => { d.endCopy = { ...END_REASON_COPY, died: { one: 'You died {n} time(s).' } }; }],
   ];
   let missed = 0;

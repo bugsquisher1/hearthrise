@@ -1,0 +1,4 @@
+{
+  "seq": 649,
+  "note": "APPLIED 2026-11-11 (Coordinator; was: STAGED, NOT APPLIED (lane/r-commit-cost, reliability-engineer, 2026-11-11; GitHub release/v0.2.120 patch-chain guard PATCH-3; pre-EA: applies on its passing §4; NO BEHAVIOUR CHANGE, nothing new for the EA Security list). Restates hr_tick_enrol and hr_hunt_apply_member WHOLE as the exact text production runs (§0 pins the deployment record's md5s e7d36b74 and 5186f2e9 and refuses otherwise; §4 proves the landed text byte-identical to the one replaced): their anchored-patch chains were 2 deep after 2027-04-08-idle-clock.sql / -member-write-once.sql. ORDER: after those two files; independent of every other. EDGE: none. After apply: live-hash-drift re-pin wants nothing but this file in touched_by (no md5 moves); restore-census unchanged; patch-chain-guard baseline re-written on this lane."
+}

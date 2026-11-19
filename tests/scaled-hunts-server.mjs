@@ -42,11 +42,12 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const HOUR = 3600000, SWING = 2000;
 const ARMS = ['SH-PLAY', 'SH-PLAN', 'SH-CAT', 'SH-BUY', 'SH-CLOSED', 'SH-VIEWED', 'SH-OUT', 'SH-SWITCH', 'SH-PARTY', 'SH-FEATURE', 'SH-FORGE', 'SH-LOOT'];
@@ -252,17 +253,21 @@ const DB_ARMS = {
     await cutsTo(db, M, every(h.from, 16000, 6 * 60000));
     const viewed = await snap();
     for (const k of Object.keys(viewed)) if (viewed[k] !== closed[k]) bad.push('viewed ' + k + ' ' + String(viewed[k]).slice(0, 40) + ', closed ' + String(closed[k]).slice(0, 40));
-    /* THE CONTROL: the same instance and dice with the switch off: a kill pays the Cellar's own, and nothing is spent */
+    /* THE CONTROL: the same instance and dice with the switch off: nothing is spent, and since the Cellar's hunt ends at Level 5
+       (hunt-grounds.js endsAtLevel, lane/d-first-day-path) a Level 20 hero's unscaled window ends it `outgrown`, never a free unscaled hour.
+       A scaled kill against the Cellar's own kill is tests/scaled-hunts.mjs loot-scales' (the engine, the ground's own rows as its yardstick). */
     await db.query('rollback to savepoint sh_paths');
     await switchOf(db, UID, 'mill_cellar', false);
     await cutsTo(db, M, [h.from + 6 * 60000]);
     const own = await snap();
     const lx0 = BigInt(await one(db, 'select public.hr_char_xp_for_level(20)::text'));
     const per = (x) => Number(BigInt(x.lx) - lx0) / Math.max(1, x.kills);
-    if (!(per(closed) >= 2 * per(own))) bad.push('a scaled kill paid ' + per(closed).toFixed(1) + ' Level XP, the Cellar\'s own ' + per(own).toFixed(1) + ' (want 2x or more)');
+    const ended = await one(db, 'select end_reason from public.hunt_sessions where id = $1', [h.sid]);
+    if (!(closed.kills > 5 && per(closed) > 0)) bad.push('the scaled hunt killed ' + closed.kills + ' for ' + per(closed).toFixed(1) + ' Level XP a kill');
+    if (ended !== 'outgrown') bad.push('with the switch off the Level 20 hero\'s Cellar ended ' + ended + ', want outgrown');
     if (own.spent !== 0 || own.level !== null) bad.push('the switch off spent ' + own.spent + ' ms at Level ' + own.level);
-    console.log('  SH-VIEWED Cellar at Level 20, 6 min: ' + closed.kills + ' kills, ' + per(closed).toFixed(1) + ' Level XP a kill scaled vs ' + per(own).toFixed(1)
-      + ' own (' + own.kills + ' kills); ' + closed.spent / 1000 + ' s spent; closed and viewed ' + (bad.length ? 'DIFFER' : 'identical'));
+    console.log('  SH-VIEWED Cellar at Level 20, 6 min: ' + closed.kills + ' kills, ' + per(closed).toFixed(1) + ' Level XP a kill scaled; switched off, the hunt ended '
+      + ended + ' after ' + own.kills + ' kills; ' + closed.spent / 1000 + ' s spent; closed and viewed ' + (bad.length ? 'DIFFER' : 'identical'));
     return bad;
   },
 

@@ -1,0 +1,4 @@
+{
+  "seq": 583,
+  "note": "APPLIED 2026-11-06 01:47 UTC (engine 102cb3fc deployed 01:49) (lane/c-boss-call). hr_titles gains the Grate Thief and the Cauldron Thief at price 0, the same full replace. ORDER: after 2027-02-28-titles.sql. Source: gen-title-catalogue."
+}

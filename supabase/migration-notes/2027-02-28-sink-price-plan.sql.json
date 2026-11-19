@@ -1,0 +1,4 @@
+{
+  "seq": 560,
+  "note": "APPLIED 2026-11-05 08:37 UTC (lane/c-sink-price-plan, systems-engineer, 2026-11-05; pre-EA: applies on its passing §3; moves no value). tests/settle-budget.mjs SB-3 was red on set/v0.2.93: hr_state_of builds every section 5.33 times a watched settle, and setup_slots read through hr_sink_price (LANGUAGE sql, re-planned per call on PostgreSQL 17), hr_setups_of and hr_setups_bought. hr_setup_slots_view is now one statement with no helper, the same keys and values at every rung; hr_sink_price is plpgsql, its body verbatim. §0 pins both to their live images. After 2027-02-28-titles.sql. No edge move, no client half: the section keeps its shape."
+}

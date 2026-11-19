@@ -337,6 +337,8 @@
   .char-tab-row { flex: none; }
   .char-tab-row:has(.is-shown) { order: -1; }
   .char-tab { height: 40px; min-width: var(--tap); max-width: 110px; padding: 0 6px; justify-content: center; }
+  /* the hero on screen reads whole beside its badge (v0.2.141 gate: "Bre…" with room to spare); the others stay a thumb's glyph */
+  .char-tab.is-shown { max-width: 180px; }
   .char-tab:not(.is-shown) .char-tab-main, .char-tab-doing, .char-bars { display: none; }
   /* a hero not open here: its name over Play (no status: the row has no room), thumb-wide like the others; a glyph alone,
      like an open hero's, could not say which of several it opens */

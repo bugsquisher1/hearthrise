@@ -840,6 +840,9 @@
 .hpb-load[hidden], .hpb-save-use[hidden] { display: none; }
 .hpb-foot .hh-tool.is-primary { min-height: 40px; }
 .hpb-ready-head { grid-column: 1 / -1; }
+/* the foot's negative bottom margin reaches the body's edge only when the foot is last: with the checklist open under it, the heading
+   slid 12 px under the foot (v0.2.141 gate) */
+.hpb-foot:has(~ .hpb-ready-head.is-on) { margin-bottom: 0; }
 .hpb > .hw-ready { grid-column: 1 / -1; }
 
 /* ── Phone, landscape: the one sheet; the same density, tighter rhythm ── */
@@ -1109,11 +1112,12 @@
 .hw-grow i { display: block; height: 100%; background: var(--green); }
 .hw-plot.is-ready .hw-grow i { background: var(--gold); }
 .hw-plot.is-empty .hw-grow { visibility: hidden; }
-.hw-plot-say { display: flex; flex-direction: column; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
+/* the plot's words stand centred under it, as its press does (v0.2.141 gate: "Empty" sat at the left edge over a centred Plant) */
+.hw-plot-say { display: flex; flex-direction: column; align-items: center; text-align: center; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; white-space: nowrap; }
 .hw-plot-say b { color: var(--ink); font-weight: 700; }
 .hw-plot-say b:empty { display: none; }
 .hw-plot.is-ready .hw-plot-say span { color: var(--gold-2); font-weight: 700; }
-.hw-plot-by { font-size: var(--t-micro); color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hw-plot-by { font-size: var(--t-micro); color: var(--ink-3); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hw-plot-by:empty { display: none; }
 .hw-plot.is-extra .hw-plot-by { white-space: normal; color: var(--gold-2); }
 .hw-plot .hh-tool { white-space: normal; }
@@ -1488,6 +1492,14 @@
 .hd-next { margin: 0 2px 4px; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .tw-foot { bottom: -10px; margin-bottom: -10px; padding-bottom: 10px; }
+  /* A SESSION RUNNING (v0.2.141 gate: the sheet stands above the action bar while the yard runs, 275 px, and the sticky foot, Stop and the press's
+     answer, covered the status box's last lines): the form is gone then, so the box and its Stop stand in the flow, Stop right under the box,
+     the items after them, and the lead line (what training is) steps aside; the answer reads under Stop */
+  .tw-train:has(> .tw-run:not([hidden])) { display: flex; flex-direction: column; }
+  .tw-train:has(> .tw-run:not([hidden])) > .tw-lead { display: none; }
+  .tw-train:has(> .tw-run:not([hidden])) > .tw-foot { order: 1; position: static; margin: 0 0 8px; padding: 0; border-top: 0; }
+  .tw-train:has(> .tw-run:not([hidden])) > :is(.tw-ended, .tw-form, .tw-gear) { order: 2; }
+  .tw-train:has(> .tw-run:not([hidden])) > .tw-foot > .hh-intent-msg { position: static; }
   .tw-skills { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

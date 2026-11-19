@@ -148,7 +148,8 @@
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
 //         region ends at rest on a whole row (no line, slot or creature card cut by its foot or by a sticky Enter/Save foot);
 //         the Hunts page shows its first creature card whole without a scroll (it had 107 px: the window stopped above the bar);
-//         the empty Market at 667x340 too (its invite scrolls in its own box, the press never lost under the window's foot)
+//         the empty Market at 667x340 too (its invite scrolls in its own box, the press never lost under the window's foot); a trim
+//         pass over a window that has not moved writes nothing (perf-budget PB-QUIET, v0.2.142), at least one window trimmed (control)
 //   AW-24 TOWN WORK COUNTS UP BETWEEN PAYOUTS (Tyler 2026-10-23; src/shell/town-ticker.js runs the
 //         server's own span loop on the envelope's numbers, display only). Pure rules:
 //         TK-1  one action at a time on the engine's interval: the logs and XP, and the line
@@ -243,6 +244,7 @@ import { scopedMutants, planShards, checkShards } from '../tools/lib/mutant-scop
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel, levelBlock } from './_server-level.mjs';
 import { pressBar, barWindows, hasIcon } from './_bar.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -263,6 +265,23 @@ const HUNTS = (await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href)
 const LEVEL_30_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(30);
 const LEVEL_5_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(5);
 const LEVEL_36_XP = (await import(pathToFileURL(join(ROOT, 'src/core/xp.js')).href)).charXpForLevel(36);
+/* AW-93: a trim pass over a window whose content and size have not moved writes nothing (window id): the page's own window-fit module
+   (its ?v= is the boot module's), one pass to settle, then two watched (perf-budget PB-QUIET, v0.2.142: a trimmed Hunt summary undid and
+   re-made the same trim on every repaint in a still town). { trims, writes }; writes -1 when the module or the window is not there. */
+const STILL_TRIM = async (id) => {
+  const boot = document.querySelector('script[type="module"][src*="src/app/boot.js"]');
+  const frame = document.querySelector('.hs-win[data-hs-win="' + id + '"]');
+  if (!boot || !frame) return { trims: 0, writes: -1 };
+  const F = await import(new URL('src/shell/window-fit.js' + new URL(boot.src).search, boot.src.replace(/src\/app\/boot\.js.*$/, '')).href);
+  F.trimEnds(frame);
+  const mo = new MutationObserver(() => {});
+  mo.observe(frame, { subtree: true, childList: true, attributes: true, characterData: true });
+  F.trimEnds(frame);
+  F.trimEnds(frame);
+  const writes = mo.takeRecords().length;
+  mo.disconnect();
+  return { trims: frame.querySelectorAll('[data-hs-trim]').length, writes };
+};
 /* AW-93: what a window loses at rest, measured in the page (window id): the frame past the World, a shown word or press past a box that
    hides its overflow or past the frame, and a row (a list's line, a slot, a creature card) cut by its scroll region's foot line
    (the region's bottom, or the top of a sticky foot stuck there). [] when it opens whole. */
@@ -809,7 +828,7 @@ async function prepBuilderRules(base) {
      slot back as it opened */
   {
     /* the instance configure-action.js holds (its import carries the build's ?v=): one host map, not two */
-    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const CA = await imp('src/shell/windows/configure-action.js');
     const cs = fakeCs(fx), sc = scratch();
     sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0; sc.view = set;
@@ -1005,9 +1024,8 @@ async function selectRules(base) {
      and from a bulk button, stops the browser's own select-all, and selects every shown stack; the search box keeps its own Ctrl+A */
   {
     const A = await imp('src/shell/windows/inventory/actions.js');
-    /* the same state.js instance actions.js holds (its ?v= query names the module): one scratch per character */
-    const v = (/\.\/state\.js\?v=([0-9.]+)'/.exec(readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8')) || [])[1];
-    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + '?v=' + v);
+    /* the same state.js instance actions.js holds (at the source's own query): one scratch per character */
+    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + sourceQuery(base));
     const env = { inventory: { rat_tail: 3, bones: 2 }, state: { gold: 5 }, bag_rules: { locked: [], loot: {} } };
     const cs = { slot: 0, status: 'open', record: { residue: {} }, read: (k) => (Object.prototype.hasOwnProperty.call(env, k) ? env[k] : null), setResidue() {}, clock: 0 };
     const ctx = { character: cs, account: null, doc: { activeElement: null }, glyphs: {} };
@@ -1066,7 +1084,7 @@ async function huntsPure(imp) {
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
      (hunt-tiers.js, the build's ?v= instance), put back after, so the designer moving a number never turns a words check red. */
-  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + sourceQuery(ROOT));
   const kept = { glade: TV.GROUND_TIERS.mosslight_glade, thicket: TV.GROUND_TIERS.meadowbrook_thicket };
   const tierRow = (id, pull, dmgPm, hpPm, xpPm) => ({ id, pull, dmgPm, hpPm, xpPm });
   try {
@@ -1099,7 +1117,7 @@ async function huntsPure(imp) {
      and their pages never said it (each pack carries its measurement). */
   {
     const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
-    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + sourceQuery(ROOT));
     let named = 0;
     if (!healerLine || healerLine === 'hunts.tier_healer') fails.push('AW-25 hunts.tier_healer has no words');
     const rows = huntRows();
@@ -1180,7 +1198,7 @@ async function huntsPure(imp) {
      lands) at the multiplier the settle hands it (hunt-rewards.js payKill: weakness(row).dropMult, combat.js weaknessInfo, the monster's own). */
   {
     const { materialsOf } = await imp('src/shell/hunt-ground-facts.js');
-    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version)).MONSTERS;
+    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + sourceQuery(ROOT))).MONSTERS;
     const { rollDropTable } = await imp('src/core/drops.js');
     const { weaknessInfo } = await imp('src/core/combat.js');
     const rolls = (id) => { const seen = []; rollDropTable(MV[id].drops, { dropMult: weaknessInfo(MV[id], null).dropMult }, { chance: (c) => { seen.push(c); return false; } }); return MV[id].drops.map((d, i) => ({ d, c: seen[i] })); };
@@ -1230,8 +1248,11 @@ async function huntsPure(imp) {
   if (worn !== 'medium,,heavy') fails.push('AW-25 the worn weight reads ' + worn);
   /* The list line: the band against the Level in words and a tone; the best, or No best yet. */
   const rows = Object.fromEntries(huntRows().map((r) => [r.hunt, r]));
-  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
-  if (fits !== 'in:In range|above:Above level|far:Far above level|below:Below level|-') fails.push('AW-25 the band words read ' + fits);
+  /* A ground past the hero's Level reads Below level; only a ground whose hunt ends at a Level the hero has reached reads Outgrown
+     (hunt-grounds.js endsAtLevel: the Mill Cellar from 5, whose band then reads 1-4; lane/d-first-day-path) */
+  const fits = [[rows.mill_cellar, 1], [rows.meadowbrook_thicket, 1], [rows.mosslight_glade, 1], [rows.meadowbrook_thicket, 20], [rows.mill_cellar, 4], [rows.mill_cellar, 5],
+    [rows.mill_cellar, 20], [rows.mill_cellar, null]].map(([r, lv]) => { const f = fitWords(r, lv); return f ? f.tone + ':' + f.words : '-'; }).join('|');
+  if (fits !== 'in:In range|above:Above level|far:Far above level|below:Below level|in:In range|below:Outgrown|below:Outgrown|-') fails.push('AW-25 the band words read ' + fits);
   const bests = { minMs: 600000, grounds: { mill_cellar: { solo: { xpH: 7141, balanceH: 1859 }, party: { xpH: 9000, balanceH: 10 } } } };
   const lines = [bestLine(null, 'mill_cellar'), bestLine(bests, 'mill_cellar'), bestLine(bests, 'millrace_sewer')].join('|');
   if (lines !== '|Best 9,000 Level XP/h|No record yet') fails.push('AW-25 the list bests read ' + lines);
@@ -1756,8 +1777,7 @@ async function planRules(base) {
   {
     const { renderConfigureAction } = await imp('src/shell/windows/configure-action.js');
     /* the instance the window itself imports (its scratch is per module instance) */
-    const { BUILD } = await imp('src/build-info.js');
-    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + BUILD.version);
+    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const sec = { hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'power_strike', 0)], store: STORE } };
     const cs = { read: (k) => sec[k] };
     openSlot(cs, 0);
@@ -2118,7 +2138,7 @@ async function planRules(base) {
        Banded Legguards physical). Level 17 hunts Wickstead, where the Turncoat's Smoke Pot is fire; Level 20 has no fire on any ground. The rows are made here for the
        test (Bronze Platelegs with a resistance) and put back after. */
     /* the build's ?v= instance of the catalogue, the one upgrade-plan.js reads */
-    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + sourceQuery(base));
     const threats = (lv) => Array.from(UP.threatsAt(lv)).sort().join();
     if (threats(17) !== 'ember,physical,poison' || threats(20) !== 'physical,poison') fails.push('AW-21 the damage in range reads ' + threats(17) + ' at 17 and ' + threats(20) + ' at 20');
     IT.aw21_fire_legs = { ...IT.bronze_platelegs, n: 'Fireproof Legs', resistPm: { ember: 100 } };
@@ -3147,6 +3167,15 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (await page.evaluate(() => !!document.querySelector('[data-hs-act="refill"]'))) fails.push('AW-7 Hunt prep still offers a refill');
         const line = await page.evaluate(() => document.querySelector('.hw-ready-line b').textContent);
         if (line !== AW8_LINE) fails.push('AW-8 the readiness line reads "' + line + '"');
+        /* THE CHECKLIST OPENS UNDER THE FOOT, NOT BEHIND IT (v0.2.141 gate: "Ready to hunt" sat 12 px under the foot, whose negative margin is for a
+           foot that is last); closed again so the rest reads the window as it was */
+        await page.click('[data-hs-win="hunt-prep"] [data-hs-act="ready"]');
+        await page.waitForTimeout(250);
+        const under = await page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-prep"]'), h = w.querySelector('.hpb-ready-head.is-on');
+          return h ? { foot: Math.round(w.querySelector('.hpb-foot').getBoundingClientRect().bottom), head: Math.round(h.getBoundingClientRect().top) } : null; });
+        if (!under || under.head < under.foot) fails.push('AW-8 the readiness checklist\'s head lies under the foot: ' + JSON.stringify(under));
+        await page.click('[data-hs-win="hunt-prep"] [data-hs-act="ready"]');
+        await page.waitForTimeout(150);
         if (shots) await shot(page, 'alpha-1440x900-hunt-prep');
         await page.click('[data-hs-act="apply"][data-preset="0"]');
         /* Use is TWO round trips here (stop the bury, then the apply): wait for the apply itself, not a fixed 600 ms
@@ -3532,7 +3561,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const list = await page.evaluate((w) => Array.from(document.querySelectorAll(w + '.hw-hunt')).map((li) => [li.dataset.hunt, li.classList.contains('is-picked') ? 'picked' : '',
           li.querySelector('.hw-hunt-lv').textContent, li.querySelector('.hw-hunt-fit').getAttribute('data-tone'), li.querySelector('.hw-hunt-fit').textContent,
           li.querySelector('.hw-hunt-fits').textContent, li.querySelector('.hw-hunt-bestline').textContent, li.querySelector('.hw-hunt-glyph').title].join(':')), W);
-        const want = ['mill_cellar:picked:Levels 1–8:in:In range:Recommended:No record yet:Players: 1 to 4',
+        /* the Cellar reads Levels 1-4: its hunt ends at Level 5 (hunt-grounds.js endsAtLevel), and the list reads the band's top as the Level under it */
+        const want = ['mill_cellar:picked:Levels 1–4:in:In range:Recommended:No record yet:Players: 1 to 4',
           'meadowbrook_thicket::Levels 5–15:above:Above level::No record yet:Players: 1 to 4',
           'millrace_sewer::Levels 5–25:above:Above level::No record yet:Players: 1 to 4',
           /* Wickstead, Greenhaven's sixth (lane b-greenhaven-6, opened on its art v0.2.63): the second solo door for 8-18 */
@@ -3551,7 +3581,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         const readLine = await page.evaluate((w) => { const li = document.querySelector(w + '.hw-hunt[data-hunt="mill_cellar"]');
           const seen = (n) => (n ? n.innerText.replace(/\u00a0/g, ' ') : null);
           return [seen(li.querySelector('.hw-hunt-band')), seen(li.querySelector('.hw-hunt-sub')), seen(document.querySelector(w + '.hw-hd-band'))]; }, W);
-        if (readLine[0] !== 'Levels 1–8 · In range' || readLine[1] !== 'Recommended · No record yet' || !/ · In range$/.test(readLine[2] || ''))
+        if (readLine[0] !== 'Levels 1–4 · In range' || readLine[1] !== 'Recommended · No record yet' || !/ · In range$/.test(readLine[2] || ''))
           fails.push('AW-25 a reader gets ' + JSON.stringify(readLine));
         /* The picked ground's page: who lives here as the world draws them, at a whole-number scale on one ground line. */
         const page1 = () => page.evaluate((w) => {
@@ -5345,6 +5375,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
     { // AW-93 a window opens whole: the short Worlds Tyler plays on (1014x652), a 1024x768 laptop and a phone held sideways
       const lv36 = (e) => { for (const k of ['hunt', 'hunt_analyzer', 'hunt_track', 'hunt_events', 'party']) delete e[k];
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_36_XP }); };
+      let trimmedSeen = 0;
       for (const viewport of [{ width: 1014, height: 652 }, { width: 1024, height: 768 }, { width: 922, height: 423 }]) {
         const { ctx, page, up } = await open({ viewport, mutateEnv: lv36 });
         const at = viewport.width + 'x' + viewport.height;
@@ -5354,6 +5385,11 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(400);
           const lost = await page.evaluate(CLIPPED, id);
           if (lost.length) fails.push('AW-93 at ' + at + ' ' + id + ' opens cut off: ' + lost.slice(0, 3).join(' | '));
+          /* a pass that moved nothing writes nothing: the trims stand */
+          const still = await page.evaluate(STILL_TRIM, id);
+          if (still.writes < 0) fails.push('AW-93 CONTROL: the page\'s window-fit module or ' + id + ' was not found at ' + at);
+          else if (still.writes) fails.push('AW-93 at ' + at + ' ' + id + ' re-trims on a pass that moved nothing: ' + still.writes + ' DOM changes');
+          if (still.trims) trimmedSeen++;
           if (id === 'hunts' && viewport.height > 540) { // the phone's sheet shows the list, then the page
             const card = await page.evaluate(() => { const p = document.querySelector('.hw-hd-page'), c = document.querySelector('.hw-hd-lineup > li');
               if (!p || !c) return 'no page or no creature'; const a = p.getBoundingClientRect(), b = c.getBoundingClientRect();
@@ -5364,6 +5400,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         }
         await ctx.close();
       }
+      if (!trimmedSeen) fails.push('AW-93 CONTROL: no window opened with a trimmed region, so the still pass proved nothing');
       /* THE EMPTY MARKET ON THE SHORTEST PHONE (667x340: a 375-tall phone under its browser bar). Since the short invite (v0.2.135) it fits
          every screen above, so only a World this short proves the invite scrolls in its own box and its press is never lost under the window's foot. */
       {
@@ -5695,6 +5732,8 @@ const MUTANTS = [
   /* QA audit 2026-11-18 N9, N11 and the UI audit's bag items */
   ['AW-25L the card lists materials only again', 'src/shell/windows/hunt-detail.js', '  const loot = lootOf(r.hunt), all =', '  const loot = lootOf(r.hunt).filter((x) => /gel|bones|wheat|fang|jelly|thread/.test(x.id)), all ='],
   ['AW-32b the item menu says Sell twice', 'src/shell/windows/inventory/actions.js', "h += item('m-sell', t('controls.sell_now'),", "h += item('m-sell', t('controls.sell'),"],
+  /* v0.2.141 gate P3: the prep checklist under its foot */
+  ['AW-8 the readiness checklist\'s head slides under the foot', 'src/styles/windows.css', '.hpb-foot:has(~ .hpb-ready-head.is-on) { margin-bottom: 0; }\n', ''],
   /* UI audit 2026-11-18 #4: Storage's two containers side by side */
   ['AW-33 Storage stacks its two grids again', 'src/styles/windows.css', '.hw-store { flex: 1 1 auto; min-height: 0; display: grid;', '.hw-store { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;'],
   ['AW-33 the two wells end apart, a row cut at a foot', 'src/shell/windows/storage.js', "  if (Number.isFinite(end)) for (const w of wells) w.style.maxHeight = end + 'px';\n", ''],
@@ -5721,6 +5760,7 @@ const MUTANTS = [
   ['AW-95 a docked window lies over the hunt bar again', 'src/shell/window-fit.js', '    if (hunt) clearTops(w, hunt.tops, gap);', '    if (false) clearTops(w, hunt.tops, gap);'],
   ['AW-95 the phone sheet lies over the action bar in a hunt again', 'src/shell/shell.js', 'const bars = phoneMq.matches && !hunting ? [] :', 'const bars = phoneMq.matches ? [] :'],
   ['AW-93 a scroll region ends on a cut row again', 'src/shell/window-fit.js', "  if (!frame || frame.classList.contains('is-sized')) return;", '  return;'],
+  ['AW-93 a still pass re-makes the same trims again', 'src/shell/window-fit.js', '  if (lastPass.get(frame) === passInputs(frame, view)) return;', '  if (false) return;'],
   ['AW-94 a window shows two gold plates at once', 'src/shell/shell.js', "    for (const w of layer.querySelectorAll(':scope > .hs-win')) oneGold(w);\n", ''],
   ['AW-94 a press inside a window is not remembered as where the next came from', 'src/shell/shell.js', 'function onClick(e) { inWin(e, () => press(e)); }', 'function onClick(e) { press(e); }'],
   ['AW-94 a page is never drawn in its host', 'src/shell/shell.js', '      if (showPage(el, page)) refresh(page);\n', ''],
@@ -5940,6 +5980,10 @@ const MUTANTS = [
   ['plans: AW-21 a worn off-hand stays for a better one of its kind (F8)', 'src/shell/upgrade-plan.js', '    for (const slot of UPGRADE_SLOTS.concat(OFFHAND)) {', '    for (const slot of UPGRADE_SLOTS) {'],
   ['plans: AW-21 a worn bane keeps the blade in silence (designer small call 2, 2026-11-11)', 'src/shell/upgrade-plan.js', '  if (!front.length) return tradeOf(slot, cur, now, fits, worn, o, set);', '  if (!front.length) return null;'],
   ['plans: AW-25 the death line ignores the Blessings', 'src/shell/hunt-list.js', '  const cut = Number.isInteger(cutPermille) && cutPermille > 0 ?', '  const cut = false ?'],
+  /* AW-25 Outgrown only past a ground's endsAtLevel (lane/d-first-day-reds): never on every ground under the hero, never lost on the Cellar */
+  ['hunts: AW-25 Outgrown leaks to every ground under the hero', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (level > r.band[1]) return'],
+  ['hunts: AW-25 the Cellar past its exit reads Below level', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (false) return'],
+  ['AW-25 the Cellar\'s band reads past its exit', 'src/shell/hunt-list.js', 'band: Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice(),', 'band: h.band.slice(),'],
   ['plans: AW-32 a plan that ran reads nothing set', 'src/shell/loot-dispatch.js', "Object.values(rules.loot).some((v) => MOVES.has(v)) ? t('shop.dispatch_all_moved')", "false ? t('shop.dispatch_all_moved')"],
   ['plans: AW-27 a shared cooldown reads as never firing', 'src/data/text/bar.js', "  shared_cooldown: 'Waits for {action} in slot {slot} when both are ready',", "  shared_cooldown: 'Shares a cooldown with {action} in slot {slot}',"],
   ['AW-34 an item tooltip outlives its window', 'src/shell/shell.js', '    hideTipIfGone(doc);\n', ''],

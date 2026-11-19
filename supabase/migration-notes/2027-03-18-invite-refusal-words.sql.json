@@ -1,0 +1,4 @@
+{
+  "seq": 594,
+  "note": "APPLIED 2026-11-06 14:40 UTC, landed gate_message f67b0ec2 and signup_message e60d504a (lane/c-copy-server, game-designer, 2026-11-06; pre-EA: applies on its passing §2; not a money, ranked or authority surface). Restates the two copy functions a refused sign-up reads, words only: hr_beta_gate_message (invite_unknown loses two em dashes and the British recognised) and hr_beta_signup_message (the open-gate hint loses its em dash; production runs with the gate open). Discord playtest 11-05, the copy rules of 11-06. Pre/post md5 pinned in §0 (378f8d14/f67b0ec2, 81919cf8/e60d504a); §2 asserts no em dash, semicolon or recognis in any sentence either can return. Orders after the pace batch (2027-03-15/-16) and 2027-03-17; nothing depends on it."
+}

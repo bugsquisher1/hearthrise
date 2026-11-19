@@ -1,0 +1,4 @@
+{
+  "seq": 383,
+  "note": "APPLIED 2026-10-22 04:07 UTC by the Coordinator (v0.2.27). Was STAGED, NOT APPLIED (lane/b-death-equip-online, systems-engineer, 2026-10-21; game CLOSED: applies on its passing §4; Security reviews it at the reopen gate). Tracker r16 'N online' counter (Tyler 10-20: one person on two characters is 2): NEW hr_players_online(p_slots int[]) (authenticated, 6/min/account) stamps the caller's OWN named characters present in NEW table character_presence (user, slot, seen_at; 20 s floor; RLS on, no client grant) and answers { ok, online } = characters seen within 75 s, presence_quiet ones left out; NEW one-row table hr_players_online_cache so the count is computed at most once per 15 s for everyone. player_state.last_seen_at (the world tick's online signal) untouched. Counts only: no id, name or slot leaves. restore-census: both operational (re-pinned on this branch). After 2026-11-07-death-popup-blessing.sql (no object in common)."
+}

@@ -27,7 +27,8 @@
 //   HC-CLIENT  the reader, the button's number and the refusal's words, from the row; ONE intent with four indices and the QUOTE, never a color; a stale quote re-reads
 //   HC-DYE     the look cache: at most one bake a frame; the cap holds; a look on screen is never evicted, past the cap a hero draws undyed; the hero you play takes a place anyway;
 //              the masks load only on the first dyed hero; two sets an outfit can't tell apart share a sheet; the recolour keeps each pixel's value and touches only masked pixels
-//   HC-DRAW    a walker, a seat and the hero you play all reach compose with a key; compose keeps it on the unit it draws; a frame's list carries it for the backend
+//   HC-DRAW    a walker, a seat and the hero you play all reach compose with a key; compose keeps it on the unit it draws; a frame's list carries it for the backend;
+//              a faction look at the creation defaults draws as drawn in its side's colors, a dye the player chose wins (blind faction QA 2026-11-19 #5)
 //   HC-PAINT   the canvas backend draws a baked look from its sheet, undyed until then, and repaints a held frame when the look lands
 // TRUE CONCURRENCY is unverified here (PGlite is one backend); two presses on one hero are ordered by hr_hunt_lock (the migration's header).
 // ════════════════════════════════════════════════════════════════════════
@@ -37,6 +38,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ownHeroSlots, asOldLadder } from './_slots.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901dc101';
@@ -113,7 +115,9 @@ export const MUTANTS = {
   loses_shading: { arm: 'HC-DYE', why: 'a dyed pixel loses its value', js: ['src/world/hero-dye.js', [['const [r, g, b] = hsv(h, s, (v / 255) * (0.4 + 0.6 * dv));', 'const [r, g, b] = hsv(h, s, dv);']]] },
   walker_no_dye: { arm: 'HC-DRAW', why: 'a stranger draws undyed', js: ['src/world/town-scene.js', [['          dye: p.w.dye,\n', '']]] },
   hero_no_dye: { arm: 'HC-DRAW', why: 'the hero you play draws undyed in town', js: ['src/world/walk-scene.js', [['dye: o.heroDye ? o.heroDye() : null, ', '']]] },
-  compose_drops: { arm: 'HC-DRAW', why: 'compose loses the key', js: ['src/world/core/compose.js', [['if (u.dye) Object.assign(d, { dye: u.dye, dyeOwn: isHero });', '']]] },
+  compose_drops: { arm: 'HC-DRAW', why: 'compose loses the key', js: ['src/world/core/compose.js', [['if (dye) Object.assign(d, { dye, dyeOwn: isHero });', '']]] },
+  faction_dyed: { arm: 'HC-DRAW', why: 'a faction look at the creation defaults takes the default crimson (blind faction QA 2026-11-19 #5)',
+    js: ['src/data/outfits.js', [['  return r.regions.every((g) => colors[g] === BASE_DEFAULT_COLORS[g]) ? null : colors;\n', '  return colors;\n']]] },
   scene_drops: { arm: 'HC-DRAW', why: 'a hunt draws the party undyed', js: ['src/hunt-view/scene.js', [['grey, under, dye: dyeOf(u) };', 'grey, under };']]] },
   scene_own_only: { arm: 'HC-DRAW', why: 'a hunt draws only the hero you play in colors', js: ['src/hunt-view/scene.js', [['    return who ? who.dye : null;\n', '    return null;\n']]] },
   seat_no_key: { arm: 'HC-PARTY', why: 'the party reader drops the colors', js: ['src/session/party-sections.js', [[', dye: dyeKeyOf(p.colors) });', ', dye: null });']]] },
@@ -714,6 +718,20 @@ const ARMS = {
       const own = units2.filter((d) => d.dyeOwn).map((d) => d.dye);
       if (own.join() !== '1.2.3.4') out.push('compose marks as yours ' + JSON.stringify(own));
     }
+    /* A FACTION LOOK WEARS ITS SIDE'S COLORS AS DRAWN (blind faction QA 2026-11-19 #5: a default Flamebearer took the creation default's crimson body
+       dye beside a crimson Emberkeeper): at the creation defaults compose draws it undyed (the Flamebearer's antique gold, the Emberkeeper's crimson, as
+       drawn); a body dye the player chose recolors it; a standard outfit at the defaults keeps its key */
+    const KN = { class: 'unit', layer: 'unit', frame: [4, 4], anchor: [2, 3], footprint: [1, 1], hover: 0, height: 4, shadow: null, anims: { idle: { fps: 5, loop: true, dirs: { s: [[0, 0]] } } } };
+    const fbk = X.BK.createBook({ hunt: { size: [64, 64], sprites: { outfit_knight: KN, outfit_flamebearer: KN, outfit_emberkeeper: KN }, terrain: {} } });
+    const DEF = '13.5.3.0', CHOSEN = '13.8.3.0';
+    try {
+      const fl = X.CP.composeFrame(fm, fbk, { hero: { id: 'outfit_flamebearer', x: 2, y: 2, dye: DEF }, units: [{ id: 'outfit_emberkeeper', x: 3, y: 3, dye: DEF },
+        { id: 'outfit_flamebearer', x: 4, y: 4, dye: CHOSEN }, { id: 'outfit_knight', x: 5, y: 5, dye: DEF }], t: 0 }, { ox: 0, oy: 0, w: 256, h: 256 },
+        { materials: {}, sprites: fbk.sprites, openClasses: [], lights: {} }, 32);
+      const got = fl.sprites.filter((d) => d.kind === 'unit').map((d) => d.id + ':' + (d.dye || '-')).sort();
+      const want = ['outfit_emberkeeper:-', 'outfit_flamebearer:-', 'outfit_flamebearer:' + CHOSEN, 'outfit_knight:' + DEF].sort();
+      if (JSON.stringify(got) !== JSON.stringify(want)) out.push('faction looks: compose carries ' + JSON.stringify(got) + ', want ' + JSON.stringify(want));
+    } catch (e) { out.push('compose (faction looks) threw: ' + String(e.message).slice(0, 200)); }
     return out;
   },
 
@@ -779,8 +797,7 @@ function plantSql(text, [, find, repl]) {
 }
 
 async function loadReaders(root) {
-  const v = (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
-  const u = (p) => pathToFileURL(join(root, p)).href + '?v=' + v;
+  const u = (p) => pathToFileURL(join(root, p)).href + sourceQuery(root);
   return {
     GS: await import(u('src/data/gold-sinks.js')),
     OF: await import(u('src/data/outfits.js')),

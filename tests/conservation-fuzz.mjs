@@ -819,7 +819,7 @@ async function boot(injectionId) {
       const at = chain.findIndex(([n]) => n === file);
       if (at < 0) {
         process.stderr.write(`HARNESS: injection "${injectionId}" names ${file}, which is not in the `
-          + 'apply order (tests/schema-apply-order.json). A plant in a file the chain never applies\n'
+          + 'apply order (supabase/migration-notes, tools/lib/apply-order.mjs). A plant in a file the chain never applies\n'
           + '  is not a plant.\n');
         process.exit(2);
       }

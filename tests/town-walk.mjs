@@ -102,6 +102,7 @@ import { pinFonts } from './_test-fonts.mjs';
 /* the stations as the server catalogue reads them (the seed's rows, or the real town's STATIONS) */
 import { townStations, OUT_FILE as CATALOGUE } from '../tools/gen-town-stations.mjs';
 import { TOWN_NAME } from '../src/data/world/town/plan.js';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const clone = (o) => JSON.parse(JSON.stringify(o));
@@ -134,7 +135,7 @@ async function load(base) {
 /* The chain's last word on `fn` (its body, from the file the apply order applies last), and the function the
    chain's `role` state section names. A migration copied into `base` (a mutant) is read from there. */
 function chainOf(base, fn) {
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   let body = null, roleFn = null;
   for (const file of order) {
     const rel = join('supabase/migrations', file);
@@ -646,7 +647,7 @@ async function pureRules(M) {
   }
   // TW-12: the fake above keys a body by user AND slot; the real server (the chain's last word) must too.
   {
-    const order = JSON.parse(readFileSync(join(ROOT, 'tests/schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     let body = null, key = null;
     for (const file of order) {
       let sql;

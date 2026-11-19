@@ -98,7 +98,21 @@ export const contractXpPerH = (L) => LEVEL_PACE.contract.a * Math.max(1, L) ** L
    READ AS PER-LEVEL DIALS (Tyler 2026-11-07): each curve below is a share of a same-Level hero or a rate per
    Level, so "+x% damage, +x% HP, +x% XP, +x% gold" are multipliers on them, and a ground SCALED up to a
    party's Level (a future paid option) is the same formula read at every monster's Level + the shift and the
-   floor + the shift: HP keeps its own curve, so a Level 60 can't one-shot a scaled Level 10 ground. */
+   floor + the shift: HP keeps its own curve, so a Level 60 can't one-shot a scaled Level 10 ground.
+   MONSTERS A LITTLE HARDER (Tyler 2026-11-19: "I think we should raise HP and damage done by all monsters in the game slightly.
+   Everything is a bit too easy it seems"; lane/d-harder-monsters): ONE STEP, x1.10 on the blow dials (lo, hi and the gentle cap)
+   and on the HP line, read that way: every monster of every ground, the Burning Tower's floors and the Catacombs' rooms (they read
+   this formula at Level F) and every boss (its blow is the regular's x its role) hits a tenth harder and has a tenth more HP.
+   Its coin a kill follows its HP (per point, below), a tenth more; its Level XP a point is x0.96 (`xp`, below) so the pace of record
+   holds, about 5% more a kill.
+   The fitted values it steps from: blow 0.12 / 0.20, gentle cap 0.10, HP 4.5 + 1.6 a Level. Where a ruling holds a monster
+   under the step, the row is a named exception (FORMULA_EXCEPTIONS, the Rat King), and where a spell would pass the 35% a floor
+   hero may take (designer 2026-10-21), the spell's multiple holds it where it stood (the Ox Road's Hot Coal, the Catacombs' Bone
+   Slide and Snuff the Candles). Measured on the real settle (the quick grade before and after, 719 cells each; the pace careers
+   re-run): on Normal in range no lone hero or four dies on any open ground and a lone hero's low point (p10) falls 1-9 points; Level XP
+   an hour moves -4% to +1% alone and -2% to +5% a four's head, coin -4% to +10%; the store bill rises (Normal alone +9% to +200%
+   from small bills, a four on Deadly +29% to +59%); lone heroes on the harder tiers die 1.5-4x as often; the pace of record
+   holds (Level 50 in 155.1 h, the median of eight careers; 155.4 before). The Cellar's XP fit moved with it (GROUND_XP_FIT). */
 export const STAT_FORMULA = Object.freeze({
   /* THE REFERENCE HERO a curve is anchored on: a hero of the monster's own Level, base HP 150 + 10 a Level
      (VITALS), Defense at its Level, no guard. */
@@ -116,12 +130,13 @@ export const STAT_FORMULA = Object.freeze({
      A monster above its hero's Level hits a bigger share of that hero (10 HP a Level), and more often (2% a Level). */
   /* gentleCap: on a gentle ground no blow passes this share of the FLOOR hero's HP (its deep monsters meet fresh heroes 8-10 Levels under them),
      climbing to no cap on a full ground. 0.10: the Thicket's fresh melee dipped under 25% 1-6 times in 4 h (1 at 0.10, 1-5 at 0.14;
-     the sheet allows 0), lane/b-ground-formula-2. */
-  blow: Object.freeze({ lo: 0.12, hi: 0.20, gentleCap: 0.10 }),
+     the sheet allows 0), lane/b-ground-formula-2. All three x1.10 since 2026-11-19 (MONSTERS A LITTLE HARDER, above). */
+  blow: Object.freeze({ lo: 0.132, hi: 0.22, gentleCap: 0.11 }),
   /* A REGULAR's HP (the row's: a party of four's, the engine scales it 55-100% by party size): base + perLevel x
      its Level, a straight line like a hero's damage, so it grows by perLevel / HP a Level (13% at 5, 7% at 16, 3%
-     at 50). Fitted on every open ground's rows (Cellar 9 at Level 2, Glade 30 at 16, Warrens 150 at 34 / 2.5). */
-  hp: Object.freeze({ base: 4.5, perLevel: 1.6 }),
+     at 50). Fitted on every open ground's rows (Cellar 9 at Level 2, Glade 30 at 16, Warrens 150 at 34 / 2.5) as 4.5 + 1.6 a Level;
+     x1.10 since 2026-11-19 (MONSTERS A LITTLE HARDER, above). */
+  hp: Object.freeze({ base: 4.95, perLevel: 1.76 }),
   /* A REGULAR's defense: perLevel x its Level (x the role), plus `past.perLevel` a Level past `past.from` for every role. A hero's
      to-hit is 0.55 + (skill + weapon accuracy - defense) x 0.01, held to 95%: at 0.08 a Level a Warrens goblin (def 2-17) left a
      Level 45 hero at the cap, so a better weapon's accuracy bought nothing (first-week-bands weapon-rungs: the hatchets' tier 3
@@ -134,8 +149,13 @@ export const STAT_FORMULA = Object.freeze({
      kill for any party size, a lone hero on the first grounds kills in a blow or two and walks between pulls, so the full kill paid
      1.37-1.53x the pace contract at the band middle (a lean grid, 8 ways, 1 seed x 2 h). A kill's XP is `lo` of the curve on a ground
      whose floor is `from` or under, rising straight to the whole curve at `to`: the Cellar, the Thicket, Wickstead and the Sewer 0.67,
-     the Glade 0.78, the Warrens 1. */
-  xp: Object.freeze({ a: 1.70, b: 0.4, min: 3.0, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),
+     the Glade 0.78, the Warrens 1.
+     THE PACE HOLDS THE 2026-11-19 STEP (MONSTERS A LITTLE HARDER, above): a and min are the fitted 1.70 and 3.0 x0.96. With the HP line
+     x1.1 and XP a point as it was, a kill paid a tenth more but took less than a tenth longer (the walk and the rest between pulls don't
+     grow), so the eight lone careers levelled 4-6% faster: Level 50 in 146.9 h on the curve (-12.5% of the 168 h, past LEVEL_PACE's 10%;
+     the ladder 1-11% up, the Cellar most). x0.96 gives that back, so a kill pays about 5% more XP for its tenth more HP and the pace
+     of record stands (tools/balance-sim/level-pace.json). Tyler's ask was harder monsters, not faster Levels. */
+  xp: Object.freeze({ a: 1.632, b: 0.4, min: 2.88, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),
   /* COIN a kill: perHp gold per HP point times the ground's `line`, rolled lo..2 x mean - lo so the roll's mean IS the
      formula's (keepMean: a plain [0.5, 1.5] rounding paid a 3 g whelp 3.5). HARDER PAYS MORE ON ONE LINE (Tyler 11-03,
      11-04): coin per HP climbs straight with the ground's floor, x0.5 at the first ground to x1.4 from floor 16 (the Thicket x0.74,
@@ -255,7 +275,11 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    KEPT at x1.28 (designer 2026-11-13, lane/d-no-profit-molds): the FULL grade (8 ways, 6 seeds) reads it 0.888x, and the next step a row can take
    (x1.32, the Giant Rat 15 -> 16 XP) made Level 4 -> 5 so quick that Level 5 -> 6 read 2.04x it, a wall (level-curve C6, at most 2x). The Cellar's
    middle is Level 5, LEVEL_PACE.early's Level, where the tutorial's promise rules (Level 5 in 0.15-0.35 h, measured 0.24 h: level-curve C3), so the
-   grader reads the contract there as a report line, not a bar (tools/balance-sim/grade-sheet.mjs). A felt wall loses to an unfelt 1%. */
+   grader reads the contract there as a report line, not a bar (tools/balance-sim/grade-sheet.mjs). A felt wall loses to an unfelt 1%.
+   x1.22 SINCE THE 2026-11-19 STEP (MONSTERS A LITTLE HARDER, STAT_FORMULA): a Cellar monster dies in a blow or two, so its tenth more HP cost a
+   fresh hero no extra swing while its XP rose with it (the Rat 15 -> 17 XP at x1.28): the Cellar paid 6% more an hour (the ladder 10,528-10,608
+   against 9,913-9,992) and Level 5 -> 6 read 2.04x Level 4 -> 5 again, the same wall. x1.22 puts the Cellar back where it was (9,876-9,951, the Rat
+   16 XP on 7 HP), the wall gone. */
 /* THE GLADE x0.90 UNDER SOLO +15% (lane/d-solo-fifteen, 2026-11-11). The +15% put the Glade's lone median at 1.12x the pace contract at its middle (24),
    1.07x at +5% (grade quick, Normal; the band is 0.90-1.10), and the Glade is a solo ground, so its lone median is the way the contract reads: x0.90
    lands it at 1.01x. Ratios between heroes on one ground never move (a fit scales alone and party alike).
@@ -271,7 +295,7 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    band (x0.87 or less) broke that guard. THE LEVER, built (scaled-hunts.js partyPm 720: a party on a scaled hunt keeps 72% of its ground's party cell), put a
    scaled four at 0.54-0.71x the Warrens' four, so THE WARRENS x0.76: the Warrens is the ladder's last rung, so a cut there flattens the measured ladder and the contract follows it (level-curve C5):
    x0.84 left its lone median 1.12x the re-measured contract, x0.76 lands it in band. Measured below (the grade) and in level-curve (C5). */
-export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.28, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
+export const GROUND_XP_FIT = Object.freeze(foldRows('xp fit', { mill_cellar: 1.22, meadowbrook_thicket: 0.9, wickstead: 1.1, mosslight_glade: 0.90, millrace_sewer: 0.9, coppercap_warrens: 0.76 }, GROUND_PACKS, (p) => (p.xpFit ? { [p.id]: p.xpFit.k } : {})));
 
 /* A GROUND'S INCOME DIAL (designer 2026-11-16, lane/d-supply-prices; Tyler 2026-11-16 chose "cut income instead" over dearer supplies): one
    number a ground, x the coin each of its kills pays (the formula's mean below) and x what the loot it drops sells for (loot-sale.js, the
@@ -289,14 +313,17 @@ export const FORMULA_EXCEPTIONS = Object.freeze({
      retired: NO PROFIT MOLDS, Tyler 2026-11-13) */
   /* KRELL'S LOOKOUT, A DANGER EXCEPTION (lane/b-barrow-packs 2026-11-13, after NO PROFIT MOLDS): on the glass role's 0.22 blow a lone hero at the
      Hold's floor on Normal read 2.81 close calls in 12 h on the full grade (the sheet allows 1). While engine piece 2 is unbuilt he swings in melee,
-     and he is the floor's top damage. His blow is the Farmhands' 0.17 (designer Q3 measured close calls 3.2 to 0.63); his to-hit stays the role's 0.75. */
+     and he is the floor's top damage. His blow is the Farmhands' 0.17 (designer Q3 measured close calls 3.2 to 0.63); his to-hit stays the role's 0.75.
+     Since 2026-11-19 (MONSTERS A LITTLE HARDER) the Farmhands' blow is 0.187, so his is too: the rule (the Farmhands' blow) is kept and takes the step. */
   /* THE RAT KING, A DANGER EXCEPTION (lane/d-party-pace; Tyler 2026-11-18 "Yes, open at 5"): his Tail Lash lands twice his blow, and with the Sewer's floor at 5
      the formula's attack 7 lands it for 74, 39% of the floor hero's 190 HP, over the 35% a boss may take of the floor hero (tests/hunt-core/hunt-data.mjs
-     blow-share; Andy died to 108). Attack 6 lands 64 (34%); his to-hit at a same-Level hero is the formula's, restated for the lower blow. */
-  rat_king: Object.freeze({ atk: "his Tail Lash, twice his blow, held at 35% of the floor hero's HP since the Sewer opens at 5: 64 of 190 at attack 6, where the formula's 7 lands 74",
+     blow-share; Andy died to 108). Attack 6 lands 64 (34%); his to-hit at a same-Level hero is the formula's, restated for the lower blow.
+     So he is the one monster the 2026-11-19 step (MONSTERS A LITTLE HARDER) can't reach with damage: the formula's attack is 8 since then (Tail Lash 86,
+     45%), and the 35% boss rule holds him at 6. His HP takes the step. */
+  rat_king: Object.freeze({ atk: "his Tail Lash, twice his blow, held at 35% of the floor hero's HP since the Sewer opens at 5: 64 of 190 at attack 6, where the formula's 8 lands 86",
     baseAcc: "the formula's to-hit at a same-Level hero, restated for the lower blow: 0.76 + 1 x 0.02" }),
-  hasks_lookout: Object.freeze({ atk: "a blow of 0.17 of a same-Level hero, the Farmhands', so a lone hero at the floor on Normal is safe (close calls, not gold)",
-    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, restated for the lower blow: 0.75 + (88 - 80) x 0.02" }),
+  hasks_lookout: Object.freeze({ atk: "a blow of the Farmhands' share of a same-Level hero (0.187 since the 11-19 step, was 0.17), not the glass role's, so a lone hero at the floor on Normal is safe (close calls, not gold)",
+    baseAcc: "the glass role's 0.75 to-hit at a same-Level hero, restated for his blow: 0.75 + (88 - 88) x 0.02" }),
 });
 
 /* combat.js monsterDamageScaleByTier, restated: the formula divides the blow by it (a test pins the two equal). */

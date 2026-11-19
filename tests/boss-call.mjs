@@ -38,9 +38,10 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(REPO, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(REPO);
 const T0 = Date.UTC(2026, 9, 18, 12, 0, 0);
 const MINUTE = 60000;
 const ALLOWED = new Set(['accrued_to', 'hp', 'journal', 'progress', 'deaths']);
@@ -529,7 +530,8 @@ const KING_TAIL = "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' },\n     
 /* the drop door's own lines (src/core/hunt-rewards.js calledSwing) */
 const DOOR_KILL = "    if (ev.type !== 'kill') continue;\n    const t = unitOf(ev.t);\n    if (t && t.side === 'mon' && t.kind === boss) {\n";
 const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(ev.u);\n      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });\n    }\n  }\n  return deaths;\n}\n\n/**";
-const PAY_HERE = "{ const ids = livingIds(world, members); const row = (ctx.monsters || MONSTERS)[boss]; if (ids.length && row) payDrops(ids.map((id) => members.get(id)), ids, members.get(ids[0]), row, ctx, world, ev.atMs); }";
+/* a planted roll of his table, in calledSwing's own loop: the heroes alive at event `i` (livingAt, with the swing's falls `fell`) */
+const PAY_HERE = "{ const ids = livingAt(world, members, fell, i); const row = (ctx.monsters || MONSTERS)[boss]; if (ids.length && row) payDrops(ids.map((id) => members.get(id)), ids, members.get(ids[0]), row, ctx, world, ev.atMs); }";
 const ROW_ADD = "hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
 const MUTANTS = [
   /* THE ROOM'S TIME COSTS NO STAMINA (each fight is charged by the server as it starts) */

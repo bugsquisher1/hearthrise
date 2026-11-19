@@ -30,6 +30,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { isMain } from '../tests/_is-main.mjs';
+import { applyOrderAt } from './lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -80,6 +81,15 @@ export async function prepare({ heroes = 4, windows = 8, hunt = 'millrace_sewer'
       if (item === null) await db.query('delete from public.player_equipment where user_id = $1 and slot = 0 and equip_slot = $2', [uid, slot]);
       else await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
     }
+  }
+  /* A GROUND WITH AN EXIT (hunt-grounds.js endsAtLevel, the server's hr_hunt_grounds.ends_at_level: the Mill Cellar's hunt ends at Level 5
+     and its door refuses a hero at it, 2027-05-28-cellar-outgrown.sql): each hero's Level XP stands at the bottom of the Level under it, its
+     skills at `level` (a yard-trained hero: Level XP comes from kills only), so the run measures what it always measured. An older chain
+     (upTo) has no column, and nothing moves. */
+  const hasExit = Number(await one(db, `select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'hr_hunt_grounds' and column_name = 'ends_at_level'`)) === 1;
+  const exit = hasExit ? await one(db, 'select ends_at_level from public.hr_hunt_grounds where hunt_id = $1', [hunt]) : null;
+  if (Number.isInteger(exit) && level >= exit) {
+    for (const uid of uids) await db.query('update public.player_state set level_xp = public.hr_char_xp_for_level($2) where user_id = $1 and slot = 0', [uid, exit - 1]);
   }
   if (heroes > 1) {
     for (let i = 1; i < heroes; i++) {
@@ -377,7 +387,8 @@ function edgeAt(rev) {
   return dir;
 }
 function lastMigrationAt(rev) {
-  const order = JSON.parse(execFileSync('git', ['show', `${rev}:tests/schema-apply-order.json`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 })).order;
+  /* that revision's apply order: its sidecars, or the old JSON when it predates them */
+  const order = applyOrderAt(rev, ROOT).order;
   return order[order.length - 1];
 }
 

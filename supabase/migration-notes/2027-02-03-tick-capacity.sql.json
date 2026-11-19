@@ -1,0 +1,4 @@
+{
+  "seq": 476,
+  "note": "APPLIED 06:50 UTC 2026-10-28 (Coordinator; landed md5s = lane). Staged on (lane/c-settle-cost, backend-architect, 2026-10-28; pre-EA: applies on its passing self-check; moves no value; for the EA review). The world tick sized to the post-2027-02-02 settle cost: NEW hr_tick_config.hunt_bodies_max (default 16 = the constant it replaces, CHECK 1..64); hr_hunt_roster_sharded restated whole (pinned to its live image 23af29bf) reading it; dials hunt_body_max 12 -> 4, hunt_bodies_max 16 -> 32; shards stay 1 (they split only the gather roster; arithmetic in the header). ORDER: right after 2027-02-02-settle-cost.sql (its precondition)."
+}

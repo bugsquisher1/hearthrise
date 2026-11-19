@@ -53,7 +53,9 @@ const MOVED_AFTER_MS = 10 * 60 * 1000;
    on by default) names that box: the gathering tip under it was stale advice (post-140 audit C1). Every other automatic end (a death, a
    stop rule ...) points at the hunt page's When the hunt ends, which picks the job or the yard the server goes on to (Tyler 2026-11-15). */
 const NEXT = Object.freeze({ hours: 'away.next_longer', heals_out: 'away.next_food', ammo_out: 'away.next_ammo', runes_out: 'away.next_runes', gold_out: 'away.next_gold',
-  stamina: 'away.next_stamina', party_member_left: 'away.next_party', party_member_died: 'away.next_party' });
+  stamina: 'away.next_stamina', party_member_left: 'away.next_party', party_member_died: 'away.next_party',
+  /* a ground outgrown (src/data/hunt-grounds.js endsAtLevel): the way on is a harder ground, which the summary names and Hunts tags */
+  outgrown: 'away.next_outgrown' });
 /* A training session's: its cap reached, start it again; the purse's end and every other say it all already. */
 const TRAIN_NEXT = Object.freeze({ hours: 'away.next_train_again' });
 const TOWN_KINDS = Object.freeze(['gather', 'artisan', 'training']);

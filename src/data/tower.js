@@ -27,6 +27,9 @@
 //   fit             the stat formula's fit for every Tower room (balance-sheet.js STAT_FORMULA.fit): one difficulty for one hero or four
 //   minLevel        the Level a hero, and every seat of its party, needs to start a climb (Tyler 2026-11-18: "A minimum level to enter the
 //                   tower"; hr_tower_start, the envelope's entry_gates.tower). The evidence: 2027-05-05-entry-gates.sql's header
+//   heat            past `from`, a floor's blows x(1 + perFloorPm/1000) a floor, compounding; HP, XP and the server's bounds stay the
+//                   formula's (designer 2026-11-19, the board's "2026-11-19 The Tower's curve": the straight-line formula made floors 100-170
+//                   feel the same, then walled). Move `from` up when a region past 110 opens
 //
 // TOWER_PARTY_XP: a kill's Level XP, in permille, shared by the heroes alive at it (xp-share.js reads it itself; the one hunting table,
 //   party-class-xp.js, never names the Tower): a hero alone takes the plain kill (no +15%: the solo boost keeps hunting alone up with a party, and in the Tower the
@@ -48,6 +51,7 @@ export const TOWER_RULES = Object.freeze({
   floorTop: 300,
   fit: 'both',
   minLevel: 10,
+  heat: Object.freeze({ from: 100, perFloorPm: 10 }),
 });
 
 export const TOWER_PARTY_XP = Object.freeze({ 1: 1000, 2: 1100, 3: 1200, 4: 1300 });
@@ -65,6 +69,14 @@ export function validateTower(rules, partyXp, swingMs) {
   if (Number.isInteger(rules.stairMs) && Number.isInteger(swingMs) && rules.stairMs < 2 * swingMs) out.push('stairMs is under two engine swings, so a floor\'s rows could change inside the swing it was cleared in');
   if (Number.isInteger(rules.floorLimitMs) && Number.isInteger(rules.landingLimitMs) && rules.landingLimitMs < rules.floorLimitMs) out.push('a landing gets less time than a floor');
   if (!['both', 'party'].includes(rules.fit)) out.push('fit is not both or party');
+  /* the heat: a landing under the top, and a step a floor a blow can carry to the top */
+  const h = rules.heat;
+  if (!h || typeof h !== 'object') out.push('heat is no row');
+  else {
+    if (!Number.isInteger(h.from) || h.from < 0 || (Number.isInteger(rules.landingEvery) && h.from % rules.landingEvery) || (Number.isInteger(rules.floorTop) && h.from >= rules.floorTop)) {
+      out.push('heat.from is not a landing under the top (or 0)'); }
+    if (!Number.isInteger(h.perFloorPm) || h.perFloorPm < 0 || h.perFloorPm > 50) out.push('heat.perFloorPm is not a whole permille 0..50');
+  }
   const sizes = Object.keys(partyXp || {}).map(Number).sort((a, b) => a - b);
   if (sizes.join(',') !== '1,2,3,4') out.push('the party row is not one cell for each of 1 to 4 heroes');
   let prev = 0;
@@ -106,6 +118,7 @@ export const CATACOMB_RULES = Object.freeze({
   floorTop: 300,
   fit: 'both',
   minLevel: 10,
+  heat: TOWER_RULES.heat,
 });
 
 export const CATACOMB_WINGS = Object.freeze([

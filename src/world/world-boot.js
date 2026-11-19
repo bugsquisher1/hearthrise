@@ -24,7 +24,7 @@
 // THE 64 PX SANDBOX: another art grid, loaded on first entry; its presence rule is sandbox-scene.js.
 // THE GREAT HEARTH (hearth-burn.js): a town frame's fuel throws, flame colour and "+N Inner Flame", from server answers.
 // THE ART BY SCENE (atlas.js, scene-sets.js): every manifest on the first open, but a sheet only when a
-// scene drawing from it shows. The first scene opens whole; a later one (a ground entered, the town after
+// scene drawing from it shows; a worn set (the faction looks), manifest and sheet, only with the first hero in view who wears one (worn-sets.js). The first scene opens whole; a later one (a ground entered, the town after
 // a hunt) switches once its sheets have arrived, the last frame holding meanwhile.
 // ════════════════════════════════════════════════════════════════════════
 import { BUILD } from '../build-info.js?v=0.2.141';
@@ -37,8 +37,9 @@ import { createBook } from './core/book.js?v=0.2.141';
 import { fpsFor, MOBILE_QUERY } from './core/camera.js?v=0.2.141';
 import { heroBuilding, roofTargets, stepAlpha } from './core/roofs.js?v=0.2.141';
 import { readScene, setChoice, heroPosOn, notePos, forgetPos } from './store.js?v=0.2.141';
-import { loadManifests, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.141';
+import { loadManifests, loadAtlasManifest, createSceneImages, loadAtlasSet, baseTables } from './atlas.js?v=0.2.141';
 import { sceneSetsSliced } from './scene-sets.js?v=0.2.141';
+import { createWornSets } from './worn-sets.js?v=0.2.141';
 import { prewarmedSets, stopPrewarm } from './prewarm.js?v=0.2.141';
 import { createViewSheets } from './view-sheets.js?v=0.2.141';
 import { createGridArt, sandboxExtras, presenceFor } from './sandbox-scene.js?v=0.2.141';
@@ -161,6 +162,10 @@ export async function bootWorld(panel, opts) {
   /* A sprite no loaded atlas carries compiles as a one-tile stub, never a crash. */
   const tables = baseTables(book);
   const sheets = createSceneImages({ doc, version: BUILD.cache });
+  /* A WORN SET (worn-sets.js: the faction looks) comes with the first hero in view who wears one, never with a scene; landing, it wakes
+     the pane (wakeWorn, set once the loop's state exists: the first scene can wait on your own look before it does) */
+  let wakeWorn = null;
+  const worn = createWornSets({ book, sheets, manifest: (set) => loadAtlasManifest({ doc, version: BUILD.cache }, set), wake: () => { if (wakeWorn) wakeWorn(); } });
   /* HEROES IN THEIR COLORS: the masks load on the first dyed hero in view, and at most 24 looks stay in memory (hero-dye.js) */
   const dyes = heroDyeOf({ doc, version: BUILD.cache });
   const backend = createCanvasBackend({ win, doc, book, images: sheets.images, tables, css, arrived: (set) => sheets.ready([set]), dyes, pours: monsterPourOf({ doc }) });
@@ -190,8 +195,11 @@ export async function bootWorld(panel, opts) {
   const viewSheets = createViewSheets({ win, sheets, needs, town: opts.town || null, missing: (cast) => backend.missing(cast), wake: () => { if (!running) sync(); } });
   /* A SCENE MADE READY: its sheets (the town's, as its frames name them), those sheets loaded, its ground binned for the chunks (tests/perf-budget.mjs PB-HELD) */
   const prepareScene = async (id) => {
+    /* your own look's worn set (worn-sets.js), asked for beside the scene's sheets: a first frame never stands your hero in another look */
+    const own = worn.ensure([heroSprite(character)]);
     const sets = await setsOf(id);
     if (!viewSheets.opensOnView(id)) await sheets.ensure(sets);
+    await own;
     if (gone) return;   // a sheet landing after the pane closed ends here; sync() checks again
     await backend.prepare(mapOf(id), artOf(id) || undefined, slices);
   };
@@ -218,6 +226,7 @@ export async function bootWorld(panel, opts) {
   const zoom = createTownZoom({ win, doc, stage, character, peers: opts.peers, mq, onChange: () => { if (!running) sync(); } });
   const idleMotion = createIdleMotion({ win, character, peers: opts.peers });   // the player's Idle animations switch, read each frame
   let running = false, raf = 0, last = 0, frames = 0, scene = null, roofAlpha = {};
+  wakeWorn = () => { if (!running) sync(); };
   let walk = null, lastWalk = null;
   let walkPlaced = true, walkStand = null;   // the town walk began on the server's place; the stand key (station:stand:since) it last walked to
   const town = opts.town || null;
@@ -267,6 +276,7 @@ export async function bootWorld(panel, opts) {
     const f = scene.frame(now);
     /* A unit whose sheet has not landed is asked for and drawn when it lands, never a stub box (the Tower's rooms name monsters its scene's sheets lack). */
     const units = f.units.filter((u) => {
+      if (!worn.ready(u.id)) return false;   // a seat in a faction look: drawn once its worn set lands (worn-sets.js)
       const set = book.has(u.id) ? book.frame(u.id).set : '';
       if (!set || sheets.ready([set])) return true;
       sheets.ensure([set]).then(() => { if (!running) sync(); });
@@ -292,7 +302,7 @@ export async function bootWorld(panel, opts) {
     const snap = bareSnapshot(G);
     const hs = hunt.state(snap, now, name);
     lastHunt = { foe: hs.foe, down: hs.down, floats: hs.floats.length, units: hs.units.map((u) => u.id), hero: hs.hero };
-    return { hero: hs.hero && Object.assign({}, hs.hero, { id: heroSprite(character) }), units: hs.units, floats: hs.floats };
+    return { hero: hs.hero && Object.assign({}, hs.hero, { id: worn.hero(heroSprite(character)) }), units: hs.units, floats: hs.floats };
   }
 
   function walkState(G, map, now) {
@@ -308,7 +318,7 @@ export async function bootWorld(panel, opts) {
       const me = held && typeof town.me === 'function' ? town.me() : null;
       if (me && at && at[0] === me.x && at[1] === me.y && (me.x !== me.at[0] || me.y !== me.at[1])) walkStand = null;
       const mapSprites = (artOf(map.id) || { tables }).tables.sprites;
-      walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => heroSprite(character), heroDye: () => heroDye(character) },
+      walk = createWalkScene(map, Object.assign({ at, sprites: mapSprites, openClasses: OPEN_CLASSES, maps: ROW_OF, heroSprite: () => worn.hero(heroSprite(character)), heroDye: () => heroDye(character) },
         /* the townsfolk at their work (town-folk.js, display only), then the sandbox's signs */
         folkExtras(map, mapSprites), sandboxExtras(map, mapSprites)));
       if (keys.size) walk.drive(keyVector(), now);   // keys still held across a scene change keep walking
@@ -319,6 +329,8 @@ export async function bootWorld(panel, opts) {
       if (k && k !== walkStand) { walkStand = k; walk.goTo(town.me().at, now); }
     }
     const f = walk.frame(readEnv(map.kind), now);
+    /* a walker in a faction look joins the frame once its worn set lands (worn-sets.js), never as a stub box */
+    f.units = worn.keep(f.units);
     if (held && map.kind === 'town') {
       Object.assign(f, hearthState(map, f, now));
       /* THE HEARTH CHEST stands on the ledge only while the server sends the Burning Tower's section (src/data/world/town/sites.js AMBIENT) */

@@ -79,8 +79,11 @@ const BUDGET = Object.freeze({
   fpsP5Min: 45,            // the 5th-percentile 1 s bucket
   longFrameMs: 100,        // no frame the PAGE held above this (its Long Tasks inside the gap), outside the hidden span and its resume
   longFramesMax: 6,        // frames the page held > 50 ms, outside the hidden span and its resume (a whole-browser stall is reported apart)
-  heapGrowthMb: 4,         // used JS heap, warm-up -> end, both after a forced GC, the probe's own records stopped and
-                           // released first (2026-10-22: they were 4-7 of CI's 8.7 MB; the game measured 1.0-1.2 MB, mostly JIT code)
+  heapGrowthMb: 1.5,       // the JS heap's OBJECTS, warm-up -> end, compiled code apart (heapBytes), both after a forced GC, the probe's own
+                           // records stopped and released first (2026-10-22: they were 4-7 of CI's 8.7 MB). Was 4 MB of the used heap, code
+                           // and all: the JIT's code grows with each release's code paths (CI: 2.9, 3.4, 4.0, 3.3, 4.2 MB on v0.2.137-141, red on
+                           // 141 run 44476966121); local v0.2.140 / 141: used +3.4 / +3.7, of it code +2.5 / +2.7, objects +0.73 / +0.75;
+                           // this measure on 141: objects +0.7, code +2.4, used +3.2. 1.5 keeps the room an object leak had before (4 less the code)
   domGrowth: 150,          // elements, warm-up -> the death, the combat log's lines apart (they are capped on their own)
   addedPerMin: 3000,       // DOM nodes added per minute (a per-frame rebuild adds tens of thousands)
   analyzerBehindMs: 2500,  // the analyzer's session clock against the hunt's real elapsed time
@@ -722,14 +725,23 @@ async function scenario(o) {
     if (!phone) await showLog();
     await showAnalyzer();
     await page.waitForTimeout(1000);
+    /* THE HEAP THAT CAN LEAK is read from a heap snapshot (heapBytes): the objects, compiled code apart. Taken before the window opens, so its
+       pause is no frame of the run. --snapshots DIR also writes each (start.heapsnapshot, end.heapsnapshot), to name a retainer. */
+    const heapKinds = async (name) => {
+      if (!cdp) return null;
+      await cdp.send('HeapProfiler.collectGarbage');
+      const parts = []; const on = (e) => parts.push(e.chunk);
+      cdp.on('HeapProfiler.addHeapSnapshotChunk', on); await cdp.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false });
+      cdp.off('HeapProfiler.addHeapSnapshotChunk', on);
+      const text = parts.join('');
+      if (o.snapshots) (await import('node:fs')).writeFileSync(join(o.snapshots, name + '.heapsnapshot'), text);
+      return heapBytes(JSON.parse(text));
+    };
+    const k0 = await heapKinds('start');
+    await page.waitForTimeout(1000);
     const w0 = await page.evaluate(() => { const P = window.__perf; P.mark('start'); P.added = 0; P.c = Object.create(null);
       return { t: performance.now(), nodes: document.getElementsByTagName('*').length, lines: document.querySelectorAll('.hc-line').length, frames: P.nf }; });
     const h0 = await heap();
-    /* --snapshots DIR: a heap snapshot after each measure (start.heapsnapshot, end.heapsnapshot), to name a retainer. */
-    const snap = async (name) => { if (!cdp || !o.snapshots) return; const parts = []; const on = (e) => parts.push(e.chunk);
-      cdp.on('HeapProfiler.addHeapSnapshotChunk', on); await cdp.send('HeapProfiler.takeHeapSnapshot', { reportProgress: false });
-      cdp.off('HeapProfiler.addHeapSnapshotChunk', on); (await import('node:fs')).writeFileSync(join(o.snapshots, name + '.heapsnapshot'), parts.join('')); };
-    await snap('start');
     if (cdp && o.profile) { await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 500 }); await cdp.send('Profiler.start'); }
     const t0 = Date.now();
     const at = async (ms) => { const d = t0 + ms - Date.now(); if (d > 0) await page.waitForTimeout(d); };
@@ -792,15 +804,16 @@ async function scenario(o) {
       P.marks = []; P.samples = []; P.dom = []; P.long = []; P.loaf = []; P.spans = []; P.path = [];
       return got; });
     const h1 = await heap();
-    await snap('end');
+    const k1 = await heapKinds('end');
     /* PB-REQ: the still town long enough to count (a 4-minute run; the rate is a read every 6 s and a poll every 30 s) */
     if (o.minutes >= 4) await page.waitForTimeout(TOWN_TAIL_MS);
     /* ...and the still town: from a little after the party's end (its summary and the first reads) to the end of the run. A busy runner's walk back to town lands later
        (run 41767547512: 20.4 a minute with hr-accrue and hr_town_move inside), so it opens after those; a client that keeps asking them leaves no window, and asksFails says so. */
     const walked = asked.filter(([, n]) => n === 'hr-accrue' || n === 'hr_town_move').reduce((m, [t]) => Math.max(m, t), 0);
     const asks = { hunt: asksIn(asked, t0, hiddenAt), town: asksIn(asked, Math.max((srv.S.endedAt || t0 + D) + 20000, walked + 2000), Date.now()), stampsLeaving, townOwed: o.minutes >= 4 };
-    return Object.assign(analyse(out, w0, o, srv), { asks, townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt, heapMb: h0 === null ? null : (h1 - h0) / 1048576,
-      heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt,
+    return Object.assign(analyse(out, w0, o, srv), { asks, townPaintsPerS, townWritesPerS, townRecalcPerS, townTip: tail.tip, away, caught, awayFor, hiddenFor: shownAt - hiddenAt,
+      heapMb: k0 === null ? null : (k1.objects - k0.objects) / 1048576, heapCodeMb: k0 === null ? null : (k1.code - k0.code) / 1048576,
+      heapUsedMb: h0 === null ? null : (h1 - h0) / 1048576, heapRawMb: h0 === null ? null : (h1raw - h0) / 1048576, errors: errors.slice(0, 5), endedAt: srv.S.endedAt,
       death: { killWall: srv.S.killWall, endedAt: srv.S.endedAt, townScene: tail.scene } });
   } finally {
     srv.close();
@@ -969,10 +982,21 @@ function budgetFails(m) {
 }
 
 const ms = (r) => (r ? `${r.avg.toFixed(2)}/${r.max.toFixed(1)}` : '-');
+/* A heap snapshot's bytes (the page's JS heap, after a forced GC) by what can leak: `objects`, everything V8 holds but code; `code`, the
+   compiled functions (bytecode and the JIT's), which grow with every code path first run after the warm-up and are no leak (v0.2.141 run
+   44476966121: "heap grew 4.2 MB", every object count flat, the growth over v0.2.140 all code). The embedder's own nodes (`native`: blink's
+   objects, buffers' backing stores) are no part of the JS heap; the used heap never counted them either. */
+function heapBytes(s) {
+  const f = s.snapshot.meta.node_fields, types = s.snapshot.meta.node_types[f.indexOf('type')];
+  const n = f.length, it = f.indexOf('type'), isz = f.indexOf('self_size'), CODE = types.indexOf('code'), NATIVE = types.indexOf('native');
+  let objects = 0, code = 0;
+  for (let i = 0; i < s.nodes.length; i += n) { const k = s.nodes[i + it]; if (k === CODE) code += s.nodes[i + isz]; else if (k !== NATIVE) objects += s.nodes[i + isz]; }
+  return { objects, code };
+}
 function row(m) {
   return `${m.browser.padEnd(8)} ${m.size.padEnd(8)} fps ${m.fpsMedian}/${m.fpsP5} long ${m.longFrames} worst ${Math.round(m.worstFrame)} resume ${Math.round(m.resumeWorst)} stall ${Math.round(m.stallWorst)}${m.pageTimed ? '' : ' (wall)'} lt ${m.longTasks}`
     + ` | engine ${ms(m.engine)} scene ${ms(m.scene)} draw ${ms(m.draw)} frame ${ms(m.frame)} env ${ms(m.envelope)} (${m.envelope ? m.envelope.n : 0}) tick ${ms(m.shellTick)}`
-    + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB' + (m.heapRawMb != null ? ' (with the probe records ' + m.heapRawMb.toFixed(1) + ')' : '')} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
+    + ` | heap ${m.heapMb === null ? 'n/a' : m.heapMb.toFixed(1) + 'MB (code +' + m.heapCodeMb.toFixed(1) + ', used +' + m.heapUsedMb.toFixed(1) + ', with the probe records ' + m.heapRawMb.toFixed(1) + ')'} dom ${m.domStart}->${m.domEnd} (+${m.domGrowth}) log ${m.logLines} +${m.addedPerMin}/min`
     + ` | ground ${ms(m.ground)} (${m.ground ? m.ground.n : 0}) slice ${ms(m.groundSlice)} (${m.groundSlice ? m.groundSlice.n : 0}) in-frame ${m.groundInFrame} again ${m.groundRemade} tokens-in-draw ${m.tokenReadsInDraw}`
     + ` | paints-in-answers ${m.paintsInAnswers} draws off-loop ${m.drawsOffLoop} (in answers ${m.drawsInAnswers}) sheets ${m.sheets.bitmap} bitmap/${m.sheets.img} img`
     + ` | still town: ${m.townPaintsPerS === undefined ? '-' : m.townPaintsPerS.toFixed(1)} paints/s ${m.townWritesPerS === undefined ? '-' : m.townWritesPerS.toFixed(1)} writes/s ${m.townRecalcPerS == null ? '-' : m.townRecalcPerS.toFixed(1)} recalcs/s`

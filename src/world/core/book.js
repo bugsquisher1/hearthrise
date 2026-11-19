@@ -13,6 +13,7 @@
 //   tile(terrainId, key, n)     a terrain tile's { set, sx, sy } (key NWNESWSE)
 //   facing(id, anim, dir, diag) the facing to draw: the diagonal when the clip
 //                               has it, else the cardinal (core/facing.js)
+//   add(set, manifest)          a set read later (a worn set, on need)
 // A frame falls back to the nearest cardinal of a missing diagonal, then to
 // dir 's', then to the clip's first facing; a missing clip to the first clip.
 // PURE: no DOM, no window, no G — the node tests read the same book.
@@ -28,16 +29,19 @@ export const STUB_SPRITE = Object.freeze({
 /** @param {{[set: string]: object}} manifests  set name → parsed manifest */
 export function createBook(manifests) {
   const sprites = Object.create(null), terrains = Object.create(null), home = Object.create(null), areas = Object.create(null);
-  for (const [set, m] of Object.entries(manifests || {})) {
+  const add = (set, m) => {
     areas[set] = m.size ? m.size[0] * m.size[1] : 0;
     for (const [id, s] of Object.entries(m.sprites || {})) { sprites[id] = s; home[id] = set; }
     for (const [id, t] of Object.entries(m.terrain || {})) terrains[id] = Object.assign({ set }, t);
-  }
+  };
+  for (const [set, m] of Object.entries(manifests || {})) add(set, m);
   const sprite = (id) => sprites[id] || STUB_SPRITE;
   const anim0 = (s, anim) => (anim && s.anims[anim]) || s.anims[Object.keys(s.anims)[0]];
   const clip = (s, anim, dir) => { const a = anim0(s, anim); return a.dirs[pickFacing(a.dirs, dir, null)]; };
   return {
     sprites, terrains, sprite,
+    /** A set that arrived after the book was made (a worn set, src/world/worn-sets.js): its sprites answer from now on. */
+    add,
     has: (id) => !!sprites[id],
     /** How many pixels a set's sheet has: its weight, before any of it is fetched. */
     area: (set) => areas[set] || 0,

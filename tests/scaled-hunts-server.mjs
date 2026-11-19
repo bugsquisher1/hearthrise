@@ -133,13 +133,15 @@ const statOf = async (db, uid) => (await q(db, `select ps.level_xp::text as lx,
 
 /* A Level 20 hero on the real Cellar, `minutesAgo` back, with `hours` banked there (bought through the verb, before it enters). */
 const HERO = { level: 20, inv: { cooked_shrimp: 60 }, bag: [{ item: 'cooked_shrimp', qty: 50 }], gold: 1000000, realGround: true };
+/* A SCALABLE GROUND WITH NO EXIT (hunt-grounds.js endsAtLevel: only the Cellar has one, lane/d-first-day-path): where an arm's hunt plays on unscaled */
+const EXITLESS = 'meadowbrook_thicket';
 /* THE KIT A LEVEL 20 MELEE WEARS (tools/balance-sim/gear.mjs kitOf('tank', 20)): since one pack for every group (lane/b-one-difficulty, 2026-11-08) a
    scaled monster has its row's HP against a lone hero too, and a Level 20 hero in the start kit died in the scaled Cellar inside six minutes (the span
    never settled). Either strong enough or not (Tyler 11-08): every hero here wears the smiths' iron. */
 const KIT_20 = Object.freeze([['weapon', 'iron_sword'], ['shield', 'ironbound_shield'], ['helmet', 'iron_helm'], ['body', 'iron_platebody'], ['pants', 'iron_platelegs'],
   ['boots', 'iron_boots'], ['gloves', 'iron_gauntlets'], ['belt', 'iron_belt']]);
 async function scaledHunter(db, M, o = {}) {
-  return H.hunter(db, M, { ...HERO, level: o.level || HERO.level, minutesAgo: o.minutesAgo || 8, ...(o.party ? { party: o.party.map((p) => ({ ...HERO, ...p })) } : {}),
+  return H.hunter(db, M, { ...HERO, level: o.level || HERO.level, minutesAgo: o.minutesAgo || 8, ...(o.hunt ? { hunt: o.hunt } : {}), ...(o.party ? { party: o.party.map((p) => ({ ...HERO, ...p })) } : {}),
     beforeEnter: async () => {
       for (const uid of UIDS.slice(0, o.party ? o.party.length : 1)) for (const [slot, item] of KIT_20) {
         await db.query('insert into public.player_equipment (user_id, slot, equip_slot, item_id) values ($1, 0, $2, $3) on conflict (user_id, slot, equip_slot) do update set item_id = excluded.item_id', [uid, slot, item]);
@@ -266,7 +268,8 @@ const DB_ARMS = {
 
   'SH-OUT': async (db, M) => {
     const bad = [];
-    const h = await scaledHunter(db, M, { buys: [[UID, 'mill_cellar', 1]] });
+    /* on a ground with no exit (EXITLESS): the Cellar's hunt ends at Level 5 once it plays unscaled (tests/cellar-outgrown.mjs), the play-on is a ground's with none */
+    const h = await scaledHunter(db, M, { hunt: EXITLESS, buys: [[UID, EXITLESS, 1]] });
     /* a fixture bank of 40 s (20 swings), its books kept */
     await db.query('update public.player_scaled_hours set banked_ms = 40000, spent_ms = bought_ms - 40000 where user_id = $1', [UID]);
     const s0 = await instOf(db, h.inst);
@@ -323,28 +326,29 @@ const DB_ARMS = {
     const flip = (scope, accounts = []) => db.query("update public.hr_feature_switches set scope = $1, accounts = $2::uuid[], updated_at = now() where switch_id = 'scaled_hunts'", [scope, accounts]);
     const env = async (uid) => one(db, 'select public.hr_state_of($1::uuid, 0) as s', [uid]);
     await flip('off');
-    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8 });
+    /* on a ground with no exit (EXITLESS): unscaled, the Cellar's hunt ends at Level 5, and this arm hunts on through the switch's flips */
+    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 8, hunt: EXITLESS });
     const e0 = await env(UID);
-    const off = await buy(db, UID, 'mill_cellar', 1, { price: 800 });
-    const sw = await switchOf(db, UID, 'mill_cellar', false);
+    const off = await buy(db, UID, EXITLESS, 1, { price: 800 });
+    const sw = await switchOf(db, UID, EXITLESS, false);
     if (!off || off.error !== 'feature_off' || !sw || sw.error !== 'feature_off') bad.push('off: the purchase answered ' + JSON.stringify(off) + ', the switch ' + JSON.stringify(sw));
     if (e0.scaled_hunts != null || (e0.features || []).includes('scaled_hunts')) bad.push('off: the envelope projects ' + JSON.stringify({ s: e0.scaled_hunts, f: e0.features }));
     await flip('accounts', [UID]);
-    const e1 = await env(UID), on = await buy(db, UID, 'mill_cellar', 1);
+    const e1 = await env(UID), on = await buy(db, UID, EXITLESS, 1);
     if (!on || on.ok !== true || !e1.scaled_hunts || !(e1.features || []).includes('scaled_hunts')) bad.push('on for the account: the purchase answered ' + JSON.stringify(on) + ', features ' + JSON.stringify(e1.features));
     await cutsTo(db, M, [h.from + 2 * 60000]);
     if ((await instOf(db, h.inst)).scale_level !== 20) bad.push('on for the account: the hunt did not scale');
     await flip('off');
-    const b1 = await bankOf(db, UID);
+    const b1 = await bankOf(db, UID, EXITLESS);
     await cutsTo(db, M, [h.from + 4 * 60000]);
-    if ((await instOf(db, h.inst)).scale_level !== null || await bankOf(db, UID) !== b1) bad.push('off mid-hunt: the next window still scaled or spent ' + (b1 - await bankOf(db, UID)) + ' ms');
+    if ((await instOf(db, h.inst)).scale_level !== null || await bankOf(db, UID, EXITLESS) !== b1) bad.push('off mid-hunt: the next window still scaled or spent ' + (b1 - await bankOf(db, UID, EXITLESS)) + ' ms');
     await db.query("insert into public.hr_access_allowlist (user_id, note) values ($1, 'scaled-hunts-server SH-FEATURE') on conflict (user_id) do nothing", [UID]);
     await db.query('delete from public.hr_access_allowlist where user_id = $1', [UIDS[1]]);
     await flip('testers');
     await cutsTo(db, M, [h.from + 6 * 60000]);
-    if ((await instOf(db, h.inst)).scale_level !== 20 || !(await bankOf(db, UID) < b1)) bad.push('on for the testers: an allowlisted leader did not scale again');
+    if ((await instOf(db, h.inst)).scale_level !== 20 || !(await bankOf(db, UID, EXITLESS) < b1)) bad.push('on for the testers: an allowlisted leader did not scale again');
     await H.character(db, M, UIDS[1], { level: 20, gold: 100000, inv: {} });
-    const stranger = await buy(db, UIDS[1], 'mill_cellar', 1, { price: 800 });
+    const stranger = await buy(db, UIDS[1], EXITLESS, 1, { price: 800 });
     if (!stranger || stranger.error !== 'feature_off') bad.push('on for the testers: a stranger\'s purchase answered ' + JSON.stringify(stranger));
     return bad;
   },

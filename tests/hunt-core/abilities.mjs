@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { suiteH4, oneHero, steps, supplySession, rngOf, loadData } from './fixtures/h4.js';
-import { hero, ROOT, loadCore } from './fixtures/h1.js';
+import { hero, mon, world, instOf, subStep, ROOT, loadCore } from './fixtures/h1.js';
 
 /* THE CLIENT'S SUPPLY ROWS, read from the repo (a planted copy holds only src/core and src/data): the Configure
    action table and the bar's store line must price what the engine buys, never more (CLAUDE.md §6). */
@@ -43,6 +43,25 @@ const cases = {
     if (new Set(loose.map((id) => M.ITEMS[id].family)).size !== loose.length || !loose.every((id) => M.runes.runeTierOf(M.ITEMS[id]) === 1)) return 'an uncrafted family has more than its one old rune: ' + loose;
     const inactive = Object.values(M.AD.ABILITIES).filter((r) => !r.active).map((r) => r.id).sort();
     if (JSON.stringify(inactive) !== '[]') return 'held rows changed: ' + JSON.stringify(inactive);
+    /* THE TANK RUNES' RULES (board 2026-11-19 section 6): a party row heals or shields, a shape lands numbers or a status, a row is
+       alone or party only. Each defect planted beside the real table must be refused, and each sound twin taken. */
+    const base = { n: 'Test', disciplines: ['shield'], lane: 'support', cdMs: 6000, mana: 6, ammo: 0, magicXpMult: 0, active: true, rune: null };
+    const plant = (r) => M.AD.validate({ ...M.AD.ABILITIES, [r.id]: { ...base, ...r } }).filter((m) => m.startsWith(r.id + ':'));
+    for (const [r, want] of [
+      [{ id: 'zz_hollow_party', target: 'party', radius: 8 }, 'neither heal nor shield'],
+      [{ id: 'zz_both_party', target: 'party', radius: 8, heal: [5, 9], shield: 30 }, 'never both'],
+      [{ id: 'zz_blind_party', target: 'party', shield: 30 }, 'radius'],
+      [{ id: 'zz_empty_ring', target: 'ring', maxHits: 8 }, 'no dmg, no hitPm and no status'],
+      [{ id: 'zz_frost_ring', target: 'ring', maxHits: 8, status: 'chill', element: 'frost' }, 'lands no blow'],
+      [{ id: 'zz_status_hit', target: 'enemy', status: 'chill' }, 'no dmg and no hitPm'],
+      [{ id: 'zz_both_rules', target: 'enemy', dmg: [2, 4], alone: true, party: true }, 'alone or party only'],
+      [{ id: 'zz_party_false', target: 'ring', maxHits: 8, status: 'chill', party: false }, 'party is true']]) {
+      const got = plant(r);
+      if (!got.some((m) => m.includes(want))) return r.id + ' was not refused for "' + want + '": ' + JSON.stringify(got);
+    }
+    for (const r of [{ id: 'zz_slam', target: 'ring', maxHits: 8, status: 'chill', party: true }, { id: 'zz_shell', target: 'party', radius: 8, shield: 30, party: true }]) {
+      if (plant(r).length) return 'a sound ' + r.id + ' was refused: ' + plant(r);
+    }
     /* a row's own starting rule (`trigger`) is a slot the server's check (mirrored) takes, in the registry's words */
     for (const r of Object.values(M.AD.ABILITIES).filter((x) => x.trigger)) {
       const p = M.conditions.slotProblem({ action: { type: 'ability', id: r.id }, conditions: r.trigger, join: 'and' });
@@ -626,7 +645,7 @@ const cases = {
     const L = M.AD.ABILITY_LANES;
     if (L.offense !== 2000 || L.support !== 2000 || L.heal !== 1000 || Object.keys(L).length !== 3) return 'the lanes are ' + JSON.stringify(L);
     for (const r of Object.values(M.AD.ABILITIES)) {
-      const want = r.target === 'taunt' || r.target === 'mark' || Number.isInteger(r.shield) ? 'support' : r.heal ? 'heal' : 'offense';
+      const want = r.target === 'taunt' || r.target === 'mark' || Number.isInteger(r.shield) || (M.AD.AREA_TARGETS.includes(r.target) && !M.AD.landsBlow(r)) ? 'support' : r.heal ? 'heal' : 'offense';
       if (r.lane !== want) return r.id + ' rides ' + r.lane + ', want ' + want;
     }
     const hs = supplySession(M, { bag: { iron_arrows: { loaded: 50 } } });
@@ -680,9 +699,131 @@ const cases = {
     if (!ev || ev.refund !== refund || ev.mana !== row.mana - refund) return 'a recast over a 10-point shell: ' + JSON.stringify(ev) + ', want refund ' + refund;
     if (x.h.shield !== row.shield || x.h.mana !== 100 - row.mana - (row.mana - refund)) return 'after the recast: shield ' + x.h.shield + ', mana ' + x.h.mana;
     const R = M.abilities.shieldRefund, two = Math.floor((row.shield * 1880) / 1000);
-    if (R({ shield: 40 }, row, 36, 1880) !== Math.floor((40 * 36) / two)) return 'a stronger version over a full shell refunds ' + R({ shield: 40 }, row, 36, 1880);
-    return R({ shield: 500 }, row, 36, 1000) === 36 && R({ shield: 0 }, row, 30, 1000) === 0 && R({ shield: 9 }, M.AD.ABILITIES.mend, 15, 1000) === 0
+    const mine = (shield) => ({ id: 1, shieldBy: 1, shield });
+    if (R(mine(40), row, 36, 1880) !== Math.floor((40 * 36) / two)) return 'a stronger version over a full shell refunds ' + R(mine(40), row, 36, 1880);
+    if (R({ id: 1, shieldBy: 2, shield: 40 }, row, 36, 1880) !== 0 || R({ id: 1, shield: 40 }, row, 36, 1880) !== 0) return 'a shell another hero cast refunds as mana (the tank\'s Shelter, a Healer\'s Ward)';
+    return R(mine(500), row, 36, 1000) === 36 && R(mine(0), row, 30, 1000) === 0 && R(mine(9), M.AD.ABILITIES.mend, 15, 1000) === 0
       ? null : 'shieldRefund is not capped at the cast, or refunds a heal';
+  },
+  /* THE TANK'S RUNE SPELLS (Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank spells should be party only I
+     think"; the board's "2026-11-19 Tank rune spells" section 6). PIECE 1, A PARTY SHIELD (Shelter): every living hero within its radius,
+     the tank too, gets max(standing, its shell), with a shield event only where it rose and the caster named on it (shieldBy); a hero out
+     of reach gets none; a party whose wounded in reach all hold a shell is no target (nothing is cast for nothing). A Mage's Arcane
+     Barrier recast over that shell refunds nothing (the tank's rune never turns into the Mage's mana); over its own shell it still does. */
+  'party-shield-shells-the-party': (M) => {
+    const row = M.AD.ABILITIES.shelter;
+    if (!row || row.target !== 'party' || !(row.shield > 0) || row.heal || row.party !== true || row.radius !== 8) return 'Shelter is no party-only party shield of radius 8: ' + JSON.stringify(row);
+    const run = (kShield, aShield) => {
+      const k = hero(M, 1, 12, 3, { role: 'tank', hp: 60, maxHp: 100, mana: 100, maxMana: 100, shield: kShield, shieldBy: kShield ? 1 : null });
+      const a = hero(M, 2, 12, 5, { hp: 50, maxHp: 100, shield: aShield, shieldBy: aShield ? 2 : null });
+      const b = hero(M, 3, 13, 4, { hp: 50, maxHp: 100, shield: 500, shieldBy: 3 });
+      const far = hero(M, 4, 2, 1, { hp: 50, maxHp: 100 });
+      const inst = instOf(M, world(M, [k, a, b, far, mon(M, 10, 0, 11, 3, { target: 1, hp: 5000, maxHp: 5000 })]));
+      inst.heroes = { 1: { hs: supplySession(M, { bag: { chalked_earth_rune: { loaded: 5 } } }), actionSet: 'hunt', range: 1,
+        slots: M.conditions.heroSlots([{ action: { type: 'ability', id: 'shelter' }, conditions: [], join: 'and' }], null) } };
+      const sc = subStep(0); sc.rng = rngOf(M, 21);
+      M.abilities.castAbilities(inst, sc);
+      return { k, a, b, far, ev: sc.events };
+    };
+    const x = run(0, 0);
+    const shells = x.ev.filter((e) => e.type === 'shield').map((e) => [e.u, e.t, e.amount]);
+    if (JSON.stringify(casts({ events: x.ev })) !== '["shelter"]') return 'Shelter did not cast once for a wounded party: ' + JSON.stringify(casts({ events: x.ev }));
+    if (JSON.stringify(shells) !== JSON.stringify([[1, 1, row.shield], [1, 2, row.shield]])) return 'the shell events were ' + JSON.stringify(shells) + ', want the tank and the ally in reach at ' + row.shield;
+    if (x.k.shield !== row.shield || x.a.shield !== row.shield || x.k.shieldBy !== 1 || x.a.shieldBy !== 1) return 'the shells stand ' + JSON.stringify([x.k.shield, x.k.shieldBy, x.a.shield, x.a.shieldBy]);
+    if (x.b.shield !== 500 || x.b.shieldBy !== 3) return 'a bigger shell was lowered or renamed: ' + JSON.stringify([x.b.shield, x.b.shieldBy]);
+    if (x.far.shield) return 'a hero 10 tiles off was shelled';
+    if (run(10, 10).ev.some((e) => e.type === 'cast')) return 'Shelter cast with every wounded hero in reach already shelled';
+    const lift = run(10, 0).ev.filter((e) => e.type === 'shield').map((e) => e.t);
+    if (JSON.stringify(lift) !== '[1,2]') return 'a chipped shell under Shelter\'s was not lifted beside the bare ally: ' + JSON.stringify(lift);
+    /* the refund reads who cast the shell */
+    const barrier = M.AD.ABILITIES.arcane_barrier;
+    const recast = (by) => {
+      const hs = supplySession(M, { bag: { chalked_earth_rune: { loaded: 3 } } });
+      const m = oneHero(M, { hp: 50, maxHp: 100, mana: 100, maxMana: 0, shield: row.shield, shieldBy: by }, { hs, bar: ['arcane_barrier'], range: 7 }, [{ x: 15, y: 3, hp: 5000, maxHp: 5000 }]);
+      m.sc.rng = rngOf(M, 22);
+      M.abilities.castAbilities(m.inst, m.sc);
+      return m.sc.events.find((e) => e.type === 'cast') || null;
+    };
+    const over = recast(7), own = recast(1);
+    if (!over || over.refund !== undefined || over.mana !== barrier.mana) return 'a Barrier over the tank\'s shell refunded: ' + JSON.stringify(over);
+    return own && own.refund === Math.floor((row.shield * barrier.mana) / barrier.shield) ? null : 'a Barrier over its own shell refunds ' + JSON.stringify(own);
+  },
+  /* PIECE 2, A SHAPE THAT LANDS ONLY ITS STATUS (Frost Slam): every monster beside the tank is Chilled, none struck (no dmg event, no
+     kill, no HP lost), a monster further off untouched. PIECE 3, CHILL BY RUNE TIER: the version is the rune tier, so a Scored Ice
+     Rune at Melee 15 chills 35% (slowAt, the stack's scale fixed as it lands), and a landing on a monster already chilled weaker lifts
+     it (never lowers). The store rune chills at its version's full strength: a status is never cut by the store's share. */
+  'frost-slam-chills-without-a-blow': (M) => {
+    const row = M.AD.ABILITIES.frost_slam, chill = M.AD.ABILITIES.hoarfrost && M.status.statusRow('chill');
+    if (!row || row.target !== 'ring' || M.AD.landsBlow(row) || row.status !== 'chill' || row.party !== true) return 'Frost Slam is no party-only ring of chill: ' + JSON.stringify(row);
+    const want = [300, 350, 400, 450, 500];
+    for (let tier = 1; tier <= 5; tier++) {
+      const got = M.ST.slowAt(chill, M.status.stackScale(chill, { runeTier: tier }));
+      if (got !== want[tier - 1]) return 'Chill on a tier-' + tier + ' rune slows ' + got + ', want ' + want[tier - 1];
+    }
+    const run = (bag, melee, store, pre) => {
+      const k = hero(M, 1, 12, 3, { role: 'tank', hp: 100, maxHp: 100, mana: 100, maxMana: 100 });
+      const ally = hero(M, 2, 14, 5, { hp: 100, maxHp: 100 });
+      const ms = [[11, 3], [13, 3], [12, 2], [16, 3]].map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 1, hp: 500, maxHp: 500, statuses: pre && i === 0 ? pre : [] }));
+      const inst = instOf(M, world(M, [k, ally, ...ms]));
+      const action = Object.assign({ type: 'ability', id: 'frost_slam' }, store ? { store } : {});
+      inst.heroes = { 1: { hs: supplySession(M, { bag, runes: !!store }), actionSet: 'hunt', range: 1, skills: { melee: M.XP.skillXpForLevel('melee', melee) },
+        slots: M.conditions.heroSlots([{ action, conditions: [], join: 'and' }], null) } };
+      const sc = subStep(0); sc.rng = rngOf(M, 23);
+      M.abilities.castAbilities(inst, sc);
+      const slow = (m) => (m.statuses || []).filter((st) => st.s === 'chill').map((st) => M.ST.slowAt(chill, st.scale));
+      return { ms, ev: sc.events, slows: ms.map(slow), cast: sc.events.find((e) => e.type === 'cast') || null };
+    };
+    const a = run({ chalked_ice_rune: { loaded: 3 } }, row.unlock);
+    if (!a.cast || a.cast.ability !== 'frost_slam' || a.cast.version !== 1) return 'Frost Slam did not cast version I in a party: ' + JSON.stringify(a.cast);
+    if (a.ev.some((e) => e.type === 'dmg' || e.type === 'kill' || e.type === 'death') || a.ms.some((m) => m.hp !== 500)) return 'Frost Slam struck a blow: ' + JSON.stringify(a.ev.filter((e) => e.type !== 'cast'));
+    if (JSON.stringify(a.slows) !== '[[300],[300],[300],[]]') return 'the chill landed ' + JSON.stringify(a.slows) + ', want 30% on the three beside the tank and none on the one 4 tiles off';
+    if (M.damage.slowed(a.ms[0], 2000) !== 2600) return 'a chilled 2 s swing waits ' + M.damage.slowed(a.ms[0], 2000);
+    const b = run({ scored_ice_rune: { loaded: 3 } }, 15);
+    if (!b.cast || b.cast.version !== 2 || JSON.stringify(b.slows.slice(0, 3)) !== '[[350],[350],[350]]') return 'a Scored Ice Rune at Melee 15 chilled ' + JSON.stringify(b.slows) + ' (cast ' + JSON.stringify(b.cast) + ')';
+    if (M.damage.slowed(b.ms[0], 2000) !== 2700) return 'a 35%-chilled 2 s swing waits ' + M.damage.slowed(b.ms[0], 2000);
+    const st = run({}, 15, 'plain_scored_ice_rune');
+    if (!st.cast || st.cast.source !== 'store' || st.cast.version !== 2 || JSON.stringify(st.slows[0]) !== '[350]') return 'the store\'s Scored rune chilled ' + JSON.stringify(st.slows) + ' (cast ' + JSON.stringify(st.cast) + ')';
+    const lifted = run({ scored_ice_rune: { loaded: 3 } }, 15, null, [{ s: 'chill', src: 9, left: 3000, next: 0, scale: 1000 }]);
+    return JSON.stringify(lifted.slows[0]) === '[350]' && lifted.ms[0].statuses.length === 1 ? null : 'a stronger chill on a chilled monster left ' + JSON.stringify(lifted.ms[0].statuses);
+  },
+  /* PIECE 4, PARTY ONLY (Tyler 2026-11-19): the mirror of an alone row. A tank alone in the world never casts either spell, the slot
+     waiting as if absent (the next slot fires); beside a living ally it casts; beside only a fallen one it is alone again. */
+  'party-only-waits-alone': (M) => {
+    const run = (ally) => {
+      const k = hero(M, 1, 12, 3, { role: 'tank', hp: 60, maxHp: 100, mana: 100, maxMana: 100 });
+      const others = ally ? [hero(M, 2, 14, 5, { hp: 50, maxHp: 100, alive: ally === 'living' })] : [];
+      const ms = [[11, 3], [13, 3]].map(([x, y], i) => mon(M, 10 + i, 0, x, y, { target: 1, hp: 500, maxHp: 500 }));
+      const inst = instOf(M, world(M, [k, ...others, ...ms]));
+      inst.heroes = { 1: { hs: supplySession(M, { bag: { chalked_ice_rune: { loaded: 3 }, chalked_earth_rune: { loaded: 3 } } }), actionSet: 'hunt', range: 1,
+        slots: M.conditions.heroSlots(['frost_slam', 'shelter', 'power_strike'].map((id) => ({ action: { type: 'ability', id }, conditions: [], join: 'and' })), null) } };
+      const sc = subStep(0); sc.rng = rngOf(M, 24);
+      M.abilities.castAbilities(inst, sc);
+      sc.atMs = 2000;
+      M.abilities.castAbilities(inst, sc);
+      return JSON.stringify(casts(sc));
+    };
+    const alone = run(null), party = run('living'), fallen = run('fallen');
+    if (alone !== '["power_strike"]') return 'a tank alone cast ' + alone + ' (want only Power Strike: both tank spells are party only)';
+    if (party !== '["frost_slam","shelter"]') return 'a tank beside a living ally cast ' + party + ' (want Frost Slam, then Shelter on the next support lane)';
+    return fallen === '["power_strike"]' ? null : 'a tank beside a fallen ally cast ' + fallen;
+  },
+  /* THE TANK RUNES' WORDS (board section 2 and 6): the card and the hover say Party only, what each does, and the chill at the version
+     the slot casts; a party spell's slot greys while its hero hunts alone, and Configure action says it does nothing alone. */
+  'tank-rune-words': (M) => {
+    if (!M.shell) return null;
+    const { factsOf, aloneReason, aloneNote } = M.shell.facts;
+    const slam = factsOf({ type: 'ability', id: 'frost_slam' }), shell = factsOf({ type: 'ability', id: 'shelter' });
+    const say = (f) => [f.type, f.alone, ...f.effect, f.unlock].join(' | ');
+    if (say(slam) !== 'Chills monsters next to you | Party only | Causes chill for 4 s, 30% slower attacks and casts | Unlocks at Melee 12.') return 'Frost Slam reads ' + say(slam);
+    if (say(shell) !== 'Shields every hero near you | Party only | Blocks the next 30 damage. | Unlocks at Melee 20.') return 'Shelter reads ' + say(shell);
+    const deep = factsOf({ type: 'ability', id: 'frost_slam', store: 'plain_graven_ice_rune' }, { bag: [], skills: { melee: { level: 60 } }, store: M.SB.BASIC_SUPPLIES.filter((b) => b.id === 'plain_graven_ice_rune') });
+    if (!deep.effect.includes('Causes chill for 4 s, 50% slower attacks and casts')) return 'a Graven slam reads ' + JSON.stringify(deep.effect);
+    const sl = { action: { type: 'ability', id: 'frost_slam' }, conditions: [], join: 'and' };
+    const greyed = aloneReason(sl, true);
+    if (!greyed || greyed.code !== 'party_only' || greyed.text !== 'Party only' || !greyed.strike) return 'a party spell alone reads ' + JSON.stringify(greyed);
+    if (aloneReason(sl, false) || aloneReason(sl, null)) return 'a party spell in a party (or unknown) is greyed';
+    if (aloneReason({ action: { type: 'ability', id: 'undertow' }, conditions: [], join: 'and' }, true)) return 'an alone spell alone is greyed';
+    return aloneNote(sl.action, 1) === 'Party only, does nothing alone' && aloneNote(sl.action, 2) === '' ? null : 'Configure action says ' + JSON.stringify([aloneNote(sl.action, 1), aloneNote(sl.action, 2)]);
   },
   /* AN IGNORE LIST BINDS ONLY WHERE IT AIMS (spell content, Coordinator 2026-10-23): a food, drink, heal or shield slot never
      reads one, so the Configure window saves none on it (bar-draft slotForSave), and the "can never fire" check never
@@ -737,7 +878,7 @@ const cases = {
     const rows = [
       ['raking_shot', 'Hits every monster on a 4-tile line', ['On the line: 40% to 80% of Max Hit'], 'Unlocks at Ranged 10.'],
       ['turning_cut', 'Hits up to 8 adjacent monsters', ['Each monster reached: 30% to 60% of Max Hit'], 'Unlocks at Melee 10.'],
-      ['hoarfrost', 'Hits monsters around the target', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s, 30% slower swings'], 'Unlocks at Magic 14.'],
+      ['hoarfrost', 'Hits monsters around the target', ['Deals 5–9 frost damage to each monster hit.', 'Causes chill for 4 s, 30% slower attacks and casts'], 'Unlocks at Magic 14.'],
       ['spring_tide', 'Hero and nearby allies', ['Heals 120–180.'], 'Unlocks at Magic 20.'],
     ];
     for (const [id, type, effect, unlock] of rows) if (!has(f(id), type, effect, unlock)) return id + ' reads ' + JSON.stringify(f(id));
@@ -1088,7 +1229,7 @@ const mutants = [
   { name: '[area-client] a shot spell reads mana only', case: 'configure-words', also: ['src'],
     edits: [['src/shell/cast-facts.js', "k.row.ammo ? [t('bar.cost_ammo', { ammo: k.row.ammo })] : []", '[]']] },
   { name: '[area-client] Chill says nothing of what it does', case: 'configure-words', also: ['src'],
-    edits: [['src/shell/action-facts.js', "const does = st.slowPm ? ['_slow', st.slowPm]", "const does = false ? ['_slow', st.slowPm]"]] },
+    edits: [['src/shell/action-facts.js', "const does = st.slowPm ? ['_slow', slowAt(st, slowScaleAt(st, tier))]", "const does = false ? ['_slow', slowAt(st, slowScaleAt(st, tier))]"]] },
   { name: '[area-client] a new pick keeps the last pick’s rule', case: 'configure-words', also: ['src'],
     edits: [['src/shell/bar-draft.js', "  return !conds || !conds.length || untouched ? startConditions(next) : conds;", '  return !conds || !conds.length ? startConditions(next) : conds;']] },
   { name: '[area-client] a picked count starts below 0', case: 'configure-words', also: ['src'],
@@ -1099,6 +1240,47 @@ const mutants = [
     edits: [['src/data/abilities.js', "disciplines: ['sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,", "disciplines: ['shield', 'sword', 'dual_axe', 'club'], lane: 'offense', cdMs: 8000, mana: 8, unlock: 10,"]] },
   { name: '[turning cut] a move names its first discipline\'s weapons alone', case: 'turning-cut-every-shieldless-melee', also: ['src'],
     edits: [['src/shell/action-facts.js', '  const ds = r.disciplines;\n', '  const ds = r.disciplines.slice(0, 1);\n']] },
+  /* THE TANK RUNE SPELLS (board 2026-11-19 section 6) */
+  { name: '[tank runes] a party row with no heal passes validate', case: 'rows-validate',
+    edits: [['src/data/abilities.js', "if (r.target === 'party' && !r.heal && !(Number.isInteger(r.shield) && r.shield > 0)) bad(", "if (false) bad("]] },
+  { name: '[tank runes] a shape with nothing to land passes validate', case: 'rows-validate',
+    edits: [['src/data/abilities.js', "&& !(AREA_TARGETS.includes(r.target) && r.status)) {", "&& false) {"]] },
+  { name: '[tank runes] alone and party only together pass validate', case: 'rows-validate',
+    edits: [['src/data/abilities.js', "if (r.party === true && r.alone === true) bad(", "if (false) bad("]] },
+  { name: '[tank runes] a party shield heals instead', case: 'party-shield-shells-the-party',
+    edits: [['src/core/hunt/abilities.js', "        if (row.heal) { healOne(u, a, scaled(roll(sc, row.heal)), sc, sg); continue; }\n", "        if (row.heal || true) { healOne(u, a, scaled(roll(sc, row.heal || [1, 1])), sc, sg); continue; }\n"]] },
+  { name: '[tank runes] a party shield lowers a bigger shell', case: 'party-shield-shells-the-party',
+    edits: [['src/core/hunt/abilities.js', "        if (n <= int(a.shield)) continue;\n", '']] },
+  { name: '[tank runes] a party shield reaches the whole map', case: 'party-shield-shells-the-party',
+    edits: [['src/core/hunt/abilities.js', "        if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;\n", '']] },
+  { name: '[tank runes] a party shield casts over a shelled party', case: 'party-shield-shells-the-party',
+    edits: [['src/core/hunt/abilities.js', "pct(a) < 100 && !(int(a.shield) > 0) && (a === hero || dist2(a, hero) <= r2)", "pct(a) < 100"]] },
+  { name: '[tank runes] the refund reads any standing shell (the board\'s section 6 bug)', case: 'party-shield-shells-the-party',
+    edits: [['src/core/hunt/abilities.js', "  if (!u || u.shieldBy !== u.id) return 0;\n", '']] },
+  { name: '[tank runes] a shell does not say who cast it', case: 'party-shield-shells-the-party',
+    edits: [['src/core/hunt/abilities.js', "        a.shield = n; a.shieldBy = u.id;\n", "        a.shield = n;\n"]] },
+  { name: '[tank runes] a status-only ring strikes a blow', case: 'frost-slam-chills-without-a-blow',
+    edits: [['src/core/hunt/abilities.js', "        if (!blows) { afflict(m); continue; }\n", "        if (!blows) { landHit(inst, sc, u, m, 1, el, hitTag, sg); afflict(m); continue; }\n"]] },
+  { name: '[tank runes] Chill ignores the rune tier', case: 'frost-slam-chills-without-a-blow',
+    edits: [['src/core/hunt/status.js', "  if (!row.tick) return row.tierPermille[tier - 1];\n", "  if (!row.tick) return 1000;\n"]] },
+  { name: '[tank runes] a slow reads its row, not its stack', case: 'frost-slam-chills-without-a-blow',
+    edits: [['src/core/hunt/damage.js', "Number.isInteger(row.slowPm) ? slowAt(row, st.scale) : 0;", "Number.isInteger(row.slowPm) ? row.slowPm : 0;"]] },
+  { name: '[tank runes] a stronger chill keeps the weaker stack', case: 'frost-slam-chills-without-a-blow',
+    edits: [['src/core/hunt/status.js', "  if (!row.tick) for (const st of list) if (st.s === row.id && scale > st.scale) st.scale = scale;\n", '']] },
+  { name: '[tank runes] the store\'s chill is cut by its share', case: 'frost-slam-chills-without-a-blow',
+    edits: [['src/core/hunt/abilities.js', "runeTier: (v && v.version) || 1 }", "runeTier: v && v.pm < 1000 ? 1 : (v && v.version) || 1 }"]] },
+  { name: '[tank runes] the slot fires alone (Tyler 2026-11-19: party only)', case: 'party-only-waits-alone',
+    edits: [['src/core/hunt/abilities.js', "    && (!solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].party))\n", '']] },
+  { name: '[tank runes] Frost Slam is no longer party only', case: 'party-only-waits-alone',
+    edits: [['src/data/abilities.js', "n: 'Frost Slam', disciplines: ['shield'], party: true,", "n: 'Frost Slam', disciplines: ['shield'],"]] },
+  { name: '[tank runes] the bar never greys a party spell alone', case: 'tank-rune-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "  return r && r.party && alone === true ?", "  return false ?"]] },
+  { name: '[tank runes] the card forgets Party only', case: 'tank-rune-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "alone: r.alone ? t('bar.alone') : r.party ? t('bar.party_only') : null };", "alone: r.alone ? t('bar.alone') : null };"]] },
+  { name: '[tank runes] the chill line reads version I whatever the rune', case: 'tank-rune-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "[statusLine(STATUSES[r.status], k.version)]", "[statusLine(STATUSES[r.status], 1)]"]] },
+  { name: '[tank runes] a party shield reads as a party heal', case: 'tank-rune-words', also: ['src'],
+    edits: [['src/shell/action-facts.js', "  if (r.target === 'party' && r.shield) return t('bar.target_party_shield');\n", '']] },
   { name: 'the lanes are not persisted', case: 'clocks-survive-a-cut',
     edits: [['src/core/hunt/abilities.js', "['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],", "['regenPm', 'int'], ['cds', 'json'],"]] },
 ];

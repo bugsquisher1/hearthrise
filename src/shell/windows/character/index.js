@@ -27,6 +27,7 @@ import { heroSprite } from '../../../session/hero-look.js?v=0.2.141';
 import { attr, cls, prop } from '../../../render/paint.js?v=0.2.141';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
 import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.141';
+import { heroSetsFor, maskSetsFor } from '../../../data/world/atlas-sets.js?v=0.2.141';
 import { scratchOf } from './state.js?v=0.2.141';
 import { sheetHtml, patchSheet } from './sheet.js?v=0.2.141';
 import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.141';
@@ -38,19 +39,34 @@ const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titl
 /* The portrait and the wardrobe draw the FIGURE at art size; character.css sets them 2 whole device px an art px (--art-px). */
 const PORTRAIT_SCALE = 1;
 
-/* The hunt art set, once loaded (null until then; the canvases stay blank, never a stand-in), and the color masks (null: the outfit draws as it is). */
-let ART = null, MASKS = null, masksAsked = false;
-function wantArt(doc) {
-  if ((ART && masksAsked) || !doc || !doc.baseURI) return;
+/* The hero art and the color masks for every sprite this page's window has drawn (null until they land; the canvases stay blank, never
+   a stand-in; MASKS null: the outfit draws as it is). A worn set's art (the faction looks) is asked for only once a canvas draws one of
+   its sprites (src/data/world/atlas-sets.js heroSetsFor), so a hero who never sees a faction look fetches none of it. `gen` moves when
+   either lands, so every canvas drawn before is drawn again with it. */
+let ART = null, MASKS = null, gen = 0;
+const wanted = new Set();
+let artKey = null, maskKey = null;
+function wantArt(doc, sprites) {
+  if (!doc || !doc.baseURI) return;
+  let more = artKey === null;
+  for (const s of sprites || []) if (!wanted.has(s)) { wanted.add(s); more = true; }
+  if (!more) return;
   /* The build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal). */
   const v = new URL(import.meta.url).searchParams.get('v') || '';
-  if (!ART) outfitArt(doc, v).then((a) => { ART = a; }).catch(() => { /* the canvases stay blank */ });
-  /* asked once a page: a failed fetch draws the outfit as it is and keeps the picker off, it doesn't ask again on every patch */
-  if (!masksAsked) { masksAsked = true; outfitMasks(doc, v).then((m) => { MASKS = m; }).catch(() => {}); }
+  const list = [...wanted], key = heroSetsFor(list).join();
+  if (key !== artKey) {
+    artKey = key;
+    outfitArt(doc, v, list).then((a) => { if (artKey === key) { ART = a; gen++; } }).catch(() => { if (artKey === key) artKey = null; });
+  }
+  /* asked once per set of sets: a failed fetch draws the outfit as it is and keeps the picker off, it doesn't ask again on every patch */
+  if (key !== maskKey) { maskKey = key; outfitMasks(doc, v, list).then((m) => { if (maskKey === key) { MASKS = m; gen++; } }).catch(() => {}); }
 }
 
 /** The skeleton (built once per opening). */
 export function renderCharacter(ctx) {
+  /* a hero or mask set that failed to load is asked for again on the next opening (each loader asks only for what it does not hold) */
+  if (ART && ART.sets.length < heroSetsFor([...wanted]).length) artKey = null;
+  if (MASKS && MASKS.sets.length < maskSetsFor([...wanted]).length) maskKey = null;
   wantArt(ctx.doc);
   if (ctx.character) { const sc = scratchOf(ctx.character); sc.opening = 'due'; sc.sheetAsked = null; sc.price = null; sc.priceAskedAt = 0; }
   return '<div class="hw-cs">'
@@ -75,10 +91,13 @@ function askSheet(cs, sc) {
   Promise.resolve(cs.edgeIntent('sheet', {})).catch(() => null).then(() => { sc.sheetAsking = false; sc.opening = 'done'; });
 }
 
-/* Draw `sprite` into a canvas once per (sprite, facing, dyes): the canvas keeps its signature. */
-function paintCanvas(canvas, sprite, dir, scale, dyes, crop) {
-  if (!ART || !canvas) return;
-  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + !!MASKS + '|' + !!crop;
+/* Draw `sprite` into a canvas once per (sprite, facing, dyes, art landed): the canvas keeps its signature. `doc` is the window's own
+   document: a card just built is still in its template's inert one, whose base URL reaches no atlas. */
+function paintCanvas(doc, canvas, sprite, dir, scale, dyes, crop) {
+  if (!canvas) return;
+  wantArt(doc, [sprite]);
+  if (!ART) return;
+  const sig = sprite + '|' + dir + '|' + scale + '|' + dyes.join(',') + '|' + gen + '|' + !!crop;
   if (canvas.getAttribute('data-sig') === sig) return;
   if (drawOutfit(canvas, ART, sprite, { dir, scale, dyes, masks: MASKS, crop })) attr(canvas, 'data-sig', sig);
 }
@@ -100,15 +119,15 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   askSheet(cs, sc);
   if (sc.tab === 'sheet') {
     const base = (outfitOf(cs) || {}).base || null;
-    patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), FIGURE), sc.opening === 'done');
+    patchSheet(body, ctx, (canvas) => paintCanvas(ctx.doc, canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), FIGURE), sc.opening === 'done');
   } else if (sc.tab === 'outfit') {
     const d = draftOf(cs, sc);
     /* every outfit in the grid and the big preview wear the colors being tried on: one set, across every outfit; a faction look at the creation
        defaults in its side's colors, as the World draws it (data/outfits.js lookColors) */
     const shown = colorsShown(cs, d);
     const dyesFor = (id) => dyesOf(lookColors(id, shown), ctx.doc);
-    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyesFor(id), FIGURE), () => renderCharacter.patch(body, ctx));
-    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesFor(d.outfit));
+    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(ctx.doc, canvas, OUTFITS[id], 's', 1, dyesFor(id), FIGURE), () => renderCharacter.patch(body, ctx));
+    paintCanvas(ctx.doc, body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesFor(d.outfit));
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
   else if (sc.tab === 'faction') patchFaction(body, ctx, sc);
   else patchDeaths(body, ctx, sc);
@@ -119,7 +138,7 @@ renderCharacter.events = Object.freeze(['input']);
 renderCharacter.act = function actCharacter(ctx, body, action, ev, t) {
   const sc = scratchOf(ctx.character);
   const repaint = () => renderCharacter.patch(body, ctx);
-  if (action === 'cs-tab' && ev.type === 'click') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; repaint(); return true; }
+  if (action === 'cs-tab' && ev.type === 'click') { sc.tab = t.getAttribute('data-tab'); sc.msg = ''; sc.fxAsk = null; repaint(); return true; }
   if (sc.tab === 'outfit' && actOutfit(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'titles' && actTitles(ctx, sc, action, ev, t, repaint)) return true;
   if (sc.tab === 'faction' && actFaction(ctx, sc, action, ev, t, repaint)) return true;

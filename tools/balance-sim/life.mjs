@@ -14,7 +14,7 @@
 //              dangerous  the advised ground on Dangerous, from its floor up
 //              deadly     the advised ground on its hardest tier
 //              push       the highest open ground whose floor is at most 10 Levels over the party, on its hardest tier
-//              idle       the start kit and the start bar, 6 hours in the Mill Cellar, then the advised ground (the idle newcomer)
+//              idle       the start kit and the start bar, 6 hours in the Mill Cellar (or until its hunt ends at its endsAtLevel), then the advised ground (the idle newcomer)
 //   --monsters every monster row scaled for this run (calibrate.mjs scaleMonsters): a stand-in for a STAT_FORMULA change
 //   --plain    the harness's plain hero instead of the played one
 //
@@ -60,7 +60,13 @@ while (hours < maxHours && Math.min(...seats.map(lv)) < target) {
   const levels = seats.map(lv), L = Math.min(...levels);
   const chunkH = L < 8 ? 0.25 : L < 12 ? 0.5 : 1;
   let ground = recommendedHunt(levels, party.length).hunt, tier = 'normal', extra = {};
-  if (policy === 'idle') { if (hours < 6) ground = 'mill_cellar'; extra = { startBar: true, gear: { starter: true }, profile: undefined }; }
+  /* the idle newcomer stays in the Cellar for its first 6 hours, or until the Cellar's hunt ends for it (hunt-grounds.js endsAtLevel: the
+     end card then names the advised ground, which it takes) */
+  if (policy === 'idle') {
+    const exit = G.HUNT_GROUNDS.mill_cellar.endsAtLevel;
+    if (hours < 6 && !(Number.isInteger(exit) && Math.max(...levels) >= exit)) ground = 'mill_cellar';
+    extra = { startBar: true, gear: { starter: true }, profile: undefined };
+  }
   if (policy === 'push') { const ok = OPEN.filter((g) => floorOf(g) <= L + 10).sort((a, b) => floorOf(b) - floorOf(a)); if (ok.length) ground = ok[0]; }
   if (policy === 'deadly' || policy === 'push') { const ts = T.tiersOf(ground); tier = ts[ts.length - 1]; }
   if (policy === 'dangerous' && T.tiersOf(ground).includes('dangerous') && L >= floorOf(ground)) tier = 'dangerous';

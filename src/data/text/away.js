@@ -63,6 +63,8 @@ export const AWAY_TEXT = Object.freeze({
   next_ammo: 'Pack more ammo for a longer hunt.',
   next_runes: 'Pack more runes for a longer hunt.',
   next_gold: 'Lower the gold reserve or pack your own supplies',
+  /* outgrown (src/data/hunt-grounds.js endsAtLevel: the Mill Cellar's hunt ends at Level 5): the hunt summary names the ground, Hunts tags it */
+  next_outgrown: 'Next ground: Recommended in Hunts',
   /* gold_out with food or drink in the bag that no slot of the bar uses (after-hunt.js spareSupplyOf): {item} its name. */
   next_bar: 'Tip: put {item} on the bar',
 

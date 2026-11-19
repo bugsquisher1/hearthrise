@@ -137,7 +137,6 @@
 .hw-fx-stand.is-current .hw-line-name b, .hw-fx-piece.is-current small { color: var(--gold-2); }
 .hfx-lead, .hfx-terms { margin: 2px 2px 8px; font-size: var(--t-small); line-height: 1.45; color: var(--ink-2); }
 .hfx-lead { color: var(--ink); }
-.hfx-swap-terms:not(.is-on) { display: none; }
 .hfx-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; margin: 0 0 8px; padding: 0; list-style: none; }
 .hfx-side { display: flex; flex-direction: column; min-width: 0; padding: 6px 2px; }
 .hfx-side + .hfx-side { padding-left: 20px; border-left: 2px solid var(--steel-sep); margin-left: -10px; }

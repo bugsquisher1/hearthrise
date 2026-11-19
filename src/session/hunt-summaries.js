@@ -14,6 +14,7 @@ const SUPPLIES_SHOWN = 8;
 const BAG_LINES_MAX = 16;
 const DEATH_LINES_MAX = 6;
 const UPS_SHOWN = 8;
+const STANDING_SHOWN = 4;
 const REASON = /^[a-z_]{1,24}$/;
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -45,6 +46,8 @@ export function sanitizeSummary(v) {
     /* THE LEVEL LINE (summary-model.js levelLine): the server's Level at the hunt's start and end, and each skill it raised [id, from, to]. */
     lvFrom: level(v.lvFrom), lvTo: level(v.lvTo),
     ups: pairs(v.ups, (p) => (Array.isArray(p) && id(p[0]) && level(p[1]) !== null && level(p[2]) !== null ? [p[0], p[1], p[2]] : null), UPS_SHOWN),
+    /* THE STANDING LINE (summary-model.js standingLine): each side the hunt raised [side, ms gained], from the server's standing at its start and end */
+    standing: pairs(v.standing, (p) => (Array.isArray(p) && id(p[0]) && Number.isSafeInteger(p[1]) && p[1] > 0 ? [p[0], p[1]] : null), STANDING_SHOWN),
     loot: pairs(v.loot, (p) => (Array.isArray(p) && id(p[0]) && int(p[1]) !== null ? [p[0], p[1]] : null), LOOT_SHOWN),
     supplies: pairs(v.supplies, (p) => (Array.isArray(p) && id(p[0]) && (p[1] === 'own' || p[1] === 'store') && num(p[2]) !== null ? [p[0], p[1], p[2]] : null), SUPPLIES_SHOWN),
     preset: int(v.preset), hoursLimit: int(v.hoursLimit),

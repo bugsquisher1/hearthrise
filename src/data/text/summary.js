@@ -83,6 +83,10 @@ export const SUMMARY_TEXT = Object.freeze({
   end_boss_felled: 'Boss defeated, new title earned',
   end_party_member_died: 'Party member died',
   end_party_member_left: 'Party member left',
+  /* the ground's hunt ends at a Level (src/data/hunt-grounds.js endsAtLevel: the Mill Cellar's 5); {level} that Level, the _plain form when the
+     card cannot name the ground's row. The card's Next ground row names where to go. */
+  end_outgrown: 'Ground outgrown at Level {level}',
+  end_outgrown_plain: 'Ground outgrown',
   end_heals_out: 'Out of healing supplies',
   end_ammo_out: 'Out of ammunition',
   end_runes_out: 'Out of runes',
@@ -112,4 +116,6 @@ export const SUMMARY_TEXT = Object.freeze({
   /* Hunt again, off for a party member */
   again_elsewhere: 'Party hunting elsewhere',
   again_leader: 'Party leader picks the hunt',
+  /* ...and off on a ground this hero has outgrown (the server refuses it: 2027-05-28-cellar-outgrown.sql) */
+  again_outgrown: 'Ground outgrown',
 });

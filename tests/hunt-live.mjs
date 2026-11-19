@@ -99,6 +99,9 @@
 //         peer's level and its largest blow reach the browser in its frozen row). Every melee weapon without a shield casts it (Tyler
 //         2026-11-16): a club at its unlock in the Thicket's full box casts it on its own rule, each cast on 3 or more, and the tank's sword
 //         and shield with the same slot never does, both paths.
+//   LV-TANK THE TANK RUNE SPELLS, BOTH PATHS (Tyler 2026-11-19, lane/b-tank-runes): a sword and shield with Frost Slam and Shelter on the
+//         store's Plain runes in the Thicket's full box, watched by its partner (the tank is the frozen peer). Browser closed: Frost Slam
+//         chills with no blow, Shelter shells both heroes. Viewed: every commit matches. Alone (party only) it casts neither, both paths.
 //   LV-RR THE PARTY'S RARE ROLL IS THE SERVER'S (Tyler L8; rulings: loot rolls use a server-only
 //         stream): with every monster carrying rare rows, the server's commits roll rares
 //         (`rare_roll`, each Crown Shard to its winner) and the browser's prediction, which
@@ -259,6 +262,12 @@ function server(M, mis, o) {
   /* `o` (tests/hunt-scene-live.mjs LV-9): another ground, instance id and start instant */
   const hunt = (o && o.hunt) || 'mill_cellar', t0 = (o && o.t0) || T0;
   const where = M.HG.huntGroundOf(hunt);
+  /* A GROUND WITH AN EXIT (hunt-grounds.js endsAtLevel: the Mill Cellar's hunt ends `outgrown` at Level 5, lane/d-first-day-path): these rules
+     stand their heroes there with skills at Level 6 to 40, so each hero's Level XP stands at the bottom of the Level under the exit, its skills
+     as the rule set them (a yard-trained hero: Level XP comes from kills only), and the hunt plays as it always did. The exit is LV-OUTGROWN's
+     subject (o.exit: the heroes keep the Level the rule gave them). A scaled instance plays at its leader's Level and has no exit. */
+  const exitAt = where && Number.isInteger(where.ground.endsAtLevel) && !(o && (o.exit || o.scale)) ? where.ground.endsAtLevel : null;
+  if (exitAt !== null) for (const mi of mis) if (M.XP.charLevelFromXp(mi.levelXp) >= exitAt) mi.levelXp = M.XP.charXpForLevel(exitAt - 1);
   const inst = { id: (o && o.id) || 'i-live', hunt, world: null, settled_to_ms: t0, next_swing_at_ms: t0, world_swing: 0, secret: SECRET };
   /* LV-SCALE: the server's scale of this instance (hunt-settle.js scalePlanOf's `play`; the hours never run out here) */
   inst.play = { level: (o && o.scale) || null, restart: false, stopMs: Infinity };
@@ -1731,6 +1740,34 @@ function rules(M) {
     ok('LV-NOFIGHT', !!end && end.reason === 'no_fight' && Date.parse(end.at) === T0 + SPAN, 'browser closed: a bare bow ended ' + JSON.stringify(end) + ', want no_fight at +' + SPAN + ' ms');
     ok('LV-NOFIGHT', verdicts.length > 30 && off.length === 0, 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction');
   }
+  { /* LV-OUTGROWN THE MILL CELLAR ENDS ITS HUNT AT LEVEL 5, viewed and with the browser closed (the board's 2026-11-19 complete balance look,
+       change 1; hunt-grounds.js endsAtLevel): a lone tank twenty rats under the exit. Browser closed: the server's 16 s commits end it `outgrown`
+       with the hero at the exit's Level, and one ten-minute commit ends it at the same instant (the XP is stored, so a cut between the kill
+       and the end moves nothing). Viewed: every commit before the end matches the prediction, and the browser's engine stops there too. */
+    const exit = M.HG.huntGroundOf('mill_cellar').ground.endsAtLevel;
+    const hero = () => Object.assign(memberOf(M, 'a', 0, 'tank', exit - 1), { levelXp: M.XP.charXpForLevel(exit) - 20 * M.MONSTERS.rat.xp });
+    const mi = hero();
+    const srv = server(M, [mi], { exit: true });
+    const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: M.MONSTERS });
+    E.seed(srv.live(mi.user, 0));
+    const verdicts = []; let end = null, lv = null;
+    for (let t = T0; t <= T0 + 20 * 60000 && !end; t += 100) {
+      E.advance(t, () => {});
+      if ((t - T0) % 16000 === 0 && t > T0) {
+        const c = srv.commit(t);
+        if (!c) continue;
+        if (c.ends.length) { end = c.ends[0]; lv = M.XP.charLevelFromXp(mi.levelXp); } else verdicts.push(E.reconcile(c.check));
+      }
+    }
+    const one = hero(), longSrv = server(M, [one], { exit: true }), long = longSrv.commit(T0 + 20 * 60000);
+    const longEnd = long && long.ends.length ? long.ends[0] : null;
+    const off = verdicts.filter((v) => v !== 'match');
+    console.log('  LV-OUTGROWN: browser closed, ' + JSON.stringify(end) + ' at Level ' + lv + ' (one long commit: ' + JSON.stringify(longEnd) + '); viewed, '
+      + verdicts.length + ' commits before it, ' + off.length + ' off, the browser ended ' + E.ended());
+    ok('LV-OUTGROWN', !!end && end.reason === 'outgrown' && lv >= exit, 'browser closed: a tank twenty rats under Level ' + exit + ' in the Cellar ended ' + JSON.stringify(end) + ' at Level ' + lv + ', want outgrown at ' + exit);
+    ok('LV-OUTGROWN', !!end && !!longEnd && longEnd.reason === end.reason && longEnd.at === end.at, 'browser closed: one long commit ended ' + JSON.stringify(longEnd) + ', 16 s commits ' + JSON.stringify(end));
+    ok('LV-OUTGROWN', verdicts.length >= 3 && off.length === 0 && E.ended(), 'viewed: ' + off.length + ' of ' + verdicts.length + ' commits did not match the prediction, the browser ended ' + E.ended());
+  }
   { /* LV-YARD the yard never ends for no blows (Tyler 2026-11-16), viewed and with the browser closed */
     const SPAN = (M.HSD.NO_FIGHT_END_MIN + 2) * 60000;
     for (const [hunt, role, skill, weapon] of [['training_yard_ranged', 'ranger', 'ranged', 'shortbow'], ['training_yard_magic', 'mage', 'magic', 'apprentice_wand']]) {
@@ -1770,7 +1807,7 @@ function rules(M) {
     const SPAN = 240000;
     const cast = { mixed: ['tank', 'ranger'], same: ['tank', 'melee_dps'] };
     for (const [name, roles] of Object.entries(cast)) {
-      const heroes = () => roles.map((r, i) => memberOf(M, 'ab'[i], i, r, 6));
+      const heroes = () => roles.map((r, i) => memberOf(M, 'ab'[i], i, r, 4));   // under the Cellar's exit at 5 (server's own note)
       /* BROWSER CLOSED: one long settle, nobody watching. */
       const closedMis = heroes();
       const closed = server(M, closedMis);
@@ -2043,11 +2080,53 @@ function rules(M) {
     ok('LV-AREA', castBy(mis[0].unitId).length === 0, `a sword and shield: browser closed: cast Turning Cut ${castBy(mis[0].unitId).length} time(s)`);
     ok('LV-AREA', r.verdicts.length >= 5 && off.length === 0, `a club beside a sword and shield: viewed: ${off.length} of ${r.verdicts.length} commits did not match the prediction (first at +${off.length ? off[0].t - T0 : 0} ms)`);
   }
+
+  { // LV-TANK: THE TANK RUNE SPELLS, BOTH PATHS (Tyler 2026-11-19: "tanks should have rune spells that are tank spells", "Tank spells should be
+    // party only I think"; lane/b-tank-runes). A sword and shield at Melee 20 with Frost Slam (a ring that only chills) and Shelter (a shell on
+    // every hero near it) on the store's Plain runes, in the Thicket's full box (8 a pull), WATCHED BY ITS PARTNER: the tank is the browser's
+    // frozen peer, so its level (both unlocks, the rune versions) and its runes reach the prediction only through its frozen row. Browser
+    // closed: both spells cast, every Frost Slam chills with no blow, Shelter shells both heroes. Viewed: every commit matches the prediction.
+    // ALONE (party only): the same tank, viewed by itself, casts neither on the server's commits, and every commit matches.
+    const slam = M.ENGINE_ABILITIES.frost_slam, shell = M.ENGINE_ABILITIES.shelter;
+    ok('LV-TANK', slam && shell && slam.party === true && shell.party === true && slam.target === 'ring' && !slam.dmg && shell.target === 'party' && shell.shield > 0,
+      'the tank rune spells are no longer a party-only chill ring and party shell: ' + JSON.stringify([slam, shell]));
+    const bar = [{ action: { type: 'ability', id: 'frost_slam', store: 'plain_ice_rune' }, conditions: slam.trigger || [{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }], join: 'and' },
+      { action: { type: 'ability', id: 'shelter', store: 'plain_earth_rune' }, conditions: [], join: 'and' }];
+    const tankOf = (seat, partyRoles) => {
+      const k = memberOf(M, seat ? 'b' : 'a', seat, 'tank', shell.unlock);
+      k.hero = M.SPAWN.heroSetup({ weaponType: 'shield', options: {}, bar, partyRoles, leaveTogether: true });
+      return k;
+    };
+    const into = (ms) => { for (const m of ms) { m.huntId = 'meadowbrook_thicket'; m.hp = 1e9; m.hero = Object.assign({}, m.hero, { density: 8 }); } return ms; };
+    const look = (r, tank) => {
+      const server = r.verdicts.flatMap((x) => x.tl.hunt_events);
+      const castBy = (id) => server.filter((e) => e.type === 'cast' && e.ability === id && e.u === tank);
+      const chills = server.filter((e) => e.type === 'status_on' && e.status === 'chill').length;
+      const blows = server.filter((e) => e.type === 'dmg' && e.ability === 'frost_slam').length;
+      const shelled = new Set(server.filter((e) => e.type === 'shield' && e.u === tank).map((e) => e.t));
+      return { slams: castBy('frost_slam').length, shelters: castBy('shelter').length, chills, blows, shelled: shelled.size, off: r.verdicts.filter((x) => x.v !== 'match') };
+    };
+    const pair = into([memberOf(M, 'a', 0, 'melee_dps', shell.unlock), tankOf(1, ['melee_dps', 'tank'])]);
+    const rp = run(M, pair, 96000, { viewer: { user: 'a', slot: 0 } });
+    const t = look(rp, pair[1].unitId);
+    console.log(`  LV-TANK beside a partner (Melee ${shell.unlock}): ${t.slams} Frost Slams, ${t.chills} chills, ${t.blows} blows; ${t.shelters} Shelters, shells on ${t.shelled} hero(es); ${rp.verdicts.length - t.off.length} of ${rp.verdicts.length} commits matched`);
+    ok('LV-TANK', t.slams >= 3 && t.chills >= t.slams && t.blows === 0, `a tank beside a partner: browser closed: ${t.slams} Frost Slams landing ${t.chills} chills and ${t.blows} blows in 96 s (want some, each chilling, none striking)`);
+    ok('LV-TANK', t.shelters >= 1 && t.shelled === 2, `a tank beside a partner: browser closed: ${t.shelters} Shelters shelled ${t.shelled} hero(es), want both`);
+    ok('LV-TANK', rp.verdicts.length >= 5 && t.off.length === 0, `a tank beside a partner: viewed: ${t.off.length} of ${rp.verdicts.length} commits did not match the prediction (first at +${t.off.length ? t.off[0].t - T0 : 0} ms)`);
+    const lone = into([tankOf(0, [])]);
+    const rl = run(M, lone, 96000, { viewer: { user: 'a', slot: 0 } });
+    const l = look(rl, lone[0].unitId);
+    console.log(`  LV-TANK alone: ${l.slams} Frost Slams, ${l.shelters} Shelters; ${rl.verdicts.length - l.off.length} of ${rl.verdicts.length} commits matched`);
+    ok('LV-TANK', l.slams === 0 && l.shelters === 0, `a tank alone: browser closed: cast Frost Slam ${l.slams} and Shelter ${l.shelters} time(s) (party only)`);
+    ok('LV-TANK', rl.verdicts.length >= 5 && l.off.length === 0, `a tank alone: viewed: ${l.off.length} of ${rl.verdicts.length} commits did not match the prediction`);
+  }
   return fails;
 }
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
+  ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].party))\n", '', /^LV-TANK: a tank alone: browser closed/],
+  ['a party shell reaches nobody but its caster (LV-TANK)', 'src/core/hunt/abilities.js', "        if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;\n", "        if (a !== u) continue;\n", /^LV-TANK: a tank beside a partner: browser closed: \d+ Shelters shelled/],
   ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 'xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,', 'xpMultOf: null,', /^LV-EVENT: \d+ of the server's/],
   ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],
   ['the start point drops the windows (LV-EVENT)', 'supabase/functions/hr-accrue/hunt-settle.js', '...(members.some((m) => m.liveXp) ?', '...(false ?', /^LV-EVENT: \d+ of the server's/],

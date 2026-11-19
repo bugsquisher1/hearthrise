@@ -9,7 +9,7 @@
 // them stands on one ground line at their true relative size: a rat is small, the
 // Rat King is not.
 //
-//   creatureArt(doc, version, ids)  the art of those creatures: every manifest is read (small
+//   creatureArt(doc, version, ids)  the art of those creatures: every first-open manifest is read (small
 //                              JSON), but only the sets that carry them load their image, each
 //                              once per page (the World pane holds the same decoded images):
 //                              Promise<Map<id, { image, row }>>, one map that grows per call
@@ -19,7 +19,8 @@
 // 7 only south, 1 the four sides), so a line of them is one consistent pose. Units in the
 // World turn as they move; that is the World renderer's, not this.
 // ════════════════════════════════════════════════════════════════════════
-import { ATLAS_SETS } from '../data/world/atlas-sets.js?v=0.2.141';
+/* the sets a first open reads: no creature is in a worn set (the faction looks, fetched only with a hero who wears one) */
+import { FIRST_OPEN_SETS } from '../data/world/atlas-sets.js?v=0.2.141';
 import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.141';
 import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.141';
 
@@ -38,7 +39,7 @@ let rows = null;   // Promise<Map<id, { set, row }>>: every unit sprite with an 
 
 function unitRows(doc, version) {
   if (!rows) {
-    rows = Promise.all(ATLAS_SETS.map((set) => loadAtlasManifest({ doc, version }, set).then((m) => [set, m], () => [set, null]))).then((all) => {
+    rows = Promise.all(FIRST_OPEN_SETS.map((set) => loadAtlasManifest({ doc, version }, set).then((m) => [set, m], () => [set, null]))).then((all) => {
       const by = new Map();
       for (const [set, m] of all) {
         for (const [id, row] of Object.entries((m && m.sprites) || {})) {

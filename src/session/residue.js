@@ -164,7 +164,7 @@ function sanitizeAwaySeen(v) {
 
 /* THE HUNT'S START (src/hunt-view/summary-recorder.js stampStart): the session, and the Level and skill levels the server stated while
    it had paid nothing yet, for the end card's "Level 9 → 10" (summary-model.js levelLine). Display state; bounded to the skills a hero has. */
-const HUNT_START_SKILLS = 32;
+const HUNT_START_SKILLS = 32, HUNT_START_SIDES = 4;
 function sanitizeHuntStart(v) {
   if (!isObj(v) || typeof v.s !== 'string' || !/^[A-Za-z0-9_:.-]{1,64}$/.test(v.s) || !Number.isSafeInteger(v.lv) || v.lv < 1) return {};
   const sk = {};
@@ -174,7 +174,15 @@ function sanitizeHuntStart(v) {
     sk[id] = lv;
     if (++n >= HUNT_START_SKILLS) break;
   }
-  return { s: v.s, lv: v.lv, sk };
+  /* fx: the server's standing per side as the hunt began (the `factions` section's), for the card's standing line (summary-model.js standingLine) */
+  const fx = {};
+  let m = 0;
+  for (const [side, ms] of Object.entries(isObj(v.fx) ? v.fx : {})) {
+    if (!/^[a-z0-9_]{1,32}$/.test(side) || !Number.isSafeInteger(ms) || ms < 0) continue;
+    fx[side] = ms;
+    if (++m >= HUNT_START_SIDES) break;
+  }
+  return m ? { s: v.s, lv: v.lv, sk, fx } : { s: v.s, lv: v.lv, sk };
 }
 
 /* A resizable window's size (src/shell/window-sizes.js): window id -> [width, height] in CSS px. The window

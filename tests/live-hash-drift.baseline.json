@@ -25,7 +25,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-19",
- "replay_ms": 65990,
+ "replay_ms": 2143,
  "counts": {
   "tracked_names": 966,
   "entries": 817
@@ -1778,8 +1778,8 @@
     "2027-05-22-cookbook-cut-bench-inputs.generated.sql"
    ],
    "live": {
-    "md5": "350c8663cecc7587ed597b9fbcc76534",
-    "norm_len": 7390,
+    "md5": "fb6374e4c59a3ff2a9088590f67e3486",
+    "norm_len": 7443,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
@@ -1788,8 +1788,7 @@
     "norm_len": 7443,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-16-jewel-guarantees-bench-inputs.generated.sql (three dark guarantee jobs) and then 2027-05-22-cookbook-cut-bench-inputs.generated.sql (the three cut cookbook recipes leave) restate this catalogue; production keeps the pre-05-16 body until both apply with the v0.2.141 release."
+   "agree": true
   },
   {
    "sig": "hr_bench_makes(p_user uuid, p_slot integer, p_bench text)",
@@ -7581,8 +7580,8 @@
     "2027-05-17-scaled-loot.sql"
    ],
    "live": {
-    "md5": "bd93399758d4c0de8cbfc9a5e6d03550",
-    "norm_len": 40073,
+    "md5": "ad6fa73288844952f3e87a5c1ad98db2",
+    "norm_len": 41033,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
@@ -7591,8 +7590,7 @@
     "norm_len": 41033,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-best.sql marks the scaled window on the member's own tally row, then 2027-05-17-scaled-loot.sql multiplies the item bound by the scaled rolls; production keeps the pre-05-17 body until both apply with the v0.2.141 release (scaled-loot after the edge deploy)."
+   "agree": true
   },
   {
    "sig": "hr_hunt_bag_fuse()",
@@ -7721,8 +7719,8 @@
     "2027-05-17-scaled-best.sql"
    ],
    "live": {
-    "md5": "fa7421f3a9d55fff27ae53d254196540",
-    "norm_len": 2578,
+    "md5": "4bfba427c9f416601ea621598b547af6",
+    "norm_len": 2827,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
@@ -7731,8 +7729,7 @@
     "norm_len": 2827,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-17-scaled-best.sql makes the best fold skip sessions with scaled time; production keeps the pre-05-17 body until that file applies with the v0.2.141 release."
+   "agree": true
   },
   {
    "sig": "hr_hunt_best_min()",
@@ -12355,8 +12352,8 @@
     "2027-05-19-faction-outfit-path.sql"
    ],
    "live": {
-    "md5": "cfe9a082905a659b73b0b9ca8c4e565e",
-    "norm_len": 774,
+    "md5": "e96a36a681fe324d084ce26baa25ac44",
+    "norm_len": 1229,
     "measured": "2026-11-19",
     "source": "measured-live"
    },
@@ -12365,8 +12362,7 @@
     "norm_len": 1229,
     "source": "computed-from-replay"
    },
-   "agree": false,
-   "why": "STAGED, not applied (Coordinator 2026-11-19): 2027-05-19-faction-outfit-path.sql makes hr_outfit_owned read hr_faction_claims for looks with hr_outfits.pieces (faction looks wearable); production keeps the sweeps-coat reader until it applies with the v0.2.141 release."
+   "agree": true
   },
   {
    "sig": "hr_outfit_set(p_slot integer, p_outfit text, p_colors jsonb, p_idem uuid)",

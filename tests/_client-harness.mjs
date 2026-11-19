@@ -3,7 +3,8 @@
 // tests/_client-harness.mjs — THE STUBBED SERVER THE CLIENT PAGE RUNNERS SHARE.
 //
 // Not a guard: tests/client-boot.mjs and tests/hunt-screen.mjs import it.
-//   serve(overrides)  a static server over the repo root; `overrides` maps a
+//   serve(overrides)  a static server over the repo root, serving each module and
+//                     page as the site build stamps it; `overrides` maps a
 //                     repo-relative path to replacement text (a planted mutant)
 //   SDK_STUB          the fake supabase-js (auth in the storage the client
 //                     hands it, channels a test can push frames into)
@@ -14,11 +15,17 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readBuild, stampFile, stampKind } from '../tools/lib/version-stamp.mjs';
 
 export const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..'));
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
 export const UID = '11111111-2222-3333-4444-555555555555';
+
+/* The stamp every module is served at: the tree's release, read once. A planted build-info (a newer release on the server)
+   moves no stamp, as it moved none when the stamps were written in the source: a page's later imports keep its keys. */
+let RELEASE = null;
+const release = () => (RELEASE ??= readBuild(ROOT).version);
 
 /* `api`: answers what it recognises itself (true when it did), for a test whose server must be real: a request a page leaves
    behind on its way out never reaches Playwright's routes (tests/client-boot.mjs B-18). */
@@ -33,7 +40,9 @@ export function serve(overrides, api) {
         const info = await stat(f).catch(() => null);
         if (info && info.isDirectory()) f = join(f, 'index.html');
         const rel = f.slice(ROOT.length + 1).split('\\').join('/');
-        const body = overrides && overrides[rel] !== undefined ? overrides[rel] : await readFile(f);
+        const raw = overrides && overrides[rel] !== undefined ? overrides[rel] : await readFile(f);
+        /* as the site build writes it (tools/lib/version-stamp.mjs): every module and page at the release's ?v=, planted mutants too */
+        const body = stampKind(rel) ? stampFile(rel, String(raw), release()) : raw;
         res.writeHead(200, { 'Content-Type': MIME[extname(f).toLowerCase()] || 'application/octet-stream', 'Cache-Control': 'no-store' }).end(body);
       } catch { res.writeHead(404).end('not found'); }
     });

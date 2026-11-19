@@ -309,6 +309,7 @@ import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs'
 import { isMain } from './_is-main.mjs';
 import { setGold } from './_gold.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
@@ -322,7 +323,7 @@ const UID = UIDS[0];
 async function loadEdge(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
   /* the engine's own instance of a src/data module: src/core imports src/data with the build's ?v= (CLAUDE.md §5) */
-  const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const V = sourceQuery(root);
   return {
     /* the engine's own spells (noCasts turns its switch off for an arm whose subject is not the spells) */
     SPELLS: await import(u('src/data/monster-spells.js') + V),

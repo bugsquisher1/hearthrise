@@ -13,6 +13,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 import { round, rateCI } from './stats.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -28,8 +29,8 @@ const MILESTONES = [10, 25, 50, 100, 200, 300, 500, 750, 1000];
 
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const { BUILD } = await import(u('src/build-info.js'));
-const XP = await import(u('src/core/xp.js') + '?v=' + BUILD.version);
-const AR = await import(u('src/core/action-rules.js') + '?v=' + BUILD.version);
+const XP = await import(u('src/core/xp.js') + sourceQuery(ROOT));
+const AR = await import(u('src/core/action-rules.js') + sourceQuery(ROOT));
 const { BLESSING_TIERS, blessingPrice } = await import(u('src/data/blessings.js'));
 const { LEVEL_CURVE, LEVEL_PACE } = await import(u('src/data/core-model.js'));
 /* the Level pace of record (tools/balance-sim/pace.mjs --write), when it exists */
@@ -325,7 +326,7 @@ function deathCost(rate) {
 
 /* ── THE AUDIT (ruling §10): the facts the code holds today, read from the data at report time ─────────── */
 async function audit() {
-  const v = '?v=' + BUILD.version;
+  const v = sourceQuery(ROOT);
   const G = await import(u('src/data/hunt-grounds.js') + v);
   const { HUNT_INDEX } = await import(u('src/data/hunts.js') + v);
   const { MONSTERS } = await import(u('src/data/monsters.js') + v);

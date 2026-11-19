@@ -38,6 +38,7 @@ import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { strip } from './_js-strip.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q, makeExec } = H;
@@ -48,7 +49,7 @@ const FN = join('supabase', 'functions', 'hr-accrue');
 const MIGRATION = 'supabase/migrations/2027-04-23-session-modes.sql';
 const TOWER = "insert into public.hr_ground_session_modes (hunt_id, mode_id) values ('mill_cellar', 'tower')";
 const rewind = (db) => db.query(`select setval('public.hr_test_uuid_seq', 1000, false)`);
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 
 /* The engine's own instances of the modes and the share (src/core imports src/data with the build's ?v=). */
 async function load(root) {

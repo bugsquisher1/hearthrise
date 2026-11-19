@@ -52,7 +52,6 @@ import { mountSocialWatch } from '../shell/social-watch.js?v=0.2.141';
 import { createSocialRealtime } from '../social/realtime.js?v=0.2.141';
 import { escapeHtml as esc } from '../utils/dom.js?v=0.2.141';
 import { startObservability, track, trackOnce, useHeroReaders } from '../net/observability.js?v=0.2.141';
-import { BUILD } from '../build-info.js?v=0.2.141';
 import { GAME_MODULES } from './game-modules.js?v=0.2.141';
 import { loadGlyphs } from './glyphs-loader.js?v=0.2.141';
 import { startDiagnostics } from '../net/diagnostics.js?v=0.2.141';
@@ -76,10 +75,12 @@ const DISCORD = 'https://discord.gg/eJrUSUJM3M';
 /** @type {typeof import('./game-half.js?v=0.2.141')} */
 let G = /** @type {any} */ (null);
 function loadGameHalf(doc) {
+  /* at this module's own stamp (the site build writes one on every import): a preload at any other key is a second fetch */
+  const stamp = new URL(import.meta.url).search;
   for (const path of GAME_MODULES) {
     const link = doc.createElement('link');
     link.rel = 'modulepreload';
-    link.href = path + '?v=' + BUILD.cache;
+    link.href = path + stamp;
     doc.head.appendChild(link);
   }
   return import('./game-half.js?v=0.2.141').then((m) => { G = m; useHeroReaders(m.HERO_READERS); return m; });

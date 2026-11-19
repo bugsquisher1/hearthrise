@@ -27,9 +27,10 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(REPO, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(REPO);
 const TREES = [...PLAY_TREES, 'src/session', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib/apply-order.mjs', 'tests/_is-main.mjs'];
 const GROUND = 'muster_barrows', BOSS = 'captain_hask', MINUTE = 60000;
 /* The three cuts every both-paths check plays: a viewed hunt's short confirms, a longer one, and a closed browser's ten minutes. */

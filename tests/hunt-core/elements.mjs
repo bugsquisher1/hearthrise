@@ -14,11 +14,12 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, plant, makeReport, ROOT } from './fixtures/h1.js';
 import { oneHero, rngOf, loadData, supplySession } from './fixtures/h4.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
 async function load(root) {
   const M = await loadCore(root);
   Object.assign(M, await loadData(M));
-  const v = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const v = sourceQuery(root);
   const imp = (p) => import(pathToFileURL(join(root, p)).href + v);
   M.EL = await imp('src/data/elements.js');
   M.AD = await imp('src/data/abilities.js');
@@ -169,7 +170,7 @@ const mutants = [
   { name: 'a hit effect keyed by an old name', case: 'one-vocabulary',
     edits: [['src/data/hunt-vfx.js', "element: Object.freeze({ ember: 'fx_flame_volley_puff',", "element: Object.freeze({ fire: 'fx_flame_volley_puff',"]] },
   { name: 'a second ELEMENTS list', case: 'one-vocabulary',
-    edits: [['src/data/monster-classes.js', "import { ELEMENTS, elementProfileProblems } from './elements.js?v=", "const ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);\nimport { elementProfileProblems } from './elements.js?v="]] },
+    edits: [['src/data/monster-classes.js', "import { ELEMENTS, elementProfileProblems } from './elements.js", "const ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);\nimport { elementProfileProblems } from './elements.js"]] },
   { name: 'resist pays nothing', case: 'resist-in-hurt',
     edits: [['src/core/elements.js', '  return 1000 - Math.min(ELEMENT_PCT.max, Math.max(ELEMENT_PCT.min, pct)) * 10;', '  return pct < 0 ? 1000 - pct * 10 : 1000;']] },
   { name: 'the hunt hurt() skips the element table', case: 'fireball-resisted-by-rat-king',

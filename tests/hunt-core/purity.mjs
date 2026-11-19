@@ -2,6 +2,7 @@
 // no Math.random, no clock, no DOM / window / G, no timers, no storage, no network. Run by run-all.mjs.
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 import { suite } from './fixtures/h1.js';
 
 const FORBIDDEN = [
@@ -22,7 +23,8 @@ const cases = {
     for (const f of files) {
       const src = code(readFileSync(join(dir, f), 'utf8'));
       for (const [re, what] of FORBIDDEN) if (re.test(src)) bad.push(f + ' uses ' + what);
-      for (const m of src.matchAll(/from\s+'(\.[^']*)'/g)) if (!/\?v=\d[\d.]*$/.test(m[1])) bad.push(f + ' imports ' + m[1] + ' with no ?v=');
+      /* one key per module: every import at the source's own query ('' once the source is bare; the site build stamps it) */
+      for (const m of src.matchAll(/from\s+'(\.[^']*)'/g)) if ((/\?v=[^']*$/.exec(m[1]) || [''])[0] !== sourceQuery(M.root)) bad.push(f + ' imports ' + m[1] + ', not at the source\'s query');
     }
     return bad.length ? bad.join('; ') : null;
   },

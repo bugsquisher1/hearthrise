@@ -45,6 +45,7 @@ import { monsterMaxHit } from '../src/core/combat.js';
 import { mitigationOf, mitigate, armourValues } from '../src/core/mitigation.js';
 import { MATERIAL_TIERS } from '../src/data/gear-tiers.js';
 import { LINE_ANCHOR_LEVEL, LINE_BANDS, LINE_BASE, lineArmor } from '../tools/balance-sim/staged/armor-line.js';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const SLOTS = ['helmet', 'body', 'pants', 'boots', 'gloves', 'belt'];
 const WEIGHTS = ['plate', 'leather', 'cloth'];
@@ -180,7 +181,7 @@ export function problems(D = real()) {
 const TU7_SET = Object.freeze({ helmet: 'dawn_helm', body: 'dawn_platebody', pants: 'dawn_platelegs', boots: 'dawn_boots', gloves: 'dawn_gauntlets', belt: 'dawn_belt' });
 async function smithRow(root) {
   const { BUILD } = await import(pathToFileURL(join(root, 'src/build-info.js')).href);
-  const imp = (p) => import(pathToFileURL(join(root, p)).href + '?v=' + BUILD.version);
+  const imp = (p) => import(pathToFileURL(join(root, p)).href + sourceQuery(root));
   const { ITEMS: I } = await imp('src/data/items.js');
   const S = await imp('src/session/temper-sections.js');
   /* a unique plate set worn from 165, registered for the read and taken out after (the reader's own ITEMS instance) */

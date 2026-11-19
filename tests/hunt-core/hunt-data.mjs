@@ -4,8 +4,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { suite, groundRow, ROOT } from './fixtures/h1.js';
 import { loadApplyOrder } from '../../tools/lib/apply-order.mjs';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const MS = await import(pathToFileURL(join(ROOT, 'src/data/monster-spells.js')).href + '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1]);
+const MS = await import(pathToFileURL(join(ROOT, 'src/data/monster-spells.js')).href + sourceQuery(ROOT));
 
 /* The last migration in the apply order that writes hr_hunt_stats_of: the server's analyzer body. */
 function statsBody() {

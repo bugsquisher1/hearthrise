@@ -36,6 +36,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ownHeroSlots } from './_slots.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const A = '000000c0-0000-4000-a000-0000901d8a01';
@@ -941,7 +942,7 @@ const CLIENT_FILES = walk('src').filter(([rel]) => !/^src\/(vendor|core)\//.test
 let EDGE_FILES = [];
 
 async function loadReaders(root) {
-  const u = (p) => pathToFileURL(join(root, p)).href + '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const u = (p) => pathToFileURL(join(root, p)).href + sourceQuery(root);
   const [bookm, sets, terrain, path] = await Promise.all(['src/world/core/book.js', 'src/data/world/atlas-sets.js', 'src/data/world/terrain.js', 'src/world/core/path.js'].map((p) => import(u(p))));
   const manifests = {};
   for (const set of sets.LOADED_SETS) manifests[set] = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8'));

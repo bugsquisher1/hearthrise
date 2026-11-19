@@ -3,6 +3,7 @@
 //
 //   *.css under src/        → breakpoint-guard, token-single-source, css-literal-ratchet
 //   *.js / *.mjs under src/ → window-globals-exist + the bug-class lint + pack-edge versionQueryGuard (`?v=` rules)
+//   src/**.js and root *.html → cache-buster-guard's source rule (one stamp state; the site build stamps the release)
 //   src/** and supabase/**  → mutant-anchors --for <file> (every mutant anchor on it still matches once)
 //   src/** and the edge     → layering --for <file> (its imports point down a layer, or are on the shrinking baseline)
 // Runs in the edited file's own checkout (a lane worktree or main). Silent when green; when red,
@@ -30,6 +31,10 @@ if (/^src\/.+\.m?js$/.test(rel)) {
   if (existsSync(join(root, 'tools', 'typecheck.mjs'))) runs.push(['tools/typecheck.mjs', '--lint-if-installed']);
   runs.push(['-e', "import('./tools/pack-edge.mjs').then(async (m) => { const p = await m.versionQueryGuard(); if (p.length) { console.error(p.join('\\n')); process.exit(1); } })"]);
 }
+/* the source in one stamp state, one key per module (tests/cache-buster-guard.mjs: a stamp back in a bare source, or a stale one) */
+if ((/^src\/.+\.js$/.test(rel) || /^[^/]+\.html$/.test(rel)) && existsSync(join(root, 'tools', 'lib', 'version-stamp.mjs'))) {
+  runs.push(['-e', "import('./tests/cache-buster-guard.mjs').then(async (m) => { const r = await m.cacheBusterGuard(); if (r.problems.length) { console.error(r.problems.slice(0, 6).join('\\n')); process.exit(1); } })"]);
+}
 /* an import that points up a layer (tests/layering.mjs, audit 2026-11-18): only this file's imports, ~0.1 s */
 if (/^(src|supabase\/functions)\/.+\.(m?js|ts)$/.test(rel) && existsSync(join(root, 'tests', 'layering.mjs'))) runs.push(['tests/layering.mjs', '--for', rel]);
 /* a mutant whose anchor this edit moved (the 2026-10-22 class): only the anchors that patch this file */
@@ -40,7 +45,7 @@ const reds = [];
 for (const args of runs) {
   const r = spawnSync('node', args, { cwd: root, encoding: 'utf8', timeout: 20000 });
   if (r.status !== 0) {
-    const name = args[0] === '-e' ? 'versionQueryGuard (?v= imports)' : args[0];
+    const name = args[0] === '-e' ? (args[1].includes('cache-buster') ? 'cache-buster-guard (one stamp state)' : 'versionQueryGuard (?v= imports)') : args[0];
     reds.push(`✗ ${name} (exit ${r.status ?? 'timeout'}):\n  ` + ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-8).join('\n  '));
   }
 }

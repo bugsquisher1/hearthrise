@@ -20,6 +20,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCellRunner } from './cell.mjs';
 import { runCareer } from './career.mjs';
 import { loadAxes } from './plans.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
@@ -42,7 +43,7 @@ const pct = (was, now) => (was > 0 ? Math.round((100 * (now - was)) / was) + '%'
 async function careers() {
   const R0 = await loadCellRunner(ROOT);
   const { BUILD } = await import(u('src/build-info.js'));
-  const { recommendedHunt } = await import(u('src/shell/hunt-list.js') + '?v=' + BUILD.version);
+  const { recommendedHunt } = await import(u('src/shell/hunt-list.js') + sourceQuery(ROOT));
   const recommend = (levels, n) => recommendedHunt(levels, n).hunt;
   const to = Number(arg('to', 74));
   for (const style of arg('styles', 'tank,mage').split(',')) {

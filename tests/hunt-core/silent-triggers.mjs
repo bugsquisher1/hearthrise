@@ -26,8 +26,9 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { loadCore, makeReport, plant, ROOT, hero, mon, world, instOf, subStep } from './fixtures/h1.js';
 import { supplySession } from './fixtures/h4.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 
 async function load(root) {
   const M = await loadCore(root);

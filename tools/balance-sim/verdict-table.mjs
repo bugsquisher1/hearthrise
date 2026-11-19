@@ -15,6 +15,7 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import { round, rateCI } from './stats.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -191,7 +192,7 @@ async function facts() {
   const G = await import(u('src/data/hunt-grounds.js'));
   const SK = await import(u('src/data/start-kit.js'));
   const { BUILD } = await import(u('src/build-info.js'));
-  const { recommendedHunt, huntRows } = await import(u('src/shell/hunt-list.js') + '?v=' + BUILD.version);
+  const { recommendedHunt, huntRows } = await import(u('src/shell/hunt-list.js') + sourceQuery(ROOT));
   const owned = new Set([...Object.keys(SK.START_INVENTORY), ...Object.values(SK.START_EQUIPMENT)]);
   const path = (n) => { const out = []; for (let L = 1; L <= 25; L++) { const r = recommendedHunt(Array(n).fill(L), n); const h = r && r.hunt; if (!out.length || out[out.length - 1][1] !== h) out.push([L, h]); } return out; };
   const recAt = {};

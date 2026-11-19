@@ -23,6 +23,7 @@
 // Exit 0 when every cell ran; 1 otherwise.
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -38,7 +39,7 @@ async function engine(root, extra = {}) {
   const { loadCellRunner } = await import(u(root, 'tools/balance-sim/cell.mjs'));
   const R = await loadCellRunner(root);
   const { BUILD } = await import(u(root, 'src/build-info.js'));
-  const v = '?v=' + BUILD.version;
+  const v = sourceQuery(ROOT);
   const tables = [(await import(u(root, 'src/data/items.js') + v)).ITEMS, (await import(u(root, 'src/data/items.js'))).ITEMS];
   const { SPECIAL_SAMPLE } = await import(u(ROOT, 'src/data/special-attributes.js'));
   const rows = { ...Object.fromEntries(Object.entries(SPECIAL_SAMPLE).map(([id, s]) => ['sample_' + id, JSON.parse(JSON.stringify(s.row))])), ...extra };

@@ -44,8 +44,9 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead'];
 /* THE WALKED GROUNDS, LOOPED (lane/b-ground-pack phase 2): the base four above stay the literal anchor, and every ground pack
    (src/data/grounds) is walked by definition, so a new ground is checked here with no edit. Its one-tile choke, when it has

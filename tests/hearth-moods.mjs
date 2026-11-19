@@ -38,6 +38,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = '2027-05-05-hearth-moods.sql';
@@ -583,7 +584,7 @@ function plantSql(text, [, find, repl]) {
 
 let EDGE_FILES = [];
 async function loadReaders(root) {
-  const u = (p) => pathToFileURL(join(root, p)).href + '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const u = (p) => pathToFileURL(join(root, p)).href + sourceQuery(root);
   return {
     TP: await import(u('src/session/town-presence.js')),
     HB: await import(u('src/world/hearth-burn.js')),

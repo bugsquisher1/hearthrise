@@ -29,7 +29,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
-import { ROOT, GROUNDS_DIR, packIds, indexText, buildVersion, fixturePack, writePack, removePack } from '../tools/pack/files.mjs';
+import { ROOT, GROUNDS_DIR, packIds, indexText, sourceStamp, fixturePack, writePack, removePack } from '../tools/pack/files.mjs';
 import { packSqlOf, applyOrder, foldedPacks } from '../tools/pack/whole.mjs';
 import { rowsOf, diffRows, PACK_TABLES } from '../tools/pack/sql.mjs';
 import { shipText, rehearse, frameOf, COVERED } from '../tools/pack/ship.mjs';
@@ -46,7 +46,7 @@ function childJson(code) {
 }
 
 function gp1() {
-  const want = indexText(packIds(), buildVersion());
+  const want = indexText(packIds(), sourceStamp());
   ok(readFileSync(join(GROUNDS_DIR(), 'index.js'), 'utf8') === want, 'GP-1 src/data/grounds/index.js is not the written one: node tools/pack.mjs index');
 }
 
@@ -338,7 +338,7 @@ async function mutate() {
   /* GP-1: a pack folder the index does not name */
   await bites('GP-1 a pack folder missing from the index', async () => {
     const p = await plantAll([g]);
-    try { const idx = join(GROUNDS_DIR(), 'index.js'); const t = readFileSync(idx, 'utf8'); (await import('node:fs')).writeFileSync(idx, indexText([], buildVersion())); try { gp1(); } finally { (await import('node:fs')).writeFileSync(idx, t); } } finally { unplant(p); }
+    try { const idx = join(GROUNDS_DIR(), 'index.js'); const t = readFileSync(idx, 'utf8'); (await import('node:fs')).writeFileSync(idx, indexText([], sourceStamp())); try { gp1(); } finally { (await import('node:fs')).writeFileSync(idx, t); } } finally { unplant(p); }
   });
   /* GP-2: an open pack naming a file that is not in the order */
   await bites('GP-2 an open pack whose file is in no apply order', async () => { const p = await plantAll([g]); try { gp2(); } finally { unplant(p); } });

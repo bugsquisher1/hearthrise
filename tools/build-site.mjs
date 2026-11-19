@@ -24,6 +24,12 @@
 //   SITE-6  the art left out on purpose (LEFT_OUT) is still drawn by no module
 //   SITE-7  the site is under SITE_BUDGET_BYTES (the 10-minute limit is reached by growth nobody measured)
 //   SITE-8  non-vacuity: every PUBLISH row matches a file and every reader found a real number of references
+//   SITE-9  THE STAMP: every relative specifier in every published module, and every local tag in every page, carries
+//           ?v=<BUILD.version>, no other ?v= is left anywhere in a module (a pinned one is a cache lock, b511), and
+//           build-info's cache is its version. The build writes the stamp (tools/lib/version-stamp.mjs) as it copies:
+//           the source carries none once tools/strip-version-stamps.mjs has run, so a browser keys each release's
+//           modules apart (a module at two stamps runs twice, b493) and the service worker kill-switch reads the
+//           release off the page's own tags.
 //
 // No dotfile is published: a workflow deploy runs no Jekyll, so .nojekyll is not needed there (it stays in the
 // repository for a rollback to the branch source), and actions/upload-pages-artifact leaves dotfiles out.
@@ -37,6 +43,7 @@ import { join, dirname, posix, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { lex } from './guard-anchors.mjs';
 import { isMain } from '../tests/_is-main.mjs';
+import { readBuild, stampFile, stripFile, stampKind, moduleSpecifiers, moduleStamps, pageTags } from './lib/version-stamp.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -81,6 +88,8 @@ const VENDOR = 'src/vendor/';   // third-party bundles, pinned by hash: they loa
 /* SITE-1's floor: play.html's tags name the sign-in screen's files only since lane b-first-load (2026-11-13: 63 tags; the game's
    modules are named by src/app/game-modules.js and reached by SITE-2), so the floor reads a broken reader, not the old count. */
 const FLOORS = Object.freeze({ 'SITE-1': 40, 'SITE-2': 300, 'SITE-3': 10, 'SITE-4': 5, 'SITE-5': 100 });
+/* SITE-9's floor: 2026-11-19 the site carries 2,994 module specifiers and 64 page tags; a reader under these finds nothing to hold. */
+const STAMP_FLOORS = Object.freeze({ specifiers: 1500, tags: 40 });
 
 // ── THE PLAN ─────────────────────────────────────────────────────────────
 const globRe = (g) => new RegExp('^' + g.split('**/').map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*')).join('(?:[^/]+/)*') + '$');
@@ -220,7 +229,36 @@ export function audit(site, facts, budget = SITE_BUDGET_BYTES) {
     const n = needs.filter((x) => x.rule === rule).length;
     if (n < floor) problems.push('SITE-8 ' + rule + ' found ' + n + ' references, under its floor of ' + floor + ': its reader is not reading.');
   }
+  problems.push(...stampProblems(site, all));
   return { problems, needs, bytes };
+}
+
+/** SITE-9: every module specifier and page tag of the site, as it will be served, at the one release stamp. */
+function stampProblems(site, all) {
+  if (!site.files.has('src/build-info.js')) return ['SITE-9 src/build-info.js is not in the site: nothing names the release to stamp.'];
+  let build;
+  try { build = readBuild('', site.read('src/build-info.js')); } catch (e) { return ['SITE-9 ' + e.message]; }
+  const want = '?v=' + build.version, out = [], off = new Map();
+  if (build.cache !== build.version) out.push('SITE-9 src/build-info.js says cache ' + build.cache + ' and version ' + build.version + ': a release is one string (./bump-version.sh writes both).');
+  const flag = (file, what) => off.set(file, (off.get(file) || new Set()).add(what));
+  let specs = 0, tags = 0;
+  for (const file of all) {
+    const kind = stampKind(file);
+    if (kind === 'module') {
+      const text = site.read(file);
+      for (const s of moduleSpecifiers(text)) { specs++; if (s.query !== want) flag(file, "'" + s.spec + s.query + "'"); }
+      for (const s of moduleStamps(text)) if (s.version !== build.version) flag(file, s.text);
+    } else if (kind === 'page') {
+      for (const t of pageTags(site.read(file))) { tags++; if (t.query !== want) flag(file, t.ref + t.query); }
+    }
+  }
+  for (const [file, what] of off) {
+    const l = Array.from(what);
+    out.push('SITE-9 ' + file + ' is served with ' + l.length + ' reference(s) not at ' + want + ': ' + l.slice(0, 3).join(', ') + (l.length > 3 ? ' +' + (l.length - 3) : '')
+      + '. The build stamps every relative specifier and page tag (tools/lib/version-stamp.mjs); a ?v= written in the source is a pin no release moves.');
+  }
+  if (specs < STAMP_FLOORS.specifiers || tags < STAMP_FLOORS.tags) out.push('SITE-8 SITE-9 read ' + specs + ' module specifiers and ' + tags + ' page tags, under its floor of ' + STAMP_FLOORS.specifiers + ' and ' + STAMP_FLOORS.tags + ': its reader is not reading.');
+  return out;
 }
 
 const mb = (n) => (n / 1048576).toFixed(2);
@@ -236,13 +274,22 @@ function prepare(out) {
   rmSync(out, { recursive: true });
 }
 
+/** A file as the site serves it: a module or page with the release stamp written on (SITE-9), anything else as it is. */
+const served = (rel, version) => (stampKind(rel) ? Buffer.from(stampFile(rel, readFileSync(join(ROOT, rel), 'utf8'), version)) : null);
+
 async function build(out) {
-  const plan = publishSet();
+  const plan = publishSet(), { version } = readBuild(ROOT);
   prepare(out);
-  for (const rel of plan.files.keys()) { mkdirSync(dirname(join(out, rel)), { recursive: true }); copyFileSync(join(ROOT, rel), join(out, rel)); }
+  const want = new Map();
+  for (const [rel, n] of plan.files) {
+    mkdirSync(dirname(join(out, rel)), { recursive: true });
+    const body = served(rel, version);
+    if (body) writeFileSync(join(out, rel), body); else copyFileSync(join(ROOT, rel), join(out, rel));
+    want.set(rel, body ? body.length : n);
+  }
   writeFileSync(join(out, MARKER), 'Built by tools/build-site.mjs. This folder is deleted and rebuilt on every run.\n');
   const copied = new Map(walk(out, null).filter((f) => f !== MARKER).map((f) => [f, statSync(join(out, f)).size]));
-  const drift = Array.from(plan.files).filter(([f, n]) => copied.get(f) !== n).map(([f]) => f).concat(Array.from(copied.keys()).filter((f) => !plan.files.has(f)));
+  const drift = Array.from(want).filter(([f, n]) => copied.get(f) !== n).map(([f]) => f).concat(Array.from(copied.keys()).filter((f) => !want.has(f)));
   const got = audit({ ...plan, files: copied, read: reader(out) }, await artFacts());
   if (drift.length) got.problems.unshift('the copy is not the plan: ' + drift.slice(0, 5).join(', '));
   return { ...got, files: copied };
@@ -264,7 +311,9 @@ function leftOut(every) {
 
 // ── THE PROOF ────────────────────────────────────────────────────────────
 async function selftest() {
-  const plan = publishSet(), read = reader(ROOT), facts = await artFacts();
+  /* the site as the build writes it: every module and page stamped at the release (the source may carry stamps or not) */
+  const plan = publishSet(), { version } = readBuild(ROOT), raw = reader(ROOT), facts = await artFacts();
+  const read = (p) => stampFile(p, raw(p), version);
   const clean = audit({ ...plan, read }, facts);
   /* a real file one reader asks for: one that no other reader also asks for when there is such a file, so the named rule stands alone */
   const pick = (rule, via) => {
@@ -273,7 +322,10 @@ async function selftest() {
     return (mine.find((n) => !others.has(n.path)) || mine[0] || {}).path;
   };
   const without = (path) => { const files = new Map(plan.files); files.delete(path); return { ...plan, files, read }; };
-  const grown = (file, more, repo = plan.repo) => ({ ...plan, repo, read: (p) => (p === file ? read(p) + more : read(p)) });
+  /* the source of `file` gained `more`, and the build stamped it */
+  const grown = (file, more, repo = plan.repo) => ({ ...plan, repo, read: (p) => (p === file ? stampFile(p, raw(p) + more, version) : read(p)) });
+  /* one served file as `edit` leaves it, after the build */
+  const served = (file, edit) => ({ ...plan, read: (p) => (p === file ? edit(read(p)) : read(p)) });
   const host = clean.needs.find((n) => n.rule === 'SITE-2' && n.via === 'import').by;   // any real module to plant a line into
   const near = posix.dirname(host) + '/';
   const toArt = posix.relative(posix.dirname(host), 'src/data/item-art.js').replace(/^(?!\.)/, './');
@@ -299,6 +351,12 @@ async function selftest() {
     ['the site is a byte over its budget', { ...plan, read }, facts, clean.bytes - 1, 'SITE-7', 'budget'],
     ['a PUBLISH row that matches nothing', { ...publishSet(ROOT, PUBLISH.concat('assets/sfx/*.ogg')), read }, facts, undefined, 'SITE-8', 'assets/sfx/*.ogg'],
     ['a module reader that reads nothing', { ...plan, read: (p) => (p.endsWith('.js') ? '' : read(p)) }, facts, undefined, 'SITE-8', 'SITE-2'],
+    ['a module the build left unstamped (served stale for ten minutes after a release)', served(host, (t) => stripFile(host, t)), facts, undefined, 'SITE-9', host],
+    ['a specifier at another release (the b493 double load: one module, two keys, two states)', served(host, (t) => t.replace('?v=' + version, '?v=0.0.1')), facts, undefined, 'SITE-9', '?v=0.0.1'],
+    ['a page whose tags the build left unstamped (the kill-switch reads the release off them)', served('play.html', (t) => stripFile('play.html', t)), facts, undefined, 'SITE-9', 'play.html'],
+    ['a quoted ?v= pin in the source (b511: a cache lock no release moves)', grown(host, "\nexport const PIN = BASE + '?v=88';\n"), facts, undefined, 'SITE-9', "'?v=88'"],
+    ['build-info names two releases (cache is not version)', served('src/build-info.js', (t) => t.replace(/(cache:\s*')[^']*'/, "$10.0.1'")), facts, undefined, 'SITE-9', 'says cache'],
+    ['CONTROL a runtime module URL at its importer\'s own stamp (game-master.js)', grown(host, "\nexport const LATE = new URL('./" + posix.basename(host) + "', import.meta.url).href + new URL(import.meta.url).search;\n"), facts, undefined, null],
     ['CONTROL a comment that names the new file', grown(host, "\n// the horn is '" + HORN + "'\n/* under `assets/sfx/` */\n", withHorn), facts, undefined, null],
     ['CONTROL a string that names what the repository does not hold', grown(host, "\nexport const ORIGIN = ['src/never-was.js', '" + HORN + "', 'assets/voice/'];\n"), facts, undefined, null],
     ['CONTROL one more published file nothing asks for', { ...plan, files: new Map(plan.files).set('assets/ui/spare.png', 64), read }, facts, undefined, null],
@@ -332,7 +390,7 @@ if (isMain(import.meta.url)) {
     const tops = new Map();
     for (const [f, n] of got.files) { const t = f.includes('/') ? f.split('/')[0] + '/' : '(root)'; tops.set(t, (tops.get(t) || 0) + n); }
     console.log('✓ build-site' + (checkOnly ? ' --check' : '') + ': ' + summary(got.files, got.bytes) + (checkOnly ? '' : ' in ' + out));
-    console.log('  ' + Array.from(tops).sort((a, b) => b[1] - a[1]).map(([t, n]) => t + ' ' + mb(n)).join(' · ') + ' · every file the pages, modules, stylesheets and art rows ask for is there');
+    console.log('  ' + Array.from(tops).sort((a, b) => b[1] - a[1]).map(([t, n]) => t + ' ' + mb(n)).join(' · ') + ' · every file the pages, modules, stylesheets and art rows ask for is there, every module and page stamped ?v=' + readBuild(ROOT).version);
     process.exit(0);
   } catch (e) {
     console.error('✗ build-site: HARNESS: ' + (e && e.message || e));

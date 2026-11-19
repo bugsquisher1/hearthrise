@@ -127,10 +127,17 @@ export async function loadCellRunner(root) {
     const dress = (style, i) => (asPlayed ? { accessories: true, ammoSkill: skillLv(i, STYLES[style].role === 'ranger' ? 'ranged' : 'melee') } : {});
     const kits = seats ? seats.map((s, i) => (s.equipment ? { ...s.equipment } : gear.kitOf(s.style, levels[i], { ground: cell.ground, ...dress(s.style, i), ...(cell.gear || {}) }))) : party.map((s, i) => gear.kitOf(s, levels[i], { ground: cell.ground, ...dress(s, i), ...((cell.gearBySeat && cell.gearBySeat[i]) || cell.gear || {}) }));
     const spends = (id) => !!id && ITEMS[id] && (ITEMS[id].ammoPerShot || 0) > 0;
+    /* cell.addSlots { role: { after: ability id, slots: [slot] } }: slots a player added to the role's played bar, right after that ability's
+       slot (the bar's end when it holds none): a what-if on the played hero, the rest of its bar as recorded (the tank rune spells' A/B). */
     const playedBarFor = (role, i) => {
       const g = guideOf(cell.ground), own = (cell.supply || 'store') === 'own';
-      return playedBar(role, { magic: skillLv(i, 'magic'), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
+      const bar = playedBar(role, { magic: skillLv(i, 'magic'), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
         storeDrink: g ? storeOf('mana', g.magic.mana.id) : 'thin_turnip_juice', arrows: role === 'ranger' && spends(kits[i].ammo) ? kits[i].ammo : null });
+      const add = cell.addSlots && cell.addSlots[role];
+      if (!add) return bar;
+      const at = bar.findIndex((s) => s.action.type === 'ability' && s.action.id === add.after);
+      bar.splice(at < 0 ? bar.length : at + 1, 0, ...JSON.parse(JSON.stringify(add.slots)));
+      return bar;
     };
     const playedBagFor = (role, i) => {
       const bag = bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]);

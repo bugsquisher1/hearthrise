@@ -10,12 +10,18 @@
 //   { id, name, tick, everyMs, durationMs, maxStacks, scalesWith,
 //     skillPermillePerLevel, tierPermille, damageType }        a ticking status
 //   { id, name, durationMs, maxStacks, takenPm }                  a marking status
-//   { id, name, durationMs, maxStacks, slowPm }                   a slowing status
+//   { id, name, durationMs, maxStacks, slowPm, tierPermille? }    a slowing status
 //     slowPm                 permille LONGER its unit's next swing interval and its next spell
 //                            windup run, fixed as each one starts (damage.js slowed: the swing
 //                            clock; monster-spells.js: the windup), so a mark never fills on a
-//                            clock that moves after it is drawn; never scaled, never stacked
-//                            past its maxStacks (the strongest live stack's counts)
+//                            clock that moves after it is drawn; never scaled by skill, never
+//                            stacked past its maxStacks (the strongest live stack's counts)
+//     tierPermille (a slowing status's, optional): its slow by the rune tier of the cast that
+//                            landed it, permille, index 0 = tier 1 (the tank rune spells,
+//                            2026-11-19: one rule for every Ice spell). A wiki formula:
+//                              slow = round(slowPm x tierPermille[tier-1] / 1000)   (slowAt)
+//                            fixed as the stack lands (status.js stackScale); a landing on a
+//                            unit at maxStacks lifts a weaker stack to it (never lowers one)
 //     takenPm                permille MORE damage its unit takes from every blow while
 //                            it lasts (damage.js landHit, beside Hunter's Mark); fixed:
 //                            never scaled by skill or rune tier (Bible §17), never
@@ -59,9 +65,25 @@ export const STATUSES = Object.freeze({
      vulnerability for a short duration"; lane b-spell-content, PROVISIONAL): one stack, 6 s, +10% from every blow. */
   sickness: Object.freeze({ id: 'sickness', name: 'Sickness', durationMs: 6000, maxStacks: 1, takenPm: 100 }),
   /* CHILL (Tyler 2026-11-08, the area-spells design: Hoarfrost's frost; PROVISIONAL, the designer's numbers): its unit's
-     swings and spell windups run 30% longer for 4 s, one stack. */
-  chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300 }),
+     swings and spell windups run 30% longer for 4 s, one stack. BY RUNE TIER (the tank rune spells, board 2026-11-19 piece 3):
+     30 / 35 / 40 / 45 / 50% on a Chalked .. Graven Ice Rune's cast, for every Ice spell (Hoarfrost, Frost Slam). */
+  chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,
+    tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),
 });
+
+/** A SLOWING STACK'S SLOW, permille, at its fixed `scale` (status.js stackScale: the landing's tier share, 1000 with none):
+    round(slowPm x scale / 1000). One formula for the engine (damage.js slowed) and the bar's words. 0 for a row that slows nothing. */
+export function slowAt(row, scale) {
+  if (!row || !Number.isInteger(row.slowPm)) return 0;
+  const s = Number.isInteger(scale) ? scale : 1000;
+  return Math.floor((row.slowPm * s + 500) / 1000);
+}
+
+/** The permille a slowing row's stack lands at from a cast of rune tier `tier` (its `tierPermille`, 1000 with none or no tier). */
+export function slowScaleAt(row, tier) {
+  const list = row && Array.isArray(row.tierPermille) ? row.tierPermille : null;
+  return list && Number.isInteger(tier) && tier >= 1 && tier <= list.length ? list[tier - 1] : 1000;
+}
 
 const ID = /^[a-z0-9_]{1,32}$/;
 const DISCIPLINES = Object.freeze(['melee', 'ranged', 'magic']);
@@ -82,7 +104,15 @@ export function validateStatus(row) {
     if (!Number.isInteger(row[kind]) || row[kind] <= 0 || row[kind] > 1000) out.push(at + kind + ' must be an integer 1..1000');
     for (const k of ['durationMs', 'maxStacks']) posInt(k);
     if (Number.isInteger(row.durationMs) && row.durationMs % HUNT_TUNING.stepMs !== 0) out.push(at + 'durationMs ' + row.durationMs + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
-    for (const k of ['tick', 'everyMs', 'scalesWith', 'skillPermillePerLevel', 'tierPermille', 'damageType']) if (row[k] !== undefined) out.push(at + 'a ' + (kind === 'takenPm' ? 'marking' : 'slowing') + ' status has no ' + k);
+    /* A slowing status may grow with the rune tier of the cast that lands it (tierPermille); a marking one is fixed (Bible §17). */
+    const own = kind === 'slowPm' ? ['tierPermille'] : [];
+    for (const k of ['tick', 'everyMs', 'scalesWith', 'skillPermillePerLevel', 'tierPermille', 'damageType']) if (row[k] !== undefined && !own.includes(k)) out.push(at + 'a ' + (kind === 'takenPm' ? 'marking' : 'slowing') + ' status has no ' + k);
+    if (kind === 'slowPm' && row.tierPermille !== undefined) {
+      const tp = row.tierPermille;
+      if (!Array.isArray(tp) || !tp.length || !tp.every((n) => Number.isInteger(n) && n >= 1000)) out.push(at + 'tierPermille must be a non-empty list of integers >= 1000');
+      else if (tp.some((n, i) => i && n < tp[i - 1])) out.push(at + 'tierPermille must not fall with tier');
+      else if (slowAt(row, tp[tp.length - 1]) > 1000) out.push(at + 'its deepest tier slows more than 1000 permille');
+    }
     return out;
   }
   if (!Array.isArray(row.tick) || row.tick.length !== 2 || !row.tick.every((n) => Number.isInteger(n) && n >= 1) || row.tick[0] > row.tick[1]) {

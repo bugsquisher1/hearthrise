@@ -92,7 +92,7 @@ export const ITEM_DESC = {
   'etched_fire_rune': 'A Fire rune that needs a fair amount of skill. It dries out everything else in your bag',
   'carved_fire_rune': 'A Fire rune for someone with a lot of skill. You can feel the carved flame\'s heat through a glove',
   'graven_fire_rune': 'The strongest Fire rune, and it takes the most skill to use. The flame is cut so deep the groove glows',
-  'chalked_ice_rune': 'Frost Lance uses one of these each cast. The chalk mark has frost on it that never melts',
+  'chalked_ice_rune': 'Your Ice spells use one of these each cast. The chalk mark has frost on it that never melts',
   'scored_ice_rune': 'A better Ice rune that needs a bit more skill to use. Frost builds up in the scratched-in lines',
   'etched_ice_rune': 'An Ice rune that needs a fair amount of skill. Your breath fogs up when you hold it',
   'carved_ice_rune': 'An Ice rune for someone with a lot of skill. It\'s cold enough to stick to a bare finger',

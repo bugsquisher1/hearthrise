@@ -26,7 +26,7 @@
 
 import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.140';
 import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.140';
-import { STATUSES } from '../../data/statuses.js?v=0.2.140';
+import { STATUSES, slowAt } from '../../data/statuses.js?v=0.2.140';
 import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.140';
 import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.140';
 import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.140';
@@ -71,12 +71,14 @@ function takenPmOf(u) {
 }
 
 /* How much longer a unit's swings and windups run under its SLOWING statuses (statuses.js slowPm, Chill), permille: the
-   strongest stack's (status.js tickStatuses drops a stack the sub-step it runs out, so every stack a unit holds is live). */
+   strongest stack's, each at the rune tier it landed with (statuses.js slowAt of its fixed scale; status.js tickStatuses drops
+   a stack the sub-step it runs out, so every stack a unit holds is live). */
 function slowPmOf(u) {
   let best = 0;
   for (const st of Array.isArray(u.statuses) ? u.statuses : []) {
     const row = st && Object.prototype.hasOwnProperty.call(STATUSES, st.s) ? STATUSES[st.s] : null;
-    if (row && Number.isInteger(row.slowPm) && row.slowPm > best) best = row.slowPm;
+    const pm = row && Number.isInteger(row.slowPm) ? slowAt(row, st.scale) : 0;
+    if (pm > best) best = pm;
   }
   return best;
 }

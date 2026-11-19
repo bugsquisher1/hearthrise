@@ -19,10 +19,10 @@
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
 import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.140';
-import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec } from '../data/abilities.js?v=0.2.140';
+import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec, landsBlow } from '../data/abilities.js?v=0.2.140';
 import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.140';
 import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.140';
-import { STATUSES } from '../data/statuses.js?v=0.2.140';
+import { STATUSES, slowAt, slowScaleAt } from '../data/statuses.js?v=0.2.140';
 import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-roles.js?v=0.2.140';
 import { ITEMS } from '../data/items.js?v=0.2.140';
 import { isRune } from '../data/supplies.js?v=0.2.140';
@@ -152,22 +152,28 @@ export function rowNeed(a, ctx) {
 }
 
 /* THE ALONE CALLOUT (Tyler 2026-11-09: "Make that callout clear to the player"): a spell marked `alone` (src/data/abilities.js)
-   casts only while no other living hero shares its hunt. Said on its card, its slot's tooltip and, in a party, on the slot (bar.alone). */
+   casts only while no other living hero shares its hunt. Said on its card, its slot's tooltip and, in a party, on the slot (bar.alone).
+   Its mirror, a spell marked `party` (the tank's rune spells, Tyler 2026-11-19), casts only while another does: "Party only" on its
+   card and tooltip, and on the slot while the hero hunts alone (bar.party_only). */
+const GROUP_CODES = Object.freeze(['alone', 'party_only']);
 
 /**
- * WHY AN ALONE SPELL'S SLOT WAITS (the engine's own rule, src/core/hunt/abilities.js aloneIn): `alone` is false when another
- * hero shares the hunt (slot-waits.js whyFacts: the running prediction's world, else the server's party), so the slot greys.
- * Null for any other slot, or while the hero hunts alone.
+ * WHY AN ALONE OR PARTY SPELL'S SLOT WAITS (the engine's own rule, src/core/hunt/abilities.js aloneIn): `alone` is false when another
+ * hero shares the hunt, true when none does (slot-waits.js whyFacts: the running prediction's world, else the server's party), so an
+ * alone spell greys in a party and a party spell greys alone. Null for any other slot, or while its rule holds.
  */
 export function aloneReason(sl, alone) {
   const r = sl && !sl.empty && sl.action && sl.action.type === 'ability' ? ABILITIES[sl.action.id] : null;
-  return r && r.alone && alone === false ? { code: 'alone', text: t('bar.alone'), glyph: 'uiPeople', strike: true } : null;
+  if (r && r.alone && alone === false) return { code: 'alone', text: t('bar.alone'), glyph: 'uiPeople', strike: true };
+  return r && r.party && alone === true ? { code: 'party_only', text: t('bar.party_only'), glyph: 'uiPeople', strike: true } : null;
 }
 
-/** Configure action's line for a draft of an alone spell in a party of `party` heroes (bar.alone_party), else ''. */
+/** Configure action's line for a draft of an alone spell in a party of `party` heroes (bar.alone_party), or of a party spell
+    for a hero alone (bar.party_only_alone), else ''. */
 export function aloneNote(action, party) {
   const r = action && action.type === 'ability' ? ABILITIES[action.id] : null;
-  return r && r.alone && party > 1 ? t('bar.alone_party') : '';
+  if (r && r.alone && party > 1) return t('bar.alone_party');
+  return r && r.party && !(party > 1) ? t('bar.party_only_alone') : '';
 }
 
 /* The line for each spell target (bar.target_<target>); a line and a ring say their own size (targetLine). */
@@ -181,7 +187,10 @@ const TARGET_LINE = Object.freeze({
    is a ward, not a heal. Null for a target with no line. */
 function targetLine(r) {
   if (r.target === 'ally' && r.shield) return t('bar.target_ward');
+  if (r.target === 'party' && r.shield) return t('bar.target_party_shield');
   const spec = areaSpec(r);
+  /* a ring round the hero that lands only its status (Frost Slam): what the status does, by its own row (bar.target_status_ring_<status>) */
+  if (spec && spec.shape === 'ring' && spec.r === 1 && !landsBlow(r) && r.status) return t('bar.target_status_ring_' + r.status);
   if (spec && spec.shape === 'line') return t('bar.target_line', { len: spec.len });
   if (spec && spec.shape === 'ring') {
     const far = spec.r > 1;
@@ -202,11 +211,12 @@ function blowShareLine(r) {
   return t('bar.effect_blow' + shape + (r.element ? '_el' : ''), Object.assign({ lo, hi }, r.element ? { element: r.element } : null));
 }
 
-/** What a status does to the monster it lands on, from its row: "Causes chill for 4 s, so its swings and spell windups run 30% slower." */
-function statusLine(st) {
+/** What a status does to the monster it lands on, from its row, at the rune `tier` the cast spends (a slow grows with it: statuses.js
+    slowAt): "Causes chill for 4 s, 30% slower attacks and casts". */
+function statusLine(st, tier) {
   const status = st.name.toLowerCase();
   if (!st.durationMs) return t('bar.effect_status', { status });
-  const does = st.slowPm ? ['_slow', st.slowPm] : st.takenPm ? ['_taken', st.takenPm] : null;
+  const does = st.slowPm ? ['_slow', slowAt(st, slowScaleAt(st, tier))] : st.takenPm ? ['_taken', st.takenPm] : null;
   return t('bar.effect_status_for' + (does ? does[0] : ''), Object.assign({ status, secs: secs(st.durationMs) }, does ? { pct: does[1] / 10 } : null));
 }
 
@@ -233,7 +243,7 @@ function damageLine(r, pm) {
  * causes. A spell's mana and numbers are the version its slot casts at the hero's level (cast-facts.js castOf: the rune
  * it would spend, own first, then the store rune the slot names), and its cost line is the same cast's (costLine). `ctx` =
  * { bag, store, skills, set, worn }, all the server's; without them the numbers are version I's at level 1, as `version` says.
- * `alone` is an alone spell's callout (bar.alone), else null. `unlock` is the level a row waits for in its own skill
+ * `alone` is an alone spell's callout (bar.alone) or a party spell's (bar.party_only), else null. `unlock` is the level a row waits for in its own skill
  * ("Unlocks at Ranged 10."), else null.
  */
 export function factsOf(a, ctx) {
@@ -248,10 +258,10 @@ export function factsOf(a, ctx) {
     if (Number.isInteger(r.hitPm)) numbers.push(blowShareLine(r));
     if (r.heal) numbers.push(t('bar.effect_heal', { lo: landed(r.heal[0], k.pm), hi: landed(r.heal[1], k.pm) }));
     if (r.shield) numbers.push(t('bar.effect_shield', { points: landed(r.shield, k.pm) }));
-    const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status])] : []);
+    const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status], k.version)] : []);
     /* (the universal self-heal needs no particular weapon) */
     return { type: targetLine(r), cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, unlock: unlockLine(r),
-      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r) }), alone: r.alone ? t('bar.alone') : null };
+      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r) }), alone: r.alone ? t('bar.alone') : r.party ? t('bar.party_only') : null };
   }
   const cost = costLine(a, ctx) || null;
   if (a.type === 'consume') {
@@ -275,8 +285,8 @@ export function factsOf(a, ctx) {
 export function hoverLines(w, ctx, why, conflict) {
   const f = factsOf(w.action, ctx);
   const line = (text, cls) => (text ? { text, cls: cls || '' } : null);
-  /* an alone spell says so before the hunt starts (Tyler 2026-11-09), once: in a party the why line already says it */
-  const alone = f.alone && !(why && why.code === 'alone') ? line(f.alone, 'is-why') : null;
+  /* an alone (or party) spell says so before the hunt starts (Tyler 2026-11-09), once: where it can't fire the why line already says it */
+  const alone = f.alone && !(why && GROUP_CODES.includes(why.code)) ? line(f.alone, 'is-why') : null;
   return [why ? line(why.text, why.quiet ? 'is-why' : 'is-warn is-why') : null, alone, line(f.cost)]
     .concat(f.numbers.map((n) => line(n)), [line(f.cooldown), w.conditions.length ? line(setupWords(w), 'is-setup') : null, conflict ? line(conflict.why, 'is-warn') : null])
     .filter(Boolean);

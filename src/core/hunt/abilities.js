@@ -15,11 +15,14 @@
 //   the bar shows and the player can change — designer 2026-11-05; a basic shot
 //   never buys one, shotLine),
 //   an `alone` row only while no other living hero shares the world (aloneIn),
+//   a `party` row only while another does (the tank's rune spells, Tyler 2026-11-19),
 //   and its target rule finds a target (AB-03). A slot the purse cannot pay
 //   waits and the next one is tried; it never ends the hunt by itself.
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
 // lane (AB-07), and applies the effect (AB-08): taunt, mark, hit (with a status
-// per hit, H3), area, cleave, shield, ally heal, party heal.
+// per hit, H3), area (or a shape that lands only its status), cleave, shield, ally
+// heal, party heal, party shield. A shell records who cast it (`shieldBy`), so a
+// recast refunds only the caster's own (shieldRefund).
 // A heal is capped at the missing HP (AB-09).
 //
 // SEAMS to the other core lanes, called through their agreed signatures only:
@@ -40,7 +43,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare } from '../../data/abilities.js?v=0.2.140';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare, landsBlow } from '../../data/abilities.js?v=0.2.140';
 import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.140';
 import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.140';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.140';
@@ -62,7 +65,7 @@ import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js?v=0.2.140';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
-    ['shield', 'int'], ['markPm', 'int'], ['markUntil', 'int']]),
+    ['shield', 'int'], ['shieldBy', 'int?'], ['markPm', 'int'], ['markUntil', 'int']]),
   world: Object.freeze([]),
   pack: Object.freeze([]),
 });
@@ -124,7 +127,13 @@ function targetFor(inst, hero, h, row, sc, cx) {
       if (cx && cx.ally) return ok(cx.ally) ? cx.ally : null;
       return living(inst, 'hero').filter(ok).sort((a, b) => (pct(a) - pct(b)) || (a.id - b.id))[0] || null;
     }
-    case 'party': return living(inst, 'hero').some((a) => pct(a) < 100) ? hero : null;
+    /* A party HEAL fires while any hero is hurt (it heals those in its radius). A party SHIELD (Shelter) needs a living, wounded hero
+       within its radius, the caster too, holding no shell: a party already shelled waits, so no shell is cast for nothing. */
+    case 'party': {
+      if (!row.shield) return living(inst, 'hero').some((a) => pct(a) < 100) ? hero : null;
+      const r2 = row.radius * row.radius;
+      return living(inst, 'hero').some((a) => pct(a) < 100 && !(int(a.shield) > 0) && (a === hero || dist2(a, hero) <= r2)) ? hero : null;
+    }
     default: return null;
   }
 }
@@ -261,9 +270,11 @@ const landsShield = (row, pm) => (pm === 1000 ? row.shield : Math.floor((row.shi
  * shield still stands refunds the unused shield as mana). The shell left standing when a self-shield is recast comes
  * back as mana at THIS cast's price per point (mana / the shield it lands), never more than this cast's mana: a full
  * shell replaced by a stronger version costs nothing but its rune, a half-spent one half its mana. 0 with nothing
- * standing. Pure.
+ * standing, and 0 for a shell another hero cast (`shieldBy`: a Mage recasting over a tank's Shelter or a Healer's
+ * Ward would turn their rune into its own mana; the board's 2026-11-19 tank rune spells, section 6). Pure.
  */
 export function shieldRefund(u, row, mana, pm) {
+  if (!u || u.shieldBy !== u.id) return 0;
   const standing = int(u && u.shield);
   const lands = row && row.target === 'self' && Number.isInteger(row.shield) ? landsShield(row, pm) : 0;
   if (!(standing > 0) || !(lands > 0) || !(mana > 0)) return 0;
@@ -289,10 +300,12 @@ export function firstUsable(inst, hero, sc, only) {
   /* Evaluated only while its LANE is free: a slot whose lane is shut is not even tested.
      One whose conditions pass but that waits on its cooldown, mana, stock or a target
      in reach is the lane's `rule_wait` (conditions.js noteWait). An ALONE row with another
-     living hero in the world is not tested either (aloneIn): in a party it is as if absent. */
+     living hero in the world is not tested either (aloneIn): in a party it is as if absent. A PARTY row
+     is its mirror: a hero alone in the world never tests it (the bar says "Party only"). */
   const solo = aloneIn(inst.world, hero);
   const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
     && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane'
+    && (!solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].party))
     && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));
   const got = pickSlot(inst, hero, h, rows, (slot, cx) => {
     const row = ABILITIES[slot.action.id];
@@ -378,7 +391,10 @@ function effect(inst, u, row, t, sc, v) {
     case 'area': case 'line': case 'ring': {
       const s = place(areaSpec(row), u, t);
       const hit = engaged(inst).filter((o) => covers(s, o.x, o.y)).sort((a, b) => a.id - b.id);
+      /* A shape that lands only its status (Frost Slam: landsBlow false) strikes no blow: no dmg event, no kill, no weapon XP. */
+      const blows = landsBlow(row);
       for (const m of Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit) {
+        if (!blows) { afflict(m); continue; }
         landHit(inst, sc, u, m, dmg(), el, hitTag, sg);
         afflict(m);
       }
@@ -392,16 +408,25 @@ function effect(inst, u, row, t, sc, v) {
     case 'self':
       if (row.heal) { healOne(u, u, scaled(roll(sc, row.heal)), sc, sg); break; }
       u.shield = scaled(row.shield);
+      u.shieldBy = u.id;
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: u.id, amount: u.shield }));
       break;
     case 'ally':
       if (row.heal) { healOne(u, t, scaled(roll(sc, row.heal)), sc, sg); break; }
       t.shield = scaled(row.shield);
+      t.shieldBy = u.id;
       sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: t.id, amount: t.shield }));
       break;
+    /* A PARTY row: every living hero within its radius, the caster too, in id order. A heal draws once a hero; a shield (Shelter)
+       draws nothing and lands max(standing, its shell), with a `shield` event only where the shell rose. */
     case 'party':
       for (const a of living(inst, 'hero').slice().sort((x, y) => x.id - y.id)) {
-        if (a === u || dist2(a, u) <= row.radius * row.radius) healOne(u, a, scaled(roll(sc, row.heal)), sc, sg);
+        if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;
+        if (row.heal) { healOne(u, a, scaled(roll(sc, row.heal)), sc, sg); continue; }
+        const n = scaled(row.shield);
+        if (n <= int(a.shield)) continue;
+        a.shield = n; a.shieldBy = u.id;
+        sc.emit(makeEvent('shield', sc.atMs, { u: u.id, t: a.id, amount: n }));
       }
       break;
     default: break;

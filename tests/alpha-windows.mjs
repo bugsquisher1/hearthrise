@@ -143,6 +143,8 @@
 //         in town at 1280x720, 1518x845, 1920x1080 and 922x423 and in a hunt at 1280x720, 1366x768 and 922x423, all 14 doll
 //         slots (Ammo and Belt last) show whole inside every box that clips them, with nothing scrolled; the doll keeps its own
 //         52 px wells where the desktop window has the room (town) and never goes under 36; the bag's spaces and gold stay in the window
+//   AW-105 THE NEXT GROUND LEADS AFTER A GROUND OUTGROWN (audit 2026-11-19 L2): the Cellar's Level 5 end's ONE gold press is the summary
+//         foot's "Go to Meadowbrook Thicket", in view as the window opens at 1440x900, 1280x720 and 667x375, Hunt again gone
 //   AW-93 A WINDOW OPENS WHOLE (Tyler 2026-11-11, the Hunts window at 1014x652: "when I open a menu, part of it shouldn't
 //         automatically be cut off"): at 1014x652, 1024x768 and 922x423, a Level 36 hero in town, Hunts, Inventory, Shop and Market each
 //         open inside the World, lose no word or press to a box that hides its overflow or to the frame, and every scroll
@@ -3017,8 +3019,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       /* AW-105 THE NEXT GROUND LEADS AFTER A GROUND OUTGROWN (audit 2026-11-19 L2, played at 1440x900: the Cellar's Level 5 end opened on a greyed
          Hunt again and "Hunt again off: Ground outgrown", and the Next ground row lay under the sticky foot, below the window's edge). The same
          Level 5 hero, its Cellar hunt ended `outgrown`: the window's ONE gold press is the foot's "Go to Meadowbrook Thicket", inside the window as it
-         opens, Hunt again gone; on a phone too; the press opens Hunts on that ground (the Next ground row's own link) */
-      for (const [vp, tag] of [[{ width: 1440, height: 900 }, '1440x900'], [{ width: 667, height: 375 }, '667x375']]) {
+         opens at 1440x900, 1280x720 and 667x375, Hunt again gone; the press opens Hunts on that ground (the Next ground row's own link) */
+      for (const [vp, tag] of [[{ width: 1440, height: 900 }, '1440x900'], [{ width: 1280, height: 720 }, '1280x720'], [{ width: 667, height: 375 }, '667x375']]) {
         const o = await open({ viewport: vp, mutateEnv: home5, residue: { coach: { read: ['bar_intro'] } } });
         if (!o.up) { fails.push('AW-105 the page did not mount at ' + tag); await o.ctx.close(); continue; }
         o.s.env.hunt = Object.assign({}, o.s.env.hunt, { ended: true, session: { end_reason: 'outgrown', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });

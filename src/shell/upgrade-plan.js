@@ -58,16 +58,19 @@
 //     A WORN off-hand takes a better one of its own kind (a shield for a shield, a spellbook
 //     for a spellbook of its discipline; audit 2026-11-15 F8: a Level 31 tank still held the
 //     Practice Shield over better shields), the same rule as the weapon's family: the role never moves
-//   · never takes off a piece of another armour weight (the player chose heavy,
-//     medium or light), nor one carrying an effect the numbers do not price
-//     (an away effect); it fills EMPTY slots first, then upgrades within
-//     the worn piece's own weight
+//   · never moves a worn armor piece to another weight but the one chosen at Tamsin's, nor takes
+//     off one carrying an effect the numbers do not price (an away effect); it fills EMPTY slots
+//     first, then upgrades worn ones. THE WEIGHT RULE (weightFits; designer ruling 2b of 2026-11-18,
+//     the full-game audit's A11, undoing the 139 audit's B6): a bare armor slot takes the best piece
+//     that beats bare in ANY weight; a worn piece OFF the chosen weight takes only a piece of that
+//     weight of the same tier or higher (the weight was chosen once and isn't asked again), even
+//     where it beats the worn one on no number; any other worn piece only a better one of its own
 //   · never picks a piece the server's skills say the hero cannot wear yet
 //     (unknown skills read as "cannot", the safe side)
 //   · never breaks a tie on a worn slot for the player: when two pieces for one slot trade off
 //     (each better at something), the slot is left and named in `choices`. A tie between
-//     weights goes to the weight preferredWeight names (designer 2026-11-04), and an EMPTY armor
-//     slot takes only that weight (the 139 audit's B6), never another one it would keep for good
+//     weights goes to the weight preferredWeight names (designer 2026-11-04); with none of it,
+//     a bare armor slot takes the piece that guards most, so it never waits (played 2026-11-04)
 // Display and intent NAMES only: nothing here is a gate the server trusts.
 // ════════════════════════════════════════════════════════════════════════
 import { ITEMS } from '../data/items.js?v=0.2.140';
@@ -170,8 +173,29 @@ function numbersOf(worn, level, set = true, skills = null) {
     resist: /** @type {{ resistPm?: Record<string, number> }} */ (eq).resistPm || {}, threats: threatsAt(level) };
 }
 
+/* The critical chance a worn set's armour-set bonus adds (combat.js, through loadoutOf), 0 with none. */
+const setCritOf = (worn) => { const { setBonus } = loadoutOf(worn, ITEMS); return setBonus ? num(setBonus.critB) : 0; };
 /* A worn armour piece, and in the bag one of its weight from a higher material tier. */
 const tierStep = (it, cur) => !!cur && it.type === 'armor' && cur.type === 'armor' && num(it.tier) > num(cur.tier);
+
+/** A worn armor piece (a catalogue row) of a weight other than `chosen`, the one the hero picked at Tamsin's (null: none picked, so nothing is off it).
+    Jewelry, capes, weapons and shields carry no weight and are never off it. Next buy's "where that weight comes from" reads it (next-buy.js findPiece). */
+export function offWeight(cur, chosen) {
+  return !!cur && PREFER.has(chosen) && ARMOUR_SLOTS.includes(cur.slot) && PREFER.has(weightOf(cur)) && weightOf(cur) !== chosen;
+}
+/* Never a lower tier: the material tier where both pieces have one, else (a unique with none) the Level each is worn from. */
+const notLower = (it, cur) => (Number.isFinite(it.tier) && Number.isFinite(cur.tier) ? it.tier >= cur.tier : num(it.reqLv) >= num(cur.reqLv));
+/**
+ * THE WEIGHT RULE (the header; designer ruling 2b of 2026-11-18), the ONE reader Equip upgrades (bestFor), Next buy (next-buy.js, through
+ * upgradePlan) and its "where that weight comes from" line (findPiece) share: may `it` take the slot `cur` holds (catalogue rows; `cur` null:
+ * bare) for a hero who chose `chosen` at Tamsin's? Bare: any weight. Worn off the chosen weight: only that weight, the same tier or higher.
+ * Worn otherwise (of the chosen weight, no weight chosen, or a piece with none): only the worn piece's own weight. Pure.
+ */
+export function weightFits(cur, it, chosen) {
+  if (!cur) return true;
+  if (offWeight(cur, chosen)) return weightOf(it) === chosen && notLower(it, cur);
+  return weightOf(it) === weightOf(cur);
+}
 
 const DIMS = Object.freeze(['acc', 'dmg', 'def', 'steady', 'crit', 'hp', 'mana']);
 /* The perks either side plays, in the catalogue's order, and one side's size of one (permille, 0 when it plays none). */
@@ -209,16 +233,20 @@ const same = (a, b) => DIMS.every((k) => Math.abs(a[k] - b[k]) < EPS) && perksIn
 const elementWord = (k) => t('monster.el_' + k);
 
 const STYLE_WORDS = Object.freeze({ melee: 'Melee', ranged: 'Ranged', magic: 'Magic' });
-/* What one pick adds, in words, in reading order: [{ label, text }]. */
-function gainsOf(before, after) {
+/* What one pick adds, in words, in reading order: [{ label, text }]. `cost`: what it takes away instead, the numbers only (a move to the chosen
+   weight may: weightFits; it never loses a resistance, and a bane or a perk is no armor piece's), so the line never calls a trade a plain gain. */
+function gainsOf(before, after, cost = false) {
   const style = STYLE_WORDS[after.style] || 'Melee';
   const label = { acc: style + ' accuracy', dmg: style + ' damage', def: 'Defense', steady: 'damage taken', crit: 'critical chance', hp: 'health', mana: 'mana' };
   const out = [];
   for (const k of DIMS) {
-    const d = after[k] - before[k];
+    const d = cost ? before[k] - after[k] : after[k] - before[k];
     if (d < EPS) continue;
-    out.push({ label: label[k], text: (k === 'steady' ? '-' + d / 10 + '%' : '+' + (k === 'crit' ? (Math.round(d * 1000) / 10) + '%' : Math.round(d))) + ' ' + label[k] });
+    /* less damage taken reads with a minus, so a cost there reads with a plus */
+    const sign = (k === 'steady') === cost ? '+' : '-';
+    out.push({ label: label[k], text: sign + (k === 'steady' ? d / 10 + '%' : k === 'crit' ? (Math.round(d * 1000) / 10) + '%' : Math.round(d)) + ' ' + label[k] });
   }
+  if (cost) return out;
   /* a perk gained or raised, by the name the piece and the tooltip give it (upgradeWords drops it when the piece's name says it) */
   for (const p of perksIn(after, before)) if (perkOf(after, p) > perkOf(before, p)) out.push({ label: JEWEL_PERKS[p].name, perk: p, text: t('shop.upgrade_adds_perk', { perk: JEWEL_PERKS[p].name }) });
   /* a bane gained: listed after the stats, so the preview's first gain stays the accuracy or damage it adds */
@@ -256,20 +284,18 @@ function tradeOf(slot, cur, now, fits, worn, o, set) {
 }
 
 /* The best piece in the bag for one slot, or { choice } when two trade off (`keeps`: the worn bane or resistance a plain stronger piece would lose), or null. */
-/** @returns {{ choice?: string[], keeps?: any, lost?: any, gain?: string, id?: string, before?: any, after?: any }|null} */
+/** @returns {{ choice?: string[], keeps?: any, lost?: any, gain?: string, id?: string, before?: any, after?: any, moved?: boolean }|null}  `moved`: a move to the chosen weight */
 function bestFor(slot, worn, left, o) {
   const cur = worn[slot] || null;
   const curIt = cur ? ITEMS[cur] : null;
   if (curIt && unpriced(curIt)) return null;
+  /* a worn piece off the chosen weight moves to it (weightFits) without beating the worn one on every number */
+  const move = offWeight(curIt, o.chosen);
   const fits = [];
   for (const [id, n] of left) {
     const it = ITEMS[id];
     if (n < 1 || !it || !it.slot || !expandItemSlot(it.slot).includes(slot) || unpriced(it) || !meets(it, o.skills, o.level)) continue;
-    if (curIt && weightOf(it) !== weightOf(curIt)) continue;
-    /* A BARE ARMOR SLOT TAKES ONLY THE HERO'S WEIGHT (the 139 audit's B6: Equip upgrades put a medium Studded Leather Belt on a heavy hero, and a worn
-       piece only ever takes one of its own weight, so the belt stayed; Next buy follows the same rule, next-buy.js). With the hero's weight known
-       (preferredWeight) a bare helmet, body, legs, boots, gloves or belt waits for that weight, and the Back in town line names where it comes from. */
-    if (!curIt && o.prefer && ARMOUR_SLOTS.includes(slot) && weightOf(it) !== o.prefer) continue;
+    if (!weightFits(curIt, it, o.chosen)) continue;
     if (slot === 'weapon' && !sameHands(id, cur, worn)) continue;
     if (STYLE_SLOTS.has(slot) && !sameOffhand(id, cur, worn)) continue;
     fits.push(id);
@@ -280,20 +306,30 @@ function bestFor(slot, worn, left, o) {
   const better = [];
   for (const id of fits) {
     const after = numbersOf(Object.assign({}, worn, { [slot]: id }), o.level, set, o.skills);
-    if (dominates(after, now)) better.push({ id, after });
+    /* the move, like every swap here, never trades away a resistance where it plays (the header) */
+    if (move ? !resistsLost(now, after).length : dominates(after, now)) better.push({ id, after });
   }
   let front = better.filter((c) => !better.some((x) => x !== c && dominates(x.after, c.after)));
   if (!front.length) return tradeOf(slot, cur, now, fits, worn, o, set);
   /* A tie between weights is settled by the weight the player already chose (Tamsin's, the server's tally row):
      a decision made once is not asked again (playtest 2026-10-29: a heavy-paid tank came home with a Bronze
-     Platebody and a Leather Body and wore neither). No choice made, or none of that weight: the tie stands. */
+     Platebody and a Leather Body and wore neither). No choice made: the tie stands. */
   if (o.prefer && front.some((c) => !same(c.after, front[0].after))) {
     const mine = front.filter((c) => weightOf(ITEMS[c.id]) === o.prefer);
     if (mine.length) front = mine;
+    /* A BARE ARMOR SLOT NEVER WAITS (played 2026-11-04: a hero fought a night with nothing on, over 140 pieces in the bag): none of that weight
+       here, the piece that guards most goes on. Every piece in `front` beats bare, and the worn piece moves to the chosen weight later (weightFits). */
+    else if (!curIt && ARMOUR_SLOTS.includes(slot)) front = [front.reduce((a, c) => (c.after.def > a.after.def || (c.after.def === a.after.def && c.id < a.id) ? c : a))];
   }
   front.sort((a, b) => (a.id < b.id ? -1 : 1));
   if (front.some((c) => !same(c.after, front[0].after))) return { choice: front.map((c) => c.id) };
-  return { id: front[0].id, before: now, after: front[0].after };
+  /* ONE PRESS DOES WHAT TWO WOULD: a bare slot's pick off the chosen weight is followed by the move the next press would make (a heavy bow hero's
+     bare boots take the Leather Boots that beat bare, and the next press would move them to the Bronze Boots), so the line never shows again. */
+  if (!curIt && offWeight(ITEMS[front[0].id], o.chosen)) {
+    const moved = bestFor(slot, Object.assign({}, worn, { [slot]: front[0].id }), left, o);
+    if (moved && moved.id) return { id: moved.id, before: now, after: moved.after, moved: true };
+  }
+  return { id: front[0].id, before: now, after: front[0].after, ...(move ? { moved: true } : {}) };
 }
 
 /**
@@ -306,29 +342,32 @@ export function preferredWeight(chosen, equipment, role) {
 
 /**
  * What "Equip upgrades" would put on.
- * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null, prefer?: string|null }} o
- *        all from the server's envelope (item-sections.js bagOf/equipmentOf/skillsOf, the Level, and `prefer`: the
- *        armor weight the hero chose at Tamsin's, which settles a tie between weights)
- * @returns {{ ops: object, picks: {slot:string, id:string, replaces:string|null, gains:{label:string,text:string}[]}[],
- *             choices: {slot:string, ids:string[]}[] }}  `ops` is the ONE `equip` delta (empty: nothing to do)
+ * @param {{ bag: {id:string, qty:number}[], equipment: object, skills: object|null, level: number|null, prefer?: string|null, chosen?: string|null }} o
+ *        all from the server's envelope (item-sections.js bagOf/equipmentOf/skillsOf, the Level, `chosen`: the armor weight the hero picked
+ *        at Tamsin's (the server's tally row), the only weight a worn piece is moved to, and `prefer`: preferredWeight's, which settles a tie)
+ * @returns {{ ops: object, picks: {slot:string, id:string, replaces:string|null, gains:{label:string,text:string}[], costs?:{label:string,text:string}[], ends?:number}[],
+ *             choices: {slot:string, ids:string[]}[] }}  `ops` is the ONE `equip` delta (empty: nothing to do); `costs`: what a move to the chosen weight gives up
  */
 export function upgradePlan(o) {
   const worn = Object.assign({}, (o && o.equipment) || {});
   const left = new Map();
   for (const r of (o && o.bag) || []) if (r && Number.isInteger(r.qty) && r.qty > 0) left.set(r.id, r.qty);
+  /* a weight picked at Tamsin's is the one a tie goes to as well (preferredWeight puts it first) */
+  const chosen = o && PREFER.has(o.chosen) ? o.chosen : null;
   const ctx = { skills: (o && o.skills) || null, level: Math.max(1, Math.floor(num(o && o.level)) || 1),
-    prefer: o && PREFER.has(o.prefer) ? o.prefer : null };
+    chosen, prefer: chosen || (o && PREFER.has(o.prefer) ? o.prefer : null) };
   const ops = {}, picks = [], choices = [];
-  /* Empty slots first (the second ring goes beside the first, never over it), then same-weight upgrades. */
+  /* Empty slots first (the second ring goes beside the first, never over it), then worn ones, by the weight rule (weightFits). */
   for (const pass of [(s) => !worn[s], (s) => !!worn[s] && !(s in ops)]) {
     for (const slot of UPGRADE_SLOTS.concat(OFFHAND)) {
       if (!pass(slot)) continue;
       const b = bestFor(slot, worn, left, ctx);
       if (!b) continue;
       if (b.choice) { choices.push({ slot, ids: b.choice, ...(b.keeps ? { keeps: b.keeps, lost: b.lost } : {}), ...(b.gain ? { gain: b.gain } : {}) }); continue; }
-      /* the set bonus this pick ends, if it ends one (crit lost with the set counted, the line's words) */
-      const lost = numbersOf(worn, ctx.level).crit - numbersOf(Object.assign({}, worn, { [slot]: b.id }), ctx.level).crit;
-      picks.push({ slot, id: b.id, replaces: worn[slot] || null, gains: gainsOf(b.before, b.after), ...(lost > EPS ? { ends: lost } : {}) });
+      /* the set bonus this pick ends, if it ends one (the set's own critical chance, so a piece's own that a move gives up is a cost, not a set) */
+      const lost = setCritOf(worn) - setCritOf(Object.assign({}, worn, { [slot]: b.id }));
+      picks.push({ slot, id: b.id, replaces: worn[slot] || null, gains: gainsOf(b.before, b.after), ...(b.moved ? { costs: gainsOf(b.before, b.after, true) } : {}),
+        ...(lost > EPS ? { ends: lost } : {}) });
       ops[slot] = b.id;
       worn[slot] = b.id;
       left.set(b.id, left.get(b.id) - 1);
@@ -363,7 +402,8 @@ export function upgradeWords(plan, names = 2, gains = 1) {
   for (const p of plan.picks) { const g = byId.get(p.id); if (g) g.n++; else byId.set(p.id, { p, n: 1 }); }
   const groups = Array.from(byId.values());
   /* a perk the piece's own name already says ("Banded Signet (Follow-through)") is not said twice; the tooltip holds its sentence */
-  const said = (p) => p.gains.filter((g) => !(g.perk && itemName(p.id).includes(g.label))).slice(0, gains);
+  /* a move to the chosen weight says what it gives up beside what it adds ("Bronze Gauntlets (+11 health, -1 Melee accuracy)") */
+  const said = (p) => p.gains.filter((g) => !(g.perk && itemName(p.id).includes(g.label))).slice(0, gains).concat((p.costs || []).slice(0, gains));
   /* the gains follow the name in a bracket, "Leather Hood (+2 Defense)"; a catalogue name with its own bracket takes a comma, "Banded Signet (Keen), +2 Defense" */
   const named = groups.slice(0, names).map(({ p, n }) => {
     const name = itemName(p.id) + (n > 1 ? ' ×' + n : '');

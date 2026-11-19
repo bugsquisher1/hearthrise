@@ -9,6 +9,7 @@
 //   wearTitle(account, cs, title)        hr_title_wear (null takes it off)
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 import { refusalOf } from './refusal.js?v=0.2.140';
 
 const ID = /^[a-z0-9_]{1,32}$/;
@@ -19,7 +20,7 @@ async function settled(cs, ans) {
   const b = ans && ans.body && typeof ans.body === 'object' ? ans.body : {};
   if (ans && ans.ok && b.ok === true) { if (cs.status !== 'closed') await cs.load(); return { ok: true }; }
   const r = Object.assign(refusalOf(ans), { title: typeof b.title === 'string' && ID.test(b.title) ? b.title : null });
-  if (r.error === 'quote_changed' && cs.status !== 'closed') await cs.load();
+  await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
   return r;
 }
 

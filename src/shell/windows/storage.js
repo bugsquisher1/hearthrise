@@ -312,7 +312,7 @@ function expand(cs, sc, repaint) {
   const grow = bagExpandOf(cs);
   if (!grow || !grow.next || expandBlock(grow, goldOf(cs))) return;
   const offer = grow.next.offer;
-  return runIntent(sc, repaint, async () => { const r = await cs.edgeIntent('unlock_buy', { offer }); if (!r.ok && r.error !== 'closed') await cs.resync(); return r; },
+  return runIntent(sc, repaint, () => cs.edgeIntent('unlock_buy', { offer }),
     t('bag.store_expanding'), () => { const g = bagExpandOf(cs); return g ? t('bag.store_expanded', { n: whole(g.cap) }) : t('bag.store_expanded_plain'); }, cs);
 }
 

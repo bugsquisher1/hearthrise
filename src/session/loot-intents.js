@@ -18,6 +18,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
 import { refusalOf } from './refusal.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 
 const VERB = 'loot_dispatch';
 const COPY_VERB = 'loot_plan_copy';
@@ -30,6 +31,7 @@ export function dispatchLoot(account, cs) {
     const ans = await account.server.rpc('hr_loot_dispatch', { p_slot: cs.slot, p_idem: newIdem() });
     const body = ans && ans.body && typeof ans.body === 'object' ? ans.body : null;
     if (!(ans && ans.ok && body && body.ok === true)) {
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       const r = refusalOf(ans || {});
       return Object.assign(r, { verb: r.verb || VERB });
     }
@@ -45,6 +47,7 @@ export function copyLootPlan(account, cs, from) {
     const ans = await account.server.rpc('hr_loot_plan_copy', { p_slot: cs.slot, p_from: from, p_idem: newIdem() });
     const body = ans && ans.body && typeof ans.body === 'object' ? ans.body : null;
     if (!(ans && ans.ok && body && body.ok === true)) {
+      await afterRefusal(cs, ans);
       const r = refusalOf(ans || {});
       return Object.assign(r, { verb: r.verb || COPY_VERB });
     }

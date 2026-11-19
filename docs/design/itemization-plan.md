@@ -117,7 +117,7 @@ A unique sits inside its band's budget, has its own stat mix and one property, w
 | Steady | A flat cut off every hit | Boots, cloak | Built | 1 to 3% |
 | Crit | More critical basic blows | Weapon | Built | 6 to 10% |
 | Bane | Hits one monster class harder | Weapon | Built | 10% |
-| +Skill | Counts as more of one combat skill | Armor. On weapons it is the chest's | Built | 2 to 3 |
+| +Skill | Counts as more of one combat skill (the engine's `meleePlus` / `rangedPlus` / `magicPlus` / `defensePlus`) | Armor. On weapons it is the chest's | Built | 2 to 3 |
 | **Spell change** | One named ability hits harder, comes back sooner, or costs less | Weapon, spellbook, helmet, gloves | New hook | +15% damage, or -15% cooldown, or -20% mana, on one ability |
 | **Element edge** | A share of the weapon's basic damage lands as fire, ice or poison | Weapon | New hook | 20% |
 | **Second socket** | The piece takes two linings | Armor, weapon | With linings | |
@@ -134,7 +134,7 @@ Rules: one property a piece (two only on late chest pieces). A new kind needs it
 | Kind | What it is | Best where |
 |---|---|---|
 | Chest weapon | The plain numbers of the next step up, plus +1 to +4 of its skill. Built in lane/d-defense-tower: +3 to +10% at its own Level, 1.00 to 1.03 times the next tier's drop | Everywhere a little. The best all-rounder |
-| Boss or ground unique | The band's plain numbers with no skill bonus, plus one property from the catalogue | Clearly best in the case its property is for. Slightly behind elsewhere |
+| Boss or ground unique | Its own stat mix inside the band's budget, never the line's own numbers (the line is a ceiling, not a template: Tyler 11-16, tests/weapon-line.mjs and armor-line.mjs WL4/AL4), no skill bonus, plus one property from the catalogue. Krell's tier-7 pieces follow the same rule (designer 2026-11-18) | Clearly best in the case its property is for. Slightly behind elsewhere |
 
 Krell's weapons become the first of these. Sample of five (proposed, unmeasured):
 
@@ -502,7 +502,7 @@ Ruled: chest gear stays rare. It may beat the next tier's drop and should go abo
 
 | Dial | Target | Label |
 |---|---|---|
-| The promise | Best net gold of any lone melee. Within 15% of the best lone XP | Changed from "within 5% on XP" |
+| The promise | Within 15% of the best lone XP. Best net gold of any lone melee from Level 40, where supply bills decide gold; under 40, where gold is kill speed, within 15% on gold too. Graded on the grounds the Hunts advice sends a hero alone to (the Sewer is a pack ground, where every one-target way reads 27 to 33% under the hammer) | Changed from "within 5% on XP". Scoped by the designer 2026-11-18 from the phase 1 measure (board "2026-11-18 Designer rulings", row 3) |
 | Damage | One target only. No area | |
 | Sustain | Its own heal, about 0.8% of max HP a second while hurt | Proposed from the food it ate |
 | Cost | Elemental strikes on mana. A rune is the optional stronger cast | |

@@ -162,6 +162,8 @@
 //         TK-7  a refused settle clears it until a newer record; the character keeps the
 //               refusal from its settle until the next answer
 //         TK-8  a bench counts its inputs down with the engine's own stop, within "N left"
+//         TK-8d a counted run's work line says its own count ("45 of 300 left"), never the stock behind it, and
+//               "Stops when materials run out" only where they do; a run until the inputs run out keeps both
 //         TK-9  a dish that can burn is a roll: inputs and the burn's XP are certain, no stack moves
 //         TK-10 ROUNDED DOWN: against the engine as the server runs it (perks, a real roll, its
 //               tool carry and XP remainder) it never shows an action, item or XP not paid
@@ -1484,6 +1486,26 @@ async function panelLeftovers(base) {
   const reader = { read: () => null, record: { residue: { coach: { read: [] } } } };
   const aCard = { id: 'x', title: 'A title', text: 'Some words', done: { kind: 'read' }, gotIt: true };
   if (!/hs-pointer is-line/.test(coachHtml(reader, aCard, true)) || !/data-hs-act="coach-more"/.test(coachHtml(reader, aCard, true)) || /is-line|coach-more/.test(coachHtml(reader, aCard, false))) fails.push('AW-62 a card in a window is not one line, or one outside is');
+  /* AW-62 A LINE WITH NO ROOM FOR ITS WORDS IS NO LINE (post-140 audit C12: in the Farm window the title, More and Got it took the whole line, the words
+     had 0 px and More "opened" a card that only said them, "...empty plotLess"). Measured as the Farm window measured: the card stands whole, More
+     goes; a line that shows a readable share keeps More; a line whose words fit has none; and More/Less stands a word apart from the words. */
+  {
+    const { fitCoachLine } = await imp('src/shell/launcher.js');
+    const lineAt = (client, scroll) => {
+      const cl = new Set(['hs-pointer', 'is-line']), attrs = {};
+      const more = { hidden: true }, words = { clientWidth: client, scrollWidth: scroll };
+      const p = { classList: { contains: (c) => cl.has(c), remove: (c) => cl.delete(c) }, getAttribute: (k) => (k in attrs ? attrs[k] : null),
+        setAttribute: (k, v) => { attrs[k] = v; }, querySelector: (q) => (q.includes('more') ? more : words) };
+      const slot = { querySelector: () => p };
+      fitCoachLine(slot);
+      fitCoachLine(slot);   // the next paint keeps it
+      return { line: cl.has('is-line'), more: !more.hidden };
+    };
+    const fit = { farm: lineAt(0, 190), cut: lineAt(160, 300), whole: lineAt(190, 190) };
+    if (JSON.stringify(fit) !== JSON.stringify({ farm: { line: false, more: false }, cut: { line: true, more: true }, whole: { line: true, more: false } })
+      || !/<\/span> <button type="button" class="hs-coach-more"/.test(coachHtml(reader, aCard, true)))
+      fails.push('AW-62 a one-line card in a narrow window reads ' + JSON.stringify(fit));
+  }
   const { takeWhyOf, suggestedWeight } = await imp('src/shell/windows/tally.js');
   /* What a first Take asks for: the weight worn most, else the role's; neither said, nothing (blind panel 11-03: "no recommendation") */
   const bySuggest = [[{ boots: 'leather_boots' }, 'tank', 'medium'], [{ helmet: 'iron_helm' }, 'mage', 'heavy'], [{}, 'tank', 'heavy'], [{}, 'melee_dps', 'heavy'], [{}, 'ranger', 'medium'], [{}, 'mage', 'light'], [{}, 'healer', 'light']];
@@ -1545,6 +1567,24 @@ async function planRules(base) {
   const bagCs = (inventory, loot) => ({ read: (k) => ({ inventory, bag_rules: { locked: [], loot } })[k] });
   const ran = dispatchBlock(bagCs({ bones: 3 }, { rat_tail: 'sell', wolf_pelt: 'deposit' })), none = dispatchBlock(bagCs({ bones: 3 }, {})), ready = dispatchBlock(bagCs({ rat_tail: 3 }, { rat_tail: 'sell' }));
   if (!/^Nothing left to move/.test(ran) || !/^No loot plans set/.test(none) || ready !== '') fails.push('AW-32 the Dispatch loot why reads ' + JSON.stringify([ran, none, ready]));
+  /* AW-32 THE YARD IS THE REASON, NOT A HUNT (post-140 audit C7: at the Training Yard Equip upgrades said "Leave the hunt to put these on.", the chest's
+     Use "Not available while hunting", Dispatch loot "works in town"). A training session is a hunt session, so the server refuses each of these
+     during it (hr_hunt_lock's open session, equip.js hunt_open) and the control stays off; it says the training. In a hunt each keeps the hunt's words. */
+  {
+    const { gearLockWhy, wearBlock } = await imp('src/shell/gear-gate.js');
+    const { useBlock } = await imp('src/shell/windows/tower-chest.js');
+    const { buryBlock } = await imp('src/shell/windows/inventory/bury.js');
+    const at = (huntId) => ({ read: (k) => ({ hunt: { session_id: 's-1', hunt_id: huntId, ended: false, session: {}, hero: {}, pose: { units: [] } },
+      state: { active_kind: 'combat' }, inventory: { bones: 3 }, bag_rules: { locked: [], loot: { bones: 'sell' } } })[k] });
+    const said = (cs) => [gearLockWhy(cs), gearLockWhy(cs, 'upgrades'), wearBlock(cs, 'iron_sword'), dispatchBlock(cs), useBlock(cs, { chest: {} }, { heldAll: 1, ready: true }),
+      buryBlock(cs, { skill: 'prayer' })];
+    const yard = said(at('training_yard_melee')), hunt = said(at('wickstead'));
+    const busy = 'Not available while training';
+    if (JSON.stringify(yard) !== JSON.stringify(['Stop training to change gear', 'Stop training to put these on.', 'Stop training to change gear', busy, busy, busy])
+      || JSON.stringify(hunt) !== JSON.stringify(['Leave the hunt to change gear', 'Leave the hunt to put these on.', 'Leave the hunt to change gear', 'Dispatch loot works in town',
+        'Not available while hunting', 'Not while a hunt is running.']))
+      fails.push('AW-32 the town controls\' why at the yard and on a hunt read ' + JSON.stringify({ yard, hunt }));
+  }
   /* A SHARED COOLDOWN IS A WAIT, NOT A STOP (designer re-read 2026-11-11: "which fires first" read as "never fires", over 2,484 casts in a night). */
   const { sharedCooldownOf } = await imp('src/shell/action-facts.js');
   const wire = (id) => ({ action: { type: 'ability', id }, conditions: [], enabled: true });
@@ -1570,6 +1610,28 @@ async function planRules(base) {
   /* KRELL'S HOLD WARNS LIKE THE BARROWS (the full-game audit's A25, 2026-11-18: a Level 85 tank on the start bar died there in 81 minutes and its
      page said nothing). The Hold names its measured floor (Salted Trout, in the kit a hero arrives in), so the start bar's Salted Shrimp is
      told on its page, naming the slot; a bar on Salted Trout is not. */
+  /* AW-27 HUNT PREP'S CHECKLIST SAYS IT TOO (post-140 audit C5): the page where slot 4 is changed read "Oren: ready" under a ground's
+     "Pick Salted Lobster". The checklist runs the one weak-food line against the hero's ground, with the server's Level and HP; at the Glade
+     a 384 HP Level 16 hero on Salted Shrimp is told nothing on the card or the checklist, because Shrimp is MEASURED safe there (re-measured
+     on the real settle for this lane: audit-table storefood, Level 16 and 23, tank / hammer / bow / mage, 0 deaths in 2 h each, lowest HP
+     p10 53% to 75%), and a line there would be false (PRIORITY_BOARD F14). */
+  {
+    const { readinessOf, readinessLine } = await imp('src/shell/readiness.js');
+    const heroAt = (store, level, hp) => sess({ hunt_settings: { preset: 0, presets: [], slots: [slot('consume', 'cooked_lobster', 100), slot('consume', store, null)], store: STORE },
+      inventory: { cooked_lobster: 100 }, state: { gold: 500, hp, max_hp: hp }, level: { xp: 1, level, into: 0, need: 1000 } });
+    const card = (cs, hunt) => say(cs, { hunt }).split(' | ').find((l) => /heals/.test(l)) || '';
+    const prepSays = (cs, hunt) => { const r = readinessOf(cs, hunt); return { line: readinessLine(r), food: (r.checks.find((c) => c.id === 'food_weak') || {}).text || '' }; };
+    const barrows = heroAt('salted_shrimp', 55, 845), glade = heroAt('salted_shrimp', 16, 384);
+    const got = { barrowsCard: card(barrows, 'muster_barrows'), barrowsPrep: prepSays(barrows, 'muster_barrows'), gladeCard: card(glade, 'mosslight_glade'),
+      gladePrep: prepSays(glade, 'mosslight_glade'), lobsterPrep: prepSays(heroAt('salted_lobster', 55, 845), 'muster_barrows'),
+      /* under the Barrows' band (Level 5) its floor says nothing, as its page does (the 139 audit's B2): the range line says what is wrong */
+      underPrep: prepSays(heroAt('salted_shrimp', 5, 190), 'muster_barrows') };
+    const want = 'Slot 2: Salted Shrimp heals 72 of 845 HP. Pick Salted Lobster';
+    if (got.barrowsCard !== '!' + want || got.barrowsPrep.food !== want || !/: weak food$/.test(got.barrowsPrep.line)
+      || got.gladeCard || got.gladePrep.food || /weak food/.test(got.gladePrep.line) || got.lobsterPrep.food || /weak food/.test(got.lobsterPrep.line)
+      || got.underPrep.food || /weak food/.test(got.underPrep.line))
+      fails.push('AW-27 the weak store food on the card and in Hunt prep reads ' + JSON.stringify(got));
+  }
   const holdReads = [fedAt('krells_hold', 'salted_shrimp'), fedAt('krells_hold', 'salted_trout')];
   if (!holdReads[0].includes('!Slot 2: Salted Shrimp heals too little here. Pick Salted Trout') || /heals too little/.test(holdReads[1]))
     fails.push('AW-27 Krell\'s Hold\'s page on the start bar reads ' + JSON.stringify(holdReads));
@@ -2057,18 +2119,42 @@ async function planRules(base) {
   }
   /* A tie between armor weights goes to the weight the hero chose at Tamsin's (playtest 2026-10-29: a tank paid in
      heavy came home from the Thicket with a Bronze Platebody and a Leather Body and wore neither). No weight known: the
-     tie stands. None of that weight in the bag for a BARE armor slot: it waits for that weight (the 139 audit's B6: a medium belt put on a
-     heavy hero stayed for good, since a worn piece only takes its own weight), and Back in town names where it comes from (next-buy.js). */
+     tie stands. None of that weight in the bag for a BARE armor slot: the piece that guards most goes on, so it never waits (played 2026-11-04;
+     designer ruling 2b of 2026-11-18 put it back after the 139 audit's B6 took it out). */
   const found = [['bronze_platebody'], ['leather_body'], ['bronze_boots'], ['leather_boots']].map(([id]) => ({ id, qty: 1 }));
   const kit = { weapon: 'practice_sword', shield: 'practice_shield' };
   const tieOf = (prefer) => UP.upgradePlan({ equipment: kit, bag: found, skills: lv1, level: 5, prefer });
   const tieOps = ['', 'heavy', 'medium', 'light'].map((w) => ops2(tieOf(w || null)) + '/' + tieOf(w || null).choices.length).join(' | ');
-  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {}/0')
+  if (tieOps !== '{}/2 | {"body":"bronze_platebody","boots":"bronze_boots"}/0 | {"body":"leather_body","boots":"leather_boots"}/0 | {"body":"bronze_platebody","boots":"bronze_boots"}/0')
     fails.push('AW-21 the weight chosen at Tamsin\'s settles a tie as ' + tieOps);
-  /* ...the audit's own case: a heavy hero, a bare belt slot and only the medium Studded Leather Belt in the bag puts nothing on; the Bronze Belt goes on */
-  const beltOf = (bag) => ops2(UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody' }, bag: bag.map((id) => ({ id, qty: 1 })), skills: lv1, level: 15, prefer: 'heavy' }));
+  /* THE WEIGHT RULE (designer ruling 2b of 2026-11-18, the full-game audit's A11; it undoes the 139 audit's B6, which made a bare armor slot wait for
+     the hero's weight). (1) A BARE armor slot takes the best piece that beats bare, of ANY weight: the Level 1 light Mage holding the Shop's Leather
+     Gloves and Bronze Belt and an Apprentice Hat wears the hat AND the gloves (B6 left the gloves bare); the heavy belt costs Magic accuracy, so it
+     stays off either way. A heavy hero's bare belt takes the medium Studded Leather Belt, or the Bronze Belt that beats it. */
+  const bagOf = (ids) => ids.map((id) => ({ id, qty: 1 }));
+  const mage = UP.upgradePlan({ equipment: { weapon: 'practice_wand' }, bag: bagOf(['apprentice_helmet', 'leather_gloves', 'bronze_belt']), skills: lv1, level: 1, prefer: 'light', chosen: 'light' });
+  if (ops2(mage) !== '{"gloves":"leather_gloves","helmet":"apprentice_helmet"}' || UP.upgradeWords(mage) !== 'Upgrade: Apprentice Hat (+2 Magic accuracy) and Leather Gloves (+1 Defense)')
+    fails.push('AW-21 the Level 1 light Mage puts on ' + ops2(mage) + ': ' + UP.upgradeWords(mage) + ' (want the hat and the gloves, never the heavy belt)');
+  const beltOf = (bag, belt) => ops2(UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody', ...(belt ? { belt } : {}) }, bag: bagOf(bag), skills: lv1, level: 15, prefer: 'heavy', chosen: 'heavy' }));
   const belts = [beltOf(['studded_belt']), beltOf(['studded_belt', 'bronze_belt'])];
-  if (belts[0] !== '{}' || belts[1] !== '{"belt":"bronze_belt"}') fails.push('AW-21 a heavy hero\'s bare belt slot takes ' + JSON.stringify(belts));
+  if (belts[0] !== '{"belt":"studded_belt"}' || belts[1] !== '{"belt":"bronze_belt"}') fails.push('AW-21 a heavy hero\'s bare belt slot takes ' + JSON.stringify(belts));
+  /* (2) A WORN piece off the weight chosen at Tamsin's takes a piece of that weight of the same tier or higher, and the line says what the move gives
+     up as well as what it adds: a heavy hero's Leather Gloves (bought at Level 9, worn to 85 in the audit) go for the Bronze Gauntlets. Never a lower
+     tier (a worn Studded Leather Belt stays over the Bronze Belt), never the reverse (Bronze Boots stay over Leather Boots), and with no weight chosen
+     nothing moves a worn piece to another weight. */
+  const heavyIn = (worn, bag, chosen) => UP.upgradePlan({ equipment: { ...kit, body: 'bronze_platebody', ...worn }, bag: bagOf(bag), skills: lv1, level: 9, prefer: 'heavy', chosen });
+  const moved = heavyIn({ gloves: 'leather_gloves' }, ['bronze_gauntlets'], 'heavy');
+  if (ops2(moved) !== '{"gloves":"bronze_gauntlets"}' || UP.upgradeWords(moved) !== 'Upgrade: Bronze Gauntlets (+11 health, -1 Melee accuracy)')
+    fails.push('AW-21 a heavy hero\'s worn Leather Gloves with Bronze Gauntlets in the bag: ' + ops2(moved) + ' / ' + UP.upgradeWords(moved));
+  const stays = [beltOf(['bronze_belt'], 'studded_belt'), ops2(heavyIn({ boots: 'bronze_boots' }, ['leather_boots'], 'heavy')), ops2(heavyIn({ boots: 'leather_boots' }, ['bronze_boots'], null))];
+  if (stays.some((s) => s !== '{}')) fails.push('AW-21 a lower tier, the reverse, or no weight chosen moved a worn piece: ' + JSON.stringify(stays));
+  /* ONE PRESS DOES WHAT TWO WOULD: a heavy bow hero's bare boots take the Leather Boots that beat bare, which (2) moves to the Bronze Boots, so the
+     press puts the Bronze Boots on at once and the next plan is empty */
+  const bow = { weapon: 'practice_bow' };
+  const once = UP.upgradePlan({ equipment: bow, bag: bagOf(['leather_boots', 'bronze_boots']), skills: lv1, level: 5, prefer: 'heavy', chosen: 'heavy' });
+  const twice = UP.upgradePlan({ equipment: { ...bow, ...once.ops }, bag: bagOf(['leather_boots']), skills: lv1, level: 5, prefer: 'heavy', chosen: 'heavy' });
+  if (ops2(once) !== '{"boots":"bronze_boots"}' || ops2(twice) !== '{}' || UP.upgradeWords(once) !== 'Upgrade: Bronze Boots (+2 Defense, -1 Ranged accuracy)')
+    fails.push('AW-21 a heavy bow hero\'s bare boots take ' + ops2(once) + ' (' + UP.upgradeWords(once) + '), then ' + ops2(twice));
   /* NO HERO STAYS BARE FOR WANT OF A CHOICE (played 2026-11-04: Marlow fought a night in nothing over 140 pieces; Sorrel, a hammer, was bare at hour 16): her pick, else what the hero wears most, else its role's. */
   const weightIs = [['medium', { weapon: 'practice_sword', body: 'bronze_platebody' }, 'tank', 'medium'], [null, { weapon: 'practice_sword', body: 'leather_body', boots: 'leather_boots' }, 'tank', 'medium'], [null, kit, 'melee_dps', 'heavy'], [null, kit, 'ranger', 'medium'], [null, kit, 'healer', 'light'], [null, kit, null, null]];
   for (const [chosen, worn, role, want] of weightIs) if (UP.preferredWeight(chosen, worn, role) !== want) fails.push('AW-21 chosen ' + chosen + ', role ' + role + ' prefers ' + UP.preferredWeight(chosen, worn, role) + ', wanted ' + want);
@@ -2076,8 +2162,6 @@ async function planRules(base) {
   const { upgradeOf } = await imp('src/shell/widgets/upgrade-line.js');
   const bare = { state: { level_xp: 200 }, level: levelBlock(200), inventory: { bronze_helm: 1, leather_helmet: 1 }, equipment: { weapon: 'practice_club' }, hunt_settings: { preset: 0, role: 'melee_dps', slots: [] }, skills: { melee: { xp: 0, level: 1 }, defense: { xp: 0, level: 1 } } };
   if (upgradeOf({ read: (k) => bare[k] }).ops.helmet !== 'bronze_helm') fails.push('AW-21 a hammer hero with no pick would put on ' + JSON.stringify(upgradeOf({ read: (k) => bare[k] }).ops));
-  /* a worn slot's tie is still the player's: a heavy hero in Leather Boots isn't moved off them */
-  if (UP.upgradePlan({ equipment: { ...kit, boots: 'leather_boots' }, bag: [{ id: 'bronze_boots', qty: 1 }], skills: lv1, level: 5, prefer: 'heavy' }).ops.boots) fails.push('AW-21 Equip upgrades took off a piece of another weight');
   /* A TIER STEP (designer ruling 2026-10-31, played: Marlow, Level 16 in a full Bronze plate set, wore none of ten Iron
      Platebodies, since each one alone broke the set's +1% critical chance): the next tier of the worn weight goes on, and
      the line names the set bonus it ends. */
@@ -2467,6 +2551,33 @@ async function tickerRules(base) {
   if (!c2 || c2.unsure !== 2 || 'cooked_shrimp' in c2.items || 'burnt_food' in c2.items || c2.items.shrimp !== -2 || !/2 more on the fire/.test(fire)
     || TK.aheadXp(c2, 'cooking') > 2 * TW.xpEach(cook) || !s2 || s2.unsure !== 0 || s2.items.cooked_shrimp !== 2)
     fails.push('TK-9 a dish that can burn: ' + JSON.stringify({ c2, fire, s2 }));
+
+  /* TK-8d A COUNTED RUN'S WORK LINE SAYS ITS COUNT (Andy 2026-11-18: Bind Etched Water Runes for 300, the row "Working on it now, 45
+     left", the line over it "8,300 Blank Rune left. Stops when materials run out"). The server's bench_run.left less the ticker's certain
+     actions, of the run's whole count (the server's tally of this run, bench_tax.run, plus its count left); the stop sentence only where
+     the bag and Storage run out first; a run until the inputs run out keeps both. One line for every bench kind. */
+  const tally = (r, since, c) => ({ bench_tax: { rooms: {}, fees: {}, carry_mg: 0, keep: 0, run: { r, s: iso(since), c, g: 0, at: iso(T0) } } });
+  const workLine = (id, inv, more, ms) => { const cs = hero(envOf('artisan', id, inv, more)); cs.clock = T0 + (ms || 0); return TK.lineText(TW.nowParts(cs)); };
+  const etched = 'bind_etched_water_runes';
+  const sstep = TW.actionMs(hero(envOf('artisan', 'smelt_bronze', {})), TW.workRow('artisan', 'smelt_bronze'));
+  const counted = [
+    workLine(etched, { rune_blank: 8300 }, Object.assign({ bench_run: { left: 45 } }, tally(etched, T0, 255))),
+    workLine(etched, { rune_blank: 8300 }, Object.assign({ bench_run: { left: 45 } }, tally(etched, T0 - 60000, 80))),
+    workLine(etched, { rune_blank: 8300 }, { bench_run: { left: 45 } }),
+    workLine(etched, { rune_blank: 200 }, Object.assign({ bench_run: { left: 45 } }, tally(etched, T0, 255))),
+    workLine(etched, { rune_blank: 8300 }, tally(etched, T0, 255)),
+    workLine('smelt_bronze', { copper_ore: 40 }, Object.assign({ bench_run: { left: 5 } }, tally('smelt_bronze', T0, 3)), 2 * sstep + 100),
+    workLine('cook_shrimp', { shrimp: 6 }, Object.assign({ bench_run: { left: 6 } }, tally('cook_shrimp', T0, 0)), 2 * cstep + 100),
+    workLine('fuel_bones', { bones: 8 }, { bench_run: { left: 2 } }),
+  ];
+  const countedWant = ['Making Etched Water Rune: 45 of 300 left', 'Making Etched Water Rune: 45 of 45 left', 'Making Etched Water Rune: 45 left',
+    'Making Etched Water Rune: 45 of 300 left. Stops when materials run out', 'Making Etched Water Rune: 8,300 Blank Rune left. Stops when materials run out',
+    'Making Bronze Bar: 3 of 8 left', 'Cooking Raw Shrimp: 2 more on the fire, 4 of 6 left', 'Fueling the Great Hearth with Bones: 2 left'];
+  const smeltCs = hero(envOf('artisan', 'smelt_bronze', { copper_ore: 40 }, Object.assign({ bench_run: { left: 5 } }, tally('smelt_bronze', T0, 3))));
+  smeltCs.clock = T0 + 2 * sstep + 100;
+  const smeltAhead = TW.nowParts(smeltCs).filter((p) => p.ahead).map((p) => p.text).join('|');
+  if (counted.join('\n') !== countedWant.join('\n') || smeltAhead !== '3 of 8 left')
+    fails.push('TK-8d a counted run\'s work line reads ' + JSON.stringify({ counted, smeltAhead }) + ', want ' + JSON.stringify(countedWant) + ' with "3 of 8 left" pending');
 
   /* TK-10: ROUNDED DOWN. Against the engine as the SERVER runs it (its perks, a real roll, its tool carry and XP
      remainder), over many windows, the ticker never shows an action, an item or an XP the server did not pay. */
@@ -3581,7 +3692,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await pushEnvelope(page, s);
         const picked = await afterOf();
         if (!picked || picked.value !== 'train:melee' || picked.options[0] !== 'Go back to mining the Copper Rock'
-          || picked.note !== '122 gold/h, up to 12 h · Can\'t pay: waits in town') fails.push('AW-35 a hero that picked the yard reads ' + JSON.stringify(picked));
+          || picked.note !== '122 gp/h, paid hourly in advance · up to 12 h · Out of gold: waits in town') fails.push('AW-35 a hero that picked the yard reads ' + JSON.stringify(picked));
         if (shots) { await page.evaluate((w) => document.querySelector(w + '.hw-after').scrollIntoView({ block: 'center' }), W); await page.waitForTimeout(150); await shot(page, 'alpha-1440x900-hunt-after'); }
         /* a change sends ONE ask: the choice and the skill, nothing else */
         const h0 = sent(s, 'hr_hunt_after_set').length;
@@ -4470,7 +4581,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         /* Level 30 (gear is worn by Level, Tyler 2026-10-24): the bag's Steel Sword is better than the worn Iron Sword, the same family, so it goes on
            (designer 2026-11-03); the Mithril Helm needs Level 45. */
         e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, level_xp: LEVEL_30_XP });
-        /* a heavy hero (Bronze Boots worn): the bag's medium Leather Gloves stay off its bare gloves slot (the 139 audit's B6), every heavy piece goes on */
+        /* a heavy hero (Bronze Boots worn, no weight chosen at Tamsin's): its bare gloves slot takes the bag's medium Leather Gloves (designer ruling 2b of 2026-11-18: a bare armor slot takes any weight that beats bare), and every heavy piece goes on */
         e.equipment = Object.assign({}, e.equipment, { boots: 'bronze_boots' });
         Object.assign(e.inventory, { leather_gloves: 1, bronze_belt: 1, copper_ring: 1, mithril_helm: 1 });
         e.shop.offers.push({ offer: 'supply.leather_gloves', item: 'leather_gloves', kind: 'gear', price: 160 });
@@ -4486,7 +4597,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           if (!--s.env.inventory[id]) delete s.env.inventory[id];
         }
       };
-      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
+      const WANT = '{"belt":"bronze_belt","body":"iron_platebody","gloves":"leather_gloves","helmet":"iron_helm","ring2":"copper_ring","weapon":"steel_sword"}';
       const sorted = (o) => JSON.stringify(Object.fromEntries(Object.entries(o || {}).sort(([a], [b]) => (a < b ? -1 : 1))));
       const msg = () => page.evaluate(() => document.querySelector('[data-hs-win="inventory"] .hh-intent-msg').textContent);
       if (up) aw21: {
@@ -4521,7 +4632,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         await page.click('.hw-inv [data-hs-act="equip-upgrades"]');
         const mid = await page.evaluate(() => ({ slots: Array.from(document.querySelectorAll('.hw-slot.is-wearing')).map((b) => b.getAttribute('data-slot')).sort().join(','),
           stacks: document.querySelectorAll('.hw-pocket.is-wearing').length, off: document.querySelector('.hw-inv [data-hs-act="equip-upgrades"]').disabled }));
-        if (mid.slots !== 'belt,body,helmet,ring2,weapon' || mid.stacks !== 5 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
+        if (mid.slots !== 'belt,body,gloves,helmet,ring2,weapon' || mid.stacks !== 6 || !mid.off) fails.push('AW-21 the upgrades in flight are not marked on their slots and stacks: ' + JSON.stringify(mid));
         await wait(page, () => !document.querySelector('.hw-slot.is-wearing'), null, 3000);
         await page.waitForTimeout(200);
         const eqs = sent(s, 'hr-accrue', 'equip');
@@ -4529,7 +4640,7 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (eqs.some((c) => 'shield' in c.body.equip || 'ammo' in c.body.equip)) fails.push('AW-21 Equip upgrades touched the off-hand or the ammo');
         const after = await page.evaluate(() => ({ helm: document.querySelector('.hw-slot[data-slot="helmet"]').getAttribute('data-item'), weapon: document.querySelector('.hw-slot[data-slot="weapon"]').getAttribute('data-item'),
           line: document.querySelector('.hw-inv .hw-upgrade').classList.contains('is-on') }));
-        if (after.helm !== 'iron_helm' || after.weapon !== 'steel_sword' || after.line || (await msg()) !== 'Put on 5 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
+        if (after.helm !== 'iron_helm' || after.weapon !== 'steel_sword' || after.line || (await msg()) !== 'Put on 6 pieces.') fails.push('AW-21 after the server answered: ' + JSON.stringify(after) + ' ' + JSON.stringify(await msg()));
         if (!(await reloadAndPlay(page))) fails.push('AW-21 the reload did not come back');
         else {
           await openWin(page, 'b', 'inventory');
@@ -4700,7 +4811,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
           await page.waitForTimeout(800);
           go = sent(s, 'hr-accrue', 'set_activity');
           if (go.length !== 2 || JSON.stringify(go[1].body.activity) !== '{"kind":"artisan","id":"smelt_bronze","count":37}') fails.push('AW-22 the switch sent ' + JSON.stringify(go.map((c) => c.body)));
-          if (!/^Making Bronze Bar: 0 made so far, \d+ Copper Ore left\. Stops when materials run out$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
+          /* A run of 37 says its own count, never the ore behind it (Andy 2026-11-18, TK-8d); the bag's ore makes 5, so it says the ore stops it first. */
+          if (!/^Making Bronze Bar: 0 made so far, 37 left\. Stops when materials run out$/.test(await nowText())) fails.push('AW-22 the bench line reads ' + JSON.stringify(await nowText()));
           r = await rowsOf();
           if (!/^Working on it now, 37 left\. Makes 5 of up to 5$/.test((r.find((x) => x.id === 'smelt_bronze') || {}).why)) fails.push('AW-22 the bag was spent before the server did it: ' + JSON.stringify(r.find((x) => x.id === 'smelt_bronze')));
           await page.click(W + ' .hw-work-now [data-hs-act="work-stop"]');
@@ -5648,6 +5760,10 @@ const MUTANTS = [
   ['item truth: no-book-value says nothing', 'src/shell/item-lore.js', "if (!(Number(it.v) > 0) || it.bop) return t('item.own_use')", "if (false) return t('item.own_use')"],
   ['item truth: a kit item says the Weighhouse lists it', 'src/shell/item-lore.js', "return isStartKit(id) ? t('item.kit_unlisted')", "return false ? t('item.kit_unlisted')"],
   ['item truth: the Weighhouse has one vague reason', 'src/shell/market-words.js', "(Object.prototype.hasOwnProperty.call(WHY_NOT, why) ? ': ' + WHY_NOT[why] + '.' : '.')", "'.'"],
+  /* post-140 audit C12: a one-line card with no room for its words stands whole; More/Less a word apart */
+  ['item truth: panel: a line with no room for its words stays a line (post-140 C12)', 'src/shell/launcher.js', "  if (p.classList.contains('is-line') && words.clientWidth < Math.min(words.scrollWidth, LINE_WORDS_MIN_PX)) {", '  if (false) {'],
+  ['item truth: panel: a card stood whole goes back to a line on the next paint (post-140 C12)', 'src/shell/launcher.js', "  if (p.getAttribute('data-fit') === 'whole') { if (!more.hidden) more.hidden = true; return; }\n", ''],
+  ['item truth: panel: More runs into the words (post-140 C12)', 'src/shell/launcher.js', "    + (line ? ' <button type=\"button\" class=\"hs-coach-more\"", "    + (line ? '<button type=\"button\" class=\"hs-coach-more\""],
   ['item truth: panel: the line over her board goes', 'src/shell/windows/tally.js', "  return !tally.weight ? (suggest ? '' : t('tally.no_weight')) : tally.held.length >= tally.heldMax ? t('tally.board_full', { n: countWord(tally.heldMax) }) : '';", "  return '';"],
   ['item truth: panel: Burn all keeps its old number', 'src/shell/windows/inventory/bury.js', "  if (cs && buryingOf(cs) === e) return e.skill === 'cooking' ? 'Cooking…' : 'Fueling…';\n", ''],
   ['item truth: panel: the sale hides its rares', 'src/shell/item-lore.js', "rare.length ? t('item.sells_rares', { items: listWords(rare) }) : ''", "''"],
@@ -5738,8 +5854,13 @@ const MUTANTS = [
   ['plans: AW-21 Equip upgrades puts a shield on', 'src/shell/upgrade-plan.js', "const STYLE_SLOTS = new Set(['shield', 'ammo']);", "const STYLE_SLOTS = new Set(['ammo']);"],
   ['Equip upgrades wears what the hero cannot use yet', 'src/shell/upgrade-plan.js', '  return have !== null && have >= it.reqLv;', '  return true;'],
   ['plans: AW-21 a hero with no weight stays bare (played 2026-11-04)', 'src/shell/upgrade-plan.js', "return chosen || wornWeightOf(equipment || {}) || WEIGHT_FOR_ROLE[role] || null;", "return chosen || null;"],
-  /* (the 11-04 "a bare slot never waits" fallback is reversed by the 139 audit's B6: its mutant became this one, which pins the new rule) */
-  ['plans: AW-21 a bare armor slot takes another weight (139 audit B6)', 'src/shell/upgrade-plan.js', "    if (!curIt && o.prefer && ARMOUR_SLOTS.includes(slot) && weightOf(it) !== o.prefer) continue;\n", ''],
+  /* THE WEIGHT RULE (designer ruling 2b of 2026-11-18, undoing the 139 audit's B6): (1) a bare armor slot takes any weight that beats bare, and with
+     no piece of the hero's weight in a tie the one that guards most; (2) a worn piece off the weight chosen at Tamsin's moves to it, never to a lower tier */
+  ['plans: AW-21 a bare armor slot waits for the hero\'s weight (B6 back, ruling 2b)', 'src/shell/upgrade-plan.js', "    if (!weightFits(curIt, it, o.chosen)) continue;\n", "    if (!weightFits(curIt, it, o.chosen) || (!curIt && o.prefer && ARMOUR_SLOTS.includes(slot) && weightOf(it) !== o.prefer)) continue;\n"],
+  ['plans: AW-21 a bare slot waits for a weight the bag doesn\'t hold', 'src/shell/upgrade-plan.js', "else if (!curIt && ARMOUR_SLOTS.includes(slot)) front = [front.reduce(", "else if (false) front = [front.reduce("],
+  ['plans: AW-21 a worn piece off the chosen weight never moves (ruling 2b)', 'src/shell/upgrade-plan.js', "  if (offWeight(cur, chosen)) return weightOf(it) === chosen && notLower(it, cur);\n", ''],
+  ['plans: AW-21 a worn piece off the chosen weight moves to a lower tier (ruling 2b)', 'src/shell/upgrade-plan.js', " && notLower(it, cur);\n", ";\n"],
+  ['plans: AW-21 a move to the chosen weight hides what it gives up (ruling 2b)', 'src/shell/upgrade-plan.js', '.concat((p.costs || []).slice(0, gains))', ''],
   ['plans: AW-21 the window never reads the role', 'src/shell/widgets/upgrade-line.js', "prefer: preferredWeight(t ? t.weight : null, eq, s ? s.role : null) });", "prefer: t ? t.weight : null });"],
   ['plans: Equip upgrades lets a set bonus hold a hero below the next tier', 'src/shell/upgrade-plan.js', '  const set = !fits.some((id) => tierStep(ITEMS[id], curIt));', '  const set = true;'],
   ['plans: AW-21 a piece\'s resistance is not on its card (lane/c-krell-uniques)', 'src/shell/bag-model.js', "    if (v > 0) out.push({ key: 'resistPm.' + k, label: resistLabel(k), value: v, text: '−' + cutWords(v) });\n", ''],
@@ -5773,6 +5894,13 @@ const MUTANTS = [
   ['plans: AW-27 store food too weak for the ground goes unsaid', 'src/shell/hunt-go.js', '    const weak = weakFoodLine(s, o && o.hunt, v.level, v.hpMax);\n    if (weak) out.push(weak);\n', ''],
   ['plans: AW-27 a store food just under the floor reads as enough', 'src/shell/weak-food.js', 'if (food === null || heal === null || heal >= want) return null;', 'if (food === null || heal === null || heal * 2 >= want) return null;'],
   ['plans: AW-27 a floor speaks under its band (139 audit B2)', 'src/shell/weak-food.js', 'return !Number.isInteger(level) || !Array.isArray(band) || level >= band[0];', 'return true;'],
+  /* post-140 audit C5: Hunt prep's checklist says the weak food the ground's page says; C7: at the yard every town control says the training */
+  ['plans: AW-27 Hunt prep\'s checklist reads ready over a weak store food (post-140 C5)', 'src/shell/readiness.js', "    if (weak) { checks.push({ id: weak.id, ok: false, text: weak.text }); short.push(t('prep.ready_short_food_weak')); }\n", ''],
+  ['plans: AW-27 Hunt prep judges the bar with no Level (post-140 C5)', 'src/shell/readiness.js', 'const weak = weakFoodLine(s, ground || null, v.level, v.hpMax);', 'const weak = weakFoodLine(s, ground || null, null, v.hpMax);'],
+  ['plans: AW-32 the yard reads as a hunt (post-140 C7)', 'src/shell/training-words.js', '  return h && !h.ended && trainedBy(h.huntId) ? t(key) : huntWords;', '  return huntWords;'],
+  ['plans: AW-32 the yard reads as a hunt to the gear (post-140 C7)', 'src/shell/gear-gate.js', "  return which === 'upgrades' ? busyWords(cs, GEAR_HUNT_WORDS.upgrades, 'training.busy_upgrades') : busyWords(cs, GEAR_HUNT_WORDS.one, 'training.busy_gear');", "  return which === 'upgrades' ? GEAR_HUNT_WORDS.upgrades : GEAR_HUNT_WORDS.one;"],
+  ['plans: AW-32 Dispatch loot at the yard says in town (post-140 C7)', 'src/shell/loot-dispatch.js', "  if (h && !h.ended) return busyWords(cs, 'Dispatch loot works in town');", "  if (h && !h.ended) return 'Dispatch loot works in town';"],
+  ['plans: AW-32 the chest at the yard says hunting (post-140 C7)', 'src/shell/windows/tower-chest.js', "  if (h && !h.ended) return busyWords(cs, t('tower.off_hunting'));", "  if (h && !h.ended) return t('tower.off_hunting');"],
   ['plans: AW-27 the weak food line names no slot', 'src/shell/weak-food.js', "return t('prep.food_weak' + hp, Object.assign(vars, { where }));", "return t('prep.food_weak' + hp, Object.assign(vars, { where: '' }));"],
   ['plans: AW-27 a heal read from the client copy when the server sent none', 'src/shell/weak-food.js', 'return r && Number.isInteger(r.amount) ? r.amount : null;', "return r && Number.isInteger(r.amount) ? r.amount : ((CONSUMABLES[id] || {}).amount || null);"],
   ['plans: AW-27 Krell\'s Hold names no store food floor (audit A25)', 'src/data/grounds/krells_hold/pack.js', "bagGuide: { tier: 4, storeFloor: 'salted_trout', storeFloorFrom: { 88: 'salted_shrimp' },", 'bagGuide: { tier: 4,'],
@@ -5822,9 +5950,8 @@ const MUTANTS = [
   ['plans: AW-64 a slot switched Off is said as spending', 'src/shell/hunt-go.js', 'if (!sl || sl.empty || sl.enabled === false) return null;', 'if (!sl || sl.empty) return null;'],
   ['plans: Hunt prep says stamina with no amount', 'src/shell/readiness.js', "t('prep.ready_stamina', { left: hoursWords(st.msLeft) })", "'Stamina left'"],
   ['plans: Hunt prep calls the last hunt this hunt', 'src/shell/readiness.js', "t(h && !h.ended ? 'prep.gold_spend_now' : 'prep.gold_spend_last', vars)", "t('prep.gold_spend_now', vars)"],
-  /* set/v0.2.140: the tie line (`if (mine.length) front = mine;`) went equivalent when the 139 audit's B6 let a bare armor slot take only the
-     hero's weight and a worn one only its own, so every front is all one weight; the plan remembers the pick where it reads it */
-  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    prefer: o && PREFER.has(o.prefer) ? o.prefer : null };', '    prefer: null };'],
+  /* the plan forgets the weight where it reads it: the tie line (live again since ruling 2b lets a bare slot's front hold every weight) and the move */
+  ['plans: Equip upgrades forgets the weight chosen at Tamsin\'s', 'src/shell/upgrade-plan.js', '    chosen, prefer: chosen || (o && PREFER.has(o.prefer) ? o.prefer : null) };', '    chosen: null, prefer: null };'],
   ['plans: a Sell plan for a stack not held reads unsellable', 'src/shell/loot-dispatch.js', "if (plan === 'sell' && held && bids && !bids.has(id))", "if (plan === 'sell' && bids && !bids.has(id))"],
   ['Equip upgrades marks nothing in flight', 'src/shell/widgets/upgrade-line.js', '  sc.wearing = { slots, items: slots.map((s) => plan.ops[s]) };\n', ''],
   ['Equip upgrades sends one intent per piece', 'src/shell/widgets/upgrade-line.js', "    try { return await cs.edgeIntent('equip', { equip: Object.assign({}, plan.ops) }); } finally { sc.wearing = null; }", "    try { let r; for (const s of slots) r = await cs.edgeIntent('equip', { equip: { [s]: plan.ops[s] } }); return r; } finally { sc.wearing = null; }"],
@@ -5857,7 +5984,7 @@ const MUTANTS = [
   ['a work row ignores the server level', 'src/shell/town-work.js', "  if (lv < (w.row.req || 1)) return skillShortWords(", "  if (false) return skillShortWords("],
   ['the running row offers no Stop', 'src/shell/windows/work.js', "text(b, running ? 'Stop' : 'Start');", "text(b, 'Start');"],
   ['the Burying line ignores the server pointer', 'src/shell/windows/inventory/bury.js', "  if (e) return lineParts(buryingWord(e) + ' ' + itemName(e.input), runParts(cs, workOf(cs), true), '');", '  if (e) return [];'],
-  ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, '. ' + tail);", "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), [], '. ' + tail);"],
+  ['the work line says nothing of how far it has got', 'src/shell/town-work.js', "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, tail && '. ' + tail);", "  return lineParts(words.charAt(0).toUpperCase() + words.slice(1), [], tail && '. ' + tail);"],
   ['a watched bench is never re-read', 'src/shell/shell.js', "(wm.isOpen('skills-trade') || wm.isOpen('inventory'))) watchTown(ctx.character);", "false) watchTown(ctx.character);"],
   ['raw food offers no Cook all', 'src/shell/bag-model.js', "      if (!r || !r.output || r.gated || kindOf(r.output) !== 'food') continue;", '      continue;'],
   ['the bench ignores the server level', 'src/shell/windows/inventory/bury.js', "  if (lv < e.recipe.req) {", "  if (false) {"],
@@ -5941,6 +6068,9 @@ const MUTANTS = [
   ['ticker: a bench spends inputs the bag does not hold', 'src/shell/town-ticker.js', "    removeItem(id, n) {\n      const take = Math.min(n, supply[id] || 0);\n      const fromBag = Math.min(take, bag[id] || 0);\n      supply[id] = (supply[id] || 0) - take;\n      bag[id] = (bag[id] || 0) - fromBag;\n      if (fromBag) move(id, -fromBag);\n      if (take > fromBag) stored[id] = (stored[id] || 0) - (take - fromBag);\n    },", '    removeItem(id, n) { move(id, -n); },'],
   ['ticker: a dish that may burn is counted as cooked', 'src/shell/town-ticker.js', "  const burnable = !gather && w.skill === 'cooking' && !!w.row.output && burnChance(w.row, cook, 0) > 0;", '  const burnable = false;'],
   ['ticker: a yield range is read at its top', 'src/shell/town-ticker.js', '  int: (lo) => Math.ceil(Number(lo) || 0),', '  int: (lo, hi) => Math.floor(Number(hi) || 0),'],
+  /* Andy 2026-11-18: a run of 300 read "8,300 Blank Rune left. Stops when materials run out" (TK-8d) */
+  ['ticker: a counted run\'s work line says the stock and that materials stop it', 'src/shell/town-work.js', '  const run = countedRun(cs, w);\n', '  const run = null;\n'],
+  ['ticker: a counted run\'s work line forgets what it has made', 'src/shell/town-work.js', 'of: run === undefined ? null : left + (mine ? run.crafts : 0)', 'of: run === undefined ? null : left'],
 ];
 /* The doll mutant needs the want set where an equip is asked: plant it beside the intent. */
 const COMPANION = { 'the doll wears the item before the server confirms': ['src/shell/windows/inventory/actions.js', "    if (slot) wear(st, repaint, slot, id, 'pick:' + id);", "    if (slot) globalThis.__want = id;\n    if (slot) wear(st, repaint, slot, id, 'pick:' + id);"],

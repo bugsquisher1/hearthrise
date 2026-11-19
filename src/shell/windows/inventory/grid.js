@@ -37,7 +37,7 @@ import { ringTabHtml, ringPaneHtml, patchRing } from './key-ring.js?v=0.2.140';
 import { buryParts, buryBlock, buryRecipeOf, buryingOf, namedBlock } from './bury.js?v=0.2.140';
 import { shownQty, aheadQty, paintLine } from '../../town-ticker.js?v=0.2.140';
 import { upgradeLineHtml, patchUpgradeLine } from '../../widgets/upgrade-line.js?v=0.2.140';
-import { wearBlock, gearLocked } from '../../gear-gate.js?v=0.2.140';
+import { wearBlock, gearLockWhy } from '../../gear-gate.js?v=0.2.140';
 import { whyLine } from '../../widgets/why-line.js?v=0.2.140';
 import { t } from '../../../render/player-text.js?v=0.2.140';
 import { selectedIds, selectionWords, lockLabel } from './selection.js?v=0.2.140';
@@ -186,7 +186,7 @@ export function patchTools(root, st, ctx) {
   whyLine(root.querySelector('.hw-pick-why'), !cur ? '' : (pickSaid ? sc.msg : wearWhy || buryWhy || eatWhy), pickSaid);
   /* THE ITEM'S WAYS (Tyler 2026-11-08): what spends it and where to get more, each place a link to its window (src/shell/goto.js) */
   patchParts(root.querySelector('.hw-pick-ways'), cur ? usePlaces(cur).concat(wherePlaces(cur)).flatMap((p, i) => (i ? [', ', placeLink(p)] : [placeLink(p)])) : []);
-  patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLocked(st.cs), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
+  patchUpgradeLine(root, st.upgrade, onBag, sc.pending, { locked: gearLockWhy(st.cs, 'upgrades'), msg: sc.msgAt === 'upgrade' ? sc.msg : '' });
   const line = buryParts(st.cs);
   const bl = root.querySelector('.hw-burying');
   cls(bl, 'is-on', line.length > 0);

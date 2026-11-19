@@ -417,6 +417,71 @@ async function runTests(M) {
     eq(card3 && [card3.lvFrom, card3.lvTo, card3.ups], [null, 8, []], 'MID-WAY: Level 8, no start and no skill line');
   });
 
+  /* C4 EVERY HUNT REACHES EARLIER HUNTS (post-140 audit C4: both Wickstead days and the Glade death never did, and "Training Yard ... Training
+     stopped" took 5 of 7 rows). Both paths. VIEWED: the hunt ends in view, then the yard its plan opens runs and stops again and again: the hunt
+     stays, beside ONE yard row. CLOSED: the hunt ended with the page shut and the yard took over, so the page's first read is the yard; the
+     server names the hunt (hunt_after.last while the yard runs, the start stamp once it has stopped too), its card is built from the server's
+     answer for that session (summary-recorder.js recordPast, the alert centre's one read), placed by its end time, once; never a yard's. */
+  await t('C4 a hunt that ended unseen under the yard reaches Earlier hunts, and yard rows never push hunts out', async () => {
+    const HUNT = '00000000-0000-4000-a000-00000000c401', YARD = (n) => '00000000-0000-4000-a000-0000000c40' + String(n).padStart(2, '0');
+    const yardEnv = (v, id, ended, after) => {
+      const e = clone(FIX); e.version = v;
+      e.hunt = { session: Object.assign({ id, hunt: 'training_yard_melee', preset: 0, entered_at: '2026-11-18T08:00:0' + (v % 10) + 'Z', bag: [], tally: { xp: { melee: 500 } } },
+        ended ? { ended_at: '2026-11-18T09:00:0' + (v % 10) + 'Z', end_reason: 'left', phase: 'ended' } : { phase: 'hunting' }), pose: ended ? null : FIX.hunt.pose };
+      e.hunt_after = { choice: 'train', skill: 'melee', grace_s: 300, job: null, now: ended ? null : { session: id, choice: 'wait', skill: null }, last: after || null };
+      delete e.hunt_analyzer; delete e.hunt_events;
+      return e;
+    };
+    /* the server's answer for the Wickstead session (hr_hunt_analyzer, the basic block) */
+    const answer = (cs, id, hunt) => M.HS.analyzerFrom(cs, { tier: 'basic', hunt_ms: 6.6 * 3600000,
+      session: { id, hunt, entered_at: '2026-11-17T20:00:00Z', ended_at: '2026-11-18T02:36:00Z', end_reason: 'stamina', phase: 'ended' },
+      hero: { kills: 2924, xp: { level: 52000 }, coins: 14568, loot_value: 900, balance: 15000, loot: { iron_platebody: 1 }, supplies: { own: {}, store: {} } } });
+    /* CLOSED: the first read is the yard running, the hunt it took over is the server's last ended session */
+    let env = yardEnv(7, YARD(1), false, { session: HUNT, choice: 'train', skill: 'melee', done: { state: 'started' } });
+    env.client_state = { huntStart: { s: HUNT, lv: 9, sk: {} } };
+    const cs = sessionOn([], () => env);
+    await cs._take(env, 'load');
+    eq(M.REC.pastToRead(cs), [HUNT], 'the hunt the yard took over is the one to read');
+    ok(!M.REC.recordPast(cs, YARD(9), answer(cs, YARD(9), 'training_yard_melee')), 'a training session read this way is never a row');
+    ok(M.REC.recordPast(cs, HUNT, answer(cs, HUNT, 'wickstead')), 'the hunt\'s card went in');
+    ok(!M.REC.recordPast(cs, HUNT, answer(cs, HUNT, 'wickstead')) && M.REC.summariesOf(cs).length === 1, 'once');
+    const card = M.REC.summariesOf(cs)[0];
+    eq(card && [card.id, card.hunt, card.kills, card.gold, card.reason, card.train], [HUNT, 'wickstead', 2924, 14568, 'stamina', null], 'its card is the server\'s tally of that session');
+    eq(M.REC.pastToRead(cs), [], 'nothing left to read');
+    ok(!M.REC.takeFresh(cs), 'it never opens the summary by itself (the away card is the return\'s notice)');
+    /* the yard stops: its card is the newest, the hunt stays under it */
+    env = yardEnv(8, YARD(1), true, { session: YARD(1), choice: 'wait', skill: null, done: null });
+    await cs.load();
+    eq(M.REC.summariesOf(cs).map((x) => x.id), [YARD(1), HUNT], 'the yard\'s card first, the hunt under it (by end time)');
+    /* CLOSED, the yard already stopped too: the server's last is the yard, the start stamp still names the hunt */
+    const late = yardEnv(9, YARD(2), true, { session: YARD(2), choice: 'wait', skill: null, done: null });
+    late.client_state = { huntStart: { s: HUNT, lv: 9, sk: {} } };
+    const cs2 = sessionOn([], () => late);
+    await cs2._take(late, 'load');
+    eq(M.REC.pastToRead(cs2), [HUNT], 'the start stamp names the hunt once the yard has stopped');
+    ok(M.REC.recordPast(cs2, HUNT, answer(cs2, HUNT, 'wickstead')), 'its card went in');
+    eq(M.REC.summariesOf(cs2).map((x) => x.id), [YARD(2), HUNT], 'under the yard that ended after it, never ahead of it');
+    /* a session the server names that is a yard's (an older one the list keeps no row for) is judged once, then never asked again */
+    const next = clone(FIX); next.version = 30; next.hunt = { session: { id: 'sess-n', hunt: 'wickstead', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    next.hunt_after = { choice: 'wait', skill: null, grace_s: 300, job: null, now: { session: 'sess-n', choice: 'wait', skill: null }, last: { session: YARD(5), choice: 'wait', skill: null, done: null } };
+    const cs4 = sessionOn([], () => next);
+    await cs4._take(next, 'load');
+    eq(M.REC.pastToRead(cs4), [YARD(5)], 'the server\'s last ended session is read');
+    ok(!M.REC.recordPast(cs4, YARD(5), answer(cs4, YARD(5), 'training_yard_melee')), 'a yard\'s is no row');
+    eq(M.REC.pastToRead(cs4), [], 'and is not read again');
+    /* VIEWED: the hunt ended in view (its card), then nine yard sessions run and stop: the hunt keeps its row beside ONE yard row */
+    let v = 10;
+    const run = clone(FIX); run.version = v++; run.hunt = { session: { id: 'sess-h', hunt: 'wickstead', preset: 1, phase: 'hunting', bag: [], tally: {} }, pose: FIX.hunt.pose };
+    let cur = run;
+    const cs3 = sessionOn([], () => cur);
+    await cs3._take(run, 'load');
+    cur = Object.assign(endedEnv(v++), {}); cur.hunt.session.id = 'sess-h'; cur.hunt.session.hunt = 'wickstead';
+    await cs3.load();
+    for (let n = 1; n <= 9; n++) { cur = yardEnv(v++, YARD(10 + n), false, null); await cs3.load(); cur = yardEnv(v++, YARD(10 + n), true, null); await cs3.load(); }
+    const rows = M.REC.summariesOf(cs3);
+    eq([rows.filter((x) => x.train).length, rows.some((x) => x.id === 'sess-h'), rows[0] && rows[0].id], [1, true, YARD(19)], 'one yard row (the newest) and the hunt still listed');
+  });
+
   await t('A5 a new hunt after an ended one says so once (the shell closes the old summary: playtest v0.2.127)', async () => {
     const calls = [];
     const cs = sessionOn(calls, () => endedEnv(8));
@@ -580,7 +645,7 @@ async function runTests(M) {
     const noBelt = { ...tank }; delete noBelt.belt;
     const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 } };
     const shop = (...o) => ({ offers: o.map(([item, price, kind]) => ({ offer: 'shop.' + item, item, kind: kind || 'gear', price })), bids: new Map() });
-    const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
+    const buy = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: shop(['bronze_rimmed_shield', 140]),
       temper: null, dummy: null, home: null, bag: [], bank: [] }, over || {}));
     const shield = buy();
     eq(shield && [shield.kind, shield.title, shield.words, shield.icon, shield.place], ['gear', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'bronze_rimmed_shield',
@@ -591,24 +656,33 @@ async function runTests(M) {
     eq(buy({ purse: 139 }), null, 'past the purse, nothing');
     eq(buy({ equipment: { ...tank, shield: 'bronze_rimmed_shield' } }), null, 'what is worn already is not bought again');
     eq(buy({ shop: shop(['bronze_rimmed_shield', 140, 'tool']) }), null, 'only the Shop\'s gear');
-    /* NEVER AN OFF-WEIGHT BUY, AND WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to
-       a heavy hero at Level 9 and they stayed on to 85; the Shop sells no heavy gloves). A heavy hero's bare gloves slot is never sold the
-       medium pair: the line names the heavy gloves it can wear and where they come from, from the catalogue (item-lore.js wherePlaces), its
-       Show opening there. A medium hero is still sold the pair. The same for a slot worn in another weight. */
+    /* THE PLAN'S WEIGHT RULE, AND WHERE THE HERO'S WEIGHT COMES FROM (the full-game audit's A11, 2026-11-18: Next buy sold Leather Gloves, medium, to
+       a heavy hero at Level 9 and they stayed on to 85; designer ruling 2b of 2026-11-18). Next buy reads upgradePlan's rule (upgrade-plan.js
+       weightFits), never its own: a bare slot takes any weight, so a heavy hero's bare gloves slot is sold the medium pair, as a medium hero's is;
+       a slot worn off the weight chosen at Tamsin's is never sold another piece of that off weight (a better Studded Helmet over a worn Leather
+       Helmet), and the line names the heavy piece Equip upgrades would move it to and where it comes from, from the catalogue (item-lore.js
+       wherePlaces), its Show opening there; so does a bare slot no Shop piece fills. */
     const { wherePlaces } = await import(pathToFileURL(join(ROOT, 'src/shell/item-lore.js')).href);
     const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src/data/items.js')).href);
     const dressed = tank;
     const noGloves = { ...dressed }; delete noGloves.gloves;
     const gloves = shop(['leather_gloves', 160]);
-    const find = buy({ equipment: noGloves, shop: gloves });
-    const fit = find && ITEMS[find.icon];
-    eq(find && [find.kind, /^Next upgrade: .+ \(heavy gloves\)$/.test(find.title), fit && fit.slot, fit && fit.armourClass, fit && fit.reqLv <= 31, find.words, find.place],
-      ['find', true, 'gloves', 'plate', true, (wherePlaces(find && find.icon)[0] || {}).words, (wherePlaces(find && find.icon)[0] || {}).place],
-      'a heavy hero is never sold the medium pair: the heavy gloves it can wear, and where they come from');
-    eq(buy({ equipment: noGloves, shop: gloves, prefer: 'medium' }).title, 'Next buy: Leather Gloves (160 gp)', 'a medium hero is still sold them');
-    eq(buy({ equipment: { ...dressed, gloves: 'leather_gloves' }, shop: gloves }).kind, 'find', 'a slot worn in another weight names the hero\'s weight too');
-    /* (a worn Leather Helmet and a better Studded Helmet in the Shop: a better piece of the WORN weight is still off the hero's, so never the buy) */
-    eq(buy({ equipment: { ...dressed, helmet: 'leather_helmet' }, shop: shop(['studded_helmet', 300]) }).kind, 'find', 'a better piece of a worn off weight is never the buy');
+    eq(buy({ equipment: noGloves, shop: gloves }).title, 'Next buy: Leather Gloves (160 gp)', 'a heavy hero\'s bare gloves slot is sold the medium pair (a bare slot takes any weight)');
+    eq(buy({ equipment: noGloves, shop: gloves, prefer: 'medium', chosen: 'medium' }).title, 'Next buy: Leather Gloves (160 gp)', 'a medium hero is sold them too');
+    const isFind = (find, kind) => { const fit = find && ITEMS[find.icon];
+      return [find && find.kind, find && new RegExp('^Next upgrade: .+ \\(' + kind + '\\)$').test(find.title), fit && fit.slot, fit && fit.armourClass, fit && fit.reqLv <= 31, find && find.words, find && find.place]; };
+    const want = (find, slot) => ['find', true, slot, 'plate', true, (wherePlaces(find && find.icon)[0] || {}).words, (wherePlaces(find && find.icon)[0] || {}).place];
+    const bareFind = buy({ equipment: noGloves, shop: shop() });
+    eq(isFind(bareFind, 'heavy gloves'), want(bareFind, 'gloves'), 'a bare slot no Shop piece fills: the heavy gloves it can wear, and where they come from');
+    const wornFind = buy({ equipment: { ...dressed, gloves: 'leather_gloves' }, shop: gloves });
+    eq(isFind(wornFind, 'heavy gloves'), want(wornFind, 'gloves'), 'a slot worn off the chosen weight names the heavy gloves Equip upgrades would move it to');
+    const helmFind = buy({ equipment: { ...dressed, helmet: 'leather_helmet' }, shop: shop(['studded_helmet', 300]) });
+    eq(isFind(helmFind, 'heavy helmet'), want(helmFind, 'helmet'), 'a better piece of a worn off weight is never the buy');
+    /* the Shop's Bronze Belt moves a worn Leather Belt to the chosen weight, and the line says what the move gives up beside what it adds; a worn
+       Studded Leather Belt (tier 2) is never moved to it (a lower tier) */
+    const move = buy({ equipment: { ...dressed, belt: 'leather_belt' }, shop: shop(['bronze_belt', 220]) });
+    eq(move && [move.kind, move.title, move.words], ['gear', 'Next buy: Bronze Belt (220 gp)', '+1 Defense, +22 health, -0.4% critical chance vs Leather Belt'], 'a move to the chosen weight, its cost said');
+    eq(buy({ equipment: { ...dressed, belt: 'studded_belt' }, shop: shop(['bronze_belt', 220]) }).kind, 'find', 'never a lower tier');
     eq(buy({ equipment: dressed, shop: gloves }), null, 'a full set of the hero\'s weight: nothing to find');
     /* Tempering's next rung: the weapon's, then the armor's, gold and material in hand */
     const rung = (piece, gold, short, nextPm) => ({ piece, below: false, ladder: { track: 'x', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold, items: [] }, needs: [{ id: 'iron_bar', need: 2, short }], nowPm: 0, nextPm });
@@ -698,6 +772,7 @@ async function load(base) {
     CS: Object.assign({}, await import(u(SESSION))), RES: await import(u(RESIDUE)),
     TN: await import(u(TOWN)), UP: await import(u('src/shell/upgrade-plan.js')), NB: await import(u(NEXT)),
     END_ORDER: (await import(u('src/data/hunt-sessions.js'))).END_ORDER,
+    HS: await import(u('src/session/hunt-sections.js')),
   };
 }
 
@@ -718,7 +793,14 @@ const MUTANTS = [
   { test: 'S1', file: MODEL, from: "if (s.reason !== 'stamina' || !Number.isFinite(msLeft)) return why;", to: 'return why;' },
   { test: 'S1', file: MODEL, from: "  stamina: t('summary.end_stamina'),\n", to: '' },
   { test: 'S2', file: SUMMARIES, from: "    if (out.length >= HISTORY_MAX) break;", to: '' },
-  { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id)) continue;", to: "if (!s) continue;" },
+  { test: 'S2', file: SUMMARIES, from: "if (!s || seen.has(s.id) || (s.train && yard)) continue;", to: "if (!s || (s.train && yard)) continue;" },
+  /* C4: every hunt reaches Earlier hunts (post-140 audit C4) */
+  { test: 'C4', file: SUMMARIES, from: "if (!s || seen.has(s.id) || (s.train && yard)) continue;", to: "if (!s || seen.has(s.id)) continue;" },
+  { test: 'C4', file: RECORDER, from: "  const ids = [after && after.last ? after.last.session : null, st ? st.s : null, a ? a.prevStart : null];", to: "  const ids = [];" },
+  { test: 'C4', file: RECORDER, from: "  const ids = [after && after.last ? after.last.session : null, st ? st.s : null, a ? a.prevStart : null];", to: "  const ids = [after && after.last ? after.last.session : null];" },
+  { test: 'C4', file: RECORDER, from: " || trainedBy(f.hunt) || ", to: ' || ' },
+  { test: 'C4', file: RECORDER, from: "withPastSummary(summariesOf(cs), card)", to: "withSummary(summariesOf(cs), card)" },
+  { test: 'C4', file: RECORDER, from: "  if (a) a.pastDone.add(id);\n", to: '' },
   { test: 'S3', file: RESIDUE, from: "  huntSummaries: sanitizeSummaries,", to: "  huntSummaries: (v) => v," },
   { test: 'S4', file: MODEL, from: ".map((x) => [x.item, x.source, x.count])", to: ".map((x) => [x.item, 'own', x.count])" },
   { test: 'S4', file: MODEL, from: "(standout(b.item) - standout(a.item)) || ", to: '' },
@@ -752,7 +834,7 @@ const MUTANTS = [
   { test: 'L1', file: MODEL, from: "return !!s && !s.ended && !(int(paid.kills) > 0) && !(xp > 0);", to: "return !!s && !s.ended;" },
   { test: 'L1', file: RESIDUE, from: "    if (++n >= HUNT_START_SKILLS) break;\n", to: '' },
   { test: 'L2', file: RECORDER, from: "if ((was && was.s === s.id) || !lv || !atStart(s) || typeof cs.setResidue !== 'function') return;", to: "if (!lv || typeof cs.setResidue !== 'function') return;" },
-  { test: 'L2', file: RECORDER, from: " stampStart(cs, s); return; }", to: " return; }" },
+  { test: 'L2', file: RECORDER, from: "      stampStart(cs, s);\n      return;\n", to: "      return;\n" },
   { test: 'L2', file: SUMMARIES, from: "lvFrom: level(v.lvFrom), lvTo: level(v.lvTo),", to: "lvFrom: null, lvTo: level(v.lvTo)," },
   { test: 'L2', file: RESIDUE, from: "  huntStart: sanitizeHuntStart, ", to: "  huntStartGone: sanitizeHuntStart, " },
   /* Back in town (T1..T4) */
@@ -778,11 +860,13 @@ const MUTANTS = [
   { test: 'T5', file: NEXT, from: "&& holds(r.next.items, o.bag, o.bank));", to: ');' },
   { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return roomBuy(o) || dummyBuy(o) || temperBuy(o) || findPiece(o) || gearBuy(o);" },
   { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || dummyBuy(o) || roomBuy(o);" },
-  /* the full-game audit's A11: an off-weight Shop piece sold to a heavy hero, and nothing saying where its own weight comes from */
-  { test: 'T5', file: NEXT, from: " && ownWeight(ITEMS[x.item], o.prefer));", to: ');' },
+  /* the full-game audit's A11 under designer ruling 2b: Next buy off the plan's weight rule (a better piece of a worn off weight sold), and nothing
+     saying where the hero's own weight comes from */
+  { test: 'T5', file: NEXT, from: "prefer: o.prefer, chosen: o.chosen });", to: "prefer: o.prefer });" },
   { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);" },
   { test: 'T5', file: NEXT, from: '    const p = now[0] || later[0];', to: '    const p = later[0] || now[0];' },
-  { test: 'T5', file: NEXT, from: "&& weightOf(ITEMS[eq[s]]) !== w));", to: '&& false));' },
+  { test: 'T5', file: NEXT, from: "&& offWeight(ITEMS[eq[s]], o.chosen)));", to: '&& false));' },
+  { test: 'T5', file: NEXT, from: '.concat((p.costs || []).slice(0, 1))', to: '' },
   { test: 'T3', file: TOWN, from: "else if (did.has(step.id)) out.push(Object.assign(step, { done: true, title: did.get(step.id) || step.title, words: '' }));", to: '' },
   { test: 'T3', file: TOWN, from: "done: true, title: did.get(step.id) || step.title, words: ''", to: "done: true, words: ''" },
   { test: 'T4', file: TOWN, from: "lines.map((l) => l.item), 'deposit');", to: "lines.map((l) => l.item), 'withdraw');" },

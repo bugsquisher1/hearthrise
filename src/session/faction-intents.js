@@ -10,6 +10,7 @@
 //   claimPiece(account, cs, piece)      hr_faction_outfit_claim  refuses standing_short { need_ms, have_ms }, piece_owned
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 
 const WORD = /^[a-z0-9_]{1,32}$/;
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
@@ -18,8 +19,6 @@ const usable = (account, cs) => !!account && !!account.server && typeof account.
   && !!cs && cs.status !== 'closed' && Number.isInteger(cs.slot);
 const bodyOf = (ans) => (ans && isObj(ans.body) ? ans.body : {});
 const newIdem = () => globalThis.crypto.randomUUID();
-/* Refusals that mean the screen was behind the server: the character is re-read so the tab shows what the server holds. */
-const RE_READS = Object.freeze(['already_joined', 'not_member', 'swap_open', 'no_swap', 'swap_cooldown', 'piece_owned', 'feature_off', 'join_locked']);
 
 /* A refused answer, with the figures the server sent (src/shell/faction-words.js says them). */
 function refused(ans, verb) {
@@ -35,7 +34,7 @@ function send(cs, verb, ask) {
     const ans = await ask();
     if (!(ans && ans.ok && bodyOf(ans).ok === true)) {
       const r = refused(ans, verb);
-      if (RE_READS.includes(r.error) && cs.status !== 'closed' && typeof cs.load === 'function') await cs.load();
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
       return r;
     }
     if (typeof cs.load === 'function') await cs.load();

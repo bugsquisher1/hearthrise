@@ -69,6 +69,7 @@ import { hallFromGround } from '../../data/boss-halls.js?v=0.2.140';
 import { rowLines } from '../live-events-view.js?v=0.2.140';
 import { patchParts } from '../goto.js?v=0.2.140';
 import { t } from '../../render/player-text.js?v=0.2.140';
+import { trainingPhrase } from '../../session/training-sections.js?v=0.2.140';
 import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.140';
 import { patchScale, actScale, scaleTag } from './scale-pane.js?v=0.2.140';
 
@@ -256,7 +257,9 @@ renderHunts.patch = function patchHunts(body, ctx) {
      says the hero is hunting (or the hunt is over), the line below speaks for it (Tyler 10-19). */
   if (sc.msg && sc.msg === sc.enterMsg && (now || (h && h.ended))) { sc.msg = ''; sc.enterMsg = null; }
   const nowEl = root.querySelector('.hw-hunts-now');
-  text(nowEl, now ? t('hunts.lead_hunting', { ground: huntName(now.huntId) })
+  /* a hero at the yard is training, not hunting there (post-140 audit C7: "Hunting in Training Yard. Leave to switch hunts"): its press is Stop */
+  const trains = now ? trainingPhrase(now.huntId) : null;
+  text(nowEl, trains ? t('training.busy_hunts', trains) : now ? t('hunts.lead_hunting', { ground: huntName(now.huntId) })
     : follower ? t('hunts.lead_follower') : party ? t('hunts.lead_party') : t('hunts.lead_solo'));
   /* The how-to (not a running hunt) gives its room to the ground's page on the phone sheet. */
   cls(nowEl, 'is-hint', !now);

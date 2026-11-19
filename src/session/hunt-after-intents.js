@@ -8,6 +8,7 @@
 // sent: the server prices a training start and counts what a bench has left.
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.140';
+import { afterRefusal } from './quoted-ask.js?v=0.2.140';
 
 const CHOICE = /^[a-z_]{1,24}$/;
 const SKILL = /^[a-z_]{1,32}$/;
@@ -24,7 +25,10 @@ export function setHuntAfter(account, cs, choice, skill) {
   return askVia(cs, 'hunt_after_set', async () => {
     const ans = await account.server.rpc('hr_hunt_after_set', { p_slot: cs.slot, p_choice: choice, p_skill: skill == null ? null : skill, p_idem: newIdem() });
     const b = ans && isObj(ans.body) ? ans.body : {};
-    if (!(ans && ans.ok && b.ok === true)) return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'hunt_after_set' };
+    if (!(ans && ans.ok && b.ok === true)) {
+      await afterRefusal(cs, ans);   // the screen was behind the server: re-read once (A20)
+      return { ok: false, error: (typeof b.error === 'string' && b.error) || (ans && ans.error) || 'refused', verb: 'hunt_after_set' };
+    }
     if (typeof cs.load === 'function') await cs.load();
     return { ok: true };
   });

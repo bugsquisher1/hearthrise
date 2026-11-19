@@ -23,6 +23,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 
@@ -149,7 +150,7 @@ async function underSkill(root) {
    (hunt-roles.js shootsItem): a Ranger's whetstone slot and a rune slot are struck in words (no weapon shoots
    either: a rune fuels spells only, Tyler 2026-10-23), his arrows read ready; the Ammo run offers neither, and
    every arrow and bolt in it reads ready for a Ranger. */
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 async function clientWords(root) {
   const imp = (p) => import(pathToFileURL(join(root, p)).href + V);
   const F = await imp('src/shell/action-facts.js'), T = await imp('src/shell/action-table.js'), B = await imp('src/shell/bar-assign.js');

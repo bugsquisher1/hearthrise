@@ -7,8 +7,8 @@
 # on every push and PR, plus the cache-buster invariant that keeps a deploy from
 # shipping half-stale modules.
 #
-# Deliberately no build step: the game is a static folder, so CI serves the repo
-# exactly as GitHub Pages does.
+# No build step: the test servers serve the repo through the site build's own
+# release stamp (tools/lib/version-stamp.mjs), so a page loads as Pages serves it.
 # ============================================================
 name: smoke
 
@@ -1232,11 +1232,14 @@ jobs:
       # deploy timed out four times). .github/workflows/pages.yml deploys the folder tools/build-site.mjs builds from
       # its allowlist. A file a page, a module, a stylesheet or an art row asks for that the allowlist lacks is red
       # HERE, on the release branch, not at the deploy after main is pushed. A new art folder: one PUBLISH row there.
+      # The build also writes the release stamp (?v=<version>) onto every import and page tag (SITE-9, architecture
+      # audit 2026-11-18 item 1); tools/strip-version-stamps.mjs is the one-time codemod that takes it out of the source.
       - name: Site publish set - every file the game asks for is in the Pages artifact
         if: ${{ !cancelled() }}
         run: |
           node tools/build-site.mjs --check
           node tools/mutant-gate.mjs node tools/build-site.mjs --selftest
+          node tools/mutant-gate.mjs node tools/strip-version-stamps.mjs --selftest
 
       # The Coordinator's release check reads the deploy's runs: a failed, cancelled or timed-out deploy prints RED.
       - name: Release check - the Pages line reads a deploy's runs right
@@ -6681,8 +6684,10 @@ jobs:
       # (C1's hr_hunt_analyzer on a session) has no hand-computed-sum guard
       # yet — reported as a lane C2 known limitation, not covered here.
 
-      # The cache-buster must agree across build-info.js, index.html and every
-      # ESM import specifier. Cheap, so run it before spending time on a browser.
+      # The source in one stamp state (bare, or until the flag day every import and
+      # page tag at the current build), one key per module, with its own mutation
+      # proof on the source stamped and bare (tests/cache-buster-guard.mjs). The
+      # built site's stamp is tools/build-site.mjs SITE-9. Cheap, so before a browser.
       - name: Cache-buster invariant
         run: bash bump-version.sh --check
 
@@ -6704,14 +6709,13 @@ jobs:
           node tests/hearthfind-mint-guard.mjs
           node tools/mutant-gate.mjs node tests/hearthfind-mint-guard.mjs --selftest
 
-      # The cache-buster rule, mutation-proven: 6 defects caught (stale tag,
-      # stale ESM specifier = the b493 double-load, the b511 bare quoted pin, a
-      # stripped ?v=, build-info moved alone, build-info unreadable) AND 2
-      # shapes it must keep ignoring, so the fix for a false negative cannot be
-      # a grep that flags everything.
+      # The release bump, proven on scratch copies of the tree, stamped and bare:
+      # version, cache and date move together, a stamped source moves to the new
+      # release and a bare one gets no stamp, the CHANGELOG heading goes in once,
+      # and a stale preload block is re-derived (with a control that leaves it).
       - name: Cache-buster invariant — mutation proof
         if: ${{ !cancelled() }}
-        run: node tools/mutant-gate.mjs bash bump-version.sh --selftest
+        run: node tools/mutant-gate.mjs node tools/bump-version.mjs --selftest
 
       # ARM-FLAG HONESTY: the comment above an arm flag is the ONLY documentation
       # of where authority lives for that field, and every reader trusts it before

@@ -13,7 +13,8 @@
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
 //   smoke and serve take --site DIR: the client's files come from DIR (the Pages artifact, `node tools/build-site.mjs` -> _site), and a file
-//        the page asks for that DIR lacks is a 404 the smoke counts. The engine and the chain stay the repository's.
+//        the page asks for that DIR lacks is a 404 the smoke counts. The engine and the chain stay the repository's. Without it the
+//        repository's modules and pages are served stamped as the site build stamps them (tools/lib/version-stamp.mjs).
 //   node tools/qa/local-world.mjs skip 30 [--port 8787]              skip 30 minutes in a world that is serving
 //   node tools/qa/local-world.mjs wait 480 [--port 8787]             8 hours pass for everyone: hunts, and town too
 //   node tools/qa/local-world.mjs wait 480 --away [--port 8787]      the same, for a player who CLOSED the page: the "While you were away" stamp moves too
@@ -60,6 +61,7 @@ import * as nodeModule from 'node:module';   // a namespace: registerHooks (Node
 import { extname, join, normalize, dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { readBuild, stampFile, stampKind } from '../lib/version-stamp.mjs';
 
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 const PRODUCTION_REF = 'nezapsylztqbbwuwembx';
@@ -450,7 +452,14 @@ async function serveStatic(res, urlPath, origin, held, site, asked) {
   const info = await stat(f).catch(() => null);
   if (!info || !info.isFile()) { asked.served.delete(rel); asked.missed.push(urlPath); return send(res, 404, 'not found', 'text/plain'); }
   const rewritten = rel === 'play.html' || rel === 'src/net/supabase-bootstrap.js';
-  const body = rewritten ? rewriteServed(rel, await readFile(f, 'utf8'), origin) : await readFile(f);
+  /* from the repository, as the site build writes it (tools/lib/version-stamp.mjs): every module and page at the release's ?v= */
+  const stamped = site === ROOT && stampKind(rel);
+  let body;
+  if (rewritten || stamped) {
+    const text = await readFile(f, 'utf8');
+    const served = stamped ? stampFile(rel, text, readBuild(ROOT).version) : text;
+    body = rewritten ? rewriteServed(rel, served, origin) : served;
+  } else body = await readFile(f);
   if (held) held.set(rel, body);
   return send(res, 200, body, type);
 }

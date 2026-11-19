@@ -32,8 +32,9 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { ROOT, plant } from './hunt-core/fixtures/h1.js';
 import { bootReplay } from './schema-replay.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const PATTERN = 'kingsgrate_rivets', RECIPE = 'reforge_steelgrate';
 const UID = '00000a7e-0000-4000-8000-00000000c0de';
 const MAXED = 13034431;   // level 99 XP: the bench's level is never the reason a row is closed here

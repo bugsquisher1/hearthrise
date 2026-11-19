@@ -45,8 +45,9 @@ import { pathToFileURL } from 'node:url';
 import { loadCore, makeReport, ROOT, hero, mon, world, instOf, subStep, T0 } from './fixtures/h1.js';
 import { supplySession } from './fixtures/h4.js';
 import { loadPlay } from './fixtures/play-ground.mjs';
+import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const MIGRATION = 'supabase/migrations/2026-10-25-action-conditions.sql';
 /* The starter bar moved forward (Tyler 2026-10-21: a slot names ONE item; a new hero's bar). */
 const STORE_MIGRATION = 'supabase/migrations/2026-11-07-store-by-slot.sql';

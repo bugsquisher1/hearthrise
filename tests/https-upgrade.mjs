@@ -14,7 +14,7 @@
 // fix is the page, not the allowlist: src/platform/https-upgrade.js replaces
 // an http page with the same URL on https before anything else runs.
 //
-//   HU-1  every root *.html loads src/platform/https-upgrade.js?v=… as a plain
+//   HU-1  every root *.html loads src/platform/https-upgrade.js as a plain
 //         classic script (no type, async or defer), inside <head>, and it is
 //         the FIRST <script> of the page (so before every module script)
 //   HU-2  the script, run against a fake location: an http visit on a real
@@ -28,7 +28,7 @@ import vm from 'node:vm';
 import { ROOT } from './_client-harness.mjs';
 
 const SCRIPT = 'src/platform/https-upgrade.js';
-const TAG = /^<script\s+src="src\/platform\/https-upgrade\.js\?v=\d[\d.]*"\s*><\/script>$/;
+const TAG = /^<script\s+src="src\/platform\/https-upgrade\.js(?:\?v=\d[\d.]*)?"\s*><\/script>$/;   // bare in the source, stamped by the site build
 
 /** The root pages as { name: text }. */
 function pages() {

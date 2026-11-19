@@ -40,9 +40,10 @@ import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
 import { BOSS, NAMED, ADD, ROOM, FROM, KEY, FLARE, CONE, NAMED_SPELL, PRIZE, ROWS, hallGround, HALL_HUNT, HALL_ROW, hallSource } from './boss-hall-fixture.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(REPO, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(REPO);
 const T0 = Date.UTC(2026, 9, 18, 12, 0, 0);
 const MINUTE = 60000;
 /* The planted tree a mutant runs: the play trees and the generator's own imports. */

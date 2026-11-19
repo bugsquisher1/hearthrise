@@ -23,6 +23,7 @@
 // Exit 0 when every cell ran; 1 otherwise.
 import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -64,8 +65,8 @@ async function engine(extra) {
   const { loadCellRunner } = await import(u('tools/balance-sim/cell.mjs'));
   const R = await loadCellRunner(ROOT);
   const { BUILD } = await import(u('src/build-info.js'));
-  const tables = [(await import(u('src/data/items.js') + '?v=' + BUILD.version)).ITEMS, (await import(u('src/data/items.js'))).ITEMS];
-  for (const t of tables) for (const [id, row] of Object.entries(extra)) { if (t[id]) throw new Error('temper-uniques-table: ' + id + ' is already an item'); t[id] = JSON.parse(JSON.stringify(row)); }
+  const tables = [(await import(u('src/data/items.js') + sourceQuery(ROOT))).ITEMS, (await import(u('src/data/items.js'))).ITEMS];
+  for (const t of new Set(tables)) for (const [id, row] of Object.entries(extra)) { if (t[id]) throw new Error('temper-uniques-table: ' + id + ' is already an item'); t[id] = JSON.parse(JSON.stringify(row)); }
   return { R, ITEMS: tables[0], BUILD };
 }
 
@@ -125,7 +126,7 @@ async function gold() {
 /* ── THE NEXT BAND STILL WINS (no fights) ── */
 async function next() {
   const { BUILD } = await import(u('src/build-info.js'));
-  const v = '?v=' + BUILD.version;
+  const v = sourceQuery(ROOT);
   const AL = await import(u('tools/balance-sim/staged/armor-line.js'));
   const TD = await import(u('src/data/temper.js') + v);
   const T = await import(u('src/core/temper.js') + v);

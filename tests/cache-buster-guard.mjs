@@ -1,276 +1,169 @@
 // ============================================================================
-// tests/cache-buster-guard.mjs — THE DUPLICATE-MODULE-INSTANCE GUARD (b493).
+// tests/cache-buster-guard.mjs — ONE KEY PER MODULE, IN THE SOURCE (b493).
+//
+//   node tests/cache-buster-guard.mjs     the guard and its mutation proof (also run by tests/run-smoke.mjs as a preflight,
+//                                         and by `bash bump-version.sh --check`)
 //
 // ── THE DEFECT THIS EXISTS FOR ──────────────────────────────────────────────
 // The assembled b493 release failed 19 smoke tests that every constituent
-// branch had passed in isolation. The cause was not any of the branches. It was
-// fourteen `?v=491` import specifiers that survived the 492→493 bump:
+// branch had passed in isolation: fourteen import specifiers still carried the
+// build before last after a bump (record.js, accrue.js, predict.js, auth.js…).
+// A `?v=` is part of the module KEY, so `record.js` at two versions is two
+// modules, fetched twice, evaluated twice, each with its own module state: two
+// accrual kill-switches, two prediction ledgers, two sessions. The suite drove
+// one instance while the game ran on the other. In production that is a
+// player whose gold prediction retires on a ledger nobody reads.
 //
-//     src/main.js:368                     import ./features/boot-hydration.js?v=491
-//     src/features/boot-hydration.js:69   … from ../net/record.js?v=491
-//     src/net/client-state.js:51          … from ./accrue.js?v=491
-//     src/net/record.js:115               … from ./predict.js?v=491      (+10 more)
+// ── WHERE THE RULE LIVES NOW (architecture audit 2026-11-18, item 1) ────────
+// The release stamp is written at publish time: tools/build-site.mjs stamps
+// every module specifier and page tag with ?v=<BUILD.version> as it builds the
+// Pages artifact, and its SITE-9 holds the BUILT site to "every reference at the
+// one current stamp" (so no module is reachable at two). The source carries no
+// stamp once tools/strip-version-stamps.mjs has run (the flag day).
 //
-// (Those four are written WITHOUT their quotes on purpose. This file lives under
-//  tests/, where tools/pack-edge.mjs `versionQueryGuard` forbids a quoted
-//  versioned specifier outright — a `?v=` in a tree the browser never loads can
-//  only rot, and one froze at ?v=326 for five builds. That rule is right, and it
-//  applies to a file that merely TALKS about the query too, so nothing below is
-//  a quoted specifier either: the controls read the real files instead of
-//  embedding copies of them, which is the better control anyway.)
+// What is left for the SOURCE is the same defect one level down: Node (the
+// guards, the edge's own tests, the balance tools) imports src/ as it is, so a
+// module the source reaches at two keys runs twice there too. The source must be
+// in ONE state (tools/lib/version-stamp.mjs):
+//   bare      no stamp anywhere (the end state)
+//   stamped   every specifier and tag at the current build (until the flag day;
+//             a branch deploy serves this source as-is)
+// and never both. A tree with both is red, and the line names its fix:
+//   STAMPED   a stamp in a bare source (a branch cut before the flag day merged
+//             in after it): node tools/strip-version-stamps.mjs
+//   MISSING   an unstamped specifier in a stamped source (the b148 gap: served
+//             stale for ten minutes after a deploy): ./bump-version.sh <build>
+//   STALE     a stamp that is not the current build: ./bump-version.sh <build>
+//   DUPLICATE a module reached at two keys, reported first, version-agnostic
 //
-// A `?v=` is not decoration to the browser — it is part of the module KEY. So
-// `record.js?v=491` and `record.js?v=493` are two DIFFERENT modules: fetched
-// twice, evaluated twice, each with its own module-level state. Six modules ran
-// as doubles on that tree — record, accrue, capstone, predict, auth, styles —
-// which means two accrual kill-switch overrides, two prediction ledgers, two
-// blob-retire capstones, two session states. Whichever copy evaluated LAST won
-// the `window.Hearthrise*` handle, so the suite drove one instance while the
-// game ran on the other:
-//
-//     R = window.HearthriseRecord      → the ?v=491 copy (evaluated last)
-//     R.__setSkillsRecordArm(false)    → disarms the 491 copy
-//     S.skillXpOf(...)                 → skill-record.js imports record.js?v=493
-//                                        …which is still ARMED
-//     ✗ "dormant skillXpOf did not answer the local value: source:'record'"
-//
-// In production the same split is worse than a failing test: it is a player
-// whose gold prediction is retired on a ledger nobody reads.
-//
-// ── WHY THE EXISTING GATES DID NOT SEE IT ───────────────────────────────────
-// `bump-version.sh <new>` rewrote only `?v=<old>` (492→493) and then verified
-// only that no `?v=<old>` was left behind. A specifier merged in from a branch
-// cut at build 491 matched neither, so it passed the bump's own verification
-// silently. `bump-version.sh --check` DOES catch it — it compares against the
-// CURRENT number rather than the old one — but it is a separate command that
-// nobody had run, and `node tests/run-smoke.mjs`, the gate everyone does run,
-// never asserted the invariant at all. Two gates, one blind, and the blind one
-// was the one in the loop.
-//
-// This guard puts the invariant inside the suite, and adds the assertion the
-// shell check cannot make: not just "is every version current" but "is any
-// module reachable at TWO versions" — the property that actually breaks the
-// game. The duplicate check is version-agnostic on purpose, so it still fires
-// on a hand-edited pair that happens to be internally consistent with neither
-// build number.
-//
-// Pure Node, no browser, no server. Runs as a preflight so a stale specifier
-// costs one second instead of a full suite plus a root-cause investigation.
+// Pure Node, no browser, no server, ~200 ms, so a stray stamp costs one line
+// naming the file instead of a scatter of unrelated-looking reds.
+// mutant-anchors: none — the mutation proof plants into in-memory copies of the source, stamped and bare, never a file
 // ============================================================================
 
 import { readFile, readdir } from 'node:fs/promises';
-import { join, dirname, resolve, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, posix } from 'node:path';
 import { versionQueriesIn, stripVersionQueries } from '../tools/pack-edge.mjs';
+import { ROOT, VENDOR, readBuild, stampKind, moduleSpecifiers, moduleStamps, pageTags, stampFile, stripFile } from '../tools/lib/version-stamp.mjs';
+import { isMain } from './_is-main.mjs';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-
-/* Every quoted string in a shipped source that ends in `.js?v=<n>`. That shape
-   is the whole population of browser-loaded JS cache-busters: static imports,
-   dynamic `import()`, and the suite's own `fetch('src/x.js?v=n')` source reads.
-   Anchoring on `.js` before the query is what keeps the two legitimate
-   non-module pins out of it — icon-swap.js's sprite pin ?v=88 is a bare query
-   concatenated onto a filename, and legacy.js's `legacy.js?v=111` is prose in a
-   comment, not a quoted specifier. Both are correct to leave frozen. */
-const SPEC_RE = /['"`]([^'"`\s]+\.js)\?v=(\d[\d.]*)['"`]/g;
-
-/* index.html's own tags. The extension is required so the comment on line 12,
-   which spells out a script tag ending in ?v=111 as an EXAMPLE, is not read as a
-   real tag — the same carve-out bump-version.sh --check makes. */
-const HTML_RE = /(?:src|href)="([^"]*\.[a-z0-9]+)\?v=(\d[\d.]*)"/g;
-
-/* A relative .js import carrying NO ?v= at all: the original b148 gap, where a
-   browser serves a stale module for ~10 minutes after a deploy.
-   TWO DELIBERATE NARROWINGS, each bought by a real false positive on this tree:
-     • `(`, `)`, `=` and `;` may not sit between the keyword and the specifier.
-       Without that, `export const BUILD_INFO_URL = (() => new URL('../build-info.js', …))`
-       (src/net/build-watch.js) reads as an unversioned import. It is a runtime
-       URL resolution, correctly unversioned, and flagging it would gate the
-       suite on a non-problem.
-     • no backticks. `import(\`./x.js\`)` is not a shape this repo uses, and
-       allowing them makes prose that MENTIONS a module inside backticks
-       (src/utils/showtab-registry.js:19) look like an import.
-   `import()` needs its own branch precisely because it is the one legal shape
-   with a paren in it. */
-const MISSING_RE = /(?:\bfrom\b|\bimport\b|\bexport\b)[^'"();=]*['"](\.\.?\/[^'"]*\.js)['"]|\bimport\s*\(\s*['"](\.\.?\/[^'"]*\.js)['"]/g;
-
-async function walk(dir, out = []) {
-  let entries = [];
-  try { entries = await readdir(dir, { withFileTypes: true }); } catch { return out; }
-  for (const e of entries) {
-    const p = join(dir, e.name);
-    if (e.isDirectory()) await walk(p, out);
-    else if (e.isFile() && e.name.endsWith('.js')) out.push(p);
+/** Every module and page the stamp covers, as { rel: text }. */
+export async function sourceFiles(root = ROOT) {
+  const out = {};
+  async function walk(rel) {
+    let entries = [];
+    try { entries = await readdir(join(root, rel), { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const p = rel ? rel + '/' + e.name : e.name;
+      if (e.isDirectory()) { if ((rel || e.name === 'src') && p + '/' !== VENDOR) await walk(p); } else if (stampKind(p)) out[p] = await readFile(join(root, p), 'utf8');
+    }
   }
+  await walk('');
   return out;
 }
 
-function rel(p) { return relative(ROOT, p).split(sep).join('/'); }
-
-/** Line number of a character offset — so a problem names a place, not a file. */
-function lineAt(text, index) { return text.slice(0, index).split('\n').length; }
+const lineAt = (text, i) => text.slice(0, i).split('\n').length;
 
 /**
- * THE GUARD. Returns { problems, note, cache, specifiers }.
- *
- * Three independent assertions, because they fail for different reasons and a
- * single merged message would hide the one that matters:
- *   1. DUPLICATE  — a module reachable at two versions (runs twice, state splits)
- *   2. STALE      — a version that is not the current build (serves old code)
- *   3. MISSING    — a relative .js import with no ?v= (serves old code, quietly)
+ * THE GUARD over `files` ({ rel: text }, the source's modules and pages). Returns { problems, note, cache, state }.
+ * Pure: the proof hands it planted copies.
  */
-export async function cacheBusterGuard() {
+export function checkSource(files) {
   const problems = [];
+  if (!files['src/build-info.js']) return { problems: ['could not read src/build-info.js'], note: '', cache: null, state: null };
+  let cache;
+  try { cache = readBuild('', files['src/build-info.js']).cache; } catch (e) { return { problems: [e.message], note: '', cache: null, state: null }; }
 
-  const buildInfo = await readFile(join(ROOT, 'src', 'build-info.js'), 'utf8');
-  const m = buildInfo.match(/cache:\s*'([^']+)'/);
-  if (!m) return { problems: ['could not read BUILD.cache from src/build-info.js'], note: '', cache: null };
-  const cache = m[1];
-
-  /* Every (module, version) pair the browser would load, keyed by the RESOLVED
-     path so `../net/record.js` from features/ and `./record.js` from net/ are
-     recognised as the same module. */
-  const byModule = new Map();     // resolved path -> Map(version -> [{file,line}])
-  let specifiers = 0;
-
-  const files = await walk(join(ROOT, 'src'));
-  for (const file of files) {
-    const text = await readFile(file, 'utf8');
-    SPEC_RE.lastIndex = 0;
-    let hit;
-    while ((hit = SPEC_RE.exec(text)) !== null) {
-      specifiers++;
-      const [, spec, version] = hit;
-      const line = lineAt(text, hit.index);
-      if (version !== cache) {
-        problems.push(`STALE  ${rel(file)}:${line} — "${spec}?v=${version}" but the build is ${cache}`);
-      }
-      /* A bare/absolute specifier ("src/legacy.js") is resolved from the repo
-         root; a relative one from its importer. Either way the key is a path. */
-      const target = spec.startsWith('.') ? resolve(dirname(file), spec) : resolve(ROOT, spec);
+  const stamped = [], bare = [];   // { file, line, ref, version }
+  const byModule = new Map();      // resolved module -> Map(query -> [file:line])
+  for (const [file, text] of Object.entries(files)) {
+    if (stampKind(file) === 'page') {
+      for (const t of pageTags(text)) (t.query ? stamped : bare).push({ file, line: lineAt(text, t.at), ref: t.ref + t.query, version: t.query.slice(3) });
+      continue;
+    }
+    const specAt = new Set();
+    for (const s of moduleSpecifiers(text)) {
+      specAt.add(s.at);
+      const ref = { file, line: lineAt(text, s.at), ref: s.spec + s.query, version: s.query.slice(3) };
+      (s.query ? stamped : bare).push(ref);
+      const target = posix.normalize(posix.join(posix.dirname(file), s.spec));
       if (!byModule.has(target)) byModule.set(target, new Map());
-      const versions = byModule.get(target);
-      if (!versions.has(version)) versions.set(version, []);
-      versions.get(version).push({ file: rel(file), line });
+      const at = byModule.get(target);
+      if (!at.has(s.query)) at.set(s.query, []);
+      at.get(s.query).push(file + ':' + ref.line);
     }
-    MISSING_RE.lastIndex = 0;
-    while ((hit = MISSING_RE.exec(text)) !== null) {
-      problems.push(`MISSING ${rel(file)}:${lineAt(text, hit.index)} — "${hit[1] || hit[2]}" carries no ?v=; `
-        + 'a browser serves the previous build for ~10 minutes after deploy');
-    }
+    /* a quoted stamp that is no specifier (a pinned asset URL: the b511 cache lock) */
+    for (const s of moduleStamps(text)) if (!specAt.has(s.at)) stamped.push({ file, line: lineAt(text, s.at), ref: s.text, version: s.version });
   }
 
-  /* THE ASSERTION THE SHELL CHECK CANNOT MAKE. Reported first and in full: this
-     is the one whose symptom is a bizarre test failure rather than stale code. */
-  const dupes = [];
-  for (const [target, versions] of byModule) {
-    if (versions.size < 2) continue;
-    const detail = [...versions.entries()]
-      .map(([v, sites]) => `?v=${v} (${sites.map((s) => s.file + ':' + s.line).join(', ')})`)
-      .join('  vs  ');
-    dupes.push(`DUPLICATE ${rel(target)} is imported at ${versions.size} different versions — it will be `
-      + `fetched and EVALUATED ${versions.size} times, with ${versions.size} separate copies of its `
-      + `module state, and the last one evaluated wins any window.* handle:\n            ${detail}`);
+  /* DUPLICATE first: its symptom is a bizarre test failure, not stale code */
+  for (const [target, at] of byModule) {
+    if (at.size < 2) continue;
+    problems.push(`DUPLICATE ${target} is imported at ${at.size} keys: it is evaluated ${at.size} times, each with its own module state:\n            `
+      + [...at].map(([q, sites]) => (q || '(bare)') + ' ' + sites.slice(0, 3).join(', ')).join('  vs  '));
   }
-  problems.unshift(...dupes);
-
-  /* Every root page's tags (index.html and the client page beside it), held to
-     the same current-build rule. */
-  const pages = (await readdir(ROOT)).filter((n) => n.endsWith('.html')).sort();
-  let tags = 0;
-  for (const page of pages) {
-    const html = await readFile(join(ROOT, page), 'utf8');
-    HTML_RE.lastIndex = 0;
-    let h;
-    while ((h = HTML_RE.exec(html)) !== null) {
-      tags++;
-      if (h[2] !== cache) {
-        problems.push(`STALE  ${page}:${lineAt(html, h.index)} — "${h[1]}?v=${h[2]}" but the build is ${cache}`);
-      }
-    }
+  const state = !stamped.length ? 'bare' : !bare.length ? 'stamped' : bare.length >= stamped.length ? 'bare' : 'stamped';
+  if (state === 'bare') {
+    for (const s of stamped) problems.push(`STAMPED ${s.file}:${s.line} "${s.ref}": the source carries no ?v= (the site build stamps it, tools/build-site.mjs SITE-9). Run node tools/strip-version-stamps.mjs`);
+  } else {
+    for (const s of bare) problems.push(`MISSING ${s.file}:${s.line} "${s.ref}" carries no ?v= and the rest of the source does: a branch deploy serves it stale for ten minutes. Run ./bump-version.sh ${cache}`);
+    for (const s of stamped) if (s.version !== cache) problems.push(`STALE  ${s.file}:${s.line} "${s.ref}" but the build is ${cache}. Run ./bump-version.sh ${cache}`);
   }
-
-  const note = `build ${cache}; ${specifiers} module specifier(s) + ${tags} tag(s) in ${pages.length} root page(s) all current, `
-    + `${byModule.size} distinct module(s), none double-loaded`;
-  return { problems, note, cache, specifiers };
+  const refs = stamped.length + bare.length;
+  const note = state === 'bare'
+    ? `the source is bare: ${refs} module specifier(s) and page tag(s), none stamped (the site build stamps ?v=${cache}), ${byModule.size} distinct module(s), none at two keys`
+    : `the source is stamped at ${cache} (until tools/strip-version-stamps.mjs runs): ${refs} reference(s), ${byModule.size} distinct module(s), none at two keys`;
+  return { problems, note, cache, state };
 }
 
-/* The query prefix, assembled rather than written. This file may not contain a
-   quoted `?v=` literal (see the header note), and the mutation fixtures below
-   need one. This is NOT the `const V = ?v=328` indirection versionQueryGuard
-   was hardened against — that was a real import specifier hiding from a scan;
-   this is a REGEX FIXTURE that is never resolved, imported or fetched. */
+/** The guard on this checkout. */
+export async function cacheBusterGuard(root = ROOT) {
+  return checkSource(await sourceFiles(root));
+}
+
+/* The query prefix, assembled: this file lives under tests/, where tools/pack-edge.mjs versionQueryGuard
+   refuses a quoted versioned specifier, and the fixtures below need one. They are never imported or fetched. */
 const Q = '?' + 'v=';
 
 /**
- * THE CONTROL. A guard that cannot fail is a guard that is not running, and
- * this one asserts an ABSENCE — the failure mode is silent blindness, which is
- * exactly what happened to bump-version.sh's own post-bump verification.
- *
- * TWO HALVES, and the second is the one worth having:
- *   • SYNTHETIC — each pattern must MATCH the shape it is supposed to catch.
- *   • ON-DISK   — each pattern must NOT match the real lines it must leave
- *     alone, read from the real files rather than from a copy pasted in here.
- *     A copy drifts; a copy is also how the first cut of this guard came to
- *     "prove" it left build-watch.js alone while flagging it in the same run.
+ * THE PROOF. A guard that asserts an absence fails silently, so each rule is planted into an in-memory copy of the
+ * real source, in BOTH states (the source stamped at the build, and stripped bare), whatever state the disk is in.
  */
-export async function cacheBusterMutationGuard() {
+export async function cacheBusterMutationGuard(root = ROOT) {
   const problems = [];
+  const disk = await sourceFiles(root);
+  const cache = readBuild('', disk['src/build-info.js']).cache;
+  const each = (f) => Object.fromEntries(Object.entries(disk).map(([rel, t]) => [rel, f(rel, t)]));
+  const STAMPED = each((rel, t) => stampFile(rel, t, cache)), BARE = each((rel, t) => stripFile(rel, t));
+  const host = 'src/app/boot.js', page = 'play.html';
+  const firstSpec = (t) => moduleSpecifiers(t)[0];
+  const edit = (tree, rel, f) => ({ ...tree, [rel]: f(tree[rel]) });
+  const OLD = ['0', '0', '9'].join('.');
+  /* the host's first import of a module other files import too: one stale key on it is a second instance */
+  const importers = new Map();
+  for (const [rel, t] of Object.entries(STAMPED)) if (stampKind(rel) === 'module') for (const s of moduleSpecifiers(t)) { const k = posix.normalize(posix.join(posix.dirname(rel), s.spec)); importers.set(k, (importers.get(k) || 0) + 1); }
+  const shared = moduleSpecifiers(STAMPED[host]).find((s) => importers.get(posix.normalize(posix.join(posix.dirname(host), s.spec))) > 1);
   const cases = [
-    { name: 'a stale specifier', text: `fetch('src/legacy.js${Q}0.0.9')`, re: SPEC_RE, want: ['src/legacy.js', '0.0.9'] },
-    { name: 'a versioned relative import', text: `from '../net/record.js${Q}0.1.0'`, re: SPEC_RE, want: ['../net/record.js', '0.1.0'] },
-    { name: 'an unversioned relative import', text: `import { x } from './net/record.js';`, re: MISSING_RE, want: ['./net/record.js'] },
-    { name: 'an unversioned bare import', text: `import './net/record.js';`, re: MISSING_RE, want: ['./net/record.js'] },
-    { name: 'an unversioned dynamic import', text: `await import('./net/record.js');`, re: MISSING_RE, want: ['./net/record.js'] },
-    { name: 'a stale index.html tag', text: `<script src="src/main.js${Q}0.0.9">`, re: HTML_RE, want: ['src/main.js', '0.0.9'] },
+    ['CLEAN the source stamped at the build', STAMPED, null],
+    ['CLEAN the source bare', BARE, null],
+    ['a shared module one build stale in one importer (the b493 double load)', shared && edit(STAMPED, host, (t) => t.slice(0, shared.at) + t.slice(shared.at).replace(shared.spec + shared.query, shared.spec + Q + OLD)), 'DUPLICATE'],
+    ['a specifier one build stale, alone in its module', edit(STAMPED, host, (t) => t.replace(Q + cache, Q + OLD)), 'STALE'],
+    ['a stamped import that lost its stamp (the b148 gap)', edit(STAMPED, host, (t) => { const s = firstSpec(t); return t.slice(0, s.at) + t.slice(s.at).replace(s.spec + s.query, s.spec); }), 'MISSING'],
+    ['a stale page tag', edit(STAMPED, page, (t) => t.replace(Q + cache, Q + OLD)), 'STALE'],
+    ['a stale lane merged into the bare source (one stamp back)', edit(BARE, host, (t) => { const s = firstSpec(t); return t.slice(0, s.at) + t.slice(s.at).replace(s.spec, s.spec + Q + cache); }), 'STAMPED'],
+    ['a stamp back on a bare page', edit(BARE, page, (t) => t.replace('src/app/boot.js"', 'src/app/boot.js' + Q + cache + '"')), 'STAMPED'],
+    ['a quoted pin in a bare source (b511: a cache lock no release moves)', edit(BARE, host, (t) => t + "\nconst PIN = BASE + '" + Q + "88';\n"), 'STAMPED'],
+    ['a quoted pin in a stamped source', edit(STAMPED, host, (t) => t + "\nconst PIN = BASE + '" + Q + "88';\n"), 'STALE'],
+    ['CONTROL a runtime URL in a bare source (new URL(…, import.meta.url) is no specifier)', edit(BARE, host, (t) => t + "\nconst U = new URL('../build-info.js', import.meta.url).href + new URL(import.meta.url).search;\n"), null],
+    ['CONTROL prose that names a stamp, unquoted', edit(BARE, host, (t) => t + '\n// e.g. a browser stuck on legacy.js' + Q + '111 after a bad deploy\n'), null],
   ];
-  for (const c of cases) {
-    c.re.lastIndex = 0;
-    const hit = c.re.exec(c.text);
-    if (!hit) { problems.push(`the guard is BLIND to ${c.name} — its own pattern does not match it`); continue; }
-    /* Compare against the captured groups that actually fired — MISSING_RE has
-       two alternatives (static / dynamic) and only one group is ever set. */
-    const got = hit.slice(1).filter((g) => typeof g !== 'undefined');
-    for (let i = 0; i < c.want.length; i++) {
-      if (got[i] !== c.want[i]) problems.push(`${c.name}: captured "${got[i]}", expected "${c.want[i]}"`);
-    }
+  for (const [name, tree, want] of cases) {
+    if (!tree) { problems.push(`${name}: HARNESS nothing on the real source to plant this into`); continue; }
+    const got = checkSource(tree).problems;
+    const ok = want === null ? got.length === 0 : got.some((p) => p.startsWith(want));
+    if (!ok) problems.push(`${name}: wanted ${want || 'GREEN'}, got ${got[0] ? got[0].slice(0, 160) : 'GREEN'}`);
   }
-
-  /* THE IGNORABLE SHAPES. These were four real files until the client reset
-     (2026-10-17) deleted them; the shapes they carried are kept as fixtures so
-     the patterns stay proven NOT to report them. */
-  const frozen = [
-    { file: 'a sprite pin', re: SPEC_RE, forbidVersion: '88',
-      text: "const url = BASE + filename + '" + Q + "88';",
-      why: 'a sprite pin is a bare query concatenated onto a filename, not a module specifier' },
-    { file: 'kill-switch prose', re: SPEC_RE, forbidVersion: '111',
-      text: '// e.g. a browser stuck on legacy.js' + Q + '111 after a bad deploy',
-      why: 'kill-switch prose is an unquoted example in a comment' },
-    { file: 'a runtime URL', re: MISSING_RE,
-      text: "export const BUILD_INFO_URL = (() => new URL('../build-info.js', import.meta.url))();",
-      why: 'a runtime URL resolution is not an import and is correctly unversioned' },
-    { file: 'backtick prose', re: MISSING_RE,
-      text: '// see `./x.js` for wrapShowTab',
-      why: 'prose that names a module inside backticks is not an import' },
-  ];
-  for (const f of frozen) {
-    const text = f.text;
-    f.re.lastIndex = 0;
-    let hit;
-    while ((hit = f.re.exec(text)) !== null) {
-      if (f.forbidVersion) {
-        if (hit[2] === f.forbidVersion) {
-          problems.push(`the guard false-positives in ${f.file} on "${hit[1]}" at v${hit[2]} — ${f.why}`);
-        }
-        continue;
-      }
-      const got = hit.slice(1).filter((g) => typeof g !== 'undefined')[0];
-      problems.push(`the guard false-positives in ${f.file} on "${got}" — ${f.why}`);
-    }
-  }
-  /* THE EDGE HALF (semver, 2026-10-18): versionQueryGuard must still see, and the
-     pack must still strip, a DOTTED query. A guard that only knew integers would
-     wave a dotted specifier into the edge payload. */
+  /* THE EDGE HALF: versionQueryGuard must still see, and the pack must still strip, a dotted query (semver, 2026-10-18) */
   const edge = [
     ['a dotted relative specifier', `import './x.js${Q}0.1.0';`, (s) => versionQueriesIn(s).length === 1],
     ['a dotted bare query constant', `const V = '${Q}0.1.0';`, (s) => versionQueriesIn(s).length === 1],
@@ -278,5 +171,14 @@ export async function cacheBusterMutationGuard() {
     ['the pack strip on a dotted query', `import { a } from './x.js${Q}0.1.0';`, (s) => stripVersionQueries(s) === "import { a } from './x.js';"],
   ];
   for (const [name, text, holds] of edge) if (!holds(text)) problems.push(`pack-edge is wrong about ${name}`);
-  return { problems, note: `${cases.length} mutations caught, ${frozen.length} ignorable shapes left alone, ${edge.length} edge-pack shapes held` };
+  return { problems, note: `${cases.length} cases on the source stamped and bare, ${edge.length} edge-pack shapes held` };
+}
+
+if (isMain(import.meta.url)) {
+  const r = await cacheBusterGuard();
+  const m = await cacheBusterMutationGuard();
+  for (const p of m.problems) console.error('✗ the guard itself: ' + p);
+  for (const p of r.problems) console.error('✗ ' + p);
+  if (m.problems.length || r.problems.length) process.exit(1);
+  console.log('✓ cache-buster-guard: ' + r.note + '; ' + m.note);
 }

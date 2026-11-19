@@ -27,7 +27,7 @@ export async function drawRosterFaces(root, roster) {
   const looks = new Map((Array.isArray(roster) ? roster : []).filter((r) => r && r.exists && r.look).map((r) => [String(r.slot), r.look]));
   const canvases = Array.from(root.querySelectorAll('canvas[data-face]')).filter((c) => looks.has(c.getAttribute('data-face')));
   if (!canvases.length) return;
-  /* the build's cache-buster is this module's own ?v= (bump-version.sh keeps every one equal) */
+  /* the release's stamp is this module's own ?v= (one stamp on every module: tools/lib/version-stamp.mjs) */
   const version = new URL(import.meta.url).searchParams.get('v') || '';
   const manifest = await loadAtlasManifest({ doc, version }, 'heroes').catch(() => null);
   if (!manifest || !root.isConnected) return;

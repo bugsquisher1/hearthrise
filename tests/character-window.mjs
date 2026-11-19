@@ -46,7 +46,8 @@
 //         None and the owned add-on, greys the unowned one with its requirement, and Equip sends ONE hr_outfit_set naming the picked
 //         add-on's look; off again, the owned outfit stays and the locked ones go. THE SECOND HERO SET: the two worn faction looks are
 //         in `factionwear` (heroes is full): the Outfit tab's card and preview draw them, the portrait's recolour and the World's dye
-//         both reach their masks (factionwear-masks)
+//         both reach their masks (factionwear-masks); the dye picker presses no swatch while a faction look wears its side's own colors at
+//         the creation defaults, the tried-on one after a press, none again after Undo (blind faction QA 2026-11-19 #5)
 //   CW-10 THE SHEET READS AS A CHARACTER SHEET (UI audit 2026-11-18 #8), at 1440x900
 //         and 922x423: the portrait is the 42x45 FIGURE at a whole 2x or more; every
 //         combat skill's bar is 40% of its entry or more and its unlock one line; no
@@ -673,6 +674,18 @@ async function checks(overrides, shots) {
           await wait(page, () => { const b = document.querySelector('[data-hs-act="of-pick"][data-outfit="flamebearer"]'); return !!b && !b.classList.contains('is-locked'); }, null, 4000);
           await page.click('[data-hs-act="of-pick"][data-outfit="flamebearer"]');
           await page.waitForTimeout(150);
+          /* the dye picker presses the dye the preview wears: none while the Flamebearer wears its side's own colors at the creation defaults,
+             the press once one is tried on, none again after Undo (blind faction QA 2026-11-19 #5) */
+          const pressed = () => page.evaluate(() => Array.from(document.querySelectorAll('.hw-of-dye.is-on .hw-of-swatch[aria-pressed="true"]')).map((b) => b.getAttribute('data-dye')).join());
+          await wait(page, () => !!document.querySelector('.hw-of-dye.is-on .hw-of-swatch'), null, 4000);
+          const dyePress = [await pressed()];
+          await page.click('.hw-of-swatch[data-dye="13"]');
+          await page.waitForTimeout(150);
+          dyePress.push(await pressed());
+          await page.click('[data-hs-act="of-undo"]');
+          await page.waitForTimeout(150);
+          dyePress.push(await pressed());
+          if (JSON.stringify(dyePress) !== '["","13",""]') fails.push('CW-11 the Flamebearer\'s Tabard swatch pressed at the defaults, after a press and after Undo reads ' + JSON.stringify(dyePress));
           const picker = () => page.evaluate(() => { const box = document.querySelector('.hw-of-addons');
             return { on: !!box && box.classList.contains('is-on'), head: box ? box.querySelector('.hw-of-addons-head').textContent : '',
               opts: Array.from(document.querySelectorAll('[data-hs-act="of-addon"]')).map((b) => ({ look: b.getAttribute('data-outfit'), label: b.querySelector('b').textContent,
@@ -761,7 +774,7 @@ const MUTANTS = [
   ['the sheet header drops the title', 'src/shell/windows/character/sheet.js', "(nameOf(cs) || '') + (worn ? ' ' + worn : '')", "(nameOf(cs) || '')"],
   ['the sheet is asked for every paint', 'src/shell/windows/character/index.js', "  if (!sh || sc.sheetAsking || v === null) return;\n  if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "  if (!sh) return;"],
   ['an opening never asks the engine', 'src/shell/windows/character/index.js', "if (sc.opening !== 'due' && (sh.fresh || sc.sheetAsked === v)) return;", "if (sh.fresh || sc.sheetAsked === v) return;"],
-  ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), true);"],
+  ['the old sheet shows before the opening asked', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), FIGURE), true);"],
   ['Save sends the outfit twice', 'src/shell/windows/character/outfit.js', "runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',", "cs.saveOutfit(d.outfit); runIntent(sc, repaint, () => cs.saveOutfit(d.outfit), 'Saving…',"],
   ['the worn mark follows the draft', 'src/shell/windows/character/outfit.js', 'const worn = !!o && !!o.worn && outfitOfLook(o.worn) === id;', 'const worn = id === d.outfit;'],
   ['Save colors stays live on a short purse (CW-4b)', 'src/shell/windows/character/outfit.js', "prop(save, 'disabled', sc.pending || !offer || sc.price === null || short > 0);", "prop(save, 'disabled', sc.pending || !offer || sc.price === null);"],
@@ -770,13 +783,14 @@ const MUTANTS = [
   ['an earned outfit (a bundle, faction pieces) shows to a hero who does not own it (CW-4c)', 'src/shell/windows/character/outfit-looks.js', '    if (!earnedOnly(r) || owns(o, id)) return true;', '    return true;'],
   ['the trade skills list the combat skills', 'src/shell/windows/skills.js', "export const renderTradeSkills = skillsWindow([['gather', 'Gathering'], ['artisan', 'Crafting']]);", "export const renderTradeSkills = skillsWindow([['combat', 'Combat'], ['gather', 'Gathering'], ['artisan', 'Crafting']]);"],
   ['the unlock line drops the kind', 'src/data/item-uses.js', "  if (it.type === 'tool' && it.toolSkill) return it.toolSkill + ' tool';", "  if (it.type === 'tool' && it.toolSkill) return '';"],
-  ['the portrait is the whole 64 px frame at 1x again (CW-10)', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(base, ctx.doc), null), sc.opening === 'done');"],
+  ['the portrait is the whole 64 px frame at 1x again (CW-10)', 'src/shell/windows/character/index.js', "PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), FIGURE), sc.opening === 'done');", "PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), null), sc.opening === 'done');"],
   ['the portrait shows at 1.5 px an art px (CW-10)', 'src/styles/character.css', '.hw-cs-portrait { flex: none; width: calc(42 * var(--art-px));', '.hw-cs-portrait { flex: none; width: 60px;'],
   ['the sheet bar shares its row with the name again (CW-10)', 'src/styles/character.css', 'grid-template-areas: "glyph name xp lv" ". bar bar bar" ". next next next"; row-gap: 2px;', 'grid-template-areas: "glyph name bar lv" ". xp xp xp" ". next next next"; row-gap: 2px;'],
   ['every unlock is on the line again (CW-10)', 'src/shell/windows/skills.js', "text(nx.querySelector('.hw-skill-one'), u.one);", "text(nx.querySelector('.hw-skill-one'), u.all);"],
   ['a value says what it is measured against again (CW-10)', 'src/shell/windows/character/sheet.js', "c && c.dodgePct !== null ? c.dodgePct + '%' : null", "c && c.dodgePct !== null ? c.dodgePct + '% of blows vs a monster of the same Level' : null"],
-  ['the wardrobe shows the whole frame again (CW-10)', 'src/shell/windows/character/index.js', "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, FIGURE)", "paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, null)"],
+  ['the wardrobe shows the whole frame again (CW-10)', 'src/shell/windows/character/index.js', "paintCanvas(canvas, OUTFITS[id], 's', 1, dyesFor(id), FIGURE)", "paintCanvas(canvas, OUTFITS[id], 's', 1, dyesFor(id), null)"],
   ['the FIGURE is cut to the body (CW-10)', 'src/render/outfit-sprite.js', 'export const FIGURE = Object.freeze([13, 15, 42, 45]);', 'export const FIGURE = Object.freeze([16, 19, 32, 40]);'],
+  ['the picker presses the stored dye while a faction look wears its side colors (CW-11)', 'src/shell/windows/character/outfit.js', 'const worn = lookColors(d.outfit, shown);', 'const worn = shown;'],
 ];
 
 async function main() {

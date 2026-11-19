@@ -3886,3 +3886,9 @@ lead line aside. (6) Hunt summary no longer `rise`s (fits above the bar at 1440)
 (8) Mage + Bronze Belt: not a bug, not the weight rule: plate costs -1 Magic accuracy, and a bare slot takes only a piece that beats bare on
 every number. Lessons: (1) before removing a rule another audit added, re-run that audit's own complaint; (2) center checks measure the
 text's extent (a Range), not its box; (3) a fixture name decides whether a truncation guard can bite.
+Blind faction QA, same lane: (#5) a faction look at the creation dye defaults draws its side's own colours (the art's, no new colour):
+data/outfits.js lookColors/lookDyeKey, used by the World's compose, the portrait, the wardrobe, the preview and the roster; the picker presses
+the dye the preview wears, none at the side's colours. Known gap: a deliberate crimson is indistinguishable from the default (handoff to the
+backend architect). (#10) not codable: outfit art carries its weapon in every frame and the faction sheets were drawn bare (handoff to the
+designer and asset director). Lesson: (4) a dye that means "default" in the data needs a mark of its own before a look can treat default
+differently; a display rule that guesses from the value leaves one swatch that cannot be chosen.

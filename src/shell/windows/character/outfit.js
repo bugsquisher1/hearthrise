@@ -17,7 +17,7 @@
 // Shield, Light"), an add-on not owned greyed with its requirement; while the factions are on, an outfit not owned shows locked with
 // the server's own requirement. The pick is the look Equip names: one hr_outfit_set, no other verb.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, outfitOfLook } from '../../../data/outfits.js?v=0.2.141';
+import { OUTFIT_ROWS, OUTFIT_IDS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, outfitOfLook, lookColors } from '../../../data/outfits.js?v=0.2.141';
 import { factionOf } from '../../../session/faction-sections.js?v=0.2.141';
 import { wardrobeIds, teaserWords, addonChoices, lookForCard } from './outfit-looks.js?v=0.2.141';
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.141';
@@ -146,6 +146,8 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
   text(root.querySelector('.hw-of-shows'), showsWords(row, changedColors && onlyHidden(row, o && o.base, d.colors)));
   if (dyeable) {
     if (!row.regions.includes(sc.region)) sc.region = row.regions[0];
+    /* the swatch pressed is the dye the preview wears: none while a faction look wears its side's own colors (data/outfits.js lookColors) */
+    const worn = lookColors(d.outfit, shown);
     rows(root.querySelector('.hw-of-regions'), row.regions, {
       key: (g) => d.outfit + ':' + g,
       build: (g) => element(ctx.doc, '<button type="button" role="tab" class="hw-tab" data-hs-act="of-region" data-region="' + esc(g) + '">' + esc(row.parts[g]) + '</button>'),
@@ -154,7 +156,7 @@ export function patchOutfit(body, ctx, sc, masks, drawTile, repaint) {
     rows(root.querySelector('.hw-of-swatches'), DYE_IDS, {
       key: (i) => String(i),
       build: (i) => element(ctx.doc, '<button type="button" class="hw-of-swatch" data-hs-act="of-dye" data-dye="' + i + '" aria-label="Color ' + (i + 1) + '"></button>'),
-      patch: (b, i) => { style(b, 'background-color', 'var(--dye-' + i + ')'); attr(b, 'aria-pressed', String(!!shown && shown[sc.region] === i)); },
+      patch: (b, i) => { style(b, 'background-color', 'var(--dye-' + i + ')'); attr(b, 'aria-pressed', String(!!worn && worn[sc.region] === i)); },
     });
   }
   /* The grid: one card an outfit (./outfit-looks.js wardrobeIds), search and the owned filter; premium and not-owned marked. A find or

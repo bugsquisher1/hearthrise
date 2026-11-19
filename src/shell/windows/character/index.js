@@ -21,6 +21,7 @@
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
 import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.141';
+import { lookColors } from '../../../data/outfits.js?v=0.2.141';
 import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.141';
 import { heroSprite } from '../../../session/hero-look.js?v=0.2.141';
 import { attr, cls, prop } from '../../../render/paint.js?v=0.2.141';
@@ -99,13 +100,15 @@ renderCharacter.patch = function patchCharacter(body, ctx) {
   askSheet(cs, sc);
   if (sc.tab === 'sheet') {
     const base = (outfitOf(cs) || {}).base || null;
-    patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(base, ctx.doc), FIGURE), sc.opening === 'done');
+    patchSheet(body, ctx, (canvas) => paintCanvas(canvas, heroSprite(cs), 's', PORTRAIT_SCALE, dyesOf(lookColors(heroSprite(cs), base), ctx.doc), FIGURE), sc.opening === 'done');
   } else if (sc.tab === 'outfit') {
     const d = draftOf(cs, sc);
-    /* every outfit in the grid and the big preview wear the colors being tried on: one set, across every outfit */
-    const dyes = dyesOf(colorsShown(cs, d), ctx.doc);
-    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyes, FIGURE), () => renderCharacter.patch(body, ctx));
-    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyes);
+    /* every outfit in the grid and the big preview wear the colors being tried on: one set, across every outfit; a faction look at the creation
+       defaults in its side's colors, as the World draws it (data/outfits.js lookColors) */
+    const shown = colorsShown(cs, d);
+    const dyesFor = (id) => dyesOf(lookColors(id, shown), ctx.doc);
+    patchOutfit(body, ctx, sc, MASKS, (canvas, id) => paintCanvas(canvas, OUTFITS[id], 's', 1, dyesFor(id), FIGURE), () => renderCharacter.patch(body, ctx));
+    paintCanvas(body.querySelector('.hw-of-preview'), OUTFITS[d.outfit], facingOf(sc), PREVIEW_SCALE, dyesFor(d.outfit));
   } else if (sc.tab === 'titles') patchTitles(body, ctx, sc);
   else if (sc.tab === 'faction') patchFaction(body, ctx, sc);
   else patchDeaths(body, ctx, sc);

@@ -21,8 +21,15 @@
 // THE INSET. The shell docks HUD panels over the World and passes the covered
 // strips (art px here); the camera frames the UNCOVERED part: a small room is
 // centred in it, and a followed hero is kept inside it with a tile of margin,
-// so a docked panel never covers the hero. The art still draws under it. In a
-// hunt the viewed hero is at the middle of that part (frameView).
+// so a docked panel never covers the hero. The art still draws under it, and a
+// panel is shorter than its strip, so the strip's art shows around it: the
+// whole view stays on the map's art wherever the hero allows (NO VOID, in town
+// and in a hunt). In a hunt the viewed hero is at the middle of that part
+// unless that would show the void (frameView).
+//
+// A SHOWPIECE. A walked map may name a landmark the camera frames when the hero
+// stands near it (map row `shows`, map-compile.js): it looks up to the
+// landmark's top and across its width as far as the hero allows (showAt).
 //
 // THE BLIT. A frame is composed at art resolution on an offscreen canvas whose
 // origin is a whole art pixel, with one tile of overscan on every side, then
@@ -92,21 +99,45 @@ export function easedCam(from, to, ms) {
 }
 
 /*
+ * A SHOWPIECE ON ONE AXIS (follow's `o.show`): where the uncovered part would start to show the span
+ * [s.lo, s.hi] whole with the least move from `c` (a span longer than the part: its middle), never
+ * moving the hero `k` more than s.reach x u off the part's middle nor past `hold`; then s.w of the way
+ * there. The weight scales the move the hero allows, not the wish, so easing off never outruns the walk.
+ */
+function shown(c, u, k, s, hold) {
+  if (!s || !(s.w > 0)) return c;
+  let aim = s.hi - s.lo <= u ? Math.min(s.lo, Math.max(s.hi - u, c)) : (s.lo + s.hi - u) / 2;
+  if (k != null) aim = hold(Math.min(k - u / 2 + s.reach * u, Math.max(k - u / 2 - s.reach * u, aim)));
+  return c + s.w * (aim - c);
+}
+
+/*
  * One camera axis. The view is `v` long with `a` covered before and `b` after;
  * the world (or the room) spans [lo, hi]. A span that fits the uncovered part is
- * centred in it; a bigger one follows `t`, keeps `k` (the hero, when given) at
- * least `m` inside the uncovered part, and clamps to the span. `whole`: the whole
- * view, covered strips included, stays on the span (NO VOID). Returns where the
- * whole view starts (the covered strip before it included).
+ * centred in it; a bigger one follows `t` (a showpiece leaning it, `show`), keeps
+ * `k` (the hero, when given) at least `m` inside the uncovered part, and clamps to
+ * the span. `whole`: the whole view, covered strips included, stays on the span
+ * (NO VOID). `art` (a hunt): the map's art [lo, hi] the whole view stays on, the
+ * span being the room inside it. Returns where the whole view starts (the covered
+ * strip before it included).
  */
-function axis(t, k, v, a, b, lo, hi, m, whole) {
+function axis(t, k, v, a, b, lo, hi, m, whole, art, show) {
   const u = Math.max(1, v - a - b), span = hi - lo;
   const keep = Math.min(m, u / 2);
   const hold = (c) => (k != null ? Math.min(k - keep, Math.max(k + keep - u, c)) : c);
   let c;
   if (span <= u) c = lo + (span - u) / 2;
-  else {
-    c = hold(t - u / 2);
+  else c = shown(t - u / 2, u, k, show, hold);
+  if (art) {
+    /* A HUNT (frameView): the uncovered part on the hero and inside the room; then NO VOID on the
+       map's art, which outranks the middle; then the hero, which outranks everything (it is never
+       under a panel: only a hero within a panel's width of the art's edge pulls the void in). */
+    if (span > u) c = Math.min(hi - u, Math.max(lo, c));
+    if (art[1] - art[0] >= v) c = Math.min(art[1] - u - b, Math.max(art[0] + a, c));
+    return hold(c) - a;
+  }
+  if (span > u) {
+    c = hold(c);
     /* NO VOID (Tyler 10-18): a docked window is shorter than the World, so what
        lies under it shows around it. A world at least as long as the WHOLE view
        keeps the whole view on it, covered strips included; only the hero may
@@ -120,16 +151,50 @@ function axis(t, k, v, a, b, lo, hi, m, whole) {
 /**
  * Camera top-left (art px) for a `view` over a `world` ({x?, y?, w, h}, art px),
  * looking at `target` in the part of the view `inset` leaves uncovered, and
- * keeping `keep` (when given) `margin` inside that part. `o.wholeView === false`
- * clamps only the uncovered part to the world (a hunt room, frameView); by
- * default the whole view stays on it (NO VOID).
+ * keeping `keep` (when given) `margin` inside that part. By default the whole
+ * view stays on the world (NO VOID); `o.wholeView === false` clamps only the
+ * uncovered part to it. `o.art` ({x, y, w, h}, a hunt, frameView): the world is
+ * the room and the whole view stays on this art instead. `o.show` ({x, y}: each
+ * an axis's {lo, hi, w, reach}, showAt) leans the camera toward a showpiece.
  */
 export function follow(target, view, world, inset, keep, margin, o = {}) {
-  const i = cleanInset(inset), x0 = world.x || 0, y0 = world.y || 0, whole = o.wholeView !== false;
+  const i = cleanInset(inset), x0 = world.x || 0, y0 = world.y || 0, whole = o.wholeView !== false, A = o.art, S = o.show;
   return {
-    x: axis(target.x, keep ? keep.x : null, view.w, i.left, i.right, x0, x0 + world.w, margin || 0, whole),
-    y: axis(target.y, keep ? keep.y : null, view.h, i.top, i.bottom, y0, y0 + world.h, margin || 0, whole),
+    x: axis(target.x, keep ? keep.x : null, view.w, i.left, i.right, x0, x0 + world.w, margin || 0, whole, A && [A.x, A.x + A.w], S && S.x),
+    y: axis(target.y, keep ? keep.y : null, view.h, i.top, i.bottom, y0, y0 + world.h, margin || 0, whole, A && [A.y, A.y + A.h], S && S.y),
   };
+}
+
+/* A hunt's fight is never under a panel: the viewed hero's tile and the eight touching it stay inside the uncovered
+   part (its middle this many tiles in), where a walked map keeps the hero's own tile in (one tile). */
+export const HUNT_KEEP_TILES = 1.5;
+/* A SHOWPIECE'S FRAME (Tyler's UI audit 2026-11-18: a fresh login never showed the Great Hearth's chimney, banner and
+   crest). A landmark rises NORTH of where you stand, so the camera may look up to its top (SHOW_AIR art px over it) as
+   far as the hero's hold allows; across, it fits the landmark's width but keeps the hero in the middle half
+   (SHOW_REACH_X of the uncovered part off its middle), so the way on either side stays in view. A World over the
+   panels under SHOW_MIN_SHARE of the landmark's height frames none (a phone's 139 px of the Hearth's 390: the move
+   would push the hero into a corner for a sliver of the art). */
+const SHOW_AIR = 4;
+const SHOW_REACH_X = 0.25;
+const SHOW_MIN_SHARE = 0.5;
+const smooth = (q) => q * q * (3 - 2 * q);
+
+/**
+ * The showpiece a hero standing at `at` (tiles) frames on compiled `map` (map-compile.js `shows`) with `uh` art px of
+ * World uncovered top to bottom, as follow's `o.show`, or null: weight 1 on its `near` tiles, easing to 0 over `fade`
+ * tiles past them (smoothstep on the farther axis distance, so the camera never jumps), the strongest when two overlap.
+ */
+export function showAt(map, at, uh) {
+  if (!at || !map.shows || !map.shows.length) return null;
+  let best = null, bw = 0;
+  for (const s of map.shows) {
+    const n = s.near, d = Math.max(n.x - at.x, at.x - (n.x + n.w - 1), n.y - at.y, at.y - (n.y + n.h - 1), 0);
+    const w = d <= 0 ? 1 : d < s.fade ? 1 - smooth(d / s.fade) : 0;
+    if (w > bw) { best = s.box; bw = w; }
+  }
+  if (!best || !(uh >= SHOW_MIN_SHARE * best.h)) return null;
+  const top = best.y - SHOW_AIR;
+  return { x: { lo: best.x, hi: best.x + best.w, w: bw, reach: SHOW_REACH_X }, y: { lo: top, hi: top, w: bw, reach: 0.5 } };
 }
 
 /**
@@ -161,14 +226,18 @@ export function alignOf(z) {
  * walk scene leans it toward; the room's middle when null) inside the part the
  * docked HUD leaves uncovered (`o.inset`, art px), keeps `o.keep` (the hero,
  * tiles) a tile inside that part, and is bounded by the map's room `frame` when
- * it has one, else by the whole map. `open` is the uncovered part in world art px.
+ * it has one, else by the whole map. On a walked map a showpiece the hero stands
+ * near leans it (showAt). `open` is the uncovered part in world art px.
  *
  * A HUNT ROOM (map kind 'hunt') IS FRAMED ON THE VIEWED HERO (Tyler 2026-10-22,
  * "this is ridiculous": the hero stood at the analyzer's edge with most of the
- * World empty cave wall): the hero sits at the middle of the uncovered part, and
- * only that part is clamped to the room. NO VOID would hold the WHOLE view on the
- * room, which pins the hero against a docked panel anywhere within half the
- * uncovered part plus a panel's width of the room's edge. A walked map keeps it.
+ * World empty cave wall): the hero sits at the middle of the uncovered part, which
+ * stays inside the room. NO VOID ON THE ART outranks the middle (Tyler's UI audit
+ * 2026-11-18, N10: a black band showed under and below the short panels, the
+ * first hunt on 95% of its floor at 1440x900): the whole view stays on the map's
+ * art, so near the art's edge the hero moves toward that panel rather than the
+ * void showing. The hero's fight (its tile and the ring round it) is never under
+ * a panel, which outranks both: only there does the void come back.
  */
 export function frameView(look, vw, vh, map, z, T, o = {}) {
   const fr = map.frame;
@@ -176,9 +245,11 @@ export function frameView(look, vw, vh, map, z, T, o = {}) {
   const mid = (p) => (p ? { x: (p.x + 0.5) * T, y: (p.y + 0.5) * T } : null);
   const target = mid(look) || { x: bounds.x + bounds.w / 2, y: bounds.y + bounds.h / 2 };
   const inset = cleanInset(o.inset);
-  const rule = { wholeView: map.kind !== 'hunt' };
+  const hunt = map.kind === 'hunt';
+  const rule = hunt ? { art: { x: 0, y: 0, w: map.w * T, h: map.h * T } } : { show: showAt(map, o.keep, vh - inset.top - inset.bottom) };
+  const margin = hunt ? HUNT_KEEP_TILES * T : T;
   /* o.from / o.sinceMs: where the camera stood when the inset last changed, and how long ago (easedCam). */
-  const cam = easedCam(o.from, follow(target, { w: vw, h: vh }, bounds, inset, mid(o.keep), T, rule), o.sinceMs);
+  const cam = easedCam(o.from, follow(target, { w: vw, h: vh }, bounds, inset, mid(o.keep), margin, rule), o.sinceMs);
   const plan = blitPlan(cam, z, T), q = alignOf(z);
   const open = { x: cam.x + inset.left, y: cam.y + inset.top, w: Math.max(1, vw - inset.left - inset.right), h: Math.max(1, vh - inset.top - inset.bottom) };
   return { cam, plan, open, view: { ox: plan.ox, oy: plan.oy, w: Math.ceil((Math.ceil(vw) + 2 * T + q) / q) * q, h: Math.ceil((Math.ceil(vh) + 2 * T + q) / q) * q } };

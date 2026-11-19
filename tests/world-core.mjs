@@ -21,7 +21,9 @@
 //   C  ONE pixel density per screen class (x2, x3 above 2400 CSS px wide; no
 //      per-room fit), one-device-pixel camera steps, and the camera inset: a
 //      docked window never covers the hero, a small room centres in the
-//      uncovered part
+//      uncovered part; C9 a hunt shows the void past its art only as far as the
+//      hero's ring needs (the UI audit's N10); C10 the Great Hearth is framed
+//      as far up as a new hero allows (the audit's town camera)
 //   L  map lint over every shipped map, and over planted bad rows (whole
 //      tiles, doors, roofs, reachability of walked maps, the wall kit, stations
 //      in plain view)
@@ -69,7 +71,7 @@ const atlasImage = (set) => { if (!SHEETS.has(set)) SHEETS.set(set, decodePNG(re
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
   const [grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, sets, budget,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk] = await Promise.all([
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk, stations] = await Promise.all([
     'src/world/core/grid.js', 'src/world/core/zsort.js', 'src/world/core/roofs.js', 'src/world/core/shadows.js',
     'src/world/core/camera.js', 'src/world/core/map-compile.js', 'src/world/core/path.js', 'src/world/core/wang.js',
     'src/world/core/scene-route.js', 'src/world/core/compose.js', 'src/world/render/null-backend.js',
@@ -78,6 +80,7 @@ async function load(base) {
     'src/world/scene-sets.js', 'src/data/hunt-outfits.js', 'src/data/hunt-grounds.js', 'src/data/hunt-vfx.js',
     'src/data/world/house-layouts.js', 'src/world/home-scene.js', 'src/world/render/ground-chunks.js', 'src/world/render/canvas-backend.js',
     'src/world/core/plates.js', 'src/world/idle-banner.js', 'src/world/view-sheets.js', 'src/render/images.js', 'src/world/core/ground-variety.js', 'src/world/core/ground-rough.js', 'src/data/world/town/folk.js',
+    'src/data/world/stations.js',
   ].map(imp));
   const manifests = {};
   /* every set on any grid (atlas-sets.js LOADED_SETS): the sandbox map lints against its own grid's art */
@@ -86,7 +89,7 @@ async function load(base) {
   const atlasReaders = readdirSync(join(base, 'src'), { recursive: true }).map((f) => String(f).replace(/\\/g, '/'))
     .filter((f) => f.endsWith('.js') && /import\s*\{[^}]*\bATLAS_SETS\b[^}]*\}\s*from/.test(readFileSync(join(base, 'src', f), 'utf8')));
   return { grid, zsort, roofs, shadows, camera, mapc, path, wang, route, compose, nullb, bookm, maps, terrain, hunts, budget, manifests, atlasReaders,
-    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk,
+    sceneSets, outfits, grounds, vfx, layouts, homeScene, atlasSets: sets, chunksM, canvasM, platesM, bannerM, viewSheets, imagesM, gv, rough, folk, stations,
     canvasSrc: readFileSync(join(base, 'src/world/render/canvas-backend.js'), 'utf8'),
     worldCss: readFileSync(join(ROOT, 'src/styles/world.css'), 'utf8'), tokensCss: readFileSync(join(ROOT, 'src/styles/tokens.css'), 'utf8') };
 }
@@ -307,14 +310,105 @@ async function check(M) {
       }
       ok('C8', !bad && n > 100, stage + ' town_common: with a window docked, the hero on ' + JSON.stringify(bad) + ' shows the void past the map edge');
     }
+    /* A room that fits the uncovered World is centred in it, not in the whole stage: across (the cellar's art is narrower
+       than this stage, so nothing can keep the void off), and down as far as NO VOID ON THE ART allows (C9: its art is
+       taller than the stage, so the centred room, 10 px of void over it, slides onto the art). */
     const cellar = compiled('mill_cellar'), fr = cellar.frame;
     const bo = openOf(M.camera.frameView({ x: 10, y: 6 }, 1680 / 2, 873 / 2, cellar, 2, T, { inset: dock, keep: { x: 10, y: 6 } }), 1680 / 2, 873 / 2);
-    ok('C7', Math.abs(bo.x + bo.w / 2 - (fr.x + fr.w / 2) * T) <= 0.5 && Math.abs(bo.y + bo.h / 2 - (fr.y + fr.h / 2) * T) <= 0.5,
-      'a room that fits the uncovered World must be centred in it, not in the whole stage: open ' + JSON.stringify(bo));
-    for (const hx of [fr.x, fr.x + fr.w - 1]) {
-      const o = openOf(M.camera.frameView({ x: hx, y: 6 }, 834 / 2, 277 / 2, cellar, 2, T, { inset: dock, keep: { x: hx, y: 6 } }), 834 / 2, 277 / 2);
-      ok('C7', inOpen(o, hx, 6) && o.x >= fr.x * T - 0.5 && o.x + o.w <= (fr.x + fr.w) * T + 0.5,
-        'a room bigger than the uncovered World follows the hero and stays inside the room: hero ' + hx + ', open ' + JSON.stringify(o));
+    const downTo = Math.min(cellar.h * T - 873 / 2, Math.max(0, (fr.y + fr.h / 2) * T - 873 / 4));
+    ok('C7', Math.abs(bo.x + bo.w / 2 - (fr.x + fr.w / 2) * T) <= 0.5 && Math.abs(bo.y - downTo) <= 0.5,
+      'a room that fits the uncovered World must be centred in it, not in the whole stage (down: onto the art): open ' + JSON.stringify(bo));
+
+    /* C9 NO VOID IN A HUNT (Tyler's UI audit 2026-11-18, N10: the room clamped only the uncovered World, so a black band
+       showed under and below the short panels, on 95% of the Mill Cellar's floor at 1440x900). Every open tile of every
+       hunt map, on the stages the three sizes measure (local world, 2026-11-19: the World's box and the hunt inset, CSS
+       px at x2; the phone with the coach card's strip and without): the viewed hero's tile and the ring round it stay
+       in the uncovered World (HUNT_KEEP_TILES); the whole view shows the void past the map's art only as far as that
+       ring needs (a hero within a panel's width of the art's edge), and the first hunt's start tile shows none; the hero
+       is off the middle of the uncovered World only where the room's or the art's edge stops the camera. */
+    const STAGES = [['1440x900', 1422, 828, { left: 272, right: 302, top: 54, bottom: 180 }], ['1280x800', 1262, 728, { left: 272, right: 302, top: 54, bottom: 180 }],
+      ['922x423 + coach', 904, 371, { left: 116, right: 325, top: 60, bottom: 93 }], ['922x423', 904, 371, { left: 116, right: 0, top: 60, bottom: 93 }]];
+    const KEEP = 1.5 * T;   // the hero's tile and the tiles touching it: 1.5 tiles from its middle (camera.js HUNT_KEEP_TILES)
+    for (const [stage, W, H, css] of STAGES) {
+      const vw = W / 2, vh = H / 2, ins = { left: css.left / 2, right: css.right / 2, top: css.top / 2, bottom: css.bottom / 2 };
+      const ax = [['x', vw, ins.left, ins.right, 'w'], ['y', vh, ins.top, ins.bottom, 'h']];
+      let bad = null, n = 0;
+      for (const id of Object.keys(rows).filter((k) => rows[k].kind === 'hunt')) {
+        const m = compiled(id), room = m.frame ? { x: m.frame.x * T, y: m.frame.y * T, w: m.frame.w * T, h: m.frame.h * T } : { x: 0, y: 0, w: m.w * T, h: m.h * T };
+        for (let y = 0; y < m.h && !bad; y++) for (let x = 0; x < m.w && !bad; x++) {
+          if (m.mask[y * m.w + x] && !(m.spawns.some(([sx, sy]) => sx === x && sy === y))) continue;
+          const fv = M.camera.frameView({ x, y }, vw, vh, m, 2, T, { inset: ins, keep: { x, y } });
+          n++;
+          for (const [k, v, a, b, len] of ax) {
+            const c = fv.cam[k], u = v - a - b, hero = ((k === 'x' ? x : y) + 0.5) * T, art = m[len] * T, keep = Math.min(KEEP, u / 2);
+            const at = hero - (c + a);
+            if (at < keep - 0.5 || at > u - keep + 0.5) { bad = [id, x, y, k, 'the hero\'s ring under a panel', Math.round(at), Math.round(u)]; break; }
+            if (art >= v) {
+              const lo = Math.max(0, -c), hi = Math.max(0, c + v - art);
+              if (lo > Math.max(0, a + keep - hero) + 0.5 || hi > Math.max(0, hero + keep + b - art) + 0.5) { bad = [id, x, y, k, 'void the hero does not need', Math.round(lo), Math.round(hi)]; break; }
+            }
+            const off = at - u / 2, rlo = room[k], rhi = room[k] + room[len];
+            const stopped = off > 0 ? Math.abs(c + a + u - rhi) <= 0.5 || Math.abs(c + v - art) <= 0.5 || at >= u - keep - 0.5
+              : Math.abs(c + a - rlo) <= 0.5 || Math.abs(c) <= 0.5 || at <= keep + 0.5;
+            if (Math.abs(off) > T && !stopped && room[len] > u) { bad = [id, x, y, k, 'off the middle with no edge stopping the camera', Math.round(off)]; break; }
+          }
+        }
+      }
+      ok('C9', !bad && n > 1000, stage + ': ' + JSON.stringify(bad));
+      const start = cellar.start, fv = M.camera.frameView({ x: start[0], y: start[1] }, vw, vh, cellar, 2, T, { inset: ins, keep: { x: start[0], y: start[1] } });
+      const shown = { x: [fv.cam.x, fv.cam.x + vw], y: [fv.cam.y, fv.cam.y + vh] };
+      ok('C9', shown.x[0] >= -0.5 && shown.x[1] <= cellar.w * T + 0.5 && shown.y[0] >= -0.5 && shown.y[1] <= cellar.h * T + 0.5,
+        stage + ': the Mill Cellar\'s start tile shows the void (the black band): view ' + JSON.stringify(shown) + ' over a ' + cellar.w * T + 'x' + cellar.h * T + ' map');
+    }
+
+    /* C10 THE GREAT HEARTH, A SHOWPIECE (Tyler's UI audit 2026-11-18: centred on a new hero at 1440x900, the town never
+       showed the Hearth's chimney, banner and crest). The town's stages (the World's box and its action-bar inset):
+       on a new hero's first stand (hearth_square's first) the camera looks up the Hearth until its top shows, or until
+       the hero stands one tile over the bar (it can look no further; at 1440x900 the art, 390 px, is taller than the
+       World over the bar, 325), and fits its width while the hero stays in the middle half; at 1920x1080, and from two
+       rows north at 1440x900, its whole top shows. A World over the bar under half its height (the phone's 139 px)
+       frames nothing: the camera stays on the hero. On every tile near it the hero stands in the uncovered World, and
+       a walk across the framing's edge moves the camera smoothly (never more than 3 px a px walked). */
+    const town = compiled('town_common'), hs = town.shows.find((s) => s.id === 'great_hearth');
+    /* its box is the art as compose.js places it (frameBox: the footprint's middle less the anchor across, the contact row less
+       the measured height down), from the visible top, not the frame's */
+    const ho = town.objects.find((o) => o.id === 'great_hearth'), hsp = book.sprite('great_hearth');
+    ok('C10', !!hs && !!ho && hs.box.x === ho.x * T + Math.floor((ho.fw * T) / 2) - hsp.anchor[0] && hs.box.y === (ho.y + ho.fh) * T - 1 - hsp.height
+      && hs.box.w === hsp.frame[0] && hs.box.h === hsp.height, 'the town names the Great Hearth a showpiece, its box the art drawn: ' + JSON.stringify(hs && hs.box));
+    const first = M.stations.STATION_BY_ID.hearth_square.stands[0];
+    const TOWN_STAGES = [['1440x900', 1422, 828, 178], ['1280x800', 1262, 728, 178], ['922x423', 904, 371, 93], ['1920x1080', 1902, 1008, 178]];
+    for (const [stage, W, H, bar] of hs ? TOWN_STAGES : []) {
+      const vw = W / 2, vh = H / 2, ins = { bottom: bar / 2 }, u = vh - ins.bottom;
+      const at = (hx, hy) => M.camera.frameView({ x: hx, y: hy }, vw, vh, town, 2, T, { inset: ins, keep: { x: hx, y: hy } }).cam;
+      const c = at(first[0], first[1]), hy = (first[1] + 0.5) * T - c.y, hx = (first[0] + 0.5) * T - c.x;
+      ok('C10', hy >= T - 0.5 && hy <= u - T + 0.5 && hx >= T - 0.5 && hx <= vw - T + 0.5, stage + ': the new hero stands outside the World over the bar: ' + JSON.stringify([hx, hy]));
+      if (2 * u < hs.box.h) ok('C10', Math.abs(hx - vw / 2) <= 0.5 && Math.abs(hy - u / 2) <= 0.5, stage + ': a World ' + u + ' px tall over the bar frames the Hearth anyway: hero ' + JSON.stringify([hx, hy]));
+      else {
+        ok('C10', c.y <= hs.box.y + 0.5 || Math.abs(hy - (u - T)) <= 0.5, stage + ': the camera stops short of the Hearth\'s top with the hero ' + (u - T - hy).toFixed(0) + ' px over the lowest it may stand');
+        ok('C10', (c.x <= hs.box.x + 0.5 && c.x + vw >= hs.box.x + hs.box.w - 0.5) || Math.abs(hx - vw / 4) <= 0.5 || Math.abs(hx - 3 * vw / 4) <= 0.5,
+          stage + ': the Hearth\'s width is cut with the hero ' + hx.toFixed(0) + ' px in, inside the middle half of ' + vw);
+      }
+      if (stage === '1920x1080') ok('C10', c.y <= hs.box.y + 0.5, stage + ': the Hearth\'s top is off the World: camera ' + c.y + ', top ' + hs.box.y);
+      if (stage === '1440x900') ok('C10', at(first[0], first[1] - 2).y <= hs.box.y + 0.5, stage + ': two rows north of the first stand, the Hearth\'s top is off the World');
+      const n = hs.near, f = hs.fade;
+      let bad = null;
+      for (let y = n.y - f; y < n.y + n.h + f && !bad; y++) for (let x = n.x - f; x < n.x + n.w + f && !bad; x++) {
+        if (town.mask[y * town.w + x]) continue;
+        const q = at(x, y), px = (x + 0.5) * T - q.x, py = (y + 0.5) * T - q.y;
+        if (px < T - 0.5 || px > vw - T + 0.5 || py < T - 0.5 || py > u - T + 0.5) bad = [x, y, px, py, 'under the bar or off the World'];
+        else if (px < vw / 4 - 0.5 || px > (3 * vw) / 4 + 0.5) bad = [x, y, px, py, 'out of the middle half across'];
+      }
+      ok('C10', !bad, stage + ': near the Hearth the hero stands ' + (bad ? bad[4] : '') + ': ' + JSON.stringify(bad));
+      let jump = null;
+      for (const [x0, y0, dx, dy] of [[first[0], first[1], 0, 1], [first[0], first[1], -1, 0], [n.x + n.w - 1, n.y + 6, 1, 0], [n.x + 9, n.y + n.h - 1, 0, 1]]) {
+        let prev = at(x0, y0);
+        for (let s = 1; s <= (f + 2) * T && !jump; s++) {
+          const q = at(x0 + (dx * s) / T, y0 + (dy * s) / T), d = Math.max(Math.abs(q.x - prev.x), Math.abs(q.y - prev.y));
+          if (d > 3) jump = [x0, y0, dx, dy, s, d];
+          prev = q;
+        }
+      }
+      ok('C10', !jump, stage + ': walking out of the Hearth\'s framing the camera jumps: ' + JSON.stringify(jump));
     }
     ok('C5', M.camera.fpsFor(true) === 30 && M.camera.fpsFor(false) === 60, '30 fps on the phone query, 60 elsewhere');
     ok('C5', M.camera.MOBILE_QUERY === '(max-width: 540px), (max-height: 540px) and (max-width: 1024px)' && M.worldCss.includes('@media ' + M.camera.MOBILE_QUERY),
@@ -368,6 +462,9 @@ async function check(M) {
       ['a station hidden behind the well', 'L-COVER', 'town_common', (r) => { const w = r.objects.find((o) => o.id === 'well'); r.stations = Object.assign({}, r.stations, { combat: [w.x, w.y - 1] }); }],
       ['a hunt map drawn in placeholder tones', 'L-KIND', 'mill_cellar', (r) => { r.ground = null; }],
       ['a ground no atlas carries', 'L-KIND', 'town_common', (r) => { r.ground = 'town_ground'; }],
+      ['a showpiece that names nothing placed there', 'L-SHOW', 'town_common', (r) => { r.shows[0].x += 1; }],
+      ['a showpiece near tiles off the map', 'L-SHOW', 'town_common', (r) => { r.shows[0].near = [r.rows[0].length - 3, 37, 27, 14]; }],
+      ['a showpiece on a hunt map', 'L-SHOW', 'mill_cellar', (r) => { r.shows = [{ id: 'millstone', x: 19, y: 4, near: [3, 3, 19, 9], fade: 2 }]; }],
     ];
     for (const [what, code, id, edit] of want) ok('L1', plant(id, edit).includes(code), 'the lint did not reject ' + what + ' with ' + code);
   });
@@ -1033,7 +1130,16 @@ const MUTANTS = [
   ['C6', 'a zoom fitted to the map width, passed in as a grid','src/world/render/canvas-backend.js', [['z = zoomFor(win.innerWidth, dpr, map && map.grid, zoomPick);', 'z = zoomFor(win.innerWidth, dpr, map && { density: Math.max(1, Math.floor(W / (map.w * T))), wideDensity: 1 }, zoomPick);']]],
   ['C1', 'the sandbox grid drawn at the base density (its tile twice the town\'s)', 'src/world/core/camera.js', [['  const g = grid || GRIDS.base;', '  const g = GRIDS.base;']]],
   ['C7', 'the camera ignores the docked window', 'src/world/core/camera.js', [['const inset = cleanInset(o.inset);', 'const inset = cleanInset(null);']]],
-  ['C7', 'the leaning camera lets the hero walk under the window', 'src/world/core/camera.js', [['inset, mid(o.keep), T, rule), o.sinceMs);', 'inset, null, T, rule), o.sinceMs);']]],
+  ['C7', 'the leaning camera lets the hero walk under the window', 'src/world/core/camera.js', [['inset, mid(o.keep), margin, rule), o.sinceMs);', 'inset, null, margin, rule), o.sinceMs);']]],
+  ['C9', 'the hunt room clamps only the uncovered World again: the black band (N10)', 'src/world/core/camera.js', [['    if (art[1] - art[0] >= v) c = Math.min(art[1] - u - b, Math.max(art[0] + a, c));', '    if (false) c = 0;']]],
+  ['C9', 'the void outranks the hero: its ring under a panel at the art\'s edge', 'src/world/core/camera.js', [['    return hold(c) - a;', '    return c - a;']]],
+  ['C9', 'a hunt hero held one tile in: the foe beside it under the panel', 'src/world/core/camera.js', [['export const HUNT_KEEP_TILES = 1.5;', 'export const HUNT_KEEP_TILES = 1;']]],
+  ['C10', 'the town frames no showpiece: a new hero never sees the Hearth\'s top', 'src/world/core/camera.js', [['{ show: showAt(map, o.keep, vh - inset.top - inset.bottom) }', '{ show: null }']]],
+  ['C10', 'the showpiece eases its wish, not the move the hero allows: the camera outruns the walk', 'src/world/core/camera.js', [['  if (k != null) aim = hold(Math.min(', '  if (false) aim = hold(Math.min(']]],
+  ['C10', 'the showpiece shoves the hero to the World\'s side to fit the Hearth\'s width', 'src/world/core/camera.js', [['const SHOW_REACH_X = 0.25;', 'const SHOW_REACH_X = 0.5;']]],
+  ['C10', 'a phone frames the Hearth too: the hero shoved to a corner for a sliver of it', 'src/world/core/camera.js', [['const SHOW_MIN_SHARE = 0.5;', 'const SHOW_MIN_SHARE = 0;']]],
+  ['C10', 'the showpiece box taken from the frame\'s top, not the art\'s', 'src/world/core/map-compile.js', [['y: foot - s.height, w: s.frame[0], h: s.height', 'y: foot - s.anchor[1], w: s.frame[0], h: s.height']]],
+  ['L1', 'the lint lets a showpiece name nothing placed', 'src/world/core/map-compile.js', [["    if (!(row.objects || []).some((o) => o.id === s.id && o.x === s.x && o.y === s.y)) bad('L-SHOW'", "    if (false) bad('L-SHOW'"]]],
   ['C7', 'a small room centred in the whole stage, not the uncovered part', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo + (span - v) / 2 + a;']]],
   ['C8', 'a docked HUD panel shows the void past the map', 'src/world/core/camera.js', [['    if (whole && span >= v) c = hold(', '    if (false) c = hold(']]],
   ['C2', 'the camera rounded to art pixels', 'src/world/core/camera.js', [['const cx = Math.round(cam.x * z), cy', 'const cx = Math.round(cam.x) * z, cy']]],

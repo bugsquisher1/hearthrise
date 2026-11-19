@@ -117,8 +117,9 @@ export const CHEST_KEYS = Object.freeze([
    SAME chest and the SAME Bronze / Silver / Gold / Platinum "so it's familiar"; the descent design §4-§5): a wing's tier key per metal, its
    doors the Tower's (`from`), its chance the Tower's (16 / 8 / 4.5 / 2%, RULED 2026-11-16), what it always holds the Tower key's of that
    metal. A hit pays one armor piece of the key's tier (catacomb-armor.js: the slot's twin plus one attribute); `armor` maps slot:weight (the
-   server's heavy / medium / light, core-model.js ARMOUR_WEIGHT) to the piece, from the pieces that ship (CATACOMB_ARMOR_SHIPPED). A key
-   short of its six is NOT READY: it drops and is held, and the chest refuses to open it (chest_not_ready, the key kept). */
+   server's heavy / medium / light, core-model.js ARMOUR_WEIGHT) to the piece, from the pieces that ship (CATACOMB_ARMOR_SHIPPED: all four
+   metals since lane/d-catacomb-gold-platinum, so every Catacomb key opens). A key short of its six (a later tier or wing before its pieces
+   ship) is NOT READY: it drops and is held, and the chest refuses to open it (chest_not_ready, the key kept). */
 const TOWER_OF_METAL = Object.freeze(Object.fromEntries(CHEST_KEYS.map((k) => [k.id, k])));
 const WING_OF_LEAN = Object.freeze(Object.fromEntries(Object.entries(WING_LEAN).map(([lean, l]) => [lean, CATACOMB_WINGS.find((w) => w.wing === l.wing)])));
 const catacombKey = (lean, metal) => {

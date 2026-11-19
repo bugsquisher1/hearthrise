@@ -36,12 +36,16 @@ import { OPEN_GROUNDS, OPEN_HALL_GROUNDS } from '../src/data/hunt-grounds.js';
 import { hallOfHunt } from '../src/data/boss-halls.js';
 import { SPECIAL_ATTRIBUTES, SPECIAL_SAMPLE, SPECIAL_TIERS } from '../src/data/special-attributes.js';
 import { statLines } from '../src/shell/bag-model.js';
+import { SKILL_PLUS_FIELDS } from '../src/core/combat.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const BANNED = /\b(shadow|void|ancient|eternal|dark|forgotten)\b|of doom|of the abyss/i;
-/* the fields a row may carry beyond its base's numbers: its words and its one attribute */
+/* the fields a row may carry beyond its base's numbers: its words and its one attribute (a + skill is the engine's own `<skill>Plus`,
+   the designer's ruling 2026-11-18 row 1c) */
 const WORDS = new Set(['n', 'icon']);
-const ATTR_FIELDS = new Set(['resistPm', 'skillB', 'bane', 'effects']);
+const ATTR_FIELDS = new Set(['resistPm', ...Object.values(SKILL_PLUS_FIELDS), 'bane', 'effects']);
+/* the item field attribute `def` writes for `key`: its one field, or the one its key names */
+const fieldOf = (def, key) => (typeof def.field === 'string' ? def.field : (def.field || {})[key]);
 const SHIELD_GUARD = (tier) => 3 + 2 * (tier - 1);
 
 /* every src file's text, once (SA1) */
@@ -70,7 +74,7 @@ function homes() {
 function attributesOf(row, base) {
   const out = [];
   for (const [k, v] of Object.entries(row.resistPm || {})) if (!(base && base.resistPm && base.resistPm[k] === v)) out.push({ field: 'resistPm', key: k, value: v });
-  for (const [k, v] of Object.entries(row.skillB || {})) out.push({ field: 'skillB', key: k, value: v });
+  for (const [k, f] of Object.entries(SKILL_PLUS_FIELDS)) if (row[f] !== undefined && !(base && base[f] === row[f])) out.push({ field: f, key: k, value: row[f] });
   if (row.bane && !(base && base.bane)) out.push({ field: 'bane', key: row.bane.class, value: row.bane.mult });
   if ((row.critB || 0) > ((base && base.critB) || 0) + 1e-9) out.push({ field: 'critB', key: null, value: Math.round(((row.critB || 0) - ((base && base.critB) || 0)) * 1000) / 1000 });
   return out;
@@ -107,6 +111,12 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
     else if (s.source.how === 'daily' && Math.abs(who[0].ch * 1000 - s.source.pm) > 1e-6) out.push('SA1 ' + id + ': its slice of the daily roll is ' + who[0].ch + ', the sample says ' + s.source.pm + ' permille');
     if (s.source.how === 'daily' && !(Number.isInteger(s.source.pm) && s.source.pm > 0)) out.push('SA1 ' + id + ': a daily prize names its slice, whole permille');
   }
+  /* SA3: a + skill attribute writes the engine's own field for its key (combat.js SKILL_PLUS_FIELDS), so the piece plays as written */
+  for (const [kind, def] of Object.entries(A)) if (def && def.field && typeof def.field === 'object') for (const k of def.keys || []) {
+    if (fieldOf(def, k) !== SKILL_PLUS_FIELDS[k]) out.push('SA3 ' + kind + ' writes ' + k + ' as ' + fieldOf(def, k) + ', the engine reads ' + SKILL_PLUS_FIELDS[k] + ': the piece would play as nothing');
+  }
+  /* SA3: never + Defense on a helmet (the designer 2026-11-18 row 1c; +1 Defense on a helm out-guards the next tier's helm, measured 11-16) */
+  if (A.defense && (A.defense.slots || []).includes('helmet')) out.push('SA3 + Defense is carried on a helmet: one point out-guards the next tier\'s helm (measured 2026-11-16)');
   const seenPiece = new Map(), seenGround = new Map();
   for (const [id, s] of Object.entries(S)) {
     const row = s.row, base = s.base ? ITEMS[s.base] : null;
@@ -130,7 +140,7 @@ export function problems(S = SPECIAL_SAMPLE, A = SPECIAL_ATTRIBUTES, open = {}) 
     if (!def) out.push('SA3 ' + id + ': ' + s.attr[0] + ' is not in the catalogue');
     else if (found.length === 1) {
       const f = found[0];
-      if (f.field !== def.field) out.push('SA3 ' + id + ': the row carries ' + f.field + ', ' + s.attr[0] + ' is ' + def.field);
+      if (f.field !== fieldOf(def, f.key)) out.push('SA3 ' + id + ': the row carries ' + f.field + ', ' + s.attr[0] + ' is ' + fieldOf(def, f.key));
       if ((def.keys || s.attr[1]) && f.key !== s.attr[1]) out.push('SA3 ' + id + ': the row names ' + f.key + ', the sample says ' + s.attr[1]);
       if (def.keys && !def.keys.includes(f.key)) out.push('SA3 ' + id + ': ' + f.key + ' is not a key of ' + s.attr[0]);
       if ((def.unproven || []).includes(f.key)) out.push('SA3 ' + id + ': ' + f.key + ' is unproven, no piece carries it yet');
@@ -182,7 +192,10 @@ const MUTANTS = [
   ['the Tollgate leaves its ladder rung', 'SA2', (S) => { S.krells_tollgate.row.defB = 17; }],
   ['a second attribute on the Mitts', 'SA3', (S) => { S.mudlarks_mitts.row.resistPm = { ember: 100 }; }],
   ['the Legguards read 5%', 'SA3', (S) => { S.banded_legguards.row.resistPm = { physical: 50 }; }],
-  ['a + Magic piece ships unproven', 'SA3', (S) => { S.mudlarks_mitts.row.skillB = { magic: 2 }; S.mudlarks_mitts.attr = ['skill', 'magic']; }],
+  ['a + Magic piece ships unproven', 'SA3', (S) => { delete S.mudlarks_mitts.row.rangedPlus; S.mudlarks_mitts.row.magicPlus = 2; S.mudlarks_mitts.attr = ['skill', 'magic']; }],
+  ['the catalogue writes + Ranged on a field the engine never reads (skillB, the 11-18 red)', 'SA3', (S, A) => { A.skill.field = { ...A.skill.field, ranged: 'skillB' }; }],
+  ['the catalogue lets a helmet carry + Defense again (it out-guards the next tier\'s helm)', 'SA3', (S, A) => { A.defense.slots = ['helmet', 'cape']; }],
+  ['a + Defense helm in the sample', 'SA3', (S) => { const r = { ...S.mudlarks_mitts.row, slot: 'helmet', defensePlus: 1 }; delete r.rangedPlus; S.mudlarks_mitts.row = r; S.mudlarks_mitts.attr = ['defense', 'defense']; }],
   ['Demoncaller goes back to x1.4', 'SA3', (S) => { S.demoncaller_staff.row.bane = { class: 'undead', mult: 1.4 }; }],
   ['a crit piece of armor', 'SA3', (S, A) => { A.crit.slots = ['helmet']; }],
   ['a home nobody can reach', 'SA4', (S) => { S.widows_fang.source.monster = 'broodmother'; }],

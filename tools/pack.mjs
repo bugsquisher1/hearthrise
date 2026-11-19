@@ -7,7 +7,7 @@
 //   node tools/pack.mjs propose <ground> [--write]   the formula's numbers for every monster on the ground's roster, beside its
 //                                                    rows (tools/gen-ground-stats.mjs proposeGround over src/data/balance-sheet.js);
 //                                                    --write puts them into the rows, in monsters.js or the pack's own file
-//   node tools/pack.mjs check <ground> [--mode quick|full] [--workers N] [--with <staged ground>,...] [--uniques]
+//   node tools/pack.mjs check <ground> [--mode quick|full] [--workers N] [--with <staged ground>,...] [--uniques [--chest]]
 //                                                    lint (the ground row, its roster, the formula) and then the grader on the real
 //                                                    engine (tools/balance-sim/grade.mjs --grounds <ground>, a STAGED one included,
 //                                                    played as it ships: its own drops on the gear ladder, as every open ground's are):
@@ -142,10 +142,12 @@ async function check(gid, argv) {
   const withIds = argOf(argv, 'with') ? argOf(argv, 'with').split(',').filter(Boolean) : [];
   /* --uniques: every hero in the best piece it can get per slot, the staged gear catalogues' rows included (grade.mjs --uniques), graded in a folder of its own */
   const uniques = argv.includes('--uniques');
-  const out = join(ROOT, 'tools', 'balance-sim', 'out', 'pack-' + gid + '-' + mode + (withIds.length ? '-with-' + withIds.join('+') : '') + (uniques ? '-uniques' : ''));
+  /* --chest (with --uniques): the Hearth Chest's pieces worn too, the what-if the grade itself leaves out (designer 2026-11-18 row 1f) */
+  const chest = uniques && argv.includes('--chest');
+  const out = join(ROOT, 'tools', 'balance-sim', 'out', 'pack-' + gid + '-' + mode + (withIds.length ? '-with-' + withIds.join('+') : '') + (uniques ? '-uniques' : '') + (chest ? '-chest' : ''));
   setAsideStale(out);
   const r = spawnSync(process.execPath, [join(ROOT, 'tools', 'balance-sim', 'grade.mjs'), '--mode', mode, '--grounds', gid, '--workers', workers, '--out', out,
-    ...(withIds.length ? ['--open-also', withIds.join(',')] : []), ...(uniques ? ['--uniques'] : [])], { stdio: 'inherit' });
+    ...(withIds.length ? ['--open-also', withIds.join(',')] : []), ...(uniques ? ['--uniques'] : []), ...(chest ? ['--chest'] : [])], { stdio: 'inherit' });
   process.exit(r.status == null ? 1 : r.status);
 }
 
@@ -340,7 +342,7 @@ async function art(gid, argv) {
   console.log('pack art: wrote ' + file);
 }
 
-const USAGE = 'usage: node tools/pack.mjs propose <ground> [--write] | check <ground> [--mode quick|full] [--workers N] [--with a,b] [--uniques]\n'
+const USAGE = 'usage: node tools/pack.mjs propose <ground> [--write] | check <ground> [--mode quick|full] [--workers N] [--with a,b] [--uniques [--chest]]\n'
   + '       | new <id> --like <ground> [--band lo,hi] | index | ship <id> | art <ground> [--write] | --selftest';
 async function main() {
   if (process.argv.includes('--selftest')) return selftest();

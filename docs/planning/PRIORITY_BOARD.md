@@ -29,6 +29,228 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-19 Complete balance look (game-designer, lane/d-balance-audit-2; **Tyler 2026-11-19, after the first audit: "I feel like we need a complete look"**): every system a player meets, MEASURED on set/v0.2.141 with the played hero and on the live record, no balance row changed
+**One screen.** Measured two ways. The live record, read-only: 7 accounts, 22 heroes, every ledger row since 10-19 (1,548 hunted hero-hours, 1,995 gathering, 538 at a bench, every gold movement). The real engine with the played hero: 966 cells on the 11 open grounds, and whole lives that carry their XP and skills from Level 1.
+
+*What's working*
+- **The sim is the game.** It replays the newest player's first day (real: Level 8 at 6 h, 9 at 12 h. Sim: 8 and 9) and the busiest account's whole climb (real four: Level 25 / 50 / 70 at 20 / 60 / 105 h. Sim: 19 / 54 / 104 h).
+- **Alone, in range, on Normal: on pace, safe, paid.** A set-up lone hammer reaches 50 in 133 h and 100 in 482 h (targets 168 and 600), dies 0 times in 576 h and banks 9.7M gold.
+- **Gold has places to go.** Since 11-07 players earned 8.0M and spent 6.5M: store supplies 43%, the House 35%, stamina 8%. Everything on sale costs more than a life earns, so players choose, as ruled.
+- **Crafting carries real weight.** Heroes gather more hours than they hunt. A Deadly four that buys every rune at the store ends Level 70 about 0.5M in the red. The real four makes its own and is 0.6M up after 3.5M spent on things it chose.
+- **Under your Level costs gold where the ground bites.** A lone hero 10 under the Warrens' floor: 2.4x the pace line, 0 deaths, minus 7k to 25k gold an hour.
+
+*What isn't*
+- **The first day strands new players.** On 3 of 7 accounts a first-day hero sat on a ground it had outgrown for most of a stamina bar: three heroes spent 6, 12 and 12 hours in the Mill Cellar at a flat 10k XP an hour, a fourth 16 of its first 20 in the Thicket. The newest account is Level 9 after its whole first bar and hasn't hunted since.
+- **A lone Mage on Dangerous levels as fast as a Deadly four and never dies.** Level 50 in 65 h, 70 in 104 h, 0 deaths, gold about even to 50. The hammer, bow and tank die every few minutes in the same hunts. The +10% monsters in flight fix most of it (70 in 130 h, 43 deaths, 2M gold).
+- **Risk has no middle for a party.** 1 death in the last 478 hunted hero-hours. In the sim a hunt kills every few minutes or never, and at +10% a Deadly four still dies 0 times.
+- **A party has one right answer.** Every recorded party hunt since 11-07 is Deadly (over 300 hero-hours, 0 deaths) at about 3x the pace table.
+- **Defense training is still too strong.** +10 Defense at Level 24 cuts damage taken 39% for 12 yard hours and 2,800 gold. +10 Melee adds 7% XP. Ruled "definitely NOT" intended on 11-18, still open.
+- **Dying is nearly free to insure.** Three Blessings cost 2,250 gold at Level 70 and take 75% off a death worth 10 hours alone.
+- **The casters pay for the party.** At the Pyre Field the Healer's store bill is 17k gold an hour against 14k coin, the bow's is 2k.
+- **The late game thins out.** No jewelry past Level 30, two Trophy drops in the whole game, one 3-minute Tower run. Scaled hunts and the Catacombs are switched off (the first audit read that as zero use).
+
+*Top 10 changes, by player impact*
+| # | Change | Why | Owner |
+|---|---|---|---|
+| 1 | The Mill Cellar ends its hunt at Level 5 and names the next ground | New players lose their first day there (3 of 7 accounts) | Systems, designer text |
+| 2 | Ship the +10% monsters and hold a lone Mage on Dangerous to it | Today it's the fastest way to level, alone, with no deaths. At +10% it pays and dies | lane/d-harder-monsters, designer re-measures |
+| 3 | Give risk a middle: a rare heavy blow on the harder tiers | Smooth damage can only kill always or never | Designer, Systems |
+| 4 | Flatten what a Defense level does to a monster's aim | +10 Defense = 39% less damage | Systems, designer |
+| 5 | Blessings cost about an hour of gold | 2,250 gold removes most of a death | Designer |
+| 6 | Let a party split its supply bill | The Healer and Mage pay 2 to 8 times what the tank and bow pay | Backend, Systems |
+| 7 | Price a stamina refill at what its hours earn | 17k buys 4 hours that net about 50k | Tyler's call |
+| 8 | Send a lone hero to the Warrens from about Level 36 | Alone you spend about 97 hours on the Glade | Designer row, Systems |
+| 9 | One Trophy drop on every ground, and keep the big reveal for it | The long chase has two items | Designer rows, Art Director |
+| 10 | Hold the Catacombs until the Tower is used weekly | One Tower run since it opened | Coordinator |
+
+**How it was measured.** Every number is MEASURED unless it says ASSUMED. Real: SELECT-only reads in a read-only transaction (the `char-state.local.mjs` pattern), aggregated, raw rows local. A hero's Level at each ledger row is the running sum of its Level XP, so gold and hours fall in the band they were earned in. "Since 11-07" is the current formula (659 hunted hero-hours). Sim: `tools/balance-sim/cell.mjs` with `profile: 'played'`, every supply bought at the store (so gold costs are an upper bound for a player who crafts). The grid: each ground x tier x Level (10 under, 5 under, the floor, the middle, the top) x five lone ways, a pair and a four, 2 seeds x 0.5 h. The lives: a hero or party from Level 1 on the ground the Hunts window advises, XP and skills carried hour to hour. Drivers in `.scratch/` (`cells.mjs`, `life.mjs`, `tables.mjs`, `goldflow.mjs`). Not played in the browser by me this pass: the PC ran at 69-87% CPU on other lanes' sims, so the played record is the 11-18 blind audit's diary (`tools/qa/audit-2026-11-18-140/findings.md`).
+
+**1. The first 20 hours** (target table: Level 10 at 6 h, about 13 at 12 h, 17 at 20 h, 25 at 36 h).
+| Who | Level at 6 h | 12 h | 20 h | Level 10 at | Level 25 at | Where the hours went |
+|---|---|---|---|---|---|---|
+| Real, four accounts' first hero | 7-9 | 9-12 | 13-16 | 6.2-14.4 h | 41-47 h | Thicket 16.5 h of 20. Cellar 12 h. Sewer 17 h. Wickstead 13 h |
+| Real, the newest account (11-15): start kit, default bar, never opened the Shop | 8 | 9 | stopped | - | - | Cellar 6.3 h, Thicket 5.7 h, then nothing |
+| Sim, that same path (start kit and bar, 6 h in the Cellar) | 8 | 10 | 13 | 10.6 h | - | Melee 21, Defense 16 at 10 (real: 22 and 17) |
+| Real, an experienced player's new account (a pair from minute one) | 9 | 13 | 24 | 6.0 h | 20.5 h | Wickstead 11 h, Glade 7 h |
+| Blind audit hero, 11-18 (sword and shield, yard overnight) | 9 | 12 | about 15 | - | 22 at 36 h | Sewer, Wickstead |
+| Sim, played lone hammer where the game sends it | 10 | 13 | 17 | 5.3 h | 30.6 h | Thicket, Wickstead, Glade |
+| Sim, played four on Deadly, advised grounds | 11 | 16 | 25 | 4.0 h | 18.9 h | Sewer, Glade |
+
+- **A hero who follows the advice is on the table. A new player isn't one of those.** Real first heroes are 2 to 5 Levels behind at 20 h and reach 25 at 41-47 h (13-29% slow). The cause is the same each time: nothing moves an idle hero off a ground it outgrew. The Cellar pays 9.5k-11k XP an hour at every Level from 1 to 8, the Thicket 25k-32k at 5.
+- **The start kit is the slow way.** A new hero wears the Practice Sword and Shield (`start-kit.js` START_EQUIPMENT), ruled slow alone on purpose (11-19). The coach's style card says "Equip another weapon in town to switch style" and not which way is fast.
+- **Repeated by hand (the first principle):** re-picking the ground at Levels 5, 8 and 16, which an idle player isn't there to do.
+- **The Sewer alone from Level 5** pays 40k-68k XP an hour (the Thicket 25k-32k) and more gold, 0 deaths, typical low 71% HP for a tank. The two solo grounds are beaten on both axes from 5 to 18 by a hero who knows. Left as it is: harder ground, more pay (11-04, 11-08).
+
+**2. Level pace, the whole life.**
+| Who | 25 | 50 | 70 | 90 | 100 | 110 | Deaths |
+|---|---|---|---|---|---|---|---|
+| The target table (hours, straight lines between its rows) | 36 | 168 | 341 | 514 | 600 | 708 | |
+| Sim, lone hammer, Normal, advised grounds | 31 | 133 | 260 | 402 | 482 | 576 | 0 in 576 h |
+| Real, lone first heroes | 41-47 | (Level 38 at 100 h, the table says 105 h) | | | | | |
+| Sim, lone Mage, Dangerous, advised grounds | 21 | 65 | 104 | | | | 0 in 104 h |
+| Sim, four on Deadly, advised grounds | 19 | 54 | 104 | 191 | | | 0 in 191 h |
+| Sim, four on Deadly, always the ground 10 Levels up | 12 | 39 | 93 | | | | 16 before Level 10 (the Glade), then 0 in 148 h |
+| Real, the busiest four (Deadly, own heroes) | 11-21 | 43-61 | 86-107 | | | | 0 since its first day |
+| Real, two older fours (10-19 to 11-05 tiers) | 21-41 | 83-117 (one of them) | | | | | |
+
+- **Alone on Normal the curve holds, a little fast.** The played hammer runs 0.93x to 1.36x the pace contract by band and 19-24% under the table's hours from 50 on. Typical low HP 71-91%, store bill 0-10% of coin. `LEVEL_PACE` is fitted on the plain median hero, and lane/d-audit-fixes-sim is moving the grading to the played one.
+- **Anything with a tier is about 3x.** The Deadly four reads 2.0x-3.0x the contract in every band from 10 (hours in band 16 / 19 / 25 / 41 / 65 against the table's 30 / 79 / 96 / 130 / 130). 11-16 accepted "about 2 to 2.5x" for a mixed four on Deadly. At this pace a four reaches the top of today's content (110) in about 285 hunted hours.
+- **Pushing under your Level adds a little, and after the Glade it is free.** A four that always hunts the ground 10 Levels up reaches 50 in 39 h (54 in band) and 70 in 93 h (104). It dies 16 times before Level 10 on the Glade and 0 times in the 148 hours after, tank's typical low about 60%. The busiest real four's two later heroes read the same (25 at 11 h, 50 at 43-50 h). Deadly in band is most of the 3x.
+- **The lone road has long stays.** The advice keeps a lone hero on the Glade from 16 to 44 (97 of the hammer's 576 hours, and its band ends at 31), the Slake from 50 to 69 (127 h), the Pyre Field 70 to 84 (106 h), Krell's Hold 85 to 110 (210 h). The Warrens (32-50) and the Barrows (55-75) read "party" and are never advised alone.
+
+**3. Risk and death.**
+| Deaths an hour, lone hammer / lone Mage (0 = none in the cell) | Normal, 10 under | Dangerous, 5 under | Dangerous, floor | Dangerous, middle | Deadly, floor | Deadly, middle | Deadly, top |
+|---|---|---|---|---|---|---|---|
+| Mosslight Glade (16-31) | 0 / 0 | 98 / 45 | 4 / 0 | 0 / 0 | 87 / 18 | 18 / 1 | 0 / 0 |
+| Coppercap Warrens (32-50) | 0 / 0 | 8 / 1.5 | 0 / 0 | 0 / 0 | 4 / 0 | 0 / 0 | 0 / 0 |
+| Hask's Ford (45-60) | 0 / 0 | 31 / 0 | 1 / 0 | 0 / 0 | 19 / 0 | 2 / 0 | 0 / 0 |
+| The Slake (50-65) | 0 / 0 | 25 / 2 | 12 / 0 | 0 / 0 | 87 / 0 | 20 / 0 | 0 / 0 |
+| Muster Barrows (55-75) | 0 / 0 | 7 / 1 | 2 / 0 | 0 / 0 | 31 / 4 | 0 / 0 | 0 / 0 |
+| Pyre Field (70-90) | 0 / 0 | 10 / 0 | 6 / 0 | 0 / 0 | 23 / 0 | 3 / 0 | 0 / 0 |
+| Krell's Hold (85-110) | 0 / 0 | 19 / 0 | 16 / 0 | 0 / 0 | 35 / 1 | 14 / 0 | 1 / 0 |
+
+| A four on Deadly, store-bought (tank, Healer, bow, Mage) | XP an hour a hero: 10 under / floor (x contract) | Deaths an hour: 10 under / 5 under / floor | Tank's typical low HP: 10 under / floor | Worst back seat, 1 fight in 100 | Party net gold an hour: 10 under / floor |
+|---|---|---|---|---|---|
+| Mosslight Glade | 68k / 165k (3.27) | 80 / 46 / 0 | 7% / 74% | 73% | -18k / +5.5k |
+| Coppercap Warrens | 305k / 441k (3.56) | 1 / 0 / 0 | 36% / 74% | 78% | -49k / -3.4k |
+| Hask's Ford | 553k / 669k (3.47) | 0 / 0 / 0 | 65% / 79% | 100% | +21k / +4.9k |
+| The Slake | 605k / 715k (3.23) | 0 / 0 / 0 | 63% / 78% | 68% | +9.1k / -2.1k |
+| Muster Barrows | 714k / 766k (3.06) | 0 / 0 / 0 | 65% / 74% | 100% | -49k / -30k |
+| Pyre Field | 782k / 804k (2.35) | 0 / 0 / 0 | 69% / 73% | 100% | -39k / -29k |
+| Krell's Hold | 1,086k / 1,107k (2.51) | 0 / 0 / 0 | 72% / 74% | 82% | -42k / -37k |
+
+- **The real record agrees.** 32 deaths since 10-19, 4 since the 11-07 formula (659 hero-hours), 1 since the 6% rule on 11-10 (478 hero-hours, a blessed Deadly death in the Warrens that cost 197k XP). Every death whose hunt is still on record (8 of them) came within 9 minutes of entering.
+- **Why it is all or nothing.** A monster's blow is a flat roll from 1 to its max, many times a minute, against steady healing. Either the healing keeps up for ever or it doesn't for a minute. Nothing in a fight is a spike, so nothing lands in the ruling's Hard band (10 to 30 deaths per 1,000 h). Alone the cliff is about 8 Levels wide: 0 deaths at the Glade's Dangerous middle, 4 an hour at its floor, 98 five under.
+- **The wall under the floor ends at the Warrens.** A four 10 under dies 80 times an hour on the Glade's Deadly and once an hour on the Warrens'. From Hask's Ford up it dies 0 times, with the tank's typical low at 63-72%. Ten Levels are 31% of a Level 32 hero and 12% of a Level 85 one: the floor counts Levels and danger follows the ratio. The fix is the monsters' own stats (11-04), which lane/d-harder-monsters holds.
+- **+10% HP and blows, played hero, same dice** (`cells.mjs ... hp=1.1,atk=1.1`, a stand-in for the STAT_FORMULA change): a lone hero in range on Normal loses 0-15% XP (most 3-9%), typical low up to 22 points lower, still 0 deaths. A Deadly four at the floor loses 5-10% XP, pays 5-13% more at the store, tank's typical low 73-79% down to 67-75%, still 0 deaths on every ground, 10 under included from the Ford up. A lone hammer on the harder tiers dies 2 to 17 times as often (Hask's Ford Dangerous floor: 1 an hour to 17). So +10% widens the lone cliff and leaves parties safe: right as a first step, not the fix.
+- **The lone Mage.** On Dangerous at the floor it earns 2.2x-2.6x its own Normal and more than a Deadly four earns a hero on every ground from the Ford up (905k / 876k / 1,019k / 1,320k against 669k / 715k / 804k / 1,107k), 0 deaths, minus 4k to 40k gold an hour at store prices. The hammer, bow and tank die 1 to 16 times an hour in the same cells. Its bar is the recorded one: Fireball and Hoarfrost on the pack, Arcane Barrier about 150 times an hour on a 1-gold Plain Earth Rune. On Normal it is already 1.29x-1.48x the hammer from the Glade up. **With monsters +10% the same life is Level 70 at 130 h (104 as built), 43 deaths (0), 2.06M gold spent over income at store prices (0.48M):** more XP, a real bill, some deaths, which is the ruled shape. At +30% it dies 5-19 times an hour on every Dangerous floor. So the +10% in flight is most of this fix, and the Mage has to be watched on it.
+- **Blessings.** A death takes 6% of total Level XP: 4.6 h at the pace contract at Level 50, 9.7 h at 70, 23 h at 110. Three Blessings cut that to a quarter for 1,350 / 2,250 / 4,050 gold, free under 30. Players have spent about 7,000 gold on them, ever. It is not a choice and not a sink.
+
+**4. Parties.**
+- **Normal is not for parties, and nobody uses it for one.** A four earns 0.40-0.66 of its own heroes alone on Normal on eight grounds (the Sewer 0.98, the Warrens 1.04, the Barrows 1.19). From the Sewer and the Glade up it earns 1.0-1.3 on Dangerous and 1.05-1.33 on Deadly. Ruled 11-16, and the Party window says the measured line. Recorded since 11-07: 0 party hours on Normal or Dangerous, over 300 on Deadly. The tier is not a choice until Deadly costs something.
+- **What Deadly costs today is gold, and only if you don't craft.** Real, the busiest four at the Pyre Field: store 7.4k / 2.2k / 11.7k / 17.3k an hour (tank / bow / Mage / Healer) against 14.3k coin each, plus about 6k each of its own runes and arrows. Sim, everything store-bought: the Healer 41k and the Mage 33k an hour against 12k coin, the party 29k an hour in the red at the floor.
+- **The casters carry the bill.** Costs are personal (10-16). In the store-bought life the tank ends Level 70 at +1.03M, the bow +0.40M, the Healer -0.83M, the Mage -1.09M (a tank that levels in a party has low Magic, so its Flame Strike runs on 1-gold runes). With one purse it doesn't show. With real friends the two seats every party needs go broke.
+- **A four against the best lone way** (the Mage, same tier): 0.69-0.87 a hero. The ruling's "15-25% more than an efficient solo" (10-25 §5) does not hold against the Mage.
+- **0 of 87 recorded party hunts had two accounts** (first audit). A second hero costs 300,000 gold now, about 45-75 lone hunted hours (Level 30-35), so a new account is alone for its first week or it needs another player.
+- **Skills against Level: intended, keep.** Level XP rides the tier and skill XP rides the blows, so fast Levels leave skills behind. The Deadly life lands on the recorded heroes: at Level 70 the sim reads Melee 54 / Defense 63, Ranged 60, Magic 61 and the real four at 72-74 reads 57 / 57, 59, 57 and 61. A lone hammer's Melee is 55 at 50, 65 at 70 and 81 at 110, so every hero past 50 is under its Level. Played at the Pyre Field at 72, the party-levelled skills cost 11% XP and 28% more damage on the tank against skills at the Level, with 0 deaths. That is the game's own brake on rushing and it is mild. The yard can't close it late (57 to 72 is 379 yard hours), so nothing here needs a rule.
+
+**5. Gold, the whole life.**
+| Real, since 11-07, a hero-hour | Hunted hours | Coin | Sold at the shop | Store bill (share of coin) | Net |
+|---|---|---|---|---|---|
+| Level 1-9 | 22 | 1.4k | 0.04k | 0.2k (12%) | 1.4k |
+| 10-24 | 74 | 4.4k | 0.7k | 1.6k (37%) | 3.5k |
+| 25-39 | 199 | 6.3k | 1.5k | 3.0k (48%) | 4.8k |
+| 40-54 | 166 | 10.2k | 3.0k | 3.4k (33%) | 9.9k |
+| 55-69 | 144 | 15.1k | 5.8k | 8.3k (55%) | 12.8k |
+| 70-84 (after the 11-17 income cut) | 53 | 11.1k | 3.2k | 5.9k (53%) | 8.9k |
+
+| Sim, a hero's net gold an hour by band | 1-9 | 10-24 | 25-39 | 40-54 | 55-69 | 70-84 | 85-99 | 100-110 | Banked |
+|---|---|---|---|---|---|---|---|---|---|
+| Lone hammer, Normal | 4.3k | 7.2k | 10.2k | 11.4k | 12.8k | 22.6k | 19.9k | 21.9k | 9.65M at 110 |
+| Deadly four, a hero, all store-bought | 0.9k | 2.6k | 1.6k | 0.3k | -5.0k | -3.0k | -5.8k | | -0.12M at 70 |
+| Lone Mage, Dangerous, all store-bought | 0.4k | 0.0k | -0.4k | -7.4k | -8.8k | | | | -0.48M at 70 |
+
+| Where gold went since 11-07 (8.0M in: coin 6.05M, sold loot 1.84M, Tamsin 0.09M) | Gold | Share of gold out |
+|---|---|---|
+| Store supplies in hunts (of the 30 most bought: runes 72%, drinks 15%, arrows 9%, food 3%) | 2.78M | 43% |
+| The House (rooms and properties, nearly all one account) | 2.28M | 35% |
+| Stamina refills (one account, 33 buys) | 0.49M | 8% |
+| Tempering | 0.23M | 4% |
+| Town Works, Round, titles, a called boss, dyes | 0.20M | 3% |
+| Farm plots 0.16M, a House dummy 0.15M, a hero slot 0.08M, Storage 0.07M, Shop 0.05M | 0.51M | 8% |
+| Bench tax 13k, yard fees 10k, Blessings 3k, market fees 2k | 0.03M | 0.4% |
+
+- **The sinks bite and stay above a life's gold.** One of everything is about 11.6M for a one-hero account (Tempering tiers 2 to 7 both tracks 5.27M a hero, the House 2.43M, three slots 2.55M, four dummies 1.4M), against 9.65M a lone hammer banks by 110. The busiest account spent 5.96M of the 6.59M it ever earned, a quieter one sits on 2.09M having spent 17%.
+- **What recurs is supplies and stamina. Everything else is bought once.** The busiest account finished the House by Level 70. Linings (ruled 11-18) are the next recurring sink and should come before more one-time ones.
+- **Runes are the supply economy.** The store rune steps 1 / 8 / 12 / 28 / 44 gold by tier, so the bill jumps at Magic 45 and 60: the store's share of coin goes 33% at 40-54 to 55% at 55-69. Food is 3% of store spend. On Normal in range a played hero eats almost nothing, and under its Level food is the price (a lone hammer on Hask's Ford Dangerous eats 613 an hour, 111k gold).
+- **Stamina refills pay for themselves.** 1,000 + 250 a Level for 4 hours (17k at 64), each later one that day 2/15 dearer, 6 a day. In the same band a hunted hour nets 12.8k real, so the fourth and fifth refills still return more than they cost and stamina never binds a player with gold. The balance ruling held bought stamina out of the pace table "evaluated separately": this is that evaluation.
+- **The bench tax did its job and is gone.** 13.7k gold ever. Every active crafter bought the four rooms that remove it (250k for rung 1), and 0 gold of tax has been paid on 208 bench hours since 11-10.
+- **Repeated by hand:** a stamina refill is one press a hero a 4-hour block (18 presses in one minute on 11-17). It wants one "refill all my heroes" press with the total shown, never automatic (10-18).
+
+**6. Training.**
+- **Defense, measured on this build** (a lone tank, Level 24, the Glade, Normal): Defense 24 / 34 / 44 takes 15.9k / 9.8k / 4.4k damage an hour (-39%, -72%). Melee 34 for 24 adds 7% XP. Ten Defense levels from 24 are 12.4 yard hours and 2,809 gold. The cause is one dial: a monster's aim falls 2 points of hit chance a Defense point (`combat.js` monsterAccuracyPerPoint 0.02). Fix 4.
+- **The yard's fee is small and that's fine.** 50 + 6 a skill level an hour (350 at 50), paid 254 an hour in the record (35 hours, one account). It matters early (24 to 34 in 12 h) and can't matter late (10 levels from 81 are 1,020 hours). The House dummy at 150k equals about 300 late yard hours of fees: a late luxury, as ruled.
+
+**7. Gathering and benches** (real, since 11-07. A shop bid is what the output sells for).
+| Work | Hours | XP an hour | If sold to the shop |
+|---|---|---|---|
+| Gathering (814 h): Normal Tree 140 h, Essence Rock 92 h, Shrimp 78 h, Rich Coal 74 h | | 2.8k-15.6k | 0.6k-3.9k gold an hour |
+| Smelting bars: Mithril 33 h, Iron 7 h, Steel 3 h | | 8.5k-34k | 4.4k-36k an hour of bench, capped by the ore |
+| Planks: Yew 31 h, Maple 27 h | | 18k-23k | 6.7k-9.9k |
+| Cooking: Shrimp 19 h, Frostfin 18 h, Swordfish 17 h, Shark 8 h | | 11k-41k | 2.7k-23k |
+| Runes, arrows, whetstones (short runs) | | 43k-320k | used, not sold |
+
+- **Makes sense.** A gathering hour is worth 1k-4k gold and no stamina, a third or less of a hunted hour in the same band, so it fills the hours a hero can't hunt and never replaces hunting. Players use what they make: the shop's buys from players are dropped gear (the top 30 sold items are armor and weapons), not bars or fish.
+- **Crafting is the profit on the harder tiers** (section 5): about 6k gold an hour a hero of own runes and arrows on the busiest four.
+- **Jewelry: 21 Banded Signets made by one account, 0 Hallmark fees paid by anyone, ever.** No row past Level 30 (first audit). The itemization lanes own it.
+- **The Great Hearth is the one skill nobody levels.** 16 hours since 10-29 across five accounts. The Level 72-74 four has Inner Flame 3, 4, 4 and 14. It gives regen, and a party with a Healer doesn't want regen. It needs a reason or it merges into something that has one. Designer's next re-read.
+
+**8. Loot.**
+- **Gear pace is as ruled.** 10-39 pieces an hour for a lone hero at a floor on Normal, most grounds 16-26 (the ruling: about one an hour a slot a weight). Sold loot is 16-38% of coin in the record. It all goes to the shop in one Dispatch press.
+- **A Rare isn't rare.** Real, since 11-07: a Rare-band drop every 0.5-1.0 hero-hours at the Warrens, the Slake, the Pyre Field and Krell's Hold (the Glade 3.5), because a ground has many Rare rows that each keep the "every 10-20 h" promise (Krell's Hold dropped 8 different ones in 25 hero-hours). In a four that is a reveal every few minutes.
+- **The long chase is two items.** `band: 'trophy'` (every 100-150 h) is on the Rat King's Crown in the Sewer and Coppercap's Cauldron in the Warrens (2 drops in 176 real hero-hours). Hask's Mantle on the Barrows is written and waits on its icon. Nine grounds have none, and nothing past Level 50 drops one.
+- **Bestiary stages get reached.** 145 hero-and-monster pairs past 2,500 kills, 16 at the full 20,000 (four heroes each on the Crow, the Vine, the Poacher and the Scavenger). What a stage pays was not judged.
+
+**9. The Tower, the Catacombs, scaled hunts.**
+| System | State on the server | Real use | Read |
+|---|---|---|---|
+| The Burning Tower | on for everyone since 11-17 18:08 UTC | 1 climb, 11 floors, 3 minutes, 1 key, 0 chests opened | About half of hunting's XP, no gold, costs stamina (ASSUMED from the 11-15 table, not re-run). Its pull is the chest, and a chest weapon is +0.1% to 3.1% over its twin (ASSUMED, 11-16 table). Tyler ruled 11-18 they "should be pretty major upgrades". Until that lands the Tower has no reason, so judge its use after |
+| The Unmarked Catacombs | switched off | none | The Tower's shape again with armor in the chest. Each key family has its own 6 opens a week, so it adds a second weekly errand and no choice between them. Keep it off until the Tower shows weekly use |
+| Scaled hunts | switched off since 11-08 | none | The first audit's "no scaled hunt in 14 days" was the switch, not players. It waits for linings (11-18: old grounds stay useful through scaled hunts) |
+
+**10. Each system, ruled.**
+| System | Ruling | The number behind it |
+|---|---|---|
+| Hunting alone on Normal | Keep | On the table, 0 deaths in 576 h |
+| The harder tiers | Fix | Never or always for a party. A lone Mage farms them free until the +10% (fixes 2, 3) |
+| Parties | Keep the pace as ruled, fix the bill | 3x the table is the accepted Deadly four. Casters pay it (fix 6) |
+| Death and Blessings | Fix | 1 death in 478 h. 2,250 gold insures it (fix 5) |
+| Stamina | Fix, Tyler's call | A refill returns about 3x its price (fix 7) |
+| Supplies and the store | Keep | Runes are the bill. Crafting is the way round it |
+| Gear drops, Tamsin's tally | Keep | Ruled pace. Tamsin pays 1% of income, her pay is gear |
+| Rares and Trophies | Fix | Hourly Rares, two Trophies (fix 9) |
+| Jewelry and Hallmarks | Fix, owned by itemization | 0 Hallmark fees paid |
+| Tempering | Keep | 0.23M since 11-07, 1.75M ever, two accounts |
+| The House and the bench tax | Keep | 35% of gold out |
+| Gathering, benches, farming | Keep | 1,995 and 538 hours. Farming not judged in depth |
+| Training Yard | Fix through Defense | Fix 4 |
+| Skills against Level | Keep | Section 4 |
+| The Great Hearth | Needs a reason | 16 hours of use |
+| Town Works, Round, titles | Keep | One low-income account spent 23% of its lifetime gold there |
+| The Weighhouse | Not judged | 3 sales, 7 accounts |
+| Hero slots | Keep as ruled | A new account is alone to about Level 30-35 |
+| The Tower | Wait for its weapons | 1 run |
+| The Catacombs, scaled hunts | Stay off | Section 9 |
+
+**11. Ranked fixes** (rows for build lanes, none made here).
+| # | Fix | Rows or dials | Evidence | Owner |
+|---|---|---|---|---|
+| 1 | The Mill Cellar lets a new hero go at Level 5. The style card says which way is slow alone | `src/data/hunts.js` mill_cellar: a `leaveAtLevel: 5` field, and an `outgrown` reason in `src/data/hunt-sessions.js` END_ORDER, for a hero who entered under 5 (the summary already names the next ground). `src/data/text/coach.js` `styles` | Section 1. The Cellar pays 10k flat, the Thicket 25k-32k at 5 | Systems (the end reason), designer (the words) |
+| 2 | The +10% ships, and a lone Mage on Dangerous is held to it | `src/data/balance-sheet.js` STAT_FORMULA (lane/d-harder-monsters). Then the lone Mage life on Dangerous re-run on the real change (`.scratch/life.mjs mage dangerous`) and one lone Mage cell a ground added to `tests/balance-calibration.mjs` or the grader, so it can't drift back. If Hask's Ford and the Slake still read 0 deaths (they do at +10% in single cells: 853k and 821k XP an hour against a Deadly four's 625k-670k), the next lever is `src/data/abilities.js` arcane_barrier (a 40-point shield by version every 20 s on a 1-gold rune) | Section 3. As built: Level 70 in 104 h, 0 deaths. At +10%: 130 h, 43 deaths, -2.06M gold | lane/d-harder-monsters ships it, the designer re-measures |
+| 3 | A rare heavy blow on Dangerous and Deadly | One dial on the tier rows in `src/data/balance-sheet.js` (about 1 blow in 25 at 2.5x on Deadly, less on Dangerous), sized after the +10% and the area spells land so an in-band Deadly four dies about once in 30 to 100 hours | Section 3. +10% leaves fours at 0 deaths | Designer and Systems |
+| 4 | Halve what a Defense point does to a monster's aim | `src/core/combat.js` COMBAT_BALANCE.monsterAccuracyPerPoint 0.02 to 0.01, with each ground's base accuracy re-made (`gen-ground-stats`) so a hero whose Defense is its Level takes what it takes today. Stats against stats, no Level in a blow (11-18) | Section 6 | Systems, the designer re-reads every band after |
+| 5 | Three Blessings cost about an hour of a band's gold | `src/data/blessings.js` BLESSING_TIERS base 100 / 150 / 200 to 500 / 750 / 1000, perLevel 10 / 15 / 20 to 60 / 90 / 120 (Level 70: 13,050, today 2,250). Free under 30 stays | Section 3 | Designer row, Backend regenerates `hr_blessing_tiers` |
+| 6 | A party can split its supply bill | Mode B of the 10-25 ruling §6 (approved: pooled costs, unanimous consent), built as one box each on the Party window. Until then the window says what each seat pays | Section 4. Healer 17.3k an hour against 14.3k coin | Backend and Systems, before any push for cross-account parties |
+| 7 | A stamina refill costs about what its hours earn | `src/data/stamina-refill.js` perLevel 250 to 600, stepNum / stepDen 2 / 15 to 1 / 2 (Level 64: 39k, then 59k, 79k) | Section 5 | Tyler (a money dial), then Backend |
+| 8 | A lone hero is advised the Warrens from about Level 36 | `coppercap_warrens` `groupFit` in its ground row and the lone branch of `src/shell/hunt-list.js` recommendedHunt, on a measured lone line like the party's. The Barrows stays a party ground (alone it loses 11k-23k gold an hour in band) | Alone at Level 41 on Normal: 0 deaths, 230k-358k XP an hour and +1k to +6k gold (the Glade at 36-44: 121k and +10k) | Designer row, Systems |
+| 9 | One Trophy row a ground, and the big reveal only for it | A last `band: 'trophy'` row on each ground's carrier. Hask's Mantle on the Barrows is already written (`muster_barrows/pack.js`, waiting on its icon): ship it as the sample, then Krell's Hold. `src/data/loot-bands.js` REVEAL_BANDS: Rare keeps the party roll and a small line | Section 8 | Designer rows, Art Director for the reveal |
+| 10 | Hold the Catacombs. Judge the Tower after its weapons | `hr_feature_switches` unmarked_catacombs stays off. Tower use read from `tower_runs` a week after the ruled weapons ship | Section 9 | Coordinator, itemization lanes |
+
+**Walk-through of fix 1** (the one sequence here, every name checked in `src/data`).
+| Step | The hero holds and can reach | Doable from the steps before |
+|---|---|---|
+| 1. New hero, Level 1, in town | Practice Sword and Shield worn, five more practice sets and 500 gold (`start-kit.js`) | Yes |
+| 2. Hunts, Mill Cellar, Enter | `mill_cellar` band 1-8, tagged Recommended at Level 1 (`recommendedHunt`) | Yes |
+| 3. The hunt runs on its own | Level 5 after 0.22-0.57 h (sim) and about 130 kills (real) | Yes |
+| 4. At Level 5 the hunt ends by itself | NEW: the `outgrown` end. The summary's "Next ground: Meadowbrook Thicket" exists today (audit 140) | Needs the build |
+| 5. Hunts, Meadowbrook Thicket, Enter | `meadowbrook_thicket` band 5-15, the advised ground at 5 | Yes |
+
+One check for the build lane: Tamsin's first rat task must finish inside those 130 kills, or the Cellar must stay open to re-enter (it does: no Level is refused).
+
+**Already owned elsewhere, not repeated here:** the +10% and the back-row area spells and Deadly's damage (lane/d-harder-monsters), grading on the played hero and the bow's and Healer's default bars and the Lookout (lane/d-audit-fixes-sim), the null tier on continued hunts (lane/c-session-tier-null), tank rune spells (lane/b-tank-runes), jewelry past Level 30 (itemization lanes).
+
+**Limits.** Seven accounts, one of them most of the late data, and every party is one player's own heroes. A cell is one hero-hour, so a death rate under about 2 an hour is 0 or 1 events and nothing here proves "fewer than 1 in 100 hours" except the lives (576, 191 and 104 hours with none). Store-bought supplies overstate gold cost for a player who crafts. The Tower's XP, the weapon and armor steps and the bestiary's pay are ASSUMED from the 11-15 to 11-18 tables. The Weighhouse, farming and the Hearth's numbers were not judged. I didn't play it in the browser this pass.
+
 ### 2026-11-19 Balance audit (real hunts) (game-designer, lane/d-balance-audit; **Tyler 2026-11-19: "a complete audit of all of our current balancing ... using Andy's data, and then probably rebuild the audit auto hunts to make sure what we are testing is accurate to the game"**): MEASURED on set/v0.2.141 against 235 recorded hunt sessions, the harness REBUILT, a calibration guard ADDED, no balance row changed
 **The data.** A read-only export of `hunt_sessions` + `hunt_session_tally`: Andy's two accounts (160 sessions; the old one 10-28 to 11-05, the current four 11-16 to 11-18, about 192 h) and every player's last 14 days (163 sessions, 7 accounts). Each hero's Level XP, skill XP, worn set, bar and hunt options were read the same way (as held today) and each hunt's start was rebuilt as today's XP minus what its later hunts paid. Raw rows stay local. The committed fixture is aggregated and anonymous (`tests/fixtures/balance-calibration.json`: seats by index, rates an hour, a date). Every number below is MEASURED unless it says ASSUMED. No score is given.
 

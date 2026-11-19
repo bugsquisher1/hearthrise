@@ -43,6 +43,7 @@ import { BUILD } from '../src/build-info.js';
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE SPELLS ARE THIS GUARD'S SUBJECT: the switch on (the engine's own instance of the row: src/core imports src/data with the build's ?v=),
@@ -69,7 +70,7 @@ async function newestShapeFile() {
 }
 /* The shape row of the newest catalogue before `file` in the apply order (the shape the chain holds when `file` applies), or null. */
 function shapeBefore(file) {
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   for (let i = order.indexOf(file) - 1; i >= 0; i--) { const r = /\.generated\.sql$/.test(order[i]) ? shapeRowOf(sqlOf(order[i])) : null; if (r) return r; }
   return null;
 }

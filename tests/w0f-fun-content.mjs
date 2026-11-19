@@ -47,6 +47,7 @@ import {
 import { skillXpForLevel, charXpForLevel } from '../src/core/xp.js';
 import { vendorPriceOf } from '../supabase/functions/hr-accrue/catalogue.js';
 import { huntSpan } from './hunt-fixture.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SQL_FILE = join(ROOT, 'supabase', 'migrations', '2026-10-16-w0f-fun-content.sql');
@@ -54,7 +55,7 @@ const SQL_FILE = join(ROOT, 'supabase', 'migrations', '2026-10-16-w0f-fun-conten
    w0f file's own hr_items insert is history every later catalogue overwrote; gear moved to the hero's Level on
    2026-10-24, tools/gen-catalogues.mjs). */
 function catalogueSql() {
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   for (let i = order.length - 1; i >= 0; i--) {
     if (!/catalogue\.generated\.sql$/.test(order[i])) continue;
     const t = readFileSync(join(ROOT, 'supabase', 'migrations', order[i]), 'utf8');

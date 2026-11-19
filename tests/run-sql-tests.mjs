@@ -90,6 +90,7 @@ import * as CORE_BODIES_REMOVALS from './chain-removals/2026-10-27-core-bodies.m
 import * as ACCOUNT_DEPOT_REMOVALS from './chain-removals/2026-11-27-account-depot.mjs';
 import * as ACCOUNT_GOLD_REMOVALS from './chain-removals/2026-12-15-account-gold.mjs';
 import * as DEAD_SURFACES_REMOVALS from './chain-removals/2027-01-18-dead-surfaces-cut.mjs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -1465,7 +1466,7 @@ const CLIENT_CALLABLE = new Map([
 //              query). It fails closed: unreadable is "not revoked".
 // What production's ACLs ARE is hr_assert_grant_hygiene's to say, executed by
 // every replay; this is the static half, as it always was.
-const APPLY_ORDER = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+const APPLY_ORDER = loadApplyOrder(ROOT).order;
 const chainCodeCache = new Map();
 const chainCode = async (f) => {
   if (code.has(f)) return code.get(f);
@@ -2482,7 +2483,7 @@ say(`── ${SPEC.fn} derivation chain (each body derived from the last, nothin
     chainOk = false;
   }
   {
-    const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     const positions = SPEC.chain.map((f) => order.indexOf(f));
     if (positions.some((p) => p < 0)) {
       fail(`a ${SPEC.fn} file is missing from schema-apply-order.json's "order": `
@@ -2730,8 +2731,7 @@ say('── every currency delta key has a per-call clamp AND a daily ceiling (S
          function, which is the same last-toucher discipline PART 1f-ii
          enforces. */
     const budgetSql = await (async () => {
-      const order = JSON.parse(
-        await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+      const order = loadApplyOrder(ROOT).order;
       let last = '';
       for (const f of order) {
         let sql = sources.get(f);
@@ -2831,7 +2831,7 @@ say('── the clan Storehouse debits the depositor (Security P0, b366)');
   // The PUBLIC name, and NOT the __ungated one: `\s*\(` after the name is what
   // separates `clan_deposit(` from `clan_deposit__ungated(`.
   const OUTER = /create\s+or\s+replace\s+function\s+public\.clan_deposit\s*\(/i;
-  const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
 
   // (i) ONE OWNER.
   const inners = [...code.entries()].filter(([, sql]) => INNER.test(sql)).map(([f]) => f);

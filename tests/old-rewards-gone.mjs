@@ -191,6 +191,7 @@ function walkCode(dir, out = []) {
   return out;
 }
 import { readdirSync } from 'node:fs';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 function readdirSafe(dir) { return readdirSync(dir, { withFileTypes: true }); }
 
 export async function loadWorld() {
@@ -199,7 +200,7 @@ export async function loadWorld() {
     if (existsSync(p)) files.set(p.slice(ROOT.length + 1).replace(/\\/g, '/'), readFileSync(p, 'utf8'));
   }
   const exists = new Set(DELETED_FILES.filter((f) => existsSync(join(ROOT, f))));
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const sql = order.map((f) => [f, readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8')]);
   const { ITEMS } = await import(pathToFileURL(join(ROOT, 'src', 'data', 'items.js')).href);
   const { EQUIP_SLOTS, EQUIP_SLOT_META } = await import(pathToFileURL(join(ROOT, 'src', 'data', 'gathering.js')).href);

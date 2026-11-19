@@ -46,7 +46,7 @@ const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(REPO, 'src/build-
 const T0 = Date.UTC(2026, 9, 18, 12, 0, 0);
 const MINUTE = 60000;
 /* The planted tree a mutant runs: the play trees and the generator's own imports. */
-const TREES = [...PLAY_TREES, 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs', 'src/session'];
+const TREES = [...PLAY_TREES, 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib/apply-order.mjs', 'tests/_is-main.mjs', 'src/session'];
 
 /* ── THE FIXTURE HALL (tests/boss-hall-fixture.mjs) ─────────────────────────── */
 const STRONG = { L: 70, kit: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };

@@ -52,6 +52,7 @@ import { bootReplay, LAST_PATCHED, ROOT, inventory } from './schema-replay.mjs';
 import { START_INVENTORY, START_EQUIPMENT } from '../src/data/start-kit.js';
 import { PREMIUM_LOGIN_REWARD } from '../src/data/premium.js';
 import { ITEMS } from '../src/data/items.js';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const MIG = '2027-01-12-market-account.sql';
 const BOND = '2027-02-13-market-premium-bond.sql';
@@ -393,7 +394,7 @@ async function run(mutate) {
     /* A body a LATER file restates (2027-01-21-market-same-network.sql: the two reads that look at
        market_sales) is that file's to keep byte-identical (tests/market-edge.mjs E10); re-applying this
        older file over it restores this file's image by design. Derived from the apply order, never typed. */
-    const order = JSON.parse(await readFile(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+    const order = loadApplyOrder(ROOT).order;
     const later = new Set();
     for (const f of order.slice(order.indexOf(MIG) + 1)) {
       const t = await readFile(join(ROOT, 'supabase', 'migrations', f), 'utf8');

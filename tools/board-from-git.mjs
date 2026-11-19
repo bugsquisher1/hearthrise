@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { loadApplyOrder } from './lib/apply-order.mjs';
 const sh = (c) => { try { return execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { return ''; } };
 const build = (readFileSync('src/build-info.js', 'utf8').match(/cache:\s*'([^']+)'/) || [])[1];
 const changelogHead = (readFileSync('CHANGELOG.md', 'utf8').match(/^## (v[^\n]+)/m) || [])[1] || '';
@@ -18,7 +19,7 @@ const ahead = sh('git rev-list --count origin/main..main');
 const branches = sh("git for-each-ref --format='%(refname:short) %(objectname:short) %(committerdate:short)' refs/heads/next refs/heads/release/* refs/remotes/origin/release/*").split('\n').filter(Boolean);
 const merges = sh('git log --merges --oneline -5').split('\n').filter(Boolean);
 let staged = [];
-try { const j = JSON.parse(readFileSync('tests/schema-apply-order.json', 'utf8')); for (const [f, n] of Object.entries(j._order_notes || {})) if (/^STAGED/i.test(n)) staged.push(f); } catch {}
+try { const j = loadApplyOrder(); for (const [f, n] of Object.entries(j._order_notes || {})) if (/^STAGED/i.test(n)) staged.push(f); } catch {}
 const guard = (c) => { try { execSync(c, { stdio: 'ignore' }); return 'green'; } catch { return 'RED'; } };
 
 // The board is edited on Windows as often as Linux, so it can carry CRLF line

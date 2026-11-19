@@ -101,7 +101,7 @@ function gp3() {
 /* a covered generator's whole file name, read as text */
 function outOf(gen) {
   const t = readFileSync(join(ROOT, 'tools', gen), 'utf8');
-  const m = t.match(/OUT_NAME = '([^']+)'/) || t.match(/'(\d{4}-\d{2}-\d{2}-[a-z0-9-]+-items-catalogue\.generated\.sql)'/);
+  const m = t.match(/OUT_NAME = '([^']+)'/) || t.match(/'((?:\d{4}-\d{2}-\d{2}|\d{4,})-[a-z0-9_-]+-items-catalogue\.generated\.sql)'/);
   if (!m) throw new Error('ground-pack: no whole file name in tools/' + gen);
   return m[1];
 }

@@ -61,6 +61,7 @@ import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../tests/_is-main.mjs';
+import { loadApplyOrder } from './lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const FILE = '2027-02-10-settle-plan-cache.generated.sql';
@@ -532,7 +533,7 @@ function selftestPass(file, have, wanted) {
 async function main() {
   const selftest = process.argv.includes('--selftest');
   const check = selftest || process.argv.includes('--check');
-  const order = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+  const order = loadApplyOrder(ROOT).order;
   const { bootReplay } = await import('../tests/schema-replay.mjs');
   let bad = 0;
   /* --pass=N: one pass only (each replays the chain to its own file: minutes on PGlite) */

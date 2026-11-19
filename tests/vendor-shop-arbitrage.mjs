@@ -47,11 +47,12 @@ import { ITEMS } from '../src/data/items.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { recipeInputs } from '../src/core/artisan.js';
 import { SHOP_LISTED_OFFER_IDS } from '../src/data/supply-basics.js';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = join(fileURLToPath(new URL('.', import.meta.url)), '..');
 const MIG = join(ROOT, 'supabase', 'migrations');
 const readMig = (f) => readFileSync(join(MIG, f), 'utf8');
-const ORDER = JSON.parse(readFileSync(join(ROOT, 'tests', 'schema-apply-order.json'), 'utf8')).order;
+const ORDER = loadApplyOrder(ROOT).order;
 
 class HarnessError extends Error {}
 

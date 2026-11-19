@@ -129,7 +129,7 @@ const MUTANTS = [
     edits: [['tools/gen-hunt-sessions.mjs', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[1]) || 0));', 'const gold = Math.max(0, Math.ceil(Number((m.gp || [0, 0])[0]) || 0));']] },
 ];
 /* What a planted generator needs beside src/core and src/data (its imports). */
-const TREES = ['src/session', 'supabase/functions/hr-accrue', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs', 'tests/schema-apply-order.json',
+const TREES = ['src/session', 'supabase/functions/hr-accrue', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib/apply-order.mjs', 'tests/_is-main.mjs', 'supabase/migration-notes',
   /* the open packs' own files: the settle reads their rows too */
   ...(await (async () => { const { packIds } = await imp(ROOT, 'tools/pack/files.mjs'), { packSqlOf } = await imp(ROOT, 'tools/pack/whole.mjs');
     return packIds(ROOT).map((id) => packSqlOf(id, ROOT)).filter(Boolean).map((f) => 'supabase/migrations/' + f); })()),

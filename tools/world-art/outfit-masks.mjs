@@ -8,9 +8,12 @@
 // BASE_REGIONS[i] (src/data/outfits.js: head red, body green, legs blue, feet yellow); every other pixel is
 // transparent. A hero's colours are one set, head/body/legs/feet, worn across every outfit (board 11-04),
 // so every mask keys the same four regions; a region an outfit has no cloth for is simply absent.
-// Output: art/world/hunt-masks/<sprite>_mask.png + sidecar (the outfit's own layout: frame, anchor, clips,
-// facings), built UNLOCKED into assets/world/atlas-hunt-masks.* (a mask set: src/data/world/atlas-sets.js
-// MASK_SETS, tools/world-art/build.mjs). Not in ATLAS_SETS: the dye code loads it on first need, so the
+// Output: art/world/<mask set>/<sprite>_mask.png + sidecar (the outfit's own layout: frame, anchor, clips,
+// facings), built UNLOCKED into assets/world/atlas-<mask set>.* (a mask set: src/data/world/atlas-sets.js
+// MASK_SETS, tools/world-art/build.mjs). ONE MASK SET A HERO SET (lane/c-faction-outfit-path 2026-11-18): an
+// outfit's sheet is in one of HERO_SETS (`heroes` is full at ATLAS_MAX, so the faction looks are in
+// `factionwear`), found by where its sidecar is, and its mask goes to that set's mask set (hunt-masks,
+// factionwear-masks). Not in ATLAS_SETS: the dye code loads it on first need, so the
 // game's first load does not grow. tests/outfit-masks.mjs holds every mask to its frame.
 //
 // HOW, per frame, from the outfit's art/world/hunt source sheet:
@@ -60,16 +63,19 @@ import { decodePNG, encodePNG, encodeSheetPNG, createImage, crop, blit, scaleNea
 import { buildSet, stringifyManifest } from './build.mjs';
 import { FACINGS, atlasPaths } from '../../src/data/world/art-budget.js';
 import { ALPHA_CUT } from '../../src/data/world/palette.js';
-import { MASK_SETS } from '../../src/data/world/atlas-sets.js';
+import { MASK_SETS, HERO_SETS } from '../../src/data/world/atlas-sets.js';
 import { OUTFITS } from '../../src/data/hunt-outfits.js';
 import { BASE_REGIONS, MASK_COLOURS, BASE_DEFAULT_COLORS } from '../../src/data/outfits.js';
 import { isMain } from '../../tests/_is-main.mjs';
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-/** The mask set and the set it masks (src/data/world/atlas-sets.js MASK_SETS). */
-export const MASK_SET = 'hunt-masks';
-const BASE_SET = MASK_SETS[MASK_SET];
-const SRC_DIR = 'art/world/' + BASE_SET, OUT_DIR = 'art/world/' + MASK_SET;
+/** Hero set -> its mask set (src/data/world/atlas-sets.js MASK_SETS, read the other way). */
+export const MASK_SET_OF = Object.freeze(Object.fromEntries(Object.entries(MASK_SETS).map(([mask, base]) => [base, mask])));
+const dirOf = (set) => 'art/world/' + set;
+/** The hero set holding a sprite's sheet: the one of HERO_SETS whose source tree has its sidecar (null: none). */
+export function heroSetOf(root, sprite) {
+  return HERO_SETS.find((set) => existsSync(join(root, dirOf(set), sprite + '.json'))) || null;
+}
 const HEAD = 0, BODY = 1, LEGS = 2, FEET = 3;
 const R = (name) => BASE_REGIONS.indexOf(name);
 
@@ -141,6 +147,21 @@ export const OUTFIT_MASKS = Object.freeze({
     bands: { head: 24, body: 4, legs: 4 },
     parts: { grey: { byBand: ['head', 'body'], clamp: true, n4: true, min: 2, split: 3 }, pale: { region: 'feet', n4: true, min: 3, below: 16 },
       leather: { byBand: ['feet'], n4: true } },
+  },
+  /* THE FACTION OUTFITS (lane/b-farm-house-faction-art 2026-11-18, set `factionwear`; palette-locked, so these are exact ramp entries). The
+     Flamebearer's antique gold tabard and its trim (the bronze and gold ramps, s >= 0.3: #cfa25c #a8743a #e8c547 #7a4f26 #4a2e18) are its one
+     cloth: body. The steel plate, the dark skirt, the pale neck cloth and the flame (bone, s under 0.3) stay as drawn. */
+  flamebearer: {
+    materials: [OUTLINE(0.1), ['gold', { h: [20, 55], s: [0.3, 1] }], ['steel', { s: [0, 0.3] }]],
+    bands: { head: 27, body: 15, legs: 4 },
+    parts: { gold: { region: 'body', n4: true } },
+  },
+  /* The Emberkeeper's crimson cloth at the collar, the sash, the skirt and the striped sleeve (the blood ramp, h 345-15 s >= 0.5: #8e1f1f #5e1a1f
+     #3e1216 #c23a2a) is its one cloth: body. The charcoal hood and plate, the iron face plate and the lit eyes (torch, h 33) stay as drawn. */
+  emberkeeper: {
+    materials: [OUTLINE(0.1), ['crimson', { h: [345, 15], s: [0.5, 1] }], ['eye', { h: [20, 50], s: [0.5, 1] }], ['dark', { s: [0, 0.3] }]],
+    bands: { head: 27, body: 15, legs: 4 },
+    parts: { crimson: { region: 'body', n4: true } },
   },
 });
 
@@ -324,7 +345,7 @@ export function cellsOf(sc, [fw, fh]) {
   return out;
 }
 
-const sidecarOf = (root, sprite) => JSON.parse(readFileSync(join(root, SRC_DIR, sprite + '.json'), 'utf8'));
+const sidecarOf = (root, set, sprite) => JSON.parse(readFileSync(join(root, dirOf(set), sprite + '.json'), 'utf8'));
 const FRAME = [64, 64];
 
 /** One outfit's mask sheet, the same size and layout as its source sheet. PURE over its inputs. */
@@ -342,23 +363,27 @@ export function maskSheet(sheet, sc, spec) {
   return out;
 }
 
-/** Every shipped mask: [{ outfit, sprite, id, sidecar, image }] from the tree's sources. */
+/** Every shipped mask: [{ outfit, sprite, id, base, set, sidecar, image }] from the tree's sources (`base` the hero set, `set` its mask set). */
 export function buildMasks(root = ROOT) {
   return Object.entries(OUTFIT_MASKS).map(([outfit, spec]) => {
     const sprite = OUTFITS[outfit];
-    const sc = sidecarOf(root, sprite);
-    const image = maskSheet(decodePNG(readFileSync(join(root, SRC_DIR, sc.source))), sc, spec);
+    const base = heroSetOf(root, sprite);
+    if (!base || !MASK_SET_OF[base]) throw new Error('outfit-masks: ' + sprite + ' is in no hero set with a mask set (src/data/world/atlas-sets.js HERO_SETS, MASK_SETS)');
+    const sc = sidecarOf(root, base, sprite);
+    const image = maskSheet(decodePNG(readFileSync(join(root, dirOf(base), sc.source))), sc, spec);
     const id = sprite + '_mask';
     const sidecar = { id, class: sc.class, mask_of: sprite, source: id + '.png', anchor_px: sc.anchor_px, footprint: sc.footprint, anims: sc.anims,
       notes: 'Region mask of ' + sprite + ' (dyes): each pixel a dye recolours keyed by region, src/data/outfits.js MASK_COLOURS in BASE_REGIONS order. '
-        + 'Written by tools/world-art/outfit-masks.mjs from ' + SRC_DIR + '/' + sc.source + '; free, no generation.' };
-    return { outfit, sprite, id, sidecar, image };
+        + 'Written by tools/world-art/outfit-masks.mjs from ' + dirOf(base) + '/' + sc.source + '; free, no generation.' };
+    return { outfit, sprite, id, base, set: MASK_SET_OF[base], sidecar, image };
   });
 }
 
-function writeSources(root, dir, masks) {
-  mkdirSync(join(root, dir), { recursive: true });
+/* each mask under its own mask set's directory, below `root` */
+function writeSources(root, masks) {
   for (const m of masks) {
+    const dir = dirOf(m.set);
+    mkdirSync(join(root, dir), { recursive: true });
     writeFileSync(join(root, dir, m.id + '.png'), encodePNG(m.image));
     writeFileSync(join(root, dir, m.id + '.json'), JSON.stringify(m.sidecar, null, 2) + '\n');
   }
@@ -407,7 +432,7 @@ export function reviewStrip(root, masks) {
   const out = createImage(cols * CW * K + 3 * GAP * K, rows.length * CH * K);
   for (let i = 0; i < out.data.length; i += 4) out.data.set([74, 78, 70, 255], i);
   rows.forEach((outfit, r) => {
-    const sprite = OUTFITS[outfit], sc = sidecarOf(root, sprite), sheet = decodePNG(readFileSync(join(root, SRC_DIR, sc.source)));
+    const sprite = OUTFITS[outfit], base = heroSetOf(root, sprite), sc = sidecarOf(root, base, sprite), sheet = decodePNG(readFileSync(join(root, dirOf(base), sc.source)));
     const mask = (masks.find((m) => m.outfit === outfit) || {}).image || null;
     const cells = cellsOf(sc, FRAME);
     REVIEW_FRAMES.forEach(([anim, dir, i], f) => {
@@ -443,26 +468,33 @@ function main(argv) {
     return 0;
   }
   const out = argv.indexOf('--out');
-  if (out >= 0) { writeSources(resolve(argv[out + 1]), OUT_DIR, masks); console.log('wrote ' + masks.length + ' masks under ' + argv[out + 1]); return 0; }
+  if (out >= 0) { writeSources(resolve(argv[out + 1]), masks); console.log('wrote ' + masks.length + ' masks under ' + argv[out + 1]); return 0; }
   if (argv.includes('--check')) {
     let stale = 0;
     for (const m of masks) {
+      const dir = dirOf(m.set);
       let have = null, side = null;
-      try { have = pixelHash(decodePNG(readFileSync(join(ROOT, OUT_DIR, m.id + '.png')))); side = readFileSync(join(ROOT, OUT_DIR, m.id + '.json'), 'utf8'); } catch { /* absent */ }
-      if (have !== pixelHash(m.image) || side !== JSON.stringify(m.sidecar, null, 2) + '\n') { console.error('stale: ' + OUT_DIR + '/' + m.id); stale++; }
+      try { have = pixelHash(decodePNG(readFileSync(join(ROOT, dir, m.id + '.png')))); side = readFileSync(join(ROOT, dir, m.id + '.json'), 'utf8'); } catch { /* absent */ }
+      if (have !== pixelHash(m.image) || side !== JSON.stringify(m.sidecar, null, 2) + '\n') { console.error('stale: ' + dir + '/' + m.id); stale++; }
     }
-    for (const outfit of Object.keys(HELD)) if (existsSync(join(ROOT, OUT_DIR, OUTFITS[outfit] + '_mask.png'))) { console.error('held but shipped: ' + outfit); stale++; }
+    for (const outfit of Object.keys(HELD)) {
+      const base = heroSetOf(ROOT, OUTFITS[outfit]);
+      if (base && MASK_SET_OF[base] && existsSync(join(ROOT, dirOf(MASK_SET_OF[base]), OUTFITS[outfit] + '_mask.png'))) { console.error('held but shipped: ' + outfit); stale++; }
+    }
     console.log(stale ? `outfit-masks --check: RED, ${stale} stale` : `outfit-masks --check: ${masks.length} masks match a fresh run`);
     return stale ? 1 : 0;
   }
-  writeSources(ROOT, OUT_DIR, masks);
-  const b = buildSet(ROOT, MASK_SET);
-  for (const f of b.findings) console.log(`  ✗ [${f.rule}] ${f.id}: ${f.detail}`);
-  if (b.findings.length) return 1;
-  const p = atlasPaths(MASK_SET);
-  writeFileSync(join(ROOT, p.image), encodeSheetPNG(b.atlas));
-  writeFileSync(join(ROOT, p.manifest), stringifyManifest(b.manifest) + '\n');
-  console.log(`wrote ${masks.length} masks under ${OUT_DIR} and ${p.image} (${b.manifest.size.join('x')}); held: ${Object.keys(HELD).join(', ') || 'none'}`);
+  writeSources(ROOT, masks);
+  for (const set of Object.keys(MASK_SETS)) {
+    const b = buildSet(ROOT, set);
+    for (const f of b.findings) console.log(`  ✗ [${f.rule}] ${f.id}: ${f.detail}`);
+    if (b.findings.length) return 1;
+    const p = atlasPaths(set);
+    writeFileSync(join(ROOT, p.image), encodeSheetPNG(b.atlas));
+    writeFileSync(join(ROOT, p.manifest), stringifyManifest(b.manifest) + '\n');
+    console.log(`wrote ${masks.filter((m) => m.set === set).length} masks under ${dirOf(set)} and ${p.image} (${b.manifest.size.join('x')})`);
+  }
+  console.log(`held: ${Object.keys(HELD).join(', ') || 'none'}`);
   return 0;
 }
 

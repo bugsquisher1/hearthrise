@@ -8,9 +8,9 @@
 // process's in-memory database moves (a local purse, to reach the price). A manual walk (tests/guards-unregistered.json); the section's
 // numbers are pinned in CI by tests/envelope-contract.mjs `bag_expand` and the migration's §4.
 //
-//   BE-1  the Storage header reads "Bag N / 100" and Expand shows the SERVER's price (hr_bag_expand_view = hr_unlock_offers bank.0)
+//   BE-1  the Storage bag's head reads "N of 100 stacks" and Expand shows the SERVER's price (hr_bag_expand_view = hr_unlock_offers bank.0)
 //   BE-2  with no gold, Expand is off and says why in words
-//   BE-3  with the gold, one press sends unlock_buy; the header reads "/ 120" and the button the server's bank.1 price
+//   BE-3  with the gold, one press sends unlock_buy; the head reads "of 120 stacks" and the button the server's bank.1 price
 //   BE-4  a reload keeps the 120 (the server's cap, player_state.bank_cap), the purse moved by exactly the price
 //   BE-5  no console errors, nothing left the machine
 // mutant-anchors: none — a manual walk of the real game
@@ -58,9 +58,9 @@ try {
   /* ── BE-1, BE-2 ── a new hero's purse is short of 3,000 */
   await sql('update public.account_wallet set gold = 10 where user_id = $1', [uid]);
   await a.reload(); await page.waitForSelector('.hs-launchers'); await openStore();
-  await page.waitForFunction(() => /\/ 100$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent));
+  await page.waitForFunction(() => / of 100 stacks$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent));
   let r = await read();
-  step('BE-1 the header reads Bag N / 100', /^Bag \d+ \/ 100$/.test(r.head), r.head);
+  step('BE-1 the header reads N of 100 stacks', /^\d+ of 100 stacks$/.test(r.head), r.head);
   step('BE-1 Expand shows the server\'s price', r.btn === 'Expand (+20) for ' + fmt(p0), r.btn + ' vs ' + p0);
   /* the shortfall in the Storage window's own words for it (storage.js expandBlock: bag.store_grow_short over the server's price less the purse) */
   step('BE-2 short of gold: off, and says why', r.off && r.why === t('bag.store_grow_short', { gold: gold(p0 - 10) }), JSON.stringify(r) + ' vs ' + t('bag.store_grow_short', { gold: gold(p0 - 10) }));
@@ -72,19 +72,19 @@ try {
   await page.waitForFunction(() => !document.querySelector('.hw-store [data-hs-act="expand"]').disabled);
   if (shots) await a.shot('storage-ready');
   await page.click('.hw-store [data-hs-act="expand"]');
-  await page.waitForFunction(() => /\/ 120$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent), null, { timeout: 20000 }).catch(() => {});
+  await page.waitForFunction(() => / of 120 stacks$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent), null, { timeout: 20000 }).catch(() => {});
   r = await read();
-  step('BE-3 the cap goes 100 -> 120', /\/ 120$/.test(r.head), r.head);
+  step('BE-3 the cap goes 100 -> 120', / of 120 stacks$/.test(r.head), r.head);
   step('BE-3 the next price is the server\'s bank.1', r.btn === 'Expand (+20) for ' + fmt(p1), r.btn + ' vs ' + p1);
   if (shots) await a.shot('storage-bought');
 
   /* ── BE-4 ── */
   await a.reload(); await page.waitForSelector('.hs-launchers'); await openStore();
-  await page.waitForFunction(() => /\/ \d+$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent));
+  await page.waitForFunction(() => / of \d+ stacks$/.test(document.querySelector('.hw-store [data-n="bag"]').textContent));
   r = await read();
   const cap = (await sql('select bank_cap from public.player_state where user_id = $1 and slot = 0', [uid]))[0].bank_cap;
   const purse = Number((await sql('select gold from public.account_wallet where user_id = $1', [uid]))[0].gold);
-  step('BE-4 a reload keeps 120, the server\'s cap', /\/ 120$/.test(r.head) && cap === 120, r.head + ' cap ' + cap);
+  step('BE-4 a reload keeps 120, the server\'s cap', / of 120 stacks$/.test(r.head) && cap === 120, r.head + ' cap ' + cap);
   step('BE-4 the purse moved by exactly the price', purse === 7, purse);
 
   /* ── BE-5 ── */

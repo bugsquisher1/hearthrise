@@ -15,7 +15,8 @@
 //                                  and bands LANDING_W_NARROW wide
 //   assets/ui/tower/ticks.png      a floor's tick right of the stack: lit (gold, cleared) and dark, TICK_W x TICK_H each
 //   assets/ui/tower/embers.png     an opening left this week: a live ember and a spent one (the Chest tab's Opens left), EMBER x EMBER each
-//   assets/ui/tower/heads.png      a hero's head for the tower's markers: the idle south frame's head of each outfit (atlas-heroes),
+//   assets/ui/tower/heads.png      a hero's head for the tower's markers: the idle south frame's head of each outfit (its hero set's atlas:
+//                                  src/data/world/atlas-sets.js HERO_SETS, atlas-heroes and atlas-factionwear),
 //                                  HEAD_W x HEAD_H each, in src/data/hunt-outfits.js OUTFITS order
 //   assets/ui/tower/firebox.png    THE CHEST TAB's scene: the Great Hearth's firebox, the paving in front and the alcoves (FIREBOX)
 //   assets/ui/tower/fire.png       the hearth's own fire loop over it (art/world/hearth/hearth_fire.png, 8 frames), at FIRE_AT in the scene
@@ -36,6 +37,7 @@ import { fireAt } from './hearth-fire.mjs';
 import { METALS, drawChestIdle, drawSmoke, FW, FH, ANCHOR, SMOKE_ANCHOR, SW, SH, ITEM_AT } from './tower-art.mjs';
 import { CHEST_KEYS } from '../../src/data/chests.js';
 import { OUTFITS } from '../../src/data/hunt-outfits.js';
+import { HERO_SETS } from '../../src/data/world/atlas-sets.js';
 import { TOWER_ART } from '../../src/data/tower-art.js';
 import { SCENERY, AMBIENT } from '../../src/data/world/town/sites.js';
 import { isMain } from '../../tests/_is-main.mjs';
@@ -104,17 +106,18 @@ export function drawEmbers() {
   return img;
 }
 
-/** Each outfit's head from its idle south frame (the atlas the world draws heroes from), in OUTFITS order. */
+/** Each outfit's head from its idle south frame (the hero set the world draws it from), in OUTFITS order. */
 export function drawHeads() {
-  const atlas = read('assets/world/atlas-heroes.png');
-  const meta = JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-heroes.json'), 'utf8'));
+  const sets = HERO_SETS.map((set) => ({ set, atlas: read('assets/world/atlas-' + set + '.png'),
+    meta: JSON.parse(readFileSync(join(ROOT, 'assets/world/atlas-' + set + '.json'), 'utf8')) }));
   const ids = Object.values(OUTFITS);
   const img = createImage(HEAD_W * ids.length, HEAD_H);
   ids.forEach((id, i) => {
-    const s = meta.sprites[id];
-    if (!s) throw new Error('no hero sprite ' + id + ' in atlas-heroes');
+    const at = sets.find((x) => x.meta.sprites[id]);
+    if (!at) throw new Error('no hero sprite ' + id + ' in ' + HERO_SETS.map((set) => 'atlas-' + set).join(' or '));
+    const s = at.meta.sprites[id];
     const [fx, fy] = s.anims.idle.dirs.s[0];
-    blit(img, atlas, fx + Math.floor(s.frame[0] / 2) - Math.floor(HEAD_W / 2), fy + TOWER_ART.HEAD_TOP, HEAD_W, HEAD_H, i * HEAD_W, 0);
+    blit(img, at.atlas, fx + Math.floor(s.frame[0] / 2) - Math.floor(HEAD_W / 2), fy + TOWER_ART.HEAD_TOP, HEAD_W, HEAD_H, i * HEAD_W, 0);
   });
   return img;
 }

@@ -45,6 +45,8 @@ tests/fixtures/fonts/*.ttf binary
 docs/planning/PRIORITY_BOARD.md merge=union
 CHANGELOG.md merge=union
 art/world/hunt-masks/*.json text eol=lf
+# OM-4 compares a mask sidecar to a fresh run byte for byte: every mask set keeps LF (factionwear-masks: lane/c-faction-outfit-path).
+art/world/factionwear-masks/*.json text eol=lf
 
 # Images, audio and fonts are bytes. src/**, tests/** and tools/** above pin text to LF, and a PNG that lands under one of
 # them (tools/world-art/leather/field_cookbook.png, moved there 2026-11-19 by the cookbook cut) was converted on checkout

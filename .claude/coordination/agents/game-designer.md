@@ -1025,3 +1025,11 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - The tank deals 1.7-6.6 damage a second, so any hit on a tank's area spell is a big kill bump (1 damage a monster was +2 to +9% alone). A holding spell must land no damage.
 - Prototype engine pieces on a scratch copy of the tree (src, supabase/functions/hr-accrue, tests/hunt-core/fixtures) and pass `--root` to the pool. Prove the copy is a no-op first: its as-built arm matched the clean tree byte for byte on 36 cells.
 - Three pools on this PC ran about 7 jobs a minute, and lone Deadly cells with 100+ deaths dominate (every death is a new segment). Split arms across pools by output file, never two pools on one file, and stop a pool with `taskkill /T` by its command line: it resumes by job id.
+
+## 2026-11-19 lane/d-balance-audit (real hunts against the sim)
+- The engine is not where the sim and the game disagree: fed a recorded party (its own XP, kit, bar, options, stock) the sim lands within 5% on kills, XP and coin. The gap is the HERO the audits play: `node tools/balance-sim/calibrate.mjs --run --as harness` then `--swap kit|bar|skills` names which assumption moves a number.
+- The plain audit hero is 0.55-0.83x a real one (no rune spells on melee or bow, no accessories or spent ammo, skills pinned to Level). Before quoting a party, tier or death number, play it with `profile: "played"` and say which hero it was.
+- "Skill = Level" is wrong both ways past 25: a lone yard-trained hero is 6-15 above, a Deadly-party hero 15 below on its main skill. Take skills from a career or a record.
+- Under Level 50 the level curve is fitted to the measured ladder, so "x the pace contract" only means something past 50. Under it, compare to the same-profile lone Normal hero.
+- A session row s tier can be null on a continued hunt. Read the tier from the row, then the instance (same ground), never assume Normal.
+- A sample is only judged if the hero s setup (presets AND action sets) was last changed before the hunt began. One recorded hunt had its store rune changed mid-hunt and read store gold x1.5 for that reason alone.

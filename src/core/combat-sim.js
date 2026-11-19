@@ -47,6 +47,7 @@
 import { COMBAT_BALANCE } from './combat.js?v=0.2.141';
 import { endReasonAt, deathXpLoss, modeDeathShare, staminaStep } from './action-rules.js?v=0.2.141';
 import { createRng } from './rng.js?v=0.2.141';
+import { charLevelFromXp } from './xp.js?v=0.2.141';
 import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.141';
 import { tierRowOf, DEFAULT_TIER } from '../data/hunt-tiers.js?v=0.2.141';
 import { MONSTERS } from '../data/monsters.js?v=0.2.141';
@@ -217,6 +218,15 @@ function cascadeFrom(m, why, members, own, at) {
   }
 }
 
+/* OUTGROWN (action-rules.js `outgrown`): each member's Level off its Level XP now, and the ground's `endsAt`, as working values of the span
+   the end checks read. A browser's peer carries no Level XP (member.js frozenSide), so only the server and the hero's own browser end it. */
+function readLevels(members, endsAt) {
+  for (const m of members) {
+    m.hs.endsAtLevel = endsAt;
+    m.hs.levelNow = endsAt === null ? null : charLevelFromXp(m.state.levelXp);
+  }
+}
+
 function endMember(m, why, atMs, world, out) {
   const hs = m.hs;
   hs.endedReason = why;
@@ -290,6 +300,10 @@ export function simulateHuntInstance(inst, ctx) {
      hunt plays exactly as it did. */
   const pay = sessionPayOf(ctx.sessionMode);
   const fullPay = pay.xpPm === 1000 && pay.coin && pay.drops && pay.bestiary;
+  /* THE LEVEL THE GROUND IS OUTGROWN AT (src/data/hunt-grounds.js endsAtLevel; action-rules.js `outgrown`), or null: the same for every member.
+     A SCALED window (huntPlayOf) plays the ground at its leader's Level, so nobody has outgrown it: none (the server's door admits it the same
+     way, hr_hunt_scaled_at_door). */
+  const endsAt = play.level === null && Number.isInteger(ctx.ground && ctx.ground.endsAtLevel) ? ctx.ground.endsAtLevel : null;
   /* THE BURNING TOWER (src/core/hunt/tower.js): the floor the server says stands (or stands next) when this span starts, a working value of
      the world from here (a world carried from the last span keeps its own: the browser's live view); every swing reads that floor's table
      through play.monsters (huntPlayOf: Normal, never scaled), and the floor's time is an end every member meets. */
@@ -357,6 +371,9 @@ export function simulateHuntInstance(inst, ctx) {
     //     LEAVE TOGETHER: every member whose own end holds at this boundary sends the ticked others home with
     //     it, here (they meet the flag in the end checks below), however the members are ordered.
     for (const m of members) m.hs.fightAtMs = world && m.unitId !== null ? world.fightAt : null;
+    /* OUTGROWN (src/data/hunt-grounds.js endsAtLevel): the hero's Level as its Level XP stands at this boundary, so a Level gained on the
+       last swing ends the hunt here, and at the next window's first boundary when the window was cut between them (the XP is stored). */
+    readLevels(members, endsAt);
     if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world, tw) : null;
     /* A TRAINING GROUND HAS NO NO-FIGHT END (src/core/hunt/training.js): it pays the time whatever the blows. */
     if (train) for (const m of members) m.hs.fightAtMs = null;
@@ -490,6 +507,8 @@ export function simulateHuntInstance(inst, ctx) {
   /* LEAVE TOGETHER: a member's own certain end cascades first; the ticked others end at their own next
      boundary, the same instant (everyone standing in the world steps in lockstep). */
   const stamped = new Map();
+  /* (the end order asked at that boundary reads the Level the last swing left) */
+  readLevels(members, endsAt);
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
     if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || typeof m.hs.runesOut === 'string' || m.hs.died === true || m.hs.bossFelled === true) {

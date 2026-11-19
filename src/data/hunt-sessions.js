@@ -196,7 +196,12 @@ export const STAMINA_MAX_MS = Object.freeze({ free: 8 * 3600000, premium: 12 * 3
    (tools/gen-hunt-sessions.mjs). */
 /* `floor_time` (the Burning Tower, src/core/hunt/tower.js; the board's §2 "Three minutes a floor, ten on a landing"): the room of the floor
    standing was not cleared in its time, and the climb ends for everyone in it. Beside `boss_time`, the other room's limit. */
-export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server']);
+/* `outgrown` (the board's 2026-11-19 complete balance look, change 1): the hero's Level stands at its ground's `endsAtLevel`
+   (src/data/hunt-grounds.js; the Mill Cellar's 5) or over. Read off the hero's Level XP at every boundary, so it ends at the first
+   boundary after the swing that crossed it however the windows are cut. Ahead of the supply and clock ends: the end card then names
+   the next ground (src/shell/back-in-town.js), which tells the player more than "Out of stamina" on the same swing. The server proves
+   it from the Level it holds (hr_hunt_settle_session, 2027-05-28-cellar-outgrown.sql) and refuses a hunt there to a hero at it. */
+export const END_ORDER = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'outgrown', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'left', 'changed', 'no_fight', 'server']);
 
 /* THE NO-FIGHT SPAN, in hunt minutes (the server reads it as hr_hunt_limits.no_fight_min). MEASURED on the real settle,
    every ground at its floor, solo and as a party with a Healer (tests/hunt-core/no-fight.mjs quiet-gaps): the longest
@@ -216,7 +221,7 @@ export const NO_FIGHT_END_MIN = 10;
    2026-10-31 "bench jobs dont"): only a bench that was running at Enter, for
    the smaller of its own count and what the bag plus Storage could make then
    (player_state.last_activity_left), so never the hunt's loot. */
-export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'no_fight', 'server']);
+export const RESUME_AFTER_END = Object.freeze(['died', 'boss_felled', 'party_member_died', 'party_member_left', 'outgrown', 'heals_out', 'ammo_out', 'runes_out', 'gold_out', 'rule', 'stamina', 'hours', 'boss_time', 'floor_time', 'no_fight', 'server']);
 
 /* The non-hunt activity kinds a character's "last activity" may name. `training`
    is RESERVED for the combat redesign (train a chosen combat skill in town while
@@ -252,6 +257,8 @@ export const END_REASON_COPY = Object.freeze({
      hunt.session.end_by; "A party member" when it cannot say), `{name}` this hero. */
   party_member_died: Object.freeze({ one: '{member} died, so {name} came home too.' }),
   party_member_left: Object.freeze({ one: '{member} left the hunt, so {name} came home too.' }),
+  /* the ground's endsAtLevel reached (src/data/hunt-grounds.js): a label, like the others */
+  outgrown: Object.freeze({ one: 'Ground outgrown' }),
   heals_out: Object.freeze({ one: 'Out of healing food' }),
   ammo_out: Object.freeze({ one: 'Out of {item}' }),
   runes_out: Object.freeze({ one: 'Out of runes' }),

@@ -22,8 +22,16 @@
 //                 ground is solo; the workbook's 'solo' was retired by lane/a-party-coach-card). A
 //                 PARTY's advice never reads this: it reads the measured party lines (hunt-list.js fitsGroup).
 //     soloFrom    (optional, a 'party' ground only) the Level from which a LONE hero breaks even
-//                 here, measured on the real settle; the Hunts card offers the ground alone
-//                 only from it ("Best with 2 to 4, and alone it pays from Level 45"). Advice, like groupFit.
+//                 here, measured on the real settle; the Hunts window's advice sends a hero alone
+//                 here from it (src/shell/hunt-list.js fitsGroup). Advice, like groupFit.
+//     endsAtLevel (optional) THE LEVEL A HERO OUTGROWS THE GROUND AT (the board's 2026-11-19 complete
+//                 balance look, change 1: three of seven first heroes sat in the Mill Cellar 6 to 12
+//                 hours past it). A hero's hunt here ends `outgrown` at the first boundary its Level
+//                 stands at it or over (src/core/action-rules.js END_ORDER), back to town like any
+//                 automatic end, and the server refuses a hunt here to a hero already at it
+//                 (hr_hunt_admit, 2027-05-28-cellar-outgrown.sql). The Hunts list reads the band's
+//                 top as the Level under it. A whole number above the band's floor, at most one over
+//                 its top. Only the Cellar carries one.
 //     leashMargin tiles a pack may step past its room (LE-05/08); absent =
 //                 HUNT_TUNING.leashMarginDefault. Read ONLY via leashMarginOf.
 //     mode        (optional) the session mode a hunt here plays (src/data/session-modes.js: what a death costs and what a
@@ -187,6 +195,9 @@ const BASE_GROUNDS = Object.freeze({
        measured floor pay (L1 solo 1,829.5 g/h, was 1,828.5; 30 s would be 1,930, over the Thicket's: forest-cave
        first-grounds-net-chain) and the first Levels' pace. */
     respawnMs: 32000, pullDist: 1.5, groupFit: 'both',
+    /* THE TUTORIAL ROOM ENDS AT THE THICKET'S FLOOR (the board's 2026-11-19 complete balance look, change 1): the Cellar pays
+       9.5k-11k Level XP an hour at every Level from 1 to 8, the Thicket 25k-32k at 5, and nothing moved an idle hero on. */
+    endsAtLevel: 5,
     /* the full box and no more. Normal only (hunt-tiers.js), so no tier asks for it */
     densityMax: Object.freeze([8, 8, 8, 8]),
   }),
@@ -617,6 +628,10 @@ export function validateGround(row, refs) {
     const band = (hunts[row.hunt] || {}).band || [];
     if (row.groupFit !== 'party') bad('soloFrom is for a party ground only');
     if (!(Number.isInteger(row.soloFrom) && row.soloFrom > band[0] && row.soloFrom <= band[1])) bad('soloFrom must be a Level inside the band, above its floor');
+  }
+  if (row.endsAtLevel !== undefined) {
+    const band = (hunts[row.hunt] || {}).band || [];
+    if (!(Number.isInteger(row.endsAtLevel) && row.endsAtLevel > band[0] && row.endsAtLevel <= band[1] + 1)) bad('endsAtLevel must be a Level above the band\'s floor, at most one over its top');
   }
   /* A BOSS'S WAVE (shape.js addRows; the Muster Barrows' Captain Hask): only in a pocket that holds a boss with two lines (boss-phases.js), each a
      known monster that is no boss and has no lines of its own, standing inside the room. A wave nothing can call would be a row the engine never plays. */

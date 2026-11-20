@@ -409,7 +409,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   const oxr = ox ? { ...oxPath(img, grid, moor.bogAt), ...oxWater(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid), reeds: fordReeds(img, grid) } : {};
   if (!inn) {
     const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
-    const crag = ox ? { ...cragDual(img, cragGrid, metaOf(CRAG.dir)), ...oxFrame(img) } : {};
+    const crag = ox ? { ...cragDual(img, cragGrid, metaOf(CRAG.dir)), ...oxFrame(img, grid) } : {};
     /* the stream is never walked: its lit lip and the current's streaks may stand over the floor's limit (the ford is walked: held) */
     const capped = capFloor(img, grid, ox ? ROAD_MAX : 0, ox ? 'Q' : '');
     return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, ...moor, damp, ...oxr, ...crag, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))] } };

@@ -122,14 +122,15 @@ export function bridgeDeck(g, grid) {
          hangs off the end down into the water */
       const water = (x, y) => put(x, y, hash2(x, y, 523) > 0.8 ? '#2c2e33' : '#17141a');
       for (let j = 0; j < 3; j++) {
-        const x0b = dir > 0 ? xe - 1 - j * 5 : xe + 1 + j * 5, cutT = j === 0 ? 99 : j === 1 ? 7 + Math.floor(hash2(k.x0, 11, 525) * 9) : 4 + Math.floor(hash2(k.x0, 12, 527) * 6), cutB = j === 0 ? 99 : j === 1 ? 5 + Math.floor(hash2(k.x0, 13, 529) * 8) : 0;
+        const x0b = dir > 0 ? xe - 1 - j * 5 : xe + 1 + j * 5, cutT = j === 0 ? 99 : j === 1 ? 12 + Math.floor(hash2(k.x0, 11, 525) * 18) : 5 + Math.floor(hash2(k.x0, 12, 527) * 12), cutB = j === 0 ? 99 : j === 1 ? 8 + Math.floor(hash2(k.x0, 13, 529) * 16) : Math.floor(hash2(k.x0, 14, 530) * 12);
         for (let u = 0; u < 5; u++) { const X = x0b - dir * u; for (let y = Y0; y <= Y1; y++) {
           const gone = j === 0 ? !(y >= Y0 + 6 && y < Y0 + 10) && !(y >= ((Y0 + Y1) >> 1) - 1 && y < ((Y0 + Y1) >> 1) + 3) && !(y >= Y1 - 11 && y < Y1 - 7)
-            : y < Y0 + cutT - (u * (hash2(u, j, 531) > 0.5 ? 1 : 0)) || y > Y1 - cutB + u;
+            : y < Y0 + cutT + Math.round((hash2(u, j + k.x0, 531) - 0.5) * 6) || y > Y1 - cutB + Math.round((hash2(u, j + k.x0, 532) - 0.5) * 6);
           if (gone) water(X, y);
-          else if (j > 0 && (y === Y0 + cutT || y === Y1 - cutB)) put(X, y, '#553a26');
+          else if (j > 0 && (y === Y0 + cutT + Math.round((hash2(u, j + k.x0, 531) - 0.5) * 6) || y === Y1 - cutB + Math.round((hash2(u, j + k.x0, 532) - 0.5) * 6))) put(X, y, '#553a26');
         } }
       }
+      for (let i = 0; i < 7; i++) { const sy = Y0 + 4 + Math.floor(hash2(i, k.x0, 539) * (Y1 - Y0 - 8)), len = 2 + Math.floor(hash2(i, k.x0, 541) * 5); for (let d = 0; d < len; d++) put(xe + dir * d, sy + (d > 2 ? 1 : 0), d === len - 1 ? '#2f2723' : '#3d2a1d'); put(xe + dir * (len - 1), sy + 2, '#17141a'); }
       { const hx = dir > 0 ? xe - 4 : xe + 4, hy = Y0 + 10;
         for (let t = 0; t < 18; t++) for (let wv = 0; wv < 4; wv++) { const X = hx + dir * Math.round(t * 0.55) + (dir > 0 ? wv : -wv), Y = hy + t; put(X, Y, wv === 0 ? '#3a3a3e' : wv === 3 ? '#17141a' : t > 13 ? '#2c2e33' : '#2f2723'); }
         for (let wv = -1; wv < 6; wv++) put(hx + dir * 10 + (dir > 0 ? wv : -wv), hy + 19, '#3a4652'); }
@@ -343,7 +344,7 @@ export function cragDual(g, grid, { sheet, meta }) {
      run down; here and there one ledge, never at the same height twice; darker toward the foot, the foot itself black. */
   const face = new Uint8Array(W * H), feet = [], lipAt = new Uint8Array(W * H);
   let faces = 0;
-  const facetAt = (x) => { let e = -Math.floor(hash2(7, 3, 231) * 30), i = 0; while (true) { const n = 12 + Math.floor(hash2(i, 1, 233) * 24); if (x < e + n) return [i, e, e + n]; e += n; i++; } };
+  const facetAt = (x) => { let e = -Math.floor(hash2(7, 3, 231) * 30), i = 0; while (true) { const n = 10 + Math.floor(hash2(i, 1, 233) ** 1.6 * 40); if (x < e + n) return [i, e, e + n]; e += n; i++; } };
   for (let x = 0; x < W; x++) for (let y = 0; y < H - 1; y++) {
     if (!(C(x, y) && !C(x, y + 1))) continue;
     let run = 0; while (run < 60 && C(x, y - run - 1) && y - run - 1 >= 0) run++;
@@ -420,7 +421,7 @@ export function oxRoad(g, grid, { wrecks = [] } = {}) {
   const isR = (x, y) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 'R';
   const at = (x, y) => hexAt(g, (y * W + x) * 4), put = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < g.height) g.data.set(rgb(c), (y * W + x) * 4); };
   /* a road cell, or a moor cell within two of one (the road's edge is drawn by pixel, not by cell, so its earth reaches into them) */
-  const rc = []; for (let cy = 0; cy < h; cy++) { rc.push([]); for (let cx = 0; cx < w; cx++) { let r = isR(cx, cy); if (!r && grid[cy][cx] === 'H') for (let b = -2; b <= 2 && !r; b++) for (let a = -2; a <= 2; a++) if (isR(cx + a, cy + b)) { r = true; break; } rc[cy].push(r); } }
+  const rc = []; for (let cy = 0; cy < h; cy++) { rc.push([]); for (let cx = 0; cx < w; cx++) { let r = isR(cx, cy) || (grid[cy][cx] === 'J' && [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([a, b]) => isR(cx + a, cy + b))); if (!r && grid[cy][cx] === 'H') for (let b = -2; b <= 2 && !r; b++) for (let a = -2; a <= 2; a++) if (isR(cx + a, cy + b)) { r = true; break; } rc[cy].push(r); } }
   const roadish = (x, y) => x >= 0 && y >= 0 && x < W && y < g.height && rc[y >> 5][x >> 5];
   const onRoad = (x, y) => roadish(x, y) && EARTHS.has(at(x, y));
   const onCell = (x, y) => roadish(x, y) && !moorAt(x, y);
@@ -474,7 +475,8 @@ export function oxRoad(g, grid, { wrecks = [] } = {}) {
     const c = at(x, y);
     /* review b5, ranked 3: the road was the brightest broad ground in grey; its body goes a step down, the old body kept as a lit grain
        in soft patches (the crown and the south lip, step 2, stay the lightest) */
-    if (c === '#6e4c30' || c === '#8a6440' || c === '#a88457' || c === '#553a26') put(x, y, noise(x, y, 3.4, 399) > 0.8 + 0.1 * noise(x, y, 60, 398) ? '#553a26' : '#3d2a1d');
+    if (c === '#6e4c30' || c === '#8a6440' || c === '#a88457' || c === '#553a26') /* b7: one more nudge down: soft patches of the earth's darkest through the body */
+    put(x, y, noise(x, y, 3.4, 399) > 0.8 + 0.1 * noise(x, y, 60, 398) ? '#553a26' : noise(x, y, 2.2, 397) > 0.72 - 0.08 * noise(x, y, 70, 396) ? '#2a1c14' : '#3d2a1d');
     /* the dust: grey grit in CLUMPS of 2-4 px (a fine value noise under a share that drifts in soft patches). Review b1d: random grey
        salt read as plastic; review b4: the 4x4 ordered dither that replaced it read as a screen-door mesh at x2, the loudest tell */
     if ((at(x, y) === '#3d2a1d' || at(x, y) === '#553a26') && noise(x, y, 2.4, 401) < 0.08 + 0.36 * noise(x, y, 40, 403)) { put(x, y, '#2c2e33'); grit++; }

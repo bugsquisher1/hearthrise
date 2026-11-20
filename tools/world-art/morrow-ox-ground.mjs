@@ -47,6 +47,7 @@ const MOOR_LOOK = Object.freeze({ decalEvery: 12, decalGap: 70 });
 /* [cell x, cell y, rx px, ry px]: the west bank north of the bridge, the east bank by the ford, the west bank south of it; pockets 2, 3, 5 */
 const OX_BOGS = Object.freeze([[44.2, 9.5, 64, 150], [51.5, 30, 56, 96], [44.6, 35.5, 52, 84], [26.5, 31.6, 104, 66], [40, 32.2, 150, 58], [31.4, 10.4, 92, 62]]);
 const LEAFS = new Set(RAMPS.leaf.concat(RAMPS.moss));
+const EARTHS2 = new Set(RAMPS.earth.concat(RAMPS.bronze));
 const SPRIG = new Set(['#8a6440', '#6e4c30', '#553a26', '#4a2e18', '#3d2a1d', '#2a1c14', '#a88457', '#7a4f26']);
 export function oxMoor(g, grid, { skip = () => false } = {}) {
   const h = grid.length, w = grid[0].length, W = g.width, H = g.height;
@@ -76,7 +77,7 @@ export function oxMoor(g, grid, { skip = () => false } = {}) {
       else if (tussock(x, y)) col = !tussock(x, y - 1) ? (hash2(x, y, 675) > 0.4 ? '#2c4a2c' : '#1f3322') : !tussock(x, y + 1) ? '#16241a' : '#1f3322';
       else if (pool(x, y - 1) || pool(x, y - 2)) col = '#17141a';
       /* the wet peat: one calm dark ground, a fine grain, a lighter crumb here and there (b6: the scatter read as camouflage) */
-      else col = hash2(x, y, 677) > 0.93 ? '#3d2a1d' : noise(x, y, 2.4, 679) > 0.62 ? '#231d1f' : '#2a1c14';
+      else col = noise(x, y, 7, 676) > 0.66 && hash2(x, y, 677) > 0.6 ? '#3d2a1d' : noise(x, y, 2.4, 679) > 0.62 ? '#231d1f' : '#2a1c14';
       pt(g, x, y, col); bogged++; continue;
     }
     if (b > -0.12) {
@@ -348,15 +349,20 @@ export function oxStory(g, grid, objects, { row = 22 } = {}) {
   const POOL = { mh_vigil_brazier: [56, 40, 0], mh_lantern_stake: [32, 23, 9], mh_lantern_pole: [32, 23, 8], mh_lantern_cairn: [30, 22, 1] };
   for (const o of objects) {
     const P = POOL[o.id]; if (!P) continue;
-    const [rx, ry, dx] = P, cx = o.x * T + 16 + dx, cy = o.y * T + 26;
+    /* b7: on the moor the pools read as identical flat lime ovals with a hard rim, markers rather than light. Each pool is now its own
+       size; the floor steps up ITS OWN ramp (the grass's green, never the moss's olive), one step, two in a small core; the rim is
+       DITHERED (a 4x4 ordered threshold over the outer third), so the light thins out instead of stopping on a line */
+    const sz = 0.8 + 0.45 * hash2(o.x, o.y, 937), [rx, ry] = [P[0] * sz, P[1] * sz], dx = P[2], cx = o.x * T + 16 + dx, cy = o.y * T + 26;
+    const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
     for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
       if (x < 0 || y < 0 || x >= W || y >= g.height) continue;
-      const e = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (hash2(x, y, 935) - 0.5) * 0.06; if (e > 1) continue;
+      const e = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (noise(x, y, 9, 935) - 0.5) * 0.25; if (e > 1) continue;
       const c = px(g, x, y), a = RAMP_OF.get(c); if (!a || !['leaf', 'moss', 'earth', 'shadow', 'stone', 'iron'].includes(a.name)) continue;
+      const fade = e < 0.62 ? 1 : 1 - (e - 0.62) / 0.38, th = (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
+      if (fade < th) continue;
       let to = stepC(c, 1);
-      /* the grass under the inner band takes the moss's warmer olive (the light's colour), the rest steps up its own ramp */
-      if (e < 0.4) to = a.name === 'leaf' || a.name === 'moss' ? (a.k >= 2 ? '#6b7a38' : '#4a5a2a') : stepC(to, 1);
-      else if (a.name === 'leaf' && a.k === 0 && hash2(x, y, 936) > 0.5) to = '#4a5a2a';
+      if (e < 0.16 && th < 0.5) to = stepC(to, 1);
+      if (a.name === 'leaf' && RAMPS.leaf.indexOf(to) > 2) to = RAMPS.leaf[2];   /* the grass tops out at its middle green */
       if (to !== c) { pt(g, x, y, to); lit++; }
     }
   }
@@ -372,7 +378,9 @@ export function oxPath(g, grid, bogAt = () => -1) {
   const J = (x, y) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 'J';
   const earth = (c) => { const a = RAMP_OF.get(c); return !!a && (a.name === 'earth' || a.name === 'bronze' || a.name === 'shadow' || a.name === 'stone' || a.name === 'iron'); };
   let erased = 0, laid = 0;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (J(x >> 5, y >> 5) && earth(px(g, x, y)) && bogAt(x, y) <= 0.06) { pt(g, x, y, noise(x, y, 3.1, 621) > 0.62 ? '#1f3322' : '#16241a'); erased++; }
+  /* (b7: a path cell that touches the road keeps the road's earth: erasing it cut a green box into the road's edge) */
+  const byRoad = (cx, cy) => [[0, -1], [0, 1], [-1, 0], [1, 0]].some(([a, b]) => grid[cy + b] && grid[cy + b][cx + a] === 'R');
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (J(x >> 5, y >> 5) && !byRoad(x >> 5, y >> 5) && earth(px(g, x, y)) && bogAt(x, y) <= 0.06) { pt(g, x, y, noise(x, y, 3.1, 621) > 0.62 ? '#1f3322' : '#16241a'); erased++; }
   /* the runs: 8-connected groups of path cells, each walked from an end */
   const seen = new Set(), key = (x, y) => x + ',' + y, runs = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -415,12 +423,20 @@ export function oxPath(g, grid, bogAt = () => -1) {
 /* ── THE EDGES FRAMED (b6: "frame the open west, east and north edges"). The run time's outdoor vignette (canvas-backend drawVignette,
    map.outdoor) rings the SCREEN, not the map, so where the camera reaches the map's edge the moor stopped on a cut. The ground falls
    into the dark there: two stepped bands along every edge, ragged, the road and the path running on into them. ── */
-export function oxFrame(g) {
-  const W = g.width, H = g.height; let n = 0;
+export function oxFrame(g, grid) {
+  /* b7: a 40 px band with ruler-straight inner edges read as a rectangle, and a hard seam across the road's ends. The falloff is now
+     irregular (its depth 10-70 px on a slow field), dithered between its steps, and never on the road or the bridge: the road runs on
+     out of the map at full value, the moor and the rock darken round it */
+  const W = g.width, H = g.height, h = grid.length, w = grid[0].length; let n = 0;
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-    const e = Math.min(x, W - 1 - x, y, H - 1 - y) + (noise(x, y, 26, 941) - 0.5) * 18 + (noise(x, y, 6, 943) - 0.5) * 4;
-    if (e >= 44) continue;
-    const c = px(g, x, y), to = stepC(stepC(c, -1), e < 16 ? -1 : 0);
+    const c0 = grid[Math.min(h - 1, y >> 5)][Math.min(w - 1, x >> 5)]; if (c0 === 'R' || c0 === 'G') continue;
+    const d = Math.min(x, W - 1 - x, y, H - 1 - y), depth = 10 + 60 * noise(x, y, 90, 941) + 14 * (noise(x, y, 23, 943) - 0.5);
+    if (d >= depth) continue;
+    const c = px(g, x, y); if (EARTHS2.has(c) && 'RJ'.includes(c0)) continue;
+    const f = 1 - d / depth, th = (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
+    if (f < th) continue;
+    const to = stepC(c, f > 0.75 && th < 0.5 ? -2 : -1);
     if (to !== c) { pt(g, x, y, to); n++; }
   }
   return { framed: n };

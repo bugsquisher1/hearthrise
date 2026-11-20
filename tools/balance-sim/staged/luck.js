@@ -12,8 +12,8 @@
 //     bonus  = +rank % on Rare rows (to LUCK_RANK_MAX); on Trophy rows +TROPHY_MAX_PM x rank / (rank + TROPHY_HALF) permille
 //
 //   SALVAGE        worn gear the account's OWN HUNTS dropped, salvaged instead of sold: Luck by the piece's tier and band. As in
-//                  Guild Wars 2, where salvaged gear gives Essences of Luck that fill one account bar. No essence ITEM here: the
-//                  Luck goes straight onto the bar (an untradeable item whose only use is "consume" is a click with no decision).
+//                  Guild Wars 2, where salvaged gear gives Essences of Luck that fill one account bar. v3.1: paid as an
+//                  account-bound item, the Lucky Rivet (below), with two uses: the bar or a Lucky ring.
 //   THE BESTIARY   one count a creature for the WHOLE ACCOUNT. Each stage reached pays a lump of Luck into the same total, once.
 //
 // THE CURVE HAS NO NEAR CEILING. Each rank costs more than the last (n^2), so Luck held grows with the cube root of Luck earned:
@@ -116,11 +116,57 @@ export function rankOf(luck) {
   return n;
 }
 
-/** The bonus in permille a `band` row takes at `luck`. Integer, so the server and the sheet show one number. */
-export function luckPm(luck, band = 'rare') {
-  const r = rankOf(luck);
+// ---- v3.1 (Tyler 2026-11-20: Luck from salvage is a material item, used on the bar or in crafting; then "let's bind it") ----
+// Salvage pays its Luck as LUCKY RIVETS: one rivet is one Luck, stackable, ACCOUNT-BOUND (never traded, never sold; moved between
+// the account's own heroes through Storage). A rivet goes on the bar, or into the one recipe that uses it: the Lucky ring.
+// The Bestiary still pays straight onto the bar. GW2's own essences are account-bound too, so this matches it.
+// The RING trades like all jewelry (Tyler 11-20: "it doesn't create an account wide buff, luck rings can be sold"): it is one hero's
+// worn stat, small, counts once, costs a ring perk seat, and salvaging one gives no rivets back, so no Luck crosses accounts.
+
+/** The item salvage pays Luck in. One is one Luck. */
+export const LUCK_ITEM = 'lucky_rivet';
+
+/** The Lucky perk (ring pool, counts once a hero, the larger worn): the Magic Find it adds to its wearer, by the piece's tier (index = tier). */
+export const LUCKY_PERK_PCT = Object.freeze([0, 0, 1, 2, 2, 3, 3, 4]);
+
+/** The rivets the Lucky job burns for a tier's ring: LUCKY_RIVET_STEP x tier^2. */
+export const LUCKY_RIVET_STEP = 500;
+export const luckyRivetsFor = (tier) => { const t = Math.min(7, Math.max(2, Math.floor(Number(tier) || 2))); return LUCKY_RIVET_STEP * t * t; };
+
+/** The most Magic Find any hero can hold: the bar's far stop plus the best Lucky perk. A guard's upper bound. */
+export const MAGIC_FIND_MAX = LUCK_RANK_MAX + LUCKY_PERK_PCT[LUCKY_PERK_PCT.length - 1];
+
+/** A hero's Magic Find in whole percents: the account's rank plus the Lucky perk worn (`wornTier` 0 = none). */
+export const magicFindOf = (luck, wornTier = 0) => rankOf(luck) + (LUCKY_PERK_PCT[Math.min(7, Math.max(0, Math.floor(Number(wornTier) || 0)))] || 0);
+
+/** The bonus in permille a `band` row takes at `luck` (and a Lucky ring of `wornTier`). Integer, so the server and the sheet show one number. */
+export function luckPm(luck, band = 'rare', wornTier = 0) {
+  const r = magicFindOf(luck, wornTier);
   return band === 'trophy' ? Math.floor((TROPHY_MAX_PM * r) / (r + TROPHY_HALF)) : 10 * r;
 }
 
 /** The multiplier a Rare or Trophy row's chance takes at `luck`. */
-export const luckMult = (luck, band = 'rare') => 1 + luckPm(luck, band) / 1000;
+export const luckMult = (luck, band = 'rare', wornTier = 0) => 1 + luckPm(luck, band, wornTier) / 1000;
+
+// ---- HARDER PAST KRELL (Tyler 2026-11-20: balance Luck "by making gear drops more rare", then "making the drops harder to get at
+// higher bands, I want to get people hooked up to Krell and then start introducing really rare drops and strong gear") ----
+// Nothing changes through Krell's Hold. From the Morrow door (Level RARE_CUT_FLOOR, band 8) every Rare row drops less often at
+// Magic Find 0: a clear step of RARE_CUT at the door, then RARE_CUT_STEP more a band to RARE_CUT_MAX. The step is sized to the Magic
+// Find a player who salvages half and wears a ring holds when they get there, so that player finds about what the plan promised
+// and Luck is how the rest is earned back. Trophy rows and the hourly drop (gear to tier 7, then stock and chips) are never cut.
+// One of a ground's seven uniques becomes its VERY RARE piece: VERY_RARE_HOURS at Magic Find 0, moved by Magic Find in full.
+
+/** The share taken off a Rare row's base chance at band 8, the Morrow door. */
+export const RARE_CUT = 0.15;
+/** More a band past 8, and the most it ever takes. */
+export const RARE_CUT_STEP = 0.01;
+export const RARE_CUT_MAX = 0.25;
+
+/** A ground is cut when its Level floor is this or more (the Morrow Hills and on). Nothing through Krell's Hold is. */
+export const RARE_CUT_FLOOR = 110;
+
+/** What is left of a Rare row's base chance at `band` (7 and under: all of it). */
+export const rareKeepOf = (band) => { const b = Math.floor(Number(band) || 0); return b < 8 ? 1 : 1 - Math.min(RARE_CUT_MAX, RARE_CUT + RARE_CUT_STEP * (b - 8)); };
+
+/** The hours between drops of a ground's Very Rare piece for one hero at Magic Find 0, [min, max]. */
+export const VERY_RARE_HOURS = Object.freeze([60, 90]);

@@ -336,7 +336,7 @@ export function aggregate(raw, game) {
   const deathAt = raw.deaths.filter((d) => d.intent === 'death').map((d) => { const h = heroes.get(heroKey(d.u, d.slot)); if (!h || !acct.has(h.u)) return null;
     const b = String(d.at).slice(0, 15).replace(' ', 'T') + '0'; const cell = cells.filter((x) => x.h === h && x.c.b <= b).pop();
     const meta = typeof d.meta === 'string' ? JSON.parse(d.meta) : d.meta;
-    return { h, cls: h.cls, mon: d.mon || (cell ? cell.c.mon : null), tier: d.tier || (cell ? cell.c.tier : null) || 'not recorded', party: cell ? sizeOf(cell) : 1, level: cell ? cell.level : h.level, monster: meta.monster || null }; }).filter(Boolean);
+    return { h, cls: h.cls, way: cell ? mainOf(cell.c) : null, mon: d.mon || (cell ? cell.c.mon : null), tier: d.tier || (cell ? cell.c.tier : null) || 'not recorded', party: cell ? sizeOf(cell) : 1, level: cell ? cell.level : h.level, monster: meta.monster || null }; }).filter(Boolean);
   const withDeaths = (rows, match) => rows.map((t) => { t.deaths = deathAt.filter((d) => match(t, d)).length; return t; });
   for (const cls of ['real', 'test']) {
     const cs = huntCells.filter((x) => x.h.cls === cls); const ds = deathAt.filter((d) => d.cls === cls);
@@ -352,11 +352,14 @@ export function aggregate(raw, game) {
     hero_hours_with_two_accounts_in_one_hunt: r1(sum(huntCells.filter((x) => x.h.cls === 'real' && N(x.c.accts) > 1), (x) => H(x.c.ms))),
     tier_recorded_share: r2(sum(huntCells.filter((x) => x.h.cls === 'real' && x.c.tier), (x) => N(x.c.ms)) / Math.max(1, sum(huntCells.filter((x) => x.h.cls === 'real'), (x) => N(x.c.ms)))),
     scaled_hero_hours: r1(sum(huntCells.filter((x) => x.c.scaled), (x) => H(x.c.ms))) };
-  out.by_account_size = group(huntCells.filter((x) => x.h.cls === 'real'), (x) => String(acctHeroes(x.h.u).filter((h) => h.hunt_ms > 0).length),
-    (x) => rateInit({ heroes_on_account: acctHeroes(x.h.u).filter((h) => h.hunt_ms > 0).length }), rateAdd).map(rateRow).sort((a, b) => a.heroes_on_account - b.heroes_on_account);
+  const realDeaths = deathAt.filter((d) => d.cls === 'real');
+  out.by_account_size = withDeaths(group(huntCells.filter((x) => x.h.cls === 'real'), (x) => String(acctHeroes(x.h.u).filter((h) => h.hunt_ms > 0).length),
+    (x) => rateInit({ heroes_on_account: acctHeroes(x.h.u).filter((h) => h.hunt_ms > 0).length }), rateAdd),
+    (t, d) => realDeaths.includes(d) && acctHeroes(d.h.u).filter((h) => h.hunt_ms > 0).length === t.heroes_on_account).map(rateRow).sort((a, b) => a.heroes_on_account - b.heroes_on_account);
   /* the way a hero fought in a bucket = the attack skill that earned the most XP in it */
-  out.by_way = group(huntCells.filter((x) => x.h.cls === 'real'), (x) => { const w = mainOf(x.c); return N(x.c[w]) > 0 ? w + '|' + (sizeOf(x) > 1 ? 'party' : 'alone') : null; },
-    (x) => ({ ...rateInit({ way: mainOf(x.c), mode: sizeOf(x) > 1 ? 'party' : 'alone' }), sx: 0, dx: 0 }), (t, x) => { rateAdd(t, x); t.sx += N(x.c[t.way]); t.dx += N(x.c.defense); })
+  out.by_way = withDeaths(group(huntCells.filter((x) => x.h.cls === 'real'), (x) => { const w = mainOf(x.c); return N(x.c[w]) > 0 ? w + '|' + (sizeOf(x) > 1 ? 'party' : 'alone') : null; },
+    (x) => ({ ...rateInit({ way: mainOf(x.c), mode: sizeOf(x) > 1 ? 'party' : 'alone' }), sx: 0, dx: 0 }), (t, x) => { rateAdd(t, x); t.sx += N(x.c[t.way]); t.dx += N(x.c.defense); }),
+    (t, d) => realDeaths.includes(d) && d.way === t.way && (d.party > 1 ? 'party' : 'alone') === t.mode)
     .map((t) => { const { sx, dx, ...rest } = t; const h = H(t.ms); return { ...rateRow(rest), skill_xp_h: r0(sx / h), defense_xp_h: r0(dx / h) }; });
 
   /* 5. deaths */
@@ -407,8 +410,14 @@ export function aggregate(raw, game) {
   const isGear = (id) => kindOf(id) === 'gear';
   const groundHours = new Map(); for (const x of huntCells) if (x.h.cls === 'real') groundHours.set(x.c.mon, (groundHours.get(x.c.mon) || 0) + H(x.c.ms));
   const lootReal = raw.loot.filter((l) => real(l.u));
+  /* the band of a drop is the band of the likeliest row for that item among the monsters killed on that ground (an item can be common on one monster and rare on another) */
+  const groundMonsters = new Map(); for (const k of raw.kills) { if (!groundMonsters.has(k.mon)) groundMonsters.set(k.mon, new Set()); groundMonsters.get(k.mon).add(k.monster); }
+  const bandMemo = new Map();
+  const bandAt = (item, ground) => { const key = item + '|' + ground; if (bandMemo.has(key)) return bandMemo.get(key); let best = null;
+    for (const m of groundMonsters.get(ground) || []) for (const row of game.allRows(m)) if (row.id === item && (!best || row.ch > best.ch)) best = row;
+    const b = best ? best.band || null : bandOfItem(item); bandMemo.set(key, b); return b; };
   out.drops_by_ground = [...groundHours.entries()].filter(([, h]) => h >= 1).map(([mon, h]) => { const ls = lootReal.filter((l) => l.mon === mon);
-    const byBand = {}; for (const l of ls) { const b = bandOfItem(l.item, mon) || 'no band'; byBand[b] = (byBand[b] || 0) + N(l.qty); }
+    const byBand = {}; for (const l of ls) { const b = bandAt(l.item, mon) || 'no band'; byBand[b] = (byBand[b] || 0) + N(l.qty); }
     const gear = ls.filter((l) => isGear(l.item)); const tiers = {}; for (const l of gear) { const t = 'tier ' + ((ITEMS[l.item] || {}).tier || '?'); tiers[t] = (tiers[t] || 0) + N(l.qty); }
     return { ground: mon, hero_hours: r1(h), gear_pieces_h: r2(sum(gear, (l) => l.qty) / h), gear_by_tier: tiers,
       per_hour_by_band: Object.fromEntries(Object.entries(byBand).map(([b, n]) => [b, r2(n / h)])), rare_count: byBand.rare || 0, trophy_count: byBand.trophy || 0,
@@ -417,12 +426,16 @@ export function aggregate(raw, game) {
   for (const k of raw.kills.filter((x) => real(x.u))) for (const row of game.dropRows(k.monster)) if (expected[row.band] !== undefined) {
     expected[row.band] += N(k.n) * row.ch; rareRows.push({ monster: k.monster, item: row.id, band: row.band, kills: N(k.n), ch: row.ch }); }
   const killsWithMonsters = sum(raw.kills.filter((x) => real(x.u)), (x) => x.n); const killsAll = sum(huntCells.filter((x) => x.h.cls === 'real'), (x) => x.c.kills);
-  const lootOnKm = new Map(); for (const l of lootReal) { const b = bandOfItem(l.item, l.mon); if (got[b] !== undefined) got[b] += N(l.qty); lootOnKm.set(l.item, (lootOnKm.get(l.item) || 0) + N(l.qty)); }
+  const otherRows = new Set(); for (const k of raw.kills.filter((x) => real(x.u))) for (const row of game.allRows(k.monster)) if (row.band !== 'rare' && row.band !== 'trophy') otherRows.add(row.id);
+  const lootOnKm = new Map(); for (const l of lootReal) { const b = bandAt(l.item, l.mon); if (got[b] !== undefined) got[b] += N(l.qty); lootOnKm.set(l.item, (lootOnKm.get(l.item) || 0) + N(l.qty)); }
+  const pure = { rare: { items: 0, expected: 0, dropped: 0 }, trophy: { items: 0, expected: 0, dropped: 0 } };
   const byItem = new Map(); for (const r of rareRows) { const t = byItem.get(r.item) || { item: r.item, band: r.band, expected: 0 }; t.expected += r.kills * r.ch; byItem.set(r.item, t); }
-  out.rares = { kills_with_a_monster_name_share: r2(killsWithMonsters / Math.max(1, killsAll)), expected_from_row_odds: { rare: r1(expected.rare), trophy: r2(expected.trophy) }, dropped: got,
+  for (const t of byItem.values()) { t.pure = !otherRows.has(t.item); if (t.pure) { pure[t.band].items += 1; pure[t.band].expected += t.expected; pure[t.band].dropped += lootOnKm.get(t.item) || 0; } }
+  for (const b of ['rare', 'trophy']) { pure[b].expected = r2(pure[b].expected); pure[b].dropped_over_expected = pure[b].expected ? r2(pure[b].dropped / pure[b].expected) : null; }
+  out.rares = { only_rare_items: pure, kills_with_a_monster_name_share: r2(killsWithMonsters / Math.max(1, killsAll)), expected_from_row_odds: { rare: r1(expected.rare), trophy: r2(expected.trophy) }, dropped: got,
     dropped_over_expected: { rare: expected.rare ? r2(got.rare / expected.rare * (killsWithMonsters / Math.max(1, killsAll))) : null },
     reveal_notices_real: sum(raw.rare_notices.filter((n) => real(n.u)), (n) => n.n),
-    rows: [...byItem.values()].map((t) => ({ item: t.item, band: t.band, expected: r1(t.expected), dropped: lootOnKm.get(t.item) || 0 })).sort((a, b) => b.expected - a.expected).slice(0, 40),
+    rows: [...byItem.values()].map((t) => ({ item: t.item, band: t.band, only_rare_rows: t.pure, expected: r1(t.expected), dropped: lootOnKm.get(t.item) || 0 })).sort((a, b) => b.expected - a.expected).slice(0, 40),
     trophies_held_real: sum(raw.holdings.filter((x) => real(x.u) && kindOf(x.item) === 'trophy'), (x) => x.qty) };
   const gearDropped = sum(lootReal.filter((l) => isGear(l.item)), (l) => l.qty);
   const vend = raw.vendor.filter((v) => real(v.u) && isGear(v.item));
@@ -564,6 +577,7 @@ async function loadGame() {
   const STYLE = { shield: 'tank', sword: 'sword', hammer: 'hammer', club: 'hammer', axe: 'axes', dual_axe: 'axes', neutral: 'hammer', bow: 'bow', ranged: 'bow', crossbow: 'crossbow', wand: 'mage', staff: 'healer' };
   return { charLevelFromXp, skillLevelFromXp, contractXpPerH, ITEMS,
     bandOfItem: (id) => best.get(id) || null,
+    allRows: (monster) => ((MONSTERS[monster] || {}).drops || []).filter((d) => d && d.id && d.ch),
     dropRows: (monster) => ((MONSTERS[monster] || {}).drops || []).filter((d) => d.band === 'rare' || d.band === 'trophy'),
     roleOfWorn: (worn) => wornRoleKey(worn, ITEMS),
     skillLine: (mode, role, main, level) => { const style = STYLE[role] || (main === 'magic' ? 'mage' : main === 'ranged' ? 'bow' : 'hammer'); const set = lines[mode] || lines.alone;
@@ -600,7 +614,7 @@ function print(a) {
   table('store supplies by kind (real)', a.gold.real.store_supplies_by_kind); table('gold by account', a.gold.by_account); table('purse over account age', a.purse_curve); table('coin by Level band', a.coin_by_band);
   table('drops by ground', a.drops_by_ground); console.log('\n### rares\n' + JSON.stringify({ ...a.rares, rows: undefined })); table('rare and trophy rows', a.rares.rows);
   console.log('\n### what players do with gear\n' + JSON.stringify(a.gear_use));
-  table('systems', a.systems); console.log('\n### house\n' + JSON.stringify(a.house) + '\n### tower\n' + JSON.stringify(a.tower));
+  table('systems', a.systems, ['system', 'real_uses', 'real_accounts', 'real_people', 'test_uses', 'days_since_last_real_use', 'rows_any_account', 'detail']); console.log('\n### house\n' + JSON.stringify(a.house) + '\n### tower\n' + JSON.stringify(a.tower));
   table('crafting by recipe', a.crafting); table('gathering by node', a.gathering); table('town hours by skill', a.town_hours_by_skill);
   console.log('\n### training\n' + JSON.stringify(a.training) + '\n### refusals\n' + JSON.stringify(a.refusals));
   table('time by account', a.time.accounts.map((t) => ({ ...t, last_presses: t.last_presses.join(' < ') }))); console.log(JSON.stringify(a.time.sessions_kept));

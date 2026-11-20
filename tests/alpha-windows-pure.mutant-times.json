@@ -148,9 +148,11 @@
   "plans: how long a hero lasts is said only when it is short": 1,
   "plans: no weapon is not said": 1,
   "plans: a held task that does not count here is not said": 1,
-  "edgeBody lets an unlisted field through": 1
+  "edgeBody lets an unlisted field through": 1,
+  "item truth: a key files as junk again": 5
  },
  "added": [
-  "2026-11-19, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows-pure.mjs --mutate tests/alpha-windows-pure.mjs --local --write"
+  "2026-11-19, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows-pure.mjs --mutate tests/alpha-windows-pure.mjs --local --write",
+  "2026-11-20, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows-pure.mjs --mutate --only=item truth: a key"
  ]
 }

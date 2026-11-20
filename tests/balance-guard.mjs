@@ -28,8 +28,9 @@
 // MODES (section E). A line starts as REPORT: it is printed, its out-of-band rows listed, and the run exits 0. It turns RED in the
 // lane that lands the change it guards (that lane flips `mode` in guard-cells.mjs) and never goes back. G14 is this lane's own and is red.
 // K1 GATES the lines read on the harness's party (G3, G4, G5, G8, G19, D1, D2, and G20's and G22's party rows): while the harness four
-// reads the real Krell four outside 0.9-1.1 (today 0.83 on Level XP, 0.51 on gold) they print their numbers as "uncalibrated" and
-// are neither red nor green (31-plan-audit M3). The fix is in the harness's four, not in the line.
+// reads the real Krell four outside 0.9-1.1 on Level XP and kills, or 0.8-1.2 on net gold (guard-cells.mjs K1_GATE, 30-plan E as
+// re-issued; today 0.83 and 0.51), they print their numbers as "uncalibrated" and are neither red nor green (31-plan-audit M3). The fix
+// is in the harness's four, not in the line.
 //
 // RUNTIME. Section E: 3 minutes at most. 126 cells run on worker processes (tools/balance-sim/worker.mjs, one engine each, at most
 // four); two played lives (life.mjs: the start kit to Level 10, and the advised lone hero to 34 for the bank G9 and G20 read) and the
@@ -109,7 +110,7 @@ function scaledWhatIf(ground, level) {
   }
   return Object.keys(rows).length ? { monsters: rows } : null;
 }
-const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt, scaledWhatIf };
+const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt, scaledWhatIf, scalableGrounds: Object.keys(SCALED.SCALABLE_GROUNDS) };
 
 /* ── the pool: worker.mjs processes, one engine each ───────────────────────────────────────────────────────────────────────────── */
 function playAll(jobs, workers, log = () => {}) {
@@ -255,10 +256,10 @@ const kG = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1000 ? (v / 1000).toFixe
     row) is judged only while K1 reads the real Krell four within its own target, on Level XP and kills ('xp') or on net gold ('gold').
     Outside it the row reports its number and the status `uncal`: never red, never green, never an exit. */
 function calibration(I) {
-  const K = MODEL.REAL_KRELL_FOUR, r = I.rows['krell-real'], t = LINE.K1.target;
-  const inT = (x) => Number.isFinite(x) && x >= t[0] && x <= t[1];
+  const K = MODEL.REAL_KRELL_FOUR, r = I.rows['krell-real'], G = GC.K1_GATE;
+  const inT = (x, t) => Number.isFinite(x) && x >= t[0] && x <= t[1];
   if (!r) return { xp: false, gold: false };
-  return { xp: inT(r.levelXpPerH / K.levelXpAHeroHour) && inT(r.killsPerH / K.killsAClockHour), gold: inT((r.incomePerH - r.storePerH * (1 - K.ownStockShare)) / K.netGoldAHeroHour) };
+  return { xp: inT(r.levelXpPerH / K.levelXpAHeroHour, G.xp) && inT(r.killsPerH / K.killsAClockHour, G.xp), gold: inT((r.incomePerH - r.storePerH * (1 - K.ownStockShare)) / K.netGoldAHeroHour, G.gold) };
 }
 
 function judge(I) {
@@ -270,7 +271,7 @@ function judge(I) {
     const rows = rows0.map((r) => { const g = r.gate || L.gate; return g && !cal[g] && r.status !== 'ERR' ? { ...r, status: 'uncal' } : r; });
     const status = L.notBuilt ? 'n/a' : L.nightly && !I.nightly ? 'nightly' : rows.length && rows.every((r) => r.status === 'uncal') ? 'uncalibrated'
       : rows.reduce((s, r) => (RANK[r.status] > RANK[s] ? r.status : s), 'ok');
-    out.push({ id, words: L.words, on: L.on, mode: L.mode, turnsRedIn: L.turnsRedIn, status, rows, note: (L.gate && !cal[L.gate] && status !== 'nightly' ? 'UNCALIBRATED: K1 reads the harness four outside 0.9-1.1 of the real one on ' + (L.gate === 'xp' ? 'Level XP or kills' : 'net gold') + '. ' : '') + note });
+    out.push({ id, words: L.words, on: L.on, mode: L.mode, turnsRedIn: L.turnsRedIn, status, rows, note: (L.gate && !cal[L.gate] && status !== 'nightly' ? 'UNCALIBRATED: K1 reads the harness four outside ' + GC.K1_GATE[L.gate].join('-') + ' of the real one on ' + (L.gate === 'xp' ? 'Level XP or kills' : 'net gold') + '. ' : '') + note });
   };
   const row = (at, value, band, show = f2, extra = '') => ({ at, value, status: statusOf(value, band), shown: show(value) + extra });
   const band = (id, part) => (part ? LINE[id].parts[part] : { target: LINE[id].target, keep: LINE[id].keep });
@@ -451,9 +452,9 @@ function judge(I) {
     }
     line('G23', rows, 'the lane filled = the sum of the offense lane over each row\'s cooldown; a row that replaces another shares its cooldown');
   }
-  line('G24', GC.SCALED_CELLS.flatMap(([g, pid]) => ['hammer', 'mage'].map((s) => {
+  line('G24', GC.scaledPlan(CTX, I.nightly).flatMap(([g, pid]) => ['hammer', 'mage'].map((s) => {
     const r = R('scaled:' + g + ':' + pid + ':' + s), h = R('ref:' + pid + ':' + (s === 'hammer' ? 'lone' : 'mage'));
-    return row(g.split('_')[0] + '@' + pid + ' ' + s, r && h ? r.levelXpPerH / h.levelXpPerH : NaN, band('G24'));
+    return row(g + '@' + pid + ' ' + s, r && h ? r.levelXpPerH / h.levelXpPerH : NaN, band('G24'));
   })), 'Normal, against the reference ground of that Level; the switch is off (dark until L31)');
   const d100 = (r) => (r && r.heroHours > 0 ? 100 * r.deaths / r.heroHours : NaN);
   line('D1', I.nightly ? GC.DEADLY_POINTS.map((p) => row(p.id, d100(R('twin-band:' + p.id)), band('D1'))) : []);
@@ -576,7 +577,7 @@ async function selftest(workers) {
   plant('refills twenty times their price: the second never pays', (c) => firstClean(c, 'G22', (r) => /2nd$/.test(r.at)), (J) => { J.data.refill.base *= 20; J.data.refill.perLevel *= 20; },
     { also: (c) => c.find((l) => l.id === 'G22').rows.filter((r) => /2nd$/.test(r.at) && r.status !== 'RED').map((r) => 'G22 ' + r.at) });
   plant('a new offense row on the bow at a 4 s cooldown: the lane over its budget', (c) => firstClean(c, 'G23', (r) => r.at === 'ranged'), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: null }); });
-  plant('a scaled ground beats the right-Level one: x1.5 Level XP', (c) => firstClean(c, 'G24'), (J, r) => { const [gp, s] = r.at.split(' '); const [g0, pid] = gp.split('@'); const g = GC.SCALED_CELLS.find(([x, q]) => x.startsWith(g0) && q === pid)[0]; J.rows['scaled:' + g + ':' + pid + ':' + s].levelXpPerH *= 1.5; });
+  plant('a scaled ground beats the right-Level one: x1.5 Level XP', (c) => firstClean(c, 'G24'), (J, r) => { const [gp, s] = r.at.split(' '); const [g, pid] = gp.split('@'); J.rows['scaled:' + g + ':' + pid + ':' + s].levelXpPerH *= 1.5; });
   plant('NEGATIVE CONTROL: the Glade\'s lone hammer +1% Level XP', () => ({ at: 'none' }), (J) => { J.rows['ref:glade:lone'].levelXpPerH *= 1.01; }, { control: true });
   plant('NEGATIVE CONTROL: a meal that only heals (no buff)', () => ({ at: 'none' }), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Bread', heals: 10 })); }, { control: true });
   plant('NEGATIVE CONTROL: a new bow row that replaces Precision Shot (shares its cooldown)', () => ({ at: 'none' }), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: 'precision_shot' }); }, { control: true });

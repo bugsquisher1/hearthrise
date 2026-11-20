@@ -46,6 +46,16 @@ export const BAR_BUDGET = Object.freeze({ '*': 0.85, shield: 0.6, restoration: 0
 /* G24: the scaled grounds the endgame dive measured over or near the right-Level ground (22-endgame.md section 8), at the reference
    point whose Level they scale to. The Thicket at Krell's Level is the in-band reading the guard's proof plants on. */
 export const SCALED_CELLS = Object.freeze([['coppercap_warrens', 'pyre'], ['coppercap_warrens', 'hold'], ['mosslight_glade', 'ford'], ['meadowbrook_thicket', 'hold']]);
+/* ...and the nightly twin plays the rest of the grid the re-issued plan names: every scalable ground (scaled-hunts.js SCALABLE_GROUNDS)
+   at 50, 80 and the top (Krell's Hold, the band the top open ground reaches), wherever it scales to that Level. */
+export const SCALED_GRID_POINTS = P('ford', 'pyre', 'hold');
+/** The scaled cells a run plays: [ground, point id] pairs that scale (ctx.scaledWhatIf), the plain four, then the grid at night. */
+export function scaledPlan(ctx, nightly) {
+  const grid = nightly ? ctx.scalableGrounds.flatMap((g) => SCALED_GRID_POINTS.map((p) => [g, p.id])).filter(([g, pid]) => !SCALED_CELLS.some(([x, q]) => x === g && q === pid)) : [];
+  return [...SCALED_CELLS, ...grid].filter(([g, pid]) => !!ctx.scaledWhatIf(g, BY_ID[pid].level));
+}
+/* K1'S GATE (30-plan section E as re-issued 2026-11-20, 31-plan-audit M3): the band K1 must read for a line on the harness's party to be judged. */
+export const K1_GATE = Object.freeze({ xp: Object.freeze([0.9, 1.1]), gold: Object.freeze([0.8, 1.2]) });
 /* G21 (nightly): the Tower from the landing at the hero's Level (tools/balance-program/endgame.mjs climb --from level, 90 minutes, 2 seeds). */
 export const TOWER_FOURS = P('glade', 'slake', 'hold');
 export const TOWER_LONE = P('thicket', 'glade');
@@ -68,7 +78,7 @@ export const LINES = Object.freeze([
   { id: 'G9', words: 'The first hero slot within one lone hero\'s bank at Level 32: price / bank', on: 'shops.js character_slot.1; the bank a played lone hero holds at 32 (life.mjs --policy rec)', target: [null, 1], keep: [null, 1], turnsRedIn: 'L06', mode: 'report' },
   { id: 'G10', words: 'The gear pool over the played kit: XP, and its damage cut / one armor step\'s', on: 'Levels 30, 60, 105, lone and four', target: null, keep: null, turnsRedIn: 'L15 (damage), L37 (XP)', mode: 'report',
     parts: { xp: { target: [null, 1.09], keep: [null, 1.10] }, dmg: { target: [null, 1], keep: [null, 1] } } },
-  { id: 'G11', words: 'The hero that trains every idle hour: XP, and damage cut', on: 'Levels 30, 60, 105', target: null, keep: null, turnsRedIn: 'L19', mode: 'report',
+  { id: 'G11', words: 'The hero that trains every idle hour: XP, and damage cut', on: 'Levels 30, 60, 105', target: null, keep: null, turnsRedIn: 'never (a report line, never a gate: 30-plan 31-7)', mode: 'report',
     parts: { xp: { target: [null, 1.05], keep: [null, 1.05] }, dmg: { target: [null, 0.15], keep: [null, 0.15] } } },
   { id: 'G12', words: 'No gold-for-power offer under 1 lone hour of gold a +1% Level XP', on: 'Tempering, the yard, training items', target: [1, null], keep: [1, null], turnsRedIn: 'L19', mode: 'report' },
   { id: 'G13', words: 'Magic Find from every source at 5,000 hours with the ring', on: 'the Luck bar (not built)', target: [null, 104], keep: [null, 104], turnsRedIn: 'L20', mode: 'report', notBuilt: 'L20' },
@@ -176,14 +186,7 @@ export function plainCells(ctx, size = SIZES.plain) {
   }
   /* G24: a scaled ground at the point's Level (scaled-hunts.js scaledRow on every roster monster, played as a what-if the way
      endgame.mjs scaledplay and tests/scaled-hunts.mjs play it), a lone hammer and a lone Mage */
-  for (const [g, pid] of SCALED_CELLS) {
-    const p = BY_ID[pid], whatIf = ctx.scaledWhatIf(g, p.level);
-    if (!whatIf) continue;
-    for (const style of ['hammer', 'mage']) {
-      push('scaled:' + g + ':' + pid + ':' + style, { ground: g, party: [style], level: p.level, profile: 'played', groundPatch: { endsAtLevel: null } });
-      out[out.length - 1].whatIf = whatIf;
-    }
-  }
+  for (const c of scaledCells(ctx, scaledPlan(ctx, false), hours, seeds)) out.push(c);
   /* G17: engine time a 100 s window (one seed, short: a timing, not a balance reading) */
   {
     const hold = ref(BY_ID.hold, FOUR);
@@ -194,7 +197,13 @@ export function plainCells(ctx, size = SIZES.plain) {
   return out;
 }
 
-/** The nightly twin: the cells that judge a death rate (D1, D2) at the nightly size, and the slow lines (G21's Tower climbs). */
+/** G24's cells: a lone hammer and a lone Mage on each scaled [ground, point] pair, at the plain dice, sums only. */
+function scaledCells(ctx, plan, hours, seeds) {
+  return plan.flatMap(([g, pid]) => ['hammer', 'mage'].map((style) => ({ id: 'scaled:' + g + ':' + pid + ':' + style, whatIf: ctx.scaledWhatIf(g, BY_ID[pid].level),
+    cell: { id: 'BG:scaled:' + g + ':' + pid + ':' + style, hours, seeds, ground: g, party: [style], level: BY_ID[pid].level, profile: 'played', groundPatch: { endsAtLevel: null }, windowMs: SUMS_WINDOW_MS } })));
+}
+
+/** The nightly twin: the cells that judge a death rate (D1, D2) at the nightly size, and the slow lines (G21's Tower climbs, G24's grid). */
 export function nightlyCells(ctx, size = SIZES.nightly) {
   const { hours, seeds } = size;
   const out = [];
@@ -208,5 +217,8 @@ export function nightlyCells(ctx, size = SIZES.nightly) {
     party: [...party], level: L, profile: 'played', supply: 'own', gear: { uniques: true } } });
   for (const p of TOWER_FOURS) climb('tower-four:' + p.id, FOUR.party, p.level);
   for (const p of TOWER_LONE) for (const style of ['hammer', 'mage']) climb('tower-lone:' + p.id + ':' + style, [style], p.level);
+  /* G24's grid past the plain four pairs, at the plain dice (a sums reading, not a death rate) */
+  const plain = new Set(scaledPlan(ctx, false).map(([g, pid]) => g + ':' + pid));
+  for (const c of scaledCells(ctx, scaledPlan(ctx, true).filter(([g, pid]) => !plain.has(g + ':' + pid)), SIZES.plain.hours, SIZES.plain.seeds)) out.push(c);
   return out;
 }

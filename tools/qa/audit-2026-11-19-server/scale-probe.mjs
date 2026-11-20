@@ -40,10 +40,12 @@ const p95 = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s
 const mean = (a) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : null);
 const r1 = (x) => (x === null ? null : Math.round(x * 10) / 10);
 
-async function armCron(db, body = 4, bodies = 32) {
+/* `body` null keeps the chain's own body dials (1004-tick-pack-heroes.sql: 16 instances and 16 heroes a body); the audit's
+   2026-11-19 run set 4 here, the chain's value then. */
+async function armCron(db, body = null, bodies = 32) {
   await db.exec(SHIM_CRYPTO + SHIM_VAULT + SHIM_NET);
   await db.query(`update public.hr_tick_config set enabled = true, flush_seconds = 90, cadence_seconds = 10, batch_limit = 200,
-                    lease_ms = 30000, shards = 1, fold_windows = 1, catchup_windows = 1, hunt_body_max = $1, hunt_bodies_max = $2,
+                    lease_ms = 30000, shards = 1, fold_windows = 1, catchup_windows = 1, hunt_body_max = coalesce($1::int, hunt_body_max), hunt_bodies_max = $2,
                     edge_url = 'https://nezapsylztqbbwuwembx.supabase.co/functions/v1/hr-accrue' where id`, [body, bodies]);
   /* The URL is the guards' own (hr_tick_config_edge_url_ck admits only the project's shape). Nothing is sent: pg_net
      is SHIM_NET, a plain queue table inside PGlite, which has no network. */
@@ -253,9 +255,29 @@ async function fanOut(db, M, n) {
     const h = (await M.TK.runTick({ exec, body: b, engineClock: cpuClock, grounds: groundsOf(M) })).body.hunts || {};
     bodies.push({ sessions: b.hunts.length, settled: h.settled, deferred: h.deferred || 0, engine_ms: h.engine_ms, wall_ms: r1(performance.now() - t1) });
   }
+  /* THE DRAIN (added 2026-11-19, lane/c-server-cost): every due hunt settled end to end. Each fire leases, and EVERY body it
+     posts runs through the shipped runTick on the shipped budget (a CPU clock), so a body's deferred tail gives its leases
+     back (1004-tick-pack-heroes.sql) and rides the next fire; fires until no session is still owed its 100 s. */
+  await db.query('update public.hunt_tick_lease set lease_until = now() - interval \'1 second\'');
+  // (the sample bodies above already settled their sessions: the drain takes every one still owed, never backdating a settled one)
+  const drain = { fires: 0, bodies: 0, settled: 0, deferred: 0, freed: 0, engine_ms: 0, max_body_engine_ms: 0 };
+  const owed = async () => Number(await one(db, `select count(*) from public.hunt_sessions where id = any ($1::uuid[]) and ended_at is null
+                                                   and settled_to <= now() - interval '90 seconds'`, [sids]));
+  for (let k = 1; k <= 40 && await owed() > 0; k++) {
+    const fd = await fire(db);
+    if (!fd.bodies.length) break;
+    drain.fires = k;
+    for (const b of fd.bodies) {
+      const h = (await M.TK.runTick({ exec: makeExec(db), body: b, engineClock: cpuClock, grounds: groundsOf(M) })).body.hunts || {};
+      drain.bodies += 1; drain.settled += h.settled || 0; drain.deferred += h.deferred || 0; drain.freed += h.freed || 0; drain.refused = (drain.refused || 0) + (h.refused || 0);
+      drain.engine_ms += h.engine_ms || 0; drain.max_body_engine_ms = Math.max(drain.max_body_engine_ms, h.engine_ms || 0);
+    }
+  }
+  drain.still_owed = await owed();
+  drain.seconds_to_settle_all = drain.fires * 10;
   return { n, fixture_build_s: Math.round(buildMs / 1000), cron_run_ms_nothing_due: { med: r1(med(idle)), max: r1(Math.max(...idle)) },
     fires, fires_to_lease_all: fires.filter((x) => x.sessions).length, seconds_to_lease_all: fires.filter((x) => x.sessions).length * 10,
-    sample_bodies: bodies, statements_in_sample: stat.n };
+    sample_bodies: bodies, statements_in_sample: stat.n, drain };
 }
 
 /* PART C: one body of `n` four-hero parties, the shipped budget, a CPU clock. */
@@ -280,7 +302,7 @@ const { db } = await bootReplay();
 await pinDice(db);
 const M = await loadEdge(ROOT);
 const result = { at: new Date().toISOString(), node: process.version, budget_ms: M.HS.HUNT_ENGINE_BUDGET_MS, span_ms: M.HS.HUNT_SETTLE_SPAN_MS,
-  dials: (await q(db, 'select cadence_seconds, flush_seconds, lease_ms, hunt_body_max, hunt_bodies_max, shards from public.hr_tick_config where id'))[0] };
+  dials: (await q(db, 'select cadence_seconds, flush_seconds, lease_ms, hunt_body_max, hunt_body_heroes, hunt_bodies_max, shards from public.hr_tick_config where id'))[0] };
 const KIT10 = { level: 10, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
 const KIT20 = { level: 20, inv: { cooked_shrimp: 400 }, bag: [{ item: 'cooked_shrimp', qty: 300 }], gold: 200000 };
 await db.query('begin');

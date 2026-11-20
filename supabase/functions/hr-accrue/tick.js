@@ -559,7 +559,7 @@ export function parseTickBody(raw) {
    before the settle started: nothing ran, nothing landed) gives its lease back, so the next fire offers it instead of waiting
    out the lease. Ids are parseHunts' (UUID_RE, lowercase), joined into an array literal and bound as TEXT (market.js's rule).
    Never fatal: a failure (42883 on a database before the file included) leaves the leases to end on their own. */
-export const LEASE_FREE_SQL = 'select public.hr_hunt_lease_free($1::int, $2::text::uuid[]) as n';
+const LEASE_FREE_SQL = 'select public.hr_hunt_lease_free($1::int, $2::text::uuid[]) as n';
 async function freeDeferredLeases(exec, huntBody, ids) {
   if (huntBody === null || !ids.length) return 0;
   try {

@@ -42,7 +42,8 @@ export const ELEMENTS = Object.freeze(['ember', 'frost', 'poison', ...(NECROTIC_
 export const ELEMENT_ON_HERO = Object.freeze(NECROTIC_STORM.live
   ? { necrotic: Object.freeze({ withers: 'withered' }), storm: Object.freeze({ manaBurnPm: 500 }) } : {});
 
-/** The fixed rule a blow of `element` brings a hero it strikes (ELEMENT_ON_HERO), or null: a plain element, a physical blow. */
+/** The fixed rule a blow of `element` brings a hero it strikes (ELEMENT_ON_HERO), or null: a plain element, a physical blow.
+    @type {(element: string | null) => ({ withers?: string, manaBurnPm?: number } | null)} */
 export const elementOnHeroOf = (element) => (typeof element === 'string' && Object.prototype.hasOwnProperty.call(ELEMENT_ON_HERO, element) ? ELEMENT_ON_HERO[element] : null);
 
 /** The range of one `elements` value, in percent less damage taken: at most double
@@ -103,7 +104,9 @@ export function validate() {
   }
   /* A fixed rule belongs to a real element and does one of the two things; the status it names is statuses.js's to hold
      (tests/hunt-core/necrotic-storm.mjs sample-rows reads both tables). */
-  for (const [e, r] of Object.entries(ELEMENT_ON_HERO)) {
+  for (const [e, row] of Object.entries(ELEMENT_ON_HERO)) {
+    /** @type {{ withers?: string, manaBurnPm?: number }} */
+    const r = row;
     if (!SET.has(e)) out.push('ELEMENT_ON_HERO.' + e + ' is not an element');
     const keys = Object.keys(r || {});
     if (keys.length !== 1 || !['withers', 'manaBurnPm'].includes(keys[0])) out.push('ELEMENT_ON_HERO.' + e + ' withers or burns mana, one of the two');

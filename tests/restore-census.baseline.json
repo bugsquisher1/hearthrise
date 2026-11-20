@@ -1671,7 +1671,7 @@
   },
   "hr_item_buffs": {
    "class": "seeded",
-   "replay": 27,
+   "replay": 23,
    "note": "Generated catalogue (2026-09-13-item-buffs-catalogue.generated.sql, tools/gen-catalogues.mjs --check) holding item_id -> {type, magnitude, duration_ms} for every consumable buff food in src/data/items.js. It is the PRICE LIST hr_apply's buff_apply block resolves a buff from under the character lock, so it is an ALLOWLIST: a rebuild with a smaller set refuses real foods as bad_buff_item, and one with different numbers pays a buff nobody authored. Holds nothing per player (player_state.buffs does) and is rebuilt from the repo, never restored."
   },
   "hr_item_slots": {

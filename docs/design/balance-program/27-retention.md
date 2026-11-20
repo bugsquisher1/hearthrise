@@ -34,7 +34,7 @@ Dive of `lane/d-balance-retention` (game-designer, 2026-11-20), cut from `set/v0
 
 Those are the two real players. One pressed Hunt again six times, never sold (the end card shows "Unsold loot value" with no press beside it), found nothing to spend on (60 gold in 12 hours) and stopped at Level 9 where a Level costs four hours. The other followed the Level 7 card to the rocks and stayed 101 hours.
 
-**Past the first week the game's retention systems are dark or one line long.** The Bestiary is a count. The Chronicle's second page cannot open on the normal path. Sixteen leaderboards hold the same names. Rare-band "reveals" fire every half hour to two hours for heroes nobody is watching. The away card is good at saying what happened and says nothing about what is waiting.
+**Past the first week the game's retention systems are dark or one line long.** The Bestiary is a count. The Chronicle's second page cannot open on the normal path. Sixteen leaderboards hold the same names. Rare-band "reveals" fire every half hour to two hours for heroes that are mostly not being watched. The away card is good at saying what happened and says nothing about what is waiting.
 
 ### The five changes that matter most
 
@@ -218,7 +218,7 @@ READ FROM DATA (`src/data/loot-bands.js`): the server reveals the `rare` and `tr
 
 | Player | Hunted hero-hours in month 1 | Rare-band "reveals" (today) | Trophy drops | Very Rare (once built) | What the player actually sees |
 |---|---|---|---|---|---|
-| New (2 h a day, alone) | 60 | 30 to 120 | 0: no boss a lone hero is sent to | 0 | A float over a hero nobody is watching, then "Best find" on the card |
+| New (2 h a day, alone) | 60 | 30 to 120 | 0: no boss a lone hero is sent to | 0 | A float over a hero that is mostly not being watched, then "Best find" on the card |
 | Own four (3.3 h a hero) | 396 | 200 to 800, 7 to 26 a day | about 1 (a third of hours on a boss ground, ASSUMED) | 0: under Krell | Twenty "reveals" a day unseen; the one Trophy is one of them |
 | Heavy four (8.4 h) | 1,008 | 500 to 2,000 | about 4 | 0 to 2 (it reaches Krell near day 20) | The same, more often |
 | Premium own four | 396 | as Own four | about 1 | 0 | |
@@ -315,7 +315,7 @@ Level and screen of first contact. PLAYED rows were met in this play; READ rows 
 
 ### 9. Telemetry: the launch dashboard and the daily ten
 
-One number a system. Rows for dives 22, 24, 25 and 26 are copied from their requirement 13 (CITED from each branch); dives 21, 23 and 28 had not pushed a finished file when this was written and are left for synthesis.
+One number a system (two where a card named two). Every row outside dive 27 is copied from that dive's requirement 13 (CITED: the finished files on `set/v0.2.143`, merged into this lane). Dark and designed systems are left out until they are built.
 
 | Dive | System | The number | Target, red line |
 |---|---|---|---|
@@ -356,9 +356,37 @@ One number a system. Rows for dives 22, 24, 25 and 26 are copied from their requ
 | 26 | farming | Accounts past Level 10 that harvest 5 days of 7 | red: beds owned and no harvest for 2 days |
 | 26 | storage | `bag_full` refusals a day | red: an account at 100% of the depot |
 | 26 | training | Training hero-hours a day | a tenth of idle hours; red at 0 for a week |
-| 21, 23, 28 | | to be added from each dive's requirement 13 | |
+| 21 | hunts | Hunts ended by "a party member left" (40% today); hunts with an after-hunt plan (32%) | under 10%; over 70% |
+| 21 | combat-engine | Landed share of blows by Level band, dealt and taken | 80 to 88% dealt, 65 to 78% taken; red at a clamp |
+| 21 | level | Median hunted hours to Levels 10, 25, 50, 75 by account size | within 15% of the pace of record |
+| 21 | combat-skills | Main skill and Defense at Levels 30, 60, 90 by seat | red if the front seat is 12 under the line |
+| 21 | inner-flame | Bones burned a hunted hero-hour | over half of bones dropped; red at 0 for two days |
+| 21 | weapon-roles | Share of hunted hours by weapon family | red if a family is under 3% or the wand over 40% |
+| 21 | action-bar | Heroes past Level 20 with an edited bar | over 60% |
+| 21 | spells-runes, tank-runes | Share of damage from casts by Level band; party tanks with a tank spell slotted | flat within 10 points; red under 20% |
+| 21 | monsters, monster-spells | Deaths by killer; share of damage taken that is a spell, by ground | red if one creature is a quarter of a band's deaths |
+| 21 | difficulty-tiers | Deaths a 100 hero-hours by tier and Levels under the floor | Deadly in band 1 to 3; red at 0 |
+| 21 | grounds-live | Share of hunted hours by ground against the advised route | red if an advised ground is under 3% |
+| 21 | death-blessings | Blessing gold a hunted hour by tier | 600 to 2,000 on Deadly |
+| 21 | stamina | Hunted hours a hero a day; hunts ended on stamina | read weekly |
+| 23 | gear-tiers, loot | Dropped gear sold by hand (43% today); accounts with a loot plan by the third town visit | under 5%; 100% |
+| 23 | tempering | Accounts past Level 45 with a rung | a third; red if one account is half the gold |
+| 23 | jewelry | Hallmark fees paid a week | red at 0 two weeks after tier 4 |
+| 23 | luck | Median Magic Find by account age | read monthly |
+| 23 | trophies | Trophy drops a month | read monthly |
+| 23 | bag-equipment | Heroes that end a hunt with a full bag | read weekly |
+| 23 | gathering, cooking, smithing, crafting, runecrafting | Gathering hours a hunted hour (1.19); home-made share of supplies (33%); bench hours that are not smelting or sawing | read weekly |
+| 23 | artisan-engine | Idle share of hero life (59%) | the same number as this dive's away-return row |
+| 28 | settle-engine | Database under 50% at the busy hour; settle lag under 32 s; journal rows a hunted hero-hour | red at 70% |
+| 28 | envelope | `hr_state_of` mean ms; refused intents by verb | red over 60 ms |
+| 28 | accounts, access | Profiles that made a hero over profiles (11% today, behind the allowlist) | read weekly |
+| 28 | operations | Cron failures; days since the last restore drill | 0; never run today |
+| 28 | moderation | Reports a day and time to first action | read weekly |
+| 28 | content-tooling | Working hours a ground; reds in the week after it ships | read a ground |
 
-**The daily ten** (the vitals page a person reads every morning; each is one query on the journal):
+Dive 28 warns that a scan of `player_ledger` costs 150 to 1,040 ms a read today, so every weekly number here comes from a roll-up table, never from the journal at read time.
+
+**The daily ten** (the vitals page a person reads every morning; each is one row of a nightly roll-up):
 
 1. New accounts, and the share that reached Level 5, sold something, and came back on day 2.
 2. Hunted hours to Level 10, the median of this week's new heroes.
@@ -648,7 +676,7 @@ Uniqueness: a weekend when one ground pays and everyone is there is a small-serv
 | 2 First principle | Nothing repeated |
 | 3 Ledgers | None; it reads Items. A world line is rate-limited (3 a hero a day) |
 | 4 Power budget | None |
-| 5 Seven players | Question 7. Today 7 to 26 reveals a day for the Own four, none watched. After the change: about one a month for the Own four, one a week for the Heavy four |
+| 5 Seven players | Question 7. Today 7 to 26 reveals a day for the Own four, most of them unwatched (dive 28: a tab is open for about half of real hunted hours, often on a second screen). After the change: about one a month for the Own four, one a week for the Heavy four |
 | 6 Server cost | One `hr_world_notices` row a broadcast; with Trophy only, a few a day at 1,000 online |
 | 7 Population | At 10: a line in a chat one person reads. At 10,000: at 3 a hero a day for any Rare it would be thousands of lines an hour; Trophy only is tens |
 | 8 Server age | A Trophy is as rare at month 6 as on day 1 |
@@ -724,6 +752,26 @@ Dark, judged from the chain and the engine, not played. 1 Purpose: none; each wa
 | R15 | Cut the five leftovers and the Discord gift | old-server-leftovers, discord-gift | S to M | yes | cost, surface |
 | R16 | The zero rule in three classes; the daily ten on the vitals | all | S | a query | operations |
 
+## What the other dives handed here, answered
+
+| From | The hand-off | Answer |
+|---|---|---|
+| 21 combat | The New player's deaths are a teaching problem: Deadly is one press away at Level 5 with words true of every ground | Agreed, and it stays a press (RULED 11-04: any hero may walk in after one warned confirm). The fix is the words: the warning names this hero's own loss ("you lose 1.5% of your Level XP, the hunt ends, your hero waits in town") and the Thicket's page opens on Normal until the Dangerous card at Level 8, which already waits for a helm and a body |
+| 21 combat | The creation screen lists five styles and leaves out the sword alone | Add the sixth line. One row of text |
+| 21 combat | "Hero slots: 1" on the creation screen against two in the rulings | They agree. The two-slot line was superseded on 11-09 (one starting slot); the screen is right |
+| 21 combat | The weekend takes a four to about 3.1 times the contract | Question 6: +25% at most, added beside tier and party, monthly for the world |
+| 22 endgame | Nothing tells a Level 10 hero the Tower opened | The card exists in data (`burning_tower`, Level 10, while the server offers it) and the Town menu has the line from Level 1 (PLAYED). I did not reach Level 10, so whether the card shows is unverified. R14 hides the menu line until then, which makes its arrival the announcement |
+| 22 endgame | The chest's weekly reset is the game's only weekly beat | Use it on purpose: the weekly boards (R9) turn at the same instant, shown the same way. One "the week turns" moment, not two clocks |
+| 23 items | The first Sell should offer the rule | Agreed: R6's press on the summary reads "Sell junk for N gp, and sell these every time", which sets the plan in the same press |
+| 23 items | The first craft costs 10% of the player's gold in bench fee | For the first-hours card: the cloak card should say the fee before the press. One line |
+| 23 items | Stage rewards become Luck with no press; trophy claims should follow | R8 |
+| 26 home | Should the one-tap refill take own stock from Storage before it buys? | Yes. "Own stock first, then the store" is the ruling (10-16), Storage is the account's own stock, and 812 withdraws by hand is the decision being repeated. It belongs inside "Carry on" (R1): the line of what will happen says "from Storage: 40 Cooked Swordfish. From the store: 310 gp" |
+| 26 home | The House never says what a room does; the farm never says what a crop is for | Agreed, and it is the home dive's change 1. The teaching table's farming row carries it |
+| 28 platform | A tab is open for about half of real hunted hours, so visits counted from presses undercount time at the screen | Taken: the watched hunt matters more than section 3 alone suggests, and "unwatched" in question 7 is "at most half watched". It does not change the changes: the presses a return costs are the same |
+| 28 platform | Telemetry that scans the journal is too slow | The dashboard reads roll-ups (question 9) |
+| 24 economy | "Sell junk for N gp" and "Next buy walks the shelf" land on the end card | R6 and R7 |
+| 25 social | A weekly clan board; chat closed for a new account; the first-friends lines | The clan board is in question 5. Chat closed against the 10-22 ruling is in the teaching table. The creation screen's friends line is the social dive's change 2 |
+
 ## For other dives
 
 | Dive | System | Finding |
@@ -756,7 +804,7 @@ Dark, judged from the chain and the engine, not played. 1 Purpose: none; each wa
 
 **Real:** `10-real-players.md` (4 people, 1,334 hunted hours; the two light players are 18 hours together, so every first-week number is two people); the vitals rows of 2026-11-17 to 11-20 (see the disclosure at the top).
 
-**Cited:** `24-economy.md` (the slot ladders and "hero slots cost more", Tyler 11-20; "Next buy walks the shelf"), `25-social.md` (the first party, chat closed, standing parties), `22-endgame.md` (the Tower's weekly errand, scaled hunts off), `26-home.md` (the deed ladder, the Trophy room), `21-combat.md` as pushed WIP (the pace of record, tiers, bones), the 2026-11-11 designer re-read and the 2026-11-19 first-day path on the priority board, the itemization plan section 15 (Luck v3.1).
+**Cited:** `24-economy.md` (the slot ladders and "hero slots cost more", Tyler 11-20; "Next buy walks the shelf"), `25-social.md` (the first party, chat closed, standing parties), `22-endgame.md` (the Tower's weekly errand, scaled hunts off), `26-home.md` (the deed ladder, the Trophy room), `21-combat.md`, `23-items.md` and `28-platform.md` as merged from the set (the pace of record, tiers, bones; the loot plan; the cost of journal reads), the 2026-11-11 designer re-read and the 2026-11-19 first-day path on the priority board, the itemization plan section 15 (Luck v3.1).
 
 **Assumed:** four heroes cost four times one hero's presses (no own four was played); a third of a four's hours are on a boss ground (question 7); the Heavy four's refill timing in question 6; the statement count of "Carry on"; the start kit's grant rule (requirement 9, first-hours). None of these should be tuned to before it is measured.
 

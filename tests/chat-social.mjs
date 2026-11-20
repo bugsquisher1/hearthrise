@@ -671,7 +671,11 @@ async function startOpen(browser, base) {
         const t = document.querySelector('.hb-tip.is-on'), c = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
         const a = t && t.getBoundingClientRect(), b = c && c.getBoundingClientRect();
         const over = !!a && !!b && a.left + 8 < b.right && b.left + 8 < a.right && a.top + 8 < b.bottom && b.top + 8 < a.bottom;
+        /* a tip takes no press (pointer-events: none), so it is made hit-testable for the one probe: the topmost box there is the one drawn on top */
+        const pe = t ? t.style.pointerEvents : '';
+        if (t) t.style.pointerEvents = 'auto';
         const at = over ? document.elementFromPoint(Math.max(a.left, b.left) + 4, Math.max(a.top, b.top) + 4) : null;
+        if (t) t.style.pointerEvents = pe;
         slot.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
         return { over, onTop: !!at && !!at.closest('.hb-tip') };
       });

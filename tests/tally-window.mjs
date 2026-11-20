@@ -937,7 +937,7 @@ async function checks(overrides, shots) {
 
 const MUTANTS = [
   /* TW-8 docked: Chat at its home is sized inside the observer's own pass (shell.js), so it is not watched (lane/a-chat-opens) */
-  ['Chat at home is watched by the observer and the layout loops (TW-8)', 'src/shell/shell.js', 'if (sized && !Number.isFinite(p.bottom)) sized.ro.observe', 'if (sized) sized.ro.observe'],
+  ['Chat at home is watched by the observer and the layout loops (TW-8)', 'src/shell/shell.js', 'if (sized && !(wm.row(p.id).home && !p.phone)) sized.ro.observe', 'if (sized) sized.ro.observe'],
   /* TW-18 the coach card's own slot (UI audit 2026-11-18 UI-6) */
   ['the town coach card hangs under the icon row over the Tally again', 'src/shell/hud-room.js', '  function dockCoach() {\n    dockTownCoach();', '  function dockCoach() {'],
   ['the town coach card docks on top of the Tally', 'src/shell/hud-room.js', '        for (const q of way) if (q.top < top + h + gap && q.bottom + gap > top) { top = q.bottom + gap; moved = true; }', ''],

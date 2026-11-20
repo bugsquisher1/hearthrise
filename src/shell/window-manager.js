@@ -524,6 +524,8 @@ export function createWindowManager(o) {
     open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe, openTab, goTo, openAtStart,
     /** Should `id`'s field take the caret now? Once (its renderer asks as it patches). */
     takeCaret: (id) => caretWanted.delete(id),
+    /** Is a caret wish waiting for `id`? (the shell re-patches that window at once) */
+    wantsCaret: (id) => caretWanted.has(id),
     /** The row a link asked `id` to bring into view, or null (it stays asked until takeFind: the row may draw later). */
     wantsFind: (id) => findWanted.get(id) || null,
     /** The shell found the row: the wish is spent. */

@@ -170,7 +170,7 @@ export function mountShell(root, o) {
     for (const el of Array.from(layer.children)) if (!keep.has(el.getAttribute('data-hs-win'))) el.remove();
     for (const p of placed) {
       let el = layer.querySelector(':scope > [data-hs-win="' + p.id + '"]');
-      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized && !Number.isFinite(p.bottom)) sized.ro.observe(el, { box: 'border-box' }); }   // Chat at home is sized by capDock inside the observer's own pass: watched, it would loop
+      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized && !(wm.row(p.id).home && !p.phone)) sized.ro.observe(el, { box: 'border-box' }); }   // Chat at home is sized by capDock inside the observer's own pass: watched, it would loop
       const page = wm.pageIn(p.id);
       if (showPage(el, page)) refresh(page);
       paintHead(el, ctx, WINDOW_RENDERERS);
@@ -402,7 +402,7 @@ export function mountShell(root, o) {
     summaryWasOpen = so;
     paintWindows();
     /* an open window asked to show another tab (R on an open Shop: window-manager.js openTab) shows it at once */
-    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id)) refresh(id);
+    for (const id of wm.openIds()) if (wm.wantsTab(id) || wm.wantsFind(id) || wm.wantsCaret(id)) refresh(id);   // ...and Enter on an open Chat takes the caret now, not a tick later
     paintWidgets();
     coach();
   }

@@ -461,6 +461,49 @@ Open for Security, not ruled here: whether gold paid for Crowns counts against t
 
 None of the small sinks moves a ledger (together 0.5% of real gold out). They are what a rich player does to be seen, they are built, and the right amount of further work on them is none until there is a town with people in it.
 
+## Q9 after Tyler's ruling: hero slots cost more
+
+Tyler, 2026-11-20, on this file: "I agree with everythign so far but i think hero slots should cost even more". So items 1 to 8 and 10 to 12 of the rulings list stand as recommended, and item 9 changes: the ladder rises above 300k / 750k / 1.5M. The direction is his; the numbers below are this dive's, and each is one data row (`src/data/shops.js` character_slot.1 to .3; nothing was changed here).
+
+`node tools/balance-program/gold-model.mjs --slots`. Slot 2 is banked by one hero alone (gold banked by Level CITED from the board's "Gold by band", hours from the lone pace table); slot 3 by two heroes and slot 4 by three, hunting together at Q1's free gold. Weeks are at each player's hunted hours a day and assume every coin goes to the slot.
+
+| Ladder | Slot | Price | Level on arrival | Lone hunted hours (slot 2) | New, weeks | Own four, weeks | Heavy four, weeks | Premium own four, weeks | Ceiling, weeks | Four friends, weeks | Buyer |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Today | 2 | 300k | 31 | 58 | 4.1 | 2.5 | 1.0 | 2.5 | 0.3 | 2.5 | 0 |
+| Today | 3 | 750k | about 39 |  | 3.0 | 1.8 | 0.7 | 1.8 | 0.2 | 1.8 | 0 |
+| Today | 4 | 1.50M | about 49 |  | 3.0 | 1.8 | 0.7 | 1.8 | 0.3 | 1.8 | 0 |
+| Today | all three | 2.55M |  |  | 10.1 | 6.1 | 2.4 | 6.1 | 0.8 | 6.1 | 0 |
+| A (recommended) | 2 | 400k | 33 | 68 | 4.8 | 2.9 | 1.2 | 2.9 | 0.4 | 2.9 | 0 |
+| A (recommended) | 3 | 1.50M | about 41 |  | 5.6 | 3.4 | 1.3 | 3.4 | 0.5 | 3.4 | 0 |
+| A (recommended) | 4 | 4.00M | about 51 |  | 7.9 | 4.8 | 1.9 | 4.8 | 0.7 | 4.8 | 0 |
+| A (recommended) | all three | 5.90M |  |  | 18.4 | 11.1 | 4.4 | 11.1 | 1.5 | 11.1 | 0 |
+| B | 2 | 600k | 37 | 88 | 6.3 | 3.8 | 1.5 | 3.8 | 0.5 | 3.8 | 0 |
+| B | 3 | 1.50M | about 45 |  | 5.0 | 3.0 | 1.2 | 3.0 | 0.4 | 3.0 | 0 |
+| B | 4 | 3.00M | about 55 |  | 6.0 | 3.6 | 1.4 | 3.6 | 0.5 | 3.6 | 0 |
+| B | all three | 5.10M |  |  | 17.3 | 10.5 | 4.1 | 10.5 | 1.4 | 10.5 | 0 |
+| C | 2 | 300k | 31 | 58 | 4.1 | 2.5 | 1.0 | 2.5 | 0.3 | 2.5 | 0 |
+| C | 3 | 2.00M | about 39 |  | 8.0 | 4.8 | 1.9 | 4.8 | 0.7 | 4.8 | 0 |
+| C | 4 | 6.00M | about 49 |  | 12.1 | 7.4 | 2.9 | 7.4 | 1.0 | 7.4 | 0 |
+| C | all three | 8.30M |  |  | 24.2 | 14.7 | 5.8 | 14.7 | 2.0 | 14.7 | 0 |
+
+**Recommended: ladder A, 400,000 / 1,500,000 / 4,000,000 (5.9M, 2.3 times today).**
+
+- **Why this shape.** The first slot is the door from the lone game to the party game, so it rises least (a third: Level 33 and about 68 lone hours, against Level 31 and 58 today). The second and third are where "even more" goes: they are bought by an account that already has a party, is past the Levels where lone heroes die, and by Level 40 to 50 frees 0.6M to 1.1M a week with little else it wants. The Own four has its four in about 11 weeks instead of 6, the Heavy four in about 4.5 instead of 2.5.
+- **B, 600,000 / 1,500,000 / 3,000,000 (5.1M).** Doubles the first slot: one hero to Level 37, about 88 lone hours (6 weeks at 2 hours a day, 4 at 3.3). The strongest "main hero" identity and the longest stretch of the part of the game that is weakest today. Not recommended until the lone game from 1 to 30 has been played and fixed.
+- **C, 300,000 / 2,000,000 / 6,000,000 (8.3M).** Leaves the first slot alone and makes the full four a three to four month goal for the Own four (15 weeks). The best gold sink of the three and the best for Crowns; a pair is a real stage of the game for two months. The choice if Tyler wants the four to be an achievement rather than the default.
+
+**The one-hero phase, and the two players who quit at Levels 7 to 9.** They left with 13,124 and 7,180 gold, 12 and 6 hunted hours in. No ladder here reaches them: at Level 9 a hero is 280,000 short of today's slot and would be 380,000 short of A's. What the price does is set how long the game after that point is played alone: 58 lone hours today, 68 on A, 88 on B. REAL: alone, heroes die 6.7 times in 100 hours (8.9 under Level 16) against 1.2 in a party, and party finder has never been used. (The hero-slots card below says about 40 lone hours for today's slot; that was a midpoint guess, and the lone pace table used here says 58.) So a higher first slot makes more of the game the part that is currently worst, and that is a risk the price cannot fix and can make longer.
+
+**The own-four real player.** The real fours were bought for 330,000 in all, so every real number about a four from Level 10 describes the old prices. On A the same person plays one hero to 33, a pair to about 41, a three to about 51, then the four. Its XP a head on the way is a pair's and a three's, not a Deadly four's (REAL: a pair earned 0.6 to 1.5 of the pace contract, a three 2.6 to 3.5, a four 1.7 to 3.0), so the "three times the pace contract" finding arrives about Level 50 rather than Level 10. That takes pressure off dive 21's party numbers through Level 50 and moves weight onto the lone and pair seats.
+
+**Is a guard needed? Yes, two, both plain.**
+1. **The first slot stays reachable from one hero's own play: no more than what a lone hero has banked by the Level the party grounds open (Coppercap Warrens, 32), about 400,000 today.** Later slots may climb freely. If income is re-cut, this slot moves with it. A is at the line; B is over it.
+2. **Read the bet weekly after the wipe:** hunted hours to the first slot (target 60 to 75 on A) and the share of accounts that stop between Level 10 and the first slot. If more than half stop there, the lone game is the fix, not the price.
+
+Also unchanged and worth saying: four people with one hero each are a four on day one for nothing. A higher ladder makes friends the cheap road to a party, which is the ruling's own purpose (11-09), and it only works if there are people to find.
+
+**Shelf totals move.** On ladder A the one-time shelf for a four-hero account by Krell is 53.9M (was 50.55M), 39.5M without the Hallmark fees; the Level 30 band's new shelf is 3.64M (was 2.79M) and the Level 50 band's 13.82M (was 11.32M). The Q1 shelf table above still prints today's rows, because the tool reads the live data. For the Buyer the slot ladder is 5.9M of bought gold on day one instead of 2.55M: the first thing Crowns buy more than doubles.
+
 ## The cards
 
 Thirteen answers each, in the order of `02-requirements.md`. "Q1" means the gold model above; prices in weeks are weeks of free gold from it. What was played is said under answer 10; what was not played is listed in the last section.
@@ -783,6 +826,8 @@ Rulings: PER CHARACTER 10-17: this dive recommends account-wide; BREAKS until Ty
 
 ## Tyler rules on
 
+**Ruled 2026-11-20: "I agree with everythign so far but i think hero slots should cost even more". Every recommended option below is approved except item 9, which is answered in "Q9 after Tyler's ruling".**
+
 1. **Refills climb x1, 1.5, 2, 2.5, 3, 3.5 instead of 13% a step.** Recommend yes: the first two still pay for themselves at every Level, and from Level 80 the later ones are gold for XP. Alternative: keep 2/15, where all six pay for themselves to Level 105 and the heaviest lever in the game is close to free; or the steeper 2/3 if Levels 30 to 50 should bite too.
 2. **Income past the last gear tier: gold a hit point rises 0.5% a monster Level from 88, the x0.7 dial becomes one formula line, and "a ground never pays a lone in-range hero on Normal less than the ground before" is a reported line.** Recommend yes, and that you confirm this is a rule about the faucet and not a profit mold. Alternative: leave the wage flat and let longer bands and an indexed shelf carry it; the cost is that Carter's Rest pays less than Pyre Field, which reads as a bug to a player.
 3. **Premium covers the account, not the hero.** Recommend account-wide. Alternative: per hero as ruled 10-17, at about a quarter of the account price each. Real prices are yours.
@@ -791,7 +836,7 @@ Rulings: PER CHARACTER 10-17: this dive recommends account-wide; BREAKS until Ty
 6. **Player trade becomes "list for a friend" on the Weighhouse, with the fee, the cut and the caps; no direct trade window.** Recommend yes: one money surface to review, and it works with one player offline. Alternative: the separate trade lane as ruled 10-18, untaxed, with its own caps and review.
 7. **The market's opening goal is sized to the server** (20,000 gold a weekly active account, 250,000 least) instead of a fixed 1,000,000. Recommend yes, or the Discord playtest never sees a market. Alternative: keep 1,000,000 and accept the market opens only on a server of hundreds.
 8. **The yard's hourly fee rises to a quarter of an hour's free gold at the hero's Level** (about 1.4k at Level 10, 3k from Level 50; today 212 to 482), the rate staying yours at 30,000. Recommend yes, together with dive 21's answer on a cap: it is the repeating sink the real player can use while away. Alternative: leave it nearly free, and it stays the cheapest power in the game by ten times.
-9. **Hero slots stay 300,000, 750,000 and 1,500,000.** Recommend keep, knowing it means one hero for 30 to 50 hunted hours (5 days at 8 hours a day, 12 at 3.3, 20 at 2) and that the lone game from Level 1 to 30 then has to carry every new account. Alternative: 150,000 for the first slot (alone to about Level 22), keeping the other two.
+9. **RULED 2026-11-20: slots cost more. See "Q9 after Tyler's ruling": recommended 400,000 / 1,500,000 / 4,000,000.** As first written: Hero slots stay 300,000, 750,000 and 1,500,000. Recommend keep, knowing it means one hero for 30 to 50 hunted hours (5 days at 8 hours a day, 12 at 3.3, 20 at 2) and that the lone game from Level 1 to 30 then has to carry every new account. Alternative: 150,000 for the first slot (alone to about Level 22), keeping the other two.
 10. **Town Works runs a project a month with a goal from the server's size, and the Gold Given board becomes its plaque's all-time page.** Recommend yes: it is the cheapest repeating sink for surplus gold and it is built. Alternative: leave it at the one Weighhouse, and the system is at zero for good a day after a big server opens. Each project costs five stage sprites.
 11. **Every price past Krell is a share of one band index** (the audit's change 5), with the shares together at 1.2 to 1.4 of what a band banks, so "more than a hero can afford, choose what matters" (your 11-18 ruling) holds by a guard instead of by hand. Recommend yes. Alternative: hand-price each of 11 bands, and re-price them whenever income moves.
 12. **Build order for sinks:** the end card's two lines (sell, next buy) first, the refill row, then linings, then the yard's fee, then Crowns after Premium and the market. Recommend this order. Alternative: Crowns first, which opens a currency onto a market that is closed and a Premium nobody has chosen.

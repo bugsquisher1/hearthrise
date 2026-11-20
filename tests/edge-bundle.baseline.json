@@ -95,7 +95,12 @@
         "why": "hr-accrue +559 B, all lane/a-trophy-room-held: data/homestead-tiers.js HELD_HOME_ROOMS (the Trophy Room held whole, ~310 by the diff) and unlock-catalogue.js refusing a held room's every rung by name (~250)"
       },
       {
-        "bytes": 3135425,
+        "bytes": 3134548,
+        "on": "2026-11-20",
+        "why": "hr-accrue +282 B on set/v0.2.143, all ground data the engine's own index reads: ox_road/pack.js +177 (lane/b-morrow-kit 69cac9aa7, the Ox Road's gather nodes), carters_rest/map.js +130 (e596bbb08, the row chars that are no hex digit and the line saying why), ox_road/map.js -7, balance-sheet.js -18 (1cd286297's comment trim); measured file by file with pack-edge on 97d631f32 and e596bbb08"
+      },
+      {
+        "bytes": 3135555,
         "on": "2026-11-20",
         "why": "src/data/core-model.js: Levels 7-9 re-cut for the start-kit hero (two more LEVEL_CURVE brackets) and LEVEL_PACE.newPlayer, the row Tyler's 27-2 pace is held on, with their notes (lane/c-levels-7-9)"
       }

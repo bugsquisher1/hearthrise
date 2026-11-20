@@ -52,7 +52,7 @@ export function pacedActionMs(ms) {
   return Math.max(MIN_ACTION_MS, Math.floor((Number(ms) || 0) * PACE.actionMs));
 }
 
-import { GATHER_SKILLS } from '../data/core-model.js?v=0.2.142';   // read by the data rows too: the data layer's (moved 2026-11-19)
+import { GATHER_SKILLS } from '../data/core-model.js?v=0.2.143';   // read by the data rows too: the data layer's (moved 2026-11-19)
 export { GATHER_SKILLS };
 /* ⚠ THE FALLBACK BELOW IS `gatherSpeed`, AND THAT MAKES AN UNLISTED ARTISAN
    SKILL A LIVE BUG RATHER THAN A GAP (consumable-economy.md §5.1). Runecrafting

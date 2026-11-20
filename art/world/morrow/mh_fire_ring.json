@@ -3,41 +3,6 @@
   "class": "decal",
   "style": "s1",
   "material": "wood",
-  "restyle": {
-    "map": {
-      "#e6dcbc": "#8a867d",
-      "#c9bfa0": "#6a6865",
-      "#dcae86": "#8a6440",
-      "#b5835f": "#6e4c30",
-      "#c8e6e0": "#6a6865",
-      "#86b4b4": "#4f7a80",
-      "#f2a03a": "#a8743a",
-      "#ffd36a": "#a8743a",
-      "#e8c547": "#a8743a"
-    },
-    "clamp": {
-      "stone": [
-        0,
-        2
-      ],
-      "iron": [
-        0,
-        2
-      ],
-      "steel": [
-        0,
-        1
-      ],
-      "earth": [
-        0,
-        4
-      ],
-      "bronze": [
-        0,
-        2
-      ]
-    }
-  },
   "source": "mh_fire_ring.png",
   "frame": [
     32,
@@ -67,5 +32,5 @@
     "job": "b70ba839",
     "sketch": "art/review/morrow-kit/ox-props4/clutter-sheet.png"
   },
-  "notes": "The turnout's cold fire ring: dark field stones of varied size round grey ash, one knocked out of the ring, two charred log ends, no embers; a decal walked over. Round 2 after review b4: modelled in the wagons' camera (.scratch/kit/ox-vigil.mjs), packed with three others on one 64 px sheet (art/review/morrow-kit/ox-props4/clutter-sheet.png) and polished palette-held by edit_image_pro_flash (cell top left). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "The turnout's cold fire ring: dark field stones of varied size round grey ash, one knocked out of the ring, two charred log ends, no embers; a decal walked over. Round 2 after review b4: modelled in the wagons' camera (.scratch/kit/ox-vigil.mjs), packed with three others on one 64 px sheet (art/review/morrow-kit/ox-props4/clutter-sheet.png) and polished palette-held by edit_image_pro_flash (cell top left). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); held under the creatures (ART_DIRECTION 4) by the polish itself, so it carries no restyle (one repainted nothing). Pixels unscaled."
 }

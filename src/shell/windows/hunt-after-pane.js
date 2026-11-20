@@ -9,11 +9,11 @@
 // it was fixed when the hunt started.
 // This module draws and sends; it holds no state.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, prop, element } from '../../render/paint.js?v=0.2.142';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
-import { afterChoices, afterPick, thenWords } from '../hunt-after.js?v=0.2.142';
-import { setHuntAfter } from '../../session/hunt-after-intents.js?v=0.2.142';
+import { rows, text, prop, element } from '../../render/paint.js?v=0.2.143';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.143';
+import { t } from '../../render/player-text.js?v=0.2.143';
+import { afterChoices, afterPick, thenWords } from '../hunt-after.js?v=0.2.143';
+import { setHuntAfter } from '../../session/hunt-after-intents.js?v=0.2.143';
 
 export function afterHtml() {
   return '<section class="hw-after" aria-label="' + esc(t('away.when_ends')) + '"><h4 class="hw-hd-h">' + esc(t('away.when_ends')) + '</h4>'

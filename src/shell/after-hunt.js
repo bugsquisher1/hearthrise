@@ -32,19 +32,19 @@
 //
 // Display only: nothing here is spendable or gates an intent (CLAUDE.md §6).
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.142';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
-import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.142';
-import { townActivityWords, partyMembershipOf } from '../session/party-sections.js?v=0.2.142';
-import { huntOf, serverNowOf, settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.142';
-import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.142';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.142';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.142';
-import { itemName } from './widgets/bits.js?v=0.2.142';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.142';
-import { trainingOf } from '../session/training-sections.js?v=0.2.142';
-import { farmFieldOf } from '../session/farm-sections.js?v=0.2.142';
-import { listWords } from '../render/format.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.143';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.143';
+import { RESUME_AFTER_END } from '../data/hunt-sessions.js?v=0.2.143';
+import { townActivityWords, partyMembershipOf } from '../session/party-sections.js?v=0.2.143';
+import { huntOf, serverNowOf, settingsOf, staminaOf } from '../session/hunt-sections.js?v=0.2.143';
+import { nameOf, carriedOf } from '../session/item-sections.js?v=0.2.143';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.143';
+import { roomOfHunt } from '../data/boss-halls.js?v=0.2.143';
+import { itemName } from './widgets/bits.js?v=0.2.143';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.143';
+import { trainingOf } from '../session/training-sections.js?v=0.2.143';
+import { farmFieldOf } from '../session/farm-sections.js?v=0.2.143';
+import { listWords } from '../render/format.js?v=0.2.143';
 
 /* Shorter than this in town is the walk home settling, not time the hero waited (the away card's own shortest absence). */
 export const WAITED_FROM_MS = 10 * 60 * 1000;

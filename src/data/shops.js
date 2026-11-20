@@ -43,8 +43,8 @@
 //   usd            the platform store, never hr_apply
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.142';
-import { ITEMS } from './items.js?v=0.2.142';
+import { SUPPLY_SHOP_OFFERS, SHOP_SOLD_KINDS } from './supply-basics.js?v=0.2.143';
+import { ITEMS } from './items.js?v=0.2.143';
 
 function supplyOffer(s) {
   return { id: s.offer, table: "supply", name: ITEMS[s.item].n, cost: [{ kind: "currency", id: "gold", amount: s.price }],

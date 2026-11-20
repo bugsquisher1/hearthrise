@@ -6,23 +6,23 @@
 // Original IP. Surfaced in the item detail/tooltip (the "what is it" line).
 // SAFE TO EXTEND: an item with no entry here just shows no flavour line — nothing breaks.
 
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.142';
-import { foldRows } from './grounds/shape.js?v=0.2.142';
-import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.142';
-import { SLOT_DESC } from './slot-ladders.js?v=0.2.142';
-import { LIB2_DESC } from './library2-items.js?v=0.2.142';
-import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.142';
-import { CHAMPION_DESC } from './champions.js?v=0.2.142';
-import { DRINK_DESC } from './drinks.js?v=0.2.142';
-import { IMBUE_DESC } from './imbuements.js?v=0.2.142';
-import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.142';
-import { SHIELD_DESC } from './shields.js?v=0.2.142';
-import { TRAINING_GEAR_DESC } from './training.js?v=0.2.142';
-import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.142';
-import { CHEST_ITEM_DESC } from './chests.js?v=0.2.142';
-import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.142';
-import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.142';
-import { PATTERN_DESC } from './patterns.js?v=0.2.142';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.143';
+import { foldRows } from './grounds/shape.js?v=0.2.143';
+import { WAVE3_DESC } from './wave3-uniques.js?v=0.2.143';
+import { SLOT_DESC } from './slot-ladders.js?v=0.2.143';
+import { LIB2_DESC } from './library2-items.js?v=0.2.143';
+import { BOSS_FORGE_DESC } from './boss-forge.js?v=0.2.143';
+import { CHAMPION_DESC } from './champions.js?v=0.2.143';
+import { DRINK_DESC } from './drinks.js?v=0.2.143';
+import { IMBUE_DESC } from './imbuements.js?v=0.2.143';
+import { STYLE_GEAR_DESC } from './style-gear.js?v=0.2.143';
+import { SHIELD_DESC } from './shields.js?v=0.2.143';
+import { TRAINING_GEAR_DESC } from './training.js?v=0.2.143';
+import { CALL_ITEM_DESC } from './boss-calls.js?v=0.2.143';
+import { CHEST_ITEM_DESC } from './chests.js?v=0.2.143';
+import { CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.143';
+import { TOWER_WEAPON_DESC } from './tower-weapons.js?v=0.2.143';
+import { PATTERN_DESC } from './patterns.js?v=0.2.143';
 
 export const ITEM_DESC = {
   /* Mage = wand + spellbook; Healer = staff (Tyler 2026-10-19). */

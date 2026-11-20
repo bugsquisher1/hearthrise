@@ -55,6 +55,12 @@ export function scalePlaying(cs, hunt) {
   return sh && sh.playing && sh.playing.hunt === hunt ? t('hunts.scale_tag_on', { level: sh.playing.level }) : '';
 }
 
+/** The server will play `hunt` scaled for this hero now (its section: on, with hours banked), so its door lets an outgrown hero in. Pure. */
+export function scalesNow(cs, hunt) {
+  const g = scaledGroundOf(scaledHuntsOf(cs), hunt);
+  return !!g && g.level !== null && g.on && g.bankedMs > 0;
+}
+
 /** The Hunts list line's tag for `hunt`: "Scaled: Level 41" while its hours are on and banked, "Scalable" where it can be bought, else ''. */
 export function scaleTag(cs, hunt) {
   const g = scaledGroundOf(scaledHuntsOf(cs), hunt);

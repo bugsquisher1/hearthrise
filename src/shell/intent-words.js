@@ -104,8 +104,10 @@ export function refusalText(r, cs) {
   if (tower) return tower;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
+    /* an outgrown seat names the ground it outgrew (blind playthrough 2026-11-19, P1: the leader's own `outgrown` read "Wren is not ready") */
     const why = seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]
-      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready'));
+      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : x.error === 'outgrown'
+        ? t('hunts.seat_outgrown', { ground: x.hunt && HUNT_INDEX[x.hunt] ? HUNT_INDEX[x.hunt].name : t('hunts.seat_outgrown_that') }) : SEAT_WORDS[x.error] || 'is not ready'));
     return 'Nobody went in. ' + listWords(why, Infinity) + '.';
   }
   /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */

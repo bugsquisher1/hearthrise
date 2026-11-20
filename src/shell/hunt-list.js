@@ -179,6 +179,26 @@ export function seatsUnder(r, party) {
   return { under };
 }
 
+/**
+ * WHO HAS OUTGROWN THIS GROUND (its endsAt, hunt-grounds.js endsAtLevel: the door refuses each, 2027-05-28-cellar-outgrown.sql; blind
+ * playthrough 2026-11-19, P1: a Level 5 leader's Enter with party stayed on for the Mill Cellar): this hero at `level` and, in a `party`
+ * (partyMembershipOf), every seat, each at the server's Level. [] on a ground with no exit or with no Level known. Display only: the server judges.
+ * @returns {{name: string, level: number, me: boolean}[]}
+ */
+export function seatsOutgrown(r, party, level) {
+  if (!r || !Number.isInteger(r.endsAt)) return [];
+  const seats = party ? party.seats.map((s) => ({ name: s.name, level: s.seat === party.me ? level : s.level, me: s.seat === party.me }))
+    : [{ name: '', level, me: true }];
+  return seats.filter((s) => Number.isInteger(s.level) && s.level >= r.endsAt);
+}
+
+/** Enter's off line for seatsOutgrown's heroes: "Ground outgrown at Level 5: Wren, Level 5", alone "Ground outgrown at Level 5, pick a harder one"; '' for nobody. Pure. */
+export function outgrownWords(r, seats, party) {
+  if (!seats.length) return '';
+  if (!party) return t('hunts.off_outgrown', { level: r.endsAt });
+  return t('hunts.off_outgrown_party', { level: r.endsAt, who: seats.map((s) => t('hunts.seat_level', { name: s.name, level: s.level })).join(', ') });
+}
+
 /** "Sorrel (Level 9) and Oren (Level 12) are under this ground's Level 16." or '' for nobody. Pure. */
 export function underWords(r, seats) {
   if (!seats.length) return '';
@@ -244,6 +264,12 @@ const levelsWords = (lo, hi) => (lo === hi ? t('hunts.level_one', { level: lo })
  */
 export function recommendation(levels, partySize = 1, rows = huntRows(), bests = null) {
   const lv = [].concat(levels).filter(Number.isInteger);
+  /* NEVER A GROUND ANY OF THEM HAS OUTGROWN (blind playthrough 2026-11-19, P1: a Level 5 leader with a Level 1 friend read the Mill Cellar
+     "Outgrown · Recommended", and the door refuses the leader there): a ground whose exit (endsAt) the highest Level has reached is no advice */
+  const top = lv.length ? Math.max(...lv) : null;
+  const all = rows;
+  rows = top === null ? rows : rows.filter((r) => !(Number.isInteger(r.endsAt) && top >= r.endsAt));
+  if (!rows.length) rows = all;
   /* A PARTY TAKES THE GROUND THAT PAYS IT MORE ON A TIE OF FLOORS (lane/d-party-pace, Tyler 2026-11-18 "Yes, open at 5"; measured since lane/a-party-advice-glade):
      the Sewer and the Thicket both open at 5, a four at 5-7 earns about 1.6x the same heroes alone in the Thicket there, and the Thicket's measured lines keep it
      out of a party's advice (fitsGroup). On two grounds a party suits on one floor, the higher measured line wins. A hero alone never sees a party ground here. */

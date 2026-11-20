@@ -56,7 +56,7 @@ import { glyphSvg, markCoachRead } from '../launcher.js?v=0.2.141';
 import { runIntent, refusalText } from '../intent-words.js?v=0.2.141';
 import { HUNT_GROUNDS } from '../../data/hunt-grounds.js?v=0.2.141';
 import { TIER_IDS, TIER_NAME, TIER_LINES, DEFAULT_TIER, tiersOf } from '../../data/hunt-tiers.js?v=0.2.141';
-import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, adviceLevels, openingPick, adviceTag, seatsUnder, underWords, shareWords } from '../hunt-list.js?v=0.2.141';
+import { huntRows, packWords, tierPull, tierWords, tierChoiceWords, rangeWords, heroWords, packFor, bestLine, fitWords, ABOVE_LEVEL_WORDS, recommendation, adviceLevels, openingPick, adviceTag, seatsUnder, underWords, shareWords, seatsOutgrown, outgrownWords } from '../hunt-list.js?v=0.2.141';
 import { nextStepUp, FIRST_DANGEROUS } from '../../data/hunt-tutorial.js?v=0.2.141';
 import { detailHtml, patchGround, goHtml, patchGo } from './hunt-detail.js?v=0.2.141';
 import { setupsOf, beforeLines, freeHeroes, FOOD_WEAK_ID, partiedHeroes, openOthers } from '../hunt-go.js?v=0.2.141';
@@ -71,7 +71,7 @@ import { patchParts } from '../goto.js?v=0.2.141';
 import { t } from '../../render/player-text.js?v=0.2.141';
 import { trainingPhrase } from '../../session/training-sections.js?v=0.2.141';
 import { patchAfter, actAfter } from './hunt-after-pane.js?v=0.2.141';
-import { patchScale, actScale, scaleTag } from './scale-pane.js?v=0.2.141';
+import { patchScale, actScale, scaleTag, scalesNow } from './scale-pane.js?v=0.2.141';
 
 const SCRATCH = new WeakMap();
 /* `draft` is the tier shown before the server has it ({ hunt, tier }), `timer` its coalescing
@@ -355,7 +355,10 @@ function patchPage(det, ctx, sc, v) {
   /* Enter and the tier buttons (Go as, Find a party and Bring are patchGo's: off for a member too). */
   for (const b of det.querySelectorAll('.hw-hd-foot button, .hw-tiers button')) prop(b, 'disabled', sc.pending || !!now);
   /* ENTER OFF SAYS WHY, BESIDE IT (midgame panel 2026-11-01: a hero sent home by a friend's death, left in the party, read "the game is broken"), with the way out. */
-  const off = now ? '' : enterOffWords(party);
+  /* ...and a ground this hero or a seat has outgrown (blind playthrough 2026-11-19, P1: a Level 5 leader's Enter with party stayed on for the
+     Cellar and the refusal blamed the friend), by the server's Levels, unless the server plays it scaled (its door lets that in) */
+  const grown = follower || scalesNow(cs, r.hunt) ? [] : seatsOutgrown(r, party, level);
+  const off = now ? '' : enterOffWords(party) || outgrownWords(r, grown, party);
   if (off) prop(enter, 'disabled', true);
   /* A HARDER HUNT SAYS SO AT THE PRESS: a pick kept from last time isn't on screen above a scrolled page. */
   const pressing = huntTierOf(cs);

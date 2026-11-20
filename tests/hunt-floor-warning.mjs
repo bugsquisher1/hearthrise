@@ -195,6 +195,29 @@ async function run(base) {
   ok('G3', HL.underWords(glade, low.under) === 'Under Level 16 (death risk): Sorrel, Level 9' && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
   /* The Hunts window is the list (hunts.js) and the picked ground's page (hunt-detail.js, master-detail 2026-10-22). */
   const win = read('src/shell/windows/hunts.js') + read('src/shell/windows/hunt-detail.js');
+  /* G9 AN OUTGROWN GROUND IS NEVER OFFERED (blind playthrough 2026-11-19, P1, played: a Level 5 leader with a Level 1 friend saw the Mill Cellar
+     "Outgrown · Recommended" with Enter with party on, and the refusal said "Wren is not ready"; the door refuses the leader `outgrown`). By the
+     server's Levels: the advice skips a ground the top Level has outgrown, Enter is off saying who outgrew it, and the server's seat refusal is said
+     as outgrown, naming the hero and the ground. A floor is still only a warning (W2): this is the door's exit, not the floor. */
+  {
+    const cellar = rows.find((r) => r.hunt === 'mill_cellar');
+    const duo = { me: 0, seats: [{ seat: 0, name: 'Wren', level: 5 }, { seat: 1, name: 'Pip', level: 1 }] };
+    const rec = HL.recommendation(HL.adviceLevels(5, duo), 2, rows);
+    ok('G9', !!rec.row && rec.row.hunt !== 'mill_cellar' && rec.row.band[0] <= 5, 'a Level 5 and a Level 1 are advised ' + (rec.row && rec.row.hunt) + ', the ground the leader has outgrown');
+    ok('G9', HL.recommendation([4, 1], 2, rows).row.hunt === 'mill_cellar', 'CONTROL: a party under the exit is still advised the Cellar: ' + HL.recommendation([4, 1], 2, rows).row.hunt);
+    const has = typeof HL.seatsOutgrown === 'function' && typeof HL.outgrownWords === 'function';
+    ok('G9', has, 'hunt-list.js reads no seat that has outgrown a ground (seatsOutgrown, outgrownWords)');
+    const grown = has ? HL.seatsOutgrown(cellar, duo, 5) : [];
+    if (has) ok('G9', grown.map((s) => s.name).join() === 'Wren' && HL.outgrownWords(cellar, grown, duo) === 'Ground outgrown at Level 5: Wren, Level 5',
+      'Enter\'s off line reads ' + JSON.stringify(HL.outgrownWords(cellar, grown, duo)));
+    if (has) ok('G9', HL.outgrownWords(cellar, HL.seatsOutgrown(cellar, null, 5), null) === 'Ground outgrown at Level 5, pick a harder one' && HL.seatsOutgrown(cellar, null, 4).length === 0
+      && HL.seatsOutgrown(rows.find((r) => r.hunt === 'meadowbrook_thicket'), duo, 5).length === 0, 'alone, or a ground with no exit, reads wrong');
+    ok('G9', win.includes('const off = now ? \'\' : enterOffWords(party) || outgrownWords(r, grown, party);') && win.includes('if (off) prop(enter, \'disabled\', true);'),
+      'the Hunts window does not turn Enter off for an outgrown seat');
+    const IW = await import(pathToFileURL(join(base, 'src/shell/intent-words.js')).href + '?t=' + Math.random());
+    const said = IW.refusalText({ ok: false, error: 'not_ready', seats: [{ seat: 0, name: 'Wren', error: 'outgrown', hunt: 'mill_cellar' }] });
+    ok('G9', said === 'Nobody went in. Wren has outgrown Mill Cellar.', 'the server\'s outgrown seat reads ' + JSON.stringify(said));
+  }
   /* the party's Levels: each seat's, this hero's own at the server's Level (hunt-list.js adviceLevels, which the summary's Next ground reads too) */
   ok('G2', JSON.stringify(HL.adviceLevels(7, { me: 0, seats: [{ seat: 0, level: 3 }, { seat: 1, level: 12 }] })) === '[7,12]' && HL.adviceLevels(7, null) === 7,
     'the advice\'s Levels are not every seat\'s: ' + JSON.stringify(HL.adviceLevels(7, { me: 0, seats: [{ seat: 0, level: 3 }, { seat: 1, level: 12 }] })));
@@ -235,6 +258,11 @@ const CONTROLS = [
   ['a pair that only breaks even on Wickstead is not sent there (the line alone, read with "> 0")', ...BREAK_EVEN],
 ];
 const MUTANTS = [
+  /* G9 (blind playthrough 2026-11-19, P1): an outgrown ground offered to a party with Enter on, its refusal blaming the wrong reason */
+  ['the advice keeps a ground the leader has outgrown', 'src/shell/hunt-list.js', 'rows = top === null ? rows : rows.filter(', 'rows = true ? rows : rows.filter('],
+  ['Enter stays on for an outgrown seat', 'src/shell/windows/hunts.js', 'enterOffWords(party) || outgrownWords(r, grown, party);', "enterOffWords(party) || '';"],
+  ['an outgrown seat reads "is not ready"', 'src/shell/intent-words.js', ": x.error === 'outgrown'\n", ": x.error === 'never'\n"],
+  ['the leader is left out of who outgrew it', 'src/shell/hunt-list.js', 'level: s.seat === party.me ? level : s.level, me:', 'level: s.seat === party.me ? null : s.level, me:'],
   ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize, lo));', 'const fit = rows;'],
   ['a lone hero is never sent to a party ground past its soloFrom (the Glade to 44 again)', 'src/shell/hunt-list.js',
     "  if (n < 2) return r.groupFit !== 'party' || (Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom);", "  if (n < 2) return r.groupFit !== 'party';"],

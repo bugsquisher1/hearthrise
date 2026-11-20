@@ -11,12 +11,12 @@
  },
  "fixtures": {
   "lone_L10_meadowbrook_thicket": {
-   "statements_a_settle": 5,
+   "statements_a_settle": 4,
    "ledger_rows_a_hero_hour": 48,
    "row_writes_a_settle": 28
   },
   "party4_L20_millrace_sewer": {
-   "statements_a_settle": 8,
+   "statements_a_settle": 4,
    "ledger_rows_a_hero_hour": 44.3,
    "row_writes_a_settle": 103
   }
@@ -32,6 +32,21 @@
     },
     "party4_L20_millrace_sewer": {
      "statements_a_settle": 8,
+     "ledger_rows_a_hero_hour": 44.3,
+     "row_writes_a_settle": 103
+    }
+   }
+  },
+  {
+   "at": "2026-11-20",
+   "fixtures": {
+    "lone_L10_meadowbrook_thicket": {
+     "statements_a_settle": 4,
+     "ledger_rows_a_hero_hour": 48,
+     "row_writes_a_settle": 28
+    },
+    "party4_L20_millrace_sewer": {
+     "statements_a_settle": 4,
      "ledger_rows_a_hero_hour": 44.3,
      "row_writes_a_settle": 103
     }

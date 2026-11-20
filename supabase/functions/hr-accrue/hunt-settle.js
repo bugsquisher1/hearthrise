@@ -23,7 +23,7 @@
 //       engine inputs (hr_hunt_member_state), the instance's keyed-seed
 //       secret), the server clock. The caller's envelope only when a player
 //       door's early answer carries it (HUNT_STATE_SQL).
-//   (2) each member's perk stack (./tick-reads.js).
+//   (2) each member's perk stack (hr_perks_of), a term of the same read (one read a settle).
 //   (3) COMPUTE: accrual.js accrueHunt — the one combat loop over the instance
 //       world, one HMAC-keyed seed stream per swing and domain (./hunt-seed.js).
 //   (4) COMMIT, one statement: hr_hunt_apply_instance(instance, world swing,
@@ -51,7 +51,6 @@
 import { accrueHunt } from './accrual.js';
 import { engineInputsFromEnvelope } from './envelope.js';
 import { intentIdFor } from './intents.js';
-import { readTickPerks } from './tick-reads.js';
 import { huntGroundOf } from '../../../src/core/hunt-ground.js';
 import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';
 import { ITEMS } from '../../../src/data/items.js';
@@ -259,14 +258,28 @@ export function retryableSettle(v) {
 /* THE READ. One statement: the gate is its first term on a player door (D3:
    a call that settles nothing still spends budget), absent on the tick's.
    Each member's `state` is its ENGINE INPUTS (hr_hunt_member_state, 2027-02-02-settle-cost.sql), never its
-   whole envelope, and the caller's envelope is no longer a term here: see HUNT_STATE_SQL. */
+   whole envelope, and the caller's envelope is no longer a term here: see HUNT_STATE_SQL.
+   ONE READ A SETTLE (the 11-19 server audit row 10 = arch audit item 10): every member's perk stack is a term of
+   this statement too (`perks`: hr_perks_of by `user:slot`, the same function tick-reads.js calls), not a statement
+   (a pooled transaction, four round trips) a member: a party of four's settle was 8 statements, a lone hero's 5. */
 export const HUNT_READ_SQL = `
   with g as (select case when $3::text is null then true
-                         else public.hr_rate_gate($1::uuid, $2::int, $3::text) end as allowed)
-  select g.allowed                                                                  as allowed,
-         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,
-         now()                                                                      as now
-    from g`;
+                         else public.hr_rate_gate($1::uuid, $2::int, $3::text) end as allowed),
+       r as (select g.allowed, case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst from g)
+  select r.allowed                                                                  as allowed,
+         r.inst                                                                     as inst,
+         now()                                                                      as now,
+         (select jsonb_object_agg((m->>'user') || ':' || (m->>'slot'), public.hr_perks_of((m->>'user')::uuid, (m->>'slot')::int))
+            from jsonb_array_elements(case when jsonb_typeof(r.inst->'members') = 'array'
+                                           then r.inst->'members' else '[]'::jsonb end) m) as perks
+    from r`;
+
+/* A member's perk stack from the read's `perks` (tick-reads.js readTickPerks' rule: only an `ok` answer is a stack; none is
+   null, zero perks, the under-paying direction). */
+function perksOf(perksBy, user, slot) {
+  const pe = perksBy && typeof perksBy === 'object' ? perksBy[String(user) + ':' + String(slot)] : null;
+  return (pe && pe.ok === true) ? pe : null;
+}
 
 /* THE CALLER'S ENVELOPE ON AN EARLY ANSWER (2027-02-02-settle-cost.sql). A PLAYER door's answer that settles nothing
    (not due, below the floor, no hunt, a deploy in flight, nothing accrued) carries the caller's envelope, which the client
@@ -579,7 +592,7 @@ export async function readHuntSettle(o, mode) {
   /* A SCALED HUNT (scalePlanOf): the Level this window plays, whether the stored world restarts for it, and its hours as a cap. */
   inst.play = scalePlanOf(inst, where);
   const members = [];
-  for (const m of r.members) members.push(await memberInput(exec, m, inst));
+  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, m.slot)));
   /* EACH HERO AS ITS OWN CHARACTER READS (heroSetup): never the party this read saw. A setting the player left unset is the
      role's default for the party standing in the world at each boundary, the engine's to read (KNOWN-F1, 2026-11-18). */
   for (const m of members) {
@@ -671,11 +684,10 @@ export async function proposeHuntSettle(plan, toMs, attempt, clock) {
 
 /* ONE MEMBER'S ENGINE INPUT, from the instance read. Field by field: the
    envelope spread is ./envelope.js's ONE field list. */
-async function memberInput(exec, m, inst) {
+function memberInput(m, inst, perks) {
   const env = m.state || {};
   const nowMs = Math.floor(Number(m.session.settled_to_ms) || 0);
   const e = engineInputsFromEnvelope(env, nowMs);
-  const perks = await readTickPerks(exec, m.user, m.slot);
   /* The ROLE key of the worn set (hunt-roles.js wornRoleKey: the weapon, a magic one by its discipline, and the
      shield beside it: Tyler 2026-10-23, the SHIELD makes the tank), the same key hr_hunt_weapon_of reads; the
      combat style stays equipmentStats' weaponType in the engine. */

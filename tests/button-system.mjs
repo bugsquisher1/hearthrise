@@ -8,6 +8,10 @@
 //
 // mutant-anchors: none — every --selftest mutant transforms an in-memory copy of the files (readTree), never a file
 //
+// ci-step: client-guards | Presentation floor - one button system
+// ci-run: node tests/button-system.mjs
+// ci-run: node tools/mutant-gate.mjs node tests/button-system.mjs --selftest
+//
 // THE FINDING. The audit counted four button looks across the windows (a gold plate, a steel frame, a sunk well,
 // and words with no box at all) and bare presses in the Shop, Party and Friends: a Buy, a Message or an Accept read
 // as a label. The rule it set, the Burning Tower's chest being the model:

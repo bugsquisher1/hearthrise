@@ -74,6 +74,9 @@
 //                                     from a full run (`gh run view <id> --log`)
 //
 // mutant-anchors: .github/workflows/smoke.yml tools/lib/guard-deps.mjs tools/guard-anchors.mjs tools/lib/mutant-scope.mjs tools/lib/ci-history.mjs
+//
+// ci-step: client-guards | Nightly gate - a release builds only on swept code
+// ci-run: node tools/mutant-gate.mjs --nightly-gate
 // ════════════════════════════════════════════════════════════════════════
 import { spawnSync, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';

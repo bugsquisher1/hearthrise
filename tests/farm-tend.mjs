@@ -271,7 +271,9 @@ async function run(mutant) {
     // ── FT-9 ── (clean run only: a mutant's body is planted on purpose)
     if (!mutant) {
       const bodies = () => q("select proname, md5(replace(prosrc, chr(13), '')) m from pg_proc where proname like 'hr_farm_tend%' order by 1");
-      const state = async () => JSON.stringify([await inventory(db), await bodies(), await plots(A),
+      /* the field by its stored values (never an age read off now(): two reads straddle the re-apply, a second can pass) */
+      const field = () => q('select plot_idx, crop_id, planted_at::text, waterings::text, regrow_count, planted_by from public.account_farm_plots where user_id = $1 order by 1', [A]);
+      const state = async () => JSON.stringify([await inventory(db), await bodies(), await field(),
         await q("select key, fn, note from public.hr_state_sections where key = 'farm_tend'"),
         await q("select proname, identity_args, grantee, note from public.hr_client_rpc_baseline where proname = 'hr_farm_tend'"),
         await rows(A)]);

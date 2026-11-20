@@ -21,6 +21,9 @@
 // field never swallows a key: whether a key belongs to it is the one rule,
 // keyBelongsToField (src/utils/dom.js), which the World and the window keys
 // read too — so W types while the field has focus and walks once it is left.
+// The field takes the caret only when the player asked for Chat (a press, or
+// Enter while it is open: window-manager.js takeCaret); Chat open at start
+// (src/shell/start-open.js) leaves the caret in the World.
 // ════════════════════════════════════════════════════════════════════════
 import { CHAT_TABS, WHISPER } from '../../data/chat-channels.js?v=0.2.142';
 import { refusalWords } from '../intent-words.js?v=0.2.142';

@@ -1344,7 +1344,9 @@ async function main() {
   for (const [name, file, from, to] of onlyPure ? [] : pick(PAGE_MUTANTS)) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    const fails = await pageRules({ [file]: text.replace(from, to) }, null);
+    /* a mutant that throws the page out of its steps (a window a later step waits for never opens) is caught, as on the pure side */
+    let fails;
+    try { fails = await pageRules({ [file]: text.replace(from, to) }, null); } catch (e) { fails = ['threw: ' + String(e && e.message).split('\n')[0]]; }
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

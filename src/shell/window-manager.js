@@ -171,6 +171,7 @@ function pressesControl(ev) {
  * @param {() => boolean} [o.reducedMotion]
  * @param {(fn:Function, ms:number) => any} [o.schedule]
  * @param {(id:string) => ({w:number,h:number}|null)} [o.sizeOf]  a resizable window's saved size
+ * @param {(id:string, open:boolean) => any} [o.keep]  the player opened or closed a startsOpen row (the host keeps the pick)
  */
 export function createWindowManager(o) {
   const rows = validateWindowRows(o.windows);

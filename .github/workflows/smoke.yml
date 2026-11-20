@@ -4646,6 +4646,17 @@ jobs:
           node tests/catalogue-regrow-limit.mjs
           node tools/mutant-gate.mjs node tests/catalogue-regrow-limit.mjs --mutate
 
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/luck.mjs
+      - name: Luck v3.1 - the catalogue, the curve, Magic Find on the engine and the server, both paths
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/gen-luck.mjs --check
+          node tools/mutant-gate.mjs node tools/gen-luck.mjs --selftest
+          node tests/luck.mjs
+          node tools/mutant-gate.mjs node tests/luck.mjs --mutate
+      # ── END SELF-REGISTERED GUARDS ──
+
   # in-page-45: Chat and social, split out of in-page-13 (lane/ci-speed, 2026-11-18): 19.8 min on the full sweep 44144849725,
   # where in-page-13 ran 39.8. With setup 20.7; x2 = 42.
   in-page-45:

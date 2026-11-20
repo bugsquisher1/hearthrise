@@ -53,7 +53,6 @@ export function luckPm(mf, band) {
 /** The band (8..18) of a ground whose Level floor is `levelFloor`, or 0 through Krell's Hold. */
 function cutBandOf(levelFloor) {
   const f = int(levelFloor);
-  if (f < RARE_CUT.cutFloor) return 0;
   let band = 0;
   for (const [b, at] of RARE_CUT.bands) if (f >= at) band = b;
   return band;

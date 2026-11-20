@@ -89,12 +89,11 @@ export const LUCKY_RIVET_STEP = 500;
 /** The most Lucky jobs one ACCOUNT takes in a UTC day: a blast-radius bound on a gold sink, not a pace (src/data/jewelry.js's own). */
 export const LUCKY_DAY_LIMIT = 10;
 
-/* ── HARDER PAST KRELL (Tyler 2026-11-20). Nothing changes through Krell's Hold. From the Morrow door (a ground whose Level floor is
-   cutFloor or more, band 8) every RARE row drops `pm` permille less often at Magic Find 0, then stepPm more a band, to maxPm. Trophy,
+/* ── HARDER PAST KRELL (Tyler 2026-11-20). Nothing changes through Krell's Hold. From the Morrow door (a ground whose Level floor is the
+   first band's, band 8 at 110) every RARE row drops `pm` permille less often at Magic Find 0, then stepPm more a band, to maxPm. Trophy,
    Very Rare and every other band, the hourly drop, keys, coin and XP are never cut. `bands`: [band, the Level floor it starts at]
    (itemization plan §2: two bands a region past 110, the Catacombs one). ── */
 export const RARE_CUT = Object.freeze({
-  cutFloor: 110,
   pm: 150,
   stepPm: 10,
   maxPm: 250,

@@ -528,6 +528,11 @@ function inBandNightly(J) {
   }
   for (const p of GC.TOWER_FOURS) J.rows['tower-four:' + p.id] = { towerTop: p.level + 10 };
   for (const p of GC.TOWER_LONE) for (const s of ['hammer', 'mage']) J.rows['tower-lone:' + p.id + ':' + s] = { levelXpPerH: 0.8 * J.rows['ref:' + p.id + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH };
+  /* G24's night grid, in band (0.9 of the right-Level ground) wherever the plain run did not play it */
+  for (const [g, pid] of GC.scaledPlan(CTX, true)) for (const s of ['hammer', 'mage']) {
+    const id = 'scaled:' + g + ':' + pid + ':' + s;
+    if (!J.rows[id]) J.rows[id] = { levelXpPerH: 0.9 * J.rows['ref:' + pid + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH };
+  }
   return calibrate(J);
 }
 

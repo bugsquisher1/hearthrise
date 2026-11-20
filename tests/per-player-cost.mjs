@@ -32,6 +32,9 @@
 // red; --write tightens it to the new measurement; raising it needs --raise and
 // a written reason, which is the reviewable diff.
 //
+// BUDGET-PIN. The capacity sampler (1002-ops-capacity-sample.sql) reads a body's engine time against
+// hr_ops.capacity_config.edge_budget_ms; this run also holds that number to the shipped HUNT_ENGINE_BUDGET_MS.
+//
 // TOLERANCE. Statements are counted exactly (0%). Ledger rows and row writes
 // follow the fight, and a session's dice follow its random id, so they carry a
 // band (TOL below), sized from the audit's spread (43-49 ledger rows a
@@ -192,6 +195,15 @@ async function measureAll(db, M, plant = null) {
   return out;
 }
 
+/* THE CAPACITY SAMPLER READS THE SAME BUDGET (supabase/migrations/1002-ops-capacity-sample.sql): its edge wall is a body's
+   engine time over hr_ops.capacity_config.edge_budget_ms, which must be the shipped engine's HUNT_ENGINE_BUDGET_MS, or the
+   wall reads the wrong ceiling. Null = the sampler is not in this chain. */
+async function budgetPin(db, M) {
+  if (!(await one(db, "select to_regclass('hr_ops.capacity_config') is not null"))) return null;
+  const sql = Number(await one(db, 'select edge_budget_ms from hr_ops.capacity_config where id'));
+  return sql === Number(M.HS.HUNT_ENGINE_BUDGET_MS) ? null : `hr_ops.capacity_config.edge_budget_ms ${sql} != hunt-settle.js HUNT_ENGINE_BUDGET_MS ${M.HS.HUNT_ENGINE_BUDGET_MS}`;
+}
+
 /** Red lines: a measured value above its baseline by more than its tolerance. */
 export function judge(measured, base) {
   const red = []; const tighter = [];
@@ -223,6 +235,13 @@ async function main() {
     arm('MUTANT ledger_dup: a second ledger row for every row is red', dup.red.some((r) => r.includes('ledger_rows_a_hero_hour')), dup.red.join('; ') || 'NOT red');
     const ext = judge(await measureAll(db, M, 'extra_statement'), base);
     arm('MUTANT extra_statement: one more round trip a settle is red', ext.red.some((r) => r.includes('statements_a_settle')), ext.red.join('; ') || 'NOT red');
+    arm('CONTROL: the sampler\'s edge budget is the engine\'s', (await budgetPin(db, M)) === null, (await budgetPin(db, M)) || 'pinned');
+    await db.query('begin');
+    try {
+      await db.query('update hr_ops.capacity_config set edge_budget_ms = edge_budget_ms + 100 where id');
+      const pin = await budgetPin(db, M);
+      arm('MUTANT budget_drift: a sampler budget off the engine\'s is red', pin !== null, pin || 'NOT red');
+    } finally { await db.query('rollback'); }
     return fails.length ? 1 : 0;
   }
 
@@ -254,6 +273,8 @@ async function main() {
 
   if (!base) { console.error('per-player-cost: no baseline; run --write'); return 2; }
   const { red, tighter } = judge(measured, base);
+  const pin = await budgetPin(db, M);
+  if (pin) red.push(`BUDGET-PIN ${pin}`);
   if (red.length) {
     for (const r of red) console.error(`  RED  ${r}`);
     console.error('\nper-player-cost: a hero costs the server more than the baseline (rule 10). Cut it, or');

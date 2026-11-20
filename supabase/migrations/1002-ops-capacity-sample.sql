@@ -108,8 +108,8 @@ returns jsonb language sql immutable set search_path = pg_catalog as $fn$
                else round(100 * (p->>'db_exec_ms')::numeric / ((p->>'db_secs')::numeric * 1000 * (p->>'db_cores')::numeric), 1) end,
     'tick', case when coalesce((p->>'tick_capacity')::numeric, 0) <= 0 then null
                  else round(100 * coalesce((p->>'tick_open')::numeric, 0) / (p->>'tick_capacity')::numeric, 1) end,
-    'edge', case when coalesce((p->>'edge_budget_ms')::numeric, 0) <= 0 then null
-                 when coalesce((p->>'edge_bodies')::int, 0) = 0 then 0
+    'edge', case when coalesce((p->>'edge_budget_ms')::numeric, 0) <= 0 or (p->>'edge_bodies') is null then null
+                 when (p->>'edge_bodies')::int = 0 then 0
                  else round(100 * coalesce((p->>'edge_max_ms')::numeric, 0) / (p->>'edge_budget_ms')::numeric, 1) end,
     'ledger', case when (p->>'ledger_rows_day') is null or coalesce((p->>'ledger_prune_rows_day')::numeric, 0) <= 0 then null
                    else round(100 * (p->>'ledger_rows_day')::numeric / (p->>'ledger_prune_rows_day')::numeric, 1) end)
@@ -180,9 +180,10 @@ begin
     into v_cadence, v_flush, v_body, v_bodies from public.hr_tick_config t where t.id;
   v_cap := floor((coalesce(v_flush, 90) + coalesce(v_cadence, 10)) / greatest(coalesce(v_cadence, 10), 1))::bigint
            * coalesce(v_bodies, 1) * coalesce(v_body, 1);
-  select count(*)::int, max(extract(epoch from now() - i.settled_to)) into v_open, v_worst
-    from public.hunt_instances i
-   where exists (select 1 from public.hunt_sessions s where s.instance_id = i.id and s.ended_at is null);
+  -- From the OPEN sessions (the partial index hunt_sessions_one_open holds exactly them), never a scan of every instance ever.
+  select count(distinct s.instance_id)::int, max(extract(epoch from now() - i.settled_to)) into v_open, v_worst
+    from public.hunt_sessions s join public.hunt_instances i on i.id = s.instance_id
+   where s.ended_at is null;
 
   -- edge: the tick answers pg_net holds from the last minute (an unreadable answer is skipped, never a failed sample).
   if to_regclass('net._http_response') is not null then
@@ -196,7 +197,7 @@ begin
                            and r.content like '{%' and r.content like '%"op":"tick"%') x
                  where b ? 'hunts') e $q$
         into v_edge_bodies, v_edge_max, v_edge_def;
-    exception when others then v_edge_err := sqlstate; v_edge_bodies := 0;
+    exception when others then v_edge_err := sqlstate; v_edge_bodies := null;   -- unreadable: null, never a false 0%
     end;
   end if;
 
@@ -276,7 +277,9 @@ begin
   v := hr_ops.capacity_walls(jsonb_build_object('db_cores', 2, 'tick_open', 0, 'tick_capacity', 0, 'edge_bodies', 0,
          'edge_budget_ms', 800, 'ledger_prune_rows_day', 480000));
   if v->'db' <> 'null'::jsonb or v->'tick' <> 'null'::jsonb or (v->>'edge')::numeric <> 0 or v->'ledger' <> 'null'::jsonb then
-    raise exception 'ops-capacity §4(b): an unreadable wall did not read null: %', v; end if;
+    raise exception 'ops-capacity §4(b): an unreadable wall did not read null (or no tick answer did not read 0): %', v; end if;
+  if hr_ops.capacity_walls(jsonb_build_object('edge_budget_ms', 800))->'edge' <> 'null'::jsonb then
+    raise exception 'ops-capacity §4(b): pg_net''s answers unreadable read as an idle edge (0%%), not null'; end if;
 
   -- (c) the alarm: a wall at 75% files ONE critical episode; a wall at 10% files nothing; back under, it clears.
   perform hr_ops.capacity_alarm('{"db": 10, "tick": 75, "edge": null, "ledger": 69.9}'::jsonb, 'capacity-selfcheck-', interval '0 seconds');

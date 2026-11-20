@@ -10,7 +10,10 @@
 //
 // TYLER'S RULING, 2026-11-14 ("BOSS CALL = option B with your adjustments"): a slider to fight the called boss N times in a row, on the one engine; each fight
 // costs stamina plus a small gold fee; no daily cap (stamina is the limit); pays only his drops, only on a win. This guard plays it on both doors.
+// TYLER'S RULING, 2026-11-20 (balance call 22-8): Call out costs stamina only, no gold. The shipped rows carry a fee of 0 (BD-FREE); the fee's machinery
+// is still the server's, so the other arms plant PLANT_FEE on the rows and keep proving it.
 //
+//   BD-FREE    on the shipped catalogue every call's fee is 0: an empty purse is quoted 0 at every count, calls, pays its stamina and not a coin
 //   BD-WORDS   a hero alone and a party of one are quoted, alone: one fight's price and stamina, the slider's top and its table, what the room covers; every
 //              refusal (a member, a stale or forged price, an unknown call) in its code, charging nothing and opening nothing
 //   BD-DROPS   (audit F24) the quote names what a win can drop: his table in its order, each row's odds as the catalogue holds them (the data's called row)
@@ -63,8 +66,12 @@ const PM = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href)
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const { one, q } = H;
 const KING = BOSS_CALLS.rat_king;
-/* ONE FIGHT'S PRICE, the data's (the server's catalogue is generated from it): gold and stamina. */
-const FEE = KING.fight.fee;
+/* ONE FIGHT'S PRICE. Stamina is the data's (the server's catalogue is generated from it). GOLD: since Tyler's 2026-11-20 ruling (balance call 22-8)
+   a call costs stamina only and every shipped row's fee is 0 (BD-FREE proves it on the shipped catalogue). The fee's machinery stays in the server
+   (the quote's price and totals, the charge, a live event's dial, the gold_out end), so every other arm plants PLANT_FEE on the rows of a full-chain
+   boot and keeps proving it, exactly as it did when the data carried the fee. */
+const PLANT_FEE = 50;
+const FEE = PLANT_FEE;
 const STAM = KING.fight.staminaMs;
 const TOP = BOSS_CALL_RULES.maxFights;
 const TABLE = PM[KING.monster].drops.map((d) => d.id);
@@ -952,10 +959,42 @@ ARMS.owed = async (boot) => {
   return bad;
 };
 
+/* BD-FREE (Tyler 2026-11-20, balance call 22-8): ON THE SHIPPED CATALOGUE (no planted fee) a call costs stamina only: every row's fee is 0, and a
+   lone hero with an empty purse is quoted a price of 0 at every count, calls a series, pays its first fight's stamina and not a coin. */
+ARMS.free = async () => {
+  const bad = [];
+  const { db } = await bootReplay();
+  await H.pinDice(db);
+  const M = await H.loadEdge(H.ROOT);
+  await db.query('update public.hr_hunt_config set enabled = true where id');
+  const fees = await q(db, 'select call_id, fight_fee::text as fee from public.hr_boss_calls order by call_id');
+  if (fees.length !== Object.keys(BOSS_CALLS).length || fees.some((r) => Number(r.fee) !== 0)) bad.push('BD-FREE the shipped calls charge ' + JSON.stringify(fees));
+  const u = '00000000-0000-4000-8000-0000000bcf01';
+  await solo(db, M, u, { name: 'Freea' });
+  await gold(db, u, 0);
+  const v = await view(db, u);
+  const t = v && v.ok === true ? v.quote : null;
+  if (!t || t.available !== true || t.price !== 0 || !Array.isArray(t.totals && t.totals.fee) || !t.totals.fee.every((n) => n === 0)) {
+    bad.push('BD-FREE an empty purse is quoted ' + JSON.stringify(t && { available: t.available, why: t.why, price: t.price, fee: t.totals && t.totals.fee }));
+  }
+  const s0 = await poolNow(db, u);
+  const c = await call(db, u, 2, 0);
+  if (!c || c.ok !== true) bad.push('BD-FREE an empty purse\'s call answered ' + JSON.stringify(c));
+  if ((await purse(db, u)) !== 0) bad.push('BD-FREE the call took gold: ' + (await purse(db, u)));
+  const rows = await calls(db, u);
+  if (!rows.length || rows.some((r) => r.gold !== null && Number(r.gold) !== 0)) bad.push('BD-FREE the call journalled ' + JSON.stringify(rows));
+  if (!((await poolNow(db, u)) <= s0 - STAM)) bad.push('BD-FREE the first fight\'s stamina was not taken: ' + s0 + ' -> ' + (await poolNow(db, u)));
+  return bad;
+};
+
+/* Every arm but BD-FREE runs on a full chain with PLANT_FEE on the rows (above); a boot cut before the series (BD-AGAIN) is left as it stands. */
+const plantFee = (b, o) => (o && o.upTo ? b : b.db.query('update public.hr_boss_calls set fight_fee = $1', [PLANT_FEE]).then(() => b));
+const priced = async (o) => plantFee(await bootReplay(o), o);
+
 async function main() {
   if (process.argv.includes('--mutate') || process.argv.includes('--selftest')) {
     if (process.env.HR_MUTANT_CONTROL) {
-      const bad = await ARMS.verb(() => bootReplay());
+      const bad = await ARMS.verb(() => priced());
       console.log('boss-call-db --mutate: control ran the clean tree: ' + (bad.length ? bad.join('; ') : 'green'));
       process.exit(0);
     }
@@ -972,7 +1011,7 @@ async function main() {
     let base = 0;
     for (const [i, m] of list.entries()) {
       const boot = async (o) => {
-        const b = await bootReplay(o);
+        const b = await priced(o);
         const def = (await one(b.db, 'select pg_get_functiondef($1::regprocedure)', [m.fn])).replace(/\r/g, '');
         if (!def.includes(m.find)) throw new Error('HARNESS: ' + m.fn + ' has no ' + JSON.stringify(m.find.slice(0, 70)));
         await b.db.exec(def.replace(m.find, () => m.repl));
@@ -995,7 +1034,7 @@ async function main() {
     console.log(escaped ? `boss-call-db --mutate: ${escaped} ESCAPED` : `boss-call-db --mutate: ${list.length}/${list.length} caught`);
     process.exit(escaped ? 1 : 0);
   }
-  const boot = (o) => bootReplay(o);
+  const boot = (o) => priced(o);
   const only = (process.argv.find((a) => a.startsWith('--arm=')) || '').slice(6);
   const bad = [];
   for (const arm of Object.keys(ARMS)) if (!only || arm === only) { bad.push(...await ARMS[arm](boot)); await closeReplays(); }

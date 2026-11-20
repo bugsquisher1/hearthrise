@@ -15,7 +15,7 @@
 --
 -- NEW IN THIS FILE (lane/c-approved-rows, backend-architect, 2026-11-20; Tyler 2026-11-20, balance call 22-8: Call out costs stamina only, no
 --   gold). It carries 1001-xp-a-kill-hunt-sessions-catalogue (APPLIED 2026-11-20) whole. hr_boss_calls.fight_fee is 0 on both calls (was 50 and 100)
---   and hr_boss_calls_fight_ck holds it at 0 (a call is never a roll bought with gold). Every reader (hr_boss_call_quote, hr_boss_call, the settle's
+--   and hr_boss_calls_fight_ck admits 0 (a call is never a roll bought with gold; the generator refuses a fee in the data). Every reader (hr_boss_call_quote, hr_boss_call, the settle's
 --   next fight) already prices a fight as fight_fee x the live dial's permille, so a fight charges 0 gold and the gold_out end never fires. No other
 --   row, bound, limit, end reason or world shape moves. ORDER: the sequence in its name. EDGE: none (no engine or edge file reads the fee).
 -- CARRIED FROM 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, game-designer, 2026-11-19; the pace held by XP a kill): balance-sheet.js STAT_FORMULA xp a and min
@@ -2262,7 +2262,7 @@ alter table public.hr_boss_calls alter column fight_fee set not null, alter colu
   alter column boss_level set not null, alter column boss_id set not null, alter column wins set not null;
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 alter table public.hr_boss_calls add constraint hr_boss_calls_fight_ck
-  check (fight_fee = 0 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
+  check (fight_fee between 0 and 1000000000 and fight_stamina_ms between 1000 and 3600000 and max_fights between 1 and 1000
          and jsonb_typeof(drops) = 'array' and jsonb_array_length(drops) between 1 and 32 and boss_level between 1 and 999);
 -- NATURAL WINS BEFORE THE CALL: a whole count, on a ground boss's own id (never a called row's: those wins are the call's, not the ground's).
 alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_wins_ck;
@@ -2423,11 +2423,9 @@ begin
                  or not exists (select 1 from public.hr_hunt_ground_spawns s where s.hunt_id = c.from_hunt and s.monster_id = c.boss_id)
                  or exists (select 1 from public.hr_hunt_ground_spawns s where s.monster_id = c.boss_id and s.hunt_id = c.hunt_id)) then
     raise exception 'a call''s natural wins are not the data''s, or are counted on a boss its press''s ground does not field'; end if;
-  -- CALL OUT COSTS STAMINA ONLY (Tyler 2026-11-20, balance call 22-8): no call charges gold a fight, and the table refuses one that would.
-  if exists (select 1 from public.hr_boss_calls c where c.fight_fee <> 0)
-     or not exists (select 1 from pg_constraint k where k.conrelid = 'public.hr_boss_calls'::regclass and k.conname = 'hr_boss_calls_fight_ck'
-                     and pg_get_constraintdef(k.oid) like '%fight_fee = 0%') then
-    raise exception 'a call charges gold a fight, or hr_boss_calls_fight_ck no longer holds the fee at 0'; end if;
+  -- CALL OUT COSTS STAMINA ONLY (Tyler 2026-11-20, balance call 22-8): no call charges gold a fight (the data refuses a fee: gen-hunt-sessions.mjs).
+  if exists (select 1 from public.hr_boss_calls c where c.fight_fee <> 0) then
+    raise exception 'a call charges gold a fight (Tyler 2026-11-20: Call out costs stamina only)'; end if;
   -- COMBAT TRAINING, THE MONEY LINE: every training ground stands in hr_hunts and hr_hunt_travel with one seat and the dummy alone; the dummy's bound
   -- pays no coin and no drop; no other ground fields it and no roster names it.
   if exists (select 1 from public.hr_training_grounds t

@@ -17,6 +17,9 @@
 // Melee swing only standing on a tile; ranged also while moving (RO-19).
 // Dice: the swing's `s` stream, units in id order (engine contract #3).
 //
+// A blow of an element with a FIXED RULE (data/elements.js ELEMENT_ON_HERO: Necrotic, Storm) that took a hero's HP
+// brings that rule too, in landHit: the Withered status, or mana burned beside the HP.
+//
 // An ability passes its own multiplier as `ability.mult` (permille); landHit folds
 // a target's mark (`markPm` until `markUntil`, abilities.js) into it. A shield is the
 // target's `shield`, persisted by abilities.js; hurt only spends it.
@@ -45,6 +48,8 @@ import { temperedAmount } from '../temper.js?v=0.2.141';
 import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.141';
 import { dummyBlow, dummyStands, trainingBasic } from './training.js?v=0.2.141';
 import { reaches } from './shooters.js?v=0.2.141';
+import { elementOnHeroOf } from '../../data/elements.js?v=0.2.141';
+import { applyStatus, statusRow } from './status.js?v=0.2.141';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -166,9 +171,17 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (target.side === 'mon') inst.world.fightAt = sc.atMs;
+  /* AN ELEMENT'S FIXED RULE ON A HERO (data/elements.js ELEMENT_ON_HERO, itemization plan Appendix B1), when the blow took HP: a storm
+     blow also burns half the HP it took from the hero's mana (`burn` on the dmg event, never past what it holds), a necrotic one
+     Withers the hero (statuses.js: every heal it takes is cut for 6 s; status.js applyStatus emits it). Nothing else has a rule, so
+     every other blow lands exactly as before. */
+  const rule = target.side === 'hero' && r.dmg > 0 ? elementOnHeroOf(element) : null;
+  const burn = rule && rule.manaBurnPm ? Math.min(Math.max(0, Math.floor(Number(target.mana) || 0)), Math.floor((r.dmg * rule.manaBurnPm) / 1000)) : 0;
+  if (burn > 0) target.mana = Math.floor(Number(target.mana)) - burn;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
-    ...(ability && ability.dot ? { dot: true } : {}) }));
+    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}) }));
+  if (rule && rule.withers) applyStatus(inst, target, statusRow(rule.withers), { u }, sc);
   if (target.side === 'mon') crossLines(inst, sc, target, before);
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));

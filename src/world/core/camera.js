@@ -156,6 +156,7 @@ function axis(t, k, v, a, b, lo, hi, m, whole, art, show) {
  * uncovered part to it. `o.art` ({x, y, w, h}, a hunt, frameView): the world is
  * the room and the whole view stays on this art instead. `o.show` ({x, y}: each
  * an axis's {lo, hi, w, reach}, showAt) leans the camera toward a showpiece.
+ * @param {{wholeView?: boolean, art?: any, show?: any}} [o]
  */
 export function follow(target, view, world, inset, keep, margin, o = {}) {
   const i = cleanInset(inset), x0 = world.x || 0, y0 = world.y || 0, whole = o.wholeView !== false, A = o.art, S = o.show;
@@ -238,6 +239,7 @@ export function alignOf(z) {
  * art, so near the art's edge the hero moves toward that panel rather than the
  * void showing. The hero's fight (its tile and the ring round it) is never under
  * a panel, which outranks both: only there does the void come back.
+ * @param {{inset?: any, keep?: any, from?: any, sinceMs?: number}} [o]
  */
 export function frameView(look, vw, vh, map, z, T, o = {}) {
   const fr = map.frame;

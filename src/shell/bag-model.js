@@ -155,8 +155,8 @@ export function kindOf(id) {
   if (NAMED_FUELS[id]) return 'rare';
   /* a trophy is kept, never junk, however it is got (the Rat King's Crown is a boss's drop) */
   if (it.type === 'trophy' || RARE_TAGS.has(it.tag)) return 'rare';
-  /* A KEY IS NEVER JUNK (lane/a-key-never-junk, 2026-11-20: Sell all junk sold the Hall Key): a drop that opens a keyed hall (`opens`, the Hall
-     Key to Krell's Hold) is spent at the hall's door, not at a bench, so no bulk sale may sweep it */
+  /* A KEY IS NEVER JUNK (L03: the end card sells the junk after every hunt): a drop that opens a keyed hall (`opens`, the Hall Key to Krell's
+     Hold) is spent at the hall's door, not at a bench, so no bulk sale may sweep it */
   if (it.opens) return 'other';
   /* a monster's drop is junk when nothing spends it and a material when something does (a recipe, the House, a Tempering
      rung: Big Bones, Silk Thread, pelts, raw meat) or will (an imbuement's ingredient), unless a hero can make or gather it

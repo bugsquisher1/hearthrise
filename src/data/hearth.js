@@ -39,7 +39,7 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { FLAME_FUEL } from './core-model.js?v=0.2.141';
+import { FLAME_FUEL } from './core-model.js?v=0.2.142';
 
 /* ── THE EVERYDAY LADDER ───────────────────────────────────────────────────
    { item, xp (pre-dial, per item), req (Inner Flame), ms (per item, before the pacing dial), chunk (the

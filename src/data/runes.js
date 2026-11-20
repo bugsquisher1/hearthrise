@@ -18,7 +18,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.141';
+import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.142';
 
 /* The families (Tyler 2026-10-23, final, seven with Air hidden; 2026-11-18 "Yes storm and bone": the hidden Air family is shown as
    STORM, and an eighth, BONE, for Necrotic). `hidden`: no spell spends it yet, so no screen offers it, and it has no rune row

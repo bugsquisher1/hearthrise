@@ -8,14 +8,14 @@
 // keys it earned in their metal. Every floor is the `tower` section's `last` run (the server's: start, top, keys, best_before); an older
 // card than the section's last run shows the rows it can and no tower. Display only: the card's presses are hunt-summary.js's.
 // ════════════════════════════════════════════════════════════════════════
-import { PIXEL_DIR } from '../data/item-art.js?v=0.2.141';
-import { heroSprite } from '../session/hero-look.js?v=0.2.141';
-import { nameOf } from '../session/item-sections.js?v=0.2.141';
-import { rows, text, prop, cls, attr, element } from '../render/paint.js?v=0.2.141';
-import { whole } from '../render/format.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.141';
-import { stageHtml, stageModel, patchStage, metalWord, scrollToFloor } from './tower-stage.js?v=0.2.141';
+import { PIXEL_DIR } from '../data/item-art.js?v=0.2.142';
+import { heroSprite } from '../session/hero-look.js?v=0.2.142';
+import { nameOf } from '../session/item-sections.js?v=0.2.142';
+import { rows, text, prop, cls, attr, element } from '../render/paint.js?v=0.2.142';
+import { whole } from '../render/format.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.142';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.142';
+import { stageHtml, stageModel, patchStage, metalWord, scrollToFloor } from './tower-stage.js?v=0.2.142';
 
 /* floors shown under the start and over the top */
 const BELOW = 4, ABOVE = 7;

@@ -11,17 +11,17 @@
 // setTargetKind): the panel goes pending at once, every control off, and comes back only when the server has answered
 // and the re-read envelope has replaced the section (CLAUDE.md §6). A refusal keeps the server's pick and says why.
 // ════════════════════════════════════════════════════════════════════════
-import { MONSTERS } from '../../data/monsters.js?v=0.2.141';
-import { groundOfHunt, monstersOn } from '../../data/hunt-grounds.js?v=0.2.141';
-import { huntOf, huntTargetKindOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { huntName } from '../../session/party-sections.js?v=0.2.141';
-import { setTargetKind } from '../../session/target-intents.js?v=0.2.141';
-import { pickedHuntOf } from '../windows/hunts.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { text, attr, prop } from '../../render/paint.js?v=0.2.141';
-import { answerWithin } from '../bar-draft.js?v=0.2.141';
-import { refusalText } from '../intent-words.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.142';
+import { groundOfHunt, monstersOn } from '../../data/hunt-grounds.js?v=0.2.142';
+import { huntOf, huntTargetKindOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { huntName } from '../../session/party-sections.js?v=0.2.142';
+import { setTargetKind } from '../../session/target-intents.js?v=0.2.142';
+import { pickedHuntOf } from '../windows/hunts.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { text, attr, prop } from '../../render/paint.js?v=0.2.142';
+import { answerWithin } from '../bar-draft.js?v=0.2.142';
+import { refusalText } from '../intent-words.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
 
 /** The row (built once): the label, the select (its options follow the ground) and the line naming the ground. */
 export function firstTargetHtml() {

@@ -113,7 +113,12 @@ async function scenario(db, wipeSql) {
     await hero(A, buys[0], 'Sorrel');
     await hero(A, buys[1], 'Wrenna');
     await db.query('update public.player_state set level_xp = public.hr_char_xp_for_level((select min_level from public.hr_market_config) + 1), stamina_ms = 28800000, stamina_at = now() where user_id in ($1, $2)', [A, B]);
-    const hunt = await one(`select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id order by coalesce(h.band_min, 0), g.hunt_id limit 1`);
+    /* The played hero (Level over the market's floor) hunts the first ground the one door admits it to (hr_hunt_admit, a read): the Mill
+       Cellar refuses a hero at its ends_at_level or over (2027-05-28-cellar-outgrown.sql), and the Tower, a call, a hall and a training
+       ground each have a door of their own. CW-PLAY asks again for the fresh Level 1 hero after the wipe. */
+    const firstGround = (u) => one(`select g.hunt_id from public.hr_hunt_grounds g left join public.hr_hunts h on h.hunt_id = g.hunt_id
+      where public.hr_hunt_admit($1::uuid, 0, g.hunt_id) is null order by coalesce(h.band_min, 0), g.hunt_id limit 1`, [u]);
+    const hunt = await firstGround(A);
     const item = (await db.query(`select m.item_id, m.floor_each::text f from public.hr_market_items m where m.listable and m.floor_each > 1 and m.ceiling_each < 1000000000
       and m.item_id not in (select item_id from public.hr_item_slots) order by m.item_id limit 1`)).rows[0];
     await db.query(`insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 30) on conflict (user_id, slot, item_id) do update set qty = excluded.qty`, [A, item.item_id]);
@@ -318,10 +323,11 @@ async function scenario(db, wipeSql) {
     await db.query('update public.player_state set stamina_ms = 28800000, stamina_at = now() where user_id = $1', [A]);
     const lv = await one('select public.hr_level_of($1::uuid, 0)', [A]);
     const purse = await one('select gold from public.account_wallet where user_id = $1', [A]);
-    const enteredAgain = await ask(A, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())`, [hunt]);
+    const firstHunt = await firstGround(A);
+    const enteredAgain = await ask(A, `select public.hr_hunt_enter(0, $1, '[]'::jsonb, 0, null, gen_random_uuid())`, [firstHunt]);
     const bagAgain = await one('select count(*)::int from public.player_inventory where user_id = $1 and slot = 0', [A]);
     arm('CW-PLAY', before2 === 0 && again && again.ok === true && pulled && pulled.ok !== true && lv === 1 && Number(purse) < 90000000 && enteredAgain && enteredAgain.ok === true && bagAgain > 0,
-      'a friend can take the old name, a moderated one stays refused, and the account makes a Level 1 hero with a start kit and goes hunting', js({ again, pulled, lv, purse, enteredAgain, bagAgain }));
+      'a friend can take the old name, a moderated one stays refused, and the account makes a Level 1 hero with a start kit and goes hunting', js({ again, pulled, lv, purse, firstHunt, enteredAgain, bagAgain }));
 
     /* CW-RESUME */
     const eResume = await apply(SRC.resume);

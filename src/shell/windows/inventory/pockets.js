@@ -8,13 +8,13 @@
 // marks a grid adds (new, locked, the bar key). Built once per stack, patched
 // in place. Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { kindOf, rarityOf } from '../../bag-model.js?v=0.2.141';
-import { text, cls } from '../../../render/paint.js?v=0.2.141';
-import { whole, short } from '../../../render/format.js?v=0.2.141';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
-import { glyphSvg } from '../../launcher.js?v=0.2.141';
-import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.141';
-import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.141';
+import { kindOf, rarityOf } from '../../bag-model.js?v=0.2.142';
+import { text, cls } from '../../../render/paint.js?v=0.2.142';
+import { whole, short } from '../../../render/format.js?v=0.2.142';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
+import { glyphSvg } from '../../launcher.js?v=0.2.142';
+import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.142';
+import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.142';
 
 /** A corner count in four characters: 1.4k, 12k, 1.2kk, rounded DOWN (a stack never reads more than it holds; format.js short rounds). Pure. */
 export function cornerCount(qty) {

@@ -983,7 +983,11 @@ ARMS.free = async () => {
   if ((await purse(db, u)) !== 0) bad.push('BD-FREE the call took gold: ' + (await purse(db, u)));
   const rows = await calls(db, u);
   if (!rows.length || rows.some((r) => r.gold !== null && Number(r.gold) !== 0)) bad.push('BD-FREE the call journalled ' + JSON.stringify(rows));
-  if (!((await poolNow(db, u)) <= s0 - STAM)) bad.push('BD-FREE the first fight\'s stamina was not taken: ' + s0 + ' -> ' + (await poolNow(db, u)));
+  /* the stamina is still the price: the call's row journals one fight's stamina, and the pool is down (by it, less what the room's clock has
+     run since the hunt started: a read at now() is a few ms after the charge) */
+  if (!rows.some((r) => r.meta && Number(r.meta.stamina_ms) === STAM) || !((await poolNow(db, u)) < s0 - STAM + 60000)) {
+    bad.push('BD-FREE the first fight\'s stamina was not taken: ' + s0 + ' -> ' + (await poolNow(db, u)) + ', ' + JSON.stringify(rows.map((r) => r.meta && r.meta.stamina_ms)));
+  }
   return bad;
 };
 

@@ -109,7 +109,7 @@
 //   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
 //              leave sent seconds before it still ends the hunt `died` at that swing,
 //              the same death row and end as with no leave (2026-10-31-live-horizon.sql).
-//   NO-DODGE-LEVERS  the same for every mid-hunt lever that moves a fight (1002-lever-horizon.sql, 11-19 server audit
+//   NO-DODGE-LEVERS  the same for every mid-hunt lever that moves a fight (1005-lever-horizon.sql, 11-19 server audit
 //              row 3), on a pinned server clock: a Blessing bought, the stance set and a setup switched 19 s before a
 //              death the viewer's seeds showed each leave that death exactly as it was, with the hunt viewed and with
 //              the browser closed (the Blessing stays held, unused). CONTROL: each lever pulled a minute earlier lands
@@ -1985,7 +1985,7 @@ const DB_ARMS = {
     if (JSON.stringify(b.events) !== JSON.stringify(a.events)) problems.push('the death / end rows differ with the leave: ' + firstDiff(JSON.stringify(a.events), JSON.stringify(b.events)));
     return problems;
   }),
-  /* EVERY LEVER THAT MOVES A FIGHT WAITS OUT THE SEEDS (1002-lever-horizon.sql; the 11-19 server audit, row 3). The browser holds the
+  /* EVERY LEVER THAT MOVES A FIGHT WAITS OUT THE SEEDS (1005-lever-horizon.sql; the 11-19 server audit, row 3). The browser holds the
      next 16 combat swings' seeds (32 s), so a lever that took hold at once could be pulled only when a death showed in them. The server
      clock is pinned and every settle runs at its cut's instant, as in production. A Level 5 hero at full HP among wolves (it dies some
      4.7 minutes in, with no food) is settled every 10 s (the hunt viewed)
@@ -4900,7 +4900,7 @@ const DB_ARMS = {
     const ch = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify({ stance: 'offensive', distance: 4 }), idem()]);
     await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
     if (!ch || ch.ok !== true) return [...problems, `CONTROL: the options change was refused: ${JSON.stringify(ch)}`];
-    /* LEVER-HORIZON (1002-lever-horizon.sql): a fight lever plays from the first window past the seed horizon (the settled
+    /* LEVER-HORIZON (1005-lever-horizon.sql): a fight lever plays from the first window past the seed horizon (the settled
        point + 32 s). The window inside it keeps the unit as it stood; the server clock then moves on (pinned) and the next
        settle, past the horizon, writes the change onto the unit already standing in the world. */
     await settleTo(db, M, nowMs);

@@ -1,8 +1,8 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1002-lever-horizon.sql — EVERY MID-HUNT LEVER THAT MOVES A FIGHT WAITS OUT THE SEEDS THE BROWSER HOLDS
+-- supabase/migrations/1005-lever-horizon.sql — EVERY MID-HUNT LEVER THAT MOVES A FIGHT WAITS OUT THE SEEDS THE BROWSER HOLDS
 --   (lane/c-server-cost, backend-architect, 2026-11-19; the 11-19 server audit, row 3).
 --
--- STATUS: supabase/migration-notes/1002-lever-horizon.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1005-lever-horizon.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
@@ -103,7 +103,7 @@ end $mig$;
 -- ── §1 THE HORIZON, THE LEVER'S INSTANT, THE SETUP ───────────────────────────
 create or replace function public.hr_hunt_seed_horizon(p_session uuid)
 returns timestamptz language sql stable set search_path = public, pg_catalog as $fn$
-  -- LEVER-HORIZON (1002-lever-horizon.sql): the instant past every combat swing an answer can have shown for this session's hunt:
+  -- LEVER-HORIZON (1005-lever-horizon.sql): the instant past every combat swing an answer can have shown for this session's hunt:
   -- the later of the instance's (and the session's) settled point and next swing, plus the look-ahead, liveSeeds (16) x the 2 s
   -- swing (src/data/hunt-tuning.js; the 32 s of 2026-10-31-live-horizon.sql). The 16th seed is the swing at next_swing_at + 30 s.
   select greatest(s.settled_to, s.next_swing_at, i.settled_to, i.next_swing_at) + make_interval(secs => 32000 / 1000.0)
@@ -146,7 +146,7 @@ create table if not exists public.hunt_setup_holds (
   primary key (session_id, until)
 );
 comment on table public.hunt_setup_holds is
-  'added 1002-lever-horizon.sql: the setup an open hunt session plays for every window starting at or before `until` (its seed horizon when a lever was pulled), recorded by hr_hunt_setup_hold before the lever''s write; read by hr_hunt_setup_of. Owner-only.';
+  'added 1005-lever-horizon.sql: the setup an open hunt session plays for every window starting at or before `until` (its seed horizon when a lever was pulled), recorded by hr_hunt_setup_hold before the lever''s write; read by hr_hunt_setup_of. Owner-only.';
 alter table public.hunt_setup_holds enable row level security;
 revoke all on public.hunt_setup_holds from public, anon, authenticated, service_role;
 
@@ -163,7 +163,7 @@ revoke execute on function public.hr_hunt_setup_of(public.hunt_sessions) from pu
 
 create or replace function public.hr_hunt_setup_hold()
 returns trigger language plpgsql security definer set search_path = public, pg_catalog as $fn$
--- LEVER-HORIZON (1002-lever-horizon.sql): BEFORE a write that can change what an OPEN session's settle reads lands, record the setup
+-- LEVER-HORIZON (1005-lever-horizon.sql): BEFORE a write that can change what an OPEN session's settle reads lands, record the setup
 -- as it stands now, held for every window starting at or before the session's seed horizon. Reads only the server's own rows.
 declare
   v_s     public.hunt_sessions%rowtype;
@@ -236,7 +236,7 @@ CREATE OR REPLACE FUNCTION public.hr_hunt_member_read(p_s hunt_sessions)
  STABLE SECURITY DEFINER
  SET search_path TO 'public', 'pg_catalog'
 AS $function$
-  -- LEVER-HORIZON (1002-lever-horizon.sql): the preset, options, bar, supply setting and First target are the WINDOW'S setup
+  -- LEVER-HORIZON (1005-lever-horizon.sql): the preset, options, bar, supply setting and First target are the WINDOW'S setup
   -- (hr_hunt_setup_of: a lever pulled inside the seed horizon plays from the first window past it); target_kind is the instance
   -- read's to overlay and drop.
   select jsonb_build_object(
@@ -309,7 +309,7 @@ begin
   -- the engine's only source of it (hunt-settle.js; none, or one it has no row for, and it proposes nothing).
   -- TOWER-CLIMB (2027-04-24-tower-climb.sql): the instance carries the Burning Tower's floor whose room stands or stands next (tower_floor:
   -- hr_tower_floor_of, the server's own record), the engine's only source of it; null on every other ground.
-  -- LEVER-HORIZON (1002-lever-horizon.sql): RESTATED WHOLE. The First target is the member read's (the window's setup, held past a
+  -- LEVER-HORIZON (1005-lever-horizon.sql): RESTATED WHOLE. The First target is the member read's (the window's setup, held past a
   -- lever inside the seed horizon), still only a kind the ground fields; its key is dropped from the session, which is byte-identical.
   v_role := coalesce(nullif(current_setting('role', true), 'none'), session_user);
   if v_role in ('anon', 'authenticated', 'service_role') then
@@ -384,7 +384,7 @@ begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure), chr(13), '');
   if strpos(v_def, 'LEVER-HORIZON') = 0 then
     v_old := $a$  v_supply := public.hr_hunt_supply_of(p_user, p_slot, v_s.preset);$a$;
-    v_new := $a$  -- LEVER-HORIZON (1002-lever-horizon.sql): the WINDOW'S setup (hr_hunt_setup_of: held past a lever inside the seed horizon), the
+    v_new := $a$  -- LEVER-HORIZON (1005-lever-horizon.sql): the WINDOW'S setup (hr_hunt_setup_of: held past a lever inside the seed horizon), the
   -- one the engine played; its supply keys are hr_hunt_supply_of's.
   v_supply := public.hr_hunt_setup_of(v_s);$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
@@ -396,7 +396,7 @@ begin
   v_def := replace(pg_get_functiondef('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure), chr(13), '');
   if strpos(v_def, 'LEVER-HORIZON') = 0 then
     v_old := $a$  v_supply := public.hr_hunt_supply_of(p_user, p_slot, v_s.preset);$a$;
-    v_new := $a$  -- LEVER-HORIZON (1002-lever-horizon.sql): the WINDOW'S setup (hr_hunt_setup_of), the one the engine played: its supply keys
+    v_new := $a$  -- LEVER-HORIZON (1005-lever-horizon.sql): the WINDOW'S setup (hr_hunt_setup_of), the one the engine played: its supply keys
   -- here, its bar (runes_out) and its stop rules (rule) in the end proof below.
   v_supply := public.hr_hunt_setup_of(v_s);$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);
@@ -427,7 +427,7 @@ begin
   v_def := replace(pg_get_functiondef('public.hr_blessing_buy(integer,integer,bigint,uuid)'::regprocedure), chr(13), '');
   if strpos(v_def, 'LEVER-HORIZON') = 0 then
     v_old := $a$  insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values (v_uid, p_slot, p_tier, v_price, now());$a$;
-    v_new := $a$  -- LEVER-HORIZON (1002-lever-horizon.sql): with a hunt open the Blessing counts from its seed horizon (hr_hunt_lever_at), so no death
+    v_new := $a$  -- LEVER-HORIZON (1005-lever-horizon.sql): with a hunt open the Blessing counts from its seed horizon (hr_hunt_lever_at), so no death
   -- the browser's seeds already showed is cut (hr_blessing_take counts bought_at <= the window's start); in town, from now.
   insert into public.player_blessings (user_id, slot, tier, paid, bought_at) values (v_uid, p_slot, p_tier, v_price, public.hr_hunt_lever_at(v_uid, p_slot));$a$;
     v_n := (length(v_def) - length(replace(v_def, v_old, ''))) / length(v_old);

@@ -55,7 +55,8 @@
 // ============================================================
 
 /** The hard ceiling on any single class multiplier. Applied by the formula. */
-export const MAX_BANE_MULT = 1.40;
+import { MAX_BANE_MULT } from '../data/core-model.js?v=0.2.141';   // 1.40, read by the item rows too: the data layer's (moved 2026-11-19)
+export { MAX_BANE_MULT };
 
 /** The ceiling on weapon-weakness × bane combined. Also applied by the formula. */
 export const MAX_COMBINED_DAMAGE_MULT = 1.68;

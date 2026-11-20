@@ -40,6 +40,7 @@ import { pickLeader, kites, roomAt, ROOM_MAX } from './roles.js?v=0.2.141';
 import { holderTank, turnTanks, pickInForce } from './targeting.js?v=0.2.141';
 import { aimOf } from './shooters.js?v=0.2.141';
 import { towerOf, towerPull, towerCleared } from './tower.js?v=0.2.141';
+import { healTaken } from './heal-cut.js?v=0.2.141';
 
 /* deadMs: a corpse's age. hpMilli: out-of-combat regen carried below one HP.
    phase / routeIdx / phaseMs / regroupNext / runs / nextId: the cycle. alive / respawnAtMs: a pack. */
@@ -313,7 +314,9 @@ function tickHeroes(inst, sc) {
     if (!h.alive) continue;
     if (h.hp >= h.maxHp) { h.hpMilli = 0; continue; }
     const pm = Number.isInteger(h.regenPm) && h.regenPm > 0 ? h.regenPm : 1000;
-    const own = Number.isInteger(h.selfHealPm) && h.selfHealPm > 0 ? h.selfHealPm * 1000 : 0;
+    const worn = Number.isInteger(h.selfHealPm) && h.selfHealPm > 0 ? h.selfHealPm * 1000 : 0;
+    /* (the own heal is a heal: a Withered wearer takes it cut, heal-cut.js healTaken; regeneration is none, and is never cut) */
+    const own = healTaken(h, worn);
     h.hpMilli += Math.floor((h.maxHp * (rate * pm + own) * sc.dtMs) / 1000000);
     const whole = Math.floor(h.hpMilli / 1000);
     h.hp = Math.min(h.maxHp, h.hp + whole);

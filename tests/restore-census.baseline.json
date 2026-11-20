@@ -33,7 +33,7 @@
   "Classifications are AUTHORED, never generated — deciding what a restore owes",
   "a table is a judgement, and --write preserves whatever is already here."
  ],
- "generated": "2026-11-19",
+ "generated": "2026-11-20",
  "production": {
   "measured": "2026-11-14",
   "project": "nezapsylztqbbwuwembx (hearthrise-testing, Postgres 17.6, us-west-2, Small compute)",
@@ -570,6 +570,7 @@
    "hr-live-events-announce | * * * * * | select public.hr_live_events_announce()",
    "hr-market-expire | */5 * * * * | select public.hr_market_expire(200)",
    "hr-market-sales-prune | 45 3 * * * | select public.market_sales_prune()",
+   "hr-ops-capacity | * * * * * | select hr_ops.capacity_sample()",
    "hr-party-reap | */10 * * * * | select public.hr_party_reap_stale(200)",
    "hr-progress-prune | 25 4 * * * | select public.hr_progress_prune()",
    "hr-realtime-frame-prune | 3-59/10 * * * * | select public.hr_realtime_frame_prune(20000)",

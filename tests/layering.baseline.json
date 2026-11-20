@@ -6,16 +6,8 @@
     "piece down a layer (or passing it in from above), then delete its line in the same commit."
   ],
   "breaches": [
-    "src/data/abilities.js -> src/core/hunt/shapes.js",
-    "src/data/chests.js -> src/core/combat.js",
     "src/data/hunt-tutorial.js -> src/core/member.js",
     "src/data/hunt-tutorial.js -> src/core/xp.js",
-    "src/data/hunt-tutorial.js -> src/render/player-text.js",
-    "src/data/item-authority.js -> src/core/artisan.js",
-    "src/data/library2-items.js -> src/core/bane.js",
-    "src/data/monster-spells.js -> src/core/hunt/shapes.js",
-    "src/data/skill-authority.js -> src/core/pacing.js",
-    "src/data/skill-authority.js -> src/core/progression.js",
     "src/hunt-view/clip-hook.js -> src/world/core/facing.js",
     "src/hunt-view/combat-log.js -> src/shell/widgets/bits.js",
     "src/hunt-view/scene.js -> src/shell/widgets/bits.js",
@@ -35,7 +27,6 @@
     "src/session/character-session.js -> src/hunt-view/timeline.js",
     "src/session/live-link.js -> src/hunt-view/live-diff.js",
     "src/session/live-link.js -> src/hunt-view/live-engine.js",
-    "src/session/training-sections.js -> src/render/player-text.js",
     "src/world/world-boot.js -> src/hunt-view/scene.js"
   ]
 }

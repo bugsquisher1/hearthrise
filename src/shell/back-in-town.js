@@ -65,7 +65,7 @@ function planned(bag, rules, rule) {
  *        free: the hunt's mode takes nothing for a death (the Tower), so no Bless step; ground: the next ground (nextGroundFrom) and the Levels it was read for;
  *        outgrown: the hunt ended `outgrown` (hunt-grounds.js endsAtLevel), so it has no Hunt again and the next ground is the press
  * @returns {{ steps: {id:string, title:string, words:string, verb:string, icon:string|null, done:boolean, count:number,
- *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object}[], primary: string }}
+ *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object, name?:string, glyph?:string|null}[], primary: string }}
  */
 export function townSteps(o) {
   const did = (o && o.did) || new Map();

@@ -10,7 +10,7 @@
 //   node tools/qa/local-world.mjs smoke [--shots DIR] [--viewport 1280x720] [--touch]
 //        fresh account -> hero -> Mill Cellar -> skip until it ends itself at Level 5 (outgrown) -> its end card -> Next ground -> a 2nd hunt there,
 //        skipped past the 1st -> leave -> summary -> bag -> reload -> a town wait. Exit 0 green, 1 red, 2 harness, 3 refused.
-//        A machine's first run replays the whole chain (about 6 min; tests/pglite-template.mjs then caches it), so this is a
+//        A machine's first run replays the whole chain (75 s on the dev PC 2026-11-19); after that tests/pglite-template.mjs restores the longest cached prefix, shared by every worktree, so this is a
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
 //   smoke and serve take --site DIR: the client's files come from DIR (the Pages artifact, `node tools/build-site.mjs` -> _site), and a file
@@ -70,7 +70,7 @@ const REFUSED = 3;
 const PASSWORD = 'local-world-password';   // a throwaway value for accounts that live and die with this process
 const OPEN_FILE = '2027-02-10-playtest-open.sql';
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' };
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
 const SERVED = /^\/(play\.html$|src\/|assets\/|legal\/)/;
 
 // ── THE REFUSAL ──────────────────────────────────────────────────────────
@@ -427,15 +427,18 @@ function send(res, status, body, type = 'application/json') {
   res.end(body === null || body === undefined ? undefined : Buffer.isBuffer(body) || typeof body === 'string' ? body : JSON.stringify(body));
 }
 
-/* The two files that name the outside world, rewritten as they are served; a moved anchor is a loud failure. */
+/* The files that name the outside world, rewritten as they are served; a moved anchor is a loud failure. The project's
+   address lives in src/net/supabase-bootstrap.js's config, or, in a bundled --site, in whichever chunk the bundle put that
+   config (tools/lib/site-delivery.mjs), written as the minifier writes it: so any served module that names production is
+   rewritten, and must carry both anchors. */
+const SERVED_CONFIG = /^src\/(?!vendor\/).*\.js$/;
 function rewriteServed(rel, text, origin) {
   const must = (from, to) => { if (!from.test(text)) throw new Error('local-world: ' + rel + ' moved, no anchor ' + from); text = text.replace(from, to); };
-  if (rel === 'src/net/supabase-bootstrap.js') {
-    must(/url: 'https:\/\/[a-z0-9]+\.supabase\.co'/, "url: '" + origin + "'");
-    must(/publishableKey: '[^']+'/, "publishableKey: 'local-world-publishable'");
+  if (SERVED_CONFIG.test(rel) && text.includes(PRODUCTION_REF)) {
+    must(/url\s*:\s*(['"])https:\/\/[a-z0-9]+\.supabase\.co\1/, (_, q) => 'url:' + q + origin + q);
+    must(/publishableKey\s*:\s*(['"])[^'"]+\1/, (_, q) => 'publishableKey:' + q + 'local-world-publishable' + q);
   }
   if (rel === 'play.html') {
-    must(/<link href="https:\/\/fonts\.googleapis\.com[^>]*>/, '');
     must(/https:\/\/[a-z0-9]+\.supabase\.co wss:\/\/[a-z0-9]+\.supabase\.co /, '');   // the page's own CSP now refuses production too, in any browser
   }
   if (text.includes(PRODUCTION_REF)) throw new Error('local-world: ' + rel + ' still names production after its rewrite');
@@ -452,7 +455,7 @@ async function serveStatic(res, urlPath, origin, held, site, asked) {
   if (held && held.has(rel)) return send(res, 200, held.get(rel), type);
   const info = await stat(f).catch(() => null);
   if (!info || !info.isFile()) { asked.served.delete(rel); asked.missed.push(urlPath); return send(res, 404, 'not found', 'text/plain'); }
-  const rewritten = rel === 'play.html' || rel === 'src/net/supabase-bootstrap.js';
+  const rewritten = rel === 'play.html' || SERVED_CONFIG.test(rel);
   /* from the repository, as the site build writes it (tools/lib/version-stamp.mjs): every module and page at the release's ?v= */
   const stamped = site === ROOT && stampKind(rel);
   let body;

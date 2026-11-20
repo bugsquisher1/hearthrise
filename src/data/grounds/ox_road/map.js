@@ -69,7 +69,7 @@ export default Object.freeze({
   "faces": [],
   "objects": [
     {"id":"cw_coal_seam","x":29,"y":8},
-    {"id":"cw_coal_seam","x":35,"y":14},
+    {"id":"mh_coal_seam_worked","x":35,"y":14},
     {"id":"mh_vigil_wood","x":3,"y":19},
     {"id":"mh_vigil_brazier","x":5,"y":19},
     {"id":"mh_yoked_dead","x":7,"y":22},
@@ -83,9 +83,16 @@ export default Object.freeze({
     {"id":"mh_ore_wagon_broken","x":27,"y":22},
     {"id":"mh_lost_wheel","x":29,"y":23},
     {"id":"mh_yoked_one","x":35,"y":22},
-    {"id":"mh_ore_wagon","x":37,"y":22},
+    {"id":"mh_ore_wagon_tarped","x":37,"y":22},
     {"id":"mh_ore_wagon_tipped","x":8,"y":25},
-    {"id":"mh_fire_ring","x":13,"y":25}
+    {"id":"mh_fire_ring","x":13,"y":25},
+    {"id":"mh_lantern_stake","x":15,"y":27},
+    {"id":"mh_lantern_pole","x":24,"y":29},
+    {"id":"mh_lantern_cairn","x":40,"y":29},
+    {"id":"sack_pile","x":36,"y":33},
+    {"id":"mh_lantern_pole","x":44,"y":19},
+    {"id":"mh_lantern_cairn","x":33,"y":8},
+    {"id":"mh_lantern_stake","x":18,"y":14}
   ],
   "buildings": [],
   "path": [[1,20],[3,20],[3,22],[1,22]],
@@ -93,5 +100,5 @@ export default Object.freeze({
   "stations": {},
   "exits": [{"x":0,"y":21,"to":"town_common"}],
   "start": [1,21],
-  "maskHash": "f3047bd2"
+  "maskHash": "e25bff7f"
 });

@@ -31,7 +31,7 @@ import { toneAt, varietyIndex } from '../../src/world/core/ground-variety.js';
 import { roofMass, faceTop, walkedRoof, tornEdges, doorwayOf, dividersOf, dimStone, chimney, sills } from './morrow-roofs.mjs';
 import { brewBricks, stableStraw } from './morrow-floors.mjs';
 import { oxFills, OX_MATS, OX_TRAILS, oxPairs, bridgeDeck, coalLumps, cragDual, oxRoad, CRAG, fordReeds } from './morrow-ox.mjs';
-import { oxMoor, oxWater, oxStory } from './morrow-ox-ground.mjs';
+import { oxMoor, oxWater, oxStory, oxPath } from './morrow-ox-ground.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const T = 32;
@@ -406,7 +406,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   /* the ruts swing round the road's wrecks (the broken and the slewed wagon) and the ground under the train tells its story */
   if (ox) road = { ...oxRoad(img, grid, { wrecks: objects.filter((o) => /^mh_ore_wagon_(broken|slewed)$/.test(o.id)).map((o) => o.x * T + 32) }), ...oxStory(img, grid, objects) };
   /* the Ox Road's own pieces (tools/world-art/morrow-ox.mjs): the ford's stones, the bridge's beams and broken span, coal on the runners' path */
-  const oxr = ox ? { ...oxWater(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid), reeds: fordReeds(img, grid) } : {};
+  const oxr = ox ? { ...oxPath(img, grid), ...oxWater(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid), reeds: fordReeds(img, grid) } : {};
   if (!inn) {
     const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
     const crag = ox ? cragDual(img, cragGrid, metaOf(CRAG.dir)) : {};

@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-oxroad-floor.png",
   "size": [2048,1288],
-  "pixels": "9bd689188970b80fb4261680e2b10b1b39ad6a181481e11d0ffa160e9b8366e0",
+  "pixels": "695ae01256b44b864de13ec18df8707a13b78d476a0d08e6dbd79c7857008863",
   "sprites": {},
   "terrain": {
     "ox_road_ground": {

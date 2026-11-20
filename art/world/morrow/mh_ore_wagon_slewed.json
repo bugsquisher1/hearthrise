@@ -41,11 +41,11 @@
   "source": "mh_ore_wagon_slewed.png",
   "frame": [
     72,
-    56
+    60
   ],
   "anchor_px": [
     36,
-    55
+    56
   ],
   "footprint": [
     2,
@@ -62,10 +62,10 @@
     }
   ],
   "pixellab": {
-    "tool": "edit_image_pro_flash (text) from a free sketch",
-    "image": "0fdcf5f5-eee8-5bf8-82b3-75f647d938ad",
-    "job": "badf121a",
-    "sketch": "art/review/morrow-kit/ox-props4/slewed-w3.png"
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "375bb0a3-8131-5fca-b675-caab90c07b87",
+    "job": "ce517e96",
+    "sketch": ".scratch/kit/ox-b6.mjs (slewed38.png)"
   },
-  "notes": "The ore wagon turned 22 degrees on the ground, its tail to the south, laden; no team. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "The ore wagon slewed across the road, laden, no team: turned 38 degrees on the ground with its tail swung south, so the wheels are narrow ellipses at the angle and the end board shows square (review b5 T4 REDO: at 22 degrees it read as a sprite rotated on screen, the wheels upright circles). Round 5: modelled in the wagons' camera (.scratch/kit/ox-b6.mjs, ox-wagon3.mjs wagonSolids), polished palette-held by edit_image_pro_flash. The gouge its tail dragged is in the ground (morrow-ox-ground.mjs oxStory). Pixels unscaled."
 }

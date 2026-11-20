@@ -77,6 +77,10 @@ export const LIGHTS = Object.freeze({
   hearth_brazier: light(3, 'brazier'),
   /* Holly's Vigil on the Ox Road: her fire basket by the road's west end, where a hunt starts */
   mh_vigil_brazier: light(4, 'brazier'),
+  /* the teamsters' lanterns that mark the Ox Road's pockets: on a stake, on a leaning pole, on a waymark cairn */
+  mh_lantern_stake: light(2.5, 'torch'),
+  mh_lantern_pole: light(2.5, 'torch'),
+  mh_lantern_cairn: light(2.5, 'torch'),
   lamppost: light(3, 'torch'),
   candle: light(1.5, 'torch'),
   hearth: light(4.5, 'hearth'),

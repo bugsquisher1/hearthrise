@@ -62,10 +62,10 @@
     }
   ],
   "pixellab": {
-    "tool": "edit_image_pro_flash (text) from a free sketch",
-    "image": "8036a6b1-75a8-5e31-a8d6-0462c238e16e",
-    "job": "a0b47576",
-    "sketch": "art/review/morrow-kit/ox-props4/lantern32.png"
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "9b3c9053-c532-5b07-a813-7bcd98507e01",
+    "job": "28c5cd72",
+    "sketch": ".scratch/kit/ox-b6.mjs (sheet-yoke-lantern.png)"
   },
-  "notes": "A teamster's lantern dropped on its side in the road, its glass dark; a decal walked over. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "A teamster's lantern dropped on its side in the road: a square iron cage with corner bars, dark amber panes, the peaked cap and ring at its east end, out. Round 3 after review b5 (C5 REDO: \"a bottle\"): modelled in the wagons' camera (.scratch/kit/ox-b6.mjs), polished palette-held by edit_image_pro_flash with the other piece of its sheet. A decal walked over. Pixels unscaled."
 }

@@ -62,10 +62,10 @@
     }
   ],
   "pixellab": {
-    "tool": "edit_image_pro_flash (text) from a free sketch",
-    "image": "000b66ed-5429-5fa0-969b-31b558b681ba",
-    "job": "b70ba839",
-    "sketch": "art/review/morrow-kit/ox-props4/clutter-sheet.png"
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "9b3c9053-c532-5b07-a813-7bcd98507e01",
+    "job": "28c5cd72",
+    "sketch": ".scratch/kit/ox-b6.mjs (sheet-yoke-lantern.png)"
   },
-  "notes": "A yoke dropped at a bare tongue's tip, its two bows and a strap (review b4: bare tongues read as missing art); a decal walked over. Round 2 after review b4: modelled in the wagons' camera (.scratch/kit/ox-vigil.mjs), packed with three others on one 64 px sheet (art/review/morrow-kit/ox-props4/clutter-sheet.png) and polished palette-held by edit_image_pro_flash (cell top right). Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "A yoke dropped at a bare tongue's tip, lying flat as it fell off the necks: its beam east-west, thick at the middle with an iron ring, two bent-wood U-bows out to the south. Round 3 after review b5 (C4 REDO: \"a seahorse or a post\"): modelled in the wagons' camera (.scratch/kit/ox-b6.mjs), polished palette-held by edit_image_pro_flash with the other piece of its sheet. A decal walked over. Pixels unscaled."
 }

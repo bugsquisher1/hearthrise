@@ -72,7 +72,6 @@ export default Object.freeze({
     {"id":"mh_coal_seam_worked","x":35,"y":14},
     {"id":"mh_vigil_wood","x":3,"y":19},
     {"id":"mh_vigil_brazier","x":5,"y":19},
-    {"id":"mh_yoked_dead","x":7,"y":22},
     {"id":"mh_ore_wagon","x":9,"y":22},
     {"id":"mh_ore_dropped","x":12,"y":21},
     {"id":"mh_ore_wagon_half","x":14,"y":22},
@@ -94,7 +93,8 @@ export default Object.freeze({
     {"id":"mh_harrys_cart","x":12,"y":14},
     {"id":"mh_sacks","x":2,"y":18},
     {"id":"mh_chopping_block","x":6,"y":18},
-    {"id":"mh_vigil_bedrolls","x":4,"y":17}
+    {"id":"mh_vigil_bedrolls","x":4,"y":17},
+    {"id":"mh_yoke_dropped","x":8,"y":22}
   ],
   "buildings": [],
   "path": [[1,20],[3,20],[3,22],[1,22]],
@@ -102,5 +102,5 @@ export default Object.freeze({
   "stations": {},
   "exits": [{"x":0,"y":21,"to":"town_common"}],
   "start": [1,21],
-  "maskHash": "a70a0e27"
+  "maskHash": "32faf315"
 });

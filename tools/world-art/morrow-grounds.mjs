@@ -81,7 +81,8 @@ export function materials() {
     B: { fill: fillOf(F('2-straw-boards'), '1111'), v: { seed: 57, tone: 'soft', spots: 'down' } },
     /* the brewhouse is the cellar's own stone a step lighter (one family of stone, two rooms told apart by their light) */
     F: { fill: remap(cellar, BREW_LIFT), v: { seed: 59, tone: 'soft', spots: 'down' } },
-    C: { fill: cellar, v: { seed: 61, tone: 'damp', spots: 'down' } },
+    /* b4 ranked 5: the cellar read near-black with soft smears: its stone a step lighter (the brewhouse's lift), its smear decals out */
+    C: { fill: remap(cellar, BREW_LIFT), v: { seed: 61, tone: 'damp', spots: 'down' } },
     O: { fill: remap(slate, SLATE_1), v: { seed: 63, tone: 'soft', spots: 'down' } },
     /* the inn's intact roof over the mass: the slate as it was drawn (nobody stands on it); the walked roof is a step under it */
     M: { fill: slate, v: { seed: 67, tone: 'soft', spots: 'down' } },
@@ -238,6 +239,47 @@ function roadDown(g, grid) {
   }
   return { roadDown: down };
 }
+/* ── b4 polish (Carter's Rest) ── */
+/* the walked roof (b4 ranked 3: "still reads as an intact roof"): a heap of the roof's own wreck over its south third, broken slates in
+   angular chips, planks and two snapped rafters across it, the heap's foot in shadow, dust round it */
+function roofDebris(g, grid) {
+  let x0 = 99, x1 = -1, y0 = 99, y1 = -1; for (let y = 0; y < grid.length; y++) for (let x = 0; x < grid[0].length; x++) if (grid[y][x] === 'O') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  if (x1 < 0) return 0;
+  const cx = (x0 + 0.6 * (x1 - x0 + 1)) * T, cy = (y1 - 1) * T + 6, rx = (x1 - x0 + 1) * T * 0.36, ry = 2.2 * T, put = (x, y, c) => { if (x >= x0 * T && y >= y0 * T && x < (x1 + 1) * T && y < (y1 + 1) * T && grid[y >> 5][x >> 5] === 'O') g.data.set(rgb(c), (y * g.width + x) * 4); };
+  const inH = (x, y) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (noise(x, y, 14, 801) - 0.5) * 0.6 < 1;
+  let n = 0;
+  for (let y = Math.floor(cy - ry - 8); y < cy + ry + 8; y++) for (let x = Math.floor(cx - rx - 8); x < cx + rx + 8; x++) {
+    if (inH(x, y)) { put(x, y, !inH(x, y + 2) ? '#17141a' : noise(x, y, 3, 803) > 0.6 ? '#2f2723' : '#231d1f'); n++; }
+    else if (inH(x, y - 4) && hash2(x, y, 805) > 0.6) put(x, y, '#2f2723');
+  }
+  /* slates: angular chips 2-5 px, lit on their upper edge */
+  for (let i = 0; i < 140; i++) { const X = Math.round(cx + (hash2(i, 1, 807) - 0.5) * 2 * rx), Y = Math.round(cy + (hash2(i, 2, 809) - 0.5) * 2 * ry); if (!inH(X, Y)) continue;
+    const w = 2 + Math.floor(hash2(i, 3, 811) * 4), hh = 1 + Math.floor(hash2(i, 4, 813) * 3), sl = hash2(i, 5, 815) > 0.5 ? 1 : 0;
+    for (let b = 0; b < hh; b++) for (let a = 0; a < w; a++) put(X + a + (b * sl), Y + b, b === 0 ? '#4f4e52' : '#3a3a3e'); for (let a = 0; a < w; a++) put(X + a + hh * sl, Y + hh, '#17141a'); }
+  /* planks and two snapped rafters across the heap */
+  for (let i = 0; i < 9; i++) { const ang = (hash2(i, 6, 817) - 0.5) * 2.4, L = (i < 2 ? 34 : 12 + hash2(i, 7, 819) * 12), X = cx + (hash2(i, 8, 821) - 0.5) * rx * 1.6, Y = cy + (hash2(i, 9, 823) - 0.5) * ry * 1.4, wd = i < 2 ? 3 : 2;
+    for (let t = -L / 2; t < L / 2; t++) for (let k = 0; k <= wd; k++) { const px2 = Math.round(X + Math.cos(ang) * t - Math.sin(ang) * k), py2 = Math.round(Y + Math.sin(ang) * t + Math.cos(ang) * k); put(px2, py2, k === wd ? '#17141a' : k === 0 ? '#553a26' : '#3d2a1d'); } }
+  return n;
+}
+/* warm weathered slate (b4 ranked 1: "warm weathered shingle"): the roofs' cool blue-greys go to the stone ramp's warm greys, a step for a step */
+const WARM = { '#3a4652': '#3a3a3e', '#5c6c7a': '#6a6865', '#8a9aa8': '#8a867d', '#2c2e33': '#2f2723', '#4a4d54': '#4f4e52', '#6e727a': '#6a6865', '#969aa1': '#8a867d' };
+function warmSlate(g, grid) {
+  let n = 0;
+  for (let y = 0; y < g.height; y++) for (let x = 0; x < g.width; x++) { if (!'MO'.includes(grid[y >> 5][x >> 5])) continue; const p = (y * g.width + x) * 4, to = WARM[hexAt(g, p)]; if (to) { g.data.set(rgb(to), p); n++; } }
+  return n;
+}
+/* the dry stone wall's collapse (b4 ranked 6: "26 tiles featureless"): two stretches where it has come down, its stones fallen out
+   south across the yard's edge, a few still in the line */
+const COLLAPSE = Object.freeze([[24, 26], [35, 35]]);
+function fallen(g, c, y) {
+  let n = 0;
+  for (let i = 0; i < 22; i++) {
+    const X = c * T + Math.floor(hash2(c, i, 831) * 30), Y = y * T + 14 + Math.floor((-Math.log(1 - hash2(c, i, 833) * 0.95)) * 6), s = 3 + Math.floor(hash2(c, i, 835) * 4);
+    for (let b = 0; b < s - 1; b++) for (let a = 0; a < s; a++) { if ((a === 0 || a === s - 1) && (b === 0 || b === s - 2)) continue; const col = b === 0 ? '#6a6865' : a === s - 1 || b === s - 2 ? '#3a3a3e' : '#4f4e52'; g.data.set(rgb(col), ((Y + b) * g.width + X + a) * 4); n++; }
+    for (let a = 1; a < s; a++) g.data.set(rgb('#17141a'), ((Y + s - 1) * g.width + X + a) * 4);
+  }
+  return n ? 1 : 0;
+}
 /* the clutter rule (ART_DIRECTION 4): nothing on the floor is brighter than the dimmest actor body. A floor pixel over FLOOR_MAX (a
    decal's glint, a speck) steps down its ramp until it is under; the walls are laid after and are no floor */
 const FLOOR_MAX = 0.12;
@@ -281,7 +323,7 @@ const DECALS = Object.freeze({
     S: ['common/square_decal_chips_b', 'common/square_decal_leaves_a'],
     B: ['common/square_decal_chips_a', 'common/square_decal_chips_b'],
     F: ['common/square_decal_chips_b'],
-    C: ['sewer/moss_puddle', 'common/square_decal_puddle_b', 'sewer/cracked_flagstone'],
+    C: ['common/square_decal_puddle_b', 'common/square_decal_chips_b'],
   },
 });
 
@@ -359,6 +401,7 @@ function layWalls(img, grid, P, indoor) {
         if (freeR && c >= e - 1) { if (c === e - 1) blit(img, P.stubR, 0, 0, 64, 24, c * T, y * T + T - 24, true); stubs++; continue; }
         if (freeL && i < 2) { if (i === 0) blit(img, P.stubL, 0, 0, 64, 24, c * T, y * T + T - 24, true); stubs++; continue; }
         /* after a left end the run goes on from its second slice (the end's right half is the run's first) */
+        if (COLLAPSE.some(([a, b]) => c >= a && c <= b)) { stubs += fallen(img, c, y); continue; }
         blit(img, P.stub[(freeL ? i - 1 : c) % P.stub.length], 0, 0, T, 24, c * T, y * T + T - 24, true);
         stubs++;
       }
@@ -423,6 +466,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
     return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, ...moor, damp, ...oxr, ...crag, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))] } };
   }
   const walked = walkedRoof(img, grid, mats.E.fill, ranges, shadeGround(mats.B.fill, 3));
+  const debris = roofDebris(img, grid);
   const doorway = doorwayOf(grid), P = wallPieces();
   /* two floors of their own (tools/world-art/morrow-floors.mjs): the brewhouse's wet brick and drain, the stable's stalls and straw */
   const brew = brewBricks(img, grid, doorway), straw = stableStraw(img, grid, doorway);
@@ -437,8 +481,9 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   const sill = sills(img, grid, indoor, doorway);
   /* the chimneys: the taproom's over its hearth, the brewhouse's on its east range (CHIMNEYS: a foot's left end, in px) */
   for (const [x, y] of chimneys) chimney(img, P.plain[1], x, y);
+  const warm = warmSlate(img, grid);
   const walls = layWalls(img, grid, P, indoor);
-  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed } };
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed, debris, warm } };
 }
 
 export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);

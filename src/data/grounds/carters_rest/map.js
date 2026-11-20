@@ -100,7 +100,11 @@ export default Object.freeze({
     {"id":"cr_brew_kettle","x":52,"y":16},
     {"id":"mh_sacks","x":51,"y":7},
     {"id":"mh_kegs","x":38,"y":26},
-    {"id":"mh_keg_spilt","x":42,"y":32}
+    {"id":"mh_keg_spilt","x":42,"y":32},
+    {"id":"mh_bar_counter","x":33,"y":31},
+    {"id":"mh_stool_broken","x":31,"y":30},
+    {"id":"mh_bench","x":24,"y":25},
+    {"id":"mh_table_over","x":30,"y":32}
   ],
   "buildings": [],
   "path": [[26,38],[30,38],[30,39],[26,39]],
@@ -108,5 +112,5 @@ export default Object.freeze({
   "stations": {},
   "exits": [{"x":0,"y":38,"to":"town_common"}],
   "start": [28,38],
-  "maskHash": "9d42102e"
+  "maskHash": "11872b29"
 });

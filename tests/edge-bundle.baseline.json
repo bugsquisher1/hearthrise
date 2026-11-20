@@ -95,14 +95,14 @@
         "why": "hr-accrue +559 B, all lane/a-trophy-room-held: data/homestead-tiers.js HELD_HOME_ROOMS (the Trophy Room held whole, ~310 by the diff) and unlock-catalogue.js refusing a held room's every rung by name (~250)"
       },
       {
-        "bytes": 3134771,
+        "bytes": 3134548,
         "on": "2026-11-20",
-        "why": "+505 B, lane/c-approved-rows (Tyler 2026-11-20 calls 24-9, 26-3, 26-8, 26-9, 22-8): the ruled rows' one-line whys in shops.js, homestead-tiers.js (the Shrine held), gold-ladders.js (the bag stops at 10) and boss-calls.js (no gold); no new module reached"
+        "why": "hr-accrue +282 B on set/v0.2.143, all ground data the engine's own index reads: ox_road/pack.js +177 (lane/b-morrow-kit 69cac9aa7, the Ox Road's gather nodes), carters_rest/map.js +130 (e596bbb08, the row chars that are no hex digit and the line saying why), ox_road/map.js -7, balance-sheet.js -18 (1cd286297's comment trim); measured file by file with pack-edge on 97d631f32 and e596bbb08"
       },
       {
         "bytes": 3134901,
         "on": "2026-11-20",
-        "why": "+130 B, set/v0.2.143 e596bbb08 (carters_rest colour literals to palette refs): src/data/grounds/carters_rest/map.js, read through the engine's map index; met on lane/c-approved-rows's merge of the set"
+        "why": "+353 B, lane/c-approved-rows (Tyler 2026-11-20 calls 24-9, 26-3, 26-8, 26-9, 22-8): the ruled rows' one-line whys in shops.js, homestead-tiers.js (the Shrine held), gold-ladders.js (the bag stops at 10) and boss-calls.js (no gold); no new module reached; measured on set/v0.2.144"
       }
     ]
   }

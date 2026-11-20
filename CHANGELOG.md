@@ -17,6 +17,8 @@ Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full 
 
 **The House.** The Trophy Room is off sale until it can hang your trophies. Rungs you already bought stay yours.
 
+**The Shop.** Sell all junk no longer sells keys, so the Hall Key to Krell's Hold stays in your bag.
+
 **Behind the scenes.** The server does much less work for each hunt, so the world stays fast as more players join.
 
 ## v0.2.142 — 2026-11-20 (Tank Spells and Tougher Monsters)

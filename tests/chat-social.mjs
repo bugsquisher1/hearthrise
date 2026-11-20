@@ -698,7 +698,7 @@ async function startOpen(browser, base) {
       await page.keyboard.press('Enter');
       await page.waitForTimeout(300);
       const typing = await look(page);
-      if (!typing.open || !typing.field) fails.push('CW-12 [' + tag + '] Enter on the open Chat must give its field the caret and leave it open: ' + JSON.stringify(typing));
+      if (!typing.open || !typing.field) { fails.push('CW-12 [' + tag + '] Enter on the open Chat must give its field the caret and leave it open: ' + JSON.stringify(typing)); continue; }
       await page.keyboard.press('Escape');
       await page.click('[data-hs-win="chat"] [data-hs-close="chat"]');
       if (!await wait(page, () => !document.querySelector('[data-hs-win="chat"]'), null, 3000)) fails.push('CW-12 [' + tag + '] its X did not close Chat');
@@ -864,7 +864,7 @@ async function pageRules(overrides, shots) {
       }
       if (shots) await page.screenshot({ path: join(shots, 'online-' + tag + '.png') });
       await page.keyboard.press('Enter');
-      if (!await wait(page, () => document.querySelector('[data-hs-win="chat"] .hc-log.is-talk.is-on li'))) { fails.push('CW-1 [' + tag + '] the chat did not open on Global with its history'); await ctx.close(); continue; }
+      if (!await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-log.is-talk.is-on li'))) { fails.push('CW-1 [' + tag + '] the chat did not open on Global with its history'); await ctx.close(); continue; }
       // CW-1
       /* The server's broadcast of a stored line (2026-12-26-chat-broadcast.sql): topic chat:global, event line. */
       const n = await page.evaluate(() => window.__hub.send('chat:global', { t: 'line', line: { id: '00000000-0000-4000-8000-00000000f001', channel: 'global',

@@ -531,7 +531,8 @@ select.ca-token { field-sizing: content; }
 .hs-win[data-hs-win="chat"]::before { display: none; }
 .hs-win[data-hs-win="chat"] .hc-log.is-talk .hc-line { text-shadow: 0 1px 0 var(--world-shadow); }
 .hs-win.is-sized .hc-chat { flex: 1; min-height: 0; }
-.hs-win.is-sized .hc-pane.is-on { min-height: 0; }
+/* Chat squeezed to its floor (under a docked coach card in a hunt, lane/a-chat-opens) keeps its words inside the pane: "No messages yet" never runs onto the field */
+.hs-win.is-sized .hc-pane.is-on { min-height: 0; overflow: hidden; }
 .hs-win.is-sized .hc-logs { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .hs-win.is-sized .hc-log { flex: 1; min-height: 0; max-height: none; }
 /* The channel tabs sit on the windows' 2 px steel line (windows.css .hw-tabs), the shown one underlined gold. */

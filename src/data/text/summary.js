@@ -43,7 +43,6 @@ export const SUMMARY_TEXT = Object.freeze({
   always_verb: 'Always sell',
   always_busy: 'Saving the plan…',
   always_done: { one: '1 item marked Sell', other: '{count} items marked Sell' },
-  always_some: 'Set {set} of {of}. Press again for the rest',
   /* Deposit: every stack the loot plan marks Deposit, with its worth when the shop bids on any of it. */
   deposit_n: { one: 'Deposit 1 stack', other: 'Deposit {count} stacks' },
   deposit_worth: { one: 'Deposit 1 stack worth {worth}', other: 'Deposit {count} stacks worth {worth}' },

@@ -6,8 +6,8 @@
 //            a step lighter where it runs shallow; the coal path (J): the Hold's dark grit (29-hold-tiles/2-gravel-earth); the bridge's
 //            deck (G): the taproom's boards turned to run across the way. The crag (K) is no fill: cragDual lays the moor/crag pro tileset's
 //            (81c5eca9) own wang tiles on a dual grid over the painted moor, with its faces, lit lips, shade and rubble by rule.
-//   finish   the ford's stepping stones, the bridge's beams and its broken span (plank ends snapped over the gap, planks down in the
-//            stream), coal lumps along the runners' path. Every pixel is a palette colour; capFloor holds the floor under the actors.
+//   finish   the bridge's beams and its broken span (plank ends snapped over the gap, planks down in the stream), coal lumps along
+//            the runners' path, reeds at the ford (its water and stones: morrow-ox-ground.mjs oxWater). Every pixel is a palette colour; capFloor holds the floor under the actors.
 // mutant-anchors: none — an import tool; tests/world-assets.mjs judges what it writes
 // ════════════════════════════════════════════════════════════════════════
 import { createImage, crop } from './png.mjs';
@@ -19,6 +19,8 @@ import { varietyIndex } from '../../src/world/core/ground-variety.js';
 
 const T = 32;
 const rgb = (h) => h.match(/[0-9a-f]{2}/gi).map((v) => parseInt(v, 16));
+const stepUp = (c) => ({ '#2a1c14': '#3d2a1d', '#3d2a1d': '#553a26', '#553a26': '#6e4c30' })[c] || c;
+const stepDown = (c) => ({ '#553a26': '#3d2a1d', '#3d2a1d': '#2a1c14', '#2a1c14': '#231d1f' })[c] || c;
 const turn = (im) => { const o = createImage(im.height, im.width); for (let y = 0; y < im.height; y++) for (let x = 0; x < im.width; x++) o.data.set(im.data.subarray((y * im.width + x) * 4, (y * im.width + x) * 4 + 4), (x * o.width + (im.height - 1 - y)) * 4); return o; };
 
 /* the crag: the bedded-slab pro tileset (95b2cb35, 15 gens, 2026-11-19 after review b1c: the first set, 81c5eca9 in 4-moor-crag, read as crazy paving) */
@@ -60,51 +62,71 @@ export const oxPairs = Object.freeze([
 /** The coal path is a TRAIL (seams.mjs): one worn line through its cells' centres over the moor, never a staircase of squares, carried
     across the road and the ford (its links) */
 export const OX_TRAILS = Object.freeze({ J: { host: 'H', links: 'RV', half: 9, swell: 4, sweep: 4, warp: 4 } });
-/** The ford's stepping stones (V cells): flat stones in staggered rows across the water, a lit top edge, a dark foot and a ring of pale
-    water where the stream breaks on each; spaced a stride apart so the line reads as a way across, never a gravel bed. */
-export function fordStones(g, grid) {
-  const h = grid.length, w = grid[0].length; let x0 = w, x1 = -1, y0 = h, y1 = -1;
-  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (grid[y][x] === 'V') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
-  if (x1 < 0) return 0;
-  const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < g.width && y < g.height) g.data.set(rgb(c), (y * g.width + x) * 4); };
-  const N = 6, L = x0 * T - 4, R = (x1 + 1) * T + 4, mid = ((y0 + y1 + 1) / 2) * T;
-  for (let i = 0; i < N; i++) {
-    const X = Math.round(L + ((i + 0.5) / N) * (R - L)), Y = Math.round(mid + (i % 2 ? 9 : -9) + (hash2(i, 3, 91) - 0.5) * 4);
-    const rx = 7 + Math.floor(hash2(i, 5, 93) * 3), ry = 5 + Math.floor(hash2(i, 7, 95) * 2);
-    /* ripples downstream (south), broken arcs */
-    for (const k of [1, 2]) for (let dx = -rx - 2 * k; dx <= rx + 2 * k; dx++) if (hash2(X + dx, k, 97) > 0.35) put(X + dx, Y + ry + 3 * k + Math.round((dx / (rx + 2 * k)) ** 2 * -2), '#4f7a80');
-    for (let dy = -ry - 1; dy <= ry + 2; dy++) for (let dx = -rx - 2; dx <= rx + 2; dx++) {
-      const e = (dx / (rx + 0.5)) ** 2 + (dy / (ry + 0.5)) ** 2, base = (dx / (rx + 2)) ** 2 + ((dy - 1.5) / (ry + 1.5)) ** 2;
-      if (e <= 1) put(X + dx, Y + dy, dy <= -ry + 2 && dx <= 1 ? '#8a867d' : (dy <= -ry + 3 && dx <= rx - 2) ? '#6a6865' : dy >= ry - 1 ? '#3a3a3e' : '#4f4e52');
-      else if (base <= 1) put(X + dx, Y + dy, dy > 0 ? '#17141a' : '#231d1f');
-    }
-  }
-  return N;
-}
-
-/** The bridge (G cells across one row band): a dark beam along its north and south edges with a post every 16 px; where a run of deck
-    meets water in the same rows (the broken span) its boards end ragged over the gap, and four planks lie in the stream below it, a
-    dark waterline along each. */
+/** The bridge's two abutments (G cells), drawn plank by plank (review b5: "the X motif repeats, comb ends, no thickness or piles"):
+    planks laid across the way, each its own width (4-6 px), tone and grain, a dark gap between, nails over the stringers, the cart
+    track worn pale along the ruts; a beam along the north edge and along the south a FASCIA with posts (the deck's thickness, its
+    shadow on what is under it). Where the deck stops on water (the span that went down) its three STRINGERS stick out over the gap,
+    snapped and splintered, and two PILE STUMPS stand in the water where the middle trestle was; planks lie in the stream below. */
 export function bridgeDeck(g, grid) {
   const h = grid.length, w = grid[0].length, G = (x, y) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 'G';
   const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < g.width && y < g.height) g.data.set(rgb(c), (y * g.width + x) * 4); };
   let beams = 0, ends = 0, planks = 0;
-  for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
-    if (!G(cx, cy)) continue;
-    /* the beams: north edge (no deck above) and south edge (no deck below) */
-    for (const [edge, y0] of [[!G(cx, cy - 1), cy * T], [!G(cx, cy + 1), cy * T + T - 4]]) {
-      if (!edge) continue;
-      for (let x = cx * T; x < cx * T + T; x++) { put(x, y0, '#553a26'); put(x, y0 + 1, '#3d2a1d'); put(x, y0 + 2, '#3d2a1d'); put(x, y0 + 3, '#17141a'); beams++; if (x % 16 === 4) for (let d = 0; d < 4; d++) { put(x, y0 + d, '#2a1c14'); put(x + 1, y0 + d, '#6e4c30'); } }
+  /* the decks: each run of G cells along a row band */
+  const blocks = [];
+  for (let cx = 0; cx < w; cx++) for (let cy = 0; cy < h; cy++) {
+    if (!G(cx, cy) || G(cx, cy - 1) || (G(cx - 1, cy) && blocks.some((k) => k.x1 === cx - 1 && k.y0 === cy))) continue;
+    let y1 = cy; while (G(cx, y1 + 1)) y1++; let x1 = cx; while (G(x1 + 1, cy)) x1++;
+    blocks.push({ x0: cx, y0: cy, x1, y1 });
+  }
+  for (const k of blocks) {
+    const X0 = k.x0 * T, X1 = (k.x1 + 1) * T - 1, Y0 = k.y0 * T, Y1 = (k.y1 + 1) * T - 1, track = [TRAIN_ROW * T + 5, TRAIN_ROW * T + 27];
+    let x = X0, p = 0;
+    while (x <= X1) {
+      const pw = 4 + Math.floor(hash2(p, k.x0, 501) * 3), tone = ['#3d2a1d', '#553a26', '#3d2a1d', '#2a1c14', '#553a26'][Math.floor(hash2(p, k.x0, 503) * 5)];
+      for (let xx = x; xx < Math.min(x + pw, X1 + 1); xx++) for (let y = Y0; y <= Y1; y++) {
+        let c = xx === x + pw - 1 ? '#17141a' : tone;
+        if (c !== '#17141a') {
+          if (track.some((t) => Math.abs(y - t) < 3) && hash2(xx, y, 505) > 0.3) c = stepUp(tone);
+          else if (noise(xx * 3, y * 0.4, 4, 507) > 0.7) c = stepDown(tone);
+          if (xx === x && hash2(xx, y, 509) > 0.5) c = stepUp(c);
+        }
+        put(xx, y, c);
+      }
+      for (const ny of [Y0 + 6, Y1 - 7]) { const nx = x + (pw >> 1) - 1; put(nx, ny, '#4a4d54'); put(nx, ny + 1, '#17141a'); }
+      x += pw; p++; planks++;
     }
-    /* the broken ends: deck that stops on water in its own row */
+    /* the north beam and the south fascia with its posts */
+    for (let xx = X0; xx <= X1; xx++) {
+      put(xx, Y0, '#553a26'); put(xx, Y0 + 1, '#3d2a1d'); put(xx, Y0 + 2, '#17141a');
+      put(xx, Y1 - 4, '#553a26'); put(xx, Y1 - 3, '#2a1c14'); put(xx, Y1 - 2, '#2a1c14'); put(xx, Y1 - 1, (xx - X0) % 18 < 3 ? '#3d2a1d' : '#2a1c14'); put(xx, Y1, '#0b0a0c');
+      if ((xx - X0) % 18 === 0) put(xx, Y1 - 2, '#3d2a1d');
+      beams++;
+    }
+    /* the broken end over the gap: the stringers snapped and splintered, the last plank's end ragged */
     for (const dir of [1, -1]) {
-      const nx = cx + dir; if (nx < 0 || nx >= w || grid[cy][nx] !== 'Q') continue;
-      const xe = dir > 0 ? cx * T + T : cx * T - 1;
-      for (let y = cy * T; y < cy * T + T; y += 4) {
-        const len = 2 + Math.floor(hash2(cx, y, 31) * 9), snap = hash2(cx, y, 37) > 0.7;
-        for (let r = 0; r < 3; r++) for (let d = 0; d < len - (r === 2 ? 2 : 0); d++) put(xe + dir * d, y + r, r === 0 ? '#6e4c30' : r === 1 ? '#553a26' : '#2a1c14');
-        if (snap) { put(xe + dir * len, y, '#6e4c30'); put(xe + dir * (len + 1), y + 1, '#553a26'); }
-        put(xe + dir * len, y + 2, '#17141a'); ends++;
+      const edgeCx = dir > 0 ? k.x1 : k.x0; if (!grid[k.y0] || grid[k.y0][edgeCx + dir] !== 'Q') continue;
+      const xe = dir > 0 ? X1 + 1 : X0 - 1;
+      for (const [sy, len] of [[Y0 + 7, 14 + Math.floor(hash2(k.x0, 1, 511) * 9)], [((Y0 + Y1) >> 1) - 1, 6 + Math.floor(hash2(k.x0, 2, 513) * 6)], [Y1 - 11, 16 + Math.floor(hash2(k.x0, 3, 515) * 8)]]) {
+        for (let d = 0; d < len; d++) {
+          const ragged = d > len - 4 ? Math.floor(hash2(d, sy, 517) * 3) : 0;
+          for (let r = ragged; r < 4; r++) put(xe + dir * d, sy + r, r === 0 ? '#553a26' : r === 3 ? '#17141a' : '#3d2a1d');
+        }
+        put(xe + dir * len, sy + 1, '#553a26'); put(xe + dir * (len + 1), sy + 2, '#3d2a1d');
+        for (let d = 0; d < len; d++) put(xe + dir * d, sy + 5, '#0b0a0c');   /* its shadow on the water */
+        ends++;
+      }
+      for (let y = Y0 + 3; y < Y1 - 4; y++) if (hash2(y, k.x0, 519) > 0.55) put(xe - dir, y, '#17141a');
+      /* two pile stumps in the gap where the middle trestle stood */
+      const gx = xe + dir * 22;
+      for (const sy of [Y0 + 14, Y1 - 20]) {
+        /* a round post sawn off ragged: its top end-grain lit, its side down to the water dark, a ring of broken water round its foot */
+        for (let b2 = -3; b2 <= 7; b2++) for (let a2 = -4; a2 <= 4; a2++) {
+          const top = (a2 / 3.6) ** 2 + ((b2 + 0.5) / 2.2) ** 2 <= 1, side = Math.abs(a2) <= 3 && b2 > -1 && b2 <= 5;
+          if (top) put(gx + a2, sy + b2, a2 + b2 < -1 ? '#6e4c30' : a2 < 2 ? '#553a26' : '#3d2a1d');
+          else if (side) put(gx + a2, sy + b2, a2 === -3 ? '#3d2a1d' : a2 === 3 ? '#0b0a0c' : b2 > 3 ? '#17141a' : '#2a1c14');
+        }
+        put(gx - 1, sy - 3, '#2a1c14'); put(gx + 2, sy - 3, '#2a1c14');
+        for (let a2 = -6; a2 <= 6; a2++) if (hash2(a2, sy, 521) > 0.3) put(gx + a2, sy + 7 + (Math.abs(a2) > 4 ? 1 : 0), a2 < 0 ? '#5c6c7a' : '#3a4652');
       }
     }
   }
@@ -156,7 +178,7 @@ const RAMP_OF = new Map(); for (const [name, ramp] of Object.entries(RAMPS)) ram
 /* one cool grey ladder for the cap's shade (iron and stone fall into the shadow ramp under their own bottom step) */
 const LADDER = ['#0b0a0c', '#17141a', '#231d1f', '#2c2e33', '#3a3a3e', '#4a4d54', '#6a6865', '#8a867d'];
 const RUNG = { '#0b0a0c': 0, '#17141a': 1, '#231d1f': 2, '#2f2723': 2, '#2c2e33': 3, '#3a3a3e': 4, '#3a4652': 4, '#4a4d54': 5, '#4f4e52': 5, '#6a6865': 6, '#5c6c7a': 6, '#6e727a': 6, '#8a867d': 7 };
-export const CRAG_LOOK = { base: 1, shadeAt: [2.3, 4.3], blob: 0.64, face: [24, 8] };
+export const CRAG_LOOK = { base: 1, shadeAt: [2.3, 4.3], blob: 0.64, face: [24, 8], mass: 118 };
 export function cragDual(g, grid, { sheet, meta }) {
   const h = grid.length, w = grid[0].length, W = g.width, H = g.height;
   const key = (t) => ['NW', 'NE', 'SW', 'SE'].map((c) => (t.corners[c] === 'upper' ? '1' : '0')).join('');
@@ -199,14 +221,23 @@ export function cragDual(g, grid, { sheet, meta }) {
     for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + a, yy = y + b; if (xx < 0 || yy < 0 || xx >= W || yy >= H || cap[yy * W + xx]) n++; }
     if (n < 2) cap[p] = 0;
   }
+  /* review b5: pale 1 px spikes stood along the south crag's top edge (cap one pixel across, left by the warp and lit as a rim): a
+     sliver one pixel wide or one pixel tall goes back to the moor (the map's edge counts as crag) */
+  /* (they were 2-3 px tendrils: an OPENING of the cap by a disc of radius 2, eroded then grown back, takes anything under 5 px across) */
+  { const R2 = [[0, 0]]; for (let b = -2; b <= 2; b++) for (let a = -2; a <= 2; a++) if ((a || b) && a * a + b * b <= 5) R2.push([a, b]);
+    const at = (m, x, y) => x < 0 || y < 0 || x >= W || y >= H || m[y * W + x] === 1;
+    const er = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (cap[y * W + x]) er[y * W + x] = R2.every(([a, b]) => at(cap, x + a, y + b)) ? 1 : 0;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (cap[y * W + x] && !R2.some(([a, b]) => x + a >= 0 && y + b >= 0 && x + a < W && y + b < H && er[(y + b) * W + x + a])) cap[y * W + x] = 0; }
   /* holes in the cap (the tileset's grass in its joints, a pocket under 60 px not joined to the open moor) are joints: dark, and part of
      the cap, so no lit rim rings them (review b1d: "the grout lines lighter than the stones") */
+  /* review b5's spikes: the flood here used to stop early on a big pocket, leaving its frontier as walls, and the rest of the open moor
+     filled in as thin 'holes'; each pocket is now flooded whole */
   { const seen = new Uint8Array(W * H); let holes = 0;
     for (let p0 = 0; p0 < W * H; p0++) {
       if (cap[p0] || seen[p0]) continue;
       const comp = [p0], st = [p0]; seen[p0] = 1; let open = false;
       while (st.length) { const p = st.pop(), x = p % W, y = (p / W) | 0; if (x === 0 || y === 0 || x === W - 1 || y === H - 1) open = true;
-        for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + a, yy = y + b; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; const q = yy * W + xx; if (!cap[q] && !seen[q]) { seen[q] = 1; comp.push(q); st.push(q); if (comp.length > 60) open = true; } } if (open && comp.length > 60) break; }
+        for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + a, yy = y + b; if (xx < 0 || yy < 0 || xx >= W || yy >= H) continue; const q = yy * W + xx; if (!cap[q] && !seen[q]) { seen[q] = 1; comp.push(q); st.push(q); if (comp.length > 60) open = true; } } }
       if (open || comp.length > 60) continue;
       for (const p of comp) { cap[p] = 1; cr.data.set(rgb(hash2(p, 1, 205) > 0.75 ? '#16241a' : '#17141a'), p * 4); holes++; }
     } }
@@ -232,6 +263,23 @@ export function cragDual(g, grid, { sheet, meta }) {
     const hx = hexAt(cr, (y * W + x) * 4);
     put(x, y, s && RUNG[hx] != null ? LADDER[Math.max(0, RUNG[hx] - s)] : hx); if (s) shaded++;
   }
+  /* 2a BOULDER MASSES (review b5: "the tops an even crack net = flagstone, the moor's grey value; group into 3-5 boulder masses lit
+     upper left, dark lower right"). Seeds on a jittered lattice (CRAG_LOOK.mass px); each cap pixel belongs to its nearest seed, warped
+     so the masses are lumpy; in a mass the upper left lifts a rung and the lower right falls one or two; where two masses meet, a dark
+     cleft; on a mass's lit side the tileset's fine joints mostly fill in, so its form reads over the net of cracks */
+  let massed = 0, clefts = 0;
+  { const S = CRAG_LOOK.mass, gx1 = Math.ceil(W / S) + 1, seed = (gx, gy) => [(gx + 0.2 + hash2(gx, gy, 301) * 0.6) * S, (gy + 0.2 + hash2(gx, gy, 303) * 0.6) * S];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      if (!cap[y * W + x]) continue;
+      const wx = x + (noise(x, y, 26, 305) - 0.5) * 34, wy = y + (noise(x, y, 26, 307) - 0.5) * 34, cx = Math.floor(wx / S), cy = Math.floor(wy / S);
+      let d1 = 1e9, d2 = 1e9, s1 = null;
+      for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) { if (cx + a < -1 || cx + a > gx1) continue; const sd = seed(cx + a, cy + b), d = Math.hypot(wx - sd[0], (wy - sd[1]) * 1.15); if (d < d1) { d2 = d1; d1 = d; s1 = sd; } else if (d < d2) d2 = d; }
+      if (d2 - d1 < 2.4) { put(x, y, d2 - d1 < 1.2 ? '#0b0a0c' : '#17141a'); clefts++; continue; }
+      const l = -((wx - s1[0]) * 0.8 + (wy - s1[1])) / S, delta = l > 0.2 ? 1 : l < -0.42 ? -2 : l < -0.14 ? -1 : 0;
+      let r = RUNG[hexAt(g, (y * W + x) * 4)]; if (r == null) continue;
+      if (r <= 2 && delta >= 0 && noise(x, y, 5, 309) < 0.62) r = 4;
+      put(x, y, LADDER[Math.max(0, Math.min(LADDER.length - 1, r + delta))]); massed++;
+    } }
   /* 2b the moor creeps onto the cap: in soft blobs its dark joints grow grass (the moor's darkest greens, a tuft pixel here and
      there); and a few long fissures cross it (a dark line wandering 20-60 px, its lower lip lit), so the slabs never read as paving */
   let grass = 0, cracks = 0;
@@ -310,11 +358,11 @@ export function cragDual(g, grid, { sheet, meta }) {
     rubble++; return 1;
   };
   for (const [x, y] of feet) {
-    if (hash2(x, y, 261) < 0.2) stone(x + Math.floor((hash2(x, y, 263) - 0.5) * 4), y + 1 + Math.floor(hash2(x, y, 265) ** 2 * 8), 2 + Math.floor(hash2(x, y, 267) * 3));
-    else if (hash2(x, y, 269) < 0.03) stone(x - 2, y, 5 + Math.floor(hash2(x, y, 271) * 3));
+    if (hash2(x, y, 261) < 0.32) stone(x + Math.floor((hash2(x, y, 263) - 0.5) * 4), y + 1 + Math.floor(hash2(x, y, 265) ** 2 * 8), 2 + Math.floor(hash2(x, y, 267) * 3));
+    else if (hash2(x, y, 269) < 0.06) stone(x - 2, y, 5 + Math.floor(hash2(x, y, 271) * 3));
   }
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (C(x, y) && !C(x, y - 1) && y > 0 && hash2(x, y, 273) < 0.03) stone(x - 1, y - 4 - Math.floor(hash2(x, y, 275) * 3), 2);
-  return { laid, banded, shaded, lips, faces, rubble };
+  return { laid, banded, shaded, massed, clefts, lips, faces, rubble };
 }
 
 /* ── THE OX ROAD'S OWN WEAR (batch-1 reviews: the road's lit pixels sat in the 0.07-0.09 dead zone and it was the brightest mass; then
@@ -330,7 +378,7 @@ export const TRAIN_ROW = 22;
 /** Where mh_ore_wagon_slewed stands (map.js objects, x23-24 on TRAIN_ROW): its tail swung south out of the ruts, so the ruts kink south
     under it (review b2: ruts ruler-straight under an even line of rigs). */
 export const SLEW = Object.freeze({ at: 24 * T + 20, half: 34, dy: 6 });
-export function oxRoad(g, grid) {
+export function oxRoad(g, grid, { wrecks = [] } = {}) {
   const h = grid.length, w = grid[0].length, W = g.width;
   const isR = (x, y) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 'R';
   const at = (x, y) => hexAt(g, (y * W + x) * 4), put = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < g.height) g.data.set(rgb(c), (y * W + x) * 4); };
@@ -364,10 +412,12 @@ export function oxRoad(g, grid) {
   for (let y = 0; y < g.height; y++) for (let x = 0; x < W; x++) {
     if (!onRoad(x, y)) continue;
     const c = at(x, y);
-    if (c === '#6e4c30' || c === '#8a6440' || c === '#a88457') put(x, y, '#553a26');
+    /* review b5, ranked 3: the road was the brightest broad ground in grey; its body goes a step down, the old body kept as a lit grain
+       in soft patches (the crown and the south lip, step 2, stay the lightest) */
+    if (c === '#6e4c30' || c === '#8a6440' || c === '#a88457' || c === '#553a26') put(x, y, noise(x, y, 3.4, 399) > 0.7 + 0.12 * noise(x, y, 60, 398) ? '#553a26' : '#3d2a1d');
     /* the dust: grey grit in CLUMPS of 2-4 px (a fine value noise under a share that drifts in soft patches). Review b1d: random grey
        salt read as plastic; review b4: the 4x4 ordered dither that replaced it read as a screen-door mesh at x2, the loudest tell */
-    if (at(x, y) === '#553a26' && noise(x, y, 2.4, 401) < 0.08 + 0.36 * noise(x, y, 40, 403)) { put(x, y, '#3a3a3e'); grit++; }
+    if ((at(x, y) === '#3d2a1d' || at(x, y) === '#553a26') && noise(x, y, 2.4, 401) < 0.08 + 0.36 * noise(x, y, 40, 403)) { put(x, y, '#2c2e33'); grit++; }
   }
   /* 2 across the road: the crown clean, the verges darker with grass creeping in, the south verge's lip lit */
   for (let x = 0; x < W; x++) {
@@ -377,28 +427,45 @@ export function oxRoad(g, grid) {
       if (!onCell(x, y)) continue;
       let dn = 0, ds = 0; while (dn < 14 && !moorAt(x, y - dn - 1)) dn++; while (ds < 14 && !moorAt(x, y + ds + 1)) ds++;
       const wob = noise(x, y, 12, 405) * 6;
-      if (Math.abs(y - c) < 5 + wob * 0.5 && at(x, y) === '#3a3a3e') { put(x, y, '#553a26'); crown++; }
+      if (Math.abs(y - c) < 5 + wob * 0.5 && (at(x, y) === '#2c2e33' || (at(x, y) === '#3d2a1d' && hash2(x, y, 406) > 0.45))) { put(x, y, '#553a26'); crown++; }
       else if (ds < 2 && hash2(x, y, 407) > 0.3) { put(x, y, '#553a26'); verge++; }
-      else if ((dn < 4 + wob || ds < 2 + wob * 0.6) && hash2(x, y, 409) < 0.55) { put(x, y, hash2(x, y, 411) > 0.4 ? '#3d2a1d' : '#2f2723'); verge++; }
-      if ((dn < 3 || ds < 3) && hash2(x, y, 413) < 0.1) { put(x, y, hash2(x, y, 415) > 0.5 ? '#1f3322' : '#2c4a2c'); if (hash2(x, y, 417) > 0.6) put(x, y - 1, '#1f3322'); creep++; }
+      else if ((dn < 4 + wob || ds < 2 + wob * 0.6) && hash2(x, y, 409) < 0.55) { put(x, y, hash2(x, y, 411) > 0.4 ? '#2a1c14' : '#2f2723'); verge++; }
+      if ((dn < 3 || ds < 3) && hash2(x, y, 413) < 0.1) { put(x, y, hash2(x, y, 415) > 0.5 ? '#16241a' : '#1f3322'); if (hash2(x, y, 417) > 0.6) put(x, y - 1, '#16241a'); creep++; }
     }
   }
-  /* 3 the ruts: two beds a cart's width apart, wandering with the road and each on its own, 4-6 px across */
+  /* 3 the ruts: two beds a cart's width apart, wandering with the road and each on its own, 4-6 px across (review b5: "two unbroken
+     parallel lines = a ruler line: break, puddle, braid"): broken where the road dried hard, and two more pairs ride beside them, fainter
+     and narrower: a BRAID that wanders off the main line and back, and a DETOUR the traffic before the train wore round each wreck */
+  const bump = (a) => wrecks.reduce((s, wx) => s - 30 * Math.exp(-(((a - wx) / 46) ** 2)), 0);
+  const braid = (a) => (noise(0, a, 230, 473) - 0.5) * 70;
+  const rutAt = (a, c, off, wd, faint, k) => {
+    for (let r = 0; r < wd; r++) {
+      const y = c + off + r; if (!onCell(a, y)) continue;
+      let col = r === 0 ? '#231d1f' : r === wd - 1 ? (faint ? '#3d2a1d' : '#553a26') : r === wd - 2 && !faint ? '#3d2a1d' : hash2(a, y, 419 + k) > 0.7 ? '#231d1f' : '#2a1c14';
+      put(a, y, col); rut++;
+    }
+  };
   for (let a = 0; a < W; a++) {
     if (mid[a] == null) continue;
     const c = mid[a] + (noise(0, a, 150, 5) - 0.5) * 22;
     for (const off of [-11, 11]) {
       const b = Math.round(c + off + (noise(off, a, 61, 7) - 0.5) * 14 + (noise(off, a, 17, 8) - 0.5) * 3);
-      if (noise(off, a, 90, 9) < 0.24) continue;
+      if (noise(off, a, 90, 9) < 0.33) continue;
       const wd = 4 + Math.floor(noise(off, a, 31, 10) * 3.4);
       const wet = noise(off, a, 37, 11) > 0.7;
       for (let r = 0; r < wd; r++) {
         if (!onCell(a, b + r)) continue;
-        /* review b4: a near-black north wall read as a crevice; the wall is the earth's own darkest */
-        let col = r === 0 ? '#2a1c14' : r === wd - 1 ? '#553a26' : r === wd - 2 ? '#3d2a1d' : hash2(a, b + r, 419) > 0.7 ? '#3d2a1d' : '#2a1c14';
-        if (wet && r > 0 && r < wd - 1) { col = r === 1 ? '#231d1f' : '#2f2723'; if (r === 2 && hash2(a, b, 421) > 0.88) col = '#3a3a3e'; puddle++; }
+        /* review b4: a near-black north wall read as a crevice; the wall is the shadow ramp's warm dark, a step over black */
+        let col = r === 0 ? '#231d1f' : r === wd - 1 ? '#553a26' : r === wd - 2 ? '#3d2a1d' : hash2(a, b + r, 419) > 0.7 ? '#231d1f' : '#2a1c14';
+        if (wet && r > 0 && r < wd - 1) { col = r === 1 ? '#17141a' : '#231d1f'; if (r === 2 && hash2(a, b, 421) > 0.88) col = '#2c2e33'; puddle++; }
         put(a, b + r, col); rut++;
       }
+    }
+    /* the braid, where it has wandered off the main pair, and the detour round a wreck, each a fainter pair 2-3 px wide */
+    const bo = braid(a), dt = bump(a);
+    for (const [shift, k] of [[bo, 1], [dt, 2]]) {
+      if (Math.abs(shift) < 7 || noise(k, a, 40, 475 + k) < 0.38) continue;
+      for (const off of [-10, 10]) rutAt(a, Math.round(c + shift + (noise(off + k, a, 50, 477) - 0.5) * 6), off, 2 + (noise(off, a, 23, 479) > 0.6 ? 1 : 0), true, k);
     }
   }
   /* 4 loose stones, one at a time: 1-3 px, grey or the road's own dark, a dark foot; denser where the road is stony, never two touching */
@@ -417,28 +484,6 @@ export function oxRoad(g, grid) {
   return { warped, grit, crown, verge, creep, rut, puddle, loose: stones };
 }
 
-/* ── THE FORD'S GRADE (b1d review: "a teal rectangle on hard horizontal seams"): where the ford's shallows (V) meet the peat stream (Q) above
-   and below, the two waters mix over ~22 px each side in clumps (a fine noise against the distance), the shallow's colours stepping down
-   into the peat's and the peat's up into the shallow's, so the ford reads as the stream running shallow over its stones. ── */
-const TO_PEAT = Object.freeze({ '#86b4b4': '#3a4652', '#4f7a80': '#2e4a52', '#2e4a52': '#2c2e33' });
-const TO_SHALLOW = Object.freeze({ '#2c2e33': '#2e4a52', '#2e4a52': '#4f7a80', '#3a4652': '#4f7a80', '#5c6c7a': '#86b4b4' });
-export function fordGrade(g, grid) {
-  const h = grid.length, w = grid[0].length, W = g.width; let n = 0;
-  const cell = (x, y) => grid[Math.min(h - 1, Math.max(0, y >> 5))][Math.min(w - 1, Math.max(0, x >> 5))];
-  for (let y = 0; y < g.height; y++) for (let x = 0; x < W; x++) {
-    const c = cell(x, y); if (c !== 'V' && c !== 'Q') continue;
-    /* the distance to the other water up or down this column */
-    let d = 99; for (let k = 1; k < 40; k++) { const o = c === 'V' ? 'Q' : 'V'; if (cell(x, y - k) === o || cell(x, y + k) === o) { d = k; break; } }
-    if (d > 39) continue;
-    /* the mix is thickest at the line and thins over 40 px; near the line a pixel can step twice (teal -> dark teal -> peat), so the
-       middle of the band is the dark teal the two waters share (whole-map pass: one step over 24 px still read as a band) */
-    const p = 0.62 * (1 - d / 40) ** 1.2, map = c === 'V' ? TO_PEAT : TO_SHALLOW, q = (y * W + x) * 4, wob = 0.14 * (noise(x, y, 14, 455) - 0.5);
-    let hx = hexAt(g, q), steps = 0;
-    if (map[hx] && noise(x, y, 3.2, c === 'V' ? 451 : 453) < p + wob) { hx = map[hx]; steps++; if (map[hx] && noise(x, y, 4.1, 457) < p * 0.7 + wob) { hx = map[hx]; steps++; } }
-    if (steps) { g.data.set(rgb(hx), q); n++; }
-  }
-  return n;
-}
 /* ── REEDS AT THE FORD: clumps of reed on the moor where it meets the stream within a few cells of the ford, standing strokes 3-7 px in
    the moor's own dark greens with a lit tip, a few brown seed heads, a dark foot; never on the water, never on a walked path ── */
 export function fordReeds(g, grid) {

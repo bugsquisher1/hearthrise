@@ -30,7 +30,8 @@ import { stepPatches, bakeDecals, noise, hash2 } from './ground-finish.mjs';
 import { toneAt, varietyIndex } from '../../src/world/core/ground-variety.js';
 import { roofMass, faceTop, walkedRoof, tornEdges, doorwayOf, dividersOf, dimStone, chimney, sills } from './morrow-roofs.mjs';
 import { brewBricks, stableStraw } from './morrow-floors.mjs';
-import { oxFills, OX_MATS, OX_TRAILS, oxPairs, fordStones, bridgeDeck, coalLumps, cragDual, oxRoad, CRAG, fordGrade, fordReeds } from './morrow-ox.mjs';
+import { oxFills, OX_MATS, OX_TRAILS, oxPairs, bridgeDeck, coalLumps, cragDual, oxRoad, CRAG, fordReeds } from './morrow-ox.mjs';
+import { oxMoor, oxWater, oxStory } from './morrow-ox-ground.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const T = 32;
@@ -236,11 +237,11 @@ const FLOOR_MAX = 0.12;
 /* the Ox Road's road and coal path hold their lit pixels under 0.07 (batch-1 review: the road's p90 .087 sat in the 0.07-0.09 dead
    zone and it was the brightest mass); its verge, crown and ruts still read in greyscale against the 0.028 moor */
 const ROAD_MAX = 0.07;
-function capFloor(g, grid, roadMax = 0) {
+function capFloor(g, grid, roadMax = 0, exempt = '') {
   const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
   let n = 0;
   for (let p = 0; p < g.data.length; p += 4) {
-    const px = (p / 4) % g.width, py = Math.floor(p / 4 / g.width); if ('MHWK'.includes(grid[Math.floor(py / T)][Math.floor(px / T)])) continue;
+    const px = (p / 4) % g.width, py = Math.floor(p / 4 / g.width); if (('MHWK' + exempt).includes(grid[Math.floor(py / T)][Math.floor(px / T)])) continue;
     const max = roadMax && 'RJ'.includes(grid[Math.floor(py / T)][Math.floor(px / T)]) ? roadMax : FLOOR_MAX;
     let h = hexAt(g, p); if (LUM(h) <= max) continue;
     const a = RAMP_AT.get(h); if (!a) continue;
@@ -359,7 +360,7 @@ function layWalls(img, grid, P, indoor) {
 }
 
 /** The whole painter: grid (paint chars) -> the ground image and what each step did. `skip(x, y)`: no decal under a placed object. */
-export function paintGround(grid, { skip = () => false, ranges = RANGES, chimneys = CHIMNEYS } = {}) {
+export function paintGround(grid, { skip = () => false, ranges = RANGES, chimneys = CHIMNEYS, objects = [] } = {}) {
   const ox = grid.some((r) => /[QVJGK]/.test(r)), inn = grid.some((r) => r.includes('M'));
   /* the Ox Road's crag is laid last on its own dual grid (morrow-ox.mjs cragDual): under it the moor is painted like any moor */
   const cragGrid = grid; if (ox) grid = grid.map((r) => r.replace(/K/g, 'H'));
@@ -393,20 +394,25 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   let toned = 0;
   for (const [ch, m] of Object.entries(mats)) toned += stepPatches(img, { rows: seamRows, on: (c) => c === ch, scale: 70, cut: 0.56, seed: m.v.seed + 100, map: toneMap(m.fill) });
   let road = ox ? null : roadWear(img, grid);
-  const heath = stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 58, cut: 0.55, seed: 61, map: HEATH });
-  const bracken = stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 44, cut: 0.74, seed: 91, map: BRACKEN });
-  const olive = stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 52, cut: 0.6, seed: 93, map: OLIVE });
+  /* the Ox Road's moor by its own rule (morrow-ox-ground.mjs oxMoor, b5 review ranked 1): a step darker, heather only in drifts, bare
+     peat, four decal kinds; Carter's Rest keeps the heath, bracken and olive patches */
+  const heath = ox ? 0 : stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 58, cut: 0.55, seed: 61, map: HEATH });
+  const bracken = ox ? 0 : stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 44, cut: 0.74, seed: 91, map: BRACKEN });
+  const olive = ox ? 0 : stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 52, cut: 0.6, seed: 93, map: OLIVE });
+  const moor = ox ? oxMoor(img, grid, { skip }) : {};
   const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
   /* the Ox Road wears its road by its own rule (morrow-ox.mjs oxRoad: every pixel under 0.07, structure instead of light), after the
      moor's patches: its edge is warped across the cell line, and the heath pass (cell by cell) would cut it back to the grid */
-  if (ox) road = oxRoad(img, grid);
+  /* the ruts swing round the road's wrecks (the broken and the slewed wagon) and the ground under the train tells its story */
+  if (ox) road = { ...oxRoad(img, grid, { wrecks: objects.filter((o) => /^mh_ore_wagon_(broken|slewed)$/.test(o.id)).map((o) => o.x * T + 32) }), ...oxStory(img, grid, objects) };
   /* the Ox Road's own pieces (tools/world-art/morrow-ox.mjs): the ford's stones, the bridge's beams and broken span, coal on the runners' path */
-  const oxr = ox ? { graded: fordGrade(img, grid), stones: fordStones(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid), reeds: fordReeds(img, grid) } : {};
+  const oxr = ox ? { ...oxWater(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid), reeds: fordReeds(img, grid) } : {};
   if (!inn) {
     const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
     const crag = ox ? cragDual(img, cragGrid, metaOf(CRAG.dir)) : {};
-    const capped = capFloor(img, grid, ox ? ROAD_MAX : 0);
-    return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...oxr, ...crag, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))] } };
+    /* the stream is never walked: its lit lip and the current's streaks may stand over the floor's limit (the ford is walked: held) */
+    const capped = capFloor(img, grid, ox ? ROAD_MAX : 0, ox ? 'Q' : '');
+    return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, ...moor, damp, ...oxr, ...crag, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))] } };
   }
   const walked = walkedRoof(img, grid, mats.E.fill, ranges, shadeGround(mats.B.fill, 3));
   const doorway = doorwayOf(grid), P = wallPieces();
@@ -437,7 +443,7 @@ async function oxGround() {
     'tools/world-art/morrow-grounds.mjs. H the open moor, R the road, E the turnout\'s packed earth, J the coal path, Q the stream, V the ford\'s',
     'stones, G the bridge\'s planks (its middle span down: Q between them), K the crag (raised, seams.mjs rise).', '', 'PAINT', ...grid].join('\n') + '\n');
   const cells = new Set(MAP.objects.map((o) => o.x + ',' + o.y));
-  const { img, report } = paintGround(grid, { skip: (x, y) => cells.has(x + ',' + y), chimneys: [] });
+  const { img, report } = paintGround(grid, { skip: (x, y) => cells.has(x + ',' + y), chimneys: [], objects: MAP.objects });
   const dir = abs(join(ART_DIR, OXSET));
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, G + '.png'), encodePNG(lock(img, 'native')));

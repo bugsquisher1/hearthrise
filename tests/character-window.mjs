@@ -269,6 +269,17 @@ async function checks(overrides, shots) {
         await wait(page, () => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return !!d && d.textContent === '1–31'; }, null, 4000);
         const same = await page.evaluate(() => { const d = document.querySelector('[data-hs-win="character"] [data-combat="damage"] dd'); return { same: d === window.__dmg, t: d.textContent }; });
         if (same.t !== '1–31' || !same.same) fails.push('CW-2 after a new envelope the damage reads ' + same.t + (same.same ? '' : ' on a rebuilt node'));
+        /* CW-2c THE BONUS THE SERVER PAYS IS ON THE SHEET (retention dive 2026-11-20: "None right now" under a "+25% Level XP" plate): the
+           server's live XP event is its own line, out of the Total, and goes with the next envelope that drops it. */
+        s.env.live_events = [{ id: 'bonus_weekend', type: 'xp_bonus', dial: 'xpPm', pm: 1250, scope: ['world'], starts: '2020-01-01T00:00:00Z', ends: '2099-01-01T00:00:00Z', live: true }];
+        await push(page, s);
+        await wait(page, () => { const e = document.querySelector('[data-hs-win="character"] [data-xp="event"]'); return !!e && getComputedStyle(e).display !== 'none'; }, null, 4000);
+        const evOn = await lines(page), noneOn = await page.evaluate(() => getComputedStyle(document.querySelector('[data-hs-win="character"] .hw-cs-xnone')).display !== 'none');
+        if (evOn['Bonus XP weekend'] !== '+25% Level XP' || evOn.Total !== '+2%' || noneOn) fails.push('CW-2c with the Bonus XP weekend on the sheet reads ' + JSON.stringify(evOn) + (noneOn ? ' and "None right now"' : ''));
+        delete s.env.live_events;
+        await push(page, s);
+        await wait(page, () => { const e = document.querySelector('[data-hs-win="character"] [data-xp="event"]'); return !!e && getComputedStyle(e).display === 'none'; }, null, 4000);
+        if ('Bonus XP weekend' in await lines(page)) fails.push('CW-2c the event line stays after the server dropped the event');
         /* CW-4: try on an owned outfit, save: ONE intent. */
         await page.click('[data-hs-win="character"] .hw-tab[data-tab="outfit"]');
         await page.waitForTimeout(300);
@@ -749,6 +760,7 @@ async function checks(overrides, shots) {
 }
 
 const MUTANTS = [
+  ['the sheet lists no live XP event (CW-2c)', 'src/shell/windows/character/sheet.js', '  const ev = c ? sheetXpLine(cs) : null;', '  const ev = c ? null : sheetXpLine(cs);'],
   ['an add-on not owned can be picked (CW-11)', 'src/shell/windows/character/outfit-looks.js', '    const own = owns(o, look);', '    const own = true;'],
   ['the requirement is a literal, not the server\'s number (CW-11)', 'src/shell/windows/character/outfit-looks.js', 'time: spanWords(p.needMs) })', 'time: spanWords(25 * 3600000) })'],
   ['a locked faction outfit shows with the factions off (CW-11)', 'src/shell/windows/character/outfit-looks.js', "    return !!r.pieces && requiresWords(f, r.pieces[0]) !== '';", '    return !!r.pieces;'],

@@ -7,13 +7,13 @@
 // a bank. Hovering an item opens the shared item tooltip (./item-tip.js).
 // Nothing here can change anything.
 // ════════════════════════════════════════════════════════════════════════
-import { refusalWords } from '../intent-words.js?v=0.2.142';
-import { EQUIP_SLOT_META } from '../../data/gathering.js?v=0.2.142';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.142';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.142';
-import { showTip, hideTip } from './item-tip.js?v=0.2.142';
-import { rows, text, element } from '../../render/paint.js?v=0.2.142';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { refusalWords } from '../intent-words.js?v=0.2.143';
+import { EQUIP_SLOT_META } from '../../data/gathering.js?v=0.2.143';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.143';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.143';
+import { showTip, hideTip } from './item-tip.js?v=0.2.143';
+import { rows, text, element } from '../../render/paint.js?v=0.2.143';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.143';
 
 export function renderInspect() {
   return '<div class="hi-inspect"><h3 class="hs-sub hi-who"></h3><p class="hi-line"></p>'

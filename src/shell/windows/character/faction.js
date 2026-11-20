@@ -15,16 +15,16 @@
 // swap's cost and the side lock after it; the swap time a cancel loses) before ONE intent is sent. During a swap the hero is still on its
 // side: its own grounds pay its standing, the new side's pay swap time only (#3: the line says so, hr_faction_credit does so).
 // ════════════════════════════════════════════════════════════════════════
-import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.142';
-import { claimPiece, startSwap, finishSwap, cancelSwap } from '../../../session/faction-intents.js?v=0.2.142';
-import { OUTFIT_ROWS } from '../../../data/outfits.js?v=0.2.142';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.142';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.142';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
-import { runIntent } from '../../intent-words.js?v=0.2.142';
-import { t } from '../../../render/player-text.js?v=0.2.142';
-import { factionIconHtml } from '../../widgets/bits.js?v=0.2.142';
-import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, waitWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.142';
+import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.143';
+import { claimPiece, startSwap, finishSwap, cancelSwap } from '../../../session/faction-intents.js?v=0.2.143';
+import { OUTFIT_ROWS } from '../../../data/outfits.js?v=0.2.143';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.143';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.143';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.143';
+import { runIntent } from '../../intent-words.js?v=0.2.143';
+import { t } from '../../../render/player-text.js?v=0.2.143';
+import { factionIconHtml } from '../../widgets/bits.js?v=0.2.143';
+import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, waitWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.143';
 
 /** The tab's name. */
 export const FACTION_TAB = t('factions.tab');

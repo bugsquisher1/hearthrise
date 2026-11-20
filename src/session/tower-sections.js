@@ -37,7 +37,7 @@
 // dropped, never mended: the window shows less, never something the server did not say. A number the server did not send is null.
 // ════════════════════════════════════════════════════════════════════════
 
-import { TOWER_KEY_FAMILY } from '../data/chests.js?v=0.2.142';
+import { TOWER_KEY_FAMILY } from '../data/chests.js?v=0.2.143';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const WORD = /^[a-z0-9_]{1,64}$/;

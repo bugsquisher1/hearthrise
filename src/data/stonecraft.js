@@ -60,7 +60,7 @@
 // be removed.
 // ══════════════════════════════════════════════════════════════════════════
 
-import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.141';
+import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.142';
 
 /* ── R7: ONE STAT CURVE ACROSS THE AMMO LADDERS ───────────────────────
    `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows and whetstones
@@ -97,7 +97,7 @@ const AMMO_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'legenda
    Air is a family with no rows: it is hidden until a spell spends it (Tyler 10-23), and an item with no
    source and no use is not authored (tests/catalogue-coherence.mjs C1, the W0 rule). */
 const RUNE_VALUE = [0, 3, 3, 6, 10];
-const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', ice: '❄️', poison: '🧪', rupture: '🩸' });
+const RUNE_GLYPH = Object.freeze({ fire: '🔥', earth: '🌍', water: '💧', ice: '❄️', poison: '🧪', rupture: '🩸', storm: '⚡', bone: '🦴' });
 /* The families bound into family x tier rows: every family a spell spends (none is hidden). The sample was the
    Fire family; the others followed in batches of 20 rows or fewer (DESIGN_STANDARDS §9). */
 export const CRAFTED_RUNE_FAMILIES = Object.freeze(Object.keys(RUNE_FAMILIES).filter((f) => !RUNE_FAMILIES[f].hidden));

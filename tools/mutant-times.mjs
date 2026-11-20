@@ -10,7 +10,7 @@
 //
 // mutant-anchors: none — the selftest plants defects into in-memory parsers, never a file
 //
-// THE METHOD (tests/alpha-windows.mutant-times.json "measured"; hunt-screen's file the same): a mutant's seconds run
+// THE METHOD (tests/hunt-screen.mutant-times.json "measured"; the alpha-windows-* files the same): a mutant's seconds run
 // from the line before its own verdict (the clean control's line, or the last verdict's) to its caught line; under a
 // second books 1, since 0 reads as unmeasured. An escaped or HARNESS arm moves the mark but books nothing: it did not
 // run the way a caught one does. A mutant measured twice (two runs, two jobs) books the longer, so a plan never

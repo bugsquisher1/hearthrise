@@ -15,16 +15,16 @@
 // swap's cost and the side lock after it; the swap time a cancel loses) before ONE intent is sent. During a swap the hero is still on its
 // side: its own grounds pay its standing, the new side's pay swap time only (#3: the line says so, hr_faction_credit does so).
 // ════════════════════════════════════════════════════════════════════════
-import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.141';
-import { claimPiece, startSwap, finishSwap, cancelSwap } from '../../../session/faction-intents.js?v=0.2.141';
-import { OUTFIT_ROWS } from '../../../data/outfits.js?v=0.2.141';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.141';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.141';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
-import { runIntent } from '../../intent-words.js?v=0.2.141';
-import { t } from '../../../render/player-text.js?v=0.2.141';
-import { factionIconHtml } from '../../widgets/bits.js?v=0.2.141';
-import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, waitWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.141';
+import { factionOf, standingOn, claimable, otherSide } from '../../../session/faction-sections.js?v=0.2.142';
+import { claimPiece, startSwap, finishSwap, cancelSwap } from '../../../session/faction-intents.js?v=0.2.142';
+import { OUTFIT_ROWS } from '../../../data/outfits.js?v=0.2.142';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.142';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.142';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
+import { runIntent } from '../../intent-words.js?v=0.2.142';
+import { t } from '../../../render/player-text.js?v=0.2.142';
+import { factionIconHtml } from '../../widgets/bits.js?v=0.2.142';
+import { people, sideName, sideMotto, faceOf, said, pieceName, spanWords, waitWords, nextSwapWords, swapReady, swapLeftWords, serverNowOf } from '../../faction-words.js?v=0.2.142';
 
 /** The tab's name. */
 export const FACTION_TAB = t('factions.tab');
@@ -51,7 +51,7 @@ export function factionHtml() {
     + '<p class="hw-fx-line hw-fx-swap-cost"></p>'
     + '<div class="hw-fx-confirm" hidden><p class="hw-fx-line hw-fx-confirm-q"></p><p class="hw-fx-line hw-fx-confirm-a"></p><p class="hw-fx-line hw-fx-confirm-b"></p>'
     + '<div class="hw-fx-acts"><button type="button" class="hh-tool is-primary" data-hs-act="fx-confirm">' + esc(t('factions.press_confirm')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="fx-back">' + esc(t('factions.press_back')) + '</button></div></div>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="fx-back">' + esc(t('factions.press_back')) + '</button></div></div>'
     + '<div class="hw-fx-acts"><button type="button" class="hh-tool hw-fx-swap-go" data-hs-act="fx-swap"></button>'
     + '<button type="button" class="hh-tool is-primary hw-fx-finish" data-hs-act="fx-finish">' + esc(t('factions.press_finish')) + '</button>'
     + '<button type="button" class="hh-tool hw-fx-cancel" data-hs-act="fx-cancel">' + esc(t('factions.press_cancel_swap')) + '</button></div></div>'

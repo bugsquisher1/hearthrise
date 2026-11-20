@@ -12,26 +12,26 @@
 // next plan is on screen before any more gold moves. A lost answer keeps the plan and its
 // keys: the next press resends them and the server replays what it already did.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.141';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
-import { whole } from '../../../render/format.js?v=0.2.141';
-import { glyphSvg } from '../../launcher.js?v=0.2.141';
-import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.141';
-import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.141';
-import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.141';
-import { BAG_CATS } from '../../bag-model.js?v=0.2.141';
-import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.141';
-import { refusalText } from '../../intent-words.js?v=0.2.141';
-import { notListableWords } from '../../market-words.js?v=0.2.141';
-import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.141';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.141';
-import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.141';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.141';
-import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey, buildingWorks } from './state.js?v=0.2.141';
-import { gotoAttr } from '../../goto.js?v=0.2.141';
-import { t } from '../../../render/player-text.js?v=0.2.141';
-import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.141';
-import { featuresOf } from '../../../session/character-sections.js?v=0.2.141';
+import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.142';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
+import { whole } from '../../../render/format.js?v=0.2.142';
+import { glyphSvg } from '../../launcher.js?v=0.2.142';
+import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.142';
+import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.142';
+import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.142';
+import { BAG_CATS } from '../../bag-model.js?v=0.2.142';
+import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.142';
+import { refusalText } from '../../intent-words.js?v=0.2.142';
+import { notListableWords } from '../../market-words.js?v=0.2.142';
+import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.142';
+import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.142';
+import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.142';
+import { showTip, hideTip } from '../item-tip.js?v=0.2.142';
+import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey, buildingWorks } from './state.js?v=0.2.142';
+import { gotoAttr } from '../../goto.js?v=0.2.142';
+import { t } from '../../../render/player-text.js?v=0.2.142';
+import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.142';
+import { featuresOf } from '../../../session/character-sections.js?v=0.2.142';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer, safe to press again';
@@ -46,7 +46,7 @@ export function browseHtml(ctx) {
     + '<div class="hw-mk-invite"><h3 class="hw-hd-name hw-mk-invite-h"></h3><p class="hw-mk-invite-p"></p>'
     + '<div class="hw-mk-fund"><span class="hw-skill-bar" role="meter" aria-label="Weighhouse build fund" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-mk-fund-n"></small></div>'
     + '<button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">' + t('controls.list_item') + '</button>'
-    + '<button type="button" class="hh-tool hw-mk-to-works"' + gotoAttr({ win: 'havora', tab: 'works' }) + '>' + t('shop.market_to_works') + '</button></div>'
+    + '<button type="button" class="hh-tool is-link hw-mk-to-works"' + gotoAttr({ win: 'havora', tab: 'works' }) + '>' + t('shop.market_to_works') + '</button></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="Items"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked item"><div class="hw-hd-page">'
     + '<div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'

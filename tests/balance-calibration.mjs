@@ -83,6 +83,11 @@ export const DECLARED_SHIFTS = Object.freeze([
      MEASURED the same way on the merged code, Hot Pitch (1.0x every 16 s) off against on. */
   Object.freeze({ after: '2026-11-18', grounds: Object.freeze(['krells_hold']), why: 'Krell\'s Hold\'s Gatekeeper throws Hot Pitch on the whole party (the audit\'s fix 2)',
     mult: Object.freeze({ killsPerH: 1.002, levelXpPerH: 1.002, coinPerH: 1.003, dealtPerH: 1.003, takenPerH: 1.047, healedPerH: 1.041, storePerH: 1.112 }) }),
+  /* THE PACE HELD BY XP A KILL (lane/d-142-rulings, 2026-11-19; the board's "2026-11-19 Two rulings for v0.2.142"): STAT_FORMULA xp a and min x0.88, every
+     formula row's Level XP x0.88 (gen-ground-stats --write, pack propose --write). No blow, HP, coin or swing moves, so only Level XP shifts, by the rows'
+     own ratio. */
+  Object.freeze({ after: '2026-11-19', grounds: null, why: 'the pace held by XP a kill: STAT_FORMULA xp a and min x0.88 (lane/d-142-rulings)',
+    mult: Object.freeze({ levelXpPerH: 0.88 }) }),
 ]);
 
 const judgedOf = (fx) => fx.samples.filter((s) => s.kit === 'held' && s.hours >= 1);

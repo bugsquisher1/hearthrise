@@ -279,7 +279,8 @@ async function checks(overrides) {
       if (!(await wait(page, () => !document.querySelector('[data-hs-win="play-cap"]'), null, 2000))) fails.push('IP-6 [' + tag + '] OK did not close the popup');
       await page.keyboard.press('h');
       await wait(page, () => document.querySelector('.hw-hunt[data-hunt]'), null, 4000);
-      await press(page, '.hw-hunt[data-hunt]');
+      /* a ground this Level 7 fixture hero can enter: the list's first, the Mill Cellar, ends at Level 5 and its Enter is off (hunt-floor-warning.mjs G9) */
+      await press(page, '.hw-hunt[data-hunt="meadowbrook_thicket"]');
       await wait(page, () => document.querySelector('.hw-hunt-enter:not([disabled])'), null, 4000);
       await press(page, '.hw-hunt-enter');
       await answered(page, POPUP);

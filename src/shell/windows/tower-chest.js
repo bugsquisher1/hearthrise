@@ -22,21 +22,21 @@
 //   (the server's `ready` false, its chest_not_ready) says "Armor coming soon" on its slot and on Use. The warmth is its family's own.
 // The answer of a press (each key's weapon or none, what came out) is drawn from the server's answer; the counts come back with the envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { keyRow, stokeRow, familyRow } from '../../session/tower-sections.js?v=0.2.141';
-import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.141';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { CHESTS, CINDERS, TOWER_KEY_FAMILY } from '../../data/chests.js?v=0.2.141';
-import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.141';
-import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.141';
-import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.141';
-import { whole, localWhen } from '../../render/format.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
-import { busyWords } from '../training-words.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { runIntent } from '../intent-words.js?v=0.2.141';
-import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.141';
-import { ppmWords, familyWord, keyFamilyWord, timesWords, lootList } from '../tower-words.js?v=0.2.141';
-import { metalWord } from '../tower-stage.js?v=0.2.141';
+import { keyRow, stokeRow, familyRow } from '../../session/tower-sections.js?v=0.2.142';
+import { openChest, saveStokes } from '../../session/tower-intents.js?v=0.2.142';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { CHESTS, CINDERS, TOWER_KEY_FAMILY } from '../../data/chests.js?v=0.2.142';
+import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.142';
+import { TOWER_ART, SCALE } from '../../data/tower-art.js?v=0.2.142';
+import { text, attr, prop, rows, cls, element } from '../../render/paint.js?v=0.2.142';
+import { whole, localWhen } from '../../render/format.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
+import { busyWords } from '../training-words.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { runIntent } from '../intent-words.js?v=0.2.142';
+import { itemName, revealInWindow } from '../widgets/bits.js?v=0.2.142';
+import { ppmWords, familyWord, keyFamilyWord, timesWords, lootList } from '../tower-words.js?v=0.2.142';
+import { metalWord } from '../tower-stage.js?v=0.2.142';
 
 /* The one chest today (src/data/chests.js CHESTS: a later chest is a row). */
 const CHEST_ID = Object.keys(CHESTS)[0];
@@ -118,7 +118,7 @@ export function chestHtml() {
     + '<div class="tc-reveal-slot"></div></div></div>'
     /* the last press's answer under the scene, in place of the keys and the stokes: what came out, the weapon first (Keys goes back) */
     + '<section class="tt-result" hidden><div class="tc-loot-head"><h3 class="hw-hd-h tt-hd">' + esc(t('tower.loot_head')) + '</h3>'
-    + '<button type="button" class="hh-tool tc-keys-back" data-hs-act="chest-keys">' + esc(t('tower.keys_head')) + '</button></div>'
+    + '<button type="button" class="hh-tool is-link tc-keys-back" data-hs-act="chest-keys">' + esc(t('tower.keys_head')) + '</button></div>'
     + '<p class="tc-used" hidden></p><div class="tc-loot"></div></section>'
     /* the key families, one press each, while the server lists more than one (the Tower's and the Catacombs') */
     + '<div class="tc-famp" role="radiogroup" aria-label="' + esc(t('tower.keys_head')) + '" hidden></div>'

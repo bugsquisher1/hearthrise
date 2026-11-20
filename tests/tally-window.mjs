@@ -877,10 +877,11 @@ async function checks(overrides, shots) {
       const { ctx, page, s, up } = await open(Object.assign(clone(TOWN), { party: null, tally: Object.assign(clone(TALLY), { held: [] }) }), null, free);
       if (!(up && await show(page))) fails.push('TW-16b her window did not open');
       else {
-        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-row[data-task="cellar_giant_rats"] .ht-row-go .hs-goto'), null, 4000);
-        await press(page, W + '.ht-row[data-task="cellar_giant_rats"] .ht-row-go .hs-goto', 'TW-16b');
-        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="mill_cellar"].is-picked'), null, 4000);
-        /* the server's answer to Enter: the hero is hunting the Cellar (the fixture's own running hunt) */
+        /* the Thicket's row: the fixture hero is Level 7 and the Cellar's hunt ends at 5, so its Enter is off (hunt-floor-warning.mjs G9) */
+        await wait(page, () => document.querySelector('[data-hs-win="tally"] .ht-row[data-task="thicket_gray_wolves"] .ht-row-go .hs-goto'), null, 4000);
+        await press(page, W + '.ht-row[data-task="thicket_gray_wolves"] .ht-row-go .hs-goto', 'TW-16b');
+        await wait(page, () => document.querySelector('[data-hs-win="hunts"] .hw-hunt[data-hunt="meadowbrook_thicket"].is-picked'), null, 4000);
+        /* the server's answer to Enter: the hero is hunting (the fixture's own running hunt) */
         s.env = Object.assign(clone(BASE_ENV), { party: null, tally: s.env.tally, client_state: s.env.client_state });
         await press(page, '[data-hs-win="hunts"] .hw-hunt-detail .hw-hunt-enter', 'TW-16b');
         const gone = await wait(page, () => !document.querySelector('[data-hs-win="hunts"]:not(.is-leaving)') && !document.querySelector('[data-hs-win="tally"]:not(.is-leaving)'), null, 5000);

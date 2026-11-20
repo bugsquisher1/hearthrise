@@ -178,10 +178,13 @@ async function selftest() {
   if (drifted === real || drop(real) === real) { process.stdout.write(`  FAIL  selftest anchors missed in ${LAST}\n`); return 1; }
   const inTail = (fn) => Object.fromEntries(TAIL.map(([f, t]) => [f, fn(t)]));
   /* THE COOKBOOK CUT, PLANTED: the newest seed without its unscoped delete is the upsert-only file the 2027-05-22 cut first
-     shipped, and the cut feasts an older seed still carries must come back red. */
+     shipped, and the cut feasts an older seed still carries must come back red. Planted in EVERY file of the TAIL, as
+     "dropped" and "absent" are: once a later catalogue re-stated the cut's rows (2027-06-05-harder-monsters), the cut
+     file's own delete still emptied the fold and an arm that stripped the last file alone could not go red. */
   const RESET = /^[ \t]*delete\s+from\s+public\.hr_feast_foods\s*;[ \t]*\r?\n/im;
-  const upsertOnly = real.replace(RESET, '');
-  if (upsertOnly === real) { process.stdout.write(`  FAIL  selftest anchor missed: no unscoped hr_feast_foods delete in ${LAST}\n`); return 1; }
+  const strip = (t) => t.replace(RESET, '');
+  const unreset = TAIL.filter(([, t]) => strip(t) === t).map(([f]) => f);
+  if (unreset.length) { process.stdout.write(`  FAIL  selftest anchor missed: no unscoped hr_feast_foods delete in ${unreset.join(', ')}\n`); return 1; }
   const arms = [
     ['control (unmutated chain)', {}, false],
     [`a heal value drifts in the newest seed (${LAST})`, { [LAST]: drifted }, true],
@@ -190,7 +193,7 @@ async function selftest() {
       { [LAST]: real + "\ninsert into public.hr_feast_foods (item_id, heals) values ('not_a_food', 9)"
                      + '\n  on conflict (item_id) do update set heals = excluded.heals;\n' }, true],
     ['the newest seed is ABSENT (the pre-b544 blind spot)', inTail(() => '-- nothing\n'), true],
-    [`the newest seed only upserts, so a cut food stays priced (the 2027-05-22 cookbook cut, ${LAST})`, { [LAST]: upsertOnly }, true],
+    [`the newest seed only upserts, so a cut food stays priced (the 2027-05-22 cookbook cut, ${TAIL.map(([f]) => f).join(', ')})`, inTail(strip), true],
     ['a LATER file empties the table and seeds nothing', { [LAST]: `${real}\ndelete from public.hr_feast_foods;\n` }, true],
     ['a LATER file deletes with a shape the fold cannot model',
       { [LAST]: `${real}\ndelete from public.hr_feast_foods where item_id = 'not_a_food';\n` }, true],

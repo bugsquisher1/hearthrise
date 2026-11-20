@@ -19,22 +19,22 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.141';
-import { summaryOf } from '../command-model.js?v=0.2.141';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.141';
-import { huntName } from '../../session/party-sections.js?v=0.2.141';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.141';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.141';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.141';
-import { gmOf } from '../../session/character-sections.js?v=0.2.141';
-import { runIntent } from '../intent-words.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.141';
-import { glyphSvg } from '../launcher.js?v=0.2.141';
-import { entriesFor } from '../context-menu.js?v=0.2.141';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
-import { rowOffered } from '../launcher.js?v=0.2.141';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.142';
+import { summaryOf } from '../command-model.js?v=0.2.142';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.142';
+import { huntName } from '../../session/party-sections.js?v=0.2.142';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.142';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.142';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.142';
+import { gmOf } from '../../session/character-sections.js?v=0.2.142';
+import { runIntent } from '../intent-words.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.142';
+import { glyphSvg } from '../launcher.js?v=0.2.142';
+import { entriesFor } from '../context-menu.js?v=0.2.142';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
+import { rowOffered } from '../launcher.js?v=0.2.142';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();
@@ -52,7 +52,7 @@ const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" clas
 const iconRows = (ctx) => ctx.wm.rows().filter((r) => r.launcher !== false && rowOffered(r, ctx.character));
 const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">' + esc(t('heroes.icons_head')) + '</h3><ul class="hw-icon-names">'
   + iconNames(ctx, iconRows(ctx)) + '</ul></div>';
-const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">' + esc(t('heroes.character_list')) + '</button>'
+const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool is-link" data-app="characters">' + esc(t('heroes.character_list')) + '</button>'
   + '<button type="button" class="hh-tool" data-app="sign-out">' + esc(t('controls.sign_out')) + '</button></div>';
 
 /** The Invite entry for one of this account's other heroes, or null (the viewed hero, or one already in a party). */

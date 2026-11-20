@@ -18,22 +18,22 @@
 //                       the first whose conditions pass AND that can act fires)
 // Display only: every number is a catalogue row or the server's projection.
 // ════════════════════════════════════════════════════════════════════════
-import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.141';
-import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec, landsBlow } from '../data/abilities.js?v=0.2.141';
-import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.141';
-import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.141';
-import { STATUSES, slowAt, slowScaleAt } from '../data/statuses.js?v=0.2.141';
-import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-roles.js?v=0.2.141';
-import { ITEMS } from '../data/items.js?v=0.2.141';
-import { isRune } from '../data/supplies.js?v=0.2.141';
-import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.141';
-import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.141';
-import { ownCount } from './rune-supply.js?v=0.2.141';
-import { shortOf } from './item-lore.js?v=0.2.141';
-import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.141';
-import { castOf, costLine, landed } from './cast-facts.js?v=0.2.141';
-import { listWords, whole } from '../render/format.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
+import { ATTACK_KINDS } from '../data/condition-metrics.js?v=0.2.142';
+import { ABILITIES, ABILITY_RULES, DISCIPLINE_IDS, DISCIPLINE_SKILL, abilitySkill, areaSpec, landsBlow, partyOnly } from '../data/abilities.js?v=0.2.142';
+import { aimsAtMonsters, runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.142';
+import { CONSUMABLES, CONSUMABLE_RULES } from '../data/consumables.js?v=0.2.142';
+import { STATUSES, slowAt, slowScaleAt } from '../data/statuses.js?v=0.2.142';
+import { HUNT_ROLES, ROLE_KEYS, SHIELD_ARM, shootsItem } from '../data/hunt-roles.js?v=0.2.142';
+import { ITEMS } from '../data/items.js?v=0.2.142';
+import { isRune } from '../data/supplies.js?v=0.2.142';
+import { WEAPON_WORDS } from '../data/hunt-hud.js?v=0.2.142';
+import { itemName, itemNameFor, abilityName, runeWords, skillName } from './widgets/bits.js?v=0.2.142';
+import { ownCount } from './rune-supply.js?v=0.2.142';
+import { shortOf } from './item-lore.js?v=0.2.142';
+import { storeOf, storeChoices, conditionWords } from './bar-draft.js?v=0.2.142';
+import { castOf, costLine, landed } from './cast-facts.js?v=0.2.142';
+import { listWords, whole } from '../render/format.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.142';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 const secs = (ms) => (ms % 1000 ? (ms / 1000).toFixed(1) : String(ms / 1000));
@@ -154,26 +154,27 @@ export function rowNeed(a, ctx) {
 /* THE ALONE CALLOUT (Tyler 2026-11-09: "Make that callout clear to the player"): a spell marked `alone` (src/data/abilities.js)
    casts only while no other living hero shares its hunt. Said on its card, its slot's tooltip and, in a party, on the slot (bar.alone).
    Its mirror, a spell marked `party` (the tank's rune spells, Tyler 2026-11-19), casts only while another does: "Party only" on its
-   card and tooltip, and on the slot while the hero hunts alone (bar.party_only). */
+   card and tooltip, and on the slot while the hero hunts alone (bar.party_only). A spell party only for some roles (Brand and Reave:
+   the tank, abilities.js partyOnly) says so to a hero playing one of them (`role`: the server's hunt_settings role), the engine's rule. */
 const GROUP_CODES = Object.freeze(['alone', 'party_only']);
 
 /**
  * WHY AN ALONE OR PARTY SPELL'S SLOT WAITS (the engine's own rule, src/core/hunt/abilities.js aloneIn): `alone` is false when another
  * hero shares the hunt, true when none does (slot-waits.js whyFacts: the running prediction's world, else the server's party), so an
- * alone spell greys in a party and a party spell greys alone. Null for any other slot, or while its rule holds.
+ * alone spell greys in a party and a party spell greys alone. Null for any other slot, or while its rule holds. `role`: the hero's hunt role.
  */
-export function aloneReason(sl, alone) {
+export function aloneReason(sl, alone, role) {
   const r = sl && !sl.empty && sl.action && sl.action.type === 'ability' ? ABILITIES[sl.action.id] : null;
   if (r && r.alone && alone === false) return { code: 'alone', text: t('bar.alone'), glyph: 'uiPeople', strike: true };
-  return r && r.party && alone === true ? { code: 'party_only', text: t('bar.party_only'), glyph: 'uiPeople', strike: true } : null;
+  return r && partyOnly(r, role) && alone === true ? { code: 'party_only', text: t('bar.party_only'), glyph: 'uiPeople', strike: true } : null;
 }
 
 /** Configure action's line for a draft of an alone spell in a party of `party` heroes (bar.alone_party), or of a party spell
-    for a hero alone (bar.party_only_alone), else ''. */
-export function aloneNote(action, party) {
+    for a hero alone (bar.party_only_alone), else ''. `role`: the hero's hunt role (partyOnly). */
+export function aloneNote(action, party, role) {
   const r = action && action.type === 'ability' ? ABILITIES[action.id] : null;
   if (r && r.alone && party > 1) return t('bar.alone_party');
-  return r && r.party && !(party > 1) ? t('bar.party_only_alone') : '';
+  return r && partyOnly(r, role) && !(party > 1) ? t('bar.party_only_alone') : '';
 }
 
 /* The line for each spell target (bar.target_<target>); a line and a ring say their own size (targetLine). */
@@ -261,7 +262,7 @@ export function factsOf(a, ctx) {
     const effect = numbers.concat(r.status && STATUSES[r.status] ? [statusLine(STATUSES[r.status], k.version)] : []);
     /* (the universal self-heal needs no particular weapon) */
     return { type: targetLine(r), cost: costLine(a, ctx), cooldown: t('bar.cooldown', { secs: secs(r.cdMs) }), numbers, effect, unlock: unlockLine(r),
-      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r) }), alone: r.alone ? t('bar.alone') : r.party ? t('bar.party_only') : null };
+      requires: r.universal ? t('bar.requires_any') : t('bar.requires', { weapons: weaponsFor(r) }), alone: r.alone ? t('bar.alone') : partyOnly(r, ctx && ctx.set ? ctx.set.role : null) ? t('bar.party_only') : null };
   }
   const cost = costLine(a, ctx) || null;
   if (a.type === 'consume') {

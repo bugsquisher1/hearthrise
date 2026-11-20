@@ -12,7 +12,7 @@
 //   node tests/boss-call.mjs            the guard
 //   node tests/boss-call.mjs --mutate   every planted defect must turn it red
 //
-// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrual.js src/data/boss-calls.js
+// mutant-anchors: src/data/monsters.js src/core/hunt-rewards.js src/core/combat-sim.js src/core/action-rules.js src/data/bestiary.js src/data/hunt-grounds.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js supabase/functions/hr-accrue/accrue-hunt.js src/data/boss-calls.js
 //
 //   BC-ROW     a called row is xp 0, gp [0, 0], no yield trick; a called boss drops only his ground boss's rows at their rates and his call-only piece (worn, no jewelry,
 //              dropped by nothing else, never another piece's stat mix, its attribute at its tier's size in the special catalogue), an add drops nothing; it stands in its own room and nowhere else: no ground list, no roster, no Bestiary, no activity
@@ -582,9 +582,9 @@ const MUTANTS = [
   { name: 'every monster hides behind an add', edits: [['src/core/hunt/boss-phases.js', "if (!ph || !Number.isInteger(ph.guardPm)) return 1000;", "if (!ph || !Number.isInteger(ph.guardPm)) return t.side === 'mon' && inst.world.units.some((u) => u.alive && (MONSTERS[u.kind] || {}).add === true) ? 500 : 1000;"]], want: /BC-GUARD/ },
   { name: 'the enrage reads the row, not his HP', edits: [['src/core/hunt/boss-phases.js', 'if (!ph || !atOrUnder(u.hp, u.maxHp, ph.enragePm)) return row;', 'if (!ph) return row;']], want: /BC-PHASE/ },
   { name: 'a leader\'s death heals him', edits: [['src/core/hunt/leash.js', "if (!pack || (inst.ground && inst.ground.call)) return;", 'if (!pack) return;']], want: /BC-RECORD/ },
-  { name: 'the record counts everyone\'s casts', edits: [['supabase/functions/hr-accrue/accrual.js', 'if (e.u !== unitId) continue;', '']], want: /BC-RECORD/ },
-  { name: 'the record forgets the food', edits: [['supabase/functions/hr-accrue/accrual.js', "e.type === 'cast' ? e.ability : e.type === 'eat' || e.type === 'drink' ? e.type : null", "e.type === 'cast' ? e.ability : null"]], want: /BC-RECORD/ },
-  { name: 'every hunt carries a record', edits: [['supabase/functions/hr-accrue/accrual.js', 'fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };', "fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call || 'rat_king']) };"], ['supabase/functions/hr-accrue/accrual.js', 'if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {', 'if (Number.isInteger(summary.unitIdEver)) {']], want: /BC-RECORD/ },
+  { name: 'the record counts everyone\'s casts', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', 'if (e.u !== unitId) continue;', '']], want: /BC-RECORD/ },
+  { name: 'the record forgets the food', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', "e.type === 'cast' ? e.ability : e.type === 'eat' || e.type === 'drink' ? e.type : null", "e.type === 'cast' ? e.ability : null"]], want: /BC-RECORD/ },
+  { name: 'every hunt carries a record', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', 'fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call]) };', "fight: fightOf(sim, summary.unitIdEver, BOSS_CALLS[inp.ground.call || 'rat_king']) };"], ['supabase/functions/hr-accrue/accrue-hunt.js', 'if (inp.ground.call && Number.isInteger(summary.unitIdEver)) {', 'if (Number.isInteger(summary.unitIdEver)) {']], want: /BC-RECORD/ },
   { name: 'a room on the ground list', edits: [['src/data/hunt-grounds.js', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries(HUNT_GROUNDS)', 'export const OPEN_GROUNDS = Object.freeze(Object.fromEntries(Object.entries({ ...HUNT_GROUNDS, ...CALLED_GROUNDS })']], want: /BC-ROW/ },
 ];
 

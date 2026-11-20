@@ -18,10 +18,10 @@
 // tests/world-sandbox.mjs prints a reminder while it is open.
 // ════════════════════════════════════════════════════════════════════════
 
-import { at, TOWN_MAP, TOWN_NAME } from './town/plan.js?v=0.2.141';
+import { at, TOWN_MAP, TOWN_NAME } from './town/plan.js?v=0.2.142';
 
 export const SANDBOX = Object.freeze({
-  open: true,
+  open: false,
   map: 'sandbox_hd64',
   /* the way in: the Common's own signpost art on an open tile of the Common, never blocking a step */
   /* (in Hearth Square's forecourt, plan 102,58: town/plan.js) */

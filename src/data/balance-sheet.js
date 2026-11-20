@@ -21,9 +21,9 @@
 // PURE ESM. Data and pure functions only: no DOM, no clock, no randomness. The engine reads only the tier rows (hunt-tiers.js builds GROUND_TIERS from tierRowFor, lane/b-tier-dials).
 // ════════════════════════════════════════════════════════════════════════
 
-import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.141';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
-import { foldRows } from './grounds/shape.js?v=0.2.141';
+import { LEVEL_PACE, VITALS } from './core-model.js?v=0.2.142';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.142';
+import { foldRows } from './grounds/shape.js?v=0.2.142';
 
 /* ── THE TARGET SHEET ─────────────────────────────────────────────────────
    Judged per ground on the real engine, store supplies bought per use (the store bill is the whole
@@ -154,8 +154,10 @@ export const STAT_FORMULA = Object.freeze({
      x1.1 and XP a point as it was, a kill paid a tenth more but took less than a tenth longer (the walk and the rest between pulls don't
      grow), so the eight lone careers levelled 4-6% faster: Level 50 in 146.9 h on the curve (-12.5% of the 168 h, past LEVEL_PACE's 10%;
      the ladder 1-11% up, the Cellar most). x0.96 gives that back, so a kill pays about 5% more XP for its tenth more HP and the pace
-     of record stands (tools/balance-sim/level-pace.json). Tyler's ask was harder monsters, not faster Levels. */
-  xp: Object.freeze({ a: 1.632, b: 0.4, min: 2.88, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),
+     of record stands (tools/balance-sim/level-pace.json). Tyler's ask was harder monsters, not faster Levels.
+     x0.88 MORE, 2026-11-19 (lane/d-142-rulings): Level 50 still read 146.5 h against Tyler's 168 (the bows' default Flame Volley). A cheaper
+     kill holds the table without lowering a live Level, as a curve re-fit would. Were 1.632 and 2.88. */
+  xp: Object.freeze({ a: 1.436, b: 0.4, min: 2.534, floorFit: Object.freeze({ from: 8, to: 32, lo: 0.67 }) }),
   /* COIN a kill: perHp gold per HP point times the ground's `line`, rolled lo..2 x mean - lo so the roll's mean IS the
      formula's (keepMean: a plain [0.5, 1.5] rounding paid a 3 g whelp 3.5). HARDER PAYS MORE ON ONE LINE (Tyler 11-03,
      11-04): coin per HP climbs straight with the ground's floor, x0.5 at the first ground to x1.4 from floor 16 (the Thicket x0.74,

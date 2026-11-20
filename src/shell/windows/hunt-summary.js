@@ -17,39 +17,39 @@
 // when the session ends. Numbers come from the server's sections only.
 // Built once, patched in place (src/render/paint.js).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.141';
-import { whole, gold } from '../../render/format.js?v=0.2.141';
-import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.141';
-import { runIntent } from '../intent-words.js?v=0.2.141';
-import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle, goldKeptOf } from '../../hunt-view/summary-model.js?v=0.2.141';
-import { callOfHunt } from '../../data/boss-calls.js?v=0.2.141';
-import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.141';
-import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.141';
-import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.141';
-import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.141';
-import { observeSessions } from '../../session/character-session.js?v=0.2.141';
-import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js?v=0.2.141';
-import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.141';
-import { staminaOf, goldFloorOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.141';
-import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.141';
-import { afterDoneWords } from '../hunt-after.js?v=0.2.141';
-import { heldStep, glyphSvg } from '../launcher.js?v=0.2.141';
-import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.141';
-import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.141';
-import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.141';
-import { blessAll } from '../bless-all.js?v=0.2.141';
-import { blessingsOf } from '../../session/item-sections.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
-import { skillWord } from '../training-words.js?v=0.2.141';
-import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { towerOf } from '../../session/tower-sections.js?v=0.2.141';
-import { TOWER_RULES, runRulesOf } from '../../data/tower.js?v=0.2.141';
-import { climbEnd } from '../tower-words.js?v=0.2.141';
-import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.141';
-import { targetOf, gotoKey } from '../goto.js?v=0.2.141';
-import { sideName, spanWords as standingWords } from '../faction-words.js?v=0.2.141';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.142';
+import { whole, gold } from '../../render/format.js?v=0.2.142';
+import { itemName, itemIconHtml } from '../widgets/bits.js?v=0.2.142';
+import { runIntent } from '../intent-words.js?v=0.2.142';
+import { endedSessionOf, sanitizeSummaries, huntAgainOf, againRoute, againWithBag, endWords, reasonWords, groundTitle, goldKeptOf } from '../../hunt-view/summary-model.js?v=0.2.142';
+import { callOfHunt } from '../../data/boss-calls.js?v=0.2.142';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js?v=0.2.142';
+import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js?v=0.2.142';
+import { partyMembershipOf, huntName } from '../../session/party-sections.js?v=0.2.142';
+import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js?v=0.2.142';
+import { observeSessions } from '../../session/character-session.js?v=0.2.142';
+import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js?v=0.2.142';
+import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js?v=0.2.142';
+import { staminaOf, goldFloorOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { endCardAfter, spanWords } from '../after-hunt.js?v=0.2.142';
+import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.142';
+import { afterDoneWords } from '../hunt-after.js?v=0.2.142';
+import { heldStep, glyphSvg } from '../launcher.js?v=0.2.142';
+import { coachWindow, coachTab } from '../../data/hunt-tutorial.js?v=0.2.142';
+import { townStepsOf, depositPlanned } from '../back-in-town.js?v=0.2.142';
+import { equipUpgrades } from '../widgets/upgrade-line.js?v=0.2.142';
+import { blessAll } from '../bless-all.js?v=0.2.142';
+import { blessingsOf } from '../../session/item-sections.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
+import { skillWord } from '../training-words.js?v=0.2.142';
+import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { towerOf } from '../../session/tower-sections.js?v=0.2.142';
+import { TOWER_RULES, runRulesOf } from '../../data/tower.js?v=0.2.142';
+import { climbEnd } from '../tower-words.js?v=0.2.142';
+import { climbCardHtml, patchClimbCard } from '../tower-end-card.js?v=0.2.142';
+import { targetOf, gotoKey } from '../goto.js?v=0.2.142';
+import { sideName, spanWords as standingWords } from '../faction-words.js?v=0.2.142';
 
 /* Why Hunt again has nothing to send: a called room has one door, its paid press (src/data/boss-calls.js), a keyed hall its key on the ground's
    page (src/data/boss-halls.js), and an old hunt that kept no settings. */
@@ -151,11 +151,14 @@ export function renderHuntSummary() {
     + '<div class="hsum-foot"><div class="hsum-actions">'
     /* a tutorial card's next step is a press here, never the gold one (Tyler 2026-11-11: after 4 h the summary's gold button was still
        the first card); the gold press is the first open Back in town step, else "Hunt again" */
-    + '<button type="button" class="hh-tool" data-hs-act="coach-next" hidden></button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="coach-next" hidden></button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="again">' + t('controls.hunt_again') + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="tower" hidden>' + esc(t('tower.end_open')) + '</button>'
+    /* after a ground outgrown, the next ground in Hunt again's place: a link (../goto.js), so it is in view as the window opens (audit 2026-11-19 L2);
+       shown only as the window's gold press (is-primary below), so it is never drawn as a text link */
+    + '<button type="button" class="hh-tool" data-hs-act="next-ground" hidden></button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="tower" hidden>' + esc(t('tower.end_open')) + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="tower-climb" hidden>' + esc(t('tower.climb_again')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="bag">' + t('controls.open_bag') + '</button>'
     /* a full bag (the server's cap, hr_bag_expand_view) links to Storage's Expand */
     + '<button type="button" class="hh-tool" data-hs-act="expand" hidden>' + t('controls.expand_bag') + '</button></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p></div>'
@@ -276,13 +279,24 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };
     patchTown(root, ctx, sc, town);
     cls(go, 'is-primary', town.primary === 'again');
+    /* A GROUND OUTGROWN (audit 2026-11-19 L2, played at 1440x900: the window led with a greyed Hunt again and "Hunt again off: Ground
+       outgrown", the Next ground row under the sticky foot): the foot's gold press is that ground, Show's own link, and Hunt again goes */
+    const way = town.primary === 'ground' ? town.steps.find((s) => s.id === 'ground') : null;
+    const toGround = root.querySelector('[data-hs-act="next-ground"]');
+    text(toGround, way ? t('summary.go_ground', { ground: way.name }) : '');
+    attr(toGround, 'data-hs-goto', way ? gotoKey(targetOf(way.place)) : null);
+    prop(toGround, 'hidden', !way);
+    cls(toGround, 'is-primary', !!way);
+    /* a phone's stacked sheet puts the foot above the steps then (summary.css), so the press is in view as it opens */
+    cls(root.querySelector('.hsum-card'), 'is-onward', !!way);
+    if (way) againWhy = '';
     /* A CLIMB'S CARD: its next move is the Tower window (the chest when it gave keys), so that is the card's press; no Hunt again */
     if (climb) {
       prop(go, 'hidden', true);
       cls(toTower, 'is-primary', town.primary === 'again' && climb.keys.length > 0);
       cls(toClimb, 'is-primary', town.primary === 'again' && !climb.keys.length);
       againWhy = '';
-    } else prop(go, 'hidden', !!cur.live);
+    } else prop(go, 'hidden', !!cur.live || !!way);
     /* the hunt on now has no Hunt again: it is the hunt */
     if (cur.live) againWhy = '';
     for (const b of root.querySelectorAll('.hsum-actions button:not([data-hs-act="again"])')) prop(b, 'disabled', sc.pending);
@@ -327,7 +341,8 @@ function patchTown(root, ctx, sc, town) {
       text(btn, s.verb);
       /* THE NEXT BUY's Show is a link (goto.js): it opens the window where the buy is made, on its row, and sends nothing */
       attr(btn, 'data-hs-goto', s.place ? gotoKey(targetOf(s.place)) : null);
-      cls(btn, 'is-primary', town.primary === s.id);
+      /* ...never the next ground's Show: the foot carries that press (Go to <ground>), so the window keeps one gold press */
+      cls(btn, 'is-primary', town.primary === s.id && s.id !== 'ground');
       const done = el.querySelector('.hsum-done');
       prop(done, 'hidden', !s.done);
       text(done, t('summary.done'));

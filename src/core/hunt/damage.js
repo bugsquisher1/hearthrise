@@ -17,6 +17,9 @@
 // Melee swing only standing on a tile; ranged also while moving (RO-19).
 // Dice: the swing's `s` stream, units in id order (engine contract #3).
 //
+// A blow of an element with a FIXED RULE (data/elements.js ELEMENT_ON_HERO: Necrotic, Storm) that took a hero's HP
+// brings that rule too, in landHit: the Withered status, or mana burned beside the HP.
+//
 // An ability passes its own multiplier as `ability.mult` (permille); landHit folds
 // a target's mark (`markPm` until `markUntil`, abilities.js) into it. A shield is the
 // target's `shield`, persisted by abilities.js; hurt only spends it.
@@ -24,27 +27,29 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.141';
-import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.141';
-import { STATUSES, slowAt } from '../../data/statuses.js?v=0.2.141';
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.141';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.141';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.141';
-import { cheb } from './grid.js?v=0.2.141';
-import { atRest, unitById } from './movement.js?v=0.2.141';
-import { makeEvent } from './events.js?v=0.2.141';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.141';
-import { fallen } from './pull-cycle.js?v=0.2.141';
-import { shareKillXp } from './xp-share.js?v=0.2.141';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.141';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.141';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.141';
-import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.141';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.141';
-import { temperedAmount } from '../temper.js?v=0.2.141';
-import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.141';
-import { dummyBlow, dummyStands, trainingBasic } from './training.js?v=0.2.141';
-import { reaches } from './shooters.js?v=0.2.141';
+import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.142';
+import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.142';
+import { STATUSES, slowAt } from '../../data/statuses.js?v=0.2.142';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.142';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.142';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.142';
+import { cheb } from './grid.js?v=0.2.142';
+import { atRest, unitById } from './movement.js?v=0.2.142';
+import { makeEvent } from './events.js?v=0.2.142';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.142';
+import { fallen } from './pull-cycle.js?v=0.2.142';
+import { shareKillXp } from './xp-share.js?v=0.2.142';
+import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.142';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.142';
+import { shootsItem } from '../../data/hunt-roles.js?v=0.2.142';
+import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.142';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.142';
+import { temperedAmount } from '../temper.js?v=0.2.142';
+import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.142';
+import { dummyBlow, dummyStands, trainingBasic } from './training.js?v=0.2.142';
+import { reaches } from './shooters.js?v=0.2.142';
+import { elementOnHeroOf } from '../../data/elements.js?v=0.2.142';
+import { applyStatus, statusRow } from './status.js?v=0.2.142';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);
@@ -166,9 +171,17 @@ export function landHit(inst, sc, source, target, amount, element, ability, crit
   /* A status tick whose source has left the world lands with no dealer (u null). */
   const u = source ? source.id : null;
   if (target.side === 'mon') inst.world.fightAt = sc.atMs;
+  /* AN ELEMENT'S FIXED RULE ON A HERO (data/elements.js ELEMENT_ON_HERO, itemization plan Appendix B1), when the blow took HP: a storm
+     blow also burns half the HP it took from the hero's mana (`burn` on the dmg event, never past what it holds), a necrotic one
+     Withers the hero (statuses.js: every heal it takes is cut for 6 s; status.js applyStatus emits it). Nothing else has a rule, so
+     every other blow lands exactly as before. */
+  const rule = target.side === 'hero' && r.dmg > 0 ? elementOnHeroOf(element) : null;
+  const burn = rule && rule.manaBurnPm ? Math.min(Math.max(0, Math.floor(Number(target.mana) || 0)), Math.floor((r.dmg * rule.manaBurnPm) / 1000)) : 0;
+  if (burn > 0) target.mana = Math.floor(Number(target.mana)) - burn;
   sc.emit(makeEvent('dmg', sc.atMs, { u, t: target.id, amount: r.dmg,
     ability: (ability && ability.id) || 'basic', element: element || null, ...(crit ? { crit: true } : {}), ...(ability && ability.follow ? { follow: true } : {}),
-    ...(ability && ability.dot ? { dot: true } : {}) }));
+    ...(ability && ability.dot ? { dot: true } : {}), ...(burn > 0 ? { burn } : {}) }));
+  if (rule && rule.withers) applyStatus(inst, target, statusRow(rule.withers), { u }, sc);
   if (target.side === 'mon') crossLines(inst, sc, target, before);
   if (r.killed) {
     sc.emit(makeEvent('kill', sc.atMs, { u, t: target.id }));

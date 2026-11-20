@@ -59,27 +59,27 @@
 //   A SKILL THE ABSENCE TRAINED says its levels: the stamp keeps the server's level of the skill a training session (or the yard a hunt
 //     goes on to) trains, and the return says "Melee 28 to 34" from two server answers.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf, deathLogOf } from '../session/character-sections.js?v=0.2.141';
-import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf } from '../session/hunt-sections.js?v=0.2.141';
-import { nameOf, skillsOf } from '../session/item-sections.js?v=0.2.141';
-import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.141';
-import { pastHuntOf } from '../session/past-hunt.js?v=0.2.141';
-import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.141';
-import { deathWords } from './death-popup.js?v=0.2.141';
-import { huntName } from '../session/party-sections.js?v=0.2.141';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.141';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.141';
-import { whole } from '../render/format.js?v=0.2.141';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.141';
-import { bestFind, END_WORDS, goldOutWords } from '../hunt-view/summary-model.js?v=0.2.141';
-import { itemName } from './widgets/bits.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
-import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.141';
-import { afterDoneWords } from './hunt-after.js?v=0.2.141';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.141';
-import { trainingPhrase, yardPaidOf } from '../session/training-sections.js?v=0.2.141';
-import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.141';
+import { levelOf, deathLogOf } from '../session/character-sections.js?v=0.2.142';
+import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf } from '../session/hunt-sections.js?v=0.2.142';
+import { nameOf, skillsOf } from '../session/item-sections.js?v=0.2.142';
+import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.142';
+import { pastHuntOf } from '../session/past-hunt.js?v=0.2.142';
+import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.142';
+import { deathWords } from './death-popup.js?v=0.2.142';
+import { huntName } from '../session/party-sections.js?v=0.2.142';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.142';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.142';
+import { whole } from '../render/format.js?v=0.2.142';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.142';
+import { bestFind, END_WORDS, goldOutWords } from '../hunt-view/summary-model.js?v=0.2.142';
+import { itemName } from './widgets/bits.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.142';
+import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, staminaFreeOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.142';
+import { afterDoneWords } from './hunt-after.js?v=0.2.142';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.142';
+import { trainingPhrase, yardPaidOf } from '../session/training-sections.js?v=0.2.142';
+import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.142';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;
@@ -287,8 +287,11 @@ function nowFacts(cs, h, now) {
   const waited = !!after && after.kind === 'waited' && after.idleMs >= WAITED_FROM_MS;
   const ago = h.ended && !waited && Number.isFinite(h.endedAtMs) && now - h.endedAtMs >= AWAY_MIN_MS ? awayWords(now - h.endedAtMs) : '';
   /* the hunt's own choice first (Tyler 2026-11-15, the itinerary): gone to the yard, or why it waited instead */
-  const said = (h.ended ? afterDoneWords(cs, h.sessionId, name) : '') || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs)) : '');
+  const done = h.ended ? afterDoneWords(cs, h.sessionId, name) : '';
+  const said = done || (after ? afterHuntWords(state, h, now, name, spareSupplyOf(cs), staminaFreeOf(cs).flatMap((l) => l.words)) : '');
   const next = said ? dot(said) : '';
+  /* the stamina end's sentence already names the stamina-free loops, so the away card's row of them goes without its own line */
+  const freeSaid = !done && !!after && after.kind === 'waited' && after.next === 'away.next_stamina' && !!said;
   if (trainedBy(h.huntId)) return { training: true, ended: h.ended, ago, why: h.ended ? trainingEndWords({ reason: h.endReason }) : '', next, stamina: null };
   /* a friend's end says what ended it (`end_by_why`, the alert's and the summary's words): "left the hunt" for a friend whose stamina ran out was the panel's report */
   /* OUT OF GOLD SAYS WHY (post-patch audit 2026-11-18 B3): what the store's supplies cost against the coins, the hunt's own tally, and the
@@ -298,7 +301,7 @@ function nowFacts(cs, h, now) {
     ? goldOutWords(tally && tally.hero ? { gold: tally.hero.gold, lootValue: tally.hero.lootValue, balance: tally.hero.balance } : {}, goldFloorOf(cs)) : '';
   const why = goldOut ? dot(goldOut) : h.ended ? dot((cameHomeWords(h.endReason, h.endBy, h.endWhy, name) || STAMINA_WORDS[h.endReason] || END_WORDS[h.endReason] || '')
     .replace('{name}', name).replace('{ground}', where).replace('{item}', 'a supply').replace('{hunt}', 'another hunt')) : '';
-  return { training: false, ended: h.ended, ago, why, next, stamina };
+  return { training: false, ended: h.ended, ago, why, next, stamina, freeSaid };
 }
 
 /* What the hunt is doing now, in the line's words: the stamina left, or how long ago it ended and the stamina rested since. */

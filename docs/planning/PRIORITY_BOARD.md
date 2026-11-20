@@ -29,6 +29,40 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-19 Two rulings for v0.2.142 (game-designer, lane/d-142-rulings; the Coordinator: `level-curve` and `party-class-xp-line` red on the assembled set 41aef2ef5): RULED, BUILT, MEASURED on the real engine, one staged catalogue
+**1. The lone road to Level 50: the Warrens alone from 45 again, and a kill pays 12% less XP (no live Level moves).** Tyler's table is binding (10-25: Level 50 in 168 hunted hours alone), and his 11-19 note is that things are too easy. Sending a lone hero to the Warrens from 36 (the complete look's change 8, built by lane/d-first-day-path) kills nobody, but it skips the Glade's back half on a party ground that pays 2-3x the Glade's Level XP. The pace of record reached Level 50 in 123 h. There is no middle Level: each Level in the Warrens takes about 3.5 h off the road, so anything under 44 breaks the table. So `soloFrom` goes back to 45, where Hask's Ford is the advice and the Warrens is a lone hero's second pick. The long Glade stay is a content gap (no lone ground for 32-44), not something advice should paper over, so it goes back on the backlog. Re-measured at 45, the pace still read Level 50 in 146.5 h (-13%). The cause is v0.2.142's bows casting Flame Volley on their default bar (lane/d-audit-fixes-sim), which makes two of the eight ways 7% faster. That is the right bar. A curve re-fit would have shown every live hero 1-2 Levels lower, so **the Coordinator took the XP route: STAT_FORMULA `xp.a` and `min` x0.88** (on top of lane/d-harder-monsters' x0.96), every formula row regenerated (`gen-ground-stats --write`, `pack.mjs propose --write`; only `xp` moves). The contract follows the ladder (1385 x L^1.274, was 1378 x L^1.298), and the brackets past Level 110, where no hero is, re-fit by hand (a new bracket at 110: rise 70,000, bend 100; the one at 300: rise 350,000, bend 100). **Read-only check, 2026-11-19: 22 live heroes, 0 change Level, and the curve file refuses itself at apply if one would.**
+| Pace of record (median of 8 plain ways, careers, `sim.mjs --plan pace`) | Level 10 | 25 | 50 | 100 |
+|---|---|---|---|---|
+| Table (Tyler 10-25) | 6 h | 36 | 168 | 600 |
+| Set as assembled (Warrens alone from 36) | 5.5 | 32.7 | 123.2 | 530.5 |
+| Warrens from 45, XP as it was | 5.4 | 32.6 | 146.5 | 552.4 |
+| Warrens from 45, XP a kill x0.88 (shipped) | 6.3 | 37.0 | 165.4 | 622.5 |
+
+| Played lone hero, Normal, where the Hunts window sends it (`life.mjs --policy rec --to 70`) | Before (set as assembled): Level 50 / 70 at, Glade h, Warrens h, deaths | After (shipped) |
+|---|---|---|
+| Hammer | 102.5 / 229.8 h, 46, 22, 0 | 148.0 / 291.9 h, 108, 0, 0 |
+| Sword and shield | 117.1 / 248.1, 51, 27, 0 | 162.5 / 308.7, 118, 0, 0 |
+| Bow | 100.3 / 210.2, 43, 22, 0 | 140.0 / 263.2, 100, 0, 0 |
+| Mage | 78.1 / 164.8, 34, 16, 0 | 114.5 / 210.5, 81, 0, 0 |
+| Healer | 108.8 / 229.2, 48, 24, 0 | 152.3 / 288.0, 110, 0, 0 |
+
+The played hero (what players run) is still 3-32% faster than the table. The table is held on the plain median, as ruled.
+
+**`level-curve` C5 and C6.** C5 had gone red, and that was the measuring tool, not the curve. The ladder played the Mill Cellar at Levels 5 and 8, where its hunt now ends on the first boundary, so it read 3,411 Level XP an hour and bent the fit. Its playable band is 1-4 (`plans.mjs`), and it is no rung at all: the contract is the trend past Level 10, and the tutorial's Levels are paced one by one. C6 (no Level takes more than 2x the hours of the one before) read 2.01-2.40x in the first Levels, because the Cellar ends at 5 and a career's Level-4 rate swings 9.5-13k with its 15-minute chunk. Steps 1 to 8 are re-split to about 1.95x each, 1.6-1.9x across the Cellar's end (210 / 409 / 798 / 1,560 / 6,441 / 12,313 / 25,072 / 68,087 XP), with the same total to Level 9. Only the thresholds of Levels 2-8 move, and no live hero stood in a moved gap. The file holds that at apply: it reads every hero's Level before the rows go and refuses itself if one moved (a hero mid-climb in a gap at that moment: apply again once they pass it; `tests/core-curves.mjs` CURVE-HOLD plants one). Level 5 now comes at 0.32 h, inside the tutorial's window.
+
+**Staged, in order:** `1000-level-curve-early.generated.sql` (hr_level_curve, now 13 rows: the early re-split and the brackets past 110), then `1001-xp-a-kill-hunt-sessions-catalogue`, `1001-xp-a-kill-scaled-hunts-catalogue` and `1001-xp-a-kill-tower-catalogue` (each carries its 2027-06-05 file whole; only Level XP bounds fall). **Deploy the hr-accrue edge first, then apply the four at once:** the new rows pay under the old bounds, while the old rows pay over the new ones and would be refused. `2027-05-27-arm-factions.sql` stays held.
+
+**2. The staged Catacombs' Deadly pair: a Healer's tier binds the parties that bring one.** The ground's own row marks Deadly as a Healer's tier at every Level of its band (`healerTiers: { deadly: 186 }`, measured: a four with no Healer dies there and one with a Healer holds), and the Hunts page says "Recommended: Healer". On that tier a healerless tank and bow pair isn't a party the game sends anywhere, and both sides of its alone ratio are deaths:
+| Catacombs Deadly at 165, 2 seeds x 0.5 h | Plain hero (the guard's): Level XP an hour a head, ratio to its heroes alone, the tank's deaths | Played hero |
+|---|---|---|
+| Tank alone | 0, 29 and 29 deaths | 0, 29 and 29 |
+| Tank and bow | 629k, 0.968, 29 and 29 | 369k, 0.530, 29 and 29 |
+| Tank and Healer | 786k, 1.408, 29 and 29 | 1,070k, 1.804, 9 and 9 |
+| Tank, Healer, bow | 1,266k, 1.572, 28 and 29 | 1,411k, 1.641, 2 and 6 |
+| Tank, Healer, bow, Mage | 1,409k, 1.441, 19 and 24 | 1,599k, 1.623, 0 and 0 |
+
+Tuning the tier until a healerless pair lives would undo the reason it's a Healer's tier, and at 165 every way alone dies 11-29 times a half hour on the plain hero (the ladder kit stops at Dawnsteel). **The guard's rule** (`tests/party-class-xp-line.mjs`): where HEALER_TIERS makes the tier a Healer's tier at the cell's Level, a mix with no Healer is printed against its heroes alone on every run, not bound. Every mix with a Healer is bound there as anywhere, and the pace cap and both paths are unchanged. Today that frees one cell type, the Deadly tank and bow pair, on the four grounds with a Healer's tier at their floor (the Barrows, Krell's Hold, the Roost, the Catacombs). Two new mutants hold the rule: the table cut to half on Krell's Hold binds its tank and Healer pair (a Healer's tier excuses no Healer party), and the Catacombs' `healerTiers` moved to 165 with the same cut binds the tank and bow pair (the cut alone leaves it printed).
+
 ### 2026-11-19 First-day path, changes 1 and 8 built (systems-engineer, lane/d-first-day-path, rides v0.2.142)
 **1. The Mill Cellar ends its hunt at Level 5.** A data field, `endsAtLevel` on the ground row (`src/data/hunt-grounds.js`; only the Cellar has one). The engine ends a hunt `outgrown` at the first boundary the hero's Level stands at it (both paths, any cut), back to town like any automatic end; the server's door refuses a hero at it (`outgrown`) unless the hunt plays scaled, and the settle proves the end from the Level it holds (`2027-05-28-cellar-outgrown.sql` + its catalogue). The end card says "Ground outgrown at Level 5", drops Hunt again and makes the Next ground row its press; the away card says why and points at Hunts. The Hunts list reads the Cellar as Levels 1-4.
 | Start kit lone hero (sword and shield, start bar), `life.mjs --policy idle` | Level at 6 h | 12 h | 20 h | Level 10 at |

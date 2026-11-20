@@ -1056,8 +1056,8 @@ async function runTests(mods) {
       hunt_analyzer: { hero: { kills: 900, coins: 0 } } })[k],
   }, o);
   const NOW = T0 + 9 * H;                                              // the player reopens 9 h after leaving: 5 h 46 min idle
-  /* out of stamina, the next line names what uses none (R3n) */
-  const STAMINA_NEXT = 'While stamina refills: work a bench or train at the Yard';
+  /* out of stamina, the next line names what uses none and this hero has open (R3n; Wrenna's record sends no yard rate and no field) */
+  const STAMINA_NEXT = 'While stamina refills: gather or craft';
   t('R3c the browser closed: the away card says the hero waited in town, and the one thing that would have filled it', () => {
     const night = AR.awayRecapOf(wrenna(NOW, idleSince(END + 8000)));
     ok(night && night.text.includes('The hunt has ended. Out of stamina, so Wrenna came home. Then Wrenna waited in town for 5 h 46 min. '
@@ -1515,6 +1515,58 @@ async function runTests(mods) {
       eq(AW.awayBlockOf(away, line).why, /[.!?…]$/.test(WHY) ? WHY : WHY + '.', 'the away card');
     });
 
+    /* R3s (audit 2026-11-19 L4, the day-2 return, played): 1 h 9 min of 12 h stamina and the card's one press was Hunt again on the same ground,
+       nothing naming the yard (open from Level 10), gathering or the farm. With stamina short the card offers the loops this hero has OPEN that
+       use none, each read off the server's sections (the yard's rate Level, a party, the field), never a client-held Level */
+    t('R3s stamina short on return: the away card offers the stamina-free loops the server says are open, the end line names the same', () => {
+      const S8 = '88888888-8888-4888-8888-888888888888', END8 = T0 + 30 * MIN;
+      const env = (o = {}) => Object.assign({ name: 'Wrenna', level: { xp: XP57, level: 12, into: 0, need: 1 },
+        state: { active_kind: 'idle', active_id: null, active_since: iso(END8 + 8000) },
+        stamina: { ms: 69 * MIN, max_ms: 12 * H, at: iso(T0 + 13 * H), hunting: false },
+        hunt: { session_id: S8, hunt_id: 'meadowbrook_thicket', ended: true, session: { end_reason: o.reason || 'stamina', ended_at: iso(END8) }, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 900, coins: 0 } },
+        training: { skills: ['melee'], max_hours: 12, quotes: [], rate: { xp_h: 30000, xp_h_item: 60000, boost_pm: 2000, min_level: 10, level: o.lv || 12 } },
+        farm_land: { cap: 2, plot_level: 1, upgrade: null, plots: [] } }, o.env || {});
+      const card = (o) => {
+        const cs = heroOf(env(o), { s: S8, at: T0, xp: XP57, lv: 12, gold: 0, sp: 0, kills: 0 }, T0 + 13 * H);
+        const line = AR.awayRecapOf(cs);
+        ok(line, 'the return raised no card for ' + JSON.stringify(o));
+        return line ? AW.awayBlockOf(cs, line) : {};
+      };
+      const loops = (b) => (b.rest ? b.rest.loops.map((l) => l.go + ':' + l.label) : null);
+      const all = card({});
+      eq([all.go, loops(all), all.rest && all.rest.head], ['again', ['train:Training Yard', 'work:Gathering and crafting', 'farm:Farm'], ''],
+        'Level 12, solo, a field: the yard, gathering and crafting, the farm; the stamina end already said them, so no second line');
+      ok(all.when.includes('While stamina refills: train at the yard, gather, craft or farm.'), 'the end line names the same loops: ' + all.when);
+      /* the yard only from the SERVER's Level and solo; the farm only with a field */
+      eq(loops(card({ lv: 7 })), ['work:Gathering and crafting', 'farm:Farm'], 'under the yard\'s Level: no yard');
+      eq(loops(card({ env: { training: null, farm_land: null } })), ['work:Gathering and crafting'], 'no yard rate, no field sent: neither (fail safe)');
+      eq(loops(card({ env: { party: { id: '00000000-0000-4000-8000-000000000001', self_seat: 0, leader_seat: 0,
+        members: [{ seat: 0, name: 'Wrenna', level: 12, weapon: 'sword' }, { seat: 1, name: 'Mira', level: 12, weapon: 'bow' }] } } })),
+      ['work:Gathering and crafting', 'farm:Farm'], 'in a party: no yard (training is solo)');
+      /* another end with stamina short: the line of its own heads the presses */
+      const hours = card({ reason: 'hours' });
+      eq([hours.rest && hours.rest.head, loops(hours)], ['Low on stamina? These use none:', ['train:Training Yard', 'work:Gathering and crafting', 'farm:Farm']], 'a time limit with stamina short');
+      /* CONTROL: stamina enough for a real hunt (5 h of 12) offers nothing more */
+      eq(card({ env: { stamina: { ms: 5 * H, max_ms: 12 * H, at: iso(T0 + 13 * H), hunting: false } } }).rest, null, 'stamina for a hunt: no loops row');
+    });
+
+    /* R3o (audit 2026-11-19 L2): after the Cellar's Level 5 end the away card pressed "Hunt summary", whose Next ground row lay under the sticky
+       foot. Its press is now the next ground itself, the summary's own Go to, and the summary stays one press away */
+    t('R3o an outgrown ground\'s away card presses the next ground, by the server\'s Level', () => {
+      const S9 = '99999999-9999-4999-8999-999999999999';
+      const env = (lv) => ({ name: 'Wrenna', level: { xp: XP.charXpForLevel(lv), level: lv, into: 0, need: 1 },
+        state: { active_kind: 'idle', active_id: null, active_since: iso(T0 + 2 * H) },
+        stamina: { ms: 9 * H, max_ms: 12 * H, at: iso(T0 + 4 * H), hunting: false },
+        hunt: { session_id: S9, hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'outgrown', ended_at: iso(T0 + 2 * H) }, hero: {}, pose: { units: [] } },
+        hunt_analyzer: { hero: { kills: 300, coins: 0 } } });
+      const block = (lv) => { const cs = heroOf(env(lv), { s: S9, at: T0, xp: XP.charXpForLevel(4), lv: 4, gold: 0, sp: 0, kills: 0 }, T0 + 4 * H);
+        const line = AR.awayRecapOf(cs); ok(line, 'no card at Level ' + lv); return line ? AW.awayBlockOf(cs, line) : {}; };
+      const b5 = block(5);
+      eq([b5.go, b5.label, b5.ground, b5.summary], ['ground', 'Go to Meadowbrook Thicket', 'meadowbrook_thicket', true],
+        'Level 5 out of the Cellar: Go to Meadowbrook Thicket, the Hunt summary beside it');
+    });
+
     t('R9 the end card\'s Gold is what the purse kept, the away card\'s own reading, and a record with no spend says Coins (post-patch audit, end card)', () => {
       /* THE HUNT IN VIEW: its end card, the stored summary's server tally (coins 615, loot 314, balance -171: 1,100 gp of store supplies) */
       const cur = { hunt: 'millrace_sewer', lvFrom: 5, lvTo: 6, ups: [], xp: 8024, xpH: 25383, gold: 615, lootValue: 314, balance: -171, kills: 35, ms: 18 * MIN };
@@ -1708,7 +1760,7 @@ const MUTANTS = [
   { test: 'R3k', file: 'src/shell/alerts.js', from: "      if (a.kind === 'away') askPast(cs, a);\n", to: '' },
   { test: 'R3k', file: 'src/shell/alerts.js', from: "if (!session || !a.stamp || pastAsked.has(cs.slot + ':' + session)) return;", to: 'if (!session || !a.stamp) return;',
     also: [{ file: 'src/session/past-hunt.js', from: '  if (m.has(session)) { const v = m.get(session); return v instanceof Promise ? v : pastHuntOf(cs, session); }\n', to: '' }] },
-  { test: 'R3l', file: 'src/shell/windows/away.js', from: "summary: go === 'again', bless: blessOf(cs, f) };", to: "summary: go === 'again', bless: '' };" },
+  { test: 'R3l', file: 'src/shell/windows/away.js', from: "summary: go === 'again' || go === 'ground', bless: blessOf(cs, f) };", to: "summary: go === 'again' || go === 'ground', bless: '' };" },
   { test: 'R3l', file: 'src/shell/windows/away.js', from: "if (ctx.character && ctx.character.slot === a.slot) ctx.wm.openTab('shop', 'services'); else", to: "if (false) ctx.wm.openTab('shop', 'services'); else" },
   { test: 'R3l', file: 'src/shell/away-recap.js', from: ": h.ended && h.endReason === 'died' ? h.sessionId : null },", to: ': null },' },
   { test: 'R3m', file: 'src/hunt-view/summary-model.js', from: "  const why = s.reason === 'gold_out' && s.forfeit !== true ? goldOutWords(s, floor)", to: '  const why = false ? goldOutWords(s, floor)' },
@@ -1792,7 +1844,17 @@ const MUTANTS = [
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "  if (ground && ground.tower === true) return { kind: 'waited', idleMs, next: null };\n", to: '' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: "if (h.endReason === 'gold_out' && typeof spare === 'string')", to: 'if (false)' },
   { test: 'R3e', file: 'src/shell/after-hunt.js', from: ' && !named.has(r.id));', to: ');' },
-  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'afterHuntWords(state, h, now, name, spareSupplyOf(cs))', to: 'afterHuntWords(state, h, now, name)' },
+  { test: 'R3e', file: 'src/shell/away-recap.js', from: 'afterHuntWords(state, h, now, name, spareSupplyOf(cs), ', to: 'afterHuntWords(state, h, now, name, null, ' },
+  /* R3s (audit 2026-11-19 L4): the return with stamina short offers the open stamina-free loops, by the server's sections */
+  { test: 'R3s', file: 'src/shell/windows/away.js', from: '    if (staminaShort(cs)) {', to: '    if (false) {' },
+  { test: 'R3s', file: 'src/shell/after-hunt.js', from: 'r.level >= r.minLevel && !partyMembershipOf(cs);', to: 'true;' },
+  { test: 'R3s', file: 'src/shell/after-hunt.js', from: 'r.level >= r.minLevel && !partyMembershipOf(cs);', to: 'r.level >= r.minLevel;' },
+  { test: 'R3s', file: 'src/shell/after-hunt.js', from: 'return !!f && f.cap > 0;', to: 'return true;' },
+  { test: 'R3s', file: 'src/shell/after-hunt.js', from: 'st.msLeft < st.capMs * STAMINA_SHORT_PART;', to: 'st.msLeft >= 0;' },
+  { test: 'R3s', file: 'src/shell/windows/away.js', from: "head: now.freeSaid ? '' : t('away.rest_head')", to: "head: t('away.rest_head')" },
+  { test: 'R3s', file: 'src/shell/away-recap.js', from: 'staminaFreeOf(cs).flatMap((l) => l.words)) : \'\');', to: '[]) : \'\');' },
+  /* R3o (audit 2026-11-19 L2): an outgrown ground's away card presses the next ground */
+  { test: 'R3o', file: 'src/shell/windows/away.js', from: "    else if (ground) { go = 'ground';", to: "    else if (false) { go = 'ground';" },
   { test: 'R3d', file: 'src/shell/after-hunt.js', from: '|| h.sessionId !== id ||', to: '||' },
 ];
 

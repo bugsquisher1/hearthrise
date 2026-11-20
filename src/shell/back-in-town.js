@@ -15,7 +15,9 @@
 //             Services tab's own Bless all (bless-all.js); never after a hunt whose death costs nothing (the Tower)
 //   ground    THE NEXT GROUND (hunt-list.js nextGroundFrom; audit 2026-11-18 A12: on a phone Hunt again kept a hero in the Mill Cellar all night
 //             after Level 5 and nothing said there was a better ground): the Hunts list's Recommended ground when it is a step up from the one
-//             just hunted, by the server's Levels, its Show opening that ground in Hunts. Never the gold press: it points, Hunt again stays
+//             just hunted, by the server's Levels, its Show opening that ground in Hunts. Never the gold press (it points, Hunt again stays),
+//             EXCEPT after a ground outgrown (audit 2026-11-19 L2: the card opened on a greyed Hunt again and this row sat under the sticky
+//             foot): Hunt again can't go, so the next ground is the press over every chore, the summary's foot carrying it as Go to <ground>
 //   again     Hunt again, the summary's own press
 //   buy       THE NEXT BUY (next-buy.js, lane/a-next-steps; audit 2026-11-15 F12/F20: gold piled up and this card went silent): the one most
 //             useful thing the purse covers, last, its Show opening where it is bought. Never the gold press: it points, it buys nothing
@@ -24,21 +26,21 @@
 // Blessings all come from the envelope's sections; nothing here is a gate the server
 // trusts. A step with nothing to do is not listed; a step the player pressed on this
 // card that now has nothing left is listed as done, so the player sees what happened;
-// the first open step is the card's ONE gold press, else Hunt again is.
+// the first open step is the card's ONE gold press, else Hunt again is (after a ground outgrown, the next ground is).
 // ════════════════════════════════════════════════════════════════════════
-import { sellPlan, isStartKit } from './bag-model.js?v=0.2.141';
-import { upgradeWords } from './upgrade-plan.js?v=0.2.141';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.141';
-import { nextBuyOf } from './next-buy.js?v=0.2.141';
-import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.141';
-import { moveStorageMany } from '../session/storage-intents.js?v=0.2.141';
-import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js?v=0.2.141';
-import { levelOf } from '../session/character-sections.js?v=0.2.141';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.141';
-import { nextGroundFrom, adviceLevels } from './hunt-list.js?v=0.2.141';
-import { itemName } from './widgets/bits.js?v=0.2.141';
-import { gold, listWords } from '../render/format.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
+import { sellPlan, isStartKit } from './bag-model.js?v=0.2.142';
+import { upgradeWords } from './upgrade-plan.js?v=0.2.142';
+import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.142';
+import { nextBuyOf } from './next-buy.js?v=0.2.142';
+import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.142';
+import { moveStorageMany } from '../session/storage-intents.js?v=0.2.142';
+import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js?v=0.2.142';
+import { levelOf } from '../session/character-sections.js?v=0.2.142';
+import { partyMembershipOf } from '../session/party-sections.js?v=0.2.142';
+import { nextGroundFrom, adviceLevels } from './hunt-list.js?v=0.2.142';
+import { itemName } from './widgets/bits.js?v=0.2.142';
+import { gold, listWords } from '../render/format.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.142';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const names = (ids) => listWords(ids.map(itemName));
@@ -63,7 +65,7 @@ function planned(bag, rules, rule) {
  *        free: the hunt's mode takes nothing for a death (the Tower), so no Bless step; ground: the next ground (nextGroundFrom) and the Levels it was read for;
  *        outgrown: the hunt ended `outgrown` (hunt-grounds.js endsAtLevel), so it has no Hunt again and the next ground is the press
  * @returns {{ steps: {id:string, title:string, words:string, verb:string, icon:string|null, done:boolean, count:number,
- *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object}[], primary: string }}
+ *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object, name?:string, glyph?:string|null}[], primary: string }}
  */
 export function townSteps(o) {
   const did = (o && o.did) || new Map();
@@ -106,7 +108,7 @@ export function townSteps(o) {
   if (lv.length) {
     const lo = Math.min(...lv), hi = Math.max(...lv);
     const levels = lo === hi ? t('hunts.level_one', { level: lo }) : t('hunts.levels_range', { lo, hi });
-    out.push({ id: 'ground', count: 1, done: false, title: t('summary.ground_up', { ground: g.row.name }), verb: t('controls.show'), icon: null, glyph: 'uiMap',
+    out.push({ id: 'ground', count: 1, done: false, title: t('summary.ground_up', { ground: g.row.name }), name: g.row.name, verb: t('controls.show'), icon: null, glyph: 'uiMap',
       words: t('summary.ground_up_words', { band: t('hunts.levels_range', { lo: g.row.band[0], hi: g.row.band[1] }), levels }), place: { kind: 'hunt', hunt: g.row.hunt } });
   }
   /* buy: one line, last, never the gold press (its press only opens the window where it is bought) */
@@ -114,9 +116,10 @@ export function townSteps(o) {
   if (buy) out.push({ id: 'buy', count: 1, done: false, title: buy.title, words: buy.words, verb: t('controls.show'), icon: buy.icon || null, glyph: buy.glyph || null, place: buy.place });
   const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');
   /* A GROUND OUTGROWN (`outgrown`: the hunt ended at its endsAtLevel, src/data/hunt-grounds.js) has no Hunt again (the server refuses it), so
-     once the chores are done the card's press is the next ground, where the hero goes now */
-  const next = o && o.outgrown && out.some((s) => s.id === 'ground') ? 'ground' : 'again';
-  return { steps: out, primary: first ? first.id : next };
+     the card's press is the next ground, where the hero goes now, ahead of the chores (audit 2026-11-19 L2: the chores' gold row lay under the
+     sticky foot, which led with a greyed Hunt again); each chore keeps its own press */
+  if (o && o.outgrown && out.some((s) => s.id === 'ground')) return { steps: out, primary: 'ground' };
+  return { steps: out, primary: first ? first.id : 'again' };
 }
 
 /** This character's steps, from what the server sent. `did`: the steps pressed on this card (the window's scratch). */
@@ -127,6 +130,16 @@ export function townStepsOf(cs, did) {
   const free = !!h && h.ended && sessionModeOfHunt(h.huntId).deathLossPm === 0;
   return townSteps({ plan, bag: bagOf(cs), rules: rulesOf(cs), bids: shop ? shop.bids : null, blessings: blessingsOf(cs), purse: goldOf(cs), did, buy: nextBuyOf(cs, plan), free, ground: groundOf(cs, h),
     outgrown: !!h && h.ended && h.endReason === 'outgrown' });
+}
+
+/**
+ * THE WAY ON FROM A GROUND OUTGROWN, for the away card (windows/away.js): the next ground's { hunt, name } when the hunt the server holds
+ * ended `outgrown` and the Hunts list recommends a step up, else null. The ground the summary's foot presses.
+ */
+export function outgrownGroundOf(cs) {
+  const h = huntOf(cs);
+  const g = h && h.ended && h.endReason === 'outgrown' ? groundOf(cs, h) : null;
+  return g ? { hunt: g.row.hunt, name: g.row.name } : null;
 }
 
 /* The next ground off the hunt the server holds ended (hunt-list.js nextGroundFrom), read for the server's Levels: this hero's, or its

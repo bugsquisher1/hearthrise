@@ -34,7 +34,7 @@
 //      One that carries none (a shape, a rate limit, no character) is no news.
 // ════════════════════════════════════════════════════════════════════════
 
-import { residueOf } from './residue.js?v=0.2.141';
+import { residueOf } from './residue.js?v=0.2.142';
 
 /** Envelope keys that describe the answer, not the character. */
 const META = Object.freeze(['ok', 'error', 'accrued']);

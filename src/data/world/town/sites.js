@@ -132,6 +132,15 @@ export const SCENERY = Object.freeze([
   ['lamppost', 79, 23], ['signpost', 86, 27], ['crates', 90, 26],
 ].map((r) => Object.freeze(r)));
 
+/* THE SHOWPIECES the camera frames (map-compile.js `shows`, src/world/core/camera.js showAt), plan coordinates: the placed
+   object, the tiles where the hero stands near it, and the tiles over which the framing eases off.
+   THE GREAT HEARTH (Tyler's UI audit 2026-11-18: centred on a new hero, 1440x900 cut off its chimney, banner and crest, the
+   town's best picture): from the counters (y37) down to the fuel stands (y50), Tamsin's yard (x102) to the east flank (x128),
+   easing off over the field and past the flanks */
+export const SHOWPIECES = Object.freeze([
+  Object.freeze({ id: 'great_hearth', x: 112, y: 45, near: Object.freeze([102, 37, 27, 14]), fade: 6 }),
+]);
+
 /* the ways out of town onto a hunting ground's map: the mill's cellar hatch, the sewer grate */
 export const EXITS = Object.freeze([
   Object.freeze({ x: 88, y: 34, to: 'mill_cellar' }), Object.freeze({ x: 46, y: 67, to: 'millrace_sewer' }),

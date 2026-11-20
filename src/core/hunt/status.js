@@ -16,7 +16,8 @@
 //                of that status on the unit, then adds one if under maxStacks
 //                (ST-01). The scale is fixed now (spec §3.3 #6):
 //                (1000 + skillLv x skillPermillePerLevel) x tierPermille[tier-1] / 1000
-//                (a slowing status: tierPermille[tier-1] alone, or 1000; a refresh of a
+//                (a slowing status: tierPermille[tier-1] alone, or 1000; a heal-cutting one on
+//                a hero: the share of its guard element the hero takes, else 1000; a refresh of a
 //                status that does not tick lifts the refreshed stack to a stronger scale)
 //   tickStatuses each sub-step, units in id order, stacks in landing order:
 //                left and next fall by dtMs; a due stack ticks (left >= 0, so
@@ -34,9 +35,10 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { STATUSES, validateStatus } from '../../data/statuses.js?v=0.2.141';
-import { makeEvent } from './events.js?v=0.2.141';
-import { landHit } from './damage.js?v=0.2.141';
+import { STATUSES, validateStatus } from '../../data/statuses.js?v=0.2.142';
+import { heroElementPermille } from '../elements.js?v=0.2.142';
+import { makeEvent } from './events.js?v=0.2.142';
+import { landHit } from './damage.js?v=0.2.142';
 
 export const PERSISTED = Object.freeze({ unit: Object.freeze([['statuses', 'json']]), world: Object.freeze([]), pack: Object.freeze([]) });
 
@@ -49,8 +51,11 @@ export function statusRow(id) {
 
 /** The permille scale a stack of `row` lands with, from its source's level and rune tier. Refuses, never clamps.
     A MARKING status (takenPm) is never scaled: 1000. A SLOWING one (slowPm) is scaled by its rune tier alone when its row
-    carries `tierPermille` (statuses.js slowAt reads the stack's slow off it), else 1000. */
-export function stackScale(row, source) {
+    carries `tierPermille` (statuses.js slowAt reads the stack's slow off it), else 1000. A HEAL-CUTTING one (healCutPm, Withered)
+    on a HERO `unit` is the share of a blow of its `guard` element the hero takes (its resistance, elements.js heroElementPermille:
+    a guard lowers the cut by the same percent, heal-cut.js reads it), 1000 with none and on a monster. */
+export function stackScale(row, source, unit) {
+  if (row.healCutPm) return unit && unit.side === 'hero' && row.guard ? heroElementPermille(unit.resistPm, row.guard) : 1000;
   if (!row.tick && !row.tierPermille) return 1000;
   const lv = source && source.skillLv !== undefined && source.skillLv !== null ? source.skillLv : 0;
   const tier = source && source.runeTier !== undefined && source.runeTier !== null ? source.runeTier : 1;
@@ -78,7 +83,7 @@ export function applyStatus(inst, unit, row, source, sc) {
   const bad = validateStatus(row);
   if (bad.length) throw new Error('applyStatus: ' + bad.join('; '));
   if (statusRow(row.id) !== row) throw new Error('applyStatus: ' + row.id + ' is not the statuses.js row');
-  const scale = stackScale(row, source);
+  const scale = stackScale(row, source, unit);
   const list = stacksOf(unit).slice();
   for (const st of list) if (st.s === row.id) st.left = row.durationMs;
   /* A status that does not tick acts as its strongest stack (damage.js slowed, takenPmOf), so a refresh by a stronger landing

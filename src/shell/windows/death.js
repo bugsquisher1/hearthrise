@@ -11,10 +11,10 @@
 // Closing it any way records the dismissal (death-popup.js followDeaths). Every
 // line is the server's death row; built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop } from '../../render/paint.js?v=0.2.141';
-import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.141';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { deathLogOf } from '../../session/character-sections.js?v=0.2.141';
+import { text, cls, prop } from '../../render/paint.js?v=0.2.142';
+import { deathPopupOf, deathWords, blessingsMissing } from '../death-popup.js?v=0.2.142';
+import { huntOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { deathLogOf } from '../../session/character-sections.js?v=0.2.142';
 
 const LINES = Object.freeze(['killed', 'what', 'why', 'lost', 'level', 'saved', 'town']);
 const line = (k) => '<p class="hdeath-line hdeath-' + k + '"></p>';
@@ -31,7 +31,7 @@ export function renderDeath() {
     + '<div class="hsum-actions hdeath-actions">'
     /* the way to the Blessings a death used up (the Shop's Services tab), while the hero lacks one */
     + '<button type="button" class="hh-tool" data-hs-act="death-bless" hidden></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="death-summary">Hunt summary</button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="death-summary">Hunt summary</button>'
     + '<button type="button" class="hh-tool is-primary" data-hs-act="death-ok">OK</button></div>'
     + '</section></div>';
 }

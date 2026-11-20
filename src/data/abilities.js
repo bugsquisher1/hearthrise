@@ -38,6 +38,15 @@
 //   party: true = its mirror, cast only while another living hero shares the caster's world (the
 //     tank's rune spells, Tyler 2026-11-19: "Tank spells should be party only I think"). Never with
 //     `alone`; the bar and Configure action say "Party only", as an alone row says "Solo only".
+//     Or a LIST of hunt roles (hunt-roles.js HUNT_ROLES): party only for a caster playing one of them, any
+//     other caster's at any time (Brand and Reave: ['tank'], the designer 2026-11-20, whole-game audit §6:
+//     "with a shield worn they are party only, the same rule as Frost Slam and Shelter"; a sword alone casts
+//     them alone). partyOnly() below is the one reading, the engine's and the bar's.
+//   replaces: the rows a cast of it STANDS IN FOR (the whole-game audit's change 3: a new ability is a sidegrade
+//     to a slot, never an addition to the bar). It fires only while one of their cooldowns is up, and its cast
+//     starts the first of them that is up, as that row's own cast would (its own cdMs too), so a bar holding it
+//     casts no more of them than a bar without it: a cast REPLACES one. Each is a row of its own lane that every
+//     discipline it names holds, and replaces nothing itself (src/core/hunt/abilities.js clockOf).
 //   skill: THE ROW'S OWN SKILL, when it is not its discipline's (itemization plan §7: the fist line's strikes level on
 //     Magic while its blows read Melee). Its unlock, rune versions and numbers read that skill (abilitySkill), and its
 //     hits train it: a weapon skill by damage, Magic by none (Magic is paid per mana spent, magicXpMult; ownHitSkill,
@@ -45,6 +54,11 @@
 //   weakPm: permille of a monster's WEAKNESS to the row's element its hits land (plan §7, the fist's element by choice:
 //     half the weak-side bonus, so picking the weak element is worth half what a fixed one is); a resistance lands in
 //     full. Absent: all of it (src/core/hunt/damage.js hurt).
+//   leechPm: permille of the HP each of its hits took that comes back to the caster as a heal (the Necrotic spells' drain, plan
+//     Appendix B3), cut like any heal on a Withered caster (src/core/hunt/heal-cut.js), never past max HP
+//   manaPerHit, manaPerKill: mana back to the caster for each monster a hit of the cast landed on / each one it killed (the Storm
+//     spells, B3), never more in all than the cast cost (a spell is never a mana engine) and never past max mana. Magic XP is paid
+//     on the mana the cast kept (src/core/hunt/abilities.js fire: the cast event's `mana` is net of it, as a shell's refund is)
 //   unlock: a level in the row's own skill (abilitySkill) the ability waits for: a slot set up
 //     early is kept and waits (`level`, the wait a locked rune version gives), never refused
 //   trigger: the conditions a NEW slot of the row starts with, when suggestedTrigger's generic one
@@ -69,13 +83,14 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.141';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.141';
-import { isElement } from './elements.js?v=0.2.141';
-import { ITEMS } from './items.js?v=0.2.141';
-import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.141';
-import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.141';
-import { FIST_LINE, FIST_ELEMENTS } from './fists.js?v=0.2.141';
+import { SUPPLIES } from './supplies.js?v=0.2.142';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.142';
+import { isElement } from './elements.js?v=0.2.142';
+import { ITEMS } from './items.js?v=0.2.142';
+import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.142';
+import { shapeProblem } from './shape-kinds.js?v=0.2.142';
+import { FIST_LINE, FIST_ELEMENTS } from './fists.js?v=0.2.142';
+import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.142';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;
@@ -275,6 +290,43 @@ export const ABILITIES = Object.freeze([
       rune: 'chalked_' + family + '_rune', target: 'enemy', dmg: [10, 18], element, weakPm: 500, magicXpMult: 1600,
       versions: [[12, 1000], [14, 1740], [17, 2520], [21, 3310], [25, 4100]], lvPm: LV_PM }),
   ]) : []),
+  /* NECROTIC AND STORM, THE SAMPLE (itemization plan Appendix B3 and §11 phase 6b; Tyler 2026-11-18: "i want each weapon type to have a
+     spell for both"): the sword's pair and the wand's pair, in this table only while their switch is on (src/data/necrotic-storm.js).
+     A Storm spell is fast and pays back in mana, on the Storm family (the old Air); a Necrotic one drains or Withers, on the Bone family.
+     Storm unlocks at 25 and Necrotic at 40 in the weapon's own skill (a sword's Melee, a wand's Magic), so at its unlock a hero already
+     casts the Scored (Storm) or Etched (Necrotic) version. Versions on the built ladder (mana x1.2 a version). Magic XP: the sword's at a
+     quarter (Flame Strike's 250), the wand's in full. Neither is on any default bar: the new-spell prompt offers each at its unlock.
+     THE SWORD'S PAIR (the designer's rulings, whole-game audit 2026-11-20 §6). On the sword's list and the tank's, as Flame Strike is,
+     but PARTY ONLY for the tank (`party: ['tank']`, the rule Frost Slam and Shelter keep: Tyler 2026-11-19, tank spells never make a lone
+     tank kill faster); a sword alone casts both alone. Each STANDS IN FOR a strike (`replaces`, the audit's change 3): it shares Flame
+     Strike's and Power Strike's cooldowns, so a cast replaces one of theirs and the bar never casts more strikes for holding it.
+       BRAND    Storm, one target, a kill gives 4 mana back. 10 mana, 8 s.
+       REAVE    Necrotic, one target, 30% of the HP it took comes back as HP. 12 mana, 10 s.
+     THE WAND'S PAIR, on Fireball's 3x3 (Fireball [7, 12], 25 mana, 8 s; Hoarfrost [5, 9], 22 mana, 10 s).
+       UPDRAFT  Storm, an area under Fireball's damage, 3 mana back for each monster it hits. 22 mana, 10 s.
+       BLIGHT   Necrotic, an area, everything it hits Withered (statuses.js: a monster heals half as much for 6 s). 25 mana, 10 s. Its
+                damage is under Updraft's (the designer: its worth is Withered, and the Mage is already ahead).
+     Mana, cooldowns and returns PROPOSED by the designer (B3); the damages are the designer's §6 rulings (Updraft [5, 9] stands, Blight
+     about [4, 7]) and, for the sword's pair, MEASURED to its band (Brand about +5% Level XP an hour for a lone sword on a neutral monster,
+     the pair at most +10%) in tools/balance-sim/elements-6b-table.mjs (lane/d-elements-6b-rulings, 6 seeds x 2 h, paired, --neutral).
+     At the ruled [5, 9] Brand lost 6-8% in place of Flame Strike, so it is [7, 13]: -1.3% / -1.5% in place of Flame Strike (Melee 25 /
+     40), +4.2% / +8.8% after it, on Power Strike's turns (the better bar); with Reave [5, 9] the pair lands +1.0%, +6.1% or +8.8% by
+     bar order, never more. [8, 14] crossed +10% at 40. Power Strike never scales and a rune strike does, so the gain on its turn grows
+     with Melee: re-read at a higher band before going live. */
+  ...(NECROTIC_STORM.live ? [
+    ab({ id: 'brand', n: 'Brand', disciplines: ['shield', 'sword'], party: ['tank'], replaces: ['flame_strike', 'power_strike'], lane: 'offense', cdMs: 8000, mana: 10,
+      rune: 'chalked_storm_rune', unlock: 25, target: 'enemy', dmg: [7, 13], element: 'storm', manaPerKill: 4, magicXpMult: 250,
+      versions: [[10, 1000], [12, 1740], [14, 2520], [17, 3310], [21, 4100]], lvPm: LV_PM }),
+    ab({ id: 'reave', n: 'Reave', disciplines: ['shield', 'sword'], party: ['tank'], replaces: ['flame_strike', 'power_strike'], lane: 'offense', cdMs: 10000, mana: 12,
+      rune: 'chalked_bone_rune', unlock: 40, target: 'enemy', dmg: [5, 9], element: 'necrotic', leechPm: 300, magicXpMult: 250,
+      versions: [[12, 1000], [14, 1740], [17, 2520], [21, 3310], [25, 4100]], lvPm: LV_PM }),
+    ab({ id: 'updraft', n: 'Updraft', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_storm_rune', unlock: 25,
+      target: 'area', dmg: [5, 9], element: 'storm', manaPerHit: 3, magicXpMult: 1600,
+      versions: [[22, 1000], [26, 1740], [32, 2520], [38, 3310], [46, 4100]], lvPm: LV_PM }),
+    ab({ id: 'blight', n: 'Blight', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 25, rune: 'chalked_bone_rune', unlock: 40,
+      target: 'area', dmg: [4, 7], element: 'necrotic', status: 'withered', magicXpMult: 1600,
+      versions: [[25, 1000], [30, 1740], [36, 2520], [43, 3310], [52, 4100]], lvPm: LV_PM }),
+  ] : []),
   /* MEND, THE UNIVERSAL SELF-HEAL (Bible §4.1 / §17 CONFIRMED; roadmap p21): every loadout heals itself with mana on
      the heal lane, outside its three discipline abilities. It needs missing HP (a hero at full health never casts it,
      so a full-health cast never pays Magic XP) and spends no rune: the free floor. It levels on Magic, and pays Magic
@@ -306,6 +358,10 @@ export function areaSpec(row) {
 
 /* THE SKILL A DISCIPLINE'S VERSIONS LEVEL ON (DISCIPLINES above). A universal row names its own `skill`. */
 export const DISCIPLINE_SKILL = Object.freeze(Object.fromEntries(DISCIPLINE_IDS.map((d) => [d, DISCIPLINES[d].skill])));
+/** IS `row` PARTY ONLY for a caster playing hunt role `role` (hunt-roles.js HUNT_ROLES)? `party: true` for every caster, a list of
+    roles for a caster playing one of them (Brand and Reave: the tank). The engine's gate (src/core/hunt/abilities.js firstUsable, the
+    unit's role) and the bar's words (src/shell/action-facts.js, the server's hunt_settings role) read this one rule. */
+export const partyOnly = (row, role) => !!row && (row.party === true || (Array.isArray(row.party) && row.party.includes(role)));
 /** The ability ids discipline `d` may hold, in data order (its own rows and every universal row). */
 export const disciplineAbilities = (d) => Object.values(ABILITIES).filter((a) => a.disciplines.includes(d)).map((a) => a.id);
 /** The skill `row`'s unlock, versions and output level on: its own `skill` when it names one (a universal row always does), else
@@ -407,11 +463,30 @@ export function validate(rows = ABILITIES) {
     /* The family's version-I rune: the one its store row partners (a cast spends any tier of the family). */
     if (r.rune && r.active && runeTierOf(ITEMS[r.rune]) !== 1) bad('rune ' + r.rune + ' is not its family\'s Chalked rune');
     if (r.lvPm !== undefined && !(Number.isInteger(r.lvPm) && r.lvPm >= 0)) bad('lvPm must be an integer >= 0');
+    /* A CAST'S RETURNS (the Necrotic and Storm spells): a leech is a whole permille of a blow it lands, mana back a whole number a
+       hit or a kill, each only on a row that lands blows (a status-only shape, a heal or a shield has none to return from). */
+    if (r.leechPm !== undefined && !(Number.isInteger(r.leechPm) && r.leechPm > 0 && r.leechPm <= 1000 && DAMAGING.includes(r.target) && landsBlow(r))) bad('leechPm is a whole permille 1..1000 on a row that lands blows');
+    for (const k of ['manaPerHit', 'manaPerKill']) if (r[k] !== undefined && !(Number.isInteger(r[k]) && r[k] > 0 && DAMAGING.includes(r.target) && landsBlow(r))) bad(k + ' is a whole number of mana >= 1 on a row that lands blows');
     /* Alone-only is a strike's rule: a row everyone holds (the self-heal) or one that helps a friend would never help one. */
     if (r.alone !== undefined && (r.alone !== true || r.universal || !['enemy', 'area', 'cleave'].includes(r.target))) bad('alone is true on a damaging, non-universal row, or absent');
-    /* Party-only is the mirror (the tank's rune spells): never on a row everyone holds, never beside `alone` (it could never fire). */
-    if (r.party !== undefined && (r.party !== true || r.universal)) bad('party is true on a non-universal row, or absent');
-    if (r.party === true && r.alone === true) bad('a row is alone or party only, never both');
+    /* Party-only is the mirror (the tank's rune spells): never on a row everyone holds, never beside `alone` (it could never fire). A
+       list names the hunt roles it binds, each once (hunt-roles.js validate holds each to a role one of the row's disciplines plays). */
+    const partyList = Array.isArray(r.party) && r.party.length >= 1 && r.party.every((x) => typeof x === 'string' && /^[a-z_]{1,32}$/.test(x)) && new Set(r.party).size === r.party.length;
+    if (r.party !== undefined && ((r.party !== true && !partyList) || r.universal)) bad('party is true or a list of hunt roles on a non-universal row, or absent');
+    if (r.party !== undefined && r.alone === true) bad('a row is alone or party only, never both');
+    /* WHAT A ROW STANDS IN FOR (`replaces`, change 3): other rows of its lane, each held by every discipline it names, none replacing
+       anything itself (a clock is a row's own cooldown, never a chain of them). */
+    if (r.replaces !== undefined) {
+      const ok = Array.isArray(r.replaces) && r.replaces.length >= 1 && new Set(r.replaces).size === r.replaces.length;
+      if (!ok || r.universal) bad('replaces is a list of other rows, each once, on a non-universal row');
+      else for (const id of r.replaces) {
+        const o = rows[id];
+        if (!o || id === r.id) bad('replaces ' + id + ': not another row');
+        else if (o.lane !== r.lane) bad('replaces ' + id + ': another lane');
+        else if (o.replaces !== undefined) bad('replaces ' + id + ', which replaces another itself');
+        else if (r.disciplines.some((d) => !o.disciplines.includes(d))) bad('replaces ' + id + ', which a discipline it names does not hold');
+      }
+    }
     if (!r.universal && new Set(r.disciplines.map((d) => DISCIPLINE_SKILL[d])).size !== 1) bad('its disciplines level on different skills');
     if (r.versions !== undefined) {
       const vs = r.versions;

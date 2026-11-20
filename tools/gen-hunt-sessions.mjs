@@ -364,7 +364,8 @@ export const WORLD_FIELDS_READ = Object.freeze({
    (STAGED on set/v0.2.142, applied first) is the file before this one and this one carries it whole. hr_hunt_kill_bounds moves (and the called Chief's Cauldron rate in hr_boss_calls, the field Chief's): every formula monster's HP
    is x1.1 (src/data/balance-sheet.js STAT_FORMULA), so its XP and coin a kill rise with it and the most one kill can pay rises too. No ground, spawn, limit,
    end reason, vendor value or world shape moves. ORDER: after every 2027-05-28 file. */
-export const OUT_NAME = '2027-06-05-harder-monsters-hunt-sessions-catalogue.generated.sql';
+/* 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so every formula row's kill bound falls; 2027-06-05 is carried whole. */
+export const OUT_NAME = '1001-xp-a-kill-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1119,6 +1120,9 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
+-- NEW IN THIS FILE (lane/d-142-rulings, game-designer, 2026-11-19; the pace held by XP a kill): balance-sheet.js STAT_FORMULA xp a and min
+--   x0.88, so every formula row pays 12% less Level XP and its kill bound falls with it. No coin, HP or blow moves. Deploy the hr-accrue carrying
+--   the new rows BEFORE this applies.
 -- NEW IN THIS FILE (lane/d-harder-monsters, systems-engineer, 2026-11-19; Tyler 2026-11-19: "raise HP and damage done by all monsters in the game
 -- slightly"). It carries 2027-05-28-cellar-outgrown-hunt-sessions-catalogue (STAGED on set/v0.2.142, applied first) whole. hr_hunt_kill_bounds moves: every
 -- formula monster's HP is x1.1 (src/data/balance-sheet.js STAT_FORMULA) and its XP a point x0.96, so its coin and XP bound a kill rise with it (the Mill

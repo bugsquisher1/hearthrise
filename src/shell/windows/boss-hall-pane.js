@@ -9,24 +9,24 @@
 // says whose key an open would take and whether this hero, and how many of its party, can still take today's prize. The press comes on for
 // a leader whose party holds a key in another seat, and one label line says the loot. A server that has not said shows neither.
 // ════════════════════════════════════════════════════════════════════════
-import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.141';
-import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.141';
-import { isGuarded } from '../../data/boss-calls.js?v=0.2.141';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.141';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.141';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.141';
-import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.141';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.141';
-import { settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { hallStateOf } from '../../session/boss-quote.js?v=0.2.141';
-import { hoursWords } from '../../render/format.js?v=0.2.141';
-import { weakFoodOf, weakFoodWords, groundFloor, hallFloor, notSaid } from '../weak-food.js?v=0.2.141';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.141';
-import { storeName } from '../bar-draft.js?v=0.2.141';
-import { openHall } from '../../session/boss-intents.js?v=0.2.141';
-import { itemName } from '../widgets/bits.js?v=0.2.141';
-import { prizeSlices } from '../../core/drops.js?v=0.2.141';
-import { partyNote } from '../hunt-list.js?v=0.2.141';
+import { text, prop, cls, rows, element } from '../../render/paint.js?v=0.2.142';
+import { BOSS_HALL_RULES, BOSS_HALL_WORDS, hallFromGround, roomOfHunt } from '../../data/boss-halls.js?v=0.2.142';
+import { isGuarded } from '../../data/boss-calls.js?v=0.2.142';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.142';
+import { MONSTERS } from '../../data/monsters.js?v=0.2.142';
+import { spellRow } from '../../data/monster-spells.js?v=0.2.142';
+import { bagOf, nameOf } from '../../session/item-sections.js?v=0.2.142';
+import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.142';
+import { settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { hallStateOf } from '../../session/boss-quote.js?v=0.2.142';
+import { hoursWords } from '../../render/format.js?v=0.2.142';
+import { weakFoodOf, weakFoodWords, groundFloor, hallFloor, notSaid } from '../weak-food.js?v=0.2.142';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.142';
+import { storeName } from '../bar-draft.js?v=0.2.142';
+import { openHall } from '../../session/boss-intents.js?v=0.2.142';
+import { itemName } from '../widgets/bits.js?v=0.2.142';
+import { prizeSlices } from '../../core/drops.js?v=0.2.142';
+import { partyNote } from '../hunt-list.js?v=0.2.142';
 
 const SCRATCH = new WeakMap();
 const scratchOf = (cs) => { let s = SCRATCH.get(cs); if (!s) { s = { hall: null, warned: false }; SCRATCH.set(cs, s); } return s; };
@@ -87,7 +87,7 @@ export function hallHtml() {
   return '<section class="hw-hd-call hw-hd-hall" aria-label="' + BOSS_HALL_WORDS.heading + '" hidden><h4 class="hw-hd-h"></h4>'
     /* HIS PRIZE TABLE, folded, under the name and above the door: what he can drop is read before the key is spent, and one line here
        is one line less under the press, so at the page's end a 423 px phone still shows the press whole (tests/phone-touch.mjs PH-32) */
-    + '<details class="hw-hall-table"><summary class="hh-tool"></summary><ul class="hw-before hw-hall-drops"></ul></details>'
+    + '<details class="hw-hall-table"><summary class="hh-tool is-link"></summary><ul class="hw-before hw-hall-drops"></ul></details>'
     /* THE DOOR FIRST, THEN WHAT WINS: the key line, this bar's red food line and the press stand together under the head, so the
        press and its warning are in view at once on a 423 px phone, never the press under Enter with its warning a screen above */
     + '<p class="hw-call-line"></p><p class="hw-before-line is-short hw-hall-food" hidden></p>'

@@ -58,8 +58,8 @@
 // tier-4 weapons are the Slake's, so opened alone a sword alone at 45 swings its tier-3 sword and nets +5% over its store bill
 // (`node tools/pack.mjs check hasks_ford --mode full`, 6 seeds x 4 h), where the rule is +25% for every way. With the Slake's
 // mithril sword gettable it nets +45%, and that full grade passes every row (`--with the_slake`, exit 0, 66 rows).
-import { definePack, box, gather } from '../shape.js?v=0.2.141';
-import map from './map.js?v=0.2.141';
+import { definePack, box, gather } from '../shape.js?v=0.2.142';
+import map from './map.js?v=0.2.142';
 
 const PK = 'banded_pikeman', FS = 'fordsunk', LW = 'ledger_wight', BN = 'bannerman';
 
@@ -123,7 +123,7 @@ export default definePack({
         { id: 'mithril_boots', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.008, band: 'scarce' }, { id: 'warlock_boots', ch: 0.008, band: 'scarce' },
         { id: 'mithril_helm', ch: 0.008, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.008, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.008, band: 'scarce' },
         { id: 'maple_crossbow', ch: 0.006, band: 'scarce' }],
-      hp: 67, atk: 28, baseAcc: 1, def: 14, xp: 511, gp: [10, 29], formula: true },
+      hp: 67, atk: 28, baseAcc: 1, def: 14, xp: 450, gp: [10, 29], formula: true },
     fordsunk: {
       name: 'Fordsunk', icon: '🌊', tier: 4, level: 50, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank: the dead who went into the ford, bloated and slow. Arrows sink into the bloat (the bestiary's words). The
@@ -132,7 +132,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.16, band: 'common' }, { id: 'ford_weed', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platelegs', ch: 0.0325, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0325, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0325, band: 'scarce' },
         { id: 'mithril_hatchets', ch: 0.026, band: 'scarce' }],
-      hp: 112, atk: 29, baseAcc: 1.02, def: 27, xp: 981, gp: [16, 50], formula: true },
+      hp: 112, atk: 29, baseAcc: 1.02, def: 27, xp: 863, gp: [16, 50], formula: true },
     ledger_wight: {
       name: 'Ledger Wight', icon: '🪦', tier: 4, level: 51, cls: 'undead', family: 'Undead', speed: 3200,
       /* the glass: the company's dead quartermasters, still keeping the books by the stores. It hits hard and breaks fast. A
@@ -141,7 +141,7 @@ export default definePack({
       weaponResist: ['magic'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'ledger_leaf', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_platebody', ch: 0.05, band: 'scarce' }, { id: 'snakeskin_body', ch: 0.05, band: 'scarce' }, { id: 'warlock_body', ch: 0.05, band: 'scarce' }],
-      hp: 71, atk: 40, baseAcc: 0.97, def: 18, xp: 684, gp: [10, 32], formula: true },
+      hp: 71, atk: 40, baseAcc: 0.97, def: 18, xp: 601, gp: [10, 32], formula: true },
     bannerman: {
       name: 'Bannerman', icon: '🚩', tier: 4, level: 56, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier: the company's dead sergeant, still holding the colors at the Toll Stone. His shield,
@@ -151,7 +151,7 @@ export default definePack({
         { id: 'mithril_faced_shield', ch: 0.05, band: 'scarce' },
         { id: 'mithril_gauntlets', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0042, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0042, band: 'rare' },
         { id: 'mithril_belt', ch: 0.0042, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0042, band: 'rare' }, { id: 'warlock_belt', ch: 0.0042, band: 'rare' }],
-      hp: 166, atk: 39, baseAcc: 1.04, def: 36, xp: 1590, gp: [24, 74], formula: true },
+      hp: 166, atk: 39, baseAcc: 1.04, def: 36, xp: 1399, gp: [24, 74], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (53) for 0.90-1.10 of the
      pace contract (254,360 an hour at 53). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.15 the middle

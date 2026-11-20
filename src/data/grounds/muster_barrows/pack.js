@@ -69,8 +69,8 @@
 // Commons feed the Hearth (Bones, Big Bones, Bone Chips, Grave Dust). Each body drops its own imbuement item, kept for the imbuer
 // (catalogue-coherence.js VENDOR_TRASH until imbuing is built): Sergeant's Spur and Hask's Coin have icons on the art lane, Coffin
 // Nail and Urn Shard need one each. The ground's named fuel waits on a pack field for NAMED_FUELS (src/data/hearth.js): no row.
-import { definePack, box, gather, addRows } from '../shape.js?v=0.2.141';
-import map from './map.js?v=0.2.141';
+import { definePack, box, gather, addRows } from '../shape.js?v=0.2.142';
+import map from './map.js?v=0.2.142';
 
 const PK = 'barrow_pikeman', CW = 'cairn_wight', BK = 'muster_knight', HASK = 'captain_hask';
 
@@ -138,7 +138,7 @@ export default definePack({
         { id: 'rune_sword', ch: 0.016, band: 'scarce' },
         /* the shield he was buried holding (shields.js, the audit's F8): a Rare beside his Scarce sword */
         { id: 'runebound_shield', ch: 0.0011, band: 'rare' }],
-      hp: 211, atk: 25, baseAcc: 1, def: 21, xp: 1124, gp: [16, 50], formula: true },
+      hp: 211, atk: 25, baseAcc: 1, def: 21, xp: 989, gp: [16, 50], formula: true },
     cairn_wight: {
       name: 'Cairn Wight', icon: '🪦', tier: 4, level: 60, cls: 'undead', family: 'Undead', speed: 4000,
       /* the glass, quick enough to reach the back line: the dead who were in this field before the company dug into it, cloth and
@@ -149,7 +149,7 @@ export default definePack({
         { id: 'rune_platelegs', ch: 0.048, band: 'scarce' }, { id: 'wyvernhide_pants', ch: 0.048, band: 'scarce' }, { id: 'sorcerer_pants', ch: 0.048, band: 'scarce' },
         { id: 'yew_staff', ch: 0.048, band: 'scarce' },
         { id: 'yew_wand', ch: 0.0033, band: 'rare' }, { id: 'yew_spellbook', ch: 0.0033, band: 'rare' }],
-      hp: 207, atk: 34, baseAcc: 0.97, def: 22, xp: 1351, gp: [16, 49], formula: true },
+      hp: 207, atk: 34, baseAcc: 0.97, def: 22, xp: 1189, gp: [16, 49], formula: true },
     muster_knight: {
       name: 'Barrow Knight', icon: '⚔️', tier: 5, level: 66, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser: the company's mounted sergeants, buried armed in the round barrows of the Row with a sword set before each and
@@ -161,7 +161,7 @@ export default definePack({
         { id: 'rune_warhammer', ch: 0.048, band: 'scarce' },
         { id: 'rune_gauntlets', ch: 0.0033, band: 'rare' }, { id: 'wyvernhide_gloves', ch: 0.0033, band: 'rare' }, { id: 'sorcerer_gloves', ch: 0.0033, band: 'rare' },
         { id: 'rune_hatchets', ch: 0.0033, band: 'rare' }],
-      hp: 484, atk: 45, baseAcc: 0.82, def: 44, xp: 3145, gp: [38, 113], formula: true },
+      hp: 484, atk: 45, baseAcc: 0.82, def: 44, xp: 2768, gp: [38, 113], formula: true },
     captain_hask: {
       name: 'Captain Hask', icon: '👑', tier: 5, level: 75, cls: 'undead', family: 'Undead', speed: 2800, boss: true,
       /* THE BOSS: the Banded Company's captain, who sold the crossing to Lord Krell and was buried by Krell with the men he sold, in his cloak
@@ -174,7 +174,7 @@ export default definePack({
         { id: 'yew_bow', ch: 0.0133, band: 'rare' }, { id: 'yew_crossbow', ch: 0.0133, band: 'rare' }],
       /* HIS LINES ARE BACK with the ground-boss engine (lane/b-barrow-integrate 2026-11-14, from lane/b-muster-barrows 36a7a2d1b; carried as a
          comment on lane/b-barrow-packs until it landed): his file at half, +15% under a quarter (measured, the header). tests/ground-boss.mjs holds him. */
-      hp: 1712, atk: 54, baseAcc: 0.82, def: 52, xp: 12218, gp: [133, 401], formula: true,
+      hp: 1712, atk: 54, baseAcc: 0.82, def: 52, xp: 10751, gp: [133, 401], formula: true,
       phases: { addsPm: 500, enragePm: 250, enrageAtkPm: 1150 } },
   },
   roster: {

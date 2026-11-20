@@ -21,8 +21,8 @@
 // Shop sells a shield, the Hold's pattern). FITTED on the floor hour's kills (tests/hunt-core/drop-tables.mjs, a lone tank in its full set). No armor (Carter's Rest has the tier-7 boots, legs,
 // gloves and belts, Lord Krell the bodies and helms). The unique pieces (board section 9) wait on Carter's Rest's sample of five. Each body
 // drops one imbuement item.
-import { definePack, box, gather } from '../shape.js?v=0.2.141';
-import map from './map.js?v=0.2.141';
+import { definePack, box, gather } from '../shape.js?v=0.2.142';
+import map from './map.js?v=0.2.142';
 
 const TM = 'dead_teamster', RN = 'coal_runner', OX = 'yoke_ox', DR = 'drover', WM = 'wagonmaster';
 
@@ -75,7 +75,7 @@ export default definePack({
          override. The wagons' axes, and now and then a bow. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'wagon_pin', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_hatchets', ch: 0.02, band: 'scarce' }, { id: 'duskwood_bow', ch: 0.00104, band: 'rare' }],
-      hp: 163, atk: 109, baseAcc: 0.74, def: 51, xp: 1604, gp: [24, 72], formula: true },
+      hp: 163, atk: 109, baseAcc: 0.74, def: 51, xp: 1411, gp: [24, 72], formula: true },
     coal_runner: {
       name: 'Coal Runner', icon: '🔥', tier: 6, level: 116, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: one of Gault's living runners, carrying live coals in a tin from one of his fires to the next. He throws one at you, and
@@ -83,7 +83,7 @@ export default definePack({
       spells: ['hot_coal'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'runners_tin', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_wand', ch: 0.0285, band: 'scarce' }, { id: 'duskwood_codex', ch: 0.00256, band: 'rare' }], // the wand 0.026 -> 0.0285 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Runners met: 1.60 h)
-      hp: 157, atk: 144, baseAcc: 0.19, def: 53, xp: 1873, gp: [23, 69], formula: true },
+      hp: 157, atk: 144, baseAcc: 0.19, def: 53, xp: 1648, gp: [23, 69], formula: true },
     yoke_ox: {
       name: 'Yoke Ox', icon: '🐂', tier: 6, level: 119, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy: a dead ox still in its yoke, dragging a wagon. It puts its head down and runs straight through whoever it's facing and
@@ -91,7 +91,7 @@ export default definePack({
       spells: ['trample'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.5, band: 'common' }, { id: 'ox_shoe', ch: 0.08, band: 'uncommon' },
         { id: 'dawn_warhammer', ch: 0.038, band: 'scarce' }, { id: 'duskwood_crossbow', ch: 0.00256, band: 'rare' }],
-      hp: 257, atk: 107, baseAcc: 0.84, def: 78, xp: 2840, gp: [38, 113], formula: true },
+      hp: 257, atk: 107, baseAcc: 0.84, def: 78, xp: 2499, gp: [38, 113], formula: true },
     drover: {
       name: 'Drover', icon: '🦯', tier: 6, level: 121, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: Gault's living man who walks the dead teams up the road. He jabs a fallen one with his goad, says the words, and it gets
@@ -99,14 +99,14 @@ export default definePack({
       spells: ['goad'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'dawnstone_ore', ch: 0.2, band: 'common' }, { id: 'drovers_goad', ch: 0.08, band: 'uncommon' },
         { id: 'duskwood_staff', ch: 0.045, band: 'scarce' }],
-      hp: 218, atk: 136, baseAcc: 0.4, def: 60, xp: 2205, gp: [32, 96], formula: true },
+      hp: 218, atk: 136, baseAcc: 0.4, def: 60, xp: 1940, gp: [32, 96], formula: true },
     wagonmaster: {
       name: 'Wagonmaster', icon: '📜', tier: 6, level: 125, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite: the man who ran the convoy, dead on the box of the lead wagon and still holding the waybill. No trick, just the hardest
          thing on the road. Undead, no override. The lead wagon's Dawnstone and the Dawnsteel sword. */
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'dawnstone_ore', ch: 0.3, band: 'common' }, { id: 'waybill', ch: 0.1, band: 'uncommon' },
         { id: 'dawn_sword', ch: 0.0056, band: 'rare' }],
-      hp: 360, atk: 140, baseAcc: 0.4, def: 93, xp: 4242, gp: [53, 159], formula: true },
+      hp: 360, atk: 140, baseAcc: 0.4, def: 93, xp: 3732, gp: [53, 159], formula: true },
   },
   roster: { dead_teamster: 'swarm', coal_runner: 'glass', yoke_ox: 'heavy', drover: 'regular', wagonmaster: 'elite' },
   /* THE IMBUEMENT ITEMS (src/data/imbuements.js's rule: one a body, tier and book value from its dropper's Level, raw): one of each of the five kinds. */

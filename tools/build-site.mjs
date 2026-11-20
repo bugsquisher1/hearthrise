@@ -6,6 +6,10 @@
 //   node tools/build-site.mjs --check       the same build into a scratch folder, removed after (the smoke.yml guard)
 //   node tools/build-site.mjs --left-out    what stays behind under assets/, by folder (--all: every file)
 //   node tools/build-site.mjs --selftest    planted holes must go RED by their own rule, the real set GREEN
+//   --deliver bundle|minify|plain           how the modules are served (default bundle; see THE DELIVERY below)
+//   node tools/build-site.mjs --boot-path [--list]          what a player loads to the sign-in screen and to the first town
+//   node tools/build-site.mjs --boot-path-raise "<why>"     raise a stage's ceiling to today's measure, with the reason
+//   node tools/build-site.mjs --boot-path-write             lower the ceilings to today's measure (never raises)
 //
 // WHY (2026-11-10). GitHub Pages published the whole repository from main: 472 MB, then 253 MB once art/review left
 // it. v0.2.114's deploy ran past GitHub's 10-minute limit four times, so a release whose server half was live sat
@@ -31,6 +35,21 @@
 //           modules apart (a module at two stamps runs twice, b493) and the service worker kill-switch reads the
 //           release off the page's own tags.
 //
+// THE DELIVERY (architecture audit 2026-11-19, items 1, 3 and 5; tools/lib/site-delivery.mjs). The checks above read the site
+// as written and stamped; what a player is served is then, by default (--deliver bundle), every ES module minified and the
+// page's graph bundled (esbuild, a devDependency: the one third-party package the deploy runs). --deliver minify does the
+// first step alone, --deliver plain neither (the site as written, no esbuild needed). Two more rules read what is served:
+//   SITE-10 THE BOOT PATH: the modules and the gzip bytes a player loads to the sign-in screen (play.html's scripts,
+//           stylesheets and preloads, and every module their static imports reach) and to the first town (that, plus the
+//           list boot.js preloads, src/app/game-modules.js, and its static graph) stay under their ceilings in
+//           tests/boot-path.baseline.json (346 modules on 10-31 became 616 by 11-19 and nothing watched). A ceiling goes up
+//           only with --boot-path-raise "<what grew and why>"; a cut of more than BOOT_SLACK is red until
+//           --boot-path-write locks it in. Only the default delivery is judged. Images and fonts (loaded on use) are not counted.
+//   SITE-11 THE DELIVERY IS FAITHFUL: no module minifies differently at the publish target than at esnext (syntax the target
+//           would lower or drop); every minified module keeps every relative specifier it had; every `new URL('….js',
+//           import.meta.url)` load in the source is a bundle entry or a listed runtime file (RUNTIME_MODULES / RUNTIME_FILES),
+//           and every row there is still loaded so; every import of the served graph resolves to a served file.
+//
 // No dotfile is published: a workflow deploy runs no Jekyll, so .nojekyll is not needed there (it stays in the
 // repository for a rollback to the branch source), and actions/upload-pages-artifact leaves dotfiles out.
 // Exit: 0 green · 1 a hole · 2 a harness or usage problem.
@@ -41,9 +60,12 @@ import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, mkdtempSync
 import { tmpdir } from 'node:os';
 import { join, dirname, posix, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { gzipSync } from 'node:zlib';
 import { lex } from './guard-anchors.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 import { readBuild, stampFile, stripFile, stampKind, moduleSpecifiers, moduleStamps, pageTags } from './lib/version-stamp.mjs';
+import { loadEsbuild, minifiable, minifyModule, bundleGame, gameListText, preloadBlock, moduleGraph, isEsm,
+  RUNTIME_MODULES, RUNTIME_FILES, GAME_LIST, ENTRY } from './lib/site-delivery.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -53,6 +75,7 @@ export const PUBLISH = Object.freeze([
   'CNAME',                                                   // the custom domain (a branch deploy reads it; kept for the rollback)
   'src/**/*.js', 'src/**/*.css',                             // every module and stylesheet
   'assets/brand/hearthrise-crest.png',                       // the loading shell, the sign-in screens, the notice
+  'assets/brand/hearth-square.png',                          // Hearth Square behind the account screens (src/app/auth-backdrop.js)
   'assets/brand/hearthrise-mark.png',                        // the tab icon
   'assets/brand/og-image.png',                               // the link preview
   'assets/ui/*.png',                                         // the frames and plates the stylesheets draw
@@ -63,6 +86,7 @@ export const PUBLISH = Object.freeze([
   'assets/icons-bundle/pixel/supplies/*.png',                // one icon per basic supply
   'assets/icons-bundle/pixel/heads/*.png',                   // one 32 px head per creature
   'assets/icons-bundle/pixel/factions/*.png',                // each side's mark and each piece standing buys
+  'assets/fonts/*.woff2', 'assets/fonts/OFL-*.txt',          // the self-hosted faces tokens.css names, and their licence (SIL OFL 1.1)
   'legal/PRIVACY_POLICY.md', 'legal/TERMS_OF_SERVICE.md',    // read by the sign-in screens
 ]);
 
@@ -234,7 +258,7 @@ export function audit(site, facts, budget = SITE_BUDGET_BYTES) {
 }
 
 /** SITE-9: every module specifier and page tag of the site, as it will be served, at the one release stamp. */
-function stampProblems(site, all) {
+function stampProblems(site, all, floors = true) {
   if (!site.files.has('src/build-info.js')) return ['SITE-9 src/build-info.js is not in the site: nothing names the release to stamp.'];
   let build;
   try { build = readBuild('', site.read('src/build-info.js')); } catch (e) { return ['SITE-9 ' + e.message]; }
@@ -257,10 +281,108 @@ function stampProblems(site, all) {
     out.push('SITE-9 ' + file + ' is served with ' + l.length + ' reference(s) not at ' + want + ': ' + l.slice(0, 3).join(', ') + (l.length > 3 ? ' +' + (l.length - 3) : '')
       + '. The build stamps every relative specifier and page tag (tools/lib/version-stamp.mjs); a ?v= written in the source is a pin no release moves.');
   }
-  if (specs < STAMP_FLOORS.specifiers || tags < STAMP_FLOORS.tags) out.push('SITE-8 SITE-9 read ' + specs + ' module specifiers and ' + tags + ' page tags, under its floor of ' + STAMP_FLOORS.specifiers + ' and ' + STAMP_FLOORS.tags + ': its reader is not reading.');
+  if (floors && (specs < STAMP_FLOORS.specifiers || tags < STAMP_FLOORS.tags)) out.push('SITE-8 SITE-9 read ' + specs + ' module specifiers and ' + tags + ' page tags, under its floor of ' + STAMP_FLOORS.specifiers + ' and ' + STAMP_FLOORS.tags + ': its reader is not reading.');
   return out;
 }
 
+// ── THE BOOT PATH (SITE-10) ──────────────────────────────────────────────
+export const BOOT_PAGE = 'play.html';
+export const BOOT_BASELINE = join(ROOT, 'tests', 'boot-path.baseline.json');
+export const BOOT_STAGES = Object.freeze(['sign-in', 'town']);
+/* A cut bigger than this is red until --boot-path-write locks it in, so the ceiling follows every real cut down. */
+export const BOOT_SLACK = Object.freeze({ modules: 2, gzipBytes: 4096 });
+const MIN_WHY = 20;
+/* Non-vacuity: a reader that found no page tag or no import measures nothing. */
+const BOOT_FLOORS = Object.freeze({ 'sign-in': 4, town: 5 });
+
+/** The files play.html itself asks for: classic and module scripts, stylesheets, preloads. { file, module }. */
+export function pageLoads(html) {
+  const out = [];
+  for (const m of html.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<(script|link)\b([^>]*)>/g)) {
+    const attr = (k) => (new RegExp('\\b' + k + '\\s*=\\s*"([^"]*)"').exec(m[2]) || [])[1];
+    const ref = m[1] === 'script' ? attr('src') : /^(?:stylesheet|preload|modulepreload)$/.test(attr('rel') || '') ? attr('href') : null;
+    const file = ref && local(ref, '');
+    if (file) out.push({ file, module: m[1] === 'script' ? attr('type') === 'module' : attr('rel') === 'modulepreload' });
+  }
+  return out;
+}
+
+/** The repository paths a served game list names (src/app/game-modules.js: the source's modules, or the bundle's chunks). */
+export const gameList = (text) => Array.from(text.matchAll(/['"](src\/[^'"]+\.js)['"]/g), (m) => m[1]);
+
+/**
+ * What a player loads to the sign-in screen and to the first town, as served. Pure: the site and its import graph
+ * (tools/lib/site-delivery.mjs moduleGraph) are arguments, so the proof plants a growth into either.
+ * @param {{files: Map<string, number>, read: (path: string) => string}} site
+ * @param {Map<string, {static: string[], dynamic: string[]}>} graph
+ */
+export function bootPath(site, graph) {
+  const loads = pageLoads(site.read(BOOT_PAGE));
+  const closure = (seed) => {
+    const set = new Set(seed);
+    for (const f of set) for (const t of (graph.get(f) || { static: [] }).static) set.add(t);
+    return set;
+  };
+  const signIn = closure(loads.map((l) => l.file));
+  const list = site.files.has(GAME_LIST) ? gameList(site.read(GAME_LIST)) : [];
+  const town = closure([...signIn, ...list]);
+  const measure = (set) => {
+    const files = Array.from(set).filter((f) => site.files.has(f)).sort();
+    const gzip = files.reduce((a, f) => a + gzipSync(Buffer.from(site.read(f))).length, 0);
+    return { modules: files.filter((f) => f.endsWith('.js')).length, files: files.length, gzipBytes: gzip, list: files };
+  };
+  return { 'sign-in': measure(signIn), town: measure(town) };
+}
+
+/** The ceiling rows' last row per stage, or null when the stage was never pinned. */
+const ceilingOf = (rows) => (Array.isArray(rows) && rows.length ? rows[rows.length - 1] : null);
+
+/** SITE-10 against a baseline ({ ceilings: { stage: [{ modules, gzipBytes, on, why }] } }). */
+export function bootPathProblems(measured, baseline) {
+  const out = [], ceilings = (baseline && baseline.ceilings) || {};
+  for (const stage of BOOT_STAGES) {
+    const m = measured[stage], rows = ceilings[stage], top = ceilingOf(rows);
+    if (m.modules < BOOT_FLOORS[stage]) out.push('SITE-8 SITE-10 found ' + m.modules + ' modules to the ' + stage + ' stage, under its floor of ' + BOOT_FLOORS[stage] + ': its reader is not reading.');
+    if (!top) { out.push('SITE-10 the ' + stage + ' stage has no ceiling: node tools/build-site.mjs --boot-path-raise "<why>" pins it.'); continue; }
+    (rows || []).forEach((r, i) => {
+      const raise = i === 0 || r.modules > rows[i - 1].modules || r.gzipBytes > rows[i - 1].gzipBytes;
+      if (raise && String(r.why || '').trim().length < MIN_WHY) out.push('SITE-10 the ' + stage + ' ceiling\'s row ' + (i + 1) + ' raises it with no reason (at least ' + MIN_WHY + ' characters): raise only with --boot-path-raise "<what grew and why>".');
+    });
+    const over = [];
+    if (m.modules > top.modules) over.push(m.modules + ' modules (ceiling ' + top.modules + ')');
+    if (m.gzipBytes > top.gzipBytes) over.push(kb(m.gzipBytes) + ' KB gzip (ceiling ' + kb(top.gzipBytes) + ')');
+    if (over.length) out.push('SITE-10 a player now loads ' + over.join(' and ') + ' to the ' + stage + ' stage. Keep it off the boot path (an import() on need), or raise with node tools/build-site.mjs --boot-path-raise "<what grew and why>".');
+    const cut = [];
+    if (top.modules - m.modules > BOOT_SLACK.modules) cut.push((top.modules - m.modules) + ' modules');
+    if (top.gzipBytes - m.gzipBytes > BOOT_SLACK.gzipBytes) cut.push(kb(top.gzipBytes - m.gzipBytes) + ' KB gzip');
+    if (cut.length) out.push('SITE-10 the ' + stage + ' stage is ' + cut.join(' and ') + ' under its ceiling: lock the cut in with node tools/build-site.mjs --boot-path-write.');
+  }
+  return out;
+}
+
+// ── THE DELIVERY (SITE-11) ───────────────────────────────────────────────
+/**
+ * Pure: `minified` maps each minified module to { before (stamped text), after (served text), drift }; `newUrl` is every
+ * `new URL('….js', import.meta.url)` target the source loads (the logical audit's SITE-2 'new URL' needs); `missing` the
+ * imports of the served graph no served file answers.
+ */
+export function deliveryProblems({ minified = new Map(), newUrl = [], missing = [], bundled = false }) {
+  const out = [];
+  for (const [file, m] of minified) {
+    if (m.drift) out.push('SITE-11 ' + file + ' minifies differently at the publish target than at esnext: it uses syntax the target lowers or drops (tools/lib/site-delivery.mjs TARGET / SUPPORTED).');
+    const specs = (t) => moduleSpecifiers(t).map((s) => s.spec + s.query).sort().join('\n');
+    if (specs(m.before) !== specs(m.after)) out.push('SITE-11 ' + file + ' lost or changed a relative specifier when minified: ' + JSON.stringify(specs(m.before).split('\n').filter((s) => !specs(m.after).split('\n').includes(s)).slice(0, 3)));
+  }
+  if (bundled) {
+    const urls = new Set(newUrl.filter((p) => p.endsWith('.js')));
+    for (const p of urls) if (!(p in RUNTIME_MODULES) && !(p in RUNTIME_FILES)) out.push('SITE-11 ' + p + ' is loaded by a URL built at run time (new URL(…, import.meta.url)) and is neither a bundle entry nor a runtime file: add it to RUNTIME_MODULES (a module) or RUNTIME_FILES (read another way) in tools/lib/site-delivery.mjs.');
+    for (const p of Object.keys(RUNTIME_MODULES).concat(Object.keys(RUNTIME_FILES))) if (!urls.has(p)) out.push('SITE-11 ' + p + ' is listed as loaded by URL at run time, and nothing in the source loads it so: drop its row (tools/lib/site-delivery.mjs).');
+  }
+  for (const p of missing) out.push('SITE-11 the served graph imports ' + p + ', which the site does not serve.');
+  return out;
+}
+
+const kb = (n) => (n / 1024).toFixed(1);
 const mb = (n) => (n / 1048576).toFixed(2);
 const reader = (root) => { const held = new Map(); return (p) => { if (!held.has(p)) held.set(p, readFileSync(join(root, p), 'utf8')); return held.get(p); }; };
 const summary = (files, bytes) => files.size.toLocaleString('en-US') + ' files, ' + mb(bytes) + ' MB (' + Math.round(100 * bytes / SITE_BUDGET_BYTES) + '% of the ' + mb(SITE_BUDGET_BYTES) + ' MB budget)';
@@ -277,7 +399,14 @@ function prepare(out) {
 /** A file as the site serves it: a module or page with the release stamp written on (SITE-9), anything else as it is. */
 const served = (rel, version) => (stampKind(rel) ? Buffer.from(stampFile(rel, readFileSync(join(ROOT, rel), 'utf8'), version)) : null);
 
-async function build(out) {
+export const DELIVERIES = Object.freeze(['bundle', 'minify', 'plain']);
+const sizes = (out) => new Map(walk(out, null).filter((f) => f !== MARKER).map((f) => [f, statSync(join(out, f)).size]));
+
+/**
+ * The site into `out`: the plan copied and stamped and checked (SITE-1..9), then delivered (`deliver`: tools/lib/site-delivery.mjs)
+ * and checked as served (SITE-10 against `baseline` when the delivery is the default one, SITE-11).
+ */
+async function build(out, deliver = DELIVERIES[0], baseline = readBaseline()) {
   const plan = publishSet(), { version } = readBuild(ROOT);
   prepare(out);
   const want = new Map();
@@ -288,12 +417,85 @@ async function build(out) {
     want.set(rel, body ? body.length : n);
   }
   writeFileSync(join(out, MARKER), 'Built by tools/build-site.mjs. This folder is deleted and rebuilt on every run.\n');
-  const copied = new Map(walk(out, null).filter((f) => f !== MARKER).map((f) => [f, statSync(join(out, f)).size]));
+  const copied = sizes(out);
   const drift = Array.from(want).filter(([f, n]) => copied.get(f) !== n).map(([f]) => f).concat(Array.from(copied.keys()).filter((f) => !want.has(f)));
-  const got = audit({ ...plan, files: copied, read: reader(out) }, await artFacts());
+  const logical = reader(out);
+  const got = audit({ ...plan, files: copied, read: logical }, await artFacts());
   if (drift.length) got.problems.unshift('the copy is not the plan: ' + drift.slice(0, 5).join(', '));
-  return { ...got, files: copied };
+
+  /* THE DELIVERY: every ES module minified, then (bundle) the page's graph bundled over it */
+  const esbuild = deliver === 'plain' ? null : loadEsbuild(ROOT);
+  const minified = new Map();
+  let bundled = null;
+  if (esbuild) {
+    for (const rel of copied.keys()) {
+      const before = logical(rel);
+      if (!minifiable(rel, before)) continue;
+      const { code, drift: d, parsed } = minifyModule(esbuild, before);
+      writeFileSync(join(out, rel), code);
+      minified.set(rel, { before: parsed, after: code, drift: d });
+    }
+    if (deliver === 'bundle') {
+      bundled = await bundleGame(esbuild, out, version, logical);
+      for (const [rel, text] of bundled.files) { mkdirSync(dirname(join(out, rel)), { recursive: true }); writeFileSync(join(out, rel), text); minified.delete(rel); }
+      writeFileSync(join(out, GAME_LIST), gameListText(bundled.game));
+      minified.delete(GAME_LIST);
+      writeFileSync(join(out, BOOT_PAGE), preloadBlock(logical(BOOT_PAGE), bundled.signIn.concat(GAME_LIST), version));   // the list is boot.js's static import too
+    }
+  }
+  const files = sizes(out), read = reader(out);
+  const site = { files, read };
+  /* the served graph, from the page, the game list and the runtime entries */
+  const roots = pageLoads(read(BOOT_PAGE)).filter((l) => l.module).map((l) => l.file)
+    .concat(files.has(GAME_LIST) ? gameList(read(GAME_LIST)) : [], Object.keys(RUNTIME_MODULES)).filter((f, i, a) => a.indexOf(f) === i && files.has(f));
+  const graphOf = esbuild || loadEsbuildOrNull();
+  let boot = null;
+  if (graphOf) {
+    const { graph, missing } = await moduleGraph(graphOf, read, (p) => files.has(p), roots);
+    boot = bootPath(site, graph);
+    const newUrl = got.needs.filter((n) => n.rule === 'SITE-2' && n.via === 'new URL').map((n) => n.path);
+    got.problems.push(...deliveryProblems({ minified, newUrl, missing, bundled: !!bundled }));
+    if (esbuild) got.problems.push(...stampProblems(site, Array.from(files.keys()), false));   // the served stamps; the floors read the site as written
+    if (deliver === DELIVERIES[0]) got.problems.push(...bootPathProblems(boot, baseline));
+  }
+  return { ...got, files, boot, deliver, bytes: Array.from(files.values()).reduce((a, b) => a + b, 0) };
 }
+
+/** esbuild when it is installed, else null (a --deliver plain build reads its graph only when it can). */
+function loadEsbuildOrNull() { try { return loadEsbuild(ROOT); } catch { return null; } }
+
+/** tests/boot-path.baseline.json, or an empty one. */
+function readBaseline(file = BOOT_BASELINE) { return existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { ceilings: {} }; }
+
+/**
+ * --boot-path-raise / --boot-path-write: a new ceiling row per stage from today's measure. A raise needs a reason and
+ * moves only a stage that is over (or unpinned); a write only lowers.
+ */
+function moveCeilings(measured, how, why) {
+  const base = readBaseline(), today = new Date().toISOString().slice(0, 10), moved = [];
+  base.ceilings = base.ceilings || {};
+  for (const stage of BOOT_STAGES) {
+    const m = measured[stage], rows = base.ceilings[stage] || (base.ceilings[stage] = []), top = ceilingOf(rows);
+    const row = { modules: m.modules, gzipBytes: m.gzipBytes, on: today, why };
+    if (how === 'raise' && (!top || m.modules > top.modules || m.gzipBytes > top.gzipBytes)) {
+      rows.push(row);
+      moved.push(stage);
+    } else if (how === 'write' && top && (m.modules < top.modules || m.gzipBytes < top.gzipBytes)) {
+      rows.push({ modules: Math.min(m.modules, top.modules), gzipBytes: Math.min(m.gzipBytes, top.gzipBytes), on: today, why: why || 'a cut locked in' });
+      moved.push(stage);
+    }
+  }
+  base.$comment = BASELINE_COMMENT;
+  writeFileSync(BOOT_BASELINE, JSON.stringify({ $comment: base.$comment, deliver: DELIVERIES[0], ceilings: base.ceilings }, null, 2) + '\n');
+  return moved;
+}
+const BASELINE_COMMENT = Object.freeze([
+  'The boot path\'s ceilings (tools/build-site.mjs SITE-10, architecture audit 2026-11-19 item 3): the modules and the gzip bytes a player loads',
+  'to the sign-in screen and to the first town, as the default delivery serves them. The ceiling is each stage\'s LAST row.',
+  'It goes up only through node tools/build-site.mjs --boot-path-raise "<why>", which appends a row with its reason; --boot-path-write appends',
+  'a lower row after a cut (a cut of more than BOOT_SLACK is red until it is locked in). Written by the tool, never by hand. Two lanes that both',
+  'moved a ceiling conflict here: take either side and run the tool again.',
+]);
 
 function leftOut(every) {
   const plan = publishSet().files, groups = new Map(), rows = [];
@@ -369,9 +571,56 @@ async function selftest() {
     if (!ok) bad++;
     console.log((ok ? '✓ ' : '✗ ') + name + ' → ' + (got[0] ? got[0].slice(0, 150) : 'GREEN') + ' (want ' + (rule || 'GREEN') + ')');
   }
+  const delivered = await deliveryCases(plan, read, clean);
+  bad += delivered.bad;
   if (bad) { console.error('✗ build-site --selftest: ' + bad + ' case(s) wrong'); return 1; }
-  console.log('✓ build-site --selftest: all ' + cases.length + ' cases behave');
+  console.log('✓ build-site --selftest: all ' + (cases.length + delivered.n) + ' cases behave');
   return 0;
+}
+
+/** SITE-10 and SITE-11, planted into the site as written (its graph read by esbuild, as the build reads the served one). */
+async function deliveryCases(plan, read, clean) {
+  const esbuild = loadEsbuild(ROOT);
+  const files = plan.files, has = (p) => files.has(p), site = { files, read };
+  const roots = pageLoads(read(BOOT_PAGE)).filter((l) => l.module).map((l) => l.file).concat(gameList(read(GAME_LIST)));
+  const { graph, missing } = await moduleGraph(esbuild, read, has, roots);
+  const measured = bootPath(site, graph);
+  const row = (m, why = 'the measure, pinned by the proof') => ({ modules: m.modules, gzipBytes: m.gzipBytes, on: '2026-11-19', why });
+  const pinAt = (edit = (s, m) => m) => ({ ceilings: Object.fromEntries(BOOT_STAGES.map((s) => [s, [row(edit(s, measured[s]))]])) });
+  /* the sign-in entry imports the game half statically (lane b-first-load's 520 files before the form, back) */
+  const leaked = new Map(graph);
+  leaked.set(ENTRY, { ...graph.get(ENTRY), static: graph.get(ENTRY).static.concat('src/app/game-half.js') });
+  /* 4 KB of code the gzip cannot shrink, in a module the sign-in screen loads */
+  const noise = Array.from({ length: 4096 }, (_, i) => String.fromCharCode(33 + ((i * 7919 + (i >> 3) * 104729) % 89))).join('').replace(/[`$\\]/g, 'x');
+  const heavier = { files, read: (p) => (p === ENTRY ? read(p) + '\nexport const NOISE = `' + noise + '`;\n' : read(p)) };
+  const planted = (p) => (p === ENTRY ? read(p) + "\nimport './never-built.js';\n" : read(p));
+  const minified = (file, text) => { const m = minifyModule(esbuild, text); return new Map([[file, { before: m.parsed, after: m.code, drift: m.drift }]]); };
+  const newUrl = clean.needs.filter((n) => n.rule === 'SITE-2' && n.via === 'new URL').map((n) => n.path);
+  const cases = [
+    ['CONTROL the boot path at its own measure', () => bootPathProblems(measured, pinAt()), null],
+    ['CONTROL a cut inside the slack', () => bootPathProblems(measured, pinAt((s, m) => ({ modules: m.modules + BOOT_SLACK.modules, gzipBytes: m.gzipBytes + BOOT_SLACK.gzipBytes }))), null],
+    ['the sign-in entry imports the game half statically', () => bootPathProblems(bootPath(site, leaked), pinAt()), 'SITE-10', 'to the sign-in stage'],
+    ['4 KB more code the sign-in screen loads', () => bootPathProblems(bootPath(heavier, graph), pinAt()), 'SITE-10', 'KB gzip (ceiling'],
+    ['a cut past the slack, not locked in', () => bootPathProblems(measured, pinAt((s, m) => ({ ...m, gzipBytes: m.gzipBytes + BOOT_SLACK.gzipBytes + 1 }))), 'SITE-10', 'lock the cut in'],
+    ['a raise row with no reason', () => bootPathProblems(measured, { ceilings: { ...pinAt().ceilings, town: [row({ modules: 1, gzipBytes: 1 }), row(measured.town, '')] } }), 'SITE-10', 'no reason'],
+    ['a stage never pinned', () => bootPathProblems(measured, { ceilings: { town: pinAt().ceilings.town } }), 'SITE-10', 'no ceiling'],
+    ['a boot path reader that reads nothing', () => bootPathProblems(bootPath({ files, read: (p) => (p === BOOT_PAGE ? '<html></html>' : read(p)) }, new Map()), pinAt()), 'SITE-8', 'SITE-10'],
+    ['CONTROL every runtime URL load the source makes is an entry or a listed file', () => deliveryProblems({ newUrl, missing, bundled: true }), null],
+    ['a new runtime URL load nobody listed', () => deliveryProblems({ newUrl: newUrl.concat('src/shell/windows/never-listed.js'), bundled: true }), 'SITE-11', 'never-listed.js'],
+    ['a listed runtime load the source no longer makes', () => deliveryProblems({ newUrl: newUrl.filter((p) => !(p in RUNTIME_MODULES)), bundled: true }), 'SITE-11', 'drop its row'],
+    ['syntax the publish target lowers (a ||= b is ES2021)', () => deliveryProblems({ minified: minified('src/x.js', 'export let a = 0; export const f = (b) => { a ||= b; };') }), 'SITE-11', 'differently at the publish target'],
+    ['CONTROL import attributes survive the target (src/world/atlas.js)', () => deliveryProblems({ minified: minified('src/x.js', "export const j = (u) => import(u, { with: { type: 'json' } });") }), null],
+    ['a minified module lost a specifier', () => deliveryProblems({ minified: new Map([['src/x.js', { before: "import './a.js?v=1';", after: '', drift: false }]]) }), 'SITE-11', 'lost or changed'],
+    ['the served graph imports a file the site lacks', async () => deliveryProblems({ missing: (await moduleGraph(esbuild, planted, has, [ENTRY])).missing }), 'SITE-11', 'never-built.js'],
+  ];
+  let bad = 0;
+  for (const [name, run, rule, needle] of cases) {
+    const got = await run();
+    const ok = rule === null ? got.length === 0 : got.some((p) => p.startsWith(rule + ' ') && p.includes(needle));
+    if (!ok) bad++;
+    console.log((ok ? '✓ ' : '✗ ') + name + ' → ' + (got[0] ? got[0].slice(0, 150) : 'GREEN') + ' (want ' + (rule || 'GREEN') + ')');
+  }
+  return { n: cases.length, bad };
 }
 
 // ── THE CLI ──────────────────────────────────────────────────────────────
@@ -380,17 +629,34 @@ if (isMain(import.meta.url)) {
   try {
     if (args.includes('--selftest')) process.exit(await selftest());
     if (args.includes('--left-out')) { leftOut(args.includes('--all')); process.exit(0); }
-    const checkOnly = args.includes('--check');
+    const opt = (k) => (args.includes(k) ? String(args[args.indexOf(k) + 1] || '') : null);
+    const deliver = opt('--deliver') || DELIVERIES[0];
+    if (!DELIVERIES.includes(deliver)) throw new Error('--deliver takes ' + DELIVERIES.join(' | ') + ', not ' + JSON.stringify(deliver));
+    const raise = opt('--boot-path-raise'), lower = args.includes('--boot-path-write'), report = args.includes('--boot-path');
+    if (raise !== null && raise.trim().length < MIN_WHY) throw new Error('--boot-path-raise needs its reason: what grew and why (at least ' + MIN_WHY + ' characters)');
+    if ((raise !== null || lower) && deliver !== DELIVERIES[0]) throw new Error('the ceilings judge the default delivery (' + DELIVERIES[0] + ') only');
+    const checkOnly = args.includes('--check') || raise !== null || lower || report;
     const out = checkOnly ? mkdtempSync(join(tmpdir(), 'hr-site-'))
-      : resolve(args.includes('--out') ? String(args[args.indexOf('--out') + 1] || '') : join(ROOT, '_site'));
+      : resolve(opt('--out') ?? join(ROOT, '_site'));
     let got;
-    try { got = await build(out); } finally { if (checkOnly) rmSync(out, { recursive: true, force: true }); }
+    try { got = await build(out, deliver); } finally { if (checkOnly) rmSync(out, { recursive: true, force: true }); }
+    const stageLine = (b) => BOOT_STAGES.map((s) => s + ' ' + b[s].modules + ' modules / ' + b[s].files + ' files / ' + kb(b[s].gzipBytes) + ' KB gzip').join(' · ');
+    if (got.boot && (report || raise !== null || lower)) {
+      console.log('boot path (' + deliver + '): ' + stageLine(got.boot));
+      if (args.includes('--list')) for (const s of BOOT_STAGES) console.log('  ' + s + ': ' + got.boot[s].list.join(' '));
+      if (raise !== null || lower) {
+        const moved = moveCeilings(got.boot, raise !== null ? 'raise' : 'write', raise !== null ? raise.trim() : null);
+        console.log((moved.length ? '✓ moved the ' + moved.join(' and ') + ' ceiling(s)' : '✓ no ceiling to move') + ' in ' + BOOT_BASELINE);
+        process.exit(0);
+      }
+    }
     for (const p of got.problems) console.error('✗ ' + p);
     if (got.problems.length) { console.error('✗ build-site: ' + got.problems.length + ' problem(s); the site is not fit to deploy'); process.exit(1); }
     const tops = new Map();
     for (const [f, n] of got.files) { const t = f.includes('/') ? f.split('/')[0] + '/' : '(root)'; tops.set(t, (tops.get(t) || 0) + n); }
-    console.log('✓ build-site' + (checkOnly ? ' --check' : '') + ': ' + summary(got.files, got.bytes) + (checkOnly ? '' : ' in ' + out));
+    console.log('✓ build-site' + (checkOnly ? ' --check' : '') + ' (' + deliver + '): ' + summary(got.files, got.bytes) + (checkOnly ? '' : ' in ' + out));
     console.log('  ' + Array.from(tops).sort((a, b) => b[1] - a[1]).map(([t, n]) => t + ' ' + mb(n)).join(' · ') + ' · every file the pages, modules, stylesheets and art rows ask for is there, every module and page stamped ?v=' + readBuild(ROOT).version);
+    if (got.boot) console.log('  boot path: ' + stageLine(got.boot) + (deliver === DELIVERIES[0] ? ' (under its ceilings, tests/boot-path.baseline.json)' : ' (not judged: the ceilings are the ' + DELIVERIES[0] + ' delivery\'s)'));
     process.exit(0);
   } catch (e) {
     console.error('✗ build-site: HARNESS: ' + (e && e.message || e));

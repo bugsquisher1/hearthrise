@@ -43,8 +43,8 @@
 //
 // THE BARGEMAN'S SPELL: Cold Bilge (whole group, frost; the area spells board's seed row) is this pack's own `spells` row
 // (lane/b-pack-fields, engine piece 10), cast now that the area spells are live.
-import { definePack, box, gather } from '../shape.js?v=0.2.141';
-import map from './map.js?v=0.2.141';
+import { definePack, box, gather } from '../shape.js?v=0.2.142';
+import map from './map.js?v=0.2.142';
 
 const PK = 'greened_pikeman', BG = 'bargeman', ML = 'mudlark', CS = 'color_sergeant';
 
@@ -110,7 +110,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'copper_ore', ch: 0.4, band: 'common' }, { id: 'green_rivet', ch: 0.08, band: 'uncommon' },
         { id: 'mithril_boots', ch: 0.0043, band: 'scarce' }, { id: 'snakeskin_boots', ch: 0.0043, band: 'scarce' }, { id: 'warlock_boots', ch: 0.0043, band: 'scarce' },
         { id: 'mithril_sword', ch: 0.0057, band: 'scarce' }],
-      hp: 74, atk: 30, baseAcc: 1.06, def: 17, xp: 537, gp: [11, 33], formula: true },
+      hp: 74, atk: 30, baseAcc: 1.06, def: 17, xp: 473, gp: [11, 33], formula: true },
     bargeman: {
       name: 'Bargeman', icon: '🧟', tier: 4, level: 54, cls: 'undead', family: 'Undead', speed: 2400,
       /* the tank, the slowest thing on the flat: the barge's crew. Where the Fordsunk's bloat swallows arrows, the crew's cracked
@@ -121,7 +121,7 @@ export default definePack({
         { id: 'mithril_platelegs', ch: 0.0356, band: 'scarce' }, { id: 'snakeskin_pants', ch: 0.0356, band: 'scarce' }, { id: 'warlock_pants', ch: 0.0356, band: 'scarce' },
         { id: 'mithril_warhammer', ch: 0.0475, band: 'scarce' },
         { id: 'mithril_belt', ch: 0.0027, band: 'rare' }, { id: 'snakeskin_belt', ch: 0.0027, band: 'rare' }, { id: 'warlock_belt', ch: 0.0027, band: 'rare' }],
-      hp: 120, atk: 30, baseAcc: 1.08, def: 30, xp: 988, gp: [18, 53], formula: true },
+      hp: 120, atk: 30, baseAcc: 1.08, def: 30, xp: 869, gp: [18, 53], formula: true },
     mudlark: {
       name: 'Mudlark', icon: '🪝', tier: 4, level: 52, cls: 'undead', family: 'Undead', speed: 4400,
       /* the skirmisher: the river scavengers who picked the dead and drowned among them. Small, crouched and quick enough to catch
@@ -132,7 +132,7 @@ export default definePack({
         { id: 'mithril_helm', ch: 0.0167, band: 'scarce' }, { id: 'snakeskin_helmet', ch: 0.0167, band: 'scarce' }, { id: 'warlock_helmet', ch: 0.0167, band: 'scarce' }, // 0.0158 -> 0.0167 (lane/d-harder-monsters 2026-11-19: 1.51 h)
         { id: 'maple_bow', ch: 0.021, band: 'scarce' },
         { id: 'mithril_gauntlets', ch: 0.0012, band: 'rare' }, { id: 'snakeskin_gloves', ch: 0.0012, band: 'rare' }, { id: 'warlock_gloves', ch: 0.0012, band: 'rare' }],
-      hp: 72, atk: 41, baseAcc: 0.97, def: 18, xp: 637, gp: [11, 31], formula: true },
+      hp: 72, atk: 41, baseAcc: 0.97, def: 18, xp: 560, gp: [11, 31], formula: true },
     color_sergeant: {
       name: 'Color Sergeant', icon: '🚩', tier: 4, level: 58, cls: 'undead', family: 'Undead', speed: 3000,
       /* the bruiser and the rare carrier, who holds the grounded barge with the company's colors. No override: the one body on the
@@ -143,7 +143,7 @@ export default definePack({
         { id: 'maple_wand', ch: 0.0033, band: 'rare' }, { id: 'maple_spellbook', ch: 0.0033, band: 'rare' },
         /* the tank's off-hand beside the Mage's (shields.js, the audit's F8): the sergeant's own shield */
         { id: 'mithril_faced_shield', ch: 0.0033, band: 'rare' }],
-      hp: 171, atk: 40, baseAcc: 1.06, def: 38, xp: 1514, gp: [25, 76], formula: true },
+      hp: 171, atk: 40, baseAcc: 1.06, def: 38, xp: 1333, gp: [25, 76], formula: true },
   },
   /* THE XP FIT (balance-sheet.js GROUND_XP_FIT). The sheet asks the median lone way at the band middle (58) for 0.90-1.10 of the
      pace contract (288,135 an hour at 58). Measured as opened in the tier-4 set, the 8 ways, 4 seeds x 1 h each: at 1.05 the middle

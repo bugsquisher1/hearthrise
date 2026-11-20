@@ -189,14 +189,7 @@
 /* The picked item's ways: what spends it and where to get more, each a link (src/shell/goto.js). */
 .hw-pick-ways { margin: 4px 0 0; font-size: var(--t-micro); color: var(--ink-2); line-height: 1.5; }
 .hw-pick-ways:empty { display: none; }
-/* TAKE ME THERE (src/shell/goto.js): a link from a line that says where to get something to the window that does it. Inline in its
-   sentence; the padding widens the press for a finger without moving the line. */
-.hs-goto {
-  display: inline; margin: -6px 0; padding: 6px 0; border: 0; background: none; cursor: pointer;
-  font: inherit; color: var(--gold-2); text-align: inherit; text-decoration: underline; text-underline-offset: 3px;
-}
-.hs-goto:hover { color: var(--ink); }
-.hs-goto:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* TAKE ME THERE (src/shell/goto.js .hs-goto): the text link in a sentence, shell.css ONE BUTTON SYSTEM. */
 /* The row a link opened, ringed for goto.js FOUND_MS. */
 .is-found { animation: hs-found 2.4s ease-out forwards; }
 @keyframes hs-found { 0%, 70% { box-shadow: inset 0 0 0 2px var(--gold-2); } 100% { box-shadow: inset 0 0 0 2px transparent; } }
@@ -550,7 +543,7 @@
 .hw-hd-party[hidden] { display: none; }
 .hw-hd-party-why { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-hd-party-do { display: flex; flex-wrap: wrap; gap: 6px; }
-.hw-hd-party-do .hh-tool { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-hd-party-do .hh-tool { min-height: 36px; padding: 0 10px; }
 .hw-bring { display: contents; }
 .hw-bring-none { margin: 6px 0 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-bring-none:empty { display: none; }
@@ -560,7 +553,7 @@
 .hw-hd-call[hidden] { display: none; }
 .hw-call-line { margin: 0 0 6px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-call-line:empty { display: none; }
-.hw-call-press { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-call-press { min-height: 36px; padding: 0 10px; }
 .hw-call-press[hidden] { display: none; }
 /* THE SERIES (boss-call-pane.js): the slider that picks how many fights in a row, its count beside it, then what a fight costs as a short list.
    The track and its gold plate are the windows' one slider (shell.css). */
@@ -589,7 +582,7 @@
 .hw-scale-buy { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
 .hw-scale-buy input[type="range"] { flex: 1; min-width: 96px; max-width: 280px; }
 .hw-scale-n { min-width: 40px; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
-.hw-scale-buy .hh-tool { min-height: 36px; padding: 0 10px; background: var(--bg-0); box-shadow: var(--hw-well); }
+.hw-scale-buy .hh-tool { min-height: 36px; padding: 0 10px; }
 .hw-hunt-scale { display: block; font-size: var(--t-micro); color: var(--gold-2); }
 .hw-hunt-scale[hidden] { display: none; }
 /* A keyed hall (boss-hall-pane.js): the door first, then what wins under it, a step apart from the press. */
@@ -733,11 +726,9 @@
 .hw-ready-row.is-ready .hw-ready-line { color: var(--green); }
 .hw-checks { margin: 4px 0 0; padding: 0 0 0 14px; font-size: var(--t-micro); color: var(--ink-2); }
 .hw-check.is-short { color: var(--red); }
-.hw-use { color: var(--gold-2); }
-/* A setup's Delete asks once: "Delete it?" in red with Keep beside it, in the place Use stood. */
+/* A setup's Delete asks once: "Delete it?" in red (.is-danger, setups.js) with Keep beside it, in the place Use stood. */
 .hw-keep { display: none; }
 .hw-setup.is-arming .hw-keep { display: inline-block; }
-.hw-setup.is-arming .hw-del { color: var(--red); }
 .hw-setup.is-arming .hw-use { display: none; }
 /* The setup the hero is on: "In use" in gold, and no Delete; Delete sits on the picked row only. */
 .hw-setup.is-current small, .hw-title.is-current small { color: var(--gold-2); }
@@ -802,12 +793,10 @@
 .hpb-barhead { display: flex; align-items: center; gap: 8px; }
 .hpb-barhead h3 { flex: 1; margin: 0; }
 .hpb-barhead small { font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: tabular-nums; margin-right: 8px; }
-/* BASIC SETUP (builder.js basicPress; Tyler 2026-11-17 did not find it as a word beside Sort): in the setups column under Use equipped, the one
-   framed press there (the header's square steel, shell.css .hs-back), two lines Use equipped's way: its name, then the weapon type it loads;
+/* BASIC SETUP (builder.js basicPress; Tyler 2026-11-17 did not find it as a word beside Sort): in the setups column under Use equipped, a
+   framed press as every press there (shell.css ONE BUTTON SYSTEM), two lines Use equipped's way: its name, then the weapon type it loads;
    on an empty bar the window's gold plate. */
 .hpb-left .hh-tool.hpb-basic { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 0; margin-top: 4px; padding: 6px 10px; white-space: normal; }
-.hpb-left .hh-tool.hpb-basic:not(.is-primary) { border: 2px solid var(--steel-btn); background: var(--fill-1); color: var(--ink); }
-.hpb-left .hh-tool.hpb-basic:not(.is-primary):hover:not(:disabled) { background: var(--bg-3); }
 .hpb-basic small { font-family: var(--f-ui); font-weight: 400; font-size: var(--t-micro); letter-spacing: 0; color: var(--ink-2); }
 .hpb-basic.is-primary small { font-weight: 700; color: inherit; }
 .hpb-basic small:empty { display: none; }
@@ -878,7 +867,9 @@
   .hpb-leftrow { flex-direction: row; align-items: center; flex-wrap: wrap; }
   .hpb-leftrow .hh-tool { min-height: 44px; }
   .hpb-count { margin: 0 0 0 auto; }
+  /* its hint folded, its name stands in the middle of its frame, level with New setup's */
   .hpb-from small { display: none; }
+  .hpb-left .hpb-from { justify-content: center; }
   .hpb .hh-tool, .hpb .hh-seg, .hpb .hh-select { min-height: 44px; }
   .hpb-left .hh-tool.hpb-basic { min-height: 44px; margin-top: 0; }
   .hpb-grid { grid-template-columns: repeat(10, 56px); grid-auto-rows: 56px; padding: 6px; }
@@ -1310,8 +1301,7 @@
 /* the once note: one line under her board, not under every row */
 .ht-board-once { margin: 4px 2px 0; font-size: var(--t-micro); color: var(--gold-2); line-height: 1.35; }
 .ht-board-once:empty { display: none; }
-.ht-take { min-height: 36px; padding: 0 12px; background: var(--bg-0); box-shadow: var(--hw-well); color: var(--ink); }
-.ht-take:disabled { color: var(--ink-3); opacity: 1; background: none; box-shadow: none; }
+.ht-take { min-height: 36px; padding: 0 12px; }
 /* HER PICK: one line at the foot, the picker folded behind Change. */
 .ht-pick { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 8px 2px 0; border-top: 2px solid var(--steel-sep); font-size: var(--t-micro); color: var(--ink-2); line-height: 1.35; }
 .ht-pick .hh-tool { flex: none; }
@@ -1321,10 +1311,10 @@
 .ht-weights { display: flex; gap: 2px; margin: 0; }
 .ht-weights .hh-seg { flex: 1; background: var(--bg-0); box-shadow: var(--hw-well); }
 .ht-slots { display: flex; flex-wrap: wrap; gap: 4px; margin: 0; padding: 0; list-style: none; }
-.ht-slots button { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border: 0; background: var(--bg-1); box-shadow: var(--hw-well); font: inherit; font-size: var(--t-micro); color: var(--ink-2); cursor: pointer; }
-.ht-slots button:disabled { color: var(--ink); cursor: default; }
-.ht-slots button:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
-.ht-slots button small { font-weight: 700; font-size: var(--t-micro); color: var(--ink-3); }
+/* her order, a chip a slot (the choice's well, shell.css .hh-seg): the first one has nothing to go before, so it stays bright, never greyed */
+.ht-slots .hh-seg { display: flex; align-items: center; gap: 6px; }
+.ht-slots .hh-seg:disabled { opacity: 1; color: var(--ink); }
+.ht-slots .hh-seg small { font-weight: 700; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-hunt-tally { font-size: var(--t-micro); color: var(--gold-2); font-variant-numeric: lining-nums tabular-nums; }
 .hw-hunt-tally:empty { display: none; }
 /* PHONE (the sheet): her line at the small size, the pay column narrows so a long piece name wraps, thumb-sized presses. */

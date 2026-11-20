@@ -16,16 +16,16 @@
 // tooltip and on Configure action's first line, or every food slot on the bar would look broken at full health.
 // Display only: an answer is worth one frame, and nothing spends it.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS } from '../data/condition-metrics.js?v=0.2.141';
-import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.141';
-import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.141';
-import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.141';
-import { conditionWords } from './bar-draft.js?v=0.2.141';
-import { reasonOf, holdingReason, aloneReason, aloneNote } from './action-facts.js?v=0.2.141';
-import { carryRows } from './carry-in.js?v=0.2.141';
-import { weakFoodOf, weakFoodWords, groundFloor } from './weak-food.js?v=0.2.141';
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.141';
-import { heroVitalsOf } from '../session/character-sections.js?v=0.2.141';
+import { METRICS } from '../data/condition-metrics.js?v=0.2.142';
+import { areaTopOf } from '../core/hunt/conditions.js?v=0.2.142';
+import { huntOf, settingsOf, partyOf } from '../session/hunt-sections.js?v=0.2.142';
+import { carriedOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.142';
+import { conditionWords } from './bar-draft.js?v=0.2.142';
+import { reasonOf, holdingReason, aloneReason, aloneNote } from './action-facts.js?v=0.2.142';
+import { carryRows } from './carry-in.js?v=0.2.142';
+import { weakFoodOf, weakFoodWords, groundFloor } from './weak-food.js?v=0.2.142';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.142';
+import { heroVitalsOf } from '../session/character-sections.js?v=0.2.142';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 /* The tests that mark a slot, and the glyph each marks it with. */
@@ -85,10 +85,11 @@ export function waitReason(sl, party, test) {
 }
 
 /** Configure action's line: what the conditions being set up will mean, '' when they ask nothing surprising. `d` is the draft slot.
-    An alone spell in a party says so first: it never fires there, whatever its conditions (abilities.js `alone`). */
-export function setupNote(d, party) {
+    An alone spell in a party says so first: it never fires there, whatever its conditions (abilities.js `alone`), as a party spell
+    alone does (`role`: the hero's hunt role, a spell party only for some roles: abilities.js partyOnly). */
+export function setupNote(d, party, role) {
   if (!d || !d.action || !d.action.id) return '';
-  const alone = aloneNote(d.action, party);
+  const alone = aloneNote(d.action, party, role);
   if (alone) return alone;
   for (const c of d.conditions) {
     if (!canHold(c, d, party)) return neverWords(c, d, party);
@@ -127,7 +128,7 @@ export function whyFacts(cs) {
 export function slotWhy(sl, f) {
   const r = reasonOf(sl, f.set, f.bag, f.hero, f.worn, f.skills, f.pack);
   if (r && r.strike) return r;
-  const a = aloneReason(sl, f.alone);
+  const a = aloneReason(sl, f.alone, f.set ? f.set.role : null);
   if (a) return a;
   const w = waitReason(sl, f.party, f.test);
   if (w && !w.rest) return w;

@@ -1,0 +1,18 @@
+{
+  "AW-18m Deposit all materials sends nothing (audit A8)": "AW-18m",
+  "AW-18m Deposit all materials takes a locked stack (audit A8)": "AW-18m",
+  "AW-18q a press while another is out is dropped again (audit A8)": "AW-18q",
+  "AW-18q the queued whole stacks go one ask each (audit A8)": "AW-18q",
+  "AW-65 a press mid-hunt says nothing": "AW-65",
+  "AW-65 a press's answer takes its row from the bag (UI audit #4)": "AW-65",
+  "AW-65 a result lies on the stack pressed": "AW-65",
+  "AW-65 a right-click mid-hunt says nothing": "AW-65",
+  "AW-65 the answer stays behind a scrolled bag": "AW-65",
+  "AW-65 the why stays up in town": "AW-65",
+  "Stop does not collect": "AW-19",
+  "a press in Storage moves the whole stack": "AW-18",
+  "bones offer no Bury": "AW-19",
+  "raw food offers no Cook all": "AW-20",
+  "the Storage chip and sort are not applied": "AW-65",
+  "the bench ignores the server level": "AW-20"
+}

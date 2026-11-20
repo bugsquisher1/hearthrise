@@ -12,18 +12,18 @@
 // set's); any other row keeps Use off and says "Town only: needs ..." on its line. New and Use equipped
 // stay town-only (they take the worn gear). The server refuses the same (2027-05-04-setup-swap-mid-hunt.sql).
 // ════════════════════════════════════════════════════════════════════════
-import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.141';
-import { settingsOf, huntOf } from '../../../session/hunt-sections.js?v=0.2.141';
-import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.141';
-import { runIntent } from '../../intent-words.js?v=0.2.141';
-import { gold } from '../../../render/format.js?v=0.2.141';
-import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.141';
-import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.141';
-import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.141';
-import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.141';
-import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.141';
-import { t, hasText } from '../../../render/player-text.js?v=0.2.141';
-import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.141';
+import { presetsOf, setupSlotsOf, goldOf } from '../../../session/item-sections.js?v=0.2.142';
+import { settingsOf, huntOf } from '../../../session/hunt-sections.js?v=0.2.142';
+import { rows, text, cls, prop, attr, element } from '../../../render/paint.js?v=0.2.142';
+import { runIntent } from '../../intent-words.js?v=0.2.142';
+import { gold } from '../../../render/format.js?v=0.2.142';
+import { ACTION_SET_LIMITS } from '../../../data/rule-subjects.js?v=0.2.142';
+import { renameSetup, deleteSetup, buySetupSlot } from '../../../session/preset-intents.js?v=0.2.142';
+import { setupBuyWords, setupFullWords } from '../../setup-words.js?v=0.2.142';
+import { nameEditorHtml, openNameEditor, nameKey } from '../../inline-name.js?v=0.2.142';
+import { settleTownActivity } from '../../../session/party-intents.js?v=0.2.142';
+import { t, hasText } from '../../../render/player-text.js?v=0.2.142';
+import { dropDraft, pickSetup, draftDirty } from './builder.js?v=0.2.142';
 
 const MAX_PRESETS = ACTION_SET_LIMITS.presets;
 
@@ -102,6 +102,7 @@ export function patchSetups(root, ctx, sc, hunting) {
       const armed = sc.arming === p.preset;
       cls(li, 'is-arming', armed);
       text(li.querySelector('.hw-del'), armed ? t('controls.delete_confirm') : t('controls.delete'));
+      cls(li.querySelector('.hw-del'), 'is-danger', armed);
       for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
       /* In town Use stays on the setup in use too: it puts that setup's saved gear back on (the server wears it). In a hunt it swaps
          the bar only, to a setup of the worn weapon type; another type's row says why on its line (midHuntUse). */

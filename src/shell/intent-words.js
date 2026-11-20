@@ -10,22 +10,22 @@
 // server's value stays on screen either way: nothing changed before it answered.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
-import { ITEMS } from '../data/items.js?v=0.2.141';
-import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.141';
-import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.141';
-import { levelOf } from '../session/character-sections.js?v=0.2.141';
-import { needOf, needWords } from './item-lore.js?v=0.2.141';
-import { listWords, whole } from '../render/format.js?v=0.2.141';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.141';
-import { marketRefusal } from './market-words.js?v=0.2.141';
-import { setupFullWords } from './setup-words.js?v=0.2.141';
-import { TITLES } from '../data/titles.js?v=0.2.141';
-import { sinkRefusal } from './sink-words.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
-import { trainingRefusal } from './training-words.js?v=0.2.141';
-import { factionRefusal } from './faction-words.js?v=0.2.141';
-import { towerRefusal } from './tower-words.js?v=0.2.141';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
+import { ITEMS } from '../data/items.js?v=0.2.142';
+import { REFUSAL_WORDS, REFUSAL_FAMILIES, REFUSAL_FALLBACK, REFUSAL_VERB_WORDS } from '../data/refusal-words.js?v=0.2.142';
+import { skillsOf, nameOf } from '../session/item-sections.js?v=0.2.142';
+import { levelOf } from '../session/character-sections.js?v=0.2.142';
+import { needOf, needWords } from './item-lore.js?v=0.2.142';
+import { listWords, whole } from '../render/format.js?v=0.2.142';
+import { SKILLS_DEF } from '../data/skills.js?v=0.2.142';
+import { marketRefusal } from './market-words.js?v=0.2.142';
+import { setupFullWords } from './setup-words.js?v=0.2.142';
+import { TITLES } from '../data/titles.js?v=0.2.142';
+import { sinkRefusal } from './sink-words.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.142';
+import { trainingRefusal } from './training-words.js?v=0.2.142';
+import { factionRefusal } from './faction-words.js?v=0.2.142';
+import { towerRefusal } from './tower-words.js?v=0.2.142';
 
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 
@@ -104,8 +104,10 @@ export function refusalText(r, cs) {
   if (tower) return tower;
   const seats = r && Array.isArray(r.seats) ? r.seats : [];
   if (r && r.error === 'not_ready' && seats.length) {
+    /* an outgrown seat names the ground it outgrew (blind playthrough 2026-11-19, P1: the leader's own `outgrown` read "Wren is not ready") */
     const why = seats.map((x) => x.name + ' ' + (x.error === 'hunt_open' && x.hunt && HUNT_INDEX[x.hunt]
-      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : SEAT_WORDS[x.error] || 'is not ready'));
+      ? 'is still hunting in ' + HUNT_INDEX[x.hunt].name : x.error === 'outgrown'
+        ? t('hunts.seat_outgrown', { ground: x.hunt && HUNT_INDEX[x.hunt] ? HUNT_INDEX[x.hunt].name : t('hunts.seat_outgrown_that') }) : SEAT_WORDS[x.error] || 'is not ready'));
     return 'Nobody went in. ' + listWords(why, Infinity) + '.';
   }
   /* A name the rules refuse for what it says, not its length (hr_validate_display_name reserved / blocked). */

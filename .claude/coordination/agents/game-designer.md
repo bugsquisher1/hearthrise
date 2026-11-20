@@ -1041,3 +1041,18 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - Heat the blows only. HP heat gave the same curve but slowed the floors and moved the server's per-floor XP bound (a catalogue to stage). Blows alone left the server untouched.
 - Recorded seats replay a Tower climb to the floor (159-184 against his 182, 274-284k XP an hour against 275k). Rebuild a seat's worn set from the ledger's equip rows: his front seat held a sword at the climb, not today's hammer.
 - Tuning on top of another lane's formula change: `git archive <branch> src tools/balance-sim tests/hunt-core tests/_is-main.mjs supabase/functions/hr-accrue` into .scratch, overlay your files, measure both trees and say which one each number is from.
+
+## 2026-11-19 lane/d-142-rulings (level-curve and party-class-xp-line red on the assembled v0.2.142; board "2026-11-19 Two rulings for v0.2.142")
+- Diff the careers, not the median: `level-pace.json` careers' hoursTo, old snapshot against new, named the bows (Flame Volley on their default bar) as the other 13% once the advice was reverted. The median moves when its middle two ways move.
+- A shrunk band breaks every plan that reads it: the Cellar ending at 5 left the ladder playing Levels where the hunt ends at once (3,411 XP an hour), which bent the contract fit. `plans.mjs` loadAxes now plays a ground's playable band.
+- An early-curve step can't be moved alone: brackets chain (a bracket's first step is the one before plus its rise), so a rise change shifts every later step. Pair it (-d, +2d, -d) to hold every total past it, or accept a constant shift.
+- A Healer's tier is data (HEALER_TIERS): a guard judging parties there should read it rather than hand-list grounds. A plain hero at 165 dies in every lone way, so a staged ground past the gear ladder measures deaths, not pay.
+- The pace plan is about 45 min and the ladder 13 min on one worker. A played life to 70 is 1-2 min. Reuse ladder cells by id: copy cells.jsonl and drop the changed ground's rows.
+- Before a curve re-fit, count the live Levels it moves (read player_state, compare both curves). The Coordinator chose XP a kill over a 1-2 Level drop for every hero: the table can be held from either side, and only one side touches what players already hold.
+- A change below the ceiling re-measures the whole pace (C1). Early-Level rates from 15-minute chunks swing 9.5-13k at the Cellar's end, so leave C6 slack there (1.6-1.9x), not 1.95x.
+- `pace.mjs --fit --fit-past` went infeasible (the held first step breaks its one-minute Level 2 bound when XP drops) and then returned garbage. A hand grid over the two brackets past 110 against the same reference was quicker and honest.
+- A re-split that holds the total to Level 9 still moves every Level inside the band (a Level 4 hero with 1,200 XP reads 3). A read-only count proves today only; the curve file now refuses itself at apply if any hero's Level moves (gen-level-curve, core-curves CURVE-HOLD).
+- A balance-blind test arm pins the rows it plays: when XP a kill moves, add `xp` to its pinned rows (hunt-live LV-PULL), or the Level-ups shift its laps.
+- Luck v3 (11-20): a life records kills by creature only, and every Luck number is re-read off the same file (luck-measure table), so a curve re-tune costs seconds, not a re-run. A lone 5,000 h life is about 25 minutes, a four on Deadly about 2 hours: start the four first.
+- Past the built content a life parks on the last ground. Say so in the table, and project the planned game apart from it, labeled assumed.
+- A four on Deadly at Krell's Hold pays the store about what it earns (20k an hour a hero against 20k). Any sink priced as a share of income has to be read against net, not gross.

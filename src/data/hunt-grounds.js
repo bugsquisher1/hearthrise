@@ -139,16 +139,16 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.141';
-import { HUNT_INDEX } from './hunts.js?v=0.2.141';
-import { MONSTERS } from './monsters.js?v=0.2.141';
-import { PARTY } from './party.js?v=0.2.141';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.142';
+import { HUNT_INDEX } from './hunts.js?v=0.2.142';
+import { MONSTERS } from './monsters.js?v=0.2.142';
+import { PARTY } from './party.js?v=0.2.142';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.141';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.141';
-import { sessionModeOf } from './session-modes.js?v=0.2.141';
-import { TOWER_RULES, CATACOMB_RULES, RUN_GROUNDS, runRulesOf } from './tower.js?v=0.2.141';
+import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.142';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.142';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.142';
+import { sessionModeOf } from './session-modes.js?v=0.2.142';
+import { TOWER_RULES, CATACOMB_RULES, RUN_GROUNDS, runRulesOf } from './tower.js?v=0.2.142';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a
@@ -271,9 +271,9 @@ const BASE_GROUNDS = Object.freeze({
     ]),
     route: Object.freeze([0, 1, 2, 3, 4, 5]),
     respawnMs: 90000, pullDist: 1.5, groupFit: 'party',
-    /* ALONE FROM 36 (the board's 2026-11-19 complete balance look, change 8; was 45): a played lone hammer, bow and Mage sent here
-       from 36 die 0 times (tools/balance-sim/life.mjs; numbers on the board, "2026-11-19 First-day path"). Advice only. */
-    soloFrom: 36,
+    /* ALONE FROM 45 (designer ruling 2026-11-19, the board's "2026-11-19 Two rulings for v0.2.142"): from 36 the lone road to Level 50 took 123 h
+       against Tyler's 168. At 45 Hask's Ford is the advice. Advice only. */
+    soloFrom: 45,
     densityMax: Object.freeze([8, 8, 8, 8]),
     gather: gather(12000, [
       /* P0 the Spoil Heap: what the scavengers missed */

@@ -1,0 +1,313 @@
+UI audit #3 ONE BUTTON SYSTEM — every <button> in src/shell/** (not widgets/) and src/app/**, set/v0.2.142 -> lane/b-ui-buttons
+window/module | line | press | class before -> after | look before -> role after
+
+shell/context-menu.js | 91 | esc(e.label) | hw-mi | row (own look) -> row
+shell/goto.js | 63 | esc(words) | hs-goto | gold words (link) -> TEXT LINK
+shell/hud.js | 524 | Put back | hs-quiet hs-hudset-put -> hh-tool hs-hudset-put | 1px rounded outline -> FRAMED SECONDARY
+shell/hud.js | 534 | Reset layout | hs-quiet -> hh-tool | 1px rounded outline -> FRAMED SECONDARY
+shell/inline-name.js | 20 | ' + act + ' | hs-name | row (own look) -> row
+shell/launcher.js | 275 | coach-close | hs-coach-close | coach (own look) -> coach
+shell/launcher.js | 284 | esc(card.title) + (fresh ? ' ' : '') | hs-coach-tab | coach (own look) -> coach
+shell/launcher.js | 292 | [coach.no_tips] | hs-coach-off | coach (own look) -> coach
+shell/launcher.js | 293 | [coach.got_it] | hs-coach-got | coach (own look) -> coach
+shell/launcher.js | 297 | coach-min | hs-coach-min | coach (own look) -> coach
+shell/launcher.js | 299 | More | hs-coach-more | coach (own look) -> coach
+shell/launcher.js | 300 | (open ? 'Less' : 'More') | hs-coach-more | coach (own look) -> coach
+shell/launcher.js | 439 | glyphSvg(ctx.glyphs, r.glyph) | hs-launch | bar (own look) -> bar
+shell/launcher.js | 447 | launch-pick | hs-launch-item | bar (own look) -> bar
+shell/launcher.js | 452 | glyphSvg(ctx.glyphs, m.glyph) esc(m.labe | hs-launch-item | bar (own look) -> bar
+shell/launcher.js | 459 | glyphSvg(ctx.glyphs, g.glyph) | hs-launch is-group | bar (own look) -> bar
+shell/tower-stage.js | 141 | ' (press(l) ? ' | tt-lbl | row (own look) -> row
+shell/tower-words.js | 20 | [tower.havora_open] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+shell/widget-move.js | 38 | (set in code) | hs-wfold | bar (own look) -> bar
+shell/window-head.js | 54 | &lsaquo; [controls.back] | hs-back | head (own look) -> head
+shell/window-head.js | 56 | ? | hs-help | head (own look) -> head
+shell/window-head.js | 58 | glyphSvg(glyphs, 'uiClose') | hs-close | head (own look) -> head
+win/away.js | 103 | away-go | hh-tool is-primary haway-foot-go | gold plate -> GOLD PRIMARY
+win/away.js | 104 | [away.card_summary] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/away.js | 105 | [away.card_ok] | hh-tool | bare words -> FRAMED SECONDARY
+win/away.js | 113 | away-go | hh-tool | bare words -> FRAMED SECONDARY
+win/away.js | 114 | away-bless | hh-tool | bare words -> FRAMED SECONDARY
+win/block-list.js | 31 | Unblock | hh-tool | bare words -> FRAMED SECONDARY
+win/boss-call-pane.js | 128 | call-warn | hh-tool hw-call-press | sunk well -> FRAMED SECONDARY
+win/boss-call-pane.js | 136 | call-go | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/boss-call-pane.js | 137 | call-no | hh-tool | bare words -> FRAMED SECONDARY
+win/boss-hall-pane.js | 94 | hall-warn | hh-tool hw-call-press | sunk well -> FRAMED SECONDARY
+win/boss-hall-pane.js | 98 | hall-go | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/boss-hall-pane.js | 99 | hall-no | hh-tool | bare words -> FRAMED SECONDARY
+win/character/deaths.js | 44 | ' | hw-dl-head | row (own look) -> row
+win/character/faction.js | 45 | [factions.press_choose] | hh-tool is-primary hw-fx-choose | gold plate -> GOLD PRIMARY
+win/character/faction.js | 53 | [factions.press_confirm] | hh-tool is-primary | gold plate -> GOLD PRIMARY
+win/character/faction.js | 54 | [factions.press_back] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/character/faction.js | 55 | fx-swap | hh-tool hw-fx-swap-go | bare words -> FRAMED SECONDARY
+win/character/faction.js | 56 | [factions.press_finish] | hh-tool is-primary hw-fx-finish | gold plate -> GOLD PRIMARY
+win/character/faction.js | 57 | [factions.press_cancel_swap] | hh-tool hw-fx-cancel | bare words -> FRAMED SECONDARY
+win/character/faction.js | 146 | fx-claim | hh-tool | bare words -> FRAMED SECONDARY
+win/character/index.js | 73 | esc(l) | hw-tab | tab (own look) -> tab
+win/character/outfit.js | 44 | Turn | hh-tool hw-of-turn | bare words -> FRAMED SECONDARY
+win/character/outfit.js | 50 | [controls.equip] | hh-tool | bare words -> FRAMED SECONDARY
+win/character/outfit.js | 51 | of-colors | hw-primary hw-of-colors | gold plate -> GOLD PRIMARY
+win/character/outfit.js | 52 | Undo colors | hh-tool hw-of-undo | bare words -> FRAMED SECONDARY
+win/character/outfit.js | 135 | of-addon | hh-tool hw-of-addon | bare words -> FRAMED SECONDARY
+win/character/outfit.js | 156 | esc(row.parts[g]) | hw-tab | tab (own look) -> tab
+win/character/outfit.js | 161 | of-dye | hw-of-swatch | choice (own look) -> choice
+win/character/outfit.js | 171 | of-pick | hw-of-card | choice (own look) -> choice
+win/character/titles.js | 55 | title-go | hh-tool | bare words -> FRAMED SECONDARY
+win/characters.js | 50 | glyphSvg(ctx.glyphs, r.glyph) esc(r.labe | hw-icon-name | row (own look) -> row
+win/characters.js | 55 | [heroes.character_list] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/characters.js | 56 | [controls.sign_out] | hh-tool | bare words -> FRAMED SECONDARY
+win/characters.js | 73 | rename-ask | hh-tool | bare words -> FRAMED SECONDARY
+win/characters.js | 74 | [controls.close] | hh-tool | bare words -> FRAMED SECONDARY
+win/characters.js | 76 | rename-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/characters.js | 77 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/characters.js | 96 | [controls.show] | hh-tool hw-char-show | bare words -> FRAMED SECONDARY
+win/characters.js | 97 | [controls.rename] | hh-tool hw-char-rename | bare words -> FRAMED SECONDARY
+win/characters.js | 98 | invite | hh-tool hw-char-invite | bare words -> FRAMED SECONDARY
+win/chat-combat.js | 52 | This hero | hh-tool | bare words -> FRAMED SECONDARY
+win/chat-combat.js | 53 | Party | hh-tool | bare words -> FRAMED SECONDARY
+win/chat-crier.js | 30 | esc(CRIER.label) | hh-tool hc-crier-open -> hh-tool is-link hc-crier-open | bare words -> TEXT LINK
+win/chat-crier.js | 35 | crier-go | hh-tool is-primary hc-cry | gold plate -> GOLD PRIMARY
+win/chat-crier.js | 36 | crier-again | hh-tool hc-again | bare words -> FRAMED SECONDARY
+win/chat.js | 60 | New messages | hc-pill | head (own look) -> head
+win/chat.js | 64 | Send | hh-tool hc-send | bare words -> FRAMED SECONDARY
+win/chat.js | 71 | tab | ha-tab | tab (own look) -> tab
+win/chat.js | 72 | × | hc-x | head (own look) -> head
+win/chat.js | 82 | esc(linkLabel(p.item)) | hc-link | row (own look) -> row
+win/chat.js | 95 | esc(l.name) | hc-name | row (own look) -> row
+win/configure-action.js | 58 | label | hh-tool | bare words -> FRAMED SECONDARY
+win/configure-action.js | 65 | body | hh-seg ca-step | choice (own look) -> choice
+win/configure-action.js | 75 | × | hh-tool ca-drop | bare words -> FRAMED SECONDARY
+win/configure-action.js | 91 | l | ca-tab | tab (own look) -> tab
+win/configure-action.js | 92 | close | hs-close ca-close | head (own look) -> head
+win/configure-action.js | 96 | cfg | ca-item | choice (own look) -> choice
+win/configure-action.js | 163 | cfg | ca-row | row (own look) -> row
+win/configure-runes.js | 77 | cfg | ca-rs | choice (own look) -> choice
+win/death.js | 33 | death-bless | hh-tool | bare words -> FRAMED SECONDARY
+win/death.js | 34 | Hunt summary | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/death.js | 35 | OK | hh-tool is-primary | gold plate -> GOLD PRIMARY
+win/faction-join.js | 62 | [factions.press_confirm] | hh-tool is-primary | gold plate -> GOLD PRIMARY
+win/faction-join.js | 63 | [factions.press_back] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/faction-join.js | 67 | [factions.not_now] | hh-tool | bare words -> FRAMED SECONDARY
+win/faction-join.js | 81 | fx-join | hh-tool | bare words -> FRAMED SECONDARY
+win/farm.js | 86 | [farm.open_shop] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/farm.js | 87 | [controls.close] | hh-tool | bare words -> FRAMED SECONDARY
+win/farm.js | 89 | upgrade | hh-tool | bare words -> FRAMED SECONDARY
+win/farm.js | 94 | plot | hw-soil | choice (own look) -> choice
+win/farm.js | 97 | [farm.harvest] | hh-tool hw-harvest | bare words -> FRAMED SECONDARY
+win/farm.js | 98 | (set in code) | hh-tool hw-plot-do | bare words -> FRAMED SECONDARY
+win/farm.js | 174 | [farm.plant] | hh-tool | bare words -> FRAMED SECONDARY
+win/farm.js | 175 | sowall | hh-tool hw-sow-all | bare words -> FRAMED SECONDARY
+win/friends.js | 38 | Add friend | hh-tool | bare words -> FRAMED SECONDARY
+win/friends.js | 62 | Message | hh-tool | bare words -> FRAMED SECONDARY
+win/friends.js | 63 | Invite to party | hh-tool | bare words -> FRAMED SECONDARY
+win/friends.js | 81 | [controls.accept] | hh-tool | bare words -> FRAMED SECONDARY
+win/friends.js | 82 | [controls.decline] | hh-tool | bare words -> FRAMED SECONDARY
+win/friends.js | 88 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 21 | Refresh | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 24 | Look | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 27 | Stop | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 29 | Mute | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 29 | Unmute | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 30 | Ban | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 30 | Unban | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 31 | gm-yes | hh-tool is-primary | gold plate -> GOLD PRIMARY
+win/game-master-body.js | 32 | Cancel | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 34 | Say | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 37 | Give gold | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 38 | Give item | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 39 | Raise Level | hh-tool | bare words -> FRAMED SECONDARY
+win/game-master-body.js | 71 | gm-pick | hh-tool gm-pick | bare words -> FRAMED SECONDARY
+win/hallmark-pane.js | 78 | hallmark-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/hallmark-pane.js | 79 | Cancel | hh-tool | bare words -> FRAMED SECONDARY
+win/hallmark-pane.js | 96 | hallmark-ask | hh-tool | bare words -> FRAMED SECONDARY
+win/hallmark-pane.js | 112 | hallmark-ask | hh-tool | bare words -> FRAMED SECONDARY
+win/havora/index.js | 74 | esc(t.label) | hw-tab | tab (own look) -> tab
+win/havora/index.js | 78 | esc(SHOW_FLAMES[id].label) | hv-powder is- | choice (own look) -> choice
+win/havora/index.js | 81 | powder | hh-tool is-primary hv-buy | gold plate -> GOLD PRIMARY
+win/havora/index.js | 88 | round | hh-tool is-primary hv-buy | gold plate -> GOLD PRIMARY
+win/havora/works.js | 102 | esc(giveWords(g)) | hh-tool is-primary hv-buy | gold plate -> GOLD PRIMARY
+win/havora/works.js | 105 | works-max | hh-tool is-primary hv-buy hv-works-max | gold plate -> GOLD PRIMARY
+win/havora/works.js | 107 | Give | hh-tool | bare words -> FRAMED SECONDARY
+win/house-dummy.js | 30 | dummy-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/house-dummy.js | 31 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/house-dummy.js | 55 | dummy-ask | hh-tool | bare words -> FRAMED SECONDARY
+win/house.js | 115 | house-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/house.js | 116 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/house.js | 122 | house-ask | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-detail.js | 71 | loot-more | hh-tool hw-hd-mats-more -> hh-tool is-link hw-hd-mats-more | bare words -> TEXT LINK
+win/hunt-detail.js | 80 | (set in code) | hw-hd-mon-name mf-open | row (own look) -> row
+win/hunt-detail.js | 91 | esc(PREP_LABEL) | hh-tool hw-go-prep -> hh-tool is-link hw-go-prep | bare words -> TEXT LINK
+win/hunt-detail.js | 95 | find-party | hh-tool hw-find-here -> hh-tool is-link hw-find-here | sunk well -> TEXT LINK
+win/hunt-detail.js | 99 | go-as | hw-go | row (own look) -> row
+win/hunt-detail.js | 142 | bring | hh-tool | sunk well -> FRAMED SECONDARY
+win/hunt-prep/builder.js | 57 | [controls.basic_setup] | hh-tool hpb-basic | steel frame (own copy) -> FRAMED SECONDARY
+win/hunt-prep/builder.js | 62 | esc(HUNT_ROLES[r].label) | hh-seg | choice (own look) -> choice
+win/hunt-prep/builder.js | 63 | esc(s.label) | hh-seg | choice (own look) -> choice
+win/hunt-prep/builder.js | 71 | [prep.chase] | hh-seg hpb-chase | choice (own look) -> choice
+win/hunt-prep/builder.js | 72 | − | hh-seg | choice (own look) -> choice
+win/hunt-prep/builder.js | 73 | + | hh-seg | choice (own look) -> choice
+win/hunt-prep/builder.js | 79 | [controls.sort] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-prep/builder.js | 79 | [controls.clear] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 55 | [prep.save] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 57 | [controls.new_setup] | hh-tool hpb-new | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 58 | [controls.use_equipped] | hh-tool hpb-from | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 59 | [controls.cancel] | hh-tool hw-keep hpb-keep | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 63 | buy-slot | hh-tool hw-slot-buy | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 70 | [controls.use] | hh-tool hw-use | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 71 | [controls.delete] | hh-tool hw-del | bare words -> FRAMED SECONDARY
+win/hunt-prep/setups.js | 72 | [controls.cancel] | hh-tool hw-keep | bare words -> FRAMED SECONDARY
+win/hunt-prep.js | 62 | ready | hpb-ready hw-ready-line | row (own look) -> row
+win/hunt-prep.js | 63 | [prep.load_again] | hh-tool hpb-load | bare words -> FRAMED SECONDARY
+win/hunt-prep.js | 64 | [controls.close] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-prep.js | 65 | [prep.save] | hh-tool hpb-save | bare words -> FRAMED SECONDARY
+win/hunt-prep.js | 66 | [prep.save_and_use] | hh-tool is-primary hpb-save-use | gold plate -> GOLD PRIMARY
+win/hunt-prep.js | 122 | carry | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-summary.js | 154 | coach-next | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/hunt-summary.js | 155 | [controls.hunt_again] | hh-tool is-primary | gold plate -> GOLD PRIMARY
+win/hunt-summary.js | 156 | [tower.end_open] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/hunt-summary.js | 157 | [tower.climb_again] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-summary.js | 158 | [controls.open_bag] | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/hunt-summary.js | 160 | [controls.expand_bag] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-summary.js | 301 | [controls.show] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunt-summary.js | 316 | town | hh-tool | bare words -> FRAMED SECONDARY
+win/hunts.js | 202 | TIER_NAME[id] | hh-seg | choice (own look) -> choice
+win/hunts.js | 207 | [controls.leave_party] | hh-tool | bare words -> FRAMED SECONDARY
+win/hunts.js | 208 | [controls.enter] | hw-primary is-on hw-hunt-enter | gold plate -> GOLD PRIMARY
+win/inventory/actions.js | 298 | esc(label) | hw-mi | row (own look) -> row
+win/inventory/doll.js | 56 | ' glyphSvg(g, glyph) | hw-slot is-empty | row (own look) -> row
+win/inventory/doll.js | 118 | [controls.unequip] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/doll.js | 180 | [controls.equip] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 54 | Bag | hw-tab | tab (own look) -> tab
+win/inventory/grid.js | 55 | This hunt | hw-tab | tab (own look) -> tab
+win/inventory/grid.js | 58 | esc(l) | hw-cat | choice (own look) -> choice
+win/inventory/grid.js | 75 | primary | hw-primary | gold plate -> GOLD PRIMARY
+win/inventory/grid.js | 76 | glyphSvg(g, 'uiPlus') | hh-tool hw-more | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 79 | [controls.stop] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 82 | [controls.sell_selected] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 83 | [controls.deposit] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 84 | [controls.lock] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 85 | [controls.clear] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 87 | select-outgrown | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 88 | sell-cat | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/grid.js | 91 | confirm-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/inventory/grid.js | 92 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/index.js | 54 | [controls.dispatch_loot] | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/key-ring.js | 19 | [bag.ring_tab] | hw-tab | tab (own look) -> tab
+win/inventory/key-ring.js | 25 | ring-unlock | hh-tool | bare words -> FRAMED SECONDARY
+win/inventory/plan-copy.js | 28 | plan-copy-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/inventory/plan-copy.js | 29 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/market/browse.js | 45 | esc(l) | hw-cat | choice (own look) -> choice
+win/market/browse.js | 48 | [controls.list_item] | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/market/browse.js | 49 | [shop.market_to_works] | hh-tool hw-mk-to-works -> hh-tool is-link hw-mk-to-works | bare words -> TEXT LINK
+win/market/browse.js | 64 | esc(l) | hh-seg | choice (own look) -> choice
+win/market/browse.js | 67 | mk-buy | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/market/browse.js | 68 | [controls.cancel] | hh-tool hw-mk-forget | bare words -> FRAMED SECONDARY
+win/market/browse.js | 117 | Cancel | hh-tool | bare words -> FRAMED SECONDARY
+win/market/index.js | 32 | esc(l) | hw-tab | tab (own look) -> tab
+win/market/index.js | 33 | [controls.refresh] | hh-tool hw-mk-refresh | bare words -> FRAMED SECONDARY
+win/market/ledger.js | 23 | [controls.list_item] | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/market/ledger.js | 44 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/market/ledger.js | 65 | again[1] | hh-tool | bare words -> FRAMED SECONDARY
+win/market/sell.js | 37 | ms-from | hh-seg | choice (own look) -> choice
+win/market/sell.js | 38 | Storage | hh-seg | choice (own look) -> choice
+win/market/sell.js | 45 | All | hh-seg | choice (own look) -> choice
+win/market/sell.js | 45 | Half | hh-seg | choice (own look) -> choice
+win/market/sell.js | 47 | ms-chip | hh-seg | choice (own look) -> choice
+win/market/sell.js | 47 | ms-chip | hh-seg | choice (own look) -> choice
+win/market/sell.js | 51 | ms-list | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/market/sell.js | 52 | [controls.cancel] | hh-tool hw-mk-forget | bare words -> FRAMED SECONDARY
+win/party-finder.js | 61 | list-party | hh-tool | bare words -> FRAMED SECONDARY
+win/party-finder.js | 65 | [controls.search] | hh-tool | bare words -> FRAMED SECONDARY
+win/party-finder.js | 73 | [controls.join] | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/party-roster.js | 37 | [controls.pick_hunt] | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/party-roster.js | 38 | Leave party | hh-tool | bare words -> FRAMED SECONDARY
+win/party-roster.js | 39 | Disband | hh-tool | bare words -> FRAMED SECONDARY
+win/party.js | 38 | esc(l) | hw-tab | tab (own look) -> tab
+win/party.js | 41 | Invite | hh-tool | bare words -> FRAMED SECONDARY
+win/party.js | 60 | Join | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/party.js | 61 | [controls.decline] | hh-tool | bare words -> FRAMED SECONDARY
+win/play-cap.js | 32 | OK | hh-tool is-primary | gold plate -> GOLD PRIMARY
+win/report.js | 53 | Send report | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/scale-pane.js | 70 | scale-ask | hh-tool | sunk well -> FRAMED SECONDARY
+win/scale-pane.js | 72 | [hunts.scale_confirm_yes] | hw-primary is-on | gold plate -> GOLD PRIMARY
+win/scale-pane.js | 73 | [controls.cancel] | hh-tool | sunk well -> FRAMED SECONDARY
+win/services.js | 41 | stam-ask | hh-tool | bare words -> FRAMED SECONDARY
+win/services.js | 43 | stam-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/services.js | 44 | Cancel | hh-tool | bare words -> FRAMED SECONDARY
+win/services.js | 48 | bless-all | hh-tool | bare words -> FRAMED SECONDARY
+win/services.js | 95 | bless | hh-tool | bare words -> FRAMED SECONDARY
+win/settings.js | 31 | esc(r.label) | hs-quiet -> hh-tool is-link | 1px rounded outline -> TEXT LINK
+win/settings.js | 50 | esc(c.label) | st-tab | tab (own look) -> tab
+win/shop.js | 80 | esc(l) | hw-tab | tab (own look) -> tab
+win/shop.js | 88 | sell-loot | hh-tool | bare words -> FRAMED SECONDARY
+win/shop.js | 88 | sell-spare | hh-tool | bare words -> FRAMED SECONDARY
+win/shop.js | 91 | confirm-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/shop.js | 92 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/shop.js | 103 | buy | hh-tool | bare words -> FRAMED SECONDARY
+win/shop.js | 170 | sell | hh-tool | bare words -> FRAMED SECONDARY
+win/storage.js | 84 | esc(l) | hw-cat | choice (own look) -> choice
+win/storage.js | 95 | expand | hh-tool | bare words -> FRAMED SECONDARY
+win/storage.js | 96 | [controls.dispatch_loot] | hh-tool | bare words -> FRAMED SECONDARY
+win/storage.js | 97 | deposit-materials | hh-tool | bare words -> FRAMED SECONDARY
+win/tally.js | 133 | to-weight | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/tally.js | 135 | pick-toggle | hh-tool -> hh-tool is-link | bare words -> TEXT LINK
+win/tally.js | 137 | weight | hh-seg | choice (own look) -> choice
+win/tally.js | 149 | drop | hh-tool | bare words -> FRAMED SECONDARY
+win/tally.js | 156 | take | hh-tool ht-take | sunk well -> FRAMED SECONDARY
+win/tally.js | 250 | first | (none) -> hh-seg | sunk well (own copy) -> choice
+win/temper-pane.js | 84 | temper-yes | hw-primary | gold plate -> GOLD PRIMARY
+win/temper-pane.js | 85 | Cancel | hh-tool | bare words -> FRAMED SECONDARY
+win/temper-pane.js | 98 | temper-ask | hh-tool | bare words -> FRAMED SECONDARY
+win/tower-catacombs.js | 105 | [controls.enter] | hh-tool is-primary tk-go | gold plate -> GOLD PRIMARY
+win/tower-catacombs.js | 129 | cat-wing | tk-wing | choice (own look) -> choice
+win/tower-catacombs.js | 157 | cat-door-pick | tk-door | choice (own look) -> choice
+win/tower-catacombs.js | 201 | cat-key | tk-key | choice (own look) -> choice
+win/tower-chest.js | 121 | [tower.keys_head] | hh-tool tc-keys-back -> hh-tool is-link tc-keys-back | bare words -> TEXT LINK
+win/tower-chest.js | 136 | [controls.use] | hh-tool is-primary tc-use | gold plate -> GOLD PRIMARY
+win/tower-chest.js | 137 | [controls.use_all] | hh-tool tc-use-all | bare words -> FRAMED SECONDARY
+win/tower-chest.js | 146 | chest-fam | tc-stoke tc-fam-pick | choice (own look) -> choice
+win/tower-chest.js | 156 | chest-key | tc-pick | choice (own look) -> choice
+win/tower-chest.js | 208 | ' | tc-stoke | choice (own look) -> choice
+win/tower.js | 110 | esc(t(TAB_WORDS[id])) | hw-tab | tab (own look) -> tab
+win/tower.js | 112 | [tower.story_link] | hh-tool tt-story-link -> hh-tool is-link tt-story-link | bare words -> TEXT LINK
+win/tower.js | 133 | [controls.enter] | hh-tool is-primary tt-go | gold plate -> GOLD PRIMARY
+win/training.js | 98 | [training.where_yard] | tw-place | choice (own look) -> choice
+win/training.js | 99 | [training.where_house] | tw-place | choice (own look) -> choice
+win/training.js | 108 | [controls.buy] | hw-primary | gold plate -> GOLD PRIMARY
+win/training.js | 109 | [controls.cancel] | hh-tool | bare words -> FRAMED SECONDARY
+win/training.js | 112 | [training.press_start] | hh-tool is-primary tw-go | gold plate -> GOLD PRIMARY
+win/training.js | 113 | [controls.stop] | hh-tool tw-stop | bare words -> FRAMED SECONDARY
+win/training.js | 140 | esc(label) | hh-tool tw-gear-press | bare words -> FRAMED SECONDARY
+win/wiki.js | 56 | esc(p.title) | ck-toc-go | row (own look) -> row
+win/wiki.js | 98 | esc(m.name) | hw-hd-mon-name mf-open | row (own look) -> row
+win/wiki.js | 183 | esc(t(SECTION_WORD[s])) | hw-tab | tab (own look) -> tab
+win/work.js | 178 | (n === 'all' ? 'All' : n) | hh-seg | choice (own look) -> choice
+win/work.js | 180 | X | hh-seg hw-work-xb | choice (own look) -> choice
+win/work.js | 183 | Set | hh-seg | choice (own look) -> choice
+win/work.js | 184 | work-go | hh-tool hw-work-go | bare words -> FRAMED SECONDARY
+win/work.js | 251 | [controls.stop] | hh-tool | bare words -> FRAMED SECONDARY
+app/boot.js | 278 | (set in code) | char-pick | row (own look) -> row
+app/boot.js | 294 | Sign out | auth-link | gold words (link) -> TEXT LINK
+app/character-strip.js | 56 | (set in code) | char-tool is-all | bar (own look) -> bar
+app/character-strip.js | 57 | [heroes.character_list] | char-tool | bar (own look) -> bar
+app/character-strip.js | 58 | [controls.sign_out] | char-tool | bar (own look) -> bar
+app/character-strip.js | 60 | (set in code) | char-tab | tab (own look) -> tab
+app/character-strip.js | 68 | (set in code) | char-unopened | bar (own look) -> bar
+app/closed-notice.js | 48 | Sign out | auth-link | gold words (link) -> TEXT LINK
+app/closed-notice.js | 57 | Copy | hh-tool | inset hairline -> FRAMED SECONDARY
+app/closed-notice.js | 59 | CHECK.idle | hh-tool is-primary auth-submit | gold plate -> GOLD PRIMARY
+app/closed-notice.js | 61 | Sign out | auth-link | gold words (link) -> TEXT LINK
+app/hero-create.js | 133 | (set in code) | hero-dye | choice (own look) -> choice
+app/hero-create.js | 140 | [controls.pick_colors] | hh-tool hero-pick | bare words -> FRAMED SECONDARY
+app/hero-create.js | 150 | [controls.back] | auth-link hero-back | gold words (link) -> TEXT LINK
+app/hero-create.js | 151 | [heroes.create_go] | hh-tool is-primary auth-submit is-go hero-confirm | gold plate -> GOLD PRIMARY
+app/legal-reader.js | 88 | Close | auth-link auth-doc-close | gold words (link) -> TEXT LINK
+app/sign-in.js | 35 | esc(LEGAL_DOCS[which].title) | auth-link | gold words (link) -> TEXT LINK
+app/sign-in.js | 69 | esc(s.submit) | hh-tool is-primary auth-submit | gold plate -> GOLD PRIMARY
+app/sign-in.js | 70 | esc(label) | auth-link | gold words (link) -> TEXT LINK
+app/sign-in.js | 88 | Resend link | auth-link | gold words (link) -> TEXT LINK
+app/slot-offer.js | 105 | t('slots.buy_for', { cost: whole(offer.c | slot-offer-buy is-yes -> hh-tool slot-offer-buy is-yes | steel frame (own copy) -> FRAMED SECONDARY
+app/slot-offer.js | 107 | [controls.cancel] | slot-offer-no -> hh-tool slot-offer-no | steel frame (own copy) -> FRAMED SECONDARY
+app/slot-offer.js | 108 | 0 ? ' disabled' : '')>(o.pending ? t('sl | slot-offer-buy -> hh-tool slot-offer-buy | steel frame (own copy) -> FRAMED SECONDARY
+app/world-pane.js | 56 | Town | world-scene | bar (own look) -> bar
+app/world-pane.js | 57 | Home | world-scene | bar (own look) -> bar

@@ -59,22 +59,26 @@
    pace fingerprint, so plans pace + ladder were re-measured: Level 25 in 34.5 h, Level 50 in 161.5 h (careers; 35.0 and 168.4 before), every
    bracket under 50 holds (C2). The ladder now trends 975 x L^1.421: the Glade's band middle +5.1% (the bear) and the Warrens' +8.7% (other lanes
    since 11-09; the bear alone would read C5 -3.0% at Level 300, the Warrens alone -10.3%). The contract follows it, so the brackets from Level 50
-   re-fit (pace.mjs --fit --fit-past, minimax 5.4%); Levels 1-50 cost what they did. Forward file 2027-04-07-brook-bear-level-curve. */
+   re-fit (pace.mjs --fit --fit-past, minimax 5.4%); Levels 1-50 cost what they did. Forward file 2027-04-07-brook-bear-level-curve.
+   LEVELS 1-9 RE-SPLIT 2026-11-19 (lane/d-142-rulings): with a kill paying 12% less the early steps read 2.01-2.40x the one before (C6), so each
+   now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
+   318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early. */
 export const LEVEL_CURVE = Object.freeze({
-  first: 159,
+  first: 210,
   brackets: Object.freeze([
-    Object.freeze({ from: 1, rise: 159, bend: 0 }),
-    Object.freeze({ from: 2, rise: 317, bend: 0 }),
-    Object.freeze({ from: 3, rise: 634, bend: 0 }),
-    Object.freeze({ from: 4, rise: 5000, bend: 0 }), /* the fit said 5164; eased so Level 5 -> 6 stays under 2x Level 4 -> 5 (level-curve C6 read 2.04x) */
-    Object.freeze({ from: 5, rise: 6601, bend: 0 }), /* the fit said 6998; Levels 5-7 eased by hand so each step stays under 2x the one before (C6; the fit sat at 2.00) */
-    Object.freeze({ from: 6, rise: 13385, bend: 0 }),
-    Object.freeze({ from: 7, rise: 40860, bend: 0 }),
-    Object.freeze({ from: 8, rise: 16362, bend: 0 }),
+    Object.freeze({ from: 1, rise: 199, bend: 0 }),
+    Object.freeze({ from: 2, rise: 389, bend: 0 }),
+    Object.freeze({ from: 3, rise: 762, bend: 0 }),
+    Object.freeze({ from: 4, rise: 4881, bend: 0 }),
+    Object.freeze({ from: 5, rise: 5872, bend: 0 }),
+    Object.freeze({ from: 6, rise: 12759, bend: 0 }),
+    Object.freeze({ from: 7, rise: 43015, bend: 0 }),
+    Object.freeze({ from: 8, rise: 15390, bend: 0 }),
     Object.freeze({ from: 9, rise: 1, bend: 0 }),
     Object.freeze({ from: 10, rise: 0, bend: 657 }),
     Object.freeze({ from: 50, rise: 78689, bend: 162 }),
-    Object.freeze({ from: 300, rise: 203586, bend: 598 }),
+    Object.freeze({ from: 110, rise: 70000, bend: 100 }), /* 2026-11-19: past the ceiling, fit by hand to the contract (no hero there) */
+    Object.freeze({ from: 300, rise: 350000, bend: 100 }),
   ]),
 });
 
@@ -105,7 +109,7 @@ export const LEVEL_PACE = Object.freeze({
      Warrens' band middles 1.12x and the Cellar's 1.10x (C5: -10.6% against the ladder at Level 100). Each now reads 0.93-1.05x.
      RE-PINNED 2026-11-10 (lane/c-brook-bear) to the re-measured ladder (the Cellar at 4.5 8,774, the Thicket at 10 25,001, Wickstead at 13 33,907,
      the Glade at 23.5 89,098, the Warrens at 47.5 242,111): 1049 x L^1.383 read -13.4% against it at Level 300 (C5). */
-  contract: Object.freeze({ a: 1378, b: 1.298 }), /* re-pinned to the measured ladder 2026-11-11 (lane/d-solo-fifteen: the Warrens x0.76 flattened the top rung; level-curve C5), was 975 x L^1.421 */
+  contract: Object.freeze({ a: 1385, b: 1.274 }), /* re-pinned to the measured ladder 2026-11-19 (XP a kill x0.88; was 1378 x L^1.298) and 2026-11-11 (the Warrens x0.76; was 975 x L^1.421) */
   smooth: Object.freeze({ from: 1, ratio: 2 }),
 });
 
@@ -224,3 +228,19 @@ export const FLAME_FUEL = Object.freeze({
    this is the grain the basics' "three quarters of the crafted partner" rule is applied at,
    food and drink alike (tests/supplies-catalogue.mjs B1). */
 export const FOOD_HEAL_SCALE = 12;
+
+/* ── THE MODEL'S NAMES AND CEILINGS THAT DATA ROWS READ (moved down from src/core 2026-11-19, lane/c-delivery: each was a data
+   file's import of the engine, a layering breach in tests/layering.baseline.json; the engine files re-export them). ── */
+
+/* The skills the `combatXP` bonus channel pays: the four trained in a fight
+   (CORE_MODEL.md §4). Inner Flame trains at the Great Hearth, not in a fight. ONE list,
+   read by both the XP grant and the hint the player sees. (src/core/progression.js) */
+export const COMBAT_XP_SKILLS = ['melee', 'ranged', 'magic', 'defense'];
+/* The gathering skills (src/core/pacing.js). */
+export const GATHER_SKILLS = ['woodcutting', 'mining', 'fishing'];
+/* +SKILL ON WORN GEAR: the item field that raises each combat skill while worn (src/core/combat.js, where the rule is). */
+export const SKILL_PLUS_FIELDS = Object.freeze({ melee: 'meleePlus', ranged: 'rangedPlus', magic: 'magicPlus', defense: 'defensePlus' });
+/* The item a burnt cook yields (src/core/artisan.js, where the burn is rolled). */
+export const BURNT_ITEM = 'burnt_food';
+/** The hard ceiling on any single class multiplier. Applied by the formula (src/core/bane.js baneMultFor). */
+export const MAX_BANE_MULT = 1.40;

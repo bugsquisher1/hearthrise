@@ -1142,7 +1142,7 @@ async function edgeCopy(file, find, repl, and, hf = false) {
     const src = (await readFile(p, 'utf8')).replace(/\r\n/g, '\n');
     if (src.split(HF_FIND).length !== 2) throw Object.assign(new Error('hearthfind fixture anchor moved'), { harness: true });
     await writeFile(p, src.replace(HF_FIND, () => HF_REPL), 'utf8');
-    const pa = join(dir, 'accrual.js');
+    const pa = join(dir, 'accrue-gather.js');
     const sa = (await readFile(pa, 'utf8')).replace(/\r\n/g, '\n');
     if (sa.split(HF_HOOK_FIND).length !== 2) throw Object.assign(new Error('gather hearthfind hook anchor moved'), { harness: true });
     await writeFile(pa, sa.replace(HF_HOOK_FIND, () => HF_HOOK_REPL), 'utf8');

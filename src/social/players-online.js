@@ -13,8 +13,8 @@
 // not the seven whole numbers adding up to the total) shows nothing ("—" and no lines), never the last numbers as if they
 // were still true. Nothing can spend them or gate on them.
 // ════════════════════════════════════════════════════════════════════════
-import { whole } from '../render/format.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
+import { whole } from '../render/format.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.142';
 
 /** The server's lines, in the order the hover lists them (each a row hud.online_<id>). */
 const ONLINE_LINES = Object.freeze(['hunting', 'tower', 'gathering', 'crafting', 'training', 'hearth', 'town']);

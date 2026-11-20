@@ -17,15 +17,15 @@
 // yards, all one tileset family chained from the same grass and dirt tiles), drawn on the dual grid
 // (compose.js blendTiles); Hearth Square's paving is a patch over it. A material no pair draws yet
 // (a placeholder site) stays a placeholder tone.
-import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.141';
-import { GROUND_ROWS, GROUND_LEGEND } from '../town/ground.js?v=0.2.141';
-import { SITES, SCENERY, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.141';
-import { GREENERY } from '../town/greenery.js?v=0.2.141';
-import { WEAR } from '../town/wear.js?v=0.2.141';
-import { PALISADE } from '../town/palisade.js?v=0.2.141';
-import { SCREE } from '../town/mountain.js?v=0.2.141';
-import { PIERS } from '../town/piers.js?v=0.2.141';
-import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.141';
+import { at, TOWN_NAME, TOWN_MAP } from '../town/plan.js?v=0.2.142';
+import { GROUND_ROWS, GROUND_LEGEND } from '../town/ground.js?v=0.2.142';
+import { SITES, SCENERY, SHOWPIECES, EXITS, PATCHES, AMBIENT, BLEND } from '../town/sites.js?v=0.2.142';
+import { GREENERY } from '../town/greenery.js?v=0.2.142';
+import { WEAR } from '../town/wear.js?v=0.2.142';
+import { PALISADE } from '../town/palisade.js?v=0.2.142';
+import { SCREE } from '../town/mountain.js?v=0.2.142';
+import { PIERS } from '../town/piers.js?v=0.2.142';
+import { STATIONS, STATION_BY_ID, ACTIVITY_STATIONS } from '../stations.js?v=0.2.142';
 
 const tile = (x, y) => { const [mx, my] = at(x, y); return { x: mx, y: my }; };
 /** A placeholder footprint: a painted, closed building with its door mid-side. */
@@ -53,6 +53,9 @@ export default Object.freeze({
   /* daylight on the river, the mill race and the harbour (src/world/core/ambient.js); the chimneys smoke wherever the homes stand */
   life: Object.freeze(['water']),
   ambient: Object.freeze(AMBIENT.map((a) => Object.freeze(Object.assign({ id: a.id, lift: a.lift }, ('dx' in a && a.dx) ? { dx: a.dx } : {}, tile(a.x, a.y))))),
+  /* the landmarks the camera frames when the hero stands near them (src/world/core/camera.js showAt) */
+  shows: Object.freeze(SHOWPIECES.map((s) => Object.freeze(Object.assign({ id: s.id }, tile(s.x, s.y),
+    { near: Object.freeze(at(s.near[0], s.near[1]).concat(s.near[2], s.near[3])), fade: s.fade })))),
   faces: Object.freeze([]),
   objects: Object.freeze([
     ...SCENERY.map(([id, x, y]) => Object.freeze(Object.assign({ id }, tile(x, y)))),

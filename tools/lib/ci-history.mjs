@@ -28,6 +28,13 @@
 // commit. The job goes back to its diff for 48 h, as after a nightly. A red still blocks: the
 // newest finished result decides, so a red job has no green to find until the push that fixes it.
 //
+// NIGHTLY ONLY (Tyler 2026-11-19, architecture audit row 6; HR_RELEASE_PROOFS in smoke.yml). A release or next push
+// proves only the guards whose own side moved (tests/, tools/, .github/); everything else is proved by the nightly
+// sweep. So the sweep must have seen the code the release builds on: a sweep whose commit does not cover the release's
+// base (sweepCovers) or that cannot be read BLOCKS the release (tools/mutant-gate.mjs --nightly-gate) instead of
+// putting every job in full, and the 48 h staleness no longer applies. A job the sweep left red, or never ran, still
+// runs every proof it holds on the push, so the release that carries the fix is red until the fix holds.
+//
 // GitHub is read through one child process so the gate can stay synchronous, the token
 // stays out of argv, and a stalled API costs a bounded wait.
 // ════════════════════════════════════════════════════════════════════════
@@ -87,7 +94,7 @@ export function readNightly(get) {
   }
   /* Every sweep read was cancelled unjudged: the newest stands, and every job it did not prove runs in full. */
   const explained = run.conclusion === 'success' || list.some((j) => j.conclusion !== 'success');
-  return { at: run.updated_at, id: run.id, jobs: explained ? Object.fromEntries(list.map((j) => [j.name, j.conclusion])) : {} };
+  return { at: run.updated_at, id: run.id, sha: run.head_sha, jobs: explained ? Object.fromEntries(list.map((j) => [j.name, j.conclusion])) : {} };
 }
 
 /* WHAT MAKES A RUN PROOF OF A COMMIT, one rule each, so tools/release-proven.mjs --selftest can drop each in turn and see a
@@ -106,6 +113,23 @@ export const PROOF_RULES = Object.freeze([
 export function provedBy(runs, { sha, own, repo }, rules = PROOF_RULES) {
   const hit = (runs || []).find((r) => rules.every(([, ok]) => ok(r, { sha, own, repo })));
   return hit ? { id: hit.id, branch: hit.head_branch } : null;
+}
+
+/* THE PREVIOUS RELEASE, WHEN MAIN ALREADY HOLDS THIS COMMIT (2026-11-19, architecture audit row 2). A release pushed with main,
+   or re-run after a main-first fix, has HEAD as its merge base with main: an empty diff, so the gate fell back to the full sweep.
+   That was four of the five green release runs 11-18..11-19 (44246539736, 44294333094, 44402194704, 44508243045), about 2,000
+   job-minutes each. Its real base is what a normal push gets: the previous release on main, here the newest release/** push run of
+   this workflow that went green on a STRICT ancestor of HEAD (a run of HEAD itself proves an empty diff again). The PROOF_RULES
+   minus 'the same commit' decide what counts as green; `isAncestor(sha)` is git's answer, injectable for the selftest. */
+export const PREVIOUS_RULES = Object.freeze(PROOF_RULES.filter(([name]) => name !== 'the same commit'));
+
+/** { sha, id, branch } of the previous green release before `head`, or null. Pure but for `get` and `isAncestor`. */
+export function previousRelease({ head, own, repo, get, isAncestor }, rules = PREVIOUS_RULES) {
+  const runs = (get('/actions/workflows/smoke.yml/runs?event=push&status=success&per_page=50').workflow_runs || [])
+    .filter((r) => rules.every(([, ok]) => ok(r, { own, repo })) && r.head_sha !== head)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  for (const r of runs) if (isAncestor(r.head_sha)) return { sha: r.head_sha, id: r.id, branch: r.head_branch };
+  return null;
 }
 
 /** A green release run of smoke.yml on this very commit: { id, branch }, or null. Throws when GitHub cannot be read. */
@@ -158,6 +182,21 @@ export function lastFullGreen({ job, since, own, get }) {
   return null;
 }
 
+/* What a push to main does not run the workflow for (smoke.yml paths-ignore): a sweep need not have seen it. */
+export const SWEEP_IGNORED = (f) => /^docs\//.test(f) || /\.md$/.test(f);
+
+/**
+ * Did the sweep at `sweepSha` see the code at `base`? Yes when base is the sweep's commit or under it, or when the
+ * sweep is under base and only paths-ignored files lie between. `isAncestor(a, b)` and `filesBetween(a, b)` are git's
+ * answers, injectable for the selftest. Pure but for those.
+ */
+export function sweepCovers({ base, sweepSha, isAncestor, filesBetween }) {
+  if (!base || !sweepSha) return false;
+  if (base === sweepSha || isAncestor(base, sweepSha)) return true;
+  if (!isAncestor(sweepSha, base)) return false;
+  return filesBetween(sweepSha, base).every(SWEEP_IGNORED);
+}
+
 /** ghGet bound to this run's environment, for lastGreenRun. */
 export const githubReader = (env) => (path) => ghGet(path, env);
 
@@ -183,13 +222,14 @@ export function readHistory(env, get = githubReader(env)) {
 }
 
 /** { full, why } | { proved } | { sweptBy } | {} — what the history does to this job's plan. Pure. */
-export function historyPolicy(history, { job, event, ref, now }) {
+export function historyPolicy(history, { job, event, ref, now, nightlyOnly = false }) {
   if (event === 'push' && ref === 'main' && history.proved) return { proved: history.proved };
-  if (history.nightlyError) return { full: true, why: `the last nightly could not be read (${history.nightlyError}) — fail safe` };
+  /* nightly-only: an unreadable, missing or stale sweep blocks the release in its own step (--nightly-gate), never by full jobs */
+  if (history.nightlyError) return nightlyOnly ? {} : { full: true, why: `the last nightly could not be read (${history.nightlyError}) — fail safe` };
   const n = history.nightly;
-  if (!n) return { full: true, why: 'no nightly sweep on record — fail safe' };
+  if (!n) return nightlyOnly ? {} : { full: true, why: 'no nightly sweep on record — fail safe' };
   const seen = n.jobs?.[job];
-  const stale = !(now - Date.parse(n.at) <= STALE_MS);
+  const stale = !nightlyOnly && !(now - Date.parse(n.at) <= STALE_MS);
   if (!stale && seen === 'success') return {};
   /* A full green since the sweep stopped covering this job (lastFullGreen), itself under 48 h old. */
   const g = history.fullGreen;

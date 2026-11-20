@@ -21,25 +21,25 @@
 // Enter sits at the page's foot. This module draws; it holds no state and sends
 // nothing (hunts.js owns every press).
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { itemIconHtml, actionIconHtml, factionIconHtml } from '../widgets/bits.js?v=0.2.141';
-import { factionOf } from '../../session/faction-sections.js?v=0.2.141';
-import { sideName } from '../faction-words.js?v=0.2.141';
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.141';
-import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.141';
-import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.141';
-import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { residentsOf, scarceSetOf, raresOf, bigPullParts, lootOf } from '../hunt-ground-facts.js?v=0.2.141';
-import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.141';
-import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.141';
-import { gotoAttr, patchParts } from '../goto.js?v=0.2.141';
-import { factsTarget } from './monster.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
-import { groundLines } from '../live-events-view.js?v=0.2.141';
-import { afterHtml } from './hunt-after-pane.js?v=0.2.141';
-import { scaleHtml } from './scale-pane.js?v=0.2.141';
-import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.141';
+import { rows, text, cls, prop, attr, style, element } from '../../render/paint.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { itemIconHtml, actionIconHtml, factionIconHtml } from '../widgets/bits.js?v=0.2.142';
+import { factionOf } from '../../session/faction-sections.js?v=0.2.142';
+import { sideName } from '../faction-words.js?v=0.2.142';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.142';
+import { bandWords, fitWords, heroWords, partyNote, healerNote, bestWords } from '../hunt-list.js?v=0.2.142';
+import { heroVitalsOf } from '../../session/character-sections.js?v=0.2.142';
+import { settingsOf, partyOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { residentsOf, scarceSetOf, raresOf, bigPullParts, lootOf } from '../hunt-ground-facts.js?v=0.2.142';
+import { creatureArt, drawCreature, PORTRAIT_DIR } from '../../render/creature-sprite.js?v=0.2.142';
+import { chance, listWords, sepHtml, withSeps } from '../../render/format.js?v=0.2.142';
+import { gotoAttr, patchParts } from '../goto.js?v=0.2.142';
+import { factsTarget } from './monster.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
+import { groundLines } from '../live-events-view.js?v=0.2.142';
+import { afterHtml } from './hunt-after-pane.js?v=0.2.142';
+import { scaleHtml } from './scale-pane.js?v=0.2.142';
+import { SHELL_WINDOWS } from '../../data/shell-windows.js?v=0.2.142';
 
 const PREP_LABEL = SHELL_WINDOWS.find((w) => w.id === 'hunt-prep').label;
 /* How many loot rows a ground's page lists before "+N more" (one more row than this shows them all: a press to open one row is a wasted press). */
@@ -68,7 +68,7 @@ export function detailHtml() {
     + scaleHtml()
     + '<h4 class="hw-hd-h">' + t('hunts.head_drops') + ' <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="' + t('hunts.head_drops') + '"></ul>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_mats') + ' <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="' + t('hunts.head_mats') + '"></ul>'
-    + '<button type="button" class="hh-tool hw-hd-mats-more" data-hs-act="loot-more" hidden></button>'
+    + '<button type="button" class="hh-tool is-link hw-hd-mats-more" data-hs-act="loot-more" hidden></button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_rares') + ' <small class="hw-hd-per">' + t('hunts.rares_per') + '</small></h4><ul class="hw-hd-rares" aria-label="' + t('hunts.head_rares') + '"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
     + '<section class="hw-hd-bests" aria-label="' + t('hunts.head_best') + '"><h4 class="hw-hd-h">' + t('hunts.head_best') + '</h4>'
@@ -88,11 +88,11 @@ export function goHtml() {
     + '<p class="hw-go-note"></p>'
     /* Hunt prep is a step of going hunting: its setups are what Go as lists (renderHunts.act opens it; Back comes here). Its door
        says the window's own name (Tyler 2026-11-17: the bar's door and this one are both Hunt prep) */
-    + '<button type="button" class="hh-tool hw-go-prep" data-hs-act="go-prep">' + esc(PREP_LABEL) + '</button>'
+    + '<button type="button" class="hh-tool is-link hw-go-prep" data-hs-act="go-prep">' + esc(PREP_LABEL) + '</button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
     + afterHtml()
     + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'
-    + '<div class="hw-hd-party-do"><button type="button" class="hh-tool hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
+    + '<div class="hw-hd-party-do"><button type="button" class="hh-tool is-link hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
     + '<p class="hw-bring-none"></p></section>';
 }
 

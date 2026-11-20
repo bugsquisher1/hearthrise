@@ -5,12 +5,12 @@
 // quotes (hr_town_sinks_view on opening and after each press). Cry it sends ONE hr_crier_send with the price the player saw; a press on the last line cries that
 // line again. Every number is the server's, and every refusal is the server's in the Crier's words (src/shell/sink-words.js). Display scratch only.
 // ════════════════════════════════════════════════════════════════════════
-import { CRIER } from '../../data/chat-channels.js?v=0.2.141';
-import { readSinks } from '../../session/town-intents.js?v=0.2.141';
-import { text, cls, prop } from '../../render/paint.js?v=0.2.141';
-import { whole, gold } from '../../render/format.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { refusalText, refusalWords } from '../intent-words.js?v=0.2.141';
+import { CRIER } from '../../data/chat-channels.js?v=0.2.142';
+import { readSinks } from '../../session/town-intents.js?v=0.2.142';
+import { text, cls, prop } from '../../render/paint.js?v=0.2.142';
+import { whole, gold } from '../../render/format.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { refusalText, refusalWords } from '../intent-words.js?v=0.2.142';
 
 const STATE = new WeakMap();
 const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { open: false, quote: null, asking: false, stale: true, pending: false, msg: '' }; STATE.set(body, s); } return s; };
@@ -27,7 +27,7 @@ export function crierMarkHtml() {
 
 /** The button on the input's row (built once, with the chat's skeleton). */
 export function crierButtonHtml() {
-  return '<button type="button" class="hh-tool hc-crier-open" data-hs-act="crier" aria-expanded="false">' + esc(CRIER.label) + '</button>';
+  return '<button type="button" class="hh-tool is-link hc-crier-open" data-hs-act="crier" aria-expanded="false">' + esc(CRIER.label) + '</button>';
 }
 
 /** The bar under the input (built once, with the chat's skeleton). */

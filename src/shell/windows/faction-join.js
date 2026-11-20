@@ -12,15 +12,15 @@
 // Confirm or Back. Confirm is ONE intent (src/session/faction-intents.js); the side shows only from the re-read envelope, and the prompt
 // stays with the answer ("Joined the First Flame") until its Close. The terms stand above the presses, so a phone reads them first.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../../session/residue.js?v=0.2.141';
-import { factionOf } from '../../session/faction-sections.js?v=0.2.141';
-import { joinFaction } from '../../session/faction-intents.js?v=0.2.141';
-import { rows, text, prop, element } from '../../render/paint.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { runIntent } from '../intent-words.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
-import { factionIconHtml } from '../widgets/bits.js?v=0.2.141';
-import { sideName, sideMotto, faceOf, said, waitWords, spanWords } from '../faction-words.js?v=0.2.141';
+import { ALERTS_SEEN_MAX } from '../../session/residue.js?v=0.2.142';
+import { factionOf } from '../../session/faction-sections.js?v=0.2.142';
+import { joinFaction } from '../../session/faction-intents.js?v=0.2.142';
+import { rows, text, prop, element } from '../../render/paint.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { runIntent } from '../intent-words.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
+import { factionIconHtml } from '../widgets/bits.js?v=0.2.142';
+import { sideName, sideMotto, faceOf, said, waitWords, spanWords } from '../faction-words.js?v=0.2.142';
 
 /** The dismissal id in the residue's alerts.seen. */
 const JOIN_SEEN = 'faction:join';
@@ -60,7 +60,7 @@ export function renderFactionJoin() {
     + '<p class="hfx-terms">' + TERMS.map((k) => '<span data-term="' + k + '"></span>').join('<br>') + '</p>'
     + '<div class="hfx-confirm" hidden><p class="hfx-name hfx-confirm-q"></p><p class="hfx-terms"><span class="hfx-confirm-a"></span><br><span class="hfx-confirm-b"></span></p>'
     + '<div class="hsum-actions"><button type="button" class="hh-tool is-primary" data-hs-act="fx-join-confirm">' + esc(t('factions.press_confirm')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="fx-join-back">' + esc(t('factions.press_back')) + '</button></div></div>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="fx-join-back">' + esc(t('factions.press_back')) + '</button></div></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<ul class="hfx-sides"></ul>'
     + '<div class="hsum-actions hdeath-actions hfx-foot"><small class="hfx-later">' + esc(t('factions.later')) + '</small>'

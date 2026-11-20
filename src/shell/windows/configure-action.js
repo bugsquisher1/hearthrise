@@ -24,24 +24,24 @@
 // (bar-draft.js), every control stays off until the server has answered, and a refusal
 // keeps the draft and outlines its condition. On a phone (922×423) it is a full sheet.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.141';
-import { STATUSES } from '../../data/statuses.js?v=0.2.141';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { vitalsOf } from '../../session/party-sections.js?v=0.2.141';
-import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.141';
-import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.141';
-import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { actionIconHtml, itemNameFor } from '../widgets/bits.js?v=0.2.141';
-import { SLOTS, draftOf, openSlot, cancelOpen, keepInHost, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.141';
-import { startSupply } from '../rune-supply.js?v=0.2.141';
-import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.141';
-import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.141';
-import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.141';
-import { glyphSvg } from '../launcher.js?v=0.2.141';
-import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine, pickHint } from '../action-table.js?v=0.2.141';
-import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.141';
-import { whole, sepHtml } from '../../render/format.js?v=0.2.141';
+import { METRICS, MAX_CONDITIONS } from '../../data/condition-metrics.js?v=0.2.142';
+import { STATUSES } from '../../data/statuses.js?v=0.2.142';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { vitalsOf } from '../../session/party-sections.js?v=0.2.142';
+import { biggestBlowOn } from '../../core/hunt/pull-cycle.js?v=0.2.142';
+import { carriedOf, skillsOf, equipmentOf } from '../../session/item-sections.js?v=0.2.142';
+import { rows, text, attr, prop, cls, element } from '../../render/paint.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { actionIconHtml, itemNameFor } from '../widgets/bits.js?v=0.2.142';
+import { SLOTS, draftOf, openSlot, cancelOpen, keepInHost, conditionFor, blankCondition, saveOpen, emptyOpen, moveSlot, editBar, editSet, hosted, opWords, unitWords, conditionsAfterPick } from '../bar-draft.js?v=0.2.142';
+import { startSupply } from '../rune-supply.js?v=0.2.142';
+import { runesHtml, patchRunes, runesEdit } from './configure-runes.js?v=0.2.142';
+import { TABS, tabOf, factsOf, carried, healWarning, weaponWarning, sharedCooldownOf } from '../action-facts.js?v=0.2.142';
+import { whyFacts, slotWhy, setupNote } from '../slot-waits.js?v=0.2.142';
+import { glyphSvg } from '../launcher.js?v=0.2.142';
+import { tableOf, rowIn, cellsOf, sentenceOf, compareLines, wasteLine, effectLine, pickHint } from '../action-table.js?v=0.2.142';
+import { carryFor, carryWords, askCarry } from '../carry-in.js?v=0.2.142';
+import { whole, sepHtml } from '../../render/format.js?v=0.2.142';
 
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));
 const options = (pairs) => pairs.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
@@ -244,7 +244,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const wires = editBar(cs);
   if (wires) wires[s.open] = d.action.id ? d : null;
   const heal = healWarning(d, set, blow, vitalsOf(cs).hpMax);
-  const notes = [setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).map((n) => [n]);
+  const notes = [setupNote(d, p ? p.members.length : 1, set.role), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).map((n) => [n]);
   /* A line's parts take the dot that never starts or ends a line (format.js sepHtml): "Max Hit 74 · Your HP 66". */
   const warn = [...heal, ...notes].map((parts) => parts.map(esc).join(sepHtml())).join('\n');
   markup(root.querySelector('.ca-warn'), warn);

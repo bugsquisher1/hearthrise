@@ -6,18 +6,18 @@
 // chance (render/format.js chance). A refusal with no number reads from src/data/refusal-words.js; src/shell/intent-words.js
 // refusalText asks here first.
 // ════════════════════════════════════════════════════════════════════════
-import { t, hasText } from '../render/player-text.js?v=0.2.141';
-import { chance, whole } from '../render/format.js?v=0.2.141';
-import { itemName } from './widgets/bits.js?v=0.2.141';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.141';
-import { END_WORDS } from '../hunt-view/summary-model.js?v=0.2.141';
+import { t, hasText } from '../render/player-text.js?v=0.2.142';
+import { chance, whole } from '../render/format.js?v=0.2.142';
+import { itemName } from './widgets/bits.js?v=0.2.142';
+import { escapeHtml as esc } from '../utils/dom.js?v=0.2.142';
+import { END_WORDS } from '../hunt-view/summary-model.js?v=0.2.142';
 
 const VERBS = Object.freeze(['tower_start', 'catacomb_start', 'chest_open', 'chest_stoke_default']);
 const num = (v) => Number.isSafeInteger(v) && v >= 0;
 
 /** The Havora window's Hearth tab press into the Tower window (hidden until the window shows it: the server's section). */
 export const towerDoorHtml = () => '<p class="hv-tower" hidden>'
-  + '<button type="button" class="hh-tool" data-hs-act="tower">' + esc(t('tower.havora_open')) + '</button></p>';
+  + '<button type="button" class="hh-tool is-link" data-hs-act="tower">' + esc(t('tower.havora_open')) + '</button></p>';
 
 /** A chance in parts per million as a player reads it ("16%", "2.4%"), or '' when the server sent none. */
 export const ppmWords = (ppm) => (num(ppm) ? chance(ppm / 1000000) : '');

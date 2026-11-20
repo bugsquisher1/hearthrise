@@ -42,17 +42,18 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { atTier } from '../../data/hunt-tiers.js?v=0.2.141';
-import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.141';
-import { spellRow, castsOf, specOf, spellHit, marked, mends, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.141';
-import { monsterMaxHit } from '../combat.js?v=0.2.141';
-import { cheb, los } from './grid.js?v=0.2.141';
-import { atRest, unitById, dirOf } from './movement.js?v=0.2.141';
-import { makeEvent } from './events.js?v=0.2.141';
-import { place, covers } from './shapes.js?v=0.2.141';
-import { castShape } from './marks.js?v=0.2.141';
-import { landHit, restart, slowed, rowOf } from './damage.js?v=0.2.141';
-import { swingRow, spellCdOf } from './boss-phases.js?v=0.2.141';
+import { atTier } from '../../data/hunt-tiers.js?v=0.2.142';
+import { HUNT_ROLES } from '../../data/hunt-roles.js?v=0.2.142';
+import { spellRow, castsOf, specOf, spellHit, marked, mends, SHIELD_BRACE, firstCastSteps } from '../../data/monster-spells.js?v=0.2.142';
+import { monsterMaxHit } from '../combat.js?v=0.2.142';
+import { cheb, los } from './grid.js?v=0.2.142';
+import { atRest, unitById, dirOf } from './movement.js?v=0.2.142';
+import { makeEvent } from './events.js?v=0.2.142';
+import { place, covers } from './shapes.js?v=0.2.142';
+import { castShape } from './marks.js?v=0.2.142';
+import { landHit, restart, slowed, rowOf } from './damage.js?v=0.2.142';
+import { swingRow, spellCdOf } from './boss-phases.js?v=0.2.142';
+import { healTaken } from './heal-cut.js?v=0.2.142';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
@@ -140,7 +141,8 @@ function land(inst, sc, u, sp) {
   restart(u);
   sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: 'landed', hits: mends(sp) ? (mended ? 1 : 0) : struck.length }));
   if (mended) {
-    const got = Math.min(t.maxHp - t.hp, sc.rng.int(lo, top));
+    /* (a Withered packmate takes the mend cut: heal-cut.js, the hero's Blight) */
+    const got = Math.min(t.maxHp - t.hp, healTaken(t, sc.rng.int(lo, top)));
     t.hp += got;
     sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, spell: id }));
   }

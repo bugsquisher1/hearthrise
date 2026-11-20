@@ -7,7 +7,7 @@
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //   node tests/hunt-live.mjs --mutate --shard=K/N      every Nth mutant from the Kth (smoke.yml's artisan-selftest and -2)
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -306,6 +306,8 @@ function server(M, mis, o) {
 function run(M, mis, spanMs, opt) {
   const o = opt || {};
   const srv = server(M, mis, o.server);
+  /* each hero's Level XP as the server seated it (a ground's exit re-seats an unscaled hero under it): what a run's Level XP is gained from */
+  const levelXp0 = mis.map((mi) => mi.levelXp);
   const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: (o.server && o.server.monsters) || M.MONSTERS });
   const startPoint = () => srv.live(o.viewer ? o.viewer.user : mis[0].user, o.viewer ? o.viewer.slot : 0);
   E.seed(startPoint());
@@ -337,7 +339,7 @@ function run(M, mis, spanMs, opt) {
     if (o.onTick) o.onTick({ t, E });
     if (!E.running()) starvedMs += 100;
   }
-  return { srv, E, fed, verdicts, heroesSeen, starvedMs, refreshes };
+  return { srv, E, fed, verdicts, heroesSeen, starvedMs, refreshes, levelXp0 };
 }
 
 /* A MONSTER'S SWINGS, NEVER ITS SPELLS (lane/b-area-data: the monsters' spells on the real grounds). A spell's hits land in the
@@ -351,10 +353,12 @@ function swingsOnly(events) {
 
 /* Run `fn` with no monster casting (the engine's own rows: LV-SPELL's table, put back after), for an arm whose subject is not
    the spells and whose party cannot live through them. */
-/* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them */
+/* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them.
+   Their XP is the rows' as the arm last passed (set/v0.2.142, before lane/d-142-rulings' XP a kill x0.88): a kill's XP moves when a Level lands,
+   and a Level moves the laps, so a balance-blind arm holds it too. */
 const WARRENS_BEFORE_STEP = Object.freeze({
-  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76 },
-  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88 },
+  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72, xp: 659 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77, xp: 689 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76, xp: 1079 },
+  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86, xp: 1815 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88, xp: 6975 },
 });
 /* `fn` with these monsters' fields set on both module instances of the rows (the engine's ?v= one and the plain one the live engine is handed), put back after */
 function withRows(M, rows, fn) {
@@ -622,8 +626,8 @@ function rules(M) {
 
   { // LV-SCALE: A SCALED HUNT, VIEWED (lane/c-scaled-hunts; src/core/combat-sim.js huntPlayOf). The Cellar played at Level 50, its Level 50
     // leader's paid scale: the browser predicts every commit from the start point's scale (solo, and a pair viewed from the member, its leader
-    // a frozen peer rolled against the scaled rows); the server's world stands on the scaled rows; against the same pair unscaled a kill pays
-    // more, and a scaled monster lands blows no Cellar monster of the catalogue can.
+    // a frozen peer rolled against the scaled rows); the server's world stands on the scaled rows; against the same pair unscaled (seated under
+    // the Cellar's exit, the one Level it plays unscaled) a kill pays more, and a scaled monster lands blows no Cellar monster of the catalogue can.
     const L = 50;
     const worn = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
       melee_dps: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
@@ -644,7 +648,9 @@ function rules(M) {
       const kills = ev.filter((e) => e.type === 'kill').length;
       const heroes = new Set(mis.map((mi) => mi.unitId).filter(Number.isInteger));
       const blows = ev.filter((e) => e.type === 'dmg' && heroes.has(e.t) && !e.dot).map((e) => e.amount);
-      return { kills, xp: mis.reduce((a, mi) => a + mi.levelXp - M.XP.charXpForLevel(L), 0), gold: mis.reduce((a, mi) => a + mi.gold - 50000, 0),
+      /* the Level XP each hero gained from the Level the run seated it at: unscaled, the Cellar's exit seats the pair under Level 5 (server()),
+         so the Level 50 floor read every unscaled kill at minus millions and "want 2x" could not go red (run 44658385839) */
+      return { kills, xp: mis.reduce((a, mi, i) => a + mi.levelXp - r.levelXp0[i], 0), gold: mis.reduce((a, mi) => a + mi.gold - 50000, 0),
         maxBlow: blows.length ? Math.max(...blows) : 0 };
     };
     for (const [name, n, viewer] of [['solo', 1, null], ['party', 2, { user: 'sc1', slot: 0 }]]) {
@@ -2152,7 +2158,7 @@ function rules(M) {
 const sorted = (o) => Object.fromEntries(Object.entries(o).sort());
 
 const MUTANTS = [
-  ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].party))\n", '', /^LV-TANK: a tank alone: browser closed/],
+  ['a party-only spell casts alone (LV-TANK)', 'src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '', /^LV-TANK: a tank alone: browser closed/],
   ['a party shell reaches nobody but its caster (LV-TANK)', 'src/core/hunt/abilities.js', "        if (!(a === u || dist2(a, u) <= row.radius * row.radius)) continue;\n", "        if (a !== u) continue;\n", /^LV-TANK: a tank beside a partner: browser closed: \d+ Shelters shelled/],
   ['the browser drops the live event windows (LV-EVENT)', 'src/hunt-view/live-engine.js', 'xpMultOf: lx ? xpMultFor(sides, (sd) => lx[String(sd.mi.key)]) : null,', 'xpMultOf: null,', /^LV-EVENT: \d+ of the server's/],
   ['a kill reads its dial with no time (LV-EVENT)', 'src/core/hunt/xp-share.js', 'const m = f ? f(hero, sc.atMs) : 1;', 'const m = f ? f(hero) : 1;', /^LV-EVENT: (\d+ xp event|the leader earned)/],
@@ -2224,7 +2230,7 @@ const MUTANTS = [
   ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
-  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrual.js',
+  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrue-hunt.js',
     "import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';",
     "import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';", /^LV-O/],
   ['the browser refuses a stored world of another shape (LV-O)', 'src/hunt-view/live-engine.js',

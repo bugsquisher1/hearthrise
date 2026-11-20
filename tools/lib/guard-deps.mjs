@@ -38,7 +38,8 @@ export const GATE_PREFIX = `node ${GATE_FILE} `;
 /** A mutation proof: `--mutate` or `--selftest` as a whole flag (`--mutate --shard=1/3` too). */
 export const PROOF_FLAG = /(?:^|\s)--(?:mutate|selftest)(?![\w-])/;
 
-export const isGated = (cmd) => typeof cmd === 'string' && cmd.startsWith(GATE_PREFIX);
+/* Gated = the gate WRAPS a command (`node tools/mutant-gate.mjs node …`); the gate's own plain mode (`--nightly-gate`) wraps nothing. */
+export const isGated = (cmd) => typeof cmd === 'string' && cmd.startsWith(GATE_PREFIX) && /^(?:node|bash)\s/.test(cmd.slice(GATE_PREFIX.length).trimStart());
 /** The command the gate wraps (or the command itself when it is not gated). */
 export const unwrapGate = (cmd) => (isGated(cmd) ? cmd.slice(GATE_PREFIX.length).trimStart() : cmd);
 export const isProofCommand = (cmd) => PROOF_FLAG.test(unwrapGate(cmd));

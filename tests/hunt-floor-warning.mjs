@@ -91,15 +91,20 @@ async function run(base) {
   }
   const duo = HL.recommendation([12, 20], 2, rows);
   ok('G2', !!duo.row && HL.fitsGroup(duo.row, 2) && duo.row.band[0] <= 12 && 20 <= duo.row.band[1] && duo.note === null, 'a party at Levels 12 and 20 is recommended ' + (duo.row && duo.row.hunt));
-  /* G4: where a hero alone's advice stands (level-curve reads it), and a pair's first ground is the Sewer. ALONE TO THE WARRENS FROM ITS soloFrom
-     (the board's 2026-11-19 complete balance look, change 8; hunt-grounds.js soloFrom, measured on tools/balance-sim/life.mjs): under it the Glade
-     with the note, from it the Warrens with none. A party's advice was re-measured on 2026-11-18 (G8): a pair from 16 goes to the Glade. */
+  /* G4: where a hero alone's advice stands (level-curve reads it), and a pair's first ground is the Sewer. THE WARRENS FITS A LONE HERO FROM ITS
+     soloFrom (hunt-grounds.js; the advice reads it, src/shell/hunt-list.js fitsGroup), and that is 45 again (designer ruling 2026-11-19, the board's
+     "2026-11-19 Two rulings for v0.2.142": from 36 the lone road reached Level 50 in 123 h against the ruled 168), so no lone Level under it is sent
+     there: a lone 44 is held on the Glade with the note. A party's advice was re-measured on 2026-11-18 (G8): a pair from 16 goes to the Glade. */
   const lone = (lv) => HL.recommendation(lv, 1, rows);
-  const soloAt = (rows.find((r) => r.hunt === 'coppercap_warrens') || {}).soloFrom;
+  const warrens = rows.find((r) => r.hunt === 'coppercap_warrens') || {};
+  const soloAt = warrens.soloFrom;
   ok('G4', Number.isInteger(soloAt) && lone(soloAt - 1).row.hunt === 'mosslight_glade' && lone(soloAt - 1).note === 'Coppercap Warrens: right for Level ' + (soloAt - 1) + ', tough monsters. Easier: Mosslight Glade (Levels 16–31)'
     && !/party|one hero|solo/i.test(lone(soloAt - 1).note || ''), 'a lone Level ' + (soloAt - 1) + ' reads ' + JSON.stringify(Number.isInteger(soloAt) && lone(soloAt - 1).note));
-  ok('G4', Number.isInteger(soloAt) && [soloAt, 44].every((lv) => lone(lv).row.hunt === 'coppercap_warrens' && lone(lv).note === null),
-    'a lone hero from the Warrens\' soloFrom (' + soloAt + ') to 44 is sent to ' + [soloAt, 44].map((lv) => lone(lv).row.hunt + ' ' + JSON.stringify(lone(lv).note)).join(' / '));
+  ok('G4', Number.isInteger(soloAt) && HL.fitsGroup(warrens, 1, soloAt) && !HL.fitsGroup(warrens, 1, soloAt - 1) && !HL.fitsGroup(warrens, 1, null),
+    'the Warrens fits a lone hero at ' + [soloAt - 1, soloAt, null].map((lv) => lv + ': ' + HL.fitsGroup(warrens, 1, lv)).join(', ') + ' (from its soloFrom ' + soloAt + ' only)');
+  const sentEarly = [];
+  for (let lv = 32; lv < 45; lv++) if (lone(lv).row.hunt === 'coppercap_warrens') sentEarly.push(lv);
+  ok('G4', sentEarly.length === 0, 'a lone hero under 45 is sent to the Warrens at Levels ' + sentEarly.join(', ') + ' (the ruled pace: alone from 45)');
   const under = soloAt - 2;
   const lostThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: -1250 }, party: null } } });
   const wonThere = HL.recommendation(under, 1, rows, { minMs: 600000, grounds: { coppercap_warrens: { solo: { xpH: 9000, balanceH: 800 }, party: null } } });
@@ -190,6 +195,29 @@ async function run(base) {
   ok('G3', HL.underWords(glade, low.under) === 'Under Level 16 (death risk): Sorrel, Level 9' && HL.underWords(glade, []) === '', 'the warning reads ' + HL.underWords(glade, low.under));
   /* The Hunts window is the list (hunts.js) and the picked ground's page (hunt-detail.js, master-detail 2026-10-22). */
   const win = read('src/shell/windows/hunts.js') + read('src/shell/windows/hunt-detail.js');
+  /* G9 AN OUTGROWN GROUND IS NEVER OFFERED (blind playthrough 2026-11-19, P1, played: a Level 5 leader with a Level 1 friend saw the Mill Cellar
+     "Outgrown · Recommended" with Enter with party on, and the refusal said "Wren is not ready"; the door refuses the leader `outgrown`). By the
+     server's Levels: the advice skips a ground the top Level has outgrown, Enter is off saying who outgrew it, and the server's seat refusal is said
+     as outgrown, naming the hero and the ground. A floor is still only a warning (W2): this is the door's exit, not the floor. */
+  {
+    const cellar = rows.find((r) => r.hunt === 'mill_cellar');
+    const duo = { me: 0, seats: [{ seat: 0, name: 'Wren', level: 5 }, { seat: 1, name: 'Pip', level: 1 }] };
+    const rec = HL.recommendation(HL.adviceLevels(5, duo), 2, rows);
+    ok('G9', !!rec.row && rec.row.hunt !== 'mill_cellar' && rec.row.band[0] <= 5, 'a Level 5 and a Level 1 are advised ' + (rec.row && rec.row.hunt) + ', the ground the leader has outgrown');
+    ok('G9', HL.recommendation([4, 1], 2, rows).row.hunt === 'mill_cellar', 'CONTROL: a party under the exit is still advised the Cellar: ' + HL.recommendation([4, 1], 2, rows).row.hunt);
+    const has = typeof HL.seatsOutgrown === 'function' && typeof HL.outgrownWords === 'function';
+    ok('G9', has, 'hunt-list.js reads no seat that has outgrown a ground (seatsOutgrown, outgrownWords)');
+    const grown = has ? HL.seatsOutgrown(cellar, duo, 5) : [];
+    if (has) ok('G9', grown.map((s) => s.name).join() === 'Wren' && HL.outgrownWords(cellar, grown, duo) === 'Ground outgrown at Level 5: Wren, Level 5',
+      'Enter\'s off line reads ' + JSON.stringify(HL.outgrownWords(cellar, grown, duo)));
+    if (has) ok('G9', HL.outgrownWords(cellar, HL.seatsOutgrown(cellar, null, 5), null) === 'Ground outgrown at Level 5, pick a harder one' && HL.seatsOutgrown(cellar, null, 4).length === 0
+      && HL.seatsOutgrown(rows.find((r) => r.hunt === 'meadowbrook_thicket'), duo, 5).length === 0, 'alone, or a ground with no exit, reads wrong');
+    ok('G9', win.includes('const off = now ? \'\' : enterOffWords(party) || outgrownWords(r, grown, party);') && win.includes('if (off) prop(enter, \'disabled\', true);'),
+      'the Hunts window does not turn Enter off for an outgrown seat');
+    const IW = await import(pathToFileURL(join(base, 'src/shell/intent-words.js')).href + '?t=' + Math.random());
+    const said = IW.refusalText({ ok: false, error: 'not_ready', seats: [{ seat: 0, name: 'Wren', error: 'outgrown', hunt: 'mill_cellar' }] });
+    ok('G9', said === 'Nobody went in. Wren has outgrown Mill Cellar.', 'the server\'s outgrown seat reads ' + JSON.stringify(said));
+  }
   /* the party's Levels: each seat's, this hero's own at the server's Level (hunt-list.js adviceLevels, which the summary's Next ground reads too) */
   ok('G2', JSON.stringify(HL.adviceLevels(7, { me: 0, seats: [{ seat: 0, level: 3 }, { seat: 1, level: 12 }] })) === '[7,12]' && HL.adviceLevels(7, null) === 7,
     'the advice\'s Levels are not every seat\'s: ' + JSON.stringify(HL.adviceLevels(7, { me: 0, seats: [{ seat: 0, level: 3 }, { seat: 1, level: 12 }] })));
@@ -230,6 +258,11 @@ const CONTROLS = [
   ['a pair that only breaks even on Wickstead is not sent there (the line alone, read with "> 0")', ...BREAK_EVEN],
 ];
 const MUTANTS = [
+  /* G9 (blind playthrough 2026-11-19, P1): an outgrown ground offered to a party with Enter on, its refusal blaming the wrong reason */
+  ['the advice keeps a ground the leader has outgrown', 'src/shell/hunt-list.js', 'rows = top === null ? rows : rows.filter(', 'rows = true ? rows : rows.filter('],
+  ['Enter stays on for an outgrown seat', 'src/shell/windows/hunts.js', 'enterOffWords(party) || outgrownWords(r, grown, party);', "enterOffWords(party) || '';"],
+  ['an outgrown seat reads "is not ready"', 'src/shell/intent-words.js', ": x.error === 'outgrown'\n", ": x.error === 'never'\n"],
+  ['the leader is left out of who outgrew it', 'src/shell/hunt-list.js', 'level: s.seat === party.me ? level : s.level, me:', 'level: s.seat === party.me ? null : s.level, me:'],
   ['the recommendation ignores the group', 'src/shell/hunt-list.js', 'const fit = rows.filter((r) => fitsGroup(r, partySize, lo));', 'const fit = rows;'],
   ['a lone hero is never sent to a party ground past its soloFrom (the Glade to 44 again)', 'src/shell/hunt-list.js',
     "  if (n < 2) return r.groupFit !== 'party' || (Number.isInteger(r.soloFrom) && Number.isInteger(level) && level >= r.soloFrom);", "  if (n < 2) return r.groupFit !== 'party';"],

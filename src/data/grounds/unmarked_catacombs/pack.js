@@ -29,8 +29,8 @@
 // DUNN'S CANDLE, the ground's named Hearth fuel and Dunn's Rare (the board's section 6), is NOT a row yet: a Rare is revealed with its own pixel
 // icon (tests/hunt-core/drop-tables.mjs loot-structure), and the icon is owed art. It comes in with its icon, as the pack's `fuel` (shape.js):
 // { item: 'dunns_candle', xp: 12000, req: 70, flame: 'tallow', secs: 120, chunk: 'fuel_dunns_candle' }, a Rare row at 0.0067 a Dunn kill.
-import { definePack, box, gather } from '../shape.js?v=0.2.141';
-import map from './map.js?v=0.2.141';
+import { definePack, box, gather } from '../shape.js?v=0.2.142';
+import map from './map.js?v=0.2.142';
 
 const PA = 'shrouded_pauper', LE = 'vault_leech', BW = 'bone_wall', CA = 'night_carter', DU = 'keeper_dunn';
 
@@ -82,7 +82,7 @@ export default definePack({
       /* the swarm, the common majority: somebody's grandmother, sewn into a gray sheet and tied at the head and feet, with a wooden tag on the
          wrist. Undead, no override: a hammer breaks them, fire does 15% more. Bones and grave dust for the Hearth, and the tag. */
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'owing_tag', ch: 0.08, band: 'uncommon' }],
-      hp: 238, atk: 154, baseAcc: 0.9, def: 80, xp: 3002, gp: [35, 105], formula: true },
+      hp: 238, atk: 154, baseAcc: 0.9, def: 80, xp: 2641, gp: [35, 105], formula: true },
     vault_leech: {
       name: 'Vault Leech', icon: '🪱', tier: 6, level: 169, cls: 'vermin', family: 'Vermin', speed: 2800,
       /* the glass: a leech as long as your arm that came in with the river and fed on the vaults for a hundred years. Vermin, one override on the
@@ -90,7 +90,7 @@ export default definePack({
          the shop, and its jaw. */
       weaponWeak: 'sword', weaponResist: ['ranged'],
       drops: [{ id: 'live_leech', ch: 0.4, band: 'common' }, { id: 'leech_jaw', ch: 0.08, band: 'uncommon' }],
-      hp: 227, atk: 202, baseAcc: 0.09, def: 81, xp: 3460, gp: [33, 100], formula: true },
+      hp: 227, atk: 202, baseAcc: 0.09, def: 81, xp: 3045, gp: [33, 100], formula: true },
     bone_wall: {
       name: 'Bone Wall', icon: '💀', tier: 6, level: 173, cls: 'construct', family: 'Construct', speed: 2400,
       /* the heavy: a stretch of the ossuary, skulls and long bones the Keepers set in lime to make room, that pulled itself off the wall. A
@@ -98,7 +98,7 @@ export default definePack({
          (`spells` below): the tank holds, everyone else steps off. Big Bones and Bone Chips, and a lump of the lime. */
       spells: ['bone_slide'],
       drops: [{ id: 'big_bones', ch: 0.5, band: 'common' }, { id: 'bone_chips', ch: 0.5, band: 'common' }, { id: 'lime_mortar', ch: 0.08, band: 'uncommon' }],
-      hp: 371, atk: 150, baseAcc: 1.06, def: 118, xp: 5232, gp: [55, 163], formula: true },
+      hp: 371, atk: 150, baseAcc: 1.06, def: 118, xp: 4604, gp: [55, 163], formula: true },
     night_carter: {
       name: 'Night Carter', icon: '🪝', tier: 6, level: 176, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of the men who dug in from the Sewer side and sold the unburned dead up the north road by the cartload. Their buyer's
@@ -106,7 +106,7 @@ export default definePack({
          party (Lime Sack, `spells` below). The gold he was paid in, and his hook. */
       spells: ['lime_sack'],
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'gold_bar', ch: 0.3, band: 'common' }, { id: 'carters_hook', ch: 0.08, band: 'uncommon' }],
-      hp: 315, atk: 191, baseAcc: 0.4, def: 92, xp: 4067, gp: [46, 139], formula: true },
+      hp: 315, atk: 191, baseAcc: 0.4, def: 92, xp: 3578, gp: [46, 139], formula: true },
     keeper_dunn: {
       name: 'Keeper Dunn', icon: '🕯️', tier: 6, level: 181, cls: 'undead', family: 'Undead', speed: 2800,
       /* the elite and the rare carrier: the Keeper who locked the door from the inside and stayed. He's still reading the names out of the Wood
@@ -115,7 +115,7 @@ export default definePack({
          waits on its reveal icon (the header). */
       spells: ['snuff_the_candles'],
       drops: [{ id: 'big_bones', ch: 1, band: 'common' }, { id: 'grave_dust', ch: 0.3, band: 'common' }, { id: 'candle_snuffer', ch: 0.1, band: 'uncommon' }],
-      hp: 518, atk: 196, baseAcc: 0.4, def: 138, xp: 7777, gp: [76, 229], formula: true },
+      hp: 518, atk: 196, baseAcc: 0.4, def: 138, xp: 6843, gp: [76, 229], formula: true },
   },
   roster: { shrouded_pauper: 'swarm', vault_leech: 'glass', bone_wall: 'heavy', night_carter: 'regular', keeper_dunn: 'elite' },
   gpFit: { k: 0.7, why: 'Monsters here drop 30% less gold than the base formula and their loot sells for 30% less, like every hunting ground from the Glade on' },

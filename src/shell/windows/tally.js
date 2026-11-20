@@ -20,23 +20,23 @@
 // the server's day_ends_at and clock; nothing can spend it (§6). Every control is off while an
 // intent is in flight; the window changes only from the re-read envelope and her next answer.
 // ════════════════════════════════════════════════════════════════════════
-import { tallyOf, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.141';
-import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.141';
-import { huntOf, settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.141';
-import { huntName } from '../../session/party-sections.js?v=0.2.141';
-import { equipmentOf } from '../../session/item-sections.js?v=0.2.141';
-import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.141';
-import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.141';
-import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.141';
-import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.141';
-import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.141';
-import { whole, gold, sepHtml, SEP_PART } from '../../render/format.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.141';
-import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js?v=0.2.141';
-import { headPathFor } from '../../data/monster-art.js?v=0.2.141';
-import { targetOf, patchParts } from '../goto.js?v=0.2.141';
-import { runIntent, refusalText } from '../intent-words.js?v=0.2.141';
+import { tallyOf, pickWords, countsWords } from '../../session/tally-sections.js?v=0.2.142';
+import { tallyBoard, takeTask, dropTask, setTally, collectTally } from '../../session/tally-intents.js?v=0.2.142';
+import { huntOf, settingsOf, serverNowOf } from '../../session/hunt-sections.js?v=0.2.142';
+import { huntName } from '../../session/party-sections.js?v=0.2.142';
+import { equipmentOf } from '../../session/item-sections.js?v=0.2.142';
+import { WEIGHT_FOR_ROLE, ROLE_WORDS } from '../../data/hunt-tutorial.js?v=0.2.142';
+import { wornWeightOf } from '../hunt-ground-facts.js?v=0.2.142';
+import { TALLY_KEEPER, TALLY_RULES, tallyTask } from '../../data/tally-tasks.js?v=0.2.142';
+import { weightSentence, WEIGHT_ORDER } from '../../data/armour-weights.js?v=0.2.142';
+import { rows, text, cls, attr, prop, element, keyedChild } from '../../render/paint.js?v=0.2.142';
+import { whole, gold, sepHtml, SEP_PART } from '../../render/format.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
+import { itemName, itemNameFor, itemIconHtml } from '../widgets/bits.js?v=0.2.142';
+import { headPathFor } from '../../data/monster-art.js?v=0.2.142';
+import { targetOf, patchParts } from '../goto.js?v=0.2.142';
+import { runIntent, refusalText } from '../intent-words.js?v=0.2.142';
 
 const SCRATCH = new WeakMap();
 /* `board` is her last answer (null until it comes), `asking` the read in flight, `stale` asks again, `collected` the done
@@ -130,9 +130,9 @@ export function renderTally(ctx) {
     + '<header class="ht-say"><b class="ht-who"></b><span class="ht-day"><span class="ht-day-paid"></span>' + sepHtml('ht-day-sep', true) + '<span class="ht-day-new"></span></span><p class="ht-voice"></p></header>'
     + '<h3 class="hw-ledger-head ht-head ht-mine-head"><span></span><small></small></h3><ul class="ht-mine"></ul>'
     + '<h3 class="hw-ledger-head is-on ht-head ht-board-head"><span></span></h3>'
-    + '<p class="ht-board-why"><span></span><button type="button" class="hh-tool" data-hs-act="to-weight" hidden></button></p>'
+    + '<p class="ht-board-why"><span></span><button type="button" class="hh-tool is-link" data-hs-act="to-weight" hidden></button></p>'
     + '<p class="hh-empty ht-wait"></p><ul class="ht-list"></ul><p class="ht-board-once"></p>'
-    + '<div class="ht-pick"><span class="ht-pick-line"></span><button type="button" class="hh-tool" data-hs-act="pick-toggle"></button></div>'
+    + '<div class="ht-pick"><span class="ht-pick-line"></span><button type="button" class="hh-tool is-link" data-hs-act="pick-toggle"></button></div>'
     + '<div class="ht-pick-open" hidden><div class="ht-weights" role="group">'
     + TALLY_RULES.weights.map((w) => '<button type="button" class="hh-seg" data-hs-act="weight" data-weight="' + w + '" aria-pressed="false" title="' + esc(weightSentence(w)) + '"></button>').join('')
     + '</div><p class="ht-weight-words"></p><p class="ht-order-how"></p><ol class="ht-slots"></ol><p class="ht-rule"></p></div>'
@@ -247,7 +247,7 @@ function patchPick(root, st) {
   attr(root.querySelector('.ht-slots'), 'aria-label', t('tally.order_label'));
   rows(root.querySelector('.ht-slots'), order, {
     key: String,
-    build: (s) => element(st.doc, '<li><button type="button" data-hs-act="first" data-slot-name="' + esc(s) + '"><small></small><span></span></button></li>'),
+    build: (s) => element(st.doc, '<li><button type="button" class="hh-seg" data-hs-act="first" data-slot-name="' + esc(s) + '"><small></small><span></span></button></li>'),
     patch: (li, s) => {
       const b = li.querySelector('button');
       text(b.querySelector('small'), String(order.indexOf(s) + 1));

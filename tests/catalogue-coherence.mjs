@@ -805,8 +805,8 @@ function mutate() {
   });
   run('the hunt settle\'s drop-unlock arm comes back', 'C16b', () => {
     const real = engineSources();
-    const at = real.findIndex((s) => s.name.endsWith('hr-accrue/accrual.js'));
-    if (at < 0) throw new Error('C16 plant: accrual.js is not among the engine sources');
+    const at = real.findIndex((s) => s.name.endsWith('hr-accrue/accrue-hunt.js'));
+    if (at < 0) throw new Error('C16 plant: accrue-hunt.js (the hunt settle builder) is not among the engine sources');
     const arm = "\n    if (items[id] && items[id].recipe) { recipeOps.push({ kind: 'flag', key: `recipe:${id}`, period: '', add: 1 }); continue; }\n";
     ENGINE_PLANT = real.map((s, i) => (i === at ? { ...s, text: s.text.replace('const n = Math.floor(s.itemDelta[id]);', arm + '    const n = Math.floor(s.itemDelta[id]);') } : s));
     if (ENGINE_PLANT[at].text === real[at].text) throw new Error('C16 plant: the hunt builder\'s anchor moved');

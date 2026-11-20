@@ -368,6 +368,8 @@
     "node tools/mutant-gate.mjs node tests/four-hero-slots.mjs --mutate": "client-guards-4",
     "node tests/hero-slots-one.mjs": "client-guards-4",
     "node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate": "client-guards-4",
+    "node tests/slot-price-guard.mjs": "client-guards-4",
+    "node tools/mutant-gate.mjs node tests/slot-price-guard.mjs --selftest": "client-guards-4",
     "node tests/imports-resolve.mjs": "client-guards-4",
     "node tools/mutant-gate.mjs node tests/imports-resolve.mjs --selftest": "client-guards-4",
     "node tests/phone-touch.mjs": "in-page-40",

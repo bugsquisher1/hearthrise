@@ -1,52 +1,65 @@
 // ============================================================================
-// tools/balance-sim/staged/luck.js — LUCK, THE PROPOSED PERMANENT RARE-DROP BONUS, AS DATA AND ONE FORMULA
-// (designer, 2026-11-19; Tyler the same night: "You know what I'm just now realizing I loved in old games. Permanent magic find buffs.").
-// REVISED 2026-11-20 for Tyler's rulings on the first version: "If it's going to be per account it needs to be adjusted ... My vote is it
-// only counts per account and we should add a similar system that luck I gained from other sinks like salvaging instead of selling (like gw2)".
-// A PROPOSAL for docs/design/itemization-plan.md §15. Tyler approves before anything is built.
+// tools/balance-sim/staged/luck.js — LUCK v3, THE PROPOSED PERMANENT RARE-DROP BONUS, AS DATA AND ONE FORMULA
+// (designer; Tyler 2026-11-19: "Permanent magic find buffs."; 2026-11-20: "it only counts per account and we should add a similar
+// system that luck I gained from other sinks like salvaging instead of selling (like gw2)"; 2026-11-20, newest: "for salvaging, i was
+// considering a system almost exactly like gw2's where i dont think there is a cap".)
+// A PROPOSAL for docs/design/itemization-plan.md §15. Tyler approves before anything is built. v2 (one +25% pool) is in git (56f16fa99).
 //
-// WHAT IT IS. One number per account that only goes up, fed two ways, read by one formula:
+// WHAT IT IS. One Luck total per account that only goes up, and a rank read off it:
 //
-//     Luck  = the Bestiary's stages + salvage's points
-//     bonus (permille) = floor( LUCK_CAP_PM x Luck / (Luck + LUCK_HALF) )      on Rare and Trophy rows only
+//     Luck   = what salvaged gear gave (LUCK_PER_TIER, RARE_MULT, UNIQUE_LUCK_PER_BAND) + what the Bestiary's stages gave (STAGE_LUCK)
+//     rank n is held once Luck >= RANK_STEP x (1^2 + 2^2 + ... + n^2)          so rank n alone costs RANK_STEP x n^2
+//     bonus  = +rank % on Rare rows (to LUCK_RANK_MAX), +min(rank, TROPHY_RANK_MAX) % on Trophy rows
 //
-//   THE BESTIARY   one count a creature for the WHOLE ACCOUNT: a kill counts once, whichever of the account's heroes were there (four of
-//                  its heroes in one hunt add one, four hunting apart add four). Each stage reached is +1 Luck.
-//   SALVAGE        worn gear the account's OWN HUNTS dropped, salvaged instead of sold, by what the shop would have paid for it.
-//                  Point n costs SALVAGE_STEP x n gold of it, so the first points are cheap and each one costs more.
+//   SALVAGE        worn gear the account's OWN HUNTS dropped, salvaged instead of sold: Luck by the piece's tier and band. As in
+//                  Guild Wars 2, where salvaged gear gives Essences of Luck that fill one account bar. No essence ITEM here: the
+//                  Luck goes straight onto the bar (an untradeable item whose only use is "consume" is a click with no decision).
+//   THE BESTIARY   one count a creature for the WHOLE ACCOUNT. Each stage reached pays a lump of Luck into the same total, once.
 //
-// Nothing else moves: common and uncommon rows (crafting stock), Scarce gear (the hourly pace and its coin), keys, gem chips, a keyed
-// hall's daily prize, the Hearth Chest, coin and XP all roll as they do today.
+// THE CURVE HAS NO NEAR CEILING. Each rank costs more than the last (n^2), so Luck held grows with the cube root of Luck earned:
+// eight times the gear salvaged is twice the rank. LUCK_RANK_MAX is a far stop the way GW2's 300% is (that one is so far out it plays
+// as uncapped): a guard needs a finite top to prove a row never passes its bound, and no measured life comes near it.
 //
 // WHY THESE NUMBERS (measured by luck-measure.mjs on played lives; the tables are in the plan).
-//   stages   each about four or five times the last, so an account with four heroes (four times the kills) sits about ONE stage ahead on
-//            a creature, never four times the Luck. The first version's ladder (..., 5,000 / 10,000 / 20,000) doubled, and a four-hero
-//            account filled a ground's creatures in a few hundred hours. The top stage is out of a one-hero account's ordinary reach on
-//            purpose: there is always a next stage.
-//   step     a salvage point is priced in the gold the player gave up, and the price climbs by SALVAGE_STEP a point, so the points held
-//            grow with the square root of the gear salvaged: four heroes salvaging everything hold about twice a lone hero's, not four times.
-//   cap      250 permille: Tyler's own ceiling for a fully studied boss's relic (2026-10-19, src/data/loot-bands.js trophy boostMax 1.25),
-//            which is why Trophy rows sit at 125-150 h. Luck takes that seat, so no band's promise moves. Both feeds share the one cap.
-//   half     the Luck at which the bonus is half the cap, sized for two feeds.
+//   per tier   2 Luck a tier: a Scarce piece sells for 30 / 60 / 105 / 137 / 173 g at tiers 1 / 2 / 4 / 5 / 6, so a point of Luck
+//              costs about 13-15 g of shop gold at every tier. No tier is the cheap one to farm.
+//   rare       a Rare piece is worth five Scarce ones of its tier. A Rare nobody wants has a floor: its Luck.
+//   unique     past tier 7 the hourly drop is stock and chips (Tyler 11-18), and uniques are the only gear. One is worth 50 x its band.
+//   stages     each four to five times the last, so four heroes sit about one stage ahead on a creature. The lumps climb with them.
+//   step       75: a lone hero salvaging everything holds rank 15 at about 500 hours.
+//   trophy     25: Tyler's own ceiling for a fully studied boss's relic (2026-10-19, loot-bands.js trophy boostMax 1.25). A Trophy
+//              still never comes faster than every 100 h, at any Luck.
 //
-// EARN-ONLY. Kills don't trade. A salvage point is paid only when the SERVER salvages a piece straight out of a hunt's own loot (the
-// plan's fourth loot destination, applied on Dispatch): the piece never becomes a bag item first, so nothing bought, traded, crafted
-// or taken from the store can reach it. A piece salvaged later at a bench gives its stock and no Luck.
+// EARN-ONLY. Kills don't trade. Salvage pays Luck on at most as many of an item as the account's own hunts have dropped
+// (found minus already salvaged for Luck, per account and item, server-held). So Luck from salvage can never pass what the
+// account's own hunts dropped, whatever gold or Crowns buy.
 //
 // HIDDEN. Nothing in src/ reads this file; tools/balance-sim/staged/luck-measure.mjs does. PURE ESM. Imports nothing.
 // ============================================================================
 
-/** The account's kill totals against ONE creature that each add 1 Luck, ascending. */
+/** The account's kill totals against ONE creature that each pay a lump of Luck, ascending. */
 export const LUCK_STAGES = Object.freeze([100, 500, 2500, 10000, 40000, 160000]);
 
-/** Salvage point n costs this x n gold of salvaged gear (the shop's price for it). */
-export const SALVAGE_STEP = 150;
+/** The Luck each stage pays, once, into the account's total. */
+export const STAGE_LUCK = Object.freeze([50, 150, 500, 1500, 5000, 15000]);
 
-/** The bonus can never pass this (permille). The formula clamps to it. */
-export const LUCK_CAP_PM = 250;
+/** A standard (Scarce, hourly) piece gives this x its tier. */
+export const LUCK_PER_TIER = 2;
 
-/** The Luck at which the bonus is half the cap. */
-export const LUCK_HALF = 150;
+/** A Rare piece of tiers 1 to 7 gives this many times a Scarce one of its tier. */
+export const RARE_MULT = 5;
+
+/** A unique past tier 7 gives this x its band (8 and up). */
+export const UNIQUE_LUCK_PER_BAND = 50;
+
+/** Rank n costs this x n^2 Luck. */
+export const RANK_STEP = 100;
+
+/** The far stop: +100% on Rare rows. */
+export const LUCK_RANK_MAX = 100;
+
+/** A Trophy row never takes more than this rank. */
+export const TROPHY_RANK_MAX = 25;
 
 /** The loot bands Luck moves (src/data/loot-bands.js REVEAL_BANDS). */
 export const LUCK_BANDS = Object.freeze(['rare', 'trophy']);
@@ -59,33 +72,43 @@ export function stagesAt(kills) {
   return s;
 }
 
-/** The Bestiary's Luck: stages held over `roster` (creature ids), from the account's `{ id: kills }` (own-property reads only). */
-export function luckOf(killsById, roster) {
+/** The Luck the Bestiary has paid over `roster` (creature ids), from the account's `{ id: kills }` (own-property reads only). */
+export function bestiaryLuckOf(killsById, roster) {
   let luck = 0;
-  for (const id of roster) luck += stagesAt(killsById && Object.prototype.hasOwnProperty.call(killsById, id) ? killsById[id] : 0);
+  for (const id of roster) {
+    const s = stagesAt(killsById && Object.prototype.hasOwnProperty.call(killsById, id) ? killsById[id] : 0);
+    for (let i = 0; i < s; i++) luck += STAGE_LUCK[i];
+  }
   return luck;
 }
 
-/** The gold of salvaged gear that holds `points` salvage points: SALVAGE_STEP x (1 + 2 + ... + points). */
-export function salvageCostTo(points) {
-  const n = Math.max(0, Math.floor(Number(points) || 0));
-  return (SALVAGE_STEP * n * (n + 1)) / 2;
+/** The Luck one salvaged piece gives: `tier` 1 and up (a band past 7 is a unique), `band` its loot band. */
+export function salvageLuckOf(tier, band) {
+  const t = Math.max(1, Math.floor(Number(tier) || 1));
+  if (t > 7) return UNIQUE_LUCK_PER_BAND * t;
+  return LUCK_PER_TIER * t * (band === 'rare' || band === 'trophy' ? RARE_MULT : 1);
 }
 
-/** Salvage's Luck at `gold` of gear salvaged, lifetime: the most points whose cost it covers. */
-export function salvageLuckOf(gold) {
-  const g = Math.max(0, Number(gold) || 0);
-  let n = Math.floor((Math.sqrt(1 + (8 * g) / SALVAGE_STEP) - 1) / 2);
-  while (salvageCostTo(n + 1) <= g) n += 1;
-  while (n > 0 && salvageCostTo(n) > g) n -= 1;
+/** The Luck that holds `rank`: RANK_STEP x (1^2 + ... + rank^2). */
+export function luckToRank(rank) {
+  const n = Math.max(0, Math.floor(Number(rank) || 0));
+  return (RANK_STEP * n * (n + 1) * (2 * n + 1)) / 6;
+}
+
+/** The rank held at `luck`, 0..LUCK_RANK_MAX. */
+export function rankOf(luck) {
+  const l = Math.max(0, Number(luck) || 0);
+  let n = Math.min(LUCK_RANK_MAX, Math.floor(Math.cbrt((3 * l) / RANK_STEP)));
+  while (n < LUCK_RANK_MAX && luckToRank(n + 1) <= l) n += 1;
+  while (n > 0 && luckToRank(n) > l) n -= 1;
   return n;
 }
 
-/** The bonus in permille at `luck`, 0..LUCK_CAP_PM. Integer, so the server and the sheet show one number. */
-export function luckPm(luck) {
-  const l = Math.max(0, Math.floor(Number(luck) || 0));
-  return Math.min(LUCK_CAP_PM, Math.floor((LUCK_CAP_PM * l) / (l + LUCK_HALF)));
+/** The bonus in permille a `band` row takes at `luck`. Integer, so the server and the sheet show one number. */
+export function luckPm(luck, band = 'rare') {
+  const r = rankOf(luck);
+  return 10 * (band === 'trophy' ? Math.min(r, TROPHY_RANK_MAX) : r);
 }
 
 /** The multiplier a Rare or Trophy row's chance takes at `luck`. */
-export const luckMult = (luck) => 1 + luckPm(luck) / 1000;
+export const luckMult = (luck, band = 'rare') => 1 + luckPm(luck, band) / 1000;

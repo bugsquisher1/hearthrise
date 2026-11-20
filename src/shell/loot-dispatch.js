@@ -7,7 +7,10 @@
 // "Don't pick up" stays the pickup filter, a choice of its own. The server owns
 // every number: this module names the choices, says why a control is off from the
 // server's own sections, and turns the server's ONE answer into one line.
-//   LOOT_CHOICES / planWords      the three plans and the pickup filter, in menu order
+//   LOOT_CHOICES / planWords      the plans and the pickup filter, in menu order
+//   planShown(cs, id, plan)       whether a plan is offered for this item at all (the two Luck plans only where the server's luck
+//                                 section names the item: Salvage a stack it prices in rivets, Use the Lucky Rivet; dark, neither)
+//   salvageWords(cs, id)          the line beside Salvage: "12 Lucky Rivets", or "No rivets: bought or crafted" past the allowance
 //   planBlock(id, plan, bids)     why a plan is off for this item, or ''
 //   dispatchBlock(cs)             why Dispatch loot is off right now, or ''
 //   dispatchWords(answer)         "Stored 9 stacks, sold 5 for 1,240 gp. 2 didn't fit: Storage is full."
@@ -24,20 +27,43 @@ import { dispatchLoot } from '../session/loot-intents.js?v=0.2.142';
 import { runIntent, refusalWords } from './intent-words.js?v=0.2.142';
 import { t } from '../render/player-text.js?v=0.2.142';
 import { busyWords } from './training-words.js?v=0.2.142';
+import { luckOf } from '../session/luck-sections.js?v=0.2.142';
+import { LUCK_ITEM } from '../data/luck.js?v=0.2.142';
 
-/** The three plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). */
+/** The plans, then the pickup filter: [rule, words, group]. The rule is the server's word (player_item_rules.loot_rule). Salvage and Use
+    are Luck's (1007-luck.sql), offered only where planShown says. */
 export const LOOT_CHOICES = Object.freeze([
   Object.freeze(['keep', t('controls.keep'), 'plan']),
   Object.freeze(['deposit', t('controls.deposit'), 'plan']),
   Object.freeze(['sell', t('controls.sell'), 'plan']),
+  Object.freeze(['salvage', t('shop.plan_salvage'), 'plan']),
+  Object.freeze(['use', t('shop.plan_use'), 'plan']),
   Object.freeze(['ignore', 'Don\'t pick up', 'pickup']),
 ]);
+const LUCK_PLANS = new Set(['salvage', 'use']);
+
+/** Whether `plan` is offered for item `id` at all: every plan always, but Salvage only for a stack the server's luck section prices in
+    rivets and Use only for the Lucky Rivet, both only while that section is there (the `luck` switch on for the account). */
+export function planShown(cs, id, plan) {
+  if (!LUCK_PLANS.has(plan)) return true;
+  const lk = luckOf(cs);
+  if (!lk) return false;
+  return plan === 'use' ? id === LUCK_ITEM : lk.salvage.has(id);
+}
+
+/** The line beside Salvage, the server's numbers: the rivets one piece pays, or why it pays none (past the account's allowance). */
+export function salvageWords(cs, id) {
+  const lk = luckOf(cs);
+  const x = lk ? lk.salvage.get(id) : null;
+  if (!x) return '';
+  return x.left > 0 ? t('shop.salvage_rivets', { n: whole(x.rivets) }) : t('shop.salvage_none');
+}
 const WORDS = new Map(LOOT_CHOICES.map(([v, w]) => [v, w]));
 /** The words for a rule the server holds (no rule = Keep in bag). */
 export const planWords = (rule) => WORDS.get(rule || 'keep') || WORDS.get('keep');
 
 /* The hero's starting kit may be deposited but takes no Sell plan (hr_loot_plan_refusal 'start_kit': no gold from the kit). */
-const MOVES = new Set(['deposit', 'sell']);
+const MOVES = new Set(['deposit', 'sell', 'salvage', 'use']);
 
 /** Why `plan` is off for item `id`, or '' — the server's two refusals by item, said before the press. `bids`: the shop's.
     The shop's section bids only on what the bag HOLDS (hr_shop_view), so a stack the bag no longer holds (sold at
@@ -75,7 +101,12 @@ export function dispatchWords(a) {
   const did = [];
   if (stored) did.push('stored ' + stacks(stored));
   if (sold) did.push('sold ' + stacks(sold) + ' for ' + gold(g));
-  let line = did.length ? did.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.' : 'Nothing moved.';
+  /* LUCK: "Salvaged 41. 492 Lucky Rivets. Used 492: +492 Luck" (the answer's own numbers) */
+  const salv = num(a.salvaged && a.salvaged.units), used = num(a.used && a.used.rivets);
+  let line = did.length ? did.join(', ').replace(/^./, (c) => c.toUpperCase()) + '.' : (salv || used ? '' : 'Nothing moved.');
+  if (salv) line += (line ? ' ' : '') + t('shop.dispatch_salvaged', { units: whole(salv), rivets: whole(num(a.salvaged.rivets)) }) + '.';
+  if (used) line += (line ? ' ' : '') + t('shop.dispatch_used', { rivets: whole(used) }) + '.';
+  if (num(kept.no_rivets)) line += ' ' + t('shop.dispatch_no_rivets', { stacks: stacks(num(kept.no_rivets)) }) + '.';
   if (typeof a.sell_refused === 'string' && a.sell_refused) line += ' Nothing sold: ' + refusalWords(a.sell_refused, 'loot_dispatch');
   if (unplaced) line += ' ' + whole(unplaced) + ' didn\'t fit: Storage is full.';
   if (num(kept.locked)) line += ' ' + stacks(num(kept.locked)) + ' locked, so kept.';

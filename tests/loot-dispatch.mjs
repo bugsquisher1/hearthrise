@@ -45,6 +45,12 @@ const MUTATE = process.argv.includes('--mutate');
 const FILE = '2027-01-23-loot-dispatch.sql';
 const COPY_FILE = '2027-04-24-loot-plan-copy.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
+/* LUCK (lane/d-luck-build, 2026-11-20): 1007-luck.sql restates this file's four bodies whole (hr_loot_dispatch, hr_loot_rule_set,
+   hr_loot_plan_refusal, hr_hunt_loot_rules: the same text plus the Salvage and Use arms and the found count), md5-pinned to this file's
+   images. So the bodies that RUN are 1007's: a mutant is planted there, and the second apply (LD-IDEM) is 1007's, the last author's;
+   this file applied again on the whole chain trips 1007's pins, by design. */
+const LUCK_FILE = '1007-luck.sql';
+const LUCK_MIG = join(ROOT, 'supabase', 'migrations', LUCK_FILE);
 const idem = () => crypto.randomUUID();
 
 async function asAuth(db, uid, sql, params) {
@@ -316,7 +322,7 @@ const ARMS = {
     const rows = async () => JSON.stringify((await db.query('select proname, identity_args, grantee, note from public.hr_client_rpc_baseline order by 1, 2, 3')).rows);
     const before = JSON.stringify([await inventory(db), await bodies(), await rows()]);
     /* this file and 2027-04-24-loot-plan-copy.sql (F11), each applied again: nothing moves (each one's self-check runs again and rolls back) */
-    try { for (const m of [MIG, join(ROOT, 'supabase', 'migrations', '2027-04-24-loot-plan-copy.sql')]) await db.exec(readFileSync(m, 'utf8').replace(/\r\n/g, '\n')); }
+    try { for (const m of [LUCK_MIG, join(ROOT, 'supabase', 'migrations', '2027-04-24-loot-plan-copy.sql')]) await db.exec(readFileSync(m, 'utf8').replace(/\r\n/g, '\n')); }
     catch (e) { return ['the second apply RAISED: ' + String(e.message).split('\n')[0]]; }
     const after = JSON.stringify([await inventory(db), await bodies(), await rows()]);
     return before === after ? [] : ['a second apply moved the schema, a body or a baseline row'];
@@ -354,7 +360,7 @@ const MUTANTS = [
     find: "    when p_plan = 'sell' and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)", repl: "    when p_plan in ('sell', 'deposit') and (exists (select 1 from public.hr_start_inventory k where k.item_id = p_item)" },
 ];
 
-function selfCheckOff(file = FILE) {
+function selfCheckOff(file = LUCK_FILE) {
   const src = readFileSync(join(ROOT, 'supabase', 'migrations', file), 'utf8').replace(/\r\n/g, '\n');
   const m = src.match(/\n(-- (?:── )?§\d+ SELF-CHECK[^\n]*(?:\n--[^\n]*)*)\n(do \$(\w*)\$)/);
   if (!m) throw new Error('no self-check heading in ' + file);
@@ -392,7 +398,7 @@ async function main() {
   let missed = 0;
   for (const mu of MUTANTS) {
     let db;
-    try { ({ db } = await bootReplay({ patches: new Map([[mu.file || FILE, [selfCheckOff(mu.file), ...(mu.pairs || [[mu.find, mu.repl]])]]]),
+    try { ({ db } = await bootReplay({ patches: new Map([[mu.file || LUCK_FILE, [selfCheckOff(mu.file), ...(mu.pairs || [[mu.find, mu.repl]])]]]),
       /* The arms play a real hunt on today's engine: a chain cut here holds an older world shape (2027-02-11-no-fight's
          catalogue moved it), so every settle answers world_shape_pending and the hunt picks up nothing. */
       fullChain: 'the arms play a hunt on the engine of today, which needs the catalogue and world shape of the files after this one' })); }

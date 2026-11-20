@@ -108,7 +108,8 @@ export function lineOf(ev, n) {
     case 'status_on': return line('status', b + ' is ' + (ev.status === 'bleed' ? 'bleeding' : 'affected by ' + ev.status) + '.');
     case 'status_off': return line('status', b + (ev.status === 'bleed' ? ' stops bleeding.' : ' is free of ' + ev.status + '.'));
     case 'death': return line('death', (n.isHero(ev.u) ? a : 'Hero') + ' was killed by ' + monsterName(ev.monster) + '.');
-    case 'rare_drop': return line('loot', (Number.isInteger(ev.u) ? 'Rare drop for ' + a + ': ' : 'Rare drop: ') + itemName(ev.item) + '!');
+    /* A Rare Magic Find caused (the server's `lucky`: src/core/drops.js rollDropTable) says so: "Lucky find for Tama: ..." */
+    case 'rare_drop': return line('loot', (ev.lucky === true ? t('luck.lucky_find') : 'Rare drop') + (Number.isInteger(ev.u) ? ' for ' + a + ': ' : ': ') + itemName(ev.item) + '!');
     case 'rare_roll': {
       /* the party's rare roll (party-split.js rareRoll): every eligible hero's roll, a tie's re-roll, the winner */
       const said = (r) => Object.entries(r && typeof r === 'object' ? r : {}).map(([u, roll]) => n.name(Number(u)) + ' ' + roll).join(', ');

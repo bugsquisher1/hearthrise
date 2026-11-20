@@ -26,6 +26,7 @@ import { HUD_TEXT } from './hud.js?v=0.2.142';
 import { HUNTS_TEXT } from './hunts.js?v=0.2.142';
 import { ITEM_TEXT } from './item.js?v=0.2.142';
 import { JEWEL_TEXT } from './jewel.js?v=0.2.142';
+import { LUCK_TEXT } from './luck.js?v=0.2.142';
 import { MONSTER_TEXT } from './monster.js?v=0.2.142';
 import { LOG_TEXT } from './log.js?v=0.2.142';
 import { PARTY_TEXT } from './party.js?v=0.2.142';
@@ -61,6 +62,7 @@ export const TEXT = Object.freeze({
   hunts: HUNTS_TEXT,
   item: ITEM_TEXT,
   jewel: JEWEL_TEXT,
+  luck: LUCK_TEXT,
   log: LOG_TEXT,
   monster: MONSTER_TEXT,
   party: PARTY_TEXT,

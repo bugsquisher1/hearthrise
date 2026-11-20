@@ -48,6 +48,14 @@ export const SHOP_TEXT = Object.freeze({
   /* Why Dispatch loot is off in town (src/shell/loot-dispatch.js dispatchBlock): no plan yet, or a plan with nothing left in the bag to move. */
   dispatch_none_set: 'No loot plans set',
   dispatch_all_moved: 'Nothing left to move',
+  /* LUCK (src/data/luck.js, itemization plan §15 "On screen"): the two Luck plans, their lines beside Salvage, and Dispatch's answer. */
+  plan_salvage: 'Salvage',
+  plan_use: 'Use',
+  salvage_rivets: '{n} Lucky Rivets',
+  salvage_none: 'No rivets: bought or crafted',
+  dispatch_salvaged: 'Salvaged {units}. {rivets} Lucky Rivets',
+  dispatch_used: 'Used {rivets}: +{rivets} Luck',
+  dispatch_no_rivets: '{stacks} kept: no rivets (bought or crafted)',
   /* Blessings in the Services tab (src/shell/windows/services.js): all of them in one press, one server purchase each. */
   bless_all: 'Bless all',
   bless_all_busy: 'Blessing…',

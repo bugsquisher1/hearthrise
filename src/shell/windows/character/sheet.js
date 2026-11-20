@@ -24,6 +24,8 @@ import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.142';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
 import { combatLedger } from '../skills.js?v=0.2.142';
 import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.142';
+import { luckOf } from '../../../session/luck-sections.js?v=0.2.142';
+import { t } from '../../../render/player-text.js?v=0.2.142';
 
 /* [key, label] of each number line; a line shows only when its value exists. A value is a number and its unit, a genre stat
    line ("Hit chance 69%"); what it is measured against is its tooltip, so no value wraps (UI audit 2026-11-18 #8). */
@@ -66,6 +68,7 @@ export function sheetHtml() {
     + '<h3 class="hw-cs-head">Combat</h3><dl class="hw-cs-list hw-cs-combat">' + COMBAT.map((r) => lineHtml(r, 'combat', COMBAT_TIPS)).join('') + '</dl>'
     + '<p class="hw-cs-note hw-cs-wait"></p>'
     + '<h3 class="hw-cs-head hw-cs-bhead">Bestiary</h3><div class="hw-cs-best"><span class="hw-skill-bar" role="meter" aria-label="Bestiary completion" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-cs-btext"></small></div>'
+    + '<h3 class="hw-cs-head hw-cs-lhead" title="' + esc(t('luck.tip')) + '"></h3><div class="hw-cs-luck"><span class="hw-skill-bar" role="meter" aria-label="Luck to the next percent" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-cs-ltext"></small></div>'
     + '<h3 class="hw-cs-head hw-cs-xhead">Experience bonuses</h3><dl class="hw-cs-list hw-cs-xp">' + XP_SOURCES.map((r) => lineHtml(r, 'xp')).join('')
     + '<div class="hw-cs-line hw-cs-total"><dt>Total</dt><dd></dd></div></dl><p class="hw-cs-note hw-cs-xnone">None right now</p>'
     + '</div></div></section>';
@@ -140,6 +143,20 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
     style(best.querySelector('.hw-skill-fill'), 'width', (Math.round(f * 1000) / 10) + '%');
     attr(best.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(f * 100));
     text(best.querySelector('.hw-cs-btext'), whole(b.slain) + ' of ' + whole(b.total) + ' creatures slain');
+  }
+  /* LUCK (src/data/luck.js; the server's luck section, absent while the luck switch is off): "Magic Find +16%" over the bar "Luck 12,400 / 28,900",
+     the Luck held against the Luck the next percent needs, filled from the percent held. Every number is the server's. */
+  const lk = luckOf(cs);
+  cls(root.querySelector('.hw-cs-lhead'), 'is-on', !!lk);
+  const lb = root.querySelector('.hw-cs-luck');
+  cls(lb, 'is-on', !!lk);
+  if (lk) {
+    text(root.querySelector('.hw-cs-lhead'), t('luck.head', { pct: whole(lk.magicFind) }));
+    const span = lk.next === null ? 0 : lk.next - lk.at;
+    const f = span > 0 ? Math.max(0, Math.min(1, (lk.luck - lk.at) / span)) : 1;
+    style(lb.querySelector('.hw-skill-fill'), 'width', (Math.round(f * 1000) / 10) + '%');
+    attr(lb.querySelector('.hw-skill-bar'), 'aria-valuenow', Math.round(f * 100));
+    text(lb.querySelector('.hw-cs-ltext'), lk.next === null ? t('luck.full', { luck: whole(lk.luck) }) : t('luck.bar', { luck: whole(lk.luck), next: whole(lk.next) }));
   }
   /* Experience bonuses by source: a source shows only when it adds something. */
   const x = c ? c.xp : null;

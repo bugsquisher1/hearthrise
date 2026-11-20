@@ -48,9 +48,9 @@
 .hw-cs-total dd { color: var(--gold-2); font-weight: 700; }
 .hw-cs-note { display: none; margin: 4px 2px; font-size: var(--t-micro); color: var(--ink-3); }
 .hw-cs-note.is-on { display: block; }
-.hw-cs-best { display: none; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line-soft); }
-.hw-cs-best.is-on { display: flex; }
-.hw-cs-btext { flex: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
+.hw-cs-best, .hw-cs-luck { display: none; align-items: center; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line-soft); }
+.hw-cs-best.is-on, .hw-cs-luck.is-on { display: flex; }
+.hw-cs-btext, .hw-cs-ltext { flex: none; font-size: var(--t-micro); color: var(--ink-2); font-variant-numeric: lining-nums tabular-nums; }
 
 /* ── The Outfit tab ── */
 .hw-cs-outfit { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 14px; }

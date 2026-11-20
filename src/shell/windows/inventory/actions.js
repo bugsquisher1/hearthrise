@@ -52,7 +52,7 @@ import { showTip, hideTip } from '../item-tip.js?v=0.2.142';
 import { openFloatMenu, closeFloatMenu } from '../float-menu.js?v=0.2.142';
 import { offerForSale } from '../market/state.js?v=0.2.142';
 import { stateOf, scratchOf, seenOf, confirmFor, setPref, eatBlock } from './state.js?v=0.2.142';
-import { LOOT_CHOICES, planBlock, dispatchWords } from '../../loot-dispatch.js?v=0.2.142';
+import { LOOT_CHOICES, planBlock, planShown, salvageWords, dispatchWords } from '../../loot-dispatch.js?v=0.2.142';
 import { dispatchLoot } from '../../../session/loot-intents.js?v=0.2.142';
 import { fitsSlot, dollTip, DRAG_WORN } from './doll.js?v=0.2.142';
 import { askElsewhere } from './elsewhere.js?v=0.2.142';
@@ -330,11 +330,13 @@ function openMenu(ctx, body, st, id, at, repaint) {
   const bids = st.shop ? st.shop.bids : null;
   const choice = ([v, w]) => {
     const why = planBlock(id, v, bids) || (st.rules ? '' : 'Loading loot plans…');
-    return item('m-rule', w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"', why);
+    /* Salvage says what one piece pays beside it (the server's luck section: its rivets, or no rivets past the allowance) */
+    const sw = v === 'salvage' ? salvageWords(st.cs, id) : '';
+    return item('m-rule', sw ? w + ': ' + sw : w, !!st.rules && !why, ' data-rule="' + v + '" aria-pressed="' + (rule === v) + '"', why);
   };
   for (const [group, words] of [['plan', 'Loot plan'], ['pickup', 'On pickup']]) {
     h += '<span class="hw-menu-sub">' + words + '</span><span class="hw-menu-rules" role="group" aria-label="' + words + '">'
-      + LOOT_CHOICES.filter((c) => c[2] === group).map(choice).join('') + '</span>';
+      + LOOT_CHOICES.filter((c) => c[2] === group && planShown(st.cs, id, c[0])).map(choice).join('') + '</span>';
   }
   /* The bag's own menu: its repaint closes only this one, never a menu another surface opened (float-menu.js). */
   sc.menuOwner = {

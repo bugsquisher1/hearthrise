@@ -480,7 +480,9 @@ const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
 /* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it
    (2027-04-24-tower-climb.sql §5: 2027-04-25-boss-daily.sql's splice of 2027-04-23-session-modes.sql's text plus the
    instance's tower_floor; it applies after boss-daily). */
-const READ_LAST = '2027-04-24-tower-climb.sql';
+/* LUCK (lane/d-luck-build, 2026-11-20): 1007-luck.sql restates hr_hunt_instance_read WHOLE after it (one key per member, magic_find), so the
+   live body, and the A-PARTY plant, are 1007's now. */
+const READ_LAST = '1007-luck.sql';
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
@@ -489,13 +491,13 @@ const MUTANTS = [
   { arm: 'A-LOCK', fn: 'hr_apply', why: 'hr_apply no longer refuses a locked sale',
     find: "        if v_n < 0 and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then",
     repl: "        if false and coalesce(v_this_intent, '') ~ '^vendor_sell(_many)?(:|$)' and public.hr_item_locked(v_uid, v_slot, k) then" },
-  /* hr_hunt_loot_rules is RESTATED last by 2027-01-23-loot-dispatch.sql (md5-pinned to its pre-image); hr_hunt_apply_member
+  /* hr_hunt_loot_rules is RESTATED last by 1007-luck.sql (md5-pinned to its pre-image, 2027-01-23-loot-dispatch.sql's); hr_hunt_apply_member
      is restated last by MEMBER_LAST (memberPlant): each mutant is planted in the body that runs. */
   { arm: 'A-LOOT-AWAY', why: 'the settle no longer runs the loot filter',
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },
-  { arm: 'A-LOOT-ATTENDED', file: '2027-01-23-loot-dispatch.sql', why: 'a sell plan acts at pickup again',
+  { arm: 'A-LOOT-ATTENDED', file: '1007-luck.sql', why: 'a sell plan acts at pickup again',
     find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule in ('ignore', 'sell') and not r.locked" },
-  { arm: 'A-LOOT-AWAY', file: '2027-01-23-loot-dispatch.sql', why: 'the pickup filter ignores a lock',
+  { arm: 'A-LOOT-AWAY', file: '1007-luck.sql', why: 'the pickup filter ignores a lock',
     find: "       and r.loot_rule = 'ignore' and not r.locked", repl: "       and r.loot_rule = 'ignore'" },
   /* hr_shop_view is RESTATED last by 2026-11-25-shop-seeds.sql: its mutants are planted in the body that runs. */
   { arm: 'A-NO-SUPPLY', file: '2026-11-25-shop-seeds.sql', why: 'the shop section lists the supplies again',

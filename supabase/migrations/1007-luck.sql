@@ -74,7 +74,7 @@ begin
     ('public.hr_loot_plan_refusal(text,text)', '930f6b477af5ac054b2e6bd3f59482c0', '2027-01-23-loot-dispatch.sql'),
     ('public.hr_loot_rule_set(integer,text,text,uuid)', 'cfa8fc9bce2ea4c1e626eb8b4cf5adc6', '2027-01-23-loot-dispatch.sql'),
     ('public.hr_loot_dispatch(integer,uuid)', 'c561bed6c279d809036366db6005183d', 'the replay of this file''s base'),
-    ('public.hr_hunt_instance_read(uuid,integer)', 'cfb26bd60ee7eb29965041ca9354cb25', '2027-04-25-boss-daily.sql'),
+    ('public.hr_hunt_instance_read(uuid,integer)', 'cfb26bd60ee7eb29965041ca9354cb25', '2027-04-24-tower-climb.sql'),
     ('public.hr_tally_count(uuid,integer,uuid,jsonb)', 'f963df5e9390714276a06e830648171a', '2026-12-23-tally-tasks.sql')
   ) p(sig, pre, src) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(r.sig);

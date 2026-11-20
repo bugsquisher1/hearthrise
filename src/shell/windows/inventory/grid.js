@@ -29,7 +29,7 @@ import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
 import { glyphSvg } from '../../launcher.js?v=0.2.142';
 import { itemIconHtml, itemName } from '../../widgets/bits.js?v=0.2.142';
 import { primaryOf, confirmWords, huntLoot, eatBlock } from './state.js?v=0.2.142';
-import { LOOT_CHOICES, planBlock, dispatchBlock } from '../../loot-dispatch.js?v=0.2.142';
+import { LOOT_CHOICES, planBlock, planShown, dispatchBlock } from '../../loot-dispatch.js?v=0.2.142';
 import { pocketHtml, patchCount } from './pockets.js?v=0.2.142';
 import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.142';
 import { elsewhereHtml, patchElsewhere } from './elsewhere.js?v=0.2.142';
@@ -267,7 +267,8 @@ function patchHuntPane(root, st, ctx) {
       const sel = li.querySelector('select');
       if (st.rules) prop(sel, 'value', st.rules.loot[l.item] || 'keep');
       prop(sel, 'disabled', st.sc.pending || !st.rules);
-      for (const o of sel.options) { const why = planBlock(l.item, o.value, bids, inBag > 0); prop(o, 'disabled', !!why); attr(o, 'title', why || null); }
+      /* a Luck plan the server's luck section does not offer for this item (or any, while Luck is dark) is not in the list at all */
+      for (const o of sel.options) { const why = planBlock(l.item, o.value, bids, inBag > 0); const shown = planShown(st.cs, l.item, o.value); prop(o, 'hidden', !shown); prop(o, 'disabled', !!why || !shown); attr(o, 'title', why || null); }
       /* a stack that only pays coin (what Sell all junk sells): the row the coach's "Decide once" rings, never the
          Bones a skill trains on (played 2026-10-25: the first row, Bones, was ringed for "Sell at the shop") */
       attr(sel, 'data-coin', coin.has(l.item) ? '' : null);

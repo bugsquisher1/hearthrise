@@ -7,6 +7,7 @@
 // the new price before the next press). On ok the character is RE-READ: the new piece shows only from the server's envelope.
 //   hallmarkPiece(account, cs, from, to, price)  hr_hallmark
 //   reforgePiece(account, cs, from, to, price)   hr_jewel_reforge
+//   luckyRing(account, cs, from, price)          hr_lucky_ring (1007-luck.sql): a plain ring + its tier's Lucky Rivets + the fee -> Fine, Lucky
 // ════════════════════════════════════════════════════════════════════════
 import { askVia } from './intent-ledger.js?v=0.2.142';
 import { refusalOf } from './refusal.js?v=0.2.142';
@@ -40,4 +41,12 @@ export function hallmarkPiece(account, cs, from, to, price) {
 /** Reforge one Hallmarked piece into the next tier's `to` at the price (the fee difference) the server quoted. */
 export function reforgePiece(account, cs, from, to, price) {
   return step('jewel_reforge', account, cs, from, to, price, (args) => account.server.rpc('hr_jewel_reforge', args));
+}
+
+/** THE LUCKY JOB (src/data/luck.js; 1007-luck.sql hr_lucky_ring): make one plain ring `from` the Fine Lucky ring at the fee the server quoted (the
+    `luck` section's offer). It names no rivet count and no result: the server reads both from its catalogue under its locks. */
+export function luckyRing(account, cs, from, price) {
+  if (!account || !account.server || !cs) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  if (!ID.test(String(from)) || !Number.isSafeInteger(price) || price < 1) return Promise.resolve({ ok: false, error: 'bad_intent' });
+  return askVia(cs, 'lucky_ring', async () => settled(cs, await account.server.rpc('hr_lucky_ring', { p_slot: cs.slot, p_from: from, p_price: price, p_idem: newIdem() })));
 }

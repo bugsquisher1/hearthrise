@@ -190,7 +190,9 @@ async function coverArm(db, { H, M }, forged) {
    (memberPlant + plantLive, tests/alpha-server.mjs: the body MEMBER_LAST holds whole, whichever file that is); hr_hunt_member_read's
    too: 2027-04-23-training-gear.sql restates it whole and 2027-04-24-boss-call-series.sql splices it after (its CALL-SERIES line), so
    its last author is a patch and no file holds the body that runs (staleAnchors names the splice). */
-const LOOT = '2027-01-23-loot-dispatch.sql';
+/* LUCK (lane/d-luck-build, 2026-11-20): 1007-luck.sql restates hr_hunt_loot_rules whole after 2027-01-23-loot-dispatch.sql (its pickup filter verbatim, then the
+   found count), so the filter's plants go in the body that runs. */
+const LOOT = '1007-luck.sql';
 const MUTANTS = [
   { arm: 'H-ALL', why: 'the settle skips the loot filter',
     ...memberPlant("  v_loot := public.hr_hunt_loot_rules(p_user, p_slot, p_session, p_intent, p_delta->'items', v_to);", '  v_loot := null;') },

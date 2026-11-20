@@ -14,7 +14,8 @@ import { ITEMS } from '../../data/items.js?v=0.2.142';
 import { SKILLS_DEF } from '../../data/skills.js?v=0.2.142';
 import { JEWEL_PERKS, perkWords } from '../../data/jewelry.js?v=0.2.142';
 import { hallmarkOf, jewelLevelOf, heldForHallmark } from '../../session/jewelry-sections.js?v=0.2.142';
-import { hallmarkPiece, reforgePiece } from '../../session/hallmark-intents.js?v=0.2.142';
+import { hallmarkPiece, reforgePiece, luckyRing } from '../../session/hallmark-intents.js?v=0.2.142';
+import { luckOf } from '../../session/luck-sections.js?v=0.2.142';
 import { goldOf } from '../../session/item-sections.js?v=0.2.142';
 import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.142';
 import { gold, whole } from '../../render/format.js?v=0.2.142';
@@ -52,6 +53,17 @@ function reforgeBlockOf(cs, o, h, purse, lv) {
   return '';
 }
 
+/* THE LUCKY JOB (src/data/luck.js; 1007-luck.sql): its row's block, from the luck section's own numbers (the rivets held in the bag and Storage). */
+function luckyBlockOf(o, lk, purse, lv) {
+  if (lv !== null && lv < o.level) return levelShort(o, lv);
+  if (lk.lucky.today >= lk.lucky.perDay) return t('jewel.limit_lucky', { limit: whole(lk.lucky.perDay) });
+  const have = lk.rivets.bag + lk.rivets.storage;
+  if (have < o.rivets) return t('jewel.rivets_short', { need: whole(o.rivets), have: whole(have) });
+  if (purse !== null && purse < o.gold) return goldShort(o, purse);
+  return '';
+}
+const luckyPct = (o) => { const p = ITEMS[o.to] && ITEMS[o.to].jewelPerks; return p && p.lucky ? Math.round(p.lucky / 10) : 0; };
+
 /* "held 2, 1 in Storage" */
 function holdWords(cs, id) {
   const n = heldForHallmark(cs, id);
@@ -73,6 +85,9 @@ export function hallmarkPaneHtml() {
     + '<h3 class="hs-sub hw-reforge-head">' + t('jewel.reforge_head') + '</h3>'
     + '<p class="hs-note hw-reforge-how">' + t('jewel.reforge_how') + '</p>'
     + '<ul class="hw-ledger hw-reforge-rows"></ul>'
+    + '<h3 class="hs-sub hw-lucky-head">' + t('jewel.lucky_head') + '</h3>'
+    + '<p class="hs-note hw-lucky-how">' + t('jewel.lucky_how') + '</p>'
+    + '<ul class="hw-ledger hw-lucky-rows"></ul>'
     + '<div class="hw-confirm hw-hallmark-ask" role="alertdialog" aria-label="Confirm"><p class="hw-confirm-q"></p>'
     + '<p class="hw-confirm-note"></p>'
     + '<div class="hw-confirm-do"><button type="button" class="hw-primary" data-hs-act="hallmark-yes"></button>'
@@ -90,6 +105,9 @@ export function patchHallmarkPane(root, ctx, sc, skill) {
   const lv = jewelLevelOf(cs, skill);
   const offers = h ? h.offers.filter((o) => o.skill === skill) : [];
   const reforges = h ? h.reforges.filter((o) => o.skill === skill) : [];
+  /* the Lucky job's offers: only while the luck section is there (the switch on for the account) */
+  const lk = luckOf(cs);
+  const luckies = lk ? lk.lucky.offers.filter((o) => o.skill === skill) : [];
   rows(root.querySelector('.hw-hallmark-rows'), offers, {
     key: keyOf('h'),
     build: (o) => element(ctx.doc, '<li class="hw-line" data-key="' + keyOf('h')(o) + '"><span class="hw-line-name"><b></b><small class="hw-hallmark-what"></small>'
@@ -122,6 +140,23 @@ export function patchHallmarkPane(root, ctx, sc, skill) {
       prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);
     },
   });
+  rows(root.querySelector('.hw-lucky-rows'), luckies, {
+    key: keyOf('l'),
+    build: (o) => element(ctx.doc, '<li class="hw-line" data-key="' + keyOf('l')(o) + '"><span class="hw-line-name"><b></b><small class="hw-lucky-what"></small>'
+      + '<small class="hw-lucky-need"></small></span><button type="button" class="hh-tool" data-hs-act="hallmark-ask" data-key="' + keyOf('l')(o) + '"></button></li>'),
+    patch: (li, o) => {
+      const why = luckyBlockOf(o, lk, purse, lv);
+      text(li.querySelector('b'), t('jewel.lucky_name', { tier: o.tier }));
+      text(li.querySelector('.hw-lucky-what'), t('jewel.lucky_what', { rivets: whole(o.rivets), gold: gold(o.gold), pct: luckyPct(o) }));
+      text(li.querySelector('.hw-lucky-need'), why || t('jewel.lucky_uses', { ring: itemName(o.from), ringHeld: holdWords(cs, o.from),
+        rivetHeld: t('jewel.held_storage', { n: whole(lk.rivets.bag + lk.rivets.storage), storage: whole(lk.rivets.storage) }) }));
+      const btn = li.querySelector('button');
+      text(btn, t('jewel.lucky_go', { gold: gold(o.gold) }));
+      prop(btn, 'disabled', !!why || sc.pending || !!sc.hallmark);
+    },
+  });
+  prop(root.querySelector('.hw-lucky-head'), 'hidden', !luckies.length);
+  prop(root.querySelector('.hw-lucky-how'), 'hidden', !luckies.length);
   /* With nothing to Hallmark the section is one line (the rows below are the way to a Fine piece); the rest shows once there is a choice. */
   prop(root.querySelector('.hw-hallmark-how'), 'hidden', !offers.length);
   prop(root.querySelector('.hw-hallmark-day'), 'hidden', !offers.length && !reforges.length);
@@ -134,7 +169,8 @@ export function patchHallmarkPane(root, ctx, sc, skill) {
   /* The one confirmation: the row asked about, while it can still be taken. */
   const askedH = sc.hallmark ? offers.find((o) => keyOf('h')(o) === sc.hallmark) : null;
   const askedR = sc.hallmark ? reforges.find((o) => keyOf('r')(o) === sc.hallmark) : null;
-  const stale = askedH ? !!blockOf(cs, askedH, h, purse, lv) : askedR ? !!reforgeBlockOf(cs, askedR, h, purse, lv) : true;
+  const askedL = sc.hallmark ? luckies.find((o) => keyOf('l')(o) === sc.hallmark) : null;
+  const stale = askedH ? !!blockOf(cs, askedH, h, purse, lv) : askedR ? !!reforgeBlockOf(cs, askedR, h, purse, lv) : askedL ? !!luckyBlockOf(askedL, lk, purse, lv) : true;
   if (sc.hallmark && (stale || sc.pending)) sc.hallmark = null;
   const cf = root.querySelector('.hw-hallmark-ask');
   const yes = cf.querySelector('[data-hs-act="hallmark-yes"]');
@@ -149,6 +185,10 @@ export function patchHallmarkPane(root, ctx, sc, skill) {
       gem: itemName(askedR.gem), to: itemName(askedR.to) }));
     text(cf.querySelector('.hw-confirm-note'), t('jewel.reforge_note', { perks: keptWords(askedR) }));
     text(yes, t('jewel.reforge_go', { gold: gold(askedR.gold) }));
+  } else if (sc.hallmark && askedL) {
+    text(cf.querySelector('.hw-confirm-q'), t('jewel.lucky_ask', { ring: itemName(askedL.from), gold: gold(askedL.gold), rivets: whole(askedL.rivets), to: itemName(askedL.to) }));
+    text(cf.querySelector('.hw-confirm-note'), t('jewel.lucky_note', { pct: luckyPct(askedL) }));
+    text(yes, t('jewel.lucky_go', { gold: gold(askedL.gold) }));
   }
   prop(yes, 'disabled', sc.pending);
 }
@@ -171,8 +211,11 @@ export function actHallmarkPane(ctx, action, el, sc, repaint) {
     sc.hallmark = null;
     const o = h ? h.offers.find((x) => keyOf('h')(x) === asked) : null;
     const r = !o && h ? h.reforges.find((x) => keyOf('r')(x) === asked) : null;
+    const lk = !o && !r ? luckOf(cs) : null;
+    const l = lk ? lk.lucky.offers.find((x) => keyOf('l')(x) === asked) : null;
     if (o) runIntent(sc, repaint, () => hallmarkPiece(ctx.account, cs, o.from, o.to, o.gold), 'At the jeweler\'s bench…', () => 'Made ' + itemName(o.to), cs);
     else if (r) runIntent(sc, repaint, () => reforgePiece(ctx.account, cs, r.from, r.to, r.gold), 'At the jeweler\'s bench…', () => 'Made ' + itemName(r.to), cs);
+    else if (l) runIntent(sc, repaint, () => luckyRing(ctx.account, cs, l.from, l.gold), 'At the jeweler\'s bench…', () => 'Made ' + itemName(l.to), cs);
     else repaint();
     return true;
   }

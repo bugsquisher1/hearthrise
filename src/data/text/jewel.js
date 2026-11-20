@@ -38,4 +38,15 @@ export const JEWEL_TEXT = Object.freeze({
   reforge_ask: 'Reforge {from}?\nCost: {gold}, {bar} x{bars}, 1 {gem}\nResult: {to}, permanent',
   reforge_note: 'Perks kept: {perks}\nUses the piece, the bars and the gem\nResult: tradeable',
   hallmark_note: 'Uses the Fine piece and the gem\nResult: tradeable',
+  /* THE LUCKY JOB (src/data/luck.js; itemization plan §15 "On screen"): a plain ring + Lucky Rivets + the fee -> Fine, Lucky. */
+  lucky_head: 'Lucky ring',
+  lucky_how: 'Plain ring + Lucky Rivets: Fine with Lucky, no roll, no fail',
+  lucky_name: 'Lucky ring, tier {tier}',
+  lucky_what: '{rivets} Lucky Rivets, {gold}. Magic Find +{pct}%',
+  lucky_uses: 'Uses your {ring} ({ringHeld}) and the rivets ({rivetHeld}).',
+  rivets_short: 'Needs Lucky Rivets x{need}, have {have}',
+  limit_lucky: 'Daily limit: {limit} Lucky rings, resets at midnight UTC',
+  lucky_go: 'Make for {gold}',
+  lucky_ask: 'Make {ring} Lucky?\nCost: {gold}, Lucky Rivets x{rivets}\nResult: {to}, permanent',
+  lucky_note: 'Uses the ring and the rivets\nResult: tradeable. Magic Find +{pct}% for the hero who wears it',
 });

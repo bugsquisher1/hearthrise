@@ -4,8 +4,9 @@
 // compared cell for cell by what a player would feel:
 //   Normal deaths at or above a floor     any death the candidate has where today had none, per ground and party size
 //   a held harder tier paying under Normal any such cell new in the candidate
-//   a party seat against going alone      every party cell on Normal in range: the lowest seat's XP over the median lone hero,
-//                                         worse when it drops more than TOL and ends under 1 (a seat that now levels slower)
+//   a party seat against going alone      every party cell on Dangerous and Deadly in range (grade-sheet.mjs PARTY_TIERS, Tyler 2026-11-16:
+//                                         "normal isn't meant for parties anyway"): the lowest seat's XP over the same heroes alone on that
+//                                         tier, worse when it drops more than TOL and ends under 1 (a seat that now levels slower)
 //   the fresh hero (practice set)          dips under 25% HP and deaths at a first-day floor, worse when they rise
 // plus the sheet's binding fails per ground, before and after. Gold is never a gate (Tyler 2026-11-13, NO PROFIT MOLDS: the old "gold an
 // hour by floor" inversion is retired; grade.mjs prints each ground's gold side by side). EXIT 1 when anything a player would feel is worse, else 0.
@@ -13,23 +14,23 @@
 //   node tools/balance-sim/grade-compare.mjs --before DIR --after DIR [--root TREE] [--tol 0.02]
 import { readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
-import { feelVerdicts, fitsOf, metricsOf } from './grade.mjs';
+import { feelVerdicts, fitsOf, metricsOf, sameAloneXp } from './grade.mjs';
+import { PARTY_TIERS } from './grade-sheet.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
-const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const IN = ['floor', 'middle', 'plus10', 'top'];
 
-/** Seat ratios per party cell on Normal in range: key -> lowest seat XP / median lone XP. */
+/** Seat ratios per party cell on a party tier (PARTY_TIERS) in range: key -> lowest seat XP / the same heroes alone on that tier (grade.mjs sameAloneXp). */
 export function seatRatios(cells) {
   const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade && (c.cell.grade.gear || 'ladder') === 'ladder');
+  const every = rows.map((c) => ({ m: c.cell.grade, x: metricsOf(c) }));
   const out = {};
   for (const c of rows) {
     const m = c.cell.grade;
-    if (m.tier !== 'normal' || !IN.includes(m.offset) || m.size < 2) continue;
-    /* the same hero alone: a played party against the played twins (grade.mjs gradedProfile), a cell with no profile against the same */
-    const solo = median(rows.filter((o) => o.cell.grade.ground === m.ground && o.cell.grade.tier === 'normal' && o.cell.grade.offset === m.offset && o.cell.grade.size === 1
-      && (o.cell.grade.profile || null) === (m.profile || null)).map((o) => metricsOf(o).xp));
-    if (solo > 0) out[[m.ground, m.offset, m.comp].join(' / ')] = Math.min(...c.heroes.map((h) => h.levelXpPerH)) / solo;
+    if (!PARTY_TIERS.includes(m.tier) || !IN.includes(m.offset) || m.size < 2) continue;
+    /* the same heroes alone, in the party's own profile (a played party against the played heroes alone, the seat twins included) */
+    const alone = sameAloneXp(every, m);
+    if (alone > 0) out[[m.ground, m.tier, m.offset, m.comp].join(' / ')] = Math.min(...c.heroes.map((h) => h.levelXpPerH)) / alone;
   }
   return out;
 }

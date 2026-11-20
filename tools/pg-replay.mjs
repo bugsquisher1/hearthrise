@@ -86,9 +86,12 @@ export async function ensureServer() {
   }
   /* Debian's server keeps its socket in /var/run/postgresql, which only the postgres user may write: started as anyone else
      (a GitHub runner) it cannot take its lock file and exits. The scratch cluster is TCP-only by design; its socket lives
-     in its own data directory. Windows has no such default and is left as it was. */
+     in its own data directory. Windows has no such default and is left as it was.
+     pg_stat_statements is preloaded as production preloads it: tools/beta-load.mjs (smoke.yml pg17-load) reads and resets
+     it, and without the preload its first reset was a harness fault (release/v0.2.143, run 44811275378). */
   const opts = `-p ${PORT} -c listen_addresses=127.0.0.1 -c fsync=off -c synchronous_commit=off -c full_page_writes=off`
     + ' -c shared_buffers=256MB -c max_connections=30 -c max_locks_per_transaction=1024 -c track_functions=all'
+    + ' -c shared_preload_libraries=pg_stat_statements'
     + (process.platform === 'win32' ? '' : ` -c unix_socket_directories=${DATA}`);
   spawn(exe('pg_ctl'), ['-D', DATA, '-l', join(DATA, 'server.log'), '-o', opts, 'start'], { detached: true, stdio: 'ignore' }).unref();
   await ready();

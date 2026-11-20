@@ -4,6 +4,8 @@ Phase 3, the synthesis (2026-11-20). It reads the eight dives (`21` to `28`), th
 
 Labels, as in every program file: **REAL**, **MEASURED**, **CITED** (a dive's number, with its file), **RULED**, **COMPUTED** (arithmetic here on cited numbers, not played), **ASSUMED**, **PROPOSED**. Nothing in this file was measured by me. Where a total is COMPUTED the balance guard of section E is what measures it for real.
 
+**Re-issued 2026-11-20 after the rulings and the audit.** Tyler ruled all 63 open and amended calls at 18:11 to 18:25 UTC. `31-plan-audit.md` then read this plan cold (verdict: yes, with fixes). Section D is rewritten so no lane contradicts a ruling, every lane names its test, and nine new open calls (31-1 to 31-9) carry both branches. Sections B, C, E and F are corrected where a ruling or a measurement moved them. `30-decisions.json` holds 104 ruled rows and 9 open.
+
 ---
 
 ## A. One screen
@@ -14,7 +16,7 @@ You start alone. Your first hour is a Level every few minutes, and the end of ev
 
 You come back twice a day for a few minutes. One press, **Carry on**, sends every hero back to what it was doing. The card only stops you for things that need a decision: better gear, a new ground, a full bag.
 
-Your first big gold goal is a second hero (400,000 gold, about Level 33). A pair, then three, then your own four by about week 11. Friends skip that wait: four people are a party on day one, and their heroes can hunt with yours while they are offline.
+Your first big gold goal is a second hero (400,000 gold, about Level 33). A pair, then three, then your own four. That is about week 11 on today's gold and nearer week 16 to 20 once Deadly costs more (COMPUTED by the audit, decision 31-5). Friends skip that wait: four people are a party on day one, and their heroes can hunt with yours while they are offline.
 
 Deadly is a real fight. A party at the right Level holds it with a bigger food bill. A party ten Levels under dies. Gold has things to want at every Level: refills that cost more each time, linings, the House, Tempering, the Tower's chest pieces you carry up with keys.
 
@@ -47,11 +49,23 @@ Ranked by player value, the first hour and the first twenty hours first.
 
 Under all ten sits the server work of dive 28. A player never sees it. Without it the beta cannot pass about 250 accounts.
 
+### After the Krell hunt (added 2026-11-20, from `11-krell-hunt-2026-11-20.md`)
+
+The heaviest real player ran his four on Deadly at Krell's Hold for 9.7 hours (39 hero-hours, REAL, THIN: one person, one day) on the v0.2.142 rules. It moves sixteen decisions, each marked with an `update` line in `30-decisions.json`. No ruling changes. Five things change in this plan.
+
+1. **Krell's Hold pays about 12% too much Level XP.** The real four read 2.85 times the contract, 5 to 9 Levels under the ground, with no deaths. The pack gate's lone hero reads 1.13 on the same ground. So stack S1 has two grounds, not one: Krell's fit comes down about 12% in lane L16 beside Hask's Ford's. Change 7 is needed more than the dives said.
+2. **A four with a healer does not pay for danger at the store.** The healer heals for about 0.07 gold a point and store food costs 1.5. Harder tiers cost this four about 400 gold a head an hour, not the 25 to 33% bigger bill of 21-3. So L16 sizes the dials on the real kit (a healer, Lookouts hitting the back row), goes no lower than 1750, and the tally starts recording each hero's lowest health.
+3. **The gold check needs the real party.** The real four cleared 9,700 a hero-hour where the simulator's four lost 7,500, because it buys the dearest runes. Guard line G8 and decision 30-5 use a four that buys the cheaper runes, heals with its healer and makes a quarter of its supplies. The target is about 5,000 a hero-hour at Krell. Stack S3's "12k today" reads 9.7k.
+4. **Event days read higher than S2 said.** 3.46 under Level today, about 3.0 after Krell's cut. Bonus XP was 12% of that hunt's Level XP, so the 5% share line must be read for a player who hunts through a whole weekend.
+5. **The server work is more urgent.** The hunt was on screen for 87% of its hours (the plan assumed 48%) and wrote 426 journal rows a hero-hour (the plan said 216). L12 saves about five times on this player and L13 about 140 times. L11's Krell fixture is this party: eight kinds of supply, watched.
+
+Unchanged and supported: the drop table matched its listed chances exactly, which backs C5 (Very Rares on the party's clock past Krell). The tank kept 20,100 an hour and the healer 4,800 from the same kills, which backs shared supply cost (25-8).
+
 ### Before the beta, and before Early Access (decision 30-7)
 
 | Gate | What must be live | Why |
 |---|---|---|
-| **Before the beta opens** | Waves 1 and 2 of section D, and the balance guard of section E reading red | The first twenty hours, combat's two laws, the tiers and the cost changes. Everything later is priced on top of them |
+| **Before the beta opens** | Waves 1 and 2 of section D, the balance guard of section E reading red, and one blind play of a lone account from Level 10 to its second hero that does not read empty (audit M6) | The first twenty hours, combat's two laws, the tiers and the cost changes. Everything later is priced on top of them |
 | **Before the beta passes 250 accounts** | The 90 second flush and the hourly journal (lanes L12, L13) | 28-1, 28-2. Small holds about 260 mixed accounts today |
 | **During the beta** | Wave 3, one patch at a time, each judged by the guard and a blind play | The beta is wiped. This is where the long chase gets real players |
 | **Before Early Access** | Wave 4, the one full Security review, account deletion applied, the backups call, the full mutation sweep, the designer's full re-read | CLAUDE.md §3.7 |
@@ -127,8 +141,8 @@ The dives measured alone. Six stacks need a rule.
 | S1 | **Hask's Ford at Level 50.** The in-band four is 2.58 with the new tiers. Add the gear pool, a chest weapon and trained skills and it is 2.93 | Over the ruled 2.0 to 2.5 before an event | Hask's Ford's XP fit (1.02 to about 0.85) ships in the SAME lane as the tier dials, never later (L16). The cap is read two ways (decision 30-2): played kit at most 2.5, fully invested at most 2.75 |
 | S2 | **Event days.** +0.25 on a four at 2.3 or more reads 2.6 to 2.9 | Over the cap on purpose, three days a month | Hold it by how often, not by size: Level XP earned under an event stays under 5% of all Level XP (27's dashboard line). Never two events, never above +25% |
 | S3 | **Deadly's bill, plus linings, plus salvage.** The four's free gold about halves (12k to 5 or 6k a hero-hour). A four that buys every supply and salvages all its gear nets under zero | "Struggle or pay" working, and one step from "Deadly loses gold" | Decision 30-5. The guard holds a floor: an in-band four on Deadly that makes a third of its supplies and sells its gear never nets under zero. Re-run the gold model after wave 2 BEFORE the price index, Blessings and linings are priced |
-| S4 | **On-call heroes, plus the account-wide Premium bar.** A hero's idle stamina (4.7 of 8 hours a day) gets used in other people's hunts | The Own four goes from 3.3 to 8 hunted hours a day (12 on Premium) with no more attention. Every "weeks" number in the program shrinks by up to 3.6. This is the loop 27-1 turned down | Amend 25-1: an on-call hero hunts at most 2 hours a day by default and 4 at most. It is still the first thing that makes Premium's bar worth buying |
-| S5 | **The yard in every idle hour.** 14 idle hours at 30,000 is 420,000 skill XP a day against about 165,000 from hunting at Level 50 | A hero that trains every night runs ahead of the career line every monster is written against | The yard fee (C1) prices it, the flat rate caps it, and the guard plays a "trains every idle hour" hero as a reference build: red if it is over +5% XP or 15% less damage at any point. This is the career run owed since 11-14. Training items stay off sale until it passes |
+| S4 | **On-call heroes, plus the account-wide Premium bar (the amendment was taken).** A hero's idle stamina (4.7 of 8 hours a day) gets used in other people's hunts | The Own four goes from 3.3 to 8 hunted hours a day (12 on Premium) with no more attention. Every "weeks" number in the program shrinks by up to 3.6. This is the loop 27-1 turned down | Amend 25-1: an on-call hero hunts at most 2 hours a day by default and 4 at most. It is still the first thing that makes Premium's bar worth buying |
+| S5 | **The yard in every idle hour.** 14 idle hours at 30,000 is 420,000 skill XP a day against about 165,000 from hunting at Level 50 | A hero that trains every night runs ahead of the career line every monster is written against | The yard fee (C1) prices it and the flat rate caps it. Tyler rejected a simulated "trains every idle hour" hero as a condition for selling training items, so they go on sale when to-hit (L15) and the yard fee (L19) are live and nothing more. Whether the same reading is kept as a number we look at is decision 31-7. Today it reads 66% less damage at Krell (CITED, the guard's baseline), which is the thing to-hit fixes |
 | S6 | **Damage-side levers before to-hit.** Today +10 Defense, Tempering and accessories together cut more than their sum (65% measured against 53% added at Level 30) | The damage pool only adds once Defense stops being a clamp | Nothing that cuts damage ships before L15: linings, + skill on gear, training items, faction skills, the Tower's curve |
 
 Everything else holds. The gear pool adds inside +9% over the reference hero. The damage pool stays inside one armor step. Magic Find sits at a third of its 104 budget at Level 175. No lever is left outside a class once the cut list lands.
@@ -145,14 +159,14 @@ Everything else holds. The gear pool adds inside +9% over the reference hero. Th
 | C2 | **The Tower curve (22-1) against to-hit (21-1, 21-2).** "Two Levels a floor" was measured on today's engine, whose heat patch was hiding the to-hit collapse | The row is measured on the ratio engine and not before. Order: L15 (to-hit), then L18 (the curve, heat out, the kill share re-fit of 22-7). Target unchanged: a set-up four tops out between its Level and its Level + 25 | 22-1 already says "sized after the combat dive". This only makes it a build dependency | No |
 | C3 | **Blessings.** 21-8 says three lone hours of net gold for the set. 24 says two. Both against a death worth 7 to 27 hours | **Two lone hours for the set from Level 30, split 0.4, 0.6 and 1.0. Free under 30. "Keep me blessed" is a remembered choice.** Priced AFTER the tiers and the income re-fit | The slot ruling keeps a new player alone to about Level 33, and alone is where heroes die (6.7 in 100 hours, REAL). Three hours there is a fifth of a lone hero's income. Two is still ten times today | No (21 is open) |
 | C4 | **The pace.** 21-4 counts the program in the four's hours (Level 50 at 76). The slot ruling (24 Q9) makes the real player one hero to 33, a pair to about 41, three to about 51. 27-2 says Levels 5 to 10 are too slow for that lone hero | **The pace of record follows the slot ladder** (decision 30-1): the lone table to the first slot, then the pair, the three, the four. Level 50 at about 140 hunted hours, not 76 or 168. The multiply cap is 2.5 as 21-4 says. 27-2's re-cut stands and is the first build | A plan counted in a four's hours from Level 10 describes a player the slot ruling removed. The lone seat now carries Levels 1 to 33 for everyone, so its pace, deaths and chase get first call | No. 24-9 stands. 21-4 is refined |
-| C5 | **Very Rares.** Luck v3.1 (approved) says a Very Rare every 60 to 90 hours. 23-3 says size that on the own four's clock, which is four times rarer a hero | **Through Krell, 60 to 90 hours a hero as approved. From the Morrow Hills on, 60 to 90 hours of an own four on the ground's hardest tier** (decision 30-3) | It is Tyler's own line: generous to Krell, rare after. To Krell an own four finds about one a band, which is the hook. Past Krell a find is two to four weeks, which is a chase and holds a price at month six | Yes. **Amends Luck v3.1** by saying whose hours, by region |
-| C6 | **Food XP (23-6) against feasts (25-2).** 23 cuts XP buffs from food and turns feasts into four party meals. 25 turns the clan feast into bound rations | Both. No food, feast or clan gives Level XP. The four party meals are the kitchen's top recipes and give the combat effects food already gives. A clan ration is one of those meals, bound, capped a week. Rations cannot be carried into the Catacombs (decision 30-8) | It closes the last XP levers that sat in no class. One recipe family feeds parties and clans, so cooking gets two consumers from one build | No. 25-2 stands |
+| C5 | **Very Rares.** Luck v3.1 (approved) says a Very Rare every 60 to 90 hours. 23-3 says size that on the own four's clock, which is four times rarer a hero | **Through Krell, 60 to 90 hours a hero as approved. From the Morrow Hills on, 60 to 90 hours of an own four on the ground's hardest tier** (decision 30-3) | It is Tyler's own line: generous to Krell, rare after. To Krell an own four finds one about every 8 to 11 hours of hunting (the Krell hunt), which is 2 to 3 a band and about 40 by Krell. That is the hook, and it is inside "generous to Krell". Their price is checked once a market is open. Past Krell a find is two to four weeks, which is a chase and holds a price at month six | Yes. **Amends Luck v3.1** by saying whose hours, by region |
+| C6 | **Food XP (23-6) against feasts (25-2).** 23 cuts XP buffs from food and turns feasts into four party meals. 25 turns the clan feast into bound rations | Both. No food, feast or clan gives Level XP. The four party meals are the kitchen's top recipes and give the combat effects food already gives. A clan ration is one of those meals, bound, capped a week. Tyler ruled that rations MAY be carried into the Catacombs, capped by the week (30-8). The designer sets the cap in L48 | It closes the last XP levers that sat in no class. One recipe family feeds parties and clans, so cooking gets two consumers from one build | No. 25-2 stands |
 | C7 | **The Bestiary first (27-3) against the Luck build order.** The stages pay onto a Luck bar that is not built | **Luck ships in three steps** (decision 30-4): (1) the account bar, the drop roll that reads it, the Bestiary stages and the page. (2) Salvage and the loot plan's Salvage choice. (3) The Lucky ring and the rarer Rares, with the Morrow Hills | Step 1 is the first-week reward clock and needs no new economy. Salvage needs loot by kind. The ring needs tier 4 jewelry | No |
 | C8 | **The Tower on a standing order (22-6) against "no hunt starts by itself" (27-1).** | The climb is a line inside Carry on. One press queues it for heroes with opens left and keys held. It runs once after the hunt and never starts another hunt. A plan may chain one follow-up and never loops | Keeps the stamina bar as the reason to come back, and keeps one place where the account's standing choices live | Yes. **Amends 22-6** (wording: inside Carry on, one chain, no loop) |
-| C9 | **Premium's daily gift (24-4) against training items held (26-10).** 24-4 makes the gift a 1 hour training item. 26-10 keeps training items off the Crowns store until the fee and to-hit land | The gift's training item waits for the same gate as 26-10. Until then the gift is the day's free color change | It is the same thing by another door: skill XP for money with no player in between | Yes. **Amends 24-4** and adds a third condition to **26-10** (the "trains every idle hour" run passes) |
+| C9 | **Premium's daily gift (24-4) against training items held (26-10).** 24-4 makes the gift a 1 hour training item. 26-10 keeps training items off the Crowns store until the fee and to-hit land | **Declined by Tyler.** Premium keeps the daily 1 hour training item. So L27 waits for to-hit and the yard fee, which keeps 26-10 true. The third condition on 26-10 was rejected | It is the same thing by another door: skill XP for money with no player in between | Yes. The amendment to 24-4 and the third condition on 26-10 were both declined |
 | C10 | **The sink build order (24-12)** puts linings before the yard fee | The yard fee ships first (wave 2), linings after the spell rule (wave 3) | Linings cut elemental damage, so they need both combat laws settled. The yard needs only to-hit | Yes. **Amends 24-12** (order only) |
-| C11 | **The castle's goods (25-4 "about 15M of goods" against 23-8 "3.1M at recipe value").** | The board shows recipe value (3.1M of goods, 8.7M gold). The pace is the work order a week a slot, as approved. Slime Gel leaves the Timber Beam and the Keystone is made from things that exist | 15M was Shop book for goods whose bid was the fault. Time was always the real price | Yes. **Amends 25-4** (the goods number) |
-| C12 | **On-call heroes (25-1)** against the time budget | See S4. 2 hours a day by default, 4 at most | | Yes. **Amends 25-1** |
+| C11 | **The castle's goods (25-4 "about 15M of goods" against 23-8 "3.1M at recipe value").** | **Declined by Tyler on 25-4**, and approved on 23-8, so the two rulings disagree. Decision 31-3 asks which. Recommended: the built prices stay and only the two goods that cannot be made are fixed | 15M was Shop book for goods whose bid was the fault. Time was always the real price | Yes. The amendment to 25-4 was declined. See 31-3 |
+| C12 | **On-call heroes (25-1)** against the time budget | See S4. 2 hours a day by default, 4 at most. Taken by Tyler | | Yes. **Amends 25-1** |
 | C13 | **Bones (21-9), the loot plan (23-1), the Shrine (26-8) and the chest's Cinders (22).** | "Burn" is a fifth choice on the loot plan, for bones and Cinders only. The Shrine stays cut. No bench hours | One rule surface. 3,600 Cinders a week must be checked against the Inner Flame line in L21 | No |
 | C14 | **Drop levers.** Luck is "the only drop lever" (23) while `loot-bands.js` gives a relic a 1.25 Bestiary boost and Beast of the day multiplies drops | Both are cut with the charm ladder (decision 30-9) | One Magic Find budget means one | No |
 | C15 | **Tempering pays the difference (23-2) against the shelf (24).** The largest sink halves on paper (2.63M to 1.24M a track) | Recommended as 23 says. The price index of 24-11 is summed AFTER it | One real buyer today. A sink nobody buys takes no gold | No (overturns Tyler's 11-18 "Sure", so it is his) |
@@ -163,128 +177,164 @@ Everything else holds. The gear pool adds inside +9% over the reference hero. Th
 
 ## D. The build plan
 
-Lane types are CLAUDE.md §3.3: **A** bug or text, **B** feature, **C** database or economy. Size S, M, L. "Sec" marks a surface for the one pre-Early-Access Security list. The team runs 3 to 4 lanes at a time, so each wave is cut into sets. Lanes marked (ruled) can start now. The rest start when Tyler rules the call named.
+Re-issued 2026-11-20 after Tyler ruled every call (18:11 to 18:25 UTC) and after the cold audit (`31-plan-audit.md`). No lane below waits on a ruling of the first 104. Nine new calls (31-1 to 31-9) are open, and where a lane depends on one both branches are written.
+
+Lane types are CLAUDE.md §3.3: **A** bug or text, **B** feature, **C** database or economy, **D** design only. Size S, M, L. "Sec" marks a surface for the one pre-Early-Access Security list. The team runs 3 to 4 lanes at a time, so each wave is cut into sets.
+
+**The Test column.** Every lane names the test that ships in its commit (CLAUDE.md §4). **BOTH PATHS** means two tests: one with the hunt viewed and one with the browser closed. A test goes in the owning module's test file under `tests/`. Guard lines (G1 to G24, K1) are section E.
 
 ### Wave 0: land what is built
 
-| Lane | What | Calls | Type | Files, tables | Depends on | Size | Server cost | Sec |
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
 |---|---|---|---|---|---|---|---|---|
-| L01 | Land `lane/c-server-cost`: the 60 s poll gone, one read a settle, tick packing, the 5 minute prune, three dead tables closed, levers wait out the seed horizon | 28 change 1 | C | 4 staged migrations, the edge | none (built) | built | a real account 177 to 145 DB-seconds a day | y |
-| L02 | The Trophy room off sale (ruled). A player is paying for a wall that hangs nothing | 26-6 | A | `src/data/homestead-tiers.js` (`HELD_HOME_OFFERS`) | none | S | none | n |
+| L01 | Land `lane/c-server-cost`: the 60 s poll gone, one read a settle, tick packing, the 5 minute prune, three dead tables closed, levers wait out the seed horizon (4 staged migrations, the edge) | 28 change 1 | C | none (built) | built | a real account 177 to 145 DB-seconds a day | y | the lane's own, plus `tests/per-player-cost.mjs` re-pinned |
+| L02 | The Trophy room off sale (`src/data/homestead-tiers.js`, `HELD_HOME_OFFERS`) | 26-6 | A | none | S | none | n | the room's rungs are not offered and cannot be bought by a forged intent |
 
 ### Wave 1: the first hour, and the long poles
 
 **Set 1a (rides v0.2.144).**
 
-| Lane | What | Calls | Type | Files, tables | Depends on | Size | Server cost | Sec |
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
 |---|---|---|---|---|---|---|---|---|
-| L03 | The end card: "Sell junk for N gp", "always sell these", "Next buy" walking the whole shelf, one line on Blessings | 24-12 (ruled), R6, R7, 23-1 step 1 | B | `src/data/loot-sale.js`, the summary in `src/shell/`, the existing sell-many RPC and loot rules | none | S to M | one journal row a sale | n |
-| L04 | First-hour text and cards: the rune card never names a locked spell, "Got it" means later, Chronicle pages open on a visit, the Town menu shows what you can use, the sixth style on creation, the Deadly warning names your own loss, the Party window tells the truth and names the Sewer, the bench fee before the press | R4, R5, R12, R13, R14, 25 change 2 | A | `src/data/hunt-tutorial.js`, `party-words.js`, `chronicle.js`, `how-to-play.js` | none | S | none | n |
-| L05 | Levels 7 to 9 re-cut. Levels 10 to 15 take the XP back. A guard line on the start-kit hero | 27-2 | C | `src/data/core-model.js`, its catalogue, `tools/balance-sim/life.mjs` | Tyler: 27-2 | S | none | y |
-| L06 | The approved rows in one lane: refill steps, hero slots 400k / 1.5M / 4M with the first-slot guard, Call out without gold, the market goal sized to the server, Shrine rungs cut, the bag ladder stops at 10, the deed prices | 24-1, 24-9, 22-8, 24-7, 26-8, 26-9, 26-3 (all ruled) | C | `src/data/stamina-refill.js`, `shops.js`, `slot-ladders.js`, `boss-calls.js`, `town-works.js`, `homestead-tiers.js` | none | S | none | y |
+| L03 | The end card: "Sell junk for N gp", "always sell these", "Next buy" walking the whole shelf, one line on Blessings (`src/data/loot-sale.js`, the summary in `src/shell/`) | 24-12, R6, R7, 23-1 step 1 | B | none | S to M | one journal row a sale | n | a new hero's first hunt: one press sells the junk, the rule is saved, the next hunt sells with no press. "Next buy" never names something already owned |
+| L04 | First-hour text and cards: the rune card never names a locked spell, "Got it" means later, Chronicle pages open on a visit, the Town menu shows what you can use, the sixth style, the Deadly warning names your own loss, the Party window names the Sewer, the bench fee before the press (`hunt-tutorial.js`, `party-words.js`, `chronicle.js`, `how-to-play.js`) | R4, R5, R12, R13, R14, 25 change 2 | A | none | S | none | n | each coach card names only a spell, ground or menu line this hero can use. A reader pass on every changed line |
+| L05 | Levels 7 to 9 re-cut, Levels 10 to 15 take the XP back (`src/data/core-model.js`, its catalogue). **Three steps first (audit B2):** one blind play to Level 10 with the clock read from the server. `tools/balance-sim/life.mjs --policy idle` made to follow what the screen advises until it matches that play within 15%. G6 reads RED on today's curve. Only then is the re-cut sized | 27-2 | C | L14 | S | none | y | G6 red before, green after. A fresh account reaches Level 10 inside 6 hours on the local world |
+| L06 | The ruled rows: refill steps, hero slots 400k / 1.5M / 4M, Call out without gold, the market goal sized to the server, Shrine rungs cut, the bag ladder stops at 10, the deed prices. Open Halls is cut or re-purposed, because it only waived the fee that is going (`stamina-refill.js`, `shops.js`, `slot-ladders.js`, `boss-calls.js`, `town-works.js`, `homestead-tiers.js`, `live-events.js`) | 24-1, 24-9, 22-8, 24-7, 26-8, 26-9, 26-3 | C | none | S | none | y | **BOTH PATHS** for a refill bought mid-hunt at the new step. Each price is the server's. G9 and G22 |
+
+Two branches hang off L06:
+- **31-6 (the first slot).** Recommended: keep 400,000 and G9 reads the bank from a played life. Alternative: the row ships at 370,000. Either way G9 must be green the day L06 lands.
+- **31-5 (weeks to four heroes).** L06 ships 1.5M and 4M now. G20 is read after L22. Recommended: the designer then re-sets slots 3 and 4 to land the fourth hero in week 14 to 16. Alternative: the prices stay and the week is whatever G20 reads (about 16 to 20, COMPUTED by the audit).
 
 **Set 1b.**
 
-| Lane | What | Calls | Type | Files, tables | Depends on | Size | Server cost | Sec |
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
 |---|---|---|---|---|---|---|---|---|
-| L07 | Carry on for the account. The away card lists what is waiting. "Hunt again, all four". Own heroes end together only if you say so. Own stock from Storage before the store | 27-1, R1, 21 change 9 | C + B | `src/data/hunt-after.js`, one intent over the existing restart, the away card | Tyler: 27-1 | M | lower: one intent replaces 8 to 40 presses | y |
-| L08 | Every job takes a count and a "then". The Level 7 cards wait for the first stamina end | R3 | C + A | `src/data/gathering.js`, `hunt-after.js`, `hunt-tutorial.js` | none | M | none | n |
-| L09 | "Tend the field": harvest, replant and water in one press after showing the seed bill. Every seed says what its crop makes | 26-4 (ruled) | C | one RPC over `hr_farm_harvest` | none | S | lower | y |
-| L10 | The approved cuts: the old dungeons whole, the gem rows, the gem RPC, the bond item | 22-10, 24-5 first half (ruled) | C | `tools/chain-retire.mjs`, `src/data/boss-forge.js` | none | M | a smaller replay and edge bundle | y |
+| L07 | Carry on for the account. The away card lists what is waiting. "Hunt again, all four". Own heroes end together only if you say so. Own stock from Storage before the store (`src/data/hunt-after.js`, one intent over the existing restart) | 27-1, R1, 21 change 9 | C + B | none | M | lower: one intent replaces 8 to 40 presses | y | **BOTH PATHS.** Four heroes with four different last plans all resume from one press. A hero whose plan is no longer legal is listed, not started. No hunt starts with no press |
+| L08 | Every job takes a count and a "then". The Level 7 cards wait for the first stamina end (`gathering.js`, `hunt-after.js`, `hunt-tutorial.js`) | R3 | C + A | none | M | none | n | **BOTH PATHS.** A job of 20 stops at 20 and does its "then" with the browser closed |
+| L09 | "Tend the field": harvest, replant and water in one press after the seed bill. Every seed says what its crop makes (one RPC over `hr_farm_harvest`) | 26-4 | C | none | S | lower | y | 12 beds in mixed states are tended in one call. The seed bill charged is the bill shown. A purse that cannot pay changes nothing |
+| L10 | The cuts: the old dungeons whole, the gem rows, the gem RPC, the bond item, and the Discord gift code (it pays gems, so it goes with them) (`tools/chain-retire.mjs`, `src/data/boss-forge.js`) | 22-10, 24-5 first half, 27-7 | C | none | M | a smaller replay and edge bundle | y | `tests/schema-drift.mjs` replays with a byte-identical second apply. No granted RPC is left without a caller |
 
 **Set 1c (the long poles, started now).**
 
-| Lane | What | Calls | Type | Files, tables | Depends on | Size | Server cost | Sec |
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
 |---|---|---|---|---|---|---|---|---|
-| L11 | The nightly real-concurrency gate, and cost fixtures: a town hour, a Krell four on Deadly, a Tower climb, a supply-heavy four | 28-10, 28 step 10 | test | `tests/per-player-cost.mjs`, its baseline | L01 | S | none (it is how cost is seen) | n |
-| L12 | Confirm in the edge, commit at the 90 s flush | 28-1 | C + edge | the edge settle, the caller of `hr_hunt_apply_instance` | L01, L11, Tyler: 28-1 | L | a real account x2 down, the worst hour x5 | y |
-| L13 | The hourly journal: one row a hero an hour an activity | 28-2 | C | `player_ledger`, `player_ledger_rollup` | L01, Tyler: 28-2 | L | journal rows x60 down | y |
-| L14 | The balance guard, in report mode first | 30-6, section E | test | `tests/balance-guard.mjs`, section E | none | M | none | n |
-| L15 | **Engine batch 1: to-hit as a ratio.** Monsters written against the measured career hero. `def.past` and `ACC_DEF_MUL` go. The held Defense rework is dropped | 21-1, 21-2, A-1, A-8 | C + edge | `src/core/combat-sim.js`, `src/data/monsters.js`, `balance-sheet.js`, the catalogue, `tools/balance-sim/staged/tohit-ratio.mjs` | L11, L14, Tyler: 21-1, 21-2 | M | states its engine time at Krell | y |
+| L11 | The nightly real-concurrency gate and cost fixtures: a town hour, a Tower climb, and the real Krell party (eight kinds of supply, watched). Its 1,000-account run also reads tick shards, bodies packed by engine time, the leaderboard rebuild, the Town Works row and the market expire | 28-10, 28 step 10 | test | L01 | S | none | n | G16 and G17. The Krell fixture reads within 15% of the real hunt's 426 journal rows a hero-hour |
+| L12 | Confirm in the edge, commit at the 90 s flush. **Its failure case, written down (audit M11):** (1) every money or supply intent (a store buy, a carry-in, a refill, a market listing, a Blessing, a party member's own settle) forces a flush first. (2) Nothing a purchase, a gate or another player reads may come from uncommitted state. (3) Deaths, Levels, Leave, the hunt's end and rare drops commit at once | 28-1 | C + edge | L01, L11 | L | a real account x2 down, the heavy player x5 | y | **BOTH PATHS.** An isolate-kill test: the edge is killed between flushes and the re-settle reproduces the same frames, viewed and closed. A buy inside the window spends only committed gold |
+| L13 | The hourly journal: one row a hero an hour an activity. It starts from the parked `lane/c-ledger-fold` or retires it (`player_ledger`, `player_ledger_rollup`) | 28-2 | C | L01 | L | journal rows 60 to 140 times down | y | every day cap and audit sum reads the same before and after on a replayed day. G16 |
+| L14 | The balance guard. It is built (`lane/c-balance-guard`, 18 lines plus K1, D1, D2, 146 s). Follow-up: lines G19 to G24, G9 on a played life, and the harness four made to play like the real one (cheap runes, the healer's heals, a quarter of supplies home-made) until K1 is in band | 30-6, section E | test | none | M | none | n | `--mutate`: each planted change turns its own line red and no other |
+| L15 | **Engine batch 1: to-hit as a ratio.** Monsters written against the measured career hero. `def.past` and `ACC_DEF_MUL` go. The held Defense rework is dropped. The audit sizes this an L: every monster re-authored and every ground re-graded once (`src/core/combat-sim.js`, `src/data/monsters.js`, `balance-sheet.js`, `tools/balance-sim/staged/tohit-ratio.mjs`) | 21-1, 21-2, A-1, A-8 | C + edge | L11, L14, L12 (order below) | L | states its engine time at Krell | y | **BOTH PATHS.** The combat replay passes. +10 Defense reads 14% less damage at Level 10 and 3% at 105. G10 damage side |
+
+**L12 against the engine batches.** L12 rewrites the settle path while L15 and L17 rewrite combat, and each engine batch needs a still settle path under its parity proof. So L12 lands and bakes one nightly BEFORE L15 merges. If L12 is more than a week behind a ready L15, L12 moves to after L17. It never lands between the two.
 
 ### Wave 2: the laws, the tiers, the second clock
 
+**The order of the two combat changes is decision 31-9.**
+- **Recommended, and the order of the tables below:** L15, then L57 (the spell audit), then L17 (the spell rule), then L16 and L18 (the tiers and the Tower curve), then L22 and L23. It costs the tiers about a week and each dial is sized once.
+- **Alternative:** L16 and L18 follow L15 at once. L17 then re-runs L16's 4 seed x 8 hour sample, re-writes G3, G5 and G8, and re-sizes the dials if they are out of band. L22 and L23 still wait for L17.
+
 **Set 2a.**
 
-| Lane | What | Calls | Type | Files, tables | Depends on | Size | Server cost | Sec |
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
 |---|---|---|---|---|---|---|---|---|
-| L16 | The tiers bite: Deadly 1750, Dangerous 1400, three sheet lines, **Hask's Ford's fit in the same lane**, the gold fit folded into the formula, the grader's party lines moved to the harder tiers, the cap at 2.5. A 4 seed x 8 hour sample first | 21-3, 21-4, 21 change 8, A-2, 30-1, 30-2 | C | `src/data/hunt-tiers.js`, `balance-sheet.js`, `tools/balance-sim/grade-sheet.mjs` | L15 | S | none | y |
-| L17 | **Engine batch 2: every cast is a share of the caster's own blow.** The bar budget. Two axes drop a row | 21-5, 21-6 | C + edge | `src/core/combat-sim.js`, `src/data/abilities.js`, `runes.js`, `tools/balance-sim/staged/spell-ratios.mjs` | L15 (spaced by the parity rule) | M | states its engine time | y |
-| L18 | The Tower's curve: one row, the heat out, the kill share re-fit on the played hero, a hero opens only keys from a landing it reached | 22-1, 22-5, 22-7 (ruled) | C + edge | `src/data/tower.js`, `chests.js`, `tools/balance-program/endgame.mjs` | L15 | M | Tower fixture from L11 | y |
-| L19 | The yard: 100 gold x skill level an hour, paid in closed form, the screen says what the hours buy | 26-5, 24-8 amended, 21-7, 28-11, A-5 | C | `src/data/training.js`, the training session functions | L15 (re-measure) | M | a trained hour stops costing a hunt | y |
+| L57 | **The spell audit (new).** The designer reads every current spell against the direction of the game and rules keep, change or cut for each. It sets the Storm and Bone unlock levels. It must land before L17, which rewrites every cast | 23-9 | D | none | M | none | n | a walk-through table: every spell row in `src/data/abilities.js` and `runes.js` has a verdict, grepped, none named from memory |
+| L19 | The yard: 100 gold x skill level an hour, paid in closed form, the screen says what the hours buy (`src/data/training.js`) | 26-5, 24-8, 21-7, 28-11, A-5 | C | L15 | M | a trained hour stops costing a hunt | y | **BOTH PATHS.** Start, each paid hour and stop charge the right gold with the browser closed. A purse that runs dry stops the session. G12. G11 as a report line only |
+| L20 | Luck step 1: the account bar, the drop roll that reads it, the Bestiary stages and the page in the Book. Charms, trophy multipliers, the claim and the relic boost are cut. Counters flush at hunt end (`bestiary.js`, `bestiary-charms.js`, `loot-bands.js`, `lane/d-luck-v3`) | 27-3, 30-4, 30-9, A-9 | C + B | none | M | no write a kill | y | a stage reached with the browser closed pays its Luck once. The drop roll reads the bar. G13 |
+| L21 | The loot plan by kind, for the account, run on return. "Burn" for bones and Cinders. A kind rule never sells a Rare or better unless the player ticks it. Shop buyback rides this lane | 23-1, 21-9 | C + B | L03, L07 | M | one row a batch | y | **BOTH PATHS.** A hero that returns with the browser closed has its loot handled by the plan. A Rare is kept by default. One sale can be bought back |
+| L56 | **Sketch regions 4 to 7 (new).** Four region sketches, each with its key row, its weapon-line growth and its unique count | A-10 | D | none | M | none | n | each sketch's Level band, hours and key row add up against the pace of record |
 
 **Set 2b.**
 
-| Lane | What | Calls | Type | Files, tables | Depends on | Size | Server cost | Sec |
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
 |---|---|---|---|---|---|---|---|---|
-| L20 | Luck step 1: the account bar, the drop roll that reads it, the Bestiary stages and the page in the Book. Charms, trophy multipliers, the claim and the relic boost are cut. Counters flush at hunt end | 27-3, 30-4, 30-9, A-9 | C + B | `src/data/bestiary.js`, `bestiary-charms.js`, `loot-bands.js`, `tools/balance-sim/staged/luck.js`, `lane/d-luck-v3` | Tyler: 27-3 | M | no write a kill | y |
-| L21 | The loot plan by kind, for the account, run on return. "Burn" for bones and Cinders | 23-1, 21-9 | C + B | the loot rule table, `src/data/loot-sale.js`, `hearth.js` | L03, L07, Tyler: 23-1 | M | one row a batch | y |
-| L22 | Income: gold a hit point rises from Level 88, one formula line, gear's Shop price from one rule | 24-2 (ruled), 23-10 | C | `src/data/balance-sheet.js`, `loot-sale.js`, `tools/balance-program/gold-model.mjs` | L15, L16 | S | none | y |
-| L23 | Blessings: two lone hours for the set, split, "keep me blessed" | 21-8 | C | `src/data/blessings.js` | L16, L22 | S | none | y |
+| L17 | **Engine batch 2: every cast is a share of the caster's own blow.** The bar budget. Two axes drop a row (`src/core/combat-sim.js`, `abilities.js`, `runes.js`, `tools/balance-sim/staged/spell-ratios.mjs`) | 21-5, 21-6 | C + edge | L15, L57 | M | states its engine time | y | **BOTH PATHS.** The combat replay passes. Power Strike beats a plain swing at Levels 10, 60 and 110. G2 and G23 |
+| L24 | Delta envelopes and frames (`hr_state_of`, `src/session/envelope.js`) | 28 change 4 | C | L12 | L | watched reads about x4 down | y | a poll that changed nothing returns only a version. A reload always shows the server's state |
+| L25 | One heartbeat: town presence by push and nothing when alone, friends, market and online as versions, boards refreshed on read. Global chat rides it (branch below) (`town-presence.js`, `hr_town_view`, `hr_social_poll`, `hr_market_mine`) | 28-7, 28 change 5 | C | L01 | M | 12% of today's database time | n | a player alone in town sends no presence calls. A friend coming online shows within one heartbeat |
+| L27 | Premium for the account, with its list. **It keeps the daily 1 hour training item, as ruled.** So it waits for to-hit and the yard fee, the same gate as training items (`src/data/premium.js`) | 24-3, 24-4 | C | L15, L19 | M | none | y | the gift is one a hero a day by the server's clock and cannot be claimed twice by a reload |
 
 **Set 2c.**
 
-| Lane | What | Calls | Type | Files, tables | Depends on | Size | Server cost | Sec |
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
 |---|---|---|---|---|---|---|---|---|
-| L24 | Delta envelopes and frames | 28 change 4 | C | `hr_state_of`, `src/session/envelope.js` | L12 | L | watched reads about x4 down | y |
-| L25 | One heartbeat: town presence by push and nothing when alone, friends, market and online as versions, boards refreshed on read | 28-7, 28 change 5 | C | `src/data/town-presence.js`, `hr_town_view`, `hr_social_poll`, `hr_market_mine` | L01 | M | 12% of today's database time | n |
-| L26 | Six boards that open on "this week". The reveal for Trophy and Very Rare only, waiting on the away card. The world XP weekend monthly, a party ground's weekend between | 27-4, 27-5, 27-6 | B + C | `src/data/honor-roll.js`, `live-events.js` | L25, Tyler: 27-4 to 27-6 | M | a weekly snapshot | n |
-| L27 | Premium for the account, with its list. The daily gift's training item held | 24-3 (ruled), 24-4 amended | C | `src/data/premium.js` | none | M | none | y |
-| L28 | The zero rule in three classes, the daily ten, dashboards on roll-ups | 27-8, R16, 28 | tools | `tools/vitals.mjs` | L13 | S | 7.5% of database time | n |
+| L16 | The tiers bite: Deadly 1750, Dangerous 1400, sized on the real kit. **The XP fits of Hask's Ford and Krell's Hold in the same lane.** The gold fit folded into the formula, the grader's party lines moved to the harder tiers, the cap at 2.5. The tally records each hero's lowest health. The sample is 4 seeds x 8 hours and includes the pair and the three. **K1 gates:** no line turns red here while the harness reads outside 0.9 to 1.1 of the real four on XP (`hunt-tiers.js`, `balance-sheet.js`, `tools/balance-sim/grade-sheet.mjs`) | 21-3, 21-4, 21 change 8, A-2, 30-1, 30-2, 30-5 | C | L17 (or L15 on the alternative), L14 | S | none | y | **BOTH PATHS.** A death on Deadly ends the hunt and costs the same viewed and closed. G3, G4, G5, G8, G19 |
+| L18 | The Tower's curve: one row, the heat out, the kill share re-fit on the played hero, a hero opens only keys from a landing it reached. First a bug fix: the real climb that ended with six `value_over` refusals is explained (`tower.js`, `chests.js`, `tools/balance-program/endgame.mjs`) | 22-1, 22-5, 22-7 | C + edge | L17 (or L15 on the alternative) | M | Tower fixture from L11 | y | **BOTH PATHS.** A climb finishes and pays its keys with the browser closed. G21 |
+| L26 | Six boards that open on "this week". The world XP weekend monthly, a party ground's weekend between. **The reveal stays on every Rare, as ruled.** On the away card the waiting reveals play as one roll-through, best first, so twenty Rares are one press and not twenty (`honor-roll.js`, `live-events.js`) | 27-4, 27-5, 27-6 | B + C | L25 | M | a weekly snapshot | n | 20 Rares found while away show as one roll-through. Two XP events can never be active at once |
+| L28 | The daily ten and dashboards on roll-ups. Prunes for `cron.job_run_details`, the run boards and `chest_opens`. **The zero rule is deferred, as ruled** (`tools/vitals.mjs`) | R16, 28 | tools | L13 | S | 7.5% of database time | n | no dashboard query scans the journal. `vitals.mjs --help` prints usage and reads nothing |
+
+**Set 2d.**
+
+| Lane | What | Calls | Type | Depends on | Size | Server cost | Sec | Test |
+|---|---|---|---|---|---|---|---|---|
+| L22 | Income: gold a hit point rises from Level 88, one formula line, gear's Shop price from one rule (`balance-sheet.js`, `loot-sale.js`, `tools/balance-program/gold-model.mjs`) | 24-2, 23-10 | C | L16 | S | none | y | G7. G20 is read here and again at L23 |
+| L23 | Blessings: two lone hours for the set, split, "keep me blessed" (`src/data/blessings.js`) | 21-8 | C | L16, L22 | S | none | y | a death with "keep me blessed" on buys the set again once, at the server's price, and never when the purse cannot pay |
+
+**Global chat (L25, L46) depends on 31-1.** Recommended: one Global, carried on L25's heartbeat as a batch of new lines every few seconds, with a slow mode that tightens as the room grows. Alternative: one Global sent instantly to everyone, with its bill of about $1,080 a month for each 1,000 listeners (CITED 28, ASSUMED list prices) printed in L46's row.
 
 ### Wave 3: the long chase, in the beta
 
-| Lane | What | Calls | Type | Depends on | Size | Sec |
-|---|---|---|---|---|---|---|
-| L29 | Chest reforging, and chest weapons at the next tier's numbers (`tower-weapons.js`, `chests.js`) | 22-2, 22-3 (ruled) | C + B | L15, L18 | L | y |
-| L30 | "Climb the Tower" inside Carry on | 22-6 amended | C | L07, L18 | S | y |
-| L31 | Scaled hunts on, XP by ground fit (`scaled-hunts.js`) | 22-9 (ruled) | C | L16 | S | y |
-| L32 | Linings: one part and gold, 12 hours that stack to 48, a remembered loadout a ground (`imbuements.js`) | 23 card 8, 24-12 amended | C + B | L17 | L | y |
-| L33 | The Cellar is the curing room | 26-7 (ruled) | C | L32 | M | y |
-| L34 | Luck step 2: salvage, and Salvage on the loot plan | 23 change 2 | C | L20, L21 | M | y |
-| L35 | Tempering pays the difference going up a tier (`temper.js`) | 23-2 | C | Tyler: 23-2 | S | y |
-| L36 | Catalogue truth and the cut list: orphan drops, recipes that cannot be made, the five leftovers, the Discord gift | 23-7, 27-7 | C | Tyler: 23-7, 27-7 | M | y |
-| L37 | Jewelry tier 4 as a sample of one tier, three perks hooked up, the five pool budgets as guard lines (`jewelry.js`, `perks.js`) | 23-5, 23 change 5 | C | L15 | M | y |
-| L38 | Room rungs keep materials, one Speed pool and one Yield pool a bench, Good batch | 26-1, 26-2 (ruled) | C | none | M | y |
-| L39 | Food: XP and drop buffs off, four party meals (`recipes.js`, `consumables.js`) | 23-6 | C | Tyler: 23-6 | S | y |
-| L40 | Clans step 1 (roster, chat tab, browser, on-call board), on-call heroes with the daily cap, standing parties, shared supply cost | 25-1 amended, 25-3, 25-6, 25-7, 25-8 (ruled) | C + B | L07 | L | y |
-| L41 | "List for a friend" on the Weighhouse | 24-6 (ruled) | C | market open | M | y |
-| L42 | Town Works a project a month, the Gold Given plaque | 24-10 (ruled) | C + art | L06 | S | y |
-| L43 | Fists | 21-10 | C + B | L17 | L | y |
-| L44 | Necrotic and Storm, sized inside the bar budget. Storm and Bone runes at Runecrafting 65 and 80 | 21-6, 23-9 | C | L17 | M | y |
-| L45 | A home map for each deed, four depot chests, visiting | 26-3, 26-9, 26-11 (ruled) | B + art | L06 | M | y |
-| L46 | Chat rooms of 250, report from the chat menu, a new-account rate (`chat-channels.js`) | 28-6 | C | Tyler: 28-6 | M | y |
+| Lane | What | Calls | Type | Depends on | Size | Sec | Test |
+|---|---|---|---|---|---|---|---|
+| L29 | Chest reforging, and chest weapons at the next tier's numbers, re-measured after the spell rule (`tower-weapons.js`, `chests.js`) | 22-2, 22-3 | C + B | L17, L18 | L | y | a reforge uses a weekly open and keeps the piece's roll. G4 re-read |
+| L30 | "Climb the Tower" inside Carry on | 22-6 | C | L07, L18 | S | y | **BOTH PATHS.** The climb runs once after the hunt and starts no second hunt |
+| L31 | Scaled hunts on, XP by ground fit. One scaled lone ground in the Level 16 to 31 band if the blind play of section F reads empty (`scaled-hunts.js`) | 22-9 | C | L16 | S | y | **BOTH PATHS.** A paid scaled hour runs out with the browser closed and charges once. G24 |
+| L32 | Linings: one part and gold, 12 hours that stack to 48, a remembered loadout a ground, and "keep these linings up" as a line inside Carry on (`imbuements.js`) | 23 card 8, 24-12 | C + B | L17, L16, L22, L31 | L | y | lining hours count only while hunting with the piece worn, and are not a write a settle. G8 and G10 re-read |
+| L33 | The Cellar is the curing room | 26-7 | C | L32 | M | y | a cancelled cure returns the materials and never the fee |
+| L34 | Luck step 2: salvage, and Salvage on the loot plan | 23 change 2 | C | L20, L21 | M | y | salvaging 200 pieces is one call and one journal row |
+| L35 | Tempering pays the difference going up a tier (`temper.js`) | 23-2 | C | none | S | y | a hero that tempers every tier pays the same total as one that waits |
+| L36 | Catalogue truth and the cut list: orphan drops, recipes that cannot be made, the five leftovers. **Lucky finds stay, as ruled.** Each of the 24 rows with no source gets one on a placed monster | 23-7, 27-7 | C | none | M | y | the coherence guard counts a source only if an open ground places the monster. Every lucky find has one |
+| L37 | Jewelry tier 4 as a sample of one tier, three perks hooked up, the five pool budgets as guard lines (`jewelry.js`, `perks.js`) | 23-5, 23 change 5 | C | L15 | M | y | G10 XP side |
+| L38 | Room rungs keep materials, one Speed pool and one Yield pool a bench, Good batch | 26-1, 26-2 | C | none | M | y | Speed never passes 40% and Yield never passes 15% with everything stacked |
+| L39 | Food: XP and drop buffs off, four party meals (`recipes.js`, `consumables.js`) | 23-6 | C | none | S | y | G14 finds no food row that moves XP or drops |
+| L40 | Clans step 1 (roster, chat tab, browser, on-call board), on-call heroes with the daily cap, standing parties, shared supply cost. The clan tab shares one social Realtime topic | 25-1, 25-3, 25-6, 25-7, 25-8 | C + B | L07 | L | y | **BOTH PATHS.** A hero hunts in another account's party while its owner is offline, inside the owner's limits, and stops at 2 hours. G18 |
+| L41 | "List for a friend" on the Weighhouse | 24-6 | C | market open | M | y | only the named friend can buy, and the fee and caps apply |
+| L42 | Town Works a project a month, the Gold Given plaque | 24-10 | C + art | L06 | S | y | the goal follows the count of active accounts |
+| L43 | Fists | 21-10 | C + B | L17 | L | y | **BOTH PATHS.** G2 with fists as a way |
+| L44 | Necrotic and Storm, sized inside the bar budget. **The Storm and Bone unlock levels come from the spell audit, as ruled** | 21-6, 23-9 | C | L17, L57 | M | y | **BOTH PATHS.** One new element reads at most +5% and both +10%. G4, G23 |
+| L45 | A home map for each deed, four chests for the account's Storage (the audit asks for a name that is not "depot"), visiting | 26-3, 26-9, 26-11 | B + art | L06 | M | y | a visit is read-only: no intent sent from a visited home changes anything |
+| L46 | **One Global chat, as ruled.** Report from the chat menu, a new-account rate, and the 31-1 branch above (`chat-channels.js`) | 28-6 | C | L25 | M | y | a new account is rate-limited. A report reaches the GM queue with the line |
 
 ### Wave 4: before Early Access
 
-| Lane | What | Calls | Depends on | Size | Sec |
-|---|---|---|---|---|---|
-| L47 | The Morrow Hills open: the price index, Luck step 3 (the Lucky ring, rarer Rares), Very Rares on the four's clock | 24-11, 30-3, grounds-staged | L15, L16, L17, L22, L34, L37 | L | y |
-| L48 | The Catacombs descent: you fight on what you carried down | 22-4 (ruled), 30-8 | L16, L29 | M | y |
-| L49 | Crowns: a number on the account with five clamps | 24-5 (ruled) | L27, the market open | L | y |
-| L50 | The clan castle re-shaped: one build queue, a work order a week, goods at recipe value, nothing comes back out | 25-4 amended, 25-5, 23-8 | clans with 10 or more accounts | L | y |
-| L51 | The Trophy room rebuilt as mounts for real firsts | 26-6 (ruled) | L20, L29 | M | y |
-| L52 | Uniques: a sample of five, reforged up a band and keeping their property | A-3, 23-4 | L47 | M | y |
-| L53 | Faction skills if they measure within 2%. Joining a faction for the account | 25-9, 25-10 (ruled) | L17 | M | y |
-| L54 | Account deletion applied, the backups call, time every ground | 28 card, 28-4, 28-12 | none | S | y |
-| L55 | The one full Security review of every `y` above, the full mutation sweep, the designer's full re-read | CLAUDE.md §3.7 | everything | L | - |
+| Lane | What | Calls | Depends on | Size | Sec | Test |
+|---|---|---|---|---|---|---|
+| L52 | Uniques: a sample of five, built dark against the staged grounds, reforged up a band and keeping their property. Tyler's note on A-3 is unfinished (31-4). Recommended reading: each new band also gets uniques of its own. If he finishes it another way, this row's scope changes and nothing before it does | A-3, 23-4 | L17, L29 | M | y | a reforged unique keeps its property and takes the new band's numbers |
+| L47 | The Morrow Hills open. **Scope (audit M7):** the weapon line past tier 7, the region's key row in the same patch, the first unique sample from L52, the price index, Luck step 3 (the Lucky ring, rarer Rares), Very Rares on the party's clock | 24-11, 30-3, grounds-staged | L15, L16, L17, L22, L34, L37, **L52** | L | y | G1 on the staged points, G15, and a formula line that a Very Rare is 60 to 90 hours of a party of four |
+| L48 | The Catacombs descent: you fight on what you carried down. **Clan rations may be carried, capped by the week, as ruled.** The designer sets the cap | 22-4, 30-8 | L16, L29 | M | y | **BOTH PATHS.** The run ends when supplies are gone with the browser closed. No store buy happens below. Rations over the cap are refused |
+| L49 | Crowns: a number on the account with five clamps | 24-5 | L27, the market open | L | y | each clamp refuses its own forged case |
+| L51 | The Trophy room rebuilt as mounts for real firsts | 26-6 | L20, L29 | M | y | a mount never duplicates an item |
+| L53 | Factions, per 31-8. Recommended: standing and looks, joined for the account, and the two skills are cut. Alternative: the skills ship if they measure within 2% and join G4's cell | 25-9, 25-10 | L17 | S or M | y | one press joins every hero that has killed Krell |
+| L54 | Account deletion applied, the backups call, time every ground, and the 10,000-player items L11 measured | 28 card, 28-4, 28-12 | L11 | S | y | a single-hero delete leaves rooms and deeds with the account |
+| L55 | The one full Security review of every `y` above, the full mutation sweep, the designer's full re-read | CLAUDE.md §3.7 | everything | L | - | the review's own list |
 
-**Held, with no lane:** regions 4 to 7 (A-10), the skill tree, companions, PvP, game modes (27-9 says only what the model must not do), commissions, patterns, the clan's eight-seat hunt (25-11), worlds (28-5).
+**After Early Access, unless the beta says otherwise:** L50, the clan castle (one build queue, a work order a week). It waits for clans with ten or more accounts, which a wiped beta may never reach. Its goods depend on 31-3. Recommended: the built prices stay, as Tyler ruled on 25-4, and only the two goods that cannot be made are fixed (the Keystone, and Slime Gel in the Timber Beam). Alternative: every castle good is re-priced at what it costs to make, about 3.1M.
+
+**Held, with one word each:** the skill tree (held), companions (held), PvP (held), game modes (held), commissions (held), patterns (held), the clan's eight-seat hunt (held), worlds (held), quivers as late bow off-hands (held for the region sketches, L56), scaled early hunts for a party leader (held), jewel guarantees (held), Studies (cut by name: Luck is the Bestiary's reward).
+
+**On the road to Early Access and not weighed here:** sound, the Steam shell and the phone layout. They are studio quality, not balance.
+
+### Dates (decision 31-2)
+
+The audit counted the lanes (ASSUMED: S 1 day, M 3, L 6, 3.5 lanes at once, one engine batch at a time with a nightly between). COMPUTED, not promised.
+
+| Stage | Recommended branch | Alternative: hold mid-January |
+|---|---|---|
+| Waves 1 and 2 (gate the beta) | 5 to 6 weeks. The beta opens about the end of December 2026 | The same. Nothing in waves 1 and 2 can move |
+| Wave 3 (in the beta) | about 5 weeks | The beta runs on wave 3 as far as it gets |
+| Wave 4 and the Security review | about 5 weeks. Early Access between late February and late March 2027 | L48 (the Catacombs), L49 (Crowns) and L53 (factions) move to after Early Access with L50. The Security review covers a smaller list |
 
 ### What rides v0.2.144, and what waits
 
 | Rides v0.2.144 | Waits |
 |---|---|
-| L01, L02, L03, L04, L06, L09. L05 if 27-2 is ruled in time | L07, L08 and L10 ride v0.2.145. L12, L13 and L15 are long: each ships alone when its gate is green. Everything in wave 2 waits for L15 or a ruling |
+| L01, L02, L03, L04, L06, L09 | L05 waits for its three steps (the blind play, the tool, G6 red). L07, L08 and L10 ride v0.2.145. L12, L13 and L15 are long and each ships alone when its gate is green |
 
 Hard order, in one line each:
-- **To-hit (L15) before** the tiers, the Tower curve, the yard fee, linings, faction skills, training items and every staged ground.
-- **The spell rule (L17) before** fists, Necrotic and Storm, linings.
-- **The tiers and the income re-fit (L16, L22) before** any price that is a share of income: Blessings, the index, linings.
-- **Reforging (L29) before** the Catacombs and any new key tier.
-- **The flush and the journal (L12, L13) before** 250 beta accounts.
-- **The guard (L14) before** the first combat lane merges.
-- **Carry on (L07) before** the Tower's standing order and on-call heroes. They all write to the same remembered plan.
+- **To-hit (L15) before** the spell rule, the tiers, the Tower curve, the yard fee, Premium's training gift, linings, training items and every staged ground.
+- **The spell audit (L57) before** the spell rule (L17). **The spell rule before** the tiers and the Tower curve (31-9, recommended), fists, Necrotic and Storm, linings, chest weapons.
+- **The tiers and the income re-fit (L16, L22) before** any price that is a share of income: Blessings, the index, linings, the slot re-read.
+- **Reforging (L29) before** the Catacombs and any new key tier. **Uniques (L52) before** the Morrow Hills (L47).
+- **The flush (L12) before** L15 or after L17, never between. **The flush and the journal before** 250 beta accounts.
+- **The guard (L14) and K1 in band before** any line turns red in L16.
+- **Carry on (L07) before** the Tower's standing order, on-call heroes and the lining line. They all write to the same remembered plan.
 
 ---
 
@@ -294,6 +344,7 @@ One guard the simulator re-runs every release, so the balance cannot drift betwe
 
 | | |
 |---|---|
+| State | Built on `lane/c-balance-guard`: 18 lines plus K1 (the harness against the real Krell four), D1 and D2, plain run 146 s (CITED, the audit). Lines G19 to G24 below are its follow-up, in report mode |
 | Files | `tests/balance-guard.mjs` (the guard, with `--selftest` and `--mutate`), `tests/balance-guard.baseline.json` (re-written only by `--write`, by the lane that moved a number, with the why), `tools/balance-program/guard-cells.mjs` (the cell list). It calls `tools/balance-program/measure.mjs`, `gold-model.mjs`, `tools/balance-sim/staged/whole-game-stack.mjs` and `tests/per-player-cost.mjs`. Registered in `.github/workflows/smoke.yml` |
 | Runtime | 3 minutes at most. About 60 s for the eight points by three seats (2 seeds x 1 h, MEASURED 5 to 9 s a point by 28), 30 s for the stack cells, 10 s for the start-kit life to Level 10, the rest instant |
 | Nightly twin | The same cells at 4 seeds x 8 h. It is the only run that may judge a death rate. A red nightly blocks the next release (CLAUDE.md §3.6) |
@@ -309,9 +360,9 @@ One guard the simulator re-runs every release, so the balance cannot drift betwe
 | G6 | The new player: Level 10 in 6 hours on the start kit, no Level under 10 over 2 hours | `life.mjs`, start kit, Normal, no event | 6 h, 2 h | over 7 h, over 2.5 h | L05 |
 | G7 | A ground never pays a lone in-range hero less gold than the ground before | the eight points | rising | any fall | L22 |
 | G8 | Deadly costs gold and does not lose it: the in-band four with a third own stock, its gear sold and two linings | Levels 50, 80, 105 | 3k to 8k a hero-hour | under 0 | L16, re-read at L32 |
-| G9 | The first hero slot is within one lone hero's bank at Level 32 | `gold-model.mjs --slots` | at or under | over | L06 |
+| G9 | The first hero slot is within one lone hero's bank at Level 32. The bank is read from a played life in the nightly twin, not a typed table (31-6) | `life.mjs --policy rec` | at or under | over | L06 |
 | G10 | The gear pool: XP over the played kit, and damage taken over it | Levels 30, 60, 105, lone and four | +9%, one armor step | over +10%, or over the step | L15 (damage), L37 (XP) |
-| G11 | The hero that trains every idle hour | Levels 30, 60, 105 | under +5% XP, under 15% less damage | over either | L19 |
+| G11 | The hero that trains every idle hour. A report line only, never a gate (31-7 decides if it stays) | Levels 30, 60, 105 | under +5% XP, under 15% less damage | never red | never |
 | G12 | No gold-for-power offer is cheaper than Tempering's cheapest rung | `gold-model.mjs --offers` | 1 lone hour of gold a 1% or more | under 1 | L19 |
 | G13 | Magic Find from every source | a hero at 5,000 hours with the ring | under 104 | over 104 | L20 |
 | G14 | The lever list is closed: every XP, damage, drop, gold and time lever in the data is in `model.mjs` with a class | a scan of `src/data/*` | no stranger | any lever with no class | L14 |
@@ -319,6 +370,16 @@ One guard the simulator re-runs every release, so the balance cannot drift betwe
 | G16 | Server cost a reference account: database-seconds and journal rows a day | `per-player-cost` with L11's fixtures | the baseline | 5% over | L11 |
 | G17 | Engine time a 100 s window for a Krell four on Deadly and a Tower climb | `tests/settle-budget.mjs` | a quarter of a body's 800 ms | over | L11 |
 | G18 | Hunted hours a hero a day for each reference player, read from the data (bar, refills, on-call cap) | data rows | Own four 3.3 to 5.3, cap 24 | Own four over 6 with no new press | L40 |
+| G19 | The pair and the three, a head, on the hardest tier they hold | Levels 30 to 50 | 1.8 to 2.5 | over 2.6 | L16 |
+| G20 | Weeks to the second, third and fourth hero for the Own four, on income after the tiers | `gold-model.mjs --slots` | 31-5 sets it (recommended 14 to 16 for the fourth) | report until 31-5 is ruled | L22, re-read at L23 |
+| G21 | The Tower: a set-up four tops out between its Level and its Level + 25. No hero from 10 to 30 earns more there than hunting | `endgame.mjs climb` | as written | outside | L18 |
+| G22 | Refills: the first two pay for themselves at every Level, and a day of six is gold-neutral at Level 80 | `gold-model.mjs --refills` | as written | either fails | L06 |
+| G23 | The bar budget: a weapon family's offense rows fill at most 0.85 of the one offense lane | a scan of `src/data/abilities.js` | 0.85 | over | L17 |
+| G24 | A scaled hunt is never the best lone XP at its Level | every scalable ground at 50, 80 and the top | under the open ground | over | L31 |
+
+**K1 gates the red lines.** The harness four reads 0.83 of the real Krell four on XP and 0.51 on gold (CITED, the guard's baseline). So G3's 2.6 on the harness is about 3.1 for a real party. No line that judges a four (G3, G4, G5, G8, G19, D1) turns red while K1 is outside 0.9 to 1.1 on XP and 0.8 to 1.2 on gold. The fix is in the harness's party, in L14's follow-up.
+
+**Promises that stay on the dashboard and have no guard line:** event XP under 5% of all Level XP, and repeating sinks at 35 to 50% of gold in. Only real players can read them. Faction skills, if 31-8 keeps them, join G4's cell. Very Rares on the party's clock are a formula line in L47.
 
 The proof it bites (CLAUDE.md §4): `--mutate` plants one change a line (Deadly's dial back to 1330, a perk at 3%, a refill step back to 13%, a new XP food row, a settle statement added) and each must turn its own line red and no other.
 
@@ -342,6 +403,8 @@ Every big change is proven three ways: against production's own numbers, by a bl
 | On-call and clans (L40) | Hunt hours with another account in them (0 today) | Two personas on different schedules | Not read under 50 accounts a day. Then hours with another account over 10% under Level 33 |
 | Server cost (L01, L12, L13, L24, L25) | The capacity sample at a busy hour, journal rows a hunted hero-hour (216 today) | none | Database under 50% at the busy hour. Journal rows under 5 a hero-hour |
 
+**A gate, not only a validation (audit M6).** The blind play "a lone account from Level 10 to its second hero" runs BEFORE the beta opens. On the engine a lone hero is on one ground, the Glade, for about 23 of the 31 hunted hours between Levels 15 and 30. If the play reads empty, L31 opens one scaled lone ground in that band.
+
 **Synthetic load.** Before the beta passes 250 accounts the nightly concurrency gate (L11) runs 1,000 Own-four-shaped accounts with half their tabs open. It is the only proof of 28's cost table at a size no playtest will reach.
 
 **What only real players can settle.** The market, Crowns, clans, trade and four people in one party have no real numbers at all (10 section 6). They ship behind their switches, armed for everyone after the Security review, and are judged on the dashboard in their first two weeks. Until then every number about them in this program is a design, and this file says so.
@@ -350,7 +413,7 @@ Every big change is proven three ways: against production's own numbers, by a bl
 
 ## Measured, cited, assumed
 
-**Measured by this synthesis:** nothing. `node tools/balance-program/inventory.mjs --check` was run (exit 0).
+**Measured by this synthesis:** nothing. The audit measured four things this plan now carries: a pair on Deadly reads 1.13 to 1.46 of the four a head today (so about 2.4 to 3.8 of the contract, where this plan assumed 1.2), a lone hammer banks 370k by Level 30 at 47.9 hunted hours, the idle-policy tool reads Level 10 at 6.12 hours where play read about 11, and the harness reads 0.83 of the real four. **So the pace of record in section A is not yet a measured number.** It is recomputed from G19 and G20 once L16 has played the pair and the three. `node tools/balance-program/inventory.mjs --check` was run (exit 0).
 
 **Computed here, not played:** the stack tables of section B, the pace of record on the slot ladder, the Own four's free gold after the tier and lining changes, the yard's skill XP a day. Each rests on a dive's measured cell, named beside it.
 

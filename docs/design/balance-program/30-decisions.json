@@ -6,8 +6,8 @@
     "question": "Should the chance to hit come from your skill measured against the monster's, at every Level?",
     "recommended": "Yes. A point of skill is then worth the same share at Level 10 and at Level 400, and monsters are written against the skills real heroes have.",
     "alternative": "Keep today's rule and move its limits again, which is the patch we have already made four times.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 5
@@ -19,8 +19,8 @@
     "question": "How often should a monster of your Level land a blow on a hero with normal skills?",
     "recommended": "70% of the time. Hunting alone on Normal gets 15 to 22% safer from Level 50 to 105, and the next region pays melee heroes again.",
     "alternative": "78 to 80%, which keeps about today's damage on Normal and gives up both of those gains.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-1"
@@ -32,31 +32,33 @@
     "dive": "Combat",
     "title": "Dangerous and Deadly hit harder",
     "question": "Should Dangerous and Deadly monsters hit harder so the harder tiers are a real fight?",
-    "recommended": "Yes. A party at the right Level holds Deadly at a third to half health with a bigger food bill. A party ten Levels under dies every few hours. Hask's Ford's XP comes down in the same patch.",
+    "recommended": "Yes, and no softer than planned. Size it on a party that plays like the real one, with a healer and monsters that shoot the back row. A party at the right Level holds Deadly at a third to half health. A party ten Levels under dies every few hours. The XP of Hask's Ford and Krell's Hold comes down in the same patch. The game also starts recording each hero's lowest health so we can check this on real hunts.",
     "alternative": "Leave the tiers alone and add a Level door to each ground, which goes against \"the band is a guide, nothing more\".",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-1"
     ],
-    "priority": 5
+    "priority": 5,
+    "update": "The real party hunted Krell on Deadly for 39 hero-hours, 5 to 9 Levels under the ground, with no deaths. So the change is needed. But a party with a healer heals almost for free, so harder hits cost it about 400 gold more a hero each hour, not thousands."
   },
   {
     "id": "21-4",
     "dive": "Combat",
     "title": "Which pace the game is built to",
     "question": "How fast should a party of four on Deadly level compared to a hero alone on Normal?",
-    "recommended": "Keep your 11-16 ruling of 2.0 to 2.5 times, and make 2.5 the cap. Count the game's weeks the way a real account grows: one hero, then two, three and four as it buys slots.",
+    "recommended": "Keep your 11-16 ruling of 2.0 to 2.5 times, and make 2.5 the cap. Bring Krell's Hold's Level XP down about 12% in the same patch as the harder tiers. Count the game's weeks the way a real account grows: one hero, then two, three and four as it buys slots.",
     "alternative": "Hold the party to 2.0 and re-fit the Level curve, which slows the real player again after three XP cuts in two weeks.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "30-1",
       "30-2"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "The real party at Krell earned 2.85 times the lone pace after the last XP cut, which is over the 2.5 cap. Two separate readings say Krell's Hold pays about 12% too much XP. The recommendation stands with that ground fix added."
   },
   {
     "id": "21-5",
@@ -65,8 +67,8 @@
     "question": "Should every spell, heal and shield be a share of the caster's own weapon hit?",
     "recommended": "Yes. One rule for all of them. Power Strike, Cleave and the big heals stop fading by Level 60.",
     "alternative": "Add spell ranks VI to X instead, which moves the fade from Level 110 to about Level 300 and keeps a second growth rule to balance for ever.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-1"
@@ -80,8 +82,8 @@
     "question": "Should a new attack spell share a cooldown with one you already have, so new spells never make everyone faster?",
     "recommended": "Yes. Necrotic and Storm then ship as a choice of element, worth at most 5% for one and 10% for both.",
     "alternative": "Let new spells add to the bar and cut kill XP each time, as happened twice on 11-19.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-5"
@@ -95,8 +97,8 @@
     "question": "Should the yard keep its flat 30,000 skill XP an hour?",
     "recommended": "Yes. It is for catching up a skill that fell behind, and the yard screen says what your hours will buy before you pay.",
     "alternative": "A rate that grows with the skill, which makes the yard the cheapest way to buy power with gold.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-1",
@@ -111,8 +113,8 @@
     "question": "What should the full set of three Blessings cost?",
     "recommended": "About two hours of a lone hero's gold at its Level, split so the first Blessing is cheap. Free under Level 30. \"Keep me blessed\" is remembered. The combat dive asked for three hours and the economy dive for two. Two is right while new players are alone to Level 33.",
     "alternative": "Keep today's price, where Blessings are a fee nobody notices. All real players together have spent 6,345 gold on them.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-3",
@@ -127,8 +129,8 @@
     "question": "Should bones burn at the Hearth by a loot rule you set once, with no hero time spent?",
     "recommended": "Yes. \"Burn\" sits beside Sell and Keep on the loot plan. Inner Flame keeps its XP and its lore.",
     "alternative": "Cut the Inner Flame skill and fold bones into Hearth Cinders.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "23-1"
@@ -142,8 +144,8 @@
     "question": "When should fist weapons ship?",
     "recommended": "After the spell rule, on the promise you already ruled. The sword styles stay slow alone on purpose.",
     "alternative": "No other option is offered.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-5"
@@ -229,8 +231,8 @@
     "question": "Should the weekly Tower climb and chest opens run from a plan you set once?",
     "recommended": "Yes. One press for the whole account, with each hero's remembered stoke.",
     "alternative": "Leave it by hand, about 14 presses a week for four heroes.",
-    "status": "amended",
-    "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the amendment is taken. The Tower climb is a line inside Carry on. It runs once after the hunt and never loops.",
     "amendment": "The climb is a line inside Carry on. One press queues it. It runs once after the hunt and never starts another hunt. A plan never loops.",
     "depends": [
       "27-1",
@@ -301,8 +303,8 @@
     "question": "Should you set what happens to loot once for the whole account, by kind of item?",
     "recommended": "Yes. Four lines: gear I am not wearing, junk, materials, supplies. Each is Keep, Deposit, Sell or Salvage. It runs when a hero gets back to town.",
     "alternative": "Keep one rule per item and only add the \"always sell these?\" prompt, which still asks again for every new tier on every hero.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 5
@@ -314,8 +316,8 @@
     "question": "When you move up a gear tier, should Tempering cost only the difference?",
     "recommended": "Yes. No Tempering purchase is ever wasted. This overturns your 11-18 \"Sure\" to starting over each tier.",
     "alternative": "Keep the reset, and Tempering under tier 6 is only bought by players who stay on one ground.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 3
@@ -327,13 +329,14 @@
     "question": "Whose hours is a Very Rare drop sized on?",
     "recommended": "Up to Krell, every 60 to 90 hours of one hero, as you approved. Past Krell, every 60 to 90 hours of a full party of four on the hardest tier.",
     "alternative": "Keep 60 to 90 hours a hero everywhere, which is a Very Rare every few days for an account and a price that falls to nothing.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "30-3"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "The drop table matched its listed chances exactly over 9.7 hours. A full party on Deadly sees each named Rare about twice as often as designed. Up to Krell a Very Rare sized on one hero reaches that account every 8 to 11 hours of hunting. So past Krell the party is the right measure. The recommendation stands."
   },
   {
     "id": "23-4",
@@ -342,8 +345,8 @@
     "question": "What should a second copy of a unique be good for?",
     "recommended": "It feeds that unique's Tempering past tier 7. \"Worn in\" is not built as its own system.",
     "alternative": "Build \"worn in\" as designed, by hours worn, and leave spare uniques with no use but Luck.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -355,8 +358,8 @@
     "question": "What is the most that jewelry perks, Tempering and the rest may add together?",
     "recommended": "About 9% XP over a normally geared hero, split into five small budgets, and one armor tier of damage. Plain rings and cloaks count as gear tiers.",
     "alternative": "Hold it to one weapon tier in total, which means cutting every perk to a third of its size.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-1"
@@ -370,8 +373,8 @@
     "question": "Should food ever give bonus XP or better drops?",
     "recommended": "No. Those buffs are cut. The twelve feasts become four party meals with normal food effects.",
     "alternative": "Keep XP foods as a gold sink and count them against the XP cap.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 3
@@ -383,8 +386,8 @@
     "question": "Should we cut the items and recipes that have no source or no use?",
     "recommended": "Yes. The 24 lucky-find rows, the orphan drops no ground needs, the old dungeon pieces, two recipes that cannot be made, and the Beast of the day drop bonus.",
     "alternative": "Give each one a source, which means new monsters on open grounds.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: yes to the cut list, but lucky finds stay (\"we just added those. the rest can go\"). Any lucky find with no source gets one.",
     "amendment": "",
     "depends": [
       "22-10"
@@ -398,8 +401,8 @@
     "question": "How should the clan castle's building goods be valued?",
     "recommended": "At what they cost to make, about 3.1M in all. Slime Gel leaves the Timber Beam and the Keystone is made from things that exist.",
     "alternative": "Leave them until clans are built.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "25-4"
@@ -413,8 +416,8 @@
     "question": "When do the Storm and Bone rune families unlock?",
     "recommended": "At Runecrafting 65 and 80, so the skill has something new past 60.",
     "alternative": "All eight families from level 1.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: wait. The unlock levels are set after the designer audits every current spell against the direction of the game.",
     "amendment": "",
     "depends": [
       "21-6"
@@ -428,13 +431,14 @@
     "question": "Should the Shop's price for dropped gear come from one rule?",
     "recommended": "Yes. A tier's gear sells for a quarter of that tier's coin, worked out from each ground. It replaces seven hand-set rates.",
     "alternative": "Keep fitting a rate per tier, and fit an eighth for the first ground past Krell.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "24-2"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "Gear sold for 29% of coin at Krell on the real hunt. At a quarter of coin that ground's gear pays about 13% less, near 580 gold a hero each hour. The recommendation stands."
   },
   {
     "id": "24-1",
@@ -463,7 +467,8 @@
       "21-1",
       "21-3"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "The same four heroes earned 15,100 coin an hour at Krell and 11,000 at the Warrens on the same day. That fits the rule. A hero alone was not tested."
   },
   {
     "id": "24-3",
@@ -485,9 +490,9 @@
     "question": "What is on Premium's list?",
     "recommended": "The 12 hour bar on every hero, the full analyzer, Premium looks and a free color change a day, a daily gift, and 100 market listings for 14 days. Nothing that adds power.",
     "alternative": "Add faster rest, which is selling hours.",
-    "status": "amended",
-    "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
-    "amendment": "The daily gift was a 1 hour training item. It waits for the same gate as Crowns training items (26-10). Until then the gift is the free color change.",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: amendment declined. Premium keeps the daily 1 hour training item. The rest of the list stands as approved.",
+    "amendment": "",
     "depends": [
       "24-3",
       "26-10"
@@ -543,15 +548,16 @@
     "question": "What should an hour at the training yard cost?",
     "recommended": "A quarter of an hour of the hero's free gold, about 3,000 from Level 50.",
     "alternative": "Leave it nearly free, so it stays the cheapest power in the game by ten times.",
-    "status": "amended",
-    "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
-    "amendment": "You also approved the home dive's formula (26-5), and the two disagree. Use that one: 100 gold for each level of the skill being trained, each hour. Both give 3,000 at skill 30. It makes catching up cheap and over-training dear.",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the amendment is taken. The yard costs 100 gold for each level of the trained skill, each hour.",
+    "amendment": "You also approved the home dive's formula (26-5), and the two disagree. Use that one: 100 gold for each level of the skill being trained, each hour. It makes catching up cheap and over-training dear, and it does not move every time income moves. The economy formula just moved from about 3,000 to about 2,400 at Level 80 on one real hunt.",
     "depends": [
       "26-5",
       "21-7",
       "28-11"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "Real free gold at Level 80 is 9,700 a hero each hour, not 11,900. So the economy formula would charge about 2,400 an hour in that band, not 3,000."
   },
   {
     "id": "24-9",
@@ -594,7 +600,8 @@
     "depends": [
       "24-2"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "Real free gold at Level 80 is about 19% lower than the model said. Prices that are a share of income in that band come out 19% smaller. The rule stands."
   },
   {
     "id": "24-12",
@@ -603,8 +610,8 @@
     "question": "In what order do we build the gold sinks?",
     "recommended": "The end card's two lines first, then the refill prices, then linings, then the yard fee, then Crowns.",
     "alternative": "Crowns first, onto a closed market.",
-    "status": "amended",
-    "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the amendment is taken. The yard fee ships before linings.",
     "amendment": "Swap two steps. The yard fee ships before linings. Linings cut spell damage, so they must wait for both combat changes. The yard only waits for one.",
     "depends": [
       "21-1",
@@ -619,8 +626,8 @@
     "question": "Can a friend or clan mate take your hero on a hunt while you are offline?",
     "recommended": "Yes, inside limits you set once: which grounds, which tier, how many hours a day, how much gold to keep.",
     "alternative": "Parties stay live-only, and hunting with other people stays rare.",
-    "status": "amended",
-    "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the amendment is taken. An on-call hero hunts 2 hours a day by default and 4 at most.",
     "amendment": "Add a daily cap. An on-call hero hunts 2 hours a day unless you raise it, and 4 at most. Without a cap, idle stamina doubles how much every hero hunts and every pace number in the plan breaks.",
     "depends": [
       "27-1"
@@ -662,9 +669,9 @@
     "question": "Is the clan castle paced by gold or by time?",
     "recommended": "Both. Keep the built prices, and one work order finishes a week for each slot. A castle takes about six months.",
     "alternative": "Price it by members, with no time floor.",
-    "status": "amended",
-    "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
-    "amendment": "The goods were counted at Shop prices, about 15M. At what they really cost to make they are about 3.1M. Show that number. The weekly pace does not change.",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: amendment declined. Keep the castle as approved, with the built prices and one work order a week for each slot.",
+    "amendment": "",
     "depends": [
       "23-8",
       "25-3"
@@ -723,7 +730,8 @@
     "depends": [
       "25-1"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "On the real hunt the tank kept 20,100 gold an hour and the healer 4,800 from the same kills. One account shares a purse. Friends would not. This supports the ruling."
   },
   {
     "id": "25-9",
@@ -901,9 +909,9 @@
     "question": "Do training items go on the Crowns store?",
     "recommended": "Not until the yard fee and the to-hit change are live.",
     "alternative": "Sell them now on the 11-14 ruling.",
-    "status": "amended",
-    "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
-    "amendment": "Add a third condition. A hero that trains in every idle hour is simulated first, and it must stay under 5% faster than a normal hero. That test has been owed since 11-14.",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the extra condition is rejected (\"that is stupid\"). Training items stay off the Crowns store until the yard fee and the to-hit change are live, and nothing more.",
+    "amendment": "",
     "depends": [
       "21-1",
       "24-8"
@@ -932,8 +940,8 @@
     "question": "What gets your heroes going again when you come back?",
     "recommended": "One \"Carry on\" press sends every hero back to what it did last time. No hunt ever starts by itself.",
     "alternative": "A plan that loops by itself. It takes a normal player from 3 hunted hours a day to about 12 and makes the stamina bar pointless.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 5
@@ -945,8 +953,8 @@
     "question": "Should Levels 7 to 9 be made faster for a brand-new hero?",
     "recommended": "Yes. Level 10 in 6 hours on the starting gear, and no Level under 10 takes over 2 hours. Levels 10 to 15 take the XP back.",
     "alternative": "Keep the curve and only explain it, which leaves the four-hour Levels where both new players quit.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 5
@@ -958,8 +966,8 @@
     "question": "Should the Bestiary ship before the rest of Luck?",
     "recommended": "Yes. Finishing a creature's stage adds Luck to your account. It gets a page in the Book. The old charms and hidden bonuses are cut.",
     "alternative": "Wait and ship it with salvage and the Lucky ring.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "30-4"
@@ -973,8 +981,8 @@
     "question": "How many leaderboards, and what do they show first?",
     "recommended": "Six, each opening on \"this week\" with the all-time list one press away.",
     "alternative": "Keep sixteen all-time boards and add Level brackets.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -986,11 +994,12 @@
     "question": "How often is there a Bonus XP weekend?",
     "recommended": "The whole world once a month. In between, one party ground gets its own weekend. Never above +25% and never two at once.",
     "alternative": "Keep +25% on everything three days in fourteen.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
-    "priority": 2
+    "priority": 2,
+    "update": "The weekend took the real party to 3.46 times the lone pace, and bonus XP was 12% of that hunt's Level XP. After Krell's cut it is about 3.0. Keep +25% once a month, and watch the players who hunt through the whole weekend."
   },
   {
     "id": "27-6",
@@ -999,8 +1008,8 @@
     "question": "Which drops get the big reveal?",
     "recommended": "Trophy and Very Rare only. A Rare drop is a gold line in the loot. The reveal waits for you on the return card.",
     "alternative": "Keep the reveal on every Rare drop, which fires every half hour to two hours.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the alternative. The big reveal stays on every Rare drop.",
     "amendment": "",
     "depends": [],
     "priority": 3
@@ -1012,8 +1021,8 @@
     "question": "Should we remove bounties, workers, the collection log, renown, traits and the Discord gift code?",
     "recommended": "Yes, all six.",
     "alternative": "Rebuild the Discord gift as a code for a title or an outfit color.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -1025,8 +1034,8 @@
     "question": "When is a feature at zero use an emergency?",
     "recommended": "A core loop feature after two days. A one-time purchase after a week of players who could afford it. A social feature only once 50 accounts a day are playing.",
     "alternative": "Keep the rule as written, which flags 20 systems today on a server of two people.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: deferred (\"decide when we have more players\").",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -1038,8 +1047,8 @@
     "question": "When Ironman and Hardcore come, is the mode per account or per hero?",
     "recommended": "Per account, because gold, Storage, the House and Luck are shared by the account.",
     "alternative": "Per hero, which needs every shared system split first.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 1
@@ -1049,26 +1058,28 @@
     "dive": "Platform",
     "title": "Stop saving a watched hunt every 16 seconds",
     "question": "Should a watched hunt save to the database every 90 seconds, and at once on anything that matters?",
-    "recommended": "Yes. The fight on screen stays the same. It is built before the beta passes about 250 accounts.",
+    "recommended": "Yes. The fight on screen stays the same. It cuts the cost of a player who leaves the game open by about five times. It is built before the beta passes about 250 accounts.",
     "alternative": "Leave it and pay about twice as much for the server, with no path to 10,000 players.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
-    "priority": 5
+    "priority": 5,
+    "update": "The heavy player left the hunt on screen for 87% of its hours. The plan assumed 48%. So the saving on that player is about 5 times, not 2. Build it sooner."
   },
   {
     "id": "28-2",
     "dive": "Platform",
     "title": "One gold-history row an hour",
     "question": "Should the gold history write one row an hour for each hero?",
-    "recommended": "Yes. Every total stays the same and the table shrinks about sixty times.",
+    "recommended": "Yes. Every total stays the same and the table shrinks 60 to 140 times. Until it is built, plan on 430 rows a hero each hour for a party that uses many supplies.",
     "alternative": "Keep a row every save and cut history from 90 days to 30.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
-    "priority": 5
+    "priority": 5,
+    "update": "One real hunt wrote 16,596 history rows, about 426 a hero each hour. The plan said 216. The table shrinks about 140 times on that hunt, not 60. Build it sooner."
   },
   {
     "id": "28-3",
@@ -1077,8 +1088,8 @@
     "question": "When do we move to a bigger database plan?",
     "recommended": "Stay small until a busy hour reads 50%. Then move up, about $110 a month, as a spend you approve that day.",
     "alternative": "Move up before the beta opens, about $95 a month more from day one.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "28-1"
@@ -1092,8 +1103,8 @@
     "question": "What backup protection do we have at Early Access?",
     "recommended": "Decide at Early Access between point-in-time restore at about $100 a month and a real restore drill every month.",
     "alternative": "Keep daily backups that are never tested.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -1105,8 +1116,8 @@
     "question": "One world or several?",
     "recommended": "One world to about 25,000 accounts, with chat, towns and boards built in rooms so a second world is easy later.",
     "alternative": "Design for several worlds from Early Access.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -1118,8 +1129,8 @@
     "question": "Should Global chat be split into rooms?",
     "recommended": "Yes, rooms of 250 people.",
     "alternative": "One Global for everyone, which is unreadable past a few hundred.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the alternative. One Global chat for everyone, no rooms.",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -1131,8 +1142,8 @@
     "question": "What does the town send when no other player is there?",
     "recommended": "Nothing. And your own working heroes are drawn at their stations so the town is never empty.",
     "alternative": "Keep checking every few seconds, slowed to 6 seconds.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 3
@@ -1144,8 +1155,8 @@
     "question": "Is \"one account per player\" enforced or only declared?",
     "recommended": "Declared. It is held by daily caps, account-bound Luck and keys, and GM action on a report.",
     "alternative": "Device and payment fingerprinting at Early Access.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 2
@@ -1157,8 +1168,8 @@
     "question": "Should we ever limit heroes to save server cost?",
     "recommended": "No. The slot prices you ruled are enough.",
     "alternative": "No other option is worth taking.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "24-9"
@@ -1170,13 +1181,14 @@
     "dive": "Platform",
     "title": "Bigger fights state their server cost",
     "question": "Should a combat change say what it costs the server before it merges?",
-    "recommended": "Yes. The cost check gets a Krell party, a Tower climb and a town hour.",
+    "recommended": "Yes. The cost check gets the real Krell party, with eight kinds of supply and the game left open, plus a Tower climb and a town hour.",
     "alternative": "Measure after, on the live server.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
-    "priority": 3
+    "priority": 3,
+    "update": "The cost check reads 44 to 48 history rows an hour where the real Krell party wrote 426. The check was measuring the wrong party."
   },
   {
     "id": "28-11",
@@ -1185,8 +1197,8 @@
     "question": "Should yard training be paid by simple math?",
     "recommended": "Yes. Pay at start, each hour and stop. Today an hour of training costs the server as much as an hour of hunting.",
     "alternative": "Leave it, and every idle hero costs as much as a hunting one.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "26-5"
@@ -1200,8 +1212,8 @@
     "question": "Should every ground, boss and recipe batch log the hours it took to make?",
     "recommended": "Yes, so we know what a region costs before we plan one.",
     "alternative": "Keep estimating from one ground.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 1
@@ -1213,8 +1225,8 @@
     "question": "Should combat's chance to hit be rebuilt as your skill against theirs?",
     "recommended": "Yes. The combat dive measured it at all eight points. Rule it as 21-1.",
     "alternative": "Keep patching the old rule every 30 Levels.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-1"
@@ -1228,8 +1240,8 @@
     "question": "Should we stop grading grounds on \"each ground must out-earn the last\" and \"a party is 15 to 25% faster\"?",
     "recommended": "Yes. Both become printed lines, not gates. The party rule is graded on Dangerous and Deadly only.",
     "alternative": "Keep both and keep about 30 hand-tuned numbers to hold them.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-4"
@@ -1243,8 +1255,8 @@
     "question": "Can a unique be reforged up to the next band and keep what makes it special?",
     "recommended": "Yes. A region then needs 15 to 20 new uniques, not 46. Sample five first.",
     "alternative": "Every region replaces the last one's uniques.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: \"Yes, but i also want the next band to\". The note was cut off and he has been asked to finish it. Read until then as yes, and each new band also gets uniques of its own.",
     "amendment": "",
     "depends": [
       "22-3",
@@ -1274,8 +1286,8 @@
     "question": "Is the flat training rate still right when it buys almost nothing past skill 60?",
     "recommended": "Yes. Accept it as a catch-up system and say what the hours buy on the screen.",
     "alternative": "Let the yard pay a share of the next skill level instead.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: \"IDK\", so the recommendation stands. The flat rate stays and the screen says what an hour buys.",
     "amendment": "",
     "depends": [
       "21-7"
@@ -1319,8 +1331,8 @@
     "question": "What do we do with the held Defense and Tower weapon lane?",
     "recommended": "Its Tower weapon raise is replaced by 22-2, which you approved. Drop its Defense rework, because the to-hit change fixes that properly.",
     "alternative": "Ship its Defense rework now as a stopgap.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-1",
@@ -1350,8 +1362,8 @@
     "question": "Do we design the regions past Level 185 now?",
     "recommended": "No. Build reforging and scaled hunts first, then one region at a time.",
     "alternative": "Sketch all four now.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the alternative. Sketch regions 4 to 7 now.",
     "amendment": "",
     "depends": [
       "22-3",
@@ -1366,30 +1378,32 @@
     "question": "Which player do we count the game's weeks on?",
     "recommended": "One hero to the first slot at about Level 33, then two, three and four. That puts Level 50 at about 140 hunted hours and Krell at about month 4 for a normal player.",
     "alternative": "Count everything on a party of four from Level 10, which describes a player the new slot prices removed.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "24-9",
       "21-4"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "At Level 80 a Level took the real party 3.6 hours. The plan says 4.3. With Krell's 12% cut it reads 4.1, which is on the line. The recommendation stands."
   },
   {
     "id": "30-2",
     "dive": "Synthesis",
     "title": "Where the party XP cap is measured",
     "question": "Is the 2.5 times cap measured on a normally geared party or a fully upgraded one?",
-    "recommended": "Both. A normally geared party of four may reach 2.5. A fully upgraded one may reach 2.75. Hask's Ford breaks this today and is fixed with the tiers.",
+    "recommended": "Both. A normally geared party of four may reach 2.5. A fully upgraded one may reach 2.75. Hask's Ford and Krell's Hold both break this today. Both are fixed in the same patch as the tiers.",
     "alternative": "One number for both, which means cutting either the tiers or every gear upgrade.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-3",
       "21-4"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "A normally geared real party read 2.85 at Krell's Hold. So Hask's Ford is not the only ground over the cap today."
   },
   {
     "id": "30-3",
@@ -1398,13 +1412,14 @@
     "question": "Should Very Rares get rarer past Krell than Luck v3.1 says?",
     "recommended": "Yes. Up to Krell, one every 60 to 90 hours of a hero. Past Krell, one every 60 to 90 hours of a full party. This amends the Luck numbers you approved by saying whose hours they are.",
     "alternative": "Keep 60 to 90 hours a hero everywhere.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "23-3"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "The real hunt confirms it. Sized on one hero, each Very Rare reaches a full party's account every 8 to 11 hours of hunting. That is fine up to Krell and far too common after it. The recommendation stands."
   },
   {
     "id": "30-4",
@@ -1413,8 +1428,8 @@
     "question": "In what order is Luck built?",
     "recommended": "First the account Luck bar and the Bestiary stages. Then salvage. Then the Lucky ring and the rarer drops, with the Morrow Hills.",
     "alternative": "Build all of Luck as one patch, which leaves new players with one reward clock until it is done.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "27-3",
@@ -1427,16 +1442,17 @@
     "dive": "Synthesis",
     "title": "Deadly costs gold but never loses it",
     "question": "How much gold should a party at the right Level keep on Deadly?",
-    "recommended": "Less than today, about half, and never a loss if it sells its loot and makes some of its own supplies. The simulator checks this every release.",
+    "recommended": "About half of today, which is about 5,000 gold a hero each hour at Krell, and never a loss if it sells its loot. The simulator checks this every release on a party that buys the cheaper runes, heals with its healer and makes a quarter of its supplies, like the real one.",
     "alternative": "Let Deadly lose gold, so it is XP you pay for.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "21-3",
       "24-2"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "The real party kept 9,700 gold a hero each hour on Deadly at Krell. The simulator's party lost 7,500 on the same ground because it buys the dearest runes and has no healer taking hits. The rule stands. The check must use a party that plays like the real one."
   },
   {
     "id": "30-6",
@@ -1445,8 +1461,8 @@
     "question": "Should a release be blocked when the simulator says balance has drifted?",
     "recommended": "Yes. One check under three minutes on every release, and a longer one every night.",
     "alternative": "Run it by hand before big patches only.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [],
     "priority": 5
@@ -1458,8 +1474,8 @@
     "question": "How much of the plan must be live before the beta opens?",
     "recommended": "Waves 1 and 2: the first twenty hours, both combat changes, the harder tiers, the server cost work and the balance check. The long chase is built during the beta. Crowns, the Catacombs and the castle come before Early Access.",
     "alternative": "Build every wave before any beta, which adds months with no real players to test the long chase.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "30-6"
@@ -1473,8 +1489,8 @@
     "question": "Can clan rations be carried into the Catacombs?",
     "recommended": "No. Down there you fight on what you made or bought, so a clan never gives an edge.",
     "alternative": "Allow them, capped by the week.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the alternative. Clan rations may go into the Catacombs, capped by the week.",
     "amendment": "",
     "depends": [
       "22-4",
@@ -1489,13 +1505,152 @@
     "question": "Should anything besides Luck improve drop chances?",
     "recommended": "No. Cut the Bestiary's 25% relic boost and the Beast of the day bonus along with the old charms.",
     "alternative": "Keep the relic boost and count it against the Luck cap.",
-    "status": "open",
-    "ruling": "",
+    "status": "ruled",
+    "ruling": "Tyler 2026-11-20: the recommended option.",
     "amendment": "",
     "depends": [
       "27-3",
       "23-7"
     ],
     "priority": 2
+  },
+  {
+    "id": "31-1",
+    "dive": "Plan audit",
+    "title": "One Global chat and its bill",
+    "question": "How should one Global chat be sent to everyone without a bill that grows with every player?",
+    "recommended": "Keep one Global as you ruled. Send new lines in small batches every few seconds on the connection the game already has, and slow the chat down as it gets crowded. It costs nothing extra.",
+    "alternative": "Keep it instant and pay for it. That is about $1,080 a month for each 1,000 players listening.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "28-6"
+    ],
+    "priority": 3
+  },
+  {
+    "id": "31-2",
+    "dive": "Plan audit",
+    "title": "The Early Access date",
+    "question": "When do the beta and Early Access open, now that the plan's work has been counted?",
+    "recommended": "The beta opens about the end of December. Early Access lands between late February and late March. Print those dates in the plan.",
+    "alternative": "Hold mid-January, and move the clan castle, Crowns, the Catacombs and faction skills to after Early Access.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "30-7"
+    ],
+    "priority": 5
+  },
+  {
+    "id": "31-3",
+    "dive": "Plan audit",
+    "title": "The clan castle's goods",
+    "question": "You approved pricing castle goods at what they cost to make, and you also kept the built prices. Which one is it?",
+    "recommended": "Keep the built prices as you said. Only fix the two goods that cannot be made today, the Keystone and the Timber Beam's Slime Gel.",
+    "alternative": "Re-price all castle goods at what they cost to make, about 3.1M.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "25-4",
+      "23-8"
+    ],
+    "priority": 2
+  },
+  {
+    "id": "31-4",
+    "dive": "Plan audit",
+    "title": "Uniques moving up a band",
+    "question": "Your answer on uniques was cut off at \"Yes, but i also want the next band to\". What should the next band do?",
+    "recommended": "A unique can be reforged up a band and keeps what makes it special. Each new band also gets new uniques of its own.",
+    "alternative": "Finish the sentence a different way and the designer builds to that.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "A-3"
+    ],
+    "priority": 3
+  },
+  {
+    "id": "31-5",
+    "dive": "Plan audit",
+    "title": "How long until a player has four heroes",
+    "question": "How many weeks should a normal player take to own four heroes?",
+    "recommended": "Aim for week 14 to 16. The designer sets the third and fourth slot prices to hit that after the gold changes land. The plan said week 11, but with its own gold changes it is nearer week 16 to 20.",
+    "alternative": "Keep 1.5M and 4M whatever the week turns out to be.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "24-9",
+      "30-5"
+    ],
+    "priority": 4
+  },
+  {
+    "id": "31-6",
+    "dive": "Plan audit",
+    "title": "The first hero slot",
+    "question": "Is 400,000 gold for the first slot inside your rule that one hero alone can earn it by Level 32?",
+    "recommended": "Yes. Keep 400,000 and make the check read a played hero, who has 370,000 by Level 30 and more by 32. The old check read a typed table that said 371,000.",
+    "alternative": "Drop the first slot to 370,000.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "24-9"
+    ],
+    "priority": 3
+  },
+  {
+    "id": "31-7",
+    "dive": "Plan audit",
+    "title": "The training reading you rejected",
+    "question": "Should we still look at a hero who trains every idle hour, as a number and never as a gate?",
+    "recommended": "Yes. It is gone as a condition for selling training items. Keep it as a reading, because today it shows trained Defense cutting damage by 66% at Krell and it is how we will know the to-hit fix worked.",
+    "alternative": "Delete the reading.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "26-10",
+      "21-1"
+    ],
+    "priority": 2
+  },
+  {
+    "id": "31-8",
+    "dive": "Plan audit",
+    "title": "Faction skills",
+    "question": "Should the two faction skills be built at all if they are only allowed to make a hero 2% faster?",
+    "recommended": "No. Factions give standing and looks. The two skills are cut. A skill that is not allowed to matter is not worth building.",
+    "alternative": "Keep them as planned.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "25-9"
+    ],
+    "priority": 2
+  },
+  {
+    "id": "31-9",
+    "dive": "Plan audit",
+    "title": "The order of the two combat changes",
+    "question": "Should spells be changed before Deadly is made harder?",
+    "recommended": "Yes. Spells first, then Deadly, about a week later than planned. The spell change moves the healer and the Mage, so Deadly is sized once.",
+    "alternative": "Keep the order and re-size Deadly in the spell patch.",
+    "status": "open",
+    "ruling": "",
+    "amendment": "",
+    "depends": [
+      "21-3",
+      "21-5"
+    ],
+    "priority": 4
   }
 ]

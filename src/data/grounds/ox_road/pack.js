@@ -65,8 +65,9 @@ export default definePack({
     respawnMs: 60000, pullDist: 1.5, groupFit: 'both',
     densityMax: [8, 8, 8, 8],
     /* THE GATHER SLIDER (inert until the hunt-gathering engine lands): two coal seams by the Coal Path, where Gault's runners fill their
-       tins. refKillMs the Hold's. */
-    gather: gather(12000, [['coal_rock', 29, 8, 2], ['coal_rock', 35, 14, 2]]),
+       tins. refKillMs the Hold's. Both in P4's room (the Coal Path: layout A put the path at pocket 4, the stand-in had it at 2), each on
+       the map's cw_coal_seam at its tile (the node kind's full sprite). */
+    gather: gather(12000, [['coal_rock', 29, 8, 4], ['coal_rock', 35, 14, 4]]),
   },
   monsters: {
     dead_teamster: {

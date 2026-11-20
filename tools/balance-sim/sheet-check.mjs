@@ -90,11 +90,12 @@ export function gradeGround(cells, g, rows) {
       line('fresh.gold', 'Fresh hero, floor: worst margin over the bill', worst === Infinity ? 'no bill' : pct(worst), GOLD, null);
     }
   }
-  /* PARTY: a four at the floor, per head, against the median way alone at the floor */
+  /* PARTY: a four at the floor, per head, against the median way alone at the floor. PRINTED, never graded: Normal is not tuned for parties
+     (Tyler 2026-11-16, "normal isn't meant for parties anyway"); the sheet's party lines are Dangerous and Deadly's (grade.mjs four-xp) */
   const four = sh.party ? null : N((c) => c.heroes.length === 4 && c.cell.level === sh.floor)[0];
   if (four && facts.floorXp) {
     const r = readCell(four), ratio = r.xp / facts.floorXp;
-    line('party.four', 'Normal, a four at the floor: Level XP a head against the median way alone', k(r.xp) + ' (' + ratio.toFixed(2) + 'x)', S.party.fourVsSolo.join('-') + 'x', ratio >= S.party.fourVsSolo[0] && ratio <= S.party.fourVsSolo[1]);
+    line('party.four', 'Normal, a four at the floor: Level XP a head against the median way alone (Normal is not tuned for parties)', k(r.xp) + ' (' + ratio.toFixed(2) + 'x)', 'printed, not graded', null);
     facts.fourXp = r.xp;
   }
   /* THE HARDER TIERS AT THE RIGHT LEVEL: one difficulty for every group (RULED 2026-11-08), so the lines read what the tier pays whoever

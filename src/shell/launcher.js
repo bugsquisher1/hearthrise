@@ -241,8 +241,8 @@ export function heldCard(ctx) {
   const cs = ctx.character;
   /* tips off: nothing shown and nothing rung (the server's chain still moves on its own facts) */
   if (cs && !tipsOn(ctx)) { HELD.delete(cs); return null; }
-  /* a card hidden with Got it is never the pointer's: the facts carry `hid`, and the chain moves on past it */
-  const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);
+  /* a card hidden with Got it is never the pointer's, nor HELD for its reading time: a press always acts ("Fights on its own" ignored Got it, 2026-11-20) */
+  const sh = cs ? coachFactsOf(cs, ctx.account || null) : undefined, card = pointerCardOf(cs, sh), gone = (c) => !!(sh && sh.hid && sh.hid.has(c.id));
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (!cs || now === null) return card;
   const had = HELD.get(cs);
@@ -252,8 +252,8 @@ export function heldCard(ctx) {
   const from = rankOf(had.card), to = rankOf(card);
   /* back, or a goal line after a goal line: the server's at once */
   if (to <= from) return show(card, now);
-  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;
-  const passed = HUNT_TUTORIAL.slice(from + 1, to).find(auto);
+  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;
+  const passed = HUNT_TUTORIAL.slice(from + 1, to).find((r) => auto(r) && !gone(r));
   return passed ? show(passed, now) : show(card, now);
 }
 

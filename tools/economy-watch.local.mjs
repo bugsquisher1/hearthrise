@@ -31,7 +31,7 @@
 //   A2 NET INFLOW PER ACTIVE HERO PAST THE SHEET. Over the complete days, net gold per active hero-day against what the sheet
 //      pays for the hours those heroes really hunted, at their own Levels. The sheet's coin an hour at Level L = Level XP an
 //      hour (the measured pace in tools/balance-sim/level-pace.json or the contract x BALANCE_SHEET's xpVsContract max,
-//      whichever is higher, times the party ceiling fourVsSolo max) x the formula's best coin per Level XP (formulaStats over
+//      whichever is higher, times the party allowance PARTY_ALLOWANCE) x the formula's best coin per Level XP (formulaStats over
 //      every role, fit and ground), read no higher than the content ceiling (level-pace.json `ceiling`, 50: no ground pays past
 //      it). Income = coin x INCOME_PER_COIN (coin 1, commons 1.15, gear 0.5, rares 0.25, kill tasks 0.35, each part's source on
 //      the constant). Supplies are not taken off, so this is a ceiling: past it, gold is entering that the game is not built to
@@ -271,6 +271,13 @@ function heldByDay(heldNow, book) {
 
 const VOCAB = Object.freeze({ kinds: KNOWN_KINDS, gold: GOLD_KEYS, familyVerbs: FAMILY_VERBS, familyOf: FAMILY_OF });
 
+/* THE PARTY ALLOWANCE on a head's Level XP an hour (A2): 1.25, the four's edge over a lone hero the sheet ruled on Normal until Tyler 2026-11-16
+   moved its party lines to Dangerous and Deadly (BALANCE_SHEET.party: at or over the same heroes alone, a Deadly four at most 2.5x the contract;
+   "normal isn't meant for parties anyway"). The sheet no longer carries a Normal multiple, so the watch keeps 1.25 as its own allowance, unchanged,
+   and A2 is no less sensitive than it was. Not re-derived here: a Deadly four at its cap earns up to about 2.5 / 1.2 of the contract in coin
+   (coin a kill never scales with a tier, 11-07), past this ceiling; widening A2 for it is the economy owner's call, with the live read. */
+const PARTY_ALLOWANCE = 1.25;
+
 /* THE SHEET'S INPUTS, from the data (src/data/balance-sheet.js and the measured pace). */
 function sheetInputs() {
   const pace = JSON.parse(readFileSync(join(ROOT, 'tools', 'balance-sim', 'level-pace.json'), 'utf8'));
@@ -283,7 +290,7 @@ function sheetInputs() {
     paceRate: pace.rate || {},
     levelCap: Number(pace.ceiling) || Infinity,
     xpVsContractMax: BALANCE_SHEET.normal.xpVsContract.max,
-    partyMax: BALANCE_SHEET.party.fourVsSolo[1],
+    partyMax: PARTY_ALLOWANCE,
   };
 }
 

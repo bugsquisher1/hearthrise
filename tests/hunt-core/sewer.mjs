@@ -1703,6 +1703,21 @@ const cases = {
       if (seen[seen.length - 1] !== want) return 'after Enter the coach shows ' + seen.join(' > ') + ' (wanted ' + want + ' at that point)';
     }
     if (shown(hero()) !== 'earn_the_thicket') return 'a reload replays a held card';
+    /* A PRESS ALWAYS ACTS (2026-11-20, the retention dive's play: Got it on a held "Fights on its own" did nothing for its reading time): Got
+       it ends the hold and the next card shows at once, the one the server passed first (Level up), then the chain's. The hide is the visit's. */
+    const { actCoach } = await imp('src/shell/launcher.js');
+    const { residueOf } = await imp('src/session/residue.js');
+    const keep = { hunt: env.hunt, state: env.state, level: env.level };
+    const pressing = { read: (k) => env[k], record: { data: {}, residue: residueOf({ coach: { read: [] } }) },
+      setResidue(k, v) { this.record = { data: {}, residue: residueOf({ ...this.record.residue, [k]: v }) }; return true; } };
+    delete env.hunt; env.state = { level_xp: 0 }; env.level = srvLevel(M, 0);
+    if (shown(pressing) !== 'to_the_cellar') return 'before Enter the pressing hero is shown ' + shown(pressing);
+    Object.assign(env, keep);
+    const ctxOf = () => ({ character: pressing, now: () => t });
+    const got = () => actCoach(ctxOf(), null, 'coach-got', { type: 'click', target: null });
+    const walked = [shown(pressing)];
+    for (let i = 0; i < 2; i++) { got(); walked.push(shown(pressing)); }
+    if (walked.join(' > ') !== 'first_kill > first_level > earn_the_thicket') return 'Got it on held cards, at once, walks ' + walked.join(' > ') + ' (want first_kill > first_level > earn_the_thicket)';
     /* Eat on time, then the player's own Save: the card gives way at once (a long-read card is never held over it) */
     t += 600000;
     const food = (pct) => ({ action: { type: 'consume', id: 'cooked_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: pct }], join: 'and' });
@@ -2141,8 +2156,8 @@ const mutants = [
   { name: 'nothing to aim at after the guide (no what-next line)', case: 'tutorial-launcher-card',
     edits: [['src/session/tutorial-sections.js', '  if (card) return cardFor(card, f);\n', '  return card && cardFor(card, f);\n']] },
   { name: 'the launcher shows only the first card', case: 'tutorial-launcher-card',
-    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);',
-      "const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined) && { id: 'to_the_cellar', title: 'a', text: 'b' };"]] },
+    edits: [['src/shell/launcher.js', 'card = pointerCardOf(cs, sh), gone =',
+      "card = pointerCardOf(cs, sh) && { id: 'to_the_cellar', title: 'a', text: 'b' }, gone ="]] },
   { name: 'the pointer is drawn over an open window', case: 'tutorial-launcher-card',
     edits: [['src/shell/launcher.js', 'coachCovered(ctx.wm)', 'ctx.wm.row(ctx.wm.openIds()[0] || "") && ctx.wm.row(ctx.wm.openIds()[0]).modal']] },
   { name: 'the launcher keeps the pointer in a hunt (over Leave hunt)', case: 'tutorial-launcher-card',
@@ -2335,9 +2350,11 @@ const mutants = [
   { name: 'a solo hero hears no way to make a party', case: 'tutorial-launcher-card',
     edits: [['src/data/hunt-tutorial.js', "  const solo = facts.inParty !== true;\n", '  const solo = false;\n']] },
   { name: 'a card the server finishes is replaced before it can be read', case: 'coach-hold',
-    edits: [['src/shell/launcher.js', '  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '']] },
+    edits: [['src/shell/launcher.js', '  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '']] },
+  { name: 'Got it on a held card does nothing for its reading time', case: 'coach-hold',
+    edits: [['src/shell/launcher.js', '  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;\n', '  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;\n']] },
   { name: 'a card the server passed while another was read is never shown', case: 'coach-hold',
-    edits: [['src/shell/launcher.js', 'const passed = HUNT_TUTORIAL.slice(from + 1, to).find(auto);', 'const passed = null;']] },
+    edits: [['src/shell/launcher.js', 'const passed = HUNT_TUTORIAL.slice(from + 1, to).find((r) => auto(r) && !gone(r));', 'const passed = null;']] },
   { name: 'a card the player finished is held over (Save looks ignored)', case: 'coach-hold',
     edits: [['src/shell/launcher.js', 'const auto = (r) => !!r && !!r.done && AUTO_KINDS.includes(r.done.kind);', 'const auto = (r) => !!r;']] },
   { name: 'no ring on the icon a card starts at', case: 'coach-ring',
@@ -2421,7 +2438,7 @@ const mutants = [
     edits: [['src/data/hunt-tutorial.js', "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull']);", "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull', 'unlock']);"]] },
   /* lane 2: the shell's facts, Got it, read on sight, the hooks' order */
   { name: 'the shell passes the coach no facts (the twelve cards stay hidden)', case: 'tutorial-shell-facts',
-    edits: [['src/shell/launcher.js', 'const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);', 'const card = pointerCardOf(cs, undefined);']] },
+    edits: [['src/shell/launcher.js', 'card = pointerCardOf(cs, sh), gone =', 'card = pointerCardOf(cs, undefined), gone =']] },
   { name: 'the coach counts the bag, not what Sell all loot sells', case: 'tutorial-shell-facts',
     edits: [['src/shell/launcher.js', 'lootSale(bag, rulesOf(cs), shop, upgradeNeeds(homeOf(cs), chestsOf(cs))).lines.length', 'bag.length']] },
   { name: 'Got it records nothing', case: 'tutorial-shell-facts',

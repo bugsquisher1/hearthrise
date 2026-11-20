@@ -1,0 +1,824 @@
+#!/usr/bin/env node
+// ════════════════════════════════════════════════════════════════════════
+// tools/world-art/morrow-grounds.mjs — THE MORROW HILLS' KIT ON THE GROUND: CARTER'S REST (lane/b-morrow-kit, 2026-11-19).
+//
+//   node tools/world-art/morrow-grounds.mjs ground [id]     paint art/world/morrow/<id>_ground.png from the map's rows (carters_rest, ox_road)
+//   node tools/world-art/morrow-grounds.mjs patch OUT.png   the same painter on a small review patch (moor, road, yard, wall, gate)
+//
+// The rules are art/briefs/morrow-hills-art-rules.txt (the sample's, three unanchored rounds) on top of ART_DIRECTION.md:
+//   FLOORS  every cell takes a VARIETY tile of its floor's fill (tools/world-art/variety.mjs, picked as src/world/core/ground-variety.js
+//           picks), so no floor shows its 32 px repeat; every border between two floors is redrawn from the two fills' own pixels
+//           (tools/world-art/seams.mjs). The Hills paint dim: the moor is the sample's moor shaded 3 (its earth colours 1), the road
+//           shaded 1, so a lifted troll reads 3:1; the inn's floors were born dim on the palette (gen-2026-11-19/morrow-kit 1-3).
+//   ROAD    it must read in greyscale (rule 5): its verge is worn a step lighter than its middle, pebbles lie on it a step up, two
+//           broken ruts run along its middle. The moor gets olive and dead-bracken patches of its own value (the round-3 carry-overs).
+//   WALLS   the inn's mass is a slate roof stepped down; a mass cell over a floor shows a FACE (a 32x60 slice of the inn wall run, its
+//           cap lit, features every sixth cell: a boarded window, a plank door, the taproom's hearth; an END piece where a run stands
+//           free); its other edges show the cap seen from above. The yard's dry stone wall is the 24 px stub run with its two
+//           tumbled end pieces at the gate. Nothing is drawn by hand: every wall pixel is a kept piece's, snapped to the palette.
+// mutant-anchors: none — an import tool; tests/world-assets.mjs judges what it writes
+// ════════════════════════════════════════════════════════════════════════
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { decodePNG, encodePNG, createImage, blit, crop } from './png.mjs';
+import { ROOT, ART_DIR } from './build.mjs';
+import { lock, shadeGround, liftBody } from './lock.mjs';
+import { RAMPS } from './palette.mjs';
+import { reseam } from './seams.mjs';
+import { varietyTiles, decalOf } from './variety.mjs';
+import { stepPatches, bakeDecals, noise, hash2 } from './ground-finish.mjs';
+import { toneAt, varietyIndex } from '../../src/world/core/ground-variety.js';
+import { roofMass, faceTop, walkedRoof, tornEdges, doorwayOf, dividersOf, dimStone, chimney, sills } from './morrow-roofs.mjs';
+import { brewBricks, stableStraw } from './morrow-floors.mjs';
+import { oxFills, OX_MATS, OX_TRAILS, oxPairs, bridgeDeck, coalLumps, cragDual, oxRoad, CRAG, fordReeds } from './morrow-ox.mjs';
+import { oxMoor, oxWater, oxStory, oxPath, oxFrame } from './morrow-ox-ground.mjs';
+import { isMain } from '../../tests/_is-main.mjs';
+
+const T = 32;
+export const SRC = 'art/world-src/gen-2026-11-19/morrow-kit';
+export const SET = 'morrow', GROUND = 'carters_rest_ground';
+const abs = (p) => join(ROOT, p);
+const rd = (p) => decodePNG(readFileSync(abs(p)));
+const hexAt = (im, p) => '#' + [0, 1, 2].map((k) => im.data[p + k].toString(16).padStart(2, '0')).join('');
+const rgb = (h) => h.match(/[0-9a-f]{2}/gi).map((v) => parseInt(v, 16));
+const EARTH = new Set(RAMPS.earth);
+
+/* ── the fills ── */
+const metaOf = (dir) => { const f = readdirSync(abs(dir)).find((n) => n.endsWith('-metadata.json')); return { meta: JSON.parse(readFileSync(abs(dir + '/' + f), 'utf8')), sheet: rd(dir + '/' + f.replace('-metadata.json', '-sheet.png')) }; };
+function fillOf(dir, key) {
+  const { meta, sheet } = metaOf(dir);
+  const t = meta.tileset_data.tiles.find((q) => ['NW', 'NE', 'SW', 'SE'].map((c) => (q.corners[c] === 'upper' ? '1' : '0')).join('') === key);
+  return crop(sheet, t.bounding_box.x, t.bounding_box.y, T, T);
+}
+/** The Hills' shade (the sample's): greens and greys `deep` steps down, the earth ramp `earth` steps (rule 1). */
+export function hillsShade(img, deep = 3, earth = 1) {
+  const a = shadeGround(img, deep), b = earth ? shadeGround(img, earth) : img;
+  for (let p = 0; p < img.data.length; p += 4) if (EARTH.has(hexAt(img, p))) a.data.set(b.data.subarray(p, p + 3), p);
+  return a;
+}
+/** Every colour of `img` mapped through `map` ({ '#from': '#to' }). */
+function remap(img, map) {
+  const o = createImage(img.width, img.height); o.data.set(img.data);
+  for (let p = 0; p < o.data.length; p += 4) { const to = map[hexAt(o, p)]; if (to) o.data.set(rgb(to), p); }
+  return o;
+}
+/* the slate a step down (the walked roof): stone into iron and shadow, as the Hold's wall-walk */
+/* the brewhouse's flags: the cellar's stone a step lighter (shadow into stone: liftBody leaves the shadow ramp where it is) */
+const BREW_LIFT = { '#17141a': '#231d1f', '#231d1f': '#2f2723', '#2f2723': '#3a3a3e', '#2c2e33': '#3a3a3e', '#3a3a3e': '#4f4e52' };
+const SLATE_1 = { '#3a3a3e': '#2c2e33', '#4a4d54': '#3a3a3e', '#4f4e52': '#3a3a3e', '#6e727a': '#4a4d54', '#6a6865': '#4f4e52', '#2c2e33': '#231d1f' };
+
+/** Paint chars: H moor, R road, Y yard cobble, S stable straw, B taproom boards, F brewhouse flags, C cellar stone, O the walked roof,
+    M the inn's mass (its roof), W the dry stone wall's line (painted as the yard behind it). */
+export function materials() {
+  const F = (n) => `${SRC}/${n}`;
+  const tufts = ['common/square_decal_tuft_a', 'common/square_decal_tuft_b'].map((r) => hillsShade(decalOf(ROOT, ART_DIR, r)));
+  const cellar = fillOf(F('3-cellar-slate'), '0000'), slate = fillOf(F('3-cellar-slate'), '1111');
+  return {
+    H: { fill: hillsShade(rd(F('0-moor-road/fill-moor.png'))), v: { seed: 41, tone: 'soft', shift: true, details: tufts } },
+    R: { fill: rd(F('0-moor-road/fill-road-ranked.png')), v: { seed: 43, tone: 'soft', shift: true } },
+    Y: { fill: fillOf(F('1-cobble-flagstone'), '0000'), v: { seed: 51, tone: 'soft', spots: 'down' } },
+    S: { fill: shadeGround(fillOf(F('2-straw-boards'), '0000'), 1), v: { seed: 53, tone: 'soft', shift: true } },
+    B: { fill: fillOf(F('2-straw-boards'), '1111'), v: { seed: 57, tone: 'soft', spots: 'down' } },
+    /* the brewhouse is the cellar's own stone a step lighter (one family of stone, two rooms told apart by their light) */
+    F: { fill: remap(cellar, BREW_LIFT), v: { seed: 59, tone: 'soft', spots: 'down' } },
+    /* b4 ranked 5: the cellar read near-black with soft smears: its stone a step lighter (the brewhouse's lift), its smear decals out */
+    C: { fill: remap(cellar, BREW_LIFT), v: { seed: 61, tone: 'damp', spots: 'down' } },
+    O: { fill: remap(slate, SLATE_1), v: { seed: 63, tone: 'soft', spots: 'down' } },
+    /* the inn's intact roof over the mass: the slate as it was drawn (nobody stands on it); the walked roof is a step under it */
+    M: { fill: slate, v: { seed: 67, tone: 'soft', spots: 'down' } },
+    /* layout A (Tyler's pick, 2026-11-19): the yard and the cart lane are the road's packed earth (no ruts: they are no road), its paths
+       the stable's straw trodden out of the door; cobble only on the wheel track */
+    E: { fill: shadeGround(rd(F('0-moor-road/fill-road-ranked.png')), 1), v: { seed: 71, tone: 'soft', shift: true } },
+    P: { fill: shadeGround(fillOf(F('2-straw-boards'), '0000'), 1), v: { seed: 73, tone: 'soft', shift: true } },
+    /* the Ox Road's (tools/world-art/morrow-ox.mjs): the stream, the ford, the coal path, the bridge's deck, the crag */
+    ...oxFills({ rd, fillOf, boards: fillOf(F('2-straw-boards'), '1111'), road: rd(F('0-moor-road/fill-road-ranked.png')) }),
+  };
+}
+
+/* ── the grid: the map's rows to paint chars ── */
+/** The inn's three ranges (their '#' cells are its mass), and the dry stone wall's cells: [x0, y0, x1, y1] inclusive. */
+export const RANGES = Object.freeze([[11, 22, 46, 35], [1, 4, 15, 18], [42, 4, 56, 20]]);
+export const DRY_STONE = Object.freeze([[16, 13, 41, 13]]);
+/* b8 (CR) ranked 2, "the moor is a flat green field; the Ox Road is framed by crags": the kit's crag (the Ox Road's, morrow-ox.mjs
+   CRAG on its dual grid) in three corners of the moor that blocks a step anyway, cells [x0, y0, x1, y1]: the NW over the stable, the NE
+   over the brewhouse and down its east side, the SE east of the inn and below the road; and a mire behind the yard wall (the Ox Road's
+   bog rule, [cx, cy] in cells, [rx, ry] in px) */
+export const CR_CRAG = Object.freeze([[0, 0, 10, 1], [0, 2, 5, 2], [0, 3, 2, 3], [40, 0, 59, 0], [45, 1, 59, 1], [50, 2, 59, 2], [55, 3, 59, 3],
+  [57, 4, 59, 10], [52, 25, 59, 30], [50, 27, 59, 33], [54, 23, 59, 24], [55, 34, 59, 36], [44, 42, 59, 43], [50, 41, 59, 41]]);
+export const CR_BOGS = Object.freeze([[28.5, 8.6, 176, 58], [20.5, 3.4, 70, 40]]);
+/** The chimney stacks' feet (left end, px): the taproom's on its north roof over the hearth, the brewhouse's on its east range. */
+export const CHIMNEYS = Object.freeze([[856, 762], [1760, 330]]);   /* b8: the brewhouse stack at its range's west edge, where the copper's flue meets it */
+const LEG = Object.freeze({ ':': 'R', e: 'E', p: 'P', '.': 'Y', y: 'S', '=': 'B', f: 'F', c: 'C', r: 'O' });
+const inR = (rs, x, y) => rs.some(([a, b, c, d]) => x >= a && x <= c && y >= b && y <= d);
+/* the Ox Road's map chars (src/data/grounds/ox_road/map.js): its '#' is crag, its ',' the open moor */
+export const LEG_OX = Object.freeze({ ',': 'H', ':': 'R', e: 'E', j: 'J', '~': 'Q', o: 'V', '=': 'G', '#': 'K' });
+export function paintGrid(rows, ranges = RANGES, dry = DRY_STONE, leg = null, crag = CR_CRAG) {
+  if (leg) return rows.map((row) => [...row].map((ch) => { if (!leg[ch]) throw new Error('no paint for map char ' + ch); return leg[ch]; }).join(''));
+  return rows.map((row, y) => [...row].map((ch, x) => {
+    if (ch !== '#') { if (!LEG[ch]) throw new Error('no paint for map char ' + ch); return LEG[ch]; }
+    return inR(dry, x, y) ? 'W' : inR(ranges, x, y) ? 'M' : inR(crag, x, y) ? 'K' : 'H';
+  }).join(''));
+}
+
+/* ── the painter ── */
+const SEAMS = Object.freeze({
+  seed: 71, keep: 'MW',
+  mats: { H: { z: 1 }, R: { z: 0 }, E: { z: 0 }, P: { z: 1 }, Y: { z: 2, unit: true, mortar: 0.3 }, S: { z: 1 }, B: { z: 1 }, F: { z: 3, unit: true, mortar: 0.12 },
+    C: { z: 3, unit: true, mortar: 0.12 }, O: { z: 1, unit: true, mortar: 0.1 } },
+  pairs: [
+    { a: 'R', b: 'H', style: 'ragged', sweep: 9, warp: 7, scale: 26, mid: 2 },
+    /* b5 (CR): the dirt edges, the straw and wheel-track patches read ruler-straight; they wander now, the cobble track is kerbed */
+    { a: 'E', b: 'H', style: 'ragged', sweep: 15, warp: 12, scale: 30, mid: 3 }, { a: 'E', b: 'R', style: 'ragged', sweep: 5, warp: 5 },
+    { a: 'E', b: 'P', style: 'ragged', sweep: 12, warp: 10, scale: 22, mid: 3 }, { a: 'S', b: 'P', style: 'ragged', sweep: 4, warp: 4 },
+    { a: 'Y', b: 'E', style: 'kerb', course: 'Y' },
+    { a: 'E', b: 'S', style: 'ragged', sweep: 4, warp: 4 }, { a: 'E', b: 'B', style: 'stagger' }, { a: 'R', b: 'B', style: 'stagger' },
+    { a: 'E', b: 'O', style: 'stagger' }, { a: 'E', b: 'F', style: 'kerb', course: 'F' }, { a: 'E', b: 'C', style: 'kerb', course: 'C' },
+    { a: 'Y', b: 'R', style: 'scatter', jitter: 2, holes: 0.06, sweep: 3, warp: 4 },
+    { a: 'Y', b: 'S', style: 'scatter', jitter: 2, loose: 0.3, holes: 0.08, sweep: 3, warp: 4 },
+    { a: 'Y', b: 'B', style: 'kerb', course: 'Y' }, { a: 'Y', b: 'O', style: 'stagger' },
+    { a: 'Y', b: 'F', style: 'kerb', course: 'F' }, { a: 'Y', b: 'C', style: 'kerb', course: 'C' },
+  ],
+});
+const PHASES = Object.freeze({ Y: 'Y1234', C: 'C5678', F: 'Fabcd' });
+const PHASE_AT = Object.freeze([[0, 0], [13, 9], [21, 19], [7, 23], [26, 5]]);
+/** Each cell an UNTONED variety tile of its floor (key 0: the texture shifted, a spot or a kept decal, as ground-variety.js picks j);
+    the tone patches go on after the borders (tonePatches), so a redrawn border band is toned like the rest and never shows as a box. */
+function paintCells(grid, mats) {
+  const h = grid.length, w = grid[0].length, img = createImage(w * T, h * T);
+  const vs = Object.fromEntries(Object.entries(mats).map(([ch, m]) => [ch, varietyTiles(m.fill, m.v)]));
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const ch = grid[y][x] === 'W' ? 'E' : grid[y][x], seed = mats[ch].v.seed, v = vs[ch];
+    blit(img, v[varietyIndex(0, x, y, seed) % v.length], 0, 0, T, T, x * T, y * T);
+    if (ch === 'B') planks(img, x, y, mats.B.fill);
+  }
+  return img;
+}
+/* b6 (CR): the boards drawn by rule, not the fill (its knots stood every 32 px across the floor, a lattice at x1). Boards 7 px across
+   with a dark gap every 8 px (the fill's own pitch, so the doorway seams still meet it), each board 36-140 px long at its own offset,
+   its own tone (most the mid brown, some a step darker, a few a bronze step warmer), grain in long broken streaks, a dark butt joint
+   with a nail pair beside it on half of them, a knot on about one board in three (an irregular dark eye, its rim lit on the upper
+   left, never on a grid), and now and then a board split along its grain */
+const PITCH = 8, GAP = 1;
+const plankTone = (band, k) => { const r = hash2(band, k, 217); return r < 0.2 ? 'dark' : r > 0.86 ? 'warm' : 'mid'; };
+function boardAt(band, X) {
+  let e = -Math.floor(hash2(band, 3, 213) * 120), k = 0;
+  while (true) { const L = 36 + Math.floor(hash2(band, k, 215) * 104); if (X < e + L) return { e, L, k }; e += L; k++; }
+}
+function planks(img, cx, cy, fill) {
+  const set = (X, Y, h) => img.data.set([...rgb(h), 255], (Y * img.width + X) * 4);
+  for (let v = 0; v < T; v++) {
+    const Y = cy * T + v, band = Math.floor((Y - GAP) / PITCH), r = ((Y - GAP) % PITCH + PITCH) % PITCH;
+    for (let u = 0; u < T; u++) {
+      const X = cx * T + u;
+      if (r === 0) { set(X, Y, '#0b0a0c'); continue; }   /* the gap between two boards */
+      const { e, L, k } = boardAt(band, X), at = X - e, tone = plankTone(band, k);
+      if (at === 0) { set(X, Y, '#0b0a0c'); continue; }   /* the butt joint */
+      if (at === 1 && r <= 2) { set(X, Y, '#17141a'); continue; }
+      /* a nail pair beside half the joints, iron heads */
+      if (hash2(band, k, 219) < 0.5 && at === 3 && (r === 2 || r === 6)) { set(X, Y, '#4a4d54'); continue; }
+      /* grain: long streaks along the board (stretched noise), dark more than light */
+      const gs = noise(X * 0.22 + k * 37, band * 9 + r * 3.1, 4, 221), lo = tone === 'dark' ? 0.55 : tone === 'warm' ? 0.22 : 0.33;
+      let col = tone === 'warm' ? '#4a2e18' : '#3d2a1d';
+      if (gs < lo) col = '#2a1c14';
+      else if (gs > 0.83 && r >= 2 && hash2(X, Y, 223) < 0.5) col = tone === 'dark' ? '#3d2a1d' : '#553a26';
+      /* the top row under the gap a step down (the gap's shadow), the bottom row lit here and there */
+      if (r === 1 && hash2(X >> 2, band, 225) < 0.6) col = '#2a1c14';
+      if (r === PITCH - 1 && tone !== 'dark' && hash2(X >> 3, band, 227) < 0.25) col = '#553a26';
+      /* a split along the grain, now and then */
+      const split = hash2(band, k, 229) < 0.07, sr = 3 + Math.floor(hash2(band, k, 231) * 3), sa = Math.floor(hash2(band, k, 233) * Math.max(1, L - 30)) + 6;
+      if (split && r === sr && at >= sa && at < sa + 14 + Math.floor(hash2(band, k, 235) * 12)) col = '#0b0a0c';
+      set(X, Y, col);
+    }
+  }
+  /* knots: on about one board in three, at its own place along the board, an irregular eye 3-5 px wide, 2-3 tall */
+  for (let band = Math.floor((cy * T - GAP) / PITCH) - 1; band <= Math.floor(((cy + 1) * T - GAP) / PITCH) + 1; band++) {
+    let { e, L, k } = boardAt(band, cx * T - 160);
+    for (; e < (cx + 1) * T + 8; e += L, k++, L = 36 + Math.floor(hash2(band, k, 215) * 104)) {
+      if (hash2(band, k, 237) > 0.34) continue;
+      const kx = e + 6 + Math.floor(hash2(band, k, 239) * Math.max(1, L - 12)), ky = band * PITCH + GAP + 2 + Math.floor(hash2(band, k, 241) * 3);
+      const w = 3 + Math.floor(hash2(band, k, 243) * 3), hgt = 2 + (hash2(band, k, 245) < 0.4 ? 1 : 0);
+      for (let dy = 0; dy < hgt; dy++) for (let dx = 0; dx < w; dx++) {
+        const X = kx + dx - (dy === 0 && hash2(band, k, 247) < 0.5 ? 1 : 0), Y = ky + dy;
+        if (X < cx * T || X >= (cx + 1) * T || Y < cy * T || Y >= (cy + 1) * T) continue;
+        const rr = ((Y - GAP) % PITCH + PITCH) % PITCH; if (rr === 0) continue;
+        const edge = dx === 0 || dy === 0 || dx === w - 1 || dy === hgt - 1;
+        set(X, Y, dx === 0 && dy === 0 ? '#553a26' : edge ? '#2a1c14' : '#17141a');
+      }
+      /* the grain bends round it: a dark tail either side along the row */
+      for (const d of [-2, -1, w, w + 1]) { const X = kx + d, Y = ky + (hgt > 2 ? 1 : 0); if (X >= cx * T && X < (cx + 1) * T && Y >= cy * T && Y < (cy + 1) * T && ((Y - GAP) % PITCH + PITCH) % PITCH) set(X, Y, '#2a1c14'); }
+    }
+  }
+}
+/* the tone the variety would have given (its 'soft' state: the colours above the fill's median a ramp step down), laid in soft patches
+   across cells after the borders are drawn */
+const LUM = (h) => { const [r, g, b] = rgb(h).map((c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+function toneMap(fill) {
+  const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
+  const n = new Map(); for (let p = 0; p < fill.data.length; p += 4) { const h = hexAt(fill, p); n.set(h, (n.get(h) || 0) + 1); }
+  const by = [...n.keys()].sort((a, b) => LUM(a) - LUM(b)), med = LUM(by[Math.floor(by.length / 2)]);
+  return Object.fromEntries(by.filter((h) => LUM(h) > med && RAMP_AT.get(h) && RAMP_AT.get(h).k > 0).map((h) => [h, RAMP_AT.get(h).ramp[RAMP_AT.get(h).k - 1]]));
+}
+/** The road's own wear (rule 5): two broken ruts along its middle, a lighter worn verge along both edges, pebbles a step up. */
+function roadWear(g, grid) {
+  const h = grid.length, w = grid[0].length, isR = (x, y) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 'R';
+  const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
+  const step = (px, py, d, only = EARTH) => { const p = (py * g.width + px) * 4, hx = hexAt(g, p), a = RAMP_AT.get(hx); if (!a || !only.has(hx)) return 0;
+    g.data.set(rgb(a.ramp[Math.max(0, Math.min(a.ramp.length - 1, a.k + d))]), p); return 1; };
+  let rut = 0, verge = 0, peb = 0;
+  /* along the road: per pixel line across it, its middle is the mean of its cells' centres, smoothed over three cells so the ruts bend
+     where the road does and never jump a step at a cell line. The road runs the way its cells spread furthest (east-west on Carter's Rest) */
+  let rx0 = w, rx1 = -1, ry0 = h, ry1 = -1;
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (isR(x, y)) { rx0 = Math.min(rx0, x); rx1 = Math.max(rx1, x); ry0 = Math.min(ry0, y); ry1 = Math.max(ry1, y); }
+  const ew = rx1 - rx0 > ry1 - ry0, len = ew ? g.width : g.height;
+  const at = (a, b) => (ew ? [a, b] : [b, a]);   /* a along the road, b across it -> [px, py] */
+  const raw = []; for (let a = 0; a < len; a++) { const ca = Math.floor(a / T), bs = []; for (let b = 0; b < (ew ? h : w); b++) if (isR(...at(ca, b))) bs.push(b * T + T / 2); raw.push(bs.length ? bs.reduce((u, v) => u + v) / bs.length : null); }
+  for (let a = 0; a < len; a++) {
+    if (raw[a] == null) continue;
+    let s = 0, k = 0; for (let d = -48; d <= 48; d++) { const v = raw[a + d]; if (v != null) { s += v; k++; } }
+    const c = s / k, wob = (noise(0, a, 150, 5) - 0.5) * 22 + (noise(0, a, 37, 6) - 0.5) * 5;
+    /* two ruts a cart's width apart, wandering with the road's line and each a little on its own (they pinch and part), broken where
+       the road dried hard. A rut is a trough seen from above: its north wall in shade (a dark lip), its floor two steps down, its south
+       wall lit (the light is the upper left), and between the two ruts the crown a step up in soft patches */
+    const ruts = [];
+    for (const off of [-13, 12]) {
+      const b = Math.round(c + off + wob + (noise(off, a, 61, 7) - 0.5) * 9);
+      ruts.push(b);
+      if (noise(off, a, 19, 9) < 0.3) continue;
+      const wide = noise(off, a, 33, 10) > 0.55;
+      step(...at(a, b - 1), -1);
+      rut += step(...at(a, b), -2) + step(...at(a, b + 1), wide ? -2 : -1) + (wide ? step(...at(a, b + 2), -1) : 0);
+      step(...at(a, b + (wide ? 3 : 2)), 1);
+      /* a puddle standing in the rut: dark water 2 px deep, its north rim lit where it catches the sky */
+      if (noise(off, a, 41, 11) > 0.74) for (const [db, col] of [[0, '#2b4a6a'], [1, '#1a2c44'], [2, '#1a2c44']]) {
+        if (db === 2 && !wide) continue;
+        const [qx, qy] = at(a, b + db), p = (qy * g.width + qx) * 4;
+        if (EARTH.has(hexAt(g, p)) || hexAt(g, p) === '#231d1f') { g.data.set(rgb(db === 0 && hash2(off, a, 4) > 0.45 ? col : '#1a2c44'), p); rut++; }
+      }
+    }
+    for (let bb = ruts[0] + 4; bb < ruts[1] - 2; bb++) if (noise(a, bb, 21, 15) > 0.58) step(...at(a, bb), 1);
+  }
+  /* the verge: road pixels within 4-12 px of the moor. The south verge is worn a step lighter (a lit bank); the north one sits in the
+     moor's shade, a step down, and narrower. Broken by noise, so it never rules a line */
+  const moorNear = (px, py, r) => { let n = 0; for (let d = 1; d <= r; d++) for (const [qx, qy, dir] of [[px, py - d, 'N'], [px, py + d, 'S'], [px - d, py, 'W'], [px + d, py, 'E']]) {
+    if (qx < 0 || qy < 0 || qx >= g.width || qy >= g.height) continue; const hx = hexAt(g, (qy * g.width + qx) * 4); if (RAMPS.leaf.includes(hx) || RAMPS.moss.includes(hx)) return dir; } return null; };
+  for (let py = 0; py < g.height; py++) for (let px = 0; px < g.width; px++) {
+    if (!isR(Math.floor(px / T), Math.floor(py / T))) continue;
+    const p = (py * g.width + px) * 4; if (!EARTH.has(hexAt(g, p))) continue;
+    const r = 4 + Math.floor(noise(px, py, 24, 13) * 9), side = noise(px, py, 11, 17) > 0.12 ? moorNear(px, py, r) : null;
+    if (side === 'N') { if (moorNear(px, py, Math.ceil(r / 2)) === 'N') verge += step(px, py, -1); }
+    else if (side) verge += step(px, py, hexAt(g, p) === '#2a1c14' ? 2 : 1);
+  }
+  /* stones: in clusters (where the road is stonier), a dark foot and outline, the top a step over the road and its upper-left pixel
+     lit; never two touching. The floor cap (capFloor) keeps every lit pixel under the dimmest actor.
+     b7 (CR) ranked 7, "break the pebble-cluster repeat": the stones stood on a 7 px lattice inside blobs of one noise field, so every
+     cluster was the same even spray of same-size dots. Now each stretch of road (90-200 px) has a cluster or not, each its own: a
+     length and a depth (strung out along the road where wheels dragged it, or a tight knot), a count (3-14), stones thickest at its
+     core and thinning out, mostly 2 px, some 3, a few 4-5, half of them round one larger flat stone; and a little loose grit between */
+  const occ = new Uint8Array(g.width * g.height);
+  const free = (x0, y0, sz) => { for (let y = y0 - 1; y <= y0 + sz + 1; y++) for (let x = x0 - 1; x <= x0 + sz + 1; x++) { if (x < 0 || y < 0 || x >= g.width || y >= g.height || occ[y * g.width + x]) return false; } return true; };
+  const onRoad = (x0, y0, sz) => [[0, 0], [sz, sz], [sz, 0], [0, sz]].every(([dx, dy]) => isR(Math.floor((x0 + dx) / T), Math.floor((y0 + dy) / T)) && EARTH.has(hexAt(g, ((y0 + dy) * g.width + x0 + dx) * 4)));
+  const stone = (px, py, sz) => {
+    if (px < 1 || py < 1 || px + sz + 2 >= g.width || py + sz + 2 >= g.height || !free(px, py, sz) || !onRoad(px, py, sz + 1)) return 0;
+    const put = (x, y, hx) => { g.data.set(rgb(hx), ((py + y) * g.width + px + x) * 4); occ[(py + y) * g.width + px + x] = 1; };
+    const round = sz > 2, cut = (x, y) => round && ((x + y === 0) || (x === sz - 1 && y === 0 && sz > 3) || (x === 0 && y === sz - 1 && sz > 3) || (x === sz - 1 && y === sz - 1));
+    for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) if (!cut(x, y)) put(x, y, x + y <= (sz > 3 ? 2 : round ? 1 : 0) && !(x + y === 0 && round) ? '#6a6865' : x + y >= 2 * sz - 3 && sz > 3 ? '#3a3a3e' : '#4f4e52');
+    for (let x = 0; x < sz; x++) if (!cut(x, sz - 1) || x > 0) put(x + 1, sz, '#17141a');
+    for (let y = 0; y < sz; y++) put(sz, y + (y === 0 && round ? 1 : 0), '#17141a');
+    return 1;
+  };
+  for (let a0 = 0; a0 < len; ) {
+    const L = 90 + Math.floor(hash2(a0, 1, 601) * 110), k = a0;
+    a0 += L;
+    if (hash2(k, 2, 603) > 0.55) continue;
+    const ca = k + L * (0.2 + 0.6 * hash2(k, 3, 605)), mid = raw[Math.min(len - 1, Math.round(ca))]; if (mid == null) continue;
+    const cb = mid + (hash2(k, 4, 607) - 0.5) * 70, strung = hash2(k, 5, 609) < 0.4;
+    const ra = strung ? 22 + hash2(k, 6, 611) * 26 : 6 + hash2(k, 6, 611) * 10, rb = strung ? 3 + hash2(k, 7, 613) * 4 : 4 + hash2(k, 7, 613) * 7;
+    const n = 3 + Math.floor(hash2(k, 8, 615) * 12);
+    if (hash2(k, 9, 617) < 0.5) { const [bx, by] = at(Math.round(ca), Math.round(cb)); peb += stone(bx, by, 5 + Math.floor(hash2(k, 10, 619) * 2)); }
+    for (let i = 0, tries = 0; i < n && tries < n * 6; tries++) {
+      const r = Math.sqrt(hash2(k, 20 + tries, 621)) ** 1.6, th = hash2(k, 21 + tries, 623) * Math.PI * 2;
+      const q = hash2(k, 22 + tries, 625), sz = r < 0.35 && q < 0.25 ? 4 : q < 0.25 ? 3 : q > 0.93 ? 1 : 2;
+      const [x, y] = at(Math.round(ca + Math.cos(th) * ra * r), Math.round(cb + Math.sin(th) * rb * r));
+      if (stone(x, y, sz)) { i++; peb++; }
+    }
+  }
+  /* loose grit: single dark-footed chips here and there, never in a pattern */
+  for (let i = 0; i < Math.floor(len / 14); i++) {
+    const a = Math.floor(hash2(i, 31, 631) * len), m = raw[a]; if (m == null) continue;
+    const [x, y] = at(a, Math.round(m + (hash2(i, 32, 633) - 0.5) * 90)); peb += stone(x, y, 1);
+  }
+  return { rut, verge, peb };
+}
+/* Carter's Rest's road a step down and greyer (b4 ranked 2: "the brightest mass; a step down and desaturated"): every earth pixel on
+   it a step down its ramp (never below the second), grey grit in soft clumps through the bed */
+function roadDown(g, grid) {
+  const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
+  let down = 0;
+  for (let y = 0; y < g.height; y++) for (let x = 0; x < g.width; x++) {
+    if (grid[y >> 5][x >> 5] !== 'R') continue;
+    const p = (y * g.width + x) * 4, a = RAMP_AT.get(hexAt(g, p)); if (!a || a.ramp !== RAMPS.earth || a.k < 2) continue;
+    g.data.set(rgb(noise(x, y, 2.6, 461) < 0.12 + 0.3 * noise(x, y, 44, 463) ? (a.k > 3 ? '#4f4e52' : '#3a3a3e') : a.ramp[a.k - 1]), p); down++;
+  }
+  return { roadDown: down };
+}
+/* ── b4 polish (Carter's Rest) ── */
+/* THE HOLE IN THE WALKED ROOF (b7 review ranked 5: "a flat black blob, a tar pool"; the Coordinator's pick, the free sketch 5A,
+   art/review/morrow-kit/cr-b8-sketch-5a-x8.png). Laid after the slates are warmed, so its values are its own. A ragged opening whose
+   edge breaks along the slate courses (the slates snap course by course, slate by slate). Its north and west rim is the broken slates'
+   edge lit (the upper left) over the roof's cut section (a batten, its dark); its south and east rim a dark edge. Inside, past a 1-2 px
+   black gap only, the room a storey down, one dim step: its north wall's face in a band under the far rim, then the floor's boards with
+   fallen slate chips on them and the end of a bed. Across the opening the roof's rafters: one whole, three snapped (two hanging off the
+   far rim, one stub up off the near), each lit on its left, splinters at the break. */
+function roofHole(g, grid) {
+  let x0 = 99, x1 = -1, y0 = 99, y1 = -1; for (let y = 0; y < grid.length; y++) for (let x = 0; x < grid[0].length; x++) if (grid[y][x] === 'O') { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+  if (x1 < 0) return 0;
+  const put = (x, y, c) => { if (x >= 0 && y >= 0 && x < g.width && y < g.height && grid[y >> 5][x >> 5] === 'O') g.data.set(rgb(c), (y * g.width + x) * 4); };
+  const cx = (x0 + 0.6 * (x1 - x0 + 1)) * T, cy = (y1 + 1) * T - 64, rx = 86, ry = 42;
+  /* the edge snaps along the courses: a slate 10 px wide, a course 5 px deep, each its own bite, over a slow wander */
+  const bite = (x, y) => (hash2(Math.floor((x + 3 * Math.floor(y / 5)) / 10), Math.floor(y / 5), 861) - 0.5) * 0.34 + (noise(x, y, 26, 863) - 0.5) * 0.5;
+  const inH = (x, y) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + bite(x, y) < 1;
+  /* the far rim's line, per column: the first pixel of the hole from the top (the wall band hangs under it) */
+  const top = new Map();
+  for (let x = Math.floor(cx - rx - 12); x <= cx + rx + 12; x++) for (let y = Math.floor(cy - ry - 12); y <= cy + ry + 12; y++) if (inH(x, y)) { top.set(x, y); break; }
+  let n = 0;
+  for (let y = Math.floor(cy - ry - 14); y <= cy + ry + 14; y++) for (let x = Math.floor(cx - rx - 14); x <= cx + rx + 14; x++) {
+    if (!inH(x, y)) {
+      /* the rim on the roof side: lit where the hole lies below or right of it (the far and west rims), dark on the near and east */
+      if (inH(x, y + 1) || inH(x + 1, y)) { put(x, y, '#6a6865'); n++; }
+      else if (inH(x, y + 2) || inH(x + 2, y + 1)) { put(x, y, '#4f4e52'); n++; }
+      else if (inH(x, y - 1) || inH(x - 1, y)) { put(x, y, '#17141a'); n++; }
+      continue;
+    }
+    const t = top.has(x) ? top.get(x) : y, d = y - t;   /* how far below the far rim */
+    const edge = !inH(x - 1, y) || !inH(x + 1, y) || !inH(x, y + 1) || !inH(x, y - 1), edge2 = !inH(x - 2, y) || !inH(x + 2, y) || !inH(x, y + 2);
+    let c;
+    if (d < 3) c = d === 0 ? '#3d2a1d' : '#17141a';                      /* the roof's cut section under the far rim: a batten, its dark */
+    else if (edge || (edge2 && hash2(x, y, 865) < 0.5)) c = '#0b0a0c';   /* the gap between the rim and the room: 1-2 px */
+    else if (d < 15) {                                                     /* the room's north wall, its face under the far rim */
+      const course = (d - 3) % 5, joint = (x + 7 * Math.floor((d - 3) / 5)) % 11;
+      c = course === 4 || joint === 0 ? '#17141a' : d < 5 ? '#231d1f' : hash2(x >> 2, Math.floor((d - 3) / 5), 867) < 0.3 ? '#2f2723' : '#231d1f';
+    } else if (d === 15) c = '#0b0a0c';                                   /* the wall's foot */
+    else {                                                                 /* the floor's boards, dim, running east-west */
+      const r = (y - 2) % 7, band = Math.floor((y - 2) / 7), bx = (x + Math.floor(hash2(band, 1, 869) * 40)) % (40 + Math.floor(hash2(band, 2, 871) * 30));
+      c = r === 0 || bx === 0 ? '#17141a' : hash2(band, Math.floor((x + 13 * band) / 37), 873) < 0.3 ? '#3d2a1d' : '#2a1c14';
+    }
+    put(x, y, c); n++;
+  }
+  /* the end of a bed against the north wall, west of the middle: a footboard, two posts, a dark blanket over the frame */
+  const bxc = Math.round(cx - rx * 0.55), bx = bxc - 11, by = Math.round((top.has(bxc) ? top.get(bxc) : cy - ry) + 16);
+  for (let v = 0; v < 13; v++) for (let u = 0; u < 22; u++) {
+    const X = bx + u, Y = by + v; if (!inH(X, Y) || !inH(X, Y + 2)) continue;
+    const post = u < 3 || u > 18;
+    const c = u === 0 || u === 21 || v === 12 ? '#0b0a0c' : post ? (v === 0 ? '#6e4c30' : u === 1 || u === 19 ? '#553a26' : '#3d2a1d') : v < 5 ? (v === 0 ? '#0b0a0c' : '#3e1216') : v === 5 ? '#553a26' : v === 11 ? '#17141a' : '#3d2a1d';
+    put(X, Y, c);
+  }
+  /* fallen slate chips on the boards, thicker toward the near side, each lit along its top */
+  for (let i = 0; i < 46; i++) {
+    const X = Math.round(cx + (hash2(i, 1, 875) - 0.5) * rx * 1.6), Y = Math.round(cy - ry * 0.1 + hash2(i, 2, 877) ** 0.6 * ry * 0.8);
+    const w = 2 + Math.floor(hash2(i, 3, 879) * 4), hh = 1 + Math.floor(hash2(i, 4, 881) * 2);
+    if (![[0, 0], [w, hh + 1]].every(([a, b]) => inH(X + a, Y + b) && inH(X + a, Y + b + 2) && (Y + b) - (top.has(X + a) ? top.get(X + a) : 0) > 17)) continue;
+    for (let b = 0; b <= hh; b++) for (let a = 0; a < w; a++) put(X + a, Y + b, b === hh ? '#0b0a0c' : b === 0 ? '#4f4e52' : '#3a3a3e');
+  }
+  /* the rafters, running down the slope (north-south) at the roof's level, over everything below */
+  const rafter = (xa, ya, xb, yb, jag) => {
+    const L = Math.hypot(xb - xa, yb - ya), ux = (xb - xa) / L, uy = (yb - ya) / L;
+    for (let t = 0; t <= L; t += 0.5) for (let k = -2; k <= 2; k++) {
+      const X = Math.round(xa + ux * t - uy * k), Y = Math.round(ya + uy * t + ux * k);
+      if (jag && t > L - 4 && Math.abs(k) + hash2(Math.round(t), k, 883) * 3 > (L - t) + 1) continue;   /* the break: splinters */
+      put(X, Y, Math.abs(k) === 2 ? '#0b0a0c' : k === -1 ? (jag && t > L - 3 ? '#8a6440' : '#6e4c30') : k === 0 ? '#553a26' : '#3d2a1d');
+    }
+  };
+  const rimY = (x) => (top.has(Math.round(x)) ? top.get(Math.round(x)) : cy - ry) - 4;
+  const nearY = (x) => { let y = Math.round(cy + ry + 14); while (y > cy && !inH(Math.round(x), y)) y--; return y + 4; };
+  const R1 = cx - rx * 0.42, R2 = cx + rx * 0.02, R3 = cx + rx * 0.38, R4 = cx + rx * 0.7;
+  rafter(R1, rimY(R1), R1 + 6, nearY(R1 + 6), false);              /* the one that held */
+  rafter(R2, rimY(R2), R2 + 5, rimY(R2) + ry * 0.95, true);           /* snapped, hanging off the far rim */
+  rafter(R4, rimY(R4), R4 - 9, rimY(R4) + ry * 0.7, true);            /* snapped, sagged in toward the middle */
+  rafter(R3 + 3, nearY(R3 + 3), R3, nearY(R3 + 3) - ry * 0.55, true); /* the stub up off the near rim */
+  return n;
+}
+/* warm weathered slate (b4 ranked 1: "warm weathered shingle"): the roofs' cool blue-greys go to the stone ramp's warm greys, a step for a step */
+const WARM = { '#3a4652': '#3a3a3e', '#5c6c7a': '#6a6865', '#8a9aa8': '#8a867d', '#2c2e33': '#2f2723', '#4a4d54': '#4f4e52', '#6e727a': '#6a6865', '#969aa1': '#8a867d' };
+function warmSlate(g, grid) {
+  let n = 0;
+  const DOWN = { '#8a867d': '#6a6865', '#6a6865': '#4f4e52', '#4f4e52': '#3a3a3e', '#3a3a3e': '#2c2e33', '#2f2723': '#231d1f' };
+  const MOSS = (x, y) => noise(x, y, 26, 841) > 0.7 && noise(x, y, 5, 843) > 0.45;
+  for (let y = 0; y < g.height; y++) for (let x = 0; x < g.width; x++) {
+    const ch = grid[y >> 5][x >> 5]; if (!'MO'.includes(ch)) continue; const p = (y * g.width + x) * 4; let c = hexAt(g, p); c = WARM[c] || c;
+    /* the walked roof a step down (b5: the trolls standing on it read worst against the slate) */
+    if (ch === 'O') { c = DOWN[c] || c; const cx = x >> 5, cy = y >> 5, dN = grid[cy - 1] && grid[cy - 1][cx] === 'M' ? y % T : 99, dW = grid[cy][cx - 1] === 'M' ? x % T : 99, dE = grid[cy][cx + 1] === 'M' ? T - 1 - (x % T) : 99, d = Math.min(dN, dW, dE) + (noise(x, y, 6, 853) - 0.5) * 2; if (d < 2.5) c = '#0b0a0c'; else if (d < 6) c = DOWN[c] || '#17141a'; }
+    /* the intact roof weathered (b5: "the pinstripes are mechanical"): moss in soft patches, a slate missing here and there */
+    else if (MOSS(x, y) && ['#4f4e52', '#3a3a3e', '#6a6865', '#2c2e33'].includes(c)) c = hash2(x, y, 845) > 0.75 ? '#4a5a2a' : noise(x, y, 3, 847) > 0.5 ? '#2c4a2c' : '#1f3322';
+    g.data.set(rgb(c), p); n++;
+  }
+  for (let i = 0; i < 260; i++) { const x = Math.floor(hash2(i, 1, 849) * g.width), y = Math.floor(hash2(i, 2, 851) * g.height); if (grid[y >> 5][x >> 5] !== 'M' || grid[(y + 6) >> 5][(x + 7) >> 5] !== 'M') continue;
+    for (let b = 0; b < 4; b++) for (let a = 0; a < 7; a++) g.data.set(rgb(b === 0 ? '#0b0a0c' : b === 3 ? '#4f4e52' : '#17141a'), ((y + b) * g.width + x + a) * 4); }
+  return n;
+}
+/** The boards over every pixel reseam laid from the B fill tile (matAt 'B' and still the tile's own texel): the knot lattice out. */
+function replank(img, grid, fill, matAt) {
+  const h = grid.length, w = grid[0].length, pl = createImage(img.width, img.height);
+  const near = (cx, cy) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((grid[cy + dy] || '')[cx + dx] === 'B') return true; return false; };
+  let n = 0;
+  for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
+    if (!near(cx, cy)) continue;
+    planks(pl, cx, cy, fill);
+    for (let v = 0; v < T; v++) for (let u = 0; u < T; u++) {
+      const X = cx * T + u, Y = cy * T + v; if (matAt(X, Y) !== 'B') continue;
+      const p = (Y * img.width + X) * 4, q = (v * T + u) * 4;
+      if (img.data[p] !== fill.data[q] || img.data[p + 1] !== fill.data[q + 1] || img.data[p + 2] !== fill.data[q + 2]) continue;
+      if (img.data[p] === pl.data[p] && img.data[p + 1] === pl.data[p + 1] && img.data[p + 2] === pl.data[p + 2]) continue;
+      img.data.set(pl.data.subarray(p, p + 4), p); n++;
+    }
+  }
+  return n;
+}
+/* b5 (CR) ranked 3: the dirt edges, the straw and wheel-track patches ruler-straight and the track's L turn square: where earth, straw
+   and moor meet, each pixel takes the ground of a point up to +-14 px away on a smooth field (its texture carried, never smeared), so
+   the borders wander and the corners round off */
+/* the straw's edge frayed (b6 review, CR ranked 3: "soften the straw patch edges"): a soft field from the straw's cells (P, S: 1) and
+   the earth's (E: 0), other cells left out of the sum, its line warped; on the earth side near the line loose strands, thinning out with
+   the distance; on the straw side bare earth showing through in small patches, more of it nearer the line */
+function strawFray(g, grid, earthFill) {
+  const h = grid.length, w = grid[0].length, at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? null : grid[y][x]);
+  const val = (c) => (c === 'P' || c === 'S' ? 1 : c === 'E' ? 0 : null);
+  const field = (px, py) => {
+    const fx = px / T - 0.5, fy = py / T - 0.5, x0 = Math.floor(fx), y0 = Math.floor(fy), ax = fx - x0, ay = fy - y0;
+    let sum = 0, wt = 0, any1 = false, any0 = false;
+    for (const [dx, dy, k] of [[0, 0, (1 - ax) * (1 - ay)], [1, 0, ax * (1 - ay)], [0, 1, (1 - ax) * ay], [1, 1, ax * ay]]) {
+      const v = val(at(x0 + dx, y0 + dy)); if (v == null) continue; sum += v * k; wt += k; if (v) any1 = true; else any0 = true;
+    }
+    return wt > 0 && any1 && any0 ? sum / wt : null;
+  };
+  const put = (x, y, hx) => { if (x >= 0 && y >= 0 && x < g.width && y < g.height) g.data.set(rgb(hx), (y * g.width + x) * 4); };
+  let n = 0;
+  /* bare earth through the straw */
+  for (let py = 0; py < g.height; py++) for (let px = 0; px < g.width; px++) {
+    const c = at(px >> 5, py >> 5); if (c !== 'P' && c !== 'S') continue;
+    const wx = px + (noise(px, py, 22, 881) - 0.5) * 20, wy = py + (noise(px, py, 22, 883) - 0.5) * 20, f = field(wx, wy);
+    if (f == null || f >= 0.92) continue;
+    if (noise(px, py, 7, 885) > 0.3 + 0.7 * Math.max(0, (f - 0.45) / 0.47)) { const q = ((py % T) * T + (px % T)) * 4; g.data.set(earthFill.data.subarray(q, q + 3), (py * g.width + px) * 4); n++; }
+  }
+  /* loose strands out on the earth */
+  for (let gy = 0; gy < g.height; gy += 3) for (let gx = 0; gx < g.width; gx += 3) {
+    const px = gx + Math.floor(hash2(gx, gy, 887) * 3), py = gy + Math.floor(hash2(gx, gy, 889) * 3), c = at(px >> 5, py >> 5);
+    if (c !== 'E' && c !== 'P' && c !== 'S') continue;
+    const f = field(px + (noise(px, py, 22, 881) - 0.5) * 20, py + (noise(px, py, 22, 883) - 0.5) * 20);
+    if (f == null || f < 0.08 || f > 0.6) continue;
+    if (hash2(gx, gy, 891) > 0.55 * Math.min(1, (f - 0.08) / 0.4) * (0.4 + noise(px, py, 15, 893))) continue;
+    const len = 2 + Math.floor(hash2(gx, gy, 895) * 3), dir = hash2(gx, gy, 897) < 0.5 ? 1 : -1;
+    for (let t = 0; t < len; t++) put(px + t, py + (dir > 0 ? Math.floor(t / 2) : -Math.floor(t / 2)), t === len - 1 ? '#6e4c30' : t === 0 ? '#2a1c14' : '#553a26');
+    n++;
+  }
+  return n;
+}
+function wanderEdges(g, grid) {
+  const W = g.width, H = g.height, src = createImage(W, H); src.data.set(g.data);
+  const SOFT = 'EPH', ch = (x, y) => grid[Math.max(0, Math.min(grid.length - 1, y >> 5))][Math.max(0, Math.min(grid[0].length - 1, x >> 5))];
+  let n = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = ch(x, y); if (!SOFT.includes(c)) continue;
+    const sx = Math.round(x + (noise(x, y, 34, 871) - 0.5) * 30), sy = Math.round(y + (noise(x, y, 34, 873) - 0.5) * 30);
+    if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+    const d = ch(sx, sy); if (d === c || !SOFT.includes(d)) continue;
+    g.data.set(src.data.subarray((sy * W + sx) * 4, (sy * W + sx) * 4 + 4), (y * W + x) * 4); n++;
+  }
+  return n;
+}
+/* b5 (CR) ranked 4: nine identical boarded windows; each window its own: boarded (as drawn), its boards gone (a dark opening, a
+   splinter or two left), or half stripped (the top boards gone) */
+function windowVariant(g, x0, y0, w, h) {
+  const v = h < 0.4 ? 0 : h < 0.72 ? 1 : 2; if (!v) return;
+  for (let y = y0; y < y0 + 60; y++) for (let x = x0; x < x0 + w; x++) {
+    if (x < 0 || y < 0 || x >= g.width || y >= g.height) continue; const p = (y * g.width + x) * 4, c = hexAt(g, p);
+    if (!['#8a6440', '#6e4c30', '#553a26', '#a88457', '#3d2a1d'].includes(c)) continue;
+    if (v === 2 && y > y0 + 34) continue;
+    g.data.set(rgb(hash2(x >> 2, y, 863) > 0.85 ? '#3d2a1d' : (y - y0) % 7 === 0 ? '#17141a' : '#0b0a0c'), p);
+  }
+}
+/* b5 (CR) ranked 6: the hearth lit: a fire laid in its opening, embers along the bed, flames a step up into the throat (hard pixels) */
+function hearthFire(g, x0, y0) {
+  for (let y = y0 + 36; y < y0 + 56; y++) for (let x = x0 + 30; x < x0 + 66; x++) {
+    const p = (y * g.width + x) * 4, c = hexAt(g, p); if (!['#0b0a0c', '#17141a', '#231d1f', '#2c2e33'].includes(c)) continue;
+    const u = (x - x0 - 48) / 16, v = (y0 + 55 - y) / 18, flame = Math.abs(u) < 1 - v * 0.8 + (noise(x, y, 3, 865) - 0.5) * 0.5;
+    if (v < 0.18) g.data.set(rgb(hash2(x, y, 867) > 0.5 ? '#8e1f1f' : '#c23a2a'), p);
+    else if (flame) g.data.set(rgb(v < 0.45 && Math.abs(u) < 0.35 ? '#ffd36a' : v > 0.75 ? '#c23a2a' : '#f2a03a'), p);
+  }
+}
+/* b5 (CR) ranked 4: the cellar's cobble read as spilling up through the roof band; its passage north is a FLIGHT OF STEPS down into it
+   (treads lit along their edge, dark risers, each a step darker than the one above) */
+function cellarSteps(g, grid) {
+  let n = 0, top = 99; for (let y = 0; y < grid.length; y++) for (let x = 0; x < grid[0].length; x++) if (grid[y][x] === 'C') top = Math.min(top, y);
+  for (let cy = top; cy < top + 3; cy++) for (let cx = 0; cx < grid[0].length; cx++) {
+    if (grid[cy][cx] !== 'C' || (grid[cy][cx - 1] === 'C' && grid[cy][cx + 1] === 'C' && cy === top + 3)) continue;
+    for (let y = cy * T; y < cy * T + T; y++) for (let x = cx * T; x < cx * T + T; x++) {
+      const r = (y - top * T) % 8, k = Math.floor((y - top * T) / 8), tread = ['#4f4e52', '#3a3a3e', '#3a3a3e', '#2c2e33', '#2c2e33', '#231d1f', '#231d1f', '#17141a', '#17141a', '#17141a', '#0b0a0c', '#0b0a0c'][Math.min(11, k)];
+      g.data.set(rgb(r === 0 ? (k < 6 ? '#6a6865' : '#3a3a3e') : r >= 6 ? '#0b0a0c' : hash2(x >> 3, k, 869) > 0.85 ? '#17141a' : tread), (y * g.width + x) * 4); n++;
+    }
+  }
+  return n;
+}
+/* the dry stone wall's collapse (b4 ranked 6: "26 tiles featureless"): two stretches where it has come down, its stones fallen out
+   south across the yard's edge, a few still in the line */
+const COLLAPSE = Object.freeze([[24, 26], [35, 35]]);
+function fallen(g, c, y) {
+  let n = 0;
+  for (let i = 0; i < 22; i++) {
+    const X = c * T + Math.floor(hash2(c, i, 831) * 30), Y = y * T + 14 + Math.floor((-Math.log(1 - hash2(c, i, 833) * 0.95)) * 6), s = 3 + Math.floor(hash2(c, i, 835) * 4);
+    for (let b = 0; b < s - 1; b++) for (let a = 0; a < s; a++) { if ((a === 0 || a === s - 1) && (b === 0 || b === s - 2)) continue; const col = b === 0 ? '#6a6865' : a === s - 1 || b === s - 2 ? '#3a3a3e' : '#4f4e52'; g.data.set(rgb(col), ((Y + b) * g.width + X + a) * 4); n++; }
+    for (let a = 1; a < s; a++) g.data.set(rgb('#17141a'), ((Y + s - 1) * g.width + X + a) * 4);
+  }
+  return n ? 1 : 0;
+}
+/* the clutter rule (ART_DIRECTION 4): nothing on the floor is brighter than the dimmest actor body. A floor pixel over FLOOR_MAX (a
+   decal's glint, a speck) steps down its ramp until it is under; the walls are laid after and are no floor */
+const FLOOR_MAX = 0.12;
+/* the Ox Road's road and coal path hold their lit pixels under 0.07 (batch-1 review: the road's p90 .087 sat in the 0.07-0.09 dead
+   zone and it was the brightest mass); its verge, crown and ruts still read in greyscale against the 0.028 moor */
+const ROAD_MAX = 0.07;
+function capFloor(g, grid, roadMax = 0, exempt = '') {
+  const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
+  let n = 0;
+  for (let p = 0; p < g.data.length; p += 4) {
+    const px = (p / 4) % g.width, py = Math.floor(p / 4 / g.width); if (('MHWK' + exempt).includes(grid[Math.floor(py / T)][Math.floor(px / T)])) continue;
+    const max = roadMax && 'RJ'.includes(grid[Math.floor(py / T)][Math.floor(px / T)]) ? roadMax : FLOOR_MAX;
+    let h = hexAt(g, p); if (LUM(h) <= max) continue;
+    const a = RAMP_AT.get(h); if (!a) continue;
+    let k = a.k; while (k > 0 && LUM(a.ramp[k]) > max) k--;
+    g.data.set(rgb(a.ramp[k]), p); n++;
+  }
+  return n;
+}
+/* the contact strip (ART_DIRECTION 5): where a floor meets a wall's foot, its first rows a value step down, the first one two */
+function skirt(g, grid) {
+  const h = grid.length, w = grid[0].length, RAMP_AT = new Map();
+  for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
+  const down = (p, d) => { const a = RAMP_AT.get(hexAt(g, p)); if (a) g.data.set(rgb(a.ramp[Math.max(0, a.k - d)]), p); };
+  let n = 0;
+  for (let y = 1; y < h; y++) for (let x = 0; x < w; x++) {
+    if (grid[y - 1][x] !== 'M' || ['M', 'H', 'W'].includes(grid[y][x])) continue;
+    for (let px = x * T; px < x * T + T; px++) {
+      const deep = 2 + (hash2(px, y, 41) > 0.6 ? 1 : 0);
+      for (let v = 0; v < deep; v++) { down(((y * T + v) * g.width + px) * 4, v === 0 ? 2 : 1); n++; }
+    }
+  }
+  return n;
+}
+const DECALS = Object.freeze({
+  every: 4.6, seed: 73,
+  decals: {
+    Y: ['common/square_decal_chips_a'],
+    /* the de-dup: the sewer's exposed-dirt ring (ten of it read as one stamp) and the taproom's soot splats (read as holes) are out */
+    E: ['common/square_decal_chips_b', 'common/square_decal_chips_a', 'common/square_decal_leaves_b'],
+    S: ['common/square_decal_chips_b', 'common/square_decal_leaves_a'],
+    B: ['common/square_decal_chips_a', 'common/square_decal_chips_b'],
+    F: ['common/square_decal_chips_b'],
+    C: ['common/square_decal_puddle_b', 'common/square_decal_chips_b'],
+  },
+});
+
+/* ── the walls ── */
+const W_SRC = `${SRC}/walls`;
+const snap = (im) => lock(im, 'native');
+function wallPieces() {
+  const run = snap(rd(`${W_SRC}/inn-run.png`)), cycle = snap(rd(`${W_SRC}/inn-run-plain.png`)), door = snap(rd(`${W_SRC}/inn-door.png`)), hearth = snap(rd(`${W_SRC}/inn-hearth.png`)), ends = snap(rd(`${W_SRC}/inn-ends.png`));
+  /* the right quoin's own right edge goes a step into shadow (light from the upper left) */
+  const right = crop(ends, 160, 0, 32, 60);
+  const dark = shadeGround(right, 1);
+  for (let y = 0; y < 60; y++) for (let x = 29; x < 32; x++) { const p = (y * 32 + x) * 4; if (right.data[p + 3] >= 128) right.data.set(dark.data.subarray(p, p + 3), p); }
+  const ds = snap(rd(`${W_SRC}/drystone-run.png`)), dsl = snap(rd(`${W_SRC}/drystone-left.png`));
+  return {
+    /* the plain cycle: four slices of one seamless 128 px run (its two joints inpainted, a9fa1bdc), so no joint shows every 128 px */
+    plain: [0, 32, 64, 96].map((x) => dimStone(crop(cycle, x, 0, 32, 60))),
+    window: dimStone(crop(run, 64, 0, 64, 60)), door: dimStone(crop(door, 64, 0, 64, 60)), hearth: dimStone(crop(hearth, 48, 0, 96, 60)),
+    endL: dimStone(crop(ends, 0, 0, 32, 60)), endR: dimStone(right),
+    cap: crop(run, 0, 5, 32, 8),
+    /* the tumbled ends are two cells each: the right is the run's own fall (x128-191), the left its inpainted fall and the run's
+       first slice after it (678621ce), so neither meets the run on a step */
+    stub: [0, 32, 64, 96].map((x) => dimStone(crop(ds, x, 0, 32, 24))), stubR: dimStone(crop(ds, 128, 0, 64, 24)), stubL: dimStone(crop(dsl, 0, dsl.height - 24, 64, 24)),
+  };
+}
+const transpose = (im) => { const o = createImage(im.height, im.width); for (let y = 0; y < im.height; y++) for (let x = 0; x < im.width; x++) o.data.set(im.data.subarray((y * im.width + x) * 4, (y * im.width + x) * 4 + 4), (x * o.width + y) * 4); return o; };
+/** The features a face run carries, by what it faces: [cells, piece] at run index i, or null for a plain slice. */
+function featureAt(i, n, kind) {
+  if (kind === 'hearth' && n >= 7 && i === Math.floor(n / 2) - 1) return [3, 'hearth'];
+  /* b4: a boarded window on every sixth cell read as a pattern; the features stand on an irregular walk (gaps of 4-10 cells) */
+  let at = 2 + Math.floor(hash2(n, kind.length, 781) * 4); const at2 = []; while (at < n - 2) { at2.push(at); at += 4 + Math.floor(hash2(at, n, 783) * 7); }
+  if (!at2.includes(i) || n - i < 3) return null;
+  if (kind === 'yard') return [2, Math.floor(i / 6) % 2 ? 'door' : 'window'];
+  return [2, 'window'];
+}
+function layWalls(img, grid, P, indoor) {
+  const h = grid.length, w = grid[0].length;
+  const mass = (x, y) => x < 0 || y < 0 || x >= w || y >= h || grid[y][x] === 'M';
+  const open = (x, y) => !mass(x, y);
+  let faces = 0, stubs = 0;
+  /* no cap ring: the roof's own edges (tools/world-art/morrow-roofs.mjs) finish every edge seen from above */
+  /* the faces, north to south so a nearer wall stands over a farther one */
+  for (let y = 0; y < h; y++) {
+    let x = 0;
+    while (x < w) {
+      if (!(mass(x, y) && open(x, y + 1))) { x++; continue; }
+      let e = x; while (e + 1 < w && mass(e + 1, y) && open(e + 1, y + 1)) e++;
+      const n = e - x + 1, below = grid[y + 1] ? grid[y + 1][x] : 'H';
+      /* the face's top: an eave where it looks out, the roof's cut section where it stands in a room */
+      const outdoor = !(grid[y + 1] && indoor(grid[y + 1][x], x, y + 1));
+      const kind = below === 'B' && grid[y + 2] && grid[y + 2][x] === 'B' ? 'hearth' : 'EYRBP'.includes(below) ? 'yard' : 'out';
+      for (let i = 0; i < n; i++) {
+        const c = x + i;
+        const freeL = i === 0 && open(x - 1, y) && n > 1, freeR = i === n - 1 && open(e + 1, y) && n > 1;
+        const f = !freeL && !freeR ? featureAt(i, n, kind) : null;
+        if (f && i + f[0] - 1 < n - 1) {
+          blit(img, faceTop(P[f[1]], outdoor, c * T), 0, 0, f[0] * T, 60, c * T, y * T + T - 60, true);
+          if (f[1] === 'window') windowVariant(img, c * T, y * T + T - 60, f[0] * T, hash2(c, y, 861));
+          if (f[1] === 'hearth') hearthFire(img, c * T, y * T + T - 60);
+          faces += f[0]; i += f[0] - 1; continue;
+        }
+        const s = freeL ? P.endL : freeR ? P.endR : P.plain[c % P.plain.length];
+        blit(img, faceTop(s, outdoor, c * T), 0, 0, T, 60, c * T, y * T + T - 60, true);
+        faces++;
+      }
+      x = e + 1;
+    }
+  }
+  /* the dry stone wall: the stub run cycled, a tumbled end where a run stands free (the gate) */
+  for (let y = 0; y < h; y++) {
+    let x = 0;
+    while (x < w) {
+      if (grid[y][x] !== 'W') { x++; continue; }
+      let e = x; while (e + 1 < w && grid[y][e + 1] === 'W') e++;
+      const freeL = x > 0 && !['W', 'M'].includes(grid[y][x - 1]), freeR = e < w - 1 && !['W', 'M'].includes(grid[y][e + 1]);
+      for (let c = x; c <= e; c++) {
+        const i = c - x;
+        if (freeR && c >= e - 1) { if (c === e - 1) blit(img, P.stubR, 0, 0, 64, 24, c * T, y * T + T - 24, true); stubs++; continue; }
+        if (freeL && i < 2) { if (i === 0) blit(img, P.stubL, 0, 0, 64, 24, c * T, y * T + T - 24, true); stubs++; continue; }
+        /* after a left end the run goes on from its second slice (the end's right half is the run's first) */
+        if (COLLAPSE.some(([a, b]) => c >= a && c <= b)) { stubs += fallen(img, c, y); continue; }
+        blit(img, P.stub[(freeL ? i - 1 : c) % P.stub.length], 0, 0, T, 24, c * T, y * T + T - 24, true);
+        stubs++;
+      }
+      x = e + 1;
+    }
+  }
+  return { faces, stubs };
+}
+
+/** The whole painter: grid (paint chars) -> the ground image and what each step did. `skip(x, y)`: no decal under a placed object. */
+export function paintGround(grid, { skip = () => false, ranges = RANGES, chimneys = CHIMNEYS, objects = [] } = {}) {
+  const ox = grid.some((r) => /[QVJG]/.test(r)), inn = grid.some((r) => r.includes('M'));
+  /* the Ox Road's crag is laid last on its own dual grid (morrow-ox.mjs cragDual): under it the moor is painted like any moor */
+  const cragGrid = grid, cragged = grid.some((r) => r.includes('K')); grid = grid.map((r) => r.replace(/K/g, 'H'));
+  const indoor = (ch, x, y) => 'SBFCO'.includes(ch) && inR(ranges, x, y);
+  const mats = materials();
+  let img = paintCells(grid, mats);
+  const fills = Object.fromEntries(Object.entries(mats).map(([ch, m]) => [ch, m.fill]));
+  /* the dry stone wall's line is the yard behind it, so the road and the cobbles meet round its foot as anywhere else */
+  const seamRows = grid.map((r) => r.replace(/W/g, 'E'));
+  /* THE STONE FLOORS RE-LAID: one fill tile repeats every 32 px. The yard's cobbles and the cellar's and brewhouse's flags are each a
+     patchwork of their fill at five phases, a phase a cell, and every border between two phases is laid stone by stone (seams.mjs
+     stagger), so no stone is cut and the lattice breaks. The phases are the same pixels, so each is still the one floor. */
+  let phased = seamRows, pairs = SEAMS.pairs;
+  const mats2 = Object.assign({}, SEAMS.mats, ox ? OX_MATS : {});
+  /* batch-1 review: the turnout's apron showed its cell steps; on the Ox Road the road/moor border meanders wider */
+  if (ox) pairs = pairs.map((p) => (p.a === 'R' && p.b === 'H' ? Object.assign({}, p, { sweep: 16, warp: 13, scale: 34, mid: 3 }) : p)).concat(oxPairs);
+  for (const [base, chars] of Object.entries(PHASES)) {
+    phased = phased.map((r, y) => [...r].map((c, x) => (c !== base ? c : chars[Math.min(chars.length - 1, Math.floor(hash2(x, y, 97 + base.charCodeAt(0)) * chars.length))])).join(''));
+    for (const [k, ch] of [...chars].entries()) if (k) {
+      const [dx, dy] = PHASE_AT[k], f = fills[base], s = createImage(T, T);
+      for (let v = 0; v < T; v++) for (let u = 0; u < T; u++) { const q = (((v + dy) % T) * T + ((u + dx) % T)) * 4; s.data.set(f.data.subarray(q, q + 4), (v * T + u) * 4); }
+      fills[ch] = s; mats2[ch] = SEAMS.mats[base];
+      for (let y = 0; y < phased.length; y++) for (let x = 0; x < phased[0].length; x++) if (phased[y][x] === ch) blit(img, s, 0, 0, T, T, x * T, y * T);
+    }
+    const as = (p, c) => Object.assign({}, p, p.a === base ? { a: c } : { b: c }, p.course === base ? { course: c } : {});
+    pairs = pairs.flatMap((p) => (p.a === base || p.b === base ? [...chars].map((c) => as(p, c)) : [p]))
+      .concat([...chars].flatMap((a, i) => [...chars].slice(i + 1).map((b) => ({ a, b, style: 'stagger' }))));
+  }
+  const r = reseam(img, Object.assign({ rows: phased, fills }, SEAMS, { mats: mats2, pairs }, ox ? { trails: OX_TRAILS } : {}));
+  img = r.img;
+  /* b7 (CR) ranked 1: reseam lays a border band from the B fill tile (its knots every 32 px), so the porch, the passages and the
+     taproom's edges still showed the old lattice; every pixel it laid from that tile takes the rule-drawn boards instead */
+  const reboarded = inn ? replank(img, grid, fills.B, r.matAt) : 0;
+
+  let toned = 0;
+  for (const [ch, m] of Object.entries(mats)) toned += stepPatches(img, { rows: seamRows, on: (c) => c === ch, scale: 70, cut: 0.56, seed: m.v.seed + 100, map: toneMap(m.fill) });
+  let road = ox ? null : { ...roadWear(img, grid), ...roadDown(img, grid) };
+  /* the Ox Road's moor by its own rule (morrow-ox-ground.mjs oxMoor, b5 review ranked 1): a step darker, heather only in drifts, bare
+     peat, four decal kinds; Carter's Rest keeps the heath, bracken and olive patches */
+  /* Carter's Rest's moor too (its b4 review: "tufts polka-dotted", bracken "measles"): the Ox Road's moor rule without its bogs */
+  const heath = 0, bracken = 0, olive = 0;
+  const moor = oxMoor(img, grid, ox ? { skip } : { skip, bogs: CR_BOGS });
+  const wandered = ox ? 0 : wanderEdges(img, grid);
+  /* b6 (CR) ranked 3: the straw trodden out of the stable ended on a line; it frays into the earth now */
+  const frayed = ox ? 0 : strawFray(img, grid, mats.E.fill);
+
+  const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
+  /* the Ox Road wears its road by its own rule (morrow-ox.mjs oxRoad: every pixel under 0.07, structure instead of light), after the
+     moor's patches: its edge is warped across the cell line, and the heath pass (cell by cell) would cut it back to the grid */
+  /* the ruts swing round the road's wrecks (the broken and the slewed wagon) and the ground under the train tells its story */
+  if (ox) road = { ...oxRoad(img, grid, { wrecks: objects.filter((o) => /^mh_ore_wagon_(broken|slewed)$/.test(o.id)).map((o) => o.x * T + 32) }), ...oxStory(img, grid, objects) };
+  /* the Ox Road's own pieces (tools/world-art/morrow-ox.mjs): the ford's stones, the bridge's beams and broken span, coal on the runners' path */
+  const oxr = ox ? { ...oxPath(img, grid, moor.bogAt), ...oxWater(img, grid), ...bridgeDeck(img, grid), coal: coalLumps(img, grid), reeds: fordReeds(img, grid) } : {};
+  if (!inn) {
+    const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
+    const crag = ox ? { ...cragDual(img, cragGrid, metaOf(CRAG.dir)), ...oxFrame(img, grid) } : {};
+    /* the stream is never walked: its lit lip and the current's streaks may stand over the floor's limit (the ford is walked: held) */
+    const capped = capFloor(img, grid, ox ? ROAD_MAX : 0, ox ? 'Q' : '');
+    return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, ...moor, damp, ...oxr, ...crag, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))] } };
+  }
+  const walked = walkedRoof(img, grid, mats.E.fill, ranges, shadeGround(mats.B.fill, 3));
+  const doorway = doorwayOf(grid), P = wallPieces();
+  /* two floors of their own (tools/world-art/morrow-floors.mjs): the brewhouse's wet brick and drain, the stable's stalls and straw */
+  const brew = brewBricks(img, grid, doorway), straw = stableStraw(img, grid, doorway);
+  const steps = cellarSteps(img, grid);
+  /* b5 (CR) ranked 6: a light per fight pocket, its pool painted (the day map shows no run-time light): the Ox Road's pool rule */
+  const pools = oxStory(img, grid, objects).lit;
+  void wandered;
+  const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
+  /* b8 (CR) ranked 2: the corners' crag, the Ox Road's own (laid on its dual grid over the painted moor) */
+  const crag = cragged ? cragDual(img, cragGrid, metaOf(CRAG.dir)) : {};
+  const skirting = skirt(img, grid);
+  /* b4 ranked 8: the moor north unframed: the map's edges fall into the dark (never the road) */
+  const framed = oxFrame(img, grid).framed;
+  const capped = capFloor(img, grid);
+  const divOf = dividersOf(grid, indoor), wallTop = dimStone(dimStone(P.cap));
+  const roof = roofMass(img, grid, ranges, indoor, doorway, divOf, dimStone(P.cap));
+  const torn = tornEdges(img, grid, ranges, indoor, doorway, wallTop, divOf);
+  const sill = sills(img, grid, indoor, doorway);
+  /* the chimneys: the taproom's over its hearth, the brewhouse's on its east range (CHIMNEYS: a foot's left end, in px) */
+  for (const [x, y] of chimneys) chimney(img, P.plain[1], x, y);
+  const warm = warmSlate(img, grid);
+  /* b8 (CR) ranked 5: the hole into the guest wing, after the warm pass so its values are its own */
+  const hole = roofHole(img, grid);
+  const walls = layWalls(img, grid, P, indoor);
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed, hole, ...crag, warm, steps, pools, reboarded, frayed } };
+}
+
+export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);
+const GRID_FILE = 'art/briefs/carters-rest-grid-2026-11-19.txt';
+
+const OX_GRID_FILE = 'art/briefs/ox-road-grid-2026-11-19.txt';
+/* the Ox Road (layout A): its own map chars, no inn */
+async function oxGround() {
+  const MAP = (await import('../../src/data/grounds/ox_road/map.js')).default, G = 'ox_road_ground', OXSET = 'oxroad-floor';
+  const grid = paintGrid(MAP.rows, RANGES, DRY_STONE, LEG_OX);
+  writeFileSync(abs(OX_GRID_FILE), ['THE OX ROAD\'S PAINT GRID (lane/b-morrow-kit, 2026-11-19; layout A): src/data/grounds/ox_road/map.js rows through LEG_OX in',
+    'tools/world-art/morrow-grounds.mjs. H the open moor, R the road, E the turnout\'s packed earth, J the coal path, Q the stream, V the ford\'s',
+    'stones, G the bridge\'s planks (its middle span down: Q between them), K the crag (raised, seams.mjs rise).', '', 'PAINT', ...grid].join('\n') + '\n');
+  const cells = new Set(MAP.objects.map((o) => o.x + ',' + o.y));
+  const { img, report } = paintGround(grid, { skip: (x, y) => cells.has(x + ',' + y), chimneys: [], objects: MAP.objects });
+  const dir = abs(join(ART_DIR, OXSET));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, G + '.png'), encodePNG(lock(img, 'native')));
+  const h = grid.length, w = grid[0].length, all = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) all.push([x, y]);
+  const sc = { id: G, class: 'terrain', kind: 'fill', painted: true, style: 's1', material: 'native', source: G + '.png', lower: 'painted', upper: 'painted',
+    cycle: [w, h], tiles: { 1111: all },
+    pixellab: { tool: 'create-tileset (pro) fills, variety paint + reseam', tileset: [TILESETS[0], TILESETS[2], CRAG.id].join(','), grid: OX_GRID_FILE,
+      reused: 'the stream: the March\'s slow river (gen-2026-11-14/22-river-mud); the coal path: the Hold\'s dark grit (gen-2026-11-14/29-hold-tiles/2-gravel-earth)' },
+    notes: 'The Ox Road, painted by tools/world-art/morrow-grounds.mjs from ' + OX_GRID_FILE + ' (tools/world-art/morrow-ox.mjs for its own pieces): every cell a variety tile of its floor\'s fill, '
+      + report.seams + ' px of borders redrawn from the fills\' own pixels (the stream\'s banks wet, the crag raised on its own drawn face), the road worn (' + report.rut + ' px of ruts, '
+      + report.verge + ' px of lighter verge, ' + report.peb + ' pebbles), the moor in heather clumps and bracken and olive patches, ' + report.stones + ' stepping stones across the ford, the bridge\'s beams ('
+      + report.beams + ' px) and its broken span (' + report.ends + ' plank ends, ' + report.planks + ' planks down in the stream), ' + report.coal + ' lumps of coal on the runners\' path, '
+      + report.decals + ' kept decals. Pixels unscaled.' };
+  writeFileSync(join(dir, G + '.json'), JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ ' + OXSET + '/' + G + ' ' + w + 'x' + h + ': ' + JSON.stringify(report));
+}
+
+async function ground() {
+  const MAP = (await import('../../src/data/grounds/carters_rest/map.js')).default;
+  const grid = paintGrid(MAP.rows);
+  writeFileSync(abs(GRID_FILE), ['CARTER\'S REST\'S PAINT GRID (lane/b-morrow-kit, 2026-11-19): src/data/grounds/carters_rest/map.js rows, their rock split by',
+    'paintGrid in tools/world-art/morrow-grounds.mjs. H the moor (blocks a step), R the road, Y the yard\'s cobble, S the stable\'s straw, B the taproom\'s',
+    'boards, F the brewhouse\'s flags, C the cellar\'s stone, O the walked roof, M the inn\'s mass (its roof and walls laid over), W the dry stone wall,',
+    'K the crag in the moor\'s corners (the Ox Road\'s, on its dual grid; it blocks a step as the moor does).',
+    '', 'PAINT', ...grid].join('\n') + '\n');
+  const cells = new Set(MAP.objects.map((o) => o.x + ',' + o.y));
+  const { img, report } = paintGround(grid, { skip: (x, y) => cells.has(x + ',' + y), objects: MAP.objects });
+  const dir = abs(join(ART_DIR, SET));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, GROUND + '.png'), encodePNG(lock(img, 'native')));
+  const h = grid.length, w = grid[0].length, all = [];
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) all.push([x, y]);
+  const sc = { id: GROUND, class: 'terrain', kind: 'fill', painted: true, style: 's1', material: 'native', source: GROUND + '.png', lower: 'painted', upper: 'painted',
+    cycle: [w, h], tiles: { 1111: all },
+    pixellab: { tool: 'create-tileset (pro) fills, variety paint + reseam', tileset: TILESETS.join(','), grid: GRID_FILE,
+      walls: 'inpaint_image_pro_flash 1ff1ca22 (door), 24506cff (hearth), 9ed6db86 (ends), 678621ce (dry stone left end); the run and the dry stone wall from the approved Morrow sample (round 3)' },
+    notes: 'Carter\'s Rest, painted by tools/world-art/morrow-grounds.mjs from ' + GRID_FILE + ': every cell a variety tile of its floor\'s fill (the moor and road of the approved Morrow sample, the inn\'s floors from three pro tilesets born on the palette), '
+      + report.seams + ' px of borders redrawn from the fills\' own pixels, the road worn (' + report.rut + ' px of ruts, ' + report.verge + ' px of lighter verge, ' + report.peb + ' pebbles), the moor in heather clumps and bracken and olive patches, the walked roof re-laid by rule (' + report.roof + ' px, ' + report.holes + ' px stripped to its rafters, ' + report.stacks + ' stacks of pulled slates), '
+      + report.decals + ' kept decals (' + report.decalIds.join(', ') + '), the inn\'s roofs laid by rule (tools/world-art/morrow-roofs.mjs: ' + report.slates + ' px of slate courses and ridges, ' + report.cuts + ' px cut over the rooms, ' + report.eaves + ' px of eaves, ' + report.gables + ' px of barge boards) and its walls over them: ' + report.faces + ' face slices (an eave or the cut section on each), ' + report.stubs + ' dry stone slices. Pixels unscaled.' };
+  writeFileSync(join(dir, GROUND + '.json'), JSON.stringify(sc, null, 2) + '\n');
+  console.log('  ✓ ' + SET + '/' + GROUND + ' ' + w + 'x' + h + ': ' + JSON.stringify(report));
+}
+
+async function main() {
+  const [cmd, out] = process.argv.slice(2);
+  if (cmd === 'ground') return out === 'ox_road' ? oxGround() : ground();
+  if (cmd === 'patch') {
+    const rows = JSON.parse(readFileSync(process.argv[4], 'utf8'));
+    const { img, report } = paintGround(paintGrid(rows, [[0, 0, 0, 0]].concat(JSON.parse(process.argv[5] || '[]')), JSON.parse(process.argv[6] || '[]')));
+    writeFileSync(out, encodePNG(lock(img, 'native')));
+    return console.log(out + ' ' + JSON.stringify(report));
+  }
+  throw new Error('usage: morrow-grounds.mjs ground | patch OUT.png ROWS.json [RANGES] [DRY]');
+}
+if (isMain(import.meta.url)) main().catch((e) => { console.error('morrow-grounds: ' + (e && e.stack || e)); process.exit(2); });

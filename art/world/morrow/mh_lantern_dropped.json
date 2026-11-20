@@ -1,0 +1,71 @@
+{
+  "id": "mh_lantern_dropped",
+  "class": "decal",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_lantern_dropped.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "9b3c9053-c532-5b07-a813-7bcd98507e01",
+    "job": "28c5cd72",
+    "sketch": ".scratch/kit/ox-b6.mjs (sheet-yoke-lantern.png)"
+  },
+  "notes": "A teamster's lantern dropped on its side in the road: a square iron cage with corner bars, dark amber panes, the peaked cap and ring at its east end, out. Round 3 after review b5 (C5 REDO: \"a bottle\"): modelled in the wagons' camera (.scratch/kit/ox-b6.mjs), polished palette-held by edit_image_pro_flash with the other piece of its sheet. A decal walked over. Pixels unscaled."
+}

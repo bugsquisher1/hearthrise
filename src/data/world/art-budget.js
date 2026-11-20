@@ -52,7 +52,14 @@ export const CLASSES = Object.freeze({
   vermin_flier: row({ frame: [48, 48], anchor: [24, 44], body: [20, 32], measure: 'min', contact: 'flier', hover: [6, 16], shadow: 'ellipse', layer: 'unit' }),
   // A humanoid boss a head taller than a hero (Chief Coppercap): the character frame and anchor, a bigger body.
   brute: row({ frame: [64, 64], anchor: [32, 58], body: [41, 52], measure: 'h', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
+  // A brute whose blow and fall outgrow the brute frame (the Landlord, Carter's Rest's cellar elite: a keg swung over his head, a body that
+  // falls its whole length): the brute's body in a frame 96 wide and 72 tall, the anchor 66, so the raised keg and the corpse are never cut.
+  brute_wide: row({ frame: [96, 72], anchor: [48, 66], body: [41, 52], measure: 'h', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   beast: row({ frame: [64, 64], anchor: [32, 56], body: [40, 48], measure: 'w', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
+  // A beast as long as a draught animal (the Ox Road's Yoke Ox: 55 px nose to tail in profile, a charge that runs through a line, a fall
+  // its whole length): the beast's body, measured as beasts are over its eight facings, in brute_wide's frame so the charge and the corpse
+  // are never cut.
+  beast_wide: row({ frame: [96, 72], anchor: [48, 66], body: [40, 48], measure: 'w', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
   // A lean hound as long as a wolf (the Pyre Field's Lurcher): head-on it stands taller than the 48 px vermin frame holds, so it
   // takes the beast's frame and anchor and is measured as vermin are, by its longer side.
   hound: row({ frame: [64, 64], anchor: [32, 56], body: [34, 44], measure: 'max', contact: 'unit', shadow: 'ellipse', layer: 'unit' }),
@@ -112,6 +119,18 @@ export const CLASSES = Object.freeze({
   span: row({ body: [64, 160], measure: 'max', raw: true, contact: 'flat', shadow: null, layer: 'decal' }),
   // Wreckage wider than a crate (the Sewer's collapsed cart): something of it reaches the floor.
   wreck: row({ body: [28, 44], measure: 'h', maxW: 64, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
+  // A wagon of the Ox Road's ore train seen whole in high top-down, slewed across the way or dead in its yoke (lane/b-morrow-kit
+  // 2026-11-19): it lies across both ruts, so a turned bed or a team with its stiff legs in the air stands taller than a wreck.
+  wagon: row({ body: [36, 60], measure: 'h', maxW: 72, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
+  // A yoked TEAM of two dead oxen at beast size, fallen the same way in the yoke with their stiff legs out along the ground and across
+  // the tongue (lane/b-morrow-kit 2026-11-19, the Ox Road's lead team): two beasts lying side by side are deeper than one wagon.
+  team: row({ body: [48, 76], measure: 'h', maxW: 84, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
+  // A bar counter run along a wall north-south (Carter's Rest's taproom, lane/b-morrow-kit 2026-11-20): seen from the south it is a long
+  // top and a short front, so it stands as tall as the tiles it runs down; narrow, solid to the floor along its whole foot.
+  counter: row({ body: [60, 112], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
+  // A brewhouse copper on its firebox (Carter's Rest's brewhouse focal, lane/b-morrow-kit 2026-11-20): a domed vessel about a tile and a
+  // half across on a brick plinth, its flue rising off the dome, taller than any bulky prop; solid on its plinth.
+  copper: row({ body: [48, 80], measure: 'h', maxW: 64, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   // A long floor hearth (Krell's Hall Fire): a low stone trough of logs and flame four tiles wide, resting along its whole length.
   // It is fire, so it casts no shadow. Its flicker and its flare are clips of the one sprite.
   hallfire: row({ body: [20, 40], measure: 'h', maxW: 128, contact: 'solid', shadow: null, layer: 'prop' }),
@@ -193,7 +212,7 @@ export const gridOf = (id) => GRIDS[id] || GRIDS.base;
 // it stands on (the painted ground's median under its map's spawn tiles), in its four cardinal idle stills. Held by
 // tests/world-assets.mjs rule [ring] on the grounds of these region kits: the shipped grounds before them fail it today (the
 // Giant Rat 2.36:1), and are held when their art is redone. Pass with a body's `lift` or a floor's `shade` (build.mjs lockOf).
-export const READABLE = Object.freeze({ ring: 3, kits: Object.freeze(['barrow_march']) });
+export const READABLE = Object.freeze({ ring: 3, kits: Object.freeze(['barrow_march', 'morrow_hills']) });
 
 // ── THE ATLAS MANIFEST (assets/world/atlas-<set>.json) ──────────────────────
 // The contract between tools/world-art/build.mjs and the world renderer.

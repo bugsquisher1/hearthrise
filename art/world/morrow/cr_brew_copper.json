@@ -1,0 +1,66 @@
+{
+  "id": "cr_brew_copper",
+  "class": "copper",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "cr_brew_copper.png",
+  "frame": [
+    64,
+    80
+  ],
+  "anchor_px": [
+    32,
+    79
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "none: drawn by rule from the free sketch 4A (pixelart_workbench b77896f1), modelled on cr_brew_kettle",
+    "object": "0009e5a9"
+  },
+  "notes": "The brewhouse copper on its firebox, the room focal (Carter’s Rest b8): drawn by rule (.scratch/kit/b8/copper.mjs on lane/b-morrow-kit) from the Coordinator’s pick of the free sketch 4A (art/review/morrow-kit/cr-b8-sketch-4a-x8.png): a domed copper shaded as a round form, a riveted band, a cap and a swan-neck flue out to the east wall under the chimney; a coursed brick firebox with a small arched mouth, its fire drawn as the taproom hearth’s (an ember bed, a tapered flame). Palette-native (the fire keeps its torch colours). Pixels unscaled."
+}

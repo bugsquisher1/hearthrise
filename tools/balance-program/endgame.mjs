@@ -173,6 +173,62 @@ async function scaledplay() {
   }
 }
 
-const run = { rows, chest, climb, scaled, scaledplay }[mode];
+/* NO PLAY. THE OWN FOUR AT THE CHEST: weeks until a tank, a Healer, a bow and a Mage each hold their own weapon of one key tier (Tower keys),
+   and their own helmet and boots of it (Catacomb keys), opening 6 a family a hero a week with no stoke, pieces passed between the account's
+   heroes (they trade). The same for one hero alone. Warmth is a hero's, a family's (chest_warmth). Monte Carlo, seeded. */
+async function account() {
+  const { CHEST_KEYS, CHEST_LUCK, chestChancePpm } = await import(u('src/data/chests.js'));
+  const LIVES = Number(arg('lives', 8000));
+  const q = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(p * s.length))]; };
+  const FAMS = ['sword', 'warhammer', 'bow', 'staff', 'wand', 'hatchets', 'crossbow'], WEIGHTS = ['heavy', 'medium', 'light'];
+  const PARTY = [{ fam: 'sword', w: 'heavy' }, { fam: 'staff', w: 'light' }, { fam: 'bow', w: 'medium' }, { fam: 'wand', w: 'light' }];
+  console.log(`WEEKS TO FINISH A KEY TIER (${LIVES} lives a row; median / 90th), 6 opens a family a hero a week, no stoke, pieces shared inside the account.`);
+  console.log('| Key | Who | Own weapon each (Tower) | Own helmet and boots each (Catacombs) | Both |');
+  console.log('|---|---|---|---|---|');
+  for (const k of CHEST_KEYS) for (const who of [PARTY, PARTY.slice(0, 1)]) {
+    const r = rng(77 + k.from + who.length);
+    const tW = [], tA = [], tB = [];
+    for (let life = 0; life < LIVES; life++) {
+      const needW = {}; for (const h of who) needW[h.fam] = (needW[h.fam] || 0) + 1;
+      const needA = {}; for (const h of who) for (const s of ['helmet', 'boots']) needA[s + ':' + h.w] = (needA[s + ':' + h.w] || 0) + 1;
+      const dryT = who.map(() => 0), dryC = who.map(() => 0);
+      let wk = 0, doneW = null, doneA = null;
+      const left = (o) => Object.values(o).reduce((s, n) => s + n, 0);
+      while ((doneW === null || doneA === null) && wk < 2000) {
+        wk++;
+        who.forEach((h, i) => {
+          for (let o = 0; o < 6; o++) {
+            if (doneW === null) {
+              if (r() < chestChancePpm(k, dryT[i], 0, CHEST_LUCK) / 1e6) {
+                dryT[i] = 0;
+                const others = FAMS.filter((f) => f !== h.fam);
+                const f = r() < CHEST_LUCK.ownPm / 1000 ? h.fam : others[Math.floor(r() * others.length)];
+                if (needW[f] > 0) needW[f]--;
+              } else dryT[i]++;
+            }
+            if (doneA === null) {
+              /* the wing whose lean is the slot this hero's own weight still lacks, helmets first */
+              const wantHelm = needA['helmet:' + h.w] > 0 || !(needA['boots:' + h.w] > 0) && Object.keys(needA).some((x) => x.startsWith('helmet') && needA[x] > 0);
+              if (r() < chestChancePpm(k, dryC[i], 0, CHEST_LUCK) / 1e6) {
+                dryC[i] = 0;
+                const slot = r() < (wantHelm ? 0.7 : 0.3) ? 'helmet' : 'boots';
+                const others = WEIGHTS.filter((x) => x !== h.w);
+                const w = r() < CHEST_LUCK.ownPm / 1000 ? h.w : others[Math.floor(r() * others.length)];
+                if (needA[slot + ':' + w] > 0) needA[slot + ':' + w]--;
+              } else dryC[i]++;
+            }
+          }
+        });
+        if (doneW === null && left(needW) === 0) doneW = wk;
+        if (doneA === null && left(needA) === 0) doneA = wk;
+      }
+      tW.push(doneW ?? 2000); tA.push(doneA ?? 2000); tB.push(Math.max(doneW ?? 2000, doneA ?? 2000));
+    }
+    const f = (a) => q(a, 0.5) + ' / ' + q(a, 0.9);
+    console.log(`| ${k.name.replace(' Key', '')} | ${who.length === 4 ? 'the own four' : 'one hero'} | ${f(tW)} | ${f(tA)} | ${f(tB)} |`);
+  }
+}
+
+const run = { rows, chest, climb, scaled, scaledplay, account }[mode];
 if (!run) { console.error('usage: endgame.mjs rows | chest | climb | scaled   (see this file\'s header)'); process.exit(2); }
 await run();

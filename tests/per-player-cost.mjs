@@ -407,10 +407,11 @@ async function measure(db, M, fx, door, plant, minSettles = null) {
     ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), settle_ms_a_hero_hour: Math.round(wall / (heroHours * (per.length - 1) / per.length)) };
 }
 
-/* ── THE PLANTS (--selftest): a journal row a kill (the hunt's tally) or a gathered unit (the town hero's bag) ─────────────── */
+/* ── THE PLANTS (--selftest): a journal row a unit of work, game_events' old shape: a kill (the hunt's tally), or a unit a town job
+   moved through the bag (the bench's bones burnt, a gatherer's logs) for a hero with no hunt open ───────────────────────────── */
 const UNIT_ROW = `
   create or replace function public.hr_planted_unit_rows() returns trigger language plpgsql security definer set search_path = public, pg_catalog as $p$
-  declare v_n int;
+  declare v_n int; v_u uuid; v_s int;
   begin
     if tg_table_name = 'hunt_session_tally' then
       v_n := coalesce(new.kills, 0) - (case when tg_op = 'UPDATE' then coalesce(old.kills, 0) else 0 end);
@@ -418,17 +419,18 @@ const UNIT_ROW = `
         insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, session_id, at)
         select h.user_id, h.slot, 'hunt', 'planted_unit', 0, '{}'::jsonb, h.id, now() from public.hunt_sessions h, generate_series(1, v_n) where h.id = new.session_id;
       end if;
-    elsif not exists (select 1 from public.hunt_sessions h where h.user_id = new.user_id and h.slot = new.slot and h.ended_at is null) then
-      v_n := new.qty - (case when tg_op = 'UPDATE' then old.qty else 0 end);
-      if v_n > 0 then
-        insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at)
-        select new.user_id, new.slot, 'gather', 'planted_unit', 0, '{}'::jsonb, now() from generate_series(1, v_n);
-      end if;
+      return null;
+    end if;
+    if tg_op = 'DELETE' then v_u := old.user_id; v_s := old.slot; v_n := old.qty;
+    else v_u := new.user_id; v_s := new.slot; v_n := abs(new.qty - (case when tg_op = 'UPDATE' then old.qty else 0 end)); end if;
+    if v_n > 0 and not exists (select 1 from public.hunt_sessions h where h.user_id = v_u and h.slot = v_s and h.ended_at is null) then
+      insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at)
+      select v_u, v_s, 'craft', 'planted_unit', 0, '{}'::jsonb, now() from generate_series(1, v_n);
     end if;
     return null;
   end $p$;
   create trigger hr_planted_unit_tally after insert or update on public.hunt_session_tally for each row execute function public.hr_planted_unit_rows();
-  create trigger hr_planted_unit_bag after insert or update on public.player_inventory for each row execute function public.hr_planted_unit_rows();`;
+  create trigger hr_planted_unit_bag after insert or update or delete on public.player_inventory for each row execute function public.hr_planted_unit_rows();`;
 
 /** Every fixture (or `only`), each built and measured inside its own rolled-back savepoint. `plant`: the selftest's defect. */
 async function measureAll(db, M, { plant = null, only = null } = {}) {
@@ -537,13 +539,13 @@ async function main() {
     const fails = [];
     const arm = (label, cond, detail) => { console.log(`  ${cond ? 'ok    ' : 'FAILED'}  ${label}  ${detail}`); if (!cond) fails.push(label); };
     const calibration = await calibrate(db);
-    const clean = judge(await measureAll(db, M), base, calibration);
+    const clean = judge(await measureAll(db, M, { only }), base, calibration);
     arm('CONTROL: the tree as it is measures inside its baseline', clean.red.length === 0, clean.red.join('; ') || 'green');
     /* each plant must turn EVERY fixture red on its own metric */
-    for (const [plant, metric, what] of [['unit_row', 'ledger_rows_a_hero_hour', 'a journal row a kill (or a gathered unit)'],
+    for (const [plant, metric, what] of [['unit_row', 'ledger_rows_a_hero_hour', 'a journal row a kill, or a unit a town job moves'],
       ['extra_statement', 'statements_a_settle', 'one more statement a settle']]) {
-      const r = judge(await measureAll(db, M, { plant }), base, calibration);
-      for (const fx of Object.keys(FIXTURES)) {
+      const r = judge(await measureAll(db, M, { plant, only }), base, calibration);
+      for (const fx of Object.keys(FIXTURES).filter((x) => !only || x.includes(only))) {
         const hit = r.red.filter((x) => x.startsWith(fx + ' ') && x.includes(metric));
         arm(`MUTANT ${plant} (${what}): ${fx} is red`, hit.length > 0, hit.join('; ') || 'NOT red');
       }
@@ -579,8 +581,11 @@ async function main() {
   if (why !== undefined) {
     if (only) { console.error('--write measures every fixture: drop --only'); return 1; }
     if (!why || why.length < 20) { console.error('--write needs a reason of at least 20 characters: node tests/per-player-cost.mjs --write "<why>"'); return 1; }
-    const up = base ? judge(measured, base, calibration).red : [];
-    const history = [...((base && base.history) || []), { at: new Date().toISOString().slice(0, 10), why, ...(up.length ? { raised: up } : {}), calibration_ms: calibration, fixtures: measured }].slice(-20);
+    const judged = base ? judge(measured, base, calibration).red : [];
+    const up = judged.filter((x) => !x.includes('no baseline'));
+    const added = judged.filter((x) => x.includes('no baseline')).map((x) => x.split(':')[0]);
+    const history = [...((base && base.history) || []), { at: new Date().toISOString().slice(0, 10), why, ...(up.length ? { raised: up } : {}),
+      ...(added.length ? { added } : {}), calibration_ms: calibration, fixtures: measured }].slice(-20);
     writeFileSync(BASELINE, JSON.stringify({ _readme: [
       'Per-hero server cost, measured by tests/per-player-cost.mjs (CLAUDE.md §6 rule 10; balance program L11). It moves only with a',
       'stated reason: node tests/per-player-cost.mjs --write "<why>", recorded in history with every number that rose.',

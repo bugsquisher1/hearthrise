@@ -14,10 +14,10 @@
 // served behind its own switch, so the client draws the map for the wings ONLY: the row as the client holds it lists the run grounds and
 // nothing else, so no other hunt or monster routes to it. Without it a descent watched would draw the town.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
-import { WORLD_MAPS, STAGED_MAPS } from '../data/world/maps/index.js?v=0.2.142';
-import { runRulesOf } from '../data/tower.js?v=0.2.142';
-import { huntMapIndex } from './core/scene-route.js?v=0.2.142';
+import { HUNT_INDEX } from '../data/hunts.js';
+import { WORLD_MAPS, STAGED_MAPS } from '../data/world/maps/index.js';
+import { runRulesOf } from '../data/tower.js';
+import { huntMapIndex } from './core/scene-route.js';
 
 /** The staged maps a run ground is fought on, each listing its run grounds only. */
 const RUN_MAPS = Object.freeze(STAGED_MAPS.filter((m) => (m.hunts || []).some((h) => runRulesOf(h)))

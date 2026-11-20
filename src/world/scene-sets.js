@@ -22,17 +22,17 @@
 // THE ORDER is the order to fetch them in (fetchOrder): the prewarm takes them one at a time, while a hero is picked (prewarm.js).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js?v=0.2.142';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
-import { HUNT_GROUNDS, HALL_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js?v=0.2.142';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.142';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.142';
-import { wornSetOf } from '../data/world/atlas-sets.js?v=0.2.142';
-import { effectIds } from '../data/hunt-vfx.js?v=0.2.142';
-import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js?v=0.2.142';
-import { SANDBOX } from '../data/world/sandbox.js?v=0.2.142';
-import { FOLK } from '../data/world/town/folk.js?v=0.2.142';
-import { furnish } from './home-scene.js?v=0.2.142';
+import { groundOf, groundOfSliced, composeFrame, sliced } from './core/compose.js';
+import { HUNT_INDEX } from '../data/hunts.js';
+import { HUNT_GROUNDS, HALL_GROUNDS, gatherNodesOf } from '../data/hunt-grounds.js';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js';
+import { OUTFITS } from '../data/hunt-outfits.js';
+import { wornSetOf } from '../data/world/atlas-sets.js';
+import { effectIds } from '../data/hunt-vfx.js';
+import { ROOM_LAYOUTS, TROPHY_MOUNT_SPRITES } from '../data/world/house-layouts.js';
+import { SANDBOX } from '../data/world/sandbox.js';
+import { FOLK } from '../data/world/town/folk.js';
+import { furnish } from './home-scene.js';
 
 /* THE OUTFITS A SCENE LOADS WITH ITSELF: every one but a worn set's (the faction looks), which no scene fetches until a hero in view
    wears one (src/world/worn-sets.js), so an account that never meets one downloads none of it. */

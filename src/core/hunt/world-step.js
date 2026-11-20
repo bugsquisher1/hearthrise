@@ -25,21 +25,21 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.142';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.142';
-import { recordTrail, followTrail, moveAll, occupancy } from './movement.js?v=0.2.142';
-import { makeUnit } from './world-state.js?v=0.2.142';
-import { holderOutside, resetPack } from './leash.js?v=0.2.142';
-import { chooseTargets } from './targeting.js?v=0.2.142';
-import { positionHeroes } from './roles.js?v=0.2.142';
-import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js?v=0.2.142';
-import { resolveAttacks } from './damage.js?v=0.2.142';
-import { castSpells, dropCasts } from './monster-spells.js?v=0.2.142';
-import { castAbilities } from './abilities.js?v=0.2.142';
-import { tickStatuses } from './status.js?v=0.2.142';
-import { consume } from './consumables.js?v=0.2.142';
-import { flushXpGroup } from './xp-share.js?v=0.2.142';
-import { checkStopRules } from './conditions.js?v=0.2.142';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js';
+import { MONSTERS } from '../../data/monsters.js';
+import { recordTrail, followTrail, moveAll, occupancy } from './movement.js';
+import { makeUnit } from './world-state.js';
+import { holderOutside, resetPack } from './leash.js';
+import { chooseTargets } from './targeting.js';
+import { positionHeroes } from './roles.js';
+import { respawnPacks, runPhase, clearCorpses } from './pull-cycle.js';
+import { resolveAttacks } from './damage.js';
+import { castSpells, dropCasts } from './monster-spells.js';
+import { castAbilities } from './abilities.js';
+import { tickStatuses } from './status.js';
+import { consume } from './consumables.js';
+import { flushXpGroup } from './xp-share.js';
+import { checkStopRules } from './conditions.js';
 
 /** How many sub-steps one swing of `swingMs` is; refuses a swing that is not a whole number of them. */
 export function substepsOf(swingMs) {

@@ -16,9 +16,9 @@
 // too. A refusal carries the server's code and counts; a chest's re-reads the
 // paying hero first (quoted-ask.js), so the `depot` price shown is the server's.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.142';
-import { quoted } from './quoted-ask.js?v=0.2.142';
-import { refusalOf } from './refusal.js?v=0.2.142';
+import { askVia } from './intent-ledger.js';
+import { quoted } from './quoted-ask.js';
+import { refusalOf } from './refusal.js';
 
 const ID = /^[a-z0-9_]{1,64}$/;
 const OFFER = /^(?:property|room)\.[a-z0-9_]{1,40}(?:\.[0-9]{1,2})?$/;

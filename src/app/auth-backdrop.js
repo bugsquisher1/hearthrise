@@ -9,7 +9,7 @@
 // that cannot load leaves the screens as they were. Display only: nothing reads it.
 // ════════════════════════════════════════════════════════════════════════
 
-import { BUILD } from '../build-info.js?v=0.2.142';
+import { BUILD } from '../build-info.js';
 
 const BACKDROP_SRC = 'assets/brand/hearth-square.png?v=' + BUILD.cache;
 

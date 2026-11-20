@@ -18,8 +18,8 @@
 // No personal data: numbers and these fixed words. Nothing in the game reads it back (§1). It goes out through
 // observability's track, so a host that sends nothing sends none of this, and it carries the account id like any event.
 // ════════════════════════════════════════════════════════════════════════
-import { track } from './observability.js?v=0.2.142';
-import { BUILD } from '../build-info.js?v=0.2.142';
+import { track } from './observability.js';
+import { BUILD } from '../build-info.js';
 
 /**
  * @param {Window} win

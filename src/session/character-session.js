@@ -33,25 +33,25 @@
 // It authors no number: the record changes only from a server answer, and it sends of its own only the allowlisted residue and intents.
 // ════════════════════════════════════════════════════════════════════════
 
-import { applyEnvelope, frameEnvelope, refusalEnvelope, withResidue } from './envelope.js?v=0.2.142';
-import { createTimeline } from '../hunt-view/timeline.js?v=0.2.142';
-import { LiveLink } from './live-link.js?v=0.2.142';
-import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js?v=0.2.142';
-import { SESSION_CONFIG } from './config.js?v=0.2.142';
-import { edgeBody, edgeRead, withReceipt } from './edge-intents.js?v=0.2.142';
-import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js?v=0.2.142';
-import { HuntPoll, pollDelayMs } from './hunt-poll.js?v=0.2.142';
-import { AskPacer } from './ask-pacer.js?v=0.2.142';
-import { createIntentLedger } from './intent-ledger.js?v=0.2.142';
-import { ReadGate } from './read-gate.js?v=0.2.142';
-import { frameTopic, reconnectDelay } from './frame-channel.js?v=0.2.142';
-import { refusalOf, settleRefusalOf } from './refusal.js?v=0.2.142';
-import { afterRefusal } from './quoted-ask.js?v=0.2.142';
-import { catchUpLink, newIdem } from './catch-up.js?v=0.2.142';
-import { pageAway } from './page-away.js?v=0.2.142';
-import { askBody, slimFloor, takeSlim } from './hunt-ask.js?v=0.2.142';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.142';
-import { observeSessions, announceSession } from './session-observers.js?v=0.2.142';
+import { applyEnvelope, frameEnvelope, refusalEnvelope, withResidue } from './envelope.js';
+import { createTimeline } from '../hunt-view/timeline.js';
+import { LiveLink } from './live-link.js';
+import { RESIDUE_FIELDS, sanitizeResidueField, unconfirmedResidue } from './residue.js';
+import { SESSION_CONFIG } from './config.js';
+import { edgeBody, edgeRead, withReceipt } from './edge-intents.js';
+import { leaveAskOf, pendingLeaveAt, leaveCountdown, heardOf, closeInMs } from './hunt-leave.js';
+import { HuntPoll, pollDelayMs } from './hunt-poll.js';
+import { AskPacer } from './ask-pacer.js';
+import { createIntentLedger } from './intent-ledger.js';
+import { ReadGate } from './read-gate.js';
+import { frameTopic, reconnectDelay } from './frame-channel.js';
+import { refusalOf, settleRefusalOf } from './refusal.js';
+import { afterRefusal } from './quoted-ask.js';
+import { catchUpLink, newIdem } from './catch-up.js';
+import { pageAway } from './page-away.js';
+import { askBody, slimFloor, takeSlim } from './hunt-ask.js';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js';
+import { observeSessions, announceSession } from './session-observers.js';
 
 export const FRAME_EVENT = 'frame';
 

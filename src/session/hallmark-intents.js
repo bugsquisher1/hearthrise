@@ -9,8 +9,8 @@
 //   reforgePiece(account, cs, from, to, price)   hr_jewel_reforge
 //   luckyRing(account, cs, from, price)          hr_lucky_ring (1013-luck.sql): a plain ring + its tier's Lucky Rivets + the fee -> Fine, Lucky
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.142';
-import { refusalOf } from './refusal.js?v=0.2.142';
+import { askVia } from './intent-ledger.js';
+import { refusalOf } from './refusal.js';
 
 const ID = /^[a-z0-9_]{1,48}$/;
 const SKILL = /^[a-z_]{1,24}$/;

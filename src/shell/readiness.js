@@ -16,14 +16,14 @@
 // hunt's). Hunt prep is where a slot is changed, so it is the page that must not say "ready" under a ground's "Pick
 // Salted Trout". Where the ground's floor is measured safe on the bar's store food it says nothing, as the page does.
 // ════════════════════════════════════════════════════════════════════════
-import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js?v=0.2.142';
-import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js?v=0.2.142';
-import { heroVitalsOf } from '../session/character-sections.js?v=0.2.142';
-import { itemName } from './widgets/bits.js?v=0.2.142';
-import { whole, hoursWords } from '../render/format.js?v=0.2.142';
-import { supplyWords, weakFoodLine } from './hunt-go.js?v=0.2.142';
-import { heroGroundOf } from './widgets/first-target.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
+import { settingsOf, staminaOf, analyzerOf, huntOf } from '../session/hunt-sections.js';
+import { carriedOf, equipmentOf, goldOf, nameOf } from '../session/item-sections.js';
+import { heroVitalsOf } from '../session/character-sections.js';
+import { itemName } from './widgets/bits.js';
+import { whole, hoursWords } from '../render/format.js';
+import { supplyWords, weakFoodLine } from './hunt-go.js';
+import { heroGroundOf } from './widgets/first-target.js';
+import { t } from '../render/player-text.js';
 
 /**
  * @param {object} cs a CharacterSession

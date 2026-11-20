@@ -16,7 +16,7 @@
 
 import {
   LUCK_RULES, LUCK_FULL_BANDS, LUCK_TROPHY_BANDS, SALVAGE_RIVETS, LUCKY_PERK_PCT, RARE_CUT,
-} from '../data/luck.js?v=0.2.142';
+} from '../data/luck.js';
 
 const int = (v) => (Number.isFinite(Number(v)) ? Math.floor(Number(v)) : 0);
 

@@ -18,7 +18,7 @@
 // dir 's', then to the clip's first facing; a missing clip to the first clip.
 // PURE: no DOM, no window, no G — the node tests read the same book.
 // ════════════════════════════════════════════════════════════════════════
-import { pickFacing } from './facing.js?v=0.2.142';
+import { pickFacing } from './facing.js';
 
 /** The record a sprite id with no art gets: a small solid box on one tile. */
 export const STUB_SPRITE = Object.freeze({

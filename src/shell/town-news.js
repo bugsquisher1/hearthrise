@@ -13,15 +13,15 @@
 //                            those not told yet: one line for all of them, each title's id beside it, so each is told once.
 // Pure readers of the envelope: nothing here gates, prices or spends.
 // ════════════════════════════════════════════════════════════════════════
-import { benchRunOf } from '../session/bench-sections.js?v=0.2.142';
-import { titlesOf } from '../session/character-sections.js?v=0.2.142';
-import { nameOf, skillsOf } from '../session/item-sections.js?v=0.2.142';
-import { recipeInputs } from '../core/artisan.js?v=0.2.142';
-import { TITLES } from '../data/titles.js?v=0.2.142';
-import { whole, gold } from '../render/format.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
-import { itemName, itemNameFor, skillName } from './widgets/bits.js?v=0.2.142';
-import { workRow, productOf, yieldOf } from './town-work.js?v=0.2.142';
+import { benchRunOf } from '../session/bench-sections.js';
+import { titlesOf } from '../session/character-sections.js';
+import { nameOf, skillsOf } from '../session/item-sections.js';
+import { recipeInputs } from '../core/artisan.js';
+import { TITLES } from '../data/titles.js';
+import { whole, gold } from '../render/format.js';
+import { t } from '../render/player-text.js';
+import { itemName, itemNameFor, skillName } from './widgets/bits.js';
+import { workRow, productOf, yieldOf } from './town-work.js';
 
 /* The stops that mean the run finished on its own: an input used up, the count made (supabase/functions/hr-accrue/accrual.js `stopped`). */
 const FINISHED = new Set(['supplies', 'count']);

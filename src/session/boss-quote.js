@@ -9,7 +9,7 @@
 // A FREE FIGHT IS A PRICE (2027-03-22-live-events.sql §4): an event's fee dial (Open Halls) quotes 0 gold, the verb takes 0, and
 // the quote names the event that set it (`event`). It waives gold only: a fight's stamina is the same.
 // ════════════════════════════════════════════════════════════════════════
-import { BOSS_CALLS } from '../data/boss-calls.js?v=0.2.142';
+import { BOSS_CALLS } from '../data/boss-calls.js';
 
 const whole = (v) => (Number.isSafeInteger(v) && v >= 0 ? v : null);
 const table = (v, n) => (Array.isArray(v) && v.length === n && v.every((x) => Number.isSafeInteger(x) && x >= 0) ? v.slice() : null);

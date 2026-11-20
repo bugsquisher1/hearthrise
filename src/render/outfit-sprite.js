@@ -13,9 +13,9 @@
 // src/data/outfits.js; the druid has none). The recolour is the World's own
 // (src/world/hero-dye.js recolourPixels): a try-on shows exactly what a save will draw.
 // ════════════════════════════════════════════════════════════════════════
-import { loadAtlasSet } from '../world/atlas.js?v=0.2.142';
-import { recolourPixels, loadMasks } from '../world/hero-dye.js?v=0.2.142';
-import { heroSetsFor } from '../data/world/atlas-sets.js?v=0.2.142';
+import { loadAtlasSet } from '../world/atlas.js';
+import { recolourPixels, loadMasks } from '../world/hero-dye.js';
+import { heroSetsFor } from '../data/world/atlas-sets.js';
 
 /* every hero set asked for on this page: hero set -> Promise<{ manifest, image }> */
 const ART = new Map();

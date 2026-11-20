@@ -28,19 +28,19 @@
 // card that now has nothing left is listed as done, so the player sees what happened;
 // the first open step is the card's ONE gold press, else Hunt again is (after a ground outgrown, the next ground is).
 // ════════════════════════════════════════════════════════════════════════
-import { sellPlan, isStartKit } from './bag-model.js?v=0.2.142';
-import { upgradeWords } from './upgrade-plan.js?v=0.2.142';
-import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.142';
-import { nextBuyOf } from './next-buy.js?v=0.2.142';
-import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.142';
-import { moveStorageMany } from '../session/storage-intents.js?v=0.2.142';
-import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js?v=0.2.142';
-import { levelOf } from '../session/character-sections.js?v=0.2.142';
-import { partyMembershipOf } from '../session/party-sections.js?v=0.2.142';
-import { nextGroundFrom, adviceLevels } from './hunt-list.js?v=0.2.142';
-import { itemName } from './widgets/bits.js?v=0.2.142';
-import { gold, listWords } from '../render/format.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
+import { sellPlan, isStartKit } from './bag-model.js';
+import { upgradeWords } from './upgrade-plan.js';
+import { upgradeOf } from './widgets/upgrade-line.js';
+import { nextBuyOf } from './next-buy.js';
+import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js';
+import { moveStorageMany } from '../session/storage-intents.js';
+import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js';
+import { levelOf } from '../session/character-sections.js';
+import { partyMembershipOf } from '../session/party-sections.js';
+import { nextGroundFrom, adviceLevels } from './hunt-list.js';
+import { itemName } from './widgets/bits.js';
+import { gold, listWords } from '../render/format.js';
+import { t } from '../render/player-text.js';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const names = (ids) => listWords(ids.map(itemName));

@@ -59,28 +59,28 @@
 //   A SKILL THE ABSENCE TRAINED says its levels: the stamp keeps the server's level of the skill a training session (or the yard a hunt
 //     goes on to) trains, and the return says "Melee 28 to 34" from two server answers.
 // ════════════════════════════════════════════════════════════════════════
-import { levelOf, deathLogOf } from '../session/character-sections.js?v=0.2.142';
-import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf } from '../session/hunt-sections.js?v=0.2.142';
-import { nameOf, skillsOf } from '../session/item-sections.js?v=0.2.142';
-import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.142';
-import { pastHuntOf } from '../session/past-hunt.js?v=0.2.142';
-import { luckOf } from '../session/luck-sections.js?v=0.2.142';
-import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.142';
-import { deathWords } from './death-popup.js?v=0.2.142';
-import { huntName } from '../session/party-sections.js?v=0.2.142';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.142';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.142';
-import { whole } from '../render/format.js?v=0.2.142';
-import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js?v=0.2.142';
-import { bestFind, END_WORDS, goldOutWords } from '../hunt-view/summary-model.js?v=0.2.142';
-import { itemName } from './widgets/bits.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
-import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, staminaFreeOf, WAITED_FROM_MS } from './after-hunt.js?v=0.2.142';
-import { afterDoneWords } from './hunt-after.js?v=0.2.142';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.142';
-import { trainingPhrase, yardPaidOf } from '../session/training-sections.js?v=0.2.142';
-import { skillWord, endedWords as trainingEndWords } from './training-words.js?v=0.2.142';
+import { levelOf, deathLogOf } from '../session/character-sections.js';
+import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf } from '../session/hunt-sections.js';
+import { nameOf, skillsOf } from '../session/item-sections.js';
+import { huntAfterOf } from '../session/hunt-after-sections.js';
+import { pastHuntOf } from '../session/past-hunt.js';
+import { luckOf } from '../session/luck-sections.js';
+import { AFTER_INDEX } from '../data/hunt-after.js';
+import { deathWords } from './death-popup.js';
+import { huntName } from '../session/party-sections.js';
+import { END_REASON_COPY } from '../data/hunt-sessions.js';
+import { cameHomeWords } from '../data/party-words.js';
+import { whole } from '../render/format.js';
+import { isWorkStamp, workStampOf, awayWorkLineOf, awayWorkSettled } from './away-work.js';
+import { bestFind, END_WORDS, goldOutWords } from '../hunt-view/summary-model.js';
+import { itemName } from './widgets/bits.js';
+import { t } from '../render/player-text.js';
+import { afterHuntOf, afterHuntWords, spanWords, spareSupplyOf, staminaFreeOf, WAITED_FROM_MS } from './after-hunt.js';
+import { afterDoneWords } from './hunt-after.js';
+import { HUNT_INDEX } from '../data/hunts.js';
+import { trainingOf as trainedBy } from '../data/training.js';
+import { trainingPhrase, yardPaidOf } from '../session/training-sections.js';
+import { skillWord, endedWords as trainingEndWords } from './training-words.js';
 
 /* Less time away than this is a reload or a quick look, not an absence. */
 export const AWAY_MIN_MS = 10 * 60 * 1000;

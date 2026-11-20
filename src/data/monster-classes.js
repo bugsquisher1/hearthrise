@@ -35,8 +35,8 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
-import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.142';
-import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.142';
+import { ELEMENTS, elementProfileProblems } from './elements.js';
+import { NECROTIC_STORM } from './necrotic-storm.js';
 export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */

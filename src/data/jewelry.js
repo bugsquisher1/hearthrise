@@ -31,8 +31,8 @@
 // PURE ESM. Imports data only. Node, Deno and the browser read it verbatim.
 // ============================================================================
 
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.142';
-import { LUCKY_PERK_PCT, LUCKY_RIVET_STEP, LUCK_SWITCH, LUCK_ITEM } from './luck.js?v=0.2.142';
+import { SLOT_ITEMS } from './slot-ladders.js';
+import { LUCKY_PERK_PCT, LUCKY_RIVET_STEP, LUCK_SWITCH, LUCK_ITEM } from './luck.js';
 
 /* ── THE PERKS. T3 numbers are the designer's measured sizes; T2 about two thirds (the spec). Permille. ──
    `what` is the player's sentence, with {pct} for the size. Each perk counts ONCE per hero, whatever it wears

@@ -19,14 +19,14 @@
 // raises your stamina cap by 4 hours." (Tyler's words; the 4 is STAMINA_MAX_MS's
 // premium cap less the free one). Nothing here prices or adds stamina.
 // ════════════════════════════════════════════════════════════════════════
-import { STAMINA_MAX_MS } from '../../data/hunt-sessions.js?v=0.2.142';
-import { staminaOf, isPremium } from '../../session/hunt-sections.js?v=0.2.142';
-import { staminaRefillOf, goldOf } from '../../session/item-sections.js?v=0.2.142';
-import { text, cls, attr, prop } from '../../render/paint.js?v=0.2.142';
-import { whole, gold, hoursWords } from '../../render/format.js?v=0.2.142';
-import { refusalWords } from '../intent-words.js?v=0.2.142';
-import { answerWithin } from '../bar-draft.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
+import { STAMINA_MAX_MS } from '../../data/hunt-sessions.js';
+import { staminaOf, isPremium } from '../../session/hunt-sections.js';
+import { staminaRefillOf, goldOf } from '../../session/item-sections.js';
+import { text, cls, attr, prop } from '../../render/paint.js';
+import { whole, gold, hoursWords } from '../../render/format.js';
+import { refusalWords } from '../intent-words.js';
+import { answerWithin } from '../bar-draft.js';
+import { t } from '../../render/player-text.js';
 
 const PREMIUM_HOURS = Math.round((STAMINA_MAX_MS.premium - STAMINA_MAX_MS.free) / 3600000);
 const STATE = new WeakMap();   // the bar element -> { open, pending, msg, off }

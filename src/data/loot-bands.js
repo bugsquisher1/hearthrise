@@ -25,7 +25,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { VERY_RARE_HOURS } from './luck.js?v=0.2.142';
+import { VERY_RARE_HOURS } from './luck.js';
 
 /** The bands, in the order a monster's rows list them. `key` sits after `rare`, so a key row added to a monster never moves the draw
     of a row it already had (lane/b-krells-hold-pack: the Gatekeeper's Hall Key; carried onto the set by lane/d-packs-retune so the

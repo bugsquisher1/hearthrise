@@ -33,15 +33,25 @@ export const SUMMARY_TEXT = Object.freeze({
   bless: 'Bless',
   /* Equip: what Equip upgrades would put on (src/shell/upgrade-plan.js), its words under the count. */
   equip_n: { one: 'Equip 1 better piece', other: 'Equip {count} better pieces' },
-  /* Sell: every stack the loot plan marks Sell, at the shop's bids. */
+  /* Sell: every stack the loot plan marks Sell, and the junk no plan holds (balance program L03), at the shop's bids. All junk, it says so. */
   sell_n: { one: 'Sell 1 stack for {total}', other: 'Sell {count} stacks for {total}' },
+  sell_junk: 'Sell junk for {total}',
   sell_words: 'Marked Sell: {names}',
+  /* Always sell these (L03): after that sale, the junk it sold with no plan, its plan set to Sell in one press. {names} the items */
+  always: 'Always sell these',
+  always_words: 'Set Sell on {names}',
+  always_verb: 'Always sell',
+  always_busy: 'Saving the plan…',
+  always_done: { one: '1 item marked Sell', other: '{count} items marked Sell' },
+  always_some: 'Set {set} of {of}. Press again for the rest',
   /* Deposit: every stack the loot plan marks Deposit, with its worth when the shop bids on any of it. */
   deposit_n: { one: 'Deposit 1 stack', other: 'Deposit {count} stacks' },
   deposit_worth: { one: 'Deposit 1 stack worth {worth}', other: 'Deposit {count} stacks worth {worth}' },
   deposit_words: { one: 'Marked Deposit: {names}, frees 1 bag space', other: 'Marked Deposit: {names}, frees {count} bag spaces' },
   /* Bless: the Blessings not on, each at the price the server quotes now. */
   bless_n: 'Bless {names}',
+  /* what a Blessing does (L03, retention R6): {pct} the cut with every tier on, the server's top tier */
+  bless_does: 'A death costs {pct} less XP and uses them up',
   bless_free: 'Free until Level {level}',
   bless_cost: 'Cost: {total}',
   /* THE NEXT BUY (src/shell/next-buy.js; audit 2026-11-15 F12/F20: a million gold by Level 50 and the card said nothing): the one most
@@ -64,6 +74,19 @@ export const SUMMARY_TEXT = Object.freeze({
   buy_dummy_words: 'Train at home, no hourly fee',
   buy_room: 'Next buy: {room} upgrade ({price})',
   buy_room_words: 'Next: {rung}',
+  /* THE WHOLE SHELF (balance program L03): every other gold buy, each a label. {name} the server's name for the deed or the chest */
+  buy_named: 'Next buy: {name} ({price})',
+  buy_deed_words: 'Opens {rooms}',
+  buy_chest_words: { one: '+1 Storage space', other: '+{count} Storage spaces' },
+  buy_bag: 'Next buy: Bag space ({price})',
+  buy_bag_words: { one: '+1 bag space', other: '+{count} bag spaces' },
+  /* {n} the slot's number on the Characters screen (the server's slot id + 1) */
+  buy_slot: 'Next buy: Hero slot {n} ({price})',
+  buy_slot_words: 'Another hero for your account',
+  buy_refill: 'Next buy: Stamina refill ({price})',
+  buy_refill_words: '+{time} of stamina',
+  /* ...and a buy the purse does not cover yet: the nearest, with what it still needs ({short}: the server's price less the server's purse) */
+  buy_need: 'Need {short} more',
   /* THE NEXT GROUND (src/shell/hunt-list.js nextGroundFrom; audit 2026-11-18 A12: Hunt again kept a hero in the Mill Cellar all night after Level 5):
      the Hunts list's Recommended ground when it is a step up from the one just hunted. {band} its Levels, {levels} the hero's (or the party's) */
   ground_up: 'Next ground: {ground}',

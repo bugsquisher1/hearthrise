@@ -7,12 +7,18 @@
 // summary (windows/hunt-summary.js) shows these steps under the hunt's numbers,
 // each ONE press with its real count and value, in the order a player does them:
 //   equip     what Equip upgrades would put on (upgrade-plan.js): ONE `equip`
-//   sell      every stack the LOOT PLAN marks Sell (Dispatch loot's own rule, never
-//             a second "junk only" rule, Coordinator 2026-11-11): ONE `vendor_sell_many`
+//   sell      every stack the LOOT PLAN marks Sell (Dispatch loot's own rule) AND the junk no plan
+//             holds (balance program L03, 2026-11-20: "Sell junk for N gp" on the end card; the
+//             junk is the Shop's own "Sell all junk" set, bag-model.js lootToSell, never a second
+//             rule): ONE `vendor_sell_many`, N at the shop's bids. All junk, it reads "Sell junk for N"
+//   always    after that sale, the junk it sold that had no plan: "Always sell these", ONE
+//             hr_loot_rule_set a stack (the existing per-item plan, Sell), so the next card's
+//             sale is the plan's; done once the server's plan says Sell for each
 //   deposit   every stack the loot plan marks Deposit: ONE hr_bank_move_many, all
 //             or nothing (depositPlanned below, session/storage-intents.js)
 //   bless     every Blessing not on, while the purse covers the next one: the
-//             Services tab's own Bless all (bless-all.js); never after a hunt whose death costs nothing (the Tower)
+//             Services tab's own Bless all (bless-all.js); never after a hunt whose death costs nothing (the Tower).
+//             Its line says what a Blessing does (L03, retention R6), from the server's tier rows
 //   ground    THE NEXT GROUND (hunt-list.js nextGroundFrom; audit 2026-11-18 A12: on a phone Hunt again kept a hero in the Mill Cellar all night
 //             after Level 5 and nothing said there was a better ground): the Hunts list's Recommended ground when it is a step up from the one
 //             just hunted, by the server's Levels, its Show opening that ground in Hunts. Never the gold press (it points, Hunt again stays),
@@ -28,13 +34,14 @@
 // card that now has nothing left is listed as done, so the player sees what happened;
 // the first open step is the card's ONE gold press, else Hunt again is (after a ground outgrown, the next ground is).
 // ════════════════════════════════════════════════════════════════════════
-import { sellPlan, isStartKit } from './bag-model.js?v=0.2.142';
+import { sellPlan, isStartKit, lootToSell, kindOf, upgradeNeeds } from './bag-model.js?v=0.2.142';
 import { upgradeWords } from './upgrade-plan.js?v=0.2.142';
 import { upgradeOf } from './widgets/upgrade-line.js?v=0.2.142';
 import { nextBuyOf } from './next-buy.js?v=0.2.142';
 import { bagOf, rulesOf, shopOf, blessingsOf, goldOf } from '../session/item-sections.js?v=0.2.142';
 import { moveStorageMany } from '../session/storage-intents.js?v=0.2.142';
 import { huntOf, sessionModeOfHunt, huntBestsOf } from '../session/hunt-sections.js?v=0.2.142';
+import { homeOf, chestsOf } from '../session/home-sections.js?v=0.2.142';
 import { levelOf } from '../session/character-sections.js?v=0.2.142';
 import { partyMembershipOf } from '../session/party-sections.js?v=0.2.142';
 import { nextGroundFrom, adviceLevels } from './hunt-list.js?v=0.2.142';
@@ -44,6 +51,9 @@ import { t } from '../render/player-text.js?v=0.2.142';
 
 const ROMAN = Object.freeze(['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX']);
 const names = (ids) => listWords(ids.map(itemName));
+/* The most plans one "Always sell these" press sets: each is one hr_loot_rule_set, and they share the server's `hunt` rate bucket (30 a minute,
+   hr_rpc_gate) with Hunt again and every bag write, so one press never spends it; a longer list takes the next press. */
+const ALWAYS_PER_PRESS = 12;
 
 /* What the loot plan marks `rule` for, in the bag's order: never a locked stack (the server's Dispatch loot skips them too),
    never the starting kit for a sale (hr_loot_plan_refusal start_kit). [{ id, qty }] */
@@ -57,15 +67,16 @@ function planned(bag, rules, rule) {
 /**
  * The Back in town steps from the server's sections, and which press is the gold one.
  * @param {{ plan: object|null, bag: {id:string,qty:number}[]|null, rules: {locked:Set<string>, loot:object}|null, bids: Bids|null,
- *           blessings: {tiers:{tier:number,price:number,held:boolean}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string>,
+ *           blessings: {tiers:{tier:number,price:number,held:boolean,permille?:number}[], freeUntil:number|null}|null, purse: number|null, did: Map<string,string>,
  *           buy?: {title:string, words:string, icon:string|null, glyph?:string|null, place:object}|null, free?: boolean,
- *           ground?: {row:{hunt:string,name:string,band:number[]}, levels:number[]}|null, outgrown?: boolean }} o
+ *           ground?: {row:{hunt:string,name:string,band:number[]}, levels:number[]}|null, outgrown?: boolean, needs?: Set<string>|null, sold?: string[] }} o
  *        plan: upgradePlan's answer (upgrade-line.js upgradeOf); bids: the shop's (shopOf); purse: goldOf; did: the steps pressed on this
  *        card, each with its title as it was pressed (a done row keeps saying what it did: "Sell 17 stacks for 5,407 gp · Done"); buy: next-buy.js nextBuy's answer;
+ *        needs: what the House's next steps name (bag-model.js upgradeNeeds), which no junk sale takes; sold: the junk this card's sale took with no plan;
  *        free: the hunt's mode takes nothing for a death (the Tower), so no Bless step; ground: the next ground (nextGroundFrom) and the Levels it was read for;
  *        outgrown: the hunt ended `outgrown` (hunt-grounds.js endsAtLevel), so it has no Hunt again and the next ground is the press
  * @returns {{ steps: {id:string, title:string, words:string, verb:string, icon:string|null, done:boolean, count:number,
- *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object, name?:string, glyph?:string|null}[], primary: string }}
+ *             ops?:object, lines?:{item:string,qty:number}[], tiers?:number[], place?:object, name?:string, glyph?:string|null, fresh?:string[], items?:string[]}[], primary: string }}
  */
 export function townSteps(o) {
   const did = (o && o.did) || new Map();
@@ -79,12 +90,26 @@ export function townSteps(o) {
   const picks = plan && Array.isArray(plan.picks) ? plan.picks : [];
   add({ id: 'equip', count: picks.length, title: t('summary.equip_n', { count: picks.length }), words: picks.length ? upgradeWords(plan) : '',
     verb: t('controls.equip'), icon: picks.length ? picks[0].id : null, ops: plan && plan.ops ? Object.assign({}, plan.ops) : {} });
-  /* sell: the plan's Sell stacks at the shop's bids (a stack with no bid is not sold: nothing could show what it brings), one sale's worth of lines */
+  /* sell: the plan's Sell stacks, and the junk no other plan holds (the Shop's Sell all junk set, lootToSell: never a Material, a Rare or what the
+     House's next step names, `needs`), at the shop's bids (a stack with no bid is not sold: nothing could show what it brings), one sale's worth
+     of lines. No junk is named before the server's plans are read: a locked stack is the plan section's to say. */
   const bag = (o && o.bag) || [], rules = (o && o.rules) || null, bids = (o && o.bids) || null;
-  const sale = sellPlan(bag, planned(bag, rules, 'sell').map((r) => r.id), { locked: rules ? rules.locked : null, bids });
+  const marked = new Set(planned(bag, rules, 'sell').map((r) => r.id));
+  const junk = new Set(rules ? lootToSell(bag, (o && o.needs) || null).filter((id) => !rules.loot[id] && !isStartKit(id)) : []);
+  const sale = sellPlan(bag, bag.filter((r) => marked.has(r.id) || junk.has(r.id)).map((r) => r.id), { locked: rules ? rules.locked : null, bids });
   const lines = sale.lines, total = sale.total;   // one sale's worth: sellPlan stops at SELL_LINES_MAX
-  add({ id: 'sell', count: lines.length, title: t('summary.sell_n', { count: lines.length, total: gold(total) }),
-    words: lines.length ? t('summary.sell_words', { names: names(lines.map((l) => l.item)) }) : '', verb: t('controls.sell'), icon: lines.length ? lines[0].item : null, lines });
+  const allJunk = lines.length > 0 && lines.every((l) => kindOf(l.item) === 'junk');
+  const allMarked = lines.every((l) => marked.has(l.item));
+  add({ id: 'sell', count: lines.length, title: allJunk ? t('summary.sell_junk', { total: gold(total) }) : t('summary.sell_n', { count: lines.length, total: gold(total) }),
+    words: !lines.length ? '' : allMarked ? t('summary.sell_words', { names: names(lines.map((l) => l.item)) }) : names(lines.map((l) => l.item)),
+    verb: t('controls.sell'), icon: lines.length ? lines[0].item : null, lines,
+    /* the junk this sale takes that no plan holds yet: what "Always sell these" offers once it is sold */
+    fresh: lines.filter((l) => !marked.has(l.item)).map((l) => l.item) });
+  /* always: the junk this card sold with no plan (`sold`, the window's scratch), while the server's plan does not say Sell for it; one press sets
+     the plan for up to ALWAYS_PER_PRESS of them. Never before the plans are read. */
+  const want = rules ? ((o && o.sold) || []).filter((id) => rules.loot[id] !== 'sell' && !isStartKit(id)) : [];
+  add({ id: 'always', count: want.length, title: t('summary.always'), words: want.length ? t('summary.always_words', { names: names(want) }) : '',
+    verb: t('summary.always_verb'), icon: want.length ? want[0] : null, items: want.slice(0, ALWAYS_PER_PRESS) });
   /* deposit: the plan's Deposit stacks, whole, with their worth when the shop bids on any */
   const dep = planned(bag, rules, 'deposit');
   const worth = dep.reduce((n, r) => n + (bids && bids.has(r.id) ? bids.get(r.id) * r.qty : 0), 0);
@@ -99,8 +124,13 @@ export function townSteps(o) {
   /* ...never after a hunt whose mode takes nothing for a death (`free`: the Tower), where a Blessing has nothing to cut (QA gate 2026-11-17) */
   const offer = can && !(o && o.free);
   const cost = missing.reduce((n, x) => n + x.price, 0);
+  /* WHAT A BLESSING DOES, one line (retention dive R6: "Bless I, II and III. Free until Level 30" and nothing said what one is): the cut a death
+     takes with every tier on (the server's top tier's permille, each tier's row counts the ones under it), and that a death uses them up */
+  const top = b && b.tiers.length ? b.tiers[b.tiers.length - 1].permille : null;
+  const does = Number.isSafeInteger(top) && top > 0 ? t('summary.bless_does', { pct: Math.round(top / 10) + '%' }) : '';
+  const price = cost > 0 ? t('summary.bless_cost', { total: gold(cost) }) : t('summary.bless_free', { level: b && b.freeUntil !== null ? b.freeUntil : '' });
   add({ id: 'bless', count: offer ? missing.length : 0, title: t('summary.bless_n', { names: listWords(missing.map((x) => ROMAN[x.tier] || String(x.tier))) }),
-    words: !offer ? '' : cost > 0 ? t('summary.bless_cost', { total: gold(cost) }) : t('summary.bless_free', { level: b && b.freeUntil !== null ? b.freeUntil : '' }),
+    words: !offer ? '' : [does, price].filter(Boolean).join(' · '),
     verb: t('summary.bless'), icon: null, tiers: missing.map((x) => x.tier) });
   /* ground: the step up the Hunts list recommends, after the chores and before the buy; it points, so never the gold press */
   const g = o && o.ground;
@@ -122,14 +152,27 @@ export function townSteps(o) {
   return { steps: out, primary: first ? first.id : 'again' };
 }
 
-/** This character's steps, from what the server sent. `did`: the steps pressed on this card (the window's scratch). */
-export function townStepsOf(cs, did) {
+/** This character's steps, from what the server sent. `did`: the steps pressed on this card, `sold`: the junk its sale took with no plan (the window's scratch). */
+export function townStepsOf(cs, did, sold) {
   const shop = shopOf(cs), plan = upgradeOf(cs);
   /* the steps follow the hunt the server holds ended (the summary shows them on that hunt's card only) */
   const h = huntOf(cs);
   const free = !!h && h.ended && sessionModeOfHunt(h.huntId).deathLossPm === 0;
   return townSteps({ plan, bag: bagOf(cs), rules: rulesOf(cs), bids: shop ? shop.bids : null, blessings: blessingsOf(cs), purse: goldOf(cs), did, buy: nextBuyOf(cs, plan), free, ground: groundOf(cs, h),
-    outgrown: !!h && h.ended && h.endReason === 'outgrown' });
+    outgrown: !!h && h.ended && h.endReason === 'outgrown', needs: upgradeNeeds(homeOf(cs), chestsOf(cs)), sold: sold || [] });
+}
+
+/**
+ * "ALWAYS SELL THESE" (L03): the existing per-item loot plan, Sell, for each item named, ONE hr_loot_rule_set an item (CharacterSession.setLootRule;
+ * the server refuses a start-kit item or one the shop won't buy, hr_loot_plan_refusal), sent together so their re-reads ride as one. `set` counts the
+ * plans the server took; the first refusal's answer stands for the rest. What the card shows after is the re-read plan section, never this count.
+ * @returns {Promise<{ok:boolean, error?:string, set:number}>}
+ */
+export async function alwaysSell(cs, items) {
+  const answers = await Promise.all(items.map((id) => cs.setLootRule(id, 'sell')));
+  const set = answers.filter((r) => r && r.ok).length;
+  const no = answers.find((r) => !(r && r.ok));
+  return Object.assign({ set }, no ? no : { ok: true });
 }
 
 /**

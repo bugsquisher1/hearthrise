@@ -84,7 +84,7 @@ import { LEVEL_REQ } from './gear-tiers.js?v=0.2.142';
 import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.142';
 import { isShield } from './shields.js?v=0.2.142';
 import { deriveProfile } from '../core/member.js?v=0.2.142';
-import { ABILITIES, abilitySkill } from './abilities.js?v=0.2.142';
+import { ABILITIES, abilitySkill, partyOnly } from './abilities.js?v=0.2.142';
 import { skillLevelFromXp } from '../core/xp.js?v=0.2.142';
 import { CONSUMABLES } from './consumables.js?v=0.2.142';
 import { RUNE_FAMILIES } from './runes.js?v=0.2.142';
@@ -965,8 +965,12 @@ const SAY = Object.freeze({
     return { text: t(key, vars), barSlot: p.store, goal: higher ? hpBelow(O) : null };
   },
   first_spell: (f) => {
-    /* the first rune spell the worn weapon casts whose family the store sells, and an empty slot to put it in */
-    const a = f.discipline ? Object.values(ABILITIES).find((x) => x.active && x.rune && x.disciplines.includes(f.discipline)) : null;
+    /* the first rune spell the worn weapon casts that THIS hero can cast now, whose family the store sells, and an empty slot to put it in.
+       CAST NOW (retention dive 2026-11-20, dead moment E: every sword-and-shield hero was told to slot Frost Slam, Melee 12 and party only):
+       its unlock reached on the server's skills (underUnlock, unknown = locked) and its party rule met where the hero stands (partyOnly, the
+       engine's own reading; an `alone` row only alone). None: the card is passed by. */
+    const castsNow = (x) => !underUnlock(f, x) && (!partyOnly(x, f.role) || f.inParty === true) && (!x.alone || f.inParty !== true);
+    const a = f.discipline ? Object.values(ABILITIES).find((x) => x.active && x.rune && x.disciplines.includes(f.discipline) && castsNow(x)) : null;
     const st = a && Array.isArray(f.store) ? f.store.find((r) => r && r.partner === a.rune) : null;
     /* the first empty slot: a gap in the bar the server shows, else the one after its last (20 slots, ACTION_SET_LIMITS) */
     const gap = Array.isArray(f.slots) ? f.slots.findIndex((x) => !x) : -1;

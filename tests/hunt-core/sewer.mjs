@@ -915,7 +915,18 @@ const cases = {
       /* what the offer says of the spell it names: only what is true of that spell (Rend trains Melee, a Volley's trade holds on free arrows) */
       const offered = walk.find((s) => s.id === 'first_spell');
       if (offered) {
-        const a = Object.values(M.abilities.ABILITIES).find((x) => x.active && x.rune && x.disciplines.includes(K.discipline));
+        /* THE SPELL THIS HERO CAN CAST NOW (retention dive 2026-11-20, dead moment E): a fresh hero, alone, at skill level 1, is never
+           offered a row locked behind its skill or one that casts only in a party (Frost Slam: Melee 12, party only) */
+        const lone = (x) => !x.unlock && !M.abilities.partyOnly(x, K.role);
+        const a = Object.values(M.abilities.ABILITIES).find((x) => x.active && x.rune && x.disciplines.includes(K.discipline) && lone(x));
+        const named = M.abilities.ABILITIES[/data-id="([a-z_]+)"/.exec(offered.card.hooks.join(' '))[1]];
+        if (!named || named.unlock || M.abilities.partyOnly(named, K.role)) return set + ': a lone Level 1 hero is offered ' + (named && named.n) + ', which it cannot cast (unlock ' + (named && named.unlock) + ', party ' + JSON.stringify(named && named.party) + ')';
+        /* the same hero in a party with Melee 12 may be offered the party spell its weapon lists first */
+        if (set === 'tank') {
+          const party = { ...offered.facts, inParty: true, skillXp: { ...offered.facts.skillXp, melee: M.xp.skillXpForLevel('melee', 12) } };
+          const pc = M.tut.cardFor(M.tut.currentCard(party), party);
+          if (!(pc && pc.id === 'first_spell' && pc.hooks.some((h) => h.includes('data-id="frost_slam"')))) return 'tank: in a party at Melee 12 the offer is ' + JSON.stringify(pc && [pc.id, pc.hooks]) + ', want Frost Slam';
+        }
         const st = K.store.find((r) => r.partner === a.rune);
         const offerWant = 'Press ' + M.tut.slotWords([offered.card.barSlot]) + ' → Spells → ' + a.n + ' → ' + M.basics.BASIC_INDEX[st.id].n;
         if (offered.card.text !== offerWant || !offered.card.hooks.some((h) => h.includes('data-id="' + a.id + '"')) || !offered.card.hooks.some((h) => h.includes('data-store="' + st.id + '"'))) return set + ': the offer of ' + a.n + ' reads ' + JSON.stringify([offered.card.text, offered.card.hooks]) + ', wanted ' + JSON.stringify(offerWant);
@@ -2037,6 +2048,9 @@ const cases = {
 };
 
 const mutants = [
+  /* THE SPELL OFFER IS ONE THE HERO CAN CAST NOW (retention dive 2026-11-20, dead moment E) */
+  { name: 'Try a rune spell offers a spell under its unlock or party only', case: 'starter-bars',
+    edits: [['src/data/hunt-tutorial.js', 'x.disciplines.includes(f.discipline) && castsNow(x)) : null;', 'x.disciplines.includes(f.discipline)) : null;']] },
   /* GOT IT NEVER HOLDS THE CHAIN (2026-11-18) */
   { name: 'a card hidden with Got it holds every card after it again', case: 'tutorial-got-it-moves-on',
     edits: [['src/data/hunt-tutorial.js', '    if (facts.hid instanceof Set && facts.hid.has(r.id)) continue;\n', '']] },

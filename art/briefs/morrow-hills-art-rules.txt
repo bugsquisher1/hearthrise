@@ -1,0 +1,40 @@
+THE MORROW HILLS' ART RULES (lane/b-morrow-art, 2026-11-19). Read before drawing, importing or placing any Morrow Hills art.
+Carter's Rest and the Ox Road, and every Morrow ground after them. Learned on the sample (lane/b-morrow-art-sample, three rounds,
+art/review/morrow-sample/ on that branch) and ruled by its unanchored reviews. ART_DIRECTION.md and src/data/world/art-budget.js
+stay law; these add to them.
+
+FLOORS AND BODIES
+1. The Hills paint dim. The moor is shaded 3 steps (median 0.028, the Hold's cobble is 0.027), the road 1 step (0.027). A mid floor
+   (0.07-0.09) and the moor as generated (0.17) are dead zones: no body reads 3:1 on them.
+2. Bodies import with lift 2 (port-pixellab.mjs unit --lift 2). On the dim floor the Troll Picker reads 3.7-3.9:1.
+3. NEVER place a spawn on bright grass (0.17 and up, the Hold's hill): a lifted troll reads 1.4:1 there.
+4. Lift the body only, never what it carries. A sack, a slate, a ladle or a trough keeps the value it was drawn at: the lift made
+   the Picker's sack the brightest thing on him, louder than the lichen accent (ART_DIRECTION section 3), a loot bag at x2.
+5. A road must still show in greyscale. Its value cannot equal the moor's: give it a worn, lighter verge and pebbles a step up,
+   so it does not rest on hue alone (red-brown against green is the pair colour-blind players lose).
+
+WALLS
+6. Repeating wall slices are full class height (wall 32x60, stub 32x24 at 20-24 px). A tumbled or broken end is its own end
+   piece, left and right, never a slice of the run (a 12 px slice in the cycle leaves a gap every six tiles).
+7. A wall face is lit from the upper left like everything else: a lit edge on the cap, lit stone tops, the foot a step darker.
+   Boards, doors and shutters sit on the wood colours (earth ramp), never on the stone greys, or the opening vanishes at x2.
+
+CREATURES
+8. The trolls are one lanky body plan told apart by what they carry. Family accent: lichen green (the leaf and moss ramps), at most
+   15% of a body, on interior skin only (the ring inside the outline stays skin so the lift can carry it).
+9. Every facing's still and idle frames stand 40-42 px (the character class 36-40 +10%). What a creature carries shows in every
+   idle frame and in every facing's still (a hand pass pastes it from a frame where it shows).
+10. A side attack whose prop drifts (v3 turned the Picker's sack to stone, doubled it, faced the camera) is redrawn from a profile
+   keyframe SKETCH of the strike, made from a still where the prop shows; animate_image from the still to the sketch.
+11. Heads are drawn from the finished body's south still (the body crop as a style image), never before it. Each head shows what
+   its troll carries (the sack's neck, a raised slate, the ladle, the trough's end, the tankard): without it two heads are twins.
+11a. (batch 1, 2026-11-19) v3 attack clips drift the carried prop in most facings (a keg turns to a pail or doubles, a trough to a
+   shield, a slate to a stick, the clip turns to the camera). Every attack facing starts from a strike KEYFRAME made from that
+   facing's own still (animate_character end_frame), never from a text prompt alone. A death keeps its prop on the ground.
+11b. A body drawn in light grey lifts ONE step, not two (the Slate Thrower at lift 2 read as a white ghoul; at lift 1 it reads
+   3.7:1 like the rest). Measure the ring after the lift, not before.
+
+PROCESS
+12. Batches of at most five creatures. After each batch an UNANCHORED review by a fresh reader (the images and ART_DIRECTION only),
+   then the fixes, then the next batch. A piece that misses once gets a free sketch before it is generated again.
+13. Subscription generations only; paid credits stay $0.

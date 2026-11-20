@@ -1,0 +1,66 @@
+{
+  "id": "mh_coal_seam_worked",
+  "class": "bulky",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "frame": [
+    32,
+    33
+  ],
+  "anchor_px": [
+    12,
+    32
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "source": "mh_coal_seam_worked.png",
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a sketch",
+    "image": "bbc08b77-31d5-57ce-b74c-db16d0949faf",
+    "job": "6bbc460c",
+    "sketch": ".scratch/kit/b6/seam.mjs (the Warren's cw_coal_seam with a modelled pick and coal)"
+  },
+  "notes": "The coal runners' seam on the Ox Road's coal path, WORKED: the Warren's seam outcrop (cw_coal_seam) with a miner's pick left driven into its face, haft up to the east, and a spill of coal at its foot (review b5: the path's two seams were one prop twice, \"twin cairns\"). Pixels unscaled."
+}

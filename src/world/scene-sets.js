@@ -37,6 +37,8 @@ import { furnish } from './home-scene.js?v=0.2.142';
 /* THE OUTFITS A SCENE LOADS WITH ITSELF: every one but a worn set's (the faction looks), which no scene fetches until a hero in view
    wears one (src/world/worn-sets.js), so an account that never meets one downloads none of it. */
 const SCENE_OUTFITS = Object.freeze(Object.values(OUTFITS).filter((id) => !wornSetOf(id)));
+/* ground tiles read per step of a sliced pass (the town's 22k: one 8.5 ms step cold on a desktop, read whole) */
+const TILE_STEP = 4096;
 
 /* WHAT TO FETCH FIRST (phone, first visit: about 6 s for the town's six sheets): what nearly every first view draws, the hero's own
    sheet and the one most of the ground comes from, then small before big, so the heaviest is the last thing anything waits for. */
@@ -109,7 +111,12 @@ function* sceneSetsSteps(map, row, book, tables) {
   const whole = { ox: 0, oy: 0, w: map.w * T, h: map.h * T };
   /* the ground's sheets are its tiles' (every terrain lookup that draws is a tile): the one shared ground, not a second pass */
   const groundTiles = new Map();
-  for (const t of groundOf(map, book, tables, T).tiles) { note(t.set); groundTiles.set(t.set, (groundTiles.get(t.set) || 0) + 1); }
+  const ground = groundOf(map, book, tables, T).tiles;
+  for (let i = 0; i < ground.length; i++) {
+    const t = ground[i];
+    note(t.set); groundTiles.set(t.set, (groundTiles.get(t.set) || 0) + 1);
+    if ((i + 1) % TILE_STEP === 0) yield;
+  }
   yield;
   composeFrame(map, rec, { hero: null }, whole, tables, T);
   yield;

@@ -1,0 +1,66 @@
+{
+  "id": "mh_yoked_dead",
+  "class": "team",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#aaa49a",
+      "#c9bfa0": "#aaa49a",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        4
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_yoked_dead.png",
+  "frame": [
+    80,
+    80
+  ],
+  "anchor_px": [
+    40,
+    76
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a free sketch",
+    "image": "6c4928b6-7395-5dc4-82ad-3b900df6e706",
+    "job": "45685d38",
+    "sketch": "art/review/morrow-kit/ox-team-sketch-b.png (.scratch/kit/team/recipe.mjs b9)"
+  },
+  "notes": "THE LEAD TEAM of the last ore train out of Morrow, dead in its yoke: two oxen at beast size, fallen the same way and staggered, the far one's stiff legs out across the tongue and the near one's back; each on its side with its legs rigid along the ground, a cream belly toward us, the head limp on the ground, a dark muzzle, big bone horns, a dun hide; the yoke beam across both necks at a slant, the tongue running off east to the wagon. Sketch B of three free sketches (art/review/morrow-kit/ox-team-sketches.png; picked by the Coordinator under Tyler's standing art sign-off, after four misses), polished palette-held by edit_image_pro_flash; then FIXED by hand after review b9 (\"the hind legs trailing back: a team at a flying gallop\"; \"the tan hide the hottest thing on the road\"): the trailing hind legs cut away and drawn again by rule sticking down-screen across the spine, the far ox's head sheared down to hang limp, the hide a value step down and greyer, the belly cream-grey (.scratch/kit/team/b10.mjs). Its horns stay bone pale (stone 4). Pixels unscaled."
+}

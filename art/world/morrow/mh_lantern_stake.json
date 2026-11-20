@@ -1,0 +1,66 @@
+{
+  "id": "mh_lantern_stake",
+  "class": "fixture",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "frame": [
+    15,
+    27
+  ],
+  "anchor_px": [
+    3,
+    26
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 8,
+      "loop": true,
+      "dirs": {
+        "s": 4
+      }
+    }
+  ],
+  "source": "mh_lantern_stake.png",
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "323c4ddb-d23b-5b4e-a506-0b2885556bcd",
+    "job": "7bb154eb",
+    "sketch": ".scratch/kit/ox-b6.mjs (sheet-lanterns.png)"
+  },
+  "notes": "A teamster's lantern hung from a crossarm on a straight stake driven into the moor, lit: where the train's people marked a place in the dark. Round 1 (batch 6, review b5 ranked 5: a feature and a light in every pocket): modelled in the wagons' camera (.scratch/kit/ox-b6.mjs), the three lanterns polished as one sheet palette-held by edit_image_pro_flash; four frames of a guttering flame drawn by rule over the still (.scratch/kit/b6/port.mjs glow: the panes amber to torch by the flame's height, the flame a hard column that leans and dips; torch and ember only, no glow outside the glass), 8 fps. Its light is LIGHTS.mh_lantern_stake (terrain.js). Pixels unscaled."
+}

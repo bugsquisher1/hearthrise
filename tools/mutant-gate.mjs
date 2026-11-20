@@ -46,6 +46,8 @@
 //                   that base (ci-history.mjs sweepCovers), and the 48 h staleness no longer puts jobs in full.
 //                   A job the sweep left red or never ran still runs every proof it holds, so the release that
 //                   carries the fix stays red until the fix holds.
+//   plain-only      the same, but no proof at all for the guard side either: a release runs its plain suites (and
+//                   the jobs the sweep left red, in full); every proof waits for the nightly. One value away.
 //   anything else   every guard the diff touches; a stale or unreadable nightly puts every job in full (before).
 // Plain runs always run either way. A dispatch with rehearse_range=full is the full sweep and needs no nightly.
 //
@@ -63,7 +65,7 @@
 // $RUNNER_TEMP.
 //
 //   node tools/mutant-gate.mjs node tests/x.mjs --mutate   gate one command (CI)
-//   node tools/mutant-gate.mjs --explain [--base REF | --range A..B | --files a,b] [--all]
+//   node tools/mutant-gate.mjs --explain [--base REF | --range A..B | --files a,b] [--nightly-only] [--all]
 //                                     which registered proofs a diff would run
 //   node tools/mutant-gate.mjs --nightly-gate   nightly-only: red when the last sweep does not cover this push's base
 //   node tools/mutant-gate.mjs --selftest   the selection, the modes and the CLI,
@@ -113,10 +115,14 @@ export function decideMode(env) {
 
 /* NIGHTLY ONLY: the guard's own side, the only part of a diff a release or next push proves under it. */
 export const GUARD_SIDE = /^(tests|tools|\.github)\//;
-/** Does the nightly-only switch govern this run? A release or next push (or its dispatch), or a rehearsal of one. */
+/**
+ * Does the switch govern this run, and how? 'guard-side' (nightly-only) or 'plain' (plain-only) for a release or next push (or its
+ * dispatch), or a rehearsal of one; false otherwise.
+ */
 export function nightlyOnly(env, mode = decideMode(env)) {
-  if (env.HR_RELEASE_PROOFS !== 'nightly-only' || mode.full) return false;
-  return !!mode.rehearsal || /^release\//.test(env.GITHUB_REF_NAME || '') || env.GITHUB_REF_NAME === 'next';
+  const how = { 'nightly-only': 'guard-side', 'plain-only': 'plain' }[env.HR_RELEASE_PROOFS];
+  if (!how || mode.full) return false;
+  return (!!mode.rehearsal || /^release\//.test(env.GITHUB_REF_NAME || '') || env.GITHUB_REF_NAME === 'next') ? how : false;
 }
 
 // ── THE DIFF ──────────────────────────────────────────────────────────────
@@ -313,7 +319,7 @@ export function planFor(env, { extraGuards = [] } = {}) {
       }
       /* NIGHTLY ONLY: the rest of the diff is the nightly sweep's to prove */
       const deferred = only ? changed.filter((p) => !GUARD_SIDE.test(p)).length : 0;
-      if (only) changed = changed.filter((p) => GUARD_SIDE.test(p));
+      if (only) changed = changed.filter((p) => only === 'guard-side' && GUARD_SIDE.test(p));
       plan = { full: false, base, tip, how, changed, deferred, selected: {} };
       /* The line map is used once, here; the cached plan keeps only what the guards read. */
       Object.defineProperty(plan, 'regions', { value: regions, enumerable: false });
@@ -333,7 +339,7 @@ export function planFor(env, { extraGuards = [] } = {}) {
     else {
       const sel = Object.keys(plan.selected);
       console.log(`mutant-gate: ${mode.event} on ${env.GITHUB_REF_NAME || '?'} — base ${String(plan.base || '-').slice(0, 9)} `
-        + `(${plan.how}); ${plan.changed.length} changed file(s)${plan.deferred ? ` on the guard side, ${plan.deferred} more proved by the nightly sweep (HR_RELEASE_PROOFS=nightly-only)` : ''}; ${sel.length} guard(s) touched`);
+        + `(${plan.how}); ${plan.changed.length} changed file(s)${plan.deferred ? ` on the guard side, ${plan.deferred} more proved by the nightly sweep (HR_RELEASE_PROOFS=${env.HR_RELEASE_PROOFS})` : ''}; ${sel.length} guard(s) touched`);
       for (const f of plan.changed.slice(0, 40)) console.log(`mutant-gate:   changed ${f}`);
       if (plan.changed.length > 40) console.log(`mutant-gate:   … +${plan.changed.length - 40} more`);
     }
@@ -382,7 +388,7 @@ export function nightlyGate(env, o = {}) {
   const mode = decideMode(env);
   if (mode.full) return { ok: true, why: `a full sweep needs no nightly (${mode.why})` };
   if (!nightlyOnly(env, mode) || mode.rehearsal) {
-    return { ok: true, why: `not a release or next push under HR_RELEASE_PROOFS=nightly-only (it is ${env.HR_RELEASE_PROOFS || 'unset'}, ref ${env.GITHUB_REF_NAME || '?'}): nothing to gate` };
+    return { ok: true, why: `not a release or next push under HR_RELEASE_PROOFS=nightly-only or plain-only (it is ${env.HR_RELEASE_PROOFS || 'unset'}, ref ${env.GITHUB_REF_NAME || '?'}): nothing to gate` };
   }
   const fix = 'to clear it: run the sweep on main (gh workflow run smoke.yml --ref main) and re-run this job, or sweep this commit in full (gh workflow run smoke.yml --ref <this branch> -f rehearse_range=full)';
   let n = null;
@@ -431,6 +437,8 @@ function explain(argv) {
     base = gitOut(['merge-base', at('--base') || 'origin/main', 'HEAD']);
     ({ files: changed, regions } = committedDiff(ROOT, `${base}..HEAD`));
   }
+  /* --nightly-only: the plan a release gets under HR_RELEASE_PROOFS=nightly-only (its guard side only) */
+  if (argv.includes('--nightly-only')) changed = changed.filter((p) => GUARD_SIDE.test(p));
   const proofs = registeredProofs();
   const guards = [...new Set(proofs.map((p) => guardFileOf(p.cmd)))];
   const plan = { full: false, selected: Object.fromEntries(selectGuards(changed, { base, extraGuards: guards, regions, read })) };
@@ -1072,7 +1080,7 @@ async function selftest() {
         const g = (h, env = rel, b = BASE, git = realGit) => gate(env, { history: h, base: () => ({ sha: b }), git }).ok;
         return [
           [only(rel) && !only({ ...rel, HR_RELEASE_PROOFS: '' }) && !only({ ...rel, GITHUB_REF_NAME: 'main' }) && only({ ...rel, GITHUB_REF_NAME: 'next' })
-            && !only({ ...rel, GITHUB_EVENT_NAME: 'schedule' }) && !only({ ...rel, GITHUB_EVENT_NAME: 'pull_request', GITHUB_REF_NAME: 'lane/x' }),
+            && only({ ...rel, HR_RELEASE_PROOFS: 'plain-only' }) === 'plain' && only(rel) === 'guard-side' && !only({ ...rel, GITHUB_EVENT_NAME: 'schedule' }) && !only({ ...rel, GITHUB_EVENT_NAME: 'pull_request', GITHUB_REF_NAME: 'lane/x' }),
           'nightly-only governs release/** and next pushes with the switch on, never main, a PR, the schedule or the switch off'],
           [!pol(night(old, { j: 'success' }), { nightlyOnly: true }).full && pol(night(old, { j: 'success' })).full,
           'a sweep over 48 h old puts no job in full under nightly-only (the gate step judges it); before, it did'],
@@ -1236,13 +1244,13 @@ async function selftest() {
         const r = cli(['node', probe, '--mutate'], e);
         return r.status === 0 && r.stdout.includes(`base ${prev.slice(0, 9)} (the previous release`) && /1 changed file/.test(r.stdout) && /SKIP/.test(r.stdout);
       }],
-      ['nightly-only: a release re-proves what its guard side moved, and leaves src to the nightly; switched off, both', () => {
+      ['nightly-only: a release re-proves what its guard side moved, and leaves src to the nightly; plain-only neither; switched off, both', () => {
         const HL = `${GATE_PREFIX}node tests/hunt-live.mjs --mutate`, CB = `${GATE_PREFIX}node tests/client-boot.mjs --mutate`;
         const plan = (files, sw) => planFor({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0', RUNNER_TEMP: dir,
           GITHUB_SHA: `selftest-only-${files}-${sw}`, HR_MUTANT_GATE_FILES: files, HR_RELEASE_PROOFS: sw });
         const runs = (files, sw, cmd) => decide(cmd, plan(files, sw)).run;
         return !runs('src/hunt-view/live-engine.js', 'nightly-only', HL) && runs('src/hunt-view/live-engine.js', '', HL)
-          && runs('tests/hunt-live.mjs', 'nightly-only', HL) && runs('tests/_chrome.mjs', 'nightly-only', CB)
+          && runs('tests/hunt-live.mjs', 'nightly-only', HL) && runs('tests/_chrome.mjs', 'nightly-only', CB) && !runs('tests/hunt-live.mjs', 'plain-only', HL)
           && /proved by the nightly sweep/.test(cli(['node', probe, '--mutate'], env('src/a.js', { HR_RELEASE_PROOFS: 'nightly-only', GITHUB_SHA: 'selftest-only-cli' })).stdout);
       }],
       ['--nightly-gate: red when the sweep cannot be read under nightly-only, open when switched off', () => {

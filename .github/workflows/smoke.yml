@@ -41,7 +41,9 @@ on:
   # and tools/release-check.local.mjs say when the last sweep is red, cancelled or over 48 h old. No concurrency group
   # in this file, so no push can cancel it; it ends only at a job's own timeout-minutes, sized for the full sweep.
   # A red nightly blocks the next release until fixed: every job it did not prove
-  # green runs all its proofs on the next push (tools/lib/ci-history.mjs). On push and
+  # green runs all its proofs on the next push (tools/lib/ci-history.mjs), and under
+  # HR_RELEASE_PROOFS (env, below) a sweep that never saw the release's base blocks it
+  # in the "Nightly gate" step. On push and
   # pull_request every proof command goes through tools/mutant-gate.mjs and runs only
   # when the diff touches its guard (a skipped one prints why), narrowed to the mutants
   # the diff can have moved where the guard calls tools/lib/mutant-scope.mjs; plain
@@ -74,8 +76,9 @@ env:
   # WHAT A RELEASE PROVES (CLAUDE.md §3.6; Tyler 2026-11-19 "nightly only"). nightly-only: a release or next push runs
   # every plain guard and the proofs of the guards whose own side moved (tests/, tools/, .github/); the nightly sweep
   # proves the rest, and "Nightly gate" (client-guards) is red when the last sweep cannot be read or never saw the
-  # release's base. Any other value: every guard the diff touches, and a stale nightly puts every job in full
-  # (before 2026-11-19). The one switch: tools/mutant-gate.mjs reads it.
+  # release's base. plain-only: the same gate, and no proof on the release at all (but a job the sweep left red,
+  # in full). Any other value: every guard the diff touches, and a stale nightly puts every job in full (before
+  # 2026-11-19). The one switch: tools/mutant-gate.mjs reads it.
   HR_RELEASE_PROOFS: nightly-only
 
 # ── THE MATRIX (cleanup slice 8a, 2026-09-07) ───────────────────────────────

@@ -11,17 +11,17 @@
     "sign-in": [
       {
         "modules": 12,
-        "gzipBytes": 201063,
+        "gzipBytes": 201064,
         "on": "2026-11-20",
-        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 bundled and minified, fonts self-hosted, 12 / 196.4 KB to sign-in and 21 / 850.6 KB to town; the same site as written (--deliver plain) is 42 modules / 263.6 KB and 619 / 2,488.0 KB"
+        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 (8680e0992) bundled and minified, fonts self-hosted, 12 modules / 196.4 KB gzip to sign-in and 21 / 851.9 KB to town; the same site as written (--deliver plain) is 42 / 263.7 KB and 621 / 2,497.0 KB"
       }
     ],
     "town": [
       {
         "modules": 21,
-        "gzipBytes": 871041,
+        "gzipBytes": 872345,
         "on": "2026-11-20",
-        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 bundled and minified, fonts self-hosted, 12 / 196.4 KB to sign-in and 21 / 850.6 KB to town; the same site as written (--deliver plain) is 42 modules / 263.6 KB and 619 / 2,488.0 KB"
+        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 (8680e0992) bundled and minified, fonts self-hosted, 12 modules / 196.4 KB gzip to sign-in and 21 / 851.9 KB to town; the same site as written (--deliver plain) is 42 / 263.7 KB and 621 / 2,497.0 KB"
       }
     ]
   }

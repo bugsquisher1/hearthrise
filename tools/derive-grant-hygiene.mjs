@@ -415,6 +415,15 @@ export const LINKS = [
     target: '1003-dead-client-writes.sql',
     patchIds: ['client_write_live_set'],
   },
+  /* Link 25 (lane/c-server-cost, 2026-11-19) — THE DEFERRED LEASE. 1004-tick-pack-heroes.sql adds the engine's
+     hr_hunt_lease_free: a hunt body gives back the leases of the selectors it deferred. One entry at the HEAD of
+     c_engine_allow, an INSERTION, so its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is
+     link 24's TARGET. It is the new last toucher. */
+  {
+    base: '1003-dead-client-writes.sql',
+    target: '1004-tick-pack-heroes.sql',
+    patchIds: ['hunt_lease_free'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -448,6 +457,24 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'hunt_lease_free',
+    name: 'the c_engine_allow array head (link 25)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-11-19 — THE DEFERRED LEASE (lane/c-server-cost) ────────
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list.
+    --
+    -- SELF-VALIDATING, and it moves no value: it only ENDS leases (lease_until =
+    -- now()) of the hunt body whose holder it derives server-side from p_body, of
+    -- the sessions named (at most 500), still live. A lease only keeps a second body
+    -- off an instance while one may be settling it; hr_hunt_apply_instance's swing
+    -- and version CAS decide whether any settle lands, so a lease freed too early
+    -- (even by a compromised engine) costs a refused race, never a double credit.
+    'hr_hunt_lease_free(integer,uuid[])',
+`,
+    where: 'after',
+  },
   {
     id: 'client_write_live_set',
     name: "check (4)'s arm 3, the live client write set (link 24)",

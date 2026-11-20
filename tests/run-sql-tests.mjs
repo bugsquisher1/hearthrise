@@ -663,6 +663,9 @@ const ALSO_LINTED = [
   /* THE DEAD CLIENT WRITES (lane/c-server-cost, 2026-11-19): three tables' client grants revoked and link 24 of
      HR_GRANT_HYGIENE_CHAIN, so the grant lints read its revokes and PART 1f-ii walks its derivation. */
   '1003-dead-client-writes.sql',
+  /* THE HUNT BODIES BY HEROES (lane/c-server-cost, 2026-11-19): the packer restated, hr_hunt_lease_free (engine-only, its
+     revoke-then-grant linted here) and link 25 of HR_GRANT_HYGIENE_CHAIN. */
+  '1004-tick-pack-heroes.sql',
   /* LINKS OF HR_APPLY_CHAIN / HR_STATE_OF_CHAIN that were never listed (2026-10-24, lane b-ci-speed):
      the derivation walk reads `sources`, so an unlisted link read as '' and failed "cannot extract the
      body" (4 of the 16 static reds since 2026-10-27), and the c_delta_keys lint read nothing (1 more). */
@@ -1045,8 +1048,11 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // its declared-removals list stays EMPTY. Its base is link 22's TARGET.
   '2027-03-13-gm-tools.sql',
   // link 24 (lane/c-server-cost) — check (4) arm 3, the live client write set: one UNION arm INSERTED after arm 2's last
-  // line, so its declared-removals list stays EMPTY. Its base is link 23's TARGET. It is the new last toucher.
+  // line, so its declared-removals list stays EMPTY. Its base is link 23's TARGET.
   '1003-dead-client-writes.sql',
+  // link 25 (lane/c-server-cost) — the deferred lease: one engine entry (hr_hunt_lease_free), INSERTED at the head of
+  // c_engine_allow, so its declared-removals list stays EMPTY. Its base is link 24's TARGET. It is the new last toucher.
+  '1004-tick-pack-heroes.sql',
 ];
 
 const HR_RATE_GATE_CHAIN = [

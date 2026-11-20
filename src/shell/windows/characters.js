@@ -52,7 +52,7 @@ const iconNames = (ctx, rows) => rows.map((r) => '<li><button type="button" clas
 const iconRows = (ctx) => ctx.wm.rows().filter((r) => r.launcher !== false && rowOffered(r, ctx.character));
 const iconListHtml = (ctx) => '<div class="hw-phone-only"><h3 class="hw-ledger-head is-on">' + esc(t('heroes.icons_head')) + '</h3><ul class="hw-icon-names">'
   + iconNames(ctx, iconRows(ctx)) + '</ul></div>';
-const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool" data-app="characters">' + esc(t('heroes.character_list')) + '</button>'
+const ACCOUNT_HTML = '<div class="hw-phone-only hw-account"><button type="button" class="hh-tool is-link" data-app="characters">' + esc(t('heroes.character_list')) + '</button>'
   + '<button type="button" class="hh-tool" data-app="sign-out">' + esc(t('controls.sign_out')) + '</button></div>';
 
 /** The Invite entry for one of this account's other heroes, or null (the viewed hero, or one already in a party). */

@@ -51,7 +51,7 @@ export function factionHtml() {
     + '<p class="hw-fx-line hw-fx-swap-cost"></p>'
     + '<div class="hw-fx-confirm" hidden><p class="hw-fx-line hw-fx-confirm-q"></p><p class="hw-fx-line hw-fx-confirm-a"></p><p class="hw-fx-line hw-fx-confirm-b"></p>'
     + '<div class="hw-fx-acts"><button type="button" class="hh-tool is-primary" data-hs-act="fx-confirm">' + esc(t('factions.press_confirm')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="fx-back">' + esc(t('factions.press_back')) + '</button></div></div>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="fx-back">' + esc(t('factions.press_back')) + '</button></div></div>'
     + '<div class="hw-fx-acts"><button type="button" class="hh-tool hw-fx-swap-go" data-hs-act="fx-swap"></button>'
     + '<button type="button" class="hh-tool is-primary hw-fx-finish" data-hs-act="fx-finish">' + esc(t('factions.press_finish')) + '</button>'
     + '<button type="button" class="hh-tool hw-fx-cancel" data-hs-act="fx-cancel">' + esc(t('factions.press_cancel_swap')) + '</button></div></div>'

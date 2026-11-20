@@ -113,7 +113,7 @@ export function renderAway() {
        275 px tall, and Open Training lay under the sticky OK): the same press as the hero's row (its alert, its go), shown in the foot on a
        phone only (summary.css), where the row's own one is hidden, so the one gold press is in view as the card opens */
     + '<div class="hsum-actions haway-foot"><button type="button" class="hh-tool is-primary haway-foot-go" data-hs-act="away-go" hidden></button>'
-    + '<button type="button" class="hh-tool" data-hs-act="away-summary" hidden>' + t('away.card_summary') + '</button>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="away-summary" hidden>' + t('away.card_summary') + '</button>'
     + '<button type="button" class="hh-tool" data-hs-act="away-ok">' + t('away.card_ok') + '</button></div></div>';
 }
 

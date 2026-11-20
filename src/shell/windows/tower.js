@@ -109,7 +109,7 @@ export function renderTower(ctx) {
     + '<div class="tt-top"><div class="hw-tabs" role="tablist">'
     + TABS.map((id, i) => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="' + id + '" aria-selected="' + (i === 0) + '"'
       + (id === 'catacomb' ? ' hidden' : '') + '>' + esc(t(TAB_WORDS[id])) + '</button>').join('')
-    + '</div><button type="button" class="hh-tool tt-story-link" data-hs-act="story" aria-expanded="false">' + esc(t('tower.story_link')) + '</button></div>'
+    + '</div><button type="button" class="hh-tool is-link tt-story-link" data-hs-act="story" aria-expanded="false">' + esc(t('tower.story_link')) + '</button></div>'
     + '<section class="tt-story" hidden>' + STORY.map((k) => '<p>' + esc(t(k)) + '</p>').join('') + '</section>'
     + '<section class="hw-pane tt-pane" data-pane="climb">'
     + '<p class="tt-now" hidden></p>'

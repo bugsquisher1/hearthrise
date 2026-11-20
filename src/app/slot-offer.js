@@ -102,10 +102,10 @@ export function slotOfferHtml(offer, roster, o = {}) {
   /* the question stands only while the purse covers the price and nothing is in flight */
   const asking = !!o.asking && !o.pending && short <= 0;
   const press = asking
-    ? '<span class="slot-offer-do"><button type="button" class="slot-offer-buy is-yes" data-app="buy-slot-yes" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '">'
+    ? '<span class="slot-offer-do"><button type="button" class="hh-tool slot-offer-buy is-yes" data-app="buy-slot-yes" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '">'
       + t('slots.buy_for', { cost: whole(offer.cost) }) + '</button>'
-      + '<button type="button" class="slot-offer-no" data-app="buy-slot-no">' + t('controls.cancel') + '</button></span>'
-    : '<button type="button" class="slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
+      + '<button type="button" class="hh-tool slot-offer-no" data-app="buy-slot-no">' + t('controls.cancel') + '</button></span>'
+    : '<button type="button" class="hh-tool slot-offer-buy" data-app="buy-slot" data-slot-id="' + offer.slotId + '" data-pay="' + actor + '"'
       + (o.pending || short > 0 ? ' disabled' : '') + '>'
       + (o.pending ? t('slots.buying') : t('slots.buy', { cost: whole(offer.cost) })) + '</button>';
   return '<section class="slot-offer" data-slot-id="' + offer.slotId + '">'

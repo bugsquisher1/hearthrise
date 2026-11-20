@@ -60,7 +60,7 @@ export function renderFactionJoin() {
     + '<p class="hfx-terms">' + TERMS.map((k) => '<span data-term="' + k + '"></span>').join('<br>') + '</p>'
     + '<div class="hfx-confirm" hidden><p class="hfx-name hfx-confirm-q"></p><p class="hfx-terms"><span class="hfx-confirm-a"></span><br><span class="hfx-confirm-b"></span></p>'
     + '<div class="hsum-actions"><button type="button" class="hh-tool is-primary" data-hs-act="fx-join-confirm">' + esc(t('factions.press_confirm')) + '</button>'
-    + '<button type="button" class="hh-tool" data-hs-act="fx-join-back">' + esc(t('factions.press_back')) + '</button></div></div>'
+    + '<button type="button" class="hh-tool is-link" data-hs-act="fx-join-back">' + esc(t('factions.press_back')) + '</button></div></div>'
     + '<p class="hh-intent-msg" role="status" aria-live="polite"></p>'
     + '<ul class="hfx-sides"></ul>'
     + '<div class="hsum-actions hdeath-actions hfx-foot"><small class="hfx-later">' + esc(t('factions.later')) + '</small>'

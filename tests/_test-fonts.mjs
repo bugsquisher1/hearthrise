@@ -14,13 +14,19 @@
 // On every element, not on :root: the browser's own sheet sets text-rendering: auto on button, input, select and textarea, so a rule on
 // :root stopped at each button and the analyzer's tabs stayed hinted: AW-62 red on v0.2.89 (41922216241), Dealt 2.5 px past its panel.
 //
-// A --shots run that wants the real faces does not call this, and loads Google's sheet as before.
+// WHERE THE PIN STANDS (2026-11-19, the fonts self-hosted: architecture audit item 4). The faces are no longer Google's sheet but
+// the WEB FONTS block at the foot of src/styles/tokens.css, so the pin swaps that block, in the tokens.css the page is served
+// (a planted stylesheet still reaches the page), for FONT_CSS: the same faces, weights and rule the Google stub served. Its
+// files come from the page's own origin (/__hr-test-fonts/), because the page's CSP now names no font host (font-src 'self').
+// A tokens.css with no such block is served with the pin appended, and tests/test-fonts.mjs TF-5 is red on it.
+//
+// A --shots run that wants the real faces does not call this, and draws the self-hosted faces from assets/fonts.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), 'fixtures', 'fonts');
-const ORIGIN = 'https://fonts.gstatic.com/hr-test/';
+export const FONT_PATH = '/__hr-test-fonts/';
 
 /** [the name the game's tokens ask for, weight, the file that draws it]. Weights between resolve as CSS says: 500 to 400, 600 to 700. */
 export const FACES = [
@@ -29,8 +35,14 @@ export const FACES = [
   ['Cinzel', 400, 'liberation-serif-400'], ['Cinzel', 700, 'liberation-serif-700'],
 ];
 
-/** The stylesheet that stands where Google's did. */
-export const FONT_CSS = `*,*::before,*::after{text-rendering:geometricPrecision}${FACES.map(([family, weight, file]) => `@font-face{font-family:'${family}';font-weight:${weight};font-display:block;src:url(${ORIGIN}${file}.ttf) format('truetype')}`).join('')}`;
+/** The stylesheet that stands where the game's own faces do. */
+export const FONT_CSS = `*,*::before,*::after{text-rendering:geometricPrecision}${FACES.map(([family, weight, file]) => `@font-face{font-family:'${family}';font-weight:${weight};font-display:block;src:url(${FONT_PATH}${file}.ttf) format('truetype')}`).join('')}`;
+
+/** tokens.css's self-hosted faces, opening comment to closing comment. */
+export const WEB_FONTS = /\/\* WEB FONTS \([\s\S]*?\/\* \/WEB FONTS \*\//;
+
+/** tokens.css as a guard is served it: its WEB FONTS block replaced by `pin` (appended when the block is gone). */
+export const pinSheet = (css, pin = FONT_CSS) => (WEB_FONTS.test(css) ? css.replace(WEB_FONTS, () => pin) : css + '\n' + pin);
 
 const bytes = new Map();
 function fileOf(name) {
@@ -39,10 +51,13 @@ function fileOf(name) {
 }
 
 /** On a page or a context: the web font's names draw the test faces, offline and identically everywhere. */
-export async function pinFonts(target) {
-  await target.route('https://fonts.googleapis.com/**', (r) => r.fulfill({ contentType: 'text/css', body: FONT_CSS }));
-  await target.route(`${ORIGIN}**`, (r) => {
-    const name = r.request().url().slice(ORIGIN.length).split('?')[0];
+export async function pinFonts(target, pin = FONT_CSS) {
+  await target.route('**/src/styles/tokens.css*', async (r) => {
+    const res = await r.fetch();
+    return r.fulfill({ response: res, contentType: 'text/css', body: pinSheet(await res.text(), pin) });
+  });
+  await target.route('**' + FONT_PATH + '**', (r) => {
+    const name = new URL(r.request().url()).pathname.slice(FONT_PATH.length);
     return r.fulfill({ contentType: 'font/ttf', body: fileOf(name) });
   });
 }

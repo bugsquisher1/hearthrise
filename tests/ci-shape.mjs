@@ -41,6 +41,11 @@
 //   CI-SHAPE-12 jobs are listed by timeout-minutes (each job's full sweep x2), never rising, so GitHub,
 //               which starts queued jobs in file order, starts the long ones first; a job others
 //               `needs` stands first (lane/ci-speed, 2026-11-18)
+//   CI-SHAPE-13 the workflow is what the guards' headers write (tools/lib/ci-register.mjs): a guard
+//               registers itself with `// ci-step: <job> | <name>` and `// ci-run: <cmd>` lines, and
+//               --write generates its step into its job's SELF-REGISTERED region. Red on a header naming
+//               a job the file lacks, a generated step with no header behind it, a region edited by
+//               hand, or a header not written yet (architecture audit 2026-11-19, row 8)
 //
 // ── THE REGISTER ────────────────────────────────────────────────────────────
 // tests/ci-shape.baseline.json maps every guard command to the job that owns
@@ -70,6 +75,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ROOT, WORKFLOW, parseWorkflow, flatSteps, buildPlan, SKIP } from './run-ci-local.mjs';
 import { isGated, isProofCommand, GATE_PREFIX } from '../tools/lib/guard-deps.mjs';
+import { readHeaders, generate, regionSteps } from '../tools/lib/ci-register.mjs';
 
 const BASELINE_PATH = join(ROOT, 'tests', 'ci-shape.baseline.json');
 
@@ -121,9 +127,10 @@ export function actionRunLines(text) {
  * @param {object} o.baseline      { commands: { cmd: job } }
  * @param {string} o.listText      the output of `run-ci-local --list`
  * @param {{path: string, text: string}[]} [o.actions]  the composite actions (.github/actions/*\/action.yml)
+ * @param {{steps: object[], errors: object[]}} [o.headers]  the guards' ci-step headers (tools/lib/ci-register.mjs); none = CI-SHAPE-13 not judged
  * @returns {{problems: {check:string, message:string}[], jobs: any[]}}
  */
-export function analyse({ workflowText, baseline, listText, actions = [] }) {
+export function analyse({ workflowText, baseline, listText, actions = [], headers = null }) {
   const problems = [];
   const fail = (check, message) => problems.push({ check, message });
 
@@ -248,6 +255,28 @@ export function analyse({ workflowText, baseline, listText, actions = [] }) {
     }
   }
 
+  // CI-SHAPE-13 — the workflow is what the headers write.
+  if (headers) {
+    for (const e of headers.errors) fail('CI-SHAPE-13', `${e.file}:${e.line} ${e.message}.`);
+    const gen = generate(workflowText, headers.steps);
+    for (const p of gen.problems) fail('CI-SHAPE-13', `${p.message}. Name a job the workflow has, or add the job.`);
+    const have = workflowText.split('\r\n').join('\n');
+    if (gen.text !== have) {
+      const key = (x) => `${x.file} | ${x.name} | ${x.run.join(' ; ')}`;
+      const want = new Set(regionSteps(gen.text).map(key));
+      const got = regionSteps(have);
+      const named = [];
+      for (const x of got) {
+        if (!want.has(key(x))) named.push(`smoke.yml runs the self-registered step "${x.name}" (${x.file || 'no file named'}) that no guard header writes (a job without a header): put the header back, or regenerate`);
+      }
+      const gotKeys = new Set(got.map(key));
+      for (const k of want) if (!gotKeys.has(k)) named.push(`a guard header registers "${k}" and smoke.yml does not run it yet`);
+      if (!named.length) named.push('a SELF-REGISTERED region differs from what the headers write (edited by hand, or moved)');
+      for (const m of named) fail('CI-SHAPE-13', `${m}. Steps in a SELF-REGISTERED region come only from guard headers: `
+        + 'edit the header and run `node tests/ci-shape.mjs --write`, never the region.');
+    }
+  }
+
   return { problems, jobs };
 }
 
@@ -281,7 +310,18 @@ function localList() {
 }
 
 async function runReport({ write }) {
-  const workflowText = await readFile(WORKFLOW, 'utf8');
+  let workflowText = await readFile(WORKFLOW, 'utf8');
+  const headers = readHeaders(ROOT);
+
+  if (write) {
+    /* the guards' headers first (CI-SHAPE-13), in the file's own line ends; a header that cannot be written stops here */
+    const gen = generate(workflowText, headers.steps);
+    const bad = [...headers.errors.map((e) => `${e.file}:${e.line} ${e.message}`), ...gen.problems.map((p) => p.message)];
+    if (bad.length) { for (const m of bad) console.error(`ci-shape --write: ${m}`); return 1; }
+    const text = workflowText.includes('\r\n') ? gen.text.split('\n').join('\r\n') : gen.text;
+    if (text !== workflowText) { await writeFile(WORKFLOW, text); workflowText = text; }
+    console.log(`ci-shape: ${headers.steps.length} self-registered step(s) written from guard headers -> .github/workflows/smoke.yml`);
+  }
   const jobs = parseWorkflow(workflowText);
 
   if (write) {
@@ -304,7 +344,7 @@ async function runReport({ write }) {
   const baseline = await readBaseline();
   const listText = localList();
   const actions = await readActions();
-  const { problems } = analyse({ workflowText, baseline, listText, actions });
+  const { problems } = analyse({ workflowText, baseline, listText, actions, headers });
 
   const cmds = guardCommands(jobs);
   console.log('CI SHAPE — .github/workflows/smoke.yml\n');
@@ -318,7 +358,7 @@ async function runReport({ write }) {
     + `${new Set(cmds.map((x) => x.cmd)).size} distinct, across ${jobs.length} job(s)`);
 
   if (!problems.length) {
-    console.log('\n  ok — every guard command runs in exactly one job, the register agrees, and');
+    console.log(`\n  ok — every guard command runs in exactly one job, the register agrees, ${headers.steps.length} step(s) are their guards' headers, and`);
     console.log(`       run-ci-local --list enumerates the whole matrix; ${actions.length} composite action(s) fetch under a deadline.`);
     return 0;
   }
@@ -341,7 +381,9 @@ async function selftest() {
   const actions = await readActions();
   if (!actions.length) { console.error('SELFTEST HARNESS: no .github/actions/*/action.yml to read'); process.exit(2); }
 
-  const clean = analyse({ workflowText, baseline, listText, actions });
+  const headers = readHeaders(ROOT);
+  if (!headers.steps.length) { console.error('SELFTEST HARNESS: no guard carries a "// ci-step:" header, so CI-SHAPE-13 has nothing to plant against'); process.exit(2); }
+  const clean = analyse({ workflowText, baseline, listText, actions, headers });
   if (clean.problems.length) {
     console.error('SELFTEST HARNESS: the UNMUTATED workflow already reports problems, so every');
     console.error('  "caught" below would be meaningless. Fix the real shape first:');
@@ -469,6 +511,25 @@ async function selftest() {
       return { workflowText: ls.join('\n'), baseline, listText };
     }],
   ];
+
+  /* CI-SHAPE-13: the headers, planted wrong in turn (the workflow left as it is), and a region edited by hand. */
+  const firstRun = headers.steps[0].run[0];
+  const withHeaders = (h, wf = workflowText) => ({ workflowText: wf, baseline, listText: listOf(wf), headers: h });
+  arms.push(
+    ['a header naming a job the workflow does not have (a header without a job)', 'CI-SHAPE-13', () => withHeaders({ ...headers,
+      steps: [...headers.steps, { file: 'tests/zz-planted.mjs', line: 2, job: 'no-such-job', name: 'Planted', run: ['node tests/zz-planted.mjs'] }] })],
+    ['a self-registered step whose guard lost its header (a job without a header)', 'CI-SHAPE-13', () => withHeaders({ ...headers, steps: headers.steps.slice(1) })],
+    ['a new header nobody wrote into the workflow', 'CI-SHAPE-13', () => withHeaders({ ...headers,
+      steps: [...headers.steps, { ...headers.steps[0], file: 'tests/zz-planted.mjs', name: 'Planted', run: ['node tests/zz-planted.mjs'] }] })],
+    ['a self-registered step edited by hand', 'CI-SHAPE-13', () => {
+      const at = lines.findIndex((l) => l.trim() === firstRun);
+      if (at < 0) throw harness(`--selftest: the region does not run "${firstRun}"`);
+      const ls = [...lines]; ls[at] += ' --planted';
+      return withHeaders(headers, ls.join('\n'));
+    }],
+    ['a header line that is not "<job> | <step name>"', 'CI-SHAPE-13', () => withHeaders({ ...headers,
+      errors: [...headers.errors, { file: 'tests/zz-planted.mjs', line: 2, message: '"// ci-step: client-guards" is not "// ci-step: <job> | <step name>"' }] })],
+  );
 
   const controls = [
     ['NEGATIVE CONTROL: a comment added inside a job', () => ({

@@ -3892,6 +3892,30 @@ the dye the preview wears, none at the side's colours. Known gap: a deliberate c
 backend architect). (#10) not codable: outfit art carries its weapon in every frame and the faction sheets were drawn bare (handoff to the
 designer and asset director). Lesson: (4) a dye that means "default" in the data needs a mark of its own before a look can treat default
 differently; a display rule that guesses from the value leaves one swatch that cannot be chosen.
+## 2026-11-19 lane/b-ui-buttons (UI audit #3: ONE BUTTON SYSTEM, the last open item of Fable's 11-18 audit; rides v0.2.143)
+Inventory (art/review/ui-buttons/inventory.txt, 310 presses in src/shell minus widgets/ and src/app): an action wore five looks: the gold
+plate, BARE WORDS (every row action in the Shop, Party, Friends, Storage, Hunt prep, the summary, the away card: 127 `.hh-tool`), a SUNK WELL
+(Call out, the scale buy, a ground's party presses, Tamsin's Take and slot chips), a steel frame drawn by hand twice (Basic setup, the slot
+offer's Buy/Cancel in two variants) and a 1 px ROUNDED OUTLINE (Settings' HUD layout, Reset layout, Put back). Now three, painted in shell.css
+only: GOLD PRIMARY (unchanged; oneGold), FRAMED SECONDARY (any window/account-card `.hh-tool`: `--steel-frame`, the title band's steel inside
+three sides plus the base's own transparent 2 px foot turned steel, on `--fill-1`; `--bg-0` while pressed; a toggle that is on keeps the gold
+foot; `.is-danger` red for "Delete it?"), TEXT LINK (`.hh-tool.is-link`, gold words, underline under the pointer: every press that opens a
+window, page or fold or goes back: Hunt summary, Open bag, Next:, Story, Keys, Burning Tower, Hunt prep, +N more, Find a party, Works, the
+faction steps' Back, Character list, Open shop, Change, Town Crier, Filter, Drops, Settings' window rows; `.hs-goto` in a sentence and the
+account cards' `.auth-link` painted beside it). The controls block moved from hunt.css into shell.css after the plate (one home); in the HUD
+panels `.hh-tool` stays the bare text command (containment is earned there). A demoted plate (`.is-second`) is the framed secondary at rest,
+under the pointer and pressed: before, its hover painted dark words on the fill and its press put the gold image back. Tamsin's slot chips
+are `.hh-seg` (the choice well), no own copy. Guard tests/button-system.mjs (static, under a second): BS-1 no sheet but shell.css paints a
+press (the role classes AND every class a window writes beside a role: tt-go, hw-call-press), BS-2 every window/account button has a role or
+a listed tab/choice/row/head/bar/coach class, BS-3 shell.css draws the three; 13 mutants + clean control; smoke.yml "Presentation floor - one
+button system". ART_DIRECTION §9 gains the Buttons row. Known gap: BS-2 reads markup strings, not createElement('button') (plan-copy.js).
+Lessons: (1) frame a bare control INSIDE its box (inset shadow + the foot border it already had), never with a new border: the first cut's 2 px
+border made every press 4 px wider and pushed Friends' "Invite to party" past the window's edge; framing that moves nothing breaks no geometry
+test; (2) a guard on "who paints a button" must follow the classes written beside the role, or a window repaints through its own class;
+(3) moving a base rule to an earlier sheet changes who wins at equal specificity: grep the co-classes first and place it where it beats what
+it beat before (after the gold plate: `.hh-tool:has(.hs-glyph)` and `[aria-pressed]` used to win over the plate's equal-specificity rules by
+order); (4) a lane's base can move under it: a red the set's tip already fixed (town-crier's outgrown Cellar) reads as yours until you merge;
+run the control on the set's own tree (an archive of the set in .scratch) before chasing it.
 ## 2026-11-19 lane/b-tank-rune-tiles (v0.2.142: Frost Slam and Shelter get their own tiles; the stand-ins were byte copies)
 FROST SLAM: the tank's steel sabaton stamping down, one jagged ice star bursting from under its sole. SHELTER: an earth-light dome
 (torch/gold/bronze) over the party: the tank's great helm in front, a mage's pointed hat and a healer's hood behind. Both in the

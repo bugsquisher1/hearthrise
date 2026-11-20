@@ -102,6 +102,7 @@ export function patchSetups(root, ctx, sc, hunting) {
       const armed = sc.arming === p.preset;
       cls(li, 'is-arming', armed);
       text(li.querySelector('.hw-del'), armed ? t('controls.delete_confirm') : t('controls.delete'));
+      cls(li.querySelector('.hw-del'), 'is-danger', armed);
       for (const b of li.querySelectorAll('button, input')) prop(b, 'disabled', sc.pending);
       /* In town Use stays on the setup in use too: it puts that setup's saved gear back on (the server wears it). In a hunt it swaps
          the bar only, to a setup of the worn weapon type; another type's row says why on its line (midHuntUse). */

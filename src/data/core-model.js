@@ -228,3 +228,19 @@ export const FLAME_FUEL = Object.freeze({
    this is the grain the basics' "three quarters of the crafted partner" rule is applied at,
    food and drink alike (tests/supplies-catalogue.mjs B1). */
 export const FOOD_HEAL_SCALE = 12;
+
+/* ── THE MODEL'S NAMES AND CEILINGS THAT DATA ROWS READ (moved down from src/core 2026-11-19, lane/c-delivery: each was a data
+   file's import of the engine, a layering breach in tests/layering.baseline.json; the engine files re-export them). ── */
+
+/* The skills the `combatXP` bonus channel pays: the four trained in a fight
+   (CORE_MODEL.md §4). Inner Flame trains at the Great Hearth, not in a fight. ONE list,
+   read by both the XP grant and the hint the player sees. (src/core/progression.js) */
+export const COMBAT_XP_SKILLS = ['melee', 'ranged', 'magic', 'defense'];
+/* The gathering skills (src/core/pacing.js). */
+export const GATHER_SKILLS = ['woodcutting', 'mining', 'fishing'];
+/* +SKILL ON WORN GEAR: the item field that raises each combat skill while worn (src/core/combat.js, where the rule is). */
+export const SKILL_PLUS_FIELDS = Object.freeze({ melee: 'meleePlus', ranged: 'rangedPlus', magic: 'magicPlus', defense: 'defensePlus' });
+/* The item a burnt cook yields (src/core/artisan.js, where the burn is rolled). */
+export const BURNT_ITEM = 'burnt_food';
+/** The hard ceiling on any single class multiplier. Applied by the formula (src/core/bane.js baneMultFor). */
+export const MAX_BANE_MULT = 1.40;

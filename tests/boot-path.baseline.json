@@ -1,0 +1,28 @@
+{
+  "$comment": [
+    "The boot path's ceilings (tools/build-site.mjs SITE-10, architecture audit 2026-11-19 item 3): the modules and the gzip bytes a player loads",
+    "to the sign-in screen and to the first town, as the default delivery serves them. The ceiling is each stage's LAST row.",
+    "It goes up only through node tools/build-site.mjs --boot-path-raise \"<why>\", which appends a row with its reason; --boot-path-write appends",
+    "a lower row after a cut (a cut of more than BOOT_SLACK is red until it is locked in). Written by the tool, never by hand. Two lanes that both",
+    "moved a ceiling conflict here: take either side and run the tool again."
+  ],
+  "deliver": "bundle",
+  "ceilings": {
+    "sign-in": [
+      {
+        "modules": 12,
+        "gzipBytes": 201064,
+        "on": "2026-11-20",
+        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 (8680e0992) bundled and minified, fonts self-hosted, 12 modules / 196.4 KB gzip to sign-in and 21 / 851.9 KB to town; the same site as written (--deliver plain) is 42 / 263.7 KB and 621 / 2,497.0 KB"
+      }
+    ],
+    "town": [
+      {
+        "modules": 21,
+        "gzipBytes": 872345,
+        "on": "2026-11-20",
+        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 (8680e0992) bundled and minified, fonts self-hosted, 12 modules / 196.4 KB gzip to sign-in and 21 / 851.9 KB to town; the same site as written (--deliver plain) is 42 / 263.7 KB and 621 / 2,497.0 KB"
+      }
+    ]
+  }
+}

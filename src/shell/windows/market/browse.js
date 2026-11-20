@@ -46,7 +46,7 @@ export function browseHtml(ctx) {
     + '<div class="hw-mk-invite"><h3 class="hw-hd-name hw-mk-invite-h"></h3><p class="hw-mk-invite-p"></p>'
     + '<div class="hw-mk-fund"><span class="hw-skill-bar" role="meter" aria-label="Weighhouse build fund" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-mk-fund-n"></small></div>'
     + '<button type="button" class="hw-primary is-on" data-hs-act="mk-to-sell">' + t('controls.list_item') + '</button>'
-    + '<button type="button" class="hh-tool hw-mk-to-works"' + gotoAttr({ win: 'havora', tab: 'works' }) + '>' + t('shop.market_to_works') + '</button></div>'
+    + '<button type="button" class="hh-tool is-link hw-mk-to-works"' + gotoAttr({ win: 'havora', tab: 'works' }) + '>' + t('shop.market_to_works') + '</button></div>'
     + '<div class="hw-mk-cols"><ul class="hw-mk-list" role="listbox" aria-label="Items"></ul>'
     + '<section class="hw-mk-page" aria-label="The picked item"><div class="hw-hd-page">'
     + '<div class="hw-mk-head"><span class="hw-ico hw-mk-ico"></span><div class="hw-mk-title"><h3 class="hw-hd-name hw-mk-name"></h3><p class="hw-hd-band hw-mk-kind"></p></div></div>'

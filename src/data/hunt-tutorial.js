@@ -93,7 +93,7 @@ import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.141';
 import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.141';
 import { HEARTH_FUELS } from './hearth.js?v=0.2.141';
 import { BAR_TEXT } from './text/bar.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
+import { t } from './player-text.js?v=0.2.141';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings

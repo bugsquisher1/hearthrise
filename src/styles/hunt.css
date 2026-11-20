@@ -25,43 +25,7 @@
 .hh-panel-head { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px 6px; border-bottom: 2px solid var(--steel-rule); }
 .hh-panel-title { flex: 1; margin: 0; font-family: var(--f-display); font-weight: 700; font-size: var(--t-micro); letter-spacing: .14em; color: var(--gold-2); }
 .hh-panel-body { padding: 6px 8px 8px; }
-/* Controls carry no box of their own (containment is earned, §9):
-   · .hh-tool is a text command. Quiet ink, a panel wash on hover, and when it
-     is a toggle the pressed one is gold with a 2 px gold underline, the same
-     mark the launcher row and the character strip use for "this one".
-   · .hh-seg is a choice sunk into a well: the well is the group (.hh-segs,
-     .hh-step) or, for a lone toggle like Chase, the button itself. The pressed
-     choice is lifted one rung (--bg-3) and underlined gold.
-   · Inputs keep the one hairline: a field has to read as a place to type. */
-.hh-tool, .hh-seg {
-  min-height: 30px; padding: 0 10px;
-  border: 0; border-bottom: 2px solid transparent; border-radius: 0;
-  background: none; color: var(--ink-2);
-  font-family: var(--f-ui); font-weight: 700; font-size: var(--t-micro);
-  font-variant-numeric: lining-nums;
-  cursor: pointer;
-}
-.hh-tool:hover:not(:disabled), .hh-seg:hover:not(:disabled) { color: var(--ink); background: var(--surf-panel); }
-.hh-tool:focus-visible, .hh-seg:focus-visible, .hh-select:focus-visible, .hh-num:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
-.hh-tool[aria-pressed="true"], .hh-seg[aria-pressed="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
-.hh-tool:disabled, .hh-seg:disabled, .hh-select:disabled, .hh-num:disabled { opacity: .5; cursor: default; }
-.hh-tool .hs-glyph { width: 18px; height: 18px; }
-.hh-tool { white-space: nowrap; }
-.hh-tool:has(.hs-glyph) { display: inline-grid; place-items: center; min-width: 32px; padding: 0 6px; color: var(--ink-3); }
-.hh-select, .hh-num {
-  min-height: 30px; padding: 0 6px;
-  border: 1px solid var(--line-soft); border-radius: var(--r-sm);
-  background: var(--bg-0); color: var(--ink);
-  font-family: var(--f-ui); font-size: var(--t-micro); font-variant-numeric: lining-nums;
-}
-.hh-num { width: 64px; }
-.hh-segs, .hh-step, .hh-seg { background: var(--bg-1); box-shadow: var(--steel-well); }
-.hh-segs .hh-seg, .hh-step .hh-seg { background: none; box-shadow: none; }
-.hh-segs .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"]:hover:not(:disabled) { background: var(--bg-3); }
-.hh-segs { display: inline-flex; }
-.hh-step { display: inline-flex; align-items: center; }
-.hh-step .hh-seg { min-width: 30px; padding: 0; }
-.hh-step-val { min-width: 24px; text-align: center; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+/* The controls (.hh-tool, .hh-seg, .hh-select, .hh-num) are shell.css's: THE CONTROLS and ONE BUTTON SYSTEM. */
 .hh-intent-msg { margin: 0; min-height: 0; font-size: var(--t-micro); color: var(--ink-3); }
 .hh-intent-msg:empty { display: none; }
 .is-pending .hh-intent-msg { color: var(--ink-2); }
@@ -603,7 +567,6 @@ select.ca-token { field-sizing: content; }
 .hc-line.is-crier .hc-name { color: var(--gold-2); font-weight: 800; }
 .hc-crier-mark { display: inline-block; margin-right: 2px; padding: 0 5px; background: var(--gold); color: var(--bg-0); font-family: var(--f-label); font-weight: 800; letter-spacing: .04em; text-shadow: none; }
 .hc-crier-open { flex: none; }
-.hc-crier-open[aria-expanded="true"] { color: var(--gold-2); }
 .hc-crier-open[hidden], .hc-again[hidden] { display: none; }
 .hc-crier { display: none; flex: none; padding-top: 4px; }
 .hc-crier.is-on { display: block; }

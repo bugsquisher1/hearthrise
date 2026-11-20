@@ -4968,6 +4968,13 @@ const DB_ARMS = {
     await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
     const inner = makeExec(db); const seen = [];
     const exec = async (text, params) => { seen.push({ text: String(text), params: params || [] }); return inner(text, params); };
+    /* ONE READ A SETTLE (the 11-19 server audit row 10): the perks ride the read (HUNT_READ_SQL `perks`, by user:slot), so no statement
+       names the slot for them; the engine's member must carry slot 1's own stack, read before the settle moves the clock */
+    const want = await one(db, 'select public.hr_perks_of($1::uuid, 1)', [UID]);
+    const plan = await M.HS.readHuntSettle({ exec: inner, user: UID, slot: 1, grounds: groundsOf(M) }, 'tick');
+    const got = plan.members && plan.members[0] ? plan.members[0].perks : undefined;
+    if (!want || want.ok !== true) problems.push('CONTROL: hr_perks_of answered no stack for slot 1');
+    else if (JSON.stringify(got) !== JSON.stringify(want)) problems.push(`the slot-1 settle's engine input carries perks ${JSON.stringify(got === undefined ? 'none' : got).slice(0, 120)}, not slot 1's`);
     const r = await M.HS.settleHunt({ exec, user: UID, slot: 1, mode: 'tick', session: sid, grounds: groundsOf(M) });
     if (!r || r.outcome !== 'paid') problems.push(`CONTROL: the slot-1 settle did not pay (${r && r.outcome}/${r && r.reason})`);
     if (!seen.some((s) => /perks/i.test(s.text))) problems.push('CONTROL: the settle issued no perks read');

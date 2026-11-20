@@ -868,6 +868,10 @@ jobs:
           node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
+          # THE NEW PLAYER (Tyler 2026-11-20, balance call 27-2): the start-kit hero played on the real engine reaches Level 10 in 5-6 h,
+          # no Level under 10 takes over 2 h and none of 10-15 over 4 h (src/data/core-model.js LEVEL_PACE.newPlayer)
+          node tests/start-kit-pace.mjs
+          node tools/mutant-gate.mjs node tests/start-kit-pace.mjs --mutate
           # ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula): every `formula: true` monster row is src/data/balance-sheet.js's, and the formula holds its own rules
           node tests/balance-sheet.mjs
           node tools/mutant-gate.mjs node tests/balance-sheet.mjs --mutate

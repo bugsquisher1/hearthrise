@@ -42,14 +42,23 @@
 //   T4  DEPOSIT IS ONE hr_bank_move_many naming the plan's stacks (lane/c-bank-move-many): all of them or none, never a
 //       per-stack hr_bank_move; a refusal moves nothing and says so
 //   T5  THE NEXT BUY (next-buy.js, lane/a-next-steps; audit 2026-11-15 F12/F20): with gold to spend, ONE line names what the purse covers:
-//       a Shop piece better than the worn one (a bare slot first, then the cheapest), else Tempering's next rung (weapon, then armor,
-//       material in hand), else the cheapest room rung the house is ready for, else the dummy's next skill (a house, nobody on it): the
-//       designer's order (board 2026-11-15 F8/F12); in label words (Tyler 2026-11-14), never sentences; last on the card, Show its press,
-//       never the gold press
+//       a Shop piece better than the worn one (a bare slot first, then the cheapest) ahead of all (the designer's power first, board
+//       2026-11-15 F8/F12), then the shelf (T9): Tempering's next rung (weapon, then armor, material in hand), the cheapest room rung the
+//       house is ready for, the dummy's next skill (a house, nobody on it), the cheapest the purse covers, else the nearest; in label words
+//       (Tyler 2026-11-14), never sentences; last on the card, Show its press, never the gold press
 //   T6  THE NEXT GROUND (hunt-list.js nextGroundFrom; audit 2026-11-18 A12: on a phone Hunt again kept a hero in the Mill Cellar all night after
 //       Level 5 and nothing said so): back from a ground the Hunts list no longer recommends, ONE line names the step up it does recommend, read
 //       for the server's Level (its level block, never level_xp) or the party's seats, Show opening that ground; never a step down, never for a
 //       ground the list does not hold (the Tower), never the gold press
+//   T7  SELL JUNK (balance program L03): the Sell step takes the plan's Sell stacks AND the junk no plan holds (the Shop's own Sell all junk set:
+//       never a Material, a locked stack, a planned Deposit, a key, gear or what the House's next step names), ONE sale at the shop's bids, "Sell
+//       junk for N" when it is all junk; nothing before the server's plans are read
+//   T8  ALWAYS SELL THESE (L03): after that sale, the junk it took with no plan is ONE press (the next gold one) setting the existing per-item plan
+//       Sell on each (one hr_loot_rule_set an item, twelve a press), done when the server's re-read plan says Sell; PLAYED on a session: the
+//       purse and the bag after the sale are the server's, and the next hunt's junk is the plan's sale
+//   T9  NEXT BUY WALKS THE WHOLE SHELF (L03): after the Shop's gear, each shelf's next rung (Tempering, rooms, the deed, a chest, the bag, the
+//       dummy, a hero slot, a trained skill's tool, a refill after a hunt out of stamina), the cheapest the purse covers, else the nearest with
+//       "Need N more"; every price the server's; Show opens where it is bought
 // No ?v= on imports here (tests/**).
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, cpSync, rmSync } from 'node:fs';
@@ -602,6 +611,12 @@ async function runTests(M) {
     /* a locked stack is never moved by a plan (the server's Dispatch loot skips it too): locked, the Wolf Pelt leaves no Deposit step */
     eq(steps({ rules: { locked: new Set(['sticky_core', 'wolf_pelt']), loot: rules.loot } }).steps.map((s) => s.id), ['equip', 'sell', 'bless'], 'a locked Deposit stack is not a step');
     eq([r.steps[3].tiers, r.steps[3].words], [[1, 2, 3], 'Free until Level 30'], 'Bless names the tiers not on');
+    /* ONE LINE ON WHAT A BLESSING DOES (L03, retention R6), from the server's tier rows: each tier's permille counts the ones under it, so the top
+       tier's is the cut with all of them on */
+    const said = { tiers: [{ tier: 1, price: 0, held: false, permille: 250 }, { tier: 2, price: 0, held: false, permille: 500 }, { tier: 3, price: 0, held: false, permille: 750 }], freeUntil: 30 };
+    eq(steps({ blessings: said }).steps[3].words, 'A death costs 75% less XP and uses them up · Free until Level 30', 'Bless says what a Blessing does');
+    eq(steps({ blessings: { ...said, tiers: said.tiers.map((x) => ({ ...x, price: 1000, held: x.tier === 1 })) }, purse: 5000 }).steps[3].words,
+      'A death costs 75% less XP and uses them up · Cost: 2,000 gp', '...and what the ones not on cost');
     /* one sale's worth of lines: 70 planned stacks sell 64 now, the rest on the next press */
     const many = Array.from({ length: 70 }, (_, i) => ({ id: 'stack_' + i, qty: 1 }));
     const r70 = steps({ bag: many, rules: { locked: new Set(), loot: Object.fromEntries(many.map((x) => [x.id, 'sell'])) }, bids: new Map(many.map((x) => [x.id, 3])) });
@@ -614,8 +629,8 @@ async function runTests(M) {
     eq(steps({ blessings: dear, purse: null }).steps.length, 4, 'a purse not read yet is not a refusal');
     /* after a hunt whose death costs nothing (the Tower: QA gate 2026-11-17, the climb's card upsold Bless I/II/III) there is no Bless step */
     eq(steps({ free: true }).steps.map((s) => s.id), ['equip', 'sell', 'deposit'], 'no Bless step after a free-death mode');
-    /* nothing to do at all: no steps, Hunt again is the press */
-    const none = steps({ plan: { ops: {}, picks: [], choices: [] }, rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
+    /* nothing to do at all: no steps, Hunt again is the press (no plan, and no junk: the Rat Tail is the bag's one junk, T7) */
+    const none = steps({ plan: { ops: {}, picks: [], choices: [] }, bag: bag.filter((r) => r.id !== 'rat_tail'), rules: { locked: new Set(), loot: {} }, blessings: { tiers: dear.tiers.map((x) => ({ ...x, held: true })), freeUntil: null } });
     eq([none.steps, none.primary], [[], 'again'], 'nothing to do lists nothing');
     eq(steps({ plan: null, bag: null, rules: null, bids: null, blessings: null, purse: null }).steps, [], 'sections not read yet list nothing');
   });
@@ -624,7 +639,7 @@ async function runTests(M) {
     eq(steps().primary, 'equip', 'Equip first');
     eq(steps({ plan: { ops: {}, picks: [] } }).primary, 'sell', 'with nothing to wear, Sell');
     const did = new Map([['equip', 'Equip 2 better pieces'], ['sell', 'Sell 2 stacks for 246 gp']]);
-    const r = steps({ plan: { ops: {}, picks: [] }, rules: { locked: new Set(), loot: { wolf_pelt: 'deposit' } }, did });
+    const r = steps({ plan: { ops: {}, picks: [] }, bag: bag.filter((x) => x.id !== 'rat_tail'), rules: { locked: new Set(), loot: { wolf_pelt: 'deposit' } }, did });
     eq([r.steps.map((s) => s.id + (s.done ? ':done' : '')), r.primary], [['equip:done', 'sell:done', 'deposit', 'bless'], 'deposit'], 'past the done rows, the first open step');
   });
 
@@ -714,7 +729,11 @@ async function runTests(M) {
     eq(tb && [tb.kind, tb.title, tb.words, tb.place], ['temper', 'Next buy: Temper Steel Sword (3,000 gp)', 'Damage and heals +1%', { kind: 'temper' }], 'the weapon\'s rung');
     const ta = buy({ shop: null, temper: { ...temper, blows: rung('Steel Sword', 3000, 1, 10) } });
     eq(ta && [ta.title, ta.words], ['Next buy: Temper Bronze armor (2,000 gp)', 'Damage taken −1%'], 'short of a material, the armor\'s rung');
-    eq(buy({ shop: null, temper, purse: 1999 }), null, 'neither rung in the purse');
+    /* neither rung in the purse: the nearest is named with what it still needs (the whole shelf, T9), the shelf's own first, the weapon's */
+    const near = buy({ shop: null, temper, purse: 1999 });
+    eq(near && [near.kind, near.title, near.words, near.short], ['temper', 'Next buy: Temper Steel Sword (3,000 gp)', 'Damage and heals +1% · Need 1,001 gp more', 1001], 'neither rung in the purse: the nearest, and what it needs');
+    /* the purse covers the armor's rung only: the shelf names the first it covers */
+    eq(buy({ shop: null, temper, purse: 2500 }).title, 'Next buy: Temper Bronze armor (2,000 gp)', 'the shelf\'s first rung the purse covers');
     /* the dummy's next skill, a house to hold it, nobody on it */
     const dummy = { needs: null, hasHome: true, owned: ['melee'], ladder: [100000, 250000], nextPrice: 250000, busy: null };
     const dm = buy({ shop: null, purse: 300000, dummy });
@@ -738,7 +757,7 @@ async function runTests(M) {
     eq([buy({ purse: null }), buy({ purse: 0 })], [null, null], 'no purse, nothing');
     /* on the card: one row, last, Show opens where it is bought, and it is never the gold press */
     const none = { ops: {}, picks: [], choices: [] };
-    const solo = steps({ plan: none, rules: { locked: new Set(), loot: {} }, blessings: null, buy: shield });
+    const solo = steps({ plan: none, bag: bag.filter((r) => r.id !== 'rat_tail'), rules: { locked: new Set(), loot: {} }, blessings: null, buy: shield });
     eq([solo.steps.map((s) => [s.id, s.title, s.words, s.verb, s.icon]), solo.primary], [[['buy', 'Next buy: Bronze-Rimmed Shield (140 gp)', '+1 Defense vs Practice Shield', 'Show', 'bronze_rimmed_shield']], 'again'],
       'with the bag sorted the card still names the buy, and Hunt again stays the press');
     const all = steps({ buy: shield });
@@ -800,6 +819,186 @@ async function runTests(M) {
     eq(chores(false).primary, 'equip', 'CONTROL: any other end keeps the first chore as the press');
   });
 
+  /* ── THE END CARD SELLS (balance program L03, 30-plan.md; economy dive change 1: hunt one paid 130 gold in coin and left 501 unsold, and one real
+     new player sold nothing in 12 hours) ── a hero home with junk no plan holds, beside a Material, a locked junk stack, a planned Deposit, the Hall
+     Key, a gear piece and a junk the House's next step names */
+  const jbag = [{ id: 'rat_tail', qty: 31 }, { id: 'goblin_ear', qty: 5 }, { id: 'slime_gel', qty: 12 }, { id: 'bat_wing', qty: 2 }, { id: 'troll_hide', qty: 1 },
+    { id: 'hall_key', qty: 1 }, { id: 'leather_gloves', qty: 1 }, { id: 'venom_sac', qty: 4 }];
+  const jbids = new Map([['rat_tail', 6], ['goblin_ear', 3], ['slime_gel', 5], ['bat_wing', 4], ['troll_hide', 9], ['hall_key', 400], ['leather_gloves', 20], ['venom_sac', 7]]);
+  const jrules = (loot) => ({ locked: new Set(['bat_wing']), loot: Object.assign({ troll_hide: 'deposit' }, loot || {}) });
+  const jsteps = (over) => TN.townSteps(Object.assign({ plan: null, bag: jbag, rules: jrules(), bids: jbids, blessings: null, purse: 100, did: new Map(), needs: new Set(['venom_sac']) }, over || {}));
+  const row = (r, id) => r.steps.find((s) => s.id === id) || null;
+
+  await t('T7 SELL JUNK: the junk no plan holds sells with the plan\'s Sell stacks, ONE sale at the shop\'s bids, and an all-junk sale says "Sell junk for N"', async () => {
+    const { kindOf, lootSale } = await import(pathToFileURL(join(M.ROOT, 'src/shell/bag-model.js')).href);
+    const r = jsteps();
+    const sell = row(r, 'sell');
+    /* 31 Rat Tail at 6 and 5 Goblin Ear at 3: never the Material (Slime Gel), the locked junk (Bat Wing), the planned Deposit (Troll Hide), the Hall Key,
+       the gear, or the junk the House's next step names (Venom Sac) */
+    eq(sell && [sell.title, sell.words, sell.lines, sell.fresh, sell.verb], ['Sell junk for 201 gp', 'Rat Tail and Goblin Ear', [{ item: 'rat_tail', qty: 31 }, { item: 'goblin_ear', qty: 5 }],
+      ['rat_tail', 'goblin_ear'], 'Sell'], 'the junk, its value at the shop\'s bids, and what no plan holds yet');
+    eq([r.primary, row(r, 'deposit').lines], ['sell', [{ item: 'troll_hide', qty: 1 }]], 'Sell is the gold press, and the planned Deposit stays the Deposit\'s');
+    /* A KEY IS NEVER JUNK: the Hall Key opens Krell's Hold; the Shop's Sell all junk reads the same kind (one function, never two rules) */
+    ok(kindOf('hall_key') !== 'junk', 'the Hall Key files as junk: ' + kindOf('hall_key'));
+    ok(!lootSale(jbag, jrules(), { bids: jbids }, null).lines.some((l) => l.item === 'hall_key'), 'the Shop\'s Sell all junk sells the Hall Key');
+    /* a plan's gear beside the junk: the stack count, the plain names; all the junk planned: "Sell junk", and whose rule it is */
+    const mixed = row(jsteps({ rules: jrules({ leather_gloves: 'sell' }) }), 'sell');
+    eq([mixed.title, mixed.words, mixed.fresh], ['Sell 3 stacks for 221 gp', 'Rat Tail, Goblin Ear and Leather Gloves', ['rat_tail', 'goblin_ear']], 'gear marked Sell beside the junk');
+    const marked = row(jsteps({ rules: jrules({ rat_tail: 'sell', goblin_ear: 'sell' }) }), 'sell');
+    eq([marked.title, marked.words, marked.fresh], ['Sell junk for 201 gp', 'Marked Sell: Rat Tail and Goblin Ear', []], 'the junk the plan holds: the plan\'s words, nothing fresh');
+    /* no junk before the server's plans are read (a locked stack is theirs to say), and no Sell step at all then */
+    eq(row(jsteps({ rules: null }), 'sell'), null, 'plans not read: no sale');
+    /* a House that wants none of it: the Venom Sac sells too */
+    eq(row(jsteps({ needs: null }), 'sell').lines.map((l) => l.item), ['rat_tail', 'goblin_ear', 'venom_sac'], 'House not read: its junk sells');
+  });
+
+  await t('T8 ALWAYS SELL THESE: after the sale, the junk it sold with no plan is one press that sets the plan Sell on each, done when the server\'s plan says so', async () => {
+    const sold = ['rat_tail', 'goblin_ear'];
+    const after = jbag.filter((r) => !sold.includes(r.id));
+    const did = new Map([['sell', 'Sell junk for 201 gp']]);
+    const r = jsteps({ bag: after, did, sold });
+    eq([r.steps.map((s) => s.id + (s.done ? ':done' : '')).slice(0, 2), r.primary], [['sell:done', 'always'], 'always'], 'right after the sale, the next gold press');
+    const a = row(r, 'always');
+    eq([a.title, a.words, a.verb, a.items, a.icon], ['Always sell these', 'Set Sell on Rat Tail and Goblin Ear', 'Always sell', sold, 'rat_tail'], 'the offer names what was just sold');
+    /* the plan is the server's: Sell on one, the other still offered; on both, the row is gone (or Done, once pressed on this card) */
+    eq(row(jsteps({ bag: after, did, sold, rules: jrules({ rat_tail: 'sell' }) }), 'always').items, ['goblin_ear'], 'what the plan does not hold yet');
+    eq(row(jsteps({ bag: after, did, sold, rules: jrules({ rat_tail: 'sell', goblin_ear: 'sell' }) }), 'always'), null, 'every one planned: no offer');
+    const pressed = row(jsteps({ bag: after, did: new Map([...did, ['always', 'Always sell these']]), sold, rules: jrules({ rat_tail: 'sell', goblin_ear: 'sell' }) }), 'always');
+    eq(pressed && [pressed.done, pressed.title], [true, 'Always sell these'], 'pressed on this card: Done');
+    /* no plans read: no offer; the kit is never offered (the server refuses a Sell plan on it, hr_loot_plan_refusal start_kit) */
+    eq(row(jsteps({ bag: after, did, sold, rules: null }), 'always'), null, 'plans not read: no offer');
+    eq(row(jsteps({ bag: after, did, sold: ['shrimp'] }), 'always'), null, 'the starting kit is never offered');
+    /* a long list: one press sets what one press may (the server's `hunt` bucket is 30 a minute), the next press the rest */
+    const many = Array.from({ length: 14 }, (_, i) => 'junk_' + i);
+    const big = row(jsteps({ bag: after, did, sold: many }), 'always');
+    eq([big.count, big.items.length, big.items[0]], [14, 12, 'junk_0'], 'twelve a press');
+
+    /* THE PRESS, ONE hr_loot_rule_set an item, the plan Sell; the answer counts what the server took and keeps its refusal */
+    const calls = [];
+    let refuse = null;
+    const fake = { setLootRule: async (item, rule) => { calls.push([item, rule]); return item === refuse ? { ok: false, error: 'item_not_sellable' } : { ok: true }; } };
+    eq(await TN.alwaysSell(fake, sold), { set: 2, ok: true }, 'both set');
+    eq(calls, [['rat_tail', 'sell'], ['goblin_ear', 'sell']], 'ONE plan an item, Sell');
+    refuse = 'goblin_ear';
+    eq(await TN.alwaysSell(fake, sold), { set: 1, ok: false, error: 'item_not_sellable' }, 'a refusal stands, with what was set');
+
+    /* PLAYED ON A SESSION (the server's sections in, the server's answers out): a hunt ends with junk in the bag, Sell junk is ONE vendor_sell_many,
+       the purse and the bag are then the server's; Always sell these sets the plans, the re-read says Sell, and the next hunt's junk is the plan's sale */
+    const srv = { v: 20, gold: 1200, inv: { rat_tail: 31, goblin_ear: 5, slime_gel: 12 }, loot: {}, bids: { rat_tail: 6, goblin_ear: 3, slime_gel: 5 } };
+    const env = () => {
+      const e = endedEnv(srv.v);
+      e.hunt = Object.assign({}, FIX.hunt, { hunt_id: 'mill_cellar', ended: true, session: { end_reason: 'left', ended_at: '2026-10-18T10:01:00Z' } });
+      e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, gold: srv.gold, gold_v: srv.v });
+      e.inventory = Object.assign({}, srv.inv);
+      e.bag_rules = { locked: [], loot: Object.assign({}, srv.loot), restock: {} };
+      e.shop = { offers: [], bids: Object.assign({}, srv.bids) };
+      return e;
+    };
+    const seen = [];
+    const server = {
+      rpc: async (name, args) => {
+        seen.push(name);
+        if (name === 'hr_load') return { ok: true, body: env() };
+        if (name === 'hr_loot_rule_set') { srv.loot[args.p_item] = args.p_rule; srv.v++; return { ok: true, body: { ok: true } }; }
+        return { ok: true, body: { ok: true } };
+      },
+      accrue: async (body) => {
+        if (body.verb !== 'vendor_sell_many') return { ok: true, status: 200, body: {} };
+        seen.push('vendor_sell_many');
+        let paid = 0;
+        for (const l of body.lines) { paid += srv.bids[l.item] * l.qty; srv.inv[l.item] -= l.qty; if (!srv.inv[l.item]) delete srv.inv[l.item]; }
+        srv.gold += paid; srv.v++;
+        return { ok: true, status: 200, body: Object.assign(env(), { receipt: { gold: paid } }) };
+      },
+    };
+    const cs = new CS.CharacterSession({ slot: 0, uid: 'u', now: () => 0, server, setTimer: () => 0, clearTimer: () => {} });
+    ok(await cs.load(), 'the ended hunt\'s envelope applied');
+    const IS = await import(pathToFileURL(join(M.ROOT, 'src/session/item-sections.js')).href);
+    const home = TN.townStepsOf(cs, new Map(), []);
+    const s = row(home, 'sell');
+    eq(s && [s.title, s.lines, s.fresh, home.primary], ['Sell junk for 201 gp', [{ item: 'rat_tail', qty: 31 }, { item: 'goblin_ear', qty: 5 }], ['rat_tail', 'goblin_ear'], 'sell'], 'the card offers the junk at the server\'s bids');
+    const sale = await cs.edgeIntent('vendor_sell_many', { lines: s.lines });
+    eq([sale.ok, sale.paid], [true, 201], 'ONE sale, paid what the server says');
+    eq([IS.goldOf(cs), IS.bagOf(cs)], [srv.gold, Object.entries(srv.inv).map(([id, qty]) => ({ id, qty }))], 'the purse and the bag are the server\'s');
+    const did2 = new Map([['sell', s.title]]);
+    const offer = row(TN.townStepsOf(cs, did2, s.fresh), 'always');
+    eq(offer && offer.items, ['rat_tail', 'goblin_ear'], 'Always sell these, for what was just sold');
+    const set = await TN.alwaysSell(cs, offer.items);
+    eq([set.ok, set.set, seen.filter((n) => n === 'hr_loot_rule_set').length], [true, 2, 2], 'the plans went, one ask an item');
+    eq(IS.rulesOf(cs).loot, { rat_tail: 'sell', goblin_ear: 'sell' }, 'the plan on screen is the server\'s re-read');
+    eq(row(TN.townStepsOf(cs, did2, s.fresh), 'always'), null, 'nothing left to offer');
+    /* the next hunt brings Rat Tail again: the card's sale is the plan's now */
+    srv.inv.rat_tail = 9; srv.v++;
+    ok(await cs.load(), 'the next return applied');
+    const next = row(TN.townStepsOf(cs, new Map(), []), 'sell');
+    eq(next && [next.title, next.words, next.fresh], ['Sell junk for 54 gp', 'Marked Sell: Rat Tail', []], 'the next sale is the plan\'s');
+  });
+
+  await t('T9 NEXT BUY WALKS THE WHOLE SHELF: each shelf\'s next rung, the cheapest the purse covers, else the nearest with what it needs', async () => {
+    const { NB } = M;
+    const { targetOf } = await import(pathToFileURL(join(M.ROOT, 'src/shell/goto.js')).href);
+    const tank = { weapon: 'steel_sword', shield: 'bronze_rimmed_shield', helmet: 'bronze_helm', body: 'bronze_platebody', pants: 'bronze_platelegs', boots: 'bronze_boots', gloves: 'bronze_gauntlets', belt: 'bronze_belt' };
+    const sk = { defense: { level: 31, xp: 0 }, melee: { level: 31, xp: 0 }, mining: { level: 1, xp: 0 } };
+    const shelf = (over) => NB.nextBuy(Object.assign({ purse: 5000, equipment: tank, skills: sk, level: 31, prefer: 'heavy', chosen: 'heavy', shop: null, temper: null, dummy: null, home: null,
+      bag: [], bank: [], chests: null, bagGrow: null, slot: null, refill: null }, over || {}));
+    const see = (b) => b && [b.kind, b.title, b.words, b.place];
+    const room = (r, name, opens) => ({ room: r, name, level: 0, rungs: 5, opens, rungName: null, next: null });
+    const deedHome = (owned) => ({ tier: owned ? 1 : 0, tiers: [{ offer: 'property.homestead', name: 'Hearthside Homestead', tier: 1, need: 0, owned, gold: 400, items: [] }],
+      rooms: [room('kitchen', 'Kitchen', 1), room('garden', 'Garden', 1), room('forge', 'Forge', 2)] });
+    eq(see(shelf({ home: deedHome(false) })), ['deed', 'Next buy: Hearthside Homestead (400 gp)', 'Opens Kitchen and Garden', { kind: 'house' }], 'the House\'s next property rung, and the rooms it opens');
+    const grow = { cap: 40, rung: 0, max: 10, next: { offer: 'bag.r1', gold: 1000, adds: 10 } };
+    const bagRow = shelf({ bagGrow: grow });
+    eq(see(bagRow), ['bag', 'Next buy: Bag space (1,000 gp)', '+10 bag spaces', { kind: 'storage' }], 'the bag\'s next rung');
+    eq(targetOf(bagRow.place), { win: 'storage', tab: null, find: null }, 'Show opens Storage, where the bag grows');
+    const chests = { used: 90, cap: 100, chests: [], next: { chest: 'millrace_crate', name: 'Millrace Crate', stacks: 20, tier: 0, built: false, gold: 1500, items: [{ id: 'normal_log', qty: 40 }], canBuild: true } };
+    eq(see(shelf({ chests, bag: [{ id: 'normal_log', qty: 40 }] })), ['chest', 'Next buy: Millrace Crate (1,500 gp)', '+20 Storage spaces', { kind: 'house' }], 'the next Storage chest, its logs in hand');
+    eq([shelf({ chests }), shelf({ chests: { ...chests, next: { ...chests.next, canBuild: false } }, bag: [{ id: 'normal_log', qty: 40 }] })], [null, null], 'short of logs, or the property tier not reached: nothing');
+    /* THE CHEAPEST THE PURSE COVERS, across every shelf: a Tempering rung (the first shelf) loses to a cheaper deed */
+    const rung = { piece: 'Steel Sword', below: false, ladder: { track: 'blows', tier: 2, rung: 0, max: 5, offer: 'temper.x', gold: 3000, items: [] }, needs: [], nowPm: 0, nextPm: 10 };
+    const all = { temper: { blows: rung, armor: null }, home: deedHome(false), bagGrow: grow, slot: { slotId: 1, cost: 400000 }, dummy: { hasHome: true, nextPrice: 100000, busy: null } };
+    eq(shelf(all).kind, 'deed', 'the cheapest of all, the deed at 400');
+    eq(shelf({ ...all, home: deedHome(true) }).kind, 'bag', 'the deed owned: the bag at 1,000');
+    eq(shelf({ ...all, home: deedHome(true), bagGrow: null }).kind, 'temper', 'then Tempering at 3,000');
+    /* NONE COVERED: the nearest, and what it still needs (the purse's shortfall at the server's price) */
+    const slot = shelf({ slot: { slotId: 1, cost: 400000 } });
+    eq([...see(slot), slot.short], ['slot', 'Next buy: Hero slot 2 (400,000 gp)', 'Another hero for your account · Need 395,000 gp more', { kind: 'characters' }, 395000], 'a hero slot, the nearest');
+    eq(shelf({ ...all, purse: 300 }).words, 'Opens Kitchen and Garden · Need 100 gp more', 'short of all of them: the nearest');
+    /* A TOOL, only for a skill this hero trains, and only a better tier than the bag's */
+    const tools = { offers: [{ offer: 'shop.bronze_pickaxe', item: 'bronze_pickaxe', kind: 'tool', price: 120 }, { offer: 'shop.bronze_axe', item: 'bronze_axe', kind: 'tool', price: 120 }], bids: new Map() };
+    eq(shelf({ shop: tools }), null, 'a hunter is never sent to the rocks');
+    const miner = { ...sk, mining: { level: 3, xp: 200 } };
+    const pick = shelf({ shop: tools, skills: miner });
+    eq(pick && [pick.kind, pick.title, pick.place, /^Mining \d+% faster/.test(pick.words)], ['tool', 'Next buy: Bronze Pickaxe (120 gp)', { kind: 'shop', item: 'bronze_pickaxe' }, true], 'a miner\'s pickaxe');
+    eq(shelf({ shop: tools, skills: miner, bag: [{ id: 'bronze_pickaxe', qty: 1 }] }), null, 'one in the bag already: nothing');
+    /* A REFILL, when the caller gives the server's quote (only after a hunt that ran out of stamina, nextBuyOf) */
+    const refill = { available: true, why: null, price: 1600, restoreMs: 4 * 3600000, n: 1, perDay: 6, boughtToday: 0 };
+    eq(see(shelf({ refill })), ['refill', 'Next buy: Stamina refill (1,600 gp)', '+4 h of stamina', { kind: 'services' }], 'a refill, its hours the server\'s');
+    eq(targetOf({ kind: 'services' }), { win: 'shop', tab: 'services', find: null }, 'Show opens the Shop\'s Services');
+    eq(shelf({ refill: { ...refill, available: false, price: null } }), null, 'none to buy: nothing');
+    /* POWER FIRST: a Shop piece Equip upgrades would put on stays ahead of the whole shelf (the designer's order) */
+    const bare = { ...tank }; delete bare.belt;
+    eq(shelf({ ...all, equipment: bare, shop: { offers: [{ offer: 'shop.bronze_belt', item: 'bronze_belt', kind: 'gear', price: 200 }], bids: new Map() } }).kind, 'gear', 'gear first');
+    const said = [shelf(all), bagRow, slot, pick, shelf({ refill })].flatMap((b) => [b.title, b.words]).filter((w) => /\.$/.test(w) || /;|—/.test(w));
+    eq(said, [], 'every line a label, no full stop, semicolon or dash');
+
+    /* FROM A SESSION: the hero slot is the account section's offer, a refill only after a hunt out of stamina */
+    const at = (reason) => {
+      const e = endedEnv(30);
+      /* the server's hunt section (hr_hunt_view) for a session it holds ended, as T6 builds it */
+      e.hunt = Object.assign({}, FIX.hunt, { hunt_id: 'mill_cellar', ended: true, session: { end_reason: reason, ended_at: '2026-10-18T10:01:00Z' } });
+      e.state = Object.assign({}, e.state, { active_kind: 'idle', active_id: null, gold: 2000 });
+      e.inventory = {};
+      e.equipment = tank;
+      e.account = { hero_slot_offer: { slot_id: 1, cost_gold: 400000 }, hero_slots_max: 4 };
+      e.stamina_refill = { available: true, price: 1600, restore_ms: 4 * 3600000, n: 1, per_day: 6 };
+      return e;
+    };
+    const csOf = async (reason) => { const c = sessionOn([], () => at(reason)); ok(await c.load(), 'the envelope applied'); return c; };
+    eq((await csOf('stamina')) && NB.nextBuyOf(await csOf('stamina'), null).kind, 'refill', 'out of stamina: the refill');
+    const left = NB.nextBuyOf(await csOf('left'), null);
+    eq(left && [left.kind, left.title], ['slot', 'Next buy: Hero slot 2 (400,000 gp)'], 'any other end: no refill, the account\'s next slot');
+  });
+
   return fails;
 }
 
@@ -809,7 +1008,7 @@ async function load(base) {
   return {
     EX: await import(u(EXPLAIN)), MD: await import(u(MODEL)), REC: await import(u(RECORDER)),
     CS: Object.assign({}, await import(u(SESSION))), RES: await import(u(RESIDUE)),
-    TN: await import(u(TOWN)), UP: await import(u('src/shell/upgrade-plan.js')), NB: await import(u(NEXT)),
+    ROOT: base, TN: await import(u(TOWN)), UP: await import(u('src/shell/upgrade-plan.js')), NB: await import(u(NEXT)),
     END_ORDER: (await import(u('src/data/hunt-sessions.js'))).END_ORDER,
     HS: await import(u('src/session/hunt-sections.js')),
   };
@@ -901,16 +1100,47 @@ const MUTANTS = [
   { test: 'T6', file: HLIST, from: 'rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;', to: 'rec.row.hunt !== hunt ? rec.row : null;' },
   { test: 'T5', file: NEXT, from: "(Number(!!a.replaces) - Number(!!b.replaces)) || ", to: '' },
   { test: 'T5', file: NEXT, from: "x.kind === 'gear' && x.price <= o.purse && ", to: "x.kind === 'gear' && " },
-  { test: 'T5', file: NEXT, from: "|| row.needs.some((n) => n.short > 0) ", to: '' },
+  { test: 'T5', file: NEXT, from: "&& !row.needs.some((n) => n.short > 0) ", to: '' },
   { test: 'T5', file: NEXT, from: "if (!d || !d.hasHome || ", to: "if (!d || " },
   { test: 'T5', file: NEXT, from: "&& r.next.need <= h.tier && ", to: '&& ' },
-  { test: 'T5', file: NEXT, from: "&& holds(r.next.items, o.bag, o.bank));", to: ');' },
-  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return roomBuy(o) || dummyBuy(o) || temperBuy(o) || findPiece(o) || gearBuy(o);" },
-  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || dummyBuy(o) || roomBuy(o);" },
+  { test: 'T5', file: NEXT, from: "&& roomDoes(r.room) && holds(r.next.items, o.bag, o.bank))", to: '&& roomDoes(r.room))' },
+  /* power first: the whole shelf went ahead of the Shop's gear */
+  { test: 'T5', file: NEXT, from: "  const power = gearBuy(o) || findPiece(o);\n  if (power) return power;\n", to: '' },
+  /* each shelf's first rung the purse covers: its first at all instead (the weapon's rung over the armor's the purse covers) */
+  { test: 'T5', file: NEXT, from: "const front = c.find((x) => x.gold <= o.purse) || c[0];", to: 'const front = c[0];' },
+  /* none covered: nothing named (the nearest and its shortfall gone) */
+  { test: 'T5', file: NEXT, from: "  if (!fronts.length) return null;\n  const near = fronts[0].row", to: "  if (fronts.length) return null;\n  const near = fronts[0].row" },
+  /* T9 the whole shelf: across shelves the cheapest the purse covers, never the shelf order; the deed's gates; a tool only for a trained skill and
+     a better tier; the hero slot from the account section; a refill only after a hunt out of stamina */
+  { test: 'T9', file: NEXT, from: "  fronts.sort((a, b) => (a.row.gold - b.row.gold) || (a.rank - b.rank));\n", to: '' },
+  { test: 'T9', file: NEXT, from: "const SHELF = Object.freeze([temperRows, roomRows, deedRows, chestRows, bagRows, dummyRows, slotRows, toolRows, refillRows]);", to: "const SHELF = Object.freeze([temperRows, roomRows, chestRows, bagRows, dummyRows, slotRows, toolRows, refillRows]);" },
+  { test: 'T9', file: NEXT, from: "if (!c || !c.canBuild || !holds(c.items, o.bag, o.bank)) return [];", to: 'if (!c) return [];' },
+  { test: 'T9', file: NEXT, from: "if (!sk || !(sk.xp > 0)) return false;", to: 'if (!it) return false;' },
+  { test: 'T9', file: NEXT, from: "return (it.toolTier || 0) > ((best && best.toolTier) || 0);", to: 'return true;' },
+  { test: 'T9', file: NEXT, from: "slot: slotOfferOf(cs && typeof cs.read === 'function' ? cs.read('account') : null),", to: 'slot: null,' },
+  { test: 'T9', file: NEXT, from: "refill: h && h.ended && h.endReason === 'stamina' ? staminaRefillOf(cs) : null });", to: 'refill: staminaRefillOf(cs) });' },
+  { test: 'T9', file: NEXT, from: "words: opens.length ? t('summary.buy_deed_words', { rooms: listWords(opens) }) : '',", to: "words: ''," },
+  { test: 'T9', file: 'src/shell/goto.js', from: "  if (place.kind === 'storage') return { win: 'storage', tab: null, find: null };\n", to: '' },
+  /* T7 the end card's junk sale: none of it, the House's needs swept, a planned Deposit sold too, a mixed sale called junk, a key swept, nothing fresh */
+  { test: 'T7', file: TOWN, from: "const junk = new Set(rules ? lootToSell(bag, (o && o.needs) || null).filter((id) => !rules.loot[id] && !isStartKit(id)) : []);", to: 'const junk = new Set();' },
+  { test: 'T7', file: TOWN, from: "lootToSell(bag, (o && o.needs) || null)", to: 'lootToSell(bag, null)' },
+  { test: 'T7', file: TOWN, from: ".filter((id) => !rules.loot[id] && !isStartKit(id))", to: ".filter((id) => !isStartKit(id))" },
+  { test: 'T7', file: TOWN, from: "lines.every((l) => kindOf(l.item) === 'junk')", to: 'true' },
+  { test: 'T7', file: TOWN, from: "fresh: lines.filter((l) => !marked.has(l.item)).map((l) => l.item) });", to: 'fresh: [] });' },
+  { test: 'T7', file: 'src/shell/bag-model.js', from: "  if (it.opens) return 'other';\n", to: '' },
+  /* T8 Always sell these: still offered once the server's plan says Sell, a long list in one press, the kit offered, the wrong plan sent, a refusal lost */
+  { test: 'T8', file: TOWN, from: "filter((id) => rules.loot[id] !== 'sell' && !isStartKit(id))", to: "filter((id) => !isStartKit(id))" },
+  { test: 'T8', file: TOWN, from: "items: want.slice(0, ALWAYS_PER_PRESS) });", to: 'items: want });' },
+  { test: 'T8', file: TOWN, from: "filter((id) => rules.loot[id] !== 'sell' && !isStartKit(id))", to: "filter((id) => rules.loot[id] !== 'sell')" },
+  { test: 'T8', file: TOWN, from: "cs.setLootRule(id, 'sell')", to: "cs.setLootRule(id, 'keep')" },
+  { test: 'T8', file: TOWN, from: "  const no = answers.find((r) => !(r && r.ok));", to: '  const no = null;' },
+  /* T1 a Blessing's one line: gone, or the lowest tier's cut said as the whole */
+  { test: 'T1', file: TOWN, from: "const does = Number.isSafeInteger(top) && top > 0 ? t('summary.bless_does', { pct: Math.round(top / 10) + '%' }) : '';", to: "const does = '';" },
+  { test: 'T1', file: TOWN, from: "const top = b && b.tiers.length ? b.tiers[b.tiers.length - 1].permille : null;", to: 'const top = b && b.tiers.length ? b.tiers[0].permille : null;' },
   /* the full-game audit's A11 under designer ruling 2b: Next buy off the plan's weight rule (a better piece of a worn off weight sold), and nothing
      saying where the hero's own weight comes from */
   { test: 'T5', file: NEXT, from: "prefer: o.prefer, chosen: o.chosen });", to: "prefer: o.prefer });" },
-  { test: 'T5', file: NEXT, from: "  return gearBuy(o) || findPiece(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);", to: "  return gearBuy(o) || temperBuy(o) || roomBuy(o) || dummyBuy(o);" },
+  { test: 'T5', file: NEXT, from: "  const power = gearBuy(o) || findPiece(o);", to: "  const power = gearBuy(o);" },
   { test: 'T5', file: NEXT, from: '    const p = now[0] || later[0];', to: '    const p = later[0] || now[0];' },
   { test: 'T5', file: NEXT, from: "&& offWeight(ITEMS[eq[s]], o.chosen)));", to: '&& false));' },
   { test: 'T5', file: NEXT, from: '.concat((p.costs || []).slice(0, 1))', to: '' },

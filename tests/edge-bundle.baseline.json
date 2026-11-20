@@ -88,6 +88,11 @@
         "bytes": 3147337,
         "on": "2026-11-20",
         "why": "Luck v3.1 follow-ups: Tomato Soup's cut note in items.js, drop_rate's note in buffs.js, the supplies.js parked-row note (comments the packer keeps)"
+      },
+      {
+        "bytes": 3151132,
+        "on": "2026-11-20",
+        "why": "set/v0.2.143 merged into lane/d-luck-build: the set's Morrow kit grew src/data/grounds/carters_rest and ox_road map.js/pack.js (the engine's ground index carries them), +3,795 B over the lane's ceiling; no Luck byte moved"
       }
     ]
   }

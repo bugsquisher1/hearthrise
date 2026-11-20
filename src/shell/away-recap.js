@@ -64,6 +64,7 @@ import { huntOf, analyzerOf, serverNowOf, staminaOf, goldFloorOf } from '../sess
 import { nameOf, skillsOf } from '../session/item-sections.js?v=0.2.142';
 import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.142';
 import { pastHuntOf } from '../session/past-hunt.js?v=0.2.142';
+import { luckOf } from '../session/luck-sections.js?v=0.2.142';
 import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.142';
 import { deathWords } from './death-popup.js?v=0.2.142';
 import { huntName } from '../session/party-sections.js?v=0.2.142';
@@ -145,10 +146,13 @@ function awayStampOf(cs, h) {
   const gold = coinsOf(a), sp = spentOf(a);
   const k = trainedSkillOf(cs, h);
   const sk = k ? (skillsOf(cs) || {})[k] : null;
+  /* `mf`: the Magic Find the server said (the luck section, absent while Luck is dark), for the return's "Magic Find 15% to 16%" */
+  const lk = luckOf(cs);
   /* `lv`: the Level the server said with that XP. The return compares it with the Level the server says then; a Level
      worked out here from the stamped XP would be this build's curve (character-sections.js levelOf). `sl` likewise for skill `k`. */
   return { s: h.sessionId, at: Math.floor(now), xp: lv.xp, lv: lv.level, ...(h.huntId ? { h: h.huntId } : {}), ...(gold !== null ? { gold } : {}),
-    ...(gold !== null && sp !== null ? { sp } : {}), ...(kills !== null ? { kills } : {}), ...(sk ? { k, sx: sk.xp, sl: sk.level } : {}) };
+    ...(gold !== null && sp !== null ? { sp } : {}), ...(kills !== null ? { kills } : {}), ...(sk ? { k, sx: sk.xp, sl: sk.level } : {}),
+    ...(lk ? { mf: lk.magicFind } : {}) };
 }
 
 /** The gold the purse kept over the absence: { net, looted, paid, yard }, each two server answers, or null when the stamp kept no store spend
@@ -239,6 +243,11 @@ export function awayRecapFrom(cs, was) {
   if (gold) parts.push(signed(gold.net, 'gold'));
   const kills = a && a.hero && Number.isFinite(a.hero.kills) && Number.isSafeInteger(was.kills) ? Math.floor(a.hero.kills) - was.kills : null;
   if (kills !== null && kills > 0) parts.push(whole(kills) + ' kills');
+  /* LUCK (src/data/luck.js, itemization plan §15 "Return card"): the Magic Find the absence brought, two server answers (the stamp's and the
+     luck section now). Dark, or a stamp from before `mf`, says nothing. */
+  const lk = luckOf(cs);
+  const mfFrom = lk && Number.isSafeInteger(was.mf) && lk.magicFind > was.mf ? was.mf : null;
+  if (mfFrom !== null) parts.push(t('luck.away', { from: mfFrom, to: lk.magicFind }));
   const train = over || yard ? trainOf(cs, was) : null;
   if (train && yard) parts.push(...trainWords(train));
   /* one sentence a fact, never clauses on colons (QA audit 2026-11-18 N6): "Away 7 days. Wren hunted Mill Cellar. Level 5 to 10, +1,200 Level XP." */
@@ -260,6 +269,7 @@ export function awayRecapFrom(cs, was) {
     at: was.at, cameAt: now, minutes: Math.floor(gone / 60000), levels: from !== null ? Math.max(0, lv.level - from) : 0,
     facts: { name, hunt, place: yard ? yard.doing : hunt ? huntName(hunt) : '', gone, lvFrom: from, lvTo: lv.level, xp: Math.max(0, lv.xp - was.xp),
       gold: gold ? gold.net : null, looted: gold ? gold.looted : null, paid: gold ? gold.paid : null, yard: gold ? gold.yard : null, kills: kills !== null ? Math.max(0, kills) : null, best,
+      mfFrom, mfTo: mfFrom !== null ? lk.magicFind : null,
       train, died: over ? diedWords(cs, was.s, true) : '', after: then, tookOver: over,
       /* `ask`: the session whose tally the line still waits for; `deathSession`: a death during the absence (the card's Bless again) */
       ask: over && !a ? was.s : null, deathSession: over ? (deathRow ? was.s : null) : h.ended && h.endReason === 'died' ? h.sessionId : null },

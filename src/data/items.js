@@ -528,8 +528,9 @@ export const ITEMS={
     buff:{type:'farm_yield', magnitude:1, durationMs:360000},
   },
   tomato_soup: {
-  /* (Luck v3.1, itemization plan §15, Tyler 2026-11-20: its drop-rate buff is CUT: a food is bought with gold, and Luck is the only drop lever. Its next buff is the designer's.) */
-    n:'Tomato Soup', icon:'🍅', v:260, heals:336, foodTier:2, foodClass:'healing',
+  /* (Luck v3.1, itemization plan §15, Tyler 2026-11-20: its drop-rate buff is CUT: a food is bought with gold, and Luck is the only drop lever.
+     It stays a buff food with its buff to come (the designer's), so it is still no hunt supply and no auto-eat heal, as it was.) */
+    n:'Tomato Soup', icon:'🍅', v:260, heals:336, foodTier:2, foodClass:'buff',
   },
   wheat_bread: {
   /* (Luck v3.1, itemization plan §15, Tyler 2026-11-20: its drop-rate buff is CUT: a food is bought with gold, and Luck is the only drop lever. Its next buff is the designer's.) */

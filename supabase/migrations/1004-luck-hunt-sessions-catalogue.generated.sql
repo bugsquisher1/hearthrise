@@ -8,8 +8,8 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 6de2318d25a45f95a1fbec6629ca199c6ad63e51210f90d6bfaa66c41488cf10
---   79 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
+--   digest: 211dacd60a2b678a7c606a93a90f97a1b6a9ffef3810bf43efafdfcb2090df32
+--   78 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
 --   677 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
@@ -734,7 +734,6 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('steel_arrows', 'ammo', true, 0, null),
   ('steel_whetstone', 'ammo', false, 0, null),
   ('tomato_juice', 'mana', false, 0, null),
-  ('tomato_soup', 'heal', true, 336, null),
   ('turnip_juice', 'mana', false, 0, null),
   ('turnip_mash', 'heal', true, 60, null),
   ('vegetable_stew', 'buff', false, 0, 'all_xp'),
@@ -2310,7 +2309,7 @@ insert into public.hr_boss_halls (hall_id, hunt_id, monster_id, key_item, limit_
 do $$
 declare v_role text; v_t text;
 begin
-  if (select count(*) from public.hr_hunt_supplies) <> 79
+  if (select count(*) from public.hr_hunt_supplies) <> 78
      or (select count(*) from public.hr_hunt_travel) <> 168
      or (select count(*) from public.hr_hunt_limits) <> 47
      or (select count(*) from public.hr_hunt_end_reasons) <> 18

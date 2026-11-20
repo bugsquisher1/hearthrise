@@ -6,7 +6,7 @@
 --   `node tools/gen-catalogues.mjs --check`, which is a preflight in
 --   tests/run-sql-tests.mjs. Edit src/data/*.js and regenerate.
 --
---   catalogue digest: 06a8d7d994d88b71bd0a42e7918f144599c2e6bbbf2e30509522b30e76bf0038
+--   catalogue digest: d8cccc7ecb2043b62419454ba99f029b8c5a76adf5d2932a41676f824d17e407
 --   rows: 721 items (28 untradeable) ·
 --         439 item-slot pairs · 14 equip slots ·
 --         13 skills · 9 crops · 369 activities ·
@@ -803,7 +803,7 @@ insert into public.hr_items (item_id, name, tradeable, kind, value, req_skill, r
   ('tomato','Tomato',true,null,90,null,null,48,true,null,false),
   ('tomato_juice','Tomato Juice',true,null,30,null,null,null,false,null,false),
   ('tomato_seed','Tomato Seed',true,null,30,null,null,null,false,null,false),
-  ('tomato_soup','Tomato Soup',true,null,260,null,null,336,true,null,false),
+  ('tomato_soup','Tomato Soup',true,null,260,null,null,336,false,null,false),
   ('torn_company_badge','Torn Company Badge',true,null,32,null,null,null,false,null,false),
   ('tower_cinders','Hearth Cinders',false,null,0,null,null,null,false,null,false),
   ('tower_key_bronze','Bronze Key',false,'key',0,null,null,null,false,null,false),
@@ -2323,7 +2323,7 @@ insert into public.hr_feast_foods (item_id, heals) values
   ('wheat_bread',216);
 
 insert into public.hr_catalogue_meta (only_row, digest, generated_at)
-  values (true, '06a8d7d994d88b71bd0a42e7918f144599c2e6bbbf2e30509522b30e76bf0038', now())
+  values (true, 'd8cccc7ecb2043b62419454ba99f029b8c5a76adf5d2932a41676f824d17e407', now())
   on conflict (only_row) do update set digest = excluded.digest, generated_at = excluded.generated_at;
 
 -- ── RLS + grants. Catalogues are world-readable (the client renders from the
@@ -2404,8 +2404,8 @@ begin
   -- created hr_items before the column existed cannot leave every row on the
   -- FALSE default and quietly make every food ineligible.
   select count(*) into v_n from public.hr_items where auto_eatable;
-  if v_n <> 41 then
-    raise exception 'auto_eatable count is %, generator emitted 41', v_n;
+  if v_n <> 40 then
+    raise exception 'auto_eatable count is %, generator emitted 40', v_n;
   end if;
   -- ...and the rule itself, restated as a constraint on the data rather than
   -- as a comment: nothing without a heal may ever be auto-eaten. (The converse
@@ -2563,7 +2563,7 @@ begin
    where c.regrow_limit is distinct from v.lim;
   if v_bad > 0 then raise exception '% crop(s) land a regrow_limit the generator did not emit', v_bad; end if;
 
-  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest 06a8d7d994d88b71bd0a42e7918f144599c2e6bbbf2e30509522b30e76bf0038',
+  raise notice 'CATALOGUES OK — % items, % activities, % runes, digest d8cccc7ecb2043b62419454ba99f029b8c5a76adf5d2932a41676f824d17e407',
     (select count(*) from public.hr_items), (select count(*) from public.hr_activities),
     (select count(*) from public.hr_runes);
 end $$;

@@ -60,7 +60,9 @@ export function awayBlockOf(cs, a) {
   const result = hunt ? {
     level: Number.isSafeInteger(f.lvTo) ? { name: t('summary.lv_name'), from: f.lvFrom, to: f.lvTo } : null,
     /* the skill the yard that took over trained, "Melee 28 to 34" (two server answers) */
-    ups: tr && tr.to > tr.from ? [t('summary.skill_up', { skill: skillName(tr.skill), from: tr.from, to: tr.to })] : [],
+    ups: [tr && tr.to > tr.from ? t('summary.skill_up', { skill: skillName(tr.skill), from: tr.from, to: tr.to }) : null,
+      /* the Magic Find the absence brought, "Magic Find 15% to 16%" (two server answers, ../away-recap.js) */
+      Number.isSafeInteger(f.mfFrom) && Number.isSafeInteger(f.mfTo) ? t('luck.away', { from: f.mfFrom, to: f.mfTo }) : null].filter(Boolean),
     figs: [f.xp > 0 ? { key: 'xp', label: t('summary.fig_xp'), value: '+' + whole(f.xp) } : null,
       awayGoldFig(f),
       f.kills > 0 ? { key: 'kills', label: t('summary.fig_kills'), value: whole(f.kills) } : null].filter(Boolean),

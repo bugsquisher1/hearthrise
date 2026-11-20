@@ -236,7 +236,7 @@ const ASKVIA_SITES = Object.freeze({
   'src/session/title-intents.js': { rule: 1 },
   /* `own` for now: another lane is editing each of these files (Coordinator 2026-11-18); each moves onto the rule after it lands */
   'src/session/scaled-hunts.js': { rule: 1, own: 1 },   // the switch (hr_scaled_hunt_switch): the arm-switches lane
-  'src/session/hallmark-intents.js': { own: 1 },        // the jewelry lane
+  'src/session/hallmark-intents.js': { own: 2 },        // the jewelry lane; + the Lucky job (luckyRing, Luck v3.1), on the same settled()
   'src/session/storage-intents.js': { own: 1 },         // the UI lane (Storage's bulk moves)
   'src/session/tower-intents.js': { own: 1 },           // the Catacombs lane (its RE_READS list)
   'src/session/preset-read.js': { read: 1 },

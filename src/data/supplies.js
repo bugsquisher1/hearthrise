@@ -66,9 +66,8 @@ export const SUPPLY_ROWS = Object.freeze([
   [H, 'cooked_lobster', true], [H, 'cooked_bear_meat', true], [H, 'cooked_swordfish', true],
   [H, 'river_chowder', true], [H, 'cooked_shark', true], [H, 'cooked_frostfin', true],
   [H, 'cooked_moonfish', true],
-  /* Tomato Soup heals and nothing more since its drop-rate buff was cut (Luck v3.1, itemization plan §15) */
-  [H, 'tomato_soup', true],
-  // buff — PARKED: feasts and draughts whose buff pays in a fight
+  // buff — PARKED: feasts and draughts whose buff pays in a fight. (Tomato Soup left with its drop-rate buff, Luck v3.1, itemization
+  // plan §15: a plain food now, never packed; its next buff is the designer's.)
   [B, 'vegetable_stew', false], [B, 'bear_claw_pie', false],
   [B, 'pumpkin_pie', false], [B, 'fishers_pie', false],
   [B, 'ember_tart', false],

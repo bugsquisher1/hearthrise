@@ -1,6 +1,7 @@
 // ════════════════════════════════════════════════════════════════════════
 // src/data/text/luck.js — LUCK'S WORDS (src/data/luck.js; docs/design/itemization-plan.md §15 "On screen"): the character sheet's Magic
-// Find line and Luck bar (src/shell/windows/character/sheet.js) and the reveal's "Lucky find" (src/hunt-view/combat-log.js).
+// Find line and Luck bar (src/shell/windows/character/sheet.js), the return card's Magic Find line (src/shell/away-recap.js, windows/away.js)
+// and the reveal's "Lucky find" (src/hunt-view/combat-log.js).
 //
 // One row per label, read by t('luck.<key>'). Labels, not sentences (Tyler 2026-11-14), except the tooltip. Every number is the server's.
 // The loot plan's and Dispatch's Luck words are the shop table's (shop.plan_salvage ...), the Lucky job's the jeweler's (jewel.lucky_*).
@@ -11,6 +12,8 @@ export const LUCK_TEXT = Object.freeze({
   tip: 'Rare drops come that much more often. Salvage gear your hunts dropped or reach Bestiary stages to earn Luck.',
   bar: 'Luck {luck} / {next}',
   full: 'Luck {luck}, the bar is full',
+  /* the return card's line (src/shell/away-recap.js), two server answers */
+  away: 'Magic Find {from}% to {to}%',
   /* the reveal of a Rare that Magic Find caused (src/core/drops.js rollDropTable `lucky`) */
   lucky_find: 'Lucky find',
 });

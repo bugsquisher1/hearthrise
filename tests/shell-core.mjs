@@ -783,6 +783,19 @@ async function runTests(mods) {
       'the return line: ' + JSON.stringify(back));
     ok(back && back.id === 'away:s-1:' + T0, 'the line is shown once: its id carries the stamp ' + (back && back.id));
     ok(back && !/best find/.test(back.text), 'no loot tally, no best find: ' + JSON.stringify(back && back.text));
+    /* LUCK (src/data/luck.js, itemization plan §15 "Return card"): the Magic Find the absence brought, two server answers (the stamp's `mf`,
+       the luck section now). Dark (no section) says nothing, and so does a stamp from before `mf`. */
+    const lucky = env(T0 + H2); const lr = lucky.read;
+    lucky.read = (k) => (k === 'luck' ? { luck: 150000, rank: 16, at: 149600, next: 187000, magic_find: 16, ring_pct: 0 } : lr(k));
+    lucky.record = { residue: { awaySeen: Object.assign({}, stamp, { mf: 15 }) } };
+    const ml = AR.awayRecapOf(lucky);
+    ok(ml && /Magic Find 15% to 16%/.test(ml.text) && ml.facts.mfFrom === 15 && ml.facts.mfTo === 16, 'the Magic Find line: ' + JSON.stringify(ml && [ml.text, ml.facts.mfFrom, ml.facts.mfTo]));
+    ok(back && !/Magic Find/.test(back.text) && back.facts.mfTo === null, 'dark, no Magic Find: ' + JSON.stringify(back && back.text));
+    lucky.record = { residue: { awaySeen: stamp } };
+    const noMf = AR.awayRecapOf(lucky);
+    ok(noMf && !/Magic Find/.test(noMf.text), 'a stamp with no Magic Find names none: ' + JSON.stringify(noMf && noMf.text));
+    eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: T0, mf: 15, xp: 3 }).mf, 15, 'the stamp keeps the Magic Find the server said');
+    eq(CS.sanitizeResidueField('awaySeen', { s: 's-1', at: T0, mf: -2 }).mf, undefined, 'a negative Magic Find is no stamp');
     /* THE AWAY CARD NAMES THE BEST FIND (designer re-read 2026-11-11): gear or a Rare from the server's loot tally, never the Bones it has most of */
     const found = env(T0 + H2); const fr = found.read;
     found.read = (k) => (k === 'hunt_analyzer' ? { hero: { kills: 644, coins: 1956, waste: 400, loot: { bones: 900, iron_platebody: 1 } } } : fr(k));

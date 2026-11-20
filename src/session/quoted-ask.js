@@ -13,7 +13,7 @@
 // (quote_changed, the bar already full, today's count used), and the rule above puts the server's price back on screen before
 // the refusal is said, so a retry never sends the stale one (QA 2026-11-14: 197 gp shown, 169 quoted, every retry refused).
 // ════════════════════════════════════════════════════════════════════════
-import { refusedByServer } from './refusal.js?v=0.2.143';
+import { refusedByServer } from './refusal.js';
 
 /** Re-read `cs` ONCE when `ans` is a refusal the server answered; resolves when that read is done (or none was owed). */
 export async function afterRefusal(cs, ans) {

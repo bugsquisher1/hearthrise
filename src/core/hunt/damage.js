@@ -27,29 +27,29 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { MONSTERS, monsterLevelOf } from '../../data/monsters.js?v=0.2.143';
-import { atTier, levelAtTier } from '../../data/hunt-tiers.js?v=0.2.143';
-import { STATUSES, slowAt } from '../../data/statuses.js?v=0.2.143';
-import { HUNT_TUNING } from '../../data/hunt-tuning.js?v=0.2.143';
-import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js?v=0.2.143';
-import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js?v=0.2.143';
-import { cheb } from './grid.js?v=0.2.143';
-import { atRest, unitById } from './movement.js?v=0.2.143';
-import { makeEvent } from './events.js?v=0.2.143';
-import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js?v=0.2.143';
-import { fallen } from './pull-cycle.js?v=0.2.143';
-import { shareKillXp } from './xp-share.js?v=0.2.143';
-import { payBasic, shotLine, ownShotLine } from './abilities.js?v=0.2.143';
-import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js?v=0.2.143';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.143';
-import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js?v=0.2.143';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.143';
-import { temperedAmount } from '../temper.js?v=0.2.143';
-import { swingRow, crossLines, guardPmOf } from './boss-phases.js?v=0.2.143';
-import { dummyBlow, dummyStands, trainingBasic } from './training.js?v=0.2.143';
-import { reaches } from './shooters.js?v=0.2.143';
-import { elementOnHeroOf } from '../../data/elements.js?v=0.2.143';
-import { applyStatus, statusRow } from './status.js?v=0.2.143';
+import { MONSTERS, monsterLevelOf } from '../../data/monsters.js';
+import { atTier, levelAtTier } from '../../data/hunt-tiers.js';
+import { STATUSES, slowAt } from '../../data/statuses.js';
+import { HUNT_TUNING } from '../../data/hunt-tuning.js';
+import { HUNT_STANCES, DEFAULT_STANCE } from '../../data/rule-subjects.js';
+import { COMBAT_BALANCE, rollAttack, rollCrit, applyCrit, defenceReduction, monsterAccuracy, monsterMaxHit } from '../combat.js';
+import { cheb } from './grid.js';
+import { atRest, unitById } from './movement.js';
+import { makeEvent } from './events.js';
+import { roleOf, elementOn, inRange, peel, engaged } from './targeting.js';
+import { fallen } from './pull-cycle.js';
+import { shareKillXp } from './xp-share.js';
+import { payBasic, shotLine, ownShotLine } from './abilities.js';
+import { slotsFor, shotPasses, attackOrder, bestAim, footprintOf, inFootprint, itemRow, DEFAULT_ATTACK_ROW } from './conditions.js';
+import { shootsItem } from '../../data/hunt-roles.js';
+import { mitigate, mitigationOf, NO_MITIGATION } from '../mitigation.js';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js';
+import { temperedAmount } from '../temper.js';
+import { swingRow, crossLines, guardPmOf } from './boss-phases.js';
+import { dummyBlow, dummyStands, trainingBasic } from './training.js';
+import { reaches } from './shooters.js';
+import { elementOnHeroOf } from '../../data/elements.js';
+import { applyStatus, statusRow } from './status.js';
 
 /* A store shot's share of its partner's ammo bonus, permille. */
 const BASIC_SHOT_PM = Math.round(BASIC_EFFECT_SHARE * 1000);

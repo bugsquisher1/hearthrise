@@ -32,7 +32,7 @@
     "dive": "Combat",
     "title": "Dangerous and Deadly hit harder",
     "question": "Should Dangerous and Deadly monsters hit harder so the harder tiers are a real fight?",
-    "recommended": "Yes. A party at the right Level holds Deadly at a third to half health with a bigger food bill. A party ten Levels under dies every few hours. Hask's Ford's XP comes down in the same patch.",
+    "recommended": "Yes, and no softer than planned. Size it on a party that plays like the real one, with a healer and monsters that shoot the back row. A party at the right Level holds Deadly at a third to half health. A party ten Levels under dies every few hours. The XP of Hask's Ford and Krell's Hold comes down in the same patch. The game also starts recording each hero's lowest health so we can check this on real hunts.",
     "alternative": "Leave the tiers alone and add a Level door to each ground, which goes against \"the band is a guide, nothing more\".",
     "status": "open",
     "ruling": "",
@@ -40,14 +40,15 @@
     "depends": [
       "21-1"
     ],
-    "priority": 5
+    "priority": 5,
+    "update": "The real party hunted Krell on Deadly for 39 hero-hours, 5 to 9 Levels under the ground, with no deaths. So the change is needed. But a party with a healer heals almost for free, so harder hits cost it about 400 gold more a hero each hour, not thousands."
   },
   {
     "id": "21-4",
     "dive": "Combat",
     "title": "Which pace the game is built to",
     "question": "How fast should a party of four on Deadly level compared to a hero alone on Normal?",
-    "recommended": "Keep your 11-16 ruling of 2.0 to 2.5 times, and make 2.5 the cap. Count the game's weeks the way a real account grows: one hero, then two, three and four as it buys slots.",
+    "recommended": "Keep your 11-16 ruling of 2.0 to 2.5 times, and make 2.5 the cap. Bring Krell's Hold's Level XP down about 12% in the same patch as the harder tiers. Count the game's weeks the way a real account grows: one hero, then two, three and four as it buys slots.",
     "alternative": "Hold the party to 2.0 and re-fit the Level curve, which slows the real player again after three XP cuts in two weeks.",
     "status": "open",
     "ruling": "",
@@ -56,7 +57,8 @@
       "30-1",
       "30-2"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "The real party at Krell earned 2.85 times the lone pace after the last XP cut, which is over the 2.5 cap. Two separate readings say Krell's Hold pays about 12% too much XP. The recommendation stands with that ground fix added."
   },
   {
     "id": "21-5",
@@ -333,7 +335,8 @@
     "depends": [
       "30-3"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "The drop table matched its listed chances exactly over 9.7 hours. A full party on Deadly sees each named Rare about twice as often as designed. Up to Krell a Very Rare sized on one hero reaches that account every 8 to 11 hours of hunting. So past Krell the party is the right measure. The recommendation stands."
   },
   {
     "id": "23-4",
@@ -434,7 +437,8 @@
     "depends": [
       "24-2"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "Gear sold for 29% of coin at Krell on the real hunt. At a quarter of coin that ground's gear pays about 13% less, near 580 gold a hero each hour. The recommendation stands."
   },
   {
     "id": "24-1",
@@ -463,7 +467,8 @@
       "21-1",
       "21-3"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "The same four heroes earned 15,100 coin an hour at Krell and 11,000 at the Warrens on the same day. That fits the rule. A hero alone was not tested."
   },
   {
     "id": "24-3",
@@ -545,13 +550,14 @@
     "alternative": "Leave it nearly free, so it stays the cheapest power in the game by ten times.",
     "status": "amended",
     "ruling": "Approved 2026-11-20: \"I agree with everything so far.\" The recommended option stands.",
-    "amendment": "You also approved the home dive's formula (26-5), and the two disagree. Use that one: 100 gold for each level of the skill being trained, each hour. Both give 3,000 at skill 30. It makes catching up cheap and over-training dear.",
+    "amendment": "You also approved the home dive's formula (26-5), and the two disagree. Use that one: 100 gold for each level of the skill being trained, each hour. It makes catching up cheap and over-training dear, and it does not move every time income moves. The economy formula just moved from about 3,000 to about 2,400 at Level 80 on one real hunt.",
     "depends": [
       "26-5",
       "21-7",
       "28-11"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "Real free gold at Level 80 is 9,700 a hero each hour, not 11,900. So the economy formula would charge about 2,400 an hour in that band, not 3,000."
   },
   {
     "id": "24-9",
@@ -594,7 +600,8 @@
     "depends": [
       "24-2"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "Real free gold at Level 80 is about 19% lower than the model said. Prices that are a share of income in that band come out 19% smaller. The rule stands."
   },
   {
     "id": "24-12",
@@ -723,7 +730,8 @@
     "depends": [
       "25-1"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "On the real hunt the tank kept 20,100 gold an hour and the healer 4,800 from the same kills. One account shares a purse. Friends would not. This supports the ruling."
   },
   {
     "id": "25-9",
@@ -990,7 +998,8 @@
     "ruling": "",
     "amendment": "",
     "depends": [],
-    "priority": 2
+    "priority": 2,
+    "update": "The weekend took the real party to 3.46 times the lone pace, and bonus XP was 12% of that hunt's Level XP. After Krell's cut it is about 3.0. Keep +25% once a month, and watch the players who hunt through the whole weekend."
   },
   {
     "id": "27-6",
@@ -1049,26 +1058,28 @@
     "dive": "Platform",
     "title": "Stop saving a watched hunt every 16 seconds",
     "question": "Should a watched hunt save to the database every 90 seconds, and at once on anything that matters?",
-    "recommended": "Yes. The fight on screen stays the same. It is built before the beta passes about 250 accounts.",
+    "recommended": "Yes. The fight on screen stays the same. It cuts the cost of a player who leaves the game open by about five times. It is built before the beta passes about 250 accounts.",
     "alternative": "Leave it and pay about twice as much for the server, with no path to 10,000 players.",
     "status": "open",
     "ruling": "",
     "amendment": "",
     "depends": [],
-    "priority": 5
+    "priority": 5,
+    "update": "The heavy player left the hunt on screen for 87% of its hours. The plan assumed 48%. So the saving on that player is about 5 times, not 2. Build it sooner."
   },
   {
     "id": "28-2",
     "dive": "Platform",
     "title": "One gold-history row an hour",
     "question": "Should the gold history write one row an hour for each hero?",
-    "recommended": "Yes. Every total stays the same and the table shrinks about sixty times.",
+    "recommended": "Yes. Every total stays the same and the table shrinks 60 to 140 times. Until it is built, plan on 430 rows a hero each hour for a party that uses many supplies.",
     "alternative": "Keep a row every save and cut history from 90 days to 30.",
     "status": "open",
     "ruling": "",
     "amendment": "",
     "depends": [],
-    "priority": 5
+    "priority": 5,
+    "update": "One real hunt wrote 16,596 history rows, about 426 a hero each hour. The plan said 216. The table shrinks about 140 times on that hunt, not 60. Build it sooner."
   },
   {
     "id": "28-3",
@@ -1170,13 +1181,14 @@
     "dive": "Platform",
     "title": "Bigger fights state their server cost",
     "question": "Should a combat change say what it costs the server before it merges?",
-    "recommended": "Yes. The cost check gets a Krell party, a Tower climb and a town hour.",
+    "recommended": "Yes. The cost check gets the real Krell party, with eight kinds of supply and the game left open, plus a Tower climb and a town hour.",
     "alternative": "Measure after, on the live server.",
     "status": "open",
     "ruling": "",
     "amendment": "",
     "depends": [],
-    "priority": 3
+    "priority": 3,
+    "update": "The cost check reads 44 to 48 history rows an hour where the real Krell party wrote 426. The check was measuring the wrong party."
   },
   {
     "id": "28-11",
@@ -1373,14 +1385,15 @@
       "24-9",
       "21-4"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "At Level 80 a Level took the real party 3.6 hours. The plan says 4.3. With Krell's 12% cut it reads 4.1, which is on the line. The recommendation stands."
   },
   {
     "id": "30-2",
     "dive": "Synthesis",
     "title": "Where the party XP cap is measured",
     "question": "Is the 2.5 times cap measured on a normally geared party or a fully upgraded one?",
-    "recommended": "Both. A normally geared party of four may reach 2.5. A fully upgraded one may reach 2.75. Hask's Ford breaks this today and is fixed with the tiers.",
+    "recommended": "Both. A normally geared party of four may reach 2.5. A fully upgraded one may reach 2.75. Hask's Ford and Krell's Hold both break this today. Both are fixed in the same patch as the tiers.",
     "alternative": "One number for both, which means cutting either the tiers or every gear upgrade.",
     "status": "open",
     "ruling": "",
@@ -1389,7 +1402,8 @@
       "21-3",
       "21-4"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "A normally geared real party read 2.85 at Krell's Hold. So Hask's Ford is not the only ground over the cap today."
   },
   {
     "id": "30-3",
@@ -1404,7 +1418,8 @@
     "depends": [
       "23-3"
     ],
-    "priority": 3
+    "priority": 3,
+    "update": "The real hunt confirms it. Sized on one hero, each Very Rare reaches a full party's account every 8 to 11 hours of hunting. That is fine up to Krell and far too common after it. The recommendation stands."
   },
   {
     "id": "30-4",
@@ -1427,7 +1442,7 @@
     "dive": "Synthesis",
     "title": "Deadly costs gold but never loses it",
     "question": "How much gold should a party at the right Level keep on Deadly?",
-    "recommended": "Less than today, about half, and never a loss if it sells its loot and makes some of its own supplies. The simulator checks this every release.",
+    "recommended": "About half of today, which is about 5,000 gold a hero each hour at Krell, and never a loss if it sells its loot. The simulator checks this every release on a party that buys the cheaper runes, heals with its healer and makes a quarter of its supplies, like the real one.",
     "alternative": "Let Deadly lose gold, so it is XP you pay for.",
     "status": "open",
     "ruling": "",
@@ -1436,7 +1451,8 @@
       "21-3",
       "24-2"
     ],
-    "priority": 4
+    "priority": 4,
+    "update": "The real party kept 9,700 gold a hero each hour on Deadly at Krell. The simulator's party lost 7,500 on the same ground because it buys the dearest runes and has no healer taking hits. The rule stands. The check must use a party that plays like the real one."
   },
   {
     "id": "30-6",

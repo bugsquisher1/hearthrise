@@ -47,6 +47,18 @@ Ranked by player value, the first hour and the first twenty hours first.
 
 Under all ten sits the server work of dive 28. A player never sees it. Without it the beta cannot pass about 250 accounts.
 
+### After the Krell hunt (added 2026-11-20, from `11-krell-hunt-2026-11-20.md`)
+
+The heaviest real player ran his four on Deadly at Krell's Hold for 9.7 hours (39 hero-hours, REAL, THIN: one person, one day) on the v0.2.142 rules. It moves sixteen decisions, each marked with an `update` line in `30-decisions.json`. No ruling changes. Five things change in this plan.
+
+1. **Krell's Hold pays about 12% too much Level XP.** The real four read 2.85 times the contract, 5 to 9 Levels under the ground, with no deaths. The pack gate's lone hero reads 1.13 on the same ground. So stack S1 has two grounds, not one: Krell's fit comes down about 12% in lane L16 beside Hask's Ford's. Change 7 is needed more than the dives said.
+2. **A four with a healer does not pay for danger at the store.** The healer heals for about 0.07 gold a point and store food costs 1.5. Harder tiers cost this four about 400 gold a head an hour, not the 25 to 33% bigger bill of 21-3. So L16 sizes the dials on the real kit (a healer, Lookouts hitting the back row), goes no lower than 1750, and the tally starts recording each hero's lowest health.
+3. **The gold check needs the real party.** The real four cleared 9,700 a hero-hour where the simulator's four lost 7,500, because it buys the dearest runes. Guard line G8 and decision 30-5 use a four that buys the cheaper runes, heals with its healer and makes a quarter of its supplies. The target is about 5,000 a hero-hour at Krell. Stack S3's "12k today" reads 9.7k.
+4. **Event days read higher than S2 said.** 3.46 under Level today, about 3.0 after Krell's cut. Bonus XP was 12% of that hunt's Level XP, so the 5% share line must be read for a player who hunts through a whole weekend.
+5. **The server work is more urgent.** The hunt was on screen for 87% of its hours (the plan assumed 48%) and wrote 426 journal rows a hero-hour (the plan said 216). L12 saves about five times on this player and L13 about 140 times. L11's Krell fixture is this party: eight kinds of supply, watched.
+
+Unchanged and supported: the drop table matched its listed chances exactly, which backs C5 (Very Rares on the party's clock past Krell). The tank kept 20,100 an hour and the healer 4,800 from the same kills, which backs shared supply cost (25-8).
+
 ### Before the beta, and before Early Access (decision 30-7)
 
 | Gate | What must be live | Why |

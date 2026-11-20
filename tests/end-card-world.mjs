@@ -65,8 +65,14 @@ try {
     if (!li) return null;
     const b = li.querySelector('button');
     return { title: li.querySelector('b').textContent, words: li.querySelector('small').textContent, done: li.classList.contains('is-done'),
-      gold: !!b && b.classList.contains('is-primary') && !b.hidden, verb: b ? b.textContent : '' };
+      gold: !!b && b.classList.contains('is-primary') && !b.hidden, press: !!b && !b.hidden && !b.disabled, verb: b ? b.textContent : '' };
   }, id);
+  /* The window's one gold press: after a ground outgrown it is the foot's Go to (audit 2026-11-19 L2), every chore keeping its own press */
+  const goldOf = () => p.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="hunt-summary"] button.is-primary'))
+    .filter((b) => !b.hidden && b.getClientRects().length).map((b) => b.getAttribute('data-hs-act') + ':' + (b.getAttribute('data-step') || '')));
+  /* the Back in town rows into view in the window, as a player scrolls to them, for the shot */
+  const toTown = () => p.page.evaluate(() => { const el = document.querySelector('[data-hs-win="hunt-summary"] .hsum-town'); if (el) el.scrollIntoView({ block: 'start' }); });
+  await toTown();
   await p.shot('end-card');
 
   // EC-1 the card's sale is the server's answer
@@ -74,7 +80,8 @@ try {
   const want = TN.townStepsOf(projected(s0), new Map(), []);
   const sale = want.steps.find((x) => x.id === 'sell');
   const card = await rowOf('sell');
-  step('EC-1 the end card reads "Sell junk for N gp" and is the gold press', !!card && /^Sell junk for [\d,]+ gp$/.test(card.title) && card.gold, JSON.stringify(card));
+  step('EC-1 the end card reads "Sell junk for N gp", one press', !!card && /^Sell junk for [\d,]+ gp$/.test(card.title) && card.press && card.verb === 'Sell', JSON.stringify(card));
+  step('EC-1 ...the outgrown card\'s gold press stays the next ground (the Sell row its own press)', JSON.stringify(await goldOf()) === '["next-ground:"]' && want.primary === 'ground', JSON.stringify({ gold: await goldOf(), primary: want.primary }));
   step('EC-1 ...N and the stacks are what the server\'s own projection gives the card', !!sale && !!card && card.title === sale.title && card.words === sale.words,
     JSON.stringify({ card, server: sale && [sale.title, sale.words, sale.lines] }));
 
@@ -91,16 +98,20 @@ try {
   const sold = sale ? sale.lines.map((l) => l.item) : [];
   step('EC-2 the junk left the server\'s bag, and nothing else moved', sold.length > 0 && sold.every((id) => !bagAfter[id])
     && Object.keys(bagBefore).filter((id) => !sold.includes(id)).every((id) => bagAfter[id] === bagBefore[id]), JSON.stringify({ sold, bagBefore, bagAfter }));
-  await p.shot('end-card-sold');
 
   // EC-3 Always sell these: the plan Sell on each, then Done
   const always = await rowOf('always');
-  step('EC-3 "Always sell these" is offered for what was just sold, as the next gold press', !!always && always.title === 'Always sell these' && always.gold && always.verb === 'Always sell', JSON.stringify(always));
+  step('EC-3 "Always sell these" is offered for what was just sold', !!always && always.title === 'Always sell these' && always.press && always.verb === 'Always sell'
+    && always.words === 'Set Sell on ' + (sale ? sale.words : ''), JSON.stringify(always));
+  await toTown();
+  await p.shot('end-card-sold');
   await p.page.click('[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="always"]');
   await p.page.waitForSelector('[data-hs-win="hunt-summary"] .hsum-step[data-step="always"].is-done', { timeout: 30000 });
   const planned = await plans();
   step('EC-3 the server holds the plan Sell on every junk stack just sold', sold.every((id) => planned[id] === 'sell'), JSON.stringify({ sold, planned }));
   await p.page.waitForTimeout(600);
+  /* the rest of the list: the Next ground and the Next buy rows, under the chores */
+  await p.page.evaluate(() => { const el = document.querySelector('[data-hs-win="hunt-summary"] .hsum-step[data-step="buy"]'); if (el) el.scrollIntoView({ block: 'center' }); });
   await p.shot('end-card-always');
 
   // EC-4 Next buy is the server's projection's answer: affordable, or the nearest with what it needs
@@ -146,6 +157,10 @@ try {
   const card2 = await rowOf('sell');
   step('EC-6 the second card\'s sale is the server projection\'s', (second === null && card2 === null) || (!!second && !!card2 && card2.title === second.title && card2.words === second.words),
     JSON.stringify({ card2, server: second && [second.title, second.words] }));
+  /* a card that did not end outgrown: the sale (the first chore, nothing to equip) is the window's one gold press */
+  const gold2 = await goldOf();
+  step('EC-6 ...and there the Sell row is the gold press', !card2 || (card2.gold && JSON.stringify(gold2) === '["town:sell"]') || JSON.stringify(gold2) === '["town:equip"]', JSON.stringify({ gold2, card2 }));
+  await toTown();
   const held = second ? second.lines.map((l) => l.item).filter((id) => sold.includes(id)) : [];
   step('EC-6 ...and any of its junk the plan holds reads as the plan\'s', !held.length || !second.fresh.some((id) => held.includes(id)), JSON.stringify({ held, fresh: second && second.fresh }));
   await p.shot('second-card');

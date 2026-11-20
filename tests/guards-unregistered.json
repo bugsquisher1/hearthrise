@@ -207,6 +207,12 @@
       "owner": "game-designer",
       "disposition": "needs-a-local-plan-run",
       "runner": "by hand: node tools/balance-sim/sim.mjs --plan formula --out tools/balance-sim/out/formula && node tools/balance-sim/sheet-check.mjs --selftest"
+    },
+    "tools/balance-program/inventory.mjs": {
+      "reason": "Its --selftest plants nine cases on the REAL anchor set, and 859 of those anchors are Tyler's rulings and memory lines, read from ~/.claude/projects/.../memory, a folder outside the repo that no CI runner has (and 816 more are origin/lane/* refs a shallow checkout lacks). Without them the exact claims on memory lines match nothing and the clean control is red, which is a harness state, not a proof. It is the balance program's inventory, a designer's tool run on the Coordinator's PC, not a release guard: nothing in src/ or the chain depends on it.",
+      "owner": "game-designer",
+      "disposition": "needs-the-memory-folder",
+      "runner": "by hand: node tools/balance-program/inventory.mjs --selftest && node tools/balance-program/inventory.mjs --check"
     }
   }
 }

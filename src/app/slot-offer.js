@@ -2,7 +2,7 @@
 // src/app/slot-offer.js — BUY A HERO SLOT, ON "YOUR CHARACTERS" (tracker r45).
 //
 // Tyler 2026-11-09: every account starts with ONE hero slot; the second costs
-// about a week of play (300,000 gold, then 750,000 and 1,500,000), up to four
+// about a week of play (400,000 gold, then 1,500,000 and 4,000,000 since Tyler 2026-11-20), up to four
 // heroes in all (Tyler 2026-11-07: the fifth slot is gone). Gold
 // is the ACCOUNT's (Tyler 2026-10-23, one purse for every hero:
 // 2026-12-15-account-gold.sql), so there is nobody to pick: the

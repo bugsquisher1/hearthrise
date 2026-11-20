@@ -294,7 +294,6 @@ export function createWindowManager(o) {
     }
     /* anywhere else it is a window of its own */
     if (hostOf(id)) pages.delete(hostOf(id));
-    if (!starting && rows.get(id).startsOpen) keep(id, true);
     const caret = !starting && rows.get(id).typing === true;
     if (open.includes(id) && !leaving.has(id)) {
       if (caret) caretWanted.add(id);
@@ -304,6 +303,7 @@ export function createWindowManager(o) {
       if (top && caretWanted.has(id)) emit();
       return true;
     }
+    if (!starting && rows.get(id).startsOpen) keep(id, true);   // opened, not raised: the player's pick
     if (by) cameFrom.set(id, by); else if (!returning) cameFrom.delete(id);
     drop(id);
     if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);
@@ -313,7 +313,7 @@ export function createWindowManager(o) {
     if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);
     open.push(id);
     if (caret) caretWanted.add(id);   // after drop(id), which forgets every wish
-    if (!reducedMotion()) entering.add(id);
+    if (!reducedMotion() && !starting) entering.add(id);   // open at start, it is part of the screen as it comes up: no slide in (a plate placed mid-slide moved on a hover)
     if (!isPhone() && !isModal(id)) {
       const was = lastAt.get(id);
       if (was && was.home) floating.set(id, { home: true });

@@ -307,7 +307,12 @@ export const ABILITIES = Object.freeze([
        BLIGHT   Necrotic, an area, everything it hits Withered (statuses.js: a monster heals half as much for 6 s). 25 mana, 10 s. Its
                 damage is under Updraft's (the designer: its worth is Withered, and the Mage is already ahead).
      Mana, cooldowns and returns PROPOSED by the designer (B3); the damages are the designer's §6 rulings (Updraft [5, 9] stands, Blight
-     about [4, 7]) and, for the sword's pair, MEASURED to its band in tools/balance-sim/elements-6b-table.mjs. */
+     about [4, 7]) and, for the sword's pair, MEASURED to its band (Brand about +5% Level XP an hour for a lone sword on a neutral monster,
+     the pair at most +10%) in tools/balance-sim/elements-6b-table.mjs (lane/d-elements-6b-rulings, 6 seeds x 2 h, paired, --neutral).
+     At the ruled [5, 9] Brand lost 6-8% in place of Flame Strike, so it is [7, 13]: -1.3% / -1.5% in place of Flame Strike (Melee 25 /
+     40), +4.2% / +8.8% after it, on Power Strike's turns (the better bar); with Reave [5, 9] the pair lands +1.0%, +6.1% or +8.8% by
+     bar order, never more. [8, 14] crossed +10% at 40. Power Strike never scales and a rune strike does, so the gain on its turn grows
+     with Melee: re-read at a higher band before going live. */
   ...(NECROTIC_STORM.live ? [
     ab({ id: 'brand', n: 'Brand', disciplines: ['shield', 'sword'], party: ['tank'], replaces: ['flame_strike', 'power_strike'], lane: 'offense', cdMs: 8000, mana: 10,
       rune: 'chalked_storm_rune', unlock: 25, target: 'enemy', dmg: [7, 13], element: 'storm', manaPerKill: 4, magicXpMult: 250,

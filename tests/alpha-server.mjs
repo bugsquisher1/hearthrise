@@ -471,7 +471,7 @@ export const MEMBER_LAST = '2027-04-24-tower-climb.sql';
 /* ...and its last author once a PATCH counts (staleAnchors `patches`): 2027-05-17-scaled-best.sql and then 2027-05-17-scaled-loot.sql
    splice it in place after tower-climb's restatement (the scaled mark on the member's own row, then the scaled item bound). The memberPlant
    mutants never read this (they plant into the live body), the anchor selftest does. */
-const MEMBER_PATCH_LAST = '2027-05-17-scaled-loot.sql';
+const MEMBER_PATCH_LAST = '1005-lever-horizon.sql';   // (then 1005-lever-horizon.sql splices its store re-check: the window's setup)
 /* A PATCH IS AN AUTHOR: hr_hunt_section_view is restated last by READ_RESTATE_LAST and then spliced in place (anchored replaces of
    pg_get_functiondef) by READ_PATCH_LAST, so its last author is a patch. (Re-aimed 2026-11-14, lane/c-target-kind: the probe was
    hr_hunt_instance_read, which 2027-04-22-target-kind.sql restates WHOLE after its two splices, so it has no patch on top any more.) */
@@ -480,7 +480,7 @@ const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
 /* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it
    (2027-04-24-tower-climb.sql §5: 2027-04-25-boss-daily.sql's splice of 2027-04-23-session-modes.sql's text plus the
    instance's tower_floor; it applies after boss-daily). */
-const READ_LAST = '2027-04-24-tower-climb.sql';
+const READ_LAST = '1005-lever-horizon.sql';   // (1005-lever-horizon.sql restates it whole after tower-climb: the First target is the window's)
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }
@@ -533,7 +533,7 @@ const MUTANTS = [
     find: '  delete from public.player_blessings where user_id = p_user and slot = p_slot and tier = any (v_tiers);', repl: '  perform 1;' },
   /* hr_hunt_party_start is RESTATED last by 2027-01-19-play-cap.sql (after 2026-12-07-party-finder.sql): the mutant is planted in the body that runs. */
   /* A KICK SENDS NOBODY HOME (Coordinator ruling 2026-10-23): the engine's read never flags the removed member.
-     hr_hunt_instance_read is RESTATED last by READ_LAST (2027-04-24-tower-climb.sql, whole): planted there, in the live body. */
+     hr_hunt_instance_read is RESTATED last by READ_LAST (1005-lever-horizon.sql, whole): planted there, in the live body. */
   { arm: 'A-PARTY', file: READ_LAST, why: "a kicked member's end sends the ticked leader home",
     find: "'kicked', exists (select 1 from public.hunt_parties p where p.id = v_i.id)", repl: "'kicked', false and exists (select 1 from public.hunt_parties p where p.id = v_i.id)" },
   { arm: 'A-PARTY', file: '2027-01-19-play-cap.sql', why: "the shared start loads the leader's bag into every member",

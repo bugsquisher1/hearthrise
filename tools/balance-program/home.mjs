@@ -237,8 +237,28 @@ function training() {
   console.log('min Level ' + R.minLevel + ', a session at most ' + R.maxHours + ' h, the dummy needs the ' + R.houseTier + '.');
 }
 
+/* Every Home price a ruling may rest on, for all seven players (the arithmetic of `measure.mjs price`, one row a price). */
+function prices() {
+  console.log('\nHOME PRICES FOR THE SEVEN PLAYERS (days to earn; in brackets, days at the share of gold the account really spends). Same arithmetic as `measure.mjs price`.');
+  row('What', 'Gold', 'At', 'Lone REF h', ...REFERENCE_PLAYERS.map((p) => p.name));
+  row(...Array(4 + REFERENCE_PLAYERS.length).fill('---'));
+  const rungs = (k) => Object.values(ROOM_RUNGS).reduce((s, r) => s + r[k].cost.gold, 0);
+  const list = [
+    ['Homestead', 400, 'thicket'], ['Farmstead', 2500, 'thicket'], ['Manor', 10000, 'glade'], ['Keep', 40000, 'glade'], ['Castle', 2500000, 'hold'],
+    ['Kitchen rung 1 (first bench)', 40000, 'glade'], ['Forge or Workshop rung 1', 75000, 'glade'], ['All eight rooms, rung 1', rungs(0), 'glade'], ['All eight rooms, rungs 1 to 4', rungs(0) + rungs(1) + rungs(2) + rungs(3), 'ford'],
+    ['The eight fifth rungs', rungs(4), 'hold'], ['The whole House (Castle + 40 rungs)', 2552900 + rungs(0) + rungs(1) + rungs(2) + rungs(3) + rungs(4), 'hold'],
+    ['Four chests', 122500, 'glade'], ['Bag rungs 1 to 6, one hero', 40217, 'glade'], ['Bag rungs 1 to 10, four heroes', 564740, 'ford'], ['Bag rung 30 alone', bankRungPrice(29), 'hold'],
+    ['Plot tiers 2 to 5', 130500, 'ford'], ['Garden rungs 1 to 5', 672100, 'hold'],
+    ['Dummy, first skill', 150000, 'glade'], ['Dummy, all four', 1400000, 'slake'], ['Training item 12 h', 250000, 'slake'], ['Training item 24 h', 450000, 'slake'],
+  ];
+  for (const [what, gold, pid] of list) {
+    const p = priceAt(gold, pid);
+    row(what, n(gold), pid + ' ' + p.level, d1(p.refH), ...REFERENCE_PLAYERS.map((pl) => pl.id === 'whale' ? '0' : d1(p.days[pl.id]) + ' (' + d1(p.days[pl.id + '_share']) + ')'));
+  }
+}
+
 const cmd = process.argv[2] || 'all';
-const run = { ladder, rooms, benches, storage, farm, training };
+const run = { ladder, rooms, benches, storage, farm, training, prices };
 if (cmd === 'all') for (const f of Object.values(run)) f();
 else if (run[cmd]) run[cmd]();
 else { console.error('home.mjs: ladder | rooms | benches | storage | farm | training | all'); process.exit(2); }

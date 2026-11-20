@@ -7,10 +7,10 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-20",
- "digest": "28aee8be69372978df9cab0af7e20061caa42fc0b5f4aaf738c5b2bfd9db0e5e",
+ "digest": "147ffdd2e9606ee823010c538f20da46c6c578f32fd856ea9be434bb2926d960",
  "counts": {
   "relations": 318,
-  "functions": 825,
+  "functions": 828,
   "policies": 119,
   "indexes": 454,
   "triggers": 120,
@@ -582,6 +582,9 @@
    "hr_farm_plot_cap(p_user uuid)",
    "hr_farm_plot_level(p_user uuid)",
    "hr_farm_purse_pay(p_user uuid, p_slot integer, p_gold bigint)",
+   "hr_farm_tend(p_slot integer, p_crop text, p_gold bigint, p_idem uuid)",
+   "hr_farm_tend_plan(p_user uuid, p_slot integer, p_crop text)",
+   "hr_farm_tend_view(p_user uuid, p_slot integer)",
    "hr_farm_upgrade_plot(p_slot integer, p_idem uuid, p_expect_level integer)",
    "hr_farm_water(p_slot integer, p_plot_idx integer, p_idem uuid)",
    "hr_feature_on(p_switch text, p_user uuid)",

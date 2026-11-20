@@ -1,0 +1,66 @@
+{
+  "id": "mh_inn_sign",
+  "class": "fixture",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_inn_sign.png",
+  "frame": [
+    44,
+    56
+  ],
+  "anchor_px": [
+    18,
+    55
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "731f5d06-f2f8-5a71-8578-052143f13871",
+    "job": "903b5d01",
+    "cell": 8
+  },
+  "notes": "The inn's sign: the post as generated (the inn sheet 903b5d01, cell 8); the arm, the brace, two chains and the board drawn by rule (.scratch/kit/b7/inn-sign.mjs on lane/b-morrow-kit, b6 review: 'readable at x1'): a 30x27 board facing the road, a cartwheel 21 px across on it. Pixels unscaled."
+}

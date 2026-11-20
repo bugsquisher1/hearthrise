@@ -3,12 +3,13 @@
 // The words are in docs/design/balance-program/01-model.md; this file is what measure.mjs and every
 // phase-2 dive read so that a number means the same thing in every dive.
 //
-//   LEDGERS            the nine quantities every system is booked in (a source, a sink or a converter)
+//   LEDGERS            the ten quantities every system is booked in (a source, a sink or a converter)
 //   STACK_CLASSES      the four ways a lever may combine, and the cap each class carries
 //   LEVERS             every lever known today, its class and its size (label: MEASURED / CITED / RULED / PROPOSED)
 //   REF_POINTS         the Levels and grounds every dive measures at
 //   REF_SEATS          the three played parties that are "1.00" at a point
-//   REFERENCE_PLAYERS  the six accounts every dive prices its system for
+//   REFERENCE_PLAYERS  the seven accounts every dive prices its system for (re-based on real players)
+//   REAL_OWN_FOUR_NET  what real own fours net in gold; HARNESS_GAPS where the harness disagrees with real play
 //   SERVER_AGES        the three server ages every dive answers for
 //   POPULATIONS        the three populations every dive answers for
 //
@@ -23,7 +24,8 @@ export const LEDGERS = Object.freeze([
   { id: 'gold', unit: 'gold an hour a hero (in, store bill, net); a price in REF HOURS = price / REF net gold an hour at the buyer\'s Level', home: 'measure.mjs price' },
   { id: 'items', unit: 'pieces an hour by gear tier and loot band; hours a named row (1 / rate); stock made an hour at a bench', home: 'cell rows rareEveryH, loot' },
   { id: 'hunt_hours', unit: 'hero-hours hunted a day (stamina-bound)', home: 'REFERENCE_PLAYERS.huntHoursADay' },
-  { id: 'town_hours', unit: 'attended minutes a day (the player\'s own time: bars, benches, selling, the market)', home: 'REFERENCE_PLAYERS.attendedMinADay' },
+  { id: 'town_hours', unit: 'hero-hours a day at a node or a bench (REAL: 1.57 for every hunted hour; a hero rests its stamina while it works)', home: 'REFERENCE_PLAYERS.townHoursADay' },
+  { id: 'attention', unit: 'attended minutes a day, the human\'s own time (REAL: a visit is 2 to 5 minutes, 2 to 6 visits a day)', home: 'REFERENCE_PLAYERS.attendedMinADay' },
   { id: 'stamina', unit: 'hours of bar; 1:1 drain hunting, 1:1 refill resting', home: 'src/data (stamina rows), rulings' },
   { id: 'server_cost', unit: 'statements, row writes and ledger rows a hero-hour; edge CPU ms a settle', home: 'measure.mjs cost (tests/per-player-cost.mjs)' },
 ]);
@@ -80,21 +82,40 @@ export const REF_SEATS = Object.freeze([
   { id: 'four', name: 'four (tank, Healer, bow, Mage), hardest tier the ground has, a head', party: ['tank', 'healer', 'bow', 'mage'], tier: 'hardest', note: 'the party ceiling' },
 ]);
 
-/* WHO pays. hunt hours a day are a hero's; attended minutes are the human's. ASSUMED rows are replaced by
-   lane/d-balance-real-players' measured ones in phase 4; until then every dive uses these, unchanged. */
+/* WHO pays. Re-based 2026-11-20 on docs/design/balance-program/10-real-players.md (4 people, 16 heroes, 1,334 hunted hours;
+   thin past Level 46). REAL rows are what people did; ASSUMED rows are players nobody has been yet, kept because the game must
+   hold against them. weight is the share of design attention, not a population share: the own four is 91% of real hunt hours.
+   huntHoursADay and townHoursADay are a hero's. spends = the share of earned gold the account puts into sinks. */
 export const REFERENCE_PLAYERS = Object.freeze([
-  { id: 'new', name: 'New', heroes: 1, seat: 'lone', premium: false, huntHoursADay: 8, attendedMinADay: 45, refillsADay: 0, stock: 'store', label: 'ASSUMED',
-    note: 'first week; start kit; follows the game\'s advice; buys every supply; one visit a day' },
-  { id: 'median', name: 'Median', heroes: 2, seat: 'lone', premium: false, huntHoursADay: 12, attendedMinADay: 60, refillsADay: 0, stock: 'half own', label: 'ASSUMED',
-    note: 'two heroes alone on Normal or Dangerous; two visits a day; cooks and crafts some supplies' },
-  { id: 'premium', name: 'Premium', heroes: 2, seat: 'lone', premium: true, huntHoursADay: 12, attendedMinADay: 60, refillsADay: 0, stock: 'half own', label: 'ASSUMED',
-    note: 'the Median with the 12 h bar: the same hours in ONE visit, the full analyzer, a daily training weapon' },
-  { id: 'heavy', name: 'Heavy', heroes: 4, seat: 'four', premium: true, huntHoursADay: 24, attendedMinADay: 180, refillsADay: 6, stock: 'own', label: 'ASSUMED',
-    note: 'four heroes as one Deadly party, six refills a hero a day, makes its own supplies; the pace ceiling' },
-  { id: 'whale', name: 'Buyer', heroes: 4, seat: 'four', premium: true, huntHoursADay: 24, attendedMinADay: 120, refillsADay: 6, stock: 'market', label: 'ASSUMED',
-    note: 'the Heavy who also sells Crowns for gold: gold is not a limit, so every gold sink is bought the day it opens' },
-  { id: 'friends', name: 'Four friends', heroes: 1, seat: 'four', premium: false, huntHoursADay: 8, attendedMinADay: 60, refillsADay: 0, stock: 'half own', label: 'ASSUMED',
-    note: 'four ACCOUNTS, one hero each, hunting together when all four are on: the party the game is sold on' },
+  { id: 'new', name: 'New', heroes: 1, seat: 'lone', premium: false, huntHoursADay: 2, townHoursADay: 2, attendedMinADay: 10, refillsADay: 0, stock: 'store', spends: 0.1, weight: 'high', label: 'REAL, thin (2 people, 18 h)',
+    note: 'one or two heroes alone on Normal, Levels 1 to 15. Dies 8.9 times in 100 hours. Both real ones stopped at Level 7 to 9: one never met the town, one never came back from it' },
+  { id: 'ownfour', name: 'Own four', heroes: 4, seat: 'four', premium: false, huntHoursADay: 3.3, townHoursADay: 5, attendedMinADay: 10, refillsADay: 0, stock: 'third own', spends: 0.17, weight: 'highest', label: 'REAL (2 people, 813 h)',
+    note: 'THE real player: one person, four of their own heroes as a Deadly party from about Level 10, two visits a day of under four minutes, away eleven hours. Saves: holds 2.09M with nothing it wants' },
+  { id: 'heavy', name: 'Heavy four', heroes: 4, seat: 'four', premium: false, huntHoursADay: 8.4, townHoursADay: 6, attendedMinADay: 35, refillsADay: 1.4, stock: 'third own', spends: 0.97, weight: 'high', label: 'REAL, thin (1 person, 503 h)',
+    note: 'the own four checked six times a day, with refills. Level 75 in 100 to 119 hunted hours a hero. Spends everything: Tempering, rooms, refills' },
+  { id: 'premium', name: 'Premium own four', heroes: 4, seat: 'four', premium: true, huntHoursADay: 3.3, townHoursADay: 5, attendedMinADay: 10, refillsADay: 0, stock: 'third own', spends: 0.17, weight: 'medium', label: 'ASSUMED',
+    note: 'the Own four with Premium on every hero. It hunts 3.3 hours a day against an 8 hour bar, so the 12 hour bar gives it nothing: what does Premium give it?' },
+  { id: 'ceiling', name: 'Ceiling', heroes: 4, seat: 'four', premium: true, huntHoursADay: 24, townHoursADay: 0, attendedMinADay: 120, refillsADay: 6, stock: 'own', spends: 1, weight: 'guard', label: 'ASSUMED',
+    note: 'nobody yet: four heroes hunting every hour the rules allow. The pace and inflation ceiling a server of 1,000 will contain' },
+  { id: 'whale', name: 'Buyer', heroes: 4, seat: 'four', premium: true, huntHoursADay: 8.4, townHoursADay: 0, attendedMinADay: 35, refillsADay: 6, stock: 'market', spends: 1, weight: 'guard', label: 'ASSUMED',
+    note: 'the Heavy four who sells Crowns for gold: gold is no limit, so every gold sink is bought the day it opens' },
+  { id: 'friends', name: 'Four friends', heroes: 1, seat: 'four', premium: false, huntHoursADay: 3.3, townHoursADay: 3, attendedMinADay: 30, refillsADay: 0, stock: 'third own', spends: 0.5, weight: 'promise', label: 'ASSUMED (0 real hours with another person)',
+    note: 'four ACCOUNTS, one hero each, hunting together: the party the game is sold on, and so far never played' },
+]);
+
+/* WHAT REAL OWN FOURS NET, gold a hero-hour (10-real-players.md section 4: income less store supplies, by account, with a third of
+   supplies home-made). [top Level of the account, net]. The harness's four buys every supply at the store and reads NEGATIVE where
+   the real four is +9k: until the harness plays own stock, measure.mjs price uses these for four-seat players up to Level 84. THIN. */
+export const REAL_OWN_FOUR_NET = Object.freeze([[46, 6530], [55, 7495], [84, 9078]]);
+
+/* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */
+export const HARNESS_GAPS = Object.freeze([
+  { on: 'level_xp', gap: 'a real own four earns 2.9 to 3.0x the pace contract at Levels 45 to 84; the harness four reads 1.8 to 2.6x' },
+  { on: 'gold', gap: 'the harness four buys every supply and nets under zero from Level 80; the real one nets +9,078 a hero-hour' },
+  { on: 'deaths', gap: 'the harness reports 0 deaths everywhere; real lone heroes die 6.7 times in 100 hours (8.9 under Level 16), fours 1.2' },
+  { on: 'skills', gap: 'real main skill is 7 to 10 under the lone career line by Level 60; Defense is the front seat at about its main skill and the back three at 13 to 30' },
+  { on: 'route', gap: 'real players live on Coppercap Warrens (32% of hours, from Level 10) and Mosslight Glade; Wickstead, Hask\'s Ford and Muster Barrows are 45 hours together' },
+  { on: 'tower', gap: 'the one real climb: a Level 72 to 74 four reached floor 182 and was stopped by the server; it paid 0.26 of hunting XP' },
 ]);
 
 export const SERVER_AGES = Object.freeze([

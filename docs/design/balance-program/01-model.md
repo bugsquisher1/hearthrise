@@ -1,10 +1,10 @@
 # Balance program 01: the one shared model
 
-Phase 1 of the whole-game balance program (Tyler, 2026-11-20). Every phase-2 dive books its systems in this model and measures with the commands in section 6, so a number in one dive can be laid beside a number in another. The data half is `tools/balance-program/model.mjs`; the harness is `tools/balance-program/measure.mjs`; the system list is `tools/balance-program/systems.mjs` (115 systems, 8 domains).
+Phase 1 of the whole-game balance program (Tyler, 2026-11-20). Every phase-2 dive books its systems in this model and measures with the commands in section 6, so a number in one dive can be laid beside a number in another. The data half is `tools/balance-program/model.mjs`; the harness is `tools/balance-program/measure.mjs`; the system list is `tools/balance-program/systems.mjs` (115 systems, 8 domains). What real players do is `10-real-players.md` (4 people, 16 heroes, 1,334 hunted hours); this model is re-based on it, and where the harness and real play disagree the disagreement is listed in section 5.
 
-Labels used in every program document, and never mixed: **MEASURED** (this harness or a guard, on the commit named), **CITED** (another lane's measurement, with its file), **RULED** (Tyler, with the date), **ASSUMED** (a guess, said so), **PROPOSED** (ours, not built).
+Labels used in every program document, and never mixed: **REAL** (counted from production by `10-real-players.md`; THIN where it rests on one person), **MEASURED** (this harness or a guard, on the commit named), **CITED** (another lane's measurement, with its file), **RULED** (Tyler, with the date), **ASSUMED** (a guess, said so), **PROPOSED** (ours, not built).
 
-## 1. The nine ledgers
+## 1. The ten ledgers
 
 A system is a **source** (makes the quantity from nothing), a **sink** (destroys it) or a **converter** (turns one into another, and a converter must name its rate). A system that touches no ledger fails the purpose test. A market sale, a party split and a Storage move are transfers, not sources or sinks.
 
@@ -16,7 +16,8 @@ A system is a **source** (makes the quantity from nothing), a **sink** (destroys
 | **Gold** | gold an hour a head (in, store bill, net); a price in **REF hours** = price / REF net gold an hour at the buyer's Level | coin a kill, loot sold to the Shop, the tally, the Discord gift, GM grants (walled) | store supplies, the House and rooms, Tempering, Hallmark fees, hero slots, stamina refills, Blessings, the market's fee and cut, bench tax, Storage rungs, the small sinks, Town Works, scaled hours, Call out, curing, rename, clan castle and treasury (dark) | Crowns to gold between players (a transfer inside the game, new money outside it) |
 | **Items** | pieces an hour by gear tier and loot band; hours a named row; stock made an hour at a bench | drops, gathering, farming, benches, chests, the Shop | use (supplies), the Shop's buy price, salvage, Tempering salts, recipes, the castle board (dark) | items to gold (Shop, market), items to Luck (salvage), items to power (worn) |
 | **Hunt hours** | hero-hours hunted a day | the stamina bar (8 h free, 12 h Premium), rest 1:1, refills, hero slots | hunting 1:1 | gold to hunt hours (refills: up to 4 h, six a day) |
-| **Town hours** | attended minutes a day: the human's own time | the player | bars, benches, selling, the market, farming visits, restocking | gold to town hours given back (curing slots, benches at home, room speed rungs) |
+| **Town hours** | hero-hours a day at a node or a bench. REAL: 1.57 for every hunted hour, and 59% of every hero's life is idle | heroes not hunting (a hero rests its stamina while it works) | gathering, benches, farming, training | town hours to items (a third of all supplies used are home-made, REAL), to skill XP; gold to town hours given back (curing slots, room speed rungs) |
+| **Attention** | attended minutes a day, the human's own. REAL: a visit is 2 to 5 minutes, 2 to 6 visits a day | the player | starting and stopping four heroes, selling (14,792 pieces sold by hand, REAL), restocking, bars, farm visits | none may exist that sells attention back for Crowns directly; loot rules, presets and after-hunt plans give it back for free |
 | **Stamina** | hours of bar | rest | hunting, Call out | see hunt hours |
 | **Server cost** | statements, row writes and ledger rows a hero-hour; edge CPU ms a settle | every system that runs on the settle path, polls, journals or refreshes for everyone | pruning, batching, delta envelopes | none |
 
@@ -42,22 +43,29 @@ What a dive may not do: add a multiply lever without naming which existing one i
 
 ## 3. Who pays: the reference players
 
-Six accounts. Hunt hours are a hero's; attended minutes are the human's. All six are ASSUMED until `lane/d-balance-real-players` replaces them with measured rows in phase 4; until then every dive uses them unchanged so the dives agree with each other.
+Seven accounts, re-based on `10-real-players.md`. The headline of that file changes who the game is balanced for: **the real player is one person running four of their own heroes as a Deadly party from about Level 10** (91% of real hunt hours are in a party, and not one hour was with another person). The lone hero on Normal, which the first audit and the pace table are built on, is 9% of real hours, nearly all under Level 16, and it is where players die and where the two lightest players quit. So both are modelled, and the own four carries the most weight.
 
-| Player | Heroes | Seat | Hunt h a hero a day | Attended min a day | Supplies | Who this is |
-|---|---|---|---|---|---|---|
-| **New** | 1 | lone hammer, Normal | 8 (one visit) | 45 | all from the store | First week, start kit, follows the game's advice |
-| **Median** | 2 | lone, Normal or Dangerous | 12 (two visits) | 60 | half own | Cooks and crafts some of what it uses |
-| **Premium** | 2 | lone | 12 (ONE visit) | 60 | half own | The Median with the 12 h bar, the full analyzer, a daily training weapon |
-| **Heavy** | 4 | its own Deadly four | 24 (six refills) | 180 | own | The pace ceiling. Reaches Level 110 in about 12 days (CITED audit 3c) |
-| **Buyer** | 4 | its own Deadly four | 24 | 120 | from the market | The Heavy who sells Crowns for gold. Gold is no limit, so every gold sink is bought the day it opens |
-| **Four friends** | 1 each, 4 accounts | a four when all are on | 8 | 60 | half own | The party the game is sold on |
+| Player | Weight | Heroes | Seat | Hunt h a hero a day | Town h a hero a day | Attended min a day | Supplies | Spends | Who this is | Label |
+|---|---|---|---|---|---|---|---|---|---|---|
+| **New** | high | 1 | lone, Normal | 2 | 2 | 10 | all store | 10% | Levels 1 to 15, alone. Dies 8.9 times in 100 hours. Both real ones stopped at Level 7 to 9: one never met the town, one never came back from it | REAL, thin |
+| **Own four** | highest | 4 | own Deadly four | 3.3 | 5 | 10 | a third own | 17% | Two visits a day of under four minutes, away eleven hours. Holds 2.09M gold with nothing it wants to buy | REAL |
+| **Heavy four** | high | 4 | own Deadly four | 8.4 | 6 | 35 | a third own | 97% | Six visits a day, refills. Level 75 in 100 to 119 hunted hours a hero. Buys Tempering, rooms and refills as fast as it earns | REAL, thin |
+| **Premium own four** | medium | 4 | own Deadly four | 3.3 | 5 | 10 | a third own | 17% | The Own four with Premium on each hero | ASSUMED |
+| **Ceiling** | guard | 4 | own Deadly four | 24 | 0 | 120 | own | 100% | Nobody yet: every hour the rules allow. What a server of 1,000 will contain | ASSUMED |
+| **Buyer** | guard | 4 | own Deadly four | 8.4 | 0 | 35 | market | 100% | The Heavy four who sells Crowns for gold. Gold is no limit | ASSUMED |
+| **Four friends** | promise | 1 each, 4 accounts | a four of people | 3.3 | 3 | 30 | a third own | 50% | The party the game is sold on. Zero real hours so far | ASSUMED |
 
-Every dive answers for each: what does this system give it in a week, what does it cost in REF hours of gold and in attended minutes, and does the Buyer get anything from it that the Heavy cannot earn. That last answer is the pay-to-win line: bought gold may make it sooner, never make it possible.
+Three things the real rows say before any dive starts:
 
-**Server age.** Day 1 (no market stock, nobody above Level 15, empty boards, no clans). Month 1 (the Heavy is past Krell, the Median near 50, tiers 1 to 5 on the market). Month 6 (a New player arrives beside veterans: old gear is cheap, low grounds have no parties to find, the top of every board is out of reach, clans are full).
+- **Stamina does not bind.** Real heroes hunt 3.1 to 3.5 hours a day against an 8 hour bar. The 12 hour Premium bar gives the real player nothing, and the pace table's 12 hours a day describes nobody. Hours a day are set by attention (how often the player comes back), not by the bar.
+- **Attention is the scarce ledger.** The Own four gets 116 hunted hero-hours for each hour at the screen. Anything that asks for a press per hero, per hunt or per item is paid four times by the player who matters most.
+- **There are two spenders.** One spends 97% of what it earns and one 17%. A sink is sized against both: `measure.mjs price` prints days to earn a price and days at the account's spending share.
 
-**Population.** 10 online (today, and every quiet hour of a small server), 1,000 (the Early Access target, about 4,000 hunting heroes), 10,000 (the north star).
+Every dive answers for each player: what does this system give it in a week, what does it cost in REF hours of gold, in hero town hours and in attended minutes, and does the Buyer get anything from it that the Heavy four cannot earn. That last answer is the pay-to-win line: bought gold may make it sooner, never make it possible.
+
+**Server age.** Day 1 (no market stock, nobody above Level 15, empty boards, no clans). Month 1 (the Heavy four is past Krell: it reached Level 75 in about 14 days; the Own four is near 50; tiers 1 to 5 fill the Shop's sell side). Month 6 (a New player arrives beside veterans: old gear is cheap, nobody is in the low grounds, the top of every board is out of reach, clans are full).
+
+**Population.** 10 online (today, and every quiet hour of a small server), 1,000 (the Early Access target, about 4,000 hunting heroes), 10,000 (the north star). At 10 online nothing social or traded has ever been used by a real player (10-real-players section 6), so those systems are judged as designs.
 
 ## 4. Where every dive measures: reference points and seats
 
@@ -76,7 +84,9 @@ Eight points, three seats. The played profile (`tools/balance-sim/played.mjs`: t
 
 Past 175 nothing can be played. Levels 240 and 400 are answered from the formulas only (`measure.mjs curves`), and a dive says FORMULA beside any number there.
 
-Seats: `lone` (hammer, Normal), `mage` (lone Mage, Normal: the fastest lone way and the caster's supply bill), `four` (tank, Healer, bow, Mage on the hardest tier the ground has, a head).
+Seats: `lone` (hammer, Normal: the unit, and the New player), `mage` (lone Mage, Normal: the fastest lone way and the caster's supply bill), `four` (tank, Healer, bow, Mage on the hardest tier the ground has, a head: the real player's seat from Level 10). A dive measures every lever on `lone` AND on `four`; a lever that reads differently on the two is reported on both.
+
+Real players do not stand where the points are. They live on Coppercap Warrens (32% of hours, from Level 10) and Mosslight Glade; Hask's Ford is nearly unplayed. The points stay as they are so the first audit's numbers still line up, and the combat dive adds the Warrens.
 
 ## 5. The reference table (MEASURED, commit a5e092248, 2 seeds x 1 h, an hour a head)
 
@@ -109,12 +119,24 @@ Seats: `lone` (hammer, Normal), `mage` (lone Mage, Normal: the fastest lone way 
 | | mage | 1,070,780 | 1.07 | 88,438 | 26,130 | 34,258 | -8,128 | 81,639 | 0 | 51% |
 | | four, Deadly | 1,383,744 | 1.39 | 123,244 | 18,362 | 46,695 | -28,333 | 107,578 | 0 | 33% |
 
-What the table already says, for the dives that own it (none of this is ruled on here):
+**Where the harness disagrees with real players** (`model.mjs` HARNESS_GAPS; a dive quotes the gap beside any number it touches):
 
-- **Combat:** the Deadly four is 1.8 to 2.6 times the pace contract from Level 30 to 118 with no death in any cell. That is the multiply cap of section 2 broken, and "struggle or pay" (Tyler 11-19) unmet in the death half.
-- **Economy:** gold in is nearly flat from Level 80 on (24.0k, 22.0k, 17.2k, 19.4k an hour for the lone hammer) while every price rises. A lone Mage that buys its supplies nets under zero from Level 50, and the Deadly four from Level 80. So what the store sells is the game's real gold dial, and "own stock" is worth 15k to 46k gold an hour a head: the items dive prices crafted supplies against that number.
+| On | The harness says | Real players | What a dive does |
+|---|---|---|---|
+| Level XP of a four | 1.8 to 2.6x the pace contract | 2.9 to 3.0x at Levels 45 to 84; 4.9x on the Slake (THIN) | Treat the harness four as a floor. The combat dive reruns the Slake, Pyre Field and Krell's Hold first |
+| Gold of a four | nets under zero from Level 80, buying every supply | +9,078 a hero-hour at 60 to 79, a third of supplies home-made, store bill 48% of coin | `price` uses the REAL net for four-seat players to Level 84. Never quote the harness four's net gold as a finding |
+| Deaths | 0 in every cell | alone 6.7 in 100 hours (8.9 under Level 16), fours 1.2; 0 past Level 65 | A harness 0 is not evidence of safety under Level 31. Early lone deaths are read from 10-real-players section 8 |
+| Skills | the career line; Defense at one value | main skill 7 to 10 under the line by Level 60; Defense about the main skill on the front seat, 13 to 30 on the back three | Measure Defense-side levers on the front seat and the back row separately (`skillsBySeat`) |
+| Town | not modelled | 1.57 town hours a hunted hour; 59% of hero life idle | READ FROM DATA, sized against the real recipe hours of 10-real-players section 6 |
+| The Tower | a Level 60 four tops out 66 to 70 floors past its Level | a Level 72 to 74 four reached floor 182 and was stopped by the server; it paid 0.26 of hunting XP | The endgame dive treats the Tower's curve as unmeasured |
+
+What the table and the real baseline already say, for the dives that own it (none of this is ruled on here):
+
+- **Combat:** the Deadly four is 1.8 to 2.6 times the pace contract in the harness and about 3 times in real play, with almost no deaths past Level 45. That is the multiply cap of section 2 broken, and "struggle or pay" (Tyler 11-19) unmet. The real pace is Level 50 in 72 hunted hours against the table's 165.
+- **Economy:** gold in is nearly flat from Level 80 on (24.0k, 22.0k, 17.2k, 19.4k an hour for the lone hammer) while every price rises. Three sinks are 80% of real gold out, and two of them rest on one or two people; one real account sits on 2.09M having spent 17%.
+- **Items:** 86% of dropped gear is sold and 0.9% is ever worn; about 440 pieces were crafted against 34,756 dropped. What players craft is supplies: home-made stock is a third of all supplies used, and it is the difference between the harness four's loss and the real four's +9k an hour.
 - **Combat and items:** the lone hammer's damage taken grows 60 times from Level 10 to 175 while its HP grows about 7 times. Low HP falls to 36%. This is the to-hit curve of audit section 3d seen in play.
-- **A price in REF hours:** a 150,000 Hallmark fee at Level 50 is 13 lone REF hours; the Castle's 2.5M at Level 105 is 119 lone REF hours, 15 days for the New player and 1.3 for the Heavy on own supplies; for a store-fed Mage or a store-fed four it is never. A price means nothing until a dive says whose.
+- **A price means nothing until a dive says whose.** The Castle's 2.5M at Level 105 is 119 lone REF hours. A 600,000 fee at Level 80 is 5 days of gold for the Own four and 30 days at the share it actually spends; 2 days for the Heavy four. A 150,000 Hallmark fee at Level 50 is 13 lone REF hours, 7 days for the New player, and has never been paid by anyone.
 
 ## 6. The harness: exactly what a dive runs
 
@@ -132,14 +154,14 @@ All from the repo root, in the dive's own worktree. None of them writes under `s
 | What happens past Level 175? | `node tools/balance-program/measure.mjs curves` (formulas at 10 to 400), `deep` (staged grounds and the Tower at floor = Level) | instant; `deep` takes minutes |
 | A whole life, Level 1 up, on a tier | `node tools/balance-sim/life.mjs --party mage --policy dangerous --to 70` | minutes |
 
-A `what` patch is any field of a `tools/balance-sim/cell.mjs` cell: `gear` (`accessories`, `tierOffset`, `only`, `also`, `uniques`, `openAlso`), `temper`, `skillsBySeat`, `options` (`tier`), `density`, `supply` (`own`), `party`, `level`; plus `skillBump: N` (main skill and Defense N over the career line). Use more hours and seeds for anything a ruling will rest on: `--hours 4 --seeds 4`.
+A `what` patch is any field of a `tools/balance-sim/cell.mjs` cell: `gear` (`accessories`, `tierOffset`, `only`, `also`, `uniques`, `openAlso`), `temper`, `skillsBySeat`, `options` (`tier`), `density`, `supply` (`own`), `party`, `level`, `skillsBySeat` (a real front seat or back row); plus `skillBump: N` (main skill and Defense N over the career line). Use more hours and seeds for anything a ruling will rest on: `--hours 4 --seeds 4`.
 
 What the harness cannot measure, and how a dive answers anyway:
 
 - **Town systems** (benches, farming, the House, the market, clans): no engine plays them. The dive reads the rates from the data rows (`src/data/*`, the replayed tables listed by `domain.mjs`), converts with `price`, and labels the result READ FROM DATA.
 - **Market prices:** there are no real ones (three sales ever, CITED). Use the Shop's buy price as the floor and the store's sell price as the ceiling, and say so.
 - **Edge CPU:** `cost` covers statements, row writes and ledger rows. Edge CPU a settle comes from `node tests/settle-budget.mjs` when a dive changes what a settle computes.
-- **Real players:** phase 4, from `lane/d-balance-real-players`.
+- **Real players:** `10-real-players.md` is the baseline (re-read by `node tools/balance-program/real-players.local.mjs` on the Coordinator's PC only; a dive never reads production). It is two heavy people and two light ones: every REAL number past Level 46 is one person. Social, market and cross-player numbers do not exist and are validated in phase 4 by a larger playtest or synthetic load.
 
 ## 7. Server cost: the line every system is held to
 

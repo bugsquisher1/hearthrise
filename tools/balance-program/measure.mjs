@@ -32,7 +32,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { LEDGERS, STACK_CLASSES, LEVERS, REF_POINTS, FORMULA_ONLY_LEVELS, REF_SEATS, REFERENCE_PLAYERS, SERVER_AGES, POPULATIONS, COST } from './model.mjs';
+import { LEDGERS, STACK_CLASSES, LEVERS, REF_POINTS, FORMULA_ONLY_LEVELS, REF_SEATS, REFERENCE_PLAYERS, REAL_OWN_FOUR_NET, HARNESS_GAPS, SERVER_AGES, POPULATIONS, COST } from './model.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -171,14 +171,21 @@ function price() {
     const r = pt.seats[s.id]; if (!r) continue;
     console.log([s.id, r.netPerH, r.netPerH > 0 ? (gold / r.netPerH).toFixed(1) : 'never (net is not positive)', r.tier].join(' | '));
   }
-  console.log('player | heroes x hunt h/day | seat | account net gold/day | days to afford | note');
+  const real = pt.level <= REAL_OWN_FOUR_NET[REAL_OWN_FOUR_NET.length - 1][0] ? REAL_OWN_FOUR_NET.find(([top]) => pt.level <= top)[1] : null;
+  console.log('player | heroes x hunt h/day | seat | net gold a hero-hour (source) | account net gold/day | days to earn it | days at its spending share | label');
   for (const pl of REFERENCE_PLAYERS) {
     const r = pt.seats[pl.seat]; if (!r) continue;
-    /* own stock: the store bill is not paid in gold (it is paid in town hours, the dive prices those); half own pays half */
-    const bill = pl.stock === 'store' ? r.storePerH : pl.stock === 'half own' ? r.storePerH / 2 : 0;
-    const day = (r.incomePerH - bill) * pl.heroes * pl.huntHoursADay;
-    console.log([pl.name, pl.heroes + ' x ' + pl.huntHoursADay, pl.seat, Math.round(day), pl.id === 'whale' ? '0 (buys gold)' : day > 0 ? (gold / day).toFixed(1) : 'never', pl.stock + ' supplies, ' + pl.label].join(' | '));
+    /* a four: the REAL net where real fours exist (the harness four over-buys at the store, HARNESS_GAPS); past Level 84 the harness's,
+       with the store bill scaled by the share of supplies the player buys */
+    const share = pl.stock === 'store' || pl.stock === 'market' ? 1 : pl.stock === 'third own' ? 2 / 3 : 0;
+    const useReal = pl.seat === 'four' && real !== null;
+    const net = useReal ? real : r.incomePerH - r.storePerH * share;
+    const day = net * pl.heroes * pl.huntHoursADay;
+    const days = day > 0 ? gold / day : null;
+    console.log([pl.name, pl.heroes + ' x ' + pl.huntHoursADay, pl.seat, Math.round(net) + (useReal ? ' (REAL, thin)' : ' (harness)'), Math.round(day),
+      pl.id === 'whale' ? '0 (buys gold)' : days ? days.toFixed(1) : 'never', pl.id === 'whale' ? '0' : days ? (days / pl.spends).toFixed(1) : 'never', pl.label].join(' | '));
   }
+  console.log('"days at its spending share": the account puts only that share of what it earns into sinks (REFERENCE_PLAYERS.spends).');
 }
 
 function cost() {
@@ -212,7 +219,8 @@ function model() {
   t('LEVERS', LEVERS, ['id', 'cls', 'on', 'size', 'label', 'system']);
   t('REFERENCE POINTS (formula only past them: Levels ' + FORMULA_ONLY_LEVELS.join(', ') + ')', REF_POINTS, ['id', 'ground', 'level', 'gearTier', 'open']);
   t('REFERENCE SEATS', REF_SEATS, ['id', 'name', 'party', 'tier', 'note']);
-  t('REFERENCE PLAYERS', REFERENCE_PLAYERS, ['id', 'name', 'heroes', 'seat', 'premium', 'huntHoursADay', 'attendedMinADay', 'refillsADay', 'stock', 'label', 'note']);
+  t('REFERENCE PLAYERS', REFERENCE_PLAYERS, ['id', 'name', 'heroes', 'seat', 'premium', 'huntHoursADay', 'townHoursADay', 'attendedMinADay', 'refillsADay', 'stock', 'spends', 'weight', 'label', 'note']);
+  t('WHERE THE HARNESS DISAGREES WITH REAL PLAYERS (docs/design/balance-program/10-real-players.md)', HARNESS_GAPS, ['on', 'gap']);
   t('SERVER AGES', SERVER_AGES, ['id', 'name', 'note']);
   t('POPULATIONS', POPULATIONS, ['id', 'online', 'note']);
 }

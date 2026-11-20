@@ -120,9 +120,10 @@ const SEAMS = Object.freeze({
     C: { z: 3, unit: true, mortar: 0.12 }, O: { z: 1, unit: true, mortar: 0.1 } },
   pairs: [
     { a: 'R', b: 'H', style: 'ragged', sweep: 9, warp: 7, scale: 26, mid: 2 },
-    { a: 'E', b: 'H', style: 'ragged', sweep: 7, warp: 6, scale: 24, mid: 2 }, { a: 'E', b: 'R', style: 'ragged', sweep: 5, warp: 5 },
-    { a: 'E', b: 'P', style: 'ragged', sweep: 4, warp: 5, scale: 16, mid: 2 }, { a: 'S', b: 'P', style: 'ragged', sweep: 4, warp: 4 },
-    { a: 'Y', b: 'E', style: 'scatter', jitter: 2, loose: 0.35, holes: 0.08, sweep: 3, warp: 4 },
+    /* b5 (CR): the dirt edges, the straw and wheel-track patches read ruler-straight; they wander now, the cobble track is kerbed */
+    { a: 'E', b: 'H', style: 'ragged', sweep: 15, warp: 12, scale: 30, mid: 3 }, { a: 'E', b: 'R', style: 'ragged', sweep: 5, warp: 5 },
+    { a: 'E', b: 'P', style: 'ragged', sweep: 12, warp: 10, scale: 22, mid: 3 }, { a: 'S', b: 'P', style: 'ragged', sweep: 4, warp: 4 },
+    { a: 'Y', b: 'E', style: 'kerb', course: 'Y' },
     { a: 'E', b: 'S', style: 'ragged', sweep: 4, warp: 4 }, { a: 'E', b: 'B', style: 'stagger' }, { a: 'R', b: 'B', style: 'stagger' },
     { a: 'E', b: 'O', style: 'stagger' }, { a: 'E', b: 'F', style: 'kerb', course: 'F' }, { a: 'E', b: 'C', style: 'kerb', course: 'C' },
     { a: 'Y', b: 'R', style: 'scatter', jitter: 2, holes: 0.06, sweep: 3, warp: 4 },
@@ -150,8 +151,15 @@ function paintCells(grid, mats) {
 const BAND_ROWS = 4;
 function planks(img, cx, cy, fill) {
   for (let v = 0; v < T; v++) {
-    const band = Math.floor((cy * T + v) / BAND_ROWS), phase = Math.floor(hash2(band, 7, 211) * T);
-    for (let u = 0; u < T; u++) { const q = (v * T + ((u + cx * T + phase) % T)) * 4; img.data.set(fill.data.subarray(q, q + 4), ((cy * T + v) * img.width + cx * T + u) * 4); }
+    /* b5 (CR): within a band the fill still repeated every 32 px (a knot lattice); a band is laid in BOARDS of 24-72 px, each at its own
+       phase, a dark butt joint where two meet */
+    const band = Math.floor((cy * T + v) / BAND_ROWS);
+    for (let u = 0; u < T; u++) {
+      const X = cx * T + u; let e = -Math.floor(hash2(band, 3, 213) * 48), k = 0; while (true) { const L = 24 + Math.floor(hash2(band, k, 215) * 48); if (X < e + L) break; e += L; k++; }
+      const phase = Math.floor(hash2(band, k, 211) * T), q = (v * T + ((X + phase) % T)) * 4;
+      if (X === e && (cy * T + v) % BAND_ROWS !== 0) { img.data.set([23, 20, 26, 255], ((cy * T + v) * img.width + X) * 4); continue; }
+      img.data.set(fill.data.subarray(q, q + 4), ((cy * T + v) * img.width + X) * 4);
+    }
   }
 }
 /* the tone the variety would have given (its 'soft' state: the colours above the fill's median a ramp step down), laid in soft patches
@@ -217,7 +225,8 @@ function roadWear(g, grid) {
      upper-left pixel lit; never two touching. The floor cap (capFloor) keeps every lit pixel under the dimmest actor */
   for (let gy = 0; gy < g.height; gy += 7) for (let gx = 0; gx < g.width; gx += 7) {
     const px = gx + Math.floor(hash2(gx, gy, 21) * 5), py = gy + Math.floor(hash2(gx, gy, 22) * 5);
-    if (px + 5 >= g.width || py + 5 >= g.height || noise(px, py, 56, 25) < 0.6 || hash2(gx, gy, 23) > 0.7) continue;
+    /* b5 (CR): the clusters repeated and the road was busier than the Ox Road's: fewer, sparser */
+    if (px + 5 >= g.width || py + 5 >= g.height || noise(px, py, 56, 25) < 0.7 || hash2(gx, gy, 23) > 0.8) continue;
     if (![[0, 0], [4, 4]].every(([dx, dy]) => isR(Math.floor((px + dx) / T), Math.floor((py + dy) / T)) && EARTH.has(hexAt(g, ((py + dy) * g.width + px + dx) * 4)))) continue;
     const sz = 2 + Math.floor(hash2(gx, gy, 24) * 3), put = (x, y, h) => g.data.set(rgb(h), ((py + y) * g.width + px + x) * 4);
     for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) if (!(sz > 2 && (x + y === 0 || (x === sz - 1 && y === sz - 1)))) put(x, y, x + y === (sz > 2 ? 1 : 0) ? '#6a6865' : '#4f4e52');
@@ -248,12 +257,13 @@ function roofDebris(g, grid) {
   const cx = (x0 + 0.6 * (x1 - x0 + 1)) * T, cy = (y1 - 1) * T + 6, rx = (x1 - x0 + 1) * T * 0.36, ry = 2.2 * T, put = (x, y, c) => { if (x >= x0 * T && y >= y0 * T && x < (x1 + 1) * T && y < (y1 + 1) * T && grid[y >> 5][x >> 5] === 'O') g.data.set(rgb(c), (y * g.width + x) * 4); };
   const inH = (x, y) => ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (noise(x, y, 14, 801) - 0.5) * 0.6 < 1;
   let n = 0;
+  /* b5 (CR): the heap read as an unreadable dark mass; it is a CAVE-IN: a ragged hole into the dark room a storey down (a faint floor
+     far below), its far rim the slates' broken lit edge, its near rim the roof's thickness, rafters snapped and hanging into it */
   for (let y = Math.floor(cy - ry - 8); y < cy + ry + 8; y++) for (let x = Math.floor(cx - rx - 8); x < cx + rx + 8; x++) {
-    if (inH(x, y)) { put(x, y, !inH(x, y + 2) ? '#17141a' : noise(x, y, 3, 803) > 0.6 ? '#2f2723' : '#231d1f'); n++; }
-    else if (inH(x, y - 4) && hash2(x, y, 805) > 0.6) put(x, y, '#2f2723');
+    if (inH(x, y)) { put(x, y, !inH(x, y - 1) ? '#6a6865' : !inH(x, y - 2) ? '#17141a' : !inH(x, y + 1) ? '#2f2723' : !inH(x, y + 3) ? '#17141a' : noise(x, y, 7, 803) > 0.72 && y > cy ? '#231d1f' : '#0b0a0c'); n++; }
   }
   /* slates: angular chips 2-5 px, lit on their upper edge */
-  for (let i = 0; i < 140; i++) { const X = Math.round(cx + (hash2(i, 1, 807) - 0.5) * 2 * rx), Y = Math.round(cy + (hash2(i, 2, 809) - 0.5) * 2 * ry); if (!inH(X, Y)) continue;
+  for (let i = 0; i < 140; i++) { const X = Math.round(cx + (hash2(i, 1, 807) - 0.5) * 2.4 * rx), Y = Math.round(cy - ry + hash2(i, 2, 809) * ry * 0.7); if (!(inH(X, Y + 6) && !inH(X, Y - 4))) continue;
     const w = 2 + Math.floor(hash2(i, 3, 811) * 4), hh = 1 + Math.floor(hash2(i, 4, 813) * 3), sl = hash2(i, 5, 815) > 0.5 ? 1 : 0;
     for (let b = 0; b < hh; b++) for (let a = 0; a < w; a++) put(X + a + (b * sl), Y + b, b === 0 ? '#4f4e52' : '#3a3a3e'); for (let a = 0; a < w; a++) put(X + a + hh * sl, Y + hh, '#17141a'); }
   /* planks and two snapped rafters across the heap */
@@ -265,7 +275,67 @@ function roofDebris(g, grid) {
 const WARM = { '#3a4652': '#3a3a3e', '#5c6c7a': '#6a6865', '#8a9aa8': '#8a867d', '#2c2e33': '#2f2723', '#4a4d54': '#4f4e52', '#6e727a': '#6a6865', '#969aa1': '#8a867d' };
 function warmSlate(g, grid) {
   let n = 0;
-  for (let y = 0; y < g.height; y++) for (let x = 0; x < g.width; x++) { if (!'MO'.includes(grid[y >> 5][x >> 5])) continue; const p = (y * g.width + x) * 4, to = WARM[hexAt(g, p)]; if (to) { g.data.set(rgb(to), p); n++; } }
+  const DOWN = { '#8a867d': '#6a6865', '#6a6865': '#4f4e52', '#4f4e52': '#3a3a3e', '#3a3a3e': '#2c2e33', '#2f2723': '#231d1f' };
+  const MOSS = (x, y) => noise(x, y, 26, 841) > 0.7 && noise(x, y, 5, 843) > 0.45;
+  for (let y = 0; y < g.height; y++) for (let x = 0; x < g.width; x++) {
+    const ch = grid[y >> 5][x >> 5]; if (!'MO'.includes(ch)) continue; const p = (y * g.width + x) * 4; let c = hexAt(g, p); c = WARM[c] || c;
+    /* the walked roof a step down (b5: the trolls standing on it read worst against the slate) */
+    if (ch === 'O') { c = DOWN[c] || c; const cx = x >> 5, cy = y >> 5, dN = grid[cy - 1] && grid[cy - 1][cx] === 'M' ? y % T : 99, dW = grid[cy][cx - 1] === 'M' ? x % T : 99, dE = grid[cy][cx + 1] === 'M' ? T - 1 - (x % T) : 99, d = Math.min(dN, dW, dE) + (noise(x, y, 6, 853) - 0.5) * 2; if (d < 2.5) c = '#0b0a0c'; else if (d < 6) c = DOWN[c] || '#17141a'; }
+    /* the intact roof weathered (b5: "the pinstripes are mechanical"): moss in soft patches, a slate missing here and there */
+    else if (MOSS(x, y) && ['#4f4e52', '#3a3a3e', '#6a6865', '#2c2e33'].includes(c)) c = hash2(x, y, 845) > 0.75 ? '#4a5a2a' : noise(x, y, 3, 847) > 0.5 ? '#2c4a2c' : '#1f3322';
+    g.data.set(rgb(c), p); n++;
+  }
+  for (let i = 0; i < 260; i++) { const x = Math.floor(hash2(i, 1, 849) * g.width), y = Math.floor(hash2(i, 2, 851) * g.height); if (grid[y >> 5][x >> 5] !== 'M' || grid[(y + 6) >> 5][(x + 7) >> 5] !== 'M') continue;
+    for (let b = 0; b < 4; b++) for (let a = 0; a < 7; a++) g.data.set(rgb(b === 0 ? '#0b0a0c' : b === 3 ? '#4f4e52' : '#17141a'), ((y + b) * g.width + x + a) * 4); }
+  return n;
+}
+/* b5 (CR) ranked 3: the dirt edges, the straw and wheel-track patches ruler-straight and the track's L turn square: where earth, straw
+   and moor meet, each pixel takes the ground of a point up to +-14 px away on a smooth field (its texture carried, never smeared), so
+   the borders wander and the corners round off */
+function wanderEdges(g, grid) {
+  const W = g.width, H = g.height, src = createImage(W, H); src.data.set(g.data);
+  const SOFT = 'EPH', ch = (x, y) => grid[Math.max(0, Math.min(grid.length - 1, y >> 5))][Math.max(0, Math.min(grid[0].length - 1, x >> 5))];
+  let n = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const c = ch(x, y); if (!SOFT.includes(c)) continue;
+    const sx = Math.round(x + (noise(x, y, 34, 871) - 0.5) * 30), sy = Math.round(y + (noise(x, y, 34, 873) - 0.5) * 30);
+    if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
+    const d = ch(sx, sy); if (d === c || !SOFT.includes(d)) continue;
+    g.data.set(src.data.subarray((sy * W + sx) * 4, (sy * W + sx) * 4 + 4), (y * W + x) * 4); n++;
+  }
+  return n;
+}
+/* b5 (CR) ranked 4: nine identical boarded windows; each window its own: boarded (as drawn), its boards gone (a dark opening, a
+   splinter or two left), or half stripped (the top boards gone) */
+function windowVariant(g, x0, y0, w, h) {
+  const v = h < 0.4 ? 0 : h < 0.72 ? 1 : 2; if (!v) return;
+  for (let y = y0; y < y0 + 60; y++) for (let x = x0; x < x0 + w; x++) {
+    if (x < 0 || y < 0 || x >= g.width || y >= g.height) continue; const p = (y * g.width + x) * 4, c = hexAt(g, p);
+    if (!['#8a6440', '#6e4c30', '#553a26', '#a88457', '#3d2a1d'].includes(c)) continue;
+    if (v === 2 && y > y0 + 34) continue;
+    g.data.set(rgb(hash2(x >> 2, y, 863) > 0.85 ? '#3d2a1d' : (y - y0) % 7 === 0 ? '#17141a' : '#0b0a0c'), p);
+  }
+}
+/* b5 (CR) ranked 6: the hearth lit: a fire laid in its opening, embers along the bed, flames a step up into the throat (hard pixels) */
+function hearthFire(g, x0, y0) {
+  for (let y = y0 + 36; y < y0 + 56; y++) for (let x = x0 + 30; x < x0 + 66; x++) {
+    const p = (y * g.width + x) * 4, c = hexAt(g, p); if (!['#0b0a0c', '#17141a', '#231d1f', '#2c2e33'].includes(c)) continue;
+    const u = (x - x0 - 48) / 16, v = (y0 + 55 - y) / 18, flame = Math.abs(u) < 1 - v * 0.8 + (noise(x, y, 3, 865) - 0.5) * 0.5;
+    if (v < 0.18) g.data.set(rgb(hash2(x, y, 867) > 0.5 ? '#8e1f1f' : '#c23a2a'), p);
+    else if (flame) g.data.set(rgb(v < 0.45 && Math.abs(u) < 0.35 ? '#ffd36a' : v > 0.75 ? '#c23a2a' : '#f2a03a'), p);
+  }
+}
+/* b5 (CR) ranked 4: the cellar's cobble read as spilling up through the roof band; its passage north is a FLIGHT OF STEPS down into it
+   (treads lit along their edge, dark risers, each a step darker than the one above) */
+function cellarSteps(g, grid) {
+  let n = 0, top = 99; for (let y = 0; y < grid.length; y++) for (let x = 0; x < grid[0].length; x++) if (grid[y][x] === 'C') top = Math.min(top, y);
+  for (let cy = top; cy < top + 3; cy++) for (let cx = 0; cx < grid[0].length; cx++) {
+    if (grid[cy][cx] !== 'C' || (grid[cy][cx - 1] === 'C' && grid[cy][cx + 1] === 'C' && cy === top + 3)) continue;
+    for (let y = cy * T; y < cy * T + T; y++) for (let x = cx * T; x < cx * T + T; x++) {
+      const r = (y - top * T) % 8, k = Math.floor((y - top * T) / 8), tread = ['#4f4e52', '#3a3a3e', '#3a3a3e', '#2c2e33', '#2c2e33', '#231d1f', '#231d1f', '#17141a', '#17141a', '#17141a', '#0b0a0c', '#0b0a0c'][Math.min(11, k)];
+      g.data.set(rgb(r === 0 ? (k < 6 ? '#6a6865' : '#3a3a3e') : r >= 6 ? '#0b0a0c' : hash2(x >> 3, k, 869) > 0.85 ? '#17141a' : tread), (y * g.width + x) * 4); n++;
+    }
+  }
   return n;
 }
 /* the dry stone wall's collapse (b4 ranked 6: "26 tiles featureless"): two stretches where it has come down, its stones fallen out
@@ -380,6 +450,8 @@ function layWalls(img, grid, P, indoor) {
         const f = !freeL && !freeR ? featureAt(i, n, kind) : null;
         if (f && i + f[0] - 1 < n - 1) {
           blit(img, faceTop(P[f[1]], outdoor, c * T), 0, 0, f[0] * T, 60, c * T, y * T + T - 60, true);
+          if (f[1] === 'window') windowVariant(img, c * T, y * T + T - 60, f[0] * T, hash2(c, y, 861));
+          if (f[1] === 'hearth') hearthFire(img, c * T, y * T + T - 60);
           faces += f[0]; i += f[0] - 1; continue;
         }
         const s = freeL ? P.endL : freeR ? P.endR : P.plain[c % P.plain.length];
@@ -451,6 +523,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   /* Carter's Rest's moor too (its b4 review: "tufts polka-dotted", bracken "measles"): the Ox Road's moor rule without its bogs */
   const heath = 0, bracken = 0, olive = 0;
   const moor = oxMoor(img, grid, ox ? { skip } : { skip, bogs: [] });
+  const wandered = ox ? 0 : wanderEdges(img, grid);
   const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
   /* the Ox Road wears its road by its own rule (morrow-ox.mjs oxRoad: every pixel under 0.07, structure instead of light), after the
      moor's patches: its edge is warped across the cell line, and the heath pass (cell by cell) would cut it back to the grid */
@@ -470,6 +543,10 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   const doorway = doorwayOf(grid), P = wallPieces();
   /* two floors of their own (tools/world-art/morrow-floors.mjs): the brewhouse's wet brick and drain, the stable's stalls and straw */
   const brew = brewBricks(img, grid, doorway), straw = stableStraw(img, grid, doorway);
+  const steps = cellarSteps(img, grid);
+  /* b5 (CR) ranked 6: a light per fight pocket, its pool painted (the day map shows no run-time light): the Ox Road's pool rule */
+  const pools = oxStory(img, grid, objects).lit;
+  void wandered;
   const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
   const skirting = skirt(img, grid);
   /* b4 ranked 8: the moor north unframed: the map's edges fall into the dark (never the road) */
@@ -483,7 +560,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   for (const [x, y] of chimneys) chimney(img, P.plain[1], x, y);
   const warm = warmSlate(img, grid);
   const walls = layWalls(img, grid, P, indoor);
-  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed, debris, warm } };
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed, debris, warm, steps, pools } };
 }
 
 export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);
@@ -525,7 +602,7 @@ async function ground() {
     'boards, F the brewhouse\'s flags, C the cellar\'s stone, O the walked roof, M the inn\'s mass (its roof and walls laid over), W the dry stone wall.',
     '', 'PAINT', ...grid].join('\n') + '\n');
   const cells = new Set(MAP.objects.map((o) => o.x + ',' + o.y));
-  const { img, report } = paintGround(grid, { skip: (x, y) => cells.has(x + ',' + y) });
+  const { img, report } = paintGround(grid, { skip: (x, y) => cells.has(x + ',' + y), objects: MAP.objects });
   const dir = abs(join(ART_DIR, SET));
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, GROUND + '.png'), encodePNG(lock(img, 'native')));

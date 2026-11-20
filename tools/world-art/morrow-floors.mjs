@@ -24,23 +24,28 @@ export function brewBricks(g, grid, doorway, ch = 'F', seed = 131) {
   const on = new Set(cells.map(([x, y]) => x + ',' + y)), is = (px, py) => on.has(Math.floor(px / T) + ',' + Math.floor(py / T));
   let x0 = Infinity, x1 = -1, y0 = Infinity, y1 = -1; for (const [x, y] of cells) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
   const gx = Math.round(x0 * T + ((x1 + 1 - x0) * T) * 0.64), grateY = (y1 + 1) * T - 44;
-  const gxAt = (py) => gx + Math.round((noise(0, py, 70, seed + 9) - 0.5) * 14), cover = (py) => [0.3, 0.62].some((f) => Math.abs(py - (y0 * T + (grateY - y0 * T) * f)) < 6);
+  /* the open drain wanders (b5: "a dead-straight pipe"), its width 4-8 px, one cover stone */
+  const gxAt = (py) => gx + Math.round((noise(0, py, 60, seed + 9) - 0.5) * 44 + (noise(0, py, 13, seed + 10) - 0.5) * 6), cover = (py) => Math.abs(py - (y0 * T + (grateY - y0 * T) * 0.55)) < 6;
+  const half = (py) => 2 + Math.round(2.4 * noise(0, py, 30, seed + 11));
   const BODY = ['#3d2a1d', '#4a2e18', '#3d2a1d', '#2f2723'], WET = { '#3d2a1d': '#2a1c14', '#4a2e18': '#2a1c14', '#2f2723': '#231d1f', '#553a26': '#3d2a1d' };
   let bricks = 0, drain = 0;
   for (let py = y0 * T; py < (y1 + 1) * T; py++) for (let px = x0 * T; px < (x1 + 1) * T; px++) {
     if (!is(px, py)) continue;
-    const row = Math.floor(py / 5), r = py - row * 5, off = row % 2 ? 5 : 0, j = Math.floor((px + off) / 10), c = (px + off) - j * 10;
-    let col = r === 4 || c === 9 ? '#17141a' : BODY[Math.floor(hash2(j, row, seed) * BODY.length)];
-    if (r === 0 && c < 9) col = hash2(j, row, seed + 1) < 0.7 ? '#553a26' : col;
-    else if (c === 0 && r < 4) col = '#553a26';
-    /* wet: damp blobs a step down, water standing in the joints inside them */
-    const damp = noise(px * 1.1 + 17, py * 0.9, 41, seed + 12);
-    if (damp > 0.6) col = WET[col] || col;
+    /* b5 (CR): running-bond brick read as a wall laid flat; the floor is worn FLAGS, each stone its own size (a jittered lattice of
+       about 15 px, warped), its own tone, the joints dark */
+    const wx = px + (noise(px, py, 11, seed + 40) - 0.5) * 7, wy = py + (noise(px, py, 11, seed + 41) - 0.5) * 7, S = 15, gx0 = Math.floor(wx / S), gy0 = Math.floor(wy / S);
+    let d1 = 1e9, d2 = 1e9, sid = 0; for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) { const sx = (gx0 + a + 0.15 + hash2(gx0 + a, gy0 + b, seed + 42) * 0.7) * S, sy = (gy0 + b + 0.15 + hash2(gx0 + a, gy0 + b, seed + 43) * 0.7) * S, d = Math.hypot(wx - sx, wy - sy); if (d < d1) { d2 = d1; d1 = d; sid = (gx0 + a) * 131 + gy0 + b; } else if (d < d2) d2 = d; }
+    const FLAG = ['#3a3a3e', '#2f2723', '#2c2e33', '#3a3a3e', '#2f2723', '#3d2a1d'];
+    let col = d2 - d1 < 1.3 ? '#17141a' : FLAG[Math.floor(hash2(sid, 1, seed + 44) * FLAG.length)];
+    if (d2 - d1 < 2.4 && d2 - d1 >= 1.3 && hash2(px, py, seed + 45) > 0.5) col = '#231d1f';
+    /* wet: stains of every size (two scales), a step down, water standing in the joints inside them */
+    const damp = Math.max(noise(px * 1.1 + 17, py * 0.9, 41, seed + 12), noise(px, py, 13, seed + 46) - 0.06);
+    if (damp > 0.63) col = WET[col] || ({ '#3a3a3e': '#2c2e33', '#4f4e52': '#3a3a3e', '#2c2e33': '#231d1f', '#17141a': '#0b0a0c' })[col] || col;
     /* the gutter: 6 px down the middle from the north wall to the grate, its west lip lit, water along its floor */
     const dx = px - gxAt(py);
-    if (py < grateY && Math.abs(dx + 0.5) <= 3) {
+    if (py < grateY && Math.abs(dx + 0.5) <= half(py) + 0.5) {
       /* the channel: a lit lip on its west (upper-left) side, a dark one east, wet in its bed; a flat cover stone over it twice */
-      col = cover(py) ? (Math.abs(dx + 0.5) === 2.5 || Math.abs(py - Math.round(py / 1)) ? (dx === -3 ? '#6a6865' : '#4f4e52') : '#4f4e52') : dx === -3 ? '#553a26' : dx === 2 ? '#17141a' : Math.abs(dx + 0.5) <= 1 ? '#1a2c44' : '#231d1f';
+      const hw = half(py); col = cover(py) ? (dx === -hw - 1 ? '#6a6865' : '#4f4e52') : dx <= -hw ? '#3a3a3e' : dx >= hw ? '#17141a' : Math.abs(dx + 0.5) <= hw - 2 ? (noise(px, py, 5, seed + 13) > 0.55 ? '#1a2c44' : '#17141a') : '#231d1f';
       drain++;
     }
     put(g, px, py, col); bricks++;
@@ -77,7 +82,8 @@ export function stableStraw(g, grid, doorway, ch = 'S', seed = 137) {
   for (let k = 1; k <= nStall; k++) {
     const x = SX0 + 10 + k * STALL_W - 3;
     if (k === nStall && x > (x1 + 1) * T - 8) continue;
-    for (let y = SY0; y < SY0 + STALL_D; y++) { put(g, x - 1, y, '#0b0a0c'); put(g, x, y, '#6e4c30'); put(g, x + 1, y, '#553a26'); put(g, x + 2, y, '#3d2a1d'); put(g, x + 3, y, '#0b0a0c'); if ((y - SY0) % 9 === 8) { put(g, x, y, '#3d2a1d'); put(g, x + 1, y, '#2a1c14'); } }
+    /* b5: the partitions read as 1 px lines at x1: a plank wall 6 px across, its top rail lit, its east side in shade, plank joints */
+    for (let y = SY0; y < SY0 + STALL_D; y++) { put(g, x - 2, y, '#0b0a0c'); put(g, x - 1, y, '#8a6440'); put(g, x, y, '#6e4c30'); put(g, x + 1, y, '#6e4c30'); put(g, x + 2, y, '#553a26'); put(g, x + 3, y, '#3d2a1d'); put(g, x + 4, y, '#2a1c14'); put(g, x + 5, y, '#0b0a0c'); if ((y - SY0) % 9 === 8) { put(g, x + 1, y, '#3d2a1d'); put(g, x + 2, y, '#2a1c14'); } }
     for (let v = 0; v < 8; v++) for (let u = -2; u <= 4; u++) put(g, x + u, SY0 + STALL_D + v, u === -2 || u === 4 || v === 7 ? '#0b0a0c' : v < 2 ? (u < 1 ? '#8a6440' : '#6e4c30') : u < 1 ? '#553a26' : '#3d2a1d');
     stalls++;
   }

@@ -104,7 +104,17 @@ export default Object.freeze({
     {"id":"mh_bar_counter","x":33,"y":31},
     {"id":"mh_stool_broken","x":31,"y":30},
     {"id":"mh_bench","x":24,"y":25},
-    {"id":"mh_table_over","x":30,"y":32}
+    {"id":"mh_table_over","x":30,"y":32},
+    {"id":"mh_lantern_stake","x":31,"y":15},
+    {"id":"mh_lantern_pole","x":6,"y":9},
+    {"id":"mh_lantern_pole","x":14,"y":26},
+    {"id":"mh_lantern_stake","x":47,"y":10},
+    {"id":"mh_lantern_stake","x":27,"y":26},
+    {"id":"mh_lantern_stake","x":42,"y":27},
+    {"id":"mh_vigil_wood","x":16,"y":17},
+    {"id":"mh_kegs","x":40,"y":20},
+    {"id":"mh_straw_bale","x":17,"y":21},
+    {"id":"mh_mounting_block","x":37,"y":19}
   ],
   "buildings": [],
   "path": [[26,38],[30,38],[30,39],[26,39]],
@@ -112,5 +122,5 @@ export default Object.freeze({
   "stations": {},
   "exits": [{"x":0,"y":38,"to":"town_common"}],
   "start": [28,38],
-  "maskHash": "11872b29"
+  "maskHash": "375bc248"
 });

@@ -1,0 +1,66 @@
+{
+  "id": "mh_mounting_block",
+  "class": "clutter",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_mounting_block.png",
+  "frame": [
+    22,
+    19
+  ],
+  "anchor_px": [
+    11,
+    18
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "b5c7cfc6-82df-5962-9866-52a2396024e2",
+    "job": "00d88bf0",
+    "sketch": ".scratch/kit/b7/cr-b6.mjs (block)"
+  },
+  "notes": "CARTER'S REST's MOUNTING BLOCK in its yard (b5 review: \"give the yard one coaching-inn feature\"): three rough-dressed stone steps stacked, the top one worn hollow, chipped edges, moss in the joints. Modelled in the kit's camera, polished palette-held by edit_image_pro_flash. Pixels unscaled."
+}

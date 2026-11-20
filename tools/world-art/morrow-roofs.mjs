@@ -281,8 +281,12 @@ export function walkedRoof(g, grid, earth, ranges, under, ch = 'O', seed = 81) {
       /* the roof space: rafters down the slope every 16 px, battens across every 5 */
       const ra = ((px + 5) % 16), b = ((sy - ryw) % 5 + 5) % 5;
       const q = ((py % T) * T + (px % T)) * 4, bd = '#' + [0, 1, 2].map((k) => under.data[q + k].toString(16).padStart(2, '0')).join('');
-      col = ra < 3 ? [C.e2, C.e1, C.e0][ra] : b === 0 ? C.e0 : bd;
+      /* b5 (CR): the holes showed flat brown boards at the roof's own level; under the rafters it is the dark room a storey down, a
+         faint floor far below, and the slates' broken edge a lit line on the hole's south (near) rim */
+      col = ra < 3 ? [C.e2, C.e1, C.e0][ra] : b === 0 && hash2(px, py, seed + 31) > 0.4 ? C.e0 : noise(px, py, 9, seed + 33) > 0.7 ? '#17141a' : '#0b0a0c';
       if (!hole(px, py - 1)) col = C.sh;
+      else if (!hole(px, py + 1)) col = '#6a6865';
+      void bd;
       holes++;
     }
     put(px, py, col);

@@ -357,6 +357,11 @@ function contract(R, cs, body, tl) {
   const fl = R.FS.farmLandOf(cs, 0);
   need('farm_land', !!fl && fl.cap >= 2 && fl.plotLevel >= 1 && fl.plots instanceof Map && (fl.plotLevel >= 5 || (!!fl.upgrade && fl.upgrade.gold > 0 && fl.upgrade.farming > 0)),
     'farmLandOf yields ' + JSON.stringify(fl && { cap: fl.cap, plotLevel: fl.plotLevel, upgrade: fl.upgrade, plots: fl.plots.size }) + ' from ' + JSON.stringify(body.farm_land));
+  /* Tend the field (1009-tend-the-field.sql): the server's bill for that field (a fresh field: nothing ready, two empty plots, no gold) */
+  const ft = R.FT.farmTendOf(cs);
+  need('farm_tend', !!ft && Array.isArray(ft.harvest) && Array.isArray(ft.water) && ft.gold === 0 && ft.choices instanceof Map
+    && ft.empty.length === (fl ? fl.cap - fl.plots.size : -1) && ft.empty.every((e) => e.why === 'unplanted'),
+    'farmTendOf yields ' + JSON.stringify(ft && { ...ft, choices: [...ft.choices.values()] }) + ' from ' + JSON.stringify(body.farm_tend));
   /* Tamsin's tally (2026-12-23-tally-tasks.sql): the cellar task taken in town, counted by six minutes of real settles */
   const ta = R.TS.tallyOf(cs);
   const tc = ta && ta.held.find((x) => x.task === 'cellar_giant_rats');
@@ -389,7 +394,7 @@ function sheetContract(R, cs, body) {
 export const CONTRACT_KEYS = Object.freeze(['hunt', 'hunt_track', 'hunt_events', 'hunt_server_now_ms', 'hunt_settings', 'hunt_analyzer',
   'party', 'party_people', 'stamina', 'premium', 'account', 'inventory', 'equipment', 'skills', 'state', 'bank', 'buffs', 'hero_slots',
   'name', 'bag_rules', 'shop', 'hunt_presets', 'role', 'party_invites', 'party_notices', 'stamina_refill', 'blessings',
-  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'bench_run', 'rename', 'tally',
+  'character_sheet', 'outfit', 'death_log', 'vitals', 'hunt_bests', 'hunt_tier', 'hunt_target_kind', 'depot', 'home', 'now', 'farm_land', 'farm_tend', 'bench_run', 'rename', 'tally',
   'skill_inputs', 'bench_tax', 'setup_slots', 'titles', 'temper', 'bag_expand', 'gm', 'hallmark', 'level', 'skill_levels', 'live_events', 'training', 'factions', 'hunt_after', 'scaled_hunts', 'boss_halls',
   'tower', 'key_ring', 'entry_gates', 'catacomb', 'features', 'unlocked_recipes']);
 
@@ -447,7 +452,7 @@ async function readers(root) {
   return {
     HS: await import(u('src/session/hunt-sections.js')), IS: await import(u('src/session/item-sections.js')),
     PS: await import(u('src/session/party-sections.js')), ACC: await import(u('src/session/account-session.js')),
-    CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), HO: await import(u('src/session/home-sections.js')),
+    CS: await import(u('src/session/character-sections.js')), FS: await import(u('src/session/farm-sections.js')), FT: await import(u('src/session/farm-tend.js')), HO: await import(u('src/session/home-sections.js')),
     TS: await import(u('src/session/tally-sections.js')), BT: await import(u('src/session/bench-sections.js')), TP: await import(u('src/session/temper-sections.js')), TD: await import(u('src/data/temper.js')),
     JW: await import(u('src/session/jewelry-sections.js')), LE: await import(u('src/session/live-event-sections.js')),
     TR: await import(u('src/session/training-sections.js')), FX: await import(u('src/session/faction-sections.js')),

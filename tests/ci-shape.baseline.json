@@ -481,6 +481,8 @@
     "node tools/mutant-gate.mjs node tests/skills-from-storage.mjs --mutate": "db-replay-7",
     "node tests/farm-harvest-clear.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/farm-harvest-clear.mjs --mutate": "db-replay-7",
+    "node tests/farm-tend.mjs": "db-replay-7",
+    "node tools/mutant-gate.mjs node tests/farm-tend.mjs --mutate": "db-replay-7",
     "node tests/catalogue-regrow-limit.mjs": "db-replay-7",
     "node tools/mutant-gate.mjs node tests/catalogue-regrow-limit.mjs --mutate": "db-replay-7",
     "node tests/chat-social.mjs": "in-page-45",

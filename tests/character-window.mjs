@@ -33,7 +33,7 @@
 //   CW-8  THE TAB MATCHES THE HUD (r09: Level 4 on the tab, 11 on the HUD): the
 //         Character tab's Level, max health and max mana equal the vitals hub's,
 //         in a hunt, after a pushed frame that restates only `state`, and in town
-//   CW-9  THE TITLES TAB (Tyler 2026-11-04, 2027-02-28-titles.sql; every number from the data's rows): a locked row reads "Wolves: 3,214 of 5,000" with
+//   CW-9  THE TITLES TAB (Tyler 2026-11-04, 2027-02-28-titles.sql; every number from the data's rows): a locked row reads "Wolves: 3,214 of 5,000, then 3,000 gp" with
 //         nothing to press; an earned one's "Claim for 3,000 gp" sends ONE hr_title_buy with the QUOTE and no count; Equip and Unequip are ONE
 //         hr_title_wear; each changes only from the re-read; a short purse is off and says how much more; a refusal says the server's numbers;
 //         the sheet's header shows (no title row says party-only: a lone hero walks the King's hall too, 2026-11-08)
@@ -449,7 +449,8 @@ async function checks(overrides, shots) {
         let t = await read();
         /* LOCKED: the count, and nothing to press */
         const d = TITLES[locked];
-        if (!t[locked] || t[locked].small !== `${d.label}: 3,214 of ${d.kills.toLocaleString('en-US')}` || t[locked].press !== null) fails.push('CW-9 the locked row reads ' + JSON.stringify(t[locked]));
+        /* ...and the gold it will cost, before the kills are done (retention dive 2026-11-20: the price was hidden until then) */
+        if (!t[locked] || t[locked].small !== `${d.label}: 3,214 of ${d.kills.toLocaleString('en-US')}, then ${gp(d.price)}` || t[locked].press !== null) fails.push('CW-9 the locked row reads ' + JSON.stringify(t[locked]));
         /* EARNED: one claim, with the quote, and the row moves only from the re-read */
         const e = TITLES[earned];
         if (!t[earned] || t[earned].press !== `Claim for ${gp(e.price)}` || t[earned].off) fails.push('CW-9 the earned row reads ' + JSON.stringify(t[earned]));
@@ -780,7 +781,8 @@ const MUTANTS = [
   ['the tab reads the sheet section max HP again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"hp\"]', hv.hpMax !== null ? whole(hv.hpMax) : null);", "line(root, '[data-vital=\"hp\"]', sh && sh.fresh !== undefined ? whole(cs.read('character_sheet').max_hp) : null);"],
   ['the tab reads the engine sheet max mana again (r09)', 'src/shell/windows/character/sheet.js', "line(root, '[data-vital=\"mana\"]', hv.manaMax !== null ? whole(hv.manaMax) : null);", "line(root, '[data-vital=\"mana\"]', c && c.role ? whole(cs.read('character_sheet').combat.max_mana) : hv.manaMax !== null ? whole(hv.manaMax) : null);"],
   ['a leech line the engine does not have', 'src/shell/windows/character/sheet.js', "const COMBAT = Object.freeze([['damage', 'Damage'],", "const COMBAT = Object.freeze([['leech', 'Life Leech'], ['damage', 'Damage'],"],
-  ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count, press: null, off: true };", "if (r.have < r.kills) return { small: count, press: 'Claim', off: false };"],
+  ['a locked title can be pressed', 'src/shell/windows/character/titles.js', "if (r.have < r.kills) return { small: count + (r.price ? ', then ' + gold(r.price) : ''), press: null, off: true };", "if (r.have < r.kills) return { small: count + (r.price ? ', then ' + gold(r.price) : ''), press: 'Claim', off: false };"],
+  ['a locked title hides its price until the kills are done (CW-9)', 'src/shell/windows/character/titles.js', "return { small: count + (r.price ? ', then ' + gold(r.price) : ''), press: null, off: true };", "return { small: count, press: null, off: true };"],
   ['a claim sends a price of its own', 'src/shell/windows/character/titles.js', 'buyTitle(ctx.account, cs, r.id, r.price)', 'buyTitle(ctx.account, cs, r.id, 1)'],
   ['Unequip wears it again', 'src/shell/windows/character/titles.js', 'wearTitle(ctx.account, cs, r.worn ? null : r.id)', 'wearTitle(ctx.account, cs, r.id)'],
   ['a title stays pressable in flight', 'src/shell/windows/character/titles.js', "prop(b, 'disabled', sc.pending || w.off);", "prop(b, 'disabled', w.off);"],

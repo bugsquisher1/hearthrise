@@ -597,6 +597,12 @@ export const ITEMS={
   // Tier 3 buff foods
   bear_claw_pie:  {n:'Bear Claw Pie',  icon:'🥧', v:280, heals:384, foodClass:'buff', buff:{type:'damage',          magnitude:3,  durationMs:600000}},
   void_banquet:   {n:'Void Banquet',   icon:'🎂', v:2400,heals:720, foodClass:'buff', buff:{type:'damage_crit',     magnitude:5,  durationMs:900000}},
+  /* THE LUCKY RIVET (src/data/luck.js LUCK_ITEM; itemization plan §15, Tyler 2026-11-20 "let's bind it"): the last rivet out of a
+     piece broken down, kept for luck. Salvage at Dispatch pays it for gear the account's own hunts dropped; Use puts it on the
+     account's Luck bar (one rivet, one Luck), the Lucky job at the Smithing bench burns it into a Lucky ring. ACCOUNT-BOUND:
+     bop (no market, no trade, no mail) and v:0 (no shop price), so no Luck crosses accounts; Storage moves it between the
+     account's own heroes. Never on a drop table, so it is never "found" and never salvages. */
+  lucky_rivet: {n:'Lucky Rivet', icon:'🔩', v:0, bop:true},
   // New bars (Phase A.1 progression — required by smelt_* and forge_* recipes below)
   bronze_bar: {n:'Bronze Bar', icon:'🟫', v:25},
   steel_bar:  {n:'Steel Bar',  icon:'⬜', v:125},

@@ -32,6 +32,7 @@
 // ============================================================================
 
 import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.141';
+import { LUCKY_PERK_PCT, LUCKY_RIVET_STEP, LUCK_SWITCH, LUCK_ITEM } from './luck.js?v=0.2.141';
 
 /* ── THE PERKS. T3 numbers are the designer's measured sizes; T2 about two thirds (the spec). Permille. ──
    `what` is the player's sentence, with {pct} for the size. Each perk counts ONCE per hero, whatever it wears
@@ -57,6 +58,9 @@ export const JEWEL_PERKS = Object.freeze({
      Level is 1.4 to 1.7 times the gain at it at every size measured (15 to 70%), because a miss only rises a point a skill level. */
   steady: Object.freeze({ name: 'Steady', pm: Object.freeze({ 2: 200, 3: 300 }), what: '{pct} of your basic blows that would miss land anyway' }),
   focus: Object.freeze({ name: 'Focus', pm: Object.freeze({ 2: 20, 3: 30 }), what: '{pct} of your max mana back on each kill' }),
+  /* THE LUCKY RING (src/data/luck.js, itemization plan §15): Magic Find for the hero wearing it, LUCKY_PERK_PCT by tier (+1% at T2, +2% at
+     T3), counted once. No combat hook: the server reads it (hr_magic_find_of over hr_luck_ring_pct) into the party's drop roll. */
+  lucky: Object.freeze({ name: 'Lucky', pm: Object.freeze({ 2: LUCKY_PERK_PCT[2] * 10, 3: LUCKY_PERK_PCT[3] * 10 }), what: 'Magic Find +{pct}' }),
 });
 
 /** How hard a Surge lands its cast, permille of the cast's own numbers (the spec's "1.5x"). */
@@ -66,10 +70,16 @@ export const SURGE_MULT_PM = 1500;
     damage.js roll, Focus damage.js landHit's kill, Surge abilities.js fire). Only these roll; the rest wait for their hook. */
 export const PERKS_PLAYED = Object.freeze(['keen', 'follow', 'surge', 'steady', 'focus']);
 
+/** The perks a JOB makes for sure that the chance roll does not draw yet: Lucky (the Lucky job, LUCKY_OFFERS). Its rows exist (Fine,
+    and Hallmarked beside each played perk, for the Hallmark step); arming its chance roll (itemization plan §15: "rolls like the other
+    six on any ring job") is moving the word into PERKS_PLAYED, on the day the `luck` switch goes to everyone, so no ring rolls a perk
+    that does nothing while Luck is dark. */
+export const PERKS_MADE = Object.freeze(['lucky']);
+
 /** What each slot can carry, in the order a row's name lists them (itemization plan §4, the pools from tier 2; the tier 4 and 6
     perks join with their tiers). A cloak's Slip and Stride join `cape` with their hooks: until then a cloak ships plain. */
 export const JEWEL_POOLS = Object.freeze({
-  ring: Object.freeze(['keen', 'surge', 'follow', 'thrift']),
+  ring: Object.freeze(['keen', 'surge', 'follow', 'thrift', 'lucky']),
   necklace: Object.freeze(['deflect', 'second_wind']),
   earrings: Object.freeze(['steady', 'focus']),
 });
@@ -193,6 +203,14 @@ export function perksFor(plain) {
   return pool.filter((p) => PERKS_PLAYED.includes(p));
 }
 
+/** The perks a piece can CARRY (its rows): the ones it rolls, and a made one (PERKS_MADE) its slot holds, in pool order. A piece that
+    rolls nothing ships plain and carries nothing. */
+function rowPerksFor(plain) {
+  const it = plainOf(plain);
+  const pool = it ? JEWEL_POOLS[it.slot] || [] : [];
+  return perksFor(plain).length ? pool.filter((p) => PERKS_PLAYED.includes(p) || PERKS_MADE.includes(p)) : [];
+}
+
 /** A perk's size on a piece of `tier`, permille (0 for a tier the table has no number for). */
 export const perkPm = (perk, tier) => (JEWEL_PERKS[perk] && JEWEL_PERKS[perk].pm[tier]) || 0;
 
@@ -205,7 +223,7 @@ const pairsOf = (list) => list.flatMap((a, i) => list.slice(i + 1).map((b) => [a
 function rowsOfPiece(plain) {
   const base = plainOf(plain);
   if (!base) throw new Error('jewelry.js: ' + plain + ' has no plain row in slot-ladders.js');
-  const perks = perksFor(plain);
+  const perks = rowPerksFor(plain);
   const out = {};
   const put = (set, grade) => {
     const id = jewelId(plain, set);
@@ -231,6 +249,9 @@ export function gradeRows(plain, grade) {
   return Object.keys(JEWELRY_ITEMS).filter((id) => JEWELRY_ITEMS[id].jewelBase === plain && JEWELRY_ITEMS[id].jewelGrade === grade);
 }
 
+/* The rows of one grade a ROLL can make: every perk on it one the chance roll draws (a made perk's rows come from its job). */
+const rolledRows = (plain, grade) => gradeRows(plain, grade).filter((id) => Object.keys(JEWELRY_ITEMS[id].jewelPerks).every((p) => PERKS_PLAYED.includes(p)));
+
 /* ── THE JOBS, as recipe rows on each piece's own bench (src/data/recipes.js joins them by skill). `output` is the PIECE the
    job works on, its plain id, so a job keeps one product for the bench's tax, icon and category; `roll` is how the grade is
    picked and `outcomes` every id it can make (recipeOutcomes). A gem roll spends a plain piece and never makes one. A piece
@@ -240,7 +261,7 @@ function jobsOfPiece(plain, p) {
   if (!JEWEL_SKILLS.includes(p.skill)) throw new Error('jewelry.js: ' + plain + "'s bench " + p.skill + ' is not one of ' + JEWEL_SKILLS.join(', '));
   if (!perksFor(plain).length) return [Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain }))];
   if (!p.gem) throw new Error('jewelry.js: ' + plain + ' rolls perks and has no gem job');
-  const fine = gradeRows(plain, 'fine'), hall = gradeRows(plain, 'hallmarked');
+  const fine = rolledRows(plain, 'fine'), hall = rolledRows(plain, 'hallmarked');
   return [
     Object.freeze(Object.assign({}, p.recipe, { inputs: Object.assign({}, p.recipe.inputs), output: plain, roll: 'base',
       outcomes: Object.freeze([plain].concat(fine, hall)) })),
@@ -350,6 +371,19 @@ export const REFORGE_OFFERS = Object.freeze(Object.keys(JEWEL_PIECES).flatMap((p
     return [Object.freeze({ from: id, to: jewelId(next, perks), metal: to.metal, bars: to.reforge.bars, gem: to.gem,
       gold: to.hallmark.gold - from.hallmark.gold, skill: JEWEL_PIECES[next].skill, level: to.hallmark.level, tier: b.tier })];
   });
+}));
+
+/* ── THE LUCKY JOB (src/data/luck.js; itemization plan §15 "The Lucky ring"): a Plain ring of a tier + LUCKY_RIVET_STEP x tier^2 Lucky
+   Rivets + the tier's Hallmark fee -> that ring, Fine, with Lucky. Nothing rolls, nothing fails, nothing is refunded. At the piece's own
+   bench (Smithing) and its tier's Hallmark level. One row per crafted ring the tables can carry Lucky on; the server's copy is
+   hr_lucky_offers (tools/gen-luck.mjs), behind LUCK_SWITCH. ── */
+export const LUCKY_OFFERS = Object.freeze(Object.keys(JEWEL_PIECES).flatMap((plain) => {
+  const base = plainOf(plain), t = base && JEWEL_TIERS[base.tier];
+  if (!base || !t || !(JEWEL_POOLS[base.slot] || []).includes('lucky') || !rowPerksFor(plain).includes('lucky')) return [];
+  const to = jewelId(plain, ['lucky']);
+  if (!own(JEWELRY_ITEMS, to)) throw new Error('jewelry.js: the Lucky job on ' + plain + ' makes ' + to + ', which no row holds');
+  return [Object.freeze({ from: plain, to, tier: base.tier, rivet: LUCK_ITEM, rivets: LUCKY_RIVET_STEP * base.tier * base.tier,
+    gold: t.hallmark.gold, skill: JEWEL_PIECES[plain].skill, level: t.hallmark.level, switch: LUCK_SWITCH })];
 }));
 
 /** The benches with a Hallmark step or a reforge to offer (the Work window shows its jeweler section on these only): a bench whose

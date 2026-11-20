@@ -41,6 +41,7 @@ import { MONSTERS, monsterLevelOf } from '../data/monsters.js?v=0.2.141';
 import { BOSS_CALL_RULES } from '../data/boss-calls.js?v=0.2.141';
 import { levelAtTier } from '../data/hunt-tiers.js?v=0.2.141';
 import { rollDropTable, rollPrize } from './drops.js?v=0.2.141';
+import { partyMagicFind } from './luck.js?v=0.2.141';
 import { applyGoldFind } from './pacing.js?v=0.2.141';
 import { COMBAT_XP } from '../data/core-model.js?v=0.2.141';
 import { FAMILY_SKILL, DAMAGE_XP_FAMILIES } from '../data/skills.js?v=0.2.141';
@@ -90,8 +91,10 @@ function giveDrop(m, unitId, ev, ctx, atMs) {
     m.state.stats = m.state.stats || {}; m.state.stats.rareDrops = (m.state.stats.rareDrops || 0) + 1;
     /* THE RARE-DROP MOMENT: a world event for the owner (the timeline: alert, float, log) and the
        member's hint (huntProposal hints.rare_drop: the session's journal row). */
-    if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop', atMs, { u: unitId, item: ev.id }));
-    if (Array.isArray(m.hs._events)) m.hs._events.push({ type: 'rare_drop', atMs, item: ev.id });
+    /* A LUCKY FIND (drops.js rollDropTable `lucky`: the draw landed in the part Magic Find added) says so on the reveal. */
+    const lucky = ev.lucky === true ? { lucky: true } : {};
+    if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop', atMs, { u: unitId, item: ev.id, ...lucky }));
+    if (Array.isArray(m.hs._events)) m.hs._events.push({ type: 'rare_drop', atMs, item: ev.id, ...lucky });
   }
   call(m.fx, 'onDrop', ev);
 }
@@ -148,11 +151,15 @@ function payKill(present, ids, killer, kind, ctx, world, atMs, monId) {
   resolveHearthfind(lead.state, 'monster', kind, roll);
 }
 
-/* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll. */
+/* A kill's drop table, rolled once for the party on `lead`'s odds: commons round-robin, each rare to the party's rare roll.
+   LUCK (src/data/luck.js): the party's ONE Magic Find (luck.js partyMagicFind over every hero at the kill, LUCK_RULES.party: the
+   highest), each the server's own (member.magicFind, hr_hunt_instance_read), so who landed the kill never moves it; and the ground's
+   Rare cut past Krell's Hold (ctx.rareCutPm). Both reach the one place a chance is made, drops.js effectiveDropChance. */
 function payDrops(present, ids, lead, row, ctx, world, atMs) {
   const rng = ctx.rng;
   /* a scaled ground's row carries its loot rate (src/data/scaled-hunts.js scaledRow `lootPm`, the card's "Loot ×"); every other row none */
-  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, dropBuff: lead.bonus('dropRate'), lootPm: row.lootPm }, rng);
+  const rolled = rollDropTable(row.drops, { dropMult: lead.weakness(row).dropMult, lootPm: row.lootPm,
+    magicFind: partyMagicFind(present.map((m) => m.magicFind)), rareCutPm: Number.isInteger(ctx.rareCutPm) ? ctx.rareCutPm : 0 }, rng);
   const offset = present.length > 1 && rolled.events.length ? rng.int(0, present.length - 1) : 0;
   let k = 0;
   for (const ev of rolled.events) {

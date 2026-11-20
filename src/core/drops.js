@@ -10,6 +10,7 @@
 // ============================================================
 
 import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.141';
+import { luckPm } from './luck.js?v=0.2.141';
 
 export const DROP_BAND_MAX = { rare: 0.05, uncommon: 0.15, common: 1.0 };
 
@@ -35,16 +36,32 @@ export function bandOf(row) {
  * cannot be made "more than certain", and letting a buff scale it would
  * silently turn a guarantee into a multi-roll.
  *
- * @param row     { id, ch }
- * @param mods    { dropMult, dropBuff, featuredMult }
+ * LUCK (src/data/luck.js, itemization plan §15) is applied HERE AND NOWHERE ELSE: `luckMult` below, the row's band at the party's
+ * Magic Find (Rare and Very Rare in full, Trophy on its closing curve, every other band 1) and, on a ground past Krell's Hold, the
+ * Rare row's cut. Luck is meant to be the ONLY drop lever (whole-game audit 2026-11-20): the one other is the element weakness's
+ * `dropMult` (combat.js weaknessInfo's dropBonus), which multiplies with it on the line marked DROP-BONUS, so its cut, when Tyler
+ * rules it, is that one line. At Magic Find 0 off the cut grounds Luck's factor is exactly 1, so the chance is today's, bit for bit.
+ *
+ * @param row     { id, ch, band? }
+ * @param mods    { dropMult, featuredMult, magicFind (whole percent, the server's), rareCutPm (permille, the ground's) }
  */
 export function effectiveDropChance(row, mods) {
   const m = mods || {};
   if (row.ch >= 1) return Math.min(1, row.ch);
-  const dropMult = m.dropMult == null ? 1 : m.dropMult;
-  const dropBuff = m.dropBuff || 0;
+  const dropMult = m.dropMult == null ? 1 : m.dropMult;   // DROP-BONUS: the element weakness's drop bonus, the one lever beside Luck
   const featured = m.featuredMult == null ? 1 : m.featuredMult;
-  return Math.min(0.95, row.ch * dropMult * (1 + dropBuff) * featured);
+  return Math.min(0.95, row.ch * dropMult * featured * luckMult(row, m));
+}
+
+/** Luck's factor on a row: the Rare cut past Krell's Hold (rareCutPm) and the band's Magic Find bonus (luck.js luckPm). Exactly 1
+    when neither applies (Magic Find 0, a ground through Krell's, a band Luck never moves). */
+export function luckMult(row, mods) {
+  const m = mods || {};
+  const band = bandOf(row);
+  const cut = band === 'rare' && Number.isInteger(m.rareCutPm) && m.rareCutPm > 0 ? Math.min(1000, m.rareCutPm) : 0;
+  const pm = luckPm(m.magicFind, band);
+  if (!cut && !pm) return 1;
+  return ((1000 - cut) / 1000) * ((1000 + pm) / 1000);
 }
 
 /**
@@ -53,25 +70,41 @@ export function effectiveDropChance(row, mods) {
  * into combat-log lines and toasts, the server puts them in the intent
  * envelope's `events[]` (design §2). Core never notifies anything.
  *
- * @returns { dropped: {id:qty}, events: [{type:'drop', id, band, rare}] }
+ * ONE DRAW A ROLL, whatever Luck says (rng.chance's contract: none at p <= 0 or p >= 1, one between). A row Magic Find raised draws
+ * its one number itself, so it can tell a LUCKY find (`lucky: true`: the draw landed between the chance without Magic Find and the
+ * raised one; "Lucky find" on the reveal) on the same stream: a seeded replay at Magic Find 0 draws exactly what it drew before.
+ *
+ * @returns { dropped: {id:qty}, events: [{type:'drop', id, band, rare, lucky?}] }
  */
 export function rollDropTable(drops, mods, rng) {
   const dropped = {};
   const events = [];
   if (!Array.isArray(drops)) return { dropped, events };
   const k = rollsOf(mods && mods.lootPm);
+  /* A SCALED HOUR'S LOOT (src/data/scaled-hunts.js lootPm, Tyler 2026-11-07: "difficulty, XP and loot scale"): the row's own item at
+     `lootPm` / 1000 times its rate, as `k` rolls of chance x rate / k, so one roll never passes certainty. Unscaled: one roll, as ever. */
+  const per = (chance) => (k === 1 ? chance : (chance * mods.lootPm) / 1000 / k);
+  const mf = mods && Number.isInteger(mods.magicFind) && mods.magicFind > 0 ? mods.magicFind : 0;
   for (const d of drops) {
-    const chance = effectiveDropChance(d, mods);
-    /* A SCALED HOUR'S LOOT (src/data/scaled-hunts.js lootPm, Tyler 2026-11-07: "difficulty, XP and loot scale"): the row's own item at
-       `lootPm` / 1000 times its rate, as `k` rolls of chance x rate / k, so one roll never passes certainty. Unscaled: one roll, as ever. */
-    const each = k === 1 ? chance : (chance * mods.lootPm) / 1000 / k;
+    const each = per(effectiveDropChance(d, mods));
+    const band = bandOf(d);
+    /* the chance without Magic Find, only where Magic Find moved this row (the lucky line) */
+    const base = mf && luckPm(mf, band) > 0 ? per(effectiveDropChance(d, Object.assign({}, mods, { magicFind: 0 }))) : null;
     for (let i = 0; i < k; i++) {
-      if (!rng.chance(each)) continue;
+      let luckyHit = false;
+      if (base === null) {
+        if (!rng.chance(each)) continue;
+      } else if (each <= 0) {
+        continue;
+      } else if (each < 1) {
+        const u = rng.next();
+        if (!(u < each)) continue;
+        luckyHit = !(u < base);
+      }
       dropped[d.id] = (dropped[d.id] || 0) + 1;
       /* Only a Rare or Trophy row earns the "Rare drop" moment and the party's rare roll (REVEAL_BANDS);
          a Scarce piece is a standard drop at any odds. */
-      const band = bandOf(d);
-      events.push({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) });
+      events.push(Object.assign({ type: 'drop', id: d.id, band, rare: REVEAL_BANDS.includes(band) }, luckyHit ? { lucky: true } : {}));
     }
   }
   return { dropped, events };

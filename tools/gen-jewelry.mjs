@@ -31,7 +31,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    THE PHASE 2 SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-03-14-jewelry-catalogue is APPLIED history. Every Hallmark offer names the
    piece's own bench (Smithing for every jewel: Tyler 2026-11-18), the Seam Jasper Band and the Fang Studs bring their offers and ceilings,
    and the jewel reforge's table is new: the same full delete + insert of each table. */
-export const OUT_FILE = '2027-05-09-jewelry-sample-catalogue.generated.sql';
+/* LUCK (lane/d-luck-build, 2026-11-20): 2027-05-09-jewelry-sample-catalogue is APPLIED history; the Lucky Fine rows' Hallmark offers and the eight
+   Lucky rows' market ceilings land in this forward file, the same full delete + insert. */
+export const OUT_FILE = '1004-luck-jewelry-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 const ID = /^[a-z0-9_]{1,48}$/;
 
@@ -107,12 +109,12 @@ export function build(offers = HALLMARK_OFFERS, limit = HALLMARK_DAY_LIMIT, ceil
 --                           tier's metal and bars, its gem, the fee difference, the new tier's Hallmark level in the new piece's bench.
 --   hr_hallmark_rule        the most of EACH step one account takes in a UTC day (a blast-radius bound, not a pace).
 --   hr_market_ceilings      a graded row's own ceiling, which hr_market_items reads above 100x book (2027-03-14-jewelry-hallmark.sql).
--- NEW IN THIS FILE (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2): it carries 2027-03-14-jewelry-catalogue
--- (applied) whole. The Banded Signet's six offers move from Crafting to Smithing at the same level 30; the Seam Jasper Band's six (Smithing
--- 45, 100,000 g, a Seam Jasper) and the Fang Studs' two (Smithing 30, 25,000 g, a Road Carnelian) are new; hr_jewel_reforge_offers is new.
+-- NEW IN THIS FILE (lane/d-luck-build, systems-engineer, 2026-11-20; itemization plan §15): it carries 2027-05-09-jewelry-sample-catalogue
+-- (applied) whole. The two Lucky Fine rings' Hallmark offers (a second perk beside Lucky, at their tier's gem, fee and level) and the eight
+-- Lucky rows' market ceilings are new (the Lucky ring trades like all jewelry: Tyler 2026-11-20). Nothing else moves.
 -- A row moves no value: each verb re-quotes from it under the hero's lock and answers quote_changed if the gold moved.
 -- RLS on, no policy, no client grant. No begin/commit. ON THE EA SECURITY LIST (a money surface).
--- APPLY ORDER: after 2027-05-09-jewelry-sample-items-catalogue.generated.sql (hr_items holds the rows); before 2027-05-09-jewel-reforge.sql.
+-- APPLY ORDER: after 1003-luck-items-catalogue.generated.sql (hr_items holds the rows).
 -- REVERSIBLE: drop the tables with the verbs and the view's join that read them.
 -- ════════════════════════════════════════════════════════════════════════
 create table if not exists public.hr_hallmark_offers (

@@ -32,6 +32,7 @@ import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js?v=0.2.141';
 import { LANE_OF } from './hunt/conditions.js?v=0.2.141';
 import { blowsPmOf, armorPmOf } from './temper.js?v=0.2.141';
 import { resistProfile } from './elements.js?v=0.2.141';
+import { clampMagicFind } from './luck.js?v=0.2.141';
 
 /* A finite, non-negative number or the fallback (every number that crosses in from a row). */
 function nat(v, fallback) {
@@ -55,9 +56,6 @@ function nat(v, fallback) {
    byte — a companion changes the totals, but away==live for the same setup.
    EMPTY_PERKS carries no `companion`, so companionBonus returns 0 for every
    key and this degrades to the pre-companion behaviour exactly. */
-/* The account bestiary's largest relic multiplier (stage 4, x1.25; lane c-bestiary). */
-const RELIC_MULT_MAX = 1.25;
-
 export function bonusFor(perkState, buffHost, away) {
   const base = makeBonus(perkState || EMPTY_PERKS);
   const comp = companionBonus(perkState || EMPTY_PERKS);
@@ -344,15 +342,10 @@ export function memberSide(mi, ctx) {
       /* THE WORN +SKILL ({ skill: n } or null, combat.js SKILL_PLUS_FIELDS): what a spell's output and a bleed read on top of the base
          level (hunt/abilities.js powerLevel), live like rollsVs (the loadout can change mid-hunt: unhone). */
       get skillPlus() { return /** @type {any} */ (eq).skillPlus || null; },
-      /* THE RELIC MULTIPLIER (lane c-bestiary): the member's OWN account_bestiary.relic_mult
-         { monster kind: mult } (mi.relicMults, server-side only: drops are never rolled for the
-         browser), read by hunt-rewards.js as lead.relicMult(kind); 1 when absent, clamped to
-         [1, RELIC_MULT_MAX]. */
-      relicMult: (kind) => {
-        const r = mi.relicMults && typeof mi.relicMults === 'object' ? mi.relicMults : null;
-        const v = r && Object.prototype.hasOwnProperty.call(r, kind) ? Number(r[kind]) : NaN;
-        return Number.isFinite(v) ? Math.min(RELIC_MULT_MAX, Math.max(1, v)) : 1;
-      },
+      /* MAGIC FIND (src/data/luck.js): this hero's whole percent as the SERVER computed it (hr_hunt_instance_read `magic_find`:
+         the account's Luck rank and its worn Lucky ring, 0 while the `luck` switch is off), clamped to 0..MAGIC_FIND_MAX. Drops are
+         never rolled for the browser, so its member reads 0. hunt-rewards.js payDrops makes the party's one number from these. */
+      magicFind: clampMagicFind(mi.magicFind),
       /* A KEYED HALL'S DAILY PRIZE (src/data/boss-halls.js): the server's own read says this hero has today's still to take
          (hr_hunt_instance_read `prize_left`: no hr_boss_loot_day row for today). Anything but an explicit true rolls nothing: the
          browser's prediction, an older server, any other ground. hunt-rewards.js payPrize reads it and clears it once rolled. */
@@ -529,7 +522,7 @@ export function frozenSide(row) {
   const member = {
     key: row.key, seat: row.seat, unitId: Number.isInteger(row.unitId) ? row.unitId : null, hs, state, fx: {},
     family: f.family, armoured: f.armoured === true, shield: f.shield === true,
-    bonus: () => 0, weakness: () => ({ dropMult: 1, damageMult: 1 }), relicMult: () => 1,
+    bonus: () => 0, weakness: () => ({ dropMult: 1, damageMult: 1 }), magicFind: 0,
     rollsVs: (r, kind) => {
       const v = vs[kind || KIND_OF.get(r)];
       return v ? rolled(v) : null;

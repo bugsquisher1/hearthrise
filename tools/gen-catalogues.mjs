@@ -186,7 +186,10 @@ const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'))
 /* MONSTERS A LITTLE HARDER (lane/d-harder-monsters, 2026-11-19; Tyler: "raise HP and damage done by all monsters in the game slightly"): 2027-05-22-cookbook-cut-items-catalogue
    (STAGED, applied first) is the file before this one and this one carries it whole. Only hr_activities moves: each combat activity's max_hp is its monster's
    row, x1.1 on the formula's HP line (src/data/balance-sheet.js STAT_FORMULA). ORDER: after every 2027-05-22 file. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2027-06-05-harder-monsters-items-catalogue.generated.sql');
+/* LUCK (lane/d-luck-build, 2026-11-20; itemization plan §15 v3.1): 2027-06-05-harder-monsters-items-catalogue (STAGED, applied first) is the
+   file before this one and this one carries it whole. hr_items gains lucky_rivet (bound, worth 0: tradeable false, no vendor value) and the
+   eight Lucky ring rows (src/data/jewelry.js PERKS_MADE). ORDER: 1003, before the luck catalogue and migration (1005, 1006). */
+const OUT = join(ROOT, 'supabase', 'migrations', '1003-luck-items-catalogue.generated.sql');
 /* THE SECOND GENERATED FILE (2026-09-13). hr_item_buffs is emitted as its own
    migration rather than into OUT above, and that is a deliberate operational
    call: OUT is the FOURTH file in tests/schema-apply-order.json and is already

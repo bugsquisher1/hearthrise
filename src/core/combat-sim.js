@@ -64,6 +64,8 @@ import { trainOf, trainingTick, TRAINING_SLOTS } from './hunt/training.js?v=0.2.
 import { towerOf, towerMonsters, towerEndsAt } from './hunt/tower.js?v=0.2.141';
 import { runRulesOf } from '../data/tower.js?v=0.2.141';
 import { sessionPayOf } from '../data/session-modes.js?v=0.2.141';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
+import { rareCutPm } from './luck.js?v=0.2.141';
 
 /* The engine's front door: `combatSim`. */
 export { stepSwing } from './hunt/world-step.js?v=0.2.141';
@@ -300,6 +302,9 @@ export function simulateHuntInstance(inst, ctx) {
      hunt plays exactly as it did. */
   const pay = sessionPayOf(ctx.sessionMode);
   const fullPay = pay.xpPm === 1000 && pay.coin && pay.drops && pay.bestiary;
+  /* HARDER PAST KRELL (src/data/luck.js RARE_CUT, Tyler 2026-11-20): the Rare cut of the ground's OWN Level floor (its hunt's band, never
+     a scaled window's Level: an early ground stays an early ground). 0 on every ground through Krell's Hold, so they play as they did. */
+  const rareCut = rareCutPm(((HUNT_INDEX[ctx.ground && ctx.ground.hunt] || {}).band || [0])[0]);
   /* THE LEVEL THE GROUND IS OUTGROWN AT (hunt-grounds.js endsAtLevel), or null; none on a SCALED window, which plays at its leader's Level. */
   const endsAt = play.level === null && Number.isInteger(ctx.ground && ctx.ground.endsAtLevel) ? ctx.ground.endsAtLevel : null;
   /* THE BURNING TOWER (src/core/hunt/tower.js): the floor the server says stands (or stands next) when this span starts, a working value of
@@ -476,7 +481,7 @@ export function simulateHuntInstance(inst, ctx) {
       for (const e of r.events) worldEvents.push(e);
       /* The rewards' own events (a party's rare roll) follow the swing's, on the server-only `r` stream. */
       /* A KEYED HALL'S BOSS pays his rows as the hall's DAILY PRIZE (boss-halls.js; hunt-rewards.js payPrize): the room names him. */
-      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call,
+      const deaths = rewardSwing(byUnit, r.events, world, { rng: createRng(seedOf(ctx, 'r', sw)), monsters: play.monsters || ctx.monsters, tier, hearthfind: ctx.hearthfind, call, rareCutPm: rareCut,
         ...(fullPay ? {} : { pay }), ...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ...(train ? { train } : {}), emit: (e) => worldEvents.push(e) });
       /* THE BURNING TOWER: each hero standing when its room fell cleared the floor (tower.js towerCleared's `floor` event names them). */
       if (tw) for (const e of r.events) if (e.type === 'floor') for (const id of Object.keys(e.by)) { const m = byUnit.get(Number(id)); if (m) out.get(m.key).floors.push(e.floor); }

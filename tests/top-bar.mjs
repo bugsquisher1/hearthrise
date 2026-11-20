@@ -108,6 +108,7 @@ const openWins = (page) => page.evaluate(() => Array.from(document.querySelector
 /* Close every window (Esc closes the top one; with none open it would open Settings) and shut any menu. Chat stands open from the
    start and Esc passes it by (window-manager.js onEscape), so it stays: the loop ends when it is all that is left. */
 async function closeAll(page) {
+  await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });   // a caret in Chat's field would take the next key
   for (let i = 0; i < 5 && (await openWins(page)).some((w) => w !== 'chat'); i++) {
     await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await page.keyboard.press('Escape');

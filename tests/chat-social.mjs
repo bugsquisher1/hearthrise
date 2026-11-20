@@ -662,6 +662,21 @@ async function startOpen(browser, base) {
       if (phone) { if (fresh.open) fails.push('CW-12 [' + tag + '] a phone came up with the chat sheet over the World'); continue; }
       if (!fresh.open || !fresh.home) { fails.push('CW-12 [' + tag + '] a fresh hero came up without Chat open at its home: ' + JSON.stringify(fresh)); continue; }
       if (fresh.caret) fails.push('CW-12 [' + tag + '] Chat open at start took the caret from the World');
+      /* a slot's tip (or menu) opens up into Chat's column and rises over it (hunt.css: Chat at home is not a window the bar stays under) */
+      const tip = await page.evaluate(async () => {
+        const slot = document.querySelector('.hb-slot:not(.is-empty)');
+        if (!slot) return null;
+        slot.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        await new Promise((r) => setTimeout(r, 250));
+        const t = document.querySelector('.hb-tip.is-on'), c = document.querySelector('[data-hs-win="chat"]:not(.is-leaving)');
+        const a = t && t.getBoundingClientRect(), b = c && c.getBoundingClientRect();
+        const over = !!a && !!b && a.left + 8 < b.right && b.left + 8 < a.right && a.top + 8 < b.bottom && b.top + 8 < a.bottom;
+        const at = over ? document.elementFromPoint(Math.max(a.left, b.left) + 4, Math.max(a.top, b.top) + 4) : null;
+        slot.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
+        return { over, onTop: !!at && !!at.closest('.hb-tip') };
+      });
+      if (!tip || !tip.over) fails.push('CW-12 [' + tag + '] CONTROL: no slot tip reaches Chat\'s column, so the bar\'s rise over it is unproved: ' + JSON.stringify(tip));
+      else if (!tip.onTop) fails.push('CW-12 [' + tag + '] a slot\'s tip over Chat at its home lies under it');
       await page.keyboard.press('b');
       await page.waitForTimeout(300);
       const keys = await look(page);
@@ -1317,6 +1332,7 @@ const PAGE_MUTANTS = [
   ['Enter closes the open Chat (CW-12)', 'src/shell/window-manager.js', 'return r.typing && isOpen(r.id) ? openWindow(r.id) : toggle(r.id);', 'return toggle(r.id);'],
   ['the player\'s close of Chat is not kept (CW-12)', 'src/shell/window-manager.js', '    if (rows.get(id).startsOpen) keep(id, false);\n', ''],
   ['Esc closes Chat like any window (CW-12)', 'src/shell/window-manager.js', 'const l = live().filter((id) => !rows.get(id).startsOpen);', 'const l = live();'],
+  ['a slot\'s tip stays under Chat at home (CW-12)', 'src/styles/hunt.css', '.hs-shell:not(:has(.hs-win:not(.is-leaving):not(.is-home))) > .hs-hud:has(', '.hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has('],
   ['the menu is drawn inside the World', 'src/shell/windows/float-menu.js', "  doc.body.appendChild(el);\n  return el;", "  (doc.querySelector('.world-stage') || doc.body).appendChild(el);\n  return el;"],
 ];
 
@@ -1360,9 +1376,7 @@ async function main() {
   for (const [name, file, from, to] of onlyPure ? [] : pick(PAGE_MUTANTS)) {
     const text = await readFile(join(ROOT, file), 'utf8');
     if (!text.includes(from)) { console.log('  ✗ ' + name + ' — anchor not found in ' + file); bad++; continue; }
-    /* a mutant that throws the page out of its steps (a window a later step waits for never opens) is caught, as on the pure side */
-    let fails;
-    try { fails = await pageRules({ [file]: text.replace(from, to) }, null); } catch (e) { fails = ['threw: ' + String(e && e.message).split('\n')[0]]; }
+    const fails = await pageRules({ [file]: text.replace(from, to) }, null);
     if (fails.length) console.log('  ✓ ' + name + ' — caught (' + fails[0].split(' ')[0] + ')');
     else { console.log('  ✗ ' + name + ' — NOT caught'); bad++; }
   }

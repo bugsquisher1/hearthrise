@@ -170,7 +170,7 @@ export function mountShell(root, o) {
     for (const el of Array.from(layer.children)) if (!keep.has(el.getAttribute('data-hs-win'))) el.remove();
     for (const p of placed) {
       let el = layer.querySelector(':scope > [data-hs-win="' + p.id + '"]');
-      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized) sized.ro.observe(el, { box: 'border-box' }); }
+      if (!el) { el = frame(wm.row(p.id)); layer.appendChild(el); refresh(p.id); if (sized && !Number.isFinite(p.bottom)) sized.ro.observe(el, { box: 'border-box' }); }   // Chat at home is sized by capDock inside the observer's own pass: watched, it would loop
       const page = wm.pageIn(p.id);
       if (showPage(el, page)) refresh(page);
       paintHead(el, ctx, WINDOW_RENDERERS);

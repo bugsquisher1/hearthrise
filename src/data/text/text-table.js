@@ -8,39 +8,39 @@
 // tests/text-home.mjs keeps every call site honest and ratchets the text
 // still written in code down to none.
 // ════════════════════════════════════════════════════════════════════════
-import { AWAY_TEXT } from './away.js?v=0.2.143';
-import { BAG_TEXT } from './bag.js?v=0.2.143';
-import { BAR_TEXT } from './bar.js?v=0.2.143';
-import { CATACOMB_TEXT } from './catacomb.js?v=0.2.143';
-import { CHRONICLE_TEXT } from './chronicle.js?v=0.2.143';
-import { COACH_TEXT } from './coach.js?v=0.2.143';
-import { CONTROLS_TEXT } from './controls.js?v=0.2.143';
-import { CRIERS_TEXT } from './criers.js?v=0.2.143';
-import { DEATH_TEXT } from './death.js?v=0.2.143';
-import { EVENTS_TEXT } from './events.js?v=0.2.143';
-import { FACTIONS_TEXT } from './factions.js?v=0.2.143';
-import { FARM_TEXT } from './farm.js?v=0.2.143';
-import { HEROES_TEXT } from './heroes.js?v=0.2.143';
-import { HOUSE_TEXT } from './house.js?v=0.2.143';
-import { HUD_TEXT } from './hud.js?v=0.2.143';
-import { HUNTS_TEXT } from './hunts.js?v=0.2.143';
-import { ITEM_TEXT } from './item.js?v=0.2.143';
-import { JEWEL_TEXT } from './jewel.js?v=0.2.143';
-import { MONSTER_TEXT } from './monster.js?v=0.2.143';
-import { LOG_TEXT } from './log.js?v=0.2.143';
-import { PARTY_TEXT } from './party.js?v=0.2.143';
-import { PEOPLE_TEXT } from './people.js?v=0.2.143';
-import { PREP_TEXT } from './prep.js?v=0.2.143';
-import { SHOP_TEXT } from './shop.js?v=0.2.143';
-import { SLOTS_TEXT } from './slots.js?v=0.2.143';
-import { SUMMARY_TEXT } from './summary.js?v=0.2.143';
-import { TALLY_TEXT } from './tally.js?v=0.2.143';
-import { TEMPER_TEXT } from './temper.js?v=0.2.143';
-import { WINDOWS_TEXT } from './windows.js?v=0.2.143';
-import { WIKI_TEXT } from './wiki.js?v=0.2.143';
-import { WORK_TEXT } from './work.js?v=0.2.143';
-import { TRAINING_TEXT } from './training.js?v=0.2.143';
-import { TOWER_TEXT } from './tower.js?v=0.2.143';
+import { AWAY_TEXT } from './away.js';
+import { BAG_TEXT } from './bag.js';
+import { BAR_TEXT } from './bar.js';
+import { CATACOMB_TEXT } from './catacomb.js';
+import { CHRONICLE_TEXT } from './chronicle.js';
+import { COACH_TEXT } from './coach.js';
+import { CONTROLS_TEXT } from './controls.js';
+import { CRIERS_TEXT } from './criers.js';
+import { DEATH_TEXT } from './death.js';
+import { EVENTS_TEXT } from './events.js';
+import { FACTIONS_TEXT } from './factions.js';
+import { FARM_TEXT } from './farm.js';
+import { HEROES_TEXT } from './heroes.js';
+import { HOUSE_TEXT } from './house.js';
+import { HUD_TEXT } from './hud.js';
+import { HUNTS_TEXT } from './hunts.js';
+import { ITEM_TEXT } from './item.js';
+import { JEWEL_TEXT } from './jewel.js';
+import { MONSTER_TEXT } from './monster.js';
+import { LOG_TEXT } from './log.js';
+import { PARTY_TEXT } from './party.js';
+import { PEOPLE_TEXT } from './people.js';
+import { PREP_TEXT } from './prep.js';
+import { SHOP_TEXT } from './shop.js';
+import { SLOTS_TEXT } from './slots.js';
+import { SUMMARY_TEXT } from './summary.js';
+import { TALLY_TEXT } from './tally.js';
+import { TEMPER_TEXT } from './temper.js';
+import { WINDOWS_TEXT } from './windows.js';
+import { WIKI_TEXT } from './wiki.js';
+import { WORK_TEXT } from './work.js';
+import { TRAINING_TEXT } from './training.js';
+import { TOWER_TEXT } from './tower.js';
 
 export const TEXT = Object.freeze({
   away: AWAY_TEXT,

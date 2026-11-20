@@ -18,11 +18,11 @@
 //   ownsKey(ev)              Enter on a focused link presses it (the shell's Enter opens Chat everywhere else)
 // Display only: a link sends nothing; the window it opens reads the server's numbers as it always does.
 // ════════════════════════════════════════════════════════════════════════
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.143';
-import { sepHtml } from '../render/format.js?v=0.2.143';
-import { revealInWindow } from './widgets/bits.js?v=0.2.143';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.143';
-import { GATHER_INDEX, BENCH_INDEX } from './town-work.js?v=0.2.143';
+import { escapeHtml as esc } from '../utils/dom.js';
+import { sepHtml } from '../render/format.js';
+import { revealInWindow } from './widgets/bits.js';
+import { SKILLS_DEF } from '../data/skills.js';
+import { GATHER_INDEX, BENCH_INDEX } from './town-work.js';
 
 const ATTR = 'data-hs-goto';
 const FIND = 'data-hs-find';

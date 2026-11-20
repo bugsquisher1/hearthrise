@@ -35,30 +35,30 @@
 // server's engine has certainly done since its watermark (tickOf: town-ticker.js,
 // Tyler 2026-10-23), shown as pending and never spent.
 // ════════════════════════════════════════════════════════════════════════
-import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js?v=0.2.143';
-import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.143';   // the dark (switched) jobs too: a running one is shown; the bench offers one only where the server lists it
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.143';
-import { ITEMS } from '../data/items.js?v=0.2.143';
-import { SKILLS_DEF } from '../data/skills.js?v=0.2.143';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.143';
-import { indexGatherNodes, gatherIntervalMs, gatherBagFullFor } from '../core/skill-sim.js?v=0.2.143';
-import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js?v=0.2.143';
-import { recipeInputs, gateOk } from '../core/artisan.js?v=0.2.143';
-import { pacedXp } from '../core/pacing.js?v=0.2.143';
-import { whole } from '../render/format.js?v=0.2.143';
-import { itemName, itemNameFor } from './widgets/bits.js?v=0.2.143';
-import { t } from '../render/player-text.js?v=0.2.143';
-import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js?v=0.2.143';
-import { townWorkRunning } from '../session/town-poll.js?v=0.2.143';
-import { townActivityWords } from '../session/party-sections.js?v=0.2.143';
-import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js?v=0.2.143';
-import { skillShortWords } from './intent-words.js?v=0.2.143';
-import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js?v=0.2.143';
-import { bestTool } from '../core/tools.js?v=0.2.143';
-import { bankOf, shopOf } from '../session/item-sections.js?v=0.2.143';
-import { benchTaxOf, benchRunOf, learnedRecipesOf } from '../session/bench-sections.js?v=0.2.143';
-import { whereToGet, wherePlaces, toolEffect } from './item-lore.js?v=0.2.143';
-import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js?v=0.2.143';
+import { TREES, ROCKS, FISH_SPOTS } from '../data/gathering.js';
+import { ARTISAN_RECIPES_EVERY as ARTISAN_RECIPES } from '../data/recipes.js';   // the dark (switched) jobs too: a running one is shown; the bench offers one only where the server lists it
+import { DRINK_ITEMS } from '../data/drinks.js';
+import { ITEMS } from '../data/items.js';
+import { SKILLS_DEF } from '../data/skills.js';
+import { HUNT_TUNING } from '../data/hunt-tuning.js';
+import { indexGatherNodes, gatherIntervalMs, gatherBagFullFor } from '../core/skill-sim.js';
+import { indexArtisanRecipes, artisanIntervalMs, bagFullFor } from '../core/artisan-sim.js';
+import { recipeInputs, gateOk } from '../core/artisan.js';
+import { pacedXp } from '../core/pacing.js';
+import { whole } from '../render/format.js';
+import { itemName, itemNameFor } from './widgets/bits.js';
+import { t } from '../render/player-text.js';
+import { skillsOf, heldOf, bagCapOf, drawsOnStorage } from '../session/item-sections.js';
+import { townWorkRunning } from '../session/town-poll.js';
+import { townActivityWords } from '../session/party-sections.js';
+import { predictTown, aheadQty, shownQty, lineParts, aheadStored } from './town-ticker.js';
+import { skillShortWords } from './intent-words.js';
+import { feeBlock, runsPaid, rowTax, benchPaidWords } from './bench-fee.js';
+import { bestTool } from '../core/tools.js';
+import { bankOf, shopOf } from '../session/item-sections.js';
+import { benchTaxOf, benchRunOf, learnedRecipesOf } from '../session/bench-sections.js';
+import { whereToGet, wherePlaces, toolEffect } from './item-lore.js';
+import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });

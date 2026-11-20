@@ -6,9 +6,9 @@
 //                  right below a south face, about one cell in three, so the mountain's foot is littered and not ruled
 //   in the cracks  (lane/a-havora-rock) grass tufts on the rock, one cell in a dozen or so, never two near
 // PURE ESM. Display data only: decals are open, nothing here changes what blocks a step.
-import { GROUND_ROWS } from './ground.js?v=0.2.143';
-import { WEST } from './plan.js?v=0.2.143';
-import { STATIONS } from '../stations.js?v=0.2.143';
+import { GROUND_ROWS } from './ground.js';
+import { WEST } from './plan.js';
+import { STATIONS } from '../stations.js';
 
 const IDS = ['havora_scree_a', 'havora_scree_b', 'havora_scree_c', 'havora_scree_d'];
 const TUFTS = ['square_decal_tuft_a', 'square_decal_tuft_b'];

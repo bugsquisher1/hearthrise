@@ -333,15 +333,19 @@ const ARMS = {
   },
 };
 
+/* THE LONGEST AN UNVIEWED HERO'S STRIP MAY LAG A HELD FRAME. It was the client's own 60 s hr_load of an unviewed hero; since
+   the 11-19 server audit (row 5) that read is gone and the pushed frames are its ONLY feed, so the ceiling is the same minute,
+   now a display bound rather than a cost one. */
+const UNVIEWED_STALE_MS = 60000;
 function capArm() {
   const sql = readFileSync(join(H.ROOT, 'supabase', 'migrations', OWN), 'utf8');
   const m = /check \(frame_own_s between 0 and (\d+)\)/.exec(sql);
   const cfg = readFileSync(join(H.ROOT, 'src', 'session', 'config.js'), 'utf8');
-  const poll = Number((/huntPollMs:\s*(\d+)/.exec(cfg) || [])[1]), unviewed = Number((/unviewedPollMs:\s*(\d+)/.exec(cfg) || [])[1]);
-  if (!m || !poll || !unviewed) return ['CONTROL: the ceiling or the client\'s poll settings could not be read'];
+  const poll = Number((/huntPollMs:\s*(\d+)/.exec(cfg) || [])[1]);
+  if (!m || !poll) return ['CONTROL: the ceiling or the client\'s poll settings could not be read'];
   /* a held frame arrives within the ceiling plus one watched window (the poll and a 3 s answer) of the last one */
-  return Number(m[1]) * 1000 + poll + 3000 < unviewed ? []
-    : [`the dial may be set to ${m[1]} s: a held frame can arrive ${Number(m[1]) * 1000 + poll + 3000} ms after the last, past the client's ${unviewed} ms re-read of an unviewed hero (each would be an hr_load)`];
+  return Number(m[1]) * 1000 + poll + 3000 < UNVIEWED_STALE_MS ? []
+    : [`the dial may be set to ${m[1]} s: a held frame can arrive ${Number(m[1]) * 1000 + poll + 3000} ms after the last, past the ${UNVIEWED_STALE_MS} ms an unviewed hero's strip may lag (its frames are its only feed)`];
 }
 
 /* THE PLANTED DEFECTS: [name, the arm that must go red, the function, [find, replace] pairs], planted in the body that runs. */

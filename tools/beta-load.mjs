@@ -3,7 +3,7 @@
 // tools/beta-load.mjs — THE BETA'S WORST HOUR, REPLAYED: real chain, real engine, real concurrency, PostgreSQL 17.
 //   (lane/r-beta-load, reliability-engineer, 2026-11-01.) Load-test only; nothing imports it; never touches production.
 //
-//   node tools/beta-load.mjs --accounts=20 [--heroes=4] [--minutes=5] [--party=0.4] [--town=0.25] [--workers=2] [--idle-accounts=80] [--warm=240] [--engine-pool=15] [--rest-pool=15] [--unviewed-poll-ms=60000]
+//   node tools/beta-load.mjs --accounts=20 [--heroes=4] [--minutes=5] [--party=0.4] [--town=0.25] [--workers=2] [--idle-accounts=80] [--warm=240] [--engine-pool=15] [--rest-pool=15] [--unviewed-poll-ms=0]
 //                            [--drill=tick-stop|edge-5xx|retry] [--json=out.json]
 //   node tools/beta-load.mjs --selftest     the conservation audit, proved to bite on planted double pay and lost time
 //
@@ -61,7 +61,7 @@ const connect = (database, max) => postgres({ host: '127.0.0.1', port: PORT, use
 const C = {
   huntPollMs: 16000,      // a viewed hunt's landed settle
   earlyAsksPerPoll: 0.6,  // live-view start-point asks; the pacer's cap is 6 asks a minute a character (6 x 16/60 = 1.6)
-  unviewedPollMs: 60000,  // hr_load for each hunting hero not on screen
+  unviewedPollMs: 0,      // hr_load for each hunting hero not on screen: none since the 11-19 server audit (row 5); 60000 models the old client
   socialPollMs: 30000,    // hr_social_poll
   townPollMs: 2000,       // hr_town_view while a town is drawn (TOWN_PRESENCE.pollMs; 6 s at rest)
   townMoveMs: 8000,       // hr_town_move, a walker who walks about half the time

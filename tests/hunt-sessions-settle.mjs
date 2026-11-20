@@ -109,6 +109,11 @@
 //   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
 //              leave sent seconds before it still ends the hunt `died` at that swing,
 //              the same death row and end as with no leave (2026-10-31-live-horizon.sql).
+//   NO-DODGE-LEVERS  the same for every mid-hunt lever that moves a fight (1005-lever-horizon.sql, 11-19 server audit
+//              row 3), on a pinned server clock: a Blessing bought, the stance set and a setup switched 19 s before a
+//              death the viewer's seeds showed each leave that death exactly as it was, with the hunt viewed and with
+//              the browser closed (the Blessing stays held, unused). CONTROL: each lever pulled a minute earlier lands
+//              after its horizon and moves the death (the deferral is not a drop).
 //   PARITY     the tick door, the player's door and the composed pieces write
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
@@ -1978,6 +1983,83 @@ const DB_ARMS = {
     if (b.session.end_reason !== 'died') problems.push(`a leave before a foreseen death ended the hunt ${b.session.end_reason}, not died`);
     if (b.session.ended_at !== a.session.ended_at) problems.push(`the hunt ended at ${b.session.ended_at} with the leave, ${a.session.ended_at} without`);
     if (JSON.stringify(b.events) !== JSON.stringify(a.events)) problems.push('the death / end rows differ with the leave: ' + firstDiff(JSON.stringify(a.events), JSON.stringify(b.events)));
+    return problems;
+  }),
+  /* EVERY LEVER THAT MOVES A FIGHT WAITS OUT THE SEEDS (1005-lever-horizon.sql; the 11-19 server audit, row 3). The browser holds the
+     next 16 combat swings' seeds (32 s), so a lever that took hold at once could be pulled only when a death showed in them. The server
+     clock is pinned and every settle runs at its cut's instant, as in production. A Level 5 hero at full HP among wolves (it dies some
+     4.7 minutes in, with no food) is settled every 10 s (the hunt viewed)
+     to 20 s before its death; 1 s later the player pulls a lever; the hunt then settles on every 10 s (VIEWED) or on the tick's 90 s
+     windows (CLOSED). Each lever must leave the death exactly as it was with no lever: the same instant, the same price, and a Blessing
+     bought there stays held, unused. CONTROL (EARLY): the same lever a minute into the hunt lands after its horizon and moves the
+     death, so the lever matters and the deferral is not a drop. */
+  'NO-DODGE-LEVERS': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const BASE = Date.UTC(2026, 9, 15, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const onClock = { clock: pinNow };
+    await pinNow(BASE);
+    const as = async (sql, args) => {
+      await db.query('delete from public.hr_rate_counters');
+      await asUser(db, UIDS[0]);
+      try { return await one(db, sql, args); } finally { await db.query("select set_config('request.jwt.claim.sub', '', true)"); }
+    };
+    /* Two setups saved in town: 0 (the doomed hero's bar) and 1, the same gear, standing defensive. */
+    const h = await hunter(db, M, { ...DOOMED, deadly: false, row: rowWith('wolf'), hp: null, fromMs: BASE, beforeEnter: async () => {
+      /* (0 first: a save copies the setup in use into the one saved) */
+      for (const [what, sql] of [['saving setup 0', `select public.hr_hunt_preset_save(0, 0, 'Brawl', $1::uuid)`],
+        ['saving setup 1', `select public.hr_hunt_preset_save(0, 1, 'Guard', $1::uuid)`],
+        ['setup 1 stands defensive', `select public.hr_action_set_options(0, 1, '{"stance": "defensive"}'::jsonb, $1::uuid)`]]) {
+        const r = await as(sql, [idem()]);
+        if (!r || r.ok !== true) throw new Error(`harness: ${what} answered ${JSON.stringify(r)}`);
+      }
+    } });
+    const grid = (stepMs, after) => (f) => Array.from({ length: Math.ceil((f + SPAN_MS - after) / stepMs) }, (_, i) => Math.min(after + (i + 1) * stepMs, f + SPAN_MS));
+    const look = async () => {
+      const s = await snapshot(db, h.sid, UIDS[0]);
+      s.held = Number(await one(db, 'select count(*) from public.player_blessings where user_id = $1 and slot = 0', [UIDS[0]]));
+      return s;
+    };
+    const deathOf = (s) => Date.parse((((s && s.events) || []).find((e) => e[0] === 'death') || [])[1]);
+    const LEVERS = {
+      blessing: async () => as('select public.hr_blessing_buy(0, 1, (select public.hr_blessing_price(1, greatest(1, coalesce(public.hr_level_of($2::uuid, 0), 1)))), $1::uuid)', [idem(), UIDS[0]]),
+      stance: async () => as(`select public.hr_action_set_options(0, 0, '{"stance": "defensive"}'::jsonb, $1::uuid)`, [idem()]),
+      setup: async () => as('select public.hr_hunt_preset_apply(0, 1, $1::uuid)', [idem()]),
+    };
+    /* the hunt settled on a 10 s grid to `to`, the lever at `at`, then the rest on `after`'s grid */
+    const play = async (lever, at, afterStep) => {
+      await db.query('savepoint levers');
+      try {
+        const upTo = at === null ? h.from + SPAN_MS : h.from + Math.floor((at - h.from) / 10000) * 10000;
+        await run(db, M, h.from, (f) => grid(10000, f)(f).filter((t) => t <= upTo), onClock);
+        let r = null;
+        if (lever) { await pinNow(at); r = await LEVERS[lever](); }
+        if (at !== null) await run(db, M, h.from, () => grid(afterStep, upTo)(h.from), onClock);
+        const s = await look();
+        s.lever = r;
+        return s;
+      } finally { await db.query('rollback to savepoint levers'); }
+    };
+    const control = await play(null, null, 10000);
+    const deathAt = deathOf(control);
+    if (!(control.session.end_reason === 'died' && Number.isFinite(deathAt))) return [`CONTROL: the doomed hero did not die (${control.session.end_reason})`];
+    if (!(deathAt - h.from > 120000)) return [`CONTROL: the death came ${deathAt - h.from} ms in; the arm needs two minutes of hunt before it`];
+    if (control.held !== 0) problems.push(`CONTROL: ${control.held} Blessing(s) held with no lever`);
+    const same = (s) => JSON.stringify([s.events, s.death_xp, s.level_xp, s.session.end_reason, s.session.ended_at]);
+    for (const lever of Object.keys(LEVERS)) {
+      /* EARLY: a minute in, far from the death: it lands after its horizon and the death moves (or is kept, for a Blessing). */
+      const early = await play(lever, h.from + 60000 + 1000, 10000);
+      if (!early.lever || early.lever.ok !== true) { problems.push(`CONTROL (${lever}, early): the lever was refused ${JSON.stringify(early.lever)}`); continue; }
+      if (same(early) === same(control)) problems.push(`CONTROL (${lever}, early): a lever a minute in moved nothing; the arm cannot tell a deferral from a drop`);
+      if (lever === 'blessing' && early.held !== 0) problems.push(`CONTROL (blessing, early): the Blessing bought a minute in was not used on the death (${early.held} held)`);
+      /* LATE: 19 s before the death the viewer's seeds showed; then the hunt viewed (10 s) and the browser closed (90 s). */
+      for (const [path, step] of [['the hunt viewed', 10000], ['the browser closed', 90000]]) {
+        const late = await play(lever, deathAt - 19000, step);
+        if (!late.lever || late.lever.ok !== true) { problems.push(`${lever} (${path}): the lever was refused ${JSON.stringify(late.lever)}`); continue; }
+        if (same(late) !== same(control)) problems.push(`${lever} (${path}): a lever 19 s before a foreseen death moved it: ${firstDiff(same(control), same(late))}`);
+        if (lever === 'blessing' && late.held !== 1) problems.push(`blessing (${path}): the Blessing bought inside the horizon was ${late.held === 0 ? 'used on the foreseen death' : `held ${late.held} times`}`);
+      }
+    }
     return problems;
   }),
   PARITY: async (db, M) => inTx(db, async () => {
@@ -4818,9 +4900,19 @@ const DB_ARMS = {
     const ch = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify({ stance: 'offensive', distance: 4 }), idem()]);
     await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
     if (!ch || ch.ok !== true) return [...problems, `CONTROL: the options change was refused: ${JSON.stringify(ch)}`];
+    /* LEVER-HORIZON (1005-lever-horizon.sql): a fight lever plays from the first window past the seed horizon (the settled
+       point + 32 s). The window inside it keeps the unit as it stood; the server clock then moves on (pinned) and the next
+       settle, past the horizon, writes the change onto the unit already standing in the world. */
     await settleTo(db, M, nowMs);
-    const u2 = M.WS.decode(JSON.parse(await one(db, 'select world from public.hunt_instances where id = $1', [inst]))).units.find((x) => x.side === 'hero');
-    if (!u2 || u2.stance !== 'offensive' || u2.dist !== 4) problems.push(`a mid-hunt change left the unit at ${JSON.stringify(u2 && { stance: u2.stance, dist: u2.dist })}`);
+    const unitNow = async () => M.WS.decode(JSON.parse(await one(db, 'select world from public.hunt_instances where id = $1', [inst]))).units.find((x) => x.side === 'hero');
+    const u1 = await unitNow();
+    if (!u1 || u1.stance !== 'defensive' || u1.dist !== 1) problems.push(`the window inside the seed horizon already played the change: ${JSON.stringify(u1 && { stance: u1.stance, dist: u1.dist })}`);
+    await db.query(`select set_config('hr.test_now', $1, true)`, [new Date(nowMs + 60000).toISOString()]);
+    /* (a window STARTING past the horizon plays the change: the one from nowMs still starts inside it) */
+    await settleTo(db, M, nowMs + 30000);
+    await settleTo(db, M, nowMs + 60000);
+    const u2 = await unitNow();
+    if (!u2 || u2.stance !== 'offensive' || u2.dist !== 4) problems.push(`a mid-hunt change left the unit at ${JSON.stringify(u2 && { stance: u2.stance, dist: u2.dist })} past its horizon`);
     return problems;
   }),
   'TICK-0': async (db, M) => inTx(db, async () => {
@@ -4876,6 +4968,13 @@ const DB_ARMS = {
     await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
     const inner = makeExec(db); const seen = [];
     const exec = async (text, params) => { seen.push({ text: String(text), params: params || [] }); return inner(text, params); };
+    /* ONE READ A SETTLE (the 11-19 server audit row 10): the perks ride the read (HUNT_READ_SQL `perks`, by user:slot), so no statement
+       names the slot for them; the engine's member must carry slot 1's own stack, read before the settle moves the clock */
+    const want = await one(db, 'select public.hr_perks_of($1::uuid, 1)', [UID]);
+    const plan = await M.HS.readHuntSettle({ exec: inner, user: UID, slot: 1, grounds: groundsOf(M) }, 'tick');
+    const got = plan.members && plan.members[0] ? plan.members[0].perks : undefined;
+    if (!want || want.ok !== true) problems.push('CONTROL: hr_perks_of answered no stack for slot 1');
+    else if (JSON.stringify(got) !== JSON.stringify(want)) problems.push(`the slot-1 settle's engine input carries perks ${JSON.stringify(got === undefined ? 'none' : got).slice(0, 120)}, not slot 1's`);
     const r = await M.HS.settleHunt({ exec, user: UID, slot: 1, mode: 'tick', session: sid, grounds: groundsOf(M) });
     if (!r || r.outcome !== 'paid') problems.push(`CONTROL: the slot-1 settle did not pay (${r && r.outcome}/${r && r.reason})`);
     if (!seen.some((s) => /perks/i.test(s.text))) problems.push('CONTROL: the settle issued no perks read');
@@ -5217,12 +5316,12 @@ const MUTANTS = [
   { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrue-hunt.js'),
     from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });', to: '      analyzer: null });' },
   { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),
-    from: '  const perks = await readTickPerks(exec, m.user, m.slot);', to: '  const perks = await readTickPerks(exec, m.user, 0);' },
+    from: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, m.slot)));', to: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, 0)));' },
   { arm: 'TICK-0', name: 'the world tick drops its hunt cohort', file: join(FN, 'tick.js'),
     from: '  if (body.hunts.length) {', to: '  if (false) {' },
   { arm: 'BESTIARY', name: '[bestiary-parity] the settle reads hr_bestiary_of and a ladder prices the hunt again', file: join(FN, 'hunt-settle.js'),
-    from: '  const perks = await readTickPerks(exec, m.user, m.slot);',
-    to: "  const perks = await readTickPerks(exec, m.user, m.slot);\n  const [bk] = await exec(\"select coalesce(sum(value), 0)::bigint as n from public.player_progress where user_id = $1 and slot = $2 and kind = 'stat' and key like 'ev:kill_monster:%'\", [m.user, m.slot]);\n  if (Number(bk && bk.n) > 0) e.skills = { ...e.skills, melee: (Number(e.skills.melee) || 0) * 4 };" },
+    from: '  for (const m of r.members) members.push(memberInput(m, inst, perksOf(read.perks, m.user, m.slot)));',
+    to: "  for (const m of r.members) {\n    const mi = memberInput(m, inst, perksOf(read.perks, m.user, m.slot));\n    const [bk] = await exec(\"select coalesce(sum(value), 0)::bigint as n from public.player_progress where user_id = $1 and slot = $2 and kind = 'stat' and key like 'ev:kill_monster:%'\", [m.user, m.slot]);\n    if (Number(bk && bk.n) > 0) mi.skills = { ...mi.skills, melee: (Number(mi.skills.melee) || 0) * 4 };\n    members.push(mi);\n  }" },
   { arm: 'HOLD-SEAT', name: 'the settle drops the party hold seat (lane/b-tank-choice)', file: join(FN, 'hunt-settle.js'),
     from: '    _hold: Number.isInteger(inst.hold_seat) ? inst.hold_seat : null,\n', to: '    _hold: null,\n' },
   { arm: 'HOLD-SEAT', name: 'every hero carries the hold seat, not only the leader', file: 'src/core/hunt-spawn.js',
@@ -5233,8 +5332,8 @@ const MUTANTS = [
   { arm: 'TICK-ONE-READ', name: '[settle-cost] a slice the span cap cut short covers nobody (a lagging party takes a slice per member a body)', file: join(FN, 'hunt-settle.js'),
     from: '        covers: replayed ? null :', to: '        covers: (replayed || plan.toMs - plan.fromMs >= HUNT_SETTLE_SPAN_MS) ? null :' },
   { arm: 'TICK-ONE-READ', name: '[settle-cost] the read builds the caller\'s envelope again', file: join(FN, 'hunt-settle.js'),
-    from: "         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,\n",
-    to: "         case when g.allowed then public.hr_hunt_instance_read($1::uuid, $2::int) end as inst,\n         case when g.allowed then public.hr_state_of($1::uuid, $2::int) end as state,\n" },
+    from: "         r.inst                                                                     as inst,\n",
+    to: "         r.inst                                                                     as inst,\n         case when r.allowed then public.hr_state_of($1::uuid, $2::int) end as state,\n" },
   { arm: 'VIEWED-ENVELOPE', name: '[settle-cost] a viewed early answer carries no envelope', file: join(FN, 'hunt-settle.js'),
     from: '    if (o.project !== true) return null;\n    if (memo === undefined) {', to: '    return null;\n    if (memo === undefined) {' },
   { arm: 'VIEWED-ENVELOPE', name: '[settle-cost] the tick door reads an envelope for its early answer', file: join(FN, 'hunt-settle.js'),
@@ -5368,6 +5467,13 @@ const DB_MUTANTS = [
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
     find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },
+  /* 1005-lever-horizon.sql: each lever's deferral, planted away */
+  { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] a Blessing bought mid-hunt counts from now again', fn: 'public.hr_blessing_buy(integer,integer,bigint,uuid)',
+    find: 'values (v_uid, p_slot, p_tier, v_price, public.hr_hunt_lever_at(v_uid, p_slot));', replace: 'values (v_uid, p_slot, p_tier, v_price, now());' },
+  { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the settle never reads a hold (a bar, option or setup change plays at once)', fn: 'public.hr_hunt_setup_of(hunt_sessions)',
+    find: 'where h.session_id = p_s.id and h.until >= p_s.settled_to', replace: 'where false' },
+  { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the horizon is the settled point (no look-ahead held)', fn: 'public.hr_hunt_seed_horizon(uuid)',
+    find: ' + make_interval(secs => 32000 / 1000.0)', replace: '' },
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave_pending(uuid,integer)', /* gm-tools moved the pending leave into this helper */
     /* 2027-05-20-yard-stop.sql restated it: leave_at is hr_hunt_close_at (a hunt's horizon, a training session's press) */
     find: '    update public.hunt_sessions set leave_at = public.hr_hunt_close_at(v_s.id), version = version + 1 where id = v_s.id;',

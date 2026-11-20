@@ -633,7 +633,8 @@ async function main() {
     posture = await step('0 backups + prices (API)', () => backups(src));
     if (flag('backups')) { report(posture, null, [], [], null); process.exit(posture.healthy ? 0 : 1); }
     const m = new Date().getUTCMinutes();
-    if (m >= 5 && m < 10) { console.log('waiting out hr-ledger-prune (:07) so the ledger pages and the snapshot agree…'); await new Promise((r) => setTimeout(r, (10 - m) * 60e3)); }
+    /* hr-ledger-prune runs at :02, :07, ... :57 (1006-ledger-prune-uncap.sql; it was :07 hourly): start just after a run */
+    if (m % 5 === 1 || m % 5 === 2) { console.log('waiting out hr-ledger-prune (every 5 minutes from :02) so the ledger pages and the snapshot agree…'); await new Promise((r) => setTimeout(r, (3 - (m % 5)) * 60e3)); }
   }
   mkdirSync(dir, { recursive: true });
   if (!keep) TEMP_DIR = dir;

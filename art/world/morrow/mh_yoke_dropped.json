@@ -1,0 +1,71 @@
+{
+  "id": "mh_yoke_dropped",
+  "class": "decal",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_yoke_dropped.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "9b3c9053-c532-5b07-a813-7bcd98507e01",
+    "job": "28c5cd72",
+    "sketch": ".scratch/kit/ox-b6.mjs (sheet-yoke-lantern.png)"
+  },
+  "notes": "A yoke dropped at a bare tongue's tip, lying flat as it fell off the necks: its beam east-west, thick at the middle with an iron ring, two bent-wood U-bows out to the south. Round 3 after review b5 (C4 REDO: \"a seahorse or a post\"): modelled in the wagons' camera (.scratch/kit/ox-b6.mjs), polished palette-held by edit_image_pro_flash with the other piece of its sheet. A decal walked over. Pixels unscaled."
+}

@@ -548,7 +548,24 @@ export function parseTickBody(raw) {
      character in this request and hr_hunt_apply decides whether anything
      lands. */
   out.hunts = parseHunts(b.hunts);
+  /* WHICH HUNT BODY THIS IS (1004-tick-pack-heroes.sql): a SELECTOR like `shard`, naming the lease holder whose DEFERRED
+     selectors this invocation gives back (hr_hunt_lease_free derives the holder itself). Absent or malformed: none freed,
+     the leases end on their own, exactly as before the key was read. */
+  out.huntBody = Number.isInteger(b.hunt_body) && b.hunt_body >= 0 && b.hunt_body <= 63 ? b.hunt_body : null;
   return out;
+}
+
+/* THE DEFERRED LEASE GOES BACK (1004-tick-pack-heroes.sql). A selector this body DEFERRED (its time or engine budget was spent
+   before the settle started: nothing ran, nothing landed) gives its lease back, so the next fire offers it instead of waiting
+   out the lease. Ids are parseHunts' (UUID_RE, lowercase), joined into an array literal and bound as TEXT (market.js's rule).
+   Never fatal: a failure (42883 on a database before the file included) leaves the leases to end on their own. */
+const LEASE_FREE_SQL = 'select public.hr_hunt_lease_free($1::int, $2::text::uuid[]) as n';
+async function freeDeferredLeases(exec, huntBody, ids) {
+  if (huntBody === null || !ids.length) return 0;
+  try {
+    const [r] = await exec(LEASE_FREE_SQL, [huntBody, '{' + ids.join(',') + '}']);
+    return Number((r && r.n) || 0);
+  } catch (e) { return 0; }
 }
 
 /* TWO FIELDS PER ROW AND NOTHING ELSE. `state`, `version`, `seed`,
@@ -1344,8 +1361,9 @@ export async function runTick(opts) {
        next fire's slice, never a second slice in this body (its engine CPU is bounded by its instances, not their
        party sizes). A refused or replayed settle covers nobody: the next member's selector tries the instance again. */
     const covered = new Set();
+    const deferredIds = [];   // 1004-tick-pack-heroes.sql: their leases go back after the loop
     for (const sel of body.hunts) {
-      if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; continue; }
+      if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; deferredIds.push(sel.session); continue; }
       if (covered.has(sel.userId + ':' + sel.slot)) {
         hunts.nothing += 1;
         hunts.reasons.instance_settled = (hunts.reasons.instance_settled || 0) + 1;
@@ -1354,6 +1372,7 @@ export async function runTick(opts) {
       if (engine.spentMs >= engine.limitMs) {
         hunts.deferred = (hunts.deferred || 0) + 1;
         hunts.reasons.cpu_budget = (hunts.reasons.cpu_budget || 0) + 1;
+        deferredIds.push(sel.session);
         continue;
       }
       let v;
@@ -1373,6 +1392,8 @@ export async function runTick(opts) {
     }
     /* What the body's engine runs measured: the operator's read of how near a body runs to the edge's CPU limit. */
     if (engine.runs) { hunts.engine_ms = Math.round(engine.spentMs); hunts.engine_max_ms = Math.round(engine.maxRunMs); }
+    /* The deferred selectors' leases go back (reported only when there were some, so every other summary is as before). */
+    if (deferredIds.length) hunts.freed = await freeDeferredLeases(exec, body.huntBody, deferredIds);
   }
 
   /* `probes` is present only on a fire that met a probe boundary, so every

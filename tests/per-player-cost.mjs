@@ -10,7 +10,8 @@
 //   node tests/per-player-cost.mjs --selftest          the planted regressions each turn EVERY fixture red; the clean control passes
 //
 // mutant-anchors: none — --selftest plants a journal row a kill (a trigger on the tally and the bag), one more statement a settle
-//   (this file's own counting exec) and drifted budgets, all in memory or in the rolled-back replay; no tracked file is patched
+//   (this file's own counting exec), a settle four times slower (a burn inside the timed settle), an index.ts that lost its marker
+//   (an in-memory copy) and drifted budgets, all in memory or in the rolled-back replay; no tracked file is patched
 //
 // ── WHY ────────────────────────────────────────────────────────────────────
 // The 2026-11-19 server audit (tools/qa/audit-2026-11-19-server/findings.md) put the ceiling at about 110-130 accounts online and
@@ -32,23 +33,25 @@
 //                                  water runes; the played bars (tools/balance-sim/played.mjs). Its tab open, as 87% of the real hunt
 //                                  was: a landed settle every 16 s and 0.6 early asks a poll (the client's cadence, tools/beta-load.mjs C)
 //   krell4_L80_deadly_closed       the same four, browser closed (its away hours; with the watched row, the nightly's band, below)
-//   tower4_L80_climb               the same four climbing the Burning Tower from landing 70 (a party climbs as one instance), closed
+//   tower4_L80_climb               the same four climbing the Burning Tower from landing 30 (a party climbs as one instance), closed, to
+//                                  its first death or 12 windows (from landing 30, 50 or 70 this four dies 15-22 minutes in)
 //   supply4_L50_hasks_ford_deadly  THE SUPPLY-HEAVY FOUR, the Own four's shape (28's REAL 216-row mix): Level 50 on Hask's Ford,
 //                                  Deadly, tier-4 kit, every role on its played bar, a third of its supplies carried, closed
 //
 // ── THE NUMBERS (one row a fixture, in tests/per-player-cost.baseline.json) ─────────────────────────────────────────────
 //   statements_a_settle       payload statements the engine sends a settle (median): exact, 0%
-//   statements_a_hero_hour    payload statements a hero-hour at the door's cadence: 2% (a statement more a settle is +8% or more)
+//   statements_a_hero_hour    payload statements a hero-hour at the door's cadence: 2% (a statement more a settle is +7% or more)
 //   round_trips_a_hero_hour   network round trips a hero-hour, modelled from index.ts's transaction shapes (TRIPS, pinned below by
 //                             RT-PIN): a pooled transaction is BEGIN, SET LOCAL ROLE, [the self marker], its statements, COMMIT; the
 //                             hello's read is one transaction of six statements, five in savepoints. 2%
 //   ledger_rows_a_hero_hour   player_ledger rows a hero-hour (wall 4, the journal): 20%, sized from the audit's spread (43-49 over
-//                             36 windows); a row a kill is +300% or more on every hunting fixture
+//                             36 windows); a row a kill is +200% or more on every hunting fixture (MEASURED by --selftest)
 //   row_writes_a_settle       inserts + updates + deletes a settle (median; WAL, wall 1): 20%
-//   settle_ms_a_hero_hour     the settle's wall time a hero-hour (PGlite + the engine), in THIS run's calibration: the baseline holds
-//                             the writer's ms and its calibration_ms, and a run scales the cap by its own calibration (a fixed SQL +
-//                             JS workload timed here). A SMOKE ALARM, not a ratchet: +100% (a doubling: Krell is 1.9x the Thicket's
-//                             engine time, 28 §2). Counts are the ratchet; milliseconds only catch the gross step
+//   settle_cpu_ms_a_hero_hour the settle's time a hero-hour (PGlite and the engine, both in this process), as CPU time and not wall
+//                             time (cpuMs below: a loaded box doubles the wall), in THIS run's calibration: the baseline holds the
+//                             writer's ms and its calibration_ms, and a run scales the cap by its own (a fixed SQL + JS workload, the
+//                             fastest of seven). A SMOKE ALARM, not a ratchet: +100% (a doubling: Krell is 1.9x the Thicket's engine
+//                             time, 28 §2). Counts are the ratchet; milliseconds only catch the gross step
 //
 // THE NIGHTLY (call 28 step 10). tools/beta-load.mjs --shape=krell4 plays the heavy four at the beta's concurrency on a real
 // PostgreSQL 17 and judges its per-hero journal rows and statements against THIS baseline's two Krell rows, blended by its share of
@@ -59,7 +62,6 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { performance } from 'node:perf_hooks';
 import { SHIM_CRYPTO, SHIM_VAULT, SHIM_NET } from './world-tick-token-shims.mjs';
 import { HARNESS } from './hunt-sessions-settle.mjs';
 import { bootReplay } from './schema-replay.mjs';
@@ -75,13 +77,17 @@ const POLLS = 24;            // watched door: landed settles 16 s apart (6.4 min
 const POLL_MS = 16000;       // src/session/config.js's viewed-hunt poll (tools/beta-load.mjs C.huntPollMs)
 const EARLY = [3, 5];        // 0.6 early asks a poll (tools/beta-load.mjs C.earlyAsksPerPoll), spread evenly
 const TOL = Object.freeze({ statements_a_settle: 0, statements_a_hero_hour: 0.02, round_trips_a_hero_hour: 0.02,
-  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, settle_ms_a_hero_hour: 1.0 });
+  ledger_rows_a_hero_hour: 0.2, row_writes_a_settle: 0.2, settle_cpu_ms_a_hero_hour: 1.0 });
 const METRICS = Object.keys(TOL);
 const uidOf = (i) => '00000000-0000-4000-8000-0000003c' + String(i).padStart(4, '0');
 const idem = () => crypto.randomUUID();
 const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : null; };
 const r1 = (x) => Math.round(x * 10) / 10;
 const asUser = (db, uid) => db.query(`select set_config('request.jwt.claim.sub', $1, true)`, [uid]);
+/* THIS PROCESS'S CPU TIME, ms (PGlite runs in-process, so a settle's database work and its engine work are both here). Not wall time:
+   on a box running other lanes the same settles read 2x the wall time from one run to the next (MEASURED 2026-11-20, town 1,676 ->
+   3,889 ms a hero-hour), and CPU time does not wait in the scheduler's queue. */
+const cpuMs = () => { const u = process.cpuUsage(); return (u.user + u.system) / 1000; };
 
 /* ── THE ROUND-TRIP MODEL: index.ts's transaction shapes (RT-PIN holds it to the file) ───────────────────────────────── */
 export const TRIPS = Object.freeze({
@@ -131,6 +137,8 @@ function countedExec(db, mode, stat) {
 }
 /* THE PLANT `extra_statement`: one more round trip on the settle path, sent through the settle's own exec once it has landed. */
 const plantExtra = async (exec, plant) => { if (plant === 'extra_statement') await exec('select 1', []); };
+/* THE PLANT `slow_settle`: the settle's own time burnt three times more inside the timed region (an engine four times slower). */
+const plantSlow = (plant, since) => { if (plant !== 'slow_settle') return; const until = cpuMs() + 3 * (cpuMs() - since); while (cpuMs() < until) { /* burn */ } };
 
 /* ── THE HEAVY FOUR, AND THE OWN FOUR: one account, four heroes, one party (shared with tools/beta-load.mjs --shape=krell4) ── */
 const ARMOR = Object.freeze({
@@ -354,24 +362,25 @@ async function measure(db, M, fx, door, plant, minSettles = null) {
   const mine = (b) => (Array.isArray(b.hunts) && b.hunts.some((h) => fx.sids.includes(h.session_id)))
     || (Array.isArray(b.roster) && b.roster.some((r) => fx.heroes.some(([u, s]) => r.user_id === u && Number(r.slot) === s)));
   const led0 = await ledgerOf(db, fx); const paid0 = await paidMs(db, fx);
-  /* wall: every settle but the first (the engine's JIT and the plans' first touch), scaled back to the hours it covers */
-  const per = []; const rows = []; let wall = 0; let held = null;
+  /* cpu: every settle but the first (the engine's JIT and the plans' first touch), scaled back to the hours it covers */
+  const per = []; const rows = []; let cpu = 0; let held = null;
   for (let k = 1; k <= n; k++) {
     let s0 = stat.stmts; let t0 = await tuples(db);
     if (door === 'watched') {
       /* the live view's asks below the floor first (they answer the start point and settle nothing), then the landed poll */
       const early = Math.floor((k * EARLY[0]) / EARLY[1]) - Math.floor(((k - 1) * EARLY[0]) / EARLY[1]);
       const viewer = fx.heroes[0];
-      let a = performance.now();
+      let a = cpuMs();
       for (let i = 0; i < early; i++) {
         const e = await hello(db, M, stat, plant, viewer, { minWindowMs: 1e15, ...(held === null ? {} : { have: held }) });
         if (e.reason !== 'below_min_span') throw new Error(`poll ${k}: an early ask answered ${e.outcome}/${e.reason}`);
       }
-      if (k > 1) wall += performance.now() - a;
+      if (k > 1) cpu += cpuMs() - a;
       s0 = stat.stmts; t0 = await tuples(db);
-      a = performance.now();
+      a = cpuMs();
       const v = await hello(db, M, stat, plant, viewer, { atMs: start + k * step, ...(held === null ? {} : { have: held }) });
-      if (k > 1) wall += performance.now() - a;
+      plantSlow(plant, a);
+      if (k > 1) cpu += cpuMs() - a;
       if (v.outcome !== 'paid') throw new Error(`poll ${k} did not settle: ${v.outcome}/${v.reason}`);
       if (v.body && v.body.state && Number.isSafeInteger(v.body.version)) held = v.body.version;
       if (v.body && v.body.hunt_ended) break;
@@ -384,9 +393,10 @@ async function measure(db, M, fx, door, plant, minSettles = null) {
       if (!bodies.length) throw new Error(`no tick body served the fixture at window ${k}`);
       const exec = countedExec(db, 'tick', stat);
       let h = null;
-      const a = performance.now();
+      const a = cpuMs();
       for (const b of bodies) h = (await M.TK.runTick({ exec, atMs: start + k * step, body: b, grounds: groundsOf(M) })).body;
-      if (k > 1) wall += performance.now() - a;
+      plantSlow(plant, a);
+      if (k > 1) cpu += cpuMs() - a;
       if (door === 'closed' && !(h && h.hunts && h.hunts.settled)) throw new Error(`window ${k} did not settle: ${JSON.stringify(h && h.hunts)}`);
       if (door === 'roster' && !(h && h.processed > 0)) throw new Error(`window ${k}: the roster settled nothing: ${JSON.stringify(h).slice(0, 300)}`);
       await plantExtra(exec, plant);
@@ -404,7 +414,7 @@ async function measure(db, M, fx, door, plant, minSettles = null) {
   if (!(heroHours > 0)) throw new Error('the fixture paid no time');
   const led = await ledgerOf(db, fx) - led0;
   return { statements_a_settle: med(per), statements_a_hero_hour: r1(stat.stmts / heroHours), round_trips_a_hero_hour: r1(stat.trips / heroHours),
-    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), settle_ms_a_hero_hour: Math.round(wall / (heroHours * (per.length - 1) / per.length)) };
+    ledger_rows_a_hero_hour: r1(led / heroHours), row_writes_a_settle: med(rows), settle_cpu_ms_a_hero_hour: Math.round(cpu / (heroHours * (per.length - 1) / per.length)) };
 }
 
 /* ── THE PLANTS (--selftest): a journal row a unit of work, game_events' old shape: a kill (the hunt's tally), or a unit a town job
@@ -450,18 +460,20 @@ async function measureAll(db, M, { plant = null, only = null } = {}) {
   return out;
 }
 
-/* THE MACHINE'S SPEED: a fixed SQL + JS workload, one warm-up then the median of seven. settle_ms is judged in units of it. */
+/* THE MACHINE'S SPEED: a fixed SQL + JS workload of about 200 CPU ms (Windows counts CPU time in 15.6 ms ticks, so a short one reads
+   0, 15 or 31), one warm-up then the FASTEST of four (noise only ever adds time), taken after the fixtures have run (the engine and
+   PGlite warm, as the baseline's was). settle_cpu_ms is judged in units of it. */
 async function calibrate(db) {
   const t = []; let sink = 0;
-  for (let i = 0; i < 8; i++) {
-    const a = performance.now();
-    sink += Number(await one(db, 'select count(distinct md5(i::text)) from generate_series(1, 20000) i'));
-    let h = 0; for (let k = 0; k < 3e6; k++) h = (h * 31 + k) | 0;
+  for (let i = 0; i < 5; i++) {
+    const a = cpuMs();
+    sink += Number(await one(db, 'select count(distinct md5(i::text)) from generate_series(1, 75000) i'));
+    let h = 0; for (let k = 0; k < 2e7; k++) h = (h * 31 + k) | 0;
     sink += h & 1;
-    sink += JSON.parse(JSON.stringify(Array.from({ length: 20000 }, (_, k) => ({ k, s: 'x' + k })))).length;
-    if (i > 0) t.push(performance.now() - a);
+    sink += JSON.parse(JSON.stringify(Array.from({ length: 50000 }, (_, k) => ({ k, s: 'x' + k })))).length;
+    if (i > 0) t.push(cpuMs() - a);
   }
-  return sink > 0 ? Math.round(med(t) * 10) / 10 : NaN;
+  return sink > 0 ? Math.round(Math.min(...t) * 10) / 10 : NaN;
 }
 
 /* THE CAPACITY SAMPLER READS THE SAME BUDGET (supabase/migrations/1002-ops-capacity-sample.sql): its edge wall is a body's
@@ -473,7 +485,7 @@ async function budgetPin(db, M) {
   return sql === Number(M.HS.HUNT_ENGINE_BUDGET_MS) ? null : `hr_ops.capacity_config.edge_budget_ms ${sql} != hunt-settle.js HUNT_ENGINE_BUDGET_MS ${M.HS.HUNT_ENGINE_BUDGET_MS}`;
 }
 
-/** Red lines: a measured value above its baseline by more than its tolerance (settle_ms scaled by this run's calibration). */
+/** Red lines: a measured value above its baseline by more than its tolerance (settle_cpu_ms scaled by this run's calibration). */
 export function judge(measured, base, calibration = null) {
   const red = []; const tighter = [];
   const scale = Number.isFinite(calibration) && Number(base.calibration_ms) > 0 ? calibration / Number(base.calibration_ms) : 1;
@@ -482,9 +494,9 @@ export function judge(measured, base, calibration = null) {
     if (!b) { red.push(`${fx}: no baseline (run --write "<why>")`); continue; }
     for (const k of METRICS) {
       if (!Number.isFinite(b[k])) { red.push(`${fx} ${k}: no baseline (run --write "<why>")`); continue; }
-      const at = k === 'settle_ms_a_hero_hour' ? b[k] * scale : b[k];
+      const at = k === 'settle_cpu_ms_a_hero_hour' ? b[k] * scale : b[k];
       const cap = at * (1 + TOL[k]);
-      if (m[k] > cap) red.push(`${fx} ${k}: ${m[k]} > ${r1(at)}${TOL[k] ? ` (+${TOL[k] * 100}% = ${r1(cap)})` : ''}${k === 'settle_ms_a_hero_hour' ? ` (calibration x${scale.toFixed(2)})` : ''}`);
+      if (m[k] > cap) red.push(`${fx} ${k}: ${m[k]} > ${r1(at)}${TOL[k] ? ` (+${TOL[k] * 100}% = ${r1(cap)})` : ''}${k === 'settle_cpu_ms_a_hero_hour' ? ` (calibration x${scale.toFixed(2)})` : ''}`);
       else if (m[k] < at * (1 - TOL[k]) || (TOL[k] === 0 && m[k] < at)) tighter.push(`${fx} ${k}: ${m[k]} < ${r1(at)}`);
     }
   }
@@ -538,18 +550,31 @@ async function main() {
     if (!base) { console.error('per-player-cost: no baseline; run --write "<why>" first'); return 2; }
     const fails = [];
     const arm = (label, cond, detail) => { console.log(`  ${cond ? 'ok    ' : 'FAILED'}  ${label}  ${detail}`); if (!cond) fails.push(label); };
+    const cleanM = await measureAll(db, M, { only });
     const calibration = await calibrate(db);
-    const clean = judge(await measureAll(db, M, { only }), base, calibration);
+    const clean = judge(cleanM, base, calibration);
     arm('CONTROL: the tree as it is measures inside its baseline', clean.red.length === 0, clean.red.join('; ') || 'green');
-    /* each plant must turn EVERY fixture red on its own metric */
-    for (const [plant, metric, what] of [['unit_row', 'ledger_rows_a_hero_hour', 'a journal row a kill, or a unit a town job moves'],
-      ['extra_statement', 'statements_a_settle', 'one more statement a settle']]) {
+    /* each plant must turn EVERY fixture red on each metric it moves */
+    for (const [plant, metrics, what] of [['unit_row', ['ledger_rows_a_hero_hour', 'row_writes_a_settle'], 'a journal row a kill, or a unit a town job moves'],
+      ['extra_statement', ['statements_a_settle', 'statements_a_hero_hour', 'round_trips_a_hero_hour'], 'one more statement a settle']]) {
       const r = judge(await measureAll(db, M, { plant, only }), base, calibration);
       for (const fx of Object.keys(FIXTURES).filter((x) => !only || x.includes(only))) {
-        const hit = r.red.filter((x) => x.startsWith(fx + ' ') && x.includes(metric));
-        arm(`MUTANT ${plant} (${what}): ${fx} is red`, hit.length > 0, hit.join('; ') || 'NOT red');
+        const missed = metrics.filter((k) => !r.red.some((x) => x.startsWith(`${fx} ${k}:`)));
+        arm(`MUTANT ${plant} (${what}): ${fx} is red`, missed.length === 0,
+          missed.length ? `NOT red on ${missed.join(', ')}` : r.red.filter((x) => x.startsWith(fx + ' ')).map((x) => x.slice(fx.length + 1)).join('; '));
       }
     }
+    /* THE SMOKE ALARM: a settle four times slower (the engine's time burnt three times over, inside the timed settle) is red on one fixture;
+       and the cap follows the machine: a settle 2.5x the baseline's is green on a machine whose calibration reads 2x, red on the same one */
+    const slowAt = 'krell4_L80_deadly_closed';
+    const slowM = await measureAll(db, M, { plant: 'slow_settle', only: slowAt });
+    const slow = judge(slowM, base, calibration);
+    arm(`MUTANT slow_settle (a settle four times slower): ${slowAt} is red`, slow.red.some((x) => x.startsWith(`${slowAt} settle_cpu_ms`)),
+      slow.red.join('; ') || `NOT red (${JSON.stringify(slowM[slowAt])}, calibration ${calibration})`);
+    const b = base.fixtures[slowAt]; const at = { [slowAt]: { ...b, settle_cpu_ms_a_hero_hour: b.settle_cpu_ms_a_hero_hour * 2.5 } };
+    const slower = judge(at, base, base.calibration_ms * 2); const same = judge(at, base, base.calibration_ms);
+    arm('CONTROL: a slower machine\'s calibration widens the cap (2.5x on a 2x machine is green, on the same machine red)',
+      slower.red.length === 0 && same.red.some((x) => x.includes('settle_cpu_ms')), `${slower.red.join('; ') || 'green'} | ${same.red.join('; ') || 'NOT red'}`);
     arm('CONTROL: the round-trip model is index.ts\'s (RT-PIN)', pinned === null, pinned || 'pinned');
     const drift = tripsPin(readFileSync(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'index.ts'), 'utf8').replace('await markSelf(tx);\n        return await tx.unsafe', 'return await tx.unsafe'));
     arm('MUTANT trips_drift: a player exec that lost its marker is red', drift !== null, drift || 'NOT red');
@@ -572,8 +597,8 @@ async function main() {
     return fails.length ? 1 : 0;
   }
 
-  const calibration = await calibrate(db);
   const measured = await measureAll(db, M, { only });
+  const calibration = await calibrate(db);
   console.log(`  calibration ${calibration} ms${base && base.calibration_ms ? ` (the baseline's ${base.calibration_ms} ms)` : ''}`);
   for (const [fx, m] of Object.entries(measured)) console.log(`  ${fx.padEnd(30)} ${METRICS.map((k) => `${k.replace(/_a_/g, '/').replace(/_/g, ' ')} ${m[k]}`).join(', ')}`);
 
@@ -589,7 +614,7 @@ async function main() {
     writeFileSync(BASELINE, JSON.stringify({ _readme: [
       'Per-hero server cost, measured by tests/per-player-cost.mjs (CLAUDE.md §6 rule 10; balance program L11). It moves only with a',
       'stated reason: node tests/per-player-cost.mjs --write "<why>", recorded in history with every number that rose.',
-      'settle_ms_a_hero_hour is in this file\'s calibration_ms; a run scales it by its own (a smoke alarm, +100%).',
+      'settle_cpu_ms_a_hero_hour is in this file\'s calibration_ms; a run scales it by its own (a smoke alarm, +100%).',
     ], windows: WINDOWS, polls: POLLS, tolerance: TOL, calibration_ms: calibration, fixtures: measured, history }, null, 1) + '\n');
     console.log(`per-player-cost: baseline written (${up.length ? up.length + ' number(s) rose' : 'nothing rose'})`);
     return 0;

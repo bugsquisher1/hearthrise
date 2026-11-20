@@ -2,7 +2,7 @@
  "_readme": [
   "Per-hero server cost, measured by tests/per-player-cost.mjs (CLAUDE.md §6 rule 10; balance program L11). It moves only with a",
   "stated reason: node tests/per-player-cost.mjs --write \"<why>\", recorded in history with every number that rose.",
-  "settle_ms_a_hero_hour is in this file's calibration_ms; a run scales it by its own (a smoke alarm, +100%)."
+  "settle_cpu_ms_a_hero_hour is in this file's calibration_ms; a run scales it by its own (a smoke alarm, +100%)."
  ],
  "windows": 12,
  "polls": 24,
@@ -12,9 +12,9 @@
   "round_trips_a_hero_hour": 0.02,
   "ledger_rows_a_hero_hour": 0.2,
   "row_writes_a_settle": 0.2,
-  "settle_ms_a_hero_hour": 1
+  "settle_cpu_ms_a_hero_hour": 1
  },
- "calibration_ms": 35.3,
+ "calibration_ms": 187,
  "fixtures": {
   "lone_L10_meadowbrook_thicket": {
    "statements_a_settle": 4,
@@ -22,7 +22,7 @@
    "round_trips_a_hero_hour": 576,
    "ledger_rows_a_hero_hour": 48,
    "row_writes_a_settle": 28,
-   "settle_ms_a_hero_hour": 3131
+   "settle_cpu_ms_a_hero_hour": 4300
   },
   "party4_L20_millrace_sewer": {
    "statements_a_settle": 4,
@@ -30,7 +30,7 @@
    "round_trips_a_hero_hour": 144,
    "ledger_rows_a_hero_hour": 44.3,
    "row_writes_a_settle": 103,
-   "settle_ms_a_hero_hour": 1567
+   "settle_cpu_ms_a_hero_hour": 2417
   },
   "town_hour_bench": {
    "statements_a_settle": 8,
@@ -38,7 +38,7 @@
    "round_trips_a_hero_hour": 1285.7,
    "ledger_rows_a_hero_hour": 40.2,
    "row_writes_a_settle": 12,
-   "settle_ms_a_hero_hour": 1676
+   "settle_cpu_ms_a_hero_hour": 2517
   },
   "krell4_L80_deadly_watched": {
    "statements_a_settle": 9,
@@ -46,7 +46,7 @@
    "round_trips_a_hero_hour": 2953.1,
    "ledger_rows_a_hero_hour": 532,
    "row_writes_a_settle": 89,
-   "settle_ms_a_hero_hour": 16382
+   "settle_cpu_ms_a_hero_hour": 16427
   },
   "krell4_L80_deadly_closed": {
    "statements_a_settle": 4,
@@ -54,7 +54,7 @@
    "round_trips_a_hero_hour": 144,
    "ledger_rows_a_hero_hour": 89.3,
    "row_writes_a_settle": 127,
-   "settle_ms_a_hero_hour": 2109
+   "settle_cpu_ms_a_hero_hour": 1932
   },
   "tower4_L80_climb": {
    "statements_a_settle": 4,
@@ -62,7 +62,7 @@
    "round_trips_a_hero_hour": 153.8,
    "ledger_rows_a_hero_hour": 133.7,
    "row_writes_a_settle": 101,
-   "settle_ms_a_hero_hour": 1842
+   "settle_cpu_ms_a_hero_hour": 2534
   },
   "supply4_L50_hasks_ford_deadly": {
    "statements_a_settle": 4,
@@ -70,7 +70,7 @@
    "round_trips_a_hero_hour": 144,
    "ledger_rows_a_hero_hour": 84.8,
    "row_writes_a_settle": 119,
-   "settle_ms_a_hero_hour": 1823
+   "settle_cpu_ms_a_hero_hour": 1739
   }
  },
  "history": [
@@ -177,6 +177,78 @@
      "ledger_rows_a_hero_hour": 84.8,
      "row_writes_a_settle": 119,
      "settle_ms_a_hero_hour": 1823
+    }
+   }
+  },
+  {
+   "at": "2026-11-20",
+   "why": "the timing row is CPU time, not wall time (a loaded box doubled the wall between runs), calibrated on a ~200 ms SQL + JS workload after the fixtures run",
+   "added": [
+    "lone_L10_meadowbrook_thicket settle_cpu_ms_a_hero_hour",
+    "party4_L20_millrace_sewer settle_cpu_ms_a_hero_hour",
+    "town_hour_bench settle_cpu_ms_a_hero_hour",
+    "krell4_L80_deadly_watched settle_cpu_ms_a_hero_hour",
+    "krell4_L80_deadly_closed settle_cpu_ms_a_hero_hour",
+    "tower4_L80_climb settle_cpu_ms_a_hero_hour",
+    "supply4_L50_hasks_ford_deadly settle_cpu_ms_a_hero_hour"
+   ],
+   "calibration_ms": 187,
+   "fixtures": {
+    "lone_L10_meadowbrook_thicket": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 144,
+     "round_trips_a_hero_hour": 576,
+     "ledger_rows_a_hero_hour": 48,
+     "row_writes_a_settle": 28,
+     "settle_cpu_ms_a_hero_hour": 4300
+    },
+    "party4_L20_millrace_sewer": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 44.3,
+     "row_writes_a_settle": 103,
+     "settle_cpu_ms_a_hero_hour": 2417
+    },
+    "town_hour_bench": {
+     "statements_a_settle": 8,
+     "statements_a_hero_hour": 321.4,
+     "round_trips_a_hero_hour": 1285.7,
+     "ledger_rows_a_hero_hour": 40.2,
+     "row_writes_a_settle": 12,
+     "settle_cpu_ms_a_hero_hour": 2517
+    },
+    "krell4_L80_deadly_watched": {
+     "statements_a_settle": 9,
+     "statements_a_hero_hour": 768.8,
+     "round_trips_a_hero_hour": 2953.1,
+     "ledger_rows_a_hero_hour": 532,
+     "row_writes_a_settle": 89,
+     "settle_cpu_ms_a_hero_hour": 16427
+    },
+    "krell4_L80_deadly_closed": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 89.3,
+     "row_writes_a_settle": 127,
+     "settle_cpu_ms_a_hero_hour": 1932
+    },
+    "tower4_L80_climb": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 38.5,
+     "round_trips_a_hero_hour": 153.8,
+     "ledger_rows_a_hero_hour": 133.7,
+     "row_writes_a_settle": 101,
+     "settle_cpu_ms_a_hero_hour": 2534
+    },
+    "supply4_L50_hasks_ford_deadly": {
+     "statements_a_settle": 4,
+     "statements_a_hero_hour": 36,
+     "round_trips_a_hero_hour": 144,
+     "ledger_rows_a_hero_hour": 84.8,
+     "row_writes_a_settle": 119,
+     "settle_cpu_ms_a_hero_hour": 1739
     }
    }
   }

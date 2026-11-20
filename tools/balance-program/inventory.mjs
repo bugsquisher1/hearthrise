@@ -9,9 +9,12 @@
 // them; an anchor nobody claims is an ORPHAN.
 //
 //   node tools/balance-program/inventory.mjs             the count by kind, the orphans, the registry's own faults
-//   node tools/balance-program/inventory.mjs --check     the same, exit 1 on any orphan or fault
+//   node tools/balance-program/inventory.mjs --check     the same, exit 1 on any orphan or fault. A LOCAL run, on the PC that
+//                                                        holds Tyler's memory folder and the lane refs: never a CI step
 //   node tools/balance-program/inventory.mjs --write     also write docs/design/balance-program/00-inventory.md
-//   node tools/balance-program/inventory.mjs --selftest  seven planted cases: an unclaimed table and an unclaimed
+//   node tools/balance-program/inventory.mjs --selftest  HERMETIC (runs in CI): it never reads ~/.claude or origin/lane/*. It plants
+//                                                        its own memory folder (a temp dir) and lane list, built from
+//                                                        EXTRA_CLAIMS so the clean control is clean anywhere, then nine cases: an unclaimed table and an unclaimed
 //                                                        ruling must go red, a planted system must claim its anchor and
 //                                                        appear in the written table, a bad domain, a twin id, a stale
 //                                                        exact claim and a removed exact claim must each go red
@@ -22,16 +25,21 @@
 //                LANE_SWEEP_FLOOR is counted apart (old work, merged or dead) and never an orphan
 //   other docs   a row's `docs` pattern on the anchor's id and text, or an EXTRA_CLAIMS row its text contains
 // A fault is: a system with no domain or status of the lists, a twin id, an EXTRA_CLAIMS row that matches nothing or
-// names no owner, a code anchor only an OUT_OF_SCOPE docs pattern would hold, a system id missing from 03-domains.md.
+// names no owner (a lane row may match nothing: lanes merge and go), a code anchor only an OUT_OF_SCOPE docs pattern would hold, a system id missing from 03-domains.md.
 //
 // Reads only (the replayed chain, the tree, git refs, Tyler's memory when it is on this machine). Deterministic for one
-// tree, one set of refs and one memory: anchors and rows are sorted, nothing is dated. Not a CI guard (CI has no memory).
+// tree, one set of refs and one memory: anchors and rows are sorted, nothing is dated.
 // Exit 0 clean, 1 red, 2 bad argument.
+//
+// mutant-anchors: none — --selftest plants its cases in memory and in a temp folder; no tracked file is patched
+// ci-step: db-replay | The balance program's inventory still catches an unclaimed system
+// ci-run: node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest
 // ════════════════════════════════════════════════════════════════════════
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { collectAll, CODE_KINDS, WORK_KINDS, DOOR_KINDS } from './collect.mjs';
+import { collectAll, CODE_KINDS, WORK_KINDS, DOOR_KINDS, MEMORY_LINE_FILES } from './collect.mjs';
 import { SYSTEMS, DOMAINS, STATUSES, OUT_OF_SCOPE, EXTRA_CLAIMS, LANE_SWEEP_FLOOR } from './systems.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
@@ -81,7 +89,7 @@ export function judge({ anchors, systems = SYSTEMS, out = OUT_OF_SCOPE, extras =
     owners.set(a, mine);
     if (!mine.length) orphans.push(a);
   }
-  extras.forEach(([kind, needle], i) => { if (!extraHits[i]) faults.push(`EXTRA_CLAIMS row ${i} (${kind} "${needle}") matches no anchor: a stale claim`); });
+  extras.forEach(([kind, needle], i) => { if (!extraHits[i] && kind !== 'lane') faults.push(`EXTRA_CLAIMS row ${i} (${kind} "${needle}") matches no anchor: a stale claim`); });
   return { owners, orphans, faults, oldLanes };
 }
 
@@ -155,8 +163,22 @@ function report(anchors, verdict) {
   console.log(`${verdict.orphans.length || verdict.faults.length ? 'RED' : 'PASS'} inventory: ${verdict.orphans.length} orphan(s), ${verdict.faults.length} fault(s)`);
 }
 
+/** A memory folder and a lane list that hold exactly what EXTRA_CLAIMS names, plus one ruling a system claims and one old lane. */
+function plantWorld() {
+  const dir = mkdtempSync(join(tmpdir(), 'hr-inventory-selftest-'));
+  const of = (kind) => EXTRA_CLAIMS.filter(([k]) => k === kind).map(([, needle]) => needle);
+  const page = (head, body) => ['---', head, '---', '', ...body, ''].join('\n');
+  writeFileSync(join(dir, 'rulings-of-record.md'), page('name: rulings-of-record', ['- HUNTS KEEP RUNNING on the server after the browser closes (planted).']));
+  writeFileSync(join(dir, MEMORY_LINE_FILES[0]), page('name: planted', of('memory').map((n) => (n.startsWith('|') ? n : '- ' + n))));
+  for (const name of of('memfile')) writeFileSync(join(dir, name), page('description: planted', []));
+  const lanes = [...of('lane').map((name) => ({ name, date: '2026-11-10' })), { name: 'lane/zz-older-than-the-floor', date: '2026-01-01' }, { name: 'lane/d-burning-tower', date: '2026-11-14' }];
+  return { dir, lanes };
+}
+
 async function selftest() {
-  const { anchors } = await collectAll({ root: ROOT });
+  const world = plantWorld();
+  let anchors;
+  try { ({ anchors } = await collectAll({ root: ROOT, memory: world.dir, lanes: world.lanes })); } finally { rmSync(world.dir, { recursive: true, force: true }); }
   const domainsDoc = existsSync(DOMAINS_DOC) ? readFileSync(DOMAINS_DOC, 'utf8') : null;
   const S = (id, domain = 'social', status = 'idea') => ({ id, name: 'A planted guild bank', domain, status, code: /^table:zz_selftest_guild_bank$/, docs: /zz selftest moonwell/, uses: 'gold', gives: 'nothing', note: '' });
   const table = { kind: 'table', id: 'zz_selftest_guild_bank', text: '' };
@@ -164,7 +186,17 @@ async function selftest() {
   const cases = [];
   const say = (name, ok, detail) => { cases.push(ok); console.log(`  ${ok ? 'ok ' : 'BAD'} ${name}: ${detail}`); };
   const clean = judge({ anchors, domainsDoc });
-  say('control', !clean.orphans.length && !clean.faults.length, `${clean.orphans.length} orphans, ${clean.faults.length} faults on the real tree`);
+  /* THE CONTROL IS THE PLANTED WORLD'S, never the tree's. A lane that adds a table nobody has claimed yet must not turn CI
+     red here (claiming it is `--check`'s job, run locally with the memory folder): so the control holds the registry's own
+     faults and every planted anchor, and only REPORTS the tree's orphans and the exact claims on code the tree has dropped. */
+  const isPlant = (a) => ['lane', 'ruling', 'memory', 'memfile'].includes(a.kind);
+  const badPlants = clean.orphans.filter(isPlant), treeOrphans = clean.orphans.filter((a) => !isPlant(a));
+  const treeStale = (x) => /^EXTRA_CLAIMS row \d+ \((section|board|plan|map) /.test(x);
+  const faults = clean.faults.filter((x) => !treeStale(x));
+  for (const a of badPlants) console.log(`    planted and unclaimed: ${a.kind} ${a.id} :: ${a.text.slice(0, 90)}`);
+  for (const x of faults) console.log(`    fault ${x}`);
+  if (treeOrphans.length || clean.faults.length > faults.length) console.log(`    note: the tree has ${treeOrphans.length} unclaimed anchor(s) and ${clean.faults.length - faults.length} dropped exact claim(s); run --check locally`);
+  say('control', !badPlants.length && !faults.length && clean.oldLanes === 1, `${badPlants.length} planted anchors unclaimed, ${faults.length} faults, ${clean.oldLanes} old lane counted apart`);
   let v = judge({ anchors: [...anchors, table] });
   say('an unclaimed table', v.orphans.length === clean.orphans.length + 1 && v.orphans.includes(table), 'is an orphan');
   v = judge({ anchors: [...anchors, ruling] });

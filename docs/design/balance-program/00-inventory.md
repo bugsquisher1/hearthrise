@@ -2,13 +2,13 @@
 
 Every system in Hearthrise, read from the game itself and not from memory: the source tree, the replayed database chain, the edge function, staged migrations, unmerged lanes, the board, the itemization plans and Tyler's rulings. Written by `node tools/balance-program/inventory.mjs --write`; do not edit by hand. The registry is `tools/balance-program/systems.mjs`.
 
-**115 systems, 3890 anchors, 0 orphans.**
+**115 systems, 3891 anchors, 0 orphans.**
 
 | Anchors read | activity | board | core | cron | data | dungeon | edge | event | flag | fn | ground | lane | map | memfile | memory | mode | plan | recipe | rpc | ruling | section | session | sink | skill | social | staged | switch | table | unlock | verb | window |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| count | 3 | 124 | 65 | 27 | 210 | 6 | 44 | 2 | 5 | 788 | 25 | 816 | 15 | 139 | 296 | 3 | 68 | 19 | 147 | 424 | 51 | 74 | 6 | 13 | 9 | 45 | 9 | 291 | 68 | 18 | 80 |
+| count | 3 | 124 | 65 | 27 | 210 | 6 | 44 | 2 | 5 | 788 | 25 | 817 | 15 | 139 | 296 | 3 | 68 | 19 | 147 | 424 | 51 | 74 | 6 | 13 | 9 | 45 | 9 | 291 | 68 | 18 | 80 |
 
-Not game systems, counted and never hidden: Team process (releases, lanes, CI, reporting, tools, the Coordinator's notes) 153; Art, screen and text craft (pixel art, UI look, sound, voice, phone layout) 55; Tyler's other work (Huntera notes, the day job, the stream, family) 5; lanes older than 2026-11-04 741.
+Not game systems, counted and never hidden: Team process (releases, lanes, CI, reporting, tools, the Coordinator's notes) 154; Art, screen and text craft (pixel art, UI look, sound, voice, phone layout) 55; Tyler's other work (Huntera notes, the day job, the stream, family) 5; lanes older than 2026-11-04 741.
 
 | Domain | Systems | live | dark | staged | designed | ruled | idea |
 |---|---|---|---|---|---|---|---|

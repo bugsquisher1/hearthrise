@@ -567,4 +567,15 @@ export const EXTRA_CLAIMS = Object.freeze([
   ['lane', 'lane/b-ship-build', 'x-process'],
   ['lane', 'lane/c-physical-to-steady', 'uniques'],
   ['lane', 'lane/d-ux-flow-audit', 'x-craft'],
+  // the balance program's own lanes (a lane row that matches nothing is not a fault: lanes merge and go)
+  ['lane', 'lane/d-balance-combat', 'x-process'],
+  ['lane', 'lane/d-balance-endgame', 'x-process'],
+  ['lane', 'lane/d-balance-items', 'x-process'],
+  ['lane', 'lane/d-balance-economy', 'x-process'],
+  ['lane', 'lane/d-balance-social', 'x-process'],
+  ['lane', 'lane/d-balance-home', 'x-process'],
+  ['lane', 'lane/d-balance-retention', 'x-process'],
+  ['lane', 'lane/d-balance-platform', 'x-process'],
+  ['lane', 'lane/d-balance-inventory', 'x-process'],
+  ['lane', 'lane/d-balance-real-players', 'x-process'],
 ]);

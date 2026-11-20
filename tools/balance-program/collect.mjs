@@ -130,9 +130,10 @@ export async function collectDb(root) {
 
 // ── work: lanes and staged migrations ───────────────────────────────────────
 const git = (root, args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-export function collectLanes(root) {
+export function collectLanes(root, planted = null) {
   let raw = '';
-  try { raw = git(root, ['for-each-ref', '--no-merged', 'HEAD', '--format=%(committerdate:short) %(refname:short)', 'refs/remotes/origin/lane/*']); }
+  if (planted) raw = planted.map((l) => `${l.date} origin/${l.name}`).join('\n');
+  else try { raw = git(root, ['for-each-ref', '--no-merged', 'HEAD', '--format=%(committerdate:short) %(refname:short)', 'refs/remotes/origin/lane/*']); }
   catch { return []; }
   return raw.split('\n').filter(Boolean).map((l) => {
     const [date, ref] = l.split(' ');
@@ -214,18 +215,19 @@ export function collectMemory(dir = DEFAULT_MEMORY) {
 }
 
 /**
- * Every anchor. `db: false` skips the replay (the selftest's planted tree has no chain); `extra` is appended
+ * Every anchor. `lanes` [{ name: 'lane/x', date: 'YYYY-MM-DD' }] replaces the git refs and `memory` names another folder
+ * (inventory.mjs --selftest plants both, so it reads the same anchors on any machine). `db: false` skips the replay (the selftest's planted tree has no chain); `extra` is appended
  * (the selftest's planted database rows).
  * @returns {Promise<{anchors: {kind:string,id:string,text:string}[], memoryRead: boolean}>}
  */
-export async function collectAll({ root, memory = DEFAULT_MEMORY, db = true, extra = [] } = {}) {
+export async function collectAll({ root, memory = DEFAULT_MEMORY, db = true, lanes = null, extra = [] } = {}) {
   const mem = collectMemory(memory);
   const anchors = [
     ...collectSrc(root),
     ...await collectRecipes(root),
     ...await collectEdge(root),
     ...(db ? await collectDb(root) : []),
-    ...collectLanes(root),
+    ...collectLanes(root, lanes),
     ...await collectStaged(root),
     ...collectDocs(root),
     ...mem.anchors,

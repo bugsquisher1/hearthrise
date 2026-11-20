@@ -505,6 +505,7 @@
     "node tests/schema-drift.mjs": "db-replay",
     "node tools/mutant-gate.mjs node tests/schema-drift.mjs --mutate": "db-replay",
     "node tests/schema-drift.mjs --live-selftest": "db-replay",
+    "node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest": "db-replay",
     "node tests/observability.mjs": "in-page-21",
     "node tools/mutant-gate.mjs node tests/observability.mjs --mutate": "in-page-21",
     "node tests/report-problem.mjs": "in-page-21",

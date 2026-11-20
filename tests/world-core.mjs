@@ -600,6 +600,28 @@ async function check(M) {
       ok('W4', JSON.stringify(kept) === JSON.stringify(M.compose.groundTiles(m, book, tables, T)), id + ': the ground made in slices differs from the ground made in one go');
       if (m.h > 40) ok('W4', slices >= m.h / 20, id + ': its ' + m.h + '-row ground was made in ' + slices + ' slice(s): a scene being prepared holds the page for the whole ground');
     }
+    /* ...and EVERY whole-map pass in it is cut by row, never one step (nightly 44730692384: the town's rough edges, two passes a
+       pair, were one 70 ms step of its sliced ground on CI, the town made after a death). A PLANTED HEAVY rule, the town's own
+       pairs four times over: each pair must add at least a step per row; one step per slice (a 1-tick budget, one tick per look). */
+    {
+      const town = compiled('town_common');
+      const steps = (rough) => {
+        const m = Object.assign({}, town, { blend: Object.assign({}, town.blend, { rough }) });
+        const q = [];
+        let clock = 0, n = 1;
+        M.compose.groundOfSliced(m, book, tables, T, { later: (fn) => q.push(fn), now: () => clock++, budgetMs: 1 });
+        while (q.length) { n++; q.shift()(); }
+        return n;
+      };
+      const own = town.blend && town.blend.rough;
+      ok('W4', !!(own && own.pairs && own.pairs.length), 'the town has no rough rule to plant four times over: plant one here');
+      if (own && own.pairs) {
+        const heavy = Object.assign({}, own, { pairs: [...own.pairs, ...own.pairs, ...own.pairs, ...own.pairs] });
+        const added = steps(heavy) - steps(null);
+        ok('W4', added >= heavy.pairs.length * town.h, 'a rough rule of ' + heavy.pairs.length + ' pairs added ' + added + ' step(s) to the town\'s '
+          + town.h + '-row sliced ground (at least ' + heavy.pairs.length * town.h + '): its whole-map passes run inside one step, one long task');
+      }
+    }
   });
 
   /* W5 (perf lane 10-28, Havora on v0.2.59: the scene's sheets and bins were single 12-28 ms tasks and the first
@@ -1064,7 +1086,9 @@ async function check(M) {
     const code = { '.': 0, '=': 1, '~': 2 };
     const mat = Int16Array.from(rowsP.join('').split('').map((c) => code[c]));
     const rule = { seed: 23, pairs: [['grass', 'earth']], spill: 0.5, bite: 0.5, scale: 2.6, deep: 4 };
-    const out = M.rough.roughEdges(mat, Wp, Hp, idOf, rule);
+    /* the rule run to its end (it is made in steps: W4) */
+    const roughEdges = (...a) => { const it = M.rough.roughEdgeSteps(...a); let r = it.next(); while (!r.done) r = it.next(); return r.value; };
+    const out = roughEdges(mat, Wp, Hp, idOf, rule);
     const at = (a, x, y) => (x < 0 || y < 0 || x >= Wp || y >= Hp ? -1 : a[y * Wp + x]);
     const n4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     let changed = 0, offEdge = 0, narrowed = 0, nearThird = 0, pinholes = 0;
@@ -1082,8 +1106,8 @@ async function check(M) {
     ok('E2', narrowed === 0, 'the rough rule narrowed a two-wide road (' + narrowed + ' of its cells drawn as grass)');
     ok('E3', nearThird === 0, 'the rough rule redrew a cell beside a third material (the pond): ' + nearThird);
     ok('E4', pinholes === 0, 'the rough rule left ' + pinholes + ' pinhole cells (a lone square in the other material)');
-    const again = M.rough.roughEdges(mat, Wp, Hp, idOf, rule);
-    ok('E5', again.every((v, i) => v === out[i]) && M.rough.roughEdges(mat, Wp, Hp, idOf, null).every((v, i) => v === mat[i]), 'the rough rule is not the same on every call, or draws without a rule');
+    const again = roughEdges(mat, Wp, Hp, idOf, rule);
+    ok('E5', again.every((v, i) => v === out[i]) && roughEdges(mat, Wp, Hp, idOf, null).every((v, i) => v === mat[i]), 'the rough rule is not the same on every call, or draws without a rule');
     const town = compiled('town_common');
     ok('E6', !!(town.blend && town.blend.rough), 'the town\'s blend lost its rough rule (its edges are ruled straight again)');
   });
@@ -1158,7 +1182,8 @@ const MUTANTS = [
   ['W2', 'the blend drawn on the cell grid, not the dual grid', 'src/world/core/compose.js', [['x: x * T + H, y: y * T + H', 'x: x * T, y: y * T']]],
   ['W2', 'the blend laid over the patches', 'src/world/core/compose.js', [['    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);\n    tiles.push(...laid);', '    tiles.push(...laid);\n    if (map.blend) yield* blendSteps(map, book, T, (x, y) => !!patchAt(x, y), tiles);']]],
   ['W4', 'a scene\'s ground made in one task again (no slice budget)', 'src/world/core/compose.js', [['    if (now() - t0 >= budgetMs) return undefined;\n', '']]],
-  ['W4', 'a slice that skips the rest of the ground', 'src/world/core/compose.js', [['        if (r) done(finish(r.value)); else o.later(slice);', '        if (r) done(finish(r.value)); else done(finish({ tiles: [], voids: [], tones: [] }));']]],
+  ['W4', 'the rough edges made in one step of a sliced ground again (nightly 44730692384)', 'src/world/core/compose.js', [['yield* roughEdgeSteps(authored, W, Hm, idOf, map.blend.rough)', 'drain(roughEdgeSteps(authored, W, Hm, idOf, map.blend.rough))']]],
+  ['W4', 'a slice that skips the rest of the ground','src/world/core/compose.js', [['        if (r) done(finish(r.value)); else o.later(slice);', '        if (r) done(finish(r.value)); else done(finish({ tiles: [], voids: [], tones: [] }));']]],
   ['W5', 'a scene\'s sheets made in one task again', 'src/world/scene-sets.js', [['export function sceneSetsSliced(map, row, book, tables, o) {\n', 'export function sceneSetsSliced(map, row, book, tables, o) {\n  return Promise.resolve(sceneSets(map, row, book, tables));\n']]],
   ['W5', 'a map\'s chunk bins made in one task again', 'src/world/render/ground-chunks.js', [['    prepare(m, art, sl) { return sl ? binsSliced(m, art, sl) : binsFor(m, art); },', '    prepare(m, art, sl) { return binsFor(m, art); },']]],
   ['W5', 'a chunk baked past its deadline (one long task)', 'src/world/render/ground-chunks.js', [['    const spent = () => timed && ++n % CHECK_EVERY === 0 && now() >= until;', '    const spent = () => false;']]],

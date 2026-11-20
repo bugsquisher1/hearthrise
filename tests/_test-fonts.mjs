@@ -50,14 +50,25 @@ function fileOf(name) {
   return bytes.get(name);
 }
 
+/** The tokens.css route: the served sheet with its faces pinned. A fetch that fails (a kept-alive socket the guard's server
+    just shut: route.fetch ECONNRESET, or a page torn down mid-load) is tried once more, then the sheet fails as a network
+    error would. It never rejects: a route handler's rejection is unhandled and ended the whole run, every mutant after it
+    unjudged (services-window and chat-social --mutate on release/v0.2.143, run 44811275378). test-fonts TF-6 holds it. */
+export async function pinnedTokens(r, pin = FONT_CSS) {
+  for (let tries = 0; tries < 2; tries++) {
+    let res, body;
+    try { res = await r.fetch(); body = pinSheet(await res.text(), pin); }
+    catch { continue; }
+    return r.fulfill({ response: res, contentType: 'text/css', body }).catch(() => undefined);   // a page gone has nothing left to answer
+  }
+  return r.abort('failed').catch(() => undefined);
+}
+
 /** On a page or a context: the web font's names draw the test faces, offline and identically everywhere. */
 export async function pinFonts(target, pin = FONT_CSS) {
-  await target.route('**/src/styles/tokens.css*', async (r) => {
-    const res = await r.fetch();
-    return r.fulfill({ response: res, contentType: 'text/css', body: pinSheet(await res.text(), pin) });
-  });
+  await target.route('**/src/styles/tokens.css*', (r) => pinnedTokens(r, pin));
   await target.route('**' + FONT_PATH + '**', (r) => {
     const name = new URL(r.request().url()).pathname.slice(FONT_PATH.length);
-    return r.fulfill({ contentType: 'font/ttf', body: fileOf(name) });
+    return r.fulfill({ contentType: 'font/ttf', body: fileOf(name) }).catch(() => undefined);
   });
 }

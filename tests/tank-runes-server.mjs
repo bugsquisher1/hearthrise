@@ -246,7 +246,7 @@ const MUTANTS = [
   { name: 'the catalogue drops shieldBy from the world fields', patch: (f, sql) => (f !== CAT ? sql : sql.replace(/"shieldBy":\d+,/, '')), want: /TR-3 .* does not apply|TR-3 the unit fields/ },
   { name: 'the rune spells apply before the catalogue', reorder: (o) => { const i = o.indexOf(CAT); [o[i], o[i + 1]] = [o[i + 1], o[i]]; return o; }, want: /TR-3 HARNESS/ },
   { name: 'the server keeps the old world shape', boot: { file: CAT, find: '(true, 1, ' + SHAPE + ', ', repl: '(true, 1, 95703826, ' }, want: /TR-1 browser closed: window 1 of/ },
-  { name: 'a party-only spell casts alone (the engine)', engine: [['src/core/hunt/abilities.js', "    && (!solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].party))\n", '']], want: /TR-2 alone: the tank cast a party-only spell/ },
+  { name: 'a party-only spell casts alone (the engine)', engine: [['src/core/hunt/abilities.js', "    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n", '']], want: /TR-2 alone: the tank cast a party-only spell/ },
 ];
 
 async function main() {

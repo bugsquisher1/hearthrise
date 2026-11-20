@@ -58,6 +58,15 @@ const shapeText = (root) => {
   const fn = (name) => { const at = src.indexOf('export function ' + name + '('); return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n}\n', at) + 2)); };
   return fn('areaSpec') + '\n' + fn('blowShare');
 };
+/* THE PARTY RULE (lane/d-elements-6b-rulings, the designer 2026-11-20): a row's `party` (true, or the roles it binds: Brand and Reave on
+   the tank) is read by abilities.js partyOnly (the data copy under test), which the engine calls for every cast it tests
+   (src/core/hunt/abilities.js firstUsable) and the bar for its words. Its reader is that function, and the engine must call it. */
+const PARTIED = Object.freeze({ ability: ['party'] });
+const partyText = (root) => {
+  const src = readFileSync(join(root, 'src/data/abilities.js'), 'utf8');
+  const at = src.indexOf('export const partyOnly = ');
+  return at < 0 ? '' : strip(src.slice(at, src.indexOf('\n', at)));
+};
 const ENGINE_DIRS = ['src/core', 'supabase/functions/hr-accrue'];
 const CLIENT_DIRS = ['src/shell', 'src/hunt-view', 'src/session'];
 
@@ -98,6 +107,7 @@ const cases = {
     const calls = /\bversionOf\(/.test(engine) && /\boutputPm\(/.test(engine) && /\babilitySkill\(/.test(engine) && /\bownHitSkill\(/.test(engine);
     const listed = listText(M.root), lists = /\bdisciplineAbilities\(/.test(engine);
     const shaped = shapeText(M.root), shapes = /\bareaSpec\(/.test(engine) && /\bblowShare\(/.test(engine);
+    const partied = partyText(M.root), parties = /\bpartyOnly\(/.test(engine);
     const dead = [];
     const check = (kind, keys, display, suggested) => {
       for (const k of keys) {
@@ -105,7 +115,8 @@ const cases = {
         const ok = display.includes(k) ? reads(client, k) : (suggested || []).includes(k) ? reads(suggest, k)
           : (VERSIONED[kind] || []).includes(k) ? reads(versioned, k) && calls
             : (LISTED[kind] || []).includes(k) ? reads(listed, k) && lists
-              : (SHAPED[kind] || []).includes(k) ? reads(shaped, k) && shapes : reads(engine, k);
+              : (SHAPED[kind] || []).includes(k) ? reads(shaped, k) && shapes
+                : (PARTIED[kind] || []).includes(k) ? reads(partied, k) && parties : reads(engine, k);
         if (!ok) dead.push(kind + '.' + k);
       }
     };
@@ -153,6 +164,10 @@ const mutants = [
     edits: [['src/core/hunt/abilities.js', '  const dmg = () => roll(sc, row.hitPm ? blowShare(u.maxHit, row) : row.dmg);', '  const dmg = () => roll(sc, row.dmg);']] },
   { name: '[spell-content] versionOf stops reading lvPm', case: 'every-row-field-has-a-reader',
     edits: [['src/data/abilities.js', '  return versionOf(row, n).outPm + (row && Number.isInteger(row.lvPm) ? row.lvPm * (lv - 1) : 0);', '  return versionOf(row, n).outPm;']] },
+  { name: '[party rule] the engine stops asking partyOnly (a row promises Party only and the engine casts it alone)', case: 'every-row-field-has-a-reader',
+    edits: [['src/core/hunt/abilities.js', '    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n', '']] },
+  { name: '[party rule] partyOnly stops reading the row', case: 'every-row-field-has-a-reader',
+    edits: [['src/data/abilities.js', 'export const partyOnly = (row, role) => !!row && (row.party === true || (Array.isArray(row.party) && row.party.includes(role)));', 'export const partyOnly = (row, role) => !!row && role === \'tank\';']] },
   { name: 'a persisted unit field nothing reads', case: 'every-persisted-unit-field-is-read',
     edits: [['src/core/hunt/abilities.js', "['markUntil', 'int']]),", "['markUntil', 'int'], ['slowUntil', 'int']]),"]] },
 ];

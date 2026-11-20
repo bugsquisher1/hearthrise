@@ -14,7 +14,7 @@
 // ask for the hunt a yard took over, and a second ask while the first is out waits on that same answer, never a second call.
 // Display only: nothing here gates, prices or spends, and the residue holds none of it.
 // ════════════════════════════════════════════════════════════════════════
-import { analyzerFrom } from './hunt-sections.js?v=0.2.142';
+import { analyzerFrom } from './hunt-sections.js';
 
 const SESSION = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const READS = new WeakMap();   // cs -> Map(session -> analyzer | null | Promise while asking)

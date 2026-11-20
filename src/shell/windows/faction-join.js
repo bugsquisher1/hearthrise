@@ -12,15 +12,15 @@
 // Confirm or Back. Confirm is ONE intent (src/session/faction-intents.js); the side shows only from the re-read envelope, and the prompt
 // stays with the answer ("Joined the First Flame") until its Close. The terms stand above the presses, so a phone reads them first.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERTS_SEEN_MAX } from '../../session/residue.js?v=0.2.142';
-import { factionOf } from '../../session/faction-sections.js?v=0.2.142';
-import { joinFaction } from '../../session/faction-intents.js?v=0.2.142';
-import { rows, text, prop, element } from '../../render/paint.js?v=0.2.142';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
-import { runIntent } from '../intent-words.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
-import { factionIconHtml } from '../widgets/bits.js?v=0.2.142';
-import { sideName, sideMotto, faceOf, said, waitWords, spanWords } from '../faction-words.js?v=0.2.142';
+import { ALERTS_SEEN_MAX } from '../../session/residue.js';
+import { factionOf } from '../../session/faction-sections.js';
+import { joinFaction } from '../../session/faction-intents.js';
+import { rows, text, prop, element } from '../../render/paint.js';
+import { escapeHtml as esc } from '../../utils/dom.js';
+import { runIntent } from '../intent-words.js';
+import { t } from '../../render/player-text.js';
+import { factionIconHtml } from '../widgets/bits.js';
+import { sideName, sideMotto, faceOf, said, waitWords, spanWords } from '../faction-words.js';
 
 /** The dismissal id in the residue's alerts.seen. */
 const JOIN_SEEN = 'faction:join';

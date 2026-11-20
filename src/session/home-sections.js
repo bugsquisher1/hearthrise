@@ -18,7 +18,7 @@
 // src/data/homestead-tiers.js HELD_HOME_ROOMS before its catalogue lands), so
 // no window, hint or bulk-sale rule can offer it.
 // ════════════════════════════════════════════════════════════════════════
-import { HELD_HOME_ROOMS } from '../data/homestead-tiers.js?v=0.2.142';
+import { HELD_HOME_ROOMS } from '../data/homestead-tiers.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const ID = /^[a-z0-9_]{1,64}$/;

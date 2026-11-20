@@ -13,22 +13,22 @@
 // lines widget leaves them to this card. Closing the card is reading them: every away line is dismissed. Nothing here
 // counts or predicts a number; Hunt again is the server's own restart (CharacterSession.restartHunt), checked there.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, attr, element } from '../../render/paint.js?v=0.2.142';
-import { whole, gold } from '../../render/format.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
-import { itemName, itemIconHtml, skillName } from '../widgets/bits.js?v=0.2.142';
-import { resultHtml, patchResult, goldFig } from '../result-block.js?v=0.2.142';
-import { awayNowOf } from '../away-recap.js?v=0.2.142';
-import { deathWords, blessingsMissing } from '../death-popup.js?v=0.2.142';
-import { deathLogOf } from '../../session/character-sections.js?v=0.2.142';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.142';
-import { spanWords, staminaFreeOf, staminaShort } from '../after-hunt.js?v=0.2.142';
-import { outgrownGroundOf } from '../back-in-town.js?v=0.2.142';
-import { refusalWords, playCapOf } from '../intent-words.js?v=0.2.142';
-import { summariesOf } from '../../hunt-view/summary-recorder.js?v=0.2.142';
-import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.142';
-import { trainingOf as trainedBy } from '../../data/training.js?v=0.2.142';
-import { runRulesOf } from '../../data/tower.js?v=0.2.142';
+import { rows, text, cls, prop, attr, element } from '../../render/paint.js';
+import { whole, gold } from '../../render/format.js';
+import { t } from '../../render/player-text.js';
+import { itemName, itemIconHtml, skillName } from '../widgets/bits.js';
+import { resultHtml, patchResult, goldFig } from '../result-block.js';
+import { awayNowOf } from '../away-recap.js';
+import { deathWords, blessingsMissing } from '../death-popup.js';
+import { deathLogOf } from '../../session/character-sections.js';
+import { huntOf } from '../../session/hunt-sections.js';
+import { spanWords, staminaFreeOf, staminaShort } from '../after-hunt.js';
+import { outgrownGroundOf } from '../back-in-town.js';
+import { refusalWords, playCapOf } from '../intent-words.js';
+import { summariesOf } from '../../hunt-view/summary-recorder.js';
+import { roomOfHunt } from '../../data/boss-halls.js';
+import { trainingOf as trainedBy } from '../../data/training.js';
+import { runRulesOf } from '../../data/tower.js';
 
 /* The away lines the centre holds now, oldest hero slot first. */
 const linesOf = (ctx) => (ctx.alerts ? ctx.alerts.list().filter((a) => a.kind === 'away') : []).sort((a, b) => a.slot - b.slot);

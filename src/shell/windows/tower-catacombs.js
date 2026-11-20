@@ -19,22 +19,22 @@
 // and says why above it, for what the screen already knows (a hunt, a seat that does not lead, the door's Level from the section's `gate`
 // with each seat under it, a wing or a door the server did not list); the server still judges, and a refusal re-reads the character.
 // ════════════════════════════════════════════════════════════════════════
-import { catacombOf, wingRow, keyForDoor } from '../../session/catacomb-sections.js?v=0.2.142';
-import { startDescent } from '../../session/tower-intents.js?v=0.2.142';
-import { huntOf } from '../../session/hunt-sections.js?v=0.2.142';
-import { partyMembershipOf } from '../../session/party-sections.js?v=0.2.142';
-import { nameOf } from '../../session/item-sections.js?v=0.2.142';
-import { runRulesOf } from '../../data/tower.js?v=0.2.142';
-import { PIXEL_DIR } from '../../data/item-art.js?v=0.2.142';
-import { text, cls, attr, prop, rows, element } from '../../render/paint.js?v=0.2.142';
-import { whole } from '../../render/format.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
-import { busyWords } from '../training-words.js?v=0.2.142';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
-import { runIntent } from '../intent-words.js?v=0.2.142';
-import { rankWords, keyFamilyWord } from '../tower-words.js?v=0.2.142';
-import { itemName } from '../widgets/bits.js?v=0.2.142';
-import { afterHtml } from './hunt-after-pane.js?v=0.2.142';
+import { catacombOf, wingRow, keyForDoor } from '../../session/catacomb-sections.js';
+import { startDescent } from '../../session/tower-intents.js';
+import { huntOf } from '../../session/hunt-sections.js';
+import { partyMembershipOf } from '../../session/party-sections.js';
+import { nameOf } from '../../session/item-sections.js';
+import { runRulesOf } from '../../data/tower.js';
+import { PIXEL_DIR } from '../../data/item-art.js';
+import { text, cls, attr, prop, rows, element } from '../../render/paint.js';
+import { whole } from '../../render/format.js';
+import { t } from '../../render/player-text.js';
+import { busyWords } from '../training-words.js';
+import { escapeHtml as esc } from '../../utils/dom.js';
+import { runIntent } from '../intent-words.js';
+import { rankWords, keyFamilyWord } from '../tower-words.js';
+import { itemName } from '../widgets/bits.js';
+import { afterHtml } from './hunt-after-pane.js';
 
 /* the column's label rows, in order: [id, label row] (each value filled from the section, a row the server does not say hidden) */
 const STATS = Object.freeze([['xp', 'tower.stat_xp'], ['death', 'tower.stat_death'], ['uses', 'tower.stat_uses'], ['time', 'tower.stat_time'],

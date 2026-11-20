@@ -11,9 +11,9 @@
 //   startShut(ctx, row)        is this startsOpen row shut by the player's pick?
 //   keepStart(ctx, row, open)  the player opened or closed it: their pick, written only when it changes
 // ════════════════════════════════════════════════════════════════════════
-import { switchOn, setSwitch } from '../session/player-switch.js?v=0.2.142';
-import { serverNowOf } from '../session/hunt-sections.js?v=0.2.142';
-import { peersOf } from './settings-model.js?v=0.2.142';
+import { switchOn, setSwitch } from '../session/player-switch.js';
+import { serverNowOf } from '../session/hunt-sections.js';
+import { peersOf } from './settings-model.js';
 
 /* A startsOpen row's switch: its residue field, on until the player closes it. */
 const switchOf = (row) => ({ field: row.startsOpen, defaultOn: true });

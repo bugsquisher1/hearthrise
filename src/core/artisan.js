@@ -26,8 +26,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { advanceToolCarry } from './tools.js?v=0.2.142';
-import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.2.142';
+import { advanceToolCarry } from './tools.js';
+import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js';
 
 /* ── Burn (open-fire cooking) ─────────────────────────────────────────
    Values unchanged from b225 / b227. Documented at length in
@@ -36,7 +36,7 @@ import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.
 export const BURN_BASE = 0.25;              // burn chance at the recipe's req level
 export const BURN_PER_LEVEL_RELIEF = 0.01;  // -1pp per cooking level above req
 export const BURN_XP_SHARE = 0.25;          // consolation XP as a share of recipe XP
-import { BURNT_ITEM } from '../data/core-model.js?v=0.2.142';   // an item id: the data layer's (moved 2026-11-19)
+import { BURNT_ITEM } from '../data/core-model.js';   // an item id: the data layer's (moved 2026-11-19)
 export { BURNT_ITEM };
 
 /* One entry per Kitchen rung. L4/L5 restate 0.25 because a rung's bonus map

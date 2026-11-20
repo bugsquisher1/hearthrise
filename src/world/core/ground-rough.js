@@ -16,7 +16,7 @@
 // strip never pinches to nothing). Read from the map as it was authored, never from cells already re-drawn: one pass.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { vhash } from './ground-variety.js?v=0.2.142';
+import { vhash } from './ground-variety.js';
 
 const unit = (x, y, seed) => vhash(x, y, seed) / 4294967296;
 /** Smooth value noise in [0, 1) at cell (x, y) on a lattice of `s` cells, turned off the grid (two octaves). */

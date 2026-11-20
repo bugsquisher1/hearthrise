@@ -25,7 +25,7 @@
 // PURE ESM. Data only. Vendored into the hr-accrue Edge Function.
 // ════════════════════════════════════════════════════════════════════════
 
-import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.142';
+import { NECROTIC_STORM } from './necrotic-storm.js';
 
 /** The elements. `blight` was renamed POISON everywhere (DEC-ELEM-04). Necrotic and Storm only while their switch is on. */
 export const ELEMENTS = Object.freeze(['ember', 'frost', 'poison', ...(NECROTIC_STORM.live ? ['necrotic', 'storm'] : [])]);

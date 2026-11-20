@@ -83,14 +83,14 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { SUPPLIES } from './supplies.js?v=0.2.142';
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.142';
-import { isElement } from './elements.js?v=0.2.142';
-import { ITEMS } from './items.js?v=0.2.142';
-import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.142';
-import { shapeProblem } from './shape-kinds.js?v=0.2.142';
-import { FIST_LINE, FIST_ELEMENTS } from './fists.js?v=0.2.142';
-import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.142';
+import { SUPPLIES } from './supplies.js';
+import { HUNT_TUNING } from './hunt-tuning.js';
+import { isElement } from './elements.js';
+import { ITEMS } from './items.js';
+import { isRune, runeTierOf, RUNE_TIERS } from './runes.js';
+import { shapeProblem } from './shape-kinds.js';
+import { FIST_LINE, FIST_ELEMENTS } from './fists.js';
+import { NECROTIC_STORM } from './necrotic-storm.js';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;

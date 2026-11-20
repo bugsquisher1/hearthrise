@@ -10,15 +10,15 @@
 // The answer takes the question's place, in the flow (.hw-temper-msg), never the tab's line stuck to the sheet's foot: on a phone that line lay over the
 // note saying where the next rung's material comes from, for the 30 s an answer stands (lane/c-temper-craft's play, 2026-11-05).
 // ════════════════════════════════════════════════════
-import { temperRowsOf } from '../../session/temper-sections.js?v=0.2.142';
-import { goldOf } from '../../session/item-sections.js?v=0.2.142';
-import { text, cls, prop, rows, element } from '../../render/paint.js?v=0.2.142';
-import { gold, whole, listWords } from '../../render/format.js?v=0.2.142';
-import { runIntent } from '../intent-words.js?v=0.2.142';
-import { huntedOnly, saleWords } from '../item-lore.js?v=0.2.142';
-import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js?v=0.2.142';
-import { patchParts, targetOf } from '../goto.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
+import { temperRowsOf } from '../../session/temper-sections.js';
+import { goldOf } from '../../session/item-sections.js';
+import { text, cls, prop, rows, element } from '../../render/paint.js';
+import { gold, whole, listWords } from '../../render/format.js';
+import { runIntent } from '../intent-words.js';
+import { huntedOnly, saleWords } from '../item-lore.js';
+import { dropWhereWords, dropPlaceOf } from '../hunt-ground-facts.js';
+import { patchParts, targetOf } from '../goto.js';
+import { t } from '../../render/player-text.js';
 
 const TRACKS = Object.freeze([
   { id: 'blows', label: 'Blows', effect: 'damage and heals', sign: '+', none: 'Requires a weapon' },

@@ -7,11 +7,11 @@
 // THE SERIES' LINE (seriesLine; Tyler 2026-11-14, a slider of fights): how many fights the server counted, how many were won and what it charged.
 // PURE.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES } from '../data/abilities.js?v=0.2.142';
-import { MONSTERS } from '../data/monsters.js?v=0.2.142';
-import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js?v=0.2.142';
-import { roomOfHunt } from '../data/boss-halls.js?v=0.2.142';
-import { whole } from '../render/format.js?v=0.2.142';
+import { ABILITIES } from '../data/abilities.js';
+import { MONSTERS } from '../data/monsters.js';
+import { BOSS_CALL_WORDS, isGuarded } from '../data/boss-calls.js';
+import { roomOfHunt } from '../data/boss-halls.js';
+import { whole } from '../render/format.js';
 
 const LOST = Object.freeze(['died', 'party_member_died', 'boss_time']);
 /* Every ability that heals (abilities.js `heal`), and every one that hits a crowd (an area cast or a Cleave). */

@@ -6,13 +6,13 @@
 // groundsSeenOf) and the kills the `titles` section counts. Nothing here is kept or remembered by the client, so a reload,
 // another device or a closed browser shows the same pages (CLAUDE.md §6). Display only: it gates, spends and stores nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { CHRONICLE } from '../data/chronicle.js?v=0.2.142';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.142';
-import { shownBand } from './hunt-list.js?v=0.2.142';
-import { groundsSeenOf } from '../session/hunt-sections.js?v=0.2.142';
-import { titlesOf, levelOf } from '../session/character-sections.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
+import { CHRONICLE } from '../data/chronicle.js';
+import { HUNT_INDEX } from '../data/hunts.js';
+import { groundOfHunt } from '../data/hunt-grounds.js';
+import { shownBand } from './hunt-list.js';
+import { groundsSeenOf } from '../session/hunt-sections.js';
+import { titlesOf, levelOf } from '../session/character-sections.js';
+import { t } from '../render/player-text.js';
 
 /* A ground with an exit (hunt-grounds.js endsAtLevel: the Mill Cellar's 5) is behind a hero the server shows at that Level or past it: its door
    refuses such a hero, so a page waiting for a hunt there could never open (retention dive 2026-11-20: the Cellar ends itself in two short hunts,

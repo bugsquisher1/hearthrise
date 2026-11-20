@@ -38,18 +38,18 @@
 // Categories are data too, in the order the window lists them. Gameplay,
 // Chat & Social and Account stay hidden until a feature registers a row there.
 // ════════════════════════════════════════════════════════════════════════
-import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js?v=0.2.142';
-import { HUD_WIDGETS } from './hud-widgets.js?v=0.2.142';
-import { SHELL_WINDOWS } from './shell-windows.js?v=0.2.142';
-import { HOTKEYS } from './hunt-hud.js?v=0.2.142';
-import { SOCIAL_SETTINGS } from './social-settings.js?v=0.2.142';
-import { HELP_NOTES } from './how-to-play.js?v=0.2.142';
-import { PANEL_ALPHA } from './panel-alpha.js?v=0.2.142';
-import { REPLAY } from './privacy.js?v=0.2.142';
-import { IDLE_MOTION } from './world/motion.js?v=0.2.142';
-import { MONSTER_NAMES } from './world/monster-names.js?v=0.2.142';
-import { FX_ALPHA } from './fx-alpha.js?v=0.2.142';
-import { TIPS } from './tips.js?v=0.2.142';
+import { FLOAT_TYPES, FLOAT_TARGETS } from './combat-text.js';
+import { HUD_WIDGETS } from './hud-widgets.js';
+import { SHELL_WINDOWS } from './shell-windows.js';
+import { HOTKEYS } from './hunt-hud.js';
+import { SOCIAL_SETTINGS } from './social-settings.js';
+import { HELP_NOTES } from './how-to-play.js';
+import { PANEL_ALPHA } from './panel-alpha.js';
+import { REPLAY } from './privacy.js';
+import { IDLE_MOTION } from './world/motion.js';
+import { MONSTER_NAMES } from './world/monster-names.js';
+import { FX_ALPHA } from './fx-alpha.js';
+import { TIPS } from './tips.js';
 
 export const SETTING_TYPES = Object.freeze(['toggle', 'choice', 'slider', 'hotkey', 'action', 'note']);
 export const SETTING_SCOPES = Object.freeze(['residue', 'server']);

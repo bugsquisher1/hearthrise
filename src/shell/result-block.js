@@ -10,9 +10,9 @@
 // Display only. Every number the caller hands in is the server's (CLAUDE.md §6): the summary's, the away
 // line's two stamps; nothing here counts, rounds or derives a level. Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, attr } from '../render/paint.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
-import { gold } from '../render/format.js?v=0.2.142';
+import { text, cls, prop, attr } from '../render/paint.js';
+import { t } from '../render/player-text.js';
+import { gold } from '../render/format.js';
 
 const FIGS = 3;
 

@@ -20,7 +20,7 @@
 // server's shape is dropped, never mended: the tab shows less, never something the server did not say.
 // ════════════════════════════════════════════════════════════════════════
 
-import { paysOf, fieldOf, climbPlaceOf, chestOf } from './tower-sections.js?v=0.2.142';
+import { paysOf, fieldOf, climbPlaceOf, chestOf } from './tower-sections.js';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 const WORD = /^[a-z0-9_]{1,64}$/;

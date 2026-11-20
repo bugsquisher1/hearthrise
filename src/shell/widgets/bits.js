@@ -5,19 +5,19 @@
 // derived from the id; a glyph when the id is not an item), an item's name, and
 // the frame every hunt panel sits in (title, minimise). Display only.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../data/items.js?v=0.2.142';
-import { RUNE_FAMILIES } from '../../data/runes.js?v=0.2.142';
-import { DRINK_ITEMS } from '../../data/drinks.js?v=0.2.142';
-import { MONSTERS } from '../../data/monsters.js?v=0.2.142';
-import { ABILITIES } from '../../data/abilities.js?v=0.2.142';
-import { spellRow } from '../../data/monster-spells.js?v=0.2.142';
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.142';
-import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD, FACTION_DIR, FACTION_ART } from '../../data/item-art.js?v=0.2.142';
-import { BASIC_INDEX } from '../../data/supply-basics.js?v=0.2.142';
-import { ROLE_GLYPH } from '../../data/hunt-hud.js?v=0.2.142';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
-import { text, style, attr } from '../../render/paint.js?v=0.2.142';
-import { t, hasText } from '../../render/player-text.js?v=0.2.142';
+import { ITEMS } from '../../data/items.js';
+import { RUNE_FAMILIES } from '../../data/runes.js';
+import { DRINK_ITEMS } from '../../data/drinks.js';
+import { MONSTERS } from '../../data/monsters.js';
+import { ABILITIES } from '../../data/abilities.js';
+import { spellRow } from '../../data/monster-spells.js';
+import { SKILLS_DEF } from '../../data/skills.js';
+import { PIXEL_DIR, ABILITY_DIR, ABILITY_ART, SUPPLY_DIR, SUPPLY_ART_AHEAD, FACTION_DIR, FACTION_ART } from '../../data/item-art.js';
+import { BASIC_INDEX } from '../../data/supply-basics.js';
+import { ROLE_GLYPH } from '../../data/hunt-hud.js';
+import { escapeHtml as esc } from '../../utils/dom.js';
+import { text, style, attr } from '../../render/paint.js';
+import { t, hasText } from '../../render/player-text.js';
 
 /** An inline SVG for a window.HR_GLYPHS key, or '' when the glyph is missing. (Here, under every panel part; the
     icon row re-exports it, src/shell/launcher.js, so a coach import of these parts is never a cycle.) */

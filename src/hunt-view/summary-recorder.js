@@ -10,19 +10,19 @@
 // field `huntSummaries`, with the death explanation (death-explain.js) taken
 // from those events. It authors no number: it reads the server's sections.
 // ════════════════════════════════════════════════════════════════════════
-import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js?v=0.2.142';
-import { roleIdOf } from '../session/party-sections.js?v=0.2.142';
-import { monsterName } from '../shell/widgets/bits.js?v=0.2.142';
-import { explainDeaths } from './death-explain.js?v=0.2.142';
-import { createRecorder, endedSessionOf, buildSummary, withSummary, withPastSummary, withTrainingStop, atStart, levelLine, standingLine, trainedIn } from './summary-model.js?v=0.2.142';
-import { factionOf } from '../session/faction-sections.js?v=0.2.142';
-import { trainingOf } from '../session/training-sections.js?v=0.2.142';
-import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.142';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.142';
-import { levelOf } from '../session/character-sections.js?v=0.2.142';
-import { skillLevelsOf } from '../session/item-sections.js?v=0.2.142';
-import { runRulesOf } from '../data/tower.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
+import { huntOf, partyOf, analyzerOf } from '../session/hunt-sections.js';
+import { roleIdOf } from '../session/party-sections.js';
+import { monsterName } from '../shell/widgets/bits.js';
+import { explainDeaths } from './death-explain.js';
+import { createRecorder, endedSessionOf, buildSummary, withSummary, withPastSummary, withTrainingStop, atStart, levelLine, standingLine, trainedIn } from './summary-model.js';
+import { factionOf } from '../session/faction-sections.js';
+import { trainingOf } from '../session/training-sections.js';
+import { huntAfterOf } from '../session/hunt-after-sections.js';
+import { trainingOf as trainedBy } from '../data/training.js';
+import { levelOf } from '../session/character-sections.js';
+import { skillLevelsOf } from '../session/item-sections.js';
+import { runRulesOf } from '../data/tower.js';
+import { t } from '../render/player-text.js';
 
 const ATTACHED = new WeakMap();
 

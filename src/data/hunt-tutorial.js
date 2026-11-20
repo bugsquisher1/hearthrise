@@ -68,32 +68,32 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_INDEX } from './hunts.js?v=0.2.142';
-import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.142';
-import { tiersOf } from './hunt-tiers.js?v=0.2.142';
-import { partyBestLine } from './party-class-xp.js?v=0.2.142';
-import { PARTY } from './party.js?v=0.2.142';
-import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js?v=0.2.142';
-import { nextUnlock } from './skill-unlocks.js?v=0.2.142';
-import { SKILLS_DEF } from './skills.js?v=0.2.142';
-import { CROPS } from './gathering.js?v=0.2.142';
-import { tallyTask } from './tally-tasks.js?v=0.2.142';
-import { ITEMS } from './items.js?v=0.2.142';
-import { BASIC_INDEX } from './supply-basics.js?v=0.2.142';
-import { LEVEL_REQ } from './gear-tiers.js?v=0.2.142';
-import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js?v=0.2.142';
-import { isShield } from './shields.js?v=0.2.142';
-import { deriveProfile } from '../core/member.js?v=0.2.142';
-import { ABILITIES, abilitySkill, partyOnly } from './abilities.js?v=0.2.142';
-import { skillLevelFromXp } from '../core/xp.js?v=0.2.142';
-import { CONSUMABLES } from './consumables.js?v=0.2.142';
-import { RUNE_FAMILIES } from './runes.js?v=0.2.142';
-import { ARTISAN_RECIPES } from './recipes.js?v=0.2.142';
-import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js?v=0.2.142';
-import { START_EQUIPMENT, START_BAR } from './start-kit.js?v=0.2.142';
-import { HEARTH_FUELS } from './hearth.js?v=0.2.142';
-import { BAR_TEXT } from './text/bar.js?v=0.2.142';
-import { t } from './player-text.js?v=0.2.142';
+import { HUNT_INDEX } from './hunts.js';
+import { HUNT_GROUNDS, OPEN_GROUNDS } from './hunt-grounds.js';
+import { tiersOf } from './hunt-tiers.js';
+import { partyBestLine } from './party-class-xp.js';
+import { PARTY } from './party.js';
+import { END_ORDER, STAMINA_LOW_MIN } from './hunt-sessions.js';
+import { nextUnlock } from './skill-unlocks.js';
+import { SKILLS_DEF } from './skills.js';
+import { CROPS } from './gathering.js';
+import { tallyTask } from './tally-tasks.js';
+import { ITEMS } from './items.js';
+import { BASIC_INDEX } from './supply-basics.js';
+import { LEVEL_REQ } from './gear-tiers.js';
+import { roleWeaponOf, WEAPON_ROLES, SHIELD_ARM, shootsItem } from './hunt-roles.js';
+import { isShield } from './shields.js';
+import { deriveProfile } from '../core/member.js';
+import { ABILITIES, abilitySkill, partyOnly } from './abilities.js';
+import { skillLevelFromXp } from '../core/xp.js';
+import { CONSUMABLES } from './consumables.js';
+import { RUNE_FAMILIES } from './runes.js';
+import { ARTISAN_RECIPES } from './recipes.js';
+import { ROLE_DEFAULTS, ACTION_SET_LIMITS } from './rule-subjects.js';
+import { START_EQUIPMENT, START_BAR } from './start-kit.js';
+import { HEARTH_FUELS } from './hearth.js';
+import { BAR_TEXT } from './text/bar.js';
+import { t } from './player-text.js';
 
 /* The surfaces a card may point at: `window` the shell window (src/data/shell-windows.js) its controls live in (the
    card shows INSIDE it while it is open), `icon` its way starts at that window's icon, and what the coach rings

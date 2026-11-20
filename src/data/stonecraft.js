@@ -60,7 +60,7 @@
 // be removed.
 // ══════════════════════════════════════════════════════════════════════════
 
-import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js?v=0.2.142';
+import { RUNE_FAMILIES, RUNE_TIERS, runeId, runeName } from './runes.js';
 
 /* ── R7: ONE STAT CURVE ACROSS THE AMMO LADDERS ───────────────────────
    `2 / 3 / 5 / 8 / 11 / 14 / 18` at tiers 1-7, because arrows and whetstones

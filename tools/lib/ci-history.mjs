@@ -108,6 +108,23 @@ export function provedBy(runs, { sha, own, repo }, rules = PROOF_RULES) {
   return hit ? { id: hit.id, branch: hit.head_branch } : null;
 }
 
+/* THE PREVIOUS RELEASE, WHEN MAIN ALREADY HOLDS THIS COMMIT (2026-11-19, architecture audit row 2). A release pushed with main,
+   or re-run after a main-first fix, has HEAD as its merge base with main: an empty diff, so the gate fell back to the full sweep.
+   That was four of the five green release runs 11-18..11-19 (44246539736, 44294333094, 44402194704, 44508243045), about 2,000
+   job-minutes each. Its real base is what a normal push gets: the previous release on main, here the newest release/** push run of
+   this workflow that went green on a STRICT ancestor of HEAD (a run of HEAD itself proves an empty diff again). The PROOF_RULES
+   minus 'the same commit' decide what counts as green; `isAncestor(sha)` is git's answer, injectable for the selftest. */
+export const PREVIOUS_RULES = Object.freeze(PROOF_RULES.filter(([name]) => name !== 'the same commit'));
+
+/** { sha, id, branch } of the previous green release before `head`, or null. Pure but for `get` and `isAncestor`. */
+export function previousRelease({ head, own, repo, get, isAncestor }, rules = PREVIOUS_RULES) {
+  const runs = (get('/actions/workflows/smoke.yml/runs?event=push&status=success&per_page=50').workflow_runs || [])
+    .filter((r) => rules.every(([, ok]) => ok(r, { own, repo })) && r.head_sha !== head)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+  for (const r of runs) if (isAncestor(r.head_sha)) return { sha: r.head_sha, id: r.id, branch: r.head_branch };
+  return null;
+}
+
 /** A green release run of smoke.yml on this very commit: { id, branch }, or null. Throws when GitHub cannot be read. */
 export function readProved(env, get = githubReader(env)) {
   const runs = get(`/actions/runs?head_sha=${env.GITHUB_SHA}&event=push&status=success&per_page=50`).workflow_runs || [];

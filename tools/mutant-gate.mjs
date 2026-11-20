@@ -28,7 +28,7 @@
 //   not as a file (guard-deps cacheBusterOnly) and not as a line (changedLines).
 // A skipped command prints why; nothing is skipped silently. When the diff cannot be
 // computed (a shallow clone that will not deepen, no merge base, a commit main already
-// holds, so the diff is empty and says nothing), it FAILS SAFE: the full sweep, said out loud.
+// holds with no green release before it to measure from), it FAILS SAFE: the full sweep, said out loud.
 //
 // THE HISTORY (tools/lib/ci-history.mjs). A job the last nightly did not prove green runs
 // every proof it holds until a sweep proves it; a nightly that cannot be read, or is over
@@ -43,8 +43,10 @@
 // `-f rehearse_range=full` is the full sweep on any branch.
 //
 // THE BASE. release/**, next and pull requests: the merge base with main (for a
-// release, the previous release on main). main: the push's `before` (the previous tip
-// of main). The diff is committed files only — a mutant that dirties the tree cannot
+// release, the previous release on main). When main already holds the commit (a release
+// pushed with main, or re-run after a main-first fix), that merge base is HEAD itself, so
+// the base is the previous release by its green run (ci-history.mjs previousRelease).
+// main: the push's `before` (the previous tip of main). The diff is committed files only — a mutant that dirties the tree cannot
 // widen or narrow a later decision. The plan is computed once per job and cached in
 // $RUNNER_TEMP.
 //
@@ -69,7 +71,7 @@ import {
 } from './lib/guard-deps.mjs';
 import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
 import { scopeMutants, splitMutants, parseMutants, classifyRuleEdit } from './lib/mutant-scope.mjs';
-import { readHistory, readNightly, historyPolicy, lastGreenRun, lastFullGreen, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
+import { readHistory, readNightly, historyPolicy, lastGreenRun, lastFullGreen, previousRelease, PREVIOUS_RULES, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -139,14 +141,41 @@ export function ciBase(env) {
   let sha = null;
   try { sha = gitOut(['merge-base', `origin/${branch}`, 'HEAD']); } catch { /* further back than 50 */ }
   if (!sha) { fetchHistory(refspecs, DEPTH); sha = gitOut(['merge-base', `origin/${branch}`, 'HEAD']); }
-  usableBase(sha, gitOut(['rev-parse', 'HEAD']));
-  return (ev === 'push' && greenBase(env)) || { sha, how };
+  const tip = gitOut(['rev-parse', 'HEAD']);
+  const prev = sha === tip ? previousReleaseBase(env, tip, refspecs) : null;
+  if (!prev) usableBase(sha, tip);
+  return (ev === 'push' && greenBase(env)) || prev || { sha, how };
+}
+
+/* Main already holds this commit: the previous release, by the newest green release run on a strict ancestor of HEAD
+   (ci-history.mjs previousRelease). HR_GATE_HISTORY's `releaseRuns` stands in for GitHub in the selftest. Null when none
+   is found or GitHub cannot be read, and the caller fails safe as before. */
+function previousReleaseBase(env, head, refspecs) {
+  try {
+    const stand = env.HR_GATE_HISTORY ? JSON.parse(env.HR_GATE_HISTORY).releaseRuns : undefined;
+    const get = stand ? () => ({ workflow_runs: stand }) : githubReader(env);
+    let deepened = false;
+    const isAncestor = (sha) => {
+      if (!/^[0-9a-f]{40}$/.test(sha)) return false;
+      if (!gitOk(['cat-file', '-e', `${sha}^{commit}`])) fetchHistory([`+${sha}:refs/hr-gate/previous`], 50);
+      if (gitOk(['merge-base', '--is-ancestor', sha, head])) return true;
+      /* a shallow history may stop short of it: deepen once, as the merge base does */
+      if (deepened || gitOut(['rev-parse', '--is-shallow-repository']) !== 'true') return false;
+      deepened = true;
+      fetchHistory(refspecs, DEPTH);
+      return gitOk(['merge-base', '--is-ancestor', sha, head]);
+    };
+    const p = previousRelease({ head, own: env.GITHUB_RUN_ID, repo: env.GITHUB_REPOSITORY, get, isAncestor });
+    return p ? { sha: p.sha, how: `the previous release: main already holds this commit, and run ${p.id} on ${p.branch} went green at ${p.sha.slice(0, 9)}` } : null;
+  } catch { return null; }
 }
 
 /* A job green at an earlier commit of this branch is measured from there (ci-history.mjs). Not
    when the workflow moved since: a step that changed jobs was not proved by this one's green.
    Any doubt keeps the release's whole diff. */
 function greenBase(env) {
+  /* the selftest's stand-in history has no branch runs: no GitHub call from a selftest */
+  if (env.HR_GATE_HISTORY) return null;
   try {
     const usable = (sha) => {
       if (!/^[0-9a-f]{40}$/.test(sha) || !gitOk(['cat-file', '-e', `${sha}^{commit}`])) {
@@ -917,6 +946,46 @@ async function selftest() {
     const missedBase = baseChecks((a) => a).every(([ok]) => ok);
     if (missedBase) bad++;
     console.log(`  ${missedBase ? 'MISSED  ' : 'CAUGHT  '} base mutant: an empty diff counts as a diff`);
+    /* THE PREVIOUS RELEASE (main already holds HEAD): the shape of v0.2.141's green run 44508243045 — HEAD 6657f0826 pushed with
+       main, the previous release's green run at 51ca4d461 — newest first, with every run that must NOT be the base beside it. */
+    {
+      const sha = (c) => c.repeat(40);
+      const HEAD = sha('6'), PREV = sha('5'), OLDER = sha('4'), LATER = sha('7');
+      const run = (id, h, extra = {}) => ({ id, head_sha: h, head_branch: 'release/v0.2.140', path: WORKFLOW_PATH, event: 'push', status: 'completed',
+        conclusion: 'success', created_at: new Date(Date.UTC(2026, 10, 18, 0, id)).toISOString(), ...extra });
+      const runs = [
+        run(9, HEAD, { head_branch: 'release/v0.2.141' }), // this very commit, an earlier green: an empty diff again
+        run(8, LATER, { head_branch: 'release/v0.2.142' }), // a later release, not under HEAD
+        run(7, PREV, { conclusion: 'failure', head_branch: 'release/v0.2.141' }), // red
+        run(6, PREV, { event: 'workflow_dispatch' }), // a dispatch, not the push gate
+        run(5, PREV, { head_branch: 'next' }), // not a release
+        run(4, PREV), // THE ONE
+        run(3, OLDER, { head_branch: 'release/v0.2.139' }), // older, also under HEAD
+      ];
+      const ancestors = new Set([PREV, OLDER, HEAD]);
+      const ask = (fn) => fn({ head: HEAD, own: 99, get: () => ({ workflow_runs: runs }), isAncestor: (s) => ancestors.has(s) });
+      const prevChecks = (fn) => {
+        const p = ask(fn);
+        return [[!!p && p.sha === PREV && p.id === 4, `the base is the previous release's green push run (got ${p ? `${p.id} ${p.sha.slice(0, 1)}` : 'none'})`],
+          [fn({ head: HEAD, own: 99, get: () => ({ workflow_runs: runs.filter((r) => r.id !== 4 && r.id !== 3) }), isAncestor: (s) => ancestors.has(s) }) === null,
+            'no green release under HEAD: no base, and the gate fails safe']];
+      };
+      for (const [ok, label] of prevChecks(previousRelease)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} previous release: ${label}`); }
+      const drop = (name) => (o) => previousRelease(o, PREVIOUS_RULES.filter(([n]) => n !== name));
+      for (const [label, fn] of [
+        ['no base when main holds HEAD (the fail safe that ran 4 of 5 green releases in full)', () => null],
+        ['a run of HEAD itself is a base (an empty diff again)', (o) => { const r = o.get().workflow_runs.find((x) => x.conclusion === 'success'); return { sha: r.head_sha, id: r.id }; }],
+        ['any green release is a base, under HEAD or not', (o) => previousRelease({ ...o, isAncestor: () => true })],
+        ['a red run is a base', drop('finished green')],
+        ['a dispatch is a base', drop('a push, not a dispatch, a schedule or a pull request')],
+        ['next is a base', drop('a release/** branch')],
+        ['the oldest green release is the base (a wider diff)', (o) => previousRelease({ ...o, get: () => ({ workflow_runs: o.get().workflow_runs.map((r) => ({ ...r, created_at: new Date(Date.UTC(2026, 10, 18, 0, 60 - r.id)).toISOString() })) }) })],
+      ]) {
+        const missed = prevChecks(fn).every(([ok]) => ok);
+        if (missed) bad++;
+        console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} previous-release mutant: ${label}`);
+      }
+    }
     /* A rehearsal gates a lane's run under an old diff; on main the dispatch stays the full sweep. */
     const dis = (ref) => decideMode({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF_NAME: ref, HR_MUTANT_GATE_RANGE: 'a..b' });
     const rehearsalOk = dis('lane/x').rehearsal === true && dis('main').full === true
@@ -1024,6 +1093,24 @@ async function selftest() {
         const e = env(probeKey, { GITHUB_REF_NAME: 'main', GITHUB_JOB: 'x', HR_GATE_HISTORY: h });
         const proof = cli(['node', probe, '--mutate'], e);
         return proof.status === 0 && /SKIP .*run 77 on release\/v0\.0\.1 proved this exact commit/.test(proof.stdout) && cli(['node', probe], e).status === 3;
+      }],
+      ['a release main already holds is measured from the previous release, not swept in full (v0.2.141, run 44508243045)', () => {
+        /* a scratch remote: root -> the previous release (green) -> this release, and main already at this release */
+        const remote = join(dir, 'retry-remote'); const work = join(dir, 'retry-work');
+        const g = (cwd, ...a) => { const r = spawnSync('git', a, { cwd, encoding: 'utf8' }); if (r.status !== 0) throw Object.assign(new Error(`git ${a.join(' ')}: ${r.stderr}`), { harness: true }); return r.stdout.trim(); };
+        g(dir, 'init', '-q', '-b', 'main', remote);
+        for (const [k, v] of [['user.email', 'selftest@example.test'], ['user.name', 'selftest'], ['commit.gpgsign', 'false']]) g(remote, 'config', k, v);
+        const commit = (name) => { writeFileSync(join(remote, name), name); g(remote, 'add', '-A'); g(remote, 'commit', '-qm', name); return g(remote, 'rev-parse', 'HEAD'); };
+        commit('root.txt');
+        const prev = commit('previous-release.txt');
+        const head = commit('this-release.txt');
+        g(dir, 'clone', '-q', remote, work);
+        const runs = [{ id: 4, head_sha: prev, head_branch: 'release/v0.0.1', path: WORKFLOW_PATH, event: 'push', status: 'completed', conclusion: 'success', created_at: new Date().toISOString() }];
+        const e = env('', { GITHUB_SHA: head, GITHUB_JOB: 'x', GIT_DIR: join(work, '.git'), GITHUB_REF_NAME: 'release/v0.0.2',
+          HR_GATE_HISTORY: JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { x: 'success' } }, releaseRuns: runs }) });
+        delete e.HR_MUTANT_GATE_FILES;
+        const r = cli(['node', probe, '--mutate'], e);
+        return r.status === 0 && r.stdout.includes(`base ${prev.slice(0, 9)} (the previous release`) && /1 changed file/.test(r.stdout) && /SKIP/.test(r.stdout);
       }],
       ['a push whose base cannot be found fails safe to the full sweep', () => {
         const e = env('', { GITHUB_SHA: 'selftest-nobase', GITHUB_JOB: 'x', GITHUB_EVENT_PATH: join(dir, 'missing.json'), HR_GATE_HISTORY: JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { x: 'success' } } }) });

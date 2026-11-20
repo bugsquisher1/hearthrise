@@ -38,7 +38,7 @@
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { LUCK_STAGES, STAGE_LUCK, LUCK_PER_TIER, RARE_MULT, UNIQUE_LUCK_PER_BAND, RANK_STEP, LUCK_RANK_MAX, TROPHY_RANK_MAX, LUCK_BANDS, bestiaryLuckOf, salvageLuckOf, luckToRank, rankOf, luckMult, stagesAt } from './luck.js';
+import { LUCK_STAGES, STAGE_LUCK, LUCK_PER_TIER, RARE_MULT, UNIQUE_LUCK_PER_BAND, RANK_STEP, LUCK_RANK_MAX, TROPHY_MAX_PM, TROPHY_HALF, LUCK_BANDS, bestiaryLuckOf, salvageLuckOf, luckToRank, rankOf, luckMult, stagesAt } from './luck.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
@@ -81,7 +81,7 @@ function expectedBy(kills) {
   for (const [id, n] of Object.entries(kills)) for (const d of revealRows(id)) e[d.band] += n * effectiveDropChance(d, { dropMult: dropMultOf(id) });
   return e;
 }
-const raresAt = (e, rank) => e.rare * (1 + rank / 100) + e.trophy * (1 + Math.min(rank, TROPHY_RANK_MAX) / 100);
+const raresAt = (e, rank) => e.rare * luckMult(luckToRank(rank)) + e.trophy * luckMult(luckToRank(rank), 'trophy');
 /* the worn gear `kills` drop at today's chances: pieces, the shop's gold for them, and the Luck salvaging them gives, the Rare ones apart */
 function gearOf(kills) {
   const g = { pieces: 0, gold: 0, luck: 0, rarePieces: 0, rareLuck: 0, byTier: {} };
@@ -172,7 +172,7 @@ if (mode === 'curve') {
   console.log(`SALVAGE (worn gear the account's own hunts dropped): a standard piece gives ${LUCK_PER_TIER} x its tier, a Rare piece ${RARE_MULT} times that, a unique past tier 7 gives ${UNIQUE_LUCK_PER_BAND} x its band`);
   console.log('  tier: standard / Rare: ' + [1, 2, 3, 4, 5, 6, 7].map((t) => `${t}: ${salvageLuckOf(t, 'scarce')} / ${salvageLuckOf(t, 'rare')}`).join(' · ') + ' · a unique of band 8 / 12 / 18: ' + [8, 12, 18].map((t) => salvageLuckOf(t, 'rare')).join(' / '));
   console.log(`THE BESTIARY (one count a creature for the whole account): at ${LUCK_STAGES.join(' / ')} kills it pays ${STAGE_LUCK.join(' / ')} Luck (${sum(STAGE_LUCK, (x) => x)} a creature in all)`);
-  console.log(`RANKS: rank n costs ${RANK_STEP} x n^2 Luck. +1% on Rare rows a rank, to rank ${LUCK_RANK_MAX}; Trophy rows stop at rank ${TROPHY_RANK_MAX}`);
+  console.log(`RANKS: rank n costs ${RANK_STEP} x n^2 Luck. +1% on Rare rows a rank, to rank ${LUCK_RANK_MAX}; Trophy rows take ${TROPHY_MAX_PM / 10}% x rank / (rank + ${TROPHY_HALF})`);
   console.log('rank | this rank costs | Luck in all | a 10 h Rare comes every | a 125 h Trophy comes every');
   for (const r of [0, 1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100]) console.log(`${r} | ${k(RANK_STEP * r * r)} | ${k(luckToRank(r))} | ${(10 / luckMult(luckToRank(r))).toFixed(1)} h | ${(125 / luckMult(luckToRank(r), 'trophy')).toFixed(0)} h`);
   const gearRows = ROSTER.flatMap((id) => ((MON[id] || {}).drops || []).filter((d) => isGear(d.id)));

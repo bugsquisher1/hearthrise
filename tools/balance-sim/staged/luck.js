@@ -9,7 +9,7 @@
 //
 //     Luck   = what salvaged gear gave (LUCK_PER_TIER, RARE_MULT, UNIQUE_LUCK_PER_BAND) + what the Bestiary's stages gave (STAGE_LUCK)
 //     rank n is held once Luck >= RANK_STEP x (1^2 + 2^2 + ... + n^2)          so rank n alone costs RANK_STEP x n^2
-//     bonus  = +rank % on Rare rows (to LUCK_RANK_MAX), +min(rank, TROPHY_RANK_MAX) % on Trophy rows
+//     bonus  = +rank % on Rare rows (to LUCK_RANK_MAX); on Trophy rows +TROPHY_MAX_PM x rank / (rank + TROPHY_HALF) permille
 //
 //   SALVAGE        worn gear the account's OWN HUNTS dropped, salvaged instead of sold: Luck by the piece's tier and band. As in
 //                  Guild Wars 2, where salvaged gear gives Essences of Luck that fill one account bar. No essence ITEM here: the
@@ -27,8 +27,19 @@
 //   unique     past tier 7 the hourly drop is stock and chips (Tyler 11-18), and uniques are the only gear. One is worth 50 x its band.
 //   stages     each four to five times the last, so four heroes sit about one stage ahead on a creature. The lumps climb with them.
 //   step       100: rank 10 costs 10,000 Luck. A lone hero salvaging everything holds rank 16 at 500 hours (measured).
-//   trophy     25: Tyler's own ceiling for a fully studied boss's relic (2026-10-19, loot-bands.js trophy boostMax 1.25). A Trophy
-//              still never comes faster than every 100 h, at any Luck.
+//   trophy     250 permille is Tyler's own ceiling for a fully studied boss's relic (2026-10-19, loot-bands.js trophy boostMax 1.25).
+//              A Trophy closes on it and never reaches it, so it never comes faster than every 100 h at any Luck.
+//
+// WHAT THE REFERENCES SAY (public repos, read for formulas and structure only; nothing copied).
+//   Guild Wars 2   Physe-0/GW2_Magic_Find_Leveling_Cost_GUI, Magic_Find_Req_Luck.py: 300 steps of 1%. A step costs 100 Luck early,
+//                  climbs to 30,000 at step 218 and stays there; 4,325,450 Luck in all by that file. So GW2 does stop, at 300%.
+//                  Taken: one account total, salvage feeds it, each percent costs more. Not taken: the flat tail and the 300%.
+//   Diablo II      yqlu/d2r-dropplot, src/engine/rarity.ts (getEffectiveMf): effective = MF x F / (MF + F), F = 250 for uniques,
+//                  500 for sets, 600 for rares. The rarer the class, the lower its ceiling. Taken for Trophy rows.
+//   Path of Exile  PathOfBuildingCommunity/PathOfBuilding, src/Modules/CalcPerform.lua: rarity and quantity are two stats, and every
+//                  source adds into one sum. Taken: Luck is rarity only, never quantity, and both feeds are one total.
+//   rAthena        rathena/rathena, src/map/mob.cpp (mob_getdroprate): one function owns the final rate, bonuses add, the cap is
+//                  applied last. Taken: Luck goes inside drops.js effectiveDropChance, under its own 0.95 bound.
 //
 // EARN-ONLY. Kills don't trade. Salvage pays Luck on at most as many of an item as the account's own hunts have dropped
 // (found minus already salvaged for Luck, per account and item, server-held). So Luck from salvage can never pass what the
@@ -58,8 +69,9 @@ export const RANK_STEP = 100;
 /** The far stop: +100% on Rare rows. */
 export const LUCK_RANK_MAX = 100;
 
-/** A Trophy row never takes more than this rank. */
-export const TROPHY_RANK_MAX = 25;
+/** A Trophy row closes on this bonus (permille) and never reaches it; at TROPHY_HALF ranks it holds half. */
+export const TROPHY_MAX_PM = 250;
+export const TROPHY_HALF = 25;
 
 /** The loot bands Luck moves (src/data/loot-bands.js REVEAL_BANDS). */
 export const LUCK_BANDS = Object.freeze(['rare', 'trophy']);
@@ -107,7 +119,7 @@ export function rankOf(luck) {
 /** The bonus in permille a `band` row takes at `luck`. Integer, so the server and the sheet show one number. */
 export function luckPm(luck, band = 'rare') {
   const r = rankOf(luck);
-  return 10 * (band === 'trophy' ? Math.min(r, TROPHY_RANK_MAX) : r);
+  return band === 'trophy' ? Math.floor((TROPHY_MAX_PM * r) / (r + TROPHY_HALF)) : 10 * r;
 }
 
 /** The multiplier a Rare or Trophy row's chance takes at `luck`. */

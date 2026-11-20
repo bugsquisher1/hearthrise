@@ -53,15 +53,18 @@ const LEVELS = [10, 30, 60, 110, 165, 240, 400];
 /* --deadly-dmg N: Deadly's blow dial (TIER_DIALS.deadly.dmgPm, 1330 today), planted on BOTH engines; --engines today|ratio|both */
 const DEADLY_DMG = arg('deadly-dmg') ? Number(arg('deadly-dmg')) : null;
 const ENGINES = String(arg('engines', 'both'));
-const dialEdits = () => (DEADLY_DMG ? [['src/data/balance-sheet.js', 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330,', 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: ' + DEADLY_DMG + ',']] : []);
+/* --dangerous-dmg N: Dangerous's blow dial (TIER_DIALS.dangerous.dmgPm, 1170 today), planted the same way */
+const DANGEROUS_DMG = arg('dangerous-dmg') ? Number(arg('dangerous-dmg')) : null;
+const dialEdits = () => (DEADLY_DMG ? [['src/data/balance-sheet.js', 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330,', 'deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: ' + DEADLY_DMG + ',']] : []).concat(DANGEROUS_DMG ? [['src/data/balance-sheet.js', 'dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: 1170,', 'dangerous: Object.freeze({ pull: 8, lift: 0.8, dmgPm: ' + DANGEROUS_DMG + ',']] : []);
 const tierAt = (L) => (L < 15 ? 1 : L < 30 ? 2 : L < 45 ? 3 : L < 60 ? 4 : L < 75 ? 5 : 6);
 
 /* ── THE REFERENCE HERO: [Level, main skill, Defense, worn accuracy] every 5 Levels to 100, then the projection ─────────────────── */
-async function referenceTable() {
+/* gear0: the cell runner's own gear (ONE loadGear a tree: a second one finds the staged rows already registered and dresses a staged kit differently) */
+async function referenceTable(gear0) {
   const v = sourceQuery(ROOT);
   const XP = await import(u('src/core/xp.js') + v);
   const { LEVEL_PACE } = await import(u('src/data/core-model.js') + v);
-  const gear = await loadGear(ROOT);
+  const gear = gear0 || await loadGear(ROOT);
   const lines = loadLines();
   const top = lines.top;
   const hoursAt = (L) => { const t = LEVEL_PACE.targets; for (let i = 1; i < t.length; i++) if (L <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (L - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t[t.length - 1][1]; };
@@ -148,7 +151,7 @@ async function formula() {
 
 /* ── play: today's engine and the planted ratio, the same cells and seeds ──────────────────────────────────────────────────────── */
 function refCell(R, point, seat, hours, seeds) {
-  const cell = { id: ['TR', point.id, seat.id].join(':'), ground: point.ground, party: seat.party, level: point.level, hours, seeds, profile: 'played',
+  const cell = { id: ['REF', point.id, seat.id].join(':'), ground: point.ground, party: seat.party, level: point.level, hours, seeds, profile: 'played',
     ...(point.open ? {} : { gear: { uniques: true, openAlso: [point.ground] } }) };
   let tier = 'normal';
   if (seat.tier === 'hardest') { const ts = R.tiers.tiersOf(point.ground); tier = ts.includes('deadly') ? 'deadly' : ts.includes('dangerous') ? 'dangerous' : 'normal'; }
@@ -172,7 +175,8 @@ async function play() {
   const { plant } = await import(u('tests/hunt-core/fixtures/h1.js'));
   const { PLAY_TREES } = await import(u('tests/hunt-core/fixtures/play-ground.mjs'));
   const BS = await import(u('src/data/balance-sheet.js'));
-  const ref = await referenceTable();
+  const RBASE = await loadCellRunner(ROOT);
+  const ref = await referenceTable(RBASE.gear);
   const ids = String(arg('at', REF_POINTS.map((p) => p.id).join(','))).split(',');
   const points = ids.map((id) => REF_POINTS.find((p) => p.id === id) || { id, ground: id, level: Number(arg('level', 0)) || bad('a ground that is not a reference point needs --level'), open: true });
   const seat = REF_SEATS.find((q) => q.id === arg('seat', 'lone')) || bad('no such seat ' + arg('seat'));
@@ -181,7 +185,7 @@ async function play() {
   const planted = async (e) => { const q = plant(e, [...PLAY_TREES, 'tests/hunt-core/fixtures']); plants.push(q); return loadCellRunner(q.root); };
   const p = { done: () => plants.forEach((q) => q.done()) };
   try {
-    const R0 = ENGINES === 'ratio' ? null : dialEdits().length ? await planted(dialEdits()) : await loadCellRunner(ROOT);
+    const R0 = ENGINES === 'ratio' ? null : dialEdits().length ? await planted(dialEdits()) : RBASE;
     const R1 = ENGINES === 'today' ? null : await planted([...edits(ref), ...dialEdits()]);
     const RT = R0 || R1;
     console.log('PLAY: base rating ' + BASE + ', seat ' + seat.id + ', ' + seeds + ' seeds x ' + hours + ' h, paired dice. hero-hit ' + HERO_HIT + ', monster hit ' + (MHIT === null ? "the row's own" : MHIT) + ', blow x' + BLOW + (arg('level') ? ', hero Level ' + arg('level') : '') + (arg('bump') ? ', skills +' + arg('bump') : '') + '. An hour, a head.');
@@ -192,7 +196,7 @@ async function play() {
       for (const [name, R] of [['today', R0], ['ratio', R1]].filter((e) => e[1])) {
         let r;
         try { r = rowOf(R.runCell({ ...cell }), seat.party); } catch (e) { console.log([pt.id, tier, name, 'ERROR ' + e.message].join(' | ')); continue; }
-        console.log([pt.id + ' L' + cell.level, tier + (DEADLY_DMG ? ' dmg ' + DEADLY_DMG : ''), name, r.xp, (r.xp / c).toFixed(2), r.skill, r.taken, r.frontTaken, r.store, r.net, r.deaths, r.low].join(' | '));
+        console.log([pt.id + ' L' + cell.level, tier + (DEADLY_DMG ? ' deadly ' + DEADLY_DMG : '') + (DANGEROUS_DMG ? ' dangerous ' + DANGEROUS_DMG : ''), name, r.xp, (r.xp / c).toFixed(2), r.skill, r.taken, r.frontTaken, r.store, r.net, r.deaths, r.low].join(' | '));
       }
     }
   } finally { p.done(); }

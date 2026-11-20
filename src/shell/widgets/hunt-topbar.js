@@ -9,20 +9,20 @@
 // close lands, and a plain "still processing" line if it is late.
 // "Ready in" and the "»" buttons of the reference are NOT built (TB-03, TB-04: purpose unknown, Tyler 10-17).
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.142';
-import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.142';
-import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.142';
-import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.142';
-import { text, prop, attr } from '../../render/paint.js?v=0.2.142';
-import { clock, whole } from '../../render/format.js?v=0.2.142';
-import { track } from '../../net/observability.js?v=0.2.142';
-import { refusalText } from '../intent-words.js?v=0.2.142';
-import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.142';
-import { connection } from '../../net/connection.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
-import { trainingNowOf } from '../training-now.js?v=0.2.142';
-import { patchTowerBar } from './tower-bar.js?v=0.2.142';
-import { scalePlaying } from '../windows/scale-pane.js?v=0.2.142';
+import { HUNT_INDEX } from '../../data/hunts.js?v=0.2.143';
+import { roomOfHunt } from '../../data/boss-halls.js?v=0.2.143';
+import { huntOf, huntTierOf, analyzerOf, sessionClockMs, serverNowOf } from '../../session/hunt-sections.js?v=0.2.143';
+import { DEFAULT_TIER, TIER_NAME } from '../../data/hunt-tiers.js?v=0.2.143';
+import { text, prop, attr } from '../../render/paint.js?v=0.2.143';
+import { clock, whole } from '../../render/format.js?v=0.2.143';
+import { track } from '../../net/observability.js?v=0.2.143';
+import { refusalText } from '../intent-words.js?v=0.2.143';
+import { pointerFor, actCoach, placeCoach } from '../launcher.js?v=0.2.143';
+import { connection } from '../../net/connection.js?v=0.2.143';
+import { t } from '../../render/player-text.js?v=0.2.143';
+import { trainingNowOf } from '../training-now.js?v=0.2.143';
+import { patchTowerBar } from './tower-bar.js?v=0.2.143';
+import { scalePlaying } from '../windows/scale-pane.js?v=0.2.143';
 
 /* The pending leave's line, per CharacterSession.leaveCountdown phase (null: the press is still out). */
 const LEAVING = Object.freeze({ asked: 'hud.leaving', now: 'hud.leaving_now', late: 'hud.leaving_late' });

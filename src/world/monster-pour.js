@@ -13,7 +13,7 @@
 //
 // PURE of globals: the document and the clock are handed in.
 // ════════════════════════════════════════════════════════════════════════
-import { pourPixels, POURS } from './pour.js?v=0.2.142';
+import { pourPixels, POURS } from './pour.js?v=0.2.143';
 
 /** How many baked kind-and-pour sheets stay in memory (a room is five, a landing's Keeper one more, the next room's while it stands). */
 export const POUR_LOOKS = 12;

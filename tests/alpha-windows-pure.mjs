@@ -997,6 +997,13 @@ async function itemTruthRules(base) {
   const onePress = lootSale(bag, { locked: new Set() }, shop, needs);
   const kept = lootKept(bag, { locked: new Set() }, shop, needs);
   if (onePress.lines.some((l) => l.item === 'slime_gel') || !kept.ids.includes('slime_gel')) fails.push('AW-60 the button sells ' + JSON.stringify(onePress.lines) + ' and says it keeps ' + kept.ids.join());
+  /* A KEY IS NEVER JUNK (lane/a-key-never-junk, 2026-11-20): the Hall Key opens Krell's Hold (`opens`), and nothing at a bench spends it, so
+     kindOf filed it as Junk and Sell all junk sold it. Every row that opens something, from the catalogue: no bulk sale takes one. */
+  const keys = Object.keys(ITEMS).filter((id) => ITEMS[id].opens);
+  if (!keys.includes('hall_key')) fails.push('AW-60 CONTROL the Hall Key is no row that opens a hall: ' + keys.join());
+  const keyBag = keys.map((id) => ({ id, qty: 1 })).concat([{ id: 'rat_tail', qty: 5 }]);
+  const keySale = lootSale(keyBag, { locked: new Set() }, { bids: new Map(keyBag.map((r) => [r.id, 400])) }, null).lines.map((l) => l.item);
+  if (keys.some((id) => kindOf(id) === 'junk') || keySale.some((id) => keys.includes(id)) || !keySale.includes('rat_tail')) fails.push('AW-60 Sell all junk sells a key: ' + JSON.stringify({ keySale, kinds: keys.map((id) => [id, kindOf(id)]) }));
   /* TOOLS: the row, where it counts, and moving one away. */
   const hero = (inv, bank, offers) => { const e = { inventory: inv, skills, shop: { offers: offers || [], bids: {} }, bank: bank || {} }; return { read: (k) => e[k], account: { read: (k) => e[k] } }; };
   const both = hero({ iron_axe: 1, bronze_axe: 1 });
@@ -1193,6 +1200,8 @@ const MUTANTS = [
   ['item truth: a seed says sell it', 'src/shell/item-lore.js', "  if (it.seed) out.push(t('item.plant_it'));\n", ''],
   ['item truth: a bar a hero makes files as junk', 'src/shell/bag-model.js', "if (dropSet().has(id) && !made) return isSpentMaterial(id) || plannedUse(id) ? 'material' : isRareItem(id) ? 'rare' : 'junk';", "if (dropSet().has(id)) return isSpentMaterial(id) || plannedUse(id) ? 'material' : 'junk';"],
   ['item truth: a tool files as a material', 'src/shell/bag-model.js', "const made = it.type !== 'tool' && madeSet().has(id);", 'const made = madeSet().has(id);'],
+  /* lane/a-key-never-junk: the Hall Key back under Junk, so Sell all junk sells it */
+  ['item truth: a key files as junk again', 'src/shell/bag-model.js', "  if (it.opens) return 'other';\n", ''],
   ['item truth: the shop\'s raw flag files a tool as a material', 'src/shell/bag-model.js', "if (it.type === 'tool') return 'other';", ''],
   ['item truth: Sell all loot ignores the House', 'src/shell/bag-model.js', ' && !(needs && needs.has(r.id))', ''],
   ['item truth: a gated room counts as a next step', 'src/shell/bag-model.js', 'if (r.next && r.opens <= home.tier && r.next.need <= home.tier) step(r.next);', 'if (r.next) step(r.next);'],

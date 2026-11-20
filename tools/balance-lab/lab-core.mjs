@@ -223,7 +223,7 @@ function heroTotals(key, style, level, kit) {
   return { key, style, level, kit, hours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: LOOT0(), lootN: 0, rareItems: [], gear: {}, store: 0, buys: {}, uses: {},
     deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [], xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {},
     healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0, blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 },
-    drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} };
+    drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {}, manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} };
 }
 
 /**
@@ -329,7 +329,12 @@ export function playCell(cell, seeds, hooks = {}) {
               if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
               break;
             case 'cast':
-              if (uk) { const h = byKey[uk]; h.casts[e.ability] = (h.casts[e.ability] || 0) + 1; h.castGold += e.gold || 0; }
+              if (uk) {
+                const h = byKey[uk]; h.casts[e.ability] = (h.casts[e.ability] || 0) + 1; h.castGold += e.gold || 0;
+                /* the mana each spell KEPT (the cast's `mana`, net of a refund or mana back) and what came back (`back`, the Storm spells): cell.mjs, the same lines */
+                h.castMana[e.ability] = (h.castMana[e.ability] || 0) + (e.mana || 0);
+                if (e.back > 0) h.castBack[e.ability] = (h.castBack[e.ability] || 0) + e.back;
+              }
               break;
             case 'shot':
               if (uk && e.mana) byKey[uk].manaShots++;
@@ -434,7 +439,7 @@ export function mergeTotals(parts) {
     first.heroes.forEach((h, i) => {
       const g = t.heroes[i];
       for (const k of ['hours', 'levelXp', 'coin', 'lootN', 'store', 'deaths', 'xpLostLevel', 'dealt', 'taken', 'healOut', 'shieldIn', 'blowsLanded', 'blowsMissed', 'dodged', 'castGold', 'manaShots', 'close', 'dips']) h[k] += g[k];
-      for (const k of ['skillXp', 'loot', 'gear', 'buys', 'uses', 'killers', 'xpLostSkill', 'dealtBy', 'takenBy', 'healIn', 'eats', 'drinks', 'casts', 'ended']) addInto(h[k], g[k]);
+      for (const k of ['skillXp', 'loot', 'gear', 'buys', 'uses', 'killers', 'xpLostSkill', 'dealtBy', 'takenBy', 'healIn', 'eats', 'drinks', 'casts', 'castMana', 'castBack', 'ended']) addInto(h[k], g[k]);
       for (const k of ['rareItems', 'deathLevelXpLost', 'enc', 'ttdClose']) h[k].push(...g[k]);
       for (const [id, s] of Object.entries(g.spellsIn || {})) { const t = h.spellsIn[id] || (h.spellsIn[id] = { hits: 0, dmg: 0 }); t.hits += s.hits; t.dmg += s.dmg; }
     });
@@ -499,6 +504,8 @@ export function summarise(cell, totals) {
       eatsPerH: { own: round(h.eats.own / hr, 1), store: round(h.eats.store / hr, 1) },
       drinksPerH: { own: round(h.drinks.own / hr, 1), store: round(h.drinks.store / hr, 1) },
       castsPerH: Object.fromEntries(Object.entries(h.casts).map(([k, n]) => [k, round(n / hr, 1)])), manaShotsPerH: round(h.manaShots / hr, 1),
+      castManaPerH: Object.fromEntries(Object.entries(h.castMana).map(([k, n]) => [k, per(n)])),
+      manaBackPerH: Object.fromEntries(Object.entries(h.castBack).map(([k, n]) => [k, per(n)])),
       encounters: h.enc.length, encMinHpPct: { p50: minMed, p10: quantile(h.enc, 0.1), p01: quantile(h.enc, 0.01) },
       closeCallsPer12h: closeCalls, dipsUnder40Per12h: rateCI(h.dips, h.hours, 12),
       ttdAtCloseS: quantile(h.ttdClose.filter(Number.isFinite), 0.5),

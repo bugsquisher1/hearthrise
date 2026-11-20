@@ -3,36 +3,6 @@
   "class": "clutter",
   "style": "s1",
   "material": "native",
-  "restyle": {
-    "map": {
-      "#e6dcbc": "#8a867d",
-      "#c9bfa0": "#6a6865",
-      "#dcae86": "#8a6440",
-      "#b5835f": "#6e4c30"
-    },
-    "clamp": {
-      "stone": [
-        0,
-        2
-      ],
-      "iron": [
-        0,
-        2
-      ],
-      "steel": [
-        0,
-        1
-      ],
-      "earth": [
-        0,
-        4
-      ],
-      "bronze": [
-        0,
-        2
-      ]
-    }
-  },
   "source": "mh_mounting_block.png",
   "frame": [
     22,

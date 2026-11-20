@@ -46,6 +46,12 @@
         "gzipBytes": 874914,
         "on": "2026-11-20",
         "why": "set/v0.2.143 after the second pin (293a58b21): lane/b-morrow-kit's art classes in src/data/world/art-budget.js (+81 B gzip, the sign-in backdrop's camera reads it) and the merged lanes' own code on the game half: elements-6b abilities + hunt roles (+477 B), first-hours-bugs launcher, chronicle, live-events, sheet, away text (+590 B), the Trophy Room hold in home-sections (+86 B), morrow maps and terrain (+125 B). Each is a feature's own code or data, nothing a later import() could carry; measured per module with --deliver minify on 293a58b21 and e596bbb08"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 874919,
+        "on": "2026-11-20",
+        "why": "lane/a-key-never-junk (bbd86962f) fast-forwarded into set/v0.2.143 after the raise above: src/shell/bag-model.js kindOf, a key is never junk (+3 lines), on the town stage's game half with the Bag it sorts; the Bag's own rule, nothing an import() could carry"
       }
     ]
   }

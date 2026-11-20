@@ -49,10 +49,10 @@
 //             renderer reads the tile size from the map, never from a constant.
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=0.2.141';
-import { reachFrom } from './path.js?v=0.2.141';
-import { GRIDS, gridOf } from '../../data/world/art-budget.js?v=0.2.141';
-import { lifeOf } from './ambient.js?v=0.2.141';
+import { rectOf, onEdge, isCorner, sideOf, inRect } from './grid.js?v=0.2.142';
+import { reachFrom } from './path.js?v=0.2.142';
+import { GRIDS, gridOf } from '../../data/world/art-budget.js?v=0.2.142';
+import { lifeOf } from './ambient.js?v=0.2.142';
 
 /* 'sandbox': the look-and-walk scene of another art grid (src/data/world/sandbox.js), walked like a town with nobody else in it. */
 export const MAP_KINDS = Object.freeze(['hunt', 'town', 'home', 'sandbox']);

@@ -12,13 +12,13 @@
 // PURE model (stageModel) + DOM built once and patched in place (render/paint.js). Vertical places are set here (each floor is PX CSS px);
 // the horizontal layout is src/styles/tower.css's, so the phone moves it without a second model.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWER_ART, SCALE } from '../data/tower-art.js?v=0.2.141';
-import { CHEST_KEYS } from '../data/chests.js?v=0.2.141';
-import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.141';
-import { keyForLanding } from '../session/tower-sections.js?v=0.2.141';
-import { rows, text, cls, attr, prop, style, element } from '../render/paint.js?v=0.2.141';
-import { t, hasText } from '../render/player-text.js?v=0.2.141';
-import { whole } from '../render/format.js?v=0.2.141';
+import { TOWER_ART, SCALE } from '../data/tower-art.js?v=0.2.142';
+import { CHEST_KEYS } from '../data/chests.js?v=0.2.142';
+import { OUTFITS } from '../data/hunt-outfits.js?v=0.2.142';
+import { keyForLanding } from '../session/tower-sections.js?v=0.2.142';
+import { rows, text, cls, attr, prop, style, element } from '../render/paint.js?v=0.2.142';
+import { t, hasText } from '../render/player-text.js?v=0.2.142';
+import { whole } from '../render/format.js?v=0.2.142';
 
 /** CSS px a floor climbs (the art's PPF at the window's one density). */
 export const PX = TOWER_ART.PPF * SCALE;

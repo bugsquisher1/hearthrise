@@ -17,21 +17,21 @@
 // Shield, Light"), an add-on not owned greyed with its requirement; while the factions are on, an outfit not owned shows locked with
 // the server's own requirement. The pick is the look Equip names: one hr_outfit_set, no other verb.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, STAGED_OUTFITS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, outfitOfLook, lookColors } from '../../../data/outfits.js?v=0.2.141';
-import { factionOf } from '../../../session/faction-sections.js?v=0.2.141';
-import { wardrobeIds, teaserWords, addonChoices, lookForCard } from './outfit-looks.js?v=0.2.141';
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.141';
-import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.141';
-import { outfitOf } from '../../../session/character-sections.js?v=0.2.141';
-import { goldOf } from '../../../session/item-sections.js?v=0.2.141';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.141';
-import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.141';
-import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.141';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.141';
-import { gold } from '../../../render/format.js?v=0.2.141';
-import { glyphSvg } from '../../launcher.js?v=0.2.141';
-import { runIntent, refusalText } from '../../intent-words.js?v=0.2.141';
-import { t } from '../../../render/player-text.js?v=0.2.141';
+import { OUTFIT_ROWS, OUTFIT_IDS, STAGED_OUTFITS, BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, dyeKeyOf, outfitOfLook, lookColors } from '../../../data/outfits.js?v=0.2.142';
+import { factionOf } from '../../../session/faction-sections.js?v=0.2.142';
+import { wardrobeIds, teaserWords, addonChoices, lookForCard } from './outfit-looks.js?v=0.2.142';
+import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.142';
+import { FACINGS } from '../../../data/world/art-budget.js?v=0.2.142';
+import { outfitOf } from '../../../session/character-sections.js?v=0.2.142';
+import { goldOf } from '../../../session/item-sections.js?v=0.2.142';
+import { heroSprite } from '../../../session/hero-look.js?v=0.2.142';
+import { saveHeroColors, readColorsPrice } from '../../../session/hero-color-intents.js?v=0.2.142';
+import { rows, text, cls, prop, attr, style, element } from '../../../render/paint.js?v=0.2.142';
+import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
+import { gold } from '../../../render/format.js?v=0.2.142';
+import { glyphSvg } from '../../launcher.js?v=0.2.142';
+import { runIntent, refusalText } from '../../intent-words.js?v=0.2.142';
+import { t } from '../../../render/player-text.js?v=0.2.142';
 
 /* The turn order of the rotate button: clockwise from facing the viewer. */
 const TURN = Object.freeze(['s', 'sw', 'w', 'nw', 'n', 'ne', 'e', 'se'].filter((d) => FACINGS.includes(d)));

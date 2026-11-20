@@ -65,10 +65,10 @@
 // GROUND PACKS (lane/b-ground-pack): a new ground is a folder under src/data/grounds, not a row here. HUNTS is the rows below
 // and then every pack's hunt (src/data/grounds/index.js), its id the pack's and `staged` while the pack is.
 // ════════════════════════════════════════════════════════════════════════
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.141';
-import { SKILLS_DEF } from './skills.js?v=0.2.141';
-import { TOWER_RULES, CATACOMB_RULES, CATACOMB_WINGS } from './tower.js?v=0.2.141';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.142';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.142';
+import { SKILLS_DEF } from './skills.js?v=0.2.142';
+import { TOWER_RULES, CATACOMB_RULES, CATACOMB_WINGS } from './tower.js?v=0.2.142';
 
 const BASE_HUNTS = Object.freeze([
   {

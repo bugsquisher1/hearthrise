@@ -10,17 +10,17 @@
 // boot.js awaits this module before it makes the account; nothing here runs at import beyond its imports.
 // ════════════════════════════════════════════════════════════════════════
 
-export { AccountSession } from '../session/account-session.js?v=0.2.141';
-export { FRAME_EVENT } from '../session/character-session.js?v=0.2.141';
-export { mountWorldPane } from './world-pane.js?v=0.2.141';
-export { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.141';
-export { renderHeroCreate } from './hero-create.js?v=0.2.141';
-export { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.141';
-export { drawRosterFaces } from './roster-faces.js?v=0.2.141';
-export { createAlertCenter } from '../shell/alerts.js?v=0.2.141';
-export { mountMarketWatch } from '../shell/market-watch.js?v=0.2.141';
-export { mountTownCriers } from '../shell/town-criers.js?v=0.2.141';
-export { SocialSession } from '../social/social-session.js?v=0.2.141';
-export { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.141';
-export { coachFactsOf } from '../shell/launcher.js?v=0.2.141';
-export { HERO_READERS } from '../net/hero-readers.js?v=0.2.141';
+export { AccountSession } from '../session/account-session.js?v=0.2.142';
+export { FRAME_EVENT } from '../session/character-session.js?v=0.2.142';
+export { mountWorldPane } from './world-pane.js?v=0.2.142';
+export { mountCharacterStrip, stripTargetOf } from './character-strip.js?v=0.2.142';
+export { renderHeroCreate } from './hero-create.js?v=0.2.142';
+export { slotOfferHtml, slotRefusalText, playLineOf } from './slot-offer.js?v=0.2.142';
+export { drawRosterFaces } from './roster-faces.js?v=0.2.142';
+export { createAlertCenter } from '../shell/alerts.js?v=0.2.142';
+export { mountMarketWatch } from '../shell/market-watch.js?v=0.2.142';
+export { mountTownCriers } from '../shell/town-criers.js?v=0.2.142';
+export { SocialSession } from '../social/social-session.js?v=0.2.142';
+export { pointerCardOf } from '../session/tutorial-sections.js?v=0.2.142';
+export { coachFactsOf } from '../shell/launcher.js?v=0.2.142';
+export { HERO_READERS } from '../net/hero-readers.js?v=0.2.142';

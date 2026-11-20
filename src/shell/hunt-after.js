@@ -15,13 +15,13 @@
 // Every number is the envelope's (the count a bench has left, the yard's fee, the purse the server found): nothing here is
 // computed, spent or sent. The words are src/data/text/away.js.
 // ════════════════════════════════════════════════════════════════════════
-import { t } from '../render/player-text.js?v=0.2.141';
-import { whole, gold } from '../render/format.js?v=0.2.141';
-import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.141';
-import { trainingOf } from '../session/training-sections.js?v=0.2.141';
-import { townActivityWords, partyMembershipOf } from '../session/party-sections.js?v=0.2.141';
-import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.141';
-import { skillName } from './widgets/bits.js?v=0.2.141';
+import { t } from '../render/player-text.js?v=0.2.142';
+import { whole, gold } from '../render/format.js?v=0.2.142';
+import { huntAfterOf } from '../session/hunt-after-sections.js?v=0.2.142';
+import { trainingOf } from '../session/training-sections.js?v=0.2.142';
+import { townActivityWords, partyMembershipOf } from '../session/party-sections.js?v=0.2.142';
+import { AFTER_INDEX } from '../data/hunt-after.js?v=0.2.142';
+import { skillName } from './widgets/bits.js?v=0.2.142';
 
 /* The server's job in words ("working on Cooked Shrimp", "mining the Copper Rock"), or null. */
 const doingOf = (job) => (job ? townActivityWords({ active_kind: job.kind, active_id: job.id }) : null);

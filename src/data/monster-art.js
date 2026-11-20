@@ -207,7 +207,11 @@ export const HEAD_ART_AHEAD = Object.freeze([
   /* the Muster's own two, re-poured from the Ford's heads (2026-11-15) */
   'barrow_pikeman', 'cairn_wight',
   /* the Unmarked Catacombs' five (lane/a-catacomb-art 2026-11-16, tools/world-art/import-catacombs-2026-11-16.mjs) */
-  'shrouded_pauper', 'vault_leech', 'bone_wall', 'night_carter', 'keeper_dunn']);
+  'shrouded_pauper', 'vault_leech', 'bone_wall', 'night_carter', 'keeper_dunn',
+  /* Carter's Rest's five trolls (lane/b-morrow-art 2026-11-19), each drawn from its finished body (art/briefs/morrow-hills-art-rules.txt 11) */
+  'troll_picker', 'slate_thrower', 'troll_brewer', 'stable_troll', 'the_landlord',
+  /* the Ox Road's five (lane/b-morrow-art 2026-11-19), each drawn from its finished body the same way */
+  'dead_teamster', 'coal_runner', 'drover', 'wagonmaster', 'yoke_ox']);
 const HEAD_SET = new Set(HEAD_ART.concat(HEAD_ART_AHEAD));
 /** The head's path for a creature id, or null when the set has none (the caller draws nothing). A creature drawn as another
     (HUNT_ART_ALIAS below: a pack body that wears a kit body, a called boss) wears that one's head too: one face a sprite. */

@@ -1,0 +1,71 @@
+{
+  "id": "mh_ore_wagon_half",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_ore_wagon_half.png",
+  "frame": [
+    64,
+    47
+  ],
+  "anchor_px": [
+    32,
+    46
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text) from a free sketch",
+    "image": "b33ed42b-cda5-513e-952b-ebef5096b3dd",
+    "job": "5eee96b9",
+    "sketch": "art/review/morrow-kit/ox-props4/half-w3.png"
+  },
+  "notes": "The ore wagon half unloaded, the back of its bed empty to its floor boards, its tail board down. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Batch 7 (b6: \"four identical grey stone ore loads, vary one\"): its load is the richer Dawnstone, thin bronze veins across the lumps and a lit fleck where a vein meets a lump's lit face, drawn over its own pixels by rule (.scratch/kit/b7/veins.mjs). Pixels unscaled."
+}

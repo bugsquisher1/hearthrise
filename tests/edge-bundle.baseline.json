@@ -83,6 +83,11 @@
         "bytes": 3129912,
         "on": "2026-11-20",
         "why": "hr-accrue +9,056 B: +2,785 lane/c-server-cost (hunt-settle.js one read a settle, perks a term of HUNT_READ_SQL +1,112; tick.js deferred leases go back via hr_hunt_lease_free +1,673); +6,271 set/v0.2.143's lane/d-elements-6b-rulings 726a0db7c (data/abilities.js +3,962, core/hunt/abilities.js +1,379, hunt-roles.js +590, necrotic-storm.js +340), unraised on the set"
+      },
+      {
+        "bytes": 3133707,
+        "on": "2026-11-20",
+        "why": "hr-accrue +3,795 B, all set/v0.2.143's lane/b-morrow-kit (79569450b, merged into lane/c-server-cost), unraised on the set: carters_rest map.js +2,054 / pack.js +58, ox_road map.js +861 / pack.js +289, world/terrain.js +533 (the ground maps the engine's own index reads)"
       }
     ]
   }

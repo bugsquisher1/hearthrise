@@ -93,6 +93,11 @@
         "bytes": 3134266,
         "on": "2026-11-20",
         "why": "hr-accrue +559 B, all lane/a-trophy-room-held: data/homestead-tiers.js HELD_HOME_ROOMS (the Trophy Room held whole, ~310 by the diff) and unlock-catalogue.js refusing a held room's every rung by name (~250)"
+      },
+      {
+        "bytes": 3134771,
+        "on": "2026-11-20",
+        "why": "+505 B, lane/c-approved-rows (Tyler 2026-11-20 calls 24-9, 26-3, 26-8, 26-9, 22-8): the ruled rows' one-line whys in shops.js, homestead-tiers.js (the Shrine held), gold-ladders.js (the bag stops at 10) and boss-calls.js (no gold); no new module reached"
       }
     ]
   }

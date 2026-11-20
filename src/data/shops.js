@@ -54,12 +54,9 @@ function supplyOffer(s) {
 /** Every offer whose price is data. shop_buy sells only what a Shop tab lists (supply-basics.js SHOP_SOLD_KINDS; the rest
     is refused not_listed, catalogue.js offerRefusal): the legacy equip.* and seed.* rows are a vendor price list only. */
 export const SHOP_OFFERS = [
-  /* THE HERO-SLOT LADDER. An account starts with ONE slot (Tyler 2026-11-09). Tyler 2026-11-20 (balance call 24-9): "i think hero
-     slots should cost even more"; the designer's ladder 400,000 / 1,500,000 / 4,000,000 (docs/design/balance-program/24-economy.md
-     "Q9 after Tyler's ruling", was 300,000 / 750,000 / 1,500,000). The FIRST slot is the door from the lone game to the party game,
-     so it stays at or under what one lone hero banks by the Level the party grounds open (tests/slot-price-guard.mjs, the standing
-     guard, reads tools/balance-program/lone-bank.mjs); the later two climb freely. The server charges public.hr_hero_slots
-     (1015-hero-slots-dearer.sql), bound to these rows by tests/hero-slot-buy.mjs. */
+  /* THE HERO-SLOT LADDER: one slot to start (Tyler 2026-11-09); "slots should cost even more" (Tyler 2026-11-20, call 24-9, 24-economy.md Q9).
+     The first stays within one lone hero's bank by the party grounds (tests/slot-price-guard.mjs); the later two climb freely. The server
+     charges public.hr_hero_slots (1015-hero-slots-dearer.sql), bound here by tests/hero-slot-buy.mjs. */
   {
     id: "character_slot.1", table: "character_slot",
     name: "Character slot 2",
@@ -160,10 +157,7 @@ export const SHOP_OFFERS = [
      2,500,000, rooms 600,000 to 900,000, 8,450,000 in all, once an account. MEASURED (`audit-table.mjs gold --to 90`): a hero banks 1.10M from
      Level 45 to 60, 1.77M to 75, 1.89M to 90, and Tempering 4 to 6 asks 2.23M of it, so the House is the account's chase of months. A fifth
      rung is +2% at its bench (perks.js), a farm bed or a mount: capacity and comfort, never power.
-     THE DEED LADDER RE-SPACED (Tyler 2026-11-20, balance call 26-3; docs/design/balance-program/26-home.md §1): 400 / 25,000 / 150,000 /
-     600,000 / 2,500,000 (the Farmstead, Manor and Keep were 2,500 / 10,000 / 40,000, four tiers bought in week one). A step is a choice:
-     0.3 weeks of a lone hero at Level 15 to 20, a week of one at Level 30 beside the second hero slot, half a week of a four at Level 50.
-     Materials do not move. A tier already bought stays bought. */
+     THE DEEDS RE-SPACED (Tyler 2026-11-20, call 26-3; 26-home.md §1): 400 / 25,000 / 150,000 / 600,000 / 2,500,000. A tier bought stays bought. */
   {
     id: "property.castle", table: "property",
     name: "Hearthrise Castle",

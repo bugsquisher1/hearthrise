@@ -5,16 +5,11 @@
 // bounded MAX-MERGE unlock ladder so that the ONE existing spend RPC
 // (public.hr_unlock_buy) sells it with no new code path:
 //
-//   bank          the bag's stack cap, each HERO's. 10 rungs. Price grows
-//                 geometrically (round(3000 * 1.32^k), k in [0,9]). hr_unlock_buy
-//                 raises player_state.bank_cap through hr_bank_cap_for_rungs
-//                 (2026-09-06-bank-cap-tracks-rungs.sql). The ladder STOPS AT 10
-//                 (Tyler 2026-11-20, balance call 26-9; 26-home.md §5): 300 stacks
-//                 a hero for 141,185 gold; rungs 11 to 30 were 38.7M a hero for
-//                 space nobody would buy. Storage grows in the account's depot
-//                 instead (four chests behind the Keep and the Castle, a later
-//                 lane). A hero that owns a rung past 10 keeps its bag: the cap
-//                 sync is raise-only and nothing takes a rung away.
+//   bank          the bag's stack cap, each HERO's. 10 rungs (Tyler 2026-11-20,
+//                 call 26-9: it stops at 10; Storage grows in the depot). Price
+//                 round(3000 * 1.32^k). hr_unlock_buy raises player_state.bank_cap
+//                 through hr_bank_cap_for_rungs (raise-only: a rung owned past 10
+//                 keeps its bag).
 //
 //   key_ring      the Key Ring (Tyler 2026-11-16): ONE rung, once per hero. Every chest key
 //                 sits on it instead of in the bag (2027-04-27-tower-chest.sql, the ring

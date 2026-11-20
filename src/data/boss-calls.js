@@ -28,10 +28,7 @@
 // THE PRICE (designer 2026-11-14, the real settle, 3 seeds x 2 h a cell): on the Sewer a four meets the Rat King every 2.6
 // stamina minutes a hero, a pair every 4.6; on the Warrens a four meets Chief Coppercap every 3.1, a pair every 5.1. A call
 // fight costs 2 and 2.5: cheaper a boss kill, while the ground keeps its coin, its Level XP and its other drops, so the ground
-// stays the better all-round hour.
-// NO GOLD (Tyler 2026-11-20, balance call 22-8; docs/design/balance-program/22-endgame.md, question 8): a fight costs stamina only, so
-// a call is never a roll bought with gold (the Steam paid-roll flag goes away). `fee` stays a column at 0 (hr_boss_calls.fight_fee):
-// the series, its quote and its gold_out end read it unchanged and simply find nothing to charge.
+// stays the better all-round hour. NO GOLD (Tyler 2026-11-20, call 22-8): `fee` is 0, a call is never a roll bought with gold.
 // THE DROP DOOR IS OPEN (BOSS_CALL_RULES.dropsLive): it opened with the server half that allows a win's window its items
 // (hr_boss_call_pays), holds every win to a paid fight (hunt_sessions' CHECK: wins never pass the fights paid) and proves the win
 // from the window's own kill. tests/boss-call.mjs still plays the door shut.

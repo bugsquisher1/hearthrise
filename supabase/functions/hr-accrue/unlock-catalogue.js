@@ -130,7 +130,7 @@ export function unlockOfferIneligibility(o) {
 
   /* THE HOUSE'S TOP, HELD (src/data/homestead-tiers.js): a real row, priced in an item no player can reach yet. */
   if (HELD_HOME_OFFERS.includes(o.id)) return 'held:its_materials_have_no_source_yet';
-  /* A ROOM HELD WHOLE until it is rebuilt (HELD_HOME_ROOMS: the Trophy Room hangs nothing; the Shrine's rungs are cut, 2026-11-20): every rung, whatever it costs. */
+  /* A ROOM HELD WHOLE until it is rebuilt (HELD_HOME_ROOMS: the Trophy Room hangs nothing): every rung, whatever it costs. */
   if (ns === 'room' && HELD_HOME_ROOMS.includes(g.id.slice(5))) return 'held:its_room_is_not_built_yet';
 
   for (const k of Object.keys(o)) {

@@ -168,16 +168,13 @@ export function markCoachRead(cs, card) {
    hero, the newest wins, src/session/player-switch.js) and, per character, the cards a server fact finishes that the player
    pressed Got it on (residue `coach.hid`). Both display state: the tutorial's own progress is the server's. A card hidden here
    is passed by in the chain (coachFactsOf hands `hid` to hunt-tutorial.js currentCard), so the next card whose conditions hold
-   shows at once; it no longer holds every later card until its own fact (2026-11-18: "Feed the Hearth" held the farm's). */
+   shows at once (2026-11-18). A HIDE HOLDS FOR ITS VISIT (visitOf: the hunt session, in it or home; retention dive 2026-11-20 R5, Got it means later). */
 const heroesOf = (ctx) => {
   const all = ctx.account && typeof ctx.account.characters === 'function' ? ctx.account.characters() : [];
   return !ctx.character || all.includes(ctx.character) ? all : all.concat(ctx.character);
 };
 /** Are the tips on for this player (the coach's cards here, the town criers in chat)? */
 export function tipsOn(ctx) { return switchOn(heroesOf(ctx), TIPS); }
-/* GOT IT MEANS LATER, NOT NEVER (retention dive 2026-11-20, R5: seven Got its at Level 1 hid "Cash in" and "Into the Thicket" for good, so neither
-   came back when it mattered): a hide holds for the VISIT it was pressed on, the hunt the server shows (its session) and whether the hero is in
-   it or back in town from it. A new hunt, or the way home from one, is a new visit: the cards hidden on the last show again if still not done. */
 const visitOf = (cs) => { const h = huntOf(cs); return (h && h.sessionId ? String(h.sessionId).slice(0, 56) : 'none') + (h && h.huntId && !h.ended ? ':in' : ':town'); };
 /** The cards this character hid with Got it on this visit (ids), or null when this client cannot record one. */
 export function coachHidOf(cs) {
@@ -412,8 +409,7 @@ export function actCoach(ctx, el, action, ev) {
   const keep = read && read.size ? { read: Array.from(read) } : {};
   const r = cs.record && cs.record.residue && cs.record.residue.coach;
   if (r && r.back) { keep.back = r.back; if (Number.isSafeInteger(r.backAt)) keep.backAt = r.backAt; }
-  /* a fold keeps this visit's hides: a card hidden with Got it never comes back because the coach was folded */
-  if (r && Array.isArray(r.hid) && r.hid.length && typeof r.hidIn === 'string') { keep.hid = r.hid.slice(); keep.hidIn = r.hidIn; }
+  if (r && Array.isArray(r.hid) && r.hid.length && typeof r.hidIn === 'string') { keep.hid = r.hid.slice(); keep.hidIn = r.hidIn; } // a fold keeps this visit's hides
   cs.setResidue('coach', Object.assign(action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id }, keep));
   /* The box is redrawn on the residue change (one repaint per task): keep the keyboard on the coach's control. */
   if (hadFocus) queueMicrotask(() => { const b = el.querySelector('[data-hs-act^="coach-"]'); if (b) b.focus(); });

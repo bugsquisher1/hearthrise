@@ -2,7 +2,7 @@
 // tools/world-art/morrow-ox-ground.mjs — THE OX ROAD'S MOOR, WATER AND GROUND STORY (lane/b-morrow-kit, 2026-11-19, batch 6 after the
 // b5 whole-map review's ranked list 1-5). Used by morrow-grounds.mjs on the Ox Road only (Carter's Rest never calls it).
 //
-//   oxMoor   the moor a step darker; heather only in drifts; sunken bare peat; four kinds of moor decal by rule
+//   oxMoor   the moor a step darker and clear; a few large bogs by the stream and in the pockets; three kinds of moor decal by rule
 //   oxWater  the stream's depth from its bank, a lit lip, a shore band; the ford a gravel bar under shallow water with wet stones
 //   oxStory  the ground's story under the wrecks: the slewed wagon's gouge, ore spilled to the dropped heap, the lost wheel's track,
 //            hoof scuffs where the teams stood and fell, ruts that braid round the wrecks
@@ -38,49 +38,52 @@ function pxDist(W, H, inside, cap = 64) {
   return D;
 }
 
-/* ── THE MOOR (ranked 1: "a step darker; the orange tuft repeats at near-constant spacing; tufts into heather drifts with bare peat;
-   3+ decal kinds"). The fill's sprigs were its one orange tuft on a 32 px repeat: on the open moor they become grass, and only in
-   DRIFTS (soft fields about 150 px across, ragged at the edge, never within a cell of the road, the path or the water) does heather
-   grow, in clumps 3-5 px with a lit tip and dark gaps under them. Bare PEAT lies in sunken hollows (the north wall in shade, the south
-   rim lit, grass hanging over the edge). The grass goes a step darker, its old middle green kept as the texture's lit grain. ── */
-const MOOR_LOOK = Object.freeze({ drift: 0.65, peat: 0.72, decalEvery: 11, decalGap: 64 });
+/* ── THE MOOR (b5 ranked 1, then b6: "evenly scattered peat blobs ... camouflage"; "saturated red specks"). The fill's sprigs (its one
+   orange tuft on a 32 px repeat) become grass and the grass goes a step darker, its old middle green kept as the lit grain. The open moor
+   stays clear: no drifts, no scattered peat. The wet ground gathers instead in a FEW LARGE BOGS (OX_BOGS) that follow the stream's banks
+   or sit in the pockets: black pools with a sky glint on the far rim, tussocks lit on top, rushes by the water, wet peat between, and a
+   fringe of dead heather (the peat's browns, never the cloth ramp) where a bog gives way to the grass. ── */
+const MOOR_LOOK = Object.freeze({ decalEvery: 12, decalGap: 70 });
+/* [cell x, cell y, rx px, ry px]: the west bank north of the bridge, the east bank by the ford, the west bank south of it; pockets 2, 3, 5 */
+const OX_BOGS = Object.freeze([[44.2, 9.5, 64, 150], [51.5, 30, 56, 96], [44.6, 35.5, 52, 84], [26.5, 31.6, 104, 66], [40, 32.2, 150, 58], [31.4, 10.4, 92, 62]]);
 const LEAFS = new Set(RAMPS.leaf.concat(RAMPS.moss));
 const SPRIG = new Set(['#8a6440', '#6e4c30', '#553a26', '#4a2e18', '#3d2a1d', '#2a1c14', '#a88457', '#7a4f26']);
 export function oxMoor(g, grid, { skip = () => false } = {}) {
   const h = grid.length, w = grid[0].length, W = g.width, H = g.height;
   const cell = (x, y) => grid[Math.min(h - 1, y >> 5)][Math.min(w - 1, x >> 5)];
-  /* how far (px) a pixel is from what the moor keeps clear of: the road, the water, the bridge, the turnout, and the coal path's own
-     trodden line (not its cells, which are mostly moor: a cell rule drew the drifts' edge as a staircase along the path) */
+  /* how far (px) a pixel is from the road, the bridge and the turnout (a bog may reach the water, never the road) */
   const clear = new Uint8Array(W * H);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = cell(x, y); clear[y * W + x] = c === 'H' || c === 'K' || (c === 'J' && LEAFS.has(px(g, x, y))) ? 1 : 0; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const c = cell(x, y); clear[y * W + x] = 'RGE'.includes(c) ? 0 : 1; }
   const FAR = pxDist(W, H, clear, 99), far = (x, y) => FAR[y * W + x];
   const moorCell = (x, y) => { const c = cell(x, y); return c === 'H' || c === 'J'; };
-  const drift = (x, y) => noise(x + 44 * (noise(x, y, 64, 601) - 0.5), y + 44 * (noise(x, y, 64, 603) - 0.5), 150, 605) + (noise(x, y, 9, 607) - 0.5) * 0.1;
-  const peatF = (x, y) => noise(x + 20 * (noise(x, y, 30, 609) - 0.5), y, 46, 611) + (noise(x, y, 6, 613) - 0.5) * 0.08;
-  const isPeat = (x, y) => y >= 0 && y < H && moorCell(x, y) && far(x, y) > 14 && peatF(x, y) > MOOR_LOOK.peat && !OX_GRAVES.some(([gx, gy]) => Math.hypot(x - gx * T - 15, (y - gy * T - 8) * 1.4) < 44);
-  const clump = (x, y) => noise(x, y, 6.5, 631) > 0.52;
-  let darker = 0, heath = 0, bare = 0;
+  /* a bog reaches the stream's real bank (the moor the seam left inside the water's cells), never stopping on a cell line */
+  const boggy = (x, y) => moorCell(x, y) || ('QV'.includes(cell(x, y)) && LEAFS.has(px(g, x, y)));
+  /* how deep into a bog a pixel is: > 0 inside, its edge wandering on two scales */
+  /* each bog a cluster of lobes strung along its long axis, each lobe its own size, so no bog is an ellipse or a box */
+  const LOBES = OX_BOGS.flatMap(([cx, cy, rx, ry], b) => Array.from({ length: 4 }, (_, i) => { const t = (i / 3 - 0.5) * 1.3, j = hash2(b, i, 657); return [cx * T + (rx > ry ? t * rx : (j - 0.5) * rx * 0.6), cy * T + (rx > ry ? (j - 0.5) * ry * 0.6 : t * ry), Math.min(rx, ry) * (0.75 + 0.5 * hash2(b, i, 659))]; }));
+  const bog = (x, y) => { let m = -9; for (const [cx, cy, r] of LOBES) { const e = 1 - ((x - cx) ** 2 + (y - cy) ** 2) / (r * r); if (e > m) m = e; } m += (noise(x, y, 40, 661) - 0.5) * 1.5 + (noise(x, y, 16, 662) - 0.5) * 0.6 + (noise(x, y, 6, 663) - 0.5) * 0.25; return far(x, y) < 30 ? Math.min(m, (far(x, y) - 30) / 24 + (noise(x, y, 11, 664) - 0.5) * 0.9) : m; };
+  const pool = (x, y) => bog(x, y) > 0.35 && noise(x + 7 * (noise(x, y, 20, 665) - 0.5), y, 8, 667) > 0.72;
+  const tussock = (x, y) => noise(x, y, 3.4, 669) > 0.72;
+  let darker = 0, bogged = 0, fringe = 0;
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const c = px(g, x, y), cc = cell(x, y);
-    /* the grass of every cell goes a step darker (the road's creeping verge, the banks, the path's cells), so no cell keeps the old
-       green as a square; drifts, peat and decals only on the moor proper */
-    if (!moorCell(x, y) || (cc === 'J' && !LEAFS.has(c))) { if (LEAFS.has(c) && cc !== 'K') { const to = c === '#1f3322' ? (noise(x, y, 3.1, 621) > 0.62 ? '#1f3322' : '#16241a') : stepC(c, -1); if (to !== c) { pt(g, x, y, to); darker++; } } continue; }
-    /* the graves lie in open grass, so the dug earth reads (no drift or peat within 40 px of one) */
-    const byGrave = OX_GRAVES.reduce((m, [gx, gy]) => Math.max(m, 1 - Math.hypot(x - gx * T - 17, (y - gy * T - 8) * 1.3) / 64), 0);
-    const inDrift = far(x, y) > 10 && drift(x, y) - Math.max(0, byGrave) * 0.4 > MOOR_LOOK.drift;
-    if (isPeat(x, y)) {
-      const nw = !isPeat(x, y - 2), sr = !isPeat(x, y + 2);
-      const col = nw ? (isPeat(x, y - 1) ? '#17141a' : '#16241a') : sr ? (hash2(x, y, 641) > 0.35 ? '#3d2a1d' : '#2a1c14')
-        : noise(x, y, 9, 643) > 0.66 ? (hash2(x, y, 645) > 0.3 ? '#17141a' : '#231d1f') : noise(x, y, 2.6, 647) > 0.64 ? '#3d2a1d' : '#2a1c14';
-      pt(g, x, y, col); bare++; continue;
+    /* the path's own trodden pixels are redrawn later (oxPath); inside a bog they become bog now, so no cell line of them survives */
+    if (!(moorCell(x, y) || boggy(x, y)) || (cc === 'J' && !LEAFS.has(c) && bog(x, y) <= 0.06) || (!moorCell(x, y) && bog(x, y) <= 0.06)) { if (LEAFS.has(c) && cc !== 'K') { const to = c === '#1f3322' ? (noise(x, y, 3.1, 621) > 0.62 ? '#1f3322' : '#16241a') : stepC(c, -1); if (to !== c) { pt(g, x, y, to); darker++; } } continue; }
+    const b = bog(x, y);
+    if (b > 0.06) {
+      let col;
+      if (pool(x, y)) col = !pool(x, y - 1) ? (hash2(x, y, 671) > 0.4 ? '#3a4652' : '#2c2e33') : !pool(x, y + 1) ? '#231d1f' : noise(x, y, 4, 673) > 0.8 ? '#1a2c44' : '#17141a';
+      else if (tussock(x, y)) col = !tussock(x, y - 1) ? (hash2(x, y, 675) > 0.4 ? '#2c4a2c' : '#1f3322') : !tussock(x, y + 1) ? '#16241a' : '#1f3322';
+      else if (pool(x, y - 1) || pool(x, y - 2)) col = '#17141a';
+      /* the wet peat: one calm dark ground, a fine grain, a lighter crumb here and there (b6: the scatter read as camouflage) */
+      else col = hash2(x, y, 677) > 0.93 ? '#3d2a1d' : noise(x, y, 2.4, 679) > 0.62 ? '#231d1f' : '#2a1c14';
+      pt(g, x, y, col); bogged++; continue;
     }
-    if (inDrift && clump(x, y)) {
-      /* dead winter heather: the peat's browns, a purple cast only in a few clumps (the cloth ramp's dark), a lit tip */
-      const tip = !clump(x, y - 1) || !clump(x - 1, y - 1), foot = !clump(x, y + 1), body = noise(x, y, 14, 633) > 0.8 ? '#3e1216' : '#2a1c14';
-      pt(g, x, y, tip ? (noise(x, y, 3, 635) > 0.74 ? '#553a26' : '#3d2a1d') : foot ? '#17141a' : body); heath++; continue;
+    if (b > -0.12) {
+      /* the fringe: dead heather sprigs in the grass, thinning out */
+      const p = (b + 0.12) / 0.18;
+      if (noise(x, y, 4.5, 681) < 0.42 + 0.35 * p) { const tip = noise(x, y - 1, 4.5, 681) >= 0.42 + 0.35 * p; pt(g, x, y, tip ? '#3d2a1d' : '#2a1c14'); fringe++; continue; }
     }
-    /* between the clumps: shade under them, deep in a drift the peat litter, at its ragged edge the grass */
-    if (inDrift) { pt(g, x, y, clump(x, y - 1) ? '#17141a' : drift(x, y) > MOOR_LOOK.drift + 0.035 ? (hash2(x, y, 639) > 0.3 ? '#2a1c14' : '#16241a') : '#16241a'); heath++; continue; }
     if (LEAFS.has(c) || SPRIG.has(c)) {
       const grain = noise(x, y, 3.1, 621) > 0.62;
       const to = c === '#2c4a2c' || c === '#3d6234' || c === '#557a3e' ? (grain ? '#1f3322' : '#16241a') : c === '#4a5a2a' || c === '#6b7a38' ? '#1f3322'
@@ -88,16 +91,22 @@ export function oxMoor(g, grid, { skip = () => false } = {}) {
       if (to !== c) { pt(g, x, y, to); darker++; }
     }
   }
-  /* grass hangs over each hollow's north lip */
-  for (let y = 1; y < H - 1; y++) for (let x = 0; x < W; x++) if (isPeat(x, y) && !isPeat(x, y - 1) && hash2(x, y, 649) > 0.45) { pt(g, x, y, '#1f3322'); if (hash2(x, y, 651) > 0.6) pt(g, x, y + 1, '#16241a'); }
-  return { darker, heath, bare, ...moorDecals(g, grid, far, skip, isPeat, drift) };
+  /* rushes stand where a bog's pools meet its peat: strokes 3-6 px, a brown seed tip */
+  let rushes = 0;
+  for (let i = 0; i < 2600; i++) {
+    const x = Math.floor(hash2(i, 1, 683) * W), y = Math.floor(hash2(i, 2, 685) * H);
+    if (!moorCell(x, y) || bog(x, y) < 0.1 || pool(x, y) || !(pool(x, y + 2) || pool(x + 2, y) || pool(x - 2, y))) continue;
+    const ht = 3 + Math.floor(hash2(i, 3, 687) * 4), lean = hash2(i, 4, 689) > 0.5 ? 1 : -1;
+    for (let t = 0; t < ht; t++) pt(g, x + (t > ht * 0.6 ? lean : 0), y - t, t === ht - 1 ? '#3d2a1d' : t < 2 ? '#1f3322' : '#2c4a2c');
+    rushes++;
+  }
+  return { darker, bogged, fringe, rushes, bogAt: bog, ...moorDecals(g, grid, far, skip, (x, y) => bog(x, y) > -0.15) };
 }
 /* ── MOOR DECALS (ART_DIRECTION 5: at least one per 12 floor tiles, never on a grid, never two of the same kind side by side): four
-   kinds drawn by rule in palette colours under the floor's limit: STONES half sunk in the grass (2-4, lit upper left, a dark foot), a
-   PEAT POOL (black water, a sky glint on its far rim), DEAD BRACKEN (curled fronds in a fan), an OLD OX SKULL (weathered grey, horn
-   cores out: the road has killed oxen before). ── */
-const DECAL_KINDS = ['stones', 'pool', 'bracken', 'stones', 'bracken', 'pool', 'skull'];
-function moorDecals(g, grid, far, skip, isPeat, drift) {
+   kinds drawn by rule in palette colours under the floor's limit, off the bogs: STONES half sunk in the grass (2-4, lit upper left, a
+   dark foot), DEAD BRACKEN (curled fronds in a fan), an OLD OX SKULL (weathered grey, horn cores out: the road has killed oxen before). ── */
+const DECAL_KINDS = ['stones', 'bracken', 'stones', 'bracken', 'skull'];
+function moorDecals(g, grid, far, skip, isPeat) {
   const W = g.width, H = g.height, placed = [], count = {};
   let cells = 0; for (const r of grid) for (const ch of r) if (ch === 'H') cells++;
   const want = Math.round(cells / MOOR_LOOK.decalEvery);
@@ -107,10 +116,9 @@ function moorDecals(g, grid, far, skip, isPeat, drift) {
     let nearest = null, nd = 1e9; for (const d of placed) { const e = Math.hypot(d.x - x, d.y - y); if (e < nd) { nd = e; nearest = d; } }
     if (nd < MOOR_LOOK.decalGap) continue;
     let k = DECAL_KINDS[Math.floor(hash2(i, 3, 705) * DECAL_KINDS.length)];
-    if (k === 'pool' && drift(x, y) < 0.5 && hash2(i, 4, 707) > 0.4) k = 'stones';
     if (k === 'skull' && (count.skull || 0) >= 3) k = 'bracken';
-    if (nearest && nearest.k === k) k = { stones: 'bracken', bracken: 'pool', pool: 'stones', skull: 'stones' }[k];
-    ({ stones: dStones, pool: dPool, bracken: dBracken, skull: dSkull })[k](g, x, y, i);
+    if (nearest && nearest.k === k) k = { stones: 'bracken', bracken: 'stones', skull: 'stones' }[k];
+    ({ stones: dStones, bracken: dBracken, skull: dSkull })[k](g, x, y, i);
     placed.push({ x, y, k }); count[k] = (count[k] || 0) + 1;
   }
   return { decalKinds: count, moorDecals: placed.length };
@@ -127,15 +135,6 @@ function dStones(g, X, Y, i) {
     pt(g, cx + Math.ceil(rx) + 1, cy + 1, '#17141a');
     for (let a = -Math.ceil(rx); a <= Math.ceil(rx); a += 2) if (hash2(cx + a, cy, 723) > 0.55) pt(g, cx + a, cy + Math.ceil(ry), '#1f3322');
   }
-}
-function dPool(g, X, Y, i) {
-  const rx = 4.5 + hash2(i, 9, 731) * 4, ry = 2.4 + hash2(i, 10, 733) * 1.6;
-  const inP = (a, b) => (a / rx) ** 2 + (b / ry) ** 2 + (noise(X + a, Y + b, 3, 735) - 0.5) * 0.7 <= 1;
-  for (let b = -6; b <= 6; b++) for (let a = -10; a <= 10; a++) {
-    if (inP(a, b)) pt(g, X + a, Y + b, !inP(a, b - 1) ? '#17141a' : !inP(a, b + 1) ? '#231d1f' : b < 0 && a < 0 && !inP(a - 1, b - 1) ? '#2c2e33' : '#17141a');
-    else if (inP(a, b - 1) || inP(a + 1, b) || inP(a - 1, b)) pt(g, X + a, Y + b, '#2a1c14');
-  }
-  for (let a = -Math.floor(rx * 0.5); a < Math.floor(rx * 0.2); a++) if (inP(a, -Math.floor(ry) + 1)) pt(g, X + a, Y - Math.floor(ry) + 1, '#3a4652');
 }
 function dBracken(g, X, Y, i) {
   const n = 3 + Math.floor(hash2(i, 9, 741) * 3);
@@ -179,6 +178,14 @@ export function oxWater(g, grid) {
     /* the ford's cells are wet where the bank's seam left them water, never a straight cell edge */
     if ((c === 'V' && !LAND.has(hx)) || (WATERS.has(hx) && (c === 'Q' || n === 1))) wet[y * W + x] = 1;
   }
+  /* b6: the ford's sides were a straight vertical edge (its cells reach bank to bank): within 14 px of either side the bank wanders in
+     and out on two scales, the moor carried over from beside it */
+  { let vx0 = w, vx1 = -1; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (grid[y][x] === 'V') { vx0 = Math.min(vx0, x); vx1 = Math.max(vx1, x); }
+    if (vx1 >= 0) for (let y = 0; y < H; y++) for (let x = vx0 * T; x < (vx1 + 1) * T; x++) {
+      if (cell(x, y) !== 'V') continue;
+      const dl = x - vx0 * T, dr = (vx1 + 1) * T - 1 - x, e = Math.min(dl, dr), bite = 13 * noise(x * 0.4, y, 22, 873) + 4 * (noise(x, y, 6, 875) - 0.5);
+      if (e < bite) { wet[y * W + x] = 0; const sx = dl < dr ? vx0 * T - 4 - (dl % 8) : (vx1 + 1) * T + 3 + (dr % 8); g.data.set(g.data.subarray((y * W + sx) * 4, (y * W + sx) * 4 + 4), (y * W + x) * 4); }
+    } }
   for (let pass = 0; pass < 2; pass++) for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
     const p = y * W + x, n = wet[p - 1] + wet[p + 1] + wet[p - W] + wet[p + W];
     if (wet[p] && n < 2) wet[p] = 0; else if (!wet[p] && n >= 3 && cell(x, y) !== 'G') wet[p] = 1;
@@ -193,7 +200,8 @@ export function oxWater(g, grid) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const p = y * W + x;
     if (!wet[p]) {
-      const c = cell(x, y), wide = 2 + 5 * noise(x, y, 40, 803), l = L[p] + (noise(x, y, 5, 804) - 0.5) * 2.4;
+      /* b6: the band read as a kerb (one width); now 1-9 px on a slow field, in stretches no more than the wet line */
+      const c = cell(x, y), sl = noise(x, y, 64, 803), wide = sl < 0.36 ? 1.3 : 1.3 + 8 * ((sl - 0.36) / 0.64) ** 1.3, l = L[p] + (noise(x, y, 5, 804) - 0.5) * 2.4;
       if (c === 'G' || c === 'K' || l > wide || (c === 'R' && l > 2)) continue;
       pt(g, x, y, l < 1.2 ? (hash2(x, y, 806) > 0.2 ? '#17141a' : '#231d1f') : l < wide * 0.6 ? (hash2(x, y, 805) > 0.35 ? '#2a1c14' : '#231d1f') : hash2(x, y, 807) > 0.45 ? '#2a1c14' : hash2(x, y, 808) > 0.5 ? '#3d2a1d' : px(g, x, y)); band++;
       continue;
@@ -204,8 +212,9 @@ export function oxWater(g, grid) {
     if (d < 1.5) { const on = noise(x, y, 6, 831) > 0.4; col = on ? (edgeN && noise(x, y, 9, 833) > 0.62 ? '#5c6c7a' : '#3a4652') : '#2c2e33'; lip++; }
     else if (d < 3 + 2 * noise(x, y, 11, 809)) col = noise(x, y, 2.2, 811) > 0.55 ? '#3a4652' : '#2c2e33';
     else if (d < 15) col = '#2c2e33';
-    else if (d < 24) { col = noise(x, y, 2.6, 813) > 0.45 ? '#231d1f' : '#2c2e33'; deep++; }
-    else { col = noise(x, y, 2.6, 813) > 0.3 ? '#17141a' : '#231d1f'; deep++; }
+    /* b6: the deep middle read as tar; the channel is a step under the water beside it, never black */
+    else if (d < 22) { col = noise(x, y, 2.6, 813) > 0.62 ? '#231d1f' : '#2c2e33'; deep++; }
+    else { col = noise(x, y, 2.6, 813) > 0.3 ? '#231d1f' : '#2c2e33'; deep++; }
     /* over the bar the water breaks: riffles across the current (broken horizontal dashes), a step lighter */
     if (t > 0.5 && d >= 1.5 && noise(x * 0.35, y * 2.2, 6, 817) > 0.7 && hash2(x, y, 819) > 0.3) col = t > 0.85 && hash2(x, y, 820) > 0.85 ? '#5c6c7a' : '#3a4652';
     pt(g, x, y, col);
@@ -216,7 +225,17 @@ export function oxWater(g, grid) {
     const len = 3 + Math.floor(hash2(i, 3, 825) * 6), sway = hash2(i, 4, 827) > 0.5 ? 1 : 0;
     for (let k = 0; k < len; k++) { const y = y0 + k, xx = x + (k > len / 2 ? sway : 0), q = y * W + xx; if (y >= H || !wet[q] || hash2(xx, y, 829) < 0.18) continue; pt(g, xx, y, stepC(px(g, xx, y), 1)); streak++; }
   }
-  return { lip, deep, band, streak, ...fordGravel(g, wet, D, fordT, fx0, fx1, fy0, fy1) };
+  /* GLINTS (b6: "the stream needs a surface: stepped glints"): short dashes across the current where the sky catches the ripples, each
+     stepped (a two-pixel core a step over its ends), thicker in the channel's middle and in soft runs, never in an even scatter */
+  let glints = 0;
+  for (let i = 0; i < (W * H) / 260; i++) {
+    const x = Math.floor(hash2(i, 5, 891) * W), y = Math.floor(hash2(i, 6, 893) * H), p = y * W + x;
+    if (!wet[p] || D[p] < 4 || fordT(x, y) > 0.4 || noise(x, y, 70, 895) < 0.42 || hash2(i, 7, 897) > 0.25 + D[p] / 60) continue;
+    const len = 3 + Math.floor(hash2(i, 8, 899) * 5), core = hash2(i, 9, 901) > 0.55;
+    for (let k = 0; k < len; k++) { const q = y * W + x + k; if (x + k >= W || !wet[q]) break; pt(g, x + k, y, core && k > 0 && k < len - 1 && k < 3 ? '#5c6c7a' : '#3a4652'); }
+    glints++;
+  }
+  return { lip, deep, band, streak, glints, ...fordGravel(g, wet, D, fordT, fx0, fx1, fy0, fy1) };
 }
 function fordGravel(g, wet, D, fordT, fx0, fx1, fy0, fy1) {
   if (fy1 < 0) return { pebbles: 0, fordStones: 0 };
@@ -308,43 +327,52 @@ export function oxStory(g, grid, objects, { row = 22 } = {}) {
     for (let i = 0; i < 26; i++) hoof += print(Math.round(cx - 34 - hash2(i, o.x, 913) * 40), Math.round(rut - 18 + hash2(i, o.x, 915) * 36));
   }
   for (let i = 0; i < 70; i++) { const x = Math.floor(hash2(i, 1, 917) * W), y = Math.round(rut + (hash2(i, 2, 919) - 0.5) * 14); hoof += print(x, y); }
-  let graves = 0; for (const [cx, cy] of OX_GRAVES) graves += dGrave(g, cx * T + 4, cy * T + 10, cx);
-  return { gouge, ore, track, hoof, graves };
-}
-
-/* ── THE OPENED GRAVES (ranked 5: a feature in every pocket): where the train's dead were laid by the road and did not stay down, by the
-   pockets of the dead teamsters. A shallow pit dug east-west, its north wall seen in shade, its floor black, its south lip lit; the spoil
-   heaped on its north side (lit upper left, stones in it); the marker stake knocked flat beside it. (Cells; the lanterns stand by them.) */
-const OX_GRAVES = Object.freeze([[28, 33], [13, 14]]);
-function dGrave(g, X, Y, seed) {
-  const L = 26, Hh = 9, inPit = (a, b) => a >= 0 && a < L && b >= 0 && b < Hh && !((a < 2 || a > L - 3) && (b === 0 || b === Hh - 1)) && hash2(a, b + seed, 931) > 0.04;
-  let n = 0;
-  /* the spoil: a long mound on the north side */
-  for (let b = -9; b < 0; b++) for (let a = -3; a < L + 3; a++) {
-    const u = (a - L / 2) / (L / 2 + 3), v = (b + 4.5) / 4.5; if (u * u + v * v + (noise(X + a, Y + b, 4, 933) - 0.5) * 0.5 > 1) continue;
-    pt(g, X + a, Y + b, u + v < -0.5 ? '#553a26' : u + v < 0.3 ? '#3d2a1d' : '#2a1c14'); n++;
-    if (hash2(a, b, 935 + seed) > 0.93) { pt(g, X + a, Y + b, '#3a3a3e'); pt(g, X + a + 1, Y + b + 1, '#17141a'); }
+  /* 5 HOLLY'S VIGIL as one place (b6): the ground round her brazier and wood trodden bare, ragged into the grass, ash and charcoal
+     crumbs nearest the fire */
+  let camp = 0;
+  for (const o of of('mh_vigil_brazier')) {
+    const fx = o.x * T + 16, fy = o.y * T + 28, cx = fx - 26, cy = fy - 6;
+    for (let y = cy - 50; y < cy + 50; y++) for (let x = cx - 96; x < cx + 96; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= g.height || !'HR'.includes(grid[Math.min(h - 1, y >> 5)][Math.min(w - 1, x >> 5)])) continue;
+      const e = ((x - cx) / 84) ** 2 + ((y - cy) / 40) ** 2 + (noise(x, y, 18, 921) - 0.5) * 0.7 + (noise(x, y, 5, 923) - 0.5) * 0.25; if (e > 1) continue;
+      const c = px(g, x, y), a = RAMP_OF.get(c); if (!a || (a.name !== 'leaf' && a.name !== 'moss' && a.name !== 'earth')) continue;
+      const ash = Math.hypot(x - fx, (y - fy) * 1.3) < 18 + 6 * noise(x, y, 6, 925);
+      pt(g, x, y, ash ? (hash2(x, y, 927) > 0.7 ? '#2c2e33' : hash2(x, y, 928) > 0.5 ? '#17141a' : '#231d1f') : e > 0.8 && hash2(x, y, 929) > 0.5 ? '#16241a' : noise(x, y, 3, 931) > 0.62 ? '#3d2a1d' : hash2(x, y, 933) > 0.85 ? '#1f3322' : '#2a1c14');
+      camp++;
+    }
   }
-  for (let b = 0; b < Hh; b++) for (let a = 0; a < L; a++) {
-    if (!inPit(a, b)) continue;
-    pt(g, X + a, Y + b, b < 2 ? '#2a1c14' : b === Hh - 1 ? '#553a26' : b === Hh - 2 ? '#231d1f' : '#0b0a0c'); n++;
+  /* 6 LIGHT POOLS (b6: "each lantern and the brazier gets a stepped light pool"). A day map draws no pool at run time (canvas-backend
+     drawLight adds the pools on a white ambient, where they saturate), so each lit prop's pool is laid in the ground: two hard bands
+     on an ellipse under its flame, the outer a step up its ramp, the inner two (the grass toward the moss's warmer olive) */
+  let lit = 0;
+  const POOL = { mh_vigil_brazier: [56, 40, 0], mh_lantern_stake: [32, 23, 9], mh_lantern_pole: [32, 23, 8], mh_lantern_cairn: [30, 22, 1] };
+  for (const o of objects) {
+    const P = POOL[o.id]; if (!P) continue;
+    const [rx, ry, dx] = P, cx = o.x * T + 16 + dx, cy = o.y * T + 26;
+    for (let y = Math.floor(cy - ry); y <= cy + ry; y++) for (let x = Math.floor(cx - rx); x <= cx + rx; x++) {
+      if (x < 0 || y < 0 || x >= W || y >= g.height) continue;
+      const e = ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + (hash2(x, y, 935) - 0.5) * 0.06; if (e > 1) continue;
+      const c = px(g, x, y), a = RAMP_OF.get(c); if (!a || !['leaf', 'moss', 'earth', 'shadow', 'stone', 'iron'].includes(a.name)) continue;
+      let to = stepC(c, 1);
+      /* the grass under the inner band takes the moss's warmer olive (the light's colour), the rest steps up its own ramp */
+      if (e < 0.4) to = a.name === 'leaf' || a.name === 'moss' ? (a.k >= 2 ? '#6b7a38' : '#4a5a2a') : stepC(to, 1);
+      else if (a.name === 'leaf' && a.k === 0 && hash2(x, y, 936) > 0.5) to = '#4a5a2a';
+      if (to !== c) { pt(g, x, y, to); lit++; }
+    }
   }
-  /* the marker stake, knocked flat by the pit's east end */
-  for (let k = 0; k < 9; k++) { pt(g, X + L + 2 + k, Y + 3 + (k >> 2), k === 0 ? '#553a26' : '#3d2a1d'); pt(g, X + L + 2 + k, Y + 4 + (k >> 2), '#17141a'); }
-  pt(g, X + L + 4, Y + 2, '#3d2a1d'); pt(g, X + L + 4, Y + 1, '#2a1c14');
-  return n;
+  return { gouge, ore, track, hoof, camp, lit };
 }
 
 /* ── THE COAL PATH redrawn (b5: the runners' path read as a staircase where it crosses the moor on the diagonal: the seams trail joins its
    cells' centres cell to cell). Its trodden earth in the path's cells goes back to the moor, and the path is laid again as ONE smooth line
    through its cells (each run of path cells ordered end to end, its centres smoothed twice), 5-8 px wide and wandering, its edges
    ragged, darker trodden earth down the middle; it runs on to the road and into the ford where its cells meet them. ── */
-export function oxPath(g, grid) {
+export function oxPath(g, grid, bogAt = () => -1) {
   const h = grid.length, w = grid[0].length, W = g.width, H = g.height;
   const J = (x, y) => x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 'J';
   const earth = (c) => { const a = RAMP_OF.get(c); return !!a && (a.name === 'earth' || a.name === 'bronze' || a.name === 'shadow' || a.name === 'stone' || a.name === 'iron'); };
   let erased = 0, laid = 0;
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (J(x >> 5, y >> 5) && earth(px(g, x, y))) { pt(g, x, y, noise(x, y, 3.1, 621) > 0.62 ? '#1f3322' : '#16241a'); erased++; }
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (J(x >> 5, y >> 5) && earth(px(g, x, y)) && bogAt(x, y) <= 0.06) { pt(g, x, y, noise(x, y, 3.1, 621) > 0.62 ? '#1f3322' : '#16241a'); erased++; }
   /* the runs: 8-connected groups of path cells, each walked from an end */
   const seen = new Set(), key = (x, y) => x + ',' + y, runs = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -362,18 +390,38 @@ export function oxPath(g, grid) {
     /* carry it a cell on into a road or the ford it ends against */
     for (const end of [0, 1]) { const [x, y] = run[end ? run.length - 1 : 0]; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const c = grid[y + dy] && grid[y + dy][x + dx]; if ((c === 'R' || c === 'V') && !(dx && dy)) { const p = [(x + dx) * T + 16 - dx * 8, (y + dy) * T + 16 - dy * 8]; if (end) pts.push(p); else pts.unshift(p); dx = dy = 2; } } }
     for (let it = 0; it < 3; it++) { const o = [pts[0]]; for (let i = 0; i < pts.length - 1; i++) { const [a, b] = [pts[i], pts[i + 1]]; o.push([a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); } o.push(pts[pts.length - 1]); pts = o; }
+    /* b6: "dotted one-width ruler lines": the line wanders off its cells' centres (a slow sideways drift, pinned at its two ends) */
+    pts = pts.map((p, i) => { if (i === 0 || i === pts.length - 1) return p; const q = pts[Math.min(pts.length - 1, i + 1)], r = pts[Math.max(0, i - 1)], dx = q[0] - r[0], dy = q[1] - r[1], l = Math.hypot(dx, dy) || 1, k = Math.min(1, i / 6, (pts.length - 1 - i) / 6), m = (noise(p[0], p[1], 90, 959) - 0.5) * 22 * k; return [p[0] - (dy / l) * m, p[1] + (dx / l) * m]; });
     for (let i = 0; i < pts.length - 1; i++) {
       const [a, b] = [pts[i], pts[i + 1]], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
       for (let k = 0; k < n; k++) {
-        const cx = a[0] + ((b[0] - a[0]) * k) / n, cy = a[1] + ((b[1] - a[1]) * k) / n, half = 3.4 + 2 * noise(cx, cy, 40, 951);
+        /* trodden ground of a varying width (3-11 px), worn widest at the bends and the ends */
+        const cx = a[0] + ((b[0] - a[0]) * k) / n, cy = a[1] + ((b[1] - a[1]) * k) / n, half = 2.6 + 3.6 * noise(cx, cy, 70, 951) ** 1.4 + 1.2 * noise(cx, cy, 13, 952);
         for (let dy = -6; dy <= 6; dy++) for (let dx = -6; dx <= 6; dx++) {
           const X = Math.round(cx + dx), Y = Math.round(cy + dy); if (X < 0 || Y < 0 || X >= W || Y >= H) continue;
           const c = grid[Y >> 5][X >> 5]; if (c !== 'J' && c !== 'H' && !(c === 'R' && LEAFS.has(px(g, X, Y)))) continue;
           const d = Math.hypot(dx, dy) + (noise(X, Y, 3, 953) - 0.5) * 2; if (d > half) continue;
-          pt(g, X, Y, d < half * 0.45 ? (hash2(X, Y, 955) > 0.8 ? '#2a1c14' : '#3d2a1d') : d > half - 1 ? '#2a1c14' : hash2(X, Y, 957) > 0.85 ? '#553a26' : '#3d2a1d'); laid++;
+          /* the edge thins out into the grass pixel by pixel; grass tufts survive in the middle where it is least trodden */
+          if (d > half - 1.6 && hash2(X, Y, 954) > 0.5) continue;
+          if (d < half * 0.5 && noise(X, Y, 4, 956) > 0.8) { pt(g, X, Y, '#1f3322'); continue; }
+          pt(g, X, Y, d < half * 0.45 ? (hash2(X, Y, 955) > 0.7 ? '#2a1c14' : '#3d2a1d') : d > half - 1.6 ? '#2a1c14' : hash2(X, Y, 957) > 0.9 ? '#553a26' : '#3d2a1d'); laid++;
         }
       }
     }
   }
   return { pathErased: erased, pathLaid: laid };
+}
+
+/* ── THE EDGES FRAMED (b6: "frame the open west, east and north edges"). The run time's outdoor vignette (canvas-backend drawVignette,
+   map.outdoor) rings the SCREEN, not the map, so where the camera reaches the map's edge the moor stopped on a cut. The ground falls
+   into the dark there: two stepped bands along every edge, ragged, the road and the path running on into them. ── */
+export function oxFrame(g) {
+  const W = g.width, H = g.height; let n = 0;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const e = Math.min(x, W - 1 - x, y, H - 1 - y) + (noise(x, y, 26, 941) - 0.5) * 18 + (noise(x, y, 6, 943) - 0.5) * 4;
+    if (e >= 44) continue;
+    const c = px(g, x, y), to = stepC(stepC(c, -1), e < 16 ? -1 : 0);
+    if (to !== c) { pt(g, x, y, to); n++; }
+  }
+  return { framed: n };
 }

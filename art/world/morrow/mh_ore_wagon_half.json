@@ -67,5 +67,5 @@
     "job": "5eee96b9",
     "sketch": "art/review/morrow-kit/ox-props4/half-w3.png"
   },
-  "notes": "The ore wagon half unloaded, the back of its bed empty to its floor boards, its tail board down. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "The ore wagon half unloaded, the back of its bed empty to its floor boards, its tail board down. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Batch 7 (b6: \"four identical grey stone ore loads, vary one\"): its load is the richer Dawnstone, thin bronze veins across the lumps and a lit fleck where a vein meets a lump's lit face, drawn over its own pixels by rule (.scratch/kit/b7/veins.mjs). Pixels unscaled."
 }

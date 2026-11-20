@@ -228,7 +228,7 @@ export const REGION_KITS = Object.freeze({
        Undead teamsters */
     props: ids(`mh_harrys_cart mh_kegs mh_taproom_table mh_sacks mh_sack_spilt mh_straw_bale mh_straw_burst mh_stone_trough mh_bar_counter
       mh_table_over mh_bench mh_inn_sign mh_lantern_post mh_gate_pillar mh_gate_broken mh_slate_stack mh_keg_spilt mh_round_table
-      mh_stool_broken mh_chopping_block mh_ore_wagon mh_ore_wagon_half mh_ore_wagon_broken mh_yoked_dead mh_ore_wagon_tipped mh_ore_wagon_slewed mh_yoked_one mh_vigil_brazier mh_vigil_wood mh_fire_ring mh_lantern_dropped mh_lost_wheel mh_ore_dropped mh_yoke_dropped mh_lantern_stake mh_lantern_pole mh_lantern_cairn mh_coal_seam_worked mh_ore_wagon_tarped cw_coal_seam hay_bale straw sack_pile sack_stack crates barrel_broken chopping_block`),
+      mh_stool_broken mh_chopping_block mh_ore_wagon mh_ore_wagon_half mh_ore_wagon_broken mh_yoked_dead mh_ore_wagon_tipped mh_ore_wagon_slewed mh_yoked_one mh_vigil_brazier mh_vigil_wood mh_fire_ring mh_lantern_dropped mh_lost_wheel mh_ore_dropped mh_yoke_dropped mh_lantern_stake mh_lantern_pole mh_lantern_cairn mh_coal_seam_worked mh_ore_wagon_tarped mh_vigil_bedrolls cw_coal_seam hay_bale straw sack_pile sack_stack crates barrel_broken chopping_block`),
     units: ids('troll_picker slate_thrower troll_brewer stable_troll the_landlord'),
     sets: ids('morrowfolk morrow'),
     grounds: Object.freeze({

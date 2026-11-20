@@ -1261,16 +1261,19 @@ begin
       perform 1 from public.hr_hunt_roster_sharded(v_pfx, 16, 30000) r;
       select array_agg(l.session_id) into v_ids from public.hunt_tick_lease l join public.hunt_sessions h on h.id = l.session_id
        where h.user_id = any (v_users) and l.holder = v_pfx || ':h1';
-      if cardinality(v_ids) <> 4 then raise exception 'p3 CANNOT RUN: body 1 holds % sessions', cardinality(v_ids); end if;
+      -- (how many body 1 holds is the md5 order of the instance ids: a solo instance's id is its session's, random on a live
+      --  database, so 1 to 4 + 3 sessions (a party rides whole); every count is checked, never a fixed four)
+      v_bad := coalesce(cardinality(v_ids), 0);
+      if v_bad < 1 or v_bad > 4 + 3 then raise exception 'p3 CANNOT RUN: body 1 holds % sessions (1 to 7 at 4 heroes a body)', v_bad; end if;
       select count(*) into v_n from public.hr_hunt_roster_sharded(v_pfx, 16, 30000) r where r.user_id = any (v_users);
       if v_n <> 0 then raise exception 'p3: % live lease(s) were re-offered before any was freed', v_n; end if;
       if public.hr_hunt_lease_free(2, v_ids) <> 0 then raise exception 'p3: another body freed body 1''s leases'; end if;
-      if public.hr_hunt_lease_free(1, v_ids) <> 4 then raise exception 'p3: body 1 did not free its four deferred leases'; end if;
+      if public.hr_hunt_lease_free(1, v_ids) <> v_bad then raise exception 'p3: body 1 did not free its % deferred leases', v_bad; end if;
       if public.hr_hunt_lease_free(1, v_ids) <> 0 then raise exception 'p3: a freed lease was freed again'; end if;
       select coalesce(jsonb_agg(r.session_id order by r.session_id), '[]'::jsonb) into v_b
         from public.hr_hunt_roster_sharded(v_pfx, 16, 30000) r where r.user_id = any (v_users);
       if v_b is distinct from (select jsonb_agg(x order by x) from unnest(v_ids) x) then
-        raise exception 'p3: after body 1 freed its four the next call re-offered %, not exactly them', v_b; end if;
+        raise exception 'p3: after body 1 freed its % the next call re-offered %, not exactly them', v_bad, v_b; end if;
       raise exception 'TPH_SUB_OK';
     exception when others then
       if sqlerrm <> 'TPH_SUB_OK' then raise; end if;

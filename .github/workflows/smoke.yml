@@ -5322,8 +5322,8 @@ jobs:
       # The PURE arm owns the derived half: the multiplier each stage derives
       # equals the ladder as AUTHORED (compared against the raw table, never
       # against min(table, ceiling) -- pre-clamping there makes a re-priced rung
-      # invisible), stage 1 pays no power, the product of the two
-      # remembered-kills ladders is clamped once against MAX_MEMORY_DROP_MULT,
+      # invisible), stage 1 pays no power, no stage moves a drop (the class
+      # charm ladder and the trophy drop multiplier are cut: Luck v3.1),
       # the damage half is honestly dormant, the key fits player_progress's
       # 64-char CHECK for all 108 monsters, and the ATTENDED and AWAY bindings
       # quote ONE drop rate (AWAY-1) -- including the vacuity check that the
@@ -5947,12 +5947,11 @@ jobs:
       # for free, and the day someone flattens that into a literal the census
       # stops following the roster with nothing else going red. B9 rebuilds from
       # a synthetic roster and is the only assertion a hand-typed table fails.
-      # (2) THE MAGNITUDES. A trophy is a memory of work done, not a build: the
-      # class charm (<=1.03) and the monster trophy (<=1.03) apply against the
-      # same monster at the same time, so it is their PRODUCT a reviewer approved
-      # (MAX_MEMORY_DROP_MULT), and the damage half multiplies into the ONE
+      # (2) THE MAGNITUDES. A trophy is a memory of work done, not a build: no
+      # stage moves a drop (Luck v3.1 cut the drop half and the class charm
+      # ladder; B3), and the damage half multiplies into the ONE
       # `damageMult` expression in src/core/combat.js that MAX_TOTAL_DAMAGE_MULT
-      # clamps. B6 owns both. 12 mutations, one per assertion, each required to
+      # clamps (B6). 11 mutations, one per assertion, each required to
       # be caught by its NAMED assertion, plus two negative controls (a display
       # rename, a twelfth monster class) that must stay silent. No database, no
       # credential, milliseconds.

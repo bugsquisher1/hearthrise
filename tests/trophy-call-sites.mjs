@@ -20,11 +20,10 @@
 // header; demolition safety review item 9). Trophies are KEPT as claims and
 // display (hr-accrue/trophy-claim.js, src/render/bestiary-trophies.js). So the
 // id no longer prices anything — but the class is wider than the id: the
-// client still holds the ladder (G._bestiaryTrophies, HearthriseCharms) and
-// still passes it into `weaknessInfo`, and the hunt engine's ctx is the one
-// that pays. This guard therefore executes the SHIPPED bytes of all three
-// seams for a holder of the TOP trophy and the TOP charm rank, with a weapon
-// the monster is weak to, and asserts:
+// client may still hand a ladder into `weaknessInfo`, and the hunt engine's
+// ctx is the one that pays. This guard therefore executes the SHIPPED bytes of
+// the seams for a holder of the TOP trophy (the class charm ladder is cut, Luck
+// v3.1), with a weapon the monster is weak to, and asserts:
 //
 //   C1  [retired 2026-10-17 with the old client: the Fight screen and the loot
 //       preview (src/legacy.js, src/core-bridge.js) are deleted; the new screens
@@ -32,12 +31,12 @@
 //   C2  the hunt engine's seam (accrual.js memberSide's `rollsVs` /
 //       `weakness`, lifted out of the shipped file and executed) quotes the
 //       same numbers as the core — AWAY-1's "one engine" at the seam.
-//   C3  NO LADDER IN THE NUMBER: for a stage-max trophy and a top-rank charm
-//       holder the paid drop multiplier is the monster row's own `dropBonus`
+//   C3  NO LADDER IN THE NUMBER: for a stage-max trophy holder the paid drop
+//       multiplier is the monster row's own `dropBonus`
 //       and no seam reports a charm or trophy lift (a panel that names a lift
 //       the server does not pay is the same two-numbers defect, rendered).
-//   C4  NON-VACUITY: the fixture really holds the top rung and the top rank,
-//       the weapon really matches (damage ≠ 1), and no roster row carries an
+//   C4  NON-VACUITY: the fixture really holds the top rung, the weapon really
+//       matches (damage ≠ 1), and no roster row carries an
 //       `.id` that would let `monsterIdIn` short-circuit.
 //
 // Credential-free, database-free. Exit: 0 green · 1 a finding · 2 harness.
@@ -51,7 +50,6 @@ import { MONSTERS } from '../src/data/monsters.js';
 import { ITEMS } from '../src/data/items.js';
 import { TROPHY_STAGES, MAX_TROPHY_STAGE } from '../src/data/bestiary.js';
 import { trophyIndex, monsterIdIn } from '../src/core/trophies.js';
-import { charmIndex, killsByClass } from '../src/core/charms.js';
 import { playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats } from '../src/core/combat.js';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
@@ -74,13 +72,12 @@ function lift(src, open, close, what) {
   return src.slice(i, j);
 }
 
-// ── THE FIXTURE: a top-rung trophy, a top-rank charm, a matching weapon ─────
+// ── THE FIXTURE: a top-rung trophy and a matching weapon ─────────────────────
 const MON_ID = 'slime';
 const ROW = MONSTERS[MON_ID];
 const KILLS = Object.create(null);
 KILLS[MON_ID] = TROPHY_STAGES[TROPHY_STAGES.length - 1].at;
 const TROPHIES = trophyIndex(KILLS, MONSTERS);
-const CHARMS = charmIndex(killsByClass(KILLS, MONSTERS));
 const WEAPON = Object.keys(ITEMS).find((k) => ITEMS[k] && ITEMS[k].slot === 'weapon' && ITEMS[k].weaponType === (ROW && ROW.weaponWeak));
 const EQUIPMENT = WEAPON ? { weapon: WEAPON } : {};
 const EQ = equipmentStats(EQUIPMENT, ITEMS);
@@ -95,8 +92,6 @@ async function run(accrualSrc) {
   // C4 — NON-VACUITY, first: every arm below is about a holder of the ladder.
   ok(TROPHIES && TROPHIES[MON_ID] === MAX_TROPHY_STAGE,
     `C4: the fixture holds trophy stage ${TROPHIES && TROPHIES[MON_ID]}, not ${MAX_TROPHY_STAGE}`);
-  ok(CHARMS && Object.values(CHARMS).some((r) => Number(r) > 0),
-    `C4: the fixture holds no charm rank (${JSON.stringify(CHARMS)}) — the charm half would be vacuous`);
   ok(!!WEAPON && PAID.matched === true && PAID.damageMult > 1,
     `C4: the fixture weapon ${WEAPON} does not match ${MON_ID}'s weakness — the damage half would be vacuous`);
   const withId = Object.keys(MONSTERS).filter((k) => typeof MONSTERS[k].id === 'string' && MONSTERS[k].id);
@@ -178,7 +173,7 @@ const main = async () => {
       console.error(`\ntrophy-call-sites: RED — ${failed} finding(s).`);
       process.exit(1);
     }
-    console.log(`trophy-call-sites: green — for a stage-${MAX_TROPHY_STAGE} trophy and top-charm holder with a matched `
+    console.log(`trophy-call-sites: green — for a stage-${MAX_TROPHY_STAGE} trophy holder with a matched `
       + `${WEAPON}, the core and the hunt engine quote ONE drop rate (x${PAID.dropMult}, the row's own) `
       + `and ONE damage multiplier (x${PAID.damageMult}); no seam names a ladder lift.`);
     return;

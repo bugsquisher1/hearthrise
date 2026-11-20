@@ -18,8 +18,9 @@
 // The second half is the magnitude. A trophy is a memory of work done, and the
 // whole design rests on it never growing into a second, free bane weapon. The
 // ceilings are invariants of the formula (src/data/bestiary.js header), so the
-// job of this file is to prove the SHIPPED table sits inside them, that the
-// two remembered-kills ladders multiply to something a reviewer approved, and
+// job of this file is to prove the SHIPPED table sits inside them, that no
+// stage moves a drop (Luck v3.1, itemization plan §15 "The cuts": the drop half
+// and the class charm ladder are cut, Magic Find is the one drop lever), and
 // that the damage half still leaves headroom under MAX_TOTAL_DAMAGE_MULT — the
 // clamp the one combat engine actually applies.
 //
@@ -32,11 +33,9 @@
 
 import {
   TROPHY_STAGES, BESTIARY, buildBestiary, trophyKey, trophyStageAt, nextTrophyAt,
-  MAX_TROPHY_DROP_MULT, MAX_TROPHY_DAMAGE_MULT, MAX_MEMORY_DROP_MULT,
-  MAX_TROPHY_STAGE, TROPHY_LADDER_KILLS, TROPHY_STAGE_NAMES,
+  MAX_TROPHY_DAMAGE_MULT, MAX_TROPHY_STAGE, TROPHY_LADDER_KILLS, TROPHY_STAGE_NAMES,
 } from '../src/data/bestiary.js';
 import { MONSTERS } from '../src/data/monsters.js';
-import { CHARM_RANKS, MAX_CHARM_DROP_MULT, MAX_CHARM_DAMAGE_MULT } from '../src/data/bestiary-charms.js';
 import { MAX_TOTAL_DAMAGE_MULT } from '../src/core/elements.js';
 
 /* player_progress.key is `check (length(key) between 1 and 64)`. A trophy key
@@ -74,10 +73,12 @@ function audit(w) {
     prev = r.at;
   }
 
-  /* B3 — THE BAND. Every multiplier inside [1.00, the stated ceiling]. Below
-     1.00 would be a penalty for playing; above is the second-bane failure. */
+  /* B3 — THE BAND. The damage multiplier inside [1.00, the stated ceiling]: below
+     1.00 would be a penalty for playing, above is the second-bane failure. And NO
+     DROP: a stage that authors a drop multiplier is a second drop lever beside
+     Magic Find (Luck v3.1 cut the drop half, tests/luck.mjs L10). */
   for (const r of stages) {
-    if (!(r.drop >= 1 && r.drop <= w.maxDrop)) say('B3', `stage ${r.stage} drop ${r.drop} is outside [1, ${w.maxDrop}]`);
+    if ('drop' in r) say('B3', `stage ${r.stage} authors a drop multiplier (${r.drop}); Magic Find is the one drop lever`);
     if (!(r.dmg >= 1 && r.dmg <= w.maxDmg)) say('B3', `stage ${r.stage} damage ${r.dmg} is outside [1, ${w.maxDmg}]`);
   }
 
@@ -85,38 +86,23 @@ function audit(w) {
      drop table; paying a multiplier for it too would make the first 2,500 kills
      of all 108 monsters compulsory. Same ruling the class ladder's rank 1 made. */
   const first = stages[0];
-  if (first && !(first.drop === 1 && first.dmg === 1)) {
-    say('B4', `stage 1 pays power (drop ${first.drop}, dmg ${first.dmg}); the first rung is the trophy, not a multiplier`);
+  if (first && first.dmg !== 1) {
+    say('B4', `stage 1 pays power (dmg ${first.dmg}); the first rung is the trophy, not a multiplier`);
   }
   if (first && first.trophy !== true) say('B4', 'stage 1 grants no trophy row, so the first rung rewards nothing at all');
 
   /* B5 — monotonic. A ladder that dips pays a player less for more kills. */
   for (let i = 1; i < stages.length; i++) {
-    if (stages[i].drop < stages[i - 1].drop) say('B5', `stage ${stages[i].stage} drop falls below stage ${stages[i - 1].stage}`);
     if (stages[i].dmg < stages[i - 1].dmg) say('B5', `stage ${stages[i].stage} damage falls below stage ${stages[i - 1].stage}`);
   }
 
-  /* B6 — THE STACK. Both remembered-kills ladders apply against the same
-     monster at the same time, so it is their PRODUCT a reviewer has to approve,
-     not each ceiling alone. And the damage half multiplies into the single
-     `damageMult` expression in src/core/combat.js, which is clamped at
-     MAX_TOTAL_DAMAGE_MULT — if memory alone ever approached that, the clamp
-     would start eating a player's weapon triangle instead of their charms. */
-  const memDrop = w.maxDrop * w.maxCharmDrop;
-  if (memDrop > w.maxMemoryDrop + 1e-9) {
-    say('B6', `class charm ${w.maxCharmDrop} x monster trophy ${w.maxDrop} = ${memDrop.toFixed(4)}, over MAX_MEMORY_DROP_MULT ${w.maxMemoryDrop}`);
-  }
-  const memDmg = w.maxDmg * w.maxCharmDmg;
-  if (memDmg >= w.maxTotalDamage) {
-    say('B6', `remembered-kills damage ${memDmg.toFixed(4)} reaches MAX_TOTAL_DAMAGE_MULT ${w.maxTotalDamage}, leaving the weapon triangle no headroom`);
-  }
-
-  /* B7 — TWO LADDERS MAY NOT SHARE A WORD. The class charms and the monster
-     trophies show side by side on the same monster card; an id in both means a
-     badge that reads as one thing and keys as another. */
-  const charmIds = new Set(w.charmRanks.map(r => r.id));
-  for (const r of stages) {
-    if (charmIds.has(r.id)) say('B7', `stage id "${r.id}" is also a charm rank id — one word, two ladders`);
+  /* B6 — THE HEADROOM. The damage half multiplies into the single `damageMult`
+     expression in src/core/combat.js, which is clamped at MAX_TOTAL_DAMAGE_MULT —
+     if the trophy alone ever approached that, the clamp would start eating a
+     player's weapon triangle. (The class charm it once stacked with is cut, and
+     so is B7, the rule that the two ladders share no word: there is one ladder.) */
+  if (w.maxDmg >= w.maxTotalDamage) {
+    say('B6', `trophy damage ${w.maxDmg} reaches MAX_TOTAL_DAMAGE_MULT ${w.maxTotalDamage}, leaving the weapon triangle no headroom`);
   }
 
   /* B8 — the claim key fits the column, for EVERY monster, at EVERY stage, and
@@ -180,13 +166,8 @@ function realWorld() {
     stages: TROPHY_STAGES,
     bestiary: BESTIARY,
     roster: MONSTERS,
-    charmRanks: CHARM_RANKS,
     names: TROPHY_STAGE_NAMES,
-    maxDrop: MAX_TROPHY_DROP_MULT,
     maxDmg: MAX_TROPHY_DAMAGE_MULT,
-    maxMemoryDrop: MAX_MEMORY_DROP_MULT,
-    maxCharmDrop: MAX_CHARM_DROP_MULT,
-    maxCharmDmg: MAX_CHARM_DAMAGE_MULT,
     maxTotalDamage: MAX_TOTAL_DAMAGE_MULT,
     maxStage: MAX_TROPHY_STAGE,
     ladderKills: TROPHY_LADDER_KILLS,
@@ -212,7 +193,6 @@ function mutantWorld(plant, opts) {
   w.stages = TROPHY_STAGES.map(r => ({ ...r }));
   w.bestiary = { ...BESTIARY };
   w.roster = { ...MONSTERS };
-  w.charmRanks = CHARM_RANKS.map(r => ({ ...r }));
   w.names = { ...TROPHY_STAGE_NAMES };
   if (plant) plant(w);
   if (!opts || opts.freeze !== false) {
@@ -230,11 +210,10 @@ function mutantWorld(plant, opts) {
 const MUTATIONS = [
   ['B1', 'a monster loses its ladder', w => { delete w.bestiary[Object.keys(w.bestiary)[0]]; }],
   ['B2', 'the rungs stop ascending', w => { w.stages[2].at = w.stages[1].at; }],
-  ['B3', 'a drop bonus breaks the band', w => { w.stages[3].drop = 1.25; }],
-  ['B4', 'the first rung starts paying power', w => { w.stages[0].drop = 1.01; }],
-  ['B5', 'the ladder dips', w => { w.stages[3].dmg = 0.99; w.stages[3].drop = 1.03; }],
-  ['B6', 'the two ladders stack past the approved product', w => { w.maxMemoryDrop = 1.0; }],
-  ['B7', 'the two ladders share a word', w => { w.stages[1].id = w.charmRanks[1].id; w.names[w.charmRanks[1].id] = 'x'; }],
+  ['B3', 'a stage moves a drop again', w => { w.stages[3].drop = 1.03; }],
+  ['B4', 'the first rung starts paying power', w => { w.stages[0].dmg = 1.01; }],
+  ['B5', 'the ladder dips', w => { w.stages[3].dmg = 0.99; }],
+  ['B6', 'the trophy damage ceiling reaches the engine clamp', w => { w.maxDmg = w.maxTotalDamage; }],
   ['B8', 'a trophy key overflows the column', w => { const k = w.key; w.key = (id, s) => k(id, s) + 'y'.repeat(KEY_MAX); }],
   ['B9', 'the census is hand-typed instead of generated', w => { const b = w.bestiary; w.build = () => b; }],
   /* The only mutation that opts out of the harness re-freeze — that IS the defect. */
@@ -290,9 +269,9 @@ function report() {
   console.log(`bestiary ladders: ${Object.keys(BESTIARY).length} monsters x ${TROPHY_STAGES.length} stages`);
   for (const t of [...byTier.keys()].sort()) console.log(`  tier ${t}: ${byTier.get(t)} monsters`);
   for (const r of TROPHY_STAGES) {
-    console.log(`  stage ${r.stage} ${TROPHY_STAGE_NAMES[r.id].padEnd(8)} at ${String(r.at).padStart(6)} kills  drop x${r.drop.toFixed(2)}  dmg x${r.dmg.toFixed(2)}`);
+    console.log(`  stage ${r.stage} ${TROPHY_STAGE_NAMES[r.id].padEnd(8)} at ${String(r.at).padStart(6)} kills  dmg x${r.dmg.toFixed(2)}`);
   }
-  console.log(`  ceilings: trophy drop ${MAX_TROPHY_DROP_MULT}, trophy dmg ${MAX_TROPHY_DAMAGE_MULT}, charm x trophy ${MAX_MEMORY_DROP_MULT}, engine total ${MAX_TOTAL_DAMAGE_MULT}`);
+  console.log(`  ceilings: trophy dmg ${MAX_TROPHY_DAMAGE_MULT}, engine total ${MAX_TOTAL_DAMAGE_MULT}; no drop field`);
 }
 
 const argv = process.argv.slice(2);

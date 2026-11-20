@@ -75,6 +75,8 @@ export const DELETED_FILES = [
   'src/features/pet-session.js', 'src/render/companion-lines.js', 'src/net/enchant.js', 'src/features/boss-of-the-day.js',
   'src/features/set-the-night.js', 'src/features/night-plan.js', 'src/styles/night-plan.css',
   'tools/set-the-night-page.mjs', 'tools/gen-rally-action-times.mjs',
+  /* the class charm ladder, cut with Luck v3.1 (itemization plan §15 "The cuts", Tyler 2026-11-20) */
+  'src/core/charms.js', 'src/data/bestiary-charms.js',
 ];
 const SCREENS = ['clan', 'party', 'events', 'dungeons', 'bounty', 'stable'];
 

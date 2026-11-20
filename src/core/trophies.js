@@ -5,15 +5,18 @@
 // Design: docs/design/BESTIARY_LADDER.md. Data: src/data/bestiary.js.
 // Guard: tests/bestiary-trophy.mjs (plain + --selftest).
 //
-// Deliberately shaped as a MIRROR of src/core/charms.js, which is itself a
-// mirror of src/core/bane.js, because all three answer the same question from a
-// different input: "what does this character get against THIS monster?".
-// bane.js reads the equipment; charms.js reads the server's kill counters
-// folded per CLASS; this reads the SAME counters per MONSTER. Same
-// null-prototype index, same `…MultFor(key, index)` call shape, same
-// own-property receipt, same rule that the ceiling is an invariant of the
-// FORMULA and not a promise the data table keeps. A reader who has read one has
-// read all three.
+// Shaped as a mirror of src/core/bane.js: "what does this character get against
+// THIS monster?", read here from the server's kill counters per MONSTER. Same
+// null-prototype index, same own-property receipt, same rule that a ceiling is
+// an invariant of the FORMULA and not a promise the data table keeps.
+//
+// ── NO TROPHY MOVES A DROP (Luck v3.1, itemization plan §15 "The cuts", Tyler
+// 2026-11-20) ──────────────────────────────────────────────────────────────────
+// The class charm ladder (charms.js, bestiary-charms.js) and this ladder's drop
+// multiplier (trophyDropMultFor, memoryDropMult) had no caller and are cut: the
+// Bestiary pays Luck now (src/data/luck.js LUCK_STAGES, onto the account bar),
+// and Magic Find in src/core/drops.js is the one drop lever. A stage carries no
+// drop field (tests/bestiary-trophy.mjs T3).
 //
 // ── THE STAGE IS DERIVED ON EVERY READ, NEVER STORED ────────────────────────
 // There is no `trophy_stage` column, no residue field and nothing to back-fill.
@@ -28,27 +31,11 @@
 // never behind, and a forged claim cannot mint a multiplier because there is no
 // multiplier column to forge.
 //
-// ── DROP IS ARMED; DAMAGE IS NOT, AND THE OMISSION IS THE DESIGN ────────────
-// `trophyDropMultFor` has exactly ONE caller: `weaknessInfo` (src/core/combat.js)
-// — one expression, two callers, the live tick and the Edge replay. It is NOT a
-// `getBonus` key, and the reason is the whole of bane.js's header: the Edge
-// engine does not run the client's monkey-patched bonus chain, so a trophy
-// expressed as a bonus key would work awake and read ZERO while the player
-// slept. That is the difference between a bonus that pays an away night and one
-// that quietly does not.
-//
+// ── DAMAGE IS NOT ARMED, AND THE OMISSION IS THE DESIGN ─────────────────────
 // `trophyDamageMultFor` is gated behind TROPHY_DAMAGE_ARM_ENABLED (below) for
 // the reason BESTIARY_LADDER.md §3.1 states: `maxHit` is an INTEGER and
 // `playerCombatRolls` applies `weak.damageMult` through `Math.floor`, so the
-// x1.01 at `nemesis` rounds away on most loadouts. It arms in the SAME change
-// that arms the charm's damage half, so one review covers one expression once.
-//
-// ── THE PRODUCT IS THIS MODULE'S JOB, NOT THE CALLER'S ──────────────────────
-// Both remembered-kills ladders apply to the same monster at the same time, so
-// what a reviewer approves is their PRODUCT. `memoryDropMult` is the one place
-// that product is formed and the one place MAX_MEMORY_DROP_MULT is applied —
-// two ladders that each clamp only themselves are two ladders whose product is
-// nobody's job (BESTIARY_LADDER.md §2.3).
+// x1.01 at `nemesis` rounds away on most loadouts.
 //
 // ── SCALING ─────────────────────────────────────────────────────────────────
 // `trophyIndex` is one pass over the counters the server sent (one row per
@@ -61,16 +48,14 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import {
-  TROPHY_STAGES, MAX_TROPHY_STAGE, MAX_TROPHY_DROP_MULT, MAX_TROPHY_DAMAGE_MULT,
-  MAX_MEMORY_DROP_MULT, trophyStageAt,
+  TROPHY_STAGES, MAX_TROPHY_STAGE, MAX_TROPHY_DAMAGE_MULT, trophyStageAt,
 } from '../data/bestiary.js?v=0.2.142';
 
 /**
  * THE DAMAGE ARM. False, and BESTIARY_LADDER.md §3.1 is the ruling: the x1.01
  * at `nemesis` is floored away by `playerCombatRolls`, so shipping it today
  * would state an effect that does nothing — which is what tests/arm-flag-
- * honesty.mjs exists for. It flips in the same change that arms
- * `charmDamageMultFor`, under one review of one expression.
+ * honesty.mjs exists for.
  *
  * While it is off, `trophyDamageMultFor` returns 1 for every input, and
  * `weaknessInfo` returns no damage readout for the trophy at all: a field
@@ -85,8 +70,7 @@ export const TROPHY_DAMAGE_ARM_ENABLED = false;
  * the Edge Function hands it the same sealed catalogue it hands the combat
  * engine. A monster id the catalogue does not know is DROPPED rather than
  * indexed: a trophy is a capability, and inventing a monster from an unknown id
- * is how a capability becomes forgeable from a stale save. (`charms.js`
- * `killsByClass` drops the same way, for the same reason.)
+ * is how a capability becomes forgeable from a stale save.
  *
  * Only monsters that have EARNED a stage appear, so `index[id]` is falsy for
  * "not yet a Quarry" and no caller needs to know the ladder's first threshold.
@@ -115,8 +99,7 @@ export function trophyIndex(killsByMonsterId, monsters) {
 /**
  * The roster KEY for a monster row, or null.
  *
- * The charm resolves its class off the row (`cls`/`family` are ON the row); a
- * trophy needs the row's IDENTITY, and not one of the 108 rows carries an `id`
+ * A class is ON the row (`cls`/`family`); a trophy needs the row's IDENTITY, and not one of the 108 rows carries an `id`
  * field — measured. So the id has to come from the catalogue the row came out
  * of, and this is the one function that does that lookup.
  *
@@ -143,10 +126,10 @@ export function monsterIdIn(monsters, row) {
  * The stage an index holds for `monsterId`, OWN-PROPERTY ONLY — 0 for anything
  * else.
  *
- * ⚠ `index[id]` IS NOT ENOUGH, and charms.js already paid for learning it: with
- *   `Object.prototype.constructor` truthy on ANY plain object,
- *   `charmDropMultFor('constructor', {})` returned a top-rung charm on a class
- *   nobody had killed anything in (Security review, 2026-09-13). `trophyIndex`
+ * ⚠ `index[id]` IS NOT ENOUGH, and the cut class charm ladder paid for learning
+ *   it: with `Object.prototype.constructor` truthy on ANY plain object, a lookup
+ *   written as `index[id]` returned a top rung for a class nobody had killed
+ *   anything in (Security review, 2026-09-13). `trophyIndex`
  *   builds a null-prototype map, so the live path is not exposed — but this
  *   module's header says the ceiling is a property of the FORMULA and not of who
  *   happens to call it, and a guard that only holds while every caller behaves
@@ -180,21 +163,6 @@ export function trophyStageFor(monsterId, index) {
 }
 
 /**
- * The clamped DROP multiplier this character gets against `monsterId`. ≥ 1.
- *
- * READ BY `weaknessInfo` (src/core/combat.js) AND BY NOTHING ELSE. The clamp is
- * the last word, so a hostile or fat-fingered ladder row cannot out-argue the
- * formula. Stage 1 (`quarry`) authors x1.00 and therefore returns exactly 1 —
- * its reward is the trophy and the revealed drop table, not power.
- */
-export function trophyDropMultFor(monsterId, index) {
-  const row = trophyRowOfStage(stageOf(index, monsterId));
-  const raw = Number(row && row.drop);
-  if (!(raw > 1)) return 1;
-  return raw > MAX_TROPHY_DROP_MULT ? MAX_TROPHY_DROP_MULT : raw;
-}
-
-/**
  * The clamped DAMAGE multiplier this character gets against `monsterId`. ≥ 1.
  *
  * ⚠ RETURNS 1 FOR EVERY INPUT while TROPHY_DAMAGE_ARM_ENABLED is off — see the
@@ -210,22 +178,3 @@ export function trophyDamageMultFor(monsterId, index) {
   return raw > MAX_TROPHY_DAMAGE_MULT ? MAX_TROPHY_DAMAGE_MULT : raw;
 }
 
-/**
- * THE PRODUCT OF EVERY REMEMBERED-KILLS DROP LADDER, clamped ONCE.
- *
- * The class charm (≤1.03, src/core/charms.js) and the monster trophy (≤1.03,
- * above) apply to the same monster at the same time, so the number a reviewer
- * approves is this one — 1.0609 today against a stated MAX_MEMORY_DROP_MULT of
- * 1.07. The headroom is deliberate and it is a TRIPWIRE, not slack: a THIRD
- * ladder cannot be added without moving one visible constant a reviewer will
- * ask about (BESTIARY_LADDER.md §2.3).
- *
- * Every argument is floored at 1 before multiplying, so a caller that passes a
- * junk factor gets the pre-ladder number rather than a discount.
- */
-export function memoryDropMult(charmMult, trophyMult) {
-  const a = Number(charmMult); const b = Number(trophyMult);
-  const product = (a > 1 ? a : 1) * (b > 1 ? b : 1);
-  if (!(product > 1)) return 1;
-  return product > MAX_MEMORY_DROP_MULT ? MAX_MEMORY_DROP_MULT : product;
-}

@@ -14,9 +14,10 @@
 // inside its band. This file owns the two halves that data becomes:
 //
 //   THE DERIVED HALF (pure, milliseconds, no database) — src/core/trophies.js
-//   turns the server's kill counters into a multiplier, the product with the
-//   class charm is clamped once, the damage half is honestly dormant, and the
-//   attended and away paths read ONE number (AWAY-1).
+//   turns the server's kill counters into a stage, no stage moves a drop (Luck
+//   v3.1 cut the drop half and the class charm ladder: Magic Find is the one
+//   drop lever), the damage half is honestly dormant, and the attended and away
+//   paths read ONE number (AWAY-1).
 //
 //   THE CLAIMED HALF (a real PostgreSQL, via tests/schema-replay.mjs) —
 //   hr_trophy_claim refuses below the threshold, refuses a second claim, writes
@@ -43,22 +44,18 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
-  TROPHY_STAGES, MAX_TROPHY_DROP_MULT, MAX_TROPHY_DAMAGE_MULT, MAX_MEMORY_DROP_MULT,
-  MAX_TROPHY_STAGE, trophyKey, trophyStageAt,
+  TROPHY_STAGES, MAX_TROPHY_DAMAGE_MULT, MAX_TROPHY_STAGE, trophyKey, trophyStageAt,
 } from '../src/data/bestiary.js';
-import { CHARM_RANKS, MAX_CHARM_DROP_MULT } from '../src/data/bestiary-charms.js';
 import { MONSTERS } from '../src/data/monsters.js';
 import { MAX_TOTAL_DAMAGE_MULT } from '../src/core/elements.js';
-import {
-  trophyIndex, trophyDropMultFor, trophyDamageMultFor, trophyStageFor,
-  memoryDropMult, TROPHY_DAMAGE_ARM_ENABLED,
-} from '../src/core/trophies.js';
+import * as TROPHIES from '../src/core/trophies.js';
 import { weaknessInfo, playerCombatRolls, equipmentStats } from '../src/core/combat.js';
-import { charmIndex, killsByClass } from '../src/core/charms.js';
 import { ITEMS } from '../src/data/items.js';
 import { readTrophy } from '../supabase/functions/hr-accrue/request.js';
 import { resolveTrophyClaim } from '../supabase/functions/hr-accrue/trophy-claim.js';
 import { INTENT_REGISTRY } from '../supabase/functions/hr-accrue/intents.js';
+
+const { trophyIndex, trophyDamageMultFor, trophyStageFor, TROPHY_DAMAGE_ARM_ENABLED } = TROPHIES;
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const CLAIM_SQL_FILE = join(ROOT, 'supabase', 'migrations', '2026-09-22-trophy-claim.sql');
@@ -87,12 +84,10 @@ const verdict = (r) => JSON.stringify({
 function realPureWorld() {
   return {
     stages: TROPHY_STAGES.map((r) => ({ ...r })),
-    charmRanks: CHARM_RANKS.map((r) => ({ ...r })),
     roster: Object.fromEntries(Object.keys(MONSTERS).map((id) => [id, { ...MONSTERS[id] }])),
-    maxDrop: MAX_TROPHY_DROP_MULT,
     maxDmg: MAX_TROPHY_DAMAGE_MULT,
-    maxMemory: MAX_MEMORY_DROP_MULT,
-    maxCharmDrop: MAX_CHARM_DROP_MULT,
+    /* T3's read of the module: what trophies.js exports (a drop multiplier must not come back) */
+    trophyExports: Object.keys(TROPHIES),
     maxTotalDamage: MAX_TOTAL_DAMAGE_MULT,
     wireMax: 4,          // request.js MAX_TROPHY_STAGE_WIRE, re-read below
     sqlThresholds: null, // filled from the migration by auditPure's caller
@@ -109,23 +104,10 @@ function auditPure(w) {
   const f = [];
   const say = (id, msg) => f.push({ id, msg });
 
-  /* T1 — THE DERIVED MULTIPLIER EQUALS THE DESIGN'S TABLE, AT EVERY STAGE, on
-     the exact threshold and one kill below it. This is the assertion the whole
-     "the power is derived" claim rests on: if the table and the derivation
-     disagree, a player is paid a rate nobody authored. */
+  /* T1 — THE DERIVED STAGE EQUALS THE DESIGN'S TABLE, AT EVERY STAGE, on the
+     exact threshold and one kill below it. If the table and the derivation
+     disagree, a trophy is claimable at a count nobody authored. */
   for (const row of w.stages) {
-    const idx = Object.create(null); idx.slime = row.stage;
-    const got = trophyDropMultFor('slime', idx);
-    /* ⚠ COMPARED AGAINST THE TABLE AS AUTHORED, NOT AGAINST `min(table, ceiling)`.
-       Pre-applying the clamp here would make this assertion agree with the
-       derivation for ANY authored value at or above the ceiling — measured:
-       with `want = Math.min(row.drop, maxDrop)` a table re-priced to x1.99 is
-       invisible to T1, because both sides collapse to x1.03. The clamp is a
-       property of the FORMULA and T3 owns it; T1 owns the narrower question of
-       whether the derivation says what the ladder says. */
-    if (!near(got, row.drop)) {
-      say('T1', `stage ${row.stage} (${row.id}) derives drop x${got}, the ladder authors x${row.drop}`);
-    }
     const at = trophyStageAt(row.at);
     if (!at || at.stage !== row.stage) {
       say('T1', `${row.at} kills derives stage ${at ? at.stage : 'null'}, expected ${row.stage}`);
@@ -140,49 +122,28 @@ function auditPure(w) {
      would make the first 2,500 kills of all 108 monsters compulsory rather than
      chosen, which is the opposite of what the ladder is for. EXACTLY 1, not
      "about 1": the trophy and the revealed drop table ARE the reward. */
-  const q = Object.create(null); q.slime = 1;
-  /* BOTH SIDES, because they can fail apart: the authored table is where a
-     designer would put the bonus, and the derivation is where a clamp or an
-     off-by-one rung would introduce one. An assertion that read only the module
-     cannot see the first, which is the edit this rule exists to refuse. */
-  if (w.stages[0].drop !== 1) {
-    say('T2', `the ladder authors x${w.stages[0].drop} at stage 1 — the first rung must pay the trophy and the revealed drop table, and no power`);
-  }
   if (w.stages[0].dmg !== 1) {
     say('T2', `the ladder authors damage x${w.stages[0].dmg} at stage 1 — the first rung pays no power at all`);
   }
-  if (trophyDropMultFor('slime', q) !== 1) {
-    say('T2', `stage 1 derives a drop multiplier (x${trophyDropMultFor('slime', q)}) — the first rung must pay the trophy and nothing else`);
+
+  /* T3 — NO TROPHY MOVES A DROP (Luck v3.1, itemization plan §15 "The cuts", Tyler
+     2026-11-20). The class charm ladder and the trophy's drop multiplier had no
+     caller and are cut: the Bestiary pays Luck onto the account bar, and Magic
+     Find (src/core/drops.js) is the one drop lever. So no stage authors a drop
+     field and trophies.js exports no drop multiplier to wire back in. */
+  for (const row of w.stages) {
+    if ('drop' in row) say('T3', `stage ${row.stage} (${row.id}) authors drop x${row.drop}; Magic Find is the one drop lever`);
+  }
+  for (const name of w.trophyExports) {
+    if (/drop/i.test(name)) say('T3', `src/core/trophies.js exports ${name}, a drop multiplier the cut removed`);
   }
 
-  /* T3 — THE PRODUCT OF BOTH REMEMBERED-KILLS LADDERS, over EVERY pair, never
-     exceeds MAX_MEMORY_DROP_MULT — and the clamp is the FORMULA's, so a hostile
-     pair is clamped too. Design §2.3: two ladders that each clamp only
-     themselves are two ladders whose product is nobody's job. */
-  for (const c of w.charmRanks) {
-    for (const t of w.stages) {
-      const product = Math.max(1, c.drop) * Math.max(1, t.drop);
-      if (product > w.maxMemory + 1e-9) {
-        say('T3', `charm ${c.id} (x${c.drop}) x trophy ${t.id} (x${t.drop}) = ${product.toFixed(4)}, over MAX_MEMORY_DROP_MULT ${w.maxMemory}`);
-      }
-      const clamped = memoryDropMult(c.drop, t.drop);
-      if (clamped > w.maxMemory + 1e-9) {
-        say('T3', `memoryDropMult(${c.drop}, ${t.drop}) returned ${clamped}, over the ceiling it exists to apply`);
-      }
-    }
-  }
-  /* …and the clamp BITES on a pair no table authors, which is what makes it a
-     property of the formula rather than a restatement of the data. */
-  if (memoryDropMult(9, 9) > w.maxMemory + 1e-9) {
-    say('T3', `memoryDropMult(9, 9) returned ${memoryDropMult(9, 9)} — the ceiling is not applied by the formula`);
-  }
-
-  /* T4 — THE OWN-PROPERTY RECEIPT. charms.js already paid for this one: with
-     `Object.prototype.constructor` truthy on any plain object, a lookup written
-     as `index[id]` handed out a top-rung bonus against something nobody had
+  /* T4 — THE OWN-PROPERTY RECEIPT. The cut class charm ladder paid for this one:
+     with `Object.prototype.constructor` truthy on any plain object, a lookup
+     written as `index[id]` handed out a top rung against something nobody had
      killed (Security review 2026-09-13). */
   for (const hostile of ['constructor', 'toString', 'valueOf', '__proto__']) {
-    if (trophyDropMultFor(hostile, {}) !== 1 || trophyStageFor(hostile, {}) !== 0) {
+    if (trophyStageFor(hostile, {}) !== 0) {
       say('T4', `"${hostile}" resolves to a trophy on an empty index — the lookup is not own-property only`);
     }
   }
@@ -353,12 +314,14 @@ function auditPure(w) {
 // Each plants ONE defect in the injectable world (or in a number the module
 // reads) and names the assertion that must report it.
 const PURE_MUTATIONS = [
-  ['T1', 'the top rung is re-priced in the data table',
-    (w) => { w.stages[w.stages.length - 1].drop = 1.99; }],
-  ['T2', 'stage 1 starts paying a drop bonus',
-    (w) => { w.stages[0].drop = 1.02; }],
-  ['T3', 'the memory ceiling is lowered under the shipped product',
-    (w) => { w.maxMemory = 1.00; }],
+  ['T1', 'the top rung is re-thresholded in the data table',
+    (w) => { w.stages[w.stages.length - 1].at = 25000; }],
+  ['T2', 'stage 1 starts paying a damage bonus',
+    (w) => { w.stages[0].dmg = 1.01; }],
+  ['T3', 'a stage moves a drop again',
+    (w) => { w.stages[w.stages.length - 1].drop = 1.03; }],
+  ['T3', 'trophies.js exports a drop multiplier again',
+    (w) => { w.trophyExports = [...w.trophyExports, 'trophyDropMultFor']; }],
   ['T7', 'a monster id is authored too long for the key',
     (w) => { w.roster['x'.repeat(70)] = { ...w.roster.slime }; }],
   ['T8', 'the SQL ladder drifts from the data ladder',
@@ -752,14 +715,10 @@ function report(pure, sql) {
   for (const r of TROPHY_STAGES) {
     const idx = Object.create(null); idx.slime = r.stage;
     console.log(`  stage ${r.stage} ${r.id.padEnd(8)} at ${String(r.at).padStart(6)} kills`
-      + `  derived drop x${trophyDropMultFor('slime', idx).toFixed(2)}`
       + `  derived dmg x${trophyDamageMultFor('slime', idx).toFixed(2)}`
       + (TROPHY_DAMAGE_ARM_ENABLED ? '' : ' (damage arm OFF)'));
   }
-  const top = TROPHY_STAGES[TROPHY_STAGES.length - 1].drop;
-  const topCharm = CHARM_RANKS[CHARM_RANKS.length - 1].drop;
-  console.log(`  charm x${topCharm} x trophy x${top} = ${(topCharm * top).toFixed(4)}`
-    + `, clamped to ${memoryDropMult(topCharm, top)} (ceiling ${MAX_MEMORY_DROP_MULT})`);
+  console.log('  no stage moves a drop (Luck v3.1: Magic Find is the one drop lever)');
   console.log(`  pure findings ${pure.length}, sql findings ${sql === null ? 'skipped' : sql.length}`);
 }
 

@@ -87,11 +87,8 @@ const CLAIM_SQL = `
    rows; `coalesce` because an aggregate over zero rows is NULL and "no trophies"
    must be an empty array rather than a missing key.
 
-   ⚠ NO `kills_by_class` — and the omission is deliberate, not laziness. That
-     block is the CHARM mirror's, the fold belongs to src/core/charms.js, and
-     this verb has no business re-deriving it. The client's charm adopter treats
-     a block without it as "no counters" and leaves its own mirror alone, which
-     is the absence-is-not-a-claim rule both mirrors already follow. */
+   ⚠ NO `kills_by_class`: that block belonged to the class charm ladder, which
+     is cut (Luck v3.1, itemization plan §15: the Bestiary pays Luck now). */
 const PROJECTION_SQL = `
   select coalesce((select jsonb_object_agg(monster_id, kills)
                      from public.hr_bestiary_of($1::uuid, $2::int)), '{}'::jsonb) as kills,

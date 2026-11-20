@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "84fb09f1c",
+ "commit": "f5c847a95",
  "at": "2026-11-20",
- "why": "plan audit (31-plan-audit.md): G19-G24 added, K1 gates the harness-party lines, G9 reads the played lone bank (life.mjs --policy rec) instead of the typed table",
+ "why": "re-issued 30-plan E: K1 gate 0.9-1.1 XP / 0.8-1.2 gold; G24 rows keyed by the full ground id",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -185,8 +185,8 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 54,
-   "tower": 76.792
+   "krell": 57.778,
+   "tower": 50.896
   },
   "G18": {
    "new": 2,
@@ -236,14 +236,14 @@
    "restoration": 1
   },
   "G24": {
-   "coppercap@pyre hammer": 1.08,
-   "coppercap@pyre mage": 1.171,
-   "coppercap@hold hammer": 1.12,
-   "coppercap@hold mage": 1.131,
-   "mosslight@ford hammer": 1.015,
-   "mosslight@ford mage": 1.185,
-   "meadowbrook@hold hammer": 0.882,
-   "meadowbrook@hold mage": 0.935
+   "coppercap_warrens@pyre hammer": 1.08,
+   "coppercap_warrens@pyre mage": 1.171,
+   "coppercap_warrens@hold hammer": 1.12,
+   "coppercap_warrens@hold mage": 1.131,
+   "mosslight_glade@ford hammer": 1.015,
+   "mosslight_glade@ford mage": 1.185,
+   "meadowbrook_thicket@hold hammer": 0.882,
+   "meadowbrook_thicket@hold mage": 0.935
   },
   "D1": {},
   "D2": {}
@@ -258,6 +258,11 @@
    "at": "2026-11-20",
    "commit": "84fb09f1c",
    "why": "plan audit (31-plan-audit.md): G19-G24 added, K1 gates the harness-party lines, G9 reads the played lone bank (life.mjs --policy rec) instead of the typed table"
+  },
+  {
+   "at": "2026-11-20",
+   "commit": "f5c847a95",
+   "why": "re-issued 30-plan E: K1 gate 0.9-1.1 XP / 0.8-1.2 gold; G24 rows keyed by the full ground id"
   }
  ]
 }

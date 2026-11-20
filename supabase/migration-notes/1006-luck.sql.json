@@ -1,3 +1,0 @@
-{
-  "note": "STAGED, NOT APPLIED (lane/d-luck-build, systems-engineer, 2026-11-20; Tyler 2026-11-20 'Yes, designer's numbers' to plan §15 v3.1): account_luck, account_found, account_kills; the luck switch (off); Magic Find for the settle (hr_hunt_instance_read); found counted at the settle; Salvage and Use plans and Dispatch's arms; the Lucky job (hr_lucky_ring); the luck section; Bestiary stage Luck. Dark until the switch moves. ORDER: 1006, after 1003-1005. EDGE: hr-accrue reads magic_find; deploy after this applies."
-}

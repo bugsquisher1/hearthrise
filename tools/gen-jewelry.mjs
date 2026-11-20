@@ -33,7 +33,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    and the jewel reforge's table is new: the same full delete + insert of each table. */
 /* LUCK (lane/d-luck-build, 2026-11-20): 2027-05-09-jewelry-sample-catalogue is APPLIED history; the Lucky Fine rows' Hallmark offers and the eight
    Lucky rows' market ceilings land in this forward file, the same full delete + insert. */
-export const OUT_FILE = '1004-luck-jewelry-catalogue.generated.sql';
+export const OUT_FILE = '1005-luck-jewelry-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 const ID = /^[a-z0-9_]{1,48}$/;
 

@@ -4900,9 +4900,19 @@ const DB_ARMS = {
     const ch = await one(db, 'select public.hr_action_set_options(0, 0, $1::jsonb, $2::uuid)', [JSON.stringify({ stance: 'offensive', distance: 4 }), idem()]);
     await db.query(`select set_config('request.jwt.claim.sub', '', true)`);
     if (!ch || ch.ok !== true) return [...problems, `CONTROL: the options change was refused: ${JSON.stringify(ch)}`];
+    /* LEVER-HORIZON (1002-lever-horizon.sql): a fight lever plays from the first window past the seed horizon (the settled
+       point + 32 s). The window inside it keeps the unit as it stood; the server clock then moves on (pinned) and the next
+       settle, past the horizon, writes the change onto the unit already standing in the world. */
     await settleTo(db, M, nowMs);
-    const u2 = M.WS.decode(JSON.parse(await one(db, 'select world from public.hunt_instances where id = $1', [inst]))).units.find((x) => x.side === 'hero');
-    if (!u2 || u2.stance !== 'offensive' || u2.dist !== 4) problems.push(`a mid-hunt change left the unit at ${JSON.stringify(u2 && { stance: u2.stance, dist: u2.dist })}`);
+    const unitNow = async () => M.WS.decode(JSON.parse(await one(db, 'select world from public.hunt_instances where id = $1', [inst]))).units.find((x) => x.side === 'hero');
+    const u1 = await unitNow();
+    if (!u1 || u1.stance !== 'defensive' || u1.dist !== 1) problems.push(`the window inside the seed horizon already played the change: ${JSON.stringify(u1 && { stance: u1.stance, dist: u1.dist })}`);
+    await db.query(`select set_config('hr.test_now', $1, true)`, [new Date(nowMs + 60000).toISOString()]);
+    /* (a window STARTING past the horizon plays the change: the one from nowMs still starts inside it) */
+    await settleTo(db, M, nowMs + 30000);
+    await settleTo(db, M, nowMs + 60000);
+    const u2 = await unitNow();
+    if (!u2 || u2.stance !== 'offensive' || u2.dist !== 4) problems.push(`a mid-hunt change left the unit at ${JSON.stringify(u2 && { stance: u2.stance, dist: u2.dist })} past its horizon`);
     return problems;
   }),
   'TICK-0': async (db, M) => inTx(db, async () => {

@@ -403,6 +403,18 @@ export const LINKS = [
     target: '2027-03-13-gm-tools.sql',
     patchIds: ['gm_stop'],
   },
+  /* Link 24 (lane/c-server-cost, 2026-11-19) — THE LIVE CLIENT WRITE SET. 1003-dead-client-writes.sql closes the last three
+     dead client-writable tables (game_events, session_claims, clan_members) and adds check (4) ARM 3: any client
+     INSERT/UPDATE/DELETE outside the one live pair (bug_reports:authenticated:INSERT) and hr_client_write_baseline, whatever
+     its policies say. Arm 2 could not see a regrant on a table with a permissive policy, or one with only the closed-mode
+     RESTRICTIVE ALL policy (which counted as a write policy). One UNION arm inserted after arm 2's last line, an
+     INSERTION, so its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is link 23's
+     TARGET. It is the new last toucher. */
+  {
+    base: '2027-03-13-gm-tools.sql',
+    target: '1003-dead-client-writes.sql',
+    patchIds: ['client_write_live_set'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -436,6 +448,37 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'client_write_live_set',
+    name: "check (4)'s arm 3, the live client write set (link 24)",
+    /* AN INSERTION after arm 2's last line (its baseline exemption), inside the same `( ... ) x` union: nothing is
+       removed, so arm 1 and arm 2 read exactly as before and arm 3 only adds findings. */
+    find: `       and not exists (select 1 from public.hr_client_write_baseline bl
+                        where bl.table_name = c.relname and bl.grantee = gg)
+`,
+    add: `    -- ARM 3 (1003-dead-client-writes.sql, 2026-11-19) — THE LIVE CLIENT WRITE SET. Any
+    --       INSERT/UPDATE/DELETE an anon or authenticated client holds on a table, WHATEVER ITS
+    --       POLICIES SAY, unless it is one of the live pairs below or recorded in
+    --       hr_client_write_baseline. Arm 2 exempts a table with any write policy, and the
+    --       closed-mode RESTRICTIVE "for all" policy counted as one, so a regrant on game_events,
+    --       session_claims or clan_members (or a re-applied old file carrying its permissive
+    --       policy) was invisible to it. The live set is a CLAIM: a client writes the table
+    --       directly, under a policy written for that, and no RPC could do it instead.
+    union all
+    select c.relname || ':' || gg || ':' || pv
+      from pg_class c
+      cross join unnest(array['anon','authenticated']) gg
+      cross join unnest(array['INSERT','UPDATE','DELETE']) pv
+     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p')
+       and has_table_privilege(gg, c.oid, pv)
+       and (c.relname || ':' || gg || ':' || pv) <> all (array[
+             -- the bug report form: one row a press, its own policy ("bugs anyone submits")
+             'bug_reports:authenticated:INSERT'])
+       and not exists (select 1 from public.hr_client_write_baseline bl
+                        where bl.table_name = c.relname and bl.grantee = gg)
+`,
+    where: 'after',
+  },
   {
     id: 'gm_stop',
     name: 'the c_engine_allow array head (link 23)',

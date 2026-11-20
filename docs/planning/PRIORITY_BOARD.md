@@ -29,36 +29,36 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
-### 2026-11-20 Levels 7-9 re-cut for the hero a new player is (game-designer, lane/c-levels-7-9; balance plan row L05, Tyler ruled 27-2 "recommended"): BUILT, MEASURED on the real engine, PLAYED on the local world, a guard added, one staged curve file
-**The call.** Level 10 in 6 hours on the start-kit hero (sword and shield, start bar, Normal, the ground the Hunts window advises, no event), no Level under 10 over 2 hours, and Levels 10-15 take the XP back. Steps 7, 8 and 9 now cost 15,500 / 34,500 / 46,000 XP (were 25,072 / 68,087 / 83,477). Step 10 costs 85,994, then 105,795 rising 267 a Level to step 15. The total to Level 16 and every step from 16 on cost exactly what they did. "From 15" in the ruling became "from 16": holding the total at 15 leaves room for only 62k XP in steps 10-14 (each must stay under step 15's 99,903), which puts Level 10 at 5.9 h with no margin.
+### 2026-11-20 Levels 7-9 re-cut for the new player as played (game-designer, lane/c-levels-7-9; balance plan row L05, Tyler ruled 27-2 "recommended"; RECALIBRATED the same day on the plan audit's B2): BUILT, MEASURED on the real engine, PLAYED on the local world, a guard added, one staged curve file
+**Which hero.** The first cut was sized on `life.mjs --policy idle`, whose hero walks to Wickstead at Level 8. The plan audit (`31-plan-audit.md` B2) showed that isn't the hero a new player is. The retention dive's blind play stayed in the Thicket with Wickstead open, and the real light player P3 pressed Hunt again six times. A hunt runs until stamina ends, and nothing on the screen moves a new player on. `life.mjs --policy new` plays that hero: the start kit and start bar, the Cellar until it ends, then the end card's ground (the Thicket) with Hunt again. **Calibrated:** at Levels 8 and 9 it earns 19,300 and 20,100 Level XP an hour. The dive read 17,200 on the analyzer's no-bonus line, which is 19,800 with the solo bonus every lone hero gets (`party-class-xp.js` SOLO_XP_PM 1150). So Levels 8 and 9 take 3.53 and 4.16 h against the dive's 3.4 and 4.2, and Level 10 comes at 10.6 h against the dive's "about 11". That's within 4%. The production read (`10-real-players.md` §2) has 12 heroes at Level 10 in 5.6 h median, but they are the two heavy players' heroes, partied. P3's Level 9 at 12 h was played when the Cellar still held a hero for 6 hours (THIN, one person, not today's game).
 
-| Level -> next | Start kit, before / after (h) | Played tank, before / after (h) | Careers' median, before / after (h) |
+**The call.** Steps 7, 8 and 9 cost 24,000 / 35,500 / 40,500 XP (were 25,072 / 68,087 / 83,477). Step 10 costs 78,994, then 106,795 rising 67 a Level to step 15. The total to Level 16 and every step from 16 on cost exactly what they did ("from 15" in the ruling read as from 16: a total held at 15 leaves no room under step 15's 99,903).
+
+| Level -> next (hunted h) | New player (`--policy new`), before / after | Wickstead at 8 (`--policy idle`), before / after | Careers' median, before / after |
 |---|---|---|---|
-| 1-4 | 0.03, 0.05, 0.10, 0.19 (same) | 0.03, 0.04, 0.10, 0.18 (same) | 0.02, 0.05, 0.09, 0.16 (same) |
-| 5, 6 | 0.44, 0.70 (same) | 0.39, 0.57 (same) | 0.26, 0.49 (same) |
-| 7 | 1.38 / 0.86 | 1.12 / 0.70 | 0.97 / 0.61 |
-| 8 | 2.63 / 1.38 | 2.17 / 1.18 | 1.89 / 0.97 |
-| 9 | 3.04 / 1.74 | 2.54 / 1.45 | 2.28 / 1.28 |
-| **Level 10 at** | **8.56 / 5.49** | **7.14 / 4.64** | **6.21 / 3.92** (measured 6.31 / 4.04) |
-| 10 | 2.96 / 3.10 | 2.45 / 2.60 | 2.24 / 2.33 |
-| 11 | 2.92 / 3.73 | 2.46 / 3.13 | 2.24 / 2.84 |
-| 12 | 2.95 / 3.64 | 2.46 / 3.07 | 2.27 / 2.82 |
-| 13 | 2.99 / 3.58 | 2.50 / 3.00 | 2.36 / 2.82 |
-| 14 | 3.10 / 3.51 | 2.61 / 2.98 | 2.47 / 2.80 |
-| 15 | 3.29 / 3.46 | 2.57 / 2.76 | 2.55 / 2.73 |
-| **Level 16 at** | **26.77 / 26.51** | **22.19 / 22.18** | **20.35 / 20.26** |
-| 16-19 | dies on the Glade (below) | 1.49, 1.33, 1.46, 1.57 / 1.55, 1.36, 1.45, 1.59 | 1.30, 1.40, 1.51, 1.63 (same) |
-| **Level 20 at** | | **28.04 / 28.13** | **26.18 / 26.10** (measured 26.55 / 26.36) |
+| 1-4 | 0.03, 0.05, 0.10, 0.19 (same) | the same | 0.02, 0.05, 0.09, 0.16 (same) |
+| 5, 6 | 0.44, 0.70 (same) | the same | 0.26, 0.49 (same) |
+| 7 | 1.38 / 1.32 | 1.38 / 1.32 | 0.97 / 0.93 |
+| 8 | 3.53 / 1.87 | 2.63 / 1.43 | 1.89 / 0.99 |
+| 9 | 4.16 / 2.06 | 3.04 / 1.51 | 2.28 / 1.11 |
+| **Level 10 at** | **10.58 / 6.76** | **8.56 / 5.77** | **6.21 / 4.11** (measured 6.31 / 4.22) |
+| 10 | 4.00 / 3.94 | 2.96 / 2.87 | 2.24 / 2.14 |
+| 11 | 3.97 / 5.11 | 2.92 / 3.76 | 2.24 / 2.86 |
+| 12 | 3.96 / 4.95 | 2.95 / 3.67 | 2.27 / 2.84 |
+| 13 | 4.05 / 4.91 | 2.99 / 3.60 | 2.36 / 2.83 |
+| 14 | 4.15 / 4.76 | 3.10 / 3.55 | 2.47 / 2.81 |
+| 15 | 4.35 / 4.69 | 3.29 / 3.48 | 2.55 / 2.74 |
+| **Level 16 at** | **35.06 / 35.10** | **26.77 / 26.70** | **20.35 / 20.33** |
 
-Start kit = `life.mjs --party tank --policy idle`. Played tank = `--policy rec` (the played profile: recorded bars and kit). Careers = the 8 ways' median at the reference rate, re-measured to Level 110 (`sim.mjs --plan pace`, 36 min on 4 workers): Level 25 36.8 h, Level 50 165.4 h, Level 100 622.6 h, as before. The careers' Level 10 is now 4.0 h. The 10-25 table's "Level 10 in 6 h" is the start kit's (Tyler's 27-2), so `level-curve` C2/C3 judge the careers on the other targets (`LEVEL_PACE.newPlayer`). The worst step for the careers is 9 -> 10 at 1.83x the step before (C6 holds at 2x). **Played**: a brand-new account on the local world (real `play.html`, real engine, the chain with the new file) reached Level 10 between 5.5 and 5.75 hunted hours and Level 11 at 8.75 h. At Level 11 the analyzer reads "Next level in 03:46:00". No console errors.
+Careers re-measured to Level 110 (`sim.mjs --plan pace`, 8 ways): Level 25 37.1 h, Level 50 165.6 h, Level 100 622.7 h, as before. The careers' worst step is 9 -> 10 at 1.92x the step before (C6 holds at 2x). **Played:** a brand-new account on the local world (real `play.html`, real engine, the chain with the new file) pressing Hunt again in the Thicket reached Level 10 between 6.75 and 7.0 hunted hours on the server's clock (15-minute skips; the tool says 6.76). No console errors.
 
-**The cost.** Levels 10-15 take the start kit 3.1-3.7 h each (were 3.0-3.3 h). The long Levels now sit past the Tower's door at 10, not where both light players quit.
+**Why not 6 hours.** The ruling's aim is Level 10 in 6 h with no Level under 10 over 2 h. For this hero the curve can't reach it. The XP Levels 7-9 give up must fit into steps 10-15, each must stay under step 16's 107,130 (every Level costs more than the one before), and step 10 can't take more than twice step 9's hours (C6). Under those three rules Level 10 bottoms out at about 6.5 h, with C6 and the 2 h line both at their limit. This cut lands at 6.76 h with Level 9 at 2.06 h, inside the plan's G6 red lines (7 h, 2.5 h). **The cost:** for this hero, Levels 11-15 take 4.7-5.1 h each (were 4.0-4.35). The hours that sat at Levels 8 and 9 now sit past Level 10, where the Tower opens. **What reaches 6 h is the path, not the curve:** the same Hunt-again hero on Wickstead from Level 8 reaches Level 10 at 5.8 h on this curve. That needs the away card or "Carry on" to name the ground that opened (L07), or the Thicket to end a lone hero's hunt at Level 8 with the Cellar's "Go to" card (a band change and a door: a ruling). Taking the XP back over Levels 10-20 instead of 10-15 is the other way, and it also needs a ruling.
 
-**The guard** (`tests/start-kit-pace.mjs`, in the Core model step). It plays the start-kit hero on the real engine to Level 16 (about 20 s): SK-1 Level 10 inside 5-6 h, SK-2 no step 1-9 over 2 h and none of 10-15 over 4 h, SK-3 every judged step played. `--mutate` plants 6 drifts (v0.2.142's curve, monsters at 1.5x HP, Levels 1-10 at half price, a 2.5-hour Level 8, a 5-hour Level 12, a wall at 15) and catches all 6.
+**The guard** (`tests/start-kit-pace.mjs`, in the Core model step) plays the new player on the real engine to Level 16, about 20 s. SK-1: Level 10 inside 5-7 h (aim 6). SK-2: no step 1-9 over 2.5 h (aim 2) and none of 10-15 over 5.5 h. SK-3: every judged step is played. The plain run prints which aims are missed. **On v0.2.142's curve it reads RED** (Level 10 at 10.58 h). `--mutate` catches all 6 planted drifts.
 
-**Live heroes.** Only the thresholds of Levels 8-15 move, and they all go down. The curve file's hold is now **no Level lost**: a hero who would read a lower Level refuses the whole file, and a hero standing in a lowered gap reads the higher Level. The 11-19 rule refused any move, so a quitter idle at Level 8 or 9 (both real ones) would block the file forever. `core-curves` CURVE-HOLD proves the refusal still bites and that a lifted hero applies.
+**Live heroes.** Only the thresholds of Levels 8-15 move, and all of them go down. The curve file now holds **no Level lost**: a hero who would read a lower Level refuses the whole file, and a hero standing in a lowered gap reads the higher Level. The 11-19 rule refused any move, so a quitter idle at Level 8 or 9 (both real ones) would block the file forever. `core-curves` CURVE-HOLD proves the refusal still bites and that a lifted hero applies.
 
-**Found, not fixed.** The idle start-kit hero (practice set, no armor) goes to the Glade at 16 and dies 2 to 13 times an hour, before and after this change. A real player wears bronze from drops by Level 9, so this is the guard's worst case, not a player's path. The guard stops at 16 for that reason.
+**Found, not fixed.** The start-kit hero (practice set, no armor) that reaches the Glade at 16 dies 2 to 13 times an hour, before and after this change. A real player wears bronze from drops by then, so the guard stops at 16.
 
 ### 2026-11-19 Two rulings for v0.2.142 (game-designer, lane/d-142-rulings; the Coordinator: `level-curve` and `party-class-xp-line` red on the assembled set 41aef2ef5): RULED, BUILT, MEASURED on the real engine, one staged catalogue
 **1. The lone road to Level 50: the Warrens alone from 45 again, and a kill pays 12% less XP (no live Level moves).** Tyler's table is binding (10-25: Level 50 in 168 hunted hours alone), and his 11-19 note is that things are too easy. Sending a lone hero to the Warrens from 36 (the complete look's change 8, built by lane/d-first-day-path) kills nobody, but it skips the Glade's back half on a party ground that pays 2-3x the Glade's Level XP. The pace of record reached Level 50 in 123 h. There is no middle Level: each Level in the Warrens takes about 3.5 h off the road, so anything under 44 breaks the table. So `soloFrom` goes back to 45, where Hask's Ford is the advice and the Warrens is a lone hero's second pick. The long Glade stay is a content gap (no lone ground for 32-44), not something advice should paper over, so it goes back on the backlog. Re-measured at 45, the pace still read Level 50 in 146.5 h (-13%). The cause is v0.2.142's bows casting Flame Volley on their default bar (lane/d-audit-fixes-sim), which makes two of the eight ways 7% faster. That is the right bar. A curve re-fit would have shown every live hero 1-2 Levels lower, so **the Coordinator took the XP route: STAT_FORMULA `xp.a` and `min` x0.88** (on top of lane/d-harder-monsters' x0.96), every formula row regenerated (`gen-ground-stats --write`, `pack.mjs propose --write`; only `xp` moves). The contract follows the ladder (1385 x L^1.274, was 1378 x L^1.298), and the brackets past Level 110, where no hero is, re-fit by hand (a new bracket at 110: rise 70,000, bend 100; the one at 300: rise 350,000, bend 100). **Read-only check, 2026-11-19: 22 live heroes, 0 change Level, and the curve file refuses itself at apply if one would.**

@@ -8,12 +8,12 @@
 // press is out, and the tab changes only from the answer's envelope. The keys themselves move on the server: a key that lands
 // goes onto the ring there, never here.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, prop, element } from '../../../render/paint.js?v=0.2.143';
-import { gold } from '../../../render/format.js?v=0.2.143';
-import { t } from '../../../render/player-text.js?v=0.2.143';
-import { keyRingOf } from '../../../session/item-sections.js?v=0.2.143';
-import { runIntent } from '../../intent-words.js?v=0.2.143';
-import { pocketHtml, patchCount } from './pockets.js?v=0.2.143';
+import { rows, text, cls, prop, element } from '../../../render/paint.js';
+import { gold } from '../../../render/format.js';
+import { t } from '../../../render/player-text.js';
+import { keyRingOf } from '../../../session/item-sections.js';
+import { runIntent } from '../../intent-words.js';
+import { pocketHtml, patchCount } from './pockets.js';
 
 /** The tab (hidden until the server sends the section). */
 export const ringTabHtml = () => '<button type="button" role="tab" class="hw-tab" data-hs-act="tab" data-tab="ring" aria-selected="false" hidden>'

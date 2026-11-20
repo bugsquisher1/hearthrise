@@ -14,15 +14,15 @@
 //   tendLine(r, why)                   the one line after the press, from the server's answer
 //   cropMakes(id)                      what a crop makes, from the data rows (its mana drink, else its Cooking rows)
 // ════════════════════════════════════════════════════════════════════════
-import { farmTendOf, tendHasWork } from '../../session/farm-tend.js?v=0.2.143';
-import { CROPS } from '../../data/gathering.js?v=0.2.143';
-import { DRINK_RECIPES, DRINK_ITEMS } from '../../data/drinks.js?v=0.2.143';
-import { ARTISAN_RECIPES } from '../../data/recipes.js?v=0.2.143';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.143';
-import { whole, gold, listWords } from '../../render/format.js?v=0.2.143';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.143';
-import { itemName, itemNameFor } from '../widgets/bits.js?v=0.2.143';
-import { t } from '../../render/player-text.js?v=0.2.143';
+import { farmTendOf, tendHasWork } from '../../session/farm-tend.js';
+import { CROPS } from '../../data/gathering.js';
+import { DRINK_RECIPES, DRINK_ITEMS } from '../../data/drinks.js';
+import { ARTISAN_RECIPES } from '../../data/recipes.js';
+import { rows, text, cls, prop, element } from '../../render/paint.js';
+import { whole, gold, listWords } from '../../render/format.js';
+import { escapeHtml as esc } from '../../utils/dom.js';
+import { itemName, itemNameFor } from '../widgets/bits.js';
+import { t } from '../../render/player-text.js';
 
 const cropName = (id) => (CROPS[id] && CROPS[id].name) || itemName(id);
 const plotList = (is) => listWords(is.map((i) => String(i + 1)), 8);

@@ -12,17 +12,17 @@
 // sends an intent or writes a number.
 // ════════════════════════════════════════════════════════════════════════
 
-import { worldViewOf } from './world-view.js?v=0.2.143';
-import { mountShell } from '../shell/shell.js?v=0.2.143';
-import { logFor } from '../hunt-view/combat-log.js?v=0.2.143';
-import { pickHunt } from '../shell/windows/hunts.js?v=0.2.143';
-import { worldTargetOf } from '../shell/menu-providers.js?v=0.2.143';
-import { TAP_WINDOWS } from '../data/world/stations.js?v=0.2.143';
-import { SINK_TAPS } from '../data/world/sink-taps.js?v=0.2.143';
-import { roomWindowOf } from '../data/world/house-layouts.js?v=0.2.143';
-import { connection, loadingWords } from '../net/connection.js?v=0.2.143';
-import { SHELL_WINDOWS } from '../data/shell-windows.js?v=0.2.143';
-import { rowOffered } from '../shell/launcher.js?v=0.2.143';
+import { worldViewOf } from './world-view.js';
+import { mountShell } from '../shell/shell.js';
+import { logFor } from '../hunt-view/combat-log.js';
+import { pickHunt } from '../shell/windows/hunts.js';
+import { worldTargetOf } from '../shell/menu-providers.js';
+import { TAP_WINDOWS } from '../data/world/stations.js';
+import { SINK_TAPS } from '../data/world/sink-taps.js';
+import { roomWindowOf } from '../data/world/house-layouts.js';
+import { connection, loadingWords } from '../net/connection.js';
+import { SHELL_WINDOWS } from '../data/shell-windows.js';
+import { rowOffered } from '../shell/launcher.js';
 
 /* The windows a town keeper or station opens (a tapped prop's `window`), and nothing else. */
 const KEEPER_WINDOWS = new Set([...TAP_WINDOWS, ...Object.values(SINK_TAPS).map((t) => t.window)]);
@@ -129,7 +129,7 @@ export async function mountWorldPane(host, character, o) {
   let runtime = null;
   let reloading = false;   // the World's module did not load and the page is about to try again by itself (src/platform/load-shell.js)
   try {
-    const { bootWorld } = await import('../world/world-boot.js?v=0.2.143').catch((e) => {
+    const { bootWorld } = await import('../world/world-boot.js').catch((e) => {
       const win = doc.defaultView;
       reloading = typeof win.HearthriseRetryLoad === 'function' && win.HearthriseRetryLoad();
       throw e;

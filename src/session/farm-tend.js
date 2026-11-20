@@ -17,9 +17,9 @@
 // first wrote nothing; src/session/catch-up.js's rule). On ok the hero is RE-READ and the account told (`onShared('farm')`:
 // the field is every hero's), so the field, the bag and the purse change only from the server's envelope.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.143';
-import { afterRefusal } from './quoted-ask.js?v=0.2.143';
-import { catchingUp, newIdem } from './catch-up.js?v=0.2.143';
+import { askVia } from './intent-ledger.js';
+import { afterRefusal } from './quoted-ask.js';
+import { catchingUp, newIdem } from './catch-up.js';
 
 const VERB = 'farm_tend';
 const ID = /^[a-z_]{1,32}$/;

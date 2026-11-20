@@ -63,9 +63,8 @@
 import { TEMPER_MATERIALS } from './temper.js?v=0.2.141';
 import { WEAPON_FAMILIES } from './gear-tiers.js?v=0.2.141';
 import { TOWER_WEAPONS } from './tower-weapons.js?v=0.2.141';
-import { SKILL_PLUS_FIELDS } from '../core/combat.js?v=0.2.141';
 import { TOWER_RULES, RUN_GROUNDS, CATACOMB_WINGS } from './tower.js?v=0.2.141';
-import { ARMOUR_WEIGHT } from './core-model.js?v=0.2.141';
+import { ARMOUR_WEIGHT, SKILL_PLUS_FIELDS } from './core-model.js?v=0.2.141';
 import { CATACOMB_ARMOR_SHIPPED, CATACOMB_TIERS, WING_LEAN } from './catacomb-armor.js?v=0.2.141';
 
 /* The one chest today, on the Great Hearth's ledge in Havora (world/stations.js `hearth`). A later chest is a row. */

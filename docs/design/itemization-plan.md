@@ -757,85 +757,330 @@ Nothing is open. Tyler confirmed the 48-hour lining cap on 11-18. Still his to n
 
 ---
 
-## 15. Luck (PROPOSAL v2, designer 2026-11-20 after Tyler's 11-20 rulings; awaiting Tyler; nothing built)
+## 15. Luck (PROPOSAL v3.1, designer 2026-11-20 after Tyler's "almost exactly like gw2's", "let's bind it" and "luck rings can be sold"; awaiting Tyler; nothing built)
 
-Asked by Tyler 2026-11-19 ("permanent magic find buffs"). Revised to his 11-20 rulings: "the bestiary only counts per account" and "a similar system that luck I gained from other sinks like salvaging instead of selling (like gw2)". Measured with `tools/balance-sim/staged/luck-measure.mjs` (checkpointed lives); the staged rule is `tools/balance-sim/staged/luck.js`. v1 is in git history (5db6a058).
+Asked by Tyler 2026-11-19 ("permanent magic find buffs"). 11-20: "the bestiary only counts per account" and "a similar system that luck I gained from other sinks like salvaging instead of selling (like gw2)". 11-20, newest: "for salvaging, i was considering a system almost exactly like gw2's where i dont think there is a cap". The staged rule is `tools/balance-sim/staged/luck.js`. It is measured with `tools/balance-sim/staged/luck-measure.mjs`. v2 is in git (3a5e9a95d), v1 at 5db6a058.
 
-**Pitch.** Your account has one Luck number that only goes up. You earn it two ways: by killing creatures (the Bestiary, one count for the whole account) and by salvaging gear your hunts dropped instead of selling it. More Luck means Rare and Trophy drops come more often, on every ground, for every hero. Nothing sells it. When Luck is why a Rare dropped, the reveal says "Lucky find".
+**v3.1, the same day.** Tyler: "I would like to make the luck you get from salvaging into material items, maybe used in some crafting recipes (luck jewelry?)". Then "Ok nvm let's bind it". Then "Because it doesn't create an account wide buff, luck rings can be sold". So the Luck from salvage is an item, the Lucky Rivet. The rivet and the bar are account-bound. A ring made with rivets trades like any jewelry.
 
-**Purpose.** Problem: hour 200 on a ground plays like hour 2, the Bestiary pays nothing (undecided since 11-11), the late game thins, and junk gear is only shop gold. Decisions: where to hunt next (finish a stage, or an old ground's cheap stages) and, per item kind, sell for gold now or salvage for Luck forever. Plugs into kill counters, loot bands, salvage, the Hunts card and the return card.
+**A fact check on GW2.** GW2 does stop. Account magic find from luck ends at 300%. The first percent costs about 100 luck, a percent costs 30,000 from step 218 on, and the whole bar is about 4.3 million luck. It is so far out that it plays as uncapped, which is the part worth copying. v3 does the same: one far stop that no measured life gets near. GW2's Essences of Luck are account-bound, and so are Lucky Rivets, so v3.1 matches GW2 there too.
 
-**What changed from v1**
+**Pitch.** Your account has one Luck bar that only fills. Salvage gear your hunts dropped instead of selling it and you get Lucky Rivets. Put them on the bar and it fills, or have a smith work them into a Lucky ring. Reach a Bestiary stage and the bar fills too. Every time it fills, your Magic Find goes up 1% and the next percent costs more. Magic Find makes Rare drops come more often, on every ground, for every hero you have. Nothing sells the bar.
 
-| | v1 | v2 |
+**Purpose.** Problem: hour 2,000 on a ground plays like hour 2, the Bestiary pays nothing (undecided since 11-11), and gear you don't wear is only shop gold. Decision: per item, gold now or Luck forever, set once in the loot plan. Then rivets on the bar for every hero forever, or into a ring for one hero now. Later, per unique: wear it, sell it to a player, or salvage it. Plugs into kill counters, loot bands, the loot plan and Dispatch, salvage, the sheet and the return card. Tradeoff: an account that salvages everything gives up about a fifth of its hunting gold. Hour 1,000: the next percent is always there and always dearer.
+
+**What changed from v2**
+
+| | v2 | v3 |
 |---|---|---|
-| Bestiary count | Best of your heroes | One count per creature for the account. A kill counts once, whichever of your heroes were there |
-| Stages | 100 / 500 / 2,500 / 5,000 / 10,000 / 20,000 | 100 / 500 / 2,500 / 10,000 / 40,000 / 160,000 |
-| Feeds | Kills only | Kills and salvage, one pool |
-| Formula | 25% x Luck / (Luck + 100) | 25% x Luck / (Luck + 150). Same +25% ceiling, shared by both feeds |
-| Stored | Nothing | Account kill counts and lifetime gold salvaged, raise-only, ledgered |
+| Ceiling | +25%, shared by both feeds | No near ceiling. A far stop at +100% that no measured life comes close to |
+| Shape | 25% x Luck / (Luck + 150) | Whole percents. Percent n costs 100 x n x n Luck |
+| Salvage pays | The shop's price of the piece, as progress | Luck by the piece's tier and band (the table below) |
+| The Bestiary | +1 Luck a stage, its own line | A lump of Luck a stage, into the same bar |
+| Trophy rows | Same +25% as Rares | Their own lower ceiling, +25%, approached and never reached |
+| In a party | The killer's Luck | The party's average Magic Find |
+| Player's name for it | Luck | Luck is what you earn. Magic Find is what it gives |
 
-**Rules**
+**The formula**
+
+| | |
+|---|---|
+| Luck | One total per account. Raise-only. Lucky Rivets used plus Bestiary Luck. One rivet is one Luck |
+| Magic Find | Whole percents. The account holds percent n once Luck reaches 100 x (1 + 4 + 9 + ... + n x n) |
+| A hero's Magic Find | The account's percent plus the Lucky ring that hero wears |
+| On a Rare row | Chance x (1 + Magic Find / 100) |
+| On a Trophy row | Chance x (1 + 0.25 x MF / (MF + 25)). At Magic Find 25 that is +12.5%. It never reaches +25% |
+| Far stop | The bar stops at 100, at 33.84 million Luck. With the best ring a hero holds 104 at most |
+| Never moves | Commons, Uncommons, Scarce gear, keys, chips, Krell's daily prize, the Hearth Chest, Hearthfinds, coin, XP. No Luck food, event, premium perk or store item. One perk: the Lucky ring |
+| In a party | The roll uses the average Magic Find of the heroes there. Four heroes of one account all have the same number |
+
+**What salvaging gives: Lucky Rivets**
+
+The old smiths' habit: when a piece is broken down, the last rivet out of it is kept for luck. One item, stackable, one rivet is one Luck. Account-bound: it can't be traded, listed or sold to the shop. It moves between your own heroes through Storage.
+
+| Piece | Tier 1 | 2 | 3 | 4 | 5 | 6 | 7 | Unique past tier 7 |
+|---|---|---|---|---|---|---|---|---|
+| Standard (the hourly drop) | 2 | 4 | 6 | 8 | 10 | 12 | 14 | |
+| Rare | 10 | 20 | 30 | 40 | 50 | 60 | 70 | 50 x its band: 400 at band 8, 900 at band 18 |
+
+- Two Luck a tier keeps the price of Luck flat. A standard piece sells for about 30 / 60 / 105 / 137 / 173 gold at tiers 1 / 2 / 4 / 5 / 6 (measured), so a point of Luck costs 13 to 15 gold of shop money at every tier. No tier is the cheap one to farm.
+- A Rare is worth five standard pieces. A Rare nobody wants has a floor, its Luck, and every one salvaged leaves the market.
+- Past tier 7 the hourly drop is stock and chips (ruled 11-18), so uniques are the only gear and the only salvage feed. That is why one is worth so much.
+- One item in counts, not five sizes of essence. A tier 6 piece gives 12 rivets.
+- Two uses, so holding it is a decision: the bar or a ring. The choice is made once. The rivet has its own line in the loot plan: Use (goes on the bar at Dispatch), Keep or Deposit. Nobody clicks a stack every trip.
+- Salvage still pays the plan's crafting stock (section 5). Rivets are on top.
+- The Bestiary pays Luck straight onto the bar, not rivets. Kills are for the account, and the ring is the thing you craft from what you gave up.
+
+**The Lucky ring** (all jewelry is Smithing, ruled 11-18)
+
+| Rule | Value | Label |
+|---|---|---|
+| What it is | A new perk in the ring pool, Lucky. It adds Magic Find to the hero wearing it | Proposed |
+| Size by tier 2 to 7 | +1 / +2 / +2 / +3 / +3 / +4% | Proposed |
+| How it stacks | It adds to the account's percent, inside the same formula. It counts once a hero, the larger worn, like every perk | Built rule |
+| Its cap | +4% a hero. That is the whole of what gold can buy | Proposed |
+| What it costs the wearer | One of the four ring perk seats, which today hold Keen, Follow-through, Surge and the rest. About 1% XP given up (the plan's budget for one perk) | From the perk budget, unmeasured for Lucky |
+| How it's made, two ways to one perk | By chance: Lucky is the seventh perk in the ring pool and rolls like the other six on any ring job (Tyler 11-20: luck "could be a gear perk that randomly rolls"). For sure: the Lucky job at the Smithing bench takes a Plain ring of the tier, rivets and a fee, and comes out Fine with Lucky. Nothing fails | Proposed |
+| Why both | One perk, one role. The roll is the surprise. The rivets are how a player who wants one stops waiting for it. A separate rolled Luck perk beside a crafted Luck ring would be two sources for one job, so they are the same perk | Designer's call |
+| Not on dropped gear | Uniques take properties from the catalogue in section 3, and Luck isn't one. A second worn source would stack on the ring | Designer's call |
+| Rivets burned | 500 x tier x tier: 2,000 / 4,500 / 8,000 / 12,500 / 18,000 / 24,500 | Proposed |
+| Fee | The tier's Hallmark fee: 25,000 at tier 2, 100,000 at tier 3, then the ruled 150,000 / 250,000 / 400,000 / 600,000 | Proposed, from ruled prices |
+| Second perk | The normal Hallmark step | Built |
+| Trade | The ring trades like all jewelry (ruled: no bound gear, and 11-20 "luck rings can be sold") | Ruled |
+| Salvaging one | Stock only. No rivets come back | Proposed |
+| Going up a tier | A fresh job at the new tier, or a reforge that pays the new tier's rivets | Proposed |
+
+Why this isn't a shortcut past the bar. The ring is one hero's +1 to +4%. The bar is every hero's, with no near ceiling. For a new account the bar is the better buy until about Magic Find 6: the first three percent cost 1,400 rivets and a tier 6 ring costs 18,000. After that the ring is cheap Magic Find for one hero, which is what makes it worth a maker's time. And no Luck crosses accounts: the buyer gets a worn stat, never rivets and never bar.
+
+What a ring would sell for. The maker's floor is what the rivets cost in gear not sold (13 to 15 gold each) plus the fee and the Plain ring.
+
+| Tier | Rivets | Their cost in shop gold | Fee | Floor, about |
+|---|---|---|---|---|
+| 2 (+1%) | 2,000 | 29k | 25k | 55k |
+| 3 (+2%) | 4,500 | 65k | 100k | 165k |
+| 4 (+2%) | 8,000 | 115k | 150k | 265k |
+| 5 (+3%) | 12,500 | 180k | 250k | 430k |
+| 6 (+3%) | 18,000 | 260k | 400k | 660k |
+| 7 (+4%) | 24,500 | 350k | 600k | 950k |
+
+The ceiling is what +3% is worth to a buyer far up the bar. At Magic Find 16 the next three percent cost about 97,000 rivets, 1.4M gold of gear, though that buys them for every hero. So a tier 6 ring should clear somewhere between 660k and about a million. Computed from measured gear prices and ruled fees. No market exists to check it.
+
+No other recipe uses rivets. A rivet food or potion would be a drop buff you buy, which is the thing the food cut removes. A Luck lining or weapon property would stack a second worn source on the ring. One recipe is enough until the ring has been played.
+
+**What the Bestiary gives**
+
+| Account kills of one creature | 100 | 500 | 2,500 | 10,000 | 40,000 | 160,000 |
+|---|---|---|---|---|---|---|
+| Luck, paid once | 50 | 150 | 500 | 1,500 | 5,000 | 15,000 |
+
+Merged into the one bar, and that is the designer's call. One number is easier to read than two, and the Bestiary is already limited by how many creatures exist. It is the feed for a player who sells everything: Magic Find 8 at 500 hours on kills alone (measured). The counts stay per account, one count a kill whichever heroes were there (ruled 11-20).
+
+**The curve**
+
+| Magic Find | This percent costs | Luck so far | A 10 h Rare comes every | A 125 h Trophy comes every |
+|---|---|---|---|---|
+| 1 | 100 | 100 | 9.9 h | 124 h |
+| 5 | 2,500 | 5,500 | 9.5 h | 120 h |
+| 10 | 10,000 | 38,500 | 9.1 h | 117 h |
+| 15 | 22,500 | 124,000 | 8.7 h | 114 h |
+| 20 | 40,000 | 287,000 | 8.3 h | 113 h |
+| 25 | 62,500 | 552,500 | 8.0 h | 111 h |
+| 30 | 90,000 | 945,500 | 7.7 h | 110 h |
+| 40 | 160,000 | 2.21M | 7.1 h | 108 h |
+| 50 | 250,000 | 4.29M | 6.7 h | 107 h |
+| 100 | 1,000,000 | 33.84M | 5.0 h | 104 h |
+
+Eight times the Luck is twice the Magic Find. That is what keeps four heroes from being four times as lucky.
+
+Why a far stop at all: a guard has to prove that no row ever passes its bound, and it can only prove that against a finite top. Where it sits: the hardest-playing account modeled (four heroes, 5,000 hours each, salvaging everything) holds 8.5 million Luck of the 33.84 million. At that pace the stop is about three more years of all four heroes hunting 12 hours a day. Nobody will see it. A Trophy keeps Tyler's 10-19 promise at any Luck: never faster than every 100 hours.
+
+**The safeguard**
 
 | Rule | Value |
 |---|---|
-| Why these stages | Each is four to five times the last, so an account with four heroes sits about one stage ahead on a creature, not four times the Luck. There is always a next stage |
-| Salvage | Worn gear (weapons, armor, off-hands, jewelry) salvaged instead of sold. It pays the plan's crafting stock plus Luck progress equal to the shop's price for the piece |
-| Salvage price | Point n costs 150 x n gold of salvaged gear: 150 for the first, 15,000 for the 100th. Points grow with the square root of what you gave up |
-| The safeguard | You can salvage for Luck only as many of a piece as your own hunts have dropped. The server keeps both counts per account and item. Bought, traded, crafted and store pieces add nothing to the allowance, so gold and Crowns can't buy Luck |
-| Past the allowance | The piece still salvages for stock, with no Luck |
-| The choice | Set once per item or kind (the plan's fourth loot destination): "Sell: 90 gp" or "Salvage: stock and 90 toward Luck" |
-| No luck item | Progress goes straight onto a bar. A material you click to consume is a repeated click with no decision in it |
-| Seen | Sheet: "Luck 82. Rares drop 8.8% more often." with two lines, Bestiary and Salvage, and the bar "3,400 / 7,350 to the next point". Return card: "Salvaged 41 pieces. Luck 80 to 82" |
-| Moves / never moves | Rare and Trophy rows only (uniques, whole gems, patterns, named fuels, boss-call drops). Never commons, Scarce gear, keys, chips, Krell's prize, the Hearth Chest, Hearthfinds, coin or XP. The killer's Luck rolls. No Luck gear, perk, food, event or purchase |
+| The allowance | Salvage pays rivets on at most as many of an item as the account's own hunts have dropped: found minus already salvaged for rivets, kept by the server per account and item |
+| What adds to found | Only a hunt's settle, when it pays a gear piece to one of the account's heroes |
+| What doesn't | Bought, traded, crafted, store and chest pieces. They still salvage for stock, with no rivets |
+| The rivet is bound | No trade, no market listing, no shop price, no mail. Storage moves it between your own heroes. It is a row the server writes, like every item |
+| The invariant | Rivets an account has ever held can never be more than the pieces its own hunts dropped would pay. Gold and Crowns can swap which copy you salvage. They can't raise the total |
+| The ring | Trades, and that is the one place Luck meets gold. It is bounded three ways: +4% at most, once a hero, and a salvaged ring pays no rivets, so nothing a buyer does turns a ring back into bar |
+| The rolled Lucky perk | Rolls on a plain ring job with no rivets (below). That is gold making Magic Find with no found Luck behind it, inside the same +4% a hero |
+| The amount | The server reads rivets from its own table. The client sends an item and a count, never an amount |
+| Deleting a hero | Never lowers Luck, kills or found |
+| Scaled hunts | A scaled early hunt drops more low-tier pieces for a fee. Low tiers pay little Luck. To be measured before scaled hunts and Luck are both live: Luck an hour there must stay under the advised ground's |
+| Stamina refills and premium | They buy hunting time, and time earns Luck the way it earns XP. Nothing buys Luck itself |
 
-**Measured** (played lives on advised grounds; hours are hours each hero has hunted; Rares and gold are one hero's share)
+**On screen** (labels, not sentences)
 
-| | One hero, lone hammer | | | Four heroes in one hunt, Deadly | | |
-|---|---|---|---|---|---|---|
-| Hours | 10 | 100 | 500 | 10 | 100 | 500 |
-| Level | 11 | 40 | 95 | 12 | 63 | 132 |
-| Luck, Bestiary + salvage | 11 + 9 | 34 + 48 | 88 + 139 | 13 + 19 | 74 + 123 | 120 + 318 |
-| Bonus, kills only | +1.7% | +4.6% | +9.2% | +1.9% | +8.2% | +11.1% |
-| Bonus, salvaging everything | +2.9% | +8.8% | +15.0% | +4.3% | +14.1% | +18.6% |
-| Rares an hour: today / kills / both | 0.77 / 0.79 / 0.79 | 1.06 / 1.11 / 1.15 | 0.88 / 0.96 / 1.01 | 0.70 / 0.71 / 0.73 | 1.26 / 1.36 / 1.44 | 0.99 / 1.10 / 1.17 |
-| Gear gold given up an hour | 992 | 2,105 | 4,819 | 1,026 | 4,474 | 4,252 |
-| Given up so far | 9k | 179k | 1.48M | 8k | 293k | 1.91M |
+| Where | Text |
+|---|---|
+| Sheet | "Magic Find +16%" and under it the bar "Luck 12,400 / 28,900" |
+| Its tooltip | "Rare drops come 16% more often. Salvage gear your hunts dropped or reach Bestiary stages to earn Luck." |
+| Loot plan, per item | Keep / Deposit / Sell / Salvage. Beside Salvage: "12 Lucky Rivets". Beside Sell: "173 gp" |
+| Loot plan, one switch | "Salvage all standard gear" so a new tier's pieces need no new choices |
+| Loot plan, the rivet's own line | Use / Keep / Deposit. Use puts them on the bar at Dispatch |
+| A piece past the allowance | "No rivets: bought or crafted" |
+| The rivet's card | "Lucky Rivet. Account bound. Use: +1 Luck. Smithing: Lucky ring." |
+| Dispatch result | "Salvaged 41. 492 Lucky Rivets. Used 492: +492 Luck" |
+| The Lucky job at the bench | "Lucky ring, tier 6. 18,000 Lucky Rivets, 400,000 gp. Magic Find +3%" |
+| The ring's card | "Lucky: Magic Find +3%" |
+| A Very Rare drop | The big reveal, a line to the whole server ("Name found the Piece on the Ground") and a card to share |
+| Return card | "Magic Find 15% to 16%" |
+| Bestiary stage | "Stage 3: +500 Luck" |
+| A Rare that Magic Find caused | "Lucky find" on the reveal |
 
-- One hero against four: four heroes hunting apart (the lone life counted four times, projected) read +5.6% / +12.4% / +18.2%, Luck 402 against 227 at 500 h. A four-hero account holds about 1.8-1.9x the Luck and 1.2-1.6x the bonus, not four times.
-- What salvage costs: gear is 18% of a lone hero's coin and sold loot (1.48M of 8.03M over 500 h). Giving all of it up buys +5.8 points of bonus, 28 more Rares in 500 h. Early points are cheap: the first 50 cost 191k.
-- Rolled check: the lone life with both feeds in the real roll dropped 667 Rares against 596 today, with identical income and Level.
-- Room: no creature reaches the last stage in either life. The Bestiary holds 88 and 120 of 312.
+**Walk-through** (each step against what exists)
+
+| Step | The player has | Needs | Exists today |
+|---|---|---|---|
+| 1. Hunt | A hero on any ground | Gear drops | Yes: 164 Scarce and 89 Rare gear rows on the 11 open grounds |
+| 2. Set the plan | A dropped piece in the bag | A Salvage choice in the loot plan | The plan exists (`hr_loot_rule_set`: keep, deposit, sell, ignore). Salvage is new |
+| 3. Dispatch in town | Planned pieces | Dispatch applies the plan | Dispatch exists (tests/loot-dispatch.mjs). The salvage arm is new |
+| 4. Rivets are paid | Found count for that item | Server counts found at the settle. The item `lucky_rivet` | Both new. No item or recipe uses the word rivet as an id today except the pattern "Kingsgrate Rivets" |
+| 5. Use them | Rivets in the bag or Storage | The rivet's plan line set to Use, then Dispatch | New |
+| 6. Read it | | Sheet line and bar | New |
+| 7. Next hunt rolls with it | Magic Find 1 or more | drops.js reads it | New, inside `effectiveDropChance` |
+| 8. Or make a ring | 2,000 rivets, a Plain tier 2 ring, 25,000 gold, the tier's Smithing level | The Lucky job | Rings, grades and the Hallmark step are built. Jewel guarantees are staged. The Lucky perk and its job are new. A lone hero salvaging everything has 2,000 rivets by about hour 25 (measured feed: 69 an hour to hour 10, 148 by hour 50) |
+
+Bench salvage (section 5) is not built either. The Luck half can ship before stock exists: Salvage then pays Luck only.
+
+**Measured.** Played lives on advised grounds, real engine. The built game ends at Krell's Hold, so a long life stays there and standard tier 6 gear keeps dropping. Hours are hours each hero has hunted. Rares and gold are one hero's share.
+
+One hero, a lone hammer. Played to 5,000 hours.
+
+| Hours | 50 | 500 | 2,000 | 5,000 |
+|---|---|---|---|---|
+| Level | 30 | 95 | 192 | 295 |
+| Luck: Bestiary + salvage | 4k + 5k | 23k + 130k | 56k + 755k | 101k + 2.08M |
+| Magic Find, selling everything | 4 | 8 | 11 | 13 |
+| Magic Find, salvaging half | 5 | 13 | 22 | 31 |
+| Magic Find, salvaging everything | 6 | 16 | 28 | 39 |
+| The same, also making a Lucky ring each tier | 5 (tier 2 ring) | 17 (tier 6 ring) | 31 | 42 |
+| Rares an hour: today / selling / salvaging all | 0.99 / 1.03 / 1.04 | 0.88 / 0.95 / 1.01 | 0.95 / 1.06 / 1.21 | 0.98 / 1.11 / 1.36 |
+| Rares so far: today / selling / salvaging all | 44 / 45 / 46 | 561 / 597 / 623 | 1,959 / 2,132 / 2,341 | 4,876 / 5,427 / 6,261 |
+| Gear found an hour | 33 | 28 | 31 | 32 |
+| Its shop gold an hour (share of coin and sold loot) | 1,962 (20%) | 4,819 (22%) | 5,223 (22%) | 5,397 (22%) |
+| Gold given up so far, salvaging everything | 75k | 1.48M | 9.14M | 25.1M |
+| The next percent costs, in Luck | 4,900 | 28,900 | 84,100 | 160,000 |
+
+Four heroes of one account in one hunt, on Deadly (tank, hammer, mage, healer). Played to 2,028 hours. The 5,000 column is projected: the life's last 200 hours lived again.
+
+| Hours | 50 | 500 | 2,000 | 5,000 (projected) |
+|---|---|---|---|---|
+| Level | 42 | 130 | 245 | |
+| Luck: Bestiary + salvage | 8k + 31k | 62k + 677k | 127k + 3.05M | 142k + 8.02M |
+| Magic Find, selling everything | 5 | 11 | 15 | 15 |
+| Magic Find, salvaging half | 8 | 22 | 36 | 49 |
+| Magic Find, salvaging everything | 10 | 27 | 45 | 62 |
+| The same, a Lucky ring on all four each tier | 8 | 28 | 47 | 64 |
+| Rares an hour a hero: today / selling / salvaging all | 2.64 / 2.77 / 2.88 | 0.97 / 1.08 / 1.23 | 1.03 / 1.18 / 1.48 | 1.03 / 1.18 / 1.65 |
+| Rares so far a hero: today / selling / salvaging all | 60 / 63 / 65 | 551 / 598 / 654 | 2,067 / 2,329 / 2,736 | 5,152 / 5,877 / 7,487 |
+| Gear found an hour a hero | 35 | 26 | 28 | 28 |
+| Its shop gold an hour a hero (share of coin and sold loot) | 2,635 (25%) | 4,178 (20%) | 4,414 (20%) | 4,414 (20%) |
+| Gold given up so far a hero, salvaging everything | 95k | 1.88M | 8.39M | 21.6M |
+| The next percent costs, in Luck | 12,100 | 78,400 | 211,600 | 396,900 |
+
+Four heroes hunting apart (projected: the lone life counted four times): Magic Find 9 / 25 / 45 / 63 salvaging everything, 6 / 12 / 16 / 16 selling.
+
+- Rolled check, measured: the lone life to 1,000 hours with Luck in the real roll dropped 1,217 Rares against 1,065 today. Income and Level were identical.
+- Four heroes hold four times the Luck and about 1.5 times the Magic Find (62 against 39 at 5,000 hours).
+- Lifetime supply: an account that salvages everything from day one has found 28% more Rares by 5,000 hours (6,261 against 4,876). One that sells everything, 11% more.
+- Room: the lone life reaches the last Bestiary stage on 3 of 52 creatures, and only because it sat on one ground for 4,000 hours.
+
+**What it does to the economy**
+
+| Question | Answer | Label |
+|---|---|---|
+| What salvaging costs | Gear is 20 to 22% of a lone hero's coin and sold loot. Salvaging all of it gives that up: 5,400 gold an hour late, 25.1M over 5,000 hours | Measured. An upper bound: salvage's stock is counted as worth nothing |
+| What it costs a four on Deadly | Their store bill is about three quarters of what they earn (79M of 105.7M a hero over the life) and gear is a fifth. Salvage all of it and about 5% is left | Measured |
+| Gold an hour from Magic Find | Almost none through the shop. Rares are 0.4% of sold value (446k of 116.9M). Magic Find 39 adds about 0.15% | Measured |
+| So what is a percent worth | Whatever players pay each other for Rares and uniques. At Magic Find 16 the next percent costs 28,900 Luck, about 415k gold of gear, for one more Rare every 100 hours or so | Measured cost. Market prices unknown |
+| Market supply of Rares | Up by each account's Magic Find, weighted by hours. If the average hunting hour on a server is at Magic Find 15, there are 15% more Rares | Projected. No population model |
+| What pulls supply back | Salvaged Rares leave the market. An account at Magic Find 39 that salvages 28% of its Rares adds nothing to supply | Computed |
+| Faucet | Salvage is a gold sink by choice: up to a fifth of hunting income never gets minted | Measured |
+| Rares stay rare | The highest case (63, four heroes apart, projected) turns a 10 to 20 hour Rare into a 6 to 12 hour one, after 20,000 hero-hours. A lone all-in player at 500 hours sees 8.6 to 17 hours | Measured |
+| Trophies stay moments | 125 h becomes 108 h at Magic Find 40. Never under 100 h | Computed from the formula |
+
+**One Magic Find budget** (every source, and the most a hero can stack)
+
+| Source | Scope | Typical | Most |
+|---|---|---|---|
+| The Luck bar: rivets used plus Bestiary stages | Account, every hero | 8 selling everything, 13 salvaging half, 16 salvaging all, at 500 hours. 13 / 31 / 39 at 5,000 | 100, the far stop. Highest modeled: 63 (four heroes apart, 5,000 hours each) |
+| The Lucky ring perk, rolled or made | One hero, counts once | +3 in the built game (tier 6) | +4 (tier 7) |
+| Anything else | | None. No food, lining, unique property, event, premium perk or store item | 0 |
+| Total on a Rare row | | | +104% |
+| Total on a Trophy row | | +8% at Magic Find 12, +14% at 31 | +20.1% at 104. Never +25% |
+
+At the absolute most (104) a 10 to 20 hour Rare comes every 4.9 to 9.8 hours and a 125 hour Trophy every 104. At the highest modeled case with a ring (66) a Rare comes every 6.0 to 12 hours. Through Krell's Hold these land on today's generous rates. Past Krell they land on the cut rates below, which is the balance.
+
+**Harder past Krell** (Tyler 11-20: "making the drops harder to get at higher bands, I want to get people hooked up to Krell and then start introducing really rare drops and strong gear")
+
+| Rule | Value |
+|---|---|
+| Through Krell's Hold | Nothing changes. Every rate on the eleven open grounds stays as it is |
+| Where it starts | A clear step at the Morrow door (band 8, Level 110), not a ramp from Krell. A player should feel the door |
+| The step | Every Rare row past the door drops 15% less often at Magic Find 0 |
+| After it | 1% more a band, to 25% at band 18 |
+| Why 15 | A player who salvages half and wears a ring arrives at the door with Magic Find about 18. The step takes away about what they bring, and each later band takes about what they add |
+| Never cut | Trophy rows. The hourly drop: gear to tier 7, then stock and chips. Keys, fuels below Rare, coin, XP |
+| Very Rare, a new band | One of a ground's seven uniques is its Very Rare piece: every 60 to 90 hours a hero at Magic Find 0. Magic Find moves it in full |
+| What it is | The ground's strongest piece: the top of the band's budget with the property that ground is known for. Inside the budget rules of section 3 |
+| The moment | The big reveal, a line to the whole server, a card to share. Rares past Krell keep the plain reveal |
+| It can't be salvaged for rivets | It is worn or sold. Its floor is the market's |
+
+What a hero past Krell finds an hour, against the plan as written today (a unique every 2 hours). Assumed from the plan's estimates: nothing past Krell is built, so nothing here is played.
+
+| Hours (band) | 800 (8) | 2,000 (11) | 5,000 (18) |
+|---|---|---|---|
+| Today's plan, uniques an hour | 0.50 | 0.50 | 0.50 |
+| Harder, at Magic Find 0 | 0.38 | 0.36 | 0.33 |
+| Harder, selling everything (Magic Find 9 / 12 / 16) | 0.41 | 0.41 | 0.39 |
+| Harder, salvaging half with a ring (18 / 23 / 30) | 0.45 | 0.45 | 0.44 |
+| Harder, salvaging all with a ring (23 / 27 / 37) | 0.46 | 0.46 | 0.46 |
+| Harder, four heroes apart, all in, rings (34 / 42 / 58) | 0.51 | 0.52 | 0.53 |
+| Hours a Very Rare piece: Magic Find 0 / selling / half / all / four | 75 / 69 / 64 / 61 / 56 | 75 / 67 / 61 / 59 / 53 | 75 / 65 / 58 / 55 / 47 |
+
+- From 800 to 5,000 hours a hero finds 2,101 uniques on today's plan. Harder: 1,492 at Magic Find 0, 1,683 selling everything, 1,862 salvaging half, 1,939 all in, 2,184 for the four-hero account. Only the hardest case gets back past today's plan.
+- Very Rare pieces in those 4,200 hours: 56 at Magic Find 0, 63 to 73 for one hero, 82 for the four-hero account.
+- The salvage feed past Krell is uniques (50 x band each). With the cut it is thinner, and Magic Find at 5,000 hours comes out 16 / 30 / 37 / 58 for those four players.
+- Market supply of uniques falls 12 to 22% against today's plan for everyone but the four-hero all-in account, which is the point.
+
+Considered and not taken, measured on the lone life: a 10% cut from Level 45 puts a player who sells everything back on today's Rares by 2,000 hours (0.95 an hour both ways) and leaves an all-in player with a ring 18% up at 5,000 instead of 31%. A 10% cut from Level 1 takes 1.5 of the 15.2 Rares a new hero finds in the first 20 hours, before any Luck exists to earn them back, and gloves, shields and next-tier pieces are Rares there. Tyler's ruling settles it the same way: nothing before Krell.
+
+**What the references say** (public repos, formulas and structure only, nothing copied)
+
+| Game | Source | What it does | Taken |
+|---|---|---|---|
+| Guild Wars 2 | Physe-0/GW2_Magic_Find_Leveling_Cost_GUI, `Magic_Find_Req_Luck.py` | 300 steps of 1%. A step costs 100 luck early, 30,000 from step 218. 4.33M in all by that file | One account bar, salvage feeds it, each percent dearer. Not the flat tail |
+| Diablo II | yqlu/d2r-dropplot, `src/engine/rarity.ts` | Effective MF = MF x F / (MF + F). F is 250 for uniques, 500 for sets, 600 for rares. The rarer the class, the lower its ceiling | The Trophy formula |
+| Path of Exile | PathOfBuildingCommunity/PathOfBuilding, `src/Modules/CalcPerform.lua` | Rarity and quantity are separate stats. Every source adds into one sum | Luck is rarity only. Both feeds are one total |
+| rAthena | rathena/rathena, `src/map/mob.cpp`, `mob_getdroprate` | One function owns the final rate. Bonuses add, the cap comes last, and the killer's stats are used | One home in `effectiveDropChance`, under its 0.95 bound. Not the killer rule: last-hit Luck makes parties arrange who lands the kill |
+
+**The cuts, kept.**
+- The class charm ladder. `charmDropMultFor`, `trophyDropMultFor`, `memoryDropMult` and `member.relicMult` have no caller. Cut `bestiary-charms.js`, `charms.js` and those four. Luck is the Bestiary's reward now.
+- The four foods' drop buffs: Cooked Lobster 3%, Goldgill Steak 2%, Tomato Soup 2%, Wheat Bread 1%. A food is bought with gold, so a drop buff on a food is gold turned into drop rate, which is the one thing the safeguard exists to stop. It would also multiply with Magic Find. Give the four another buff.
 
 **Changes to this plan**
 
 | Section | Change |
 |---|---|
-| 1 | New row: Luck, the Bestiary's and salvage's reward |
-| 3 | Rare paces are quoted at Luck 0. `loot-bands.js` trophy `boostMax 1.25` becomes Luck's cap, so a Trophy still never beats 100 h |
-| 4 | No Luck perk. Whole gems speed up and chips don't |
-| 5, Salvage | Add the Luck progress, the allowance rule and the two-line choice. Salvage's stock must stay worth less than the shop price, or salvaging is free |
-| 6 | The chest ignores Luck. The wait table stands |
-| 10 | Luck doesn't trade. Salvage becomes a measured sink: up to 18-21% of hunting income, by choice |
-| 11 | Bestiary half: phase 2b. Salvage half: ships with phase 3 |
+| 1 | New row: Luck and Magic Find, the Bestiary's and salvage's reward |
+| 3 | Rare paces are quoted at Magic Find 0. `loot-bands.js` trophy `boostMax 1.25` becomes the Trophy ceiling. Past tier 7: Rare rows take the cut (15% at band 8 to 25% at band 18), and the ground template's seven uniques become six Rares and one Very Rare (60 to 90 h) |
+| 4 | The ring pool gets a seventh perk, Lucky, and the Lucky job. 23 perks for 12 seats |
+| 5, Salvage | Add the rivet table, the allowance and the fifth loot plan choice. Stock must stay worth less than the shop price |
+| 6 | The chest ignores Luck |
+| 10 | Rivets and the bar don't trade. Lucky rings do. Salvage is a measured sink: up to 22% of hunting income, by choice. The Lucky job's fee is a gold sink at Hallmark prices |
+| 11 | Bestiary half: phase 2b. Salvage half: with phase 3, or sooner as Luck only |
 | 12 | "Studies" (parked) is closed by this |
 
-**The charms.** No kill-memory bonus reaches the roll today: `charmDropMultFor`, `trophyDropMultFor`, `memoryDropMult` and `member.relicMult` have no caller, and `weaknessInfo` returns only the monster's own `dropBonus`. Cut the class ladder (`bestiary-charms.js`, `charms.js`) and those four. Four foods carry a 1-3% drop-rate buff on every row (read, unmeasured): give them another buff.
+**Build** (for a systems lane, after Tyler's word)
 
-**Build**
+| Lane | Files | Work | Tests |
+|---|---|---|---|
+| C, backend. One migration | `supabase/migrations/<date>-luck.sql` | Tables `account_kills (user, monster, kills)`, `account_found (user, item, found, salvaged)`, `account_luck (user, luck, from_kills, from_salvage)`, all raise-only, RLS per user. The settle (`hr_hunt_apply_instance` / `hr_hunt_apply_member`) writes one count a kill per account, pays stage Luck when a count crosses, and adds to found when it pays a gear piece. `hr_loot_rule_set` takes `salvage`, and `use` for the rivet. Dispatch pays `lucky_rivet` on min(count, found minus salvaged) from the server's own table, and puts Used rivets on the bar. The rivet is an account-bound item row: no trade, listing, shop sale or mail path accepts it, Storage does. The Lucky job burns rivets and the fee in one RPC. `hr_state_of` projects luck, magic find and the next cost. Every Luck movement in `player_ledger` | Section 4 self-check: a forged count or item pays nothing extra, a bought piece pays 0, a rivet can't leave the account by any verb, a salvaged Lucky ring pays no rivets, totals never drop, a deleted hero changes nothing, only the settle writes kills and found. `schema-drift` replay. `restore-census` re-pin. Client RPC baseline unchanged except the rule value |
+| Engine, systems | `src/data/luck.js` (from the staged file), `src/core/luck.js`, `src/core/drops.js`, `src/core/hunt-rewards.js`, `src/core/member.js`, `src/core/perks.js` (Lucky), `src/data/items.js` (`lucky_rivet`), `src/data/loot-bands.js` (the Very Rare band and the cut by band), generated catalogue for the edge | `effectiveDropChance` takes `mods.magicFind` and applies it to Rare and Trophy rows only. `payDrops` passes the party's average, frozen per settle from the server's own rows, and flags `lucky` when the draw landed between the base chance and the raised one. One draw a row as today, so seeded replays match at Magic Find 0 | `tests/luck.mjs` with mutants: curve, rank math, Trophy never under 100 h, far stop, Lucky counts once. `drop-tables` at Magic Find 0 and 104, with the cut only on grounds past Krell and every open ground unchanged. `settle-drop-bounds` at 104. `jewelry-rolls` for the seventh ring perk. Both paths: a hunt at Magic Find above 0 viewed, and the same seed with the browser closed, must pay the same drops. Stage Luck paid by a hunt that ends with the browser closed. Edge deploy |
+| The cuts | `src/data/bestiary-charms.js`, `src/core/charms.js`, `src/core/trophies.js`, `src/core/member.js`, `src/data/items.js` (four buffs) | Remove the dead ladder and its four functions. Swap the four food buffs | `bestiary-ladder`, `bestiary-trophy`, `catalogue-coherence`, `dead-exports` |
+| B, client and Art Director | Sheet, loot plan, Dispatch result, return card, Bestiary window, the bench's Lucky job, reveal tag, the Very Rare reveal and its server line and card, a rivet icon, text home | The lines in "On screen". Every number from the envelope. Buttons off until the server confirms | `loot-dispatch` salvage arm, `text-home`, visual gate |
 
-| Lane | Work | Notes |
-|---|---|---|
-| C, Backend | Account kill counts written once per kill per account inside the instance settle. Account `found` and `luck_salvaged` counts per item. Salvage RPC pays progress on min(quantity, found minus salvaged) at the server's own price. `hr_luck_of(account)`; `hr_state_of` projects Luck | Security: no client amount or price. Raise-only totals. Each salvage journalled. Guard that only the settle writes kill counts and `found`. Deleting a hero must not lower Luck |
-| Engine, Systems | `src/data/luck.js`, `src/core/luck.js`, `drops.js effectiveDropChance` (reveal bands only, a `lucky` flag), `hunt-rewards.js payDrops`, `member.js`, the cuts; drop-tables guard at Luck 0 and at the cap; viewed and closed-browser tests | One draw a row as today, so seeded replays match at Luck 0. Edge deploy |
-| B, client and Art Director | Sheet line and bar, Bestiary window (not built yet), Hunts card, salvage row and choice, log line, return card row, Lucky find tag, text rows | |
+Security: Luck is a ranked, account-wide surface. It goes in the one pre-EA review with the allowance as its main target.
 
 **For Tyler**
-1. The size of salvage. All-in it is the bigger feed (139 points against 88 at 500 h) and costs 1.48M gold. Say if you want it smaller.
-2. The ceiling. Still +25% for both feeds together. Designer's call: keep it.
-3. The cuts from v1: the class charm ladder and the food drop-rate buffs.
+1. The size. One dial, the 100 in "percent n costs 100 x n x n". As staged: a lone all-in player is at +16% after 500 hours and +39% after 5,000. A four-hero account is at +27% and +62% (the 5,000 hour figure is projected). Say if that is too fast or too slow.
+2. The price. Salvaging everything costs about a fifth of hunting gold, and a Deadly four keeps about 5% of its income if it salvages everything. That makes it a real choice and a real sink. Say if you want it cheaper (more Luck a piece).
+3. Premium. Its 12 hour stamina means half again the hunting time, so half again the Luck a day. Nothing sells Luck itself and nothing in the Crowns store should. Your call, it's money.
+4. The cuts: the dead charm ladder and the four foods' drop buffs.
+5. The ring's size and price. +1 to +4% for one hero, 2,000 to 24,500 rivets and the tier's Hallmark fee, floor about 55k to 950k gold. It rolls by chance too, so gold alone can make one. Say if either number is off.
+6. Past Krell. Rares 15% rarer at the Morrow door rising to 25%, one Very Rare piece a ground at 60 to 90 hours. Say if you want the door steeper or the Very Rare rarer.
+7. The far stop at +100% and the Trophy ceiling at +25% are the designer's calls. Move either with one number.
 
-**Measured vs assumed.** Measured: both lives, kill counts, gear shop value, the lone rolled check. Projected: the four-apart row (the lone life counted four times). Not re-run: the four-hero rolled check (v1's ran at the old numbers). Assumed: salvage's stock counted as worth nothing, so gold given up is an upper bound; Rare market prices unknown; a player farming stages on purpose not played. No screen exists.
+**Was (v2, measured 11-20, one +25% pool).** Lone hammer at 500 h: Luck 88 from kills + 139 from salvage, +15.0% (kills only +9.2%), 1.48M gold of gear given up. Four in one hunt at 500 h: 120 + 318, +18.6%. Rolled lone life: 596 Rares became 667. v3 at the same 500 hours gives +16% and +27%. A lone hero's first 500 hours play the same. A four gets more, and the gap grows after.
+
+**Measured, projected, assumed.**
+- Measured: the lone life to 5,000 hours (kills by creature, gear found, shop prices, income, store bill). The four-hero life to 2,028 hours. The rolled lone check to 1,000 hours.
+- Projected: The four-hero life from 2,028 to 5,000 hours (its last 200 hours lived again). The four-apart row (the lone life counted four times). The half-salvage row (the same life, half the gear).
+- Computed, not played: the ring rows (the same lives, rivets diverted to a ring each tier), ring floors (measured gear prices, ruled fees), the Magic Find budget.
+- Not measured: what the Lucky perk costs its wearer in XP (budgeted at one perk, about 1%). How often Lucky rolls by chance. Sample one tier 2 ring before the rest.
+- Assumed: salvage's stock is worth nothing, so gold given up is an upper bound. Everything past Krell: the cut, the Very Rare band and the table under it rest on the plan's estimates (unique pace, band pace, a quarter kept), because no ground past Krell is built. Rare and unique market prices. No population model behind market supply. Scaled hunts not played. A player farming old grounds for cheap stages not played. Past Level 110 the measured lives sit on Krell's Hold, which no real player would for 4,000 hours. No screen exists.
 
 # APPENDIX A. Answers to Tyler's five roadmap findings
 

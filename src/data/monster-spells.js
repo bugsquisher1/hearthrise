@@ -38,7 +38,7 @@
 
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.141';
 import { isElement } from './elements.js?v=0.2.141';
-import { SHAPE_KINDS, shapeProblem } from '../core/hunt/shapes.js?v=0.2.141';
+import { SHAPE_KINDS, shapeProblem } from './shape-kinds.js?v=0.2.141';
 import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
 import { foldRows } from './grounds/shape.js?v=0.2.141';
 

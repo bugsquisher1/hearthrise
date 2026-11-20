@@ -406,6 +406,19 @@ function closedGateVerdict(row) {
   }
   return { verdict: 'OK', why: 'closed, and PostgREST runs public.hr_access_check before every request' };
 }
+/** One line from the latest capacity sample row (pure: --selftest feeds it rows). */
+function capacityLine(row) {
+  if (!row) return 'capacity: NO SAMPLE yet (hr-ops-capacity runs every minute once 1002-ops-capacity-sample.sql is applied)';
+  const pct = (v) => (v === null || v === undefined ? 'n/a' : `${Number(v)}%`);
+  // A null wall (unreadable) is Number(null) = 0, under any alarm line (capacity_config's check keeps it above 0).
+  const over = ['db', 'tick', 'edge', 'ledger'].filter((w) => Number(row[`${w}_pct`]) >= Number(row.alarm_pct ?? 70));
+  const stale = Number(row.age_s) > 180 ? ` STALE (${row.age_s} s old: is the job running?)` : '';
+  return `capacity: ${over.length ? `AT THE WALL ${over.join(' ')}` : 'OK'} — db ${pct(row.db_pct)}, tick ${pct(row.tick_pct)} `
+    + `(${row.tick_open ?? '?'}/${row.tick_capacity ?? '?'} open, worst lag ${row.worst_lag_s ?? '?'} s), edge ${pct(row.edge_pct)}`
+    + `${Number(row.edge_deferred) ? ` (${row.edge_deferred} deferred)` : ''}, ledger ${pct(row.ledger_pct)}`
+    + ` (${row.ledger_rows_day ?? '?'} rows/day); alarm at ${row.alarm_pct ?? 70}%`
+    + `${(row.open_walls || []).length ? `, open episodes ${row.open_walls.join(' ')}` : ''}${stale}`;
+}
 // ── STALL RULE END ───────────────────────────────────────────────────────────
 const STALL_RULE = { hours: 2, minRowsPerHour: 30 };
 const STALL_RULE_TEXT = `STALL = tick in SHADOW mode and EACH of the last ${STALL_RULE.hours} whole hours ending now had`
@@ -427,6 +440,14 @@ const ALERT_RELAY = `select exists (select 1 from vault.secrets where name = 'hr
     (select coalesce(jsonb_agg(code), '[]'::jsonb) from hr_ops.watch_state where alert_ref is not null) as firing,
     (select max(at) from hr_ops.alert_relay_posts) as last_post,
     (select status from hr_ops.alert_relay_posts order by id desc limit 1) as last_status`;
+/* THE FOUR WALLS (supabase/migrations/1002-ops-capacity-sample.sql): the latest minute's sample, each wall as a % of
+   its ceiling (null = not measurable), the alarm line, and which capacity episodes are open. */
+const CAPACITY = `select s.at, round(extract(epoch from now() - s.at)) as age_s, s.db_pct, s.tick_pct, s.edge_pct, s.ledger_pct,
+    s.detail->>'tick_open' as tick_open, s.detail->>'tick_capacity' as tick_capacity, s.detail->>'tick_worst_lag_s' as worst_lag_s,
+    s.detail->>'ledger_rows_day' as ledger_rows_day, s.detail->>'edge_deferred' as edge_deferred,
+    (select alarm_pct from hr_ops.capacity_config where id) as alarm_pct,
+    (select coalesce(jsonb_agg(code), '[]'::jsonb) from hr_ops.watch_state where code like 'capacity-%') as open_walls
+  from hr_ops.capacity_samples s order by s.at desc, s.id desc limit 1`;
 /* CLOSED MODE'S PRE-REQUEST HOOK (closedGateVerdict). A missing flag row reads
    CLOSED, exactly as hr_admitted reads it. */
 const CLOSED_GATE = `
@@ -643,7 +664,7 @@ async function selftest() {
   const b = SRC.indexOf('// ── STALL RULE END');
   if (a < 0 || b < 0) { console.error('vitals --selftest: the STALL RULE markers are gone'); return 2; }
   const RULE_SRC = SRC.slice(a, b);
-  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict, armedLagVerdict, closedGateVerdict };`)();
+  const lift = (src) => new Function(`${src}\nreturn { tickStallVerdict, tickDayRollup, armedStallVerdict, partyStaleVerdict, armedLagVerdict, closedGateVerdict, capacityLine };`)();
 
   const hour = (o) => ({ day: '2026-09-28', fires: 360, rost_fires: 360, rostered: 1, shadow_rows: 0, refused: 0, ...o });
   const checks = (L) => {
@@ -724,6 +745,13 @@ async function selftest() {
     t('C6 no reading -> UNREAD, never OK', CV({}), 'UNREAD');
     t('C7 closed mode not applied yet -> NOT INSTALLED, never ALARM', CV({ installed: false, closed: true, hook: null }), 'NOT INSTALLED');
     t('C8 installed (a string), closed, unset -> ALARM', CV({ installed: 'true', closed: true, hook: null }), 'ALARM');
+    const K = (o) => L.capacityLine(o === null ? null : { age_s: 40, alarm_pct: 70, db_pct: 20, tick_pct: 5, edge_pct: 10, ledger_pct: 30, open_walls: [], ...o });
+    const head = (line) => line.split(' — ')[0];
+    t('K1 every wall under 70% -> OK', head(K({})), 'capacity: OK');
+    t('K2 a wall at 70% (the endpoint returns numerics as strings) -> AT THE WALL', head(K({ tick_pct: '70.0' })), 'capacity: AT THE WALL tick');
+    t('K3 an unreadable wall (null) is never AT THE WALL', head(K({ db_pct: null })), 'capacity: OK');
+    t('K4 a sample over 3 minutes old says STALE', /STALE/.test(K({ age_s: 400 })), true);
+    t('K5 no sample -> NO SAMPLE, never OK', /NO SAMPLE/.test(K(null)), true);
     return out;
   };
 
@@ -766,7 +794,9 @@ async function selftest() {
     { name: 'closedStringFlagMissed', find: "const closed = row.closed === true || String(row.closed) === 'true';", repl: 'const closed = row.closed === true;' },
     { name: 'closedInstalledIgnored', find: "if (row.installed === false || String(row.installed) === 'false') {", repl: 'if (true) {' },
     { name: 'closedUnreadIsOk', find: "if (!row || row.closed === undefined || row.hook === undefined) return { verdict: 'UNREAD', why: 'no reading' };", repl: '' },
-    { name: 'lagUnreadIsOk', find: "if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
+    { name: 'capacityWallIgnored', find: '=> Number(row[`${w}_pct`]) >= Number(row.alarm_pct ?? 70));', repl: '=> Number(row[`${w}_pct`]) > 100);' },
+    { name: 'capacityStaleIgnored', find: 'Number(row.age_s) > 180', repl: 'false' },
+    { name: 'lagUnreadIsOk', find:"if (!Number.isFinite(judged) || !Number.isFinite(stuck)) return { verdict: 'UNREAD', why: 'no count' };", repl: '' },
   ];
   let missed = 0;
   for (const m of MUTANTS) {
@@ -913,6 +943,12 @@ if (selftestMode) {
         + `${a.open_critical} open critical, ${a.waiting} waiting, ${firing}; last post ${a.last_post ?? 'never'} (status ${a.last_status ?? '-'})`);
     } catch (e) {
       console.log(`alert relay: UNREAD — ${e.message}; is 2027-02-22-alert-relay.sql applied?`);
+    }
+    // THE FOUR WALLS (1002-ops-capacity-sample.sql): the latest minute's sample.
+    try {
+      console.log(capacityLine((await ask(CAPACITY, { soft: true }))[0]));
+    } catch (e) {
+      console.log(`capacity: UNREAD — ${e.message}; is 1002-ops-capacity-sample.sql applied?`);
     }
   }
 }

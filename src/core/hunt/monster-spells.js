@@ -53,6 +53,7 @@ import { place, covers } from './shapes.js?v=0.2.141';
 import { castShape } from './marks.js?v=0.2.141';
 import { landHit, restart, slowed, rowOf } from './damage.js?v=0.2.141';
 import { swingRow, spellCdOf } from './boss-phases.js?v=0.2.141';
+import { healTaken } from './heal-cut.js?v=0.2.141';
 
 /* spellCds: { spell id: ms until it may start } while the monster is in a fight, a spell it does not name being ready ({} = every
    spell ready); null = not in a fight, its first casts not drawn yet. cast: its live cast (marks.js), or null. */
@@ -140,7 +141,8 @@ function land(inst, sc, u, sp) {
   restart(u);
   sc.emit(makeEvent('spell_end', sc.atMs, { u: u.id, spell: id, why: 'landed', hits: mends(sp) ? (mended ? 1 : 0) : struck.length }));
   if (mended) {
-    const got = Math.min(t.maxHp - t.hp, sc.rng.int(lo, top));
+    /* (a Withered packmate takes the mend cut: heal-cut.js, the hero's Blight) */
+    const got = Math.min(t.maxHp - t.hp, healTaken(t, sc.rng.int(lo, top)));
     t.hp += got;
     sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, spell: id }));
   }

@@ -25,7 +25,8 @@ import { advanceToolCarry } from './tools.js?v=0.2.141';
 /* The skills the `combatXP` bonus channel pays: the four trained in a fight
    (CORE_MODEL.md §4). Inner Flame trains at the Great Hearth, not in a fight. ONE list,
    read by both the XP grant and the hint the player sees. */
-export const COMBAT_XP_SKILLS = ['melee', 'ranged', 'magic', 'defense'];
+import { COMBAT_XP_SKILLS } from '../data/core-model.js?v=0.2.141';   // read by the data rows too: the data layer's (moved 2026-11-19)
+export { COMBAT_XP_SKILLS };
 
 /* ── FRACTIONAL XP IS CARRIED, NEVER FLOORED AWAY (game-designer ruling,
    2026-10-07, final) ─────────────────────────────────────────────────────────

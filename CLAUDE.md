@@ -108,7 +108,7 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the one full ad
 - **Never disable a failing test to unblock a push.**
 - **A red in-page test is a P1.** GitHub's `smoke` job fails on ANY ✗, so one flake blocks every later build. Fix it at its source (pin the clock, tear down state, measure layout); never re-run until green.
 - **Migrations name their own place (architecture audit rule 12, 2026-11-19).** A new migration is `node tools/new-migration.mjs <slug>` (a generator: `--new <slug>`): `supabase/migrations/NNNN-<slug>.sql`, one past the highest sequence on the lane's base, with its sidecar `supabase/migration-notes/NNNN-<slug>.sql.json` holding the STAGED note. The name is its replay position: no lane edits a shared order file, and no new file is date-named (`tests/migration-names.mjs`). Two lanes from one base may share a number; if both write one function, the later lane re-derives its body and runs `--renumber`. A superseded catalogue leaves the replay only by `node tools/chain-retire.mjs --retire` (end state proven identical).
-- **Server changes carry a §4 self-check block** (properties asserted by executing SQL), and the chain must replay on `node tests/schema-drift.mjs` with a byte-identical second apply.
+- **Server changes carry a §4 self-check block** (properties asserted by executing SQL), and the chain must replay on `node tests/schema-drift.mjs` with a byte-identical second apply (of the staged tail; the replay restores the longest cached prefix, `--full` replays from zero).
 
 ---
 
@@ -132,6 +132,8 @@ The 2026-10-14 lightening is for a beta nobody plays. Before EA: the one full ad
 - **One account per player; the client is character-session based** (Tyler, 2026-10-17): one login, one `CharacterSession` (`src/session/character-session.js`) per active character, up to 4 at once, with no global state and no "current player". Only the viewed character streams live; the others keep playing on the server.
 - **One combat engine:** `src/core/combat-sim.js` runs every hunt, viewed or not, inside the one server instance settle (10 s settlement cadence, 100 ms combat steps), identical online and offline; there is no away mode and no second path (`AWAY-1`, `AWAY-12`). A death ends the hunt and sends the hero back to town: no knockouts, no falls, no resume; it costs 6% of the hero's total Level XP and 6% of each combat skill's progress, it can take a Level but never below Level 1, and Blessings cut that (25 / 50 / 75%, Tyler 2026-11-10), online or offline (Tyler, 2026-11-09).
 - **RLS is per-user** on every player table; public tables are read-only to others. The client RPC surface is `hr_client_rpc_baseline`; `hr_assert_grant_hygiene` detects drift.
+- **A hero's server cost only goes down (architecture audit rule 10, 2026-11-19).** Statements a settle, ledger rows a hero-hour and row writes a settle are measured on the replay with the shipped engine, and the baseline only shrinks; a raise needs a written reason (`tests/per-player-cost.mjs --write --raise "<why>"`).
+- **A client write answers with the state it changed (rule 11).** A client RPC that writes a table the envelope carries returns the envelope (`hr_state_of`), so the client never re-reads with `hr_load`; today's exceptions are an allowlist that only shrinks (`tests/write-answers-state.mjs`).
 
 ---
 

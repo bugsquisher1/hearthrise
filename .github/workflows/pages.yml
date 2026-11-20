@@ -33,6 +33,12 @@
 # docs, "Troubleshooting custom domains and GitHub Pages"). The build job
 # still refuses to go on when the setting and the CNAME file disagree.
 #
+# WHAT IS SERVED IS DELIVERED, NOT WRITTEN (2026-11-19): the build minifies
+# every module and bundles the page's graph into a few files (build-site
+# SITE-10 and SITE-11, tools/lib/site-delivery.mjs), so a first visit asks
+# for about 30 files instead of about 650. Like the stamp, this reaches
+# players only once this workflow is the Pages source (the switch below).
+#
 # tools/release-check.local.mjs reads this workflow's runs on main:
 # "pages: deploying", "pages: RED" (failed, cancelled, timed out) or
 # "pages: serving vX".
@@ -76,8 +82,17 @@ jobs:
         with:
           node-version: '20'
 
-      # No npm install: the build reads the tree with Node alone, so no
-      # third-party code runs in the job that decides what players are served.
+      # ONE third-party package runs in this job: esbuild, which minifies
+      # every module and bundles the page's graph (tools/lib/site-delivery.mjs,
+      # architecture audit 2026-11-19 items 1 and 5). Its exact version and
+      # its platform binary's sha512 are pinned in package-lock.json; npm ci
+      # installs that tree with install scripts off, so nothing else in it
+      # runs, and the build imports esbuild alone. (Before 2026-11-19 this job
+      # installed nothing; CONFLICTS.md holds the change for Security's
+      # pre-EA review.)
+      - name: Install the lockfile's packages, no install scripts
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
       - name: Build _site and check the game asks for nothing outside it
         id: site
         run: |

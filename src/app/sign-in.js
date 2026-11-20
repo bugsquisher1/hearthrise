@@ -12,12 +12,12 @@
 // the form fields; `onSignedIn` is called once the account is signed in.
 // ════════════════════════════════════════════════════════════════════════
 
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.143';
-import { AUTH_COPY } from '../net/auth.js?v=0.2.143';
-import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js?v=0.2.143';
-import { MOBILE_QUERY } from '../world/core/camera.js?v=0.2.143';
-import { LEGAL_DOCS, openLegal } from './legal-reader.js?v=0.2.143';
-import { BUILD } from '../build-info.js?v=0.2.143';
+import { escapeHtml as esc } from '../utils/dom.js';
+import { AUTH_COPY } from '../net/auth.js';
+import { PASSWORD_MIN_LENGTH } from '../data/account-rules.js';
+import { MOBILE_QUERY } from '../world/core/camera.js';
+import { LEGAL_DOCS, openLegal } from './legal-reader.js';
+import { BUILD } from '../build-info.js';
 
 const FIELD = {
   email: '<label class="auth-field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>',

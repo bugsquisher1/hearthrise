@@ -10,10 +10,10 @@
 //   ladderOf(locked)         every recipe above the level the rows show, one rung a Level ("Lv 30": what it opens)
 // PURE over the catalogue and the worn set the server sends (item-sections.js equipmentOf); gates nothing, spends nothing.
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.143';
-import { EQUIP_SLOT_META } from '../data/gathering.js?v=0.2.143';
-import { statLines, compare, equipSlotFor } from './bag-model.js?v=0.2.143';
-import { toolEffect } from './item-lore.js?v=0.2.143';
+import { ITEMS } from '../data/items.js';
+import { EQUIP_SLOT_META } from '../data/gathering.js';
+import { statLines, compare, equipSlotFor } from './bag-model.js';
+import { toolEffect } from './item-lore.js';
 
 /**
  * What `out` is against the worn set, or null for an output no hero wears and no tool.

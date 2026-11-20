@@ -11,8 +11,8 @@
 // A set that fails settles as every failed set does: its sprites draw as stubs.
 // PURE of globals: the book, the sheets, the manifest loader and the wake are handed in.
 // ════════════════════════════════════════════════════════════════════════
-import { wornSetOf } from '../data/world/atlas-sets.js?v=0.2.143';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.143';
+import { wornSetOf } from '../data/world/atlas-sets.js';
+import { outfitSprite } from '../data/hunt-outfits.js';
 
 /**
  * @param {{book: {add: (set: string, manifest: object) => void}, sheets: {ensure: (sets: string[]) => Promise<boolean>},

@@ -20,7 +20,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random. Draws nothing.
 // ============================================================
 
-import { STATUSES } from '../../data/statuses.js?v=0.2.143';
+import { STATUSES } from '../../data/statuses.js';
 
 /** The permille unit `u` loses from every heal now (the strongest live heal-cutting stack's), 0 with none. */
 export function healCutPmOf(u) {

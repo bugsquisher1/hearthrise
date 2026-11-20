@@ -465,8 +465,8 @@ export const PATCHES = [
     -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
     -- link with an EMPTY declared-removals list.
     --
-    -- SELF-VALIDATING, and it moves no value: it only ENDS leases (lease_until =
-    -- now()) of the hunt body whose holder it derives server-side from p_body, of
+    -- SELF-VALIDATING, and it moves no value: it only ENDS leases (lease_until just
+    -- before now()) of the hunt body whose holder it derives server-side from p_body, of
     -- the sessions named (at most 500), still live. A lease only keeps a second body
     -- off an instance while one may be settling it; hr_hunt_apply_instance's swing
     -- and version CAS decide whether any settle lands, so a lease freed too early

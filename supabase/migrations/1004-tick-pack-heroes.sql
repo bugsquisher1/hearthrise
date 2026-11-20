@@ -25,7 +25,7 @@
 --          body may carry up to party size - 1 heroes past the dial; the edge's engine budget defers any tail);
 --   every other line (the due predicate, the lease and its reclaim, the in-body order most behind first) is byte for byte.
 -- hr_hunt_lease_free(p_body int, p_sessions uuid[]) -> int   NEW, hr_engine only (link 25 of HR_GRANT_HYGIENE_CHAIN): ends
---   (lease_until = now()) the still-live leases of the sessions named (at most 500) held by hunt body p_body's holder, derived
+--   (lease_until a millisecond before now()) the still-live leases of the sessions named (at most 500) held by hunt body p_body's holder, derived
 --   here exactly as hr_tick_cron_run names it. tick.js calls it once a body with the selectors it DEFERRED; the next fire
 --   offers them again. Answers how many it freed.
 -- REFUSAL CODES: none (42501 for a client or request role).
@@ -61,10 +61,10 @@ begin
      or not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'hr_tick_config' and column_name = 'hunt_bodies_max') then
     raise exception 'PRECONDITION: the tick config, its fan-out dial or the hunt lease is missing'; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_hunt_roster_sharded(text,integer,integer)');
-  if v_md5 is distinct from 'ec0cd7aa30f0b00e678504775894c3bc' and v_md5 is distinct from 'POST_ROSTER' then
+  if v_md5 is distinct from 'ec0cd7aa30f0b00e678504775894c3bc' and v_md5 is distinct from 'b8b1612f063bc6db4cb0a9f8afdc1e3f' then
     raise exception 'PIN: hr_hunt_roster_sharded is neither the image this file was written against nor its own: md5 % - re-pin', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_assert_grant_hygiene(boolean)');
-  if v_md5 is distinct from '0ddcbaa19d70a1316cd2eb9bc340d850' and v_md5 is distinct from 'POST_HYGIENE' then
+  if v_md5 is distinct from '0ddcbaa19d70a1316cd2eb9bc340d850' and v_md5 is distinct from 'e941ed280b7c9e6fbd4fd20f87b4ee11' then
     raise exception 'PIN: hr_assert_grant_hygiene is neither link 24''s body nor this file''s own: md5 % - re-derive (tools/derive-grant-hygiene.mjs)', v_md5; end if;
 end $mig$;
 
@@ -209,7 +209,7 @@ begin
   end if;
   if p_body is null or p_body < 0 or p_body > 63 or p_sessions is null or cardinality(p_sessions) = 0 or cardinality(p_sessions) > 500 then
     return 0; end if;
-  update public.hunt_tick_lease l set lease_until = now()
+  update public.hunt_tick_lease l set lease_until = now() - interval '1 millisecond'   -- ended: the roster's `lease_until < now()`, at once
    where l.holder = left('cron:' || coalesce(current_database(), 'db'), 58) || ':h' || p_body
      and l.session_id = any (p_sessions)
      and l.lease_until > now();
@@ -270,8 +270,8 @@ declare
     -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
     -- link with an EMPTY declared-removals list.
     --
-    -- SELF-VALIDATING, and it moves no value: it only ENDS leases (lease_until =
-    -- now()) of the hunt body whose holder it derives server-side from p_body, of
+    -- SELF-VALIDATING, and it moves no value: it only ENDS leases (lease_until just
+    -- before now()) of the hunt body whose holder it derives server-side from p_body, of
     -- the sessions named (at most 500), still live. A lease only keeps a second body
     -- off an instance while one may be settling it; hr_hunt_apply_instance's swing
     -- and version CAS decide whether any settle lands, so a lease freed too early
@@ -1258,8 +1258,6 @@ begin
       if public.hr_hunt_lease_free(2, v_ids) <> 0 then raise exception 'p3: another body freed body 1''s leases'; end if;
       if public.hr_hunt_lease_free(1, v_ids) <> 4 then raise exception 'p3: body 1 did not free its four deferred leases'; end if;
       if public.hr_hunt_lease_free(1, v_ids) <> 0 then raise exception 'p3: a freed lease was freed again'; end if;
-      -- (the next call is another instant: a lease ended at now() is past at its now())
-      update public.hunt_tick_lease set lease_until = lease_until - interval '1 millisecond' where session_id = any (v_ids);
       select coalesce(jsonb_agg(r.session_id order by r.session_id), '[]'::jsonb) into v_b
         from public.hr_hunt_roster_sharded(v_pfx, 16, 30000) r where r.user_id = any (v_users);
       if v_b is distinct from (select jsonb_agg(x order by x) from unnest(v_ids) x) then
@@ -1290,8 +1288,8 @@ begin
   exception when others then
     if sqlerrm <> 'HR1004TPH_ROLLBACK_OK' then raise; end if;
   end;
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_roster_sharded(text,integer,integer)'::regprocedure) is distinct from 'POST_ROSTER'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) is distinct from 'POST_HYGIENE' then
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_roster_sharded(text,integer,integer)'::regprocedure) is distinct from 'b8b1612f063bc6db4cb0a9f8afdc1e3f'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure) is distinct from 'e941ed280b7c9e6fbd4fd20f87b4ee11' then
     raise exception 'k0: a body landed off its post pin: roster %, detector %',
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_roster_sharded(text,integer,integer)'::regprocedure),
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_assert_grant_hygiene(boolean)'::regprocedure); end if;

@@ -87,11 +87,11 @@ begin
      or to_regprocedure('public.hr_hunt_supply_of(uuid,integer,integer)') is null then
     raise exception 'PRECONDITION: a table, column or helper this file reads is missing'; end if;
   for v_r in select * from (values
-    ('public.hr_hunt_member_read(public.hunt_sessions)', 'f44d35ce952efc95e5bbbff709b43f7c', 'bb100bcd4ae548c859f24a217fae263c'),
-    ('public.hr_hunt_instance_read(uuid,integer)', 'cfb26bd60ee7eb29965041ca9354cb25', '4011af399d22e72d34ebc98eaaa9075d'),
-    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '9fd093ec7113084292f61ded4c732417', '16edf7c9746fddbb689094fdc8de7ce3'),
-    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '7b6b3171349ee3896a1a380ce0cd0852', '08ca93181493d142237b8e5bf16c6071'),
-    ('public.hr_blessing_buy(integer,integer,bigint,uuid)', '1c98a151bf685645e1b4669fcf1c6986', 'c1460865bdd6d4edb41908d0fe1efebd')) t(fn, pre, post) loop
+    ('public.hr_hunt_member_read(public.hunt_sessions)', 'f44d35ce952efc95e5bbbff709b43f7c', '5cb3d1b94655838354f94555fa81544d'),
+    ('public.hr_hunt_instance_read(uuid,integer)', 'cfb26bd60ee7eb29965041ca9354cb25', '6d18331b1ac584cc55763515039565f4'),
+    ('public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)', '9fd093ec7113084292f61ded4c732417', '0e0e304013e75ea2535dbb483c04d570'),
+    ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '7b6b3171349ee3896a1a380ce0cd0852', '6e3a7682baf3d6d14c32fac1e65df663'),
+    ('public.hr_blessing_buy(integer,integer,bigint,uuid)', '1c98a151bf685645e1b4669fcf1c6986', 'd4db88287ce20e6351f1804da90e9ebc')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
@@ -572,11 +572,11 @@ begin
     raise exception 'VERIFY(f): the restated instance read lost hr_engine''s EXECUTE'; end if;
   if (select count(*) from pg_trigger where tgname like 'hr_hunt_setup_hold%' and not tgisinternal) <> 7 then
     raise exception 'VERIFY(f): % lever-horizon triggers, not 7', (select count(*) from pg_trigger where tgname like 'hr_hunt_setup_hold%' and not tgisinternal); end if;
-  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_member_read(public.hunt_sessions)'::regprocedure) is distinct from 'bb100bcd4ae548c859f24a217fae263c'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure) is distinct from '4011af399d22e72d34ebc98eaaa9075d'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure) is distinct from '16edf7c9746fddbb689094fdc8de7ce3'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure) is distinct from '08ca93181493d142237b8e5bf16c6071'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_blessing_buy(integer,integer,bigint,uuid)'::regprocedure) is distinct from 'c1460865bdd6d4edb41908d0fe1efebd' then
+  if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_member_read(public.hunt_sessions)'::regprocedure) is distinct from '5cb3d1b94655838354f94555fa81544d'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure) is distinct from '6d18331b1ac584cc55763515039565f4'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_apply_member(uuid,uuid,integer,uuid,uuid,jsonb,jsonb,jsonb)'::regprocedure) is distinct from '0e0e304013e75ea2535dbb483c04d570'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure) is distinct from '6e3a7682baf3d6d14c32fac1e65df663'
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_blessing_buy(integer,integer,bigint,uuid)'::regprocedure) is distinct from 'd4db88287ce20e6351f1804da90e9ebc' then
     raise exception 'VERIFY(f): a body landed off its post pin: member_read %, instance_read %, apply_member %, settle_session %, blessing_buy %',
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_member_read(public.hunt_sessions)'::regprocedure),
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_instance_read(uuid,integer)'::regprocedure),

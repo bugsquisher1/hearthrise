@@ -76,7 +76,7 @@ export default Object.freeze({
   "objects": [
     {"id":"cw_coal_seam","x":44,"y":27},
     {"id":"cw_coal_seam","x":37,"y":32},
-    {"id":"mh_harrys_cart","x":20,"y":17},
+    {"id":"mh_ore_wagon_tarped","x":20,"y":17},
     {"id":"mh_chopping_block","x":39,"y":20},
     {"id":"mh_straw_bale","x":24,"y":14},
     {"id":"mh_slate_stack","x":19,"y":21},

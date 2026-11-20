@@ -416,6 +416,9 @@ export function sills(g, grid, indoor, doorway) {
       const x = cx + dx, y = cy + dy;
       if (mass(x, y) || (doorway(x, y) && indoor(grid[y][x], x, y))) continue;
       if ((dx !== 0) !== passH) continue;
+      /* b6 (CR): in an opening three cells wide the middle cell's sill stood alone, a pale bar in the straw with open floor at both its
+         ends; a sill is laid only where one of its ends meets the wall */
+      if (dx ? !mass(cx, cy - 1) && !mass(cx, cy + 1) : !mass(cx - 1, cy) && !mass(cx + 1, cy)) continue;
       for (let t = 0; t < T; t++) for (let k = 0; k < 3; k++) {
         const c = k === 0 ? '#6a6865' : k === 1 ? '#4f4e52' : '#17141a';
         if (dy) put(cx * T + t, dy < 0 ? cy * T + k : cy * T + T - 3 + k, t === 0 || t === T - 1 ? C.sh : c);

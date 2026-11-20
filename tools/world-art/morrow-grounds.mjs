@@ -146,19 +146,59 @@ function paintCells(grid, mats) {
   }
   return img;
 }
-/* the boards run left to right in bands: each band of the whole floor is the fill's band at its own phase, so the butt joints and the
-   knots never stand in a column every 32 px (the fill wraps left to right, so a band stays seamless along its length) */
-const BAND_ROWS = 4;
+/* b6 (CR): the boards drawn by rule, not the fill (its knots stood every 32 px across the floor, a lattice at x1). Boards 7 px across
+   with a dark gap every 8 px (the fill's own pitch, so the doorway seams still meet it), each board 36-140 px long at its own offset,
+   its own tone (most the mid brown, some a step darker, a few a bronze step warmer), grain in long broken streaks, a dark butt joint
+   with a nail pair beside it on half of them, a knot on about one board in three (an irregular dark eye, its rim lit on the upper
+   left, never on a grid), and now and then a board split along its grain */
+const PITCH = 8, GAP = 1;
+const plankTone = (band, k) => { const r = hash2(band, k, 217); return r < 0.2 ? 'dark' : r > 0.86 ? 'warm' : 'mid'; };
+function boardAt(band, X) {
+  let e = -Math.floor(hash2(band, 3, 213) * 120), k = 0;
+  while (true) { const L = 36 + Math.floor(hash2(band, k, 215) * 104); if (X < e + L) return { e, L, k }; e += L; k++; }
+}
 function planks(img, cx, cy, fill) {
+  const set = (X, Y, h) => img.data.set([...rgb(h), 255], (Y * img.width + X) * 4);
   for (let v = 0; v < T; v++) {
-    /* b5 (CR): within a band the fill still repeated every 32 px (a knot lattice); a band is laid in BOARDS of 24-72 px, each at its own
-       phase, a dark butt joint where two meet */
-    const band = Math.floor((cy * T + v) / BAND_ROWS);
+    const Y = cy * T + v, band = Math.floor((Y - GAP) / PITCH), r = ((Y - GAP) % PITCH + PITCH) % PITCH;
     for (let u = 0; u < T; u++) {
-      const X = cx * T + u; let e = -Math.floor(hash2(band, 3, 213) * 48), k = 0; while (true) { const L = 24 + Math.floor(hash2(band, k, 215) * 48); if (X < e + L) break; e += L; k++; }
-      const phase = Math.floor(hash2(band, k, 211) * T), q = (v * T + ((X + phase) % T)) * 4;
-      if (X === e && (cy * T + v) % BAND_ROWS !== 0) { img.data.set([23, 20, 26, 255], ((cy * T + v) * img.width + X) * 4); continue; }
-      img.data.set(fill.data.subarray(q, q + 4), ((cy * T + v) * img.width + X) * 4);
+      const X = cx * T + u;
+      if (r === 0) { set(X, Y, '#0b0a0c'); continue; }   /* the gap between two boards */
+      const { e, L, k } = boardAt(band, X), at = X - e, tone = plankTone(band, k);
+      if (at === 0) { set(X, Y, '#0b0a0c'); continue; }   /* the butt joint */
+      if (at === 1 && r <= 2) { set(X, Y, '#17141a'); continue; }
+      /* a nail pair beside half the joints, iron heads */
+      if (hash2(band, k, 219) < 0.5 && at === 3 && (r === 2 || r === 6)) { set(X, Y, '#4a4d54'); continue; }
+      /* grain: long streaks along the board (stretched noise), dark more than light */
+      const gs = noise(X * 0.22 + k * 37, band * 9 + r * 3.1, 4, 221), lo = tone === 'dark' ? 0.55 : tone === 'warm' ? 0.22 : 0.33;
+      let col = tone === 'warm' ? '#4a2e18' : '#3d2a1d';
+      if (gs < lo) col = '#2a1c14';
+      else if (gs > 0.83 && r >= 2 && hash2(X, Y, 223) < 0.5) col = tone === 'dark' ? '#3d2a1d' : '#553a26';
+      /* the top row under the gap a step down (the gap's shadow), the bottom row lit here and there */
+      if (r === 1 && hash2(X >> 2, band, 225) < 0.6) col = '#2a1c14';
+      if (r === PITCH - 1 && tone !== 'dark' && hash2(X >> 3, band, 227) < 0.25) col = '#553a26';
+      /* a split along the grain, now and then */
+      const split = hash2(band, k, 229) < 0.07, sr = 3 + Math.floor(hash2(band, k, 231) * 3), sa = Math.floor(hash2(band, k, 233) * Math.max(1, L - 30)) + 6;
+      if (split && r === sr && at >= sa && at < sa + 14 + Math.floor(hash2(band, k, 235) * 12)) col = '#0b0a0c';
+      set(X, Y, col);
+    }
+  }
+  /* knots: on about one board in three, at its own place along the board, an irregular eye 3-5 px wide, 2-3 tall */
+  for (let band = Math.floor((cy * T - GAP) / PITCH) - 1; band <= Math.floor(((cy + 1) * T - GAP) / PITCH) + 1; band++) {
+    let { e, L, k } = boardAt(band, cx * T - 160);
+    for (; e < (cx + 1) * T + 8; e += L, k++, L = 36 + Math.floor(hash2(band, k, 215) * 104)) {
+      if (hash2(band, k, 237) > 0.34) continue;
+      const kx = e + 6 + Math.floor(hash2(band, k, 239) * Math.max(1, L - 12)), ky = band * PITCH + GAP + 2 + Math.floor(hash2(band, k, 241) * 3);
+      const w = 3 + Math.floor(hash2(band, k, 243) * 3), hgt = 2 + (hash2(band, k, 245) < 0.4 ? 1 : 0);
+      for (let dy = 0; dy < hgt; dy++) for (let dx = 0; dx < w; dx++) {
+        const X = kx + dx - (dy === 0 && hash2(band, k, 247) < 0.5 ? 1 : 0), Y = ky + dy;
+        if (X < cx * T || X >= (cx + 1) * T || Y < cy * T || Y >= (cy + 1) * T) continue;
+        const rr = ((Y - GAP) % PITCH + PITCH) % PITCH; if (rr === 0) continue;
+        const edge = dx === 0 || dy === 0 || dx === w - 1 || dy === hgt - 1;
+        set(X, Y, dx === 0 && dy === 0 ? '#553a26' : edge ? '#2a1c14' : '#17141a');
+      }
+      /* the grain bends round it: a dark tail either side along the row */
+      for (const d of [-2, -1, w, w + 1]) { const X = kx + d, Y = ky + (hgt > 2 ? 1 : 0); if (X >= cx * T && X < (cx + 1) * T && Y >= cy * T && Y < (cy + 1) * T && ((Y - GAP) % PITCH + PITCH) % PITCH) set(X, Y, '#2a1c14'); }
     }
   }
 }
@@ -292,6 +332,42 @@ function warmSlate(g, grid) {
 /* b5 (CR) ranked 3: the dirt edges, the straw and wheel-track patches ruler-straight and the track's L turn square: where earth, straw
    and moor meet, each pixel takes the ground of a point up to +-14 px away on a smooth field (its texture carried, never smeared), so
    the borders wander and the corners round off */
+/* the straw's edge frayed (b6 review, CR ranked 3: "soften the straw patch edges"): a soft field from the straw's cells (P, S: 1) and
+   the earth's (E: 0), other cells left out of the sum, its line warped; on the earth side near the line loose strands, thinning out with
+   the distance; on the straw side bare earth showing through in small patches, more of it nearer the line */
+function strawFray(g, grid, earthFill) {
+  const h = grid.length, w = grid[0].length, at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? null : grid[y][x]);
+  const val = (c) => (c === 'P' || c === 'S' ? 1 : c === 'E' ? 0 : null);
+  const field = (px, py) => {
+    const fx = px / T - 0.5, fy = py / T - 0.5, x0 = Math.floor(fx), y0 = Math.floor(fy), ax = fx - x0, ay = fy - y0;
+    let sum = 0, wt = 0, any1 = false, any0 = false;
+    for (const [dx, dy, k] of [[0, 0, (1 - ax) * (1 - ay)], [1, 0, ax * (1 - ay)], [0, 1, (1 - ax) * ay], [1, 1, ax * ay]]) {
+      const v = val(at(x0 + dx, y0 + dy)); if (v == null) continue; sum += v * k; wt += k; if (v) any1 = true; else any0 = true;
+    }
+    return wt > 0 && any1 && any0 ? sum / wt : null;
+  };
+  const put = (x, y, hx) => { if (x >= 0 && y >= 0 && x < g.width && y < g.height) g.data.set(rgb(hx), (y * g.width + x) * 4); };
+  let n = 0;
+  /* bare earth through the straw */
+  for (let py = 0; py < g.height; py++) for (let px = 0; px < g.width; px++) {
+    const c = at(px >> 5, py >> 5); if (c !== 'P' && c !== 'S') continue;
+    const wx = px + (noise(px, py, 22, 881) - 0.5) * 20, wy = py + (noise(px, py, 22, 883) - 0.5) * 20, f = field(wx, wy);
+    if (f == null || f >= 0.92) continue;
+    if (noise(px, py, 7, 885) > 0.3 + 0.7 * Math.max(0, (f - 0.45) / 0.47)) { const q = ((py % T) * T + (px % T)) * 4; g.data.set(earthFill.data.subarray(q, q + 3), (py * g.width + px) * 4); n++; }
+  }
+  /* loose strands out on the earth */
+  for (let gy = 0; gy < g.height; gy += 3) for (let gx = 0; gx < g.width; gx += 3) {
+    const px = gx + Math.floor(hash2(gx, gy, 887) * 3), py = gy + Math.floor(hash2(gx, gy, 889) * 3), c = at(px >> 5, py >> 5);
+    if (c !== 'E' && c !== 'P' && c !== 'S') continue;
+    const f = field(px + (noise(px, py, 22, 881) - 0.5) * 20, py + (noise(px, py, 22, 883) - 0.5) * 20);
+    if (f == null || f < 0.08 || f > 0.6) continue;
+    if (hash2(gx, gy, 891) > 0.55 * Math.min(1, (f - 0.08) / 0.4) * (0.4 + noise(px, py, 15, 893))) continue;
+    const len = 2 + Math.floor(hash2(gx, gy, 895) * 3), dir = hash2(gx, gy, 897) < 0.5 ? 1 : -1;
+    for (let t = 0; t < len; t++) put(px + t, py + (dir > 0 ? Math.floor(t / 2) : -Math.floor(t / 2)), t === len - 1 ? '#6e4c30' : t === 0 ? '#2a1c14' : '#553a26');
+    n++;
+  }
+  return n;
+}
 function wanderEdges(g, grid) {
   const W = g.width, H = g.height, src = createImage(W, H); src.data.set(g.data);
   const SOFT = 'EPH', ch = (x, y) => grid[Math.max(0, Math.min(grid.length - 1, y >> 5))][Math.max(0, Math.min(grid[0].length - 1, x >> 5))];
@@ -524,6 +600,9 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   const heath = 0, bracken = 0, olive = 0;
   const moor = oxMoor(img, grid, ox ? { skip } : { skip, bogs: [] });
   const wandered = ox ? 0 : wanderEdges(img, grid);
+  /* b6 (CR) ranked 3: the straw trodden out of the stable ended on a line; it frays into the earth now */
+  const frayed = ox ? 0 : strawFray(img, grid, mats.E.fill);
+  void frayed;
   const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
   /* the Ox Road wears its road by its own rule (morrow-ox.mjs oxRoad: every pixel under 0.07, structure instead of light), after the
      moor's patches: its edge is warped across the cell line, and the heath pass (cell by cell) would cut it back to the grid */

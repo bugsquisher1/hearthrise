@@ -35,16 +35,16 @@
 // none of them (map-compile.js L-GRID).
 // PURE: no DOM, no window, no G.
 // ════════════════════════════════════════════════════════════════════════
-import { ySort } from './zsort.js?v=0.2.143';
-import { heroBuilding } from './roofs.js?v=0.2.143';
-import { ellipseShadow, castMatrix } from './shadows.js?v=0.2.143';
-import { vertexGrid, tileKey } from './wang.js?v=0.2.143';
-import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.143';
-import { lookDyeKey } from '../../data/outfits.js?v=0.2.143';
-import { markShapes } from './mark-shapes.js?v=0.2.143';
-import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.143';
-import { roughEdgeSteps } from './ground-rough.js?v=0.2.143';
-import { lifeDraws, glanceOf, swayOf, bumpAt } from './ambient.js?v=0.2.143';
+import { ySort } from './zsort.js';
+import { heroBuilding } from './roofs.js';
+import { ellipseShadow, castMatrix } from './shadows.js';
+import { vertexGrid, tileKey } from './wang.js';
+import { OUTFITS } from '../../data/hunt-outfits.js';
+import { lookDyeKey } from '../../data/outfits.js';
+import { markShapes } from './mark-shapes.js';
+import { toneAt, varietyIndex } from './ground-variety.js';
+import { roughEdgeSteps } from './ground-rough.js';
+import { lifeDraws, glanceOf, swayOf, bumpAt } from './ambient.js';
 
 /** Wall height: rock tops and capstones are raised by it. */
 export const WALL_FACE_PX = 48;

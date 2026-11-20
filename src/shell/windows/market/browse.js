@@ -12,26 +12,26 @@
 // next plan is on screen before any more gold moves. A lost answer keeps the plan and its
 // keys: the next press resends them and the server replays what it already did.
 // ════════════════════════════════════════════════════════════════════════
-import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js?v=0.2.143';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.143';
-import { whole } from '../../../render/format.js?v=0.2.143';
-import { glyphSvg } from '../../launcher.js?v=0.2.143';
-import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js?v=0.2.143';
-import { goldOf, nameOf } from '../../../session/item-sections.js?v=0.2.143';
-import { huntOf, settingsOf } from '../../../session/hunt-sections.js?v=0.2.143';
-import { BAG_CATS } from '../../bag-model.js?v=0.2.143';
-import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js?v=0.2.143';
-import { refusalText } from '../../intent-words.js?v=0.2.143';
-import { notListableWords } from '../../market-words.js?v=0.2.143';
-import { marketBuy, marketCancel } from '../../../session/market-intents.js?v=0.2.143';
-import { marketKey, answerLost } from '../../../session/market-gesture.js?v=0.2.143';
-import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js?v=0.2.143';
-import { showTip, hideTip } from '../item-tip.js?v=0.2.143';
-import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey, buildingWorks } from './state.js?v=0.2.143';
-import { gotoAttr } from '../../goto.js?v=0.2.143';
-import { t } from '../../../render/player-text.js?v=0.2.143';
-import { heroGroundOf } from '../../widgets/first-target.js?v=0.2.143';
-import { featuresOf } from '../../../session/character-sections.js?v=0.2.143';
+import { rows, text, cls, attr, prop, style, element } from '../../../render/paint.js';
+import { escapeHtml as esc } from '../../../utils/dom.js';
+import { whole } from '../../../render/format.js';
+import { glyphSvg } from '../../launcher.js';
+import { itemIconHtml, itemName, itemNameFor } from '../../widgets/bits.js';
+import { goldOf, nameOf } from '../../../session/item-sections.js';
+import { huntOf, settingsOf } from '../../../session/hunt-sections.js';
+import { BAG_CATS } from '../../bag-model.js';
+import { kindWords, sourcesOf, flavourOf } from '../../item-lore.js';
+import { refusalText } from '../../intent-words.js';
+import { notListableWords } from '../../market-words.js';
+import { marketBuy, marketCancel } from '../../../session/market-intents.js';
+import { marketKey, answerLost } from '../../../session/market-gesture.js';
+import { MARKET_SORTS, BUY_CHIPS, planBuy, mostAffordable, browseRows, searchIds, rowWords, noneWords, ageWords, goldWords, priceSample } from '../../market-model.js';
+import { showTip, hideTip } from '../item-tip.js';
+import { viewOf, setView, readItem, rereadAll, searchSoon, holdGesture, dropGesture, cancelKey, buildingWorks } from './state.js';
+import { gotoAttr } from '../../goto.js';
+import { t } from '../../../render/player-text.js';
+import { heroGroundOf } from '../../widgets/first-target.js';
+import { featuresOf } from '../../../session/character-sections.js';
 
 const SEARCH_MAX = 50;
 const LOST_WORDS = 'No answer, safe to press again';

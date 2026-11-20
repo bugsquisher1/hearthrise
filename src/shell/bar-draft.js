@@ -11,19 +11,19 @@
 // until the server has answered and the re-read envelope has replaced
 // hunt_settings (CLAUDE.md §6). A refusal names its slot and condition.
 // ════════════════════════════════════════════════════════════════════════
-import { METRICS, OPERATORS } from '../data/condition-metrics.js?v=0.2.143';
-import { STATUSES } from '../data/statuses.js?v=0.2.143';
-import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js?v=0.2.143';
-import { BASIC_INDEX } from '../data/supply-basics.js?v=0.2.143';
-import { isRune } from '../data/supplies.js?v=0.2.143';
-import { runeTierOf, versionLevel } from '../data/runes.js?v=0.2.143';
-import { ITEMS } from '../data/items.js?v=0.2.143';
-import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js?v=0.2.143';
-import { settingsOf, wireSlot } from '../session/hunt-sections.js?v=0.2.143';
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.143';
-import { refusalWords } from './intent-words.js?v=0.2.143';
-import { skillName } from './widgets/bits.js?v=0.2.143';
-import { t } from '../render/player-text.js?v=0.2.143';
+import { METRICS, OPERATORS } from '../data/condition-metrics.js';
+import { STATUSES } from '../data/statuses.js';
+import { BAR_SLOTS, BAR_ANSWER_MS } from '../data/hunt-hud.js';
+import { BASIC_INDEX } from '../data/supply-basics.js';
+import { isRune } from '../data/supplies.js';
+import { runeTierOf, versionLevel } from '../data/runes.js';
+import { ITEMS } from '../data/items.js';
+import { suggestedConditions, aimsAtMonsters } from '../core/hunt/conditions.js';
+import { settingsOf, wireSlot } from '../session/hunt-sections.js';
+import { ABILITIES, abilitySkill } from '../data/abilities.js';
+import { refusalWords } from './intent-words.js';
+import { skillName } from './widgets/bits.js';
+import { t } from '../render/player-text.js';
 
 export const SLOTS = BAR_SLOTS.rows * BAR_SLOTS.cols;
 const METRIC = new Map(METRICS.map((m) => [m.id, m]));

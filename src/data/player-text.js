@@ -16,7 +16,7 @@
 // and data rows build their sentences with it at load (src/data/hunt-tutorial.js), which made them import the render
 // layer, a breach in tests/layering.baseline.json. src/render/player-text.js re-exports it for the views.
 // ════════════════════════════════════════════════════════════════════════
-import { TEXT } from './text/text-table.js?v=0.2.143';
+import { TEXT } from './text/text-table.js';
 
 const PLURAL = new Intl.PluralRules('en-US');
 const STRICT = typeof document === 'undefined';

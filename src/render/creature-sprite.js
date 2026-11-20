@@ -20,9 +20,9 @@
 // World turn as they move; that is the World renderer's, not this.
 // ════════════════════════════════════════════════════════════════════════
 /* the sets a first open reads: no creature is in a worn set (the faction looks, fetched only with a hero who wears one) */
-import { FIRST_OPEN_SETS } from '../data/world/atlas-sets.js?v=0.2.143';
-import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js?v=0.2.143';
-import { HUNT_ART_ALIAS } from '../data/monster-art.js?v=0.2.143';
+import { FIRST_OPEN_SETS } from '../data/world/atlas-sets.js';
+import { loadAtlasManifest, loadAtlasImage } from '../world/atlas.js';
+import { HUNT_ART_ALIAS } from '../data/monster-art.js';
 
 /** The direction a creature's portrait faces: front, toward the player. */
 export const PORTRAIT_DIR = 's';

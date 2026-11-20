@@ -21,18 +21,18 @@
 // payout (src/shell/town-ticker.js) as a pending segment: the level stays the
 // server's and the bar fills no further than its level.
 // ════════════════════════════════════════════════════════════════════════
-import { SKILLS_DEF } from '../../data/skills.js?v=0.2.143';
-import { SKILL_GUIDE } from '../../data/skill-guide.js?v=0.2.143';
-import { nextUnlock, nextUnlocks } from '../../data/skill-unlocks.js?v=0.2.143';
-import { skillLevelsOf } from '../../session/item-sections.js?v=0.2.143';
-import { rows, text, cls, style, attr, element } from '../../render/paint.js?v=0.2.143';
-import { whole } from '../../render/format.js?v=0.2.143';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.143';
-import { glyphSvg } from '../launcher.js?v=0.2.143';
-import { tickOf } from '../town-work.js?v=0.2.143';
-import { aheadXp } from '../town-ticker.js?v=0.2.143';
-import { characterSheetOf } from '../../session/character-sections.js?v=0.2.143';
-import { t } from '../../render/player-text.js?v=0.2.143';
+import { SKILLS_DEF } from '../../data/skills.js';
+import { SKILL_GUIDE } from '../../data/skill-guide.js';
+import { nextUnlock, nextUnlocks } from '../../data/skill-unlocks.js';
+import { skillLevelsOf } from '../../session/item-sections.js';
+import { rows, text, cls, style, attr, element } from '../../render/paint.js';
+import { whole } from '../../render/format.js';
+import { escapeHtml as esc } from '../../utils/dom.js';
+import { glyphSvg } from '../launcher.js';
+import { tickOf } from '../town-work.js';
+import { aheadXp } from '../town-ticker.js';
+import { characterSheetOf } from '../../session/character-sections.js';
+import { t } from '../../render/player-text.js';
 
 /* Is this the skill's last level? The server says so: no XP across it (need 0, a capped skill at 99). */
 const mastered = (r) => r.need === 0;

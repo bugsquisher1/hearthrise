@@ -9,15 +9,15 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 /* pack imports (tools/pack.mjs index) */
-import pack_carters_rest from './carters_rest/pack.js?v=0.2.143';
-import pack_hasks_ford from './hasks_ford/pack.js?v=0.2.143';
-import pack_krells_hold from './krells_hold/pack.js?v=0.2.143';
-import pack_muster_barrows from './muster_barrows/pack.js?v=0.2.143';
-import pack_ox_road from './ox_road/pack.js?v=0.2.143';
-import pack_pyre_field from './pyre_field/pack.js?v=0.2.143';
-import pack_the_slake from './the_slake/pack.js?v=0.2.143';
-import pack_unmarked_catacombs from './unmarked_catacombs/pack.js?v=0.2.143';
-import pack_wyvern_roost from './wyvern_roost/pack.js?v=0.2.143';
+import pack_carters_rest from './carters_rest/pack.js';
+import pack_hasks_ford from './hasks_ford/pack.js';
+import pack_krells_hold from './krells_hold/pack.js';
+import pack_muster_barrows from './muster_barrows/pack.js';
+import pack_ox_road from './ox_road/pack.js';
+import pack_pyre_field from './pyre_field/pack.js';
+import pack_the_slake from './the_slake/pack.js';
+import pack_unmarked_catacombs from './unmarked_catacombs/pack.js';
+import pack_wyvern_roost from './wyvern_roost/pack.js';
 
 export const GROUND_PACKS = Object.freeze([
   /* pack rows (tools/pack.mjs index) */

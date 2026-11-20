@@ -20,15 +20,15 @@
 // the prefix, and the step's .hc-body laid every chat line out (2026-10-24).
 // ════════════════════════════════════════════════════════════════════════
 
-import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js?v=0.2.143';
-import { escapeHtml as esc } from '../utils/dom.js?v=0.2.143';
-import { sepHtml } from '../render/format.js?v=0.2.143';
-import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js?v=0.2.143';
-import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js?v=0.2.143';
-import { refusalWords } from '../shell/intent-words.js?v=0.2.143';
-import { outfitArt, outfitMasks, drawOutfit } from '../render/outfit-sprite.js?v=0.2.143';
-import { focusOffTouch } from './sign-in.js?v=0.2.143';
-import { t } from '../render/player-text.js?v=0.2.143';
+import { HOW_YOU_FIGHT, HOW_YOU_FIGHT_LEAD } from '../data/how-to-play.js';
+import { escapeHtml as esc } from '../utils/dom.js';
+import { sepHtml } from '../render/format.js';
+import { BASE_REGIONS, BASE_DEFAULT_COLORS, DYE_COUNT, REGION_LABEL, HERO_DYES_SHOWN, OUTFIT_ROWS } from '../data/outfits.js';
+import { OUTFITS, ROLE_OUTFIT } from '../data/hunt-outfits.js';
+import { refusalWords } from '../shell/intent-words.js';
+import { outfitArt, outfitMasks, drawOutfit } from '../render/outfit-sprite.js';
+import { focusOffTouch } from './sign-in.js';
+import { t } from '../render/player-text.js';
 
 /* The preview's whole-number scale: a 64 px sprite at 3 = 192 px; the other outfits at 1. */
 export const PREVIEW_SCALE = 3;

@@ -71,6 +71,12 @@ permissions:
 env:
   HR_GATE_TOKEN: ${{ github.token }}
   HR_MUTANT_GATE_RANGE: ${{ inputs.rehearse_range }}
+  # WHAT A RELEASE PROVES (CLAUDE.md §3.6; Tyler 2026-11-19 "nightly only"). nightly-only: a release or next push runs
+  # every plain guard and the proofs of the guards whose own side moved (tests/, tools/, .github/); the nightly sweep
+  # proves the rest, and "Nightly gate" (client-guards) is red when the last sweep cannot be read or never saw the
+  # release's base. Any other value: every guard the diff touches, and a stale nightly puts every job in full
+  # (before 2026-11-19). The one switch: tools/mutant-gate.mjs reads it.
+  HR_RELEASE_PROOFS: nightly-only
 
 # ── THE MATRIX (cleanup slice 8a, 2026-09-07) ───────────────────────────────
 # This was ONE sequential job of 58 commands. The b514 run took 50.2 minutes
@@ -6387,6 +6393,14 @@ jobs:
       - name: Mutant gate — a push re-proves what its diff touches, the nightly everything
         run: |
           node tools/mutant-gate.mjs node tools/mutant-gate.mjs --selftest
+
+      # THE NIGHTLY GATE (HR_RELEASE_PROOFS=nightly-only, Tyler 2026-11-19). A release proves only its guard side, so
+      # the code it builds on must have been swept: red when the last sweep on main cannot be read, or its commit
+      # does not cover this push's base (docs-only commits between are fine). It says how to clear it. A job the
+      # sweep left red re-proves in full in its own job; a full-sweep dispatch and any other ref pass.
+      - name: Nightly gate - a release builds only on swept code
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs --nightly-gate
 
       # The Coordinator's preflight reads this file to choose what it runs; its plan and verdict stay proved.
       - name: Preflight - the plan is read from this workflow, a red and a timeout are never green

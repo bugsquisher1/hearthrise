@@ -37,6 +37,18 @@
 // ran on the very same commit; its plain runs still run. A job green at an earlier commit
 // of this release branch is measured from that commit, so a fix-forward re-proves the fix.
 //
+// NIGHTLY ONLY (Tyler 2026-11-19, architecture audit row 6). One line in smoke.yml's `env:`,
+// HR_RELEASE_PROOFS, chooses what a release or next push proves:
+//   nightly-only    only the guards whose own side moved (a file under tests/, tools/ or .github/: the guard,
+//                   its harness, its mutant list, the gate); a change under src/, supabase/ or anywhere else is
+//                   proved by the nightly sweep. The sweep must have seen the release's base: --nightly-gate (one
+//                   step, client-guards) is RED when the last sweep cannot be read or its commit does not cover
+//                   that base (ci-history.mjs sweepCovers), and the 48 h staleness no longer puts jobs in full.
+//                   A job the sweep left red or never ran still runs every proof it holds, so the release that
+//                   carries the fix stays red until the fix holds.
+//   anything else   every guard the diff touches; a stale or unreadable nightly puts every job in full (before).
+// Plain runs always run either way. A dispatch with rehearse_range=full is the full sweep and needs no nightly.
+//
 // A REHEARSAL. `gh workflow run smoke.yml --ref <lane> -f rehearse_range=<sha>..<sha>` (not
 // on main) runs this branch's guards under the plan an old release's diff gets: how to
 // measure a change to this gate without touching release/** or main. It gates nothing.
@@ -53,6 +65,7 @@
 //   node tools/mutant-gate.mjs node tests/x.mjs --mutate   gate one command (CI)
 //   node tools/mutant-gate.mjs --explain [--base REF | --range A..B | --files a,b] [--all]
 //                                     which registered proofs a diff would run
+//   node tools/mutant-gate.mjs --nightly-gate   nightly-only: red when the last sweep does not cover this push's base
 //   node tools/mutant-gate.mjs --selftest   the selection, the modes and the CLI,
 //                                     each proved by a planted mutant
 //   node tools/mutant-gate.mjs --rules-from <run log>   refresh tests/<guard>.mutant-rules.json
@@ -71,7 +84,7 @@ import {
 } from './lib/guard-deps.mjs';
 import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
 import { scopeMutants, splitMutants, parseMutants, classifyRuleEdit } from './lib/mutant-scope.mjs';
-import { readHistory, readNightly, historyPolicy, lastGreenRun, lastFullGreen, previousRelease, PREVIOUS_RULES, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
+import { readHistory, readNightly, historyPolicy, lastGreenRun, lastFullGreen, previousRelease, PREVIOUS_RULES, sweepCovers, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
 
@@ -96,6 +109,14 @@ export function decideMode(env) {
   if (ev === 'workflow_dispatch' && shipRef && !env.HR_MUTANT_GATE_RANGE) return { full: false, event: ev, asPush: true };
   if (ev === 'workflow_dispatch' && env.HR_MUTANT_GATE_RANGE && env.GITHUB_REF_NAME !== 'main') return { full: false, event: ev, rehearsal: true };
   return { full: true, why: `the ${ev || 'unknown'} event is the full sweep` };
+}
+
+/* NIGHTLY ONLY: the guard's own side, the only part of a diff a release or next push proves under it. */
+export const GUARD_SIDE = /^(tests|tools|\.github)\//;
+/** Does the nightly-only switch govern this run? A release or next push (or its dispatch), or a rehearsal of one. */
+export function nightlyOnly(env, mode = decideMode(env)) {
+  if (env.HR_RELEASE_PROOFS !== 'nightly-only' || mode.full) return false;
+  return !!mode.rehearsal || /^release\//.test(env.GITHUB_REF_NAME || '') || env.GITHUB_REF_NAME === 'next';
 }
 
 // ── THE DIFF ──────────────────────────────────────────────────────────────
@@ -134,6 +155,13 @@ export function ciBase(env) {
     if (before) return { sha: gitOut(['rev-parse', '--verify', `${before}^{commit}`]), how: 'the previous tip of main (the push\'s before)' };
     return { sha: gitOut(['rev-parse', '--verify', 'HEAD^']), how: 'HEAD^ (the push carried no before)' };
   }
+  const b = releaseBase(env, head);
+  return (ev === 'push' && greenBase(env)) || b;
+}
+
+/** { sha, how } — the main side of a release, next or PR push: the merge base, or the previous release when main holds HEAD. */
+function releaseBase(env, head = env.GITHUB_SHA || gitOut(['rev-parse', 'HEAD'])) {
+  const ev = env.GITHUB_EVENT_NAME;
   const branch = ev === 'pull_request' ? (env.GITHUB_BASE_REF || 'main') : 'main';
   const refspecs = [`+${head}:refs/hr-gate/head`, `+refs/heads/${branch}:refs/remotes/origin/${branch}`];
   const how = `the merge base of origin/${branch} and HEAD`;
@@ -144,7 +172,7 @@ export function ciBase(env) {
   const tip = gitOut(['rev-parse', 'HEAD']);
   const prev = sha === tip ? previousReleaseBase(env, tip, refspecs) : null;
   if (!prev) usableBase(sha, tip);
-  return (ev === 'push' && greenBase(env)) || prev || { sha, how };
+  return prev || { sha, how };
 }
 
 /* Main already holds this commit: the previous release, by the newest green release run on a strict ancestor of HEAD
@@ -259,7 +287,8 @@ export function planFor(env, { extraGuards = [] } = {}) {
   if (!plan) {
     /* The selftest's diff is hermetic unless it hands over a history; a rehearsal has no release to block. */
     const asks = !mode.rehearsal && (env.HR_MUTANT_GATE_FILES === undefined || env.HR_GATE_HISTORY);
-    const policy = asks ? historyPolicy(readHistory(env), { job: env.GITHUB_JOB, event: env.GITHUB_EVENT_NAME, ref: env.GITHUB_REF_NAME, now: Date.now() }) : {};
+    const only = nightlyOnly(env, mode);
+    const policy = asks ? historyPolicy(readHistory(env), { job: env.GITHUB_JOB, event: env.GITHUB_EVENT_NAME, ref: env.GITHUB_REF_NAME, now: Date.now(), nightlyOnly: only }) : {};
     if (policy.sweptBy) console.log(`mutant-gate: job ${env.GITHUB_JOB} went green in full in run ${policy.sweptBy.id} (${policy.sweptBy.branch}): back to its diff`);
     if (policy.full) plan = { full: true, why: policy.why };
     else if (policy.proved) plan = { full: false, proved: policy.proved, selected: {} };
@@ -282,7 +311,10 @@ export function planFor(env, { extraGuards = [] } = {}) {
         base = b.sha; how = b.how;
         ({ files: changed, regions } = committedDiff(ROOT, `${base}..HEAD`));
       }
-      plan = { full: false, base, tip, how, changed, selected: {} };
+      /* NIGHTLY ONLY: the rest of the diff is the nightly sweep's to prove */
+      const deferred = only ? changed.filter((p) => !GUARD_SIDE.test(p)).length : 0;
+      if (only) changed = changed.filter((p) => GUARD_SIDE.test(p));
+      plan = { full: false, base, tip, how, changed, deferred, selected: {} };
       /* The line map is used once, here; the cached plan keeps only what the guards read. */
       Object.defineProperty(plan, 'regions', { value: regions, enumerable: false });
     } catch (e) {
@@ -301,7 +333,7 @@ export function planFor(env, { extraGuards = [] } = {}) {
     else {
       const sel = Object.keys(plan.selected);
       console.log(`mutant-gate: ${mode.event} on ${env.GITHUB_REF_NAME || '?'} — base ${String(plan.base || '-').slice(0, 9)} `
-        + `(${plan.how}); ${plan.changed.length} changed file(s); ${sel.length} guard(s) touched`);
+        + `(${plan.how}); ${plan.changed.length} changed file(s)${plan.deferred ? ` on the guard side, ${plan.deferred} more proved by the nightly sweep (HR_RELEASE_PROOFS=nightly-only)` : ''}; ${sel.length} guard(s) touched`);
       for (const f of plan.changed.slice(0, 40)) console.log(`mutant-gate:   changed ${f}`);
       if (plan.changed.length > 40) console.log(`mutant-gate:   … +${plan.changed.length - 40} more`);
     }
@@ -339,6 +371,41 @@ function gate(argv) {
   const r = spawnSync(argv[0] === 'node' ? process.execPath : argv[0], argv.slice(1), { stdio: 'inherit', cwd: process.cwd(), env });
   if (r.error) { console.error(`mutant-gate: could not start ${argv[0]}: ${r.error.message}`); return 2; }
   return r.status === null ? 1 : r.status;
+}
+
+/**
+ * NIGHTLY ONLY's one block: { ok, why }. Red when the last sweep cannot be read, or its commit does not cover this push's base
+ * (ci-history.mjs sweepCovers): the release would otherwise ship code no sweep has proved. `o` injects the history, the base and
+ * git for the selftest. Anything that is not a nightly-only release push passes, and says why.
+ */
+export function nightlyGate(env, o = {}) {
+  const mode = decideMode(env);
+  if (mode.full) return { ok: true, why: `a full sweep needs no nightly (${mode.why})` };
+  if (!nightlyOnly(env, mode) || mode.rehearsal) {
+    return { ok: true, why: `not a release or next push under HR_RELEASE_PROOFS=nightly-only (it is ${env.HR_RELEASE_PROOFS || 'unset'}, ref ${env.GITHUB_REF_NAME || '?'}): nothing to gate` };
+  }
+  const fix = 'to clear it: run the sweep on main (gh workflow run smoke.yml --ref main) and re-run this job, or sweep this commit in full (gh workflow run smoke.yml --ref <this branch> -f rehearse_range=full)';
+  let n = null;
+  try {
+    const h = o.history || (env.HR_GATE_HISTORY ? JSON.parse(env.HR_GATE_HISTORY) : { nightly: readNightly(githubReader(env)) });
+    if (h.nightlyError) throw new Error(h.nightlyError);
+    n = h.nightly;
+  } catch (e) { return { ok: false, why: `the last nightly sweep could not be read (${String(e.message).split('\n')[0]}): re-run this job` }; }
+  if (!n || !n.sha) return { ok: false, why: `no nightly sweep on record with its commit — ${fix}` };
+  let base;
+  try { base = (o.base || releaseBase)(env).sha; } catch (e) { return { ok: false, why: `this push's base could not be found (${String(e.message).split('\n')[0]}) — ${fix}` }; }
+  const git = o.git || {
+    isAncestor: (a, b) => {
+      if (!gitOk(['cat-file', '-e', `${b}^{commit}`])) fetchHistory([`+${b}:refs/hr-gate/nightly`], DEPTH);
+      return gitOk(['merge-base', '--is-ancestor', a, b]);
+    },
+    filesBetween: (a, b) => committedDiff(ROOT, `${a}..${b}`).files,
+  };
+  let covered = false;
+  try { covered = sweepCovers({ base, sweepSha: n.sha, ...git }); } catch { covered = false; }
+  const red = Object.entries(n.jobs || {}).filter(([, c]) => c !== 'success').map(([j, c]) => `${j} (${c})`);
+  if (!covered) return { ok: false, why: `the last nightly sweep (run ${n.id}, ${n.at}, commit ${n.sha.slice(0, 9)}) never saw this push's base ${base.slice(0, 9)}, so no sweep has proved the code it builds on — ${fix}` };
+  return { ok: true, why: `the last nightly sweep (run ${n.id}, commit ${n.sha.slice(0, 9)}) covers base ${base.slice(0, 9)}${red.length ? `; the jobs it left red re-prove in full in their own jobs: ${red.join(', ')}` : ''}` };
 }
 
 /** Every proof command registered in smoke.yml, with its job. */
@@ -986,6 +1053,63 @@ async function selftest() {
         console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} previous-release mutant: ${label}`);
       }
     }
+    /* NIGHTLY ONLY (HR_RELEASE_PROOFS, Tyler 2026-11-19): which runs it governs, what the policy does with a stale or red sweep,
+       when a sweep covers a base, and the gate's verdicts. Each property is planted wrong in turn. */
+    {
+      const sha = (c) => c.repeat(40);
+      const BASE = sha('b'), SWEEP = sha('c'), OLD = sha('a'), DOCS = sha('d'), CODE = sha('e'), ELSE = sha('f');
+      /* history: OLD -> BASE -> SWEEP on main (code between OLD and BASE); OLD -> DOCS (docs only between) and OLD -> CODE (code
+         between) are two other bases; ELSE is unrelated. filesBetween(a, b) is what lies between a and b, keyed by the later end. */
+      const above = { [BASE]: [OLD], [SWEEP]: [BASE, OLD], [DOCS]: [OLD], [CODE]: [OLD] };
+      const realGit = { isAncestor: (a, b) => (above[b] || []).includes(a),
+        filesBetween: (a, b) => (b === DOCS ? ['docs/x.md', 'CHANGELOG.md'] : b === CODE ? ['docs/x.md', 'src/a.js'] : ['src/b.js']) };
+      const rel = { GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.2.150', HR_RELEASE_PROOFS: 'nightly-only' };
+      const now = Date.parse('2026-11-20T12:00:00Z');
+      const fresh = '2026-11-20T03:30:00Z', old = '2026-11-16T03:30:00Z';
+      const night = (at, jobs, s = SWEEP) => ({ nightly: { at, id: 5, sha: s, jobs } });
+      const nightlyChecks = ({ only, policy, covers, gate }) => {
+        const pol = (h, o) => policy(h, { job: 'j', event: 'push', ref: 'release/v0.2.150', now, ...o });
+        const g = (h, env = rel, b = BASE, git = realGit) => gate(env, { history: h, base: () => ({ sha: b }), git }).ok;
+        return [
+          [only(rel) && !only({ ...rel, HR_RELEASE_PROOFS: '' }) && !only({ ...rel, GITHUB_REF_NAME: 'main' }) && only({ ...rel, GITHUB_REF_NAME: 'next' })
+            && !only({ ...rel, GITHUB_EVENT_NAME: 'schedule' }) && !only({ ...rel, GITHUB_EVENT_NAME: 'pull_request', GITHUB_REF_NAME: 'lane/x' }),
+          'nightly-only governs release/** and next pushes with the switch on, never main, a PR, the schedule or the switch off'],
+          [!pol(night(old, { j: 'success' }), { nightlyOnly: true }).full && pol(night(old, { j: 'success' })).full,
+          'a sweep over 48 h old puts no job in full under nightly-only (the gate step judges it); before, it did'],
+          [!pol({ nightlyError: 'x' }, { nightlyOnly: true }).full && pol({ nightlyError: 'x' }).full, 'an unreadable sweep puts no job in full under nightly-only'],
+          [!!pol(night(fresh, { j: 'failure' }), { nightlyOnly: true }).full && !!pol(night(fresh, {}), { nightlyOnly: true }).full,
+          'a job the sweep left red, or never ran, still runs in full under nightly-only (the release carrying the fix proves it)'],
+          [covers({ base: BASE, sweepSha: SWEEP, ...realGit }) && covers({ base: BASE, sweepSha: BASE, ...realGit }) && covers({ base: BASE, sweepSha: DOCS, ...realGit }) === false
+            && covers({ base: BASE, sweepSha: OLD, ...realGit }) === false && covers({ base: BASE, sweepSha: ELSE, ...realGit }) === false,
+          'a sweep covers its own commit and anything under it, nothing it never saw, nothing unrelated'],
+          [covers({ base: DOCS, sweepSha: OLD, ...realGit }) && !covers({ base: CODE, sweepSha: OLD, ...realGit }),
+          'a sweep under the base covers it only when docs and .md files alone lie between'],
+          [g(night(fresh, { j: 'success' })) && g(night(old, { j: 'failure' })), 'a sweep that saw the base opens the gate, however old, red jobs or not'],
+          [!g(night(fresh, { j: 'success' }, OLD)), 'a sweep older than the base BLOCKS (the sweep cannot be skipped by never running it)'],
+          [!g({ nightlyError: 'HTTP 502' }) && !g({ nightly: null }), 'a sweep that cannot be read, or none, BLOCKS'],
+          [g(night(fresh, {}, OLD), { ...rel, HR_RELEASE_PROOFS: '' }) && g(night(fresh, {}, OLD), { ...rel, GITHUB_REF_NAME: 'main' })
+            && g(night(fresh, {}, OLD), { ...rel, GITHUB_EVENT_NAME: 'workflow_dispatch', HR_MUTANT_GATE_RANGE: 'full' }),
+          'the switch off, main, and a full-sweep dispatch pass the gate'],
+        ];
+      };
+      const realN = { only: nightlyOnly, policy: historyPolicy, covers: sweepCovers, gate: nightlyGate };
+      for (const [ok, label] of nightlyChecks(realN)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} nightly-only: ${label}`); }
+      for (const [label, impl] of [
+        ['the switch is ignored (every release is gated as before)', { ...realN, only: () => false }],
+        ['main is governed too', { ...realN, only: (env) => nightlyOnly({ ...env, GITHUB_REF_NAME: env.GITHUB_REF_NAME === 'main' ? 'next' : env.GITHUB_REF_NAME }) }],
+        ['a stale sweep still puts every job in full', { ...realN, policy: (h, o) => historyPolicy(h, { ...o, nightlyOnly: false }) }],
+        ['a red job is trusted under nightly-only (the fix is never proved)', { ...realN, policy: (h, o) => (o.nightlyOnly ? {} : historyPolicy(h, o)) }],
+        ['any sweep covers any base', { ...realN, covers: () => true }],
+        ['code between the sweep and the base is ignored', { ...realN, covers: (o) => sweepCovers({ ...o, filesBetween: () => [] }) }],
+        ['a docs-only commit after the sweep blocks every release', { ...realN, covers: (o) => sweepCovers({ ...o, filesBetween: (a, b) => o.filesBetween(a, b).concat('src/x.js') }) }],
+        ['the gate never blocks', { ...realN, gate: () => ({ ok: true }) }],
+        ['an unreadable sweep opens the gate', { ...realN, gate: (env, o) => (o.history.nightlyError || !o.history.nightly ? { ok: true } : nightlyGate(env, o)) }],
+      ]) {
+        const missed = nightlyChecks(impl).every(([ok]) => ok);
+        if (missed) bad++;
+        console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} nightly-only mutant: ${label}`);
+      }
+    }
     /* A rehearsal gates a lane's run under an old diff; on main the dispatch stays the full sweep. */
     const dis = (ref) => decideMode({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF_NAME: ref, HR_MUTANT_GATE_RANGE: 'a..b' });
     const rehearsalOk = dis('lane/x').rehearsal === true && dis('main').full === true
@@ -1048,7 +1172,7 @@ async function selftest() {
     const probe = join(dir, 'probe-guard.mjs');
     writeFileSync(probe, 'process.exit(process.argv.includes("--mutate") ? 7 : 3);\n');
     const env = (files, extra = {}) => ({ ...process.env, GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0',
-      GITHUB_SHA: `selftest-${files}`, RUNNER_TEMP: dir, HR_MUTANT_GATE_FILES: files, HR_MUTANT_GATE: '', ...extra });
+      GITHUB_SHA: `selftest-${files}`, RUNNER_TEMP: dir, HR_MUTANT_GATE_FILES: files, HR_MUTANT_GATE: '', HR_RELEASE_PROOFS: '', ...extra });
     const cli = (args, e) => spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args], { cwd: ROOT, encoding: 'utf8', env: e });
     const probeKey = probe.replace(/\\/g, '/');
     const checks = [
@@ -1112,6 +1236,21 @@ async function selftest() {
         const r = cli(['node', probe, '--mutate'], e);
         return r.status === 0 && r.stdout.includes(`base ${prev.slice(0, 9)} (the previous release`) && /1 changed file/.test(r.stdout) && /SKIP/.test(r.stdout);
       }],
+      ['nightly-only: a release re-proves what its guard side moved, and leaves src to the nightly; switched off, both', () => {
+        const HL = `${GATE_PREFIX}node tests/hunt-live.mjs --mutate`, CB = `${GATE_PREFIX}node tests/client-boot.mjs --mutate`;
+        const plan = (files, sw) => planFor({ GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0', RUNNER_TEMP: dir,
+          GITHUB_SHA: `selftest-only-${files}-${sw}`, HR_MUTANT_GATE_FILES: files, HR_RELEASE_PROOFS: sw });
+        const runs = (files, sw, cmd) => decide(cmd, plan(files, sw)).run;
+        return !runs('src/hunt-view/live-engine.js', 'nightly-only', HL) && runs('src/hunt-view/live-engine.js', '', HL)
+          && runs('tests/hunt-live.mjs', 'nightly-only', HL) && runs('tests/_chrome.mjs', 'nightly-only', CB)
+          && /proved by the nightly sweep/.test(cli(['node', probe, '--mutate'], env('src/a.js', { HR_RELEASE_PROOFS: 'nightly-only', GITHUB_SHA: 'selftest-only-cli' })).stdout);
+      }],
+      ['--nightly-gate: red when the sweep cannot be read under nightly-only, open when switched off', () => {
+        const e = (sw) => ({ ...process.env, GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0', HR_RELEASE_PROOFS: sw,
+          HR_GATE_HISTORY: JSON.stringify({ nightlyError: 'HTTP 502' }), HR_MUTANT_GATE: '' });
+        const on = cli(['--nightly-gate'], e('nightly-only')); const off = cli(['--nightly-gate'], e(''));
+        return on.status === 1 && /BLOCKED .*could not be read/.test(on.stdout) && off.status === 0 && /nothing to gate/.test(off.stdout);
+      }],
       ['a push whose base cannot be found fails safe to the full sweep', () => {
         const e = env('', { GITHUB_SHA: 'selftest-nobase', GITHUB_JOB: 'x', GITHUB_EVENT_PATH: join(dir, 'missing.json'), HR_GATE_HISTORY: JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { x: 'success' } } }) });
         delete e.HR_MUTANT_GATE_FILES;
@@ -1138,6 +1277,11 @@ if (isMain(import.meta.url)) {
   try {
     if (argv[0] === 'node' || argv[0] === 'bash') code = gate(argv);
     else if (argv.includes('--selftest')) code = await selftest();
+    else if (argv.includes('--nightly-gate')) {
+      const r = nightlyGate(process.env);
+      console.log(`mutant-gate: ${r.ok ? 'nightly gate open' : 'BLOCKED'} — ${r.why}`);
+      code = r.ok ? 0 : 1;
+    }
     else if (argv.includes('--explain')) code = explain(argv);
     else if (argv[0] === '--rules-from') code = rulesFrom(argv[1]);
     else { console.error('usage: node tools/mutant-gate.mjs node <guard> --mutate … | --explain [--base REF | --files a,b] [--all] | --selftest'); code = 2; }

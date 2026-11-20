@@ -9,8 +9,8 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.141';
-import { luckPm } from './luck.js?v=0.2.141';
+import { LOOT_BANDS, REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.142';
+import { luckPm } from './luck.js?v=0.2.142';
 
 export const DROP_BAND_MAX = { rare: 0.05, uncommon: 0.15, common: 1.0 };
 

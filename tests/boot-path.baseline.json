@@ -14,6 +14,12 @@
         "gzipBytes": 201064,
         "on": "2026-11-20",
         "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 (8680e0992) bundled and minified, fonts self-hosted, 12 modules / 196.4 KB gzip to sign-in and 21 / 851.9 KB to town; the same site as written (--deliver plain) is 42 / 263.7 KB and 621 / 2,497.0 KB"
+      },
+      {
+        "modules": 12,
+        "gzipBytes": 202148,
+        "on": "2026-11-20",
+        "why": "lane/b-ui-buttons (7d0726992, 354fac7ad, UI audit #3) merged into set/v0.2.143 after the first pin: one button system painted in shell.css (+85 lines, three tokens), the controls block moved there from hunt.css, framed presses across the windows; every stylesheet loads with the page, so +1.0 KB gzip to sign-in and +1.2 KB to town. Measured identical on be2de0e71 (the set before origin/main v0.2.142 merged in) and on the merge (stamps only)"
       }
     ],
     "town": [
@@ -22,6 +28,12 @@
         "gzipBytes": 872345,
         "on": "2026-11-20",
         "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 (8680e0992) bundled and minified, fonts self-hosted, 12 modules / 196.4 KB gzip to sign-in and 21 / 851.9 KB to town; the same site as written (--deliver plain) is 42 / 263.7 KB and 621 / 2,497.0 KB"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 873533,
+        "on": "2026-11-20",
+        "why": "lane/b-ui-buttons (7d0726992, 354fac7ad, UI audit #3) merged into set/v0.2.143 after the first pin: one button system painted in shell.css (+85 lines, three tokens), the controls block moved there from hunt.css, framed presses across the windows; every stylesheet loads with the page, so +1.0 KB gzip to sign-in and +1.2 KB to town. Measured identical on be2de0e71 (the set before origin/main v0.2.142 merged in) and on the merge (stamps only)"
       }
     ]
   }

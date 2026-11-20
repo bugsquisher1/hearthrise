@@ -5,6 +5,22 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.142 — 2026-11-20 (Tank Spells and Tougher Monsters)
+
+**Tank spells.** Sword and shield heroes get two rune spells of their own. Frost Slam chills every monster next to the tank. Shelter gives everyone close by a shield, and goes off when a monster starts a big spell. Both work in a party only, from Melee 12 and 20.
+
+**Tougher monsters.** Every monster has 10% more health and hits 10% harder. Kills give less Level XP, so Levels take a little longer. Monsters at the back now cast spells at Pyre's Reach, Krell's Hold and the Cold Bilge.
+
+**The Tower.** Floors past 100 get hotter and harder. If your best floor is past about 140, start lower. Floor 100 is the quick Platinum run. When a Tower run ends, your crafting starts again. Party members see the same floor as the hero you're watching. A kill and a fall on the same step no longer stalls the run. The end card says Keys earned.
+
+**First hours.** The Mill Cellar ends your hunt at Level 5 and tells you where to go next. If you come back low on stamina, the card shows what you can do that costs none. The Hunts window says why a party can't enter a ground someone has outgrown.
+
+**Bows.** New bow heroes start with Flame Volley on their bar.
+
+**Parties.** A hero who runs out of food now says so, instead of "party member left".
+
+**Look.** The sign-in screen opens on Hearth Square. Windows open faster. The practice yard sign is gone until the yard is ready.
+
 ## v0.2.141 — 2026-11-19 (Scaled Hunts and Bonus Weekends)
 
 **Scaled hunts.** Pay gold to raise an early ground to your Level. XP, gold and drops all go up, and the card shows by how much.

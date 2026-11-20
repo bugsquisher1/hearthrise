@@ -15,12 +15,12 @@
 // it was measured for (groundFloor, hallFloor), and a page names each slot once (notSaid). Display only: nothing here gates a press; the
 // hunt always runs.
 // ════════════════════════════════════════════════════════════════════════
-import { CONSUMABLES } from '../data/consumables.js?v=0.2.141';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.141';
-import { storeFloorFor } from '../data/supplies.js?v=0.2.141';
-import { storeName } from './bar-draft.js?v=0.2.141';
-import { whole, listWords } from '../render/format.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
+import { CONSUMABLES } from '../data/consumables.js?v=0.2.142';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
+import { storeFloorFor } from '../data/supplies.js?v=0.2.142';
+import { storeName } from './bar-draft.js?v=0.2.142';
+import { whole, listWords } from '../render/format.js?v=0.2.142';
+import { t } from '../render/player-text.js?v=0.2.142';
 
 /* WHERE A FLOOR SPEAKS (the 139 audit's B2: at Level 5 the Barrows and the Hold named a food and the Pyre, the Slake and the Ford did not). A
    floor is MEASURED for a lone hero in its place's Level band (supplies.js storeFloorFor; a hall's own row), so it speaks from the band's

@@ -30,10 +30,10 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { walkable } from './grid.js?v=0.2.141';
+import { walkable } from './grid.js?v=0.2.142';
 /* The kinds, the bounds and the spec check are what a DATA ROW may say, so they live in the data layer (src/data/shape-kinds.js);
    re-exported here for the engine's readers. */
-import { SHAPE_KINDS, SHAPE_BOUNDS, shapeProblem } from '../../data/shape-kinds.js?v=0.2.141';
+import { SHAPE_KINDS, SHAPE_BOUNDS, shapeProblem } from '../../data/shape-kinds.js?v=0.2.142';
 export { SHAPE_KINDS, SHAPE_BOUNDS, shapeProblem };
 
 const int = (v) => (Number.isSafeInteger(v) ? v : 0);

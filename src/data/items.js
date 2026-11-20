@@ -1,25 +1,25 @@
 // ITEMS — extracted from hearthrise-phaseA.html
 
-import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.141';
-import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.141';
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.141';
-import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.141';
-import { LIB2_ITEMS } from './library2-items.js?v=0.2.141';
-import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.141';
-import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.141';
-import { CHAMPION_ITEMS } from './champions.js?v=0.2.141';
-import { DRINK_ITEMS } from './drinks.js?v=0.2.141';
-import { IMBUE_ITEMS } from './imbuements.js?v=0.2.141';
-import { SHIELD_ITEMS } from './shields.js?v=0.2.141';
-import { CALL_ITEMS } from './boss-calls.js?v=0.2.141';
-import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.141';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
-import { foldRows } from './grounds/shape.js?v=0.2.141';
-import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.141';
-import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.141';
-import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.141';
-import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.141';
-import { PATTERN_ITEMS } from './patterns.js?v=0.2.141';
+import { GEAR_ITEMS } from './gear-tiers.js?v=0.2.142';
+import { WAVE3_ITEMS } from './wave3-uniques.js?v=0.2.142';
+import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.142';
+import { TREES, ROCKS, FISH_SPOTS, CROPS } from './gathering.js?v=0.2.142';
+import { LIB2_ITEMS } from './library2-items.js?v=0.2.142';
+import { STONECRAFT_ITEMS } from './stonecraft.js?v=0.2.142';
+import { BOSS_FORGE_ITEMS } from './boss-forge.js?v=0.2.142';
+import { CHAMPION_ITEMS } from './champions.js?v=0.2.142';
+import { DRINK_ITEMS } from './drinks.js?v=0.2.142';
+import { IMBUE_ITEMS } from './imbuements.js?v=0.2.142';
+import { SHIELD_ITEMS } from './shields.js?v=0.2.142';
+import { CALL_ITEMS } from './boss-calls.js?v=0.2.142';
+import { JEWELRY_ITEMS } from './jewelry.js?v=0.2.142';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.142';
+import { foldRows } from './grounds/shape.js?v=0.2.142';
+import { TRAINING_GEAR_ITEM_ROWS } from './training.js?v=0.2.142';
+import { CHEST_ITEM_ROWS, towerWeaponItems } from './chests.js?v=0.2.142';
+import { FIST_LINE, FIST_ITEMS } from './fists.js?v=0.2.142';
+import { catacombArmorItems, CATACOMB_ARMOR_SHIPPED } from './catacomb-armor.js?v=0.2.142';
+import { PATTERN_ITEMS } from './patterns.js?v=0.2.142';
 
 export const ITEMS={
   /* b215: the generated tier ladder (7 material tiers × every armour slot ×

@@ -121,10 +121,15 @@ $fn$;
 revoke execute on function public.hr_hunt_lever_at(uuid, int) from public, anon, authenticated, service_role;
 
 create or replace function public.hr_hunt_setup_live(p_user uuid, p_slot int, p_preset int, p_hunt text)
-returns jsonb language sql stable set search_path = public, pg_catalog as $fn$
-  -- LEVER-HORIZON: the setup the settle reads from the live tables for a session playing set p_preset on p_hunt: its options and
-  -- bar (player_action_sets), its First target there (hunt_density.target_kind) and its supply setting (hr_hunt_supply_of, the one
-  -- formula). A missing set reads as the member read always did: no options, an empty bar.
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+-- LEVER-HORIZON: the setup the settle reads from the live tables for a session playing set p_preset on p_hunt: its options and
+-- bar (player_action_sets), its First target there (hunt_density.target_kind) and its supply setting (hr_hunt_supply_of, the one
+-- formula). A missing set reads as the member read always did: no options, an empty bar. PLAN-CACHE (tools/gen-plan-cache.mjs's
+-- shape, tests/settle-budget.mjs SB-3): the SQL body below, planned once per backend (a SQL function with a SET clause is
+-- re-planned on every call on PostgreSQL 17).
+#variable_conflict use_column
+begin
+  return (select hr_q.v from (
   select jsonb_build_object(
            'preset', p_preset,
            'options', coalesce(a.options, '{}'::jsonb),
@@ -134,6 +139,8 @@ returns jsonb language sql stable set search_path = public, pg_catalog as $fn$
          || public.hr_hunt_supply_of(p_user, p_slot, p_preset)
     from (select 1) one
     left join public.player_action_sets a on a.user_id = p_user and a.slot = p_slot and a.preset = p_preset
+  ) as hr_q(v) limit 1);
+end
 $fn$;
 revoke execute on function public.hr_hunt_setup_live(uuid, int, int, text) from public, anon, authenticated, service_role;
 
@@ -151,13 +158,18 @@ alter table public.hunt_setup_holds enable row level security;
 revoke all on public.hunt_setup_holds from public, anon, authenticated, service_role;
 
 create or replace function public.hr_hunt_setup_of(p_s public.hunt_sessions)
-returns jsonb language sql stable set search_path = public, pg_catalog as $fn$
-  -- LEVER-HORIZON: the setup the window starting at the session's settled_to plays: the earliest hold at or after that instant
-  -- (the setup as it stood when the seeds reaching it were shown), else the live one.
+returns jsonb language plpgsql stable set search_path = public, pg_catalog as $fn$
+-- LEVER-HORIZON: the setup the window starting at the session's settled_to plays: the earliest hold at or after that instant
+-- (the setup as it stood when the seeds reaching it were shown), else the live one. PLAN-CACHE shape, as hr_hunt_setup_live.
+#variable_conflict use_column
+begin
+  return (select hr_q.v from (
   select coalesce(
            (select h.setup from public.hunt_setup_holds h
              where h.session_id = p_s.id and h.until >= p_s.settled_to order by h.until limit 1),
            public.hr_hunt_setup_live(p_s.user_id, p_s.slot, p_s.preset, p_s.hunt_id))
+  ) as hr_q(v) limit 1);
+end
 $fn$;
 revoke execute on function public.hr_hunt_setup_of(public.hunt_sessions) from public, anon, authenticated, service_role;
 

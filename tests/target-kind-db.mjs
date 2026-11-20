@@ -15,7 +15,8 @@
 //   TK-2 REFUSED, NEVER CLAMPED, NOTHING WRITTEN: a word that is no monster, a monster of another ground, an unknown ground, each
 //        refused in its code; a kind never comes in through the action set's options (bad_option).
 //   TK-3 THE PICK SURVIVES AND IS READ AFRESH: a reload's section (a fresh hr_state_of) names it; a pick mid-hunt is what the engine
-//        reads next (never frozen); a kind the catalogue no longer holds there reads as none; None clears it and keeps the row.
+//        reads from the first window past the seed horizon (1005-lever-horizon.sql; inside it, the pick the seeds were shown with),
+//        never frozen; a kind the catalogue no longer holds there reads as none; None clears it and keeps the row.
 //   TK-4 EACH HERO ITS OWN: two heroes in one party name two kinds; the engine's read gives each member its own, never the leader's.
 //   TK-5 THE BAR OFFERS ONLY WHAT THE SERVER TAKES: for every ground the server holds, every monster the bar's First target lists
 //        (src/shell/widgets/first-target.js reads hunt-grounds.js monstersOn) is one hr_hunt_ground_spawns holds there.
@@ -107,9 +108,21 @@ async function bothPaths(boot) {
 /* TK-2 and TK-3, on the viewed door's db (its one hunt still open at the Cellar, the healer named). */
 async function afterwards(db, user) {
   const problems = [];
-  const opts = async () => {
+  const readOpts = async () => {
     const read = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [user]);
     return read && read.members && read.members[0] && read.members[0].session ? read.members[0].session.options : null;
+  };
+  /* LEVER-HORIZON (1005-lever-horizon.sql): a pick mid-hunt plays from the first window past the seed horizon. `opts()` is the
+     engine's read for a window starting there (the session's clock moved past every hold it has, rolled back); `readOpts()` the
+     read for the window starting now. */
+  const opts = async () => {
+    await db.query('begin');
+    try {
+      await db.query(`update public.hunt_sessions s set settled_to = greatest(s.settled_to,
+                         (select max(h.until) from public.hunt_setup_holds h where h.session_id = s.id) + interval '1 millisecond')
+                       where s.user_id = $1 and s.slot = 0 and s.ended_at is null`, [user]);
+      return await readOpts();
+    } finally { await db.query('rollback'); }
   };
   const picks = async () => ((await one(db, 'select public.hr_state_of($1::uuid, 0)', [user])) || {}).hunt_target_kind;
   const set = async (hunt, kind) => {
@@ -142,8 +155,11 @@ async function afterwards(db, user) {
   await db.query('commit');
   if (!viaSet || viaSet.error !== 'bad_option') problems.push('TK-2 a kind through the action set answered ' + JSON.stringify(viaSet));
 
-  /* TK-3: a pick mid-hunt is the engine's next read, the hunt's instance unmoved */
+  /* TK-3: a pick mid-hunt is the engine's read past the seed horizon (inside it, the pick the seeds were shown with), the hunt's
+     instance unmoved */
   const r1 = await set(CELLAR, OTHER);
+  const held = await readOpts();
+  if (!held || held.target_kind !== HEALER) problems.push('TK-3 a pick mid-hunt played inside the seed horizon: the engine reads ' + JSON.stringify(held));
   const o1 = await opts();
   if (!r1 || r1.ok !== true || !o1 || o1.target_kind !== OTHER) problems.push('TK-3 a pick mid-hunt answered ' + JSON.stringify(r1) + ', the engine reads ' + JSON.stringify(o1));
   /* a kind the catalogue no longer holds on the ground (a later catalogue moved it off): none, in the engine and the section */

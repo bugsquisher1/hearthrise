@@ -155,7 +155,7 @@ renderHouse.patch = function patchHouse(body, ctx) {
       const isNext = next === tier;
       text(li.querySelector('.hw-estate-n'), ROMAN[tier.tier] || String(tier.tier));
       text(li.querySelector('b'), tier.name);
-      const opens = home.rooms.filter((r) => r.opens === tier.tier).map((r) => t('house.deed_opens_room', { room: r.name }));
+      const opens = home.rooms.filter((r) => r.opens === tier.tier && !r.held).map((r) => t('house.deed_opens_room', { room: r.name }));
       text(li.querySelector('small'), tier.owned ? (tier.tier === home.tier ? t('house.deed_yours_home') : t('house.deed_yours'))
         : isNext ? (opens.length ? t('house.deed_opens', { rooms: opens.join(', ') }) : t('house.deed_next_home')) : t('house.deed_after', { tier: tierName(tier.tier - 1) }));
       const afford = patchCost(ctx, li.querySelector('.hw-mats'), isNext ? tier : null, purse, bag, bank);
@@ -176,8 +176,10 @@ renderHouse.patch = function patchHouse(body, ctx) {
       const n = r.next;
       const gated = n && n.need > home.tier;
       const nextName = n ? n.name || t('house.rung_next', { rung: n.rung }) : '';
-      const line = !open ? t('house.room_opens_with', { tier: tierName(r.opens) })
-        : !useful ? (r.level ? t('house.room_nothing_built', { now }) : t('house.room_nothing'))
+      /* a held room (homestead-tiers.js HELD_HOME_ROOMS) has nothing to build and opens with nothing, whatever its perk row says */
+      const idle = r.held || (open && !useful);
+      const line = idle ? (r.level ? t('house.room_nothing_built', { now }) : t('house.room_nothing'))
+        : !open ? t('house.room_opens_with', { tier: tierName(r.opens) })
           : !n ? (does ? t('house.room_finished_does', { now, does }) : t('house.room_finished', { now }))
             : gated ? (does ? t('house.room_next_after_does', { now, does, next: nextName, tier: tierName(n.need) }) : t('house.room_next_after', { now, next: nextName, tier: tierName(n.need) }))
               : does ? t('house.room_next_does', { now, does, next: nextName, nextDoes: perkText(r.room, n.rung) })

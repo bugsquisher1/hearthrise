@@ -1,0 +1,41 @@
+{
+ "_readme": [
+  "Per-hero server cost, measured by tests/per-player-cost.mjs (CLAUDE.md §6 rule 10). Only shrinks:",
+  "--write tightens to a lower measurement; a higher one needs --raise \"<why>\", recorded in history."
+ ],
+ "windows": 12,
+ "tolerance": {
+  "statements_a_settle": 0,
+  "ledger_rows_a_hero_hour": 0.2,
+  "row_writes_a_settle": 0.2
+ },
+ "fixtures": {
+  "lone_L10_meadowbrook_thicket": {
+   "statements_a_settle": 5,
+   "ledger_rows_a_hero_hour": 48,
+   "row_writes_a_settle": 28
+  },
+  "party4_L20_millrace_sewer": {
+   "statements_a_settle": 8,
+   "ledger_rows_a_hero_hour": 44.3,
+   "row_writes_a_settle": 103
+  }
+ },
+ "history": [
+  {
+   "at": "2026-11-20",
+   "fixtures": {
+    "lone_L10_meadowbrook_thicket": {
+     "statements_a_settle": 5,
+     "ledger_rows_a_hero_hour": 48,
+     "row_writes_a_settle": 28
+    },
+    "party4_L20_millrace_sewer": {
+     "statements_a_settle": 8,
+     "ledger_rows_a_hero_hour": 44.3,
+     "row_writes_a_settle": 103
+    }
+   }
+  }
+ ]
+}

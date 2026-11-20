@@ -34,6 +34,10 @@
 //         both together cannot is short and off; the confirmation names the order
 //   HW-8  A SHORTFALL IN THE SERVER'S NUMBERS: a build refused insufficient_item says
 //         the bag and Storage counts the server sent
+//   HW-9  A HELD ROOM IS NOT SOLD (src/data/homestead-tiers.js HELD_HOME_ROOMS: the Trophy
+//         Room hangs nothing): the server still lists its next rung, open and payable,
+//         and the window says nothing is to build, claims no perk and offers no purchase;
+//         before the home opens it, the next deed does not name it and it waits on nothing
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -55,7 +59,10 @@ const SECTIONS = {
     { room: 'garden', name: 'Garden', level: 0, rungs: 5, opens: 1, rung_name: null,
       next: { offer: 'room.garden.1', name: 'Kitchen Garden', rung: 1, gold: 600, items: { normal_log: 60 }, need: 1, item: null } },
     { room: 'cellar', name: 'Cellar', level: 0, rungs: 5, opens: 2, rung_name: null,
-      next: { offer: 'room.cellar.1', name: 'Root Cellar', rung: 1, gold: 1200, items: { normal_log: 60 }, need: 2, item: null } }] },
+      next: { offer: 'room.cellar.1', name: 'Root Cellar', rung: 1, gold: 1200, items: { normal_log: 60 }, need: 2, item: null } },
+    /* HW-9: held. Open at this home's tier and in the purse's reach here, so only the hold keeps it off sale. */
+    { room: 'trophy', name: 'Trophy Room', level: 1, rungs: 5, opens: 1, rung_name: 'Trophy Wall',
+      next: { offer: 'room.trophy.2', name: 'The Hall', rung: 2, gold: 2000, items: { normal_log: 10 }, need: 1, item: null } }] },
   depot: { used: 54, cap: 120, base: 100, tier: 1, chests: [
     { chest: 'millrace_crate', name: 'Millrace Crate', stacks: 20, tier: 0, gold: 1500, items: { normal_log: 40 }, built: true },
     { chest: 'thicketwood_chest', name: 'Thicketwood Chest', stacks: 30, tier: 1, gold: 3000, items: { normal_log: 10 }, built: false },
@@ -155,6 +162,10 @@ async function checks(overrides) {
         /* HW-7 60 logs: 40 in the bag alone is short, 40 + 25 in Storage is not. */
         if (!/Normal Log 60 \(40 in bag \+ 25 in Storage\)/.test(by('Garden').t) || by('Garden').btn !== 'on' || by('Garden').short.length)
           fails.push('HW-7 the Garden (bag + Storage) reads ' + JSON.stringify(by('Garden')));
+        // HW-9
+        const held = by('Trophy Room');
+        if (!/Trophy Wall, 1 of 5\. Nothing to build here yet\./.test(held.t) || /bestiary trophies|The Hall|gp/.test(held.t) || held.btn !== 'none')
+          fails.push('HW-9 the held Trophy Room reads ' + JSON.stringify(held));
         // HW-4
         const chests = await lines(page, '.hw-chests');
         if (chests.length !== 3 || !/Built/.test(chests[0].t) || chests[0].btn !== 'none' || chests[1].btn !== 'on' || chests[2].btn !== 'none'
@@ -187,6 +198,19 @@ async function checks(overrides) {
       }
       await ctx.close();
     }
+    { // HW-9, before the home opens it: the held room is not what the next deed opens, and it waits on nothing
+      const early = clone(SECTIONS);
+      Object.assign(early.home.rooms.find((r) => r.room === 'trophy'), { level: 0, opens: 2, rung_name: null });
+      const { ctx, page, opened } = await open(early);
+      if (!opened) fails.push('HW-9 the window did not open with the held room unopened');
+      else {
+        const deed = await lines(page, '.hw-deed');
+        const held = (await lines(page, '.hw-rooms')).find((r) => r.t.startsWith('Trophy Room')) || { t: '', btn: '?' };
+        if (!deed[1] || !/Opens the Cellar\./.test(deed[1].t) || /Trophy/.test(deed[1].t)) fails.push('HW-9 the next deed reads ' + JSON.stringify(deed[1] && deed[1].t));
+        if (!/^Trophy RoomNothing to build here yet\./.test(held.t) || held.btn !== 'none') fails.push('HW-9 the unopened held Trophy Room reads ' + JSON.stringify(held));
+      }
+      await ctx.close();
+    }
     { // HW-6
       const { ctx, page, opened } = await open({});
       if (!opened) fails.push('HW-6 the window did not open without the sections');
@@ -211,6 +235,9 @@ const MUTANTS = [
   ['a short purse or bag still buys', 'src/shell/windows/house.js', "patchAsk(li.querySelector('[data-hs-act=\"house-ask\"]'), 'home', isNext ? tier.offer : null, t('controls.buy'), isNext && afford && !sc.pending);",
     "patchAsk(li.querySelector('[data-hs-act=\"house-ask\"]'), 'home', isNext ? tier.offer : null, t('controls.buy'), isNext && !sc.pending);"],
   ['a room the home has not opened is offered', 'src/shell/windows/house.js', 'const buyable = open && useful && n && !gated;', 'const buyable = useful && n;'],
+  ['a held room\'s next rung reaches the window', 'src/session/home-sections.js', 'const held = HELD_HOME_ROOMS.includes(r.room);', 'const held = false;'],
+  ['a held room still claims its perk', 'src/shell/windows/house.js', 'const idle = r.held || (open && !useful);', 'const idle = open && !useful;'],
+  ['the deed still says it opens a held room', 'src/shell/windows/house.js', 'r.opens === tier.tier && !r.held', 'r.opens === tier.tier'],
   ['the reader invents a home', 'src/session/home-sections.js', "  const h = read(cs, 'home');\n", "  const h = read(cs, 'home') || { tier: 0, tiers: [{ offer: 'property.homestead', name: 'Home', tier: 1, need: 0, gold: 1, items: {} }], rooms: [] };\n"],
   ['the room rung goes to the wrong verb', 'src/session/home-intents.js', "cs.edgeIntent('unlock_buy', { offer })", "cs.edgeIntent('shop_buy', { offer, qty: 1 })"],
   ['the Storage is not counted (the bag alone pays)', 'src/shell/windows/house.js', 'const inStorage = stored ? stored.get(it.id) || 0 : null;', 'const inStorage = null;'],
@@ -223,7 +250,7 @@ async function main() {
     const fails = await checks(null);
     for (const f of fails) console.log('  ✗ ' + f);
     console.log(fails.length ? 'house-window: ' + fails.length + ' rule(s) RED'
-      : 'house-window: opens on E; the deed, rooms and chests from the server; a chest at its quoted price after a confirmation; a rung through unlock_buy; refusals in words; fails safe');
+      : 'house-window: opens on E; the deed, rooms and chests from the server; a chest at its quoted price after a confirmation; a rung through unlock_buy; refusals in words; a held room is not sold; fails safe');
     process.exit(fails.length ? 1 : 0);
   }
   const clean = await checks(null);

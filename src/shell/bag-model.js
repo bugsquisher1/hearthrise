@@ -35,7 +35,7 @@ import { CHEST_OUTFITS } from '../data/chests.js?v=0.2.142';
 import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.142';
 import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.142';
 import { SHOP_OFFERS } from '../data/shops.js?v=0.2.142';
-import { HELD_HOME_OFFERS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.142';
+import { HELD_HOME_OFFERS, HELD_HOME_ROOMS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.142';
 import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.142';
 import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.142';
 import { recipeInputs } from '../core/artisan.js?v=0.2.142';
@@ -101,12 +101,14 @@ for (const rows of Object.values(ARTISAN_RECIPES)) for (const r of rows || []) i
 export const madeFromKit = (id) => KIT_MADE.get(id) || null;
 
 let HOME_SPENDS = null;
-/* Every item some House price names, built once: the deeds and rooms a player can reach, and the storage chests. */
+/* Every item some House price names, built once: the deeds and rooms a player can reach (no held offer, no rung of a held
+   room: homestead-tiers.js), and the storage chests. */
+const heldRoomRung = (o) => (o.grant || []).some((g) => g && HELD_HOME_ROOMS.some((r) => g.id === 'room:' + r));
 function homeSpends() {
   if (HOME_SPENDS) return HOME_SPENDS;
   HOME_SPENDS = new Set();
   const held = new Set(HELD_HOME_OFFERS);
-  for (const o of SHOP_OFFERS) if ((o.table === 'property' || o.table === 'room') && !held.has(o.id)) for (const c of o.cost || []) if (c.kind === 'item') HOME_SPENDS.add(c.id);
+  for (const o of SHOP_OFFERS) if ((o.table === 'property' || o.table === 'room') && !held.has(o.id) && !heldRoomRung(o)) for (const c of o.cost || []) if (c.kind === 'item') HOME_SPENDS.add(c.id);
   for (const c of STORAGE_CHESTS) for (const id of Object.keys(c.cost || {})) if (id !== 'gold') HOME_SPENDS.add(id);
   return HOME_SPENDS;
 }

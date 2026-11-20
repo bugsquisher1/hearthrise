@@ -32,6 +32,10 @@
     list stays, empty, for the next row whose content isn't built. */
 export const HELD_HOME_OFFERS = Object.freeze([]);
 
+/** ROOMS HELD WHOLE UNTIL REBUILT (CLAUDE.md §3.5, 26-home.md §4): the Trophy Room's wall hangs nothing (world-boot.js
+    `trophies: null`). The client sells no rung of one (home-sections.js, bag-model.js); rungs bought stay. */
+export const HELD_HOME_ROOMS = Object.freeze(['trophy']);
+
 /** PROPERTY_TIERS[i] is property tier i. `rooms` are the rooms tier i first opens. */
 export const PROPERTY_TIERS = Object.freeze([
   {

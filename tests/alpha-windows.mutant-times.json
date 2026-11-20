@@ -403,13 +403,20 @@
   "plans: AW-104 the doll's weapon list sums every style (post-140 C6)": 1,
   "plans: AW-32 the chest at the yard says hunting (post-140 C7)": 1,
   "ticker: a counted run's work line says the stock and that materials stop it": 1,
-  "ticker: a counted run's work line forgets what it has made": 1
+  "ticker: a counted run's work line forgets what it has made": 1,
+  "AW-8 the readiness checklist's head slides under the foot": 50,
+  "AW-93 a still pass re-makes the same trims again": 264,
+  "AW-105 the outgrown card leads with a greyed Hunt again again": 36,
+  "AW-105 a phone stacks the Go to press under the steps": 42,
+  "hunts: AW-25 the Cellar past its exit reads Below level": 1,
+  "AW-25 the Cellar's band reads past its exit": 96
  },
  "added": [
   "2026-11-19, tools/mutant-times.mjs: GitHub run(s) 44366545745, 44402194704",
   "2026-11-19, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows.mjs --mutate --only=item truth: panel:",
   "2026-11-19, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows.mjs --mutate --only=plans:",
   "2026-11-19, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows.mjs --mutate --only=ticker: a counted run",
-  "2026-11-19, tools/mutant-times.mjs: GitHub run(s) 44366545745, 44402194704 (--replace: every mutant timed there re-booked)"
+  "2026-11-19, tools/mutant-times.mjs: GitHub run(s) 44366545745, 44402194704 (--replace: every mutant timed there re-booked)",
+  "2026-11-20, tools/mutant-times.mjs: GitHub run(s) 44658385839"
  ]
 }

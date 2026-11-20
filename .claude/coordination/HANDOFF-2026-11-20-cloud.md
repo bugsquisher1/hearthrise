@@ -31,7 +31,7 @@ Container restarts killed both lanes twice; each resumed from its WIP commits. W
 | Lane | Branch / state | What |
 |---|---|---|
 | First-hour next step (systems-engineer, default model) | `worktree-agent-a99fe28a5d333f524`, WIP c20bcba4 (pushed) | (1) An outgrown end (Cellar at Level 5) leads with "Go to <next ground>" on the summary and the away card, visible at 1440x900 / 1280x720 / 667x375. (2) A low-stamina return names the stamina-free loops the server says are unlocked. (3) The Hunts window doesn't enable Enter for a ground a member has outgrown, and the refusal names the real reason (was "Wren is not ready"). 18 files: `src/shell/{after-hunt,away-recap,back-in-town,hunt-list,intent-words}.js`, `windows/{away,hunt-summary,hunts,scale-pane}.js`, `src/data/text/*`, `summary.css`, tests in alpha-windows, away-recap-world, hunt-floor-warning, hunt-summary, shell-core, instant-press |
-| Luck v2 (game-designer, **Fable**) | `worktree-agent-adfad44d0385f44f7`, WIP 70187bf3 (pushed) | Revising §15 to Tyler's 11-20 rulings (§4). Returns a spec; the Coordinator replaces §15 |
+| Luck v2 (game-designer, **Fable**) | DONE, merged (56f16fa9) | Plan §15 replaced with v2: account Bestiary (stages 100/500/2,500/10,000/40,000/160,000), salvage feed with a found-by-your-hunts allowance, one +25% pool. Awaiting Tyler: salvage size, the ceiling, the v1 cuts |
 
 ## 4. New rulings (add to `rulings-of-record`)
 

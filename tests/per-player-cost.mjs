@@ -44,7 +44,7 @@
 // Counts hold on any machine; nothing here reads a millisecond.
 //
 // LUCK ON (lane/d-luck-build, 2026-11-20; balance-program/01-model.md §7 allowance): the same fixtures are measured again with the
-// `luck` switch on for everyone, against the SAME baseline. Luck v3.1 writes nothing while a hunt runs (1007-luck.sql hr_luck_fold
+// `luck` switch on for everyone, against the SAME baseline. Luck v3.1 writes nothing while a hunt runs (1013-luck.sql hr_luck_fold
 // folds a hunt into the account once, at its end), so a settle with Luck on costs what a dark one does: a red here is a Luck counter
 // back on the settle path. --selftest plants one (an account_kills upsert a combat row) and requires it red.
 // ════════════════════════════════════════════════════════════════════════

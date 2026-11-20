@@ -443,9 +443,9 @@ function rules(M) {
     ok('LV-X', [undefined, 0, -3, 2.5, 'x', null].every((v) => at(v) === 0), 'an absent or invalid Magic Find is not 0');
     ok('LV-X', at(9999) === 104, 'a Magic Find past the far stop and the best Lucky ring is not clamped to 104: ' + at(9999));
     ok('LV-X', !('relicMult' in side(memberOf(M, 'a', 0, 'tank', 6))), 'the cut relic multiplier is back on the member');
-    /* the settle reads it from the server's OWN read of the member (hr_hunt_instance_read magic_find), never the request */
+    /* the settle reads it from the server's OWN read of the member (hr_hunt_member_state magic_find), never the request */
     const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
-    ok('LV-X', src.includes('magicFind: Number.isInteger(m.magic_find) ? m.magic_find : 0,'),'hunt-settle.js does not read magic_find off hr_hunt_instance_read');
+    ok('LV-X', src.includes('magicFind: Number.isInteger(env.magic_find) ? env.magic_find : 0,'), 'hunt-settle.js does not read magic_find off hr_hunt_member_state');
   }
 
   { // LV-P: party privacy — a peer's row is its frozen numbers, nothing else; the viewer's own row is whole.

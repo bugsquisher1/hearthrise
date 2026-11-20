@@ -480,9 +480,7 @@ const READ_PATCH_LAST = '2027-01-25-town-defaults.sql';
 /* hr_hunt_instance_read's last author (A-PARTY plants its kick line there): restated whole, no splice after it
    (2027-04-24-tower-climb.sql §5: 2027-04-25-boss-daily.sql's splice of 2027-04-23-session-modes.sql's text plus the
    instance's tower_floor; it applies after boss-daily). */
-/* LUCK (lane/d-luck-build, 2026-11-20): 1007-luck.sql restates hr_hunt_instance_read WHOLE after 1005-lever-horizon.sql's (its body + one key per member, magic_find), so the
-   live body, and the A-PARTY plant, are 1007's now. */
-const READ_LAST = '1007-luck.sql';
+const READ_LAST = '1005-lever-horizon.sql';   // (1005-lever-horizon.sql restates it whole after tower-climb: the First target is the window's)
 export function memberPlant(find, repl) {
   return { file: MEMBER_LAST, fn: 'hr_hunt_apply_member', find, repl };
 }

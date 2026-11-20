@@ -1,0 +1,3 @@
+{
+  "note": "STAGED, NOT APPLIED (lane/d-luck-build, systems-engineer, 2026-11-20; itemization plan §15 v3.1, Tyler 2026-11-20: cut the four foods' drop buffs): hr_item_buffs loses the drop_rate rows of Cooked Lobster, Goldgill Steak, Tomato Soup and Wheat Bread, the same full delete + insert as 2027-05-22-cookbook-cut-item-buffs-catalogue (applied). ORDER: 1014 in its name (gen-catalogues also writes 1009-luck-items, so one number each, NAME-4); independent of 1009-1013. EDGE: the hr-accrue bundle carries the same ITEMS."
+}

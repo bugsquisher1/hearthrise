@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/luck.mjs — LUCK v3.1 HOLDS ITS RULES ON THE ENGINE AND ON THE SERVER (docs/design/itemization-plan.md §15; src/data/luck.js,
-// src/core/luck.js, src/core/drops.js, src/core/hunt-rewards.js, supabase/migrations/1007-luck.sql).
+// src/core/luck.js, src/core/drops.js, src/core/hunt-rewards.js, supabase/migrations/1013-luck.sql).
 //
 //   L1  THE CURVE IS THE DESIGNER'S, ON THE SERVER: hr_luck_to_rank(n) = 100 x (1^2 + ... + n^2) for n = 0..100 (38,500 at 10, 149,600 at
 //       16, 33.84M at the far stop); hr_luck_rank reads n at that Luck and n - 1 a Luck short; past the far stop it stays at 100.
@@ -189,7 +189,7 @@ async function L8(root) {
   return null;
 }
 
-/* L9, the server: the replayed chain (tests/schema-replay.mjs) with 1007-luck.sql applied. */
+/* L9, the server: the replayed chain (tests/schema-replay.mjs) with 1013-luck.sql applied. */
 async function L9() {
   const { bootReplay, closeReplays } = await import(pathToFileURL(join(ROOT, 'tests/schema-replay.mjs')).href);
   const { db } = await bootReplay();
@@ -220,6 +220,12 @@ async function L9() {
     await q("update public.hr_feature_switches set scope = 'accounts', accounts = array[$1::uuid] where switch_id = 'luck'", [u]);
     const [on] = await q('select public.hr_magic_find_of($1, 0) as v', [u]);
     if (on.v !== 16 + 2) return `L9 on: Magic Find ${on.v}, want rank 16 + the larger ring's 2 (two Lucky rings count once)`;
+    /* ...and the settle's engine inputs carry the same number (hr_hunt_member_state, the edge's only source of it); dark, 0 */
+    const [ms] = await q("select (public.hr_hunt_member_state($1, 0)->>'magic_find')::int as v", [u]);
+    if (ms.v !== on.v) return `L9 on: the member state carries Magic Find ${ms.v}, the account ${on.v}`;
+    await q("update public.hr_feature_switches set scope = 'off', accounts = '{}' where switch_id = 'luck'");
+    const [ms0] = await q("select (public.hr_hunt_member_state($1, 0)->>'magic_find')::int as v", [u]);
+    if (ms0.v !== 0) return `L9 dark: the member state carries Magic Find ${ms0.v}`;
     return null;
   } finally { await closeReplays(); }
 }

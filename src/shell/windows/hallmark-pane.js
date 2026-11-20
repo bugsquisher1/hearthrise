@@ -53,7 +53,7 @@ function reforgeBlockOf(cs, o, h, purse, lv) {
   return '';
 }
 
-/* THE LUCKY JOB (src/data/luck.js; 1007-luck.sql): its row's block, from the luck section's own numbers (the rivets held in the bag and Storage). */
+/* THE LUCKY JOB (src/data/luck.js; 1013-luck.sql): its row's block, from the luck section's own numbers (the rivets held in the bag and Storage). */
 function luckyBlockOf(o, lk, purse, lv) {
   if (lv !== null && lv < o.level) return levelShort(o, lv);
   if (lk.lucky.today >= lk.lucky.perDay) return t('jewel.limit_lucky', { limit: whole(lk.lucky.perDay) });

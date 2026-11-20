@@ -25,7 +25,7 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 6904,
+ "replay_ms": 3448,
  "counts": {
   "tracked_names": 974,
   "entries": 825
@@ -7182,21 +7182,24 @@
    "sig": "hr_home_view(p_user uuid, p_slot integer)",
    "name": "hr_home_view",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1007-home-view-held-rooms.sql",
     "2026-11-29-house-home.sql",
     "2027-02-10-settle-plan-cache.generated.sql"
    ],
    "live": {
-    "md5": "5ce493ae4d6924e45c55f164a9555dbd",
-    "norm_len": 2541,
+    "md5": "fe5c2af186265969abecc2acea2a4243",
+    "norm_len": 3667,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5ce493ae4d6924e45c55f164a9555dbd",
-    "norm_len": 2541,
+    "md5": "fe5c2af186265969abecc2acea2a4243",
+    "norm_len": 3667,
     "source": "computed-from-replay"
    },
    "agree": true

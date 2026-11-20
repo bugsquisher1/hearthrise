@@ -440,7 +440,7 @@ async function build(out, deliver = DELIVERIES[0], baseline = readBaseline()) {
       for (const [rel, text] of bundled.files) { mkdirSync(dirname(join(out, rel)), { recursive: true }); writeFileSync(join(out, rel), text); minified.delete(rel); }
       writeFileSync(join(out, GAME_LIST), gameListText(bundled.game));
       minified.delete(GAME_LIST);
-      writeFileSync(join(out, BOOT_PAGE), preloadBlock(logical(BOOT_PAGE), bundled.signIn, version));
+      writeFileSync(join(out, BOOT_PAGE), preloadBlock(logical(BOOT_PAGE), bundled.signIn.concat(GAME_LIST), version));   // the list is boot.js's static import too
     }
   }
   const files = sizes(out), read = reader(out);
@@ -571,9 +571,56 @@ async function selftest() {
     if (!ok) bad++;
     console.log((ok ? '✓ ' : '✗ ') + name + ' → ' + (got[0] ? got[0].slice(0, 150) : 'GREEN') + ' (want ' + (rule || 'GREEN') + ')');
   }
+  const delivered = await deliveryCases(plan, read, clean);
+  bad += delivered.bad;
   if (bad) { console.error('✗ build-site --selftest: ' + bad + ' case(s) wrong'); return 1; }
-  console.log('✓ build-site --selftest: all ' + cases.length + ' cases behave');
+  console.log('✓ build-site --selftest: all ' + (cases.length + delivered.n) + ' cases behave');
   return 0;
+}
+
+/** SITE-10 and SITE-11, planted into the site as written (its graph read by esbuild, as the build reads the served one). */
+async function deliveryCases(plan, read, clean) {
+  const esbuild = loadEsbuild(ROOT);
+  const files = plan.files, has = (p) => files.has(p), site = { files, read };
+  const roots = pageLoads(read(BOOT_PAGE)).filter((l) => l.module).map((l) => l.file).concat(gameList(read(GAME_LIST)));
+  const { graph, missing } = await moduleGraph(esbuild, read, has, roots);
+  const measured = bootPath(site, graph);
+  const row = (m, why = 'the measure, pinned by the proof') => ({ modules: m.modules, gzipBytes: m.gzipBytes, on: '2026-11-19', why });
+  const pinAt = (edit = (s, m) => m) => ({ ceilings: Object.fromEntries(BOOT_STAGES.map((s) => [s, [row(edit(s, measured[s]))]])) });
+  /* the sign-in entry imports the game half statically (lane b-first-load's 520 files before the form, back) */
+  const leaked = new Map(graph);
+  leaked.set(ENTRY, { ...graph.get(ENTRY), static: graph.get(ENTRY).static.concat('src/app/game-half.js') });
+  /* 4 KB of code the gzip cannot shrink, in a module the sign-in screen loads */
+  const noise = Array.from({ length: 4096 }, (_, i) => String.fromCharCode(33 + ((i * 7919 + (i >> 3) * 104729) % 89))).join('').replace(/[`$\\]/g, 'x');
+  const heavier = { files, read: (p) => (p === ENTRY ? read(p) + '\nexport const NOISE = `' + noise + '`;\n' : read(p)) };
+  const planted = (p) => (p === ENTRY ? read(p) + "\nimport './never-built.js';\n" : read(p));
+  const minified = (file, text) => { const m = minifyModule(esbuild, text); return new Map([[file, { before: m.parsed, after: m.code, drift: m.drift }]]); };
+  const newUrl = clean.needs.filter((n) => n.rule === 'SITE-2' && n.via === 'new URL').map((n) => n.path);
+  const cases = [
+    ['CONTROL the boot path at its own measure', () => bootPathProblems(measured, pinAt()), null],
+    ['CONTROL a cut inside the slack', () => bootPathProblems(measured, pinAt((s, m) => ({ modules: m.modules + BOOT_SLACK.modules, gzipBytes: m.gzipBytes + BOOT_SLACK.gzipBytes }))), null],
+    ['the sign-in entry imports the game half statically', () => bootPathProblems(bootPath(site, leaked), pinAt()), 'SITE-10', 'to the sign-in stage'],
+    ['4 KB more code the sign-in screen loads', () => bootPathProblems(bootPath(heavier, graph), pinAt()), 'SITE-10', 'KB gzip (ceiling'],
+    ['a cut past the slack, not locked in', () => bootPathProblems(measured, pinAt((s, m) => ({ ...m, gzipBytes: m.gzipBytes + BOOT_SLACK.gzipBytes + 1 }))), 'SITE-10', 'lock the cut in'],
+    ['a raise row with no reason', () => bootPathProblems(measured, { ceilings: { ...pinAt().ceilings, town: [row({ modules: 1, gzipBytes: 1 }), row(measured.town, '')] } }), 'SITE-10', 'no reason'],
+    ['a stage never pinned', () => bootPathProblems(measured, { ceilings: { town: pinAt().ceilings.town } }), 'SITE-10', 'no ceiling'],
+    ['a boot path reader that reads nothing', () => bootPathProblems(bootPath({ files, read: (p) => (p === BOOT_PAGE ? '<html></html>' : read(p)) }, new Map()), pinAt()), 'SITE-8', 'SITE-10'],
+    ['CONTROL every runtime URL load the source makes is an entry or a listed file', () => deliveryProblems({ newUrl, missing, bundled: true }), null],
+    ['a new runtime URL load nobody listed', () => deliveryProblems({ newUrl: newUrl.concat('src/shell/windows/never-listed.js'), bundled: true }), 'SITE-11', 'never-listed.js'],
+    ['a listed runtime load the source no longer makes', () => deliveryProblems({ newUrl: newUrl.filter((p) => !(p in RUNTIME_MODULES)), bundled: true }), 'SITE-11', 'drop its row'],
+    ['syntax the publish target lowers (a ||= b is ES2021)', () => deliveryProblems({ minified: minified('src/x.js', 'export let a = 0; export const f = (b) => { a ||= b; };') }), 'SITE-11', 'differently at the publish target'],
+    ['CONTROL import attributes survive the target (src/world/atlas.js)', () => deliveryProblems({ minified: minified('src/x.js', "export const j = (u) => import(u, { with: { type: 'json' } });") }), null],
+    ['a minified module lost a specifier', () => deliveryProblems({ minified: new Map([['src/x.js', { before: "import './a.js?v=1';", after: '', drift: false }]]) }), 'SITE-11', 'lost or changed'],
+    ['the served graph imports a file the site lacks', async () => deliveryProblems({ missing: (await moduleGraph(esbuild, planted, has, [ENTRY])).missing }), 'SITE-11', 'never-built.js'],
+  ];
+  let bad = 0;
+  for (const [name, run, rule, needle] of cases) {
+    const got = await run();
+    const ok = rule === null ? got.length === 0 : got.some((p) => p.startsWith(rule + ' ') && p.includes(needle));
+    if (!ok) bad++;
+    console.log((ok ? '✓ ' : '✗ ') + name + ' → ' + (got[0] ? got[0].slice(0, 150) : 'GREEN') + ' (want ' + (rule || 'GREEN') + ')');
+  }
+  return { n: cases.length, bad };
 }
 
 // ── THE CLI ──────────────────────────────────────────────────────────────

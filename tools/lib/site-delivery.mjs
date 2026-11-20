@@ -170,7 +170,7 @@ export async function moduleGraph(esbuild, read, has, roots) {
     name: 'hearthrise-graph',
     setup(b) {
       b.onResolve({ filter: /.*/ }, (a) => {
-        if (a.kind === 'entry-point') return { path: a.path, namespace: 'site' };
+        if (a.kind === 'entry-point') return { path: a.path.replace(/^\.\//, ''), namespace: 'site' };
         if (!/^\.\.?\//.test(a.path)) return { path: a.path, external: true };
         const rel = posix.normalize(posix.join(posix.dirname(a.importer), a.path.split(/[?#]/)[0]));
         if (!has(rel)) { missing.add(rel); return { path: rel, external: true }; }
@@ -181,9 +181,10 @@ export async function moduleGraph(esbuild, read, has, roots) {
   };
   const got = await esbuild.build({ entryPoints: roots, bundle: true, write: false, metafile: true, format: 'esm', splitting: false,
     outdir: 'graph-out', logLevel: 'silent', plugins: [plugin] });
+  const key = (p) => p.replace(/^site:/, '').replace(/^\.\//, '');   // an entry point is named './src/…' in the metafile
   for (const [k, v] of Object.entries(got.metafile.inputs)) {
-    const file = k.replace(/^site:/, '');
-    const own = (kind) => v.imports.filter((x) => x.kind === kind && !x.external).map((x) => x.path.replace(/^site:/, ''));
+    const file = key(k);
+    const own = (kind) => v.imports.filter((x) => x.kind === kind && !x.external).map((x) => key(x.path));
     graph.set(file, { static: own('import-statement'), dynamic: own('dynamic-import') });
   }
   return { graph, missing: Array.from(missing) };

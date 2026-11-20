@@ -35,6 +35,8 @@ import { recipeInputs } from '../../src/core/artisan.js';
 import { pacedActionMs } from '../../src/core/pacing.js';
 import { feeMgOf } from '../../src/core/bench-tax.js';
 import { vendorPriceOf } from '../../supabase/functions/hr-accrue/catalogue.js';
+import { SUPPLY_SHOP_OFFERS, BASIC_SUPPLIES } from '../../src/data/supply-basics.js';
+import { skillXpForLevel } from '../../src/core/xp.js';
 import { REFERENCE_PLAYERS, REF_POINTS, REAL_OWN_FOUR_NET } from './model.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -184,27 +186,54 @@ function storage() {
 }
 
 function farm() {
-  console.log('\nFARMING (gathering.js CROPS, core/farm.js; one water press doubles growth for ' + WATER_WINDOW_H + ' h). READ FROM DATA.');
-  row('Crop', 'Farming', 'Plot tier', 'Hours dry', 'Yield', 'Crop Shop bid', 'Seed Shop price', 'Farming XP', 'A bed-day dry: harvests', 'gold at the bid', 'XP', '12 beds a day: gold', 'XP', 'Regrows');
-  row(...Array(14).fill('---'));
+  console.log('\nFARMING (gathering.js CROPS, core/farm.js, supply-basics.js; XP a harvest = the crop\'s xp x pieces, hr_farm_harvest). READ FROM DATA.');
+  console.log('One water press doubles growth for ' + WATER_WINDOW_H + ' h, at most 8 a planting. "Drink" = the 1 crop : 1 drink recipe, valued at the store drink it replaces (store price x own mana / store mana).');
+  row('Crop', 'Farming', 'Plot tier', 'Hours dry', 'Yield', 'Seed at the Shop', 'Crop Shop bid', 'A harvest: XP', 'at the bid', 'as drinks, store value', 'Harvests a seed', 'A bed-day dry: gold as drinks (or bid), seed paid', 'XP', 'Two visits a day, one bed: gold', 'XP');
+  row(...Array(15).fill('---'));
   const tierOf = (id) => { for (let lv = 1; lv < PLOT_TIERS.length; lv++) if (PLOT_TIERS[lv].unlocks.includes(id)) return lv; return 0; };
-  const seedPrice = (id) => { const it = ITEMS[id]; return it ? (it.buy || it.price || it.v || 0) : 0; };
+  const seedPrice = (id) => (SUPPLY_SHOP_OFFERS.find((o) => o.item === id) || {}).price || 0;
+  const drinkOf = (prod) => {
+    const r = ARTISAN_RECIPES.cooking.find((x) => { const ins = recipeInputs(x); return Object.keys(ins).length === 1 && ins[prod] === 1 && ITEMS[x.output] && ITEMS[x.output].mana; });
+    if (!r) return null;
+    const st = BASIC_SUPPLIES.find((b) => b.partner === r.output);
+    return st ? { id: r.output, each: st.price * ITEMS[r.output].mana / st.mana } : null;
+  };
+  const out = [];
   for (const [id, c] of Object.entries(CROPS)) {
-    const y = (c.yield[0] + c.yield[1]) / 2, perDay = 24 / c.hours;
-    row(c.name, c.req, tierOf(id), c.hours, c.yield.join('-'), bid(c.prod), seedPrice(c.seed), c.xp, perDay.toFixed(2), n(perDay * y * bid(c.prod)), n(perDay * c.xp), n(12 * perDay * y * bid(c.prod)), n(12 * perDay * c.xp), REGROW_LIMITS[id] ? REGROW_LIMITS[id] + ' regrows' : '');
+    const y = (c.yield[0] + c.yield[1]) / 2, perDay = 24 / c.hours, d = drinkOf(c.prod);
+    const each = d ? d.each : bid(c.prod);
+    const harvests = 1 + (REGROW_LIMITS[id] || 0);
+    const seedAHarvest = seedPrice(c.seed) / harvests;
+    /* two visits a day 12 h apart, one water press a visit (+2 growth-hours): a crop of 14 h or less is cut every visit, up to 26 h once a day */
+    const v2 = c.hours <= 14 ? 2 : c.hours <= 26 ? 1 : 0.5;
+    row(c.name, c.req, tierOf(id), c.hours, c.yield.join('-'), seedPrice(c.seed), bid(c.prod), n(c.xp * y), n(y * bid(c.prod)), d ? n(y * d.each) + ' (' + name(d.id) + ')' : 'no drink', harvests,
+      n(perDay * (y * each - seedAHarvest)), n(perDay * c.xp * y), n(v2 * (y * each - seedAHarvest)), n(v2 * c.xp * y));
+    out.push({ id, v2gold: v2 * (y * each - seedAHarvest), v2xp: v2 * c.xp * y });
   }
-  console.log('plot tiers: ' + Object.entries(PLOT_TIER_PRICES).map(([lv, p]) => 'tier ' + lv + ' ' + n(p.gold) + ' g at Farming ' + p.farming).join('; ') + ' = ' + n(Object.values(PLOT_TIER_PRICES).reduce((s, p) => s + p.gold, 0)) + ' g');
+  console.log('17 beds, two visits a day, best three by gold: ' + [...out].sort((x, y) => y.v2gold - x.v2gold).slice(0, 3).map((o) => o.id + ' ' + n(17 * o.v2gold) + ' g and ' + n(17 * o.v2xp) + ' XP a day').join('; '));
+  console.log('17 beds, two visits a day, best three by XP: ' + [...out].sort((x, y) => y.v2xp - x.v2xp).slice(0, 3).map((o) => o.id + ' ' + n(17 * o.v2xp) + ' XP and ' + n(17 * o.v2gold) + ' g a day').join('; '));
+  console.log('plot tiers: ' + Object.entries(PLOT_TIER_PRICES).map(([lv, p]) => 'tier ' + lv + ' ' + n(p.gold) + ' g at Farming ' + p.farming).join('; ') + ' = ' + n(Object.values(PLOT_TIER_PRICES).reduce((t, p) => t + p.gold, 0)) + ' g');
   console.log('beds: property ' + PROPERTY_TIERS.map((t) => t.plots).join('/') + ' + the Garden +1 to +5 = at most ' + (PROPERTY_TIERS[PROPERTY_TIERS.length - 1].plots + 5));
+  console.log('presses a visit, N beds all ready: N harvest-and-replant + N water = 2N, one at a time (no harvest-all, no water-all; plant-all exists). 6 beds 12, 12 beds 24, 17 beds 34.');
+  row('Farming level', 'XP to reach it', 'XP to the next');
+  row('---', '---', '---');
+  for (const lv of [10, 30, 50, 70, 88, 99]) row(lv, n(skillXpForLevel('farming', lv)), n(skillXpForLevel('farming', lv + 1) - skillXpForLevel('farming', lv)));
 }
 
 function training() {
   const R = TRAINING_RULES;
-  console.log('\nTRAINING (training.js, gold-sinks.js house_dummy). READ FROM DATA. Skill XP a level from the skill curve the game reads.');
-  row('Skill level', 'Yard fee an hour', 'XP an hour', 'Fee a 12 h session', 'Dummy rung 1 (' + n(SINK_RULES.house_dummy.prices[0]) + ') pays back after, yard hours', 'All four rungs (' + n(SINK_RULES.house_dummy.prices.reduce((a, b) => a + b, 0)) + ') over four skills, yard hours');
-  row(...Array(6).fill('---'));
-  const all = SINK_RULES.house_dummy.prices.reduce((a, b) => a + b, 0);
-  for (const lv of [10, 30, 45, 60, 80, 110]) row(lv, n(trainingFee(lv)), n(R.xpPerHour), n(trainingFee(lv) * 12), n(SINK_RULES.house_dummy.prices[0] / trainingFee(lv)), n(all / trainingFee(lv)));
-  console.log('training items: ' + TRAINING_GEAR.hours.map((h) => h + ' h for ' + n(TRAINING_GEAR.gold[h]) + ' g = ' + n(TRAINING_GEAR.gold[h] / h) + ' g an hour of ' + (TRAINING_GEAR.boostPermille / 10) + '% (' + n(TRAINING_GEAR.gold[h] / (h * R.xpPerHour)) + ' g a skill XP of the extra half)').join('; ') + '; ' + TRAINING_GEAR.buyPerDay + ' a day an account.');
+  const all = SINK_RULES.house_dummy.prices.reduce((x, y) => x + y, 0);
+  console.log('\nTRAINING (training.js, gold-sinks.js house_dummy, core/xp.js skillXpForLevel). READ FROM DATA.');
+  row('Skill level', 'Yard fee an hour', 'Skill XP to the next level', 'Yard hours a level', 'Gold a level at the yard', 'Levels a 12 h session', 'Dummy rung 1 (' + n(SINK_RULES.house_dummy.prices[0]) + ') pays back after, yard hours', 'All four rungs (' + n(all) + '), yard hours');
+  row(...Array(8).fill('---'));
+  for (const lv of [10, 20, 30, 45, 60, 80, 110]) {
+    const need = skillXpForLevel('melee', lv + 1) - skillXpForLevel('melee', lv);
+    let xp = 12 * R.xpPerHour, l = lv, got = 0;
+    while (xp > 0) { const nx = skillXpForLevel('melee', l + 1) - skillXpForLevel('melee', l); if (xp >= nx) { xp -= nx; l++; got++; } else { got += xp / nx; xp = 0; } }
+    row(lv, n(trainingFee(lv)), n(need), (need / R.xpPerHour).toFixed(1), n(need / R.xpPerHour * trainingFee(lv)), got.toFixed(1), n(SINK_RULES.house_dummy.prices[0] / trainingFee(lv)), n(all / trainingFee(lv)));
+  }
+  console.log('dummy rungs: ' + SINK_RULES.house_dummy.prices.map(n).join(' / ') + ' in the order the account picks skills.');
+  console.log('training items: ' + TRAINING_GEAR.hours.map((h) => h + ' h for ' + n(TRAINING_GEAR.gold[h]) + ' g = ' + n(TRAINING_GEAR.gold[h] / h) + ' g an hour for +' + n(R.xpPerHour) + ' XP an hour over the plain rate (' + (TRAINING_GEAR.gold[h] / (h * R.xpPerHour)).toFixed(2) + ' g a skill XP)').join('; ') + '; ' + TRAINING_GEAR.buyPerDay + ' a day an account.');
   console.log('min Level ' + R.minLevel + ', a session at most ' + R.maxHours + ' h, the dummy needs the ' + R.houseTier + '.');
 }
 

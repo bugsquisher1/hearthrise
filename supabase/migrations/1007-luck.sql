@@ -15,14 +15,16 @@
 --     0 for every hero (the settle rolls today's game, draw for draw), no plan takes Salvage or Use, Dispatch leaves such stacks in the bag,
 --     the Lucky job refuses `luck_off`, the section is absent, nothing is counted.
 --   account_luck  (user) -> luck = from_kills + from_salvage. RAISE-ONLY (trigger). One bar per account: a deleted hero never lowers it.
---   account_found (user, item) -> found, salvaged (salvaged <= found). RAISE-ONLY. `found` is written ONLY by the settle's loot hook
---     (hr_hunt_loot_rules) when it pays a piece hr_luck_salvage names to one of the account's heroes; `salvaged` only by Dispatch.
---   account_kills (user, monster) -> kills. RAISE-ONLY. Written ONLY by the settle (hr_tally_count's hook), ONE count a kill for the account
---     whoever of its heroes was there (the highest of its members' counts in one instance window, never their sum).
+--   account_found (user, item) -> found, salvaged (salvaged <= found). RAISE-ONLY. `found` is written ONLY by the fold of a hunt that ended
+--     (hr_luck_fold): the pieces hr_luck_salvage names that the hunt's loot tally holds; `salvaged` only by Dispatch.
+--   account_kills (user, monster) -> kills. RAISE-ONLY. Written ONLY by the same fold, ONE count a kill for the account whoever of its heroes
+--     was there (in each settle window, the highest of its sessions' counts in one instance, never their sum).
+--   hr_luck_fold(user, slot, session)      ONCE A HUNT, when the settle that ENDS it runs: the session's kills by monster (its combat rows'
+--     `km`, journalled one row a settle anyway) and its found pieces (hunt_session_tally.loot, the settle's own write) into the account; a
+--     stage crossed pays its lump. Nothing of Luck is written while a hunt runs (server-cost allowance, balance-program/01-model.md §7).
 --   hr_magic_find_of(user, slot) -> int    the account's rank (hr_luck_rank) + the largest Lucky percent the hero wears; 0 while off.
 --   hr_hunt_instance_read                  RESTATED: each member carries `magic_find`, the engine's only source of it.
---   hr_hunt_loot_rules                     RESTATED: + `found` for every salvage-catalogue piece the hero kept from the window.
---   hr_tally_count                         RESTATED: + hr_luck_count_kills (the account's counts; a stage crossed pays its Luck).
+--   hr_tally_count                         RESTATED: + hr_luck_fold for a session this settle ended (its one call, whatever the window's meta).
 --   hr_loot_plan_refusal / hr_loot_rule_set RESTATED: two more plans. `salvage` (an item hr_luck_salvage names) and `use` (the rivet only),
 --     each refused `luck_off` while the switch is off for the account.
 --   hr_loot_dispatch                       RESTATED: + the SALVAGE arm (each planned stack, at most found - salvaged pieces of it, pays
@@ -34,17 +36,19 @@
 --     each bag stack the catalogue names, and the Lucky job's offers for the plain rings this hero holds.
 --
 -- ── EXPLOIT SURFACE ─────────────────────────────────────────────────────────
---   No client value reaches an amount: Salvage pays min(bag qty, found - salvaged) x the catalogue's rivets, found is written by the settle
---   alone (inside its item bound), the bar rises by the rivets a press removes from the bag, a stage pays the catalogue's lump on the server's
+--   No client value reaches an amount: Salvage pays min(bag qty, found - salvaged) x the catalogue's rivets, found is folded by the settle
+--   alone from the hunt's own loot tally (inside its item bound), the bar rises by the rivets a press removes from the bag, a stage pays the catalogue's lump on the server's
 --   count. The rivet is bound and worth 0 (hr_items: tradeable false, no vendor value), so no market, mail, trade or shop path takes it.
 --   THE INVARIANT: rivets an account ever held <= Σ over items of found x rivets. Gold and Crowns can change WHICH copy is salvaged, never
 --   the total. A Lucky ring salvages for nothing (no drop row names it). Ledger: one 'craft' row per salvage press, one 'admin' row per
---   use press (hr_apply's journal kinds), one 'collection' row per stage crossed, one 'shop' row per Lucky job.
+--   use press (hr_apply's journal kinds), one 'collection' row per hunt folded (luck_fold) and per stage crossed, one 'shop' row per Lucky job.
 --
 -- ── COST ────────────────────────────────────────────────────────────────────
---   Off: one PK read of hr_feature_switches per member per settle (magic_find, the loot hook, the kill hook) and per section read.
---   On: + one PK read of account_luck, one equipment scan (<= 14 rows) per member; the loot hook one upsert per salvage-catalogue piece the
---   window paid; the kill hook one upsert per monster killed in the window. Dispatch: one PK row per salvaged stack.
+--   NO NEW STATEMENT ON THE SETTLE PATH (every read and write below runs inside a settle function that already runs), and NO ROW WRITE WHILE
+--   A HUNT RUNS. Off: one PK read of hr_feature_switches per member per settle (magic_find) and one PK read of hunt_sessions (did this
+--   settle end it). On: + one PK read of account_luck and one equipment scan (<= 14 rows) per member a settle. ONCE A HUNT (the fold): one
+--   aggregate over the session's own ledger rows (indexed by session), one 'luck_fold' ledger row, one upsert per creature and per salvage
+--   piece the hunt dropped, one bar update per stage crossed. Dispatch: one PK row per salvaged stack.
 --
 -- REVERSIBILITY: restate the five functions from their §0 pins' files, drop the constraint's two values (set those plans to keep), drop
 --   hr_lucky_ring (+ baseline row), hr_luck_section (+ section row), the helpers, the three tables and the switch row.
@@ -70,7 +74,6 @@ begin
     raise exception 'PRECONDITION: a seam this file calls is missing'; end if;
   -- Each restated body is its image on this file's base (measured on the replay) or this file's own. Anything else: another file moved it.
   for r in select * from (values
-    ('public.hr_hunt_loot_rules(uuid,integer,uuid,uuid,jsonb,timestamp with time zone)', '00a39317b7b8d4a93b9f39748dad2064', '2027-01-23-loot-dispatch.sql'),
     ('public.hr_loot_plan_refusal(text,text)', '930f6b477af5ac054b2e6bd3f59482c0', '2027-01-23-loot-dispatch.sql'),
     ('public.hr_loot_rule_set(integer,text,text,uuid)', 'cfa8fc9bce2ea4c1e626eb8b4cf5adc6', '2027-01-23-loot-dispatch.sql'),
     ('public.hr_loot_dispatch(integer,uuid)', 'c561bed6c279d809036366db6005183d', 'the replay of this file''s base'),
@@ -319,114 +322,91 @@ begin
     'now_ms', floor(extract(epoch from now()) * 1000)::bigint);
 end $function$;
 
--- hr_hunt_loot_rules, RESTATED WHOLE (pin 00a39317): the pickup filter as before, then FOUND for what the hero kept.
-CREATE OR REPLACE FUNCTION public.hr_hunt_loot_rules(p_user uuid, p_slot integer, p_session uuid, p_intent uuid, p_items jsonb, p_at timestamp with time zone)
- RETURNS jsonb
- LANGUAGE plpgsql
- SET search_path TO 'public', 'pg_catalog'
-AS $function$
--- Restated by 2027-01-23-loot-dispatch.sql (Tyler 2026-10-25): NOTHING SELLS AT PICKUP. A
--- `sell` or `deposit` plan waits in the bag for Dispatch loot (hr_loot_dispatch, in town);
--- only the pickup filter `ignore` ("Don't pick up") acts here, as before: at most
--- min(picked up, held) units leave the bag through ONE hr_apply, a locked item never.
--- LUCK (1007-luck.sql): then, while the `luck` switch is on for the account, every piece the salvage catalogue names that the hero KEPT
--- from this window (picked up less what the filter left behind) is FOUND for the account: the allowance Dispatch's salvage arm reads. The
--- one writer of account_found.found, inside the settle's item bound.
-declare
-  v_r record; v_have bigint; v_q bigint;
-  v_left jsonb := '{}'::jsonb; v_litems jsonb := '{}'::jsonb;
-  v_b jsonb; v_gone jsonb;
-begin
-  if p_items is null or jsonb_typeof(p_items) <> 'object' or p_intent is null then return null; end if;
-  for v_r in
-    select e.key as item, (e.value #>> '{}')::numeric::bigint as n
-      from jsonb_each(p_items) e
-      join public.player_item_rules r on r.user_id = p_user and r.slot = p_slot and r.item_id = e.key
-     where jsonb_typeof(e.value) = 'number' and (e.value #>> '{}')::numeric >= 1
-       and r.loot_rule = 'ignore' and not r.locked
-     order by e.key
-  loop
-    select qty into v_have from public.player_inventory where user_id = p_user and slot = p_slot and item_id = v_r.item;
-    v_q := least(v_r.n, coalesce(v_have, 0));
-    continue when v_q <= 0;
-    v_left := v_left || jsonb_build_object(v_r.item, v_q);
-    v_litems := v_litems || jsonb_build_object(v_r.item, -v_q);
-  end loop;
-  if v_litems <> '{}'::jsonb then
-    v_b := public.hr_apply(p_user, p_slot, (select version from public.player_state where user_id = p_user and slot = p_slot),
-             md5(p_intent::text || ':loot_ignore')::uuid,
-             jsonb_build_object('items', v_litems,
-               'journal', jsonb_build_object('kind', 'admin', 'intent', 'loot_ignore',
-                 'meta', jsonb_build_object('reason', 'loot_ignore', 'items', v_left, 'session', p_session, 'at', p_at))));
-  end if;
-  v_gone := case when coalesce(v_b->>'ok', '') = 'true' then v_left else '{}'::jsonb end;
-  if public.hr_luck_on(p_user) then
-    insert into public.account_found as f (user_id, item_id, found, updated_at)
-    select p_user, e.key, x.kept, now()
-      from jsonb_each(p_items) e
-      join public.hr_luck_salvage s on s.item_id = e.key
-      cross join lateral (select floor((e.value #>> '{}')::numeric)::bigint - coalesce((v_gone->>e.key)::bigint, 0) as kept) x
-     where jsonb_typeof(e.value) = 'number' and (e.value #>> '{}')::numeric >= 1 and x.kept > 0
-     order by e.key
-    on conflict (user_id, item_id) do update set found = f.found + excluded.found, updated_at = now();
-  end if;
-  return jsonb_build_object('left', v_gone, 'refused', v_b->>'error');
-end $function$;
-revoke all on function public.hr_hunt_loot_rules(uuid, integer, uuid, uuid, jsonb, timestamp with time zone) from public, anon, authenticated, service_role;
 
--- THE ACCOUNT'S BESTIARY COUNTS, from one member's window (its journal's `km`, held by the settle's kill bound). Within ONE instance window
--- (the transaction-local key hr.luck_km = the instance and its world swing, which the settle advances only after every member landed) an
--- account's count of a creature rises to the HIGHEST of its members' counts, never their sum: one count a kill whoever was there. A stage
--- crossed pays hr_luck_stages' lump onto the bar, journalled. Only creatures the reachable roster holds count. Answers the Luck paid.
-create or replace function public.hr_luck_count_kills(p_user uuid, p_slot int, p_session uuid, p_meta jsonb)
+-- THE ACCOUNT'S FOLD, ONCE A HUNT (server-cost allowance, docs/design/balance-program/01-model.md §7: no new statement on the settle path,
+-- at most one row write a hero-hour). Nothing of Luck is written while a hunt runs: its windows already journal their kills by monster (the
+-- combat row's `km`, one ledger row a settle, held by the settle's kill bound) and its loot (hunt_session_tally.loot, the settle's own one
+-- write: picked up less what the pickup filter left behind). When the settle that ENDS a session runs (hr_tally_count), this folds it into
+-- the account ONCE (its 'luck_fold' ledger row is the mark, and journals what it added):
+--   kills  each window's `km`, less what an already-folded session of the same account in the same instance counted in that window (one
+--          settle's rows share its transaction time): one count a kill whoever of its heroes was there, the highest, never the sum, in
+--          whatever order the sessions end. Only creatures the reachable roster holds count.
+--   found  the pieces hr_luck_salvage names that the hunt's loot tally holds. Bought, traded, crafted and chest pieces are in no hunt's tally.
+-- A stage crossed pays hr_luck_stages' lump onto the bar, journalled. Answers the Luck paid.
+create or replace function public.hr_luck_fold(p_user uuid, p_slot int, p_session uuid)
 returns bigint language plpgsql security definer set search_path = public, pg_catalog as $fn$
 -- LUCK (1007-luck.sql)
 declare
-  v_key text; v_g jsonb; v_m jsonb; v_k text; v_v jsonb; v_n bigint; v_inc bigint; v_after bigint; v_luck bigint; v_c jsonb;
-  v_total bigint := 0;
+  v_inst uuid; v_r record; v_after bigint; v_luck bigint; v_c jsonb; v_total bigint := 0; v_kills jsonb; v_found jsonb;
 begin
-  if p_meta is null or jsonb_typeof(p_meta) <> 'object' or jsonb_typeof(p_meta->'km') is distinct from 'object' then return 0; end if;
-  if not public.hr_luck_on(p_user) then return 0; end if;
-  select h.instance_id::text || ':' || coalesce(i.world_swing, 0)::text into v_key
-    from public.hunt_sessions h join public.hunt_instances i on i.id = h.instance_id
-   where h.id = p_session and h.user_id = p_user and h.slot = p_slot;
-  if v_key is null then return 0; end if;
-  v_g := nullif(current_setting('hr.luck_km', true), '')::jsonb;
-  if v_g is null or v_g->>'k' is distinct from v_key then v_g := jsonb_build_object('k', v_key, 'm', '{}'::jsonb); end if;
-  v_m := coalesce(v_g->'m'->(p_user::text), '{}'::jsonb);
-  for v_k, v_v in select key, value from jsonb_each(p_meta->'km') order by key loop
-    continue when v_k !~ '^[a-z0-9_]{1,48}$' or jsonb_typeof(v_v) <> 'number' or (v_v #>> '{}') !~ '^[0-9]{1,9}$';
-    continue when not exists (select 1 from public.hr_hunt_roster r where r.monster_id = v_k);
-    v_n := (v_v #>> '{}')::bigint;
-    v_inc := v_n - coalesce((v_m->>v_k)::bigint, 0);
-    continue when v_inc <= 0;
-    v_m := v_m || jsonb_build_object(v_k, v_n);
-    insert into public.account_kills as a (user_id, monster_id, kills, updated_at) values (p_user, v_k, v_inc, now())
+  if p_user is null or p_session is null or not public.hr_luck_on(p_user) then return 0; end if;
+  select h.instance_id into v_inst from public.hunt_sessions h
+   where h.id = p_session and h.user_id = p_user and h.slot = p_slot and h.ended_at is not null;
+  if not found then return 0; end if;
+  if exists (select 1 from public.player_ledger l where l.session_id = p_session and l.user_id = p_user and l.intent = 'luck_fold') then
+    return 0; end if;
+  -- THE KILLS: per window and creature, this session's count less the highest an already-folded own session of the instance counted then.
+  select coalesce(jsonb_object_agg(k.m, k.n), '{}'::jsonb) into v_kills from (
+    select w.m, sum(greatest(0, w.n - coalesce(o.n, 0)))::bigint as n
+      from (select l.at, e.key as m, sum((e.value #>> '{}')::bigint) as n
+              from public.player_ledger l cross join lateral jsonb_each(l.meta->'km') e
+             where l.session_id = p_session and l.user_id = p_user and l.slot = p_slot and jsonb_typeof(l.meta->'km') = 'object'
+               and jsonb_typeof(e.value) = 'number' and (e.value #>> '{}') ~ '^[0-9]{1,9}$'
+             group by 1, 2) w
+      left join (select l.at, e.key as m, max((e.value #>> '{}')::bigint) as n
+              from public.hunt_sessions h
+              join public.player_ledger l on l.session_id = h.id and l.user_id = h.user_id and l.slot = h.slot
+              cross join lateral jsonb_each(l.meta->'km') e
+             where h.user_id = p_user and h.instance_id = v_inst and h.id <> p_session
+               and exists (select 1 from public.player_ledger f where f.session_id = h.id and f.user_id = p_user and f.intent = 'luck_fold')
+               and jsonb_typeof(l.meta->'km') = 'object' and jsonb_typeof(e.value) = 'number' and (e.value #>> '{}') ~ '^[0-9]{1,9}$'
+             group by 1, 2) o on o.at = w.at and o.m = w.m
+     where w.m ~ '^[a-z0-9_]{1,48}$' and exists (select 1 from public.hr_hunt_roster r where r.monster_id = w.m)
+     group by w.m) k
+   where k.n > 0;
+  for v_r in select e.key as m, (e.value #>> '{}')::bigint as n from jsonb_each(v_kills) e order by e.key loop
+    insert into public.account_kills as a (user_id, monster_id, kills, updated_at) values (p_user, v_r.m, v_r.n, now())
       on conflict (user_id, monster_id) do update set kills = a.kills + excluded.kills, updated_at = now()
       returning a.kills into v_after;
-    select coalesce(sum(s.luck), 0) into v_luck from public.hr_luck_stages s where s.kills > v_after - v_inc and s.kills <= v_after;
+    select coalesce(sum(s.luck), 0) into v_luck from public.hr_luck_stages s where s.kills > v_after - v_r.n and s.kills <= v_after;
     if v_luck > 0 then
       v_c := public.hr_luck_credit(p_user, v_luck, 0);
       insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id)
-        values (p_user, p_slot, 'collection', 'luck_stage:' || v_k,
-                jsonb_build_object('reason', 'luck_stage', 'monster', v_k, 'kills', v_after, 'luck', v_luck,
-                                   'stages', (select jsonb_agg(s.stage order by s.stage) from public.hr_luck_stages s where s.kills > v_after - v_inc and s.kills <= v_after),
+        values (p_user, p_slot, 'collection', 'luck_stage:' || v_r.m,
+                jsonb_build_object('reason', 'luck_stage', 'monster', v_r.m, 'kills', v_after, 'luck', v_luck,
+                                   'stages', (select jsonb_agg(s.stage order by s.stage) from public.hr_luck_stages s where s.kills > v_after - v_r.n and s.kills <= v_after),
                                    'before', v_c->'before', 'after', v_c->'after'), p_session);
       v_total := v_total + v_luck;
     end if;
   end loop;
-  perform set_config('hr.luck_km', jsonb_set(v_g, array['m', p_user::text], v_m)::text, true);
+  -- THE FOUND PIECES: what the hunt's own loot tally holds of the salvage catalogue.
+  select coalesce(jsonb_object_agg(s.item_id, x.n), '{}'::jsonb) into v_found
+    from public.hunt_session_tally t
+    cross join lateral jsonb_each(t.loot) e
+    join public.hr_luck_salvage s on s.item_id = e.key
+    cross join lateral (select floor((e.value #>> '{}')::numeric)::bigint as n) x
+   where t.session_id = p_session and t.user_id = p_user and t.slot = p_slot and jsonb_typeof(e.value) = 'number' and x.n > 0;
+  insert into public.account_found as f (user_id, item_id, found, updated_at)
+    select p_user, e.key, (e.value #>> '{}')::bigint, now() from jsonb_each(v_found) e order by e.key
+  on conflict (user_id, item_id) do update set found = f.found + excluded.found, updated_at = now();
+  insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id)
+    values (p_user, p_slot, 'collection', 'luck_fold',
+            jsonb_build_object('reason', 'luck_fold', 'kills', v_kills, 'found', v_found, 'luck', v_total), p_session);
   return v_total;
 end $fn$;
-revoke all on function public.hr_luck_count_kills(uuid, int, uuid, jsonb) from public, anon, authenticated, service_role;
+revoke all on function public.hr_luck_fold(uuid, int, uuid) from public, anon, authenticated, service_role;
 
--- hr_tally_count, RESTATED WHOLE (pin f963df5e): its own work as before, and the account's counts once the journal's shape is proved.
+-- hr_tally_count, RESTATED WHOLE (pin f963df5e): its own work as before, and the fold of a hunt this settle ended.
 create or replace function public.hr_tally_count(p_user uuid, p_slot integer, p_session uuid, p_meta jsonb)
 returns integer language plpgsql security definer set search_path = public, pg_catalog as $$
 declare v_hunt text; v_kills numeric; v_sum numeric := 0; v_k text; v_v jsonb; v_r record; v_add int; v_done int := 0;
 begin
   -- TALLY (2026-12-23-tally-tasks.sql)
-  -- LUCK (1007-luck.sql): the same proved `km` feeds the account's Bestiary counts (hr_luck_count_kills), whether or not a task is held.
+  -- LUCK (1007-luck.sql): a hunt this settle ENDED folds into the account once (hr_luck_fold: its kills and found pieces from its own
+  -- journal and loot tally), whatever this window's meta says; nothing of Luck is written while a hunt runs.
+  if exists (select 1 from public.hunt_sessions h where h.id = p_session and h.user_id = p_user and h.slot = p_slot and h.ended_at is not null) then
+    perform public.hr_luck_fold(p_user, p_slot, p_session);
+  end if;
   if p_meta is null or jsonb_typeof(p_meta) <> 'object' or not (p_meta ? 'km') then return 0; end if;
   if jsonb_typeof(p_meta->'km') <> 'object' or jsonb_typeof(p_meta->'kills') is distinct from 'number'
      or (p_meta->>'kills') !~ '^[0-9]{1,9}$' then
@@ -442,7 +422,6 @@ begin
   if v_sum > v_kills then
     perform public.hr_reject('bad_kills', jsonb_build_object('why', 'sum', 'km', v_sum, 'kills', v_kills));
   end if;
-  perform public.hr_luck_count_kills(p_user, p_slot, p_session, p_meta);
   select h.hunt_id into v_hunt from public.hunt_sessions h where h.id = p_session and h.user_id = p_user and h.slot = p_slot;
   if v_hunt is null or v_sum = 0 then return 0; end if;
   for v_r in select t.place, t.kills, t.target, c.monster_id
@@ -884,7 +863,7 @@ revoke all on function public.hr_luck_section(uuid, int) from public, anon, auth
 do $mig$ begin
   if exists (select 1 from pg_roles where rolname = 'hr_engine') then
     revoke all on function public.hr_luck_section(uuid, int) from hr_engine;
-    revoke all on function public.hr_luck_count_kills(uuid, int, uuid, jsonb) from hr_engine;
+    revoke all on function public.hr_luck_fold(uuid, int, uuid) from hr_engine;
   end if;
 end $mig$;
 insert into public.hr_state_sections (key, fn, note) values
@@ -912,7 +891,7 @@ declare
   v_u2  constant uuid := '000000c0-0000-4000-a000-0000001c1002';
   k     constant text := '000000c0-0000-4000-b000-1c10';
   v     jsonb; s jsonb; v_scope text; v_lr public.hr_luck_rules%rowtype; v_gear text; v_per int; v_o public.hr_lucky_offers%rowtype;
-  v_n   bigint; v_mon text; v_i uuid; v_s1 uuid; v_s2 uuid; v_err text;
+  v_n   bigint; v_mon text; v_i uuid; v_s0 uuid; v_s1 uuid; v_s2 uuid; v_err text; v_t timestamptz;
 begin
   select * into v_lr from public.hr_luck_rules where id;
   select scope into v_scope from public.hr_feature_switches where switch_id = v_lr.switch_id;
@@ -934,8 +913,15 @@ begin
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'luck §9: the second hero was refused: %', v; end if;
     update public.player_state set active_kind = 'idle', active_id = null where user_id = v_u;
 
-    -- (a) OFF: Magic Find 0, no section, the Luck plans refused, a found piece not counted, the job refused, the settle read carries 0.
+    -- (a) OFF: Magic Find 0, no section, the Luck plans refused, an ended hunt folds nothing, the job refused, the settle read carries 0.
     update public.hr_feature_switches set scope = 'off', accounts = '{}' where switch_id = v_lr.switch_id;
+    -- a hunt of hero 0 that ended, its loot tally two of the gear piece and five bars (no salvage line)
+    v_i := gen_random_uuid(); v_s0 := gen_random_uuid();
+    insert into public.hunt_instances (id, hunt_id, kind, world_swing, session_mode)
+      select v_i, (select hunt_id from public.hr_hunt_ground_spawns where monster_id = v_mon order by hunt_id limit 1), 'party', 0, 'hunt';
+    insert into public.hunt_sessions (id, user_id, slot, instance_id, hunt_id, hunt_from, settled_to, next_swing_at, seat, ended_at, end_reason)
+      select v_s0, v_u, 0, v_i, i.hunt_id, now(), now(), now(), 0, now(), 'left' from public.hunt_instances i where i.id = v_i;
+    insert into public.hunt_session_tally (session_id, user_id, slot, loot) values (v_s0, v_u, 0, jsonb_build_object(v_gear, 2, 'bronze_bar', 5));
     insert into public.player_inventory (user_id, slot, item_id, qty) values (v_u, 0, v_gear, 3)
       on conflict (user_id, slot, item_id) do update set qty = 3;
     if public.hr_magic_find_of(v_u, 0) <> 0 or public.hr_luck_section(v_u, 0) is not null
@@ -943,18 +929,23 @@ begin
       raise exception 'luck §9(a): the switch is off and Magic Find is % / the section reads %', public.hr_magic_find_of(v_u, 0), public.hr_luck_section(v_u, 0); end if;
     v := public.hr_loot_rule_set(0, v_gear, 'salvage', (k || '00000001')::uuid);
     if v->>'error' is distinct from 'luck_off' then raise exception 'luck §9(a): a salvage plan while off answered %', v; end if;
-    perform public.hr_hunt_loot_rules(v_u, 0, null, gen_random_uuid(), jsonb_build_object(v_gear, 2), now());
-    if exists (select 1 from public.account_found where user_id = v_u) then raise exception 'luck §9(a): a piece was found while off'; end if;
+    perform public.hr_tally_count(v_u, 0, v_s0, null);
+    if exists (select 1 from public.account_found where user_id = v_u)
+       or exists (select 1 from public.player_ledger where user_id = v_u and intent = 'luck_fold') then
+      raise exception 'luck §9(a): a hunt folded while off'; end if;
     v := public.hr_lucky_ring(0, v_o.from_item, v_o.gold, (k || '00000002')::uuid);
     if v->>'error' is distinct from 'luck_off' then raise exception 'luck §9(a): the Lucky job while off answered %', v; end if;
 
-    -- (b) ON for this account: the settle's hook finds what the hero KEPT (an ignored piece is not found), a bought piece is not found, a
-    --     forged count (a piece the catalogue does not name) is nothing.
+    -- (b) ON for this account: the settle that ended the hunt folds what its loot tally holds of the salvage catalogue, ONCE (a second
+    --     settle's call adds nothing); a piece the catalogue does not name is nothing; the fold is journalled.
     update public.hr_feature_switches set scope = 'accounts', accounts = array[v_u] where switch_id = v_lr.switch_id;
-    perform public.hr_hunt_loot_rules(v_u, 0, null, gen_random_uuid(), jsonb_build_object(v_gear, 2, 'bronze_bar', 5), now());
+    perform public.hr_tally_count(v_u, 0, v_s0, null);
+    perform public.hr_tally_count(v_u, 0, v_s0, jsonb_build_object('kills', 0, 'km', '{}'::jsonb));
     if (select f.found from public.account_found f where f.user_id = v_u and f.item_id = v_gear) is distinct from 2
-       or exists (select 1 from public.account_found where user_id = v_u and item_id = 'bronze_bar') then
-      raise exception 'luck §9(b): the hook found %', (select jsonb_object_agg(f.item_id, f.found) from public.account_found f where f.user_id = v_u); end if;
+       or exists (select 1 from public.account_found where user_id = v_u and item_id = 'bronze_bar')
+       or (select count(*) from public.player_ledger where user_id = v_u and intent = 'luck_fold' and session_id = v_s0) <> 1 then
+      raise exception 'luck §9(b): the fold found % (journalled % times)', (select jsonb_object_agg(f.item_id, f.found) from public.account_found f where f.user_id = v_u),
+        (select count(*) from public.player_ledger where user_id = v_u and intent = 'luck_fold'); end if;
     s := public.hr_luck_section(v_u, 0);
     if s is null or (s->>'luck')::bigint <> 0 or (s->>'magic_find')::int <> 0 or (s->>'next')::bigint <> public.hr_luck_to_rank(1)
        or (s->'salvage'->v_gear->>'left')::int <> 2 or (s->'salvage'->v_gear->>'rivets')::int <> v_per then
@@ -1034,25 +1025,39 @@ begin
     if exists (select 1 from public.hr_luck_salvage where item_id in (select to_item from public.hr_lucky_offers union select item_id from public.hr_luck_ring_pct)) then
       raise exception 'luck §9(f): a Lucky ring salvages for rivets'; end if;
 
-    -- (g) THE ACCOUNT'S COUNTS: two heroes of the account in ONE instance window add the highest of their counts, never the sum; the next
-    --     window adds again; a stage crossed pays its lump onto the bar, journalled; a creature off the roster counts nothing.
-    v_i := gen_random_uuid(); v_s1 := gen_random_uuid(); v_s2 := gen_random_uuid();
+    -- (g) THE ACCOUNT'S COUNTS, folded once a hunt: two heroes of the account in ONE instance add, per settle window, the highest of their
+    --     counts, never the sum, whichever ends first; a window only one was in adds in full; nothing is counted while the hunts run; a stage
+    --     crossed pays its lump onto the bar once, journalled; a creature off the roster counts nothing.
+    v_i := gen_random_uuid(); v_s1 := gen_random_uuid(); v_s2 := gen_random_uuid(); v_t := now() - interval '2 minutes';
     insert into public.hunt_instances (id, hunt_id, kind, world_swing, session_mode)
       select v_i, (select hunt_id from public.hr_hunt_ground_spawns where monster_id = v_mon order by hunt_id limit 1), 'party', 0, 'hunt';
     insert into public.hunt_sessions (id, user_id, slot, instance_id, hunt_id, hunt_from, settled_to, next_swing_at, seat)
       select x.id, v_u, x.slot, v_i, i.hunt_id, now(), now(), now(), x.slot
         from (values (v_s1, 0), (v_s2, 1)) x(id, slot) cross join public.hunt_instances i where i.id = v_i;
-    perform public.hr_tally_count(v_u, 0, v_s1, jsonb_build_object('kills', 60, 'km', jsonb_build_object(v_mon, 60)));
-    perform public.hr_tally_count(v_u, 1, v_s2, jsonb_build_object('kills', 60, 'km', jsonb_build_object(v_mon, 60, 'not_a_monster_x', 0)));
-    if (select kills from public.account_kills where user_id = v_u and monster_id = v_mon) is distinct from 60 then
-      raise exception 'luck §9(g): one window of two heroes counted % (want 60, the highest)', (select kills from public.account_kills where user_id = v_u and monster_id = v_mon); end if;
+    -- the settles' own combat rows (one a member a settle; a settle's rows share its time), under each session's fence key as the settle holds it
+    perform set_config('hr.hunt_session', v_s1::text, true);
+    insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id, at) values
+      (v_u, 0, 'combat', 'accrue', jsonb_build_object('kills', 60, 'km', jsonb_build_object(v_mon, 60)), v_s1, v_t),
+      (v_u, 0, 'combat', 'accrue', jsonb_build_object('kills', 50, 'km', jsonb_build_object(v_mon, 50)), v_s1, v_t + interval '1 minute');
+    perform set_config('hr.hunt_session', v_s2::text, true);
+    insert into public.player_ledger (user_id, slot, kind, intent, meta, session_id, at) values
+      (v_u, 1, 'combat', 'accrue', jsonb_build_object('kills', 60, 'km', jsonb_build_object(v_mon, 60, 'not_a_monster_x', 9)), v_s2, v_t);
+    perform set_config('hr.hunt_session', '', true);
     v_n := (select luck from public.account_luck where user_id = v_u);
-    update public.hunt_instances set world_swing = 1 where id = v_i;
     perform public.hr_tally_count(v_u, 0, v_s1, jsonb_build_object('kills', 50, 'km', jsonb_build_object(v_mon, 50)));
+    if exists (select 1 from public.account_kills where user_id = v_u) then raise exception 'luck §9(g): a running hunt wrote a count'; end if;
+    update public.hunt_sessions set ended_at = now(), end_reason = 'left' where id = v_s2;
+    perform public.hr_tally_count(v_u, 1, v_s2, null);
+    if (select kills from public.account_kills where user_id = v_u and monster_id = v_mon) is distinct from 60
+       or exists (select 1 from public.account_kills where user_id = v_u and monster_id = 'not_a_monster_x') then
+      raise exception 'luck §9(g): the first fold counted % (want 60)', (select kills from public.account_kills where user_id = v_u and monster_id = v_mon); end if;
+    update public.hunt_sessions set ended_at = now(), end_reason = 'left' where id = v_s1;
+    perform public.hr_tally_count(v_u, 0, v_s1, null);
+    perform public.hr_tally_count(v_u, 0, v_s1, null);
     if (select kills from public.account_kills where user_id = v_u and monster_id = v_mon) is distinct from 110
-       or (select luck from public.account_luck where user_id = v_u) is distinct from v_n + (select luck from public.hr_luck_stages where stage = 1)
+       or (select luck from public.account_luck where user_id = v_u) is distinct from coalesce(v_n, 0) + (select luck from public.hr_luck_stages where stage = 1)
        or (select count(*) from public.player_ledger where user_id = v_u and kind = 'collection' and intent = 'luck_stage:' || v_mon) <> 1 then
-      raise exception 'luck §9(g): the second window counted % / the bar %', (select kills from public.account_kills where user_id = v_u and monster_id = v_mon),
+      raise exception 'luck §9(g): the second fold counted % / the bar %', (select kills from public.account_kills where user_id = v_u and monster_id = v_mon),
         (select luck from public.account_luck where user_id = v_u); end if;
 
     -- (h) ANOTHER ACCOUNT reads nothing of this one's, and a deleted hero changes nothing (the bar and the counts are the account's).
@@ -1069,7 +1074,6 @@ begin
     null;
   end;
   perform set_config('request.jwt.claim.sub', '', true);
-  perform set_config('hr.luck_km', '', true);
   if (select scope from public.hr_feature_switches where switch_id = v_lr.switch_id) is distinct from v_scope then
     raise exception 'luck §9: the probe left the switch moved'; end if;
   if exists (select 1 from public.player_state where user_id in (v_u, v_u2)) or exists (select 1 from public.account_luck where user_id in (v_u, v_u2))
@@ -1082,7 +1086,7 @@ begin
      or has_function_privilege('anon', 'public.hr_lucky_ring(integer,text,bigint,uuid)', 'execute') then
     raise exception 'luck §9(i): the Lucky job''s grants are wrong'; end if;
   select f into v_err from unnest(array['public.hr_luck_section(uuid,integer)', 'public.hr_magic_find_of(uuid,integer)', 'public.hr_luck_credit(uuid,bigint,bigint)',
-                                        'public.hr_luck_count_kills(uuid,integer,uuid,jsonb)', 'public.hr_luck_on(uuid)', 'public.hr_luck_rank(bigint)',
+                                        'public.hr_luck_fold(uuid,integer,uuid)', 'public.hr_luck_on(uuid)', 'public.hr_luck_rank(bigint)',
                                         'public.hr_luck_to_rank(integer)', 'public.hr_luck_raise_only()']) f
    where has_function_privilege('authenticated', f, 'execute') or has_function_privilege('anon', f, 'execute') or has_function_privilege('service_role', f, 'execute') limit 1;
   if v_err is not null then raise exception 'luck §9(i): a client role reaches %', v_err; end if;

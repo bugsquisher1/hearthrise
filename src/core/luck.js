@@ -33,7 +33,9 @@ export function clampMagicFind(mf) {
 }
 
 /** The party's one number from the heroes at the kill (each clamped), by LUCK_RULES.party: the highest (the audit's 11-20 ruling), or
-    the floor of the average. Order-free, so who landed the kill never moves it. */
+    the floor of the average. Order-free, so who landed the kill never moves it.
+    @param {Array<number>} list  each hero's Magic Find, the server's
+    @param {string} [rule]       'highest' or 'average' (a data row; the default is LUCK_RULES.party) */
 export function partyMagicFind(list, rule = LUCK_RULES.party) {
   const xs = Array.isArray(list) ? list.map(clampMagicFind) : [];
   if (!xs.length) return 0;

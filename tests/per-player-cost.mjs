@@ -42,6 +42,11 @@
 // (about +100%) is far outside it.
 //
 // Counts hold on any machine; nothing here reads a millisecond.
+//
+// LUCK ON (lane/d-luck-build, 2026-11-20; balance-program/01-model.md §7 allowance): the same fixtures are measured again with the
+// `luck` switch on for everyone, against the SAME baseline. Luck v3.1 writes nothing while a hunt runs (1007-luck.sql hr_luck_fold
+// folds a hunt into the account once, at its end), so a settle with Luck on costs what a dark one does: a red here is a Luck counter
+// back on the settle path. --selftest plants one (an account_kills upsert a combat row) and requires it red.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -172,7 +177,7 @@ const FIXTURES = {
 };
 
 /** One measurement of every fixture, each inside its own rolled-back savepoint. `plant`: the selftest's defect. */
-async function measureAll(db, M, plant = null) {
+async function measureAll(db, M, plant = null, luck = false) {
   const out = {};
   await db.query('begin');
   try {
@@ -187,8 +192,20 @@ async function measureAll(db, M, plant = null) {
               return null; end $p$;
             create trigger hr_planted_ledger_dup after insert on public.player_ledger for each row execute function public.hr_planted_ledger_dup();`);
         }
+        if (luck) await db.query(`update public.hr_feature_switches set scope = 'everyone', accounts = '{}' where switch_id = 'luck'`);
+        if (plant === 'luck_write') {
+          await db.exec(`create or replace function public.hr_planted_luck_write() returns trigger language plpgsql as $p$
+            begin if jsonb_typeof(new.meta->'km') = 'object' then
+              insert into public.account_kills as a (user_id, monster_id, kills) select new.user_id, e.key, (e.value #>> '{}')::bigint
+                from jsonb_each(new.meta->'km') e on conflict (user_id, monster_id) do update set kills = a.kills + excluded.kills; end if;
+              return null; end $p$;
+            create trigger hr_planted_luck_write after insert on public.player_ledger for each row execute function public.hr_planted_luck_write();`);
+        }
         const fx = await party(db, M, f.size, f.hunt, f.kit, f.base);
         out[name] = await measure(db, M, fx, { extra: plant === 'extra_statement' });
+        /* LUCK ON: what Luck itself wrote while the hunt ran (its three tables and its ledger rows): nothing, by design */
+        if (luck) out[name].luck_rows = Number(await one(db, `select (select count(*) from public.account_kills) + (select count(*) from public.account_found)
+          + (select count(*) from public.account_luck) + (select count(*) from public.player_ledger where intent like 'luck%')`));
       } finally { await db.query('rollback to savepoint fx'); }
     }
   } finally { await db.query('rollback'); }
@@ -235,6 +252,15 @@ async function main() {
     arm('MUTANT ledger_dup: a second ledger row for every row is red', dup.red.some((r) => r.includes('ledger_rows_a_hero_hour')), dup.red.join('; ') || 'NOT red');
     const ext = judge(await measureAll(db, M, 'extra_statement'), base);
     arm('MUTANT extra_statement: one more round trip a settle is red', ext.red.some((r) => r.includes('statements_a_settle')), ext.red.join('; ') || 'NOT red');
+    const luckyM = await measureAll(db, M, null, true);
+    const lucky = judge(luckyM, base);
+    const luckyRows = Object.values(luckyM).map((m) => m.luck_rows);
+    arm('CONTROL: Luck on measures inside the same baseline and writes no Luck row mid-hunt', lucky.red.length === 0 && luckyRows.every((n) => n === 0),
+      (lucky.red.join('; ') || 'green') + ' ' + JSON.stringify(luckyRows));
+    const lwM = await measureAll(db, M, 'luck_write', true);
+    const lw = judge(lwM, base);
+    const lwRows = Object.values(lwM).map((m) => m.luck_rows);
+    arm('MUTANT luck_write: a Luck counter written each settle is red', lw.red.some((r) => r.includes('row_writes_a_settle')) || lwRows.some((n) => n > 0), lw.red.join('; ') || JSON.stringify(lwRows));
     arm('CONTROL: the sampler\'s edge budget is the engine\'s', (await budgetPin(db, M)) === null, (await budgetPin(db, M)) || 'pinned');
     await db.query('begin');
     try {
@@ -273,6 +299,11 @@ async function main() {
 
   if (!base) { console.error('per-player-cost: no baseline; run --write'); return 2; }
   const { red, tighter } = judge(measured, base);
+  /* LUCK ON: the same fixtures with the luck switch on for everyone, held to the same baseline (the header) */
+  const lucky = await measureAll(db, M, null, true);
+  for (const [fx, m] of Object.entries(lucky)) console.log(`  ${(fx + ' (Luck on)').padEnd(30)} ${METRICS.map((k) => `${k} ${m[k]}`).join(', ')}`);
+  for (const r of judge(lucky, base).red) red.push('LUCK ON ' + r);
+  for (const [fx, m] of Object.entries(lucky)) if (m.luck_rows !== 0) red.push(`LUCK ON ${fx}: Luck wrote ${m.luck_rows} row(s) while the hunt ran (want 0: the fold is once a hunt, at its end)`);
   const pin = await budgetPin(db, M);
   if (pin) red.push(`BUDGET-PIN ${pin}`);
   if (red.length) {

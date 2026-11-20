@@ -82,6 +82,8 @@ declare
     'player_training_gear',
     /* a keyed hall's daily prize, the days each hero made its roll (2027-04-25-boss-daily.sql): a hero's, gone with it */
     'player_boss_loot_day',
+    /* the account's Luck bar, its Bestiary counts and its found pieces (1007-luck.sql): earned by the heroes this file clears */
+    'account_luck', 'account_kills', 'account_found',
     /* the live-event announcer's record of the window edges it passed (2027-03-22-live-events.sql), with the System lines the wipe clears */
     'hr_live_event_notices',
     /* a hero's side, its standing, its days, its claims and the journal of them (2027-04-22-faction-standing.sql) */
@@ -152,7 +154,9 @@ declare
     /* the factions' catalogues (2027-04-22-faction-catalogue.generated.sql): the sides, the rule, the paying grounds, the pieces */
     'hr_factions', 'hr_faction_rule', 'hr_faction_grounds', 'hr_faction_outfits',
     /* when the hunt ends (2027-04-25-hunt-after-catalogue.generated.sql): the choices and the rule */
-    'hr_hunt_after_choices', 'hr_hunt_after_rule'];
+    'hr_hunt_after_choices', 'hr_hunt_after_rule',
+    /* Luck's catalogues (1006-luck-catalogue.generated.sql): its rules, salvage rivets, stages, ring percents and the Lucky job's offers */
+    'hr_luck_rules', 'hr_luck_salvage', 'hr_luck_stages', 'hr_luck_ring_pct', 'hr_lucky_offers'];
   c_probe constant uuid := '000000c0-0000-4000-a000-0000c4a2e101';
   c_stranger constant uuid := '000000c0-0000-4000-a000-0000c4a2e102';
   v_present text[] := '{}';

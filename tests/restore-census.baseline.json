@@ -1626,7 +1626,7 @@
   },
   "hr_hunt_supplies": {
    "class": "seeded",
-   "replay": 79,
+   "replay": 78,
    "note": "Generated catalogue (2026-10-21-hunt-sessions-catalogue.generated.sql (tools/gen-hunt-sessions.mjs --check from src/data)): the 52 supplies a hunt bag may hold (kind, essential flag, heal amount, combat buff type), from src/data/supplies.js. hr_hunt_enter / hr_hunt_restock refuse anything else; an EMPTY rebuild would refuse every bag (fail closed). Rebuilt from repo, never restored; nothing player-owned."
   },
   "hr_hunt_target_modes": {

@@ -7,7 +7,7 @@
   "What it can and cannot see is documented in the header of tests/schema-drift.mjs."
  ],
  "generated": "2026-11-20",
- "digest": "ac20f764d709e7237f1b521ebe5ba0c4bb47a42fc5913e46c91a9a325ed555f9",
+ "digest": "68d6b2ad2ecb482af2fc9beee804f069d1f05fba3175c4d2722583a82e11a04a",
  "counts": {
   "relations": 325,
   "functions": 828,
@@ -830,8 +830,8 @@
    "hr_loot_plan_copy(p_slot integer, p_from integer, p_idem uuid)",
    "hr_loot_plan_refusal(p_item text, p_plan text)",
    "hr_loot_rule_set(p_slot integer, p_item text, p_rule text, p_idem uuid)",
-   "hr_luck_count_kills(p_user uuid, p_slot integer, p_session uuid, p_meta jsonb)",
    "hr_luck_credit(p_user uuid, p_kills bigint, p_salvage bigint)",
+   "hr_luck_fold(p_user uuid, p_slot integer, p_session uuid)",
    "hr_luck_on(p_user uuid)",
    "hr_luck_raise_only()",
    "hr_luck_rank(p_luck bigint)",

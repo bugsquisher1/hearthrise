@@ -83,6 +83,11 @@
         "bytes": 3147084,
         "on": "2026-11-20",
         "why": "Luck v3.1 (lane/d-luck-build): the engine reads Magic Find in drops.js/hunt-rewards.js, so data/luck.js (+7.6 KB) and core/luck.js (+4.2 KB) ride the edge; jewelry.js Lucky perk and rows (+2.9 KB), drops.js luckMult and the lucky draw (+2.4 KB), items.js Lucky Rivet + eight Lucky rings (+0.8 KB), loot-bands very_rare (+0.8 KB), hunt-rewards party Magic Find (+0.6 KB)"
+      },
+      {
+        "bytes": 3147337,
+        "on": "2026-11-20",
+        "why": "Luck v3.1 follow-ups: Tomato Soup's cut note in items.js, drop_rate's note in buffs.js, the supplies.js parked-row note (comments the packer keeps)"
       }
     ]
   }

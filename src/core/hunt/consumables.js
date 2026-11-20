@@ -52,6 +52,7 @@ import { slotsFor, pickSlot } from './conditions.js?v=0.2.141';
 import { resolveLine, takeLine, lineAmount } from '../action-rules.js?v=0.2.141';
 import { makeEvent } from './events.js?v=0.2.141';
 import { livingOf } from './unit-index.js?v=0.2.141';
+import { healTaken } from './heal-cut.js?v=0.2.141';
 
 /* An over-time half is [left, nextTickAtMs, ticksLeft, itemId], or null. */
 export const PERSISTED = Object.freeze({
@@ -64,8 +65,10 @@ const OT_KEY = Object.freeze({ hp: 'otHp', mana: 'otMana' });
 const MAX_OF = Object.freeze({ hp: 'maxHp', mana: 'maxMana' });
 const int = (v) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? n : 0; };
 
-/* Raise `stat` by `n`, never past its max; answers what landed. */
+/* Raise `stat` by `n`, never past its max; answers what landed. FOOD IS A HEAL: a Withered eater takes its instant half and each
+   tick of the rest cut (heal-cut.js healTaken); a drink's mana is never cut. */
 function raise(u, stat, n) {
+  if (stat === 'hp') n = healTaken(u, n);
   const before = int(u[stat]);
   u[stat] = Math.min(int(u[MAX_OF[stat]]), before + Math.max(0, n));
   if (u[stat] < before) u[stat] = before;

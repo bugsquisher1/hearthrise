@@ -45,6 +45,11 @@
 //   weakPm: permille of a monster's WEAKNESS to the row's element its hits land (plan §7, the fist's element by choice:
 //     half the weak-side bonus, so picking the weak element is worth half what a fixed one is); a resistance lands in
 //     full. Absent: all of it (src/core/hunt/damage.js hurt).
+//   leechPm: permille of the HP each of its hits took that comes back to the caster as a heal (the Necrotic spells' drain, plan
+//     Appendix B3), cut like any heal on a Withered caster (src/core/hunt/heal-cut.js), never past max HP
+//   manaPerHit, manaPerKill: mana back to the caster for each monster a hit of the cast landed on / each one it killed (the Storm
+//     spells, B3), never more in all than the cast cost (a spell is never a mana engine) and never past max mana. Magic XP is paid
+//     on the mana the cast kept (src/core/hunt/abilities.js fire: the cast event's `mana` is net of it, as a shell's refund is)
 //   unlock: a level in the row's own skill (abilitySkill) the ability waits for: a slot set up
 //     early is kept and waits (`level`, the wait a locked rune version gives), never refused
 //   trigger: the conditions a NEW slot of the row starts with, when suggestedTrigger's generic one
@@ -76,6 +81,7 @@ import { ITEMS } from './items.js?v=0.2.141';
 import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.141';
 import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.141';
 import { FIST_LINE, FIST_ELEMENTS } from './fists.js?v=0.2.141';
+import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.141';
 
 /* THE ABILITY LANES and their lockouts (AB-02; Tyler 2026-10-19: attack, support and healing are separate
    groups; 2026-10-23 COMBAT AUDIT ANSWERS: offense 2 s, support 2 s, healing 1 s). A cast locks its row's lane;
@@ -275,6 +281,36 @@ export const ABILITIES = Object.freeze([
       rune: 'chalked_' + family + '_rune', target: 'enemy', dmg: [10, 18], element, weakPm: 500, magicXpMult: 1600,
       versions: [[12, 1000], [14, 1740], [17, 2520], [21, 3310], [25, 4100]], lvPm: LV_PM }),
   ]) : []),
+  /* NECROTIC AND STORM, THE SAMPLE (itemization plan Appendix B3 and §11 phase 6b; Tyler 2026-11-18: "i want each weapon type to have a
+     spell for both"): the sword's pair and the wand's pair, in this table only while their switch is on (src/data/necrotic-storm.js).
+     A Storm spell is fast and pays back in mana, on the Storm family (the old Air); a Necrotic one drains or Withers, on the Bone family.
+     Storm unlocks at 25 and Necrotic at 40 in the weapon's own skill (a sword's Melee, a wand's Magic), so at its unlock a hero already
+     casts the Scored (Storm) or Etched (Necrotic) version. Versions on the built ladder (mana x1.2 a version). Magic XP: the sword's at a
+     quarter (Flame Strike's 250), the wand's in full. Neither is on any default bar: the new-spell prompt offers each at its unlock.
+     THE SWORD'S PAIR is the sword ALONE's: the tank's list takes neither (Tyler 2026-11-19, newer than the plan's "on the tank's list as
+     well": tank spells hold and protect, and never make a lone tank kill faster; the designer's call whether the tank gets them as
+     party-only). Damage beside Flame Strike's [8, 14] on one target.
+       BRAND    Storm, one target, a kill gives 4 mana back. 10 mana, 8 s.
+       REAVE    Necrotic, one target, 30% of the HP it took comes back as HP. 12 mana, 10 s.
+     THE WAND'S PAIR, on Fireball's 3x3 (Fireball [7, 12], 25 mana, 8 s; Hoarfrost [5, 9], 22 mana, 10 s).
+       UPDRAFT  Storm, an area under Fireball's damage, 3 mana back for each monster it hits. 22 mana, 10 s.
+       BLIGHT   Necrotic, an area, everything it hits Withered (statuses.js: a monster heals half as much for 6 s). 25 mana, 10 s.
+     Every number PROPOSED by the designer (B3) or placed beside the built spell of the same shape (the damage, which B3 leaves open);
+     measured in tools/balance-sim/elements-6b-table.mjs. */
+  ...(NECROTIC_STORM.live ? [
+    ab({ id: 'brand', n: 'Brand', disciplines: ['sword'], lane: 'offense', cdMs: 8000, mana: 10, rune: 'chalked_storm_rune', unlock: 25,
+      target: 'enemy', dmg: [8, 14], element: 'storm', manaPerKill: 4, magicXpMult: 250,
+      versions: [[10, 1000], [12, 1740], [14, 2520], [17, 3310], [21, 4100]], lvPm: LV_PM }),
+    ab({ id: 'reave', n: 'Reave', disciplines: ['sword'], lane: 'offense', cdMs: 10000, mana: 12, rune: 'chalked_bone_rune', unlock: 40,
+      target: 'enemy', dmg: [8, 14], element: 'necrotic', leechPm: 300, magicXpMult: 250,
+      versions: [[12, 1000], [14, 1740], [17, 2520], [21, 3310], [25, 4100]], lvPm: LV_PM }),
+    ab({ id: 'updraft', n: 'Updraft', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 22, rune: 'chalked_storm_rune', unlock: 25,
+      target: 'area', dmg: [5, 9], element: 'storm', manaPerHit: 3, magicXpMult: 1600,
+      versions: [[22, 1000], [26, 1740], [32, 2520], [38, 3310], [46, 4100]], lvPm: LV_PM }),
+    ab({ id: 'blight', n: 'Blight', disciplines: ['destruction'], lane: 'offense', cdMs: 10000, mana: 25, rune: 'chalked_bone_rune', unlock: 40,
+      target: 'area', dmg: [6, 10], element: 'necrotic', status: 'withered', magicXpMult: 1600,
+      versions: [[25, 1000], [30, 1740], [36, 2520], [43, 3310], [52, 4100]], lvPm: LV_PM }),
+  ] : []),
   /* MEND, THE UNIVERSAL SELF-HEAL (Bible §4.1 / §17 CONFIRMED; roadmap p21): every loadout heals itself with mana on
      the heal lane, outside its three discipline abilities. It needs missing HP (a hero at full health never casts it,
      so a full-health cast never pays Magic XP) and spends no rune: the free floor. It levels on Magic, and pays Magic
@@ -407,6 +443,10 @@ export function validate(rows = ABILITIES) {
     /* The family's version-I rune: the one its store row partners (a cast spends any tier of the family). */
     if (r.rune && r.active && runeTierOf(ITEMS[r.rune]) !== 1) bad('rune ' + r.rune + ' is not its family\'s Chalked rune');
     if (r.lvPm !== undefined && !(Number.isInteger(r.lvPm) && r.lvPm >= 0)) bad('lvPm must be an integer >= 0');
+    /* A CAST'S RETURNS (the Necrotic and Storm spells): a leech is a whole permille of a blow it lands, mana back a whole number a
+       hit or a kill, each only on a row that lands blows (a status-only shape, a heal or a shield has none to return from). */
+    if (r.leechPm !== undefined && !(Number.isInteger(r.leechPm) && r.leechPm > 0 && r.leechPm <= 1000 && DAMAGING.includes(r.target) && landsBlow(r))) bad('leechPm is a whole permille 1..1000 on a row that lands blows');
+    for (const k of ['manaPerHit', 'manaPerKill']) if (r[k] !== undefined && !(Number.isInteger(r[k]) && r[k] > 0 && DAMAGING.includes(r.target) && landsBlow(r))) bad(k + ' is a whole number of mana >= 1 on a row that lands blows');
     /* Alone-only is a strike's rule: a row everyone holds (the self-heal) or one that helps a friend would never help one. */
     if (r.alone !== undefined && (r.alone !== true || r.universal || !['enemy', 'area', 'cleave'].includes(r.target))) bad('alone is true on a damaging, non-universal row, or absent');
     /* Party-only is the mirror (the tank's rune spells): never on a row everyone holds, never beside `alone` (it could never fire). */

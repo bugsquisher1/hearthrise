@@ -15,7 +15,8 @@
 //   TK-2 REFUSED, NEVER CLAMPED, NOTHING WRITTEN: a word that is no monster, a monster of another ground, an unknown ground, each
 //        refused in its code; a kind never comes in through the action set's options (bad_option).
 //   TK-3 THE PICK SURVIVES AND IS READ AFRESH: a reload's section (a fresh hr_state_of) names it; a pick mid-hunt is what the engine
-//        reads next (never frozen); a kind the catalogue no longer holds there reads as none; None clears it and keeps the row.
+//        reads from the first window past the seed horizon (1005-lever-horizon.sql; inside it, the pick the seeds were shown with),
+//        never frozen; a kind the catalogue no longer holds there reads as none; None clears it and keeps the row.
 //   TK-4 EACH HERO ITS OWN: two heroes in one party name two kinds; the engine's read gives each member its own, never the leader's.
 //   TK-5 THE BAR OFFERS ONLY WHAT THE SERVER TAKES: for every ground the server holds, every monster the bar's First target lists
 //        (src/shell/widgets/first-target.js reads hunt-grounds.js monstersOn) is one hr_hunt_ground_spawns holds there.
@@ -23,7 +24,8 @@
 //        Not the chain end: 2027-04-25-boss-daily.sql splices hr_hunt_instance_read after it, so there the pin rightly refuses (the
 //        house scope, tests/account-depot.mjs A4: upTo the file).
 //
-// The mutants are SQL patched into the booted replay; their anchors are FILE's text.
+// The mutants are SQL patched into the booted replay; their anchors are their owning file's text (FILE's, or
+// 1005-lever-horizon.sql's for the instance read it restated whole).
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
 import { prepare } from '../tools/settle-cost.mjs';
@@ -36,6 +38,8 @@ import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FILE = '2027-04-22-target-kind.sql';
+/* The file that restated hr_hunt_instance_read last (its First target overlay reads the window's pick): the final-body rule. */
+const LEVER_FILE = '1005-lever-horizon.sql';
 const ANCHOR = Date.UTC(2026, 10, 1, 12, 0, 0);
 const CELLAR = 'mill_cellar', HEALER = 'slime', OTHER = 'hive_wasp';
 const WINDOW_MS = 5000, WINDOWS = 40;
@@ -107,9 +111,21 @@ async function bothPaths(boot) {
 /* TK-2 and TK-3, on the viewed door's db (its one hunt still open at the Cellar, the healer named). */
 async function afterwards(db, user) {
   const problems = [];
-  const opts = async () => {
+  const readOpts = async () => {
     const read = await one(db, 'select public.hr_hunt_instance_read($1::uuid, 0)', [user]);
     return read && read.members && read.members[0] && read.members[0].session ? read.members[0].session.options : null;
+  };
+  /* LEVER-HORIZON (1005-lever-horizon.sql): a pick mid-hunt plays from the first window past the seed horizon. `opts()` is the
+     engine's read for a window starting there (the session's clock moved past every hold it has, rolled back); `readOpts()` the
+     read for the window starting now. */
+  const opts = async () => {
+    await db.query('begin');
+    try {
+      await db.query(`update public.hunt_sessions s set settled_to = greatest(s.settled_to,
+                         (select max(h.until) from public.hunt_setup_holds h where h.session_id = s.id) + interval '1 millisecond')
+                       where s.user_id = $1 and s.slot = 0 and s.ended_at is null`, [user]);
+      return await readOpts();
+    } finally { await db.query('rollback'); }
   };
   const picks = async () => ((await one(db, 'select public.hr_state_of($1::uuid, 0)', [user])) || {}).hunt_target_kind;
   const set = async (hunt, kind) => {
@@ -142,8 +158,11 @@ async function afterwards(db, user) {
   await db.query('commit');
   if (!viaSet || viaSet.error !== 'bad_option') problems.push('TK-2 a kind through the action set answered ' + JSON.stringify(viaSet));
 
-  /* TK-3: a pick mid-hunt is the engine's next read, the hunt's instance unmoved */
+  /* TK-3: a pick mid-hunt is the engine's read past the seed horizon (inside it, the pick the seeds were shown with), the hunt's
+     instance unmoved */
   const r1 = await set(CELLAR, OTHER);
+  const held = await readOpts();
+  if (!held || held.target_kind !== HEALER) problems.push('TK-3 a pick mid-hunt played inside the seed horizon: the engine reads ' + JSON.stringify(held));
   const o1 = await opts();
   if (!r1 || r1.ok !== true || !o1 || o1.target_kind !== OTHER) problems.push('TK-3 a pick mid-hunt answered ' + JSON.stringify(r1) + ', the engine reads ' + JSON.stringify(o1));
   /* a kind the catalogue no longer holds on the ground (a later catalogue moved it off): none, in the engine and the section */
@@ -220,16 +239,18 @@ async function twice(db, again) {
 const MUTANTS = [
   { name: 'the pin refuses its own image: the file applies once', again: (sql) => sql.replace("'5081f20a0facc6f36375b8af8ac9f1c8', 'd0cb8c8ec3e038ff865ce81b05242d49')", "'5081f20a0facc6f36375b8af8ac9f1c8')"), want: /TK-6/ },
   { name: 'a second apply adds a second check', again: (sql) => sql.replace("if not exists (select 1 from pg_constraint where conrelid = 'public.hunt_density'::regclass and conname = 'hunt_density_target_kind_ck') then", 'if true then').replace('add constraint hunt_density_target_kind_ck check', 'add constraint hunt_density_target_kind_ck2 check'), want: /TK-6/ },
-  { name: 'the engine never reads the pick', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: "(select jsonb_build_object('target_kind', d.target_kind) from public.hunt_density d", repl: "(select '{}'::jsonb from public.hunt_density d", want: /TK-1 browser closed/, run: 'both' },
-  { name: 'a member plays the leader\'s pick', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: '                     where d.user_id = h.user_id and d.slot = h.slot and d.hunt_id = v_i.hunt_id), \'{}\'::jsonb)) as r) mr',
-    repl: '                     where d.user_id = p_user and d.slot = p_slot and d.hunt_id = v_i.hunt_id), \'{}\'::jsonb)) as r) mr', want: /TK-4/, run: 'party' },
+  /* The instance read's First target overlay is 1005-lever-horizon.sql's text since it restated the body whole (the final-body
+     rule): the window's pick, from the member read, kept only when the ground fields it. */
+  { name: 'the engine never reads the pick', fn: 'public.hr_hunt_instance_read(uuid,integer)', file: LEVER_FILE,
+    find: "(select jsonb_build_object('target_kind', g.monster_id) from public.hr_hunt_ground_spawns g", repl: "(select '{}'::jsonb from public.hr_hunt_ground_spawns g", want: /TK-1 browser closed/, run: 'both' },
+  { name: 'a member plays the leader\'s pick', fn: 'public.hr_hunt_instance_read(uuid,integer)', file: LEVER_FILE,
+    find: "where g.hunt_id = v_i.hunt_id and g.monster_id = m0.r0->>'target_kind'), '{}'::jsonb)) as r) mr",
+    repl: "where g.hunt_id = v_i.hunt_id and g.monster_id = (select d.target_kind from public.hunt_density d where d.user_id = p_user and d.slot = p_slot and d.hunt_id = v_i.hunt_id)), '{}'::jsonb)) as r) mr", want: /TK-4/, run: 'party' },
   { name: 'a kind of another ground is taken', fn: 'public.hr_hunt_target_kind_set(integer,text,text,uuid)',
     find: 'where s.hunt_id = p_hunt and s.monster_id = v_kind', repl: 'where s.monster_id = v_kind', want: /TK-2/, run: 'both' },
-  { name: 'a kind off the ground is still served', fn: 'public.hr_hunt_instance_read(uuid,integer)',
-    find: "                      join public.hr_hunt_ground_spawns g on g.hunt_id = d.hunt_id and g.monster_id = d.target_kind\n                     where d.user_id = h.user_id",
-    repl: "                     where d.user_id = h.user_id", want: /TK-3 a kind off the ground/, run: 'both' },
+  { name: 'a kind off the ground is still served', fn: 'public.hr_hunt_instance_read(uuid,integer)', file: LEVER_FILE,
+    find: "(select jsonb_build_object('target_kind', g.monster_id) from public.hr_hunt_ground_spawns g\n                     where g.hunt_id = v_i.hunt_id and g.monster_id = m0.r0->>'target_kind')",
+    repl: "(select jsonb_build_object('target_kind', m0.r0->>'target_kind') where m0.r0->>'target_kind' is not null)", want: /TK-3 a kind off the ground/, run: 'both' },
   { name: 'None takes the row (and its tier) with it', fn: 'public.hr_hunt_target_kind_set(integer,text,text,uuid)',
     find: '    update public.hunt_density set target_kind = null, updated_at = now()\n     where user_id = v_uid and slot = p_slot and hunt_id = p_hunt and target_kind is not null;',
     repl: '    delete from public.hunt_density\n     where user_id = v_uid and slot = p_slot and hunt_id = p_hunt;', want: /TK-3 None/, run: 'both' },
@@ -237,8 +258,9 @@ const MUTANTS = [
 
 async function main() {
   if (process.argv.includes('--mutate')) {
-    /* every anchor is FILE's own text, or the mutant tests nothing */
-    const text = readFileSync(join(ROOT, 'supabase', 'migrations', FILE), 'utf8').replace(/\r\n/g, '\n');
+    /* every anchor is its owning file's own text (FILE's, or m.file: the file that last restated the body), or the mutant tests nothing */
+    const textOf = (f) => readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n');
+    const text = textOf(FILE);
     let escaped = 0;
     for (const m of MUTANTS) {
       if (m.again) {
@@ -250,7 +272,7 @@ async function main() {
         console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + m.name + ': ' + (got[0] || 'every check held').slice(0, 200));
         continue;
       }
-      if (text.split(m.find).length !== 2) { console.log('  ESCAPED ' + m.name + ': HARNESS: the anchor is not in ' + FILE + ' exactly once'); escaped++; continue; }
+      if (textOf(m.file || FILE).split(m.find).length !== 2) { console.log('  ESCAPED ' + m.name + ': HARNESS: the anchor is not in ' + (m.file || FILE) + ' exactly once'); escaped++; continue; }
       /* Patched into the booted replay (FILE's own self-check would refuse most of them at apply): the body as it landed, the one change, re-applied. */
       const boot = async () => {
         const b = await bootReplay();

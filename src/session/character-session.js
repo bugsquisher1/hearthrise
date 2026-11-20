@@ -155,12 +155,9 @@ export class CharacterSession {
   /** The SERVER's clock now (ms), measured from its answers (timeline.js T3), or null before one came. */
   serverNow() { return this.timeline.serverNowAt(this._now()); }
 
-  /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. UNVIEWED (CLAUDE.md §6: only the
-     viewed character streams live) it has NO clock of its own (the 11-19 server audit: its minute's hr_load was ~30% of the
-     database's load): its push channel is its feed (the social poll stamps every open hero present, so each settle's whole
-     frame reaches it), a lost channel reads it once (FED, _onChannel), viewing it asks the engine at once (setViewed); only a
-     pending leave's close is asked. A pushed frame is news the re-read would only repeat (41-45 % of polls did, 10-23), so it
-     DEFERS it a whole delay (FED: when the frames stop, it goes out one delay after the last; when the channel is lost, at once). */
+  /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. UNVIEWED (CLAUDE.md §6) it has NO clock (11-19
+     server audit row 5: ~30% of DB load): its pushed whole frames are its feed, a lost channel reads it once (FED), viewing it asks at once
+     (setViewed); only a pending leave's close is asked. A frame DEFERS the re-read a delay (FED: lost channel, at once: _onChannel). */
   _armHuntPoll(deferred) {
     if (this._closed || !this._huntOpen()) return;
     this._fed = deferred === true;

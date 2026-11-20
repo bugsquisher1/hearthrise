@@ -1053,3 +1053,6 @@ review before players, systems-engineer + art-director lane 4 (window/sheet), as
 - `pace.mjs --fit --fit-past` went infeasible (the held first step breaks its one-minute Level 2 bound when XP drops) and then returned garbage. A hand grid over the two brackets past 110 against the same reference was quicker and honest.
 - A re-split that holds the total to Level 9 still moves every Level inside the band (a Level 4 hero with 1,200 XP reads 3). A read-only count proves today only; the curve file now refuses itself at apply if any hero's Level moves (gen-level-curve, core-curves CURVE-HOLD).
 - A balance-blind test arm pins the rows it plays: when XP a kill moves, add `xp` to its pinned rows (hunt-live LV-PULL), or the Level-ups shift its laps.
+- Luck v3 (11-20): a life records kills by creature only, and every Luck number is re-read off the same file (luck-measure table), so a curve re-tune costs seconds, not a re-run. A lone 5,000 h life is about 25 minutes, a four on Deadly about 2 hours: start the four first.
+- Past the built content a life parks on the last ground. Say so in the table, and project the planned game apart from it, labeled assumed.
+- A four on Deadly at Krell's Hold pays the store about what it earns (20k an hour a hero against 20k). Any sink priced as a share of income has to be read against net, not gross.

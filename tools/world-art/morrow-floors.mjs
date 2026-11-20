@@ -70,22 +70,37 @@ export function stableStraw(g, grid, doorway, ch = 'S', seed = 137) {
   const SX0 = x0 * T, SY0 = y0 * T, STALL_D = 52, STALL_W = 58;   /* each stall 58 px wide, 52 deep from the north wall */
   const nStall = Math.floor(((x1 - x0 + 1) * T - 20) / STALL_W);
   let strands = 0, stalls = 0;
-  /* b8 (CR) ranked 6, "the stable reads as more yard: straw floor and yard earth one tone": the straw's bed a step up and warmer than
-     the yard's earth (the earth ramp's dark pair to bronze's, a step for a step, so the straw reads yellow, never past the floor cap),
-     the strands thicker and yellower (bronze mid and lit tips) */
-  const WARM = { '#2a1c14': '#3d2a1d', '#3d2a1d': '#4a2e18', '#553a26': '#7a4f26', '#231d1f': '#2a1c14', '#2f2723': '#3d2a1d' };
-  for (let py = SY0; py < g.height; py++) for (let px = SX0; px < (x1 + 1) * T; px++) {
-    if (!is(px, py)) continue; const p = (py * g.width + px) * 4, hx = '#' + [0, 1, 2].map((k) => g.data[p + k].toString(16).padStart(2, '0')).join('');
-    if (WARM[hx]) put(g, px, py, WARM[hx]);
+  /* b8 final (the b8 review, note 1: "the most saturated big area on the map, a per-pixel orange/brown speckle with no strands or clumps;
+     the one texture that reads generated"): the fill's speckle is painted over. The floor is BARE EARTH (the yard's earth ramp in calm
+     patches on a slow field, never a per-pixel speckle) with the straw lying on it where it would: deep in the stalls (its front edge
+     ragged, a few px past the rails), DRIFTED against the west, east and south walls, and in trodden CLUMPS in the aisle with earth
+     between. The straw is the earth ramp a step over the yard (never bronze: a step down in saturation from b8): a bed in small tufts
+     (a fine field, not a per-pixel dither), long strands over it that run one way in each clump, a lit tip on two in five. */
+  let y1 = -1; for (const [, y] of cells) y1 = Math.max(y1, y);
+  const X1 = (x1 + 1) * T, Y1 = (y1 + 1) * T, RUN = nStall * STALL_W + 10;
+  const cov = (px, py) => {
+    const sx = px - SX0, sy = py - SY0;
+    const stall = sx < RUN ? 1 - (sy - (STALL_D - 2 + (noise(px, 0, 9, seed + 20) - 0.5) * 14)) / 9 : 0;
+    const wall = 1 - (Math.min(sx, X1 - 1 - px, Y1 - 1 - py) - (6 + noise(px, py, 17, seed + 21) * 16)) / 6;
+    const clump = (noise(px, py, 19, seed + 22) - 0.52) * 7;
+    return Math.max(0, Math.min(1, Math.max(stall, wall, clump)));
+  };
+  for (let py = SY0; py < Y1; py++) for (let px = SX0; px < X1; px++) {
+    if (!is(px, py)) continue;
+    const c = cov(px, py), t = noise(px, py, 14, seed + 23), tuft = noise(px, py, 2.6, seed + 24);
+    const earth = t > 0.7 ? '#553a26' : t < 0.24 ? '#2a1c14' : '#3d2a1d';
+    put(g, px, py, c > 0.25 && tuft < 0.25 + (c - 0.25) * 1.1 ? (tuft < 0.24 ? '#6e4c30' : tuft > 0.64 ? '#3d2a1d' : '#553a26') : earth);
   }
-  /* the straw: strands 3-5 px on the diagonal, the dark of each at its foot, its tip lit; deep bedding in the stalls, thin in the aisle */
-  for (let gy = SY0; gy < g.height; gy += 3) for (let gx = SX0; gx < (x1 + 1) * T; gx += 3) {
+  for (let gy = SY0; gy < Y1; gy += 3) for (let gx = SX0; gx < X1; gx += 3) {
     const px = gx + Math.floor(hash2(gx, gy, seed) * 3), py = gy + Math.floor(hash2(gx, gy, seed + 1) * 3);
-    if (!is(px, py) || !is(px + 4, py + 4)) continue;
-    const inStall = py - SY0 < STALL_D && px - SX0 < nStall * STALL_W, keep = inStall ? 0.9 : 0.4 * (0.5 + noise(px, py, 30, seed + 2));
-    if (hash2(gx, gy, seed + 3) > keep) continue;
-    const len = 3 + Math.floor(hash2(gx, gy, seed + 4) * 3), dir = hash2(gx, gy, seed + 5) < 0.5 ? 1 : -1, bright = inStall && hash2(gx, gy, seed + 6) < 0.35;
-    for (let t = 0; t < len; t++) put(g, px + t, py + (dir > 0 ? Math.floor(t / 2) : -Math.floor(t / 2)), t === len - 1 ? (bright ? '#8a6440' : '#7a4f26') : t === 0 ? '#4a2e18' : bright ? '#7a4f26' : '#6e4c30');
+    if (!is(px, py) || !is(px + 6, py + 3)) continue;
+    const c = cov(px, py); if (c < 0.5 || hash2(gx, gy, seed + 3) > 0.42 * c) continue;
+    const ang = (noise(px, py, 40, seed + 26) - 0.5) * 1.6, len = 4 + Math.floor(hash2(gx, gy, seed + 4) * 4), lit = hash2(gx, gy, seed + 6) < 0.4;
+    for (let s = 0; s < len; s++) {
+      const x = Math.round(px + Math.cos(ang) * s), y = Math.round(py + Math.sin(ang) * s * 0.6);
+      put(g, x, y, s === len - 1 ? (lit ? '#8a6440' : '#6e4c30') : s === 0 ? '#2a1c14' : '#6e4c30');
+      if (s > 0 && s < len - 1) put(g, x, y + 1, '#3d2a1d');   /* its shade along its lower side */
+    }
     strands++;
   }
   /* the stalls' partitions: a plank wall running south from the north wall, its top rail lit on the west, shaded on the east, a post

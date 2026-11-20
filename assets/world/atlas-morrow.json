@@ -5,7 +5,7 @@
   "T": 32,
   "image": "atlas-morrow.png",
   "size": [2048,1468],
-  "pixels": "27c758c31ef2707a7ae426dbe632f1fb172344e44dbbefce9bb2af2ce4c70a37",
+  "pixels": "e0c0375d67113a32559699071223277efa8685bf84b9b4dcb39c836748b1d187",
   "sprites": {
     "cr_brew_copper": {
       "class": "copper",

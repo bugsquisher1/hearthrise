@@ -130,15 +130,23 @@ export async function collectDb(root) {
 
 // ── work: lanes and staged migrations ───────────────────────────────────────
 const git = (root, args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-export function collectLanes(root, planted = null) {
+/* `cites`: the build-plan ids (L01..) a lane's OWN commits name (those not on HEAD), read only for lanes at or after `citeFrom`
+   (one git log a lane); a planted lane carries its own. inventory.mjs holds them against docs/design/balance-program/30-plan.md. */
+const PLAN_ID = /\bL\d{2}\b/g;
+export function collectLanes(root, planted = null, citeFrom = null) {
   let raw = '';
   if (planted) raw = planted.map((l) => `${l.date} origin/${l.name}`).join('\n');
   else try { raw = git(root, ['for-each-ref', '--no-merged', 'HEAD', '--format=%(committerdate:short) %(refname:short)', 'refs/remotes/origin/lane/*']); }
   catch { return []; }
+  const plantedCites = new Map((planted || []).map((l) => [l.name, l.cites || []]));
   return raw.split('\n').filter(Boolean).map((l) => {
     const [date, ref] = l.split(' ');
     const name = ref.replace(/^origin\//, '');
-    return { kind: 'lane', id: name, text: `${name.replace(/^lane\//, '').replace(/[-_/]+/g, ' ')} ${date}` };
+    let cites = plantedCites.get(name) || [];
+    if (!planted && citeFrom && date >= citeFrom) {
+      try { cites = [...new Set(git(root, ['log', '--format=%s%n%b', `HEAD..${ref}`]).match(PLAN_ID) || [])].sort(); } catch { cites = []; }
+    }
+    return { kind: 'lane', id: name, text: `${name.replace(/^lane\//, '').replace(/[-_/]+/g, ' ')} ${date}`, cites };
   }).sort((a, b) => a.id.localeCompare(b.id));
 }
 export async function collectStaged(root) {
@@ -220,14 +228,14 @@ export function collectMemory(dir = DEFAULT_MEMORY) {
  * (the selftest's planted database rows).
  * @returns {Promise<{anchors: {kind:string,id:string,text:string}[], memoryRead: boolean}>}
  */
-export async function collectAll({ root, memory = DEFAULT_MEMORY, db = true, lanes = null, extra = [] } = {}) {
+export async function collectAll({ root, memory = DEFAULT_MEMORY, db = true, lanes = null, citeFrom = null, extra = [] } = {}) {
   const mem = collectMemory(memory);
   const anchors = [
     ...collectSrc(root),
     ...await collectRecipes(root),
     ...await collectEdge(root),
     ...(db ? await collectDb(root) : []),
-    ...collectLanes(root, lanes),
+    ...collectLanes(root, lanes, citeFrom),
     ...await collectStaged(root),
     ...collectDocs(root),
     ...mem.anchors,

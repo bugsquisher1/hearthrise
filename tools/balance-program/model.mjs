@@ -6,10 +6,13 @@
 //   LEDGERS            the ten quantities every system is booked in (a source, a sink or a converter)
 //   STACK_CLASSES      the four ways a lever may combine, and the cap each class carries
 //   LEVERS             every lever known today, its class and its size (label: MEASURED / CITED / RULED / PROPOSED)
+//   LEVER_CLASSES      the classes a lever may hold: the four stack classes, a gold source or sink, cut, dark
+//   LEVER_KEYS         every lever the DATA carries, by the key the balance guard's scan reads (G14), and the LEVERS row that classes it
 //   REF_POINTS         the Levels and grounds every dive measures at
 //   REF_SEATS          the three played parties that are "1.00" at a point
 //   REFERENCE_PLAYERS  the seven accounts every dive prices its system for (re-based on real players)
 //   REAL_OWN_FOUR_NET  what real own fours net in gold; HARNESS_GAPS where the harness disagrees with real play
+//   REAL_KRELL_FOUR    the heavy four's Krell hunt of 2026-11-20 (11-krell-hunt-2026-11-20.md): the harness's calibration point
 //   SERVER_AGES        the three server ages every dive answers for
 //   POPULATIONS        the three populations every dive answers for
 //
@@ -59,7 +62,57 @@ export const LEVERS = Object.freeze([
   { id: 'magic-find', cls: 'add', on: 'items', size: 'one budget of 104 a hero, Rare rows only', label: 'RULED', system: 'luck' },
   { id: 'rarer-past-krell', cls: 'multiply', on: 'items', size: 'Rare rows -15% at band 8 to -25% at band 18', label: 'RULED', system: 'loot' },
   { id: 'good-batch', cls: 'add', on: 'items', size: '2% at 1 to 10% at 99, consumables', label: 'RULED', system: 'crafting-chase' },
+  /* Booked 2026-11-20 by the balance guard's lever scan (G14, lane/c-balance-guard): levers the data carries that had no row. A class marked
+     PROPOSED is the guard lane's reading of 30-plan section B for the designer to confirm; nothing in the game moved. */
+  { id: 'food-xp-buffs', cls: 'cut', on: 'level_xp', size: 'a meal: +2 to +3% Level, combat XP or drops for minutes', label: 'READ FROM DATA; cut RULED-pending (23-6, C6, C14)', system: 'cooking' },
+  { id: 'food-combat-buffs', cls: 'add', on: 'power', size: 'a meal: +2 to +5 damage, crit or Defense for minutes; the Cellar lengthens them', label: 'READ FROM DATA; class PROPOSED (C6 keeps them)', system: 'cooking' },
+  { id: 'town-speed', cls: 'add', on: 'town_hours', size: 'room rungs and meals: +2 to +10% a bench, plots, no-burn, materials saved', label: 'READ FROM DATA; class PROPOSED', system: 'rooms' },
+  { id: 'charms', cls: 'cut', on: 'items', size: 'x1.01 to x1.03 drops, x1.01 to x1.03 damage a creature', label: 'READ FROM DATA; cut (C14, 30-9)', system: 'bestiary' },
+  { id: 'trophy-multipliers', cls: 'cut', on: 'items', size: 'trophy x1.03 drops, x1.01 damage; memory x1.07 drops', label: 'READ FROM DATA; cut (27-3, L20)', system: 'bestiary' },
+  { id: 'band-boost', cls: 'cut', on: 'items', size: 'a studied relic x1.25 on the Trophy row', label: 'READ FROM DATA; cut (C14)', system: 'loot' },
+  { id: 'monster-drop-bonus', cls: 'cut', on: 'items', size: 'x1.15 drops on the seven rows that were once neutral', label: 'READ FROM DATA; class PROPOSED (C14: one drop budget)', system: 'loot' },
+  { id: 'companions', cls: 'dark', on: 'power', size: 'a pet: +1% XP, rare drops, gold find, town speed, procs', label: 'READ FROM DATA; held with no lane (30-plan D)', system: 'companions' },
+  { id: 'session-share', cls: 'multiply', on: 'level_xp', size: 'the Tower and the Catacombs pay 375 permille of a hunt\'s Level XP', label: 'READ FROM DATA', system: 'tower' },
+  { id: 'scaled-hunts', cls: 'multiply', on: 'level_xp', size: 'a scaled early hunt: XP, coin and drops by its own dials', label: 'READ FROM DATA; dark until L31 (22-9)', system: 'scaled-hunts' },
+  { id: 'event-fee', cls: 'multiply', on: 'gold', size: 'open halls: a Call-out fee cut for the event', label: 'READ FROM DATA', system: 'live-events' },
+  { id: 'blessings', cls: 'sink', on: 'gold', size: 'keeps 25 / 50 / 75% of a death\'s Level XP for a fee by Level', label: 'RULED (11-10)', system: 'blessings' },
+  { id: 'premium-gift', cls: 'source', on: 'items', size: 'Premium\'s daily gift', label: 'RULED (24-4, amended C9)', system: 'premium' },
 ]);
+
+/* THE CLASSES A LEVER MAY HOLD (balance guard G14). The four stack classes, a gold source or sink (30-plan section B's "Source" and "Sink"),
+   and two that hold a lever still to be decided: `cut` (ruled or proposed out; its rows may only shrink, the guard pins their count) and
+   `dark` (in the data and unreachable by a player; pinned the same way until it is classed). */
+export const LEVER_CLASSES = Object.freeze([...STACK_CLASSES.map((c) => c.id), 'source', 'sink', 'cut', 'dark']);
+
+/* EVERY LEVER THE DATA CARRIES (balance guard G14, tools/balance-program/guard-cells.mjs LEVER_CARRIERS reads them): the key a carrier
+   answers -> the LEVERS row that classes it. A key the scan finds that is not here is a stranger, and G14 is red. Adding a lever is one
+   row here (and a LEVERS row when it is a new kind), in the same commit as the data that carries it. */
+export const LEVER_KEYS = Object.freeze({
+  'buff:all_xp': 'food-xp-buffs', 'buff:combat_xp': 'food-xp-buffs', 'buff:drop_rate': 'food-xp-buffs',
+  'buff:damage': 'food-combat-buffs', 'buff:damage_crit': 'food-combat-buffs', 'buff:defense': 'food-combat-buffs',
+  'buff:gather_speed': 'town-speed', 'buff:farm_yield': 'town-speed',
+  'room-perk:buffDuration': 'food-combat-buffs', 'room-perk:cookSpeed': 'town-speed', 'room-perk:craftSave': 'town-speed', 'room-perk:craftSpeed': 'town-speed',
+  'room-perk:farmPlots': 'town-speed', 'room-perk:noBurn': 'town-speed', 'room-perk:flameSpeed': 'town-speed', 'room-perk:runeSpeed': 'town-speed',
+  'room-perk:smithSpeed': 'town-speed',
+  'jewel-perk:keen': 'perks-worn-in', 'jewel-perk:surge': 'perks-worn-in', 'jewel-perk:follow': 'perks-worn-in', 'jewel-perk:thrift': 'perks-worn-in',
+  'jewel-perk:deflect': 'perks-worn-in', 'jewel-perk:second_wind': 'perks-worn-in', 'jewel-perk:steady': 'perks-worn-in', 'jewel-perk:focus': 'perks-worn-in',
+  'charm:drop': 'charms', 'charm:damage': 'charms',
+  'trophy:drop': 'trophy-multipliers', 'trophy:damage': 'trophy-multipliers', 'memory:drop': 'trophy-multipliers',
+  'band-boost:trophy': 'band-boost',
+  'monster:dropBonus': 'monster-drop-bonus',
+  'companion:bonus': 'companions', 'companion:proc': 'companions',
+  'tier:dangerous': 'tier-party', 'tier:deadly': 'tier-party', 'party:class-xp': 'tier-party', 'party:solo': 'solo-boost',
+  'session-mode:tower': 'session-share', 'session-mode:catacomb': 'session-share',
+  'scaled-hunt': 'scaled-hunts',
+  'event:xp_bonus': 'bonus-weekend', 'event:open_halls': 'event-fee',
+  'skill-xp:ability': 'way', 'skill-xp:basic': 'way',
+  'temper:blows': 'tempering', 'temper:armor': 'tempering',
+  'training-item': 'skill-bump',
+  'blessing': 'blessings',
+  'stamina:free': 'stamina-cap', 'stamina:premium': 'stamina-cap', 'premium:stamina': 'stamina-cap', 'premium:login': 'premium-gift',
+  'refill': 'refills',
+  'hero-slot': 'hero-slots',
+});
 
 /* WHERE every dive measures. `open` false = the ground is staged; measure.mjs plays it with gear.openAlso. */
 export const REF_POINTS = Object.freeze([
@@ -107,6 +160,29 @@ export const REFERENCE_PLAYERS = Object.freeze([
    supplies home-made). [top Level of the account, net]. The harness's four buys every supply at the store and reads NEGATIVE where
    the real four is +9k: until the harness plays own stock, measure.mjs price uses these for four-seat players up to Level 84. THIN. */
 export const REAL_OWN_FOUR_NET = Object.freeze([[46, 6530], [55, 7495], [84, 9078]]);
+
+/* THE HEAVY FOUR'S KRELL HUNT (docs/design/balance-program/11-krell-hunt-2026-11-20.md, REAL, THIN: one person, one day, 39 hero-hours on
+   v0.2.142): the one reading of a real four at Krell's Hold on Deadly with its tier, supplies and every settle on record. The balance guard
+   plays the harness's own four in these seats (calibration line K1) and prints the gap. Seats are mid-hunt (sections 1 and 2); Level XP is
+   the 17.8 hero-hours before the Bonus XP weekend opened; gold uses all 39 (section 10). Runes: Carved for the Mage, Etched for the Healer (section 4).
+   `skills` holds only what the hunt recorded; a skill it did not record is the party career line's at the seat's Level (skill-lines.mjs). */
+export const REAL_KRELL_FOUR = Object.freeze({
+  ground: 'krells_hold', tier: 'deadly', read: '2026-11-20', label: 'REAL, THIN (one person, one day)',
+  seats: Object.freeze([
+    Object.freeze({ style: 'tank', level: 79, skills: Object.freeze({ melee: 60, defense: 59 }) }),
+    Object.freeze({ style: 'healer', level: 77, skills: Object.freeze({ magic: 63, defense: 32 }) }),
+    Object.freeze({ style: 'bow', level: 79, skills: Object.freeze({ ranged: 61 }) }),
+    Object.freeze({ style: 'mage', level: 79, skills: Object.freeze({ magic: 59 }) }),
+  ]),
+  runeTierByRole: Object.freeze({ mage: 'carved', healer: 'etched' }),
+  ownStockShare: 0.24,             // section 4: home-made is 24% of all supply units used
+  levelXpAHeroHour: 1001000,       // section 2, before the event
+  xContract: 2.85,                 // section 2
+  killsAClockHour: 1251,           // section 2, the party
+  netGoldAHeroHour: 9700,          // section 4: coin 15,100 + loot sold 4,700 + tally 440 - store 10,600
+  storeAHeroHour: 10600,           // section 4
+  deaths: 0, heroHours: 39,        // section 1
+});
 
 /* WHERE THE HARNESS IS KNOWN TO DISAGREE WITH REAL PLAYERS (10-real-players.md section 1). A dive quotes these beside any number they touch. */
 export const HARNESS_GAPS = Object.freeze([

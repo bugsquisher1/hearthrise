@@ -216,6 +216,8 @@
     "node tests/basic-attack-interval.mjs": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/basic-attack-interval.mjs --mutate": "economy-selftests",
     "node tools/mutant-gate.mjs node tests/renown-kill-faucet.mjs --selftest": "economy-selftests",
+    "node tests/balance-guard.mjs": "economy-selftests",
+    "node tools/mutant-gate.mjs node tests/balance-guard.mjs --selftest": "economy-selftests",
     "node tests/party-flow.mjs": "db-replay-15",
     "node tools/mutant-gate.mjs node tests/party-flow.mjs --mutate": "db-replay-15",
     "node tests/play-cap.mjs": "db-replay-15",

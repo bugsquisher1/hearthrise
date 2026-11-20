@@ -21,7 +21,7 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { DISCIPLINES } from './abilities.js?v=0.2.142';
+import { DISCIPLINES, ABILITIES } from './abilities.js?v=0.2.142';
 import { isShield } from './shields.js?v=0.2.142';
 import { FIST_LINE } from './fists.js?v=0.2.142';
 
@@ -221,6 +221,14 @@ export function validate() {
     if (tanks !== Object.values(SHIELD_ARM).includes(w)) out.push('weapon ' + w + (tanks ? ' plays the tank without a shield' : ' is a shield arm that plays no tank'));
   }
   for (const [w, to] of Object.entries(SHIELD_ARM)) if (!ROLE_KEYS[w] || !ROLE_KEYS[to]) out.push('shield arm ' + w + ' -> ' + to + ' names an unknown key');
+  /* AN ABILITY PARTY ONLY FOR SOME ROLES (abilities.js `party` as a list, partyOnly): each a role a key of one of its disciplines plays,
+     so the rule binds a caster who can hold it (Brand and Reave: the tank, the shield's). */
+  for (const r of Object.values(ABILITIES)) {
+    if (!Array.isArray(r.party)) continue;
+    for (const role of r.party) {
+      if (!Object.values(ROLE_KEYS).some((k) => r.disciplines.includes(k.discipline) && k.roles.includes(role))) out.push('ability ' + r.id + ': party only for ' + role + ', a role none of its disciplines plays');
+    }
+  }
   if (!ROLE_KEYS.neutral) out.push('ROLE_KEYS has no neutral row for an unarmed hero');
   for (const r of Object.keys(SHOT_SKILL)) if (!HUNT_ROLES[r] || HUNT_ROLES[r].melee) out.push('SHOT_SKILL ' + r + ': not a ranged role');
   if (!Number.isInteger(CHALLENGE.radius) || CHALLENGE.radius < 1) out.push('CHALLENGE.radius must be a positive integer');

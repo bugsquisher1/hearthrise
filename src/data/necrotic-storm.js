@@ -22,7 +22,9 @@
 // GOING LIVE is one lane: flip `live`, then in the same lane the art (ten rune icons, four spell icons, two hit effects, the Withered
 // mark), the element words (src/data/text/monster.js el_necrotic / el_storm), the hit effects (hunt-vfx.js HIT_FX.element), the item
 // descriptions, the generated catalogues (items, recipes, store rows, rune spells: Lane C) and the edge deploy. The two guard
-// LININGS are phase 6's (plan §5), not this switch's.
+// LININGS are phase 6's (plan §5), not this switch's. Brand and Reave STAND IN FOR a strike (abilities.js `replaces`): the bar's
+// cooldown ember (src/shell/widgets/action-bar.js watchCasts) cools the strike a cast took too (the cast event's `took`), and the
+// card and Configure action say which strikes it shares a cooldown with. Their "Party only" for the tank is already read by the bar.
 //
 // PURE ESM. Data only. Imports nothing.
 // ════════════════════════════════════════════════════════════════════════

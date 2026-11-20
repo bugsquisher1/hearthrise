@@ -317,7 +317,7 @@ const MUTANTS = [
   { name: '[alone] the slot in a party says nothing', case: 'alone-only',
     edits: [['src/shell/slot-waits.js', '  if (a) return a;\n', '']] },
   { name: '[alone] the card loses the callout', case: 'alone-only',
-    edits: [['src/shell/action-facts.js', "alone: r.alone ? t('bar.alone') : r.party", "alone: false ? t('bar.alone') : r.party"]] },
+    edits: [['src/shell/action-facts.js', "alone: r.alone ? t('bar.alone') : partyOnly(", "alone: false ? t('bar.alone') : partyOnly("]] },
   { name: '[alone] Configure action says nothing in a party', case: 'alone-only',
     edits: [['src/shell/slot-waits.js', '  if (alone) return alone;\n', '']] },
   { name: 'an ability whose target rule stops finding a target, and no words say so', case: 'every-suggestion',

@@ -62,7 +62,11 @@
    re-fit (pace.mjs --fit --fit-past, minimax 5.4%); Levels 1-50 cost what they did. Forward file 2027-04-07-brook-bear-level-curve.
    LEVELS 1-9 RE-SPLIT 2026-11-19 (lane/d-142-rulings): with a kill paying 12% less the early steps read 2.01-2.40x the one before (C6), so each
    now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
-   318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early. */
+   318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early.
+   LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9; Tyler ruled balance call 27-2): the start-kit hero took 1.4 / 2.6 / 3.0 h for
+   Levels 7, 8, 9 and Level 10 at 8.6 h, where both light players quit. Steps 7-9 now 15,500 / 34,500 / 46,000 (were 25,072 / 68,087 /
+   83,477); Levels 10-15 take the XP back (85,994, then 105,795 + 267 a Level), so the total to Level 16 and every step from 16 on
+   cost what they did. LEVEL_PACE.newPlayer holds it. Forward file 1009-level-curve-new-player. */
 export const LEVEL_CURVE = Object.freeze({
   first: 210,
   brackets: Object.freeze([
@@ -71,11 +75,13 @@ export const LEVEL_CURVE = Object.freeze({
     Object.freeze({ from: 3, rise: 762, bend: 0 }),
     Object.freeze({ from: 4, rise: 4881, bend: 0 }),
     Object.freeze({ from: 5, rise: 5872, bend: 0 }),
-    Object.freeze({ from: 6, rise: 12759, bend: 0 }),
-    Object.freeze({ from: 7, rise: 43015, bend: 0 }),
-    Object.freeze({ from: 8, rise: 15390, bend: 0 }),
-    Object.freeze({ from: 9, rise: 1, bend: 0 }),
-    Object.freeze({ from: 10, rise: 0, bend: 657 }),
+    Object.freeze({ from: 6, rise: 3187, bend: 0 }),
+    Object.freeze({ from: 7, rise: 19000, bend: 0 }),
+    Object.freeze({ from: 8, rise: 11500, bend: 0 }),
+    Object.freeze({ from: 9, rise: 39994, bend: 0 }),
+    Object.freeze({ from: 10, rise: 19801, bend: 0 }),
+    Object.freeze({ from: 11, rise: 267, bend: 0 }),
+    Object.freeze({ from: 16, rise: 7884, bend: 657 }),
     Object.freeze({ from: 50, rise: 78689, bend: 162 }),
     Object.freeze({ from: 110, rise: 70000, bend: 100 }), /* 2026-11-19: past the ceiling, fit by hand to the contract (no hero there) */
     Object.freeze({ from: 300, rise: 350000, bend: 100 }),
@@ -98,7 +104,12 @@ export const LEVEL_CURVE = Object.freeze({
               today's solo grounds in their bands (Cellar, Thicket, Glade, Warrens:
               tools/balance-sim/level-pace.json `ladder`). It is what a NEW ground must
               pay for the curve to hold; once grounds past Level 50 exist, the simulator
-              measures them and the contract only covers what lies beyond. */
+              measures them and the contract only covers what lies beyond.
+   newPlayer  Tyler 2026-11-20 (27-2): the target at `level` is the hero a new player is, not the
+              careers: `party` on `policy` (tools/balance-sim/life.mjs: start kit, start bar, Normal,
+              the advised ground, no event) reaches it inside `hours`, and each step L -> L+1 with
+              L in [from, to] takes at most `h` hours (`steps`). tests/start-kit-pace.mjs plays it;
+              tests/level-curve.mjs C2/C3 judge the careers on the other targets. */
 export const LEVEL_PACE = Object.freeze({
   targets: Object.freeze([[10, 6], [25, 36], [50, 168], [100, 600], [200, 1680], [300, 3120], [500, 6720], [750, 13440], [1000, 23520]]
     .map((t) => Object.freeze(t))),
@@ -111,6 +122,8 @@ export const LEVEL_PACE = Object.freeze({
      the Glade at 23.5 89,098, the Warrens at 47.5 242,111): 1049 x L^1.383 read -13.4% against it at Level 300 (C5). */
   contract: Object.freeze({ a: 1385, b: 1.274 }), /* re-pinned to the measured ladder 2026-11-19 (XP a kill x0.88; was 1378 x L^1.298) and 2026-11-11 (the Warrens x0.76; was 975 x L^1.421) */
   smooth: Object.freeze({ from: 1, ratio: 2 }),
+  newPlayer: Object.freeze({ party: Object.freeze(['tank']), policy: 'idle', level: 10, hours: Object.freeze([5, 6]),
+    steps: Object.freeze([Object.freeze({ from: 1, to: 9, h: 2 }), Object.freeze({ from: 10, to: 15, h: 4 })]) }),
 });
 
 /* THE UNCAPPED SKILL CURVE (Q2): Melee, Ranged, Magic, Defense, Inner Flame.

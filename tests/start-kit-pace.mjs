@@ -4,14 +4,18 @@
 //
 // Tyler ruled balance call 27-2 "recommended" (2026-11-20; docs/design/balance-program/27-retention.md, 30-plan.md row L05 and
 // guard line G6): hold "Level 10 in 6 hours" on the hero a new player really is, with no event, and re-cut Levels 7 to 9 so none
-// takes over 2 hours; Levels 10 to 15 take the XP back. Both light real players quit at Levels 7 to 9, where one Level took this
-// hero 2.6 and 3.0 hours (Level 10 at 8.6 h on v0.2.142). The hero and its bounds are data, src/data/core-model.js
-// LEVEL_PACE.newPlayer: the sword and shield on the start kit and the start bar, Normal, the Mill Cellar until its hunt ends at
-// Level 5, then the ground the Hunts window advises, every supply bought (tools/balance-sim/life.mjs playLife, policy idle). The
-// same commit plays the same dice.
+// takes over 2 hours; Levels 10 to 15 take the XP back. Both light real players quit at Levels 7 to 9. The hero and its bounds are
+// data, src/data/core-model.js LEVEL_PACE.newPlayer: the sword and shield on the start kit and the start bar, Normal, the Mill Cellar
+// until its hunt ends at Level 5, then the ground its end card names (the Thicket) KEPT with Hunt again, every supply bought
+// (tools/balance-sim/life.mjs playLife, policy new). CALIBRATED (2026-11-20, the plan audit's B2): the retention dive's blind play
+// stayed in the Thicket with Wickstead open and earned 17,200 Level XP an hour on the analyzer's no-bonus line, about 19,800 with the
+// solo bonus every lone hero gets (27-retention.md:31; src/data/party-class-xp.js SOLO_XP_PM 1150); this hero earns 19,300 and 20,100 an hour at Levels 8 and 9 there and takes
+// 3.53 and 4.16 h for them on v0.2.142's curve against the dive's 3.4 and 4.2 with the bonus (within 4%), Level 10 at 10.6 h against
+// its "about 11". The idle hero that walks to Wickstead at Level 8 read Level 10 at 8.6 h. The real P3's Level 9 at 12 h was played
+// when the Cellar still held a hero 6 hours (10-real-players.md §7; THIN, one person) and is not this game. Same commit, same dice.
 //
-//   SK-1  the hero reaches newPlayer.level inside newPlayer.hours [lo, hi] hunted hours
-//   SK-2  every step L -> L+1 inside a newPlayer.steps band takes at most that band's h hours
+//   SK-1  the hero reaches newPlayer.level inside newPlayer.hours [lo, hi] hunted hours (newPlayer.aim, the ruling, printed)
+//   SK-2  every step L -> L+1 inside a newPlayer.steps band takes at most that band's h hours (a band's aim printed)
 //   SK-3  the life reaches the top of the last band (every judged step is played) inside the hours the bounds allow
 //
 //   node tests/start-kit-pace.mjs           the guard (one life, about 20 s)
@@ -65,11 +69,11 @@ const real = (L) => XP.charXpForLevel(L);
 const V142 = [0, 0, 210, 619, 1417, 2977, 9418, 21731, 46803, 114890, 198367, 281845, 365980, 452086, 541477, 635467, 735370];
 /* Planted drifts: [line, what, { xpFor } | { monsters }]. Each must turn its own line red. */
 const MUTANTS = [
-  ['SK-1', 'the v0.2.142 curve back (Level 10 at 8.6 h, Levels 8 and 9 at 2.6 and 3.0 h)', { xpFor: (L) => (L <= 16 ? V142[L] : real(L)) }],
+  ['SK-1', 'the v0.2.142 curve back, the game before this re-cut (Level 10 at 10.6 h, Levels 8 and 9 at 3.5 and 4.2 h)', { xpFor: (L) => (L <= 16 ? V142[L] : real(L)) }],
   ['SK-1', 'monsters with half again their HP (a content change slows every kill)', { monsters: { hp: 1.5 } }],
   ['SK-1', 'Levels 2-10 at half price (the first ten Levels rushed)', { xpFor: (L) => (L <= 10 ? Math.round(real(L) / 2) : real(L) - Math.round(real(10) / 2)) }],
-  ['SK-2', '30,000 XP moved from Level 9 to Level 8 (a 2.5-hour Level under 10, Level 10 still inside 6 h)', { xpFor: (L) => real(L) + (L === 9 ? 30000 : 0) }],
-  ['SK-2', 'Level 12 -> 13 costs 45,000 more (a 5-hour Level where 10-15 take the XP back)', { xpFor: (L) => real(L) + (L > 12 ? 45000 : 0) }],
+  ['SK-2', '30,000 XP moved from Level 9 to Level 8 (a 3.4-hour Level under 10, Level 10 still inside its bounds)', { xpFor: (L) => real(L) + (L === 9 ? 30000 : 0) }],
+  ['SK-2', 'Level 12 -> 13 costs 45,000 more (a 7-hour Level where 10-15 take the XP back)', { xpFor: (L) => real(L) + (L > 12 ? 45000 : 0) }],
   ['SK-3', 'a wall at Level 15 (its step ten times dearer: the life never reaches 16)', { xpFor: (L) => real(L) + (L > 15 ? 9 * (real(16) - real(15)) : 0) }],
 ];
 
@@ -111,6 +115,13 @@ async function main() {
   }
   for (const x of out) console.error('✗ ' + x);
   console.log('  ' + table(life));
+  /* the ruling's aims, printed beside the red lines (never red themselves: balance plan G6's target and red are two numbers) */
+  const at = (L) => (L === 1 ? 0 : life.miles['0:' + L] ? life.miles['0:' + L].h : null), aims = [];
+  if (Number.isFinite(NP.aim) && at(NP.level) !== null && at(NP.level) > NP.aim) aims.push(`Level ${NP.level} at ${at(NP.level)} h (aim ${NP.aim})`);
+  for (const b of NP.steps) if (Number.isFinite(b.aim)) for (let L = b.from; L <= b.to; L++) {
+    if (at(L) !== null && at(L + 1) !== null && at(L + 1) - at(L) > b.aim) aims.push(`Level ${L} -> ${L + 1} ${(at(L + 1) - at(L)).toFixed(2)} h (aim ${b.aim})`);
+  }
+  if (aims.length) console.log('  over the ruling\'s aim, inside the red line: ' + aims.join(', '));
   const L10 = life.miles['0:' + NP.level];
   console.log(out.length ? `start-kit-pace: ${out.length} line(s) red`
     : `start-kit-pace: green (${NP.party.join('+')} on the start kit, ${NP.policy}: Level ${NP.level} at ${L10.h} h, held to ${NP.hours.join('-')} h; Level ${topOf(NP)} at ${life.miles['0:' + topOf(NP)].h} h)`);

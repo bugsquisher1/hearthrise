@@ -16,6 +16,12 @@
 //              deadly     the advised ground on its hardest tier
 //              push       the highest open ground whose floor is at most 10 Levels over the party, on its hardest tier
 //              idle       the start kit and the start bar, 6 hours in the Mill Cellar (or until its hunt ends at its endsAtLevel), then the advised ground (the idle newcomer)
+//              new        the new player as PLAYED (lane/c-levels-7-9 recalibration, 2026-11-20): the start kit and the start bar, the Mill Cellar
+//                         until its hunt ends, then the ground its end card names (the advised ground at that Level), KEPT with Hunt again until
+//                         the hero passes the top of that ground's band, then the advised ground. The retention dive's blind play stayed in the
+//                         Thicket with Wickstead open (17,200 Level XP an hour, Level 10 projected at about 11 h: 27-retention.md:31) and the
+//                         real light player P3 pressed Hunt again six times and stopped at Level 9 after 12 h (10-real-players.md §7); idle's
+//                         move to Wickstead at Level 8 read Level 10 at half that
 //   --monsters every monster row scaled for this run (calibrate.mjs scaleMonsters): a stand-in for a STAT_FORMULA change
 //   --plain    the harness's plain hero instead of the played one
 //
@@ -29,7 +35,7 @@ import { sourceQuery } from '../lib/version-stamp.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-export const POLICIES = Object.freeze(['rec', 'dangerous', 'deadly', 'push', 'idle']);
+export const POLICIES = Object.freeze(['rec', 'dangerous', 'deadly', 'push', 'idle', 'new']);
 
 let loaded = null;
 /* the engine and the data a life reads, loaded once a process (a caller plays several lives) */
@@ -45,7 +51,7 @@ async function world(root) {
   const { contractXpPerH } = await import(u('src/data/balance-sheet.js'));
   const huntOf = (g) => HUNT_INDEX[G.HUNT_GROUNDS[g].hunt || g];
   const OPEN = (Array.isArray(G.OPEN_GROUNDS) ? G.OPEN_GROUNDS : Object.keys(G.OPEN_GROUNDS)).filter((g) => !huntOf(g).staged);
-  loaded = { root, R, BUILD, recommendedHunt, T, G, OPEN, floorOf: (g) => huntOf(g).band[0], contractXpPerH };
+  loaded = { root, R, BUILD, recommendedHunt, T, G, OPEN, floorOf: (g) => huntOf(g).band[0], topOf: (g) => huntOf(g).band[1], contractXpPerH };
   return loaded;
 }
 
@@ -54,12 +60,12 @@ async function world(root) {
     Returns { hours, reached, miles, trace, bank, contractXpPerH }: miles['seat:Level'] = { h, bank, ground, tier, skills }. */
 export async function playLife({ party, policy = 'rec', to = 50, maxHours = 300, plain = false, xp = null, root = ROOT }) {
   if (!Array.isArray(party) || !party.length || !POLICIES.includes(policy) || !(to > 1) || !(maxHours > 0)) throw new Error('playLife: bad arguments');
-  const W = await world(root), { R, recommendedHunt, T, G, OPEN, floorOf } = W, XP = xp || R.XP;
+  const W = await world(root), { R, recommendedHunt, T, G, OPEN, floorOf, topOf } = W, XP = xp || R.XP;
   const seats = party.map(() => ({ levelXp: 0, skills: {} }));
   const bank = party.map(() => ({ coin: 0, loot: 0, store: 0, deaths: 0 }));
   const lv = (s) => XP.charLevelFromXp(s.levelXp);
   const trace = [], miles = {};
-  let hours = 0, chunk = 0;
+  let hours = 0, chunk = 0, held = null;
   while (hours < maxHours && Math.min(...seats.map(lv)) < to) {
     const levels = seats.map(lv), L = Math.min(...levels);
     const chunkH = L < 8 ? 0.25 : L < 12 ? 0.5 : 1;
@@ -69,6 +75,16 @@ export async function playLife({ party, policy = 'rec', to = 50, maxHours = 300,
     if (policy === 'idle') {
       const exit = G.HUNT_GROUNDS.mill_cellar.endsAtLevel;
       if (hours < 6 && !(Number.isInteger(exit) && Math.max(...levels) >= exit)) ground = 'mill_cellar';
+      extra = { startBar: true, gear: { starter: true }, profile: undefined };
+    }
+    /* the new player as played: the Cellar until it ends, then the end card's ground with Hunt again until the hero passes its band */
+    if (policy === 'new') {
+      const exit = G.HUNT_GROUNDS.mill_cellar.endsAtLevel, top = Math.max(...levels);
+      if (!(Number.isInteger(exit) && top >= exit)) ground = 'mill_cellar';
+      else {
+        if (held === null || top > topOf(held)) held = ground;
+        ground = held;
+      }
       extra = { startBar: true, gear: { starter: true }, profile: undefined };
     }
     if (policy === 'push') { const ok = OPEN.filter((g) => floorOf(g) <= L + 10).sort((a, b) => floorOf(b) - floorOf(a)); if (ok.length) ground = ok[0]; }
@@ -116,7 +132,7 @@ async function main() {
   }
   const { hours, reached, miles, trace, contractXpPerH } = await playLife({ party, policy, to: target, maxHours, plain });
   const k = (n) => Math.round(n / 1000) + 'k';
-  console.log(`${party.join('+')} (${policy}${policy === 'idle' ? ', start kit' : plain ? ', plain' : ', played'}${arg('monsters', null) ? ', monsters ' + arg('monsters') : ''}): ${hours.toFixed(1)} h -> Level ${reached.join('/')}`);
+  console.log(`${party.join('+')} (${policy}${policy === 'idle' || policy === 'new' ? ', start kit' : plain ? ', plain' : ', played'}${arg('monsters', null) ? ', monsters ' + arg('monsters') : ''}): ${hours.toFixed(1)} h -> Level ${reached.join('/')}`);
   for (const Lm of [5, 10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 90, 100, 110]) {
     const r = party.map((_, i) => miles[i + ':' + Lm]);
     if (!r.every(Boolean)) continue;

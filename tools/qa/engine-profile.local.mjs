@@ -176,7 +176,7 @@ for (const name of pick) {
 /* INCLUSIVE STAGES: a sample counts once for every stage whose function stands anywhere on its stack. The sub-step hooks
    are world-step.js SUBSTEP's; below them, the functions the 2026-11-11 profile found hot, wherever they are called from. */
 const STAGES = Object.freeze([
-  ['accrueHunt (the whole settle)', 'accrueHunt', 'accrual.js'],
+  ['accrueHunt (the whole settle)', 'accrueHunt', 'accrue-hunt.js'],
   ['  simulateHuntInstance', 'simulateHuntInstance', 'combat-sim.js'],
   ['    stepSwing (the world)', 'stepSwing', 'world-step.js'],
   ['      occupancy', 'occupancy', 'movement.js'],
@@ -229,9 +229,9 @@ const STAGES = Object.freeze([
   ['    makeEvent', 'makeEvent', 'events.js'],
   ['  decodeWorld', 'decodeWorld', 'world-state.js'],
   ['  encodeWorld', 'encodeWorld', 'world-state.js'],
-  ['  memberSide', 'memberSide', 'accrual.js'],
-  ['  memberDelta', 'memberDelta', 'accrual.js'],
-  ['  analyzerOf', 'analyzerOf', 'accrual.js'],
+  ['  memberSide', 'memberSide', 'member.js'],
+  ['  memberDelta', 'memberDelta', 'accrue-hunt.js'],
+  ['  analyzerOf', 'analyzerOf', 'accrue-hunt.js'],
   ['garbage collector', '(garbage collector)', ''],
 ]);
 

@@ -573,7 +573,7 @@ const ENGINE_ARMS = {
       if (m) problems.push(`${f} reads \`${m[0]}\` — the hunt settle may not consult presence, a cap or ctx.away (TICK-2)`);
     }
     /* memberSide lives in src/core/member.js since option B (the browser's live view shares it). */
-    const acc = stripComments(readFileSync(join(dir, 'accrual.js'), 'utf8') + '\n' + readFileSync(join(dir, '..', '..', '..', 'src', 'core', 'member.js'), 'utf8'));
+    const acc = stripComments(readFileSync(join(dir, 'accrue-hunt.js'), 'utf8') + '\n' + readFileSync(join(dir, '..', '..', '..', 'src', 'core', 'member.js'), 'utf8'));
     const body = ['accrueHunt', 'memberSide', 'memberDelta'].map((fn) => {
       const i = acc.indexOf('function ' + fn + '(');
       const j = acc.indexOf('\nfunction ', i + 10);
@@ -581,7 +581,7 @@ const ENGINE_ARMS = {
       const end = [j, k].filter((x) => x > i).sort((a, b) => a - b)[0];
       return i >= 0 ? acc.slice(i, end) : '';
     }).join('\n');
-    if (!body.includes('function accrueHunt(')) problems.push('accrual.js has no accrueHunt — the hunt body moved; re-point TICK-2');
+    if (!body.includes('function accrueHunt(')) problems.push('accrue-hunt.js has no accrueHunt — the hunt body moved; re-point TICK-2');
     for (const re of [/\baway\s*:/, /ctx\.away/, /\.away\b/, /capMs/, /presence|last_seen|horizon|return_anchor/]) {
       const m = body.match(re);
       if (m) problems.push(`the hunt body contains \`${m[0]}\` — a hunt reads no ctx.away and no presence (TICK-2)`);
@@ -4952,9 +4952,9 @@ const MUTANTS = [
     from: 'export const HUNT_SETTLE_SPAN_MS = 2 * 60000;', to: 'export const HUNT_SETTLE_SPAN_MS = 15 * 60000;' },
   { arm: 'SPAN', name: '[tick-span] the engine budget leaves no room for one slice under the edge CPU', file: join(FN, 'hunt-settle.js'),
     from: 'export const HUNT_ENGINE_BUDGET_MS = 800;', to: 'export const HUNT_ENGINE_BUDGET_MS = 1600;' },
-  { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrual.js'),
+  { arm: 'TICK-2', name: '[C2 away ctx] the instance span runs with ctx.away again', file: join(FN, 'accrue-hunt.js'),
     from: '    { toMs, tickMs, seed, ground: inp.ground,', to: '    { away: true, toMs, tickMs, seed, ground: inp.ground,' },
-  { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrual.js'),
+  { arm: 'TICK-2', name: '[C2 absence watermark] the window starts at a presence watermark', file: join(FN, 'accrue-hunt.js'),
     from: 'const fromMs = Math.floor(nat(w.fromMs, -1));', to: 'const fromMs = Math.floor(nat(inp.accruedToMs, nat(w.fromMs, -1)));' },
   { arm: 'TICK-2', name: '[C2 F11 / no_topup] a deleted read returns to the hunt settle', file: join(FN, 'hunt-settle.js'),
     from: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';", to: "import { huntTimeline, worldHash } from '../../../src/core/hunt-track.js';\nexport const ATTENDED_READ = 'select * from public.hr_attended_kills($1, $2, $3)';" },
@@ -5021,7 +5021,7 @@ const MUTANTS = [
     from: ' range: m.hero.range, rollsVs: m.rollsVs,', to: ' range: m.hero.range,' },
   { arm: 'CRIT', name: 'a hero blow never crits', file: 'src/core/hunt/damage.js',
     from: '    vs ? Number(vs.critChance) || 0 : 0);', to: '    0);' },
-  { arm: 'CRIT', name: 'a crit is not journalled as the lifetime stat', file: join(FN, 'accrual.js'),
+  { arm: 'CRIT', name: 'a crit is not journalled as the lifetime stat', file: join(FN, 'accrue-hunt.js'),
     from: "  stat('crits', stats.crits);\n", to: '' },
   { arm: 'EVENT-IDS', name: 'an event id counts across the whole window', file: 'src/core/hunt-track.js',
     from: '    const k = seen.get(at) || 0;', to: '    const k = seen.size;' },
@@ -5074,7 +5074,7 @@ const MUTANTS = [
     from: "world: Object.freeze([['rareWon', 'json']])", to: 'world: Object.freeze([])' },
   { arm: 'RARE-DROP', name: 'a rare drop is never a world event (no alert, no float)', file: 'src/core/hunt-rewards.js',
     from: "    if (typeof ctx.emit === 'function') ctx.emit(makeEvent('rare_drop',", to: "    if (false) ctx.emit(makeEvent('rare_drop'," },
-  { arm: 'RARE-DROP', name: 'the session never journals a rare drop (no hint)', file: join(FN, 'accrual.js'),
+  { arm: 'RARE-DROP', name: 'the session never journals a rare drop (no hint)', file: join(FN, 'accrue-hunt.js'),
     from: "    else if (e.type === 'rare_drop' && e.item) hints.rare_drop.push(", to: "    else if (false) hints.rare_drop.push(" },
   { arm: 'SPLIT', name: 'only the killer counts the kill', file: 'src/core/hunt-rewards.js',
     from: '  for (const m of present) countKill(m, kind, !pay || pay.bestiary);', to: '  countKill(lead, kind, !pay || pay.bestiary);' },
@@ -5090,14 +5090,14 @@ const MUTANTS = [
     to: '  const u = world && m.unitId !== null ? world.units.find((x) => x.id === m.unitId) : null;\n  if (u) m.state.playerHp = u.alive ? u.hp : m.state.playerMaxHp;\n',
     dbOff: { fn: 'public.hr_hunt_close(uuid,text,timestamp with time zone,boolean)',
       find: "       set hp = (public.hr_vitals_of(v_s.user_id, v_s.slot) ->> 'max_hp')::int\n", replace: '       set hp = hp\n' } },
-  { arm: 'DEATH', name: 'a death row carries a recovery clock again', file: join(FN, 'accrual.js'),
+  { arm: 'DEATH', name: 'a death row carries a recovery clock again', file: join(FN, 'accrue-hunt.js'),
     from: '      monster: String(d.monster || \'\'),\n      deaths_lifetime:', to: '      monster: String(d.monster || \'\'),\n      recovery_ms: 60000,\n      deaths_lifetime:' },
   /* Run 41149723847: the day row keyed by the window's end, the instant only the viewed path shares with the death. */
-  { arm: 'BOTH-PATH-MIDNIGHT', name: 'a death is filed under the day its window closes in', file: join(FN, 'accrual.js'),
+  { arm: 'BOTH-PATH-MIDNIGHT', name: 'a death is filed under the day its window closes in', file: join(FN, 'accrue-hunt.js'),
     from: '    const day = utcDayKey(d.atMs);', to: '    const day = utcDayKey(toMs);' },
-  { arm: 'BOTH-PATH-MIDNIGHT', name: 'the death row states the count of a day the settle read', file: join(FN, 'accrual.js'),
+  { arm: 'BOTH-PATH-MIDNIGHT', name: 'the death row states the count of a day the settle read', file: join(FN, 'accrue-hunt.js'),
     from: '      monster: String(d.monster || \'\'),\n      deaths_lifetime:', to: '      monster: String(d.monster || \'\'),\n      deaths_today: 1,\n      deaths_lifetime:' },
-  { arm: 'BOTH-PATH-MIDNIGHT', name: 'stats.deaths and the day row disagree', file: join(FN, 'accrual.js'),
+  { arm: 'BOTH-PATH-MIDNIGHT', name: 'stats.deaths and the day row disagree', file: join(FN, 'accrue-hunt.js'),
     from: "  stat('deaths', stats.deaths);", to: "  stat('deaths', (stats.deaths || 0) * 2);" },
   { arm: 'BOTH-PATH-MIDNIGHT', name: 'a death with no deathLog row', file: 'src/core/combat-sim.js',
     from: '  out.deathLog.push({ atMs: f.atMs, monster: f.monster, xpLost });\n', to: '' },
@@ -5153,7 +5153,7 @@ const MUTANTS = [
     from: "  if (version && lv < versionLevel(version)) return { why: 'level', short: false };\n", to: "" },
   { arm: 'RUNE-LADDER', name: '[rune ladder] the engine charges every store rune Plain (the row named is not the row bought)', file: 'src/core/hunt/abilities.js',
     from: "  const s = version ? storeLine(h.hs, b.partner, store) : { why: 'none' };", to: "  const s = version ? storeLine(h.hs, row.rune, 'plain_fire_rune') : { why: 'none' };" },
-  { arm: 'RUNE-SUPPLY', name: '[rune supply] the proposal\'s runes_out end names no spell (the server cannot re-prove it)', file: join(FN, 'accrual.js'),
+  { arm: 'RUNE-SUPPLY', name: '[rune supply] the proposal\'s runes_out end names no spell (the server cannot re-prove it)', file: join(FN, 'accrue-hunt.js'),
     from: "      ...(hs.endedReason === 'runes_out' && typeof hs.runesOut === 'string' ? { ability: hs.runesOut } : {}) } : null,", to: "      } : null," },
   { arm: 'RUNE-SUPPLY', name: '[rune supply] the engine spends every rune of the family, ticked or not', file: 'src/core/hunt/abilities.js',
     from: "  for (const id of sup.own) {", to: "  for (const id of sup.runes) {" },
@@ -5200,7 +5200,7 @@ const MUTANTS = [
     from: '      worldSwing: Number(inst.world_swing) || 0 },', to: '      worldSwing: 0 },' },
   { arm: 'PARTY-KICK', name: 'a hero with no member stays in the world', file: 'src/core/combat-sim.js',
     from: "    for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);", to: '' },
-  { arm: 'BOTH-PATH', name: 'the death hint is dropped (the death event lands on whichever window edge settled it)', file: join(FN, 'accrual.js'),
+  { arm: 'BOTH-PATH', name: 'the death hint is dropped (the death event lands on whichever window edge settled it)', file: join(FN, 'accrue-hunt.js'),
     from: "    else if (e.type === 'death') hints.death.push(Math.floor(e.atMs));", to: "    else if (e.type === 'death') hints.death.length = 0;" },
   { arm: 'PARITY', name: '[combat-parity wallclock] the tick door ends its window on a wall-clock grid', file: join(FN, 'hunt-settle.js'),
     from: "  const endMs = Number.isFinite(Number(o.atMs)) ? Math.min(nowMs, Math.floor(Number(o.atMs))) : nowMs;",
@@ -5214,7 +5214,7 @@ const MUTANTS = [
     from: '    const roles = rolesOf(inWorld(members));', to: '    const roles = rolesOf(members);' },
   { arm: 'OWN', name: '[probe-bar noAutoEat] the hero never eats', file: 'src/core/hunt/consumables.js',
     from: '    if (got) use(u, hero, got.pick.kind, got.pick.line, sc, got);', to: '    if (false) use(u, hero, got.pick.kind, got.pick.line, sc, got);' },
-  { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrual.js'),
+  { arm: 'ANALYZER', name: 'the analyzer tally is never proposed', file: join(FN, 'accrue-hunt.js'),
     from: '      analyzer: analyzerOf(sim, unitIds, summary.unitIdEver) });', to: '      analyzer: null });' },
   { arm: 'SLOT', name: '[edge-tick-gate M17] the settle reads slot 0\'s perks for every slot', file: join(FN, 'hunt-settle.js'),
     from: '  const perks = await readTickPerks(exec, m.user, m.slot);', to: '  const perks = await readTickPerks(exec, m.user, 0);' },

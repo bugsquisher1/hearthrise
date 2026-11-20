@@ -115,7 +115,7 @@ async function copyTree(mut) {
     await writeFile(p, src.replace(find, () => repl), 'utf8');
   };
   await editHf('src/core/hearthfind.js', HF_FIND, HF_REPL, 'hearthfind rate');
-  await editHf('supabase/functions/hr-accrue/accrual.js', HF_HOOK_FIND, HF_HOOK_REPL, 'gather hearthfind hook');
+  await editHf('supabase/functions/hr-accrue/accrue-gather.js', HF_HOOK_FIND, HF_HOOK_REPL, 'gather hearthfind hook');
   await editHf(G, HF_WIN_FIND, HF_WIN_REPL, 'window hearthfind collapse');
   return { base, hf };
 }

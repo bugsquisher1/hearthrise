@@ -10,7 +10,7 @@
 //   node tests/settle-properties.mjs --mutate                 every planted defect must be FOUND and SHRUNK small
 //   --only=engine | --only=db                                 one tier; --verbose prints what each tier exercised
 //
-// mutant-anchors: supabase/functions/hr-accrue/accrual.js src/core/combat-sim.js src/core/action-rules.js supabase/migrations/2027-03-21-scaled-hunts.sql
+// mutant-anchors: supabase/functions/hr-accrue/accrue-hunt.js src/core/combat-sim.js src/core/action-rules.js supabase/migrations/2027-03-21-scaled-hunts.sql
 //
 // WHY. TICK-1 (tests/hunt-sessions-settle.mjs) proves the one-engine rule (CLAUDE.md §6, AWAY-1) on hand-picked cuts, and
 // tests/conservation-fuzz.mjs fuzzes the economy with no shrinking: a red there is a 400-op trace to read by hand. Here
@@ -642,7 +642,7 @@ export async function runDb(env, o) {
    finding, pinned) can never pass for a catch. */
 const SHRUNK = Object.freeze({ heroes: 2, cuts: 2 });
 const ENGINE_MUTANTS = [
-  { name: 'a settle drops the remainder: the watermark is the window end, not the next swing', file: 'supabase/functions/hr-accrue/accrual.js',
+  { name: 'a settle drops the remainder: the watermark is the window end, not the next swing', file: 'supabase/functions/hr-accrue/accrue-hunt.js',
     from: '    settledTo: sim.nextSwingAtMs,', to: '    settledTo: toMs,' },
   { name: 'an off-by-one window: the swing ON the window end is played in it', file: 'src/core/combat-sim.js',
     from: '  while (atMs < toMs && members.some((m) => !m.left)) {', to: '  while (atMs <= toMs && members.some((m) => !m.left)) {' },

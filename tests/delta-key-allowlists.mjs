@@ -75,6 +75,7 @@ import { join } from 'node:path';
 import { bootReplay, ROOT } from './schema-replay.mjs';
 import { PRE_WALLET } from './wallet-fixture.mjs';
 import { STAMPING_DELTA_KEYS } from '../supabase/functions/hr-accrue/intents.js';
+import { engineSource } from './_accrual-engine.mjs';
 
 const MUTATE = process.argv.includes('--mutate') || process.argv.includes('--selftest');
 const MIG = '2026-10-13-party-settle-frac-keys.sql';
@@ -117,14 +118,14 @@ function stripComments(src) {
 /** The body of `function NAME(` — from its opening brace to the matching one. */
 function fnBody(src, name) {
   const at = src.search(new RegExp(`(?:^|\\n)(?:export\\s+)?function\\s+${name}\\s*\\(`));
-  if (at < 0) throw Object.assign(new Error(`accrual.js: function ${name} not found`), { harness: true });
+  if (at < 0) throw Object.assign(new Error(`the accrual engine: function ${name} not found`), { harness: true });
   const open = src.indexOf('{', src.indexOf(')', at));
   let depth = 0;
   for (let i = open; i < src.length; i++) {
     if (src[i] === '{') depth++;
     else if (src[i] === '}' && --depth === 0) return src.slice(open, i + 1);
   }
-  throw Object.assign(new Error(`accrual.js: function ${name} is unbalanced`), { harness: true });
+  throw Object.assign(new Error(`the accrual engine: function ${name} is unbalanced`), { harness: true });
 }
 /** Top-level keys of every `const delta = {…}` literal in `body`. A COMPUTED
     key (`[k]:`) or a SPREAD (`...x`) at the top level is a key nobody can read
@@ -473,7 +474,8 @@ async function scanArm(db, fracSql) {
 
 async function readSources() {
   return {
-    accrual: await readText(`${FN}/accrual.js`),
+    /* The whole engine: the door (accrual.js) and every piece it reaches (tests/_accrual-engine.mjs). */
+    accrual: engineSource(join(ROOT, FN)),
     ticks: Object.fromEntries(await Promise.all(
       (await readdir(join(ROOT, FN))).filter((f) => /^tick.*\.js$/.test(f)).sort()
         .map(async (f) => [f, await readText(`${FN}/${f}`)]))),

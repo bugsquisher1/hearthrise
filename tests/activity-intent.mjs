@@ -58,6 +58,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { bootChain, ROOT } from './pglite-chain.mjs';
 import { computeAccrualInputParity } from './accrual-engine.mjs';
+import { engineSource } from './_accrual-engine.mjs';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 
 const MIG = (f) => join(ROOT, 'supabase', 'migrations', f);
@@ -166,7 +167,7 @@ const MUTATIONS = {
      paying, for 23 of the 344 catalogue activities. A3b is the only thing that
      notices. */
   narrow_payable: {
-    file: FN('accrual.js'),
+    file: FN('accrual-contract.js'),
     why: 'gathering silently stops being payable again',
     find: "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);",
     repl: "export const PAYABLE_KINDS = Object.freeze(['combat']);",
@@ -381,7 +382,7 @@ const MUTATIONS = {
     repl: "  if (!(capMs > 0)) return { accrued: false, reason: 'no_cap' };",
   },
   skip_unclassified: {
-    file: FN('accrual.js'),
+    file: FN('accrual-contract.js'),
     why: 'C6 — the engine gains a skip reason that neither group classifies',
     find: "  NO_CAP: 'no_cap',",
     repl: "  NO_CAP: 'no_cap',\n  FROM_THE_FUTURE: 'a_reason_from_the_future',",
@@ -1577,7 +1578,7 @@ async function run(mutate) {
     ok(!/\bfinalWindow\b/.test(
       strip(await readFile(join(fnDir, 'index.ts'), 'utf8'))
       + strip(await readFile(join(fnDir, 'set-activity.js'), 'utf8'))
-      + strip(await readFile(join(fnDir, 'accrual.js'), 'utf8'))),
+      + strip(engineSource(fnDir))),
       'A14b: `finalWindow` is still referenced in the engine or one of its callers. The boolean was REPLACED, not aliased — an alias left behind is a second spelling of the same decision and the next author picks the wrong one.');
   }
 
@@ -1796,7 +1797,8 @@ async function run(mutate) {
     /* And every `reason:` the engine returns must NAME a SKIP member. A bare
        literal is invisible to the partition above, which is precisely how
        `no_cap` escaped it for four builds. */
-    const src = (await readFile(join(fnDir, 'accrual.js'), 'utf8')).replace(/\r\n/g, '\n');
+    /* The whole engine: the door (accrual.js) and every piece it reaches (tests/_accrual-engine.mjs). */
+    const src = engineSource(fnDir);
     const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
     /* 2026-08-31 (found when the ammo lane surfaced this test as orphaned-red):
        two SIDE-BANK accruers were added to accrual.js after this scan was

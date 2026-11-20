@@ -5460,6 +5460,13 @@ const DB_MUTANTS = [
   { arm: 'PARTY-LEAVE', name: '[leave together] a cascaded hero is closed where its window began (its stretch unsettled)', fn: SS,
     find: '    perform public.hr_hunt_close(p_session, v_end, v_end_at, true);',
     replace: "    perform public.hr_hunt_close(p_session, v_end, case when v_end like 'party_member_%' then v_s.settled_to else v_end_at end, true);" },
+  /* 1005-lever-horizon.sql: each lever's deferral, planted away */
+  { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] a Blessing bought mid-hunt counts from now again', fn: 'public.hr_blessing_buy(integer,integer,bigint,uuid)',
+    find: 'values (v_uid, p_slot, p_tier, v_price, public.hr_hunt_lever_at(v_uid, p_slot));', replace: 'values (v_uid, p_slot, p_tier, v_price, now());' },
+  { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the settle never reads a hold (a bar, option or setup change plays at once)', fn: 'public.hr_hunt_setup_of(hunt_sessions)',
+    find: 'where h.session_id = p_s.id and h.until >= p_s.settled_to', replace: 'where false' },
+  { arm: 'NO-DODGE-LEVERS', name: '[lever-horizon] the horizon is the settled point (no look-ahead held)', fn: 'public.hr_hunt_seed_horizon(uuid)',
+    find: ' + make_interval(secs => 32000 / 1000.0)', replace: '' },
   { arm: 'NO-DODGE', name: 'a leave closes the hunt at once again (the foreseen death is dodged)', fn: 'public.hr_hunt_leave_pending(uuid,integer)', /* gm-tools moved the pending leave into this helper */
     /* 2027-05-20-yard-stop.sql restated it: leave_at is hr_hunt_close_at (a hunt's horizon, a training session's press) */
     find: '    update public.hunt_sessions set leave_at = public.hr_hunt_close_at(v_s.id), version = version + 1 where id = v_s.id;',

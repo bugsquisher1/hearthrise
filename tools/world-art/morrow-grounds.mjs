@@ -108,7 +108,7 @@ export const CR_CRAG = Object.freeze([[0, 0, 10, 1], [0, 2, 5, 2], [0, 3, 2, 3],
 export const CR_BOGS = Object.freeze([[28.5, 8.6, 176, 58], [20.5, 3.4, 70, 40]]);
 /** The chimney stacks' feet (left end, px): the taproom's on its north roof over the hearth, the brewhouse's on its east range. */
 export const CHIMNEYS = Object.freeze([[856, 762], [1760, 330]]);   /* b8: the brewhouse stack at its range's west edge, where the copper's flue meets it */
-const LEG = Object.freeze({ ':': 'R', e: 'E', p: 'P', '.': 'Y', y: 'S', '=': 'B', f: 'F', c: 'C', r: 'O' });
+const LEG = Object.freeze({ ':': 'R', n: 'E', p: 'P', '.': 'Y', y: 'S', '=': 'B', w: 'F', k: 'C', r: 'O' });
 const inR = (rs, x, y) => rs.some(([a, b, c, d]) => x >= a && x <= c && y >= b && y <= d);
 /* the Ox Road's map chars (src/data/grounds/ox_road/map.js): its '#' is crag, its ',' the open moor */
 export const LEG_OX = Object.freeze({ ',': 'H', ':': 'R', e: 'E', j: 'J', '~': 'Q', o: 'V', '=': 'G', '#': 'K' });

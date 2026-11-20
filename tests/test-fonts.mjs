@@ -24,6 +24,11 @@
 //         :root leaves them hinted on Linux and only there (AW-62 on v0.2.89, 41922216241). Each must compute geometricPrecision,
 //         which a Windows box can read too, and a button's label must measure the reference.
 //
+//   TF-6  THE PIN NEVER ENDS A RUN. The tokens.css route fetches the served sheet, and a fetch can fail (a kept-alive socket the
+//         guard's server just shut: ECONNRESET). A route handler that rejects is an unhandled rejection: services-window and
+//         chat-social --mutate died mid-sweep on release/v0.2.143 (run 44811275378). One retry, then an abort; a page already
+//         gone is answered by nothing. Read over fake routes, so it holds on every machine.
+//
 // mutant-anchors: none — the proof plants into in-memory copies of the guards' text and into the stylesheet the page is served
 import { readFileSync, readdirSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -31,7 +36,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchOptions } from './_chrome.mjs';
 import { isMain } from './_is-main.mjs';
-import { FACES, FONT_CSS, FONT_PATH, WEB_FONTS, pinFonts } from './_test-fonts.mjs';
+import { FACES, FONT_CSS, FONT_PATH, WEB_FONTS, pinFonts, pinnedTokens } from './_test-fonts.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SELF = new Set(['_test-fonts.mjs', 'test-fonts.mjs']);
@@ -68,6 +73,35 @@ export function blockProblem(css) {
   if (/@font-face/.test(css.replace(WEB_FONTS, ''))) return `TF-5 ${TOKENS} declares a face outside its WEB FONTS block: every guard would draw it`;
   if (!/@font-face/.test(blocks[0])) return `TF-5 ${TOKENS}'s WEB FONTS block declares no face`;
   return null;
+}
+
+/** TF-6: what a tokens.css route handler does wrong when its fetch or its answer fails, over fake routes. Each case is
+    [what, the fetch's answers in order (an Error rejects), whether fulfill and abort reject, what the route must end in]. */
+const ROUTE_CASES = [
+  ['a sheet served', ['body{}'], {}, 'fulfill'],
+  ['a reset socket once, then the sheet', [new Error('read ECONNRESET'), 'body{}'], {}, 'fulfill'],
+  ['a reset socket twice (the server is gone)', [new Error('read ECONNRESET'), new Error('read ECONNRESET')], {}, 'abort'],
+  ['a page closed before the answer', ['body{}'], { fulfill: true }, 'nothing'],
+  ['a page closed before the abort', [new Error('Target closed'), new Error('Target closed')], { abort: true }, 'nothing'],
+];
+export async function routeProblems(handler, cases = ROUTE_CASES) {
+  const out = [];
+  for (const [what, answers, rejects, want] of cases) {
+    const did = [];
+    let n = 0;
+    const r = {
+      fetch: async () => { const a = answers[Math.min(n++, answers.length - 1)]; if (a instanceof Error) throw a; return { text: async () => a }; },
+      fulfill: async (o) => { did.push(['fulfill', o.body]); if (rejects.fulfill) throw new Error('Target closed'); },
+      abort: async () => { did.push(['abort']); if (rejects.abort) throw new Error('Target closed'); },
+    };
+    let threw = null;
+    try { await handler(r); } catch (e) { threw = e; }
+    if (threw) { out.push(`TF-6 ${what}: the route handler rejected (${threw.message}), which ends the whole run`); continue; }
+    const last = did.length ? did[did.length - 1][0] : 'nothing';
+    if (want !== 'nothing' && last !== want) out.push(`TF-6 ${what}: the route ended in ${last}, not ${want}`);
+    if (last === 'fulfill' && !String(did[did.length - 1][1]).includes(FONT_CSS)) out.push(`TF-6 ${what}: the sheet was answered without the pin`);
+  }
+  return out;
 }
 
 /** TF-2, TF-3 and TF-4 over one reading. */
@@ -146,6 +180,7 @@ async function rules() {
   if (stub.length) fails.push(`TF-1 these guards stub the faces themselves; call pinFonts: ${stub.join(', ')}`);
   const block = blockProblem(readFileSync(join(ROOT, TOKENS), 'utf8'));
   if (block) fails.push(block);
+  fails.push(...await routeProblems(pinnedTokens));
   const m = await measure();
   fails.push(...faults(m));
   for (const [font, w] of Object.entries(m.widths)) console.log(`  ${String(w).padStart(7)} px  ${font}`);
@@ -163,6 +198,17 @@ async function selftest() {
   expect(stubbers(planted).length === 1, 'TF-1 catches a guard that stubs tokens.css with an empty body');
   expect(stubbers([['x.mjs', "page.route('**/assets/fonts/**', (r) => r.abort())"]]).length === 1, 'TF-1 catches a guard that stubs the font files');
   expect(stubbers([['_test-fonts.mjs', "x.route('**/src/styles/tokens.css*'"]]).length === 0, 'TF-1 lets the one helper route it');
+  /* TF-6 over fake routes: the real handler is clean; the handler as v0.2.143 shipped it (no catch), one that never retries,
+     one that drops the pin, and one whose abort can reject are each caught. */
+  expect((await routeProblems(pinnedTokens)).length === 0, 'TF-6 reads the real tokens.css route: every failed fetch ends in an answer or nothing, never a rejection');
+  const shipped = async (r) => { const res = await r.fetch(); return r.fulfill({ response: res, contentType: 'text/css', body: FONT_CSS + await res.text() }); };
+  expect((await routeProblems(shipped)).some((x) => /rejected \(read ECONNRESET\)/.test(x)), 'TF-6 catches the v0.2.143 route (a reset socket rejects and ends the run)');
+  const once = async (r) => { try { const res = await r.fetch(); return await r.fulfill({ body: FONT_CSS + await res.text() }).catch(() => undefined); } catch { return r.abort().catch(() => undefined); } };
+  expect((await routeProblems(once)).some((x) => /once, then the sheet: the route ended in abort/.test(x)), 'TF-6 catches a route that never retries a reset socket');
+  const unpinned = async (r) => { const res = await r.fetch(); return r.fulfill({ body: await res.text() }); };
+  expect((await routeProblems(unpinned, ROUTE_CASES.slice(0, 1))).some((x) => /without the pin/.test(x)), 'TF-6 catches a sheet answered without the pin');
+  const bareAbort = async (r) => { for (let i = 0; i < 2; i++) { try { const res = await r.fetch(); return await r.fulfill({ body: FONT_CSS + await res.text() }).catch(() => undefined); } catch { /* again */ } } return r.abort(); };
+  expect((await routeProblems(bareAbort)).some((x) => /closed before the abort: the route handler rejected/.test(x)), 'TF-6 catches an abort that rejects on a page already gone');
   /* TF-5 pure, on the real sheet and planted copies. */
   const real = readFileSync(join(ROOT, TOKENS), 'utf8');
   expect(blockProblem(real) === null, 'TF-5 reads the real tokens.css: one WEB FONTS block');

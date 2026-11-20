@@ -613,9 +613,12 @@ function mutate() {
     SKILLS_DEF.__mut_skill = { name: 'Idle Hands', cat: 'artisan' };
     return { restore: () => { delete SKILLS_DEF.__mut_skill; } };
   });
-  run('a coded source whose code is gone', 'C5', () => ({
-    read: (rel) => (rel === 'src/core/artisan.js' ? realRead(rel).split("BURNT_ITEM = 'burnt_food'").join('BURNT = 0') : realRead(rel)),
-  }));
+  /* The burnt cook's own row names the file and needle (BURNT_ITEM moved from src/core/artisan.js to
+     src/data/core-model.js on 2026-11-19 and a plant on the old path cut nothing), so the code goes from there. */
+  run('a coded source whose code is gone', 'C5', () => {
+    const { file, needle } = CODED_SOURCES.burnt_food;
+    return { read: (rel) => (rel === file ? realRead(rel).split(needle).join('BURNT = 0') : realRead(rel)) };
+  });
   run('the shop sells Iron again', 'C6', () => {
     SHOP_OFFERS.push({ id: 'equip.iron_platebody', table: 'equip', cost: [{ kind: 'currency', id: 'gold', amount: 800 }],
       grant: [{ kind: 'item', id: 'iron_platebody', amount: 1 }], repeatable: true });

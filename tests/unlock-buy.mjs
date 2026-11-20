@@ -203,16 +203,29 @@ const MUTATIONS = {
         + 'create table if not exists public.hr_client_write_baseline (',
   },
   detector_still_narrow: {
-    migration: '2027-03-13-gm-tools.sql',   // the detector's last restatement (derived by tools/derive-grant-hygiene.mjs, link 23)
+    migration: '1004-tick-pack-heroes.sql',   // the detector's last restatement (derived by tools/derive-grant-hygiene.mjs, link 24)
     why: 'C3 — check (4) goes back to TRUNCATE/REFERENCES/TRIGGER only, so a client write grant on '
        + 'a table with RLS on and no write policy is invisible again',
-    /* Anchored on the BASELINE JOIN inside the LIVE detector body (the last
+    /* Anchored on the BASELINE JOINS inside the LIVE detector body (the last
        restatement of hr_assert_grant_hygiene in the chain — see
        liveBodyControl). The sweep file's own copy is replayed over, so a
-       mutant planted there proves nothing about the detector production runs. */
-    find: '       and not exists (select 1 from public.hr_client_write_baseline bl\n'
+       mutant planted there proves nothing about the detector production runs.
+       Since link 24 check (4) has TWO write arms (arm 2: RLS on, no write policy;
+       arm 3: the live client write set, whatever the policies say), and either
+       names a dead client write grant, so "only TRUNCATE/REFERENCES/TRIGGER" is
+       both arms shut: one shut alone is a detector that still sees the grant. */
+    edits: [
+      ["                          and pp.cmd in ('INSERT','UPDATE','DELETE','ALL'))\n"
+        + '       and not exists (select 1 from public.hr_client_write_baseline bl\n'
         + '                        where bl.table_name = c.relname and bl.grantee = gg)',
-    repl: '       and false',
+       "                          and pp.cmd in ('INSERT','UPDATE','DELETE','ALL'))\n"
+        + '       and false'],
+      ["             'bug_reports:authenticated:INSERT'])\n"
+        + '       and not exists (select 1 from public.hr_client_write_baseline bl\n'
+        + '                        where bl.table_name = c.relname and bl.grantee = gg)',
+       "             'bug_reports:authenticated:INSERT'])\n"
+        + '       and false'],
+    ],
   },
   // ── THE RECEIPT IS THE SERVER'S (Security C4) ──────────────────────────
   receipt_price_from_edge: {
@@ -314,18 +327,26 @@ async function liveBodyControl(catalogue = MUTATIONS) {
     if (!m.migration) continue;
     const sql = text.get(m.migration);
     if (sql === undefined) { problems.push(`${id}: ${m.migration} is not in the replayed chain`); continue; }
-    const pos = sql.indexOf(m.find);
-    if (pos < 0) { problems.push(`${id}: anchor not found in ${m.migration}`); continue; }
-    const fn = enclosingFunction(sql, pos);
-    if (!fn) continue;
-    bodies += 1;
-    const last = lastToucher(fn);
-    if (last !== m.migration) {
-      problems.push(`${id}: plants into ${fn} in ${m.migration}, but the body that survives the `
-        + `chain is ${last}'s — the mutant is replayed over and its verdict is vacuous`);
+    /* every edit of a multi-edit mutant is held to the live body, each one on its own */
+    for (const [find] of migrationEdits(m)) {
+      const pos = sql.indexOf(find);
+      if (pos < 0) { problems.push(`${id}: anchor not found in ${m.migration}`); continue; }
+      const fn = enclosingFunction(sql, pos);
+      if (!fn) continue;
+      bodies += 1;
+      const last = lastToucher(fn);
+      if (last !== m.migration) {
+        problems.push(`${id}: plants into ${fn} in ${m.migration}, but the body that survives the `
+          + `chain is ${last}'s — the mutant is replayed over and its verdict is vacuous`);
+      }
     }
   }
   return { problems, bodies };
+}
+
+/** A migration mutant's [find, repl] pairs, applied in order: `edits`, or its one `find`/`repl`. */
+function migrationEdits(m) {
+  return m.edits || [[m.find, m.repl]];
 }
 
 // ── args ────────────────────────────────────────────────────────────────
@@ -356,8 +377,8 @@ async function boot(mutate) {
     const m = MUTATIONS[mutate];
     if (!m) { const e = new Error(`unknown mutation "${mutate}"`); e.harness = true; throw e; }
     if (m.migration) {
-      sqlPatches = new Map([[m.migration, [[m.find, m.repl]]]]);
-      /* A file past REPLAY_UPTO (the detector's last restatement, 2027-03-13-gm-tools.sql) replays up to ITSELF: stopped at
+      sqlPatches = new Map([[m.migration, migrationEdits(m)]]);
+      /* A file past REPLAY_UPTO (the detector's last restatement, 1004-tick-pack-heroes.sql) replays up to ITSELF: stopped at
          REPLAY_UPTO the plant never applies, and the mutant reads "caught" on the catalogue's distance from that point (U1, U8). */
       const order = (await chainFiles()).map(([n]) => n);
       replayTo = m.migration === BUY_FILE ? BUY_FILE

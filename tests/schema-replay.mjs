@@ -60,7 +60,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bootTemplated, prefixLength, MIN_PREFIX_FILES } from './pglite-template.mjs';
+import { bootChain, MIN_PREFIX_FILES } from './pglite-template.mjs';
 import { isMain } from './_is-main.mjs';
 import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
@@ -299,10 +299,16 @@ export async function closeReplays() {
  * @param {boolean} [opts.liveCalendar] keep the live events' switches as the
  *        chain left them (armed: 2027-05-14-arm-switches.sql), so the calendar's
  *        windows run on the wall clock. Default false: quietCalendar below.
- * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[]}>}
+ * @param {boolean} [opts.raw] hand back the chain end exactly as the files left
+ *        it: none of the three harness switches below (open, premium, calendar).
+ *        For tests/schema-drift.mjs's second apply, which compares the chain end
+ *        with itself after the staged tail runs again.
+ * @returns {Promise<{db:any, applied:string[], failures:{file:string,error:string}[],
+ *          cache:{restoredAt:number, of:number}}>}  cache: the steps restored from a
+ *          snapshot (0 = a cold replay) out of the steps applied.
  */
 export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, fullChain,
-                                   sessionTimeZone = 'UTC', keepClosed = false, liveCalendar = false } = {}) {
+                                   sessionTimeZone = 'UTC', keepClosed = false, liveCalendar = false, raw = false } = {}) {
   const scopeErr = replayScopeError({ patches, upTo, fullChain });
   if (scopeErr) { const e = new Error(scopeErr); e.harness = true; e.replayScope = true; throw e; }
   let PGlite;
@@ -418,18 +424,19 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
     }
   };
 
-  // ── THE SNAPSHOT PREFIX (tests/pglite-template.mjs) ──────────────────────
-  // A mutation patches ONE file; everything before it in the apply order
-  // produces byte-identical state on every replay, and this harness replays it
-  // 9-45 times per guard. So the unpatched leading run is applied once and
-  // restored from a snapshot thereafter, keyed on the exact SQL TEXT of every
-  // file in it. `tolerant` opts out: that mode exists to REPORT a cascade of
-  // apply failures, and a prefix that is skipped is a cascade nobody sees.
-  // A seeded file must not be inside the cached prefix — the seed has to run
-  // before it, and the prefix is restored whole. Same treatment as a patch.
-  const cutNames = [...(patches ? patches.keys() : []), ...(seedBefore ? seedBefore.keys() : [])];
-  const cut = tolerant ? 0 : prefixLength(files, cutNames, upTo);
-  const usePrefix = cut >= MIN_PREFIX_FILES;
+  // ── THE SNAPSHOT CHAIN (tests/pglite-template.mjs bootChain) ─────────────
+  // Every prefix of the chain has its own key: the exact TEXT of every step in
+  // it, a step being its seed (if any) and its SQL. A run restores the longest
+  // prefix a snapshot exists for and applies only the steps after it, so a new
+  // migration costs one restore and one file, and a seeded chain (the
+  // bystanders) caches like any other. A patched (mutant) step ends the
+  // snapshot this run takes, and that one lives in memory only, as before.
+  // `tolerant` opts out: that mode exists to REPORT a cascade of apply
+  // failures, and a prefix that is skipped is a cascade nobody sees.
+  const order = files.map(([n]) => n);
+  const stopAt = upTo !== undefined ? order.indexOf(upTo) + 1 : files.length;
+  const patchedNames = patches ? [...patches.keys()].filter((k) => (patches.get(k) || []).length) : [];
+  const firstPatched = patchedNames.length ? Math.min(...patchedNames.map((n) => order.indexOf(n))) : files.length;
   const applied = [];
   const failures = [];
   // Closed once the tail is applied — see bootTemplated's timer note.
@@ -438,126 +445,79 @@ export async function bootReplay({ patches, seedBefore, tolerant = false, upTo, 
   /* THE CLOCK SEAM (tests/_utc-clock-shim.mjs). A no-op unless that preload is
      loaded: it pins the database clock so file i of the chain begins its
      transaction at a chosen, load-independent instant. Called AFTER any seed and
-     immediately before the file's own `begin`, on both the prefix and the tail
-     path, so no file is ever applied on the real clock under the shim. */
+     immediately before the file's own `begin`, so no file is ever applied on the
+     real clock under the shim. */
   const fileIndex = new Map(files.map(([n], i) => [n, i]));
   const pinClock = (name) => {
     if (typeof globalThis.__HR_CLOCK_PIN__ === 'function') globalThis.__HR_CLOCK_PIN__(fileIndex.get(name), name);
   };
 
-  const applyOne = async (d, name) => {
-    // Wrapped, because that is how a file is applied on this project: atomically.
-    // A self-check `raise` must abort the whole file, not leave half installed.
-    pinClock(name);
-    await d.exec(`begin;\n${sources.get(name)}\ncommit;`);
-  };
-
+  // Wrapped, because that is how a file is applied on this project: atomically.
+  // A self-check `raise` must abort the whole file, not leave half installed.
   // The seed is its OWN transaction, committed before the file runs: a seed
   // folded into the file's transaction would roll back with a failed apply and
   // the row it planted would vanish along with the evidence.
-  const seed = async (d, name) => {
-    if (!seedBefore || !seedBefore.has(name)) return;
-    await d.exec(seedBefore.get(name));
-  };
-
-  let db;
-  if (usePrefix) {
-    const prefix = files.slice(0, cut);
-    let prefixError = null;
-    const boot = await bootTemplated({
-      PGlite,
-      keyParts: [
-        'schema-replay', fixture, SCAFFOLD,
-        gucs.map(([k, v]) => `${k}=${v}`).join(';'),
-        ...prefix.flatMap(([name]) => [name, sources.get(name)]),
-      ],
-      session,
-      // A PATCHED prefix is used once (the next mutation patches a different
-      // file), so it lives in memory only; the canonical chain is what every
-      // guard and every process shares, and that is what goes to disk.
-      persist: !patches,
-      build: async (d) => {
-        await d.exec(fixture);
-        await d.exec(SCAFFOLD);
-        for (const [name] of prefix) {
-          try { await applyOne(d, name); } catch (err) {
-            await d.exec('rollback').catch(() => {});
-            prefixError = { file: name, error: String(err && err.message || err).split('\n')[0] };
-            throw err;
-          }
-        }
-      },
-    }).catch((err) => {
-      if (err && err.harness) throw err;
-      if (!prefixError) throw err;
-      return null;
-    });
-    if (!boot) {
-      // A prefix file failed to apply. That is the ORIGINAL failure this engine
-      // reports, unchanged — and nothing was cached, because the snapshot is
-      // only taken after the whole prefix applies.
-      failures.push(prefixError);
+  const applyStep = async (d, i) => {
+    const [name] = files[i];
+    try {
+      if (seedBefore && seedBefore.has(name)) await d.exec(seedBefore.get(name));
+      pinClock(name);
+      await d.exec(`begin;\n${sources.get(name)}\ncommit;`);
+      applied.push(name);
+    } catch (err) {
+      await d.exec('rollback').catch(() => {});
+      const rec = { file: name, error: String(err && err.message || err).split('\n')[0] };
+      failures.push(rec);
+      if (tolerant) return;
       const e = new Error(
         `THE REPO CANNOT REBUILD THE DATABASE.\n`
-        + `  ${prefixError.file} failed to apply: ${prefixError.error}\n`
+        + `  ${name} failed to apply: ${rec.error}\n`
         + '  A file that cannot replay is a hole in disaster recovery, not a test\n'
         + '  failure. Run  node tests/schema-replay.mjs --list  for the full cascade.');
       e.replay = true; e.failures = failures; throw e;
     }
+  };
+  const build0 = async (d) => { await d.exec(fixture); await d.exec(SCAFFOLD); };
+
+  let db;
+  let restoredAt = 0;
+  if (!tolerant && stopAt >= MIN_PREFIX_FILES) {
+    const boot = await bootChain({
+      PGlite,
+      baseParts: ['schema-replay', fixture, SCAFFOLD, gucs.map(([k, v]) => `${k}=${v}`).join(';')],
+      steps: files.map(([name]) => ({
+        name,
+        text: `${seedBefore && seedBefore.has(name) ? seedBefore.get(name) : ''}\u0000${sources.get(name)}`,
+      })),
+      stopAt,
+      firstPatched,
+      session,
+      build0,
+      applyStep,
+      onBoot: (d) => { db = d; BOOTED.push(new WeakRef(d)); },   // before anything can throw: closeReplays closes a failed boot too
+    });
     db = boot.db;
-    BOOTED.push(new WeakRef(db));   // before anything else can throw: closeReplays closes a failed boot too
+    restoredAt = boot.restoredAt;
     endCapture = boot.endCapture || (() => 0);
-    for (const [name] of prefix) applied.push(name);
-    if (process.env.HR_PGLITE_CACHE_DEBUG) {
-      console.error(`  pglite-cache: prefix ${cut}/${files.length} `
-        + `${boot.cacheHit ? 'RESTORED' : 'built'} in ${boot.buildMs}ms`);
-    }
-    if (cut >= files.length || (upTo !== undefined && files[cut - 1][0] === upTo)) {
-      // BEFORE endCapture: a timer PGlite starts during this statement must be
-      // unref'd with the rest of the boot's, or it outlives the guard and
-      // Windows libuv asserts at process.exit (measured 2026-10-14).
-      if (!keepClosed) await openTheGame(db);
-      await premiumPerCharacter(db);
-      if (!liveCalendar) await quietCalendar(db);
-      endCapture();
-      return { db, applied, failures };
-    }
+    // The restored steps were applied by the run that took the snapshot.
+    applied.unshift(...order.slice(0, restoredAt));
   } else {
     db = await PGlite.create();
     BOOTED.push(new WeakRef(db));
     await session(db);
-    await db.exec(fixture);
-    await db.exec(SCAFFOLD);
+    await build0(db);
+    for (let i = 0; i < stopAt; i++) await applyStep(db, i);
   }
-
-  for (const [name] of files.slice(usePrefix ? cut : 0)) {
-    // Wrapped, because that is how a file is applied on this project: atomically.
-    // A self-check `raise` must abort the whole file, not leave half installed.
-    try {
-      await seed(db, name);
-      pinClock(name);
-      await db.exec(`begin;\n${sources.get(name)}\ncommit;`);
-      applied.push(name);
-    } catch (err) {
-      await db.exec('rollback').catch(() => {});
-      const rec = { file: name, error: String(err && err.message || err).split('\n')[0] };
-      failures.push(rec);
-      if (!tolerant) {
-        const e = new Error(
-          `THE REPO CANNOT REBUILD THE DATABASE.\n`
-          + `  ${name} failed to apply: ${rec.error}\n`
-          + '  A file that cannot replay is a hole in disaster recovery, not a test\n'
-          + '  failure. Run  node tests/schema-replay.mjs --list  for the full cascade.');
-        e.replay = true; e.failures = failures; throw e;
-      }
-    }
-    if (name === upTo) break;   // validate the state AS OF this migration
+  // BEFORE endCapture: a timer PGlite starts during these statements must be
+  // unref'd with the rest of the boot's, or it outlives the guard and Windows
+  // libuv asserts at process.exit (measured 2026-10-14).
+  if (!raw) {
+    if (!keepClosed) await openTheGame(db);
+    await premiumPerCharacter(db);
+    if (!liveCalendar) await quietCalendar(db);
   }
-  if (!keepClosed) await openTheGame(db);   // before endCapture — see the prefix return above
-  await premiumPerCharacter(db);
-  if (!liveCalendar) await quietCalendar(db);
   endCapture();
-  return { db, applied, failures };
+  return { db, applied, failures, cache: { restoredAt, of: stopAt } };
 }
 
 /* CLOSED MODE (supabase/migrations/2026-10-21-closed-mode.sql) lands the game

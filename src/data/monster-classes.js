@@ -36,6 +36,7 @@
 
 /* The element vocabulary is src/data/elements.js's, the one copy (re-exported). */
 import { ELEMENTS, elementProfileProblems } from './elements.js?v=0.2.141';
+import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.141';
 export { ELEMENTS };
 
 /** The weapon triangle axis. NOTE: 'neutral' is deliberately absent. */
@@ -249,9 +250,37 @@ export function resolveMonsterProfile(mon) {
     className: c.name,
     weaponWeak: has(m, 'weaponWeak') ? m.weaponWeak : c.weaponWeak,
     weaponResist: has(m, 'weaponResist') ? arr(m.weaponResist) : arr(c.weaponResist),
-    elements: profileOf(has(m, 'elements') ? m.elements : c.elements),
+    elements: newElementLayer(c.id, profileOf(has(m, 'elements') ? m.elements : c.elements)),
     hiddenElement: !!c.hiddenElement,
   };
+}
+
+/* ── NECROTIC AND STORM ON THE CLASSES (itemization plan Appendix B1; only while their switch is on, src/data/necrotic-storm.js) ──
+   Starting values on the standard steps (weak -15, resist 25): undead take 25% less necrotic, living beasts and people (mammal,
+   vermin, humanoid, human) 15% more; constructs take 15% more storm, elementals 25% less. Every other class takes both in full until
+   the designer says otherwise (plants, demons; dragons and the extra-dimensional state their elements monster by monster).
+   A LAYER, NOT AN OVERRIDE: it is laid on the resolved profile for each new element the profile does not already name, so a monster that
+   states its own fire, ice and poison still takes its class's necrotic and storm, and the one-override rule (overrideAxisOf, which reads
+   the authored rows) never counts it. A monster that takes half of EVERY first element (fire, ice and poison at 50: the slimes, "a slime
+   shrugs off half of every element") takes half of the new two as well (B1: "Takes 50% less, as with every element today"). Empty while
+   the switch is off, so every sealed profile is what it was. Idempotent: a sealed row already names what the layer would add. */
+const NEW_ELEMENT_CLASSES = Object.freeze(NECROTIC_STORM.live ? {
+  undead: Object.freeze({ necrotic: 25 }),
+  mammal: Object.freeze({ necrotic: -15 }), vermin: Object.freeze({ necrotic: -15 }),
+  humanoid: Object.freeze({ necrotic: -15 }), human: Object.freeze({ necrotic: -15 }),
+  construct: Object.freeze({ storm: -15 }),
+  elemental: Object.freeze({ storm: 25 }),
+} : {});
+/* the elements before Necrotic and Storm, and the share a monster that halves all of them takes off the new two */
+const FIRST_ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);
+const HALF_OF_EVERY = 50;
+function newElementLayer(cls, profile) {
+  if (!NECROTIC_STORM.live) return profile;
+  const halves = FIRST_ELEMENTS.every((e) => profile[e] === HALF_OF_EVERY);
+  const add = halves ? { necrotic: HALF_OF_EVERY, storm: HALF_OF_EVERY } : (NEW_ELEMENT_CLASSES[cls] || {});
+  const out = { ...profile };
+  for (const [e, pct] of Object.entries(add)) if (!has(out, e)) out[e] = pct;
+  return Object.freeze(out);
 }
 
 const sameSet = (a, b) => {

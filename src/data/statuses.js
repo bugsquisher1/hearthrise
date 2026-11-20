@@ -11,6 +11,16 @@
 //     skillPermillePerLevel, tierPermille, damageType }        a ticking status
 //   { id, name, durationMs, maxStacks, takenPm }                  a marking status
 //   { id, name, durationMs, maxStacks, slowPm, tierPermille? }    a slowing status
+//   { id, name, durationMs, maxStacks, healCutPm, guard? }        a heal-cutting status
+//     healCutPm { hero, monster }  permille LESS of every heal its unit takes while it lasts, by
+//                            the unit's side (src/core/hunt/heal-cut.js healTaken, the one reader:
+//                            food, spells, leech, a healer's casts, the wraps' own heal, a
+//                            monster's mend). A wiki formula: landed = n - floor(n x cut / 1000)
+//     guard (optional)       an element: a HERO's resistance to it (elements.js heroElementPermille)
+//                            lowers the hero's cut by the same percent, fixed as the stack lands:
+//                              cut = floor(healCutPm.hero x taken / 1000)  (taken: the permille of
+//                              a blow of `guard` the hero takes; 1000 with no guard)
+//                            a monster's cut is healCutPm.monster, never guarded
 //     slowPm                 permille LONGER its unit's next swing interval and its next spell
 //                            windup run, fixed as each one starts (damage.js slowed: the swing
 //                            clock; monster-spells.js: the windup), so a mark never fills on a
@@ -50,6 +60,7 @@
 
 import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.141';
 import { PHYSICAL, isElement } from './elements.js?v=0.2.141';
+import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.141';
 
 /* The five rune tiers (src/data/runes.js): Rend's bleed lands +10% a tier above Chalked (ASSUMED, the designer
    re-tunes in the balance phase), so a Graven Rupture Rune's bleed ticks 1.4x a Chalked one's. */
@@ -69,6 +80,13 @@ export const STATUSES = Object.freeze({
      30 / 35 / 40 / 45 / 50% on a Chalked .. Graven Ice Rune's cast, for every Ice spell (Hoarfrost, Frost Slam). */
   chill: Object.freeze({ id: 'chill', name: 'Chill', durationMs: 4000, maxStacks: 1, slowPm: 300,
     tierPermille: Object.freeze([1000, 1167, 1333, 1500, 1667]) }),
+  /* WITHERED (itemization plan Appendix B1 and B3; only while the Necrotic switch is on, src/data/necrotic-storm.js): every heal its
+     unit takes lands cut for 6 s, one stack, a new landing restarting the 6 s ("It does not stack. A new hit restarts the 6
+     seconds"). A HERO loses 30% (a necrotic hit, elements.js ELEMENT_ON_HERO), its necrotic guard lowering that by the same percent
+     (at the 40% cap a hero still loses 18%); a MONSTER loses half ("it heals half as much", the hero's Blight). Fixed: never scaled
+     by skill or rune tier. PROPOSED, the designer's numbers. */
+  ...(NECROTIC_STORM.live ? { withered: Object.freeze({ id: 'withered', name: 'Withered', durationMs: 6000, maxStacks: 1,
+    healCutPm: Object.freeze({ hero: 300, monster: 500 }), guard: 'necrotic' }) } : {}),
 });
 
 /** A SLOWING STACK'S SLOW, permille, at its fixed `scale` (status.js stackScale: the landing's tier share, 1000 with none):
@@ -96,6 +114,19 @@ export function validateStatus(row) {
   const posInt = (k) => { if (!Number.isInteger(row[k]) || row[k] <= 0) out.push(at + k + ' must be a positive integer, got ' + row[k]); };
   if (typeof row.id !== 'string' || !ID.test(row.id)) out.push('status id ' + row.id + ' is not [a-z0-9_]');
   if (typeof row.name !== 'string' || !row.name) out.push(at + 'needs a name');
+  if (row.healCutPm !== undefined) {
+    /* A HEAL-CUTTING status (Withered): how much less a hero and a monster heal, how long, how many, the element whose guard
+       lowers a hero's cut; nothing that ticks, marks, slows or scales. */
+    const c = row.healCutPm;
+    if (!c || typeof c !== 'object' || Object.keys(c).sort().join() !== 'hero,monster' || !['hero', 'monster'].every((k) => Number.isInteger(c[k]) && c[k] > 0 && c[k] < 1000)) {
+      out.push(at + 'healCutPm must be { hero, monster }, each an integer 1..999 (a cut never stops a heal whole)');
+    }
+    for (const k of ['durationMs', 'maxStacks']) posInt(k);
+    if (Number.isInteger(row.durationMs) && row.durationMs % HUNT_TUNING.stepMs !== 0) out.push(at + 'durationMs ' + row.durationMs + ' is not a whole number of ' + HUNT_TUNING.stepMs + ' ms sub-steps');
+    if (row.guard !== undefined && !isElement(row.guard)) out.push(at + 'guard must be an element id, got ' + row.guard);
+    for (const k of ['tick', 'everyMs', 'scalesWith', 'skillPermillePerLevel', 'tierPermille', 'damageType', 'takenPm', 'slowPm']) if (row[k] !== undefined) out.push(at + 'a heal-cutting status has no ' + k);
+    return out;
+  }
   if (row.takenPm !== undefined || row.slowPm !== undefined) {
     /* A MARKING status (how much more its unit takes) or a SLOWING one (how much longer its swings and windups run):
        how much, how long, how many; one or the other, and nothing that ticks or scales. */

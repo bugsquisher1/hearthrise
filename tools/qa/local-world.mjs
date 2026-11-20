@@ -10,7 +10,7 @@
 //   node tools/qa/local-world.mjs smoke [--shots DIR] [--viewport 1280x720] [--touch]
 //        fresh account -> hero -> Mill Cellar -> skip until it ends itself at Level 5 (outgrown) -> its end card -> Next ground -> a 2nd hunt there,
 //        skipped past the 1st -> leave -> summary -> bag -> reload -> a town wait. Exit 0 green, 1 red, 2 harness, 3 refused.
-//        A machine's first run replays the whole chain (about 6 min; tests/pglite-template.mjs then caches it), so this is a
+//        A machine's first run replays the whole chain (75 s on the dev PC 2026-11-19); after that tests/pglite-template.mjs restores the longest cached prefix, shared by every worktree, so this is a
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
 //   smoke and serve take --site DIR: the client's files come from DIR (the Pages artifact, `node tools/build-site.mjs` -> _site), and a file

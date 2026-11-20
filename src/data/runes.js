@@ -4,7 +4,7 @@
 //
 // A rune fuels a SPELL, never a basic attack (caster basics cost mana). Every
 // rune item names its FAMILY and its TIER on its own row (src/data/stonecraft.js):
-//   family   one of RUNE_FAMILIES (Air is hidden until a spell spends it)
+//   family   one of RUNE_FAMILIES (Storm, the old Air, is hidden and Bone absent until their switch is on)
 //   runeTier 1..5, one of RUNE_TIERS ("Chalked" .. "Graven"). The item's own
 //            `tier` is its catalogue tier (hr_items) and is not this.
 // A spell casts the VERSION of the rune it spends: a tier-N rune casts version
@@ -18,15 +18,22 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-/* The seven families (Tyler 2026-10-23, final). `hidden`: no spell spends it yet, so no screen offers it. */
+import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.141';
+
+/* The families (Tyler 2026-10-23, final, seven with Air hidden; 2026-11-18 "Yes storm and bone": the hidden Air family is shown as
+   STORM, and an eighth, BONE, for Necrotic). `hidden`: no spell spends it yet, so no screen offers it, and it has no rune row
+   (stonecraft.js CRAFTED_RUNE_FAMILIES). STORM IS THE AIR FAMILY: its id is `storm` so a rune's id says what it is called
+   ("chalked_storm_rune", "Chalked Storm Rune": runeId's rule below); it was hidden with no row, so nothing held its old id. Storm
+   stays hidden and Bone stays out of the table until their switch (src/data/necrotic-storm.js) is on. */
 export const RUNE_FAMILIES = Object.freeze({
-  air: Object.freeze({ label: 'Air', hidden: true }),
+  storm: Object.freeze({ label: 'Storm', ...(NECROTIC_STORM.live ? {} : { hidden: true }) }),
   earth: Object.freeze({ label: 'Earth' }),
   water: Object.freeze({ label: 'Water' }),
   fire: Object.freeze({ label: 'Fire' }),
   ice: Object.freeze({ label: 'Ice' }),
   poison: Object.freeze({ label: 'Poison' }),
   rupture: Object.freeze({ label: 'Rupture' }),
+  ...(NECROTIC_STORM.live ? { bone: Object.freeze({ label: 'Bone' }) } : {}),
 });
 
 /* The five tiers, each craftable and castable from `level` (Runecrafting to make, the spell's skill to cast). */

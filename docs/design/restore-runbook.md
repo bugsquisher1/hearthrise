@@ -1048,6 +1048,36 @@ still records `player_ledger = 3` and `display_names = 6`; production measured *
 **7** tonight. Not a fault — the baseline records when it was last measured — but the drill's
 diff target must be the live numbers above, not the baseline's.
 
+### 9b. The PITR drill, scripted — READY, NOT RUN (it needs PITR on, Tyler's spend)
+
+*Added 2026-11-19 (lane/c-ops-gates). Costs nothing today: every step that spends is Tyler's
+click, and the script refuses to start while PITR is off.* The daily-backup drill (§9) proves
+a restore carries rows; this one proves the thing PITR is bought for: **the database comes
+back as it was at a chosen second, and nothing after it.** It needs a clock in the data, and
+the data has two: `hr_tick_cron_log` (a row every tick fire, 10 s, indexed on `at`) and
+`hr_ops.capacity_samples` (a row a minute, `1002-ops-capacity-sample.sql`). The script is
+`tools/pitr-drill.local.mjs`; its `--selftest` (the verdicts on planted rows, the read-only
+filter, both refusals) is green and runs with no token.
+
+| Step | Who | What | Touches |
+|---|---|---|---|
+| 0 | Tyler | Add-ons → Point in Time Recovery, 7 days (§8: ~$100/month + Small). Wait 15 min for the first WAL archive. | billing (his yes) |
+| 1 | agent | `node tools/pitr-drill.local.mjs --preflight` — refuses with exit 3 while PITR is off. Picks **T = now − 10 min** (whole second), records production's last marker row at or before T and the first after it (both series), and the census, to `~/.hearthrise/pitr-drill-<T>.json`. | production, **read-only** (SELECT filter) |
+| 2 | Tyler | Dashboard → Database → Backups → Point in time → **Restore to a NEW project** at T (UTC). **Never the in-place restore**: it overwrites production. Confirm the cost screen (a Small clone for 3 h is cents). | a new project (his yes) |
+| 3 | agent | The moment it is `ACTIVE_HEALTHY`: `--disarm <clone-ref>` — unschedules every cron job and turns the tick off **on the clone**, so it never posts to production's edge. Refuses production's ref and any project created before the plan. | the clone only |
+| 4 | agent | `--verify <clone-ref>` — read-only. PASS when the clone holds the last row before T and not the first after it, in both series: the recovery point is inside one tick fire of T. Prints the measured **RPO** (T minus the clone's newest marker), the **RTO** upper bound (clone created → verify), and the census beside production's. A clone made from a daily backup fails here, on purpose. | the clone, read-only |
+| 5 | agent | Run gates 1–8 (§6) against the clone; gate 7 (the engine role's password) as in §6a. | the clone |
+| 6 | agent | Record in `tests/restore-census.baseline.json` `restore_drill`: `last_executed`, mechanism "PITR restore to a new project", RPO, RTO. The census stops printing NEVER EXECUTED. | repo |
+| 7 | Tyler | Delete the clone. ⚠ Destructive (it deletes the clone's backups); his explicit yes, every time. | the clone |
+
+**What PASS means and does not.** It proves the WAL replay stops where it was asked to, on
+this project, end to end, and measures the RPO and an RTO bound for real. It does not prove an
+in-place restore (never drilled: it would have to target production) or the restore of
+`auth.users`' secrets (gate 7 covers the role password; the JWT keys are platform-held).
+
+**Repeat:** after PITR is turned on, before the Steam EA wipe-and-launch, and after any change
+to the auth schema, the roles or the edge's connection path.
+
 ---
 
 ## 10. RTO / RPO — stated honestly

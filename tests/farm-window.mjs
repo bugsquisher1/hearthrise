@@ -5,7 +5,7 @@
 //   node tests/farm-window.mjs            the rules
 //   node tests/farm-window.mjs --mutate   every planted defect must turn a rule RED
 //
-// mutant-anchors: src/shell/windows/farm.js src/session/farm-sections.js src/session/farm-intents.js src/shell/goto.js src/shell/shell.js src/styles/windows.css
+// mutant-anchors: src/shell/windows/farm.js src/shell/windows/farm-tend.js src/session/farm-sections.js src/session/farm-intents.js src/shell/goto.js src/shell/shell.js src/styles/windows.css
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character is tests/fixtures/alpha-envelope.json plus a `farm_land` section
@@ -46,6 +46,11 @@
 //         for 10 gp." with that sentence a link; pressed on a phone sheet (922×423), the Shop opens on
 //         Buy in its place with the seed's row in view and ringed; on the desktop Enter on the focused
 //         link does the same, and never opens Chat
+//   FW-11 TEND THE FIELD (build plan L09; 1009-tend-the-field.sql): the server's `farm_tend` bill is drawn as plain lines
+//         (harvest, plant again, the seed it buys with its gold, water, the empty plot and why) and the press reads its
+//         gold; ONE hr_farm_tend carries exactly that bill's crop and gold, every control off until the server answers,
+//         and the line words the answer; "Plant with: Turnip" shows the server's bill for that crop and the press sends
+//         it; each seed row says what its crop makes; with nothing to do the press is off and the bill says so
 // ════════════════════════════════════════════════════════════════════════
 import { chromium } from 'playwright';
 import { leaseBrowser } from './_chrome.mjs';
@@ -104,7 +109,20 @@ const SEEDLESS = {
     { offer: 'supply.turnip_seed', item: 'turnip_seed', kind: 'seed', price: 5 }, { offer: 'supply.carrot_seed', item: 'carrot_seed', kind: 'seed', price: 10 }]) }),
 };
 const CLEAR = { ok: true, plot: 1, crop: 'tomato', produce: 'tomato', qty: 3, xp: 4410, regrew: false, withered: false, extra: false, cleared: true, regrows_left: null };
-const RPCS = ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest', 'hr_farm_harvest_replant', 'hr_farm_harvest_clear', 'hr_farm_upgrade_plot'];
+/* FW-11 TEND THE FIELD (1009-tend-the-field.sql): room for 3, plot 0 ready, plot 1 growing, plot 2 empty, no seed in the bag; the
+   server's bill buys one seed for 5 gp, and its compact bill for Turnip in every plot it plants buys two for 10 gp. */
+const TEND = {
+  farm_land: { cap: 3, plot_level: 1, upgrade: null,
+    plots: [{ i: 0, crop: 'turnip', ready: true, ready_in_s: 0, waterable: false, regrows_left: null, by: 0, by_name: 'Alda', extra: false },
+      { i: 1, crop: 'turnip', ready: false, ready_in_s: 5400, waterable: true, regrows_left: null, by: 0, by_name: 'Alda', extra: false }] },
+  farm_tend: { harvest: [0], plant: [{ i: 0, crop: 'turnip' }], water: [0, 1], empty: [{ i: 2, crop: null, why: 'unplanted' }],
+    seeds: [{ seed: 'turnip_seed', crop: 'turnip', use: 1, bag: 0, storage: 0, buy: 1, price: 5, gold: 5 }], gold: 5,
+    choices: [{ crop: 'turnip', plant: 2, water: 3, bag: 0, storage: 0, buy: 2, gold: 10, price: 5, empty: [], why: null }] },
+};
+const TENDED = { ok: true, crop: null, harvested: [{ i: 0, crop: 'turnip', produce: 'turnip', qty: 3, xp: 1008, regrew: false, withered: false, extra: false }],
+  planted: [{ i: 0, crop: 'turnip' }], watered: [0, 1], bought: [{ seed: 'turnip_seed', qty: 1, gold: 5 }], gold: 5, xp: 1260,
+  empty: [{ i: 2, crop: null, why: 'unplanted' }], failed: [] };
+const RPCS = ['hr_farm_plant', 'hr_farm_water', 'hr_farm_harvest', 'hr_farm_harvest_replant', 'hr_farm_harvest_clear', 'hr_farm_upgrade_plot', 'hr_farm_tend'];
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 
 async function stub(page, s) {
@@ -359,6 +377,60 @@ async function checks(overrides) {
       if (errors.length) fails.push('FW-10 console errors: ' + errors.join(' | ').slice(0, 300));
       await ctx.close();
     }
+    { // FW-11
+      const { ctx, page, errors, s, opened } = await open(clone(TEND), { hr_farm_tend: TENDED });
+      if (!opened) fails.push('FW-11 the Farm did not open with a tend bill');
+      else {
+        const bill = () => page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-tend-bill li')].map((li) => li.textContent));
+        const goSel = W + '[data-hs-act="tend"]';
+        const want = ['Harvest 1 ready plot', 'Plant 1 plot again with the same crop', 'Buys 1 Turnip Seed for 5 gp', 'Water 2 plots', 'Plot 3 is empty. Pick a crop to plant it'];
+        if (!(await shown(page, W + '.hw-tend')) || JSON.stringify(await bill()) !== JSON.stringify(want)) fails.push('FW-11 the bill reads ' + JSON.stringify(await bill()));
+        if ((await txt(page, goSel)) !== 'Tend the field for 5 gp') fails.push('FW-11 the press reads ' + JSON.stringify(await txt(page, goSel)));
+        if (await press(page, goSel, 'FW-11')) {
+          const off = await wait(page, () => !!document.querySelector('[data-hs-win="farm"] .hw-farm.is-pending')
+            && document.querySelector('[data-hs-win="farm"] [data-hs-act="tend"]').disabled
+            && document.querySelector('[data-hs-win="farm"] [data-hs-act="tendcrop"]').disabled, null, 2000);
+          if (!off) fails.push('FW-11 the controls stay on while the press is in flight');
+          await idle(page);
+          const t1 = sent(s, 'hr_farm_tend');
+          if (t1.length !== 1 || t1[0].body.p_slot !== 0 || t1[0].body.p_crop !== null || t1[0].body.p_gold !== 5 || typeof t1[0].body.p_idem !== 'string')
+            fails.push('FW-11 the press sent ' + JSON.stringify(t1.map((c) => c.body)));
+          const line = await txt(page, W + '.hh-intent-msg');
+          if (line !== 'Harvested 3 Turnip. Planted 1 plot. Watered 2 plots. +1,260 Farming XP. Bought 1 Turnip Seed for 5 gp.') fails.push('FW-11 the line reads ' + JSON.stringify(line));
+        }
+        /* Plant with: Turnip in every plot it plants, the server's compact bill for it, then one press carrying that crop and that gold */
+        await page.selectOption(W + '[data-hs-act="tendcrop"]', 'turnip');
+        const picked = await wait(page, () => [...document.querySelectorAll('[data-hs-win="farm"] .hw-tend-bill li')].some((li) => li.textContent === 'Plant Turnip in 2 plots'), null, 2000);
+        if (!picked || !(await bill()).includes('Buys 2 Turnip Seed for 10 gp') || (await txt(page, goSel)) !== 'Tend the field for 10 gp')
+          fails.push('FW-11 the bill for Turnip reads ' + JSON.stringify(await bill()) + ' / ' + JSON.stringify(await txt(page, goSel)));
+        else if (await press(page, goSel, 'FW-11')) {
+          await idle(page);
+          const t2 = sent(s, 'hr_farm_tend');
+          if (t2.length !== 2 || t2[1].body.p_crop !== 'turnip' || t2[1].body.p_gold !== 10) fails.push('FW-11 the picked press sent ' + JSON.stringify(t2.map((c) => c.body)));
+        }
+        /* each seed row says what its crop makes, from the data (the Turnip's mana drink) */
+        if (await press(page, W + '.hw-plot[data-plot="2"] .hw-soil', 'FW-11')) {
+          await wait(page, () => document.querySelector('[data-hs-win="farm"] .hw-sow.is-on'), null, 2000);
+          const makes = await txt(page, W + '.hw-seeds li[data-crop="turnip"] .hw-seed-makes');
+          if (makes !== 'Makes Turnip Juice, a mana drink (96 mana)') fails.push('FW-11 the turnip row says it makes ' + JSON.stringify(makes));
+        }
+        if (errors.length) fails.push('FW-11 console errors: ' + errors.join(' | ').slice(0, 300));
+      }
+      await ctx.close();
+    }
+    { // FW-11b: nothing to do, so the press is off and the bill says so
+      const quiet = clone(TEND);
+      Object.assign(quiet.farm_tend, { harvest: [], plant: [], water: [], seeds: [], gold: 0, empty: [], choices: [] });
+      const { ctx, page, opened } = await open(quiet);
+      if (!opened) fails.push('FW-11 the Farm did not open with an empty bill');
+      else {
+        const go = await page.evaluate(() => { const b = document.querySelector('[data-hs-win="farm"] [data-hs-act="tend"]'); return b ? [b.textContent, b.disabled] : null; });
+        const lines = await page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-tend-bill li')].map((li) => li.textContent));
+        if (JSON.stringify(go) !== JSON.stringify(['Tend the field', true]) || JSON.stringify(lines) !== JSON.stringify(['Nothing to tend right now'])
+          || await shown(page, W + '.hw-tend-pick')) fails.push('FW-11 with nothing to do the press reads ' + JSON.stringify(go) + ' and the bill ' + JSON.stringify(lines));
+      }
+      await ctx.close();
+    }
     { // FW-6
       const { ctx, page, opened } = await open({});
       if (!opened) fails.push('FW-6 the window did not open without the section');
@@ -412,6 +484,12 @@ const MUTANTS = [
   ['Enter on a link opens Chat (11-08)', 'src/shell/shell.js', 'if (!ownsKey(e) && wm.handleKey(e))', 'if (wm.handleKey(e))',
     [['src/shell/window-manager.js', "  if (tag === 'button' || tag === 'summary') return true;", "  if (tag === 'summary') return true;"]]],
   ['Plant in all runs past a refusal (0.2.95)', 'src/shell/windows/farm.js', 'if (!r.ok) return n ? { ok: true, n, at, stop: r } : r;', 'if (!r.ok) continue;'],
+  /* Tend the field (build plan L09): the server's bill on screen, then ONE press at that bill's gold. */
+  ['the tend press sends a price made on the client', 'src/shell/windows/farm-tend.js', 'gold: b.gold } : null;', 'gold: 0 } : null;'],
+  ['the picked crop is not sent', 'src/shell/windows/farm-tend.js', '{ crop: b.pick ? b.pick.crop : null,', '{ crop: null,'],
+  ['the bill hides the seeds it buys', 'src/shell/windows/farm-tend.js', 'for (const l of all.seeds) out.push(', 'for (const l of []) out.push('],
+  ['the tend press stays on with nothing to do', 'src/shell/windows/farm-tend.js', "prop(go, 'disabled', !b.work || sc.pending);", "prop(go, 'disabled', sc.pending);"],
+  ['a seed row never says what its crop makes', 'src/shell/windows/farm.js', "text(li.querySelector('.hw-seed-makes'), cropMakes(r.id));", ''],
 ];
 
 async function main() {

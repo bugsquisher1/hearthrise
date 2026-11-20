@@ -27,11 +27,15 @@
 //        Hands over to tools/balance-sim/staged/whole-game-stack.mjs (formulas at Levels 10..400; staged grounds and the Tower).
 //
 // Exit 0 when it ran, 2 on a bad argument.
+//
+// IMPORTED, it runs nothing: the balance guard (tests/balance-guard.mjs) builds its cells with refCell, reads them with rowOf and
+// prices a reference account with accountCost, so a guard line and a dive's number are the same function.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execFileSync, spawnSync } from 'node:child_process';
+import { isMain } from '../../tests/_is-main.mjs';
 import { LEDGERS, STACK_CLASSES, LEVERS, REF_POINTS, FORMULA_ONLY_LEVELS, REF_SEATS, REFERENCE_PLAYERS, REAL_OWN_FOUR_NET, HARNESS_GAPS, SERVER_AGES, POPULATIONS, COST } from './model.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -43,11 +47,11 @@ const has = (k) => process.argv.includes('--' + k);
 const mode = process.argv[2];
 const bad = (m) => { console.error(m); process.exit(2); };
 const x = (a, b) => (b ? (a / b).toFixed(3) : 'n/a');
-const MAIN = { hammer: 'melee', tank: 'melee', sword: 'melee', axe: 'melee', fist: 'melee', mage: 'magic', healer: 'magic', bow: 'ranged', crossbow: 'ranged' };
+export const MAIN = Object.freeze({ hammer: 'melee', tank: 'melee', sword: 'melee', axe: 'melee', axes: 'melee', fist: 'melee', mage: 'magic', healer: 'magic', bow: 'ranged', crossbow: 'ranged' });
 const mean = (a) => (a.length ? a.reduce((s, n) => s + n, 0) / a.length : 0);
 
 /* ── the reference cell ───────────────────────────────────────────────────── */
-function refCell(R, point, seat, hours, seeds) {
+export function refCell(R, point, seat, hours, seeds) {
   const cell = { id: ['REF', point.id, seat.id].join(':'), ground: point.ground, party: seat.party, level: point.level, hours, seeds, profile: 'played',
     ...(point.open ? {} : { gear: { uniques: true, openAlso: [point.ground] } }) };
   let tier = 'normal';
@@ -63,7 +67,7 @@ function refCell(R, point, seat, hours, seeds) {
   return { cell, tier };
 }
 /* one row a cell: every number a head (a party's is the mean of its seats; deaths are the party's sum) */
-function rowOf(m, party) {
+export function rowOf(m, party) {
   const hs = m.heroes;
   const main = mean(hs.map((h, i) => (h.skillXpPerH || {})[MAIN[party[i]] || 'melee'] || 0));
   return {
@@ -190,7 +194,7 @@ function price() {
 
 /** DB seconds a day and journal rows a day one reference account costs. `watch`: 'attended' (the tab is open only for the
     attended minutes) or 'real' (COST.real.watchedShareOfHuntedHours of hunted hours run at the watched cadence, as the journal shows). */
-function accountCost(pl, watch, reads) {
+export function accountCost(pl, watch, reads) {
   const R = COST.real, hunted = pl.heroes * pl.huntHoursADay, town = pl.heroes * pl.townHoursADay;
   const tabH = watch === 'real' ? R.watchedShareOfHuntedHours * pl.huntHoursADay : Math.min(pl.attendedMinADay / 60, pl.huntHoursADay);
   const watchedHH = Math.min(hunted, tabH * pl.heroes), awayHH = hunted - watchedHH;   // a viewed four settles all four seats
@@ -256,9 +260,11 @@ function model() {
 }
 
 const STACK_TOOL = join(ROOT, 'tools', 'balance-sim', 'staged', 'whole-game-stack.mjs');
-if (['curves', 'deep', 'stack', 'fits'].includes(mode)) {
-  process.exit(spawnSync(process.execPath, [STACK_TOOL, ...process.argv.slice(2)], { stdio: 'inherit' }).status ?? 1);
+if (isMain(import.meta.url)) {
+  if (['curves', 'deep', 'stack', 'fits'].includes(mode)) {
+    process.exit(spawnSync(process.execPath, [STACK_TOOL, ...process.argv.slice(2)], { stdio: 'inherit' }).status ?? 1);
+  }
+  const run = { model, ref, what, price, cost }[mode];
+  if (!run) bad('usage: measure.mjs model | ref | what | price | cost | curves | deep | stack | fits   (see this file\'s header)');
+  Promise.resolve(run()).then(() => process.exit(0), (e) => { console.error(e); process.exit(1); });
 }
-const run = { model, ref, what, price, cost }[mode];
-if (!run) bad('usage: measure.mjs model | ref | what | price | cost | curves | deep | stack | fits   (see this file\'s header)');
-Promise.resolve(run()).then(() => process.exit(0), (e) => { console.error(e); process.exit(1); });

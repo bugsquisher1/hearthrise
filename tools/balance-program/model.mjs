@@ -130,13 +130,35 @@ export const POPULATIONS = Object.freeze([
   { id: 'p10k', online: 10000, note: 'the north star: shards, about 40,000 hunting heroes' },
 ]);
 
-/* SERVER COST budget lines (tools/qa/audit-2026-11-19-server/findings.md, CITED; tests/per-player-cost.baseline.json, MEASURED). */
+/* SERVER COST (corrected by the platform dive, docs/design/balance-program/28-platform.md, 2026-11-20).
+   REAL = production, read-only: `node tools/balance-program/platform-read.local.mjs` (pg_stat_statements since 2026-10-31,
+   the journal since 2026-10-19). MEASURED = tests/per-player-cost.baseline.json on the replayed chain. The first cut of this
+   block said 360 settles an hour: nothing settles at the 10 s cadence. An away hero commits 36 times an hour (the 90 s flush),
+   a watched one 198, and the journal says real heroes ran at 110 (87 over the last nine days). */
 export const COST = Object.freeze({
-  settlesAnHour: 360,                      // the 10 s cadence
-  commitsAnHour: { watched: 198, away: 36 }, // CITED: a watched hero commits 198 times an hour against 36
-  ledgerPruneRowsADay: 480000,             // CITED: outrun near 560 daily heroes at 43 to 49 rows a hero-hour
-  accountsOnlineCeiling: [110, 130],       // CITED: before the database passes 70% CPU on Small (2 cores)
-  /* a NEW system's allowance, a hunting hero: no new statement on the settle path, no new ledger row a kill,
-     nothing that grows with heroes x heroes. A dive that needs more says so and it goes to the platform dive. */
-  allowance: { statementsASettle: 0, ledgerRowsAHeroHour: 1, rowWritesASettle: 1, pollsAMinute: 0 },
+  commitsAnHour: { watched: 198, away: 36 },   // CITED (audit 11-19), and REAL: away days journal 36 to 52 accrue rows a hero-hour
+  real: {
+    read: '2026-11-20',
+    combatSettlesAHeroHour: 110,               // REAL: 178,830 combat accrue rows / 1,630 hunted hero-hours (87 over the last nine days)
+    watchedShareOfHuntedHours: 0.48,           // REAL, derived: (114 - 36) / (198 - 36) on the real accounts. A tab left open counts, pressed or not
+    dbMsAHeroSettle: 70,                       // REAL: apply 197 ms + read 19 + perks and holder, an instance of 3 heroes on average
+    townSettlesAHeroHour: 37,                  // REAL: gather 36.0, craft 39.7 accrue rows a town hero-hour
+    townDbMsASettle: 19,                       // REAL: hr_tick_settle's mean
+    tabHourReadsS: { today: 36.2, afterServerCostLane: 16.6 }, // REAL means x the client's cadences: state 10.7, accrue read 4.4, polls 1.5, the 60 s off-screen hr_load 19.6
+    ledgerRowsAHuntedHeroHour: 216,            // REAL, last five days: accrue 96, supply_buy 61, supply_own 53, pack and return 6 (the fixtures say 44 to 48)
+    ledgerRowsATownHeroHour: 38,               // REAL
+    ledgerBytesARow: 625,                      // REAL: 309 MB with its index / 494,141 rows
+    fixedCronSADay: 1010,                      // REAL: cron.job_run_details, one day, with nobody or everybody playing
+  },
+  ledgerKeepDays: 90,
+  ledgerPruneRowsADay: { live: 480000, staged: 5760000 }, // staged: lane/c-server-cost 1006 (every 5 minutes)
+  dbBusyTarget: 0.7,                           // the audit's line
+  peakOverMean: 2,                             // ASSUMED: the busiest hour against the day's mean
+  /* Supabase compute add-ons: cores and USD a month. ASSUMED from the published list as last read; Tyler checks the page before any spend.
+     Small and Medium are shared, burstable cores: sustained load needs Large or more. */
+  plans: [['Small', 2, 15], ['Large', 2, 110], ['XL', 4, 210], ['2XL', 8, 410], ['4XL', 16, 960], ['8XL', 32, 1870], ['12XL', 48, 2800], ['16XL', 64, 3730]],
+  /* a NEW or changed system's allowance, a hero that uses it (01 section 7, CONFIRMED by 28-platform.md with two lines added):
+     nothing per settle, at most 1 ledger row and 1 row write a hero-HOUR, no poll, no cron whose work grows with accounts,
+     nothing that grows with players x players. A dive that needs more says so and the platform dive owns the answer. */
+  allowance: { statementsASettle: 0, ledgerRowsAHeroHour: 1, rowWritesAHeroHour: 1, pollsAnAccountHour: 0 },
 });

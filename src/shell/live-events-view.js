@@ -8,6 +8,7 @@
 //   groundLines(cs, hunt)     the ground's page: every event on now that reaches this ground or its boss
 //   callEventWords(cs, call, quote)   Call out's event line while the SERVER'S QUOTE says an event set its price (no gold; stamina the same)
 //   feeKey(cs, call)          which fee events are on for this call now: a change reads the quote again (boss-call-pane.js)
+//   sheetXpLine(cs)           the Character sheet's experience bonus line: every XP event on now, its name and what it adds
 //
 // THE SERVER DECIDES EVERYTHING. The events are the envelope's `live_events` (null when every switch is off: then every reader
 // here answers nothing, so nothing new shows anywhere). The percent is the server's dial, the times are its windows read against
@@ -19,6 +20,7 @@ import { liveEventsOf } from '../session/live-event-sections.js?v=0.2.142';
 import { serverNowOf } from '../session/hunt-sections.js?v=0.2.142';
 import { LIVE_EVENTS, LIVE_EVENT_SHOWN } from '../data/live-events.js?v=0.2.142';
 import { BOSS_CALLS, callFromGround } from '../data/boss-calls.js?v=0.2.142';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
 import { localWhen } from '../render/format.js?v=0.2.142';
 import { t } from '../render/player-text.js?v=0.2.142';
 
@@ -146,4 +148,20 @@ export function callEventWords(cs, call, quote) {
 export function feeKey(cs, call) {
   if (!call) return '';
   return eventsNow(cs).filter((x) => ON.has(x.state) && x.e.dial === 'feePm' && reaches(x.e, call.id)).map((x) => x.e.id + '@' + x.e.startsMs).join(',');
+}
+
+/**
+ * THE CHARACTER SHEET'S EXPERIENCE BONUS FROM EVENTS (retention dive 2026-11-20: "Experience bonuses: None right now" on the sheet while the
+ * plate said "+25% Level XP" and the settle paid it): { name, words } for every XP event on now that adds something, its name and its chip
+ * ("+25% Level XP"), with the grounds it names when it is not world-wide, or null when none is on. Two events read as one line, joined.
+ */
+export function sheetXpLine(cs) {
+  const on = [];
+  for (const x of eventsNow(cs)) {
+    if (!ON.has(x.state) || x.e.dial !== 'xpPm' || !(x.e.pm > 1000)) continue;
+    const grounds = x.e.scope.includes('world') ? [] : x.e.scope.map((h) => (HUNT_INDEX[h] ? HUNT_INDEX[h].name : null)).filter(Boolean);
+    if (!x.e.scope.includes('world') && !grounds.length) continue;
+    on.push({ name: x.w.name, words: fill(x.w.chip, x) + (grounds.length ? ' ' + t('events.sheet_where', { where: grounds.join(', ') }) : '') });
+  }
+  return on.length ? { name: on.map((x) => x.name).join(' and '), words: on.map((x) => x.words).join(', ') } : null;
 }

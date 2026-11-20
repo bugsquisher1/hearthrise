@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 3435,
+ "replay_ms": 3448,
  "counts": {
-  "tracked_names": 968,
-  "entries": 819
+  "tracked_names": 974,
+  "entries": 825
  },
  "functions": [
   {
@@ -1476,6 +1476,7 @@
     "restate"
    ],
    "touched_by": [
+    "1004-tick-pack-heroes.sql",
     "2026-08-11-grant-hygiene.sql",
     "2026-08-16-client-write-grant-sweep-5.sql",
     "2026-08-16-client-write-grant-sweep.sql",
@@ -1505,14 +1506,14 @@
     "2027-04-19-key-under-lock.sql"
    ],
    "live": {
-    "md5": "19c0726a535d28b18699bdf5dbbfdd7f",
-    "norm_len": 51498,
+    "md5": "97b9d4ebbe1af77b29b8b1c384ea541f",
+    "norm_len": 53463,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "19c0726a535d28b18699bdf5dbbfdd7f",
-    "norm_len": 51498,
+    "md5": "97b9d4ebbe1af77b29b8b1c384ea541f",
+    "norm_len": 53463,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -2136,21 +2137,23 @@
    "sig": "hr_blessing_buy(p_slot integer, p_tier integer, p_price bigint, p_idem uuid)",
    "name": "hr_blessing_buy",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1005-lever-horizon.sql",
     "2026-10-25-blessings.sql",
     "2026-10-27-core-bodies.sql"
    ],
    "live": {
-    "md5": "0be3485fb403996ee78282e7b2ba16a3",
-    "norm_len": 3749,
+    "md5": "5fe04b24d895211f56b098c2404f3f69",
+    "norm_len": 4039,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "0be3485fb403996ee78282e7b2ba16a3",
-    "norm_len": 3749,
+    "md5": "5fe04b24d895211f56b098c2404f3f69",
+    "norm_len": 4039,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7179,21 +7182,24 @@
    "sig": "hr_home_view(p_user uuid, p_slot integer)",
    "name": "hr_home_view",
    "tracked_by": [
+    "chain",
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1007-home-view-held-rooms.sql",
     "2026-11-29-house-home.sql",
     "2027-02-10-settle-plan-cache.generated.sql"
    ],
    "live": {
-    "md5": "5ce493ae4d6924e45c55f164a9555dbd",
-    "norm_len": 2541,
+    "md5": "fe5c2af186265969abecc2acea2a4243",
+    "norm_len": 3667,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "5ce493ae4d6924e45c55f164a9555dbd",
-    "norm_len": 2541,
+    "md5": "fe5c2af186265969abecc2acea2a4243",
+    "norm_len": 3667,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -7580,6 +7586,7 @@
     "restate"
    ],
    "touched_by": [
+    "1005-lever-horizon.sql",
     "2026-10-23-hunt-world-state.sql",
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
@@ -7603,14 +7610,14 @@
     "2027-05-17-scaled-loot.sql"
    ],
    "live": {
-    "md5": "ad6fa73288844952f3e87a5c1ad98db2",
-    "norm_len": 41033,
+    "md5": "a54f76b93cc3541abb9c5a57f46c9294",
+    "norm_len": 41205,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "ad6fa73288844952f3e87a5c1ad98db2",
-    "norm_len": 41033,
+    "md5": "a54f76b93cc3541abb9c5a57f46c9294",
+    "norm_len": 41205,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8255,6 +8262,7 @@
     "restate"
    ],
    "touched_by": [
+    "1005-lever-horizon.sql",
     "2026-10-23-hunt-world-state.sql",
     "2026-11-01-party-leader-density.sql",
     "2026-11-16-hunt-density-bounds.sql",
@@ -8271,14 +8279,14 @@
     "2027-04-25-boss-daily.sql"
    ],
    "live": {
-    "md5": "89a296f58c1a4b28a6b54e0842634c38",
-    "norm_len": 7028,
+    "md5": "44a6291aac95a22009ee2f62629134fc",
+    "norm_len": 7315,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "89a296f58c1a4b28a6b54e0842634c38",
-    "norm_len": 7028,
+    "md5": "44a6291aac95a22009ee2f62629134fc",
+    "norm_len": 7315,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8302,6 +8310,28 @@
    "replay": {
     "md5": "a6eceb7335c7968c36ed262823932fac",
     "norm_len": 441,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_lease_free(p_body integer, p_sessions uuid[])",
+   "name": "hr_hunt_lease_free",
+   "tracked_by": [
+    "restate"
+   ],
+   "touched_by": [
+    "1004-tick-pack-heroes.sql"
+   ],
+   "live": {
+    "md5": "a749041cd31adcf30321b0d676759242",
+    "norm_len": 1484,
+    "measured": "2026-11-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "a749041cd31adcf30321b0d676759242",
+    "norm_len": 1484,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8374,6 +8404,29 @@
    "replay": {
     "md5": "e173f9fa28bfba7ae631ba80ca0c3b71",
     "norm_len": 745,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_lever_at(p_user uuid, p_slot integer)",
+   "name": "hr_hunt_lever_at",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1005-lever-horizon.sql"
+   ],
+   "live": {
+    "md5": "89af2361c89ccde966ba0df0f62ac3bb",
+    "norm_len": 488,
+    "measured": "2026-11-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "89af2361c89ccde966ba0df0f62ac3bb",
+    "norm_len": 488,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -8485,6 +8538,7 @@
     "restate"
    ],
    "touched_by": [
+    "1005-lever-horizon.sql",
     "2026-10-23-hunt-world-state.sql",
     "2026-10-25-settle-hooks.sql",
     "2026-10-27-core-bodies.sql",
@@ -8494,14 +8548,14 @@
     "2027-05-04-setup-swap-mid-hunt.sql"
    ],
    "live": {
-    "md5": "b0ba8bdbbc7d0e4aa1c6b0dc81993ea8",
-    "norm_len": 3730,
+    "md5": "ae29157b31998e604f790e1e8de85ae6",
+    "norm_len": 3700,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b0ba8bdbbc7d0e4aa1c6b0dc81993ea8",
-    "norm_len": 3730,
+    "md5": "ae29157b31998e604f790e1e8de85ae6",
+    "norm_len": 3700,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9452,20 +9506,21 @@
     "restate"
    ],
    "touched_by": [
+    "1004-tick-pack-heroes.sql",
     "2026-11-04-hunt-tick-shards.sql",
     "2027-01-01-server-perf.sql",
     "2027-02-03-tick-capacity.sql",
     "2027-02-04-tick-span.sql"
    ],
    "live": {
-    "md5": "3b476c1dfe9a084780c8624cd489b5af",
-    "norm_len": 4583,
+    "md5": "5ca73ee8f763414f3aec102e733e456f",
+    "norm_len": 5727,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3b476c1dfe9a084780c8624cd489b5af",
-    "norm_len": 4583,
+    "md5": "5ca73ee8f763414f3aec102e733e456f",
+    "norm_len": 5727,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -9642,6 +9697,29 @@
    "agree": true
   },
   {
+   "sig": "hr_hunt_seed_horizon(p_session uuid)",
+   "name": "hr_hunt_seed_horizon",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1005-lever-horizon.sql"
+   ],
+   "live": {
+    "md5": "3892dca54971edab21a6b598f5773819",
+    "norm_len": 803,
+    "measured": "2026-11-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "3892dca54971edab21a6b598f5773819",
+    "norm_len": 803,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
    "sig": "hr_hunt_set_preset(p_slot integer, p_preset integer, p_idem uuid)",
    "name": "hr_hunt_set_preset",
    "tracked_by": [
@@ -9756,6 +9834,7 @@
     "restate"
    ],
    "touched_by": [
+    "1005-lever-horizon.sql",
     "2026-10-21-hunt-sessions.sql",
     "2026-10-22-hunt-sessions-settle.sql",
     "2026-10-23-hunt-supply-ledger.sql",
@@ -9775,14 +9854,83 @@
     "2027-05-28-cellar-outgrown.sql"
    ],
    "live": {
-    "md5": "3e6ff7bc72602ca91dc7827bfac0ecce",
+    "md5": "9299dfed9bf9cffd5298af0d7a793ce4",
     "norm_len": 23961,
     "measured": "2026-11-20",
     "source": "measured-live"
    },
    "replay": {
-    "md5": "3e6ff7bc72602ca91dc7827bfac0ecce",
+    "md5": "9299dfed9bf9cffd5298af0d7a793ce4",
     "norm_len": 23961,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_setup_hold()",
+   "name": "hr_hunt_setup_hold",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1005-lever-horizon.sql"
+   ],
+   "live": {
+    "md5": "965376fcc96b78e1ecbcd1108b686bb0",
+    "norm_len": 2396,
+    "measured": "2026-11-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "965376fcc96b78e1ecbcd1108b686bb0",
+    "norm_len": 2396,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_setup_live(p_user uuid, p_slot integer, p_preset integer, p_hunt text)",
+   "name": "hr_hunt_setup_live",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1005-lever-horizon.sql"
+   ],
+   "live": {
+    "md5": "21281f401eacf059dbb51fdc2f5b8285",
+    "norm_len": 1310,
+    "measured": "2026-11-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "21281f401eacf059dbb51fdc2f5b8285",
+    "norm_len": 1310,
+    "source": "computed-from-replay"
+   },
+   "agree": true
+  },
+  {
+   "sig": "hr_hunt_setup_of(p_s hunt_sessions)",
+   "name": "hr_hunt_setup_of",
+   "tracked_by": [
+    "pin",
+    "restate"
+   ],
+   "touched_by": [
+    "1005-lever-horizon.sql"
+   ],
+   "live": {
+    "md5": "39db2a536a63e0f7c48b1260bcf377d5",
+    "norm_len": 743,
+    "measured": "2026-11-20",
+    "source": "measured-live"
+   },
+   "replay": {
+    "md5": "39db2a536a63e0f7c48b1260bcf377d5",
+    "norm_len": 743,
     "source": "computed-from-replay"
    },
    "agree": true

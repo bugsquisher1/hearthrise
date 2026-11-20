@@ -212,8 +212,11 @@ async function checks(overrides, shots, firstRed = false) {
         const card = await page.evaluate(() => { const p = document.querySelector('.hs-launchers .hs-pointer'); document.querySelector('.hs-launchers').__old = true; return p ? p.getAttribute('data-tutorial') : null; });
         if (!card) fails.push('TB-4 CONTROL: no coach card in the row to move on');
         else {
-          const coach = Object.assign({}, s.residue.coach || {});
-          s.residue = Object.assign({}, s.residue, { coach: Object.assign(coach, { read: (coach.read || []).concat([card]) }) });
+          /* the card moved on as its Got it moves it (launcher.js actCoach): read for a card that teaches, hidden for this visit for one the
+             server finishes (visitOf: the hunt's session, in it or home; Sell junk since 2026-11-20) */
+          const coach = Object.assign({}, s.residue.coach || {}), h = s.env.hunt;
+          const visit = (h && h.session_id ? String(h.session_id).slice(0, 56) : 'none') + (h && h.hunt_id && !h.ended ? ':in' : ':town');
+          s.residue = Object.assign({}, s.residue, { coach: Object.assign(coach, { read: (coach.read || []).concat([card]), hid: (coach.hid || []).concat([card]), hidIn: visit }) });
           await sayAgain(page, s);
           await page.waitForTimeout(400);
           const after = await page.evaluate(() => ({ redrawn: !document.querySelector('.hs-launchers').__old, at: document.activeElement ? document.activeElement.getAttribute('data-hs-open') : null }));

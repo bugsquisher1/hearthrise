@@ -22,7 +22,7 @@
 //   CO-ENGINE  the one engine, browser closed (the settle the world tick runs): a tank twenty rats under the exit ends `outgrown` at the exit,
 //              at the same instant on ten-minute and 90-second windows; a hero already at the exit (a hunt the door would have refused) ends
 //              at its first boundary, never a kill; a ground without an exit never ends that way
-//   CO-IDEM    a second apply of the two files moves no body, catalogue row or end reason
+//   CO-IDEM    a second apply of the two files moves no body, catalogue row or end reason (on the chain up to them: catacombs.mjs's rule)
 //
 // Exit: 0 green · 1 red · 2 harness.
 // ════════════════════════════════════════════════════════════════════════
@@ -205,7 +205,13 @@ async function engineArm(_db, M, root = ROOT) {
 }
 
 /* ── CO-IDEM ──────────────────────────────────────────────────────────────── */
-async function idemArm(db) {
+/* The second apply is judged on the chain UP TO this file (tests/catacombs.mjs's rule): a later file may move a body this one pins
+   (1005-lever-horizon.sql splices hr_hunt_settle_session), and on the whole chain the pin rightly refuses to splice over it.
+   Booted once, for this arm alone. */
+let IDEM_DB = null;
+async function idemArm() {
+  if (!IDEM_DB) { IDEM_DB = (await bootReplay({ upTo: FILE })).db; await H.pinDice(IDEM_DB); }
+  const db = IDEM_DB;
   return H.inTx(db, async () => {
     const bad = [];
     const snap = async () => JSON.stringify([

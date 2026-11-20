@@ -934,8 +934,9 @@ async function runTests(mods) {
     const paid = { mining: { xp: XP.skillXpForLevel('mining', 47), level: 47 } };
     /* a hero who has never hunted: no hunt section at all */
     const back = AR.awayRecapOf(hero(T0 + H8, mining(T0 + H8), paid, { copper_ore: 4313 }, rock));
-    ok(back && back.text === 'Away 8 h 0 min. Tess mined the Copper Rock. +4,303 Copper Ore, Mining 26 to 47. Still mining.', 'the gathering line: ' + JSON.stringify(back && back.text));
-    ok(back && back.action === 'bag' && back.session === null && back.id === 'away:town:gather:copper_rock:' + T0, 'it opens the bag and is shown once: ' + JSON.stringify(back));
+    /* STILL RUNNING SAYS HOW IT ENDS, AND ITS PRESS STOPS OR CHANGES IT (retention dive 2026-11-20: 6,001 Copper Ore for a 20-ore errand, "Still mining" and no way back) */
+    ok(back && back.text === 'Away 8 h 0 min. Tess mined the Copper Rock. +4,303 Copper Ore, Mining 26 to 47. Still mining. It keeps going until you press Stop in Gathering and crafting.', 'the gathering line: ' + JSON.stringify(back && back.text));
+    ok(back && back.action === 'work' && back.button === 'Stop or change it' && back.session === null && back.id === 'away:town:gather:copper_rock:' + T0, 'it opens Gathering and crafting and is shown once: ' + JSON.stringify(back));
     /* the first read back is from before the sign-in's settle: the line waits for the numbers */
     const unpaid = hero(T0 + H8, mining(T0), { mining: { xp: rock.sx, level: 26 } }, { copper_ore: 10 }, rock);
     ok(AR.awayRecapOf(unpaid) === null && AR.awaySettled(unpaid) === false, 'nothing is judged before the settle that pays it');

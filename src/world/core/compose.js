@@ -43,7 +43,7 @@ import { OUTFITS } from '../../data/hunt-outfits.js?v=0.2.142';
 import { lookDyeKey } from '../../data/outfits.js?v=0.2.142';
 import { markShapes } from './mark-shapes.js?v=0.2.142';
 import { toneAt, varietyIndex } from './ground-variety.js?v=0.2.142';
-import { roughEdges } from './ground-rough.js?v=0.2.142';
+import { roughEdgeSteps } from './ground-rough.js?v=0.2.142';
 import { lifeDraws, glanceOf, swayOf, bumpAt } from './ambient.js?v=0.2.142';
 
 /** Wall height: rock tops and capstones are raised by it. */
@@ -120,9 +120,10 @@ function* blendSteps(map, book, T, inPatch, out) {
       const m = map.ground[cy * W + cx], a = alias[m] || m, i = idOf.get(a);
       authored[cy * W + cx] = i === undefined ? -1 : i;
     }
+    yield;
   }
   /* a natural edge drawn ragged (ground-rough.js): the materials as DRAWN; the map's ground and its walk mask are untouched */
-  const mat = map.blend.rough ? roughEdges(authored, W, Hm, idOf, map.blend.rough) : authored;
+  const mat = map.blend.rough ? yield* roughEdgeSteps(authored, W, Hm, idOf, map.blend.rough) : authored;
   const matOf = (x, y) => mat[Math.min(Hm - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
   /* a cell is a dual-tile corner: it is OPEN for its variety when the cells round it (3 x 3, inside the map) are all its material */
   const same = (cx, cy) => {
@@ -188,8 +189,9 @@ function drain(it) {
 export function groundTiles(map, book, tables, T) { return drain(groundSteps(map, book, tables, T)); }
 
 /* groundTiles as STEPS, one map row (or dual row) each: the town's ground is 22k dual tiles, 28-48 ms on CI and
-   ~90 ms on a phone's CPU in one go, so a scene being prepared makes it in slices (groundOfSliced). Same list,
-   same order, whichever way it is run. */
+   ~90 ms on a phone's CPU in one go, so a scene being prepared makes it in slices (groundOfSliced). EVERY whole-map
+   pass steps by row (the blend's materials and each rough pass too: the rough rule's twelve passes were one 70 ms
+   step on CI, nightly 44730692384), a building floor by building. Same list, same order, whichever way it is run. */
 function* groundSteps(map, book, tables, T) {
   const tiles = [], voids = [], tones = [];
   /* NO GROUND ART YET (ground: null, a town ahead of its art; map-compile.js L-KIND): every cell is a flat
@@ -237,9 +239,12 @@ function* groundSteps(map, book, tables, T) {
   if (vkind) {
     const list = terr.tiles['1111'];
     const bases = vars.map((v) => list[v.t.at[1] * fill[0] + v.t.at[0]] || null);
-    for (let y = 0; y < map.h; y++) for (let x = 0; x < map.w; x++) {
-      const p = list[(y % fill[1]) * fill[0] + (x % fill[0])];
-      for (let k = 0; k < bases.length; k++) if (p && bases[k] && p[0] === bases[k][0] && p[1] === bases[k][1]) { vkind[y * map.w + x] = k; break; }
+    for (let y = 0; y < map.h; y++) {
+      for (let x = 0; x < map.w; x++) {
+        const p = list[(y % fill[1]) * fill[0] + (x % fill[0])];
+        for (let k = 0; k < bases.length; k++) if (p && bases[k] && p[0] === bases[k][0] && p[1] === bases[k][1]) { vkind[y * map.w + x] = k; break; }
+      }
+      yield;
     }
   }
   const vmemo = vkind ? vars.map(() => new Int8Array((map.w + 3) * (map.h + 3)).fill(-1)) : null;
@@ -273,6 +278,7 @@ function* groundSteps(map, book, tables, T) {
         if (t) tiles.push({ set: t.set, sx: t.sx, sy: t.sy, x: x * T, y: y * T });
       }
     }
+    yield;
   }
   return { tiles, voids, tones };
 }

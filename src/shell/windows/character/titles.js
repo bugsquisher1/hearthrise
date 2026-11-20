@@ -38,7 +38,8 @@ function rowWords(r, purse) {
   const { label } = lineOf(r);
   if (r.held) return { small: r.worn ? 'Equipped' : 'Owned', press: r.worn ? t('controls.unequip') : t('controls.equip'), off: false };
   const count = label + ': ' + whole(r.have) + ' of ' + whole(r.kills);
-  if (r.have < r.kills) return { small: count, press: null, off: true };
+  /* THE WHOLE PRICE BEFORE THE KILLS (retention dive 2026-11-20: "Rats: 79 of 2,500" and the gold hidden until they were done): the server's price rides the count */
+  if (r.have < r.kills) return { small: count + (r.price ? ', then ' + gold(r.price) : ''), press: null, off: true };
   const short = purse !== null && purse < r.price ? r.price - purse : 0;
   return { small: count + (short ? '. Need ' + gold(short) + ' more' : ''), press: r.price ? 'Claim for ' + gold(r.price) : 'Claim', off: short > 0 };
 }

@@ -20,7 +20,7 @@
 //        steps and the last row are then checked for add-or-multiply.
 //   node tools/balance-program/measure.mjs price <gold> [--at <point> | --level <L>]
 //        NO PLAY (reads ref.json). A gold price in REF HOURS and in days for each reference player.
-//   node tools/balance-program/measure.mjs cost [--add statements=0,ledger=0,writes=0] [--share 1]
+//   node tools/balance-program/measure.mjs cost [--add statements=0,ledger=0,writes=0,polls=0] [--share 1] [--after]
 //        NO PLAY. What a hunting hero costs the server today (tests/per-player-cost.baseline.json) an hour, the system's
 //        addition against the allowance, and the totals at 10 / 1,000 / 10,000 online. --share = the share of heroes that use it.
 //   node tools/balance-program/measure.mjs curves | deep | stack | fits   [their own flags]
@@ -188,28 +188,58 @@ function price() {
   console.log('"days at its spending share": the account puts only that share of what it earns into sinks (REFERENCE_PLAYERS.spends).');
 }
 
+/** DB seconds a day and journal rows a day one reference account costs. `watch`: 'attended' (the tab is open only for the
+    attended minutes) or 'real' (COST.real.watchedShareOfHuntedHours of hunted hours run at the watched cadence, as the journal shows). */
+function accountCost(pl, watch, reads) {
+  const R = COST.real, hunted = pl.heroes * pl.huntHoursADay, town = pl.heroes * pl.townHoursADay;
+  const tabH = watch === 'real' ? R.watchedShareOfHuntedHours * pl.huntHoursADay : Math.min(pl.attendedMinADay / 60, pl.huntHoursADay);
+  const watchedHH = Math.min(hunted, tabH * pl.heroes), awayHH = hunted - watchedHH;   // a viewed four settles all four seats
+  const settles = watchedHH * COST.commitsAnHour.watched + awayHH * COST.commitsAnHour.away;
+  const dbS = settles * R.dbMsAHeroSettle / 1000 + town * R.townSettlesAHeroHour * R.townDbMsASettle / 1000
+    + tabH * (pl.heroes === 1 ? R.tabHourReadsS.afterServerCostLane : reads);   // a lone hero has no off-screen heroes to poll
+  /* journal rows follow settles: REAL 216 rows at 110 settles a hunted hero-hour */
+  const rows = settles * R.ledgerRowsAHuntedHeroHour / R.combatSettlesAHeroHour + town * R.ledgerRowsATownHeroHour;
+  return { dbS, rows, tabH };
+}
+const planFor = (cores) => { const p = COST.plans.find((x) => x[1] >= cores && (cores <= 1.4 || x[0] !== 'Small')); return p ? p[0] + ' $' + p[2] : 'NO SINGLE DATABASE (the top is ' + COST.plans.at(-1)[1] + ' cores)'; };
+
 function cost() {
   const base = JSON.parse(readFileSync(join(ROOT, 'tests', 'per-player-cost.baseline.json'), 'utf8')).fixtures;
   const add = Object.fromEntries(String(arg('add', 'statements=0,ledger=0,writes=0')).split(',').map((kv) => { const [k, v] = kv.split('='); return [k, Number(v) || 0]; }));
-  const share = Number(arg('share', 1));
-  console.log('COST: one hunting hero today (tests/per-player-cost.baseline.json, MEASURED on the replayed chain), ' + COST.settlesAnHour + ' settles an hour.');
-  console.log('fixture | statements a settle | statements a hero-hour | row writes a hero-hour | ledger rows a hero-hour');
+  const share = Number(arg('share', 1)), R = COST.real, C = COST.commitsAnHour, after = process.argv.includes('--after');
+  const reads = after ? R.tabHourReadsS.afterServerCostLane : R.tabHourReadsS.today;
+  console.log('COST: one hunting hero (tests/per-player-cost.baseline.json, MEASURED on the replayed chain). A hero commits ' + C.away + ' times an hour away and ' + C.watched + ' watched; REAL heroes ran at ' + R.combatSettlesAHeroHour + '.');
+  console.log('fixture | statements a settle | statements a hero-hour away / watched | row writes a hero-hour away / watched | ledger rows a hero-hour (fixture, away) | REAL');
   for (const [k, f] of Object.entries(base)) {
-    const n = /party4/.test(k) ? 4 : 1;
-    console.log([k, f.statements_a_settle, Math.round(f.statements_a_settle * COST.settlesAnHour / n), Math.round(f.row_writes_a_settle * COST.settlesAnHour / n), f.ledger_rows_a_hero_hour].join(' | '));
+    const n = /party4/.test(k) ? 4 : 1, per = (x, cc) => Math.round(x * cc / n);
+    console.log([k, f.statements_a_settle, per(f.statements_a_settle, C.away) + ' / ' + per(f.statements_a_settle, C.watched), per(f.row_writes_a_settle, C.away) + ' / ' + per(f.row_writes_a_settle, C.watched), f.ledger_rows_a_hero_hour, R.ledgerRowsAHuntedHeroHour].join(' | '));
   }
   const al = COST.allowance;
-  console.log('\nTHE SYSTEM ADDS, a hero that uses it: statements a settle ' + (add.statements || 0) + ' (allowance ' + al.statementsASettle + '), ledger rows a hero-hour ' + (add.ledger || 0) + ' (allowance ' + al.ledgerRowsAHeroHour + '), row writes a settle ' + (add.writes || 0) + ' (allowance ' + al.rowWritesASettle + '); share of heroes ' + share);
-  const over = (add.statements || 0) > al.statementsASettle || (add.ledger || 0) > al.ledgerRowsAHeroHour || (add.writes || 0) > al.rowWritesASettle;
+  console.log('\nTHE SYSTEM ADDS, a hero that uses it: statements a settle ' + (add.statements || 0) + ' (allowance ' + al.statementsASettle + '), ledger rows a hero-hour ' + (add.ledger || 0) + ' (allowance ' + al.ledgerRowsAHeroHour + '), row writes a hero-hour ' + (add.writes || 0) + ' (allowance ' + al.rowWritesAHeroHour + '), polls an account-hour ' + (add.polls || 0) + ' (allowance ' + al.pollsAnAccountHour + '); share of heroes ' + share);
+  const over = (add.statements || 0) > al.statementsASettle || (add.ledger || 0) > al.ledgerRowsAHeroHour || (add.writes || 0) > al.rowWritesAHeroHour || (add.polls || 0) > al.pollsAnAccountHour;
   console.log(over ? 'OVER THE ALLOWANCE: name it in the dive and hand it to the platform dive.' : 'inside the allowance.');
-  const lone = base.lone_L10_meadowbrook_thicket;
-  console.log('\nonline accounts | hunting heroes (x4) | statements a second today | + this system | ledger rows a day today (12 h a hero) | + this system | the prune (' + COST.ledgerPruneRowsADay.toLocaleString('en-US') + ' a day)');
-  for (const pop of POPULATIONS) {
-    const heroes = pop.online * 4, st = heroes * lone.statements_a_settle * COST.settlesAnHour / 3600, stAdd = heroes * share * (add.statements || 0) * COST.settlesAnHour / 3600;
-    const led = heroes * lone.ledger_rows_a_hero_hour * 12, ledAdd = heroes * share * (add.ledger || 0) * 12;
-    console.log([pop.online, heroes, Math.round(st), '+' + Math.round(stAdd), Math.round(led).toLocaleString('en-US'), '+' + Math.round(ledAdd).toLocaleString('en-US'), led + ledAdd > COST.ledgerPruneRowsADay ? 'OUTRUN' : 'holds'].join(' | '));
+  /* what the addition costs: a statement on the settle path is paid at the hero's settle rate (ASSUMED 2 ms a small statement), a row an hour is a row an hour */
+  const addDbS = (pl) => share * pl.heroes * pl.huntHoursADay * (add.statements || 0) * R.combatSettlesAHeroHour * 2 / 1000;
+  const addRows = (pl) => share * pl.heroes * pl.huntHoursADay * (add.ledger || 0);
+
+  console.log('\nONE ACCOUNT A DAY' + (after ? ' (after lane/c-server-cost: no off-screen poll)' : ' (today)') + ', REAL production means (' + R.read + '). "as attended" = the tab is open only for the attended minutes; "as journalled" = ' + Math.round(R.watchedShareOfHuntedHours * 100) + '% of hunted hours at the watched cadence.');
+  console.log('player | hunted + town hero-hours | DB s as attended | DB s as journalled | journal rows as attended | as journalled | + this system (DB s, rows)');
+  const cells = {};
+  for (const pl of REFERENCE_PLAYERS) {
+    const A = accountCost(pl, 'attended', reads), J = accountCost(pl, 'real', reads);
+    cells[pl.id] = { A, J };
+    console.log([pl.name, (pl.heroes * pl.huntHoursADay).toFixed(1) + ' + ' + pl.heroes * pl.townHoursADay, Math.round(A.dbS), Math.round(J.dbS), Math.round(A.rows).toLocaleString('en-US'), Math.round(J.rows).toLocaleString('en-US'), '+' + addDbS(pl).toFixed(1) + ', +' + Math.round(addRows(pl))].join(' | '));
   }
-  console.log('CITED (tools/qa/audit-2026-11-19-server/findings.md): about ' + COST.accountsOnlineCeiling.join('-') + ' accounts online before the database passes 70% CPU; a watched hero commits ' + COST.commitsAnHour.watched + ' times an hour, an away hero ' + COST.commitsAnHour.away + '.');
+  const cores = (dbS, n) => dbS * n / 86400 * COST.peakOverMean / COST.dbBusyTarget + R.fixedCronSADay / 86400;
+  console.log('\nN ACCOUNTS OF ONE KIND: database cores to provision (mean x ' + COST.peakOverMean + ' peak, ASSUMED, at ' + COST.dbBusyTarget * 100 + '% busy) and the plan that holds them, as attended and as journalled; journal rows a day (as journalled) against the prune (' + COST.ledgerPruneRowsADay.live.toLocaleString('en-US') + ' live, ' + COST.ledgerPruneRowsADay.staged.toLocaleString('en-US') + ' staged); the journal kept ' + COST.ledgerKeepDays + ' days.');
+  console.log('player | accounts | cores as attended | plan | cores as journalled | plan | journal rows a day | prune live / staged | journal GB kept');
+  const f = (k) => k.toFixed(k < 10 ? 1 : 0);
+  for (const pl of REFERENCE_PLAYERS) for (const pop of POPULATIONS) {
+    const { A, J } = cells[pl.id], n = pop.online, ka = cores(A.dbS + addDbS(pl), n), kj = cores(J.dbS + addDbS(pl), n), rows = (J.rows + addRows(pl)) * n;
+    console.log([pl.name, n, f(ka), planFor(ka), f(kj), planFor(kj), Math.round(rows).toLocaleString('en-US'),
+      (rows > COST.ledgerPruneRowsADay.live ? 'OUTRUN' : 'holds') + ' / ' + (rows > COST.ledgerPruneRowsADay.staged ? 'OUTRUN' : 'holds'), f(rows * COST.ledgerKeepDays * R.ledgerBytesARow / 1e9)].join(' | '));
+  }
+  console.log('CITED (tools/qa/audit-2026-11-19-server/findings.md, the 11-02 load rig): 100 accounts with every tab open and every hero hunting = 1.45 of Small\'s 2 cores. The production means above give 1.56 for that hour.');
 }
 
 function model() {

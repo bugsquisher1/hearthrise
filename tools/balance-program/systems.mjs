@@ -498,6 +498,8 @@ export const EXTRA_CLAIMS = Object.freeze([
   ['section', 'skill_levels', 'combat-skills'],
   ['section', 'tower', 'tower'],
   ['section', 'training', 'training'],
+  // mid-hunt setup changes held until the seed horizon (1005-lever-horizon): the bar's server half
+  ['table', 'hunt_setup_holds', 'action-bar'],
   // the priority board
   ['board', 'Decisions', 'x-process'],
   ['board', 'Balance design ruling (Tyler, 2026-10-25): APPROVED TARGETS', 'level'],

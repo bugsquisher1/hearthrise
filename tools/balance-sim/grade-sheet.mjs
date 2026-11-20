@@ -9,26 +9,40 @@
 // (floor+10 past the top). In range = floor, plus10, top. Sizes 1-4. Metrics (grade.mjs METRICS): deaths and dips per hour are
 // pooled per ground x tier x offset x size and judged on their 95% interval (FAIL only when the interval's low end is past the
 // bound, UNPROVEN when only its high end is); every other metric is the cell's own number.
-/* THE FOUR'S LINE, WHERE IT BINDS (designer 2026-11-13, lane/d-no-profit-molds; Tyler 10-25 §5 "a well-built four earns 15-25% more XP a head
-   than a comparable solo"). It binds a WELL-BUILT four, one of all four classes (Melee, Ranger, Mage, Healer), at the band's floor and middle,
-   where a party cell is fitted. Two places it reports instead (an advisory OFF, never red):
-     a three-class four (two Melee and no Healer, say) is paid its own, smaller cell by design (Tyler 10-31, party-class-xp.js), so 1.05-1.15 is
-       the rule working, not a miss;
-     the band's TOP is where a ground is being outgrown: a hero alone there kills in fewer blows and closes on the four, so the four's edge
-       narrows (the full grade 2026-11-13: Sewer 1.13 and Warrens 1.12 at their tops, 1.20-1.25 at their floors). That is the nudge to move
-       up a ground, where the next floor pays the four its 15-25% again, the same "outgrowing a ground should show" the Glade's top is held to.
-   One party cell per ground can't hold both ends (a cell keyed by the head's place in the band is a Systems change, PRIORITY_BOARD). */
+/* THE PARTY LINES, WHERE THEY BIND (Tyler 2026-11-16: "it's better to just scale the overall party bonus down" + "normal isn't meant for parties
+   anyway", "its not restricted, but it's not necessarily meant for them"). They REPLACE 10-25 §5's four at 1.15-1.25x a comparable solo on Normal,
+   and with it the designer's 2026-11-12 Q2 long-band exemption, which fitted one per-ground party cell to that window (the cells retired with the
+   11-16 one table). On PARTY_TIERS, Dangerous and Deadly only:
+     four-xp           a WELL-BUILT four (all four classes: Melee, Ranger, Mage, Healer) at the floor, middle and floor+10 earns at least the same
+                       heroes alone a head ("every Dangerous/Deadly party mix stays >= the same heroes alone"): grade.mjs sameAloneXp, the mean of each
+                       seat's way alone on the same tier and offset, as tests/party-class-xp-line.mjs reads it (a seat's way the run plays only for this
+                       is a seat twin, grade.mjs buildGrid)
+     four-deadly-pace  a mixed four on Deadly in range earns at most the sheet's multiple of the pace contract a head at its top Level ("a mixed four
+                       on Deadly lands ~2.0-2.5x the pace contract"); under the sheet's paceFromLevel it reports (Tyler 2026-11-18: the contract is
+                       the trend past the first ten Levels, which every first ground overshoots alone)
+   four-xp reports instead (an advisory OFF, never red) in the designer's 2026-11-13 two places: a three-class four (two Melee and no Healer, say),
+   paid its own smaller cell (party-class-xp.js PARTY_CLASS_XP by classes, 10-31), and the band's TOP, where a ground is being outgrown (a hero
+   alone there kills in fewer blows and closes on the four). On Normal no party line binds: a seat there may earn under solo, and grade.mjs's
+   feel-seat-below-solo reads the same tiers. */
+export const PARTY_TIERS = Object.freeze(['dangerous', 'deadly']);
 const CLASS_OF_STYLE = Object.freeze({ tank: 'melee', sword: 'melee', axes: 'melee', hammer: 'melee', melee_dps: 'melee', bow: 'ranger', crossbow: 'ranger', ranger: 'ranger', mage: 'mage', healer: 'healer' });
-/** A cell's comp ('tank+healer+bow+mage') holds all four classes; a comp naming a style this map doesn't know counts as well built (never skipped). */
-export const wellBuiltFour = (m) => { const styles = String(m.comp || '').split('+'); return styles.some((x) => !CLASS_OF_STYLE[x]) || new Set(styles.map((x) => CLASS_OF_STYLE[x])).size >= 4; };
-const fourRules = (min, max, why, whyReport, reportOnly) => [
-  { id: 'four-xp', why, tiers: ['normal'], offsets: ['floor', 'middle', 'plus10'], sizes: [4], skip: (m) => !wellBuiltFour(m), metric: 'xpVsSolo', min, max, binding: true, ...(reportOnly ? { reportOnly } : {}) },
-  { id: 'four-xp-report', why: whyReport, tiers: ['normal'], offsets: ['floor', 'middle', 'plus10', 'top'], sizes: [4], skip: (m) => wellBuiltFour(m) && m.offset !== 'top', metric: 'xpVsSolo', min, max, binding: false },
+/* how many classes a cell's comp ('tank+healer+bow+mage') holds; null when it names a style this map doesn't know (never skipped) */
+const classesOf = (m) => { const styles = String(m.comp || '').split('+'); return styles.some((x) => !CLASS_OF_STYLE[x]) ? null : new Set(styles.map((x) => CLASS_OF_STYLE[x])).size; };
+/** A cell's comp holds all four classes; a comp naming a style this map doesn't know counts as well built (never skipped). */
+export const wellBuiltFour = (m) => { const n = classesOf(m); return n === null || n >= 4; };
+/** A cell's comp holds two classes or more (one class never out-earns its heroes alone, 10-31, and is no mixed party); unknown counts as mixed. */
+export const mixedParty = (m) => { const n = classesOf(m); return n === null || n >= 2; };
+const fourRules = (min, why, whyReport) => [
+  { id: 'four-xp', why, tiers: PARTY_TIERS, offsets: ['floor', 'middle', 'plus10'], sizes: [4], skip: (m) => !wellBuiltFour(m), metric: 'xpVsSame', min, binding: true },
+  { id: 'four-xp-report', why: whyReport, tiers: PARTY_TIERS, offsets: ['floor', 'middle', 'plus10', 'top'], sizes: [4], skip: (m) => wellBuiltFour(m) && m.offset !== 'top', metric: 'xpVsSame', min, binding: false },
 ];
-const FOUR_REPORT = 'designer 2026-11-13: a report line, the band top (a ground being outgrown) and a three-class four (its own cell by design, 10-31)';
+/* the Deadly four's ceiling, a head over the sheet's `contract` at the cell's top Level (grade.mjs headVsContract); a cell under `fromLevel` reports */
+const fourPaceRule = (max, fromLevel, why) => ({ id: 'four-deadly-pace', why, tiers: ['deadly'], offsets: ['floor', 'middle', 'plus10', 'top'], sizes: [4], skip: (m) => !mixedParty(m),
+  metric: 'headVsContract', max, binding: true, reportOnly: (m) => !(m.level >= fromLevel) });
+const FOUR_REPORT = 'designer 2026-11-13: a report line, the band top (a ground being outgrown) and a three-class four (its own cell, 10-31)';
 
 export const SHEET = Object.freeze({
-  source: 'local copy: balance ruling 2026-10-25 + rulings of record to 2026-11-07 (grade-sheet.mjs)',
+  source: 'local copy: balance ruling 2026-10-25 + rulings of record to 2026-11-07, the party lines 2026-11-16 (grade-sheet.mjs)',
   rules: Object.freeze([
     /* NORMAL IN RANGE IS SAFE (10-25 "Normal acceptance"; 11-04 "in range is safe") */
     { id: 'normal-deaths', why: '10-25: Normal, at most 1 death per 1,000 h', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], metric: 'deathsPer1000h', max: 1, pooled: true, binding: true },
@@ -44,10 +58,11 @@ export const SHEET = Object.freeze({
     { id: 'under-pays-xp', why: '10-18 and 11-06: under your weight class pays more XP (an hour against the pace at that Level)', offsets: ['under5', 'under3', 'under2'], metric: 'xpVsPace', min: 1, binding: false },
     /* ABOVE THE BAND (10-18 "above range = low XP, small profit") */
     { id: 'above-low-xp', why: '10-18: past the band, the ground pays under the pace', offsets: ['above'], sizes: [1], metric: 'xpVsPace', max: 1, binding: false },
-    /* PARTIES (10-25 §party: four 115-125, trio 110-120, duo 105-115 XP a head over a comparable solo) */
-    ...fourRules(1.15, 1.25, '10-25: a well-built four earns 15-25% more XP a head than a comparable solo', FOUR_REPORT),
-    { id: 'trio-xp', why: '10-25 (provisional): a trio 110-120', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], sizes: [3], metric: 'xpVsSolo', min: 1.1, max: 1.2, binding: false },
-    { id: 'duo-xp', why: '10-25 (provisional): a duo 105-115', tiers: ['normal'], offsets: ['floor', 'plus10', 'top'], sizes: [2], metric: 'xpVsSolo', min: 1.05, max: 1.15, binding: false },
+    /* PARTIES (Tyler 2026-11-16, THE PARTY LINES above; replaces 10-25 §5's four 115-125, trio 110-120, duo 105-115 on Normal): on Dangerous and
+       Deadly every mix at or over a hero alone. The Deadly four's ceiling reads a contract, which this local sheet has none of (the balance sheet's) */
+    ...fourRules(1.0, '11-16: on Dangerous and Deadly a well-built four earns at least the same heroes alone a head', FOUR_REPORT),
+    { id: 'trio-xp', why: '11-16: on Dangerous and Deadly every party mix earns at least the same heroes alone (a report line; feel-seat-below-solo binds every mix)', tiers: PARTY_TIERS, offsets: ['floor', 'plus10', 'top'], sizes: [3], metric: 'xpVsSame', min: 1.0, binding: false },
+    { id: 'duo-xp', why: '11-16: on Dangerous and Deadly every party mix earns at least the same heroes alone (a report line; feel-seat-below-solo binds every mix)', tiers: PARTY_TIERS, offsets: ['floor', 'plus10', 'top'], sizes: [2], metric: 'xpVsSame', min: 1.0, binding: false },
     /* TIERS (11-05: bigger pull, harder, more XP a kill, the same coin; 11-07: coin per kill never scales, "BUT NOT GOLD") */
     /* Coin per kill never scales (11-05, 11-07 "BUT NOT GOLD") is a rule on each monster, and a bigger pull moves the mix of monsters a
        cell kills, so a cell's coin per kill can't judge it: tests/hunt-core/hunt-tiers.mjs holds it on the data. */
@@ -60,7 +75,8 @@ export const SHEET = Object.freeze({
 /**
  * The formula lane's src/data/balance-sheet.js BALANCE_SHEET (lane/b-ground-formula, 2026-11-07) read as grader rules, each line in
  * its own scope: Normal at the floor (lone, the 8 ways in the Level's gear), the fresh hero (practice set, first-day grounds), the
- * weight class (pairs 2-3 under read for XP; heroes alone 5 under are read for deaths), the harder tiers at the floor (whoever holds them, and a four's deaths on Deadly), the four against solo, the largest blows.
+ * weight class (pairs 2-3 under read for XP; heroes alone 5 under are read for deaths), the harder tiers at the floor (whoever holds them, and a four's deaths on Deadly), a four on Dangerous and Deadly against solo and a Deadly
+ * four against the pace contract (the party lines, Tyler 2026-11-16), the largest blows.
  * A line the sheet calls "a report line" is advisory; every other line is binding (off it, the grader exits 1).
  * NO PROFIT MOLDS (Tyler 2026-11-13): the sheet carries no gold line (its old marginMin, supplyShare and netMax are gone): gold is
  * printed per ground (grade.mjs goldReport), never graded.
@@ -106,10 +122,10 @@ export function sheetFromBalanceSheet(BS) {
       { id: 'tier-deadly-four-held', why: why('tiers.deadly.fourDeathsPer16hMax, a four at the floor'), tiers: ['deadly'], offsets: ['floor'], sizes: [4], metric: 'deathsPer16h', max: T.deadly.fourDeathsPer16hMax, binding: true,
         /* designer Q4 2026-11-12: a pack whose Deadly says bring a Healer (checks.deadlyFourNeeds) grades the four with one; the four without is a note */
         reportOnly: (m) => m.deadlyFourNeeds === 'healer' && !String(m.comp).split('+').includes('healer') },
-      /* designer Q2 2026-11-12, kept beside the 11-13 four line: on a band 20 Levels wide or more one cell can't hold both ends, so a well-built
-         four's middle is graded and its other cells reported (no ground a player can enter has a band that wide: the widest is 18) */
-      ...fourRules(P.fourVsSolo[0], P.fourVsSolo[1], why('party.fourVsSolo (RULED 10-25), a well-built four at the floor and middle'), why('party.fourVsSolo, ' + FOUR_REPORT),
-        (m) => m.offset !== 'middle' && Array.isArray(m.band) && m.band[1] - m.band[0] >= 20),
+      /* THE PARTY LINES (Tyler 2026-11-16, the block at the top): Dangerous and Deadly, never Normal. No band-width exemption: Q2's (2026-11-12)
+         fitted one per-ground cell to the retired 1.15-1.25 window, and a one-sided bar on one table has no two ends to hold */
+      ...fourRules(P.vsAloneMin, why('party.vsAloneMin (RULED 2026-11-16), a well-built four on Dangerous and Deadly at the floor, middle and floor+10'), why('party.vsAloneMin, ' + FOUR_REPORT)),
+      fourPaceRule(P.deadlyFourVsContractMax, P.paceFromLevel, why('party.deadlyFourVsContractMax (RULED 2026-11-16), a mixed four on Deadly a head against the pace contract at its top Level (a report under party.paceFromLevel)')),
     ]),
   });
 }

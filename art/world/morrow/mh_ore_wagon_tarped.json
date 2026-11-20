@@ -1,0 +1,71 @@
+{
+  "id": "mh_ore_wagon_tarped",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_ore_wagon_tarped.png",
+  "frame": [
+    64,
+    48
+  ],
+  "anchor_px": [
+    32,
+    47
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "bc6c4fad-8fd3-56b7-99fa-7f773c22bfbf",
+    "job": "d2e6eba3",
+    "sketch": ".scratch/kit/b6/tarp.mjs (ox-wagon3.mjs wagonSolids + a tarp)"
+  },
+  "notes": "The one-ox team's ore wagon, facing west: the front of its load heaped Dawnstone, the back half under a weathered canvas tarp lashed with three ropes, its near wheels' six spokes drawn bold (review b5: the train's two laden wagons were one prop twice; T2 \"near wheels read as dotted discs\"). Batch 6: modelled in the wagons' camera (.scratch/kit/b6/tarp.mjs on ox-wagon3.mjs), polished palette-held by edit_image_pro_flash. Pixels unscaled."
+}

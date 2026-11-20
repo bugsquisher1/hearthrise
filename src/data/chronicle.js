@@ -10,7 +10,8 @@
 // A PAGE OPENS ON THE SERVER'S WORD, NEVER THE CLIENT'S (CLAUDE.md §6). `open` names what opens it:
 //   { kind: 'start' }                     open from the first minute
 //   { kind: 'ground', hunt }              the server has seen this hero hunt there (src/session/hunt-sections.js groundsSeenOf:
-//                                         a personal best there, or its latest session)
+//                                         a personal best there, or its latest session), or a ground with an
+//                                         exit (endsAtLevel) the server's Level has outgrown
 //   { kind: 'kills', titles: [ids] }      the server counts at least one kill toward any of these titles
 //                                         (src/data/titles.js; the `titles` section's own `have`)
 // A rare find does not open a page: the client holds no record of a find, only of what a hero carries now, and a page

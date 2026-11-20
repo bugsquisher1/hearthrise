@@ -1,0 +1,3 @@
+{
+  "note": "APPLIED 2026-11-20 by the Coordinator (applied 2026-11-20 by the Coordinator via apply-migration.mjs, self-check passed (forged Trophy Room buys refused, owned rungs kept)). Was: STAGED, NOT APPLIED (lane/a-trophy-room-held, systems-engineer, 2026-11-20). hr_home_view keeps a room held whole (every rung refused held:) in the House when the account owns rungs of it: owned, held, nothing to buy (held: true, next null); a held room nobody owns is not shown. Restated in the plan-cache shape (plpgsql), pinned to its pre-image. ORDER: 1007 in its name, BEFORE 1008-trophy-room-held (so the Trophy Room never vanishes for an owner between the two applies; either order is safe). EDGE: none for this file."
+}

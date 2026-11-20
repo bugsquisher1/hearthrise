@@ -168,25 +168,26 @@ export function markCoachRead(cs, card) {
    hero, the newest wins, src/session/player-switch.js) and, per character, the cards a server fact finishes that the player
    pressed Got it on (residue `coach.hid`). Both display state: the tutorial's own progress is the server's. A card hidden here
    is passed by in the chain (coachFactsOf hands `hid` to hunt-tutorial.js currentCard), so the next card whose conditions hold
-   shows at once; it no longer holds every later card until its own fact (2026-11-18: "Feed the Hearth" held the farm's). */
+   shows at once (2026-11-18). A HIDE HOLDS FOR ITS VISIT (visitOf: the hunt session, in it or home; retention dive 2026-11-20 R5, Got it means later). */
 const heroesOf = (ctx) => {
   const all = ctx.account && typeof ctx.account.characters === 'function' ? ctx.account.characters() : [];
   return !ctx.character || all.includes(ctx.character) ? all : all.concat(ctx.character);
 };
 /** Are the tips on for this player (the coach's cards here, the town criers in chat)? */
 export function tipsOn(ctx) { return switchOn(heroesOf(ctx), TIPS); }
-/** The cards this character hid with Got it (ids), or null when this client cannot record one. */
+const visitOf = (cs) => { const h = huntOf(cs); return (h && h.sessionId ? String(h.sessionId).slice(0, 56) : 'none') + (h && h.huntId && !h.ended ? ':in' : ':town'); };
+/** The cards this character hid with Got it on this visit (ids), or null when this client cannot record one. */
 export function coachHidOf(cs) {
   if (!cs || !cs.record || typeof cs.setResidue !== 'function') return null;
   const r = cs.record.residue && cs.record.residue.coach;
-  return new Set(r && Array.isArray(r.hid) ? r.hid : []);
+  return new Set(r && Array.isArray(r.hid) && r.hidIn === visitOf(cs) ? r.hid : []);
 }
-/** Record `card` as hidden for this character (residue `coach.hid`, display state). True when written. */
+/** Record `card` as hidden for this character on this visit (residue `coach.hid` and `coach.hidIn`, display state). True when written. */
 export function markCoachHid(cs, card) {
   const hid = coachHidOf(cs);
   if (!hid || !card || hid.has(card.id)) return false;
   const r = (cs.record.residue && cs.record.residue.coach) || {};
-  return cs.setResidue('coach', Object.assign({}, r, { hid: Array.from(hid).concat(card.id).slice(-COACH_HID_MAX) }));
+  return cs.setResidue('coach', Object.assign({}, r, { hid: Array.from(hid).concat(card.id).slice(-COACH_HID_MAX), hidIn: visitOf(cs) }));
 }
 
 /* A card a read finishes (read on sight, or its Got it): the player may close it, which records the read. A card that
@@ -240,8 +241,8 @@ export function heldCard(ctx) {
   const cs = ctx.character;
   /* tips off: nothing shown and nothing rung (the server's chain still moves on its own facts) */
   if (cs && !tipsOn(ctx)) { HELD.delete(cs); return null; }
-  /* a card hidden with Got it is never the pointer's: the facts carry `hid`, and the chain moves on past it */
-  const card = pointerCardOf(cs, cs ? coachFactsOf(cs, ctx.account || null) : undefined);
+  /* a card hidden with Got it is never the pointer's, nor HELD for its reading time: a press always acts ("Fights on its own" ignored Got it, 2026-11-20) */
+  const sh = cs ? coachFactsOf(cs, ctx.account || null) : undefined, card = pointerCardOf(cs, sh), gone = (c) => !!(sh && sh.hid && sh.hid.has(c.id));
   const now = typeof ctx.now === 'function' ? ctx.now() : null;
   if (!cs || now === null) return card;
   const had = HELD.get(cs);
@@ -251,8 +252,8 @@ export function heldCard(ctx) {
   const from = rankOf(had.card), to = rankOf(card);
   /* back, or a goal line after a goal line: the server's at once */
   if (to <= from) return show(card, now);
-  if (auto(had.card) && now - had.since < readMs(had.card)) return had.card;
-  const passed = HUNT_TUTORIAL.slice(from + 1, to).find(auto);
+  if (auto(had.card) && !gone(had.card) && now - had.since < readMs(had.card)) return had.card;
+  const passed = HUNT_TUTORIAL.slice(from + 1, to).find((r) => auto(r) && !gone(r));
   return passed ? show(passed, now) : show(card, now);
 }
 
@@ -404,10 +405,11 @@ export function actCoach(ctx, el, action, ev) {
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
   /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
   const read = coachReadOf(cs);
-  /** @type {{ read?: string[], back?: string, backAt?: number }} */
+  /** @type {{ read?: string[], back?: string, backAt?: number, hid?: string[], hidIn?: string }} */
   const keep = read && read.size ? { read: Array.from(read) } : {};
   const r = cs.record && cs.record.residue && cs.record.residue.coach;
   if (r && r.back) { keep.back = r.back; if (Number.isSafeInteger(r.backAt)) keep.backAt = r.backAt; }
+  if (r && Array.isArray(r.hid) && r.hid.length && typeof r.hidIn === 'string') { keep.hid = r.hid.slice(); keep.hidIn = r.hidIn; } // a fold keeps this visit's hides
   cs.setResidue('coach', Object.assign(action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id }, keep));
   /* The box is redrawn on the residue change (one repaint per task): keep the keyboard on the coach's control. */
   if (hadFocus) queueMicrotask(() => { const b = el.querySelector('[data-hs-act^="coach-"]'); if (b) b.focus(); });

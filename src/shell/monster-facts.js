@@ -30,7 +30,7 @@ import { ITEMS } from '../data/items.js?v=0.2.142';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
 import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.142';
 import { DEFAULT_TIER, atTier, tierRowOf, tiersOf } from '../data/hunt-tiers.js?v=0.2.142';
-import { partyNote } from './hunt-list.js?v=0.2.142';
+import { partyNote, shownBand } from './hunt-list.js?v=0.2.142';
 import { ELEMENTS, PHYSICAL } from '../data/elements.js?v=0.2.142';
 import { elementPermille } from '../core/elements.js?v=0.2.142';
 import { COMBAT_BALANCE, WEAKNESS_BONUS, monsterMaxHit, weaknessInfo } from '../core/combat.js?v=0.2.142';
@@ -54,7 +54,7 @@ export function homesOf(id) {
     if (!here && !bigPullOf(g.hunt).some((r) => r.id === id)) continue;
     const row = HUNT_INDEX[g.hunt] || {};
     const grouped = !!here && here.boss && g.pockets.some((p) => p.forParty && p.spawns.some((s) => s.monster === id));
-    out.push({ hunt: g.hunt, name: row.name || g.hunt, band: row.band || null, ground: g,
+    out.push({ hunt: g.hunt, name: row.name || g.hunt, band: shownBand(g.hunt), ground: g,
       how: !here ? 'pull' : here.boss ? 'boss' : here.band, warn: grouped ? partyNote(g.hunt) : '' });
   }
   return out.sort((a, b) => ((a.band || [0])[0] - (b.band || [0])[0]) || (a.name < b.name ? -1 : 1));

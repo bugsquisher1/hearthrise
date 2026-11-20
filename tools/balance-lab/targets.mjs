@@ -2,7 +2,7 @@
 //
 // The sheet is src/data/balance-sheet.js BALANCE_SHEET when the bundle holds it (lane/b-ground-formula: the designer's
 // targets, each RULED or DESIGNER in its own comment). Without it, Tyler's balance ruling of 2026-10-25 (§2 pace, §3
-// Normal band, §5 parties) and the 10-18 profit line, the numbers the sheet restates. Either way the pace is the
+// Normal band) and the 10-18 profit line, the numbers the sheet restates (its §5 party lines are 2026-11-16's now, the sheet's alone). Either way the pace is the
 // contract a x L^b Level XP an hour at Level L (src/data/core-model.js LEVEL_PACE.contract), the trend the Level curve
 // is held to. NO PROFIT MOLDS (Tyler 2026-11-13): gold rows (margin, the bill's share, net under the band) are PRINTED with
 // pass null, never green or red; the sheet's old gold fields are not read. A target that does not apply to a run is left out and the run's notes say why (a harder tier carries
@@ -13,14 +13,12 @@ import { charXpForLevel } from '../../src/core/xp.js';
 import { STYLES } from '../balance-sim/styles.mjs';
 import * as SHEET from './virtual/sheet.mjs';
 
-/* Tyler's 2026-10-25 ruling, in the sheet's shape (used when the bundle has no sheet) */
+/* Tyler's 2026-10-25 ruling, in the sheet's shape (used when the bundle has no sheet). Its §5 party lines (a four 1.15-1.25x solo on Normal) are
+   replaced by 2026-11-16's harder-tier lines, which only the sheet carries (`party`, read by partyRows below). */
 const RULING_1025 = Object.freeze({
   normal: { deathsPer1000h: 1, closeCallPct: 25, closeCallsPer12h: 1, typicalMinHpPct: 60, xpVsContract: { at: 'middle', min: 0.9, max: 1.1 } },
-  freshHero: null, weightClass: null, tiers: null,
-  party: { fourVsSolo: [1.15, 1.25] },
+  freshHero: null, weightClass: null, tiers: null, party: null,
 });
-/* §5's illustrative duo and trio lines (provisional in the ruling), beside the four's */
-const PARTY_LINES = Object.freeze({ 2: [1.05, 1.15], 3: [1.10, 1.20] });
 
 export const sheetSource = () => (SHEET.BALANCE_SHEET ? 'src/data/balance-sheet.js' : 'balance ruling 2026-10-25');
 const sheet = () => SHEET.BALANCE_SHEET || RULING_1025;
@@ -78,18 +76,7 @@ export function grade(run, ctx, extra) {
           N.xpVsContract.at === 'middle' ? 'the sheet reads it at the band\'s middle (' + Math.round((band[0] + band[1]) / 2) + ')' : null));
       }
     }
-    /* THE PARTY LINE: XP a head against each hero alone, same ground, same Levels */
-    if (n > 1) {
-      const sameClass = new Set(run.heroes.map((h) => classOf(h.style))).size === 1;
-      const line = n === 4 ? S.party.fourVsSolo : PARTY_LINES[n];
-      const target = sameClass ? '<= 100% (one class, 2026-10-31)' : pct(line[0]) + '-' + pct(line[1]) + '%' + (n < 4 ? ' (provisional)' : '');
-      const soloXp = x.solo ? run.heroes.map((h) => (x.solo[h.style + '@' + h.level] || {}).levelXpPerH).filter(Number.isFinite) : [];
-      if (soloXp.length === n) {
-        const head = run.heroes.reduce((s, h) => s + h.levelXpPerH, 0) / n, base = soloXp.reduce((s, v) => s + v, 0) / n;
-        const r = base > 0 ? head / base : null;
-        rows.push(row('party', 'Level XP a head vs the same heroes alone', 'party of ' + n, pctTxt(r), target, r === null ? null : sameClass ? r <= 1 : r >= line[0] && r <= line[1]));
-      } else rows.push(row('party', 'Level XP a head vs the same heroes alone', 'party of ' + n, null, target, null, 'tick "Also play each hero alone" to read it'));
-    }
+    rows.push(...partyRows(run, tier, x, S));
     return { source: sheetSource(), notes, rows };
   }
   /* A HARDER TIER: Normal's safety lines step aside (Tyler 2026-11-06: "Yes, make it risky"); the tier and weight-class lines read */
@@ -105,6 +92,7 @@ export function grade(run, ctx, extra) {
       rows.push(row('weight', 'Under the band on ' + TIER_NAME[tier] + ': net gold', who, Math.round(h.profitPerH) + ' g/h', GOLD, null));
     }
   }
+  rows.push(...partyRows(run, tier, x, S));
   const TT = S.tiers && S.tiers[tier];
   if (!TT) { notes.push('The tier lines need the target sheet (src/data/balance-sheet.js) in the bundle.'); return { source: sheetSource(), notes, rows }; }
   const inBand = run.heroes.every((h) => h.level >= band[0] && h.level <= band[1]);
@@ -126,4 +114,30 @@ export function grade(run, ctx, extra) {
   }
   if (!rows.length) notes.push('No tier line covers this run on ' + TIER_NAME[tier] + ' (the sheet reads a group that held the tier in the band, and a four\'s deaths on Deadly).');
   return { source: sheetSource(), notes, rows };
+}
+
+/* THE PARTY LINES (the sheet's `party`, RULED 2026-11-16: "normal isn't meant for parties anyway"). Level XP a head against the same heroes alone,
+   same ground, tier and Levels: on Dangerous and Deadly a mixed party at or over them, a mixed four on Deadly at most the sheet's multiple of the
+   pace contract at its top Level (read from `paceFromLevel`: under it the contract is not yet the pace); on Normal printed, never graded. One class
+   never out-earns its heroes alone on any tier (2026-10-31). */
+function partyRows(run, tier, x, S) {
+  const n = run.heroes.length, P = S.party, out = [];
+  if (n < 2) return out;
+  const sameClass = new Set(run.heroes.map((h) => classOf(h.style))).size === 1;
+  const harder = tier !== 'normal';
+  const target = sameClass ? '<= 100% (one class, 2026-10-31)' : !harder ? 'printed: Normal is not tuned for parties (2026-11-16)' : P ? '>= ' + pct(P.vsAloneMin) + '% (2026-11-16)' : 'needs the target sheet';
+  const head = run.heroes.reduce((s, h) => s + h.levelXpPerH, 0) / n;
+  const soloXp = x.solo ? run.heroes.map((h) => (x.solo[h.style + '@' + h.level] || {}).levelXpPerH).filter(Number.isFinite) : [];
+  if (soloXp.length === n) {
+    const base = soloXp.reduce((s, v) => s + v, 0) / n, r = base > 0 ? head / base : null;
+    const pass = r === null ? null : sameClass ? r <= 1 : harder && P ? r >= P.vsAloneMin : null;
+    out.push(row('party', 'Level XP a head vs the same heroes alone', 'party of ' + n, pctTxt(r), target, pass));
+  } else out.push(row('party', 'Level XP a head vs the same heroes alone', 'party of ' + n, null, target, null, 'tick "Also play each hero alone" to read it'));
+  if (P && tier === 'deadly' && n === 4 && !sameClass) {
+    const top = Math.max(...run.heroes.map((h) => h.level)), want = contractXpPerH(top), r = head / want;
+    const graded = top >= P.paceFromLevel;
+    out.push(row('party', 'A mixed four on Deadly: Level XP a head vs the pace contract', 'party of 4', pctTxt(r), '<= ' + pct(P.deadlyFourVsContractMax) + '% of ' + Math.round(want).toLocaleString('en-US'),
+      graded ? r <= P.deadlyFourVsContractMax : null, graded ? null : 'under Level ' + P.paceFromLevel + ' the contract is not yet the pace (Tyler 2026-11-18): printed'));
+  }
+  return out;
 }

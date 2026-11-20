@@ -212,6 +212,7 @@ function chronicleEnv(e, o) {
   e.hunt_bests = { min_ms: 600000, grounds: Object.fromEntries((o.grounds || []).map((g) => [g, BEST])) };
   if (o.latest) e.hunt = Object.assign({}, e.hunt || {}, { session_id: 'cccccccc-0000-4000-8000-000000000001', hunt_id: o.latest, ended: true });
   else delete e.hunt;
+  if (o.level) e.level = { xp: 1, level: o.level, into: 0, need: 100 };
   e.titles = { rows: Object.entries(o.kills || {}).map(([id, have]) => ({ id, words: 'the Crownbreaker', price: 0, kills: 250, have, held: false, worn: false })) };
   return e;
 }
@@ -240,6 +241,10 @@ async function chronicleRules() {
     ['one Rat King kill', fakeHero({ kills: { knotcutter: 1 } }), order([start, 'rat_king'])],
     ['one win in his Hall', fakeHero({ kills: { grate_thief: 1 } }), order([start, 'rat_king'])],
     ['Rat King kills at zero, a wolf title at 500', fakeHero({ kills: { knotcutter: 0, wolfer: 500 } }), start],
+    /* THE CELLAR OUTGROWN (retention dive 2026-11-20): it ends itself at Level 5 in two hunts too short for a best, so once the Thicket is the
+       latest hunt its page must still be open for a hero at or past its exit, and shut for one under it who has not hunted there */
+    ['Level 5, the Thicket the latest hunt', fakeHero({ latest: 'meadowbrook_thicket', level: 5 }), order([start, 'cellar', 'thicket'])],
+    ['Level 4, the Thicket the latest hunt', fakeHero({ latest: 'meadowbrook_thicket', level: 4 }), order([start, 'thicket'])],
   ];
   for (const [what, cs, want] of cases) {
     const got = openOf(chronicleOf(cs));
@@ -288,6 +293,13 @@ async function checks(overrides, shots) {
       if (m) fails.push('WK-1 ' + p + ' says a ground opens at a Level, but none is gated: "' + m[0] + '"');
     }
     fails.push(...await chronicleRules());
+    /* ONE BAND ON EVERY SCREEN (retention dive 2026-11-20: the Book said the Mill Cellar is Levels 1-8 while Hunts said 1-4): each ground's page
+       and the Chronicle's shut page say the Hunts list's band */
+    const { huntRows } = await src('src/shell/hunt-list.js');
+    const { chronicleOf } = await src('src/shell/chronicle-model.js');
+    const listed = new Map(huntRows().map((r) => [r.hunt, r.band.join('-')]));
+    for (const g of groundPages()) if (listed.has(g.id) && (g.band || []).join('-') !== listed.get(g.id)) fails.push('WK-1 the Book says ' + g.id + ' is Levels ' + (g.band || []).join('-') + ', Hunts says ' + listed.get(g.id));
+    for (const p of chronicleOf(null).pages) if (p.how && p.how.hunt && listed.has(p.how.hunt) && (p.how.band || []).join('-') !== listed.get(p.how.hunt)) fails.push('WK-1 the Chronicle says ' + p.how.hunt + ' is Levels ' + (p.how.band || []).join('-') + ', Hunts says ' + listed.get(p.how.hunt));
   }
   const firstGround = Object.values(OPEN_GROUNDS).map((g) => HUNT_INDEX[g.hunt]).sort((a, b) => a.band[0] - b.band[0])[0];
   const { server, port } = await serve(overrides);

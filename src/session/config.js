@@ -59,10 +59,8 @@ export const SESSION_CONFIG = Object.freeze({
   /** ...and the most that may go at once from a rested budget: the live view's start-point asks (liveAskMs
       doubling up to huntPollMs, six) with a leave and its close. */
   engineAskBurst: 8,
-  /** An UNVIEWED hunting character (CLAUDE.md §6: only the viewed one streams live) reads itself this often with a
-      plain read (hr_load: never the engine's budget, no live view), so its strip and alerts learn of a hunt's end
-      within a minute; the server settles it meanwhile (the world tick, or the party's viewed member). */
-  unviewedPollMs: 60000,
+  /* (An UNVIEWED hunting character has no re-read of its own: its push channel's whole frames are its feed, and viewing it
+     asks the engine at once. The 60 s hr_load it used to make was ~30% of the database's load: 11-19 server audit row 5.) */
   /** How long a party nudge waits before its one re-read, so a Start's several nudges read once (account-session.js _nudged). */
   nudgeMs: 400,
   /** A re-read after a refusal (or a re-read that did not land) goes at once, then at most one per this window,

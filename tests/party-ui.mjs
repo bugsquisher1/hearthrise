@@ -90,8 +90,6 @@ const { HUNT_GROUNDS } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-gr
 /* the Party window's measured lines (the page's class line reads the data's figure, never a pinned one: lane/d-party-ui-class) */
 const { PARTY_VS_ALONE } = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href);
 const { MONSTERS } = await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href);
-/* the poll clocks quietHuntPoll models (never under mutation: page mutants override other files) */
-const { SESSION_CONFIG } = await import(pathToFileURL(join(ROOT, 'src/session/config.js')).href);
 /* the note is a label, its size a digit (Tyler 2026-11-14: "Recommended: 4+ players" ... "Perfect") */
 const PARTY_NOTES = Object.fromEntries(Object.values(HUNT_GROUNDS).map((g) => {
   const p = g.pockets.find((q) => q.forParty);
@@ -1223,8 +1221,8 @@ const sent = (s, name) => s.calls.filter((c) => c.name === name);
 
 /* A HUNTING character re-reads on its own clock (hunt-poll.js). VIEWED, from liveAskMs, backing off while the
    stub sends no live start point, never sooner than the last gap. UNVIEWED (only the viewed character streams
-   live, lane/a-accrue-storm Part 2), a plain hr_load every SESSION_CONFIG.unviewedPollMs, armed no earlier than
-   the page opened (s.t0), since setViewed(false) stops the viewed clock and arms afresh. A rule that says "this
+   live, lane/a-accrue-storm Part 2), no re-read of its own since the 11-19 server audit (its pushed frames are its
+   feed), so every moment is quiet for it. A rule that says "this
    press re-read nobody" waits for a moment when that clock's next re-read is at least `clearMs` off, so a
    re-read inside its window is the press's own (a lane on 2026-10-22: the poll landed 0.47 s after the tab
    press, ~1 run in 2). Until 2026-10-24 it modelled only the viewed clock, found no second hr-accrue for an
@@ -1238,7 +1236,7 @@ async function quietHuntPoll(page, s, slot, clearMs = 1500) {
       const p = sent(s, 'hr-accrue').filter((c) => c.body.slot === slot).map((c) => c.at);
       const n = p.length;
       if (n >= 2) next = p[n - 1] + (p[n - 1] - p[n - 2]);
-    } else next = s.t0 + SESSION_CONFIG.unviewedPollMs;
+    } else return true;   // UNVIEWED: no re-read of its own (11-19 server audit row 5), so any moment is quiet
     if (next !== null && next - Date.now() >= clearMs) return true;
     await new Promise((ok) => setTimeout(ok, 25));
   }

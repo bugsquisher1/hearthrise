@@ -641,6 +641,7 @@
     "node tools/mutant-gate.mjs node tests/_mutant-verdict.mjs --selftest": "client-guards",
     "node tests/_mutant-verdict.mjs": "client-guards",
     "node tools/mutant-gate.mjs node tools/mutant-gate.mjs --selftest": "client-guards",
+    "node tools/mutant-gate.mjs --nightly-gate": "client-guards",
     "node tools/mutant-gate.mjs node tools/preflight.local.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tools/release-preflight.local.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tools/release-proven.mjs --selftest": "client-guards",

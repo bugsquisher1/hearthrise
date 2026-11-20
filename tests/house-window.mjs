@@ -235,7 +235,7 @@ const MUTANTS = [
   ['a short purse or bag still buys', 'src/shell/windows/house.js', "patchAsk(li.querySelector('[data-hs-act=\"house-ask\"]'), 'home', isNext ? tier.offer : null, t('controls.buy'), isNext && afford && !sc.pending);",
     "patchAsk(li.querySelector('[data-hs-act=\"house-ask\"]'), 'home', isNext ? tier.offer : null, t('controls.buy'), isNext && !sc.pending);"],
   ['a room the home has not opened is offered', 'src/shell/windows/house.js', 'const buyable = open && useful && n && !gated;', 'const buyable = useful && n;'],
-  ['a held room\'s next rung reaches the window', 'src/session/home-sections.js', 'const held = HELD_HOME_ROOMS.includes(r.room);', 'const held = false;'],
+  ['a held room\'s next rung reaches the window', 'src/session/home-sections.js', 'const held = r.held === true || HELD_HOME_ROOMS.includes(r.room);', 'const held = r.held === true;'],
   ['a held room still claims its perk', 'src/shell/windows/house.js', 'const idle = r.held || (open && !useful);', 'const idle = open && !useful;'],
   ['the deed still says it opens a held room', 'src/shell/windows/house.js', 'r.opens === tier.tier && !r.held', 'r.opens === tier.tier'],
   ['the reader invents a home', 'src/session/home-sections.js', "  const h = read(cs, 'home');\n", "  const h = read(cs, 'home') || { tier: 0, tiers: [{ offer: 'property.homestead', name: 'Home', tier: 1, need: 0, gold: 1, items: {} }], rooms: [] };\n"],

@@ -88,6 +88,11 @@
         "bytes": 3133707,
         "on": "2026-11-20",
         "why": "hr-accrue +3,795 B, all set/v0.2.143's lane/b-morrow-kit (79569450b, merged into lane/c-server-cost), unraised on the set: carters_rest map.js +2,054 / pack.js +58, ox_road map.js +861 / pack.js +289, world/terrain.js +533 (the ground maps the engine's own index reads)"
+      },
+      {
+        "bytes": 3134266,
+        "on": "2026-11-20",
+        "why": "hr-accrue +559 B, all lane/a-trophy-room-held: data/homestead-tiers.js HELD_HOME_ROOMS (the Trophy Room held whole, ~310 by the diff) and unlock-catalogue.js refusing a held room's every rung by name (~250)"
       }
     ]
   }

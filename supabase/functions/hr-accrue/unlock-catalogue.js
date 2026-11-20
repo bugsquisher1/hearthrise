@@ -37,7 +37,7 @@
 
 import { SHOP_OFFERS } from '../../../src/data/shops.js';
 import { ITEMS } from '../../../src/data/items.js';
-import { HELD_HOME_OFFERS } from '../../../src/data/homestead-tiers.js';
+import { HELD_HOME_OFFERS, HELD_HOME_ROOMS } from '../../../src/data/homestead-tiers.js';
 import { catalogueGet } from './intents.js';
 
 /* ── THE SELLABLE SHAPE ─────────────────────────────────────────────────────
@@ -130,6 +130,8 @@ export function unlockOfferIneligibility(o) {
 
   /* THE HOUSE'S TOP, HELD (src/data/homestead-tiers.js): a real row, priced in an item no player can reach yet. */
   if (HELD_HOME_OFFERS.includes(o.id)) return 'held:its_materials_have_no_source_yet';
+  /* A ROOM HELD WHOLE until it is rebuilt (HELD_HOME_ROOMS: the Trophy Room hangs nothing): every rung, whatever it costs. */
+  if (ns === 'room' && HELD_HOME_ROOMS.includes(g.id.slice(5))) return 'held:its_room_is_not_built_yet';
 
   for (const k of Object.keys(o)) {
     if (!OFFER_FIELDS_UNDERSTOOD.includes(k)) return `unimplemented_field:${k}`;

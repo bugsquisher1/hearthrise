@@ -14,8 +14,9 @@
 //     { used, cap, tier, chests: [{ chest, name, stacks, tier, gold, items, built }],
 //       next: { chest, ..., can_build, why } | null }
 // Every price, level and gate here is the server's; nothing is filled in. One
-// thing is taken away: a held room's next rung (src/data/homestead-tiers.js
-// HELD_HOME_ROOMS), so no window, hint or bulk-sale rule can offer it.
+// thing is taken away: a held room's next rung (the server's `held`, or
+// src/data/homestead-tiers.js HELD_HOME_ROOMS before its catalogue lands), so
+// no window, hint or bulk-sale rule can offer it.
 // ════════════════════════════════════════════════════════════════════════
 import { HELD_HOME_ROOMS } from '../data/homestead-tiers.js?v=0.2.142';
 
@@ -57,7 +58,7 @@ export function homeOf(cs) {
   for (const r of h.rooms.slice(0, 32)) {
     if (!isObj(r) || !ID.test(String(r.room)) || !str(r.name, 40) || count(r.level) === null || !count(r.rungs) || count(r.opens) === null) continue;
     const n = r.next;
-    const held = HELD_HOME_ROOMS.includes(r.room);
+    const held = r.held === true || HELD_HOME_ROOMS.includes(r.room);
     const next = !held && isObj(n) && OFFER.test(String(n.offer)) && count(n.rung) && count(n.need) !== null && priced(n)
       ? { offer: n.offer, name: str(n.name, 60), rung: n.rung, need: n.need, item: ID.test(String(n.item)) ? n.item : null, ...priced(n) } : null;
     rooms.push({ room: r.room, name: r.name.trim(), level: r.level, rungs: r.rungs, opens: r.opens, rungName: str(r.rung_name, 60), next, held });

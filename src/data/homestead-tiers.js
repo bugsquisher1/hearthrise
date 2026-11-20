@@ -33,7 +33,7 @@
 export const HELD_HOME_OFFERS = Object.freeze([]);
 
 /** ROOMS HELD WHOLE UNTIL REBUILT (CLAUDE.md §3.5, 26-home.md §4): the Trophy Room's wall hangs nothing (world-boot.js
-    `trophies: null`). The client sells no rung of one (home-sections.js, bag-model.js); rungs bought stay. */
+    `trophies: null`). No rung of one sells (unlock-catalogue.js, home-sections.js); rungs bought stay, shown (hr_home_view). */
 export const HELD_HOME_ROOMS = Object.freeze(['trophy']);
 
 /** PROPERTY_TIERS[i] is property tier i. `rooms` are the rooms tier i first opens. */

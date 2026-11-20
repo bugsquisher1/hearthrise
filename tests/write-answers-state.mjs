@@ -28,8 +28,10 @@
 //            after from/join in hr_state_of's body, in the bodies of the public
 //            functions it calls (one level), and in every section function the
 //            registry public.hr_state_sections names, read from the replay.
-//   WRITE    volatile, and the body (comments stripped) writes a PROJECTED table
-//            (insert into / update / delete from) or calls hr_apply. A write that
+//   WRITE    volatile, and the body (comments stripped), or the body of a public
+//            function it calls (one level: hr_hunt_enter writes through
+//            hr_hunt_admit), writes a PROJECTED table (insert into / update /
+//            delete from), or the body calls hr_apply. A write that
 //            touches only tables the envelope does not carry (chat, friends,
 //            presence, the idempotency journal) answers with its own result and
 //            is judged 'other': there is no envelope for it to carry.
@@ -64,12 +66,15 @@ const dmlTargets = (body) => new Set([...body.matchAll(/\b(?:insert\s+into|updat
  * @param {Record<string,string>} allow  the allowlist (only shrinks)
  * @param {Set<string>} projected  the tables the envelope is built from
  */
-export function judge(fns, allow, projected) {
+export function judge(fns, allow, projected, helpers = new Map()) {
   const red = []; const stale = []; const rows = [];
   const seen = new Set();
   for (const f of fns) {
     const body = stripComments(f.src);
-    const touches = [...dmlTargets(body)].filter((t) => projected.has(t));
+    // A verb that writes through a helper (hr_hunt_enter -> hr_hunt_admit) writes what the helper writes: one level.
+    const reach = [body, ...[...body.matchAll(/\bpublic\.(hr_[a-z0-9_]+)\s*\(/gi)]
+      .map((m) => helpers.get(m[1].toLowerCase()) || '')];
+    const touches = [...new Set(reach.flatMap((b) => [...dmlTargets(b)]))].filter((t) => projected.has(t));
     const write = f.volatile === 'v' && (touches.length > 0 || /\bhr_apply\s*\(/i.test(body));
     const carries = CARRIES.test(body);
     seen.add(f.key);
@@ -106,47 +111,55 @@ async function surface() {
   for (const fn of called) if (fn !== 'hr_state_of') text += '\n' + stripComments(await src(fn));
   const projected = new Set([...text.matchAll(/\b(?:from|join)\s+([\w."]+)/gi)].map((m) => tableName(m[1])).filter((t) => tables.has(t)));
   if (!projected.has('player_state')) { const e = new Error(`the projection's tables were not found (${[...projected].join(', ') || 'none'})`); e.harness = true; throw e; }
-  return { fns: rows, projected };
+  // Every public function's body (comments stripped), for the one level of helpers a verb writes through.
+  const helpers = new Map((await db.query(`select p.proname::text as n, string_agg(p.prosrc, E'\\n') as s from pg_proc p
+      where p.pronamespace = 'public'::regnamespace group by 1`)).rows.map((r) => [r.n, stripComments(r.s)]));
+  return { fns: rows, projected, helpers };
 }
 
 const loadAllow = () => (existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')).allow || {} : null);
 
-function selftest(fns, allow, projected) {
+function selftest(fns, allow, projected, helpers) {
   const fails = [];
   const expect = (label, got, cond) => { console.log(`  ${cond ? 'caught' : 'SLIPPED'}  ${label}${got ? `  (${got})` : ''}`); if (!cond) fails.push(label); };
-  const clean = judge(fns, allow, projected);
+  const clean = judge(fns, allow, projected, helpers);
   expect('CONTROL: the real surface against the real allowlist is green', `${clean.red.length} red, ${clean.stale.length} stale`,
     !clean.red.length && !clean.stale.length);
   const planted = { key: 'hr_planted_write(p_slot integer, p_idem uuid)', volatile: 'v',
     src: "begin update public.player_state set gold = gold + 1 where user_id = auth.uid(); return jsonb_build_object('ok', true); end" };
-  const a = judge([...fns, planted], allow, projected);
+  const a = judge([...fns, planted], allow, projected, helpers);
   expect('NEW: a client write that answers {ok:true} only is red', a.red.join(','), a.red.includes(planted.key));
   const commented = { ...planted, key: 'hr_planted_commented(p_slot integer)', src: planted.src.replace("return", "-- return public.hr_state_of(auth.uid(), 0);\n return") };
-  const b = judge([...fns, commented], allow, projected);
+  const b = judge([...fns, commented], allow, projected, helpers);
   expect('NEW: hr_state_of in a COMMENT does not count as carrying', b.red.join(','), b.red.includes(commented.key));
   const allowedKey = Object.keys(allow)[0];
   if (allowedKey) {
     const healed = fns.map((f) => (f.key === allowedKey ? { ...f, src: `${f.src}\n return public.hr_state_of(auth.uid(), 0);` } : f));
-    const c = judge(healed, allow, projected);
+    const c = judge(healed, allow, projected, helpers);
     expect('STALE: an allowlisted write that now carries the envelope must leave the list', c.stale.join(','), c.stale.some((s) => s.startsWith(allowedKey)));
-    const gone = judge(fns.filter((f) => f.key !== allowedKey), allow, projected);
+    const gone = judge(fns.filter((f) => f.key !== allowedKey), allow, projected, helpers);
     expect('STALE: an allowlisted RPC no longer on the client surface must leave the list', gone.stale.join(','), gone.stale.some((s) => s.startsWith(allowedKey)));
   }
+  const viaHelper = { key: 'hr_planted_via_helper(p_slot integer)', volatile: 'v',
+    src: "begin perform public.hr_planted_helper(p_slot); return jsonb_build_object('ok', true); end" };
+  const e = judge([...fns, viaHelper], allow, projected,
+    new Map([...helpers, ['hr_planted_helper', 'begin update public.player_state set gold = gold + 1; end']]));
+  expect('NEW: a write done through a helper is still a write (one level)', e.red.join(','), e.red.includes(viaHelper.key));
   const readOnly = { key: 'hr_planted_read(p_slot integer)', volatile: 's', src: "begin return (select jsonb_build_object('n', count(*)) from public.player_state); end" };
-  const d = judge([...fns, readOnly], allow, projected);
+  const d = judge([...fns, readOnly], allow, projected, helpers);
   expect('CONTROL: a stable read is not judged a write', '', !d.red.includes(readOnly.key));
   return fails.length ? 1 : 0;
 }
 
 async function main() {
-  const { fns, projected } = await surface();
+  const { fns, projected, helpers } = await surface();
   const allow = loadAllow();
   if (argv.includes('--selftest')) {
     if (!allow) { console.error('write-answers-state: no baseline (tests/write-answers-state.baseline.json)'); return 2; }
-    return selftest(fns, allow, projected);
+    return selftest(fns, allow, projected, helpers);
   }
   if (argv.includes('--write')) {
-    const now = judge(fns, allow || {}, projected);
+    const now = judge(fns, allow || {}, projected, helpers);
     const keep = {};
     if (!allow) {
       // First pin: today's debt, each with the reason it is allowed (to be paid down, never added to by --write).
@@ -163,7 +176,7 @@ async function main() {
     return 0;
   }
   if (!allow) { console.error('write-answers-state: no baseline; run --write once'); return 2; }
-  const { red, stale, rows } = judge(fns, allow, projected);
+  const { red, stale, rows } = judge(fns, allow, projected, helpers);
   if (argv.includes('--list')) { console.log(`  projected tables: ${[...projected].sort().join(' ')}`); for (const r of rows) console.log(`  ${r.verdict.padEnd(8)} ${r.key}`); }
   const n = (v) => rows.filter((r) => r.verdict === v).length;
   if (red.length || stale.length) {

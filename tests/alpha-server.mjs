@@ -467,7 +467,7 @@ async function blessArm(db, { H, M }, attended) {
    text; step (7), the resume, is one call of hr_hunt_resume). 2027-04-25-boss-daily.sql and 2027-04-24-boss-call-series.sql spliced it, and
    2027-04-24-tower-climb.sql (it applies after the whole v0.2.135 set) restates that image WHOLE with its TOWER-CLIMB arms, so that is
    the last author now. */
-export const MEMBER_LAST = '2027-04-24-tower-climb.sql';
+export const MEMBER_LAST = '1005-lever-horizon.sql';   // (restated whole there, after the 2027-05-17 scaled splices: tests/patch-chain-guard.mjs PATCH-1)
 /* ...and its last author once a PATCH counts (staleAnchors `patches`): 2027-05-17-scaled-best.sql and then 2027-05-17-scaled-loot.sql
    splice it in place after tower-climb's restatement (the scaled mark on the member's own row, then the scaled item bound). The memberPlant
    mutants never read this (they plant into the live body), the anchor selftest does. */

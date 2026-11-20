@@ -19,11 +19,31 @@
 // former immunity 50. ELEMENT_PCT bounds every value, so no row can bring an
 // immunity back. core/elements.js elementPermille is the one reader.
 //
+// NECROTIC AND STORM (Tyler 2026-11-18, itemization plan Appendix B) join the list only while their switch is on
+// (src/data/necrotic-storm.js): while it is off the vocabulary is the three, so nothing may name them and no screen lists them.
+//
 // PURE ESM. Data only. Vendored into the hr-accrue Edge Function.
 // ════════════════════════════════════════════════════════════════════════
 
-/** The three elements. `blight` was renamed POISON everywhere (DEC-ELEM-04). */
-export const ELEMENTS = Object.freeze(['ember', 'frost', 'poison']);
+import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.141';
+
+/** The elements. `blight` was renamed POISON everywhere (DEC-ELEM-04). Necrotic and Storm only while their switch is on. */
+export const ELEMENTS = Object.freeze(['ember', 'frost', 'poison', ...(NECROTIC_STORM.live ? ['necrotic', 'storm'] : [])]);
+
+/* THE ELEMENTS' FIXED RULES ON A HERO (Appendix B1; Tyler 2026-11-18: "Storm burns mana, as designed. Necrotic cuts healing"): what a
+   blow of the element does to a HERO beside its damage, the same whichever monster deals it ("one monster number": a monster's spell
+   carries only its damage; the rule is the element's). Read where every blow lands (src/core/hunt/damage.js landHit), on a hero only
+   (monsters have no mana, and a hero's spell Withers a monster through its own `status`, never through its element), and only when the
+   blow took HP (a dodge, or a blow a shield swallowed whole, does neither). A wiki formula each:
+     withers     a status id (statuses.js): the hero is put under it. Withered: every heal the hero takes is cut while it lasts
+     manaBurnPm  the mana burned, permille of the HP the blow took: burn = floor(hpTaken x manaBurnPm / 1000), never below 0 mana
+   A hero's guard against the element (its resistance) lowers both by the same percent: the burn because it is a share of the HP the
+   guarded blow took, the cut through the status's `guard` (statuses.js). Empty while the switch is off. */
+export const ELEMENT_ON_HERO = Object.freeze(NECROTIC_STORM.live
+  ? { necrotic: Object.freeze({ withers: 'withered' }), storm: Object.freeze({ manaBurnPm: 500 }) } : {});
+
+/** The fixed rule a blow of `element` brings a hero it strikes (ELEMENT_ON_HERO), or null: a plain element, a physical blow. */
+export const elementOnHeroOf = (element) => (typeof element === 'string' && Object.prototype.hasOwnProperty.call(ELEMENT_ON_HERO, element) ? ELEMENT_ON_HERO[element] : null);
 
 /** The range of one `elements` value, in percent less damage taken: at most double
     from a weakness, and never so much off that a blow is close to nothing. */
@@ -80,6 +100,15 @@ export function validate() {
   const h = HERO_RESIST_PM;
   if (!(Number.isInteger(h.max) && Number.isInteger(h.physicalMax) && h.min === 0 && h.max > 0 && h.max < 1000 && h.physicalMax > 0 && h.physicalMax <= h.max)) {
     out.push('HERO_RESIST_PM must be whole permille with 0 = min < physicalMax <= max < 1000, so no resistance is ever an immunity');
+  }
+  /* A fixed rule belongs to a real element and does one of the two things; the status it names is statuses.js's to hold
+     (tests/hunt-core/necrotic-storm.mjs sample-rows reads both tables). */
+  for (const [e, r] of Object.entries(ELEMENT_ON_HERO)) {
+    if (!SET.has(e)) out.push('ELEMENT_ON_HERO.' + e + ' is not an element');
+    const keys = Object.keys(r || {});
+    if (keys.length !== 1 || !['withers', 'manaBurnPm'].includes(keys[0])) out.push('ELEMENT_ON_HERO.' + e + ' withers or burns mana, one of the two');
+    else if (keys[0] === 'withers' && !/^[a-z0-9_]{1,32}$/.test(r.withers)) out.push('ELEMENT_ON_HERO.' + e + '.withers is a status id');
+    else if (keys[0] === 'manaBurnPm' && !(Number.isInteger(r.manaBurnPm) && r.manaBurnPm > 0 && r.manaBurnPm <= 1000)) out.push('ELEMENT_ON_HERO.' + e + '.manaBurnPm is a whole permille 1..1000');
   }
   return out;
 }

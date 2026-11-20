@@ -27,12 +27,16 @@
 //
 // MODES (section E). A line starts as REPORT: it is printed, its out-of-band rows listed, and the run exits 0. It turns RED in the
 // lane that lands the change it guards (that lane flips `mode` in guard-cells.mjs) and never goes back. G14 is this lane's own and is red.
+// K1 GATES the lines read on the harness's party (G3, G4, G5, G8, G19, D1, D2, and G20's and G22's party rows): while the harness four
+// reads the real Krell four outside 0.9-1.1 (today 0.83 on Level XP, 0.51 on gold) they print their numbers as "uncalibrated" and
+// are neither red nor green (31-plan-audit M3). The fix is in the harness's four, not in the line.
 //
-// RUNTIME. Section E: 3 minutes at most. 114 cells run on worker processes (tools/balance-sim/worker.mjs, one engine each, at most
-// four); the start-kit life (life.mjs) and the lever scan run beside them; G17's two timing cells run alone after them. MEASURED
-// 2026-11-20 on the PC with other lanes holding it at 100% CPU, 4 workers: plain 146 s (598 s of cell time), --selftest 180 s,
-// --nightly 367 s (the six twin cells are 128 hero-hours each, about 150 s apiece). A cell read only for sums settles in 60 s
-// windows (guard-cells.mjs SUMS_WINDOW_MS: the same swings, about a fifth faster).
+// RUNTIME. Section E: 3 minutes at most. 126 cells run on worker processes (tools/balance-sim/worker.mjs, one engine each, at most
+// four); two played lives (life.mjs: the start kit to Level 10, and the advised lone hero to 34 for the bank G9 and G20 read) and the
+// lever scan run beside them; G17's two timing cells run alone after them. MEASURED 2026-11-20 with 4 workers: plain 105 s at 68% CPU
+// from other lanes (146 s for 114 cells at 100%), --selftest about the plain run + 20 s, --nightly + about 4 min (the six twin cells are
+// 128 hero-hours each, about 150 s apiece; G21's climbs ride with them). A cell read only for sums settles in 60 s windows
+// (guard-cells.mjs SUMS_WINDOW_MS: the same swings, about a fifth faster).
 // THE NIGHTLY PATH. The registered plain step IS the twin on smoke.yml's schedule (GITHUB_EVENT_NAME=schedule, as settle-properties
 // does), so a red twin is a red nightly and blocks the next release (CLAUDE.md §3.6); a push runs the plain size.
 //
@@ -73,6 +77,10 @@ const { STAMINA_REFILL } = await import(u('src/data/stamina-refill.js'));
 const { STAMINA_MAX_MS } = await import(u('src/data/hunt-sessions.js'));
 const XP = await import(u('src/core/xp.js'));
 const LUCK = await import(u('tools/balance-sim/staged/luck.js'));
+const SCALED = await import(u('src/data/scaled-hunts.js'));
+const { GROUND_ROSTER } = await import(u('src/data/balance-sheet.js'));
+const { MONSTERS } = await import(u('src/data/monsters.js'));
+const ABIL = await import(u('src/data/abilities.js'));
 
 const LINE = Object.fromEntries(GC.LINES.map((l) => [l.id, l]));
 const lerp = GOLD.lerp;
@@ -91,7 +99,17 @@ function yardLevels(level) {
   const over = (k) => XP.skillLevelFromXp(k, XP.skillXpForLevel(k, line[k]) + trained) - line[k];
   return { main: over('melee'), defense: over('defense'), days, trained };
 }
-const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt };
+/** G24: a ground's roster as it plays scaled to `level` (scaled-hunts.js scaledRow), a worker what-if; null when it does not scale. */
+function scaledWhatIf(ground, level) {
+  const rows = {};
+  for (const id of Object.keys(GROUND_ROSTER[ground] || {})) {
+    const r = SCALED.scaledRow(MONSTERS[id], id, ground, level);
+    if (r === MONSTERS[id]) return null;
+    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
+  }
+  return Object.keys(rows).length ? { monsters: rows } : null;
+}
+const CTX = { tiers, refCell: MEASURE.refCell, lines: LINES_SNAP, skillsAt: SL.skillsAt, MAIN: MEASURE.MAIN, bandOf, yardLevels, towerHunt: TOWER_RULES.hunt, scaledWhatIf };
 
 /* ── the pool: worker.mjs processes, one engine each ───────────────────────────────────────────────────────────────────────────── */
 function playAll(jobs, workers, log = () => {}) {
@@ -124,25 +142,43 @@ function playAll(jobs, workers, log = () => {}) {
   });
 }
 
-/** The start-kit life to Level 10 (G6): life.mjs --policy idle, read from its --out file. */
-function playLife() {
+/** A played life (tools/balance-sim/life.mjs), read from its --out file: { json, error }. */
+function playLife(policy, to, max) {
   const dir = mkdtempSync(join(tmpdir(), 'balance-guard-'));
   const out = join(dir, 'life.json');
   return new Promise((done) => {
-    const p = spawn(process.execPath, [LIFE, '--party', 'hammer', '--policy', 'idle', '--to', '10', '--max', '14', '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+    const p = spawn(process.execPath, [LIFE, '--party', 'hammer', '--policy', policy, '--to', String(to), '--max', String(max), '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
     p.on('exit', (code) => {
-      let life = null, error = null;
-      try {
-        const j = JSON.parse(readFileSync(out, 'utf8'));
-        const at = (q) => (j.miles['0:' + q] || {}).h;
-        const steps = [];
-        for (let q = 2; q <= 10; q++) if (at(q) !== undefined) steps.push([q, Math.round((at(q) - (q === 2 ? 0 : at(q - 1))) * 100) / 100]);
-        life = { level10: at(10) ?? null, reached: j.reached[0], hours: j.hours, steps };
-      } catch (e) { error = 'life.mjs exited ' + code + ': ' + e.message; }
+      let json = null, error = null;
+      try { json = JSON.parse(readFileSync(out, 'utf8')); } catch (e) { error = 'life.mjs --policy ' + policy + ' exited ' + code + ': ' + e.message; }
       rmSync(dir, { recursive: true, force: true });
-      done({ life, error });
+      done({ json, error });
     });
   });
+}
+/** G6: the start-kit life to Level 10 (life.mjs --policy idle): hours to 10 and each Level's step. */
+function lifeIdleOf(j) {
+  const at = (q) => (j.miles['0:' + q] || {}).h;
+  const steps = [];
+  for (let q = 2; q <= 10; q++) if (at(q) !== undefined) steps.push([q, Math.round((at(q) - (q === 2 ? 0 : at(q - 1))) * 100) / 100]);
+  return { level10: at(10) ?? null, reached: j.reached[0], hours: j.hours, steps };
+}
+/* G9 and G20: the PLAYED lone hero (life.mjs --policy rec: where the game advises, the played profile, every drop sold, nothing bought
+   but its supplies; the audit's M4 run): hunted hours and the gold it holds (coin + sold loot - store) at each Level it reaches. */
+const BANK_LIFE = Object.freeze({ policy: 'rec', to: 34, max: 110 });
+function lifeBankOf(j) {
+  const byLevel = {};
+  for (const [k, m] of Object.entries(j.miles)) { const q = Number(k.split(':')[1]); byLevel[q] = { h: m.h, net: m.bank.coin + m.bank.loot - m.bank.store }; }
+  return { byLevel, reached: j.reached[0], hours: j.hours };
+}
+/** Hunted hours until the played lone hero holds `gold` (interpolated; past the life's last Level, on its last five Levels' rate). */
+function hoursToBank(bank, gold) {
+  const qs = Object.keys(bank.byLevel).map(Number).sort((a, b) => a - b);
+  let prev = { h: 0, net: 0 };
+  for (const q of qs) { const c = bank.byLevel[q]; if (c.net >= gold) return prev.h + (c.h - prev.h) * (gold - prev.net) / Math.max(1, c.net - prev.net); prev = c; }
+  const last = bank.byLevel[qs.at(-1)], back = bank.byLevel[qs.at(-6)] || bank.byLevel[qs[0]];
+  const rate = (last.net - back.net) / Math.max(1e-9, last.h - back.h);
+  return rate > 0 ? last.h + (gold - last.net) / rate : Infinity;
 }
 
 /* ── the data half: read once, planted by --selftest ────────────────────────────────────────────────────────────────────────────── */
@@ -165,9 +201,12 @@ function costOf(ci) {
   return out;
 }
 function dataInputs() {
-  const shelfAt = 32;
+  const ruled = GOLD.SLOT_LADDERS.find(([name]) => /^A\b/.test(name))[1];
   return {
-    slot: { price: GOLD.offer('character_slot.1'), bank: Math.round(lerp(GOLD.BANK, shelfAt)), at: shelfAt },
+    slot: { price: GOLD.offer('character_slot.1'), at: 32, ruled: ruled[0] },
+    ladders: { shop: [1, 2, 3].map((i) => GOLD.offer('character_slot.' + i)), ruled: [...ruled] },
+    refill: { ...STAMINA_REFILL },
+    bar: { lanes: { ...ABIL.ABILITY_LANES }, rows: Object.values(ABIL.ABILITIES).map((r) => ({ id: r.id, lane: r.lane, cdMs: r.cdMs, disciplines: [...r.disciplines], replaces: r.replaces || null })), budget: { ...GC.BAR_BUDGET } },
     temper: TEMPER_TIERS, training: { rules: TRAINING.TRAINING_RULES, gear: TRAINING.TRAINING_GEAR, fee: TRAINING.trainingFee },
     costIn: costInputs(),
     stamina: { freeH: STAMINA_MAX_MS.free / 3600000, refillH: STAMINA_REFILL.perDay * STAMINA_REFILL.maxMinPerBuy / 60, players: MODEL.REFERENCE_PLAYERS },
@@ -180,7 +219,7 @@ async function measure({ nightly = false, workers, quiet = false }) {
   const t0 = Date.now();
   const jobs = GC.plainCells(CTX).filter((j) => !j.id.startsWith('time-'));
   const twin = nightly ? GC.nightlyCells(CTX) : [];
-  const lifeP = playLife();
+  const lifeP = playLife('idle', 10, 14), bankP = playLife(BANK_LIFE.policy, BANK_LIFE.to, BANK_LIFE.max);
   const scanP = SCAN.scanLevers(ROOT);
   const progress = quiet ? () => {} : (() => { let k = 0; const total = jobs.length + twin.length; return () => { k++; if (process.stderr.isTTY) process.stderr.write('\r  cells ' + k + '/' + total + '   '); }; })();
   const { results, errors } = await playAll([...jobs, ...twin], workers, progress);
@@ -188,16 +227,19 @@ async function measure({ nightly = false, workers, quiet = false }) {
   const timing = GC.plainCells(CTX).filter((j) => j.id.startsWith('time-'));
   const timed = await playAll([...timing, ...timing.map((j) => ({ ...j, id: j.id + ':warm' }))], 1);
   if (process.stderr.isTTY && !quiet) process.stderr.write('\r');
-  const { life, error: lifeError } = await lifeP;
+  const idle = await lifeP, banked = await bankP;
   const scan = await scanP;
   const rows = {}, ms = {};
   for (const [id, r] of Object.entries({ ...results, ...timed.results })) {
     const party = r.result.cell.party;
     rows[id] = { ...MEASURE.rowOf(r.result, party), heroHours: r.result.heroes.reduce((s, h) => s + h.hours, 0), partyHours: r.result.party.hours,
-      front: { takenPerH: r.result.heroes[0].takenPerH }, level: r.result.heroes.map((h) => h.level) };
+      front: { takenPerH: r.result.heroes[0].takenPerH }, level: r.result.heroes.map((h) => h.level),
+      /* a climb's top floor (endgame.mjs climb: a run that cleared nothing topped out under its start) */
+      ...(r.result.party.tower ? { towerTop: r.result.party.tower.top === null ? r.result.party.tower.from - 1 : r.result.party.tower.top } : {}) };
     ms[id] = r.ms;
   }
-  return { rows, ms, life, scan, data: dataInputs(), errors: [...errors, ...timed.errors, ...(lifeError ? [{ id: 'life', error: lifeError }] : [])],
+  const life = idle.json ? lifeIdleOf(idle.json) : null, bank = banked.json ? lifeBankOf(banked.json) : null;
+  return { rows, ms, life, bank, scan, data: dataInputs(), errors: [...errors, ...timed.errors, ...[idle, banked].filter((x) => x.error).map((x) => ({ id: 'life', error: x.error }))],
     nightly, wallMs: Date.now() - t0, workers, cells: jobs.length + twin.length + timing.length * 2 };
 }
 
@@ -205,17 +247,30 @@ async function measure({ nightly = false, workers, quiet = false }) {
 const inR = (v, r) => !!r && (r[0] === null || v >= r[0]) && (r[1] === null || v <= r[1]);
 /* NaN is a reading that failed (ERR, the harness); an infinite one is a real answer (an offer with no measurable gain is never cheap) */
 const statusOf = (v, band) => (typeof v !== 'number' || Number.isNaN(v) ? 'ERR' : inR(v, band.target) ? 'ok' : inR(v, band.keep) ? 'off' : 'RED');
-const RANK = { ok: 0, 'n/a': 0, nightly: 0, off: 1, RED: 2, ERR: 3 };
+const RANK = { ok: 0, 'n/a': 0, nightly: 0, uncal: 0, uncalibrated: 0, off: 1, RED: 2, ERR: 3 };
 const f2 = (v) => (Number.isFinite(v) ? v.toFixed(2) : String(v));
 const kG = (v) => (Number.isFinite(v) ? (Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : String(Math.round(v))) : String(v));
+
+/** K1'S GATE (31-plan-audit M3; the Coordinator 2026-11-20): a line read on the harness's party (`gate` 'xp' or 'gold' on the line or a
+    row) is judged only while K1 reads the real Krell four within its own target, on Level XP and kills ('xp') or on net gold ('gold').
+    Outside it the row reports its number and the status `uncal`: never red, never green, never an exit. */
+function calibration(I) {
+  const K = MODEL.REAL_KRELL_FOUR, r = I.rows['krell-real'], t = LINE.K1.target;
+  const inT = (x) => Number.isFinite(x) && x >= t[0] && x <= t[1];
+  if (!r) return { xp: false, gold: false };
+  return { xp: inT(r.levelXpPerH / K.levelXpAHeroHour) && inT(r.killsPerH / K.killsAClockHour), gold: inT((r.incomePerH - r.storePerH * (1 - K.ownStockShare)) / K.netGoldAHeroHour) };
+}
 
 function judge(I) {
   const out = [];
   const R = (id) => I.rows[id] || null;
-  const line = (id, rows, note = '') => {
+  const cal = calibration(I);
+  const line = (id, rows0, note = '') => {
     const L = LINE[id];
-    const status = L.notBuilt ? 'n/a' : L.nightly && !I.nightly ? 'nightly' : rows.reduce((s, r) => (RANK[r.status] > RANK[s] ? r.status : s), 'ok');
-    out.push({ id, words: L.words, on: L.on, mode: L.mode, turnsRedIn: L.turnsRedIn, status, rows, note });
+    const rows = rows0.map((r) => { const g = r.gate || L.gate; return g && !cal[g] && r.status !== 'ERR' ? { ...r, status: 'uncal' } : r; });
+    const status = L.notBuilt ? 'n/a' : L.nightly && !I.nightly ? 'nightly' : rows.length && rows.every((r) => r.status === 'uncal') ? 'uncalibrated'
+      : rows.reduce((s, r) => (RANK[r.status] > RANK[s] ? r.status : s), 'ok');
+    out.push({ id, words: L.words, on: L.on, mode: L.mode, turnsRedIn: L.turnsRedIn, status, rows, note: (L.gate && !cal[L.gate] && status !== 'nightly' ? 'UNCALIBRATED: K1 reads the harness four outside 0.9-1.1 of the real one on ' + (L.gate === 'xp' ? 'Level XP or kills' : 'net gold') + '. ' : '') + note });
   };
   const row = (at, value, band, show = f2, extra = '') => ({ at, value, status: statusOf(value, band), shown: show(value) + extra });
   const band = (id, part) => (part ? LINE[id].parts[part] : { target: LINE[id].target, keep: LINE[id].keep });
@@ -252,7 +307,12 @@ function judge(I) {
   }
   line('G8', GC.DEADLY_POINTS.map((p) => { const r = R('four-real:' + p.id); return row(p.id, r ? r.incomePerH - r.storePerH * (1 - GC.G8_OWN_SHARE) : NaN, band('G8'), kG); }),
     'store x' + (1 - GC.G8_OWN_SHARE) + ' (a quarter own); linings not built (L32)');
-  line('G9', [row('slot 2', I.data.slot.price / I.data.slot.bank, band('G9'), f2, ' (' + kG(I.data.slot.price) + ' / ' + kG(I.data.slot.bank) + ' at ' + I.data.slot.at + ')')]);
+  {
+    const at = I.bank && I.bank.byLevel[I.data.slot.at], bank = at ? at.net : NaN;
+    line('G9', at ? [row('slot 2', I.data.slot.price / bank, band('G9'), f2, ' (' + kG(I.data.slot.price) + ' / ' + kG(bank) + ' banked at ' + I.data.slot.at + ', ' + at.h.toFixed(0) + ' h)'),
+      row('ruled 400k', I.data.slot.ruled / bank, band('G9'), f2, ' (L06 pending)')] : [{ at: 'life', value: NaN, status: 'ERR', shown: 'no played bank at ' + I.data.slot.at }],
+    'the bank of a played lone hammer (life.mjs --policy ' + BANK_LIFE.policy + '): every drop sold, nothing bought but supplies');
+  }
   {
     const rows = [];
     for (const p of GC.POOL_POINTS) for (const seat of ['lone', 'four']) {
@@ -334,6 +394,67 @@ function judge(I) {
       row('net gold', net / K.netGoldAHeroHour, band('K1'), f2, ' (' + kG(net) + ')')] : [{ at: 'krell', value: NaN, status: 'ERR', shown: 'no cell' }],
     'harness / ' + K.label + '; harness deaths ' + (r ? r.deaths : '?') + ' in ' + (r ? r.heroHours.toFixed(0) : '?') + ' hero-hours');
   }
+  /* ── the plan audit's lines (31-plan-audit.md M2, M5, M9) ── */
+  {
+    const rows = [];
+    for (const p of GC.SMALL_POINTS) for (const k of Object.keys(GC.SMALL_PARTIES)) {
+      const r = R('small:' + k + ':' + p.id), four = R('ref:' + p.id + ':four');
+      rows.push(row(p.id + ' ' + k, xc(r, p.level), band('G19'), f2, r && four ? ' (x' + (r.levelXpPerH / four.levelXpPerH).toFixed(2) + ' the four, net ' + kG(r.netPerH) + ')' : ''));
+    }
+    line('G19', rows, 'pair ' + GC.SMALL_PARTIES.pair.join(' + ') + ', three ' + GC.SMALL_PARTIES.three.join(' + ') + '; the pace of record assumes 1.2 and 2.0 x the lone table');
+  }
+  {
+    /* the Own four (model.mjs): its hunted hours a hero a day, and its stock, a third home-made (the store bill x 2/3, as measure.mjs price reads it) */
+    const pl = MODEL.REFERENCE_PLAYERS.find((p) => p.id === 'ownfour'), share = 2 / 3;
+    const wk = (h) => h / (pl.huntHoursADay * 7), wkS = (v) => (Number.isFinite(v) ? v.toFixed(1) + ' wk' : 'never');
+    const net = (s) => { const r = R('small:' + s.party + ':' + s.point); return r ? r.incomePerH - r.storePerH * share : NaN; };
+    const rows = [];
+    for (const [name, prices] of [['shop', I.data.ladders.shop], ['ruled', I.data.ladders.ruled]]) {
+      if (!I.bank) { rows.push({ at: name, value: NaN, status: 'ERR', shown: 'no played bank' }); continue; }
+      const n3 = net(GC.G20_SLOT_AT[3]), n4 = net(GC.G20_SLOT_AT[4]);
+      const w2 = wk(hoursToBank(I.bank, prices[0]));
+      const w3 = n3 > 0 ? prices[1] / (2 * pl.huntHoursADay * 7 * n3) : Infinity;
+      const w4 = n4 > 0 ? prices[2] / (3 * pl.huntHoursADay * 7 * n4) : Infinity;
+      rows.push(row(name + ' slot 2 ' + kG(prices[0]), w2, band('G20', 'info'), wkS));
+      rows.push({ ...row(name + ' slot 3 ' + kG(prices[1]), w2 + w3, band('G20', 'info'), wkS), gate: 'gold' });
+      rows.push({ ...row(name + ' four heroes ' + kG(prices[2]), w2 + w3 + w4, band('G20', 'four'), wkS), gate: 'gold' });
+    }
+    line('G20', rows, 'cumulative weeks, every coin to the slot, ' + pl.huntHoursADay + ' h a hero a day; the Own four spends ' + Math.round(pl.spends * 100) + '% of what it earns');
+  }
+  line('G21', I.nightly ? [
+    ...GC.TOWER_FOURS.map((p) => { const r = R('tower-four:' + p.id); return row('four ' + p.level, r && Number.isFinite(r.towerTop) ? r.towerTop - p.level : NaN, band('G21', 'top'), (v) => (v >= 0 ? '+' : '') + v + ' floors'); }),
+    ...GC.TOWER_LONE.flatMap((p) => ['hammer', 'mage'].map((s) => {
+      const r = R('tower-lone:' + p.id + ':' + s), h = R('ref:' + p.id + ':' + (s === 'hammer' ? 'lone' : 'mage'));
+      return row(s + ' ' + p.level, r && h ? r.levelXpPerH / h.levelXpPerH : NaN, band('G21', 'xp'));
+    })),
+  ] : []);
+  {
+    const F = I.data.refill, hBuy = F.maxMinPerBuy / 60;
+    const price = (n, L) => Math.ceil((F.base + F.perLevel * L) * (F.stepDen + F.stepNum * (n - 1)) / F.stepDen);
+    const rows = GC.ALL_POINTS.filter((p) => p.open).map((p) => {
+      const r = R('ref:' + p.id + ':lone');
+      return row(p.id + ' 2nd', r ? (r.netPerH > 0 ? price(2, p.level) / (hBuy * r.netPerH) : Infinity) : NaN, band('G22', 'pays'));
+    });
+    const pyre = GC.BY_ID.pyre, f = R('four-real:pyre');
+    const six = Array.from({ length: F.perDay }, (_, i) => price(i + 1, pyre.level)).reduce((a, b) => a + b, 0);
+    const fn = f ? f.incomePerH - f.storePerH * (1 - GC.G8_OWN_SHARE) : NaN;
+    rows.push({ ...row('pyre all ' + F.perDay + ' (four)', Number.isNaN(fn) ? NaN : fn > 0 ? six / (F.perDay * hBuy * fn) : Infinity, band('G22', 'six'), f2, ' (' + kG(six) + ')'), gate: 'gold' });
+    line('G22', rows, 'each refill costs ' + F.stepNum + '/' + F.stepDen + ' of the first more than the last (24-1 rules 1/2); the four is G8\'s');
+  }
+  {
+    const B = I.data.bar, rows = [];
+    const ds = [...new Set(B.rows.flatMap((r) => r.disciplines))].filter((d) => B.rows.some((r) => r.lane === 'offense' && r.disciplines.includes(d)));
+    for (const d of ds) {
+      const fill = B.rows.filter((r) => r.lane === 'offense' && !r.replaces && r.disciplines.includes(d)).reduce((s, r) => s + B.lanes.offense / r.cdMs, 0);
+      const cap = B.budget[d] ?? B.budget['*'];
+      rows.push(row(d, Math.round(1e6 * fill / cap) / 1e6, { target: [null, 1], keep: [null, 1] }, () => fill.toFixed(2) + '/' + cap));
+    }
+    line('G23', rows, 'the lane filled = the sum of the offense lane over each row\'s cooldown; a row that replaces another shares its cooldown');
+  }
+  line('G24', GC.SCALED_CELLS.flatMap(([g, pid]) => ['hammer', 'mage'].map((s) => {
+    const r = R('scaled:' + g + ':' + pid + ':' + s), h = R('ref:' + pid + ':' + (s === 'hammer' ? 'lone' : 'mage'));
+    return row(g.split('_')[0] + '@' + pid + ' ' + s, r && h ? r.levelXpPerH / h.levelXpPerH : NaN, band('G24'));
+  })), 'Normal, against the reference ground of that Level; the switch is off (dark until L31)');
   const d100 = (r) => (r && r.heroHours > 0 ? 100 * r.deaths / r.heroHours : NaN);
   line('D1', I.nightly ? GC.DEADLY_POINTS.map((p) => row(p.id, d100(R('twin-band:' + p.id)), band('D1'))) : []);
   line('D2', I.nightly ? GC.DEADLY_POINTS.map((p) => row(p.id + '-10', d100(R('twin-under:' + p.id)), band('D2'))) : []);
@@ -347,13 +468,13 @@ function exitOf(lines, strict) {
 }
 
 /* ── the report ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
-const MARK = { ok: '', off: '~', RED: '!', ERR: '?', 'n/a': '', nightly: '' };
+const MARK = { ok: '', off: '~', RED: '!', ERR: '?', 'n/a': '', nightly: '', uncal: '#' };
 function report(I, lines, strict) {
   const commit = (() => { try { return execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })();
   const sz = GC.SIZES.plain;
   console.log('BALANCE GUARD (30-plan E) on ' + commit + ': ' + I.cells + ' cells at ' + sz.seeds + ' seeds x ' + sz.hours + ' h' + (I.nightly ? ' + the nightly twin at ' + GC.SIZES.nightly.seeds + ' x ' + GC.SIZES.nightly.hours + ' h' : '')
     + ', ' + I.workers + ' workers, ' + (I.wallMs / 1000).toFixed(0) + ' s. ' + (strict ? 'STRICT: every line judged red.' : 'Report mode (red-mode lines: ' + GC.LINES.filter((l) => l.mode === 'red').map((l) => l.id).join(', ') + ').'));
-  console.log('line | status | mode, turns red in | value at each place (~ off target, ! past the red band, * staged) | target / outside this is red');
+  console.log('line | status | mode, turns red in | value at each place (~ off target, ! past the red band, # not judged: K1 uncalibrated, * staged) | target / outside this is red');
   for (const l of lines) {
     const L = LINE[l.id];
     const bands = L.bands || (L.parts ? Object.entries(L.parts).map(([k, b]) => k + ' ' + rng(b.target) + ' / ' + rng(b.keep)).join('; ') : rng(L.target) + ' / ' + rng(L.keep));
@@ -382,50 +503,94 @@ function movedSinceBaseline(I, lines) {
 const readBaseline = () => (existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : null);
 
 /* ── --selftest ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
-const clone = (I) => ({ ...I, rows: JSON.parse(JSON.stringify(I.rows)), ms: { ...I.ms }, data: { ...I.data, slot: { ...I.data.slot }, costIn: JSON.parse(JSON.stringify(I.data.costIn)), stamina: { ...I.data.stamina } }, life: I.life && { ...I.life, steps: I.life.steps.map((s) => [...s]) } });
+const clone = (I) => ({ ...I, rows: JSON.parse(JSON.stringify(I.rows)), ms: { ...I.ms }, bank: I.bank && JSON.parse(JSON.stringify(I.bank)),
+  data: { ...I.data, slot: { ...I.data.slot }, ladders: JSON.parse(JSON.stringify(I.data.ladders)), refill: { ...I.data.refill }, bar: JSON.parse(JSON.stringify(I.data.bar)),
+    costIn: JSON.parse(JSON.stringify(I.data.costIn)), stamina: { ...I.data.stamina } },
+  life: I.life && { ...I.life, steps: I.life.steps.map((s) => [...s]) } });
 const redSet = (lines) => new Set(lines.flatMap((l) => l.rows.filter((r) => r.status === 'RED').map((r) => l.id + ' ' + r.at)));
-/** The first row of `id` (in the line's order) that is not RED on the clean tree, matching `want`. */
-const firstClean = (clean, id, want = () => true) => (clean.find((l) => l.id === id).rows.find((r) => r.status !== 'RED' && r.status !== 'ERR' && want(r)) || null);
+/** The first row of `id` (in the line's order) that is neither RED nor gated nor failed on the clean judge, matching `want`. */
+const firstClean = (clean, id, want = () => true) => (clean.find((l) => l.id === id).rows.find((r) => !['RED', 'ERR', 'uncal'].includes(r.status) && want(r)) || null);
 const pointOf = (at) => at.split(' ')[0].replace(/\*$/, '');
 const BYID = (id) => GC.BY_ID[id];
+/* PRE-STEPS a plant may need so its line is judged at all. CALIBRATE: K1 reads the real Krell four exactly (the gate opens).
+   NIGHTLY: the twin's and the Tower's rows planted in band (a plain measure has none), then calibrated (D1, D2 are gated). */
+function calibrate(J) {
+  const K = MODEL.REAL_KRELL_FOUR, r = J.rows['krell-real'];
+  J.rows['krell-real'] = { ...r, levelXpPerH: K.levelXpAHeroHour, killsPerH: K.killsAClockHour, incomePerH: K.netGoldAHeroHour, storePerH: 0 };
+  return J;
+}
+function inBandNightly(J) {
+  J.nightly = true;
+  for (const p of GC.DEADLY_POINTS) {
+    J.rows['twin-band:' + p.id] = { deaths: 3, heroHours: 128 };          // 2.3 a 100 hero-hours: inside D1's 1 to 3.34
+    J.rows['twin-under:' + p.id] = { deaths: 10, heroHours: 128 };        // 7.8: past D2's 6.25
+  }
+  for (const p of GC.TOWER_FOURS) J.rows['tower-four:' + p.id] = { towerTop: p.level + 10 };
+  for (const p of GC.TOWER_LONE) for (const s of ['hammer', 'mage']) J.rows['tower-lone:' + p.id + ':' + s] = { levelXpPerH: 0.8 * J.rows['ref:' + p.id + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH };
+  return calibrate(J);
+}
 
 async function selftest(workers) {
   const I = await measure({ workers, quiet: true });
   I.baseline = readBaseline();
   if (I.errors.length) { console.log('HARNESS: the clean measure failed: ' + I.errors.map((e) => e.id + ': ' + e.error).join('; ')); return 2; }
-  const clean = judge(I), cleanRed = redSet(clean);
-  if (exitOf(clean, false) !== 0) { console.log('HARNESS: the clean tree is red in plain mode (' + [...cleanRed].join(', ') + '): fix that before proving the plants'); return 2; }
+  const clean0 = judge(I);
+  if (exitOf(clean0, false) !== 0) { console.log('HARNESS: the clean tree is red in plain mode (' + [...redSet(clean0)].join(', ') + '): fix that before proving the plants'); return 2; }
+  /* the clean judge each pre-step plants on */
+  const CLEAN = { none: clean0, cal: judge(calibrate(clone(I))), nightly: judge(inBandNightly(clone(I))) };
+  const PRE = { none: (J) => J, cal: calibrate, nightly: inBandNightly };
   /* the scan plants: a module's copy with one more row */
   const plantScan = async (file, edit) => SCAN.scanLevers(ROOT, async (f) => { const m = await SCAN.loadData(ROOT)(f); return f === file ? edit(m) : m; });
   const withItem = (row) => (m) => ({ ...m, ITEMS: { ...m.ITEMS, planted_meal: row } });
   const P = [];
-  const plant = (name, pick, apply, extra = {}) => P.push({ name, pick, apply, ...extra });
-  plant('a pace over the 2.5x cap: the four on Deadly x1.6 Level XP', (c) => firstClean(c, 'G3'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':four'].levelXpPerH *= 1.6; });
-  plant('a gold sink that never pays back: hero slot 2 at 20x its price', (c) => firstClean(c, 'G9'), (J) => { J.data.slot.price *= 20; });
+  const plant = (name, pick, apply, extra = {}) => P.push({ name, pick, apply, pre: 'none', ...extra });
+  const cal = { pre: 'cal' };
+  plant('a pace over the 2.5x cap: the four on Deadly x1.6 Level XP', (c) => firstClean(c, 'G3'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':four'].levelXpPerH *= 1.6; }, cal);
+  plant('a gold sink that never pays back: hero slot 2 at 20x its price', (c) => firstClean(c, 'G9', (r) => r.at === 'slot 2'), (J) => { J.data.slot.price *= 20; });
   plant('a stack over its cap: the gear pool +25% Level XP', (c) => firstClean(c, 'G10', (r) => /xp$/.test(r.at)), (J, r) => { const [p, seat] = r.at.split(' '); J.rows[seat + '-pool:' + p].levelXpPerH *= 1.25; });
   plant('a cost over the allowance: one more statement on every settle', (c) => firstClean(c, 'G16', (r) => r.at === 'ownfour'), (J) => { for (const f of Object.values(J.data.costIn.fixtures)) f.statements_a_settle += 1; }, { also: (c) => c.find((l) => l.id === 'G16').rows.filter((r) => r.status !== 'RED').map((r) => 'G16 ' + r.at) });
-  plant('Deadly loses gold: the Krell-kit four\'s store bill x4', (c) => firstClean(c, 'G8'), (J, r) => { J.rows['four-real:' + r.at].storePerH *= 4; });
+  plant('Deadly loses gold: the Krell-kit four\'s store bill x4', (c) => firstClean(c, 'G8'), (J, r) => { J.rows['four-real:' + r.at].storePerH *= 4; }, cal);
   plant('a ground pays less than the one before: the Glade\'s gold in under the Thicket\'s', (c) => firstClean(c, 'G7', (r) => pointOf(r.at) === 'glade'), (J) => { J.rows['ref:glade:lone'].incomePerH = J.rows['ref:thicket:lone'].incomePerH * 0.9; });
   plant('the lone hammer runs away: x1.3 Level XP', (c) => firstClean(c, 'G1'), (J, r) => { J.rows['ref:' + pointOf(r.at) + ':lone'].levelXpPerH *= 1.3; });
   plant('one way runs away alone: the bow x2 Level XP', (c) => firstClean(c, 'G2'), (J, r) => { J.rows['way:' + pointOf(r.at) + ':bow'].levelXpPerH *= 2; });
-  plant('the fully invested four over its cap: x1.6 Level XP', (c) => firstClean(c, 'G4'), (J, r) => { J.rows['four-full:' + pointOf(r.at)].levelXpPerH *= 1.6; });
+  plant('the fully invested four over its cap: x1.6 Level XP', (c) => firstClean(c, 'G4'), (J, r) => { J.rows['four-full:' + pointOf(r.at)].levelXpPerH *= 1.6; }, cal);
   plant('a gold-for-power offer far too cheap: Tempering\'s first rung at 1 gold', (c) => firstClean(c, 'G12', (r) => /Tempering/.test(r.at) && Number.isFinite(r.value)), (J, r) => { J.data.temper = { ...J.data.temper, [BYID(pointOf(r.at)).gearTier]: [1, ...J.data.temper[BYID(pointOf(r.at)).gearTier].slice(1)] }; });
-  plant('a settle three times as dear: the engine ms of a Krell window x3', (c) => firstClean(c, 'G17', (r) => r.at === 'krell'), (J) => { J.ms['time-krell:warm'] *= 3; });
+  /* a machine's timing: planted as three times the line's own budget, whatever this machine measured (a x3 on a fast machine stays inside it) */
+  plant('a settle three times past its budget: a Krell window at 3 x 200 ms', (c) => firstClean(c, 'G17', (r) => r.at === 'krell'), (J) => { J.ms['time-krell:warm'] = 3 * LINE.G17.keep[1] * J.rows['time-krell:warm'].partyHours * 36; });
   plant('the Own four hunts 7 hours a day with no new press', (c) => firstClean(c, 'G18', (r) => r.at === 'ownfour'), (J) => { J.data.stamina.players = J.data.stamina.players.map((p) => (p.id === 'ownfour' ? { ...p, huntHoursADay: 7 } : p)); });
   plant('a slower first hour: Level 10 at 9 hours', (c) => firstClean(c, 'G6', (r) => r.at === 'Level 10'), (J) => { J.life.level10 = 9; });
   plant('the new player\'s worst Level at 3 hours', (c) => firstClean(c, 'G6', (r) => /longest/.test(r.at)), (J) => { J.life.steps[J.life.steps.length - 1][1] = 3; });
   plant('a new XP food row (a planted meal with all_xp)', (c) => firstClean(c, 'G14', (r) => r.at === 'food-xp-buffs'), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Meal', buff: { type: 'all_xp', magnitude: 2, durationMs: 1 } })); }, { redMode: true });
   plant('a lever with no class (a gold_find meal)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Purse Pie', buff: { type: 'gold_find', magnitude: 2, durationMs: 1 } })); }, { redMode: true });
   plant('a lever-named field in a new place (a planted goldBonusPm)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('party.js', (m) => ({ ...m, PLANTED: { goldBonusPm: 1200 } })); }, { redMode: true });
+  /* the plan audit's lines */
+  plant('the pair runs away on Deadly: x1.6 Level XP', (c) => firstClean(c, 'G19'), (J, r) => { const [p, k] = r.at.split(' '); J.rows['small:' + k + ':' + p].levelXpPerH *= 1.6; }, cal);
+  plant('the fourth hero never comes: the three loses gold (store x10)', (c) => firstClean(c, 'G20', (r) => /four heroes/.test(r.at)), (J) => { const s = GC.G20_SLOT_AT[4]; J.rows['small:' + s.party + ':' + s.point].storePerH *= 10; },
+    { ...cal, also: (c) => c.find((l) => l.id === 'G20').rows.filter((r) => /four heroes/.test(r.at) && r.status !== 'RED').map((r) => 'G20 ' + r.at) });
+  plant('a played bank a quarter as deep: slot 2 at Level 32 over the bank', (c) => firstClean(c, 'G9', (r) => r.at === 'slot 2'), (J) => { for (const v of Object.values(J.bank.byLevel)) v.net /= 4; },
+    { also: (c) => (firstClean(c, 'G9', (r) => r.at === 'ruled 400k') ? ['G9 ruled 400k'] : []) });
+  plant('the Tower runs past the cap: a four tops out 60 floors over its Level', (c) => firstClean(c, 'G21', (r) => /^four/.test(r.at)), (J, r) => { const L = Number(r.at.split(' ')[1]); J.rows['tower-four:' + GC.TOWER_FOURS.find((p) => p.level === L).id].towerTop = L + 60; }, { pre: 'nightly' });
+  plant('the Tower pays a lone hero more than hunting: x1.5', (c) => firstClean(c, 'G21', (r) => /^(hammer|mage)/.test(r.at)), (J, r) => { const [s, L] = r.at.split(' '); const p = GC.ALL_POINTS.find((q) => q.level === Number(L)); J.rows['tower-lone:' + p.id + ':' + s].levelXpPerH = 1.5 * J.rows['ref:' + p.id + ':' + (s === 'hammer' ? 'lone' : 'mage')].levelXpPerH; }, { pre: 'nightly' });
+  plant('Deadly kills a four in band: 20 deaths in 128 hero-hours', (c) => firstClean(c, 'D1'), (J, r) => { J.rows['twin-band:' + r.at].deaths = 20; }, { pre: 'nightly' });
+  plant('a four ten under the floor never dies', (c) => firstClean(c, 'D2'), (J, r) => { J.rows['twin-under:' + r.at.replace(/-10$/, '')].deaths = 0; }, { pre: 'nightly' });
+  plant('refills twenty times their price: the second never pays', (c) => firstClean(c, 'G22', (r) => /2nd$/.test(r.at)), (J) => { J.data.refill.base *= 20; J.data.refill.perLevel *= 20; },
+    { also: (c) => c.find((l) => l.id === 'G22').rows.filter((r) => /2nd$/.test(r.at) && r.status !== 'RED').map((r) => 'G22 ' + r.at) });
+  plant('a new offense row on the bow at a 4 s cooldown: the lane over its budget', (c) => firstClean(c, 'G23', (r) => r.at === 'ranged'), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: null }); });
+  plant('a scaled ground beats the right-Level one: x1.5 Level XP', (c) => firstClean(c, 'G24'), (J, r) => { const [gp, s] = r.at.split(' '); const [g0, pid] = gp.split('@'); const g = GC.SCALED_CELLS.find(([x, q]) => x.startsWith(g0) && q === pid)[0]; J.rows['scaled:' + g + ':' + pid + ':' + s].levelXpPerH *= 1.5; });
   plant('NEGATIVE CONTROL: the Glade\'s lone hammer +1% Level XP', () => ({ at: 'none' }), (J) => { J.rows['ref:glade:lone'].levelXpPerH *= 1.01; }, { control: true });
   plant('NEGATIVE CONTROL: a meal that only heals (no buff)', () => ({ at: 'none' }), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Bread', heals: 10 })); }, { control: true });
+  plant('NEGATIVE CONTROL: a new bow row that replaces Precision Shot (shares its cooldown)', () => ({ at: 'none' }), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: 'precision_shot' }); }, { control: true });
+  plant('NEGATIVE CONTROL (the K1 gate): the four x1.6 while K1 reads the harness as measured stays uncalibrated', () => ({ at: 'none' }), (J) => { for (const p of GC.FOUR_POINTS) J.rows['ref:' + p.id + ':four'].levelXpPerH *= 1.6; },
+    { control: true, check: (got) => calibration(I).xp || got.find((l) => l.id === 'G3').status === 'uncalibrated' });
 
   let fails = 0, n = 0;
-  console.log('BALANCE GUARD --selftest: ' + P.length + ' plants on one clean measure (' + I.cells + ' cells, ' + (I.wallMs / 1000).toFixed(0) + ' s); each must turn its OWN row red and no other');
+  console.log('BALANCE GUARD --selftest: ' + P.length + ' plants on one clean measure (' + I.cells + ' cells, ' + (I.wallMs / 1000).toFixed(0) + ' s); each must turn its OWN row red and no other'
+    + ' (K1 reads the harness ' + (calibration(I).xp ? 'inside' : 'outside') + ' its band on XP, so a gated plant opens the gate first)');
   for (const p of P) {
+    const clean = CLEAN[p.pre], cleanRed = redSet(clean);
     const target = p.pick(clean);
     if (!target) { console.log('  HARNESS ' + p.name + ': no clean row to plant on (every candidate is already red): pick another'); fails++; continue; }
-    const J = clone(I);
+    const J = PRE[p.pre](clone(I));
     J.scan = I.scan;
     await p.apply(J, target);
     const got = judge(J), now = redSet(got);
@@ -433,17 +598,17 @@ async function selftest(workers) {
     const lineId = p.control ? null : clean.find((l) => l.rows.includes(target)).id;
     const expected = p.control ? [] : [...new Set([lineId + ' ' + target.at, ...(p.also ? p.also(clean) : [])])].sort();
     const strictExit = exitOf(got, true), plainExit = exitOf(got, false);
-    const ok = JSON.stringify(fresh) === JSON.stringify(expected) && (p.control ? plainExit === 0 : strictExit === 1 && plainExit === (p.redMode ? 1 : 0));
+    const ok = JSON.stringify(fresh) === JSON.stringify(expected) && (p.control ? plainExit === 0 && (!p.check || p.check(got)) : strictExit === 1 && plainExit === (p.redMode ? 1 : 0));
     n++;
     if (!ok) fails++;
     console.log('  ' + (p.control ? (ok ? 'SILENT ' : 'NOISY  ') : ok ? 'CAUGHT ' : 'MISSED ') + p.name + ': newly red ' + (fresh.join(', ') || 'nothing') + (ok ? '' : ' (expected ' + (expected.join(', ') || 'nothing') + ')') + '; --strict exits ' + strictExit + ', plain ' + plainExit);
   }
-  /* ON THE REAL ENGINE: Deadly's Level XP dial x1.6 on every reference ground's row (worker.mjs whatIf), the four cells re-played */
+  /* ON THE REAL ENGINE: Deadly's Level XP dial x1.6 on every reference ground's row (worker.mjs whatIf), the four cells re-played, K1's gate open */
   {
     const jobs = GC.plainCells(CTX).filter((j) => /^ref:.*:four$/.test(j.id) && GC.FOUR_POINTS.some((p) => j.id === 'ref:' + p.id + ':four'));
     const whatIf = { tiers: Object.fromEntries(GC.FOUR_POINTS.map((p) => { const r = tiers.tierRowOf(p.ground, 'deadly'); return [p.ground, { deadly: { id: r.id, pull: [...r.pull], dmgPm: r.dmgPm, hpPm: r.hpPm, xpPm: Math.round(r.xpPm * 1.6) } }]; })) };
     const { results, errors } = await playAll(jobs.map((j) => ({ ...j, whatIf })), workers);
-    const J = clone(I);
+    const J = calibrate(clone(I)), cleanRed = redSet(CLEAN.cal);
     for (const [id, r] of Object.entries(results)) J.rows[id] = { ...J.rows[id], ...MEASURE.rowOf(r.result, r.result.cell.party) };
     const got = judge(J), fresh = [...redSet(got)].filter((k) => !cleanRed.has(k)).sort();
     const ratios = GC.FOUR_POINTS.map((p) => J.rows['ref:' + p.id + ':four'].levelXpPerH / I.rows['ref:' + p.id + ':four'].levelXpPerH);
@@ -452,7 +617,7 @@ async function selftest(workers) {
     if (!ok) fails++;
     console.log('  ' + (ok ? 'CAUGHT ' : 'MISSED ') + 'Deadly\'s Level XP dial x1.6 on the real engine (whatIf, ' + jobs.length + ' four cells re-played): Level XP x' + ratios.map((x) => x.toFixed(2)).join('/') + ', newly red ' + (fresh.join(', ') || 'nothing') + (errors.length ? ' HARNESS ' + errors.map((e) => e.error).join('; ') : ''));
   }
-  console.log(fails ? 'BALANCE GUARD --selftest: ' + fails + ' of ' + n + ' NOT caught' : 'BALANCE GUARD --selftest: all ' + n + ' caught, each on its own row, both controls silent');
+  console.log(fails ? 'BALANCE GUARD --selftest: ' + fails + ' of ' + n + ' NOT caught' : 'BALANCE GUARD --selftest: all ' + n + ' caught, each on its own row, every control silent');
   return fails ? 1 : 0;
 }
 

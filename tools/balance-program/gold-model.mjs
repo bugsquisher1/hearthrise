@@ -179,8 +179,11 @@ const HOURS = [[1, 0], [5, 0.32], [10, 6.3], [15, 17.9], [20, 26.6], [25, 37.0],
 export const lerp = (t, x) => { for (let i = 1; i < t.length; i++) if (x <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (x - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t.at(-1)[1]; };
 export const levelAtBank = (g) => { for (let L = 1; L <= 75; L += 0.5) if (lerp(BANK, L) >= g) return L; return 75; };
 const fourRate = (L) => lerp(LEVELS.map((l) => [l, FOUR[l].coin + FOUR[l].sold - FOUR[l].store]), L);
+/* the ladders dive 24 priced; A is RULED (Tyler 2026-11-20, 400k / 1.5M / 4M) and lands in src/data/shops.js with plan lane L06. The balance
+   guard's G20 reads A from here beside the shop's own prices. */
+export const SLOT_LADDERS = Object.freeze([['Today', [300000, 750000, 1500000]], ['A (recommended)', [400000, 1500000, 4000000]], ['B', [600000, 1500000, 3000000]], ['C', [300000, 2000000, 6000000]]]);
 function slots() {
-  const LADDERS = [['Today', [300000, 750000, 1500000]], ['A (recommended)', [400000, 1500000, 4000000]], ['B', [600000, 1500000, 3000000]], ['C', [300000, 2000000, 6000000]]];
+  const LADDERS = SLOT_LADDERS;
   const pls = REFERENCE_PLAYERS.filter((p) => p.id !== 'whale');
   console.log('| Ladder | Slot | Price | Level on arrival | Lone hunted hours (slot 2) | ' + pls.map((p) => p.name + ', weeks').join(' | ') + ' | Buyer |\n|---|---|---|---|---|' + pls.map(() => '---').join('|') + '|---|');
   for (const [name, prices] of LADDERS) {

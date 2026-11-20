@@ -1,10 +1,12 @@
 // ════════════════════════════════════════════════════════════════════════
 // tools/balance-program/guard-cells.mjs — THE BALANCE GUARD'S LINES AND CELLS (balance program 30-plan section E, lane L14).
 //
-// LINES  the eighteen lines of section E (G1-G18), the calibration line K1 (the harness's four in the seats of the real Krell four,
-//        model.mjs REAL_KRELL_FOUR) and the nightly twin's two death lines (D1, D2): what each is measured on, its target, its red
-//        band, the lane that turns it red, and its MODE. A line starts as `report` and turns `red` in the lane that lands the change
-//        it guards (section E: "It never goes back"): that lane flips `mode` here, in the same commit.
+// LINES  the eighteen lines of section E (G1-G18), the plan audit's six (G19-G24, 31-plan-audit.md M2, M5, M9), the calibration line
+//        K1 (the harness's four in the seats of the real Krell four, model.mjs REAL_KRELL_FOUR) and the nightly twin's two death lines
+//        (D1, D2): what each is measured on, its target, its red band, the lane that turns it red, and its MODE. A line starts as
+//        `report` and turns `red` in the lane that lands the change it guards (section E: "It never goes back"): that lane flips
+//        `mode` here, in the same commit. A line with a `gate` ('xp' or 'gold') reads the harness's party and is judged only while K1
+//        reads the real Krell four inside K1's own target on that measure (31-plan-audit M3); outside it, it reports "uncalibrated".
 // CELLS  every scenario the guard plays on the real settle (tools/balance-sim/cell.mjs), keyed by id. The reference cells ARE
 //        measure.mjs's (refCell), so a guard number and a dive's number are the same cell. Nothing here is a measured number:
 //        a band is the plan's, a cell names a ground, a party, a Level and what it wears.
@@ -33,6 +35,21 @@ export const G8_OWN_SHARE = 0.25;
    every day since the yard opens to it (src/data/training.js TRAINING_RULES.minLevel), on the lone pace table (src/data/core-model.js
    LEVEL_PACE.targets: the slowest an Own four hero reaches a Level, so an UPPER BOUND on the hours trained). */
 export const G11_PLAYER = 'ownfour';
+/* G19 and G20: the pair and the three the slot ladder makes of the Own four (31-plan-audit M2: the fastest of each it measured). */
+export const SMALL_PARTIES = Object.freeze({ pair: Object.freeze(['hammer', 'mage']), three: Object.freeze(['tank', 'bow', 'mage']) });
+export const SMALL_POINTS = P('glade', 'ford');                                // G19: "Levels 30 to 50"
+/* G20: the Own four buys slot 2 with one lone hero, slot 3 with the pair (about Level 31, the Glade) and slot 4 with the three (about
+   Level 41 to 51, Hask's Ford), on the Own four's day (model.mjs 'ownfour') and its stock (a third home-made: the store bill x 2/3). */
+export const G20_SLOT_AT = Object.freeze({ 3: Object.freeze({ party: 'pair', point: 'glade' }), 4: Object.freeze({ party: 'three', point: 'ford' }) });
+/* G23 (21-combat.md B4, PROPOSED; the tank and the Healer by ruling): the share of the offense lane a discipline's offense rows may fill. */
+export const BAR_BUDGET = Object.freeze({ '*': 0.85, shield: 0.6, restoration: 0.3 });
+/* G24: the scaled grounds the endgame dive measured over or near the right-Level ground (22-endgame.md section 8), at the reference
+   point whose Level they scale to. The Thicket at Krell's Level is the in-band reading the guard's proof plants on. */
+export const SCALED_CELLS = Object.freeze([['coppercap_warrens', 'pyre'], ['coppercap_warrens', 'hold'], ['mosslight_glade', 'ford'], ['meadowbrook_thicket', 'hold']]);
+/* G21 (nightly): the Tower from the landing at the hero's Level (tools/balance-program/endgame.mjs climb --from level, 90 minutes, 2 seeds). */
+export const TOWER_FOURS = P('glade', 'slake', 'hold');
+export const TOWER_LONE = P('thicket', 'glade');
+export const towerLanding = (L) => Math.max(0, Math.floor(L / 10) * 10) + 1;
 
 /* ── THE LINES ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
    target / keep: [lo, hi] (null = open). A value inside `target` is in band; outside `target` and inside `keep` is OFF (reported);
@@ -40,15 +57,15 @@ export const G11_PLAYER = 'ownfour';
 export const LINES = Object.freeze([
   { id: 'G1', words: 'Lone hammer on Normal, x the pace contract', on: 'the eight points', target: [0.9, 1.1], keep: [0.85, 1.25], turnsRedIn: 'L16 (staged points L47)', mode: 'report' },
   { id: 'G2', words: 'No way to fight runs away alone: best way / median way', on: 'every way at the eight points', target: [null, 1.5], keep: [null, 1.6], turnsRedIn: 'L17', mode: 'report' },
-  { id: 'G3', words: 'The four on Deadly in band, played kit, x contract', on: 'Levels 30 to 175', target: [1.8, 2.5], keep: [1.6, 2.6], turnsRedIn: 'L16', mode: 'report' },
-  { id: 'G4', words: 'The four on Deadly fully invested, x contract', on: 'Levels 30 to 175', target: [null, 2.75], keep: [null, 2.9], turnsRedIn: 'L16 (re-read L29, L37, L44)', mode: 'report' },
-  { id: 'G5', words: 'Deadly is a fight: the four\'s low point (HP p10 %)', on: 'Ford, Pyre, Krell; in band and 10 under the floor', target: null, keep: null, turnsRedIn: 'L16', mode: 'report',
+  { id: 'G3', words: 'The four on Deadly in band, played kit, x contract', on: 'Levels 30 to 175', target: [1.8, 2.5], keep: [1.6, 2.6], turnsRedIn: 'L16', mode: 'report', gate: 'xp' },
+  { id: 'G4', words: 'The four on Deadly fully invested, x contract', on: 'Levels 30 to 175', target: [null, 2.75], keep: [null, 2.9], turnsRedIn: 'L16 (re-read L29, L37, L44)', mode: 'report', gate: 'xp' },
+  { id: 'G5', words: 'Deadly is a fight: the four\'s low point (HP p10 %)', on: 'Ford, Pyre, Krell; in band and 10 under the floor', target: null, keep: null, turnsRedIn: 'L16', mode: 'report', gate: 'xp',
     parts: { band: { target: [35, 50], keep: [30, 55] }, under: { target: [null, 25], keep: [null, 35] } } },
   { id: 'G6', words: 'The new player on the start kit: hours to Level 10; the longest Level under 10', on: 'life.mjs --policy idle, Normal, no event', target: null, keep: null, turnsRedIn: 'L05', mode: 'report',
     parts: { level10: { target: [null, 6], keep: [null, 7] }, step: { target: [null, 2], keep: [null, 2.5] } } },
   { id: 'G7', words: 'A ground never pays a lone in-range hero less gold (in) than the one before', on: 'the eight points', target: null, keep: null, turnsRedIn: 'L22', mode: 'report', bands: 'rising / red on any fall' },
-  { id: 'G8', words: 'Deadly costs gold and never loses it: net a hero-hour, Krell-kit four', on: 'Levels 50, 80, 105', target: [3000, 8000], keep: [0, null], turnsRedIn: 'L16 (re-read L32)', mode: 'report' },
-  { id: 'G9', words: 'The first hero slot within one lone hero\'s bank at Level 32: price / bank', on: 'shops.js character_slot.1, gold-model.mjs BANK', target: [null, 1], keep: [null, 1], turnsRedIn: 'L06', mode: 'report' },
+  { id: 'G8', words: 'Deadly costs gold and never loses it: net a hero-hour, Krell-kit four', on: 'Levels 50, 80, 105', target: [3000, 8000], keep: [0, null], turnsRedIn: 'L16 (re-read L32)', mode: 'report', gate: 'gold' },
+  { id: 'G9', words: 'The first hero slot within one lone hero\'s bank at Level 32: price / bank', on: 'shops.js character_slot.1; the bank a played lone hero holds at 32 (life.mjs --policy rec)', target: [null, 1], keep: [null, 1], turnsRedIn: 'L06', mode: 'report' },
   { id: 'G10', words: 'The gear pool over the played kit: XP, and its damage cut / one armor step\'s', on: 'Levels 30, 60, 105, lone and four', target: null, keep: null, turnsRedIn: 'L15 (damage), L37 (XP)', mode: 'report',
     parts: { xp: { target: [null, 1.09], keep: [null, 1.10] }, dmg: { target: [null, 1], keep: [null, 1] } } },
   { id: 'G11', words: 'The hero that trains every idle hour: XP, and damage cut', on: 'Levels 30, 60, 105', target: null, keep: null, turnsRedIn: 'L19', mode: 'report',
@@ -62,8 +79,18 @@ export const LINES = Object.freeze([
   { id: 'G18', words: 'Hunted hours a hero a day: the Own four; every hero\'s ceiling', on: 'model.mjs players, stamina and refill rows', target: null, keep: null, turnsRedIn: 'L40', mode: 'report',
     parts: { ownfour: { target: [3.3, 5.3], keep: [null, 6] }, ceiling: { target: [null, 24], keep: [null, 24] } } },
   { id: 'K1', words: 'Calibration: the harness four in the real Krell four\'s seats / the real hunt', on: 'model.mjs REAL_KRELL_FOUR (THIN)', target: [0.9, 1.1], keep: [0.75, 1.25], turnsRedIn: 'never alone (the designer sets its band)', mode: 'report' },
-  { id: 'D1', words: 'Nightly twin: deaths a 100 hero-hours, the four on Deadly in band', on: 'Ford, Pyre, Krell, 4 seeds x 8 h', target: [1, 3.34], keep: [null, 6.25], turnsRedIn: 'L16', mode: 'report', nightly: true },
-  { id: 'D2', words: 'Nightly twin: deaths a 100 hero-hours, the four 10 Levels under the floor', on: 'Ford, Pyre, Krell, 4 seeds x 8 h', target: [6.25, null], keep: [6.25, null], turnsRedIn: 'L16', mode: 'report', nightly: true },
+  { id: 'D1', words: 'Nightly twin: deaths a 100 hero-hours, the four on Deadly in band', on: 'Ford, Pyre, Krell, 4 seeds x 8 h', target: [1, 3.34], keep: [null, 6.25], turnsRedIn: 'L16', mode: 'report', nightly: true, gate: 'xp' },
+  { id: 'D2', words: 'Nightly twin: deaths a 100 hero-hours, the four 10 Levels under the floor', on: 'Ford, Pyre, Krell, 4 seeds x 8 h', target: [6.25, null], keep: [6.25, null], turnsRedIn: 'L16', mode: 'report', nightly: true, gate: 'xp' },
+  /* THE PLAN AUDIT'S LINES (docs/design/balance-program/31-plan-audit.md M2, M5, M9; the Coordinator 2026-11-20), all report. */
+  { id: 'G19', words: 'The pair and the three on Deadly, x contract a head (and x the four a head)', on: 'Levels 30 and 50: hammer + Mage, tank + bow + Mage (the fastest of each in the audit)', target: [1.8, 2.5], keep: [1.6, 2.6], turnsRedIn: 'L16', mode: 'report', gate: 'xp' },
+  { id: 'G20', words: 'Weeks to each hero slot for the Own four, every coin to the slot: the prices in the shop and the ruled 400k / 1.5M / 4M', on: 'slot 2 the played lone bank, slot 3 the pair, slot 4 the three; 3.3 h a hero a day, a third own stock', target: null, keep: null, turnsRedIn: 'L16, L22, L23 (re-read)', mode: 'report',
+    parts: { info: { target: [null, null], keep: [null, null] }, four: { target: [null, 16], keep: [null, 20] } }, bands: 'four heroes by week 16 / red past 20 (PROPOSED, 31-plan-audit F5; Tyler rules the week)' },
+  { id: 'G21', words: 'The Tower: a set-up four tops out between its Level and Level + 25; no hero from 10 to 30 earns more there than hunting', on: 'nightly: climbs from the landing (endgame.mjs climb --from level), fours at 30, 60, 105, a lone hammer and Mage at 10 and 30', target: null, keep: null, turnsRedIn: 'L18', mode: 'report', nightly: true,
+    parts: { top: { target: [0, 25], keep: [0, 25] }, xp: { target: [null, 1], keep: [null, 1] } }, bands: 'top - Level 0-25; Tower XP / hunting XP <=1 (22-1, 22-7)' },
+  { id: 'G22', words: 'Stamina refills: the second pays for itself alone at every Level; six are gold-neutral for the four at 80', on: 'stamina-refill.js rows, played net gold', target: null, keep: null, turnsRedIn: 'L06', mode: 'report',
+    parts: { pays: { target: [null, 1], keep: [null, 1] }, six: { target: [0.9, 1.1], keep: [0.75, 1.33] } }, bands: 'refill 2 / its 4 h of lone net <=1; six / 24 h of net for the four 0.9-1.1, red outside 0.75-1.33 (24-1)' },
+  { id: 'G23', words: 'The bar budget: the offense rows of a family fill at most 0.85 of the offense lane (the tank 0.6, the Healer 0.3)', on: 'abilities.js ABILITIES and ABILITY_LANES', target: null, keep: null, turnsRedIn: 'L17', mode: 'report', bands: 'at most its cap / red over it (21-6)' },
+  { id: 'G24', words: 'A scaled hunt is never the best lone XP: scaled ground / the right-Level ground', on: 'scaled-hunts.js scaledRow at the Level of the point, a lone hammer and a lone Mage', target: [null, 1], keep: [null, 1], turnsRedIn: 'L31', mode: 'report' },
 ]);
 
 /* ── THE CELLS ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -141,6 +168,22 @@ export function plainCells(ctx, size = SIZES.plain) {
     push('krell-real', { ground: R.ground, party, level, profile: 'played', options: { tier: R.tier }, ...(pull ? { density: pull } : {}),
       skillsBySeat: line.map((lv, i) => ({ ...lv, ...R.seats[i].skills })), runeTierByRole: { ...R.runeTierByRole } });
   }
+  /* G19, G20: the pair and the three on the hardest tier their ground has, the pull of that tier for their size */
+  for (const p of SMALL_POINTS) for (const [k, party] of Object.entries(SMALL_PARTIES)) {
+    const ts = ctx.tiers.tiersOf(p.ground), tier = ts.includes('deadly') ? 'deadly' : ts.includes('dangerous') ? 'dangerous' : 'normal';
+    const pull = tier === 'normal' ? null : ctx.tiers.pullOfTier(ctx.tiers.tierRowOf(p.ground, tier), party.length);
+    push('small:' + k + ':' + p.id, { ground: p.ground, party: [...party], level: p.level, profile: 'played', ...(tier === 'normal' ? {} : { options: { tier } }), ...(pull ? { density: pull } : {}) });
+  }
+  /* G24: a scaled ground at the point's Level (scaled-hunts.js scaledRow on every roster monster, played as a what-if the way
+     endgame.mjs scaledplay and tests/scaled-hunts.mjs play it), a lone hammer and a lone Mage */
+  for (const [g, pid] of SCALED_CELLS) {
+    const p = BY_ID[pid], whatIf = ctx.scaledWhatIf(g, p.level);
+    if (!whatIf) continue;
+    for (const style of ['hammer', 'mage']) {
+      push('scaled:' + g + ':' + pid + ':' + style, { ground: g, party: [style], level: p.level, profile: 'played', groundPatch: { endsAtLevel: null } });
+      out[out.length - 1].whatIf = whatIf;
+    }
+  }
   /* G17: engine time a 100 s window (one seed, short: a timing, not a balance reading) */
   {
     const hold = ref(BY_ID.hold, FOUR);
@@ -151,7 +194,7 @@ export function plainCells(ctx, size = SIZES.plain) {
   return out;
 }
 
-/** The nightly twin: the cells that judge a death rate (D1, D2), at the nightly size. */
+/** The nightly twin: the cells that judge a death rate (D1, D2) at the nightly size, and the slow lines (G21's Tower climbs). */
 export function nightlyCells(ctx, size = SIZES.nightly) {
   const { hours, seeds } = size;
   const out = [];
@@ -160,5 +203,10 @@ export function nightlyCells(ctx, size = SIZES.nightly) {
     out.push({ id: 'twin-band:' + p.id, cell: { ...four, id: 'BG:twin-band:' + p.id, hours, seeds } });
     out.push({ id: 'twin-under:' + p.id, cell: { ...four, id: 'BG:twin-under:' + p.id, hours, seeds, level: ctx.bandOf(p.ground)[0] - 10 } });
   }
+  /* G21: endgame.mjs climb's own cell (90 minutes at most, a run is one segment a seed, 2 seeds), from the landing at the Level */
+  const climb = (id, party, L) => out.push({ id, cell: { id: 'BG:' + id, ground: ctx.towerHunt, tower: { floor: towerLanding(L) }, hours: 1.5, seeds: 2, windowMs: 30000,
+    party: [...party], level: L, profile: 'played', supply: 'own', gear: { uniques: true } } });
+  for (const p of TOWER_FOURS) climb('tower-four:' + p.id, FOUR.party, p.level);
+  for (const p of TOWER_LONE) for (const style of ['hammer', 'mage']) climb('tower-lone:' + p.id + ':' + style, [style], p.level);
   return out;
 }

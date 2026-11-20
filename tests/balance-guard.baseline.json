@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "b70b0b1e0",
+ "commit": "84fb09f1c",
  "at": "2026-11-20",
- "why": "L14 lands the guard: first baseline (report mode; cut and dark lever pins, the reference accounts' server day, every line's numbers) on set/v0.2.143",
+ "why": "plan audit (31-plan-audit.md): G19-G24 added, K1 gates the harness-party lines, G9 reads the played lone bank (life.mjs --policy rec) instead of the typed table",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -135,7 +135,8 @@
    "hold": 8159.75
   },
   "G9": {
-   "slot 2": 0.808
+   "slot 2": 0.674,
+   "ruled 400k": 0.898
   },
   "G10": {
    "glade lone xp": 1.052,
@@ -184,8 +185,8 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 115.333,
-   "tower": 114.606
+   "krell": 54,
+   "tower": 76.792
   },
   "G18": {
    "new": 2,
@@ -201,6 +202,49 @@
    "kills": 0.831,
    "net gold": 0.507
   },
+  "G19": {
+   "glade pair": 2.43,
+   "glade three": 2.1,
+   "ford pair": 3.833,
+   "ford three": 3.18
+  },
+  "G20": {
+   "shop slot 2 300.0k": 1.76,
+   "shop slot 3 750.0k": 3.282,
+   "shop four heroes 1500.0k": 7.043,
+   "ruled slot 2 400.0k": 2.203,
+   "ruled slot 3 1500.0k": 5.246,
+   "ruled four heroes 4000.0k": 15.275
+  },
+  "G21": {},
+  "G22": {
+   "thicket 2nd": 0.233,
+   "glade 2nd": 0.229,
+   "ford 2nd": 0.337,
+   "slake 2nd": 0.363,
+   "pyre 2nd": 0.254,
+   "hold 2nd": 0.366,
+   "pyre all 6 (four)": 0.779
+  },
+  "G23": {
+   "shield": 0.972,
+   "sword": 0.98,
+   "dual_axe": 1.471,
+   "club": 1.078,
+   "ranged": 0.922,
+   "destruction": 0.922,
+   "restoration": 1
+  },
+  "G24": {
+   "coppercap@pyre hammer": 1.08,
+   "coppercap@pyre mage": 1.171,
+   "coppercap@hold hammer": 1.12,
+   "coppercap@hold mage": 1.131,
+   "mosslight@ford hammer": 1.015,
+   "mosslight@ford mage": 1.185,
+   "meadowbrook@hold hammer": 0.882,
+   "meadowbrook@hold mage": 0.935
+  },
   "D1": {},
   "D2": {}
  },
@@ -209,6 +253,11 @@
    "at": "2026-11-20",
    "commit": "b70b0b1e0",
    "why": "L14 lands the guard: first baseline (report mode; cut and dark lever pins, the reference accounts' server day, every line's numbers) on set/v0.2.143"
+  },
+  {
+   "at": "2026-11-20",
+   "commit": "84fb09f1c",
+   "why": "plan audit (31-plan-audit.md): G19-G24 added, K1 gates the harness-party lines, G9 reads the played lone bank (life.mjs --policy rec) instead of the typed table"
   }
  ]
 }

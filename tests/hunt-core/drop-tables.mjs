@@ -823,7 +823,7 @@ const engineMutants = [
   { name: 'the row\'s band ignored (the odds decide the reveal again)', case: 'band-is-the-reveal',
     edits: [['src/core/drops.js', '  if (row && LOOT_BANDS.includes(row.band)) return row.band;\n', '']] },
   { name: 'a Trophy is no reveal', case: 'band-is-the-reveal',
-    edits: [['src/data/loot-bands.js', "export const REVEAL_BANDS = Object.freeze(['rare', 'trophy']);", "export const REVEAL_BANDS = Object.freeze(['rare']);"]] },
+    edits: [['src/data/loot-bands.js', "export const REVEAL_BANDS = Object.freeze(['rare', 'very_rare', 'trophy']);", "export const REVEAL_BANDS = Object.freeze(['rare', 'very_rare']);"]] },
   /* THE SALE LADDER FROM TIER 4 UP (lane/b-phase0-tier4, designer 2026-11-08): each new rate one notch under the floor its twin rule sets
      (0.0747 the Mithril Sword over the Steel, 0.025 the Rune Helm over the Mithril, 0.0127 the Ember Sword over the Rune). The high side is
      gold-intents G1's pin on the whole ladder, and the faucet cap of each ground that drops the tier. */

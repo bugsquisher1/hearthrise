@@ -31,6 +31,8 @@
 //   J16 THE PLAIN CARD NAMES WHAT A GEM CAN ADD (post-140 audit C11): a plain crafted piece's card lists its bench's perks.
 //   J17 A BOSS DROP'S CARD NAMES ITS GUARANTEE as a label ("Guarantees Follow-through (Banded Signet)"), only where the switch is on.
 //   J18 PLAIN STATS HELP ALL THREE STYLES: every plain crafted jewel and the Shop's first jewelry carry Melee, Ranged and Magic attack, no crit.
+//   J19 THE SEVENTH RING PERK, LUCKY (Luck v3.1): every crafted ring carries it at its tier's size; the Lucky job makes it for sure behind the
+//       luck switch at 500 x tier^2 rivets and the tier's Hallmark fee; while it is a MADE perk no chance roll draws it.
 //
 //   node tests/jewelry-rolls.mjs            the guard
 //   node tests/jewelry-rolls.mjs --mutate   each claim driven red by a planted defect in a copy of the tree
@@ -55,7 +57,7 @@ async function load(root) {
     AC: await imp('supabase/functions/hr-accrue/accrual.js', ''), CAT: await imp('supabase/functions/hr-accrue/catalogue.js', ''),
     BT: await imp('tools/gen-bench-tax.mjs', ''), TW: await imp('src/shell/town-work.js'), TT: await imp('src/shell/town-ticker.js'), IL: await imp('src/shell/item-lore.js'),
     SA: await imp('supabase/functions/hr-accrue/set-activity.js', ''), JS: await imp('src/session/jewelry-sections.js'), WK: await imp('src/shell/windows/work.js'),
-    PT: await imp('src/render/player-text.js'),
+    PT: await imp('src/render/player-text.js'), LK: await imp('src/data/luck.js'),
   };
 }
 
@@ -226,9 +228,12 @@ const claims = {
         continue;
       }
       if (n < 2) return `${plain} can roll ${n} perk(s): a Hallmark needs two`;
+      /* a MADE perk (PERKS_MADE: Lucky, the Lucky job's) its slot holds adds its Fine row, its Hallmarked pair beside each other perk, and a
+         Hallmark offer per rolled second perk; the chance roll never draws it (J18) */
+      const k = (M.J.JEWEL_POOLS[M.ITEMS[plain].slot] || []).filter((p) => M.J.PERKS_MADE.includes(p)).length, t = n + k;
       const fine = M.J.gradeRows(plain, 'fine').length, hall = M.J.gradeRows(plain, 'hallmarked').length;
-      if (fine !== n || hall !== (n * (n - 1)) / 2) return `${plain}: ${fine} Fine and ${hall} Hallmarked rows for ${n} perks`;
-      if (M.J.HALLMARK_OFFERS.filter((o) => M.ITEMS[o.from].jewelBase === plain).length !== n * (n - 1)) return `${plain}: the Hallmark offers are not one per Fine row and other perk`;
+      if (fine !== t || hall !== (t * (t - 1)) / 2) return `${plain}: ${fine} Fine and ${hall} Hallmarked rows for ${n} perks and ${k} made`;
+      if (M.J.HALLMARK_OFFERS.filter((o) => M.ITEMS[o.from].jewelBase === plain).length !== n * (n - 1) + k * n) return `${plain}: the Hallmark offers are not one per Fine row and other rolled perk`;
     }
     const taxed = M.BT.rowsOf().filter((row) => Object.values(M.RC.ARTISAN_RECIPES).flat().some((r) => r && r.id === row.recipe && r.roll));
     if (taxed.length) return 'the bench tax charges a rolled job: ' + taxed.map((r) => r.recipe).join(', ');
@@ -433,6 +438,33 @@ const claims = {
     }
     return null;
   },
+  J19(M) {
+    /* THE SEVENTH RING PERK, LUCKY (src/data/luck.js; itemization plan §15, Tyler 2026-11-20): every crafted ring carries it at its tier's
+       LUCKY_PERK_PCT (Fine, and Hallmarked beside each rolled perk); the Lucky job makes the Fine row for sure, at 500 x tier^2 rivets and the
+       tier's Hallmark fee and level, behind the luck switch; while Lucky is a MADE perk the chance roll never draws it (40,000 rolls of every
+       ring job) and no job's outcomes name it, so no ring rolls a perk that does nothing while Luck is dark. */
+    /* the ruled table (Tyler 2026-11-20, "designer's numbers"): 2,000 / 4,500 / 8,000 / 12,500 / 18,000 / 24,500 rivets at tiers 2 to 7 */
+    const RULED_RIVETS = { 2: 2000, 3: 4500, 4: 8000, 5: 12500, 6: 18000, 7: 24500 };
+    const rings = Object.keys(M.J.JEWEL_PIECES).filter((id) => M.ITEMS[id].slot === 'ring' && M.J.perksFor(id).length);
+    if (!rings.length || !(M.J.JEWEL_POOLS.ring || []).includes('lucky') || !M.J.PERKS_MADE.includes('lucky')) return 'Lucky is not a made perk of the ring pool';
+    for (const plain of rings) {
+      const tier = M.ITEMS[plain].tier, row = M.ITEMS[M.J.jewelId(plain, ['lucky'])];
+      if (!row || row.jewelGrade !== 'fine' || row.jewelPerks.lucky !== M.LK.LUCKY_PERK_PCT[tier] * 10) return `${plain}: the Fine Lucky row is ${JSON.stringify(row && row.jewelPerks)}, not +${M.LK.LUCKY_PERK_PCT[tier]}%`;
+      const o = M.J.LUCKY_OFFERS.find((x) => x.from === plain);
+      if (!o || o.to !== M.J.jewelId(plain, ['lucky']) || o.rivets !== RULED_RIVETS[tier] || o.rivet !== M.LK.LUCK_ITEM
+          || o.gold !== M.J.JEWEL_TIERS[tier].hallmark.gold || o.level !== M.J.JEWEL_TIERS[tier].hallmark.level || o.switch !== M.LK.LUCK_SWITCH) {
+        return `${plain}: the Lucky job reads ${JSON.stringify(o)}`;
+      }
+    }
+    const jobs = Object.values(M.RC.ARTISAN_RECIPES_EVERY).flat().filter((r) => r && r.roll && rings.includes(r.output));
+    if (!jobs.length) return 'CONTROL: no ring job rolls';
+    for (const r of jobs) {
+      if (M.J.recipeOutcomes(r).some((id) => M.ITEMS[id].jewelPerks && M.ITEMS[id].jewelPerks.lucky)) return `${r.id} names a Lucky outcome`;
+      const rng = M.R.createRng('j19:' + r.id);
+      for (let i = 0; i < 40000; i++) { const x = M.A.rollJewel(r, 99, rng); if (x.perks.includes('lucky')) return `${r.id} rolled Lucky by chance (roll ${i})`; }
+    }
+    return null;
+  },
 };
 
 /* Every rolled job's guarantee jobs (the dark ones, behind the switch), on every bench. */
@@ -477,6 +509,11 @@ const MUTANTS = [
   { claim: 'J18', name: 'Fang Studs crit again', edits: [['src/data/slot-ladders.js', "slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, atkB: 2, strB: 2, rangeAtkB: 2, rangeStrB: 2, magicAtkB: 2, magicStrB: 2 },",
     "slot: 'earrings', tier: 2, rarity: 'uncommon',  reqSkill: 'level', reqLv: 15, critB: 0.01 },"]] },
   { claim: 'J18', name: 'the Hunter Necklace helps Melee only', edits: [['src/data/items.js', "slot:'necklace',atkB:2,rangeAtkB:2,magicAtkB:2,", "slot:'necklace',atkB:2,"]] },
+  /* THE SEVENTH RING PERK (Luck v3.1) */
+  { claim: 'J19', name: 'Lucky rolls by chance while Luck is dark', edits: [['src/data/jewelry.js', "export const PERKS_PLAYED = Object.freeze(['keen', 'follow', 'surge', 'steady', 'focus']);", "export const PERKS_PLAYED = Object.freeze(['keen', 'follow', 'surge', 'steady', 'focus', 'lucky']);"]] },
+  { claim: 'J19', name: 'the Lucky job burns 400 x tier^2 rivets', edits: [['src/data/luck.js', 'export const LUCKY_RIVET_STEP = 500;', 'export const LUCKY_RIVET_STEP = 400;']] },
+  { claim: 'J19', name: 'a tier-2 Lucky ring gives +2%', edits: [['src/data/jewelry.js', 'pm: Object.freeze({ 2: LUCKY_PERK_PCT[2] * 10,', 'pm: Object.freeze({ 2: LUCKY_PERK_PCT[2] * 20,']] },
+  { claim: 'J19', name: 'the Lucky job skips the switch', edits: [['src/data/jewelry.js', 'level: t.hallmark.level, switch: LUCK_SWITCH })];', 'level: t.hallmark.level, switch: null })];']] },
 ];
 
 async function run(M) {

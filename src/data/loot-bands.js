@@ -25,13 +25,16 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
+import { VERY_RARE_HOURS } from './luck.js?v=0.2.141';
+
 /** The bands, in the order a monster's rows list them. `key` sits after `rare`, so a key row added to a monster never moves the draw
     of a row it already had (lane/b-krells-hold-pack: the Gatekeeper's Hall Key; carried onto the set by lane/d-packs-retune so the
-    staged Krell's Hold rows lint, tests/hunt-core/drop-tables.mjs). */
-export const LOOT_BANDS = Object.freeze(['common', 'uncommon', 'scarce', 'rare', 'key', 'trophy']);
+    staged Krell's Hold rows lint, tests/hunt-core/drop-tables.mjs). `very_rare` (Luck v3.1, itemization plan §15: one of a ground's
+    seven uniques past tier 7) sits after `key` and before the boss's `trophy`, so a ground that gains one moves no earlier row. */
+export const LOOT_BANDS = Object.freeze(['common', 'uncommon', 'scarce', 'rare', 'key', 'very_rare', 'trophy']);
 
 /** The bands the server reveals (a `rare_drop` event) and the party's rare roll decides. */
-export const REVEAL_BANDS = Object.freeze(['rare', 'trophy']);
+export const REVEAL_BANDS = Object.freeze(['rare', 'very_rare', 'trophy']);
 
 /* Each band's promise. `odds` = (above, max] a kill; `hours` = [min, max] expected hours per piece per hero at the
    ground's floor, for rows at or under `oddsMax` a kill (an hours band is never a common). */
@@ -48,8 +51,12 @@ export const BAND_TARGETS = Object.freeze({
   /* a hall's key: one try at a fight you can lose, used up either way (Krell's Hold, lane/b-krells-hold-pack). PROPOSED, the design's "about every
      two hours" held to [1.5, 3] the way Scarce holds its hour to [0.75, 1.5]; its pace guard (drop-tables key-pace) lands with that lane */
   key: hours(1.5, 3),
-  /* the Bestiary's full stage multiplies a boss's relic chance by up to 1.25 (Tyler 2026-10-19): the base sits at
-     125-150 h so a fully studied boss still drops it no faster than every 100 h */
+  /* A GROUND'S VERY RARE PIECE (src/data/luck.js VERY_RARE_HOURS, Tyler 2026-11-20 "really rare drops and strong gear" past Krell): every
+     60-90 h a hero at Magic Find 0, moved by Magic Find in full, never salvaged for rivets. No ground carries one until the Morrow Hills. */
+  very_rare: hours(VERY_RARE_HOURS[0], VERY_RARE_HOURS[1]),
+  /* Magic Find closes a Trophy row on +25% and never reaches it (src/data/luck.js LUCK_RULES trophyMaxPm, Tyler's own 2026-10-19 ceiling
+     for a fully studied boss, now Luck's): the base sits at 125-150 h so no Luck drops it faster than every 100 h. `boostMax` is that
+     ceiling, the one tests/hunt-core/drop-tables.mjs holds the Trophy pace to at the far stop. */
   trophy: Object.freeze({ ...hours(100, 150), boostMax: 1.25 }),
 });
 

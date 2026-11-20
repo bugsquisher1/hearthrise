@@ -42,45 +42,77 @@ function slopeOf(px, py, r) {
   const d = [['N', (py - Y0) * FORE], ['S', Y1 - py], ['W', px - X0], ['E', X1 - px]].sort((a, b) => a[1] - b[1]);
   return { f: d[0][0], g: d[1][0], gap: d[1][1] - d[0][1], e: { N: py - Y0, S: Y1 - py, W: px - X0, E: X1 - px } };
 }
-export function slateAt(px, py, r, seed, div = null) {
-  if (div) return slateDiv(px, py, div, seed);
-  const s = slopeOf(px, py, r), pair = s.f + s.g;
-  const ridge = pair === 'NS' || pair === 'SN', lightSide = s.f === 'N' || s.f === 'W';
-  if (ridge && s.gap <= 5) return s.gap > 4 ? C.void : s.f === 'N' ? (s.gap <= 1.5 ? C.i2 : C.s1) : (s.gap <= 1.5 ? C.s1 : s.gap <= 3 ? C.s0 : C.sh);
-  if (!ridge && s.gap <= 2.5) return s.gap <= 1 ? (lightSide ? C.i2 : C.s0) : lightSide ? C.s1 : C.sh;
-  const vert = s.f === 'W' || s.f === 'E', h = s.f === 'N' ? 4 : s.f === 'S' ? 5 : 6, e = s.e[s.f];
-  const k = Math.floor(e / h), row = e - k * h, fs = 'NSWE'.indexOf(s.f);
-  const along = vert ? py : px, w = (vert ? 9 : 9) + Math.floor(hash2(k, seed + fs, 6) * 4), off = Math.floor(hash2(k, seed + fs, 5) * 13);
-  const j = Math.floor((along + off) / w), a = (along + off) - j * w;
-  const body = ({ N: NORTH_BODY, S: SOUTH_BODY, W: WEST_BODY, E: EAST_BODY })[s.f], pick = body[Math.floor(hash2(j, k * 4 + fs, seed + 7) * body.length)];
-  if (hash2(j, k * 4 + fs, seed + 8) < 0.012 && a > 1 && a < w - 1) return row === 1 ? C.e0 : C.sh2;
-  /* each course from its eave inward: the lit lip, the body, the gap under the next course's lip; the joint stops short of the lip */
-  if (row === 0) return lightSide ? (s.f === 'N' ? C.i2 : C.s1) : C.s0;
-  if (row === h - 1) return C.sh;
-  if (a === 0 && (row === h - 2 || hash2(j, k, seed + 4) < 0.5)) return C.sh;
-  if (row === h - 2 && !lightSide) return pick === C.i0 ? C.sh2 : C.i0;
+/* b7 (CR) ranked 5, "a ridge sag and a broken slate rhythm (the pinstripe is unchanged)": every course was the same height and ran
+   dead straight, so each band read as ruled lines. Now (a) a course's height is its own (the slope's pitch -1/0/+1 px, never under 3);
+   (b) the courses bow: the further from the eave the more they sag at the middle of the slope's run (up to 5 px), with a slow waver,
+   so the lines curve and the eave alone stays straight; (c) about one slate in twelve sits lifted (its shadow showing under its lip,
+   its gap filled); (d) a lip worn dull on about one slate in four; (e) one slate in ten a step lighter or darker. The divider's ridge
+   bows too (up to 4 px off its line at the middle of its run, a waver along it) and its courses follow it. */
+const LIGHTER = Object.freeze({ [C.i0]: C.s0, [C.s0]: C.i1, [C.i1]: C.s1, [C.sh2]: C.i0, [C.s1]: C.i2 });
+const DARKER = Object.freeze({ [C.s0]: C.i0, [C.i1]: C.s0, [C.i0]: C.sh2, [C.s1]: C.i1, [C.sh2]: C.sh });
+const COURSES = new Map();
+/** The course a distance `e` from the eave falls in, on a slope of pitch `h` whose courses are each their own height. */
+function courseOf(e, h, key) {
+  let t = COURSES.get(key + '|' + h);
+  if (!t) { t = [0]; for (let k = 0; t[k] < 1200; k++) t.push(t[k] + Math.max(3, h + [-1, 0, 0, 1][Math.floor(hash2(k, key, 63) * 4)])); COURSES.set(key + '|' + h, t); }
+  const E = Math.max(0, Math.min(1199, e)); let k = 0; while (t[k + 1] <= E) k++;
+  return { k, row: Math.floor(E - t[k]), hk: t[k + 1] - t[k] };
+}
+/* the sag grows with the distance from the eave (each course a little more than the one below it, so no two courses step at the same
+   place and no seam runs across them), a slow waver on it */
+const bow = (along, a0, L, e, key) => {
+  const t = Math.max(0, Math.min(1, (along - a0) / L)), deep = Math.min(1, e / 160);
+  return e - (5 * Math.sin(Math.PI * t) + (noise(along, key, 90, 61) - 0.5) * 2) * deep;
+};
+/** A course's slate, given its course (k, row, hk), its place along (j, a, w): lifted, worn, a step off its slope's tone. */
+function slateIn(k, row, hk, j, a, w, key, body, lightSide, lip) {
+  let pick = body[Math.floor(hash2(j, k * 4 + key, 7) * body.length)];
+  const tn = hash2(j, k * 4 + key, 65); if (tn < 0.05) pick = LIGHTER[pick] || pick; else if (tn > 0.95) pick = DARKER[pick] || pick;
+  if (hash2(j, k * 4 + key, 8) < 0.012 && a > 1 && a < w - 1) return row === 1 ? C.e0 : C.sh2;
+  const lifted = hash2(j, k * 4 + key, 66) < 0.085 && a > 0, worn = hash2(j, k * 4 + key, 67) < 0.25;
+  if (lifted) { if (row === 0) return C.sh2; if (row === 1) return lip; if (a === 1) return LIGHTER[pick] || pick; return pick; }
+  if (row === 0) return worn ? pick : lip;
+  if (row === hk - 1) return C.sh;
+  if (a === 0 && (row === hk - 2 || hash2(j, k, 4 + key) < 0.5)) return C.sh;
+  if (row === hk - 2 && !lightSide) return pick === C.i0 ? C.sh2 : C.i0;
   if (a === 1) return pick === C.i0 ? C.s0 : pick === C.s0 ? C.i1 : pick;
   return pick;
+}
+export function slateAt(px, py, r, seed, div = null) {
+  if (div) return slateDiv(px, py, div, seed, r);
+  const s = slopeOf(px, py, r), pair = s.f + s.g;
+  const ridge = pair === 'NS' || pair === 'SN', lightSide = s.f === 'N' || s.f === 'W';
+  /* the hips and the ridge waver a pixel either way, never a ruler line */
+  const gap = s.gap + (noise(px, py, 17, seed + 71) - 0.5) * 2.2;
+  if (ridge && gap <= 5) return gap > 4 ? C.void : s.f === 'N' ? (gap <= 1.5 ? C.i2 : C.s1) : (gap <= 1.5 ? C.s1 : gap <= 3 ? C.s0 : C.sh);
+  if (!ridge && gap <= 2.5) return gap <= 1 ? (lightSide ? C.i2 : C.s0) : lightSide ? C.s1 : C.sh;
+  const vert = s.f === 'W' || s.f === 'E', h = s.f === 'N' ? 4 : s.f === 'S' ? 5 : 6, fs = 'NSWE'.indexOf(s.f), key = seed * 4 + fs;
+  const along = vert ? py : px, a0 = vert ? r[1] * T : r[0] * T, L = vert ? (r[3] + 1 - r[1]) * T : (r[2] + 1 - r[0]) * T;
+  const { k, row, hk } = courseOf(bow(along, a0, L, s.e[s.f], key), h, key);
+  const w = 9 + Math.floor(hash2(k, seed + fs, 6) * 4), off = Math.floor(hash2(k, seed + fs, 5) * 13);
+  const j = Math.floor((along + off) / w), a = (along + off) - j * w;
+  const body = ({ N: NORTH_BODY, S: SOUTH_BODY, W: WEST_BODY, E: EAST_BODY })[s.f];
+  return slateIn(k, row, hk, j, a, w, key, body, lightSide, lightSide ? (s.f === 'N' ? C.i2 : C.s1) : C.s0);
 }
 
 /**
  * A DIVIDER's roof (round 3: "the inner bands read as plan walls"): the strip of roof between two rooms, `div` = [x0, x1] its px span,
  * runs north-south with its own ridge down its middle (a lit cap, a dark one), the west slope lit, the east a step down, its courses
- * parallel to the ridge (6 px), the slates staggered along it. Past its span (a torn overhang) the outer course carries on.
+ * parallel to the ridge (6 px, each its own), the slates staggered along it. Past its span (a torn overhang) the outer course carries on.
  */
-function slateDiv(px, py, div, seed) {
-  const [x0, x1] = div, c = (x0 + x1) / 2, d = px - c, west = d < 0, ad = Math.abs(d);
+function slateDiv(px, py, div, seed, r) {
+  const [x0, x1] = div, key = seed * 4 + 7 + x0, c0 = (x0 + x1) / 2;
+  /* the ridge bows off its line at the middle of the range's depth, with a waver along it; the courses follow it, the edges stay */
+  const t = Math.max(0, Math.min(1, (py - r[1] * T) / ((r[3] + 1 - r[1]) * T)));
+  const c = c0 + 4 * Math.sin(Math.PI * t) + (noise(0, py, 29, key + 3) - 0.5) * 2, sh = c - c0;
+  const d = px - c, west = d < 0, ad = Math.abs(d);
   if (ad <= 1.5) return west ? C.i2 : C.s0;
   if (ad <= 2.5) return west ? C.s1 : C.sh;
-  const e = Math.max(0, west ? px - x0 + 12 : x1 + 12 - px), k = Math.floor(e / 6), row = e - k * 6;
+  const e = Math.max(0, west ? px - x0 + 12 - sh * Math.max(0, Math.min(1, (px - x0) / (c0 - x0))) : x1 + 12 - px + sh * Math.max(0, Math.min(1, (x1 - px) / (x1 - c0)))), side = west ? 0 : 1;
+  const { k, row, hk } = courseOf(e, 6, key + side);
   const w = 9 + Math.floor(hash2(k, seed + (west ? 11 : 12), 6) * 4), off = Math.floor(hash2(k, seed + (west ? 11 : 12), 5) * 13);
-  const j = Math.floor((py + off) / w), a = (py + off) - j * w, body = west ? WEST_BODY : EAST_BODY;
-  const pick = body[Math.floor(hash2(j, k * 2 + (west ? 0 : 1), seed + 7) * body.length)];
-  if (row === 0) return west ? C.s1 : C.s0;
-  if (row === 5) return C.sh;
-  if (a === 0 && (row === 4 || hash2(j, k, seed + 4) < 0.5)) return C.sh;
-  if (row === 4 && !west) return pick === C.i0 ? C.sh2 : C.i0;
-  return pick;
+  const j = Math.floor((py + off) / w), a = (py + off) - j * w;
+  return slateIn(k, row, hk, j, a, w, key + side, west ? WEST_BODY : EAST_BODY, west, west ? C.s1 : C.s0);
 }
 /** The divider spans of a grid: (cx, cy) -> [x0, x1] px when that mass cell is in a run of at most 3 cells with a room either side. */
 export function dividersOf(grid, indoor) {

@@ -97,7 +97,7 @@ export default Object.freeze({
     {"id":"mh_straw_burst","x":11,"y":7},
     {"id":"mh_sack_spilt","x":4,"y":15},
     {"id":"cr_brew_kettle","x":46,"y":8},
-    {"id":"cr_brew_kettle","x":52,"y":16},
+    {"id":"cr_brew_kettle_shut","x":52,"y":16},
     {"id":"mh_sacks","x":51,"y":7},
     {"id":"mh_kegs","x":38,"y":26},
     {"id":"mh_keg_spilt","x":42,"y":32},

@@ -232,8 +232,8 @@ export const REGION_KITS = Object.freeze({
     units: ids('troll_picker slate_thrower troll_brewer stable_troll the_landlord'),
     sets: ids('morrowfolk morrow'),
     grounds: Object.freeze({
-      /* STAGED (src/data/grounds/carters_rest): the Brewhouse's copper */
-      carters_rest: Object.freeze({ family: 'morrow', signature: ids('cr_brew_kettle') }),
+      /* STAGED (src/data/grounds/carters_rest): the Brewhouse's two coppers (the second with its lid down) */
+      carters_rest: Object.freeze({ family: 'morrow', signature: ids('cr_brew_kettle cr_brew_kettle_shut') }),
     }),
     pending: ids(''),
   }),

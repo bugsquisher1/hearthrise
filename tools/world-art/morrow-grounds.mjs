@@ -261,18 +261,44 @@ function roadWear(g, grid) {
     if (side === 'N') { if (moorNear(px, py, Math.ceil(r / 2)) === 'N') verge += step(px, py, -1); }
     else if (side) verge += step(px, py, hexAt(g, p) === '#2a1c14' ? 2 : 1);
   }
-  /* stones: in clusters (where the road is stonier), 2-4 px each, a dark foot and outline, the top a step over the road and its
-     upper-left pixel lit; never two touching. The floor cap (capFloor) keeps every lit pixel under the dimmest actor */
-  for (let gy = 0; gy < g.height; gy += 7) for (let gx = 0; gx < g.width; gx += 7) {
-    const px = gx + Math.floor(hash2(gx, gy, 21) * 5), py = gy + Math.floor(hash2(gx, gy, 22) * 5);
-    /* b5 (CR): the clusters repeated and the road was busier than the Ox Road's: fewer, sparser */
-    if (px + 5 >= g.width || py + 5 >= g.height || noise(px, py, 56, 25) < 0.7 || hash2(gx, gy, 23) > 0.8) continue;
-    if (![[0, 0], [4, 4]].every(([dx, dy]) => isR(Math.floor((px + dx) / T), Math.floor((py + dy) / T)) && EARTH.has(hexAt(g, ((py + dy) * g.width + px + dx) * 4)))) continue;
-    const sz = 2 + Math.floor(hash2(gx, gy, 24) * 3), put = (x, y, h) => g.data.set(rgb(h), ((py + y) * g.width + px + x) * 4);
-    for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) if (!(sz > 2 && (x + y === 0 || (x === sz - 1 && y === sz - 1)))) put(x, y, x + y === (sz > 2 ? 1 : 0) ? '#6a6865' : '#4f4e52');
-    for (let x = 0; x < sz; x++) put(x + 1, sz, '#17141a');
-    put(sz, sz - 1, '#17141a');
-    peb++;
+  /* stones: in clusters (where the road is stonier), a dark foot and outline, the top a step over the road and its upper-left pixel
+     lit; never two touching. The floor cap (capFloor) keeps every lit pixel under the dimmest actor.
+     b7 (CR) ranked 7, "break the pebble-cluster repeat": the stones stood on a 7 px lattice inside blobs of one noise field, so every
+     cluster was the same even spray of same-size dots. Now each stretch of road (90-200 px) has a cluster or not, each its own: a
+     length and a depth (strung out along the road where wheels dragged it, or a tight knot), a count (3-14), stones thickest at its
+     core and thinning out, mostly 2 px, some 3, a few 4-5, half of them round one larger flat stone; and a little loose grit between */
+  const occ = new Uint8Array(g.width * g.height);
+  const free = (x0, y0, sz) => { for (let y = y0 - 1; y <= y0 + sz + 1; y++) for (let x = x0 - 1; x <= x0 + sz + 1; x++) { if (x < 0 || y < 0 || x >= g.width || y >= g.height || occ[y * g.width + x]) return false; } return true; };
+  const onRoad = (x0, y0, sz) => [[0, 0], [sz, sz], [sz, 0], [0, sz]].every(([dx, dy]) => isR(Math.floor((x0 + dx) / T), Math.floor((y0 + dy) / T)) && EARTH.has(hexAt(g, ((y0 + dy) * g.width + x0 + dx) * 4)));
+  const stone = (px, py, sz) => {
+    if (px < 1 || py < 1 || px + sz + 2 >= g.width || py + sz + 2 >= g.height || !free(px, py, sz) || !onRoad(px, py, sz + 1)) return 0;
+    const put = (x, y, hx) => { g.data.set(rgb(hx), ((py + y) * g.width + px + x) * 4); occ[(py + y) * g.width + px + x] = 1; };
+    const round = sz > 2, cut = (x, y) => round && ((x + y === 0) || (x === sz - 1 && y === 0 && sz > 3) || (x === 0 && y === sz - 1 && sz > 3) || (x === sz - 1 && y === sz - 1));
+    for (let y = 0; y < sz; y++) for (let x = 0; x < sz; x++) if (!cut(x, y)) put(x, y, x + y <= (sz > 3 ? 2 : round ? 1 : 0) && !(x + y === 0 && round) ? '#6a6865' : x + y >= 2 * sz - 3 && sz > 3 ? '#3a3a3e' : '#4f4e52');
+    for (let x = 0; x < sz; x++) if (!cut(x, sz - 1) || x > 0) put(x + 1, sz, '#17141a');
+    for (let y = 0; y < sz; y++) put(sz, y + (y === 0 && round ? 1 : 0), '#17141a');
+    return 1;
+  };
+  for (let a0 = 0; a0 < len; ) {
+    const L = 90 + Math.floor(hash2(a0, 1, 601) * 110), k = a0;
+    a0 += L;
+    if (hash2(k, 2, 603) > 0.55) continue;
+    const ca = k + L * (0.2 + 0.6 * hash2(k, 3, 605)), mid = raw[Math.min(len - 1, Math.round(ca))]; if (mid == null) continue;
+    const cb = mid + (hash2(k, 4, 607) - 0.5) * 70, strung = hash2(k, 5, 609) < 0.4;
+    const ra = strung ? 22 + hash2(k, 6, 611) * 26 : 6 + hash2(k, 6, 611) * 10, rb = strung ? 3 + hash2(k, 7, 613) * 4 : 4 + hash2(k, 7, 613) * 7;
+    const n = 3 + Math.floor(hash2(k, 8, 615) * 12);
+    if (hash2(k, 9, 617) < 0.5) { const [bx, by] = at(Math.round(ca), Math.round(cb)); peb += stone(bx, by, 5 + Math.floor(hash2(k, 10, 619) * 2)); }
+    for (let i = 0, tries = 0; i < n && tries < n * 6; tries++) {
+      const r = Math.sqrt(hash2(k, 20 + tries, 621)) ** 1.6, th = hash2(k, 21 + tries, 623) * Math.PI * 2;
+      const q = hash2(k, 22 + tries, 625), sz = r < 0.35 && q < 0.25 ? 4 : q < 0.25 ? 3 : q > 0.93 ? 1 : 2;
+      const [x, y] = at(Math.round(ca + Math.cos(th) * ra * r), Math.round(cb + Math.sin(th) * rb * r));
+      if (stone(x, y, sz)) { i++; peb++; }
+    }
+  }
+  /* loose grit: single dark-footed chips here and there, never in a pattern */
+  for (let i = 0; i < Math.floor(len / 14); i++) {
+    const a = Math.floor(hash2(i, 31, 631) * len), m = raw[a]; if (m == null) continue;
+    const [x, y] = at(a, Math.round(m + (hash2(i, 32, 633) - 0.5) * 90)); peb += stone(x, y, 1);
   }
   return { rut, verge, peb };
 }
@@ -327,6 +353,24 @@ function warmSlate(g, grid) {
   }
   for (let i = 0; i < 260; i++) { const x = Math.floor(hash2(i, 1, 849) * g.width), y = Math.floor(hash2(i, 2, 851) * g.height); if (grid[y >> 5][x >> 5] !== 'M' || grid[(y + 6) >> 5][(x + 7) >> 5] !== 'M') continue;
     for (let b = 0; b < 4; b++) for (let a = 0; a < 7; a++) g.data.set(rgb(b === 0 ? '#0b0a0c' : b === 3 ? '#4f4e52' : '#17141a'), ((y + b) * g.width + x + a) * 4); }
+  return n;
+}
+/** The boards over every pixel reseam laid from the B fill tile (matAt 'B' and still the tile's own texel): the knot lattice out. */
+function replank(img, grid, fill, matAt) {
+  const h = grid.length, w = grid[0].length, pl = createImage(img.width, img.height);
+  const near = (cx, cy) => { for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if ((grid[cy + dy] || '')[cx + dx] === 'B') return true; return false; };
+  let n = 0;
+  for (let cy = 0; cy < h; cy++) for (let cx = 0; cx < w; cx++) {
+    if (!near(cx, cy)) continue;
+    planks(pl, cx, cy, fill);
+    for (let v = 0; v < T; v++) for (let u = 0; u < T; u++) {
+      const X = cx * T + u, Y = cy * T + v; if (matAt(X, Y) !== 'B') continue;
+      const p = (Y * img.width + X) * 4, q = (v * T + u) * 4;
+      if (img.data[p] !== fill.data[q] || img.data[p + 1] !== fill.data[q + 1] || img.data[p + 2] !== fill.data[q + 2]) continue;
+      if (img.data[p] === pl.data[p] && img.data[p + 1] === pl.data[p + 1] && img.data[p + 2] === pl.data[p + 2]) continue;
+      img.data.set(pl.data.subarray(p, p + 4), p); n++;
+    }
+  }
   return n;
 }
 /* b5 (CR) ranked 3: the dirt edges, the straw and wheel-track patches ruler-straight and the track's L turn square: where earth, straw
@@ -591,6 +635,10 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   }
   const r = reseam(img, Object.assign({ rows: phased, fills }, SEAMS, { mats: mats2, pairs }, ox ? { trails: OX_TRAILS } : {}));
   img = r.img;
+  /* b7 (CR) ranked 1: reseam lays a border band from the B fill tile (its knots every 32 px), so the porch, the passages and the
+     taproom's edges still showed the old lattice; every pixel it laid from that tile takes the rule-drawn boards instead */
+  const reboarded = inn ? replank(img, grid, fills.B, r.matAt) : 0;
+
   let toned = 0;
   for (const [ch, m] of Object.entries(mats)) toned += stepPatches(img, { rows: seamRows, on: (c) => c === ch, scale: 70, cut: 0.56, seed: m.v.seed + 100, map: toneMap(m.fill) });
   let road = ox ? null : { ...roadWear(img, grid), ...roadDown(img, grid) };
@@ -602,7 +650,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   const wandered = ox ? 0 : wanderEdges(img, grid);
   /* b6 (CR) ranked 3: the straw trodden out of the stable ended on a line; it frays into the earth now */
   const frayed = ox ? 0 : strawFray(img, grid, mats.E.fill);
-  void frayed;
+
   const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
   /* the Ox Road wears its road by its own rule (morrow-ox.mjs oxRoad: every pixel under 0.07, structure instead of light), after the
      moor's patches: its edge is warped across the cell line, and the heath pass (cell by cell) would cut it back to the grid */
@@ -639,7 +687,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   for (const [x, y] of chimneys) chimney(img, P.plain[1], x, y);
   const warm = warmSlate(img, grid);
   const walls = layWalls(img, grid, P, indoor);
-  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed, debris, warm, steps, pools } };
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed, debris, warm, steps, pools, reboarded, frayed } };
 }
 
 export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);

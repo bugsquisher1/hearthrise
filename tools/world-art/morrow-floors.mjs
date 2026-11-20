@@ -34,9 +34,12 @@ export function brewBricks(g, grid, doorway, ch = 'F', seed = 131) {
     /* b5 (CR): running-bond brick read as a wall laid flat; the floor is worn FLAGS, each stone its own size (a jittered lattice of
        about 15 px, warped), its own tone, the joints dark */
     const wx = px + (noise(px, py, 11, seed + 40) - 0.5) * 7, wy = py + (noise(px, py, 11, seed + 41) - 0.5) * 7, S = 15, gx0 = Math.floor(wx / S), gy0 = Math.floor(wy / S);
-    let d1 = 1e9, d2 = 1e9, sid = 0; for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) { const sx = (gx0 + a + 0.15 + hash2(gx0 + a, gy0 + b, seed + 42) * 0.7) * S, sy = (gy0 + b + 0.15 + hash2(gx0 + a, gy0 + b, seed + 43) * 0.7) * S, d = Math.hypot(wx - sx, wy - sy); if (d < d1) { d2 = d1; d1 = d; sid = (gx0 + a) * 131 + gy0 + b; } else if (d < d2) d2 = d; }
-    const FLAG = ['#3a3a3e', '#2f2723', '#2c2e33', '#3a3a3e', '#2f2723', '#3d2a1d'];
-    let col = d2 - d1 < 1.3 ? '#17141a' : FLAG[Math.floor(hash2(sid, 1, seed + 44) * FLAG.length)];
+    let d1 = 1e9, d2 = 1e9, sid = 0, cx = 0, cy = 0; for (let b = -1; b <= 1; b++) for (let a = -1; a <= 1; a++) { const sx = (gx0 + a + 0.15 + hash2(gx0 + a, gy0 + b, seed + 42) * 0.7) * S, sy = (gy0 + b + 0.15 + hash2(gx0 + a, gy0 + b, seed + 43) * 0.7) * S, d = Math.hypot(wx - sx, wy - sy); if (d < d1) { d2 = d1; d1 = d; sid = (gx0 + a) * 131 + gy0 + b; cx = sx; cy = sy; } else if (d < d2) d2 = d; }
+    /* b7 (CR) ranked 4: the brown flags stood evenly scattered and warm; the floor is grey stone, the brown ones only where the wort
+       has soaked in over the years (a slow field over the stones' centres), most of those the dull warm grey, a few the earth brown */
+    const soak = noise(cx, cy, 70, seed + 50), pick = hash2(sid, 1, seed + 44);
+    const FLAG = soak > 0.66 ? (pick < 0.4 ? '#3d2a1d' : '#2f2723') : soak > 0.56 ? (pick < 0.5 ? '#2f2723' : pick < 0.8 ? '#2c2e33' : '#3a3a3e') : (pick < 0.5 ? '#3a3a3e' : pick < 0.93 ? '#2c2e33' : '#231d1f');
+    let col = d2 - d1 < 1.3 ? '#17141a' : FLAG;
     if (d2 - d1 < 2.4 && d2 - d1 >= 1.3 && hash2(px, py, seed + 45) > 0.5) col = '#231d1f';
     /* wet: stains of every size (two scales), a step down, water standing in the joints inside them */
     const damp = Math.max(noise(px * 1.1 + 17, py * 0.9, 41, seed + 12), noise(px, py, 13, seed + 46) - 0.06);

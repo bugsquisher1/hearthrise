@@ -75,6 +75,8 @@ declare
     'hr_tick_enrolment', 'hr_tick_horizon_log', 'hr_tick_ownership', 'hr_tick_probe', 'hr_tick_shadow', 'hr_world_notices',
     'hunt_bag', 'hunt_bests', 'hunt_density', 'hunt_instances', 'hunt_parties', 'hunt_party_invites', 'hunt_party_members',
     'hunt_session_events', 'hunt_session_tally', 'hunt_sessions', 'hunt_tick_lease',
+    /* an open hunt session's held setup to its seed horizon (1005-lever-horizon.sql): goes with the sessions it holds for */
+    'hunt_setup_holds',
     'account_gold_given', 'player_titles', 'town_shows', 'town_works_gifts', 'town_works_totals',
     /* scaled hunts' banked hours (2027-03-21-scaled-hunts.sql): a hero's, bought with gold the wipe also clears */
     'player_scaled_hours',

@@ -566,7 +566,7 @@
    "hr-hunt-party-sweep | * * * * * | select public.hr_hunt_party_sweep(200)",
    "hr-intents-prune | 17 * * * * | select public.hr_intents_prune()",
    "hr-kill-credit-prune | 40 4 * * * | select public.hr_kill_credit_prune()",
-   "hr-ledger-prune | 7 * * * * | select public.hr_ledger_prune(20000)",
+   "hr-ledger-prune | 2-57/5 * * * * | select public.hr_ledger_prune(20000)",
    "hr-live-events-announce | * * * * * | select public.hr_live_events_announce()",
    "hr-market-expire | */5 * * * * | select public.hr_market_expire(200)",
    "hr-market-sales-prune | 45 3 * * * | select public.market_sales_prune()",
@@ -2207,6 +2207,11 @@
    "class": "restore_only",
    "wiped_at_cutover": false,
    "note": "PLAYER VALUE — one row per hunt, at most one OPEN per character. An open row OWNS the packed bag (hunt_bag) and the activity pointer; a rebuild that returned it EMPTY would orphan every bag line still out on a hunt (the items are no longer in player_inventory). Written only by the hunt-session RPCs and hr_hunt_settle_session; RLS own-read, no client write."
+  },
+  "hunt_setup_holds": {
+   "class": "operational",
+   "wiped_at_cutover": false,
+   "note": "THE SETUP AN OPEN HUNT PLAYS UNTIL ITS SEED HORIZON — created 1005-lever-horizon.sql, ships EMPTY. One row per lever pulled mid-hunt (a bar, option, setup or First target change), written only by trigger hr_hunt_setup_hold before the lever's write lands, read by hr_hunt_setup_of, pruned at the next lever once no window can start under it (a few hundred rows at 100x players). No player value: it only holds a change back for at most 32 s plus one window. Coming back EMPTY costs that: a lever pulled in the last half minute before the backup lands at the next window instead of past its horizon. RLS enabled, zero policies, zero grants."
   },
   "hunt_tick_lease": {
    "class": "operational",

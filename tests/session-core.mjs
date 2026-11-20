@@ -61,8 +61,8 @@
 //   VIEW-2 switching the viewed character asks the newly viewed one ONE settle and nothing else: statuses,
 //          topics, listeners and every other character's calls are exactly as before
 //   VIEW-3 only the viewed character streams live (CLAUDE.md §6): in a four-hero party hunt the viewed one asks
-//          at most 5 a minute, an unviewed one makes at most 1 call a minute and never asks the engine; a switch
-//          shows the server's state at once; an unviewed hero's hunt end reaches its record within a minute
+//          at most 5 a minute, an unviewed one makes NO call (its frames are its feed: 11-19 server audit row 5); a switch
+//          minutes later shows the server's state at once; an unviewed hero's hunt end reaches its record by its frame
 //   ACC-2  the roster is the server's owned slots (hero_slots), bounded; a slot whose
 //          character has no name (hr_load needs_name) reads as unnamed, not as a hero;
 //          create is ONE hr_create_hero with the name, the four colours and an idem key
@@ -480,12 +480,12 @@ async function rules(M) {
     if (!(due() > first)) return 'a frame did not defer the re-read (still due at ' + due() + ', armed for ' + first + ')';
     return srv.calls.filter((c) => c[0] === 'accrue').length === 0 || 'a frame asked the engine';
   });
-  /* HUNT-4 (lane a-client-load): the push is the feed, the re-read the fallback. An unviewed hunter fed a frame every
-     10 s makes no call for three minutes; when its channel is lost (an error) the re-read goes out AT ONCE, not a whole
-     deferral later (a frame may have been missed); a flapping channel asks once, not per drop; with the channel back
-     and quiet, the re-reads keep their own minute. */
+  /* HUNT-4 (lane a-client-load; 11-19 server audit row 5): the push is the feed. An unviewed hunter fed a frame every
+     10 s makes no call for three minutes; when its channel is lost (an error) ONE re-read goes out AT ONCE (a frame may
+     have been missed); a flapping channel asks once, not per drop; with the channel back and quiet, it makes NO call of
+     its own (the 60 s hr_load is gone: the next frame is the whole character). */
   await t('HUNT-4', async () => {
-    const MIN = CFG.SESSION_CONFIG.unviewedPollMs;
+    const MIN = 60000;
     let ver = 1, clock = 0, seq = 0;
     const open = (v) => env(v, { hunt: { session_id: 'h1', hunt_id: 'mill_cellar', ended: false } });
     const calls = [];
@@ -511,18 +511,21 @@ async function rules(M) {
     await until(lost + 500);
     const caught = calls.filter((c) => c.at >= lost);
     if (caught.length !== 1) return 'the lost channel brought ' + caught.length + ' re-read(s) within 0.5 s (one, at once; the deferral ran to ' + (lost - 2000 + MIN) + ')';
+    if (caught[0].name !== 'hr_load') return 'the lost channel\'s catch-up asked ' + caught[0].name + ' (an unviewed hero reads itself with a plain read, never the engine\'s budget)';
     if (cs.record.version !== ver) return 'after the catch-up the record is at ' + cs.record.version + ', the server at ' + ver;
     /* flapping: the re-join fails twice more before it holds; no further catch-up */
     for (let k = 0; k < 2; k++) { await until(clock + 3000); const t2 = hub.topics.get(topic); if (t2) t2.onStatus('CHANNEL_ERROR'); }
     const flaps = calls.filter((c) => c.at > lost + 500 && c.at < clock).length;
     if (flaps) return 'a flapping channel asked ' + flaps + ' more catch-up(s)';
-    /* back and quiet: the re-reads keep their own minute */
+    /* back and quiet: no read of its own (the next frame is the whole character, and viewing it asks at once) */
     await until(clock + 70000);
     const t3 = hub.topics.get(topic); if (t3) t3.onStatus('SUBSCRIBED');
     const back = clock;
     await until(back + 3 * MIN);
     const quiet = calls.filter((c) => c.at > back);
-    return (quiet.length >= 2 && quiet.length <= 4 && quiet.every((c) => c.name === 'hr_load')) || 'with the channel back and quiet the hunter read ' + quiet.length + ' time(s) in three minutes (about one a minute, plain reads): ' + quiet.map((c) => c.name + '@' + (c.at - back)).join(',');
+    if (quiet.length) return 'with the channel back and quiet the unviewed hunter read ' + quiet.length + ' time(s) in three minutes (none): ' + quiet.map((c) => c.name + '@' + (c.at - back)).join(',');
+    ver++; hub.send(topic, { t: 'state', frame: ver, env: open(ver) });
+    return cs.record.version === ver || 'the frame after the quiet did not bring the record to the server\'s ' + ver + ' (at ' + cs.record.version + ')';
   });
   /* ASK-1 (live 10-23, Andy's four-hero party: 1,906 `rate_limited` refusals in a day). hr_rate_gate's accrue
      budget, 30 a minute, is the ACCOUNT's (hr_rate_counters is keyed on user and bucket), so ONE character
@@ -1533,31 +1536,38 @@ async function rules(M) {
     await run(5 * MIN);
     const viewedRate = inWindow(0, MIN, 5 * MIN).length / 4;
     if (viewedRate > 5) return 'the viewed hero made ' + viewedRate + ' calls a minute (at most 5)';
+    /* UNVIEWED (11-19 server audit row 5): no read of its own, with the push channel quiet too (the minute's hr_load is gone) */
     for (const s of [1, 2, 3]) {
       const c = inWindow(s, MIN, 5 * MIN);
-      if (c.length / 4 > 1) return 'unviewed hero ' + s + ' made ' + c.length / 4 + ' calls a minute (at most 1): ' + c.map((x) => x.name).slice(0, 6).join(',');
-      if (c.some((x) => x.name === 'accrue')) return 'unviewed hero ' + s + ' asked the engine (it reads itself with a plain read)';
+      if (c.length) return 'unviewed hero ' + s + ' made ' + c.length + ' calls in four minutes (none: its frames are its feed): ' + c.map((x) => x.name).slice(0, 6).join(',');
     }
-    /* the switch: ONE settle of the newly viewed hero, its record at the server's version at once; the one left goes quiet */
+    /* the switch, minutes after hero 2 was last read while its server moved on: ONE settle of the newly viewed hero, its record
+       at the server's version at once; the one left goes quiet */
     const at = clock.t;
+    if (!(acc.character(2).record.version < ver[2])) return 'CONTROL: hero 2\'s server never moved while it was off screen (' + acc.character(2).record.version + ' / ' + ver[2] + ')';
     if (!acc.view(2)) return 'view(2) refused';
     await run(at + LAT + 200);
     const asked = inWindow(2, at, at + LAT + 200);
     if (asked.length !== 1 || asked[0].name !== 'accrue') return 'the switch asked ' + JSON.stringify(asked.map((x) => x.name)) + ' of the newly viewed hero (one settle)';
     if (acc.character(2).record.version !== ver[2]) return 'the switched-to hero shows version ' + acc.character(2).record.version + ', the server ' + ver[2];
+    if (JSON.stringify(acc.character(2).read('hunt')) !== JSON.stringify(envOf(2).hunt)) return 'the switched-to hero shows ' + JSON.stringify(acc.character(2).read('hunt')) + ', the server ' + JSON.stringify(envOf(2).hunt);
     if (inWindow(0, at, at + LAT + 200).length || inWindow(1, at, at + LAT + 200).length) return 'the switch asked something of a hero it did not show';
     await run(at + 3 * MIN);
     const left = inWindow(0, at + MIN, at + 3 * MIN);
-    if (left.length / 2 > 1 || left.some((x) => x.name === 'accrue')) return 'the hero switched away from kept asking the engine (' + left.length + ' calls in 2 minutes)';
-    /* an unviewed hero's hunt ends on the server: its record says so within a minute */
+    if (left.length) return 'the hero switched away from kept asking (' + left.length + ' calls in 2 minutes): ' + left.map((x) => x.name).slice(0, 4).join(',');
+    /* THE PUSH CHANNEL UP: each settle of the viewed hero (2) reaches every other member as a whole frame, so an
+       unviewed hero makes NO call while the frames come and is at the server's version */
+    pushUp = true;
+    /* an unviewed hero's hunt ends on the server: its own frame brings the end, with no call of its own */
     const endAt = clock.t;
     ended[3] = true; ver[3] += 1;
-    await run(endAt + MIN + LAT + 200);
+    hub.send(C.frameTopic(UID, 3), { t: 'state', frame: ver[3], env: envOf(3) });
+    await run(endAt + LAT + 200);
     const h3 = acc.character(3).record.data.hunt;
-    if (!(h3 && h3.ended === true)) return 'an unviewed hero\'s hunt end did not reach its record within a minute';
-    /* THE PUSH CHANNEL UP: each settle of the viewed hero (2) reaches every other member as a whole frame, so an
-       unviewed hero makes NO call while the frames come (its read is deferred, the fallback) and is at the server's version */
-    pushUp = true;
+    if (!(h3 && h3.ended === true)) return 'an unviewed hero\'s hunt end did not reach its record by its frame';
+    /* (back in town it says where it stands: hr_town_here is the town's presence, not a read of the hero) */
+    const own = inWindow(3, endAt, clock.t).filter((x) => x.name === 'hr_load' || x.name === 'accrue');
+    if (own.length) return 'the unviewed hero read itself for its own end: ' + own.map((x) => x.name + '@' + (x.at - endAt)).join(',');
     const upAt = clock.t;
     await run(upAt + 3 * MIN);
     for (const s of [0, 1]) {
@@ -2755,9 +2765,10 @@ const MUTANTS = [
   ['TOWER-1 a first read re-reads the others', 'src/session/account-session.js', 'if (climb !== undefined && c !== null && c !== climb) for', 'if (c !== null && c !== climb) for'],
   ['TOWER-1 every envelope re-reads the others', 'src/session/account-session.js', 'if (climb !== undefined && c !== null && c !== climb) for', 'if (climb !== undefined && c !== null) for'],
   /* VIEW-3 (perf audit 10-23, Part 2: unviewed sessions off the live view) */
-  ['an unviewed hero re-reads at the live pace', 'src/session/character-session.js', 'this._viewed ? pollDelayMs(', 'true ? pollDelayMs('],
+  ['an unviewed hero re-reads at the live pace', 'src/session/character-session.js', "    if (!this._viewed) { if (close !== null) this._poll.arm(Math.max(this._pace.waitMs(), close)); return; }   // only a pending leave's close\n", ''],
   ['an unviewed hero asks the engine', 'src/session/character-session.js', 'const engine = this._viewed || this.leaveAt() !== null;', 'const engine = true;'],
-  ['an unviewed hero reads itself every ten minutes', 'src/session/character-session.js', 'Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity)', 'Math.min(10 * SESSION_CONFIG.unviewedPollMs, close ?? Infinity)'],
+  /* 11-19 server audit row 5: the unviewed minute's hr_load is gone; planted back, VIEW-3 and HUNT-4 see its calls */
+  ['an unviewed hero reads itself every minute again', 'src/session/character-session.js', "    if (!this._viewed) { if (close !== null) this._poll.arm(Math.max(this._pace.waitMs(), close)); return; }   // only a pending leave's close\n", "    if (!this._viewed) { this._poll.arm(Math.max(this._pace.waitMs(), Math.min(60000, close ?? Infinity))); return; }\n"],
   ['a switch asks nothing of the newly viewed hero', 'src/session/character-session.js', '    if (this._viewed) this.hello();\n', ''],
   /* AWAY-TAB (old-laptop player 10-31) */
   ['a page away goes on re-reading', 'src/session/character-session.js', '    if (this._away) { if (close !== null) this._poll.arm(close); return; }   // only a pending leave\'s close (setAway)\n', ''],

@@ -46,8 +46,16 @@
 //         seat 1, not the leader; tyler, seat 3): town -> hunt -> switch hero -> town -> hunt ->
 //         switch back. In every hunt the camera follows the viewed hero's unit, which stands
 //         within one tile of the middle of the World the party panel, analyzer, hunt bar and
-//         action bar leave uncovered, unless that part already meets the room's edge on the
-//         hero's side; and that part never shows past the room
+//         action bar leave uncovered, unless an edge stops the camera there (that part at the
+//         room's edge, the canvas at the art's: NO VOID outranks the middle since the UI audit's
+//         N10, 2026-11-18); the hero's ring (its tile and the tiles touching it) is never under a
+//         panel; and the canvas shows the void past the map only as far as that ring needs
+//   WC-11 NO BLACK BAND IN A HUNT (the UI audit's N10): the Mill Cellar at 1440x900, 1280x800 and
+//         922x423, its start tile all art edge to edge, its patrol's east corner the void only as
+//         far as the hero's ring needs; the WC-7 rules on both
+//   WC-12 THE GREAT HEARTH ON A NEW HERO'S FIRST FRAME (the UI audit's town camera): on hearth_square's
+//         first stand, at 1440x900 the camera looks up the Hearth until its top shows or the hero
+//         stands one tile over the action bar; at 1920x1080 its whole top shows
 //   WC-8  THE TOWN ZOOM: its steps, its presses at each zoom, the phone (see townZoom below)
 //   WC-9  THE TOWN ZOOM IS THE VIEWER'S, NOT THE HERO'S (Andy's report #75: "Apollo's screen is very zoomed out after a hunt, but the others
 //         aren't"): one hero's old bare `townZoom: 1` draws no hero zoomed out; a press on one hero shows on the other and goes into both
@@ -63,10 +71,21 @@ import { join } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { harnessFail, judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
 import WARRENS from '../src/data/world/maps/coppercap_warrens.js';
+import CELLAR from '../src/data/world/maps/mill_cellar.js';
+import { STATION_BY_ID } from '../src/data/world/stations.js';
+import { SHOWPIECES } from '../src/data/world/town/sites.js';
+import { at as planAt } from '../src/data/world/town/plan.js';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/alpha-envelope.json'), 'utf8'));
+/* WC-11: the cellar patrol's east corner (its path's second corner), a panel's width from the art's east edge */
+const CELLAR_EAST = CELLAR.path[1];
+/* WC-12: a new hero's first stand, and the Great Hearth's visible top (art px: its contact row less the art's measured height) */
+const HEARTH_STAND = STATION_BY_ID.hearth_square.stands[0];
+const HEARTH_ART = JSON.parse(await readFile(join(ROOT, 'assets/world/atlas-hearth.json'), 'utf8')).sprites.great_hearth;
+const HEARTH_ROW = SHOWPIECES.find((r) => r.id === 'great_hearth');
+const HEARTH_TOP = (planAt(HEARTH_ROW.x, HEARTH_ROW.y)[1] + HEARTH_ART.footprint[1]) * 32 - 1 - HEARTH_ART.height;
 const clone = (o) => JSON.parse(JSON.stringify(o));
 const ANDY = 'aaaaaaaa-0000-4000-8000-0000000000a1';
 const PEER = 'Bartholomew Underhill';   // a long name: its ends lie beyond the figure's box
@@ -220,8 +239,8 @@ async function stubSlots(page, s) {
     const env = () => (s.env[slot] ? Object.assign(clone(s.env[slot]), { version: ++s.version }) : { ok: false, error: 'no_character' });
     if (name === 'hr_load') return json(env());
     if (name === 'hr-accrue') return json(s.env[slot] ? Object.assign({ accrued: true }, env()) : { accrued: false });
-    if (name === 'hr_town_here') return json({ ok: true, me: STAND });
-    if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: 1, area: [0, 0, 23, 13], gone: [], me: STAND, walkers: [] });
+    if (name === 'hr_town_here') return json({ ok: true, me: s.stand || STAND });
+    if (name === 'hr_town_view') return json({ ok: true, map: body.p_map, inst: 1, cap: 120, full: true, cursor: 1, area: [0, 0, 23, 13], gone: [], me: s.stand || STAND, walkers: [] });
     if (name === 'hr_chat_recent') return json({ ok: true, zone: 'local:town', party: null, lines: [] });
     if (name === 'hr_social_state' || name === 'hr_social_poll') return json({ ok: true, friends: [], incoming: [], outgoing: [], blocks: [] });
     if (name === 'hr_whispers_recent') return json({ ok: true, lines: [] });
@@ -238,29 +257,52 @@ async function moveBoth(page, s, spot) {
   }
 }
 /* The World as it stands: the scene, the unit the camera follows, the viewed hero's tile on screen, the part of
-   the World the four hunt panels leave uncovered (their own boxes) and the room's edges, in client px. */
-const huntView = (page, tile) => page.evaluate(([tx, ty, mw, mh]) => {
+   the World the four hunt panels leave uncovered (their own boxes), the canvas, the strips the camera was told
+   (the backend's inset), the map's art and the room the camera frames (the map's `frame`, else the art), in
+   client px. `map`: the hunt map's row. */
+const huntView = (page, tile, map = WARRENS) => page.evaluate(([tx, ty, mw, mh, fr]) => {
   const w = window.__world, s = w.stats();
   const c = document.querySelector('#panel-world canvas').getBoundingClientRect();
   const box = (id) => { const e = document.querySelector('[data-hs-widget="' + id + '"]'); const r = e && e.getBoundingClientRect(); return r && r.width > 0 ? r : null; };
   const party = box('party'), an = box('analyzer'), top = box('hunt-topbar'), bar = box('action-bar');
   const sz = 32 * s.z / s.dpr, p = w.screenOf(tx, ty), o = w.screenOf(0, 0), e = w.screenOf(mw - 1, mh - 1);
+  const rect = (x0, y0, x1, y1) => { const a = w.screenOf(x0, y0), b = w.screenOf(x1, y1); return a && b && [a.x - sz / 2, a.y - sz / 2, b.x + sz / 2, b.y + sz / 2]; };
   return { kind: s.kind, map: s.scene, unit: s.hunt && s.hunt.hero ? s.hunt.hero.unit : null, tile: sz,
     p: p && [p.x, p.y], open: [party ? party.right : c.left, top ? top.bottom : c.top, an ? an.left : c.right, bar ? bar.top : c.bottom],
-    room: o && e && [o.x - sz / 2, o.y - sz / 2, e.x + sz / 2, e.y + sz / 2] };
-}, [tile[0], tile[1], WARRENS.rows[0].length, WARRENS.rows.length]);
+    canvas: [c.left, c.top, c.right, c.bottom], inset: s.inset,   // CSS px (canvas-backend.js setInset)
+    art: o && e && [o.x - sz / 2, o.y - sz / 2, e.x + sz / 2, e.y + sz / 2],
+    room: fr ? rect(fr[0], fr[1], fr[0] + fr[2] - 1, fr[1] + fr[3] - 1) : o && e && [o.x - sz / 2, o.y - sz / 2, e.x + sz / 2, e.y + sz / 2] };
+}, [tile[0], tile[1], map.rows[0].length, map.rows.length, map.frame || null]);
+/* THE HUNT CAMERA'S RULES ON ONE VIEW (src/world/core/camera.js frameView; Tyler 2026-10-22, and the UI audit's N10,
+   2026-11-18): the hero is off the middle of the uncovered World only where an edge stops the camera (the uncovered
+   World at the room's edge, the canvas at the art's, or the hero's ring at a panel); the hero's ring (its tile and
+   the tiles touching it, 1.5 tiles from its middle) is never under a panel; the canvas shows the void past the map's
+   art only as far as that ring needs (the camera's own strips, the backend's inset). */
+function framed(v, tag) {
+  const out = [], ring = 1.5 * v.tile;
+  for (const [ax, i] of [['x', 0], ['y', 1]]) {
+    /* uncovered: what the panels' own boxes leave and the camera's strips leave, both (a strip the shell never sent, or one
+       wider than its panel, the phone's coach card, still counts) */
+    const clo = v.canvas[i], chi = v.canvas[i + 2], a = v.inset[i ? 'top' : 'left'], b = v.inset[i ? 'bottom' : 'right'];
+    const lo = Math.max(v.open[i], clo + a), hi = Math.min(v.open[i + 2], chi - b), rlo = v.room[i], rhi = v.room[i + 2], alo = v.art[i], ahi = v.art[i + 2];
+    const p = v.p[i], off = p - (lo + hi) / 2;
+    /* the camera was told what the panels cover (measured where it arrives, the backend: 2026-10-22 it had {0,0,0,0}) */
+    if (a < v.open[i] - clo - 2 || b < chi - v.open[i + 2] - 2) out.push(tag + ': the camera\'s strips on ' + ax + ' (' + [a, b].map(Math.round) + ') are short of the panels\' (' + [v.open[i] - clo, chi - v.open[i + 2]].map(Math.round) + ')');
+    const atEdge = off > 0 ? Math.abs(chi - b - rhi) <= 2 || Math.abs(chi - ahi) <= 2 || hi - p <= ring + 2
+      : Math.abs(clo + a - rlo) <= 2 || Math.abs(clo - alo) <= 2 || p - lo <= ring + 2;
+    if (Math.abs(off) > v.tile && !atEdge && rhi - rlo > chi - clo - a - b) out.push(tag + ' stands ' + (off / v.tile).toFixed(1) + ' tiles off the middle of the uncovered World on ' + ax + ', no edge stops the camera (uncovered ' + [lo, hi].map(Math.round) + ', room ' + [rlo, rhi].map(Math.round) + ', canvas ' + [clo, chi].map(Math.round) + ')');
+    if (p - lo < ring - 2 || hi - p < ring - 2) out.push(tag + ': the hero\'s ring is under a panel on ' + ax + ' (hero ' + Math.round(p) + ', uncovered ' + [lo, hi].map(Math.round) + ')');
+    const voidLo = Math.max(0, alo - clo), voidHi = Math.max(0, chi - ahi), needLo = Math.max(0, alo + a + ring - p), needHi = Math.max(0, p + ring + b - ahi);
+    if (ahi - alo >= chi - clo && (voidLo > needLo + 2 || voidHi > needHi + 2)) out.push(tag + ': the World shows the void past the map on ' + ax + ' (' + [voidLo, voidHi].map(Math.round) + ' px; the hero\'s ring needs ' + [needLo, needHi].map(Math.round) + ')');
+  }
+  return out;
+}
 /* WC-7 on one view: `unit` is the viewed hero's, standing on `tile`. */
 function centred(v, who, unit) {
   if (v.kind !== 'hunt' || v.map !== 'coppercap_warrens' || !v.p || !v.room) return ['WC-7 ' + who + ': the World is not on the Warrens hunt (' + v.kind + ' ' + v.map + ')'];
   const out = [];
   if (v.unit !== unit) out.push('WC-7 ' + who + ': the camera follows unit ' + v.unit + ', not the viewed hero (unit ' + unit + ')');
-  for (const [ax, i] of [['x', 0], ['y', 1]]) {
-    const lo = v.open[i], hi = v.open[i + 2], rlo = v.room[i], rhi = v.room[i + 2], off = v.p[i] - (lo + hi) / 2;
-    const atEdge = off > 0 ? Math.abs(hi - rhi) <= 2 : Math.abs(lo - rlo) <= 2;
-    if (Math.abs(off) > v.tile && !atEdge) out.push('WC-7 ' + who + ' stands ' + (off / v.tile).toFixed(1) + ' tiles off the middle of the uncovered World on ' + ax + ', no room edge there (uncovered ' + [lo, hi].map(Math.round) + ', room ' + [rlo, rhi].map(Math.round) + ')');
-    if (rhi - rlo > hi - lo && (lo < rlo - 2 || hi > rhi + 2)) out.push('WC-7 ' + who + ': the uncovered World shows past the room on ' + ax + ' (uncovered ' + [lo, hi].map(Math.round) + ', room ' + [rlo, rhi].map(Math.round) + ')');
-  }
-  return out;
+  return out.concat(framed(v, 'WC-7 ' + who));
 }
 
 async function huntCamera(browser, base) {
@@ -324,12 +366,102 @@ async function huntCamera(browser, base) {
   return fails;
 }
 
+/* One slot signed in and playing `env` on a `viewport` page (stubSlots; `stand`: its town stand), the World hooked. */
+async function playOne(browser, base, viewport, env, stand) {
+  const s = { env: { 0: env }, version: 1, stand: stand || null };
+  const ctx = await browser.newContext({ viewport });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(6000);
+  const errors = [];
+  page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('pageerror', (e) => errors.push('pageerror: ' + e.message));
+  await stubSlots(page, s);
+  await page.goto(base + '/play.html', { waitUntil: 'load', timeout: 30000 });
+  await wait(page, () => document.querySelector('form[data-auth="sign-in"]'));
+  await page.fill('input[name=email]', 'qa@example.test');
+  await page.fill('input[name=password]', 'not-a-real-password');
+  await page.click('.auth-submit');
+  await wait(page, () => document.querySelector('[data-app="play"][data-slot="0"]'));
+  await page.click('[data-app="play"][data-slot="0"]');
+  const up = await wait(page, () => window.__world && window.__world.stats().frames > 0 && document.querySelector('.hs-launchers'));
+  return { ctx, page, errors, up, s };
+}
+const SIZES = [['1440x900', { width: 1440, height: 900 }], ['1280x800', { width: 1280, height: 800 }], ['922x423', { width: 922, height: 423 }]];
+
+/* ── WC-11: NO BLACK BAND IN A HUNT (Tyler's UI audit 2026-11-18, N10) ──
+   The Mill Cellar, the first hunt and the smallest art (24 x 14 tiles), a hero alone with a rat beside it, at
+   1440x900, 1280x800 and the phone's 922x423. On its start tile the canvas is the cellar's art edge to edge (the
+   audit's band: the room clamped only the uncovered World, and the void showed under and below the short panels);
+   on the patrol's east corner, a panel's width from the art's edge, the void shows only as far as the hero's ring
+   needs. The WC-7 rules hold on both. */
+function cellarEnv(at) {
+  const e = clone(FIXTURE);
+  e.state = Object.assign({}, e.state, { active_kind: 'combat', active_id: 'mill_cellar' });
+  e.hunt = Object.assign({}, e.hunt, { hunt_id: 'mill_cellar', hero: Object.assign({}, e.hunt.hero, { unit: 1 }),
+    pose: { at_ms: e.hunt.pose.at_ms, units: [{ u: 1, side: 'hero', x: at[0], y: at[1] }, { u: 101, side: 'monster', kind: 'rat', x: at[0] - 1, y: at[1] }] } });
+  e.hunt_track = [];
+  e.hunt_events = [];
+  e.party = Object.assign({}, e.party, { members: [e.party.members[0]] });
+  return e;
+}
+async function huntVoid(browser, base) {
+  const fails = [];
+  /* each spot on its own mount: the hunt scene walks a moved unit tile by tile (it never jumps one), so a pushed pose is not where the hero stands */
+  for (const [tag, vp] of SIZES) for (const [spot, at] of [['the start tile', CELLAR.start], ['the east corner', CELLAR_EAST]]) {
+    const { ctx, page, errors, up } = await playOne(browser, base, vp, cellarEnv(at));
+    try {
+      const ok = up && await wait(page, ([x, y]) => { const t = window.__world.stats(); return t.kind === 'hunt' && t.scene === 'mill_cellar' && t.hunt && t.hunt.hero
+        && t.hunt.hero.x === x && t.hunt.hero.y === y && document.querySelector('[data-hs-widget="party"]'); }, at);
+      if (!ok) { fails.push('WC-11 [' + tag + '] the Mill Cellar hunt did not mount with the hero on ' + spot); continue; }
+      await page.waitForTimeout(450);
+      const v = await huntView(page, at, CELLAR);
+      fails.push(...framed(v, 'WC-11 [' + tag + '] ' + spot));
+      const past = [v.art[0] - v.canvas[0], v.art[1] - v.canvas[1], v.canvas[2] - v.art[2], v.canvas[3] - v.art[3]].map((d) => Math.max(0, Math.round(d)));
+      if (at === CELLAR.start && past.some((d) => d > 2)) fails.push('WC-11 [' + tag + '] the black band: on the start tile the canvas shows the void past the cellar\'s art (left, top, right, bottom px: ' + past.join(', ') + ')');
+    } finally {
+      if (errors.length) fails.push('WC-11 [' + tag + '] ' + spot + ' console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+  return fails;
+}
+
+/* ── WC-12: THE GREAT HEARTH ON A NEW HERO'S FIRST FRAME (Tyler's UI audit 2026-11-18: the camera centred the hero, so a
+   fresh login never showed the Hearth's chimney, banner and crest) ──
+   The hero on hearth_square's first stand (the server's `me`). At 1440x900 the camera looks up the Hearth until its top
+   shows or the hero stands one tile over the action bar (the art, 390 px, is taller than the World over the bar, 325:
+   the hero cannot stay in view with the cupola too); at 1920x1080 its whole top shows. Either way the hero stands a
+   tile clear of the bar. */
+async function hearthFrame(browser, base) {
+  const fails = [];
+  const [hx, hy] = HEARTH_STAND;
+  for (const [tag, vp, whole] of [['1440x900', { width: 1440, height: 900 }, false], ['1920x1080', { width: 1920, height: 1080 }, true]]) {
+    const { ctx, page, errors, up } = await playOne(browser, base, vp, townEnvFor(0), Object.assign({}, STAND, { station: 'hearth_square', x: hx, y: hy, gx: hx, gy: hy, at: [hx, hy] }));
+    try {
+      if (!up || !(await wait(page, ([x, y]) => { const t = window.__world.stats(); return t.kind === 'town' && t.walk && t.walk.cell[0] === x && t.walk.cell[1] === y; }, HEARTH_STAND))) { fails.push('WC-12 [' + tag + '] the town did not mount with the hero on ' + HEARTH_STAND); continue; }
+      await page.waitForTimeout(450);
+      const v = await page.evaluate(([x, y, top]) => {
+        const w = window.__world, s = w.stats(), c = document.querySelector('#panel-world canvas').getBoundingClientRect();
+        return { p: w.screenOf(x, y), top: w.screenOf(x, top).y, tile: 32 * s.z / s.dpr, edge: c.bottom - s.inset.bottom, canvasTop: c.top };
+      }, [hx, hy, HEARTH_TOP / 32 - 0.5]);
+      const over = v.edge - v.p.y, topShown = v.top >= v.canvasTop - 1;
+      if (over < v.tile - 2) fails.push('WC-12 [' + tag + '] the hero stands ' + Math.round(over) + ' px over the action bar, under a tile');
+      if (!topShown && Math.abs(over - v.tile) > 2) fails.push('WC-12 [' + tag + '] the Hearth\'s top is ' + Math.round(v.canvasTop - v.top) + ' px off the World with the hero ' + Math.round(over) + ' px over the bar: the camera could look further up');
+      if (whole && !topShown) fails.push('WC-12 [' + tag + '] the Hearth\'s top is ' + Math.round(v.canvasTop - v.top) + ' px off the World');
+    } finally {
+      if (errors.length) fails.push('WC-12 [' + tag + '] console errors: ' + errors.slice(0, 3).join(' | '));
+      await ctx.close();
+    }
+  }
+  return fails;
+}
+
 /* THE PAGES, AND THE RULES EACH READS. A mutant runs the pages of the rules its name tags (pagesOf), the plain run and the clean control
    all of them: every mutant ran every page, about 37 s each on CI, 17 of in-page-2's 28 minutes (run 42096671527), so the job's full
    sweep never finished and the next run swept in full again. */
 const PAGES_OF = { 'WC-1': ['wide'], 'WC-2': ['wide'], 'WC-5': ['wide'], 'WC-5b': ['wide'], 'WC-3': ['desk'], 'WC-4': ['desk'], 'WC-6': ['desk', 'bar'],
-  'WC-7': ['hunt'], 'WC-8': ['zoom'], 'WC-9': ['viewer'], 'WC-10': ['box'] };
-const PAGES = ['wide', 'desk', 'bar', 'hunt', 'zoom', 'viewer', 'box'];
+  'WC-7': ['hunt'], 'WC-8': ['zoom'], 'WC-9': ['viewer'], 'WC-10': ['box'], 'WC-11': ['void'], 'WC-12': ['hearth'] };
+const PAGES = ['wide', 'desk', 'bar', 'hunt', 'zoom', 'viewer', 'box', 'void', 'hearth'];
 /** The pages a mutant's tagged rules read; null when a name tags none, or one no page reads (main refuses those as HARNESS). */
 function pagesOf(name) {
   const tags = String(name).match(/\bWC-\d+b?\b/g) || [];
@@ -531,6 +663,8 @@ async function checks(overrides, pages = null) {
     if (on('zoom')) fails.push(...(await townZoom(browser, base)));       // WC-8
     if (on('viewer')) fails.push(...(await viewerZoom(browser, base)));   // WC-9
     if (on('box')) fails.push(...(await canvasBox(browser, base)));       // WC-10
+    if (on('void')) fails.push(...(await huntVoid(browser, base)));       // WC-11
+    if (on('hearth')) fails.push(...(await hearthFrame(browser, base)));  // WC-12
   } catch (e) {
     /* a step that threw is HARNESS, never a rule (2026-10-22, tests/_mutant-verdict.mjs) */
     fails.push(harnessFail('a page step', e));
@@ -725,7 +859,10 @@ const MUTANTS = [
   ['a name is not a target (WC-4)', 'src/world/render/canvas-backend.js', '      const hits = named.concat(', '      const hits = [].concat('],
   ['the bitmap takes the stage\'s border box again: 2 px over, art columns lost (WC-10)', 'src/world/render/canvas-backend.js', '    const r = canvas.getBoundingClientRect();\n    W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));\n    H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));', '    const r = host.getBoundingClientRect();\n    W = Math.max(1, Math.round(r.width * dpr));\n    H = Math.max(1, Math.round(r.height * dpr));'],
   ['the bitmap takes the stage\'s rounded client box: a row off at a fractional DPR (WC-10)', 'src/world/render/canvas-backend.js', '    const r = canvas.getBoundingClientRect();\n    W = Math.max(1, Math.round((r.left + r.width) * dpr) - Math.round(r.left * dpr));\n    H = Math.max(1, Math.round((r.top + r.height) * dpr) - Math.round(r.top * dpr));', '    W = Math.max(1, Math.round(host.clientWidth * dpr));\n    H = Math.max(1, Math.round(host.clientHeight * dpr));'],
-  ['the hunt camera holds the whole view on the room again: the hero hugs the analyzer (WC-7)', 'src/world/core/camera.js', "const rule = { wholeView: map.kind !== 'hunt' };", 'const rule = { wholeView: true };'],
+  ['the hunt camera holds the hero only a tile in again: the foe beside it under the analyzer (WC-7, WC-11)', 'src/world/core/camera.js', 'const margin = hunt ? HUNT_KEEP_TILES * T : T;', 'const margin = T;'],
+  ['the hunt room clamps only the uncovered World again: the black band under the panels (WC-11, N10)', 'src/world/core/camera.js', '    if (art[1] - art[0] >= v) c = Math.min(art[1] - u - b, Math.max(art[0] + a, c));', '    if (false) c = 0;'],
+  ['the void outranks the hero: its ring under the analyzer at the art\'s edge (WC-11)', 'src/world/core/camera.js', '    return hold(c) - a;', '    return c - a;'],
+  ['the town frames no showpiece: a new hero never sees the Hearth\'s top (WC-12)', 'src/world/core/camera.js', '{ show: showAt(map, o.keep, vh - inset.top - inset.bottom) }', '{ show: null }'],
   ['a pane mounted mid-hunt never hears the HUD inset (WC-7)', 'src/shell/shell.js', 'insetListeners.add(fn); fn(insetNow());', 'insetListeners.add(fn);'],
   ['the town never takes the viewer\'s zoom (WC-8)', 'src/world/world-boot.js', '    backend.setZoom(zoom.zoomOf(sc.kind));\n    zoom.show(sc.kind);', '    backend.setZoom(null);\n    zoom.show(sc.kind);'],
   ['the town zoom is never put into the residue (WC-8)', 'src/world/town-zoom.js', "for (const cs of all) if (typeof cs.setResidue === 'function') cs.setResidue('townZoom', pick);", ''],

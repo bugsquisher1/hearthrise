@@ -20,6 +20,12 @@
         "gzipBytes": 202148,
         "on": "2026-11-20",
         "why": "lane/b-ui-buttons (7d0726992, 354fac7ad, UI audit #3) merged into set/v0.2.143 after the first pin: one button system painted in shell.css (+85 lines, three tokens), the controls block moved there from hunt.css, framed presses across the windows; every stylesheet loads with the page, so +1.0 KB gzip to sign-in and +1.2 KB to town. Measured identical on be2de0e71 (the set before origin/main v0.2.142 merged in) and on the merge (stamps only)"
+      },
+      {
+        "modules": 12,
+        "gzipBytes": 202229,
+        "on": "2026-11-20",
+        "why": "set/v0.2.143 after the second pin (293a58b21): lane/b-morrow-kit's art classes in src/data/world/art-budget.js (+81 B gzip, the sign-in backdrop's camera reads it) and the merged lanes' own code on the game half: elements-6b abilities + hunt roles (+477 B), first-hours-bugs launcher, chronicle, live-events, sheet, away text (+590 B), the Trophy Room hold in home-sections (+86 B), morrow maps and terrain (+125 B). Each is a feature's own code or data, nothing a later import() could carry; measured per module with --deliver minify on 293a58b21 and e596bbb08"
       }
     ],
     "town": [
@@ -34,6 +40,12 @@
         "gzipBytes": 873533,
         "on": "2026-11-20",
         "why": "lane/b-ui-buttons (7d0726992, 354fac7ad, UI audit #3) merged into set/v0.2.143 after the first pin: one button system painted in shell.css (+85 lines, three tokens), the controls block moved there from hunt.css, framed presses across the windows; every stylesheet loads with the page, so +1.0 KB gzip to sign-in and +1.2 KB to town. Measured identical on be2de0e71 (the set before origin/main v0.2.142 merged in) and on the merge (stamps only)"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 874914,
+        "on": "2026-11-20",
+        "why": "set/v0.2.143 after the second pin (293a58b21): lane/b-morrow-kit's art classes in src/data/world/art-budget.js (+81 B gzip, the sign-in backdrop's camera reads it) and the merged lanes' own code on the game half: elements-6b abilities + hunt roles (+477 B), first-hours-bugs launcher, chronicle, live-events, sheet, away text (+590 B), the Trophy Room hold in home-sections (+86 B), morrow maps and terrain (+125 B). Each is a feature's own code or data, nothing a later import() could carry; measured per module with --deliver minify on 293a58b21 and e596bbb08"
       }
     ]
   }

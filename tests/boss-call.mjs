@@ -267,14 +267,15 @@ async function guard(X) {
     for (const w of f.windows) for (const e of w.events || []) if (e.type === 'xp' || e.type === 'xp_group' || (e.type === 'rare_roll' && !table.some((d) => d.id === e.item))) bad.push('BC-PAY ' + name + ': a ' + e.type + ' event');
     if (!Object.values(f.ended).every((e) => e.reason === 'boss_felled')) bad.push('BC-PAY ' + name + ': ended ' + JSON.stringify(f.ended));
   }
-  /* A bestiary boost and a relic reach no payout: the same pair, a relic row for the boss, the same zero. */
+  /* Magic Find reaches no payout the boss does not roll: the same pair at the most a hero holds (src/core/luck.js MAGIC_FIND_MAX, the
+     server's own number; it replaced the cut relic multiplier), the same zero. */
   {
     const seen = [];
     const run = X.play.run;
     const f = run(king.hunt, STRONG.L, ['tank', 'melee_dps'], { ground: G.CALLED_GROUNDS[king.hunt], spanMs: 5 * MINUTE, windowMs: 30000, leaveTogether: true, equipment: () => STRONG.kit,
-      session: () => ({}), onWindow: (w, members) => { for (const m of members) m.relicMults = { [king.monster]: 1.25, [king.of]: 1.25 }; for (const p of w.members) seen.push(p); } });
-    for (const p of seen) for (const w of paysOf(p.delta, king.monster, X.EM[king.monster].drops)) bad.push('BC-PAY a relic on the boss: ' + w);
-    if (f.totals.levelXp || f.totals.xp || f.totals.coin) bad.push('BC-PAY a relic on the boss paid ' + JSON.stringify(f.totals));
+      session: () => ({}), onWindow: (w, members) => { for (const m of members) m.magicFind = 104; for (const p of w.members) seen.push(p); } });
+    for (const p of seen) for (const w of paysOf(p.delta, king.monster, X.EM[king.monster].drops)) bad.push('BC-PAY Magic Find on the boss: ' + w);
+    if (f.totals.levelXp || f.totals.xp || f.totals.coin) bad.push('BC-PAY Magic Find on the boss paid ' + JSON.stringify(f.totals));
   }
   /* HIS OWN ROW, ROLLED ONCE A WIN: his call-only piece at certain odds, alone on his row, lands exactly once for a four, in the window he fell in.
      (Rolled off the ground boss's row, it never lands; rolled on an add's kill or twice, it lands more than once.) */

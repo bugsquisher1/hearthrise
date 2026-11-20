@@ -435,18 +435,17 @@ function rules(M) {
     ok('LV-H', left === 0, `the server left ${left} of 1 steel whetstone after 80 swings (one wears every fiftieth)`);
   }
 
-  { // LV-X: the assembled member carries relicMult (server-side drop input; 1 when absent)
+  { // LV-X: the assembled member carries its Magic Find (src/data/luck.js; a server-side drop input, 0 when absent, clamped to the most a
+    // hero can hold). The class charm and relic multipliers it replaced are cut (itemization plan §15 "The cuts").
     const side = (mi) => M.MB.memberSide(mi, { items: M.ITEMS }).member;
-    const a = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 1.25 } }));
-    const b = side(memberOf(M, 'a', 0, 'tank', 6));
-    const c = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 0.5, slime: 'x' } }));
-    ok('LV-X', a.relicMult('rat') === 1.25 && a.relicMult('slime') === 1, `relicMult with a projection reads ${a.relicMult('rat')} / ${a.relicMult('slime')}`);
-    ok('LV-X', b.relicMult('rat') === 1 && c.relicMult('rat') === 1 && c.relicMult('slime') === 1, 'an absent or invalid projection is not 1');
-    const d = side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), { relicMults: { rat: 3 } }));
-    ok('LV-X', d.relicMult('rat') === 1.25, 'a relic multiplier over the stage-4 x1.25 is not clamped: ' + d.relicMult('rat'));
-    /* the settle reads it from the member's OWN hr_state_of account_bestiary.relic_mult (never the request) */
+    const at = (mf) => side(Object.assign(memberOf(M, 'a', 0, 'tank', 6), mf === undefined ? {} : { magicFind: mf })).magicFind;
+    ok('LV-X', at(16) === 16 && at(1) === 1, `a server Magic Find of 16 / 1 reads ${at(16)} / ${at(1)}`);
+    ok('LV-X', [undefined, 0, -3, 2.5, 'x', null].every((v) => at(v) === 0), 'an absent or invalid Magic Find is not 0');
+    ok('LV-X', at(9999) === 104, 'a Magic Find past the far stop and the best Lucky ring is not clamped to 104: ' + at(9999));
+    ok('LV-X', !('relicMult' in side(memberOf(M, 'a', 0, 'tank', 6))), 'the cut relic multiplier is back on the member');
+    /* the settle reads it from the server's OWN read of the member (hr_hunt_instance_read magic_find), never the request */
     const src = readFileSync(join(M.base || ROOT, FN, 'hunt-settle.js'), 'utf8');
-    ok('LV-X', /env\.account_bestiary\.relic_mult/.test(src), 'hunt-settle.js does not read account_bestiary.relic_mult');
+    ok('LV-X', src.includes('magicFind: Number.isInteger(m.magic_find) ? m.magic_find : 0,'),'hunt-settle.js does not read magic_find off hr_hunt_instance_read');
   }
 
   { // LV-P: party privacy — a peer's row is its frozen numbers, nothing else; the viewer's own row is whole.
@@ -460,7 +459,7 @@ function rules(M) {
     ok('LV-P', Object.keys((peer && peer.frozen && peer.frozen.session) || {}).every((k) => M.MB.FROZEN_SESSION_KEYS.includes(k)),
       'a peer session carries ' + keys(peer && peer.frozen && peer.frozen.session));
     const text = JSON.stringify(peer);
-    for (const bad of ['"skills"', '"equipment"', '"perks"', '"buffs"', '"gold"', '"levelXp"', '"premium', '"relic', '"cover"', '"staminaMs"', '"xpFrac"']) {
+    for (const bad of ['"skills"', '"equipment"', '"perks"', '"buffs"', '"gold"', '"levelXp"', '"premium', '"relic', '"magicFind"', '"cover"', '"staminaMs"', '"xpFrac"']) {
       ok('LV-P', !text.includes(bad), 'a peer row leaks ' + bad);
     }
     ok('LV-P', !!own && !!own.skills && !!own.equipment && !!own.huntSession, "the viewer's own row is not its full setup");

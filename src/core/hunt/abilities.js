@@ -45,26 +45,26 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare, landsBlow, partyOnly } from '../../data/abilities.js?v=0.2.143';
-import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.143';
-import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.143';
-import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.143';
-import { temperedAmount } from '../temper.js?v=0.2.143';
-import { SURGE_MULT_PM } from '../../data/jewelry.js?v=0.2.143';
-import { cheb, dist2, los } from './grid.js?v=0.2.143';
-import { makeEvent } from './events.js?v=0.2.143';
-import { landHit } from './damage.js?v=0.2.143';
-import { challengeable, challengeFrom, holderTank } from './targeting.js?v=0.2.143';
-import { applyStatus, statusRow } from './status.js?v=0.2.143';
-import { levelOf } from '../xp.js?v=0.2.143';
-import { ammoPerShot } from '../ammo.js?v=0.2.143';
-import { ITEMS } from '../../data/items.js?v=0.2.143';
-import { isRune } from '../../data/supplies.js?v=0.2.143';
-import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js?v=0.2.143';
-import { place, covers } from './shapes.js?v=0.2.143';
-import { shootsItem } from '../../data/hunt-roles.js?v=0.2.143';
-import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js?v=0.2.143';
-import { healTaken } from './heal-cut.js?v=0.2.143';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare, landsBlow, partyOnly } from '../../data/abilities.js';
+import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js';
+import { runeTierOf, versionLevel } from '../../data/runes.js';
+import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js';
+import { temperedAmount } from '../temper.js';
+import { SURGE_MULT_PM } from '../../data/jewelry.js';
+import { cheb, dist2, los } from './grid.js';
+import { makeEvent } from './events.js';
+import { landHit } from './damage.js';
+import { challengeable, challengeFrom, holderTank } from './targeting.js';
+import { applyStatus, statusRow } from './status.js';
+import { levelOf } from '../xp.js';
+import { ammoPerShot } from '../ammo.js';
+import { ITEMS } from '../../data/items.js';
+import { isRune } from '../../data/supplies.js';
+import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, attackOrder, runeSupplyOf, shapedAim } from './conditions.js';
+import { place, covers } from './shapes.js';
+import { shootsItem } from '../../data/hunt-roles.js';
+import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js';
+import { healTaken } from './heal-cut.js';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],

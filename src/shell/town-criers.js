@@ -16,14 +16,14 @@
 //   crierTarget(crier, line, fact)       the link's goto target, from the stand
 //   mountTownCriers(win, account, o)     the clock; o.timers / o.now / o.hidden for a test
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_CRIERS, CRIER_CLOCK } from '../data/town-criers.js?v=0.2.143';
-import { STATION_BY_ID } from '../data/world/stations.js?v=0.2.143';
-import { TIPS } from '../data/tips.js?v=0.2.143';
-import { crierFactsOf } from '../session/crier-facts.js?v=0.2.143';
-import { huntOf } from '../session/hunt-sections.js?v=0.2.143';
-import { switchOn } from '../session/player-switch.js?v=0.2.143';
-import { npcLine } from '../social/chat-lines.js?v=0.2.143';
-import { t } from '../render/player-text.js?v=0.2.143';
+import { TOWN_CRIERS, CRIER_CLOCK } from '../data/town-criers.js';
+import { STATION_BY_ID } from '../data/world/stations.js';
+import { TIPS } from '../data/tips.js';
+import { crierFactsOf } from '../session/crier-facts.js';
+import { huntOf } from '../session/hunt-sections.js';
+import { switchOn } from '../session/player-switch.js';
+import { npcLine } from '../social/chat-lines.js';
+import { t } from '../render/player-text.js';
 
 /** The goto target of a line: its `at` station (else the crier's stand), on its tab (`tab`, or the fact's `tabOf` field). */
 export function crierTarget(crier, line, fact) {

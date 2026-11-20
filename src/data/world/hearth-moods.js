@@ -19,7 +19,7 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { CHEST_LAYERS } from './town/sites.js?v=0.2.143';
+import { CHEST_LAYERS } from './town/sites.js';
 
 const flame = (id, words) => Object.freeze({ fire: 'hearth_fire_' + id, flare: 'hearth_flare_' + id, sparks: 'hearth_burn_sparks_' + id, words });
 export const CHEST_FLAMES = Object.freeze({ chest: flame('chest', 'burns green') });

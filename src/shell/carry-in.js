@@ -21,20 +21,20 @@
 //                          its line is the server's answer, and every count on
 //                          screen changes only from the re-read envelope
 // ════════════════════════════════════════════════════════════════════════
-import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js?v=0.2.143';
-import { huntBagOf, settingsOf } from '../session/hunt-sections.js?v=0.2.143';
-import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js?v=0.2.143';
-import { SUPPLIES } from '../data/supplies.js?v=0.2.143';
-import { ABILITIES } from '../data/abilities.js?v=0.2.143';
-import { ITEMS } from '../data/items.js?v=0.2.143';
-import { shootsItem } from '../data/hunt-roles.js?v=0.2.143';
-import { shortOf } from './item-lore.js?v=0.2.143';
-import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js?v=0.2.143';
-import { amountHtml, amountOf, stepAmount } from './widgets/amount.js?v=0.2.143';
-import { runIntent } from './intent-words.js?v=0.2.143';
-import { itemName } from './widgets/bits.js?v=0.2.143';
-import { runeSupplyOf } from '../core/hunt/conditions.js?v=0.2.143';
-import { whole } from '../render/format.js?v=0.2.143';
+import { bagOf, equipmentOf, skillsOf } from '../session/item-sections.js';
+import { huntBagOf, settingsOf } from '../session/hunt-sections.js';
+import { carryIntoHunt, CARRY_MAX } from '../session/carry-intents.js';
+import { SUPPLIES } from '../data/supplies.js';
+import { ABILITIES } from '../data/abilities.js';
+import { ITEMS } from '../data/items.js';
+import { shootsItem } from '../data/hunt-roles.js';
+import { shortOf } from './item-lore.js';
+import { openFloatMenu, closeFloatMenu } from './windows/float-menu.js';
+import { amountHtml, amountOf, stepAmount } from './widgets/amount.js';
+import { runIntent } from './intent-words.js';
+import { itemName } from './widgets/bits.js';
+import { runeSupplyOf } from '../core/hunt/conditions.js';
+import { whole } from '../render/format.js';
 
 /* The server's hunt is open and not on its way home: a session, not ended, no Leave or change pending. */
 function running(cs) {

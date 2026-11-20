@@ -34,20 +34,20 @@
 // PURE (no DOM). The caller owns the clock.
 // ════════════════════════════════════════════════════════════════════════
 
-import { simulateHuntInstance } from '../core/combat-sim.js?v=0.2.143';
-import { memberSide, frozenSide, frozenKey } from '../core/member.js?v=0.2.143';
-import { huntGroundOf } from '../core/hunt-ground.js?v=0.2.143';
-import { huntTimeline, worldHash } from '../core/hunt-track.js?v=0.2.143';
-import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js?v=0.2.143';
-import { COMBAT_BALANCE } from '../core/combat.js?v=0.2.143';
-import { HUNT_TUNING } from '../data/hunt-tuning.js?v=0.2.143';
-import { stepCost } from '../core/hunt/grid.js?v=0.2.143';
-import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js?v=0.2.143';
-import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js?v=0.2.143';
-import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js?v=0.2.143';
-import { aloneIn } from '../core/hunt/abilities.js?v=0.2.143';
-import { xpMultFor } from '../core/live-events.js?v=0.2.143';
-import { towerOf, towerEndsAt } from '../core/hunt/tower.js?v=0.2.143';
+import { simulateHuntInstance } from '../core/combat-sim.js';
+import { memberSide, frozenSide, frozenKey } from '../core/member.js';
+import { huntGroundOf } from '../core/hunt-ground.js';
+import { huntTimeline, worldHash } from '../core/hunt-track.js';
+import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../core/hunt/world-state.js';
+import { COMBAT_BALANCE } from '../core/combat.js';
+import { HUNT_TUNING } from '../data/hunt-tuning.js';
+import { stepCost } from '../core/hunt/grid.js';
+import { SERVER_ONLY_EVENTS } from '../core/hunt/events.js';
+import { holderTank, roleOf, engaged, challengeable } from '../core/hunt/targeting.js';
+import { testSlot, aimsAtMonsters, ignores } from '../core/hunt/conditions.js';
+import { aloneIn } from '../core/hunt/abilities.js';
+import { xpMultFor } from '../core/live-events.js';
+import { towerOf, towerEndsAt } from '../core/hunt/tower.js';
 
 /* How many swings of world hashes are kept to judge a server commit against. */
 const KEEP_HASHES = 64;

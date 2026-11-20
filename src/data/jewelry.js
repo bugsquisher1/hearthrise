@@ -31,7 +31,7 @@
 // PURE ESM. Imports data only. Node, Deno and the browser read it verbatim.
 // ============================================================================
 
-import { SLOT_ITEMS } from './slot-ladders.js?v=0.2.143';
+import { SLOT_ITEMS } from './slot-ladders.js';
 
 /* ── THE PERKS. T3 numbers are the designer's measured sizes; T2 about two thirds (the spec). Permille. ──
    `what` is the player's sentence, with {pct} for the size. Each perk counts ONCE per hero, whatever it wears

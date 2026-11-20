@@ -20,11 +20,11 @@
 // ref.player so a right-click opens the shared player menu for that account.
 // PURE: no DOM, no window, no G — the caller passes the walkers and the clock.
 // ════════════════════════════════════════════════════════════════════════
-import { TOWN_PRESENCE } from '../data/town-presence.js?v=0.2.143';
-import { outfitSprite } from '../data/hunt-outfits.js?v=0.2.143';
-import { createSteer, standOn, walkClip } from './steer-local.js?v=0.2.143';
-import { pickFacing } from './core/facing.js?v=0.2.143';
-import { GRIDS } from '../data/world/art-budget.js?v=0.2.143';
+import { TOWN_PRESENCE } from '../data/town-presence.js';
+import { outfitSprite } from '../data/hunt-outfits.js';
+import { createSteer, standOn, walkClip } from './steer-local.js';
+import { pickFacing } from './core/facing.js';
+import { GRIDS } from '../data/world/art-budget.js';
 
 /** A tile coordinate on the whole art pixel of a `T` px grid. */
 const onPixelOf = (T) => (v) => Math.round(v * T) / T;

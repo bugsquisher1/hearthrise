@@ -1086,7 +1086,9 @@ async function check(M) {
     const code = { '.': 0, '=': 1, '~': 2 };
     const mat = Int16Array.from(rowsP.join('').split('').map((c) => code[c]));
     const rule = { seed: 23, pairs: [['grass', 'earth']], spill: 0.5, bite: 0.5, scale: 2.6, deep: 4 };
-    const out = M.rough.roughEdges(mat, Wp, Hp, idOf, rule);
+    /* the rule run to its end (it is made in steps: W4) */
+    const roughEdges = (...a) => { const it = M.rough.roughEdgeSteps(...a); let r = it.next(); while (!r.done) r = it.next(); return r.value; };
+    const out = roughEdges(mat, Wp, Hp, idOf, rule);
     const at = (a, x, y) => (x < 0 || y < 0 || x >= Wp || y >= Hp ? -1 : a[y * Wp + x]);
     const n4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     let changed = 0, offEdge = 0, narrowed = 0, nearThird = 0, pinholes = 0;
@@ -1104,8 +1106,8 @@ async function check(M) {
     ok('E2', narrowed === 0, 'the rough rule narrowed a two-wide road (' + narrowed + ' of its cells drawn as grass)');
     ok('E3', nearThird === 0, 'the rough rule redrew a cell beside a third material (the pond): ' + nearThird);
     ok('E4', pinholes === 0, 'the rough rule left ' + pinholes + ' pinhole cells (a lone square in the other material)');
-    const again = M.rough.roughEdges(mat, Wp, Hp, idOf, rule);
-    ok('E5', again.every((v, i) => v === out[i]) && M.rough.roughEdges(mat, Wp, Hp, idOf, null).every((v, i) => v === mat[i]), 'the rough rule is not the same on every call, or draws without a rule');
+    const again = roughEdges(mat, Wp, Hp, idOf, rule);
+    ok('E5', again.every((v, i) => v === out[i]) && roughEdges(mat, Wp, Hp, idOf, null).every((v, i) => v === mat[i]), 'the rough rule is not the same on every call, or draws without a rule');
     const town = compiled('town_common');
     ok('E6', !!(town.blend && town.blend.rough), 'the town\'s blend lost its rough rule (its edges are ruled straight again)');
   });

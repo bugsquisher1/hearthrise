@@ -33,20 +33,11 @@ export function edgeNoise(x, y, s, seed) {
 const DIRS = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]);
 
 /**
- * The materials as DRAWN: a copy of `mat` (Int16Array, W x H, -1 = no material) with the rough rule's edge cells re-drawn.
- * `idOf` maps a material name to its index in `mat`; a pair naming a material the map has no index for is skipped.
- */
-export function roughEdges(mat, W, H, idOf, rough) {
-  const it = roughEdgeSteps(mat, W, H, idOf, rough);
-  let r = it.next();
-  while (!r.done) r = it.next();
-  return r.value;
-}
-
-/**
- * roughEdges as STEPS, one row of one pass each (the same cells in the same order, so the same result however it is run):
- * two whole-map passes per pair, six pairs on Havora, were ONE unit of the town's sliced ground, 70 ms on CI (compose.js
- * groundOfSliced; nightly 44730692384, the town made after a death). Returns the materials as drawn.
+ * The materials as DRAWN: a copy of `mat` (Int16Array, W x H, -1 = no material) with the rough rule's edge cells re-drawn,
+ * the generator's return value. `idOf` maps a material name to its index in `mat`; a pair naming a material the map has no
+ * index for is skipped. Made as STEPS, one row of one pass each, the same cells in the same order however it is run: two
+ * whole-map passes per pair, six pairs on Havora, were ONE unit of the town's sliced ground, 70 ms on CI (compose.js
+ * groundOfSliced; nightly 44730692384, the town made after a death).
  */
 export function* roughEdgeSteps(mat, W, H, idOf, rough) {
   const out = Int16Array.from(mat);

@@ -40,7 +40,7 @@
   ],
   "anchor_px": [
     40,
-    74
+    76
   ],
   "footprint": [
     2,
@@ -62,5 +62,5 @@
     "job": "45685d38",
     "sketch": "art/review/morrow-kit/ox-team-sketch-b.png (.scratch/kit/team/recipe.mjs b9)"
   },
-  "notes": "THE LEAD TEAM of the last ore train out of Morrow, dead in its yoke: two oxen at beast size, fallen the same way and staggered, the far one's stiff legs out across the tongue and the near one's back; each on its side with its legs rigid along the ground, a cream belly toward us, the head limp on the ground, a dark muzzle, big bone horns, a dun hide; the yoke beam across both necks at a slant, the tongue running off east to the wagon. Sketch B of three free sketches (art/review/morrow-kit/ox-team-sketches.png; picked by the Coordinator under Tyler's standing art sign-off, after four misses), polished palette-held by edit_image_pro_flash. Its horns stay bone pale (stone 4); the rest a step under the creatures. Pixels unscaled."
+  "notes": "THE LEAD TEAM of the last ore train out of Morrow, dead in its yoke: two oxen at beast size, fallen the same way and staggered, the far one's stiff legs out across the tongue and the near one's back; each on its side with its legs rigid along the ground, a cream belly toward us, the head limp on the ground, a dark muzzle, big bone horns, a dun hide; the yoke beam across both necks at a slant, the tongue running off east to the wagon. Sketch B of three free sketches (art/review/morrow-kit/ox-team-sketches.png; picked by the Coordinator under Tyler's standing art sign-off, after four misses), polished palette-held by edit_image_pro_flash; then FIXED by hand after review b9 (\"the hind legs trailing back: a team at a flying gallop\"; \"the tan hide the hottest thing on the road\"): the trailing hind legs cut away and drawn again by rule sticking down-screen across the spine, the far ox's head sheared down to hang limp, the hide a value step down and greyer, the belly cream-grey (.scratch/kit/team/b10.mjs). Its horns stay bone pale (stone 4). Pixels unscaled."
 }

@@ -226,11 +226,18 @@ function roadWear(g, grid) {
   }
   return { rut, verge, peb };
 }
-/* the moor's tone patches (the round-3 carry-over): dead bracken a brown of the moor's own value, olive where the grass is drier */
-const BRACKEN = { '#1f3322': '#3d2a1d', '#2c4a2c': '#553a26', '#16241a': '#2a1c14' };
-const OLIVE = { '#2c4a2c': '#4a5a2a' };
-/* the heather in clumps (the sample): outside soft blobs its sprigs go to the grass's dark step */
-const HEATH = { '#8a6440': '#16241a', '#553a26': '#16241a', '#4a2e18': '#16241a' };
+/* Carter's Rest's road a step down and greyer (b4 ranked 2: "the brightest mass; a step down and desaturated"): every earth pixel on
+   it a step down its ramp (never below the second), grey grit in soft clumps through the bed */
+function roadDown(g, grid) {
+  const RAMP_AT = new Map(); for (const ramp of Object.values(RAMPS)) ramp.forEach((c, k) => RAMP_AT.set(c, { ramp, k }));
+  let down = 0;
+  for (let y = 0; y < g.height; y++) for (let x = 0; x < g.width; x++) {
+    if (grid[y >> 5][x >> 5] !== 'R') continue;
+    const p = (y * g.width + x) * 4, a = RAMP_AT.get(hexAt(g, p)); if (!a || a.ramp !== RAMPS.earth || a.k < 2) continue;
+    g.data.set(rgb(noise(x, y, 2.6, 461) < 0.12 + 0.3 * noise(x, y, 44, 463) ? (a.k > 3 ? '#4f4e52' : '#3a3a3e') : a.ramp[a.k - 1]), p); down++;
+  }
+  return { roadDown: down };
+}
 /* the clutter rule (ART_DIRECTION 4): nothing on the floor is brighter than the dimmest actor body. A floor pixel over FLOOR_MAX (a
    decal's glint, a speck) steps down its ramp until it is under; the walls are laid after and are no floor */
 const FLOOR_MAX = 0.12;
@@ -303,7 +310,9 @@ const transpose = (im) => { const o = createImage(im.height, im.width); for (let
 /** The features a face run carries, by what it faces: [cells, piece] at run index i, or null for a plain slice. */
 function featureAt(i, n, kind) {
   if (kind === 'hearth' && n >= 7 && i === Math.floor(n / 2) - 1) return [3, 'hearth'];
-  if (i % 6 !== 3 || n - i < 3) return null;
+  /* b4: a boarded window on every sixth cell read as a pattern; the features stand on an irregular walk (gaps of 4-10 cells) */
+  let at = 2 + Math.floor(hash2(n, kind.length, 781) * 4); const at2 = []; while (at < n - 2) { at2.push(at); at += 4 + Math.floor(hash2(at, n, 783) * 7); }
+  if (!at2.includes(i) || n - i < 3) return null;
   if (kind === 'yard') return [2, Math.floor(i / 6) % 2 ? 'door' : 'window'];
   return [2, 'window'];
 }
@@ -393,13 +402,12 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   img = r.img;
   let toned = 0;
   for (const [ch, m] of Object.entries(mats)) toned += stepPatches(img, { rows: seamRows, on: (c) => c === ch, scale: 70, cut: 0.56, seed: m.v.seed + 100, map: toneMap(m.fill) });
-  let road = ox ? null : roadWear(img, grid);
+  let road = ox ? null : { ...roadWear(img, grid), ...roadDown(img, grid) };
   /* the Ox Road's moor by its own rule (morrow-ox-ground.mjs oxMoor, b5 review ranked 1): a step darker, heather only in drifts, bare
      peat, four decal kinds; Carter's Rest keeps the heath, bracken and olive patches */
-  const heath = ox ? 0 : stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 58, cut: 0.55, seed: 61, map: HEATH });
-  const bracken = ox ? 0 : stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 44, cut: 0.74, seed: 91, map: BRACKEN });
-  const olive = ox ? 0 : stepPatches(img, { rows: grid, on: (ch) => ch === 'H', scale: 52, cut: 0.6, seed: 93, map: OLIVE });
-  const moor = ox ? oxMoor(img, grid, { skip }) : {};
+  /* Carter's Rest's moor too (its b4 review: "tufts polka-dotted", bracken "measles"): the Ox Road's moor rule without its bogs */
+  const heath = 0, bracken = 0, olive = 0;
+  const moor = oxMoor(img, grid, ox ? { skip } : { skip, bogs: [] });
   const damp = stepPatches(img, { rows: grid, on: (ch) => ch === 'R', scale: 18, cut: 0.74, seed: 17, map: Object.fromEntries(RAMPS.earth.slice(1).map((c, k) => [c, RAMPS.earth[k]])) });
   /* the Ox Road wears its road by its own rule (morrow-ox.mjs oxRoad: every pixel under 0.07, structure instead of light), after the
      moor's patches: its edge is warped across the cell line, and the heath pass (cell by cell) would cut it back to the grid */
@@ -420,6 +428,8 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   const brew = brewBricks(img, grid, doorway), straw = stableStraw(img, grid, doorway);
   const laid = bakeDecals(img, { rows: grid, seed: DECALS.seed, every: DECALS.every, decals: DECALS.decals, skip });
   const skirting = skirt(img, grid);
+  /* b4 ranked 8: the moor north unframed: the map's edges fall into the dark (never the road) */
+  const framed = oxFrame(img, grid).framed;
   const capped = capFloor(img, grid);
   const divOf = dividersOf(grid, indoor), wallTop = dimStone(dimStone(P.cap));
   const roof = roofMass(img, grid, ranges, indoor, doorway, divOf, dimStone(P.cap));
@@ -428,7 +438,7 @@ export function paintGround(grid, { skip = () => false, ranges = RANGES, chimney
   /* the chimneys: the taproom's over its hearth, the brewhouse's on its east range (CHIMNEYS: a foot's left end, in px) */
   for (const [x, y] of chimneys) chimney(img, P.plain[1], x, y);
   const walls = layWalls(img, grid, P, indoor);
-  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls } };
+  return { img, report: { seams: r.changed, toned, ...road, heath, bracken, olive, damp, ...walked, ...brew, ...straw, skirting, capped, decals: laid.length, decalIds: [...new Set(laid.map((d) => d.id))], ...roof, ...torn, ...sill, chimneys: chimneys.length, ...walls, framed } };
 }
 
 export const TILESETS = Object.freeze(['5adbc664-7ece-4d86-8ecf-b04be989b72a', 'a8f9871d-1c2a-4e9d-883b-9128f0a7aefe', '8b3fd314-40e7-4e7c-9b70-03d4272a1e15', 'aed84cba-58a9-4ccd-963f-2dc400b9dcec']);

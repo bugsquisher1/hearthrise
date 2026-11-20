@@ -49,7 +49,7 @@ const OX_BOGS = Object.freeze([[44.2, 9.5, 64, 150], [51.5, 30, 56, 96], [44.6, 
 const LEAFS = new Set(RAMPS.leaf.concat(RAMPS.moss));
 const EARTHS2 = new Set(RAMPS.earth.concat(RAMPS.bronze));
 const SPRIG = new Set(['#8a6440', '#6e4c30', '#553a26', '#4a2e18', '#3d2a1d', '#2a1c14', '#a88457', '#7a4f26']);
-export function oxMoor(g, grid, { skip = () => false } = {}) {
+export function oxMoor(g, grid, { skip = () => false, bogs = OX_BOGS } = {}) {
   const h = grid.length, w = grid[0].length, W = g.width, H = g.height;
   const cell = (x, y) => grid[Math.min(h - 1, y >> 5)][Math.min(w - 1, x >> 5)];
   /* how far (px) a pixel is from the road, the bridge and the turnout (a bog may reach the water, never the road) */
@@ -61,7 +61,7 @@ export function oxMoor(g, grid, { skip = () => false } = {}) {
   const boggy = (x, y) => moorCell(x, y) || ('QV'.includes(cell(x, y)) && LEAFS.has(px(g, x, y)));
   /* how deep into a bog a pixel is: > 0 inside, its edge wandering on two scales */
   /* each bog a cluster of lobes strung along its long axis, each lobe its own size, so no bog is an ellipse or a box */
-  const LOBES = OX_BOGS.flatMap(([cx, cy, rx, ry], b) => Array.from({ length: 4 }, (_, i) => { const t = (i / 3 - 0.5) * 1.3, j = hash2(b, i, 657); return [cx * T + (rx > ry ? t * rx : (j - 0.5) * rx * 0.6), cy * T + (rx > ry ? (j - 0.5) * ry * 0.6 : t * ry), Math.min(rx, ry) * (0.75 + 0.5 * hash2(b, i, 659))]; }));
+  const LOBES = bogs.flatMap(([cx, cy, rx, ry], b) => Array.from({ length: 4 }, (_, i) => { const t = (i / 3 - 0.5) * 1.3, j = hash2(b, i, 657); return [cx * T + (rx > ry ? t * rx : (j - 0.5) * rx * 0.6), cy * T + (rx > ry ? (j - 0.5) * ry * 0.6 : t * ry), Math.min(rx, ry) * (0.75 + 0.5 * hash2(b, i, 659))]; }));
   const bog = (x, y) => { let m = -9; for (const [cx, cy, r] of LOBES) { const e = 1 - ((x - cx) ** 2 + (y - cy) ** 2) / (r * r); if (e > m) m = e; } m += (noise(x, y, 40, 661) - 0.5) * 1.5 + (noise(x, y, 16, 662) - 0.5) * 0.6 + (noise(x, y, 6, 663) - 0.5) * 0.25; return far(x, y) < 30 ? Math.min(m, (far(x, y) - 30) / 24 + (noise(x, y, 11, 664) - 0.5) * 0.9) : m; };
   const pool = (x, y) => bog(x, y) > 0.35 && noise(x + 7 * (noise(x, y, 20, 665) - 0.5), y, 8, 667) > 0.72;
   const tussock = (x, y) => noise(x, y, 3.4, 669) > 0.72;

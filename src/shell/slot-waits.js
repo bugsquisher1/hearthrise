@@ -85,10 +85,11 @@ export function waitReason(sl, party, test) {
 }
 
 /** Configure action's line: what the conditions being set up will mean, '' when they ask nothing surprising. `d` is the draft slot.
-    An alone spell in a party says so first: it never fires there, whatever its conditions (abilities.js `alone`). */
-export function setupNote(d, party) {
+    An alone spell in a party says so first: it never fires there, whatever its conditions (abilities.js `alone`), as a party spell
+    alone does (`role`: the hero's hunt role, a spell party only for some roles: abilities.js partyOnly). */
+export function setupNote(d, party, role) {
   if (!d || !d.action || !d.action.id) return '';
-  const alone = aloneNote(d.action, party);
+  const alone = aloneNote(d.action, party, role);
   if (alone) return alone;
   for (const c of d.conditions) {
     if (!canHold(c, d, party)) return neverWords(c, d, party);
@@ -127,7 +128,7 @@ export function whyFacts(cs) {
 export function slotWhy(sl, f) {
   const r = reasonOf(sl, f.set, f.bag, f.hero, f.worn, f.skills, f.pack);
   if (r && r.strike) return r;
-  const a = aloneReason(sl, f.alone);
+  const a = aloneReason(sl, f.alone, f.set ? f.set.role : null);
   if (a) return a;
   const w = waitReason(sl, f.party, f.test);
   if (w && !w.rest) return w;

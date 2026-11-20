@@ -244,7 +244,7 @@ renderConfigureAction.patch = function patchConfigureAction(body, ctx) {
   const wires = editBar(cs);
   if (wires) wires[s.open] = d.action.id ? d : null;
   const heal = healWarning(d, set, blow, vitalsOf(cs).hpMax);
-  const notes = [setupNote(d, p ? p.members.length : 1), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).map((n) => [n]);
+  const notes = [setupNote(d, p ? p.members.length : 1, set.role), wires ? sharedCooldownOf(wires, s.open) : null].filter(Boolean).map((n) => [n]);
   /* A line's parts take the dot that never starts or ends a line (format.js sepHtml): "Max Hit 74 · Your HP 66". */
   const warn = [...heal, ...notes].map((parts) => parts.map(esc).join(sepHtml())).join('\n');
   markup(root.querySelector('.ca-warn'), warn);

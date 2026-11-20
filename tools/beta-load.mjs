@@ -375,6 +375,10 @@ async function main() {
   const { bootPg } = await import('./pg-replay.mjs');
   log('booting the chain on PG17');
   const { db, name } = await bootPg({ log });
+  /* The statement window below reads pg_stat_statements, which only a preloaded server counts: say so before the
+     minutes of world and warm-up, not at the first reset (a cluster started before pg-replay preloaded it is stopped first). */
+  const [{ pre }] = (await db.query(`select current_setting('shared_preload_libraries') pre`)).rows;
+  if (!/\bpg_stat_statements\b/.test(pre)) throw new Error(`the server preloads "${pre}", not pg_stat_statements: restart the scratch cluster (tools/pg-replay.mjs starts it with the preload)`);
   await db.exec('create extension if not exists pg_stat_statements');
   const t0 = Date.now();
   const world = await buildWorld(db, { accounts, heroes, partyShare, townShare, online, idleAccounts: Number(arg('idle-accounts', 0)) });

@@ -10,6 +10,8 @@
 // maker's mark. So a bag tells plain, Fine and Hallmarked apart at 1x, and two Fine rings by their stone. The Road Carnelian is the shipped Ruby re-cut a step lighter on its ramps (cloth to blood to torch), so
 // the gem reads orange-red beside the Ruby and the wine-dark Heartgarnet. Every colour is an entry of art/world/palette.json; binary alpha; 32x32 (tests/pixel-icons.mjs).
 // The Art Director judges and may replace these with bespoke art; until then edit THIS script and rerun it, never the PNG.
+// LUCK (lane/d-luck-build, 2026-11-20): the Lucky perk's stone (STONES.lucky) and the Lucky Rivet, the Lucky job's material, drawn by the
+// same rules (0 generations), pending the Art Director's look.
 //
 //   node tools/world-art/jewelry-icons.mjs            write assets/icons-bundle/pixel/items/<id>.png
 //   node tools/world-art/jewelry-icons.mjs --check    exit 1 when a written icon differs from what this draws
@@ -31,6 +33,8 @@ export const STONES = Object.freeze({
   thrift: ['#557a3e', '#73944c'], deflect: ['#6e727a', '#969aa1'], second_wind: ['#3d6234', '#7ccf4a'],
   /* the earrings' pair (2026-11-18): Steady a bone bead, Focus a mana-teal drop */
   steady: ['#c9bfa0', '#e6dcbc'], focus: ['#4f7a80', '#86b4b4'],
+  /* the Lucky ring (Luck v3.1, src/data/luck.js): a bright clover green with a mint pip, apart from Second Wind's dark venom green */
+  lucky: ['#7ccf4a', '#c8e6e0'],
 });
 /* Where each piece's stones sit (the stone's top-left pixel), first perk then second: a new piece is a row here. */
 export const STONE_AT = Object.freeze({ banded_signet: [[13, 6], [15, 21]], seam_jasper_band: [[13, 6], [15, 21]], fang_studs: [[14, 12], [13, 20]] });
@@ -43,6 +47,13 @@ const CARNELIAN_CUT = Object.freeze({ '#c23a2a': '#f2a03a', '#8e1f1f': '#c23a2a'
 const JASPER_CUT = Object.freeze({ '#c23a2a': '#a8743a', '#5e1a1f': '#553a26', '#3e1216': '#3d2a1d' });
 /* The gems this script cuts: each tier's gem from a shipped gem it re-cuts. */
 const GEMS = Object.freeze({ road_carnelian: { from: 'ruby', cut: CARNELIAN_CUT }, seam_jasper: { from: 'ruby', cut: JASPER_CUT } });
+/* THE LUCKY JOB'S RIVET (Luck v3.1, src/data/luck.js LUCK_ITEM): the shipped green rivet (tools/world-art/slake-icons.mjs) with its copper
+   and its verdigris re-cut to polished brass, "the last rivet out of a piece, kept for luck", so it reads bright beside the Slake's
+   green one. Every colour is one the gilt band already uses. */
+const LUCKY_RIVET_CUT = Object.freeze({
+  '#cfa25c': '#ffd36a', '#a8743a': '#e8c547', '#7a4f26': '#cfa25c', '#4a2e18': '#7a4f26',
+  '#c8e6e0': '#ffd36a', '#86b4b4': '#e8c547', '#4f7a80': '#cfa25c', '#2e4a52': '#a8743a',
+});
 /* A PLAIN PIECE drawn from a shipped one (before its grades, which wear it): the Seam Jasper Band is the Banded Signet's steel ring
    with its dark inner band re-cut to the jasper's earth, so the tier 3 ring reads apart from the tier 2 one at 1x. */
 const PLAINS = Object.freeze({ seam_jasper_band: { from: 'banded_signet', cut: Object.freeze({ '#1a2c44': '#553a26', '#17141a': '#2a1c14' }) } });
@@ -85,6 +96,7 @@ export function drawAll() {
     Object.keys(it.jewelPerks).forEach((p, n) => stone(img, at[n][0], at[n][1], STONES[p]));
     out[id] = img;
   }
+  out.lucky_rivet = recut(cloneImage(read('green_rivet')), LUCKY_RIVET_CUT);
   for (const t of Object.values(JEWEL_TIERS)) {
     const g = GEMS[t.gem];
     if (!g) continue;

@@ -3490,7 +3490,7 @@ jobs:
           node tools/mutant-gate.mjs node tests/hero-slots-one.mjs --mutate
 
       # THE FIRST HERO SLOT STAYS WITHIN ONE LONE HERO'S BANK (Tyler 2026-11-20, call 24-9: slots cost more, 400,000 / 1,500,000 / 4,000,000):
-      # the second hero costs at most what a lone hero banks through the Coppercap Warrens' floor; the ladder climbs. Balance gate G9.
+      # the second hero costs at most what a PLAYED lone hero (tools/balance-sim/life.mjs) has banked on reaching the Coppercap Warrens' floor; the ladder climbs. Balance gate G9.
       - name: Hero slots - the first within a lone hero's bank
         if: ${{ !cancelled() }}
         run: |

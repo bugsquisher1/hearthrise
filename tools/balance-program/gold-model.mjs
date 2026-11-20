@@ -15,7 +15,6 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { REFERENCE_PLAYERS, REF_POINTS } from './model.mjs';
-import { HOURS, lerp, levelAtBank } from './lone-bank.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -175,7 +174,11 @@ function offers() {
 /* ── hero slot ladders (Tyler 2026-11-20: "hero slots should cost even more"). One hero banks the first slot alone; the second is banked by two heroes, the
    third by three, hunting as a party. BANK: gold one lone hero has banked by a Level, every drop sold (CITED board "2026-11-18 Gold by band": 226k / 715k / 679k / 1.29M
    in 15-30 / 30-45 / 45-60 / 60-75; about 50k before 15, ASSUMED). HOURS: the lone pace table (10-real-players section 2, "Lone table"; 60 ASSUMED on its slope). ── */
-/* BANK, HOURS, lerp and levelAtBank live in tools/balance-program/lone-bank.mjs (one table, read here and by tests/slot-price-guard.mjs). */
+/* The TYPED board table, for this design read only: the standing guard on the first slot (tests/slot-price-guard.mjs) judges a PLAYED life instead (plan audit M4). */
+const BANK = [[1, 0], [15, 50000], [30, 276000], [45, 991000], [60, 1670000], [75, 2960000]];
+const HOURS = [[1, 0], [5, 0.32], [10, 6.3], [15, 17.9], [20, 26.6], [25, 37.0], [30, 52.5], [40, 103.1], [50, 165.4], [60, 240]];
+const lerp = (t, x) => { for (let i = 1; i < t.length; i++) if (x <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (x - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t.at(-1)[1]; };
+const levelAtBank = (g) => { for (let L = 1; L <= 75; L += 0.5) if (lerp(BANK, L) >= g) return L; return 75; };
 const fourRate = (L) => lerp(LEVELS.map((l) => [l, FOUR[l].coin + FOUR[l].sold - FOUR[l].store]), L);
 function slots() {
   /* 'Shipped' is src/data/shops.js as it stands (ladder A since Tyler's 2026-11-20 ruling); 'Was' the ladder before it. */

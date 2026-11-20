@@ -306,6 +306,8 @@ function server(M, mis, o) {
 function run(M, mis, spanMs, opt) {
   const o = opt || {};
   const srv = server(M, mis, o.server);
+  /* each hero's Level XP as the server seated it (a ground's exit re-seats an unscaled hero under it): what a run's Level XP is gained from */
+  const levelXp0 = mis.map((mi) => mi.levelXp);
   const E = M.LE.createLiveEngine({ items: M.ITEMS, monsters: (o.server && o.server.monsters) || M.MONSTERS });
   const startPoint = () => srv.live(o.viewer ? o.viewer.user : mis[0].user, o.viewer ? o.viewer.slot : 0);
   E.seed(startPoint());
@@ -337,7 +339,7 @@ function run(M, mis, spanMs, opt) {
     if (o.onTick) o.onTick({ t, E });
     if (!E.running()) starvedMs += 100;
   }
-  return { srv, E, fed, verdicts, heroesSeen, starvedMs, refreshes };
+  return { srv, E, fed, verdicts, heroesSeen, starvedMs, refreshes, levelXp0 };
 }
 
 /* A MONSTER'S SWINGS, NEVER ITS SPELLS (lane/b-area-data: the monsters' spells on the real grounds). A spell's hits land in the
@@ -624,8 +626,8 @@ function rules(M) {
 
   { // LV-SCALE: A SCALED HUNT, VIEWED (lane/c-scaled-hunts; src/core/combat-sim.js huntPlayOf). The Cellar played at Level 50, its Level 50
     // leader's paid scale: the browser predicts every commit from the start point's scale (solo, and a pair viewed from the member, its leader
-    // a frozen peer rolled against the scaled rows); the server's world stands on the scaled rows; against the same pair unscaled a kill pays
-    // more, and a scaled monster lands blows no Cellar monster of the catalogue can.
+    // a frozen peer rolled against the scaled rows); the server's world stands on the scaled rows; against the same pair unscaled (seated under
+    // the Cellar's exit, the one Level it plays unscaled) a kill pays more, and a scaled monster lands blows no Cellar monster of the catalogue can.
     const L = 50;
     const worn = { tank: { weapon: 'steel_sword', shield: 'coppercap_shield', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' },
       melee_dps: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
@@ -646,7 +648,9 @@ function rules(M) {
       const kills = ev.filter((e) => e.type === 'kill').length;
       const heroes = new Set(mis.map((mi) => mi.unitId).filter(Number.isInteger));
       const blows = ev.filter((e) => e.type === 'dmg' && heroes.has(e.t) && !e.dot).map((e) => e.amount);
-      return { kills, xp: mis.reduce((a, mi) => a + mi.levelXp - M.XP.charXpForLevel(L), 0), gold: mis.reduce((a, mi) => a + mi.gold - 50000, 0),
+      /* the Level XP each hero gained from the Level the run seated it at: unscaled, the Cellar's exit seats the pair under Level 5 (server()),
+         so the Level 50 floor read every unscaled kill at minus millions and "want 2x" could not go red (run 44658385839) */
+      return { kills, xp: mis.reduce((a, mi, i) => a + mi.levelXp - r.levelXp0[i], 0), gold: mis.reduce((a, mi) => a + mi.gold - 50000, 0),
         maxBlow: blows.length ? Math.max(...blows) : 0 };
     };
     for (const [name, n, viewer] of [['solo', 1, null], ['party', 2, { user: 'sc1', slot: 0 }]]) {

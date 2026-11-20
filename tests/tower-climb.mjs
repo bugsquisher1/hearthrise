@@ -713,8 +713,9 @@ async function main() {
       } else {
         const dir = mkdtempSync(join(tmpdir(), 'hr-tc-'));
         try {
-          /* + the balance simulator TC-CURVE plays (it reads the tree it sits in) */
-          for (const d of ['src/core', 'src/data', 'src/session', FN, 'tests/hunt-core/fixtures', 'tests/_is-main.mjs', 'tools/balance-sim']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
+          /* + the balance simulator TC-CURVE plays (it reads the tree it sits in), and all of tools/lib it imports
+             (cell.mjs reads ../lib/version-stamp.mjs; c757c6871: a planted tree carries the whole lib, not one file) */
+          for (const d of ['src/core', 'src/data', 'src/session', FN, 'tests/hunt-core/fixtures', 'tests/_is-main.mjs', 'tools/balance-sim', 'tools/lib']) cpSync(join(ROOT, d), join(dir, d), { recursive: true });
           cpSync(join(ROOT, 'src/build-info.js'), join(dir, 'src/build-info.js'));
           const p = join(dir, m.file);
           let src = readFileSync(p, 'utf8').replace(/\r\n/g, '\n');

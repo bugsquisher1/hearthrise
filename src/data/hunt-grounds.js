@@ -139,16 +139,16 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.141';
-import { HUNT_INDEX } from './hunts.js?v=0.2.141';
-import { MONSTERS } from './monsters.js?v=0.2.141';
-import { PARTY } from './party.js?v=0.2.141';
+import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.142';
+import { HUNT_INDEX } from './hunts.js?v=0.2.142';
+import { MONSTERS } from './monsters.js?v=0.2.142';
+import { PARTY } from './party.js?v=0.2.142';
 /* the shape helpers (pocket, box, gather) live with the ground packs, which build their grounds with the same ones */
-import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.141';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.141';
-import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.141';
-import { sessionModeOf } from './session-modes.js?v=0.2.141';
-import { TOWER_RULES, CATACOMB_RULES, RUN_GROUNDS, runRulesOf } from './tower.js?v=0.2.141';
+import { pocket, box, gather, addRows, FULL_BOX, foldRows } from './grounds/shape.js?v=0.2.142';
+import { GROUND_PACKS } from './grounds/index.js?v=0.2.142';
+import { TRAINING_PLACES, TRAINING_SKILLS, trainingHuntId } from './training.js?v=0.2.142';
+import { sessionModeOf } from './session-modes.js?v=0.2.142';
+import { TOWER_RULES, CATACOMB_RULES, RUN_GROUNDS, runRulesOf } from './tower.js?v=0.2.142';
 export { FULL_BOX };
 
 /* THE GATHER NODE KINDS (HUNT_GATHERING_SPEC §3, REVIEW §3 and §5): what a placed node is. `node` is a

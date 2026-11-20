@@ -24,16 +24,16 @@
 // (src/render/paint.js). Opening it again is what clears the "new" marks the
 // player was shown last time (the residue `bagSeen`).
 // ════════════════════════════════════════════════════════════════════════
-import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.141';
-import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.141';
-import { whole, gold } from '../../../render/format.js?v=0.2.141';
-import { closeFloatMenu } from '../float-menu.js?v=0.2.141';
-import { stateOf } from './state.js?v=0.2.141';
-import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll, dollLeast } from './doll.js?v=0.2.141';
-import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.141';
-import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.141';
-import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.141';
-import { t } from '../../../render/player-text.js?v=0.2.141';
+import { text, cls, prop, style } from '../../../render/paint.js?v=0.2.142';
+import { MOBILE_QUERY } from '../../../world/core/camera.js?v=0.2.142';
+import { whole, gold } from '../../../render/format.js?v=0.2.142';
+import { closeFloatMenu } from '../float-menu.js?v=0.2.142';
+import { stateOf } from './state.js?v=0.2.142';
+import { dollHtml, slotLineHtml, weightsHtml, patchDoll, patchSlotLine, patchWeights, fitDoll, dollLeast } from './doll.js?v=0.2.142';
+import { toolbarHtml, gridHtml, toolsHtml, patchToolbar, patchGrid, patchTools } from './grid.js?v=0.2.142';
+import { advancedHtml, patchAdvanced } from './advanced.js?v=0.2.142';
+import { actInventory, commitSeen, INVENTORY_EVENTS } from './actions.js?v=0.2.142';
+import { t } from '../../../render/player-text.js?v=0.2.142';
 
 /** The skeleton (built once per opening). */
 export function renderInventory(ctx) {

@@ -27,14 +27,14 @@
 // Level are READ from the ground data (hunt-grounds.js OPEN_GROUNDS, hunts.js bands; every ground pack folds into them), never typed
 // here, so opening a ground needs no row in this file (the ground-pack lane, CONFLICTS.md 2026-11-07).
 // ════════════════════════════════════════════════════════════════════════
-import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES, GROUND_XP_FIT, GROUND_GP_FIT } from './balance-sheet.js?v=0.2.141';
-import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.141';
-import { HUNT_INDEX } from './hunts.js?v=0.2.141';
-import { MONSTERS } from './monsters.js?v=0.2.141';
-import { ITEMS } from './items.js?v=0.2.141';
-import { gearSaleRate, VENDOR_GEAR_TYPES } from './loot-bands.js?v=0.2.141';
-import { dialedSale } from './loot-sale.js?v=0.2.141';
-import { DERIVED_PRICES } from './shops.js?v=0.2.141';
+import { formulaStats, tierRowFor, GROUND_ROSTER, STAT_FORMULA, TIER_PULL_OVERRIDES, GROUND_XP_FIT, GROUND_GP_FIT } from './balance-sheet.js?v=0.2.142';
+import { OPEN_GROUNDS } from './hunt-grounds.js?v=0.2.142';
+import { HUNT_INDEX } from './hunts.js?v=0.2.142';
+import { MONSTERS } from './monsters.js?v=0.2.142';
+import { ITEMS } from './items.js?v=0.2.142';
+import { gearSaleRate, VENDOR_GEAR_TYPES } from './loot-bands.js?v=0.2.142';
+import { dialedSale } from './loot-sale.js?v=0.2.142';
+import { DERIVED_PRICES } from './shops.js?v=0.2.142';
 
 /* NAMED EXCEPTIONS a scaled ground carries, each with its why. `danger`: the share of full danger it reaches at its scaled floor.
    A row here never makes a ground scalable: the ground data does. */

@@ -21,9 +21,9 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { DISCIPLINES, ABILITIES } from './abilities.js?v=0.2.141';
-import { isShield } from './shields.js?v=0.2.141';
-import { FIST_LINE } from './fists.js?v=0.2.141';
+import { DISCIPLINES, ABILITIES } from './abilities.js?v=0.2.142';
+import { isShield } from './shields.js?v=0.2.142';
+import { FIST_LINE } from './fists.js?v=0.2.142';
 
 /* role id → row.
    melee     true = attacks only from an adjacent tile, and only standing on it (RO-19)

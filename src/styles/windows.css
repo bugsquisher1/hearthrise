@@ -1123,6 +1123,16 @@
 .hw-sow-all { display: none; }
 .hw-sow-all.is-on { display: inline-block; }
 .hw-seeds .hw-line.is-locked .hw-line-name b { color: var(--ink-3); }
+.hw-seed-makes { display: block; color: var(--ink-3); }
+.hw-seed-makes:empty { display: none; }
+/* Tend the field (src/shell/windows/farm-tend.js): the server's bill as a few plain lines, the one press under it */
+.hw-tend { display: none; margin: 0 0 10px; }
+.hw-tend.is-on { display: block; }
+.hw-farm.is-off .hw-tend { display: none; }
+.hw-tend-pick { display: none; align-items: center; gap: 8px; font-size: var(--t-small); color: var(--ink-2); }
+.hw-tend-pick.is-on { display: flex; }
+.hw-tend-bill { margin: 6px 0; padding: 0; list-style: none; font-size: var(--t-small); color: var(--ink-2); }
+.hw-tend-bill li { margin: 2px 0; }
 .hw-farm.is-off .hw-tier, .hw-farm.is-off [data-hs-act="upgrade"] { display: none; }
 @media (max-width: 540px), (max-height: 540px) and (max-width: 1024px) {
   .hw-field { gap: 8px; }

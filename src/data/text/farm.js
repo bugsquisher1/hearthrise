@@ -25,6 +25,8 @@ export const FARM_TEXT = Object.freeze({
   refused_stale_level: 'Plots changed. Check the price and try again',
   refused_max_plot_level: 'Plots at top tier',
   refused_no_seed_for_sale: 'The Shop does not sell that seed.',
+  refused_quote_changed: 'The seed bill changed. Check it and press again.',
+  refused_nothing_to_tend: 'Nothing to tend right now.',
 
   /* The window's frame. */
   shared: 'Shared land: each hero keeps their own crop and Farming XP',
@@ -75,6 +77,38 @@ export const FARM_TEXT = Object.freeze({
   seeds_in_bag_storage: { one: '{held} seed in bag and Storage', other: '{held} seeds in bag and Storage' },
   sow_all: 'Plant {n} empty plots',
   no_seed_to_plant: 'No seeds (sold at the Shop)',
+  /* What a crop makes, under its seed row (src/data/drinks.js, then the Cooking rows that take it). */
+  makes_drink: 'Makes {drink}, a mana drink ({mana} mana)',
+  makes_food: 'Cooked into {foods}',
+
+  /* Tend the field (supabase/migrations/1009-tend-the-field.sql): the server's bill, then one press. */
+  tend_head: 'Tend the field',
+  tend_pick: 'Plant with',
+  tend_pick_own: 'The same crop as before',
+  tend_harvest: { one: 'Harvest {count} ready plot', other: 'Harvest {count} ready plots' },
+  tend_plant_own: { one: 'Plant {count} plot again with the same crop', other: 'Plant {count} plots again with the same crops' },
+  tend_plant_pick: { one: 'Plant {crop} in {count} plot', other: 'Plant {crop} in {count} plots' },
+  tend_water: { one: 'Water {count} plot', other: 'Water {count} plots' },
+  tend_seed_have: 'Uses {qty} {seed} you have',
+  tend_seed_have_buy: 'Uses {qty} {seed} you have and buys {more} more for {gold}',
+  tend_seed_buy: 'Buys {qty} {seed} for {gold}',
+  tend_empty_unplanted: { one: 'Plot {plots} is empty. Pick a crop to plant it', other: 'Plots {plots} are empty. Pick a crop to plant them' },
+  tend_empty_level_too_low: { one: 'Plot {plots} stays empty because {crop} needs Farming {level}', other: 'Plots {plots} stay empty because {crop} needs Farming {level}' },
+  tend_empty_plot_tier_locked: { one: 'Plot {plots} stays empty because {crop} needs plot tier {level}', other: 'Plots {plots} stay empty because {crop} needs plot tier {level}' },
+  tend_empty_no_seed_for_sale: { one: 'Plot {plots} stays empty because you have no {seed} and the Shop does not sell it', other: 'Plots {plots} stay empty because you have no {seed} and the Shop does not sell it' },
+  tend_empty_cannot_afford: { one: 'Plot {plots} stays empty because you have no {seed} and not enough gold to buy one', other: 'Plots {plots} stay empty because you have no {seed} and not enough gold to buy more' },
+  tend_nothing: 'Nothing to tend right now',
+  tend_go: 'Tend the field',
+  tend_go_gold: 'Tend the field for {gold}',
+  tending: 'Tending the field…',
+  tended_harvest: 'Harvested {items}',
+  tended_planted: { one: 'Planted {count} plot', other: 'Planted {count} plots' },
+  tended_watered: { one: 'Watered {count} plot', other: 'Watered {count} plots' },
+  tended_xp: '+{xp} Farming XP',
+  tended_bought: 'Bought {seeds} for {gold}',
+  tended_failed_harvest: 'Plot {n} was not harvested',
+  tended_failed_plant: 'Plot {n} was not planted',
+  tended_failed_water: 'Plot {n} was not watered',
 
   /* The plot tier. */
   tier_grows: 'Tier {tier} grows {crops}.',

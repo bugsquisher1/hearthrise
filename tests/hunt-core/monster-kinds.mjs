@@ -474,7 +474,7 @@ const mutants = [
   { name: 'a mend may take its caster', case: 'mend-heals-the-most-hurt', edits: [[MS, "if (m === u || m.side !== 'mon'", "if (m.side !== 'mon'"]] },
   { name: 'a mend reaches another pack', case: 'mend-heals-the-most-hurt', edits: [[MS, ' || m.pocket !== u.pocket || !(m.hp < m.maxHp)) continue;', ' || !(m.hp < m.maxHp)) continue;']] },
   { name: 'a mend has no range', case: 'mend-heals-the-most-hurt', edits: [[MS, '    if (d > sp.range || (d > 1 && !los(inst.grid, u, m))) continue;\n', '']] },
-  { name: 'a mend heals past max HP', case: 'mend-heals-the-most-hurt', edits: [[MS, 'const got = Math.min(t.maxHp - t.hp, sc.rng.int(lo, top));', 'const got = sc.rng.int(lo, top);']] },
+  { name: 'a mend heals past max HP', case: 'mend-heals-the-most-hurt', edits: [[MS, 'const got = Math.min(t.maxHp - t.hp, healTaken(t, sc.rng.int(lo, top)));', 'const got = healTaken(t, sc.rng.int(lo, top));']] },
   { name: 'a mend with nobody hurt casts anyway', case: 'mend-heals-the-most-hurt', edits: [[MS, '    if (m === u || m.side !== \'mon\' || !m.alive || m.pocket !== u.pocket || !(m.hp < m.maxHp)) continue;', '    if (m === u || m.side !== \'mon\' || !m.alive || m.pocket !== u.pocket) continue;']] },
   { name: 'a mend marks ground', case: 'mend-marks-nothing', edits: [['src/core/hunt/marks.js', "if (!c || typeof c !== 'object' || !SHAPE_KINDS[c.kind]) return null;", "if (!c || typeof c !== 'object') return null;"]] },
   { name: 'the screen draws a mend', case: 'mend-marks-nothing', edits: [['src/core/hunt/marks.js', "if (!ev || ev.type !== 'spell' || !SHAPE_KINDS[ev.shape]) return null;", "if (!ev || ev.type !== 'spell') return null;"]] },

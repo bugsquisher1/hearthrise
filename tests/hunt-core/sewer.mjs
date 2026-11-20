@@ -509,13 +509,17 @@ const cases = {
     /* town: every asking card has its way past too, up to the Thicket's Enter */
     let t = tutAt(M, K, floor, { levelXp: M.xp.charXpForLevel(floor), visited: new Set(['mill_cellar']), sellable: 3 });
     t = { ...t, read: new Set(seen) };
+    /* each card's Got it is the shell's (launcher.js actCoach): a read for one that teaches or asks, a hide for this visit for one the server
+       finishes (Sell junk since the retention dive 2026-11-20: Got it means later, not never) */
+    const readsDone = (d) => d.kind === 'read' || (d.kind === 'any' && d.of.some(readsDone));
+    let reachedThicket = false;
     for (let n = 0; n < 14; n++) {
       const c = M.tut.currentCard(t);
       if (!c) return 'the town chain ended with no Thicket card';
-      if (c.id === 'into_the_thicket') break;
-      if (!c.gotIt) return 'a town card with no way past: ' + c.id;
-      t = { ...t, read: new Set([...t.read, c.id]) };
+      if (c.id === 'into_the_thicket') { reachedThicket = true; break; }
+      t = c.gotIt || readsDone(c.done) ? { ...t, read: new Set([...t.read, c.id]) } : { ...t, hid: new Set([...(t.hid || []), c.id]) };
     }
+    if (!reachedThicket) return 'fourteen Got its in town never reached Into the Thicket: ' + (M.tut.currentCard(t) || {}).id;
     /* the food sums wait until the hero has eaten; then they ask, and Got it moves on */
     if (seen.includes('food_when')) return 'Eat on time came before the hero ate';
     const fed = (more) => fresh(floor - 1, { read: new Set(['first_eat', 'fight_settings', 'plant_land', 'bar_intro']), supplies: [{ item: 'cooked_shrimp', source: 'own', count: 6 }], ...(more || {}) });
@@ -1876,11 +1880,25 @@ const cases = {
     const after = M.tut.currentCard(town({ hid: new Set(['fuel_hearth']) }));
     if (id(after) !== 'plant_land') return 'Feed the Hearth hidden with Got it, the coach is on ' + id(after) + ', want Plant your land';
     /* the shell's own readers carry the hidden set: residue coach.hid -> coachFactsOf -> the chain's facts */
-    const cs = { slot: 0, read: () => undefined, record: { data: {}, residue: residueOf({ coach: { hid: ['fuel_hearth'] } }) }, setResidue: () => true };
+    const cs = { slot: 0, read: () => undefined, record: { data: {}, residue: residueOf({ coach: { hid: ['fuel_hearth'], hidIn: 'none:town' } }) }, setResidue: () => true };
     const sh = L.coachFactsOf(cs, null);
     if (!(sh.hid instanceof Set) || !sh.hid.has('fuel_hearth')) return 'the shell hands the chain no hidden cards: ' + JSON.stringify(sh.hid && [...sh.hid]);
     const f = tutorialFactsOf({ slot: 0, read: () => undefined }, sh);
     if (f && !(f.hid instanceof Set && f.hid.has('fuel_hearth'))) return 'the coach\'s facts drop the hidden cards: ' + JSON.stringify(f.hid);
+    /* GOT IT MEANS LATER, NOT NEVER (retention dive 2026-11-20, R5: Got it at Level 1 hid "Cash in" and "Into the Thicket" for good): a hide
+       holds for the visit it was pressed on. Pressed in hunt s1, it holds in s1; back in town from s1, or in the next hunt, the card shows again. */
+    const hunt = (session, ended) => ({ session_id: session, hunt_id: 'mill_cellar', ended, session: {}, hero: {}, pose: { units: [] } });
+    let res = residueOf({ coach: { read: ['bar_intro'] } });
+    const hero = (h) => ({ slot: 0, read: (k) => (k === 'hunt' ? h : undefined), record: { data: {}, residue: res }, setResidue: (k, v) => { res = residueOf({ ...res, [k]: v }); return true; } });
+    if (!L.markCoachHid(hero(hunt('s1', false)), { id: 'leave_cellar' })) return 'Got it on "Cash in" recorded no hide';
+    const hidIn = (h) => [...(L.coachFactsOf(hero(h), null).hid || [])].join();
+    if (hidIn(hunt('s1', false)) !== 'leave_cellar') return 'in the hunt Got it was pressed in, the hidden cards are ' + JSON.stringify(hidIn(hunt('s1', false)));
+    if (hidIn(hunt('s1', true)) !== '') return 'back in town from that hunt "Cash in" is still hidden: ' + JSON.stringify(hidIn(hunt('s1', true)));
+    if (hidIn(hunt('s2', false)) !== '') return 'in the next hunt "Cash in" is still hidden: ' + JSON.stringify(hidIn(hunt('s2', false)));
+    /* SELL JUNK IS THE SERVER'S TO FINISH: a read (the old Got it) no longer finishes it, so junk on a later return is said again */
+    const junk = town({ sellable: 5, bag: { ...M.kit.START_INVENTORY }, read: new Set([...town().read, 'sell_loot']) });
+    const up = (fx) => { for (let i = 0; i < 40; i++) { const c = M.tut.currentCard(fx); if (!c || c.id === 'sell_loot') return id(c); fx = { ...fx, hid: new Set([...(fx.hid || []), c.id]) }; } return null; };
+    if (up(junk) !== 'sell_loot') return 'with junk in the bag on a later return, Sell junk read once never comes back (the coach walks to ' + up(junk) + ')';
     return null;
   },
   'tutorial-shell-facts': async (M) => {
@@ -2051,6 +2069,11 @@ const mutants = [
   /* THE SPELL OFFER IS ONE THE HERO CAN CAST NOW (retention dive 2026-11-20, dead moment E) */
   { name: 'Try a rune spell offers a spell under its unlock or party only', case: 'starter-bars',
     edits: [['src/data/hunt-tutorial.js', 'x.disciplines.includes(f.discipline) && castsNow(x)) : null;', 'x.disciplines.includes(f.discipline)) : null;']] },
+  /* GOT IT MEANS LATER, NOT NEVER (retention dive 2026-11-20, R5) */
+  { name: 'a card hidden with Got it stays hidden on every later visit', case: 'tutorial-got-it-moves-on',
+    edits: [['src/shell/launcher.js', 'Array.isArray(r.hid) && r.hidIn === visitOf(cs) ? r.hid : []', 'Array.isArray(r.hid) ? r.hid : []']] },
+  { name: 'Sell junk read once never comes back', case: 'tutorial-got-it-moves-on',
+    edits: [['src/data/hunt-tutorial.js', "'shop', { kind: 'any', of: [{ kind: 'loot_sold' },", "'shop', { kind: 'any', of: [READ, { kind: 'loot_sold' },"]] },
   /* GOT IT NEVER HOLDS THE CHAIN (2026-11-18) */
   { name: 'a card hidden with Got it holds every card after it again', case: 'tutorial-got-it-moves-on',
     edits: [['src/data/hunt-tutorial.js', '    if (facts.hid instanceof Set && facts.hid.has(r.id)) continue;\n', '']] },
@@ -2393,7 +2416,7 @@ const mutants = [
   { name: 'Tamsin\'s payment card shows while the hero hunts another ground', case: 'tutorial-town-chain',
     edits: [['src/data/hunt-tutorial.js', "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }, { when: [{ kind: 'not_elsewhere', hunt: WOLVES.hunt }] }),", "{ kind: 'been', hunt: WOLVES.hunt, past: true }] }),"]] },
   { name: 'the first-return cards come back after the Thicket', case: 'tutorial-town-chain',
-    edits: [['src/data/hunt-tutorial.js', "'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },", "'shop', orGotIt({ kind: 'loot_sold' }),"]] },
+    edits: [['src/data/hunt-tutorial.js', "'shop', { kind: 'any', of: [{ kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },", "'shop', { kind: 'loot_sold' },"]] },
   { name: 'the shown first-minute cards come after the reactive ones (the shell would replay them)', case: 'tutorial-walk-through',
     edits: [['src/data/hunt-tutorial.js', "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull']);", "export const AUTO_KINDS = Object.freeze(['kills', 'level', 'pull', 'unlock']);"]] },
   /* lane 2: the shell's facts, Got it, read on sight, the hooks' order */

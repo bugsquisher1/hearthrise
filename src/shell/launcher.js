@@ -175,18 +175,22 @@ const heroesOf = (ctx) => {
 };
 /** Are the tips on for this player (the coach's cards here, the town criers in chat)? */
 export function tipsOn(ctx) { return switchOn(heroesOf(ctx), TIPS); }
-/** The cards this character hid with Got it (ids), or null when this client cannot record one. */
+/* GOT IT MEANS LATER, NOT NEVER (retention dive 2026-11-20, R5: seven Got its at Level 1 hid "Cash in" and "Into the Thicket" for good, so neither
+   came back when it mattered): a hide holds for the VISIT it was pressed on, the hunt the server shows (its session) and whether the hero is in
+   it or back in town from it. A new hunt, or the way home from one, is a new visit: the cards hidden on the last show again if still not done. */
+const visitOf = (cs) => { const h = huntOf(cs); return (h && h.sessionId ? String(h.sessionId).slice(0, 56) : 'none') + (h && h.huntId && !h.ended ? ':in' : ':town'); };
+/** The cards this character hid with Got it on this visit (ids), or null when this client cannot record one. */
 export function coachHidOf(cs) {
   if (!cs || !cs.record || typeof cs.setResidue !== 'function') return null;
   const r = cs.record.residue && cs.record.residue.coach;
-  return new Set(r && Array.isArray(r.hid) ? r.hid : []);
+  return new Set(r && Array.isArray(r.hid) && r.hidIn === visitOf(cs) ? r.hid : []);
 }
-/** Record `card` as hidden for this character (residue `coach.hid`, display state). True when written. */
+/** Record `card` as hidden for this character on this visit (residue `coach.hid` and `coach.hidIn`, display state). True when written. */
 export function markCoachHid(cs, card) {
   const hid = coachHidOf(cs);
   if (!hid || !card || hid.has(card.id)) return false;
   const r = (cs.record.residue && cs.record.residue.coach) || {};
-  return cs.setResidue('coach', Object.assign({}, r, { hid: Array.from(hid).concat(card.id).slice(-COACH_HID_MAX) }));
+  return cs.setResidue('coach', Object.assign({}, r, { hid: Array.from(hid).concat(card.id).slice(-COACH_HID_MAX), hidIn: visitOf(cs) }));
 }
 
 /* A card a read finishes (read on sight, or its Got it): the player may close it, which records the read. A card that
@@ -404,10 +408,12 @@ export function actCoach(ctx, el, action, ev) {
   const hadFocus = !!doc && !!doc.activeElement && el.contains(doc.activeElement);
   /* Opening clears the mark: the card the player now sees is the one they have seen. The reads stay. */
   const read = coachReadOf(cs);
-  /** @type {{ read?: string[], back?: string, backAt?: number }} */
+  /** @type {{ read?: string[], back?: string, backAt?: number, hid?: string[], hidIn?: string }} */
   const keep = read && read.size ? { read: Array.from(read) } : {};
   const r = cs.record && cs.record.residue && cs.record.residue.coach;
   if (r && r.back) { keep.back = r.back; if (Number.isSafeInteger(r.backAt)) keep.backAt = r.backAt; }
+  /* a fold keeps this visit's hides: a card hidden with Got it never comes back because the coach was folded */
+  if (r && Array.isArray(r.hid) && r.hid.length && typeof r.hidIn === 'string') { keep.hid = r.hid.slice(); keep.hidIn = r.hidIn; }
   cs.setResidue('coach', Object.assign(action === 'coach-min' ? { min: true, seen: card.id } : { seen: card.id }, keep));
   /* The box is redrawn on the residue change (one repaint per task): keep the keyboard on the coach's control. */
   if (hadFocus) queueMicrotask(() => { const b = el.querySelector('[data-hs-act^="coach-"]'); if (b) b.focus(); });

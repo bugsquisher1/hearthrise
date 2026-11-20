@@ -1171,7 +1171,7 @@ const MUTANTS = [
   /* AW-25 Outgrown only past a ground's endsAtLevel (lane/d-first-day-reds): never on every ground under the hero, never lost on the Cellar */
   ['hunts: AW-25 Outgrown leaks to every ground under the hero', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (level > r.band[1]) return'],
   ['hunts: AW-25 the Cellar past its exit reads Below level', 'src/shell/hunt-list.js', 'if (Number.isInteger(r.endsAt) && level >= r.endsAt) return', 'if (false) return'],
-  ['AW-25 the Cellar\'s band reads past its exit', 'src/shell/hunt-list.js', 'band: Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice(),', 'band: h.band.slice(),'],
+  ['AW-25 the Cellar\'s band reads past its exit', 'src/shell/hunt-list.js', '  return g && Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice();', '  return h.band.slice();'],
   /* AW-65 carry in (Tyler 2026-11-02): the press sends the count the player picked, and only that. */
   ['AW-65 Carry sends the whole stack, not the count picked', 'src/shell/carry-in.js', 'carryIntoHunt(ctx.account, cs, row.id, n)', 'carryIntoHunt(ctx.account, cs, row.id, row.max)'],
   ['the amount picker sends the whole stack', 'src/shell/widgets/amount.js', "  return n ? clampAmount(n.value, n.getAttribute('data-max')) : 1;", "  return n ? clampAmount(n.getAttribute('data-max'), n.getAttribute('data-max')) : 1;"],

@@ -418,10 +418,12 @@ export const HUNT_TUTORIAL = Object.freeze([
     'Shop → Services → Bless all three',
     'services', orGotIt({ kind: 'blessed' }), { gotIt: true, when: [IN_TOWN, { kind: 'level_at', at: HUNT_INDEX[THICKET].band[0] }, { kind: 'below_free' }],
       inWindow: 'Press Bless on each Blessing', hooks: TO_BLESS }),
+  /* FINISHED BY THE SERVER, NEVER BY A READ (retention dive 2026-11-20: Got it on it meant never again, and junk comes back every hunt): a sale or the
+     Thicket finishes it; Got it hides it for this visit only (src/shell/launcher.js visitOf), so it never walls and comes back on the next return. */
   step('sell_loot', 'Sell junk',
     'Shop → Sell all junk',
-    'shop', { kind: 'any', asks: true, of: [READ, { kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
-    { gotIt: true, when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk',
+    'shop', { kind: 'any', of: [{ kind: 'loot_sold' }, { kind: 'been', hunt: THICKET }] },
+    { when: [IN_TOWN, { kind: 'sellable' }], inWindow: 'Press Sell, then Sell all junk',
       /* the hunt summary's Back in town Sell row while that card shows (the card rings the row, never the summary's gold press), then the Shop's way */
       hooks: ['[data-hs-win="hunt-summary"] [data-hs-act="town"][data-step="sell"]',
         '[data-hs-win="shop"] .hw-tab[data-tab="sell"]', '[data-hs-win="shop"] [data-hs-act="sell-loot"]', '[data-hs-win="shop"] [data-coach-hook="sell-confirm"]'] }),

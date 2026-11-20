@@ -207,7 +207,7 @@ if (!MUTATE) {
     const { pathToFileURL } = await import('node:url');
     const PLANTS = [
       { name: 'hunt row journals no km', arm: 'K1',
-        file: 'supabase/functions/hr-accrue/accrual.js',
+        file: 'supabase/functions/hr-accrue/accrue-hunt.js',
         from: '...(summary.kills > 0 && Object.keys(s.bestiary.counts()).length ? { km: s.bestiary.counts() } : {}),', to: '' },
     ];
     for (const pl of PLANTS) {

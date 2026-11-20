@@ -200,7 +200,7 @@ function selftest() {
   const plant = (p, f) => (t) => ({ ...t, files: { ...t.files, [p]: f(t.files[p] || '') } });
   const swap = (p, a, b) => plant(p, (s) => { if (!s.includes(a)) throw new Error(`selftest anchor missing in ${p}: ${a}`); return s.replace(a, b); });
   const html = (f) => (t) => ({ ...t, html: f(t.html) });
-  const SEAM_TAG = '<script src="src/platform/storage.js?v=';
+  const SEAM_TAG = '<script src="src/platform/storage.js';   // the page's own query follows, stamped or bare
   const cases = [
     ['clean tree', (t) => t, null],
     ['a direct localStorage read in a shipped file', plant('src/app/sign-in.js', (s) => s + "\nvar __x = localStorage.getItem('x');\n"), 'PS-1'],
@@ -210,10 +210,10 @@ function selftest() {
     ['negative control: storage named in a comment and inside prose', plant('src/app/sign-in.js', (s) => s + "\n// localStorage.setItem(k, v)\nvar __p = 'kept in localStorage for now';\n"), null],
     ['negative control: the seam may reach beneath itself', plant(SEAM, (s) => s + '\nfunction __rawProbe() { return window.localStorage; }\n'), null],
     ['the seam loaded after the glyphs', html((h) => {
-      const m = h.match(/[ \t]*<script src="src\/platform\/storage\.js\?v=\d[\d.]*"><\/script>\r?\n/);
-      return h.replace(m[0], '').replace(/([ \t]*<script src="src\/data\/glyphs\.js\?v=\d[\d.]*"><\/script>\r?\n)/, '$1' + m[0]);
+      const m = h.match(/[ \t]*<script src="src\/platform\/storage\.js(?:\?v=\d[\d.]*)?"><\/script>\r?\n/);
+      return h.replace(m[0], '').replace(/([ \t]*<script src="src\/data\/glyphs\.js(?:\?v=\d[\d.]*)?"><\/script>\r?\n)/, '$1' + m[0]);
     }), 'PS-2'],
-    ['the seam deferred', html((h) => h.replace(SEAM_TAG, '<script defer src="src/platform/storage.js?v=')), 'PS-2'],
+    ['the seam deferred', html((h) => h.replace(SEAM_TAG, '<script defer src="src/platform/storage.js')), 'PS-2'],
     ['the tab id moved to the device store', swap(BOOT, 'tab: HS.session, channel', 'tab: HS, channel'), 'PS-3'],
     ['the tab id written without durable', swap(SYNC, 'tab.set(cfg.tabKey, id, { durable: true })', 'tab.set(cfg.tabKey, id)'), 'PS-3'],
     ['the tab key read outside tabSessionId', plant(SYNC, (s) => s + '\nexport const __leak = (t) => t.get(SESSION_CONFIG.tabKey);\n'), 'PS-3'],

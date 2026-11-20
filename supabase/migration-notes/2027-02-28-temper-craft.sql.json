@@ -1,0 +1,4 @@
+{
+  "seq": 567,
+  "note": "APPLIED 2026-11-05 11:44 UTC (lane/c-temper-craft, 2026-11-05). hr_unlock_buy, patched at one anchor and pinned on ccb6f35b...: a rung's material comes from the bag, then the account's Storage. hr_temper_view gains the next rung's items. ORDER: last of the six, before the hr-accrue deploy."
+}

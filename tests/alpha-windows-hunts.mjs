@@ -62,6 +62,7 @@
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from './_client-harness.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 import { FIXTURE, clone, LEVEL_5_XP, wait, pushEnvelope, openWin, sent, pageRun, plain, mutate, shardPlan, tickerMutant } from './_alpha-windows.mjs';
 
 /* The readiness line with the fixture's bag and bar (supplies are never 'short' against a restock target any more). */
@@ -98,7 +99,7 @@ async function huntsPure(imp) {
   const glade = rowOf('mosslight_glade'), thicketR = rowOf('meadowbrook_thicket');
   /* FIXED ROWS, NOT TODAY'S BALANCE (lane/b-tier-dials): the page's words and pulls are read off rows set here on the very rows the page reads
      (hunt-tiers.js, the build's ?v= instance), put back after, so the designer moving a number never turns a words check red. */
-  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+  const TV = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href + sourceQuery(ROOT));
   const kept = { glade: TV.GROUND_TIERS.mosslight_glade, thicket: TV.GROUND_TIERS.meadowbrook_thicket };
   const tierRow = (id, pull, dmgPm, hpPm, xpPm) => ({ id, pull, dmgPm, hpPm, xpPm });
   try {
@@ -131,7 +132,7 @@ async function huntsPure(imp) {
      and their pages never said it (each pack carries its measurement). */
   {
     const healerLine = (await imp('src/render/player-text.js')).t('hunts.tier_healer');
-    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { GROUND_PACKS } = await import(pathToFileURL(join(ROOT, 'src/data/grounds/index.js')).href + sourceQuery(ROOT));
     let named = 0;
     if (!healerLine || healerLine === 'hunts.tier_healer') fails.push('AW-25 hunts.tier_healer has no words');
     const rows = huntRows();
@@ -212,7 +213,7 @@ async function huntsPure(imp) {
      lands) at the multiplier the settle hands it (hunt-rewards.js payKill: weakness(row).dropMult, combat.js weaknessInfo, the monster's own). */
   {
     const { materialsOf } = await imp('src/shell/hunt-ground-facts.js');
-    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version)).MONSTERS;
+    const MV = (await import(pathToFileURL(join(ROOT, 'src/data/monsters.js')).href + sourceQuery(ROOT))).MONSTERS;
     const { rollDropTable } = await imp('src/core/drops.js');
     const { weaknessInfo } = await imp('src/core/combat.js');
     const rolls = (id) => { const seen = []; rollDropTable(MV[id].drops, { dropMult: weaknessInfo(MV[id], null).dropMult }, { chance: (c) => { seen.push(c); return false; } }); return MV[id].drops.map((d, i) => ({ d, c: seen[i] })); };
@@ -457,7 +458,7 @@ async function prepBuilderRules(base) {
      slot back as it opened */
   {
     /* the instance configure-action.js holds (its import carries the build's ?v=): one host map, not two */
-    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const BD = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const CA = await imp('src/shell/windows/configure-action.js');
     const cs = fakeCs(fx), sc = scratch();
     sc.draft = D.draftFrom(set); sc.base = D.draftKey(sc.draft); sc.draftFor = 0; sc.view = set;

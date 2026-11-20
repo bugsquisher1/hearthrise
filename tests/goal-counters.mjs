@@ -65,6 +65,7 @@ import { MIN_ACTION_MS } from '../src/core/pacing.js';
 import { xpForLevel } from '../src/core/xp.js';
 import { huntAccrual } from './hunt-fixture.mjs';
 import { isMain } from './_is-main.mjs';
+import { engineFiles } from './_accrual-engine.mjs';
 
 const USER = '00000000-0000-4000-c000-9081a1c00000';
 const SEED = 0x9021;
@@ -951,13 +952,13 @@ const MUTATIONS = [
      modal-goal emit that sat there was cut 2026-10-22). */
   /* Re-anchored lane S1: the combat delta is accrueHunt's memberDelta. */
   { name: 'M3 combat: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);\n",
+    file: 'accrue-hunt.js', from: "  for (const op of goalProgressOps(s.goals, toMs, events)) progress.push(op);\n",
     to: "" },
   { name: 'M4 gather: the goal ops never reach the delta',
-    file: 'accrual', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see",
+    file: 'accrue-gather.js', from: "  for (const op of goalProgressOps(goals, nowMs, events)) progress.push(op);\n\n  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see",
     to: "\n\n  /* THE SUB-STEP REMAINDER, DEFERRED RATHER THAN FORFEITED — see" },
   { name: 'M5 gather: the yield is ignored and every action counts 1',
-    file: 'accrual', from: "    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
+    file: 'accrue-gather.js', from: "    updateQuest(type, amt /* , meta */) { goals.quest(type, amt == null ? 1 : amt); },\n    /* Still deliberately ABSENT:",
     to: "    updateQuest(type) { goals.quest(type, 1); },\n    /* Still deliberately ABSENT:" },
   /* (M6, the daily day-anchor mutant, retired 2026-10-22 with the daily arm: G10.) */
   { name: 'M7 goals: the day key is zero-padded (the FM defect)',
@@ -988,11 +989,11 @@ const MUTATIONS = [
     file: 'goals', from: "  'harvest',    // farm\n", to: "" },
   { name: 'M13 combat: the collection ops never reach the delta',
     /* Re-anchored lane S1 (memberDelta). */
-    file: 'accrual', from: "  for (const op of collectionProgressOps(s.collection, events)) progress.push(op);\n",
+    file: 'accrue-hunt.js', from: "  for (const op of collectionProgressOps(s.collection, events)) progress.push(op);\n",
     to: "" },
 ];
 
-const ENGINE_PATH = join(ROOT, 'supabase', 'functions', 'hr-accrue', 'accrual.js');
+const ENGINE_DIR = join(ROOT, 'supabase', 'functions', 'hr-accrue');
 const GOALS_PATH = join(ROOT, 'src', 'core', 'goals.js');
 const MEMBER_PATH = join(ROOT, 'src', 'core', 'member.js');
 
@@ -1003,15 +1004,19 @@ const MEMBER_PATH = join(ROOT, 'src', 'core', 'member.js');
    the REAL goals module would half-plant M8/M9 and read GREEN for the wrong
    reason. The rewrite points every relative specifier at an absolute file URL,
    and refuses to write a file with a surviving relative import — a mutant that
-   cannot load is a harness failure, not a caught defect. */
+   cannot load is a harness failure, not a caught defect. The engine is the door
+   and every piece it reaches (tests/_accrual-engine.mjs), each copied: a piece's
+   own goals import reads the same (possibly mutant) module, and an import of a
+   piece reaches its (possibly mutant) copy. */
 const CONTROL = !!process.env.HR_MUTANT_CONTROL;
 async function loadMutant(m) {
   const rootUrl = pathToFileURL(join(ROOT, 'x')).href.replace(/x$/, '');
-  const fnUrl = pathToFileURL(join(ROOT, 'supabase', 'functions', 'hr-accrue', 'x')).href.replace(/x$/, '');
+  const fnUrl = pathToFileURL(join(ENGINE_DIR, 'x')).href.replace(/x$/, '');
   const stamp = `${process.pid}-${Date.now()}`;
 
   let goalsSrc = await readFile(GOALS_PATH, 'utf8');
-  let engineSrc = await readFile(ENGINE_PATH, 'utf8');
+  const pieces = new Map();
+  for (const f of engineFiles(ENGINE_DIR)) pieces.set(f, await readFile(join(ENGINE_DIR, f), 'utf8'));
   let memberSrc = await readFile(MEMBER_PATH, 'utf8');
   if (m.file === 'goals') {
     if (!goalsSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in goals.js`);
@@ -1020,8 +1025,9 @@ async function loadMutant(m) {
     if (!memberSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in member.js`);
     if (!CONTROL) memberSrc = memberSrc.replace(m.from, m.to);
   } else {
-    if (!engineSrc.includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in accrual.js`);
-    if (!CONTROL) engineSrc = engineSrc.replace(m.from, m.to);
+    if (!pieces.has(m.file)) throw new Error(`MUTATION HARNESS: ${m.name} — ${m.file} is not an accrual engine file`);
+    if (!pieces.get(m.file).includes(m.from)) throw new Error(`MUTATION HARNESS: ${m.name} — anchor not found in ${m.file}`);
+    if (!CONTROL) pieces.set(m.file, pieces.get(m.file).replace(m.from, m.to));
   }
 
   const goalsFile = join(tmpdir(), `hr-goals-mutant-${stamp}.mjs`);
@@ -1029,7 +1035,7 @@ async function loadMutant(m) {
   const goalsUrl = pathToFileURL(goalsFile).href;
   /* The member assembly imports the goals module too: its copy reads the same (possibly mutant) one. */
   memberSrc = memberSrc
-    .replace(/from '\.\/goals\.js\?v=[^']*'/g, `from '${goalsUrl}'`)
+    .replace(/from '\.\/goals\.js(?:\?v=[^']*)?'/g, `from '${goalsUrl}'`)
     .replace(/from '\.\//g, `from '${rootUrl}src/core/`)
     .replace(/from '\.\.\/data\//g, `from '${rootUrl}src/data/`);
   if (/from '\.\.?\//.test(memberSrc)) throw new Error('MUTATION HARNESS: a relative import survived the member rewrite');
@@ -1037,26 +1043,30 @@ async function loadMutant(m) {
   await writeFile(memberFile, memberSrc, 'utf8');
   const memberUrl = pathToFileURL(memberFile).href;
 
-  engineSrc = engineSrc
-    .replace(/from '\.\.\/\.\.\/\.\.\/src\/core\/goals\.js'/g, `from '${goalsUrl}'`)
-    .replace(/from '\.\.\/\.\.\/\.\.\/src\/core\/member\.js'/g, `from '${memberUrl}'`)
-    .replace(/from '\.\.\/\.\.\/\.\.\/src\//g, `from '${rootUrl}src/`)
-    .replace(/from '\.\//g, `from '${fnUrl}`);
-  if (/from '\.\.?\//.test(engineSrc)) {
-    throw new Error('MUTATION HARNESS: a relative import survived the rewrite, so the mutant cannot load');
+  const pieceFile = (f) => join(tmpdir(), `hr-${f.replace(/\.js$/, '')}-mutant-${stamp}.mjs`);
+  const written = [];
+  for (const [f, text] of pieces) {
+    const out = text
+      .replace(/from '\.\.\/\.\.\/\.\.\/src\/core\/goals\.js'/g, `from '${goalsUrl}'`)
+      .replace(/from '\.\.\/\.\.\/\.\.\/src\/core\/member\.js'/g, `from '${memberUrl}'`)
+      .replace(/from '\.\.\/\.\.\/\.\.\/src\//g, `from '${rootUrl}src/`)
+      .replace(/from '\.\/([\w.-]+\.js)'/g, (all, name) => `from '${pieces.has(name) ? pathToFileURL(pieceFile(name)).href : fnUrl + name}'`);
+    if (/from '\.\.?\//.test(out)) {
+      throw new Error(`MUTATION HARNESS: a relative import survived the rewrite of ${f}, so the mutant cannot load`);
+    }
+    await writeFile(pieceFile(f), out, 'utf8');
+    written.push(pieceFile(f));
   }
-  const engineFile = join(tmpdir(), `hr-accrual-mutant-${stamp}.mjs`);
-  await writeFile(engineFile, engineSrc, 'utf8');
 
   try {
     const gm = await import(goalsUrl);
-    const em = await import(pathToFileURL(engineFile).href);
+    const em = await import(pathToFileURL(pieceFile('accrual.js')).href);
     if (typeof em.computeAccrual !== 'function') throw new Error('MUTATION HARNESS: no computeAccrual export');
     return { engine: em.computeAccrual, mod: em, goals: gm };
   } finally {
     await unlink(goalsFile).catch(() => {});
     await unlink(memberFile).catch(() => {});
-    await unlink(engineFile).catch(() => {});
+    for (const f of written) await unlink(f).catch(() => {});
   }
 }
 

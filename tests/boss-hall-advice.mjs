@@ -34,6 +34,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const { PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 const { loadGear, STYLES } = await import(pathToFileURL(join(REPO, 'tools/balance-sim/gear.mjs')).href);
@@ -57,7 +58,7 @@ const secretOf = (seed) => {
 
 export async function loadAll(root) {
   const u = (p) => pathToFileURL(join(root, p)).href;
-  const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(root, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const V = sourceQuery(root);
   const { loadPlay } = await import(u('tests/hunt-core/fixtures/play-ground.mjs'));
   return {
     play: await loadPlay(root), gear: await loadGear(root),

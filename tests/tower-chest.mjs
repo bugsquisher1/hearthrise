@@ -59,13 +59,14 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { bootReplay } from './schema-replay.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const H = (await import('./hunt-sessions-settle.mjs')).HARNESS;
 const C = (await import('./tower-climb.mjs')).HARNESS;
 const { one, q } = H;
 const ROOT = H.ROOT;
 const UID = C.UID;
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const idem = () => crypto.randomUUID();
 const N = 20000;   // keys a cell in TCH-ODDS
 const Z = 4.5;     // the measurement's tolerance, in standard deviations

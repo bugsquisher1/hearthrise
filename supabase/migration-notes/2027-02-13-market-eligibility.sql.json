@@ -1,0 +1,4 @@
+{
+  "seq": 512,
+  "note": "APPLIED 2026-10-31 19:44 UTC (lane/b-market-window, systems-engineer, 2026-10-31): threat model #9, market_locked on list and buy below hr_market_config.min_level. Before the switch and before accounts join; after 2027-02-13-market-premium-bond.sql."
+}

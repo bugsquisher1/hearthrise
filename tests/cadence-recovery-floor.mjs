@@ -72,11 +72,15 @@
 import { readFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const FILE = '2026-09-06-cadence-recovery-floor.sql';
 const MIG = join(ROOT, 'supabase', 'migrations', FILE);
-const ORDER_FILE = join(ROOT, 'tests', 'schema-apply-order.json');
+const applyOrder = () => {
+  try { return loadApplyOrder(ROOT); }
+  catch (e) { throw harness(`the apply order cannot be derived: ${String(e.message || e).split('\n')[0]}`); }
+};
 
 const argv = process.argv.slice(2);
 const harness = (m) => { const e = new Error(m); e.harness = true; return e; };
@@ -817,9 +821,7 @@ Object.assign(MUTATIONS, {
 });
 
 function latestRestatement(mutate) {
-  let order;
-  try { order = JSON.parse(readFileSync(ORDER_FILE, 'utf8')); }
-  catch { throw harness('tests/schema-apply-order.json is unreadable'); }
+  const order = applyOrder();
   let file = null, text = null;
   for (const f of order.order) {
     let t; try { t = readFileSync(join(ROOT, 'supabase', 'migrations', f), 'utf8').replace(/\r\n/g, '\n'); } catch { continue; }
@@ -869,18 +871,16 @@ function runStatic(text, mutate) {
 
   // The apply order must ACCOUNT for the file, or a rebuilt database — the
   // disaster-recovery contract — silently omits the fix.
-  let order;
-  try { order = JSON.parse(readFileSync(ORDER_FILE, 'utf8')); }
-  catch { throw harness('tests/schema-apply-order.json is unreadable'); }
+  const order = applyOrder();
   const idx = order.order.indexOf(FILE);
-  ok(idx >= 0, `${FILE} is not in tests/schema-apply-order.json 'order' — a rebuilt database would not carry the floor`);
+  ok(idx >= 0, `${FILE} is not in the apply order's chain — a rebuilt database would not carry the floor`);
   const prev = order.order.indexOf('2026-09-06-recovering-until.sql');
   ok(prev >= 0 && idx > prev,
     'the floor is ordered BEFORE 2026-09-06-recovering-until.sql — player_state.recovering_until would not exist yet '
     + 'and the migration fails closed');
   const note = (order._order_notes || {})[FILE] || '';
   ok(/STAGED, NOT APPLIED|APPLIED/.test(note),
-    `${FILE} has no deployment claim in _order_notes — the record an operator reads to decide what still has to be run is silent about it`);
+    `${FILE} has no deployment claim in its apply note (supabase/migration-notes) — the record an operator reads to decide what still has to be run is silent about it`);
 }
 
 async function runReplay() {

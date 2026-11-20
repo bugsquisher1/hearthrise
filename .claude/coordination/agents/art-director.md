@@ -3928,3 +3928,13 @@ row; the bar's x2/x1 for the frost trio, the ward trio and the tank's five). STA
 Lessons: (1) a symmetric front view of a hand reads as a helmet: give a body part its profile or an asymmetric pose; (2) at 32 px a
 group reads from DIFFERENT silhouettes (hat, hood, helm), never from three copies; (3) a ring under a thing reads as a dish unless
 it is jagged; (4) an arch hugging a boxy shape becomes a handle.
+## 2026-11-19 lane/b-signin-hearth (the account screens stand on Hearth Square, not a black void; art audit 11-19 §5)
+One still frame of the town drawn by the game's own renderer (tools/world-art/signin-backdrop.{mjs,html}: town_common, z=1, no hero,
+fixed clock, camera tile 141,41), median-cut to 256 colours (1,823 lit colours; 408 -> 173 KB indexed), assets/brand/hearth-square.png
+1024x640 art px, drawn by app.css ::before at a whole --art-px under a flat 72% --bg-0 ::after scrim. src/app/auth-backdrop.js asks
+for it only after the crest has loaded, once per page; a failed load leaves the plain --bg-0. Test: client-boot B-23 (125% DPR).
+Composition: the camera sits 5 tiles north of the firebox so on desktop the fire burns BELOW the card and the tower rises behind
+it; centred on the firebox, the crest and card hid the whole Hearth. Phones see the tower and banner (the fire is under the card).
+Lessons: (1) a url() in a custom property resolves against the STYLESHEET that reads it, so set it absolute from JS; (2) a backdrop
+behind a centred UI wants its subject placed where the UI is not, not centred; (3) tools/build-site.mjs PUBLISH lists brand files
+one by one: a new brand asset 404s live unless it gets a row.

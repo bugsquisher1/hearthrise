@@ -5,11 +5,12 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadCellRunner } from './cell.mjs';
 import { runCareer } from './career.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const root = process.argv[2];
 const R = await loadCellRunner(root);
 const { BUILD } = await import(pathToFileURL(join(root, 'src/build-info.js')).href);
-const v = '?v=' + BUILD.version;
+const v = sourceQuery(root);
 const ENG = {
   monsters: [(await import(pathToFileURL(join(root, 'src/data/monsters.js')).href + v)).MONSTERS, (await import(pathToFileURL(join(root, 'src/data/monsters.js')).href)).MONSTERS],
   items: [(await import(pathToFileURL(join(root, 'src/data/items.js')).href + v)).ITEMS, (await import(pathToFileURL(join(root, 'src/data/items.js')).href)).ITEMS],
@@ -44,7 +45,7 @@ function applyWhatIf(w) {
       const stray = Object.keys(row).filter((k) => !['id', 'pull', ...TIER_DIALS].includes(k));
       if (stray.length || !TIER_DIALS.every((k) => row[k] === undefined || Number.isInteger(row[k]))) throw new Error('whatIf tiers ' + g + ' ' + id + ': ' + (stray.join() || 'a dial is not whole'));
     }
-    for (const inst of ENG[table] || []) {
+    for (const inst of new Set(ENG[table] || [])) {   // one instance once: with a bare source the two are the same rows
       /* one row, not a table of rows: the combat constants, and the spells' switch ({ spellSwitch: { live: false } }: a cell with no monster casting) */
       if (table === 'combat' || table === 'spellSwitch' || table === 'stagger') { for (const [k, val] of Object.entries(rows)) set(inst, k, val); continue; }
       for (const [id, fields] of Object.entries(rows)) {

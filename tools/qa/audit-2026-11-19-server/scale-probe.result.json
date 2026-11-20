@@ -1,0 +1,477 @@
+{
+ "at": "2026-11-19T21:32:55.365Z",
+ "node": "v22.23.5",
+ "budget_ms": 800,
+ "span_ms": 120000,
+ "dials": {
+  "cadence_seconds": 10,
+  "flush_seconds": 90,
+  "lease_ms": 30000,
+  "hunt_body_max": 4,
+  "hunt_bodies_max": 32,
+  "shards": 1
+ },
+ "A_lone_thicket_L10": {
+  "label": "lone hero, meadowbrook_thicket, Level 10",
+  "heroes": 1,
+  "windows_ran": 36,
+  "stopped": null,
+  "outcomes": {},
+  "statements_a_settle": 5,
+  "statements_by_function": {
+   "holder (per body)": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 1.1
+   },
+   "hr_tick_settle": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 1.2
+   },
+   "hr_hunt_instance_read": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 7.8
+   },
+   "hr_perks_of": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 1.7
+   },
+   "hr_hunt_apply_instance": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 18.8
+   }
+  },
+  "pooled_transactions_a_settle": 5,
+  "network_round_trips_a_settle": 20,
+  "engine_cpu_ms_a_settle": {
+   "med": 24,
+   "p95": 104
+  },
+  "pglite_db_ms_a_settle": {
+   "med": 26.5,
+   "p95": 43.6
+  },
+  "cron_run_pglite_ms": 2.9,
+  "row_writes_a_settle": {
+   "med": 29,
+   "p95": 33,
+   "mean": 28.9
+  },
+  "row_writes_a_settle_by_table": {
+   "player_progress": {
+    "ins": 0.2,
+    "upd": 6,
+    "del": 0
+   },
+   "player_inventory": {
+    "ins": 0.4,
+    "upd": 3.2,
+    "del": 0
+   },
+   "player_skills": {
+    "ins": 0,
+    "upd": 3.2,
+    "del": 0
+   },
+   "player_state": {
+    "ins": 0,
+    "upd": 3,
+    "del": 0
+   },
+   "hunt_session_tally": {
+    "ins": 0,
+    "upd": 2,
+    "del": 0
+   },
+   "player_intents": {
+    "ins": 1,
+    "upd": 1,
+    "del": 0
+   },
+   "player_ledger": {
+    "ins": 1.4,
+    "upd": 0,
+    "del": 0
+   },
+   "hunt_sessions": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "hr_players_online_cache": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "hunt_tick_lease": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "account_wallet": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "hr_rate_counters": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "hr_tick_cron_log": {
+    "ins": 1,
+    "upd": 0,
+    "del": 0
+   },
+   "hunt_instances": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "hunt_bag": {
+    "ins": 0,
+    "upd": 0.4,
+    "del": 0
+   },
+   "hunt_session_events": {
+    "ins": 0.1,
+    "upd": 0,
+    "del": 0
+   }
+  },
+  "wal_bytes_a_settle": {
+   "med": 8832,
+   "mean": 12973.3
+  },
+  "ledger_rows_total": 49,
+  "ledger_rows_a_hero_hour": 49,
+  "ledger_by_kind": [
+   {
+    "kind": "combat",
+    "intent": "accrue",
+    "n": 36,
+    "row_bytes": 734
+   },
+   {
+    "kind": "hunt",
+    "intent": "supply_own",
+    "n": 13,
+    "row_bytes": 208
+   },
+   {
+    "kind": "hunt",
+    "intent": "hunt_pack",
+    "n": 1,
+    "row_bytes": 152
+   }
+  ],
+  "player_intents_rows": 38,
+  "intents_a_hero_hour": 38,
+  "tally_row_bytes": 1280,
+  "world_bytes": [
+   2569
+  ]
+ },
+ "A_party4_sewer_L20": {
+  "label": "party of four, millrace_sewer, Level 20",
+  "heroes": 4,
+  "windows_ran": 36,
+  "stopped": null,
+  "outcomes": {
+   "instance_settled": 108
+  },
+  "statements_a_settle": 8,
+  "statements_by_function": {
+   "holder (per body)": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 0.9
+   },
+   "hr_tick_settle": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 1
+   },
+   "hr_hunt_instance_read": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 20.6
+   },
+   "hr_perks_of": {
+    "calls_a_settle": 4,
+    "pglite_ms_a_call": 1.6
+   },
+   "hr_hunt_apply_instance": {
+    "calls_a_settle": 1,
+    "pglite_ms_a_call": 50.7
+   }
+  },
+  "pooled_transactions_a_settle": 8,
+  "network_round_trips_a_settle": 32,
+  "engine_cpu_ms_a_settle": {
+   "med": 43,
+   "p95": 120
+  },
+  "pglite_db_ms_a_settle": {
+   "med": 78,
+   "p95": 105.5
+  },
+  "cron_run_pglite_ms": 3.3,
+  "row_writes_a_settle": {
+   "med": 99,
+   "p95": 110,
+   "mean": 99.2
+  },
+  "row_writes_a_settle_by_table": {
+   "player_progress": {
+    "ins": 0.9,
+    "upd": 22.3,
+    "del": 0
+   },
+   "player_state": {
+    "ins": 0,
+    "upd": 12,
+    "del": 0
+   },
+   "player_inventory": {
+    "ins": 2.4,
+    "upd": 9.3,
+    "del": 0
+   },
+   "player_skills": {
+    "ins": 0,
+    "upd": 11.4,
+    "del": 0
+   },
+   "hunt_session_tally": {
+    "ins": 0,
+    "upd": 8,
+    "del": 0
+   },
+   "player_intents": {
+    "ins": 4,
+    "upd": 4,
+    "del": 0
+   },
+   "player_ledger": {
+    "ins": 4.8,
+    "upd": 0,
+    "del": 0
+   },
+   "hunt_sessions": {
+    "ins": 0,
+    "upd": 4.1,
+    "del": 0
+   },
+   "hunt_tick_lease": {
+    "ins": 0.1,
+    "upd": 3.9,
+    "del": 0
+   },
+   "account_wallet": {
+    "ins": 0,
+    "upd": 4,
+    "del": 0
+   },
+   "hr_rate_counters": {
+    "ins": 0,
+    "upd": 4,
+    "del": 0
+   },
+   "hr_players_online_cache": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "hr_tick_cron_log": {
+    "ins": 1,
+    "upd": 0,
+    "del": 0
+   },
+   "hunt_instances": {
+    "ins": 0,
+    "upd": 1,
+    "del": 0
+   },
+   "hunt_bag": {
+    "ins": 0,
+    "upd": 0.8,
+    "del": 0
+   },
+   "hunt_session_events": {
+    "ins": 0.1,
+    "upd": 0,
+    "del": 0
+   },
+   "chat_messages": {
+    "ins": 0,
+    "upd": 0,
+    "del": 0
+   },
+   "hr_world_notices": {
+    "ins": 0,
+    "upd": 0,
+    "del": 0
+   }
+  },
+  "wal_bytes_a_settle": {
+   "med": 34648,
+   "mean": 35201.6
+  },
+  "ledger_rows_total": 172,
+  "ledger_rows_a_hero_hour": 43,
+  "ledger_by_kind": [
+   {
+    "kind": "combat",
+    "intent": "accrue",
+    "n": 144,
+    "row_bytes": 696
+   },
+   {
+    "kind": "hunt",
+    "intent": "supply_own",
+    "n": 28,
+    "row_bytes": 208
+   },
+   {
+    "kind": "hunt",
+    "intent": "hunt_pack",
+    "n": 4,
+    "row_bytes": 152
+   }
+  ],
+  "player_intents_rows": 160,
+  "intents_a_hero_hour": 40,
+  "tally_row_bytes": 1496,
+  "world_bytes": [
+   4538
+  ]
+ },
+ "C_full_body_4x4": {
+  "parties": 4,
+  "hunt": "millrace_sewer",
+  "bodies": [
+   {
+    "sessions": 16,
+    "settled": 4,
+    "deferred": 0,
+    "reasons": {
+     "instance_settled": 12
+    },
+    "engine_ms": 134,
+    "engine_max_ms": 34,
+    "process_cpu_ms": 420
+   }
+  ]
+ },
+ "B_fan_out": {
+  "n": 1400,
+  "fixture_build_s": 61,
+  "cron_run_ms_nothing_due": {
+   "med": 19.6,
+   "max": 21.8
+  },
+  "fires": [
+   {
+    "fire": 1,
+    "cron_ms": 41.7,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 2,
+    "cron_ms": 29.4,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 3,
+    "cron_ms": 50.1,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 4,
+    "cron_ms": 61.1,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 5,
+    "cron_ms": 59.4,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 6,
+    "cron_ms": 45.2,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 7,
+    "cron_ms": 25.6,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 8,
+    "cron_ms": 24.6,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 9,
+    "cron_ms": 23.9,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 10,
+    "cron_ms": 22.4,
+    "bodies": 32,
+    "sessions": 128,
+    "largest_body": 4
+   },
+   {
+    "fire": 11,
+    "cron_ms": 21.2,
+    "bodies": 30,
+    "sessions": 120,
+    "largest_body": 4
+   }
+  ],
+  "fires_to_lease_all": 11,
+  "seconds_to_lease_all": 110,
+  "sample_bodies": [
+   {
+    "sessions": 4,
+    "settled": 4,
+    "deferred": 0,
+    "engine_ms": 65,
+    "wall_ms": 179.9
+   },
+   {
+    "sessions": 4,
+    "settled": 4,
+    "deferred": 0,
+    "engine_ms": 38,
+    "wall_ms": 137.3
+   },
+   {
+    "sessions": 4,
+    "settled": 4,
+    "deferred": 0,
+    "engine_ms": 33,
+    "wall_ms": 135.8
+   }
+  ],
+  "statements_in_sample": 42
+ },
+ "total_s": 75
+}

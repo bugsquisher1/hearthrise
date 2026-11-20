@@ -1,0 +1,4 @@
+{
+  "seq": 669,
+  "note": "APPLIED 2026-11-13 (Coordinator; data rows hr_hunt_role_rules 13->17; hr-accrue deployed right after; was: STAGED (lane/a-area-moves-bar, systems-engineer, 2026-11-13; playtest v0.2.127 P1: no hero's bar held an area move). hr_hunt_role_rules full replace from src/data/rule-subjects.js ROLE_RULES, 13 -> 17 rows: Turning Cut, Raking Shot, Hoarfrost and Spring Tide last on their default sets. No function, grant, table or player row. ORDER: after both 2027-04-15-area-spells generated files; the live engine already carries the moves. After apply: restore-census re-pin of hr_hunt_role_rules if it counts rows (13 -> 17); live-hash-drift unchanged (no body)."
+}

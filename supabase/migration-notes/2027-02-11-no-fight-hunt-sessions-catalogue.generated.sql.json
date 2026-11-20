@@ -1,0 +1,4 @@
+{
+  "seq": 508,
+  "note": "APPLIED 2026-10-31 UTC (lane/a-no-fight, systems-engineer, 2026-10-31; pre-EA: applies on its passing self-check). END_ORDER no_fight, limit no_fight_min, the world shape gains fightAt. Apply this, then 2027-02-11-no-fight-settle.sql, with the hr-accrue edge carrying them (either order: hunt-settle.js worldShapePending proposes nothing while the shapes differ)."
+}

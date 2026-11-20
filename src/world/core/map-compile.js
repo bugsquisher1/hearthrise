@@ -43,6 +43,10 @@
 //             is those glints plus every placed sprite's smoke and sparks (core/ambient.js lifeOf); it blocks nothing
 //   focus     [x,y] (optional) the tile a walked map's camera leans toward, so
 //             the heart of the place stays in view wherever the hero stands
+//   shows     [{ id, x, y, near: [x,y,w,h], fade }] (optional, a walked map) a SHOWPIECE: the placed
+//             object `id` at (x, y) whose art the camera frames while the hero stands on the `near`
+//             tiles, easing off over `fade` tiles past them (core/camera.js showAt). The compiled
+//             map's shows carry the art's drawn box in art px (its visible top: the sprite's height)
 //   maskHash  hash of the collision mask (maskHash below)
 //   grid      (optional) the art grid it is drawn on (src/data/world/art-budget.js GRIDS; the
 //             base grid when absent). The compiled map carries its `T` and `grid`, and every
@@ -142,9 +146,22 @@ export function compileMap(row, tables) {
     blend: row.blend ? Object.assign({ pairs: row.blend.pairs.slice(), alias: Object.assign({}, row.blend.alias || {}) },
       row.blend.rough ? { rough: row.blend.rough } : {}) : null,
     ambient: (row.ambient || []).map((a) => ({ id: a.id, x: a.x, y: a.y, lift: a.lift || 0, dx: a.dx || 0 })),
+    shows: (row.shows || []).map((s) => ({ id: s.id, box: artBox(objects.find((o) => o.id === s.id && o.x === s.x && o.y === s.y), sprites, grid.T),
+      near: rectOf(s.near), fade: s.fade })),
     life: lifeOf(row, objects, ground, sprites, w, h, grid.T),
     overlap: bodyOverlap(w, h, objects, buildings, sprites, grid),
   };
+}
+
+/**
+ * A placed object's drawn art in art px, by the placement rule compose.js draws by (frameBox): its frame's
+ * columns, from its visible top (the manifest's measured `height` over its contact row) down to that row.
+ */
+function artBox(o, sprites, T) {
+  const s = sprites[o.id];
+  const air = s.class === 'hanging' || s.class === 'flier' ? s.hover || 0 : 0;
+  const foot = o.y * T + o.fh * T - 1 - air;
+  return { x: o.x * T + Math.floor((o.fw * T) / 2) - s.anchor[0], y: foot - s.height, w: s.frame[0], h: s.height };
 }
 
 /** A standing unit's body, art px: this wide around its tile's centre, this tall above its contact row. */
@@ -231,6 +248,9 @@ const WHOLE = (v) => Number.isInteger(v);
  *   L-GRID  the grid is a GRIDS row; a map on another grid than the base one draws
  *           nothing the engine still measures in base art px: no rock faces, no
  *           wall-kit buildings (painted ones only), no cellar light, no hunts
+ *   L-SHOW  a showpiece is on a walked map, names a placed object whose art has a
+ *           measured height, frames from whole near tiles inside the map, and
+ *           eases off over a whole number of tiles
  */
 export function lintMap(row, tables) {
   const out = [];
@@ -265,6 +285,15 @@ export function lintMap(row, tables) {
     if (!sprites[o.id]) { bad('L-WHOLE', 'object ' + o.id + ' is not a sprite in any atlas'); continue; }
     const [fw, fh] = sprites[o.id].footprint;
     if (!inside(o.x, o.y) || !inside(o.x + fw - 1, o.y + fh - 1)) bad('L-WHOLE', 'object ' + o.id + ' at ' + o.x + ',' + o.y + ' is not on whole tiles inside the map');
+  }
+  for (const s of row.shows || []) {
+    const at = 'showpiece ' + s.id + ' at ' + s.x + ',' + s.y;
+    if (!WALKED_KINDS.includes(row.kind)) bad('L-SHOW', at + ': only a walked map frames a showpiece (a hunt is framed on its hero)');
+    if (!(row.objects || []).some((o) => o.id === s.id && o.x === s.x && o.y === s.y)) bad('L-SHOW', at + ' is not a placed object');
+    else if (!(sprites[s.id].frame && sprites[s.id].anchor && sprites[s.id].height > 0)) bad('L-SHOW', at + ': its art has no measured height');
+    const n = s.near;
+    if (!Array.isArray(n) || n.length !== 4 || !n.every(WHOLE) || n[2] < 1 || n[3] < 1 || !inside(n[0], n[1]) || !inside(n[0] + n[2] - 1, n[1] + n[3] - 1)) bad('L-SHOW', at + ': near ' + JSON.stringify(n) + ' is not whole tiles inside the map');
+    if (!WHOLE(s.fade) || s.fade < 0) bad('L-SHOW', at + ': fade ' + s.fade + ' is not a whole number of tiles');
   }
   if (out.length) return out;
   const map = compileMap(row, tables);

@@ -11,7 +11,7 @@
 //   node tests/alpha-windows-return.mjs --shard-plan   no browser: smoke.yml's shards cover every mutant once, each in budget
 //   node tests/alpha-windows-return.mjs --shots <dir>  also write the visual-gate screenshots (1440x900 and 922x423)
 //
-// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/windows/inventory/grid.js src/shell/windows/shop.js src/shell/windows/hunts.js src/shell/launcher.js src/styles/windows.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/data/hunt-tutorial.js src/shell/windows/inventory/index.js
+// mutant-anchors: src/shell/windows/inventory/bury.js src/shell/windows/inventory/grid.js src/shell/windows/shop.js src/shell/windows/hunts.js src/shell/launcher.js src/styles/windows.css src/shell/shell.js src/shell/shell-hud.js src/shell/alerts.js src/shell/windows/hunt-summary.js src/data/shell-windows.js src/data/hunt-tutorial.js src/shell/windows/inventory/index.js src/styles/summary.css
 // mutant-writes-tree: no — page mutants are served overrides (tests/_alpha-windows.mjs pageRun)
 //
 // One of the alpha windows' guards, split from tests/alpha-windows.mjs (2026-11-19, arch audit item 7): tests/_alpha-windows.mjs
@@ -40,6 +40,8 @@
 //         figure says what it is (optimizer panel: "Bag 19,369 gp" beside "Your gold 51.7k")
 //   AW-71 THE SAME CARD KEEPS ITS BOX AND ITS WORDS FOLLOW THE SERVER (door panel 2026-11-04): "You have 19 left" stood over a bar reading 6 for a whole hunt
 //   AW-72 A RING STANDS CLEAR OF THE ANSWER LINE (door panel 2026-11-04, a phone's Services): the next Bless lay behind "Blessing I is yours."
+//   AW-105 THE NEXT GROUND LEADS AFTER A GROUND OUTGROWN (audit 2026-11-19 L2): the Cellar's Level 5 end's ONE gold press is the summary
+//         foot's "Go to Meadowbrook Thicket", in view as the window opens at 1440x900, 1280x720 and 667x375, Hunt again gone
 // ════════════════════════════════════════════════════════════════════════
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -128,6 +130,43 @@ async function checks(overrides, shots, opts) {
         if (shots) await shot(phone.page, 'alpha-922x423-back-in-town');
       }
       await phone.ctx.close();
+
+      /* AW-105 THE NEXT GROUND LEADS AFTER A GROUND OUTGROWN (audit 2026-11-19 L2, played at 1440x900: the Cellar's Level 5 end opened on a greyed
+         Hunt again and "Hunt again off: Ground outgrown", and the Next ground row lay under the sticky foot, below the window's edge). The same
+         Level 5 hero, its Cellar hunt ended `outgrown`: the window's ONE gold press is the foot's "Go to Meadowbrook Thicket", inside the window as it
+         opens at 1440x900, 1280x720 and 667x375, Hunt again gone; the press opens Hunts on that ground (the Next ground row's own link) */
+      for (const [vp, tag] of [[{ width: 1440, height: 900 }, '1440x900'], [{ width: 1280, height: 720 }, '1280x720'], [{ width: 667, height: 375 }, '667x375']]) {
+        const o = await open({ viewport: vp, mutateEnv: home5, residue: { coach: { read: ['bar_intro'] } } });
+        if (!o.up) { fails.push('AW-105 the page did not mount at ' + tag); await o.ctx.close(); continue; }
+        o.s.env.hunt = Object.assign({}, o.s.env.hunt, { ended: true, session: { end_reason: 'outgrown', ended_at: '2026-10-25T00:20:00Z', phase: 'ended' } });
+        o.s.env.state = Object.assign({}, o.s.env.state, { active_kind: 'idle', active_id: null });
+        await pushEnvelope(o.page, o.s);
+        await wait(o.page, () => document.querySelector('[data-hs-win="hunt-summary"] [data-hs-built]'), null, 3000);
+        await o.page.waitForTimeout(300);
+        const lead = await o.page.evaluate(() => {
+          const w = document.querySelector('[data-hs-win="hunt-summary"]');
+          const box = w.querySelector('[data-hs-body]').getBoundingClientRect();
+          const shown = (b) => !b.hidden && b.getClientRects().length > 0;
+          const gold = Array.from(w.querySelectorAll('button.is-primary')).filter(shown);
+          const r = gold.length === 1 ? gold[0].getBoundingClientRect() : null;
+          const again = w.querySelector('[data-hs-act="again"]');
+          return { gold: gold.map((b) => b.getAttribute('data-hs-act') + ':' + b.textContent + ':' + b.getAttribute('data-hs-goto')),
+            inView: !!r && r.top >= box.top && r.bottom <= Math.min(box.bottom, window.innerHeight) && r.right <= window.innerWidth,
+            again: shown(again), msg: w.querySelector('.hh-intent-msg').textContent };
+        });
+        if (JSON.stringify(lead.gold) !== '["next-ground:Go to Meadowbrook Thicket:hunts|meadowbrook_thicket|"]' || !lead.inView || lead.again || /Hunt again off/.test(lead.msg))
+          fails.push('AW-105 at ' + tag + ' the outgrown card leads with ' + JSON.stringify(lead) + ', want Go to Meadowbrook Thicket alone, in view, no Hunt again');
+        if (shots) await shot(o.page, 'alpha-' + tag + '-outgrown-next-ground');
+        if (tag === '1440x900') {
+          await o.page.click('[data-hs-win="hunt-summary"] [data-hs-act="next-ground"]');
+          await wait(o.page, () => !!document.querySelector('[data-hs-win="hunts"] [data-hs-built]'), null, 3000);
+          await o.page.waitForTimeout(200);
+          const on = await o.page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunts"]'); return w ? w.textContent.includes('Meadowbrook Thicket') : false; });
+          if (!on) fails.push('AW-105 Go to did not open Hunts on Meadowbrook Thicket');
+        }
+        if (o.errors.length) fails.push('AW-105 console errors at ' + tag + ': ' + o.errors.join(' | ').slice(0, 300));
+        await o.ctx.close();
+      }
     }
 
     { // AW-98 THE NEXT BUY (lane/a-next-steps; audit 2026-11-15 F12/F20: gold piled up and Back in town said nothing once the bag was sorted)
@@ -561,6 +600,9 @@ const MUTANTS = [
   ['AW-78 Hunt again stays gold beside an open step', 'src/shell/windows/hunt-summary.js', "cls(go, 'is-primary', town.primary === 'again');", "cls(go, 'is-primary', true);"],
   ['AW-78 the coach takes the gold press again', 'src/shell/windows/hunt-summary.js', '<button type="button" class="hh-tool is-link" data-hs-act="coach-next" hidden>', '<button type="button" class="hh-tool is-primary" data-hs-act="coach-next" hidden>'],
   ['AW-78 a step pressed never reads Done', 'src/shell/windows/hunt-summary.js', 'const mark = (r) => { if (r && (r.ok || r.moved > 0)) {', 'const mark = (r) => { if (false) {'],
+  /* audit 2026-11-19 L2 (AW-105): the outgrown card leads with Go to the next ground, in view on a phone too */
+  ['AW-105 the outgrown card leads with a greyed Hunt again again', 'src/shell/windows/hunt-summary.js', "    const way = town.primary === 'ground' ? town.steps.find((s) => s.id === 'ground') : null;", '    const way = null;'],
+  ['AW-105 a phone stacks the Go to press under the steps', 'src/styles/summary.css', '  .hsum-card.is-onward > .hsum-foot { order: 0; position: sticky;', '  .hsum-card.is-onward > .hsum-foot { order: 1; position: static;'],
   ['AW-78 the steps are not the newest card\'s', 'src/shell/windows/hunt-summary.js', "const town = cur === list[0] && !huntOpen ? townStepsOf(cs, didOf(sc, cur.id)) : { steps: [], primary: 'again' };", "const town = { steps: [], primary: 'again' };"],
   ['AW-78 the return card rings the Shop, never the summary\'s row', 'src/data/hunt-tutorial.js', "      hooks: ['[data-hs-win=\"hunt-summary\"] [data-hs-act=\"town\"][data-step=\"sell\"]',\n        '[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',", "      hooks: ['[data-hs-win=\"shop\"] .hw-tab[data-tab=\"sell\"]',"],
   ['Bury debits the bag before the server answers', 'src/shell/windows/inventory/bury.js', "  const qty = buryQty(cs, id);\n", "  const qty = buryQty(cs, id);\n  delete cs.read('inventory')[id];\n"],

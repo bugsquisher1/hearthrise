@@ -11,7 +11,18 @@
      reads in lining ones (a "1" that is not a small "i"). */
   font-variant-numeric: lining-nums;
 }
-.app.is-auth { min-height: 100vh; display: grid; place-items: center; }
+.app.is-auth { min-height: 100vh; display: grid; place-items: center; isolation: isolate; }
+/* THE HEARTH BEHIND THE ACCOUNT SCREENS (art audit 2026-11-19 §5): Hearth Square as the game draws it, one still picture
+   (assets/brand/hearth-square.png, 1024 x 640 art px, tools/world-art/signin-backdrop.mjs) at the World's own density, a whole
+   --art-px an art px, centred on the Great Hearth, under a flat --bg-0 scrim so the crest's words read on it. It arrives after the
+   crest (src/app/auth-backdrop.js sets --auth-backdrop once the picture has loaded); until then, and if it never comes, the page
+   is the plain --bg-0 it always was. Fixed, so a phone's scroll moves the card over the town, never the town. */
+.app.is-auth::before, .app.is-auth::after { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; }
+.app.is-auth::before {
+  background: var(--auth-backdrop, none) 50% 50% / calc(1024 * var(--art-px)) calc(640 * var(--art-px)) no-repeat, var(--bg-0);
+  image-rendering: pixelated;
+}
+.app.is-auth::after { background: color-mix(in srgb, var(--bg-0) 72%, transparent); }
 /* THE ONE SCROLLBAR for every scroll area of the game (Tyler 2026-10-25), thin steel with a dim gold thumb (tokens.css
    --scroll-*): the standard properties (Firefox, Chromium) and the -webkit- parts (Safari, an older Chromium). Zero
    specificity, so a box that hides its bar on purpose (a category row that pans) keeps doing so. */
@@ -33,7 +44,7 @@
    built from the pieces a window wears: the steel frame over its grained floor, a dark title band ruled in
    dim gold with the card's name in Cinzel, sunk fields, steel rules between the parts, the one primary a
    raised gold plate (shell.css; the button carries .hh-tool.is-primary). Nothing here fades with the Window
-   opacity setting: no World is behind these screens. The crest is painted art: 1:1 (311x384) on desktop,
+   opacity setting: no live World is behind these screens, only a still picture of Hearth Square (.app.is-auth::before). The crest is painted art: 1:1 (311x384) on desktop,
    exactly 1:2 on the phone size class, never at a fraction between. ── */
 .auth {
   width: 100%; box-sizing: border-box;

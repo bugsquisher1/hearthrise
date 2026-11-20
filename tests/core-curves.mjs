@@ -28,6 +28,9 @@
 // the combat curve to 120) and past the cap and deep, beside `skills`' own level
 // (readEnvelopeSkills); its keys are SKILLS_DEF's.
 //
+// AND CURVE-HOLD (2026-11-19): the newest Level curve file (tools/gen-level-curve.mjs) moves no live hero's
+// Level; a hero planted in a moved gap refuses it, one off the gaps does not (curveHold below).
+//
 //   node tests/core-curves.mjs              compare; exit 1 on any mismatch
 //   node tests/core-curves.mjs --selftest   each planted drift must be named (JS drifts, then
 //                                           drifts planted in the database's envelope)
@@ -290,6 +293,58 @@ const SKILL_DRIFTS = [
   ['the envelope carries no skill_levels section', "delete from public.hr_state_sections where key = 'skill_levels';"],
 ];
 
+/* ── CURVE-HOLD: A CURVE FILE MOVES NO LIVE LEVEL (2026-11-19, the Coordinator's no-Level-loss route) ─────────────────────────────
+   tools/gen-level-curve.mjs's newest file holds every hero's Level on the rows it replaces and refuses itself if one would move. Here the
+   file runs again over the rows the chain held before it (the last earlier file that wrote hr_level_curve), inside a transaction that is
+   rolled back: once with a hero planted on a Level the two curves part on (it must be refused, naming every mover), once with only a
+   hero they agree on (it must apply). `fileSql` is the file's text, so --selftest can hand it a copy without the refusal. */
+const HOLD_MOVER = '1e0e1000-0000-4000-8000-00000000a0e1', HOLD_STILL = '1e0e1000-0000-4000-8000-00000000a0e2';
+const parseCurveRows = (sql) => {
+  const m = /insert into public\.hr_level_curve \(from_level, base_xp, first_xp, rise, bend\) values\s*([\s\S]*?);/.exec(sql);
+  return m && [...m[1].matchAll(/\((\d+), (\d+), (\d+), (\d+), (\d+)\)/g)].map((r) => ({ from: +r[1], base: +r[2], first: +r[3], rise: +r[4], bend: +r[5] }));
+};
+const levelOn = (rows, x) => { let L = 1; while (L < 5000 && XP.xpForLevelOn(rows, L + 1) <= x) L++; return L; };
+async function curveHoldCase(db, fileSql, prior, heroes) {
+  await db.exec('begin');
+  try {
+    await db.exec(`delete from public.hr_level_curve;
+      insert into public.hr_level_curve (from_level, base_xp, first_xp, rise, bend) values ${prior.map((r) => `(${r.from}, ${r.base}, ${r.first}, ${r.rise}, ${r.bend})`).join(', ')};
+      ${heroes.map(([id, x]) => `insert into auth.users (id) values ('${id}') on conflict do nothing;
+      insert into public.player_state (user_id, slot, version, level_xp) values ('${id}', 0, 1, ${x}) on conflict (user_id, slot) do update set level_xp = excluded.level_xp;`).join('\n')}`);
+    const xs = (await db.query('select level_xp::text as x from public.player_state')).rows.map((r) => Number(r.x));
+    const movers = xs.filter((x) => levelOn(prior, x) !== XP.charLevelFromXp(x)).length;
+    try { await db.exec(fileSql); return { movers, refused: null }; } catch (e) { return { movers, refused: String(e.message || e) }; }
+  } finally { await db.exec('rollback'); }
+}
+async function curveHold(db, fileSql) {
+  const { chainFiles } = await import('./schema-replay.mjs');
+  const { readFile } = await import('node:fs/promises');
+  const { OUT_NAME } = await import('../tools/gen-level-curve.mjs');
+  const chain = await chainFiles(), at = chain.findIndex(([n]) => n === OUT_NAME);
+  if (at < 0) return ['CURVE-HOLD: ' + OUT_NAME + ' is not in the chain'];
+  let prior = null;
+  for (let i = at - 1; i >= 0 && !prior; i--) prior = parseCurveRows(await readFile(chain[i][1], 'utf8'));
+  if (!prior || !prior.length) return ['CURVE-HOLD: no earlier file writes hr_level_curve'];
+  const now = XP.levelCurveRows();
+  let mover = null;
+  for (let L = 2; L < 3000 && mover === null; L++) for (const x of [XP.xpForLevelOn(now, L), XP.xpForLevelOn(prior, L)]) if (mover === null && levelOn(prior, x) !== XP.charLevelFromXp(x)) mover = x;
+  if (mover === null) return ['CURVE-HOLD: ' + OUT_NAME + ' moves no Level threshold below 3,000 against the rows before it, so nothing here can be refused'];
+  const bad = [];
+  const a = await curveHoldCase(db, fileSql, prior, [[HOLD_MOVER, mover], [HOLD_STILL, 0]]);
+  if (!a.refused || !a.refused.includes(a.movers + ' live hero(es) would change Level')) {
+    bad.push(`CURVE-HOLD: a hero at ${mover} Level XP (Level ${levelOn(prior, mover)} on the rows before, ${XP.charLevelFromXp(mover)} on these) was not refused naming ${a.movers} mover(s): ${a.refused || 'the file applied'}`);
+  }
+  const b = await curveHoldCase(db, fileSql, prior, [[HOLD_STILL, 0]]);
+  if (b.movers === 0 && b.refused) bad.push('CURVE-HOLD: with no hero in a moved gap the file refused itself: ' + b.refused.slice(0, 200));
+  return bad;
+}
+/* the file as the chain applies it */
+async function curveFileSql() {
+  const { readFile } = await import('node:fs/promises');
+  const { OUT_NAME } = await import('../tools/gen-level-curve.mjs');
+  return readFile(new URL('../supabase/migrations/' + OUT_NAME, import.meta.url), 'utf8');
+}
+
 async function main() {
   const { bootReplay } = await import('./schema-replay.mjs');
   let db;
@@ -297,10 +352,20 @@ async function main() {
     console.error('core-curves: HARNESS — the chain did not replay: ' + e.message);
     process.exit(2);
   }
+  /* CURVE-HOLD runs first, before the envelope probes plant their own heroes */
+  const fileSql = await curveFileSql();
+  const hold = await curveHold(db, fileSql);
+  const holdSaid = process.argv.includes('--selftest')
+    ? await curveHold(db, fileSql.replace(/  if v_bad <> '0' then raise exception 'level-curve: % live hero\(es\) would change Level[^\n]*\n/, ''))
+    : [];
   const sql = await readSql(db);
   if (process.argv.includes('--selftest')) {
     let missed = 0;
     if (compare(JS, sql).length) { console.error('core-curves --selftest: the clean JS already disagrees'); process.exit(1); }
+    if (hold.length) { console.error('core-curves --selftest: CURVE-HOLD is red on the clean file: ' + hold[0]); process.exit(1); }
+    /* CURVE-HOLD's own drift: the newest curve file without its refusal must be named */
+    console.log(`  ${holdSaid.length ? 'ok  ' : 'MISS'} a curve file that moves a live Level${holdSaid.length ? ' (' + holdSaid[0].slice(0, 110) + ')' : ' — nothing said'}`);
+    if (!holdSaid.length) missed++;
     for (const [name, over] of MUTANTS) {
       const caught = compare({ ...JS, ...over }, sql).length > 0;
       console.log(`  ${caught ? 'ok  ' : 'MISS'} ${name}`);
@@ -326,11 +391,11 @@ async function main() {
       if (!caught) missed++;
     }
     if (compareSkillEnvelope(JS, await readEnvelopeSkills(db)).length) { console.error('core-curves --selftest: the skill arm is red after its plants were rolled back'); missed++; }
-    const total = MUTANTS.length + ENV_DRIFTS.length + SKILL_DRIFTS.length;
+    const total = MUTANTS.length + ENV_DRIFTS.length + SKILL_DRIFTS.length + 1;
     console.log(missed ? `core-curves --selftest: ${missed} drift(s) not caught` : `core-curves --selftest: all ${total} drifts caught`);
     process.exit(missed ? 1 : 0);
   }
-  const bad = compare(JS, sql);
+  const bad = [...hold, ...compare(JS, sql)];
   for (const b of bad) console.error('  ✗ ' + b);
   const n = sql.charXp.length + sql.charLevel.length + sql.skill.length + sql.vit.length * 2 + sql.regen.length + sql.monster.length + sql.env.length + sql.skillEnv.length;
   console.log(bad.length ? `core-curves: ${bad.length} disagreement(s)` : `core-curves: JS and SQL agree on ${n} values`);

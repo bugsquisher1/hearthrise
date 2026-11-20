@@ -476,12 +476,15 @@ export async function check(fnName) {
    The fix is not to widen the bump script. A `?v=` cache-buster exists so a
    BROWSER re-fetches a module; nothing under these roots is ever served to a
    browser, so a version string there has no job to do and can only rot. It was
-   removed, and this fails the build if one comes back. That splits the
-   cache-buster contract cleanly in two, with no overlap and no gap:
+   removed, and this fails the build if one comes back. The contract, with no
+   overlap and no gap (architecture audit 2026-11-18, item 1):
 
-     • `bump-version.sh --check` — everything the browser loads carries the
-       CURRENT version (`index.html`, `src/**`).
-     • this — everything the browser does not load carries NO version.
+     • tools/build-site.mjs SITE-9 — everything the browser loads carries the
+       CURRENT version, written at publish onto the built site.
+     • tests/cache-buster-guard.mjs — the source in one stamp state: bare (once
+       tools/strip-version-stamps.mjs has run), or every reference current.
+     • this — everything the browser does not load carries NO version. Vendored
+       src/ files are packed through stripVersionQueries, a no-op on a bare source.
 
    Kept in JS, wired into the smoke suite, rather than mirrored into the bash
    script: one rule, one implementation, running on every push. */
@@ -505,7 +508,7 @@ export async function versionQueryGuard() {
       for (const spec of versionQueriesIn(src)) {
         problems.push(
           `${toPosix(relative(ROOT, p))}: import '${spec}' carries a ?v= cache-buster. `
-          + `bump-version.sh walks src/ only, so this can never be bumped — it froze at ?v=326 for five `
+          + `No release moves it (the site build stamps only what it publishes) — one froze at ?v=326 for five `
           + `builds. Nothing here is served to a browser; drop the query.`);
       }
     }

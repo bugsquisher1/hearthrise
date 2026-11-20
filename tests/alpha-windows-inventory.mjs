@@ -94,6 +94,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from './_client-harness.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 import { pressBar, barWindows, hasIcon } from './_bar.mjs';
 import { FIXTURE, wait, reloadAndPlay, pushEnvelope, openWin, count, sent, pageRun, plain, mutate, shardPlan, tickerMutant } from './_alpha-windows.mjs';
 
@@ -185,9 +186,8 @@ async function selectRules(base) {
      and from a bulk button, stops the browser's own select-all, and selects every shown stack; the search box keeps its own Ctrl+A */
   {
     const A = await imp('src/shell/windows/inventory/actions.js');
-    /* the same state.js instance actions.js holds (its ?v= query names the module): one scratch per character */
-    const v = (/\.\/state\.js\?v=([0-9.]+)'/.exec(readFileSync(join(base, 'src/shell/windows/inventory/actions.js'), 'utf8')) || [])[1];
-    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + '?v=' + v);
+    /* the same state.js instance actions.js holds (at the source's own query): one scratch per character */
+    const { scratchOf } = await import(pathToFileURL(join(base, 'src/shell/windows/inventory/state.js')).href + sourceQuery(base));
     const env = { inventory: { rat_tail: 3, bones: 2 }, state: { gold: 5 }, bag_rules: { locked: [], loot: {} } };
     const cs = { slot: 0, status: 'open', record: { residue: {} }, read: (k) => (Object.prototype.hasOwnProperty.call(env, k) ? env[k] : null), setResidue() {}, clock: 0 };
     const ctx = { character: cs, account: null, doc: { activeElement: null }, glyphs: {} };

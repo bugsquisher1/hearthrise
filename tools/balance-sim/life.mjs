@@ -24,6 +24,7 @@ import { writeFileSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCellRunner } from './cell.mjs';
+import { sourceQuery } from '../lib/version-stamp.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
@@ -42,7 +43,7 @@ if (arg('monsters', null)) {
   await scaleMonsters(Object.fromEntries(arg('monsters').split(',').map((p) => p.split('=')).map(([k, x]) => [k, Number(x)])));
 }
 const { BUILD } = await import(u('src/build-info.js'));
-const { recommendedHunt } = await import(u('src/shell/hunt-list.js') + '?v=' + BUILD.version);
+const { recommendedHunt } = await import(u('src/shell/hunt-list.js') + sourceQuery(ROOT));
 const T = await import(u('src/data/hunt-tiers.js'));
 const G = await import(u('src/data/hunt-grounds.js'));
 const { HUNT_INDEX } = await import(u('src/data/hunts.js'));

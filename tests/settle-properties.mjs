@@ -10,7 +10,7 @@
 //   node tests/settle-properties.mjs --mutate                 every planted defect must be FOUND and SHRUNK small
 //   --only=engine | --only=db                                 one tier; --verbose prints what each tier exercised
 //
-// mutant-anchors: supabase/functions/hr-accrue/accrual.js src/core/combat-sim.js src/core/action-rules.js supabase/migrations/2027-03-21-scaled-hunts.sql
+// mutant-anchors: supabase/functions/hr-accrue/accrue-hunt.js src/core/combat-sim.js src/core/action-rules.js supabase/migrations/2027-03-21-scaled-hunts.sql
 //
 // WHY. TICK-1 (tests/hunt-sessions-settle.mjs) proves the one-engine rule (CLAUDE.md §6, AWAY-1) on hand-picked cuts, and
 // tests/conservation-fuzz.mjs fuzzes the economy with no shrinking: a red there is a 400-op trace to read by hand. Here
@@ -555,10 +555,20 @@ export async function dbCase(db, H, M, sc, tally) {
         if (moved !== (items[k] || 0)) problems.push(`DB-LEDGER ${label}: ${k.split('|')[1]} of seat ${users.indexOf(k.split('|')[0])} moved ${moved}, the ledger says ${items[k] || 0}`);
       }
     };
+    /* THE TICK'S ROSTER (supabase/functions/hr-accrue/tick.js body.hunts): every open session has a selector, so a party whose first
+       seat has ended is still settled, through a seat still hunting. Driving every settle through seat 0 alone left a partner's
+       session open once seat 0 went home in an earlier window (a harness gap, nightly 2026-11-19), never what the game does. */
+    const settleOpen = async (at, o) => {
+      for (const u of users) {
+        const r = await H.settleTo(db, M, at, { ...o, user: u });
+        if (r.skipped !== 'no_hunt') return r;
+      }
+      return { skipped: 'no_hunt' };
+    };
     /* TIMELINE A: the tick's slices, one window asked */
     await db.query('savepoint sp_a');
     const a0 = await books();
-    await H.run(db, M, h.from, () => [end], onClock);
+    await settleOpen(end, onClock);
     await conserve('the tick\'s slices', a0);
     const a = await snap();
     await db.query('rollback to savepoint sp_a');
@@ -574,7 +584,7 @@ export async function dbCase(db, H, M, sc, tally) {
         await pinNow(cuts[i + 1].at);
         const plan = await M.HS.readHuntSettle({ exec, user: users[0], slot: 0, grounds: H.groundsOf(M), atMs: cuts[i + 1].at }, 'tick');
         const stale = plan.answer ? null : await M.HS.proposeHuntSettle(plan, plan.toMs, 1);
-        const r = await H.settleTo(db, M, c.at, onClock);
+        const r = await settleOpen(c.at, onClock);
         if (r.skipped === 'no_hunt') break;
         if (stale && stale.commit && r.commit) {
           const s1 = canon(await snap());
@@ -585,7 +595,7 @@ export async function dbCase(db, H, M, sc, tally) {
         }
         continue;
       }
-      const r = await H.settleTo(db, M, c.at, onClock);
+      const r = await settleOpen(c.at, onClock);
       if (r.skipped === 'no_hunt') break;
       if (c.op === 'replay' && r.commit) {
         const s1 = canon(await snap());
@@ -632,7 +642,7 @@ export async function runDb(env, o) {
    finding, pinned) can never pass for a catch. */
 const SHRUNK = Object.freeze({ heroes: 2, cuts: 2 });
 const ENGINE_MUTANTS = [
-  { name: 'a settle drops the remainder: the watermark is the window end, not the next swing', file: 'supabase/functions/hr-accrue/accrual.js',
+  { name: 'a settle drops the remainder: the watermark is the window end, not the next swing', file: 'supabase/functions/hr-accrue/accrue-hunt.js',
     from: '    settledTo: sim.nextSwingAtMs,', to: '    settledTo: toMs,' },
   { name: 'an off-by-one window: the swing ON the window end is played in it', file: 'src/core/combat-sim.js',
     from: '  while (atMs < toMs && members.some((m) => !m.left)) {', to: '  while (atMs <= toMs && members.some((m) => !m.left)) {' },

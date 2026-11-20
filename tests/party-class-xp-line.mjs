@@ -31,13 +31,15 @@
 //          ALONE_BAR; Tyler 2026-11-16 "every Dangerous/Deadly party mix stays >= the same heroes alone"). The head over its best way alone is printed.
 //   pace   a mixed four on Deadly (tank, Healer, bow, wand; and Andy's: axe, bow, wand and a Healer 5 Levels under) earns at most PACE_CAP x the
 //          pace contract a head at its top Level (balance-sheet.js contractXpPerH; it read 3.3-4.4x on the per-ground rows)
+// A HEALER'S TIER (designer ruling 2026-11-19): where the ground's own row makes the tier a Healer's tier at the floor (hunt-tiers.js HEALER_TIERS), a
+// mix with no Healer is printed against its heroes alone, not bound; every mix with a Healer is bound there as anywhere.
 // and ONE TABLE, read statically: the table holds sizes, never a ground; no ground pack carries a pay cell of its own (src/data/grounds/shape.js
 // refuses one too); and BOTH PATHS: a Deadly four watched (30 s settles) and with the browser closed (10 min) is paid the same Level XP to the point.
 //
 // NO EXCEPTION (lane/b-one-difficulty, 2026-11-08): every cell answers to 1.00. Tyler 11-02's one accepted over-solo party, a Thicket four of
 // wands at its default pull (bar 1.05), reads 0.74 since a monster pays its whole kill for any party size, so its allowance and its five mutants retire.
 //
-// mutant-anchors: src/data/party-class-xp.js src/data/hunt-grounds.js src/core/hunt/xp-share.js
+// mutant-anchors: src/data/party-class-xp.js src/data/hunt-grounds.js src/core/hunt/xp-share.js src/data/grounds/unmarked_catacombs/pack.js
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -47,6 +49,7 @@ import { ROOT, plant } from './hunt-core/fixtures/h1.js';
 import { PLAY_TREES } from './hunt-core/fixtures/play-ground.mjs';
 import { loadCellRunner } from '../tools/balance-sim/cell.mjs';
 import { runPool } from '../tools/balance-sim/pool.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const BAR = 1.0;
 const WIDE = process.argv.includes('--wide');
@@ -78,6 +81,13 @@ const PACE_CAP = 2.5;
    heroes alone on Dangerous and Deadly. No label hides it and no bar binds it: each run PRINTS their mixes against their heroes alone, and the
    pace cap still binds there. A ground that reads at or over the bar again is named, so its line can go. */
 const STANDS = Object.freeze({ meadowbrook_thicket: 'Tyler 2026-11-16', wickstead: 'Tyler 2026-11-16' });
+/* A HEALER'S TIER BINDS THE PARTIES THAT BRING ONE (designer ruling 2026-11-19, the board's "2026-11-19 Two rulings for v0.2.142"). Where a ground's own
+   measured row makes a tier a Healer's tier at the cell's Level (src/data/hunt-tiers.js HEALER_TIERS: a four with no Healer was measured to die there
+   and one with a Healer holds; the Hunts page says "Recommended: Healer"), a mix with no Healer is no party the game sends there: its alone bar is
+   PRINTED, never binding, on every run (the line reads "a Healer's tier"), and every mix with a Healer answers the bar as anywhere. The case: the staged
+   Unmarked Catacombs' Deadly (a Healer's tier to 186, its whole band), where the tank alone dies 28-29 times a half hour and a tank and bow pair read
+   0.968 of the two alone; both sides of that ratio are deaths, not a way to hunt. The pace cap and both paths bind as ever. */
+const healerless = (party) => !party.includes('healer');
 /* A HARDER TIER'S CELL IS HALF AN HOUR (lane/d-party-pace, 2026-11-18): a party walks a ground's route faster than a hero alone, so a 15-minute cell
    compares them on different rooms. With the Sewer at 5, a tank + Healer pair on its Deadly read 0.94 of the same heroes alone in 15-minute cells
    (140 kills an hour, 182 Level XP a kill) and 1.19 in half-hour cells on the same two seeds (152, 220), 1.19 again on four seeds. */
@@ -90,7 +100,7 @@ const TIER_HOURS = 0.5;
 
 const argOf = (name, dflt) => { const i = process.argv.indexOf(name); return i > 0 ? Number(process.argv[i + 1]) : dflt; };
 
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const G = await import(pathToFileURL(join(ROOT, 'src/data/hunt-grounds.js')).href + V);
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href + V);
 const { PARTY_CLASSES } = await import(pathToFileURL(join(ROOT, 'src/data/party-class-xp.js')).href + V);
@@ -151,16 +161,19 @@ function judgeTiers(jobs, at) {
       const head = headOf(name), same = meanOf(party.map(alone)), best = Math.max(...party.map(alone));
       /* a Deadly four's pace at paceLevelOf (its own cells where the floor is under PACE_FROM) */
       const paced = tier === 'deadly' && name === 'four' && paceLevelOf(g) !== floorOf(g) ? headOf('pace-four') : head;
-      rows.push({ g, tier, name, party, head: Math.round(head), same: Math.round(same), alone: head / same, best: Math.round(best), seat: head / best, pace: paced / contractXpPerH(tier === 'deadly' && name === 'four' ? paceLevelOf(g) : floorOf(g)) });
+      rows.push({ g, tier, name, party, head: Math.round(head), same: Math.round(same), alone: head / same, best: Math.round(best), seat: head / best, pace: paced / contractXpPerH(tier === 'deadly' && name === 'four' ? paceLevelOf(g) : floorOf(g)),
+        /* the cells play the floor: a Healer's tier there leaves a mix with no Healer printed, not bound (HEALER_TIERS, above) */
+        healerTier: healerless(party) && T.isHealerTier(g, tier, floorOf(g)) });
     }
     if (tier === 'deadly') { const low = paceLevelOf(g) !== floorOf(g), head = headOf(low ? 'pace-andy' : 'andy'); rows.push({ g, tier, name: 'andy', party: ANDY.party, head: Math.round(head), same: null, alone: null, best: null, seat: null, pace: head / contractXpPerH(paceLevelOf(g)) }); }
   }
   return rows;
 }
 const PACED = Object.freeze(['four', 'andy']);
-const tierRed = (r) => (r.alone !== null && !Object.hasOwn(STANDS, r.g) && !(r.alone >= ALONE_BAR)) || (r.tier === 'deadly' && PACED.includes(r.name) && !(r.pace <= PACE_CAP));
+const tierRed = (r) => (r.alone !== null && !Object.hasOwn(STANDS, r.g) && !r.healerTier && !(r.alone >= ALONE_BAR)) || (r.tier === 'deadly' && PACED.includes(r.name) && !(r.pace <= PACE_CAP));
 const tierWords = (r) => r.g + ', ' + r.tier + ', ' + r.party.join('+') + (r.name === 'andy' ? ' (a Healer 5 under)' : '') + ': ' + r.head + ' Level XP/h a head'
   + (r.alone === null ? '' : ', the same heroes alone ' + r.same + ' = ' + r.alone.toFixed(3) + ' (its best way alone ' + r.best + ' = ' + r.seat.toFixed(3) + ')')
+  + (r.healerTier ? ' (a Healer\'s tier, no Healer: printed, not bound)' : '')
   + (PACED.includes(r.name) ? ', ' + r.pace.toFixed(2) + 'x the pace contract' + (r.tier === 'deadly' ? ' (cap ' + PACE_CAP + ')' : '') : '');
 
 /** BOTH PATHS: a Deadly four on Hask's Ford (the hottest before the cut), watched (30 s settles) and browser closed (10 min), paid the same Level XP. */
@@ -276,6 +289,14 @@ const TIER_MUTANTS = [
   /* lane/d-party-pace: the pace read at Level 10 on a ground whose floor is under it still bites */
   { name: 'the Sewer\'s Deadly pays x2.5 a kill: a four at Level 10 past ' + PACE_CAP + 'x the contract', g: 'millrace_sewer', tier: 'deadly', party: 'four', bar: 'pace',
     edits: [['src/data/balance-sheet.js', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 1220 }) }),', 'deadly: Object.freeze({ hpPm: 1250, xpPm: 3050 }) }),']] },
+  /* A HEALER'S TIER (lane/d-142-rulings): it excuses a mix with no Healer only, and only where the data makes it one. With a Healer the bar binds
+     there as anywhere (Krell's Hold's Deadly is a Healer's tier at its floor); and the Catacombs' tank and bow pair, printed today, binds the day its
+     Deadly stops being a Healer's tier at the floor */
+  { name: 'the table cut too deep on a Healer\'s tier (x0.5): Krell\'s Hold\'s Deadly pair WITH a Healer under its heroes alone', g: 'krells_hold', tier: 'deadly', party: 'duo tank+healer', bar: 'alone',
+    edits: [['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
+  /* (seed 0 alone reads that pair at 1.07, the two seeds' 0.968: the table cut makes it plainly under, and only the moved row lets the bar see it) */
+  { name: 'the Catacombs\' Deadly no Healer\'s tier at its floor (healerTiers 165) and the table cut (x0.5): the tank and bow pair binds and reads under its heroes alone', g: 'unmarked_catacombs', tier: 'deadly', party: 'duo tank+bow', bar: 'alone',
+    edits: [['src/data/grounds/unmarked_catacombs/pack.js', '  healerTiers: { deadly: 186 },', '  healerTiers: { deadly: 165 },'], ['src/data/party-class-xp.js', TABLE_LINE, scaled(0.5)]] },
   { name: 'one ground pays its own cell (Hask\'s Ford x1.7, typed in the engine)', g: 'hasks_ford', tier: 'deadly', party: 'four', bar: 'pace',
     edits: [['src/core/hunt/xp-share.js', 'const cell = partyClassXp(heroes.map((h) => h.role)).permille;', "const cell = Math.round(partyClassXp(heroes.map((h) => h.role)).permille * (ground && ground.id === 'hasks_ford' ? 1.7 : 1));"]] },
 ];
@@ -319,6 +340,9 @@ async function mutate() {
     } finally { p.done(); }
   }
   /* the harder tiers: a control on this tree first, then each mutant turns its bar red */
+  /* the Healer's tier as the tree under test writes it (a mutant may move a pack's healerTiers), the verdict's own excuse (tierRed) */
+  const healerTierOn = async (root, mu) => healerless(TIER_MIXED[mu.party])
+    && (await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + V + '&m=' + Math.random())).isHealerTier(mu.g, mu.tier, floorOf(mu.g));
   const tierOn = (R, mu) => {
     const party = TIER_MIXED[mu.party];
     const same = meanOf(party.map((w) => R.runCell(tierCellOf(mu.g, mu.tier, 0, [w], 'solo-' + w)).heroes[0].levelXpPerH));
@@ -327,14 +351,15 @@ async function mutate() {
     const paced = mu.bar === 'pace' && paceLevelOf(mu.g) !== floorOf(mu.g) ? R.runCell(tierCellOf(mu.g, mu.tier, 0, party, mu.party, undefined, undefined, paceLevelOf(mu.g))).party.levelXpPerHeroPerH : head;
     return { alone: head / same, pace: paced / contractXpPerH(paceLevelOf(mu.g)) };
   };
-  const redOf = (mu, x) => (mu.bar === 'pace' ? !(x.pace <= PACE_CAP) : !(x.alone >= ALONE_BAR));
-  const said = (mu, x) => (mu.bar === 'pace' ? x.pace.toFixed(2) + 'x the contract against ' + PACE_CAP : x.alone.toFixed(3) + ' of the same heroes alone against ' + ALONE_BAR.toFixed(2));
+  const redOf = (mu, x) => (mu.bar === 'pace' ? !(x.pace <= PACE_CAP) : !x.healerTier && !(x.alone >= ALONE_BAR));
+  const said = (mu, x) => (mu.bar === 'pace' ? x.pace.toFixed(2) + 'x the contract against ' + PACE_CAP : x.alone.toFixed(3) + ' of the same heroes alone against ' + ALONE_BAR.toFixed(2)
+    + (x.healerTier ? ', a Healer\'s tier with no Healer (printed)' : ''));
   for (const mu of TIER_MUTANTS) {
-    const here = tierOn(Rh, mu);
+    const here = { ...tierOn(Rh, mu), healerTier: await healerTierOn(ROOT, mu) };
     if (redOf(mu, here)) { console.log('  ✗ CONTROL: on this tree ' + mu.g + ' ' + mu.tier + ' ' + mu.party + ' already reads ' + said(mu, here)); escaped++; continue; }
     const p = plant(mu.edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
     try {
-      const x = tierOn(await loadCellRunner(p.root), mu);
+      const x = { ...tierOn(await loadCellRunner(p.root), mu), healerTier: await healerTierOn(p.root, mu) };
       const hit = redOf(mu, x);
       console.log('  ' + (hit ? 'caught ' : 'ESCAPED') + ' ' + mu.name + ' (' + said(mu, x) + ')');
       if (!hit) escaped++;
@@ -344,8 +369,8 @@ async function mutate() {
      refuses a pack's own pay cell at definePack) is caught by that refusal: its message is the reason. */
   const staticOn = async (root) => {
     try {
-      return oneTableProblems(await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V + '&m=' + Math.random()),
-        (await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href + V + '&m=' + Math.random())).GROUND_PACKS);
+      return oneTableProblems(await import(pathToFileURL(join(root, 'src/data/party-class-xp.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random()),
+        (await import(pathToFileURL(join(root, 'src/data/grounds/index.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random())).GROUND_PACKS);
     } catch (e) { return ['the data refuses to load: ' + (e && e.message ? e.message : String(e))]; }
   };
   const here = await staticOn(ROOT);
@@ -438,7 +463,7 @@ async function main() {
     const cpu = [...played.values()].reduce((s, c) => s + c.ms, 0);
     const { rows, problems } = judge(lineJobs, (id) => played.get(id));
     const tierRows = judgeTiers(tierJobs, (id) => played.get(id));
-    for (const r of tierRows) if (process.argv.includes('--table') || r.name === 'four' || tierRed(r)) console.log('  TIER ' + tierWords(r));
+    for (const r of tierRows) if (process.argv.includes('--table') || r.name === 'four' || r.healerTier || tierRed(r)) console.log('  TIER ' + tierWords(r));
     const tierReds = tierRows.filter(tierRed);
     for (const g of Object.keys(STANDS)) {
       const mine = tierRows.filter((r) => r.g === g && r.alone !== null);

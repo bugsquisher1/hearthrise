@@ -7,7 +7,7 @@
 //   node tests/hunt-live.mjs --mutate --only LV-HOLD   just the mutants whose name holds that text
 //   node tests/hunt-live.mjs --mutate --shard=K/N      every Nth mutant from the Kth (smoke.yml's artisan-selftest and -2)
 //
-// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrual.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
+// mutant-anchors: src/hunt-view/live-engine.js src/core/combat-sim.js supabase/functions/hr-accrue/hunt-settle.js supabase/functions/hr-accrue/accrue-hunt.js src/hunt-view/timeline.js src/core/hunt/roles.js src/core/hunt/targeting.js src/core/member.js src/core/hunt/pull-cycle.js src/core/hunt/leash.js src/core/hunt/boss-phases.js src/core/hunt/damage.js src/core/hunt/monster-spells.js src/core/hunt/marks.js
 // mutant-writes-tree: no — mutants are planted into a temp copy of src/ and the edge
 // mutant-rule-functions: rules
 // mutant-runner-functions: mutate main
@@ -154,6 +154,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const FN = 'supabase/functions/hr-accrue';
@@ -164,7 +165,7 @@ const T0 = Date.UTC(2026, 9, 19, 15, 33, 17, 447);
 async function load(base) {
   const u = (p) => import(pathToFileURL(join(base, p)).href);
   /* the engine's own instance of a src/** module: src/core imports src/data with the build's ?v= (CLAUDE.md §5) */
-  const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(base, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+  const V = sourceQuery(base);
   return {
     ENGINE_MONSTERS: (await import(pathToFileURL(join(base, 'src/data/monsters.js')).href + V)).MONSTERS,
     /* the stances a hero fights in (a blow it takes is x its stance's `taken`: LV-SCALE-SPELL's top) */
@@ -350,10 +351,12 @@ function swingsOnly(events) {
 
 /* Run `fn` with no monster casting (the engine's own rows: LV-SPELL's table, put back after), for an arm whose subject is not
    the spells and whose party cannot live through them. */
-/* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them */
+/* THE WARRENS' FIVE AS THEY STOOD BEFORE 2026-11-19 (set/v0.2.141's rows, before monsters a little harder): LV-PULL's balance-blind arm plays them.
+   Their XP is the rows' as the arm last passed (set/v0.2.142, before lane/d-142-rulings' XP a kill x0.88): a kill's XP moves when a Level lands,
+   and a Level moves the laps, so a balance-blind arm holds it too. */
 const WARRENS_BEFORE_STEP = Object.freeze({
-  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76 },
-  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88 },
+  goblin_scavenger: { hp: 147, atk: 18, baseAcc: 0.72, xp: 659 }, goblin_skulker: { hp: 122, atk: 22, baseAcc: 0.77, xp: 689 }, goblin_digger: { hp: 206, atk: 17, baseAcc: 0.76, xp: 1079 },
+  hobgoblin_foreman: { hp: 312, atk: 23, baseAcc: 0.86, xp: 1815 }, chief_coppercap: { hp: 1096, atk: 28, baseAcc: 0.88, xp: 6975 },
 });
 /* `fn` with these monsters' fields set on both module instances of the rows (the engine's ?v= one and the plain one the live engine is handed), put back after */
 function withRows(M, rows, fn) {
@@ -1906,7 +1909,7 @@ function rules(M) {
     const SPELL = { n: 'Test Squall', shape: 'group', range: 6, windupMs: 1200, cdMs: 2400, hitPm: 2000, element: 'frost' }, SID = 'lv_squall';
     const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
       .filter((k) => M.ENGINE_MONSTERS[k]);
-    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const rows = [...new Set([M.ENGINE_MONSTERS, M.MONSTERS])];   // one table once: on a bare source the two are the same rows
     const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
     const shield = M.ITEMS.practice_shield, hadResist = Object.prototype.hasOwnProperty.call(shield, 'resistPm'), oldResist = shield.resistPm;
     M.ENGINE_SPELLS[SID] = SPELL;
@@ -1957,7 +1960,7 @@ function rules(M) {
     const SPELL = { n: 'Test Drizzle', shape: 'group', range: 6, windupMs: 1200, cdMs: 8000, hitPm: 100, element: null }, SID = 'lv_drizzle';
     const kinds = [...new Set(M.HG.huntGroundOf('mill_cellar').ground.pockets.flatMap((p) => [...(p.spawns || []), ...(p.pack || [])].map((s) => s.monster || s)))]
       .filter((k) => M.ENGINE_MONSTERS[k]);
-    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const rows = [...new Set([M.ENGINE_MONSTERS, M.MONSTERS])];   // one table once: on a bare source the two are the same rows
     const keep = kinds.map((k) => rows.map((t) => [Object.prototype.hasOwnProperty.call(t[k], 'spells'), t[k].spells]));
     const wasLive = M.ENGINE_SPELL_SWITCH.live;
     M.ENGINE_SPELLS[SID] = SPELL;
@@ -1997,7 +2000,7 @@ function rules(M) {
     // matches the prediction, and every mend and every wasp blow the server played is the browser's, instant for instant.
     const SID = 'lv_mend', SPELL = { n: 'Test Mend', shape: 'mend', range: 4, windupMs: 1200, cdMs: 4000, hitPm: 1000, element: null };
     const kinds = ['rat', 'slime', 'hive_wasp'];
-    const rows = [M.ENGINE_MONSTERS, M.MONSTERS];
+    const rows = [...new Set([M.ENGINE_MONSTERS, M.MONSTERS])];   // one table once: on a bare source the two are the same rows
     const had = (t, k, f) => [Object.prototype.hasOwnProperty.call(t[k], f), t[k][f]];
     const keep = kinds.map((k) => rows.map((t) => ({ hp: t[k].hp, range: had(t, k, 'range'), spells: had(t, k, 'spells') })));
     const wasLive = M.ENGINE_SPELL_SWITCH.live;
@@ -2223,7 +2226,7 @@ const MUTANTS = [
   ['the swing runs on after a hero dies (LV-Q, live v0.2.23)', 'src/core/hunt/world-step.js', '    if (heroes.some((u) => !u.alive)) break;\n', '', /^LV-Q/],
   ['an ended instance keeps the prediction swinging (LV-E)', 'src/hunt-view/live-engine.js', 'if (!(sim.nextSwingAtMs > at)) {', 'if (false) {', /^LV-E/],
   ['a fresh world counts from 0, not the instance swing (LV-W)', 'src/hunt-view/live-engine.js', '      worldSwing: s.worldSwing },', '      worldSwing: 0 },', /^LV-W/],
-  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrual.js',
+  ['the settle refuses a stored world of another shape (LV-O)', 'supabase/functions/hr-accrue/accrue-hunt.js',
     "import { encode as encodeWorldRow, decodeStored as decodeWorldRow } from '../../../src/core/hunt/world-state.js';",
     "import { encode as encodeWorldRow, decode as decodeWorldRow } from '../../../src/core/hunt/world-state.js';", /^LV-O/],
   ['the browser refuses a stored world of another shape (LV-O)', 'src/hunt-view/live-engine.js',

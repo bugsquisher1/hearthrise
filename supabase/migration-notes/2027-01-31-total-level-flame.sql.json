@@ -1,0 +1,4 @@
+{
+  "seq": 472,
+  "note": "APPLIED 21:20 UTC 2026-10-27 (Coordinator; landed md5s = lane). Staged on (lane/b-inner-flame fix-forward, 2026-10-27; pre-EA; no value moves). hr_lb_skills() restated whole from 2026-10-27-core-bodies.sql with 'inner_flame' where 'prayer' stood (same order, 15 skills): the leaderboard summed total_level over a list that still named prayer after 2027-01-31-inner-flame.sql renamed the key, so every hero's Inner Flame level fell out of its board total (LB-9 / LB-9b). Then refresh materialized view leaderboard_ranked (derived). Self-check: the list names inner_flame and not prayer, every entry is in hr_skills, hr_lb_boards has skill:inner_flame, every slot-0 total_level equals its own skills' sum. ORDER: after the seven 2027-01-31 files (it requires the rename). After apply: live-hash-drift moves hr_lb_skills (Coordinator re-measure)."
+}

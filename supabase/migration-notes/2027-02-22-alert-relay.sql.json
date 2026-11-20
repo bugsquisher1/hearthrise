@@ -1,0 +1,4 @@
+{
+  "seq": 529,
+  "note": "APPLIED 2026-11-03 12:10 UTC (lane/r-alarm-relay, reliability-engineer, 2026-11-03; pre-EA: applies on its passing §10). Files what is actually broken (hr_ops.alert_watch, every minute), posts new criticals to Discord through Vault secret hr_alert_discord_webhook, pings a dead-man through hr_alert_deadman_url; both secrets are Tyler's, and absent it does nothing, visibly. Retunes hr_cron_health_ex's fuses; hr_slot_health tells idle from dead. No edge, no client, no player value. Rollback: select public.hr_cron_drop('hr-alert-relay')."
+}

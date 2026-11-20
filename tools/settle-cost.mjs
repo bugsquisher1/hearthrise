@@ -30,6 +30,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { isMain } from '../tests/_is-main.mjs';
+import { applyOrderAt } from './lib/apply-order.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -386,7 +387,8 @@ function edgeAt(rev) {
   return dir;
 }
 function lastMigrationAt(rev) {
-  const order = JSON.parse(execFileSync('git', ['show', `${rev}:tests/schema-apply-order.json`], { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 26 })).order;
+  /* that revision's apply order: its sidecars, or the old JSON when it predates them */
+  const order = applyOrderAt(rev, ROOT).order;
   return order[order.length - 1];
 }
 

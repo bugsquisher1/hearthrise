@@ -364,16 +364,21 @@ export function simulateHuntInstance(inst, ctx) {
     for (const u of world.units.slice()) if (u.side === 'hero' && !owned.has(u.id)) leaveHero(world, u.id);
   }
 
+  /* WHAT EVERY END CHECK AT A BOUNDARY READS: the no-fight clock (the world's own; a hero not yet in it has none), the Level as the
+     XP stands now (OUTGROWN: the XP is stored, so the end lands on the same boundary however the windows are cut), the Tower floor's
+     clock, and no no-fight end on a training ground (src/core/hunt/training.js: it pays the time whatever the blows). Read at the top
+     of every boundary and again where a window ends, so the two read the same. */
+  const boundaryReads = () => {
+    for (const m of members) m.hs.fightAtMs = world && m.unitId !== null ? world.fightAt : null;
+    readLevels(members, endsAt);
+    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world, tw) : null;
+    if (train) for (const m of members) m.hs.fightAtMs = null;
+  };
   while (atMs < toMs && members.some((m) => !m.left)) {
     // (0) THE NO-FIGHT CLOCK (designer 2026-10-31) for the end checks: the world's own, a hero not yet in it has none.
     //     LEAVE TOGETHER: every member whose own end holds at this boundary sends the ticked others home with
     //     it, here (they meet the flag in the end checks below), however the members are ordered.
-    for (const m of members) m.hs.fightAtMs = world && m.unitId !== null ? world.fightAt : null;
-    /* OUTGROWN: the Level as the XP stands now, so the end lands on the same boundary however the windows are cut (the XP is stored). */
-    readLevels(members, endsAt);
-    if (tw) for (const m of members) m.hs.floorEndsAtMs = world && m.unitId !== null ? towerEndsAt(world, tw) : null;
-    /* A TRAINING GROUND HAS NO NO-FIGHT END (src/core/hunt/training.js): it pays the time whatever the blows. */
-    if (train) for (const m of members) m.hs.fightAtMs = null;
+    boundaryReads();
     const own = new Map();
     for (const m of members) {
       if (m.left || m.hs.nextSwingAtMs > atMs) continue;
@@ -504,15 +509,24 @@ export function simulateHuntInstance(inst, ctx) {
   /* LEAVE TOGETHER: a member's own certain end cascades first; the ticked others end at their own next
      boundary, the same instant (everyone standing in the world steps in lockstep). */
   const stamped = new Map();
-  /* (the end order asked at that boundary reads the Level the last swing left) */
-  readLevels(members, endsAt);
+  /* (the end order asked at that boundary reads what the boundary itself would: the Level the last swing left, the world's clocks) */
+  boundaryReads();
   for (const m of members) {
     if (m.left || m.unitId === null) continue;
     if (m.hs.goldOut === true || typeof m.hs.ruleStop === 'string' || typeof m.hs.runesOut === 'string' || m.hs.died === true || m.hs.bossFelled === true) {
       stamped.set(m, endReasonAt(m.hs, m.hs.nextSwingAtMs) || 'gold_out');
     }
   }
-  for (const [m, why] of stamped) cascadeFrom(m, why, members, stamped, m.hs.nextSwingAtMs);
+  /* A member whose OWN end holds at its next boundary (heals_out, ammo_out, outgrown...: not stamped, ended there by the next window)
+     keeps it, as the boundary's `own` keeps it when one window reads both ends there: a stamp never renames it `party_member_left`
+     (settle-properties DB-SPLIT, nightly 2026-11-19). */
+  const ownNext = new Map(stamped);
+  for (const m of members) {
+    if (m.left || ownNext.has(m)) continue;
+    const why = endReasonAt(m.hs, m.hs.nextSwingAtMs);
+    if (why && !CASCADE.includes(why)) ownNext.set(m, why);
+  }
+  for (const [m, why] of stamped) cascadeFrom(m, why, members, ownNext, m.hs.nextSwingAtMs);
   for (const m of members) {
     if (m.left || !(stamped.has(m) || m.hs.partyEnd)) continue;
     const next = m.hs.nextSwingAtMs;

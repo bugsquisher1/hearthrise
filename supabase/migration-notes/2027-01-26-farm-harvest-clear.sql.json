@@ -1,0 +1,4 @@
+{
+  "seq": 459,
+  "note": "APPLIED 05:10 UTC 2026-10-26 (Coordinator; hr_farm_harvest_clear landed 7ec11cbe = lane). Was: STAGED, NOT APPLIED (lane/a-regrow-harvest, systems-engineer, 2026-10-25; game CLOSED: applies on its passing §2; a crop + Farming XP surface through the unchanged harvest, in the one Security review before Steam EA). Report #66: Harvest only on a tomato regrew it (tomato/emberfruit regrow by design). NEW client RPC hr_farm_harvest_clear(p_slot, p_plot_idx, p_idem) (+ hr_client_rpc_baseline row): hero advisory lock, then hr_farm_harvest UNCHANGED (pin e9541e05) under a derived key; a vine that regrew is deleted under the farm lock the harvest holds and journalled (farm / farm_clear, qty 0, meta.regrows_left); idempotent per (key, farm_clear, slot). ORDER: after 2027-01-21-market-same-network.sql (restates nothing). EDGE: none. After apply: live-hash-drift wants hr_farm_harvest_clear tracked."
+}

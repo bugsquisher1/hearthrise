@@ -22,7 +22,7 @@
 //   AR-10 THE YARD TOOK OVER (full-game audit 2026-11-18 A2): a hunt that died with the page closed and went on to the yard ("When the hunt
 //         ends: Train Melee") comes back as its card: the Levels, the death and what the Blessings saved, then the yard, still training
 //   AR-11 THE CELLAR OUTGROWN (the board's 2026-11-19 complete balance look, change 1; hunt-grounds.js endsAtLevel): a fresh hero's Cellar ends
-//         at Level 5 with the page closed; the card says why ("Ground outgrown"), its press is the Hunt summary, never
+//         at Level 5 with the page closed; the card says why ("Ground outgrown"), its press is Go to the next ground (audit 2026-11-19 L2), never
 //         Hunt again, and the summary names the next ground
 // AR-6 and AR-9 hunt the Thicket at Level 6 (the Cellar's hunt ends at 5, so a fresh hero's Cellar can no longer run for hours).
 // The return is its own card (src/shell/windows/away.js): every check reads the card, never the alert lines.
@@ -280,15 +280,17 @@ try {
     const line = await cardOf(q, 30000);
     const gold = await q.page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win="away"] button.is-primary')).filter((b) => b.offsetParent !== null).map((b) => b.textContent));
     await q.shot('ar11-outgrown');
-    step('AR-11 the card says the ground was outgrown, and its press is the Hunt summary',
-      !!line && /Sprout Mill Cellar Level 1 → 5\b/.test(line) && /Ground outgrown\./.test(line) && JSON.stringify(gold) === '["Hunt summary"]',
+    /* audit 2026-11-19 L2: the press is the next ground itself, the Hunt summary one press beside it */
+    step('AR-11 the card says the ground was outgrown, and its press is Go to the next ground',
+      !!line && /Sprout Mill Cellar Level 1 → 5\b/.test(line) && /Ground outgrown\./.test(line) && JSON.stringify(gold) === '["Go to Meadowbrook Thicket"]',
       JSON.stringify({ line, gold }));
-    await q.page.click('[data-hs-win="away"] [data-hs-act="away-go"]');
+    await q.page.click('[data-hs-win="away"] [data-hs-act="away-summary"]');
     const summary = await q.page.waitForFunction(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'); return w ? w.innerText.replace(/\s+/g, ' ') : null; }, null, { timeout: 30000 })
       .then((h) => h.jsonValue(), () => null);
-    step('AR-11 the summary names the Level and the next ground, and offers no Hunt again',
+    step('AR-11 the summary names the Level and the next ground, leads with Go to it, and offers no Hunt again',
       !!summary && /Ground outgrown at Level 5/.test(summary) && /Next ground: Meadowbrook Thicket/.test(summary)
-      && await q.page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'); return !b || b.disabled; }),
+      && await q.page.evaluate(() => { const w = document.querySelector('[data-hs-win="hunt-summary"]'), b = w.querySelector('[data-hs-act="again"]'), go = w.querySelector('[data-hs-act="next-ground"]');
+        return (!b || b.hidden || b.disabled) && !!go && !go.hidden && go.classList.contains('is-primary') && go.textContent === 'Go to Meadowbrook Thicket'; }),
       summary);
     await q.close();
   }

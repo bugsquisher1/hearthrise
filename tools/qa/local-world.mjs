@@ -8,12 +8,14 @@
 // a small GoTrue shim (sign-up from the real screen, real ES256 tokens the real jwt.js verifies).
 //
 //   node tools/qa/local-world.mjs smoke [--shots DIR] [--viewport 1280x720] [--touch]
-//        fresh account -> hero -> Mill Cellar -> skip -> leave -> summary -> bag -> reload -> a 2nd hunt skipped past the 1st -> a town wait. Exit 0 green, 1 red, 2 harness, 3 refused.
+//        fresh account -> hero -> Mill Cellar -> skip until it ends itself at Level 5 (outgrown) -> its end card -> Next ground -> a 2nd hunt there,
+//        skipped past the 1st -> leave -> summary -> bag -> reload -> a town wait. Exit 0 green, 1 red, 2 harness, 3 refused.
 //        A machine's first run replays the whole chain (about 6 min; tests/pglite-template.mjs then caches it), so this is a
 //        manual tool, not a CI guard. HR_LOCAL_WORLD_TRACE=1 logs every call over 500 ms. HR_CHROME picks the browser (tests/_chrome.mjs).
 //   node tools/qa/local-world.mjs serve [--port 8787] [--no-tick]    a world for any browser: http://127.0.0.1:8787/play.html
 //   smoke and serve take --site DIR: the client's files come from DIR (the Pages artifact, `node tools/build-site.mjs` -> _site), and a file
-//        the page asks for that DIR lacks is a 404 the smoke counts. The engine and the chain stay the repository's.
+//        the page asks for that DIR lacks is a 404 the smoke counts. The engine and the chain stay the repository's. Without it the
+//        repository's modules and pages are served stamped as the site build stamps them (tools/lib/version-stamp.mjs).
 //   node tools/qa/local-world.mjs skip 30 [--port 8787]              skip 30 minutes in a world that is serving
 //   node tools/qa/local-world.mjs wait 480 [--port 8787]             8 hours pass for everyone: hunts, and town too
 //   node tools/qa/local-world.mjs wait 480 --away [--port 8787]      the same, for a player who CLOSED the page: the "While you were away" stamp moves too
@@ -60,6 +62,7 @@ import * as nodeModule from 'node:module';   // a namespace: registerHooks (Node
 import { extname, join, normalize, dirname, resolve as resolvePath } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { readBuild, stampFile, stampKind } from '../lib/version-stamp.mjs';
 
 const ROOT = normalize(join(dirname(fileURLToPath(import.meta.url)), '..', '..'));
 const PRODUCTION_REF = 'nezapsylztqbbwuwembx';
@@ -450,7 +453,14 @@ async function serveStatic(res, urlPath, origin, held, site, asked) {
   const info = await stat(f).catch(() => null);
   if (!info || !info.isFile()) { asked.served.delete(rel); asked.missed.push(urlPath); return send(res, 404, 'not found', 'text/plain'); }
   const rewritten = rel === 'play.html' || rel === 'src/net/supabase-bootstrap.js';
-  const body = rewritten ? rewriteServed(rel, await readFile(f, 'utf8'), origin) : await readFile(f);
+  /* from the repository, as the site build writes it (tools/lib/version-stamp.mjs): every module and page at the release's ?v= */
+  const stamped = site === ROOT && stampKind(rel);
+  let body;
+  if (rewritten || stamped) {
+    const text = await readFile(f, 'utf8');
+    const served = stamped ? stampFile(rel, text, readBuild(ROOT).version) : text;
+    body = rewritten ? rewriteServed(rel, served, origin) : served;
+  } else body = await readFile(f);
   if (held) held.set(rel, body);
   return send(res, 200, body, type);
 }
@@ -747,13 +757,40 @@ async function smoke({ shots, viewport, touch, site }) {
     console.log('       ' + JSON.stringify({ before, after, kills, pushed: world.pushed() }));
     await p.page.waitForFunction(() => /\d/.test(document.querySelector('[data-hs-widget="analyzer"]')?.textContent || ''), null, { timeout: 30000 }).catch(() => {});
     await p.shot('after-skip');
-    await p.page.click('[data-hs-act="leave"]');
+    /* THE CELLAR ENDS ITS HUNT AT LEVEL 5 (src/data/hunt-grounds.js endsAtLevel; the board's 2026-11-19 complete balance look, change 1): the
+       fresh hero hunts on until it does. The end card opens by itself, says why, has no Hunt again and names the next ground, and its
+       button opens that ground in Hunts, where the second hunt goes: what a new player meets now. */
+    const last = `select h.end_reason, h.ended_at, public.hr_level_of(h.user_id, h.slot) as lv from public.hunt_sessions h order by h.entered_at desc limit 1`;
+    let closed = await sql(last);
+    for (let i = 0; i < 8 && !closed.ended_at; i++) { await world.skip(5); closed = await sql(last); }
+    step('the Cellar ends its own hunt at Level 5 (outgrown)', closed.end_reason === 'outgrown' && Number(closed.lv) >= 5, JSON.stringify(closed));
     const ended = await p.page.waitForFunction(() => /Mill Cellar/.test(document.querySelector('.hsum-card .hsum-title')?.textContent || ''), null, { timeout: 60000 }).then(() => true, () => false);
+    await p.shot('summary-outgrown');
+    const summary = await p.page.evaluate(() => document.querySelector('.hsum-card')?.innerText.replace(/\s+/g, ' ') || '');
+    const againOff = await p.page.evaluate(() => { const b = document.querySelector('[data-hs-win="hunt-summary"] [data-hs-act="again"]'); return !b || b.disabled; });
+    step('the end card opens by itself: why, the next ground, no Hunt again',
+      ended && /Level XP/.test(summary) && /Ground outgrown at Level 5/.test(summary) && /Next ground: Meadowbrook Thicket/.test(summary) && againOff,
+      JSON.stringify({ againOff, summary: summary.slice(0, 400) }));
+    /* the card's one gold press after an outgrown end is the foot's Go to (audit 2026-11-19 L2), the Next ground row's own link */
+    await p.page.click('[data-hs-win="hunt-summary"] [data-hs-act="next-ground"].is-primary');
+    const shown = await p.page.waitForSelector('.hw-hunt.is-picked[data-hunt="meadowbrook_thicket"]', { timeout: 15000 }).then(() => true, () => false);
+    await p.shot('next-ground');
+    step('its Go to press opens Hunts on that ground', shown, await p.page.evaluate(() => Array.from(document.querySelectorAll('.hw-hunt.is-picked')).map((li) => li.dataset.hunt).join()));
+    /* A second hunt, on that ground, skipped further than the first one lasted: still the newest, so the analyzer reads IT (the skip moves
+       ended sessions too; without that the open hunt's entered_at fell behind the ended one's and read "Hunt ended"). */
+    await p.page.click('.hw-hunt-enter');
+    await p.page.waitForSelector('[data-hs-act="leave"]');
+    const open1 = await sql(`select hunt_id from public.hunt_sessions where ended_at is null`);
+    step('the second hunt is the next ground', open1 && open1.hunt_id === 'meadowbrook_thicket', JSON.stringify(open1));
+    await world.skip(20);
+    const newest = await sql(`select (public.hr_hunt_analyzer_of(s.user_id, s.slot, null)->'session'->>'ended_at') is null as open
+      from public.hunt_sessions s where s.ended_at is null`);
+    step('a skip keeps history in order: the open hunt is still the newest session', newest && newest.open === true, JSON.stringify(newest));
+    await p.page.click('[data-hs-act="leave"]');
+    const left = await p.page.waitForFunction(() => /Meadowbrook Thicket/.test(document.querySelector('.hsum-card .hsum-title')?.textContent || ''), null, { timeout: 60000 }).then(() => true, () => false);
     await p.shot('summary');
-    const summary = await p.page.evaluate(() => document.querySelector('.hsum-card')?.innerText || '');
-    step('leave -> the summary opens', ended && /Level XP/.test(summary), summary.slice(0, 300));
-    const closed = await sql(`select end_reason from public.hunt_sessions order by entered_at desc limit 1`);
-    step('the server ended the hunt (left)', closed.end_reason === 'left', JSON.stringify(closed));
+    const closed2 = await sql(`select end_reason from public.hunt_sessions order by entered_at desc limit 1`);
+    step('leave -> the summary opens, and the server ended the hunt (left)', left && closed2.end_reason === 'left', JSON.stringify(closed2));
     const bagOf = async () => {
       await p.page.click('[data-hs-open="inventory"]');
       await p.page.waitForSelector('.hw-pocket[data-item]');
@@ -768,18 +805,6 @@ async function smoke({ shots, viewport, touch, site }) {
     const again = await bagOf();
     await p.shot('bag-after-reload');
     step('reload: the bag comes back from the server, loot included', /bones /.test(bag) && bag === again, bag + ' VS ' + again);
-    /* A second hunt skipped further than the first one lasted: still the newest, so the analyzer reads IT (the skip moves
-       ended sessions too; without that the open hunt's entered_at fell behind the ended one's and read "Hunt ended"). */
-    await p.page.click('[data-hs-open="hunts"]');
-    await p.page.click('.hw-hunt[data-hunt="mill_cellar"]');
-    await p.page.click('.hw-hunt-enter');
-    await p.page.waitForSelector('[data-hs-act="leave"]');
-    await world.skip(20);
-    const newest = await sql(`select (public.hr_hunt_analyzer_of(s.user_id, s.slot, null)->'session'->>'ended_at') is null as open
-      from public.hunt_sessions s where s.ended_at is null`);
-    step('a skip keeps history in order: the open hunt is still the newest session', newest && newest.open === true, JSON.stringify(newest));
-    await p.page.click('[data-hs-act="leave"]');
-    await p.page.waitForFunction(() => /Mill Cellar/.test(document.querySelector('.hsum-card .hsum-title')?.textContent || ''), null, { timeout: 60000 });
     const rest = `select public.hr_stamina_of(user_id, slot, now())::bigint as ms from public.player_state limit 1`;
     const tired = await sql(rest);
     await world.wait(30);

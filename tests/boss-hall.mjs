@@ -7,7 +7,7 @@
 //   node tests/boss-hall.mjs            the guard
 //   node tests/boss-hall.mjs --mutate   every planted defect must turn its arm red
 //
-// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrual.js tools/gen-hunt-sessions.mjs src/data/boss-halls.js src/data/hunts.js src/data/grounds/krells_hold/pack.js src/core/hunt-rewards.js src/core/member.js src/core/drops.js
+// mutant-anchors: src/core/hunt/boss-room.js src/core/hunt/leash.js src/core/combat-sim.js src/core/hunt/boss-phases.js src/core/hunt/monster-spells.js supabase/functions/hr-accrue/accrue-hunt.js tools/gen-hunt-sessions.mjs src/data/boss-halls.js src/data/hunts.js src/data/grounds/krells_hold/pack.js src/core/hunt-rewards.js src/core/member.js src/core/drops.js
 //
 // The data holds no hall yet (a ground pack's `hall` folds in later), so the arms play a FIXTURE hall: the Rat King's hall on the Millrace map,
 // its boss, a named add and two plain adds written below as paying rows, with real spells (Slag Rain stands in for the Hall Fire).
@@ -40,13 +40,14 @@ import { pathToFileURL } from 'node:url';
 import { isMain } from './_is-main.mjs';
 import { ROOT as REPO, plant } from './hunt-core/fixtures/h1.js';
 import { BOSS, NAMED, ADD, ROOM, FROM, KEY, FLARE, CONE, NAMED_SPELL, PRIZE, ROWS, hallGround, HALL_HUNT, HALL_ROW, hallSource } from './boss-hall-fixture.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const { loadPlay, PLAY_TREES } = await import(pathToFileURL(join(REPO, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(REPO, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(REPO);
 const T0 = Date.UTC(2026, 9, 18, 12, 0, 0);
 const MINUTE = 60000;
 /* The planted tree a mutant runs: the play trees and the generator's own imports. */
-const TREES = [...PLAY_TREES, 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tests/_is-main.mjs', 'src/session'];
+const TREES = [...PLAY_TREES, 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib', 'tests/_is-main.mjs', 'src/session'];
 
 /* ── THE FIXTURE HALL (tests/boss-hall-fixture.mjs) ─────────────────────────── */
 const STRONG = { L: 70, kit: { weapon: 'steel_warhammer', helmet: 'steel_helm', body: 'steel_platebody', pants: 'steel_platelegs', boots: 'steel_boots' } };
@@ -533,7 +534,7 @@ const MUTANTS = [
   /* THE DAILY PRIZE (lane/c-krell-daily) */
   { name: 'a hero who took it today rolls again', edits: [['src/core/hunt-rewards.js', '    if (m.prizeLeft !== true) return;\n', '']], want: /HL-DAILY/ },
   { name: 'his rows roll the shared way', edits: [['src/core/combat-sim.js', "...(room && room.kind === 'hall' ? { prize: room.monster } : {}), ", '']], want: /HL-DAILY|HL-PAY/ },
-  { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrual.js', '              ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
+  { name: 'the claim is never sent', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', '              ...(hs.prizeRolled === true ? { prize: true } : {}),\n', '']], want: /HL-DAILY/ },
   { name: 'a roll that lands nothing sends no claim', edits: [['src/core/hunt-rewards.js', '    m.hs.prizeRolled = true;\n', ''], ['src/core/hunt-rewards.js', '    if (ev) giveDrop(m, ids[i], ev, ctx, atMs);', '    if (ev) { m.hs.prizeRolled = true; giveDrop(m, ids[i], ev, ctx, atMs); }']], want: /HL-DAILY/ },
   { name: 'the engine rolls a prize the read never offered', edits: [['src/core/member.js', '      prizeLeft: mi.prizeLeft === true,', '      prizeLeft: mi.prizeLeft !== false,']], want: /HL-DAILY/ },
   { name: 'Krell\'s unique pieces are off his prize roll', edits: [['src/data/grounds/krells_hold/pack.js', "          ...UNIQUES.map((id) => ({ id, ch: SPECIAL_SAMPLE[id].source.pm / 1000, band: 'rare' }))],", '          ],']], want: /HL-DAILY Krell's unique pieces read/ },
@@ -550,7 +551,7 @@ const MUTANTS = [
   { name: 'prize slices may make more than one roll', edits: [['tools/gen-hunt-sessions.mjs', '  if (sum > 1 + 1e-9) throw', '  if (false) throw']], want: /HL-ROW took prize slices/ },
   { name: 'Krell\'s rows are the old shared 3.5%', edits: [['src/data/grounds/krells_hold/pack.js', "({ id, ch: 0.4 / 14, band: 'rare', first: true }))", "({ id, ch: 0.035, band: 'rare', first: true }))"]], want: /HL-DAILY Krell/ },
   { name: 'the limit is a call\'s only', edits: [['src/core/combat-sim.js', '  if (room) {\n', '  if (call) {\n']], want: /HL-TIME|HL-DEATH/ },
-  { name: 'the record is a call\'s only', edits: [['supabase/functions/hr-accrue/accrual.js', '} else if (inp.ground.hall && Number.isInteger(summary.unitIdEver)) {', '} else if (false) {']], want: /HL-RECORD/ },
+  { name: 'the record is a call\'s only', edits: [['supabase/functions/hr-accrue/accrue-hunt.js', '} else if (inp.ground.hall && Number.isInteger(summary.unitIdEver)) {', '} else if (false) {']], want: /HL-RECORD/ },
   { name: 'the hasted spell waits its whole cooldown', edits: [['src/core/hunt/boss-phases.js', '  return hastened(cdMs, h);\n}', '  return cdMs;\n}']], want: /HL-HASTE/ },
   { name: 'the crossing cuts no running wait', edits: [['src/core/hunt/boss-phases.js', '    hastenNow(t, ph);\n', '']], want: /HL-HASTE/ },
   { name: 'the crossing raises a short wait', edits: [['src/core/hunt/boss-phases.js', '  if (left > top) t.spellCds', '  if (left > 0) t.spellCds']], want: /HL-HASTE/ },

@@ -757,6 +757,86 @@ Nothing is open. Tyler confirmed the 48-hour lining cap on 11-18. Still his to n
 
 ---
 
+## 15. Luck (PROPOSAL v2, designer 2026-11-20 after Tyler's 11-20 rulings; awaiting Tyler; nothing built)
+
+Asked by Tyler 2026-11-19 ("permanent magic find buffs"). Revised to his 11-20 rulings: "the bestiary only counts per account" and "a similar system that luck I gained from other sinks like salvaging instead of selling (like gw2)". Measured with `tools/balance-sim/staged/luck-measure.mjs` (checkpointed lives); the staged rule is `tools/balance-sim/staged/luck.js`. v1 is in git history (5db6a058).
+
+**Pitch.** Your account has one Luck number that only goes up. You earn it two ways: by killing creatures (the Bestiary, one count for the whole account) and by salvaging gear your hunts dropped instead of selling it. More Luck means Rare and Trophy drops come more often, on every ground, for every hero. Nothing sells it. When Luck is why a Rare dropped, the reveal says "Lucky find".
+
+**Purpose.** Problem: hour 200 on a ground plays like hour 2, the Bestiary pays nothing (undecided since 11-11), the late game thins, and junk gear is only shop gold. Decisions: where to hunt next (finish a stage, or an old ground's cheap stages) and, per item kind, sell for gold now or salvage for Luck forever. Plugs into kill counters, loot bands, salvage, the Hunts card and the return card.
+
+**What changed from v1**
+
+| | v1 | v2 |
+|---|---|---|
+| Bestiary count | Best of your heroes | One count per creature for the account. A kill counts once, whichever of your heroes were there |
+| Stages | 100 / 500 / 2,500 / 5,000 / 10,000 / 20,000 | 100 / 500 / 2,500 / 10,000 / 40,000 / 160,000 |
+| Feeds | Kills only | Kills and salvage, one pool |
+| Formula | 25% x Luck / (Luck + 100) | 25% x Luck / (Luck + 150). Same +25% ceiling, shared by both feeds |
+| Stored | Nothing | Account kill counts and lifetime gold salvaged, raise-only, ledgered |
+
+**Rules**
+
+| Rule | Value |
+|---|---|
+| Why these stages | Each is four to five times the last, so an account with four heroes sits about one stage ahead on a creature, not four times the Luck. There is always a next stage |
+| Salvage | Worn gear (weapons, armor, off-hands, jewelry) salvaged instead of sold. It pays the plan's crafting stock plus Luck progress equal to the shop's price for the piece |
+| Salvage price | Point n costs 150 x n gold of salvaged gear: 150 for the first, 15,000 for the 100th. Points grow with the square root of what you gave up |
+| The safeguard | You can salvage for Luck only as many of a piece as your own hunts have dropped. The server keeps both counts per account and item. Bought, traded, crafted and store pieces add nothing to the allowance, so gold and Crowns can't buy Luck |
+| Past the allowance | The piece still salvages for stock, with no Luck |
+| The choice | Set once per item or kind (the plan's fourth loot destination): "Sell: 90 gp" or "Salvage: stock and 90 toward Luck" |
+| No luck item | Progress goes straight onto a bar. A material you click to consume is a repeated click with no decision in it |
+| Seen | Sheet: "Luck 82. Rares drop 8.8% more often." with two lines, Bestiary and Salvage, and the bar "3,400 / 7,350 to the next point". Return card: "Salvaged 41 pieces. Luck 80 to 82" |
+| Moves / never moves | Rare and Trophy rows only (uniques, whole gems, patterns, named fuels, boss-call drops). Never commons, Scarce gear, keys, chips, Krell's prize, the Hearth Chest, Hearthfinds, coin or XP. The killer's Luck rolls. No Luck gear, perk, food, event or purchase |
+
+**Measured** (played lives on advised grounds; hours are hours each hero has hunted; Rares and gold are one hero's share)
+
+| | One hero, lone hammer | | | Four heroes in one hunt, Deadly | | |
+|---|---|---|---|---|---|---|
+| Hours | 10 | 100 | 500 | 10 | 100 | 500 |
+| Level | 11 | 40 | 95 | 12 | 63 | 132 |
+| Luck, Bestiary + salvage | 11 + 9 | 34 + 48 | 88 + 139 | 13 + 19 | 74 + 123 | 120 + 318 |
+| Bonus, kills only | +1.7% | +4.6% | +9.2% | +1.9% | +8.2% | +11.1% |
+| Bonus, salvaging everything | +2.9% | +8.8% | +15.0% | +4.3% | +14.1% | +18.6% |
+| Rares an hour: today / kills / both | 0.77 / 0.79 / 0.79 | 1.06 / 1.11 / 1.15 | 0.88 / 0.96 / 1.01 | 0.70 / 0.71 / 0.73 | 1.26 / 1.36 / 1.44 | 0.99 / 1.10 / 1.17 |
+| Gear gold given up an hour | 992 | 2,105 | 4,819 | 1,026 | 4,474 | 4,252 |
+| Given up so far | 9k | 179k | 1.48M | 8k | 293k | 1.91M |
+
+- One hero against four: four heroes hunting apart (the lone life counted four times, projected) read +5.6% / +12.4% / +18.2%, Luck 402 against 227 at 500 h. A four-hero account holds about 1.8-1.9x the Luck and 1.2-1.6x the bonus, not four times.
+- What salvage costs: gear is 18% of a lone hero's coin and sold loot (1.48M of 8.03M over 500 h). Giving all of it up buys +5.8 points of bonus, 28 more Rares in 500 h. Early points are cheap: the first 50 cost 191k.
+- Rolled check: the lone life with both feeds in the real roll dropped 667 Rares against 596 today, with identical income and Level.
+- Room: no creature reaches the last stage in either life. The Bestiary holds 88 and 120 of 312.
+
+**Changes to this plan**
+
+| Section | Change |
+|---|---|
+| 1 | New row: Luck, the Bestiary's and salvage's reward |
+| 3 | Rare paces are quoted at Luck 0. `loot-bands.js` trophy `boostMax 1.25` becomes Luck's cap, so a Trophy still never beats 100 h |
+| 4 | No Luck perk. Whole gems speed up and chips don't |
+| 5, Salvage | Add the Luck progress, the allowance rule and the two-line choice. Salvage's stock must stay worth less than the shop price, or salvaging is free |
+| 6 | The chest ignores Luck. The wait table stands |
+| 10 | Luck doesn't trade. Salvage becomes a measured sink: up to 18-21% of hunting income, by choice |
+| 11 | Bestiary half: phase 2b. Salvage half: ships with phase 3 |
+| 12 | "Studies" (parked) is closed by this |
+
+**The charms.** No kill-memory bonus reaches the roll today: `charmDropMultFor`, `trophyDropMultFor`, `memoryDropMult` and `member.relicMult` have no caller, and `weaknessInfo` returns only the monster's own `dropBonus`. Cut the class ladder (`bestiary-charms.js`, `charms.js`) and those four. Four foods carry a 1-3% drop-rate buff on every row (read, unmeasured): give them another buff.
+
+**Build**
+
+| Lane | Work | Notes |
+|---|---|---|
+| C, Backend | Account kill counts written once per kill per account inside the instance settle. Account `found` and `luck_salvaged` counts per item. Salvage RPC pays progress on min(quantity, found minus salvaged) at the server's own price. `hr_luck_of(account)`; `hr_state_of` projects Luck | Security: no client amount or price. Raise-only totals. Each salvage journalled. Guard that only the settle writes kill counts and `found`. Deleting a hero must not lower Luck |
+| Engine, Systems | `src/data/luck.js`, `src/core/luck.js`, `drops.js effectiveDropChance` (reveal bands only, a `lucky` flag), `hunt-rewards.js payDrops`, `member.js`, the cuts; drop-tables guard at Luck 0 and at the cap; viewed and closed-browser tests | One draw a row as today, so seeded replays match at Luck 0. Edge deploy |
+| B, client and Art Director | Sheet line and bar, Bestiary window (not built yet), Hunts card, salvage row and choice, log line, return card row, Lucky find tag, text rows | |
+
+**For Tyler**
+1. The size of salvage. All-in it is the bigger feed (139 points against 88 at 500 h) and costs 1.48M gold. Say if you want it smaller.
+2. The ceiling. Still +25% for both feeds together. Designer's call: keep it.
+3. The cuts from v1: the class charm ladder and the food drop-rate buffs.
+
+**Measured vs assumed.** Measured: both lives, kill counts, gear shop value, the lone rolled check. Projected: the four-apart row (the lone life counted four times). Not re-run: the four-hero rolled check (v1's ran at the old numbers). Assumed: salvage's stock counted as worth nothing, so gold given up is an upper bound; Rare market prices unknown; a player farming stages on purpose not played. No screen exists.
+
 # APPENDIX A. Answers to Tyler's five roadmap findings
 
 ## Finding 1. Weapon coverage in the Morrow Hills

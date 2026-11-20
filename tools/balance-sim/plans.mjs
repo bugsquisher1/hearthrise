@@ -29,7 +29,11 @@ export async function loadAxes(root) {
   const { HUNT_INDEX } = await import(u('src/data/hunts.js'));
   const { MATERIAL_TIERS } = await import(u('src/data/gear-tiers.js'));
   const { tierRowOf } = await import(u('src/data/hunt-tiers.js'));
-  const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: HUNT_INDEX[g.hunt].band.slice(), groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
+  /* A ground's band is the Levels a hero can hunt it at: a ground that ends its hunt at endsAtLevel (the Mill Cellar at 5, lane/d-first-day-path) is
+     played to the Level under it. The ladder played the Cellar at 5 and 8, where its hunt ends on the first boundary, and read 3,411 Level XP an
+     hour against its 9,884 (level-curve C5 went red on the steeper fit; lane/d-142-rulings, 2026-11-19). */
+  const playable = (g) => { const b = HUNT_INDEX[g.hunt].band.slice(); return Number.isInteger(g.endsAtLevel) ? [b[0], Math.min(b[1], g.endsAtLevel - 1)] : b; };
+  const grounds = Object.values(G.OPEN_GROUNDS).map((g) => ({ id: g.id, band: playable(g), groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
     soloFrom: g.soloFrom || null, densityMax: g.densityMax ? g.densityMax[0] : 8 })).sort((a, b) => a.band[0] - b.band[0]);
   const { ITEMS } = await import(u('src/data/items.js'));
   /* Every cape and jewelry slot's best row a Level can wear. */
@@ -43,7 +47,9 @@ export async function loadAxes(root) {
   const { TIER_DIALS } = await import(u('src/data/balance-sheet.js'));
   const proposal = join(root, 'tools', 'balance-sim', 'out', 'formula-proposal.json');
   const formula = existsSync(proposal) ? JSON.parse(readFileSync(proposal, 'utf8')) : null;
-  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf, ROLE_RULES, familyOf, runeId, tierDials: TIER_DIALS, formula };
+  /* the first Level the pace targets (LEVEL_PACE.targets[0], Level 10): the ladder's contract is the trend past it */
+  const { LEVEL_PACE } = await import(u('src/data/core-model.js'));
+  return { grounds, tierLevels: MATERIAL_TIERS.map((t) => t.level), tierRowOf, dressOf, ROLE_RULES, familyOf, runeId, tierDials: TIER_DIALS, formula, paceFrom: LEVEL_PACE.targets[0][0] };
 }
 
 const uniq = (xs) => [...new Set(xs)].sort((a, b) => a - b);
@@ -109,6 +115,10 @@ export function buildPlan(name, axes, scale = 1) {
     for (const g of G) {
       const from = g.groupFit === 'party' ? g.soloFrom : g.band[0];
       if (!Number.isInteger(from)) continue;
+      /* NO RUNG UNDER THE PACE'S FIRST TARGET (lane/d-142-rulings, 2026-11-19): the Levels a hero can hunt the Mill Cellar at (1-4 since it ends at 5)
+         are the tutorial's, paced one by one (LEVEL_PACE.early); the contract is the trend past Level 10. As a rung at Level 2.5 it bent the fit to
+         2829 x L^1.121 (the contract 65% off it at Level 1,000); without it the ladder reads 1590 x L^1.272, within 4% of the contract at 50 to 1,000. */
+      if (g.band[1] < axes.paceFrom) continue;
       for (const s of SOLO_STYLES) for (const L of uniq([from, Math.round((from + g.band[1]) / 2), g.band[1]])) {
         /* the pace of record's own trend: the plain hero (cellOf above) */
         out.push(cellOf({ ground: g.id, party: [s], level: L, hours: H(2), seeds: 2, x: 'LAD', profile: 'plain' }));

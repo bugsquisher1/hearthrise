@@ -1,0 +1,4 @@
+{
+  "seq": 540,
+  "note": "RE-APPLIED 2026-11-18 by the Coordinator (the apply tool, v0.2.137: 4 Hearth stand facings w/n -> e after the props moved; hr_town_station_for body unchanged). Earlier: APPLIED 2026-11-03 23:37 UTC (lane/b-0284-return, designer, 2026-11-03; pre-EA: applies on its self-check). The Hearth Square's idle stands in a new order, the flank by the fire first, so a new hero's first frame holds the Great Hearth (hr_town_stands, the same tiles). No world shape, no function body, no edge. A hero already standing keeps its stand id until it next moves. ORDER: last; no object in common with anything staged."
+}

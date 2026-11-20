@@ -10,8 +10,9 @@
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { loadApplyOrder } from '../tools/lib/apply-order.mjs';
 
-const orderOf = (root) => JSON.parse(readFileSync(join(root, 'tests/schema-apply-order.json'), 'utf8')).order;
+const orderOf = (root) => loadApplyOrder(root).order;
 const migration = (root, f) => { try { return readFileSync(join(root, 'supabase/migrations', f), 'utf8'); } catch { return null; } };
 export const jsFiles = (d) => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? jsFiles(join(d, e.name)) : /\.(js|ts)$/.test(e.name) ? [join(d, e.name)] : []));
 

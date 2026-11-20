@@ -82,10 +82,11 @@ import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { scopedMutants } from '../tools/lib/mutant-scope.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const BUILD_SRC = await readFile(join(ROOT, 'src/build-info.js'), 'utf8');
 const VERSION = /version:\s*'([^']+)'/.exec(BUILD_SRC)[1];
-const V = '?v=' + /cache:\s*'([^']+)'/.exec(BUILD_SRC)[1];
+const V = sourceQuery(ROOT);
 const HUNT = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const SENTRY = /\.ingest\.us\.sentry\.io\//;
 /* What the project's own /flags/?config=true and /array/<key>/config answer (read from the live endpoints 2026-10-31): the SDK's
@@ -518,7 +519,7 @@ async function nodeChecks(root) {
   const fails = [];
   const u = (p) => pathToFileURL(join(root, p)).href + V;
   /* A fresh module per run: startObservability starts once per load, and a run must not reuse the last one's. */
-  const OBS = await import(u('src/net/observability.js') + '&run=' + (++RUNS));
+  const OBS = await import(u('src/net/observability.js') + (V ? '&' : '?') + 'run=' + (++RUNS));
   OBS.useHeroReaders((await import(u('src/net/hero-readers.js'))).HERO_READERS);   // as boot.js does with the game half
   const CS = await import(u('src/session/character-session.js'));
   const events = [];
@@ -736,7 +737,7 @@ async function replayChecks(root) {
   const { SETTINGS } = await import(u('src/data/settings.js'));
   const row = SETTINGS.find((r) => r.id === 'help.replay');
   const rig = async () => {
-    const OBS = await import(u('src/net/observability.js') + '&run=' + (++RUNS));
+    const OBS = await import(u('src/net/observability.js') + (V ? '&' : '?') + 'run=' + (++RUNS));
     OBS.useHeroReaders((await import(u('src/net/hero-readers.js'))).HERO_READERS);   // as boot.js does with the game half
     const calls = [];
     const sdk = { init: () => sdk, capture() {}, identify() {}, reset() {}, startSessionRecording() { calls.push('start'); }, stopSessionRecording() { calls.push('stop'); } };

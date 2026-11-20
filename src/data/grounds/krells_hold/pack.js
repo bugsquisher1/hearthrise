@@ -99,7 +99,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'wheat', ch: 0.3, band: 'common' }, { id: 'farmhands_tag', ch: 0.08, band: 'uncommon' },
         { id: 'ember_boots', ch: 0.02, band: 'scarce' }, { id: 'dragonhide_boots', ch: 0.02, band: 'scarce' }, { id: 'archmage_boots', ch: 0.02, band: 'scarce' },
         { id: 'ember_sword', ch: 0.02, band: 'scarce' }],
-      hp: 125, atk: 86, baseAcc: 0.66, def: 36, xp: 1188, gp: [18, 56], formula: true },
+      hp: 125, atk: 86, baseAcc: 0.66, def: 36, xp: 1045, gp: [18, 56], formula: true },
     hasks_lookout: {
       name: 'Hask\'s Lookout', icon: '🏹', tier: 6, level: 88, cls: 'human', family: 'Human', speed: 3000,
       /* the glass: the sentries Captain Hask pulled off the line the night of the Ford. They took Krell's pay too, and now they stand his wall
@@ -112,7 +112,7 @@ export default definePack({
         { id: 'ember_helm', ch: 0.026, band: 'scarce' }, { id: 'dragonhide_helmet', ch: 0.026, band: 'scarce' }, { id: 'archmage_helmet', ch: 0.026, band: 'scarce' },
         { id: 'runewood_bow', ch: 0.026, band: 'scarce' },
         { id: 'ember_gauntlets', ch: 0.0018, band: 'rare' }, { id: 'dragonhide_gloves', ch: 0.0018, band: 'rare' }, { id: 'archmage_gloves', ch: 0.0018, band: 'rare' }],
-      hp: 120, atk: 88, baseAcc: 0.75, def: 38, xp: 1381, gp: [18, 53], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
+      hp: 120, atk: 88, baseAcc: 0.75, def: 38, xp: 1215, gp: [18, 53], formula: true }, // atk and baseAcc: balance-sheet.js FORMULA_EXCEPTIONS (a danger fix: close calls at the floor)
     grave_guard: {
       name: 'Grave Guard', icon: '🛡️', tier: 6, level: 92, cls: 'undead', family: 'Undead', speed: 2400,
       /* the heavy, the slowest thing in the castle: one of the Banded Company's officers, buried with honors in the Muster Barrows, dug up and
@@ -126,7 +126,7 @@ export default definePack({
         { id: 'ember_platelegs', ch: 0.017, band: 'scarce' }, { id: 'dragonhide_pants', ch: 0.017, band: 'scarce' }, { id: 'archmage_pants', ch: 0.017, band: 'scarce' },
         { id: 'ember_tower_shield', ch: 0.017, band: 'scarce' },
         { id: 'ember_belt', ch: 0.0012, band: 'rare' }, { id: 'dragonhide_belt', ch: 0.0012, band: 'rare' }, { id: 'archmage_belt', ch: 0.0012, band: 'rare' }],
-      hp: 200, atk: 86, baseAcc: 0.72, def: 58, xp: 2147, gp: [29, 89], formula: true },
+      hp: 200, atk: 86, baseAcc: 0.72, def: 58, xp: 1889, gp: [29, 89], formula: true },
     pyre_priest: {
       name: 'Pyre Priest', icon: '📿', tier: 6, level: 95, cls: 'human', family: 'Human', speed: 3000,
       /* the regular: one of Krell's priests, the men who said the rite over the Pyre Field and tied the dead to his fire. Hooded, ash-gray,
@@ -136,7 +136,7 @@ export default definePack({
       drops: [{ id: 'bones', ch: 0.5, band: 'common' }, { id: 'coal', ch: 0.5, band: 'common' }, { id: 'priests_cord', ch: 0.08, band: 'uncommon' },
         { id: 'runewood_staff', ch: 0.049, band: 'scarce' }, // 0.045 -> 0.049 and the two Rares 0.0035 -> 0.0037 (lane/d-harder-monsters 2026-11-19: a tenth more HP, fewer Priests met an hour: 1.59 h and 20.4 h)
         { id: 'runewood_wand', ch: 0.0037, band: 'rare' }, { id: 'runewood_codex', ch: 0.0037, band: 'rare' }],
-      hp: 172, atk: 110, baseAcc: 0.4, def: 45, xp: 1700, gp: [25, 76], formula: true },
+      hp: 172, atk: 110, baseAcc: 0.4, def: 45, xp: 1496, gp: [25, 76], formula: true },
     gatekeeper: {
       name: 'Gatekeeper', icon: '🗝️', tier: 6, level: 100, cls: 'human', family: 'Human', speed: 2800,
       /* the elite and the rare carrier: Krell's steward, in plate with a mace and a ring of keys. He keeps the castle, its stores and the toll.
@@ -149,7 +149,7 @@ export default definePack({
         { id: 'ember_platebody', ch: 0.05, band: 'scarce' }, { id: 'dragonhide_body', ch: 0.05, band: 'scarce' }, { id: 'archmage_body', ch: 0.05, band: 'scarce' },
         { id: 'ember_warhammer', ch: 0.05, band: 'scarce' },
         { id: 'hall_key', ch: 0.026, band: 'key' }],
-      hp: 290, atk: 115, baseAcc: 0.4, def: 72, xp: 3365, gp: [43, 128], formula: true },
+      hp: 290, atk: 115, baseAcc: 0.4, def: 72, xp: 2961, gp: [43, 128], formula: true },
   },
   roster: {
     farmhand: 'swarm',          // the common majority

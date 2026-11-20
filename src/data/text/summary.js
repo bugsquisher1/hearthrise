@@ -68,6 +68,8 @@ export const SUMMARY_TEXT = Object.freeze({
      the Hunts list's Recommended ground when it is a step up from the one just hunted. {band} its Levels, {levels} the hero's (or the party's) */
   ground_up: 'Next ground: {ground}',
   ground_up_words: '{band}, recommended for {levels}',
+  /* ...and after a ground outgrown, the card's gold press (audit 2026-11-19 L2), on the summary's foot and the away card: it opens that ground in Hunts */
+  go_ground: 'Go to {ground}',
   /* The answers. */
   selling: 'Selling…',
   depositing: 'Depositing…',

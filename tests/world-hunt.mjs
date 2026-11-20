@@ -28,8 +28,10 @@
 //   (H5, the old overlay's Analyzer, retired 2026-10-17 with the overlay module:
 //      the hunt screen's analyzer is src/shell/widgets/analyzer.js, tests/hunt-screen.mjs HS-4)
 //   H6 CAMERA: the cellar at the one density (x2, never a fitted zoom); on each
-//      axis the room is centred with darkness around it when it fits and the
-//      camera follows the hero inside the room when it does not
+//      axis the room is centred with darkness around it when it fits (as near the
+//      middle as the map's art allows where the art is as long as the view: no
+//      void, the UI audit's N10) and the camera follows the hero inside the room
+//      when it does not
 //   H7 ONE ENGINE (AWAY-12, extended): the beat and the hunt modules name
 //      no engine entry point
 //   H8 FACING: every monster (bystander, foe, leaving, fallen; standing or
@@ -44,9 +46,10 @@ import { readFileSync, mkdtempSync, cpSync, writeFileSync, rmSync, mkdirSync } f
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 
 async function load(base) {
   const imp = (p) => import(pathToFileURL(join(base, p)).href + V);
@@ -198,9 +201,12 @@ function check(M) {
         const fv = C.frameView(hero, vw, vh, M.map, z, T, { keep: hero });
         const hx = (hero.x + 0.5) * T, hy = (hero.y + 0.5) * T;
         ok('H6', hx >= fv.cam.x && hx <= fv.cam.x + vw && hy >= fv.cam.y && hy <= fv.cam.y + vh, label + ': the hero at ' + hero.x + ',' + hero.y + ' is off screen');
-        for (const [ax, at, span, v] of [['x', fv.cam.x, [fr.x * T, (fr.x + fr.w) * T], vw], ['y', fv.cam.y, [fr.y * T, (fr.y + fr.h) * T], vh]]) {
+        for (const [ax, at, span, v, art] of [['x', fv.cam.x, [fr.x * T, (fr.x + fr.w) * T], vw, M.map.w * T], ['y', fv.cam.y, [fr.y * T, (fr.y + fr.h) * T], vh, M.map.h * T]]) {
           const room = span[1] - span[0];
-          if (room <= v) ok('H6', Math.abs(at + v / 2 - (span[0] + span[1]) / 2) <= 0.5, label + ': the room fits on ' + ax + ' and must be centred with darkness around it (camera ' + at + ')');
+          /* centred with darkness around it, unless the map's art is as long as the view: then onto the art (NO VOID, the
+             UI audit's N10; tests/world-core.mjs C9), the room as near the middle as the art allows */
+          const mid = (span[0] + span[1]) / 2 - v / 2, want = art >= v ? Math.min(art - v, Math.max(0, mid)) : mid;
+          if (room <= v) ok('H6', Math.abs(at - want) <= 0.5, label + ': the room fits on ' + ax + ' and must be centred' + (art >= v ? ' as far as its art allows' : ' with darkness around it') + ' (camera ' + at + ', want ' + want + ')');
           else ok('H6', at >= span[0] - 0.5 && at + v <= span[1] + 0.5, label + ': the room is bigger on ' + ax + ' and the camera must scroll inside it (camera ' + at + ')');
         }
       }
@@ -227,7 +233,8 @@ const MUTANTS = [
   ['H4', 'the bag names its item', 'src/world/hunt-scene.js', [["units.push({ id: 'loot_bag',", "units.push({ plate: { text: o.itemOf ? o.itemOf() : '', kind: 'ambient' }, id: 'loot_bag',"]]],
   ['H9', 'the bag lands on the corpse', 'src/world/choreo.js', [['const spot = bagSpot(at);', 'const spot = at;']]],
   ['H6', 'a room that fits is pinned to its corner, not centred', 'src/world/core/camera.js', [['if (span <= u) c = lo + (span - u) / 2;', 'if (span <= u) c = lo;']]],
-  ['H6', 'a big room scrolls past its walls into the void', 'src/world/core/camera.js', [['    if (whole && span >= v) c = hold(Math.min(hi - u - b, Math.max(lo + a, c)));\n    c = Math.min(hi - u, Math.max(lo, c));\n', '']]],
+  ['H6', 'a big room scrolls past its walls into the void', 'src/world/core/camera.js', [['    if (span > u) c = Math.min(hi - u, Math.max(lo, c));\n    if (art[1]', '    if (art[1]']]],
+  ['H6', 'a room that fits is centred over the void, off its art', 'src/world/core/camera.js', [['    if (art[1] - art[0] >= v) c = Math.min(art[1] - u - b, Math.max(art[0] + a, c));', '    if (false) c = 0;']]],
   ['H7', 'the scene rolls its own swing', 'src/world/hunt-scene.js', [['    beat(b) { ch.beat(b, b.at); },', '    beat(b) { ch.beat(b, b.at); },\n    roll(r) { return rollAttack(r, 1, 2); },']]],
 ];
 

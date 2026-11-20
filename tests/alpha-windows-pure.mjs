@@ -34,6 +34,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from './_client-harness.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 import { levelBlock } from './_server-level.mjs';
 import { FIXTURE, plain, mutate, shardPlan, tickerMutant } from './_alpha-windows.mjs';
 
@@ -355,8 +356,7 @@ async function planRules(base) {
   {
     const { renderConfigureAction } = await imp('src/shell/windows/configure-action.js');
     /* the instance the window itself imports (its scratch is per module instance) */
-    const { BUILD } = await imp('src/build-info.js');
-    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + '?v=' + BUILD.version);
+    const { openSlot } = await import(pathToFileURL(join(base, 'src/shell/bar-draft.js')).href + sourceQuery(base));
     const sec = { hunt_settings: { preset: 0, presets: [], slots: [slot('ability', 'power_strike', 0)], store: STORE } };
     const cs = { read: (k) => sec[k] };
     openSlot(cs, 0);
@@ -717,7 +717,7 @@ async function planRules(base) {
        Banded Legguards physical). Level 17 hunts Wickstead, where the Turncoat's Smoke Pot is fire; Level 20 has no fire on any ground. The rows are made here for the
        test (Bronze Platelegs with a resistance) and put back after. */
     /* the build's ?v= instance of the catalogue, the one upgrade-plan.js reads */
-    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + '?v=' + (await imp('src/build-info.js')).BUILD.version);
+    const { ITEMS: IT } = await import(pathToFileURL(join(base, 'src/data/items.js')).href + sourceQuery(base));
     const threats = (lv) => Array.from(UP.threatsAt(lv)).sort().join();
     if (threats(17) !== 'ember,physical,poison' || threats(20) !== 'physical,poison') fails.push('AW-21 the damage in range reads ' + threats(17) + ' at 17 and ' + threats(20) + ' at 20');
     IT.aw21_fire_legs = { ...IT.bronze_platelegs, n: 'Fireproof Legs', resistPm: { ember: 100 } };

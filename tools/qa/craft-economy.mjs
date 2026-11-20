@@ -11,7 +11,7 @@
 //   bench    every recipe to --max-req, `--hours` of stock: jobs/h, outputs/h, XP/h, burn, the gold the outputs sold for
 //   --away   one 8 h window against the same hours in 10 min windows: is a closed browser the same rate?
 //   --careers  a hero from 1 by the best row it can reach, an hour at a time: hours to 15, 30, 45, 60, 75, 99, gold sold
-//   --hunts  in-band grounds, 2 h each, the Level's kit: coin, loot sold, store bill, gold/h
+//   --hunts  in-band grounds, 2 h each, the Level's kit: coin, loot sold, store bill, gold per hunted hour (a hunt that ends itself, the Cellar at Level 5, over the minutes it ran)
 //   --chains   one hero, both halves, whole cycles played: gold over every hour it took
 //   (--walk retired 2026-11-18: no bench makes a weapon)
 //   --rooms    the deeds and the first bench rooms: refused one gold short, sold at the price
@@ -268,15 +268,20 @@ if (has('--hunts')) for (const [ground, L, role] of [['mill_cellar', 4, 'tank'],
     await rpc('hr_hunt_leave', { p_slot: 0, p_idem: idem() });
     await world.skip(1);
     const coin = (await purse(a)) - coin0;
-    const stillOn = await q('select end_reason from public.hunt_sessions where user_id = $1 order by entered_at desc limit 1', [a.uid]);
+    /* the hours it HUNTED: a ground can end its own hunt first (the Cellar at Level 5, `outgrown`); skip() moves an ended session's clocks together */
+    const stillOn = await q('select end_reason, extract(epoch from ended_at - hunt_from)::float8 * 1000 as ms from public.hunt_sessions where user_id = $1 order by entered_at desc limit 1', [a.uid]);
     const lootSold = await sell(a);
-    rows.push({ coin, loot: lootSold.gold, net: coin + lootSold.gold, end: stillOn[0]?.end_reason });
+    const h = Math.min(HOURS, Number(stillOn[0]?.ms) / 3600000 || HOURS);
+    rows.push({ coin, loot: lootSold.gold, net: coin + lootSold.gold, end: stillOn[0]?.end_reason, h });
   }
   const ok = rows.filter((x) => !x.refused);
-  const row = { ground, level: L, role, coinPerH: Math.round(ok.reduce((s, x) => s + x.coin, 0) / ok.length / HOURS), lootPerH: Math.round(ok.reduce((s, x) => s + x.loot, 0) / ok.length / HOURS),
-    netPerH: Math.round(ok.reduce((s, x) => s + x.net, 0) / ok.length / HOURS), samples: ok.map((x) => Math.round(x.net / HOURS)), ends: ok.map((x) => x.end), refused: rows.find((x) => x.refused)?.refused || null };
+  const hunted = ok.reduce((s, x) => s + x.h, 0), perH = (k) => Math.round(ok.reduce((s, x) => s + x[k], 0) / hunted);
+  const short = ok.filter((x) => x.h < HOURS);
+  const label = 'per hunted hour' + (short.length ? `, ends ${short[0].end} at ~${Math.round(short.reduce((s, x) => s + x.h, 0) / short.length * 60)} min` : '');
+  const row = { ground, level: L, role, coinPerH: perH('coin'), lootPerH: perH('loot'), netPerH: perH('net'), label,
+    huntedMin: ok.map((x) => Math.round(x.h * 60)), samples: ok.map((x) => Math.round(x.net / x.h)), ends: ok.map((x) => x.end), refused: rows.find((x) => x.refused)?.refused || null };
   report.hunts.push(row);
-  log(`hunt ${ground} L${L} ${role}: coin after bill ${row.coinPerH} + loot sold ${row.lootPerH} = ${row.netPerH} g/h (samples ${row.samples.join('/')}, ends ${row.ends.join('/')})${row.refused ? ' REFUSED ' + JSON.stringify(row.refused).slice(0, 200) : ''}`);
+  log(`hunt ${ground} L${L} ${role}: coin after bill ${row.coinPerH} + loot sold ${row.lootPerH} = ${row.netPerH} g/h ${label} (samples ${row.samples.join('/')}, hunted ${row.huntedMin.join('/')} min, ends ${row.ends.join('/')})${row.refused ? ' REFUSED ' + JSON.stringify(row.refused).slice(0, 200) : ''}`);
 }
 
 // ── ONE HERO, BOTH HALVES ────────────────────────────────────────────────

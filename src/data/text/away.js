@@ -12,8 +12,19 @@
 export const AWAY_TEXT = Object.freeze({
   /* {name} when the server has not sent the hero's name yet. */
   your_hero: 'Hero',
-  /* Out of stamina (after-hunt.js NEXT.stamina): what uses none while it comes back. {level} the yard's first Level (src/data/training.js). */
-  next_stamina: 'While stamina refills: work a bench or train at the Yard',
+  /* Out of stamina (after-hunt.js NEXT.stamina): what uses none while it comes back. {loops} the free_* words this hero has open
+     (after-hunt.js staminaFreeOf: "train at the yard, gather, craft or farm"). */
+  next_stamina: 'While stamina refills: {loops}',
+  free_yard: 'train at the yard',
+  free_gather: 'gather',
+  free_craft: 'craft',
+  free_farm: 'farm',
+  /* THE RETURN WITH STAMINA SHORT (audit 2026-11-19 L4: 1 h 9 min of 12 h and one press, Hunt again): the away card's line and its presses,
+     each opening that loop's window. */
+  rest_head: 'Low on stamina? These use none:',
+  free_go_yard: 'Training Yard',
+  free_go_work: 'Gathering and crafting',
+  free_go_farm: 'Farm',
   /* A training session that reached its longest run (after-hunt.js TRAIN_NEXT). */
   next_train_again: 'Start training again to keep going',
   /* A span over two days (after-hunt.js spanWords): whole days, rounded down. */

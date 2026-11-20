@@ -1514,7 +1514,12 @@ export async function runAll() {
    this repo is checked out CRLF and a substring anchor written on a Unix box
    silently matches nothing.
    ══════════════════════════════════════════════════════════════════════════ */
+/* The accrual engine is a door and its pieces (the module map: accrual.js's header); each mutant plants into the piece
+   that holds its line. */
 const ENGINE = 'supabase/functions/hr-accrue/accrual.js';
+const CONTRACT = 'supabase/functions/hr-accrue/accrual-contract.js';
+const WINDOW = 'supabase/functions/hr-accrue/accrual-window.js';
+const BENCH = 'supabase/functions/hr-accrue/accrue-artisan.js';
 const INTENT = 'supabase/functions/hr-accrue/set-activity.js';
 const CORE = 'src/core/artisan-sim.js';
 const SWEEP = 'tests/accrual-engine.mjs';
@@ -1527,7 +1532,7 @@ const BRONZE_FLETCH = "    { id: 'fletch_bronze_arrows',    name: 'Fletch Bronze
 export const MUTATIONS = [
   /* T10 (lane c-live-town-work): the watched bench. */
   ['M11 the town floor reverts to a minute', [
-    [ENGINE, "  return activeKind === 'gather' || activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;",
+    [WINDOW, "  return activeKind === 'gather' || activeKind === 'artisan' ? TOWN_SETTLE_MIN_MS : ACCRUE_MIN_MS;",
       '  return ACCRUE_MIN_MS;'],
   ], 'a watched bench pays once a minute: the bag does not update as it goes', /T10/],
   ['M12 the accrue verb loses its floor', [
@@ -1538,36 +1543,36 @@ export const MUTATIONS = [
      SUPPLY (bag + Storage), `nat(supply[id], 0)`, unique in the engine; the defect is
      the same — the delta debits, the bag (and the supply) is never spent. */
   ['M1  the input debit does not spend the bag', [
-    [ENGINE, '      const have = Math.floor(nat(supply[id], 0));',
+    [BENCH, '      const have = Math.floor(nat(supply[id], 0));',
       '      const have = Math.floor(nat(supply[id], 0)); itemDelta[id] = (itemDelta[id] || 0) - Math.min(n, have); return;'],
   ], 'production is bounded by the clock instead of by the server inventory'],
   ['M9  "make N" never caps the run (lane c-work-fixes)', [
-    [ENGINE, '    maxActions: runCap(inp.actionBudget, left0),', '    maxActions: runCap(inp.actionBudget, null),'],
+    [BENCH, '    maxActions: runCap(inp.actionBudget, left0),', '    maxActions: runCap(inp.actionBudget, null),'],
   ], 'a Forge Bronze Pickaxe x1 spends every bar in the bag'],
   ['M10 "make N" never counts down (lane c-work-fixes)', [
-    [ENGINE, '  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;', '  /* MUTATED */'],
+    [BENCH, '  if (!stopped && left1 !== null && left1 < left0) delta.active_left = left1;', '  /* MUTATED */'],
   ], 'a run cut across settles makes N in every window'],
   ['M2  journal.kind names the activity instead of the ledger kind', [
-    [ENGINE, "      kind: 'craft',", "      kind: 'artisan',"],
+    [BENCH, "      kind: 'craft',", "      kind: 'artisan',"],
   ], 'player_ledger_kind_check refuses it; hr_apply answers bad_delta and the night is lost'],
   ['M3  a stopped run does not clear the pointer', [
-    [ENGINE, "  if (stopped) delta.activity = { kind: 'idle', id: null };", '  /* MUTATED */'],
+    [BENCH, "  if (stopped) delta.activity = { kind: 'idle', id: null };", '  /* MUTATED */'],
   ], 'the player is stuck on a bench with an empty bag forever'],
   ['M4  an absent unlockedRecipes map fails OPEN', [
-    [ENGINE, "    unlockedRecipes: (inp.unlockedRecipes && typeof inp.unlockedRecipes === 'object')",
+    [BENCH, "    unlockedRecipes: (inp.unlockedRecipes && typeof inp.unlockedRecipes === 'object')",
       '    unlockedRecipes: (true'],
-    [ENGINE, '      ? inp.unlockedRecipes : null,',
+    [BENCH, '      ? inp.unlockedRecipes : null,',
       '      ? new Proxy({}, { has: () => true, get: () => true }) : null),'],
   ], 'eight gated recipes become free'],
   ['M5  the engine stops refusing an unpayable bench', [
     [ENGINE, '    if (!benchPayable(bench)) {', '    if (false && !benchPayable(bench)) {'],
   ], 'the server cooks at the base 25% burn against a Kitchen it cannot see'],
   ['M6  a kind is widened with no simulation', [
-    [ENGINE, "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);",
+    [CONTRACT, "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);",
       "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan', 'farm']);"],
   ], 'the exact edit the block above PAYABLE_KINDS describes'],
   ['M6b a simulation becomes unreachable', [
-    [ENGINE, "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);",
+    [CONTRACT, "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather', 'artisan']);",
       "export const PAYABLE_KINDS = Object.freeze(['combat', 'gather']);"],
   ], 'the other direction: 290 catalogue rows silently stop paying'],
   ['M6c the total branch is deleted (dispatch neutralised first)', [
@@ -1579,7 +1584,7 @@ export const MUTATIONS = [
       '  /* MUTATED */'],
   ], 'an unsimulated kind answers no refusal at all (no reason, no delta contract)'],
   ['M7  nothing-happened swallows a first-tick stop', [
-    [ENGINE, '  if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };',
+    [BENCH, '  if (nothingHappened && !stopped) return { accrued: false, reason: SKIP.NOTHING, summary };',
       '  if (nothingHappened) return { accrued: false, reason: SKIP.NOTHING, summary };'],
   ], 'the second collect of an exhausted bench leaves the pointer stuck'],
   ['M8  set_activity accepts an unpayable bench', [
@@ -1604,7 +1609,7 @@ export const MUTATIONS = [
       '  const rawBudget = (false'],
   ], 'every first-attempt accrual and every collect returns nothing_accrued'],
   ['C1d a budget stop clears the activity pointer', [
-    [ENGINE, '  const stopped = summary.stoppedBy === ARTISAN_STOP.SUPPLIES',
+    [BENCH, '  const stopped = summary.stoppedBy === ARTISAN_STOP.SUPPLIES',
       '  const stopped = summary.stoppedBy || summary.stoppedBy === ARTISAN_STOP.SUPPLIES'],
   ], "a clamp rejection ends the player's run as a side effect"],
   /* ── THE FUSE-SIZING GUARD ITSELF (Security ruling 2026-08-16). Five ways to

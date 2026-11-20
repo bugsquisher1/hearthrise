@@ -790,6 +790,14 @@ async function runTests(M) {
     const bare = (outgrown) => TN.townSteps({ plan: null, bag: [], rules: null, bids: null, blessings: null, purse: 0, did: new Map(), buy: null, free: false, outgrown,
       ground: { row: { hunt: 'meadowbrook_thicket', name: 'Meadowbrook Thicket', band: [5, 15] }, levels: [5] } }).primary;
     eq([bare(true), bare(false)], ['ground', 'again'], 'with no chore left, an outgrown card presses the next ground and any other Hunt again');
+    /* audit 2026-11-19 L2 (played, 1440x900): the Cellar's Level 5 end opened on a greyed Hunt again while the chores' gold row and the Next
+       ground row lay under the sticky foot. Hunt again can't go, so the next ground is the press ahead of every chore, which keeps its own */
+    const chores = (outgrown) => TN.townSteps({ plan, bag, rules, bids, blessings, purse: 100, did: new Map(), buy: null, free: false, outgrown,
+      ground: { row: { hunt: 'meadowbrook_thicket', name: 'Meadowbrook Thicket', band: [5, 15] }, levels: [5] } });
+    const out5 = chores(true);
+    eq([out5.primary, out5.steps.map((s) => s.id), out5.steps.find((s) => s.id === 'ground').name], ['ground', ['equip', 'sell', 'deposit', 'bless', 'ground'], 'Meadowbrook Thicket'],
+      'outgrown with chores open: the next ground is the press, named for the foot, and every chore is still listed');
+    eq(chores(false).primary, 'equip', 'CONTROL: any other end keeps the first chore as the press');
   });
 
   return fails;
@@ -885,7 +893,9 @@ const MUTANTS = [
   { test: 'T6', file: TOWN, from: "const first = out.find((s) => !s.done && s.id !== 'buy' && s.id !== 'ground');", to: "const first = out.find((s) => !s.done && s.id !== 'buy');" },
   { test: 'T6', file: TOWN, from: 'const levels = [].concat(adviceLevels(lv.level, party)).filter(Number.isInteger);', to: 'const levels = [lv.level];' },
   /* T6 the outgrown card (lane/d-first-day-path): its press, its Hunt again, its reason */
-  { test: 'T6', file: TOWN, from: "const next = o && o.outgrown && out.some((s) => s.id === 'ground') ? 'ground' : 'again';", to: "const next = 'again';" },
+  { test: 'T6', file: TOWN, from: "  if (o && o.outgrown && out.some((s) => s.id === 'ground')) return { steps: out, primary: 'ground' };\n", to: '' },
+  /* audit 2026-11-19 L2: the chores went back ahead of the next ground on an outgrown card (its gold row under the sticky foot) */
+  { test: 'T6', file: TOWN, from: "  if (o && o.outgrown && out.some((s) => s.id === 'ground')) return", to: "  if (o && o.outgrown && !first && out.some((s) => s.id === 'ground')) return" },
   { test: 'T6', file: MODEL, from: "  if (summary.reason === 'outgrown') return null;\n", to: '' },
   { test: 'T6', file: MODEL, from: "if (Number.isInteger(ends) && forfeit !== true) return t('summary.end_outgrown', { level: ends });", to: '' },
   { test: 'T6', file: HLIST, from: 'rec.row.hunt !== hunt && rec.row.band[0] > was.band[0] ? rec.row : null;', to: 'rec.row.hunt !== hunt ? rec.row : null;' },

@@ -433,10 +433,10 @@ async function supplyChainGuard() {
 // The six Hunt/raid boss portraits live in the same folder and are NOT in
 // MONSTERS, so they are allowlisted explicitly rather than by pattern.
 // ── The cache-buster / duplicate-module preflight (b493) ────────────────────
-// See tests/cache-buster-guard.mjs for the defect this closes. Two checks, in
-// this order, because the second one is the interesting failure: every
-// browser-loaded reference is at the CURRENT build, and no module is reachable
-// at two versions (which loads it twice, with two copies of its state).
+// See tests/cache-buster-guard.mjs for the defect this closes: the source is in
+// one stamp state (bare, or until the flag day every reference at the CURRENT
+// build), and no module is reachable at two keys (which loads it twice, with two
+// copies of its state). The built site's stamp is tools/build-site.mjs SITE-9.
 // The mutation control runs alongside — a guard asserting an absence is worth
 // nothing unless it is proven to still be able to see.
 async function cacheBusterPreflight() {
@@ -453,7 +453,7 @@ async function cacheBusterPreflight() {
     return 1;
   }
   if (r.problems.length) {
-    console.error(`\nCache-buster preflight FAILED (${r.problems.length}) — run ./bump-version.sh ${r.cache}\n`
+    console.error(`\nCache-buster preflight FAILED (${r.problems.length}) — each line names its fix\n`
       + `  · ${r.problems.join('\n  · ')}\n`);
     return 1;
   }

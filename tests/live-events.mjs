@@ -41,10 +41,11 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { isMain } from './_is-main.mjs';
+import { sourceQuery } from '../tools/lib/version-stamp.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MUTATE = process.argv.includes('--mutate');
-const V = '?v=' + (/cache:\s*'([^']+)'/.exec(readFileSync(join(ROOT, 'src/build-info.js'), 'utf8')) || [, ''])[1];
+const V = sourceQuery(ROOT);
 const { HARNESS: H } = await import('./hunt-sessions-settle.mjs');
 const MIN = 60000;
 const ARMS = ['LE-PMAT', 'LE-KILL', 'LE-CAT', 'LE-CLOSED', 'LE-VIEWED', 'LE-SWITCH', 'LE-PARTY', 'LE-BOUND', 'LE-FEE', 'LE-SECTION', 'LE-ANNOUNCE'];
@@ -414,10 +415,10 @@ const JS_MUTANTS = [
     from: 'const hit = live.find(([s]) => s.member && s.member.unitId === (hero && hero.id));', to: 'const hit = live[0];' },
   { arm: 'LE-KILL', name: 'a kill reads its dial with no time', file: 'src/core/hunt/xp-share.js', from: 'const m = f ? f(hero, sc.atMs) : 1;', to: 'const m = f ? f(hero) : 1;' },
   { arm: 'LE-KILL', name: 'the event\'s part is not told apart', file: 'src/core/hunt/xp-share.js', from: 'ev: paid === plain ? 0 : Math.max(0, amount - at(plain))', to: 'ev: 0' },
-  { arm: 'LE-CLOSED', name: 'the settle sets no hook', file: 'supabase/functions/hr-accrue/accrual.js', from: 'const xpMultOf = xpMultFor(sides, (sd) => sd.mi.liveXp);', to: 'const xpMultOf = null;' },
+  { arm: 'LE-CLOSED', name: 'the settle sets no hook', file: 'supabase/functions/hr-accrue/accrue-hunt.js', from: 'const xpMultOf = xpMultFor(sides, (sd) => sd.mi.liveXp);', to: 'const xpMultOf = null;' },
   { arm: 'LE-CLOSED', name: 'the member input drops the windows', file: 'supabase/functions/hr-accrue/hunt-settle.js',
     from: 'liveXp: Array.isArray(m.live_xp) && m.live_xp.length ? m.live_xp : null,', to: 'liveXp: null,' },
-  { arm: 'LE-CLOSED', name: 'the proposal never sends the event\'s part', file: 'supabase/functions/hr-accrue/accrual.js',
+  { arm: 'LE-CLOSED', name: 'the proposal never sends the event\'s part', file: 'supabase/functions/hr-accrue/accrue-hunt.js',
     from: '...(xpEvent > 0 ? { xp_event: xpEvent } : {}),', to: '' },
   { arm: 'LE-CAT', name: 'the server\'s events drift from the data (the generator moved, the file not regenerated)', file: 'tools/gen-live-events.mjs',
     from: 'events.push({ id, type: e.type, pm: e.pm, scope,', to: 'events.push({ id, type: e.type, pm: e.pm + 1, scope,' },

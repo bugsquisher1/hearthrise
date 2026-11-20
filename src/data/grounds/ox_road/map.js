@@ -69,7 +69,7 @@ export default Object.freeze({
   "faces": [],
   "objects": [
     {"id":"cw_coal_seam","x":29,"y":8},
-    {"id":"mh_coal_seam_worked","x":35,"y":14},
+    {"id":"cw_coal_seam","x":35,"y":14},
     {"id":"mh_vigil_wood","x":3,"y":19},
     {"id":"mh_vigil_brazier","x":5,"y":19},
     {"id":"mh_ore_wagon","x":9,"y":22},

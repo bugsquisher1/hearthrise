@@ -7,9 +7,17 @@
 // dark            the repo as shipped holds none of it: the element list is fire, ice and poison, no fixed element rule, no Withered
 //                 status, Storm hidden and Bone absent (no rune, recipe or store row), none of the four spells, and no monster's sealed
 //                 profile names either element (nothing a generated catalogue or a screen reads moves while the switch is off)
-// sample-rows     with the switch on every table validates; the four spells sit where B3 puts them (the sword ALONE's pair, never the
-//                 tank's; the wand's pair), on Storm and Bone runes of five tiers with store rows, unlocking at 25 and 40, on no default
-//                 bar; the class layer gives undead, the living and the slimes their B1 values
+// sample-rows     with the switch on every table validates; the four spells sit where B3 and the designer's rulings put them (the sword's
+//                 pair on the sword's list and the tank's, the wand's pair on the wand's), on Storm and Bone runes of five tiers with store
+//                 rows, unlocking at 25 and 40, on no default bar; the class layer gives undead, the living and the slimes their B1 values
+// tank-party-only RULING 1 (the designer 2026-11-20, whole-game audit §6): with a shield worn Brand and Reave are PARTY ONLY, the rule
+//                 Frost Slam and Shelter keep (abilities.js partyOnly, the unit's role); a sword alone casts both alone, a tank beside
+//                 a living ally casts both, a tank beside only a fallen one is alone again. The bar says the engine's rule to each role
+//                 (the slot's grey, Configure action's line, the card)
+// strike-clocks   RULING 2 (§6, the audit's change 3): Brand and Reave STAND IN FOR Flame Strike and Power Strike (`replaces`): each
+//                 fires only on one of their cooldowns and starts it, so a bar holding all four casts its strikes at exactly the moments
+//                 a bar of the two does, some of them Brand and Reave (each cast names the clock it `took`); validate refuses a
+//                 replaced row that is missing, itself, on another lane, replacing another, or off a list the row is on
 // withered-cuts   THE HEAL CUT (heal-cut.js) on every way HP comes back: the formula (30% on a hero, half on a monster, a 40% guard
 //                 leaving 18%); food's instant half; a spell's heal; a spell's leech; the wraps' own heal (never regeneration); a
 //                 monster's mend on a Withered packmate
@@ -23,10 +31,10 @@
 //                 watched hunt (10 s settles) and a closed browser (10 min) land every blow, heal, mana and coin alike; each new
 //                 spell casts; Blight Withers what it hits
 //
-// mutant-anchors: src/data/abilities.js src/data/elements.js src/data/statuses.js src/data/runes.js src/data/monster-classes.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/status.js src/core/hunt/consumables.js src/core/hunt/pull-cycle.js src/core/hunt/monster-spells.js src/core/hunt/heal-cut.js
+// mutant-anchors: src/data/abilities.js src/data/elements.js src/data/statuses.js src/data/runes.js src/data/monster-classes.js src/data/hunt-roles.js src/core/hunt/abilities.js src/core/hunt/damage.js src/core/hunt/status.js src/core/hunt/consumables.js src/core/hunt/pull-cycle.js src/core/hunt/monster-spells.js src/core/hunt/heal-cut.js src/shell/action-facts.js src/shell/slot-waits.js
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { makeReport, ROOT, plant, loadCore, mon } from './fixtures/h1.js';
+import { makeReport, ROOT, plant, loadCore, mon, hero, world, instOf, subStep } from './fixtures/h1.js';
 import { oneHero, supplySession, rngOf, loadData } from './fixtures/h4.js';
 import { H, E, inst2, sc2, world as world2, PARTY_GROUND } from './fixtures/h2.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
@@ -34,7 +42,9 @@ import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
 const { PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 
 const LIVE = ['src/data/necrotic-storm.js', 'live: false,', 'live: true,'];
-const TREES = [...PLAY_TREES, 'tests/hunt-core/fixtures'];
+/* (the whole src: the bar's words, src/shell, read the planted rows: tank-party-only) */
+const TREES = [...PLAY_TREES, 'tests/hunt-core/fixtures', 'src'];
+const STRIKES = Object.freeze(['flame_strike', 'power_strike', 'brand', 'reave']);
 const SAMPLE = Object.freeze(['brand', 'reave', 'updraft', 'blight']);
 const HOUR = 3600000, WARRENS = 'coppercap_warrens', L = 42;
 const sorted = (x) => (Array.isArray(x) ? x.map(sorted) : x && typeof x === 'object' ? Object.fromEntries(Object.keys(x).sort().map((k) => [k, sorted(x[k])])) : x);
@@ -49,8 +59,22 @@ async function load(root) {
   Object.assign(M, await loadData(M));
   Object.assign(M, { EL: await imp('src/data/elements.js'), MC: await imp('src/data/monster-classes.js'), RS: await imp('src/data/rule-subjects.js'),
     NS: await imp('src/data/necrotic-storm.js'), cut: await imp('src/core/hunt/heal-cut.js'), MS: await imp('src/data/monster-spells.js'),
-    spells: await imp('src/core/hunt/monster-spells.js'), xpshare: await imp('src/core/hunt/xp-share.js'), root });
+    spells: await imp('src/core/hunt/monster-spells.js'), xpshare: await imp('src/core/hunt/xp-share.js'), SW: await imp('src/shell/slot-waits.js'), root });
   return M;
+}
+
+/* A STRIKE FIGHT: a lone hero of `role` (Melee 45: Brand, Reave and the Etched runes unlocked) beside `ally` ('living', 'fallen' or none),
+   one sturdy monster on it, `bar` (ability ids) on its own Etched runes and a deep mana pool, cast through the engine's own hook every
+   sub-step for `ms`. The cast events. */
+function strikeFight(M, role, bar, ms, ally) {
+  const k = hero(M, 1, 12, 3, { role, hp: 500, maxHp: 500, mana: 5000, maxMana: 5000 });
+  const others = ally ? [hero(M, 2, 14, 5, { hp: 50, maxHp: 100, alive: ally === 'living' })] : [];
+  const inst = instOf(M, world(M, [k, ...others, mon(M, 10, 0, 13, 3, { target: 1, hp: 1e7, maxHp: 1e7 })]));
+  inst.heroes = { 1: { hs: supplySession(M, { bag: { etched_storm_rune: { loaded: 500 }, etched_bone_rune: { loaded: 500 }, etched_fire_rune: { loaded: 500 } } }),
+    actionSet: 'hunt', range: 1, skills: { melee: M.XP.skillXpForLevel('melee', 45) }, slots: M.conditions.heroSlots(bar.map((id) => slot(id)), null) } };
+  const sc = subStep(0); sc.rng = rngOf(M, 31);
+  for (let t = 0; t < ms; t += 100) { sc.atMs = t; M.abilities.castAbilities(inst, sc); }
+  return of(sc, 'cast');
 }
 
 /* A Withered unit: the status landed through the engine's own applyStatus (a fresh sub-step, so no event leaks into the case's). */
@@ -73,19 +97,20 @@ const cases = {
   },
   'sample-rows': (X) => {
     const M = X.M;
-    const bad = M.AD.validate().concat(M.ST.validate(), M.EL.validate(), M.runes.validate(M.ITEMS), M.MC.auditRoster(M.MONSTERS));
+    const bad = M.AD.validate().concat(M.ST.validate(), M.EL.validate(), M.runes.validate(M.ITEMS), M.MC.auditRoster(M.MONSTERS), M.HR.validate());
     if (bad.length) return 'with the switch on the tables refuse it: ' + bad.slice(0, 6).join('; ');
     if (M.EL.ELEMENTS.join() !== 'ember,frost,poison,necrotic,storm') return 'ELEMENTS ' + M.EL.ELEMENTS.join();
     const wr = M.ST.STATUSES[(M.EL.ELEMENT_ON_HERO.necrotic || {}).withers];
     if (!wr || !wr.healCutPm || wr.healCutPm.hero !== 300 || wr.healCutPm.monster !== 500 || wr.durationMs !== 6000 || wr.maxStacks !== 1 || wr.guard !== 'necrotic') return 'a necrotic hit does not Wither as B1 says: ' + JSON.stringify(wr);
     if ((M.EL.ELEMENT_ON_HERO.storm || {}).manaBurnPm !== 500) return 'a storm hit does not burn half its damage in mana';
-    const want = { brand: [['sword'], 25, 'storm', 'chalked_storm_rune'], reave: [['sword'], 40, 'necrotic', 'chalked_bone_rune'],
+    const want = { brand: [['shield', 'sword'], 25, 'storm', 'chalked_storm_rune'], reave: [['shield', 'sword'], 40, 'necrotic', 'chalked_bone_rune'],
       updraft: [['destruction'], 25, 'storm', 'chalked_storm_rune'], blight: [['destruction'], 40, 'necrotic', 'chalked_bone_rune'] };
     for (const [id, [d, unlock, el, rune]] of Object.entries(want)) {
       const r = M.AD.ABILITIES[id];
       if (!r || r.disciplines.join() !== d.join() || r.unlock !== unlock || r.element !== el || r.rune !== rune) return id + ' is not ' + JSON.stringify([d, unlock, el, rune]) + ': ' + JSON.stringify(r && [r.disciplines, r.unlock, r.element, r.rune]);
     }
-    if (M.AD.disciplineAbilities('shield').some((id) => SAMPLE.includes(id))) return 'the tank\'s list takes a sample spell (tank spells never make a lone tank kill faster)';
+    const tanks = M.AD.disciplineAbilities('shield').filter((id) => SAMPLE.includes(id));
+    if (tanks.join() !== 'brand,reave') return 'the tank\'s list takes ' + JSON.stringify(tanks) + ' of the sample (want the sword\'s pair, party only: tank-party-only)';
     if (M.AD.ABILITIES.reave.leechPm !== 300 || M.AD.ABILITIES.brand.manaPerKill !== 4 || M.AD.ABILITIES.updraft.manaPerHit !== 3 || M.AD.ABILITIES.blight.status !== 'withered') return 'a spell lost what it returns or lands';
     for (const f of ['storm', 'bone']) {
       if (!M.SC.CRAFTED_RUNE_FAMILIES.includes(f)) return f + ' runes are not crafted';
@@ -150,7 +175,7 @@ const cases = {
     };
     const [took, back] = reave(false), [tookW, backW] = reave(true);
     const lee = Math.floor((took * 300) / 1000);
-    if (!(took > 20) || back !== lee) return 'Reave took ' + took + ' and healed ' + back + ', want ' + lee;
+    if (!(took > 10) || back !== lee) return 'Reave took ' + took + ' and healed ' + back + ', want ' + lee;
     if (tookW !== took || backW !== lee - Math.floor((lee * 300) / 1000)) return 'Reave on a Withered caster healed ' + backW + ', want ' + (lee - Math.floor((lee * 300) / 1000));
     /* THE WRAPS' OWN HEAL (pull-cycle.js tickHeroes): one second at 8 permille/s, Withered and not; regeneration alone is never cut */
     const second = (own, withered) => {
@@ -258,6 +283,60 @@ const cases = {
     if (!focused.c || focused.kills !== 1 || focused.mana !== 100 || focused.c.back !== undefined || focused.c.mana !== 10) return 'Brand\'s kill on a pool Focus filled: ' + JSON.stringify(focused);
     return null;
   },
+  'tank-party-only': (X) => {
+    const M = X.M;
+    for (const id of ['brand', 'reave']) {
+      const r = M.AD.ABILITIES[id];
+      if (!M.AD.partyOnly(r, 'tank') || M.AD.partyOnly(r, 'melee_dps')) return id + ' is not party only for the tank alone: ' + JSON.stringify(r.party);
+    }
+    /* THE ENGINE: the first 4 s of a fight on [Brand, Reave, Power Strike] (the offense lane every 2 s) */
+    const run = (role, ally) => JSON.stringify(strikeFight(M, role, ['brand', 'reave', 'power_strike'], 4100, ally).map((e) => e.ability));
+    const lone = run('tank'), beside = run('tank', 'living'), fallen = run('tank', 'fallen'), sword = run('melee_dps');
+    if (lone !== '["power_strike"]') return 'a tank alone cast ' + lone + ' (want only Power Strike: with a shield worn Brand and Reave are party only)';
+    if (beside !== '["brand","reave"]') return 'a tank beside a living ally cast ' + beside + ' (want Brand, then Reave)';
+    if (fallen !== '["power_strike"]') return 'a tank beside a fallen ally cast ' + fallen;
+    if (sword !== '["brand","reave"]') return 'a sword alone cast ' + sword + ' (want Brand, then Reave: a sword without a shield gets both alone)';
+    /* THE BAR'S WORDS, the engine's rule by the hero's role (the server's hunt_settings role) */
+    const F = M.shell && M.shell.facts;
+    if (!F || !M.SW) return 'no shell in the planted tree';
+    const sl = slot('brand');
+    const grey = (role, alone) => { const r = F.aloneReason(sl, alone, role); return r ? r.code : null; };
+    if (grey('tank', true) !== 'party_only' || grey('melee_dps', true) !== null || grey('tank', false) !== null) return 'Brand\'s slot greys ' + JSON.stringify([grey('tank', true), grey('melee_dps', true), grey('tank', false)]) + ' (want a lone tank\'s only)';
+    const f = (role) => ({ set: { role, discipline: role === 'tank' ? 'shield' : 'sword', supplySource: 'mine', onEmpty: 'switch' }, bag: [{ id: 'etched_storm_rune', qty: 5 }],
+      hero: null, worn: null, skills: null, pack: [], party: 1, alone: true, holding: false, test: null });
+    const why = (role) => { const w = M.SW.slotWhy(sl, f(role)); return w ? w.code : null; };
+    if (why('tank') !== 'party_only' || why('melee_dps') === 'party_only') return 'the bar says ' + JSON.stringify([why('tank'), why('melee_dps')]) + ' on a lone tank\'s and a lone sword\'s Brand';
+    const note = (role, n) => M.SW.setupNote({ action: sl.action, conditions: [] }, n, role);
+    if (note('tank', 1) !== 'Party only, does nothing alone' || note('melee_dps', 1) !== '' || note('tank', 2) !== '') return 'Configure action says ' + JSON.stringify([note('tank', 1), note('melee_dps', 1), note('tank', 2)]);
+    const card = (role) => F.factsOf(sl.action, { set: { role } }).alone;
+    return card('tank') === 'Party only' && card('melee_dps') === null ? null : 'Brand\'s card says ' + JSON.stringify([card('tank'), card('melee_dps')]);
+  },
+  'strike-clocks': (X) => {
+    const M = X.M;
+    for (const id of ['brand', 'reave']) if (JSON.stringify(M.AD.ABILITIES[id].replaces) !== '["flame_strike","power_strike"]') return id + ' replaces ' + JSON.stringify(M.AD.ABILITIES[id].replaces);
+    /* TWO MINUTES ALONE: the strikes of [Flame Strike, Power Strike] against [Brand, Reave, Flame Strike, Power Strike] */
+    const strikes = (bar) => strikeFight(M, 'melee_dps', bar, 120000).filter((e) => STRIKES.includes(e.ability));
+    const two = strikes(['flame_strike', 'power_strike']), four = strikes(['brand', 'reave', 'flame_strike', 'power_strike']);
+    const at = (list) => JSON.stringify(list.map((e) => e.atMs));
+    if (two.length < 20 || at(four) !== at(two)) return 'Brand and Reave added strikes: ' + four.length + ' against ' + two.length + ' (want the same moments, ' + at(two).slice(0, 80) + ' against ' + at(four).slice(0, 80) + ')';
+    const n = (id) => four.filter((e) => e.ability === id).length;
+    if (n('brand') < 5 || n('reave') < 5) return 'the pair stood in for too few strikes: Brand ' + n('brand') + ', Reave ' + n('reave') + ' of ' + four.length;
+    /* EACH CAST NAMES THE CLOCK IT TOOK, and no clock is taken twice inside its own cooldown */
+    if (four.some((e) => ['brand', 'reave'].includes(e.ability) ? !['flame_strike', 'power_strike'].includes(e.took) : e.took !== undefined)) return 'a cast named no clock (or a strike named one): ' + JSON.stringify(four.slice(0, 6));
+    for (const c of ['flame_strike', 'power_strike']) {
+      const times = four.filter((e) => e.ability === c || e.took === c).map((e) => e.atMs);
+      const gap = times.slice(1).find((t, i) => t - times[i] < M.AD.ABILITIES[c].cdMs);
+      if (gap !== undefined) return c + '\'s cooldown was taken again ' + (gap - times[times.indexOf(gap) - 1]) + ' ms after it started';
+    }
+    /* THE ROW'S RULE: a replaced row is another row of its lane that every discipline it names holds, and replaces nothing itself */
+    const plant1 = (replaces) => M.AD.validate({ ...M.AD.ABILITIES, zz_strike: { ...M.AD.ABILITIES.brand, id: 'zz_strike', replaces } }).filter((m) => m.startsWith('zz_strike'));
+    for (const [rep, want] of [[['zz_strike'], 'not another row'], [['no_such_row'], 'not another row'], [['challenge'], 'another lane'], [['brand'], 'replaces another itself'],
+      [['frost_lance'], 'does not hold'], [[], 'a list of other rows'], [['power_strike', 'power_strike'], 'a list of other rows']]) {
+      const got = plant1(rep);
+      if (!got.some((m) => m.includes(want))) return 'validate takes a strike replacing ' + JSON.stringify(rep) + ': ' + JSON.stringify(got);
+    }
+    return plant1(['power_strike']).length ? 'validate refuses a sound strike: ' + plant1(['power_strike']) : null;
+  },
   'both-paths': (X) => {
     const P = X.P, M = X.M;
     const own = { etched_storm_rune: { loaded: 2000 }, etched_bone_rune: { loaded: 2000 } };
@@ -295,8 +374,28 @@ const mutants = [
     edits: [['src/data/elements.js', "...(NECROTIC_STORM.live ? ['necrotic', 'storm'] : [])", "'necrotic', 'storm'"]] },
   { name: 'the class layer runs with the switch off', case: 'dark', shipped: true,
     edits: [['src/data/monster-classes.js', '  if (!NECROTIC_STORM.live) return profile;\n', ''], ['src/data/monster-classes.js', 'const NEW_ELEMENT_CLASSES = Object.freeze(NECROTIC_STORM.live ? {', 'const NEW_ELEMENT_CLASSES = Object.freeze(true ? {']] },
-  { name: 'the sword\'s pair joins the tank\'s list', case: 'sample-rows',
-    edits: [['src/data/abilities.js', "ab({ id: 'brand', n: 'Brand', disciplines: ['sword'],", "ab({ id: 'brand', n: 'Brand', disciplines: ['shield', 'sword'],"]] },
+  { name: 'the tank\'s list loses the sword\'s pair', case: 'sample-rows',
+    edits: [['src/data/abilities.js', "ab({ id: 'brand', n: 'Brand', disciplines: ['shield', 'sword'],", "ab({ id: 'brand', n: 'Brand', disciplines: ['sword'],"]] },
+  { name: 'a party list names a role no discipline of the row plays', case: 'sample-rows',
+    edits: [['src/data/abilities.js', "ab({ id: 'reave', n: 'Reave', disciplines: ['shield', 'sword'], party: ['tank'],", "ab({ id: 'reave', n: 'Reave', disciplines: ['shield', 'sword'], party: ['healer'],"]] },
+  { name: 'Brand is no longer party only for the tank', case: 'tank-party-only',
+    edits: [['src/data/abilities.js', "ab({ id: 'brand', n: 'Brand', disciplines: ['shield', 'sword'], party: ['tank'],", "ab({ id: 'brand', n: 'Brand', disciplines: ['shield', 'sword'],"]] },
+  { name: 'the engine reads no role, so a lone tank casts Brand', case: 'tank-party-only',
+    edits: [['src/core/hunt/abilities.js', '    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))\n', '    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], null))\n']] },
+  { name: 'a party list binds every caster, so a lone sword waits', case: 'tank-party-only',
+    edits: [['src/data/abilities.js', '(row.party === true || (Array.isArray(row.party) && row.party.includes(role)))', '(row.party === true || Array.isArray(row.party))']] },
+  { name: 'the bar reads no role, so a lone tank\'s Brand looks ready', case: 'tank-party-only',
+    edits: [['src/shell/slot-waits.js', '  const a = aloneReason(sl, f.alone, f.set ? f.set.role : null);', '  const a = aloneReason(sl, f.alone);']] },
+  { name: 'Configure action reads no role', case: 'tank-party-only',
+    edits: [['src/shell/slot-waits.js', '  const alone = aloneNote(d.action, party, role);', '  const alone = aloneNote(d.action, party);']] },
+  { name: 'a stand-in strike starts no strike\'s cooldown (an addition to the bar)', case: 'strike-clocks',
+    edits: [['src/core/hunt/abilities.js', ', took ? { [took]: sc.atMs + ABILITIES[took].cdMs } : {});', ');']] },
+  { name: 'a stand-in strike fires on its own cooldown alone', case: 'strike-clocks',
+    edits: [['src/core/hunt/abilities.js', '  if (readyAt(hero.cds, row.id) > atMs || clockOf(hero, row, atMs) === null) return \'cooldown\';', '  if (readyAt(hero.cds, row.id) > atMs) return \'cooldown\';']] },
+  { name: 'a stand-in strike starts the clock for its own cooldown', case: 'strike-clocks',
+    edits: [['src/core/hunt/abilities.js', 'took ? { [took]: sc.atMs + ABILITIES[took].cdMs } : {}', 'took ? { [took]: sc.atMs + row.cdMs } : {}']] },
+  { name: 'validate takes a strike replacing one off its lists', case: 'strike-clocks',
+    edits: [['src/data/abilities.js', "        else if (r.disciplines.some((d) => !o.disciplines.includes(d))) bad(", "        else if (false) bad("]] },
   { name: 'a slime stops halving the new two', case: 'sample-rows',
     edits: [['src/data/monster-classes.js', '  const halves = FIRST_ELEMENTS.every((e) => profile[e] === HALF_OF_EVERY);', '  const halves = false;']] },
   { name: 'food heals a Withered hero whole', case: 'withered-cuts',

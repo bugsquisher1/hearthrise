@@ -15,7 +15,9 @@
 //   the bar shows and the player can change — designer 2026-11-05; a basic shot
 //   never buys one, shotLine),
 //   an `alone` row only while no other living hero shares the world (aloneIn),
-//   a `party` row only while another does (the tank's rune spells, Tyler 2026-11-19),
+//   a `party` row only while another does (the tank's rune spells, Tyler 2026-11-19; a row party only
+//   for some roles, partyOnly, binds a caster of those roles alone: Brand and Reave on the tank),
+//   a row that `replaces` others only while one of their cooldowns is up (clockOf: its cast takes it),
 //   and its target rule finds a target (AB-03). A slot the purse cannot pay
 //   waits and the next one is tried; it never ends the hunt by itself.
 // Firing spends the mana, the rune and the shots, sets the cooldown and the
@@ -43,7 +45,7 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare, landsBlow } from '../../data/abilities.js?v=0.2.142';
+import { ABILITIES, ABILITY_LANES, ABILITY_RULES, ACTION_SET_SKIPS, abilitySkill, versionOf, outputPm, AREA_TARGETS, areaSpec, blowShare, landsBlow, partyOnly } from '../../data/abilities.js?v=0.2.142';
 import { resolveLine, storeLine, takeLine, canAfford, shopShotFor, basicOf } from '../action-rules.js?v=0.2.142';
 import { runeTierOf, versionLevel } from '../../data/runes.js?v=0.2.142';
 import { BASIC_EFFECT_SHARE } from '../../data/supply-basics.js?v=0.2.142';
@@ -244,12 +246,23 @@ function suppliesFor(h, row, action, ammo) {
   return { lines, version, pm };
 }
 
+/**
+ * THE CLOCK A CAST OF `row` TAKES (abilities.js `replaces`, the whole-game audit's change 3: a new ability stands in for a strike,
+ * never adds one): the first row it replaces whose cooldown is up at `atMs`, or null when none is (the row waits on `cooldown`).
+ * Undefined for a row that replaces nothing. Its cast starts that row's cooldown as that row's own cast would (fire), so a bar
+ * holding it casts no more of them than one without it. Pure.
+ */
+function clockOf(hero, row, atMs) {
+  if (!row || !Array.isArray(row.replaces)) return undefined;
+  return row.replaces.find((id) => !(readyAt(hero && hero.cds, id) > atMs)) || null;
+}
+
 /** Why `row` cannot fire for `hero` now, or null when it can (AB-01, 02, 11, 12). Pure. */
 export function gateOf(hero, h, row, atMs) {
   if (!row || !row.active) return 'inactive';
   const skip = ACTION_SET_SKIPS[h.actionSet] || ACTION_SET_SKIPS.hunt;
   if ((skip.rune && row.rune) || (skip.area && AREA_TARGETS.includes(row.target))) return 'action_set';
-  if (readyAt(hero.cds, row.id) > atMs) return 'cooldown';
+  if (readyAt(hero.cds, row.id) > atMs || clockOf(hero, row, atMs) === null) return 'cooldown';
   if (readyAt(hero.lanes, row.lane) > atMs) return 'lane';
   if (int(hero.mana) < row.mana) return 'mana';
   return null;
@@ -302,11 +315,12 @@ export function firstUsable(inst, hero, sc, only) {
      One whose conditions pass but that waits on its cooldown, mana, stock or a target
      in reach is the lane's `rule_wait` (conditions.js noteWait). An ALONE row with another
      living hero in the world is not tested either (aloneIn): in a party it is as if absent. A PARTY row
-     is its mirror: a hero alone in the world never tests it (the bar says "Party only"). */
+     is its mirror: a hero alone in the world never tests it (the bar says "Party only"), and a row party only
+     for some roles (Brand and Reave: the tank) a lone hero of those roles (partyOnly, the unit's own role). */
   const solo = aloneIn(inst.world, hero);
   const rows = slotsFor(h, 'ability').filter((r) => (!only || only(ABILITIES[r.slot.action.id]))
     && gateOf(hero, h, ABILITIES[r.slot.action.id], sc.atMs) !== 'lane'
-    && (!solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].party))
+    && (!solo || !partyOnly(ABILITIES[r.slot.action.id], hero.role))
     && (solo || !(ABILITIES[r.slot.action.id] && ABILITIES[r.slot.action.id].alone)));
   const got = pickSlot(inst, hero, h, rows, (slot, cx) => {
     const row = ABILITIES[slot.action.id];
@@ -470,7 +484,10 @@ export function fire(inst, u, pick, sc) {
   const refund = shieldRefund(u, row, paid, pm);
   const spent = paid - refund;
   u.mana = int(u.mana) - spent;
-  u.cds = Object.assign({}, u.cds || {}, { [row.id]: sc.atMs + row.cdMs });
+  /* A ROW THAT STANDS IN FOR A STRIKE (`replaces`, clockOf) starts that strike's cooldown too, as its own cast would: the cast replaces
+     one. The cast event names it (`took`), the clock the bar cools beside its own. */
+  const took = clockOf(u, row, sc.atMs);
+  u.cds = Object.assign({}, u.cds || {}, { [row.id]: sc.atMs + row.cdMs }, took ? { [took]: sc.atMs + ABILITIES[took].cdMs } : {});
   u.lanes = Object.assign({}, u.lanes || {}, { [row.lane]: sc.atMs + ABILITY_LANES[row.lane] });
   /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. A rune
      spell names the rune it spent (`supply`, the analyzer's supply count), the version it cast and its power
@@ -497,6 +514,7 @@ export function fire(inst, u, pick, sc) {
     ...(rune ? { supply: rune, version, power: pm } : {}),
     ...(refund > 0 ? { refund } : {}),
     ...(back > 0 ? { back } : {}),
+    ...(took ? { took } : {}),
     ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
   if (held) for (const ev of held) sc.emit(ev);
   else effect(inst, u, row, pick.target, sc, v);

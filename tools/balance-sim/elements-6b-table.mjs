@@ -13,15 +13,24 @@
 //   sword alone  Brand at Melee 25 (the Glade, Level 25); Reave at Melee 40 (the Warrens, Level 40), with Brand already on the bar
 //   wand (Mage)  Updraft at Magic 25 (the Glade, Level 25); Blight at Magic 40 (the Warrens, Level 40), with Updraft already on the bar
 //   a four       tank, healer, Mage, sword at the same two bands on Dangerous: the sword and the Mage take each band's new spells
-// Each new slot goes right after the bar's own spell of the same shape (Brand and Reave after Flame Strike; Updraft and Blight after
-// Hoarfrost, on Hoarfrost's "at least 2 under it" trigger), which is where a player who bought the spell would put it.
+// Updraft and Blight go right after Hoarfrost (the bar's spell of the same shape, on its "at least 2 under it" trigger). Brand and Reave
+// STAND IN FOR a strike (abilities.js `replaces`, the designer's ruling 2 of 2026-11-20): they share Flame Strike's and Power Strike's
+// cooldowns, so a slot after Flame Strike would only ever take Power Strike's turn. They go right after Turning Cut, AHEAD of Flame
+// Strike: Brand in place of the family's best strike (the audit's change 3 budget), Reave on the turn Brand leaves.
+//
+// --neutral   the class layer off for the new two (src/data/monster-classes.js newElementLayer returns the profile as built), so every
+//             monster is neutral to Necrotic and Storm: the designer's band is "on a neutral monster", and the living the two grounds
+//             hold are 15% weak to Necrotic as built (Storm is neutral on both grounds either way)
+// --styles sword,mage   the solo styles to run (both by default)
+// --sword-after flame_strike   the sword's new slots after that ability instead (after Flame Strike they take Power Strike's turns: the
+//             other bar a player can build, so the band is held by the better of the two)
 //
 // THE COLUMNS (per hero per hunting hour unless named): Level XP, the weapon skill's XP (Melee or Magic), damage dealt, each rune spell's
 // SHARE of that damage, its casts, the mana it kept and the mana it gave back, drinks, store gold, deaths, the low-HP decile of an
 // encounter (encMinHpPct p10).
 //
-//   node tools/balance-sim/elements-6b-table.mjs solo [--hours 2] [--seeds 3]
-//   node tools/balance-sim/elements-6b-table.mjs four [--hours 1] [--seeds 3]
+//   node tools/balance-sim/elements-6b-table.mjs solo [--hours 2] [--seeds 3] [--neutral] [--styles sword]
+//   node tools/balance-sim/elements-6b-table.mjs four [--hours 1] [--seeds 3] [--neutral]
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { loadCellRunner } from './cell.mjs';
@@ -35,8 +44,13 @@ const hours = Number(arg('hours', mode === 'solo' ? 2 : 1)), seeds = Number(arg(
 const { plant } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/h1.js')).href);
 const { PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
 
+const NEUTRAL = process.argv.includes('--neutral');
+const STYLES = arg('styles', 'sword,mage').split(',');
+
 async function withSample(fn) {
-  const p = plant([['src/data/necrotic-storm.js', 'live: false,', 'live: true,']], [...PLAY_TREES, 'tests/hunt-core/fixtures']);
+  const edits = [['src/data/necrotic-storm.js', 'live: false,', 'live: true,'],
+    ...(NEUTRAL ? [['src/data/monster-classes.js', '  if (!NECROTIC_STORM.live) return profile;\n', '  return profile;\n']] : [])];
+  const p = plant(edits, [...PLAY_TREES, 'tests/hunt-core/fixtures']);
   try { return await fn(await loadCellRunner(p.root)); } finally { p.done(); }
 }
 
@@ -54,7 +68,7 @@ const NEW = {
   melee_dps: { 25: (lv) => [spell('brand', 'storm', lv)], 40: (lv) => [spell('brand', 'storm', lv), spell('reave', 'bone', lv)] },
   mage: { 25: (lv) => [spell('updraft', 'storm', lv, AOE2)], 40: (lv) => [spell('updraft', 'storm', lv, AOE2), spell('blight', 'bone', lv, AOE2)] },
 };
-const AFTER = { melee_dps: 'flame_strike', mage: 'hoarfrost' };
+const AFTER = { melee_dps: arg('sword-after', 'turning_cut'), mage: 'hoarfrost' };
 /* the bar at a band: the played bar, plus `upto` of the band's new slots (0: none, the control) */
 const adds = (role, band, upto) => (upto ? { [role]: { after: AFTER[role], slots: NEW[role][band](band).slice(0, upto) } } : null);
 
@@ -74,9 +88,10 @@ function row(label, h, role, base) {
 
 async function solo() {
   await withSample(async (R) => {
-    console.log('ELEMENTS 6B SAMPLE, ALONE ON NORMAL: played profile, every combat skill at the band, supply store; ' + seeds + ' seeds x ' + hours + ' h a cell');
+    console.log('ELEMENTS 6B SAMPLE, ALONE ON NORMAL: played profile, every combat skill at the band, supply store; ' + seeds + ' seeds x ' + hours + ' h a cell'
+      + (NEUTRAL ? '; every monster neutral to Necrotic and Storm' : '; the class layer as built') + '; the sword\'s new slots after ' + AFTER.melee_dps);
     console.log('cell | Level XP/h | vs control | skill XP/h | vs control | dealt/h | drinks/h | store g/h | deaths | low HP p10 % | rune spells: share of damage (casts/h, mana kept/h, mana back/h)');
-    for (const [style, role] of [['sword', 'melee_dps'], ['mage', 'mage']]) for (const band of [25, 40]) {
+    for (const [style, role] of [['sword', 'melee_dps'], ['mage', 'mage']].filter(([s]) => STYLES.includes(s))) for (const band of [25, 40]) {
       const [ground, L] = BANDS[band];
       const skills = { melee: band, ranged: band, magic: band, defense: band };
       let base = null;
@@ -94,7 +109,8 @@ async function solo() {
 
 async function four() {
   await withSample(async (R) => {
-    console.log('ELEMENTS 6B SAMPLE, A FOUR ON DANGEROUS: tank, healer, Mage, sword; played profile, skills at the band, supply store; ' + seeds + ' seeds x ' + hours + ' h a cell');
+    console.log('ELEMENTS 6B SAMPLE, A FOUR ON DANGEROUS: tank, healer, Mage, sword; played profile, skills at the band, supply store; ' + seeds + ' seeds x ' + hours + ' h a cell'
+      + (NEUTRAL ? '; every monster neutral to Necrotic and Storm' : '; the class layer as built'));
     console.log('cell | Level XP/h a hero | vs control | deaths (all seats) | store g/h a hero | sword: ' + 'dealt/h, shares | Mage: dealt/h, shares');
     for (const band of [25, 40]) {
       const [ground, L] = BANDS[band];

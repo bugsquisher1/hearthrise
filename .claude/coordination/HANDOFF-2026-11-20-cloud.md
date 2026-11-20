@@ -24,14 +24,14 @@ EXIT 0 per commit message. Local guards were run one at a time in the cloud; the
 - `in-page-39`, `in-page-26`: Ubuntu mirror timeouts at "Install Playwright + Chromium" (infra, nothing to fix).
 - `settle-properties`: a real engine bug, fixed above. Proven on the nightly seed with `--db-runs 200` green, plus both replay paths.
 
-## 3. In flight in the CLOUD session (worktrees exist only in that container; NOT pushed)
+## 3. In flight in the CLOUD session (WIP branches PUSHED to origin, Tyler OK 11-20)
 
-Container restarts killed both lanes twice; each resumed from its WIP commits. When one finishes, the cloud session merges it into `claude/nice-einstein-6h7s9n` and pushes. If the cloud session is gone, they're lost: ask Tyler whether to push the two WIP branches.
+Container restarts killed both lanes twice; each resumed from its WIP commits. When one finishes, the cloud session merges it into `claude/nice-einstein-6h7s9n` and pushes. If the cloud session is gone, pick each up from its pushed WIP branch (`git fetch origin <branch>`), re-dispatch into a worktree of it, and finish the brief below.
 
 | Lane | Branch / state | What |
 |---|---|---|
-| First-hour next step (systems-engineer, default model) | `worktree-agent-a99fe28a5d333f524`, WIP c20bcba4 | (1) An outgrown end (Cellar at Level 5) leads with "Go to <next ground>" on the summary and the away card, visible at 1440x900 / 1280x720 / 667x375. (2) A low-stamina return names the stamina-free loops the server says are unlocked. (3) The Hunts window doesn't enable Enter for a ground a member has outgrown, and the refusal names the real reason (was "Wren is not ready"). 18 files: `src/shell/{after-hunt,away-recap,back-in-town,hunt-list,intent-words}.js`, `windows/{away,hunt-summary,hunts,scale-pane}.js`, `src/data/text/*`, `summary.css`, tests in alpha-windows, away-recap-world, hunt-floor-warning, hunt-summary, shell-core, instant-press |
-| Luck v2 (game-designer, **Fable**) | `worktree-agent-adfad44d0385f44f7`, WIP 66a55c04 | Revising §15 to Tyler's 11-20 rulings (§4). Returns a spec; the Coordinator replaces §15 |
+| First-hour next step (systems-engineer, default model) | `worktree-agent-a99fe28a5d333f524`, WIP c20bcba4 (pushed) | (1) An outgrown end (Cellar at Level 5) leads with "Go to <next ground>" on the summary and the away card, visible at 1440x900 / 1280x720 / 667x375. (2) A low-stamina return names the stamina-free loops the server says are unlocked. (3) The Hunts window doesn't enable Enter for a ground a member has outgrown, and the refusal names the real reason (was "Wren is not ready"). 18 files: `src/shell/{after-hunt,away-recap,back-in-town,hunt-list,intent-words}.js`, `windows/{away,hunt-summary,hunts,scale-pane}.js`, `src/data/text/*`, `summary.css`, tests in alpha-windows, away-recap-world, hunt-floor-warning, hunt-summary, shell-core, instant-press |
+| Luck v2 (game-designer, **Fable**) | `worktree-agent-adfad44d0385f44f7`, WIP 70187bf3 (pushed) | Revising §15 to Tyler's 11-20 rulings (§4). Returns a spec; the Coordinator replaces §15 |
 
 ## 4. New rulings (add to `rulings-of-record`)
 

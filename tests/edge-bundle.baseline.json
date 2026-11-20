@@ -93,6 +93,11 @@
         "bytes": 3134266,
         "on": "2026-11-20",
         "why": "hr-accrue +559 B, all lane/a-trophy-room-held: data/homestead-tiers.js HELD_HOME_ROOMS (the Trophy Room held whole, ~310 by the diff) and unlock-catalogue.js refusing a held room's every rung by name (~250)"
+      },
+      {
+        "bytes": 3154479,
+        "on": "2026-11-20",
+        "why": "Luck v3.1 (lane/d-luck-build) on the merged set: the engine reads Magic Find in drops.js/hunt-rewards.js, so data/luck.js and core/luck.js ride the edge, plus jewelry.js's Lucky perk and rows, drops.js luckMult and the lucky draw, items.js's Lucky Rivet and eight Lucky rings, loot-bands' very_rare, and the cut notes (+20,213 B over the set)"
       }
     ]
   }

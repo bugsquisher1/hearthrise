@@ -14,8 +14,8 @@ Phase-2 dive, game-designer, `lane/d-balance-combat`, 2026-11-20, on `set/v0.2.1
 
 | Verdict | Count | Systems |
 |---|---|---|
-| KEEP | 7 | hunts, level, weapon-roles, elements, monster-spells, stamina, action-bar |
-| FIX | 9 | combat-engine, combat-skills, inner-flame, spells-runes, tank-runes, monsters, difficulty-tiers, grounds-live, death-blessings |
+| KEEP | 6 | level, weapon-roles, elements, monster-spells, stamina, action-bar |
+| FIX | 10 | hunts (the own four's restart only), combat-engine, combat-skills, inner-flame, spells-runes, tank-runes, monsters, difficulty-tiers, grounds-live, death-blessings |
 | BUILD | 3 | necrotic-storm (after the spell rule), fists (after the spell rule), grounds-staged |
 | HOLD | 4 | regions-4-7, skill-tree, companions, pvp-ctf |
 | MERGE, CUT | 0 | |
@@ -47,7 +47,7 @@ Phase-2 dive, game-designer, `lane/d-balance-combat`, 2026-11-20, on `set/v0.2.1
 7. **Training past the career line.** Recommend: leave the flat rate you ruled, and say plainly what it is for: bringing a new or neglected skill up (a back-row Defense, a hero that changed weapon), never a power buy past skill 50. One skill level at 82 costs 83 yard hours for +0.6% damage. Alternative: a rate that grows with the skill, which turns the yard into the cheapest gold-for-power offer in the game.
 8. **Blessings.** Recommend: all three cost about three hours of a lone hero's net gold at its Level (about 34,000 at 50 and 63,000 at 105, against 2,250 at 70 today), free under 30 as now, so a player on Normal can skip them and a player on Deadly pays. Alternative: keep today's price and accept that Blessings are a tax nobody notices (6,345 gold spent by all real players, ever).
 9. **Inner Flame.** Recommend: keep the skill and the lore, remove the bench hours: bones burn by a loot rule set once ("burn at the Hearth", beside "sell" and "keep"), no hero time, same XP a bone. Alternative: cut the skill and fold bones into Hearth Cinders.
-10. **Fists and the sword ways.** Recommend: fists ship only after change 5 (their strikes are already "a share of own blow" rows and their heal is a share of max HP, so they are the one family that needs no rework), on the scoped promise already ruled. No change to the sword ways (slow alone on purpose, 0.85 to 0.96 of the hammer, measured). Alternative: none offered.
+10. **Fists and the sword ways.** Recommend: fists ship only after the spell rule of item 5 (their strikes are already "a share of own blow" rows and their heal is a share of max HP, so they are the one family that needs no rework), on the scoped promise already ruled. No change to the sword ways (slow alone on purpose, 0.85 to 0.96 of the hammer, measured). Alternative: none offered.
 
 ---
 
@@ -294,7 +294,7 @@ The melee swing's own collapse (20% to 1%) is the to-hit clamp (B2) and the miss
 
 Inside a 0.85 to 1.15 band: sword and shield, sword alone, crossbow, staff, bow (1.16 at 60). Outside: the wand (1.19 to 1.52: it buys XP with gold and nets zero or less from Level 10 on) and the axes at 105 (0.82). The wand gap is the fixed-number casts at their Level 30 to 60 peak, plus never missing. The spell rule sizes Frost Lance and Fireball in swings, and the gap becomes a number we choose (PROPOSED: 1.25 at every Level).
 
-**Fists** (dark; RULED identity 11-18: the self-sufficient all-rounder, within 15% XP, comfortable alone). Their two mechanics are the two that already scale: the strikes are shares of the wraps' own blow at half a weakness, and the own heal is 0.8% of max HP a second. So fists are the one family the spell rule does not have to rework, and the right family to ship first after it. Their XP gap on pack grounds (the Sewer -27%) is a missing area row, not a number. BUILD, phase 12 as planned, after change 5, so tiers 3 to 7 are sized once.
+**Fists** (dark; RULED identity 11-18: the self-sufficient all-rounder, within 15% XP, comfortable alone). Their two mechanics are the two that already scale: the strikes are shares of the wraps' own blow at half a weakness, and the own heal is 0.8% of max HP a second. So fists are the one family the spell rule does not have to rework, and the right family to ship first after it. Their XP gap on pack grounds (the Sewer -27%) is a missing area row, not a number. BUILD, phase 12 as planned, after the spell rule (change 2), so tiers 3 to 7 are sized once.
 
 **Training**: B3.
 
@@ -349,3 +349,205 @@ Nothing here should be designed until these are true of the model:
 | **PvP capture the flag** (idea) | A population (1,000 online is the floor for a queue that fills), the to-hit ratio (hero against hero on a straight line is one-sided inside 20 points of skill), and gear and skill normalized inside the match. Otherwise it is the Heavy four's ladder. Not before Early Access |
 
 ---
+
+## C. The cards, in registry order
+
+Each card answers the thirteen requirements of `02-requirements.md` by number: 1 purpose, 2 first principle, 3 ledgers, 4 power and reward budget to Level 400, 5 the seven players, 6 server cost, 7 population, 8 server age, 9 exploits, 10 teaching, 11 content throughput, 12 monetization, 13 telemetry. Then fun, rulings and the verdict. Every FIX and BUILD points at its row in the change table at the end of this section. Server cost: no proposal in this dive adds a statement, a row write or a ledger row to the settle path (`measure.mjs cost --add statements=0,ledger=0,writes=0`: inside the allowance); where a card says "6. none new" that is what it means, on today's 5 statements a settle alone and 8 for a four (MEASURED, `tests/per-player-cost.baseline.json`).
+
+### `hunts` (live): idle instanced hunts. FIX (the own four's restart; everything else KEEP)
+
+1. The core loop: choose a ground, a tier and a bar once, and the hero hunts with the game closed. Decision: where, how hard, with whom, and what happens after. Useful at every hour.
+2. **Played alone:** end card to the next hunt is two presses (Go to the next ground, Enter); Bless is one press for all three; the after-hunt plan (wait, or train a skill) is chosen on the hunt card and kept for the ground. Good. **The own four, not played (one hero slot on a new account):** 99 of 249 kept real hunts ended because another of the player's own heroes left, and 68% have no after-hunt plan (REAL). "Hunt again" is off for a party member ("Party leader picks the hunt", READ FROM DATA `text/summary.js`), so a four's restart is the leader's presses plus whatever each member needs (re-supply, Bless, equip): ASSUMED 8 to 16 presses a restart, four times what one hero needs. What should remember it: one "Hunt again, all four" on the leader's end card that re-enters the same ground, tier and bars for every own hero in the party and reports only what blocks one of them. For QA: count it on a four-hero local world.
+3. Source of Level XP, skill XP, gold, items, bestiary kills; sink of stamina (1:1) and supplies. Rates: the reference table.
+4. The hunt itself is no lever. Its end reasons are: REAL, no kept hunt has ever ended on supplies or gold, 42 on stamina, 24 on a death.
+5. New: 2 h a day alone; the dead moment is coming back to a hero in town after a death (B6). Own four: 3.3 h a hero a day in two visits; the restart is its whole attended cost. Heavy four: six visits. Ceiling: nothing limits it but stamina and refills. Buyer: nothing to buy here. Four friends: zero real hours.
+6. Today's baseline; none new.
+7. Works at 10 online (instanced). At 10,000 the settle is per instance; nothing is contended.
+8. A new player on an old server hunts the same empty low grounds as on day 1. Nothing inflates here.
+9. A script that restarts hunts is the player's own four doing what the game should do for them; the clamp is stamina. OPEN: nothing new.
+10. First contact at minute one (the Hunts window, "Recommended", read in play). The end card names the next ground and the next buy: the best screen in the game for "what do I do now".
+11. Not content.
+12. Premium's analyzer. No pay-to-win line here.
+13. `hunt_sessions` end reasons weekly: the share ended by "a party member left" (40% today) should fall under 10% after a four's restart exists; the share with an after-hunt plan (32%) should pass 70%.
+
+Fun: the return ("While you were away") is the game for a player whose visit is 2 to 5 minutes. Rulings: hunts keep running offline (10-18) COMPLIES; after-hunt resume (10-14) COMPLIES; first principle (10-18) BREAKS for the own four's restart. Change row 9.
+
+### `combat-engine` (live): damage, to-hit, mitigation, movement, targeting. FIX
+
+1. Turns two stat blocks into kills an hour, damage taken and deaths. Decision: every gear, skill and bar choice is read here. 2. No presses. 3. Converts power to every reward. 4. Section B2: both to-hit rules leave their range inside live content (the monster at Level 60, the hero from 105) and nothing a hero does in a fight grows past skill 60 and tier 7 (B5). FORMULA at 240 and 400: a career hero cannot kill a same-Level monster (15% to-hit, 74 to 120 blows). 5. Every player meets it the same way; the New player as early lone deaths, the fours as no deaths at all. 6. None new: a ratio is the same arithmetic cost as today's line; two more fields a monster row in the catalogue. 7, 8. Not population or age bound. 9. The settle is the server's; the 32 s seed horizon is unchanged by this. OPEN: none new. 10. A player reads two numbers on a monster card ("aim 77, ward 31") against its own two: the wiki line becomes "your rating against theirs". Today no screen can explain 85%. 11. One function, generated rows: no content cost; it REMOVES a patch about every 30 Levels of new content (CITED, the first audit). 12. None. 13. The analyzer's landed share of blows by Level band, dealt and taken: target 80 to 88% dealt, 65 to 78% taken on Normal in band; red at any band on a clamp.
+
+Fun: "either they are strong enough or they aren't" (Tyler 11-08) becomes literally true. Rulings: NO LEVEL IN COMBAT (11-18) COMPLIES; Defense training not intended (11-18) BREAKS today, COMPLIES after; one engine online and offline COMPLIES. Change rows 1 and 2.
+
+### `level` (live): Level, uncapped, and the pace contract. KEEP
+
+1. The long chase and the gate to gear and grounds. Decision: none inside it; it is the score. 2. None. 3. Source: kills. Sink: death. Converters: none, and none may exist (RULED 11-04). 4. Level gives +10 HP and +10 mana: a Replace-free, linear lever. Contract `1385 x L^1.274` XP an hour; a Level takes 3.2 lone hours at 10, 5.6 at 50, 11.7 at 110, 11.5 at 240, 20.7 at 400 (READ FROM DATA). The curve past 110 is fitted by hand to the contract with no hero there. 5. Section B1's table: the Own four reaches 50 on day 23 and 110 on day 94; the Heavy four 110 on day 37; the Ceiling on day 13. 6. None. 7. None. 8. A newcomer at month 6 is 100+ Levels behind the Heavy four and can never party with it in band: scaled hunts (80% XP) are the only bridge, never used (REAL 0). 9. Level XP is server-minted; the Bonus weekend is the only global multiplier. 10. The medallion at the bar's center; the end card's "Level 1 to 5". 11. **This is the throughput number for the whole program:** a four uses a 25-Level band in about 100 to 130 hunted hours past Level 85, so the Heavy four needs a new ground about every 12 to 15 days and the Own four every 30 to 40. 12. Never sold (RULED). 13. Median hunted hours to Levels 10, 25, 50, 75 by account size, weekly: target the B1 line within 15%; red if the four's 50 is under 60 h again.
+
+Fun: Level 200 as "a big deal" holds only if the pace of record is the four's (B1), or it is a three-month number for the Heavy four. Rulings: uncapped (10-14) COMPLIES; pace targets (10-25) COMPLY for the lone hero; the four at 2.0 to 2.5 (11-16) COMPLIES in band, BREAKS under Level (2.2 to 3.3). No change of its own: change 3 brings the real pace onto the ruled line.
+
+### `combat-skills` (live): Melee, Ranged, Magic, Defense. FIX
+
+1. The second progression, earned by doing: it says what a hero IS. Decision: which weapon to live with, since skills do not move with it. 2. None in hunts; training is a remembered after-hunt plan. 3. Source: blows landed, mana spent, hits taken, the yard. Sink: death (6% of progress). Converter: gold and town hours to skill XP at the yard, 30,000 an hour flat. 4. Add class through to-hit and max hit: section B3. Worth 2% a level at 10 and 0.5% from 110. The cost multiplies by 1.04 for ever: not a lever to budget past 110. 5. New: skills run ahead of Level (21 at 10), which feels great. Own four: 7 to 10 under the lone line by 60, back row Defense 13 to 30; on the ratio that costs it 1 to 4 points of to-hit and its back row is hit 84% at 60 where the front is hit 74%. Buyer: the training item, 250,000 gold for 1.3 levels at skill 60: a bad buy, and that is correct. 6. None new. 7. None. 8. Skills cannot be traded or caught up; the yard is the catch-up and it is sized for it. 9. AFK Defense training is closed by "scales with attacker level" (10-18); the dummy pays XP only; OPEN: none. 10. Skill XP shows only in a premium analyzer tab (RULED 10-22), so a free player never sees why a skill moved: the yard's screen should carry "next level: N hours here, M hunting" (B3). 11. None. 12. Crowns training items are ruled in ("a bit pay to win but i dont really care", 11-14) and account-bound; at these values the Buyer gains under 1% past skill 60. 13. Main skill and Defense at Levels 30, 60, 90 by seat, weekly, against the reference table: red if the front seat falls more than 12 under the line (then the reference hero is wrong and monsters are authored too hard).
+
+Rulings: uncapped (10-14) COMPLIES; Defense training "definitely NOT" intended (11-18) BREAKS today; flat training rate (11-14) COMPLIES. Change row 1 (the ratio is the fix; nothing moves on the training side).
+
+### `inner-flame` (live): Inner Flame and the Great Hearth. FIX
+
+Section B7 is the card. 1. Solves "what are bones for" and trims the supply bill; the decision is burn, sell or Cinders. 2. BREAKS: a bench visit a hero for a decision made once. 3. Sink of bones and town hours; source of regen (+29% at Flame 20, +50% at 50, a share of max so it never needs a dial). 4. Add class, about 6% of a food bill at Level 60; capped by its own curve at +100%. 5. 16 bench hours in all (REAL); the Own four will never spend four heroes' town hours on it. 6. A loot rule adds no statement (it rides the return-to-town dispatch that already runs for "sell"). 7, 8. None. 9. Bones are tradeable: a Buyer could buy bones for regen; capped by the curve. 10. Nothing tells a player what the flame does in numbers. 11. None. 12. None. 13. Bones burned a hero-hour hunted: target over half of bones dropped; red at zero for two days (it is at zero for 25 days on Prayer today, a standing P1 by §3.4).
+
+Rulings: Prayer a combat skill, regen only (10-14) COMPLIES; "feed the Hearth" (10-25) COMPLIES; Cinders compete (11-14) kept. Change row 7.
+
+### `weapon-roles` (live): seven families, stances, armor weights. KEEP
+
+1. No class pick: the weapon in hand is the role. Decision: how this hero fights and what it is in a party; switchable in town. 2. A setup a weapon is remembered (presets); none repeated. 3. Converter of power into different mixes of XP, damage taken and gold. 4. Multiply class, section B5's table: 0.82 to 1.52 of the hammer. Band PROPOSED 0.85 to 1.25 at every Level, the tank and the sword alone low on purpose. Armor weights: heavy up to +28% HP, light up to +35% mana (RULED), a share, scales. 5. New: the creation screen names five styles in one line each (read in play; the sword alone is missing from it). Own four: tank, Healer, bow, Mage is what the party table pays most (1.70 a kill for four classes). 6. None. 7. A four of friends needs the roles; an own four supplies them itself. 8. A newcomer's first weapon choice is free to change, which is right. 9. Same-class fours never out-earn solo (0.97): holds. 10. Hero creation, then nothing until a weapon drops. 11. A new family is a full kit (rows, art, a party class): the most expensive combat content there is, so fists are the last for a long time. 12. None. 13. Share of hunted hours by family, weekly: red if any family is under 3% (it is not a real choice) or the wand over 40%.
+
+Rulings: sword and shield slow alone (11-19) COMPLIES (0.85 to 0.96); sword alone "should speed up later" (11-19) BREAKS (0.85 at 105), fixed by change 2; party XP only for mixed classes (10-31) COMPLIES.
+
+### `action-bar` (live): the bar, conditions, setups, presets, hunt prep. KEEP
+
+1. This IS the first principle: every fight decision made once and kept. 2. Kept per ground ("Kept for this ground", read in play), per preset, copyable. The one repeat: a new spell or element means editing four heroes' bars; after change 5 it is one slot's row swapped, and a "copy this bar to my other hero of this weapon" covers it. 3. No ledger of its own; it decides how much of the lanes fire. 4. Section B4: the offense lane is the budget. 5. The New player gets a start bar of five slots that works untouched (played: Level 1 to 5 with no bar edit). 18 free setups saved across 5 real accounts, 0 bought slots (REAL). 6. None. 7, 8. None. 9. None: the server fires the bar. 10. The tutorial must teach it in combat (RULED 10-25): retention dive. 11. None. 12. Paid setup slots: never bought. 13. Share of heroes past Level 20 with an edited bar: target over 60%.
+
+Rulings: 20 slots, 3 conditions COMPLIES; lanes offense, support, heal (10-19, 10-23) COMPLIES. Change row 5 is a rule on content, not on the bar.
+
+### `spells-runes` (live): spells and rune families. FIX
+
+Section B5 is the card. 1. Gives every family its buttons and gives runes (a town product) a consumer. Decision: which casts, which rune tier, which element. 2. Kept in the bar. 3. Sink of mana and runes (runes are 55% of the real store bill); source of damage, heals and Magic XP (2.40 a mana, one ratio for every caster, RULED 11-05, holds). 4. Fixed numbers: every cast peaks at Level 10 and is 4% of a monster or less at 400. Outside every stacking class today because its size changes with Level. After the rule: a share of max hit, so it sits wherever the weapon sits. 5. The caster's bill: a lone Mage nets 333 gold at 10 and -10,144 at 60 at store prices (MEASURED); a third of real supplies are home-made, which is what makes casters affordable. Buyer: runes at any price, no edge beyond gold. 6. None new. 7. Rune families need Runecrafting or the store: works at 10 online. 8. Old rune tiers stay useful only if versions are steps and not eras: under the rule tier I still casts at 1.0. 9. Mana back and Magic XP on net mana (6b ruling) closes free Magic XP. 10. The "new spell" prompt at each unlock. 11. A spell is a row and an icon; sixteen are coming, each a balance event today and a sidegrade after changes 2 and 5. 12. None direct. 13. Share of a hero's damage from casts by Level band: target flat within 10 points from 30 to 110 (today it falls by more than half).
+
+Rulings: versions at 1 / 15 / 30 / 45 / 60 (10-23) COMPLIES and is kept; Magic XP ratio (11-05) COMPLIES; seven then eight rune families (10-23, 11-18) COMPLIES. Change row 2.
+
+### `tank-runes` (live): Frost Slam and Shelter. FIX (inside the spell rule)
+
+1. Gives the tank a reason to carry runes and a party a reason to want this tank. Decision: slot them, and on what trigger. 2. Kept; Shelter starts on "an enemy is casting", a good default. 3. Sink of Ice and Earth runes; source of party survival. 4. Frost Slam: a status of 30 to 50% by rune tier, no number to decay: holds to 400. Shelter: a shell of 141 at Melee 60, 85% of one blow, falling to 54% at 110 and 18% at 400: FIX with the rule. 5. Party only (RULED), so the New player never sees them and the Own four's tank does. Not on the default bar. 6. None. 7. Useless alone by design. 8, 9. None. 10. The new-spell prompt at Melee 12 and 20. 11. Two rows. 12. None. 13. Share of party tanks past Melee 20 with either slotted: red under 20% (then they are not worth their rune).
+
+Rulings: tank spells hold and protect, never a lone tank's kill speed, party only (11-19) COMPLIES. Change row 2.
+
+### `elements` (live): resistance and weakness. KEEP
+
+1. Makes the ground decide the loadout. 2. One remembered setup a ground; linings will need the same (CITED, the first audit's change 13). 3. Converter: the right element is +20% damage and +15% to-hit on a weak monster (READ FROM DATA `WEAKNESS_BONUS`), a resisted one down to -50%; never immunity. 4. Fixed steps and one shared 40% cap on what a hero resists: nothing grows with Level. The one system that is already scale-proof. On the ratio the +15% to-hit becomes x1.15 on a chance that is never clamped, so it is worth the same everywhere (today it is worth nothing at 95%). 5. The New player meets none before the Glade. 6. None. 7, 8. None. 9. None. 10. The monster card's weakness line. 11. Free with each ground. 12. None. 13. Share of casts by element on each ground against that ground's weakness mix: red if a ground's weak element is under a third of casts (players are not reading it).
+
+Rulings: percentages, never immunity (10-15) COMPLIES.
+
+### `necrotic-storm` (dark): two elements, sixteen spells. BUILD, after changes 2 and 5
+
+Not played (dark); judged on its data, its switch and its measured sample. 1. A fourth and fifth answer to "which element here", and two new threats (Withered cuts heals, Storm burns mana) that make a guard a decision. 2. One slot swapped a ground, kept. 3. Sink of Bone and Storm runes. 4. As measured it is a multiply lever (+12.8% and +29.2% for a sword; CITED) because it adds to a lane with room. Under the bar budget it is a sidegrade: +5% and +10% at most. 5. Nobody has it. The Own four would re-slot four bars once. 6. None new (the engine pieces already run). 7, 8. None. 9. Mana back capped at the cast's cost (ruled in the audit). 10. Ships with the Ox Road and the Old Guard, whose monsters teach it by hitting with it. 11. Sixteen spells: under the rule each is a row with a share and an element, sized by the grader, no pace re-fit. 12. None. 13. After launch: the pace on the two grounds within 3% of before.
+
+Rulings: Necrotic and Storm, a spell for each family (11-18) to be met; rune families Storm and Bone (11-18) COMPLIES in data. Change row 6.
+
+### `fists` (dark): the eighth family. BUILD, after change 2
+
+Not played (dark). 1. The comfortable lone way: low bill, own heal, any element. Decision: comfort against speed. 2. One bar. 3. Lower store bill (0 to 21 foods an hour against the hammer's 0 to 70, CITED). 4. Multiply class at 0.84 to 0.92 of the best lone way (CITED); its heal is 0.8% of max HP a second and its strikes are shares of its own blow, so both scale to 400 with no dial. 5. The New player's best first weapon if it existed at Level 1 (it dies least); the Own four's gap filler. 6. None. 7, 8. None. 9. A self-heal that works out of a fight is free HP: it replaces food, not Blessings; fine. 10. A new line on the creation screen. 11. Seven tiers of wraps and their strikes. 12. None. 13. Lone deaths under Level 16 by family.
+
+Rulings: Tyler's identity statement (11-18) and "best lone gold, comfortable, within 15% XP" as scoped on the board COMPLIES at four of seven grounds. Change row 10.
+
+### `monsters` (live): the roster and the one stat formula. FIX
+
+1. The other stat block. Decision for the player: none directly; for us it is the whole authoring cost of a ground. 2. None. 3. Source of XP, coin and drops a kill. 4. HP 4.95 + 1.76 a Level, blow 22% of a same-Level hero's HP, XP `1.436 x L^0.4` a point of HP (READ FROM DATA): all three hold to 400 by construction. To-hit and defense do not (B2): written against a hero with every skill at its Level. 5. The New player dies to the cistern spider and the culvert bat (REAL): two rows worth a look by name. 6. Two generated fields a row. 7, 8. None. 9. None. 10. The monster card: Level and rarity today; aim and ward after. 11. A monster is a row from its Level and role; the formula is why a ground costs data and not tuning. 12. None. 13. Deaths by killer, weekly: red if one row is over a quarter of a band's deaths (the spider is 5 of 13 under Level 16).
+
+Rulings: monsters a little harder (11-19) COMPLIES; one formula for every hunt (11-07) COMPLIES; no Level penalty (11-04) COMPLIES. Change row 1.
+
+### `monster-spells` (live): spells, shooters, mends, boss phases. KEEP
+
+1. The reason for guards, bar rules and Shelter. 2. A bar rule set once ("when an enemy is casting"). 3. Damage by element. 4. A spell is a multiple of the monster's own blow, held under 35% of a floor hero (READ FROM DATA): a share, scales. 5. The back row's only real danger. 6. None. 7, 8, 9. None. 10. The hunt card names each caster and its spell (read in play, the Warrens: "Goblin Digger casts Blasting Charge"): good. 11. One or two a ground. 12. None. 13. The share of damage taken that is a spell, by ground: the grader has it and should print it (CITED); an element only matters where this is over a fifth.
+
+Rulings: bosses get the special animations (10-15) COMPLIES.
+
+### `difficulty-tiers` (live): Normal, Dangerous, Deadly. FIX
+
+Section B1 is the card. 1. One choice a ground: safe, or more for more risk. 2. Kept for the ground (read in play). 3. Multiply class on Level XP: for whoever holds it, 1.5 to 2.6 times the contract (a four) and 2.0 to 4.0 (a lone Mage on Dangerous, at a loss of 14,000 to 94,000 gold an hour) (MEASURED). 4. The dials are shares (blow x1.33, HP x1.15, XP x1.25, a pull of 6 to 8), the same at every Level: scales. What does not hold is the danger: a four has twice the room it needs, at every Level from 30 to 118. 5. New: Deadly is one press away at Level 5 and kills in minutes (played). Own four: on Deadly for 79 of 99 recorded party hunts with 2 deaths in 359 hero-hours (REAL). 6. None. 7. None. 8. None. 9. Under-Level Deadly is the standing exploit of the pace (B1): closed by danger, not by a rule. 10. The tier's words are the same on every ground and for every party; they should read the measured line for THIS party ("your four would hold this", "expect deaths"). 11. No content: three rows a ground from one table. 12. None. 13. Deaths a 100 hero-hours by tier and by Levels under the band floor: target on Deadly in band 1 to 3, ten under over 12; red at 0 in band (today's reading).
+
+Rulings: a mixed four on Deadly at 2.0 to 2.5 (11-16) COMPLIES in band; one difficulty for every group (11-08) COMPLIES; struggle or pay (11-19) BREAKS; outside your weight class (11-06) BREAKS (no waste, no deaths). Change row 3.
+
+### `grounds-live` (live): Greenhaven and the Barrow March, Levels 1 to 110. FIX
+
+Section B8 is the card. 1. A place for every Level band with its own drops and story. Decision: which of the grounds my Level can hold. 2. Kept setups a ground. 3. The reference table. 4. 51 hand dials, 3.4 a ground. 5. Real players live on the Warrens (32%) and the Glade; Wickstead, Hask's Ford and the Muster Barrows are 45 hours together; the Cellar is parked in to Level 61 (REAL). The advised route is not the route played because the higher ground on Deadly was always the better answer. 6. None. 7. Empty grounds cost nothing. 8. Low grounds are empty at month 6 for a newcomer either way (instanced). 9. None. 10. "Recommended" and "Next step up" in the list (read in play). 11. A ground is art first; its numbers are a pack of rows. 12. None. 13. Share of hunted hours by ground against the advised route: red if a ground in the advised route is under 3% of its band's hours.
+
+Rulings: Sewer opens at 5 (11-18) COMPLIES; no profit molds (11-13) COMPLIES; balance the grounds against one formula (11-16): the per-ground HP dials are the opposite, removed by change 3. Change rows 3, 4 and 8.
+
+### `grounds-staged` (staged): the Morrow Hills and the Catacombs ground, 110 to 185. BUILD
+
+Not played (staged); measured with its own drops opened. 1. The first content past Krell and the home of the factions. 2. As live. 3. MEASURED today: Carter's Rest a lone hammer at 0.88 of the contract and -2,989 gold an hour, the Catacombs 0.82 and -25,788; on the ratio 0.95 and +14,364, 0.94 and +18,624. 4. These grounds are where the to-hit clamps bite first, so they should not be tuned before change 1: every dial put on them now is a dial to remove. 5. Only the Heavy four is near (Level 79). 6. None. 7, 8. None. 9. None. 10. As live. 11. Three grounds for 110 to 142 last a four about 135 hunted hours; 142 to 165 is not drafted. 12. None. 13. As live.
+
+The pack gate: answered in the summary (the party rule, not the grounds). The Catacombs four on Deadly is at a 33% low point today and dies at a 1600 blow dial: its tier row is sized after change 3. Rulings: generous to Krell, rare after (11-20): items dive. Change row 4.
+
+### `regions-4-7` (idea): Levels 185 to 400. HOLD
+
+1. to 13. Not built, so: the only requirement this dive puts on it is that changes 1 and 2 land first. On today's formulas a career hero at 240 lands 15% of its blows and its casts take 1 to 12% of a monster, so nothing drafted there could be measured. After them the formulas hold flat to 400 (B2's table) and a region is art, rows and properties. Throughput: 215 Levels is about 2,400 hunted hours for a four, and at one ground a 25 Levels a four needs about nine regions' worth of maps: the first audit's change 4 (properties carry up, fewer new pieces a region) is the only way that is drawable. HOLD until the Morrow Hills are live and measured.
+
+### `death-blessings` (live): death and Blessings. FIX
+
+Section B6 is the card. 1. The stake. Decision today: none (always bless). 2. One press takes all three (played); it is still a press after every death: a remembered "keep me blessed" removes it. 3. Sink of Level XP and skill progress; Blessings a gold sink of 6,345 gold in all (REAL). 4. A share of total XP: scales by itself (0.5 lone hours at 10, 25.6 at 110, 148 at 400 unblessed). 5. New: dies 8.9 times in 100 hours, free Blessings, loses minutes; the harm is the ended hunt. Own four: 1 death in 449 hours past Level 45. Buyer: Blessings at any price. 6. None. 7, 8. None. 9. A death ends the hunt and costs XP: nothing to farm. 10. The death popup is good (played: who, where, what it cost, what the Blessings saved, a tip, Bless again). 11. None. 12. None. 13. Blessing gold a hunted hour by tier: target 600 to 2,000 on Deadly; deaths a 100 hours by Level band.
+
+Rulings: 6%, can take a Level (11-09) COMPLIES; Blessings 25 / 50 / 75% (11-10) COMPLIES; free under 30 (10-18) kept. Change row 11.
+
+### `stamina` (live): 8 h free, 12 h Premium, 1:1 rest. KEEP
+
+1. Paces a day and makes a return. 2. The refill is a press a hero; the Heavy four made 81 (REAL). 3. Time class: hunt hours a day. 4. Never touches a hero's rate. 5. REAL: heroes hunt 3.1 to 3.5 hours a day on an 8 hour bar. **Stamina does not bind for anyone but the one player who refills**, so Premium's 12 hour bar gives the real player nothing. Ceiling: 24 hours a day with refills, which is what puts Level 110 on day 13. 6. None. 7, 8. None. 9. Six refills a day (RULED) is the clamp. 10. The timer under the medallion and the gold "+". 11. None. 12. For the economy and retention dives: Premium's headline perk is unused by the real player. 13. Hunted hours a hero a day by account; share of hunts ended on stamina (17% today).
+
+Rulings: 1:1, 8 and 12 hours (10-18) COMPLIES; six refills a day (10-19) COMPLIES.
+
+### `skill-tree` (ruled, no spec): HOLD
+
+Section B9. Not built, so: every one of the thirteen answers depends on what it would be allowed to move, and the model's answer is "a sidegrade, the Add pool, or the town; never a multiply lever". HOLD until changes 1, 2 and 5 are built.
+
+### `companions` (dark): HOLD
+
+Section B9. Not played (hidden; RULED 10-22 keep hidden, 10-24 no pet work until the core is solid). Not built as a design, so: if it fights it is a fifth seat and belongs in the party table; if it does not, it is an attention saver, and attention is the scarce ledger. `pets_xp` at zero is expected. HOLD.
+
+### `pvp-ctf` (idea): HOLD
+
+Section B9. Needs a population, the ratio and normalized stats inside the match. HOLD past Early Access.
+
+### The change rows
+
+| # | Change | Systems | Ledgers moved | Size | Needs server work | Value | Evidence |
+|---|---|---|---|---|---|---|---|
+| 1 | To-hit as a ratio of two ratings; monsters authored against the measured career hero; two generated fields a monster row; the reference table and its guard | combat-engine, combat-skills, monsters, grounds-staged | power; gold (melee paid again past 110) | M | yes: engine, catalogue apply, edge deploy, every ground re-graded once | first-week (Defense training) and long-chase (everything past 105) | B2, MEASURED |
+| 2 | Every cast a share of the caster's own blow; versions as rune-tier steps; defense taken once | spells-runes, tank-runes, weapon-roles | power; gold (rune use) | M | yes: engine and the abilities table | long-chase from Level 60; first-hour (Power Strike is a button again) | B5, MEASURED |
+| 3 | Deadly's blow dial 1330 to about 1750, Dangerous 1170 to 1400; three new sheet lines; the per-ground HP dials re-measured and removed; the card's risk words from the measured line | difficulty-tiers, grounds-live | Level XP (the real pace onto the ruled line); gold (food, Blessings) | S | data rows and the catalogue; no engine | first-week for the own four | B1, MEASURED |
+| 4 | The program's pace of record is the four's (lone table / 2.3); the model's multiply cap is 2.5; the grader's `four-xp` and `feel-seat-below-solo` move to Dangerous and Deadly | level, grounds-staged, the grader | none (a reading) | S | no | unblocks the Morrow pack gate | summary, B1 |
+| 5 | The bar budget: 0.85 of the offense lane a family, a new row replaces one; two axes drop one row | action-bar, spells-runes, necrotic-storm | power | S | data and one guard | long-chase: content stops moving the pace | B4 |
+| 6 | Necrotic and Storm sized under changes 2 and 5 (+5% one, +10% both), then live with the Ox Road | necrotic-storm | power, runes | M | the lane already planned | long-chase | CITED + B4 |
+| 7 | Bones burn by a loot rule, no bench hours | inner-flame | town hours given back; items (bones) | S | one loot-rule action on the existing dispatch | first-week | B7 |
+| 8 | Hask's Ford's XP fit from 1.02 to about 0.85; the x0.7 gold fit into the formula; the ladder rule a printed line | grounds-live, monsters | Level XP, gold | S | data rows | none for the player; 20 or more dials removed | B8, MEASURED |
+| 9 | "Hunt again, all four": the leader's end card re-enters every own hero | hunts | attention | M | one RPC over the existing restart | first-week for the own four, every visit | REAL (99 of 249 hunts) |
+| 10 | Fists, phase 12, after change 2 | fists | power | L | the planned lane | first-hour (the comfortable lone start) | CITED |
+| 11 | Blessings priced at about three hours of lone net gold for all three; a remembered "keep me blessed" | death-blessings | gold | S | price rows; one setting | long-chase | B6 |
+
+## D. For other dives
+
+| Dive | System | What this dive found |
+|---|---|---|
+| 22 Endgame | tower, catacombs | Re-measure both on the ratio. The Tower's heat was carrying the hero's to-hit collapse; expect to remove most of it. The Catacombs four on Deadly dies at a 1600 blow dial (17 to 33 deaths in 8 hero-hours) and sits at a 33% low point today: its tier row is sized after change 3. Shelter is 54% of a blow at 110 and is the Tower tank's button |
+| 22 Endgame, 26 Home | every week and price | Count in the four's hours (B1's table): Level 50 at 76 h, 110 at 311 h. The Heavy four ends live content on day 37 |
+| 23 Items | weapon line, gear tiers | Combat's requirement on the weapon line past tier 7: a hero's max hit must grow about with the monster's HP (1.76 a Level), for every family including wand and staff, because after change 2 it is the ONLY growth law for output, heals and shells. Today a career hammer's max hit is 69 at 110 and 78 at 400 against HP 199 and 709. Shields: at 105 the shield's guard stops paying on today's clamp (sword and shield takes 0.99 of the hammer); it pays again on the ratio |
+| 23 Items | training items | 250,000 gold buys 1.3 skill levels at skill 60 and 0.3 at 82: say so on the item, or it is a trap |
+| 24 Economy | blessings, yard, store bill | Blessings: my price is about three lone hours of net gold for all three (B6). After change 3 a four on Deadly pays 25 to 33% more at the store (Ford 13.6k to 18.1k, Krell 26.2k to 33.1k a head an hour, MEASURED): re-run the gold table for the four. The yard's gold-for-power rate is in B3 |
+| 24 Economy, 27 Retention | stamina, premium | Stamina binds for one real player. Premium's 12 hour bar gives the other four accounts nothing |
+| 27 Retention | first week | The New player's deaths (8.9 in 100 hours) are a teaching problem, not a price problem: Deadly is one press away at Level 5 with words true of every ground, and the harm is coming back to a hero in town. The creation screen lists five styles and leaves out the sword alone. The Bonus XP weekend takes a four to about 3.1 times the contract |
+| 27 Retention | hero slots | A new account has one hero slot on the creation screen ("Hero slots: 1"), where the rulings of record say two to start. Either is fine; they should agree |
+| 28 Platform | all | Nothing in this dive adds settle cost. Changes 1 and 2 are combat-engine deploys and fall under the world-tick parity rule |
+| All | the model | The multiply cap should read 2.5 (RULED 11-16), measured at the hero's own Level, not 2.0 |
+
+## E. Measured, cited, assumed
+
+**MEASURED here** (commit c4750e78e and later of `lane/d-balance-combat`, on `set/v0.2.143`; the real settle through `tools/balance-sim/cell.mjs`, played profile, career-line skills, store supplies, paired seeds):
+
+- The four at real Levels: `node tools/balance-program/measure.mjs what --at slake|pyre|hold --seat four --patch '{"level":55|66|74}' --hours 2 --seeds 2`; `node tools/balance-sim/staged/tohit-ratio.mjs play --seat four --at ford --level 40 --hours 2`.
+- To-hit by formula: `node tools/balance-sim/staged/tohit-ratio.mjs formula`.
+- To-hit in play, all eight points, both seats: `tohit-ratio.mjs play --seat lone`, `--seat four` (2 seeds x 1 h). The staged points were re-run after a tool fault (a second gear loader dressed the Level 175 kit differently); the table holds the corrected rows, which match `measure.mjs ref --at catacombs`.
+- The tier dials: `tohit-ratio.mjs play --seat four --at ford|hold --level N --hours 2 --deadly-dmg 1600|1900|2200`; `--engines ratio --deadly-dmg 1750 --hours 3` at Ford 50 and 40, the Slake 60, Pyre Field 80, Krell 105, 80 and 74 (Krell at 80, five under the floor: 6 deaths in 16 hero-hours, low point 23%); `--tier dangerous [--dangerous-dmg 1400]` at Ford 50 and 40 and Krell 105 and 74 (Krell at 74 on Dangerous 1400: 2.18 times its contract, no death, low point 32%, -17,462 gold an hour).
+- Seat by tier: `tohit-ratio.mjs play --engines today --seat lone|mage|four --tier normal|dangerous|deadly --at glade,ford,hold` and `--at rest,pyre`.
+- +10 skills: `tohit-ratio.mjs play --seat lone --bump 10 --at glade,slake,hold`.
+- The ways: `measure.mjs what --at thicket|glade|slake|hold --seat lone --patch-file tools/balance-sim/staged/ways.patch.json`.
+- Spell ratios: `node tools/balance-sim/staged/spell-ratios.mjs`. Curves and dials: `measure.mjs curves`, `measure.mjs fits`. Prices: `measure.mjs price`.
+
+**Limits of these measurements.** Two seeds by one to three hours a cell: enough to compare a lever on paired dice, too little to read a death rate under about one in ten hero-hours. Every "0 deaths" above is "none in 8 to 24 hero-hours". The 1750 dial is one point between two measured ones and needs 4 seeds x 8 h before it is built. The ratio is played with the monster ratings derived from each row at fight time (its own Level, its written hit, its defense against a regular's), which is what generated row fields would hold; the role term is clamped to 0.6 to 1.8. The harness four's net gold is not a finding (it buys every supply; real fours make a third of theirs).
+
+**READ FROM DATA:** `src/core/combat.js` (both to-hit rules, the clamps), `src/data/core-model.js` (LEVEL_PACE, SKILL_CURVE, FLAME_REGEN, VITALS), `src/data/balance-sheet.js` (STAT_FORMULA, TIER_DIALS and the per-ground overrides), `src/data/abilities.js` (lanes, cooldowns, versions), `src/core/hunt/abilities.js` and `damage.js` (how a cast is priced), `src/data/blessings.js`, `src/data/training.js`, `src/data/party-class-xp.js`, `src/data/hunts.js` (bands), `tools/balance-sim/grade-sheet.mjs` and `grade.mjs` (the gate's two party lines).
+
+**CITED:** `10-real-players.md` (every REAL number); `whole-game-audit-2026-11-20.md` sections 3, 4 and 6 (changes 1 to 3, the 6b rulings); `lane/d-elements-6b` (+12.8%, +29.2%, +2.7%, +8.5%); the board's "2026-11-19 Complete balance look" row 3 (the fist table); the Coordinator's pack gate run on Carter's Rest and the Ox Road.
+
+**PLAYED** (the shared browser pane, before the Coordinator's notice to stop using it; my own world on port 8795, since stopped): sign-up, hero creation, Mill Cellar 1 to 5, the end card, Bless, the hunt cards for the Warrens (31 Levels under, Enter offered) and the Thicket, the tier words, a death on the Thicket's Deadly and its popup.
+
+**ASSUMED:** the presses for an own four's restart (not played); skill XP an hour past Level 105; the projection of the career line past Level 100 (the same one `measure.mjs curves` uses); the opening sizes of casts in swings and the version steps under the spell rule (PROPOSED, not played: the rule itself is measured only as "the two rows that already use it hold"); the in-band death rate on Deadly after change 3.
+
+**Not done.** The spell rule was not planted and played. The own four's restart was not played. The Morrow grounds were not run through `tools/pack.mjs check` with the moved party lines. The Tower and the yard were not re-measured on the ratio (handed to dives 22 and 26). Monster spells' share of damage by ground was not measured.

@@ -16,7 +16,7 @@
 //        `--luck kills` applies the Bestiary's Luck IN THE ROLL, `--luck all` the Bestiary's and the salvage of every dropped piece:
 //        every Rare and Trophy row's chance on the engine's own monster rows is multiplied for the chunk and put back after it.
 //        `--luck off` plays today's game on the same dice. The built game ends at Krell's Hold: past it a life stays there.
-//   node tools/balance-sim/staged/luck-measure.mjs table --in file.json [--heroes N] [--salvage 0..1]
+//   node tools/balance-sim/staged/luck-measure.mjs table --in file.json [--heroes N] [--salvage 0..1] [--extend H] [--ring]
 //        read off one recorded life at 10 / 50 / 100 / 500 / 1,000 / 2,000 / 5,000 hours a hero: Luck from each feed, the rank selling
 //        everything and salvaging `--salvage` of the gear (default all), Rares an hour and so far, and the gold salvaging gives up.
 //        No play: the staged numbers can be re-read against the same life. `--extend H` carries a life that stopped early on to H
@@ -38,13 +38,13 @@
 import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { LUCK_STAGES, STAGE_LUCK, LUCK_PER_TIER, RARE_MULT, UNIQUE_LUCK_PER_BAND, RANK_STEP, LUCK_RANK_MAX, TROPHY_MAX_PM, TROPHY_HALF, LUCK_BANDS, bestiaryLuckOf, salvageLuckOf, luckToRank, rankOf, luckMult, stagesAt } from './luck.js';
+import { LUCK_STAGES, STAGE_LUCK, LUCK_PER_TIER, RARE_MULT, UNIQUE_LUCK_PER_BAND, RANK_STEP, LUCK_RANK_MAX, TROPHY_MAX_PM, TROPHY_HALF, LUCK_BANDS, bestiaryLuckOf, salvageLuckOf, luckToRank, rankOf, luckMult, stagesAt, LUCKY_PERK_PCT, luckyRivetsFor, LUCK_ITEM, MAGIC_FIND_MAX, RARE_CUT_FLOOR, rareKeepOf, VERY_RARE_HOURS } from './luck.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const u = (p) => pathToFileURL(join(ROOT, p)).href;
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : d; };
 const mode = process.argv[2];
-const USAGE = 'usage: luck-measure.mjs curve | life --party <styles> [--policy rec|dangerous|deadly] [--max h] [--heroes n] [--luck off|kills|all] [--out f] | table --in f [--heroes n] [--salvage 0..1] | project --in f [--heroes n] [--salvage 0..1] [--from h] [--kept 0..1] | compare --off a.json --on b.json';
+const USAGE = 'usage: luck-measure.mjs curve | life --party <styles> [--policy rec|dangerous|deadly] [--max h] [--heroes n] [--luck off|kills|all] [--out f] | table --in f [--heroes n] [--salvage 0..1] [--extend h] [--ring] | project --in f [--heroes n] [--salvage 0..1] [--from h] [--kept 0..1] | compare --off a.json --on b.json';
 if (!['curve', 'life', 'table', 'project', 'compare'].includes(mode)) { console.error(USAGE); process.exit(2); }
 
 const MARKS = [10, 50, 100, 500, 1000, 2000, 5000];
@@ -96,15 +96,28 @@ function gearOf(kills) {
 
 /* THE ACCOUNT'S LUCK along a recorded life: `heroes` of its heroes living it apart at once (1: as recorded), salvaging `share` of the
    gear its hunts drop. Rare pieces come as often as the Luck held at the time makes them. Answers one row a chunk. */
-function accountOf(run, heroes, share) {
-  const counters = {}, rows = [];
-  let salvaged = 0;
+/* `ring`: every hero of the account also wears a Lucky ring of the best gear tier its hunts have dropped (2 to 7). Each new
+   tier's piece is a fresh job, and the rivets it burns come out of what salvage pays before any reach the bar. */
+/* `cutOf(ground)`: THE BASE CUT (Tyler 2026-11-20: balance Luck "by making gear drops more rare"): the share taken off every Rare
+   row's chance on that ground, 0 where there is none. Trophy rows and the hourly gear are never cut. `e0` stays today's game. */
+function accountOf(run, heroes, share, ring, cutOf = () => 0) {
+  const counters = {}, rows = [], seats = run.party.length * heroes;
+  let salvaged = 0, worn = 0, wanted = 0, owed = 0, burned = 0, best = 0;
   for (const t of run.trace) {
-    const b = bestiaryLuckOf(counters, run.roster), g = gearOf(t.killsBy), e = expectedBy(t.killsBy);
-    const rK = rankOf(b), rA = rankOf(b + salvaged);
-    rows.push({ ...t, g, bLuck: b, sLuck: salvaged, rK, rA, e0: e.rare + e.trophy, eK: raresAt(e, rK), eA: raresAt(e, rA) });
+    const b = bestiaryLuckOf(counters, run.roster), g = gearOf(t.killsBy), e = expectedBy(t.killsBy), keep = 1 - cutOf(t.ground);
+    const rK = rankOf(b), rA = rankOf(b + salvaged), mf = rA + LUCKY_PERK_PCT[worn];
+    const e0 = e.rare + e.trophy;
+    e.rare *= keep; g.rareLuck *= keep; g.pieces -= g.rarePieces * (1 - keep);
+    rows.push({ ...t, g, bLuck: b, sLuck: salvaged, rK, rA, mf, worn, burned, e0, eCut: e.rare + e.trophy, eK: raresAt(e, rK), eA: raresAt(e, mf) });
     for (const [id, n] of Object.entries(t.killsBy)) counters[id] = (counters[id] || 0) + n * heroes;
-    salvaged += share * heroes * (g.luck + g.rareLuck * (1 + rA / 100));
+    let paid = share * heroes * (g.luck + g.rareLuck * (1 + mf / 100));
+    if (ring) {
+      const top = Math.min(7, Math.max(0, ...Object.keys(g.byTier).map((key) => parseInt(key.slice(1), 10))));
+      best = Math.max(best, top);
+      if (owed <= 0 && best >= 2 && best > worn) { wanted = best; owed = luckyRivetsFor(best) * seats; }
+      if (owed > 0) { const pay = Math.min(owed, paid); owed -= pay; paid -= pay; burned += pay; if (owed <= 0) worn = wanted; }
+    }
+    salvaged += paid;
   }
   return { rows, counters, salvaged };
 }
@@ -115,11 +128,16 @@ if (mode === 'table' || mode === 'project') {
   /* --extend H: PROJECTED past the life's end by living its last 200 chunks again and again (the built game's last ground, where a long life stays) */
   if (extend > measuredTo) { const loop = run.trace.slice(-200); let h = measuredTo, i = 0; while (h < extend) { const t = loop[i++ % loop.length]; h += t.h; run.trace.push({ ...t, hours: Math.round(h * 100) / 100 }); } }
   const heroes = Math.max(1, Number(arg('heroes', run.heroes || 1)) || 1), share = Math.min(1, Math.max(0, Number(arg('salvage', 1))));
-  const n = run.party.length, acct = accountOf(run, heroes, share), rows = acct.rows;
+  const ring = process.argv.includes('--ring');
+  /* --cut c [--cut-floor L]: every Rare row on a ground whose Level floor is L or more (default RARE_CUT_FLOOR) drops c less often at Luck 0 */
+  const cut = Math.min(0.9, Math.max(0, Number(arg('cut', 0)))), cutFloor = Number(arg('cut-floor', RARE_CUT_FLOOR));
+  const HG = await import(u('src/data/hunt-grounds.js')), HI = (await import(u('src/data/hunts.js'))).HUNT_INDEX;
+  const cutOf = (g) => (cut > 0 && HI[HG.HUNT_GROUNDS[g].hunt || g].band[0] >= cutFloor ? cut : 0);
+  const n = run.party.length, acct = accountOf(run, heroes, share, ring, cutOf), rows = acct.rows;
   const who = n > 1 ? `one account's ${n} heroes in one hunt (${run.party.join('+')}, ${run.policy})` : heroes > 1 ? `one account's ${heroes} heroes hunting apart, each a lone ${run.party[0]} (${run.policy})` : `a one-hero account, a lone ${run.party[0]} (${run.policy})`;
   if (mode === 'table') {
     console.log(`${who}, salvaging ${Math.round(share * 100)}% of the gear its hunts drop. Hours are hours EACH hero has hunted. Rares and gold are one hero's share.`);
-    console.log('hours | Level | ground | Luck: Bestiary + salvage | rank (= +% on Rares): selling everything / salvaging | Rares an hour: today / selling / salvaging | Rares so far: today / selling / salvaging | gear pieces an hour | shop gold for them, an hour (share of coin + sold loot) | given up so far | Luck an hour: Bestiary / salvage | next rank costs');
+    console.log('hours | Level | ground | Luck: Bestiary + salvage | rank (= +% on Rares): selling everything / salvaging | Rares an hour: today / selling / salvaging | Rares so far: today / selling / salvaging | gear pieces an hour | shop gold for them, an hour (share of coin + sold loot) | given up so far | Luck an hour: Bestiary / salvage | next rank costs | Lucky ring: tier worn / Magic Find with it / rivets it burned');
     const win = (at) => rows.filter((t) => t.hours > at - Math.max(5, at / 10) && t.hours <= at + 1e-9);
     for (const at of MARKS) {
       const b = win(at);
@@ -129,7 +147,7 @@ if (mode === 'table' || mode === 'project') {
       const per = (f) => sum(b, f) / H / n, tot = (f) => sum(upTo, f) / n;
       const gear = per((t) => t.g.gold), inc = per((t) => t.income);
       const after = rows.find((t) => t.hours > at + 1e-9) || last, first = b[0];
-      console.log(`${at} | ${Math.min(...last.levels)} | ${last.ground}${last.tier === 'normal' ? '' : ' (' + last.tier + ')'} | ${k(last.bLuck)} + ${k(last.sLuck)} | ${last.rK} / ${last.rA} | ${per((t) => t.e0).toFixed(2)} / ${per((t) => t.eK).toFixed(2)} / ${per((t) => t.eA).toFixed(2)} | ${tot((t) => t.e0).toFixed(0)} / ${tot((t) => t.eK).toFixed(0)} / ${tot((t) => t.eA).toFixed(0)} | ${per((t) => t.g.pieces).toFixed(1)} | ${Math.round(gear)} (${(100 * gear / inc).toFixed(0)}% of ${Math.round(inc)}) | ${k(tot((t) => share * t.g.gold))} | ${Math.round((after.bLuck - first.bLuck) / H)} / ${Math.round((after.sLuck - first.sLuck) / H)} | ${k(RANK_STEP * (last.rA + 1) ** 2)}`);
+      console.log(`${at} | ${Math.min(...last.levels)} | ${last.ground}${last.tier === 'normal' ? '' : ' (' + last.tier + ')'} | ${k(last.bLuck)} + ${k(last.sLuck)} | ${last.rK} / ${last.rA} | ${per((t) => t.e0).toFixed(2)} / ${per((t) => t.eK).toFixed(2)} / ${per((t) => t.eA).toFixed(2)} | ${tot((t) => t.e0).toFixed(0)} / ${tot((t) => t.eK).toFixed(0)} / ${tot((t) => t.eA).toFixed(0)} | ${per((t) => t.g.pieces).toFixed(1)} | ${Math.round(gear)} (${(100 * gear / inc).toFixed(0)}% of ${Math.round(inc)}) | ${k(tot((t) => share * t.g.gold))} | ${Math.round((after.bLuck - first.bLuck) / H)} / ${Math.round((after.sLuck - first.sLuck) / H)} | ${k(RANK_STEP * (last.rA + 1) ** 2)} | ${ring ? 'T' + last.worn + ' / ' + last.mf + ' / ' + k(last.burned) : 'none'}${cut > 0 ? ` | cut ${Math.round(cut * 100)}% from Level ${cutFloor}: Rares an hour at Luck 0 ${per((t) => t.eCut).toFixed(2)}, so far ${tot((t) => t.eCut).toFixed(0)}` : ''}`);
     }
     const firstAt = (f) => { const t = rows.find(f); return t ? t.hours.toFixed(0) + ' h' : 'not reached'; };
     console.log('rank reached at, salvaging: ' + [1, 5, 10, 15, 20, 25, 30, 40, 50].map((L) => `${L}: ${firstAt((t) => t.rA >= L)}`).join(' · '));
@@ -146,18 +164,21 @@ if (mode === 'table' || mode === 'project') {
   const base = rows.filter((t) => t.hours <= from + 1e-9), last = base[base.length - 1];
   if (!last || last.hours < from - 1) { console.error(`the life stops before ${from} h`); process.exit(2); }
   const tail = base.filter((t) => t.hours > from - 100), TH = sum(tail, (t) => t.h);
-  const UNIQUES_H = 0.5, BAND_H = 364, STAGE_H = (last.bLuck - tail[0].bLuck) / TH;
-  console.log(`ASSUMED, the planned game past tier 7. ${who}, salvaging ${Math.round(share * 100)}% of what it doesn't keep.`);
-  console.log(`  to ${from} h: the recorded life. After it: no hourly gear (plan section 3); a unique every ${1 / UNIQUES_H} h a hero at Luck 0 (the plan's estimate), ${Math.round(kept * 100)}% of them worn or kept; band 8 at ${from} h and one more every ${BAND_H} h (bands 8 to 18 over Levels 128 to 400, the plan's hours); a unique gives ${UNIQUE_LUCK_PER_BAND} x band; the Bestiary pays what it paid over the life's last 100 h (${STAGE_H.toFixed(0)} Luck an hour for the account).`);
-  let b = last.bLuck, s = last.sLuck, uniq0 = 0, uniqL = 0;
-  console.log('hours | band | Luck: Bestiary + salvage | rank | uniques an hour a hero: today / with Luck | Luck an hour');
+  /* the plan's ground past tier 7: seven uniques at 10 to 20 h each (0.5 an hour a hero). HARDER PAST KRELL (Tyler 2026-11-20): six
+     stay Rares and drop rareKeepOf(band) as often at Luck 0; the seventh is the ground's Very Rare piece, every VERY_RARE_HOURS. */
+  const UNIQUES_H = 0.5, BAND_H = 364, STAGE_H = (last.bLuck - tail[0].bLuck) / TH, VR_H = 1 / ((VERY_RARE_HOURS[0] + VERY_RARE_HOURS[1]) / 2);
+  const ringPct = ring ? LUCKY_PERK_PCT[7] : 0;
+  console.log(`ASSUMED, the planned game past Krell. ${who}, salvaging ${Math.round(share * 100)}% of what it doesn't keep${ring ? ', every hero in a tier 7 Lucky ring' : ''}.`);
+  console.log(`  to ${from} h: the recorded life. After it: no hourly gear (plan section 3). Today's plan: a unique every ${1 / UNIQUES_H} h a hero. Harder past Krell: six of a ground's seven uniques are Rares cut by ${Math.round((1 - rareKeepOf(8)) * 100)}% at band 8 rising to ${Math.round((1 - rareKeepOf(18)) * 100)}% at band 18, the seventh is Very Rare (every ${VERY_RARE_HOURS.join(' to ')} h at Luck 0, never salvaged). ${Math.round(kept * 100)}% of Rare uniques worn or kept; band 8 at ${from} h and one more every ${BAND_H} h; a unique gives ${UNIQUE_LUCK_PER_BAND} x band; the Bestiary pays what it paid over the life's last 100 h (${STAGE_H.toFixed(0)} Luck an hour for the account).`);
+  let b = last.bLuck, s = last.sLuck, uniq0 = 0, uniqC = 0, uniqL = 0, vr0 = 0, vrL = 0;
+  console.log('hours | band | Luck: Bestiary + salvage | Magic Find | uniques an hour a hero: today\'s plan / harder at Luck 0 / harder with this Luck | hours a Very Rare piece: Luck 0 / with this Luck | Luck an hour');
   for (let h = from; h <= 5000; h++) {
-    const band = Math.min(18, 8 + Math.floor((h - from) / BAND_H)), r = rankOf(b + s);
-    const perH = UNIQUES_H * (1 + r / 100), gain = share * (1 - kept) * heroes * perH * UNIQUE_LUCK_PER_BAND * band;
-    if ([from, 1000, 2000, 3000, 5000].includes(h)) console.log(`${h} | ${band} | ${k(b)} + ${k(s)} | ${r} | ${UNIQUES_H.toFixed(2)} / ${perH.toFixed(2)} | ${Math.round(STAGE_H + gain)}`);
-    b += STAGE_H; s += gain; uniq0 += UNIQUES_H; uniqL += perH;
+    const band = Math.min(18, 8 + Math.floor((h - from) / BAND_H)), r = rankOf(b + s) + ringPct, keep = rareKeepOf(band);
+    const rare0 = UNIQUES_H * (6 / 7) * keep, rareL = rare0 * (1 + r / 100), vL = VR_H * (1 + r / 100), gain = share * (1 - kept) * heroes * rareL * UNIQUE_LUCK_PER_BAND * band;
+    if ([from, 1000, 2000, 3000, 5000].includes(h)) console.log(`${h} | ${band} | ${k(b)} + ${k(s)} | ${r} | ${UNIQUES_H.toFixed(2)} / ${(rare0 + VR_H).toFixed(2)} / ${(rareL + vL).toFixed(2)} | ${(1 / VR_H).toFixed(0)} / ${(1 / vL).toFixed(0)} | ${Math.round(STAGE_H + gain)}`);
+    b += STAGE_H; s += gain; uniq0 += UNIQUES_H; uniqC += rare0 + VR_H; uniqL += rareL + vL; vr0 += VR_H; vrL += vL;
   }
-  console.log(`  uniques a hero, ${from} to 5,000 h: ${uniq0.toFixed(0)} today, ${uniqL.toFixed(0)} with Luck. The far stop (rank ${LUCK_RANK_MAX}, ${k(luckToRank(LUCK_RANK_MAX))} Luck) is ${k(luckToRank(LUCK_RANK_MAX) - b - s)} Luck away at 5,000 h.`);
+  console.log(`  uniques a hero, ${from} to 5,000 h: ${uniq0.toFixed(0)} on today's plan, ${uniqC.toFixed(0)} harder at Luck 0, ${uniqL.toFixed(0)} harder with this Luck; Very Rare pieces among them ${vr0.toFixed(0)} at Luck 0, ${vrL.toFixed(0)} with this Luck. The far stop (rank ${LUCK_RANK_MAX}, ${k(luckToRank(LUCK_RANK_MAX))} Luck) is ${k(luckToRank(LUCK_RANK_MAX) - b - s)} Luck away at 5,000 h.`);
   process.exit(0);
 }
 
@@ -173,6 +194,7 @@ if (mode === 'curve') {
   console.log('  tier: standard / Rare: ' + [1, 2, 3, 4, 5, 6, 7].map((t) => `${t}: ${salvageLuckOf(t, 'scarce')} / ${salvageLuckOf(t, 'rare')}`).join(' · ') + ' · a unique of band 8 / 12 / 18: ' + [8, 12, 18].map((t) => salvageLuckOf(t, 'rare')).join(' / '));
   console.log(`THE BESTIARY (one count a creature for the whole account): at ${LUCK_STAGES.join(' / ')} kills it pays ${STAGE_LUCK.join(' / ')} Luck (${sum(STAGE_LUCK, (x) => x)} a creature in all)`);
   console.log(`RANKS: rank n costs ${RANK_STEP} x n^2 Luck. +1% on Rare rows a rank, to rank ${LUCK_RANK_MAX}; Trophy rows take ${TROPHY_MAX_PM / 10}% x rank / (rank + ${TROPHY_HALF})`);
+  console.log(`THE ITEM: salvage pays its Luck as ${LUCK_ITEM}, one a Luck, account-bound. THE LUCKY RING (one a hero): tiers 2 to 7 add ${LUCKY_PERK_PCT.slice(2).join(' / ')}% Magic Find and burn ${[2, 3, 4, 5, 6, 7].map((t) => k(luckyRivetsFor(t))).join(' / ')} of them. The most any hero holds: ${MAGIC_FIND_MAX}%`);
   console.log('rank | this rank costs | Luck in all | a 10 h Rare comes every | a 125 h Trophy comes every');
   for (const r of [0, 1, 2, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100]) console.log(`${r} | ${k(RANK_STEP * r * r)} | ${k(luckToRank(r))} | ${(10 / luckMult(luckToRank(r))).toFixed(1)} h | ${(125 / luckMult(luckToRank(r), 'trophy')).toFixed(0)} h`);
   const gearRows = ROSTER.flatMap((id) => ((MON[id] || {}).drops || []).filter((d) => isGear(d.id)));

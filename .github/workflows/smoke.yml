@@ -7136,6 +7136,13 @@ jobs:
           node tools/mutant-gate.mjs node tools/guards-for.local.mjs --selftest
           node tools/mutant-gate.mjs node tools/player-read.local.mjs --selftest
 
+      # THE PITR DRILL, READY (docs/design/restore-runbook.md §9b, lane/c-ops-gates 2026-11-19): the recovery-point verdict on
+      # planted marker rows (PASS, too early, past T, unread), the SELECT-only filter, and --disarm's two refusals (production's
+      # ref, a project older than the plan). Offline fixtures, no token, under 1 s measured locally; the drill itself waits on PITR.
+      - name: PITR drill - the recovery-point verdict and the refusals, offline
+        if: ${{ !cancelled() }}
+        run: node tools/mutant-gate.mjs node tools/pitr-drill.local.mjs --selftest
+
       # slice 3 (b515) - the window.Hearthrise* census. A misspelt global is silently
       # undefined, so the feature behind it is DEAD rather than loudly broken:
       # window.HearthriseAccrue kept the dungeon-settle arm off while the flag said ON.

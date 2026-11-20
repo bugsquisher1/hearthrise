@@ -15,7 +15,7 @@ The record gate is the GitHub matrix (`.github/workflows/smoke.yml`, CLAUDE.md Â
 | `node tests/run-smoke.mjs` | the node guard suite: server, engine, economy, catalogue, asset, secret and edge-payload checks |
 | `node tests/client-boot.mjs` | boots the client in headless Chromium |
 | `node tests/hunt-core/<module>.mjs`, `tests/session-core.mjs`, `tests/envelope-contract.mjs` | module tests for the hunt engine, character sessions and the envelope |
-| `node tests/schema-drift.mjs` | replays the migration chain (byte-identical second apply) |
+| `node tests/schema-drift.mjs` | replays the migration chain from the longest cached prefix (tests/pglite-template.mjs bootChain; `--full` from zero) and applies the staged tail a second time, byte-identical |
 | `node tests/run-ci-local.mjs` | reproduces a GitHub red locally; never a gate |
 | `node tests/core-loop.mjs` | the nightly loop against the real edge verbs |
 

@@ -69,6 +69,10 @@ const READS = {
   ledger_bytes: `select count(*) n, sum(pg_column_size(l.*)) row_bytes, min(at)::date::text first_day from player_ledger l`,
   statements: `select left(regexp_replace(query, '\\s+', ' ', 'g'), 70) q, calls, round(total_exec_time) total_ms, round(mean_exec_time::numeric, 2) mean_ms,
     rows, wal_bytes from extensions.pg_stat_statements order by total_exec_time desc limit 40`,
+  /* the REST calls by the function they name (PostgREST wraps each in one long statement) */
+  rest_calls: `select substring(query from '"public"."([a-z_0-9]+)"') fn, sum(calls) calls, round(sum(total_exec_time)) total_ms,
+    round((sum(total_exec_time) / sum(calls))::numeric, 2) mean_ms, sum(wal_bytes) wal_bytes from extensions.pg_stat_statements
+    where query like 'WITH pgrst_source%' group by 1 order by 3 desc limit 24`,
   statements_since: `select stats_reset::text since, (select round(sum(total_exec_time)) from extensions.pg_stat_statements) total_ms,
     (select sum(calls) from extensions.pg_stat_statements) calls, (select sum(wal_bytes) from extensions.pg_stat_statements) wal_bytes,
     round(extract(epoch from (now() - stats_reset))) seconds from extensions.pg_stat_statements_info`,

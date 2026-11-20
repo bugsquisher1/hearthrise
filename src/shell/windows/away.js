@@ -69,7 +69,7 @@ export function awayBlockOf(cs, a) {
   /* A YARD'S CARD HAS ITS NUMBERS (audit 2026-11-18 A22): the skill's levels and XP over the absence, the server's */
   } : tr ? { level: { name: skillName(tr.skill), from: tr.from, to: tr.to }, ups: [],
     figs: [{ key: 'xp', label: t('training.card_xp', { skill: skillName(tr.skill) }), value: '+' + whole(tr.xp) }] } : { level: null, ups: [], figs: [] };
-  let why = '', when = '', stamina = '', go = a.action === 'bag' ? 'bag' : 'show', label = a.button, ground = null, rest = null;
+  let why = '', when = '', stamina = '', go = a.action === 'bag' || a.action === 'work' ? a.action : 'show', label = a.button, ground = null, rest = null;
   if (a.work) why = f.body || a.text;
   else if (now && now.training) {
     const yard = now.ended ? now.why : t('training.away_still');

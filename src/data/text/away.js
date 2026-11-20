@@ -42,6 +42,12 @@ export const AWAY_TEXT = Object.freeze({
   card_ended: 'The hunt has ended.',
   /* A town job's line on the card, after the card's own head ({who} "Tess mined the Copper Rock", {facts} what it made and where it stands). */
   card_work: '{who}. {facts}',
+  /* A TOWN JOB STILL RUNNING SAYS HOW IT ENDS (retention dive 2026-11-20: "Still mining", 6,001 Copper Ore for a 20-ore errand, and no way back).
+     A gathering job has no count (the server's job runs until stopped), a bench run may ({n}: the server's count left). Its press opens the window. */
+  work_how_gather: 'It keeps going until you press Stop in Gathering and crafting.',
+  work_how_left: '{n} more to go. Press Stop in Gathering and crafting to end it sooner.',
+  work_how_bench: 'It stops when the materials run out, or press Stop in Gathering and crafting.',
+  work_change: 'Stop or change it',
   /* THE WHILE YOU WERE AWAY CARD (src/shell/windows/away.js, UI audit 2026-11-18 #2): its head, each hero's labels and the line under the figures. */
   card_gone: 'Away {time}',
   card_best: 'Best find',

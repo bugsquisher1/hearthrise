@@ -15,4 +15,6 @@ export const EVENTS_TEXT = Object.freeze({
   /* The second sentence of a ground's line for an event. */
   ends_at: 'Ends {at}',
   ends_in: 'Ends in {mins} min',
+  /* The Character sheet's event line, after its chip, when the event names grounds: "+25% Level XP in Millrace Sewer". */
+  sheet_where: 'in {where}',
 });

@@ -84,6 +84,14 @@ function whyStopped(cs, w) {
   return out ? ', out of ' + itemName(out[0]) : '';
 }
 
+/* HOW A JOB STILL RUNNING ENDS (retention dive 2026-11-20: 8 h at the Copper Rock for a 20-ore errand, the card said only "Still mining"): a
+   gathering job runs until stopped (the server's job takes no count), a bench run stops at the server's count left or when its materials run out. */
+function howItEnds(cs, w) {
+  if (w.kind === 'gather') return t('away.work_how_gather');
+  const left = leftOf(cs);
+  return left !== null ? t('away.work_how_left', { n: whole(left) }) : t('away.work_how_bench');
+}
+
 /**
  * The away line for a stamped town job, or null when nothing came of it. Pure.
  * @param {(ms: number) => string} awayWords  away-recap.js's "1 h 58 min"
@@ -106,12 +114,13 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const still = !!goes && keyOf(goes) === was.s;
   const ran = gained > 0 ? Math.ceil(gained / yieldOf(w)) * actionMs(cs, w) : 0;
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
-  const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') : ' It stopped' + when + whyStopped(cs, w) + '.';
+  const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') + ' ' + howItEnds(cs, w) : ' It stopped' + when + whyStopped(cs, w) + '.';
   const name = nameOf(cs) || 'Hero';
   const who = name + ' ' + didWords(w), facts = t('away.card_facts', { facts: parts.join(', ') }) + tail;
   return {
     id: 'away:' + was.s.slice(0, 64) + ':' + was.at, kind: 'away', session: null, work: was.s, still,
-    action: made ? 'bag' : 'show', button: made ? 'Open your inventory' : 'See your hero',
+    /* a job still running: its press is the window that stops or changes it (windows/away.js OPENS.work) */
+    action: still ? 'work' : made ? 'bag' : 'show', button: still ? t('away.work_change') : made ? 'Open your inventory' : 'See your hero',
     /* the away card's (windows/away.js): the hero, the absence, and the line after its head ("Tess mined the Copper Rock. +4,303 Copper Ore.") */
     facts: { name, gone: now - was.at, body: t('away.card_work', { who, facts }) },
     text: t('away.card_head', { time: awayWords(now - was.at), who }) + ' ' + facts,

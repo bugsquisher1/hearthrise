@@ -233,6 +233,8 @@ function sanitizeCoach(v) {
     const hid = Array.from(new Set(v.hid.filter((id) => typeof id === 'string' && /^[a-z0-9_]{1,256}$/.test(id)))).slice(-COACH_HID_MAX);
     if (hid.length) out.hid = hid;
   }
+  /* the visit those hides hold for (src/shell/launcher.js visitOf: the hunt's session and in or back in town); a hide outlives no visit */
+  if (out.hid && typeof v.hidIn === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.hidIn)) out.hidIn = v.hidIn;
   if (typeof v.back === 'string' && /^[A-Za-z0-9_:.-]{1,64}$/.test(v.back)) out.back = v.back;
   /* the last-seen stamp that return's line was told from (away-recap.js awayMinMsOf) */
   if (out.back && Number.isSafeInteger(v.backAt) && v.backAt >= 0) out.backAt = v.backAt;

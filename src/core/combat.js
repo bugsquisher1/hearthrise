@@ -22,7 +22,7 @@ import {
   baneIndex, baneMultFor, classOfMonster, MAX_COMBINED_DAMAGE_MULT,
 } from './bane.js?v=0.2.141';
 import { elementMultFor, MAX_TOTAL_DAMAGE_MULT, resistProfile } from './elements.js?v=0.2.141';
-import { ARMOUR_WEIGHT } from '../data/core-model.js?v=0.2.141';
+import { ARMOUR_WEIGHT, SKILL_PLUS_FIELDS } from '../data/core-model.js?v=0.2.141';
 /* The bestiary CHARM and TROPHY combat multipliers are gone (closed rebuild,
    demolition safety review item 9: trophies stay as claims and display; the
    ladders no longer price a fight). A monster's drops are its own row's. */
@@ -95,8 +95,9 @@ export const DEFAULT_PROFILE = {
    raises the hero's level in that combat skill WHILE IT IS WORN, wherever a fight reads that skill: a blow's accuracy and max hit
    (playerCombatRolls), a monster's chance to land (monsterCombatRolls, the snapshot's `def`), a spell's or heal's output and a bleed's
    strength (hunt/abilities.js powerLevel). It is never skill XP or a skill level: a rune's version, an ability's unlock, an item's
-   requirement, a task, a title and the boards read the BASE level (levelOf), so they never see it. Summed over every worn piece. */
-export const SKILL_PLUS_FIELDS = Object.freeze({ melee: 'meleePlus', ranged: 'rangedPlus', magic: 'magicPlus', defense: 'defensePlus' });
+   requirement, a task, a title and the boards read the BASE level (levelOf), so they never see it. Summed over every worn piece.
+   The field names are an item row's vocabulary, so they live in src/data/core-model.js (src/data/chests.js writes them). */
+export { SKILL_PLUS_FIELDS };
 
 /** The worn +skill to `skill` in an equipmentStats result (0 with none). Pure. */
 export function skillPlusOf(eq, skill) {

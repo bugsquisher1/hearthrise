@@ -79,7 +79,7 @@ import { HUNT_TUNING } from './hunt-tuning.js?v=0.2.141';
 import { isElement } from './elements.js?v=0.2.141';
 import { ITEMS } from './items.js?v=0.2.141';
 import { isRune, runeTierOf, RUNE_TIERS } from './runes.js?v=0.2.141';
-import { shapeProblem } from '../core/hunt/shapes.js?v=0.2.141';
+import { shapeProblem } from './shape-kinds.js?v=0.2.141';
 import { FIST_LINE, FIST_ELEMENTS } from './fists.js?v=0.2.141';
 import { NECROTIC_STORM } from './necrotic-storm.js?v=0.2.141';
 

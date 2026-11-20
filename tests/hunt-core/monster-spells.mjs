@@ -642,7 +642,7 @@ const mutants = [
   { name: 'a cone of 180 degrees', case: 'shapes', edits: [['src/core/hunt/shapes.js', '      return dot > 0 && 2 * dot * dot >= (rx * rx + ry * ry) * (s.dx * s.dx + s.dy * s.dy);', '      return dot >= 0;']] },
   { name: 'a line on the 8 ways only', case: 'shapes', edits: [['src/core/hunt/shapes.js', '  return [s.ox + rdiv(k * s.dx, d), s.oy + rdiv(k * s.dy, d)];', '  return [s.ox + Math.sign(s.dx) * k, s.oy + Math.sign(s.dy) * k];']] },
   { name: 'drawn tiles keep the walls', case: 'shapes', edits: [['src/core/hunt/shapes.js', "if (covers(s, x, y) && (!grid || walkable(grid, x, y))) out.push([x, y]);", 'if (covers(s, x, y)) out.push([x, y]);']] },
-  { name: 'a radius 3 passes the bounds', case: 'shapes', edits: [['src/core/hunt/shapes.js', 'r: Object.freeze([1, 2]),', 'r: Object.freeze([1, 3]),']] },
+  { name: 'a radius 3 passes the bounds', case: 'shapes', edits: [['src/data/shape-kinds.js', 'r: Object.freeze([1, 2]),', 'r: Object.freeze([1, 3]),']] },
   { name: 'a killed caster still lands', case: 'dropped', edits: [[S, "const outOf = (u) => (!u.alive ? 'killed' : ", "const outOf = (u) => (false ? 'killed' : "]] },
   { name: 'a reset caster still lands', case: 'dropped', edits: [[S, " : !Number.isInteger(u.target) ? 'reset' : null);", ' : null);']] },
   { name: 'the drop hook does nothing (the mark closes a sub-step late)', case: 'dropped', edits: [[S, '    const why = outOf(u);\n    if (why) drop(u, sc, why);\n', '']] },

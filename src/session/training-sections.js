@@ -21,7 +21,7 @@
 // ════════════════════════════════════════════════════════════════════════
 import { trainingOf as trainingHuntOf } from '../data/training.js?v=0.2.141';
 import { SKILLS_DEF } from '../data/skills.js?v=0.2.141';
-import { t } from '../render/player-text.js?v=0.2.141';
+import { t } from '../data/player-text.js?v=0.2.141';
 
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);
 

@@ -6413,6 +6413,7 @@ jobs:
         run: |
           node tools/mutant-gate.mjs node tools/guards-for.local.mjs --selftest
           node tools/mutant-gate.mjs node tools/player-read.local.mjs --selftest
+          node tools/mutant-gate.mjs node tools/balance-program/real-players.local.mjs --selftest
 
       # THE PITR DRILL, READY (docs/design/restore-runbook.md §9b, lane/c-ops-gates 2026-11-19): the recovery-point verdict on
       # planted marker rows (PASS, too early, past T, unread), the SELECT-only filter, and --disarm's two refusals (production's

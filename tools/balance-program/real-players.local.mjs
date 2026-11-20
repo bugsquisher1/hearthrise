@@ -432,7 +432,13 @@ export function aggregate(raw, game) {
   const byItem = new Map(); for (const r of rareRows) { const t = byItem.get(r.item) || { item: r.item, band: r.band, expected: 0 }; t.expected += r.kills * r.ch; byItem.set(r.item, t); }
   for (const t of byItem.values()) { t.pure = !otherRows.has(t.item); if (t.pure) { pure[t.band].items += 1; pure[t.band].expected += t.expected; pure[t.band].dropped += lootOnKm.get(t.item) || 0; } }
   for (const b of ['rare', 'trophy']) { pure[b].expected = r2(pure[b].expected); pure[b].dropped_over_expected = pure[b].expected ? r2(pure[b].dropped / pure[b].expected) : null; }
-  out.rares = { only_rare_items: pure, kills_with_a_monster_name_share: r2(killsWithMonsters / Math.max(1, killsAll)), expected_from_row_odds: { rare: r1(expected.rare), trophy: r2(expected.trophy) }, dropped: got,
+  /* every band against its rows' odds, apart for accounts that never hunted in a party: a party kill is journalled on every seat but drops once, so the common band is the control the rare band is read against */
+  const bandRatio = (keep) => { const exp = {}; const drop = {};
+    for (const k of raw.kills.filter((x) => real(x.u) && keep(x.u))) for (const row of game.allRows(k.monster)) if (row.band) exp[row.band] = (exp[row.band] || 0) + N(k.n) * row.ch;
+    for (const l of lootReal.filter((x) => keep(x.u))) { const b = bandAt(l.item, l.mon); if (b) drop[b] = (drop[b] || 0) + N(l.qty); }
+    return Object.keys(exp).map((b) => ({ band: b, expected: r1(exp[b]), dropped: r0(drop[b] || 0), dropped_over_expected: r2((drop[b] || 0) / exp[b]) })); };
+  const partied = (u) => acctHeroes(u).some((h) => h.partyMs > 0);
+  out.rares = { by_band_accounts_that_partied: bandRatio(partied), by_band_accounts_always_alone: bandRatio((u) => !partied(u)), only_rare_items: pure, kills_with_a_monster_name_share: r2(killsWithMonsters / Math.max(1, killsAll)), expected_from_row_odds: { rare: r1(expected.rare), trophy: r2(expected.trophy) }, dropped: got,
     dropped_over_expected: { rare: expected.rare ? r2(got.rare / expected.rare * (killsWithMonsters / Math.max(1, killsAll))) : null },
     reveal_notices_real: sum(raw.rare_notices.filter((n) => real(n.u)), (n) => n.n),
     rows: [...byItem.values()].map((t) => ({ item: t.item, band: t.band, only_rare_rows: t.pure, expected: r1(t.expected), dropped: lootOnKm.get(t.item) || 0 })).sort((a, b) => b.expected - a.expected).slice(0, 40),
@@ -612,7 +618,7 @@ function print(a) {
   console.log('\n### deaths\n' + JSON.stringify(a.deaths));
   for (const cls of ['real', 'test']) { const g = a.gold[cls]; console.log('\n### gold, ' + cls + ': ' + JSON.stringify({ ...g, rows: undefined, store_supplies_by_kind: undefined })); table('gold rows, ' + cls, g.rows); }
   table('store supplies by kind (real)', a.gold.real.store_supplies_by_kind); table('gold by account', a.gold.by_account); table('purse over account age', a.purse_curve); table('coin by Level band', a.coin_by_band);
-  table('drops by ground', a.drops_by_ground); console.log('\n### rares\n' + JSON.stringify({ ...a.rares, rows: undefined })); table('rare and trophy rows', a.rares.rows);
+  table('drops by ground', a.drops_by_ground); console.log('\n### rares\n' + JSON.stringify({ ...a.rares, rows: undefined, by_band_accounts_that_partied: undefined, by_band_accounts_always_alone: undefined })); table('rare and trophy rows', a.rares.rows); table('drops against the odds of their rows, accounts that hunted in a party', a.rares.by_band_accounts_that_partied); table('drops against the odds of their rows, accounts always alone', a.rares.by_band_accounts_always_alone);
   console.log('\n### what players do with gear\n' + JSON.stringify(a.gear_use));
   table('systems', a.systems, ['system', 'real_uses', 'real_accounts', 'real_people', 'test_uses', 'days_since_last_real_use', 'rows_any_account', 'detail']); console.log('\n### house\n' + JSON.stringify(a.house) + '\n### tower\n' + JSON.stringify(a.tower));
   table('crafting by recipe', a.crafting); table('gathering by node', a.gathering); table('town hours by skill', a.town_hours_by_skill);

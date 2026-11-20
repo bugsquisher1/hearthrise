@@ -645,6 +645,7 @@
     "node tools/mutant-gate.mjs node tools/lib/nightly-health.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tools/guards-for.local.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tools/player-read.local.mjs --selftest": "client-guards",
+    "node tools/mutant-gate.mjs node tools/balance-program/real-players.local.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tools/pitr-drill.local.mjs --selftest": "client-guards",
     "node tools/mutant-gate.mjs node tests/window-globals-exist.mjs --selftest": "client-guards",
     "node tests/window-globals-exist.mjs": "client-guards",

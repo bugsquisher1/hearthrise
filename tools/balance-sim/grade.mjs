@@ -310,8 +310,6 @@ export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
         case 'xpVsFloorSolo': { const f = median(find(m, (o) => o.tier === m.tier && o.offset === 'floor' && o.size === 1 && (o.gear || 'ladder') === 'ladder').map((o) => o.x.xp)); v = f > 0 ? x.xp / f : null; break; }
         case 'xpVsNormal': { const n = find(m, (o) => o.tier === 'normal' && o.offset === m.offset && o.comp === m.comp && (o.gear || 'ladder') === 'ladder')[0]; v = n && n.x.xp > 0 ? x.xp / n.x.xp : null; break; }
         case 'xpVsPace': { const L = r.c.cell.level, p = pace(Array.isArray(L) ? Math.max(...L) : L); v = p > 0 ? x.xp / p : null; break; }
-        case 'xpVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1 && (o.gear || 'ladder') === (m.gear || 'ladder')).map((o) => o.x.xp));
-          v = solo > 0 ? x.xp / solo : null; break; }
         case 'xpVsTierBelow': { const below = m.tier === 'deadly' ? 'dangerous' : 'normal'; const b = find(m, (o) => o.tier === below && o.offset === m.offset && o.comp === m.comp)[0]; v = b && b.x.xp > 0 ? x.xp / b.x.xp : null; break; }
         /* a party's head over the same heroes alone (sameAloneXp, the seat twins included) */
         case 'xpVsSame': { const s = sameAloneXp(every, m); v = s > 0 ? x.xp / s : null; break; }

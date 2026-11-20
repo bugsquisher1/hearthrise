@@ -7,6 +7,7 @@
 //        the two feeds and the formula: the bonus at each Luck, what today's open grounds can hold, what a salvage point costs
 //   node tools/balance-sim/staged/luck-measure.mjs life --party hammer [--policy rec|dangerous|deadly] [--max 500] [--heroes 1]
 //                                                       [--luck off|kills|all] --out file.json
+//        (written every 10 chunks; run the same command again after a stop and it carries on from the file)
 //        a played life (the loop of tools/balance-sim/life.mjs: the advised ground, the played profile, store supplies), hour by hour.
 //        Each chunk records its kills by creature and the worn gear those kills drop (the shop's own price for it). The ACCOUNT's
 //        count is every kill once, whoever of its heroes was there: `--party a,b,c,d` is four of one account's heroes in one hunt
@@ -29,7 +30,7 @@
 // expected the same way. Salvage's own return (the plan's crafting stock) is not built and is counted as nothing: an upper bound.
 //
 // Exit 0 when it ran, 2 on a bad argument.
-import { writeFileSync, readFileSync } from 'node:fs';
+import { writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { LUCK_STAGES, LUCK_CAP_PM, LUCK_HALF, LUCK_BANDS, SALVAGE_STEP, luckOf, salvageLuckOf, salvageCostTo, luckPm, luckMult, stagesAt } from './luck.js';
@@ -167,6 +168,20 @@ const seats = party.map(() => ({ levelXp: 0, skills: {} }));
 const lv = (s) => XP.charLevelFromXp(s.levelXp);
 const counters = {}, trace = [];
 let hours = 0, chunk = 0, salvaged = 0;
+/* A LONG LIFE SURVIVES A RESTART: with --out, the life so far is written every 10 chunks, and a run that finds its own unfinished
+   file (the same party, policy, heroes and Luck) carries on from it. The dice are the chunk's (seedBase 7000 + chunk), so a resumed
+   life is the life an unbroken run plays. */
+const outFile = arg('out', null) ? resolve(arg('out')) : null;
+const save = (done) => { if (outFile) writeFileSync(outFile, JSON.stringify({ policy, party, heroes, luck, hours, done, reached: seats.map(lv), trace, roster: ROSTER, state: { seats, counters, salvaged, chunk } })); };
+if (outFile && existsSync(outFile)) {
+  const old = JSON.parse(readFileSync(outFile, 'utf8'));
+  if (old.state && !old.done && old.policy === policy && old.luck === luck && old.heroes === heroes && old.party.join() === party.join()) {
+    old.state.seats.forEach((s, i) => { seats[i] = s; });
+    Object.assign(counters, old.state.counters); trace.push(...old.trace);
+    hours = old.hours; chunk = old.state.chunk; salvaged = old.state.salvaged;
+    console.log(`  resumed at ${hours.toFixed(1)} h`);
+  }
+}
 while (hours < maxHours) {
   const levels = seats.map(lv), L = Math.min(...levels);
   const chunkH = L < 8 ? 0.25 : L < 12 ? 0.5 : 1;
@@ -200,9 +215,10 @@ while (hours < maxHours) {
     scarceGold: m.heroes.reduce((s, x) => s + (x.lootPerH.scarce || 0) * x.hours, 0), rareGold: m.heroes.reduce((s, x) => s + x.raw.rares, 0),
     deaths: m.heroes.reduce((s, x) => s + x.deaths, 0) });
   chunk++;
+  if (chunk % 10 === 0) save(false);
 }
 
 const n = party.length;
 console.log(`${party.join('+')} (${policy}, played, ${heroes > 1 ? heroes + ' heroes apart, ' : ''}Luck in the roll: ${luck}): ${hours.toFixed(1)} h -> Level ${seats.map(lv).join('/')}; the Bestiary ${luckOf(counters, ROSTER)} of ${ROSTER.length * LUCK_STAGES.length}, salvage ${salvageLuckOf(salvaged)} from ${k(salvaged)} gold of gear`);
 console.log(`  a hero: rolled Rares ${(sum(trace, (t) => t.rolled) / n).toFixed(1)}, expected today ${(sum(trace, (t) => t.expBase) / n).toFixed(1)}, expected at this run's Luck ${(sum(trace, (t) => t.expLuck) / n).toFixed(1)}; income ${Math.round(sum(trace, (t) => t.income) / n)}, store ${Math.round(sum(trace, (t) => t.store) / n)}, deaths ${sum(trace, (t) => t.deaths)}`);
-if (arg('out', null)) writeFileSync(resolve(arg('out')), JSON.stringify({ policy, party, heroes, luck, hours, reached: seats.map(lv), trace, roster: ROSTER }));
+save(true);

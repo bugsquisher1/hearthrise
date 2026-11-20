@@ -239,6 +239,8 @@ So the Buyer gets time back (three slots make every lining and salt with no hero
 | 60 | 6,000 | 0.48 | 109,000 | about 1.9M: nobody pays it, the dummy is the way | 25 hours |
 | 110 | 11,000 | 0.51 | 4.8M | not a purchase | 14 hours |
 
+  The finished economy dive (24, "For other dives") asks for the same sink at about a quarter of a free-gold hour, 3,000 gold at Level 50; 100 x skill is 4,500 to 5,000 for a Level 50 hero's skill of 45 to 50. The two agree on the order, and the dummy's payback is the test whichever number is ruled.
+
   A night of 8 hours for one hero is 24,000 to 48,000 gold, 15 to 30% of an Own four's daily free gold: a repeating sink it can see and a choice of which hero trains. The dummy's first skill is then back in a week of nights and all four in about a month on its one seat, which is what the ruling describes. The Defense half of every number here moves with the combat dive's to-hit change (RULED 11-18: +10 Defense for 12 yard hours cutting damage 30 to 59% is "definitely NOT" intended): **re-measure after 21** before the fee is set.
 - **Server cost before it gets popular.** A training session is a hunt session on a dummy ground, settled by the combat engine every 10 seconds, to pay hours x 30,000. ASSUMED at a lone hunt's cost (it was not measured): `measure.mjs cost --add statements=5,ledger=48,writes=28 --share 0.25` reads OVER THE ALLOWANCE and the ledger prune OUTRUN at 1,000 online. Idle hero time is 3.7 times hunted time, so a yard worth using could cost more than hunting does. It has no dice: pay it in closed form at start, at each paid hour and at stop. Handed to the platform dive.
 

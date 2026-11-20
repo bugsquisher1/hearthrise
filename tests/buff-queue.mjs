@@ -635,7 +635,7 @@ export function r6Core(B) {
   const FROM6 = Date.UTC(2026, 8, 26, 17, 45, 0);
   const NOW6 = FROM6 + 7.25 * 3600000;
   const END6 = NOW6 + 15 * 60000;
-  const rows = [{ type: 'drop_rate', magnitude: 5,
+  const rows = [{ type: 'gold_find', magnitude: 5,
     from: new Date(NOW6).toISOString(), until: new Date(END6).toISOString() }];
   const q = B.buffQueueFromServer(rows, FROM6);
   const ctx = { away: true };
@@ -645,7 +645,7 @@ export function r6Core(B) {
   }
   let paidBefore = 0; let paidAfter = 0;
   for (let t = FROM6; t < END6 + 60000; t += 10000) {
-    const b = B.buffBonusFor(q, 'dropRate', ctx);
+    const b = B.buffBonusFor(q, 'goldFind', ctx);
     if (t < NOW6 && b !== 0 && paidBefore === 0) {
       bad.push(`[R6] a segment with from = nowMs pays ${b} at t = nowMs - ${NOW6 - t} ms: the unpaid window is `
         + 'priced at a buff eaten at return (the F3 mint)');

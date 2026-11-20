@@ -41,7 +41,7 @@ export const SUPPLY_KINDS = Object.freeze(['heal', 'mana', 'ammo', 'buff']);
 /* Buff types that pay in a fight, and the ones that do not. Together they
    must cover every type in src/core/buffs.js BUFFS_DEF (the guard checks), so
    a new buff type has to be sorted into one list before it ships. */
-export const COMBAT_BUFF_TYPES = Object.freeze(['damage', 'defense', 'combat_xp', 'all_xp', 'drop_rate', 'gold_find', 'damage_crit']);
+export const COMBAT_BUFF_TYPES = Object.freeze(['damage', 'defense', 'combat_xp', 'all_xp', 'gold_find', 'damage_crit']);
 export const IDLE_BUFF_TYPES = Object.freeze(['gather_speed', 'farm_yield']);
 
 /* ESSENTIAL: when every essential line of one kind is empty, the hunt ends,

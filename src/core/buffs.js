@@ -55,7 +55,8 @@ export const BUFFS_DEF = {
      argument for not shipping emoji as art in the first place. */
   gather_speed: { label: 'Gather Speed', bonusKey: 'gatherSpeed', isPercent: true, glyph: 'uiLeaf' },
   all_xp: { label: 'All XP', bonusKey: 'allXP', isPercent: true, glyph: 'uiXp' },
-  drop_rate: { label: 'Drop Rate', bonusKey: 'dropRate', isPercent: true, glyph: 'uiGift' },
+  /* No drop_rate: a drop buff on a food is gold turned into drop rate, cut with Luck v3.1 (itemization plan §15); Magic Find is the
+     one drop lever and nothing reads a dropRate bonus, so applyBuff refuses the type (tests/luck.mjs L10). */
   /* b228: `farmYield` is a COUNT of extra crops, never a percentage. This
      entry once claimed isPercent, so Carrot Stew's "15" reached the engine
      as 0.15 of a crop and harvestPlot floored it to nothing. */

@@ -48,6 +48,7 @@ import { SHOP_OFFERS } from '../src/data/shops.js';
 import { BOSSES } from '../src/data/bosses.js';
 import { HEARTHFIND_TABLE } from '../src/data/hearthfind.js';
 import { effectiveDropChance } from '../src/core/drops.js';
+import { MAGIC_FIND_MAX } from '../src/core/luck.js';
 import { lootKey } from '../src/core/goals.js';
 import {
   playerCombatRolls, monsterCombatRolls, weaknessInfo, equipmentStats,
@@ -76,8 +77,9 @@ const LOADOUT = Object.freeze({
 });
 const FIXTURE_EXCLUDED = Object.freeze(['goblin', 'slime', 'rat', 'dark_wizard', 'wolf', 'the_silence', 'weak_skeleton']);
 const GEAR_TYPES = Object.freeze(['weapon', 'armor', 'jewelry', 'offhand']);  // + offhand: the spellbook (2026-10-19)
-const MAX_DROP_BUFF_PCT = Math.max(0, ...Object.values(ITEMS)
-  .map((it) => (it && it.buff && it.buff.type === 'drop_rate') ? Number(it.buff.magnitude) || 0 : 0));
+/* The most Magic Find a hero can hold (src/core/luck.js: the far stop + the best Lucky ring). The four foods' drop buffs are cut
+   (Luck v3.1), so Magic Find is the one lever that raises a row; it moves Rare, Very Rare and Trophy rows only. */
+const MF_MAX = MAGIC_FIND_MAX;
 
 function equipmentFor(tier) {
   const m = LOADOUT[tier].metal;
@@ -211,7 +213,7 @@ function check(monsters) {
       ok(got.deaths === 0, 'd', `${tag}: the measurement hour contained ${got.deaths} death(s)`);
       const base = effectiveDropChance(d, { dropMult: db });
       const hrs = got.kills > 0 ? 1 / (got.kills * base) : Infinity;
-      const ceil = effectiveDropChance(d, { dropMult: db, dropBuff: MAX_DROP_BUFF_PCT / 100 });
+      const ceil = effectiveDropChance(d, { dropMult: db, magicFind: MF_MAX });
       const ceilHrs = got.kills > 0 ? 1 / (got.kills * ceil) : Infinity;
       ok(hrs >= HOURS_MIN && hrs <= HOURS_MAX, 'd', `${tag}: ${hrs.toFixed(2)} expected hours, outside [${HOURS_MIN}, ${HOURS_MAX}]`);
       ok(ceilHrs >= CEILING_HOURS_MIN, 'd', `${tag}: ${ceilHrs.toFixed(2)} h at the multiplier ceiling, below ${CEILING_HOURS_MIN}`);
@@ -354,5 +356,5 @@ if (all.length) {
 }
 console.log(`field-salvage: ${res.count} salvage rows keep every rule `
   + `(a 1 h training hunt, seed ${SEED}, Controlled, fed; ceiling = dropBonus x `
-  + `${1 + MAX_DROP_BUFF_PCT / 100})\n${res.lines.join('\n')}\nboth paths:\n${both.notes.join('\n')}`);
+  + `Magic Find ${MF_MAX} on its band)\n${res.lines.join('\n')}\nboth paths:\n${both.notes.join('\n')}`);
 process.exit(0);

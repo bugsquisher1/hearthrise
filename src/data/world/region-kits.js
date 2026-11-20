@@ -226,14 +226,14 @@ export const REGION_KITS = Object.freeze({
        the trolls), the coal seam the kit's gather node (the Dawnstone Vein has no node kind yet), and the Greenhaven and Hold clutter an
        inn yard and stable already have; the Ox Road's train (the ore wagons, the dead teams in their yokes, a tipped wagon), each a step under the
        Undead teamsters */
-    props: ids(`mh_harrys_cart mh_kegs mh_taproom_table mh_sacks mh_sack_spilt mh_straw_bale mh_straw_burst mh_stone_trough mh_bar_counter
+    props: ids(`mh_harrys_cart mh_kegs mh_bar_run mh_taproom_table mh_sacks mh_sack_spilt mh_straw_bale mh_straw_burst mh_stone_trough mh_bar_counter
       mh_table_over mh_bench mh_inn_sign mh_lantern_post mh_gate_pillar mh_gate_broken mh_slate_stack mh_keg_spilt mh_round_table
       mh_stool_broken mh_chopping_block mh_ore_wagon mh_ore_wagon_half mh_ore_wagon_broken mh_yoked_dead mh_ore_wagon_tipped mh_ore_wagon_slewed mh_yoked_one mh_vigil_brazier mh_vigil_wood mh_fire_ring mh_lantern_dropped mh_lost_wheel mh_ore_dropped mh_yoke_dropped mh_lantern_stake mh_lantern_pole mh_lantern_cairn mh_coal_seam_worked mh_ore_wagon_tarped mh_vigil_bedrolls mh_mounting_block cw_coal_seam hay_bale straw sack_pile sack_stack crates barrel_broken chopping_block`),
     units: ids('troll_picker slate_thrower troll_brewer stable_troll the_landlord'),
     sets: ids('morrowfolk morrow'),
     grounds: Object.freeze({
-      /* STAGED (src/data/grounds/carters_rest): the Brewhouse's two coppers (the second with its lid down) */
-      carters_rest: Object.freeze({ family: 'morrow', signature: ids('cr_brew_kettle cr_brew_kettle_shut') }),
+      /* STAGED (src/data/grounds/carters_rest): the Brewhouse's small kettles (cr_brew_kettle and its lid-down variant) and its copper */
+      carters_rest: Object.freeze({ family: 'morrow', signature: ids('cr_brew_kettle cr_brew_copper') }),
     }),
     pending: ids(''),
   }),

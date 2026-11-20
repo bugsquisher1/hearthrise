@@ -70,14 +70,22 @@ export function stableStraw(g, grid, doorway, ch = 'S', seed = 137) {
   const SX0 = x0 * T, SY0 = y0 * T, STALL_D = 52, STALL_W = 58;   /* each stall 58 px wide, 52 deep from the north wall */
   const nStall = Math.floor(((x1 - x0 + 1) * T - 20) / STALL_W);
   let strands = 0, stalls = 0;
+  /* b8 (CR) ranked 6, "the stable reads as more yard: straw floor and yard earth one tone": the straw's bed a step up and warmer than
+     the yard's earth (the earth ramp's dark pair to bronze's, a step for a step, so the straw reads yellow, never past the floor cap),
+     the strands thicker and yellower (bronze mid and lit tips) */
+  const WARM = { '#2a1c14': '#3d2a1d', '#3d2a1d': '#4a2e18', '#553a26': '#7a4f26', '#231d1f': '#2a1c14', '#2f2723': '#3d2a1d' };
+  for (let py = SY0; py < g.height; py++) for (let px = SX0; px < (x1 + 1) * T; px++) {
+    if (!is(px, py)) continue; const p = (py * g.width + px) * 4, hx = '#' + [0, 1, 2].map((k) => g.data[p + k].toString(16).padStart(2, '0')).join('');
+    if (WARM[hx]) put(g, px, py, WARM[hx]);
+  }
   /* the straw: strands 3-5 px on the diagonal, the dark of each at its foot, its tip lit; deep bedding in the stalls, thin in the aisle */
   for (let gy = SY0; gy < g.height; gy += 3) for (let gx = SX0; gx < (x1 + 1) * T; gx += 3) {
     const px = gx + Math.floor(hash2(gx, gy, seed) * 3), py = gy + Math.floor(hash2(gx, gy, seed + 1) * 3);
     if (!is(px, py) || !is(px + 4, py + 4)) continue;
-    const inStall = py - SY0 < STALL_D && px - SX0 < nStall * STALL_W, keep = inStall ? 0.75 : 0.22 * (0.5 + noise(px, py, 30, seed + 2));
+    const inStall = py - SY0 < STALL_D && px - SX0 < nStall * STALL_W, keep = inStall ? 0.9 : 0.4 * (0.5 + noise(px, py, 30, seed + 2));
     if (hash2(gx, gy, seed + 3) > keep) continue;
     const len = 3 + Math.floor(hash2(gx, gy, seed + 4) * 3), dir = hash2(gx, gy, seed + 5) < 0.5 ? 1 : -1, bright = inStall && hash2(gx, gy, seed + 6) < 0.35;
-    for (let t = 0; t < len; t++) put(g, px + t, py + (dir > 0 ? Math.floor(t / 2) : -Math.floor(t / 2)), t === len - 1 ? (bright ? '#8a6440' : '#6e4c30') : t === 0 ? '#2a1c14' : bright ? '#6e4c30' : '#553a26');
+    for (let t = 0; t < len; t++) put(g, px + t, py + (dir > 0 ? Math.floor(t / 2) : -Math.floor(t / 2)), t === len - 1 ? (bright ? '#8a6440' : '#7a4f26') : t === 0 ? '#4a2e18' : bright ? '#7a4f26' : '#6e4c30');
     strands++;
   }
   /* the stalls' partitions: a plank wall running south from the north wall, its top rail lit on the west, shaded on the east, a post
@@ -90,5 +98,17 @@ export function stableStraw(g, grid, doorway, ch = 'S', seed = 137) {
     for (let v = 0; v < 8; v++) for (let u = -2; u <= 4; u++) put(g, x + u, SY0 + STALL_D + v, u === -2 || u === 4 || v === 7 ? '#0b0a0c' : v < 2 ? (u < 1 ? '#8a6440' : '#6e4c30') : u < 1 ? '#553a26' : '#3d2a1d');
     stalls++;
   }
-  return { strands, stalls };
+  const posts = []; for (let k = 1; k <= nStall; k++) { const x = SX0 + 10 + k * STALL_W - 3; if (!(k === nStall && x > (x1 + 1) * T - 8)) posts.push(x); }
+  posts.unshift(SX0 + 4);
+  let rails = 0;
+  for (let i = 0; i + 1 < posts.length; i++) {
+    const a = posts[i] + 5, b = posts[i + 1] - 2, open0 = a + Math.round((b - a) * 0.36), open1 = a + Math.round((b - a) * 0.64);
+    for (let x = a; x <= b; x++) {
+      if (x >= open0 && x <= open1 && i % 2 === 0) continue;   /* every other stall's mouth open */
+      const y = SY0 + STALL_D - 10;
+      put(g, x, y - 1, '#0b0a0c'); put(g, x, y, '#8a6440'); put(g, x, y + 1, '#6e4c30'); put(g, x, y + 2, '#3d2a1d'); put(g, x, y + 3, '#0b0a0c');
+      rails++;
+    }
+  }
+  return { strands, stalls, rails };
 }

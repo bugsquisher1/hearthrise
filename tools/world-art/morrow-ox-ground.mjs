@@ -346,7 +346,7 @@ export function oxStory(g, grid, objects, { row = 22 } = {}) {
      drawLight adds the pools on a white ambient, where they saturate), so each lit prop's pool is laid in the ground: two hard bands
      on an ellipse under its flame, the outer a step up its ramp, the inner two (the grass toward the moss's warmer olive) */
   let lit = 0;
-  const POOL = { mh_vigil_brazier: [56, 40, 0], mh_lantern_stake: [32, 23, 9], mh_lantern_pole: [32, 23, 8], mh_lantern_cairn: [30, 22, 1] };
+  const POOL = { mh_vigil_brazier: [56, 40, 0], mh_lantern_stake: [32, 23, 9], mh_lantern_pole: [32, 23, 8], mh_lantern_cairn: [30, 22, 1], cr_brew_copper: [46, 24, 16] };
   for (const o of objects) {
     const P = POOL[o.id]; if (!P) continue;
     /* b7: on the moor the pools read as identical flat lime ovals with a hard rim, markers rather than light. Each pool is now its own

@@ -81,6 +81,8 @@ export const LIGHTS = Object.freeze({
   mh_lantern_stake: light(2.5, 'torch'),
   mh_lantern_pole: light(2.5, 'torch'),
   mh_lantern_cairn: light(2.5, 'torch'),
+  /* Carter's Rest's brewhouse copper: the fire in its firebox, the only light in the brewhouse besides the lantern */
+  cr_brew_copper: light(3, 'hearth'),
   lamppost: light(3, 'torch'),
   candle: light(1.5, 'torch'),
   hearth: light(4.5, 'hearth'),

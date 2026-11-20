@@ -121,6 +121,12 @@ export const CLASSES = Object.freeze({
   // A yoked TEAM of two dead oxen at beast size, fallen the same way in the yoke with their stiff legs out along the ground and across
   // the tongue (lane/b-morrow-kit 2026-11-19, the Ox Road's lead team): two beasts lying side by side are deeper than one wagon.
   team: row({ body: [48, 76], measure: 'h', maxW: 84, contact: 'touch', shadow: 'ellipse', layer: 'prop' }),
+  // A bar counter run along a wall north-south (Carter's Rest's taproom, lane/b-morrow-kit 2026-11-20): seen from the south it is a long
+  // top and a short front, so it stands as tall as the tiles it runs down; narrow, solid to the floor along its whole foot.
+  counter: row({ body: [60, 112], measure: 'h', maxW: 40, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
+  // A brewhouse copper on its firebox (Carter's Rest's brewhouse focal, lane/b-morrow-kit 2026-11-20): a domed vessel about a tile and a
+  // half across on a brick plinth, its flue rising off the dome, taller than any bulky prop; solid on its plinth.
+  copper: row({ body: [48, 80], measure: 'h', maxW: 64, contact: 'solid', shadow: 'ellipse', layer: 'prop' }),
   // A long floor hearth (Krell's Hall Fire): a low stone trough of logs and flame four tiles wide, resting along its whole length.
   // It is fire, so it casts no shadow. Its flicker and its flare are clips of the one sprite.
   hallfire: row({ body: [20, 40], measure: 'h', maxW: 128, contact: 'solid', shadow: null, layer: 'prop' }),

@@ -41,6 +41,7 @@ import { loadGear } from './gear.mjs';
 import { proveUniques, UNIQUES_MUTANTS } from './uniques-proof.mjs';
 import { isMain } from '../../tests/_is-main.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
+import { PARTY_TIERS, mixedParty } from './grade-sheet.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');
@@ -135,6 +136,19 @@ export async function buildGrid(root, mode, opts = {}) {
             grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: n, comp: comp.join('+'), gear: 'ladder', profile } });
         }
       }
+      /* THE SEAT TWINS (the party lines' comparator, Tyler 2026-11-16 "every Dangerous/Deadly party mix stays >= the same heroes alone"): on a party
+         tier, each way a party seats that the lone ways don't play (quick: the Healer) is played alone too, at every offset, graded by no rule of its
+         own (grade.seatOnly: only sameAloneXp reads it), so the lone medians stay the lone ways' */
+      if (PARTY_TIERS.includes(tier)) {
+        const lone = new Set(COMPS[mode][1].map((c) => c.join('+')));
+        const seated = [...new Set(Object.entries(COMPS[mode]).filter(([n]) => Number(n) > 1).flatMap(([, cs]) => cs.flat()))].filter((s) => !lone.has(s));
+        for (const { offset, level } of levelsOf(band, OFFSETS[mode])) for (const s of seated) {
+          const pull = row.pull[0], { seeds, hours } = dice(mode, 1, tier, offset);
+          const id = ['grade', 'g=' + g.id, 't=' + tier, 'o=' + offset, 'p=' + s, 'L=' + level, 's=' + seeds, 'h=' + hours].join(',') + og + tag + ',seat,pr=played';
+          jobs.push({ id, ground: g.id, party: [s], level, ...(ogear ? { gear: ogear } : {}), ...(pull ? { density: pull } : {}), hours, seeds, options: { tier }, profile: 'played',
+            windowMs: windowFor(1), ...(wi ? { whatIf: wi } : {}), grade: { ground: g.id, band, groupFit: fitOf(g), tier, offset, size: 1, comp: s, gear: 'ladder', profile: 'played', seatOnly: true } });
+        }
+      }
       /* THE FRESH HERO (first-week bars): the practice set alone at a first-day solo floor (Level 15 or under), Normal, every way */
       if (tier === 'normal' && band[0] <= 15 && fitOf(g) === 'solo') for (const [s] of COMPS[mode][1]) {
         const { seeds, hours } = dice(mode, 1, tier, 'floor');
@@ -201,6 +215,21 @@ const scoped = (rule, m) => (!rule.tiers || rule.tiers.includes(m.tier)) && (!ru
   && (!rule.fit || rule.fit === m.groupFit) && (rule.gear || 'ladder') === (m.gear || 'ladder') && (rule.floorFrom == null || m.band[0] >= rule.floorFrom)
   && (rule.floorMax == null || m.band[0] <= rule.floorMax) && !(rule.skip && rule.skip(m)) && profileIn(rule, m);
 export const median = (xs) => { const s = xs.filter(Number.isFinite).sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
+/* a cell's top Level (a party may seat heroes at several) */
+const topLevel = (L) => (Array.isArray(L) ? Math.max(...L) : L);
+/**
+ * THE SAME HEROES ALONE (the party lines' comparator; Tyler 2026-11-16 "every Dangerous/Deadly party mix stays >= the same heroes alone", read the
+ * way tests/party-class-xp-line.mjs and party-tier-xp.mjs read it): the mean of each seat's way played alone on the same ground, tier and offset, in
+ * the same profile and kit, its Level XP an hour (a way's median over its cells). `rows`: { m, x } of every cell, the seat twins included. Null when
+ * a seat's way was not played alone: no verdict, never a stand-in.
+ */
+export function sameAloneXp(rows, m) {
+  const xs = String(m.comp || '').split('+').map((s) => median(rows.filter((o) => o.m.size === 1 && o.m.comp === s && o.m.ground === m.ground && o.m.tier === m.tier && o.m.offset === m.offset
+    && (o.m.profile || null) === (m.profile || null) && (o.m.gear || 'ladder') === (m.gear || 'ladder')).map((o) => o.x.xp)));
+  return xs.every((v) => v > 0) ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
+}
+/* a seat twin (buildGrid) is read only as the same hero alone, never as a lone way */
+const lonelyWay = (c) => !(c.cell && c.cell.grade && c.cell.grade.seatOnly);
 const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Math.max(Math.abs(rule.min), 1e-9) : rule.max != null && v > rule.max ? (v - rule.max) / Math.max(Math.abs(rule.max), 1e-9) : 0);
 
 /**
@@ -211,9 +240,12 @@ const off = (v, rule) => (rule.min != null && v < rule.min ? (rule.min - v) / Ma
 export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
   const gold = sheet.rules.filter(isProfitRule);
   if (gold.length) throw new Error('grade: ' + gold.map((r) => r.id).join(', ') + ' grade a profit number; Tyler 2026-11-13 NO PROFIT MOLDS: gold is printed (goldReport), never graded');
-  /* `packs`: a pack's own grading facts (src/data/grounds/<id>/pack.js `checks`), e.g. deadlyFourNeeds 'healer' (designer Q4 2026-11-12) */
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit,
-    deadlyFourNeeds: (packs[c.cell.grade.ground] && packs[c.cell.grade.ground].deadlyFourNeeds) || null }, x: metricsOf(c) }));
+  /* `packs`: a pack's own grading facts (src/data/grounds/<id>/pack.js `checks`), e.g. deadlyFourNeeds 'healer' (designer Q4 2026-11-12);
+     `level`: the cell's top Level, for a rule scoped by it (four-deadly-pace reports under the sheet's paceFromLevel) */
+  const every = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit,
+    deadlyFourNeeds: (packs[c.cell.grade.ground] && packs[c.cell.grade.ground].deadlyFourNeeds) || null, level: topLevel(c.cell.level) }, x: metricsOf(c) }));
+  /* every rule reads the lone ways and the parties; the seat twins only as the same heroes alone (xpVsSame) */
+  const rows = every.filter((r) => lonelyWay(r.c));
   const key = (m, extra) => [m.ground, m.tier, m.offset, 'size ' + m.size, extra].filter(Boolean).join(' / ');
   /* a comparator is the same hero: the same profile as the cell it is read against (a played four against the played twins alone) */
   const find = (m, pred) => rows.filter((r) => r.m.ground === m.ground && (r.m.profile || null) === (m.profile || null) && pred(r.m));
@@ -250,8 +282,8 @@ export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
       for (const r of rows) if (scoped(rule, r.m)) { const k = [r.m.ground, r.m.tier, r.m.offset, r.m.size].join('|'); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); }
       if (rule.aggregate === 'xpVsContract') {
         /* the lone median on EVERY ground, party grounds included: the contract is fitted on lone heroes (tools/balance-sim/pace.mjs, the ladder plan), and a
-           four is ruled 1.15-1.25x a lone hero (party.fourVsSolo), so the four a head always read about 1.2x it (Coordinator ruling 2026-11-11, lane/d-solo-fifteen:
-           the Sewer's 1.19 and the Warrens' 1.52 were the party bonus, not a pace miss) */
+           four a head reads the party bonus on top (Coordinator ruling 2026-11-11, lane/d-solo-fifteen: the Sewer's 1.19 and the Warrens' 1.52 were the party
+           bonus, not a pace miss); a four's own ceiling against the contract is four-deadly-pace's (headVsContract, Deadly only) */
         for (const k of [...groups.keys()]) if (groups.get(k)[0].m.size !== 1) groups.delete(k);
       }
       for (const g of groups.values()) {
@@ -281,6 +313,10 @@ export function gradeCells(cells, sheet, pace, fits = {}, packs = {}) {
         case 'xpVsSolo': { const solo = median(find(m, (o) => o.tier === m.tier && o.offset === m.offset && o.size === 1 && (o.gear || 'ladder') === (m.gear || 'ladder')).map((o) => o.x.xp));
           v = solo > 0 ? x.xp / solo : null; break; }
         case 'xpVsTierBelow': { const below = m.tier === 'deadly' ? 'dangerous' : 'normal'; const b = find(m, (o) => o.tier === below && o.offset === m.offset && o.comp === m.comp)[0]; v = b && b.x.xp > 0 ? x.xp / b.x.xp : null; break; }
+        /* a party's head over the same heroes alone (sameAloneXp, the seat twins included) */
+        case 'xpVsSame': { const s = sameAloneXp(every, m); v = s > 0 ? x.xp / s : null; break; }
+        /* the cell's own head over the pace contract at its top Level (the sheet's `contract`; none on the local sheet): the played hero's, not a pace read */
+        case 'headVsContract': { const k = sheet.contract ? sheet.contract(m.level) : null; v = k > 0 ? x.xp / k : null; break; }
         default: throw new Error('grade: no metric ' + rule.metric);
       }
       push(rule, m, v, m.comp + ' L' + r.c.cell.level);
@@ -342,13 +378,19 @@ export async function blowVerdicts(root, sheet, grounds = null) {
  * WHAT A PLAYER WOULD FEEL (Coordinator 2026-11-07: lead with these), read off the cells with no sheet, each from a ruling:
  *   feel-normal-deaths  a death on Normal at or above a floor, any party size (11-04 "in range is safe"; 10-25 <= 1 per 1,000 h)
  *   feel-tier-less      a harder tier a hero or party HELD (no death) paying less Level XP a head than Normal (11-05 more XP a kill)
- *   feel-seat-below-solo a party seat on Normal in range earning less Level XP than the median lone hero there (10-25 parties advantaged)
+ *   feel-seat-below-solo a mixed party on Dangerous or Deadly in range (PARTY_TIERS) whose seats earn less Level XP a head than the same heroes
+ *                       alone on that tier (sameAloneXp; Tyler 2026-11-16: "normal isn't meant for parties anyway", "every Dangerous/Deadly party
+ *                       mix stays >= the same heroes alone"; on Normal a seat may earn under solo). One class never out-earns its heroes alone (10-31), so a
+ *                       one-class party is not read; nor a party with no Healer on a Healer's tier at its Level (`healerTier`, hunt-tiers.js
+ *                       isHealerTier: designer 2026-11-19, no party the game sends there)
  * (feel-gold-order, a higher floor netting less gold than a lower one, is RETIRED by Tyler's 2026-11-13 NO PROFIT MOLDS: each ground's
  * gold is printed side by side in goldReport, and an outlier is treated one ground at a time.)
  */
-export function feelVerdicts(cells, fits = {}) {
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit }, x: metricsOf(c) }))
+export function feelVerdicts(cells, fits = {}, healerTier = () => false) {
+  const every = cells.filter((c) => c.heroes && c.cell && c.cell.grade).map((c) => ({ c, m: { ...c.cell.grade, groupFit: fits[c.cell.grade.ground] || c.cell.grade.groupFit, level: topLevel(c.cell.level) }, x: metricsOf(c) }))
     .filter((r) => (r.m.gear || 'ladder') === 'ladder');
+  /* the seat twins are read only as the same heroes alone */
+  const rows = every.filter((r) => lonelyWay(r.c));
   const out = [], v = (rule, verdict, key, ground, value, extra) => out.push({ rule, binding: true, verdict, key, ground, value, lo: null, hi: null, k: null, hours: null, min: null, max: null, off: 0, why: '', ...extra });
   const inRange = (o) => ['floor', 'middle', 'plus10', 'top'].includes(o);
   /* by profile (gradedProfile above): a cell's own reading is the graded hero's; a comparator is the same hero as the cell it is read against */
@@ -367,11 +409,12 @@ export function feelVerdicts(cells, fits = {}) {
     if (n && r.x.xp < n.x.xp) v('feel-tier-less', 'FAIL', r.m.ground + ' / ' + r.m.tier + ' / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level, r.m.ground, r.x.xp / n.x.xp,
       { min: 1, off: 1 - r.x.xp / n.x.xp, why: '11-05: a harder tier held pays more XP a kill; this one pays less an hour than Normal' });
   }
-  for (const r of rows) if (r.m.tier === 'normal' && inRange(r.m.offset) && r.m.size > 1 && graded(r.m)) {
-    const solo = median(rows.filter((o) => o.m.ground === r.m.ground && o.m.tier === 'normal' && o.m.offset === r.m.offset && o.m.size === 1 && same(o.m, r.m)).map((o) => o.x.xp));
-    const seat = Math.min(...r.c.heroes.map((h) => h.levelXpPerH));
-    if (solo > 0 && seat < solo) v('feel-seat-below-solo', 'FAIL', r.m.ground + ' / normal / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level + ' (lowest seat ' + r.c.heroes.reduce((a, h) => (h.levelXpPerH < a.levelXpPerH ? h : a)).style + ')',
-      r.m.ground, seat / solo, { min: 1, off: 1 - seat / solo, why: '10-25: parties are advantaged; a seat here levels slower than going alone' });
+  const healerless = (m) => !String(m.comp || '').split('+').includes('healer');
+  for (const r of rows) if (PARTY_TIERS.includes(r.m.tier) && inRange(r.m.offset) && r.m.size > 1 && graded(r.m) && mixedParty(r.m) && !(healerless(r.m) && healerTier(r.m.ground, r.m.tier, r.m.level))) {
+    /* a head against the same heroes alone (sameAloneXp), as tests/party-class-xp-line.mjs reads it; Level XP is shared evenly, so a seat is the head */
+    const alone = sameAloneXp(every, r.m), head = r.x.xp;
+    if (alone > 0 && head < alone) v('feel-seat-below-solo', 'FAIL', r.m.ground + ' / ' + r.m.tier + ' / ' + r.m.offset + ' / ' + r.m.comp + ' L' + r.c.cell.level + ' (lowest seat ' + r.c.heroes.reduce((a, h) => (h.levelXpPerH < a.levelXpPerH ? h : a)).style + ')',
+      r.m.ground, head / alone, { min: 1, off: 1 - head / alone, why: '11-16: on Dangerous and Deadly every party mix earns at least the same heroes alone; a seat here levels slower than they do alone' });
   }
   return out;
 }
@@ -385,7 +428,7 @@ export function feelVerdicts(cells, fits = {}) {
  */
 export function goldRows(cells, fits = {}) {
   /* the graded hero's gold (a lone hero on Normal plain, parties and harder tiers played), never a played twin's beside it */
-  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade && (c.cell.grade.gear || 'ladder') === 'ladder' && (!c.cell.grade.profile || c.cell.grade.profile === gradedProfile(c.cell.grade)))
+  const rows = cells.filter((c) => c.heroes && c.cell && c.cell.grade && (c.cell.grade.gear || 'ladder') === 'ladder' && (!c.cell.grade.profile || c.cell.grade.profile === gradedProfile(c.cell.grade)) && lonelyWay(c))
     .map((c) => ({ m: c.cell.grade, x: metricsOf(c) }));
   return [...new Set(rows.map((r) => r.m.ground))].map((g) => {
     const mine = rows.filter((r) => r.m.ground === g);
@@ -449,7 +492,9 @@ export function synthSet(mut = {}) {
     const tierXp = { normal: 1, dangerous: 1.2, deadly: 1.4 }[tier], under = offset.startsWith('under');
     const base = { level, hours: 2000, xp: (under ? 120000 : 70000) * tierXp, income: 5000, store: under ? 6000 : (offset === 'floor' ? 1500 : 800), hp: 70, coin: 3000 };
     cells.push(synthCell({ tier, offset, size: 1, comp: 'tank' }, { ...base, ...(under && offset === 'under2' ? { store: 2000 } : {}) }));
-    cells.push(synthCell({ tier, offset, size: 4, comp: 'four' }, { ...base, xp: base.xp * 1.2, income: 4500, store: under ? 6000 : 500, kills: 400 }));
+    cells.push(synthCell({ tier, offset, size: 4, comp: 'tank+healer+bow+mage' }, { ...base, xp: base.xp * 1.2, income: 4500, store: under ? 6000 : 500, kills: 400 }));
+    /* the seat twins on a party tier (buildGrid): each seat's way alone, as fast as the tank, read only as the same heroes alone */
+    if (tier !== 'normal') for (const comp of ['healer', 'bow', 'mage', 'hammer']) cells.push(synthCell({ tier, offset, size: 1, comp, seatOnly: true }, base));
   }
   /* the lone tank at the floor on the store food the Hunts page calls enough (buildGrid's storefood cell) */
   cells.push(synthCell({ tier: 'normal', offset: 'floor', size: 1, comp: 'tank', gear: 'storefood' }, { level: 16, hours: 2000, xp: 70000, income: 5000, store: 1500, hp: 70, coin: 3000 }));
@@ -463,7 +508,10 @@ export function synthSet(mut = {}) {
   /* `ways`: three more lone ways at the floor, `ways` of them losing gold (the median-target selftest) */
   if (mut.band) for (const c of cells) c.cell.grade.band = mut.band;
   if (mut.fourOffset === 'middle') for (const c of cells.filter((c) => c.cell.grade.offset === 'top')) c.cell.grade.offset = 'middle';
-  if (mut.four) for (const h of pick('normal', mut.fourOffset || 'floor', 4).heroes) h.levelXpPerH = 70000 * 1.6;
+  /* a four earning 0.8 of the hero alone beside it, on `fourTier` (Deadly unless named) at `fourOffset` (the floor unless named) */
+  if (mut.four) { const t = mut.fourTier || 'deadly', o = mut.fourOffset || 'floor', solo = pick(t, o, 1).heroes[0].levelXpPerH; for (const h of pick(t, o, 4).heroes) h.levelXpPerH = solo * 0.8; }
+  /* a Deadly four at the floor earning `fourPace` x 70,000 a head (the selftest's flat contract), at Level `fourPaceLevel` when named */
+  if (mut.fourPace) { const c = pick('deadly', 'floor', 4); for (const h of c.heroes) h.levelXpPerH = 70000 * mut.fourPace; if (mut.fourPaceLevel) c.cell.level = mut.fourPaceLevel; }
   if (mut.deadlyFour) { const c = pick('deadly', 'floor', 4); c.cell.grade.comp = mut.deadlyFour; for (const h of c.heroes) h.deaths = 40, h.hours = 8; }
   if (mut.tier) for (const h of pick('deadly', 'top', 4).heroes) h.levelXpPerH = 70000;
   if (mut.lowpoint) pick('normal', 'floor', 1).heroes[0].encMinHpPct.p50 = 40;
@@ -512,16 +560,29 @@ if (isMain(import.meta.url)) {
       const r = gradeCells(synthSet({ [mut]: true }), SHEET, flat);
       if (!r.verdicts.some((v) => v.rule === rule && v.verdict === 'FAIL')) bad.push('mutant ' + mut + ' did not FAIL ' + rule);
     }
-    const RS = await loadSheet(ROOT, null, null);
-    /* Q2: on a band of 20+ Levels a four's floor is reported (OFF), its middle is graded; on a narrower band the floor still FAILs.
-       Designer 2026-11-13 (grade-sheet.mjs THE FOUR'S LINE): every band's TOP is a report line (four-xp-report OFF), never four-xp. */
-    const four = (band, at, rule, verdict) => gradeCells(synthSet({ four: true, band, fourOffset: at }), RS, flat).verdicts
+    /* THE PARTY LINES (grade-sheet.mjs, Tyler 2026-11-16), on the balance sheet a pack check reads with a flat contract: a four under the hero alone
+       FAILS on Dangerous and Deadly at the floor and middle, at any band width; reads OFF at a band top (designer 11-13); FAILS NOTHING on Normal
+       ("normal isn't meant for parties anyway"); and a Deadly four past the contract ceiling FAILS, under paceFromLevel reads OFF, on Dangerous
+       is not read */
+    const RS = { ...(await loadSheet(ROOT, null, null)), contract: flat };
+    const P = (await import(pathToFileURL(join(ROOT, 'src/data/balance-sheet.js')).href)).BALANCE_SHEET.party;
+    const four = (opts, at, rule, verdict) => gradeCells(synthSet({ four: true, ...opts }), RS, flat).verdicts
       .filter((v) => v.rule === rule && v.verdict === verdict && v.key.includes('/ ' + at + ' /'));
-    if (four([16, 36], 'floor', 'four-xp', 'FAIL').length) bad.push('a 20-Level band graded a four at its floor');
-    if (!four([16, 36], 'middle', 'four-xp', 'FAIL').length) bad.push('a 20-Level band did not grade a four at its middle');
-    if (!four([16, 31], 'floor', 'four-xp', 'FAIL').length) bad.push('a 15-Level band stopped grading a four at its floor');
-    if (four([16, 31], 'top', 'four-xp', 'FAIL').length) bad.push('a four at a band top was graded (designer 11-13: a report line)');
-    if (!four([16, 31], 'top', 'four-xp-report', 'OFF').length) bad.push('a four off its line at a band top was not reported');
+    for (const t of PARTY_TIERS) {
+      if (!four({ fourTier: t }, 'floor', 'four-xp', 'FAIL').length) bad.push('a four under the hero alone on ' + t + ' at the floor did not FAIL four-xp');
+      if (!four({ fourTier: t, band: [16, 36], fourOffset: 'middle' }, 'middle', 'four-xp', 'FAIL').length) bad.push('a four under the hero alone on ' + t + ' at a 20-Level band\'s middle did not FAIL');
+      if (!four({ fourTier: t, band: [16, 36] }, 'floor', 'four-xp', 'FAIL').length) bad.push('a 20-Level band still exempts a four at its floor on ' + t + ' (Q2 retired with the window)');
+      if (four({ fourTier: t, fourOffset: 'top' }, 'top', 'four-xp', 'FAIL').length) bad.push('a four at a band top on ' + t + ' was graded (designer 11-13: a report line)');
+      if (!four({ fourTier: t, fourOffset: 'top' }, 'top', 'four-xp-report', 'OFF').length) bad.push('a four under the hero alone at a band top on ' + t + ' was not reported');
+    }
+    const normalFour = gradeCells(synthSet({ four: true, fourTier: 'normal' }), RS, flat).verdicts.filter((v) => v.verdict === 'FAIL');
+    if (normalFour.length) bad.push('a four under the hero alone on Normal FAILS ' + normalFour.map((v) => v.rule).join(', ') + ' (11-16: Normal is not tuned for parties)');
+    if (!feelVerdicts(synthSet({ four: true })).some((v) => v.rule === 'feel-seat-below-solo' && v.key.includes('/ deadly / floor /'))) bad.push('a Deadly seat under the hero alone was not felt');
+    if (feelVerdicts(synthSet({ four: true, fourTier: 'normal' })).some((v) => v.rule === 'feel-seat-below-solo')) bad.push('a Normal seat under the hero alone was felt (11-16: Normal is not tuned for parties)');
+    const pace = (x, lv, rule, verdict) => gradeCells(synthSet({ fourPace: x, fourPaceLevel: lv }), RS, flat).verdicts.filter((v) => v.rule === rule && v.verdict === verdict && v.key.includes('/ deadly / floor /'));
+    if (!pace(P.deadlyFourVsContractMax * 1.04, null, 'four-deadly-pace', 'FAIL').length) bad.push('a Deadly four past ' + P.deadlyFourVsContractMax + 'x the contract did not FAIL four-deadly-pace');
+    if (pace(P.deadlyFourVsContractMax * 0.96, null, 'four-deadly-pace', 'FAIL').length) bad.push('a Deadly four under ' + P.deadlyFourVsContractMax + 'x the contract FAILED four-deadly-pace');
+    if (!pace(P.deadlyFourVsContractMax * 1.04, P.paceFromLevel - 1, 'four-deadly-pace', 'OFF').length) bad.push('a Deadly four under Level ' + P.paceFromLevel + ' past the ceiling was not a report (OFF)');
     /* Q4: a pack that needs a Healer on Deadly grades only the four with one; the healerless four is reported */
     const heal = (needs, comp) => gradeCells(synthSet({ deadlyFour: comp }), RS, flat, {}, { g: { deadlyFourNeeds: needs } }).verdicts.filter((v) => v.rule === 'tier-deadly-four-held' && v.verdict === 'FAIL').length;
     if (heal('healer', 'tank+bow+mage+hammer')) bad.push('a healerless four failed a Deadly that needs a Healer');
@@ -545,7 +606,7 @@ if (isMain(import.meta.url)) {
     if (proof.length) bad.push('the uniques kit: ' + proof.join('; '));
     for (const m of UNIQUES_MUTANTS) if (!proveUniques(gearLib, m).length) bad.push('uniques mutant ' + m + ' was not caught');
     if (bad.length) { console.error('grade --selftest RED: ' + bad.join(' | ')); process.exit(1); }
-    console.log('grade --selftest: the good set passes, 6 mutants each FAIL their rule, the long-band and needs-a-Healer scopes hold, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused; '
+    console.log('grade --selftest: the good set passes, 6 mutants each FAIL their rule, the party lines bind Dangerous and Deadly (a four under the hero alone, a Deadly four past the contract ceiling) and never Normal, the needs-a-Healer scope holds, 2 gold mutants fail nothing and move the printed gold report, a profit rule is refused; '
       + 'a unique\'s armor and attribute reach the engine, ' + UNIQUES_MUTANTS.length + ' of ' + UNIQUES_MUTANTS.length + ' uniques mutants caught');
     process.exit(0);
   }
@@ -566,7 +627,8 @@ if (isMain(import.meta.url)) {
   }
   const cells = existsSync(join(out, 'cells.jsonl')) ? readFileSync(join(out, 'cells.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : [];
   const graded = gradeCells(cells, SHEET, await loadPace(ROOT), await fitsOf(ROOT), await packChecksOf(ROOT));
-  for (const v of feelVerdicts(cells, await fitsOf(ROOT))) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
+  const { isHealerTier } = await import(pathToFileURL(join(ROOT, 'src/data/hunt-tiers.js')).href);
+  for (const v of feelVerdicts(cells, await fitsOf(ROOT), isHealerTier)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'unproven']++; }
   for (const v of await blowVerdicts(ROOT, SHEET, arg('grounds', null) ? arg('grounds').split(',') : null)) { graded.verdicts.push(v); const g = graded.grounds[v.ground] || (graded.grounds[v.ground] = { fail: 0, unproven: 0, off: 0, ok: 0 }); g[v.verdict === 'FAIL' ? 'fail' : 'ok']++; }
   const gold = goldRows(cells, await fitsOf(ROOT));
   /* WHAT THE UNIQUES CELLS WORE past the ladder (gear.mjs uniquesIn): each piece, its attribute and whether that reaches the engine */

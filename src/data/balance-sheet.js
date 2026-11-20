@@ -45,7 +45,7 @@ export const BALANCE_SHEET = Object.freeze({
     /* XP: at the band's MIDDLE the median way's Level XP an hour within this share of the pace contract
        LEVEL_PACE.contract (a x L^b, the trend the Level curve is held to past the measured grounds; RULED
        10-25 §2 pace: L10 ~6 h, L25 ~36 h, L50 ~168 h at 12 h a day). The median LONE way on every ground, a party ground too:
-       the contract is fitted on lone heroes, and a four is ruled 1.15-1.25x a lone hero (Coordinator 2026-11-11). */
+       the contract is fitted on lone heroes, and a party's edge is its own line (party, below; Coordinator 2026-11-11). */
     xpVsContract: Object.freeze({ at: 'middle', min: 0.90, max: 1.10 }),
   }),
   /* THE FRESH HERO on a first-day ground (the grounds the Hunts window sends a LONE hero to at Levels 1-15):
@@ -76,10 +76,11 @@ export const BALANCE_SHEET = Object.freeze({
     /* held at the floor, any group: at least this much more; and a four at the floor dies no more than this in 16 hero-hours */
     deadly: Object.freeze({ xpVsNormalMin: 1.25, fourDeathsPer16hMax: 9 }),
   }),
-  /* PARTIES (RULED 10-25 §5): a well-optimized four earns 15-25% more Level XP a head than an efficient solo
-     (the median lone way at the same Level on the same ground, the solo boost included: party-class-xp.js SOLO_XP_PM,
-     RULED 2026-11-08). Same-class fours never out-earn solo (10-31). */
-  party: Object.freeze({ fourVsSolo: Object.freeze([1.15, 1.25]) }),
+  /* PARTIES (RULED 2026-11-16: "normal isn't meant for parties anyway"; replaces 10-25 §5's four at 1.15-1.25x solo on Normal,
+     where a seat may now earn under solo). On Dangerous and Deadly a mix earns at least vsAloneMin of the same heroes alone a head
+     (solo boost included); a mixed four on Deadly at most deadlyFourVsContractMax x the contract at its top Level, read from
+     paceFromLevel (Tyler 2026-11-18). Same-class fours never out-earn solo (10-31). */
+  party: Object.freeze({ vsAloneMin: 1.0, deadlyFourVsContractMax: 2.5, paceFromLevel: LEVEL_PACE.targets[0][0] }),
   /* BLOWS: a regular's largest blow at most this share of a same-Level hero's base HP (combat.js per-tier scale
      note: "an in-band blow stays ~20-30% of max HP"); a boss's at most 35% of the floor hero's (designer 10-21). */
   blows: Object.freeze({ regularMaxShare: 0.30, bossMaxShareOfFloor: 0.35 }),
@@ -287,7 +288,7 @@ export const GROUND_ROSTER = Object.freeze(foldRows('roster', BASE_ROSTER, GROUN
    lands it at 1.01x. Ratios between heroes on one ground never move (a fit scales alone and party alike).
    THE PARTY GROUNDS ARE NOT RE-DIALED, on purpose. The grader reads a party ground's pace on the four a head (the Sewer 1.19x, the Warrens 1.52x
    at their middles under +15%), while the contract itself is fitted on LONE heroes (tools/balance-sim/pace.mjs, the ladder plan; the Sewer's lone
-   median reads 1.04x, the Warrens' 1.27x) and a four is ruled to earn 1.15-1.25x a lone hero (party.fourVsSolo). The two readings differ by the
+   median reads 1.04x, the Warrens' 1.27x) and a four was then ruled 1.15-1.25x a lone hero (10-25, retired 11-16). The two readings differ by the
    party bonus, so both can't sit in 0.90-1.10 of one contract. Measured on the real settle: the Sewer x0.81 and the Warrens x0.70 held the grader's
    line (1.07x, 1.06x) and broke three others, the ladder (hunt-tiers: the Glade's Deadly out-paid the Warrens' Normal, nobody moves on), the
    contract's fit (level-curve C5: +21% against the measured ladder) and the scaled hunts (tests/scaled-hunts fee-guard: a scaled Thicket or Glade four at

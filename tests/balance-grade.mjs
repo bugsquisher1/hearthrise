@@ -4,7 +4,9 @@
 //   good-set      a synthetic grid on target (Normal safe in range, a four 20% over solo, each harder tier paying more) has no
 //                 binding FAIL, and `grade.mjs --in` exits 0 on it
 //   mutants       each rule family FAILS the cell that breaks it: Normal deaths and dips (on their 95% interval), the low point, a four
-//                 far over solo, a harder tier that pays less; `--in` exits 1 on one
+//                 under solo on Deadly, a harder tier that pays less; `--in` exits 1 on one
+//   party-tiers   (Tyler 2026-11-16, "normal isn't meant for parties anyway") the party lines bind Dangerous and Deadly only: a four or a
+//                 seat under solo there FAILS, on Normal nothing; a Deadly four past the contract ceiling FAILS (a report under paceFromLevel)
 //   no-profit-molds  (Tyler 2026-11-13) gold is printed, never graded: a lone hero 11% over its bill and a pair five under in profit FAIL
 //                 nothing, `--in` exits 0 on them and prints each number in GOLD BY GROUND; no sheet carries a profit rule
 //   rare-events   a death rate is FAIL only past its interval: 1 death in 2,000 h on Normal is not proof of more than 1 per 1,000 h
@@ -15,7 +17,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid, isProfitRule, wornReport } from '../tools/balance-sim/grade.mjs';
+import { gradeCells, synthSet, levelsOf, ranked, feelVerdicts, buildGrid, isProfitRule, wornReport, goldRows, goldReport } from '../tools/balance-sim/grade.mjs';
 import { loadGear } from '../tools/balance-sim/gear.mjs';
 import { monstersOfGround } from '../tools/pack.mjs';
 import { MONSTERS } from '../src/data/monsters.js';
@@ -55,22 +57,53 @@ for (const [mut, printed] of [['profit', '| +11% |'], ['under5', 'to 3,500)']]) 
   check(failsOf(synthSet({ [mut]: true })).length === 0, 'no-profit-molds: the ' + mut + ' mutant (gold only) FAILS nothing');
   check(cli(synthSet({ [mut]: true })) === 0 && cli.out.includes('GOLD BY GROUND') && cli.out.includes(printed), 'no-profit-molds: grade.mjs --in exits 0 on the ' + mut + ' mutant and prints ' + printed);
 }
-/* a four is judged against solos in its own kit: practice-kit fresh heroes at the floor don't drag the median (10-25 §5 "same gear quality") */
-const kitFails = failsOf(synthSet({ practice: true })).filter((v) => v.rule === 'four-xp');
-check(kitFails.length === 0, 'same-kit: practice-kit solos leave the four at 1.2' + (kitFails.length ? ' (' + kitFails.map((v) => v.key + ' ' + v.value).join('; ') + ')' : ''));
-/* THE FOUR'S LINE, WHERE IT BINDS (designer 2026-11-13): a well-built four (all four classes) at the floor and middle; a three-class four and the
-   band's top report. Each four below earns 1.08x a hero alone (under the 1.15 line). */
-const slowFour = (offset, comp) => synthSet().map((c) => (c.cell.grade.tier === 'normal' && c.cell.grade.offset === offset && c.cell.grade.size === 4
-  ? { ...c, cell: { ...c.cell, grade: { ...c.cell.grade, comp } }, heroes: c.heroes.map((h) => ({ ...h, levelXpPerH: 70000 * 1.08 })) } : c));
+/* a four is judged against solos in its own kit: practice-kit heroes beside it don't move the median it is read against (10-25 §5 "same gear quality").
+   Planted on Deadly, where the four's line binds: read against them it would be 5.9x, not 1.2 */
+const kitCells = synthSet().concat(['hammer', 'bow', 'mage'].map((comp) => ({ ...synthSet().find((c) => c.cell.grade.tier === 'deadly' && c.cell.grade.offset === 'floor' && c.cell.grade.size === 1),
+  cell: { id: 'practice-' + comp, level: 16, grade: { ground: 'g', band: [16, 31], groupFit: 'solo', tier: 'deadly', offset: 'floor', size: 1, comp, gear: 'practice' } }, heroes: [{ style: comp, level: 16, hours: 2000, levelXpPerH: 20000, profitPerH: 0, incomePerH: 0, storePerH: 0, deaths: 0, closeCallsPer12h: { k: 0 }, encMinHpPct: { p50: 70 }, coinPerH: 0 }] })));
+const kitFour = gradeCells(kitCells, SHEET, flat).verdicts.filter((v) => v.rule === 'four-xp' && v.key.includes('/ deadly / floor /'));
+check(kitFour.length === 1 && Math.abs(kitFour[0].value - 1.2) < 1e-9, 'same-kit: practice-kit solos leave the Deadly four at 1.2 (' + kitFour.map((v) => v.value.toFixed(2)).join(', ') + ')');
+/* THE PARTY LINES, WHERE THEY BIND (grade-sheet.mjs; Tyler 2026-11-16 "normal isn't meant for parties anyway"; the designer's 2026-11-13 scope): a
+   well-built four (all four classes) at the floor and middle of Dangerous and Deadly; a three-class four and the band's top report; Normal never.
+   Each four below earns 0.9x a hero alone (under the 1.00 line). */
+const slowFour = (tier, offset, comp) => synthSet().map((c) => (c.cell.grade.tier === tier && c.cell.grade.offset === offset && c.cell.grade.size === 4
+  ? { ...c, cell: { ...c.cell, grade: { ...c.cell.grade, comp } }, heroes: c.heroes.map((h) => ({ ...h, levelXpPerH: (h.levelXpPerH / 1.2) * 0.9 })) } : c));
 const fourVerdicts = (cells) => gradeCells(cells, SHEET, flat).verdicts.filter((v) => v.rule.startsWith('four-xp') && v.verdict !== 'ok');
-check(fourVerdicts(slowFour('floor', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp' && v.verdict === 'FAIL'), 'four-binds: a well-built four at the floor under 1.15 FAILS four-xp');
-check(!fourVerdicts(slowFour('floor', 'tank+hammer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour('floor', 'tank+hammer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
-  'four-binds: a three-class four at the floor under 1.15 reads OFF on four-xp-report, never FAIL (its own cell, 10-31)');
-check(!fourVerdicts(slowFour('top', 'tank+healer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour('top', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
-  'four-binds: a well-built four at the band top under 1.15 reads OFF (a ground being outgrown), never FAIL');
+for (const tier of ['dangerous', 'deadly']) {
+  check(fourVerdicts(slowFour(tier, 'floor', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp' && v.verdict === 'FAIL'), 'party-tiers: a well-built four on ' + tier + ' at the floor under solo FAILS four-xp');
+  check(!fourVerdicts(slowFour(tier, 'floor', 'tank+hammer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour(tier, 'floor', 'tank+hammer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
+    'party-tiers: a three-class four on ' + tier + ' under solo reads OFF on four-xp-report, never FAIL (its own cell, 10-31)');
+  check(!fourVerdicts(slowFour(tier, 'top', 'tank+healer+bow+mage')).some((v) => v.verdict === 'FAIL') && fourVerdicts(slowFour(tier, 'top', 'tank+healer+bow+mage')).some((v) => v.rule === 'four-xp-report' && v.verdict === 'OFF'),
+    'party-tiers: a well-built four at the band top on ' + tier + ' under solo reads OFF (a ground being outgrown), never FAIL');
+}
+const normalSlow = slowFour('normal', 'floor', 'tank+healer+bow+mage');
+check(fourVerdicts(normalSlow).length === 0 && !failsOf(normalSlow).length, 'party-tiers: a well-built four on Normal under solo is graded by no line (' + failsOf(normalSlow).map((v) => v.rule).join(', ') + ')');
+/* the Deadly four's ceiling (balance-sheet.js party.deadlyFourVsContractMax) against a flat contract: past it FAILS, under paceFromLevel reads OFF */
+const BSP = await import('../src/data/balance-sheet.js'), PARTY = BSP.BALANCE_SHEET.party;
+const paceVerdicts = (x, level) => gradeCells(synthSet({ fourPace: x, fourPaceLevel: level }), { ...sheetFromBalanceSheet(BSP.BALANCE_SHEET), contract: flat }, flat)
+  .verdicts.filter((v) => v.rule === 'four-deadly-pace' && v.key.includes('/ deadly / floor /'));
+check(paceVerdicts(PARTY.deadlyFourVsContractMax * 1.04).some((v) => v.verdict === 'FAIL' && v.binding), 'party-tiers: a Deadly four past ' + PARTY.deadlyFourVsContractMax + 'x the contract FAILS four-deadly-pace');
+check(paceVerdicts(PARTY.deadlyFourVsContractMax * 0.96).length === 1 && paceVerdicts(PARTY.deadlyFourVsContractMax * 0.96)[0].verdict === 'ok', 'party-tiers: a Deadly four under the ceiling reads ok');
+check(paceVerdicts(PARTY.deadlyFourVsContractMax * 1.04, PARTY.paceFromLevel - 1).some((v) => v.verdict === 'OFF'), 'party-tiers: under Level ' + PARTY.paceFromLevel + ' the ceiling reports (OFF), never FAILS');
+check(!('fourVsSolo' in PARTY), 'party-tiers: the sheet carries no Normal four multiple (party.fourVsSolo retired 2026-11-16)');
+/* THE SEAT TWINS (grade.mjs buildGrid): a seat's way played alone only for the same heroes alone moves the four's reading and nothing a lone way reads
+   (the lone medians, the tier lines, the printed gold) */
+{
+  const slowTwin = synthSet(); slowTwin.find((c) => c.cell.grade.seatOnly && c.cell.grade.comp === 'healer' && c.cell.grade.tier === 'deadly' && c.cell.grade.offset === 'floor').heroes[0].levelXpPerH = 1000;
+  const BSS = { ...sheetFromBalanceSheet(BSP.BALANCE_SHEET), contract: flat };
+  const read = (cells) => gradeCells(cells, BSS, flat).verdicts.filter((v) => v.key.includes('/ deadly / floor /'));
+  const was = read(synthSet()), now = read(slowTwin);
+  const four = (vs) => (vs.find((v) => v.rule === 'four-xp') || {}).value;
+  check(four(now) > four(was), 'seat-twins: a slow Healer alone lifts the four against the same heroes alone (' + four(was) + ' -> ' + four(now) + ')');
+  const others = (vs) => JSON.stringify(vs.filter((v) => v.rule !== 'four-xp').map((v) => [v.rule, v.key, v.value]));
+  check(others(now) === others(was) && goldReport(goldRows(slowTwin)) === goldReport(goldRows(synthSet())), 'seat-twins: no other line and no printed gold moves with it');
+  const qg = await buildGrid(ROOT, 'quick', { grounds: ['mosslight_glade'] }), twins = qg.filter((j) => j.grade.seatOnly);
+  check(twins.length > 0 && twins.every((j) => j.grade.comp === 'healer' && j.grade.tier !== 'normal' && j.profile === 'played' && j.id.includes(',seat,')),
+    'seat-twins: quick plays the Healer alone on Dangerous and Deadly only, played, its id saying so (' + twins.length + ')');
+}
 
 /* THE PACE CONTRACT READS THE LONE MEDIAN ON EVERY GROUND (Coordinator ruling 2026-11-11, lane/d-solo-fifteen): the contract is fitted on lone heroes, and a four
-   is ruled 1.15-1.25x a lone hero, so on a party ground the four a head read about 1.2x it (the Sewer 1.19, the Warrens 1.52) while its lone median sat in band.
+   a head reads its party bonus on top, so on a party ground it read about 1.2x (the Sewer 1.19, the Warrens 1.52) while its lone median sat in band.
    A party ground at its middle: the lone way at 1.0x the contract and the four at 1.5x grades ok; the lone way at 1.3x FAILS, binding, party ground or not. */
 const BS0 = await import('../src/data/balance-sheet.js');
 const middle = (loneX) => synthSet().filter((c) => c.cell.grade.tier === 'normal' && c.cell.grade.offset === 'floor').map((c) => {
@@ -99,8 +132,15 @@ const feel = (cells) => feelVerdicts(cells).filter((v) => v.verdict === 'FAIL' |
 check(feel(synthSet()).length === 0, 'feel: the good set reads clean (' + feel(synthSet()).join(', ') + ')');
 check(feel(synthSet({ deaths: true })).includes('feel-normal-deaths'), 'feel: a Normal death at the floor is flagged');
 check(feel(synthSet({ tier: true })).includes('feel-tier-less'), 'feel: a held Deadly paying less than Normal is flagged');
-const seat = synthSet(); seat.find((c) => c.cell.grade.tier === 'normal' && c.cell.grade.offset === 'floor' && c.cell.grade.size === 4).heroes[3].levelXpPerH = 30000;
-check(feel(seat).includes('feel-seat-below-solo'), 'feel: a party seat under the lone hero is flagged');
+/* a seat under the lone hero (Tyler 2026-11-16): felt on Dangerous and Deadly, never on Normal; not for one class (10-31), nor for a party with no
+   Healer on a Healer's tier at its Level (designer 2026-11-19, hunt-tiers.js isHealerTier) */
+const seatOn = (tier, comp) => { const s = synthSet(), c = s.find((x) => x.cell.grade.tier === tier && x.cell.grade.offset === 'floor' && x.cell.grade.size === 4); c.heroes[3].levelXpPerH = 30000; if (comp) c.cell.grade.comp = comp; return s; };
+const seat = seatOn('deadly');
+check(feel(seat).includes('feel-seat-below-solo') && feel(seatOn('dangerous')).includes('feel-seat-below-solo'), 'feel: a party seat under the lone hero on Dangerous and Deadly is flagged');
+check(!feel(seatOn('normal')).includes('feel-seat-below-solo'), 'feel: a party seat under the lone hero on Normal is not (11-16: Normal is not tuned for parties)');
+check(!feel(seatOn('deadly', 'hammer+hammer+hammer+hammer')).includes('feel-seat-below-solo'), 'feel: a one-class four under the lone hero is not (10-31: one class never out-earns its heroes alone)');
+const healerOn = (healerTier) => feelVerdicts(seatOn('deadly', 'tank+hammer+bow+mage'), {}, healerTier).map((v) => v.rule).includes('feel-seat-below-solo');
+check(!healerOn((g, t, lv) => g === 'g' && t === 'deadly' && lv === 16) && healerOn(() => false), 'feel: a four with no Healer is read on an ordinary Deadly, not on a Healer\'s tier at its Level');
 const two = synthSet().concat(synthSet().map((c) => ({ ...c, cell: { ...c.cell, grade: { ...c.cell.grade, ground: 'g2', band: [30, 40] } },
   heroes: c.heroes.map((h) => ({ ...h, profitPerH: h.profitPerH - 3000 })) })));
 check(feel(two).length === 0, 'no-profit-molds: a higher floor netting less gold is no longer flagged (feel-gold-order retired 2026-11-13; ' + feel(two).join(', ') + ')');
@@ -109,7 +149,8 @@ check(worse(synthSet(), two).length === 0, 'no-profit-molds: grade-compare calls
 /* the release gate (grade-compare.mjs): nothing is worse against itself; a new Normal death and a seat sliding under solo are */
 check(worse(synthSet(), synthSet()).length === 0, 'compare: a run against itself is worse nowhere');
 check(worse(synthSet(), synthSet({ deaths: true })).some((x) => x.what === 'feel-normal-deaths'), 'compare: a new Normal death is worse');
-check(worse(synthSet(), seat).some((x) => x.what === 'seat-vs-solo'), 'compare: a seat sliding under solo is worse');
+check(worse(synthSet(), seat).some((x) => x.what === 'seat-vs-solo'), 'compare: a seat sliding under solo on Deadly is worse');
+check(!worse(synthSet(), seatOn('normal')).some((x) => x.what === 'seat-vs-solo'), 'compare: a seat sliding under solo on Normal is worse for nobody (11-16)');
 
 /* THE WEIGHT CLASS ON THE SHEET THE PACK CHECK READS (designer ruling 2026-11-10; Tyler 11-06: "you're gonna waste money but get
    more exp and possibly die a few times"). The binding half is gold. Deaths are a report line on heroes alone, never a red.
@@ -238,7 +279,7 @@ check(loneJobs.length > 0 && slow.length === 0, 'lone-window: every lone cell ('
   check(!failsOf(twinDies).some((v) => v.rule === 'normal-deaths'), 'played: a played twin\'s deaths fail no Normal rule (the plain hero is graded there)');
   const plainDies = prof(synthSet()); plainDies.find((c) => c.cell.grade.profile === 'plain' && c.cell.grade.size === 1 && c.cell.grade.offset === 'floor').heroes[0].deaths = 12;
   check(failsOf(plainDies).some((v) => v.rule === 'normal-deaths'), 'played: the plain hero alone dying on Normal still FAILS normal-deaths');
-  /* a four at 1.2x the played twins reads ok; read against the plain hero (1.56x) it would FAIL four-xp */
+  /* a four at 1.2x the played heroes alone on its tier reads ok, read against nothing but them (the four's line binds Dangerous and Deadly) */
   const fourOk = gradeCells(prof(synthSet()), SHEET, flat).verdicts.filter((v) => v.rule === 'four-xp');
   check(fourOk.length > 0 && fourOk.every((v) => v.verdict === 'ok' && Math.abs(v.value - 1.2) < 1e-9), 'played: a four is read against the played twins alone (' + fourOk.map((v) => v.value.toFixed(2)).join(', ') + ')');
 }

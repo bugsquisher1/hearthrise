@@ -5089,6 +5089,14 @@ jobs:
       # with no failing assertion, and eleven more steps never ran. See the
       # `utc-midnight-replay` job below for the guard and its full comment.
 
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tools/balance-program/inventory.mjs
+      - name: The balance program's inventory still catches an unclaimed system
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/mutant-gate.mjs node tools/balance-program/inventory.mjs --selftest
+      # ── END SELF-REGISTERED GUARDS ──
+
   # ── in-page-21 ── TELEMETRY, REPORT A PROBLEM, DEATH POPUP, SPLIT OUT OF in-page
   # 2026-10-26 (lane a-ci-budget). release/v0.2.50 (run 40314818369) CANCELLED in-page
   # at 36:33 with 0 failures: 12.2 min of apt stall (23.9 MB at 32.8 kB/s) + node suite
@@ -6413,6 +6421,7 @@ jobs:
         run: |
           node tools/mutant-gate.mjs node tools/guards-for.local.mjs --selftest
           node tools/mutant-gate.mjs node tools/player-read.local.mjs --selftest
+          node tools/mutant-gate.mjs node tools/balance-program/real-players.local.mjs --selftest
 
       # THE PITR DRILL, READY (docs/design/restore-runbook.md §9b, lane/c-ops-gates 2026-11-19): the recovery-point verdict on
       # planted marker rows (PASS, too early, past T, unread), the SELECT-only filter, and --disarm's two refusals (production's

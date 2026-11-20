@@ -1,0 +1,408 @@
+{
+ "schema": "hearthrise.balance-program.ref/1",
+ "commit": "a5e092248",
+ "hours": 1,
+ "seeds": 2,
+ "points": {
+  "thicket": {
+   "ground": "meadowbrook_thicket",
+   "level": 10,
+   "open": true,
+   "contractXpPerH": 26029,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 29312,
+     "mainSkillXpPerH": 16775,
+     "defenseXpPerH": 2099,
+     "incomePerH": 4500,
+     "storePerH": 240,
+     "netPerH": 4260,
+     "netWithRaresPerH": 4315,
+     "takenPerH": 2783,
+     "killsPerH": 584,
+     "deaths": 0,
+     "lowHpP10": 94.3
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 34765,
+     "mainSkillXpPerH": 30638,
+     "defenseXpPerH": 1092,
+     "incomePerH": 5140,
+     "storePerH": 4807,
+     "netPerH": 333,
+     "netWithRaresPerH": 358,
+     "takenPerH": 1210,
+     "killsPerH": 693,
+     "deaths": 0,
+     "lowHpP10": 95.4
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 15121,
+     "mainSkillXpPerH": 7392,
+     "defenseXpPerH": 1190,
+     "incomePerH": 1367,
+     "storePerH": 842,
+     "netPerH": 525,
+     "netWithRaresPerH": 564,
+     "takenPerH": 669,
+     "killsPerH": 758,
+     "deaths": 0,
+     "lowHpP10": 88.9
+    }
+   }
+  },
+  "glade": {
+   "ground": "mosslight_glade",
+   "level": 30,
+   "open": true,
+   "contractXpPerH": 105512,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 104610,
+     "mainSkillXpPerH": 35616,
+     "defenseXpPerH": 5983,
+     "incomePerH": 10512,
+     "storePerH": 0,
+     "netPerH": 10512,
+     "netWithRaresPerH": 10512,
+     "takenPerH": 14976,
+     "killsPerH": 516,
+     "deaths": 0,
+     "lowHpP10": 83.3
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 137805,
+     "mainSkillXpPerH": 50229,
+     "defenseXpPerH": 3027,
+     "incomePerH": 13466,
+     "storePerH": 9070,
+     "netPerH": 4396,
+     "netWithRaresPerH": 4611,
+     "takenPerH": 8567,
+     "killsPerH": 680,
+     "deaths": 0,
+     "lowHpP10": 85.5
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 185301,
+     "mainSkillXpPerH": 47062,
+     "defenseXpPerH": 5353,
+     "incomePerH": 10819,
+     "storePerH": 5918,
+     "netPerH": 4902,
+     "netWithRaresPerH": 5044,
+     "takenPerH": 4103,
+     "killsPerH": 2336,
+     "deaths": 0,
+     "lowHpP10": 85.5
+    }
+   }
+  },
+  "ford": {
+   "ground": "hasks_ford",
+   "level": 50,
+   "open": true,
+   "contractXpPerH": 202273,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 245472,
+     "mainSkillXpPerH": 43154,
+     "defenseXpPerH": 14655,
+     "incomePerH": 11612,
+     "storePerH": 270,
+     "netPerH": 11342,
+     "netWithRaresPerH": 11364,
+     "takenPerH": 33633,
+     "killsPerH": 350,
+     "deaths": 0,
+     "lowHpP10": 69.7
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 309973,
+     "mainSkillXpPerH": 53590,
+     "defenseXpPerH": 6922,
+     "incomePerH": 15589,
+     "storePerH": 15909,
+     "netPerH": -320,
+     "netWithRaresPerH": -208,
+     "takenPerH": 16732,
+     "killsPerH": 442,
+     "deaths": 0,
+     "lowHpP10": 80.9
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 530145,
+     "mainSkillXpPerH": 59577,
+     "defenseXpPerH": 12533,
+     "incomePerH": 14879,
+     "storePerH": 13612,
+     "netPerH": 1267,
+     "netWithRaresPerH": 1318,
+     "takenPerH": 16804,
+     "killsPerH": 1588,
+     "deaths": 0,
+     "lowHpP10": 68.3
+    }
+   }
+  },
+  "slake": {
+   "ground": "the_slake",
+   "level": 60,
+   "open": true,
+   "contractXpPerH": 255161,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 264803,
+     "mainSkillXpPerH": 49530,
+     "defenseXpPerH": 17773,
+     "incomePerH": 12594,
+     "storePerH": 90,
+     "netPerH": 12504,
+     "netWithRaresPerH": 12523,
+     "takenPerH": 40254,
+     "killsPerH": 390,
+     "deaths": 0,
+     "lowHpP10": 72.9
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 402803,
+     "mainSkillXpPerH": 73186,
+     "defenseXpPerH": 8173,
+     "incomePerH": 19480,
+     "storePerH": 29624,
+     "netPerH": -10144,
+     "netWithRaresPerH": -10055,
+     "takenPerH": 18717,
+     "killsPerH": 593,
+     "deaths": 0,
+     "lowHpP10": 84.7
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 593257,
+     "mainSkillXpPerH": 72611,
+     "defenseXpPerH": 16098,
+     "incomePerH": 16539,
+     "storePerH": 15221,
+     "netPerH": 1318,
+     "netWithRaresPerH": 1388,
+     "takenPerH": 28698,
+     "killsPerH": 1732,
+     "deaths": 0,
+     "lowHpP10": 70.1
+    }
+   }
+  },
+  "pyre": {
+   "ground": "pyre_field",
+   "level": 80,
+   "open": true,
+   "contractXpPerH": 368117,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 432580,
+     "mainSkillXpPerH": 72663,
+     "defenseXpPerH": 27710,
+     "incomePerH": 23965,
+     "storePerH": 540,
+     "netPerH": 23425,
+     "netWithRaresPerH": 23522,
+     "takenPerH": 66186,
+     "killsPerH": 349,
+     "deaths": 0,
+     "lowHpP10": 60.9
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 603985,
+     "mainSkillXpPerH": 86827,
+     "defenseXpPerH": 14963,
+     "incomePerH": 32860,
+     "storePerH": 34237,
+     "netPerH": -1377,
+     "netWithRaresPerH": -1216,
+     "takenPerH": 33338,
+     "killsPerH": 489,
+     "deaths": 0,
+     "lowHpP10": 77.7
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 687998,
+     "mainSkillXpPerH": 78057,
+     "defenseXpPerH": 19000,
+     "incomePerH": 19451,
+     "storePerH": 24009,
+     "netPerH": -4559,
+     "netWithRaresPerH": -4443,
+     "takenPerH": 34647,
+     "killsPerH": 1318,
+     "deaths": 0,
+     "lowHpP10": 63.6
+    }
+   }
+  },
+  "hold": {
+   "ground": "krells_hold",
+   "level": 105,
+   "open": true,
+   "contractXpPerH": 520529,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 551118,
+     "mainSkillXpPerH": 76422,
+     "defenseXpPerH": 34169,
+     "incomePerH": 21985,
+     "storePerH": 900,
+     "netPerH": 21085,
+     "netWithRaresPerH": 21133,
+     "takenPerH": 73186,
+     "killsPerH": 307,
+     "deaths": 0,
+     "lowHpP10": 58.9
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 749536,
+     "mainSkillXpPerH": 79771,
+     "defenseXpPerH": 17261,
+     "incomePerH": 28755,
+     "storePerH": 30650,
+     "netPerH": -1896,
+     "netWithRaresPerH": -1835,
+     "takenPerH": 33441,
+     "killsPerH": 417,
+     "deaths": 0,
+     "lowHpP10": 81.3
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 938150,
+     "mainSkillXpPerH": 84923,
+     "defenseXpPerH": 23607,
+     "incomePerH": 20497,
+     "storePerH": 26240,
+     "netPerH": -5743,
+     "netWithRaresPerH": -5697,
+     "takenPerH": 38948,
+     "killsPerH": 1174,
+     "deaths": 0,
+     "lowHpP10": 63.2
+    }
+   }
+  },
+  "rest": {
+   "ground": "carters_rest",
+   "level": 118,
+   "open": false,
+   "contractXpPerH": 603987,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 530075,
+     "mainSkillXpPerH": 69699,
+     "defenseXpPerH": 52863,
+     "incomePerH": 17171,
+     "storePerH": 20160,
+     "netPerH": -2989,
+     "netWithRaresPerH": -2989,
+     "takenPerH": 112792,
+     "killsPerH": 235,
+     "deaths": 0,
+     "lowHpP10": 39.9
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 839472,
+     "mainSkillXpPerH": 77746,
+     "defenseXpPerH": 21503,
+     "incomePerH": 26978,
+     "storePerH": 28446,
+     "netPerH": -1468,
+     "netWithRaresPerH": -1468,
+     "takenPerH": 49695,
+     "killsPerH": 371,
+     "deaths": 0,
+     "lowHpP10": 70.5
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 1108041,
+     "mainSkillXpPerH": 99671,
+     "defenseXpPerH": 33460,
+     "incomePerH": 19421,
+     "storePerH": 30482,
+     "netPerH": -11061,
+     "netWithRaresPerH": -11038,
+     "takenPerH": 57663,
+     "killsPerH": 1118,
+     "deaths": 0,
+     "lowHpP10": 54
+    }
+   }
+  },
+  "catacombs": {
+   "ground": "unmarked_catacombs",
+   "level": 175,
+   "open": false,
+   "contractXpPerH": 997884,
+   "seats": {
+    "lone": {
+     "tier": "normal",
+     "levelXpPerH": 822471,
+     "mainSkillXpPerH": 89540,
+     "defenseXpPerH": 77083,
+     "incomePerH": 19393,
+     "storePerH": 45180,
+     "netPerH": -25788,
+     "netWithRaresPerH": -25788,
+     "takenPerH": 166886,
+     "killsPerH": 208,
+     "deaths": 0,
+     "lowHpP10": 36.3
+    },
+    "mage": {
+     "tier": "normal",
+     "levelXpPerH": 1070780,
+     "mainSkillXpPerH": 88438,
+     "defenseXpPerH": 31287,
+     "incomePerH": 26130,
+     "storePerH": 34258,
+     "netPerH": -8128,
+     "netWithRaresPerH": -8128,
+     "takenPerH": 81639,
+     "killsPerH": 270,
+     "deaths": 0,
+     "lowHpP10": 50.7
+    },
+    "four": {
+     "tier": "deadly",
+     "levelXpPerH": 1383744,
+     "mainSkillXpPerH": 123244,
+     "defenseXpPerH": 56179,
+     "incomePerH": 18362,
+     "storePerH": 46695,
+     "netPerH": -28333,
+     "netWithRaresPerH": -28333,
+     "takenPerH": 107578,
+     "killsPerH": 802,
+     "deaths": 0,
+     "lowHpP10": 33.3
+    }
+   }
+  }
+ }
+}

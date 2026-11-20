@@ -105,9 +105,10 @@ async function signInAndPlay(page, base) {
 }
 
 const openWins = (page) => page.evaluate(() => Array.from(document.querySelectorAll('[data-hs-win]:not(.is-leaving)')).map((w) => w.getAttribute('data-hs-win')));
-/* Close every window (Esc closes the top one; with none open it would open Settings) and shut any menu. */
+/* Close every window (Esc closes the top one; with none open it would open Settings) and shut any menu. Chat stands open from the
+   start and Esc passes it by (window-manager.js onEscape), so it stays: the loop ends when it is all that is left. */
 async function closeAll(page) {
-  for (let i = 0; i < 5 && (await openWins(page)).length; i++) {
+  for (let i = 0; i < 5 && (await openWins(page)).some((w) => w !== 'chat'); i++) {
     await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(170);
@@ -175,9 +176,11 @@ async function checks(overrides, shots, firstRed = false) {
         await page.waitForTimeout(100);
         if ((await menu()) !== null) fails.push('TB-4 a second press left the menu open');
         await tryPress(page, '[data-hs-group="town"]');
+        /* Chat stands open from the start (chat-social CW-12): Esc over the menu shuts the menu and leaves the windows as they were */
+        const was = JSON.stringify(await openWins(page));
         await page.keyboard.press('Escape');
         await page.waitForTimeout(250);
-        if ((await menu()) !== null || (await openWins(page)).length) fails.push('TB-4 Esc over the open menu left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page) }) + ', want it shut and nothing opened');
+        if ((await menu()) !== null || JSON.stringify(await openWins(page)) !== was) fails.push('TB-4 Esc over the open menu left ' + JSON.stringify({ menu: await menu(), windows: await openWins(page), was: JSON.parse(was) }) + ', want it shut and nothing opened or closed');
         await tryPress(page, '[data-hs-group="town"]');
         await page.mouse.click(400, 450);
         await page.waitForTimeout(150);

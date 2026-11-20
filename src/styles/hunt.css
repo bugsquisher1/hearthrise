@@ -193,9 +193,10 @@
 /* AN OPEN TOOLTIP, DROP MENU OR PANEL SHEET IS ON TOP (v0.2.23 gate: the alert stack drew over the slot's name
    and why). The bar's widget rises over its sibling widgets' own cards (the hunt bar's pointer is z 5), and the
    world HUD over the screen layer (.hs-screen, z 6: the alerts and the launcher row) while one is open and no
-   window is: an open window (Configure action above all) stays over the bar. */
+   window is: an open window (Configure action above all) stays over the bar. Chat at its home is not one of them: it stands open from the
+   start beside the bar, and a slot's menu opens up into its column (lane/a-chat-opens). */
 .hs-widget:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on, .hb-prep:hover) { z-index: 6; }
-.hs-shell:not(:has(.hs-win:not(.is-leaving))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on) { z-index: 7; }
+.hs-shell:not(:has(.hs-win:not(.is-leaving):not(.is-home))) > .hs-hud:has(.hb-tip.is-on, .hb-drop.is-on, .hb-plaque.is-open, .hb-buy.is-on) { z-index: 7; }
 /* THE BAR IS ONE FORGED OBJECT (Tyler 10-22: "dorky, no art to it"; 10-25: keep the layout, a smooth ring, the fight
    controls back on the right, more gold, bigger icons). A 6-art-px iron plate (bar-plate.png, tools/make-hud-bar-art.mjs)
    with a gold rule along its top edge (--steel-rule, a window heading's rule); the slots are wells sunk into it

@@ -22,7 +22,8 @@
 //            leaves the windows under it open. On desktop its head drags it like
 //            any window (Tyler 2026-10-27), held wholly inside the World (`h`, its
 //            measured height); a reopen is centred again. The phone never moves it.
-//   Esc      closes the top window; with none open it opens the `escape` row.
+//   Esc      closes the top window; with none open it opens the `escape` row. A window open from the start
+//            (`startsOpen`, Chat) is part of the screen: Esc passes it by (its X or its icon closes it).
 //   keys     each row's `key` toggles it; ignored while typing (src/utils/dom.js
 //            keyBelongsToField: a text field, or a select's arrows) or with a modifier.
 //   motion   a close waits MOTION_MS for the slide-out; none under reduced motion.
@@ -419,7 +420,7 @@ export function createWindowManager(o) {
   }
 
   function onEscape() {
-    const l = live();
+    const l = live().filter((id) => !rows.get(id).startsOpen);
     if (l.length) return pages.has(l[l.length - 1]) ? back(l[l.length - 1]) : close(l[l.length - 1]);
     for (const r of rows.values()) if (r.escape) return openWindow(r.id);
     return false;

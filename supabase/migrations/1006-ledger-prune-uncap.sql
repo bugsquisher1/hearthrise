@@ -17,6 +17,10 @@
 -- OUTFLOW after: every 5 minutes ('2-57/5 * * * *', :02, :07, ... :57, so :07 still runs) x the same 20,000-row batch
 --     = 20,000 x 12 x 24 = 5,760,000 rows a day = 4.9x the 1,000-hero worst case; outrun near 4,898 heroes hunting around the
 --   clock. A backlog of 1,000,000 rows drains in 50 runs (~4 h 10 min) on top of the inflow.
+--   PRODUCTION, read 2026-11-20 (docs/design/balance-program/28-platform.md, lane/d-balance-platform): 216 rows a HUNTED hero-hour
+--   (48% of hunted hours at the watched cadence), not the fixtures' 43-49. At that rate: 1,000 x 24 x 216 = 5,184,000 a day, 1.11x
+--   under this outflow, outrun near 1,111 heroes hunting around the clock. The headroom past that is the hourly journal (the
+--   audit's row 7, second half: about 3 rows a hero-hour), not a bigger batch.
 -- COST of a run, measured on the replay (PGlite, 60,000 rows 100 days old): a full 20,000-row batch (roll up, then delete) 89-112 ms;
 --   a run with nothing due 3 ms. The batch is an INDEX RANGE SCAN on player_ledger_pkey (at, id), which leads with `at` and is the
 --   prune's own `order by at, id`: no sort, no full scan, so NO new index (a second btree on `at` would only double the index

@@ -7411,6 +7411,14 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tools/beta-load.mjs
+      - name: The heavy four at the beta's concurrency, its journal rows and statements a hero-hour in band (nightly, PostgreSQL 17)
+        if: ${{ !cancelled() }}
+        run: |
+          node tools/beta-load.mjs --shape=krell4 --accounts=40 --online=0.5 --minutes=3 --warm=60 --workers=2 --json=beta-load-krell4.json
+      # ── END SELF-REGISTERED GUARDS ──
+
   # pg17: THE RACES PGLITE CANNOT RUN (lane/a-guard-proofs-2, 2026-11-14). PGlite is one backend, so a chain replay there
   # plays each order the locks admit one after the other and can never show that the locks admit ONLY those orders. These
   # guards replay the same chain on a real PostgreSQL 17 cluster (tools/pg-replay.mjs, production's major version), one

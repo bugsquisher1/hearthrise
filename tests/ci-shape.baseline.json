@@ -786,6 +786,7 @@
     "node tests/town-stands.mjs": "in-page-24",
     "node tools/mutant-gate.mjs node tests/town-stands.mjs --mutate": "in-page-24",
     "node tools/beta-load.mjs --accounts=12 --heroes=4 --minutes=3 --warm=60 --workers=2 --json=beta-load.json": "pg17-load",
+    "node tools/beta-load.mjs --shape=krell4 --accounts=40 --online=0.5 --minutes=3 --warm=60 --workers=2 --json=beta-load-krell4.json": "pg17-load",
     "node tests/hunt-carry-race.mjs": "pg17",
     "node tools/mutant-gate.mjs node tests/hunt-carry-race.mjs --mutate": "pg17",
     "node tests/town-shows-race.mjs": "pg17",

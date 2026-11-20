@@ -20,7 +20,7 @@ import { serverNowOf } from '../session/hunt-sections.js?v=0.2.142';
 
 const residueOf = (ctx) => (ctx.character && ctx.character.record && ctx.character.record.residue) || {};
 /* Every hero this account has open, the viewed one among them (a store that is the player's, not one hero's). */
-const peersOf = (ctx) => {
+export const peersOf = (ctx) => {
   const all = typeof ctx.peers === 'function' ? ctx.peers() : [];
   return !ctx.character || all.includes(ctx.character) ? all : all.concat(ctx.character);
 };

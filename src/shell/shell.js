@@ -64,6 +64,7 @@ import { applyPanelAlpha, clearPanelAlpha } from './panel-alpha.js?v=0.2.142';
 import { mountWidgetMoves, paintMove } from './widget-move.js?v=0.2.142';
 import { followGoto, seekRow, ownsKey } from './goto.js?v=0.2.142';
 import { hideTipIfGone } from './windows/item-tip.js?v=0.2.142';
+import { startShut, keepStart } from './start-open.js?v=0.2.142';
 
 /* The components' display clock: session timers and the timeline's due events (parity SH-05, DOM 4 Hz). */
 const DISPLAY_TICK_MS = 250;
@@ -117,7 +118,7 @@ export function mountShell(root, o) {
     sizeOf: (id) => sizes.read(id),
     isPhone: () => phoneMq.matches,
     world: () => ({ width: shell.clientWidth, height: shell.clientHeight }),
-    reducedMotion,
+    reducedMotion, keep: (id, open) => keepStart(ctx, wm.row(id), open),   // the player's close of Chat keeps it shut (./start-open.js)
     schedule: (fn, ms) => host.setTimeout(fn, ms),
   });
   /* The HUD layout and the facts it follows: which hunt widgets show, the default folds (src/shell/shell-hud.js). */
@@ -427,6 +428,7 @@ export function mountShell(root, o) {
      Characters button and hero tabs, src/app/character-strip.js). */
   const ringRoots = [shell, screen, opts.screen || doc.body];
   const offWm = wm.subscribe(onWm);
+  wm.openAtStart((row) => startShut(ctx, row));   // Chat stands open at its home unless the player shut it (Tyler 2026-10-22, ./start-open.js)
   /* A reset or a size-class reload moves every line of the HUD layout window too. */
   const offHud = hud.subscribe((id) => { paintWidgets(); if (id === null) for (const w of wm.openIds()) refresh(w); });
 
@@ -569,9 +571,7 @@ export function mountShell(root, o) {
 
   return {
     wm, hud,
-    open: (id) => wm.open(id),
-    close: (id) => wm.close(id),
-    toggle: (id) => wm.toggle(id),
+    open: (id) => wm.open(id), close: (id) => wm.close(id), toggle: (id) => wm.toggle(id),
     refresh,
     /** Repaint the widgets and patch the open component windows (every applied envelope). */
     paint() { followSummary(); paintWidgets(); for (const id of wm.openIds()) if (WINDOW_RENDERERS[id] && WINDOW_RENDERERS[id].patch) refresh(id); coach(); },

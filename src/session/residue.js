@@ -291,6 +291,7 @@ const SANITIZERS = Object.freeze({
   fxMonster: valuePick(FX_ALPHA_ROW.monster), // display preference: the same for the monsters' hits and spells; gates and spends nothing
   fxMarks: valuePick(FX_ALPHA_ROW.marks),     // display preference: how strong the danger marks fill, never under half; gates and spends nothing
   tips: sanitizeSwitch,             // display preference: whether the coach's cards and the town criers show, one for every hero (src/data/tips.js); gates and spends nothing
+  chatOpen: sanitizeSwitch,         // display preference: whether Chat stands open as the screen comes up, one for every hero (src/data/shell-windows.js startsOpen); gates and spends nothing
   stationSort: sanitizeStationSort, // display preference: each crafting station's recipe order (src/shell/station-sort.js); gates and spends nothing
 });
 

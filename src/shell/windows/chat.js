@@ -40,7 +40,7 @@ import { linkHtml } from '../goto.js?v=0.2.142';
 
 const STATE = new WeakMap();
 const ROW = Object.freeze(Object.fromEntries(CHAT_TABS.map((t) => [t.id, t])));
-const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { tab: null, sending: false, msg: '', rev: -1, built: false }; STATE.set(body, s); } return s; };
+const stateOf = (body) => { let s = STATE.get(body); if (!s) { s = { tab: null, sending: false, msg: '', rev: -1 }; STATE.set(body, s); } return s; };
 const socialOf = (ctx) => (ctx.account && ctx.account.social) || null;
 
 /** The tabs on show now: [{ id, label, unread }]. */
@@ -185,10 +185,9 @@ function patchInput(body, ctx, social, st) {
   prop(send, 'disabled', !can || st.sending);
   text(body.querySelector('.hc-msg'), st.msg);
   if (social && social.chat.draft.rev !== st.rev) { st.rev = social.chat.draft.rev; prop(field, 'value', social.chat.draft.text); }
-  if (!st.built) {
-    st.built = true;
-    if (can && !ctx.isPhone() && field.ownerDocument.activeElement !== field) field.focus({ preventScroll: true });
-  }
+  /* the caret comes when the player asked for Chat (a press, or Enter on it open: window-manager.js takeCaret), never when
+     the shell opened it at start, so the World's keys and the window keys still work for a player who has not typed */
+  if (ctx.wm.takeCaret('chat') && can && !ctx.isPhone() && field.ownerDocument.activeElement !== field) field.focus({ preventScroll: true });
 }
 
 async function doSend(ctx, body, st) {

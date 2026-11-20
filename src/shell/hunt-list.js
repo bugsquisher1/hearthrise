@@ -29,7 +29,7 @@
 // Nothing here is a gate: the server checks the band, the stamina and the
 // stock when the player presses Enter, and says why it refuses.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS, underFloorSharePm } from '../data/hunt-grounds.js?v=0.2.142';
+import { HUNT_GROUNDS, underFloorSharePm, groundOfHunt } from '../data/hunt-grounds.js?v=0.2.142';
 import { DEFAULT_TIER, TIER_NAME, TIER_LINES, TIER_DEATH_LINE, tierRowOf, pullOfTier, isHealerTier } from '../data/hunt-tiers.js?v=0.2.142';
 import { PARTY } from '../data/party.js?v=0.2.142';
 import { partyBestLine } from '../data/party-class-xp.js?v=0.2.142';
@@ -75,6 +75,17 @@ function partyBestOf(groundId) {
   return Object.freeze(out);
 }
 
+/** THE LEVELS A HERO HUNTS `huntId` AT, as every screen says them: its band (hunts.js) with the top under the ground's exit (hunt-grounds.js
+    endsAtLevel: the Mill Cellar's hunt ends at Level 5, so it reads 1 to 4), or null for no such hunt. The Hunts list, the Book's ground pages,
+    the Chronicle and a monster's homes read this one answer (retention dive 2026-11-20: the Book said 1 to 8 while Hunts said 1 to 4). Here,
+    not in hunt-grounds.js, so a display rule never moves the edge's bundle. */
+export function shownBand(huntId) {
+  const h = HUNT_INDEX[huntId];
+  if (!h || !Array.isArray(h.band)) return null;
+  const g = groundOfHunt(huntId);
+  return g && Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice();
+}
+
 /** One line per hunt ground, lowest band first (ties by name). */
 export function huntRows() {
   const out = [];
@@ -90,7 +101,7 @@ export function huntRows() {
       /* A GROUND WITH AN EXIT (hunt-grounds.js endsAtLevel: the Mill Cellar's hunt ends at Level 5): its band's top reads the Level under the
          exit, so the list, the advice and the summary's next ground never hold a Level the server would refuse it at. */
       hunt: g.hunt, name: h.name, theme: h.theme || '',
-      band: Number.isInteger(g.endsAtLevel) ? [h.band[0], Math.min(h.band[1], g.endsAtLevel - 1)] : h.band.slice(),
+      band: shownBand(g.hunt),
       endsAt: Number.isInteger(g.endsAtLevel) ? g.endsAtLevel : null,
       groupFit: g.pockets.some((p) => p.forParty) ? 'party' : g.groupFit,
       soloFrom: Number.isInteger(g.soloFrom) ? g.soloFrom : null,

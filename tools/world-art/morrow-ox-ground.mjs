@@ -428,15 +428,15 @@ export function oxFrame(g, grid) {
      irregular (its depth 10-70 px on a slow field), dithered between its steps, and never on the road or the bridge: the road runs on
      out of the map at full value, the moor and the rock darken round it */
   const W = g.width, H = g.height, h = grid.length, w = grid[0].length; let n = 0;
-  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const c0 = grid[Math.min(h - 1, y >> 5)][Math.min(w - 1, x >> 5)]; if (c0 === 'R' || c0 === 'G') continue;
     const d = Math.min(x, W - 1 - x, y, H - 1 - y), depth = 10 + 60 * noise(x, y, 90, 941) + 14 * (noise(x, y, 23, 943) - 0.5);
     if (d >= depth) continue;
     const c = px(g, x, y); if (EARTHS2.has(c) && 'RJ'.includes(c0)) continue;
-    const f = 1 - d / depth, th = (BAYER[(y & 3) * 4 + (x & 3)] + 0.5) / 16;
+    /* b8: an ordered 4x4 stipple read as a halftone screen on the pale rock; the threshold is irregular (clumped value noise) */
+    const f = 1 - d / depth, th = noise(x, y, 2.6, 947) * 0.7 + hash2(x, y, 949) * 0.3;
     if (f < th) continue;
-    const to = stepC(c, f > 0.75 && th < 0.5 ? -2 : -1);
+    const to = stepC(c, f > 0.78 && th < 0.55 ? -2 : -1);
     if (to !== c) { pt(g, x, y, to); n++; }
   }
   return { framed: n };

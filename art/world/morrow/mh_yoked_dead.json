@@ -1,24 +1,19 @@
 {
   "id": "mh_yoked_dead",
-  "class": "wagon",
+  "class": "team",
   "style": "s1",
-  "material": "wood",
+  "material": "native",
   "restyle": {
     "map": {
-      "#e6dcbc": "#8a867d",
-      "#c9bfa0": "#6a6865",
+      "#e6dcbc": "#aaa49a",
+      "#c9bfa0": "#aaa49a",
       "#dcae86": "#8a6440",
-      "#b5835f": "#6e4c30",
-      "#c8e6e0": "#6a6865",
-      "#86b4b4": "#4f7a80",
-      "#f2a03a": "#a8743a",
-      "#ffd36a": "#a8743a",
-      "#e8c547": "#a8743a"
+      "#b5835f": "#6e4c30"
     },
     "clamp": {
       "stone": [
         0,
-        2
+        4
       ],
       "iron": [
         0,
@@ -40,12 +35,12 @@
   },
   "source": "mh_yoked_dead.png",
   "frame": [
-    64,
-    63
+    80,
+    80
   ],
   "anchor_px": [
-    32,
-    62
+    40,
+    74
   ],
   "footprint": [
     2,
@@ -62,10 +57,10 @@
     }
   ],
   "pixellab": {
-    "tool": "edit_image_pro_flash (text) from a free sketch",
-    "image": "5755bc31-1098-5f7f-ae40-f46e52d65ca6",
-    "job": "985e7e17",
-    "sketch": "art/review/morrow-kit/ox-props4/team-ox3.png"
+    "tool": "edit_image_pro_flash (text, palette held) on a free sketch",
+    "image": "6c4928b6-7395-5dc4-82ad-3b900df6e706",
+    "job": "45685d38",
+    "sketch": "art/review/morrow-kit/ox-team-sketch-b.png (.scratch/kit/team/recipe.mjs b9)"
   },
-  "notes": "A team of two oxen dead in their yoke at beast size, back to back on their sides with their legs stiff and splayed, heavy heads west with pale muzzles, the hide a grey dun (dead, apart from the warm road), the tongue between their backs 24 px over the foot where its wagon's dragged tongue meets it (a prop; the live Yoke Ox is a creature). Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+  "notes": "THE LEAD TEAM of the last ore train out of Morrow, dead in its yoke: two oxen at beast size, fallen the same way and staggered, the far one's stiff legs out across the tongue and the near one's back; each on its side with its legs rigid along the ground, a cream belly toward us, the head limp on the ground, a dark muzzle, big bone horns, a dun hide; the yoke beam across both necks at a slant, the tongue running off east to the wagon. Sketch B of three free sketches (art/review/morrow-kit/ox-team-sketches.png; picked by the Coordinator under Tyler's standing art sign-off, after four misses), polished palette-held by edit_image_pro_flash. Its horns stay bone pale (stone 4); the rest a step under the creatures. Pixels unscaled."
 }

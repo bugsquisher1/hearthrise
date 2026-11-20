@@ -1182,7 +1182,12 @@ async function selftest() {
   try {
     const probe = join(dir, 'probe-guard.mjs');
     writeFileSync(probe, 'process.exit(process.argv.includes("--mutate") ? 7 : 3);\n');
-    const env = (files, extra = {}) => ({ ...process.env, GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0',
+    /* HERMETIC: the child gets this process's env minus the runner's own (GITHUB_*, RUNNER_*, ACTIONS_*, CI, HR_*), and each case
+       sets what it reads. On GitHub they leaked in: GITHUB_REPOSITORY made the stand-in release run below a fork's, so the base
+       fell back and the case was red there only (release/v0.2.143, run 44826074129); green here said nothing of GitHub. */
+    const RUNNER_ENV = /^(?:GITHUB_|RUNNER_|ACTIONS_|HR_)|^CI$/i;
+    const hermetic = () => Object.fromEntries(Object.entries(process.env).filter(([k]) => !RUNNER_ENV.test(k)));
+    const env = (files, extra = {}) => ({ ...hermetic(), GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0',
       GITHUB_SHA: `selftest-${files}`, RUNNER_TEMP: dir, HR_MUTANT_GATE_FILES: files, HR_MUTANT_GATE: '', HR_RELEASE_PROOFS: '', ...extra });
     const cli = (args, e) => spawnSync(process.execPath, [fileURLToPath(import.meta.url), ...args], { cwd: ROOT, encoding: 'utf8', env: e });
     const probeKey = probe.replace(/\\/g, '/');
@@ -1240,8 +1245,11 @@ async function selftest() {
         const prev = commit('previous-release.txt');
         const head = commit('this-release.txt');
         g(dir, 'clone', '-q', remote, work);
-        const runs = [{ id: 4, head_sha: prev, head_branch: 'release/v0.0.1', path: WORKFLOW_PATH, event: 'push', status: 'completed', conclusion: 'success', created_at: new Date().toISOString() }];
-        const e = env('', { GITHUB_SHA: head, GITHUB_JOB: 'x', GIT_DIR: join(work, '.git'), GITHUB_REF_NAME: 'release/v0.0.2',
+        /* the run is this repository's, and the case names its repository, as GitHub does: the fork rule judges it everywhere */
+        const repo = { full_name: 'selftest/hearthrise' };
+        const runs = [{ id: 4, head_sha: prev, head_branch: 'release/v0.0.1', path: WORKFLOW_PATH, event: 'push', status: 'completed', conclusion: 'success',
+          created_at: new Date().toISOString(), repository: repo, head_repository: repo }];
+        const e = env('', { GITHUB_SHA: head, GITHUB_JOB: 'x', GIT_DIR: join(work, '.git'), GITHUB_REF_NAME: 'release/v0.0.2', GITHUB_REPOSITORY: repo.full_name, GITHUB_RUN_ID: '9',
           HR_GATE_HISTORY: JSON.stringify({ nightly: { at: new Date().toISOString(), id: 5, jobs: { x: 'success' } }, releaseRuns: runs }) });
         delete e.HR_MUTANT_GATE_FILES;
         const r = cli(['node', probe, '--mutate'], e);
@@ -1257,7 +1265,7 @@ async function selftest() {
           && /proved by the nightly sweep/.test(cli(['node', probe, '--mutate'], env('src/a.js', { HR_RELEASE_PROOFS: 'nightly-only', GITHUB_SHA: 'selftest-only-cli' })).stdout);
       }],
       ['--nightly-gate: red when the sweep cannot be read under nightly-only, open when switched off', () => {
-        const e = (sw) => ({ ...process.env, GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0', HR_RELEASE_PROOFS: sw,
+        const e = (sw) => ({ ...hermetic(), GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'push', GITHUB_REF_NAME: 'release/v0.0.0', HR_RELEASE_PROOFS: sw,
           HR_GATE_HISTORY: JSON.stringify({ nightlyError: 'HTTP 502' }), HR_MUTANT_GATE: '' });
         const on = cli(['--nightly-gate'], e('nightly-only')); const off = cli(['--nightly-gate'], e(''));
         return on.status === 1 && /BLOCKED .*could not be read/.test(on.stdout) && off.status === 0 && /nothing to gate/.test(off.stdout);

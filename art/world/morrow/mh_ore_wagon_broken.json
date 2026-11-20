@@ -1,0 +1,71 @@
+{
+  "id": "mh_ore_wagon_broken",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80",
+      "#f2a03a": "#a8743a",
+      "#ffd36a": "#a8743a",
+      "#e8c547": "#a8743a"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_ore_wagon_broken.png",
+  "frame": [
+    64,
+    48
+  ],
+  "anchor_px": [
+    32,
+    47
+  ],
+  "footprint": [
+    2,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text) from a free sketch",
+    "image": "abb9c196-1786-5da2-bc92-93521c0b9435",
+    "job": "248e87fb",
+    "sketch": "art/review/morrow-kit/ox-props4/broken-w3.png"
+  },
+  "notes": "The ore wagon's rigid bed dropped onto its near back corner (that wheel gone: mh_lost_wheel), the rail sloped, the load slumped and run out of the low corner. Round 4 after review b4: modelled in one high top-down camera (.scratch/kit/ox-wagon3.mjs, ox-oxen3.mjs, ox-vigil.mjs), then a palette-held edit_image_pro_flash polish that keeps every outline. Ported by tools/world-art/port-pixellab.mjs object (bottom-centre anchor); restyled under the creatures (ART_DIRECTION 4). Pixels unscaled."
+}

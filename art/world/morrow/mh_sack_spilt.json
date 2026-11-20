@@ -1,0 +1,66 @@
+{
+  "id": "mh_sack_spilt",
+  "class": "wreck",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_sack_spilt.png",
+  "frame": [
+    45,
+    33
+  ],
+  "anchor_px": [
+    22,
+    32
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "create_image_pro_flash",
+    "image": "731f5d06-f2f8-5a71-8578-052143f13871",
+    "job": "903b5d01",
+    "cell": 1
+  },
+  "notes": "Carter's Rest's inn props (lane/b-morrow-kit 2026-11-19): a burlap sack slumped over, grain spilled from its neck. Cell 1 of a 4x4 Pro Flash sheet (job 903b5d01, the kit's kegs as its style image, drawn on a dim subset of hr-world-56-v2), cut to its shapes' box by .scratch/kit/cut-sheet.mjs; its top steps held under the trolls' ring by the restyle. Pixels unscaled."
+}

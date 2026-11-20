@@ -1,0 +1,66 @@
+{
+  "id": "mh_vigil_bedrolls",
+  "class": "decal",
+  "style": "s1",
+  "material": "native",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "mh_vigil_bedrolls.png",
+  "frame": [
+    32,
+    32
+  ],
+  "anchor_px": [
+    16,
+    31
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "edit_image_pro_flash (text, palette held) on a modelled still",
+    "image": "a2a21467-2937-59cb-ae17-c387dde66d92",
+    "job": "b61f5ae2",
+    "sketch": ".scratch/kit/b7/bedroll.mjs"
+  },
+  "notes": "HOLLY'S VIGIL's bedding (batch 7, b6: \"the vigil camp becomes one place: bedrolls, packs, a seat\"): a grey wool blanket laid out by the fire with its head end rolled for a pillow, and a second bedroll still rolled and strapped beside it. Modelled in the wagons' camera (.scratch/kit/b7/bedroll.mjs), polished palette-held by edit_image_pro_flash. A decal walked over. Pixels unscaled."
+}

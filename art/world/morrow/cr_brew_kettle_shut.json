@@ -1,0 +1,66 @@
+{
+  "id": "cr_brew_kettle_shut",
+  "class": "wreck",
+  "style": "s1",
+  "material": "wood",
+  "restyle": {
+    "map": {
+      "#e6dcbc": "#8a867d",
+      "#c9bfa0": "#6a6865",
+      "#dcae86": "#8a6440",
+      "#b5835f": "#6e4c30",
+      "#c8e6e0": "#6a6865",
+      "#86b4b4": "#4f7a80"
+    },
+    "clamp": {
+      "stone": [
+        0,
+        2
+      ],
+      "iron": [
+        0,
+        2
+      ],
+      "steel": [
+        0,
+        1
+      ],
+      "earth": [
+        0,
+        4
+      ],
+      "bronze": [
+        0,
+        2
+      ]
+    }
+  },
+  "source": "cr_brew_kettle_shut.png",
+  "frame": [
+    48,
+    44
+  ],
+  "anchor_px": [
+    24,
+    43
+  ],
+  "footprint": [
+    1,
+    1
+  ],
+  "anims": [
+    {
+      "name": "idle",
+      "fps": 0,
+      "loop": false,
+      "dirs": {
+        "s": 1
+      }
+    }
+  ],
+  "pixellab": {
+    "tool": "none: cr_brew_kettle (PixelLab object 0009e5a9) re-drawn by rule",
+    "object": "0009e5a9"
+  },
+  "notes": "The brewhouse's second copper: cr_brew_kettle's own pixels with the paddle taken out and the lid down, the lid drawn by rule (.scratch/kit/b7/kettle-shut.mjs on lane/b-morrow-kit): a hammered dome lit from the upper left, a groove ring, an iron knob, verdigris low on its west, a 2 px skirt on the rim. Pixels unscaled."
+}

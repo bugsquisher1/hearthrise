@@ -5,6 +5,7 @@
 //   node tools/balance-program/gold-model.mjs --shelf    the one-time shelf by Level, and weeks of free gold it is for each player
 //   node tools/balance-program/gold-model.mjs --offers   every gold-for-power and gold-for-time offer on one line (question 3)
 //   node tools/balance-program/gold-model.mjs --refills  the six refills at every Level against what their 4 h earn (question 4)
+//   node tools/balance-program/gold-model.mjs --slots    hero slot ladders: Level on one hero before slot 2, weeks a slot for each player
 //
 // NO PLAY, no production read, writes nothing. Inputs: ref.json (MEASURED harness), the REAL rows of
 // docs/design/balance-program/10-real-players.md typed in below with their section, and the price rows of src/data/*.
@@ -166,5 +167,30 @@ function offers() {
   console.log('\nTown Works takes at most ' + k(TOWN_WORKS.weighhouse.perDay) + ' a day an account and the whole project is ' + k(TOWN_WORKS.weighhouse.stages.at(-1).at) + '.');
 }
 
-if (has('shelf')) shelf(); else if (has('offers')) offers(); else if (has('refills')) refills(); else weekly();
+/* ── hero slot ladders (Tyler 2026-11-20: "hero slots should cost even more"). One hero banks the first slot alone; the second is banked by two heroes, the
+   third by three, hunting as a party. BANK: gold one lone hero has banked by a Level, every drop sold (CITED board "2026-11-18 Gold by band": 226k / 715k / 679k / 1.29M
+   in 15-30 / 30-45 / 45-60 / 60-75; about 50k before 15, ASSUMED). HOURS: the lone pace table (10-real-players section 2, "Lone table"; 60 ASSUMED on its slope). ── */
+const BANK = [[1, 0], [15, 50000], [30, 276000], [45, 991000], [60, 1670000], [75, 2960000]];
+const HOURS = [[1, 0], [5, 0.32], [10, 6.3], [15, 17.9], [20, 26.6], [25, 37.0], [30, 52.5], [40, 103.1], [50, 165.4], [60, 240]];
+const lerp = (t, x) => { for (let i = 1; i < t.length; i++) if (x <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (x - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t.at(-1)[1]; };
+const levelAtBank = (g) => { for (let L = 1; L <= 75; L += 0.5) if (lerp(BANK, L) >= g) return L; return 75; };
+const fourRate = (L) => lerp(LEVELS.map((l) => [l, FOUR[l].coin + FOUR[l].sold - FOUR[l].store]), L);
+function slots() {
+  const LADDERS = [['Today', [300000, 750000, 1500000]], ['A (recommended)', [400000, 1500000, 4000000]], ['B', [600000, 1500000, 3000000]], ['C', [300000, 2000000, 6000000]]];
+  const pls = REFERENCE_PLAYERS.filter((p) => p.id !== 'whale');
+  console.log('| Ladder | Slot | Price | Level on arrival | Lone hunted hours (slot 2) | ' + pls.map((p) => p.name + ', weeks').join(' | ') + ' | Buyer |\n|---|---|---|---|---|' + pls.map(() => '---').join('|') + '|---|');
+  for (const [name, prices] of LADDERS) {
+    const L2 = levelAtBank(prices[0]), h2 = lerp(HOURS, L2);
+    /* after slot 2 the heroes hunt together; the Level they are at when the next slot is bought is read from hours hunted at the real party pace (about 0.6 of the lone table's hours) */
+    let L = L2, total = {};
+    prices.forEach((price, i) => {
+      const n = i + 1;
+      const cells = pls.map((p) => { const wk = i === 0 ? h2 / (p.huntHoursADay * 7) : price / (n * p.huntHoursADay * 7 * fourRate(L)); total[p.id] = (total[p.id] || 0) + wk; return wk.toFixed(1); });
+      console.log('| ' + [name, n + 1, k(price), i === 0 ? L2.toFixed(0) : 'about ' + Math.round(L), i === 0 ? h2.toFixed(0) : '', ...cells, 0].join(' | ') + ' |');
+      L = Math.min(75, L + (i === 0 ? 8 : 10));
+    });
+    console.log('| ' + [name, 'all three', k(prices.reduce((x, y) => x + y, 0)), '', '', ...pls.map((p) => total[p.id].toFixed(1)), 0].join(' | ') + ' |');
+  }
+}
+if (has('shelf')) shelf(); else if (has('offers')) offers(); else if (has('refills')) refills(); else if (has('slots')) slots(); else weekly();
 process.exit(0);

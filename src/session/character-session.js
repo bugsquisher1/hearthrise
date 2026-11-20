@@ -156,15 +156,18 @@ export class CharacterSession {
   serverNow() { return this.timeline.serverNowAt(this._now()); }
 
   /* THE HUNT RE-READ (hunt-poll.js), armed by every applied answer while a hunt is open. UNVIEWED (CLAUDE.md §6: only the
-     viewed character streams live): no live view, a plain read every unviewedPollMs; a pending leave's close is still asked.
-     A pushed frame is news the re-read would only repeat (41-45 % of polls did, 10-23), so it DEFERS it a whole delay
-     (FED: when the frames stop, it goes out one delay after the last; when the channel is lost, at once: _onChannel). */
+     viewed character streams live) it has NO clock of its own (the 11-19 server audit: its minute's hr_load was ~30% of the
+     database's load): its push channel is its feed (the social poll stamps every open hero present, so each settle's whole
+     frame reaches it), a lost channel reads it once (FED, _onChannel), viewing it asks the engine at once (setViewed); only a
+     pending leave's close is asked. A pushed frame is news the re-read would only repeat (41-45 % of polls did, 10-23), so it
+     DEFERS it a whole delay (FED: when the frames stop, it goes out one delay after the last; when the channel is lost, at once). */
   _armHuntPoll(deferred) {
     if (this._closed || !this._huntOpen()) return;
     this._fed = deferred === true;
     const close = closeInMs(this.leaveAt(), this.serverNow());
     if (this._away) { if (close !== null) this._poll.arm(close); return; }   // only a pending leave's close (setAway)
-    const ms = Math.max(this._pace.waitMs(), this._viewed ? pollDelayMs(this.read('hunt'), this.liveLink, close) : Math.min(SESSION_CONFIG.unviewedPollMs, close ?? Infinity));
+    if (!this._viewed) { if (close !== null) this._poll.arm(Math.max(this._pace.waitMs(), close)); return; }   // only a pending leave's close
+    const ms = Math.max(this._pace.waitMs(), pollDelayMs(this.read('hunt'), this.liveLink, close));
     if (deferred) this._poll.defer(ms); else this._poll.arm(ms);
   }
 

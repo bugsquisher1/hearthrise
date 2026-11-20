@@ -66,7 +66,7 @@ import { makeDie } from './lib/slice-literal.mjs';
 import { generatedTarget } from './lib/generated-target.mjs';
 import { SHOP_OFFERS } from '../src/data/shops.js';
 import { ITEMS } from '../src/data/items.js';
-import { PROPERTY_TIERS, ROOM_RUNGS, HELD_HOME_OFFERS } from '../src/data/homestead-tiers.js';
+import { PROPERTY_TIERS, ROOM_RUNGS, HELD_HOME_OFFERS, HELD_HOME_ROOMS } from '../src/data/homestead-tiers.js';
 import { reachableSources } from '../src/data/catalogue-coherence.js';
 import {
   UNLOCK_OFFERS, UNLOCK_REFUSALS, ALL_UNLOCK_OFFER_IDS,
@@ -247,6 +247,14 @@ const heldRowIds = rows.filter((r) => HELD_HOME_OFFERS.includes(r.offer_id)).map
 if (heldRowIds.length !== HELD_HOME_OFFERS.length) die(`HELD_HOME_OFFERS names rows the catalogue does not have: ${HELD_HOME_OFFERS.filter((id) => !heldRowIds.includes(id)).join(', ')}`);
 const allCosted = new Set(SHOP_OFFERS.filter((o) => (o.grant || []).some((g) => g && g.kind === 'unlock')).flatMap((o) => (o.cost || []).filter((c) => c.kind === 'item').map((c) => c.id)));
 const deadItems = [...allCosted].filter((id) => !reachable.has(id)).sort();
+/* ROOMS HELD WHOLE (homestead-tiers.js HELD_HOME_ROOMS; the Trophy Room, 2026-11-20): every rung refused by the predicate, and
+   every other room keeps a rung to sell. The self-check below buys both ways through hr_unlock_buy. */
+const roomIds = [...new Set(rows.filter((r) => r.table_name === 'room' && r.unlock_id).map((r) => r.unlock_id))].sort();
+const heldRooms = HELD_HOME_ROOMS.map((r) => 'room:' + r);
+const strayHeld = heldRooms.filter((id) => !roomIds.includes(id));
+if (strayHeld.length) die(`HELD_HOME_ROOMS names rooms the catalogue does not have: ${strayHeld.join(', ')}`);
+const unsold = roomIds.filter((id) => !heldRooms.includes(id) && !rows.some((r) => r.unlock_id === id && r.value === 1 && r.refusal === null));
+if (unsold.length) die(`rooms that are not held sell no first rung: ${unsold.join(', ')}`);
 
 /* ── DEMOLITION REGEN (2026-10-14): THIS FILE NOW LANDS AT THE CHAIN END ─────
    so a family a LATER migration re-seeded under this generator's own `source`
@@ -546,6 +554,78 @@ begin
   end if;
 
   raise notice 'hr_unlock_offers OK — % rows, % sellable (${tableSummary})', ${rows.length}, ${sellableRows.length};
+end $$;
+
+-- ── ROOMS HELD WHOLE, AS THE PURCHASE SEES THEM (src/data/homestead-tiers.js HELD_HOME_ROOMS) ──
+-- A room held until it is rebuilt (the Trophy Room, 2026-11-20: it sold a wall that hangs nothing) sells no rung, and
+-- every other room still sells. Proved by EXECUTING hr_unlock_buy as a probe account that owns the home tier, the gold
+-- and the materials (and any blueprint) for every room's first rung: each held rung is refused offer_unsupported with a
+-- held: reason, and every other room's first rung is bought. The probe is rolled back whole (a sentinel exception), so no
+-- row of it outlives this block, which a second apply proves byte-identical.
+do $$
+declare
+  c_u    uuid := gen_random_uuid();
+  c_held text[] := array[${heldRooms.map(q).join(', ')}]::text[];
+  v      jsonb;
+  v_r    record;
+  v_tier int;
+  v_n    int := 0;
+begin
+  begin
+    insert into auth.users (id) values (c_u);
+    insert into public.hr_access_allowlist (user_id, note) values (c_u, 'gen-unlock-offers held-room probe') on conflict (user_id) do nothing;
+    perform set_config('request.jwt.claim.sub', c_u::text, true);
+    perform set_config('request.jwt.claims', jsonb_build_object('sub', c_u, 'role', 'authenticated')::text, true);
+    v := public.hr_create_character(0);
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'held rooms probe: hr_create_character refused: %', v; end if;
+    select coalesce(max(o.req_property_tier), 0) into v_tier from public.hr_unlock_offers o
+     where o.table_name = 'room' and o.value = 1 and o.refusal is null;
+    insert into public.player_progress (user_id, slot, kind, key, value, period_key)
+      select c_u, 0, u.progress_kind, u.unlock_id, o.value, '' from public.hr_unlock_offers o
+        join public.hr_unlocks u on u.unlock_id = o.unlock_id
+       where o.table_name = 'property' and o.refusal is null and o.value = v_tier;
+    if public.hr_account_property_tier(c_u) <> v_tier then raise exception 'held rooms probe: the home is tier %, want %', public.hr_account_property_tier(c_u), v_tier; end if;
+    insert into public.account_wallet as w (user_id, gold)
+      select c_u, sum(o.gold)::bigint from public.hr_unlock_offers o where o.table_name = 'room' and o.value = 1 and o.refusal is null
+    on conflict (user_id) do update set gold = excluded.gold;
+    insert into public.player_inventory (user_id, slot, item_id, qty)
+      select c_u, 0, x.k, sum(x.n) from (
+        select e.item_k as k, e.item_n::bigint as n from public.hr_unlock_offers o, jsonb_each_text(o.items) e(item_k, item_n)
+         where o.table_name = 'room' and o.value = 1 and o.refusal is null
+        union all
+        select o.req_item, 1 from public.hr_unlock_offers o
+         where o.table_name = 'room' and o.value = 1 and o.refusal is null and o.req_item is not null) x
+      group by x.k
+    on conflict (user_id, slot, item_id) do update set qty = excluded.qty;
+    -- every held rung, forged: refused by name before any lock
+    for v_r in select o.offer_id from public.hr_unlock_offers o where o.unlock_id = any (c_held) order by o.offer_id loop
+      v := public.hr_unlock_buy(null, 0, (select version from public.player_state where user_id = c_u and slot = 0), gen_random_uuid(), v_r.offer_id);
+      if coalesce(v->>'error', '') <> 'offer_unsupported' or coalesce(v->'detail'->>'reason', '') not like 'held:%' then
+        raise exception 'a held room''s rung % answered %, want offer_unsupported (held:)', v_r.offer_id, v;
+      end if;
+      v_n := v_n + 1;
+    end loop;
+    if v_n <> (select count(*) from public.hr_unlock_offers o where o.unlock_id = any (c_held)) or cardinality(c_held) > 0 and v_n = 0 then
+      raise exception 'held rooms probe: % held rungs tried', v_n;
+    end if;
+    -- every other room's first rung: bought
+    v_n := 0;
+    for v_r in select o.offer_id from public.hr_unlock_offers o
+                where o.table_name = 'room' and o.value = 1 and o.refusal is null order by o.offer_id loop
+      v := public.hr_unlock_buy(null, 0, (select version from public.player_state where user_id = c_u and slot = 0), gen_random_uuid(), v_r.offer_id);
+      if coalesce(v->>'ok', '') <> 'true' then raise exception 'a room that is not held refused its first rung %: %', v_r.offer_id, v; end if;
+      v_n := v_n + 1;
+    end loop;
+    if v_n <> ${roomIds.length - heldRooms.length} then raise exception 'held rooms probe: % rooms sold their first rung, want ${roomIds.length - heldRooms.length}', v_n; end if;
+    raise exception using errcode = 'HRH01', message = 'held rooms probe: rolled back';
+  exception when sqlstate 'HRH01' then null;
+  end;
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
+  if exists (select 1 from auth.users where id = c_u) or exists (select 1 from public.player_state where user_id = c_u) then
+    raise exception 'held rooms probe: LEAKED a probe row';
+  end if;
+  raise notice 'held rooms OK: % held, ${roomIds.length - heldRooms.length} other rooms sell their first rung', cardinality(c_held);
 end $$;
 `;
 

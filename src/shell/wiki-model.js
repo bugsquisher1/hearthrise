@@ -23,6 +23,7 @@ import { SKILL_GUIDE } from '../data/skill-guide.js?v=0.2.142';
 import { MONSTERS } from '../data/monsters.js?v=0.2.142';
 import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
 import { OPEN_GROUNDS } from '../data/hunt-grounds.js?v=0.2.142';
+import { shownBand } from './hunt-list.js?v=0.2.142';
 import { DEATH_XP_LOSS } from '../data/hunt-sessions.js?v=0.2.142';
 import { BLESSING_CUT_PERMILLE } from '../data/blessings.js?v=0.2.142';
 import { MAX_LEVEL, isCapped, skillXpForLevel, charXpForLevel } from '../core/xp.js?v=0.2.142';
@@ -86,7 +87,7 @@ export function groundPages() {
   return groundsInOrder().map(({ g, row }) => {
     const rares = raresOf(g.hunt).map((r) => ({ id: r.id, name: r.name, from: r.carrier.name, chance: r.chance }));
     const mats = materialsOf(g.hunt).slice(0, MATERIALS_SHOWN).map((m) => ({ id: m.id, name: m.name, from: null, chance: m.chance }));
-    return { id: g.hunt, name: row.name || g.hunt, theme: row.theme || '', band: row.band || null,
+    return { id: g.hunt, name: row.name || g.hunt, theme: row.theme || '', band: shownBand(g.hunt),
       monsters: residentsOf(g.hunt).map((m) => ({ id: m.id, name: m.name, level: m.level, boss: m.boss })),
       drops: rares.concat(mats) };
   });

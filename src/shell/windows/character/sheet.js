@@ -24,6 +24,7 @@ import { whole, hoursMinutes } from '../../../render/format.js?v=0.2.142';
 import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.142';
 import { combatLedger } from '../skills.js?v=0.2.142';
 import { temperNowOf } from '../../../session/temper-sections.js?v=0.2.142';
+import { sheetXpLine } from '../../live-events-view.js?v=0.2.142';
 
 /* [key, label] of each number line; a line shows only when its value exists. A value is a number and its unit, a genre stat
    line ("Hit chance 69%"); what it is measured against is its tooltip, so no value wraps (UI audit 2026-11-18 #8). */
@@ -67,7 +68,8 @@ export function sheetHtml() {
     + '<p class="hw-cs-note hw-cs-wait"></p>'
     + '<h3 class="hw-cs-head hw-cs-bhead">Bestiary</h3><div class="hw-cs-best"><span class="hw-skill-bar" role="meter" aria-label="Bestiary completion" aria-valuemin="0" aria-valuemax="100"><i class="hw-skill-fill"></i></span><small class="hw-cs-btext"></small></div>'
     + '<h3 class="hw-cs-head hw-cs-xhead">Experience bonuses</h3><dl class="hw-cs-list hw-cs-xp">' + XP_SOURCES.map((r) => lineHtml(r, 'xp')).join('')
-    + '<div class="hw-cs-line hw-cs-total"><dt>Total</dt><dd></dd></div></dl><p class="hw-cs-note hw-cs-xnone">None right now</p>'
+    + '<div class="hw-cs-line hw-cs-total"><dt>Total</dt><dd></dd></div><div class="hw-cs-line" data-xp="event"><dt></dt><dd></dd></div></dl>'
+    + '<p class="hw-cs-note hw-cs-xnone">None right now</p>'
     + '</div></div></section>';
 }
 
@@ -152,5 +154,10 @@ export function patchSheet(body, ctx, drawPortrait, asked) {
   }
   cls(root.querySelector('.hw-cs-xhead'), 'is-on', !!c);
   line(root, '.hw-cs-total', c && any ? signedPct(total) + (x.combat ? ', ' + signedPct(total + x.combat) + ' on combat skills' : '') : null);
-  cls(root.querySelector('.hw-cs-xnone'), 'is-on', !!c && !any);
+  /* A LIVE EVENT THE SETTLE PAYS (retention dive 2026-11-20: "None right now" under a "+25% Level XP" plate): its own line, the server's
+     dial and window (live-events-view.js, the plate's reader), apart from the Total, which sums the skill XP sources above it. */
+  const ev = c ? sheetXpLine(cs) : null;
+  text(root.querySelector('[data-xp="event"] dt'), ev ? ev.name : '');
+  line(root, '[data-xp="event"]', ev ? ev.words : null);
+  cls(root.querySelector('.hw-cs-xnone'), 'is-on', !!c && !any && !ev);
 }

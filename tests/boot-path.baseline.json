@@ -10,18 +10,18 @@
   "ceilings": {
     "sign-in": [
       {
-        "modules": 11,
-        "gzipBytes": 199929,
+        "modules": 12,
+        "gzipBytes": 201063,
         "on": "2026-11-20",
-        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): the bundled, minified site of set/v0.2.143; as written it was sign-in 42 modules / 262.8 KB gzip, town 617 / 2,485.4 KB"
+        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 bundled and minified, fonts self-hosted, 12 / 196.4 KB to sign-in and 21 / 850.6 KB to town; the same site as written (--deliver plain) is 42 modules / 263.6 KB and 619 / 2,488.0 KB"
       }
     ],
     "town": [
       {
-        "modules": 20,
-        "gzipBytes": 869961,
+        "modules": 21,
+        "gzipBytes": 871041,
         "on": "2026-11-20",
-        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): the bundled, minified site of set/v0.2.143; as written it was sign-in 42 modules / 262.8 KB gzip, town 617 / 2,485.4 KB"
+        "why": "first pin (lane/c-delivery, architecture audit 2026-11-19 item 3): set/v0.2.143 bundled and minified, fonts self-hosted, 12 / 196.4 KB to sign-in and 21 / 850.6 KB to town; the same site as written (--deliver plain) is 42 modules / 263.6 KB and 619 / 2,488.0 KB"
       }
     ]
   }

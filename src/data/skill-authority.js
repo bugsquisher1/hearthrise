@@ -56,8 +56,7 @@
 // ============================================================================
 
 import { SKILLS_DEF } from './skills.js?v=0.2.141';
-import { COMBAT_XP_SKILLS } from '../core/progression.js?v=0.2.141';
-import { GATHER_SKILLS } from '../core/pacing.js?v=0.2.141';
+import { COMBAT_XP_SKILLS, GATHER_SKILLS } from './core-model.js?v=0.2.141';
 import { ARTISAN_SETTLEMENT } from './item-authority.js?v=0.2.141';
 
 /** The skills a hunt pays XP into (src/core/hunt-rewards.js routes, the one list). */

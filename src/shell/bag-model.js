@@ -25,28 +25,28 @@
 //   upgradeNeeds(h, c)    what the House's next steps need, and what those are made from: Sell all loot keeps it
 //   isSpentMaterial(id)   does any recipe, House price or Tempering rung spend this?
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.143';
-import { FAMILY_SKILL } from '../data/skills.js?v=0.2.143';
-import { DRINK_ITEMS } from '../data/drinks.js?v=0.2.143';
-import { MONSTERS } from '../data/monsters.js?v=0.2.143';
-import { ARTISAN_RECIPES } from '../data/recipes.js?v=0.2.143';
-import { NAMED_FUELS } from '../data/hearth.js?v=0.2.143';
-import { CHEST_OUTFITS } from '../data/chests.js?v=0.2.143';
-import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js?v=0.2.143';
-import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js?v=0.2.143';
-import { SHOP_OFFERS } from '../data/shops.js?v=0.2.143';
-import { HELD_HOME_OFFERS, HELD_HOME_ROOMS, STORAGE_CHESTS } from '../data/homestead-tiers.js?v=0.2.143';
-import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js?v=0.2.143';
-import { TEMPER_MATERIALS } from '../data/temper.js?v=0.2.143';
-import { recipeInputs } from '../core/artisan.js?v=0.2.143';
-import { BAG_SEEN_MAX } from '../session/residue.js?v=0.2.143';
-import { itemName } from './widgets/bits.js?v=0.2.143';
-import { HERO_RESIST_KEYS } from '../data/elements.js?v=0.2.143';
-import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js?v=0.2.143';
-import { MONSTER_CLASSES } from '../data/monster-classes.js?v=0.2.143';
-import { t } from '../render/player-text.js?v=0.2.143';
-import { bandOf } from '../core/drops.js?v=0.2.143';
-import { REVEAL_BANDS } from '../data/loot-bands.js?v=0.2.143';
+import { ITEMS } from '../data/items.js';
+import { FAMILY_SKILL } from '../data/skills.js';
+import { DRINK_ITEMS } from '../data/drinks.js';
+import { MONSTERS } from '../data/monsters.js';
+import { ARTISAN_RECIPES } from '../data/recipes.js';
+import { NAMED_FUELS } from '../data/hearth.js';
+import { CHEST_OUTFITS } from '../data/chests.js';
+import { roleForWeapon, wornRoleKey, shootsItem } from '../data/hunt-roles.js';
+import { expandItemSlot, TREES, ROCKS, FISH_SPOTS, CROPS } from '../data/gathering.js';
+import { SHOP_OFFERS } from '../data/shops.js';
+import { HELD_HOME_OFFERS, HELD_HOME_ROOMS, STORAGE_CHESTS } from '../data/homestead-tiers.js';
+import { START_INVENTORY, START_EQUIPMENT } from '../data/start-kit.js';
+import { TEMPER_MATERIALS } from '../data/temper.js';
+import { recipeInputs } from '../core/artisan.js';
+import { BAG_SEEN_MAX } from '../session/residue.js';
+import { itemName } from './widgets/bits.js';
+import { HERO_RESIST_KEYS } from '../data/elements.js';
+import { baneIndex, baneMultFor, MONSTER_CLASSES as BANE_CLASSES } from '../core/bane.js';
+import { MONSTER_CLASSES } from '../data/monster-classes.js';
+import { t } from '../render/player-text.js';
+import { bandOf } from '../core/drops.js';
+import { REVEAL_BANDS } from '../data/loot-bands.js';
 
 /* The category row, in reading order. `all` first; the rest are kinds. */
 export const BAG_CATS = Object.freeze([

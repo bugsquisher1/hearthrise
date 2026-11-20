@@ -18,8 +18,8 @@
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
 
-import { ABILITIES, suggestedTrigger } from './abilities.js?v=0.2.143';
-import { BASIC_SUPPLIES } from './supply-basics.js?v=0.2.143';
+import { ABILITIES, suggestedTrigger } from './abilities.js';
+import { BASIC_SUPPLIES } from './supply-basics.js';
 
 /* WHICH FOE A HERO TAKES FIRST (spec §3.2 #11; src/core/hunt/targeting.js
    ORDER implements each). `follow` takes the leader's target; in a party of

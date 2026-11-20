@@ -20,20 +20,20 @@
 // While open, a stale sheet is asked for once per record version. The answer
 // is the re-read envelope. A server without the section is never asked.
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFITS } from '../../../data/hunt-outfits.js?v=0.2.143';
-import { lookColors } from '../../../data/outfits.js?v=0.2.143';
-import { characterSheetOf, outfitOf } from '../../../session/character-sections.js?v=0.2.143';
-import { heroSprite } from '../../../session/hero-look.js?v=0.2.143';
-import { attr, cls, prop } from '../../../render/paint.js?v=0.2.143';
-import { escapeHtml as esc } from '../../../utils/dom.js?v=0.2.143';
-import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js?v=0.2.143';
-import { heroSetsFor, maskSetsFor } from '../../../data/world/atlas-sets.js?v=0.2.143';
-import { scratchOf } from './state.js?v=0.2.143';
-import { sheetHtml, patchSheet } from './sheet.js?v=0.2.143';
-import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js?v=0.2.143';
-import { deathsHtml, patchDeaths, actDeaths } from './deaths.js?v=0.2.143';
-import { titlesHtml, patchTitles, actTitles } from './titles.js?v=0.2.143';
-import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js?v=0.2.143';
+import { OUTFITS } from '../../../data/hunt-outfits.js';
+import { lookColors } from '../../../data/outfits.js';
+import { characterSheetOf, outfitOf } from '../../../session/character-sections.js';
+import { heroSprite } from '../../../session/hero-look.js';
+import { attr, cls, prop } from '../../../render/paint.js';
+import { escapeHtml as esc } from '../../../utils/dom.js';
+import { outfitArt, outfitMasks, drawOutfit, FIGURE } from '../../../render/outfit-sprite.js';
+import { heroSetsFor, maskSetsFor } from '../../../data/world/atlas-sets.js';
+import { scratchOf } from './state.js';
+import { sheetHtml, patchSheet } from './sheet.js';
+import { outfitHtml, patchOutfit, actOutfit, draftOf, dyesOf, colorsShown, facingOf, PREVIEW_SCALE } from './outfit.js';
+import { deathsHtml, patchDeaths, actDeaths } from './deaths.js';
+import { titlesHtml, patchTitles, actTitles } from './titles.js';
+import { factionHtml, patchFaction, actFaction, factionShown, FACTION_TAB } from './faction.js';
 
 const TABS = Object.freeze([['sheet', 'Character'], ['outfit', 'Outfit'], ['titles', 'Titles'], ['faction', FACTION_TAB], ['deaths', 'Deaths']]);
 /* The portrait and the wardrobe draw the FIGURE at art size; character.css sets them 2 whole device px an art px (--art-px). */

@@ -9,9 +9,9 @@
 // always waits to be owned). An add-on not owned shows greyed with its requirement, and only with the server's number to say.
 // PURE: reads the `outfit` reading (character-sections.js outfitOf) and the `factions` reading (faction-sections.js factionOf).
 // ════════════════════════════════════════════════════════════════════════
-import { OUTFIT_ROWS, OUTFIT_IDS, earnedOnly, outfitOfLook, addonLooks } from '../../../data/outfits.js?v=0.2.143';
-import { t, hasText } from '../../../render/player-text.js?v=0.2.143';
-import { sideName, spanWords } from '../../faction-words.js?v=0.2.143';
+import { OUTFIT_ROWS, OUTFIT_IDS, earnedOnly, outfitOfLook, addonLooks } from '../../../data/outfits.js';
+import { t, hasText } from '../../../render/player-text.js';
+import { sideName, spanWords } from '../../faction-words.js';
 
 const owns = (o, id) => !!o && o.owned.has(id);
 /* the section's piece ({ id, side, needMs }), or null with no section or a piece it does not list */

@@ -7,8 +7,8 @@
 // to the total; a line at 0 is left out. A dash and no lines while there is no fresh answer. Built once; the display tick
 // patches it in place.
 // ════════════════════════════════════════════════════════════════════════
-import { text, rows, element } from '../../render/paint.js?v=0.2.143';
-import { onlineWords, onlineLines } from '../../social/players-online.js?v=0.2.143';
+import { text, rows, element } from '../../render/paint.js';
+import { onlineWords, onlineLines } from '../../social/players-online.js';
 
 /** The skeleton (built once): the dot, the total, and the lines the hover shows. */
 export function renderOnline() {

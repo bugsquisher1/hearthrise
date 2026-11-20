@@ -34,11 +34,11 @@
 //
 // PURE ESM. Data only.
 // ════════════════════════════════════════════════════════════════════════
-import { HUNT_GROUNDS } from './hunt-grounds.js?v=0.2.143';
-import { HUNT_INDEX } from './hunts.js?v=0.2.143';
-import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js?v=0.2.143';
-import { GROUND_PACKS } from './grounds/index.js?v=0.2.143';
-import { foldRows } from './grounds/shape.js?v=0.2.143';
+import { HUNT_GROUNDS } from './hunt-grounds.js';
+import { HUNT_INDEX } from './hunts.js';
+import { TIER_PULL_OVERRIDES, tierRowFor } from './balance-sheet.js';
+import { GROUND_PACKS } from './grounds/index.js';
+import { foldRows } from './grounds/shape.js';
 
 export const TIER_IDS = Object.freeze(['normal', 'dangerous', 'deadly']);
 export const DEFAULT_TIER = 'normal';

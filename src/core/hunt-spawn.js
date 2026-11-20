@@ -4,15 +4,15 @@
 // roll is src/core/hunt/pull-cycle.js (every pack spawns from its pocket's
 // rows): the C2 single-foe `pickSpawn` was retired with the single-foe swing
 // (HUNT_SCREEN_SPEC §1.1 one-path table; lane S1, 2026-10-17).
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.143';
-import { densityFor, partyPick } from '../data/hunt-grounds.js?v=0.2.143';
-import { MONSTERS } from '../data/monsters.js?v=0.2.143';
-import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js?v=0.2.143';
-import { disciplineAbilities } from '../data/abilities.js?v=0.2.143';
-import { makeUnit, makeWorld } from './hunt/world-state.js?v=0.2.143';
-import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js?v=0.2.143';
-import { pickLeader, settingsOf } from './hunt/roles.js?v=0.2.143';
-import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js?v=0.2.143';
+import { HUNT_INDEX } from '../data/hunts.js';
+import { densityFor, partyPick } from '../data/hunt-grounds.js';
+import { MONSTERS } from '../data/monsters.js';
+import { HUNT_ROLES, roleForWeapon, disciplineOf } from '../data/hunt-roles.js';
+import { disciplineAbilities } from '../data/abilities.js';
+import { makeUnit, makeWorld } from './hunt/world-state.js';
+import { spawnPack, pullLeader, PHASE } from './hunt/pull-cycle.js';
+import { pickLeader, settingsOf } from './hunt/roles.js';
+import { heroSlots, heroStopRules, stopRulesProblem } from './hunt/conditions.js';
 
 /** The named hunt a combat pointer names, or null (a monster id / unknown). */
 export function huntFor(activeId) {

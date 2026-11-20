@@ -10,10 +10,10 @@
 // set in place of the tier's gem, JEWEL_GUARANTEES) says what it fixes, and is offered only where the server's `features` section lists
 // its switch (jobShown).
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../data/items.js?v=0.2.141';
-import { rollOdds, jobRolls, JEWEL_PERKS, ODDS_SCALE, JEWEL_SKILLS, jewelSkillOf } from '../data/jewelry.js?v=0.2.141';
-import { skillsOf, bankOf } from './item-sections.js?v=0.2.141';
-import { featureOn } from './character-sections.js?v=0.2.141';
+import { ITEMS } from '../data/items.js?v=0.2.142';
+import { rollOdds, jobRolls, JEWEL_PERKS, ODDS_SCALE, JEWEL_SKILLS, jewelSkillOf } from '../data/jewelry.js?v=0.2.142';
+import { skillsOf, bankOf } from './item-sections.js?v=0.2.142';
+import { featureOn } from './character-sections.js?v=0.2.142';
 
 const whole = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : 0);
 const isObj = (v) => !!v && typeof v === 'object' && !Array.isArray(v);

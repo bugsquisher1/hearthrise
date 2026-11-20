@@ -7,10 +7,10 @@
 // screen shows; with no prediction running the floor is the server's own (the `tower` section's run.floor) and no clock is drawn.
 // Nothing reads it, nothing is spent by it. Quiet off the Tower.
 // ════════════════════════════════════════════════════════════════════════
-import { towerOf, isLanding, keyForLanding } from '../../session/tower-sections.js?v=0.2.141';
-import { catacombOf, keyForDoor } from '../../session/catacomb-sections.js?v=0.2.141';
-import { text, prop, attr, cls } from '../../render/paint.js?v=0.2.141';
-import { t } from '../../render/player-text.js?v=0.2.141';
+import { towerOf, isLanding, keyForLanding } from '../../session/tower-sections.js?v=0.2.142';
+import { catacombOf, keyForDoor } from '../../session/catacomb-sections.js?v=0.2.142';
+import { text, prop, attr, cls } from '../../render/paint.js?v=0.2.142';
+import { t } from '../../render/player-text.js?v=0.2.142';
 
 /** "2:41" from ms (whole seconds, rounded up: the floor is never shown as up before it is). Pure. */
 function leftClock(ms) {

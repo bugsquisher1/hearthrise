@@ -109,20 +109,28 @@ const ARM_FNS = {
        Level 20 hero unless the hunt will play scaled: 2027-05-28-cellar-outgrown.sql), as a player buys it on the scale pane */
     const price = Number(await one(db, 'select price_per_level::text from public.hr_scaled_hunt_rule where id')) * 20;
     let g0 = null, gold0 = null, r = null;
-    const h = await H.hunter(db, M, { ...HERO, minutesAgo: 13, beforeEnter: async () => {
-      await wear(db, U);
-      const e0 = await env(db, U);
-      g0 = e0.scaled_hunts && e0.scaled_hunts.grounds && e0.scaled_hunts.grounds.mill_cellar;
-      gold0 = await purse(db, U);
-      await db.query('delete from public.hr_rate_counters where user_id = $1', [U]);
-      await asUser(db, U);
-      r = await one(db, 'select public.hr_scaled_hunt_buy(0, $1, $2, $3::bigint, $4::uuid)', ['mill_cellar', 1, price, key()]);
-      await asUser(db, '');
-    } });
+    /* NO HOUR, NO DOOR: a refused purchase leaves the stranger an unscaled Level 20 hero, whom the Cellar's door refuses `outgrown` by
+       design; the arm stops at the shop and reads what it answered (the switch leaking is a red here, never a harness throw at the door) */
+    const NO_HOUR = new Error('the scaled hour was refused');
+    let h = null;
+    try {
+      h = await H.hunter(db, M, { ...HERO, minutesAgo: 13, beforeEnter: async () => {
+        await wear(db, U);
+        const e0 = await env(db, U);
+        g0 = e0.scaled_hunts && e0.scaled_hunts.grounds && e0.scaled_hunts.grounds.mill_cellar;
+        gold0 = await purse(db, U);
+        await db.query('delete from public.hr_rate_counters where user_id = $1', [U]);
+        await asUser(db, U);
+        r = await one(db, 'select public.hr_scaled_hunt_buy(0, $1, $2, $3::bigint, $4::uuid)', ['mill_cellar', 1, price, key()]);
+        await asUser(db, '');
+        if (!r || r.ok !== true) throw NO_HOUR;
+      } });
+    } catch (e) { if (e !== NO_HOUR) throw e; }
     if (!g0 || g0.level !== 20 || Number(g0.price) !== price || g0.banked_ms !== 0) bad.push('the stranger reads the Cellar in its section as ' + JSON.stringify(g0) + ' (want Level 20 at ' + price + ' an hour, none banked)');
     const rows = await q(db, `select gold::text as g from public.player_ledger where user_id = $1 and intent like 'scaled\\_hunt\\_buy:%'`, [U]);
     if (!r || r.ok !== true || await purse(db, U) !== gold0 - price || rows.length !== 1 || Number(rows[0].g) !== -price || await bankOf(db, U) !== HOUR)
       bad.push('the purchase answered ' + JSON.stringify(r).slice(0, 200) + ' (purse ' + (gold0 - await purse(db, U)) + ' down, rows ' + JSON.stringify(rows) + ', bank ' + await bankOf(db, U) + ')');
+    if (!h) return bad.length ? bad : ['the scaled hour was refused and nothing above said so'];
     await cuts(db, M, [h.from + 3 * MIN, h.from + 6 * MIN, h.from + 12 * MIN]);
     const inst = await one(db, 'select scale_level from public.hunt_instances where id = $1', [h.inst]);
     const left = await bankOf(db, U);

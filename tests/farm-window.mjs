@@ -383,7 +383,7 @@ async function checks(overrides) {
       else {
         const bill = () => page.evaluate(() => [...document.querySelectorAll('[data-hs-win="farm"] .hw-tend-bill li')].map((li) => li.textContent));
         const goSel = W + '[data-hs-act="tend"]';
-        const want = ['Harvest 1 ready plot', 'Plant 1 plot again with the same crop', 'Buys 1 Turnip Seed for 5 gp', 'Water 2 plots', 'Plot 3 is empty. Pick a crop to plant it'];
+        const want = ['Harvest 1 ready plot', 'Plant 1 plot again with what grew there', 'Buys 1 Turnip Seed for 5 gp', 'Water 2 plots', 'Plot 3 is empty. Pick a crop to plant it'];
         if (!(await shown(page, W + '.hw-tend')) || JSON.stringify(await bill()) !== JSON.stringify(want)) fails.push('FW-11 the bill reads ' + JSON.stringify(await bill()));
         if ((await txt(page, goSel)) !== 'Tend the field for 5 gp') fails.push('FW-11 the press reads ' + JSON.stringify(await txt(page, goSel)));
         if (await press(page, goSel, 'FW-11')) {

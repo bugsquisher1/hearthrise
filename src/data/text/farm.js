@@ -86,7 +86,7 @@ export const FARM_TEXT = Object.freeze({
   tend_pick: 'Plant with',
   tend_pick_own: 'The same crop as before',
   tend_harvest: { one: 'Harvest {count} ready plot', other: 'Harvest {count} ready plots' },
-  tend_plant_own: { one: 'Plant {count} plot again with the same crop', other: 'Plant {count} plots again with the same crops' },
+  tend_plant_own: { one: 'Plant {count} plot again with what grew there', other: 'Plant {count} plots again with what grew there' },
   tend_plant_pick: { one: 'Plant {crop} in {count} plot', other: 'Plant {crop} in {count} plots' },
   tend_water: { one: 'Water {count} plot', other: 'Water {count} plots' },
   tend_seed_have: 'Uses {qty} {seed} you have',

@@ -1,0 +1,63 @@
+ART LIST: THE OX ROAD (ox_road, Levels 112-128). A skeleton cut from the ground's rows by
+  node tools/pack.mjs art ox_road. The art director writes the words, references and accept lines into it.
+Region kit: NONE (see TILES).
+Owed: 11 of 58 pieces, about 184-240 generations by the tool prices (an estimate; read get_balance before and after).
+Law: style 1 only, never beside older art; one grid, one palette, one high top-down view (docs/ART_DIRECTION.md).
+  ONE SAMPLE A KIND, read at x2 on its ground, before any batch (CLAUDE.md §10). Free first for a fix to shipped art (WORKFLOW §4b).
+
+TILES (1 owed of 2)
+  OWED  ox_road                    no region kit claims this ground: add it to src/data/world/region-kits.js (its family, its one or two signature pieces) before any art
+  have  wickstead_ground           painted floor, set stead-floor
+
+PROPS (0 owed of 25)
+  have  barrel_broken (NOT IN THE KIT) barrels (NOT IN THE KIT) bone_pile (NOT IN THE KIT) brazier (NOT IN THE KIT)
+        chopping_block (NOT IN THE KIT) collapsed_cart (NOT IN THE KIT) corner_rubble (NOT IN THE KIT)
+        cracked_flagstone (NOT IN THE KIT) crates (NOT IN THE KIT) cw_coal_seam (NOT IN THE KIT)
+        cw_coal_seam_spent (NOT IN THE KIT) cw_plank_bridge (NOT IN THE KIT) grain_spill (NOT IN THE KIT)
+        hay_bale (NOT IN THE KIT) mb_flowers (NOT IN THE KIT) mb_leaf_litter (NOT IN THE KIT)
+        mb_stepping_stones (NOT IN THE KIT) oak (NOT IN THE KIT) pine (NOT IN THE KIT) sack_pile (NOT IN THE KIT)
+        sack_stack (NOT IN THE KIT) straw (NOT IN THE KIT) wasp_nest (NOT IN THE KIT) web (NOT IN THE KIT)
+        woodpile (NOT IN THE KIT)
+
+CREATURE BODIES AND CLIPS (5 owed of 5)
+  OWED  coal_runner                Coal Runner: a person  -> body_character
+  OWED  dead_teamster              Dead Teamster: a creature  -> body_object
+  OWED  drover                     Drover: a person  -> body_character
+  OWED  wagonmaster                Wagonmaster: a creature  -> body_object
+  OWED  yoke_ox                    Yoke Ox: a creature  -> body_object
+
+ICONS (5 owed of 23)
+  OWED  head coal_runner           the monster's face in Hunts and the bestiary  -> icons
+  OWED  head dead_teamster         the monster's face in Hunts and the bestiary  -> icons
+  OWED  head drover                the monster's face in Hunts and the bestiary  -> icons
+  OWED  head wagonmaster           the monster's face in Hunts and the bestiary  -> icons
+  OWED  head yoke_ox               the monster's face in Hunts and the bestiary  -> icons
+  have  big_bones bones coal dawn_hatchets dawn_sword dawn_warhammer dawnstone_ore drovers_goad duskwood_bow
+        duskwood_codex duskwood_crossbow duskwood_staff duskwood_wand grave_dust ox_shoe runners_tin wagon_pin
+        waybill
+
+EFFECTS (0 owed of 3)
+  have  hot_coal goad trample
+
+HOW EACH IS MADE (docs/PIXELLAB_WORKFLOW.md §1, §5b, §7)
+  body_character: create_character, then animate_character v3, 30-55 gens, PALETTE
+    call   view: "high top-down", size 40, a straight-south reference of a kit body for identity; mode: "pro" takes the palette (untested by us on a character: ONE sample first, WORKFLOW §7), v3 does not. Clips: v3 custom action_description, one direction a call, the same words every facing: idle (8, keep 2), walk 8, attack 8, death in the cardinals
+    words  <art director: the prompt, the references, what to reject on sight>
+    accept <art director: measured on the locked pixels, and the x2 read on the ground>
+    import node tools/world-art/port-pixellab.mjs unit --set <set> --id <id> --class character --dir <dir> --object <character id> --ramps <its ramps>
+  body_object: create_object_pro_flash, then animate_object v3, 38-40 gens
+    call   first frame n_directions: 1 (5; read it before paying for more), rotations from first_frame_url (1), v3 walk 8 and attack 8, idle frame_count 8 keeping 2 (8), an edited dead pose (5) as end_frame for the fall of the cardinals (3). Canvas 40 gives a 34-38 px body. v3 clips take no palette (animate_object pro does, at 10-25 a facing against 1: not worth it), so its ramps are named at import
+    words  <art director: the prompt, the references, what to reject on sight>
+    accept <art director: measured on the locked pixels, and the x2 read on the ground>
+    import node tools/world-art/port-pixellab.mjs unit --set <set> --id <id> --class <class> --dir <dir> --object <object id> --ramps <its ramps> [--lift 1], then idle --clip <dir>
+  icons: create_1_direction_object, 10 gens, PALETTE
+    call   size 32, style_images: shipped icons of the same family, item_descriptions: each owed line three or four times; a 32 px call bills 10 for 64 slots whatever fills them, so one call carries about 16 lines
+    words  <art director: the prompt, the references, what to reject on sight>
+    accept <art director: measured on the locked pixels, and the x2 read on the ground>
+    import assets/icons-bundle/pixel/items/<id>.png and pixel/heads/<monster>.png, then node tests/pixel-icons.mjs
+
+PALETTE (every call marked PALETTE; the import then declares `native` and the lock does not grade it):
+  palette_name: "hr-world-56-v2", palette: ["#0b0a0c","#17141a","#231d1f","#2f2723","#3a3a3e","#4f4e52","#6a6865","#8a867d","#aaa49a","#2a1c14","#3d2a1d","#553a26","#6e4c30","#8a6440","#a88457","#c49a5c","#16241a","#1f3322","#2c4a2c","#3d6234","#557a3e","#73944c","#4a5a2a","#6b7a38","#c9bfa0","#e6dcbc","#1a2c44","#2b4a6a","#3e1216","#5e1a1f","#b5835f","#dcae86","#f2a03a","#ffd36a","#8e1f1f","#c23a2a","#4fa8e8","#a8e4ff","#7ccf4a","#e8c547","#4a2e18","#7a4f26","#a8743a","#cfa25c","#2c2e33","#4a4d54","#6e727a","#969aa1","#3a4652","#5c6c7a","#8a9aa8","#c4ccd2","#2e4a52","#4f7a80","#86b4b4","#c8e6e0"]
+
+AFTER THE IMPORT: node tools/world-art/build.mjs --set <set>, node tests/world-assets.mjs (exit 0), the set's row in
+  src/data/world/atlas-sets.js, the pieces off `pending` in region-kits.js, then this command again: it must owe nothing.

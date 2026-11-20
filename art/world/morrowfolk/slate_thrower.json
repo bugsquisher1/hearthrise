@@ -84,7 +84,7 @@
     "n_directions": 8,
     "name": "Slate Thrower",
     "character": "70e24f1b-d50e-4349-b333-9fd5f3caa935",
-    "prep": ".scratch/morrow/full/prep.mjs: despeck, lift 2 with the carried thing kept, per-facing picks and cuts",
+    "prep": ".scratch/morrow/full/prep.mjs: despeck, lift 2 with the carried thing kept, per-facing picks and cuts; then .scratch/morrow/b1/body.mjs (one species, ring lift, Thrower head, trough)",
     "idle": {
       "tool": "animate_object",
       "mode": "v3",

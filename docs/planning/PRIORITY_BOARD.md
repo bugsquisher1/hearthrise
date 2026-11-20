@@ -29,6 +29,37 @@ Legend — **Status:** ✅ shipped · 🔧 in progress · 📋 spec'd (approved,
 
 ## Decisions
 
+### 2026-11-20 Levels 7-9 re-cut for the hero a new player is (game-designer, lane/c-levels-7-9; balance plan row L05, Tyler ruled 27-2 "recommended"): BUILT, MEASURED on the real engine, PLAYED on the local world, a guard added, one staged curve file
+**The call.** Level 10 in 6 hours on the start-kit hero (sword and shield, start bar, Normal, the ground the Hunts window advises, no event), no Level under 10 over 2 hours, and Levels 10-15 take the XP back. Steps 7, 8 and 9 now cost 15,500 / 34,500 / 46,000 XP (were 25,072 / 68,087 / 83,477). Step 10 costs 85,994, then 105,795 rising 267 a Level to step 15. The total to Level 16 and every step from 16 on cost exactly what they did. "From 15" in the ruling became "from 16": holding the total at 15 leaves room for only 62k XP in steps 10-14 (each must stay under step 15's 99,903), which puts Level 10 at 5.9 h with no margin.
+
+| Level -> next | Start kit, before / after (h) | Played tank, before / after (h) | Careers' median, before / after (h) |
+|---|---|---|---|
+| 1-4 | 0.03, 0.05, 0.10, 0.19 (same) | 0.03, 0.04, 0.10, 0.18 (same) | 0.02, 0.05, 0.09, 0.16 (same) |
+| 5, 6 | 0.44, 0.70 (same) | 0.39, 0.57 (same) | 0.26, 0.49 (same) |
+| 7 | 1.38 / 0.86 | 1.12 / 0.70 | 0.97 / 0.61 |
+| 8 | 2.63 / 1.38 | 2.17 / 1.18 | 1.89 / 0.97 |
+| 9 | 3.04 / 1.74 | 2.54 / 1.45 | 2.28 / 1.28 |
+| **Level 10 at** | **8.56 / 5.49** | **7.14 / 4.64** | **6.21 / 3.92** (measured 6.31 / 4.04) |
+| 10 | 2.96 / 3.10 | 2.45 / 2.60 | 2.24 / 2.33 |
+| 11 | 2.92 / 3.73 | 2.46 / 3.13 | 2.24 / 2.84 |
+| 12 | 2.95 / 3.64 | 2.46 / 3.07 | 2.27 / 2.82 |
+| 13 | 2.99 / 3.58 | 2.50 / 3.00 | 2.36 / 2.82 |
+| 14 | 3.10 / 3.51 | 2.61 / 2.98 | 2.47 / 2.80 |
+| 15 | 3.29 / 3.46 | 2.57 / 2.76 | 2.55 / 2.73 |
+| **Level 16 at** | **26.77 / 26.51** | **22.19 / 22.18** | **20.35 / 20.26** |
+| 16-19 | dies on the Glade (below) | 1.49, 1.33, 1.46, 1.57 / 1.55, 1.36, 1.45, 1.59 | 1.30, 1.40, 1.51, 1.63 (same) |
+| **Level 20 at** | | **28.04 / 28.13** | **26.18 / 26.10** (measured 26.55 / 26.36) |
+
+Start kit = `life.mjs --party tank --policy idle`. Played tank = `--policy rec` (the played profile: recorded bars and kit). Careers = the 8 ways' median at the reference rate, re-measured to Level 110 (`sim.mjs --plan pace`, 36 min on 4 workers): Level 25 36.8 h, Level 50 165.4 h, Level 100 622.6 h, as before. The careers' Level 10 is now 4.0 h. The 10-25 table's "Level 10 in 6 h" is the start kit's (Tyler's 27-2), so `level-curve` C2/C3 judge the careers on the other targets (`LEVEL_PACE.newPlayer`). The worst step for the careers is 9 -> 10 at 1.83x the step before (C6 holds at 2x). **Played**: a brand-new account on the local world (real `play.html`, real engine, the chain with the new file) reached Level 10 between 5.5 and 5.75 hunted hours and Level 11 at 8.75 h. At Level 11 the analyzer reads "Next level in 03:46:00". No console errors.
+
+**The cost.** Levels 10-15 take the start kit 3.1-3.7 h each (were 3.0-3.3 h). The long Levels now sit past the Tower's door at 10, not where both light players quit.
+
+**The guard** (`tests/start-kit-pace.mjs`, in the Core model step). It plays the start-kit hero on the real engine to Level 16 (about 20 s): SK-1 Level 10 inside 5-6 h, SK-2 no step 1-9 over 2 h and none of 10-15 over 4 h, SK-3 every judged step played. `--mutate` plants 6 drifts (v0.2.142's curve, monsters at 1.5x HP, Levels 1-10 at half price, a 2.5-hour Level 8, a 5-hour Level 12, a wall at 15) and catches all 6.
+
+**Live heroes.** Only the thresholds of Levels 8-15 move, and they all go down. The curve file's hold is now **no Level lost**: a hero who would read a lower Level refuses the whole file, and a hero standing in a lowered gap reads the higher Level. The 11-19 rule refused any move, so a quitter idle at Level 8 or 9 (both real ones) would block the file forever. `core-curves` CURVE-HOLD proves the refusal still bites and that a lifted hero applies.
+
+**Found, not fixed.** The idle start-kit hero (practice set, no armor) goes to the Glade at 16 and dies 2 to 13 times an hour, before and after this change. A real player wears bronze from drops by Level 9, so this is the guard's worst case, not a player's path. The guard stops at 16 for that reason.
+
 ### 2026-11-19 Two rulings for v0.2.142 (game-designer, lane/d-142-rulings; the Coordinator: `level-curve` and `party-class-xp-line` red on the assembled set 41aef2ef5): RULED, BUILT, MEASURED on the real engine, one staged catalogue
 **1. The lone road to Level 50: the Warrens alone from 45 again, and a kill pays 12% less XP (no live Level moves).** Tyler's table is binding (10-25: Level 50 in 168 hunted hours alone), and his 11-19 note is that things are too easy. Sending a lone hero to the Warrens from 36 (the complete look's change 8, built by lane/d-first-day-path) kills nobody, but it skips the Glade's back half on a party ground that pays 2-3x the Glade's Level XP. The pace of record reached Level 50 in 123 h. There is no middle Level: each Level in the Warrens takes about 3.5 h off the road, so anything under 44 breaks the table. So `soloFrom` goes back to 45, where Hask's Ford is the advice and the Warrens is a lone hero's second pick. The long Glade stay is a content gap (no lone ground for 32-44), not something advice should paper over, so it goes back on the backlog. Re-measured at 45, the pace still read Level 50 in 146.5 h (-13%). The cause is v0.2.142's bows casting Flame Volley on their default bar (lane/d-audit-fixes-sim), which makes two of the eight ways 7% faster. That is the right bar. A curve re-fit would have shown every live hero 1-2 Levels lower, so **the Coordinator took the XP route: STAT_FORMULA `xp.a` and `min` x0.88** (on top of lane/d-harder-monsters' x0.96), every formula row regenerated (`gen-ground-stats --write`, `pack.mjs propose --write`; only `xp` moves). The contract follows the ladder (1385 x L^1.274, was 1378 x L^1.298), and the brackets past Level 110, where no hero is, re-fit by hand (a new bracket at 110: rise 70,000, bend 100; the one at 300: rise 350,000, bend 100). **Read-only check, 2026-11-19: 22 live heroes, 0 change Level, and the curve file refuses itself at apply if one would.**
 | Pace of record (median of 8 plain ways, careers, `sim.mjs --plan pace`) | Level 10 | 25 | 50 | 100 |

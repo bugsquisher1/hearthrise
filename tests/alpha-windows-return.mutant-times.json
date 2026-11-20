@@ -40,9 +40,12 @@
   "coach: an ended hunt's bar stays over its open summary (AW-31)": 10,
   "AW-25 the page shows the first ground, not the pick": 8,
   "AW-29 the pick resets after a hunt": 8,
-  "AW-25b a pick by hand is replaced by the advice": 8
+  "AW-25b a pick by hand is replaced by the advice": 8,
+  "AW-105 the outgrown card leads with a greyed Hunt again again": 5,
+  "AW-105 a phone stacks the Go to press under the steps": 9
  },
  "added": [
-  "2026-11-19, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows-return.mjs --mutate tests/alpha-windows-return.mjs --local --write"
+  "2026-11-19, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows-return.mjs --mutate tests/alpha-windows-return.mjs --local --write",
+  "2026-11-20, tools/mutant-times.mjs: measured here (win32), node tests/alpha-windows-return.mjs --mutate --only=AW-105"
  ]
 }

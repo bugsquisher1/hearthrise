@@ -645,7 +645,7 @@ const JUDGES = {
 };
 
 async function main() {
-  const g = { guard: GUARD, green: 'one gold press home; the next buy; the first dangerous run; a seed says its needs; the clean return; top loot in sight; the summary’s answer is the press’s; nothing lies on the press in hand', pure: null, checks: checks, mutants: MUTANTS, companion: COMPANION, judges: JUDGES };
+  const g = { guard: GUARD, green: 'one gold press home; the next ground after one outgrown; the next buy; the first dangerous run; a seed says its needs; the clean return; top loot in sight; the summary’s answer is the press’s; nothing lies on the press in hand', pure: null, checks: checks, mutants: MUTANTS, companion: COMPANION, judges: JUDGES };
   if (process.argv.includes('--shard-plan')) return shardPlan(g);
   if (process.argv.includes('--mutate')) return mutate(g);
   return plain(g);

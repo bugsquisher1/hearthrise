@@ -752,6 +752,13 @@ async function runTests(mods) {
     for (let i = 0; i < 100; i++) many['w' + i] = [300, 300];
     ok(Object.keys(CS.sanitizeResidueField('winSize', many)).length <= 16, 'the count is bounded');
   });
+  t('R4b a window open at start (Chat) keeps the player\'s pick in an allowlisted switch field', () => {
+    eq(SW.filter((r) => r.startsOpen).map((r) => r.id), ['chat'], 'the windows open at start (Tyler 2026-10-22: Chat, by default)');
+    for (const r of SW.filter((x) => x.startsOpen)) {
+      ok(CS.RESIDUE_FIELDS.includes(r.startsOpen), r.id + "'s startsOpen field " + r.startsOpen + ' must be in RESIDUE_FIELDS, or a close is never kept');
+      eq(CS.sanitizeResidueField(r.startsOpen, { on: false, at: 7, x: 1 }), { on: false, at: 7 }, r.id + "'s pick round-trips as a switch");
+    }
+  });
   t('R5 townZoom is an allowlisted residue field: one of the offered steps, else no pick', () => {
     ok(CS.RESIDUE_FIELDS.includes('townZoom'), 'townZoom must be in RESIDUE_FIELDS');
     eq(JSON.stringify(CS.sanitizeResidueField('townZoom', { z: 1, at: 5, x: 9 })), '{"z":1,"at":5}', 'a step and its stamp are kept, nothing else');
@@ -1632,6 +1639,8 @@ async function load(base) {
 
 const WH_FILE = 'src/shell/window-head.js';
 const MUTANTS = [
+  /* R4b: Chat's open-at-start pick is a residue field the allowlist keeps (lane/a-chat-opens) */
+  { test: 'R4b', file: 'src/session/residue.js', from: '  chatOpen: sanitizeSwitch,', to: '  chatOpenGone: sanitizeSwitch,' },
   /* R3f: when the hunt ends (lane/c-hunt-itinerary) */
   { test: 'R3f', file: 'src/shell/hunt-after.js', from: "      if (!doing) continue;\n", to: '' },
   { test: 'R3f', file: 'src/shell/hunt-after.js', from: "  const d = a && a.last && a.last.session === id ? a.last.done : null;\n", to: "  const d = a && a.last ? a.last.done : null;\n" },

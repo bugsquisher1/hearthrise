@@ -75,7 +75,10 @@ begin
     ('public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)', '0459c9314a5e332de735f529c17f81d6', '7b6b3171349ee3896a1a380ce0cd0852')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
-    if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post then
+    -- (or, for hr_hunt_settle_session, a LATER staged file's image: 1005-lever-horizon.sql splices it after this one, so a retried
+    --  apply of the staged tail meets that image here; the OUTGROWN splice is already in it and is skipped)
+    if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
+       and not (v_r.fn = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)' and v_md5 = '6e3a7682baf3d6d14c32fac1e65df663') then
       raise exception 'PIN: % is neither the image this file splices (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;
     end if;
   end loop;
@@ -280,7 +283,8 @@ begin
         from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure) <> 1 then
     raise exception 'VERIFY(f): a body carries the OUTGROWN splice other than once'; end if;
   if (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_admit(uuid,integer,text)'::regprocedure) is distinct from 'bc37e6068b6078f26f7e4e586efc4d48'
-     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure) is distinct from '7b6b3171349ee3896a1a380ce0cd0852' then
+     or (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure)
+          not in ('7b6b3171349ee3896a1a380ce0cd0852', '6e3a7682baf3d6d14c32fac1e65df663') then   -- (or 1005-lever-horizon.sql's, re-applied after it)
     raise exception 'VERIFY(f): the spliced bodies landed as % / %, not §0''s post pins',
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_admit(uuid,integer,text)'::regprocedure),
       (select md5(replace(prosrc, chr(13), '')) from pg_proc where oid = 'public.hr_hunt_settle_session(uuid,integer,uuid,jsonb)'::regprocedure); end if;

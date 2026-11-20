@@ -660,11 +660,11 @@ const ALSO_LINTED = [
   /* THE GAME MASTER TOOLS (lane/c-gm-tools, 2026-11-05): ten client RPCs, two engine functions and link 23 of
      HR_GRANT_HYGIENE_CHAIN, so the grant lints read every revoke-then-grant. */
   '2027-03-13-gm-tools.sql',
-  /* THE DEAD CLIENT WRITES (lane/c-server-cost, 2026-11-19): three tables' client grants revoked and link 24 of
-     HR_GRANT_HYGIENE_CHAIN, so the grant lints read its revokes and PART 1f-ii walks its derivation. */
+  /* THE DEAD CLIENT WRITES (lane/c-server-cost, 2026-11-19): three tables' client grants revoked, so the grant lints read
+     its revokes (the detector's arm 3 that makes a regrant fatal is 1004-tick-pack-heroes.sql's link 24). */
   '1003-dead-client-writes.sql',
   /* THE HUNT BODIES BY HEROES (lane/c-server-cost, 2026-11-19): the packer restated, hr_hunt_lease_free (engine-only, its
-     revoke-then-grant linted here) and link 25 of HR_GRANT_HYGIENE_CHAIN. */
+     revoke-then-grant linted here) and link 24 of HR_GRANT_HYGIENE_CHAIN. */
   '1004-tick-pack-heroes.sql',
   /* LINKS OF HR_APPLY_CHAIN / HR_STATE_OF_CHAIN that were never listed (2026-10-24, lane b-ci-speed):
      the derivation walk reads `sources`, so an unlisted link read as '' and failed "cannot extract the
@@ -1047,11 +1047,9 @@ const HR_GRANT_HYGIENE_CHAIN = [
   // link 23 (lane/c-gm-tools) — the Game Master's stop: two engine entries, INSERTED at the head of c_engine_allow, so
   // its declared-removals list stays EMPTY. Its base is link 22's TARGET.
   '2027-03-13-gm-tools.sql',
-  // link 24 (lane/c-server-cost) — check (4) arm 3, the live client write set: one UNION arm INSERTED after arm 2's last
-  // line, so its declared-removals list stays EMPTY. Its base is link 23's TARGET.
-  '1003-dead-client-writes.sql',
-  // link 25 (lane/c-server-cost) — the deferred lease: one engine entry (hr_hunt_lease_free), INSERTED at the head of
-  // c_engine_allow, so its declared-removals list stays EMPTY. Its base is link 24's TARGET. It is the new last toucher.
+  // link 24 (lane/c-server-cost) — two INSERTIONS in one staged file: check (4) arm 3, the live client write set (one UNION
+  // arm after arm 2's last line), and the deferred lease's engine entry (hr_hunt_lease_free at the head of c_engine_allow),
+  // so its declared-removals list stays EMPTY. Its base is link 23's TARGET. It is the new last toucher.
   '1004-tick-pack-heroes.sql',
 ];
 

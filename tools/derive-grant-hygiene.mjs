@@ -403,26 +403,20 @@ export const LINKS = [
     target: '2027-03-13-gm-tools.sql',
     patchIds: ['gm_stop'],
   },
-  /* Link 24 (lane/c-server-cost, 2026-11-19) — THE LIVE CLIENT WRITE SET. 1003-dead-client-writes.sql closes the last three
-     dead client-writable tables (game_events, session_claims, clan_members) and adds check (4) ARM 3: any client
-     INSERT/UPDATE/DELETE outside the one live pair (bug_reports:authenticated:INSERT) and hr_client_write_baseline, whatever
-     its policies say. Arm 2 could not see a regrant on a table with a permissive policy, or one with only the closed-mode
-     RESTRICTIVE ALL policy (which counted as a write policy). One UNION arm inserted after arm 2's last line, an
-     INSERTION, so its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is link 23's
-     TARGET. It is the new last toucher. */
+  /* Link 24 (lane/c-server-cost, 2026-11-19) — TWO INSERTIONS, ONE FILE. 1004-tick-pack-heroes.sql:
+     (a) THE LIVE CLIENT WRITE SET: 1003-dead-client-writes.sql closes the last three dead client-writable tables
+         (game_events, session_claims, clan_members); check (4) ARM 3 names any client INSERT/UPDATE/DELETE outside the one
+         live pair (bug_reports:authenticated:INSERT) and hr_client_write_baseline, whatever its policies say. Arm 2 could not
+         see a regrant on a table with a permissive policy, or with only the closed-mode RESTRICTIVE "for all" policy (which
+         counted as a write policy). One UNION arm inserted after arm 2's last line.
+     (b) THE DEFERRED LEASE: the engine's hr_hunt_lease_free at the HEAD of c_engine_allow.
+     Both INSERTIONS, so its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. ONE staged file restates
+     the detector, not two: the staged tail is re-applied in order by tests/schema-drift.mjs, and an earlier staged link
+     re-applied over a later one would put the later's entries out. Its base is link 23's TARGET. It is the new last toucher. */
   {
     base: '2027-03-13-gm-tools.sql',
-    target: '1003-dead-client-writes.sql',
-    patchIds: ['client_write_live_set'],
-  },
-  /* Link 25 (lane/c-server-cost, 2026-11-19) — THE DEFERRED LEASE. 1004-tick-pack-heroes.sql adds the engine's
-     hr_hunt_lease_free: a hunt body gives back the leases of the selectors it deferred. One entry at the HEAD of
-     c_engine_allow, an INSERTION, so its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. Its base is
-     link 24's TARGET. It is the new last toucher. */
-  {
-    base: '1003-dead-client-writes.sql',
     target: '1004-tick-pack-heroes.sql',
-    patchIds: ['hunt_lease_free'],
+    patchIds: ['client_write_live_set', 'hunt_lease_free'],
   },
 ];
 
@@ -459,7 +453,7 @@ export function innerBody(block) {
 export const PATCHES = [
   {
     id: 'hunt_lease_free',
-    name: 'the c_engine_allow array head (link 25)',
+    name: 'the c_engine_allow array head (link 24)',
     find: '  c_engine_allow constant text[] := array[\n',
     add: `    -- ── ADDED 2026-11-19 — THE DEFERRED LEASE (lane/c-server-cost) ────────
     -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this

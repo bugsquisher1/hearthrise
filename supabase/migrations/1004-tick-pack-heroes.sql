@@ -24,7 +24,7 @@
 --          later of the two running body numbers); an instance is never split (a party at the edge of a body rides whole, so a
 --          body may carry up to party size - 1 heroes past the dial; the edge's engine budget defers any tail);
 --   every other line (the due predicate, the lease and its reclaim, the in-body order most behind first) is byte for byte.
--- hr_hunt_lease_free(p_body int, p_sessions uuid[]) -> int   NEW, hr_engine only (link 25 of HR_GRANT_HYGIENE_CHAIN): ends
+-- hr_hunt_lease_free(p_body int, p_sessions uuid[]) -> int   NEW, hr_engine only (link 24 of HR_GRANT_HYGIENE_CHAIN): ends
 --   (lease_until a millisecond before now()) the still-live leases of the sessions named (at most 500) held by hunt body p_body's holder, derived
 --   here exactly as hr_tick_cron_run names it. tick.js calls it once a body with the selectors it DEFERRED; the next fire
 --   offers them again. Answers how many it freed.
@@ -50,7 +50,7 @@
 --   packs differently.
 -- GUARDS: tests/hunt-tick-shards.mjs (PACK-HEROES, FANOUT, RECLAIM: a deferred hunt is re-offered at the next fire), this §5.
 -- REVERSIBLE: re-apply hr_hunt_roster_sharded from 2027-02-04-tick-span.sql (§0 pins its image), `update hr_tick_config set
---   hunt_body_max = 4`, drop hr_hunt_lease_free and the column; re-derive link 24's detector.
+--   hunt_body_max = 4`, drop hr_hunt_lease_free and the column; re-apply link 23's detector (2027-03-13-gm-tools.sql).
 -- ════════════════════════════════════════════════════════════════════════
 
 -- ── §0 PRECONDITIONS AND THE PIN ─────────────────────────────────────────────
@@ -64,8 +64,8 @@ begin
   if v_md5 is distinct from 'ec0cd7aa30f0b00e678504775894c3bc' and v_md5 is distinct from 'b8b1612f063bc6db4cb0a9f8afdc1e3f' then
     raise exception 'PIN: hr_hunt_roster_sharded is neither the image this file was written against nor its own: md5 % - re-pin', v_md5; end if;
   select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.hr_assert_grant_hygiene(boolean)');
-  if v_md5 is distinct from '0ddcbaa19d70a1316cd2eb9bc340d850' and v_md5 is distinct from 'e941ed280b7c9e6fbd4fd20f87b4ee11' then
-    raise exception 'PIN: hr_assert_grant_hygiene is neither link 24''s body nor this file''s own: md5 % - re-derive (tools/derive-grant-hygiene.mjs)', v_md5; end if;
+  if v_md5 is distinct from '4ffb3c26bfd949e3278bde811c6cb656' and v_md5 is distinct from 'e941ed280b7c9e6fbd4fd20f87b4ee11' then
+    raise exception 'PIN: hr_assert_grant_hygiene is neither link 23''s body nor this file''s own: md5 % - re-derive (tools/derive-grant-hygiene.mjs)', v_md5; end if;
 end $mig$;
 
 -- ── §1 THE DIALS ─────────────────────────────────────────────────────────────
@@ -219,9 +219,12 @@ end $fn$;
 revoke execute on function public.hr_hunt_lease_free(int, uuid[]) from public, anon, authenticated, service_role;
 grant execute on function public.hr_hunt_lease_free(int, uuid[]) to hr_engine;
 
--- ── §4 THE DETECTOR: link 25 of HR_GRANT_HYGIENE_CHAIN, DERIVED ──────────────
--- tools/derive-grant-hygiene.mjs extracts 1003-dead-client-writes.sql's detector and INSERTS hr_hunt_lease_free at the head of
--- c_engine_allow (declared-removals list EMPTY). Without it the nightly detector reads it as engine_execute_outside_allowlist.
+-- ── §4 THE DETECTOR: link 24 of HR_GRANT_HYGIENE_CHAIN, DERIVED ──────────────
+-- tools/derive-grant-hygiene.mjs extracts 2027-03-13-gm-tools.sql's detector (link 23) and makes TWO INSERTIONS (declared-removals
+-- list EMPTY): hr_hunt_lease_free at the head of c_engine_allow (without it the nightly detector reads it as
+-- engine_execute_outside_allowlist), and check (4) ARM 3, the live client write set (1003-dead-client-writes.sql closed the last
+-- three dead client-writable tables; arm 3 makes a regrant fatal whatever its policies say: §5 r1). ONE staged file restates the
+-- detector, so the staged tail re-applies in order (tests/schema-drift.mjs's second apply).
 revoke execute on function public.hr_assert_grant_hygiene(boolean)
   from public, anon, authenticated, service_role;
 
@@ -1115,15 +1118,21 @@ revoke execute on function public.hr_assert_grant_hygiene(boolean)
 --   k0  the dial defaults to 16, its CHECK refuses 0 and 65; the chain's dials are 16 instances, 16 heroes, 32 bodies
 --   p1  ★ BY HEROES: 20 due lone hunts and two due four-hero parties at 16 / 16: every due session exactly once, a party's
 --       members in ONE body, no body over 16 instances or 16 + 3 heroes, each session in the body the formula gives and leased to
---       its holder; at 4 heroes a body each party rides alone and the lone hunts four a body
+--       its holder; at 4 heroes a body 7 bodies, none over 4 + 3 heroes, each party whole
 --   p2  ★ THE FAN-OUT IN HEROES: one body a fire of 6 heroes takes the most behind instances whose heroes fit, whole, and leases
 --       no other
 --   p3  ★ THE DEFERRED LEASE: freeing body k's sessions re-offers exactly them at the next call; a free naming another body's
 --       sessions, or a body that holds none of them, frees nothing
 --   kg  no request or engine role packs; hr_engine (only) frees; hygiene STRICT
+--   r1  ★ ARM 3 (1003-dead-client-writes.sql's tables): each regrant shape is NAMED and fatal (rolled back): a bare INSERT on
+--       game_events (arm 2's blind spot: the restrictive closed-mode policy), the old session_claims file re-applied (grant +
+--       permissive policy), a DELETE on clan_members, an anon UPDATE on a fresh probe table; the live pair (bug_reports INSERT)
+--       is not named
 --   kr  the config is restored
 do $mig$
 declare
+  v_t      text;
+  v_named  text;
   v_cfg    public.hr_tick_config%rowtype;
   v_hcfg   boolean;
   v_pfx    text := left('cron:' || coalesce(current_database(), 'db'), 58);
@@ -1278,6 +1287,39 @@ begin
            and not has_function_privilege('hr_engine', 'public.hr_hunt_lease_free(integer,uuid[])', 'execute')) then
       raise exception 'kg: hr_hunt_lease_free is reachable by a request role, or not by the engine'; end if;
     perform public.hr_assert_grant_hygiene(true);
+
+    -- ── r1: each regrant, planted and rolled back
+    if not has_table_privilege('authenticated', 'public.bug_reports', 'insert') then
+      raise exception 'r1 CANNOT RUN: bug_reports lost its live INSERT; the live pair is no longer a control'; end if;
+    for v_t, v_named in select * from (values
+        ('grant insert on public.game_events to authenticated', 'game_events:authenticated:INSERT'),
+        ('grant select, insert, update, delete on public.session_claims to authenticated; '
+         || 'create policy session_claims_insert_own on public.session_claims for insert with check (auth.uid() = user_id)',
+         'session_claims:authenticated:INSERT'),
+        ('grant delete on public.clan_members to authenticated', 'clan_members:authenticated:DELETE'),
+        ('create table public.hr__dead_write_probe (id int primary key); alter table public.hr__dead_write_probe enable row level security; '
+         || 'create policy hr__p on public.hr__dead_write_probe for update to anon using (true); grant update on public.hr__dead_write_probe to anon',
+         'hr__dead_write_probe:anon:UPDATE')) t(plant, named) loop
+      begin
+        execute v_t;
+        v_a := public.hr_assert_grant_hygiene(false);
+        if not (v_a->'client_truncate_grants') ? v_named then
+          raise exception 'r1: the detector did not name % after: % (it reads %)', v_named, v_t, v_a->'client_truncate_grants'; end if;
+        if (v_a->'client_truncate_grants') ? 'bug_reports:authenticated:INSERT' then
+          raise exception 'r1: the detector names the live pair bug_reports:authenticated:INSERT'; end if;
+        begin
+          perform public.hr_assert_grant_hygiene(true);
+          raise exception 'r1: strict mode passed with % planted', v_named;
+        exception when others then
+          if sqlerrm like 'r1:%' then raise; end if;
+        end;
+        raise exception 'TPH_SUB_OK';
+      exception when others then
+        if sqlerrm <> 'TPH_SUB_OK' then raise; end if;
+      end;
+    end loop;
+    if to_regclass('public.hr__dead_write_probe') is not null or has_table_privilege('authenticated', 'public.game_events', 'insert') then
+      raise exception 'r1: a plant leaked'; end if;
 
     -- ── kr
     update public.hr_tick_config set flush_seconds = v_cfg.flush_seconds, fold_windows = v_cfg.fold_windows,

@@ -264,6 +264,16 @@ async function settleVia(H, M, db, uid, toMs, door) {
   }
   return { last };
 }
+/* THE SEED HORIZON PASSES (1005-lever-horizon.sql): the server clock pinned a minute on (hr.test_now, the arm's transaction; main
+   installs the harness's pinnable now()), so a settle may run past the horizon a mid-hunt swap waits out. `at(ms)`: an instant
+   that far past the moment of the swap. */
+function horizonPassed() {
+  const t0 = Date.now();
+  return {
+    at: (ms) => t0 + ms,
+    pin: (db) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(t0 + 60000).toISOString()]),
+  };
+}
 /* The stance the stored world holds the hero on (the engine's own output). */
 async function worldStance(M, db, inst) {
   const text = await one(db, 'select world::text from public.hunt_instances where id = $1', [inst]);
@@ -307,8 +317,16 @@ async function swapThrough(db, door) {
       || row('Tank').wearing !== true || row('Guard').wearing !== false || row('Bow').wearing !== false) {
     out.push(door.name + ': the envelope reads setup ' + env.hunt_settings.preset + ' and rows ' + JSON.stringify((env.hunt_presets || []).map((p) => [p.name, p.fights_as, p.discipline, p.wearing])));
   }
-  /* (4) THE ENGINE'S NEXT SETTLE PLAYS GUARD'S BAR: the door's read hands it Guard's stance, and its commit stores the hero on it */
-  const next = await settleVia(H, M, db, uid, Date.now(), door);
+  /* (4) LEVER-HORIZON (1005-lever-horizon.sql): the swap plays from the first window STARTING past the seed horizon (the settled point
+     + 32 s), never over swings the browser was already shown. The window inside it keeps Tank's bar; then the server clock moves on
+     (pinned, main) and THE ENGINE'S NEXT SETTLE PAST IT PLAYS GUARD'S BAR: the door's read hands it Guard's stance, and its commit
+     stores the hero on it */
+  const later = horizonPassed();
+  await later.pin(db);
+  const inside = await settleVia(H, M, db, uid, later.at(30000), door);
+  const kept = inside.last && inside.last.plan.members[0] && inside.last.plan.members[0].hero;
+  if (!kept || kept.settings.stance !== 'offensive') out.push(door.name + ': the window inside the seed horizon read ' + JSON.stringify(kept && kept.settings) + ' (want Tank\'s offensive: a swap never plays inside the look-ahead)');
+  const next = await settleVia(H, M, db, uid, later.at(60000), door);
   const hero = next.last && next.last.plan.members[0] && next.last.plan.members[0].hero;
   if (!hero || hero.settings.stance !== 'defensive') out.push(door.name + ': the next settle read ' + JSON.stringify(hero && hero.settings) + ' (want Guard\'s defensive): ' + JSON.stringify(next).slice(0, 200));
   else if (await worldStance(M, db, h.inst) !== 'defensive') out.push(door.name + ': after the next settle the world holds the hero ' + await worldStance(M, db, h.inst));
@@ -727,7 +745,12 @@ const ARMS = {
     await clearRate(db, seat);
     const r = await useSetup(db, seat, 1);
     if (!r || r.ok !== true || r.bar_only !== true) return out.concat('a party seat\'s mid-hunt Use answered ' + JSON.stringify(r));
-    const next = await settleVia(H, M, db, seat, Date.now(), door);
+    /* LEVER-HORIZON: inside the seed horizon the seat keeps Tank's bar; past it, Guard's */
+    const later = horizonPassed();
+    await later.pin(db);
+    const inside = await settleVia(H, M, db, seat, later.at(30000), door);
+    if (!heroOf(inside, seat) || heroOf(inside, seat).settings.stance !== 'offensive') out.push('the seat\'s window inside the seed horizon reads ' + JSON.stringify(heroOf(inside, seat) && heroOf(inside, seat).settings));
+    const next = await settleVia(H, M, db, seat, later.at(60000), door);
     if (!heroOf(next, seat) || heroOf(next, seat).settings.stance !== 'defensive') out.push('the seat\'s next settle reads ' + JSON.stringify(heroOf(next, seat) && heroOf(next, seat).settings));
     if (!heroOf(next, lead) || !sameJson(heroOf(next, lead).settings, heroOf(first, lead).settings)) out.push('the leader\'s bar moved: ' + JSON.stringify([heroOf(first, lead), heroOf(next, lead)].map((x) => x && x.settings)));
     return out;
@@ -768,8 +791,14 @@ const ARMS = {
   },
 
   /* A SECOND APPLY OF THE SWAP FILE IS BYTE-IDENTICAL (it is the chain's last file, so this is its own position) and refuses no pin. */
-  'SS-SWAP-AGAIN': async (db, X, mutant) => {
+  'SS-SWAP-AGAIN': async (db0, X, mutant) => {
     const out = [];
+    /* MEASURED AT THE FILE'S OWN POSITION (a replay up to it), not at the chain head: 1005-lever-horizon.sql holds a mid-hunt swap
+       until the seed horizon, so this APPLIED file's §6(e) ("the engine's next read plays set 2") speaks of the chain as it stood */
+    const { bootReplay } = await import('./schema-replay.mjs');
+    const { db } = await bootReplay({ upTo: SWAP_FILE });
+    void db0;
+    await db.exec('begin');
     const text = mutant && mutant.sql ? plantSql(MIG(SWAP_FILE), mutant.sql) : MIG(SWAP_FILE);
     const inventory = async () => JSON.stringify(await q(db, `select 'fn' k, p.oid::regprocedure::text n, md5(pg_get_functiondef(p.oid)) || ':' || coalesce(p.proacl::text, '') v from pg_proc p
         where p.pronamespace = 'public'::regnamespace and p.proname in ('hr_hunt_preset_apply', 'hr_setup_gear_follow', 'hr_hunt_presets_view', 'hr_setup_fights_as', 'hr_hunt_gear_set', 'hr_setup_gear_owner')
@@ -860,6 +889,8 @@ async function main() {
   const { bootReplay } = await import('./schema-replay.mjs');
   let db;
   try { ({ db } = await bootReplay()); } catch (e) { console.error('✗ the chain would not replay: ' + String(e.message).slice(0, 600)); process.exit(1); }
+  /* the harness's pinnable now() (hr.test_now), so the swap arms can let the seed horizon pass (horizonPassed) */
+  await (await swapHarness()).H.pinDice(db);
   const X = await loadReaders(ROOT);
   const pick = (process.argv.find((a) => a.startsWith('--mutate=')) || '').slice(9);
   if (!(process.argv.includes('--selftest') || pick)) {

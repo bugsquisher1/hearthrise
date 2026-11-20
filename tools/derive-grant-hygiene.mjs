@@ -403,6 +403,21 @@ export const LINKS = [
     target: '2027-03-13-gm-tools.sql',
     patchIds: ['gm_stop'],
   },
+  /* Link 24 (lane/c-server-cost, 2026-11-19) — TWO INSERTIONS, ONE FILE. 1004-tick-pack-heroes.sql:
+     (a) THE LIVE CLIENT WRITE SET: 1003-dead-client-writes.sql closes the last three dead client-writable tables
+         (game_events, session_claims, clan_members); check (4) ARM 3 names any client INSERT/UPDATE/DELETE outside the one
+         live pair (bug_reports:authenticated:INSERT) and hr_client_write_baseline, whatever its policies say. Arm 2 could not
+         see a regrant on a table with a permissive policy, or with only the closed-mode RESTRICTIVE "for all" policy (which
+         counted as a write policy). One UNION arm inserted after arm 2's last line.
+     (b) THE DEFERRED LEASE: the engine's hr_hunt_lease_free at the HEAD of c_engine_allow.
+     Both INSERTIONS, so its declared-removals list in tests/run-sql-tests.mjs PART 1f-ii is EMPTY. ONE staged file restates
+     the detector, not two: the staged tail is re-applied in order by tests/schema-drift.mjs, and an earlier staged link
+     re-applied over a later one would put the later's entries out. Its base is link 23's TARGET. It is the new last toucher. */
+  {
+    base: '2027-03-13-gm-tools.sql',
+    target: '1004-tick-pack-heroes.sql',
+    patchIds: ['client_write_live_set', 'hunt_lease_free'],
+  },
 ];
 
 const OPEN = 'create or replace function public.hr_assert_grant_hygiene(';
@@ -436,6 +451,55 @@ export function innerBody(block) {
    already authorised for." Both justifications below re-derive that claim
    rather than asserting it — see the migration header for the long form. */
 export const PATCHES = [
+  {
+    id: 'hunt_lease_free',
+    name: 'the c_engine_allow array head (link 24)',
+    find: '  c_engine_allow constant text[] := array[\n',
+    add: `    -- ── ADDED 2026-11-19 — THE DEFERRED LEASE (lane/c-server-cost) ────────
+    -- At the HEAD, an INSERTION: it removes nothing, so PART 1f-ii grades this
+    -- link with an EMPTY declared-removals list.
+    --
+    -- SELF-VALIDATING, and it moves no value: it only ENDS leases (lease_until just
+    -- before now()) of the hunt body whose holder it derives server-side from p_body, of
+    -- the sessions named (at most 500), still live. A lease only keeps a second body
+    -- off an instance while one may be settling it; hr_hunt_apply_instance's swing
+    -- and version CAS decide whether any settle lands, so a lease freed too early
+    -- (even by a compromised engine) costs a refused race, never a double credit.
+    'hr_hunt_lease_free(integer,uuid[])',
+`,
+    where: 'after',
+  },
+  {
+    id: 'client_write_live_set',
+    name: "check (4)'s arm 3, the live client write set (link 24)",
+    /* AN INSERTION after arm 2's last line (its baseline exemption), inside the same `( ... ) x` union: nothing is
+       removed, so arm 1 and arm 2 read exactly as before and arm 3 only adds findings. */
+    find: `       and not exists (select 1 from public.hr_client_write_baseline bl
+                        where bl.table_name = c.relname and bl.grantee = gg)
+`,
+    add: `    -- ARM 3 (1003-dead-client-writes.sql, 2026-11-19) — THE LIVE CLIENT WRITE SET. Any
+    --       INSERT/UPDATE/DELETE an anon or authenticated client holds on a table, WHATEVER ITS
+    --       POLICIES SAY, unless it is one of the live pairs below or recorded in
+    --       hr_client_write_baseline. Arm 2 exempts a table with any write policy, and the
+    --       closed-mode RESTRICTIVE "for all" policy counted as one, so a regrant on game_events,
+    --       session_claims or clan_members (or a re-applied old file carrying its permissive
+    --       policy) was invisible to it. The live set is a CLAIM: a client writes the table
+    --       directly, under a policy written for that, and no RPC could do it instead.
+    union all
+    select c.relname || ':' || gg || ':' || pv
+      from pg_class c
+      cross join unnest(array['anon','authenticated']) gg
+      cross join unnest(array['INSERT','UPDATE','DELETE']) pv
+     where c.relnamespace = 'public'::regnamespace and c.relkind in ('r','p')
+       and has_table_privilege(gg, c.oid, pv)
+       and (c.relname || ':' || gg || ':' || pv) <> all (array[
+             -- the bug report form: one row a press, its own policy ("bugs anyone submits")
+             'bug_reports:authenticated:INSERT'])
+       and not exists (select 1 from public.hr_client_write_baseline bl
+                        where bl.table_name = c.relname and bl.grantee = gg)
+`,
+    where: 'after',
+  },
   {
     id: 'gm_stop',
     name: 'the c_engine_allow array head (link 23)',

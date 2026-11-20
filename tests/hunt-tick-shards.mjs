@@ -43,8 +43,11 @@
 //    HUNT_ENGINE_BUDGET_MS: a body's engine CPU is bounded whatever the backlog)
 //   RECLAIM ★ a session whose settle LANDED is re-offered at the very next fire (its
 //            lease records the clock it was taken at, and the clock moved); a
-//            deferred one (nothing landed) is not, until its lease ends
-//   FUSE   ★ a body carries its selectors MOST BEHIND FIRST (aged against md5, so
+//            deferred one (nothing landed) is not while its body may run, and is
+//            once its body gave the lease back (1004-tick-pack-heroes.sql)
+//   PACK-HEROES ★ (1004-tick-pack-heroes.sql) a body is cut by heroes too, an instance
+//            never split; the fan-out counts heroes; the old dial is the control
+//   FUSE  ★ a body carries its selectors MOST BEHIND FIRST (aged against md5, so
 //            md5 order would be the reverse) and starts no settle once its engine
 //            budget is spent: on a 600 ms-a-run clock and a 1 s budget two of
 //            three settle, the least behind is deferred (cpu_budget) and writes
@@ -243,8 +246,9 @@ const ARMS = {
      third waits; three bodies take all three. The file's own dials ride the chain (body 4, 32 bodies). */
   FANOUT: async (db, M) => inTx(db, async () => {
     const problems = [];
-    const cfg = (await q(db, 'select hunt_body_max, hunt_bodies_max from public.hr_tick_config where id'))[0];
-    if (!cfg || cfg.hunt_body_max !== 4 || cfg.hunt_bodies_max !== 32) problems.push(`the chain's dials are ${JSON.stringify(cfg)}, not body 4 / 32 bodies`);
+    const cfg = (await q(db, 'select hunt_body_max, hunt_body_heroes, hunt_bodies_max from public.hr_tick_config where id'))[0];
+    /* 1004-tick-pack-heroes.sql: 16 instances and 16 heroes a body (was 4 instances), 32 bodies */
+    if (!cfg || cfg.hunt_body_max !== 16 || cfg.hunt_body_heroes !== 16 || cfg.hunt_bodies_max !== 32) problems.push(`the chain's dials are ${JSON.stringify(cfg)}, not 16 instances / 16 heroes a body, 32 bodies`);
     const sids = await hunters(db, M, 3);
     await armCron(db);
     await db.query('update public.hr_tick_config set hunt_body_max = 1, hunt_bodies_max = 2 where id');
@@ -256,6 +260,55 @@ const ARMS = {
     await db.query('update public.hr_tick_config set hunt_bodies_max = 3 where id');
     const three = await fire(db);
     if (three.bodies.length !== 3) problems.push(`at 3 bodies a fire the cron queued ${three.bodies.length} bodies for 3 due hunts`);
+    return problems;
+  }),
+
+  /* PACK-HEROES (1004-tick-pack-heroes.sql; the 11-19 server audit row 6): a body is cut by HEROES as well as instances, an
+     instance never split. Two four-hero parties (the most behind) and ten lone hunts: at 8 heroes a body every body carries
+     at most 8 + 3 heroes and each party whole, and every due session rides once; at the chain's 16 / 16 the 18 heroes ride 2
+     bodies (at the old 4 instances a body, 12 instances took 3); and the fan-out counts heroes: one body a fire of 4 heroes
+     takes the most behind party alone and leases nothing else. */
+  'PACK-HEROES': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const solo = await hunters(db, M, 10);
+    const fx = await outageParties(db, M, 2, 4, OUTAGE_HUNT);
+    const party = fx.flatMap((p) => p.sids);
+    const t = "date_trunc('second', now() - interval '200 seconds')";
+    await db.query(`update public.hunt_sessions set entered_at = ${t} - interval '1 minute', hunt_from = ${t}, settled_to = ${t}, next_swing_at = ${t} where id = any ($1::uuid[])`, [party]);
+    await db.query(`update public.hunt_instances i set settled_to = ${t}, next_swing_at = ${t} from public.hunt_sessions h where h.instance_id = i.id and h.id = any ($1::uuid[])`, [party]);
+    const all = [...solo, ...party];
+    await armCron(db);
+    const instOf = Object.fromEntries((await q(db, 'select id, instance_id from public.hunt_sessions where id = any ($1::uuid[])', [all])).map((r) => [r.id, r.instance_id]));
+    const shape = (f) => f.bodies.map((b) => b.hunts.map((h) => h.session_id).filter((s) => all.includes(s)));
+    const check = (f, cap, label) => {
+      const bodies = shape(f);
+      const rode = bodies.flat();
+      if (rode.length !== all.length || new Set(rode).size !== all.length) problems.push(`${label}: ${rode.length} rides for ${all.length} due sessions (each once)`);
+      for (const b of bodies) if (b.length > cap + 3) problems.push(`${label}: a body carries ${b.length} heroes, over ${cap} + 3`);
+      for (const p of fx) if (new Set(bodies.map((b, i) => (p.sids.some((s) => b.includes(s)) ? i : -1)).filter((i) => i >= 0)).size !== 1) problems.push(`${label}: a party rode more than one body`);
+      if (new Set(Object.values(instOf)).size !== 12) problems.push('CONTROL: the fixture is not 12 instances');
+      return bodies;
+    };
+    await db.query('savepoint pack_heroes');
+    await db.query('update public.hr_tick_config set hunt_body_max = 16, hunt_body_heroes = 8 where id');
+    check(await fire(db), 8, 'at 8 heroes a body');
+    await db.query('rollback to savepoint pack_heroes');
+    await db.query('update public.hr_tick_config set hunt_body_max = 16, hunt_body_heroes = 16 where id');
+    const dflt = check(await fire(db), 16, 'at 16 / 16');
+    if (dflt.length > 2) problems.push(`at 16 instances / 16 heroes a body the 18 heroes rode ${dflt.length} bodies, not at most 2`);
+    await db.query('rollback to savepoint pack_heroes');
+    /* CONTROL: the old dial (4 instances a body, heroes uncapped) takes the 12 instances in 3 bodies */
+    await db.query('update public.hr_tick_config set hunt_body_max = 4, hunt_body_heroes = 64 where id');
+    const old = shape(await fire(db));
+    if (old.length !== 3) problems.push(`CONTROL: at the old 4 instances a body the 12 instances rode ${old.length} bodies, not 3`);
+    await db.query('rollback to savepoint pack_heroes');
+    await db.query('update public.hr_tick_config set hunt_body_max = 16, hunt_body_heroes = 4, hunt_bodies_max = 1 where id');
+    const one4 = await fire(db);
+    const took = shape(one4).flat();
+    const first = fx.find((p) => p.sids.includes(took[0]));
+    if (one4.bodies.length !== 1 || took.length !== 4 || !first || !took.every((s) => first.sids.includes(s))) problems.push(`one body a fire of 4 heroes took ${took.length} session(s) in ${one4.bodies.length} bod(ies), not one most-behind party whole`);
+    const leased = Number(await one(db, 'select count(*) from public.hunt_tick_lease where session_id = any ($1::uuid[]) and lease_until > now()', [all]));
+    if (leased !== 4) problems.push(`the 4-hero fan-out leased ${leased} sessions, not the 4 it posted`);
     return problems;
   }),
 
@@ -564,12 +617,15 @@ const SPAN_ARMS = {
     const f3 = await fire(db);
     if (posted(f3).join() !== [...sids].sort().join()) problems.push(`after the body's settles landed the next fire re-posted ${posted(f3).length} of 2 (a landed settle's lease must end)`);
     if ((await leases()).filter((l) => l.rec).length !== 2) problems.push('a re-offered lease does not record the moved clock');
-    /* a body that settles nothing (its engine budget spent at once): nothing landed, so nothing is re-offered */
+    /* a body that settles nothing (its engine budget spent at once): nothing landed, and (1004-tick-pack-heroes.sql) the body
+       gives its deferred selectors' leases back, so the very next fire re-offers them (was: 30 s, three fires) */
+    if (posted(await fire(db)).length) problems.push('CONTROL: a fire before the body ran re-posted a leased hunt');
     for (const b of f3.bodies) {
       const r = (await M.TK.runTick({ exec, grounds: groundsOf(M), engineBudgetMs: 0, body: b })).body.hunts || {};
       if (r.settled !== 0 || r.deferred !== b.hunts.length) problems.push(`CONTROL: a spent budget's body answered ${JSON.stringify(r)}`);
+      if (r.freed !== b.hunts.length) problems.push(`the body gave back ${r.freed} of its ${b.hunts.length} deferred leases`);
     }
-    if (posted(await fire(db)).length) problems.push('a deferred hunt (nothing landed) was re-offered before its lease ended');
+    if (posted(await fire(db)).join() !== [...sids].sort().join()) problems.push('a deferred hunt (its lease given back by its body) was not re-offered at the next fire');
     return problems;
   }),
 
@@ -794,7 +850,12 @@ async function runArms(root, db, only) {
 
 const MUTANTS = [
   { arm: 'BUDGET', name: 'the hunt body ignores its time budget', file: join(FN, 'tick.js'),
-    from: "      if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; continue; }\n", to: '' },
+    from: "      if (now() >= huntDeadline) { hunts.deferred = (hunts.deferred || 0) + 1; deferredIds.push(sel.session); continue; }\n", to: '' },
+  /* 1004-tick-pack-heroes.sql: a deferred selector gives its lease back (RECLAIM: re-offered at the very next fire) */
+  { arm: 'RECLAIM', name: '[tick-pack] a deferred selector keeps its lease (the next fire skips it for 30 s)', file: join(FN, 'tick.js'),
+    from: '    if (deferredIds.length) hunts.freed = await freeDeferredLeases(exec, body.huntBody, deferredIds);', to: '    void freeDeferredLeases;' },
+  { arm: 'RECLAIM', name: '[tick-pack] the body never says which it is (no lease is freed)', file: join(FN, 'tick.js'),
+    from: '  out.huntBody = Number.isInteger(b.hunt_body) && b.hunt_body >= 0 && b.hunt_body <= 63 ? b.hunt_body : null;', to: '  out.huntBody = null;' },
   { arm: 'WORLD', name: 'accrueHunt commits a world past the bound', file: join(FN, 'accrue-hunt.js'),
     from: '  if (world !== null && utf8Bytes(world) > maxBytes) {', to: '  if (false) {' },
   { arm: 'WORLD', name: 'the settle treats a refused world as nothing owed (no retry, answered nothing)', file: join(FN, 'hunt-settle.js'),
@@ -821,7 +882,12 @@ const MUTANTS = [
 ];
 const DB_MUTANTS = [
   { arm: 'PACK-LEASE-SETTLE', name: 'the packer ignores hunt_body_max (one body for everything)', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
-    find: '- 1)::int / v_per as b', replace: '- 1)::int / 1000 as b' },
+    find: 'greatest((z.r - 1) / v_per, z.before / c_heroes) as b', replace: '0 as b' },
+  /* 1004-tick-pack-heroes.sql: the body is cut by heroes too */
+  { arm: 'PACK-HEROES', name: '[tick-pack] the packer counts instances only (a body of parties carries 64 heroes)', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
+    find: 'greatest((z.r - 1) / v_per, z.before / c_heroes) as b', replace: '(z.r - 1) / v_per as b' },
+  { arm: 'PACK-HEROES', name: '[tick-pack] the fan-out ignores the heroes it takes', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
+    find: '       and i.cum <= c_heroes * c_bodies\n', replace: '' },
   { arm: 'PACK-LEASE-SETTLE', name: 'a live lease is re-claimed by the next fire', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',
     find: 'and (l.session_id is null or l.lease_until < now()\n', replace: 'and (l.session_id is null or l.lease_until < now() or true\n' },
   { arm: 'RECLAIM', name: '[tick-span] a landed settle waits out its lease (the next slice every third fire)', fn: 'public.hr_hunt_roster_sharded(text,integer,integer)',

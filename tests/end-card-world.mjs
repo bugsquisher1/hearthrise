@@ -15,7 +15,8 @@
 //   EC-3  "Always sell these" then sets the existing per-item plan Sell on every junk stack just sold (player_item_rules), and the row is Done
 //   EC-4  Next buy is the server projection's answer, a price the purse covers or a "Need N more" equal to the price less the purse
 //   EC-5  RELOAD: the purse, the bag and the plans come back from the server (the residue holds none of them)
-//   EC-6  the next hunt (Meadowbrook Thicket, the card's Next ground), left with the page open: its junk the plan holds reads "Marked Sell"
+//   EC-6  the next hunt (Meadowbrook Thicket, the card's Next ground), left with the page open, home with Rat Tail again: the card's sale is the
+//         server projection's, the planned junk in it as the plan's and never offered again, and (no ground outgrown) a chore is the gold press
 //   EC-7  no console error, nothing left the machine
 // mutant-anchors: none — a manual walk of the real game; the rules are mutation-proven in tests/hunt-summary.mjs
 // ════════════════════════════════════════════════════════════════════════
@@ -149,6 +150,9 @@ try {
   // EC-6 the next hunt: the Thicket, left with the page open; its junk the plan holds is the plan's
   await p.enterHunt('meadowbrook_thicket');
   await world.skip(20);
+  /* The Thicket drops no Rat Tail: the bag a Cellar trip would bring home holds some (this world's own row, the harness's one setup, as
+     away-recap-world's levelTo), so the plan the first card set is read back on the second */
+  await sql('insert into public.player_inventory (user_id, slot, item_id, qty) values ($1, 0, $2, 7) on conflict (user_id, slot, item_id) do update set qty = public.player_inventory.qty + 7', [uid, sold[0]]);
   await p.page.click('[data-hs-act="leave"]');
   await p.page.waitForFunction(() => /Meadowbrook Thicket/.test(document.querySelector('.hsum-card .hsum-title')?.textContent || ''), null, { timeout: 60000 });
   await p.page.waitForTimeout(800);
@@ -162,7 +166,8 @@ try {
   step('EC-6 ...and there the Sell row is the gold press', !card2 || (card2.gold && JSON.stringify(gold2) === '["town:sell"]') || JSON.stringify(gold2) === '["town:equip"]', JSON.stringify({ gold2, card2 }));
   await toTown();
   const held = second ? second.lines.map((l) => l.item).filter((id) => sold.includes(id)) : [];
-  step('EC-6 ...and any of its junk the plan holds reads as the plan\'s', !held.length || !second.fresh.some((id) => held.includes(id)), JSON.stringify({ held, fresh: second && second.fresh }));
+  step('EC-6 ...the junk the plan holds is in its sale, as the plan\'s (never offered again)', held.includes(sold[0]) && !second.fresh.some((id) => held.includes(id))
+    && (second.fresh.length > 0 || card2.words.startsWith('Marked Sell: ')), JSON.stringify({ held, fresh: second && second.fresh, words: card2 && card2.words }));
   await p.shot('second-card');
 
   // EC-7

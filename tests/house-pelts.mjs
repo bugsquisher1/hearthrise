@@ -13,12 +13,14 @@
 //                (the bear stands in Vine Hollow since lane/c-brook-bear, the designer's ruling 3, 2026-11-10), kills Brook
 //                Bears and is credited 5 Bear Pelts by the settle, never refused (the 10-29 raw_bear_meat refusal: bound 0,
 //                value_over). Those pelts, and only the rest of the price seeded, buy the ladder to the Keep through
-//                hr_unlock_buy; then the Trophy Room to its top visible rung.
+//                hr_unlock_buy; then every Trophy Room rung is refused by name (held, 1008-trophy-room-held) and takes no pelt.
 //   HP-2 VIEWED  hunt viewed (the player's settle): the same hunt on the other door credits a pelt the same way.
 //   HP-3 THE TOP  the Castle and the rung 5s are SOLD for what the Barrow March drops and the top crafts make (lane/d-audit-balance-2,
 //                2026-11-15: they were held for dragon scales nothing drops): under the Keep the Castle is refused by its tier, never as
-//                held; a Keep owner buys it with its price and is home tier 5; the Trophy Room sells to its fifth rung; hr_home_view lists
-//                the Castle and five rungs a room; and no sellable row costs an item the catalogue cannot reach.
+//                held; a Keep owner buys it with its price and is home tier 5; hr_home_view lists the Castle and five rungs a room; and
+//                no sellable row costs an item the catalogue cannot reach. THE TROPHY ROOM IS HELD (2026-11-20, its wall hangs nothing):
+//                at the Castle every rung is refused offer_unsupported (held:), a House owning none does not list it, and an account
+//                that bought rung 4 before the hold still sees it, owned and held, nothing next (1007-home-view-held-rooms).
 //   HP-4 SELF-CHECK the two 2027-02-16 files refuse their own apply on a visible rung with a dead item, a sold Castle, and a
 //                bear whose kill bound forgets the pelt; a second apply of both, on the chain as of the later of them, is
 //                byte-identical (later full replaces own these rows at the chain end).
@@ -177,13 +179,14 @@ const ARMS = {
     if (tier !== 4) problems.push(`the account's home is tier ${tier} after the Keep, want 4`);
     const left = await bagOf(db, U, 'bear_pelt');
     if (left !== earned - NEEDED) problems.push(`the Keep took ${earned - left} pelts, want ${NEEDED}`);
-    /* The Trophy Room, the other house line that asks for pelts: every visible rung sells at the Keep. */
-    for (let n = 1; n <= 4; n++) {
-      const offer = 'room.trophy.' + n;
-      await seedPrice(db, U, offer);
-      const v = await buy(db, U, offer);
-      if (!v || v.ok !== true) problems.push(`${offer} refused at the Keep: ${JSON.stringify(v).slice(0, 200)}`);
+    /* The Trophy Room, the other house line that asked for pelts, is HELD (1008-trophy-room-held: its wall hangs nothing): at the
+       Keep, pelts in the bag, every rung is refused by name and takes none of them. */
+    const before = await bagOf(db, U, 'bear_pelt');
+    for (let n = 1; n <= 5; n++) {
+      const v = await buy(db, U, 'room.trophy.' + n);
+      if (!v || v.error !== 'offer_unsupported' || !/^held:/.test((v.detail || {}).reason || '')) problems.push(`room.trophy.${n} at the Keep answered ${JSON.stringify(v).slice(0, 200)}, want offer_unsupported (held:)`);
     }
+    if (await bagOf(db, U, 'bear_pelt') !== before) problems.push('a refused Trophy rung took pelts');
     return problems;
   },
   'HP-2': async (db, H, M) => {
@@ -217,12 +220,20 @@ const ARMS = {
     }
     const tier = await one(db, 'select public.hr_account_property_tier($1)', [U]);
     if (tier !== 5) problems.push(`the account's home is tier ${tier} after the Castle, want 5`);
+    /* THE TROPHY ROOM IS HELD (1008-trophy-room-held): at the Castle, gold in the purse, every rung is refused by name, and a House
+       that owns none does not list it */
     for (let n = 1; n <= 5; n++) {
-      const offer = 'room.trophy.' + n;
-      if (!(await priced(offer))) continue;
-      const v = await buy(db, U, offer);
-      if (!v || v.ok !== true) problems.push(`${offer} refused at the Castle: ${JSON.stringify(v).slice(0, 200)}`);
+      const v = await buy(db, U, 'room.trophy.' + n);
+      if (!v || v.error !== 'offer_unsupported' || !/^held:/.test((v.detail || {}).reason || '')) problems.push(`room.trophy.${n} at the Castle answered ${JSON.stringify(v).slice(0, 200)}, want offer_unsupported (held:)`);
     }
+    if ((await one(db, 'select public.hr_home_view($1, 0)', [U])).rooms.some((r) => r.room === 'trophy')) problems.push('the House lists a held room the account owns no rung of');
+    /* AN OWNER KEEPS WHAT IT BOUGHT (1007-home-view-held-rooms): rung 4, bought before the hold (the two real accounts' state, planted
+       here because no rung sells now), stays in the House: owned, held, nothing to buy */
+    await db.query(`insert into public.player_progress (user_id, slot, kind, key, value, period_key)
+                    select $1, 0, u.progress_kind, u.unlock_id, 4, '' from public.hr_unlocks u where u.unlock_id = 'room:trophy'`, [U]);
+    const owned = (await one(db, 'select public.hr_home_view($1, 0)', [U])).rooms.find((r) => r.room === 'trophy');
+    if (!owned || owned.level !== 4 || owned.rungs !== 5 || owned.held !== true || owned.next !== null || owned.rung_name !== 'Hall of Banners' || owned.name !== 'Trophy Room')
+      problems.push('the owner\'s held Trophy Room reads ' + JSON.stringify(owned));
     /* The class, as the server holds it: no price in the window names an item the catalogue cannot reach. */
     const { reachableSources } = await import('../src/data/catalogue-coherence.js');
     const reach = reachableSources();
@@ -420,10 +431,14 @@ const MUTANTS = {
     ddl: `update public.hr_unlock_offers set items = items || '{"dragon_scale": 4}'::jsonb where offer_id = 'property.castle'` },
   castle_held: { arm: 'HP-3', why: 'the Castle is held again: the House stops at the Keep',
     ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'property.castle'` },
-  rung5_held: { arm: 'HP-3', why: 'a fifth rung is held again: the Trophy Room stops at four',
-    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'room.trophy.5'` },
-  rung_needs_dead_item: { arm: 'HP-3', why: 'a visible Trophy rung costs an item nobody can hold',
-    ddl: `update public.hr_unlock_offers set items = items || '{"dragon_gem": 1}'::jsonb where offer_id = 'room.trophy.3'` },
+  rung5_held: { arm: 'HP-3', why: 'a fifth rung is held again: the Shrine stops at four',
+    ddl: `update public.hr_unlock_offers set refusal = 'held:its_materials_have_no_source_yet', gold = null, items = null, req_property_tier = null where offer_id = 'room.shrine.5'` },
+  rung_needs_dead_item: { arm: 'HP-3', why: 'a visible rung costs an item nobody can hold',
+    ddl: `update public.hr_unlock_offers set items = items || '{"dragon_gem": 1}'::jsonb where offer_id = 'room.shrine.3'` },
+  trophy_sells: { arm: 'HP-3', why: 'the Trophy Room sells a rung again: a wall that hangs nothing',
+    ddl: `update public.hr_unlock_offers set refusal = null, gold = 2000, items = '{"wolf_pelt": 5}'::jsonb, req_property_tier = 4 where offer_id = 'room.trophy.1'` },
+  owner_loses_room: { arm: 'HP-3', why: 'the hold carries no held: reason, and the owner\'s Trophy Room drops out of the House',
+    ddl: `update public.hr_unlock_offers set refusal = 'withheld' where unlock_id = 'room:trophy'` },
   keep_asks_more: { arm: 'HP-1', why: 'the Keep\'s price drifts past what the hero earned',
     ddl: `update public.hr_unlock_offers set items = items || '{"bear_pelt": 500}'::jsonb where offer_id = 'property.keep'` },
 };

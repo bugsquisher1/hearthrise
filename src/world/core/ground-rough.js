@@ -37,6 +37,18 @@ const DIRS = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1]]);
  * `idOf` maps a material name to its index in `mat`; a pair naming a material the map has no index for is skipped.
  */
 export function roughEdges(mat, W, H, idOf, rough) {
+  const it = roughEdgeSteps(mat, W, H, idOf, rough);
+  let r = it.next();
+  while (!r.done) r = it.next();
+  return r.value;
+}
+
+/**
+ * roughEdges as STEPS, one row of one pass each (the same cells in the same order, so the same result however it is run):
+ * two whole-map passes per pair, six pairs on Havora, were ONE unit of the town's sliced ground, 70 ms on CI (compose.js
+ * groundOfSliced; nightly 44730692384, the town made after a death). Returns the materials as drawn.
+ */
+export function* roughEdgeSteps(mat, W, H, idOf, rough) {
   const out = Int16Array.from(mat);
   if (!rough || !rough.pairs) return out;
   const { seed = 1, spill = 0.6, bite = 0.4, scale = 2.6, deep: deepAll = 4 } = rough;
@@ -45,35 +57,41 @@ export function roughEdges(mat, W, H, idOf, rough) {
     const deep = pDeep;
     const lo = idOf.get(lowName), up = idOf.get(upName);
     if (lo === undefined || up === undefined) continue;
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const a = mat[y * W + x];
-      if (a !== lo && a !== up) continue;
-      const b = a === lo ? up : lo;
-      let ok = true, touches = false;
-      for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const m = at(x + dx, y + dy);
-        if (m !== lo && m !== up) { ok = false; break; }
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const a = mat[y * W + x];
+        if (a !== lo && a !== up) continue;
+        const b = a === lo ? up : lo;
+        let ok = true, touches = false;
+        for (let dy = -1; dy <= 1 && ok; dy++) for (let dx = -1; dx <= 1; dx++) {
+          const m = at(x + dx, y + dy);
+          if (m !== lo && m !== up) { ok = false; break; }
+        }
+        if (!ok) continue;
+        for (const [dx, dy] of DIRS) {
+          if (at(x + dx, y + dy) !== b) continue;
+          touches = true;
+          for (let k = 1; k < deep; k++) if (at(x - dx * k, y - dy * k) !== a) { ok = false; break; }
+          if (!ok) break;
+        }
+        if (!touches || !ok) continue;
+        const n = edgeNoise(x, y, scale, seed);
+        if (a === lo ? n > pSpill : n < pBite) out[y * W + x] = b;
       }
-      if (!ok) continue;
-      for (const [dx, dy] of DIRS) {
-        if (at(x + dx, y + dy) !== b) continue;
-        touches = true;
-        for (let k = 1; k < deep; k++) if (at(x - dx * k, y - dy * k) !== a) { ok = false; break; }
-        if (!ok) break;
-      }
-      if (!touches || !ok) continue;
-      const n = edgeNoise(x, y, scale, seed);
-      if (a === lo ? n > pSpill : n < pBite) out[y * W + x] = b;
+      yield;
     }
     /* no pinholes: a cell of the pair left with all four neighbours the other material (a lone square of grass in the road)
        is drawn as its neighbours */
     const after = Int16Array.from(out);
     const was = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? -1 : after[y * W + x]);
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
-      const a = after[y * W + x];
-      if (a !== lo && a !== up) continue;
-      const b = a === lo ? up : lo;
-      if (DIRS.every(([dx, dy]) => was(x + dx, y + dy) === b)) out[y * W + x] = b;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        const a = after[y * W + x];
+        if (a !== lo && a !== up) continue;
+        const b = a === lo ? up : lo;
+        if (DIRS.every(([dx, dy]) => was(x + dx, y + dy) === b)) out[y * W + x] = b;
+      }
+      yield;
     }
   }
   return out;

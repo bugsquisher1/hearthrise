@@ -57,7 +57,10 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* THE JEWELRY SAMPLE (lane/d-jewelry-sample, 2026-11-18): 2027-03-25-death-share is APPLIED history; the Fang Studs, the Wolfbone Necklace (3,000 g) and the
    Seam Jasper Band (12,000 g) join the outfitter at their premium (src/data/jewelry.js JEWEL_SHOP_PRICE, Tyler 2026-11-05 call 5: plain jewelry stays in
    the Shop), the same full delete+insert replace. No other row moves. ORDER: after this lane's items catalogue (the rows in hr_items). */
-export const OUT_NAME = '2027-05-09-jewelry-sample-alpha-catalogue.generated.sql';
+/* THE REFILL STEP (lane/c-approved-rows, Tyler 2026-11-20, balance call 24-1): 2027-05-09-jewelry-sample is APPLIED history; the six daily refills climb
+   x1, 1.5, 2, 2.5, 3, 3.5 (src/data/stamina-refill.js stepNum 1 / stepDen 2, was 2/15) in this forward file, the same full delete+insert replace. No shop,
+   seed or Blessing row moves. hr_stamina_refill reads the row at the purchase and the quote projects it, so no body and no edge waits on it. */
+export const OUT_NAME = '1009-approved-rows-alpha-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
 /* The shop's word for a supply kind (what the Shop window files it under). */
@@ -174,7 +177,11 @@ export function render(offers = supplyRows(), r = rules()) {
 -- file (the v0.2.30 integration collapsed the never-applied 11-20 and 11-21 files).
 -- hr_shop_view lists them: 2026-11-24-shop-outfitter.sql, 2026-11-25-shop-seeds.sql.
 -- ORDER: after the v0.2.29 chain (needs hr_items, hr_hunt_supplies, hr_crops); first of v0.2.30.
--- NEW IN THIS FILE (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2): the crafted Fang Studs and Wolfbone
+-- NEW IN THIS FILE (lane/c-approved-rows, backend-architect, 2026-11-20; Tyler 2026-11-20, balance call 24-1): the six daily stamina refills
+-- climb by half a first refill each, x1, 1.5, 2, 2.5, 3, 3.5 (hr_stamina_refill_rule step_num ${R.stepNum} / step_den ${R.stepDen}, was 2 / 15). The base and
+-- the per-Level term do not move. hr_stamina_refill prices every purchase from this row under its lock and its quote projects the same, so no
+-- body moves and the hr-accrue does not wait on it. Every other row is carried unchanged from 2027-05-09-jewelry-sample-alpha-catalogue.generated.sql.
+-- CARRIED FROM 2027-05-09 (lane/d-jewelry-sample, systems-engineer, 2026-11-18; itemization plan phase 2): the crafted Fang Studs and Wolfbone
 -- Necklace (3,000 g) and the Seam Jasper Band (12,000 g) join the outfitter at their premium (Tyler 2026-11-05, call 5: plain jewelry stays in the
 -- Shop, at least 10x its book). Every other row is carried unchanged from 2027-03-25-death-share-alpha-catalogue.generated.sql (applied history).
 -- CARRIED FROM 2027-03-25 (lane/c-death-and-slots, Tyler 2026-11-10: Blessings cut a death by 25 / 50 / 75%, the
@@ -280,7 +287,64 @@ begin
        or has_table_privilege(v_role, 'public.hr_blessing_tiers', 'select,insert,update,delete') then
       raise exception 'VERIFY: % reaches an alpha catalogue table', v_role; end if;
   end loop;
+  if (select base || ':' || per_level || ':' || max_min || ':' || per_day || ':' || step_num || ':' || step_den from public.hr_stamina_refill_rule)
+       is distinct from ${sq(`${R.base}:${R.perLevel}:${R.maxMinPerBuy}:${R.perDay}:${R.stepNum}:${R.stepDen}`)} then
+    raise exception 'VERIFY: the refill rule is not the data''s row (src/data/stamina-refill.js)'; end if;
   raise notice 'alpha catalogue: % supply offers, the refill rule, % blessing tiers; all green', ${offers.length}, ${r.tiers.length};
+end $chk$;
+
+-- §4 SELF-CHECK, THE REFILL AS A BUYER MEETS IT (EXECUTED, rolled back): a probe hero on an empty pool buys all ${R.perDay} of the day through the
+-- real hr_stamina_refill at the quote's price. Each quote is the data's formula (src/data/stamina-refill.js refillPrice: base + per Level, x
+-- (step_den + step_num x (n - 1)) / step_den), each purchase takes exactly that from the purse with one journal row, and the day's last answers
+-- refill_limit. A sentinel exception rolls the probe back whole, so no row of it outlives this block.
+do $chk$
+declare
+  c_u  uuid := gen_random_uuid();
+  v    jsonb; v_q jsonb; v_n int; v_lv int; v_min bigint; v_want bigint; v_g0 bigint; v_seen text := '';
+begin
+  if to_regprocedure('public.hr_stamina_refill(integer,bigint,uuid)') is null or to_regprocedure('public.hr_stamina_refill_quote(uuid,integer)') is null
+     or to_regprocedure('public.hr_create_character(integer)') is null or to_regprocedure('public.hr_purse_of(uuid)') is null then
+    raise exception 'VERIFY(refill probe) CANNOT RUN: a function it executes is missing - a skipped check is not a passed one'; end if;
+  begin
+    insert into auth.users (id) values (c_u);
+    insert into public.hr_access_allowlist (user_id, note) values (c_u, 'alpha catalogue refill probe') on conflict (user_id) do nothing;
+    perform set_config('request.jwt.claim.sub', c_u::text, true);
+    perform set_config('request.jwt.claims', jsonb_build_object('sub', c_u, 'role', 'authenticated')::text, true);
+    v := public.hr_create_character(0);
+    if coalesce(v->>'ok', '') <> 'true' then raise exception 'VERIFY(refill probe): hr_create_character refused: %', v; end if;
+    insert into public.account_wallet as w (user_id, gold) values (c_u, 100000000)
+      on conflict (user_id) do update set gold = excluded.gold;
+    for v_n in 1 .. ${R.perDay} loop
+      update public.player_state set stamina_ms = 0, stamina_at = now() where user_id = c_u and slot = 0;
+      v_q := public.hr_stamina_refill_quote(c_u, 0);
+      if not coalesce((v_q->>'available')::boolean, false) or (v_q->>'n')::int is distinct from v_n then
+        raise exception 'VERIFY(refill probe): purchase % is not on offer: %', v_n, v_q; end if;
+      v_lv := (v_q->>'level')::int;
+      v_min := (v_q->>'restore_ms')::bigint / 60000;
+      v_want := ceil(((${R.base} + ${R.perLevel} * v_lv)::numeric * (${R.stepDen} + ${R.stepNum} * (v_n - 1)) * v_min) / (${R.stepDen}::numeric * ${R.maxMinPerBuy}))::bigint;
+      if (v_q->>'price')::bigint is distinct from v_want then
+        raise exception 'VERIFY(refill probe): purchase % is quoted %, the data''s formula says %', v_n, v_q->>'price', v_want; end if;
+      v_g0 := public.hr_purse_of(c_u);
+      delete from public.hr_rate_counters where user_id = c_u;
+      v := public.hr_stamina_refill(0, v_want, gen_random_uuid());
+      if coalesce(v->>'ok', '') <> 'true' or public.hr_purse_of(c_u) <> v_g0 - v_want then
+        raise exception 'VERIFY(refill probe): purchase % at % answered % and took %', v_n, v_want, v, v_g0 - public.hr_purse_of(c_u); end if;
+      v_seen := v_seen || v_want || ' ';
+    end loop;
+    if (select count(*) from public.player_ledger l where l.user_id = c_u and l.kind = 'shop' and l.intent like 'stamina\\_refill:%') <> ${R.perDay} then
+      raise exception 'VERIFY(refill probe): the day''s purchases are not one journal row each'; end if;
+    update public.player_state set stamina_ms = 0, stamina_at = now() where user_id = c_u and slot = 0;
+    v_q := public.hr_stamina_refill_quote(c_u, 0);
+    if coalesce((v_q->>'available')::boolean, true) or v_q->>'why' is distinct from 'refill_limit' then
+      raise exception 'VERIFY(refill probe): past the day''s ${R.perDay} the quote reads %', v_q; end if;
+    raise exception using errcode = 'HRA01', message = 'refill probe: rolled back';
+  exception when sqlstate 'HRA01' then null;
+  end;
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
+  if exists (select 1 from auth.users where id = c_u) or exists (select 1 from public.player_state where user_id = c_u) then
+    raise exception 'VERIFY(refill probe): LEAKED a probe row'; end if;
+  raise notice 'alpha catalogue refill probe: the day''s ${R.perDay} sold at the data''s steps (% gold), then refill_limit', trim(v_seen);
 end $chk$;
 `;
 }

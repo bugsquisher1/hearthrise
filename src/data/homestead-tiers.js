@@ -33,8 +33,10 @@
 export const HELD_HOME_OFFERS = Object.freeze([]);
 
 /** ROOMS HELD WHOLE UNTIL REBUILT (CLAUDE.md §3.5, 26-home.md §4): the Trophy Room's wall hangs nothing (world-boot.js
-    `trophies: null`). No rung of one sells (unlock-catalogue.js, home-sections.js); rungs bought stay, shown (hr_home_view). */
-export const HELD_HOME_ROOMS = Object.freeze(['trophy']);
+    `trophies: null`). The Shrine's five flame-speed rungs are CUT (Tyler 2026-11-20, balance call 26-8: 672,400 gold on a skill
+    with 16 recorded hours); its place on the map stays for whatever the combat dive rules on Inner Flame and Prayer. No rung of
+    either sells (unlock-catalogue.js, home-sections.js); rungs bought stay, shown (hr_home_view), and keep their perk. */
+export const HELD_HOME_ROOMS = Object.freeze(['trophy', 'shrine']);
 
 /** PROPERTY_TIERS[i] is property tier i. `rooms` are the rooms tier i first opens. */
 export const PROPERTY_TIERS = Object.freeze([

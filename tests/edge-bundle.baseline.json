@@ -93,6 +93,11 @@
         "bytes": 3134266,
         "on": "2026-11-20",
         "why": "hr-accrue +559 B, all lane/a-trophy-room-held: data/homestead-tiers.js HELD_HOME_ROOMS (the Trophy Room held whole, ~310 by the diff) and unlock-catalogue.js refusing a held room's every rung by name (~250)"
+      },
+      {
+        "bytes": 3135425,
+        "on": "2026-11-20",
+        "why": "src/data/core-model.js: Levels 7-9 re-cut for the start-kit hero (two more LEVEL_CURVE brackets) and LEVEL_PACE.newPlayer, the row Tyler's 27-2 pace is held on, with their notes (lane/c-levels-7-9)"
       }
     ]
   }

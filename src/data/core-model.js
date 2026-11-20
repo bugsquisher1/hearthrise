@@ -63,10 +63,9 @@
    LEVELS 1-9 RE-SPLIT 2026-11-19 (lane/d-142-rulings): with a kill paying 12% less the early steps read 2.01-2.40x the one before (C6), so each
    now takes about 1.95x the hours of the last (1.6-1.9x across the Cellar's end). Same total to Level 9: no live hero's Level moves. Were 159 /
    318 / 635 / 1,269 / 6,269 / 12,870 / 26,255 / 67,115. Forward file 1000-level-curve-early.
-   LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9; Tyler ruled balance call 27-2): the start-kit hero took 1.4 / 2.6 / 3.0 h for
-   Levels 7, 8, 9 and Level 10 at 8.6 h, where both light players quit. Steps 7-9 now 15,500 / 34,500 / 46,000 (were 25,072 / 68,087 /
-   83,477); Levels 10-15 take the XP back (85,994, then 105,795 + 267 a Level), so the total to Level 16 and every step from 16 on
-   cost what they did. LEVEL_PACE.newPlayer holds it. Forward file 1009-level-curve-new-player. */
+   LEVELS 7-9 RE-CUT 2026-11-20 (lane/c-levels-7-9, Tyler's 27-2): the start-kit hero took 2.6 and 3.0 h for Levels 8 and 9 (Level 10
+   at 8.6 h), where both light players quit. Steps 7-9 were 25,072 / 68,087 / 83,477; Levels 10-15 take the XP back, so the total to 16
+   and every step from 16 cost what they did. Forward file 1009-level-curve-new-player. */
 export const LEVEL_CURVE = Object.freeze({
   first: 210,
   brackets: Object.freeze([
@@ -105,11 +104,9 @@ export const LEVEL_CURVE = Object.freeze({
               tools/balance-sim/level-pace.json `ladder`). It is what a NEW ground must
               pay for the curve to hold; once grounds past Level 50 exist, the simulator
               measures them and the contract only covers what lies beyond.
-   newPlayer  Tyler 2026-11-20 (27-2): the target at `level` is the hero a new player is, not the
-              careers: `party` on `policy` (tools/balance-sim/life.mjs: start kit, start bar, Normal,
-              the advised ground, no event) reaches it inside `hours`, and each step L -> L+1 with
-              L in [from, to] takes at most `h` hours (`steps`). tests/start-kit-pace.mjs plays it;
-              tests/level-curve.mjs C2/C3 judge the careers on the other targets. */
+   newPlayer  Tyler 2026-11-20 (27-2): `level` is held on the hero a new player is (life.mjs `party`
+              on `policy`: start kit and bar, no event) inside `hours`, each step L -> L+1 in a
+              `steps` band in `h` hours (tests/start-kit-pace.mjs); C2/C3 judge the careers on the rest. */
 export const LEVEL_PACE = Object.freeze({
   targets: Object.freeze([[10, 6], [25, 36], [50, 168], [100, 600], [200, 1680], [300, 3120], [500, 6720], [750, 13440], [1000, 23520]]
     .map((t) => Object.freeze(t))),

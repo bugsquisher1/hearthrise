@@ -109,6 +109,11 @@
 //   NO-DODGE   a death the viewer's live seeds showed cannot be stepped around: a
 //              leave sent seconds before it still ends the hunt `died` at that swing,
 //              the same death row and end as with no leave (2026-10-31-live-horizon.sql).
+//   NO-DODGE-LEVERS  the same for every mid-hunt lever that moves a fight (1002-lever-horizon.sql, 11-19 server audit
+//              row 3), on a pinned server clock: a Blessing bought, the stance set and a setup switched 19 s before a
+//              death the viewer's seeds showed each leave that death exactly as it was, with the hunt viewed and with
+//              the browser closed (the Blessing stays held, unused). CONTROL: each lever pulled a minute earlier lands
+//              after its horizon and moves the death (the deferral is not a drop).
 //   PARITY     the tick door, the player's door and the composed pieces write
 //              the same rows for one window.
 //   OWN        own food is eaten first: one supply_own row a settle, gold 0, the
@@ -1978,6 +1983,83 @@ const DB_ARMS = {
     if (b.session.end_reason !== 'died') problems.push(`a leave before a foreseen death ended the hunt ${b.session.end_reason}, not died`);
     if (b.session.ended_at !== a.session.ended_at) problems.push(`the hunt ended at ${b.session.ended_at} with the leave, ${a.session.ended_at} without`);
     if (JSON.stringify(b.events) !== JSON.stringify(a.events)) problems.push('the death / end rows differ with the leave: ' + firstDiff(JSON.stringify(a.events), JSON.stringify(b.events)));
+    return problems;
+  }),
+  /* EVERY LEVER THAT MOVES A FIGHT WAITS OUT THE SEEDS (1002-lever-horizon.sql; the 11-19 server audit, row 3). The browser holds the
+     next 16 combat swings' seeds (32 s), so a lever that took hold at once could be pulled only when a death showed in them. The server
+     clock is pinned and every settle runs at its cut's instant, as in production. A Level 5 hero at full HP among wolves (it dies some
+     4.7 minutes in, with no food) is settled every 10 s (the hunt viewed)
+     to 20 s before its death; 1 s later the player pulls a lever; the hunt then settles on every 10 s (VIEWED) or on the tick's 90 s
+     windows (CLOSED). Each lever must leave the death exactly as it was with no lever: the same instant, the same price, and a Blessing
+     bought there stays held, unused. CONTROL (EARLY): the same lever a minute into the hunt lands after its horizon and moves the
+     death, so the lever matters and the deferral is not a drop. */
+  'NO-DODGE-LEVERS': async (db, M) => inTx(db, async () => {
+    const problems = [];
+    const BASE = Date.UTC(2026, 9, 15, 12, 0, 0);
+    const pinNow = (ms) => db.query(`select set_config('hr.test_now', $1, true)`, [new Date(ms).toISOString()]);
+    const onClock = { clock: pinNow };
+    await pinNow(BASE);
+    const as = async (sql, args) => {
+      await db.query('delete from public.hr_rate_counters');
+      await asUser(db, UIDS[0]);
+      try { return await one(db, sql, args); } finally { await db.query("select set_config('request.jwt.claim.sub', '', true)"); }
+    };
+    /* Two setups saved in town: 0 (the doomed hero's bar) and 1, the same gear, standing defensive. */
+    const h = await hunter(db, M, { ...DOOMED, deadly: false, row: rowWith('wolf'), hp: null, fromMs: BASE, beforeEnter: async () => {
+      /* (0 first: a save copies the setup in use into the one saved) */
+      for (const [what, sql] of [['saving setup 0', `select public.hr_hunt_preset_save(0, 0, 'Brawl', $1::uuid)`],
+        ['saving setup 1', `select public.hr_hunt_preset_save(0, 1, 'Guard', $1::uuid)`],
+        ['setup 1 stands defensive', `select public.hr_action_set_options(0, 1, '{"stance": "defensive"}'::jsonb, $1::uuid)`]]) {
+        const r = await as(sql, [idem()]);
+        if (!r || r.ok !== true) throw new Error(`harness: ${what} answered ${JSON.stringify(r)}`);
+      }
+    } });
+    const grid = (stepMs, after) => (f) => Array.from({ length: Math.ceil((f + SPAN_MS - after) / stepMs) }, (_, i) => Math.min(after + (i + 1) * stepMs, f + SPAN_MS));
+    const look = async () => {
+      const s = await snapshot(db, h.sid, UIDS[0]);
+      s.held = Number(await one(db, 'select count(*) from public.player_blessings where user_id = $1 and slot = 0', [UIDS[0]]));
+      return s;
+    };
+    const deathOf = (s) => Date.parse((((s && s.events) || []).find((e) => e[0] === 'death') || [])[1]);
+    const LEVERS = {
+      blessing: async () => as('select public.hr_blessing_buy(0, 1, (select public.hr_blessing_price(1, greatest(1, coalesce(public.hr_level_of($2::uuid, 0), 1)))), $1::uuid)', [idem(), UIDS[0]]),
+      stance: async () => as(`select public.hr_action_set_options(0, 0, '{"stance": "defensive"}'::jsonb, $1::uuid)`, [idem()]),
+      setup: async () => as('select public.hr_hunt_preset_apply(0, 1, $1::uuid)', [idem()]),
+    };
+    /* the hunt settled on a 10 s grid to `to`, the lever at `at`, then the rest on `after`'s grid */
+    const play = async (lever, at, afterStep) => {
+      await db.query('savepoint levers');
+      try {
+        const upTo = at === null ? h.from + SPAN_MS : h.from + Math.floor((at - h.from) / 10000) * 10000;
+        await run(db, M, h.from, (f) => grid(10000, f)(f).filter((t) => t <= upTo), onClock);
+        let r = null;
+        if (lever) { await pinNow(at); r = await LEVERS[lever](); }
+        if (at !== null) await run(db, M, h.from, () => grid(afterStep, upTo)(h.from), onClock);
+        const s = await look();
+        s.lever = r;
+        return s;
+      } finally { await db.query('rollback to savepoint levers'); }
+    };
+    const control = await play(null, null, 10000);
+    const deathAt = deathOf(control);
+    if (!(control.session.end_reason === 'died' && Number.isFinite(deathAt))) return [`CONTROL: the doomed hero did not die (${control.session.end_reason})`];
+    if (!(deathAt - h.from > 120000)) return [`CONTROL: the death came ${deathAt - h.from} ms in; the arm needs two minutes of hunt before it`];
+    if (control.held !== 0) problems.push(`CONTROL: ${control.held} Blessing(s) held with no lever`);
+    const same = (s) => JSON.stringify([s.events, s.death_xp, s.level_xp, s.session.end_reason, s.session.ended_at]);
+    for (const lever of Object.keys(LEVERS)) {
+      /* EARLY: a minute in, far from the death: it lands after its horizon and the death moves (or is kept, for a Blessing). */
+      const early = await play(lever, h.from + 60000 + 1000, 10000);
+      if (!early.lever || early.lever.ok !== true) { problems.push(`CONTROL (${lever}, early): the lever was refused ${JSON.stringify(early.lever)}`); continue; }
+      if (same(early) === same(control)) problems.push(`CONTROL (${lever}, early): a lever a minute in moved nothing; the arm cannot tell a deferral from a drop`);
+      if (lever === 'blessing' && early.held !== 0) problems.push(`CONTROL (blessing, early): the Blessing bought a minute in was not used on the death (${early.held} held)`);
+      /* LATE: 19 s before the death the viewer's seeds showed; then the hunt viewed (10 s) and the browser closed (90 s). */
+      for (const [path, step] of [['the hunt viewed', 10000], ['the browser closed', 90000]]) {
+        const late = await play(lever, deathAt - 19000, step);
+        if (!late.lever || late.lever.ok !== true) { problems.push(`${lever} (${path}): the lever was refused ${JSON.stringify(late.lever)}`); continue; }
+        if (same(late) !== same(control)) problems.push(`${lever} (${path}): a lever 19 s before a foreseen death moved it: ${firstDiff(same(control), same(late))}`);
+        if (lever === 'blessing' && late.held !== 1) problems.push(`blessing (${path}): the Blessing bought inside the horizon was ${late.held === 0 ? 'used on the foreseen death' : `held ${late.held} times`}`);
+      }
+    }
     return problems;
   }),
   PARITY: async (db, M) => inTx(db, async () => {

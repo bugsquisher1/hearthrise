@@ -914,23 +914,29 @@ insert into public.player_ledger (user_id, slot, kind, intent, gold, meta, at) v
    "the bystanders survive to the end of the chain" stops being the property
    past that file. The property becomes two halves, both still checked:
      · every file BEFORE the wipe leaves both bystanders in place — captured by
-       a seed that runs immediately before the wipe file, into a TEMP table
-       (pg_temp, so no public inventory and no wipe classification sees it);
+       a seed that runs immediately before the wipe file, into a table of the
+       harness's own schema `replay_probe` (not public, so no public inventory
+       and no wipe classification sees it). Until 2026-11-19 these were TEMP
+       tables: a temp table is session state, not in a data-directory snapshot,
+       so the seeded chain end could not be cached and its last 598 files
+       replayed on every run (tests/pglite-template.mjs SESSION_STATE);
      · the wipe itself removes them — a wipe that skipped the ledger would leave
        a player's money journal behind on a clean slate.
    A chain without the wipe file is judged exactly as before. */
 const WIPE_FILE = '2026-10-21-closed-rebuild-wipe.sql';
 const BYSTANDERS_PRE_WIPE = `
-create temp table if not exists _bystanders_pre_wipe (intent text);
-insert into _bystanders_pre_wipe
+create schema if not exists replay_probe;
+create table if not exists replay_probe.bystanders_pre_wipe (intent text);
+insert into replay_probe.bystanders_pre_wipe
   select intent from public.player_ledger where user_id = '${BYSTANDER_UID}';
 `;
 /* ...and "gone after it" is read IMMEDIATELY after the wipe file (seeded before the next file), not at the chain
    end: the core rebuild's own wipe (2026-10-27-core-wipe.sql) truncates the ledger again later, and a chain-end
    read let it mask a 10-21 wipe that kept the ledger (schema-drift --mutate wipe_keeps_ledger SLIPPED). */
 const BYSTANDERS_POST_WIPE = `
-create temp table if not exists _bystanders_post_wipe (n int);
-insert into _bystanders_post_wipe
+create schema if not exists replay_probe;
+create table if not exists replay_probe.bystanders_post_wipe (n int);
+insert into replay_probe.bystanders_post_wipe
   select count(*)::int from public.player_ledger where user_id = '${BYSTANDER_UID}';
 `;
 
@@ -942,15 +948,15 @@ insert into _bystanders_post_wipe
  * its own words.
  */
 async function assertBystanders(db) {
-  const wiped = (await db.query(`select to_regclass('pg_temp._bystanders_pre_wipe') is not null as t`)).rows[0].t;
+  const wiped = (await db.query(`select to_regclass('replay_probe.bystanders_pre_wipe') is not null as t`)).rows[0].t;
   const { rows } = await db.query(
-    wiped ? 'select intent from _bystanders_pre_wipe order by intent'
+    wiped ? 'select intent from replay_probe.bystanders_pre_wipe order by intent'
           : 'select intent from public.player_ledger where user_id = $1 order by intent',
     wiped ? [] : [BYSTANDER_UID]);
   if (wiped) {
-    const post = (await db.query(`select to_regclass('pg_temp._bystanders_post_wipe') is not null as t`)).rows[0].t;
+    const post = (await db.query(`select to_regclass('replay_probe.bystanders_post_wipe') is not null as t`)).rows[0].t;
     const left = post
-      ? (await db.query('select coalesce(max(n), 0)::int as n from _bystanders_post_wipe')).rows[0].n
+      ? (await db.query('select coalesce(max(n), 0)::int as n from replay_probe.bystanders_post_wipe')).rows[0].n
       : (await db.query('select count(*)::int as n from public.player_ledger where user_id = $1',
         [BYSTANDER_UID])).rows[0].n;
     if (left !== 0) {
@@ -977,6 +983,10 @@ async function assertBystanders(db) {
 }
 
 async function fingerprint(patches, extraSeeds) {
+  return (await chainEnd(patches, extraSeeds)).inv;
+}
+
+async function chainEnd(patches, extraSeeds, { raw = false } = {}) {
   // The bystander seed is unconditional (header item 4b); a mutation may add
   // its own, and two seeds on the SAME file concatenate rather than one
   // silently replacing the other.
@@ -991,11 +1001,99 @@ async function fingerprint(patches, extraSeeds) {
     seedBefore.set(file, (seedBefore.get(file) || '') + sql);
   }
   /* WHOLE chain on purpose: the fingerprint is the chain-end inventory. */
-  const { db } = await bootReplay(patches && patches.size
+  const { db, cache } = await bootReplay(patches && patches.size
     ? { patches, seedBefore, fullChain: 'the fingerprint is the CHAIN-END inventory; every file judges it' }
-    : { patches, seedBefore });
+    : { patches, seedBefore, raw });
   await assertBystanders(db);
-  return inventory(db);
+  return { db, cache, inv: await inventory(db) };
+}
+
+// ── THE SECOND APPLY (CLAUDE.md §4, TESTING.md) ─────────────────────────────
+// Both documents said this guard replays the chain "with a byte-identical second
+// apply". Until 2026-11-19 no line of it applied any file twice: the promise
+// pointed at nothing (found by lane/c-ops-gates while caching the replay). Now it
+// does, on THE STAGED TAIL: the contiguous run of files at the END of the apply
+// order whose note claims STAGED (tests/apply-order-honesty.mjs claimOf). Those
+// are the files the Coordinator applies next and the only ones an operator ever
+// runs twice (a retried apply, an apply after a partial failure); an applied file
+// is never re-run. The tail is read from the notes, never from what this machine
+// had cached, so the check means the same on a warm run, a cold one and --full.
+//
+// "Byte-identical" is measured, not asserted: the chain end is digested (every
+// public function's full definition, every public table's rows as text, the
+// inventory), the tail is applied again in order (each file atomically, self-check
+// included), and the digest must not move. A file whose self-check refuses its own
+// post-image, a catalogue that appends instead of rewriting, a counter that
+// advances on every apply: each is red here, named by file and object.
+//
+// ONE CLASS OF COLUMN IS LEFT OUT: a WRITE STAMP, a time-typed column whose
+// default is the clock (now(), current_timestamp, ...). It records when its row
+// was written, and a second write honestly records a second time. MEASURED on the
+// first run (2026-11-19, 18-file tail): the only two movements were stamps,
+// hr_client_rpc_baseline.added_at (2027-05-28-faction-swap-cancel.sql) and
+// hr_catalogue_meta's stamp (2027-06-05-harder-monsters-items-catalogue). A time
+// column WITHOUT a clock default (an event's starts_at, a crop's planted_at) is
+// hashed like any other, so a re-apply that restarts a window is still red.
+const STAMP_DEFAULT = /\b(now|clock_timestamp|statement_timestamp|transaction_timestamp)\s*\(|\bcurrent_(timestamp|date)\b|\blocaltimestamp\b/i;
+async function stateDigest(db) {
+  const fns = (await db.query(`select p.oid::regprocedure::text as k, md5(pg_get_functiondef(p.oid)) as v
+      from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+     where n.nspname = 'public' and p.prokind in ('f', 'p') order by 1`)).rows;
+  const cols = (await db.query(`select c.relname::text as t, a.attname::text as col, a.attnum,
+         format_type(a.atttypid, a.atttypmod) as ty, pg_get_expr(d.adbin, d.adrelid) as def
+      from pg_class c join pg_namespace n on n.oid = c.relnamespace
+      join pg_attribute a on a.attrelid = c.oid and a.attnum > 0 and not a.attisdropped
+      left join pg_attrdef d on d.adrelid = c.oid and d.adnum = a.attnum
+     where n.nspname = 'public' and c.relkind = 'r' order by 1, 3`)).rows;
+  const byTable = new Map();
+  for (const r of cols) {
+    const stamp = /^(timestamp|date)/.test(r.ty) && STAMP_DEFAULT.test(r.def || '');
+    if (!byTable.has(r.t)) byTable.set(r.t, []);
+    if (!stamp) byTable.get(r.t).push(`"${r.col.replace(/"/g, '""')}"`);
+  }
+  const rows = [];
+  for (const [t, keep] of byTable) {
+    const q = `public."${t.replace(/"/g, '""')}"`;
+    const rowText = keep.length ? `row(${keep.map((c) => `x.${c}`).join(', ')})::text` : `''`;
+    const r = (await db.query(`select count(*)::int as n, coalesce(md5(string_agg(${rowText}, E'\\n' order by ${rowText})), '') as h from ${q} x`)).rows[0];
+    rows.push({ k: t, v: `${r.n}/${r.h}` });
+  }
+  return { fns, rows, inv: digest(await inventory(db)) };
+}
+
+async function stagedTail() {
+  const { claimOf } = await import('./apply-order-honesty.mjs');
+  const m = await manifest();
+  const tail = [];
+  for (let i = m.order.length - 1; i >= 0; i--) {
+    if (claimOf((m._order_notes || {})[m.order[i]]).kind !== 'staged') break;
+    tail.unshift(m.order[i]);
+  }
+  return tail;
+}
+
+async function secondApply(db, tail) {
+  const files = new Map(await chainFiles());
+  const before = await stateDigest(db);
+  const problems = [];
+  for (const f of tail) {
+    const sql = (await readFile(files.get(f), 'utf8')).replace(/\r\n/g, '\n');
+    try { await db.exec(`begin;\n${sql}\ncommit;`); }
+    catch (e) {
+      await db.exec('rollback').catch(() => {});
+      problems.push(`${f}: the second apply RAISED: ${String(e && e.message || e).split('\n')[0].slice(0, 240)}`);
+    }
+  }
+  const after = await stateDigest(db);
+  if (after.inv !== before.inv) problems.push('the second apply moved the schema inventory');
+  const diff = (label, a, b) => {
+    const am = new Map(a.map((r) => [r.k, r.v])); const bm = new Map(b.map((r) => [r.k, r.v]));
+    for (const [k, v] of am) if (bm.get(k) !== v) problems.push(`${label} ${k} ${bm.has(k) ? 'moved' : 'vanished'}${label === 'table' && bm.has(k) ? ` (rows ${v.split('/')[0]} -> ${bm.get(k).split('/')[0]})` : ''}`);
+    for (const k of bm.keys()) if (!am.has(k)) problems.push(`${label} ${k} appeared`);
+  };
+  diff('function', before.fns, after.fns);
+  diff('table', before.rows, after.rows);
+  return problems;
 }
 
 /**
@@ -1284,8 +1382,15 @@ async function main() {
   }
 
   // ── the guard proper ─────────────────────────────────────────────────────
-  const inv = await fingerprint();
+  // --full: replay from zero (no snapshot read; what it builds is still stored).
+  // CI is always --full in effect: a runner starts with no cache.
+  if (argv.includes('--full')) process.env.HR_PGLITE_CACHE_NO_READ = '1';
+  const t0 = Date.now();
+  const end = await chainEnd(undefined, undefined, { raw: !argv.includes('--write') });
+  const inv = end.inv;
   const d = digest(inv);
+  console.log(`replayed ${end.cache.of} files in ${((Date.now() - t0) / 1000).toFixed(1)} s `
+    + `(${end.cache.restoredAt ? `${end.cache.restoredAt} restored from a snapshot, ${end.cache.of - end.cache.restoredAt} applied` : 'from zero'})`);
 
   if (argv.includes('--write')) {
     let prev = {};
@@ -1319,6 +1424,17 @@ async function main() {
 
   if (d === base.digest) {
     console.log(`schema-drift: OK — repo rebuilds to the committed fingerprint (${d.slice(0, 12)}…)`);
+    const tail = await stagedTail();
+    const t1 = Date.now();
+    const bad = await secondApply(end.db, tail);
+    if (bad.length) {
+      console.error(`\nSECOND APPLY NOT BYTE-IDENTICAL on the staged tail (${tail.length} file(s), CLAUDE.md §4):`);
+      for (const b of bad) console.error(`  - ${b}`);
+      console.error('\nA staged migration must be safe to apply twice: an operator retries an apply.');
+      process.exit(1);
+    }
+    console.log(`second apply: byte-identical on the staged tail, ${tail.length} file(s) `
+      + `(${tail[0] || '-'} .. ${tail[tail.length - 1] || '-'}) in ${((Date.now() - t1) / 1000).toFixed(1)} s`);
   } else {
     console.error('SCHEMA DRIFT: the repo no longer rebuilds to the committed baseline.\n');
     let n = 0;

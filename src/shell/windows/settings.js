@@ -28,7 +28,7 @@ function control(r) {
   /* A slider shows its value beside it (the window opacity: "80%"). */
   if (r.type === 'slider') return '<input type="range" min="' + r.options.min + '" max="' + r.options.max + '" step="' + (r.options.step || 1) + '" ' + sid + ' ' + label + '>'
     + '<output class="st-val" aria-hidden="true"></output>';
-  if (r.type === 'action') return '<button type="button" class="hs-quiet" data-hs-act="run" data-sid="' + esc(r.id) + '">' + esc(r.label) + '</button>';
+  if (r.type === 'action') return '<button type="button" class="hh-tool is-link" data-hs-act="run" data-sid="' + esc(r.id) + '">' + esc(r.label) + '</button>';
   if (r.type === 'note') return '';
   return '<kbd class="hs-key">' + esc(keyLabel(r.key)) + '</kbd>';
 }

@@ -62,6 +62,7 @@ import { slotsFor, pickSlot, bestAim, itemRow, ignores, DEFAULT_ATTACK_ROW, atta
 import { place, covers } from './shapes.js?v=0.2.141';
 import { shootsItem } from '../../data/hunt-roles.js?v=0.2.141';
 import { livingOf, targetedOf, heroesByIdOf } from './unit-index.js?v=0.2.141';
+import { healTaken } from './heal-cut.js?v=0.2.141';
 
 export const PERSISTED = Object.freeze({
   unit: Object.freeze([['mana', 'int'], ['maxMana', 'int'], ['manaMilli', 'int'], ['regenPm', 'int'], ['lanes', 'json'], ['cds', 'json'],
@@ -344,15 +345,29 @@ export function firstUsable(inst, hero, sc, only) {
 function healOne(u, t, n, sc, surge) {
   /* TEMPERING raises a heal as it raises a blow (src/core/temper.js). */
   n = temperedAmount(n, u.blowsPm, sc.rng);
+  /* A WITHERED target takes every heal cut (heal-cut.js: a necrotic hit on it; the guard lowers the cut). */
+  n = healTaken(t, n);
   const got = Math.max(0, Math.min(n, int(t.maxHp) - int(t.hp)));
   t.hp = int(t.hp) + got;
   sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: t.id, amount: got, ...(surge ? { crit: true } : {}) }));
 }
 const roll = (sc, r) => sc.rng.int(r[0], r[1]);
 
-/* Apply a fired ability's effect (AB-08). `v` = { version, pm }: the version cast (a status's rune tier,
+/* A SPELL'S LEECH (abilities.js `leechPm`, Reave): leechPm permille of the HP one of its hits took comes back to the caster, cut on a
+   Withered caster (heal-cut.js) and capped at its missing HP; a `heal` naming the spell when any landed. Not tempered: the blow it
+   comes from already was. Draws nothing. A wiki formula: back = floor(hpTaken x leechPm / 1000). */
+function leechBack(u, row, took, sc) {
+  if (!(took > 0) || !u.alive) return;
+  const got = Math.max(0, Math.min(healTaken(u, Math.floor((took * row.leechPm) / 1000)), int(u.maxHp) - int(u.hp)));
+  if (!got) return;
+  u.hp = int(u.hp) + got;
+  sc.emit(makeEvent('heal', sc.atMs, { u: u.id, t: u.id, amount: got, ability: row.id }));
+}
+
+/* Apply a fired ability's effect (AB-08). `v` = { version, pm, back? }: the version cast (a status's rune tier,
    r03) and its output in permille of the row's numbers (a version raises numbers only: never area,
-   targets, duration or cooldown). At 1000 a hit lands exactly as the row's (no `mult` is passed). */
+   targets, duration or cooldown). At 1000 a hit lands exactly as the row's (no `mult` is passed). `back`, a row that gives
+   mana back's: { hits, kills } counted here, the mana fire() returns (every other row passes none, so its hits count nothing). */
 function effect(inst, u, row, t, sc, v) {
   const el = row.element || null;
   const pm = v && Number.isInteger(v.pm) && v.pm >= 0 ? v.pm : 1000;
@@ -365,6 +380,14 @@ function effect(inst, u, row, t, sc, v) {
   const sg = !!(v && v.surge);
   /* One hit's roll: the row's dmg [lo, hi], or a hitPm row's share of the hero's own largest blow (abilities.js blowShare). */
   const dmg = () => roll(sc, row.hitPm ? blowShare(u.maxHit, row) : row.dmg);
+  /* ONE HIT OF THIS CAST on `m`: the blow (damage.js landHit), then what the row returns from it: its leech (leechBack), and for a row
+     that gives mana back, the hit and the kill it counts (`v.back`). A row with neither does exactly the blow. */
+  const back = v && v.back ? v.back : null;
+  const strike = (m) => {
+    const r = landHit(inst, sc, u, m, dmg(), el, hitTag, sg);
+    if (row.leechPm) leechBack(u, row, r.dmg, sc);
+    if (back) { if (r.dmg > 0) back.hits++; if (r.killed) back.kills++; }
+  };
   /* The row's status on `m` after a hit (applyStatus refuses a look-alike) and its source: the unit, the caster's
      level in the row's scalesWith skill (Tyler 10-16: bleed scales slowly with Melee) and the version's rune tier.
      A marking status (Green Sickness) reads neither. */
@@ -382,7 +405,7 @@ function effect(inst, u, row, t, sc, v) {
       break;
     case 'enemy':
       for (let i = 0; i < (row.hits || 1); i++) {
-        landHit(inst, sc, u, t, dmg(), el, hitTag, sg);
+        strike(t);
         afflict(t);
       }
       break;
@@ -395,14 +418,14 @@ function effect(inst, u, row, t, sc, v) {
       const blows = landsBlow(row);
       for (const m of Number.isInteger(row.maxHits) ? hit.slice(0, row.maxHits) : hit) {
         if (!blows) { afflict(m); continue; }
-        landHit(inst, sc, u, m, dmg(), el, hitTag, sg);
+        strike(m);
         afflict(m);
       }
       break;
     }
     case 'cleave': {
       const hits = [t, ...engaged(inst).filter((m) => m !== t && cheb(m, u) <= 1).sort((a, b) => a.id - b.id)].slice(0, row.maxHits);
-      for (const m of hits) landHit(inst, sc, u, m, dmg(), el, hitTag, sg);
+      for (const m of hits) strike(m);
       break;
     }
     case 'self':
@@ -445,8 +468,8 @@ export function fire(inst, u, pick, sc) {
      cast event carries the NET (Magic XP is paid on the mana spent, xp-share.js magicXpFor: a refunded point pays none). */
   const paid = Number.isInteger(pick.mana) ? pick.mana : row.mana;
   const refund = shieldRefund(u, row, paid, pm);
-  const mana = paid - refund;
-  u.mana = int(u.mana) - mana;
+  const spent = paid - refund;
+  u.mana = int(u.mana) - spent;
   u.cds = Object.assign({}, u.cds || {}, { [row.id]: sc.atMs + row.cdMs });
   u.lanes = Object.assign({}, u.lanes || {}, { [row.lane]: sc.atMs + ABILITY_LANES[row.lane] });
   /* The tally's supply split (§3.8): any store line makes the cast 'store'; `gold` is what it cost. A rune
@@ -455,12 +478,39 @@ export function fire(inst, u, pick, sc) {
   const gold = pick.lines.reduce((a, l) => a + l.price, 0);
   const source = pick.lines.some((l) => l.source === 'store') ? 'store' : 'own';
   const rune = row.rune && pick.lines.length ? pick.lines[0].id : null;
+  const v = surged(u, row, sc) ? { version, pm: Math.floor((pm * SURGE_MULT_PM) / 1000), surge: true } : { version, pm };
+  /* A CAST THAT GIVES MANA BACK (abilities.js manaPerHit / manaPerKill, the Storm spells): its effect runs first with its events held,
+     so the cast event, written once, carries the mana the cast KEPT (`back` came back: Magic XP is paid on the rest, as on a shell's
+     refund), and the held events follow it in the order they happened, the order every other cast's take. Every other row: the cast,
+     then its effect, as always. */
+  const held = row.manaPerHit || row.manaPerKill ? [] : null;
+  let back = 0;
+  if (held) {
+    const count = { hits: 0, kills: 0 };
+    const emit = sc.emit;
+    sc.emit = (ev) => { held.push(ev); };
+    try { effect(inst, u, row, pick.target, sc, Object.assign({}, v, { back: count })); } finally { sc.emit = emit; }
+    back = manaBack(u, row, count, spent);
+  }
+  const mana = spent - back;
   sc.emit(makeEvent('cast', sc.atMs, { u: u.id, ability: row.id, t: pick.target.id, mana, magicXpMult: row.magicXpMult, source, gold,
     ...(rune ? { supply: rune, version, power: pm } : {}),
     ...(refund > 0 ? { refund } : {}),
+    ...(back > 0 ? { back } : {}),
     ...(typeof pick.rule === 'string' ? { rule: pick.rule, rule_label: pick.label, pass: pick.mask } : {}) }));
-  effect(inst, u, row, pick.target, sc, surged(u, row, sc) ? { version, pm: Math.floor((pm * SURGE_MULT_PM) / 1000), surge: true } : { version, pm });
+  if (held) for (const ev of held) sc.emit(ev);
+  else effect(inst, u, row, pick.target, sc, v);
   return true;
+}
+
+/* THE MANA A CAST GIVES BACK (abilities.js manaPerHit, manaPerKill): manaPerHit for each monster one of its hits landed on and
+   manaPerKill for each it killed, never more in all than the cast cost (`spent`: a spell is never a mana engine) and never past the
+   caster's max mana. Answers what came back. A wiki formula: back = min(spent, hits x manaPerHit + kills x manaPerKill, maxMana - mana). */
+function manaBack(u, row, count, spent) {
+  const want = Math.min(spent, count.hits * (row.manaPerHit || 0) + count.kills * (row.manaPerKill || 0));
+  const got = Math.max(0, Math.min(want, int(u.maxMana) - int(u.mana)));
+  u.mana = int(u.mana) + got;
+  return got;
 }
 
 /* SURGE (src/data/jewelry.js): `surgePm` permille of a hero's casts that land numbers (a hit, a heal, a shield) land them

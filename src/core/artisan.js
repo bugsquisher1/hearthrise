@@ -36,7 +36,8 @@ import { rollOdds, perksFor, jewelId, ODDS_SCALE } from '../data/jewelry.js?v=0.
 export const BURN_BASE = 0.25;              // burn chance at the recipe's req level
 export const BURN_PER_LEVEL_RELIEF = 0.01;  // -1pp per cooking level above req
 export const BURN_XP_SHARE = 0.25;          // consolation XP as a share of recipe XP
-export const BURNT_ITEM = 'burnt_food';
+import { BURNT_ITEM } from '../data/core-model.js?v=0.2.141';   // an item id: the data layer's (moved 2026-11-19)
+export { BURNT_ITEM };
 
 /* One entry per Kitchen rung. L4/L5 restate 0.25 because a rung's bonus map
    REPLACES the rung below it — an L4 that omitted noBurn would silently

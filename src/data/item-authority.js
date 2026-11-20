@@ -63,7 +63,7 @@ import { ITEMS } from './items.js?v=0.2.141';
 import { SHOP_OFFERS } from './shops.js?v=0.2.141';
 /* The BURN, from the one module that names it — src/core/artisan.js is the same
    dual-runtime code the edge cooks with, so there is no second copy of the id. */
-import { BURNT_ITEM } from '../core/artisan.js?v=0.2.141';
+import { BURNT_ITEM } from './core-model.js?v=0.2.141';
 
 /* ── ARTISAN LANE CLASSIFICATION — THE FAIL-CLOSED SEAM ─────────────────────
    The audit's rule is "payable = ARTISAN_RECIPES minus cooking". A NEW artisan

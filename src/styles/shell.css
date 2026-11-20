@@ -381,10 +381,6 @@
 .hs-shell .hs-win > .hs-win-body.is-page { display: block; flex: 1 1 auto; min-height: 0; overflow: auto; padding: 10px 12px 12px; }
 /* The ? is the host window's help: it waits while a page covers the window. */
 .hs-win.has-page > .hs-win-head .hs-help, .hs-win.has-page > .hs-win-help { display: none; }
-/* ONE GOLD PER WINDOW (window-head.js oneGold): a second plate showing is drawn as the steel tool it outranks. */
-.hs-win .hw-primary.is-second, .hs-win .hh-tool.is-primary.is-second {
-  border: 0; border-bottom: 2px solid var(--steel-btn); border-image: none;
-  background: var(--fill-1); color: var(--ink); font-family: var(--f-ui); }
 
 /* ── Forged Steel, the shared pieces (windows here; the HUD panels and the account screens add their selectors) ── */
 /* A SECTION HEAD: Cinzel in gold, letter-spaced, a dim gold rule running to the right edge. Each head keeps its
@@ -411,6 +407,81 @@
 .hw-primary:hover:not(:disabled), .hh-tool.is-primary:hover:not(:disabled) { background: none; color: var(--bg-0); filter: brightness(1.08); }
 .hw-primary:active:not(:disabled), .hh-tool.is-primary:active:not(:disabled) { border-image-source: url('../../assets/ui/gold-plate-down.png'); }
 .hw-primary:disabled, .hh-tool.is-primary:disabled { opacity: .5; cursor: default; filter: none; }
+/* THE CONTROLS (moved from hunt.css, where the HUD first used them; one home for every control's look, tests/button-system.mjs).
+   Outside a window a control carries no box of its own (containment is earned, §9):
+   · .hh-tool is a text command. Quiet ink, a panel wash on hover, and when it
+     is a toggle the pressed one is gold with a 2 px gold underline, the same
+     mark the launcher row and the character strip use for "this one".
+   · .hh-seg is a choice sunk into a well: the well is the group (.hh-segs,
+     .hh-step) or, for a lone toggle like Chase, the button itself. The pressed
+     choice is lifted one rung (--bg-3) and underlined gold.
+   · Inputs keep the one hairline: a field has to read as a place to type. */
+.hh-tool, .hh-seg {
+  min-height: 30px; padding: 0 10px;
+  border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+  background: none; color: var(--ink-2);
+  font-family: var(--f-ui); font-weight: 700; font-size: var(--t-micro);
+  font-variant-numeric: lining-nums;
+  cursor: pointer;
+}
+.hh-tool:hover:not(:disabled), .hh-seg:hover:not(:disabled) { color: var(--ink); background: var(--surf-panel); }
+.hh-tool:focus-visible, .hh-seg:focus-visible, .hh-select:focus-visible, .hh-num:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 1px; }
+.hh-tool[aria-pressed="true"], .hh-seg[aria-pressed="true"] { color: var(--gold-2); border-bottom-color: var(--gold); }
+.hh-tool:disabled, .hh-seg:disabled, .hh-select:disabled, .hh-num:disabled { opacity: .5; cursor: default; }
+.hh-tool .hs-glyph { width: 18px; height: 18px; }
+.hh-tool { white-space: nowrap; }
+.hh-tool:has(.hs-glyph) { display: inline-grid; place-items: center; min-width: 32px; padding: 0 6px; color: var(--ink-3); }
+.hh-select, .hh-num {
+  min-height: 30px; padding: 0 6px;
+  border: 1px solid var(--line-soft); border-radius: var(--r-sm);
+  background: var(--bg-0); color: var(--ink);
+  font-family: var(--f-ui); font-size: var(--t-micro); font-variant-numeric: lining-nums;
+}
+.hh-num { width: 64px; }
+.hh-segs, .hh-step, .hh-seg { background: var(--bg-1); box-shadow: var(--steel-well); }
+.hh-segs .hh-seg, .hh-step .hh-seg { background: none; box-shadow: none; }
+.hh-segs .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"], .hh-seg[aria-pressed="true"]:hover:not(:disabled) { background: var(--bg-3); }
+.hh-segs { display: inline-flex; }
+.hh-step { display: inline-flex; align-items: center; }
+.hh-step .hh-seg { min-width: 30px; padding: 0; }
+.hh-step-val { min-width: 24px; text-align: center; font-weight: 700; font-variant-numeric: lining-nums tabular-nums; }
+/* ══ ONE BUTTON SYSTEM (UI audit 2026-11-18 #3; the Burning Tower's chest is the model; tests/button-system.mjs) ══
+   Every press in a window or an account card is one of three, painted here and in no window's sheet (a window sizes
+   and places its presses, never colours them):
+   · THE GOLD PRIMARY (.hw-primary, .hh-tool.is-primary, above): the window's main action, one a window.
+   · THE FRAMED SECONDARY (.hh-tool): every other action, in the title band's steel (Back, ?, the key): a 2 px frame on the
+     panel's fill (--steel-frame inside three sides, the bottom border the fourth: framing a press moves nothing), the
+     floor's dark while pressed. A toggle that is on keeps the gold underline of "this one"; the second
+     press of a delete ("Delete it?") says so in red (.is-danger).
+   · THE TEXT LINK (.hh-tool.is-link): navigation, a press that opens another window, a page or a fold, or goes back: gold
+     words and no box, underlined under the pointer. In a sentence (.hs-goto, goto.js) it is underlined where it stands.
+   Tabs (underlined words), choices (.hh-seg and the sunk wells, lifted gold when picked) and rows pressed whole are not
+   buttons in this sense and keep their own one look. Outside a window (the HUD panels) .hh-tool stays the text command. */
+:is(.hs-win, .auth-card) .hh-tool:not(.is-primary, .is-link) { border-bottom-color: var(--steel-btn); box-shadow: var(--steel-frame); background: var(--fill-1); color: var(--ink); }
+:is(.hs-win, .auth-card) .hh-tool:not(.is-primary, .is-link):hover:not(:disabled) { background: var(--bg-3); }
+:is(.hs-win, .auth-card) .hh-tool:not(.is-primary, .is-link):active:not(:disabled) { background: var(--bg-0); }
+:is(.hs-win, .auth-card) .hh-tool:not(.is-primary, .is-link):is([aria-pressed="true"], [aria-checked="true"], [aria-expanded="true"], details[open] > summary) { color: var(--gold-2); border-bottom-color: var(--gold); }
+:is(.hs-win, .auth-card) .hh-tool.is-danger:not(.is-primary, .is-link) { color: var(--red); }
+/* ONE GOLD PER WINDOW (window-head.js oneGold): a second plate showing is drawn as the framed secondary it is outranked to, at rest,
+   under the pointer and pressed (the plate's own hover and press would paint dark words and the gold image back over it). */
+.hs-win :is(.hw-primary, .hh-tool.is-primary).is-second, .hs-win :is(.hw-primary, .hh-tool.is-primary).is-second:is(:hover, :active):not(:disabled) {
+  border: 0; border-bottom: 2px solid var(--steel-btn); border-image: none; box-shadow: var(--steel-frame); background: var(--fill-1); color: var(--ink); filter: none;
+  font-family: var(--f-ui); letter-spacing: normal; }
+.hs-win :is(.hw-primary, .hh-tool.is-primary).is-second:hover:not(:disabled) { background: var(--bg-3); }
+.hh-tool.is-link { padding: 0 2px; border: 0; background: none; color: var(--gold-2); text-decoration: none; }
+.hh-tool.is-link:is(:hover, :focus-visible):not(:disabled) { background: none; color: var(--gold-2); text-decoration: underline; text-underline-offset: 3px; }
+/* TAKE ME THERE (src/shell/goto.js): a link from a line that says where to get something to the window that does it. Inline in its
+   sentence; the padding widens the press for a finger without moving the line. */
+.hs-goto, .hh-tool.is-link.is-inline {
+  display: inline; min-height: 0; margin: -6px 0; padding: 6px 0; border: 0; background: none; cursor: pointer;
+  font: inherit; color: var(--gold-2); text-align: inherit; text-decoration: underline; text-underline-offset: 3px;
+}
+.hs-goto:hover { color: var(--ink); }
+.hs-goto:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+/* The account cards' links (sign-in, create, the closed notice; app.css sizes them): the same gold words, the legal line's in its sentence. */
+.auth-link { font-family: var(--f-ui); color: var(--gold-2); background: none; border: 0; cursor: pointer; text-decoration: none; }
+.auth-link:hover, .auth-link:focus-visible, .auth-legal:not(.is-links) .auth-link { text-decoration: underline; text-underline-offset: 3px; }
+.auth-link:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
 /* A POPUP (an item's tooltip, a right-click menu): solid, in the thin steel frame (3 art px = 6 px). */
 .hw-tip, .hw-menu {
   background: var(--bg-2); border: var(--art-3) solid transparent; border-radius: 0;
@@ -452,15 +523,13 @@
 .hs-hudset-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0 10px; min-height: 36px; border-top: 1px solid var(--line-soft); }
 .hs-hudset-show { flex: 1 1 150px; font-size: var(--t-small); color: var(--ink-2); }
 /* A moved panel's Put back (hud.js): its own line under the row, at the right, never squeezing the name. */
-.hs-hudset-put { min-height: 32px; margin: 0 0 8px auto; padding: 0 10px; }
+.hs-hudset-row .hs-hudset-put { min-height: 32px; margin: 0 0 8px auto; padding: 0 10px; }
 .hs-hudset-show small { font-size: var(--t-micro); color: var(--ink-3); }
 .hs-hudset-row input { accent-color: var(--gold); }
 .hs-hudset-row input[type="range"] { width: 110px; }
 .hs-hudset-pct { width: 44px; text-align: right; font-size: var(--t-micro); font-weight: 700; color: var(--ink); font-variant-numeric: lining-nums tabular-nums; }
 .hs-foot { display: flex; justify-content: flex-end; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line-soft); }
-.hs-quiet { min-height: 40px; padding: 0 14px; border: 1px solid var(--line-soft); border-radius: var(--r); background: none; color: var(--ink-2); font-family: var(--f-label); font-weight: 700; font-size: var(--t-small); cursor: pointer; }
-.hs-quiet:hover { color: var(--ink); border-color: var(--line); }
-.hs-quiet:focus-visible { outline: 2px solid var(--aqua-2); outline-offset: 2px; }
+.hs-foot .hh-tool { min-height: 40px; padding: 0 14px; }
 
 .ht-why { display: none; }
 /* ── Phone, landscape: a scaled desktop with ONE full-height side sheet ── */

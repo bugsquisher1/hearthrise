@@ -1158,7 +1158,7 @@ const mutants = [
   { name: '[spell-content] the sickness mark adds nothing', case: 'sickness-marks-what-it-hits',
     edits: [['src/core/hunt/damage.js', ' ? target.markPm : 0) + takenPmOf(target);', ' ? target.markPm : 0);']] },
   { name: '[spell-content] an area spell marks only its aim', case: 'sickness-marks-what-it-hits',
-    edits: [['src/core/hunt/abilities.js', '        landHit(inst, sc, u, m, dmg(), el, hitTag, sg);\n        afflict(m);\n', '        landHit(inst, sc, u, m, dmg(), el, hitTag, sg);\n']] },
+    edits: [['src/core/hunt/abilities.js', '        strike(m);\n        afflict(m);\n', '        strike(m);\n']] },
   { name: '[spell-content] the sickness mark never wears off', case: 'sickness-marks-what-it-hits',
     edits: [['src/core/hunt/status.js', '      st.left -= sc.dtMs;\n      const row = statusRow(st.s);\n', '      const row = statusRow(st.s);\n      if (row.tick) st.left -= sc.dtMs;\n']] },
   { name: 'the mark is drawn but adds nothing', case: 'mark-adds-damage',

@@ -17,7 +17,7 @@ const num = (v) => Number.isSafeInteger(v) && v >= 0;
 
 /** The Havora window's Hearth tab press into the Tower window (hidden until the window shows it: the server's section). */
 export const towerDoorHtml = () => '<p class="hv-tower" hidden>'
-  + '<button type="button" class="hh-tool" data-hs-act="tower">' + esc(t('tower.havora_open')) + '</button></p>';
+  + '<button type="button" class="hh-tool is-link" data-hs-act="tower">' + esc(t('tower.havora_open')) + '</button></p>';
 
 /** A chance in parts per million as a player reads it ("16%", "2.4%"), or '' when the server sent none. */
 export const ppmWords = (ppm) => (num(ppm) ? chance(ppm / 1000000) : '');

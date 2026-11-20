@@ -118,7 +118,7 @@ export function chestHtml() {
     + '<div class="tc-reveal-slot"></div></div></div>'
     /* the last press's answer under the scene, in place of the keys and the stokes: what came out, the weapon first (Keys goes back) */
     + '<section class="tt-result" hidden><div class="tc-loot-head"><h3 class="hw-hd-h tt-hd">' + esc(t('tower.loot_head')) + '</h3>'
-    + '<button type="button" class="hh-tool tc-keys-back" data-hs-act="chest-keys">' + esc(t('tower.keys_head')) + '</button></div>'
+    + '<button type="button" class="hh-tool is-link tc-keys-back" data-hs-act="chest-keys">' + esc(t('tower.keys_head')) + '</button></div>'
     + '<p class="tc-used" hidden></p><div class="tc-loot"></div></section>'
     /* the key families, one press each, while the server lists more than one (the Tower's and the Catacombs') */
     + '<div class="tc-famp" role="radiogroup" aria-label="' + esc(t('tower.keys_head')) + '" hidden></div>'

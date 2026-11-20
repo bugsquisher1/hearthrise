@@ -61,7 +61,7 @@ export { ITEMS, SKILLS_DEF, SHOP_OFFERS, SHOP_LISTED_OFFER_IDS, ARTISAN_RECIPES,
    id -> { label, file, needle }. The guard reads `file` and fails unless it
    still contains `needle`, so a row here cannot outlive the code it describes. */
 export const CODED_SOURCES = Object.freeze({
-  burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/core/artisan.js', needle: "BURNT_ITEM = 'burnt_food'" }),
+  burnt_food:    Object.freeze({ label: 'a burnt cook', file: 'src/data/core-model.js', needle: "BURNT_ITEM = 'burnt_food'" }),
   /* dungeon_scrip's row left with the dungeon settle (lane C2 deleted
      supabase/functions/hr-accrue/dungeon-settle.js; dungeons are paused).
      hearth_token's row left with the client IAP code (the demolition); it waits

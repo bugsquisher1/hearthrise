@@ -68,7 +68,7 @@ export function detailHtml() {
     + scaleHtml()
     + '<h4 class="hw-hd-h">' + t('hunts.head_drops') + ' <small class="hw-hd-per hw-hd-per-size"></small></h4><ul class="hw-hd-sets" aria-label="' + t('hunts.head_drops') + '"></ul>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_mats') + ' <small class="hw-hd-per hw-hd-mats-per"></small></h4><ul class="hw-hd-mats" aria-label="' + t('hunts.head_mats') + '"></ul>'
-    + '<button type="button" class="hh-tool hw-hd-mats-more" data-hs-act="loot-more" hidden></button>'
+    + '<button type="button" class="hh-tool is-link hw-hd-mats-more" data-hs-act="loot-more" hidden></button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_rares') + ' <small class="hw-hd-per">' + t('hunts.rares_per') + '</small></h4><ul class="hw-hd-rares" aria-label="' + t('hunts.head_rares') + '"></ul>'
     + '<p class="hw-hunt-party" hidden></p>'
     + '<section class="hw-hd-bests" aria-label="' + t('hunts.head_best') + '"><h4 class="hw-hd-h">' + t('hunts.head_best') + '</h4>'
@@ -88,11 +88,11 @@ export function goHtml() {
     + '<p class="hw-go-note"></p>'
     /* Hunt prep is a step of going hunting: its setups are what Go as lists (renderHunts.act opens it; Back comes here). Its door
        says the window's own name (Tyler 2026-11-17: the bar's door and this one are both Hunt prep) */
-    + '<button type="button" class="hh-tool hw-go-prep" data-hs-act="go-prep">' + esc(PREP_LABEL) + '</button>'
+    + '<button type="button" class="hh-tool is-link hw-go-prep" data-hs-act="go-prep">' + esc(PREP_LABEL) + '</button>'
     + '<h4 class="hw-hd-h">' + t('hunts.head_before') + '</h4><ul class="hw-before"></ul>'
     + afterHtml()
     + '<section class="hw-hd-party" aria-label="' + t('hunts.head_party') + '"><h4 class="hw-hd-h">' + t('hunts.head_party') + '</h4><p class="hw-hd-party-why"></p>'
-    + '<div class="hw-hd-party-do"><button type="button" class="hh-tool hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
+    + '<div class="hw-hd-party-do"><button type="button" class="hh-tool is-link hw-find-here" data-hs-act="find-party"></button><span class="hw-bring"></span></div>'
     + '<p class="hw-bring-none"></p></section>';
 }
 

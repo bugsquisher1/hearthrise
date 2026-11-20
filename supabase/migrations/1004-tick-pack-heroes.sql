@@ -1301,7 +1301,20 @@ begin
          || 'create policy hr__p on public.hr__dead_write_probe for update to anon using (true); grant update on public.hr__dead_write_probe to anon',
          'hr__dead_write_probe:anon:UPDATE')) t(plant, named) loop
       begin
-        execute v_t;
+        -- (the plant, as static statements: tests/selfcheck-no-global-dml.mjs reads every one)
+        if v_named = 'game_events:authenticated:INSERT' then
+          grant insert on public.game_events to authenticated;
+        elsif v_named = 'session_claims:authenticated:INSERT' then
+          grant select, insert, update, delete on public.session_claims to authenticated;
+          create policy session_claims_insert_own on public.session_claims for insert with check (auth.uid() = user_id);
+        elsif v_named = 'clan_members:authenticated:DELETE' then
+          grant delete on public.clan_members to authenticated;
+        else
+          create table public.hr__dead_write_probe (id int primary key);
+          alter table public.hr__dead_write_probe enable row level security;
+          create policy hr__p on public.hr__dead_write_probe for update to anon using (true);
+          grant update on public.hr__dead_write_probe to anon;
+        end if;
         v_a := public.hr_assert_grant_hygiene(false);
         if not (v_a->'client_truncate_grants') ? v_named then
           raise exception 'r1: the detector did not name % after: % (it reads %)', v_named, v_t, v_a->'client_truncate_grants'; end if;

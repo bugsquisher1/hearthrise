@@ -188,3 +188,164 @@ What it does, in words:
 **What it retires** (CITED, the first audit's change 1, confirmed): `def.past`, `ACC_DEF_MUL`, `monsterDamageScaleByTier`'s role as a to-hit patch, the held Defense rework, the next "Mage at N" row, most of the Tower's heat.
 
 **Cost to build:** one function in `src/core/combat.js`, two generated fields a monster row (`tools/gen-ground-stats.mjs`), the reference table and its guard, the catalogue apply and the edge deploy (Lane C, a combat-engine change: batched by the world-tick parity rule). No new statement, write or ledger row. Every ground is re-graded once.
+
+### B3. What a combat skill level is worth, and training past the career line
+
+The skill curve is `15 x s^2 x 1.04^(s-1)` XP for level s (READ FROM DATA, `SKILL_CURVE`). The yard pays a flat 30,000 skill XP an hour for a fee of 50 + 6 x the skill's level, and a training item doubles it for 12 or 24 hours at 250,000 or 450,000 gold (RULED 2026-11-14: one flat rate, never stamina).
+
+| Level | Career main skill | One more level costs (XP) | Hours of hunting for it (main skill XP an hour, MEASURED ref) | Hours at the yard | Yard gold for it | What it gives: damage (max hit) | To-hit points, today / ratio | A Defense level, damage taken, today / ratio |
+|---|---|---|---|---|---|---|---|---|
+| 10 | 21 | 14,500 | 0.9 | 0.5 | 85 | +1.9% | 1.0 / 0.3 | -3.4% / -1.5% |
+| 60 | 60 | 546,000 | 11 | 18 | 7,400 | +0.8% | 0 / 0.14 | -0.6% / -0.7% |
+| 110 | 82 | 2.5M | 33 | 83 | 45,000 | +0.5% | 0.7 / 0.10 | 0 / -0.5% |
+| 240 | 110 FORMULA | 13.0M | about 130 | 435 | 310,000 | +0.46% | 0 / 0.09 | 0 / -0.4% |
+| 400 | 129 FORMULA | 37.9M | about 300 | 1,260 | 1.0M | +0.45% | 0 / 0.08 | 0 / -0.3% |
+
+(MEASURED: `measure.mjs curves`, `tohit-ratio.mjs formula`, `xp.js skillXpForLevel`. The hunting hours past 105 are ASSUMED at 100k to 125k main skill XP an hour.)
+
+**Answers.**
+
+- A skill level is worth about 2% of a hero's damage at Level 10 and half a percent from 110 on, and costs 0.9 hunted hours at 10, 33 at 110 and about 300 at 400. Past about skill 85 a hero gains a skill level less often than five Levels. That is Tibia's shape and it is fine: the skill becomes a slow second number a veteran is proud of. It is NOT a power source to budget past Level 110, and the grounds past Krell's Hold must not be authored as if it were (that is what change 1's reference hero fixes).
+- **Is there a reason to train past the career line? As a power buy, no, from about skill 50.** Ten yard hours at skill 60 buy half a level. A 250,000 gold training item buys 1.3 levels at skill 60 (+1.0% damage) and 0.3 at 82. Tempering's five rungs are +3% for less.
+- **What training is for** (and it does this well): (a) a skill a hero never trained. A back-row Defense from 15 to 40 is 33 yard hours; a hero that changes weapon (4 of 12 real heroes did) reaches skill 50 in a new way in 89 yard hours, or 44 with an item. (b) Idle hero life: 59% of real hero hours are idle, and "Train Melee at the yard" is already a remembered after-hunt plan (read in play), so it costs no press.
+- On the ratio the yard's early value stops being broken: 12 yard hours of Defense at Level 24 take a lone hero from about 26 to 33, which is -18% damage today and about -6% after.
+- **Recommendation:** keep the flat rate and the curve. Say on the yard's own screen what a level costs at the hero's skill ("next level: 18 h here, 11 h hunting"), so nobody buys a 250,000 gold item at skill 70 expecting power. For the economy dive: the yard's gold-for-power rate is 7,400 gold and 18 town hours for +0.8% damage at skill 60, far worse than Tempering, which is the right way round.
+
+### B4. The bar budget
+
+Twenty slots, three ability lanes and a supply lane (READ FROM DATA, `abilities.js ABILITY_LANES`): offense 2 s, support 2 s, heal 1 s, food and drink 2 s. A basic blow swings every 2 s beside them. So in any 2 seconds a hero lands at most one swing, one offense cast, one support cast, two heals and one supply. The slots are not the budget. **The offense lane is.**
+
+A family's offense rows fill its lane by the sum of 2 s over each cooldown (READ FROM DATA):
+
+| Family | Offense rows (cooldown, s) | Lane filled | Note |
+|---|---|---|---|
+| Sword and shield (tank) | Flame Strike 8, Power Strike 6 | 0.58 | low on purpose (RULED 11-19) |
+| Sword alone | + Turning Cut 8 | 0.83 | |
+| Two axes | Power Strike 6, Turning Cut 8, Cleave 6, Rend 6 | **1.25** | already more rows than lane |
+| Club or hammer | Power Strike 6, Turning Cut 8, Cleave 6 | 0.92 | |
+| Bow, crossbow | Flame Volley 10, Precision Shot 6, Raking Shot 8 | 0.78 | |
+| Wand | Fireball 8, Frost Lance 6, Hoarfrost 10 | 0.78 | |
+| Staff | Green Sickness 10, Undertow 20 | 0.30 | low on purpose (the Healer) |
+
+This is exactly the 6b sample's result (CITED, `lane/d-elements-6b`): Brand and Reave gave a lone sword +12.8% and +29.2% because a sword has spare lane and the tank more; a wand got +2.7% and +8.5% because it has little.
+
+**The budget** (PROPOSED):
+
+1. A family's offense rows fill at most **0.85** of the lane (the tank 0.6 and the Healer 0.3 by ruling). Two axes come down to it: one of their four rows leaves the list. They cannot fire all four on one lane today, so nothing is lost in play.
+2. A new offense row names the row it **replaces** (shares its cooldown with; the engine already has `replaces` for Brand and Reave). On a neutral monster it lands within 5% of the row it replaces; on a weak one up to +15%; on a resistant one down to -25% (CITED, the first audit's change 3).
+3. Support and heal rows are budgeted by what they prevent, in monster blows a minute (B5), never by kill speed. A tank spell that raises a lone tank's kills is out by rule (RULED 11-19).
+4. A gear perk that adds a cast is an offense row and obeys 1 and 2.
+
+So "what does a new spell replace": the same family's row of the same shape (single target for single target, area for area). The decision a player gets is which element to slot for this ground, once, kept in the ground's remembered setup.
+
+### B5. Spells, spell ratios, the eight ways and fists
+
+**How a cast is priced today** (READ FROM DATA, `src/core/hunt/abilities.js`, `damage.js hurt`): the row's roll (Frost Lance 12 to 18), minus the monster's defense reduction (3% of its defense), THEN times the version (I to V at skill 1 / 15 / 30 / 45 / 60: x1.00, 1.74, 2.52, 3.31, 4.10) plus 1% a skill level. A store rune lands 75%. Gear does not touch it. Two rows instead take a share of the hero's own largest blow (Turning Cut 60%, Raking Shot 80%).
+
+**What that does from Level 10 to 400** (MEASURED, `node tools/balance-sim/staged/spell-ratios.mjs`; one cast as a share of a same-Level regular's HP; heals and shells as a share of the caster's HP / of one monster blow):
+
+| Cast | 10 | 30 | 60 | 110 | 165 | 240 | 400 |
+|---|---|---|---|---|---|---|---|
+| The hammer's own swing (average, landed) | 32% | 25% | 20% | 15% | 7% | 1% | 1% |
+| The wand's own bolt | 36% | 29% | 26% | 20% | 14% | 10% | 3% |
+| Frost Lance (wand, 6 s) | 128% | 76% | 63% | 32% | 20% | 12% | 4% |
+| Fireball (wand, area, 8 s) | 81% | 48% | 40% | 18% | 11% | 5% | 1% |
+| Flame Strike (sword, 8 s) | 93% | 55% | 46% | 22% | 14% | 7% | 2% |
+| Flame Volley (bow, area, 10 s) | 59% | 35% | 30% | 12% | 7% | 2% | 1% |
+| Power Strike (every melee, 6 s, no versions) | 43% | 17% | **9%** | 4% | 2% | 1% | 0% |
+| Cleave, Precision Shot (no versions) | 37 to 41% | 15 to 16% | **8 to 9%** | 3 to 4% | 2% | 1% | 0% |
+| Rend's hit (axes) | 25% | 15% | 13% | **2%** | 2% | 1% | 1% |
+| Turning Cut (60% of own blow) | 20% | 17% | 14% | 10% | 7% | 5% | 2% |
+| Raking Shot (80% of own blow) | 30% | 23% | 19% | 14% | 10% | 7% | 4% |
+| Greater Mend (staff) | 39% / 182% | 33% / 147% | 31% / 142% | 20% / 89% | 14% / 63% | 10% / 46% | 6% / 29% |
+| Circle of Renewal (party) | 20% / 91% | 16% / 74% | 16% / 71% | 10% / 44% | 7% / 32% | 5% / 23% | 3% / 15% |
+| Shelter (tank, party shell) | 23% / 108% | 19% / 87% | 19% / 85% | 12% / 54% | 8% / 38% | 6% / 28% | 4% / 18% |
+| Mend (everyone, no versions) | 11% / 50% | 7% / 30% | 4% / 19% | 3% / 13% | 2% / 9% | 2% / 7% | 1% / 5% |
+
+Four findings:
+
+1. **Every fixed-number cast is strongest at Level 10 and decays from there.** The spell ratio is not a ratio: it is a number, against a monster whose HP grows 1.76 a Level for ever. Version V at skill 60 is the last step, so the whole kit is frozen at Level 60 while the monster grows 6.4 times to Level 400.
+2. **The defense reduction is taken off before the multiplier.** At Level 110 it is 2 points off a base of 7 to 18, at 240 it is 5, at 400 it is 9: Fireball's 7 to 12 becomes 1 to 3 before anything multiplies. That alone removes a third of a caster's damage by 165 and nearly all of it by 400.
+3. **Rows without versions are dead by Level 60.** Power Strike is the first skill every melee hero is given (slot 2 of the start bar, read in play) and it is worth less than half a swing at 60 for 6 mana.
+4. **Heals and shells fall the same way.** A monster's blow is 22% of a hero's HP at every Level; Greater Mend covers 1.4 blows at 60, 0.9 at 110, 0.3 at 400. The Healer stops being able to hold a tank somewhere past 165 whatever it wears.
+
+The melee swing's own collapse (20% to 1%) is the to-hit clamp (B2) and the missing weapon line past tier 7 (RULED 11-16: weapons past Dawnsteel grow about x Level / 110; staged, the items dive's).
+
+**The rule** (PROPOSED): **a cast is a share of its caster's own blow.**
+
+- Every damage row becomes `hitPm`, a share of the caster's largest blow with the weapon in hand, the form Turning Cut and Raking Shot already use. The defense reduction is taken once, off the blow, as for a swing. The five versions stay as the step a rune tier buys (x1.0, 1.15, 1.3, 1.45, 1.6, PROPOSED), so runes still matter and Magic still gates them.
+- Heals and shells read the caster's blow the same way (Greater Mend about 4.5 blows of the staff, sized to today's Level 60).
+- The opening sizes are today's Level 30 to 60 values, so nothing live moves much on the day: Frost Lance 2.4 swings, Fireball 1.5 a target, Flame Strike 3.0, Power Strike 1.2 (up from 0.45: it becomes a button again), Cleave 1.0 a target, Precision Shot 1.2, Flame Volley 1.1 a target.
+- Then ONE thing grows a hero's output: its max hit, which is its skill and its weapon. The items dive owns the only growth law past Level 110 (the weapon line), and the caster, the bow and the hammer all ride it. The Level 10 one-shot goes too (Frost Lance is 128% of a wolf).
+
+**The eight ways** (MEASURED, `measure.mjs what --at <point> --seat lone --patch-file tools/balance-sim/staged/ways.patch.json`, Normal, 2 seeds x 1 h; x the lone hammer; net gold with every supply bought at the store):
+
+| Way | Level XP x hammer: 10 / 30 / 60 / 105 | Damage taken x hammer | Net gold an hour: 10 / 30 / 60 / 105 | Verdict |
+|---|---|---|---|---|
+| Hammer (the unit) | 1.00 | 1.00 | 4,260 / 10,512 / 12,504 / 21,085 | |
+| Sword and shield | 0.85 / 0.90 / 0.96 / 0.85 | 0.63 / 0.69 / 0.67 / 0.99 | 3,002 / 6,544 / 9,684 / 11,447 | slow on purpose (RULED 11-19). At 105 its shield stops paying (taken 0.99): the clamp |
+| Sword alone | 0.86 / 0.93 / 0.96 / 0.85 | 0.95 / 1.04 / 1.04 / 1.08 | 2,979 / 6,703 / 10,031 / 10,806 | slow early on purpose; "speeds up later" does not happen (0.85 at 105). Fixed by the spell rule: its Turning Cut already scales, its strikes do not |
+| Two axes | 0.97 / 0.97 / 0.92 / **0.82** | 0.97 / 1.05 / 1.08 / 1.10 | 3,661 / 9,889 / 11,879 / 14,436 | falls out of the band at 105: Rend's hit and Cleave are dead rows by then |
+| Bow | 0.99 / 1.08 / 1.16 / 1.09 | 0.67 / 0.76 / 0.71 / 0.69 | 1,362 / 6,766 / **-1,350** / -413 | in band on XP; pays for it in arrows and runes |
+| Crossbow | 0.99 / 1.08 / 1.13 / 1.04 | 0.51 / 0.52 / 0.59 / 0.68 | 3,232 / 9,113 / 13,014 / 18,077 | the best all-round lone way today: the bow's XP, half the damage, the hammer's gold |
+| Wand (Mage) | **1.19 / 1.32 / 1.52 / 1.36** | 0.44 / 0.57 / 0.47 / 0.46 | 333 / 4,396 / **-10,144** / -1,896 | out of the band on XP (1.3 is the bar the weapon line holds), paid for in gold |
+| Staff (Healer) | 0.92 / 0.96 / 1.07 / 1.05 | 0.27 / 0.32 / 0.30 / 0.33 | 229 / 3,563 / **-11,624** / -2,056 | in band; a third of the damage |
+| Fists (dark) | 0.89 / 0.92 / 0.84 / not built (CITED, `fist-table.mjs solo --proxies`, against the best lone way at 10 / 24 / 57) | low point at or above the hammer's | 3,412 / 7,607 / 10,220 / - | inside 15% at four of seven grounds; the Sewer -27% |
+
+Inside a 0.85 to 1.15 band: sword and shield, sword alone, crossbow, staff, bow (1.16 at 60). Outside: the wand (1.19 to 1.52: it buys XP with gold and nets zero or less from Level 10 on) and the axes at 105 (0.82). The wand gap is the fixed-number casts at their Level 30 to 60 peak, plus never missing. The spell rule sizes Frost Lance and Fireball in swings, and the gap becomes a number we choose (PROPOSED: 1.25 at every Level).
+
+**Fists** (dark; RULED identity 11-18: the self-sufficient all-rounder, within 15% XP, comfortable alone). Their two mechanics are the two that already scale: the strikes are shares of the wraps' own blow at half a weakness, and the own heal is 0.8% of max HP a second. So fists are the one family the spell rule does not have to rework, and the right family to ship first after it. Their XP gap on pack grounds (the Sewer -27%) is a missing area row, not a number. BUILD, phase 12 as planned, after change 5, so tiers 3 to 7 are sized once.
+
+**Training**: B3.
+
+**The 6b sample (Necrotic and Storm, dark) and the tank spells (live since 0.2.142).** The element design holds from 1 to 400 (fixed steps, one 40% cap; CITED and confirmed: nothing in it grows with Level). Its four spells are fixed-number rows and inherit finding 1, so they are sized after the spell rule, under the bar budget (B4), at +5% for one and +10% for both at most. Shelter is the one live row I would resize with the rule: 85% of a blow at Level 60 on a 30 s cooldown is a good button; 54% at 110 is not, and the Tower is where it is used. Frost Slam is a status with no number and holds at every Level.
+
+### B6. Death and Blessings
+
+A death costs 6% of total Level XP and 6% of each combat skill's progress; three Blessings cut it to 1.5% and are used up (RULED 11-09, 11-10). In REF hours (READ FROM DATA `xp.js`, the lone contract):
+
+| Level | 6% of total XP | Lone REF hours | Levels lost | With three Blessings, lone hours | For a four at 2.3 times, blessed | Three Blessings cost | That is, of a lone hero's net gold |
+|---|---|---|---|---|---|---|---|
+| 10 | 11,900 | 0.5 | 0.14 | 0.1 | | free | |
+| 30 | 209,000 | 2.0 | 0.6 | 0.5 | 0.2 | free | |
+| 50 | 1.02M | 5.1 | 0.9 | 1.3 | 0.6 | 1,350 | 7 minutes |
+| 75 | 4.19M | 12.4 | 1.3 | 3.1 | 1.3 | 2,475 | 8 minutes |
+| 110 | 14.1M | 25.6 | 2.2 | 6.4 | 2.8 | 4,050 | 12 minutes |
+| 240 FORMULA | 104M | 69.6 | 6.0 | 17.4 | 7.6 | 9,900 | |
+| 400 FORMULA | 423M | 147.7 | 7.1 | 36.9 | 16 | 17,100 | |
+
+- **Is 6% right?** At 30 (two hours, or half an hour blessed, and the Blessings are free): yes, it stings and teaches. At 110 (a day of play unblessed, 6.4 hours blessed): yes, for a death that is the player's own choice of tier. At 240 and 400 an unblessed death is 70 and 148 hours and six to seven Levels: that is Tibia's bite, and nobody will ever be unblessed there, so the real price is 17 and 37 lone hours. Keep 6%. It is a share, it scales by itself, and with change 3 it finally has something to price.
+- **Where it is wrong is the New player**, not the veteran. 8.9 deaths in 100 lone hours under Level 16 (REAL), and in my own play a Level 5 tank who pressed Deadly on the Thicket was dead inside the first minutes. The price there is tiny (63 XP with Blessings). The harm is the hunt ending while the player is away: a New player comes back to a hero standing in town. The fix is not the price. The harder tiers should not be one press away at Level 5 with words that are true of every ground ("Monsters hit much harder"). For the retention dive: the first-week death is a teaching problem.
+- **Do Blessings leave a decision? No.** 2,475 gold at 75 against 9.3 lone hours saved; 18 of 22 real deaths were blessed, and every real player together has spent 6,345 gold on them. It is a button pressed after every death (one press takes all three, read in play: good).
+- **PROPOSED:** all three together cost about three hours of a lone hero's net gold at its Level (about 34,000 at 50, 70,000 at 80, 63,000 at 105; `measure.mjs price 63000 --at hold`: 1.6 days of the Own four's gold, 0.6 of the Heavy four's), free under 30 as now. Then on Normal (a death in 1,000 hours by its sheet) a careful player buys one or none, and on Deadly after change 3 (a death every 30 to 100 hours) the three are a real line in the hunt's cost: about 600 to 2,000 gold an hour a hero. That is "struggle or pay" in gold. And "Bless again" becomes a remembered choice (keep me blessed: all, the first only, never), bought on return, so it is decided once. The first audit's fix 5 owns the price; this is my number for it.
+
+### B7. Inner Flame
+
+16 recorded bench hours, Prayer unused for 25 days, 9 of 12 heroes parked at 17 to 24 (REAL). READ FROM DATA: regen is x (1 + P / (P + 50)) on a base of 0.3% of max HP a second in a fight and 25% of max mana a minute, so Flame 20 is +29% and Flame 50 +50%. At Level 60 that is about 2,350 HP an hour against 40,254 taken (6% of the food) and about 4,100 mana an hour for a caster. It is a share of max, so it scales to Level 400 without a dial.
+
+**Reason:** it is worth having. It is a small Add-class lever on the supply bill, it is the one thing bones are for, and the Great Hearth's lore is the game's own. **Why nobody uses it:** fuelling is a bench job. It takes the hero's town hours, which are worth planks and bars, to earn 6% off a food bill that is 8 to 48% of coin; and it is a visit to the Hearth for each of four heroes. The player decided once to burn bones and is asked to act on it for ever.
+
+**FIX, not merge or cut** (PROPOSED): bones and the named fuels burn by a loot rule, set once for the account, beside "sell" and "keep" ("burn at the Great Hearth"), when the hero is back in town. No bench time, the same XP a bone. The Hearth's fire on the town map shows the account's flame color so it is seen. Tower Cinders keep competing for the same bones (RULED 11-14), which is the standing choice. If two weeks after that it is still unused, the alternative stands: cut the skill, and bones become Cinders.
+
+### B8. Grounds
+
+READ FROM DATA (`hunts.js` bands): Cellar 1-4, Thicket 5-15, Sewer 5-25, Wickstead 8-18, Glade 16-31, Warrens 32-50, Hask's Ford 45-60, the Slake 50-65, Muster Barrows 55-75, Pyre Field 70-90, Krell's Hold 85-110; staged Carter's Rest 110-125, Ox Road 112-128, Wyvern Roost 125-142, the Catacombs 165-185.
+
+- **What does a lone hero do at 16 to 44 and 85 to 110?** At 16 to 31 it has the Glade and nothing else on Normal; at 32 to 44 the Warrens, a party ground whose Chief kills lone heroes (5 of 22 real deaths); at 85 to 110 Krell's Hold alone, 25 Levels, about 320 lone hours on one map. That is the longest single-ground stretch in the game. Real players answer it by being a four on Deadly on the Warrens for 32% of all their hours.
+- **142 to 165: nothing is drafted.** 23 Levels, about 250 lone hours or 110 for a four. A four clears the staged Morrow Hills (110 to 142) in about 135 hunted hours: 16 days for the Heavy four.
+- **What a ground costs us in hand dials** (MEASURED, `measure.mjs fits`): 51 dials on 15 grounds, 3.4 a ground: an XP fit on 14, the x0.7 gold fit on 11, a tier rule on 11, two named monster exceptions. Most tier rules exist to hold the ladder ("ground N's Deadly must not out-earn ground N+1's Normal") or to pull a four under 2.5 by HP ("Groups of four were killing them too fast for the XP they give", four grounds).
+- **PROPOSED, with changes 1 and 3:** the x0.7 gold fit goes into the formula (11 dials); the per-ground HP dials that slowed fours go, because the harder tiers now cost danger and food and not time (6 dials, to be re-measured); the ladder rule becomes a printed line and not a gate, as the first audit ruled (about 10 more). That leaves an XP fit a ground and one honest exception where a map needs it: about 1.3 dials a ground.
+- **What a ground must be** (DESIGN_STANDARDS §5: no ground best on every axis): after change 3 the choice between two grounds in a band is real, because a four can no longer treat the higher one as a free upgrade.
+- Hask's Ford is the one live ground I would re-fit now: 2.62 on Deadly, 2.46 on Dangerous, a lone Mage 3.97 on Dangerous. Its XP fit of 1.02 should be about 0.85.
+
+### B9. Companions, the skill tree and PvP
+
+Nothing here should be designed until these are true of the model:
+
+| System | Must be true first |
+|---|---|
+| **Skill tree** (ruled, no spec) | Changes 1, 2 and 5 are built, so there is one growth law for output (max hit), one for survival (the ratio) and a bar budget. Then a tree may do only three things: change WHICH row fills a lane (a sidegrade), move a rating inside the Add pool (capped at one weapon tier step in all), or change what a hero does in town. It may never add a multiply lever. If it cannot be interesting inside that, it is the wrong system. The weapon families already are a tree a player re-specs by changing weapon |
+| **Companions** (dark, held by ruling 10-24) | A companion that fights is a fifth seat: it is in the party table or it is a multiply lever. So either it does not fight (it carries, sells, burns bones, gathers: an attention saver, and attention is the scarce ledger) or the party table is re-cut for five. The first is the one worth designing, after the loot rules cover what a pet would otherwise do |
+| **PvP capture the flag** (idea) | A population (1,000 online is the floor for a queue that fills), the to-hit ratio (hero against hero on a straight line is one-sided inside 20 points of skill), and gear and skill normalized inside the match. Otherwise it is the Heavy four's ladder. Not before Early Access |
+
+---

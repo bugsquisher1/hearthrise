@@ -1859,6 +1859,8 @@ delete from public.hr_hunt_vendor_value;
 insert into public.hr_hunt_vendor_value (item_id, unit) values
 ${vendorValues};
 delete from public.hr_boss_calls;
+-- the price's CHECK is restated below; it goes first, so a row the new one allows (a fight at 0 gold, Tyler 2026-11-20) is never judged by the old
+alter table public.hr_boss_calls drop constraint if exists hr_boss_calls_fight_ck;
 insert into public.hr_boss_calls (call_id, hunt_id, from_hunt, monster_id, limit_ms, fight_fee, fight_stamina_ms, max_fights, drops, boss_level, boss_id, wins) values
 ${callValues};
 alter table public.hr_boss_calls alter column fight_fee set not null, alter column fight_stamina_ms set not null, alter column max_fights set not null, alter column drops set not null,

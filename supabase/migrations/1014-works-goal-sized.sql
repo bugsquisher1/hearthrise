@@ -407,8 +407,9 @@ begin
     delete from public.hr_rate_counters where user_id = c_u[3];
     v := public.hr_hunt_enter(0, v_hunt, '[]'::jsonb, 0, null, (substr(c_k, 1, 8) || '-0000-4000-a000-0000000000b3')::uuid);
     if coalesce(v->>'ok', '') <> 'true' then raise exception 'works-goal §5-harness: C entering % answered %', v_hunt, v; end if;
+    -- C's hunt is open, so its pointer is the session's (hr_hunt_pointer_guard): only its clocks go back a week and a day
     update public.hunt_sessions set entered_at = now() - interval '8 days' where user_id = c_u[3];
-    update public.player_state set active_kind = 'idle', active_id = null, active_since = null where user_id = c_u[3];
+    update public.player_state set active_since = now() - interval '8 days' where user_id = c_u[3] and active_since is not null;
     update public.player_state set active_kind = 'gather',
            active_id = (select a.activity_id from public.hr_activities a where a.kind = 'gather' order by a.activity_id limit 1),
            active_left = null, active_since = now(), accrued_to = now() where user_id = c_u[2];
@@ -444,9 +445,10 @@ begin
     if (public.hr_town_extras(v_map)->'works'->>c_p)::int is distinct from 1 then raise exception 'works-goal §5(c): the map reads %', public.hr_town_extras(v_map); end if;
 
     -- (d) THE SERVER SHRINKS: under the total the goal falls to the least; past it, the project is DONE at its total, and stays done when it grows.
-    perform public.hr_town_works_size_to(15);
-    if public.hr_town_works_goal(c_p) is distinct from 30000 then raise exception 'works-goal §5(d): 15 actives read %, want 30,000', public.hr_town_works_goal(c_p); end if;
+    perform public.hr_town_works_size_to(45);
+    if public.hr_town_works_goal(c_p) is distinct from 45000 then raise exception 'works-goal §5(d): 45 actives read %, want 45,000', public.hr_town_works_goal(c_p); end if;
     update public.town_works_totals set total = 35000 where project_id = c_p;
+    if public.hr_town_works_goal(c_p) is distinct from 45000 then raise exception 'works-goal §5(d): 35,000 of 45,000 reads %', public.hr_town_works_goal(c_p); end if;
     perform public.hr_town_works_size_to(20);
     if public.hr_town_works_goal(c_p) is distinct from 35000 or (select goal from public.hr_town_works_goals where project_id = c_p) is distinct from 35000 then
       raise exception 'works-goal §5(d): past what was given the goal reads %, want done at 35,000', public.hr_town_works_goal(c_p); end if;

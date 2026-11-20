@@ -28,8 +28,13 @@
 // MODES (section E). A line starts as REPORT: it is printed, its out-of-band rows listed, and the run exits 0. It turns RED in the
 // lane that lands the change it guards (that lane flips `mode` in guard-cells.mjs) and never goes back. G14 is this lane's own and is red.
 //
-// RUNTIME. Section E: 3 minutes at most. The cells run on worker processes (tools/balance-sim/worker.mjs); the start-kit life
-// (life.mjs) runs beside them. The nightly twin adds the six death cells at 4 seeds x 8 h (about 32 hero-hours each).
+// RUNTIME. Section E: 3 minutes at most. 114 cells run on worker processes (tools/balance-sim/worker.mjs, one engine each, at most
+// four); the start-kit life (life.mjs) and the lever scan run beside them; G17's two timing cells run alone after them. MEASURED
+// 2026-11-20 on the PC with other lanes holding it at 100% CPU, 4 workers: plain 146 s (598 s of cell time), --selftest 180 s,
+// --nightly 367 s (the six twin cells are 128 hero-hours each, about 150 s apiece). A cell read only for sums settles in 60 s
+// windows (guard-cells.mjs SUMS_WINDOW_MS: the same swings, about a fifth faster).
+// THE NIGHTLY PATH. The registered plain step IS the twin on smoke.yml's schedule (GITHUB_EVENT_NAME=schedule, as settle-properties
+// does), so a red twin is a red nightly and blocks the next release (CLAUDE.md §3.6); a push runs the plain size.
 //
 // Exit: 0 clean (or report-only lines out of band) · 1 a red line out of band (any line with --strict; a selftest plant not caught) ·
 // 2 harness (a cell failed, a baseline missing, a bad argument).
@@ -367,7 +372,8 @@ function movedSinceBaseline(I, lines) {
   const b = I.baseline && I.baseline.values;
   if (!b) return '';
   const now = valuesOf(lines), moves = [];
-  for (const [id, rows] of Object.entries(now)) for (const [at, v] of Object.entries(rows)) {
+  /* a machine's timing (G17) moves with the machine, not the game: never listed as a move */
+  for (const [id, rows] of Object.entries(now)) if (!LINE[id].machine) for (const [at, v] of Object.entries(rows)) {
     const was = (b[id] || {})[at];
     if (Number.isFinite(was) && Math.abs(v - was) > Math.max(0.02 * Math.abs(was), 1e-9)) moves.push(id + ' ' + at + ' ' + was + ' -> ' + v);
   }

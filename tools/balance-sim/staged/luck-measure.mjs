@@ -19,7 +19,8 @@
 //   node tools/balance-sim/staged/luck-measure.mjs table --in file.json [--heroes N] [--salvage 0..1]
 //        read off one recorded life at 10 / 50 / 100 / 500 / 1,000 / 2,000 / 5,000 hours a hero: Luck from each feed, the rank selling
 //        everything and salvaging `--salvage` of the gear (default all), Rares an hour and so far, and the gold salvaging gives up.
-//        No play: the staged numbers can be re-read against the same life.
+//        No play: the staged numbers can be re-read against the same life. `--extend H` carries a life that stopped early on to H
+//        hours by living its last 200 hours again (PROJECTED, and the table says where the measured part ends).
 //   node tools/balance-sim/staged/luck-measure.mjs project --in file.json [--heroes N] [--salvage 0..1] [--from 800] [--kept 0.25]
 //        ASSUMED, not measured: the PLANNED game past tier 7, where the hourly gear drop ends (plan section 3) and uniques are the
 //        only gear. The recorded life to `--from` hours, then the plan's own estimates to 5,000 h. Prints what it assumes.
@@ -110,7 +111,10 @@ function accountOf(run, heroes, share) {
 
 if (mode === 'table' || mode === 'project') {
   if (!arg('in')) { console.error(USAGE); process.exit(2); }
-  const run = JSON.parse(readFileSync(resolve(arg('in')), 'utf8')), heroes = Math.max(1, Number(arg('heroes', run.heroes || 1)) || 1), share = Math.min(1, Math.max(0, Number(arg('salvage', 1))));
+  const run = JSON.parse(readFileSync(resolve(arg('in')), 'utf8')), measuredTo = run.hours, extend = Number(arg('extend', 0));
+  /* --extend H: PROJECTED past the life's end by living its last 200 chunks again and again (the built game's last ground, where a long life stays) */
+  if (extend > measuredTo) { const loop = run.trace.slice(-200); let h = measuredTo, i = 0; while (h < extend) { const t = loop[i++ % loop.length]; h += t.h; run.trace.push({ ...t, hours: Math.round(h * 100) / 100 }); } }
+  const heroes = Math.max(1, Number(arg('heroes', run.heroes || 1)) || 1), share = Math.min(1, Math.max(0, Number(arg('salvage', 1))));
   const n = run.party.length, acct = accountOf(run, heroes, share), rows = acct.rows;
   const who = n > 1 ? `one account's ${n} heroes in one hunt (${run.party.join('+')}, ${run.policy})` : heroes > 1 ? `one account's ${heroes} heroes hunting apart, each a lone ${run.party[0]} (${run.policy})` : `a one-hero account, a lone ${run.party[0]} (${run.policy})`;
   if (mode === 'table') {
@@ -120,6 +124,7 @@ if (mode === 'table' || mode === 'project') {
     for (const at of MARKS) {
       const b = win(at);
       if (!b.length || b[b.length - 1].hours < at - 1) { console.log(`${at} | not reached`); continue; }
+      if (at > measuredTo + 1) console.log(`  PROJECTED (the life was played to ${measuredTo.toFixed(0)} h; its last 200 h lived again):`);
       const H = sum(b, (t) => t.h), last = b[b.length - 1], upTo = rows.filter((t) => t.hours <= at + 1e-9);
       const per = (f) => sum(b, f) / H / n, tot = (f) => sum(upTo, f) / n;
       const gear = per((t) => t.g.gold), inc = per((t) => t.income);

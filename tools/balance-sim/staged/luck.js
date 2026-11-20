@@ -26,7 +26,7 @@
 //   rare       a Rare piece is worth five Scarce ones of its tier. A Rare nobody wants has a floor: its Luck.
 //   unique     past tier 7 the hourly drop is stock and chips (Tyler 11-18), and uniques are the only gear. One is worth 50 x its band.
 //   stages     each four to five times the last, so four heroes sit about one stage ahead on a creature. The lumps climb with them.
-//   step       75: a lone hero salvaging everything holds rank 15 at about 500 hours.
+//   step       100: rank 10 costs 10,000 Luck. A lone hero salvaging everything holds rank 16 at 500 hours (measured).
 //   trophy     25: Tyler's own ceiling for a fully studied boss's relic (2026-10-19, loot-bands.js trophy boostMax 1.25). A Trophy
 //              still never comes faster than every 100 h, at any Luck.
 //

@@ -68,6 +68,11 @@
         "bytes": 3093093,
         "on": "2026-11-19",
         "why": "lane/d-142-rulings (the no-Level-loss route): a Level curve bracket from 110 fit to the re-pinned contract, and the why of XP a kill x0.88, the Levels 1-9 re-split and the Warrens alone from 45 in three data files the engine reads; comments trimmed first (1265 -> 378 B)"
+      },
+      {
+        "bytes": 3093977,
+        "on": "2026-11-20",
+        "why": "+884 B, all vendor/core/combat-sim.js (packed d000d0ec4 vs 65edc5205, no other file moved): f52c944bd, the nightly settle-properties DB-SPLIT fix, the window end excuses every member whose own end holds at its next boundary and reads the boundary clocks (boundaryReads) the loop reads"
       }
     ]
   }

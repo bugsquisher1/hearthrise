@@ -5,6 +5,20 @@ go at the top. Format: each version is a `## vMAJOR.MINOR.PATCH — YYYY-MM-DD (
 heading, followed by short, player-friendly text (not commit-log style).
 Versions are semver: a patch per release, a minor per milestone, 1.0.0 for full release.
 
+## v0.2.143 — 2026-11-20 (Faster Loading and First-Hour Fixes)
+
+**Faster loading.** The game now loads as a few bundled files instead of hundreds, so your first visit is much quicker. Fonts come from our own site.
+
+**First hours.** The "Try a rune spell" tip offers a spell your hero can cast alone right now. The Book, Hunts and the Chronicle all agree the Mill Cellar is Levels 1 to 4, and its Chronicle page opens once you outgrow it. The character sheet shows the Bonus XP weekend. "Got it" on a tip card hides it until your next hunt instead of for good, and it works on cards that wait for you to read them. The away card says how a gathering job ends, with a button to stop or change it. Locked titles show the kills they need and what they cost.
+
+**Smoother.** No more hitch when a hero dies and goes back to town. Buttons look and behave the same in every window. The hunt camera keeps the map's art in view.
+
+**Hunts.** Buying a Blessing or changing your stance or setup during a hunt now takes effect a few seconds later, after the fighting the game has already worked out.
+
+**The House.** The Trophy Room is off sale until it can hang your trophies. Rungs you already bought stay yours.
+
+**Behind the scenes.** The server does much less work for each hunt, so the world stays fast as more players join.
+
 ## v0.2.142 — 2026-11-20 (Tank Spells and Tougher Monsters)
 
 **Tank spells.** Sword and shield heroes get two rune spells of their own. Frost Slam chills every monster next to the tank. Shelter gives everyone close by a shield, and goes off when a monster starts a big spell. Both work in a party only, from Melee 12 and 20.

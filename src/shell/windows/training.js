@@ -17,20 +17,20 @@
 // the skill's open item, the "Use" switch, the sealed ones held (Open) and the Arms Master's rows (Buy at the price SEEN). Every
 // number is the section's; the window never works one out.
 // ════════════════════════════════════════════════════════════════════════
-import { trainingOf, quoteFor, runForMs, gearFor, offersFor } from '../../session/training-sections.js?v=0.2.142';
-import { startTraining, stopTraining, buyGear, openGear, useGear } from '../../session/training-intents.js?v=0.2.142';
-import { itemName } from '../widgets/bits.js?v=0.2.142';
-import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.142';
-import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.142';
-import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.142';
-import { whole, gold } from '../../render/format.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
-import { runIntent } from '../intent-words.js?v=0.2.142';
-import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.142';
-import { TRAINING_GEAR } from '../../data/training.js?v=0.2.142';
-import { leavingLine } from '../widgets/hunt-topbar.js?v=0.2.142';
-import { connection } from '../../net/connection.js?v=0.2.142';
+import { trainingOf, quoteFor, runForMs, gearFor, offersFor } from '../../session/training-sections.js?v=0.2.143';
+import { startTraining, stopTraining, buyGear, openGear, useGear } from '../../session/training-intents.js?v=0.2.143';
+import { itemName } from '../widgets/bits.js?v=0.2.143';
+import { goldOf, nameOf, skillsOf } from '../../session/item-sections.js?v=0.2.143';
+import { huntOf, partyOf } from '../../session/hunt-sections.js?v=0.2.143';
+import { text, cls, attr, prop, rows } from '../../render/paint.js?v=0.2.143';
+import { whole, gold } from '../../render/format.js?v=0.2.143';
+import { t } from '../../render/player-text.js?v=0.2.143';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.143';
+import { runIntent } from '../intent-words.js?v=0.2.143';
+import { skillWord, timeWords, endedWords } from '../training-words.js?v=0.2.143';
+import { TRAINING_GEAR } from '../../data/training.js?v=0.2.143';
+import { leavingLine } from '../widgets/hunt-topbar.js?v=0.2.143';
+import { connection } from '../../net/connection.js?v=0.2.143';
 
 /* The ground a training session runs on (src/data/hunts.js, the server half): its hunt is the run, not "out hunting". */
 const YARD_GROUND = 'training_yard';

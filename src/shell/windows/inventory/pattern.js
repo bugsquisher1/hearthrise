@@ -7,11 +7,11 @@
 // learned set (bench-sections.js learnedRecipesOf): this hero knows it already, so the pattern is kept to sell, store or give to another
 // hero. The bench opens only from the re-read envelope (town-work.js workBlock).
 // ════════════════════════════════════════════════════════════════════════
-import { ITEMS } from '../../../data/items.js?v=0.2.142';
-import { workRow } from '../../town-work.js?v=0.2.142';
-import { learnedRecipesOf } from '../../../session/bench-sections.js?v=0.2.142';
-import { learnRecipe } from '../../../session/recipe-intents.js?v=0.2.142';
-import { t } from '../../../render/player-text.js?v=0.2.142';
+import { ITEMS } from '../../../data/items.js?v=0.2.143';
+import { workRow } from '../../town-work.js?v=0.2.143';
+import { learnedRecipesOf } from '../../../session/bench-sections.js?v=0.2.143';
+import { learnRecipe } from '../../../session/recipe-intents.js?v=0.2.143';
+import { t } from '../../../render/player-text.js?v=0.2.143';
 
 /** The bench row item `id` is the pattern of ({ kind, id, skill, row }, town-work.js workRow), or null. Pure. A pattern names its recipe
     (`teaches`) and that recipe's gate names the pattern back, so a stray field can't make a Learn the server would refuse. */

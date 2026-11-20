@@ -19,22 +19,22 @@
 // the server refuses rather than charge another sum. Refusals in plain words.
 // Built once, patched in place.
 // ════════════════════════════════════════════════════════════════════════
-import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.142';
-import { summaryOf } from '../command-model.js?v=0.2.142';
-import { alertShown, setAlertShown } from '../alerts.js?v=0.2.142';
-import { huntName } from '../../session/party-sections.js?v=0.2.142';
-import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.142';
-import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.142';
-import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.142';
-import { gmOf } from '../../session/character-sections.js?v=0.2.142';
-import { runIntent } from '../intent-words.js?v=0.2.142';
-import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.142';
-import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.142';
-import { glyphSvg } from '../launcher.js?v=0.2.142';
-import { entriesFor } from '../context-menu.js?v=0.2.142';
-import { menuProvidersOf } from '../menu-providers.js?v=0.2.142';
-import { t } from '../../render/player-text.js?v=0.2.142';
-import { rowOffered } from '../launcher.js?v=0.2.142';
+import { ALERT_KINDS } from '../../data/alerts.js?v=0.2.143';
+import { summaryOf } from '../command-model.js?v=0.2.143';
+import { alertShown, setAlertShown } from '../alerts.js?v=0.2.143';
+import { huntName } from '../../session/party-sections.js?v=0.2.143';
+import { rows, text, cls, prop, element } from '../../render/paint.js?v=0.2.143';
+import { gold, whole, hoursMinutes } from '../../render/format.js?v=0.2.143';
+import { renameOf, goldOf } from '../../session/item-sections.js?v=0.2.143';
+import { gmOf } from '../../session/character-sections.js?v=0.2.143';
+import { runIntent } from '../intent-words.js?v=0.2.143';
+import { escapeHtml as esc } from '../../utils/dom.js?v=0.2.143';
+import { gaugeHtml, patchGauge, patchRoleGlyph } from '../widgets/bits.js?v=0.2.143';
+import { glyphSvg } from '../launcher.js?v=0.2.143';
+import { entriesFor } from '../context-menu.js?v=0.2.143';
+import { menuProvidersOf } from '../menu-providers.js?v=0.2.143';
+import { t } from '../../render/player-text.js?v=0.2.143';
+import { rowOffered } from '../launcher.js?v=0.2.143';
 
 /* The rename panel's scratch, per viewed character: which hero, the typed name, the confirm step. */
 const SCRATCH = new WeakMap();

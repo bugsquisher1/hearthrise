@@ -7,11 +7,11 @@
 // answers this hero's section; the screen shows the plan only from the re-read that follows, never from the source's copy here.
 // Only the heroes this page has open are offered (account.characters(): up to four play at once, so normally all of them).
 // ════════════════════════════════════════════════════════════════════════
-import { nameOf, rulesOf } from '../../../session/item-sections.js?v=0.2.142';
-import { rows, text, cls, prop, attr } from '../../../render/paint.js?v=0.2.142';
-import { runIntent } from '../../intent-words.js?v=0.2.142';
-import { copyLootPlan } from '../../../session/loot-intents.js?v=0.2.142';
-import { t } from '../../../render/player-text.js?v=0.2.142';
+import { nameOf, rulesOf } from '../../../session/item-sections.js?v=0.2.143';
+import { rows, text, cls, prop, attr } from '../../../render/paint.js?v=0.2.143';
+import { runIntent } from '../../intent-words.js?v=0.2.143';
+import { copyLootPlan } from '../../../session/loot-intents.js?v=0.2.143';
+import { t } from '../../../render/player-text.js?v=0.2.143';
 
 /* The other heroes this page has open, by slot: [{ slot, name, plans }] (`plans`: how many items that hero plans, from its own server section; null unread). */
 export function sourcesOf(account, cs) {

@@ -18,22 +18,22 @@
 // Reading `hunt`: the server's session record sits under `hunt.session` (the
 // section view) and, in the client fixture, flat on `hunt`. Both are read.
 // ════════════════════════════════════════════════════════════════════════
-import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.142';
-import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.142';
-import { cameHomeWords } from '../data/party-words.js?v=0.2.142';
-import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.142';
-import { lossLine, seriesLine } from './boss-loss.js?v=0.2.142';
-import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.142';
-import { callOf, sessionModeOfHunt } from '../session/hunt-sections.js?v=0.2.142';
-import { trainingOf as trainedBy } from '../data/training.js?v=0.2.142';
-import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.142';
-import { HUNT_INDEX } from '../data/hunts.js?v=0.2.142';
-import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.142';
-import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.142';
-import { ITEMS } from '../data/items.js?v=0.2.142';
-import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
-import { gold as gp } from '../render/format.js?v=0.2.142';
+import { sanitizeSummary, sanitizeSummaries } from '../session/hunt-summaries.js?v=0.2.143';
+import { END_REASON_COPY } from '../data/hunt-sessions.js?v=0.2.143';
+import { cameHomeWords } from '../data/party-words.js?v=0.2.143';
+import { BOSS_HALL_WORDS, roomOfHunt } from '../data/boss-halls.js?v=0.2.143';
+import { lossLine, seriesLine } from './boss-loss.js?v=0.2.143';
+import { BOSS_CALL_WORDS } from '../data/boss-calls.js?v=0.2.143';
+import { callOf, sessionModeOfHunt } from '../session/hunt-sections.js?v=0.2.143';
+import { trainingOf as trainedBy } from '../data/training.js?v=0.2.143';
+import { endedWords as trainingEndWords } from '../shell/training-words.js?v=0.2.143';
+import { HUNT_INDEX } from '../data/hunts.js?v=0.2.143';
+import { groundOfHunt } from '../data/hunt-grounds.js?v=0.2.143';
+import { DEFAULT_TIER, TIER_NAME } from '../data/hunt-tiers.js?v=0.2.143';
+import { ITEMS } from '../data/items.js?v=0.2.143';
+import { isRareItem } from '../shell/hunt-ground-facts.js?v=0.2.143';
+import { t } from '../render/player-text.js?v=0.2.143';
+import { gold as gp } from '../render/format.js?v=0.2.143';
 
 export { sanitizeSummaries };
 

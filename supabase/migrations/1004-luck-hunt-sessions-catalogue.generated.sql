@@ -8,7 +8,7 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 297b69e729f93bfc0e46b456fa36c775f818c95605f12d6bba9e841b8f54be1d
+--   digest: 6de2318d25a45f95a1fbec6629ca199c6ad63e51210f90d6bfaa66c41488cf10
 --   79 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
 --   677 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
@@ -734,7 +734,7 @@ insert into public.hr_hunt_supplies (item_id, kind, essential, heals, buff_type)
   ('steel_arrows', 'ammo', true, 0, null),
   ('steel_whetstone', 'ammo', false, 0, null),
   ('tomato_juice', 'mana', false, 0, null),
-  ('tomato_soup', 'buff', false, 0, 'drop_rate'),
+  ('tomato_soup', 'heal', true, 336, null),
   ('turnip_juice', 'mana', false, 0, null),
   ('turnip_mash', 'heal', true, 60, null),
   ('vegetable_stew', 'buff', false, 0, 'all_xp'),

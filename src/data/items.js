@@ -327,8 +327,8 @@ export const ITEMS={
     buff:{type:'all_xp', magnitude:2,  durationMs:180000},
   },
   cooked_lobster: {
+  /* (Luck v3.1, itemization plan §15, Tyler 2026-11-20: its drop-rate buff is CUT: a food is bought with gold, and Luck is the only drop lever. Its next buff is the designer's.) */
     n:'Cooked Lobster', icon:'🦞', v:16, heals:300, foodTier:3, foodClass:'healing',
-    buff:{type:'drop_rate', magnitude:3,  durationMs:300000},
   },
   cooked_shark: {
     n:'Cooked Shark', icon:'🍣', v:48, heals:528, foodTier:4, foodClass:'healing',
@@ -457,8 +457,8 @@ export const ITEMS={
   cooked_silverfin:      {n:'Silverfin Fillet', icon:'🍥', v:13, heals:252, foodTier:3, foodClass:'healing',
     buff:{type:'damage', magnitude:2, durationMs:240000}},
   goldgill:              {n:'Raw Goldgill', icon:'🐟', v:20, heals:132},
-  cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodTier:3, foodClass:'healing',
-    buff:{type:'drop_rate', magnitude:2, durationMs:300000}},
+  /* (Goldgill Steak: its drop-rate buff is CUT, Luck v3.1, as the Cooked Lobster's.) */
+  cooked_goldgill:       {n:'Goldgill Steak', icon:'🍣', v:16, heals:276, foodTier:3, foodClass:'healing'},
   river_chowder:         {n:'River Chowder', icon:'🍲', v:380, heals:360, foodTier:3, foodClass:'healing',
     buff:{type:'defense', magnitude:3, durationMs:300000}},
   fishers_pie:           {n:"Fisher's Pie", icon:'🥧', v:520, heals:408, foodClass:'buff',
@@ -528,12 +528,12 @@ export const ITEMS={
     buff:{type:'farm_yield', magnitude:1, durationMs:360000},
   },
   tomato_soup: {
-    n:'Tomato Soup', icon:'🍅', v:260, heals:336, foodTier:2, foodClass:'buff',
-    buff:{type:'drop_rate', magnitude:2, durationMs:240000}, // b238: was dead monster_respawn
+  /* (Luck v3.1, itemization plan §15, Tyler 2026-11-20: its drop-rate buff is CUT: a food is bought with gold, and Luck is the only drop lever. Its next buff is the designer's.) */
+    n:'Tomato Soup', icon:'🍅', v:260, heals:336, foodTier:2, foodClass:'healing',
   },
   wheat_bread: {
+  /* (Luck v3.1, itemization plan §15, Tyler 2026-11-20: its drop-rate buff is CUT: a food is bought with gold, and Luck is the only drop lever. Its next buff is the designer's.) */
     n:'Wheat Bread', icon:'🍞', v:120, heals:216, foodTier:1, foodClass:'healing',
-    buff:{type:'drop_rate', magnitude:1, durationMs:180000},
   },
 
   /* ══════════════════════════════════════════════════════════════════

@@ -19,6 +19,7 @@
 //       at most; it moves Rare rows only.
 //   L8  BOTH PATHS: a party at Magic Find 100 on the real settle pays the same drops cut into 30 s windows (the hunt viewed: the live poll's
 //       short settles) and in one 2 h window (the browser closed: the tick's long settle), and more Rares than at Magic Find 0 on the same dice.
+//   L10 NO OTHER DROP LEVER: no item carries a drop-rate buff (the four foods' were cut, Tyler 2026-11-20).
 //   L9  THE SERVER, LIVE ON THE REPLAYED CHAIN: dark (switch off) every member of a settle reads magic_find 0 whatever its Luck; on, the
 //       account's rank plus the LARGEST Lucky ring worn (two rings count once).
 //
@@ -49,7 +50,7 @@ async function load(root) {
     root,
     LD: await imp('src/data/luck.js'), LC: await imp('src/core/luck.js'), D: await imp('src/core/drops.js'), LB: await imp('src/data/loot-bands.js'),
     HR: await imp('src/core/hunt-rewards.js'), R: await imp('src/core/rng.js'), MON: (await imp('src/data/monsters.js')).MONSTERS,
-    G: await imp('src/data/hunt-grounds.js'), H: await imp('src/data/hunts.js'),
+    G: await imp('src/data/hunt-grounds.js'), H: await imp('src/data/hunts.js'), ITEMS: (await imp('src/data/items.js')).ITEMS,
   };
 }
 
@@ -148,6 +149,12 @@ const claims = {
     if (a !== 1 || b !== 1) return `a party of Magic Find 0 and 100 paid ${a} (A landed it) and ${b} (B landed it) pieces at a draw only the highest's chance covers, want 1 and 1`;
     return null;
   },
+  L10(M) {
+    /* NO OTHER DROP LEVER (itemization plan §15 'One Magic Find budget'; the audit 2026-11-20): no item carries a drop-rate buff (the four
+       foods' were cut), so the engine's one drop factor beside Luck is the element weakness (drops.js DROP-BONUS). */
+    const bad = Object.entries(M.ITEMS).filter(([, it]) => it && it.buff && (it.buff.type === 'drop_rate' || it.buff.type === 'magic_find')).map(([id]) => id);
+    return bad.length ? 'a drop-rate buff on ' + bad.join(', ') : null;
+  },
   L7(M) {
     const open = Object.values(M.G.OPEN_GROUNDS).concat(Object.values(M.G.OPEN_HALL_GROUNDS || {}));
     for (const g of open) {
@@ -228,6 +235,7 @@ const MUTANTS = [
   { claim: 'L6', name: 'the party rolls on its average', edits: [['src/data/luck.js', "  party: 'highest',", "  party: 'average',"]] },
   { claim: 'L7', name: 'the cut starts at the Slake', edits: [['src/data/luck.js', 'bands: Object.freeze([[8, 110], [9, 137],', 'bands: Object.freeze([[8, 50], [9, 137],']] },
   { claim: 'L8', name: 'the member drops the server Magic Find', edits: [['src/core/member.js', 'magicFind: clampMagicFind(mi.magicFind),', 'magicFind: 0,']] },
+  { claim: 'L10', name: 'Wheat Bread buffs drops again', edits: [['src/data/items.js', "    n:'Wheat Bread', icon:'🍞', v:120, heals:216, foodTier:1, foodClass:'healing',", "    n:'Wheat Bread', icon:'🍞', v:120, heals:216, foodTier:1, foodClass:'healing', buff:{type:'drop_rate', magnitude:1, durationMs:180000},"]] },
   { claim: 'L7', name: 'the cut takes the Trophies too', edits: [['src/core/drops.js', "const cut = band === 'rare' && Number.isInteger", "const cut = (band === 'rare' || band === 'trophy') && Number.isInteger"]] },
 ];
 

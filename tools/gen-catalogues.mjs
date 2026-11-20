@@ -199,7 +199,9 @@ const OUT = join(ROOT, 'supabase', 'migrations', '1003-luck-items-catalogue.gene
    Both files are covered by the same `--check`. */
 const OUT_ITEM_BUFFS = join(ROOT, 'supabase', 'migrations',
   /* THE COOKBOOK CUT (lane/d-kingsgrate-rivets, 2026-11-18): 2026-09-13 is APPLIED history; the three cut feasts' buff rows leave, ONE forward file, the same wholesale replace. */
-  '2027-05-22-cookbook-cut-item-buffs-catalogue.generated.sql');
+  /* LUCK (lane/d-luck-build, 2026-11-20): 2027-05-22-cookbook-cut is APPLIED history; the four foods' drop-rate buff rows leave (itemization plan §15: Luck is
+     the only drop lever), ONE forward file, the same wholesale replace. */
+  '1003-luck-item-buffs-catalogue.generated.sql');
 /* THE THIRD GENERATED FILE (2026-09-13, buffs step 3). hr_room_perks is the
    ROOM RUNG -> PERK payload, the same table src/data/perks.js holds for the two
    JS runtimes, so hr_apply can price the Cellar's buffDuration under the

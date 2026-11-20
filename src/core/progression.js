@@ -17,15 +17,15 @@
 // PURE ESM. No DOM, no window, no timers, no Math.random.
 // ============================================================
 
-import { skillLevelFromXp } from './xp.js?v=0.2.142';
-import { pacedXp } from './pacing.js?v=0.2.142';
-import { spendRestedCharge } from './rested.js?v=0.2.142';
-import { advanceToolCarry } from './tools.js?v=0.2.142';
+import { skillLevelFromXp } from './xp.js?v=0.2.143';
+import { pacedXp } from './pacing.js?v=0.2.143';
+import { spendRestedCharge } from './rested.js?v=0.2.143';
+import { advanceToolCarry } from './tools.js?v=0.2.143';
 
 /* The skills the `combatXP` bonus channel pays: the four trained in a fight
    (CORE_MODEL.md §4). Inner Flame trains at the Great Hearth, not in a fight. ONE list,
    read by both the XP grant and the hint the player sees. */
-import { COMBAT_XP_SKILLS } from '../data/core-model.js?v=0.2.142';   // read by the data rows too: the data layer's (moved 2026-11-19)
+import { COMBAT_XP_SKILLS } from '../data/core-model.js?v=0.2.143';   // read by the data rows too: the data layer's (moved 2026-11-19)
 export { COMBAT_XP_SKILLS };
 
 /* ── FRACTIONAL XP IS CARRIED, NEVER FLOORED AWAY (game-designer ruling,

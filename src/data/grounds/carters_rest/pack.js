@@ -16,8 +16,8 @@
 // so a ground drops those only as Rares, tests/hunt-core/forest-cave.mjs shop-outfits-defense, the Hold's pattern). Lord Krell has the bodies and helms. Worn from 88, so every
 // piece is wearable the hour it drops. Each body drops one imbuement item. FITTED on the floor hour's kills (tests/hunt-core/drop-tables.mjs, a lone
 // tank in its full set, lane/d-morrow-grounds 2026-11-14).
-import { definePack, box, gather } from '../shape.js?v=0.2.142';
-import map from './map.js?v=0.2.142';
+import { definePack, box, gather } from '../shape.js?v=0.2.143';
+import map from './map.js?v=0.2.143';
 
 const PK = 'troll_picker', TH = 'slate_thrower', ST = 'stable_troll', BR = 'troll_brewer', LL = 'the_landlord';
 

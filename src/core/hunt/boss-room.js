@@ -13,8 +13,8 @@
 // PURE ESM, dual-runtime. No DOM, no clock, no Math.random.
 // ============================================================
 
-import { BOSS_CALLS, BOSS_CALL_RULES } from '../../data/boss-calls.js?v=0.2.142';
-import { BOSS_HALL_RULES, hallBossOf } from '../../data/boss-halls.js?v=0.2.142';
+import { BOSS_CALLS, BOSS_CALL_RULES } from '../../data/boss-calls.js?v=0.2.143';
+import { BOSS_HALL_RULES, hallBossOf } from '../../data/boss-halls.js?v=0.2.143';
 
 /** The room ground `ground` is: { kind: 'call' | 'hall', monster (the boss whose kill ends it), limitMs }, or null for any other ground.
     A hall's boss pays his drops as the hall's DAILY PRIZE (boss-halls.js; hunt-rewards.js payKill reads the room's kind and its boss). */

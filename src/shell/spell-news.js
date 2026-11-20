@@ -14,10 +14,10 @@
 //   unlockedBetween(was, now, d)  the moves a skill change opened for discipline `d`, data order (pure)
 //   spellWatch()                  { news(cs, seen), forget(slot) } per alert centre
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.142';
-import { skillsOf } from '../session/item-sections.js?v=0.2.142';
-import { settingsOf } from '../session/hunt-sections.js?v=0.2.142';
-import { t } from '../render/player-text.js?v=0.2.142';
+import { ABILITIES, abilitySkill } from '../data/abilities.js?v=0.2.143';
+import { skillsOf } from '../session/item-sections.js?v=0.2.143';
+import { settingsOf } from '../session/hunt-sections.js?v=0.2.143';
+import { t } from '../render/player-text.js?v=0.2.143';
 
 /** The prompt id of move `id`: one per move, so a move shown once (alone or with others) is never shown again. */
 export const spellNewsId = (id) => 'spell:' + id;

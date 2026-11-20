@@ -16,9 +16,9 @@
 //     loot plan of the account's hero in slot `from`. Two slots and a key, nothing else; the server reads both heroes under the
 //     caller's own account. On ok the character is RE-READ (the plan on screen is the envelope's) and the answer comes back as `copy`.
 // ════════════════════════════════════════════════════════════════════════
-import { askVia } from './intent-ledger.js?v=0.2.142';
-import { refusalOf } from './refusal.js?v=0.2.142';
-import { afterRefusal } from './quoted-ask.js?v=0.2.142';
+import { askVia } from './intent-ledger.js?v=0.2.143';
+import { refusalOf } from './refusal.js?v=0.2.143';
+import { afterRefusal } from './quoted-ask.js?v=0.2.143';
 
 const VERB = 'loot_dispatch';
 const COPY_VERB = 'loot_plan_copy';

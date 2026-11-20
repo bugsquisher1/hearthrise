@@ -47,7 +47,7 @@ Ranked by player value, the first hour and the first twenty hours first.
 
 Under all ten sits the server work of dive 28. A player never sees it. Without it the beta cannot pass about 250 accounts.
 
-### Before the beta, and before Early Access
+### Before the beta, and before Early Access (decision 30-7)
 
 | Gate | What must be live | Why |
 |---|---|---|

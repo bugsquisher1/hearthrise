@@ -4,6 +4,14 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-21 · systems-engineer (lane/c-balance-matrix) · the measuring tool's step 1
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | Every buildCell cell (grid, matrix, ground rates) now plays the real death rule, Blessings, real shopping and the four seated as the real Krell four (hammer, bow, mage, healer). Cached grids, rates and paths read before 2026-11-21 used re-entry and the shield four | progression-grid.json, ground-rates.json, paths.json, atlas.json | Re-measure before quoting any survival, death or gold number from them |
+| 2 | cell.mjs keeps re-entry (`deathRule: 'reenter'`) as the default for the legacy tables and guards that pin it | tools/balance-sim tables, tests that read runCell | A new tool asks for `deathRule: 'real'` (buildCell does) |
+| 3 | Talents play through a scratch hook (patches/talents-hook.json): the game has no seam yet | 10-level-choices.md, the Talents build lane | The build lane writes the real seams; the hook's four edits are the spec |
+
 ## 2026-11-21 · systems-engineer (lane/c-balance-matrix, phase 3) · the proposed game is a base
 
 | # | Found | Affected | Action |

@@ -18,7 +18,8 @@ import { accrueHunt } from '../../supabase/functions/hr-accrue/accrual.js';
 import { vendorPriceOf } from '../../supabase/functions/hr-accrue/catalogue.js';
 import { heroSetup } from '../../src/core/hunt-spawn.js';
 import { wornRoleKey } from '../../src/data/hunt-roles.js';
-import { skillXpForLevel, charXpForLevel, charLevelFromXp } from '../../src/core/xp.js';
+import { skillXpForLevel, charXpForLevel, charLevelFromXp, skillLevelFromXp } from '../../src/core/xp.js';
+import { equipmentStats, skillPlusOf, monsterAccuracy } from '../../src/core/combat.js';
 import { BASIC_SUPPLIES, BASIC_INDEX } from '../../src/data/supply-basics.js';
 import { HUNT_GROUNDS, OPEN_GROUNDS } from '../../src/data/hunt-grounds.js';
 import { MONSTERS } from '../../src/data/monsters.js';
@@ -260,6 +261,18 @@ export function playCell(cell, seeds, hooks = {}) {
     return { skills: Object.fromEntries(COMBAT.map((k) => [k, skillXpForLevel(k, sk[k] || 1)])) };
   };
   const H = keys.map((k, i) => heroTotals(k, party[i], levels[i], kits[i]));
+  /* THE TO-HIT A HERO STANDS AT (cell.mjs, the same reading): its Defense rating with its Footing, the monsters' chance to land over the spawns */
+  const mix = [];
+  for (const p of ground.pockets || []) for (const sp of p.spawns || []) if (MONSTERS[sp.monster]) mix.push(MONSTERS[sp.monster]);
+  const st0 = (i) => (R ? (R.start && R.start[i]) || null : cell.startBySeat ? cell.startBySeat[i] : null);
+  const defLv = (i) => (st0(i) && st0(i).skills ? skillLevelFromXp('defense', st0(i).skills.defense || 0) : cell.skillsBySeat ? (cell.skillsBySeat[i] || {}).defense || 1 : levels[i]);
+  const talentsAt = (i) => (R ? (R.talents && R.talents[i]) || null : Array.isArray(cell.talentsBySeat) ? cell.talentsBySeat[i] || null : null);
+  H.forEach((h, i) => {
+    const eq = equipmentStats(kits[i], ITEMS), footing = (talentsAt(i) && talentsAt(i).footing) || 0;
+    const def0 = Math.floor((defLv(i) || 1) + skillPlusOf(eq, 'defense') + (Number(eq.guardB) || 0)), def = Math.floor(def0 * (1 + footing / 1000));
+    const at = (d) => mix.map((m) => monsterAccuracy(m, d)), h0 = at(def0), h1 = at(def), mean = (xs) => (xs.length ? round(xs.reduce((a, b) => a + b, 0) / xs.length, 4) : null);
+    h.toHit = { def0, def, footingPm: footing, landed0: mean(h0), landed: mean(h1), lowest: h1.length ? round(Math.min(...h1), 4) : null };
+  });
   const P = { kills: 0, killsBy: {}, ttk: [], ttkBy: {}, hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
   const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
   /* THE DEATH RULE, Blessings, buffs, stamina and purse (cell.mjs header): from the resolved seats, else the cell */
@@ -521,7 +534,7 @@ export function summarise(cell, totals) {
     const minMed = quantile(h.enc, 0.5);
     const toNext = charXpForLevel(h.level + 1) - charXpForLevel(h.level);
     return {
-      key: h.key, style: h.style, level: h.level, kit: h.kit, maxHp: vit.maxHp, maxMana: vit.maxMana, mit,
+      key: h.key, style: h.style, level: h.level, kit: h.kit, maxHp: vit.maxHp, maxMana: vit.maxMana, mit, toHit: h.toHit || null,
       hours: round(h.hours, 2),
       levelXpPerH: round(xph, 0), skillXpPerH: Object.fromEntries(Object.entries(h.skillXp).map(([k, n]) => [k, per(n)])),
       coinPerH: per(h.coin), lootPerH: Object.fromEntries(Object.entries(h.loot).map(([k, n]) => [k, per(n)])),

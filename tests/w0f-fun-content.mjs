@@ -6,10 +6,10 @@
 //
 //   (crop)   every CROPS row grants 42x its b226 base (14 x the W0 x3), and the
 //            staged migration moves hr_crops.xp to EXACTLY those numbers.
-//   (trophy) each boss trophy exists and its wall line is words, not numbers.
-//            (The (forge) rule, the trophy's dungeon source and the champion's
-//            "never on the bounty board" check left with crafted gear, the
-//            dungeons and the bounty board in the 2026-10-14 demolition.)
+//   (The (forge) rule, the trophy's dungeon source and the champion's "never on
+//    the bounty board" check left with crafted gear, the dungeons and the bounty
+//    board in the 2026-10-14 demolition; the (trophy) wall rule and the "never
+//    boss loot" check left with the old dungeons, cut whole 2026-11-20, plan L10.)
 //   (champ)  one champion per tier 1-5, flagged champion, never a boss, the
 //            roster audit clean; its relic is the LAST row, flagged champion,
 //            in the rare band, the relic's ONLY source anywhere (no shop, boss,
@@ -35,8 +35,6 @@ import { CROPS } from '../src/data/gathering.js';
 import { ARTISAN_RECIPES } from '../src/data/recipes.js';
 import { ITEM_DESC } from '../src/data/item-descriptions.js';
 import { SHOP_OFFERS } from '../src/data/shops.js';
-import { BOSSES } from '../src/data/bosses.js';
-import { BOSS_TROPHIES, bossTrophiesHeld } from '../src/data/boss-forge.js';
 import { CHAMPION_ITEMS, CHAMPION_BY_TIER } from '../src/data/champions.js';
 import { auditRoster, TIER_BANDS } from '../src/data/monster-classes.js';
 import { DROP_BAND_MAX, effectiveDropChance } from '../src/core/drops.js';
@@ -80,12 +78,6 @@ const LOADOUT = Object.freeze({
   4: { level: 48, metal: 'mithril' }, 5: { level: 63, metal: 'rune' },
 });
 
-const mentions = (v, id) => {
-  if (v === id) return true;
-  if (Array.isArray(v)) return v.some((x) => mentions(x, id));
-  if (v && typeof v === 'object') return Object.keys(v).some((k) => k === id || mentions(v[k], id));
-  return false;
-};
 const allRecipes = () => Object.values(ARTISAN_RECIPES).flat();
 
 function equipmentFor(tier) {
@@ -130,17 +122,6 @@ function checkCrops(crops, sql) {
     `CROPS has ${Object.keys(crops).length} rows, the ruling covers ${Object.keys(CROP_BASE).length} — a new crop needs a ruled base`);
 }
 
-function checkTrophies(items, trophies = BOSS_TROPHIES) {
-  ok(trophies.length === 4, 'trophy', `the wall names ${trophies.length} boss trophies, the ruling names 4`);
-  for (const t of trophies) {
-    ok(!!items[t.item], 'trophy', `${t.item}: not an item`);
-    ok(typeof t.line === 'string' && t.line.length > 10 && !/\d/.test(t.line), 'trophy', `${t.item}: the wall line must be words, no numbers`);
-  }
-  const held = bossTrophiesHeld({ warboss_standard: 1, dragon_relic: 0 }, { dragon_relic: 2, gold: 9 });
-  ok(held.length === 2 && held.includes('warboss_standard') && held.includes('dragon_relic'), 'trophy',
-    `bossTrophiesHeld must count bag + depot and ignore a zero stack, got ${JSON.stringify(held)}`);
-}
-
 function checkChampions(monsters, items, sql, { measure = true, catalogue = catalogueSql() } = {}) {
   const lines = [];
   const roster = auditRoster(monsters);
@@ -170,7 +151,6 @@ function checkChampions(monsters, items, sql, { measure = true, catalogue = cata
       (om.drops || []).forEach((od) => { if (od.id === last.id && oid !== mid) ok(false, 'champ', `${last.id}: also drops from ${oid}`); });
     }
     ok(!SHOP_OFFERS.some((o) => (o.grant || []).some((g) => g.id === last.id)), 'champ', `${last.id}: is a shop grant`);
-    ok(!mentions(BOSSES, last.id), 'champ', `${last.id}: is boss loot`);
     ok(!allRecipes().some((r) => r.output === last.id), 'champ', `${last.id}: is also crafted`);
     /* FAUCET. */
     const gpMid = (m.gp[0] + m.gp[1]) / 2;
@@ -202,7 +182,6 @@ function checkAll(over = {}) {
   const crops = over.crops || CROPS;
   const sql = over.sql != null ? over.sql : readFileSync(SQL_FILE, 'utf8');
   checkCrops(crops, sql);
-  checkTrophies(items, over.trophies);
   const lines = checkChampions(monsters, items, sql, { measure: over.measure !== false, ...(over.catalogue != null ? { catalogue: over.catalogue } : {}) });
   return { fails: fails.slice(), lines };
 }
@@ -216,7 +195,6 @@ const cloneMonsters = () => {
 const MUTATIONS = {
   crop_back_to_x14:   { rule: 'crop',  over: () => ({ crops: { ...CROPS, turnip: { ...CROPS.turnip, xp: 112 } }, measure: false }) },
   sql_crop_stale:     { rule: 'sql',   over: () => ({ sql: readFileSync(SQL_FILE, 'utf8').replace(/\('moonbloom',\s*7140\)/g, "('moonbloom', 2380)"), measure: false }) },
-  trophy_line_number: { rule: 'trophy', over: () => ({ trophies: BOSS_TROPHIES.map((t, i) => (i ? t : { ...t, line: 'Hung over the door 3 times.' })), measure: false }) },
   champion_is_boss:   { rule: 'champ', over: () => { const ms = cloneMonsters(); ms.old_tusker.boss = true; return { monsters: ms, measure: false }; } },
   relic_ch_x20:       { rule: 'champ', over: () => { const ms = cloneMonsters(); const d = ms.mire_witch.drops; d[d.length - 1].ch *= 20; return { monsters: ms }; } },
   relic_second_source:{ rule: 'champ', over: () => { const ms = cloneMonsters(); ms.goblin.drops.push({ id: 'tusker_charm', ch: .0005 }); return { monsters: ms, measure: false }; } },
@@ -252,6 +230,6 @@ if (res.fails.length) {
   if (res.lines.length) console.error(res.lines.join('\n'));
   process.exit(1);
 }
-console.log(`w0f-fun-content: crops x${CROP_MULT}, ${BOSS_TROPHIES.length} wall trophies, `
+console.log(`w0f-fun-content: crops x${CROP_MULT}, `
   + `5 champions — every rule holds (fed hour, seed ${SEED}, Controlled)\n${res.lines.join('\n')}`);
 process.exit(0);

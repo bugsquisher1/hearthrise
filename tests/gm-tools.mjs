@@ -35,7 +35,7 @@
 //   GM-W-HEARTH   a burn is refused and leaves no colour and no line
 //   GM-W-FINDS    no Hearthfind rolled; a server line, a notice and a find row go nowhere, and never fail the writer
 //   GM-W-BOARDS   a walled hero at any Level is on no board; a real one at less is
-//   GM-W-OTHER    clans and the Discord gift, by row
+//   GM-W-OTHER    clans, by row (the Discord gift and its table were cut 2026-11-20, plan L10)
 //   GM-W-CROSS    a grant reaches no other purse; Storage and the bag have no path across accounts
 //   GM-W-WORKS    a Town Works gift: the door, then both row locks (the plaque's by its person, the total's by the session); nothing is charged
 //   GM-W-BOSS     a boss call: the door, then the called room's session row; nothing charged, no room entered
@@ -692,8 +692,6 @@ const ARMS = {
     if (ok !== 1) say('a real hero was refused a clan (control): ' + js(ok));
     await k.db.query('delete from public.clan_members where clan_id = $1', [clan]);
     await k.db.query('delete from public.clans where id = $1', [clan]);
-    const g = await k.row(`insert into public.hr_discord_gift_claims (user_id, slot, week, gems_paid) values ($1, 0, 'x', 1) returning 1`, [GM]);
-    if (!g || g.raised !== 'gm_walled') say('a walled hero claimed a gift: ' + js(g));
   },
   'GM-W-CROSS': async (W, say) => {
     const { k } = W;
@@ -868,7 +866,6 @@ const MUTANTS = [
   { id: 'server_line_fails', arm: 'GM-W-FINDS', why: 'a server line about a walled hero is posted', edits: [["    if coalesce(current_setting('hr.gm_say', true), '') <> '1' then return null; end if;\n", '']] },
   { id: 'board_ranks', arm: 'GM-W-BOARDS', why: 'the boards rank the Game Master', edits: [["  insert into public.hr_lb_hidden (user_id, slot, reason, note)\n    select new.user_id, null, 'test', 'Game Master account'\n     where not exists (select 1 from public.hr_lb_hidden h where h.user_id = new.user_id and h.slot is null);\n", '']] },
   { id: 'clan_row', arm: 'GM-W-OTHER', why: 'a walled hero joins a clan', edits: [[WALL('clan_members', "'user_id'"), '']] },
-  { id: 'gift_row', arm: 'GM-W-OTHER', why: 'a walled hero claims a gift', edits: [[WALL('hr_discord_gift_claims', "'user_id'"), '']] },
   { id: 'works_plaque_row', arm: 'GM-W-WORKS', why: 'a walled account ranks on the Works plaque', edits: [[WALL('town_works_gifts', "'user_id'"), '']] },
   { id: 'works_total_row', arm: 'GM-W-WORKS', why: "a walled session moves the town's total", edits: [['create or replace trigger hr_gm_wall before insert on public.town_works_totals for each row execute function public.hr_gm_wall_session();\n', '']] },
   { id: 'works_total_reads_nobody', arm: 'GM-W-WORKS', why: "the total's lock reads no session", edits: [["  if public.hr_gm_walled(auth.uid()) then perform public.hr_reject('gm_walled'); end if;\n", '']] },

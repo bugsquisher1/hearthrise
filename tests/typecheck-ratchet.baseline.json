@@ -1,6 +1,6 @@
 {
   "note": "Ceilings, not targets: per file and error kind, counts may only fall. Written by node tests/typecheck-ratchet.mjs --write, which refuses a rise. Regenerate, never hand-merge.",
-  "total": 342,
+  "total": 341,
   "files": {
     "src/app/boot.js": {"TS2367":1,"TS2554":5},
     "src/app/hero-create.js": {"TS1005":3,"TS2304":2,"TS2353":1},
@@ -9,7 +9,6 @@
     "src/core/artisan-sim.js": {"TS1005":4,"TS2304":4},
     "src/core/artisan.js": {"TS1005":2},
     "src/core/away.js": {"TS1005":1,"TS2304":1},
-    "src/core/botd.js": {"TS1005":1},
     "src/core/buffs.js": {"TS1005":1,"TS2304":3},
     "src/core/combat-sim.js": {"TS1005":2,"TS2339":1,"TS2502":1},
     "src/core/combat.js": {"TS1005":3,"TS2304":1,"TS2502":2},

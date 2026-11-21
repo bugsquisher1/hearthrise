@@ -25,10 +25,10 @@
  },
  "normalisation": "md5(regexp_replace(pg_get_functiondef(oid), '[[:space:]]+', ' ', 'g'))",
  "live_measured": "2026-11-20",
- "replay_ms": 2956,
+ "replay_ms": 3319,
  "counts": {
-  "tracked_names": 994,
-  "entries": 830
+  "tracked_names": 993,
+  "entries": 828
  },
  "functions": [
   {
@@ -583,49 +583,6 @@
    "replay": {
     "md5": "2620e7ca8618e4d558d2b607e3ddcea0",
     "norm_len": 1857,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "clan_rested_grant(p_clan_id uuid)",
-   "name": "clan_rested_grant",
-   "tracked_by": [
-    "restate"
-   ],
-   "touched_by": [
-    "2026-08-08-clan-seat.sql",
-    "2026-08-09-bonus-rebase.sql"
-   ],
-   "live": {
-    "md5": "8e2ffd902fcbedfd7e800c9a20baf044",
-    "norm_len": 421,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "8e2ffd902fcbedfd7e800c9a20baf044",
-    "norm_len": 421,
-    "source": "computed-from-replay"
-   },
-   "agree": true
-  },
-  {
-   "sig": "clan_rested_grant__ungated(p_clan_id uuid)",
-   "name": "clan_rested_grant__ungated",
-   "tracked_by": [
-    "catalog"
-   ],
-   "touched_by": [],
-   "live": {
-    "md5": "ad69b2cb7f4d4bfd33c0a7709c37bd3a",
-    "norm_len": 2562,
-    "measured": "2026-11-20",
-    "source": "measured-live"
-   },
-   "replay": {
-    "md5": "ad69b2cb7f4d4bfd33c0a7709c37bd3a",
-    "norm_len": 2562,
     "source": "computed-from-replay"
    },
    "agree": true
@@ -1199,9 +1156,11 @@
    "sig": "hr_accrue_read(p_user uuid, p_slot integer)",
    "name": "hr_accrue_read",
    "tracked_by": [
+    "pin",
     "restate"
    ],
    "touched_by": [
+    "1040-rested-bank-cut.sql",
     "2027-02-10-settle-reads.sql"
    ],
    "live": {
@@ -1211,11 +1170,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "26d0632c9677089d06c3e38a49430aeb",
-    "norm_len": 1570,
+    "md5": "0dcac4b9a5d51f8046c3872799c6cd53",
+    "norm_len": 1557,
     "source": "computed-from-replay"
    },
-   "agree": true
+   "agree": false,
+   "why": "STAGED for the v0.2.144 release by 1040-rested-bank-cut.sql (the rested fields leave the accrue read) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-formula-steps slice 1 merged."
   },
   {
    "sig": "hr_action_set_copy(p_from integer, p_to integer, p_idem uuid)",
@@ -1424,6 +1384,7 @@
    ],
    "touched_by": [
     "1026-job-counts.sql",
+    "1040-rested-bank-cut.sql",
     "2026-08-11-apply-engine.sql",
     "2026-08-15-gem-daily-budget.sql",
     "2026-08-15-intent-key-hygiene.sql",
@@ -1482,12 +1443,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "b8c3e5c2c125ffa42de3d6311f14d4aa",
-    "norm_len": 139906,
+    "md5": "f7754b03bb85f0b97783971b43a355ae",
+    "norm_len": 139680,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1026-job-counts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "STAGED for the v0.2.144 release by 1040-rested-bank-cut.sql (hr_apply rewritten in full from the chain end, the rested charge gone, splice depth 0) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-formula-steps slice 1 merged."
   },
   {
    "sig": "hr_assert_grant_hygiene(p_strict boolean)",
@@ -16138,12 +16099,12 @@
     "source": "measured-live"
    },
    "replay": {
-    "md5": "13f74aeeb97489019276a1860e8af6fc",
-    "norm_len": 26020,
+    "md5": "9151cc4820a5b58cc550b500c037cfeb",
+    "norm_len": 25551,
     "source": "computed-from-replay"
    },
    "agree": false,
-   "why": "STAGED for the v0.2.144 release by 1032-approved-cuts.sql (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21. The release apply re-measures with --live --write."
+   "why": "STAGED for the v0.2.144 release by 1032-approved-cuts.sql as amended by lane/c-formula-steps (the projection drops the two rested fields) (Tyler 2026-11-21: one big release, production frozen on v0.2.143, staged server changes apply together at the release). Live is the v0.2.143 body, replay is the staged body; re-measured --write --no-live on set/v0.2.144 2026-11-21 after lane/c-formula-steps slice 1 merged."
   },
   {
    "sig": "hr_state_sections_of(p_user uuid, p_slot integer)",

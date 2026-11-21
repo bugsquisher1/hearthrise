@@ -32,21 +32,30 @@ export function makeSolver({ D, P, kits, opts = {} }) {
 
   /* the hunting options at a Level: every ground a party may stand on (its band's floor at or under the Level), every tier it holds */
   function options(level, sc) {
+    const out = options0(level, sc);
+    if (out.length || sc.party === 1) return out;
+    /* a party under its sizes' first Level (the Sewer opens at 5): each hero hunts alone, the account earns n heroes' gold */
+    return options0(level, { ...sc, party: 1 }).map((o) => ({ ...o, netH: o.netH * sc.party, alone: true }));
+  }
+  function options0(level, sc) {
     const out = [];
     for (const g of Object.keys(D.HUNT_GROUNDS)) {
       const h = D.HUNT_INDEX[g];
       if (!h || h.band[0] > level) continue;
       if (!D.OPEN_GROUNDS[g] && (opts.openOnly || level < 110)) continue;
-      if (sc.party === 1 && D.HUNT_GROUNDS[g].groupFit === 'party') continue;
-      for (const tier of ['normal', ...D.tiersOf(g).filter((t) => t !== 'normal')]) {
+      for (const tier of sc.tiers || ['normal', ...D.tiersOf(g).filter((t) => t !== 'normal')]) {
         const r = P.rate(g, { level, party: sc.party, tier, gear: 'mid' }, Math.min(level, h.band[1]));
-        if (!r || r.deaths > 0) continue;
+        /* a tier it does not hold (a death in the sample), or a ground it has outgrown (no kills: the Cellar sends a hero home at 5) */
+        if (!r || r.deaths > 0 || !(r.killsPerH > 0) || !(r.xpPerHeroH > 0)) continue;
         out.push({ ground: g, tier, r, xpH: r.xpPerHeroH * (1 + eventShare), netH: r.netPerHeroH * sc.party });
       }
     }
     return out;
   }
-  const ctxOf = (st, sc) => ({ level: st.level, party: sc.party, tier: 'normal', gear: 'mid', townH: sc.townH, luckHours: luckBucket(st.hunted),
+  /* a route is chosen at the checkpoint at or under the Level (the atlas's own grid of Levels): a route never opens early, and the memo holds */
+  const cps = opts.checkpoints || [1, 3, 5, 7, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 75, 88, 100, 110, 125, 145, 165, 185, 200];
+  const cpAt = (L) => cps.filter((c) => c <= L).pop() || 1;
+  const ctxOf = (st, sc) => ({ level: cpAt(st.level), party: sc.party, tier: 'normal', gear: 'mid', townH: sc.townH, luckHours: luckBucket(st.hunted),
     market: sc.payer === 'bought', scale: sc.scale || null, scaleKey: sc.scale ? JSON.stringify(sc.scale) : '' });
 
   /* ── THE FASTEST LEVEL: the best XP an hour every step (myopic is optimal: XP adds, and a rate reads only the Level) ── */
@@ -78,17 +87,24 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   /* ── THE BILL OF MATERIALS of the missing targets, each piece by its cheapest route at this state ── */
   function bom(st, sc, targets) {
     const ctx = ctxOf(st, sc);
-    const acc = { hunt: new Map(), town: [], gold: 0, chest: new Map(), hall: new Map(), call: new Map(), wall: 0, fills: [] , blocked: [] };
+    const reserved = new Map();
+    const acc = { hunt: new Map(), town: [], gold: 0, chest: new Map(), hall: new Map(), call: new Map(), wall: 0, fills: [], blocked: [], used: new Set() };
     const want = (item, n, depth, top) => {
       if (n <= 1e-9) return;
-      const have = st.owned.get(item) || 0;
+      /* what the account holds and no earlier line of this bill has claimed */
+      const have = Math.max(0, (st.owned.get(item) || 0) - (reserved.get(item) || 0));
       const short = Math.max(0, n - have);
+      reserved.set(item, (reserved.get(item) || 0) + Math.min(n, have));
       if (short <= 1e-9) return;
       if (depth > 8) { acc.blocked.push(item); return; }
       const b = P.best(item, ctx, sc.without ? { without: sc.without } : {});
       if (!b.best) { acc.blocked.push(item); return; }
       const src = P.byItem.get(item).find((s) => s.sid === b.best.sid);
-      if (top) acc.fills.push({ item, sid: src.sid, system: src.system, kind: src.kind, days: b.best.days, next: b.next ? { sid: b.next.sid, system: b.next.system, days: b.next.days } : null });
+      /* the systems within reach of this piece (a route within 25% of the best: VERDICT_RULES.neglected.nearBest) and each system's own best days */
+      const bySys = {};
+      for (const x of b.all) if (!(x.system in bySys)) bySys[x.system] = x.days;
+      if (top) acc.fills.push({ item, sid: src.sid, system: src.system, kind: src.kind, days: b.best.days, next: b.next ? { sid: b.next.sid, system: b.next.system, days: b.next.days } : null, bySys });
+      acc.used.add(src.sid);
       if (sc.payer === 'bought' && src.kind === 'market') { acc.gold += 0; return; }
       if (src.hunt || src.kind === 'planned') acc.hunt.set(item, (acc.hunt.get(item) || 0) + short);
       else if (src.fight) acc.call.set(item, { n: (acc.call.get(item) || { n: 0 }).n + short, src });
@@ -104,7 +120,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
       else if (src.upgrade || src.step) {
         const u = src.upgrade || src.step;
         acc.gold += short * (u.gold || 0);
-        for (const [id, q] of Object.entries(u.inputs || {})) if (q > 0) want(id, q * short + (st.owned.get(id) || 0), depth + 1, false);
+        for (const [id, q] of Object.entries(u.inputs || {})) if (q > 0) want(id, q * short, depth + 1, false);
         if (src.upgrade && src.upgrade.after) want(src.upgrade.after, n, depth + 1, false);
       } else if (typeof src.gold === 'number' || src.market) acc.gold += short * (src.gold ?? (src.market ? src.market.floor : 0));
       else acc.blocked.push(item);
@@ -115,11 +131,12 @@ export function makeSolver({ D, P, kits, opts = {} }) {
 
   /* the days the bill still needs if the hunted hours went to `opt` (the beam's score) */
   function daysLeft(st, sc, acc, opt) {
-    let hunt = 0;
+    let hunt = 0, huntSum = 0;
     for (const [item, n] of acc.hunt) {
       const per = opt ? dropRate(opt, item, st, sc) : 0;
       const bestAny = bestHuntRate(st, sc, item);
-      hunt = Math.max(hunt, per > 0 ? n * LN2 / (per * 12) : bestAny > 0 ? n * LN2 / (bestAny * 12) + 1 : 999);
+      const d = per > 0 ? n * LN2 / (per * 12) : bestAny > 0 ? n * LN2 / (bestAny * 12) + 1 : 999;
+      hunt = Math.max(hunt, d); huntSum += Math.min(d, 999);
     }
     const restH = sc.party * sc.townH;
     const town = acc.town.reduce((s, j) => s + j.hours + skillHours(st, j.skill, j.req), 0) / Math.max(1e-9, restH);
@@ -128,11 +145,12 @@ export function makeSolver({ D, P, kits, opts = {} }) {
     let chest = 0; for (const [, c] of acc.chest) chest = Math.max(chest, c.n * c.opensEach / (c.src.chest.opensPerWeek / 7));
     let hall = 0; for (const [, h] of acc.hall) hall = Math.max(hall, h.n / Math.max(1e-9, sc.party * h.src.hall.slice));
     let call = 0; for (const [, c] of acc.call) call = Math.max(call, c.n * c.src.fight.hours / Math.max(1e-9, c.src.fight.perFight) / 12);
-    return Math.max(hunt, town, Math.min(gold, 999), chest, hall, call, acc.wall) + (acc.blocked.length ? 999 : 0);
+    /* the makespan, and a tenth of the hunting still owed so a tie moves on every need */
+    return Math.max(hunt, town, Math.min(gold, 999), chest, hall, call, acc.wall) + 0.1 * huntSum + (acc.blocked.length ? 999 : 0);
   }
   const rateMemo = new Map();
   function dropRate(opt, item, st, sc) {
-    const k = opt.ground + opt.tier + item + st.level + luckBucket(st.hunted);
+    const k = opt.ground + opt.tier + (opt.alone ? 'a' : '') + item + st.level + luckBucket(st.hunted);
     if (rateMemo.has(k)) return rateMemo.get(k);
     let per = 0;
     for (const s of P.byItem.get(item) || []) {
@@ -141,6 +159,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
       const luck = s.hunt.luck && luckOn ? 1 + luckOf(st.hunted) : 1;
       for (const [m, ch] of Object.entries(s.hunt.perKill)) per += (opt.r.killsByPerH[m] || 0) * ch * luck;
     }
+    if (opt.alone) per *= sc.party;   // n heroes each hunting alone
     const f = sc.scale && (P.byItem.get(item) || []).find((s) => s.hunt && s.hunt.ground === opt.ground);
     if (f && sc.scale[f.system]) per /= sc.scale[f.system];
     rateMemo.set(k, per);
@@ -167,6 +186,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
   function playDay(st0, sc, acc, opt, step = 1) {
     const st = { ...st0, owned: new Map(st0.owned), town: { ...st0.town }, rates: st0.rates, day: st0.day + step };
     const h = 12 * step;
+    st.usedSids = new Set([...(st0.usedSids || []), ...acc.used]);
     if (opt) {
       st.xp += opt.xpH * h; st.level = Math.min(400, levelAt(st.xp)); st.hunted += h;
       st.gold += opt.netH * h;
@@ -195,6 +215,7 @@ export function makeSolver({ D, P, kits, opts = {} }) {
         if (L < j.req) continue;
       }
       const use = Math.min(rest, j.hours); rest -= use;
+      if (use > 0) st.usedTown = new Set([...(st.usedTown || []), j.sid]);
       st.restUsed = (st.restUsed || 0) + use;
       const made = j.hours > 0 ? use / j.hours : 1;
       const src = P.byItem.get(j.item).find((s) => s.sid === j.sid);
@@ -226,6 +247,9 @@ export function makeSolver({ D, P, kits, opts = {} }) {
       st.hallRolled = true;
       st.owned.set(item, (st.owned.get(item) || 0) + p / LN2);
     }
+    /* the day each target was first owned (the band's bottleneck is the last of them) */
+    st.got = st0.got || {};
+    for (const [item, n] of st.targets) if (!(item in st.got) && (st.owned.get(item) || 0) >= n - 1e-6) st.got = { ...st.got, [item]: Math.round(st.day * 100) / 100 };
     return st;
   }
   function buyChain(st, sc, ctx, item, short, depth) {
@@ -235,10 +259,14 @@ export function makeSolver({ D, P, kits, opts = {} }) {
     const src = P.byItem.get(item).find((s) => s.sid === b.best.sid);
     let gold = null, inputs = {};
     if (typeof src.gold === 'number' && !src.useOnly) gold = src.gold;
-    else if (src.market && sc.payer === 'bought') gold = 0;
-    else if (src.upgrade || src.step) { const u = src.upgrade || src.step; gold = u.gold || 0; inputs = { ...(u.inputs || {}) }; if (src.upgrade && src.upgrade.after) inputs[src.upgrade.after] = 1; }
+    else if (src.market) gold = sc.payer === 'bought' ? 0 : (P.route(src, ctx).ceiling ?? src.market.floor);   /* a free buyer pays the maker's time (the ceiling) */
+    else if (src.upgrade || src.step) { const u = src.upgrade || src.step; gold = u.gold || 0; inputs = { ...(u.inputs || {}) }; }
     if (gold === null) return;
-    for (const [id, q] of Object.entries(inputs)) if (q > 0 && (st.owned.get(id) || 0) < q * short - 1e-9) return;
+    /* a rung stands on the one under it (held, never spent); an input the purse can buy is bought first */
+    const prereq = src.upgrade && src.upgrade.after;
+    const lack = (id, n) => n - (st.owned.get(id) || 0);
+    if (prereq && lack(prereq, short) > 1e-9) { buyChain(st, sc, ctx, prereq, lack(prereq, short), depth + 1); if (lack(prereq, short) > 1e-9) return; }
+    for (const [id, q] of Object.entries(inputs)) if (q > 0 && lack(id, q * short) > 1e-9) { buyChain(st, sc, ctx, id, lack(id, q * short), depth + 1); if (lack(id, q * short) > 1e-9) return; }
     const cost = gold * short;
     if (sc.payer !== 'bought' && st.gold < cost) return;
     if (sc.payer !== 'bought') st.gold -= cost; else st.boughtGold = (st.boughtGold || 0) + cost;
@@ -277,7 +305,8 @@ export function makeSolver({ D, P, kits, opts = {} }) {
           if (doneOf(st)) { done = st; break; }
           const acc = bom(st, sc, st.targets);
           if (!fills) fills = acc.fills;
-          const opts2 = options(st.level, sc);
+          /* a hunt that loses gold is open only to a purse that can pay its day (a hunt ends when the gold for its supplies runs out) */
+          const opts2 = options(st.level, sc).filter((o) => o.netH >= 0 || sc.payer === 'bought' || st.gold + o.netH * 12 >= 0);
           const scored = opts2.map((o) => ({ o, s: daysLeft(st, sc, acc, o) - o.xpH * 1e-9 })).sort((a, b) => a.s - b.s).slice(0, Math.max(1, beamW));
           for (const { o } of scored) {
             const st2 = playDay(st, sc, acc, o, st.day < 2 ? 1 / 12 : 1);
@@ -289,13 +318,14 @@ export function makeSolver({ D, P, kits, opts = {} }) {
         if (done) break;
         next.sort((a, b) => a.score - b.score);
         beam = next.slice(0, beamW);
+        if (opts.debug && beam[0]) opts.debug(band, beam[0], bom(beam[0], sc, beam[0].targets));
         if (!beam.length || beam[0].day > maxDays) break;
       }
       const best = done || beam[0];
       out.push({ band: band.id, from: band.from, to: band.to, region: band.region, pastKrell: !!band.pastKrell, goal,
         days: done ? Math.round(done.day * 100) / 100 : null, missing: done ? [] : missingOf(best).slice(0, 12),
-        fills: (fills || []), restPerDay: best.day > 0 ? Math.round((best.restUsed || 0) / best.day / sc.party * 100) / 100 : 0,
-        grounds: best.groundLog, boughtGold: best.boughtGold || 0, rates: recordRates ? best.rates : undefined, targets: [...targets].map(([i, n]) => [i, n]) });
+        fills: (fills || []).map((f) => ({ ...f, day: (best.got || {})[f.item] ?? null })), restPerDay: best.day > 0 ? Math.round((best.restUsed || 0) / best.day / sc.party * 100) / 100 : 0,
+        grounds: best.groundLog, used: [...new Set([...(best.usedSids || []), ...(best.usedTown || [])])], hunted: Math.round(best.hunted - (opts.huntedAt ? opts.huntedAt(band.from) : band.from * 10)), boughtGold: best.boughtGold || 0, rates: recordRates ? best.rates : undefined, targets: [...targets].map(([i, n]) => [i, n]) });
     }
     return out;
   }

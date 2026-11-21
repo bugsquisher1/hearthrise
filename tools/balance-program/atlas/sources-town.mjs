@@ -77,9 +77,9 @@ export function townSources(D, T) {
       label: 'READ FROM DATA', upgrade: { track, tier: Number(tier), rung: Number(rung), gold: o.gold, inputs: o.items, after: Number(rung) > 1 ? 'temper:' + track + ':' + tier + ':' + (Number(rung) - 1) : null } });
   }
   /* THE HALLMARK and THE REFORGE (src/data/jewelry.js): a graded piece and a gem (and bars) and gold into the next row, at the jeweler */
-  for (const o of D.HALLMARK_OFFERS) out.push({ sid: 'hallmark:' + o.to, kind: 'hallmark', system: 'jewelry', item: o.to, qty: 1, state: 'OPEN', opens: o.level || 1, where: 'the jeweler (Hallmark)',
+  for (const o of D.HALLMARK_OFFERS) out.push({ sid: 'hallmark:' + o.from + ':' + o.to, kind: 'hallmark', system: 'jewelry', item: o.to, qty: 1, state: 'OPEN', opens: o.level || 1, where: 'the jeweler (Hallmark)',
     chance: false, label: 'READ FROM DATA', step: { from: o.from, gold: o.gold, inputs: { [o.from]: 1, [o.gem]: 1 }, skill: o.skill, req: o.level, perDay: 10 } });
-  for (const o of D.REFORGE_OFFERS) out.push({ sid: 'reforge:' + o.to, kind: 'hallmark', system: 'jewelry', item: o.to, qty: 1, state: 'OPEN', opens: o.level || 1, where: 'the jeweler (reforge)',
+  for (const o of D.REFORGE_OFFERS) out.push({ sid: 'reforge:' + o.from + ':' + o.to, kind: 'hallmark', system: 'jewelry', item: o.to, qty: 1, state: 'OPEN', opens: o.level || 1, where: 'the jeweler (reforge)',
     chance: false, label: 'READ FROM DATA', step: { from: o.from, gold: o.gold, inputs: { [o.from]: 1, [o.gem]: 1, [o.metal]: o.bars || 0 }, skill: o.skill, req: o.level } });
   /* LININGS: ruled (one monster part + gold, 12 hunted hours a lining, cured in House slots), NOT BUILT: one PLANNED row a kind and tier */
   const kinds = new Map();

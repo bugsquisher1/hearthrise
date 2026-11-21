@@ -41,7 +41,8 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
   const P = makePricer({ D, sources, rates, grid });
   const SRC = new Map(sources.map((s) => [s.sid, s]));
   const groundTiers = (g) => ['normal', ...D.tiersOf(g).filter((t) => t !== 'normal')];
-  const lone = (g) => !(D.HUNT_GROUNDS[g] && D.HUNT_GROUNDS[g].groupFit === 'party');
+  /* a 'party' ground stays enterable alone (hunt-grounds.js groupFit): its lone cells are priced like any other */
+  const lone = () => true;
   const cps = checkpoints;
   const ctxOf = (cp, party, tier) => ({ level: cp, party, tier, gear: 'mid', townH: 12, luckHours: 0 });
 
@@ -85,7 +86,11 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
   }
 
   /* ── items ── */
-  const uses = D.uses;
+  /* the catalogue's uses (catalogue-coherence itemUses), plus two it does not list: a staged gear row is worn, a hall's key opens its hall */
+  const uses = new Map(D.uses);
+  const addUse = (id, label) => { const l = uses.get(id) || []; if (!l.includes(label)) uses.set(id, [...l, label]); };
+  for (const id of Object.keys(D.ITEMS)) if (D.ITEMS[id] && D.ITEMS[id].slot && !uses.has(id)) addUse(id, 'worn');
+  for (const h of Object.values(D.BOSS_HALLS)) addUse(h.key, 'opens ' + h.id + ' (a keyed hall)');
   const ids = new Set([...Object.keys(D.ITEMS), ...sources.map((s) => s.item)]);
   const items = {};
   const ref = (c) => ctxOf(c, 1, 'normal');
@@ -137,7 +142,9 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
     for (const [slot, id] of Object.entries(mid.slots)) {
       const inside = (items[id] ? items[id].sources : []).some((sid) => {
         const s = out[sid]; if (!s || (s.state !== 'OPEN' && !(s.state === 'STAGED' && c >= STAGED_FROM))) return false;
-        if (['recipe', 'shop', 'gather', 'farm', 'hallmark', 'temper'].includes(s.kind) && !NOT_A_WAY(SRC.get(sid) || {})) return true;
+        const src = SRC.get(sid) || {};
+        if (src.once) return true;   // the start kit
+        if (['recipe', 'shop', 'gather', 'farm', 'hallmark', 'temper', 'chest'].includes(s.kind) && !NOT_A_WAY(src)) return true;
         const g = sid.split(':')[1];
         const h = D.HUNT_INDEX[g] || D.HUNT_INDEX[(D.BOSS_HALLS[g] || {}).hunt];
         return !!h && h.band[0] <= c && c <= h.band[1];
@@ -161,7 +168,8 @@ export function buildAtlas({ D, rates, grid, kits, checkpoints, styles }) {
   const townSkills = [...Object.keys(GATHER), ...Object.keys(D.RECIPES)];
   const town = {};
   for (const skill of townSkills) {
-    const bench = T.hoursTo99(skill), chain = GATHER[skill] ? null : T.hoursTo99(skill, { chain: true });
+    let bench = null, chain = null;
+    try { bench = T.hoursTo99(skill); chain = GATHER[skill] ? null : T.hoursTo99(skill, { chain: true }); } catch { /* a skill the XP table does not know (a selftest's planted bench) */ }
     town[skill] = { hoursTo: bench ? Object.fromEntries(Object.entries(bench.to).map(([k, v]) => [k, r3(v)])) : null,
       chainHoursTo: chain ? Object.fromEntries(Object.entries(chain.to).map(([k, v]) => [k, r3(v)])) : null,
       daysTo99: { at12: bench ? r3(bench.to[99] / 12) : null, at4: bench ? r3(bench.to[99] / 4) : null },

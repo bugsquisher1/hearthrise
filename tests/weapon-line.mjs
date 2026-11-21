@@ -30,6 +30,12 @@
 //        the line, the Duskwood Codex and full Duskweave hits at most 1.3 times the warhammer (style-gear SG-8's bar,
 //        lane/d-mage-110), so the line can't re-open the Mage gap.
 //   WL10 THE FIRST LEVEL IS MEASURED: WEAPON_FIRST_LEVEL is what weapon-power.mjs firstLevel measures for each family.
+//   WL11 AT THE EXCHANGE RATES (lane/c-pace, balance program 44 R11; src/data/gear-curve.js GEAR_EXCHANGE): (a) each sample row's numbers
+//        are its line's at its Level spent on its `buy` at the published rates, nothing typed; (b) each rate holds the measure: a critical
+//        chance is billed what the engine's critical blow adds (critMult - 1); a bane, its class's thickest share of a late ground's kill
+//        health (pace or safety weighted, Levels 110 to 300), never under it and at most 0.02 over (a stale rate overcharges), and a class
+//        with no rate pays in full; more accuracy is billed at least what it measures on every late ground for every family, and the rate
+//        is no more than a quarter over the most it measures. A red in (b) means re-derive that one rate.
 //
 //   node tests/weapon-line.mjs            the guard
 //   node tests/weapon-line.mjs --mutate   each rule driven red by a defect planted on a copy of the data
@@ -43,7 +49,8 @@ import { isMain } from './_is-main.mjs';
 import { ITEMS, MONSTERS } from '../src/data/catalogue-coherence.js';
 import { HUNT_GROUNDS } from '../src/data/hunt-grounds.js';
 import { HUNT_INDEX } from '../src/data/hunts.js';
-import { GEAR_LADDERS } from '../src/data/gear-tiers.js';
+import { GEAR_LADDERS, WEAPON_LINES } from '../src/data/gear-tiers.js';
+import { GEAR_CURVE, GEAR_EXCHANGE, lineAt } from '../src/data/gear-curve.js';
 import { SPECIAL_ATTRIBUTES, SPECIAL_SAMPLE } from '../src/data/special-attributes.js';
 import { LINE_SAMPLE } from '../tools/balance-sim/staged/armor-line.js';
 import * as LINE from '../tools/balance-sim/staged/weapon-line.js';
@@ -63,6 +70,12 @@ const MAGE_BAR = 1.3;
 /* the Levels the line is read at for the Mage bar: the late grounds' floors, the next region and Level 200 */
 const LINE_LEVELS = Object.freeze([110, 112, 125, 145, 165, 185, 200]);
 const DUSKWEAVE = Object.freeze(['duskweave_helmet', 'duskweave_body', 'duskweave_pants', 'duskweave_boots', 'duskweave_gloves', 'duskweave_belt']);
+/* WL11: the Levels a bane's class share is read at, the Levels and shares more accuracy is measured at, and how far over its share a bane rate
+   (or over its worth the accuracy rate) may sit before it reads stale */
+const SHARE_LEVELS = Object.freeze([GEAR_CURVE.anchor, 117, 140, 165, 200, 300]);
+const ACC_LEVELS = Object.freeze([112, 117, 125, 140, 165, 200, 300]);
+const ACC_SHARES = Object.freeze([0.1, 0.2, 0.5]);
+const BANE_SLACK = 0.02, ACC_SLACK = 1.25;
 const round5 = (n) => Math.max(1, Math.round(n / 5) * 5);
 
 function srcFiles(dir, out = []) {
@@ -94,8 +107,9 @@ function attributesOf(row) {
 const maxHitOf = (equipment, items, L) => combat.playerCombatRolls({ def: 0, tier: 1 }, { items, equipment,
   skills: { melee: skillXpForLevel('melee', L), magic: skillXpForLevel('magic', L) }, profile: deriveProfile(items[equipment.weapon].weaponType) }).maxHit;
 
-/** Every broken rule, as strings. Empty = sound. `open`: what importers() and homes() answer, and the region grid (`grid`). */
-export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
+/** Every broken rule, as strings. Empty = sound. `open`: what importers() and homes() answer, and the region grid (`grid`). `X`: the weapon
+    exchange rates (src/data/gear-curve.js GEAR_EXCHANGE.weapon). */
+export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}, X = GEAR_EXCHANGE.weapon) {
   open = { importers: importers(), homes: homes(), grid: MORROW_GRID, ...open };
   const out = [];
   const S = line.WEAPON_SAMPLE, B = line.WEAPON_LINE_BASE;
@@ -191,6 +205,50 @@ export function problems(line = LINE, A = SPECIAL_ATTRIBUTES, open = {}) {
     const peers = ids.filter((o) => o !== id && S[o].family === s.family && S[o].row.reqLv === L);
     if (peers.length && wins.length === G.length) out.push('WL4 ' + id + ': at Level ' + L + ' it wins on every late ground over ' + peers.join(', ') + ': one piece dominates its slot');
   }
+  /* WL11 (a): each row is its line's budget spent on its `buy` at the rates, every number the arithmetic's */
+  for (const id of ids) {
+    const s = S[id], row = s.row, ln = WEAPON_LINES[s.family];
+    if (!s.buy) { out.push('WL11 ' + id + ': no `buy`, so its numbers are typed and not spent at the exchange rates'); continue; }
+    let want;
+    try { want = lineAt(ln, row.reqLv, { ...s.buy, share: line.blowShare(s.family, row.reqLv) }, X); } catch (e) { out.push('WL11 ' + id + ': ' + e.message); continue; }
+    for (const k of [...line.LINE_FIELDS, 'critB']) if ((row[k] === undefined ? null : row[k]) !== (want[k] === undefined ? null : want[k])) out.push('WL11 ' + id + '.' + k + ' = ' + row[k] + ', its line at ' + row.reqLv + ' spent on its buy at the rates is ' + want[k]);
+    if (JSON.stringify(row.bane || null) !== JSON.stringify(want.bane || null)) out.push('WL11 ' + id + '.bane = ' + JSON.stringify(row.bane) + ', its buy says ' + JSON.stringify(want.bane));
+  }
+  /* WL11 (b): the rates hold the measure. A critical chance: what the engine's critical blow adds. */
+  if (Math.abs(X.crit - (combat.COMBAT_BALANCE.critMult - 1)) > 1e-9) out.push('WL11 the crit rate is ' + X.crit + ', a critical blow adds ' + (combat.COMBAT_BALANCE.critMult - 1) + ' of a blow');
+  /* A bane: its class's thickest share of a late ground's kill health, by pace (spawn weight x health) or safety (x each head's threat) */
+  const thickest = {};
+  for (const L of SHARE_LEVELS) for (const g of G) {
+    const pace = {}, safe = {};
+    let P0 = 0, S0 = 0;
+    for (const sp of P.spawnsOf(g)) {
+      const m = MONSTERS[sp.monster], c = classOfMonster(m), k = sp.w * m.hp, t = k * P.threat(m, L);
+      if (!c) continue;
+      pace[c] = (pace[c] || 0) + k; safe[c] = (safe[c] || 0) + t; P0 += k; S0 += t;
+    }
+    for (const c of Object.keys(pace)) thickest[c] = Math.max(thickest[c] || 0, pace[c] / P0, safe[c] / S0);
+  }
+  for (const [c, share] of Object.entries(thickest)) {
+    const r = Object.prototype.hasOwnProperty.call(X.bane, c) ? X.bane[c] : null;
+    if (r === null) out.push('WL11 ' + c + ' lives on a late ground (' + share.toFixed(3) + ' of one) and has no bane rate: re-derive');
+    else if (r < share - 1e-9) out.push('WL11 a bane of ' + c + ' is billed ' + r + ', the class is ' + share.toFixed(3) + ' of a late ground: re-derive');
+    else if (r > share + BANE_SLACK) out.push('WL11 a bane of ' + c + ' is billed ' + r + ', stale: the class is at most ' + share.toFixed(3) + ' of a late ground');
+  }
+  if (!(X.baneElse >= 1)) out.push('WL11 a class no late ground holds pays ' + X.baneElse + ' of its bane, under in full: a new ground could put an old bane over the line');
+  /* More accuracy: billed at least what it measures (the worst ratio over the line, on every late ground, every family), and not far over */
+  let most = 0;
+  for (const fam of Object.keys(B)) for (const L of ACC_LEVELS) {
+    const ln = P.lineRow(fam, L), field = WEAPON_LINES[fam] && WEAPON_LINES[fam].acc;
+    if (!ln || !field) continue;
+    for (const x of ACC_SHARES) {
+      const worth = Math.max(...P.againstLine({ ...ln, [field]: Math.round(ln[field] * (1 + x)) }, fam, L, G).map((r) => r.ratio)) - 1;
+      const per = worth / (x * GEAR_CURVE.anchor / Math.max(GEAR_CURVE.anchor, L));
+      most = Math.max(most, per);
+      if (per > X.accuracy + 1e-9) out.push('WL11 ' + fam + ' at ' + L + ': ' + (x * 100) + '% more accuracy measures ' + (worth * 100).toFixed(2) + '% of a blow, the rate bills ' + (X.accuracy * x * GEAR_CURVE.anchor / Math.max(GEAR_CURVE.anchor, L) * 100).toFixed(2) + '%: re-derive');
+    }
+  }
+  if (most > 0 && X.accuracy > most * ACC_SLACK) out.push('WL11 the accuracy rate ' + X.accuracy + ' is stale: the most it measures is ' + most.toFixed(4));
+
   /* WL9 */
   const mage = (L, items) => maxHitOf({ weapon: '__wand', shield: 'duskwood_codex', ...Object.fromEntries(DUSKWEAVE.map((d) => [ITEMS[d] ? ITEMS[d].slot : d, d])) }, items, L);
   const hammers = LINE_LEVELS.map((L) => [L, P.lineRow('warhammer', L), 'the line\'s warhammer'])
@@ -254,6 +312,17 @@ const MUTANTS = [
   ['text that leads with flavour', 'WL8', (L) => { L.WEAPON_SAMPLE.hoist_hooks.text = 'The Carters dragged the dead on these. They hurt the dead.'; }],
   ['the wand line carries the Mage past the bar', 'WL9', (L) => { L.WEAPON_LINE_BASE.wand.magicStrB = 90; }],
   ['the first Level written, not measured', 'WL10', (L) => { L.WEAPON_FIRST_LEVEL = { ...LINE.WEAPON_FIRST_LEVEL, hatchets: 112 }; }],
+  /* WL11: the sample at the exchange rates, and the rates against the measure */
+  ['the hooks typed a point off their arithmetic (the old hand fit)', 'WL11', (L) => { L.WEAPON_SAMPLE.hoist_hooks.row.strB = 47; }],
+  ['the mallet bought more accuracy than its buy', 'WL11', (L) => { L.WEAPON_SAMPLE.dunns_mallet.row.atkB = 70; }],
+  ['a row with no buy (a hand fit)', 'WL11', (L) => { delete L.WEAPON_SAMPLE.limewashed_sword.buy; }],
+  ['the crit rate under the engine\'s critical blow', 'WL11', (L, A, o, X) => { X.crit = 0.4; }],
+  ['the human bane billed under its share', 'WL11', (L, A, o, X) => { X.bane.human = 0.3; }],
+  ['a stale undead rate', 'WL11', (L, A, o, X) => { X.bane.undead = 0.9; }],
+  ['a late class with no rate', 'WL11', (L, A, o, X) => { delete X.bane.vermin; }],
+  ['an unpriced class paid under in full', 'WL11', (L, A, o, X) => { X.baneElse = 0.5; }],
+  ['the accuracy rate under its worth', 'WL11', (L, A, o, X) => { X.accuracy = 0.03; }],
+  ['a stale accuracy rate', 'WL11', (L, A, o, X) => { X.accuracy = 0.08; }],
 ];
 
 function mutate() {
@@ -261,9 +330,9 @@ function mutate() {
   if (clean.length) { console.error('weapon-line --mutate: the clean arm is RED, so no mutant proves anything:\n  ' + clean.join('\n  ')); return 1; }
   let escaped = 0;
   for (const [name, rule, plant] of MUTANTS) {
-    const L = lineCopy(), A = structuredClone(SPECIAL_ATTRIBUTES), o = { importers: importers(), homes: homes() };
-    plant(L, A, o);
-    const got = problems(L, A, o);
+    const L = lineCopy(), A = structuredClone(SPECIAL_ATTRIBUTES), o = { importers: importers(), homes: homes() }, X = structuredClone(GEAR_EXCHANGE.weapon);
+    plant(L, A, o, X);
+    const got = problems(L, A, o, X);
     const caught = got.some((p) => p.startsWith(rule + ' '));
     console.log((caught ? '  caught  ' : '  ESCAPED ') + rule + '  ' + name + (caught ? '' : '  (got: ' + (got[0] || 'nothing') + ')'));
     if (!caught) escaped++;

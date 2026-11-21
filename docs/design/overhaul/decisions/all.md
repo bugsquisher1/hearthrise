@@ -242,7 +242,9 @@ In a reason, "I" is the decider. Only a ruling id or date cites Tyler.
 
 Kept hidden for later, not cut: Capture the flag (MM-46). The clan's shared hunt (MM-48). The status pairs of GR-20 (paper only). Kindlings (GR-61, paper only). The other 36 Catacombs pieces (GR-36). The second dropped seed (GR-77). Bulk commissions (GR-44). Side against side (GR-71).
 
-## Still missing
+## Still missing, as the review listed it
+
+The full list, with every chapter's open items, is section 7 of `00-the-game.md`.
 
 | What | Where | Owner |
 |---|---|---|

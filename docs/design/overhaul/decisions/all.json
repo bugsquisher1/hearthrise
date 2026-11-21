@@ -436,7 +436,7 @@
     ],
     "plan": "Step A of the systems plan in docs/design/systems-intelligence/00-plan.md."
   },
-  "missing": [
+  "missingNamedByTheReview": [
     {
       "what": "What it costs to reforge a unique up a band",
       "where": "03-items-and-crafting.md section 5, item 3",
@@ -508,6 +508,7 @@
       "owner": "The matrix lane, with the game designer"
     }
   ],
+  "missingInFull": "docs/design/overhaul/00-the-game.md section 7 and the missing list of docs/design/balance-program/62-decision-book.json",
   "rows": [
     {
       "id": "C3",

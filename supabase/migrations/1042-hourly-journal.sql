@@ -1,11 +1,11 @@
 -- ════════════════════════════════════════════════════════════════════════
--- supabase/migrations/1037-hourly-journal.sql — THE HOURLY JOURNAL: ONE ROW A HERO AN HOUR AN ACTIVITY
+-- supabase/migrations/1042-hourly-journal.sql — THE HOURLY JOURNAL: ONE ROW A HERO AN HOUR AN ACTIVITY
 --   (lane/c-settle-cost FB-4, reliability-engineer, 2026-11-21; build plan 13 section 2.6 FB-4, 30-plan L13, study 48 sections
 --   3 and 9, 28-platform.md change 3). Starts from the parked lane/c-ledger-fold (37484cfe1): its meta model (hr_ledger_fold_model,
 --   hr_ledger_meta_plan, hr_ledger_meta_merge) is taken whole, with three keys added; its separate window table, its three days
 --   of detail and its irreversible arm file are retired (why, below).
 --
--- STATUS: supabase/migration-notes/1037-hourly-journal.sql.json (STAGED until the Coordinator applies it).
+-- STATUS: supabase/migration-notes/1042-hourly-journal.sql.json (STAGED until the Coordinator applies it).
 -- ORDER: the sequence in this file's name (CLAUDE.md rule 12): it runs after every file on its base.
 -- Applied as ONE transaction by the apply tool; never begin/commit here. Ends with its §4 self-check.
 --
@@ -79,11 +79,11 @@ begin
      or to_regprocedure('public.hr_utc_day_start(timestamptz)') is null then
     raise exception 'PRECONDITION: the journal, its config, its rollup or the cron helper is missing'; end if;
   for v_r in select * from (values
-    ('public.hr_ledger_immutable()', '677a4bd4e9f3a3fb2d43a369e3408b01', 'd529bb6bca1c11ac326c92f34626219e'),
+    ('public.hr_ledger_immutable()', '677a4bd4e9f3a3fb2d43a369e3408b01', '039456254ffd7d9e3461ab27e5d2de38'),
     ('public.hr_ledger_prune(integer)', '373aa1f22cca7ded4825c9f9f20db974', 'ed3c4cdf57969c5435b6703e23dd4ddc'),
-    ('public.hr_hunt_accrue_fence()', '05d182d69f5b39c4064d3c421ff5f1e8', '80a8ccd276d25cc3d0c49d994526b4d8'),
-    ('public.hr_ledger_session_stamp()', '75c356e5ecf8b6eb298acd4db0726b43', 'c71bba35de5b2061722a0eb638795808'),
-    ('public.hr_ledger_stamp_purse()', '8f029253847b37a2ce23e38aa7644039', 'cdf1a7509e01598daf7f1e1160b7f9ad'),
+    ('public.hr_hunt_accrue_fence()', '05d182d69f5b39c4064d3c421ff5f1e8', 'b4d3fb1a97ac2748f65ecda63afaf59c'),
+    ('public.hr_ledger_session_stamp()', '75c356e5ecf8b6eb298acd4db0726b43', 'e4178cfa82bea181d42b44da3cea5831'),
+    ('public.hr_ledger_stamp_purse()', '8f029253847b37a2ce23e38aa7644039', 'e58a670016c886b3cf95bcffe9733884'),
     ('public.hr_tick_stall_status(timestamptz,integer,integer)', '0075c410c183917969b5311e70796547', '360cac1f6f4e7e6b60208e486dd1f8b8'),
     ('public.hr_day_budget_used(uuid,integer,timestamptz)', 'd59854a9d27baf52fdfbbbaf04b44602', 'fffd1b5def8cdf306cbec1ff2be2f9c9')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
@@ -102,7 +102,7 @@ begin
     alter table public.player_ledger add constraint player_ledger_folded_ck check (folded is null or folded >= 1) not valid; end if;
 end $mig$;
 comment on column public.player_ledger.folded is
-  'NULL = one row as written. N = an hour row (1037-hourly-journal.sql): the sums of N rows of one hero, hour and activity; at = the hour''s start, meta.session = the hunt session.';
+  'NULL = one row as written. N = an hour row (1042-hourly-journal.sql): the sums of N rows of one hero, hour and activity; at = the hour''s start, meta.session = the hunt session.';
 
 alter table public.hr_ledger_config add column if not exists hourly boolean not null default true;
 alter table public.hr_ledger_config add column if not exists detail_minutes int not null default 180;
@@ -111,7 +111,7 @@ begin
   if not exists (select 1 from pg_constraint where conrelid = 'public.hr_ledger_config'::regclass and conname = 'hr_ledger_config_detail_minutes_ck') then
     alter table public.hr_ledger_config add constraint hr_ledger_config_detail_minutes_ck check (detail_minutes between 130 and 10080); end if;
 end $mig$;
-comment on column public.hr_ledger_config.hourly is 'The hourly journal''s switch (1037-hourly-journal.sql). false: hr_ledger_hours_fold folds nothing.';
+comment on column public.hr_ledger_config.hourly is 'The hourly journal''s switch (1042-hourly-journal.sql). false: hr_ledger_hours_fold folds nothing.';
 comment on column public.hr_ledger_config.detail_minutes is 'How long a settle row keeps its detail before its hour folds. Never under 130: hr_tick_stall_status reads two hours of it.';
 
 create table if not exists public.hr_ledger_hours_state (
@@ -261,7 +261,7 @@ begin
     select retain_days, detail_minutes into v_c from public.hr_ledger_config;
     v_keep := v_c.retain_days;
     if old.at >= now() - make_interval(days => coalesce(v_keep, 90)) then
-      -- HOURLY-JOURNAL (1037-hourly-journal.sql): the fold deletes the detail it has just summed into hour rows, in the same
+      -- HOURLY-JOURNAL (1042-hourly-journal.sql): the fold deletes the detail it has just summed into hour rows, in the same
       -- statement (its own proof checks the sums). Only under its transaction-local flag, only a foldable shape older than
       -- detail_minutes, and never an hour row. (Which rows it selects, never one before the release, is the fold's.)
       if coalesce(current_setting('hr.ledger_fold', true), '') = 'on' and old.folded is null
@@ -289,19 +289,19 @@ begin
      $a$begin
   select h.id into v_s from public.hunt_sessions h$a$,
      $b$begin
-  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1037): an hour row is the fold's, never a settle
+  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1042): an hour row is the fold's, never a settle
   select h.id into v_s from public.hunt_sessions h$b$),
     (2, 'public.hr_ledger_session_stamp()',
      $a$begin
   if v_s ~ '^[0-9a-f]{8}$a$,
      $b$begin
-  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1037): an hour row names its session in meta only
+  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1042): an hour row names its session in meta only
   if v_s ~ '^[0-9a-f]{8}$b$),
     (3, 'public.hr_ledger_stamp_purse()',
      $a$begin
   if coalesce(new.gold, 0) = 0 and new.purse is null then return new; end if;$a$,
      $b$begin
-  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1037): an hour row keeps its last row's purse
+  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1042): an hour row keeps its last row's purse
   if coalesce(new.gold, 0) = 0 and new.purse is null then return new; end if;$b$),
     -- THE ROLLUP COUNTS THE ROWS AN HOUR ROW SUMS (its `n` is journal rows, as written)
     (4, 'public.hr_ledger_prune(integer)',

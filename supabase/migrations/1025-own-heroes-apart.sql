@@ -60,8 +60,8 @@ begin
     ('public.hr_hunt_party_view(uuid,integer)', '5f757059dc037b465c1c65a3da94ad5c', '3457eceb61842396d1ad70b287578cae')) t(fn, pre, post) loop
     select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_r.fn);
     if v_md5 is null then raise exception 'PIN: % is missing', v_r.fn; end if;
-    -- A RETRY AFTER 1036-settle-plans.sql (staged after this file) finds the instance read at 1036's image: this file's splice
-    -- already in it, plus 1036's two offset-0 fences. The splice below then finds its post text and moves nothing.
+    -- A RETRY AFTER 1041-settle-plans.sql (staged after this file) finds the instance read at 1041's image: this file's splice
+    -- already in it, plus 1041's two offset-0 fences. The splice below then finds its post text and moves nothing.
     if v_md5 is distinct from v_r.pre and v_md5 is distinct from v_r.post
        and not (v_r.fn = 'public.hr_hunt_instance_read(uuid,integer)' and v_md5 = '43c031340d414ede76522755f7060233') then
       raise exception 'PIN: % is neither the image this file was written against (%) nor its own (%): md5 % - another file moved it; re-pin', v_r.fn, v_r.pre, v_r.post, v_md5;

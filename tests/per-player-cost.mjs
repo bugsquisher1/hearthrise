@@ -51,7 +51,7 @@
 //   party_reads_a_settle      hr_hunt_instance_read calls a landed settle (median; track_functions = all): exact, 0%. READ ONCE
 //                             (study 48 section 8): the settle read's `r` CTE is materialized, so the party is read once a settle,
 //                             not once a reference (3 a closed save inlined). 0 on the town fixture, which reads no party
-//   member_reads_a_settle     hr_hunt_member_read calls a landed settle (median): exact, 0%. One a member (1036-settle-plans.sql's
+//   member_reads_a_settle     hr_hunt_member_read calls a landed settle (median): exact, 0%. One a member (1041-settle-plans.sql's
 //                             offset-0 fences: unfenced, the instance read made 6 a member)
 //   settle_cpu_ms_a_hero_hour the settle's time a hero-hour (PGlite and the engine, both in this process), as CPU time and not wall
 //                             time (cpuMs below: a loaded box doubles the wall), in THIS run's calibration: the baseline holds the
@@ -462,7 +462,7 @@ const UNIT_ROW = `
   create trigger hr_planted_unit_tally after insert or update on public.hunt_session_tally for each row execute function public.hr_planted_unit_rows();
   create trigger hr_planted_unit_bag after insert or update or delete on public.player_inventory for each row execute function public.hr_planted_unit_rows();`;
 
-/* THE PLANT `member_unfenced`: the instance read and the member read without 1036-settle-plans.sql's offset-0 fences (rolled back). */
+/* THE PLANT `member_unfenced`: the instance read and the member read without 1041-settle-plans.sql's offset-0 fences (rolled back). */
 async function unfence(db) {
   for (const fn of ['public.hr_hunt_instance_read(uuid,integer)', 'public.hr_hunt_member_read(public.hunt_sessions)']) {
     const def = String(await one(db, 'select pg_get_functiondef($1::regprocedure)', [fn]));

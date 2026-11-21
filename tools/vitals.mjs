@@ -412,7 +412,7 @@ function capacityLine(row) {
   const pct = (v) => (v === null || v === undefined ? 'n/a' : `${Number(v)}%`);
   // A null wall (unreadable) is Number(null) = 0, under any alarm line (capacity_config's check keeps it above 0).
   const over = ['db', 'tick', 'edge', 'ledger'].filter((w) => Number(row[`${w}_pct`]) >= Number(row.alarm_pct ?? 70));
-  /* THE SETTLE READ (1036-settle-plans.sql): its mean beside db, red over settle_read_alarm_ms (40); null (no read, or before 1036) never is */
+  /* THE SETTLE READ (1041-settle-plans.sql): its mean beside db, red over settle_read_alarm_ms (40); null (no read, or before 1041) never is */
   const readMs = row.settle_read_ms === null || row.settle_read_ms === undefined ? null : Number(row.settle_read_ms);
   if (readMs !== null && readMs > Number(row.settle_read_alarm_ms ?? 40)) over.push('settle-read');
   const stale = Number(row.age_s) > 180 ? ` STALE (${row.age_s} s old: is the job running?)` : '';
@@ -422,11 +422,11 @@ function capacityLine(row) {
     + ` (${row.ledger_rows_day ?? '?'} rows/day); alarm at ${row.alarm_pct ?? 70}%`
     + `${(row.open_walls || []).length ? `, open episodes ${row.open_walls.join(' ')}` : ''}${stale}`;
 }
-/** THE HOURLY JOURNAL'S FOLD (1037-hourly-journal.sql), one line from its state row and the ledger config (pure: --selftest feeds it).
+/** THE HOURLY JOURNAL'S FOLD (1042-hourly-journal.sql), one line from its state row and the ledger config (pure: --selftest feeds it).
     BEHIND when the hour it has reached is more than detail_minutes + 2 h old (the cron stopped, or a run cannot finish an hour);
     FAILING when its last run kept a hero-hour's detail on an error. Switched off reads OFF, never OK. */
 function journalFoldLine(row) {
-  if (!row || !row.s) return 'journal fold: NO STATE (1037-hourly-journal.sql not applied, or its state row was lost: the next run recreates it)';
+  if (!row || !row.s) return 'journal fold: NO STATE (1042-hourly-journal.sql not applied, or its state row was lost: the next run recreates it)';
   const s = row.s; const c = row.c || {}; const last = s.last || {};
   if (c.hourly === false || String(c.hourly) === 'false') return 'journal fold: OFF (hr_ledger_config.hourly = false: every new row keeps its detail)';
   const lagH = (Date.parse(row.now) - Date.parse(s.hour)) / 3600000;
@@ -468,7 +468,7 @@ const CAPACITY = `select s.at, round(extract(epoch from now() - s.at)) as age_s,
     (select alarm_pct from hr_ops.capacity_config where id) as alarm_pct,
     (select coalesce(jsonb_agg(code), '[]'::jsonb) from hr_ops.watch_state where code like 'capacity-%') as open_walls
   from hr_ops.capacity_samples s order by s.at desc, s.id desc limit 1`;
-/* THE HOURLY JOURNAL'S FOLD (1037-hourly-journal.sql): its one state row and the ledger dials, as JSON (journalFoldLine). */
+/* THE HOURLY JOURNAL'S FOLD (1042-hourly-journal.sql): its one state row and the ledger dials, as JSON (journalFoldLine). */
 const JOURNAL_FOLD = `select to_jsonb(s) as s, (select to_jsonb(c) from public.hr_ledger_config c limit 1) as c, now() as now
   from public.hr_ledger_hours_state s`;
 /* CLOSED MODE'S PRE-REQUEST HOOK (closedGateVerdict). A missing flag row reads
@@ -776,7 +776,7 @@ async function selftest() {
     t('K4 a sample over 3 minutes old says STALE', /STALE/.test(K({ age_s: 400 })), true);
     t('K5 no sample -> NO SAMPLE, never OK', /NO SAMPLE/.test(K(null)), true);
     t('K6 the settle read over 40 ms (a string) -> AT THE WALL settle-read', head(K({ settle_read_ms: '41.5', settle_read_alarm_ms: '40' })), 'capacity: AT THE WALL settle-read');
-    t('K7 the settle read unread (null, before 1036) is never AT THE WALL', head(K({ settle_read_ms: null })), 'capacity: OK');
+    t('K7 the settle read unread (null, before 1041) is never AT THE WALL', head(K({ settle_read_ms: null })), 'capacity: OK');
     t('K8 the settle read at 40 ms is OK (red OVER the line)', head(K({ settle_read_ms: 40, settle_read_alarm_ms: 40 })), 'capacity: OK');
     const J = (s, c = { hourly: true, detail_minutes: 180 }) => L.journalFoldLine(s === null ? null
       : { now: '2026-11-21T12:00:00Z', c, s: { hour: '2026-11-21T08:00:00Z', rows_in: 900, rows_out: 30, last: { rows_in: 90, rows_out: 3, errors: 0 }, ...s } });
@@ -990,11 +990,11 @@ if (selftestMode) {
     } catch (e) {
       console.log(`capacity: UNREAD — ${e.message}; is 1002-ops-capacity-sample.sql applied?`);
     }
-    // THE HOURLY JOURNAL'S FOLD (1037-hourly-journal.sql): its cursor, its last run.
+    // THE HOURLY JOURNAL'S FOLD (1042-hourly-journal.sql): its cursor, its last run.
     try {
       console.log(journalFoldLine((await ask(JOURNAL_FOLD, { soft: true }))[0]));
     } catch (e) {
-      console.log(`journal fold: UNREAD — ${e.message}; is 1037-hourly-journal.sql applied?`);
+      console.log(`journal fold: UNREAD — ${e.message}; is 1042-hourly-journal.sql applied?`);
     }
   }
 }

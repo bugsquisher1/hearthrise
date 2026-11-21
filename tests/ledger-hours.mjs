@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // ════════════════════════════════════════════════════════════════════════
 // tests/ledger-hours.mjs — THE HOURLY JOURNAL ON A PLAYED DAY: EVERY DAY READ IS THE SAME, THE ROWS ARE NOT
-//   (supabase/migrations/1037-hourly-journal.sql; lane/c-settle-cost FB-4, build plan 13 section 2.6; 30-plan L13)
+//   (supabase/migrations/1042-hourly-journal.sql; lane/c-settle-cost FB-4, build plan 13 section 2.6; 30-plan L13)
 //
 //   node tests/ledger-hours.mjs            the guard (replays the chain, plays the shipped engine)
-//   node tests/ledger-hours.mjs --mutate   each planted defect turns its arm red (1037's own self-check off, so this file catches it)
+//   node tests/ledger-hours.mjs --mutate   each planted defect turns its arm red (1042's own self-check off, so this file catches it)
 //
-// mutant-anchors: supabase/migrations/1037-hourly-journal.sql
+// mutant-anchors: supabase/migrations/1042-hourly-journal.sql
 //
 // ── WHAT IT PLAYS ──────────────────────────────────────────────────────────
 // Four of tests/per-player-cost.mjs's fixtures through their own doors with the SHIPPED edge: a lone hero and the supply-heavy
@@ -36,7 +36,7 @@ import { FIXTURES, measure } from './per-player-cost.mjs';
 import { isMain } from './_is-main.mjs';
 
 const { loadEdge, pinDice, one, q, makeExec, groundsOf } = HARNESS;
-const MIG = '1037-hourly-journal.sql';
+const MIG = '1042-hourly-journal.sql';
 const PLAY = Object.freeze(['lone_L10_meadowbrook_thicket', 'supply4_L50_hasks_ford_deadly', 'krell4_L80_deadly_watched', 'town_hour_bench']);
 const SPREAD_S = 15;
 
@@ -238,9 +238,9 @@ async function runAll(patches) {
   return { red, lines };
 }
 
-/* Each defect, with 1037's own self-check off (so the replay applies it and this file must catch it). */
+/* Each defect, with 1042's own self-check off (so the replay applies it and this file must catch it). */
 const SELFCHECK_OFF = ["begin\n  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_ledger' and column_name = 'folded')",
-  "begin\n  return;   -- MUTANT: 1037's self-check off\n  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_ledger' and column_name = 'folded')"];
+  "begin\n  return;   -- MUTANT: 1042's self-check off\n  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'player_ledger' and column_name = 'folded')"];
 const MUTANTS = [
   { name: 'an hour row drops its gold_in (and the fold\'s proof is gone)', arm: /CONSERVE .* (budget|rows|rollup)/, file: MIG,
     edits: [SELFCHECK_OFF, ['sum(s.gold_in)::bigint as gold_in', '0::bigint as gold_in'],
@@ -255,7 +255,7 @@ const MUTANTS = [
   { name: 'an hour row names its session in the column (a session reader counts it again)', arm: /NEXT-SAVE/, file: MIG,
     edits: [SELFCHECK_OFF, ['    insert into public.player_ledger (user_id, slot, kind, intent, gold_kind, gold,', '    insert into public.player_ledger (session_id, user_id, slot, kind, intent, gold_kind, gold,'],
       ['    select g.user_id, g.slot, g.kind, g.intent, g.gold_kind, g.gold,', '    select g.session_id, g.user_id, g.slot, g.kind, g.intent, g.gold_kind, g.gold,'],
-      ["  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1037): an hour row names its session in meta only\n", '']] },
+      ["  if new.folded is not null then return new; end if;   -- HOURLY-JOURNAL (1042): an hour row names its session in meta only\n", '']] },
   { name: 'a delete without the fold\'s flag passes the fence', arm: /FENCE: a delete without/, file: MIG,
     edits: [SELFCHECK_OFF, ["      if coalesce(current_setting('hr.ledger_fold', true), '') = 'on' and old.folded is null", '      if old.folded is null']] },
   { name: 'the day budget counts hour rows as one row', arm: /CONSERVE .* budget/, file: MIG,

@@ -2642,7 +2642,7 @@ jobs:
           node tests/ledger-rollup.mjs
           node tools/mutant-gate.mjs node tests/ledger-rollup.mjs --mutate
 
-      # THE HOURLY JOURNAL (1037-hourly-journal.sql, FB-4). Plays four fixtures through their own doors, spreads their journal
+      # THE HOURLY JOURNAL (1042-hourly-journal.sql, FB-4). Plays four fixtures through their own doors, spreads their journal
       # across a UTC midnight, folds it into hour rows and reads every day read before and after (day budget, the store's day
       # cap, meta sums, journal rows, the monthly rollup by running the prune): all the same. Both doors save on after a fold;
       # the cron's cursor keeps rows before the release and inside detail_minutes; the fence and the switch. --mutate: 10 defects.

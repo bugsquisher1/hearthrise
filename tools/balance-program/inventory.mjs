@@ -157,7 +157,7 @@ export function render({ anchors, verdict, systems = SYSTEMS, audit = auditLines
       const doors = by(s.id, DOOR_KINDS).map((x) => x.replace(/^src\/shell\/windows\//, ''));
       const files = by(s.id, ['data', 'core', 'session', 'social', 'edge']).map((x) => x.replace(/^src\//, '').replace(/^supabase\/functions\//, 'edge:'));
       const tables = by(s.id, ['table']), fns = by(s.id, ['fn']);
-      const other = ['cron', 'switch', 'flag', 'unlock', 'sink', 'activity', 'skill', 'ground', 'mode', 'event', 'dungeon', 'recipe'].map((k) => [k, by(s.id, [k]).length]).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`);
+      const other = ['cron', 'switch', 'flag', 'unlock', 'sink', 'activity', 'skill', 'ground', 'mode', 'event', 'recipe'].map((k) => [k, by(s.id, [k]).length]).filter(([, n]) => n).map(([k, n]) => `${n} ${k}`);
       const rul = by(s.id, ['ruling']), docsN = mineOf.get(s.id).filter((a) => !isCode(a) && !WORK_KINDS.includes(a.kind) && a.kind !== 'ruling').length, work = by(s.id, WORK_KINDS);
       o += `| \`${s.id}\` ${cell(s.name)} | ${s.status} | ${doors.length ? some(doors, 5) : 'none'} | ${files.length ? some(files, 4) : 'none'} | ${[tables.length && `${tables.length} tables (${some(tables, 3)})`, fns.length && `${fns.length} functions`, ...other].filter(Boolean).join('; ') || 'none'} | ${[rul.length && `${rul.length} rulings (${some(rul.map((x) => x.replace('rulings-of-record.md:', '')), 4)})`, docsN && `${docsN} doc lines`, work.length && `${work.length} lanes or staged (${some(work, 2)})`].filter(Boolean).join('; ') || 'none'} | ${cell(s.uses)} | ${cell(s.gives)} | ${audit.get(s.id) || '**0**'} |\n`;
     }

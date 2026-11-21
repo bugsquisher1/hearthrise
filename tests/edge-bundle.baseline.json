@@ -133,6 +133,11 @@
         "bytes": 3171105,
         "on": "2026-11-21",
         "why": "lane/c-spell-rule: the boss adds tip and a gear-tiers note name Turning Cut, not the merged Cleave (+10 bytes)"
+      },
+      {
+        "bytes": 3164777,
+        "on": "2026-11-21",
+        "why": "cut locked in (6328 bytes)"
       }
     ]
   }

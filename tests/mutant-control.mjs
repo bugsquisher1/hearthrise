@@ -47,7 +47,6 @@ export const REGISTERED = [
   ['tests/world-tick-m4-party-horizon.mjs', '--mutate'],
   ['tests/world-tick-arm-combat.mjs', '--mutate'],
   ['tests/party-hunt-select-lockdown.mjs', '--mutate'],
-  ['tests/discord-gift.mjs', '--mutate'],
   ['tests/progress-coalesce.mjs', '--mutate'],
   ['tests/world-tick-writer-authz.mjs', '--mutate'],
   ['tests/leaderboard-lockdown-guard.mjs', '--mutate'],

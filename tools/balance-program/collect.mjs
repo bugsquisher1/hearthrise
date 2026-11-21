@@ -13,7 +13,7 @@
 //   database   the REPLAYED chain (tests/schema-replay.mjs, PGlite; raw: as the files leave it): tables,
 //              functions, hr_client_rpc_baseline, cron.job, hr_feature_switches, hr_flags, hr_state_sections,
 //              hr_unlocks, hr_unlock_offers' tables, hr_sink_rules, hr_activities' kinds, hr_skills,
-//              hr_hunt_grounds, hr_session_modes, hr_live_event_types, hr_dungeons
+//              hr_hunt_grounds, hr_session_modes, hr_live_event_types (hr_dungeons left with the old dungeons, 2026-11-20)
 //   edge       supabase/functions/** files and the intent registry's verbs
 //   work       unmerged origin/lane/* branches; staged migrations (tools/migration-note.mjs staged)
 //   docs       PRIORITY_BOARD (Decisions + Backlog headings), the two itemization docs, SYSTEMS_MAP
@@ -30,7 +30,7 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 export const CODE_KINDS = Object.freeze(['data', 'core', 'session', 'window', 'social', 'recipe', 'edge', 'verb',
-  'table', 'fn', 'rpc', 'cron', 'switch', 'flag', 'section', 'unlock', 'sink', 'activity', 'skill', 'ground', 'mode', 'event', 'dungeon']);
+  'table', 'fn', 'rpc', 'cron', 'switch', 'flag', 'section', 'unlock', 'sink', 'activity', 'skill', 'ground', 'mode', 'event']);
 export const WORK_KINDS = Object.freeze(['lane', 'staged']);
 export const DOC_KINDS = Object.freeze(['board', 'plan', 'map', 'ruling', 'memory', 'memfile']);
 /** Kinds that are a DOOR a player (or the page) reaches a system through. */
@@ -123,7 +123,6 @@ export async function collectDb(root) {
     for (const r of await q(`select hunt_id::text nm from public.hr_hunt_grounds order by 1`)) push('ground', r.nm);
     for (const r of await q(`select mode_id::text nm from public.hr_session_modes order by 1`)) push('mode', r.nm);
     for (const r of await q(`select type_id::text nm from public.hr_live_event_types order by 1`)) push('event', r.nm);
-    for (const r of await q(`select dungeon_id::text nm, kind::text k from public.hr_dungeons order by 1`)) push('dungeon', r.nm, r.k);
   } finally { await closeReplays(); }
   return out;
 }

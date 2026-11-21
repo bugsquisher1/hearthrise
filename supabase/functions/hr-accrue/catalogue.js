@@ -172,10 +172,10 @@ export const ITEM_EQUIP_SLOTS = Object.freeze(itemSlotIdx);
      · every `unlock`/`capacity` grant. Unlocks are `player_progress` rows and
        are deliberately absent from hr_apply's delta allowlist, so a delta
        proposing one is refused `unknown_delta_key`. That is 99 of the 128.
-     · every `gems`/`marks`/`hearth_tokens`/`usd` cost. `marks` has no server
-       column at all; `usd` is the platform's; gems and hearth tokens are real
-       columns but minting/spending them is a separate ruling (see the gold
-       grant intent's open question about gems having no daily budget).
+     · every `gems`/`marks`/`usd` cost. `marks` has no server column at all;
+       `usd` is the platform's; gems are a real column but minting/spending
+       them is a separate ruling (the Hearth Token bond and its column were cut
+       2026-11-20, plan L10).
      · every non-repeatable offer. "Buy once" needs a purchase record the
        server does not keep, and a cap that is not enforced is not a cap. */
 const OFFER_FIELDS_UNDERSTOOD = Object.freeze(['id', 'table', 'name', 'cost', 'grant', 'repeatable']);

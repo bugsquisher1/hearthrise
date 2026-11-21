@@ -12,7 +12,7 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 
 ---
 
-**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
+**The status words, re-issued 2026-11-21.** Tyler adopted the critical review (`review/00-critical-review.md`), and the book now uses three honest words. They replace the list above. **DECIDED** means evidence and rulings support it. Where Tyler also said yes on the page, the tag says so. **PROVISIONAL** means a reasonable plan that has not been tested, and the first tag in a chapter names what it waits on. **OPEN** means it waits on Tyler. **RULED** is kept only for what Tyler ruled knowing what it was: his typed words, his own executive decisions, and a pick where he wrote a note, and his answers at the sitting of 2026-11-21, where he saw every option's cost. A quick pick on the page is a real yes and reads "Tyler said yes on the page", never RULED. **PROPOSAL** marks a design made in the fold of 2026-11-21 that Tyler has not seen. CUT and KEPT record his picks on the cut list. The record is `decisions/all.json` and `00-the-game.md`.
 
 ## 1. The experience
 
@@ -134,13 +134,13 @@ Steps 9, 11 and 14 need features this chapter designs, and step 15 needs one pre
 
 ### 2.2 The company as one thing (GR-80)
 
-A party is the account's own four heroes, so nothing here waits on another player or another system. Starting and stopping four heroes one at a time is a decision repeated by hand, and the first principle calls that a design bug.
+A party is most often the account's own four heroes, so nothing here waits on another player. An on-call hero from another account can join (MM-18, ruled at the sitting, `11-on-call-and-clan-xp.md`, being written). Starting and stopping four heroes one at a time is a decision repeated by hand, and the first principle calls that a design bug.
 
 | Part | Rule | Status |
 |---|---|---|
 | **One plan** | Each hero has a plan: where it hunts (ground, tier, setup, bag lines), with whom, what it does when the hunt ends (its rest plan), and its standing choices (blessed, loot plan, spending budget). The company plan is the four plans on one card | PROVISIONAL (GR-80) |
 | | Any line can be set once and applied to all four. A new hero copies the plan of the hero it stands beside | PROVISIONAL (GR-80) |
-| | A ground remembers the Setup, tier and seats last used there, so nothing is picked twice. One Setup for each ground holds the weapon, the worn set, the linings, the bar and the target mode. It is saved once and can be copied to another hero or ground | DECIDED (GR-84, GR-48, Fable 2026-11-21, with GR-84 PROVISIONAL) |
+| | A ground remembers the Setup, tier and seats last used there, so nothing is picked twice. A Setup holds the weapon, the worn set, the linings, the bar and the target mode. A hero has three free Setup slots, then two more at 15,000 and 40,000 gold (RULED, GR-56a, the sitting). It is saved once and can be copied to another hero or ground | DECIDED (GR-84, GR-48, Fable 2026-11-21, with GR-84 PROVISIONAL) |
 | **One Start** | Carry on is one press for the account. Every hero does again what it did last time: same ground, tier, setup, party, bag lines, Blessings, Tamsin's task and loot by plan | RULED 2026-11-20 (27-1) |
 | | No hunt ever starts by itself. A hunt starts on a press made in a server-authorized session | RULED 2026-11-20 (27-1), 2026-10-18 |
 | | Own heroes form a party with no invite and no accept. The plan names the leader, and the leader's hunt settings are the party's | PROVISIONAL (GR-80). The leader rule is RULED 2026-10-20 |
@@ -317,7 +317,7 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | **The visit** | Twice a day free, once with Premium | The return card: the night in three lines, up to three decisions, Carry on | RULED 50-12. The card is PROVISIONAL (GR-80) |
 | **The day** | 12 hunted hours a hero | At least one Level for the pace seat in every 15 hunted hours to Level 300 (standard P12, chapter 05). Tamsin's tasks. Bestiary stages that pay Luck. Rare reveals | The 12 hour day is RULED. The reveal on every Rare is RULED 27-6 |
 | **The longest dry spell** | Hunted hours with no reward of any kind | At most 30 minutes under Level 10, 2 hours to Level 50, 6 hours to Level 110, 12 hours after | RULED direction 2026-10-25. Bands are standard X12 |
-| **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is PROVISIONAL (GR-37, waits on Deadly sized, and the system built). Six boards is RULED 27-4 |
+| **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is RULED (GR-3, Tyler 2026-11-21, the sitting7, waits on Deadly sized, and the system built). Six boards is RULED 27-4 |
 | **The Week card** | Shown on the first return after the turn | This week against your last week for the account: Levels, hours hunted, best find, Bestiary stages, Tower floor, rank moves and what just reset. It pays nothing, ever | PROVISIONAL (GR-84) |
 | **The weekend** | A four-weekend rotation written a year ahead as rows | The Hearthrise, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time | PROVISIONAL (MM-11, MM-3). The +25% cap is RULED 27-5 |
 | **The month** | One turn of the rotation | Each of the four weekends once. The Great Hearth's shared project | The Hearth merge is PROVISIONAL (GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page), a HYPOTHESIS |
@@ -350,7 +350,7 @@ There is one Premium for each account and it covers every hero (RULED 2026-11-20
 | What Premium never is | Status |
 |---|---|
 | The risk block of the hunt report | PROVISIONAL (GR-66, Tyler said yes on the page) |
-| Carry on, the company plan, the job queue, the return card, the copy actions and the first five saved setups. A feature that removes a repeated decision is the game, not a comfort | PROVISIONAL (GR-80, GR-56a, with GR-56a OPEN, waiting on Tyler, T-fix-3) |
+| Carry on, the company plan, the job queue, the return card, the copy actions and the first three saved Setups. The fourth and fifth are priced in gold (GR-56a). A feature that removes a repeated decision is the game, not a comfort | PROVISIONAL (GR-80, GR-56a, with GR-56a RULED at the sitting) |
 | A Level, a ground, a drop or a gear tier | RULED 2026-11-18 (monetization intent) |
 | More hunted hours than a free player can reach. Both reach 12 without a refill | RULED 2026-11-21 (50-12) |
 
@@ -378,11 +378,11 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 | The event calendar | Medium | Low | Yes | The MMO layer | Capped at +25% | Low. Rows, never run by hand | Yes | KEEP as a four-weekend rotation | PROVISIONAL (MM-11) |
 | The Rare reveal | High | None | Yes | Loot, the return card | None | Low | Yes | KEEP on every Rare | RULED 27-6 |
 | Setups, action sets and hunt presets | High. The identity feature | High | Three nouns for one idea | The bar, grounds | None | Medium | Yes | MERGE into one noun, "Setup", remembered for each ground. It holds the weapon, worn set, linings, bar and target mode, so the saved kit of GR-48 is the same thing | DECIDED (GR-84, GR-48, Fable 2026-11-21, with GR-84 PROVISIONAL) |
-| Paid setup slots 4 and 5 | None | None | No | Nothing | Not a sink | Negative | No | REMOVE the price | OPEN (GR-56a, waiting on Tyler, T-fix-3, chapter 04). His pick on cut 14 points the other way from reversal 13, so both are held |
+| Paid setup slots 4 and 5 | Low | None | A gold sink | The bar, grounds | 55,000 gold a hero | Low | Yes | KEEP the price | RULED (GR-56a, Tyler 2026-11-21, the sitting): three free, then 15,000 and 40,000 gold |
 | A starting loot plan and a starting rest plan | High in hour 1 | None. They remove presses | Yes | The loot plan, the job queue | None | Low | No | ADD | PROVISIONAL (GR-80) |
 | Next ground when outgrown, started by itself | High for 20 hours | Low | Yes | The after-hunt plan | None | Low | No | REFUSE. One press on the return card does it for the whole party | DECIDED (GR-81, Fable 2026-11-21) |
 | The Premium daily claim as a press | None | None | No | Premium | None | Low | No | REDESIGN. Granted with no press | PROVISIONAL (GR-84) |
-| The rested bank | Medium. It pays back a missed day | Low | A missed day is half made up | The XP chain, away and return | None | Low: one number a hero | Yes | KEEP. It pays +50% Level XP on as many hunted hours as a hero missed, up to 24 | KEPT (Tyler's pick on the page 2026-11-21, cut list 7). How it stays is PROPOSAL (GR-63, made in the fold 2026-11-21, not yet seen by Tyler, chapter 05) |
+| The rested bank | None. It pays nothing on any path | None | No | Nothing | MEASURED: switching it off moved no band in 207 cells of the proposed matrix | Negative | No | REMOVE | CUT. RULED (GR-63, Tyler 2026-11-21, the sitting) |
 | Old server leftovers, the gift code, Open Halls | None | None | No | Nothing | None | Negative | No | REMOVE | RULED (27-7, the cut list) |
 | The Town Crier, Rounds, flame powders | Medium in a crowd | Low | Yes | Gold sinks | Small | Built | Yes | KEEP, shut by the population gate | PROVISIONAL (GR-79) |
 | One Great Hearth | Medium | Low | Merges three rooms | Town Works, the event, powders | Small | Medium | Yes | MERGE | PROVISIONAL (GR-82, Tyler said yes on the page, reversal, let stand on the page). HYPOTHESIS |
@@ -441,7 +441,7 @@ In decision-book order.
 
 ---
 
-**Cuts in this chapter, after Tyler's answers.** KEPT (Tyler's pick on the page 2026-11-21), cut list 7: the rested bank (GR-63). OPEN (waiting on Tyler): T-fix-3, the priced setup slots (cut 14 against reversal 13). T-fix-1 and T-fix-2, lent and on-call heroes and the live party finder, which chapter 06 owns.
+**Cuts in this chapter, after the sitting.** CUT, RULED at the sitting (S-9), cut list 7: the rested bank (GR-63). KEPT, RULED at the sitting (S-3), cut list 14: the priced setup slots. KEPT, RULED at the sitting (S-1), cut list 2: on-call heroes. CUT, RULED at the sitting (S-2), cut list 3: the live party finder.
 
 ## 5. Still missing
 
@@ -511,7 +511,7 @@ Playtests 1 and 9 fit the first invite wave. There is no comparison group for pl
 | The second hero on the first evening for about 10,000 gold. The slot ladder, its guard and "the first hero slot" as the week 1 goal | 46 change 1, 59 decision 5, 27, 50 standard X11 | RULED 2026-11-21: all four heroes from the start, no slot prices |
 | A first hour, a coach and a fix to Levels 7 to 10 sized on one hero | 27 question 1, 59 section 2.3, 60 section 4.7 | Re-designed on an account of four (section 2.1). The fix 27-2 itself stands |
 | One hero's return as the unit: one card and 8 to 10 presses a hero | 27 question 3 | One card and one press for the account (GR-80) |
-| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | A party is the account's own four. The book is written with no hired, lent or on-call hero (MM-18, chapter 06). OPEN, waiting on Tyler (T-fix-1) |
+| Lent seats and on-call heroes as the early party | 46 change 1 part 3, 57 | The early party is the account's own four. On-call heroes are kept for later play (RULED, MM-18, the sitting, chapter 06) |
 | "Krell at month 4 to 6" and every week counted at 3.3 hours a day | 27 question 2, 30 | RULED 2026-11-21: 12 hunted hours a day, and Krell in weeks, not months. Day 31 for a plain four (GR-6b) |
 | One kill ladder that merges the tally, the Bestiary, titles and trophies | 59 phase A, row 7 | Withdrawn in 59 phase B and by 47 C19. The tally takes itself, the Bestiary keeps its six Luck payments, titles go to Honors |
 | Removing the built companions | 59 phase A, row 15 | RULED 2026-10-22 and 2026-11-21: hidden, built later |

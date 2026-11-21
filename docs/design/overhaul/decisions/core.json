@@ -210,7 +210,7 @@
     {
       "id": "GR-3",
       "call": "What Deadly must ask for.",
-      "decision": "Leave the lineup test out. Accept that the best four may be a hammer and three mages, and pay party XP by size alone. Deadly is sized on the mid-geared four in band against the tier bands (S3, S4, S6) and nothing else. No cell asks a lineup to fail. Roles still matter by formula, because a pull of eight wants a holder and shooters reach the back row, but no tier is tuned until a named lineup dies.",
+      "decision": "No lineup test. Party XP is paid by size alone for the first build. After Deadly is sized on the fixed measuring tool, read which fours players really run. If one damage type wins everywhere, the classes rule can come back as one row of the table.",
       "outcome": "recommended",
       "reason": "Preparing the party is the game, so the hardest tier has to notice who is standing where. If any four clears Deadly, there is nothing to prepare.",
       "evidence": "MEASURED on the uncalibrated harness, 2 seeds of 1 hour, direction only (my run of 2026-11-21, patches dial-1.5, dial-2.0 and dial-2.5). At today's dial every lineup holds with no deaths. With Deadly blows at 2.66 times Normal the two fours with no healer die 10 to 23 times as often as the mixed four at Level 60. The hammer in front dies 3.5 times as often at Level 60 but holds exactly as well as the shield at Level 110, where both wear plate at the 60% cap. So the dial separates healer from no healer and does not separate shield from hammer.",
@@ -219,12 +219,12 @@
       "depends": "GR-27 (the numbers), GR-85 step R7 first, GR-88 (the lineup cells). The items decider owns the shield row's guard.",
       "group": "Foundation",
       "wasBeforeTyler": "Deadly is sized so a mid-geared four in band with a shield tank and a healer holds it, and the same four with a hammer in front, or with no healer, does not. One rider: the hammer cell is made to fail by what a shield carries (guard on the Defense rating, the brace stat, and Challenge), never by the tier dial alone and never by a rule keyed on the lineup.",
-      "status": "PROVISIONAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "Tyler picked the alternative at 08:37 UTC. The core decider recorded the recommendation without seeing his pick. His pick wins.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21), the alternative",
-      "pagePick": "Tyler picked the alternative on the page 2026-11-21, in 42 seconds. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours",
-      "reversalForTheSitting": "Party XP by size alone ends the 2026-10-31 rule that party XP is better only with different classes. Nobody told Tyler that when he picked it."
+      "waitsOn": "The look later: Deadly sized on the fixed tool, then a read of which fours players run.",
+      "wasBeforeSitting": "Leave the lineup test out. Accept that the best four may be a hammer and three mages, and pay party XP by size alone. Deadly is sized on the mid-geared four in band against the tier bands (S3, S4, S6) and nothing else. No cell asks a lineup to fail. Roles still matter by formula, because a pull of eight wants a holder and shooters reach the back row, but no tier is tuned until a named lineup dies.",
+      "sitting": "S-10, option C. Size now, look later. It ends the 2026-10-31 classes rule for the first build."
     },
     {
       "id": "GR-27",
@@ -264,7 +264,8 @@
       "status": "PROVISIONAL",
       "statusBeforeReissue": "DECIDED",
       "waitsOn": "the death fault fixed in the measuring tool, then the death sample of 4 seeds by 8 hours",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
     },
     {
       "id": "CORE-2",
@@ -389,7 +390,8 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling. He picked the recommendation on the page that morning.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size",
+      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move."
     },
     {
       "id": "GR-6a",
@@ -409,7 +411,8 @@
       "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
       "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
-      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then"
+      "waitsOn": "the kill reward and the tiers, because the seat's multiple is not one number until then. The runway and the clock also wait on the clan XP size",
+      "sitting": "S-4, option A, as a knock-on. Every clan member levels faster than the Level table, so the content runway and the clock move."
     },
     {
       "id": "GR-6b",
@@ -455,10 +458,12 @@
       "money": false,
       "depends": "CORE-1 and GR-3 (ships with them). GR-51 (the wage curve prices the rungs). GR-88 (band S11). MM-7. GR-66 shows the cost before the hunt.",
       "group": "Long game",
-      "status": "OPEN (waiting on Tyler, T-fix-5)",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "tyler": "Held. Reversal 1 (GR-7) adds Blessings past the third. Ruling 50-4 is 6% flat with no cap, with the 12 hour blessed cap turned down. Not decided. The decision text is what the book reads until he answers.",
       "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-5)",
-      "firstBuild": "planned, waits until a real death rate exists"
+      "firstBuild": "planned, waits until a real death rate exists",
+      "sitting": "S-5, option B. The Blessing ladder is ruled.",
+      "waitsOn": "The five hours stays PROVISIONAL until a real death rate exists."
     },
     {
       "id": "MM-7",
@@ -476,7 +481,8 @@
       "fixNote": "Decided twice with slightly different conditions. Merged into one row. \"Safe by formula\" could not hold while the hall number raised the boss's blows.",
       "status": "PROVISIONAL",
       "waitsOn": "a real death rate, and Tyler's answer on the hunting hours a death costs an idle party",
-      "firstBuild": "in the first build: one sample boss"
+      "firstBuild": "in the first build: one sample boss",
+      "sitting": "S-6, option A. Deadly is a tier you watch or gamble on, and idle players mostly use Dangerous. The lost hunting time is accepted: 18 to 31% on the 8 hour bar and 25 to 42% on the 12 hour bar, before the 6%."
     },
     {
       "id": "GR-8",
@@ -778,7 +784,7 @@
     {
       "id": "GR-63",
       "call": "Dead ladders.",
-      "decision": "Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen. The rested bank stays and now pays. A hero banks the hunted hours it missed: every hour it stands at full stamina and is not hunting adds to its bank, up to 24 hours. Banked hours pay +50% Level XP on that many later hunted hours. So a missed day is half made up and a hero with a bank never out-earns one that hunted every hour. It is a way back and never a way ahead. The pace seat hunts all 12 hours, so its bank is empty and the Level law does not read it. It is one row of the XP chain and one number a hero, written when a hunt starts and ends, with no statement on the settle. The two old kill ladders stay as tracks on the one kill ladder: one kill count a monster a hero, the count the Bestiary stages and GR-78 already read, with the old rungs kept as rows on that count and no second counter. Sizes are a HYPOTHESIS.",
+      "decision": "The rested bank is cut. The Level table is the only clock, and a missed day is simply missed. The two old kill ladders are a separate matter: he said keep on the page, and keeping them as tracks on the one kill count is still a PROPOSAL he has not seen.",
       "outcome": "recommended",
       "reason": "They pay nothing and nobody would miss them. Making the bank pay would add an XP lever the Level law then has to carry.",
       "evidence": "MEASURED: switching the bank off moved no number in 207 cells.",
@@ -787,11 +793,11 @@
       "depends": "GR-85 step R5.",
       "group": "Progression",
       "wasBeforeTyler": "Delete the rested bank and the two old kill ladders. The ladders leave in the lane that builds the Bestiary and Luck.",
-      "status": "PROPOSAL",
+      "status": "RULED (Tyler, 2026-11-21, the sitting)",
       "statusBeforeReissue": "DECIDED",
-      "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
-      "firstBuild": "planned, waits until Tyler has seen it. It is new",
-      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler.",
+      "wasBeforeSitting": "Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen. The rested bank stays and now pays. A hero banks the hunted hours it missed: every hour it stands at full stamina and is not hunting adds to its bank, up to 24 hours. Banked hours pay +50% Level XP on that many later hunted hours. So a missed day is half made up and a hero with a bank never out-earns one that hunted every hour. It is a way back and never a way ahead. The pace seat hunts all 12 hours, so its bank is empty and the Level law does not read it. It is one row of the XP chain and one number a hero, written when a hunt starts and ends, with no statement on the settle. The two old kill ladders stay as tracks on the one kill ladder: one kill count a monster a hero, the count the Bestiary stages and GR-78 already read, with the old rungs kept as rows on that count and no second counter. Sizes are a HYPOTHESIS.",
+      "sitting": "S-9, option C. The rested bank is cut. The paying design made in the fold is removed."
     },
     {
       "id": "GR-64",

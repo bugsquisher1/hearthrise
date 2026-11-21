@@ -6625,6 +6625,24 @@ jobs:
         run: |
           node tests/button-system.mjs
           node tools/mutant-gate.mjs node tests/button-system.mjs --selftest
+      # tests/client-boot-pure.mjs
+      - name: Client boot rules that need no browser (the boot's pure half)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-boot-pure.mjs
+          node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate
+      # tests/hunt-screen-pure.mjs
+      - name: Hunt screen rules that need no browser (the hunt screen's pure half)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-screen-pure.mjs
+          node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
+      # tests/tally-window-pure.mjs
+      - name: Tally window rules that need no browser (the tally's pure half)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tally-window-pure.mjs
+          node tools/mutant-gate.mjs node tests/tally-window-pure.mjs --mutate
       # tools/mutant-gate.mjs
       - name: Nightly gate - a release builds only on swept code
         if: ${{ !cancelled() }}

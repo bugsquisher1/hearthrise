@@ -1,0 +1,29 @@
+{
+ "schema": "hearthrise.balance-patch/1",
+ "name": "Balance pass: the harder tiers sized on the MID four. Dangerous pull 5 blows 2.6, Deadly pull 8 blows 2.25",
+ "why": "The base dials (1.17 and 1.33) do not bite a party: on all 28 ground ends a MID four on Deadly sits at 72 to 97% health with no death (run 44920906999). Deadly 2.25 is CORE-1's number. Dangerous 1.17 was sized on a lone hero, and on the four it reads 81 to 97%, so it rises to 2.6 on its pull of five. Layer: coefficient, TIER_DIALS, one table for every ground.",
+ "targets": [
+  "survival",
+  "S3",
+  "S4",
+  "S6",
+  "P9",
+  "P10",
+  "G-2",
+  "G-5",
+  "G-6",
+  "S11"
+ ],
+ "edits": [
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "  dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 1170, hpPm: 1100, xpPm: 1100 }),",
+   "to": "  dangerous: Object.freeze({ pull: 5, lift: 0.8, dmgPm: 2600, hpPm: 1100, xpPm: 1100 }),"
+  },
+  {
+   "file": "src/data/balance-sheet.js",
+   "from": "  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 1330, hpPm: 1150, xpPm: 1250 }),",
+   "to": "  deadly: Object.freeze({ pull: 8, lift: 1, dmgPm: 2250, hpPm: 1150, xpPm: 1250 }),"
+  }
+ ]
+}

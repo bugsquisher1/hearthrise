@@ -17,7 +17,9 @@
 //   JEWELRY   6 items across 2 of 3 jewelry slots, and no capstone at all.
 //
 // ── THE STAT RULE THIS LADDER IS BUILT ON (the b343 accuracy ruling) ────────
-// Executed against the real `playerCombatRolls`: player accuracy is
+// (HISTORY: since 2026-11-20 the to-hit is a ratio, src/data/to-hit.js, with no
+// ceiling a stat can run into, so the reasoning below describes the rule the
+// ladder was cut on, not today's.) Executed then against `playerCombatRolls`:
 //   0.55 + ((skill + accBonus) − monsterDef × ACC_DEF_MUL) × 0.01, clamped 0.95.
 // The highest defScore in the game is the Green Dragon's 93, so the clamp binds
 // at `skill + accBonus ≥ 133`. At level 99 a full ranged kit already carries

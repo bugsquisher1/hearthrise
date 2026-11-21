@@ -4,9 +4,9 @@
   "pins.cutRows: rows a cut or dark lever carries (G14: a count over its pin is red). cost: a reference account's day (G16: 5% over is red). values: every line's numbers when written (the report prints what moved)."
  ],
  "schema": "hearthrise.balance-guard/1",
- "commit": "88eba0ed1",
+ "commit": "7392474f8",
  "at": "2026-11-21",
- "why": "lane/c-approved-rows (plan L06, Tyler 2026-11-20): G9 the second hero 400,000 over the played bank (24-9); G22 the refills climb x1, 1.5 ... 3.5 (24-1)",
+ "why": "Tyler 2026-11-21: every reference player hunts 12 h a hero a day (was the real 3.3 / 8.4 / 2 h): G16's cost a reference account a day re-pinned at 12 h, G18 and G20 re-banded (12 h, four heroes by week 5); other moves are the set's own since 5aece30d7",
  "pins": {
   "cutRows": {
    "food-xp-buffs": 11,
@@ -19,32 +19,32 @@
  },
  "cost": {
   "new": {
-   "statementsADay": 910,
-   "rowWritesADay": 6371,
-   "ledgerRowsADay": 96,
-   "dbSADay": 33,
-   "journalRowsADay": 523
+   "statementsADay": 5460,
+   "rowWritesADay": 38223,
+   "ledgerRowsADay": 576,
+   "dbSADay": 193,
+   "journalRowsADay": 2757
   },
   "ownfour": {
-   "statementsADay": 1502,
-   "rowWritesADay": 38667,
-   "ledgerRowsADay": 585,
-   "dbSADay": 177,
-   "journalRowsADay": 3709
+   "statementsADay": 5460,
+   "rowWritesADay": 140607,
+   "ledgerRowsADay": 2126,
+   "dbSADay": 605,
+   "journalRowsADay": 11482
   },
   "heavy": {
-   "statementsADay": 3822,
-   "rowWritesADay": 98425,
-   "ledgerRowsADay": 1488,
-   "dbSADay": 430,
-   "journalRowsADay": 8418
+   "statementsADay": 5460,
+   "rowWritesADay": 140607,
+   "ledgerRowsADay": 2126,
+   "dbSADay": 608,
+   "journalRowsADay": 11634
   },
   "premium": {
-   "statementsADay": 1502,
-   "rowWritesADay": 38667,
-   "ledgerRowsADay": 585,
-   "dbSADay": 177,
-   "journalRowsADay": 3709
+   "statementsADay": 5460,
+   "rowWritesADay": 140607,
+   "ledgerRowsADay": 2126,
+   "dbSADay": 605,
+   "journalRowsADay": 11482
   },
   "ceiling": {
    "statementsADay": 10921,
@@ -54,121 +54,120 @@
    "journalRowsADay": 21445
   },
   "whale": {
-   "statementsADay": 3822,
-   "rowWritesADay": 98425,
-   "ledgerRowsADay": 1488,
-   "dbSADay": 414,
-   "journalRowsADay": 7506
+   "statementsADay": 5460,
+   "rowWritesADay": 140607,
+   "ledgerRowsADay": 2126,
+   "dbSADay": 591,
+   "journalRowsADay": 10722
   },
   "friends": {
-   "statementsADay": 375,
-   "rowWritesADay": 9667,
-   "ledgerRowsADay": 146,
-   "dbSADay": 55,
-   "journalRowsADay": 851
+   "statementsADay": 1365,
+   "rowWritesADay": 35152,
+   "ledgerRowsADay": 532,
+   "dbSADay": 193,
+   "journalRowsADay": 2795
   }
  },
  "values": {
   "G1": {
-   "thicket": 1.126,
-   "glade": 0.991,
-   "ford": 1.214,
-   "slake": 1.038,
-   "pyre": 1.175,
-   "hold": 1.059,
-   "rest*": 0.85,
-   "catacombs*": 0.824
+   "thicket": 1.134,
+   "glade": 0.962,
+   "ford": 1.22,
+   "slake": 1.028,
+   "pyre": 1.188,
+   "hold": 1.093,
+   "rest*": 0.972,
+   "catacombs*": 1.044
   },
   "G2": {
-   "thicket": 1.213,
-   "glade": 1.338,
-   "ford": 1.283,
-   "slake": 1.47,
-   "pyre": 1.383,
-   "hold": 1.332,
-   "rest*": 1.376,
-   "catacombs*": 1.293
+   "thicket": 1.215,
+   "glade": 1.379,
+   "ford": 1.288,
+   "slake": 1.49,
+   "pyre": 1.395,
+   "hold": 1.348,
+   "rest*": 1.34,
+   "catacombs*": 1.269
   },
   "G3": {
-   "glade": 1.756,
-   "ford": 2.621,
-   "slake": 2.325,
-   "pyre": 1.869,
-   "hold": 1.802,
-   "rest*": 1.662,
-   "catacombs*": 1.387
+   "glade": 1.739,
+   "ford": 2.599,
+   "slake": 2.361,
+   "pyre": 1.96,
+   "hold": 1.948,
+   "rest*": 1.812,
+   "catacombs*": 1.64
   },
   "G4": {
-   "glade": 1.899,
-   "ford": 2.954,
-   "slake": 2.554,
-   "pyre": 2.002,
-   "hold": 1.924,
-   "rest*": 1.746,
-   "catacombs*": 1.463
+   "glade": 1.885,
+   "ford": 2.933,
+   "slake": 2.611,
+   "pyre": 2.086,
+   "hold": 2.049,
+   "rest*": 1.901,
+   "catacombs*": 1.724
   },
   "G5": {
-   "ford": 68.3,
-   "pyre": 63.6,
-   "hold": 63.2,
-   "ford-10": 41.1,
-   "pyre-10": 46,
-   "hold-10": 48.8
+   "ford": 70.4,
+   "pyre": 68.4,
+   "hold": 68.1,
+   "ford-10": 43.7,
+   "pyre-10": 55.4,
+   "hold-10": 58.5
   },
   "G6": {
-   "Level 10": 6.12,
-   "longest under 10": 2.2
+   "Level 10": 5.81,
+   "longest under 10": 1.71
   },
   "G7": {
-   "thicket": 4500,
-   "glade": 10512,
-   "ford": 11612,
-   "slake": 12594,
-   "pyre": 23965,
-   "hold": 21985,
-   "rest*": 15522,
-   "catacombs*": 19393
+   "thicket": 4258,
+   "glade": 10595,
+   "ford": 12108,
+   "slake": 13474,
+   "pyre": 23065,
+   "hold": 22577,
+   "rest*": 19110,
+   "catacombs*": 24547
   },
   "G8": {
-   "ford": 6423.25,
-   "pyre": 8988.25,
-   "hold": 8159.75
+   "ford": 7050.75,
+   "pyre": 11517.75,
+   "hold": 10215.75
   },
   "G9": {
-   "slot 2": 0.898,
-   "ruled 400k": 0.898
+   "slot 2": 0.911,
+   "ruled 400k": 0.911
   },
   "G10": {
-   "glade lone xp": 1.052,
-   "glade lone dmg": 5.033,
-   "glade four xp": 1.081,
-   "glade four dmg": 6.091,
-   "slake lone xp": 1.057,
-   "slake lone dmg": 13.46,
-   "slake four xp": 1.098,
-   "slake four dmg": 6.396,
-   "hold lone xp": 1.053,
-   "hold lone dmg": 5.478,
-   "hold four xp": 1.045,
-   "hold four dmg": 0.857
+   "glade lone xp": 1.045,
+   "glade lone dmg": 3.633,
+   "glade four xp": 1.084,
+   "glade four dmg": 2.21,
+   "slake lone xp": 1.062,
+   "slake four xp": 1.106,
+   "slake four dmg": 4.014,
+   "hold lone xp": 1.044,
+   "hold four xp": 1.028,
+   "hold four dmg": 2.867
   },
   "G11": {
-   "glade xp": 1.061,
-   "glade dmg": 0.893,
-   "slake xp": 1.072,
-   "slake dmg": 0.88,
-   "hold xp": 1.062,
-   "hold dmg": 0.339
+   "glade xp": 1.013,
+   "glade dmg": 0.165,
+   "slake xp": 1.007,
+   "slake dmg": 0.108,
+   "hold xp": 1.017,
+   "hold dmg": 0.062
   },
   "G12": {
-   "glade Tempering rung 1": 1.001,
-   "glade yard +10": 0.489,
-   "glade item 12 h": 22.944,
-   "slake Tempering rung 1": 1.366,
-   "slake yard +10": 2.248,
-   "slake item 12 h": 75.718,
-   "hold yard +10": 11.428,
-   "hold item 12 h": 314.573
+   "glade Tempering rung 1": 2.004,
+   "glade yard +10": 2.079,
+   "glade item 12 h": 97.511,
+   "slake Tempering rung 1": 1.457,
+   "slake yard +10": 2.468,
+   "slake item 12 h": 83.126,
+   "hold Tempering rung 1": 2.67,
+   "hold yard +10": 6.129,
+   "hold item 12 h": 168.705
   },
   "G13": {
    "staged top": 104
@@ -185,46 +184,46 @@
   "G15": {},
   "G16": {},
   "G17": {
-   "krell": 85.5,
-   "tower": 83.692
+   "krell": 109,
+   "tower": 131.759
   },
   "G18": {
-   "new": 2,
-   "ownfour": 3.3,
-   "heavy": 8.4,
-   "premium": 3.3,
+   "new": 12,
+   "ownfour": 12,
+   "heavy": 12,
+   "premium": 12,
    "ceiling": 24,
-   "whale": 8.4,
-   "friends": 3.3
+   "whale": 12,
+   "friends": 12
   },
   "K1": {
-   "Level XP": 0.829,
-   "kills": 0.831,
-   "net gold": 0.507
+   "Level XP": 0.883,
+   "kills": 0.884,
+   "net gold": 0.878
   },
   "G19": {
-   "glade pair": 2.43,
-   "glade three": 2.1,
-   "ford pair": 3.833,
-   "ford three": 3.18
+   "glade pair": 2.39,
+   "glade three": 2.094,
+   "ford pair": 3.825,
+   "ford three": 3.137
   },
   "G20": {
-   "shop slot 2 400.0k": 2.203,
-   "shop slot 3 1500.0k": 5.246,
-   "shop four heroes 4000.0k": 15.275,
-   "ruled slot 2 400.0k": 2.203,
-   "ruled slot 3 1500.0k": 5.246,
-   "ruled four heroes 4000.0k": 15.275
+   "shop slot 2 400.0k": 0.593,
+   "shop slot 3 1500.0k": 1.455,
+   "shop four heroes 4000.0k": 3.902,
+   "ruled slot 2 400.0k": 0.593,
+   "ruled slot 3 1500.0k": 1.455,
+   "ruled four heroes 4000.0k": 3.902
   },
   "G21": {},
   "G22": {
-   "thicket 2nd": 0.308,
-   "glade 2nd": 0.303,
-   "ford 2nd": 0.446,
-   "slake 2nd": 0.48,
-   "pyre 2nd": 0.336,
-   "hold 2nd": 0.485,
-   "pyre all 6 (four)": 1.314
+   "thicket 2nd": 0.327,
+   "glade 2nd": 0.301,
+   "ford 2nd": 0.418,
+   "slake 2nd": 0.445,
+   "pyre 2nd": 0.343,
+   "hold 2nd": 0.453,
+   "pyre all 6 (four)": 1.026
   },
   "G23": {
    "shield": 0.972,
@@ -236,14 +235,14 @@
    "restoration": 1
   },
   "G24": {
-   "coppercap_warrens@pyre hammer": 1.08,
-   "coppercap_warrens@pyre mage": 1.171,
-   "coppercap_warrens@hold hammer": 1.12,
-   "coppercap_warrens@hold mage": 1.131,
-   "mosslight_glade@ford hammer": 1.015,
-   "mosslight_glade@ford mage": 1.185,
-   "meadowbrook_thicket@hold hammer": 0.882,
-   "meadowbrook_thicket@hold mage": 0.935
+   "coppercap_warrens@pyre hammer": 1.059,
+   "coppercap_warrens@pyre mage": 1.16,
+   "coppercap_warrens@hold hammer": 1.037,
+   "coppercap_warrens@hold mage": 1.123,
+   "mosslight_glade@ford hammer": 0.928,
+   "mosslight_glade@ford mage": 1.138,
+   "meadowbrook_thicket@hold hammer": 0.827,
+   "meadowbrook_thicket@hold mage": 0.901
   },
   "D1": {},
   "D2": {}
@@ -268,6 +267,16 @@
    "at": "2026-11-21",
    "commit": "88eba0ed1",
    "why": "lane/c-approved-rows (plan L06, Tyler 2026-11-20): G9 the second hero 400,000 over the played bank (24-9); G22 the refills climb x1, 1.5 ... 3.5 (24-1)"
+  },
+  {
+   "at": "2026-11-21",
+   "commit": "5aece30d7",
+   "why": "lane/c-levels-7-9 (L05), the designer's 6 h route: Levels 7-9 21,000/29,000/34,002, Levels 10-20 take the XP back (total to 21 held); the new player reaches Level 10 at 5.98 h"
+  },
+  {
+   "at": "2026-11-21",
+   "commit": "7392474f8",
+   "why": "Tyler 2026-11-21: every reference player hunts 12 h a hero a day (was the real 3.3 / 8.4 / 2 h): G16's cost a reference account a day re-pinned at 12 h, G18 and G20 re-banded (12 h, four heroes by week 5); other moves are the set's own since 5aece30d7"
   }
  ]
 }

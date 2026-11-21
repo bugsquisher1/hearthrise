@@ -3,7 +3,7 @@
 // tests/balance-guard.mjs — THE WHOLE GAME AGAINST THE PLAN, EVERY RELEASE (balance program 30-plan section E, lane L14).
 //
 //   node tests/balance-guard.mjs                 the guard: plays its cells on the real settle, prints one screen, exits 0 unless a
-//                                                line in `red` mode is out of band (today only G14)
+//                                                line in `red` mode is out of band (today G14, and G6 since L05)
 //   node tests/balance-guard.mjs --strict        every line judged as if `red` (exit 1 on any line outside its red band): the waves' check
 //   node tests/balance-guard.mjs --nightly       + the nightly twin: the death cells at 4 seeds x 8 h, judging D1 and D2
 //                                                (also chosen when GITHUB_EVENT_NAME=schedule)
@@ -106,7 +106,7 @@ function scaledWhatIf(ground, level) {
   for (const id of Object.keys(GROUND_ROSTER[ground] || {})) {
     const r = SCALED.scaledRow(MONSTERS[id], id, ground, level);
     if (r === MONSTERS[id]) return null;
-    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'baseAcc', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
+    rows[id] = Object.fromEntries(['level', 'hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp', 'drops', 'partyPm', 'lootPm'].map((k) => [k, r[k]]));
   }
   return Object.keys(rows).length ? { monsters: rows } : null;
 }
@@ -144,11 +144,11 @@ function playAll(jobs, workers, log = () => {}) {
 }
 
 /** A played life (tools/balance-sim/life.mjs), read from its --out file: { json, error }. */
-function playLife(policy, to, max) {
+function playLife(policy, to, max, party = ['hammer']) {
   const dir = mkdtempSync(join(tmpdir(), 'balance-guard-'));
   const out = join(dir, 'life.json');
   return new Promise((done) => {
-    const p = spawn(process.execPath, [LIFE, '--party', 'hammer', '--policy', policy, '--to', String(to), '--max', String(max), '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
+    const p = spawn(process.execPath, [LIFE, '--party', party.join(','), '--policy', policy, '--to', String(to), '--max', String(max), '--out', out], { stdio: ['ignore', 'ignore', 'inherit'] });
     p.on('exit', (code) => {
       let json = null, error = null;
       try { json = JSON.parse(readFileSync(out, 'utf8')); } catch (e) { error = 'life.mjs --policy ' + policy + ' exited ' + code + ': ' + e.message; }
@@ -157,7 +157,9 @@ function playLife(policy, to, max) {
     });
   });
 }
-/** G6: the start-kit life to Level 10 (life.mjs --policy idle): hours to 10 and each Level's step. */
+/** G6: the new player's life to Level 10 (LEVEL_PACE.newPlayer: the start kit, life.mjs --policy new, Hunt again in the Thicket; lane/c-levels-7-9
+    calibrated it on the retention dive's blind play within 4%, where --policy idle's walk to Wickstead read half the hours): hours to 10 and
+    each Level's step. */
 function lifeIdleOf(j) {
   const at = (q) => (j.miles['0:' + q] || {}).h;
   const steps = [];
@@ -220,7 +222,7 @@ async function measure({ nightly = false, workers, quiet = false }) {
   const t0 = Date.now();
   const jobs = GC.plainCells(CTX).filter((j) => !j.id.startsWith('time-'));
   const twin = nightly ? GC.nightlyCells(CTX) : [];
-  const lifeP = playLife('idle', 10, 14), bankP = playLife(BANK_LIFE.policy, BANK_LIFE.to, BANK_LIFE.max);
+  const lifeP = playLife(LEVEL_PACE.newPlayer.policy, 10, 14, LEVEL_PACE.newPlayer.party), bankP = playLife(BANK_LIFE.policy, BANK_LIFE.to, BANK_LIFE.max);
   const scanP = SCAN.scanLevers(ROOT);
   const progress = quiet ? () => {} : (() => { let k = 0; const total = jobs.length + twin.length; return () => { k++; if (process.stderr.isTTY) process.stderr.write('\r  cells ' + k + '/' + total + '   '); }; })();
   const { results, errors } = await playAll([...jobs, ...twin], workers, progress);
@@ -563,9 +565,9 @@ async function selftest(workers) {
   plant('a gold-for-power offer far too cheap: Tempering\'s first rung at 1 gold', (c) => firstClean(c, 'G12', (r) => /Tempering/.test(r.at) && Number.isFinite(r.value)), (J, r) => { J.data.temper = { ...J.data.temper, [BYID(pointOf(r.at)).gearTier]: [1, ...J.data.temper[BYID(pointOf(r.at)).gearTier].slice(1)] }; });
   /* a machine's timing: planted as three times the line's own budget, whatever this machine measured (a x3 on a fast machine stays inside it) */
   plant('a settle three times past its budget: a Krell window at 3 x 200 ms', (c) => firstClean(c, 'G17', (r) => r.at === 'krell'), (J) => { J.ms['time-krell:warm'] = 3 * LINE.G17.keep[1] * J.rows['time-krell:warm'].partyHours * 36; });
-  plant('the Own four hunts 7 hours a day with no new press', (c) => firstClean(c, 'G18', (r) => r.at === 'ownfour'), (J) => { J.data.stamina.players = J.data.stamina.players.map((p) => (p.id === 'ownfour' ? { ...p, huntHoursADay: 7 } : p)); });
-  plant('a slower first hour: Level 10 at 9 hours', (c) => firstClean(c, 'G6', (r) => r.at === 'Level 10'), (J) => { J.life.level10 = 9; });
-  plant('the new player\'s worst Level at 3 hours', (c) => firstClean(c, 'G6', (r) => /longest/.test(r.at)), (J) => { J.life.steps[J.life.steps.length - 1][1] = 3; });
+  plant('the Own four hunts 14 hours a day with no new press', (c) => firstClean(c, 'G18', (r) => r.at === 'ownfour'), (J) => { J.data.stamina.players = J.data.stamina.players.map((p) => (p.id === 'ownfour' ? { ...p, huntHoursADay: 14 } : p)); });
+  plant('a slower first hour: Level 10 at 9 hours', (c) => firstClean(c, 'G6', (r) => r.at === 'Level 10'), (J) => { J.life.level10 = 9; }, { redMode: true });
+  plant('the new player\'s worst Level at 3 hours', (c) => firstClean(c, 'G6', (r) => /longest/.test(r.at)), (J) => { J.life.steps[J.life.steps.length - 1][1] = 3; }, { redMode: true });
   plant('a new XP food row (a planted meal with all_xp)', (c) => firstClean(c, 'G14', (r) => r.at === 'food-xp-buffs'), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Meal', buff: { type: 'all_xp', magnitude: 2, durationMs: 1 } })); }, { redMode: true });
   plant('a lever with no class (a gold_find meal)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('items.js', withItem({ n: 'Planted Purse Pie', buff: { type: 'gold_find', magnitude: 2, durationMs: 1 } })); }, { redMode: true });
   plant('a lever-named field in a new place (a planted goldBonusPm)', (c) => firstClean(c, 'G14', (r) => r.at === 'strangers'), async (J) => { J.scan = await plantScan('party.js', (m) => ({ ...m, PLANTED: { goldBonusPm: 1200 } })); }, { redMode: true });
@@ -580,7 +582,7 @@ async function selftest(workers) {
   plant('Deadly kills a four in band: 20 deaths in 128 hero-hours', (c) => firstClean(c, 'D1'), (J, r) => { J.rows['twin-band:' + r.at].deaths = 20; }, { pre: 'nightly' });
   plant('a four ten under the floor never dies', (c) => firstClean(c, 'D2'), (J, r) => { J.rows['twin-under:' + r.at.replace(/-10$/, '')].deaths = 0; }, { pre: 'nightly' });
   plant('refills twenty times their price: the second never pays', (c) => firstClean(c, 'G22', (r) => /2nd$/.test(r.at)), (J) => { J.data.refill.base *= 20; J.data.refill.perLevel *= 20; },
-    { also: (c) => c.find((l) => l.id === 'G22').rows.filter((r) => /2nd$/.test(r.at) && r.status !== 'RED').map((r) => 'G22 ' + r.at) });
+    { also: (c) => c.find((l) => l.id === 'G22').rows.filter((r) => (/2nd$/.test(r.at) && r.status !== 'RED') || (/^pyre all /.test(r.at) && !['RED', 'ERR', 'uncal'].includes(r.status))).map((r) => 'G22 ' + r.at) });   /* the six-refill row is the plant's own too, once K1's gold gate judges it */
   plant('a new offense row on the bow at a 4 s cooldown: the lane over its budget', (c) => firstClean(c, 'G23', (r) => r.at === 'ranged'), (J) => { J.data.bar.rows.push({ id: 'planted_shot', lane: 'offense', cdMs: 4000, disciplines: ['ranged'], replaces: null }); });
   plant('a scaled ground beats the right-Level one: x1.5 Level XP', (c) => firstClean(c, 'G24'), (J, r) => { const [gp, s] = r.at.split(' '); const [g, pid] = gp.split('@'); J.rows['scaled:' + g + ':' + pid + ':' + s].levelXpPerH *= 1.5; });
   plant('NEGATIVE CONTROL: the Glade\'s lone hammer +1% Level XP', () => ({ at: 'none' }), (J) => { J.rows['ref:glade:lone'].levelXpPerH *= 1.01; }, { control: true });

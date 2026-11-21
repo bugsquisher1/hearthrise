@@ -106,8 +106,8 @@ function checkTable(rule, id, rows, me = null) {
 function byHand(id, T, I) {
   switch (id) {
     case 'hit': {
-      const defScore = I.def * (T.defMul[I.tier] || 1);
-      let a = T.base + ((I.level + I.accuracy) - defScore) * T.per;
+      const att = T.base + I.level + I.accuracy, ev = Math.max(1, I.evasion);
+      let a = att >= ev ? 1 - ev / (2 * att) : att / (2 * ev);
       if (I.weak) a *= T.weak;
       return { result: clampTo(a, T.min, T.max) };
     }
@@ -116,7 +116,10 @@ function byHand(id, T, I) {
       m = Math.max(1, m - Math.floor(I.defScore * T.cut));
       return { result: Math.max(1, Math.floor(m * (I.weak ? T.weak : 1))) };
     }
-    case 'mon_hit': return { result: clampTo((I.baseAcc === null ? T.base : I.baseAcc) + (I.atk - I.defense) * T.per, T.min, T.max) };
+    case 'mon_hit': {
+      const aim = Math.max(1, I.aim), d = T.base + I.defense;
+      return { result: clampTo(aim >= d ? 1 - d / (2 * aim) : aim / (2 * d), T.min, T.max) };
+    }
     case 'mon_max': return { result: Math.max(1, Math.floor(I.atk * (T.byTier[I.tier] || T.scale))) };
     case 'death': return { result: Math.floor(I.xp * T.share), blessed: Math.floor(I.xp * (T.share * (1000 - I.cut) / 1000)) };
     default: return null;
@@ -503,9 +506,9 @@ async function checks(overrides, shots) {
 /* Each plants one defect the rules above exist for. [name, file, from, to] */
 const MUTANTS = [
   ['WK-5 the Chronicle calls Grayjaw "he" again (audit A14)', 'src/data/text/chronicle.js', "She\\'s slower than the young ones, but she got old", "He\\'s slower than the young ones, but he got old"],
-  ['the engine\'s base chance to hit moves and the words do not', 'src/core/combat.js', '  let accuracy = 0.55 + (', '  let accuracy = 0.6 + ('],
+  ['the engine\'s base rating moves and the words do not', 'src/core/combat.js', 'toHitRatio(TO_HIT.base + accLvl + accBonus,', 'toHitRatio(TO_HIT.base + 5 + accLvl + accBonus,'],
   ['the engine\'s max hit per Level moves and the words do not', 'src/core/combat.js', '(dmgLvl * 0.35)', '(dmgLvl * 0.4)'],
-  ['a monster\'s chance to hit grows faster than the words say', 'src/core/combat.js', ' - playerDefense) * b.monsterAccuracyPerPoint),', ' - playerDefense) * b.monsterAccuracyPerPoint * 1.5),'],
+  ['a monster\'s chance to hit grows faster than the words say', 'src/core/combat.js', 'return heldToHit(toHitRatio(monsterAim(monster), TO_HIT.base', 'return heldToHit(toHitRatio(monsterAim(monster) * 1.5, TO_HIT.base'],
   ['a monster\'s max hit gains a point the words never mention', 'src/core/combat.js', '  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale));', '  return Math.max(1, Math.floor(((monster && monster.atk) || 1) * scale) + 1);'],
   ['a death takes more than its stated share', 'src/core/action-rules.js', '  return Math.max(0, Math.min(Math.floor(x * f), x));', '  return Math.max(0, Math.min(Math.floor(x * f * 1.1), x));'],
   ['the Level curve\'s step grows faster than its data rows say', 'src/core/xp.js', '+ r.rise * sumK(m) + r.bend * sumK2(m);', '+ r.rise * sumK(m) + r.bend * sumK2(m + 1);'],
@@ -516,7 +519,7 @@ const MUTANTS = [
   ['the XP tables head a column with a bracket term', 'src/data/text/wiki.js', "xp_total: 'Total XP',", "xp_total: 'Curve',"],
   ['the combat skill page names no cap for gathering and crafting', 'src/shell/wiki-model.js', 'cap: Object.keys(SKILLS_DEF).some(isCapped) ? MAX_LEVEL : null }', 'cap: null }'],
   ['the death page says "Never below Level 1" again', 'src/data/text/wiki.js', "combat skill progress\\nBlessings: {cuts}',", "combat skill progress\\nNever below Level 1\\nBlessings: {cuts}',"],
-  ['the wiki states a base chance the engine does not use', 'src/shell/wiki-model.js', 'terms: { base: B.playerBaseAccuracy,', 'terms: { base: B.playerBaseAccuracy + 0.05,'],
+  ['the wiki states a base rating the engine does not use', 'src/shell/wiki-model.js', 'terms: { base: TO_HIT.base, min: TO_HIT.min, max: TO_HIT.max, weak:', 'terms: { base: TO_HIT.base + 5, min: TO_HIT.min, max: TO_HIT.max, weak:'],
   ['Settings, Help has no door to the Wiki', 'src/data/settings.js', "  type: 'action', open: 'wiki',", "  type: 'action', open: 'report',"],
   ['the search never finds a page', 'src/shell/windows/wiki.js', 'const on = q ? findText(p).includes(q) :', 'const on = q ? false :'],
   ['the Book opens on the Skills, not the story', 'src/shell/windows/wiki.js', "s = { tab: 'chronicle', query: '' }", "s = { tab: 'skills', query: '' }"],

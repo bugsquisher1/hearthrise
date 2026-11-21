@@ -5,7 +5,7 @@
 //
 // A designer writes, per monster: its Level (where in the ground it lives), its role (src/data/balance-sheet.js
 // MONSTER_ROLES), its art tier and class (both already on the row). src/data/balance-sheet.js formulaStats turns those
-// into hp, atk, baseAcc, def, xp and gp. This tool reads the roster below, prints today's rows beside the formula's,
+// into hp, atk, aim, evasion, def, xp and gp. This tool reads the roster below, prints today's rows beside the formula's,
 // and writes a proposal the balance simulator plays (tools/balance-sim plans 'formula*', a what-if: nothing in
 // src/data moves until a designer accepts the numbers).
 //
@@ -27,7 +27,7 @@ import { GROUND_ROSTER, FORMULA_EXCEPTIONS } from '../src/data/balance-sheet.js'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 export const PROPOSAL = join(ROOT, 'tools', 'balance-sim', 'out', 'formula-proposal.json');
 /* the stats the formula owns on a row (speed, class, weaknesses, drops and Level stay the designer's) */
-export const FORMULA_FIELDS = Object.freeze(['hp', 'atk', 'baseAcc', 'def', 'xp', 'gp']);
+export const FORMULA_FIELDS = Object.freeze(['hp', 'atk', 'aim', 'evasion', 'def', 'xp', 'gp']);
 
 /* THE ROSTER (each monster's role on its ground) and the named exceptions live with the formula, in
    src/data/balance-sheet.js GROUND_ROSTER and FORMULA_EXCEPTIONS, so the grader and the lab read the same ones. */
@@ -48,7 +48,7 @@ export function proposeGround(gid, D, opts = {}) {
     const f = D.formulaStats({ level: m.level, role, tier: m.tier, floor: D.floorOf(gid), fit: D.fitOf ? D.fitOf(gid) : 'solo', ground: gid }, opts);
     const formula = Object.fromEntries(FORMULA_FIELDS.map((k) => [k, f[k]]));
     for (const [k, why] of Object.entries((EXCEPTIONS[id] || {}))) { if (!why) throw new Error('gen-ground-stats: ' + id + '.' + k + ' exception has no reason'); formula[k] = m[k]; }
-    const today = Object.fromEntries(FORMULA_FIELDS.map((k) => [k, k === 'baseAcc' ? (Number.isFinite(m.baseAcc) ? m.baseAcc : 0.5) : m[k]]));
+    const today = Object.fromEntries(FORMULA_FIELDS.map((k) => [k, m[k]]));
     const drift = FORMULA_FIELDS.filter((k) => JSON.stringify(today[k]) !== JSON.stringify(formula[k]));
     return { id, role, level: m.level, tier: m.tier, today, formula, hitVsSameLevel: f.hitVsSameLevel, blowShare: f.blowShare, drift };
   });
@@ -70,7 +70,7 @@ async function load() {
   const fitOf = (gid) => groundFit(HUNT_GROUNDS[gid]);
   return { MONSTERS, formulaStats, tierRowFor, floorOf, fitOf };
 }
-const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ' @' + r.baseAcc + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + r.gp.join('-');
+const fmt = (r) => r.hp + ' hp, atk ' + r.atk + ', aim ' + r.aim + ', evasion ' + r.evasion + ', def ' + r.def + ', xp ' + r.xp + ', gp ' + (r.gp || []).join('-');
 
 function selftest(D) {
   const bad = [];
@@ -136,9 +136,10 @@ async function main() {
   }
 }
 
-/* THE ROW'S STAT LINE in monsters.js: `hp: N, atk: N, [baseAcc: N, ]def: N, xp: N, gp: [a, b]` (one line, the house style), with
+/* THE ROW'S STAT LINE in monsters.js: `hp: N, atk: N, aim: N, evasion: N, def: N, xp: N, gp: [a, b]` (one line, the house style; a row
+   written before the to-hit ratio carried `baseAcc: N, ` where aim and evasion stand, and --write replaces it), with
    `formula: true` after it once the formula owns it (monster-classes.js auditRoster then holds the row to the formula, not to TIER_BANDS). */
-const STAT_LINE = /hp: \d+, atk: \d+, (?:baseAcc: [\d.]+, )?def: \d+, xp: \d+, gp: \[\d+, \d+\](?:, formula: true)?/;
+const STAT_LINE = /hp: \d+, atk: \d+, (?:baseAcc: -?[\d.]+, )?(?:aim: \d+, evasion: \d+, )?def: \d+, xp: \d+, gp: \[\d+, \d+\](?:, formula: true)?/;
 /** Write each proposed row's formula numbers into src/data/monsters.js (or a ground pack's file, src/data/grounds/<id>/pack.js,
     where the row sits one level deeper: the row is found at any indent), in place. Answers how many rows moved. */
 export function writeRows(rows, file = join(ROOT, 'src', 'data', 'monsters.js')) {
@@ -152,7 +153,7 @@ export function writeRows(rows, file = join(ROOT, 'src', 'data', 'monsters.js'))
     const i = lines.findIndex((l, j) => j >= at && (end < 0 || j < end) && STAT_LINE.test(l));
     if (i < 0) throw new Error('gen-ground-stats --write: ' + r.id + ' has no stat line in the house style');
     const f = r.formula;
-    const next = lines[i].replace(STAT_LINE, 'hp: ' + f.hp + ', atk: ' + f.atk + ', baseAcc: ' + f.baseAcc + ', def: ' + f.def + ', xp: ' + f.xp + ', gp: [' + f.gp[0] + ', ' + f.gp[1] + '], formula: true');
+    const next = lines[i].replace(STAT_LINE, 'hp: ' + f.hp + ', atk: ' + f.atk + ', aim: ' + f.aim + ', evasion: ' + f.evasion + ', def: ' + f.def + ', xp: ' + f.xp + ', gp: [' + f.gp[0] + ', ' + f.gp[1] + '], formula: true');
     if (next !== lines[i]) { lines[i] = next; moved++; }
   }
   writeFileSync(file, lines.join('\n'));

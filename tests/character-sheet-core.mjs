@@ -17,6 +17,8 @@
 //   CS-M1 THE ARMOUR LINES ARE THE FIGHT'S (ruling K7): the sheet's dodge, absorb and ward
 //         are mitigation.js's profile for the worn set at the character's own Level, the
 //         one the settle writes on the hero's unit
+//   CS-H1 THE HIT CHANCE IS AGAINST A MONSTER OF THE HERO'S LEVEL (the to-hit ratio, src/data/to-hit.js): the
+//         engine's own roll on a regular of its Level as the formula writes one (a foe with no evasion is the rail)
 //   CS-V1 THE ENGINE VERSION RIDES EVERY PUT: runSheet hands the put the
 //         deployed payload hash (payload-hash.js), and the stamp the server
 //         keeps is md5(inputs || ':' || engine) (hr_character_sheet_stamp)
@@ -88,6 +90,18 @@ async function rules(root) {
   if (sm.dodge_pct !== want.dodgePm / 10 || sm.absorb_pct !== want.absorbPm / 10 || sm.ward !== want.ward) {
     fails.push('CS-M1 the sheet shows dodge ' + sm.dodge_pct + '% absorb ' + sm.absorb_pct + '% ward ' + sm.ward + ', the settle fights at ' + JSON.stringify(want) + ' (Level 10)');
   }
+  // CS-H1 THE HIT CHANCE IS AGAINST A MONSTER OF THE HERO'S LEVEL (the to-hit ratio, src/data/to-hit.js): the engine's own roll against a
+  // regular of its Level as the formula writes one; a hero whose Melee is the reference hero's at that Level reads the formula's 85%.
+  {
+    const TH = await imp('src/data/to-hit.js'), { STAT_FORMULA } = await imp('src/data/balance-sheet.js'), XP = await imp('src/core/xp.js');
+    const C = await imp('src/core/combat.js');
+    const L = 40, ref = TH.refHeroAt(L), items = (await imp('src/data/items.js')).ITEMS;
+    const career = Object.assign({}, env, { state: { level_xp: XP.charXpForLevel(L) }, skills: { melee: { xp: XP.skillXpForLevel('melee', Math.round(ref.main)) } }, equipment: {} });
+    const sc = S.characterSheetOf(career, perks, Date.now());
+    const want = C.playerCombatRolls({ evasion: TH.evasionFor(STAT_FORMULA.heroHit, L) }, { equipment: {}, items, skills: { melee: XP.skillXpForLevel('melee', Math.round(ref.main)) } }).accuracy;
+    if (sc.accuracy_pct !== Math.round(want * 1000) / 10) fails.push('CS-H1 a Level ' + L + ' hero reads ' + sc.accuracy_pct + '% hit chance, its roll on a regular of its Level is ' + want);
+    if (!(sc.accuracy_pct > 70 && sc.accuracy_pct < 90)) fails.push('CS-H1 a Level ' + L + ' hero with the career Melee and no gear reads ' + sc.accuracy_pct + '% (a same-Level regular: about 80-85%)');
+  }
   // CS-I1
   const seen = new Set();
   S.characterSheetOf(recorder(JSON.parse(JSON.stringify(env)), seen), perks, Date.now());
@@ -123,6 +137,7 @@ const MUTANTS = [
   ['the fingerprint stops covering the buffs', BODIES, "    'buffs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',", "    'bufs', coalesce((select jsonb_agg(jsonb_build_object('type', b.v->>'type',"],
   ['the sheet prices armour at Level 1', SHEET, "heroSnapshot({ skills, levelXp }, {", "heroSnapshot({ skills }, {"],
   ['the sheet drops the ward', SHEET, "    ward: mit.ward,", "    ward: 0,"],
+  ['the hit chance is priced against a foe with no evasion (every hero reads the rail)', SHEET, "const levelFoe = Object.freeze({ evasion: evasionFor(STAT_FORMULA.heroHit, vit.level) });", "const levelFoe = Object.freeze({});"],
   ['the put is handed a fixed engine version', SHEET, "const version = o.version || PAYLOAD_SHA256;", "const version = o.version || 'unpacked0';"],
   ['the view ignores the engine', BODIES, "    v_fresh := v_cs.engine_version = v_engine\n      and", "    v_fresh := true\n      and"],
 ];

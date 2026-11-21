@@ -100,6 +100,10 @@ export const STOP_REASON = Object.freeze({
      bank_full fuse). The artisan BAG_FULL stop's twin: the caller idles the pointer and says why,
      rather than proposing a settle hr_apply refuses window after window. */
   BAG_FULL: 'bag_full',
+  /* The CALLER capped the span's actions (`ctx.maxActions`: a job's count left, 1026-job-counts.sql). Not a property of
+     the node: the caller decides what reaching it means (accrue-gather.js ends a job whose count ran out). The artisan
+     BUDGET stop's twin. */
+  BUDGET: 'budget',
 });
 
 /**
@@ -411,6 +415,7 @@ function emptySummary(spanMs, ctx) {
  *   nodes          the gather index (`indexGatherNodes`)
  *   items          the ITEMS catalogue, for the tool lookup
  *   rng, bonus, fx, away, capped
+ *   maxActions     optional cap on the span's actions (a job's count left); BUDGET stop
  * @returns the welcome-back summary. Every field a renderer needs in order to
  *          describe the absence WITHOUT inferring anything.
  */
@@ -457,6 +462,10 @@ export function simulateSkillSpan(state, ctx) {
 
   let lastStep = 0;
   let stopReason = null;
+  /* THE CALLER'S ACTION CAP (a job's count left). null/absent = unbounded, byte for byte the span before it existed;
+     `null` is tested before Number() because Number(null) is 0 (artisan-sim.js states the bug that once caused). */
+  const rawBudget = (c.maxActions === null || c.maxActions === undefined) ? NaN : Number(c.maxActions);
+  let budgetLeft = Number.isFinite(rawBudget) ? Math.max(0, Math.floor(rawBudget)) : Infinity;
 
   const span = sliceSpan(spanMs, {
     rateMult: rateMult(c),
@@ -481,6 +490,12 @@ export function simulateSkillSpan(state, ctx) {
       };
       let done = 0;
       for (let i = 0; i < n; i++) {
+        /* THE CALLER'S CAP FIRST: a counted-out job swings no more, whatever the bag or the level say. */
+        if (budgetLeft <= 0) {
+          stopReason = STOP_REASON.BUDGET;
+          call(fx, 'onStop', stopReason, skill, targetId, null);
+          return done;
+        }
         /* THE BAG'S ROOM, before the swing: a product with no stack to land in is refused by hr_apply
            (bank_full), so the run stops here and says so instead of paying a window nobody can bank. */
         if (gatherBagFullFor(state, node, c) !== null) {
@@ -499,6 +514,7 @@ export function simulateSkillSpan(state, ctx) {
           return done;                       // fewer than n → the span stops here
         }
         done++;
+        budgetLeft--;
       }
       return done;
     },

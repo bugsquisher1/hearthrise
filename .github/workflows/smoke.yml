@@ -868,6 +868,10 @@ jobs:
           node tools/mutant-gate.mjs node tests/core-curves.mjs --selftest
           node tests/level-curve.mjs
           node tools/mutant-gate.mjs node tests/level-curve.mjs --selftest
+          # THE NEW PLAYER (Tyler 2026-11-20, balance call 27-2): the start-kit hero played on the real engine reaches Level 10 in 5-6 h,
+          # no Level under 10 takes over 2 h and none of 10-15 over 4 h (src/data/core-model.js LEVEL_PACE.newPlayer)
+          node tests/start-kit-pace.mjs
+          node tools/mutant-gate.mjs node tests/start-kit-pace.mjs --mutate
           # ONE FORMULA FOR EVERY HUNT (lane/b-ground-formula): every `formula: true` monster row is src/data/balance-sheet.js's, and the formula holds its own rules
           node tests/balance-sheet.mjs
           node tools/mutant-gate.mjs node tests/balance-sheet.mjs --mutate
@@ -4642,6 +4646,16 @@ jobs:
           node tests/farm-harvest-clear.mjs
           node tools/mutant-gate.mjs node tests/farm-harvest-clear.mjs --mutate
 
+      # TEND THE FIELD (build plan L09; 1017-tend-the-field.sql): a real session reads the server's
+      # seed bill and ONE press harvests every ready plot, plants it again and waters the field at
+      # that bill's gold; a stale price is quote_changed and re-read; a chosen crop fills an empty
+      # plot; a replay is the receipt; forged presses and another account move nothing. --mutate: 6.
+      - name: Farm — tend the field in one press
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/farm-tend.mjs
+          node tools/mutant-gate.mjs node tests/farm-tend.mjs --mutate
+
       # THE REGROW LIMIT SURVIVES A CATALOGUE REGEN (2027-01-27-items-catalogue.generated.sql): a
       # fresh generation writes hr_crops.regrow_limit = src/core/farm.js REGROW_LIMITS for every crop,
       # and the replayed chain ends with them (every regen from 2026-08-22 to 2027-01-14 dropped it to
@@ -5096,6 +5110,12 @@ jobs:
       # `utc-midnight-replay` job below for the guard and its full comment.
 
       # ── SELF-REGISTERED GUARDS: generated from each guard's `// ci-step:` header by `node tests/ci-shape.mjs --write`; never hand-edited ──
+      # tests/carry-on.mjs
+      - name: Carry on - one press for the account, both paths, the refusals, two presses one restart
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/carry-on.mjs
+          node tools/mutant-gate.mjs node tests/carry-on.mjs --mutate
       # tools/balance-program/inventory.mjs
       - name: The balance program's inventory still catches an unclaimed system
         if: ${{ !cancelled() }}
@@ -6594,6 +6614,24 @@ jobs:
         run: |
           node tests/button-system.mjs
           node tools/mutant-gate.mjs node tests/button-system.mjs --selftest
+      # tests/client-boot-pure.mjs
+      - name: Client boot rules that need no browser (the boot's pure half)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/client-boot-pure.mjs
+          node tools/mutant-gate.mjs node tests/client-boot-pure.mjs --mutate
+      # tests/hunt-screen-pure.mjs
+      - name: Hunt screen rules that need no browser (the hunt screen's pure half)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/hunt-screen-pure.mjs
+          node tools/mutant-gate.mjs node tests/hunt-screen-pure.mjs --mutate
+      # tests/tally-window-pure.mjs
+      - name: Tally window rules that need no browser (the tally's pure half)
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/tally-window-pure.mjs
+          node tools/mutant-gate.mjs node tests/tally-window-pure.mjs --mutate
       # tools/mutant-gate.mjs
       - name: Nightly gate - a release builds only on swept code
         if: ${{ !cancelled() }}
@@ -7152,6 +7190,15 @@ jobs:
         run: |
           node tests/artisan-tick.mjs
           node tools/mutant-gate.mjs node tests/artisan-tick.mjs --mutate
+
+      # A JOB'S COUNT AND ITS "THEN" (1026-job-counts.sql + hr-accrue; plan L08). A gathering job of 20 swings
+      # exactly 20 and ends itself with the window open (the viewed settle) and the browser closed (the shipped
+      # runTick); its THEN of hunt is started once by the minute sweep, and never loops. --mutate: 4 edge-copy.
+      - name: Job counts — a job of 20 stops at 20 and does its THEN, both paths
+        if: ${{ !cancelled() }}
+        run: |
+          node tests/job-counts.mjs
+          node tools/mutant-gate.mjs node tests/job-counts.mjs --mutate
 
       # WHAT THE DATABASE STOPS KEEPING (2027-02-11-db-retention.sql): frames past an hour go, chat
       # lines stay, a run is bounded; the file's own §4 against stub Realtime + pg_cron schemas (PGlite

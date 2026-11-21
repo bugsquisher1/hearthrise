@@ -14,10 +14,16 @@
 //   node tests/hunt-screen.mjs --shots <dir>  also write the visual-gate screenshots
 //                                             (1440x900 and 922x423)
 //
-// mutant-anchors: src/render/images.js src/world/atlas.js src/hunt-view/summary-model.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/shell-hud.js src/shell/widgets/ src/shell/windows/ src/session/hunt-sections.js src/data/combat-text.js src/data/condition-metrics.js src/shell/action-facts.js src/shell/hud.js
+// mutant-anchors: src/render/images.js src/world/atlas.js src/session/character-session.js src/session/hunt-leave.js src/session/hunt-poll.js src/shell/windows/hunts.js src/shell/widgets/hunt-topbar.js src/render/paint.js src/shell/shell.js src/shell/shell-hud.js src/shell/widgets/ src/shell/windows/ src/data/condition-metrics.js src/shell/hud.js
 //
 // play.html with supabase-js and the REST paths stubbed (tests/_client-harness.mjs);
 // the character's envelope is tests/fixtures/hunt-envelope.json.
+//
+// THE PURE HALF RUNS IN NODE (lane/c-rules-in-node 2026-11-20, architecture audit item 8): tests/hunt-screen-pure.mjs proves the
+// logic half of HS-4, HS-5, HS-7, HS-8, HS-11, HS-19, HS-20, HS-24, HS-25 and HS-27 on this same fixture, through the readers the
+// widgets call, and holds the 23 mutants planted in modules with no DOM (action-facts, action-table, bar-draft, hunt-sections,
+// summary-model, hunt-go, hunt-list, combat-text, the residue put), each caught there by the rule id that caught it here. Every
+// rule below still runs in the page (what is shown, where, and what a press sends); this guard's mutants are the ones that need it.
 //   HS-1  a hunting character mounts the four hunt panels, zero console errors
 //   HS-2  PATCH IN PLACE: a new envelope changes the numbers on the SAME nodes
 //         (party rows, analyzer stats, bar slots), and an idle display tick
@@ -2166,6 +2172,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
 }
 
 const MUTANTS = [
+  /* The mutants planted in modules with no DOM are proven in Node (tests/hunt-screen-pure.mjs): a new one goes there, by the rule
+     id that catches it here. These need the page: the widgets, the windows, the stylesheets, the layout data and the clocks. */
   /* UI audit 2026-11-18 (HS-32): Summary in a hunt is the hunt on now; the analyzer's list ends on a whole row */
   ['Summary in a hunt shows the hunt before again (HS-32)', 'src/shell/windows/hunt-summary.js', 'const list = [...(now ? [now] : []), ...sanitizeSummaries(summariesOf(cs))];', 'const list = sanitizeSummaries(summariesOf(cs));'],
   ['the analyzer\'s list ends mid-row again (HS-32)', 'src/shell/widgets/analyzer.js', "  if (cut < foot) box.style.maxHeight = Math.max(0, Math.floor(cut - top)) + 'px';", ''],
@@ -2176,8 +2184,6 @@ const MUTANTS = [
   ['the phone fight sheet is cut at both ends again (HS-29)', 'src/styles/hunt.css', '  .hb-pl-more { justify-content: safe center; overflow-y: auto; overscroll-behavior: contain; }\n', ''],
   /* playtest v0.2.127: the Effects door opens Settings, but not on Effects (HS-12) */
   ['the Effects door opens Settings on its first page (HS-12)', 'src/shell/windows/settings.js', "if (want && SETTING_CATEGORIES.some((c) => c.id === want))", 'if (false)'],
-  /* Tyler 10-25: ammo on its own tab (HS-7). */
-  ['ammo mixed back into Food & drink (HS-27, HS-7)', 'src/shell/action-table.js', [["    return { runs, empty: runs.length ? null : t('bar.no_food') };\n", ''], ["  if (tab !== 'ammo') return { runs, empty: null };\n", '']]],
   ['the shell rebuilds a component on every paint', 'src/shell/shell.js', 'if (render.patch) render.patch(el, ctx);', 'if (render.patch) { el.innerHTML = render(ctx); render.patch(el, ctx); }'],
   ['keyed rows rebuild every row', 'src/render/paint.js', 'let el = held.get(k) || (kept && kept.get(k));', 'let el = null;'],
   ['a setting shows before the server confirms', 'src/shell/widgets/settings-intent.js', [["  attr(root, 'data-pending', true);\n", "  attr(root, 'data-pending', true);\n  root.__want = el;\n"],
@@ -2188,7 +2194,6 @@ const MUTANTS = [
     ['  const food = foodOf(carriedOf(cs));', '  const food = foodOf(bagOf(cs));']]],
   ['the analyzer ignores the premium gate', 'src/shell/widgets/analyzer.js', 'const premium = isPremium(ctx.character);', 'const premium = true;'],
   ['a null per_hour shows dashes, not "Per hour after 10 min."', 'src/shell/widgets/analyzer.js', "prop(sec.querySelector('.ha-later'), 'hidden', v.rated);", "prop(sec.querySelector('.ha-later'), 'hidden', true);"],
-  ['the struck reason of a food slot ignores the server', 'src/shell/action-facts.js', "    if (sl.why === 'none_left') {", "    if (false) {"],
   ['Configure action never warns a heal slot', 'src/shell/windows/configure-action.js', "healWarning(d, set, blow, vitalsOf(cs).hpMax)", "''"],
   ['a spell the weapon cannot cast reads like a castable one', 'src/shell/windows/configure-action.js', "  cls(el, 'is-locked', !!r.locked);", ''],
   ['Configure action never says a locked spell stays struck', 'src/shell/windows/configure-action.js', "  text(root.querySelector('.ca-weapon'), weaponWarning(d.action, set.discipline, set.role, skillsOf(cs)));", ''],
@@ -2218,16 +2223,10 @@ const MUTANTS = [
   ['the leave closes a whole poll late', 'src/session/hunt-poll.js', "  return closeMs === null ? ms : Math.min(ms, closeMs);", "  return ms;"],
   ['a free character gets no basic analyzer', 'src/shell/widgets/analyzer.js', 'const a = analyzerOf(ctx.character);', 'const a = premium ? analyzerOf(ctx.character) : null;'],
   ['the Training tab drops each skill\'s next level in', 'src/shell/widgets/analyzer.js', "text(li.querySelector('.ha-eta'), it.nextMs === null ? '' : t('hud.an_next_in', { time: hoursMinutes(it.nextMs) }));", ''],
-  ['a maxed skill reads next level in 0:00h', 'src/session/hunt-sections.js', 'return h !== null && h > 0 ? Math.round(h * 3600000) : null;', 'return h !== null ? Math.round(h * 3600000) : null;'],
-  ['the analyzer keeps the last numbers when the section goes', 'src/session/hunt-sections.js', "  const a = section(cs, 'hunt_analyzer');\n", "  const a = section(cs, 'hunt_analyzer') || globalThis.__lastA;\n  globalThis.__lastA = a;\n"],
   ['the metric picker is a hard-coded list', 'src/shell/windows/configure-action.js', "options(METRICS.map((m) => [m.id, m.say]))", "options([['self_hp_pct', 'My HP %'], ['self_mana_pct', 'My mana %']])"],
   ['the controls stay on while a bar intent is in flight', 'src/shell/windows/configure-action.js', '  const off = s.pending;', '  const off = false;'],
-  ['a slot tooltip reads its number with no unit (Tyler 2026-11-08: "at or above 2 what?")', 'src/shell/bar-draft.js', " + c.value + unitWords(m, c.value) + (m.subjectAfter ? subject : '');", " + c.value + (m.subjectAfter ? subject : '');"],
-  ['a server validation error is not shown inline', 'src/shell/bar-draft.js', '  else { s.error = r;', '  else { s.error = null;'],
   ['the bar hides in town', 'src/data/hud-widgets.js', "removable: true, when: 'always',\n    phone: Object.freeze({ dy: 2 }),", "removable: true, when: 'hunt',\n    phone: Object.freeze({ dy: 2 }),"],
-  ['the Food run is sorted by name, not gold per point', 'src/shell/action-table.js', "const byValue = (a, b) => ((a.per === null) - (b.per === null)) || ((a.per || 0) - (b.per || 0))", "const byValue = (a, b) => 0 || 0"],
   ['the comparison never shows', 'src/shell/windows/configure-action.js', '  const cmp = hover && picked && hover !== picked ? compareLines(hover, picked) : [];', '  const cmp = [];'],
-  ['the store price is not shown in the Food run (HS-8)', 'src/shell/action-table.js', '  const price = srv ? srv.price : null;', '  const price = null;'],
   ['the tier press sends no intent', 'src/shell/windows/hunts.js', '    try { r = await cs.setHuntTier(d.hunt, d.tier); } catch (e) { r = null; }', '    try { r = { ok: true }; } catch (e) { r = null; }'],
   ['one tier pick shows on every ground', 'src/shell/windows/hunts.js', '  return g && tiersOf(g.id).includes(picks[hunt]) ? picks[hunt] : DEFAULT_TIER;', '  const any = Object.values(picks)[0]; return g && tiersOf(g.id).includes(any) ? any : DEFAULT_TIER;'],
   ['a ground\'s draft shows on every ground', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier && sc.draft ? sc.draft.tier : tier;'],
@@ -2235,23 +2234,16 @@ const MUTANTS = [
   ['the tier waits for the server before it moves', 'src/shell/windows/hunts.js', '  return tier && sc.draft && sc.draft.hunt === hunt ? sc.draft.tier : tier;', '  return tier;'],
   ['the tier draft outlives the server answer', 'src/shell/windows/hunts.js', '    if (sc.draft === d) { sc.draft = null;', '    if (sc.draft === d) { sc.draft = r.ok ? d : null;'],
   ['the facts line ignores the tier', 'src/shell/windows/hunts.js', "packWords(r, tier ? tierPull(r, tier, size) : null)", "packWords(r, null)"],
-  /* Tyler 2026-11-08: the tier note is the plain line for its tier, no numbers (HS-8). */
-  ['the tier note says its numbers again', 'src/shell/hunt-list.js', "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE].join('\\n');", "[tierLine(r, tier, size), ...healer, TIER_DEATH_LINE, 'Each kill earns ' + Math.round(tier.xpPm / 10 - 100) + '% more Level XP.'].join('\\n');"],
-  ['the tier note reads one line whatever the pull', 'src/shell/hunt-list.js', 'tierPull(r, tier.id, size) > tierPull(r, DEFAULT_TIER, size) ? L.more : L.same;', 'L.same;'],
   ['a party member picks its own tier', 'src/shell/windows/hunts.js', "  if (party && !party.isLeader) return tierOf(party.tiers, hunt);\n", ''],
   ['Enter says nothing of the harder hunt', 'src/shell/windows/hunts.js', "text(det.querySelector('.hw-enter-why'), off || choosing);", "text(det.querySelector('.hw-enter-why'), off);"],
   ['a party member keeps the tier buttons', 'src/shell/windows/hunts.js', "prop(b, 'hidden', follower || !offered.includes(id));", "prop(b, 'hidden', !offered.includes(id));"],
-  ['a blocked slot is not flagged', 'src/shell/action-facts.js', "      if (a.action.type === b.action.type && a.action.id === b.action.id) {", "      if (false) {"],
   ['the modal docks instead of centring', 'src/shell/window-manager.js', "  const isModal = (id) => rows.get(id).modal === true;", "  const isModal = () => false;"],
-  ['Hunt prep tells a player to buy first', 'src/shell/hunt-go.js', "return c.source === 'store' ? { kind: c.kind, own: null, store: off ? null : store, off }", "return c.source === 'store' ? { kind: c.kind, own: null, store: null, off }"],
   ['the mana gauge hides for a hero with no pool', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));", "  fill(el.querySelector('.hb-arc.is-mana'), share(v.mana, v.manaMax));\n  el.querySelector('.hb-read.is-mana').style.display = v.manaMax > 0 ? '' : 'none';"],
   ['the hub keeps the first level it drew', 'src/shell/widgets/vitals-hub.js', '  const level = v.level;', '  const level = 24;'],
   ['the HP arc does not follow the server', 'src/shell/widgets/vitals-hub.js', "  fill(el.querySelector('.hb-arc.is-hp'), share(v.hp, v.hpMax));", "  fill(el.querySelector('.hb-arc.is-hp'), 1);"],
   ['a drop onto an action moves it without asking', 'src/shell/widgets/action-bar.js', '    else openDropMenu(ctx, el, t, from, to, bar);', '    else runDrop(ctx, el, (b) => swapPlan(b, from, to));'],
-  ['insert shifts past the first empty slot', 'src/shell/bar-draft.js', '  while (k < SLOTS && out[k]) k++;', '  k = SLOTS - 1;'],
   ['the status line stays after a drop', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });", ".then((r) => { text(msg, r.ok ? 'Moving it…' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });"],
   ['a refused drop leaves the line on Moving it', 'src/shell/widgets/action-bar.js', ".then((r) => { text(msg, r.ok ? '' : refusalWords(r.error)); renderActionBar.patch(el, ctx); });", ".then((r) => { text(msg, r.ok ? '' : 'Moving it…'); renderActionBar.patch(el, ctx); });"],
-  ['a drop the server never answers stays pending', 'src/shell/bar-draft.js', '  return Promise.race([sent, late])', '  return Promise.race([sent])'],
   /* The record is deep-frozen (envelope.js), so an optimistic move can only be a client-side overlay the bar paints from. */
   ['a drop moves the bar before the server answers', 'src/shell/widgets/action-bar.js', [
     ["  text(msg, 'Moving it…');", "  text(msg, 'Moving it…'); el.__plan = plan(serverBar(ctx.character));"],
@@ -2260,16 +2252,10 @@ const MUTANTS = [
   ['the hub prints the server’s per-minute mana regen as /s', 'src/shell/widgets/vitals-hub.js', "regen(hero.manaPerS) : ''", "regen(hero.manaPerS * 60) : ''"],
   ['the hub prints regen with two decimals', 'src/shell/widgets/vitals-hub.js', "'+' + r.toFixed(1)", "'+' + r.toFixed(2)"],
   ['a struck slot carries no glyph', 'src/shell/widgets/action-bar.js', "g.innerHTML = seen ? glyphSvg(ctx.glyphs, seen.glyph) : '';", "g.innerHTML = seen && !seen.strike ? glyphSvg(ctx.glyphs, seen.glyph) : '';"],
-  ['a server-refused slot is not struck', 'src/shell/action-facts.js', "  if (sl.usable === false) return SERVER;\n  if (a.type === 'consume') return null;", "  if (a.type === 'consume') return null;"],
   ['the panel’s chase sends nothing', 'src/shell/widgets/settings-intent.js', "  if (key === 'chase') { const c = valueOf(s, key, cs); return c === null ? null : { chase: !c }; }", "  if (key === 'chase') return null;"],
   /* Tyler 10-25: the bar is configurable IN TOWN from the server's projected picks; the client fills nothing (HS-27). */
   ['the fight panel locks a value the server sent in town (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return null;"],
   ['the client fills an unset option with its own pick (HS-27)', 'src/shell/widgets/settings-intent.js', "  return v === undefined || v === null ? null : v;", "  return v === undefined ? null : v === null ? 'nearest' : v;"],
-  ['the gold to keep shows a client default while unset (HS-27)', 'src/session/hunt-sections.js', "  return Number.isSafeInteger(v) && v >= 0 ? v : null;\n}\n\nexport function analyzerOf", "  return Number.isSafeInteger(v) && v >= 0 ? v : 300;\n}\n\nexport function analyzerOf"],
-  ['a slot short of its rune says nothing', 'src/shell/action-facts.js', '    if (sup && !(ownCount(a, bag) > 0)', '    if (false && sup && !(ownCount(a, bag) > 0)'],
-  /* lane/b-tank-runes: the shield casts Frost Slam at Melee 12; picked under it, Configure action says the unlock, never the weapon */
-  ['a spell its weapon casts later says nothing of its unlock (HS-8)', 'src/shell/action-facts.js', 'effect, unlock: unlockLine(r),', 'effect, unlock: null,'],
-  ['a spell its weapon casts later blames the weapon (HS-8)', 'src/shell/action-facts.js', "  if (!r || r.universal || (disc && r.disciplines.includes(disc))) return '';", "  if (!r || r.universal || (disc && r.disciplines.includes(disc) && !r.unlock)) return '';"],
   ['the hub keeps an ended hunt’s in-fight regen', 'src/shell/widgets/vitals-hub.js', '  const hero = h && !h.ended ? h.hero : null;', '  const hero = h ? h.hero : null;'],
   ['the gold to keep shows the typed value before the server confirms', 'src/shell/widgets/settings-intent.js', "(pending || el.ownerDocument.activeElement !== el)", "(!pending && el.ownerDocument.activeElement !== el)"],
   ['the gold to keep sends nothing', 'src/shell/widgets/settings-intent.js', ": { gold_floor: n };", ": null;"],
@@ -2287,14 +2273,8 @@ const MUTANTS = [
   ['the phone alerts draw over an open window (HS-22)', 'src/styles/hunt.css', '  :root:has(.hs-win.is-modal:not(.is-leaving)) .hs-widget.is-alerts { visibility: hidden; }', '.hs-widget.is-alerts { }'],
   ['the fight settings sheet starts at the top of the screen (HS-22)', 'src/shell/widgets/action-bar.js', "    sheet.style.top = Math.round(Math.max(box.top, hb ? hb.bottom + 4 : box.top)) + 'px';", "    sheet.style.top = '0px';"],
   ['a widget that grows after it is placed is never placed again (HS-22)', 'src/shell/shell.js', 'const sized = host.ResizeObserver ? ', 'const sized = false ? '],
-  ['the bleed badge defaults on for regular monsters', 'src/data/combat-text.js', "label: 'Bleed stack count', on: on(false, true)", "label: 'Bleed stack count', on: on(true, true)"],
   ['the picker card never shows the personal best (HS-24)', 'src/shell/windows/hunt-detail.js', "['.hw-hunt-best-solo', best && best.solo]", "['.hw-hunt-best-solo', null]"],
-  /* The merge lands on a COPY: envelope records are deep-frozen, so writing into one threw, the Hunts window stopped
-     drawing and the click timed out (run 39899899955, HARNESS) instead of the merged best being shown. */
-  ['the picker merges a best the server no longer sends (HS-24)', 'src/session/hunt-sections.js', "  const b = section(cs, 'hunt_bests');\n", "  const b0 = section(cs, 'hunt_bests');\n  const b = b0 && b0.grounds ? Object.assign({}, b0, { grounds: Object.assign({}, b0.grounds) }) : b0;\n  if (b && b.grounds && globalThis.__hb) for (const [k, v] of Object.entries(globalThis.__hb)) b.grounds[k] = Object.assign({}, v, b.grounds[k]);\n  if (b && b.grounds) globalThis.__hb = b.grounds;\n"],
   ['the raw Level XP row says "before bonuses" again (HS-25)', 'src/shell/windows/hunt-summary.js', "['rawXpH', t('hud.an_raw_xp_h'), whole]", "['rawXpH', 'Level XP per hour before bonuses', whole]"],
-  ['the summary has no balance per hour (HS-25)', 'src/hunt-view/summary-model.js', 'balanceH: ph ? ph.balance : null,', 'balanceH: null,'],
-  ['a re-read that crossed the residue put drops the card (HS-25)', 'src/session/character-session.js', 'this._pending = {}; this._sent = Object.assign({}, this._sent, patch);', 'this._pending = {};'],
   ['a free summary shows raw XP per hour (HS-25)', 'src/shell/windows/hunt-summary.js', "prop(dd.parentNode, 'hidden', !!cur.train || cur[k] === null || cur[k] === undefined);", "prop(dd.parentNode, 'hidden', !!cur.train);"],
   ['a docked window covers the analyzer again (HS-26)', 'src/shell/shell.js', "clearOfDock(home, fixed, edgeEls.filter((o) => o !== e).map(rel), DOCK_EDGE, stage) : home.left;", 'home.left : home.left;'],
   ['the moved analyzer moves the camera (HS-26)', 'src/shell/shell.js', 'const left = dockHome.has(el) ? dockHome.get(el) : r.left - b.left;', 'const left = r.left - b.left;'],

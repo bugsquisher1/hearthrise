@@ -22,6 +22,15 @@ export const WORK_TEXT = Object.freeze({
   now_left: '{n} left',
   now_stops_out: 'Stops when materials run out',
   now_gather: 'Runs offline until a hunt starts',
+  /* A JOB'S COUNT AND ITS "THEN" (1026-job-counts.sql, plan L08): the line's end for a counted job, the how line over a gathering
+     skill's rows, and the control that picks what the hero does when the count is done (one pick for the window, Wait by default). */
+  now_then_wait: 'Then waits in town',
+  now_then_hunt: 'Then goes back to hunting',
+  use_gather: 'Runs offline until its count is done',
+  count_label: 'How many',
+  then_label: 'When it is done',
+  then_wait: 'Wait in town',
+  then_hunt: 'Go hunting again',
   /* THE LINE WHEN A BENCH RUN FINISHES IN VIEW (src/shell/town-news.js; QA audit 2026-11-18 A17: "Fuel all" ended with no word): what it
      made or burned, the server's count, then the skill's level as a label. */
   done_made: '{name} made {count} {item}.',

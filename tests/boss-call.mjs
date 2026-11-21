@@ -218,7 +218,7 @@ async function guard(X) {
   const addOf = (c) => G.CALLED_GROUNDS[c.hunt].pockets[0].adds[0].monster;
   const bothRows = (id) => [X.EM[id], X.play.MONSTERS[id]];
   const setRow = (id, o) => { for (const inst of bothRows(id)) Object.assign(inst, o); };
-  const soft = (c, hp) => { setRow(c.monster, { hp, atk: 1, baseAcc: 0 }); setRow(addOf(c), { hp: 60, atk: 1, baseAcc: 0 }); };
+  const soft = (c, hp) => { setRow(c.monster, { hp, atk: 1, aim: 1 }); setRow(addOf(c), { hp: 60, atk: 1, aim: 1 }); };
   soft(king, 1600); soft(chief, 1600);
   const kinds = (f) => { const out = {}; for (const w of f.windows) for (const [u, r] of Object.entries(w.units || {})) out[u] = r[0]; return out; };
   const eventsOf = (f) => f.windows.flatMap((w) => w.events || []);
@@ -327,7 +327,7 @@ async function guard(X) {
   }
   /* BC-PHASE: the lines, once each, at their HP; no Challenge on the bar, so every blow an add lands is its first aim. */
   const NO_CHALLENGE = (role) => (role === 'tank' ? [{ action: { type: 'ability', id: 'power_strike' }, conditions: [], join: 'and' }] : []);
-  setRow(king.monster, { hp: 3000, atk: 1, baseAcc: 0 });
+  setRow(king.monster, { hp: 3000, atk: 1, aim: 1 });
   {
     const f = fight(X, king, ['tank', 'healer'], { bar: NO_CHALLENGE });
     const k = kinds(f), ev = eventsOf(f), row = X.EM[king.monster];
@@ -377,7 +377,7 @@ async function guard(X) {
   /* ...and the enrage raises his blows (his swings only, ability 'basic': a spell is priced off the same row and would hide a swing that ignores it): his largest before the line stays under his row's, after it passes it. */
   /* (his spells off for this arm: a cast takes his swing turns, and in the few seconds of the enrage it left too few swings to read) */
   const kingSpells = X.EM[king.monster].spells;
-  setRow(king.monster, { hp: 9000, atk: 10, baseAcc: 1, spells: [], phases: { ...X.EM[king.monster].phases, enrageAtkPm: 3000 } });
+  setRow(king.monster, { hp: 9000, atk: 10, aim: 100000, spells: [], phases: { ...X.EM[king.monster].phases, enrageAtkPm: 3000 } });
   {
     const f = fight(X, king, ['tank', 'healer'], { bar: NO_CHALLENGE });
     const k = kinds(f);
@@ -393,8 +393,8 @@ async function guard(X) {
   setRow(king.monster, { spells: kingSpells, phases: { ...X.EM[king.monster].phases, enrageAtkPm: 1600 } });
 
   /* BC-WAVE: an add that kills: the healer falls with the wave up, the tank comes home with it, both paths. */
-  setRow(king.monster, { hp: 3000, atk: 1, baseAcc: 0 });
-  setRow(addOf(king), { hp: 100000, atk: 400, baseAcc: 1 });
+  setRow(king.monster, { hp: 3000, atk: 1, aim: 1 });
+  setRow(addOf(king), { hp: 100000, atk: 400, aim: 100000 });
   {
     const ways = [10000, 30000, 10 * MINUTE].map((cut) => fight(X, king, ['tank', 'healer'], { cut, bar: NO_CHALLENGE, L: 30, start: (role, i, L) => ({ levelXp: X.XP.charXpForLevel(L) + 2000 }) }));
     const key = (f) => JSON.stringify(Object.entries(f.ended).sort());
@@ -409,8 +409,8 @@ async function guard(X) {
   }
 
   /* BC-RECORD: where he stood, read through the leader's death (a called room never heals him). */
-  setRow(addOf(king), { hp: 60, atk: 1, baseAcc: 0 });
-  setRow(king.monster, { hp: 3000, atk: 120, baseAcc: 1 });
+  setRow(addOf(king), { hp: 60, atk: 1, aim: 1 });
+  setRow(king.monster, { hp: 3000, atk: 120, aim: 100000 });
   const lastFight = (f, key) => { let out = null; for (const m of f.members) if (m.key === key && m.analyzer && m.analyzer.fight) out = m.analyzer.fight; return out; };
   {
     const f = fight(X, king, ['tank', 'healer'], { L: 30, start: (role, i, L) => ({ levelXp: X.XP.charXpForLevel(L) + 2000 }) });
@@ -423,7 +423,7 @@ async function guard(X) {
     if (!rec || rec.boss_pm !== Math.floor(((book[1] - dealt) * 1000) / book[1])) bad.push('BC-RECORD the record says ' + JSON.stringify(rec) + ' with ' + dealt + ' of ' + book[1] + ' dealt: a reset healed him');
   }
   /* ...on a kill it reads nothing left, what fired is each hero's own, and any cut says the same. (He hits hard enough that someone eats.) */
-  setRow(king.monster, { hp: 1600, atk: 30, baseAcc: 3 });
+  setRow(king.monster, { hp: 1600, atk: 30, aim: 100000 });
   {
     const FOOD = () => [{ action: { type: 'consume', id: 'salted_shrimp' }, conditions: [{ metric: 'self_hp_pct', op: 'lt', value: 90 }], join: 'and' }];
     const ways = [10000, 30000, 10 * MINUTE].map((cut) => fight(X, king, ['tank', 'healer'], { cut, kit: SHIELDED, bar: FOOD }));
@@ -452,7 +452,7 @@ async function guard(X) {
   }
 
   /* BC-DEATH: a boss who kills at once. The box is unticked: on any other ground the friend hunts on; here the fight is over for both. */
-  for (const inst of [X.EM[king.monster], X.play.MONSTERS[king.monster]]) { inst.hp = 1000000; inst.atk = 400; inst.baseAcc = 1; }
+  for (const inst of [X.EM[king.monster], X.play.MONSTERS[king.monster]]) { inst.hp = 1000000; inst.atk = 400; inst.aim = 100000; }
   {
     /* well past the Level's start, or the 2% has nothing to take (a death never de-levels) */
     const f = fight(X, king, ['tank', 'healer'], { box: false, L: 8, kit: { weapon: 'bronze_sword' }, start: (role, i, L) => ({ levelXp: X.XP.charXpForLevel(L) + 2000 }) });
@@ -466,7 +466,7 @@ async function guard(X) {
   }
 
   /* BC-TIME: nobody can finish him and he can't finish anybody: the limit ends it for everyone, one swing after it falls at most, and nothing stays open. */
-  for (const inst of [X.EM[king.monster], X.play.MONSTERS[king.monster]]) { inst.hp = 100000000; inst.atk = 1; inst.baseAcc = 0; }
+  for (const inst of [X.EM[king.monster], X.play.MONSTERS[king.monster]]) { inst.hp = 100000000; inst.atk = 1; inst.aim = 1; }
   /* (Measured: what a pair deals in ten minutes. A pair meets his whole row (no party scale since 2026-11-08), so a row of 1.5 times that puts his first line well inside the limit and the kill past it, and his adds, who never die, stand when it falls.) */
   {
     const measure = fight(X, king, ['tank', 'healer']);
@@ -474,7 +474,7 @@ async function guard(X) {
     const dealt = eventsOf(measure).filter((e) => e.type === 'dmg' && k[e.t] === king.monster).reduce((a, e) => a + e.amount, 0);
     if (!dealt) bad.push('BC-TIME CONTROL: nothing was dealt in ten minutes');
     setRow(king.monster, { hp: Math.floor(dealt * 1.5) });
-    setRow(addOf(king), { hp: 10000000, atk: 1, baseAcc: 0 });
+    setRow(addOf(king), { hp: 10000000, atk: 1, aim: 1 });
     const f = fight(X, king, ['tank', 'healer']);
     const kk = kinds(f);
     const addsUp = eventsOf(f).some((e) => e.type === 'boss_phase' && e.phase === 'adds') && Object.values(kk).includes(addOf(king));
@@ -500,7 +500,7 @@ async function shut(X) {
   if (X.B.BOSS_CALL_RULES.dropsLive === true) return ['SHUT CONTROL: the planted switch is still open'];
   const bad = [];
   const king = X.B.BOSS_CALLS.rat_king, add = X.G.CALLED_GROUNDS[king.hunt].pockets[0].adds[0].monster;
-  for (const id of [king.monster, add]) for (const inst of [X.EM[id], X.play.MONSTERS[id]]) Object.assign(inst, { hp: id === add ? 60 : 1600, atk: 1, baseAcc: 0 });
+  for (const id of [king.monster, add]) for (const inst of [X.EM[id], X.play.MONSTERS[id]]) Object.assign(inst, { hp: id === add ? 60 : 1600, atk: 1, aim: 1 });
   const f = fight(X, king, ['tank', 'healer', 'melee_dps', 'mage'], {});
   if (!Object.values(f.ended).every((e) => e.reason === 'boss_felled')) bad.push('SHUT CONTROL: the four did not win: ' + JSON.stringify(f.ended));
   for (const m of f.members) for (const p of paysOf(m.delta, king.monster)) bad.push('SHUT a win paid while the switch is shut: ' + m.key + ' ' + p);
@@ -525,14 +525,14 @@ async function restoring(root, fn) {
   }
 }
 
-const ROW_KING = "hp: 2000, atk: 42, baseAcc: 0.1, def: 4, xp: 0, gp: [0, 0], speed: 2800,\n    /* A WIN PAYS HIS OWN TABLE";
+const ROW_KING = "hp: 2000, atk: 42, aim: 41, evasion: 8, def: 4, xp: 0, gp: [0, 0], speed: 2800,\n    /* A WIN PAYS HIS OWN TABLE";
 const KING_TAIL = "{ id: 'rat_kings_crown', ch: .00141, band: 'trophy' },\n      { id: 'kingstooth', ch: .01, band: 'rare' }],";
 /* the drop door's own lines (src/core/hunt-rewards.js calledSwing) */
 const DOOR_KILL = "    if (ev.type !== 'kill') continue;\n    const t = unitOf(ev.t);\n    if (t && t.side === 'mon' && t.kind === boss) {\n";
 const DOOR_DEATH = "    } else if (members.has(ev.t)) {\n      const k = unitOf(ev.u);\n      deaths.push({ unit: ev.t, atMs: ev.atMs, monster: k && k.side === 'mon' ? k.kind : '' });\n    }\n  }\n  return deaths;\n}\n\n/**";
 /* a planted roll of his table, in calledSwing's own loop: the heroes alive at event `i` (livingAt, with the swing's falls `fell`) */
 const PAY_HERE = "{ const ids = livingAt(world, members, fell, i); const row = (ctx.monsters || MONSTERS)[boss]; if (ids.length && row) payDrops(ids.map((id) => members.get(id)), ids, members.get(ids[0]), row, ctx, world, ev.atMs); }";
-const ROW_ADD = "hp: 300, atk: 66, baseAcc: -0.6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
+const ROW_ADD = "hp: 300, atk: 66, aim: 22, evasion: 6, def: 0, xp: 0, gp: [0, 0], speed: 3400, drops: [] },";
 const MUTANTS = [
   /* THE ROOM'S TIME COSTS NO STAMINA (each fight is charged by the server as it starts) */
   { name: 'a called room drains the pool and ends on it', edits: [['src/core/combat-sim.js', '  if (call) for (const m of members) m.hs.staminaMs = null;\n', '']], want: /BC-STAMINA/ },

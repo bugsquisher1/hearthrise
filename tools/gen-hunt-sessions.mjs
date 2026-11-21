@@ -367,11 +367,13 @@ export const WORLD_FIELDS_READ = Object.freeze({
 /* 1001-xp-a-kill-hunt-sessions-catalogue (lane/d-142-rulings, 2026-11-19): STAT_FORMULA's XP a kill x0.88, so every formula row's kill bound falls; 2027-06-05 is carried whole. */
 /* 1012-approved-rows-hunt-sessions-catalogue (lane/c-approved-rows, 2026-11-20; Tyler, balance call 22-8): Call out costs stamina only, so hr_boss_calls.fight_fee is 0
    and its CHECK admits a fight at 0 gold; 1001 (APPLIED) is carried whole. */
-/* ...and lane/c-approved-cuts (2026-11-20, build plan L10) FOLDS INTO 1012 (both STAGED, ONE forward file per generator): hr_hunt_vendor_value
-   also loses the Shop's bids on the Hearth Token and the three boss-forged body pieces, which 1017-approved-cuts-items-catalogue takes out of
-   hr_items AFTER this file. A second forward file after 1017 could not be re-applied before 1017 (tests/schema-drift.mjs's second apply of the
-   staged tail: this file's bids would name items hr_items no longer holds); in this one the bids leave first and the items after. */
-export const OUT_NAME = '1012-approved-rows-hunt-sessions-catalogue.generated.sql';
+/* 1021-tohit-ratio-hunt-sessions-catalogue (lane/c-tohit-ratio, 2026-11-20; balance program L15): the called Chief's drop rows follow the field Chief's
+   re-fitted rates (the to-hit ratio slowed his kills a little); 1012 (STAGED) is carried whole. */
+/* ...and lane/c-approved-cuts (2026-11-20, build plan L10) FOLDS INTO the newest STAGED forward file (1012, and now 1021 that carries it;
+   ONE forward file per generator): hr_hunt_vendor_value loses the Shop's bids on the Hearth Token and the three boss-forged body pieces,
+   which the approved-cuts items catalogue takes out of hr_items AFTER this file. A forward file after that catalogue could not be re-applied
+   before it (tests/schema-drift.mjs's second apply of the staged tail: its bids would name items hr_items no longer holds). */
+export const OUT_NAME = '1021-tohit-ratio-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -1126,7 +1128,13 @@ export function render(src) {
 --   ${r.vendor.length} vendor values, ${r.basics.length} store supplies paid per use, ${r.targets.length} target modes,
 --   ${r.lanes.length} lanes, ${r.abilities.length} abilities, ${r.setOptions.length} action-set options, ${r.grounds.length} hunt grounds
 --
--- NEW IN THIS FILE (lane/c-approved-rows, backend-architect, 2026-11-20; Tyler 2026-11-20, balance call 22-8: Call out costs stamina only, no
+-- NEW IN THIS FILE (lane/c-tohit-ratio, systems-engineer, 2026-11-20; balance program L15, Tyler ruled 21-1 and 21-2: to-hit as a ratio of two
+--   ratings). It carries 1012-approved-rows-hunt-sessions-catalogue (STAGED) whole. Only hr_boss_calls' called Chief Coppercap drop rows move: a called
+--   boss drops his ground rows at the field rates, and on the to-hit ratio the Warrens' reference group kills the field Chief a little slower, so his
+--   three Willow pieces and his Verdigris Cake go 11,000 -> 11,400 ppm and the Cauldron 1,430 -> 1,530 ppm (src/data/monsters.js; drop-tables.mjs read
+--   them every 20.2 h and 155.4 h a hero, past the Rare band's 20 and the Trophy band's 150). No kill bound, limit, ground, end reason or world shape
+--   moves. ORDER: the sequence in its name. EDGE: the hr-accrue carrying this lane's src/data, either side of the apply.
+-- CARRIED FROM 1012-approved-rows-hunt-sessions-catalogue (lane/c-approved-rows, backend-architect, 2026-11-20; Tyler 2026-11-20, balance call 22-8: Call out costs stamina only, no
 --   gold). It carries 1001-xp-a-kill-hunt-sessions-catalogue (APPLIED 2026-11-20) whole. hr_boss_calls.fight_fee is 0 on both calls (was 50 and 100)
 --   and hr_boss_calls_fight_ck admits 0 (a call is never a roll bought with gold; the generator refuses a fee in the data). Every reader (hr_boss_call_quote, hr_boss_call, the settle's
 --   next fight) already prices a fight as fight_fee x the live dial's permille, so a fight charges 0 gold and the gold_out end never fires. No other

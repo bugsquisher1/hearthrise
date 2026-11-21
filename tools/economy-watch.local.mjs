@@ -90,6 +90,7 @@ const GOLD_KEYS = Object.freeze({
   'hunt:supply_buy': sink('store supplies on the hunt', true),
   'shop:shop_buy.supply': sink('shop supplies and seeds', true),
   'shop:farm_replant_seed': sink('replant seeds', true),
+  'shop:farm_tend_seed': sink('Tend the field seeds', true, 'hr_farm_tend'),
   'shop:stamina_refill': sink('stamina refills', true, 'hr_stamina_refill'),
   'shop:blessing_buy': sink('blessings', true, 'hr_blessing_buy'),
   'shop:unlock_buy.temper': sink('tempering', true, 'hr_unlock_buy'),

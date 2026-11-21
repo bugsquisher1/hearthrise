@@ -76,6 +76,11 @@ export async function loadPaceData(root = ROOT) {
   return { OPEN_GROUNDS: G.OPEN_GROUNDS, HUNT_INDEX, MONSTERS, recommend: (L) => { const r = recommendedHunt([L], 1); return r ? r.hunt : null; } };
 }
 
+/** The targets the CAREERS are held to: LEVEL_PACE.targets less the one LEVEL_PACE.newPlayer holds on the start-kit hero
+    (Tyler 2026-11-20, 27-2: Level 10 in 6 hours is the new player's, tests/start-kit-pace.mjs), so the fit and level-curve
+    C2/C3 never pull the careers' Level 10 back to 6 hours. */
+export const careerTargets = (pace) => pace.targets.filter(([L]) => !(pace.newPlayer && L === pace.newPlayer.level));
+
 /* ── HOURS on a curve at a rate ── */
 /** Hours from Level 1 to each Level in `levels` on `xpFor` (total XP to reach a Level) at `rate(L)` Level XP an hour. */
 export function hoursTo(xpFor, rate, levels) {
@@ -347,7 +352,7 @@ async function main() {
        plus --bands "from:to:lo:hi,..." (e.g. "5:9:1.4:1.8": Levels 5-10 each 1.4-1.8x the one before) */
     const smooth = [{ from: (LEVEL_PACE.smooth && LEVEL_PACE.smooth.from) || 1, to: ceiling - 2, lo: 0, hi: (LEVEL_PACE.smooth && LEVEL_PACE.smooth.ratio) || 2 },
       ...arg('bands', '').split(',').filter(Boolean).map((s) => { const [from, to, lo, hi] = s.split(':').map(Number); return { from, to, lo, hi }; })];
-    const f = fitCurve({ froms, rate: R, targets: LEVEL_PACE.targets, early: LEVEL_PACE.early, hold, holdFrom, smooth, firstMinutes: Number(arg('first-minutes', 1)) });
+    const f = fitCurve({ froms, rate: R, targets: careerTargets(LEVEL_PACE), early: LEVEL_PACE.early, hold, holdFrom, smooth, firstMinutes: Number(arg('first-minutes', 1)) });
     if (!f) { console.error('pace --fit: no curve meets the constraints'); process.exit(1); }
     const rows = XP.levelCurveRowsOf(f.curve);
     const xpOn = (L) => XP.xpForLevelOn(rows, L);
@@ -388,8 +393,8 @@ async function main() {
       if (d3) Object.assign(d3, { measured: 'On the new curve (pace brackets, lane/b-level-curve): ' + careers.length + ' styles reach L10 in ' + measured[10].toFixed(1) + ' h, L25 in '
         + measured[25].toFixed(1) + ' h, L50 in ' + measured[50].toFixed(1) + ' h (median; the 10-19 curve at the same rates: ' + [10, 25, 50].map((L) => n(tgt(L).before)).join(' / ') + ' h). Past L50 at the ground contract ('
         + LEVEL_PACE.contract.a + ' x L^' + LEVEL_PACE.contract.b + ' XP/h): L100 ' + n(tgt(100).hours) + ', L200 ' + n(tgt(200).hours) + ', L500 ' + n(tgt(500).hours) + ', L1000 ' + n(tgt(1000).hours) + ' h.',
-      gap: LEVEL_PACE.targets.every(([L]) => Math.abs(tgt(L).err) <= LEVEL_PACE.tolerance) ? 'OK' : 'Major',
-      proposal: 'Shipped: every target within ' + Math.round(Math.max(...LEVEL_PACE.targets.map(([L]) => Math.abs(tgt(L).err))) * 1000) / 10 + '% (tests/level-curve.mjs pins it). New grounds past L50 must pay the contract.',
+      gap: careerTargets(LEVEL_PACE).every(([L]) => Math.abs(tgt(L).err) <= LEVEL_PACE.tolerance) ? 'OK' : 'Major',
+      proposal: 'Shipped: every target within ' + Math.round(Math.max(...careerTargets(LEVEL_PACE).map(([L]) => Math.abs(tgt(L).err))) * 1000) / 10 + '% (tests/level-curve.mjs pins it). New grounds past L50 must pay the contract.',
       decides: 'Done (layer 1); grounds past L50 are the designer\'s' });
       /* the first Level where a mid-Level death's share of the total is more than the Level's own progress (it takes a Level; Tyler 2026-11-09) */
       let takesFrom = null;

@@ -50,7 +50,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
    are APPLIED history and are never regenerated; the boss odds re-measured on the
    core rebuild (Level HP, per-tier monster damage; designer 2026-10-19) land in this
    forward file, which rewrites the same tables. */
-const OUT = join(ROOT, 'supabase', 'migrations', '2026-10-27-hearthfind-catalogue.generated.sql');
+/* 1022-tohit-ratio-hearthfind-catalogue (lane/c-tohit-ratio, 2026-11-20): 2026-10-27 is APPLIED history; three boss kill rates re-measured on the
+   to-hit ratio move their one_in (hours as ruled). */
+const OUT = join(ROOT, 'supabase', 'migrations', '1022-tohit-ratio-hearthfind-catalogue.generated.sql');
 const ID_RE = /^[a-z0-9_]+$/;
 
 const die = (msg) => { throw new Error(`gen-hearthfind: ${msg}`); };
@@ -338,7 +340,7 @@ if (process.argv.includes('--selftest')) {
 if (process.argv.includes('--check')) {
   const have = await readFile(OUT, 'utf8').catch(() => '');
   if (isStale(have, wanted)) {
-    console.error('gen-hearthfind --check FAILED: 2026-09-08-hearthfind-catalogue.generated.sql '
+    console.error('gen-hearthfind --check FAILED: ' + OUT.split(/[\/]/).pop() + ' '
       + 'is stale. Run: node tools/gen-hearthfind.mjs');
     process.exit(1);
   }

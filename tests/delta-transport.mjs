@@ -793,7 +793,7 @@ async function run(mutate) {
         /* A GATHER declaration since lane C2: `combat` is answered
            hunt_required on shape (a fight is a hunt session now) and would
            never reach the wire this arm exists for. */
-        activity: { kind: 'gather', id: 'normal_tree' },
+        activity: { kind: 'gather', id: 'normal_tree', count: 100 },   // a gathering job always takes a count (1026-job-counts.sql)
       });
 
       /* The refusal envelope carries a whole hr_state_of, so a raw dump buries

@@ -59,6 +59,7 @@ import { bankOf, shopOf } from '../session/item-sections.js';
 import { benchTaxOf, benchRunOf, learnedRecipesOf } from '../session/bench-sections.js';
 import { whereToGet, wherePlaces, toolEffect } from './item-lore.js';
 import { recipeOutcomes, JEWELRY_ITEMS, JEWEL_PERKS } from '../data/jewelry.js';
+import { GATHER_COUNT_DEFAULT } from '../data/hunt-after.js';
 
 /** Every gathering node the engine runs, by id: { skill, node }. The same index the server builds (hr-accrue catalogue.js). */
 export const GATHER_INDEX = indexGatherNodes({ woodcutting: TREES, mining: ROCKS, fishing: FISH_SPOTS });
@@ -142,11 +143,28 @@ export function defaultCount(w) {
   return gear ? 1 : 'all';
 }
 
-/** Actions left on the hero's bench run, from the server (`bench_run.left`), or null (until the bag runs out). */
+/** Actions left on the hero's job (a bench run or, since 1026-job-counts.sql, a gathering job), from the server
+    (`bench_run.left`), or null (no count: a bench until the bag runs out). */
 export function leftOf(cs) {
   const b = cs && typeof cs.read === 'function' ? cs.read('bench_run') : null;
   return b && Number.isInteger(b.left) && b.left > 0 ? b.left : null;
 }
+
+/** THE JOB AS THE SERVER HOLDS IT (1026-job-counts.sql; the `bench_run` section): { left, count, next, ended } where `count` is
+    the whole count it was set with, `next` its THEN (wait | hunt), and `ended` the last counted job the server ended ({ kind, id,
+    count, done, left, next, end: count | stopped, at, next_state?, why? }) or null. Display only: every envelope replaces it. */
+export function jobOf(cs) {
+  const b = cs && typeof cs.read === 'function' ? cs.read('bench_run') : null;
+  const n = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
+  const e = b && b.ended && typeof b.ended === 'object' ? b.ended : null;
+  return {
+    left: leftOf(cs), count: b ? n(b.count) : null, next: b && b.next === 'hunt' ? 'hunt' : 'wait',
+    ended: e && typeof e.kind === 'string' && typeof e.id === 'string' && n(e.count) !== null && n(e.done) !== null ? e : null,
+  };
+}
+
+/** "Then waits in town" / "Then goes back to hunting": what the running counted job does at its end. */
+export function nextLineWords(next) { return t(next === 'hunt' ? 'work.now_then_hunt' : 'work.now_then_wait'); }
 
 /** One action's time in ms, for the tool the server says the hero holds (perks only make it shorter). */
 export function actionMs(cs, w) {
@@ -340,12 +358,15 @@ const isErrand = (w, n) => w.kind === 'artisan' && w.skill === 'inner_flame' && 
  * Start (or switch to) a work row: ONE set_activity. `send(fn, busy, done)` is the window's runIntent;
  * `repaint` repaints it when the armed stop fires while something else is in flight. Returns send's promise.
  */
-export function startWork(cs, w, send, repaint, words, count) {
+export function startWork(cs, w, send, repaint, words, count, next) {
   const run = runOf(cs);
-  /* A whole count only on a bench row; anything else (All, a gathering node) runs until stopped or out. */
-  const n = w.kind === 'artisan' && Number.isInteger(count) && count > 0 ? count : null;
-  const activity = n === null ? { kind: w.kind, id: w.id } : { kind: w.kind, id: w.id, count: n };
+  /* A JOB'S COUNT AND "THEN" (1026-job-counts.sql): a gathering job always takes a count (the server refuses one without), a bench
+     a whole count or All (null: until its inputs run out, which takes no THEN). The server ends the job at the count and does its
+     THEN (the wire's `next`); a Hearth errand of one is a visit and goes back to the job it interrupted, so it sends none. */
+  const n = Number.isInteger(count) && count > 0 ? count : w.kind === 'gather' ? GATHER_COUNT_DEFAULT : null;
   const errand = isErrand(w, n);
+  const th = n === null || errand ? null : next === 'hunt' ? 'hunt' : 'wait';
+  const activity = { kind: w.kind, id: w.id, ...(n !== null ? { count: n } : {}), ...(th ? { next: th } : {}) };
   const replaced = errand ? '' : jobReplacedWords(cs, w);
   return send(() => cs.edgeIntent('set_activity', { activity }).then(skillRefusal(cs, w)), 'Starting…', () => {
     clearTimeout(run.timer);
@@ -355,17 +376,24 @@ export function startWork(cs, w, send, repaint, words, count) {
     run.from = { id: w.id, xp: xpOf(cs, w.skill), skill: w.skill, out, made: out ? bag[out] || 0 : 0, burnt: bag[BURNT] || 0,
       /* a ROLLED job's every grade, so the end line can say what the dice made (src/data/jewelry.js) */
       outs: w.row && w.row.roll ? Object.fromEntries(recipeOutcomes(w.row).map((id) => [id, bag[id] || 0])) : null };
-    if (w.kind === 'artisan' && !errand) {
+    if ((w.kind === 'artisan' || n !== null) && !errand) {
       const sup = supplyOf(cs);
-      const runs = affordable(cs, w, n === null ? runsOf(w.row, sup) : Math.min(n, runsOf(w.row, sup)));
+      const runs = w.kind === 'gather' ? n : affordable(cs, w, n === null ? runsOf(w.row, sup) : Math.min(n, runsOf(w.row, sup)));
       const endAt = Date.now() + runs * actionMs(cs, w) + SLACK_MS;
+      let asks = 0;
       const arm = () => { run.timer = setTimeout(fire, Math.max(0, Math.min(MAX_WAIT_MS, endAt - Date.now()))); };
-      /* At the end: stop (it collects). On a long run, every MAX_WAIT_MS: one settle (hello) so the bag and XP move. */
+      /* At the end of a run on All: stop (it collects). A COUNTED job is the server's to end (1026-job-counts.sql): its end runs
+         its THEN, which a Stop would not, so the end asks for a settle (hello), and again in a moment while the job still shows.
+         On a long run, every MAX_WAIT_MS: one settle so the bag and XP move. */
       const fire = () => {
         run.timer = null;
         const now = workOf(cs);
         if (!now || now.id !== w.id) { if (repaint) repaint(); return; }
         if (Date.now() < endAt) { if (typeof cs.hello === 'function') cs.hello(); arm(); return; }
+        if (n !== null) {
+          if (typeof cs.hello === 'function' && asks++ < 5) { cs.hello(); run.timer = setTimeout(fire, SLACK_MS * 2); }
+          return;
+        }
         /* Another press is in flight (runIntent answers `busy` and sends nothing): try again in a moment. */
         Promise.resolve(stopWork(cs, send)).then((r) => { if (r && r.error === 'busy' && !run.timer) run.timer = setTimeout(fire, 1000); });
       };
@@ -476,15 +504,18 @@ export function gatherBagWords(cs, w, running) {
  * sent; `short` when the server's bag and Storage cover fewer actions than the count left, so the inputs stop it first.
  */
 function countedRun(cs, w) {
-  const left = w && w.kind === 'artisan' ? leftOf(cs) : null;
+  const left = w ? leftOf(cs) : null;
   if (left === null) return null;
   const tick = tickOf(cs);
   const done = tick ? tick.actions : 0;
+  /* `of`: the job's whole count as the server holds it (1026-job-counts.sql bench_run.count); before it, the bench tax's tally */
+  const job = jobOf(cs);
   const st = stateOf(cs);
   const run = benchTaxOf(cs) ? benchRunOf(cs) : undefined;
   const mine = !!run && run.recipe === w.id && run.since === Date.parse(st && st.active_since);
-  return { left: Math.max(0, left - done), of: run === undefined ? null : left + (mine ? run.crafts : 0), ahead: done > 0,
-    short: runsOf(w.row, supplyOf(cs)) < left };
+  const tally = { of: run === undefined ? null : left + (mine ? run.crafts : 0) };
+  return { left: Math.max(0, left - done), of: job.count !== null && job.count >= left ? job.count : tally.of, ahead: done > 0, next: job.next,
+    short: w.kind === 'artisan' && runsOf(w.row, supplyOf(cs)) < left };
 }
 
 /**
@@ -542,9 +573,11 @@ export function nowParts(cs) {
   const w = workOf(cs);
   if (!w) return [];
   const words = workWords(w);
-  /* A counted run says its own count and ends at it; it says the inputs stop it only where they run out first. */
+  /* A counted run says its own count, ends at it and says what the hero does then (1026-job-counts.sql); it says the inputs stop
+     it only where they run out first. A gathering job from before counts runs until a hunt starts. */
   const run = countedRun(cs, w);
   const how = runParts(cs, w, false, run);
-  const tail = w.kind === 'gather' ? t('work.now_gather') : run && !run.short ? '' : t('work.now_stops_out');
+  /* (a Hearth errand of one goes back to the job it interrupted: no "then" is said for it) */
+  const tail = run && !run.short ? (isErrand(w, run.of) ? '' : nextLineWords(run.next)) : w.kind === 'gather' ? t('work.now_gather') : t('work.now_stops_out');
   return lineParts(words.charAt(0).toUpperCase() + words.slice(1), how, tail && '. ' + tail);
 }

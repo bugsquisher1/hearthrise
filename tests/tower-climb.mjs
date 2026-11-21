@@ -101,7 +101,7 @@ async function roomArm(db, M) {
       const s = M.BS.formulaStats(spec), h = M.BS.formulaStats(spec, hot(F));
       /* HP, defense and XP are the plain formula's on every floor (the heat moves blows only); the blow is the heated formula's */
       if (row.hp !== s.hp || row.def !== s.def || row.xp !== s.xp) bad.push(`TC-ROOM floor ${F}: ${id} is not the formula's ${role} at Level ${L}`);
-      if (row.atk !== h.atk || row.baseAcc !== h.baseAcc) bad.push(`TC-ROOM floor ${F}: ${id} hits for ${row.atk} at ${row.baseAcc}, not the formula's x the heat ${heatOf(F)} (${h.atk} at ${h.baseAcc})`);
+      if (row.atk !== h.atk || row.aim !== h.aim) bad.push(`TC-ROOM floor ${F}: ${id} hits for ${row.atk} at aim ${row.aim}, not the formula's x the heat ${heatOf(F)} (${h.atk} at aim ${h.aim})`);
       if (row.xp > towerXpMax(F)) bad.push(`TC-ROOM floor ${F}: ${id} pays ${row.xp}, over the floor's bound ${towerXpMax(F)}`);
     }
   }
@@ -642,7 +642,7 @@ const MUTANTS = [
   /* THE CURVE (lane/d-tower-curve), each line its own mutant: the data's heat off (the played four's felt line), the rooms that never read it (the rows'
      band step), a heat that thickens HP (so XP passes the server's per-floor bound) */
   { name: 'the fire never heats', arm: 'curve', want: /^TC-CURVE floors 131-140 read a typical low/, file: 'src/data/tower.js',
-    from: '  heat: Object.freeze({ from: 100, perFloorPm: 10 }),', to: '  heat: Object.freeze({ from: 100, perFloorPm: 0 }),' },
+    from: '  heat: Object.freeze({ from: 100, perFloorPm: 12 }),', to: '  heat: Object.freeze({ from: 100, perFloorPm: 0 }),' },
   { name: 'the rooms never read the heat', arm: 'curve', want: /^TC-CURVE floors [0-9]+-[0-9]+ hit only/, file: 'src/core/hunt/tower.js',
     from: '  const s = formulaStats({ level: L, role, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt }, heatOpts(floor, run));',
     to: '  const s = formulaStats({ level: L, role, tier: row.tier, floor: L, fit: run.fit, ground: run.hunt });' },

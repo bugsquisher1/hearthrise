@@ -23,7 +23,7 @@ import { itemName, itemNameFor } from './widgets/bits.js';
 import { heldOf, nameOf, skillsOf } from '../session/item-sections.js';
 import { serverNowOf } from '../session/hunt-sections.js';
 import { townWorkRunning } from '../session/town-poll.js';
-import { actionMs, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js';
+import { actionMs, jobOf, leftOf, productOf, runsOf, workOf, workRow, yieldOf } from './town-work.js';
 
 const TOWN_STAMP = /^town:(gather|artisan):([A-Za-z0-9_.-]+)$/;
 /* A record settled this recently is the return's answer; an older one waits for the sign-in's settle. */
@@ -85,11 +85,37 @@ function whyStopped(cs, w) {
 }
 
 /* HOW A JOB STILL RUNNING ENDS (retention dive 2026-11-20: 8 h at the Copper Rock for a 20-ore errand, the card said only "Still mining"): a
-   gathering job runs until stopped (the server's job takes no count), a bench run stops at the server's count left or when its materials run out. */
+   counted job says the server's "N of M" and what the hero does then (1026-job-counts.sql); a bench run on All stops when its materials run
+   out; a gathering job from before counts runs until stopped. */
 function howItEnds(cs, w) {
+  const job = jobOf(cs);
+  if (job.left !== null && job.count !== null && job.count >= job.left) {
+    return t('away.work_how_count', { done: whole(job.count - job.left), count: whole(job.count),
+      after: t(job.next === 'hunt' ? 'away.work_then_hunt' : 'away.work_then_wait') });
+  }
   if (w.kind === 'gather') return t('away.work_how_gather');
   const left = leftOf(cs);
   return left !== null ? t('away.work_how_left', { n: whole(left) }) : t('away.work_how_bench');
+}
+
+/* HOW A COUNTED JOB ENDED while the player was away, from the server's record of it (bench_run.ended), or null when the record is not this
+   stamp's job: "Done, 20 of 20. Went back to hunting." / "It stopped at 12 of 20, out of Copper Ore." */
+function endedWords(cs, w, was) {
+  const e = jobOf(cs).ended;
+  if (!e || e.kind !== w.kind || e.id !== w.id || !(Date.parse(e.at) >= was.at)) return null;
+  const n = { done: whole(e.done), count: whole(e.count) };
+  if (e.end !== 'count') return t('away.work_end_stopped', n) + whyStopped(cs, w) + '.';
+  const then = e.next !== 'hunt' ? t('away.work_end_waited')
+    : e.next_state === 'started' ? t('away.work_end_hunting')
+      : e.next_state === 'pending' ? t('away.work_end_going')
+        : t('away.work_end_no_hunt', { why: noHuntWords(e.why) });
+  return t('away.work_end_count', n) + ' ' + then;
+}
+
+/* Why a THEN of hunt did not start, in a few plain words (hr_job_next_start's why, or the hunt door's own refusal). */
+function noHuntWords(why) {
+  return why === 'no_stamina' ? 'no stamina' : why === 'no_hunt' ? 'no hunt to go back to' : why === 'moved_on' ? 'you gave it something else'
+    : why === 'party_hunt' ? 'it is in a party' : why === 'late' ? 'it was too late' : 'the hunt said no';
 }
 
 /**
@@ -114,7 +140,9 @@ export function awayWorkLineOf(cs, was, awayWords) {
   const still = !!goes && keyOf(goes) === was.s;
   const ran = gained > 0 ? Math.ceil(gained / yieldOf(w)) * actionMs(cs, w) : 0;
   const when = ran >= 60000 && ran < now - was.at ? ' about ' + awayWords(ran) + ' in' : '';
-  const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') + ' ' + howItEnds(cs, w) : ' It stopped' + when + whyStopped(cs, w) + '.';
+  const ended = still ? null : endedWords(cs, w, was);
+  const tail = still ? ' ' + (STILL[w.skill] || 'Still at the bench.') + ' ' + howItEnds(cs, w)
+    : ended ? ' ' + ended : ' It stopped' + when + whyStopped(cs, w) + '.';
   const name = nameOf(cs) || 'Hero';
   const who = name + ' ' + didWords(w), facts = t('away.card_facts', { facts: parts.join(', ') }) + tail;
   return {

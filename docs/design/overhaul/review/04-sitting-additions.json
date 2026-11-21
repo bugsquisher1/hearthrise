@@ -1,0 +1,24 @@
+[
+  {
+    "id": "S-18",
+    "title": "Who plays the first build",
+    "question": "The build plan lists nine things the playtest must measure before any number is called decided: a real death rate by ground and tier, real gold, which fours players run, the first hour played by strangers, Talents, on call, the world boss, Crowns and server cost. It never says how many accounts play. The game is closed to a short list of accounts today, and who is let in is yours. COMPUTED from the plan's own tests: the Talents test asks for 20 heroes on each of six ways to fight, which is about 30 accounts. The Crowns test asks whether over a fifth of accounts buy Crowns with gold. On call asks for two clans. No option here assumes a wipe. That date is yours to name. Who plays the first build?",
+    "options": [
+      {
+        "key": "a",
+        "label": "The players already in",
+        "text": "The first build is played by the accounts on the list today. Cost: nothing new to run and nobody new sees an unproven first hour. COMPUTED against the plan's tests: the Talents, Crowns and on-call tests cannot be read on a handful of accounts, and the death rate comes from a few fours. Most first-build numbers then stay PROVISIONAL into the next phase, and the test Crowns of S-17 would run without being able to answer their own question."
+      },
+      {
+        "key": "b",
+        "label": "A wider invited group",
+        "text": "The first build opens to about 30 accounts or more, invited by you. Cost: the first hour with four heroes has only been played by one reviewer, so its first strangers are also its first impression, and someone has to invite people and watch what they do. ESTIMATED by the server cost study: the load is far inside the budget of 15 cents an account a month. The one Security review still gates only Early Access, as you ruled on 2026-10-25. UNKNOWN whether 30 accounts can be found."
+      },
+      {
+        "key": "c",
+        "label": "The players in now, then wider",
+        "text": "The accounts on the list play first, to catch what breaks. The wider group is invited once the play gate and one blind first-hour pass are clean. Cost: the playtest runs in two steps, so the measured death rate, the real gold and the Talents and Crowns tests arrive later, and every number that waits on them stays PROVISIONAL for longer. JUDGMENT: it spends fewer first impressions on a broken first hour. UNKNOWN how long the first step takes."
+      }
+    ]
+  }
+]

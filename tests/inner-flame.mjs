@@ -98,7 +98,8 @@ export const MUTANTS = {
   errand_beat_on_visit: { arm: 'IF-4', why: 'a visit throws its one fuel on the beat like a bench run',
     js: ['src/world/hearth-burn.js', [['      const chunk = there && me.work && e.active ? chunkOfRecipe(e.active) : null;', '      const chunk = there && e.active ? chunkOfRecipe(e.active) : null;']]] },
   errand_arms_stop: { arm: 'IF-4', why: '"Burn" arms the bench\'s Stop, which ends the job the server went back to',
-    js: ['src/shell/town-work.js', [["    if (w.kind === 'artisan' && !errand) {", "    if (w.kind === 'artisan') {"]]] },
+    /* job-counts (lane/c-job-counts) armed a counted gather too: the line reads (artisan || n) && !errand; the mutant still drops only the errand */
+    js: ['src/shell/town-work.js', [["    if ((w.kind === 'artisan' || n !== null) && !errand) {", "    if (w.kind === 'artisan' || n !== null) {"]]] },
   errand_says_stopped: { arm: 'IF-4', why: '"Burn" says it stopped the fishing though the fishing comes back',
     js: ['src/shell/town-work.js', [['  const replaced = errand ? \'\' : jobReplacedWords(cs, w);', '  const replaced = jobReplacedWords(cs, w);']]] },
 };

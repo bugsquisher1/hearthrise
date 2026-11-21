@@ -524,8 +524,9 @@ const MUTANTS = [
     replace: 'select coalesce(null::boolean,' },
   { name: 'the end card sends no slots (the whole account)', arm: 'viewed', want: /^CO-VIEWED the press sent/, src: ['src/shell/carry-on.js',
     'await runIntent(sc, repaint, () => carryOn(ctx.account, cs, plan.gold, slots, jobs)', 'await runIntent(sc, repaint, () => carryOn(ctx.account, cs, plan.gold, null, jobs)'] },
-  { name: 'the press re-reads no hero', arm: 'viewed', want: /^CO-VIEWED after the press/, src: ['src/session/carry-on-intents.js',
-    '    await Promise.all(touched.map((o) => o.load()));', '    void touched;'] },
+  /* since lane/c-next-reds (rule 11) the press takes each touched hero's carried envelope, reading only when one is missing */
+  { name: 'the press updates no hero (takes no envelope, reads none)', arm: 'viewed', want: /^CO-VIEWED after the press/, src: ['src/session/carry-on-intents.js',
+    '    await Promise.all(touched.map((o) => o.load(isObj(envs[o.slot]) ? envs[o.slot] : null)));', '    void touched; void envs;'] },
   { name: 'a refusal reads as the hero\'s state', arm: 'words', want: /^CO-WORDS the other lines/, src: ['src/shell/carry-on.js',
     "        : t('away.carry_no', { name, why: lower(refusalWords(h.why || 'refused')) }) });", "        : t('away.carry_parked', { name }) });"] },
 ];

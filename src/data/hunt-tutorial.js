@@ -1066,6 +1066,7 @@ const SAY = Object.freeze({
 });
 
 /* The lowest gathering node that yields `item` ({ id, skill, verb }), or null: the one a new hero can work first. */
+/** @type {ReadonlyArray<[string, ReadonlyArray<{ id: string, prod: string, req?: number }>, string]>} */
 const GATHER_ROWS = Object.freeze([['woodcutting', TREES, 'Chop'], ['mining', ROCKS, 'Mine'], ['fishing', FISH_SPOTS, 'Catch']]);
 function gatherNodeFor(item) {
   let best = null;

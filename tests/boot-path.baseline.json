@@ -76,6 +76,12 @@
         "gzipBytes": 885458,
         "on": "2026-11-21",
         "why": "lane/c-job-counts merged after the raise above (every job takes a count and a THEN: windows/work.js +62 lines, town-work.js +59, away-work.js +34, hunt-after.js JOB_NEXTS +41, skill-sim, work and away text, the coach's tutorial row) and this lane's rule-11 halves (farm-tend.js and carry-on-intents.js take the carried envelope, a few bytes): the Work window's own feature code on the game half; sign-in moved by under 0.1 KB"
+      },
+      {
+        "modules": 21,
+        "gzipBytes": 885527,
+        "on": "2026-11-21",
+        "why": "set/v0.2.144 at 45e08b217 after the raise above: the spell rule lane's client (runes.js, statuses.js, cast-facts.js, action-facts.js, bar text) and this lane's TH-1 move (away-work.js's Still/did words into the away table, read with t()), +0.1 KB gzip to town; each the feature's or the text table's own bytes"
       }
     ]
   }

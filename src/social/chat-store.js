@@ -264,7 +264,10 @@ export class ChatStore {
     if (body.length > CHAT_LIMITS.bodyMax) return { ok: false, error: 'too_long' };
     const ans = await askVia(this._account, 'chat_send', () => this._account.server.rpc('hr_chat_send', { p_slot: cs.slot, p_kind: kind, p_body: body }));
     const b = ans.body;
-    if (!ans.ok || !b || b.ok !== true) return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused' };
+    if (!ans.ok || !b || b.ok !== true) {
+      /* Global's slow mode (31-1) says how long this account waits, in the server's whole seconds */
+      return { ok: false, error: (b && typeof b.error === 'string' && b.error) || ans.error || 'refused', waitS: b && Number.isSafeInteger(b.wait_s) ? b.wait_s : null };
+    }
     this.draft = { text: '', links: [], rev: this.draft.rev + 1 };
     if (this._take(b.line, false)) this._changed();
     return { ok: true };

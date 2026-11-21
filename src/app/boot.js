@@ -118,7 +118,9 @@ function startApp(win) {
   const store = SESSION_CONFIG.authStore === 'tab' ? HS.session : HS;
   const authLock = authLockFor(win, store, SESSION_CONFIG.authKey);
   const client = createSupabaseClient(win.supabase, store, SESSION_CONFIG.authKey, authLock.lock);
-  const auth = createAuth({ client, lock: authLock, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname, doc });
+  /* A page opened by a friend's link keeps its code through the sign-up email (GR-72, src/social/friend-link.js). */
+  const friendBack = /[?&]friend=[a-z0-9]{10}(?:&|$)/i.test(win.location.search) ? win.location.search : '';
+  const auth = createAuth({ client, lock: authLock, device: HS, tab: HS.session, redirectTo: win.location.origin + win.location.pathname + friendBack, doc });
   const timing = createBootTiming(win, { lockStats: authLock.stats, perf: diag.perf });
   const gameHalf = loadGameHalf(doc);
   gameHalf.catch(() => {});   // answered where it is awaited (startAccount): a sign-in screen nobody uses says nothing
@@ -245,6 +247,8 @@ function startApp(win) {
       G.mountTownCriers(win, account)];   // the town criers' tips in Local chat (display only, never sent)
     if (liveOverlayWanted(win.location.search)) watchers.push(mountLiveOverlay(win, account));
     account.social.chat.followAlerts(alerts);   // the alerts are also the chat's System lines
+    /* arrived by a friend's link: one ask once signed in (GR-72); loaded only when the address carries a code */
+    if (friendBack) { const acc = account; import('../social/friend-link.js').then((m) => m.arriveByLink(win, acc), () => {}); }
     if (!resume) account.forgetOpen();
     await showCharacters(null, resume ? account.lastOpen() : null);
   }

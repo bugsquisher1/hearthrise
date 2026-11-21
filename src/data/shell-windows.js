@@ -156,6 +156,8 @@ export const SHELL_WINDOWS = Object.freeze([
   /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear
      (opened from the player menu, so it takes no launcher icon). */
   Object.freeze({ id: 'friends', label: 'Friends', key: 'n', group: 'social', glyph: 'navProfile', width: 380, object: 'ledger' }),
+  /* THE CLAN (lane/c-social, FB-12; 25-3, 25-6, 25-7): find one, found one, or see yours (src/shell/windows/clan.js). Every letter is taken. */
+  Object.freeze({ id: 'clan', label: 'Clan', key: null, noShortcut: true, group: 'social', glyph: 'uiBanner', width: 420, object: 'ledger' }),
   /* Leaderboards (lane/b-leaderboards, 2026-10-31; named by Tyler 2026-11-01): Havora's heroes in order, one board at a
      time, every place and number the server's (src/data/honor-roll.js names the boards). */
   Object.freeze({ id: 'honor', label: 'Leaderboards', key: 'z', group: 'social', glyph: 'uiTrophy', width: 440, object: 'book' }),

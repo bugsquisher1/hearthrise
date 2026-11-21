@@ -119,6 +119,32 @@
     "N6-5": "MM-48"
   },
   "notMine": "MM-28 to MM-37 are the content-economy decider's money calls.",
+  "review": {
+    "verdict": "ACCEPT WITH FIXES",
+    "source": "docs/design/overhaul/decisions/review.md",
+    "applied": "2026-11-21 on lane/d-book-integrate",
+    "how": "A fixed row carries fixedBy (the review fix numbers), was (the decision as first written) and sometimes fixNote. The final lists for Tyler live in all.json.",
+    "whoIsI": "In every reason field, \"I\" is the decider. Only the replaces field and a ruling id cite Tyler. The build plan cites ruling ids only. (review-24)",
+    "labels": "The review spot-checked 28 evidence labels. The ones that were wrong or wider than their run are corrected by fixes 2, 6, 10, 11, 13, 15, 16, 19, 20, 21 and 22. (review-25)",
+    "rowsFixed": [
+      "MM-4",
+      "MM-5",
+      "MM-6",
+      "MM-7",
+      "MM-8",
+      "MM-9",
+      "MM-10",
+      "MM-42",
+      "MM-25",
+      "MM-26",
+      "MM-13",
+      "MM-14",
+      "MM-22",
+      "GR-79",
+      "GR-24",
+      "GR-84"
+    ]
+  },
   "rows": [
     {
       "id": "MM-1",
@@ -156,79 +182,99 @@
     {
       "id": "MM-4",
       "call": "A world boss is sized by weekly active accounts, with a floor one account can fell.",
-      "decision": "Take the recommended formula and add the rule chapter 06 said was missing. pool = max(bossPoolFloor, bossPoolPerAccount x weekly active accounts). When the window ends the boss leaves whether it fell or not. After each boss the server re-sizes bossPoolPerAccount from what that weekend really earned, aimed at a fall at hour 48, moved at most a quarter each time.",
+      "decision": "Take the recommended formula and add the rule chapter 06 said was missing. pool = max(bossPoolFloor, bossPoolPerAccount x weekly active accounts). When the window ends the boss leaves whether it fell or not. After each boss the server re-sizes bossPoolPerAccount from what that weekend really earned, aimed at a fall at hour 48, moved at most a quarter each time. The room stays open to the end of the window, so a boss that falls on day one still pays an account whose visits come later (MM-6).",
       "outcome": "third",
       "reason": "A boss that never falls or falls in three hours with nobody watching is a dead feature. The pool should fix itself from the last weekend, by formula, so nobody has to babysit it.",
       "evidence": "COMPUTED start sizes: about 6 Normal party-hours an account, floor about 24 (chapter 06 section 2.3). The self-sizing step is mine and is a HYPOTHESIS. Two boss weekends in the Discord playtest overturn it if the second fall is not nearer hour 48 than the first.",
       "replaces": "",
       "money": false,
-      "depends": "MM-6 (the fall is what pays the buff). Reliability engineer for the alarm when a pool misses twice. Two new knob rows for the balance tools lane."
+      "depends": "MM-6 (the fall is what pays the buff). Reliability engineer for the alarm when a pool misses twice. Two new knob rows for the balance tools lane.",
+      "was": "Take the recommended formula and add the rule chapter 06 said was missing. pool = max(bossPoolFloor, bossPoolPerAccount x weekly active accounts). When the window ends the boss leaves whether it fell or not. After each boss the server re-sizes bossPoolPerAccount from what that weekend really earned, aimed at a fall at hour 48, moved at most a quarter each time.",
+      "fixedBy": "review-23",
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it."
     },
     {
       "id": "MM-5",
       "call": "Your share of a world boss is counted against your own Level in a room scaled to your party.",
-      "decision": "Scaled room, yes. But points are not minutes survived. Points = boss bars broken in your room x the tier multiplier from the one tier table. A bar is the scaled boss health for your party Level. When the bar empties it refills and the phases run again (adds at half, enrage at a quarter). A Level 20 four and a Level 300 four earn the same points for the same quality of fight.",
+      "decision": "Scaled room, yes. But points are not minutes survived. Points = boss bars broken in your room x the tier multiplier from the one tier table. A bar is the scaled boss health for your party Level. When the bar empties it refills and the phases run again (adds at half, enrage at a quarter). A Level 20 four and a Level 300 four earn the same points for the same quality of fight. The room uses the hall formula with the hall number on health only. It does not take the 80 to 90% win target, because its boss never dies. Deaths in the room sit inside the death band of the tier chosen.",
       "outcome": "third",
       "reason": "If points are just minutes alive then four shield tanks who never swing are the best boss party in the game and my damage means nothing in the one fight the server shares. Counting bars broken makes damage and survival both matter and it lets the boss phases actually play.",
       "evidence": "COMPUTED from the formula rule that a mid-geared party breaks a scaled boss in the same time at every Level. HYPOTHESIS until measured. Matrix check: a mid-geared four at Levels 20, 60 and 110 breaks bars an hour within 10% of each other on Normal. If not, the fault is in the boss formula and is fixed there.",
       "replaces": "",
       "money": false,
-      "depends": "GR-27 (the one tier table), GR-30 (boss formula), GR-3 (Deadly sizing). All core and world deciders. Best gear earns about 15% more points, which is the ruled gear size and is intended."
+      "depends": "GR-27 (the one tier table), GR-30 (boss formula), GR-3 (Deadly sizing). All core and world deciders. Best gear earns about 15% more points, which is the ruled gear size and is intended.",
+      "was": "Scaled room, yes. But points are not minutes survived. Points = boss bars broken in your room x the tier multiplier from the one tier table. A bar is the scaled boss health for your party Level. When the bar empties it refills and the phases run again (adds at half, enrage at a quarter). A Level 20 four and a Level 300 four earn the same points for the same quality of fight.",
+      "fixedBy": "review-12",
+      "hypothesis": "HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75."
     },
     {
       "id": "MM-6",
       "call": "A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material, a 7 day buff, a trophy. No coin.",
-      "decision": "Take the recommended pay with one change so the shared pool matters. The chest is by your own points at three marks (about 2, 8 and 20 Normal party-hours). The boss line is four unique pieces, one a style, dropped at the earner's band, on the same budget as the band's best piece with part of it spent on one property. So it is a sidegrade to the band's best, never a tier above it. The material trades. Level XP is about a Normal hunt. No coin. NEW: the 7 day buff (+5% damage dealt) and one extra roll on the boss line are paid only if the server fells the boss, to everyone past the first mark.",
+      "decision": "The chest is by your own points at three marks (about 2, 8 and 20 Normal party-hours). The boss line is four unique pieces, one a style, dropped at the earner's band, on the same budget as the band's best piece with part of it spent on one property. So it is a sidegrade to the band's best, never a tier above it. An account earns at most one line piece a boss weekend. The material trades and feeds only layer pieces (CE-1). Level XP is about a Normal hunt. No coin. The room stays open to the end of the window, and an account's own marks still pay after the boss falls. The fall bonus is paid at the window's end to every account past the first mark, whenever it got there: the 7 day buff (+5% damage dealt) and a re-roll of which line piece the account receives, toward its own heroes' styles. It never adds a second piece.",
       "outcome": "third",
       "reason": "People want gear and buffs, so that is what it pays. But if my chest and my buff only read my own points then the shared health bar is decoration. Tying the buff and a bonus roll to the fall is what makes me care that other people showed up.",
       "evidence": "RULED direction (2026-11-21, buffs and gear). RULED 2026-11-18 that a unique is a sidegrade with a place where it is best. Sizes are TARGET and a HYPOTHESIS. Check E (chest value and XP per stamina hour beside a Normal hunt at Levels 20, 60, 110) and the playtest read \"over half of accounts hit the boss on both weekends\" overturn them.",
       "replaces": "",
       "money": false,
-      "depends": "Items decider: the line must sit in the item plan as uniques under 31-4 and must not outclass a hall prize (GR-29, GR-40, GR-4). Drop rate target handed on: generous through Krell, rare after, per the 2026-11-20 ruling. MM-25 (the buff sits in the timed damage cap). Weekly chest limits stay as ruled."
+      "depends": "Items decider: the line must sit in the item plan as uniques under 31-4 and must not outclass a hall prize (GR-29, GR-40, GR-4). Drop rate target handed on: generous through Krell, rare after, per the 2026-11-20 ruling. MM-25 (the buff sits in the timed damage cap). Weekly chest limits stay as ruled.",
+      "was": "Take the recommended pay with one change so the shared pool matters. The chest is by your own points at three marks (about 2, 8 and 20 Normal party-hours). The boss line is four unique pieces, one a style, dropped at the earner's band, on the same budget as the band's best piece with part of it spent on one property. So it is a sidegrade to the band's best, never a tier above it. The material trades. Level XP is about a Normal hunt. No coin. NEW: the 7 day buff (+5% damage dealt) and one extra roll on the boss line are paid only if the server fells the boss, to everyone past the first mark.",
+      "fixedBy": "review-9, review-23",
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
+      "fixNote": "The row added \"one extra roll on the boss line\", which could be a second piece against CE-1's cap of one. Nothing said what a late visitor earns once the boss has fallen."
     },
     {
       "id": "MM-7",
       "call": "A death in the boss room costs the normal death.",
-      "decision": "Yes, the normal death and nothing else, decided together with GR-7. Four conditions go with it. One death a send at most, because a death ends the fight and nothing restarts by itself. Carry on never sends a hero into a boss room. Keep me blessed covers boss sends. The boss card shows deaths per 100 hours for the tier and what one death costs this hero before the send, and the first send defaults to Normal.",
+      "decision": "A death in a boss room costs the normal death and nothing else. One death a send at most, because a death ends the fight and nothing restarts by itself. Carry on never sends a hero into a boss room. The first send defaults to Normal. Blessings, the ladder and \"keep me blessed\" apply. The boss card shows the risk reading (deaths per 100 hours for the tier) and what a death would cost this hero before the send. It is one row on the mode table and never a rule for one room. Deaths in the room sit inside the death band of the tier chosen, because the hall number acts on the boss's health and the clock and never on his blows (GR-30). It is built with GR-7 and never before it.",
       "outcome": "recommended",
       "reason": "Risk is what makes picking Deadly on the boss a real choice. A soft boss death would be a special case and everybody would just send on Deadly. Normal is as safe as a Normal hunt, so nobody loses a Level by accident over a weekend away.",
       "evidence": "RULED parts: 6% flat with no cap (2026-11-21), a death ends the hunt (2026-11-09), no hunt starts by itself (27-1). Chapters 05 and 06 both recommend it. HYPOTHESIS that the harder boss tiers stay used past Level 100. That needs the GR-7 Blessing ladder. Playtest 8 (returns after a costly death) overturns it.",
       "replaces": "",
       "money": false,
-      "depends": "CORE AND PROGRESSION DECIDER: this stands only if GR-7 (the Blessing ladder past the third) is decided yes. If GR-7 is refused, bring MM-7 back, because a Level 300 hero would risk about 26 hours for a chest roll. GR-66 (the risk reading on the card)."
+      "depends": "CORE AND PROGRESSION DECIDER: this stands only if GR-7 (the Blessing ladder past the third) is decided yes. If GR-7 is refused, bring MM-7 back, because a Level 300 hero would risk about 26 hours for a chest roll. GR-66 (the risk reading on the card).",
+      "was": "Yes, the normal death and nothing else, decided together with GR-7. Four conditions go with it. One death a send at most, because a death ends the fight and nothing restarts by itself. Carry on never sends a hero into a boss room. Keep me blessed covers boss sends. The boss card shows deaths per 100 hours for the tier and what one death costs this hero before the send, and the first send defaults to Normal.",
+      "fixedBy": "review-5, review-12",
+      "fixNote": "Decided twice with slightly different conditions. Merged into one row."
     },
     {
       "id": "MM-8",
       "call": "A clan is a shared work, a team and a room that pays members in buffs, held by giving that week's share.",
-      "decision": "Yes. A member holds the clan's room buffs in any week their account gave the week's share. Roster size pays nothing. Ranks are leader, officer, member, with no votes. A leader away 14 days passes it on. When the clan finishes its weekly goal every member who gave gets +5% drop chance for 7 days. A clan never fills a party seat.",
+      "decision": "Yes. A member holds the clan's room buffs in any week their account gave the week's share. Roster size pays nothing. Ranks are leader, officer, member, with no votes. A leader away 14 days passes it on. When the clan finishes its weekly goal every member who gave gets +5% material find (CE-2) for 7 days. A clan never fills a party seat.",
       "outcome": "recommended",
       "reason": "A clan has to give my heroes something or nobody joins one. Holding the buff by giving each week means a second account padding the roster gets nothing, and the clan is a gold sink that never ends.",
       "evidence": "RULED direction (2026-11-21, clans pay buffs). RULED 25-5, 25-6, 25-7 carried. HYPOTHESIS on take-up. Playtest reads: over a third of accounts in a clan by day 7 and half of clans with gifts from three or more members.",
       "replaces": "None. See MM-9 for how 25-2 is kept.",
       "money": false,
-      "depends": "MM-9, MM-25, MM-44 (the standing gift). Economy decider sizes clanWeeklyShare on the wage curve (GR-51). Security scope: gifts and the share are shared writes."
+      "depends": "MM-9, MM-25, MM-44 (the standing gift). Economy decider sizes clanWeeklyShare on the wage curve (GR-51). Security scope: gifts and the share are shared writes.",
+      "was": "Yes. A member holds the clan's room buffs in any week their account gave the week's share. Roster size pays nothing. Ranks are leader, officer, member, with no votes. A leader away 14 days passes it on. When the clan finishes its weekly goal every member who gave gets +5% drop chance for 7 days. A clan never fills a party seat.",
+      "fixedBy": "review-3"
     },
     {
       "id": "MM-9",
       "call": "The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps.",
-      "decision": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: damage taken up to 5% less. Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. Twenty stages is about six months, the pace you kept on 11-20. The castle is open at any roster size. No labor, no upkeep, no treasury balance. Castle goods keep their prices (31-3).",
+      "decision": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: a Defense rating row sized so a mid-geared four takes up to about 5% less damage an hour (CORE-4). Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. castleStagePerMember is sized so a stage takes 1 to 1.3 weeks at the weekly share, which makes twenty stages 20 to 26 weeks. The castle is open at any roster size. No labor, no upkeep, no treasury balance. This changes 31-3 (castle goods keep their built prices) and it is the option Tyler declined on 25-4. The one new fact that justifies asking again is his 2026-11-21 ruling that clans pay buffs: a fixed price now locks a clan of three out of hero power. If Tyler vetoes, the castle keeps built prices and one work order a week for each slot, and only the ten-account gate goes.",
       "outcome": "third",
       "reason": "You said keep the castle a slow climb with gold and time, and I kept both. What I changed is the fixed price, because a fixed price means a clan of 3 never finishes and a clan of 60 finishes in a day. I also cut the XP room. A damage buff already makes me level faster, so an XP room is the same thing twice and it is the one room that broke your \"clans give no XP\" ruling.",
       "evidence": "COMPUTED: 4 rooms x 5 levels at one stage a week or slower is 20 to 26 weeks. Per-member pricing is flat by construction at 5 members and up. Sizes are TARGET with no measurement (chapter 04 section 2.6 says so). HYPOTHESIS that small clans build. Playtest read: clans with gifts from three or more members.",
-      "replaces": "REVERSAL. 25-4 (2026-11-20): the built fixed prices and \"one work order a week for each slot\" become a per-member price and one project at a time. The weekly time floor and the six month pace are kept. Also the ten-account castle gate inside 25-3. KEPT, not reversed: 25-2 (clans give no Level XP) and the bound rations.",
+      "replaces": "REVERSAL. 25-4 and the ten-account castle gate in 25-3 (2026-11-20), and 31-3 (2026-11-21). Tyler was offered \"price it by members\" on 25-4 and declined it. KEPT, not reversed: 25-2 (clans give no Level XP) and the bound rations.",
       "money": false,
-      "depends": "Economy decider: sizes castleStagePerMember and clanWeeklyShare (GR-8, GR-51, MM-22). Home decider: the Workshop row enters the one Speed pool under its 40% cap (chapter 07). Core decider: the Ward row counts inside the 60% mitigation cap, as chapter 01 recommends. Chapter 07 town project engine."
+      "depends": "Economy decider: sizes castleStagePerMember and clanWeeklyShare (GR-8, GR-51, MM-22). Home decider: the Workshop row enters the one Speed pool under its 40% cap (chapter 07). Core decider: the Ward row counts inside the 60% mitigation cap, as chapter 01 recommends. Chapter 07 town project engine.",
+      "was": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: damage taken up to 5% less. Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. Twenty stages is about six months, the pace you kept on 11-20. The castle is open at any roster size. No labor, no upkeep, no treasury balance. Castle goods keep their prices (31-3).",
+      "fixedBy": "review-4, review-16",
+      "fixNote": "The row said it kept 31-3 while changing it, and \"about six months\" disagreed with chapter 04, which sized a stage at 2 to 4 weeks."
     },
     {
       "id": "MM-10",
       "call": "A weekly clan board. The top clans carry a small timed buff the next week.",
-      "decision": "A weekly board with three lines (boss points, arena standing, best Tower floor), scored as the average of the clan's top members, reset weekly with all-time records kept. But the buff is paid by mark, not by rank. Any clan whose week reaches a set score mark earns up to 5% less damage taken for the next 7 days, in three steps. The top three clans get the banner and the plaque on top. Under five clans the board shows a clan against its own last week and the marks still pay.",
+      "decision": "A weekly board with three lines (boss points, arena standing, best Tower floor), scored as the average of the clan's top members, reset weekly with all-time records kept. But the buff is paid by mark, not by rank. Any clan whose week reaches a set score mark earns a Defense rating buff for the next 7 days, in three steps, sized so a mid-geared four takes up to about 5% less damage an hour (CORE-4). The top three clans get the banner and the plaque on top. Under five clans the board shows a clan against its own last week and the marks still pay.",
       "outcome": "third",
       "reason": "If only the top clans get the buff then the strongest clan gets stronger every week and everyone else stops trying. The boss chest and the arenas already pay by your own score and not by rank, so the board should work the same way.",
       "evidence": "Consistent with MM-6 and MM-14 (pay by own score, never rank). HYPOTHESIS that marks keep mid clans trying. Playtest read: the share of clans that reach the first mark in week two against week one. If the board is not used by 14 days the board is not built further (chapter 06 section 6).",
       "replaces": "",
       "money": false,
-      "depends": "MM-25 (it fills the timed damage-taken cap). Number of top members and the mark sizes go to the balance matrix. Chapter 09 (one weekly fold)."
+      "depends": "MM-25 (it fills the timed damage-taken cap). Number of top members and the mark sizes go to the balance matrix. Chapter 09 (one weekly fold).",
+      "was": "A weekly board with three lines (boss points, arena standing, best Tower floor), scored as the average of the clan's top members, reset weekly with all-time records kept. But the buff is paid by mark, not by rank. Any clan whose week reaches a set score mark earns up to 5% less damage taken for the next 7 days, in three steps. The top three clans get the banner and the plaque on top. Under five clans the board shows a clan against its own last week and the marks still pay.",
+      "fixedBy": "review-4"
     },
     {
       "id": "MM-11",
@@ -244,13 +290,16 @@
     {
       "id": "MM-42",
       "call": "Events pay buffs and gear: a Level XP weekend, a ground weekend that features its named pieces, boss and arena weekends.",
-      "decision": "Yes. The between-months ground weekend features that ground's named pieces and does not pay XP. It fills the timed drop chance cap (+10%) for everyone hunting that ground, on its named pieces only. The world Level XP weekend stays once in four weekends, as ruled. If the playtest shows a ground weekend does not move people, it goes back to the ruled ground XP weekend.",
+      "decision": "Yes. The between-months ground weekend features that ground's named pieces and does not pay XP. It uses its own event row on that ground's named pieces for that weekend, for everyone hunting that ground. That row is outside the MM-25 caps, is never sold and never stacks with a second event. The rivet allowance is computed without it. The world Level XP weekend stays once in four weekends, as ruled. If the playtest shows a ground weekend does not move people, it goes back to the ruled ground XP weekend.",
       "outcome": "recommended",
       "reason": "One XP weekend a month is plenty and a second one just makes everyone level faster than we can build regions. A gear weekend sends the whole server to one ground, so the presence strip is full and new players see veterans there. Named pieces stay worth chasing because they reforge up a band.",
       "evidence": "HYPOTHESIS. +10% on a rare is a small pull by itself. The draw is the shared place. Playtest read: hunted hours on the featured ground at least double against the week before. If not, revert to 27-5 as ruled.",
       "replaces": "REVERSAL. The second half of 27-5 (2026-11-20, \"in between, one party ground gets its own XP weekend\"). The first half, the +25% ceiling and \"never two at once\" all stand.",
       "money": false,
-      "depends": "Items decider: the featured term of the drop formula and which pieces are named (GR-40). GR-9 lets any Level hunt the featured ground. Progression decider: this keeps the timed Level XP cap full only 3 days in 28 for a player who buys nothing."
+      "depends": "Items decider: the featured term of the drop formula and which pieces are named (GR-40). GR-9 lets any Level hunt the featured ground. Progression decider: this keeps the timed Level XP cap full only 3 days in 28 for a player who buys nothing.",
+      "was": "Yes. The between-months ground weekend features that ground's named pieces and does not pay XP. It fills the timed drop chance cap (+10%) for everyone hunting that ground, on its named pieces only. The world Level XP weekend stays once in four weekends, as ruled. If the playtest shows a ground weekend does not move people, it goes back to the ruled ground XP weekend.",
+      "fixedBy": "review-3",
+      "fixNote": "The row spent the timed drop cap on named pieces, which are Rare rows. CE-2 says the timed row never touches a Rare."
     },
     {
       "id": "GR-82",
@@ -277,35 +326,45 @@
     {
       "id": "MM-25",
       "call": "The buff caps: damage +5% standing and +10% timed, damage taken 5% and 5% less, Level XP +5% and +25%, drop chance +10% timed, town work +10%, no coin buff.",
-      "decision": "The table as recommended with one cut: there is no standing Level XP cap, because no clan room gives XP (MM-9). Damage dealt: +5% standing, +10% timed. Damage taken: 5% less standing, 5% less timed. Level XP: none standing, +25% timed. Drop chance: none standing, +10% timed and earned only, never sold. Town work speed: +10% standing. Coin: no buff, ever. Who fills what: war room, ward and workshop fill the standing caps. Timed damage comes from the boss (+5%) and the Open Arena season (up to +5%). Timed damage taken comes from the clan board marks. Timed drop chance comes from the clan weekly goal (+5%) and the Even Arena season (up to +5%). Timed Level XP comes only from the Hearthrise weekend and whatever the store sells.",
+      "decision": "The table with one cut: there is no standing Level XP cap, because no clan room gives XP (MM-9). Damage dealt: +5% standing, +10% timed. Protection: Defense rating rows, sized on the matrix so a mid-geared four takes about 5% less damage an hour standing and about 5% less timed (CORE-4). Level XP: none standing, +25% timed. Material find: none standing, +10% timed, earned only and never sold, with the scope of CE-2. Town work speed: +10% standing. Coin: no buff, ever. Who fills what: the war room, the Ward and the workshop fill the standing caps. Timed damage comes from the boss (+5%) and the Open Arena season (up to +5%). Timed protection comes from the clan board marks. Timed material find comes from the clan weekly goal (+5%) and the Even Arena season (up to +5%). Timed Level XP comes only from the Hearthrise weekend. A ground weekend's featured row (MM-42) is its own event row outside these caps. One check is owed before the protection rows are final: the to-hit formula needs its own floor, so rating rows cannot stack into a second way past the 60% cap.",
       "outcome": "third",
       "reason": "I want every cap to have a clear way to earn it and no cap that exists for one row. Earned buffs make me kill faster, live longer and find more. Level XP is the weekend for everyone and the thing Crowns buy, which is the engine you described. A coin buff would let money print gold, so never.",
       "evidence": "COMPUTED inside the ruled gear sizes (a weapon step is 5% to 8%, best gear about 15%). RULED: +25% event ceiling (27-5), Luck has two feeds only (2026-11-20), so the drop row multiplies after Luck and is never sold. Sizes are TARGET. Check G on the matrix overturns them.",
       "replaces": "None. It is what lets 25-2 stand.",
       "money": false,
-      "depends": "Economy decider: MM-29 and MM-30 decide whether a Level XP boost is sold. If it is not, the timed XP cap is full only on the Hearthrise weekend. Core decider: damage taken buffs count inside the 60% mitigation cap. Home decider: the workshop row and the 40% Speed cap."
+      "depends": "Economy decider: MM-29 and MM-30 decide whether a Level XP boost is sold. If it is not, the timed XP cap is full only on the Hearthrise weekend. Core decider: damage taken buffs count inside the 60% mitigation cap. Home decider: the workshop row and the 40% Speed cap.",
+      "was": "The table as recommended with one cut: there is no standing Level XP cap, because no clan room gives XP (MM-9). Damage dealt: +5% standing, +10% timed. Damage taken: 5% less standing, 5% less timed. Level XP: none standing, +25% timed. Drop chance: none standing, +10% timed and earned only, never sold. Town work speed: +10% standing. Coin: no buff, ever. Who fills what: war room, ward and workshop fill the standing caps. Timed damage comes from the boss (+5%) and the Open Arena season (up to +5%). Timed damage taken comes from the clan board marks. Timed drop chance comes from the clan weekly goal (+5%) and the Even Arena season (up to +5%). Timed Level XP comes only from the Hearthrise weekend and whatever the store sells.",
+      "fixedBy": "review-1, review-3, review-4",
+      "fixNote": "The row called the timed drop row drop chance, wrote protection as a share off a blow, and left room for a store Level XP boost."
     },
     {
       "id": "MM-26",
       "call": "The power budget: a fully buffed, boss-geared four gains at most about 32% kill speed and about 72% Level pace over a plain four in mid gear.",
-      "decision": "The ceiling is about 32% more kills an hour and about 65% more Levels an hour, not 72%, because the standing XP cap is gone. The Level table stays the clock of the plain four and never reads a buff. And the number chapter 05 asked for: a player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. Only a player with a bought XP boost running every hour sits at the 1.65 ceiling.",
+      "decision": "One ceiling, written as a reading held by a test and never as a new limit (this keeps ruling 50-11). With every cap full a four reads 1.65 times a plain mid-geared four in Levels an hour and 1.32 in kills an hour. Nobody holds 1.65 outside a Hearthrise weekend, because no Level XP boost is sold. Paying alone, with best gear sooner and a +6% damage boost, reads about 1.22. A player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. The Level table stays the clock of the plain four and never reads a buff. \"Takes 10% less\" is read on damage taken an hour.",
       "outcome": "third",
       "reason": "Buffs have to feel like time gained, so the table is timed on the plain four that everybody has. But the fastest players set when the next region has to be ready, so I want that number honest and as small as it can be while buffs still matter.",
       "evidence": "COMPUTED. Ceiling: 1.15 gear x 1.15 damage x 1.25 XP = 1.65. Earned-only average: 1.15 x 1.11 (5% standing, boss 5% for 7 days in 28, arena 5%) x 1.03 (25% for 3 days in 28) = 1.31. Check G overturns it: kill speed 1.25 to 1.40, Level pace 1.5 to 1.7, and no cell where the buffed four holds a tier the plain four cannot enter.",
       "replaces": "",
       "money": false,
-      "depends": "PROGRESSION DECIDER (GR-6): size R1, the region lead, on 1.65 only if the store sells an always-on XP boost, else on about 1.3 to 1.4. ECONOMY DECIDER (MM-31): the paid pace ceiling of 1.60 now sits just under this ceiling and the two should be one number. Art and asset directors for the region schedule."
+      "depends": "PROGRESSION DECIDER (GR-6): size R1, the region lead, on 1.65 only if the store sells an always-on XP boost, else on about 1.3 to 1.4. ECONOMY DECIDER (MM-31): the paid pace ceiling of 1.60 now sits just under this ceiling and the two should be one number. Art and asset directors for the region schedule.",
+      "was": "The ceiling is about 32% more kills an hour and about 65% more Levels an hour, not 72%, because the standing XP cap is gone. The Level table stays the clock of the plain four and never reads a buff. And the number chapter 05 asked for: a player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. Only a player with a bought XP boost running every hour sits at the 1.65 ceiling.",
+      "fixedBy": "review-2, review-4",
+      "fixNote": "The ceiling was written as 1.65 here, 1.58 in MM-31 and 1.60 in the book. MM-31 left out the +5% standing damage row."
     },
     {
       "id": "MM-13",
       "call": "Two arenas: an even arena that normalizes every stat, and an open arena that reads real gear, upgrades and buffs.",
-      "decision": "Yes. Even Arena: every hero at one reference Level with a reference kit of its own weapon type and armor weight, kit rows tuned for the arena alone, and no gear, buff or boost read. Open Arena: heroes as they stand, with damage and damage-taken buffs under the same caps. XP and drop buffs do nothing in either.",
+      "decision": "Yes. Even Arena: every hero at one reference Level with a reference kit of its own weapon type and armor weight, kit rows tuned for the arena alone, and no gear, buff or boost read. Open Arena: heroes as they stand. It reads gear, upgrades, standing buffs and bought boosts under the same caps. It never reads a timed buff that an arena paid. XP and drop buffs do nothing in either.",
       "outcome": "recommended",
       "reason": "You ruled two arenas. One is where my party choice and my bar rules win, and money does nothing. The other is where the gear I chased and paid for shows. Both use the same fight engine as a hunt.",
       "evidence": "RULED 2026-11-21 (two arenas). What each reads is a design choice. HYPOTHESIS on balance between styles. Playtest read: every style pairing wins 40% to 60%, and check C comes first.",
       "replaces": "",
       "money": false,
-      "depends": "MM-41 (the engine check gates both). Economy decider MM-37 (paying gives nothing in the Even Arena). Core decider: whether faction skills are read in the Even Arena. My call is no, the reference kit carries no faction skill."
+      "depends": "MM-41 (the engine check gates both). Economy decider MM-37 (paying gives nothing in the Even Arena). Core decider: whether faction skills are read in the Even Arena. My call is no, the reference kit carries no faction skill.",
+      "was": "Yes. Even Arena: every hero at one reference Level with a reference kit of its own weapon type and armor weight, kit rows tuned for the arena alone, and no gear, buff or boost read. Open Arena: heroes as they stand, with damage and damage-taken buffs under the same caps. XP and drop buffs do nothing in either.",
+      "fixedBy": "review-26",
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
+      "fixNote": "The Open Arena paid +5% damage for the next season and also read damage buffs, so last season's winners started the next one 5% stronger."
     },
     {
       "id": "MM-12",
@@ -321,13 +380,16 @@
     {
       "id": "MM-14",
       "call": "Arena rewards by rating tier: a season buff and title in the even arena, and the arena's own gear line in the open arena.",
-      "decision": "Yes, by rating tier with a minimum number of fights, never by rank. Even Arena: up to +5% drop chance for the next season, a title and a banner. Open Arena: a piece of the arena line at the hero's band (a sidegrade to the band's best, like a boss piece), its material, up to +5% damage dealt for the next season, and a title. Seasons are four weeks with a soft reset. No stamina, death, XP or coin in either.",
+      "decision": "Yes, by rating tier with a minimum number of fights, never by rank. Even Arena: up to +5% material find for the next season, a title and a banner. Open Arena: a piece of the arena line at the hero's band (a sidegrade to the band's best, like a boss piece), its material, up to +5% damage dealt for the next season, which no arena reads, and a title. Seasons are four weeks with a soft reset. No stamina, death, XP or coin in either.",
       "outcome": "recommended",
       "reason": "A top-ten prize puts the gear in the same hands every month. A tier anyone can reach with enough good fights means the gear is a goal for everybody in their own band, and the Even Arena gives a builder with bad gear a buff to chase too.",
       "evidence": "RULED direction (buffs and gear). HYPOTHESIS that the Open Arena stays fair when it pays gear to the geared. The band matching of MM-38 is what protects it. Playtest reads: accounts with 10 or more fights over a third, and Open Arena fights against real setups over half by week two.",
       "replaces": "",
       "money": false,
-      "depends": "Items decider: the arena gear line fits the item plan the same way as the boss line (MM-6). MM-25 for both buffs. MM-38."
+      "depends": "Items decider: the arena gear line fits the item plan the same way as the boss line (MM-6). MM-25 for both buffs. MM-38.",
+      "was": "Yes, by rating tier with a minimum number of fights, never by rank. Even Arena: up to +5% drop chance for the next season, a title and a banner. Open Arena: a piece of the arena line at the hero's band (a sidegrade to the band's best, like a boss piece), its material, up to +5% damage dealt for the next season, and a title. Seasons are four weeks with a soft reset. No stamina, death, XP or coin in either.",
+      "fixedBy": "review-3, review-26",
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it."
     },
     {
       "id": "MM-15",
@@ -497,13 +559,15 @@
     {
       "id": "MM-22",
       "call": "The gold that hero slots took goes to the castle and to boss and arena upgrade materials first.",
-      "decision": "Yes as a direction. The castle share and stages, and the boss and arena materials bought from other players, are the first homes for that gold. The sizes are the economy decider's.",
+      "decision": "Yes as a direction, under the order of CE-4. In the first weeks that gold goes to supplies, the yard, the House ladder re-read for four, bag rungs, Tempering, Hallmarks, Blessings and linings, because a new account cannot reach the castle. The castle is the long home for it once an account is in a clan. Boss and arena materials bought from other players are a small home. The sizes are the economy decider's.",
       "outcome": "recommended",
       "reason": "About 5.5M of sink went away with the slot prices. The castle never ends and scales with the roster, and boss materials move gold between players, so those are the right first places.",
       "evidence": "COMPUTED from the old slot ladder (about 5.5M of 5.9M, 60 GR-2). No measurement behind the new sizes.",
       "replaces": "",
       "money": false,
-      "depends": "ECONOMY DECIDER owns GR-8 and the six homes of chapter 04 section 2.6. MM-9."
+      "depends": "ECONOMY DECIDER owns GR-8 and the six homes of chapter 04 section 2.6. MM-9.",
+      "was": "Yes as a direction. The castle share and stages, and the boss and arena materials bought from other players, are the first homes for that gold. The sizes are the economy decider's.",
+      "fixedBy": "review-8"
     },
     {
       "id": "MM-23",
@@ -596,24 +660,31 @@
     {
       "id": "GR-79",
       "call": "One table, the Path, says when every system opens, and the first hour teaches four heroes.",
-      "decision": "Yes, the Path and chapter 08's first hour: one hero alone to Level 5 in the Mill Cellar (about minute 17), then three more heroes made in one flow, who run the Cellar together while the first hunts Meadowbrook Thicket, then all four enter the Millrace Sewer at about minute 36 on one Start. My additions. (1) The doors chapter 08 left open: chat and the presence strip from the start. Clans can be joined from the first day. The calendar banner shows after the first stamina end. The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when you are in a clan. Factions at the first Krell kill as ruled. (2) If the core decider's check C3 fails, the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes. That is a data row, never tutorial math. (3) Chapter 06's minute 5 picture is corrected to one hero, with Global chat open and the strip on the Cellar card.",
+      "decision": "Yes, the Path and chapter 08's first hour: one hero alone to Level 5 in the Mill Cellar (about minute 17), then three more heroes made in one flow. The three recruits each run their own Mill Cellar hunt, alone, and one Start begins all three (GR-80), while the first hero hunts Meadowbrook Thicket. Then all four enter the Millrace Sewer at about minute 36 on one Start. The pre-filled company always holds one healer, and the creation screen says so before a player changes it. Additions. (1) The doors chapter 08 left open: chat and the presence strip from the start. Clans can be joined from the first day. The calendar banner shows after the first stamina end. The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when you are in a clan. Factions at the first Krell kill as ruled. (2) If the core decider's check C3 fails, the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes. That is a data row, never tutorial math. (3) Chapter 06's minute 5 picture is corrected to one hero, with Global chat open and the strip on the Cellar card.",
       "outcome": "recommended",
       "reason": "Four name screens before a single kill would lose people, and four bars at once teaches nothing. One hero for 17 minutes teaches the loop, and then \"you have three more\" is the best surprise of the first hour. The MMO doors are spread out so every few Levels names a new thing and Level 10 is not a pile.",
       "evidence": "PLAYED twice for minutes 0 to 17 as a one-hero opening (chapter 08 section 2.1). From minute 17 it is designed and unplayed. My walk-through re-check against src/data on this branch is in the md mirror. HYPOTHESIS for the doors (TARGET Levels). Overturned by check C3, by the blind first hour (playtest 12) and by playtest 1.",
       "replaces": "",
       "money": false,
-      "depends": "CORE DECIDER: step 13 stands on check C3 (a start-kit four holds the Sewer on Normal at Level 5, Rat King room included, no death in 4 seeds of 8 hours). Also C1 and C2. Items decider fills Path rows for Levels 17 to 29. Economy decider: the account's 500 gold granted once (GR-8). MM-4 and MM-14 numbers must exist before the boss and arena doors are final."
+      "depends": "CORE DECIDER: step 13 stands on check C3 (a start-kit four holds the Sewer on Normal at Level 5, Rat King room included, no death in 4 seeds of 8 hours). Also C1 and C2. Items decider fills Path rows for Levels 17 to 29. Economy decider: the account's 500 gold granted once (GR-8). MM-4 and MM-14 numbers must exist before the boss and arena doors are final.",
+      "was": "Yes, the Path and chapter 08's first hour: one hero alone to Level 5 in the Mill Cellar (about minute 17), then three more heroes made in one flow, who run the Cellar together while the first hunts Meadowbrook Thicket, then all four enter the Millrace Sewer at about minute 36 on one Start. My additions. (1) The doors chapter 08 left open: chat and the presence strip from the start. Clans can be joined from the first day. The calendar banner shows after the first stamina end. The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when you are in a clan. Factions at the first Krell kill as ruled. (2) If the core decider's check C3 fails, the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes. That is a data row, never tutorial math. (3) Chapter 06's minute 5 picture is corrected to one hero, with Global chat open and the strip on the Cellar card.",
+      "fixedBy": "review-6",
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
+      "fixNote": "Check C2 was run by the review and fails. Three new heroes together in the Mill Cellar earn 0.53 times what one earns alone, because the Cellar is spawn-limited. Alone, each recruit levels at the first hero's pace, so minute 36 stands."
     },
     {
       "id": "GR-24",
       "call": "The player picks starting weapons at creation (shared with combat, my input).",
-      "decision": "Input for the core decider: yes. The player picks how each hero fights when the hero is made, from the six starter set rows, with no card preselected on the first hero. Each card carries one honest measured tag, \"Good alone\" or \"Best in a party. Slow alone.\" Heroes two to four mark the card the party lacks, shield first, then healer. The pick only sets what is in hand. Every hero still owns the whole practice kit.",
+      "decision": "The player picks a weapon for each hero at creation, from the six starter set rows. No card is preselected. Each card carries its measured tag from check C1 (\"Good alone\" or \"Best in a party. Slow alone.\"). The hammer card carries a \"Good first hero\" mark. Heroes two to four come pre-filled as shield, staff and bow, one press accepts them and any pick can be changed. The pre-filled company always holds one healer, and the creation screen says so before a player changes it. The pick only sets what is in hand. Every hero still owns the whole practice kit, and skills never lock a hero to the pick. Core owns the row. Check C1 is still owed.",
       "outcome": "recommended",
       "reason": "It is the first choice a player ever makes, so the screen should not make it for them. The first 17 minutes are alone, so a sword and shield hero has to be told it is slow alone before the pick and not after.",
       "evidence": "RULED: classless (2026-10-14), the practice kit (2026-10-20), the tank is slow alone (2026-11-19). Six STARTER_SETS rows checked in src/data/start-kit.js. The tags are unmeasured until check C1.",
       "replaces": "",
       "money": false,
-      "depends": "CORE DECIDER owns GR-24. Check C1: each way reaches Level 5 in 15 to 20 minutes alone or carries the slow tag."
+      "depends": "CORE DECIDER owns GR-24. Check C1: each way reaches Level 5 in 15 to 20 minutes alone or carries the slow tag.",
+      "was": "Input for the core decider: yes. The player picks how each hero fights when the hero is made, from the six starter set rows, with no card preselected on the first hero. Each card carries one honest measured tag, \"Good alone\" or \"Best in a party. Slow alone.\" Heroes two to four mark the card the party lacks, shield first, then healer. The pick only sets what is in hand. Every hero still owns the whole practice kit.",
+      "fixedBy": "review-6, review-7",
+      "fixNote": "Core highlighted the hammer and this row preselected nothing. Merged."
     },
     {
       "id": "GR-80",
@@ -662,13 +733,15 @@
     {
       "id": "GR-84",
       "call": "The Premium claim needs no press, setups are one idea, and a Week card.",
-      "decision": "Yes to all three. The Premium daily item lands in Storage on the first visit of the day with no press and the streak never resets. Setups, action sets and presets become one noun, Setup, remembered for each ground. A Week card on the first return after the weekly turn compares this week with your last and pays nothing, ever.",
+      "decision": "Yes to all three. The Premium daily item lands in Storage on the first visit of the day with no press and the streak never resets. Setups, action sets, presets and the saved kit become one noun, Setup. One Setup for each ground holds the weapon, the worn set, the linings, the bar and the target mode, and it can be copied to another hero or ground (GR-48). A Week card on the first return after the weekly turn compares this week with your last and pays nothing, ever.",
       "outcome": "recommended",
       "reason": "A claim button is a press with no decision. Three names for one idea is just confusing. The Week card is a mirror that gives me a reason to look on Monday without turning into a chore.",
       "evidence": "RULED 2026-10-17 (streaks never reset). HYPOTHESIS on the Week card. Playtest read: accounts whose first press of a week falls within a day of the turn.",
       "replaces": "",
       "money": false,
-      "depends": "How many Premium items a day (one an account or one a hero) is your money call with the economy decider and is not decided here. GR-48, GR-56a."
+      "depends": "How many Premium items a day (one an account or one a hero) is your money call with the economy decider and is not decided here. GR-48, GR-56a.",
+      "was": "Yes to all three. The Premium daily item lands in Storage on the first visit of the day with no press and the streak never resets. Setups, action sets and presets become one noun, Setup, remembered for each ground. A Week card on the first return after the weekly turn compares this week with your last and pays nothing, ever.",
+      "fixedBy": "review-28"
     }
   ]
 }

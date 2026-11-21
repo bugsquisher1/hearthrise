@@ -1,17 +1,9 @@
 {
-  "schema": "hearthrise.decision-book/1",
+  "schema": "hearthrise.decision-book/2",
   "issued": "2026-11-21",
-  "source": "docs/design/balance-program/60-game-review.md (calls GR-1 to GR-88, 92 rows) and 49-mmo-layer.md (calls MM-1 to MM-42, plus MM-43 from its playtest)",
-  "counts": {
-    "grRows": 92,
-    "mmCalls": 43,
-    "ruled": 2,
-    "decideFirst": 31,
-    "needsYourEye": 41,
-    "safeToAccept": 55,
-    "supersededByAnMmCall": 6
-  },
-  "vision": "You run four heroes from your first day. They hunt while you are away, and you win by preparing them: who stands where, what they wear, what their bars do and where you send them. Harder tiers ask for a real party with roles. Gear is a chase with rare finds worth keeping. Levels never end, and gear, sinks and old grounds keep pace by formula. Around the hunt stands a shared world that works while everyone sleeps: clans, world bosses, events and two arenas, paying buffs and gear. Crowns buy comfort and timed boosts, trade to other players for gold, and give a real edge under a stated ceiling. Every number comes from formulas you can read.",
+  "reissued": "Second form, written on lane/d-book-integrate after the game designer decided every call and an adversarial check corrected the decisions. The first form asked Tyler 135 questions. This form asks him for five short lists.",
+  "source": "docs/design/overhaul/decisions/all.json (one row a call), docs/design/overhaul/decisions/review.md (the adversarial check) and docs/design/overhaul/00-the-game.md (the front of the book)",
+  "vision": "You run four heroes from your first day. They hunt while you are away, and you win by preparing them: who stands where, what they wear, what their bars do and where you send them. Every choice is made once and remembered. Harder tiers ask for a real party with a tank and a healer. Gear is a chase with rare finds worth keeping. Levels never end, and gear, sinks and old grounds keep pace by formula. Around the hunt stands a shared world that works while everyone sleeps: clans, world bosses, events and two arenas, paying buffs and gear. Crowns buy Premium, looks and comfort, and trade to other players for gold. That gold is the edge, under one ceiling written in numbers that a player who never pays can also reach. Every number comes from formulas you can read.",
   "ruled": [
     {
       "date": "2026-11-21",
@@ -210,832 +202,1329 @@
       "what": "The harder tiers hit harder, sized on a party with a healer and monsters that shoot the back row."
     }
   ],
-  "decideFirst": [
-    {
-      "order": 1,
-      "id": "GR-85",
-      "call": "Approve the formula clean-up steps that move no number, and apply a tier's dial once.",
-      "whyFirst": "Every later number is read through these formulas."
+  "decided": {
+    "by": "Fable 2026-11-21, the game designer, with an adversarial check behind it",
+    "rowsDecided": 157,
+    "calls": 155,
+    "mergedTwice": [
+      "GR-24",
+      "MM-7"
+    ],
+    "decided": 114,
+    "decidedAsReversals": 24,
+    "tylerConfirms": 16,
+    "withdrawn": 1,
+    "fixesApplied": 31,
+    "rowsChangedByAFix": 40,
+    "hypotheses": 10,
+    "statusTagsInTheBook": {
+      "decided": 939,
+      "tylerConfirms": 88,
+      "cut": 28,
+      "noCallId": 22,
+      "open": 51
     },
-    {
-      "order": 2,
-      "id": "GR-88",
-      "call": "The balance matrix is the gate for every balance change, with a band for XP after deaths and party lineups.",
-      "whyFirst": "Nothing below can be judged on evidence until the measuring tool is true."
-    },
-    {
-      "order": 3,
-      "id": "GR-1",
-      "call": "Town work is paid in closed form. The way an away hunt is saved waits for study 48.",
-      "whyFirst": "The game has to fit $0.15 an account before any system is added to it."
-    },
-    {
-      "id": "MM-1",
-      "call": "Rule 0: every shared feature works while both players are asleep.",
-      "whyFirst": "It decides what the whole MMO layer may and may not contain.",
-      "order": 4
-    },
-    {
-      "order": 5,
-      "id": "GR-3",
-      "call": "Deadly is sized so a four with a shield tank and a healer holds it, and a four without them does not.",
-      "whyFirst": "It decides whether preparing a party is a real decision."
-    },
-    {
-      "order": 6,
-      "id": "GR-27",
-      "call": "One pull number for each harder tier, the same on every ground.",
-      "whyFirst": "It is the formula form of the tiers and it sets what every ground asks."
-    },
-    {
-      "order": 7,
-      "id": "GR-4",
-      "call": "A gear curve as a game formula, linear in Level, with a band the size of a tier.",
-      "whyFirst": "The kill reward, uniques, jewelry and every band read it."
-    },
-    {
-      "order": 8,
-      "id": "GR-5",
-      "call": "What a kill pays follows the pace line, with one tier table for every ground.",
-      "whyFirst": "It sets XP on every ground at once, and the Level table needs it."
-    },
-    {
-      "order": 9,
-      "id": "GR-6",
-      "call": "From Level 50 your table of hours is the Level law and the cost of a Level is derived from it.",
-      "whyFirst": "Every day number in the game comes from it."
-    },
-    {
-      "order": 10,
-      "id": "GR-7",
-      "call": "Past the third Blessing, a new one opens whenever a fully blessed death would cost over five hours.",
-      "whyFirst": "It settles two targets you ruled that do not fit together past about Level 100."
-    },
-    {
-      "order": 11,
-      "id": "GR-8",
-      "call": "Tempering, Hallmarks and linings cost a share of a band's gold, sized on an account of four, with early sinks in place of the slots.",
-      "whyFirst": "Gold needs something to buy from the first week, and the slot ladder is gone."
-    },
-    {
-      "order": 12,
-      "id": "GR-79",
-      "call": "One table, the Path, says when every system opens, and the first hour teaches four heroes.",
-      "whyFirst": "Four heroes from day 1 makes the first hour the hardest design problem left."
-    },
-    {
-      "order": 13,
-      "id": "GR-28",
-      "call": "One boss door: every boss has a hall and a key, and one key is one prize roll.",
-      "whyFirst": "World bosses and events will build on the boss system."
-    },
-    {
-      "order": 14,
-      "id": "GR-29",
-      "call": "A hall's prize holds only what no ground drops.",
-      "whyFirst": "It decides what the end of every region is worth."
-    },
-    {
-      "order": 15,
-      "id": "GR-40",
-      "call": "Three special pieces and a signature stone on three grounds, as the first rare finds a hero keeps.",
-      "whyFirst": "It is the sample that every later rare item is sized on."
-    },
-    {
-      "order": 16,
-      "id": "GR-9",
-      "call": "An old ground can be hunted at your own Level, with one drop rule.",
-      "whyFirst": "It is how the world keeps up with Levels that never end."
-    },
-    {
-      "id": "MM-2",
-      "call": "A world boss is one health pool the whole server shares, fought by each account in its own room.",
-      "whyFirst": "It is the first place another player moves a number you care about.",
-      "order": 17
-    },
-    {
-      "id": "MM-24",
-      "call": "Every buff is a row in one modifier table, and every MMO layer piece sits on the gear curve at the earner's band.",
-      "whyFirst": "It is how everything the layer pays is sized, by formula.",
-      "order": 18
-    },
-    {
-      "id": "MM-25",
-      "call": "The buff caps: damage +5% standing and +10% timed, damage taken 5% and 5% less, Level XP +5% and +25%, drop chance +10% timed, town work +10%, no coin buff.",
-      "whyFirst": "Every reward in the layer and every bought boost fills these caps.",
-      "order": 19
-    },
-    {
-      "id": "MM-26",
-      "call": "The power budget: a fully buffed, boss-geared four gains at most about 32% kill speed and about 72% Level pace over a plain four in mid gear.",
-      "whyFirst": "It moves the days of the Level law (GR-6) and the content runway, so rule them together.",
-      "order": 20
-    },
-    {
-      "id": "MM-13",
-      "call": "Two arenas: an even arena that normalizes every stat, and an open arena that reads real gear, upgrades and buffs.",
-      "whyFirst": "You ruled two arenas. This says what each one reads.",
-      "order": 21
-    },
-    {
-      "id": "MM-28",
-      "call": "Paying gives a real edge: timed boosts, gear sooner, upgrades sooner, clan rooms sooner, Premium, comfort and looks.",
-      "whyFirst": "It is the money model, built on your ruling that Crowns must give real advantages.",
-      "order": 22
-    },
-    {
-      "id": "MM-29",
-      "call": "The store sells Premium, timed boosts, comfort and looks for Crowns. Never gear, materials, gold, Levels, skill levels, chests or rating.",
-      "whyFirst": "It draws the line between a real edge and a broken one.",
-      "order": 23
-    },
-    {
-      "id": "MM-30",
-      "call": "Bought boosts and earned buffs are the same rows and fill the same timed caps.",
-      "whyFirst": "It is what keeps paying under the caps of MM-25.",
-      "order": 24
-    },
-    {
-      "id": "MM-31",
-      "call": "The pace ceiling: a fully Crowns-boosted four gains at most 60% more Levels an hour than the same four in mid gear with no buffs.",
-      "whyFirst": "It replaces your 11-21 ruling of no limit on how much sooner (50-11).",
-      "order": 25
-    },
-    {
-      "id": "MM-32",
-      "call": "The gear ceiling: paying puts you 0 bands ahead, and inside a band at most best in slot over mid gear.",
-      "whyFirst": "It protects the gear chase from being bought.",
-      "order": 26
-    },
-    {
-      "id": "MM-33",
-      "call": "The gold ceiling: the weekly cap on Crowns sold is worth about one week of a four's hunting gold.",
-      "whyFirst": "It sets how much gold money can add, and so every price in the game.",
-      "order": 27
-    },
-    {
-      "id": "MM-34",
-      "call": "Everything sold for Crowns can be had with gold through the book, at stated target prices.",
-      "whyFirst": "It is what makes the model fair to a player who never pays.",
-      "order": 28
-    },
-    {
-      "id": "MM-35",
-      "call": "Crowns are a number on the account, sold to other players for gold on a server-owned book. One trade, then bound.",
-      "whyFirst": "It is the trade surface the whole engine runs on.",
-      "order": 29
-    },
-    {
-      "id": "MM-36",
-      "call": "Eight clamps on the Crowns book, all inside the Security review before Early Access.",
-      "whyFirst": "A real-money link to gold must not be able to reach another player's economy unchecked.",
-      "order": 30
-    },
-    {
-      "id": "MM-37",
-      "call": "Paying gives no edge in the even arena, in events, or in access to any Level, ground, drop or tier.",
-      "whyFirst": "It names the places money never reaches.",
-      "order": 31
+    "byArea": {
+      "Foundation and checks": {
+        "calls": 12,
+        "decided": 12,
+        "reversals": 0,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "C3",
+          "CORE-1",
+          "CORE-2",
+          "CORE-3",
+          "CORE-4",
+          "GR-1",
+          "GR-3",
+          "GR-27",
+          "GR-85",
+          "GR-86",
+          "GR-87",
+          "GR-88"
+        ]
+      },
+      "Collisions between chapters": {
+        "calls": 10,
+        "decided": 7,
+        "reversals": 3,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "CE-1",
+          "CE-2",
+          "CE-3",
+          "CE-4",
+          "CE-5",
+          "CE-6",
+          "CE-7",
+          "CE-8",
+          "CE-9",
+          "CE-10"
+        ]
+      },
+      "The long game": {
+        "calls": 10,
+        "decided": 4,
+        "reversals": 6,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-4",
+          "GR-5",
+          "GR-6",
+          "GR-6a",
+          "GR-6b",
+          "GR-6d",
+          "GR-7",
+          "GR-8",
+          "GR-9",
+          "MM-7"
+        ]
+      },
+      "Combat": {
+        "calls": 16,
+        "decided": 15,
+        "reversals": 1,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-11",
+          "GR-12",
+          "GR-13",
+          "GR-14",
+          "GR-15",
+          "GR-16",
+          "GR-17",
+          "GR-18",
+          "GR-19",
+          "GR-20",
+          "GR-21",
+          "GR-22",
+          "GR-23",
+          "GR-24",
+          "GR-25",
+          "GR-26"
+        ]
+      },
+      "World": {
+        "calls": 10,
+        "decided": 9,
+        "reversals": 1,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-28",
+          "GR-29",
+          "GR-30",
+          "GR-31",
+          "GR-32",
+          "GR-33",
+          "GR-34",
+          "GR-35",
+          "GR-36",
+          "GR-37"
+        ]
+      },
+      "Items and crafting": {
+        "calls": 12,
+        "decided": 11,
+        "reversals": 1,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-38",
+          "GR-39",
+          "GR-40",
+          "GR-41",
+          "GR-42",
+          "GR-43",
+          "GR-44",
+          "GR-45",
+          "GR-46",
+          "GR-47",
+          "GR-48",
+          "GR-49"
+        ]
+      },
+      "Economy": {
+        "calls": 13,
+        "decided": 10,
+        "reversals": 3,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-50",
+          "GR-51",
+          "GR-52",
+          "GR-53",
+          "GR-54",
+          "GR-55",
+          "GR-56a",
+          "GR-56b",
+          "GR-57",
+          "GR-58",
+          "GR-59a",
+          "GR-59b",
+          "GR-60"
+        ]
+      },
+      "Progression": {
+        "calls": 6,
+        "decided": 3,
+        "reversals": 1,
+        "tylerConfirms": 1,
+        "withdrawn": 1,
+        "ids": [
+          "GR-61",
+          "GR-62",
+          "GR-63",
+          "GR-64",
+          "GR-65",
+          "GR-66"
+        ]
+      },
+      "Social": {
+        "calls": 4,
+        "decided": 3,
+        "reversals": 1,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-69",
+          "GR-70",
+          "GR-71",
+          "GR-72"
+        ]
+      },
+      "Home": {
+        "calls": 5,
+        "decided": 4,
+        "reversals": 1,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-73",
+          "GR-74",
+          "GR-75",
+          "GR-76",
+          "GR-77"
+        ]
+      },
+      "The player's day": {
+        "calls": 7,
+        "decided": 6,
+        "reversals": 1,
+        "tylerConfirms": 0,
+        "withdrawn": 0,
+        "ids": [
+          "GR-78",
+          "GR-79",
+          "GR-80",
+          "GR-81",
+          "GR-82",
+          "GR-83",
+          "GR-84"
+        ]
+      },
+      "The MMO layer": {
+        "calls": 37,
+        "decided": 30,
+        "reversals": 5,
+        "tylerConfirms": 2,
+        "withdrawn": 0,
+        "ids": [
+          "MM-1",
+          "MM-2",
+          "MM-3",
+          "MM-4",
+          "MM-5",
+          "MM-6",
+          "MM-8",
+          "MM-9",
+          "MM-10",
+          "MM-11",
+          "MM-12",
+          "MM-13",
+          "MM-14",
+          "MM-15",
+          "MM-16",
+          "MM-17",
+          "MM-18",
+          "MM-19",
+          "MM-20",
+          "MM-21",
+          "MM-22",
+          "MM-23",
+          "MM-24",
+          "MM-25",
+          "MM-26",
+          "MM-27",
+          "MM-38",
+          "MM-39",
+          "MM-40",
+          "MM-41",
+          "MM-42",
+          "MM-43",
+          "MM-44",
+          "MM-45",
+          "MM-46",
+          "MM-47",
+          "MM-48"
+        ]
+      },
+      "Money": {
+        "calls": 13,
+        "decided": 0,
+        "reversals": 0,
+        "tylerConfirms": 13,
+        "withdrawn": 0,
+        "ids": [
+          "MM-28",
+          "MM-29",
+          "MM-29-XP",
+          "MM-30",
+          "MM-31",
+          "MM-32",
+          "MM-33",
+          "MM-34",
+          "MM-35",
+          "MM-36",
+          "MM-37",
+          "PREM-1",
+          "PREM-2"
+        ]
+      }
     }
-  ],
-  "byArea": [
-    {
-      "area": "Combat",
-      "needsYourEye": [
-        {
-          "id": "GR-18",
-          "call": "The hammer's Earth rune strike also breaks a monster's spell windup.",
-          "reason": "Re-opens 10-23 (no stagger) and adds to the strike you chose on 11-21."
-        },
-        {
-          "id": "GR-20",
-          "call": "A status opens a monster to one kind of damage, as a sample of three pairs.",
-          "reason": "HYPOTHESIS, and the risk is stacking."
-        },
-        {
-          "id": "GR-24",
-          "call": "The player picks starting weapons at creation.",
-          "reason": "With four heroes from day 1 this is the first choice a player ever makes."
-        },
-        {
-          "id": "GR-25",
-          "call": "Put six special rules on record, among them the gentle first grounds and the cap on a boss's blow.",
-          "reason": "They were never put to you and each needs your yes."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-11",
-          "call": "One floor on the blow a cast reads.",
-          "reason": "Builds your 11-21 ruling as one number."
-        },
-        {
-          "id": "GR-12",
-          "call": "A physical strike reads weapon weakness. Spells never miss and never crit.",
-          "reason": "Measured small, one clear rule."
-        },
-        {
-          "id": "GR-13",
-          "call": "One roll rule, with heals always the same number.",
-          "reason": "One rule in place of three."
-        },
-        {
-          "id": "GR-14",
-          "call": "Axes count as edged, fists as blunt, and Rend is sized so the axes sit with the other melee weapons.",
-          "reason": "Two content rows and one number."
-        },
-        {
-          "id": "GR-15",
-          "call": "Turning Cut unlocks at Level 1 for axes and hammer, 10 for the sword.",
-          "reason": "A data field that bends no ruling."
-        },
-        {
-          "id": "GR-16",
-          "call": "Seven Necrotic and Storm spells first, sixteen in the end, no two weapons sharing a trick.",
-          "reason": "Keeps your ruling and only sets the order."
-        },
-        {
-          "id": "GR-17",
-          "call": "Fists are two rows: the Hands on mana, the Palm in the element you chose.",
-          "reason": "Keeps the identity you ruled with fewer buttons."
-        },
-        {
-          "id": "GR-19",
-          "call": "A target mode that takes monsters shooting the back row first.",
-          "reason": "One data row, set once and remembered."
-        },
-        {
-          "id": "GR-21",
-          "call": "The crossbow's identity is its own list and its shield.",
-          "reason": "Builds your ruling."
-        },
-        {
-          "id": "GR-22",
-          "call": "Magic adds a little max mana for every hero.",
-          "reason": "Measured, and it passed the gate with nothing else moving."
-        },
-        {
-          "id": "GR-23",
-          "call": "A hit stays skill plus gear, and rune tiers continue past skill 60.",
-          "reason": "No new formula."
-        },
-        {
-          "id": "GR-26",
-          "call": "Chest weapons keep their flat skill bonus.",
-          "reason": "Keeps three rulings as they are."
-        }
-      ]
+  },
+  "tyler": {
+    "note": "The only things that need Tyler. Everything else is decided.",
+    "money": [
+      {
+        "n": 1,
+        "id": "MM-28",
+        "call": "The paid advantage",
+        "recommendation": "Yes. Paying gives a real edge under one ceiling written in numbers. A player who does not pay reaches the same ceiling with gold."
+      },
+      {
+        "n": 2,
+        "id": "MM-29",
+        "call": "What the store sells",
+        "recommendation": "Crowns buy Premium, looks and comfort. Two timed boosts, damage +6% and protection of about 3%, are sold for gold in 1 day and 7 day sizes, priced on the wage curve and burned. If you want stronger Crown demand, the same two are sold for Crowns and that becomes reversal 24."
+      },
+      {
+        "n": 3,
+        "id": "MM-29-XP",
+        "call": "A bought Level XP boost",
+        "recommendation": "No. No Level XP boost is sold, for Crowns or for gold."
+      },
+      {
+        "n": 4,
+        "id": "MM-30",
+        "call": "Bought boosts and earned buffs",
+        "recommendation": "Yes. The same rows and the same caps. One bought boost on a knob at a time."
+      },
+      {
+        "n": 5,
+        "id": "MM-31",
+        "call": "The pace ceiling",
+        "recommendation": "Keep ruling 50-11. Record one reading held by a test: 1.65 with every cap full, about 1.22 from paying alone."
+      },
+      {
+        "n": 6,
+        "id": "MM-32",
+        "call": "The gear ceiling",
+        "recommendation": "Yes. Paying puts a hero 0 bands ahead, and inside a band at most best gear over mid gear."
+      },
+      {
+        "n": 7,
+        "id": "MM-33",
+        "call": "The gold ceiling",
+        "recommendation": "Yes. The weekly cap on Crowns an account sells is worth about one account-week of hunting gold, re-derived each week from the 7 day median price."
+      },
+      {
+        "n": 8,
+        "id": "MM-34",
+        "call": "The path for players who do not pay",
+        "recommendation": "Yes. Everything sold for Crowns can be had with gold through the book. Premium for a month targets about 3 account-days of gold."
+      },
+      {
+        "n": 9,
+        "id": "MM-35",
+        "call": "How Crowns trade",
+        "recommendation": "Yes. A number on the account, one server-owned book, fixed lots, one trade then bound, 1% to list and 4% of the gold, both burned. Named \"Crown Exchange\"."
+      },
+      {
+        "n": 10,
+        "id": "MM-36",
+        "call": "The clamps",
+        "recommendation": "Yes. The eight clamps, with gold paid for Crowns counted against the market's daily spend cap, all inside the one Security review before Early Access."
+      },
+      {
+        "n": 11,
+        "id": "MM-37",
+        "call": "Where paying gives no edge",
+        "recommendation": "Yes. The Even Arena, events, and access to any Level, ground, drop or tier. The Open Arena reads bought boosts on purpose."
+      },
+      {
+        "n": 12,
+        "id": "MM-21",
+        "call": "Premium and the MMO layer",
+        "recommendation": "Everything in the layer is open to every account. Premium banks arena tickets to 30. Premium does not make buffs last longer."
+      },
+      {
+        "n": 13,
+        "id": "PREM-1",
+        "call": "What one Premium gives four heroes",
+        "recommendation": "The ruled list (12 hour bar on every hero, the full analyzer, looks and a free color change a day, 100 listings for 14 days), the daily claim with no press, one daily 1 hour training item for each hero, tickets to 30."
+      },
+      {
+        "n": 14,
+        "id": "PREM-2",
+        "call": "The price of Premium and a Crown",
+        "recommendation": "30 days, priced in Crowns, at 8 to 10 dollars a month as a number to react to. Lot sizes are set so MM-34 holds at the opening price."
+      },
+      {
+        "n": 15,
+        "id": "GR-66",
+        "call": "The risk reading",
+        "recommendation": "Free for everyone: how close a hunt came to a death and deaths per 100 hours for the ground and tier. Premium keeps the full analyzer, as ruled in 24-4."
+      }
+    ],
+    "grant": {
+      "n": 16,
+      "id": "MM-43",
+      "call": "Test Crowns in the playtest. THIS IS A GRANT",
+      "recommendation": "Yes, for the wiped Discord playtest only. The same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled. It needs your explicit yes.",
+      "grant": true
     },
-    {
-      "area": "World",
-      "needsYourEye": [
-        {
-          "id": "GR-31",
-          "call": "Every ground asks one question and says it on its card.",
-          "reason": "HYPOTHESIS that players change what they bring."
-        },
-        {
-          "id": "GR-33",
-          "call": "A region is six grounds, opened as four and a hall, then two.",
-          "reason": "A big bet on how fast the world can be drawn."
-        },
-        {
-          "id": "GR-34",
-          "call": "Remove 103 monster rows no hunt uses and three hunts with no ground.",
-          "reason": "It is a cut, and cuts go to you on one list first."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-30",
-          "call": "A hall boss is the boss role times one hall number.",
-          "reason": "The formula form. No boss is tuned by hand."
-        },
-        {
-          "id": "GR-32",
-          "call": "Two grounds move to fill thin Level bands, and a faction pair pays alike.",
-          "reason": "Data only."
-        },
-        {
-          "id": "GR-35",
-          "call": "Each ground's named rare gets one phase trait.",
-          "reason": "Uses a mechanic that exists."
-        },
-        {
-          "id": "GR-36",
-          "call": "The Catacombs stay their own mode, with one wing and one key built first.",
-          "reason": "Keeps your rulings."
-        },
-        {
-          "id": "GR-37",
-          "call": "The Tower stays weekly.",
-          "reason": "Keeps your ruling."
-        }
-      ]
-    },
-    {
-      "area": "Items and crafting",
-      "needsYourEye": [
-        {
-          "id": "GR-38",
-          "call": "Jewelry and cloaks are built to tier 7, with plain numbers as a 6% share of the gear curve.",
-          "reason": "A big build that makes six slots matter."
-        },
-        {
-          "id": "GR-39",
-          "call": "A perk with a narrow case is sized for that case.",
-          "reason": "Re-opens how 23-5 (4% in all) is read."
-        },
-        {
-          "id": "GR-44",
-          "call": "Patterns teach the account, and single commissions ship with jewelry tiers 5 to 7.",
-          "reason": "A trade between players, so it needs the no-mint guard and Security."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-41",
-          "call": "Past tier 7 a unique's one property is a kind that changes a decision.",
-          "reason": "A design rule that keeps your ruling."
-        },
-        {
-          "id": "GR-42",
-          "call": "At most six Rare rows for each ground.",
-          "reason": "Keeps the reveal you ruled as a moment."
-        },
-        {
-          "id": "GR-43",
-          "call": "The Crafting bench is the outfitter: cloaks, belts, linings, ammunition.",
-          "reason": "Gives the fourth bench a job."
-        },
-        {
-          "id": "GR-45",
-          "call": "A Sealing Rune at Runecrafting 75 and 88.",
-          "reason": "Fills a gap with no spell math."
-        },
-        {
-          "id": "GR-46",
-          "call": "Salvage is a choice beside Sell, with both numbers shown.",
-          "reason": "Keeps your ruling."
-        },
-        {
-          "id": "GR-47",
-          "call": "Curing is built last, as a standing order.",
-          "reason": "Keeps your ruling."
-        },
-        {
-          "id": "GR-48",
-          "call": "Luck keeps two feeds. A find list and a saved kit for each ground.",
-          "reason": "Keeps your ruling and removes a repeated chore."
-        },
-        {
-          "id": "GR-49",
-          "call": "Chest reforging stays its own action.",
-          "reason": "Keeps your ruling."
-        }
-      ]
-    },
-    {
-      "area": "Economy",
-      "needsYourEye": [
-        {
-          "id": "GR-50",
-          "call": "A market that runs itself: standing orders, loot rules that sell to them, a refill that buys player stock.",
-          "reason": "A big bet and a HYPOTHESIS that orders fill."
-        },
-        {
-          "id": "GR-51",
-          "call": "Every repeating price is hours of one wage curve.",
-          "reason": "A big change to every money surface."
-        },
-        {
-          "id": "GR-54",
-          "call": "The yard's rate follows the skill curve, never past half of hunting.",
-          "reason": "Re-opens 11-14 and two rulings of 11-20."
-        },
-        {
-          "id": "GR-55",
-          "call": "The market is open on day one.",
-          "reason": "Re-opens 24-7."
-        },
-        {
-          "id": "GR-56a",
-          "call": "Setup slots 4 and 5 are free.",
-          "reason": "Re-opens 11-05."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-52",
-          "call": "Store healing is priced on one line, and heal size grows with hero health.",
-          "reason": "Measured, and it passed the gate."
-        },
-        {
-          "id": "GR-53",
-          "call": "The House dummy ends the yard fee, with unlocks priced by skill band.",
-          "reason": "Keeps both of your rulings."
-        },
-        {
-          "id": "GR-56b",
-          "call": "The bench tax stays and moves onto the wage curve.",
-          "reason": "Keeps your ruling."
-        },
-        {
-          "id": "GR-57",
-          "call": "A spending budget for each hunt, remembered for each ground.",
-          "reason": "Safety for a game that spends while you sleep."
-        },
-        {
-          "id": "GR-58",
-          "call": "The refill price is set after the store bill is measured right.",
-          "reason": "It only waits for a measurement."
-        },
-        {
-          "id": "GR-59a",
-          "call": "A daily line of gold made, destroyed and held.",
-          "reason": "A reading. It changes nothing in play."
-        },
-        {
-          "id": "GR-59b",
-          "call": "Close one route for laundering gold through the market.",
-          "reason": "A Security fix."
-        }
-      ]
-    },
-    {
-      "area": "Progression",
-      "needsYourEye": [
-        {
-          "id": "GR-61",
-          "call": "A permanent build choice: every ten Inner Flame levels a hero lights one of three Kindlings.",
-          "reason": "Re-opens the 11-05 hold, for a written sample only."
-        },
-        {
-          "id": "GR-65",
-          "call": "A death does not take Inner Flame progress.",
-          "reason": "Re-opens 11-09."
-        },
-        {
-          "id": "GR-66",
-          "call": "Every player sees for free how close a hunt came to a death.",
-          "reason": "It sets what is free and what is Premium."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-62",
-          "call": "One Honors page, with a server line at Level 100, 200, 300 and 400.",
-          "reason": "No power and no ledger."
-        },
-        {
-          "id": "GR-63",
-          "call": "Remove the rested bank and two hidden kill ladders.",
-          "reason": "Measured as changing no number."
-        },
-        {
-          "id": "GR-64",
-          "call": "No new skill, no prestige, no stat points.",
-          "reason": "A decision not to build."
-        }
-      ]
-    },
-    {
-      "area": "Social",
-      "needsYourEye": [
-        {
-          "id": "GR-69",
-          "call": "Remove the Local chat tab and the live party finder, and strike the fifth seat.",
-          "reason": "Re-opens 11-11, because town criers speak in Local. The finder goes under rule 0 (MM-1)."
-        },
-        {
-          "id": "GR-70",
-          "call": "The town shows heroes at work whether or not their owner is online.",
-          "reason": "It has a server cost that study 48 must size."
-        },
-        {
-          "id": "GR-71",
-          "call": "A faction side is chosen for each hero.",
-          "reason": "Re-opens 25-10."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-72",
-          "call": "A friend link at sign-up, with no reward.",
-          "reason": "Small and it gives nothing away."
-        }
-      ]
-    },
-    {
-      "area": "Home",
-      "needsYourEye": [
-        {
-          "id": "GR-73",
-          "call": "The Trophy room becomes the Hall of Firsts, with a fee for each piece hung.",
-          "reason": "Re-opens 26-6."
-        },
-        {
-          "id": "GR-75",
-          "call": "Three home looks, and visiting from the Homestead.",
-          "reason": "Re-opens 26-3 and 26-11."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-74",
-          "call": "A crop opens at its Farming level and nothing else.",
-          "reason": "One gate in place of four."
-        },
-        {
-          "id": "GR-76",
-          "call": "House rooms sell kept materials, not speed.",
-          "reason": "Builds your ruling sooner."
-        },
-        {
-          "id": "GR-77",
-          "call": "Seeds drop from monsters, as a sample of two.",
-          "reason": "A small sample on the existing drink ladder."
-        }
-      ]
-    },
-    {
-      "area": "Features",
-      "needsYourEye": [
-        {
-          "id": "GR-81",
-          "call": "A hero may move to the next ground when it outgrows this one, if you chose that.",
-          "reason": "Re-opens 27-1 (no hunt starts by itself)."
-        },
-        {
-          "id": "GR-82",
-          "call": "Town Works, the Hearthrise event and flame powders become one Great Hearth.",
-          "reason": "Re-opens 24-10, and it is a HYPOTHESIS."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-78",
-          "call": "Tamsin's task for a ground is taken when a hero enters it.",
-          "reason": "Removes a press with no decision in it."
-        },
-        {
-          "id": "GR-84",
-          "call": "The Premium claim needs no press, setups are one idea, and a Week card.",
-          "reason": "Small and low risk."
-        },
-        {
-          "id": "GR-80",
-          "call": "One Start, one plan and one return card for an account's four heroes, and a job queue.",
-          "reason": "A party is your own four, so nothing waits on another system."
-        }
-      ]
-    },
-    {
-      "area": "Architecture",
-      "needsYourEye": [
-        {
-          "id": "GR-86",
-          "call": "One amount pipeline rounded once, one modifier table, every monster on the formula.",
-          "reason": "It changes the engine's inner loop."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "GR-87",
-          "call": "Drops are written in hours, and one sale formula covers every tier.",
-          "reason": "Typed numbers become derived ones."
-        }
-      ]
-    },
-    {
-      "area": "The MMO layer",
-      "needsYourEye": [
-        {
-          "id": "MM-6",
-          "call": "A world boss pays a chest by your own points: its own named gear line at your band, its own upgrade material, a 7 day buff, a trophy. No coin.",
-          "reason": "A new tradeable gear line at the best in slot budget. It has to fit the item plan."
-        },
-        {
-          "id": "MM-7",
-          "call": "A death in the boss room costs the normal death.",
-          "reason": "The boss is fought for 72 hours while you are away, at 6% with no cap. Rule it with GR-7."
-        },
-        {
-          "id": "MM-8",
-          "call": "A clan is a shared work, a team and a room that pays members in buffs, held by giving that week's share.",
-          "reason": "A clan now gives hero power. It answers GR-10c."
-        },
-        {
-          "id": "MM-9",
-          "call": "The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps.",
-          "reason": "Replaces 25-4 of 2026-11-20. It answers GR-68."
-        },
-        {
-          "id": "MM-10",
-          "call": "A weekly clan board. The top clans carry a small timed buff the next week.",
-          "reason": "The strongest clans get stronger. HYPOTHESIS that it stays fair on a small server."
-        },
-        {
-          "id": "MM-14",
-          "call": "Arena rewards by rating tier: a season buff and title in the even arena, and the arena's own gear line in the open arena.",
-          "reason": "The open arena pays gear to the best geared. A big bet."
-        },
-        {
-          "id": "MM-18",
-          "call": "No hero is hired, lent or put on call. A party is your own heroes.",
-          "reason": "Replaces 25-1 of 2026-11-20. It answers GR-10a."
-        },
-        {
-          "id": "MM-19",
-          "call": "Mixed Levels in one fight follow one visible two thirds line.",
-          "reason": "Re-opens 11-08. It answers GR-10b."
-        },
-        {
-          "id": "MM-20",
-          "call": "Other players on a hunting ground are seen through a presence strip and never fought beside.",
-          "reason": "You named 8-person open-world areas as an option. This says no to them."
-        },
-        {
-          "id": "MM-21",
-          "call": "Every boss, clan, event and arena is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30.",
-          "reason": "A money call, which is yours."
-        },
-        {
-          "id": "MM-22",
-          "call": "The gold that hero slots took goes to the castle and to boss and arena upgrade materials first.",
-          "reason": "About 5.5M of sink has to land somewhere. It joins GR-8."
-        },
-        {
-          "id": "MM-27",
-          "call": "Boss and arena gear trades like all gear.",
-          "reason": "It is what gives the market and Crowns something to price."
-        },
-        {
-          "id": "MM-38",
-          "call": "The open arena matches by gear band, then rating, and thin bands borrow from the next band and from house teams.",
-          "reason": "HYPOTHESIS that it feels fair on a small server."
-        },
-        {
-          "id": "MM-42",
-          "call": "Events pay buffs and gear: a Level XP weekend, a ground weekend that features its named pieces, boss and arena weekends.",
-          "reason": "It sets how often the timed Level XP cap is full."
-        },
-        {
-          "id": "MM-43",
-          "call": "For the playtest only, every account gets the same weekly allowance of test Crowns through one server switch.",
-          "reason": "THIS IS A GRANT. It needs your explicit yes, even though it is equal for all and wiped."
-        }
-      ],
-      "safeToAccept": [
-        {
-          "id": "MM-3",
-          "call": "A world boss stands for a window of about 72 hours and never at a set hour.",
-          "reason": "Follows from rule 0."
-        },
-        {
-          "id": "MM-4",
-          "call": "A world boss is sized by weekly active accounts, with a floor one account can fell.",
-          "reason": "It works at 10 accounts and at 10,000."
-        },
-        {
-          "id": "MM-5",
-          "call": "Your share of a world boss is counted against your own Level in a room scaled to your party.",
-          "reason": "It uses the one monster formula."
-        },
-        {
-          "id": "MM-11",
-          "call": "Events are a four-weekend rotation written a year ahead, with no dailies, login calendar or season pass.",
-          "reason": "Builds the ruled calendar. It answers GR-83."
-        },
-        {
-          "id": "MM-12",
-          "call": "Arena opponents are saved setups and house teams, never live players.",
-          "reason": "Follows from rule 0."
-        },
-        {
-          "id": "MM-15",
-          "call": "Arena fights use tickets that bank, 5 a day up to 20.",
-          "reason": "A missed day loses nothing."
-        },
-        {
-          "id": "MM-16",
-          "call": "The server offers three opponents, being attacked costs nothing, and your defense is your last attack party.",
-          "reason": "No chore and no loss while away."
-        },
-        {
-          "id": "MM-17",
-          "call": "No PvP on the hunting grounds, ever.",
-          "reason": "A standing rule that protects the idle hunt."
-        },
-        {
-          "id": "MM-23",
-          "call": "Approve the order of study 49 section 6.1 as the order for planning.",
-          "reason": "An order only. Nothing builds until the build plan exists."
-        },
-        {
-          "id": "MM-39",
-          "call": "The even arena is one ladder for everyone, with three opponents offered near your rating.",
-          "reason": "Simple, and nothing bought is read."
-        },
-        {
-          "id": "MM-40",
-          "call": "Each arena has its own tickets.",
-          "reason": "Neither arena eats the other."
-        },
-        {
-          "id": "MM-41",
-          "call": "Measure once whether the engine can run heroes on both sides of a fight, before either arena is planned.",
-          "reason": "A measurement. It changes nothing in play."
-        }
-      ]
+    "reversals": [
+      {
+        "n": 1,
+        "id": "GR-7",
+        "change": "Past the third Blessing a new one opens whenever a fully blessed death would cost over five hunted hours. An unblessed death is untouched.",
+        "ruling": "50-4 of 2026-11-21 (6% flat, no cap, and the 12 hour blessed cap turned down), and the three Blessings of 2026-11-10",
+        "reason": "Without it a death past about Level 100 costs so many hours that nobody would press Deadly."
+      },
+      {
+        "n": 2,
+        "id": "GR-6b",
+        "change": "Krell's Hold is day 31 for the plain mid-geared four.",
+        "ruling": "\"Day 18 for a four\" of 2026-11-21",
+        "reason": "The Level table ruled the same day puts Level 85 on day 31, and both cannot be exact."
+      },
+      {
+        "n": 3,
+        "id": "GR-6",
+        "change": "The four runs 106 hours ahead of the table. Level 100 at 494 hours, Level 400 on day 373.",
+        "ruling": "The table of 2026-10-25, and \"Level 400 is day 382\" of 2026-11-21",
+        "reason": "Levels 1 to 50 stay timed on a lone new hero, so a four gains 106 hours there and keeps them."
+      },
+      {
+        "n": 4,
+        "id": "GR-6a",
+        "change": "Staged content ends on day 116.",
+        "ruling": "\"120 days of grounds at Early Access\" of 2026-11-21",
+        "reason": "It follows from the row above. It is not a reversal if the top staged band runs to Level 189, which is the plan."
+      },
+      {
+        "n": 5,
+        "id": "GR-4",
+        "change": "A gear band is a fixed step of the curve, opening at about +17%. Luck's two numbers are keyed by Level.",
+        "ruling": "The item plan section 2 (two bands a region, 2026-11-18), a major upgrade every 15 to 25 Levels (2026-10-25), the Luck step of 2026-11-20",
+        "reason": "A fixed step lets gear keep pace with Levels that never end, with no table typed by hand."
+      },
+      {
+        "n": 6,
+        "id": "GR-8",
+        "change": "Tempering, Hallmark and lining prices are a share of a band's gold.",
+        "ruling": "The typed prices kept on 2026-11-18 (Hallmarks 150k, 250k, 400k, 600k)",
+        "reason": "A share holds the size asked for that day at every Level, where a typed price goes stale."
+      },
+      {
+        "n": 7,
+        "id": "GR-18",
+        "change": "The hammer's Earth rune strike breaks a monster's spell windup.",
+        "ruling": "\"No stagger\" of 2026-10-23",
+        "reason": "It gives the hammer a job in a party, and it touches windups only."
+      },
+      {
+        "n": 8,
+        "id": "GR-61",
+        "change": "A written spec and five sample Kindling rungs. Nothing is built.",
+        "ruling": "The skill tree hold of 2026-11-05",
+        "reason": "Two tanks need a way to differ past the last rune tier, and paper costs nothing."
+      },
+      {
+        "n": 9,
+        "id": "GR-28",
+        "change": "The boss call and the daily roll fold into keyed halls.",
+        "ruling": "2026-11-14 and 22-8 of 2026-11-20",
+        "reason": "Two doors to one boss is one decision asked twice."
+      },
+      {
+        "n": 10,
+        "id": "GR-39",
+        "change": "The 4% is the total of always-on perks. A matched hero gains at most 8%.",
+        "ruling": "23-5 of 2026-11-20",
+        "reason": "A perk that only works in one case has to be bigger than 4% to be worth a slot."
+      },
+      {
+        "n": 11,
+        "id": "GR-54",
+        "change": "The yard's rate follows the skill curve, capped at half of hunting.",
+        "ruling": "2026-11-14, and 21-7 and A-5 of 2026-11-20",
+        "reason": "A flat rate is too strong early and worthless late. This is close to the alternative Tyler passed over."
+      },
+      {
+        "n": 12,
+        "id": "GR-55",
+        "change": "The market is open on day one.",
+        "ruling": "24-7 of 2026-11-20",
+        "reason": "Four heroes and Crowns for gold both need a market from the first day."
+      },
+      {
+        "n": 13,
+        "id": "GR-56a",
+        "change": "Setup slots are free.",
+        "ruling": "2026-11-05, and the sinks list of 2026-11-04",
+        "reason": "A saved setup is a remembered decision, and charging for it sells the first principle."
+      },
+      {
+        "n": 14,
+        "id": "GR-75",
+        "change": "Three home looks, and visiting opens from the Homestead.",
+        "ruling": "26-3 and 26-11 of 2026-11-20",
+        "reason": "Three looks can be drawn well, and visiting is worth more the earlier it opens."
+      },
+      {
+        "n": 15,
+        "id": "CE-5",
+        "change": "Deeds, room rungs and chests are re-priced for an account of four.",
+        "ruling": "The gold numbers of 26-3 and 26-1 of 2026-11-20",
+        "reason": "The numbers were typed for one hero's income, and an account now has four."
+      },
+      {
+        "n": 16,
+        "id": "CE-7",
+        "change": "Town work moves on screen in real time and the server writes three times a job.",
+        "ruling": "2026-10-22",
+        "reason": "It looks the same to the player and is what fits the server budget."
+      },
+      {
+        "n": 17,
+        "id": "CE-8",
+        "change": "The Hearthrise lights on the calendar's weekend, sized by the fire. (One row with GR-82.)",
+        "ruling": "2026-10-25",
+        "reason": "A known weekend can be planned around, and the fire still decides how big it is."
+      },
+      {
+        "n": 18,
+        "id": "MM-18",
+        "change": "No hired, lent or on-call heroes.",
+        "ruling": "25-1 and the on-call board of 25-3, 2026-11-20",
+        "reason": "Every account has four heroes of its own, so a hired seat has no job."
+      },
+      {
+        "n": 19,
+        "id": "MM-9",
+        "change": "The castle is priced for each member with a floor of five, one project at a time, open at any size.",
+        "ruling": "25-4 and the castle gate of 25-3 (2026-11-20), and 31-3 (2026-11-21)",
+        "reason": "Clans now pay buffs, so a fixed price would lock a small clan out of hero power. Tyler declined this option once."
+      },
+      {
+        "n": 20,
+        "id": "MM-42",
+        "change": "The in-between ground weekend features named pieces in place of XP.",
+        "ruling": "The second half of 27-5, 2026-11-20",
+        "reason": "It keeps Level XP events rare and gives gear a weekend."
+      },
+      {
+        "n": 21,
+        "id": "GR-69",
+        "change": "No Local chat tab and no live party finder.",
+        "ruling": "2026-11-11 (criers in local chat), 2026-10-15/16 (the finder)",
+        "reason": "Both need two players at the screen in the same minute, which an idle game rarely has."
+      },
+      {
+        "n": 22,
+        "id": "MM-19",
+        "change": "One visible two thirds line for mixed Levels.",
+        "ruling": "The party XP rulings of 2026-11-08",
+        "reason": "A rule the player can read replaces a hidden cut. The ruled parts are untouched."
+      },
+      {
+        "n": 23,
+        "id": "MM-48",
+        "change": "A clan hunt is two rooms on one pool.",
+        "ruling": "The second half of 25-11, 2026-11-20",
+        "reason": "It keeps every fight a party of four, which is what the engine and the formulas are built on."
+      }
+    ],
+    "cuts": [
+      {
+        "n": 1,
+        "ids": [
+          "GR-34"
+        ],
+        "what": "103 monster rows no hunt uses, three hunts with no ground, four called boss copies",
+        "note": "Not planned for later. The item check runs first and anything with a planned home stays hidden."
+      },
+      {
+        "n": 2,
+        "ids": [
+          "MM-18"
+        ],
+        "what": "On-call, hired and lent heroes, and the on-call board",
+        "note": "PLANNED, ruled 25-1. Also reversal 18. It is the one large cut of a planned thing."
+      },
+      {
+        "n": 3,
+        "ids": [
+          "GR-69"
+        ],
+        "what": "The live party finder",
+        "note": "PLANNED, ruled 2026-10-15/16. Also reversal 21."
+      },
+      {
+        "n": 4,
+        "ids": [
+          "GR-69"
+        ],
+        "what": "The Local chat tab, and \"maybe a fifth seat later\"",
+        "note": "Not planned. The fifth seat is already ruled out by 25-11."
+      },
+      {
+        "n": 5,
+        "ids": [
+          "MM-9"
+        ],
+        "what": "The castle's labor, votes, upkeep, treasury balance, Clan Standing and five buildings of ten levels",
+        "note": "Built or planned in the social inventory. Rides reversal 19."
+      },
+      {
+        "n": 6,
+        "ids": [
+          "MM-9",
+          "MM-25"
+        ],
+        "what": "The clan library and any Level XP room",
+        "note": "Not planned. It keeps ruling 25-2."
+      },
+      {
+        "n": 7,
+        "ids": [
+          "GR-63"
+        ],
+        "what": "The rested bank and two old kill ladders",
+        "note": "Not planned. Measured as moving no number in 207 cells."
+      },
+      {
+        "n": 8,
+        "ids": [
+          "GR-74"
+        ],
+        "what": "The farm's soil tiers and the water button on a bed",
+        "note": "Not planned. A built sink of 130,500 gold goes."
+      },
+      {
+        "n": 9,
+        "ids": [
+          "GR-74"
+        ],
+        "what": "Potato, if it finds no hunt consumer",
+        "note": "Not planned."
+      },
+      {
+        "n": 10,
+        "ids": [
+          "GR-43"
+        ],
+        "what": "The Crafting bench's three salt recipes",
+        "note": "Not planned. Salts stay on the other bench."
+      },
+      {
+        "n": 11,
+        "ids": [
+          "GR-47"
+        ],
+        "what": "The Cellar's five food rungs, off sale",
+        "note": "Not planned. The Cellar is ruled to become the curing room."
+      },
+      {
+        "n": 12,
+        "ids": [
+          "GR-73"
+        ],
+        "what": "The Trophy room's five mount rungs",
+        "note": "Not planned. Off sale is RULED (26-6)."
+      },
+      {
+        "n": 13,
+        "ids": [
+          "GR-76"
+        ],
+        "what": "The sixteen House speed rungs",
+        "note": "Not planned. RULED (26-1)."
+      },
+      {
+        "n": 14,
+        "ids": [
+          "GR-56a"
+        ],
+        "what": "The priced setup slots",
+        "note": "Ruled 2026-11-05 and 2026-11-04. Also reversal 13."
+      },
+      {
+        "n": 15,
+        "ids": [
+          "GR-14",
+          "GR-5",
+          "GR-27"
+        ],
+        "what": "The unused \"resists a weapon\" column, the per-ground tier dials and the \"no bigger pulls under floor 16\" rule",
+        "note": "Not planned. Formula clean-up."
+      },
+      {
+        "n": 16,
+        "ids": [
+          "GR-77"
+        ],
+        "what": "The Moonbloom seed in the Shop",
+        "note": "Not planned. It becomes a drop."
+      }
+    ],
+    "keptHiddenNotCut": [
+      "Capture the flag (MM-46)",
+      "The clan's shared hunt (MM-48)",
+      "The status pairs of GR-20 (paper only)",
+      "Kindlings (GR-61, paper only)",
+      "The other 36 Catacombs pieces (GR-36)",
+      "The second dropped seed (GR-77)",
+      "Bulk commissions (GR-44)",
+      "Side against side (GR-71)"
+    ],
+    "plan": {
+      "what": "Step A of the systems plan",
+      "where": "docs/design/systems-intelligence/00-plan.md",
+      "ask": "A yes on one read-only script that stores nothing. It lists every top-level function in the rule code, says whether it holds a typed number and whether any register names it, and prints three numbers for each folder."
     }
-  ],
-  "waiting": [
+  },
+  "missing": [
     {
-      "from": "Study 51, the instrument (landed)",
-      "adds": "The simulator follows the game's own death rule: a death ends that hero's hunt. This follows a ruling and needs no new one.",
-      "whoAnswers": "The baseline lane"
+      "chapter": "01-core-and-combat.md",
+      "item": "1",
+      "what": "The tier numbers",
+      "owner": "CORE-1opens them as hypotheses, sized on the mid-geared four: Dangerous pull 5 and blows 1.17 times Normal, Deadly pull 8 and 2.25 times"
     },
     {
-      "from": "Study 51, the instrument (landed)",
-      "adds": "Which rune tier the simulated kit buys, decided with the heal price and supply calls (GR-52, GR-51, GR-50).",
-      "whoAnswers": "The game designer, inside those calls"
+      "chapter": "01-core-and-combat.md",
+      "item": "4",
+      "what": "The Necrotic and Storm numbers",
+      "owner": "Thegame designer sizes them on the matrix with the first seven spells (GR-16) and reports them as decided. It is a design call and does not go to Tyler"
     },
     {
-      "from": "Study 51, the instrument (landed)",
-      "adds": "Every band stays in report mode until the open faults close. A four's pace can carry a decision. Gold and survival are direction only.",
-      "whoAnswers": "The baseline lane"
+      "chapter": "01-core-and-combat.md",
+      "item": "5",
+      "what": "The shares of the dark rows",
+      "owner": "Thefirst seven played, then a redesign under \"no two weapons share a mechanic\""
     },
     {
-      "from": "Study 48, server cost",
-      "adds": "How an away hunt is saved, and whether the game fits $0.15 an account with four heroes working 12 rested hours.",
-      "whoAnswers": "The platform study, then you"
+      "chapter": "01-core-and-combat.md",
+      "item": "6",
+      "what": "The crossbow's full list",
+      "owner": "Thegame designer, with GR-21"
     },
     {
-      "from": "Study 48, server cost",
-      "adds": "What clans, world bosses, events and arenas may cost, since nothing may grow with players times players.",
-      "whoAnswers": "The platform study"
+      "chapter": "01-core-and-combat.md",
+      "item": "7",
+      "what": "The fist's own heal",
+      "owner": "Theplan's gold test re-run on the spell rule (GR-17)"
     },
     {
-      "from": "Missing decision",
-      "adds": "What the first week's gold is spent on, now that there are no slot prices.",
-      "whoAnswers": "The game designer, then you"
+      "chapter": "01-core-and-combat.md",
+      "item": "8",
+      "what": "Whether weapon accuracy stays a stat line",
+      "owner": "Thematrix lane, with the core decider, on the gear-step cells"
     },
     {
-      "from": "Missing decision",
-      "adds": "Early prices sized for an account of four heroes.",
-      "whoAnswers": "The game designer"
+      "chapter": "01-core-and-combat.md",
+      "item": "9",
+      "what": "A guard for heals at high Level",
+      "owner": "Thematrix lane, with the core decider. A band that reads a heal in monster blows at Levels 185 and 400. If it fails, Greater Mend moves to the max health kind"
     },
     {
-      "from": "Missing decision",
-      "adds": "How the first hour teaches four heroes, as a walked-through sequence.",
-      "whoAnswers": "The game designer, then you"
+      "chapter": "01-core-and-combat.md",
+      "item": "10",
+      "what": "Names for rune tiers VI and on, and who makes them",
+      "owner": "03-items-and-crafting.md,with GR-23 and GR-45"
     },
     {
-      "from": "Missing decision",
-      "adds": "What one Premium gives across four heroes, and its price.",
-      "whoAnswers": "You. It is a money call"
+      "chapter": "01-core-and-combat.md",
+      "item": "11",
+      "what": "Something for the bar past the last rune tier",
+      "owner": "GR-61(Kindlings), 05-progression.md. Combat's fence: a pick changes a row inside the bar budget and never adds one"
     },
     {
-      "from": "Missing decision",
-      "adds": "Whether measuring and tool work may go ahead before the build plan.",
-      "whoAnswers": "You. Recommended yes, because the calls above depend on it"
+      "chapter": "01-core-and-combat.md",
+      "item": "13",
+      "what": "The value of powerFloor",
+      "owner": "Roadmapstep R6's own run on Levels 1 to 15 against the 6 hour rule"
     },
     {
-      "from": "Missing decision",
-      "adds": "The Level law's start and its two rough edges.",
-      "whoAnswers": "The game designer, inside GR-6"
+      "chapter": "01-core-and-combat.md",
+      "item": "14",
+      "what": "The fist promise beside \"no solo or group targets\"",
+      "owner": "Tyler,only if he reads it differently"
     },
     {
-      "from": "Missing decision",
-      "adds": "The Security review's scope for arenas, hire and clan projects.",
-      "whoAnswers": "The security engineer"
+      "chapter": "01-core-and-combat.md",
+      "item": "15",
+      "what": "Whether the engine can run heroes on both sides of a fight",
+      "owner": "Onemeasurement by the systems engineer, for the arenas (06-mmo-layer.md)"
     },
     {
-      "from": "Missing decision",
-      "adds": "How fast regions can be drawn against how fast a four levels.",
-      "whoAnswers": "The art and asset directors, then you"
+      "chapter": "02-world.md",
+      "item": "2",
+      "what": "Regions 4 to 7 have no sketch of record",
+      "owner": "Thegame designer"
     },
     {
-      "from": "Missing decision",
-      "adds": "The dates for the beta and Early Access.",
-      "whoAnswers": "You, after the build plan exists"
+      "chapter": "02-world.md",
+      "item": "3",
+      "what": "How fast a region can be drawn",
+      "owner": "Theart and asset directors, then Tyler"
     },
     {
-      "from": "Missing decision",
-      "adds": "How the power budget of the MMO layer (MM-26) and the pace ceiling (MM-31) change the days of the Level law and the content runway.",
-      "whoAnswers": "The game designer, with GR-6"
+      "chapter": "02-world.md",
+      "item": "4",
+      "what": "The Morrow Hills between Levels 142 and 165",
+      "owner": "Thegame designer"
     },
     {
-      "from": "Missing decision",
-      "adds": "How boss and arena gear lines fit the item plan and the gear curve (GR-4, MM-6, MM-14).",
-      "whoAnswers": "The game designer"
+      "chapter": "02-world.md",
+      "item": "5",
+      "what": "Signatures for six grounds",
+      "owner": "Thegame designer, after the two-ground sample is played"
+    },
+    {
+      "chapter": "02-world.md",
+      "item": "6",
+      "what": "The hall number and the early halls",
+      "owner": "Thegame designer, with chapter 03, for the keys and prizes. The hall number acts on health and the clock (GR-30), and the hall grader plays it at Levels 25, 52 and 75"
+    },
+    {
+      "chapter": "02-world.md",
+      "item": "9",
+      "what": "The Tower's board once the top follows Level",
+      "owner": "Thegame designer"
+    },
+    {
+      "chapter": "02-world.md",
+      "item": "10",
+      "what": "The Bestiary",
+      "owner": "Thegame designer. The stage bonus is a design call. The deep dive stays queued behind the balance work"
+    },
+    {
+      "chapter": "02-world.md",
+      "item": "11",
+      "what": "The faction benefit for hunting the opposite side's ground",
+      "owner": "Thegame designer, chapter 05"
+    },
+    {
+      "chapter": "02-world.md",
+      "item": "12",
+      "what": "Loot rows for Wyvern Roost and the Catacombs ground",
+      "owner": "Chapter03"
+    },
+    {
+      "chapter": "02-world.md",
+      "item": "13",
+      "what": "The measuring gaps in section 6",
+      "owner": "Chapter09"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "1",
+      "what": "The exchange rates themselves (gearExchange) and the slot-class shares other than the 6% for accessories",
+      "owner": "Roadmapstep R11, on the matrix"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "2",
+      "what": "Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell",
+      "owner": "Oneband played. It is the first thing the R10 derivation prints"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "3",
+      "what": "What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed",
+      "owner": "Thegame designer, inside GR-4 and GR-8, before the build plan"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "4",
+      "what": "The Tempering ladder for tier 7 and for each band, as shares",
+      "owner": "GR-8,then a matrix run on gold bands"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "6",
+      "what": "The three signature stones: names, perks and carriers",
+      "owner": "Thedesigner, with names checked against the data. Sample of three first"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "7",
+      "what": "18 of the 23 perks have no engine hook and no measured size",
+      "owner": "Thefirst job of the perk lane"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "8",
+      "what": "Leech lining sizes, and spell leech with lining leech together",
+      "owner": "Onemeasurement"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "9",
+      "what": "The Morrow Hills grid re-cut from 46 uniques to 15 to 20 with carried pieces",
+      "owner": "Theregion lane, after R10 and R11"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "10",
+      "what": "Chip pace in hours for each tier on the 12 hour clock",
+      "owner": "Withthe tier 4 sample"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "11",
+      "what": "Reference values and the no-mint guard have no owner lane",
+      "owner": "Thebuild plan"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "12",
+      "what": "The uniques for the Catacombs ground at Levels 165 to 185",
+      "owner": "Theregion lane"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "13",
+      "what": "How a perk is stored on a held piece, so one market book can filter by it",
+      "owner": "Aschema call for the systems engineer"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "14",
+      "what": "The saved kit's server shape and cost",
+      "owner": "Thesystems engineer"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "17",
+      "what": "Rolls, tradeable gems and tradeable patterns in the Steam and legal review",
+      "owner": "Thesecurity engineer, in the one review before Early Access"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "18",
+      "what": "Whether the three armor weights are a live choice for each style",
+      "owner": "Thematrix lane, one run of heavy, medium and light on three styles"
+    },
+    {
+      "chapter": "03-items-and-crafting.md",
+      "item": "19",
+      "what": "Regions 4 to 7: elements, key rows, named content",
+      "owner": "Theregion sketches"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "7",
+      "what": "The base hours of a stamina refill",
+      "owner": "GR-58,after fault F5 closes"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "8",
+      "what": "The Blessing share, and the ladder past the third Blessing",
+      "owner": "GR-7is DECIDED as a reversal Tyler may veto. The share is sized on the long death sample"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "9",
+      "what": "The wage for a four of mixed Levels",
+      "owner": "Thegame designer, after MM-19"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "10",
+      "what": "The castle's cost",
+      "owner": "MM-9is DECIDED as a reversal Tyler may veto. Still owed: the sizes of castleStagePerMember and clanWeeklyShare, by the game designer"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "12",
+      "what": "Security questions on the Crowns book",
+      "owner": "Thesecurity engineer, then Tyler"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "13",
+      "what": "The daily caps against dear items",
+      "owner": "Thesecurity engineer"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "14",
+      "what": "The server gold model",
+      "owner": "Thebalance tools lane"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "16",
+      "what": "Server cost of the market, the gauge and per-use spending for four heroes",
+      "owner": "Study48"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "17",
+      "what": "A ceiling on gold find",
+      "owner": "Thegame designer, with the perk lane"
+    },
+    {
+      "chapter": "04-economy-and-crowns.md",
+      "item": "18",
+      "what": "The dates for the beta and Early Access",
+      "owner": "Tyler,after the build plan"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "4",
+      "what": "The seat's multiple",
+      "owner": "Aderivation run on the matrix after GR-5 and GR-27"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "6",
+      "what": "The five hour threshold of the Blessing ladder",
+      "owner": "GR-7is DECIDED as a reversal Tyler may veto. The five hours is one knob, sized on the long death sample"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "7",
+      "what": "Blessing prices for rungs 4 to 6",
+      "owner": "Thewage curve (GR-51) and band S10"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "8",
+      "what": "What a death takes from a hero in a boss room on Normal for a new account",
+      "owner": "TheMMO decider, before MM-7 is final. A walk-through in 06-mmo-layer.md"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "9",
+      "what": "The Kindling rows",
+      "owner": "Thepaper sample of five, after GR-61"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "10",
+      "what": "The Honors catalogue",
+      "owner": "Thesample, then batches of 20 or fewer"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "11",
+      "what": "The Catacombs' own numbers",
+      "owner": "Thesample wing (GR-36)"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "12",
+      "what": "Tower landings past Platinum",
+      "owner": "The game designer (03-items-and-crafting.md)"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "14",
+      "what": "Who draws regions, and how fast",
+      "owner": "Theart and asset directors, then Tyler"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "16",
+      "what": "How the first hour teaches thirteen skills to an account with four heroes",
+      "owner": "Thegame designer, inside GR-79, with a walk-through against the real starting kit"
+    },
+    {
+      "chapter": "05-progression.md",
+      "item": "18",
+      "what": "Whether a morning death card is a quit moment",
+      "owner": "Playtest8, section 6"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "1",
+      "what": "The boss roster",
+      "owner": "Thegame designer. One sample boss first"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "5",
+      "what": "What the layer may cost",
+      "owner": "Chapter09"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "6",
+      "what": "The engine check",
+      "owner": "Thesystems engineer"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "7",
+      "what": "Arena balance between styles",
+      "owner": "Thegame designer, after the engine check"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "8",
+      "what": "The numbers nobody has set",
+      "owner": "Thegame designer, on the balance matrix"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "10",
+      "what": "The Security review's scope for the layer",
+      "owner": "Thesecurity engineer"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "11",
+      "what": "Side against side",
+      "owner": "Thegame designer"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "12",
+      "what": "Live ops when nobody is watching",
+      "owner": "Thepool rule is closed (MM-4): the boss leaves when the window ends and the server re-sizes the pool after each boss"
+    },
+    {
+      "chapter": "06-mmo-layer.md",
+      "item": "13",
+      "what": "Knobs missing from knobs.json",
+      "owner": "Thebalance tools lane"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "1",
+      "what": "Study 48",
+      "owner": "Theplatform study, then Tyler"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "4",
+      "what": "The Hall's numbers",
+      "owner": "Thegame designer, after the mountable flag exists"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "5",
+      "what": "The yard's formula in numbers",
+      "owner": "Thegame designer, inside GR-54 and GR-53"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "6",
+      "what": "The second dropped seed",
+      "owner": "Thegame designer, with the Morrow Hills. It is written only after the first dropped seed has been read in play (GR-77)"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "7",
+      "what": "A party hero's spare rested hours",
+      "owner": "Thegame designer, when the solver has a supplies goal"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "8",
+      "what": "The first town project",
+      "owner": "Thegame designer, after GR-55"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "9",
+      "what": "Crops and costs with no consumer",
+      "owner": "Chapter03 and chapter 04"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "10",
+      "what": "Names and pictures",
+      "owner": "Thegame designer and the art director"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "11",
+      "what": "The Hearthrise's size and seam with the calendar",
+      "owner": "Theseam is closed as a reversal Tyler may veto (CE-8, GR-82): the calendar says when it lights and the fire says how big, from +10% to +25%"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "12",
+      "what": "Who may visit",
+      "owner": "Thegame designer, inside GR-75. A party is an account's own four (MM-18), so \"party member\" leaves the visit rule"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "16",
+      "what": "A home axis for the matrix",
+      "owner": "Thebaseline lane"
+    },
+    {
+      "chapter": "07-home-and-town.md",
+      "item": "17",
+      "what": "Security scope",
+      "owner": "Thesecurity engineer"
+    },
+    {
+      "chapter": "08-player-experience.md",
+      "item": "3",
+      "what": "A measured tag for each starting way",
+      "owner": "Thebalance matrix (check C1). Owner: the core decider"
+    },
+    {
+      "chapter": "08-player-experience.md",
+      "item": "6",
+      "what": "The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29",
+      "owner": "Chapter03"
+    },
+    {
+      "chapter": "08-player-experience.md",
+      "item": "7b",
+      "what": "How the thirteen skills are spread across four heroes past the first night",
+      "owner": "Thegame designer, inside GR-79, with chapter 05 (its item 16)"
+    },
+    {
+      "chapter": "08-player-experience.md",
+      "item": "10",
+      "what": "Whether the report's counters fit the session row with no added statement",
+      "owner": "Thesystems engineer"
+    },
+    {
+      "chapter": "08-player-experience.md",
+      "item": "11",
+      "what": "How an away hunt is saved, which sets how fresh a return card can be",
+      "owner": "Chapter09 (study 48)"
+    },
+    {
+      "chapter": "08-player-experience.md",
+      "item": "12",
+      "what": "A blind play of the whole first hour",
+      "owner": "Afresh reader, after it is built"
+    },
+    {
+      "chapter": "08-player-experience.md",
+      "item": "13",
+      "what": "What a player who refuses heroes two to four is shown, and for how long",
+      "owner": "Thedesigner, after playtest 1"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "1",
+      "what": "Study 48 itself",
+      "owner": "Thereliability engineer, then Tyler. Until it lands, section 2.3 cannot say the game fits $0.15"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "2",
+      "what": "The 10,000 account budget",
+      "owner": "Study48"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "4",
+      "what": "The Security review's size and owner for the MMO layer",
+      "owner": "TheSecurity engineer"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "6",
+      "what": "A second calibration party",
+      "owner": "Realplay. The playtest supplies it"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "7",
+      "what": "Readers for 19 bands",
+      "owner": "Thematrix lane, each with its own model"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "8",
+      "what": "Bands for the MMO layer",
+      "owner": "Thematrix lane with the MMO layer study, after MM-25, MM-26 and MM-31 are ruled"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "9",
+      "what": "A band for the early economy of four heroes",
+      "owner": "Chapter04 (economy and Crowns), then a band here"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "10",
+      "what": "The Lab's proposal set",
+      "owner": "Thedashboard lane"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "11",
+      "what": "The hunt tally's three fields",
+      "owner": "Systems,in the build plan"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "13",
+      "what": "Whether a watched four of four people on four accounts changes the save design",
+      "owner": "Study48. MM-18 is decided, so a party is an account's own heroes and the case does not exist unless Tyler vetoes that reversal"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "14",
+      "what": "Content authoring pace against the runway, timed",
+      "owner": "Theart and asset directors, then Tyler"
+    },
+    {
+      "chapter": "09-platform-and-measurement.md",
+      "item": "15",
+      "what": "The build plan's unit",
+      "owner": "TheCoordinator, after the rulings"
+    },
+    {
+      "chapter": "decisions/review.md",
+      "item": "fix 4",
+      "what": "A floor in the to-hit formula, so Defense rating buffs cannot stack past the 60% cap",
+      "owner": "The matrix lane, with the core decider"
+    },
+    {
+      "chapter": "decisions/review.md",
+      "item": "fix 12",
+      "what": "The hall number played by the hall grader at Levels 25, 52 and 75",
+      "owner": "The matrix lane, with the game designer"
+    },
+    {
+      "chapter": "decisions/review.md",
+      "item": "section 9",
+      "what": "The lineup cells, the price shares of GR-8 and the rung Levels of GR-7 were not re-run by the adversarial check",
+      "owner": "The matrix lane"
     }
-  ],
-  "then": [
-    "The build plan: once the calls are ruled, one plan orders the work so each formula lands before the systems that read it.",
-    "The build: lanes follow that plan, each change proven on the balance matrix before the next one leans on it.",
-    "The release: one big release for the beta, then the wipe and Early Access after the full Security review."
   ],
   "superseded": [
     {
@@ -1068,5 +1557,10 @@
       "by": "MM-11",
       "note": "No dailies."
     }
+  ],
+  "then": [
+    "The build plan: one plan orders the work so each formula lands before the systems that read it.",
+    "The build: lanes follow that plan, each change proven on the balance matrix before the next one leans on it.",
+    "The release: one big release for the beta, then the wipe and Early Access after the full Security review."
   ]
 }

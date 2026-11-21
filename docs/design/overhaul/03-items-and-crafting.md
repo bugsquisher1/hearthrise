@@ -5,7 +5,10 @@ Game designer, 2026-11-21, `lane/d-book-items`. Design of record for this area. 
 **How to read the status tags.**
 
 - **[RULED date or id]** Tyler decided it.
-- **[REC id]** the recommended design, written as the design. The named call decides it.
+- **[DECIDED id, Fable 2026-11-21]** the game designer decided the call and an adversarial check corrected it. Its row is in `decisions/all.json`.
+- **[DECIDED id, reversal, Tyler may veto]** it changes one of Tyler's rulings. The first tag in the chapter names the ruling. It stands unless he vetoes it.
+- **[TYLER CONFIRMS id]** a money call or a grant, with the one recommendation.
+- **[CUT (Tyler approves)]** a removal that waits for his yes.
 - **[OPEN]** nobody has decided it. The line says what decides it, and gives one recommendation where the chapter has one.
 
 **How to read the number labels.** TARGET is a number the design aims at. COMPUTED is arithmetic on other numbers on the page. MEASURED is a real engine run on a proposed design, with its source. COUNTED is a trial count from a tool. PROPOSED is a design number nobody has measured.
@@ -20,7 +23,7 @@ Formula and knob names are the ones in `44-formula-architecture.md` and `tools/b
 
 **Hour 20.** Gear falls fast and freely. Every armor slot of a tier arrives in the first hours of its band, and a new tier arrives every few days. The player has set the loot plan once: what is kept, what is sold, what is salvaged for Lucky Rivets. In town the smith has made the first rings and the outfitter the first cloak. One ring came out Fine, and the player paid a Hallmark fee to pick its second perk. The first real question of the item game has been asked: there is not enough gold for both Tempering tracks and six Hallmarks, so which hero gets what. Somewhere on the Glade a named stone dropped with the big reveal, and a smith set it in a ring the hero will still wear at Level 300.
 
-**Day 18, Krell.** The ladder of plain tiers ends. From here a piece is chosen for what it does, not for a bigger number. Krell's sword hits the Undead harder. His bow rewards holding range. The Hearth Chest has paid a Tower weapon that is the best all-rounder, and the question is which one to wear on which ground. A saved kit for each ground remembers the answer.
+**Day 31, Krell.** The ladder of plain tiers ends. From here a piece is chosen for what it does, not for a bigger number. Krell's sword hits the Undead harder. His bow rewards holding range. The Hearth Chest has paid a Tower weapon that is the best all-rounder, and the question is which one to wear on which ground. A saved kit for each ground remembers the answer.
 
 **Hour 2,000.** The account's Luck bar reads Magic Find 28% or more, and the next percent always costs more. Rares past the Morrow door are truly rare, and each ground has one piece that takes a party about a week to find and is announced to the server. Rings carried since Level 45 have been reforged up every tier and band with their perks intact. The smith at 99 holds patterns from four regions and takes commissions. Gold never runs out of things to buy, and a player who buys gold with Crowns affords more of them, and nothing else.
 
@@ -51,41 +54,41 @@ Three armor weights are the one standing choice the plain ladder holds: heavy ad
 
 ### 2.2 The gear curve
 
-**The formula.** The power budget of a piece is linear in the Level it is worn at: `budget(L) = Dawnsteel x L / 110`. The seven plain tiers are samples of that line at Levels 1, 15, 30, 45, 60, 75 and 88. The line lives in `src/data` as a game formula and every item reads it (roadmap step R10, knobs `gearSlope` and `gearBandStep`). The line past 110 with no tier 8 is [RULED 11-16]. The line as a game formula with a tier-wide band is [REC GR-4].
+**The formula.** The power budget of a piece is linear in the Level it is worn at: `budget(L) = Dawnsteel x L / 110`. The seven plain tiers are samples of that line at Levels 1, 15, 30, 45, 60, 75 and 88. The line lives in `src/data` as a game formula and every item reads it (roadmap step R10, knobs `gearSlope` and `gearBandStep`). The line past 110 with no tier 8 is [RULED 11-16]. The line as a game formula with a tier-wide band is [DECIDED GR-4, Fable 2026-11-21, reversal of two bands a region of 2026-11-18 and the Luck step of 2026-11-20, Tyler may veto].
 
 **Why linear.** Monster health is linear in Level (`monsterHp`) and so is hero health (`heroHp`). Gear on any other shape drifts against both. MEASURED on the real engine with stand-in gear (study 42): on a gear line that is linear in Level, hunting pace holds from Level 200 to 5,000 with no other change.
 
-**A band is a tier wide.** Past tier 7 an upgrade is a fixed step of the line, never a fixed count of Levels. The step is one tier's worth, `gearBandStep` = 1.24. [REC GR-4]
+**A band is a tier wide.** Past tier 7 an upgrade is a fixed step of the line, never a fixed count of Levels. The step is one knob, `gearBandStep`. It opens at the largest step that still puts a band edge inside every region, which is about 1.17. [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto]
 
-| Band, worn from Level | 110 | 136 | 169 | 210 | 260 | 322 | 400 |
-|---|---|---|---|---|---|---|---|
-| Region it opens in | Morrow Hills | Morrow Hills | Catacombs | Region 4 | Region 5 | Region 6 | Region 7 |
+| Band, worn from Level | 110 | 129 | 151 | 176 | 206 | 241 | 282 | 330 | 386 |
+|---|---|---|---|---|---|---|---|---|---|
+| Region it opens in | Morrow Hills | Morrow Hills | Morrow Hills | Catacombs | Region 4 | Region 5 | Region 5 | Region 6 | Region 7 |
 
-COMPUTED from ln(400/110) over ln(1.24). Past 400 the same step continues for as long as Levels do. MEASURED as evidence for the size (study 54, one seed): a +31% weapon step reads +9.4% Level XP an hour for a lone hero, so a +24% band is one upgrade a player can feel and a +6.5% band would read about +2%. The step is a HYPOTHESIS until one band is played on the curve.
+COMPUTED from ln(400/110) over ln(1.17): eight bands to Level 400, about one and a half a region. Past 400 the same step continues for as long as Levels do. MEASURED as evidence for the size (study 54, one seed): a +31% weapon step reads +9.4% Level XP an hour for a lone hero, so a +17% band should read about +5%, which is the ruled size of a weapon step, and a +6.5% band would read about +2%. A step of 1.24 (bands at 110, 136, 169, 210, 260, 322 and 400) stays a hypothesis for the one-band play. It leaves the Level 330 to 385 region with no band edge, so it can ship only if region edges move with it. Either step is a HYPOTHESIS until one band is played on the curve.
 
-**What reads the one band table.** Uniques, chest keys ("one key tier a band"), Tempering ladders ("one ladder a band"), reforging ("up a band"), the sink prices of 2.9 and the reward lines of chapter 06. The table sits in `src/data` beside the curve. [REC GR-4]
+**What reads the one band table.** Uniques, chest keys ("one key tier a band"), Tempering ladders ("one ladder a band"), reforging ("up a band"), the sink prices of 2.9 and the reward lines of chapter 06. The table sits in `src/data` beside the curve. [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto]
 
 **What a tier or band is worth.** TARGET, from the ruled standards: a weapon step is +5 to 8% hunting performance and an armor step is 3 to 5% less damage [RULED 10-25]. Best gear is about 15% faster and takes about 15% less damage than mid gear [RULED 11-21]. A full set of the best gear takes about one band to Krell, then one to two regions [RULED 11-21].
 
-**Exchange rates.** A unique is not sized by hand. It spends its band's budget at published rates between stats (`gearExchange`, step R11), so its armor or damage is arithmetic. A guard or a skill bonus inside a unique's stat mix is bought at the same rates. [REC GR-4]
+**Exchange rates.** A unique is not sized by hand. It spends its band's budget at published rates between stats (`gearExchange`, step R11), so its armor or damage is arithmetic. A guard or a skill bonus inside a unique's stat mix is bought at the same rates. [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto]
 
-**Slot classes.** Each slot class holds a fixed share of a kit's power at every Level. The six crafted pieces together are one class worth 6% of the kit. Their plain numbers are derived from the curve and never typed for a tier. [REC GR-38] MEASURED as evidence (study 54): flat typed accessory rows read 15% at Level 30 and 0.5% at Level 400, and one stat point a tier to tier 7 reads +5 to +13% at Level 110, which is twice the budget.
+**Slot classes.** Each slot class holds a fixed share of a kit's power at every Level. The six crafted pieces together are one class worth 6% of the kit. Their plain numbers are derived from the curve and never typed for a tier. [DECIDED GR-38, Fable 2026-11-21] MEASURED as evidence (study 54): flat typed accessory rows read 15% at Level 30 and 0.5% at Level 400, and one stat point a tier to tier 7 reads +5 to +13% at Level 110, which is twice the budget.
 
 ### 2.3 Dropped gear, tiers 1 to 7
 
 | Slot | Source | Pace | Status |
 |---|---|---|---|
 | Helmet, body, legs, boots | The hourly drop, three weights | About hourly in your weight | [RULED] |
-| Gloves | The hourly drop, like the other armor slots, through tier 7. The Catacombs glove wing holds the won pair | About hourly | [REC GR-43]. The glove wing is [RULED 11-18] |
+| Gloves | The hourly drop, like the other armor slots, through tier 7. The Catacombs glove wing holds the won pair | About hourly | [DECIDED GR-43, Fable 2026-11-21]. The glove wing is [RULED 11-18] |
 | Weapon, eight families | The start kit, then a drop home for every family at every tier. Fist wraps are the eighth family | Scarce or Rare | [RULED 11-18] |
 | Shield, spellbook | A drop at every tier | Rare | [RULED 11-18] |
-| Belt | Crafted at the workbench (2.6). Not dropped | | [REC GR-43] |
+| Belt | Crafted at the workbench (2.6). Not dropped | | [DECIDED GR-43, Fable 2026-11-21] |
 
 - **Generous through Krell.** Every slot's piece of the current tier has dropped inside the first 15% of the band's hours (TARGET, band E2). [RULED 11-20 for the direction]
-- **Tier 7 drops like every tier.** The 14 plain Dawnsteel pieces drop in Krell's Hold as Rares on the loot bands. Krell's daily roll holds only what is won (2.5). [REC GR-29] MEASURED as evidence (study 54): a lone hero without his tier's weapon hunts about 9% slower through the whole band.
-- **One sale rule.** A tier's hourly gear sells to the Shop for a fixed share of that tier's coin, a quarter [RULED 23-10], computed by one sale formula that also works past tier 7 (`saleStep`, step R17) [REC GR-87].
-- **Drops are written in hours.** A row says "every 10 to 20 hours" and the chance a kill is derived (`bandHours`, step R18). [REC GR-87]
-- **The start kit replaces the first rung.** The curve's generator skips a tier 1 rung the start kit already holds. [REC GR-85]
+- **Tier 7 drops like every tier.** Dawnsteel armor is the hourly drop of Krell's Hold. Dawnsteel weapons, the shield and the spellbook are Scarce rows in the Hold. None of the 14 plain pieces is a Rare row, so the Hold's six Rare rows stay free for its named pieces. Krell's prize roll holds only what is won (2.5). [DECIDED GR-29 and CE-6, Fable 2026-11-21] MEASURED as evidence (study 54): a lone hero without his tier's weapon hunts about 9% slower through the whole band.
+- **One sale rule.** A tier's hourly gear sells to the Shop for a fixed share of that tier's coin, a quarter [RULED 23-10], computed by one sale formula that also works past tier 7 (`saleStep`, step R17) [DECIDED GR-87, Fable 2026-11-21].
+- **Drops are written in hours.** A row says "every 10 to 20 hours" and the chance a kill is derived (`bandHours`, step R18). [DECIDED GR-87, Fable 2026-11-21]
+- **The start kit replaces the first rung.** The curve's generator skips a tier 1 rung the start kit already holds. [DECIDED GR-85, Fable 2026-11-21]
 
 ### 2.4 Rare rows, the Very Rare and the reveal
 
@@ -98,26 +101,26 @@ COMPUTED from ln(400/110) over ln(1.24). Past 400 the same step continues for as
 | Very Rare, past Krell | Every 60 to 90 hours of a four hunting together, about one a week for an account | Yes, in full | The same | [RULED 30-3] |
 | Trophy | Every 100 to 150 hours. Never faster than every 100 at any Luck | Yes, on its own low ceiling (2.11) | The big reveal | [RULED 10-19] |
 
-**At most six Rare rows for each ground.** The reveal is ruled to fire on every Rare, so the count of rows is what keeps it a moment. With six rows a hero sees a reveal every two to three hours and a four about every 40 minutes (COMPUTED). Ladder pieces of the next tier are Scarce rows on the next ground, never Rare rows on this one. [REC GR-42]
+**At most six Rare rows for each ground.** The reveal is ruled to fire on every Rare, so the count of rows is what keeps it a moment. With six rows a hero sees a reveal every two to three hours and a four about every 40 minutes (COMPUTED). Ladder pieces of the next tier are Scarce rows on the next ground, never Rare rows on this one. [DECIDED GR-42, Fable 2026-11-21]
 
-**The step at the Morrow door.** Through Krell's Hold every Rare rate is generous. At Level 110 every Rare row past the door drops 15% less often at Magic Find 0, and the cut grows to 25% at Level 400. A player should feel the door. Trophy rows, the hourly drop, keys, fuels below Rare, coin and XP are never cut. [RULED 11-20]. Keyed by Level with the same end points, in place of a band count [REC GR-4].
+**The step at the Morrow door.** Through Krell's Hold every Rare rate is generous. At Level 110 every Rare row past the door drops 15% less often at Magic Find 0, and the cut grows to 25% at Level 400. A player should feel the door. Trophy rows, the hourly drop, keys, fuels below Rare, coin and XP are never cut. [RULED 11-20]. Keyed by Level with the same end points, in place of a band count [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto].
 
-**A ground played above its band.** A scaled or risen ground drops its own rows at its own rarity. Its lining parts still drop. Past tier 7 its hourly drop is stock and chips. The Morrow cut is read at the band the loot is paid at. [REC GR-9]
+**A ground played above its band.** A scaled or risen ground drops its own rows at its own rarity. Its lining parts still drop. Past tier 7 its hourly drop is stock and chips. The Morrow cut is read at the band the loot is paid at. [DECIDED GR-9, Fable 2026-11-21]
 
 ### 2.5 Special pieces, signature stones and uniques
 
 **At tier 7 and below: the standard piece plus one attribute.** A special piece is the plain piece of its slot and tier with one attribute from the full list: element guard, physical guard, steady, crit, bane, plus skill. They are sprinkled through every tier, cheap to make and short lived. [RULED 11-14]
 
-The three special pieces and the three stones are the first rare finds a hero keeps, and every later rare item is sized on them. [REC GR-40]
+The three special pieces and the three stones are the first rare finds a hero keeps, and every later rare item is sized on them. [DECIDED GR-40, Fable 2026-11-21]
 
 | Piece | Ground | Attribute | Status |
 |---|---|---|---|
-| Widow's Fang, a sword | The Sewer | Crits 6% more | [REC GR-40] |
-| Mudlark's Mitts, gloves | The Slake | Ranged counts 2 higher | [REC GR-40] |
-| Demoncaller | The Pyre Field | 10% harder on the Undead | [REC GR-40] |
+| Widow's Fang, a sword | The Sewer | Crits 6% more | [DECIDED GR-40, Fable 2026-11-21] |
+| Mudlark's Mitts, gloves | The Slake | Ranged counts 2 higher | [DECIDED GR-40, Fable 2026-11-21] |
+| Demoncaller | The Pyre Field | 10% harder on the Undead | [DECIDED GR-40, Fable 2026-11-21] |
 | Krell's Tollgate, the Banded Legguards | Krell's Hall | Physical guard on the legs | [RULED 11-14] |
 
-**Signature stones.** Each ground's Very Rare through Krell is a named stone. A smith sets it in a plain or Fine piece in place of the tier's gem. The piece then always carries the stone's perk, which the bench cannot roll. The stone is used up. The piece reforges up and keeps the perk, so the find lasts for the life of the hero. A stone's perk sits in the same perk budget and counts once a hero. Sample first: the Glade, the Warrens and the Slake, three stones, played before any more. [REC GR-40]
+**Signature stones.** Each ground's Very Rare through Krell is a named stone. A smith sets it in a plain or Fine piece in place of the tier's gem. The piece then always carries the stone's perk, which the bench cannot roll. The stone is used up. The piece reforges up and keeps the perk, so the find lasts for the life of the hero. A stone's perk sits in the same perk budget and counts once a hero. Sample first: the Glade, the Warrens and the Slake, three stones, played before any more. [DECIDED GR-40, Fable 2026-11-21]
 
 | Step | The player holds and can reach | Needs |
 |---|---|---|
@@ -137,7 +140,7 @@ This walk-through is quoted from study 54, which checked each step against the g
 - **A duplicate unique feeds that unique's Tempering past tier 7.** [RULED 23-4]
 - **One of a ground's uniques is its Very Rare:** the top of the band's budget with the property the ground is known for. It cannot be salvaged for rivets. It is worn or sold. [RULED 11-20]
 
-**The property list past tier 7.** The one property is a kind that changes a decision. [REC GR-41]
+**The property list past tier 7.** The one property is a kind that changes a decision. [DECIDED GR-41, Fable 2026-11-21]
 
 | Property | What it does | Slots | Sample size (PROPOSED) |
 |---|---|---|---|
@@ -151,7 +154,7 @@ This walk-through is quoted from study 54, which checked each step against the g
 
 Guards and plus skill may still be part of a unique's stat mix, bought from its budget at the exchange rates, and are never its property past tier 7. Guarding against a ground's element is the job of linings. Status ward (a chill or sickness on you ends sooner) is on the later list. A new kind needs its engine hook, as one row on the modifier table of step R20, and a measured sample before any piece carries it. Spell change is the first hook built, because it is the only one that gives a caster's weapon a property that measures. One property a piece. Two only on late chest pieces. [RULED 11-18 for the catalogue, REC GR-41 for the split by tier]
 
-**Krell's five, the sample every later unique is cut from.** [REC GR-29, GR-40]. PROPOSED sizes, unmeasured.
+**Krell's five, the sample every later unique is cut from.** [DECIDED GR-29, GR-40, Fable 2026-11-21]. PROPOSED sizes, unmeasured.
 
 | Krell's piece | Property | Wins | Loses to the Gold Tower weapon |
 |---|---|---|---|
@@ -168,7 +171,7 @@ Guards and plus skill may still be part of a unique's stat mix, bought from its 
 | Chest weapon | The plain numbers of the next step up plus +1 to +4 of its skill | Everywhere a little. The best all-rounder |
 | Boss or ground unique | Its own stat mix inside the band's budget, no skill bonus, one property | Clearly best in the case its property is for. Slightly behind elsewhere |
 
-**A hall's prize holds only what no ground drops:** the boss's uniques, the region's gem, a Trophy and a first-win piece. One key is one prize roll, and a mid-region boss's pieces stay repeatable because a hero can spend every key it finds. [REC GR-28, GR-29]. Krell's gem stays on his roll, because the tier 7 Hallmark is built on it. Captain Hask, the Provost and Lord Krell each carry a Trophy row. [REC GR-29]
+**A hall's prize holds only what no ground drops:** the boss's uniques, the region's gem, a Trophy and a first-win piece. One key is one prize roll, and a mid-region boss's pieces stay repeatable because a hero can spend every key it finds. [DECIDED GR-28, GR-29, Fable 2026-11-21, reversal of 2026-11-14 and 22-8, Tyler may veto]. Krell's gem stays on his roll, because the tier 7 Hallmark is built on it. Captain Hask, the Provost and Lord Krell each carry a Trophy row. [DECIDED GR-29, Fable 2026-11-21]
 
 **Quivers.** A bow fills both hands. Past tier 7 a quiver may be a region's wildcard unique: an off-hand piece only a bow wears, with a property about its shots. Its worth comes out of the band's budget for that bow. It is a dropped unique, and the workbench makes what goes in it. [RULED 11-18]
 
@@ -212,12 +215,12 @@ That is six Rare rows. Region tables are an authoring shape only: a pack compile
 | Hallmark skill level | The next tier's skill level: 30, 45, 60, 75, 88, 99 | [RULED 11-18] |
 | Gems | One gem a tier. It works in any slot and forces no perk | [RULED 11-18] |
 | Each perk counts once a hero | The larger worn | [RULED] |
-| Plain stats | Help all three styles, and come from the curve as a 6% share | [REC GR-38] |
+| Plain stats | Help all three styles, and come from the curve as a 6% share | [DECIDED GR-38, Fable 2026-11-21] |
 | Re-rolls for gold | Never | [RULED] |
 | Trade | Everything | [RULED] |
 | The Shop sells plain jewelry | At ten times a crafter's cost, as a fallback that never undercuts a crafter | [RULED] |
 
-**The ladder.** Jewelry and cloaks are built to tier 7, tier 4 first as the played sample, then tiers 5 to 7 [REC GR-38]. Hallmark fees for tiers 4 to 7 are [RULED 11-18]. Under GR-8 every fee is a share of the band's gold and these numbers are the anchor points.
+**The ladder.** Jewelry and cloaks are built to tier 7, tier 4 first as the played sample, then tiers 5 to 7 [DECIDED GR-38, Fable 2026-11-21]. Hallmark fees for tiers 4 to 7 are [RULED 11-18]. Under GR-8 every fee is a share of the band's gold and these numbers are the anchor points.
 
 | Tier, Level | Metal | Gem and its carrier | Hallmark fee, each | Reforge to this tier, each | Shop ceiling, Fine / Hallmarked |
 |---|---|---|---|---|---|
@@ -228,7 +231,7 @@ That is six Rare rows. Region tables are an authoring shape only: a pack compile
 | 6, 75 | Emberforged | A new gem, the Provost | 400,000 | 150,000 | 10x |
 | 7, 88 | Dawnsteel | Krell's gem, on his daily roll | 600,000 | 200,000 | 10x |
 
-Cloak and belt materials are common drops: pelts, Bear Pelt, Silk Thread and coal tar, Grave Dust-cured cloth, Wraith Veil and Razor Claw, Troll Hide. Tier 6 and tier 7 Hallmarks also use up a Sealing Rune (2.10). [REC GR-45]
+Cloak and belt materials are common drops: pelts, Bear Pelt, Silk Thread and coal tar, Grave Dust-cured cloth, Wraith Veil and Razor Claw, Troll Hide. Tier 6 and tier 7 Hallmarks also use up a Sealing Rune (2.10). [DECIDED GR-45, Fable 2026-11-21]
 
 **Pieces with a place.** [RULED 11-18 placement, read by the catalogue lane before anything is removed]
 
@@ -258,11 +261,11 @@ Cloak and belt materials are common drops: pelts, Bear Pelt, Silk Thread and coa
 
 Cloaks carry no element perks. Elements belong to linings. A fully Hallmarked hero plays 12 of 23.
 
-**Perk sizes.** [REC GR-39]
+**Perk sizes.** [DECIDED GR-39, Fable 2026-11-21, reversal of 23-5, Tyler may veto]
 
 | Rule | Value | Label |
 |---|---|---|
-| All perks on twelve seats, on a hero whose perks do not match the ground | About 4% XP | [RULED 23-5], read on the mismatched hero [REC GR-39] |
+| All perks on twelve seats, on a hero whose perks do not match the ground | About 4% XP | [RULED 23-5], read on the mismatched hero [DECIDED GR-39, Fable 2026-11-21, reversal, Tyler may veto] |
 | Always-on perks: Keen, Follow-through | 4, 6, 7, 8, 9, 10% at tiers 2 to 7 | Tiers 2 and 3 measured. Tiers 4 to 7 PROPOSED |
 | Always-on perk: Surge | 6.7, 10, 11.5, 13, 14.5, 16% at tiers 2 to 7. Never sized up while it reaches heals | PROPOSED past tier 3 |
 | A perk with a narrow case (Opener, Finisher, Giantsbane, Windbreak, Thick, Brace, Slip) | Starts at about 5% in its case, three to four times an always-on perk. Never over five times | TARGET |
@@ -291,7 +294,7 @@ MEASURED as evidence (study 54, one seed): every perk at five times reads +9 to 
 | 4 | One cost line: "6 Steel Bars (you have 9), 1 Seam Jasper (you have 1), 75,000 gp. Requires Smithing 45. Worn from Level 30." A missing part is named |
 | 5 | Press Reforge. The old piece is used up and the new one is worn if it was worn and your Level allows |
 
-**The Fine order.** One standing order at the bench: "Make until Fine with one of these perks, salvage the rest, stop after this many bars." Salvaging a plain crafted piece returns half its metal and no XP. Chasing a first perk is one decision, never sixty presses, and it cannot be farmed for XP. [REC GR-38]
+**The Fine order.** One standing order at the bench: "Make until Fine with one of these perks, salvage the rest, stop after this many bars." Salvaging a plain crafted piece returns half its metal and no XP. Chasing a first perk is one decision, never sixty presses, and it cannot be farmed for XP. [DECIDED GR-38, Fable 2026-11-21]
 
 **Lucky.** The seventh ring perk. See 2.11.
 
@@ -329,8 +332,8 @@ A staple opens for the hero at 99 who brings that region's ore or hide to a benc
 
 | Kind | Rule | Ships | Status |
 |---|---|---|---|
-| A single job | One Hallmark or one reforge on a piece the owner keeps. The owner posts the piece, materials, gem, fee and a tip, and picks the perk. The server holds all of it. Any crafter with the skill presses Complete and earns the craft XP and the tip. The piece goes back to the owner | With jewelry tiers 5 to 7 | [REC GR-44] |
-| A bulk order | Many of one staple. The owner posts inputs and a price a craft. Several crafters can work it at once as their bench job. Each earns the XP and the price for the units they made. Everything made, unused inputs and unspent pay return to the owner | When the market moves goods | [REC GR-44] |
+| A single job | One Hallmark or one reforge on a piece the owner keeps. The owner posts the piece, materials, gem, fee and a tip, and picks the perk. The server holds all of it. Any crafter with the skill presses Complete and earns the craft XP and the tip. The piece goes back to the owner | With jewelry tiers 5 to 7 | [DECIDED GR-44, Fable 2026-11-21] |
+| A bulk order | Many of one staple. The owner posts inputs and a price a craft. Several crafters can work it at once as their bench job. Each earns the XP and the price for the units they made. Everything made, unused inputs and unspent pay return to the owner | When the market moves goods | [DECIDED GR-44, Fable 2026-11-21] |
 
 Safety for both: server-owned and journalled, a time limit on every job, a job resolves once, a daily limit an account, the bench fee applies, and nothing a crafter does can take the owner's piece or inputs. It is a money surface and passes the Security review. Single jobs must exist before a four leaves Krell's band, because a tier 7 reforge needs Smithing 99 and a player who never crafts must be able to buy crafted power [RULED 11-21].
 
@@ -342,10 +345,10 @@ Safety for both: server-owned and journalled, a time limit on every job, a job r
 |---|---|---|
 | Going up a tier | Tempering carries up and costs only the difference | [RULED 11-20, 23-2] |
 | Past tier 7 | A rung takes a duplicate of the unique | [RULED 23-4] |
-| Rung size | One line by gear Level. TARGET 2 to 3% a track past tier 6 | [REC GR-8] |
+| Rung size | One line by gear Level. TARGET 2 to 3% a track past tier 6 | [DECIDED GR-8, Fable 2026-11-21, reversal of the typed prices kept on 2026-11-18, Tyler may veto] |
 | Rung prices | Double each step, so the last rung is half the track | [RULED] |
 | Salts | One a tier, 310 a track, made at the forge. The workbench makes them too until linings ship | [RULED 11-05 that Tempering needs a crafter, REC GR-43 for the workbench] |
-| Price | A share of the band's gold (2.9) | [REC GR-8] |
+| Price | A share of the band's gold (2.9) | [DECIDED GR-8, Fable 2026-11-21, reversal, Tyler may veto] |
 
 MEASURED as evidence (the item plan, a lone hero): a full Blows track reads +3 to +4.7% XP and a full Armor track 2 to 10% less damage.
 
@@ -368,12 +371,12 @@ MEASURED as evidence (the item plan, a lone hero): a full Blows track reads +3 t
 | Fitting | Always works | [RULED] |
 | Each kind counts once a hero | The strongest worn | [RULED 10-15] |
 | Trade | A lining trades until fitted. A piece with hours in it cannot trade until they run out or the lining is taken out for a fee | [RULED 10-15] |
-| Cost | A share of the band's gold: 12 hours of one lining costs about a tenth of what 12 hours of hunting earns there | TARGET [REC GR-8] |
+| Cost | A share of the band's gold: 12 hours of one lining costs about a tenth of what 12 hours of hunting earns there | TARGET [DECIDED GR-8, Fable 2026-11-21, reversal, Tyler may veto] |
 | Crit linings | None. Crit belongs to Keen and to weapon properties | [RULED 11-18] |
 
-On screen: the item card reads "Fire guard, Stitched. 31 h left (max 48 h)". The button reads "Fit: +12 h", or "Full. Fits at 36 h or less". Hunt prep and the end card warn under 2 hours. One press in town, "Top up linings", fits what the bag and Storage hold after showing what it will use, and buys nothing. A standing order, "keep these linings up", makes the top up a decision made once. [REC GR-47, GR-48]
+On screen: the item card reads "Fire guard, Stitched. 31 h left (max 48 h)". The button reads "Fit: +12 h", or "Full. Fits at 36 h or less". Hunt prep and the end card warn under 2 hours. One press in town, "Top up linings", fits what the bag and Storage hold after showing what it will use, and buys nothing. A standing order, "keep these linings up", makes the top up a decision made once. [DECIDED GR-47, GR-48, Fable 2026-11-21]
 
-Linings by region. A region names the wall element on each ground and supplies the part. Barrow March: fire. Morrow Hills: fire at Carter's Rest, Wyvern Roost and the Bellows, necrotic on the Ox Road (the Ox Shoe), poison on the Night Shift, ice and storm on the Old Guard. Catacombs: necrotic (the Owing Tag), poison and ice. Region 5: storm. Later regions hold at least two elements each, and a ground's wall never matches its faction pair's. Linings never ask for parts from earlier grounds, and scaled hunts keep old parts dropping. [RULED 11-18]. The 30 imbuement parts are the lining parts, one for each ground. [REC GR-43]
+Linings by region. A region names the wall element on each ground and supplies the part. Barrow March: fire. Morrow Hills: fire at Carter's Rest, Wyvern Roost and the Bellows, necrotic on the Ox Road (the Ox Shoe), poison on the Night Shift, ice and storm on the Old Guard. Catacombs: necrotic (the Owing Tag), poison and ice. Region 5: storm. Later regions hold at least two elements each, and a ground's wall never matches its faction pair's. Linings never ask for parts from earlier grounds, and scaled hunts keep old parts dropping. [RULED 11-18]. The 30 imbuement parts are the lining parts, one for each ground. [DECIDED GR-43, Fable 2026-11-21]
 
 Spell leech and lining leech are measured together before either is sized. Together they stay under the fist line's own heal budget. [OPEN: decided by that measurement, a test line on the linings and spell lanes]
 
@@ -387,7 +390,7 @@ Spell leech and lining leech are measured together before either is sized. Toget
 | What can cure | Linings and Tempering salts only | PROPOSED |
 | Each cure | A gold fee on top of the materials, about a tenth of the item's reference value | PROPOSED |
 | Skill | The recipe's skill level is still required | PROPOSED |
-| When | Built last in the lining work, as a standing order | [REC GR-47] |
+| When | Built last in the lining work, as a standing order | [DECIDED GR-47, Fable 2026-11-21] |
 
 **Named reforging.** Kingsgrate to Steelgrate, and Klappa's Klub, which is never cut. [RULED 11-18]
 
@@ -397,7 +400,7 @@ Tyler, 11-18: "I actually dont want everyone to be able to easily unlock everyth
 
 How the game makes money: Premium, and Crowns that players sell to other players for gold. Every progression path is fully reachable without paying. The gold sinks are where bought gold becomes an edge. Power is never sold for Crowns directly. Bought gold has no limit on how much sooner, only on what can be bought. [RULED 11-18, 11-21]
 
-**The formula.** Every standing sink in this chapter (Tempering, Hallmark and reforge fees, linings) is a share of the band's gold (`sinkShare`, step R16). The shares are sized so that everything in a band costs 1.0 to 1.4 times what the band banks (TARGET, band E4), on a hero who pays only the difference at every tier, and on an account of four heroes with one purse. The ruled Hallmark fees are the anchor points the shares must land near. A share of band gold holds at every Level and survives any change to how long a band lasts. [REC GR-8]
+**The formula.** Every standing sink in this chapter (Tempering, Hallmark and reforge fees, linings) is a share of the band's gold (`sinkShare`, step R16). The shares are sized so that everything in a band costs 1.0 to 1.4 times what the band banks (TARGET, band E4), on a hero who pays only the difference at every tier, and on an account of four heroes with one purse. The ruled Hallmark fees are the anchor points the shares must land near. A share of band gold holds at every Level and survives any change to how long a band lasts. [DECIDED GR-8, Fable 2026-11-21, reversal, Tyler may veto]
 
 COMPUTED as evidence for the rider (study 47, from the item plan's own estimates): if Tempering paid the difference while its prices stayed typed, a careful hero would pay 0.5 to 0.9 of a band's gold at tiers 4 to 6.
 
@@ -416,14 +419,14 @@ COMPUTED as evidence for the rider (study 47, from the item plan's own estimates
 
 Two heroes at Level 60 with the same gold end up different. The hammer who wants kills fills Blows, carries all six pieces and keeps a leech lining. The tank who wants to live fills Armor, carries three pieces, buys one fresh tier 4 perk and keeps a guard and a leech lining. The purse is shared by the account, so the player also decides which of four heroes gets the gold. Every one of these can be bought later.
 
-**Early sinks.** With all four heroes free from day 1, gold needs something to buy in the first week. Linings and the first Tempering ladder are the first repeating sinks, sized on an account of four. [REC GR-8]. The numbers are [OPEN]: see section 5.
+**Early sinks.** With all four heroes free from day 1, gold needs something to buy in the first week. Linings and the first Tempering ladder are the first repeating sinks, sized on an account of four. [DECIDED GR-8, Fable 2026-11-21, reversal, Tyler may veto]. The order is [DECIDED CE-4, Fable 2026-11-21] and the sizes are [DECIDED CE-5, Fable 2026-11-21, reversal of the gold numbers of 26-3 and 26-1, Tyler may veto], a HYPOTHESIS, in chapter 04.
 
 **Gold in, gold out, and trade.**
 
 | Gold in | Gold out |
 |---|---|
 | Coin, loot sold, Tamsin's tasks | Hallmark and reforge fees, Tempering, lining fees, chest reforging, the Lucky job |
-| Crafted goods at the Shop's floor price | Commission fees, the bench fee, curing, and the sinks of the economy chapter |
+| Crafted goods at the Shop's floor price | Commission fees, the bench fee, curing, and the sinks of `04-economy-and-crowns.md` |
 | Good batch on food (small) | Salvage, which removes gold that would have been made by selling |
 
 | Trades | Does not |
@@ -432,7 +435,7 @@ Two heroes at Level 60 with the same gold end up different. The hammer who wants
 
 **Reference values and the no-mint guard.** A tool works out a value for every item from its drop rows, kill rates and recipes. One guard proves that no chain of craft, salvage, good batch or commission ends in more Shop gold than went in, and that rivets never exceed what the account's own hunts dropped. Salvage, good batch and commissions do not ship without it. It also feeds the market's suggested price. [RULED 11-18 for the design, REC GR-46 and GR-44 as the gate]
 
-**One market book for each piece.** The Weighhouse shows one book a piece, with grade and perks as filters, so jewelry tiers 4 to 7 do not become about 400 thin books. Standing orders are placed on that one book. [REC GR-50, in the economy chapter]
+**One market book for each piece.** The Weighhouse shows one book a piece, with grade and perks as filters, so jewelry tiers 4 to 7 do not become about 400 thin books. Standing orders are placed on that one book. [DECIDED GR-50, Fable 2026-11-21, in `04-economy-and-crowns.md`]
 
 ### 2.10 The crafting professions
 
@@ -450,7 +453,7 @@ Crafting in Hearthrise is a supply chain. It is what the 12 rested hours are for
 | 75 to 87 | Tier 6. Hallmark tier 5 | Tier 6. Hallmark tier 5. Sealed linings | Frostfin, Ember Tart | Sealing Rune at 75, for tier 6 Hallmarks. A sixth rune tier at 75 |
 | 88 to 99 | Tier 7. Hallmark tier 6 at 88, tier 7 at 99 | The same | Moonfish, Moonbloom Elixir | Sealing Rune at 88, for tier 7 Hallmarks. A seventh rune tier at 90. Good batch tops out |
 
-Statuses: Storm and Bone runes at Runecrafting 25 and 40 [RULED 11-21]. Five rune tiers one every 15 levels [RULED 10-23]. The Sealing Rune in two grades [REC GR-45]. Rune tiers past skill 60 arrive with the endless-mode step R22 (`runeStep`) [REC GR-23].
+Statuses: Storm and Bone runes at Runecrafting 25 and 40 [RULED 11-21]. Five rune tiers one every 15 levels [RULED 10-23]. The Sealing Rune in two grades [DECIDED GR-45, Fable 2026-11-21]. Rune tiers past skill 60 arrive with the endless-mode step R22 (`runeStep`) [DECIDED GR-23, Fable 2026-11-21].
 
 **Every recipe family.**
 
@@ -459,28 +462,28 @@ Statuses: Storm and Bone runes at Runecrafting 25 and 40 [RULED 11-21]. Five run
 | Smelting, sawmill, blanks | Smithing, Crafting | Intermediates, the currency of the benches | [RULED] |
 | Tools | Smithing | The gear every gatherer crafts | [RULED] |
 | Whetstones | Smithing | The one supply only a crafter makes | [RULED] |
-| Tempering salts | Smithing. The workbench copy leaves in the release that ships linings | One a tier | [REC GR-43] |
-| Jewelry, gem jobs, Hallmarks, jewel reforging | Smithing | 2.6 | [REC GR-38] |
-| Cloaks, belts | Crafting | 2.6. Belts use buckles from the forge | [REC GR-43] |
-| Arrows and bolts | Crafting | Every tier. The row says what a job saves against the store | [REC GR-43] |
+| Tempering salts | Smithing. The workbench copy leaves in the release that ships linings | One a tier | [DECIDED GR-43, Fable 2026-11-21] |
+| Jewelry, gem jobs, Hallmarks, jewel reforging | Smithing | 2.6 | [DECIDED GR-38, Fable 2026-11-21] |
+| Cloaks, belts | Crafting | 2.6. Belts use buckles from the forge | [DECIDED GR-43, Fable 2026-11-21] |
+| Arrows and bolts | Crafting | Every tier. The row says what a job saves against the store | [DECIDED GR-43, Fable 2026-11-21] |
 | Linings | Crafting | 2.8 | [RULED 11-18] |
 | Quiver fill | Crafting | When quivers arrive | [RULED 11-18] |
-| Heal food | Cooking | One ladder of about 8 foods. Wolf, panther and bear meat become party meal ingredients. Heal size grows with hero health | [REC GR-52, in the economy chapter] |
+| Heal food | Cooking | One ladder of about 8 foods. Wolf, panther and bear meat become party meal ingredients. Heal size grows with hero health | [DECIDED GR-52, Fable 2026-11-21, in `04-economy-and-crowns.md`] |
 | Drinks | Cooking, from the farm | The drink ladder | [RULED] |
 | Party meals | Cooking | Four party meals. No food gives a drop buff or an XP buff | [RULED 23-6, 11-20] |
 | Runes | Runecrafting | Seven shown families and Bone, with a store copy bought by the cast | [RULED 10-23, 11-18] |
-| Sealing Rune | Runecrafting | Above | [REC GR-45] |
+| Sealing Rune | Runecrafting | Above | [DECIDED GR-45, Fable 2026-11-21] |
 | Named reforges | Smithing | Klappa's Klub, the Steelgrate | [RULED] |
 | Chest reforging | Smithing or Crafting by material | 2.12 | [RULED 22-3] |
 | Lucky ring job | Smithing | 2.11 | [RULED 11-20] |
 | Castle goods | Both | Keep their prices. Only the Keystone and the Timber Beam are fixed. The castle itself is chapter 06 | [RULED 11-21, 31-3] |
-| Inner Flame fuels | Drops | The progression chapter | |
-| Burnt food | Cooking | A by-product whose chance is a data row | [REC GR-85] |
+| Inner Flame fuels | Drops | `05-progression.md` | |
+| Burnt food | Cooking | A by-product whose chance is a data row | [DECIDED GR-85, Fable 2026-11-21] |
 | Cook Panther Meat, Void Banquet | Cooking | Hidden until an input has a source | [RULED 11-21: nothing planned is cut] |
 
 **Good batch.** A consumable job sometimes makes double: 2% at level 1 to 10% at 99. All yield bonuses together cap at 15%. It makes every level between two unlocks worth something. [RULED 11-18, 26-2]
 
-**Gathering.** Woodcutting, Mining, Fishing and Farming supply every input and are designed in the town and home chapter. This chapter needs from them the region's ore or wood node on two grounds of every region.
+**Gathering.** Woodcutting, Mining, Fishing and Farming supply every input and are designed in `07-home-and-town.md`. This chapter needs from them the region's ore or wood node on two grounds of every region.
 
 **A hero's day.** A hero hunts up to 12 hours and does one thing in town for the other 12: gather, bench, or train. At Level 10 a hero smiths a Copper Ring and sews a Graypelt Cloak, the first pieces no hunt drops. At Level 40 the town makes salts, a tier 3 set, a lining and a first reforge. At Level 70 it reforges the set to tier 5, makes Corded linings and does a chest reforge. At Level 100 it finishes tier 7 with Krell's gem at skill 99, makes Sealed linings and takes commissions. Best in slot for 6 of 14 slots is only ever made. TARGET for the best path: it asks for 6 to 12 of the 12 rested hours (band T7).
 
@@ -523,7 +526,7 @@ COMPUTED from the formula. Eight times the Luck is twice the Magic Find, which k
 | Standard | 2 | 4 | 6 | 8 | 10 | 12 | 14 | |
 | Rare | 10 | 20 | 30 | 40 | 50 | 60 | 70 | 400 at Level 110, rising in a straight line to 900 at Level 400 |
 
-The unique's rivets are keyed by its worn Level with the plan's end points [REC GR-4]. Two Luck a tier keeps the price of Luck flat at every tier, so no tier is the cheap one to farm. A Very Rare unique pays no rivets. The rivet has its own line in the loot plan: Use (goes on the bar at Dispatch), Keep or Deposit. Nobody clicks a stack every trip.
+The unique's rivets are keyed by its worn Level with the plan's end points [DECIDED GR-4, Fable 2026-11-21, reversal, Tyler may veto]. Two Luck a tier keeps the price of Luck flat at every tier, so no tier is the cheap one to farm. A Very Rare unique pays no rivets. The rivet has its own line in the loot plan: Use (goes on the bar at Dispatch), Keep or Deposit. Nobody clicks a stack every trip.
 
 **The Bestiary's stages.** Counts are per account, one count a kill whichever heroes were there. Luck is paid once, straight onto the bar. [RULED 11-20]
 
@@ -571,11 +574,11 @@ COMPUTED floor for a maker (rivets at 13 to 15 gold of gear not sold, plus the f
 | Rule | Value | Status |
 |---|---|---|
 | What it is | Any gear breaks down into a fixed result. Nothing is rolled. No skill XP | [RULED 11-18] |
-| Where the choice is made | A line on the loot plan beside Keep, Deposit and Sell, set once for an item or a kind, then applied on Dispatch. Both numbers are shown | [REC GR-46] |
-| Never the default | The Shop keeps its ruled price. A starting loot plan exists, so nobody meets a wall of dropdowns | [REC GR-46] |
+| Where the choice is made | A line on the loot plan beside Keep, Deposit and Sell, set once for an item or a kind, then applied on Dispatch. Both numbers are shown | [DECIDED GR-46, Fable 2026-11-21] |
+| Never the default | The Shop keeps its ruled price. A starting loot plan exists, so nobody meets a wall of dropdowns | [DECIDED GR-46, Fable 2026-11-21] |
 | Yields | Dropped gear: Lucky Rivets, inside the allowance. A plain crafted piece: half its metal. Past tier 7: a standard piece gives its region's stock and a unique gives gem chips | [RULED 11-18, 11-20] |
-| Guard | A piece's salvage is never worth more than the Shop pays for it, by the reference-value guard | [REC GR-46] |
-| A saved kit is safe | The loot plan never sells or salvages a piece that is in any saved kit | [REC GR-48] |
+| Guard | A piece's salvage is never worth more than the Shop pays for it, by the reference-value guard | [DECIDED GR-46, Fable 2026-11-21] |
+| A saved kit is safe | The loot plan never sells or salvages a piece that is in any saved kit | [DECIDED GR-48, Fable 2026-11-21] |
 
 MEASURED as evidence for keeping it a choice (study 60): 15% less gold coming in made 40 gold bands worse on the matrix. Read what real players pick before asking again.
 
@@ -583,8 +586,8 @@ MEASURED as evidence for keeping it a choice (study 60): 15% less gold coming in
 
 | Chest line | Gives | Keys | Status |
 |---|---|---|---|
-| The Tower | Weapons, one a family a key tier | Bronze, Silver, Gold, Platinum at landings 10, 40, 70, 100. Then one key tier a band | [RULED]. The Tower stays weekly [REC GR-37] |
-| Catacombs, Bone Wing | Leans helmets | The same tiers | [RULED 11-16]. One wing and one key built first [REC GR-36] |
+| The Tower | Weapons, one a family a key tier | Bronze, Silver, Gold, Platinum at landings 10, 40, 70, 100. Then one key tier a band | [RULED]. The Tower stays weekly [DECIDED GR-37, Fable 2026-11-21] |
+| Catacombs, Bone Wing | Leans helmets | The same tiers | [RULED 11-16]. One wing and one key built first [DECIDED GR-36, Fable 2026-11-21] |
 | Catacombs, Flooded Wing | Leans boots | The same | [RULED 11-16] |
 | Catacombs, glove wing | Gloves 70%, helmets and boots 15% each. Twelve rows | The same family, the same 6 opens | [RULED 11-18 for a glove path]. PROPOSED rows |
 
@@ -605,8 +608,8 @@ Rules. Chest gear stays rare. It is never bound. A chest weapon is the next tier
 
 ### 2.14 The saved kit and the find list
 
-- **A saved kit for each ground.** A hero's worn set, linings and unique can be saved against a ground. Starting a hunt there wears it. It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [REC GR-48]
-- **A find list for each ground.** The ground's page lists its named pieces. The first time an account finds each one it is ticked with no press. It shows on the Honors page and pays no Luck. [REC GR-48]
+- **One Setup for each ground.** It holds the weapon, the worn set, the linings, the unique, the bar and the target mode. It is saved once, starting a hunt there wears it, and it can be copied to another hero or ground. The saved kit and the bar setup are the same thing, so the weak-side weapon is never a chore (GR-84). It lands before case-sized perks or linings ship, because each of them asks a hero to change gear when the party moves, four heroes at a time. [DECIDED GR-48, Fable 2026-11-21]
+- **A find list for each ground.** The ground's page lists its named pieces. The first time an account finds each one it is ticked with no press. It shows on the Honors page and pays no Luck. [DECIDED GR-48, Fable 2026-11-21]
 
 ### 2.15 Systems kept for later
 
@@ -623,11 +626,11 @@ Nothing planned is cut. Each is built later and stays hidden until it works. [RU
 
 ### 2.16 Gear from the shared world (chapter 06)
 
-Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear fits the curve. The rewards themselves are being revised (MM-6 world boss pay, MM-14 arena rewards), so everything here is [OPEN], with one recommendation.
+Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear fits the curve. The ten rules below are the design. [DECIDED CE-1, Fable 2026-11-21]
 
 **The collision.** Study 49 gives each world boss and the Open arena a named, tradeable gear line at the best-in-slot budget of the earner's band, plus an upgrade material used by the band's sinks. This chapter says every piece is a spend of the gear curve (GR-4), a prize holds only what no ground drops (GR-29), and a region brings 15 to 20 new uniques (31-4). Read loosely, the layer would add a second pile of best-in-slot pieces to every band and make ground uniques the lesser chase.
 
-**The recommendation: layer gear is unique gear, under every rule of 2.5, on rows that carry no band.** [OPEN. MM-6 and MM-14 decide it, with GR-4 and GR-29]
+**The decision: layer gear is unique gear, under every rule of 2.5, on rows that carry no band.** [DECIDED CE-1, Fable 2026-11-21, with MM-6 and MM-14]
 
 | # | Rule | Why |
 |---|---|---|
@@ -635,16 +638,16 @@ Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear
 | 2 | **A layer line is written once and has no band.** A line row holds a slot, a stat mix as shares and a property. Its numbers are derived from the curve at the band of the hero who earned it. It reforges up a band like any unique | It adds zero rows a band and zero rows a region. The curve does the work |
 | 3 | **Layer pieces sit outside a region's count and outside its coverage.** A region's 15 to 20 new uniques and its coverage rules are met with no layer piece. A player who never fights a world boss or an arena misses no slot and no weapon family | The plan's counts stand. The layer is a second road to a best piece, never the only road to a filled slot |
 | 4 | **One property, one source.** GR-29 widened to every prize: a layer line carries a property instance no ground, hall or chest carries in that band. For example, if Krell's sword is bane on the Undead, no boss line is | The prize holds only what nothing else gives, so no source makes another a trap |
-| 5 | **Small lines.** A world boss line is five pieces, each wearable by more than one style. The Open arena line is five pieces and its properties are the ones a fight between parties rewards (thorns, a spell change on a shield or heal). TARGET: at most four boss lines in rotation, so 25 line rows in the game | A list a player can learn. PROPOSED counts |
-| 6 | **Rarity on the Very Rare clock.** TARGET: an account that fights every boss weekend earns a piece of a line about as often as a four finds a ground's Very Rare, one in about a week of play, and its own style's piece in about a month. An arena line pays one piece a season at the tier reached | A layer piece is as rare as the rarest ground piece, never rarer by an order and never common |
+| 5 | **Small lines.** A line is at most five pieces. A world boss line is four, one a style (MM-6). The Open arena line is five pieces and its properties are the ones a fight between parties rewards (thorns, a spell change on a shield or heal). TARGET: at most four boss lines in rotation and one arena line, so at most 21 line rows in the game | A list a player can learn. PROPOSED counts |
+| 6 | **Rarity on the Very Rare clock.** TARGET: an account that fights every boss weekend earns a piece of a line about as often as a four finds a ground's Very Rare, one in about a week of play, and its own style's piece in about a month. An arena line pays one piece a season at the tier reached. An account earns at most one line piece a boss weekend. The fall bonus re-rolls which piece it is and never adds a second (MM-6) | A layer piece is as rare as the rarest ground piece, never rarer by an order and never common |
 | 7 | **The layer's upgrade material feeds only the layer's own pieces.** It stands in for a duplicate when tempering a boss or arena piece past tier 7 and when reforging one up a band. It is never a required input for plain Tempering, Hallmarks or linings | Linings are ruled as one part and gold. A player who skips the layer must never be locked out of a ruled sink |
 | 8 | **It trades, and it pays no rivets.** A layer piece is not found by a hunt's settle, so it is outside the rivet allowance | No bound gear. The Luck safeguard holds |
-| 9 | **Luck never moves a layer reward, and a layer buff never moves a Rare row.** The timed drop buff of study 49 (+10%) applies to Common, Uncommon and Scarce rows and to chips, never to Rare, Very Rare or Trophy rows | Magic Find is ruled at two feeds and 104 a hero. A drop buff on Rares would be a third feed |
+| 9 | **Luck never moves a layer reward, and a layer buff never moves a Rare row.** The timed buff is material find (+10%, CE-2). It adds to rows tagged as materials: monster parts, lining parts, hides, ore, gem chips and gems below Rare. It never touches a Rare, Very Rare or Trophy row, a gear row of any rarity, a key or a seed. A ground weekend's featured row is a separate event row (MM-42) | Magic Find is ruled at two feeds and 104 a hero. A drop buff on Rares would be a third feed |
 | 10 | **The ceiling is the ruled one.** A hero in a full set of layer gear is a best-geared hero: about 15% faster and 15% less damage than mid gear, and no more | The gear state bands hold with or without the layer |
 
-**The strongest alternative.** Layer lines one band above the earner, as true best in slot. It makes the layer the only late chase, breaks "skips nothing", and gives bought gold a piece play cannot match. Not recommended.
+**The strongest alternative.** Layer lines one band above the earner, as true best in slot. It makes the layer the only late chase, breaks "skips nothing", and gives bought gold a piece play cannot match. Not taken.
 
-**What chapter 06 must take from this.** Its power budget counts layer gear as "best in slot for the band", which this recommendation keeps true. Its Crowns engine needs the pieces to trade, which they do. Its drop buff needs rule 9.
+**What chapter 06 must take from this.** Its power budget counts layer gear as "best in slot for the band", which this decision keeps true. Its Crowns engine needs the pieces to trade, which they do. Its drop buff needs rule 9.
 
 ---
 
@@ -662,52 +665,54 @@ Chapter 06 pays in buffs and gear [RULED 11-21]. This chapter owns how that gear
 | Chest gear | The Tower and the Catacombs as modes (world chapter) | Chest weapons as the all-rounder. Keys in Storage |
 | Layer gear | World bosses, events and the Open arena (chapter 06) | The same curve, Tempering and reforging as any unique |
 
-Necrotic and Storm, their sixteen spells and the fist line's two rows are designed in the combat chapter. This chapter holds their item side: Storm and Bone runes, the two guard linings, the lining parts, and fist wraps as the eighth dropped family at every tier with Tower rows.
+Necrotic and Storm, their sixteen spells and the fist line's two rows are designed in `01-core-and-combat.md`. This chapter holds their item side: Storm and Bone runes, the two guard linings, the lining parts, and fist wraps as the eighth dropped family at every tier with Tower rows.
 
 ---
 
-## 4. Open calls in this chapter
+## 4. The calls in this chapter, as decided
 
 In decision-book order.
 
-| Id | The call | Recommendation |
-|---|---|---|
-| GR-85 | Formula clean-up steps that move no number | Approve. Here: the start kit replaces a tier 1 rung, burnt food's chance is a data row |
-| GR-4 | A gear curve as a game formula | Approve: linear in Level, a band at +24% (110, 136, 169, 210, 260, 322, 400), uniques as a spend at exchange rates, the two Luck numbers keyed by Level |
-| GR-8 | Sinks as a share of band gold | Approve: 1.0 to 1.4 of a band, sized on a hero who pays the difference and an account of four, with the ruled Hallmark fees as anchors and linings as an early sink |
-| GR-28 | One boss door | Approve: one key is one prize roll, mid-region pieces stay repeatable |
-| GR-29 | A hall's prize holds only what no ground drops | Approve: plain Dawnsteel onto the Hold's loot bands, Krell's five and his gem on the roll, three Trophy rows |
-| GR-40 | Three special pieces and three signature stones | Approve as the sample |
-| GR-9 | An old ground at your Level, one drop rule | Approve the drop rule of 2.4 |
-| GR-23 | Rune tiers continue past skill 60 | Approve, with step R22 |
-| GR-26 | Chest weapons keep flat plus skill | Approve |
-| GR-33 | A region is six grounds, opened four then two | Approve. The coverage rules assume it |
-| GR-36, GR-37 | Catacombs stay a mode, one wing first. The Tower stays weekly | Approve |
-| GR-38 | Jewelry and cloaks to tier 7, plain numbers a 6% share | Approve, tier 4 and chips first |
-| GR-39 | Narrow perks sized for their case | Approve: about 5% in the case, never over five times, a matched hero at most 9% |
-| GR-44 | Patterns teach the account. Single commissions with tiers 5 to 7 | Approve, behind the no-mint guard and Security |
-| GR-41 | Seven decision kinds past tier 7 | Approve |
-| GR-42 | At most six Rare rows a ground | Approve |
-| GR-43 | The Crafting bench is the outfitter | Approve: belts to the bench, gloves hourly, workbench salts leave with linings |
-| GR-45 | A Sealing Rune at Runecrafting 75 and 88 | Approve |
-| GR-46 | Salvage is a choice beside Sell | Approve, behind the no-mint guard |
-| GR-47 | Curing built last, as a standing order | Approve |
-| GR-48 | Luck keeps two feeds. A find list and a saved kit | Approve. The kit lands first |
-| GR-49 | Chest reforging stays its own action | Approve |
-| GR-87 | Drops in hours, one sale formula | Approve |
-| MM-6, MM-14 | World boss pay and arena rewards | No recommendation from the revised study yet. This chapter's ten rules in 2.16 are its one recommendation for the gear half |
+| Id | The call | The decision | Status |
+|---|---|---|---|
+| GR-85 | Formula clean-up steps that move no number | Approve. Here: the start kit replaces a tier 1 rung, burnt food's chance is a data row | DECIDED (Fable 2026-11-21) |
+| GR-4 | A gear curve as a game formula | Linear in Level. Past tier 7 a band is a fixed step that opens at about +17% (110, 129, 151, 176, 206, 241, 282, 330, 386). Uniques are a spend of their band. The two Luck numbers are keyed by Level | DECIDED (reversal, Tyler may veto). Changes two bands a region of 2026-11-18 and the Luck step of 2026-11-20 (Fable 2026-11-21) |
+| GR-8 | Sinks as a share of band gold | Tempering, Hallmarks and linings cost a share of a band's gold, 1.2 to 1.4 of what the band earns. The slot gold follows the order of CE-4 first, then the castle | DECIDED (reversal, Tyler may veto). Changes the typed prices kept on 2026-11-18 (Fable 2026-11-21) |
+| GR-28 | One boss door | Every boss that pays a prize is a keyed hall. One key is one prize roll. "Fight with N keys" is one press and stops at the first death | DECIDED (reversal, Tyler may veto). Changes 2026-11-14 and 22-8 (Fable 2026-11-21) |
+| GR-29 | A hall's prize holds only what no ground drops | Approve: plain Dawnsteel onto the Hold's loot bands, Krell's five and his gem on the roll, three Trophy rows | DECIDED (Fable 2026-11-21) |
+| GR-40 | Three special pieces and three signature stones | Approve as the sample | DECIDED (Fable 2026-11-21) |
+| GR-9 | An old ground at your Level, one drop rule | Approve the drop rule of 2.4 | DECIDED (Fable 2026-11-21) |
+| GR-23 | Rune tiers continue past skill 60 | Approve, with step R22 | DECIDED (Fable 2026-11-21) |
+| GR-26 | Chest weapons keep flat plus skill | Approve | DECIDED (Fable 2026-11-21) |
+| GR-33 | A region is six grounds, opened four then two | Approve. The coverage rules assume it | DECIDED (Fable 2026-11-21) |
+| GR-36, GR-37 | Catacombs stay a mode, one wing first. The Tower stays weekly | Approve | DECIDED (Fable 2026-11-21) |
+| GR-38 | Jewelry and cloaks to tier 7, plain numbers a 6% share | Approve, tier 4 and chips first | DECIDED (Fable 2026-11-21) |
+| GR-39 | Narrow perks sized for their case | Approve: about 5% in the case, never over five times, a matched hero at most 9% | DECIDED (reversal, Tyler may veto). Changes 23-5 (Fable 2026-11-21) |
+| GR-44 | Patterns teach the account. Single commissions with tiers 5 to 7 | Approve, behind the no-mint guard and Security | DECIDED (Fable 2026-11-21) |
+| GR-41 | Seven decision kinds past tier 7 | Approve | DECIDED (Fable 2026-11-21) |
+| GR-42 | At most six Rare rows a ground | Approve | DECIDED (Fable 2026-11-21) |
+| GR-43 | The Crafting bench is the outfitter | Approve: belts to the bench, gloves hourly, workbench salts leave with linings | DECIDED (Fable 2026-11-21) |
+| GR-45 | A Sealing Rune at Runecrafting 75 and 88 | Approve | DECIDED (Fable 2026-11-21) |
+| GR-46 | Salvage is a choice beside Sell | Approve, behind the no-mint guard | DECIDED (Fable 2026-11-21) |
+| GR-47 | Curing built last, as a standing order | Approve | DECIDED (Fable 2026-11-21) |
+| GR-48 | Luck keeps two feeds. A find list and a saved kit | Two feeds for Luck, a find list on the Honors page, and one Setup for each ground that holds weapon, worn set, linings, bar and target mode | DECIDED (Fable 2026-11-21) |
+| GR-49 | Chest reforging stays its own action | Approve | DECIDED (Fable 2026-11-21) |
+| GR-87 | Drops in hours, one sale formula | Approve | DECIDED (Fable 2026-11-21) |
+| MM-6, MM-14 | World boss pay and arena rewards | The ten rules of 2.16 (CE-1). At most one line piece a boss weekend and one an arena season. The fall bonus re-rolls the piece. The Even Arena pays material find. HYPOTHESIS for the fall bonus | DECIDED (Fable 2026-11-21) |
 
 ---
+
+**Cuts in this chapter.** CUT (Tyler approves), cut list 10: the Crafting bench's three salt recipes (GR-43). Salts stay on the other bench, and the recipes leave in the lane that ships linings.
 
 ## 5. Still missing
 
 | # | Missing | Who or what decides it |
 |---|---|---|
 | 1 | The exchange rates themselves (`gearExchange`) and the slot-class shares other than the 6% for accessories | Roadmap step R11, on the matrix |
-| 2 | Whether +24% reads as one upgrade when played on the curve | One band played. It is the first thing the R10 derivation prints |
-| 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | Nobody has designed it. The designer, inside GR-4 and GR-8 |
+| 2 | Whether +17% reads as one upgrade when played on the curve, with +24% as the second cell | One band played. It is the first thing the R10 derivation prints |
+| 3 | What it costs to reforge a unique up a band: materials, gold, whether a duplicate or a key is needed | The game designer, inside GR-4 and GR-8, before the build plan |
 | 4 | The Tempering ladder for tier 7 and for each band, as shares | GR-8, then a matrix run on gold bands |
-| 5 | What the first week's gold buys, and early prices sized on four heroes | Decision book "waiting". The designer, then Tyler |
+| 5 | What the first week's gold buys, and early prices sized on four heroes | Closed. CE-4 gives the order and CE-5 the sizes, as a HYPOTHESIS |
 | 6 | The three signature stones: names, perks and carriers. The tier 4 and tier 6 gem names | The designer, with names checked against the data. Sample of three first |
 | 7 | 18 of the 23 perks have no engine hook and no measured size. No cell measures one perk in and out of its own case | The first job of the perk lane |
 | 8 | Leech lining sizes, and spell leech with lining leech together | One measurement |
@@ -717,10 +722,10 @@ In decision-book order.
 | 12 | The uniques for the Catacombs ground at Levels 165 to 185 | The region lane |
 | 13 | How a perk is stored on a held piece, so one market book can filter by it | A schema call for the systems engineer |
 | 14 | The saved kit's server shape and cost | The systems engineer |
-| 15 | Layer gear: boss count, line sizes, pace and the material's recipe uses | The revised study 49, then Tyler (MM-6, MM-14) |
-| 16 | What one Premium gives. It must never sell Luck | Tyler. A money call |
-| 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | Before Early Access |
-| 18 | Whether the three armor weights are a live choice for each style | A matrix run of heavy, medium and light on three styles |
+| 15 | Layer gear: boss count, line sizes, pace and the material's recipe uses | Closed. CE-1: at most four boss lines and one arena line, at most five pieces a line, one piece a boss weekend and one an arena season, and the material feeds only layer pieces |
+| 16 | What one Premium gives. It must never sell Luck | TYLER CONFIRMS (PREM-1), with one recommendation in chapter 04. It never sells Luck |
+| 17 | Rolls, tradeable gems and tradeable patterns in the Steam and legal review | The security engineer, in the one review before Early Access |
+| 18 | Whether the three armor weights are a live choice for each style | The matrix lane, one run of heavy, medium and light on three styles |
 | 19 | Regions 4 to 7: elements, key rows, named content | The region sketches |
 
 ---
@@ -752,7 +757,7 @@ In decision-book order.
 
 | Question | How |
 |---|---|
-| Does a +24% band feel like an upgrade | One band played on the curve |
+| Does a +17% band feel like an upgrade | One band played on the curve |
 | Do players match jewelry to a ground | Three narrow perks measured in and out of their case at Level 88, then played with the saved kit |
 | Do the stones land as the first rare find | Three grounds, read from reveals, sets and trades |
 | Are Krell's five real choices | Each worn on the ground it wins and one it loses, against the Gold Tower weapon |
@@ -782,7 +787,7 @@ In decision-book order.
 | Patterns read by one hero | Four heroes learning one recipe four times repeats a decision (GR-44) |
 | Patterns and all commissions deferred until a market exists (54 phase A) | It would freeze six slots at Level 110 and leave Smithing 99 as the only road to a tier 7 ring. Withdrawn by 54 itself |
 | House curing at 100k, 250k and 500k with bench craft time | Ruled 26-7: the Cellar at 250k, 750k and 2M, 4 hours a lining |
-| A sample of four Necrotic and Storm spells, and fists with six rows | The combat chapter: seven first, sixteen in the end, fists as two rows |
+| A sample of four Necrotic and Storm spells, and fists with six rows | `01-core-and-combat.md`: seven first, sixteen in the end, fists as two rows |
 | Storm and Bone runes at Runecrafting 65 and 80, and at skill 1 | Ruled 11-21: 25 and 40 |
 | Rune tiers respaced to 1, 20, 40, 60, 80 (study 56) | It moves a ruled number. The Sealing Rune and R22 fill the gap |
 | Salvage by default with a token Shop price (55 phase A, 46) | Breaks the Luck choice and the ruled sale rule. Withdrawn by 55 |
@@ -802,7 +807,7 @@ In decision-book order.
 
 | Source | Sections this chapter replaces |
 |---|---|
-| `docs/design/itemization-plan.md` | All of it for items and crafting: sections 0 to 6, 8 to 10, 12 to 15, Appendix A findings 1 to 4. Section 7, finding 5 and Appendix B are replaced by the combat chapter, with their item side here. Section 11 is replaced by the build plan |
+| `docs/design/itemization-plan.md` | All of it for items and crafting: sections 0 to 6, 8 to 10, 12 to 15, Appendix A findings 1 to 4. Section 7, finding 5 and Appendix B are replaced by `01-core-and-combat.md`, with their item side here. Section 11 is replaced by the build plan |
 | `docs/design/itemization-canary-adjustments.md` | Its adopted ideas are in 2.5, 2.8, 2.9, 2.12 and 2.15. Its skipped ideas stay skipped |
 | `docs/design/balance-program/47-itemization-fit.md` | Sections 2 to 4 and 6. Section 5 is replaced by the build plan |
 | `docs/design/balance-program/54-review-items.md` | All sections, with section 10 winning over sections 2 to 5 |

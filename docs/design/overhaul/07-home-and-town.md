@@ -283,7 +283,7 @@ COMPUTED here from the ruled fee, as a TARGET range, not played. Band edges reus
 | Loot plan | Each item has a destination set once: keep in bag, deposit in Storage, sell. It runs when loot is dispatched in town | RULED 10-25 |
 | Refill | The one-tap refill takes the account's own stock from Storage before it buys from the store | RULED 11-20 (plan L07). Formula `E18` |
 | Mounts | A mounted piece is not in Storage and the Hall is not extra Storage | RECOMMENDED GR-73 |
-| More bag and Storage for Crowns | OPEN. Study 49 lists it as a convenience. It is inside MM-21, which is being revised. Chapter 04 and chapter 06 own it. It must not make chests 5 to 8 pointless |
+| More bag and Storage for Crowns | OPEN. The re-issued study 49 lists it as a Crowns convenience with no power. Chapter 04 and chapter 06 own it. It must not make chests 5 to 8 pointless |
 
 ### 2.10 The town's heroes at work
 
@@ -391,7 +391,7 @@ The huge hearth in the center of Havora (RULED 10-25, art approved). RECOMMENDED
 | Heroes at work | Chapter 09: the cost sizing. Chapter 06: friends, clans, presence | Chapter 04 and chapter 05: an audience for looks and titles |
 | Town work in closed form | Chapter 09: the budget and the save of an away hunt | Chapter 09: 34 of the 60 database-seconds. Chapter 08: the job queue and Carry on |
 | The Great Hearth | Chapter 05: Inner Flame and Kindlings. Chapter 06: the event calendar, rule 0. Chapter 04: gold sinks, the market's opening | Chapter 06: the project engine for clans. Chapter 05: where Kindlings are lit |
-| Clan rooms | Chapter 06: a clan room may give town work +10% (study 49, being revised under MM-8 and MM-9) | This chapter: it must enter the one Speed pool and its 40% cap |
+| Clan rooms | Chapter 06: a clan room may give town work +10% as a standing buff (the re-issued study 49, MM-9 and MM-25, not ruled) | This chapter: it must enter the one Speed pool and its 40% cap |
 
 ---
 
@@ -437,7 +437,7 @@ In decision-book order.
 | 10 | **Names and pictures.** Chests 5 to 8. The Camp's name against its scene. Prices for the Cellar's rungs 2 and 4 | The game designer and the art director |
 | 11 | **The Hearthrise's size and seam with the calendar** (section 2.12) and how much fuel fills the fire | Tyler, with GR-82 and MM-11 |
 | 12 | **Who may visit** once a party is an account's own four | Tyler, with MM-18 and GR-75 |
-| 13 | **Clan town work +10% and Crowns storage.** Both are inside study 49's revision | The MMO layer study, then Tyler |
+| 13 | **Clan town work +10% and Crowns storage.** Both come from the re-issued study 49 (MM-9, MM-25 and its Crowns table). Where the clan buff enters the Speed pool, and whether Crowns storage sits beside chests 5 to 8 or replaces them | Tyler, in chapter 06 and chapter 04 |
 | 14 | **Premium's daily training item across four heroes:** one for the account or one for each hero | Tyler. It is a money call |
 | 15 | **The 10-22 real-time ruling under closed form** (section 2.11) | Tyler, with GR-1 |
 | 16 | **A home axis for the matrix.** No cell holds a room, a bed, a bench or a rested hour, so no band in this chapter can gate a change yet (section 6) | The baseline lane |
@@ -510,7 +510,7 @@ In decision-book order.
 | Curing made general (any bench job in a slot), home buffs for the hunt, furniture placement, farm animals, weather, seasons, a second home, hired workers | Considered in 58 | Each fails the purpose test or a ruling. Not to be proposed again without new evidence |
 | Every payback or price written in weeks at 3.3 hunted hours, and every "own four" reading that assumed heroes arrive over weeks | 26 | RULED 11-21: 12 hunted hours a day, four heroes from day 1 |
 | Deed, rung and chest prices weighed against hero slot prices | 26, 24 | RULED 11-21: no slot prices |
-| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | Study 49 (MM-18, being revised): a party is an account's own four |
+| "Party member" as someone who may visit, and any town rule that leans on on-call heroes | 26-11, 57 | Study 49 (MM-18, recommended, not ruled): a party is an account's own four |
 | The claim that the budget "cannot be met otherwise" as the whole case for closed form | 59 phase A | 59 phase B: necessary and not sufficient |
 
 ---

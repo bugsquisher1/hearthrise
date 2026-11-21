@@ -104,7 +104,7 @@
         {
           "key": "b",
           "label": "Dangerous hits harder",
-          "text": "Raise Dangerous's blows over Deadly's until its deaths read 10 to 30. MEASURED on run 44925664434: at 3.0 times Normal the pool read 29, seven band floors went over the red line, and on two grounds Dangerous killed more than Deadly (the Coppercap Warrens, 657 deaths in 1,000 hours against 138). Cost: the tiers turn upside down on grounds with shooters, because a back hero dies to the size of one blow and not to the pull."
+          "text": "Raise Dangerous's blows over Deadly's until its deaths read 10 to 30. MEASURED on run 44925664434, before the engine fix: at 3.0 times Normal the pool read 29, seven band floors went over the red line, and on two grounds Dangerous killed more than Deadly (the Coppercap Warrens, 657 deaths in 1,000 hours against 138). On the fixed engine Deadly reads 90 there (run 44948522187). The 3.0 point was not played again. Cost: the tiers turn upside down on grounds with shooters, because a back hero dies to the size of one blow and not to the pull."
         },
         {
           "key": "c",
@@ -132,7 +132,7 @@
         {
           "key": "c",
           "label": "Home when the front falls",
-          "text": "The default reads the seat. If the hero in front falls, all come home. If a back hero falls, the rest hunt on. MEASURED on runs 44925664434 and 44928035806: the one other kind of death in the sample was the bow on Wyvern Roost, killed alone by shooters. Cost: a rule keyed on a seat, one more line to explain, and a special rule that the formula brief asks you to approve. JUDGMENT."
+          "text": "The default reads the seat. If the hero in front falls, all come home. If a back hero falls, the rest hunt on. MEASURED on run 44948522187, on the fixed engine: a back hero was killed alone 5 times (the bow on Wyvern Roost 3 times, the mage there once, a bow on Wickstead once), and 11 other wipes started with a back hero. Cost: a rule keyed on a seat, one more line to explain, and a special rule that the formula brief asks you to approve. JUDGMENT."
         }
       ],
       "heldUntil": "Until the matrix lane replays the full matrix, the death sample at 2.5 and the lineup cells on the engine fixed at 02364f03a (audit A-0). The readings in the options were taken before that fix and are re-issued with the new run id before this is answered."

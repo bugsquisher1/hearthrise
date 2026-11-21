@@ -1,0 +1,136 @@
+{
+ "schema": "hearthrise.balance-program.stamina-day/1",
+ "at": "2026-11-21",
+ "commit": "aa6b77a5a",
+ "ground": "meadowbrook_thicket",
+ "level": 25,
+ "days": 2,
+ "stepMinutes": 60,
+ "dataRows": {
+  "freeH": 8,
+  "premiumH": 12
+ },
+ "heroes": {
+  "free-2": {
+   "words": "free, two starts a day 12 h apart",
+   "premium": false,
+   "capH": 8,
+   "startsADay": 2,
+   "huntedHoursADay": 12.02,
+   "totalHuntedH": 24.04,
+   "refills": 0,
+   "starts": [
+    {
+     "at": 0,
+     "poolH": 8,
+     "ok": true
+    },
+    {
+     "at": 12,
+     "poolH": 4.02,
+     "ok": true
+    },
+    {
+     "at": 24,
+     "poolH": 7.98,
+     "ok": true
+    },
+    {
+     "at": 36,
+     "poolH": 4.04,
+     "ok": true
+    }
+   ],
+   "sessions": [
+    {
+     "fromH": 0,
+     "huntedH": 8,
+     "end": "stamina"
+    },
+    {
+     "fromH": 12.02,
+     "huntedH": 4.02,
+     "end": "stamina"
+    },
+    {
+     "fromH": 24.03,
+     "huntedH": 7.98,
+     "end": "stamina"
+    },
+    {
+     "fromH": 36.05,
+     "huntedH": 4.04,
+     "end": "stamina"
+    }
+   ]
+  },
+  "free-1": {
+   "words": "free, one start a day",
+   "premium": false,
+   "capH": 8,
+   "startsADay": 1,
+   "huntedHoursADay": 8,
+   "totalHuntedH": 16,
+   "refills": 0,
+   "starts": [
+    {
+     "at": 0,
+     "poolH": 8,
+     "ok": true
+    },
+    {
+     "at": 24,
+     "poolH": 8,
+     "ok": true
+    }
+   ],
+   "sessions": [
+    {
+     "fromH": 0,
+     "huntedH": 8,
+     "end": "stamina"
+    },
+    {
+     "fromH": 24.03,
+     "huntedH": 8,
+     "end": "stamina"
+    }
+   ]
+  },
+  "prem-1": {
+   "words": "Premium, one start a day",
+   "premium": true,
+   "capH": 12,
+   "startsADay": 1,
+   "huntedHoursADay": 12,
+   "totalHuntedH": 24,
+   "refills": 0,
+   "starts": [
+    {
+     "at": 0,
+     "poolH": 12,
+     "ok": true
+    },
+    {
+     "at": 24,
+     "poolH": 12,
+     "ok": true
+    }
+   ],
+   "sessions": [
+    {
+     "fromH": 0,
+     "huntedH": 12,
+     "end": "stamina"
+    },
+    {
+     "fromH": 24.03,
+     "huntedH": 12,
+     "end": "stamina"
+    }
+   ]
+  }
+ },
+ "verdict": "AGREES: free two starts 12 h, free one start 8 h, Premium one start 12 h, no refill",
+ "wallS": 183
+}

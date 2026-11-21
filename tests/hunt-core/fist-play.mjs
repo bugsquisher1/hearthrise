@@ -20,6 +20,7 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { makeReport, ROOT, plant } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const { PLAY_TREES } = await import(pathToFileURL(join(ROOT, 'tests/hunt-core/fixtures/play-ground.mjs')).href);
@@ -170,7 +171,7 @@ for (const mu of PICKED) {
         SK: await import(pathToFileURL(join(p.root, 'src/data/skills.js')).href + V) };
       why = await cases[mu.case](X);
     } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
     if (why && process.argv.includes('--verbose')) console.log('  caught: ' + mu.name + ' -> ' + why);
   } finally { p.done(); }
 }

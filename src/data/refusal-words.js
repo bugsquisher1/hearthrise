@@ -541,6 +541,8 @@ export const REFUSAL_WORDS = Object.freeze({
   max_plot_level: 'Plot at top tier',
   still_watered: 'Still watered',
   water_capped: 'Plot fully watered',
+  /* Tend the field (1017-tend-the-field.sql): every plot is already planted and watered, nothing is ready to harvest. */
+  nothing_to_tend: 'Field already tended, nothing to do',
   crop_untiered: 'Crop can\'t grow here',
   farm_level_too_low: 'Farming level too low',
   difficulty_locked: 'Not unlocked yet',

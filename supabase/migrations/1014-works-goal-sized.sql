@@ -69,7 +69,7 @@
 -- ── §0 PRECONDITIONS AND THE PINS ────────────────────────────────────────────
 -- Each body is the 2027-03-04-town-works.sql image or this file's own (a second apply): md5 of prosrc with carriage returns removed.
 do $mig$
-declare v_md5 text; v_fn text; v_pre text; v_own text;
+declare v_md5 text; v_sig text; v_pre text; v_own text;
 begin
   if to_regclass('public.hr_town_works') is null or to_regclass('public.town_works_totals') is null or to_regclass('public.town_works_gifts') is null
      or to_regclass('public.hunt_sessions') is null or to_regclass('public.player_state') is null
@@ -78,15 +78,17 @@ begin
   if to_regprocedure('public.hr_town_works_stage(bigint[],bigint)') is null or to_regprocedure('public.hr_town_works_fault(bigint,bigint,bigint,bigint,bigint)') is null
      or to_regprocedure('public.hr_town_notice(text,text)') is null then
     raise exception 'PRECONDITION: the 2027-03-04 Works helpers are missing'; end if;
-  foreach v_fn in array array['hr_town_works_give(integer,text,bigint,uuid)|81c2e848121f75eb4efc94d54d73d27e|d550d5b6fcf9cc665902b1501368b9fd',
-                              'hr_town_works_view(integer)|ccc2c469606ed1f2eaa901774ba3b698|2fb7da948beced35e51139673e80d8a9',
-                              'hr_town_extras(text)|5266cd98e0a1b6e0fb1ee740a9a86dd6|eab081845387cf6b9cb91a307f4bace5'] loop
-    v_pre := split_part(v_fn, '|', 2); v_own := split_part(v_fn, '|', 3);
-    select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure('public.' || split_part(v_fn, '|', 1));
-    if v_md5 is null then raise exception 'PIN: % is missing', split_part(v_fn, '|', 1); end if;
+  -- one row a body: its whole signature, the 2027-03-04 image, this file's own (the loop-driven pin tests/live-hash-drift.mjs sweeps)
+  for v_sig, v_pre, v_own in values
+    ('public.hr_town_works_give(integer,text,bigint,uuid)', '81c2e848121f75eb4efc94d54d73d27e', 'd550d5b6fcf9cc665902b1501368b9fd'),
+    ('public.hr_town_works_view(integer)',                  'ccc2c469606ed1f2eaa901774ba3b698', '2fb7da948beced35e51139673e80d8a9'),
+    ('public.hr_town_extras(text)',                         '5266cd98e0a1b6e0fb1ee740a9a86dd6', 'eab081845387cf6b9cb91a307f4bace5')
+  loop
+    select md5(replace(prosrc, chr(13), '')) into v_md5 from pg_proc where oid = to_regprocedure(v_sig);
+    if v_md5 is null then raise exception 'PIN: % is missing', v_sig; end if;
     if v_md5 is distinct from v_pre and v_md5 is distinct from v_own then
       raise exception 'PIN: % is neither the 2027-03-04 image (%) nor this file''s own (%): md5 % - another file moved it; re-pin',
-        split_part(v_fn, '|', 1), v_pre, v_own, v_md5; end if;
+        v_sig, v_pre, v_own, v_md5; end if;
   end loop;
 end $mig$;
 

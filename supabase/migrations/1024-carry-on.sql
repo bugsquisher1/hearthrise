@@ -44,7 +44,8 @@
 --     (5) hunt again     hr_hunt_enter_for with the last hunt's ground (or its party's), setup and hours, each bag line the last
 --                        hunt's loaded count and at most what the bag holds now (hr_hunt_restart's rule). The door every start uses.
 --   A Blessing or the start refused rolls that hero's steps back and names it (`no`, `why`); the others still go. Answers
---   { ok, went, gold, heroes } and keeps it under the key. Refuses quote_changed, nothing_to_carry_on (no hero would go; a second press
+--   { ok, went, gold, heroes, envelopes } and keeps it under the key without `envelopes` (each touched hero's hr_state_of by slot:
+--   the client applies them with no second read, rule 11). Refuses quote_changed, nothing_to_carry_on (no hero would go; a second press
 --   after the first lands here: every hero is busy), bad_slot, bad_intent, bad_idem, rate_limited.
 -- REFUSAL CODES NEW: party_leader, nothing_to_carry_on (src/data/refusal-words.js).
 --
@@ -377,7 +378,10 @@ begin
   insert into public.player_intents (user_id, intent_id, slot, intent, result, at)
     values (v_uid, p_idem, coalesce((select min((h->>'slot')::int) from jsonb_array_elements(v_out) h), 0), c_verb, v_r, now())
     on conflict (user_id, intent_id) do nothing;
-  return v_r;
+  -- THE ENVELOPES (rule 11, tests/write-answers-state.mjs): every hero the press touched, as it left them, keyed by slot, so the client
+  -- applies each with no second read (one projection a hero either way, one round trip fewer each); the receipt carries none.
+  return v_r || jsonb_build_object('envelopes', coalesce((select jsonb_object_agg(h->>'slot', public.hr_state_of(v_uid, (h->>'slot')::int))
+    from jsonb_array_elements(v_out) h where h->>'state' in ('went', 'no')), '{}'::jsonb));
 end $fn$;
 revoke execute on function public.hr_carry_on(int[], bigint, uuid) from public, anon, service_role;
 grant  execute on function public.hr_carry_on(int[], bigint, uuid) to authenticated;
@@ -475,8 +479,13 @@ begin
       raise exception 'carry-on §4(b): the withdraws were not journalled one a hero'; end if;
     -- (c) the same key, then a new one
     delete from public.hr_rate_counters where user_id = v_u;
+    -- (b') the answer carries both heroes as the press left them (rule 11): their envelopes, each hunting
+    if jsonb_typeof(v->'envelopes'->'0'->'state') is distinct from 'object' or jsonb_typeof(v->'envelopes'->'1'->'state') is distinct from 'object'
+       or (v->'envelopes'->'0'->>'version') is null or jsonb_typeof(v->'envelopes'->'0'->'hunt') is distinct from 'object' then
+      raise exception 'carry-on §4(b): the press carried no envelope of a hero it sent: %',
+        (select string_agg(x, ',') from jsonb_object_keys(coalesce(v->'envelopes', '{}'::jsonb)) x); end if;
     v2 := public.hr_carry_on(null, 0, (k || '010')::uuid);
-    if v2 is distinct from v or (select count(*) from public.hunt_sessions where user_id = v_u) <> 4 then
+    if v2 is distinct from (v - 'envelopes') or (select count(*) from public.hunt_sessions where user_id = v_u) <> 4 then
       raise exception 'carry-on §4(c): the same key again answered % (sessions %)', v2, (select count(*) from public.hunt_sessions where user_id = v_u); end if;
     delete from public.hr_rate_counters where user_id = v_u;
     v2 := public.hr_carry_on(null, 0, (k || '011')::uuid);

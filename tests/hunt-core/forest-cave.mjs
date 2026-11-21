@@ -45,6 +45,7 @@ import { tmpdir } from 'node:os';
 import { pathToFileURL } from 'node:url';
 import { makeReport, ROOT } from './fixtures/h1.js';
 import { sourceQuery } from '../../tools/lib/version-stamp.mjs';
+import { caughtBy, missWhy } from '../_mutant-verdict.mjs';
 
 const V = sourceQuery(ROOT);
 const NEW = ['meadowbrook_thicket', 'coppercap_warrens', 'mosslight_glade', 'wickstead'];
@@ -619,7 +620,8 @@ const mutants = [
 function plant(edits) {
   const root = mkdtempSync(join(tmpdir(), 'hunt-forest-cave-'));
   /* src/shell, src/session, the two generators and _is-main: staged-until-art reads the Hunts window and the generators */
-  for (const d of ['src/core', 'src/data', 'src/world', 'src/shell', 'src/session', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs',
+  /* + src/render, src/utils, src/hunt-view: the Hunts window imports them (lane/c-hollow-proofs: four staged-until-art mutants threw Cannot find module, read as caught) */
+  for (const d of ['src/core', 'src/data', 'src/world', 'src/shell', 'src/session', 'src/render', 'src/utils', 'src/hunt-view', 'assets/world', 'supabase/functions/hr-accrue', 'tests/hunt-core/fixtures/play-ground.mjs',
     'tools/gen-hunts.mjs', 'tools/gen-hunt-sessions.mjs', 'tools/pack', 'tools/lib', 'tests/_is-main.mjs']) cpSync(join(ROOT, d), join(root, d), { recursive: true });
   cpSync(join(ROOT, 'src/build-info.js'), join(root, 'src/build-info.js'));
   for (const [file, from, to] of edits) {
@@ -651,7 +653,7 @@ for (const mu of mutants) {
     let why = null;
     const PM = await load(p.root);
     try { why = await cases[mu.case](PM); } catch (e) { why = 'threw ' + e.message; }
-    R.ok(!!why, 'mutant "' + mu.name + '" was NOT caught by ' + mu.case);
+    R.ok(caughtBy(why), 'mutant "' + mu.name + '" was NOT caught by ' + mu.case + missWhy(why));
   } finally { p.done(); }
 }
 if (!R.fails.length) console.log('  ' + Object.keys(cases).length + ' cases, ' + mutants.length + ' mutants caught');

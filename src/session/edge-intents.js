@@ -11,7 +11,8 @@
 //   sheet             {}                                               compute the character sheet
 //   unlock_buy        { offer }                                        a house tier or room rung (the
 //                                                                      server prices, gates and debits it)
-//   set_activity      { activity: { kind: 'gather' | 'artisan', id, count? } | { kind: 'idle' } }  (count: a bench's "make N")
+//   set_activity      { activity: { kind: 'gather' | 'artisan', id, count?, next? } | { kind: 'idle' } }  (count: the job's "make N",
+//                                                                      a gathering job's always; next: its THEN, wait | hunt)
 //                                                                      start a gathering node or a bench
 //                                                                      recipe (town-work.js) / stop; the
 //                                                                      engine collects before it switches
@@ -32,6 +33,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import { refusalOf } from './refusal.js';
+import { JOB_NEXT_INDEX } from '../data/hunt-after.js';
 
 export const EDGE_INTENTS = Object.freeze({
   equip: Object.freeze(['equip']),
@@ -138,9 +140,13 @@ const FIELD = Object.freeze({
     if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
     if (v.kind === 'idle' && (v.id === undefined || v.id === null)) return { kind: 'idle' };
     if (!((v.kind === 'artisan' || v.kind === 'gather') && typeof v.id === 'string' && ID.test(v.id))) return null;
-    /* "Make N" (2026-12-01-bench-count.sql): a bench run may carry a whole count 1..100000; the server stops there. */
-    if (v.count === undefined || v.count === null) return { kind: v.kind, id: v.id };
-    return v.kind === 'artisan' && Number.isInteger(v.count) && v.count >= 1 && v.count <= 100000 ? { kind: v.kind, id: v.id, count: v.count } : null;
+    /* "Make N" (2026-12-01-bench-count.sql): a job may carry a whole count 1..100000, a gathering job always (1009-job-counts.sql);
+       the server stops there. Beside a count, `next`: what the hero does then (src/data/hunt-after.js JOB_NEXTS ids). */
+    if (v.count === undefined || v.count === null) return v.kind === 'gather' || v.next !== undefined ? null : { kind: v.kind, id: v.id };
+    if (!(Number.isInteger(v.count) && v.count >= 1 && v.count <= 100000)) return null;
+    if (v.next === undefined) return { kind: v.kind, id: v.id, count: v.count };
+    return typeof v.next === 'string' && Object.prototype.hasOwnProperty.call(JOB_NEXT_INDEX, v.next)
+      ? { kind: v.kind, id: v.id, count: v.count, next: v.next } : null;
   },
 });
 

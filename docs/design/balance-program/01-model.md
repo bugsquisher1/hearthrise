@@ -45,25 +45,29 @@ What a dive may not do: add a multiply lever without naming which existing one i
 
 Seven accounts, re-based on `10-real-players.md`. The headline of that file changes who the game is balanced for: **the real player is one person running four of their own heroes as a Deadly party from about Level 10** (91% of real hunt hours are in a party, and not one hour was with another person). The lone hero on Normal, which the first audit and the pace table are built on, is 9% of real hours, nearly all under Level 16, and it is where players die and where the two lightest players quit. So both are modelled, and the own four carries the most weight.
 
-| Player | Weight | Heroes | Seat | Hunt h a hero a day | Town h a hero a day | Attended min a day | Supplies | Spends | Who this is | Label |
-|---|---|---|---|---|---|---|---|---|---|---|
-| **New** | high | 1 | lone, Normal | 2 | 2 | 10 | all store | 10% | Levels 1 to 15, alone. Dies 8.9 times in 100 hours. Both real ones stopped at Level 7 to 9: one never met the town, one never came back from it | REAL, thin |
-| **Own four** | highest | 4 | own Deadly four | 3.3 | 5 | 10 | a third own | 17% | Two visits a day of under four minutes, away eleven hours. Holds 2.09M gold with nothing it wants to buy | REAL |
-| **Heavy four** | high | 4 | own Deadly four | 8.4 | 6 | 35 | a third own | 97% | Six visits a day, refills. Level 75 in 100 to 119 hunted hours a hero. Buys Tempering, rooms and refills as fast as it earns | REAL, thin |
-| **Premium own four** | medium | 4 | own Deadly four | 3.3 | 5 | 10 | a third own | 17% | The Own four with Premium on each hero | ASSUMED |
-| **Ceiling** | guard | 4 | own Deadly four | 24 | 0 | 120 | own | 100% | Nobody yet: every hour the rules allow. What a server of 1,000 will contain | ASSUMED |
-| **Buyer** | guard | 4 | own Deadly four | 8.4 | 0 | 35 | market | 100% | The Heavy four who sells Crowns for gold. Gold is no limit | ASSUMED |
-| **Four friends** | promise | 1 each, 4 accounts | a four of people | 3.3 | 3 | 30 | a third own | 50% | The party the game is sold on. Zero real hours so far | ASSUMED |
+| Player | Weight | Heroes | Seat | Hunt h a hero a day (RULED) | Really hunted (a record, never counted) | Town h a hero a day | Attended min a day | Supplies | Spends | Who this is | Label |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| **New** | high | 1 | lone, Normal | 12 | 2 | 2 | 10 | all store | 10% | Levels 1 to 15, alone. Dies 8.9 times in 100 hours. Both real ones stopped at Level 7 to 9: one never met the town, one never came back from it | REAL, thin |
+| **Own four** | highest | 4 | own Deadly four | 12 | 3.3 | 5 | 10 | a third own | 17% | Two visits a day of under four minutes, away eleven hours. Holds 2.09M gold with nothing it wants to buy | REAL |
+| **Heavy four** | high | 4 | own Deadly four | 12 | 8.4 (on 1.4 refills) | 6 | 35 | a third own | 97% | Six visits a day. Level 75 in 100 to 119 hunted hours a hero. Buys Tempering, rooms and refills as fast as it earns | REAL, thin |
+| **Premium own four** | medium | 4 | own Deadly four | 12 | none | 5 | 10 | a third own | 17% | The Own four with Premium on each hero: one start a day where the free four needs two | ASSUMED |
+| **Ceiling** | guard | 4 | own Deadly four | 24 | none | 0 | 120 | own | 100% | Nobody yet: every hour the rules allow. What a server of 1,000 will contain | ASSUMED |
+| **Buyer** | guard | 4 | own Deadly four | 12 | none | 0 | 35 | market | 100% | The Heavy four who sells Crowns for gold. Gold is no limit | ASSUMED |
+| **Four friends** | promise | 1 each, 4 accounts | a four of people | 12 | none | 3 | 30 | a third own | 50% | The party the game is sold on. Zero real hours so far | ASSUMED |
+
+**Every player hunts 12 hours a hero a day (Tyler, 2026-11-21, verbatim: "you should always be assuming that every person is going to hunt 12 hours a day since it's an idle game.").** This replaces the real median (3.1 to 3.5 hours) for every number counted in days or weeks. An own four is 48 hero-hours a day and 336 a week. Real-player data still calibrates the RATES (XP, gold, drops and deaths an hour) and nothing else. The Ceiling stays at 24 as the guard row. Home: `tools/balance-program/model.mjs` `HUNT_HOURS_A_DAY`.
+
+**12 hours needs no refill.** Stamina drains 1:1 hunting and rests 1:1 in town, so a hero that hunts every hour its bar allows hunts exactly half the day whatever its cap. The cap sets how often the player must start a hunt. The free 8 hour bar needs two starts a day about 12 hours apart (hunt 8, rest 4, hunt 4, rest 8). Premium's 12 hour bar needs one. A free hero started once a day hunts 8 hours, and one refill takes it to 12. Each refill adds 2 hunted hours a day (4 hunted, 4 of rest lost), which is why six make the Ceiling's 24.
 
 Three things the real rows say before any dive starts:
 
-- **Stamina does not bind.** Real heroes hunt 3.1 to 3.5 hours a day against an 8 hour bar. The 12 hour Premium bar gives the real player nothing, and the pace table's 12 hours a day describes nobody. Hours a day are set by attention (how often the player comes back), not by the bar.
-- **Attention is the scarce ledger.** The Own four gets 116 hunted hero-hours for each hour at the screen. Anything that asks for a press per hero, per hunt or per item is paid four times by the player who matters most.
+- **Stamina binds at exactly 12 hours.** Real heroes hunted 3.1 to 3.5 hours a day against an 8 hour bar, because hours were set by attention (how often the player came back). The model no longer counts that: it counts 12, the most a hero hunts with no refill, and the pace table's 12 hours a day is now the reference. What Premium's bar buys at 12 hours is one visit a day, not hours.
+- **Attention is the scarce ledger.** The real Own four got 116 hunted hero-hours for each hour at the screen (at 12 hours a day and the same 10 minutes it is 288). Anything that asks for a press per hero, per hunt or per item is paid four times by the player who matters most.
 - **There are two spenders.** One spends 97% of what it earns and one 17%. A sink is sized against both: `measure.mjs price` prints days to earn a price and days at the account's spending share.
 
 Every dive answers for each player: what does this system give it in a week, what does it cost in REF hours of gold, in hero town hours and in attended minutes, and does the Buyer get anything from it that the Heavy four cannot earn. That last answer is the pay-to-win line: bought gold may make it sooner, never make it possible.
 
-**Server age.** Day 1 (no market stock, nobody above Level 15, empty boards, no clans). Month 1 (the Heavy four is past Krell: it reached Level 75 in about 14 days; the Own four is near 50; tiers 1 to 5 fill the Shop's sell side). Month 6 (a New player arrives beside veterans: old gear is cheap, nobody is in the low grounds, the top of every board is out of reach, clans are full).
+**Server age.** Day 1 (no market stock, nobody above Level 15, empty boards, no clans). Month 1 (every four that plays the ruled 12 hours is past Krell: the real Heavy four reached Level 75 in 100 to 119 hunted hours a hero, which is 9 to 10 days at 12 hours; tiers 1 to 5 fill the Shop's sell side). Month 6 (a New player arrives beside veterans: old gear is cheap, nobody is in the low grounds, the top of every board is out of reach, clans are full).
 
 **Population.** 10 online (today, and every quiet hour of a small server), 1,000 (the Early Access target, about 4,000 hunting heroes), 10,000 (the north star). At 10 online nothing social or traded has ever been used by a real player (10-real-players section 6), so those systems are judged as designs.
 
@@ -136,7 +140,7 @@ What the table and the real baseline already say, for the dives that own it (non
 - **Economy:** gold in is nearly flat from Level 80 on (24.0k, 22.0k, 17.2k, 19.4k an hour for the lone hammer) while every price rises. Three sinks are 80% of real gold out, and two of them rest on one or two people; one real account sits on 2.09M having spent 17%.
 - **Items:** 86% of dropped gear is sold and 0.9% is ever worn; about 440 pieces were crafted against 34,756 dropped. What players craft is supplies: home-made stock is a third of all supplies used, and it is the difference between the harness four's loss and the real four's +9k an hour.
 - **Combat and items:** the lone hammer's damage taken grows 60 times from Level 10 to 175 while its HP grows about 7 times. Low HP falls to 36%. This is the to-hit curve of audit section 3d seen in play.
-- **A price means nothing until a dive says whose.** The Castle's 2.5M at Level 105 is 119 lone REF hours. A 600,000 fee at Level 80 is 5 days of gold for the Own four and 30 days at the share it actually spends; 2 days for the Heavy four. A 150,000 Hallmark fee at Level 50 is 13 lone REF hours, 7 days for the New player, and has never been paid by anyone.
+- **A price means nothing until a dive says whose.** The Castle's 2.5M at Level 105 is 119 lone REF hours. A 600,000 fee at Level 80 is 1.4 days of gold for the Own four at 12 hours a day and 8 days at the share it actually spends (5 and 30 at the real 3.3 hours). A 150,000 Hallmark fee at Level 50 is 13 lone REF hours, 1.1 days for the New player (7 at its real 2 hours), and has never been paid by anyone.
 
 ## 6. The harness: exactly what a dive runs
 

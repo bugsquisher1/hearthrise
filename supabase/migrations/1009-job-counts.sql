@@ -8,8 +8,8 @@
 -- EDGE: hr-accrue moves with it (accrue-gather.js counts a gathering job down and ends it; accrue-artisan.js and
 --   accrue-gather.js state what an ended job left; set-activity.js + request.js take `next` (the THEN) and require a gathering count;
 --   tick-shadow.js carries the count between polls). Either half alone is safe: an old edge sends no `next` and no gathering
---   count (jobs run as today); a new edge on the old database is refused `bad_activity` on a gathering start (no job starts,
---   nothing is lost) until this file lands, so the apply precedes the deploy.
+--   count (jobs run as today); a new edge on the old database sends neither until this file's `bench_run` section names
+--   `count` (set-activity.js, the self-configuring switch: a gathering job runs uncounted, as today). Apply, then deploy.
 -- RESTATEMENT-DEBT-ACK: hr_apply (the economy's single write path, 158k chars, 14 splices deep since
 --   2026-10-27-core-bodies.sql) takes FOUR anchored edits in §2, each matched exactly once, marked JOB-COUNTS; a whole
 --   restatement would overwrite any hr_apply splice a lane in flight lands first. The restatement is its own lane.

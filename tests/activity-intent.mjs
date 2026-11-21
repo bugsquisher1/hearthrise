@@ -102,6 +102,8 @@ const EXTRA = [
   ['tool-carry', MIG('2026-08-15-tool-carry.sql')],
   /* Inner Flame replaced Prayer (2027-01-31): the slice's catalogue under today's names (A3d); see the file. */
   ['inner-flame-slice-shim', join(ROOT, 'tests', 'fixtures', 'inner-flame-slice-shim.sql')],
+  /* every gathering job carries a count since 1009-job-counts.sql: the slice READS the key (and `next`); see the file. */
+  ['job-counts-slice-shim', join(ROOT, 'tests', 'fixtures', 'job-counts-slice-shim.sql')],
 ];
 
 /* ── THE MUTATION CATALOGUE ─────────────────────────────────────────────────
@@ -628,7 +630,7 @@ async function run(mutate) {
 
   // ── A1. NO CHARACTER ─────────────────────────────────────────────────────
   {
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
     ok(r.status === 409 && r.body.error === 'no_character',
       `A1: an empty slot returned ${r.status} ${JSON.stringify(r.body)}`);
   }
@@ -647,7 +649,7 @@ async function run(mutate) {
   let v2;
   {
     const before = await state(db, UID);
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
     ok(r.status === 200 && r.body.ok === true, `A2: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
     const st = await state(db, UID);
     ok(st.active_kind === 'gather' && st.active_id === 'normal_tree',
@@ -711,7 +713,7 @@ async function run(mutate) {
     const beforeXp = await skillXp(db, UID, 'attack');
     const beforeLedger = (await ledger(db, UID)).length;
 
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
     ok(r.status === 200 && r.body.ok === true,
       `A3: a switch away from a session-less combat pointer was refused ${r.status} `
       + `${JSON.stringify(r.body).slice(0, 300)} — hunt_required must be SAFE, or the character is frozen`);
@@ -760,7 +762,7 @@ async function run(mutate) {
       'A3b-CONTROL: player_state has no tool_carry column in this chain, so the carry half of this '
       + 'test would be vacuous — 2026-08-15-tool-carry.sql is missing from EXTRA');
 
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'oak_tree' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'oak_tree', count: 100000 } });
     ok(r.status === 200 && r.body.ok === true,
       `A3b: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
     ok(r.body.collected,
@@ -810,7 +812,7 @@ async function run(mutate) {
        local level must buy nothing, including the right to start a level-60
        node. This is also the control that A3b's success above was a real gate
        being satisfied and not an absent one. */
-    const locked = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'yew_tree' } });
+    const locked = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'yew_tree', count: 100000 } });
     ok(locked.body.ok !== true && locked.body.error === 'activity_locked',
       `A3b GATE: a woodcutting-16 character was allowed to start Yew (req 60): `
       + `${JSON.stringify(locked.body).slice(0, 200)}`);
@@ -820,7 +822,7 @@ async function run(mutate) {
 
     /* A node id that is not in the catalogue is refused BY NAME, one round trip
        earlier than hr_apply would, and without spending a collect. */
-    const bogus = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_tree' } });
+    const bogus = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_tree', count: 100000 } });
     ok(bogus.status === 409 && bogus.body.error === 'unknown_activity',
       `A3b: an unknown gathering node returned ${bogus.status} ${JSON.stringify(bogus.body).slice(0, 160)}`);
   }
@@ -881,7 +883,7 @@ async function run(mutate) {
     const beforeXp = await skillXp(db, UID, 'smithing');
     const beforeLedger = (await ledger(db, UID)).length;
 
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
     ok(r.status === 200 && r.body.ok === true,
       `A3c: ${r.status} ${JSON.stringify(r.body).slice(0, 300)}`);
     ok(r.body.collected,
@@ -1175,7 +1177,7 @@ async function run(mutate) {
     if (stuckIsUnpriceable) {
       /* (i) THE LOCKOUT IS REAL — anything that is NOT a stop still refuses.
          Without this the forfeit below could be "the pointer was never stuck". */
-      const sideways = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
+      const sideways = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
       ok(sideways.status === 409 && sideways.body.error === 'uncollectable_window',
         `A3d(i): switching off an unpriceable pointer returned ${sideways.status} `
         + `${JSON.stringify(sideways.body).slice(0, 200)} — expected 409 uncollectable_window. If this `
@@ -1261,12 +1263,12 @@ async function run(mutate) {
   // ── A4. A REPLAYED INTENT APPLIES NOTHING ────────────────────────────────
   {
     const key = uuid();
-    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock' } });
+    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
     ok(first.body.ok === true, `A4: the first call failed: ${JSON.stringify(first.body).slice(0, 200)}`);
     const mid = await state(db, UID);
     const midLedger = (await ledger(db, UID)).length;
 
-    const again = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock' } });
+    const again = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
     ok(again.body.ok === true, `A4: the replay was not ok:true: ${JSON.stringify(again.body).slice(0, 200)}`);
     ok(again.body.replayed === true, 'A4: the replay was not reported as a replay');
     const after = await state(db, UID);
@@ -1283,11 +1285,11 @@ async function run(mutate) {
   // answers replayed:true and silently leaves the player on the old monster.
   {
     const key = uuid();
-    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'shrimp_s' } });
+    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'shrimp_s', count: 100000 } });
     ok(first.body.ok === true, `A5: the control call failed: ${JSON.stringify(first.body).slice(0, 200)}`);
     const mid = await state(db, UID);
 
-    const clash = await call({ intentId: key, activity: { kind: 'gather', id: 'normal_tree' } });
+    const clash = await call({ intentId: key, activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
     ok(clash.body.ok === false && clash.body.error === 'intent_mismatch',
       `A5: reusing one key for a different target returned ${JSON.stringify(clash.body).slice(0, 200)} `
       + '— expected intent_mismatch. A silent replay here leaves the player fighting the wrong monster.');
@@ -1315,7 +1317,7 @@ async function run(mutate) {
     });
     const r = await sa.runSetActivity({
       exec: racingExec, user: UID, slot: 0, intentId: uuid(),
-      activity: { kind: 'gather', id: 'normal_tree' },
+      activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
     });
     ok(bumped, 'A6-CONTROL: the injector never fired — no hr_apply statement was seen, so A6 proves nothing');
     ok(r.body.ok === false && r.body.error === 'version_conflict',
@@ -1348,7 +1350,7 @@ async function run(mutate) {
     });
     const r = await sa.runSetActivity({
       exec: brokenExec, user: UID, slot: 0, intentId: uuid(),
-      activity: { kind: 'gather', id: 'copper_rock' },
+      activity: { kind: 'gather', id: 'copper_rock', count: 100000 },
     });
     ok(sawCollect, 'A7-CONTROL: no collect apply was attempted, so the injection proves nothing');
     ok(r.body.ok === false && r.body.stage === 'collect' && r.body.error === 'daily_budget',
@@ -1362,7 +1364,7 @@ async function run(mutate) {
 
     // CONTROL: the identical call WITHOUT the injection succeeds, so A7 is not
     // measuring a call that was broken for some other reason.
-    const good = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
+    const good = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
     ok(good.body.ok === true, `A7-CONTROL: the uninjected call also failed: ${JSON.stringify(good.body).slice(0, 200)}`);
   }
 
@@ -1376,7 +1378,7 @@ async function run(mutate) {
               active_kind = 'gather', active_id = 'normal_tree'
         where user_id = $1 and slot = 0`, [UID]);
     const before = await state(db, UID);
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
     ok(r.body.ok === false && r.body.error === 'uncollectable_window',
       `A8: returned ${JSON.stringify(r.body).slice(0, 250)} — expected uncollectable_window`);
     ok(r.body.detail && r.body.detail.reason === 'no_active_since',
@@ -1387,7 +1389,7 @@ async function run(mutate) {
     // Repair, and CONTROL that the same call then works.
     await db.query(
       'update public.player_state set active_since = accrued_to where user_id = $1 and slot = 0', [UID]);
-    const good = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
+    const good = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
     ok(good.body.ok === true, `A8-CONTROL: after repair the call still failed: ${JSON.stringify(good.body).slice(0, 200)}`);
   }
 
@@ -1407,7 +1409,7 @@ async function run(mutate) {
 
   // ── A10. THE CLIENT AUTHORS NOTHING ──────────────────────────────────────
   {
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_node' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'not_a_node', count: 100000 } });
     ok(r.body.ok === false && r.body.error === 'unknown_activity',
       `A10: a forged activity id returned ${JSON.stringify(r.body).slice(0, 200)}`);
 
@@ -1416,7 +1418,7 @@ async function run(mutate) {
     const n0 = Number((await db.query(
       'select count(*) as n from public.hr_rate_counters where user_id = $1', [UID2])).rows[0].n);
     const r2 = await sa.runSetActivity({
-      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'gather', id: 'normal_tree' },
+      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
     });
     ok(r2.status === 400 && r2.body.error === 'missing_intent_id',
       `A10: a keyless intent returned ${JSON.stringify(r2.body)}`);
@@ -1432,7 +1434,7 @@ async function run(mutate) {
     await db.query('delete from public.hr_rate_counters where user_id = $1', [UID]);
     let limited = 0; let allowed = 0;
     for (let i = 0; i < 40; i++) {
-      const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree' } });
+      const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
       if (r.status === 429) limited++; else allowed++;
     }
     ok(limited > 0, `A11: 40 calls in a minute produced ${limited} refusals — the gate is not applied`);
@@ -1481,7 +1483,7 @@ async function run(mutate) {
     // The legal values survive, so none of the above is "always null".
     const good = req.parseIntent({
       slot: 3, verb: 'set_activity', intentId: '11111111-2222-4333-8444-555555555555',
-      activity: { kind: 'gather', id: 'normal_tree' },
+      activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
     });
     ok(good.slot === 3 && good.verb === 'set_activity'
       && good.intentId === '11111111-2222-4333-8444-555555555555'
@@ -1661,14 +1663,14 @@ async function run(mutate) {
     const fired = { hit: false };
     const r1 = await sa.runSetActivity({
       exec: conflictingExec(fired), user: UID, slot: 0, intentId: key,
-      activity: { kind: 'gather', id: 'copper_rock' },
+      activity: { kind: 'gather', id: 'copper_rock', count: 100000 },
     });
     ok(fired.hit, 'A15-CONTROL: the injector never fired — no hr_apply was seen, so A15 proves nothing');
     ok(r1.body.ok === false && r1.body.error === 'version_conflict' && r1.body.stage === 'switch',
       `A15-CONTROL: expected a version_conflict at the switch, got ${JSON.stringify(r1.body).slice(0, 200)}`);
 
     // (b) THE RETRY. Same key, correct version, nothing injected.
-    const r2 = await call({ intentId: key, activity: { kind: 'gather', id: 'copper_rock' } });
+    const r2 = await call({ intentId: key, activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
     ok(r2.body.ok === true,
       `A15: THE REJECTED KEY IS STILL POISONED — retrying it at the CORRECT version returned `
       + `${JSON.stringify(r2.body).slice(0, 200)}. A version conflict is a statement about the `
@@ -1896,7 +1898,7 @@ async function run(mutate) {
           set accrued_to = now() - interval '4 hours', active_since = null,
               active_kind = 'gather', active_id = 'normal_tree'
         where user_id = $1 and slot = 0`, [UID]);
-    const c = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock' } });
+    const c = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'copper_rock', count: 100000 } });
     ok(c.body.error === 'uncollectable_window' && c.body.stage === 'collect',
       `A18-CONTROL: expected a stage:collect refusal, got ${JSON.stringify(c.body).slice(0, 200)}`);
     ok(hasEnvelope(c.body),
@@ -1919,7 +1921,7 @@ async function run(mutate) {
     const fired = { hit: false };
     const s = await sa.runSetActivity({
       exec: conflictingExec(fired), user: UID, slot: 0, intentId: uuid(),
-      activity: { kind: 'gather', id: 'copper_rock' },
+      activity: { kind: 'gather', id: 'copper_rock', count: 100000 },
     });
     ok(fired.hit && s.body.stage === 'switch' && s.body.error === 'version_conflict',
       `A18-CONTROL: expected a stage:switch version_conflict, got ${JSON.stringify(s.body).slice(0, 200)}`);
@@ -1933,14 +1935,14 @@ async function run(mutate) {
 
     // (3) THE DOCUMENTED EXCEPTIONS, and they are exceptions on purpose.
     const keyless = await sa.runSetActivity({
-      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'gather', id: 'normal_tree' },
+      exec, user: UID2, slot: 0, intentId: null, activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
     });
     ok(keyless.body.error === 'missing_intent_id' && !hasEnvelope(keyless.body),
       'A18: a SHAPE refusal carried an envelope — reading one is the database work the shape check '
       + 'exists to avoid, and it would let a malformed client spend a real player\'s rate budget');
     without.push('missing_intent_id');
     const noChar = await sa.runSetActivity({
-      exec, user: UID2, slot: 4, intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree' },
+      exec, user: UID2, slot: 4, intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 },
     });
     ok(noChar.body.error === 'no_character' && !hasEnvelope(noChar.body),
       'A18: no_character carried an envelope — hr_state_of itself said there is no state');
@@ -1992,7 +1994,7 @@ async function run(mutate) {
     await db.query(
       `update public.player_state set accrued_to = now(), active_since = now()
         where user_id = $1 and slot = 0`, [UID]);
-    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree' } });
+    const r = await call({ intentId: uuid(), activity: { kind: 'gather', id: 'normal_tree', count: 100000 } });
     ok(r.body.ok === true || r.status === 429,
       `A19-CONTROL: the probe call failed for an unrelated reason: ${JSON.stringify(r.body).slice(0, 200)}`);
     const spent = (await db.query(
@@ -2074,14 +2076,14 @@ async function run(mutate) {
           set accrued_to = now(), active_since = now(), active_kind = 'gather', active_id = 'normal_tree'
         where user_id = $1 and slot = 0`, [UID]);
     const key = uuid();
-    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock' } });
+    const first = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
     ok(first.body.ok === true && first.body.activity && first.body.activity.id === 'essence_rock',
       `A20-CONTROL: the first switch did not report essence_rock: ${JSON.stringify(first.body.activity)}`);
     // A concurrent writer moves the pointer. The harness plays that part, which
     // is a privilege the engine does not have and must not be given.
     await db.query(
       "update public.player_state set active_id = 'shrimp_s' where user_id = $1 and slot = 0", [UID]);
-    const replay = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock' } });
+    const replay = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
     ok(replay.body.replayed === true, 'A20-CONTROL: the second call was not a replay');
     ok(replay.body.activity && replay.body.activity.id === 'shrimp_s',
       `A20: the response reported activity '${replay.body.activity && replay.body.activity.id}' — the `
@@ -2102,7 +2104,7 @@ async function run(mutate) {
       "select coalesce(sum(qty), 0)::int as n from public.player_inventory where user_id = $1 and slot = 0 and item_id = 'normal_log'",
       [UID])).rows[0].n);
     const logsBefore = await logsOf();
-    const again = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock' } });
+    const again = await call({ intentId: key, activity: { kind: 'gather', id: 'essence_rock', count: 100000 } });
     const logsAfter = await logsOf();
     ok(again.body.replayed === true,
       `A20-CONTROL: the switch was not a replay (${JSON.stringify(again.body).slice(0, 200)}) — the `

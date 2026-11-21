@@ -482,7 +482,12 @@ export async function runSetActivity(o) {
   /* (3) THE SWITCH. The version is the one the COLLECT left behind, because a
          collect that paid has already bumped it. */
   const version = gate.version ?? env.version;
-  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id }, decl.count, decl.next);
+  /* A JOB'S COUNT AND "THEN" REACH ONLY A DATABASE THAT STORES THEM (the self-configuring switch: 1009-job-counts.sql's
+     `bench_run` section names `count`). Before that file a bench keeps its "make N" and a gathering job runs uncounted,
+     as it did, so the edge and the migration are safe in either order; production applies the file first. */
+  const counts = !!env.bench_run && Object.prototype.hasOwnProperty.call(env.bench_run, 'count');
+  const delta = activityDelta(decl.kind, decl.id, { kind: st.active_kind, id: st.active_id },
+    counts || decl.kind === 'artisan' ? decl.count : undefined, counts ? decl.next : undefined);
   const [applied] = await exec(APPLY_SQL, [user, slot, version, intentId, JSON.stringify(delta)]);
   const res = applied && applied.res;
 

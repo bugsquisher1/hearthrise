@@ -209,7 +209,7 @@ async function arm(id, u, kind, target, { microClock }) {
 
   // (2) THE RE-POINT, through the shipped intent, as hr_engine.
   const r = await runSetActivity({
-    exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind, id: target },
+    exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind, id: target, ...(kind === 'gather' ? { count: 100000 } : {}) },   // a gathering job always takes a count (1009-job-counts.sql)
   });
   if (r.status !== 200) { bad(`${id}-repoint`, `set_activity answered ${r.status} ${JSON.stringify(r.body)}`); return; }
   const st = await one(`select accrued_to = active_since as same, active_id from public.player_state
@@ -291,7 +291,7 @@ await arm('R-G', U(2), 'gather', 'oak_tree', { microClock: true });
   const u = U(3);
   await db.exec("update public.hr_tick_config set channels = array['combat','gather']::text[], armed_channels = array['gather']::text[] where id;");
   await seed(u, 'gather');
-  const r = await runSetActivity({ exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind: 'gather', id: 'oak_tree' } });
+  const r = await runSetActivity({ exec, user: u, slot: 0, intentId: crypto.randomUUID(), activity: { kind: 'gather', id: 'oak_tree', count: 100000 } });
   if (r.status !== 200) bad('R-A', `set_activity answered ${r.status} ${JSON.stringify(r.body)}`);
   else {
     const iv = `interval '${SUB_MS} microseconds'`;

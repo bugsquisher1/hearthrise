@@ -156,8 +156,12 @@
       "replaces": "",
       "money": false,
       "depends": "Everything in this file reads it. GR-69 (the live finder goes), MM-12 (no live opponents), GR-82 (the Hearth passes it).",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Picked as recommended at 08:37 UTC."
+      "status": "PROVISIONAL",
+      "tyler": "He picked the recommendation on the page that morning.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "a playtest that shows whether players ask for what was removed",
+      "firstBuild": "in the first build: the rule"
     },
     {
       "id": "MM-2",
@@ -168,7 +172,10 @@
       "evidence": "COMPUTED for cost (one fold a minute, about 4,300 runs a weekend, chapter 06 section 2.3). HYPOTHESIS for fun. Playtest A (a posted server-wide kill goal for one weekend) and check D (1,000 synthetic rooms under 0.1 database-seconds an account-day) overturn it.",
       "replaces": "Builds the 2026-10-22 ruling (world events get a deliberate redesign). Changes none.",
       "money": false,
-      "depends": "GR-28 and GR-30 (the boss door and the boss formula, world decider). GR-9 (scaling to a party Level). Chapter 09 owns the measured cost."
+      "depends": "GR-28 and GR-30 (the boss door and the boss formula, world decider). GR-9 (scaling to a party Level). Chapter 09 owns the measured cost.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "firstBuild": "in the first build: one sample boss"
     },
     {
       "id": "MM-3",
@@ -179,7 +186,10 @@
       "evidence": "Follows from MM-1. HYPOTHESIS on the length. The playtest read \"hours for the boss to fall, 36 to 60\" overturns it.",
       "replaces": "",
       "money": false,
-      "depends": "MM-4 sizes the pool to this window."
+      "depends": "MM-4 sizes the pool to this window.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "firstBuild": "in the first build: one sample boss"
     },
     {
       "id": "MM-4",
@@ -193,7 +203,10 @@
       "depends": "MM-6 (the fall is what pays the buff). Reliability engineer for the alarm when a pool misses twice. Two new knob rows for the balance tools lane.",
       "was": "Take the recommended formula and add the rule chapter 06 said was missing. pool = max(bossPoolFloor, bossPoolPerAccount x weekly active accounts). When the window ends the boss leaves whether it fell or not. After each boss the server re-sizes bossPoolPerAccount from what that weekend really earned, aimed at a fall at hour 48, moved at most a quarter each time.",
       "fixedBy": "review-23",
-      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it."
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "firstBuild": "in the first build: one sample boss"
     },
     {
       "id": "MM-5",
@@ -207,7 +220,10 @@
       "depends": "GR-27 (the one tier table), GR-30 (boss formula), GR-3 (Deadly sizing). All core and world deciders. Best gear earns about 15% more points, which is the ruled gear size and is intended.",
       "was": "Scaled room, yes. But points are not minutes survived. Points = boss bars broken in your room x the tier multiplier from the one tier table. A bar is the scaled boss health for your party Level. When the bar empties it refills and the phases run again (adds at half, enrage at a quarter). A Level 20 four and a Level 300 four earn the same points for the same quality of fight.",
       "fixedBy": "review-12",
-      "hypothesis": "HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75."
+      "hypothesis": "HYPOTHESIS until the hall grader plays it at Levels 25, 52 and 75.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "firstBuild": "in the first build: one sample boss"
     },
     {
       "id": "MM-6",
@@ -222,7 +238,10 @@
       "was": "Take the recommended pay with one change so the shared pool matters. The chest is by your own points at three marks (about 2, 8 and 20 Normal party-hours). The boss line is four unique pieces, one a style, dropped at the earner's band, on the same budget as the band's best piece with part of it spent on one property. So it is a sidegrade to the band's best, never a tier above it. The material trades. Level XP is about a Normal hunt. No coin. NEW: the 7 day buff (+5% damage dealt) and one extra roll on the boss line are paid only if the server fells the boss, to everyone past the first mark.",
       "fixedBy": "review-9, review-23",
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
-      "fixNote": "The row added \"one extra roll on the boss line\", which could be a second piece against CE-1's cap of one. Nothing said what a late visitor earns once the boss has fallen."
+      "fixNote": "The row added \"one extra roll on the boss line\", which could be a second piece against CE-1's cap of one. Nothing said what a late visitor earns once the boss has fallen.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the hall check at three Levels and one boss stood",
+      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest"
     },
     {
       "id": "MM-7",
@@ -236,7 +255,10 @@
       "depends": "CORE AND PROGRESSION DECIDER: this stands only if GR-7 (the Blessing ladder past the third) is decided yes. If GR-7 is refused, bring MM-7 back, because a Level 300 hero would risk about 26 hours for a chest roll. GR-66 (the risk reading on the card).",
       "was": "Yes, the normal death and nothing else, decided together with GR-7. Four conditions go with it. One death a send at most, because a death ends the fight and nothing restarts by itself. Carry on never sends a hero into a boss room. Keep me blessed covers boss sends. The boss card shows deaths per 100 hours for the tier and what one death costs this hero before the send, and the first send defaults to Normal.",
       "fixedBy": "review-5, review-12",
-      "fixNote": "Decided twice with slightly different conditions. Merged into one row."
+      "fixNote": "Decided twice with slightly different conditions. Merged into one row.",
+      "status": "PROVISIONAL",
+      "waitsOn": "a real death rate, and Tyler's answer on the hunting hours a death costs an idle party",
+      "firstBuild": "in the first build: one sample boss"
     },
     {
       "id": "MM-8",
@@ -249,12 +271,15 @@
       "money": false,
       "depends": "MM-9, MM-25, MM-44 (the standing gift). Economy decider sizes clanWeeklyShare on the wage curve (GR-51). Security scope: gifts and the share are shared writes.",
       "was": "Yes. A member holds the clan's room buffs in any week their account gave the week's share. Roster size pays nothing. Ranks are leader, officer, member, with no votes. A leader away 14 days passes it on. When the clan finishes its weekly goal every member who gave gets +5% drop chance for 7 days. A clan never fills a party seat.",
-      "fixedBy": "review-3"
+      "fixedBy": "review-3",
+      "status": "PROVISIONAL",
+      "waitsOn": "clans existing with people in them",
+      "firstBuild": "in the first build: the roster, the clan chat tab and the browser only"
     },
     {
       "id": "MM-9",
       "call": "The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps.",
-      "decision": "One project at a time on the town project engine. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five, and the castle is open at any roster size. A stage can never finish in under a week. KEPT (Tyler, 2026-11-21): the castle's five buildings of ten levels, labor, votes, upkeep, the treasury and Clan Standing all stay, fitted to that price. Buildings: the War room (damage dealt up to +5%), the Ward (a Defense rating row worth up to about 5% less damage an hour), the Workshop (town work speed up to +10%), the Kitchen (the clan's weekly ration cap) and a fifth building held for T-fix-4. Each has ten levels and reaches its cap at level ten. Labor: a member's heroes can give rested town hours to the project as a closed-form town job, valued on the wage curve, so a stage's price is paid in gold, castle goods or labor. Treasury: members' weekly shares and gifts go into it, nothing ever comes back out (25-5), and it pays in a fixed order, upkeep first and then the open project. Upkeep: a weekly bill for each member with the same floor of five. The member's weekly share is what pays it, so there is one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid and nothing is lost. Votes: each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted. Clan Standing: a lifetime tally of what each account gave in gold, goods and labor. It shows on the roster and the plaque and pays no power. Fifty stages at 1 to 1.3 weeks is about a year for a full castle. Whether there is a library or a Level XP room is OPEN, waiting on Tyler (T-fix-4). Sizes are a HYPOTHESIS.",
+      "decision": "One project at a time on the town project engine. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five, and the castle is open at any roster size. A stage can never finish in under a week. Tyler said keep on the page 2026-11-21, and what follows is a PROPOSAL he has not seen: the castle's five buildings of ten levels, labor, votes, upkeep, the treasury and Clan Standing all stay, fitted to that price. Buildings: the War room (damage dealt up to +5%), the Ward (a Defense rating row worth up to about 5% less damage an hour), the Workshop (town work speed up to +10%), the Kitchen (the clan's weekly ration cap) and a fifth building held for T-fix-4. Each has ten levels and reaches its cap at level ten. Labor: a member's heroes can give rested town hours to the project as a closed-form town job, valued on the wage curve, so a stage's price is paid in gold, castle goods or labor. Treasury: members' weekly shares and gifts go into it, nothing ever comes back out (25-5), and it pays in a fixed order, upkeep first and then the open project. Upkeep: a weekly bill for each member with the same floor of five. The member's weekly share is what pays it, so there is one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid and nothing is lost. Votes: each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted. Clan Standing: a lifetime tally of what each account gave in gold, goods and labor. It shows on the roster and the plaque and pays no power. Fifty stages at 1 to 1.3 weeks is about a year for a full castle. Whether there is a library or a Level XP room is OPEN, waiting on Tyler (T-fix-4). Sizes are a HYPOTHESIS.",
       "outcome": "third",
       "reason": "You said keep the castle a slow climb with gold and time, and I kept both. What I changed is the fixed price, because a fixed price means a clan of 3 never finishes and a clan of 60 finishes in a day. I also cut the XP room. A damage buff already makes me level faster, so an XP room is the same thing twice and it is the one room that broke your \"clans give no XP\" ruling.",
       "evidence": "COMPUTED: 4 rooms x 5 levels at one stage a week or slower is 20 to 26 weeks. Per-member pricing is flat by construction at 5 members and up. Sizes are TARGET with no measurement (chapter 04 section 2.6 says so). HYPOTHESIS that small clans build. Playtest read: clans with gifts from three or more members.",
@@ -264,10 +289,15 @@
       "was": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: damage taken up to 5% less. Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. Twenty stages is about six months, the pace you kept on 11-20. The castle is open at any roster size. No labor, no upkeep, no treasury balance. Castle goods keep their prices (31-3).",
       "fixedBy": "review-4, review-16",
       "fixNote": "The row said it kept 31-3 while changing it, and \"about six months\" disagreed with chapter 04, which sized a stage at 2 to 4 weeks.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling.",
+      "status": "PROPOSAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "wasBeforeTyler": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: a Defense rating row sized so a mid-geared four takes up to about 5% less damage an hour (CORE-4). Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. castleStagePerMember is sized so a stage takes 1 to 1.3 weeks at the weekly share, which makes twenty stages 20 to 26 weeks. The castle is open at any roster size. No labor, no upkeep, no treasury balance. This changes 31-3 (castle goods keep their built prices) and it is the option Tyler declined on 25-4. The one new fact that justifies asking again is his 2026-11-21 ruling that clans pay buffs: a fixed price now locks a clan of three out of hero power. If Tyler vetoes, the castle keeps built prices and one work order a week for each slot, and only the ten-account gate goes.",
-      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers"
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "proposal": "Made in the fold 2026-11-21, not yet seen by Tyler. He said keep on a cut list. How it stays is the integrator's proposal and nothing more.",
+      "firstBuild": "planned, waits until clans exist and people are in them",
+      "conflictForTheSitting": "Cut 5 (keep the castle's old parts) against reversal 19 (the simple castle priced for each member). The fold built both.",
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
     },
     {
       "id": "MM-10",
@@ -280,7 +310,10 @@
       "money": false,
       "depends": "MM-25 (it fills the timed damage-taken cap). Number of top members and the mark sizes go to the balance matrix. Chapter 09 (one weekly fold).",
       "was": "A weekly board with three lines (boss points, arena standing, best Tower floor), scored as the average of the clan's top members, reset weekly with all-time records kept. But the buff is paid by mark, not by rank. Any clan whose week reaches a set score mark earns up to 5% less damage taken for the next 7 days, in three steps. The top three clans get the banner and the plaque on top. Under five clans the board shows a clan against its own last week and the marks still pay.",
-      "fixedBy": "review-4"
+      "fixedBy": "review-4",
+      "status": "PROVISIONAL",
+      "waitsOn": "clans existing with people in them",
+      "firstBuild": "planned, waits until clans exist and people are in them"
     },
     {
       "id": "MM-11",
@@ -291,7 +324,10 @@
       "evidence": "RULED parts: +25% ceiling and never two at once (27-5). Daily goals were cut 2026-10-22. HYPOTHESIS that a weekend beat is enough pull. Playtest read: ten-minute windows with two or more people pressing, weekend against weekdays.",
       "replaces": "None by itself. See MM-42 and GR-82 for the two changes inside it.",
       "money": false,
-      "depends": "MM-42, GR-82 (weekend 1 is the Hearthrise), MM-3. Chapter 08 Week card and return card show the next weekend."
+      "depends": "MM-42, GR-82 (weekend 1 is the Hearthrise), MM-3. Chapter 08 Week card and return card show the next weekend.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the playtest or measurement its own row names",
+      "firstBuild": "in the first build: the calendar"
     },
     {
       "id": "MM-42",
@@ -306,8 +342,12 @@
       "was": "Yes. The between-months ground weekend features that ground's named pieces and does not pay XP. It fills the timed drop chance cap (+10%) for everyone hunting that ground, on its named pieces only. The world Level XP weekend stays once in four weekends, as ruled. If the playtest shows a ground weekend does not move people, it goes back to the ruled ground XP weekend.",
       "fixedBy": "review-3",
       "fixNote": "The row spent the timed drop cap on named pieces, which are Rare rows. CE-2 says the timed row never touches a Rare.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "one buff played in a cell",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
     },
     {
       "id": "GR-82",
@@ -319,8 +359,12 @@
       "replaces": "REVERSAL, small. The 2026-10-25 Hearthrise ruling said the bonus starts when the fire fills. It now lights on the calendar's weekend at the size the fire earned. Fuel only, no gold, and the +25% ceiling stand. 24-10 is NOT reversed: a project a month, sized to the server, with the plaque.",
       "money": false,
       "depends": "Home decider owns the window and the staged-gift engine (chapter 07 section 2.12). Progression decider: Inner Flame stays a hero skill (GR-61 Kindlings). MM-9 castle rides the same engine. MM-25 timed Level XP cap.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "the playtest or measurement its own row names",
+      "firstBuild": "in the first build: the Hearthrise weekend"
     },
     {
       "id": "MM-24",
@@ -331,7 +375,10 @@
       "evidence": "RULED 2026-11-21 (balance at the formula layer, rewards are buffs and gear). COMPUTED cost: read at the settle with no new statement (chapter 09).",
       "replaces": "",
       "money": false,
-      "depends": "Core decider (GR-85, R20). Economy decider (MM-30, bought boosts are the same rows). Balance tools lane: drop chance and town work speed knobs are missing from knobs.json."
+      "depends": "Core decider (GR-85, R20). Economy decider (MM-30, bought boosts are the same rows). Balance tools lane: drop chance and town work speed knobs are missing from knobs.json.",
+      "status": "PROVISIONAL",
+      "waitsOn": "one buff played in a cell",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
     },
     {
       "id": "MM-25",
@@ -346,7 +393,10 @@
       "was": "The table as recommended with one cut: there is no standing Level XP cap, because no clan room gives XP (MM-9). Damage dealt: +5% standing, +10% timed. Damage taken: 5% less standing, 5% less timed. Level XP: none standing, +25% timed. Drop chance: none standing, +10% timed and earned only, never sold. Town work speed: +10% standing. Coin: no buff, ever. Who fills what: war room, ward and workshop fill the standing caps. Timed damage comes from the boss (+5%) and the Open Arena season (up to +5%). Timed damage taken comes from the clan board marks. Timed drop chance comes from the clan weekly goal (+5%) and the Even Arena season (up to +5%). Timed Level XP comes only from the Hearthrise weekend and whatever the store sells.",
       "fixedBy": "review-1, review-3, review-4",
       "fixNote": "The row called the timed drop row drop chance, wrote protection as a share off a blow, and left room for a store Level XP boost.",
-      "openPart": "Whether a clan library or a Level XP room exists is OPEN, waiting on Tyler (T-fix-4). The table is written with no standing Level XP cap."
+      "openPart": "Whether a clan library or a Level XP room exists is OPEN, waiting on Tyler (T-fix-4). The table is written with no standing Level XP cap.",
+      "status": "PROVISIONAL",
+      "waitsOn": "one buff played in a cell",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
     },
     {
       "id": "MM-26",
@@ -360,7 +410,10 @@
       "depends": "PROGRESSION DECIDER (GR-6): size R1, the region lead, on 1.65 only if the store sells an always-on XP boost, else on about 1.3 to 1.4. ECONOMY DECIDER (MM-31): the paid pace ceiling of 1.60 now sits just under this ceiling and the two should be one number. Art and asset directors for the region schedule.",
       "was": "The ceiling is about 32% more kills an hour and about 65% more Levels an hour, not 72%, because the standing XP cap is gone. The Level table stays the clock of the plain four and never reads a buff. And the number chapter 05 asked for: a player who earns every buff and buys nothing averages about 1.3 times the plain pace over a month. Only a player with a bought XP boost running every hour sits at the 1.65 ceiling.",
       "fixedBy": "review-2, review-4",
-      "fixNote": "The ceiling was written as 1.65 here, 1.58 in MM-31 and 1.60 in the book. MM-31 left out the +5% standing damage row."
+      "fixNote": "The ceiling was written as 1.65 here, 1.58 in MM-31 and 1.60 in the book. MM-31 left out the +5% standing damage row.",
+      "status": "PROVISIONAL",
+      "waitsOn": "one buff played in a cell",
+      "firstBuild": "planned, waits until Deadly is sized and one buff has been played in a cell"
     },
     {
       "id": "MM-13",
@@ -375,7 +428,10 @@
       "was": "Yes. Even Arena: every hero at one reference Level with a reference kit of its own weapon type and armor weight, kit rows tuned for the arena alone, and no gear, buff or boost read. Open Arena: heroes as they stand, with damage and damage-taken buffs under the same caps. XP and drop buffs do nothing in either.",
       "fixedBy": "review-26",
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
-      "fixNote": "The Open Arena paid +5% damage for the next season and also read damage buffs, so last season's winners started the next one 5% stronger."
+      "fixNote": "The Open Arena paid +5% damage for the next season and also read damage buffs, so last season's winners started the next one 5% stronger.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-12",
@@ -386,7 +442,10 @@
       "evidence": "Follows from MM-1 and CLAUDE.md section 1. COMPUTED cost estimate 0.13 to 0.2 database-seconds a fight, and edge time is unmeasured until check C.",
       "replaces": "",
       "money": false,
-      "depends": "MM-41. Security review scope before Early Access."
+      "depends": "MM-41. Security review scope before Early Access.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-14",
@@ -400,7 +459,10 @@
       "depends": "Items decider: the arena gear line fits the item plan the same way as the boss line (MM-6). MM-25 for both buffs. MM-38.",
       "was": "Yes, by rating tier with a minimum number of fights, never by rank. Even Arena: up to +5% drop chance for the next season, a title and a banner. Open Arena: a piece of the arena line at the hero's band (a sidegrade to the band's best, like a boss piece), its material, up to +5% damage dealt for the next season, and a title. Seasons are four weeks with a soft reset. No stamina, death, XP or coin in either.",
       "fixedBy": "review-3, review-26",
-      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it."
+      "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-15",
@@ -411,7 +473,10 @@
       "evidence": "TARGET numbers. HYPOTHESIS. Playtest read: 2 or more fights an account a day.",
       "replaces": "",
       "money": false,
-      "depends": "MM-40, MM-45, MM-21."
+      "depends": "MM-40, MM-45, MM-21.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-40",
@@ -422,7 +487,10 @@
       "evidence": "Design reasoning. HYPOTHESIS. Playtest read: fights in each arena are within a factor of three of each other.",
       "replaces": "",
       "money": false,
-      "depends": "MM-15."
+      "depends": "MM-15.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-16",
@@ -433,7 +501,10 @@
       "evidence": "Design reasoning against the named cheats (chapter 06 section 2.6). Verified only by the Security review.",
       "replaces": "",
       "money": false,
-      "depends": "Security review. MM-12."
+      "depends": "Security review. MM-12.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-17",
@@ -444,7 +515,8 @@
       "evidence": "Follows from MM-1 and the idle identity in your design brief.",
       "replaces": "",
       "money": false,
-      "depends": "MM-20."
+      "depends": "MM-20.",
+      "status": "DECIDED"
     },
     {
       "id": "MM-38",
@@ -455,7 +527,10 @@
       "evidence": "HYPOTHESIS that it feels fair on a small server. Playtest read: Open Arena fights against real setups over half by week two in the busiest band, and no band where one account wins over 80%.",
       "replaces": "",
       "money": false,
-      "depends": "Items decider (gear bands, GR-4). MM-14."
+      "depends": "Items decider (gear bands, GR-4). MM-14.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-39",
@@ -466,7 +541,10 @@
       "evidence": "Follows from MM-13.",
       "replaces": "",
       "money": false,
-      "depends": "MM-13."
+      "depends": "MM-13.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-41",
@@ -477,7 +555,9 @@
       "evidence": "None yet. This row IS the missing evidence (check C).",
       "replaces": "",
       "money": false,
-      "depends": "Systems engineer runs it. MM-12, MM-13, MM-14 wait on it."
+      "depends": "Systems engineer runs it. MM-12, MM-13, MM-14 wait on it.",
+      "status": "DECIDED",
+      "firstBuild": "in the first build: the one-day engine test"
     },
     {
       "id": "MM-18",
@@ -490,22 +570,26 @@
       "money": false,
       "depends": "Home decider: \"party member\" drops out of who may visit a house (GR-75). Chapter 09: no hero-lending trade surface in the Security scope. GR-10a is closed.",
       "status": "OPEN (waiting on Tyler, T-fix-1)",
-      "tyler": "Held. Cut 2 was not approved, and reversal 18 (MM-18, no hired, lent or on-call heroes) asks for the same removal. The two picks point opposite ways. Not decided. The decision text is what the book reads until he answers."
+      "tyler": "Held. Cut 2 was not approved, and reversal 18 (MM-18, no hired, lent or on-call heroes) asks for the same removal. The two picks point opposite ways. Not decided. The decision text is what the book reads until he answers.",
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-1)"
     },
     {
       "id": "MM-19",
       "call": "Mixed Levels in one fight follow one visible two thirds line.",
-      "decision": "Yes. A hero keeps its full share of Level XP if its Level is at least two thirds of the highest Level in the party. Below that it keeps hero Level / (2/3 x top Level). One knob, levelShareLine. The party window says it before the hunt starts. One rule for every party, the boss room included. It stands beside party XP by size alone (GR-3, ruled): size sets the party cell, and this line is the only other thing that moves a hero's share. An old ground hunted at your Level takes the LEADER's Level, as ruled, and the party picks its leader.",
+      "decision": "Yes. A hero keeps its full share of Level XP if its Level is at least two thirds of the highest Level in the party. Below that it keeps hero Level / (2/3 x top Level). One knob, levelShareLine. The party window says it before the hunt starts. One rule for every party, the boss room included. It stands beside party XP by size alone (GR-3, his pick on the page): size sets the party cell, and this line is the only other thing that moves a hero's share. An old ground hunted at your Level takes the LEADER's Level, as ruled, and the party picks its leader.",
       "outcome": "recommended",
       "reason": "With no rule a Level 5 hero behind my Level 37 party levels six times faster than it should, which is a boosting market. A hidden cut is worse. One line I can read before I press Start is honest, and carried is a bit better than alone and never several times better.",
       "evidence": "MEASURED cells of the proposed rule: a Level 5 behind a Level 37 party earns about 1.2 times its own pace and a Level 10 about 1.6. With no rule, 6.1 and 4.1 (chapter 06 section 2.8). Survival in those cells is provisional. Check F re-runs the eight carried cells once the engine sends real damage to the back row.",
       "replaces": "REVERSAL, technical. It replaces the hidden ground-keyed Level cut on party XP that chapter 06 traces to the 2026-11-08 party XP rulings. The 11-08 rulings on one difficulty for all group sizes and the same monsters for everyone are untouched.",
       "money": false,
       "depends": "Core decider (the party XP step, R8, GR-85). World decider: whose Level a scaled old ground takes is decided here as the leader's (GR-9). Economy decider: the wage of a mixed four follows the same line. GR-10b is closed.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling.",
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
       "wasBeforeTyler": "Yes. A hero keeps its full share of Level XP if its Level is at least two thirds of the highest Level in the party. Below that it keeps hero Level / (2/3 x top Level). One knob, levelShareLine. The party window says it before the hunt starts. One rule for every party, the boss room included. And the open question from chapter 02: an old ground hunted at your Level takes the LEADER's Level, as ruled, and the party picks its leader.",
-      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers"
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "a matrix cell with mixed Levels",
+      "madeInTheFold": "Rewritten in the fold 2026-11-21 after his picks. Not yet seen by Tyler."
     },
     {
       "id": "MM-20",
@@ -516,7 +600,10 @@
       "evidence": "COMPUTED estimate about 0.5 database-seconds an account-day or zero if it rides the hunt update (chapter 06). HYPOTHESIS that being seen is enough. Playtest read: four of five players can name something another player did.",
       "replaces": "None. 8-person open areas were an option you asked about on 2026-11-21, not a ruling.",
       "money": false,
-      "depends": "GR-70 (same system). Chapter 09 and study 48 own the measured cost. It is first in the planning order (MM-23)."
+      "depends": "GR-70 (same system). Chapter 09 and study 48 own the measured cost. It is first in the planning order (MM-23).",
+      "status": "PROVISIONAL",
+      "waitsOn": "the playtest or measurement its own row names",
+      "firstBuild": "in the first build: presence"
     },
     {
       "id": "GR-70",
@@ -527,7 +614,10 @@
       "evidence": "RULED 2026-11-18 (the online count is by heroes). HYPOTHESIS that working heroes read as alive and not as statues. Playtest: the first week with it on, asked aloud. Cost is PENDING study 48.",
       "replaces": "",
       "money": false,
-      "depends": "MM-20. Home decider (chapter 07 section 2.9 draw rules). Chapter 09 cost budget of $0.15 an account."
+      "depends": "MM-20. Home decider (chapter 07 section 2.9 draw rules). Chapter 09 cost budget of $0.15 an account.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the playtest or measurement its own row names",
+      "firstBuild": "in the first build: presence in town, inside the cost budget"
     },
     {
       "id": "GR-69",
@@ -540,7 +630,8 @@
       "money": false,
       "depends": "MM-1, MM-18. Home decider: crier lines in the town (chapter 07). Chat tabs kept: Global, Clan, Party, Whispers, System, Combat.",
       "status": "OPEN (waiting on Tyler, T-fix-2)",
-      "tyler": "Held. Cuts 3 and 4 were not approved, and reversal 21 (GR-69) asks for the same removals. Not decided. The decision text is what the book reads until he answers."
+      "tyler": "Held. Cuts 3 and 4 were not approved, and reversal 21 (GR-69) asks for the same removals. Not decided. The decision text is what the book reads until he answers.",
+      "statusBeforeReissue": "OPEN (waiting on Tyler, T-fix-2)"
     },
     {
       "id": "GR-71",
@@ -551,7 +642,9 @@
       "evidence": "Design reasoning, HYPOTHESIS. Matrix cell G4 overturns it: if one skill is better for every lineup once the skills are sized, the skills are re-sized at the formula layer. If players in the playtest ask to split their four, bring it back.",
       "replaces": "None. 25-10 stands. The re-open asked by the social review is refused.",
       "money": false,
-      "depends": "Core decider sizes Bulwark and Reap (31-8) knowing all four heroes carry the same one. Side against side stays hidden until both sides can be filled and it passes rule 0."
+      "depends": "Core decider sizes Bulwark and Reap (31-8) knowing all four heroes carry the same one. Side against side stays hidden until both sides can be filled and it passes rule 0.",
+      "status": "DECIDED",
+      "firstBuild": "planned, waits until the first build is played"
     },
     {
       "id": "GR-72",
@@ -562,21 +655,25 @@
       "evidence": "Design reasoning. Small and gives nothing away.",
       "replaces": "",
       "money": false,
-      "depends": "MM-47 (friends are linked by account). Security: the link carries no value."
+      "depends": "MM-47 (friends are linked by account). Security: the link carries no value.",
+      "status": "DECIDED",
+      "firstBuild": "in the first build: the friend link"
     },
     {
       "id": "MM-21",
-      "call": "Every boss, clan, event and arena is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30.",
-      "decision": "Everything in the layer is open to every account. For Premium: arena tickets bank to 30. Timed buffs do not last longer for Premium.",
+      "call": "Every boss, clan, event and arena is open to all. Premium banks arena tickets to 30 and does not make timed buffs last longer.",
+      "decision": "Everything in the layer is open to every account. For Premium: arena tickets bank to 30. Premium does not make timed buffs last longer.",
       "outcome": "third",
       "reason": "Banking more tickets fits what Premium already is, which is fewer visits. Longer buffs is power on a subscription, it makes a 7 day buff last 8.75 days so the weekly beat stops lining up, and it makes the buff line on the hero sheet harder to read.",
       "evidence": "Design reasoning only. No evidence on what Premium buyers value in the layer. Your call.",
       "replaces": "",
       "money": true,
       "depends": "Economy decider owns Premium's full list and price (chapter 04 section 2.9). MM-15.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "Confirmed as recommended.",
-      "wasBeforeTyler": "MONEY, TYLER CONFIRMS. Decided part: everything in the layer is open to every account. Recommended to you for Premium: arena tickets bank to 30. Not recommended: timed buffs lasting a quarter longer."
+      "status": "DECIDED",
+      "tyler": "He said yes on the page.",
+      "wasBeforeTyler": "MONEY, TYLER CONFIRMS. Decided part: everything in the layer is open to every account. Recommended to you for Premium: arena tickets bank to 30. Not recommended: timed buffs lasting a quarter longer.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling."
     },
     {
       "id": "MM-22",
@@ -589,7 +686,10 @@
       "money": false,
       "depends": "ECONOMY DECIDER owns GR-8 and the six homes of chapter 04 section 2.6. MM-9.",
       "was": "Yes as a direction. The castle share and stages, and the boss and arena materials bought from other players, are the first homes for that gold. The sizes are the economy decider's.",
-      "fixedBy": "review-8"
+      "fixedBy": "review-8",
+      "status": "PROVISIONAL",
+      "waitsOn": "the store-bill fault fixed and a wage formula that exists",
+      "firstBuild": "planned, waits until clans exist and people are in them"
     },
     {
       "id": "MM-23",
@@ -600,7 +700,8 @@
       "evidence": "An order only. Nothing builds until the build plan exists (RULED 2026-11-21).",
       "replaces": "",
       "money": false,
-      "depends": "The build plan. MM-41 can run now as a measurement."
+      "depends": "The build plan. MM-41 can run now as a measurement.",
+      "status": "DECIDED"
     },
     {
       "id": "MM-27",
@@ -611,7 +712,9 @@
       "evidence": "RULED 2026-10-23 (no bound gear) and 2026-11-21 (buffs and gear drive Crowns).",
       "replaces": "",
       "money": false,
-      "depends": "Economy decider (the market and the Crowns book). Items decider."
+      "depends": "Economy decider (the market and the Crowns book). Items decider.",
+      "status": "DECIDED",
+      "firstBuild": "planned, waits until the first boss has stood twice. The first boss keeps its chest"
     },
     {
       "id": "MM-43",
@@ -623,9 +726,12 @@
       "replaces": "Touches CLAUDE.md section 2 (player state is never fabricated) and the rule that Crowns are never earned in play. Needs your explicit yes.",
       "money": true,
       "depends": "Economy decider sizes the amount (I suggest about what one 7 day boost costs each week). Security review of the switch.",
-      "status": "RULED (Tyler, 2026-11-21), an explicit yes",
+      "status": "DECIDED",
       "tyler": "Yes. Test Crowns for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
-      "wasBeforeTyler": "THIS IS A GRANT. TYLER CONFIRMS. I do not decide it. Recommended: yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled."
+      "wasBeforeTyler": "THIS IS A GRANT. TYLER CONFIRMS. I do not decide it. Recommended: yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21), an explicit yes",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "firstBuild": "in the first build: the playtest"
     },
     {
       "id": "MM-44",
@@ -636,7 +742,10 @@
       "evidence": "The first principle (RULED 2026-10-18).",
       "replaces": "",
       "money": false,
-      "depends": "MM-8. A recurring server-side spend is a money surface for the Security review. Chapter 08 return card."
+      "depends": "MM-8. A recurring server-side spend is a money surface for the Security review. Chapter 08 return card.",
+      "status": "PROVISIONAL",
+      "waitsOn": "clans existing with people in them",
+      "firstBuild": "planned, waits until clans exist and people are in them"
     },
     {
       "id": "MM-45",
@@ -647,7 +756,10 @@
       "evidence": "The first principle (RULED 2026-10-18).",
       "replaces": "",
       "money": false,
-      "depends": "MM-15, MM-16."
+      "depends": "MM-15, MM-16.",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-46",
@@ -658,7 +770,10 @@
       "evidence": "RULED 2026-11-14 (backlog) and 2026-11-21 (nothing planned is cut).",
       "replaces": "",
       "money": false,
-      "depends": "MM-41. GR-71 (sides)."
+      "depends": "MM-41. GR-71 (sides).",
+      "status": "PROVISIONAL",
+      "waitsOn": "the engine test of heroes against heroes",
+      "firstBuild": "planned, waits until the one-day engine test shows heroes can fight heroes"
     },
     {
       "id": "MM-47",
@@ -669,7 +784,9 @@
       "evidence": "The first principle. RULED 25-7 uses the same per-account shape for clans.",
       "replaces": "",
       "money": false,
-      "depends": "GR-72, MM-20 (friends sort first)."
+      "depends": "GR-72, MM-20 (friends sort first).",
+      "status": "DECIDED",
+      "firstBuild": "in the first build: friends"
     },
     {
       "id": "MM-48",
@@ -681,8 +798,12 @@
       "replaces": "REVERSAL, small. The second half of 25-11 (\"two parties of four in one hall\") becomes two rooms on one clan pool.",
       "money": false,
       "depends": "MM-2, MM-5.",
-      "status": "RULED (Tyler, 2026-11-21)",
-      "tyler": "The reversal stands. It replaces the earlier ruling."
+      "status": "PROVISIONAL",
+      "tyler": "He let the reversal stand on the page, in about a second. It changes the earlier ruling.",
+      "statusBeforeReissue": "RULED (Tyler, 2026-11-21)",
+      "pagePick": "Tyler said yes on the page 2026-11-21. It was a quick pick, so it is not printed as a ruling.",
+      "waitsOn": "clans existing with people in them",
+      "firstBuild": "planned, waits until clans exist and people are in them"
     },
     {
       "id": "GR-79",
@@ -697,7 +818,9 @@
       "was": "Yes, the Path and chapter 08's first hour: one hero alone to Level 5 in the Mill Cellar (about minute 17), then three more heroes made in one flow, who run the Cellar together while the first hunts Meadowbrook Thicket, then all four enter the Millrace Sewer at about minute 36 on one Start. My additions. (1) The doors chapter 08 left open: chat and the presence strip from the start. Clans can be joined from the first day. The calendar banner shows after the first stamina end. The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when you are in a clan. Factions at the first Krell kill as ruled. (2) If the core decider's check C3 fails, the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes. That is a data row, never tutorial math. (3) Chapter 06's minute 5 picture is corrected to one hero, with Global chat open and the strip on the Cellar card.",
       "fixedBy": "review-6",
       "hypothesis": "HYPOTHESIS. This is the review's own design and nobody has played it.",
-      "fixNote": "Check C2 was run by the review and fails. Three new heroes together in the Mill Cellar earn 0.53 times what one earns alone, because the Cellar is spawn-limited. Alone, each recruit levels at the first hero's pace, so minute 36 stands."
+      "fixNote": "Check C2 was run by the review and fails. Three new heroes together in the Mill Cellar earn 0.53 times what one earns alone, because the Cellar is spawn-limited. Alone, each recruit levels at the first hero's pace, so minute 36 stands.",
+      "status": "PROVISIONAL",
+      "waitsOn": "being built and played past minute 17 by real new players"
     },
     {
       "id": "GR-24",
@@ -711,7 +834,9 @@
       "depends": "CORE DECIDER owns GR-24. Check C1: each way reaches Level 5 in 15 to 20 minutes alone or carries the slow tag.",
       "was": "Input for the core decider: yes. The player picks how each hero fights when the hero is made, from the six starter set rows, with no card preselected on the first hero. Each card carries one honest measured tag, \"Good alone\" or \"Best in a party. Slow alone.\" Heroes two to four mark the card the party lacks, shield first, then healer. The pick only sets what is in hand. Every hero still owns the whole practice kit.",
       "fixedBy": "review-6, review-7",
-      "fixNote": "Core highlighted the hammer and this row preselected nothing. Merged."
+      "fixNote": "Core highlighted the hammer and this row preselected nothing. Merged.",
+      "status": "PROVISIONAL",
+      "waitsOn": "being built and played past minute 17 by real new players"
     },
     {
       "id": "GR-80",
@@ -722,7 +847,9 @@
       "evidence": "RULED 27-1 (Carry on) and the first principle. TARGET: a visit under 4 minutes and zero repeated-decision presses (standards X9, X10). Chapter 09 counts about 20 presses a day in place of 100, COMPUTED.",
       "replaces": "",
       "money": false,
-      "depends": "Systems engineer: one Start is one intent the server expands through the same checks. GR-1 (town work in closed form). GR-48, GR-57, GR-58 in other areas."
+      "depends": "Systems engineer: one Start is one intent the server expands through the same checks. GR-1 (town work in closed form). GR-48, GR-57, GR-58 in other areas.",
+      "status": "PROVISIONAL",
+      "waitsOn": "being built and played past minute 17 by real new players"
     },
     {
       "id": "GR-78",
@@ -733,7 +860,8 @@
       "evidence": "EVIDENCE: 3,251 wolves were killed that she would have paid for (60 GR-78). Task rows checked in src/data/tally-tasks.js.",
       "replaces": "",
       "money": false,
-      "depends": "GR-80."
+      "depends": "GR-80.",
+      "status": "DECIDED"
     },
     {
       "id": "GR-81",
@@ -744,7 +872,8 @@
       "evidence": "EVIDENCE: endsAtLevel appears on one ground in src/data/hunt-grounds.js (the Mill Cellar, Level 5). RULED 27-1 (2026-11-20). HYPOTHESIS that the lost hours are small. Read from the journal: hunted hours lost between an outgrown end and the next Start, under Level 16. If it is over an hour a day for new accounts, bring it back.",
       "replaces": "None. 27-1 stands. The re-open is refused.",
       "money": false,
-      "depends": "GR-80 (the rest plan and the return card). Chapter 08 section 2.2 drops the \"next ground when outgrown\" line."
+      "depends": "GR-80 (the rest plan and the return card). Chapter 08 section 2.2 drops the \"next ground when outgrown\" line.",
+      "status": "DECIDED"
     },
     {
       "id": "GR-83",
@@ -755,7 +884,8 @@
       "evidence": "See MM-11.",
       "replaces": "",
       "money": false,
-      "depends": "MM-11."
+      "depends": "MM-11.",
+      "status": "DECIDED"
     },
     {
       "id": "GR-84",
@@ -768,8 +898,11 @@
       "money": false,
       "depends": "How many Premium items a day (one an account or one a hero) is your money call with the economy decider and is not decided here. GR-48, GR-56a.",
       "was": "Yes to all three. The Premium daily item lands in Storage on the first visit of the day with no press and the streak never resets. Setups, action sets and presets become one noun, Setup, remembered for each ground. A Week card on the first return after the weekly turn compares this week with your last and pays nothing, ever.",
-      "fixedBy": "review-28"
+      "fixedBy": "review-28",
+      "status": "PROVISIONAL",
+      "waitsOn": "the playtest or measurement its own row names"
     }
   ],
-  "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json."
+  "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json.",
+  "reissue": "Statuses re-issued on 2026-11-21 after the critical review. all.json holds the record."
 }

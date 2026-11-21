@@ -125,7 +125,7 @@ import { pathToFileURL } from 'node:url';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { answered } from './_press.mjs';
-import { judge, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED } from './_mutant-verdict.mjs';
+import { judge, judgePlanted, report, exitOf, cleanControl, stopAtFirstRed, FIRST_RED, guardLines } from './_mutant-verdict.mjs';
 
 const FIXTURE = JSON.parse(await readFile(join(ROOT, 'tests/fixtures/hunt-envelope.json'), 'utf8'));
 const { HUNT_INDEX } = await import(pathToFileURL(join(ROOT, 'src/data/hunts.js')).href);
@@ -422,7 +422,10 @@ async function pureRules(M) {
     await wh.load();
     rt.pushW(first);
     lines = [Object.assign({}, first, { from_name: 'Bree Marsh' })];
-    rt.joinW();
+    /* no (re)join callback is the rule's red, never a thrown harness (rehearsal 44866483507: `rt.joinW is not a function` threw away
+       RC-1's line above with the run) */
+    if (typeof rt.joinW !== 'function') fail('WH-2 the whispers subscription gave no (re)join callback, so a rename is never caught up');
+    else rt.joinW();
     for (let i = 0; i < 5; i++) await tick();
     const conv = wh.conversations()[0];
     const held = conv ? wh.lines(conv.tab) : [];
@@ -1185,10 +1188,13 @@ async function pageRules(overrides, shots, { stopAtFirst = false } = {}) {
       /* the hunt's coach card docks in the left column over Chat's home and Chat yields to it, even folded (hud-room.js dockCoach,
          shell.js capDock): this rule is Chat's grip, so the player turns the tips off ("Don't show tips", kept in the residue) and the
          column is the Party panel's and Chat's alone, as the rule's 40 px grow was measured */
+      /* a press on a widget the chat lies over is CW-8's red (the chat never covers a widget), never a thrown harness (rehearsal
+         44866483507: under both CW-8 mutants the chat's title covered the folded tips and the 30 s click threw) */
+      const pressWidget = (el) => el.click({ timeout: 3000 }).then(() => true, (e) => { fails.push('CW-8 [' + tag + '] a press on the hunt bar\'s tips did not land' + guardLines(e)); return false; });
       const folded = await page.$('[data-hs-widget="hunt-topbar"] .hs-pointer.is-min [data-hs-act="coach-open"]');
-      if (folded) { await folded.click(); await page.waitForTimeout(300); }
+      if (folded && await pressWidget(folded)) await page.waitForTimeout(300);
       const tipsOff = await page.$('[data-hs-widget="hunt-topbar"] .hs-pointer [data-hs-act="coach-off"]');
-      if (tipsOff) { await tipsOff.click(); await page.waitForTimeout(400); }
+      if (tipsOff && await pressWidget(tipsOff)) await page.waitForTimeout(400);
       await page.keyboard.press('Enter');
       await wait(page, () => document.querySelector('[data-hs-win="chat"]:not(.is-leaving) .hc-log.is-talk.is-on li'), null, 3000);
       await page.waitForTimeout(300);

@@ -510,7 +510,7 @@ async function pureRules(M) {
   }
   // TW-11 (Tyler 2026-10-20 "can't see my other character in town"): a fresh boot / reload with two
   // playing characters: the viewed one sees the other WITHOUT the other ever being viewed; a hunter is not drawn.
-  {
+  tw11: {
     const w11 = fakeWorld(M);
     w11.names.set(TYLER, 'Tyler');
     const asksForBody = (c) => c.args && c.args.p_slot === 1 && (c.name === 'hr_town_here' || (c.name === 'hr_town_move' && c.args.p_map !== null));
@@ -531,6 +531,9 @@ async function pureRules(M) {
       return { a, seen, slots: t0.walkers().filter((w) => w.id === TYLER).map((w) => w.slot) };
     };
     let b = await boot();
+    /* the boot OPENS the other character (account-session.js openOthers): one the server still drew from an old body, never opened,
+       keeps no body of its own and is never re-stood after its hunt (rehearsal 44866483507: `character(1)` was null and the run threw) */
+    if (!b.a.character(1)) { fail('TW-11 boot did not open the account\'s other character (slot 1): it stands only while its old body lasts'); break tw11; }
     if (b.slots.join() !== '1') fail('TW-11 fresh boot: the viewed character sees own slots ' + JSON.stringify(b.slots) + ' (want [1]) before the other is viewed');
     b.a.close(0); b.a.close(1); await settle();
     b = await boot();   // reload

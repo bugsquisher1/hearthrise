@@ -1612,13 +1612,13 @@ begin
   begin
     execute $p$create function public.hr_buy_gem_unlock(p_unlock_id text, p_slot integer, p_idem uuid)
                returns jsonb language plpgsql security definer set search_path = public as $b$
-               begin if not public.hr_rpc_gate('hr_buy_gem_unlock') then return null; end if; return '{}'::jsonb; end $b$$p$;
+               begin if not public.hr_rpc_gate('hr_buy_gem_unlock') then return null; end if; return '{}'::jsonb; end $b$ $p$;
     execute 'revoke execute on function public.hr_buy_gem_unlock(text, integer, uuid) from public, anon';
     execute 'grant execute on function public.hr_buy_gem_unlock(text, integer, uuid) to authenticated';
     if exists (select 1 from pg_roles where rolname = 'hr_engine') then
       execute $p$create function public.hr_dungeon_settle(p_user uuid, p_slot integer, p_version bigint, p_intent_id uuid,
                    p_dungeon_id text, p_mode text, p_quality numeric)
-                 returns jsonb language plpgsql security definer set search_path = public as $b$ begin return '{}'::jsonb; end $b$$p$;
+                 returns jsonb language plpgsql security definer set search_path = public as $b$ begin return '{}'::jsonb; end $b$ $p$;
       execute 'revoke execute on function public.hr_dungeon_settle(uuid, integer, bigint, uuid, text, text, numeric) from public, anon, authenticated, service_role';
       execute 'grant execute on function public.hr_dungeon_settle(uuid, integer, bigint, uuid, text, text, numeric) to hr_engine';
     end if;

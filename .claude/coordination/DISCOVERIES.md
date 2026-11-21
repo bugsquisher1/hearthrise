@@ -4,6 +4,17 @@ _Important things agents learn about the codebase, game, or constraints. Append 
 
 ---
 
+## 2026-11-20 · qa-engineer (lane/c-hollow-proofs-browser) · the 21 OWED page runners judged by a named rule; the scan widened
+
+| # | Found | Affected | Action |
+|---|---|---|---|
+| 1 | P2 tests · named catch-alls filed a page throw under a rule id, so a crash read as that rule's catch: observability `OB-0 the browser checks stopped`, instant-press `IP-1 the page broke`, new-version-banner `t()` (`NV-n: threw`), chat-social's two loops (`threw:`; a comment there ruled a page throw "is caught"). death-popup `DP [tag] threw` and phone-touch `PH threw` had no id, but their loops counted any line | those runners | Fixed: `harnessFail`; `verdict` reads `<ID> threw` and `<ID> fixture:` as HARNESS (selftest plants both) |
+| 2 | P3 tests · a plant that does not parse kills the page's module graph, and the first rule to look reads "the town did not mount", a named line: a crash scored as a catch in a browser | every page runner | Fixed: `judgePlanted` parses each planted .js first (`plantBroken`, node --check); selftest plants a broken and a blind parser |
+| 3 | P3 tests · `HP-1/HP-6 the roll reads` has no id `ruleOf` can read: 2 honor-window mutants HARNESS | honor-window | Fixed: one id a line (HP-6 when the unshaped row is drawn, else HP-1) |
+| 4 | P3 tests · hunt-screen HS-19's Swap press threw (30 s) under the HS-22 mutant: the Chat pane (opens at home since lane/a-chat-opens) lay over the bar's drop menu. Hidden on `next` because the gate scoped shard 8 to nothing | hunt-screen shard 8 | Fixed: a covered or off Swap is HS-19's red (3 s), never a thrown harness |
+| 5 | P2 tests · the scan only knew the exact fail-count spelling. Widened (a list's length printed as caught unless filtered to the mutant's own rule or finding; a throw filed into the scored list; a named catch-all) it found 38 more runners; 7 fixed or cleared here (vitals and economy-watch selftests, town-life, town-yard-farm; outfit-masks, town-criers, world-assets already filter by rule) | `OWED_FOUND` in `tests/_mutant-verdict.mjs`, 31 frozen | Follow-up lane: 21 file a throw into the list they score (titles, town-shows/works/crier, world-tick-*, hunt-live, hunt-scene-live, setup-slots, tally-tasks ...); 10 count any line (no throw path) |
+| 6 | P4 tests · a catch by a rule's own "zero console errors" clause counts (it is named) but is the page throwing, not the rule measuring the plant; `report` now labels it "by a console error" | every page runner | Read the label; RP-2's "the console errors are not attached" is a real rule and is not labelled |
+
 ## 2026-11-20 · qa-engineer (lane/c-hollow-proofs) · mutation proofs that passed because the harness threw
 
 | # | Found | Affected | Action |

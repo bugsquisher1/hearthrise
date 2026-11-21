@@ -928,10 +928,12 @@ async function main() {
   if (clean.code) process.exit(clean.code);
   /* A mutant is caught only by a NAMED check (OB-n); a plant that does not parse, a run that throws, or a line with no check id is
      HARNESS, never a catch (tests/_mutant-verdict.mjs; lane/c-hollow-proofs-browser 2026-11-20: a throw read "OB-0 the browser checks
-     stopped", a named catch-all, and this loop scored ANY other fail line as the catch). Stricter here: a forward that failed while
-     its page was live means the page saw a broken site, so no check beside it is the product's: the run is HARNESS. */
+     stopped", a named catch-all, and this loop scored ANY other fail line as the catch). Stricter here: a FORWARD that failed while
+     its page was live (`HARNESS route.fetch` / `route.fulfill`) means the page saw a broken site, so no check beside it is the product's:
+     the run is HARNESS. A step that threw is HARNESS too, but a check named before it still stands (the verdict's own rule). */
   const counts = { caught: 0, harness: 0, escaped: 0 };
-  const harnessFirst = (fails) => (fails.some((f) => String(f).startsWith('HARNESS')) ? fails.filter((f) => String(f).startsWith('HARNESS')) : fails);
+  const FORWARD = /^HARNESS route\./;
+  const harnessFirst = (fails) => (fails.some((f) => FORWARD.test(String(f))) ? fails.filter((f) => FORWARD.test(String(f))) : fails);
   /* --only=<pattern>: just the mutants whose name matches the regular expression (a way to re-prove a few after an edit; the sweep runs them all) */
   const onlyArg = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7);
   const only = onlyArg ? new RegExp(onlyArg, 'i') : null;

@@ -140,7 +140,7 @@ import { join, resolve } from 'node:path';
 import { ROOT, UID, serve, SDK_STUB } from './_client-harness.mjs';
 import { pathToFileURL } from 'node:url';
 import { scopeMutants, gateScope, planShards, checkShards } from '../tools/lib/mutant-scope.mjs';
-import { judge, report, exitOf, cleanControl } from './_mutant-verdict.mjs';
+import { judge, report, exitOf, cleanControl, guardLines } from './_mutant-verdict.mjs';
 import { pinFonts } from './_test-fonts.mjs';
 import { withServerLevel } from './_server-level.mjs';
 /* Level totals on the shipped curve (src/core/xp.js), never typed: the curve is data (lane/b-level-curve). */
@@ -1491,7 +1491,10 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
         if (await menuOn() || sent().length !== 1) fails.push('HS-19 a press away did not cancel the drop');
         /* Swap: exactly the two change places. */
         await drag(0, 2);
-        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]'); else fails.push('HS-19 the drop menu did not open for a swap');
+        /* the menu's Swap is the player's press: covered or off, that is HS-19's red, never a thrown harness (rehearsal 44866483507: under
+           the HS-22 mutant the Chat pane lay over it and the 30 s click threw) */
+        if (await menuOn()) await page.click('.hb-drop [data-x="swap"]', { timeout: 3000 }).catch((e) => fails.push('HS-19 the drop menu\'s Swap could not be pressed' + guardLines(e)));
+        else fails.push('HS-19 the drop menu did not open for a swap');
         const swapped = base.slice(); swapped[0] = base[2]; swapped[2] = base[0];
         await lastIs('a swap', { n: 2, bar: swapped });
         /* Insert: the target and the slots after it shift one place, up to the first empty slot — never past it (slot 9 stays). */

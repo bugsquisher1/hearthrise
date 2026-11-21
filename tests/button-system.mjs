@@ -42,6 +42,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, normalize, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './_is-main.mjs';
+import { harnessFail, verdict, report } from './_mutant-verdict.mjs';
 
 const ROOT = normalize(join(fileURLToPath(new URL('.', import.meta.url)), '..'));
 const HOME = 'src/styles/shell.css';
@@ -251,9 +252,12 @@ function selftest() {
     const after = edit(before);
     if (after === before) { console.log('✗ ' + name + ': the mutant did not apply'); bad++; continue; }
     copy.set(file, after);
-    const red = check(copy);
-    if (red.length) console.log('✓ caught: ' + name + '  (' + red[0].slice(0, 110) + ')');
-    else { console.log('✗ MISSED: ' + name); bad++; }
+    /* caught only by a NAMED rule (BS-n); a planted tree that throws is HARNESS, never a catch (tests/_mutant-verdict.mjs) */
+    let v;
+    try { v = verdict(check(copy)); } catch (e) { v = { kind: 'harness', why: harnessFail('the planted tree', e) }; }
+    const counts = { caught: 0, harness: 0, escaped: 0 };
+    console.log(report(name, v, counts));
+    if (!counts.caught) bad++;
   }
   console.log(bad ? bad + ' of ' + MUTANTS.length + ' mutants not caught' : 'All ' + MUTANTS.length + ' mutants caught, clean control green');
   return bad ? 1 : 0;

@@ -10,10 +10,14 @@
 // NO PLAY, no production read, writes nothing. Inputs: ref.json (MEASURED harness), the REAL rows of
 // docs/design/balance-program/10-real-players.md typed in below with their section, and the price rows of src/data/*.
 // Every number is labelled where it is printed. Exit 0 when it ran.
+//
+// IMPORTED, it prints nothing: the balance guard (tests/balance-guard.mjs) reads the hero slot's shop price (offer) and the CITED
+// bank one lone hero holds by a Level (BANK, levelAtBank, lerp) from here, so guard line G9 and dive 24 read the same numbers.
 // ════════════════════════════════════════════════════════════════════════
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { isMain } from '../../tests/_is-main.mjs';
 import { REFERENCE_PLAYERS, REF_POINTS } from './model.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -82,7 +86,7 @@ function cell(pl, L) {
 }
 
 /* ── the one-time shelf: what has OPENED by a Level and is bought once (a four-hero account; h = a hero). READ FROM DATA. ── */
-const offer = (id) => { let g = null; const walk = (o) => { if (!o || typeof o !== 'object' || g !== null) return; if ((o.id === id || o.offer_id === id) && Array.isArray(o.cost)) { g = (o.cost.find((c) => c.id === 'gold') || {}).amount || 0; return; } for (const v of Object.values(o)) walk(v); }; walk(shops); if (g === null) throw new Error('no offer ' + id); return g; };
+export const offer = (id) => { let g = null; const walk = (o) => { if (!o || typeof o !== 'object' || g !== null) return; if ((o.id === id || o.offer_id === id) && Array.isArray(o.cost)) { g = (o.cost.find((c) => c.id === 'gold') || {}).amount || 0; return; } for (const v of Object.values(o)) walk(v); }; walk(shops); if (g === null) throw new Error('no offer ' + id); return g; };
 const sum = (ids) => ids.reduce((s, id) => s + offer(id), 0);
 /* the rooms on sale: a room held whole (src/data/homestead-tiers.js HELD_HOME_ROOMS: the Trophy room, the Shrine since 2026-11-20) sells no rung */
 const ROOMS = ['cellar', 'forge', 'garden', 'kitchen', 'library', 'shrine', 'trophy', 'workshop'].filter((r) => !HELD_HOME_ROOMS.includes(r));
@@ -174,16 +178,20 @@ function offers() {
 /* ── hero slot ladders (Tyler 2026-11-20: "hero slots should cost even more"). One hero banks the first slot alone; the second is banked by two heroes, the
    third by three, hunting as a party. BANK: gold one lone hero has banked by a Level, every drop sold (CITED board "2026-11-18 Gold by band": 226k / 715k / 679k / 1.29M
    in 15-30 / 30-45 / 45-60 / 60-75; about 50k before 15, ASSUMED). HOURS: the lone pace table (10-real-players section 2, "Lone table"; 60 ASSUMED on its slope). ── */
-/* The TYPED board table, for this design read only: the standing guard on the first slot (tests/slot-price-guard.mjs) judges a PLAYED life instead (plan audit M4). */
-const BANK = [[1, 0], [15, 50000], [30, 276000], [45, 991000], [60, 1670000], [75, 2960000]];
+/* The TYPED board table, for this design read only: the standing guards on the first slot (tests/slot-price-guard.mjs, the balance guard's G9)
+   judge a PLAYED life instead (plan audit M4). */
+export const BANK = [[1, 0], [15, 50000], [30, 276000], [45, 991000], [60, 1670000], [75, 2960000]];
 const HOURS = [[1, 0], [5, 0.32], [10, 6.3], [15, 17.9], [20, 26.6], [25, 37.0], [30, 52.5], [40, 103.1], [50, 165.4], [60, 240]];
-const lerp = (t, x) => { for (let i = 1; i < t.length; i++) if (x <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (x - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t.at(-1)[1]; };
-const levelAtBank = (g) => { for (let L = 1; L <= 75; L += 0.5) if (lerp(BANK, L) >= g) return L; return 75; };
+export const lerp = (t, x) => { for (let i = 1; i < t.length; i++) if (x <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (x - t[i - 1][0]) / (t[i][0] - t[i - 1][0]); return t.at(-1)[1]; };
+export const levelAtBank = (g) => { for (let L = 1; L <= 75; L += 0.5) if (lerp(BANK, L) >= g) return L; return 75; };
 const fourRate = (L) => lerp(LEVELS.map((l) => [l, FOUR[l].coin + FOUR[l].sold - FOUR[l].store]), L);
+/* the ladders dive 24 priced; A is RULED (Tyler 2026-11-20, 400k / 1.5M / 4M) and lands in src/data/shops.js with plan lane L06. The balance
+   guard's G20 reads A from here beside the shop's own prices. */
+export const SLOT_LADDERS = Object.freeze([['Was (to 2026-11-20)', [300000, 750000, 1500000]], ['A (recommended)', [400000, 1500000, 4000000]], ['B', [600000, 1500000, 3000000]], ['C', [300000, 2000000, 6000000]]]);
 function slots() {
-  /* 'Shipped' is src/data/shops.js as it stands (ladder A since Tyler's 2026-11-20 ruling); 'Was' the ladder before it. */
+  /* 'Shipped' is src/data/shops.js as it stands (ladder A since lane/c-approved-rows); the dive's ladders follow. */
   const shipped = [1, 2, 3].map((i) => shops.SHOP_OFFERS.find((o) => o.id === 'character_slot.' + i).cost[0].amount);
-  const LADDERS = [['Shipped', shipped], ['Was (to 2026-11-20)', [300000, 750000, 1500000]], ['A (recommended)', [400000, 1500000, 4000000]], ['B', [600000, 1500000, 3000000]], ['C', [300000, 2000000, 6000000]]];
+  const LADDERS = [['Shipped', shipped], ...SLOT_LADDERS];
   const pls = REFERENCE_PLAYERS.filter((p) => p.id !== 'whale');
   console.log('| Ladder | Slot | Price | Level on arrival | Lone hunted hours (slot 2) | ' + pls.map((p) => p.name + ', weeks').join(' | ') + ' | Buyer |\n|---|---|---|---|---|' + pls.map(() => '---').join('|') + '|---|');
   for (const [name, prices] of LADDERS) {
@@ -199,5 +207,7 @@ function slots() {
     console.log('| ' + [name, 'all three', k(prices.reduce((x, y) => x + y, 0)), '', '', ...pls.map((p) => total[p.id].toFixed(1)), 0].join(' | ') + ' |');
   }
 }
-if (has('shelf')) shelf(); else if (has('offers')) offers(); else if (has('refills')) refills(); else if (has('slots')) slots(); else weekly();
-process.exit(0);
+if (isMain(import.meta.url)) {
+  if (has('shelf')) shelf(); else if (has('offers')) offers(); else if (has('refills')) refills(); else if (has('slots')) slots(); else weekly();
+  process.exit(0);
+}

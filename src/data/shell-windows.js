@@ -19,6 +19,11 @@
 //   group    a LAUNCHER_GROUPS id: the row's icon lives in that group's menu, one press under the group's own icon (launcher.js)
 //   escape   true on at most one row: Esc with nothing open opens it (Settings)
 //   home     'bl': opens floating at the World's bottom-left, never docked (window-manager.js)
+//   startsOpen the residue field of a player switch (src/session/player-switch.js, default on): a home row the desktop
+//            opens as the shell mounts while that switch is on; the player's own close turns it off and an open turns it
+//            back on, one pick for every hero (window-manager.js openAtStart, keep). The phone opens nothing at start
+//   typing   true: a window opened to type in (Chat). An open by a press hands its field the caret (takeCaret); its key
+//            while it is open hands the caret back instead of closing it; the open at start leaves the caret alone
 //   resizable true: a grip resizes it, the size kept per character (src/shell/window-sizes.js)
 //   height   the starting height of a home or resizable row, CSS px
 //   tabKeys  { letter: tab }: more shortcuts, each opening this window on that tab (window-manager.js openTab)
@@ -140,11 +145,14 @@ export const SHELL_WINDOWS = Object.freeze([
   /* Tyler 2026-11-14: after a hero's first Krell kill, Holly and Venn ask it to pick a side (windows/faction-join.js opens it once; the
      Character window's Faction tab offers it again). Shown only while the server sends the `factions` section (its switch). */
   Object.freeze({ id: 'faction-join', label: 'Choose a side', key: null, noShortcut: true, section: 'factions', glyph: 'uiFlame', width: 640, object: 'ledger', launcher: false, modal: true }),
-  /* Tyler 2026-10-22: Chat opens floating at the bottom-left (never docked) and the player resizes it (kept in the residue).
+  /* Tyler 2026-10-22: "Chat window: resizable, opens by default at the bottom-left". It opens floating there (never docked) as the
+     shell mounts on desktop (`startsOpen`, lane/a-chat-opens: a new account found only the online count there) until the player closes
+     it, and the player resizes it (both kept in the residue). Enter on it open starts a line rather than closing it (`typing`).
      `besideCoach`: the coach's card stays up while it is open (played 2026-11-10: Chat is the window a new player leaves open, and with it open
      the screen said nothing at the minute the designer would have quit). It sits in the far corner from the card; a phone's sheet takes the
      right half and the card the left. */
-  Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', group: 'social', glyph: 'uiChat', width: 400, height: 280, home: 'bl', resizable: true, object: 'plain', besideCoach: true }),
+  Object.freeze({ id: 'chat', label: 'Chat', key: 'enter', group: 'social', glyph: 'uiChat', width: 400, height: 280, home: 'bl', resizable: true, object: 'plain', besideCoach: true,
+    startsOpen: 'chatOpen', typing: true }),
   /* The social side (2026-10-18): friends, and a read-only look at another player's worn gear
      (opened from the player menu, so it takes no launcher icon). */
   Object.freeze({ id: 'friends', label: 'Friends', key: 'n', group: 'social', glyph: 'navProfile', width: 380, object: 'ledger' }),

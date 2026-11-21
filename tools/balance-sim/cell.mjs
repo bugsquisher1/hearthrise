@@ -20,7 +20,7 @@ import { pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { loadGear, STYLES } from './gear.mjs';
 import { rateCI, quantile, round, gini } from './stats.mjs';
-import { playedBar, runeTierAt, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
+import { playedBar, runeTierAt, RUNE_TIERS, PLAYED_OPTIONS, PLAYED_RUNES } from './played.mjs';
 import { loadLines, skillsAt } from './skill-lines.mjs';
 import { sourceQuery } from '../lib/version-stamp.mjs';
 
@@ -152,9 +152,18 @@ export async function loadCellRunner(root) {
     const spends = (id) => !!id && ITEMS[id] && (ITEMS[id].ammoPerShot || 0) > 0;
     /* cell.addSlots { role: { after: ability id, slots: [slot] } }: slots a player added to the role's played bar, right after that ability's
        slot (the bar's end when it holds none): a what-if on the played hero, the rest of its bar as recorded (the tank rune spells' A/B). */
+    /* cell.runeTierByRole { role: rune tier id }: the dearest rune that role buys or carries (played.mjs RUNE_TIERS), whatever its Magic allows:
+       the real Krell four's Mage on Carved and Healer on Etched where the harness would cast on Graven (11-krell-hunt section 4). Its spells cast
+       the version that rune carries. Absent, a role casts on the tier its Magic allows, as before. */
+    const runeMagic = (role, i) => {
+      const t = cell.runeTierByRole && cell.runeTierByRole[role];
+      const at = t ? (RUNE_TIERS.find(([, id]) => id === t) || [])[0] : undefined;
+      if (t && at === undefined) throw new Error('balance-sim: runeTierByRole names no rune tier ' + t);
+      return at === undefined ? skillLv(i, 'magic') : Math.min(skillLv(i, 'magic'), at);
+    };
     const playedBarFor = (role, i) => {
       const g = guideOf(cell.ground), own = (cell.supply || 'store') === 'own';
-      const bar = playedBar(role, { magic: skillLv(i, 'magic'), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
+      const bar = playedBar(role, { magic: runeMagic(role, i), food: own && g ? g.melee.heal.id : null, storeFood: g ? storeOf('heal', g.melee.heal.id) : 'salted_shrimp',
         storeDrink: g ? storeOf('mana', g.magic.mana.id) : 'thin_turnip_juice', arrows: role === 'ranger' && spends(kits[i].ammo) ? kits[i].ammo : null });
       const add = cell.addSlots && cell.addSlots[role];
       if (!add) return bar;
@@ -165,7 +174,7 @@ export async function loadCellRunner(root) {
     const playedBagFor = (role, i) => {
       const bag = bagFor(cell.ground, cell.supply || 'store', kits[i], cell.bagByRole && cell.bagByRole[role]);
       if ((cell.supply || 'store') !== 'own') return bag;
-      for (const f of PLAYED_RUNES[role] || []) bag[runeTierAt(f === 'earth' && role === 'mage' ? 1 : skillLv(i, 'magic')) + '_' + f + '_rune'] = { loaded: 100000 };
+      for (const f of PLAYED_RUNES[role] || []) bag[runeTierAt(f === 'earth' && role === 'mage' ? 1 : runeMagic(role, i)) + '_' + f + '_rune'] = { loaded: 100000 };
       if (spends(kits[i].ammo)) bag[kits[i].ammo] = { loaded: 100000 };
       return bag;
     };

@@ -22,13 +22,21 @@
 //            leaves the windows under it open. On desktop its head drags it like
 //            any window (Tyler 2026-10-27), held wholly inside the World (`h`, its
 //            measured height); a reopen is centred again. The phone never moves it.
-//   Esc      closes the top window; with none open it opens the `escape` row.
+//   Esc      closes the top window; with none open it opens the `escape` row. A window open from the start
+//            (`startsOpen`, Chat) is part of the screen: Esc passes it by (its X or its icon closes it).
 //   keys     each row's `key` toggles it; ignored while typing (src/utils/dom.js
 //            keyBelongsToField: a text field, or a select's arrows) or with a modifier.
 //   motion   a close waits MOTION_MS for the slide-out; none under reduced motion.
 //   home     a row with `home: 'bl'` (Chat, Tyler 2026-10-22) opens FLOATING at the
 //            World's bottom-left, held to that corner by its bottom edge, until it
 //            is dragged; it is never docked, so it never moves a widget or the dock.
+//   start    openAtStart(isShut) (the shell, as it mounts): every `startsOpen` row (Chat, Tyler 2026-10-22 "opens by
+//            default") opens on desktop unless isShut(row); the phone's one sheet opens nothing. A close of such a row
+//            (its X, Esc, a press) and any later open are the player's pick: o.keep(id, open) hands it to the host,
+//            which keeps it in the residue. A window the manager drops (the cap, the phone's sheet) is no pick.
+//   caret    a `typing` row (Chat) wants its field's caret after an open by a press, and when its key is pressed while it
+//            is open (it is not closed: Enter starts a line); its renderer takes the wish (takeCaret). Opened at start, the
+//            caret stays where it was, so the World's keys and the window keys still work.
 //   go to    goTo(id, { tab, find }) is the one door a "take me there" link uses (src/shell/goto.js):
 //            it opens (or raises) the window on its tab and asks it for one row; the shell
 //            brings that row into view once the window draws it (takeFind), and a close
@@ -108,6 +116,9 @@ export function validateWindowRows(rows) {
     if (r.resizable !== undefined && r.resizable !== true) throw new Error('shell windows: ' + r.id + ' resizable is true or absent');
     /* a window the coach's card stays up beside sits home in the far corner: a docked one would take the card's place */
     if (r.besideCoach !== undefined && !(r.besideCoach === true && r.home === 'bl')) throw new Error('shell windows: ' + r.id + ' besideCoach is true on a home window, or absent');
+    /* a window open at start sits home in its corner: docked, it would take the dock's place before the player opened anything */
+    if (r.startsOpen !== undefined && !(typeof r.startsOpen === 'string' && /^[a-z][A-Za-z0-9]{0,31}$/.test(r.startsOpen) && r.home === 'bl')) throw new Error('shell windows: ' + r.id + ' startsOpen names a residue field, on a home window');
+    if (r.typing !== undefined && r.typing !== true) throw new Error('shell windows: ' + r.id + ' typing is true or absent');
     if ((r.home || r.resizable) && !(r.height > 0)) throw new Error('shell windows: ' + r.id + ' needs a positive height to sit home or resize');
     if ((r.home || r.resizable) && r.modal) throw new Error('shell windows: ' + r.id + ' a modal neither sits home nor resizes');
     if (r.beside !== undefined && !(Array.isArray(r.beside) && r.beside.length && r.beside.every((x) => typeof x === 'string' && x !== r.id))) throw new Error('shell windows: ' + r.id + ' beside is a list of other windows');
@@ -161,6 +172,7 @@ function pressesControl(ev) {
  * @param {() => boolean} [o.reducedMotion]
  * @param {(fn:Function, ms:number) => any} [o.schedule]
  * @param {(id:string) => ({w:number,h:number}|null)} [o.sizeOf]  a resizable window's saved size
+ * @param {(id:string, open:boolean) => any} [o.keep]  the player opened or closed a startsOpen row (the host keeps the pick)
  */
 export function createWindowManager(o) {
   const rows = validateWindowRows(o.windows);
@@ -181,6 +193,9 @@ export function createWindowManager(o) {
   const findWanted = new Map();  // id -> the row a link asked it to bring into view (goTo), until the shell finds it
   const pages = new Map();       // host id -> the page id it shows (a pageOf row opened from inside it)
   const cameFrom = new Map();    // id -> the window a press inside opened it from (back)
+  const caretWanted = new Set(); // typing rows whose field should take the caret (takeCaret)
+  const keep = o.keep || (() => {});   // (id, open): the player opened or closed a startsOpen row
+  let starting = false;          // openAtStart is opening: no pick, no caret
   let opener = null;             // the window a press is being handled inside (from), or null
   let returning = false;         // back() is reopening a window: its own way back is kept
 
@@ -254,6 +269,7 @@ export function createWindowManager(o) {
     slot.delete(id);
     sized.delete(id);   // a reopen reads the saved size (the grip saved it on release)
     findWanted.delete(id);
+    caretWanted.delete(id);
     leaving.delete(id);
     entering.delete(id);
     pages.delete(id);   // a host takes its page with it
@@ -278,7 +294,16 @@ export function createWindowManager(o) {
     }
     /* anywhere else it is a window of its own */
     if (hostOf(id)) pages.delete(hostOf(id));
-    if (open.includes(id) && !leaving.has(id)) return focus(id);
+    const caret = !starting && rows.get(id).typing === true;
+    if (open.includes(id) && !leaving.has(id)) {
+      if (caret) caretWanted.add(id);
+      /* raised (focus repaints), or already on top: a caret wish still needs a paint to be taken */
+      const top = open[open.length - 1] === id;
+      focus(id);
+      if (top && caretWanted.has(id)) emit();
+      return true;
+    }
+    if (!starting && rows.get(id).startsOpen) keep(id, true);   // opened, not raised: the player's pick
     if (by) cameFrom.set(id, by); else if (!returning) cameFrom.delete(id);
     drop(id);
     if (isPhone() && !isModal(id)) for (const other of open.slice()) drop(other);
@@ -287,7 +312,8 @@ export function createWindowManager(o) {
     const sheets = () => open.filter((x) => !isModal(x));
     if (!isModal(id)) while (sheets().length >= MAX_OPEN) drop(sheets()[0]);
     open.push(id);
-    if (!reducedMotion()) entering.add(id);
+    if (caret) caretWanted.add(id);   // after drop(id), which forgets every wish
+    if (!reducedMotion() && !starting) entering.add(id);   // open at start, it is part of the screen as it comes up: no slide in (a plate placed mid-slide moved on a hover)
     if (!isPhone() && !isModal(id)) {
       const was = lastAt.get(id);
       if (was && was.home) floating.set(id, { home: true });
@@ -308,6 +334,8 @@ export function createWindowManager(o) {
     if (!open.includes(id) || leaving.has(id)) return false;
     cameFrom.delete(id);
     entering.delete(id);
+    caretWanted.delete(id);
+    if (rows.get(id).startsOpen) keep(id, false);
     if (reducedMotion()) { drop(id); emit(); return true; }
     leaving.add(id);
     emit();
@@ -392,7 +420,7 @@ export function createWindowManager(o) {
   }
 
   function onEscape() {
-    const l = live();
+    const l = live().filter((id) => !rows.get(id).startsOpen);
     if (l.length) return pages.has(l[l.length - 1]) ? back(l[l.length - 1]) : close(l[l.length - 1]);
     for (const r of rows.values()) if (r.escape) return openWindow(r.id);
     return false;
@@ -403,7 +431,8 @@ export function createWindowManager(o) {
     if (isTypingEvent(ev, inLeaving)) return false;
     const k = String(ev.key || '').toLowerCase();
     if (k === 'escape') return onEscape();
-    for (const r of rows.values()) if (r.key === k && k !== 'escape') return toggle(r.id);
+    /* a typing row's key while it is open hands its field the caret (Enter starts a line); anything else toggles */
+    for (const r of rows.values()) if (r.key === k && k !== 'escape') return r.typing && isOpen(r.id) ? openWindow(r.id) : toggle(r.id);
     for (const r of rows.values()) if (r.tabKeys && Object.prototype.hasOwnProperty.call(r.tabKeys, k)) return openTab(r.id, r.tabKeys[k]);
     return false;
   }
@@ -482,8 +511,21 @@ export function createWindowManager(o) {
 
   function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
+  /** The shell mounts: open every startsOpen row the player has not shut (isShut(row)), desktop only. The ids it opened. */
+  function openAtStart(isShut) {
+    if (isPhone()) return [];
+    const out = [];
+    starting = true;
+    try { for (const r of rows.values()) if (r.startsOpen && !isOpen(r.id) && !(isShut && isShut(r)) && openWindow(r.id)) out.push(r.id); } finally { starting = false; }
+    return out;
+  }
+
   return {
-    open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe, openTab, goTo,
+    open: openWindow, close, toggle, focus, float, dock, resize, setSize, handleKey, layout, subscribe, openTab, goTo, openAtStart,
+    /** Should `id`'s field take the caret now? Once (its renderer asks as it patches). */
+    takeCaret: (id) => caretWanted.delete(id),
+    /** Is a caret wish waiting for `id`? (the shell re-patches that window at once) */
+    wantsCaret: (id) => caretWanted.has(id),
     /** The row a link asked `id` to bring into view, or null (it stays asked until takeFind: the row may draw later). */
     wantsFind: (id) => findWanted.get(id) || null,
     /** The shell found the row: the wish is spent. */

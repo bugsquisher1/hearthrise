@@ -270,7 +270,7 @@ async function stubServer(page, o) {
 const wait = (page, fn, arg, ms = 8000) => page.waitForFunction(fn, arg, { timeout: ms }).then(() => true, () => false);
 /* a window by its hotkey, every open one closed first: true once it is built */
 async function openPane(page, key, id) {
-  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving)').length > 0); i++) {
+  for (let i = 0; i < 4 && await page.evaluate(() => document.querySelectorAll('[data-hs-win]:not(.is-leaving):not([data-hs-win="chat"])').length > 0); i++) {
     await page.evaluate(() => { const a = document.activeElement; if (a && a.blur) a.blur(); });
     await page.keyboard.press('Escape');
     await page.waitForTimeout(160);

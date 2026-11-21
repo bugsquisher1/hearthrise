@@ -105,6 +105,18 @@ export const RUNS = Object.freeze({
     LINEUP_BLOCK,
     BUFF_BLOCK, BINDS_BLOCK, TRACKS_BLOCK, TALENT_BLOCK, LEAVE_BLOCK,
   ]) }),
+  /* THE DEATH SAMPLE (12-balance-pass.md section 1, R2 and R4; replayed by FB-3 on the fixed engine, audit A-0): what the harder tiers do to a
+     four, read where a death count can be read, 4 seeds of 8 hours (X26: 32 hours a seat). The mid four's every gear state on Dangerous and the
+     hardest tier; the lineups on Deadly; the buffed fours; the four's Talents builds; both party defaults (the leave block); and the 14 grounds
+     at both band ends, the first four on Dangerous and the hardest tier. `--run deaths`, GitHub only */
+  deaths: Object.freeze({ id: 'deaths', levels: Object.freeze([10, 30, 60, 110, 185, 400]), seeds: 4, hours: 8, blocks: Object.freeze([
+    { id: 'four', comps: compsOf(4), gears: STD.GEAR_STATE_IDS, tiers: ['dangerous', 'hardest'] },
+    { ...LINEUP_BLOCK, seeds: undefined },
+    { id: 'buff', levels: [60, 185], comps: compsOf(4), gears: ['mid'], tiers: ['dangerous', 'hardest'], variants: [{ tag: 'buff:damage10', buffs: [{ type: 'damage', magnitude: 10 }] }, { tag: 'buff:defense10', buffs: [{ type: 'defense', magnitude: 10 }] }, { tag: 'buff:caps', buffs: [{ type: 'damage', magnitude: 15 }, { type: 'defense', magnitude: 10 }, { type: 'level_xp', magnitude: 30 }] }] },
+    { ...TALENT_BLOCK, minSize: 4, levels: [60, 110, 185] },
+    LEAVE_BLOCK,
+    { id: 'grounds', grounds: true, sizes: [4], firstComp: true, tiers: ['dangerous', 'hardest'] },
+  ]) }),
   /* Balance Lab v3's LIVE cells (a slider move re-plays them in the browser, on the bundled engine): every way alone and the four on every tier,
      MID, early, at the end of open content and PROJECTED, a quarter hour on one seed. tools/balance-lab/build.mjs --v3
      resolves them (cell.mjs resolveOnly) so the page plays the matrix's own seats. */
@@ -246,6 +258,7 @@ function planTalents(D, K, add, block, o) {
     if (o.only && !o.only.includes(L)) continue;
     for (const seat of block.seats) {
       const size = seat.styles.length, ground = D.groundAt(L, size);
+      if (block.minSize && size < block.minSize) continue;
       if (size > 1 && L < (STD.PARTIES.find((p) => p.size === size).fromLevel || 1)) continue;
       for (const tier of tiersFor(D, ground, [seat.tier])) for (const build of seat.builds) {
         const tag = 'build:' + build;
@@ -258,14 +271,17 @@ function planTalents(D, K, add, block, o) {
 
 /* THE GROUND AXIS (atlas/rates.mjs measureJobs' cells, built by the grid's buildCell so its pulls, kits and skills are the grid's): every hunt
    ground at both ends of its band, every party of 50-standards 1.3, every tier, MID. Key: G|ground|L|mid|size:comp|tier. `block.quick`: sizes
-   1 and 4, one composition, Normal and the hardest tier (measureJobs' quick); `block.only`: those grounds. */
+   1 and 4, one composition, Normal and the hardest tier (measureJobs' quick); `block.only`: those grounds. The death sample's (RUNS.deaths):
+   `sizes` those party sizes, `firstComp` each size's first composition, `tiers` those tiers ('hardest' resolved per ground). */
 function planGrounds(D, K, add, block = {}) {
   for (const g of huntGrounds(D.G.HUNT_GROUNDS, D.HUNT_INDEX)) {
     if (block.only && !block.only.includes(g)) continue;
     for (const L of bandEnds(D.HUNT_INDEX, g, D.G.HUNT_GROUNDS[g])) for (const pc of partyComps(STD.PARTIES, !!block.quick)) {
       if (L < pc.fromLevel && pc.size > 1) continue;
+      if (block.sizes && !block.sizes.includes(pc.size)) continue;
       pc.comps.forEach((styles, ci) => {
-        for (const tier of block.quick ? tiersFor(D, g, ['normal', 'hardest']) : D.TI.tiersOf(g)) {
+        if (block.firstComp && ci > 0) return;
+        for (const tier of block.tiers ? tiersFor(D, g, block.tiers) : block.quick ? tiersFor(D, g, ['normal', 'hardest']) : D.TI.tiersOf(g)) {
           const comp = styles.map((s) => s[0]).join('') + ci;
           const key = ['G', g, L, 'mid', pc.size + ':' + comp, tier].join('|');
           add({ key, block: 'grounds', L, gear: 'mid', party: pc.size, comp, compIndex: ci, tier, ground: g, styles }, buildCell(D, K, { L, gear: 'mid', styles, tier, ground: g }));

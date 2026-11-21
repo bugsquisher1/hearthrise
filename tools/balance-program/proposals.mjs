@@ -210,7 +210,11 @@ async function derive(o) {
   const reg = loadProposals(ROOT);
   const playOn = async (ids, run, label) => {
     const s = await SC.plantScratch(composePatch(ROOT, ids, { reg }));
-    try { return await BM.playRun(D, K, run, s.root, { workers: o.workers, quiet: true, calibrate: false, label }); } finally { s.done(); }
+    let res;
+    try { res = await BM.playRun(D, K, run, s.root, { workers: o.workers, quiet: true, calibrate: false, label }); } finally { s.done(); }
+    /* a cell that ended no_fight measured an engine stall (audit A-0): the derivation still prints, and the command exits 1 */
+    if (BM.printToolReds(res.cells, (x) => console.error(x), label)) process.exitCode = 1;
+    return res;
   };
   /* R12: on the proposed game without R12 (and R13, which comes after it), the gear curve on (R10 before R12). `--r13-only` keeps R12 as written */
   if (!o.r13Only) {

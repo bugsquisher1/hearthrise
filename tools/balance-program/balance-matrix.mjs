@@ -20,6 +20,11 @@
 //   node tools/balance-program/balance-matrix.mjs --knobs             NO PLAY: every knob, the file:line it moves and today's numbers
 //   node tools/balance-program/balance-matrix.mjs --selftest          the proofs (below)
 //   --workers N (4 at most by default: other lanes share the PC)  --seeds N  --hours H  --only 30,60  --blocks ways,four  --json <file>
+//   --run deaths                                                      the DEATH SAMPLE (matrix-plan.mjs RUNS.deaths: the four and the lineups on the
+//                                                                      harder tiers, 4 seeds x 8 h, the 14 grounds at both band ends); --subset is --run subset
+//
+// A TOOL RED (audit A-0): a cell whose hunt ended `no_fight` (matrix-metrics.mjs TOOL_RED_ENDS) measured an engine stall, not the balance:
+// every run, shard, join and diff prints it and exits 1. FB-1's two stalls (02364f03a) were read as safe, slow cells for a whole pass.
 //
 // ONE SOURCE OF RATES (the Coordinator 2026-11-21). Every cell is the grid's own buildCell (progression-grid.mjs), every judge the grid's own
 // judgeGrid (grid-derive.mjs), and the ground rates the solver reads (sources.mjs, paths.mjs) are the matrix's `grounds` block written in
@@ -49,7 +54,7 @@ import * as STD from './standards.mjs';
 import { loadGridData, inputHash, compsOf, cellKey, buildCell } from './progression-grid.mjs';
 import { loadKits } from './grid-kit.mjs';
 import { RUNS, planMatrix, archetypeTable, WAYS, HIGH_LEVELS } from './matrix-plan.mjs';
-import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf, FLAG_WORDS, checkGRows } from './matrix-metrics.mjs';
+import { METRICS, cellMetrics, slimSeed, deriveMatrix, judgeMatrix, diffMatrices, axisSummary, levelBand, wayOf, styleGroupOf, FLAG_WORDS, checkGRows, toolReds, TOOL_RED_ENDS } from './matrix-metrics.mjs';
 import { plantScratch, knobTable, checkPatch, patchEdits, scaled, readKnobs, locateKnob, PATCH_SCHEMA, KnobGone } from './matrix-scratch.mjs';
 import { calibrationJobs, calibrationTable, printCalibration } from './matrix-calibration.mjs';
 import { STYLE_GROUPS, KNOB_FILE } from './knob-rules.mjs';
@@ -114,7 +119,8 @@ export async function playRun(D, K, run, root, o = {}) {
   /* o.shard [i, n]: every n-th cell from the i-th (a GitHub job's share of the full run; the simulator check plays in shard 0 only) */
   const plan = o.shard ? shardOf(plan0, o.shard) : plan0;
   const cal = o.calibrate === false || (o.shard && o.shard[0] !== 0) ? { jobs: [], cols: [], samples: [] } : await calibrationJobs(V, K, ROOT, { seeds: o.seeds || run.seeds, hours: o.hours || run.hours });
-  const jobs = [...plan.jobs, ...cal.jobs];
+  /* o.jobHook (a what-if a caller lays on every cell job: arrival-kit.mjs scales the jewelry rows) */
+  const jobs = [...(o.jobHook ? plan.jobs.map(o.jobHook) : plan.jobs), ...cal.jobs];
   if (o.say) o.say((o.label || run.id) + ': ' + plan.cells.length + ' cells' + (cal.jobs.length ? ' + calibration' : '') + ', ' + jobs.length + ' seed jobs, ' + (o.workers || workersOf()) + ' workers, on ' + (resolve(root) === ROOT ? 'the tree' : 'a scratch copy'));
   const { results, errors, workerMs, wallMs } = await playJobs(jobs, root, o.workers || workersOf(), o.quiet ? () => {} : progress(o.label || run.id));
   if (process.stderr.isTTY && !o.quiet) process.stderr.write('\n');
@@ -191,10 +197,21 @@ export function readCache(file) { return existsSync(file) ? JSON.parse(readFileS
 /* ── PRINTING ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
 const fmt = (v, d = 0) => (!finite(v) ? '-' : Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + 'M' : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + 'k' : d ? v.toFixed(d) : String(Math.round(v)));
 const pct = (v) => (!finite(v) ? '-' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%');
+/* THE TOOL RED (audit A-0): the cells that ended on a TOOL_RED_ENDS reason, printed under a run's header and on stderr at the end; 1 when any */
+export function printToolReds(cells, out = console.log, label = '') {
+  const t = toolReds(cells);
+  if (!t.length) return 0;
+  out('TOOL RED' + (label ? ' (' + label + ')' : '') + ': ' + t.length + ' cell(s) ended ' + TOOL_RED_ENDS.join(' or ') + ', so they measured an engine stall, not the balance');
+  for (const x of t.slice(0, 12)) out('  TOOL RED ' + x.key + ': ' + x.why);
+  if (t.length > 12) out('  ... ' + (t.length - 12) + ' more');
+  return 1;
+}
+const sayToolReds = (cells, label = '') => printToolReds(cells, (s) => console.error(s), label);
 export function printRun(res, rows, out = console.log) {
   const ok = res.cells.filter((c) => c.m), bad = res.cells.filter((c) => c.error);
   out('BALANCE MATRIX ' + res.run + ': ' + ok.length + ' cells (' + bad.length + ' errors), ' + res.seeds + ' seed(s) x ' + res.hours + ' h, ' + res.runtime.wallS + ' s wall, ' + res.runtime.workerS + ' worker-s on ' + res.runtime.workers + ' workers');
   for (const c of bad.slice(0, 5)) out('  ERROR ' + c.key + ': ' + c.error);
+  printToolReds(res.cells, out);
   const D = deriveMatrix(res.cells);
   out('\nEVERY WAY ALONE (MID, Normal; Levels past 400 and 185-400 are PROJECTED): DPS | Level XP/h | net gold/h | kills/h | deaths/1000h | low HP | under 30% | h a Level');
   const lone = ok.filter((c) => c.party === 1 && !c.step && c.gear === 'mid' && c.tier === 'normal' && c.block !== 'grounds');
@@ -316,7 +333,8 @@ export async function playOnBase(D, K, run, base, o) {
   try { return { ...(await playRun(D, K, run, s.root, { ...o, plan: base.patch.plan })), applied: s.applied }; } finally { s.done(); }
 }
 export const baseHash = (base) => (base ? createHash('sha256').update(matrixHash() + JSON.stringify(base.patch) + [...new Set(base.patch.edits.map((e) => e.file))].map((f) => existsSync(join(ROOT, f)) ? readFileSync(join(ROOT, f), 'utf8') : '').join('\0')).digest('hex').slice(0, 16) : matrixHash());
-export const cacheFileOf = (run, base) => (run.id === 'subset' ? (base ? join(HERE, 'balance-matrix-' + base.name + '.json') : SUBSET_FILE) : base ? join(HERE, 'balance-matrix-full-' + base.name + '.json') : MATRIX_FILE);
+export const cacheFileOf = (run, base) => (run.id === 'subset' ? (base ? join(HERE, 'balance-matrix-' + base.name + '.json') : SUBSET_FILE) : run.id === 'full' ? (base ? join(HERE, 'balance-matrix-full-' + base.name + '.json') : MATRIX_FILE)
+  : join(HERE, 'balance-matrix-' + run.id + (base ? '-' + base.name : '') + '.json'));
 
 /** The baseline of a run on its base: the cache when it is fresh and plays the same plan, else a fresh run (written back). */
 async function baseline(D, K, run, o) {
@@ -538,7 +556,8 @@ async function main() {
     for (const p of list.planned) console.log(('planned ' + p.id).padEnd(35) + 'arrives with ' + p.arrivesWith + ': ' + p.home);
     return 0;
   }
-  const run = has('subset') ? RUNS.subset : RUNS.full;
+  const run = arg('run') ? RUNS[arg('run')] : has('subset') ? RUNS.subset : RUNS.full;
+  if (!run) { console.error('balance-matrix: no run ' + arg('run') + ' (' + Object.keys(RUNS).join(', ') + ')'); return 2; }
   const o = optsOf();
   o.base = await baseOf(o.baseSpec, o.without);
   if (o.base) console.error('base: ' + o.base.name + ' (' + o.base.ids.join(', ') + ')');
@@ -570,20 +589,20 @@ async function main() {
       commit: commitOf(), seeds: res.seeds, hours: res.hours, runtime: res.runtime, calibration: res.calibration || null, cells: res.cells.map(keepCell) };
     writeFileSync(resolve(arg('out') || 'shard-' + i + '.json'), JSON.stringify(doc) + '\n');
     console.log('shard ' + i + '/' + n + ': ' + doc.cells.length + ' cells (' + doc.cells.filter((c) => c.error).length + ' errors) in ' + res.runtime.wallS + ' s');
-    return doc.cells.some((c) => c.error) ? 1 : 0;
+    return Math.max(doc.cells.some((c) => c.error) ? 1 : 0, sayToolReds(doc.cells));
   }
   if (arg('join')) {
     const docs = shardFiles(resolve(arg('join'))).map((f) => JSON.parse(readFileSync(f, 'utf8')));
-    const joined = joinShards(docs);
+    const joined = joinShards(docs), jrun = RUNS[joined.run] || run;
     if (joined.hash !== baseHash(o.base)) console.log('STALE: the shards were played on ' + joined.hash + ', this tree and base is ' + baseHash(o.base));
-    const file = cacheFileOf(run, o.base);
+    const file = cacheFileOf(jrun, o.base);
     writeFileSync(file, JSON.stringify({ schema: 'hearthrise.balance-matrix/1', ...joined, refresh: 'GitHub balance-matrix-full: push to balance-full/<branch>, then --join' }) + '\n');
     const D0 = await loadGridData(ROOT), K0 = await loadKits(ROOT), V = o.base ? await baseView(D0, o.base) : D0;
     const rows = judgeMatrix(V, K0, joined.cells);
     printRun({ ...joined, run: joined.run }, rows);
     if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ run: joined.run, runtime: joined.runtime, derived: deriveMatrix(joined.cells), bands: rows, calibration: joined.calibration }, null, 1));
     console.log('\njoined ' + docs.length + ' shards, ' + joined.cells.length + ' cells -> ' + relative(ROOT, file));
-    return 0;
+    return sayToolReds(joined.cells);
   }
   const D = await loadGridData(ROOT), K = await loadKits(ROOT);
   if (arg('diff')) {
@@ -595,8 +614,9 @@ async function main() {
     console.log('\nRUNTIME: before ' + (r.before.cached ? 'from the cache' : r.before.runtime.wallS + ' s') + ', after ' + r.after.runtime.wallS + ' s (' + r.after.runtime.workerS + ' worker-s, ' + r.after.runtime.workers + ' workers), diff total ' + Math.round((Date.now() - t0) / 1000) + ' s');
     const gate = gateOf(patch, r.d);
     console.log('GATE (44 section 6.2, kind ' + (patch.kind || 'none named: report only') + '): ' + gate.verdict + (gate.why ? ' - ' + gate.why : ''));
+    const red = Math.max(sayToolReds(r.before.cells, 'before'), sayToolReds(r.after.cells, 'after'));
     if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ patch, applied: r.applied, regen: r.regen, gate, counts: r.d.counts, bands: r.d.bands, cells: r.d.cells, calibration: { before: r.before.calibration, after: r.after.calibration } }, null, 1));
-    return gate.verdict === 'FAIL' ? 1 : 0;
+    return gate.verdict === 'FAIL' || red ? 1 : 0;
   }
   let res;
   if (has('report')) {
@@ -607,12 +627,12 @@ async function main() {
   } else if (o.base) res = await baseline(D, K, run, o);
   else {
     res = await playRun(D, K, run, ROOT, o);
-    if (!o.only && !o.blocks) writeCache(run.id === 'subset' ? SUBSET_FILE : MATRIX_FILE, res);
+    if (!o.only && !o.blocks) writeCache(cacheFileOf(run, null), res);
   }
   const rows = judgeMatrix(res.V || D, K, res.cells);
   printRun(res, rows);
   if (arg('json')) writeFileSync(resolve(arg('json')), JSON.stringify({ run: res.run, runtime: res.runtime, cells: res.cells.map(keepCell), derived: deriveMatrix(res.cells), bands: rows, calibration: res.calibration }, null, 1));
-  return 0;
+  return sayToolReds(res.cells);
 }
 
 /* ── THE SELFTEST ──────────────────────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -707,6 +727,26 @@ async function selftest() {
   const base = await playRun(D, K, MINI, ROOT, o);
   check('the mini plan plays (' + base.cells.length + ' cells, no error)', base.cells.length >= 6 && base.cells.every((c) => c.m), (base.cells.find((c) => c.error) || {}).error);
   const play = async (patch) => { const s = await plantScratch(patch); try { return { res: await playRun(D, K, MINI, s.root, o), regen: s.regen }; } finally { s.done(); } };
+  /* 3a. THE TOOL RED (audit A-0, FB-3): the tree's mini plan ends no hunt on no_fight; a planted cell that did is a tool red and fails the run, a
+     death or an outgrown end is not; and the ENGINE MUTANT (the no-fight clock never moves on a blow, so every hunt stands as FB-1's stalled
+     fours stood) plays a cell that ends no_fight, which the matrix reads red. Each seed keeps its ends in order (falls: S-14 reads them) */
+  {
+    const t0r = toolReds(base.cells);
+    check('the tree plays no tool red (' + t0r.length + ' of ' + base.cells.length + ' cells ended ' + TOOL_RED_ENDS.join(' or ') + ') and every cell keeps each seed\'s ends',
+      t0r.length === 0 && base.cells.every((c) => Array.isArray(c.m.falls) && c.m.falls.length === c.seeds), JSON.stringify(t0r).slice(0, 200));
+    const planted = [{ key: 'a', m: { ended: { died: 2, outgrown: 1 } } }, { key: 'b', m: { ended: { no_fight: 1, died: 1 } } }, { key: 'c', error: 'x' }];
+    const tr = toolReds(planted), lines = [];
+    check('a planted cell that ended no_fight is a tool red and the run exits 1; a death, an outgrown end or an error is not one (' + tr.map((x) => x.key).join() + ')',
+      tr.length === 1 && tr[0].key === 'b' && printToolReds(planted, (s) => lines.push(s)) === 1 && lines.length >= 2 && printToolReds([planted[0], planted[2]], () => {}) === 0);
+    const NOFIGHT = { id: 'selftest-nofight', levels: [], seeds: 1, hours: 0.25, blocks: [{ id: 'a', levels: [30], comps: [lone('hammer')], gears: ['mid'], tiers: ['normal'] }] };
+    const stall = { edits: [{ file: 'src/core/hunt/damage.js', from: "  if (target.side === 'mon') inst.world.fightAt = sc.atMs;", to: "  if (false) inst.world.fightAt = sc.atMs; /* MUTANT: the no-fight clock never moves */" }] };
+    let mut = null, why = '';
+    try { const s = await plantScratch(stall); try { mut = await playRun(D, K, NOFIGHT, s.root, o); } finally { s.done(); } } catch (e) { why = e.message; }
+    const mr = mut ? toolReds(mut.cells) : [], fall = mut && mut.cells[0] && mut.cells[0].m ? mut.cells[0].m.falls[0] : null;
+    check('MUTANT the engine stalls (the no-fight clock never moves on a blow): its cell ends no_fight at the span, kept in its falls, and the matrix reads a tool red ('
+      + (mr.map((x) => x.why).join('; ') || why || 'no tool red') + ')', mr.length === 1 && printToolReds(mut.cells, () => {}) === 1 && !!fall && fall[0] && fall[0][2] === 'no_fight' && fall[0][1] < 0.25,
+      JSON.stringify(fall));
+  }
   const rowsB = judgeMatrix(D, K, base.cells);
   const same = await play({ knobs: { playerAttack: 1 } });
   const d0 = diffMatrices({ rows: rowsB, cells: base.cells }, { rows: judgeMatrix(same.res.V, K, same.res.cells), cells: same.res.cells }, { targets: [] });

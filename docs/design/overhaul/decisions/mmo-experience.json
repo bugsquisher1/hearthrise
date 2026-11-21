@@ -155,7 +155,9 @@
       "evidence": "EVIDENCE, thin. Four testers over 33 days: two people pressed in the same ten minutes in 5 of 675 windows, and their heroes hunted in the same hour in 46 of 452 (chapter 06 section 1, study 49). Only the direction is used.",
       "replaces": "",
       "money": false,
-      "depends": "Everything in this file reads it. GR-69 (the live finder goes), MM-12 (no live opponents), GR-82 (the Hearth passes it)."
+      "depends": "Everything in this file reads it. GR-69 (the live finder goes), MM-12 (no live opponents), GR-82 (the Hearth passes it).",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Picked as recommended at 08:37 UTC."
     },
     {
       "id": "MM-2",
@@ -252,7 +254,7 @@
     {
       "id": "MM-9",
       "call": "The castle is one project at a time on the town project engine. Each room carries one standing buff up to the standing caps.",
-      "decision": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: a Defense rating row sized so a mid-geared four takes up to about 5% less damage an hour (CORE-4). Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. castleStagePerMember is sized so a stage takes 1 to 1.3 weeks at the weekly share, which makes twenty stages 20 to 26 weeks. The castle is open at any roster size. No labor, no upkeep, no treasury balance. This changes 31-3 (castle goods keep their built prices) and it is the option Tyler declined on 25-4. The one new fact that justifies asking again is his 2026-11-21 ruling that clans pay buffs: a fixed price now locks a clan of three out of hero power. If Tyler vetoes, the castle keeps built prices and one work order a week for each slot, and only the ten-account gate goes.",
+      "decision": "One project at a time on the town project engine. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five, and the castle is open at any roster size. A stage can never finish in under a week. KEPT (Tyler, 2026-11-21): the castle's five buildings of ten levels, labor, votes, upkeep, the treasury and Clan Standing all stay, fitted to that price. Buildings: the War room (damage dealt up to +5%), the Ward (a Defense rating row worth up to about 5% less damage an hour), the Workshop (town work speed up to +10%), the Kitchen (the clan's weekly ration cap) and a fifth building held for T-fix-4. Each has ten levels and reaches its cap at level ten. Labor: a member's heroes can give rested town hours to the project as a closed-form town job, valued on the wage curve, so a stage's price is paid in gold, castle goods or labor. Treasury: members' weekly shares and gifts go into it, nothing ever comes back out (25-5), and it pays in a fixed order, upkeep first and then the open project. Upkeep: a weekly bill for each member with the same floor of five. The member's weekly share is what pays it, so there is one payment and not two. If upkeep is unpaid the rooms' buffs switch off until it is paid and nothing is lost. Votes: each account sets its vote for the next project once, as a standing choice. The leader breaks a tie and picks when nobody has voted. Clan Standing: a lifetime tally of what each account gave in gold, goods and labor. It shows on the roster and the plaque and pays no power. Fifty stages at 1 to 1.3 weeks is about a year for a full castle. Whether there is a library or a Level XP room is OPEN, waiting on Tyler (T-fix-4). Sizes are a HYPOTHESIS.",
       "outcome": "third",
       "reason": "You said keep the castle a slow climb with gold and time, and I kept both. What I changed is the fixed price, because a fixed price means a clan of 3 never finishes and a clan of 60 finishes in a day. I also cut the XP room. A damage buff already makes me level faster, so an XP room is the same thing twice and it is the one room that broke your \"clans give no XP\" ruling.",
       "evidence": "COMPUTED: 4 rooms x 5 levels at one stage a week or slower is 20 to 26 weeks. Per-member pricing is flat by construction at 5 members and up. Sizes are TARGET with no measurement (chapter 04 section 2.6 says so). HYPOTHESIS that small clans build. Playtest read: clans with gifts from three or more members.",
@@ -261,7 +263,11 @@
       "depends": "Economy decider: sizes castleStagePerMember and clanWeeklyShare (GR-8, GR-51, MM-22). Home decider: the Workshop row enters the one Speed pool under its 40% cap (chapter 07). Core decider: the Ward row counts inside the 60% mitigation cap, as chapter 01 recommends. Chapter 07 town project engine.",
       "was": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: damage taken up to 5% less. Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. Twenty stages is about six months, the pace you kept on 11-20. The castle is open at any roster size. No labor, no upkeep, no treasury balance. Castle goods keep their prices (31-3).",
       "fixedBy": "review-4, review-16",
-      "fixNote": "The row said it kept 31-3 while changing it, and \"about six months\" disagreed with chapter 04, which sized a stage at 2 to 4 weeks."
+      "fixNote": "The row said it kept 31-3 while changing it, and \"about six months\" disagreed with chapter 04, which sized a stage at 2 to 4 weeks.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling.",
+      "wasBeforeTyler": "One project at a time on the town project engine, and four rooms of five levels. War room: damage dealt up to +5%. Ward: a Defense rating row sized so a mid-geared four takes up to about 5% less damage an hour (CORE-4). Workshop: town work speed up to +10%. Kitchen: raises the clan's weekly ration cap. There is NO library and no Level XP room. A stage is priced per member, as castleStagePerMember x max(5, members), so a small clan can build and a clan of one pays for five. A stage can never finish in under a week. castleStagePerMember is sized so a stage takes 1 to 1.3 weeks at the weekly share, which makes twenty stages 20 to 26 weeks. The castle is open at any roster size. No labor, no upkeep, no treasury balance. This changes 31-3 (castle goods keep their built prices) and it is the option Tyler declined on 25-4. The one new fact that justifies asking again is his 2026-11-21 ruling that clans pay buffs: a fixed price now locks a clan of three out of hero power. If Tyler vetoes, the castle keeps built prices and one work order a week for each slot, and only the ten-account gate goes.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers"
     },
     {
       "id": "MM-10",
@@ -299,7 +305,9 @@
       "depends": "Items decider: the featured term of the drop formula and which pieces are named (GR-40). GR-9 lets any Level hunt the featured ground. Progression decider: this keeps the timed Level XP cap full only 3 days in 28 for a player who buys nothing.",
       "was": "Yes. The between-months ground weekend features that ground's named pieces and does not pay XP. It fills the timed drop chance cap (+10%) for everyone hunting that ground, on its named pieces only. The world Level XP weekend stays once in four weekends, as ruled. If the playtest shows a ground weekend does not move people, it goes back to the ruled ground XP weekend.",
       "fixedBy": "review-3",
-      "fixNote": "The row spent the timed drop cap on named pieces, which are Rare rows. CE-2 says the timed row never touches a Rare."
+      "fixNote": "The row spent the timed drop cap on named pieces, which are Rare rows. CE-2 says the timed row never touches a Rare.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "GR-82",
@@ -310,7 +318,9 @@
       "evidence": "HYPOTHESIS that one Hearth is more fun than its parts, and that a fire-sized weekend makes people burn fuel. Playtest read: fuel burned in the week before weekend 1 against the week after. The +10% floor is so a quiet server still gets a weekend.",
       "replaces": "REVERSAL, small. The 2026-10-25 Hearthrise ruling said the bonus starts when the fire fills. It now lights on the calendar's weekend at the size the fire earned. Fuel only, no gold, and the +25% ceiling stand. 24-10 is NOT reversed: a project a month, sized to the server, with the plaque.",
       "money": false,
-      "depends": "Home decider owns the window and the staged-gift engine (chapter 07 section 2.12). Progression decider: Inner Flame stays a hero skill (GR-61 Kindlings). MM-9 castle rides the same engine. MM-25 timed Level XP cap."
+      "depends": "Home decider owns the window and the staged-gift engine (chapter 07 section 2.12). Progression decider: Inner Flame stays a hero skill (GR-61 Kindlings). MM-9 castle rides the same engine. MM-25 timed Level XP cap.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "MM-24",
@@ -335,7 +345,8 @@
       "depends": "Economy decider: MM-29 and MM-30 decide whether a Level XP boost is sold. If it is not, the timed XP cap is full only on the Hearthrise weekend. Core decider: damage taken buffs count inside the 60% mitigation cap. Home decider: the workshop row and the 40% Speed cap.",
       "was": "The table as recommended with one cut: there is no standing Level XP cap, because no clan room gives XP (MM-9). Damage dealt: +5% standing, +10% timed. Damage taken: 5% less standing, 5% less timed. Level XP: none standing, +25% timed. Drop chance: none standing, +10% timed and earned only, never sold. Town work speed: +10% standing. Coin: no buff, ever. Who fills what: war room, ward and workshop fill the standing caps. Timed damage comes from the boss (+5%) and the Open Arena season (up to +5%). Timed damage taken comes from the clan board marks. Timed drop chance comes from the clan weekly goal (+5%) and the Even Arena season (up to +5%). Timed Level XP comes only from the Hearthrise weekend and whatever the store sells.",
       "fixedBy": "review-1, review-3, review-4",
-      "fixNote": "The row called the timed drop row drop chance, wrote protection as a share off a blow, and left room for a store Level XP boost."
+      "fixNote": "The row called the timed drop row drop chance, wrote protection as a share off a blow, and left room for a store Level XP boost.",
+      "openPart": "Whether a clan library or a Level XP room exists is OPEN, waiting on Tyler (T-fix-4). The table is written with no standing Level XP cap."
     },
     {
       "id": "MM-26",
@@ -477,18 +488,24 @@
       "evidence": "COMPUTED: among four real players with top Levels 79, 46, 9 and 8, one pair in six could share XP under the two thirds line (chapter 06 section 2.10). RULED 2026-11-21 (four heroes from the start) is newer than 25-1.",
       "replaces": "REVERSAL. 25-1 (2026-11-20, on-call heroes at 2 hours a day, 4 at most) and the on-call board inside 25-3. The rest of 25-3 stands: roster, clan chat, clan browser.",
       "money": false,
-      "depends": "Home decider: \"party member\" drops out of who may visit a house (GR-75). Chapter 09: no hero-lending trade surface in the Security scope. GR-10a is closed."
+      "depends": "Home decider: \"party member\" drops out of who may visit a house (GR-75). Chapter 09: no hero-lending trade surface in the Security scope. GR-10a is closed.",
+      "status": "OPEN (waiting on Tyler, T-fix-1)",
+      "tyler": "Held. Cut 2 was not approved, and reversal 18 (MM-18, no hired, lent or on-call heroes) asks for the same removal. The two picks point opposite ways. Not decided. The decision text is what the book reads until he answers."
     },
     {
       "id": "MM-19",
       "call": "Mixed Levels in one fight follow one visible two thirds line.",
-      "decision": "Yes. A hero keeps its full share of Level XP if its Level is at least two thirds of the highest Level in the party. Below that it keeps hero Level / (2/3 x top Level). One knob, levelShareLine. The party window says it before the hunt starts. One rule for every party, the boss room included. And the open question from chapter 02: an old ground hunted at your Level takes the LEADER's Level, as ruled, and the party picks its leader.",
+      "decision": "Yes. A hero keeps its full share of Level XP if its Level is at least two thirds of the highest Level in the party. Below that it keeps hero Level / (2/3 x top Level). One knob, levelShareLine. The party window says it before the hunt starts. One rule for every party, the boss room included. It stands beside party XP by size alone (GR-3, ruled): size sets the party cell, and this line is the only other thing that moves a hero's share. An old ground hunted at your Level takes the LEADER's Level, as ruled, and the party picks its leader.",
       "outcome": "recommended",
       "reason": "With no rule a Level 5 hero behind my Level 37 party levels six times faster than it should, which is a boosting market. A hidden cut is worse. One line I can read before I press Start is honest, and carried is a bit better than alone and never several times better.",
       "evidence": "MEASURED cells of the proposed rule: a Level 5 behind a Level 37 party earns about 1.2 times its own pace and a Level 10 about 1.6. With no rule, 6.1 and 4.1 (chapter 06 section 2.8). Survival in those cells is provisional. Check F re-runs the eight carried cells once the engine sends real damage to the back row.",
       "replaces": "REVERSAL, technical. It replaces the hidden ground-keyed Level cut on party XP that chapter 06 traces to the 2026-11-08 party XP rulings. The 11-08 rulings on one difficulty for all group sizes and the same monsters for everyone are untouched.",
       "money": false,
-      "depends": "Core decider (the party XP step, R8, GR-85). World decider: whose Level a scaled old ground takes is decided here as the leader's (GR-9). Economy decider: the wage of a mixed four follows the same line. GR-10b is closed."
+      "depends": "Core decider (the party XP step, R8, GR-85). World decider: whose Level a scaled old ground takes is decided here as the leader's (GR-9). Economy decider: the wage of a mixed four follows the same line. GR-10b is closed.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling.",
+      "wasBeforeTyler": "Yes. A hero keeps its full share of Level XP if its Level is at least two thirds of the highest Level in the party. Below that it keeps hero Level / (2/3 x top Level). One knob, levelShareLine. The party window says it before the hunt starts. One rule for every party, the boss room included. And the open question from chapter 02: an old ground hunted at your Level takes the LEADER's Level, as ruled, and the party picks its leader.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers"
     },
     {
       "id": "MM-20",
@@ -521,7 +538,9 @@
       "evidence": "EVIDENCE: 5 of 675 ten-minute windows held two people pressing (study 49). The review found none of the three in use (60 section 8.7). RULED 25-11 already caps a party at four.",
       "replaces": "REVERSAL, small. 2026-11-11 (criers call out in local chat): they speak in the town and the System tab. 2026-10-15/16 (a party finder that filters by weapon type) is removed.",
       "money": false,
-      "depends": "MM-1, MM-18. Home decider: crier lines in the town (chapter 07). Chat tabs kept: Global, Clan, Party, Whispers, System, Combat."
+      "depends": "MM-1, MM-18. Home decider: crier lines in the town (chapter 07). Chat tabs kept: Global, Clan, Party, Whispers, System, Combat.",
+      "status": "OPEN (waiting on Tyler, T-fix-2)",
+      "tyler": "Held. Cuts 3 and 4 were not approved, and reversal 21 (GR-69) asks for the same removals. Not decided. The decision text is what the book reads until he answers."
     },
     {
       "id": "GR-71",
@@ -548,13 +567,16 @@
     {
       "id": "MM-21",
       "call": "Every boss, clan, event and arena is open to all. Premium makes timed buffs last a quarter longer and banks arena tickets to 30.",
-      "decision": "MONEY, TYLER CONFIRMS. Decided part: everything in the layer is open to every account. Recommended to you for Premium: arena tickets bank to 30. Not recommended: timed buffs lasting a quarter longer.",
+      "decision": "Everything in the layer is open to every account. For Premium: arena tickets bank to 30. Timed buffs do not last longer for Premium.",
       "outcome": "third",
       "reason": "Banking more tickets fits what Premium already is, which is fewer visits. Longer buffs is power on a subscription, it makes a 7 day buff last 8.75 days so the weekly beat stops lining up, and it makes the buff line on the hero sheet harder to read.",
       "evidence": "Design reasoning only. No evidence on what Premium buyers value in the layer. Your call.",
       "replaces": "",
       "money": true,
-      "depends": "Economy decider owns Premium's full list and price (chapter 04 section 2.9). MM-15."
+      "depends": "Economy decider owns Premium's full list and price (chapter 04 section 2.9). MM-15.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "MONEY, TYLER CONFIRMS. Decided part: everything in the layer is open to every account. Recommended to you for Premium: arena tickets bank to 30. Not recommended: timed buffs lasting a quarter longer."
     },
     {
       "id": "MM-22",
@@ -594,13 +616,16 @@
     {
       "id": "MM-43",
       "call": "For the playtest only, every account gets the same weekly allowance of test Crowns through one server switch.",
-      "decision": "THIS IS A GRANT. TYLER CONFIRMS. I do not decide it. Recommended: yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
+      "decision": "Yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
       "outcome": "recommended",
       "reason": "Without it the whole Crowns for gold loop cannot be tried before real money exists. It is equal for everyone and it is wiped. It is still granting currency, which is your line and not mine.",
       "evidence": "No evidence either way. The Crowns rows of the playtest table cannot be read without it (chapter 09 item 12).",
       "replaces": "Touches CLAUDE.md section 2 (player state is never fabricated) and the rule that Crowns are never earned in play. Needs your explicit yes.",
       "money": true,
-      "depends": "Economy decider sizes the amount (I suggest about what one 7 day boost costs each week). Security review of the switch."
+      "depends": "Economy decider sizes the amount (I suggest about what one 7 day boost costs each week). Security review of the switch.",
+      "status": "RULED (Tyler, 2026-11-21), an explicit yes",
+      "tyler": "Yes. Test Crowns for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled.",
+      "wasBeforeTyler": "THIS IS A GRANT. TYLER CONFIRMS. I do not decide it. Recommended: yes, for the wiped Discord playtest only, the same amount for every account, one server switch that is off by default and removed before Early Access, every grant journalled."
     },
     {
       "id": "MM-44",
@@ -655,7 +680,9 @@
       "evidence": "RULED: one combat engine and one party of four (CLAUDE.md section 6, 25-11).",
       "replaces": "REVERSAL, small. The second half of 25-11 (\"two parties of four in one hall\") becomes two rooms on one clan pool.",
       "money": false,
-      "depends": "MM-2, MM-5."
+      "depends": "MM-2, MM-5.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "GR-79",
@@ -743,5 +770,6 @@
       "was": "Yes to all three. The Premium daily item lands in Storage on the first visit of the day with no press and the streak never resets. Setups, action sets and presets become one noun, Setup, remembered for each ground. A Week card on the first return after the weekly turn compares this week with your last and pays nothing, ever.",
       "fixedBy": "review-28"
     }
-  ]
+  ],
+  "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json."
 }

@@ -25,11 +25,14 @@ import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 import { isMain } from '../../tests/_is-main.mjs';
-import * as XP_CURVE from '../../src/core/xp.js';
+import { skillXpForLevel, skillLevelFromXp } from '../../src/core/xp.js';
 import { LEVEL_PACE } from '../../src/data/core-model.js';
 
-/* what a projection past a line's top reads (skillsAt): this tree's skill curve and its pace of record */
-const CTX = Object.freeze({ XP: XP_CURVE, targets: LEVEL_PACE.targets });
+/* what a projection past a line's top reads (skillsAt): this tree's skill curve and its pace of record. The two curve functions by NAME,
+   never `import * as` handed on whole: this file is reached from tools/gen-ref-hero.mjs (a catalogue generator, tests/dead-exports.mjs
+   ENTRY_TOOLS), and a namespace passed whole blinds the dead-export census to every export of src/core/xp.js (next run 44891464929: its
+   two pinned dead exports read STALE). */
+const CTX = Object.freeze({ XP: Object.freeze({ skillXpForLevel, skillLevelFromXp }), targets: LEVEL_PACE.targets });
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(HERE, '..', '..');

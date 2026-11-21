@@ -82,9 +82,12 @@ const exec = async (text, params) => {
 const one = async (sql, p) => (await db.query(sql, p)).rows[0];
 
 const problems = [];
+/* Under --mutate the arm the planted defect must turn red is printed as CAUGHT, never with the red mark: a passing proof's expected red
+   was read twice as a red on clean code (next runs 44863151394 and 44891464929, lane/c-engine-reds). */
+const PLANTED = 'P3';
 const judge = (id, ok, okMsg, badMsg) => {
   if (ok) console.log(`  ✓ ${id} — ${okMsg}`);
-  else { problems.push(id); console.log(`  ✗ ${id} — ${badMsg}`); }
+  else { problems.push(id); console.log(MUTATE && id === PLANTED ? `  CAUGHT (the planted defect, red as it must be) ${id} — ${badMsg}` : `  ✗ ${id} — ${badMsg}`); }
 };
 console.log(`\nworld-tick-perks-parity${MUTATE ? ' [--mutate: perks read removed]' : ''}`);
 
@@ -166,7 +169,7 @@ judge('P3', tickXp === accrueXp,
 /* --mutate is GREEN when the mutant is caught: P3 red, and the controls
    (P0–P2) still green so the red is the perks and not the harness. */
 if (MUTATE) {
-  const caught = problems.length === 1 && problems[0] === 'P3';
+  const caught = problems.length === 1 && problems[0] === PLANTED;
   console.log(caught
     ? '\nworld-tick-perks-parity --mutate: green — removing the perks read turns P3 red, and only P3.'
     : `\nworld-tick-perks-parity --mutate: RED — wanted exactly [P3] red, got [${problems.join(', ')}]`);

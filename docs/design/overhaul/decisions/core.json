@@ -136,7 +136,9 @@
       "replaces": "None. Builds 11-20 (Tower heat) and 24-8 (yard fee).",
       "money": false,
       "depends": "GR-88 gates each step. GR-27 numbers wait for R7.",
-      "group": "Foundation"
+      "group": "Foundation",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Picked as recommended at 08:37 UTC."
     },
     {
       "id": "GR-86",
@@ -165,14 +167,18 @@
     {
       "id": "GR-88",
       "call": "The matrix diff as the release gate for every balance change.",
-      "decision": "Take the gate, with three changes. It gains the band for XP after deaths (S11), the four Deadly lineup cells, band rows on the ground axis and the first-hour check C3 as a standing cell. It does not gain pair cells or any lone-against-party band, and those numbers print and judge nothing. Every band stays in report mode until the instrument faults V3 and V4 close.",
+      "decision": "Take the gate, with three changes. It gains the band for XP after deaths (S11), band rows on the ground axis and the first-hour check C3 as a standing cell. The four lineup cells are printed for reading and judge nothing, because the lineup test is out (GR-3, ruled). It does not gain pair cells or any lone-against-party band. Every band stays in report mode until the instrument faults V3 and V4 close.",
       "outcome": "third",
       "reason": "Nobody should balance by eye again. But I ruled no solo or group targets, so the gate must not sneak party-size balance back in through pair cells.",
       "evidence": "EVIDENCE (51). The instrument is not true yet for survival and gold: the calibration printed with my runs reads store gold at 1.9 times real and the healer's damage taken at 0.01 of real. A four's pace reads 1.11 of real and can carry a decision.",
       "replaces": "None. It follows 2026-11-21 (no solo or group targets) where the recommendation did not.",
       "money": false,
       "depends": "GR-7 (S11), GR-3 (lineup cells), chapter 08 (C3). The platform decider owns the CI wiring.",
-      "group": "Foundation"
+      "group": "Foundation",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Picked as recommended at 08:37 UTC.",
+      "wasBeforeTyler": "Take the gate, with three changes. It gains the band for XP after deaths (S11), the four Deadly lineup cells, band rows on the ground axis and the first-hour check C3 as a standing cell. It does not gain pair cells or any lone-against-party band, and those numbers print and judge nothing. Every band stays in report mode until the instrument faults V3 and V4 close.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers"
     },
     {
       "id": "GR-1",
@@ -186,36 +192,46 @@
       "depends": "CE-7 (how town work reads on screen). GR-54 (the yard's rate ships in the same change). Closed form needs a replayed-day equality with tick settles and the Security review at Early Access. The engine server is Tyler's per-spend call and is not decided here.",
       "group": "Foundation",
       "wasBeforeStudy48": "Rule closed-form town work now for training, gathering and benches, with every roll seeded at the start. The away hunt's save design waits for study 48 and a measurement at 12 hours.",
-      "revisedBy": "study-48"
+      "revisedBy": "study-48",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Picked as recommended at 08:37 UTC: closed-form town work. The away hunt's 10 minute save was decided afterwards on study 48 and is DECIDED, not ruled."
     },
     {
       "id": "GR-3",
       "call": "What Deadly must ask for.",
-      "decision": "Deadly is sized so a mid-geared four in band with a shield tank and a healer holds it, and the same four with a hammer in front, or with no healer, does not. One rider: the hammer cell is made to fail by what a shield carries (guard on the Defense rating, the brace stat, and Challenge), never by the tier dial alone and never by a rule keyed on the lineup.",
+      "decision": "Leave the lineup test out. Accept that the best four may be a hammer and three mages, and pay party XP by size alone. Deadly is sized on the mid-geared four in band against the tier bands (S3, S4, S6) and nothing else. No cell asks a lineup to fail. Roles still matter by formula, because a pull of eight wants a holder and shooters reach the back row, but no tier is tuned until a named lineup dies.",
       "outcome": "recommended",
       "reason": "Preparing the party is the game, so the hardest tier has to notice who is standing where. If any four clears Deadly, there is nothing to prepare.",
       "evidence": "MEASURED on the uncalibrated harness, 2 seeds of 1 hour, direction only (my run of 2026-11-21, patches dial-1.5, dial-2.0 and dial-2.5). At today's dial every lineup holds with no deaths. With Deadly blows at 2.66 times Normal the two fours with no healer die 10 to 23 times as often as the mixed four at Level 60. The hammer in front dies 3.5 times as often at Level 60 but holds exactly as well as the shield at Level 110, where both wear plate at the 60% cap. So the dial separates healer from no healer and does not separate shield from hammer.",
       "replaces": "None. Builds 21-3 and 31-9. Keeps 10-31.",
       "money": false,
       "depends": "GR-27 (the numbers), GR-85 step R7 first, GR-88 (the lineup cells). The items decider owns the shield row's guard.",
-      "group": "Foundation"
+      "group": "Foundation",
+      "wasBeforeTyler": "Deadly is sized so a mid-geared four in band with a shield tank and a healer holds it, and the same four with a hammer in front, or with no healer, does not. One rider: the hammer cell is made to fail by what a shield carries (guard on the Defense rating, the brace stat, and Challenge), never by the tier dial alone and never by a rule keyed on the lineup.",
+      "status": "RULED (Tyler, 2026-11-21), the alternative",
+      "tyler": "Tyler picked the alternative at 08:37 UTC. The core decider recorded the recommendation without seeing his pick. His pick wins."
     },
     {
       "id": "GR-27",
       "call": "What the harder tiers bring.",
-      "decision": "Rule the shape: one pull number for each tier, the same on every ground, and no per-ground dial. The only thing a ground adds is how many monsters its rooms can hold, which is a map fact.",
+      "decision": "One pull number for each tier, the same on every ground, and no per-ground dial. The only thing a ground adds is how many monsters its rooms can hold, which is a map fact. The numbers are set by the harder tiers sample against the tier bands, with no lineup test (GR-3, ruled).",
       "outcome": "recommended",
       "reason": "A tier should mean the same thing everywhere so a player learns it once. Per-ground dials are exactly the special cases I asked us to stop writing.",
       "evidence": "MEASURED at the opening dial, one seed and one hour a cell (53, 61). Not yet played at the raised dial for a lone hero.",
       "replaces": "None. Builds 11-07. The 11-16 line that every Dangerous party stands at or over its heroes alone is already dropped by 2026-11-21 (no solo or group targets).",
       "money": false,
       "depends": "GR-5 removes the per-ground dials and the floor-16 pull rule in the same step. The world decider owns room sizes.",
-      "group": "Foundation"
+      "group": "Foundation",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Picked as recommended at 08:37 UTC.",
+      "wasBeforeTyler": "Rule the shape: one pull number for each tier, the same on every ground, and no per-ground dial. The only thing a ground adds is how many monsters its rooms can hold, which is a map fact.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers",
+      "cutApproved": "Cut list 15, approved by Tyler 2026-11-21."
     },
     {
       "id": "CORE-1",
       "call": "The raised tier dials and the two pull numbers (chapter 01, still missing 1).",
-      "decision": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
+      "decision": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4 and S6. There is no lineup test (GR-3, ruled).",
       "outcome": "third",
       "reason": "Dangerous is the lone hero's hard tier and already sits where it should. Deadly at 1.33 is not deadly at all, and it needs to roughly double before a prepared four even notices it.",
       "evidence": "MEASURED on the harness, direction only. Dangerous: a lone hero in band holds five at 35 to 49% health with no deaths at 1.17, which is inside band S3. Deadly, mixed four at Level 60: typical lowest health 0.78 at 1.33, 0.65 at 2.0, 0.39 at 2.66 and 0.19 at 3.33, with deaths starting between 2.0 and 2.66. Band S4 asks 15 to 40%. At Level 110 the same four is still at 0.59 at 2.66 and needs about 3.3 to reach the band. One dial does not bite the same at both Levels until R7 lands, which is why no final number is ruled today. HYPOTHESIS until the sample runs. It is overturned if the mixed four dies more than 100 times in 1,000 hours or the lineup cells still hold.",
@@ -225,12 +241,15 @@
       "group": "Foundation",
       "was": "Opening numbers, as targets the sample must confirm. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
       "fixedBy": "review-14",
-      "fixNote": "The row sized Dangerous on a lone hero. Ruling 21-3 sizes the harder tiers on a party with a healer, and the 2026-11-21 ruling says no solo or group targets."
+      "fixNote": "The row sized Dangerous on a lone hero. Ruling 21-3 sizes the harder tiers on a party with a healer, and the 2026-11-21 ruling says no solo or group targets.",
+      "wasBeforeTyler": "Opening numbers, as hypotheses the sample must confirm. Both tiers are sized on the mid-geared four in band. Dangerous is read against S3 (typical lowest health 35 to 60%) and Deadly against S4 (15 to 40%). A lone hero's reading prints and judges nothing. Dangerous: pull 5, blows and aim 1.17 times Normal, health 1.10, Level XP 1.10. Deadly: pull 8, blows and aim 2.25 times Normal, health 1.15, Level XP 1.25. They are sized only after R7 lands, on 4 seeds of 8 hours with the game's own death rule, against bands S3, S4, S6 and the lineup test.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers",
+      "status": "DECIDED"
     },
     {
       "id": "CORE-2",
       "call": "The party buffs, named (chapter 01, still missing 2).",
-      "decision": "There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Party bonus, which is the party cell of the XP chain, one table by size and classes, the same on every ground, tier and mode. Two: the bigger pull of the harder tiers, which only a party can clear. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Party bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.",
+      "decision": "There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Party bonus, which is the party cell of the XP chain, one table by party size alone, the same on every ground, tier and mode (GR-3, ruled). Two: the bigger pull of the harder tiers. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Party bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.",
       "outcome": "third",
       "reason": "I said the same party buffs apply and it is a no-brainer. That is true today without inventing anything, as long as the game sends a four to ground it can hold as a four. A gold bonus by headcount would just mint gold for every account.",
       "evidence": "MEASURED on the harness, 4 seeds of 8 hours (my run of 2026-11-21): a start-kit four at Level 5 in the Sewer on Normal earns 38,769 Level XP a head an hour against 22,150 for the same four split in the Thicket (1.75 times), and 1,915 net gold a head against 1,629 (1.18 times). EVIDENCE from `src/data/party-class-xp.js`: on grounds built for one hero a four on Normal earns 20 to 60% less a head, so the rule holds only on ground and tiers a four can use. HYPOTHESIS for gold past Level 60. The harder tiers sample prints net gold a head for the four against the same four split. If it reads under 1.0, the lever is one party cell on the coin line, owned by the economy decider.",
@@ -240,7 +259,10 @@
       "group": "Foundation",
       "was": "There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Company bonus, which is the party cell of the XP chain, one table by size and classes, the same on every ground, tier and mode. Two: the bigger pull of the harder tiers, which only a party can clear. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Company bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.",
       "fixedBy": "review-30",
-      "fixNote": "The player-facing label follows the 2026-11-14 rule that labels outside lore are genre words."
+      "fixNote": "The player-facing label follows the 2026-11-14 rule that labels outside lore are genre words.",
+      "wasBeforeTyler": "There is no new buff system. Hunting together is better because of four things that already exist, and the Party window names them. One: the Party bonus, which is the party cell of the XP chain, one table by size and classes, the same on every ground, tier and mode. Two: the bigger pull of the harder tiers, which only a party can clear. Three: the seat jobs (Challenge, heals and shells, Hunter's Mark at +20%, Green Sickness at +10%). Four: one healer's mana in place of four heroes' potions. The Party bonus applies to Level XP only. Coin is never multiplied by party size. The Level law absorbs the size of the cell, so the cell is not re-tuned by band.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers",
+      "status": "DECIDED"
     },
     {
       "id": "CORE-3",
@@ -296,7 +318,9 @@
       "group": "Long game",
       "was": "Approve it. A piece's budget is linear in the Level it is worn at and lives in data. Past tier 7 a band is a fixed step of the curve, opening at +24% (Levels 110, 136, 169, 210, 260, 322, 400), and the step is one knob. Every unique is a spend of its band at published rates. The two Luck numbers are keyed by Level with the same end points. One rider: every region must hold at least one band edge, and if it does not, the knob or the region moves.",
       "fixedBy": "review-15",
-      "fixNote": "At +24% the Level 330 to 385 region holds no band edge, which breaks the row's own rider, and a plain band lasts 75 to 95 days at the top."
+      "fixNote": "At +24% the Level 330 to 385 region holds no band edge, which breaks the row's own rider, and a plain band lasts 75 to 95 days at the top.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling. Picked as recommended at 08:37 UTC."
     },
     {
       "id": "GR-5",
@@ -308,7 +332,10 @@
       "replaces": "None. Builds 11-07.",
       "money": false,
       "depends": "After GR-4. Before GR-6, GR-87 and CORE-1. The world decider owns the layout facts.",
-      "group": "Long game"
+      "group": "Long game",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Picked as recommended at 08:37 UTC.",
+      "cutApproved": "Cut list 15, approved by Tyler 2026-11-21."
     },
     {
       "id": "GR-6",
@@ -323,7 +350,9 @@
       "group": "Long game",
       "was": "From Level 50 the table of hours is the law and the XP a Level costs is derived from it. Levels 1 to 50 stay timed on a lone new hero. The 106 hours the four gains before Level 50 are allowed at every ruled point. It ships with GR-8, after GR-5 and the tier numbers. Three things inside it are decided in their own rows: whose clock it is (GR-6a), Krell's day (GR-6b) and how the ruled points are joined (GR-6d).",
       "fixedBy": "review-11",
-      "fixNote": "The row said it replaced nothing. Level 100 at 494 hours is 18% early, past the standards' own 15% red line."
+      "fixNote": "The row said it replaced nothing. Level 100 at 494 hours is 18% early, past the standards' own 15% red line.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling. Picked as recommended at 08:37 UTC."
     },
     {
       "id": "GR-6a",
@@ -338,7 +367,9 @@
       "group": "Long game",
       "was": "The table is the clock of the plain mid-geared four. Buffs are rows on top and the law never reads them. The 120 days of grounds at Early Access are read on the plain four. \"Each region opens 30 days before the first fours arrive\" is read on the fastest seat a player can hold all the time, not on every cap full every hour. If the art schedule cannot hold that date, the timed Level XP cap of MM-25 comes down until it does. The Level law, a Level cap and a frontier penalty are never the answer. Past the last ground the soft wall stays: a Level costs more because XP an hour stops rising, and old grounds at your Level, the Tower, the Catacombs and world bosses carry the wait.",
       "fixedBy": "review-11, review-21",
-      "fixNote": "The fastest seat was written as 1.39 with a +5% standing Level XP buff that MM-25 cut."
+      "fixNote": "The fastest seat was written as 1.39 with a +5% standing Level XP buff that MM-25 cut.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "GR-6b",
@@ -350,7 +381,9 @@
       "replaces": "REVERSAL of a number, not of the ruling's words. The record says \"day 18 for a four\" (2026-11-21). It becomes day 31 for the plain four.",
       "money": false,
       "depends": "GR-6. The player experience and world deciders quote day 31.",
-      "group": "Long game"
+      "group": "Long game",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "GR-6d",
@@ -377,7 +410,9 @@
       "replaces": "REVERSAL in effect. For a player who pays gold it holds a blessed death tighter than the 12 hour cap Tyler turned down in 50-4 (2026-11-21), and it adds to the three Blessings of 11-10. The unblessed death is untouched.",
       "money": false,
       "depends": "CORE-1 and GR-3 (ships with them). GR-51 (the wage curve prices the rungs). GR-88 (band S11). MM-7. GR-66 shows the cost before the hunt.",
-      "group": "Long game"
+      "group": "Long game",
+      "status": "OPEN (waiting on Tyler, T-fix-5)",
+      "tyler": "Held. Reversal 1 (GR-7) adds Blessings past the third. Ruling 50-4 is 6% flat with no cap, with the 12 hour blessed cap turned down. Not decided. The decision text is what the book reads until he answers."
     },
     {
       "id": "MM-7",
@@ -406,7 +441,9 @@
       "depends": "The economy decider co-owns it and sets the share. GR-4 (the band table), GR-6 (ships together), GR-51 (the wage curve), MM-22 (castle rooms).",
       "group": "Long game",
       "was": "Tempering, Hallmarks and linings each cost a share of the band's gold, so a band's standing upgrades total 1.2 to 1.4 of what the band earns, sized on a hero who pays only the difference at every tier and read on a hero-day of the four. Linings and the yard fee come forward as the first repeating sinks. Clan castle rooms take the place of the slot gold. It ships in the same release as the Level law.",
-      "fixedBy": "review-8"
+      "fixedBy": "review-8",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "GR-9",
@@ -466,7 +503,8 @@
       "replaces": "None. Bears on 32-3: the axes keep no Power Strike, as ruled, and Rend carries the difference.",
       "money": false,
       "depends": "GR-17 (fists are blunt). The world decider owns which monster classes are weak to which side.",
-      "group": "Combat"
+      "group": "Combat",
+      "cutApproved": "Cut list 15, approved by Tyler 2026-11-21."
     },
     {
       "id": "GR-15",
@@ -517,7 +555,9 @@
       "replaces": "REVERSAL, narrow. Re-opens 10-23 (\"no stagger\") for spell windups only. The Earth rune strike of 32-5 is kept and gains the break.",
       "money": false,
       "depends": "GR-3 (the hammer's seat), GR-31 (grounds that cast).",
-      "group": "Combat"
+      "group": "Combat",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "GR-19",
@@ -534,14 +574,17 @@
     {
       "id": "GR-20",
       "call": "A status opens a monster to one kind of damage.",
-      "decision": "Do not add it now. It stays a paper sample of three pairs. It is built only if the sized Deadly shows fewer than three different fours within 5% of the best.",
+      "decision": "Do not add it now. It stays a paper sample of three pairs. It is looked at again only after Deadly is sized and played, as a way to give more fours a reason, and never as a fix for one strong lineup (GR-3, ruled: the best four may be a hammer and three mages).",
       "outcome": "alternative",
       "reason": "The party puzzle already gets seat jobs, ground signatures and a Deadly that asks for roles, and none of those have been played yet. I would rather prove those than stack a fourth system on top of three unproven ones.",
       "evidence": "HYPOTHESIS in its own source, with stacking as the named risk. The reopening check is the lineup spread in the harder tiers sample.",
       "replaces": "None.",
       "money": false,
       "depends": "CORE-3 (the cap stays at 30 while this is on paper).",
-      "group": "Combat"
+      "group": "Combat",
+      "wasBeforeTyler": "Do not add it now. It stays a paper sample of three pairs. It is built only if the sized Deadly shows fewer than three different fours within 5% of the best.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers",
+      "status": "DECIDED"
     },
     {
       "id": "GR-21",
@@ -628,7 +671,9 @@
       "replaces": "REVERSAL, small. Lifts the 11-05 hold on a skill tree for a paper spec only.",
       "money": false,
       "depends": "GR-82 (the Great Hearth, features decider). Chapter 01 fence: a pick changes a row inside the bar budget and never adds one.",
-      "group": "Progression"
+      "group": "Progression",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "The reversal stands. It replaces the earlier ruling."
     },
     {
       "id": "GR-62",
@@ -645,14 +690,17 @@
     {
       "id": "GR-63",
       "call": "Dead ladders.",
-      "decision": "Delete the rested bank and the two old kill ladders. The ladders leave in the lane that builds the Bestiary and Luck.",
+      "decision": "KEPT (Tyler, 2026-11-21). The rested bank stays and now pays. A hero banks the hunted hours it missed: every hour it stands at full stamina and is not hunting adds to its bank, up to 24 hours. Banked hours pay +50% Level XP on that many later hunted hours. So a missed day is half made up and a hero with a bank never out-earns one that hunted every hour. It is a way back and never a way ahead. The pace seat hunts all 12 hours, so its bank is empty and the Level law does not read it. It is one row of the XP chain and one number a hero, written when a hunt starts and ends, with no statement on the settle. The two old kill ladders stay as tracks on the one kill ladder: one kill count a monster a hero, the count the Bestiary stages and GR-78 already read, with the old rungs kept as rows on that count and no second counter. Sizes are a HYPOTHESIS.",
       "outcome": "recommended",
       "reason": "They pay nothing and nobody would miss them. Making the bank pay would add an XP lever the Level law then has to carry.",
       "evidence": "MEASURED: switching the bank off moved no number in 207 cells.",
       "replaces": "None.",
       "money": false,
       "depends": "GR-85 step R5.",
-      "group": "Progression"
+      "group": "Progression",
+      "wasBeforeTyler": "Delete the rested bank and the two old kill ladders. The ladders leave in the lane that builds the Bestiary and Luck.",
+      "decidedAfterTyler": "Fable 2026-11-21, after Tyler's answers",
+      "status": "DECIDED"
     },
     {
       "id": "GR-64",
@@ -691,12 +739,14 @@
       "replaces": "None.",
       "money": true,
       "depends": "MM-7, GR-7. What the Premium analyzer holds beyond this is a money call.",
-      "group": "Progression"
+      "group": "Progression",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Confirmed as recommended."
     },
     {
       "id": "MM-29-XP",
       "call": "May a bought timed boost fill the Level XP cap? (the 11-04 avoid list against Crowns giving real advantages)",
-      "decision": "TYLER CONFIRMS. Recommended: no. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend.",
+      "decision": "No. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend.",
       "outcome": "third",
       "reason": "Level is the score everybody is ranked on, and I put paid XP boosts on the avoid list myself. A kill speed boost is still a real edge you can feel, and it does not sell the scoreboard.",
       "evidence": "COMPUTED: best gear 1.15 times a timed damage boost 1.10 is 1.27, against 1.58 with a bought XP boost (chapter 04). It also moves the date the next region must open from about day 37 to 42 to about day 53 (GR-6a).",
@@ -706,7 +756,11 @@
       "group": "Money",
       "was": "TYLER CONFIRMS. Not decided here. My recommendation: no. Bought boosts fill the timed damage cap and nothing on Level XP. The timed Level XP cap of +25% is earned only, from events, world bosses and clans. A payer is then about 27% faster than a plain four through best gear and a damage boost, and anybody who plays the shared world can add the XP on top.",
       "fixedBy": "review-1",
-      "fixNote": "Core said no and content-economy said yes at about +15%. Tyler's words on 2026-11-04, 2026-11-18 and 2026-11-21 all run Crowns to gold to an edge, and Level is the ranked score."
+      "fixNote": "Core said no and content-economy said yes at about +15%. Tyler's words on 2026-11-04, 2026-11-18 and 2026-11-21 all run Crowns to gold to an edge, and Level is the ranked score.",
+      "status": "RULED (Tyler, 2026-11-21)",
+      "tyler": "Confirmed as recommended.",
+      "wasBeforeTyler": "TYLER CONFIRMS. Recommended: no. No Level XP boost is sold, for Crowns or for gold. The timed Level XP cap of +25% is filled only by the Hearthrise weekend."
     }
-  ]
+  ],
+  "tylerAnswers": "Tyler answered his lists on 2026-11-21. Each row he touched carries a tyler field. The full record is in all.json."
 }

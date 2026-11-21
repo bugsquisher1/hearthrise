@@ -848,7 +848,7 @@
   "account_found": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER VALUE, A BUDGET LEDGER (1034-luck.sql): the salvage allowance, per account and item: pieces the account's own hunts paid (found, folded once a hunt at its end by hr_luck_fold) and pieces Dispatch salvaged for rivets (salvaged <= found). Raise-only. LOSING ROWS FORFEITS UNSPENT ALLOWANCE (no re-mint: an absent row is an allowance of 0); restoring stale rows could RE-MINT rivets for pieces already salvaged, so restore it whole with the bar."
+   "note": "PLAYER VALUE, A BUDGET LEDGER (1036-luck.sql): the salvage allowance, per account and item: pieces the account's own hunts paid (found, folded once a hunt at its end by hr_luck_fold) and pieces Dispatch salvaged for rivets (salvaged <= found). Raise-only. LOSING ROWS FORFEITS UNSPENT ALLOWANCE (no re-mint: an absent row is an allowance of 0); restoring stale rows could RE-MINT rivets for pieces already salvaged, so restore it whole with the bar."
   },
   "account_gem_grants": {
    "class": "restore_only",
@@ -869,12 +869,12 @@
   "account_kills": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER VALUE (1034-luck.sql): the account's Bestiary counts, one a kill whoever of its heroes was there (folded once a hunt at its end by hr_luck_fold). Raise-only. A rebuild returns it EMPTY: every stage would be crossed and PAID AGAIN (re-mints Luck), so it is restore_only with account_luck."
+   "note": "PLAYER VALUE (1036-luck.sql): the account's Bestiary counts, one a kill whoever of its heroes was there (folded once a hunt at its end by hr_luck_fold). Raise-only. A rebuild returns it EMPTY: every stage would be crossed and PAID AGAIN (re-mints Luck), so it is restore_only with account_luck."
   },
   "account_luck": {
    "class": "restore_only",
    "wiped_at_cutover": false,
-   "note": "PLAYER VALUE (1034-luck.sql, Luck v3.1): the ACCOUNT's Luck bar, luck = from_kills + from_salvage, one row an account. Raise-only (hr_luck_raise_only); written only by hr_luck_credit (Dispatch's use arm, the hunt-end fold's Bestiary stages); own-read RLS, no client write; every rise journalled (loot_dispatch:use / luck_stage). A rebuild returns it EMPTY: every account's Magic Find falls to its ring alone."
+   "note": "PLAYER VALUE (1036-luck.sql, Luck v3.1): the ACCOUNT's Luck bar, luck = from_kills + from_salvage, one row an account. Raise-only (hr_luck_raise_only); written only by hr_luck_credit (Dispatch's use arm, the hunt-end fold's Bestiary stages); own-read RLS, no client write; every rise journalled (loot_dispatch:use / luck_stage). A rebuild returns it EMPTY: every account's Magic Find falls to its ring alone."
   },
   "account_play_net": {
    "class": "operational",
@@ -1736,27 +1736,27 @@
   "hr_luck_ring_pct": {
    "class": "seeded",
    "replay": 8,
-   "note": "Generated catalogue (1033-luck-catalogue.generated.sql, tools/gen-luck.mjs): each Lucky ring row and the Magic Find its wearer gets. Empty, a worn Lucky ring adds nothing. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1035-luck-catalogue.generated.sql, tools/gen-luck.mjs): each Lucky ring row and the Magic Find its wearer gets. Empty, a worn Lucky ring adds nothing. Rebuilt from repo, never restored."
   },
   "hr_luck_rules": {
    "class": "seeded",
    "replay": 1,
-   "note": "Generated catalogue (1033-luck-catalogue.generated.sql, tools/gen-luck.mjs --check from src/data/luck.js): Luck's one rule row (the curve, the far stop, the Trophy curve, the party rule, the per-press clamp, the item, the switch, the Lucky job's day limit). Empty, every Luck read and verb fails closed. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1035-luck-catalogue.generated.sql, tools/gen-luck.mjs --check from src/data/luck.js): Luck's one rule row (the curve, the far stop, the Trophy curve, the party rule, the per-press clamp, the item, the switch, the Lucky job's day limit). Empty, every Luck read and verb fails closed. Rebuilt from repo, never restored."
   },
   "hr_luck_salvage": {
    "class": "seeded",
    "replay": 207,
-   "note": "Generated catalogue (1033-luck-catalogue.generated.sql, tools/gen-luck.mjs): the Lucky Rivets one salvaged piece pays, per worn-gear item a drop row names. Empty, Salvage plans are refused and Dispatch pays nothing. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1035-luck-catalogue.generated.sql, tools/gen-luck.mjs): the Lucky Rivets one salvaged piece pays, per worn-gear item a drop row names. Empty, Salvage plans are refused and Dispatch pays nothing. Rebuilt from repo, never restored."
   },
   "hr_luck_stages": {
    "class": "seeded",
    "replay": 6,
-   "note": "Generated catalogue (1033-luck-catalogue.generated.sql, tools/gen-luck.mjs): the Bestiary stages, account kills of one creature and the Luck each pays once. Empty, no stage pays. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1035-luck-catalogue.generated.sql, tools/gen-luck.mjs): the Bestiary stages, account kills of one creature and the Luck each pays once. Empty, no stage pays. Rebuilt from repo, never restored."
   },
   "hr_lucky_offers": {
    "class": "seeded",
    "replay": 2,
-   "note": "Generated catalogue (1033-luck-catalogue.generated.sql, tools/gen-luck.mjs from src/data/jewelry.js LUCKY_OFFERS): the Lucky job, a plain ring to its Fine Lucky row, its rivets, fee, bench and level. Empty, hr_lucky_ring refuses unknown_lucky and charges nothing. Rebuilt from repo, never restored."
+   "note": "Generated catalogue (1035-luck-catalogue.generated.sql, tools/gen-luck.mjs from src/data/jewelry.js LUCKY_OFFERS): the Lucky job, a plain ring to its Fine Lucky row, its rivets, fee, bench and level. Empty, hr_lucky_ring refuses unknown_lucky and charges nothing. Rebuilt from repo, never restored."
   },
   "hr_market_ceilings": {
    "class": "seeded",

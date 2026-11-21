@@ -8,12 +8,20 @@
 --   src/data/premium.js, src/core/hunt/world-state.js and the vendor price
 --   (hr-accrue/catalogue.js). Any hand edit FAILS `node tools/gen-hunt-sessions.mjs --check`.
 --
---   digest: 8211ce9d5cdabea5ec00939935046a7708a915ec3524f085cf1b9ebe55d88015
+--   digest: fb90c7e86c509332e716d2fb322fdc8909c1b4b172d796e31cb751b56609781f
 --   78 supplies, 168 hunts (named + training), 47 limits, 18 end reasons,
 --   677 vendor values, 49 store supplies paid per use, 5 target modes,
 --   4 lanes, 23 abilities, 10 action-set options, 25 hunt grounds
 --
--- NEW IN THIS FILE (lane/c-tohit-ratio, systems-engineer, 2026-11-20; balance program L15, Tyler ruled 21-1 and 21-2: to-hit as a ratio of two
+-- NEW IN THIS FILE (lane/c-spell-rule, systems-engineer, 2026-11-21; balance program L17, Tyler's spell calls of 2026-11-21: 21-5 every cast a share of
+--   its caster's blow, 21-6 the bar budget, 32-2 Cleave merges into Turning Cut, 32-3 the axes lose Power Strike, 32-5 the hammer's Earth rune strike).
+--   It carries 1021-tohit-ratio-hunt-sessions-catalogue (STAGED) whole. Only hr_hunt_abilities moves: cleave leaves, quarry_blow (the club's, an Earth rune
+--   spell, offense, 8 s, 10 mana) joins, and power_strike's disciplines lose dual_axe. A cast's numbers are the engine's (no column carries them), so the
+--   spell rule itself is the hr-accrue's. No ground, spawn, kill bound, limit, bid, end reason or world shape moves. ORDER: the sequence in its name,
+--   after 1027-spell-rule-default-bar.sql (no default slot may name Cleave when it leaves). EDGE: the hr-accrue carrying this lane's src/core and
+--   src/data right after this file and 1029 (an old engine casts Cleave from a stored slot the server no longer projects; a new one before this file
+--   would cast Quarry Blow from no slot the server accepts: harmless either way, and no world restarts).
+-- CARRIED FROM 1021-tohit-ratio-hunt-sessions-catalogue (lane/c-tohit-ratio, systems-engineer, 2026-11-20; balance program L15, Tyler ruled 21-1 and 21-2: to-hit as a ratio of two
 --   ratings). It carries 1012-approved-rows-hunt-sessions-catalogue (STAGED) whole. Only hr_boss_calls' called Chief Coppercap drop rows move: a called
 --   boss drops his ground rows at the field rates, and on the to-hit ratio the Warrens' reference group kills the field Chief a little slower, so his
 --   three Willow pieces and his Verdigris Cake go 11,000 -> 11,400 ppm and the Cauldron 1,430 -> 1,530 ppm (src/data/monsters.js; drop-tables.mjs read
@@ -1005,7 +1013,6 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
   ('arcane_barrier', array['destruction']::text[], 'support', 20000, 30, 'chalked_earth_rune', 0, true, 15),
   ('challenge', array['shield']::text[], 'support', 8000, 0, null, 0, true, 0),
   ('circle_of_renewal', array['restoration']::text[], 'heal', 12000, 50, 'chalked_water_rune', 0, true, 17),
-  ('cleave', array['club', 'dual_axe']::text[], 'offense', 6000, 8, null, 0, true, 6),
   ('fireball', array['destruction']::text[], 'offense', 8000, 25, 'chalked_fire_rune', 0, true, 12),
   ('flame_strike', array['shield', 'sword']::text[], 'offense', 8000, 10, 'chalked_fire_rune', 0, true, 3),
   ('flame_volley', array['ranged']::text[], 'offense', 10000, 15, 'chalked_fire_rune', 3, true, 9),
@@ -1016,11 +1023,12 @@ insert into public.hr_hunt_abilities (ability_id, disciplines, lane, cd_ms, mana
   ('hoarfrost', array['destruction']::text[], 'offense', 10000, 22, 'chalked_ice_rune', 0, true, 14),
   ('hunters_mark', array['ranged']::text[], 'support', 12000, 8, null, 0, true, 8),
   ('mend', array['club', 'destruction', 'dual_axe', 'ranged', 'restoration', 'shield', 'sword']::text[], 'heal', 6000, 15, null, 0, true, 22),
-  ('power_strike', array['club', 'dual_axe', 'shield', 'sword']::text[], 'offense', 6000, 6, null, 0, true, 4),
+  ('power_strike', array['club', 'shield', 'sword']::text[], 'offense', 6000, 6, null, 0, true, 4),
   ('precision_shot', array['ranged']::text[], 'offense', 6000, 6, null, 1, true, 10),
   ('protective_ward', array['restoration']::text[], 'support', 12000, 25, 'chalked_earth_rune', 0, true, 20),
+  ('quarry_blow', array['club']::text[], 'offense', 8000, 10, 'chalked_earth_rune', 0, true, 7),
   ('raking_shot', array['ranged']::text[], 'offense', 8000, 10, null, 2, true, 11),
-  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 7),
+  ('rend', array['dual_axe']::text[], 'offense', 6000, 8, 'chalked_rupture_rune', 0, true, 6),
   ('shelter', array['shield']::text[], 'support', 30000, 25, 'chalked_earth_rune', 0, true, 2),
   ('spring_tide', array['restoration']::text[], 'heal', 60000, 120, 'chalked_water_rune', 0, true, 18),
   ('turning_cut', array['club', 'dual_axe', 'sword']::text[], 'offense', 8000, 8, null, 0, true, 5),

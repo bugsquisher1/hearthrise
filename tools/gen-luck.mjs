@@ -34,7 +34,7 @@ import { salvageRivetsOf } from '../src/core/luck.js';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /* Once this file is APPLIED it is history: a new number moves OUT_FILE to a forward file, like every generated catalogue. */
-export const OUT_FILE = '1033-luck-catalogue.generated.sql';
+export const OUT_FILE = '1035-luck-catalogue.generated.sql';
 const OUT = join(ROOT, 'supabase', 'migrations', OUT_FILE);
 const ID = /^[a-z0-9_]{1,48}$/;
 

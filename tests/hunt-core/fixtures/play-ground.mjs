@@ -142,7 +142,7 @@ export async function loadPlay(root) {
     if (opts.prizeLeft !== undefined) members.forEach((m, i) => { m.prizeLeft = typeof opts.prizeLeft === 'function' ? opts.prizeLeft(roles[i], i) === true : opts.prizeLeft === true; });
     /* opts.prizeFirst: whether that roll is the hero's first on the boss, ever (`prize_first`): true for everyone, or (role, seat) -> boolean */
     if (opts.prizeFirst !== undefined) members.forEach((m, i) => { m.prizeFirst = typeof opts.prizeFirst === 'function' ? opts.prizeFirst(roles[i], i) === true : opts.prizeFirst === true; });
-    /* opts.magicFind: each hero's Magic Find as the server's read says it (hr_hunt_instance_read `magic_find`, 1034-luck.sql): a number for
+    /* opts.magicFind: each hero's Magic Find as the server's read says it (hr_hunt_instance_read `magic_find`, 1036-luck.sql): a number for
        every hero, or (role, seat) -> that hero's. Absent: 0, the game while Luck is dark. */
     if (opts.magicFind !== undefined) members.forEach((m, i) => { m.magicFind = typeof opts.magicFind === 'function' ? opts.magicFind(roles[i], i) : opts.magicFind; });
     /* opts.buffs: the server's timed buff rows for every hero, player_state.buffs as the settle reads them */

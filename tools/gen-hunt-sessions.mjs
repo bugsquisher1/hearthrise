@@ -371,9 +371,9 @@ export const WORLD_FIELDS_READ = Object.freeze({
    re-fitted rates (the to-hit ratio slowed his kills a little); 1012 (STAGED) is carried whole. */
 /* 1028-spell-rule-hunt-sessions-catalogue (lane/c-spell-rule, 2026-11-21; balance program L17, Tyler 32-2, 32-3, 32-5): hr_hunt_abilities loses Cleave and
    gains Quarry Blow, and Power Strike is no longer the axes'; 1021 (STAGED) is carried whole. */
-/* 1031-luck-hunt-sessions-catalogue (lane/d-luck-build, 2026-11-20): the eight Lucky ring rows' vendor values; Tomato Soup leaves the supplies (its
+/* 1033-luck-hunt-sessions-catalogue (lane/d-luck-build, 2026-11-20): the eight Lucky ring rows' vendor values; Tomato Soup leaves the supplies (its
    drop buff cut); 1028 (STAGED) is carried whole. */
-export const OUT_NAME = '1031-luck-hunt-sessions-catalogue.generated.sql';
+export const OUT_NAME = '1033-luck-hunt-sessions-catalogue.generated.sql';
 export const OUT = join(ROOT, 'supabase', 'migrations', OUT_NAME);
 const ID = /^[a-z0-9_]{1,64}$/;
 const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);

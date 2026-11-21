@@ -151,3 +151,30 @@ Alongside the formula and architecture audit, produce:
 
 Begin with an audit and design proposal, not implementation.
 The ultimate goal is not to preserve every idea we've had for Hearthrise. It's to build the best possible version of Hearthrise, even when that means removing or fundamentally redesigning things we've already created.
+
+---
+
+## Addendum, same night (verbatim)
+
+There's one distinction I'd emphasize
+I would actually give Claude three separate responsibilities, because they're related but not interchangeable.
+
+1. Systems Architect
+
+Ensures everything runs on consistent, reusable mathematical foundations with minimal arbitrary exceptions.
+
+2. Balance Designer
+
+Determines whether the formulas, content parameters, and their interactions produce fair, satisfying progression across the entire game.
+
+3. Game Director
+
+Questions whether the systems, spells, items, and features should exist at all, and proposes additions or removals to improve the player experience.
+
+For Hearthrise, I think the third responsibility could be especially valuable right now.
+
+You've been building systems and content rapidly. The risk isn't necessarily that the individual systems are bad. It's that you could end up with 20 individually well-designed systems that don't form a particularly compelling game together.
+
+I'd want Claude to answer one overarching question:
+
+If we were designing Hearthrise from scratch today, knowing everything we know now, would we build it the same way?

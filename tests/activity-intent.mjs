@@ -1804,8 +1804,11 @@ async function run(mutate) {
     const code = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
     /* 2026-08-31 (found when the ammo lane surfaced this test as orphaned-red):
        two SIDE-BANK accruers were added to accrual.js after this scan was
-       written — `accrueRested` (reasons 'absent'/'nothing') and `accrueWorkers`
+       written — `accrueRested` (reasons 'absent'/'nothing'; cut 2026-11-21 with
+       the rested bank, S-9 c) and `accrueWorkers`
        ('no_crew'/'no_span'/'nothing_accrued'; cut 2026-11-18 with the crew).
+       Both are gone, so the list is empty; the machinery stays for the next
+       side bank, and an empty list exempts nothing.
        Their `reason:` fields are their OWN envelope contracts: they never reach classifySkip or the pointer
        partition, so demanding SKIP members of them would couple two unrelated
        vocabularies. Exempted BY ENCLOSING FUNCTION, not by literal, so a new
@@ -1814,7 +1817,7 @@ async function run(mutate) {
        exempted literal may appear in the partition's own vocabulary (else a
        side-bank word has leaked into the activity contract and the exemption
        is hiding exactly what A17 hunts). */
-    const A17_EXEMPT_FNS = ['accrueRested'];
+    const A17_EXEMPT_FNS = [];
     const fnSpans = [...code.matchAll(/(?:export )?(?:async )?function\s+([A-Za-z_][A-Za-z0-9_]*)/g)]
       .map((m) => ({ name: m[1], at: m.index }));
     for (const fn of A17_EXEMPT_FNS) {

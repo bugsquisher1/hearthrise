@@ -45,9 +45,9 @@
 // later roll. That is what lets the away parity test compare byte for byte.
 // ============================================================
 
-import { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS } from '../data/perks.js';
+import { ROOM_PERKS, ROOM_PERK_KEYS } from '../data/perks.js';
 
-export { ROOM_PERKS, ROOM_RUNG_EXTRAS, ROOM_PERK_KEYS };
+export { ROOM_PERKS, ROOM_PERK_KEYS };
 
 /* ══════════════════════════════════════════════════════════════════════════
    1 · THE SOURCE THAT IS NOT A TABLE
@@ -259,44 +259,6 @@ export function makeBonus(state) {
     memo.set(key, v);
     return v;
   };
-}
-
-/**
- * The Library's Rested XP payload for a given Library rung — the one piece of
- * rung payload that is not a bonus key. Returned as `{ rested, restedCap }`
- * with zeroes for a rung that pays none, so a caller never has to know which
- * rungs carry it.
- *
- * ⚠ INERT TODAY, WITH A NAMED CONSUMER — say so rather than let a reader
- *   assume it is wired. `accrual.js` passes `restedQuantum: 0` with the note
- *   "Rested XP is not server state yet", because `player_state` has no
- *   `rested_xp` / `rested_at` columns; when it does, this is the function that
- *   prices a charge, and the data is already extracted (ROOM_RUNG_EXTRAS)
- *   because the generator reads the WHOLE rung rather than the bonus half.
- *   Kept, rather than deleted, so that landing Rested does not require a
- *   SECOND extraction of the same table — which is how a second copy of game
- *   data gets created. Tested by tests/perk-channel.mjs P8; this repo has
- *   recorded that inert seams rot (`registerBuffScaler`), so if Rested is not
- *   moving server-side, delete this and the `extras` half of the generator
- *   together.
- */
-export function restedPayload(state) {
-  const s = state || EMPTY_PERKS;
-  const lv = (s.rooms && s.rooms.library) | 0;
-  const out = { rested: 0, restedCap: 0 };
-  if (lv <= 0) return out;
-  if (!own(ROOM_RUNG_EXTRAS, 'library')) return out;
-  const extras = ROOM_RUNG_EXTRAS.library;
-  /* Scan DOWN from the current rung: L5 carries both fields, L4 carries only
-     `rested`, so a player at L5 must not lose `restedCap` if a future rung
-     restates one field and not the other. */
-  for (let i = Math.min(lv, extras.length) - 1; i >= 0; i--) {
-    const e = extras[i];
-    if (!e) continue;
-    if (!out.rested && e.rested) out.rested = e.rested;
-    if (!out.restedCap && e.restedCap) out.restedCap = e.restedCap;
-  }
-  return out;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════

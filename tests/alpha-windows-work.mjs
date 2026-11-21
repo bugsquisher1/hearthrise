@@ -318,7 +318,7 @@ async function tickerRules(base) {
       const st = { skillTargetId: id, skills: Object.fromEntries(Object.entries(rich).map(([k, r]) => [k, r.xp])), xpFrac: { [w.skill]: 0.9 },
         inventory: Object.assign({}, inv), equipment: {}, toolCarry: { [w.skill]: 0.7 }, stats: {}, buffs: [], unlockedRecipes: {} };
       const got = {};
-      const fx = { addXp: (s, amt) => grantXp(st, s, amt, { bonus, restedQuantum: 0, authored: false }),
+      const fx = { addXp: (s, amt) => grantXp(st, s, amt, { bonus, authored: false }),
         addItem: (it, n) => { got[it] = (got[it] || 0) + n; st.inventory[it] = (st.inventory[it] || 0) + n; },
         removeItem: (it, n) => { st.inventory[it] = (st.inventory[it] || 0) - n; } };
       const one = Object.create(null);

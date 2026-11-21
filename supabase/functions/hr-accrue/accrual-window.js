@@ -199,10 +199,9 @@ export function windowEnvelope(credit, ranMs) {
    is 1.3-1.7% of a combat session and up to 6.66% on a 7 s gathering node,
    every session, forever.
 
-   The fix is the one the engine already uses for the rested bank: `accrueRested`
-   advances `rested_at` by exactly the time it granted, never to `now()`
-   (index.ts:1063). Here the same rule reads: advance to the last instant the
-   simulation ACCOUNTED FOR, and leave the sub-tick tail open so the NEXT window
+   The fix is the watermark rule (the rested bank, cut 2026-11-21, advanced
+   `rested_at` the same way): advance by exactly the time granted, never to
+   `now()`. Here it reads: advance to the last instant the simulation ACCOUNTED FOR, and leave the sub-tick tail open so the NEXT window
    re-simulates it.
 
    ⚠ THE ENGINES ARE NOT TOUCHED. `combat-sim.js` and `skill-sim.js` are

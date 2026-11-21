@@ -106,6 +106,7 @@ The spec. A hero's owner switches it on call once, with limits. Its window opens
 | Rule | Value | Label |
 |---|---|---|
 | Who | The owner's friends, the owner's clan mates, or both. The owner picks once. Never a stranger. There is no live party finder (RULED 2026-11-21, S-2 b) | PROVISIONAL |
+| The defaults | On call opens at hero Level 10, once the account has a friend or a clan. The default "who" is friends and clan. The default tier limit is Dangerous | RULED by the designer 2026-11-21 (D-8), `review/06-designer-rulings-w1.md` section 3. PROVISIONAL numbers |
 | Where a caller finds one | The Friends list and the clan roster show heroes on call with their Level, weapon, hire stamina and tier limit. One control: Seat. This is the on-call board of the 2026-11-20 ruling, as a view of two lists that exist | PROVISIONAL |
 | The owner's limits, set once | The highest tier the hero may be taken to. Who may call | PROVISIONAL |
 | What the caller cannot do | Change the guest's gear, bar, talents or target rules. The guest fights with its own saved Setup for that ground, or its default one | PROVISIONAL |
@@ -131,7 +132,7 @@ A party is never more than four (RULED 2026-11-20). A guest takes one of the fou
 
 ### 1.6 The size of the small cut
 
-PROVISIONAL. `onCallXpShare` opens at **0.10**.
+PROVISIONAL. `onCallXpShare` opens at **0.10**, and D-8 keeps it there (`review/06-designer-rulings-w1.md` section 3).
 
 - COMPUTED. A hero called for all 12 hours of every window, in a party at its own Level, gains 1.2 hours' worth of Level XP a day on top of its 12. That is at most +10% Level pace for that hero. It is a reading of the worst case and not a likely state.
 - Why that case is rare. Every hour a guest fills a seat is an hour one of the caller's own heroes does not fill it at full pay. Across the two accounts a guest hour moves Level XP from 1.00 to 0.10. On call only adds XP to the world when the seat would have been empty or held by a hero with no stamina.
@@ -211,7 +212,7 @@ From study 48, which I read in part.
 
 | Touch point | What changes | Label |
 |---|---|---|
-| The Path | One row. On call opens when the account has its first friend or joins a clan, and has a hero at Level 10 or more | PROVISIONAL |
+| The Path | One row. On call opens when the account has its first friend or joins a clan, and has a hero at Level 10 or more | PROVISIONAL. The row reads the event `on_call_open` with no Level counted toward the Path guard (D-8, D-1 row 24) |
 | The rest plan | One switch for each hero: On call. Under it, set once: who may call, the tier limit. "Apply to all four" as one press | PROVISIONAL |
 | The hero strip | A badge on a hero that is on call or out on a call. The owner sees hire stamina as a second, smaller bar under the hero's own | PROVISIONAL |
 | Friends and the clan roster | Heroes on call, with Seat | PROVISIONAL |
@@ -356,7 +357,7 @@ PROVISIONAL.
 |---|---|---|
 | **1. The queue** | Up to three steps, each a job with a count, as chapter 08 designs it | First, in order |
 | **2. The week's labor** | Castle labor up to a cap in hours a week. One number, set once | After the queue, until the week's cap is met |
-| **3. The standing job** | One job with no count: Train, Gather the best I can, Labor, Fuel the Hearth, or Wait in town | Whenever parts 1 and 2 have nothing to do, until the hero next hunts |
+| **3. The standing job** | One job with no count. In the first build: Gather the best I can, Train, or Wait in town. Labor and Fuel the Hearth wait | Whenever parts 1 and 2 have nothing to do, until the hero next hunts, its bag fills, or 24 hours pass (D-11) |
 | **On call** | A switch, not a job | Interrupts whichever job is running when the hero is seated. The job is stopped and paid. When the hero returns, the plan carries on from part 1 |
 
 Why this order.
@@ -368,6 +369,8 @@ Why this order.
 **Labor and the week's share.** Labor hours count toward the account's weekly share at the wage curve's value, as chapter 06 says. What labor does not cover, the standing gift pays in gold on Monday. So a hero called away all week costs its owner gold and never the clan's buffs.
 
 ### 3.3 Defaults, so nobody has to plan
+
+RULED by the designer 2026-11-21 (D-11): a standing job stops by itself after 24 hours, and no rest plan ending starts a hunt. The first-build standing jobs are Gather the best I can, Train and Wait in town.
 
 | Moment | The default | Why |
 |---|---|---|
@@ -394,7 +397,7 @@ GR-1: a job is paid at its start, at each paid hour and at its stop, with no tic
 
 ### 3.6 A ruling this touches
 
-RULED 2026-11-20: a rest plan's list ends in "wait in town" or "hunt again, once", and a plan never loops. The standing job replaces "wait in town" as the usual ending. It does not loop and it starts no hunt, so I read it as inside that ruling. It is still a change to what was described on the page, and the integrator should list it as one.
+RULED 2026-11-20: a rest plan's list ends in "wait in town" or "hunt again, once", and a plan never loops. RULED by the designer 2026-11-21 (D-11), `review/05-designer-rulings.md` section 3: the standing job is the usual ending, it starts no hunt, never loops, and runs until the hero next hunts, its bag fills, or 24 hours pass. "Hunt again, once" is removed as an ending, because it gives a free player the 12 hour day on one visit. Both changes are on the reversal list as rows 27 and 27b, and Tyler let both stand on 2026-11-21.
 
 ---
 
@@ -409,6 +412,10 @@ For `tools/balance-program/formulas/knobs.json`. None exists in the game today.
 | `hireStaminaHours` | 12 | The size of the hire pool. That it is a separate pool is RULED 2026-11-21 | PROVISIONAL |
 | `onCallEveryHours` | 24 | How often a window opens | RULED 2026-11-21 |
 | `onCallSeatsPerParty` | 1 | Guests in one party | PROVISIONAL |
+| `onCallMinLevel` | 10 | The hero Level at which on call opens | PROVISIONAL (D-8) |
+| The default tier limit | Dangerous | The hardest tier a caller may take the hero to, until its owner changes it | PROVISIONAL (D-8) |
+| The default "who" | Friends and clan | Who may call | PROVISIONAL (D-8) |
+| The standing job's cap | 24 hours | When a standing job stops by itself | RULED by the designer 2026-11-21 (D-11) |
 | The standing cap on Level XP | +5% | The Library's ceiling. A cell of the cap table, not a new knob | PROVISIONAL |
 
 Content data: the Library's step for each level (0.5%), the default labor cap, the default standing job, the Level at which on call opens.

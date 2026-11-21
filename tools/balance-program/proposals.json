@@ -295,24 +295,6 @@
    "note": "The store's heal price on one line. Heal size on the gear curve is not modelled. The harness store bill reads about twice real (F5)"
   },
   {
-   "id": "GR-63",
-   "doc": [
-    "G-63"
-   ],
-   "title": "Dead ladders",
-   "modelled": true,
-   "recommended": true,
-   "label": "MEASURED",
-   "layer": "code clean-up",
-   "patch": "patches/progression-3-rested-off.json",
-   "identity": true,
-   "shipsWith": [],
-   "after": [],
-   "before": [],
-   "note": "RULED (S-9, C): the rested bank is cut; the Level table is the only clock. No cell ever held it (a hunt passes zero), so cutting it is an identity",
-   "ruling": "RULED 2026-11-21 (the sitting S-9, option C: the rested bank is cut)"
-  },
-  {
    "id": "GR-76",
    "doc": [
     "G-76",
@@ -1619,6 +1601,16 @@
    "ruling": "RULED 2026-11-21, in Tyler's design",
    "modelled": false,
    "reason": "the matrix plays one account's heroes; no cell needs another account's hero yet"
+  },
+  {
+   "id": "GR-63",
+   "doc": [
+    "G-63"
+   ],
+   "title": "Dead ladders",
+   "ruling": "RULED 2026-11-21 (the sitting S-9, option C: the rested bank is cut)",
+   "modelled": false,
+   "reason": "BUILT 2026-11-21 by FB-2 (lane/c-formula-steps, 1040-rested-bank-cut.sql): the rested bank is gone from the tree, so patches/progression-3-rested-off.json is empty and the proposed game has nothing to plant. It was an identity on every cell"
   }
  ]
 }

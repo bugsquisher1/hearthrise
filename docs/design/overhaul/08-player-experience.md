@@ -64,6 +64,7 @@ Part of "Hearthrise: the game we are building", the combined design of record. W
 | The starting loot plan | Sell gear worse than what is worn. Keep what a bench the hero can use takes. Never sell a Rare or better. The player edits it and never builds it | PROVISIONAL (GR-80, with the loot plan by kind in chapter 03) |
 | The starting rest plan | Section 2.2, the job queue | PROVISIONAL (GR-80) |
 | Blessings | All three are free under Level 30. "Keep my company blessed" is one standing choice, set once, applied to every hero on every Start | The free band is RULED 2026-10-18. The standing choice is PROVISIONAL (GR-80) |
+| Gear | "Wear upgrades" is one standing plan line beside "Keep my party blessed". It puts better gear on at every Start and every hunt end, in town. A trade-off is never worn for the player. It waits as a "Needs you" row | RULED by the designer 2026-11-21 (D-2), `review/05-designer-rulings.md` section 2.1 |
 
 #### The first hour, minute by minute
 
@@ -72,22 +73,22 @@ Minutes are TARGETS for a new player who follows the coach. The first 17 minutes
 | Minute | The player does | The screen says | What it teaches | Status |
 |---|---|---|---|---|
 | 0:00 | Signs in. Creates the first hero: a name, a way to fight, a look | "Create your hero. No classes. Every weapon is yours. The one in hand sets how this hero fights." | Who my hero is. The first real choice | PROVISIONAL (GR-24) |
-| 0:01 | Lands in Havora beside the Great Hearth | The Town menu shows two lines, Shop and Tamsin's tally, and the next locked line with its opener. The coach rings Hunts | The town is a place. One next step | PROVISIONAL (GR-79) |
+| 0:01 | Lands in Havora beside the Great Hearth | The Town menu shows two lines, Shop and Tamsin's tally, and the next locked line with its opener. The coach rings Hunts in the top bar. Tamsin's tally is a second way in, and the coach rings only screen controls, never a thing standing in town (D-1) | The town is a place. One next step | PROVISIONAL (GR-79) |
 | 0:02 | Opens Hunts, presses the Mill Cellar, presses Enter | The Cellar is marked Recommended. Tamsin's Giant Rats task is taken on entry with no press | A hunt is one press. Hunting inside two minutes | DECIDED (GR-78, GR-79, Fable 2026-11-21, with GR-79 PROVISIONAL) |
 | 0:03 | Watches kills. Opens one bar slot | The slot's rule as a sentence, for the hero's own first move (table below). The coach asks for one change to one number | The bar is where I outsmart a hunt. A rule is a sentence | PROVISIONAL (GR-79) |
 | 0:04 to 0:10 | Watches, or looks around. Levels 2, 3 and 4 arrive | One coach card at a time, each fired by an event: first Level, first loot line, Tamsin's count | Fights run themselves. Levels come fast | PROVISIONAL (GR-79) |
-| 0:10 | 25 rats. Presses Leave | "Rats done. Tamsin has a helm for you." | Leaving is safe and is how I cash in | DECIDED (GR-78, Fable 2026-11-21) |
+| 0:10 | 25 rats. Presses Leave | "Rats done. Tamsin has gear for you." | Leaving is safe and is how I cash in | DECIDED (GR-78, Fable 2026-11-21) |
 | 0:10 | Reads the first end card | The first hunt report: lowest health and what did it, and what the changed rule did. Under it at most three presses: Wear the helm, Keep my company blessed, Carry on. Loot was sold by the starting plan and the card says what was sold | The report. Equip. Blessings as one standing choice. Carry on | DECIDED (GR-66, GR-78, GR-80, Fable 2026-11-21, with GR-66 and GR-80 PROVISIONAL, waits on the playtest or measurement its own row names, Tyler said yes on the page) |
 | 0:11 to 0:17 | Carries on in the Cellar | Level 5 lands and the Cellar ends itself: "Ground outgrown" | Grounds are outgrown. The game tells me when | Content row (the Cellar ends at Level 5) |
-| 0:17 | Reads the end card | "[Name] has outgrown the Mill Cellar. You have three more places in your company, and the Sewer under the mill wants a full party." Main press: Raise your company. Second press: Go on alone to Meadowbrook Thicket | I run four heroes. Alone stays allowed | PROVISIONAL (GR-79). Lone play allowed is RULED 2026-11-21 |
+| 0:17 | Reads the end card | "[Name] has outgrown the Mill Cellar. You have three more heroes to make, and the Sewer wants a full party." Main press: Build your party. Second press: Go on alone to Meadowbrook Thicket | I run four heroes. Alone stays allowed | PROVISIONAL (GR-79). Lone play allowed is RULED 2026-11-21 |
 | 0:17 to 0:20 | Creates three heroes in one flow | The three come pre-filled as Sword and shield, Staff, and Bow and crossbow. One press accepts them, or each screen is a name, a way to fight and the look copy press. The screen says the company holds one healer | Roles come from weapons. A party wants a shield and a healer | PROVISIONAL (GR-24, GR-79) |
 | 0:20 | Reads the first company plan and presses Start once | Four rows, filled in. The three recruits: Mill Cellar, each in its own hunt. The first hero: Meadowbrook Thicket, Normal. One Start begins all four hunts | One plan and one Start for the account | PROVISIONAL (GR-79, GR-80). HYPOTHESIS: the three lone hunts on one Start were not played |
 | 0:20 to 0:36 | Watches the first hero in the Thicket. Presses a portrait on the hero strip to look at the recruits | Tamsin's Gray Wolves taken on entry. The strip shows each recruit's Level rising. Two optional lessons, each fired by the player's own act: press a portrait to watch that hero, and "Copy this rule to every hero" on the rule changed at minute 3 | Heroes run in parallel and I watch one. A decision made once can be copied | PROVISIONAL (GR-79, GR-80) |
-| 0:36 | The recruits reach Level 5 and the Cellar ends for each of them | "Your company is ready for the Sewer." Main press: Gather and go. The first hero leaves the Thicket and the party forms with no invites | The first party | PROVISIONAL (GR-80) |
+| 0:36 | The recruits reach Level 5 and the Cellar ends for each of them | "Your party is ready for the Sewer." Main press: Gather and go. The first hero leaves the Thicket and the party forms with no invites | The first party | PROVISIONAL (GR-80) |
 | 0:37 | Reads the Sewer's prep page and presses Enter | Seats, with the shield in front and the healer behind. The note that the Rat King's room is built for a party. Normal | Where heroes stand. A boss has a room | PROVISIONAL (GR-79). The party note is RULED 2026-11-08 |
-| 0:38 to 0:55 | Watches the four fight | Two event lines, each shown once: the first time Challenge pulls a monster off another hero, and the first time a heal lands on an ally. Gear drops and "Equip upgrades for all four" is one press | Roles in action. Gear moves between my heroes | PROVISIONAL (GR-79, GR-80) |
+| 0:38 to 0:55 | Watches the four fight | Two event lines, each shown once: the first time Challenge pulls a monster off another hero, and the first time a heal lands on an ally. Gear drops, and it is worn at the hunt's end by the standing plan line "Wear upgrades" (D-2). Nothing changes inside a running hunt | Roles in action. Gear moves between my heroes | PROVISIONAL (GR-79, GR-80) |
 | 0:50 | Reads the rest plan | "When stamina runs out your heroes go to work. Here is their plan." Two fish and cook, one mines 20 Copper Ore, one chops 30 Normal Logs. "This builds your first home." One press plants both farm beds with Turnip Seeds | Heroes work while they rest. Each hero takes a different trade. The first town goal | PROVISIONAL (GR-80, GR-79) |
-| 0:55 | Reads the last card of the hour | "It is safe to close the game. Your company hunts for about 7 more hours, then goes to work. Come back in about 8 hours." | The idle promise, with a time on it | PROVISIONAL (GR-79) |
+| 0:55 | Reads the last card of the hour | "It is safe to close the game. Your party hunts for about 7 more hours, then goes to work. Come back in about 8 hours." | The idle promise, with a time on it | PROVISIONAL (GR-79) |
 | 1:00 | Closes the game | The four are Level 6 to 7 in the Sewer | | TARGET |
 
 **The first move each way reads at minute 3.** Every name below is a row of the ability data.
@@ -98,7 +99,7 @@ Minutes are TARGETS for a new player who follows the coach. The first 17 minutes
 | Club | Power Strike. The hammer's Earth rune strike (Quarry Blow) sits beside it | Mana. One Plain Earth Rune a cast | RULED 2026-11-21 (32-5) |
 | Hatchets | Rend, and Turning Cut from Level 1 | One Plain Rupture Rune a cast. Mana | Rend is RULED (32-3). Turning Cut at Level 1 is DECIDED (GR-15, Fable 2026-11-21, chapter 01) |
 | Bow and crossbow | Hunter's Mark, then Precision Shot | Mana. Bronze Arrows never run out | RULED rows |
-| Wand and spellbook | Fireball | One Plain Fire Rune a cast. Mana | RULED rows |
+| Wand and spellbook | Fireball | One Chalked Fire Rune a cast. Mana | RULED rows |
 | Staff | Greater Mend. Mend needs no rune | One Plain Water Rune a cast. Mana | RULED rows. Mend at about 11% of max health is RULED 2026-11-21 (32-4) |
 
 **Default bars.** A new hero's bar is left empty except for the starting food and drink slots, and an empty bar plays its role's own moves in order. That answers chapter 01's question on default bars: there is no second list to keep true.
@@ -114,7 +115,7 @@ Each step is checked against what the player holds from the steps before it and 
 | 1 | Create the first hero and pick a way | A starter set for each card | Nothing | `start-kit.js` STARTER_SETS: six rows, every practice item in `items.js` at Level 1 | Yes |
 | 2 | Enter the Mill Cellar | Level 1, stamina, food | 8 hours of stamina, 20 Cooked Shrimp | `hunts.js` Mill Cellar band 1 to 8, Normal only. `hunt-sessions.js` free bar 8 h | Yes |
 | 3 | Giant Rats taken on entry | A task for this ground | Nothing needed | `tally-tasks.js` cellar_giant_rats: 25 Giant Rats, 25 gold. Giant Rat is Level 2 in `monsters.js` | Yes, once the take is automatic (GR-78) |
-| 4 | Change one rule on the bar | A move the hero can cast at Level 1 | The picked weapon | `abilities.js`: every way has a move with no unlock. `supply-basics.js`: Plain Fire, Water, Earth and Rupture Runes at 1 gold | Yes. A rune way spends purse gold from the first cast, and the account holds 500 |
+| 4 | Change one rule on the bar | A move the hero can cast at Level 1 | The picked weapon | `abilities.js`: every way has a move with no unlock. `supply-basics.js`: Chalked Fire, Water, Earth and Rupture Runes at 1 gold | Yes. A rune way spends purse gold from the first cast, and the account holds 500 |
 | 5 | Leave at 25 rats and wear the helm | The reward piece | 25 kills at about minute 10 (PLAYED) | Bronze Helm in `items.js`, Level 1, for a heavy hero. A light or medium hero is paid its own weight's helm by the tally's piece rule | Yes |
 | 6 | Keep my company blessed | Free Blessings | Level 4 | `blessings.js` freeUntilLevel 30 | Yes |
 | 7 | Level 5, the Cellar ends | An end Level on the ground | Level 5 at about minute 17 (PLAYED) | `hunt-grounds.js` mill_cellar endsAtLevel 5 | Yes |
@@ -130,7 +131,7 @@ Each step is checked against what the player holds from the steps before it and 
 
 Steps 9, 11 and 14 need features this chapter designs, and step 15 needs one press that plants every empty bed. Step 13 is measured and holds. Every other step is doable from the kit and the data as they stand.
 
-**Measured since, at the new tier dials.** From `12-balance-pass.md` (R0, R2 and local runs). The arrival kit takes 2.2 to 2.8 times the mid kit's damage under Level 45, where the band asks 1.15 to 1.35. A new four on the Sewer wipes on either harder tier at Level 5. A new account's four wears that kit, so the first hour stays on Normal, and the arrival kit is the largest open design miss in the matrix. PROVISIONAL, and it waits on the armor and arrival-kit run of chapter 12 section 3.6.
+**Measured since.** The arrival kit never dies on Normal (MEASURED, run 44950722457 and local replays). A lone arrival is up to a quarter slower and eats more. A four barely feels it on Normal and feels it as the tier it can hold (D-3, `review/08-designer-d3.md`). A new account's four wears that kit, so the first hour stays on Normal. RULED by the designer 2026-11-21 (D-3), and FB-3's confirm run reads it.
 
 **If check C3 ever fails.** C3 is a standing cell on the balance matrix, run on the default company with the four that has no healer printed beside it, so a later change cannot break the first hour quietly. If it fails, the four's first hunt together is Meadowbrook Thicket and the Sewer card moves to the Level where C3 passes. The fix is made at the formula or data layer: the Sewer's floor, or the gentle first grounds rule that GR-25 puts on record. The tutorial never gets its own monsters or its own math (RULED 2026-11-21, formula layer).
 
@@ -145,12 +146,12 @@ A party is most often the account's own four heroes, so nothing here waits on an
 | | A ground remembers the Setup, tier and seats last used there, so nothing is picked twice. A Setup holds the weapon, the worn set, the linings, the bar and the target mode. A hero has three free Setup slots, then two more at 15,000 and 40,000 gold (RULED, GR-56a, the sitting). It is saved once and can be copied to another hero or ground | DECIDED (GR-84, GR-48, Fable 2026-11-21, with GR-84 PROVISIONAL) |
 | **One Start** | Carry on is one press for the account. Every hero does again what it did last time: same ground, tier, setup, party, bag lines, Blessings, Tamsin's task and loot by plan | RULED 2026-11-20 (27-1) |
 | | No hunt ever starts by itself. A hunt starts on a press made in a server-authorized session | RULED 2026-11-20 (27-1), 2026-10-18 |
-| | Own heroes form a party with no invite and no accept. The plan names the leader, and the leader's hunt settings are the party's | PROVISIONAL (GR-80). The leader rule is RULED 2026-10-20 |
+| | Own heroes form a party with no invite and no accept. The plan names the leader, and the leader's hunt settings are the party's. The default leader is the hero the engine already sends in front (`ROLE_ORDER`), the plan says who and why, and the player may pin another (D-2) | PROVISIONAL (GR-80). The leader rule is RULED 2026-10-20 |
 | | "If one falls" is one plan line, chosen once: the rest hunt on, or all come home. For an account's own heroes the default is that the rest hunt on. They end together only if the player says so | RULED 27-1 as amended 2026-11-21: own heroes end together only if you say so. The plan line itself is PROVISIONAL (GR-80). The 2026-10-22 default of leaving together is for a party of different accounts. MEASURED in `12-balance-pass.md` (R2): when the front hero fell, the other three died in the same hunt in every sampled wipe, which is four death penalties where "all come home" would cost one. The ruled default stands. Whether to turn it on for a four with one front hero is for Tyler (12 section 7, item 3) |
 | **One return card** | One card for the account on every return. Section 2.4 | PROVISIONAL (GR-80) |
 | **The job queue** | A hero's rest plan is an ordered list of up to three steps (TARGET, a data row). Each step is a job with a count. A gathering step always takes a count. A bench step may run until its inputs are gone | PROVISIONAL (GR-80) |
-| | The list ends in "wait in town" or "hunt again, once". A plan never loops | RULED 2026-11-20 (27-1) |
-| | The rest plan gains three things. The week's labor: castle labor up to a cap in hours a week, set once. The standing job: one job with no count that fills what is left, and it is the usual ending in place of "wait in town". It does not loop and starts no hunt, so chapter 11 reads it as inside the ruling above, and it is still a change to what was on the page. The On call switch, which may interrupt a job | PROVISIONAL (CH11-1 and CH11-3, `11-on-call-and-clan-xp.md`), sections 3.2 and 3.6 |
+| | The list ends in a standing job, Train, or wait in town. Nothing in it starts a hunt, and a plan never loops. A standing job stops by itself after 24 hours | RULED by the designer 2026-11-21 (D-11), `review/05-designer-rulings.md` section 3. It reverses "hunt again, once" of 2026-11-20 (27-1), as reversal rows 27 and 27b, and Tyler let both stand on 2026-11-21 |
+| | The rest plan gains three things. The week's labor: castle labor up to a cap in hours a week, set once. The standing job: one job with no count that fills what is left, and it is the usual ending in place of "wait in town". It does not loop, starts no hunt and stops by itself after 24 hours (D-11). In the first build its choices are Gather the best I can, Train and Wait in town. The On call switch, which may interrupt a job | PROVISIONAL (CH11-1 and CH11-3, `11-on-call-and-clan-xp.md`), sections 3.2 and 3.6 |
 | | A ground with no pointer uses the hero's first Setup. An edit made at a ground asks Save or Save as new. Copy to another hero fills one of that hero's slots | PROVISIONAL (CH11-3, `11-on-call-and-clan-xp.md`), section 10 |
 | | The return card gains one line for on call: what the account's heroes earned as guests | PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`) |
 | | A gathering step may say "the best I can": the highest node of that line the hero's skill opens. It is a choice, because a player may want copper | PROVISIONAL (GR-80) |
@@ -167,6 +168,9 @@ A party is most often the account's own four heroes, so nothing here waits on an
 A death costs 6% of all Level XP, flat, with no cap (RULED 2026-11-21, knob `deathLoss`, formula P28), and the player is not watching. So the report answers two questions after every hunt: how close did this come to a death, and what did each rule on the bar do. It sits on the end card and on the return card.
 
 **The risk block. Free to every player.**
+
+**The tier's own line reads the gear the party wears.** RULED by the designer 2026-11-21 (D-1), `review/05-designer-rulings.md` section 1.4. The line beside a tier reads the gear state of the party's weakest hero, one of the matrix's three, at the party's lowest Level. A cell the matrix has not played says "Not tested yet." and is never offered. A harder tier is always a warned choice a player may pick (RULED 2026-11-04). The game offers it only when the party's last hunt there, one tier below, read Safe, and the tier's risk row is inside the ruled death band: 30 deaths in 1,000 hunted hours for Dangerous and 100 for Deadly.
+
 
 | Line | What it reads | Status |
 |---|---|---|
@@ -222,7 +226,20 @@ Stamina drains one for one while hunting and rests one for one at every other in
 | 5 | Carry on | One press. Under it, "Change the plan" | RULED 2026-11-20 (27-1) |
 | 6 | The Rare reveal | Every Rare found while away rolls through on the card | RULED 2026-11-20 (27-6) |
 
-What can appear in "Needs you": a death and a hero left unblessed. Better gear found, with "Equip upgrades for all four" as one press. A ground outgrown or opened. A full bag or full Storage. A job queue that ended with stamina full. A hunt that ended on its spending budget (GR-57). Everything else is done by Carry on and reported as one line.
+What can appear in "Needs you". RULED by the designer 2026-11-21 (D-2), `review/05-designer-rulings.md` section 2.3. Eight kinds in a fixed order, one row a kind for the account, three shown, and "{n} more" under them.
+
+| Rank | Band | Kind | Shown when |
+|---|---|---|---|
+| 1 | Stops a hero hunting | Outgrown | A hero's last ground ended outgrown |
+| 2 | | Cannot start | Carry on would be refused: a full bag or full Storage, or the last hunt ran out of gold, heals, runes, ammo or its spending budget (GR-57) |
+| 3 | Costs progress | A death | A hero died and stands with no Blessing |
+| 4 | | A gear choice | "Wear upgrades" is off and upgrades wait, or a trade-off waits |
+| 5 | Gains | A tier offer | The offer rule of section 2.3 passes |
+| 6 | | A ground opened | A hero reached a ground's floor since the last visit |
+| 7 | | Talent points | Unspent points with no plan |
+| 8 | | Can build | The account holds a home's whole cost |
+
+What Carry on does is never a row. Everything else is done by Carry on and reported as one line. No row offers a refill, a Crown or a boost.
 
 **Bands for being away.** These are standard X9, as TARGETS.
 
@@ -269,31 +286,42 @@ One table says what opens every system. Each row has an opener, the line that an
 
 **The table.** Levels are the content rows on this branch unless marked. Where another chapter owns the opener, the row says so.
 
-| Opener | What opens | Announced by | Status |
-|---|---|---|---|
-| The start | Hunts, Inventory, Character, the Book, the Mill Cellar, Shop, Tamsin's tally | The coach's first ring | PROVISIONAL (GR-79) |
-| First kill | The action bar | One card, minute 3 | PROVISIONAL (GR-79) |
-| First Leave | The end card, the hunt report, Blessings, the loot plan | The end card itself | PROVISIONAL (GR-79) |
-| First Level 5 on the account | The company: heroes two to four, the hero strip, the company plan, Storage | The Cellar's end card | PROVISIONAL (GR-79) |
-| Level 5 | Meadowbrook Thicket. The Sewer for a party | "Ground outgrown" | RULED 2026-11-18 (the Sewer at 5) |
-| First company hunt, ten minutes in | Skills, the job queue, the Farm, the House as a goal | The rest plan card | PROVISIONAL (GR-79). The farm loop of chapter 07 needs only Level 1, so the later opener is the Path's choice: the first ten minutes hold one lesson at a time |
-| First stamina end | The return card. The Hearthside Homestead, if the materials are in Storage | The return card | PROVISIONAL (GR-79) |
-| Level 8, with a helm and body armor worn | Wickstead. The first Dangerous offer, with the risk reading beside it | The Hunts page | PROVISIONAL (GR-79). Risk as a warned choice is RULED 2026-11-04 |
-| First Rat King kill | The Rat King's Hall, as the first boss door and key | The loot line | PROVISIONAL (GR-79, GR-28, reversal of 2026-11-14 and 22-8, let stand on the page) |
-| Level 10 | The Burning Tower and the Hearth Chest. The Weighhouse | One card each | The Tower's Level is RULED 2026-11-18. The market is open on day one: PROVISIONAL (GR-55, waits on the store-bill fault fixed and a wage formula that exists, Tyler said yes on the page, reversal of 24-7, let stand on the page, chapter 04). The Weighhouse card moves to the first return |
-| Level 16 | Mosslight Glade. The Honors page | "Ground opened" | PROVISIONAL (GR-79, GR-62) |
-| Level 30 | Blessings cost gold. "Keep my company blessed" shows its price | The end card, two Levels ahead | RULED 2026-10-18 (free under 30) |
-| Level 32 | Coppercap Warrens | "Ground opened" | Content row |
-| Levels 45 to 85 | Hask's Ford, the Slake, the Muster Barrows, the Pyre Field, Krell's Hold | "Ground opened", with the Chronicle's teaser | Content rows |
-| Set by chapter 03 | Tempering, Hallmarks, linings, jewelry tiers, salvage and Luck, the find list | One card each at its opener | OPEN. Chapter 03 sets each opener |
-| Level 10 | Talents. The panel opens with two points. One line on the return card, for the account and never four. Setups carry the talent plan and the unlock switches. Order at Level 10: Talents on the first return after Level 10, then the Burning Tower after the first spend, then the Hearth Chest | One coach card, then a second after the first spend | PROVISIONAL (TAL-1, `10-level-choices.md`). The rhythm is RULED 2026-11-21. The order is chapter 10's and is PROVISIONAL. The first hour is unchanged |
-| Set by chapter 11 | On call: a hero's owner switches it on once, with limits | One card | PROVISIONAL (CH11-1, `11-on-call-and-clan-xp.md`). Its opening Level is content data there |
-| Set by chapter 05 | Honors lines at Level 100, 200, 300 and 400 | The Level card | PROVISIONAL there (GR-62) |
-| Set by chapter 02 | Old grounds at your Level. Each region. The Catacombs | "Region opened" | PROVISIONAL there (GR-9, GR-33, GR-36) |
-| The start | Chat and the presence strip | No card. They are on screen | DECIDED in chapter 06 (Fable 2026-11-21) |
-| The first day | Clans: the roster and its chat tab | One line on the first return card | DECIDED in chapter 06 (Fable 2026-11-21) |
-| Level 13, 20 and 30 | The world boss opens at Level 13 for each hero sent. The Even Arena at Level 20. The Open Arena at Level 30. The clan board when the account is in a clan. The calendar banner after the first stamina end | The System tab and a town banner | PROVISIONAL (GR-79) |
-| 50 active accounts a day | The Town Crier, Rounds for the Tavern, flame powders, rank numbers on the boards | A town line | PROVISIONAL (GR-79). TARGET count |
+RULED by the designer 2026-11-21 (D-1), `review/05-designer-rulings.md` section 1.1, with on call's row from D-8 and the calendar from D-7. A Level is never typed in the Path. Each row reads its Level from its own system's file and is gated on that system's flag. An event row carries the Level by which the walked first hour meets it, so the guard can count it. That Level gates nothing.
+
+| # | Opener | What opens | Where the Level or event lives | The line |
+|---|---|---|---|---|
+| 1 | The start | Hunts, Inventory, Character, the Book, Shop, Tamsin's tally, Chat | Always | "Open Hunts and pick the Mill Cellar." |
+| 2 | First kill | The action bar | The hunt's tally | "Your hero fights by itself. Open a slot on the bar to change how." |
+| 3 | First Leave, met by Level 4 | The end card, the hunt report, Blessings, the loot plan | `tally-tasks.js`, 25 Giant Rats | "Rats done. Tamsin has gear for you." |
+| 4 | First Level 5 on the account | Heroes two to four, the hero strip, the party plan, Storage | `hunt-grounds.js`, the Mill Cellar ends at Level 5 | "{Name} has outgrown the Mill Cellar. You have three more heroes to make, and the Sewer wants a full party." Press "Build your party". Second press "Go on alone to Meadowbrook Thicket" |
+| 5 | Level 5 | Meadowbrook Thicket. The Sewer for a party | `hunts.js`, both floors | "Level 5. Meadowbrook Thicket" and "Level 5. The Sewer, for a party" |
+| 6 | The party is ready, met by Level 5 | The first party hunt | Every hero at the Sewer's floor | "Your party is ready for the Sewer." Press "Gather and go" |
+| 7 | The first party hunt, ten minutes in | Skills, the rest plan, the Farm, the House as a goal | FB-6's rest plan | "When stamina runs out your heroes go to work. Here is their plan." |
+| 8 | The first party hunt, fifteen minutes in | The safe-to-close line | The first party hunt | "It is safe to close the game. Your party hunts for about {hours} more hours, then goes to work. Come back in about {back} hours." |
+| 9 | Level 8 | Wickstead | `hunts.js` | "Level 8. Wickstead" |
+| 10 | Level 8 | The Graypelt Cloak, made at the Crafting bench from 6 Wolf Pelts | `slot-ladders.js` | "Level 8. Graypelt Cloak. Stitch it from 6 Wolf Pelts." |
+| 11 | First stamina end, met by Level 10 | The return card. The Hearthside Homestead. The Weighhouse. The clan roster line. The calendar banner, which reads the next event (D-7) | `hunt-sessions.js`, the stamina end | "Your heroes are back in town." The Homestead line: "You can build the Hearthside Homestead." |
+| 12 | Level 10 | Talents, then the Burning Tower, then the Hearth Chest, in that order, one card each (chapter 10 section 10) | FB-11's file. `tower.js`. The chest follows the Tower | "Level 10. Talents", "Level 10. The Burning Tower", "Level 10. The Hearth Chest" |
+| 13 | Level 10 | The Training Yard. No card. It is offered in the rest plan's picker | `training.js` | "Level 10. Training Yard" |
+| 14 | Level 12 | Grayjaw's Ruff, a rare drop from Old Grayjaw in Meadowbrook Thicket | `items.js` | "Level 12. Grayjaw's Ruff. Old Grayjaw drops it in the Thicket." |
+| 15 | Level 13 | The world boss, for each hero sent | FB-13's boss file | "Level 13. {Boss name}" |
+| 16 | Level 15 | Iron gear. The Banded Signet and the Wolfbone Necklace at Smithing 15 | `gear-tiers.js`, `slot-ladders.js` | "Level 15. Iron gear" |
+| 17 | Level 16 | Mosslight Glade. The Roll of Honor | `hunts.js`, `hunt-tutorial.js` | "Level 16. Mosslight Glade" |
+| 18 | Every fifth Level from 15 | A Talent point | FB-11's point rule | "Level {N}. A Talent point" |
+| 19 | Level 22 | The Houndskin Cloak, from 12 Wolf Pelts and 1 Bear Pelt | `slot-ladders.js` | "Level 22. Houndskin Cloak" |
+| 20 | Level 30 | Steel gear. Blessings cost gold | `gear-tiers.js`, `blessings.js` | "Level 30. Steel gear" and, from Level 28 on the end card, "Blessings are free until Level 30." |
+| 21 | Level 32 | Coppercap Warrens | `hunts.js` | "Level 32. Coppercap Warrens" |
+| 22 | A generated Level, one row for each open ground and harder tier | That tier on that ground, for a party in the Level's gear | FB-7's tier-risk file: the lowest played Level where the mid row is inside the offer band | "Level {N}. {Tier} on {ground}, for a party in this Level's gear" |
+| 23 | A Level read for the hero's weapon | A move the weapon unlocks. It never counts for the guard, because not every account has that weapon | `abilities.js` | "Level {N}. {Move}" |
+| 24 | The event `on_call_open`, with no Level counted | On call. It opens at hero Level 10, once the account has a friend or a clan (D-8) | FB-14's file | Chapter 11 |
+| 25 | Active accounts a day | The Town Crier | FB-12's count | Chapter 06 |
+| 26 | A stub | The weapon cards' tags, filled last by FB-5 from check C1 | `review/05-designer-rulings.md` section 1.5 | A stub |
+
+One more event row is FB-7's: `first_harder_tier`, the first time the offer rule of section 2.3 passes for the account. The old Level 8 offer of Dangerous to a hero in a helm and body armor is gone.
+
+**Planned, and off the table until each is built.** The Rat King's Hall as the first boss door and key. The Honors lines at Level 100 and up. The Even Arena at Level 20 and the Open Arena at Level 30. Old grounds at your Level, each region, and the Catacombs. Tempering, Hallmarks and linings keep their openers with chapter 03 and get rows when FB-8 lands them. Rounds for the Tavern, flame powders and rank numbers on the boards. Nothing here is cut. A planned system stays hidden until it works.
+
+**What the guard reads, with every first-build flag on.** COMPUTED in `review/05-designer-rulings.md` section 1.1. Every Level from 1 to 30 names a next thing within 3 Levels, except Levels 16, 25 and 26. Only the harder-tier rows of row 22 can fill those, and they read FB-3's replay. If the replay leaves a hole, the fix is content at the data layer, never a row made up for the guard.
 
 ### 2.6 Teaching and the coach
 
@@ -323,9 +351,9 @@ The coach teaches the loop and then gets out of the way. It is two things: a sho
 | **The visit** | Twice a day free, once with Premium | The return card: the night in three lines, up to three decisions, Carry on | RULED 50-12. The card is PROVISIONAL (GR-80) |
 | **The day** | 12 hunted hours a hero | At least one Level for the pace seat in every 15 hunted hours to Level 300 (standard P12, chapter 05). Tamsin's tasks. Bestiary stages that pay Luck. Rare reveals | The 12 hour day is RULED. The reveal on every Rare is RULED 27-6 |
 | **The longest dry spell** | Hunted hours with no reward of any kind | At most 30 minutes under Level 10, 2 hours to Level 50, 6 hours to Level 110, 12 hours after | RULED direction 2026-10-25. Bands are standard X12 |
-| **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is RULED (GR-3, Tyler 2026-11-21, the sitting7, waits on Deadly sized, and the system built). Six boards is RULED 27-4 |
+| **The weekly turn** | One instant for everything weekly | The Hearth Chest's opens reset. The Tower's weekly climb. The six boards open on "this week". The Week card | The limits are RULED 2026-11-21. The Tower weekly is PROVISIONAL (GR-37, waits on Deadly sized, and the system built). Six boards is RULED 27-4 |
 | **The Week card** | Shown on the first return after the turn | This week against your last week for the account: Levels, hours hunted, best find, Bestiary stages, Tower floor, rank moves and what just reset. It pays nothing, ever | PROVISIONAL (GR-84) |
-| **The weekend** | A four-weekend rotation written a year ahead as rows | The Hearthrise, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time | PROVISIONAL (MM-11, MM-3). The +25% cap is RULED 27-5 |
+| **The weekend** | A four-weekend rotation written a year ahead as rows | The Hearthrise, a world boss, one ground's weekend, the arena season end with clan honors. Never over +25%, one at a time In the first build the Hearthrise is weekend 1 and the world boss weekend 3, and weekends 2 and 4 are quiet (D-7) | PROVISIONAL (MM-11, MM-3). The first build's two beats are RULED by the designer 2026-11-21 (D-7). The +25% cap is RULED 27-5 |
 | **The month** | One turn of the rotation | Each of the four weekends once. The Great Hearth's shared project | The Hearth merge is PROVISIONAL (GR-82, Tyler said yes on the page, reversal of 2026-10-25, let stand on the page), a HYPOTHESIS |
 | **The long chase** | Past any one month | Krell's Hold on day 31 for a plain four, and day 18 to 24 with best gear and buffs. Level 400 on day 373. The Luck bar at +16% by 500 hours and +39% by 5,000. Honors lines at Level 100, 200, 300 and 400. Late Bestiary stages. Rare finds past Krell | The Luck bar is RULED 2026-11-21. Krell's day and Level 400's day are PROVISIONAL (GR-6b and GR-6, waits on the kill reward and the tiers, because the seat's multiple is not one number until then, Tyler said yes on the page, reversals of "day 18 for a four" and "Level 400 is day 382", let stand on the page). Honors is PROVISIONAL (GR-62) |
 
@@ -400,6 +428,7 @@ The eight criteria in short form: player value, depth, uniqueness, what it plugs
 | A skill tree | Covered by Kindlings | High | No | Combat | Risky | High | Yes | ON HOLD | RULED 2026-11-05 |
 | Game modes | Medium | Medium | Yes | Accounts | Own ladders | High | Yes | After launch, for each account | RULED 27-9 |
 | Weekly orders | Medium | Low | Yes | Crafting | Small | Medium | Yes | BUILD-LATER, judged against the ground weekend and the Week card | RULED 2026-11-21 (nothing planned is cut) |
+| A rest plan ending that starts a hunt once | Low | High. It gives a free player the 12 hour day on one visit | No | The rest plan | It sells what the Premium bar sells | Low | No | NEVER | RULED by the designer 2026-11-21 (D-11). Reversal row 27b, which Tyler let stand on 2026-11-21 |
 | Daily quests, a login calendar, a season pass | Negative across four heroes | None | No | Nothing | A chore faucet | Medium | No | NEVER | PROVISIONAL (MM-11) |
 | A loop that restarts hunts when stamina is full | It makes the free game zero visits | None | No | Stamina | It would end the stamina day | Low | No | NEVER | RULED 27-1 |
 
@@ -455,10 +484,10 @@ In decision-book order.
 |---|---|---|---|
 | 1 | Closed. A start-kit four holds the Sewer on Normal at Level 5, the Rat King's room included | MEASURED, check C3, and re-run by the adversarial check on the default company | It is a standing matrix cell now |
 | 2 | Closed. Three heroes together in the Cellar do not keep pace with one | MEASURED, check C2, failed at 0.53 times | The recruits run three lone hunts on one Start (section 2.1) |
-| 3 | A measured tag for each starting way | The balance matrix (check C1). Owner: the core decider | Six start-kit cells. Still owed |
+| 3 | A measured tag for each starting way | The fix is ruled (D-3): the kill reward curve's low end at exponent 1.1. FB-3's confirm run reads the six cells, and FB-5 fills the tags last | Six start-kit cells. Still owed |
 | 4 | What the first week's gold buys, and early prices for an account of four | Closed. CE-4 gives the order and CE-5 the sizes, as a HYPOTHESIS | The decision book lists both as missing |
 | 5 | Premium's daily item: one an account or one a hero. And Premium's price | Closed for now. Tyler said yes on the page (PREM-1 and PREM-2): one item for each hero, and 8 to 10 dollars a month as a number to react to | A money call |
-| 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Chapter 03 | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
+| 6 | The Path's rows for Levels 17 to 19, 21 to 24 and 26 to 29 | Closed for Levels 21 to 24 by the Houndskin Cloak at Level 22 (D-1). Levels 17 to 19 and 27 to 28 are FB-7's harder-tier rows | The content rows on this branch name nothing there except skill unlocks at 20 and 25. Gear tier rows should fill them, or the guard in section 6 fails |
 | 7 | The Level doors for the world boss, both arenas and the clan board | Closed. GR-79: Level 13, 20 and 30, and the clan board when the account is in a clan | Chapter 06 asks this chapter for them. They cannot be set before the boss pool and arena tiers have numbers |
 | 7b | How the thirteen skills are spread across four heroes past the first night | The game designer, inside GR-79, with chapter 05 (its item 16) | The starting rest plan gives each hero a different trade on night one. Nothing yet says who should train what after that, or whether the game should say it at all |
 | 8 | The player-facing word for the account's four | Closed. "Heroes" for the account screen and "Party" inside a hunt, by the genre-words rule | "Heroes" and "Party" are recommended. "Company" is design vocabulary |
@@ -476,7 +505,7 @@ In decision-book order.
 
 | Check | Cell | Passes when | Label |
 |---|---|---|---|
-| C1 | Each of the six ways, one hero, start kit, Mill Cellar, Normal | Level 5 in 15 to 20 minutes, no death, net gold at or over zero. A way outside the band carries "Slow alone" on its card or is fixed at the formula layer | TARGET |
+| C1 | Each of the six ways, one hero, start kit, Mill Cellar, Normal | Level 5 in 15 to 20 minutes, no death, net gold at or over zero. A way outside the band carries "Slow alone" on its card or is fixed at the formula layer | TARGET. The fix is ruled at the formula layer: the kill reward curve's low end at exponent 1.1 (D-3, `review/08-designer-d3.md` section 2). Every starting card then reaches Level 5 in 16.2 to 19.2 minutes with no death (Local). The wand's cost line reads 100 |
 | C2 | Three start-kit heroes together, Mill Cellar | Level 5 in no more hunted minutes than one hero alone | FAILED when the adversarial check ran it: 4,589 Level XP a head an hour against 8,095 to 8,998 alone. The Cellar is spawn-limited and three heroes kill only 18% more rats than one. The design no longer leans on it |
 | C3 | The default company (Club, Sword and shield, Staff, Bow and crossbow) at Level 5, the Sewer, Normal, the whole route. The four with no healer is printed beside it | No death in 4 seeds of 8 hours. XP a head at or over the same four split. Net gold at or over zero | PASSED, MEASURED: 0 deaths, XP a head 1.71 to 1.75 times, net gold a head 1.18 times. A standing cell |
 | C4 | The first day | Level 10 by 6 hunted hours. No Level under 10 over 2 hours | RULED (27-2, standard P11) |
@@ -493,7 +522,7 @@ In decision-book order.
 | X12, the dry spell | The longest gap in the reward log, by checkpoint |
 | X28, teaching | A blind first hour by a fresh reader. Every system met under Level 30 was named before it was needed |
 
-**Guards.** A Path guard: every Level from 1 to 30 has a named next thing within 3 Levels, and every opener points at a real row. A coach guard: every card's step passes its walk-through test. A first-hour run on the local world: the whole section 2.1 sequence from the sign-in screen, as a test that plays it.
+**Guards.** A Path guard (D-1): with every first-build flag on, every Level from 1 to 30 has a named next thing within 3 Levels, read from an account row and never from a weapon's row. Every opener points at a real window. A row whose Level export is missing while its flag is on fails. Until FB-7's tier-risk file exists the guard carries one named list, Levels 16, 25 and 26. A hole on that list prints and passes, and any other hole fails. FB-7 deletes the list with a mutant that proves the guard bites. A coach guard: every card's step passes its walk-through test. A first-hour run on the local world: the whole section 2.1 sequence from the sign-in screen, as a test that plays it.
 
 **Playtests only real players can settle** (60 section 7.3).
 

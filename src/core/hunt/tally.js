@@ -106,6 +106,8 @@ export function tallyEvents(events, roster = null) {
       }
       case 'kill': {
         if (ids.has(ev.t)) { heroOf(ev.t, ev).deaths += 1; break; }
+        /* NO DEALER (damage.js landHit): a bleed whose hero has left the world ticked it dead. No hero's kill; the party standing is paid it. */
+        if (ev.u === null) break;
         const h = heroOf(ev.u, ev);
         h.kills += 1;
         if (ev.gold !== undefined) h.gold += int(ev.gold, 'kill gold');

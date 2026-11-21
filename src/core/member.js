@@ -217,7 +217,7 @@ export function memberSide(mi, ctx) {
        Inner Flame level raises the regen rate from the next swing. */
     addXp(skillId, amt) {
       const before = Number(state.skills[skillId]) || 0;
-      grantXp(state, skillId, amt, { bonus, restedQuantum: 0, authored: false });
+      grantXp(state, skillId, amt, { bonus, authored: false });
       const applied = (Number(state.skills[skillId]) || 0) - before;
       if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
       hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);
@@ -227,7 +227,7 @@ export function memberSide(mi, ctx) {
        the same carry, with no XP perk, buff or pace dial, so an hour of training pays exactly src/data/training.js xpPerHour. */
     addFixedXp(skillId, amt) {
       const before = Number(state.skills[skillId]) || 0;
-      grantXp(state, skillId, amt, { bonus: null, restedQuantum: 0, authored: true });
+      grantXp(state, skillId, amt, { bonus: null, authored: true });
       const applied = (Number(state.skills[skillId]) || 0) - before;
       if (applied > 0) xpGained[skillId] = (xpGained[skillId] || 0) + applied;
       hs.tally.xp[skillId] = (hs.tally.xp[skillId] || 0) + (Number(amt) || 0);

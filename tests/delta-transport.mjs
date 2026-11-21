@@ -190,17 +190,16 @@ const MUTATIONS = {
     file: FN('index.ts'),
     why: 'index.ts binds the pre-stringified delta into a bare ::jsonb — the shipped P0 on the '
        + 'accrue verb, which is the one that pays the night.',
-    /* ANCHORED ON `wIntentId`, WHICH IS NOT DECORATION. index.ts carries TWO
-       apply sites since b532 (the crew/rested standalone settle, then the
-       pointer's own apply), so the bare `${JSON.stringify(delta)}::text::jsonb)
-       as res` this used to name matches TWICE and the arm aborted the whole
-       --selftest as a harness failure. The site named here is the one
-       `deltaCastOf` reads — the FIRST in the file — which is what T1 executes
-       and what T8 builds its apply from, so this arm still turns those red
-       rather than only T6. The second site is graded by T6's census, which is
-       precisely the class `third_apply_site` proves T6 sees. */
-    find: '${wIntentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res',
-    repl: '${wIntentId}::uuid, ${JSON.stringify(delta)}::jsonb) as res',
+    /* ANCHORED ON `intentId`, THE POINTER'S OWN APPLY. index.ts carried TWO
+       apply sites from b532 (the crew/rested standalone settle, keyed
+       `wIntentId`, then the pointer's own apply) until the rested bank's settle
+       left on 2026-11-21 (S-9 c); now the pointer's apply is the only one, and
+       it is the site `deltaCastOf` reads — the FIRST in the file — which is
+       what T1 executes and what T8 builds its apply from, so this arm turns
+       those red rather than only T6. A site added later is graded by T6's
+       census, which is precisely the class `third_apply_site` proves T6 sees. */
+    find: '${intentId}::uuid, ${JSON.stringify(delta)}::text::jsonb) as res',
+    repl: '${intentId}::uuid, ${JSON.stringify(delta)}::jsonb) as res',
   },
   third_apply_site: {
     /* How the P0 comes back: not by anyone un-fixing these two lines, but by the

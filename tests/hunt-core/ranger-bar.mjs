@@ -36,7 +36,7 @@ const FREMULON = Object.freeze({
     necklace: 'hunter_necklace', boots: 'boarhide_boots', body: 'leather_body', pants: 'studded_pants', helmet: 'leather_helmet', ring2: 'copper_ring' },
   bag: { bronze_arrows: { loaded: 2600 }, cooked_shrimp: { loaded: 25 }, copper_whetstone: { loaded: 2350 }, steel_whetstone: { loaded: 1340 } },
   bar: [ab('hunters_mark'), ab('flame_volley', 'plain_fire_rune'), ab('precision_shot'), null, null, atk('copper_whetstone'), atk('barbed_arrows'),
-    atk('bronze_arrows'), null, atk('iron_bolts'), null, null, ab('cleave'), ab('power_strike'), ab('flame_strike', 'plain_fire_rune'),
+    atk('bronze_arrows'), null, atk('iron_bolts'), null, null, ab('turning_cut'), ab('power_strike'), ab('flame_strike', 'plain_fire_rune'),
     eat('salted_shark', 30), eat('salted_swordfish', 40), eat('salted_lobster', 50), null, null],
   options: { chase: true, stance: 'offensive', distance: 3, target_mode: 'follow' },
 });

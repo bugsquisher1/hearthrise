@@ -4,19 +4,19 @@
 // Tyler 2026-11-08: a Fireball slot set to the store's Scored Fire Rune showed version I's 25 mana and 7–12
 // damage while the engine casts version II at 30 mana and about 1.7 times as hard. Every screen that shows
 // what a slot costs or lands reads it here, by the engine's own rule (src/core/hunt/abilities.js runeFor,
-// suppliesFor, firstUsable) on the engine's own data functions (abilities.js versionOf and outputPm):
+// suppliesFor, firstUsable) on the engine's own data functions (abilities.js versionOf):
 //   the rune      of the runes the slot ticked (Tyler 2026-11-08, RUNE SUPPLY PER SLOT; conditions.js runeSupplyOf):
 //                 the highest tier the hero carries whose version its level in the spell's skill has unlocked;
 //                 else, only when the slot buys on empty and the store is on, exactly the store rune it names
 //                 (cast at the store's share, BASIC_EFFECT_SHARE)
-//   the version   the rune's tier: its mana (never more with level) and its output, permille of the row's
-//                 numbers at the hero's level (outputPm), the store's share on top
+//   the version   the rune's tier: its mana (never more with level) and its step, permille of the row's
+//                 share of the hero's blow (THE SPELL RULE), the store's share on top
 //   the cost line "Cost: 30 mana · 1 Scored Fire Rune (8 g)", "(you have 12)" or "(none left)" (Tyler
 //                 2026-11-08, "Yes, cost line only"), the same for food, drink and ammo without the mana
 // Every input is the server's: the bag (carriedOf), the store rows (hunt_settings.store), the skills (skillsOf)
 // and the supply setting (hunt_settings). Display only: nothing here gates or spends anything.
 // ════════════════════════════════════════════════════════════════════════
-import { ABILITIES, abilitySkill, versionOf, outputPm } from '../data/abilities.js';
+import { ABILITIES, ABILITY_RULES, abilitySkill, versionOf, landsBlow, shells } from '../data/abilities.js';
 import { BASIC_EFFECT_SHARE } from '../data/supply-basics.js';
 import { RUNE_FAMILIES, runeTierOf, versionLevel } from '../data/runes.js';
 import { CONSUMABLES } from '../data/consumables.js';
@@ -72,22 +72,37 @@ export function castOf(a, ctx) {
       rune = { id: null, name: fam && RUNE_FAMILIES[fam] ? t('bar.family_rune', { family: RUNE_FAMILIES[fam].label }) : itemName(row.rune), source: 'none', have, price: null };
     }
   }
-  return { row, version, level, skill, pm: Math.floor((outputPm(row, version, lv) * share) / 1000), mana: versionOf(row, version).mana, rune };
+  return { row, version, level, skill, pm: Math.floor((versionOf(row, version).outPm * share) / 1000), mana: versionOf(row, version).mana, rune };
 }
 
 /** A cast's numbers for THIS hero in a few words (Tyler 2026-11-08, "75% what?": Configure action's rune choices show what each
-    lands, never a share): "13–23 damage", "heals 13–23", "shields 40", or '' for a spell with none (a taunt, a mark). `k` is castOf's. */
+    lands, against a number the hero can read, its Max Hit or its max HP, never a bare share): "77–154% of Max Hit", "heals 349% of
+    Max Hit", "shields 252% of Max Hit", or '' for a spell with none (a taunt, a mark). `k` is castOf's. */
 export function outputWords(k) {
   const r = k && k.row;
   if (!r) return '';
-  if (r.dmg) return t('bar.out_dmg', { lo: landed(r.dmg[0], k.pm), hi: landed(r.dmg[1], k.pm) });
-  if (r.heal) return t('bar.out_heal', { lo: landed(r.heal[0], k.pm), hi: landed(r.heal[1], k.pm) });
-  return r.shield ? t('bar.out_shield', { points: landed(r.shield, k.pm) }) : '';
+  const words = (share) => (share ? [share, floorWords(r, k.pm, 'out')].filter(Boolean).join(', ') : '');
+  if (landsBlow(r)) { const hi = sharePct(r.hitPm, k.pm); return words(t('bar.out_blow', { lo: Math.round((hi * ABILITY_RULES.hitLowPm) / 1000), hi })); }
+  if (Number.isInteger(r.healPm)) return words(t('bar.out_heal_blow', { pct: sharePct(r.healPm, k.pm) }));
+  if (Number.isInteger(r.healHpPm)) return t('bar.out_heal_hp', { pct: sharePct(r.healHpPm, k.pm) });
+  return shells(r) ? words(t('bar.out_shield_blow', { pct: sharePct(r.shieldPm, k.pm) })) : '';
 }
 
-/** A row's number `n` at `pm` permille, exactly as the engine lands it (abilities.js effect `scaled`, damage.js `mult`). */
-export function landed(n, pm) {
-  return pm === 1000 ? n : Math.floor((n * pm) / 1000);
+/* The floor's two lines by where they are read: Configure action's, and the rune choice's few words. */
+const FLOOR_WORDS = Object.freeze({ effect: Object.freeze(['bar.effect_floor_hit', 'bar.effect_floor']), out: Object.freeze(['bar.out_floor_hit', 'bar.out_floor']) });
+/** THE BEGINNER'S FLOOR in words (src/data/abilities.js `base`: a cast never lands under it), at the cast's `pm` as the engine lands it
+    (castAmount, hitRange), or '' for a row with none. `kind` 'effect' is Configure action's line, 'out' the rune choice's few words. */
+export function floorWords(r, pm, kind) {
+  const at = (n) => (pm === 1000 || !Number.isInteger(pm) ? n : Math.floor((n * pm) / 1000));
+  const [hit, whole] = FLOOR_WORDS[kind] || FLOOR_WORDS.effect;
+  if (Array.isArray(r.base)) return t(hit, { lo: at(r.base[0]), hi: at(r.base[1]) });
+  return Number.isInteger(r.base) ? t(whole, { points: at(r.base) }) : '';
+}
+
+/** A row's share `share` (permille of the hero's Max Hit or max HP) at the cast's `pm` permille, as a whole percent (THE SPELL
+    RULE, src/data/abilities.js castAmount: what the engine lands is that share of the hero's own number). */
+export function sharePct(share, pm) {
+  return Math.round((share * (Number.isInteger(pm) ? pm : 1000)) / 10000);
 }
 
 /* One supply part of the cost line: "1 Scored Fire Rune (8 g)", "(you have 12)", "(none left)"; a shot "1 shot of …". */

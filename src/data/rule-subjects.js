@@ -91,9 +91,10 @@ const SICKNESS_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 
 /* UNDERTOW, the Healer's strike when it hunts alone (abilities.js `alone`; in a party the slot never fires): like Green
    Sickness it waits while the Healer itself is under 70%, so Greater Mend has the mana first. */
 const UNDERTOW_WHEN = Object.freeze([{ metric: 'ally_hp_pct', op: 'gte', value: 70, subject: 'lowest' }]);
-/* OFF THE DEFAULT BARS, measured with their store runes on: Rend (weapon-rungs: axes at Level 45 read +4% from a rung; about +1%
-   XP at the Thicket for 23 casts an hour) and Sword Flame Strike (playtest 2026-10-29 #9, CONFLICTS.md: net -20%, XP +15%), and
-   no tank or sword-alone way gets a rune spell to speed it up (Tyler 2026-11-19: the sword and shield levels slow alone on purpose).
+/* OFF THE DEFAULT BARS, measured with their store runes on: Sword Flame Strike (playtest 2026-10-29 #9, CONFLICTS.md: net -20%, XP
+   +15%) and the hammer's Quarry Blow (its twin, lane/c-spell-rule), and no tank or sword-alone way gets a rune spell to speed it up
+   (Tyler 2026-11-19: the sword and shield levels slow alone on purpose). REND WAS OFF (weapon-rungs: about +1% XP at the Thicket for
+   23 casts an hour, behind Power Strike and Cleave) until the axes lost both (the spell rule, below): it is now their only strike.
    FLAME VOLLEY IS ON THE BOW'S (the balance audit's fix 7, lane/d-audit-fixes-sim 2026-11-19; every recorded Ranger casts it): it was
    off for a fifth of net gold (ranger-floor 10-29: a crossbow buying every shot +3.3% over its bill at the Sewer floor against +30.1%
    without it). Re-measured on set v0.2.141 with a plain bow and crossbow buying every rune, arrow, meal and drink at the store (2 seeds
@@ -112,10 +113,12 @@ const RAKING_WHEN =Object.freeze([{ metric: 'enemies_in_aoe', op: 'gte', value: 
 const HOARFROST_WHEN = Object.freeze([{ metric: 'enemies_in_aoe', op: 'gte', value: 2 }, { metric: 'self_mana_pct', op: 'gte', value: 70 }]);
 export const ROLE_RULES = Object.freeze({
   tank: Object.freeze([slot('challenge'), slot('power_strike')]),
-  /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a
-     sword alone casts Power Strike and Turning Cut, two axes and a club or bare hands Power Strike, Cleave and Turning Cut
-     (roadmap p15; Turning Cut on every melee weapon without a shield, Tyler 2026-11-16). */
-  melee_dps: Object.freeze([slot('power_strike'), slot('cleave'), slot('turning_cut')]),
+  /* One Melee damage set for every key that plays it (hunt-spawn heroSetup keeps the slots its discipline holds): a sword alone
+     and a club or hammer cast Power Strike and Turning Cut (roadmap p15; Turning Cut on every melee weapon without a shield, Tyler
+     2026-11-16), two axes Turning Cut and REND (THE SPELL RULE, lane/c-spell-rule: Tyler 2026-11-21, call 32-3, the axes lose Power
+     Strike and Cleave merges into Turning Cut, call 32-2, so Rend is the axes' one strike at one target and an unedited axes bar holds
+     it, on its Plain Rupture Rune, own runes first; the hammer's Quarry Blow stays the player's pick, as the sword's Flame Strike). */
+  melee_dps: Object.freeze([slot('power_strike'), slot('turning_cut'), slot('rend')]),
   ranger: Object.freeze([slot('hunters_mark'), slot('precision_shot'), slot('raking_shot', RAKING_WHEN), slot('flame_volley')]),
   mage: Object.freeze([slot('fireball'), slot('frost_lance', SPARE_MANA), slot('arcane_barrier'), slot('hoarfrost', HOARFROST_WHEN)]),
   healer: Object.freeze([slot('greater_mend'), slot('circle_of_renewal'), slot('green_sickness', SICKNESS_WHEN), slot('undertow', UNDERTOW_WHEN), slot('spring_tide')]),

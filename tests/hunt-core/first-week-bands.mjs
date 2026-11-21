@@ -334,8 +334,10 @@ const mutants = [
     edits: [['src/data/party-class-xp.js', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 1700])', 'row([880, 1500], [990, 1600, 1700], [970, 1580, 1670, 2190])']] },
   /* RE-AIMED (lane/c-brook-bear): with the Brook Bear in Vine Hollow as built a Glade kill takes longer, so the rung pays more (the shipped 7/16 +10.2%, was
      +8.5%) and the old 7/12 reads +7.0%, a passing rung. 7/10 reads +3.9% (2 seeds x 1 h at 16), the nearest strength under the bar. */
-  { name: 'the Iron Warhammer at 7/10: its upgrade pays under +5%', case: 'weapon-rungs',
-    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:10},"]] },
+  /* (at 7/10 the Iron rung paid over +5% once every cast became a share of the blow, lane/c-spell-rule: the weaker rung the guard must catch is 7/8, a point of
+     strength over the Bronze 3/7, which pays under +5% on any rule) */
+  { name: 'the Iron Warhammer at 7/8: its upgrade pays under +5%', case: 'weapon-rungs',
+    edits: [['src/data/items.js', "weaponType:'hammer',atkB:7,strB:16},", "weaponType:'hammer',atkB:7,strB:8},"]] },
   { name: 'the Steel Warhammer is cut to 9/18: over the Iron it pays under +5%', case: 'weapon-rungs',
     edits: [['src/data/gear-tiers.js', 'str: [7, 16, 23, 28, 39, 52, 68],', 'str: [7, 16, 18, 28, 39, 52, 68],']] },
   /* (was the 7/7 hatchets: on the to-hit ratio, 2026-11-20, a weapon's accuracy no longer sits on a ceiling, so 7/7 over 4/4 pays its +5%; a rung

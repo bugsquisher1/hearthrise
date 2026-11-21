@@ -253,7 +253,7 @@ function model() {
   t('LEVERS', LEVERS, ['id', 'cls', 'on', 'size', 'label', 'system']);
   t('REFERENCE POINTS (formula only past them: Levels ' + FORMULA_ONLY_LEVELS.join(', ') + ')', REF_POINTS, ['id', 'ground', 'level', 'gearTier', 'open']);
   t('REFERENCE SEATS', REF_SEATS, ['id', 'name', 'party', 'tier', 'note']);
-  t('REFERENCE PLAYERS', REFERENCE_PLAYERS, ['id', 'name', 'heroes', 'seat', 'premium', 'huntHoursADay', 'townHoursADay', 'attendedMinADay', 'refillsADay', 'stock', 'spends', 'weight', 'label', 'note']);
+  t('REFERENCE PLAYERS', REFERENCE_PLAYERS, ['id', 'name', 'heroes', 'seat', 'premium', 'huntHoursADay', 'realHuntHoursADay', 'townHoursADay', 'attendedMinADay', 'refillsADay', 'stock', 'spends', 'weight', 'label', 'note']);
   t('WHERE THE HARNESS DISAGREES WITH REAL PLAYERS (docs/design/balance-program/10-real-players.md)', HARNESS_GAPS, ['on', 'gap']);
   t('SERVER AGES', SERVER_AGES, ['id', 'name', 'note']);
   t('POPULATIONS', POPULATIONS, ['id', 'online', 'note']);

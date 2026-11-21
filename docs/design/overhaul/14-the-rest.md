@@ -10,7 +10,7 @@ Run ids. R0 is GitHub run 44920906999 (chapter 12). R6 is 44948522187, the repla
 
 **Your point, and where it holds.** "i dont understand why we have to wait on play testing when we can control the true simulation by doing it correctly" (2026-11-21). For anything the engine decides you are right. The balance tool runs the game's own engine (`src/core/combat-sim.js`, through `tools/balance-sim/cell.mjs` and the edge settle), so a death rate, a pace, an hour to a drop or a gold income at a given choice is computed, not guessed. Your Talents ruling of 2026-11-21 set the same principle: balance happens once. So no row in this chapter waits on a playtest to be planned or sized.
 
-**Where it does not hold.** The engine computes what happens for a given choice. It cannot compute the choice: which tier a player picks, what a seller asks, how a clan votes, what a Crown sells for. Those are the eight rows of section 4. Each still gets a build and a default number from the simulator now. Only its final value is read live.
+**Where it does not hold.** The engine computes what happens for a given choice. It cannot compute the choice: which tier a player picks, what a seller asks, how a clan votes, what a Crown sells for. Those are the eight measures of section 3.3. Each still gets a build and a default number from the simulator now. Only its final value is read live.
 
 **What "correct" takes.** The tool's standard four reads 1.26 times the kills of the one real four (chapter 12 section 1). On recorded heroes with their own bars and stock the engine prices supplies about right (the framework audit, section 4). So the gap is mostly in what the tool assumes a hero wears, knows and does, not in the engine. Section 2 is the calibration FB-3 runs against production, read-only and in aggregate, so the tool's numbers can be taken as truth.
 
@@ -56,7 +56,7 @@ Run ids. R0 is GitHub run 44920906999 (chapter 12). R6 is 44948522187, the repla
 | GR-14, Rend and bleed raised, axes edged | A data patch |
 | CORE-3, the +30% cap on "takes more" | A knob |
 | GR-22, Magic adds 0.5% max mana | A knob |
-| Every buff cap full: the buff rows, the castle's War and Library rows, the two bought boosts | The buff hook (`member.js`), played in R1 already |
+| Every damage and XP cap full: the buff rows, the castle's War and Library rows, the bought damage boost | The buff hook (`member.js`), played in R1 already. Protection rows wait on CORE-4's rating row, built in FR-12, and are sized there at the fixed dials |
 | Boss and arena layer pieces | The best-gear state, since a layer piece spends no more than the band's best unique (CE-1) |
 
 3. **What cannot join it, and why.** R19 and R21 are engine code and content re-cuts, so FR-1 re-reads every band after them and moves a dial one step only if a band fails. Linings, the 18 perks with no hook, GR-18's windup break and Talent unlocks past rank 3 have no engine hook yet. Each is sized in its own lane at the fixed dials, under a band that bounds its effect on the plain four. Arenas fight heroes and touch no hunt dial. Tower, Catacombs and halls are modes that read the same tier table, so their cells run at the fixed dials.
@@ -71,7 +71,7 @@ Run ids. R0 is GitHub run 44920906999 (chapter 12). R6 is 44948522187, the repla
 
 | # | What | Why | How | Passes when |
 |---|---|---|---|---|
-| C-1 | **The heroes the tool plays.** Gear tier worn, skill levels, bar slots and stock, by Level band | The 1.26 is mostly here. The tool assumes an arrival, a mid and a best kit. Real Defense on back seats was 21 to 32 levels under the tool's line (framework audit 3.2) | Read what the 22 live heroes wear and know (COUNTED, production, 2026-11-21: 7 accounts, 22 heroes). Place the three gear states at measured shares of real heroes instead of assumed ones. Fit the skill line to real heroes by seat | Each assumed input sits inside the spread of real heroes at its Level band |
+| C-1 | **The heroes the tool plays.** Gear tier worn, skill levels, bar slots and stock, by Level band | JUDGMENT: most of the 1.26 is here, with the rest in the real hunt having run on older rules. The tool assumes an arrival, a mid and a best kit. Real Defense on back seats was 21 to 32 levels under the tool's line (framework audit 3.2) | Read what the 22 live heroes wear and know (COUNTED, production, 2026-11-21: 7 accounts, 22 heroes). Place the three gear states at measured shares of real heroes instead of assumed ones. Fit the skill line to real heroes by seat | Each assumed input sits inside the spread of real heroes at its Level band |
 | C-2 | **Rates an hour, like for like.** Kills, Level XP, coin, store spend, supplies used, deaths in 1,000 hours, by ground, tier, party size and Level band | A rate is only checked against a hunt on the same rules and the same kind of party | Aggregate the journal by activity hour. Build matrix cells from C-1's real inputs on the engine commit that was live, and compare | Kills, XP and coin within 10%, store spend within 15%, deaths inside their count's interval |
 | C-3 | **Who takes the blows.** The front seat's share and the party's total damage taken | Survival is the number the tool reads worst. The real share was 0.69, the tool's proposed-game four 0.77 (chapter 12 section 1) | The analyzer tally by seat, once FB-7 keeps lowest health and the seat split | Front share within 10 points, total within 20% |
 | C-4 | **Town work.** Gathering and bench XP and items an hour | Real players spent 1.57 times as many hours on town work as on hunting (framework audit 3.3), and no cell plays it | The journal's town rows against `skill-sim.js` and `artisan-sim.js` | Within 10% an hour by skill band |
@@ -223,7 +223,7 @@ Every lane follows 13 section 2.5. Each is sized at CB-2's dials on a run no old
 | Tests | `tests/hunt-core/run-all.mjs`, `engine-parity.mjs` with each cause, `tests/world-tick-parity.mjs`, the combat replay, both paths for a hunt |
 | Matrix | The coefficient diff, largest under Level 15. The first-hour cell C3 must hold |
 | Live state | Live heroes meet re-cut monsters. Note: "Monsters were re-balanced" |
-| Depends on | The first build released. R6 or later |
+| Depends on | It may start in wave 5 and merges only after the first build is released, since it moves the first hour's numbers. R6 or later |
 
 #### FR-2 `lane/c-drops-and-luck`. Lane C. Backend architect. Wave 6.
 

@@ -366,6 +366,9 @@ export const REFUSAL_WORDS = Object.freeze({
   no_ground: 'Hunt not open yet',
   hunts_paused: 'Hunts paused, try again soon',
   no_stamina: 'No stamina left',
+  /* Carry on (1024-carry-on.sql): a hero in another account's party waits for that leader's Start; a press with every hero busy. */
+  party_leader: 'Waits for its party leader to start',
+  nothing_to_carry_on: 'Every hero is busy, nothing to carry on',
   activity_locked: 'Level too low for that hunt',
   /* A ground whose hunt ends at a Level (2027-05-28-cellar-outgrown.sql; hunt-grounds.js endsAtLevel: the Mill Cellar's 5): the hero is at it. */
   outgrown: 'Ground outgrown, pick a harder one',
@@ -538,6 +541,8 @@ export const REFUSAL_WORDS = Object.freeze({
   max_plot_level: 'Plot at top tier',
   still_watered: 'Still watered',
   water_capped: 'Plot fully watered',
+  /* Tend the field (1017-tend-the-field.sql): every plot is already planted and watered, nothing is ready to harvest. */
+  nothing_to_tend: 'Field already tended, nothing to do',
   crop_untiered: 'Crop can\'t grow here',
   farm_level_too_low: 'Farming level too low',
   difficulty_locked: 'Not unlocked yet',

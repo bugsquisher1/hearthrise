@@ -27,6 +27,7 @@ import { BOSS_HALL_WORDS, roomOfHunt } from '../../data/boss-halls.js';
 import { packFor, huntRows, seatsUnder, underWords } from '../hunt-list.js';
 import { partyMembershipOf, huntName } from '../../session/party-sections.js';
 import { startPartyHunt, warnPartyGround } from '../../session/party-intents.js';
+import { ownPartyOf, againAllWords, againAll } from '../carry-on.js';
 import { observeSessions } from '../../session/character-session.js';
 import { attach, summariesOf, liveDeaths, liveSummaryOf } from '../../hunt-view/summary-recorder.js';
 import { nameOf, bagOf, bagExpandOf } from '../../session/item-sections.js';
@@ -268,7 +269,9 @@ renderHuntSummary.patch = function patchHuntSummary(body, ctx) {
     const go = root.querySelector('[data-hs-act="again"]');
     /* a training card's press opens the Training window on its Start (its own door, hr_training_start) */
     const trainAgain = !!cur.train;
-    text(go, trainAgain ? t('training.card_again') : t('controls.hunt_again'));
+    /* THE LEADER OF A PARTY THE ACCOUNT FILLS ALONE: "Hunt again, all four" is Carry on for that party's heroes (21-combat change 9, ../carry-on.js) */
+    const own = route && route.how === 'party' ? ownPartyOf(ctx, cs) : null;
+    text(go, trainAgain ? t('training.card_again') : own ? againAllWords(own.length) : t('controls.hunt_again'));
     prop(go, 'disabled', sc.pending || huntOpen || !again || !route.how);
     /* ...only opens a window, which says itself whether Start can go (a session running, out hunting, the purse): never off for a rule */
     if (trainAgain) prop(go, 'disabled', sc.pending);
@@ -429,7 +432,9 @@ renderHuntSummary.act = function actHuntSummary(ctx, body, action, ev, el) {
     if (cur && cur.train) { ctx.show('training'); return true; }
     const args = huntAgainOf(cur);
     const how = args ? againRoute(partyMembershipOf(cs), args.hunt).how : null;
-    if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);
+    const own = how === 'party' ? ownPartyOf(ctx, cs) : null;
+    if (own) againAll(ctx, cs, sc, repaint, own);
+    else if (how === 'party') leadAgain(ctx, cs, sc, repaint, args.hunt);
     else if (how === 'enter') runIntent(sc, repaint, () => cs.huntAgain(againWithBag(args, packFor(bagOf(cs)))), 'Setting out…', () => 'Setting out.', cs);
     return true;
   }

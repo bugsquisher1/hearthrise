@@ -342,7 +342,7 @@ async function mutate() {
   /* the harder tiers: a control on this tree first, then each mutant turns its bar red */
   /* the Healer's tier as the tree under test writes it (a mutant may move a pack's healerTiers), the verdict's own excuse (tierRed) */
   const healerTierOn = async (root, mu) => healerless(TIER_MIXED[mu.party])
-    && (await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + V + '&m=' + Math.random())).isHealerTier(mu.g, mu.tier, floorOf(mu.g));
+    && (await import(pathToFileURL(join(root, 'src/data/hunt-tiers.js')).href + V + (V ? '&' : '?') + 'm=' + Math.random())).isHealerTier(mu.g, mu.tier, floorOf(mu.g));
   const tierOn = (R, mu) => {
     const party = TIER_MIXED[mu.party];
     const same = meanOf(party.map((w) => R.runCell(tierCellOf(mu.g, mu.tier, 0, [w], 'solo-' + w)).heroes[0].levelXpPerH));

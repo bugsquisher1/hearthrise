@@ -76,8 +76,8 @@ function cell(pl, L) {
   const storeMult = lone ? 1 : pl.stock === 'market' || pl.stock === 'store' ? 1.5 : pl.stock === 'own' ? 0 : 1;
   const coin = r.coin * hours, sold = r.sold * hours, tally = (coin + sold) * TALLY_SHARE;
   const store = r.store * storeMult * hours;
-  /* the Buyer is the Heavy four with bought gold: it hunts the Heavy's 8.4 hours, so it is charged the Heavy's 1.4 refills (model.mjs gives it 6, which would be 24 hunted hours) */
-  const refills = refillDay(L, pl.id === 'whale' ? 1.4 : pl.refillsADay) * pl.heroes * 7;
+  /* 12 hunted hours a day need no refill (model.mjs REFERENCE_PLAYERS: drain and rest are 1:1); only the Ceiling's 24 buys all six */
+  const refills = refillDay(L, pl.refillsADay) * pl.heroes * 7;
   const bless = blessSet(L) * deathsAnHour(lone, L) * hours;
   const tax = (L <= 30 ? 10 : 0) * hours;                     /* REAL 10 an hour; a room at rung 1 ends it */
   const small = pl.spends >= 0.9 ? 78 * hours : 0;            /* REAL: the one account that uses the crier's neighbours (powders, rounds, Works) */
@@ -106,7 +106,7 @@ const SHELF = [
 const bankAll = BANK_LADDER.reduce((s, r) => s + r.gold, 0);
 
 function weekly() {
-  console.log('### Gold a week, by player and Level (gold; a week = heroes x hunt hours a day x 7)\n');
+  console.log('### Gold a week, by player and Level (gold; a week = heroes x hunt hours a day x 7; every player 12 h a hero a day, RULED 2026-11-21, the Ceiling 24)\n');
   for (const L of LEVELS) {
     const cells = REFERENCE_PLAYERS.map((pl) => [pl, cell(pl, L)]);
     console.log('**Level ' + L + ' (' + REF_POINTS.find((p) => p.id === POINT[L]).ground.replace(/_/g, ' ') + ').** Four: ' + FOUR[L].label + '. Lone: ' + LONE[L].label + '.\n');

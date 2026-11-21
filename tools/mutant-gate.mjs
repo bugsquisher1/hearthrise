@@ -50,6 +50,9 @@
 //                   the jobs the sweep left red, in full); every proof waits for the nightly. One value away.
 //   anything else   every guard the diff touches; a stale or unreadable nightly puts every job in full (before).
 // Plain runs always run either way. A dispatch with rehearse_range=full is the full sweep and needs no nightly.
+// A LANE proves the same and no more (Tyler 2026-11-21): tools/guards-for.local.mjs --run runs the proofs releaseScope keeps of
+// its own diff (preflight --proofs --as-release reads the switch from this file's text), and --remote dispatches a rehearsal of
+// the lane's own range (its set base's merge base..HEAD), which this switch scopes like a release push.
 //
 // A REHEARSAL. `gh workflow run smoke.yml --ref <lane> -f rehearse_range=<sha>..<sha>` (not
 // on main) runs this branch's guards under the plan an old release's diff gets: how to
@@ -89,6 +92,7 @@ import {
 } from './lib/guard-deps.mjs';
 import { scopedProofs, committedTexts, anchorLinesIn } from './guard-anchors.mjs';
 import { scopeMutants, splitMutants, parseMutants, classifyRuleEdit } from './lib/mutant-scope.mjs';
+import { stampPage } from './lib/version-stamp.mjs';
 import { readHistory, readNightly, historyPolicy, lastGreenRun, lastFullGreen, previousRelease, PREVIOUS_RULES, sweepCovers, githubReader, STALE_MS, WORKFLOW as WORKFLOW_PATH } from './lib/ci-history.mjs';
 import { parseWorkflow, flatSteps } from '../tests/run-ci-local.mjs';
 import { isMain } from '../tests/_is-main.mjs';
@@ -118,12 +122,31 @@ export function decideMode(env) {
 
 /* NIGHTLY ONLY: the guard's own side, the only part of a diff a release or next push proves under it. */
 export const GUARD_SIDE = /^(tests|tools|\.github)\//;
+/** HR_RELEASE_PROOFS's values -> how much of a diff a release proves; any other value: all of it. */
+export const RELEASE_PROOFS = Object.freeze({ 'nightly-only': 'guard-side', 'plain-only': 'plain' });
+/**
+ * What a release proves of `changed` under `how` (nightlyOnly's answer, or RELEASE_PROOFS[value]): { changed, deferred }, the
+ * files the selection reads and how many the nightly sweep proves instead. The one rule: this gate's plan and a lane's local
+ * default (tools/guards-for.local.mjs through tools/preflight.local.mjs --proofs --as-release) both call it. Pure.
+ */
+export function releaseScope(changed, how) {
+  if (!how) return { changed: [...changed], deferred: 0 };
+  const own = changed.filter((p) => GUARD_SIDE.test(p));
+  return { changed: how === 'guard-side' ? own : [], deferred: changed.length - own.length };
+}
+/** The HR_RELEASE_PROOFS value smoke.yml's top-level `env:` sets, or null: a local tool reads the switch CI reads. Pure. */
+export function releaseProofsOf(workflowText) {
+  /* a Windows checkout (core.autocrlf) hands this CRLF */
+  const env = /^env:[ \t]*\n((?:[ \t]+.*\n|[ \t]*\n)*)/m.exec(String(workflowText).replace(/\r\n/g, '\n'));
+  const m = env && /^[ \t]+HR_RELEASE_PROOFS:[ \t]*['"]?([\w-]+)['"]?[ \t]*(?:#.*)?$/m.exec(env[1]);
+  return m ? m[1] : null;
+}
 /**
  * Does the switch govern this run, and how? 'guard-side' (nightly-only) or 'plain' (plain-only) for a release or next push (or its
  * dispatch), or a rehearsal of one; false otherwise.
  */
 export function nightlyOnly(env, mode = decideMode(env)) {
-  const how = { 'nightly-only': 'guard-side', 'plain-only': 'plain' }[env.HR_RELEASE_PROOFS];
+  const how = RELEASE_PROOFS[env.HR_RELEASE_PROOFS];
   if (!how || mode.full) return false;
   return (!!mode.rehearsal || /^release\//.test(env.GITHUB_REF_NAME || '') || env.GITHUB_REF_NAME === 'next') ? how : false;
 }
@@ -321,9 +344,8 @@ export function planFor(env, { extraGuards = [] } = {}) {
         ({ files: changed, regions } = committedDiff(ROOT, `${base}..HEAD`));
       }
       /* NIGHTLY ONLY: the rest of the diff is the nightly sweep's to prove */
-      const deferred = only ? changed.filter((p) => !GUARD_SIDE.test(p)).length : 0;
-      if (only) changed = changed.filter((p) => only === 'guard-side' && GUARD_SIDE.test(p));
-      plan = { full: false, base, tip, how, changed, deferred, selected: {} };
+      const scope = releaseScope(changed, only);
+      plan = { full: false, base, tip, how, changed: scope.changed, deferred: scope.deferred, selected: {} };
       /* The line map is used once, here; the cached plan keeps only what the guards read. */
       Object.defineProperty(plan, 'regions', { value: regions, enumerable: false });
     } catch (e) {
@@ -441,7 +463,7 @@ function explain(argv) {
     ({ files: changed, regions } = committedDiff(ROOT, `${base}..HEAD`));
   }
   /* --nightly-only: the plan a release gets under HR_RELEASE_PROOFS=nightly-only (its guard side only) */
-  if (argv.includes('--nightly-only')) changed = changed.filter((p) => GUARD_SIDE.test(p));
+  if (argv.includes('--nightly-only')) changed = releaseScope(changed, 'guard-side').changed;
   const proofs = registeredProofs();
   const guards = [...new Set(proofs.map((p) => guardFileOf(p.cmd)))];
   const plan = { full: false, selected: Object.fromEntries(selectGuards(changed, { base, extraGuards: guards, regions, read })) };
@@ -528,7 +550,9 @@ function properties(impl, proofs) {
    proof the whole-file view runs on PRELOAD and the line view skips. Returns the failure count. */
 async function lineViewSelftest() {
   const HUB = 'play.html';
-  const text = readFileSync(join(ROOT, HUB), 'utf8').replace(/\r\n/g, '\n');
+  /* Stamped as a release page was, by the build's own stamp (tools/lib/version-stamp.mjs): since the flag day the source carries
+     no `?v=`, so BUMP bumped nothing and its mutant could not be caught (red on set/v0.2.144). The gate still reads both states. */
+  const text = stampPage(readFileSync(join(ROOT, HUB), 'utf8').replace(/\r\n/g, '\n'), '1.0.0');
   const PRE = '<link rel="modulepreload" href="';
   const lines = text.split('\n');
   const at = lines.findIndex((l) => l.startsWith(PRE));
@@ -1119,6 +1143,47 @@ async function selftest() {
         const missed = nightlyChecks(impl).every(([ok]) => ok);
         if (missed) bad++;
         console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} nightly-only mutant: ${label}`);
+      }
+    }
+    /* A LANE PROVES WHAT ITS RELEASE WOULD (lane/c-lane-tests-light, Tyler 2026-11-21): releaseScope is the one filter (this gate's
+       plan, and tools/guards-for.local.mjs's local default through preflight --proofs --as-release); the switch is read from
+       smoke.yml's top-level env: as CI reads it; and a lane's `guards-for --remote` dispatch (a rehearsal of its own range) is
+       scoped by the same switch, never wider. Each property is planted wrong in turn. */
+    {
+      const D = ['src/shell/a.js', 'tests/foo.mjs', 'tools/lib/x.mjs', '.github/workflows/smoke.yml', 'supabase/migrations/1-a.sql', 'play.html'];
+      const wf = (v) => `name: smoke\non:\n  push:\n\nenv:\n  HR_GATE_TOKEN: x\n  HR_RELEASE_PROOFS: ${v}\n\njobs:\n  a:\n    env:\n      HR_RELEASE_PROOFS: plain-only\n`;
+      const lane = { GITHUB_ACTIONS: 'true', GITHUB_EVENT_NAME: 'workflow_dispatch', GITHUB_REF_NAME: 'lane/x', HR_MUTANT_GATE_RANGE: `${'a'.repeat(40)}..${'b'.repeat(40)}`, HR_RELEASE_PROOFS: 'nightly-only' };
+      const scopeChecks = ({ scope, read, only }) => {
+        const g = scope(D, 'guard-side'), p = scope(D, 'plain'), a = scope(D, undefined), s = scope(['src/shell/a.js', 'src/shell/b.js'], 'guard-side');
+        return [
+          [g.changed.join() === 'tests/foo.mjs,tools/lib/x.mjs,.github/workflows/smoke.yml' && g.deferred === 3, 'guard-side keeps tests/, tools/ and .github/ and leaves the rest to the sweep'],
+          [!s.changed.length && s.deferred === 2, 'a src/shell-only diff proves nothing'],
+          [!p.changed.length && p.deferred === 3, 'plain-only proves nothing, and counts the code it leaves'],
+          [a.changed.length === D.length && a.deferred === 0, 'with the switch off, the whole diff'],
+          [read(wf('nightly-only')) === 'nightly-only' && read(wf("'plain-only' # a note")) === 'plain-only' && read('name: x\njobs:\n  a:\n    env:\n      HR_RELEASE_PROOFS: plain-only\n') === null,
+            'the switch is read from the top-level env: alone (a job\'s env: is not the switch)'],
+          [read(wf('plain-only').replace(/\n/g, '\r\n')) === 'plain-only', 'a CRLF checkout (core.autocrlf on Windows) reads the same switch'],
+          [read(readFileSync(WORKFLOW, 'utf8')) !== null, `the real smoke.yml's switch is found (${read(readFileSync(WORKFLOW, 'utf8'))})`],
+          [only(lane) === 'guard-side' && only({ ...lane, HR_RELEASE_PROOFS: 'plain-only' }) === 'plain' && !only({ ...lane, HR_RELEASE_PROOFS: '' }) && !only({ ...lane, HR_MUTANT_GATE_RANGE: 'full' }),
+            'a lane\'s rehearsal of its own range is scoped by the switch like a release; rehearse_range=full is the sweep'],
+        ];
+      };
+      const realS = { scope: releaseScope, read: releaseProofsOf, only: nightlyOnly };
+      for (const [ok, label] of scopeChecks(realS)) { if (!ok) bad++; console.log(`  ${ok ? 'ok      ' : 'FAILED  '} release scope: ${label}`); }
+      for (const [label, impl] of [
+        ['guard-side proves the whole diff', { ...realS, scope: (c, how) => releaseScope(c, how === 'guard-side' ? undefined : how) }],
+        ['plain-only proves the guard side', { ...realS, scope: (c, how) => releaseScope(c, how === 'plain' ? 'guard-side' : how) }],
+        ['src/ counts as the guard side', { ...realS, scope: (c, how) => (how ? { changed: how === 'plain' ? [] : c.filter((p) => /^(src|tests|tools|\.github)\//.test(p)), deferred: c.filter((p) => !/^(src|tests|tools|\.github)\//.test(p)).length } : releaseScope(c, how)) }],
+        ['the sweep\'s share is not counted', { ...realS, scope: (c, how) => ({ ...releaseScope(c, how), deferred: 0 }) }],
+        ['the switch off still narrows', { ...realS, scope: (c, how) => releaseScope(c, how || 'guard-side') }],
+        ['a job\'s env: is read as the switch', { ...realS, read: (t) => /HR_RELEASE_PROOFS:\s*['"]?([\w-]+)/.exec(t)?.[1] ?? null }],
+        ['a quoted value or a trailing note hides the switch', { ...realS, read: (t) => /^ {2}HR_RELEASE_PROOFS: ([\w-]+)$/m.exec(t)?.[1] ?? null }],
+        ['CRLF hides the switch', { ...realS, read: (t) => (/\r\n/.test(t) ? null : releaseProofsOf(t)) }],
+        ['a lane\'s rehearsal proves its whole diff', { ...realS, only: (env) => (decideMode(env).rehearsal ? false : nightlyOnly(env)) }],
+      ]) {
+        const missed = scopeChecks(impl).every(([ok]) => ok);
+        if (missed) bad++;
+        console.log(`  ${missed ? 'MISSED  ' : 'CAUGHT  '} release-scope mutant: ${label}`);
       }
     }
     /* A rehearsal gates a lane's run under an old diff; on main the dispatch stays the full sweep. */

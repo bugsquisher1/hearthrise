@@ -155,7 +155,8 @@ async function checks(overrides, shots, { stopAtFirst = false } = {}) {
       else {
         const got = r.lines.map((l) => [l.place, l.name, l.value, l.xp].join(' ')).join(' | ');
         const want = '1st Wennet Level 12 90,210 XP | 2nd Osric Level 9 40,000 XP | 2nd Maela Level 9 40,000 XP | 4th Tyler Level 6 9,001 XP';
-        if (got !== want) fails.push('HP-1/HP-6 the roll reads "' + got + '", the server said "' + want + '"');
+        /* one rule id a line (tests/_mutant-verdict.mjs ruleOf): a fifth row is the unshaped one drawn (HP-6), else the places (HP-1) */
+        if (got !== want) fails.push((r.lines.length > 4 ? 'HP-6' : 'HP-1') + ' the roll reads "' + got + '", the server said "' + want + '"');
         const tags = r.lines.map((l) => l.name + ':' + (l.tag || '-') + (l.viewed ? '*' : '')).join(' ');
         if (tags !== 'Wennet:Same account Osric:- Maela:- Tyler:You*') fails.push('HP-1 the marks read ' + tags);
         if (r.title !== 'Level' || r.count !== '4 heroes on this board' || r.fresh !== 'Updated 3 minutes ago') fails.push('HP-1 the heading reads ' + JSON.stringify([r.title, r.count, r.fresh]));

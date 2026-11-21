@@ -141,7 +141,7 @@ export async function judgePlanted(plant, run) {
 
 /* A catch by a rule's "zero console errors" clause is named, so it counts, but it is the page throwing, not the rule measuring the
    planted behaviour: the line says so, for the reader (the log parsers read the first word in the brackets). */
-const BY_A_THROW = /console errors|pageerror/;
+const BY_A_THROW = /^[A-Z][A-Z0-9]*-[A-Za-z0-9-]+(?: \[[^\]]*\])? console errors\b/;   // "FW-1 console errors:", "CW-4 [922x423] console errors:"
 
 /** The line a runner prints for one mutant, and the counters it bumps. */
 export function report(name, v, counts) {
@@ -261,6 +261,12 @@ async function selftest(v = { judge, verdict, cleanControl, harnessFail }) {
     const line = hf('a page step', log(lines));
     if (!line.endsWith(want)) fails.push(`${label}: "${line}", want it to end ${want}`);
   }
+  /* the report names a catch by a rule's console-errors clause, and only that */
+  for (const [line, want] of [['FW-1 console errors: pageerror: x is not defined', true], ['CW-4 [922x423] console errors: x', true],
+    ['RP-2 the console errors are not attached: []', false], ['AW-9 the Use button sent nothing', false]]) {
+    const said = /by a console error\)$/.test(report('m', { kind: 'caught', rule: ruleOf(line), line }, { caught: 0 }));
+    if (said !== want) fails.push(`report of "${line}": ${said ? 'says' : 'does not say'} "by a console error"`);
+  }
   const cc = await v.cleanControl(miniChecks({ throwBefore: true }));
   if (cc.code !== 2) fails.push(`a clean control that throws: code ${cc.code}, want 2 (HARNESS)`);
   const cg = await v.cleanControl(miniChecks());
@@ -321,12 +327,32 @@ const EVERY_RUNNER = [
   [/\.ok\(\s*!!\s*\w+\s*,\s*'mutant /, 'scores a mutant on a truthy answer (a throw filed as the answer reads as a catch): judge it with caughtBy / caseVerdict'],
   [/if \(fails\.length\) console\.log\('  ✓ ' \+ \w+ \+ ' — caught/, 'counts any fail line as a catch (a HARNESS line reads as one): judge it with verdict / judge'],
   [/if \(why\) console\.log\('  CAUGHT/, 'counts any answer as a catch (a throw filed as the answer reads as one): judge it with caughtBy'],
+  /* WIDENED (lane/c-hollow-proofs-browser 2026-11-20): the same scores in the other spellings the tree uses. Any list's length printed
+     as "caught" (`if (p.length) console.log(\`  ✓ ${id} — caught`), a throw filed into the list it scores (`catch (e) { p = ['threw`),
+     and a catch-all that files a throw under a NAMED rule id (`catch (e) { fails.push('OB-0 the checks stopped: ' + String(e`). */
+  [/if \((?:\w+\.)?\w+\.length(?: > 0)?\) console\.(?:log|error)\(\s*[`'"][^\n]*caught/, 'counts any line in its list as a catch: judge it with verdict / judge (a named rule) or caseVerdict'],
+  [/catch \((\w+)\) \{\s*\w+ = \[['`]threw/, 'files a throw into the list it scores, so a crash reads as a catch: judge it with judge / caseVerdict'],
+  [/catch \((\w+)\) \{\s*(?:\/\*[^*]*\*\/\s*)?(?:if \(\1 !== \w+\) )?(?:Array\.prototype\.push\.call\()?(?:fails|problems|out)(?:\.push\(|, )['`][A-Z][A-Z0-9]*-[A-Za-z0-9]+ [^'`]*['`] \+ String\(\(?\1\b/,
+    'files a throw under a named rule id (a named catch-all), so a crash reads as that rule\'s catch: push harnessFail(where, e)'],
 ];
 /* OWED (frozen 2026-11-20; it only shrinks): runners still on an old shape, each a --mutate not yet re-proved. A file leaves by moving
    onto judge/report/exitOf (or caseVerdict/caughtBy) and a run of its --mutate; a file on this list no longer on the shape is red until
    it is struck from it. The 21 page runners the hollow-proofs lane left here were re-proved by lane/c-hollow-proofs-browser (2026-11-20). */
 export const OWED = Object.freeze([]);
-export function plainProblems(files, owed = OWED) {
+/* FOUND (frozen 2026-11-20; it only shrinks): what the WIDENED shapes above found the day they were written, node and DB runners and two
+   tools selftests outside the 21 page runners, each scoring a mutant on its list's length or filing a throw into the list it scores. Each
+   leaves as OWED's did: onto judge/report/exitOf or caseVerdict, and a run of its proof. */
+export const OWED_FOUND = Object.freeze([
+  'tests/button-system.mjs', 'tests/catalogue-regrow-limit.mjs', 'tests/chat-stream-safe.mjs', 'tests/farm-harvest-clear.mjs', 'tests/farm-tend.mjs',
+  'tests/frame-self-echo.mjs', 'tests/hearth-moods.mjs', 'tests/hero-colors.mjs', 'tests/house-pelts.mjs', 'tests/hunt-core/drop-tables.mjs',
+  'tests/hunt-live.mjs', 'tests/hunt-scene-live.mjs', 'tests/inner-flame.mjs', 'tests/outfit-masks.mjs', 'tests/party-hunt-start-gate.mjs',
+  'tests/plot-tier-price-replay.mjs', 'tests/realtime-cost.mjs', 'tests/scaled-hunts.mjs', 'tests/settle-drop-bounds.mjs', 'tests/setup-slots.mjs',
+  'tests/skills-from-storage.mjs', 'tests/tally-tasks.mjs', 'tests/temper-uniques.mjs', 'tests/titles.mjs', 'tests/town-crier.mjs',
+  'tests/town-criers.mjs', 'tests/town-life.mjs', 'tests/town-shows.mjs', 'tests/town-works.mjs', 'tests/town-yard-farm.mjs',
+  'tests/world-assets.mjs', 'tests/world-tick-armed-cap.mjs', 'tests/world-tick-gather-widen.mjs', 'tests/world-tick-presence-horizon.mjs',
+  'tests/world-tick-presence-signal.mjs', 'tests/world-tick-scale.mjs', 'tools/economy-watch.local.mjs', 'tools/vitals.mjs',
+]);
+export function plainProblems(files, owed = [...OWED, ...OWED_FOUND]) {
   const out = [];
   for (const [rel, src] of files) {
     if (/from '\.\/_mutant-verdict\.mjs'/.test(src)) for (const [re, what] of OLD_SHAPES) if (re.test(src)) out.push(`${rel} ${what}`);
@@ -359,11 +385,21 @@ if (isMain(import.meta.url) && !process.argv.includes('--selftest')) {
     plainProblems([['tests/hunt-core/z.mjs', "    try { why = cases[mu.case](await load(p.root)); } catch (e) { why = 'threw ' + e.message; }\n    R.ok(!!why, 'mutant \"' + mu.name + '\" was NOT caught by ' + mu.case);"]]),
     plainProblems([['tests/w.mjs', "        if (why) console.log('  CAUGHT  ' + mu.name);"]]),
     plainProblems([['tests/v.mjs', "    console.log(report(name, await judge(run), counts));"]], ['tests/v.mjs']),
+    /* the widened spellings, each as the tree wrote it on 2026-11-20 (titles, chat-stream-safe, vitals, observability's OB-0) */
+    plainProblems([['tests/t.mjs', "      try { p = await runArm(db, X, id, null); } catch (e) {\n      p = ['threw: ' + String(e && e.message || e).slice(0, 200)];\n    }"]]),
+    plainProblems([['tests/u.mjs', "  if (fails.length) console.log(`  ✓ ${name} — caught (${fails[0].slice(0, 110)})`);"]]),
+    plainProblems([['tools/s.mjs', "    try { red = checks(x); } catch (e) { red = [`threw: ${e.message}`]; }"]]),
+    plainProblems([['tests/r.mjs', "  } catch (e) {\n    fails.push('OB-0 the browser checks stopped: ' + String(e && e.message).split('\\n')[0]);  } finally {"]]),
+    plainProblems([['tests/q.mjs', "  } catch (e) {\n    fails.push('IP-1 the page broke: ' + String((e && e.message) || e).split('\\n')[0]);\n  }"]]),
   ];
+  /* ...and the shapes that are not the old way stay green: a named-rule judge, a harnessFail catch, a rule line that mentions a throw */
+  const fine = plainProblems([['tests/p.mjs', "  } catch (e) {\n    if (e !== FIRST_RED) Array.prototype.push.call(fails, harnessFail('a page step', e));\n  }\n"
+    + "    console.log(report(name, await judgePlanted(plant, () => checks(plant)), counts));\n    if (!tn) fail('WN-1 a town notice reads Mira threw Cinnabar');"]]);
+  for (const f of fine) console.log('  ✗ a shape that is not the old way read as one: ' + f);
   const blind = planted.findIndex((p) => !p.length);
   if (blind >= 0) console.log('  ✗ planted old shape #' + (blind + 1) + ' was not seen');
-  const red = bad.length || blind >= 0;
-  console.log(red ? `_mutant-verdict: ${bad.length} runner(s) on an old shape` : `_mutant-verdict: ${users} runner(s) judge here; no mutant runner in tests/ or tools/ scores a throw as a catch (${OWED.length} page runners OWED, frozen)`);
+  const red = bad.length || blind >= 0 || fine.length;
+  console.log(red ? `_mutant-verdict: ${bad.length} runner(s) on an old shape` : `_mutant-verdict: ${users} runner(s) judge here; no mutant runner in tests/ or tools/ outside the frozen lists scores a throw or any line as a catch (OWED ${OWED.length}, FOUND ${OWED_FOUND.length})`);
   process.exit(red ? 1 : 0);
 }
 

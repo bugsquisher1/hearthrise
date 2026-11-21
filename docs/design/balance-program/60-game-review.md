@@ -8,7 +8,9 @@ What it rests on: the formula architecture (44) and its three audits (41 to 43),
 
 **Four heroes from the start. RULED 2026-11-21.** "I'm making an executive decision to just allow all 4 characters from the start. 1 premium per account, and heavy work on clan and world bosses and events moving forward with all this planning." That settles call GR-2 and replaces the slot rulings of 11-09, 11-20 and 11-21. Four things follow and are carried through this document. The slot gold sink is gone, about 5.5M of a 5.9M ladder, so the sink calls have to cover it (GR-8). The first hour has to teach up to four heroes. The balance frame is an account's own four from day 1. Premium is one for each account (plan lane L27). A build lane is implementing it.
 
-**The MMO layer is on hold. PENDING `49`, the study of clans, world bosses, events, and heroes for hire or on call.** Until it lands, every call that depends on it is ON HOLD and carries no recommendation: on-call heroes and standing parties (GR-10a), the Level range on party XP (GR-10b), when clans ship (GR-10c), the party XP table inside GR-3, the party bands (GR-67), the live finder inside GR-69 and the company as one Start (GR-80). Their evidence is kept and stated at its real size.
+**The MMO layer is on hold. PENDING `49`, the study of clans, world bosses, events and PvP arenas, with heroes for hire or on call inside it.** Until it lands, every call that depends on it is ON HOLD and carries no recommendation: on-call heroes and standing parties (GR-10a), the Level range on party XP (GR-10b), when clans ship (GR-10c), the party XP table inside GR-3, the party bands (GR-67), the live finder inside GR-69 and the company as one Start (GR-80). Their evidence is kept and stated at its real size.
+
+**Decisions first, then a build plan. RULED 2026-11-21.** "The MMORPG portion will be PvP arenas as well. We don't need build lanes yet. Let's get all of the decisions completed and then work on a build plan." So the MMO layer is clans, world bosses, events and PvP arenas, and study 49 covers all four. And every "Order" column, lane id and release name in this document describes order only. Nothing builds until the build plan exists. Section 8.12 maps the 34 older calls still shown as open on the Rulings page, so you never rule twice. Section 10 lists every decision still missing before a build plan can be written.
 
 **This is the second issue.** The cold audit (`61-review-audit.md`) found 5 Critical, 14 High, 13 Medium and 8 Low faults in the first issue, most of them in the Ruling column, the evidence labels and the claims of convergence. Every Critical and High fix is applied here, and section 9.7 lists what changed. The call ids are now GR-1 to GR-88, because GR-1 to GR-12 are already the gold bands of the standards. The numbers are the same as before.
 
@@ -38,7 +40,7 @@ They also agree on what is wrong, and it is one sentence. **Hearthrise is a stro
 
 On your worry, that twenty good systems might not form one good game: you were right to worry, and the reviews say where. The systems form one game for the two players who run four heroes on Deadly. They do not form one game for a new player with one hero, and they do not connect players to each other at all.
 
-**What that means for the plan.** No new engine and no new big system. The work is to fix the formulas the long game stands on (gear, kill reward, the Level table, prices), make Deadly a fight, teach an account's four heroes from the first hour, design the MMO layer of clans, world bosses and events (study 49), and build fewer of the shelf's parts and make each of them lead somewhere. Of about 440 rows the eight reviews judged, 55% are KEEP, and most of the rest are REDESIGN or ADD on mechanics that already exist.
+**What that means for the plan.** No new engine and no new big system. The work is to fix the formulas the long game stands on (gear, kill reward, the Level table, prices), make Deadly a fight, teach an account's four heroes from the first hour, design the MMO layer of clans, world bosses, events and PvP arenas (study 49), and build fewer of the shelf's parts and make each of them lead somewhere. Of about 440 rows the eight reviews judged, 55% are KEEP, and most of the rest are REDESIGN or ADD on mechanics that already exist.
 
 ### 0.1 Where they agree, and how independent the agreement is
 
@@ -205,7 +207,7 @@ One verdict for each system, deduped across 46 and the eight reviews, after phas
 | Titles, Trophy display, mounts, firsts | MERGE | One Honors page | 56 |
 | Tamsin's tally | KEEP | It takes itself on the ground a hero enters | 59 |
 | Leaderboards, the Chronicle | KEEP | As ruled | 56 |
-| Companions, game modes, idle PvP | DEFER | As ruled | 56, 59 |
+| Companions, game modes | DEFER | As ruled. Idle PvP left this row: PvP arenas are part of the MMO layer (RULED 11-21, study 49) | 56, 59 |
 
 ### 1.6 Social and home
 
@@ -609,7 +611,7 @@ The world patches read 0, 0, 0 because the ground axis carries no band rows yet,
 
 Ranked by expected overall benefit, then confidence, then cost. Complexity is S, M or L. "Calls" names every call in section 8 the item needs. Each item is judged against the target game. Cost to build counts. Risk to today's heroes does not.
 
-| # | Change | Class | Expected benefit, in player terms | Layer | Evidence | Complexity | Risk | Depends on | Calls | When |
+| # | Change | Class | Expected benefit, in player terms | Layer | Evidence | Complexity | Risk | Depends on | Calls | Order. Nothing builds until the build plan exists |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 1 | **Make the instrument true.** The four harness faults of section 7.2, a band that reads XP after deaths, band rows on the ground axis, pair cells and lineup cells. With it, the no-number formula steps of 44 (V1 to V5, R1 to R5, R7, the floor half of R6, the fold of R8) | Critical | None a player sees. Every balance number after it can be believed, which is the whole point of the formula brief | Tools and identity refactors | Four named faults, each with a done-when. No unknowns | M | Low | Nothing | GR-85, GR-88 | The beta |
 | 2 | **Server cost toward the computed budget of 60.** Town work in closed form for training, gathering and benches. The away hunt's commit is sized when 48 lands | Critical | The game can be afforded at 1,000 accounts. Without it there is no game to balance | Architecture and one formula (the yield rule) | COMPUTED from 3.3 hour means stretched to 12: 645 today, 180 after every planned fix, 147 with closed form. The 60 is a best case on assumed prices. The flush is a HYPOTHESIS. PENDING 48 | L | Medium. Both-paths tests and seeded rolls | L12, L13, L19, L24, the platform review | GR-1 | The planned fixes and closed form in the beta. The commit when 48 lands |
@@ -617,14 +619,14 @@ Ranked by expected overall benefit, then confidence, then cost. Complexity is S,
 | 4 | **The gear curve in the game.** Linear in Level, a band a tier's worth, uniques spend it at exchange rates, jewelry and cloaks ride it to tier 7 | Critical | Gear keeps mattering at every Level, and six accessory slots have something to want past Level 30 | Formula (R10, R11) and content rows | MEASURED on stand-in grounds: today's gear is 9% slow at Level 400 and cannot hunt at 2,000. Pace holds 200 to 5,000 with a curve. The band size is a HYPOTHESIS until one band is played | M | Medium. The first formula that reaches every item | V1 | GR-4, GR-38 | The ruling now, because item 5 needs it. Jewelry tier 4 during the beta |
 | 5 | **The kill reward follows the pace line.** One tier table. A party ground's XP per kill becomes an output | Critical | The route the Hunts page shows is the best route, and four grounds nobody hunts come back into play | Formula (R12) | MEASURED that the party-ground formula is not the cause of the overpay. The missing kill-rate term as the cause is 44's analysis and no derivation run has proven it yet. The "third lower" is COMPUTED | L. The largest single change | High. It moves XP on every ground at once | Items 1 and 4, R7 | GR-5 | After the beta opens |
 | 6 | **The Level law from Level 50, with sinks as band gold. The Blessing ladder with the harder tiers** | Critical | Levels arrive close to the days you ruled, every band has something to spend gold on, and a death stays a risk worth taking once Deadly bites | Curve (R13), content rows, coefficient and server (R15, R16) | COMPUTED on the cached grid, PROVISIONAL from Level 185: 494, 1,574 and 4,474 hours against the ruled 600, 1,680 and 4,580. Staged content ends day 116 against 120. The death break is a conflict between two ruled targets, not a fault measured in play | M | Medium. Money surfaces for the Security review. Two rough edges in the table at Levels 50 and 100 | Items 3 and 5 | GR-6, GR-7, GR-8 | The law and the sinks with the kill reward, before Early Access. The ladder in the release where L16 makes Deadly bite |
-| 7 | **Design the MMO layer: clans, world bosses and events (study 49).** With heroes for hire or on call as part of it | Critical. A heavy track by your word | The reason to know another player. With four heroes from the start an account fills its own party, so the shared world has to come from clans, world bosses and events | New systems. The study names the layer of each | EVIDENCE that the gap is real: 0 hours of two people in one hunt in 1,334, 0 real market purchases. Everything about which design closes it is a HYPOTHESIS. PENDING 49 | L | High. Server cost, a Security surface, and it needs a population | Study 49. Item 2, because nothing may grow with players times players | GR-10a, GR-10b, GR-10c, GR-67, GR-80 | Design now. Build through the beta and after |
+| 7 | **Design the MMO layer: clans, world bosses, events and PvP arenas (study 49).** With heroes for hire or on call as part of it | Critical. A heavy track by your word | The reason to know another player. With four heroes from the start an account fills its own party, so the shared world has to come from clans, world bosses, events and PvP arenas | New systems. The study names the layer of each | EVIDENCE that the gap is real: 0 hours of two people in one hunt in 1,334, 0 real market purchases. Everything about which design closes it is a HYPOTHESIS. PENDING 49 | L | High. Server cost, a Security surface, and it needs a population | Study 49. Item 2, because nothing may grow with players times players | GR-10a, GR-10b, GR-10c, GR-67, GR-80 | Design now. It is the heaviest open design track |
 | 8 | **Bosses pay what grounds never drop.** One boss door. Plain Dawnsteel into the Hold. Krell's five weapons. The three designed pieces and three signature stones | High | The end of a region has a prize worth preparing for, and a rare find is something a hero keeps | Content rows, one hook (a spell change) | EVIDENCE, thin: 19 keys and no Hall fought is one four in one ten hour window. MEASURED on one subset run: a lone hero is 9% slower through the Hold while he waits | M | Low to medium | Item 3, jewelry tier 4 | GR-28, GR-29, GR-40 | The beta period. A four is at Krell on day 18 with two uniques in the game |
 | 9 | **The first days and the return made readable.** A first hour that teaches up to four heroes (RULED 11-21). The ruled fix to Levels 7 to 10 (27-2). The Path. The hunt report. A tally that takes itself. A starting loot plan. A hunt budget. Free setup slots. A starting weapon | High | A new player always knows the next thing, and a returning player sees what the night did and what to change | Content rows and screens over counters the engine already writes | EVIDENCE: 3,251 untaken wolves, ten Town lines at Level 1, 0 paid setup slots. MEASURED, provisional: the low-health reading carries signal | S to M each | Low | L16's lowest-health tally, the loot plan by kind | GR-24, GR-56a, GR-57, GR-66, GR-78, GR-79 | The beta |
 | 10 | **Learn whether an old ground at your Level is content.** Switch scaled hunts on as ruled, with the drop rule, and read it | High, as a question | If the answer is yes: ground that never runs out | A switch and one drop rule | HYPOTHESIS. The runway is COMPUTED. The ruled system has never been open to a player | S | Low | The drop rule for a ground above its band | GR-9 | The beta, as a test |
 
-**What changed in the ranking since the first issue.** The instrument is now item 1. The second hero left the ten because you settled it: all four heroes from the start (RULED 2026-11-21). Item 7 is new and is the heavy track you named, the MMO layer of clans, world bosses and events, which study 49 is designing. On-call heroes sit inside it. Free depth on every ground fell to a test in item 10, because its evidence was a projection and a switch that is off. The world review turned down a world boss as "a schedule, the opposite of idle". Your decision overrides that, and the study has to answer it: how a world boss works for players who visit for 2 to 5 minutes.
+**What changed in the ranking since the first issue.** The instrument is now item 1. The second hero left the ten because you settled it: all four heroes from the start (RULED 2026-11-21). Item 7 is new and is the heavy track you named, the MMO layer of clans, world bosses, events and PvP arenas, which study 49 is designing. On-call heroes sit inside it. Free depth on every ground fell to a test in item 10, because its evidence was a projection and a switch that is off. The world review turned down a world boss as "a schedule, the opposite of idle". Your decision overrides that, and the study has to answer it: how a world boss and an arena work for players who visit for 2 to 5 minutes. Idle PvP was on the backlog since 11-14. It is now part of the MMO layer.
 
-**Scope against the ruled beta (30-7, one big release).** Already in the plan's lanes: the server-cost lanes (L01, L12, L13, L19, L24, L25), the spell and harder tiers lanes (L17, L16), Carry on and the loot plan (L07, L21) and the social lane (L40). Added by this review: closed form for gathering and benches, the lineup cells, the Krell rows pulled forward (47's own recommendation), the hunt report and the Path. I have not costed those additions in lanes. Whether they fit the one release is your call with the Coordinator.
+**Order, not schedule.** You ruled on 11-21 that no build lanes start until every decision is made and a build plan exists. So the last column above says what comes before what. "The beta" in it means "in the first group of work", not a date. Which items go into which release is a question for the build plan, and the dates you accepted in 31-2 will need re-issuing with it (section 10).
 
 **Just outside the ten, and why.** The idle market (L, needs a population, and must wait for the tiers). Kindlings (a spec and a paper sample now, built after the combat laws). A party job for each weapon (waits for item 3). The wage curve (waits for the store-bill fault).
 
@@ -723,7 +725,7 @@ Six recommendations changed after the cold audit offered an alternative: GR-1, G
 
 **Ruled since the first issue.** GR-2: all four heroes from the start (Tyler, 2026-11-21).
 
-**On hold, PENDING 49, the MMO layer study (clans, world bosses, events, and heroes for hire or on call).** GR-10a, GR-10b, GR-10c, GR-67 and GR-80 carry no recommendation until it lands. The party XP table inside GR-3 and the live finder inside GR-69 wait with them. For each, the row gives the evidence at its real size and the rulings that stand meanwhile.
+**On hold, PENDING 49, the MMO layer study (clans, world bosses, events and PvP arenas, with heroes for hire or on call inside it).** GR-10a, GR-10b, GR-10c, GR-67 and GR-80 carry no recommendation until it lands. The party XP table inside GR-3 and the live finder inside GR-69 wait with them. For each, the row gives the evidence at its real size and the rulings that stand meanwhile.
 
 ### 8.1 The ones that matter most
 
@@ -740,9 +742,9 @@ These are the calls behind the top 10 that carry the most weight. Section 6.1 na
 | GR-7 | Critical | **Death once Deadly bites** | Keep 6% flat with no cap. After the third Blessing, a new one opens whenever a fully blessed death would cost the pace seat over five hours. Each halves what is left and is priced by the hours it saves. COMPUTED on the recommended Level law: rungs at Levels 97, 140 and 257. Add a matrix band that reads XP after deaths. This settles a conflict between two targets you ruled, the Deadly death band and 6% uncapped: at the band's high end Deadly stops paying at Level 100. At the real count of 2.2 it never does, so the ladder is not needed until the harder tiers lane makes Deadly bite. It ships in that release, sized on the long death sample. Know what it is: for a player who pays, it holds a blessed death tighter than the 12 hour cap you turned down on 11-21 | The capped death the Game Director would take | **RE-OPEN** 50-4 (11-21) in effect, and 11-10 (three Blessings). Bears on 11-16 | 56, 44, 46 |
 | GR-8 | High | **Sinks that follow the gear, and the hole the slots left** | Tempering, Hallmarks and linings each cost a share of the band's gold at your ruled 1.2 to 1.4, sized on a hero who pays only the difference at every tier. "Tempering pays the difference" (23-2) stays. COMPUTED: without the re-price a careful hero pays 0.5 to 0.9 of a band at tiers 4 to 6. **New since 11-21:** the slot ladder was about 5.5M of sink in the first weeks and it is gone. Size the share on an account of four heroes from day 1, and bring linings and the yard fee forward as the first repeating sinks, so the early game still asks a player to choose | Typed ladders that end at tier 7, and nothing in place of the slots | **RE-OPEN** 11-18 ("Tempering stays as built") | 44, 47, 55, Tyler |
 | GR-9 | High | **An old ground at your Level** | Switch scaled hunts on as you ruled (22-9), with one drop rule: a ground played above its band drops its own rows at its own rarity, and its lining parts still drop. Read whether players at the frontier hunt an old ground at their Level. Rule free depth against the hourly fee on that reading. The ruled system has never been open to a player, so its zero uses say nothing. Free depth on every ground stays my leading design, and the fee can go to zero later with one data row. This is the audit's recommendation and I take it | Replace scaled hunts now with free depth on every ground at the lowest hero's Level, as 46 and 53 ask | Builds 22-9 (11-20) and 11-07. Bears on 11-18 (lining parts from old grounds). 44 keeps scaled hunts with derived shares | 46, 53, 47, 61 |
-| GR-10a | High | **Playing together while away** | **ON HOLD, PENDING 49, the MMO layer study. No recommendation.** On-call heroes and standing parties are ruled (25-1) and unbuilt. With four heroes from the start an account never has an empty seat of its own, so hire and on-call have to be designed with clans, world bosses and events, not as a way to fill a party. The evidence: 0 hours of two people in one hunt across 1,334 hours and four players. That shows the gap. It does not show which design closes it | Not offered while on hold | Until 49 lands, 25-1 and 10-25 stand | 57, 46 |
+| GR-10a | High | **Playing together while away** | **ON HOLD, PENDING 49, the MMO layer study. No recommendation.** On-call heroes and standing parties are ruled (25-1) and unbuilt. With four heroes from the start an account never has an empty seat of its own, so hire and on-call have to be designed with clans, world bosses, events and PvP arenas, not as a way to fill a party. The evidence: 0 hours of two people in one hunt across 1,334 hours and four players. That shows the gap. It does not show which design closes it | Not offered while on hold | Until 49 lands, 25-1 and 10-25 stand | 57, 46 |
 | GR-10b | High | **The Level cut on party XP** | **ON HOLD, PENDING 49. No recommendation.** What is known: the hidden cut you ruled out on 11-08 is live. MEASURED: with no rule at all a Level 5 hero behind a Level 37 party earns 6 times its own pace. With four heroes from the start, every account can do that with its own heroes from day 1, so this needs an answer early. What replaces the cut depends on whether heroes can be hired or called | Not offered while on hold | Until 49 lands, 11-08 stands | 57, 44 |
-| GR-10c | High | **When clans ship** | **ON HOLD, PENDING 49. No recommendation.** You named clans, world bosses and events as heavy work going forward. The first issue recommended that clans wait for 50 accounts per day. That is withdrawn, and the study sets the order | Not offered while on hold | Until 49 lands, 25-3 stands | 57, Tyler |
+| GR-10c | High | **When clans ship** | **ON HOLD, PENDING 49. No recommendation.** You named clans, world bosses, events and PvP arenas as the MMO layer. The first issue recommended that clans wait for 50 accounts per day. That is withdrawn, and the study sets the order | Not offered while on hold | Until 49 lands, 25-3 stands | 57, Tyler |
 
 ### 8.2 Combat
 
@@ -889,6 +891,55 @@ These are the calls behind the top 10 that carry the most weight. Section 6.1 na
 
 **Re-opens that a review or audit asked for and I do not recommend.** Salvage by default (GR-46). Seven spells in place of sixteen (GR-16). Dropping curing (GR-47). The Catacombs as a Tower wing (GR-36). Plus skill as a percent of the blow (GR-26). Party XP by size only (GR-3). Removing the party-ground formula (GR-5). Folding chest reforging into Tempering (GR-49). Factions with no power (GR-71). A death cap (GR-7). Respacing the rune tiers (GR-45). And, after the audit: free depth now (GR-9), five on Dangerous now (GR-27), halving the dummy's fee (GR-53), removing the bench tax (GR-56b) and retiring the castle (GR-68).
 
+### 8.12 The 34 older calls still shown as open
+
+The Rulings page still shows 34 calls from the plan audit (31), the spell audit (32) and the standards (50) as open. **The rulings file says you ruled all 34 on 2026-11-21**, the plan and spell audit calls at about 01:30 UTC and the standards calls at about 04:10 UTC ("Keep page picks", with four alternatives). So none of them needs ruling again. This table gives each one its verdict, so the page can be brought into line. Where a GR call asks you to change one of them, the GR call is the only place to rule.
+
+| Id | Title | Verdict | What stands, and what is still to rule |
+|---|---|---|---|
+| 31-1 | One Global chat and its bill | DECIDED BY your 11-21 ruling (recommended) | One Global, lines batched on the existing connection, slow mode when crowded |
+| 31-2 | The Early Access date | STILL OPEN | You accepted the dates on 11-21 (beta about the end of December, Early Access late February to late March). Your later ruling the same day, decisions first and then a build plan, means those dates rest on a plan that does not exist yet. Recommendation, re-checked: print no date until the build plan exists |
+| 31-3 | The clan castle's goods | DECIDED BY your 11-21 ruling (recommended) | Built prices stay. GR-68 keeps it. The castle's shape waits on study 49 |
+| 31-4 | Uniques moving up a band | DECIDED BY your 11-21 ruling (recommended) | A unique reforges up a band and each new band gets its own. GR-4 keeps it |
+| 31-5 | How long until a player has four heroes | DECIDED BY the 11-21 executive decision | All four heroes from the start. The question is gone |
+| 31-6 | The first hero slot | DECIDED BY the 11-21 executive decision | No slot prices. The question is gone |
+| 31-7 | The training reading you rejected | DECIDED BY your 11-21 ruling (recommended) | A number we watch, never a gate |
+| 31-8 | Faction skills | DECIDED BY your 11-21 ruling ("make the skills matter") | The skills are sized to matter. Only GR-71 is left to rule: the side chosen for each hero |
+| 31-9 | The order of the two combat changes | DECIDED BY your 11-21 ruling (recommended) | Spells first, then Deadly. GR-3 builds on it |
+| 32-1 | When Storm and Bone runes unlock | DECIDED BY your 11-21 ruling (alternative) | Runecrafting 25 and 40. GR-45 fills Runecrafting 61 to 99 with the Sealing Rune |
+| 32-2 | Cleave merges into Turning Cut | DECIDED BY your 11-21 ruling (recommended) | Only GR-15 is left to rule: the Level each weapon unlocks it |
+| 32-3 | Rend gets slower and grows | DECIDED BY your 11-21 ruling (alternative) | Rend stays 6 seconds and the axes lose Power Strike. GR-14 bears on it: the axes read last, and this may be why |
+| 32-4 | Mend heals a share of your health | DECIDED BY your 11-21 ruling (recommended) | About 11% of max health |
+| 32-5 | The hammer stays simple | SUPERSEDED BY GR-18 | You ruled the alternative: a hammer-only strike on an Earth rune. GR-18 asks to add one thing to that strike, breaking a monster's spell windup. Rule it there |
+| 32-6 | The crossbow gets its own spells | DECIDED BY your 11-21 ruling (recommended) | Sixteen spells. GR-16 and GR-21 only set the order and the crossbow's list |
+| 32-7 | Who is weak to Necrotic | DECIDED BY your 11-21 ruling (recommended) | Only people |
+| 32-8 | A caster's first hours under the spell rule | DECIDED BY your 11-21 ruling (recommended) | Sized at Level 10 and Level 60. GR-11 builds it as one floor number |
+| 50-1 | Whose clock is the Level table? | DECIDED BY your 11-21 ruling (recommended) | A mid-geared four. The executive decision makes it truer: every account is a four from day 1. GR-6 builds it |
+| 50-2 | Days to Level 400 | DECIDED BY your 11-21 ruling (recommended) | 4,580 hunted hours. GR-6 keeps it |
+| 50-3 | How much better best in slot is | DECIDED BY your 11-21 ruling (recommended) | About 15% and 15% |
+| 50-4 | What dying costs at high Levels | SUPERSEDED BY GR-7 | You ruled the alternative: 6% flat, no cap. GR-7 asks for more Blessings past the third once Deadly bites, which softens it in effect. Rule it there |
+| 50-5 | How often Deadly kills a mid-geared party | DECIDED BY your 11-21 ruling (alternative) | A flat death count. GR-7 shows it conflicts with 50-4 past about Level 100, and is where that is settled |
+| 50-6 | How long best in slot takes | DECIDED BY your 11-21 ruling (alternative) | The weekly limits stay. GR-37 keeps it |
+| 50-7 | How far ahead content must be | DECIDED BY your 11-21 ruling (recommended) | 120 days at Early Access. COMPUTED on the recommended Level law the staged content reaches day 116 |
+| 50-8 | How much faster two and three heroes are | SUPERSEDED BY GR-67 (on hold, PENDING 49) | You ruled a pair at 1.2 to 1.5 and a three at 1.5 to 2.0. With four heroes from the start a pair or a three is a choice, and the party bands are on hold with the MMO layer |
+| 50-9 | Luck on the 12 hour clock | DECIDED BY your 11-21 ruling (recommended) | The hours stay. GR-4 re-keys two Luck numbers from a band count to Level with the same end points |
+| 50-10 | What a player may cost us | DECIDED BY your 11-21 ruling, re-ruled the same day | At most $0.15 an account-month. How to reach it is GR-1, PENDING 48 |
+| 50-11 | How much sooner bought gold gets you there | DECIDED BY your 11-21 ruling (alternative) | No limit on how much sooner, only on what. PvP arenas raise a new question about bought power (section 10) |
+| 50-12 | Two visits a day is the free game | DECIDED BY your 11-21 ruling (recommended) | Stands. One Premium for each account bears on what the 12 hour bar means across four heroes (section 10) |
+| 50-13 | Heroes working in town | DECIDED BY your 11-21 ruling (recommended) | All 12 rested hours. GR-1 is how the server affords it |
+| 50-14 | How long a full set of the best gear takes | DECIDED BY your 11-21 ruling (recommended) | About a band to Krell, one to two regions after |
+| 50-15 | How much crafting matters | DECIDED BY your 11-21 ruling (recommended) | A quarter to a half. GR-44 builds on it |
+| 50-16 | When something is too strong or too weak | DECIDED BY your 11-21 ruling (recommended) | The thresholds stand |
+| 50-17 | Whether the audit may cut things | DECIDED BY your 11-21 ruling (recommended), narrowed the same day | One cut list to you first, and nothing planned for later is cut |
+
+| Verdict | Count | Ids |
+|---|---|---|
+| DECIDED BY a ruling | 30 | 28 by your 11-21 rulings on the page. 2 by the executive decision (31-5, 31-6) |
+| SUPERSEDED BY a GR call | 3 | 32-5 by GR-18. 50-4 by GR-7. 50-8 by GR-67 |
+| STILL OPEN | 1 | 31-2, the dates |
+
+**Checked against the 11-21 frame.** None of the 30 decided calls argues from keeping today's game working. Three lean on today's numbers and should be read as targets, not as protections: 31-3 (built prices), 31-7 (a reading taken on today's to-hit rule) and 50-13 (a town sized on today's cost). I did not re-read the 30 against the dives they came from. The verdicts are from the rulings file and the call text.
+
 ---
 
 ## 9. Evidence and hypotheses
@@ -920,7 +971,7 @@ Four people played 1,334 hours. Two were heavy and are friends of yours. The two
 
 ### 9.4 What is a hypothesis
 
-Everything about fun. Named in full in section 7.3. The largest is what gives the game an MMO feel now that every account fills its own party, which study 49 (clans, world bosses, events, hire or on-call) is answering. After it: that players keep and trade a named piece, that on-call heroes are used, that an old ground at your Level feels like content, that Kindlings are a build, that a signature changes what a player brings, and that standing orders fill. Three content proposals are hypotheses with nothing to measure yet because the rows are paper: the seven spells, the fists and the cast breaker.
+Everything about fun. Named in full in section 7.3. The largest is what gives the game an MMO feel now that every account fills its own party, which study 49 (clans, world bosses, events, PvP arenas, hire or on-call) is answering. After it: that players keep and trade a named piece, that on-call heroes are used, that an old ground at your Level feels like content, that Kindlings are a build, that a signature changes what a player brings, and that standing orders fill. Three content proposals are hypotheses with nothing to measure yet because the rows are paper: the seven spells, the fists and the cast breaker.
 
 ### 9.5 Calibration caveats
 
@@ -968,6 +1019,56 @@ No game code, data, migration, guard or test was changed.
 | The top 10 | The instrument is item 1. The MMO layer is item 7. Free depth is a test in item 10 |
 | The seven alternatives | Six adopted: GR-1, GR-9, GR-27, GR-53, GR-56, GR-68. The seventh, GR-2, was ruled by you |
 | The frame of 11-21 | Arguments from the cost to today's heroes are removed. Every call is judged against the target game |
-| Your decision of 2026-11-21 | GR-2 is RULED: all four heroes from the start, one Premium for each account. Its consequences are carried (the slot sink into GR-8, the first hour, the own-four balance frame). GR-10a, GR-10b, GR-10c, GR-67 and GR-80 are ON HOLD, PENDING study 49, re-scoped to the MMO layer. Top 10 item 7 is "Design the MMO layer" |
+| Your decision of 2026-11-21 | GR-2 is RULED: all four heroes from the start, one Premium for each account. Its consequences are carried (the slot sink into GR-8, the first hour, the own-four balance frame). GR-10a, GR-10b, GR-10c, GR-67 and GR-80 are ON HOLD, PENDING study 49, re-scoped to the MMO layer. Top 10 item 7 is "Design the MMO layer", which includes PvP arenas since your second ruling of the day. "When" columns are now "Order" and describe order only |
 
 Not done: the eight criteria of brief 45 section 4 are not shown for each call. 48 and 51 had not landed.
+
+---
+
+## 10. Decisions still missing before a build plan can be written
+
+You ruled that every decision comes before any build lane. This is the full list as I can see it. It has four parts: the calls in this document, what the three pending documents will add, what your 11-21 decisions opened, and what no lane covers yet.
+
+### 10.1 The calls in this document
+
+| What | Count | Where |
+|---|---|---|
+| Calls waiting for your ruling | 86 rows | Section 8. Of the 92 rows, GR-2 is ruled and 5 are on hold |
+| On hold, PENDING study 49 | 5 rows | GR-10a, GR-10b, GR-10c, GR-67, GR-80, with the party XP table inside GR-3 and the live finder inside GR-69 |
+| Older calls | 1 | 31-2, the dates (section 8.12) |
+
+### 10.2 What the three pending documents will add
+
+| Document | Decisions it should bring |
+|---|---|
+| `48-platform-cost.md` | How the away hunt is saved: a flush near 6 minutes, or a faster commit at today's pace (GR-1). Whether 60 database-seconds holds on shared cores. The lines of the bill that are not the database, re-read at 12 hours. What a town that draws heroes at work costs (GR-70). What clans, world bosses, events and arenas may cost, since nothing may grow with players times players |
+| `49`, the MMO layer study | The shape and order of clans (GR-10c, GR-68). How a world boss works for players who visit for 2 to 5 minutes, given that the old raid was cut on 10-22 and the world review turned a world boss down. What an event is beside the ruled calendar (27-5). The rules of a PvP arena: what is at stake, how often, and whether gear, Tempering and bought gold count inside it. Heroes for hire or on call (GR-10a). The party XP table and the Level range (GR-10b, GR-3). The party bands (GR-67). One Start for an account's heroes (GR-80). Whether a finder is needed (GR-69) |
+| `51-baseline.md` | Which bands may be judged on the harness today and which may not. The fixes to the four harness faults and the store bill. The pace seat's real multiple, which the Level law (GR-6) needs as one number |
+
+### 10.3 What your 11-21 decisions opened
+
+| # | Decision missing | Why it is needed |
+|---|---|---|
+| 1 | **What replaces the slot sink in the first weeks** | About 5.5M of sink is gone. GR-8 recommends bringing linings and the yard fee forward, sized on a four. It needs your yes and a number |
+| 2 | **The early economy of an account with four heroes from day 1** | Early coin and town labor are a multiple of one hero's. Every early price (the first deed, bag rungs, Blessings under Level 30, the first Tempering) was sized on one hero. Nobody has re-read them |
+| 3 | **How the first hour teaches four heroes** | The coach, the Path (GR-79) and the ruled fix to Levels 7 to 10 (27-2) were all sized on one new hero. Open questions: whether all four start at once or are introduced one at a time in the first session, which weapons they start with (GR-24), and what the first party hunt is. This needs a designed sequence with a walk-through against the real starting kit |
+| 4 | **What one Premium for each account gives** | Premium was per hero. Across four heroes: the 12 hour stamina bar, the daily claim, the analyzer. The price is your money call |
+| 5 | **Whether hunting alone is still a supported path** | The balance frame is the own four from day 1. The standards still carry lone bands (lone MID on Normal at 0.95 to 1.10 of the contract, the lone +15%). COMPUTED: on the Level law a lone hero reaches Level 200 on day 211. Say whether lone bands stay as targets or become readings |
+| 6 | **Whether pairs and threes stay as targets** | 50-8 ruled bands for them. With four heroes from the start they are a choice. On hold under GR-67 |
+| 7 | **Bought power and PvP** | You ruled that gold-bought power may be reached through Crowns (11-04) and that there is no limit on how much sooner, only on what (50-11). An arena is the first place one player's bought power meets another player. The rulings file still lists the public stance on Premium and power as an open conflict |
+| 8 | **Idle PvP capture the flag (backlog, 11-14) against PvP arenas** | Say whether they are one system or two |
+| 9 | **The 8-person open-world hunting areas** | You named them as an option before the executive decision. The decision did not mention them. Say whether they are in the MMO layer or dropped |
+| 10 | **The dates** | 31-2, as in section 8.12 |
+| 11 | **Whether measurement work counts as a build lane** | Several decisions here need a measurement first: the gear band's size (GR-4) needs one band played, the kill reward (GR-5) needs a derivation run, the harder tiers' pull (GR-27) needs the long sample, and all of them need the instrument made true (GR-85, GR-88). If tools and matrix runs wait for the build plan too, those calls can only be ruled as HYPOTHESIS. My recommendation: instrument and measurement work goes ahead, because it changes no game number and the decisions depend on it |
+
+### 10.4 What no lane covers yet
+
+| # | Gap | Note |
+|---|---|---|
+| 1 | The Level law's two rough edges and its start | From Level 50 or from Level 1, the 106 hours allowed at Level 100, the step at Level 50, the kink at Level 100, and the four days short on the runway (GR-6) |
+| 2 | The death band against 6% uncapped | Two targets you ruled that do not fit past about Level 100 once Deadly bites (GR-7). The ladder's threshold of five hours is a proposal |
+| 3 | The eight criteria of your brief's section 4 for each call | The reviews scored their significant rows. This synthesis did not re-score the 92 |
+| 4 | The Security review's scope for the MMO layer | Arenas, hire and clan projects are all shared surfaces. The one review before Early Access has to be sized for them |
+| 5 | Content authoring pace against the runway | A four gains 42 to 69 Levels a month past Level 110 and a region is 55. GR-33 sets the shape of a region. No lane says who draws them or how fast |
+| 6 | Whether world bosses reverse the ruled cut of world events (10-22) or are a new design | The cut list of 10-22 said live world events get "a deliberate redesign later". Study 49 is that redesign, and it should say so |
+| 7 | The build plan's unit | The plan of record (30) is written in lanes and waves for a beta. Under "decisions first" it needs re-issuing once sections 8 and 10 are ruled |

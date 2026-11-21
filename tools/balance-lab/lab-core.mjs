@@ -34,7 +34,7 @@ import { SHIELD_ITEMS } from '../../src/data/shields.js';
 import { reachableSources } from '../../src/data/catalogue-coherence.js';
 import { BUILD } from '../../src/build-info.js';
 import { STYLES } from '../balance-sim/styles.mjs';
-import { rateCI, quantile, round, gini } from '../balance-sim/stats.mjs';
+import { rateCI, quantile, round, gini, underInto } from '../balance-sim/stats.mjs';
 
 export { STYLES };
 export const ENGINE_VERSION = BUILD.version;
@@ -223,7 +223,8 @@ function heroTotals(key, style, level, kit) {
   return { key, style, level, kit, hours: 0, levelXp: 0, skillXp: {}, coin: 0, loot: LOOT0(), lootN: 0, rareItems: [], gear: {}, store: 0, buys: {}, uses: {},
     deaths: 0, killers: {}, xpLostLevel: 0, deathLevelXpLost: [], xpLostSkill: {}, dealt: 0, dealtBy: {}, taken: 0, takenBy: {}, spellsIn: {},
     healIn: { food: 0, self: 0, ally: 0 }, healOut: 0, shieldIn: 0, blowsLanded: 0, blowsMissed: 0, dodged: 0, eats: { own: 0, store: 0 },
-    drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {}, manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {} };
+    drinks: { own: 0, store: 0 }, casts: {}, castGold: 0, castMana: {}, castBack: {}, manaShots: 0, enc: [], close: 0, dips: 0, ttdClose: [], ended: {},
+    regen: 0, under: { p30: 0, p10: 0 }, dealtTo: {} };
 }
 
 /**
@@ -247,7 +248,7 @@ export function playCell(cell, seeds, hooks = {}) {
     return { skills: Object.fromEntries(COMBAT.map((k) => [k, skillXpForLevel(k, sk[k] || 1)])) };
   };
   const H = keys.map((k, i) => heroTotals(k, party[i], levels[i], kits[i]));
-  const P = { kills: 0, killsBy: {}, ttk: [], hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
+  const P = { kills: 0, killsBy: {}, ttk: [], ttkBy: {}, hours: 0, segments: 0, rareRolls: 0, rareWins: {}, pulls: 0 };
   const byKey = Object.fromEntries(H.map((h) => [h.key, h]));
   const totalMs = list.length * cell.hours * 3600000;
   let doneMs = 0;
@@ -304,6 +305,7 @@ export function playCell(cell, seeds, hooks = {}) {
               } else if (uk) {
                 const h = byKey[uk];
                 h.dealt += n; const a = e.ability || 'basic'; h.dealtBy[a] = (h.dealtBy[a] || 0) + n;
+                const to = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; h.dealtTo[to] = (h.dealtTo[to] || 0) + n;
                 if (firstHit[e.t] === undefined) firstHit[e.t] = e.atMs;
               }
               break;
@@ -323,7 +325,10 @@ export function playCell(cell, seeds, hooks = {}) {
               if (tk) byKey[tk].shieldIn += e.amount || 0;
               break;
             case 'kill':
-              if (!tk) { P.kills++; const kd = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; P.killsBy[kd] = (P.killsBy[kd] || 0) + 1; if (firstHit[e.t] !== undefined) { P.ttk.push(e.atMs - firstHit[e.t]); delete firstHit[e.t]; } }
+              if (!tk) {
+                P.kills++; const kd = (out.units && out.units[e.t] && out.units[e.t][0]) || '?'; P.killsBy[kd] = (P.killsBy[kd] || 0) + 1;
+                if (firstHit[e.t] !== undefined) { const ms = e.atMs - firstHit[e.t]; P.ttk.push(ms); const t = P.ttkBy[kd] || (P.ttkBy[kd] = [0, 0]); t[0] += ms; t[1]++; delete firstHit[e.t]; }
+              }
               break;
             case 'eat': case 'drink':
               if (uk) { const h = byKey[uk]; (e.type === 'eat' ? h.eats : h.drinks)[e.source === 'store' ? 'store' : 'own']++; }
@@ -360,9 +365,13 @@ export function playCell(cell, seeds, hooks = {}) {
           let c = x.cur;
           for (const [, k, n] of hp) if (k === h.key) c = Math.min(x.max, c + n);
           const gap = endHp[h.key] - c;
-          if (gap > 0 && winTo > winFrom) x.rate = gap / (winTo - winFrom);
+          if (gap > 0 && winTo > winFrom) { x.rate = gap / (winTo - winFrom); h.regen += gap; }
         }
-        const step = (x, at) => { if (x.rate > 0 && at > x.at) x.cur = Math.min(x.max, x.cur + x.rate * (at - x.at)); x.at = Math.max(x.at, at); };
+        /* cell.mjs step, the same lines: the time under UNDER_SHARES (stats.mjs underInto), never after a death */
+        const step = (x, at) => {
+          if (at > x.at && !x.dead) underInto(x.under || (x.under = {}), x.cur, x.rate, x.max, at - x.at);
+          if (x.rate > 0 && at > x.at) x.cur = Math.min(x.max, x.cur + x.rate * (at - x.at)); x.at = Math.max(x.at, at);
+        };
         for (const [at, k, n] of hp) {
           if (k === null) {
             for (const h of H) { const x = live[h.key]; if (x.unit !== null && x.cur !== null) { step(x, at); close(h, x); open(x); } }
@@ -371,7 +380,7 @@ export function playCell(cell, seeds, hooks = {}) {
           const x = live[k];
           if (x.cur === null) continue;
           step(x, at);
-          if (n === -Infinity) { x.cur = 0; lower(x, at); continue; }
+          if (n === -Infinity) { x.cur = 0; x.dead = true; lower(x, at); continue; }
           if (n < 0) { x.cur += n; x.recent.push([at, -n]); if (x.recent.length > 64) x.recent.splice(0, 32); lower(x, at); }
           else x.cur = Math.min(x.max, x.cur + n);
         }
@@ -398,6 +407,9 @@ export function playCell(cell, seeds, hooks = {}) {
             for (const [k, n] of Object.entries(dl.xpLost || {})) if (k !== 'level') h.xpLostSkill[k] = (h.xpLostSkill[k] || 0) + n;
           }
           if (hu.ended) h.ended[hu.ended.reason] = (h.ended[hu.ended.reason] || 0) + 1;
+          if (x.cur !== null && !x.dead && winTo > x.at) underInto(x.under || (x.under = {}), x.cur, x.rate, x.max, winTo - x.at);
+          for (const k of Object.keys(h.under)) h.under[k] += Math.min((x.under && x.under[k]) || 0, hu.paid_ms || 0);
+          x.under = {};
           if (Number.isInteger(d.hp) && !hu.ended) { x.cur = d.hp; if (x.enc) x.enc.min = Math.min(x.enc.min, x.cur); }
         }
       };
@@ -436,10 +448,11 @@ export function mergeTotals(parts) {
     const P = first.party, Q = t.party;
     P.kills += Q.kills; P.ttk.push(...Q.ttk); P.hours += Q.hours; P.segments += Q.segments; P.rareRolls += Q.rareRolls; P.pulls += Q.pulls;
     addInto(P.rareWins, Q.rareWins); addInto(P.killsBy, Q.killsBy);
+    for (const [kd, [ms, n]] of Object.entries(Q.ttkBy || {})) { const s = P.ttkBy[kd] || (P.ttkBy[kd] = [0, 0]); s[0] += ms; s[1] += n; }
     first.heroes.forEach((h, i) => {
       const g = t.heroes[i];
-      for (const k of ['hours', 'levelXp', 'coin', 'lootN', 'store', 'deaths', 'xpLostLevel', 'dealt', 'taken', 'healOut', 'shieldIn', 'blowsLanded', 'blowsMissed', 'dodged', 'castGold', 'manaShots', 'close', 'dips']) h[k] += g[k];
-      for (const k of ['skillXp', 'loot', 'gear', 'buys', 'uses', 'killers', 'xpLostSkill', 'dealtBy', 'takenBy', 'healIn', 'eats', 'drinks', 'casts', 'castMana', 'castBack', 'ended']) addInto(h[k], g[k]);
+      for (const k of ['hours', 'levelXp', 'coin', 'lootN', 'store', 'deaths', 'xpLostLevel', 'dealt', 'taken', 'healOut', 'shieldIn', 'blowsLanded', 'blowsMissed', 'dodged', 'castGold', 'manaShots', 'close', 'dips', 'regen']) h[k] += g[k];
+      for (const k of ['skillXp', 'loot', 'gear', 'buys', 'uses', 'killers', 'xpLostSkill', 'dealtBy', 'takenBy', 'healIn', 'eats', 'drinks', 'casts', 'castMana', 'castBack', 'ended', 'under', 'dealtTo']) addInto(h[k], g[k]);
       for (const k of ['rareItems', 'deathLevelXpLost', 'enc', 'ttdClose']) h[k].push(...g[k]);
       for (const [id, s] of Object.entries(g.spellsIn || {})) { const t = h.spellsIn[id] || (h.spellsIn[id] = { hits: 0, dmg: 0 }); t.hits += s.hits; t.dmg += s.dmg; }
     });
@@ -512,6 +525,9 @@ export function summarise(cell, totals) {
       band: bandOfCell(minMed, deaths.rate), ended: h.ended,
       raw: { levelXp: h.levelXp, skillXp: h.skillXp, xpLostLevel: h.xpLostLevel, xpLostSkill: h.xpLostSkill, coin: h.coin,
         income, store: h.store, rares },
+      /* cell.mjs, the same fields: regeneration, the share of hunted time under 30% and 10% of max HP, damage dealt by target kind */
+      regenPerH: per(h.regen), hpUnder: Object.fromEntries(Object.entries(h.under).map(([k, ms]) => [k, round(ms / (hr * 3600000), 4)])),
+      dealtToPerH: Object.fromEntries(Object.entries(h.dealtTo).map(([k, n]) => [k, per(n)])),
       /* the lab's own reads (not in cell.mjs): the lowest HP any pull left (0 at a death: the tracked HP runs past it), the next Level's distance and pace */
       lab: { lowestHpPct: h.enc.length ? Math.max(0, Math.min(...h.enc)) : null, xpToNextLevel: toNext, hoursToNextLevel: xph > 0 ? round(toNext / xph, 2) : null,
         lootValuePerH: per(h.loot.common + h.loot.uncommon + h.loot.scarce + h.loot.other + rares) },
@@ -528,7 +544,8 @@ export function summarise(cell, totals) {
       rareRolls: P.rareRolls, rareWins: P.rareWins, rareGini: gini(wins),
       levelXpPerHeroPerH: round(heroes.reduce((s, h) => s + (h.levelXpPerH || 0), 0) / heroes.length, 0),
       createdPerH: round(heroes.reduce((s, h) => s + h.incomePerH + h.raresPerH, 0), 0),
-      destroyedPerH: round(heroes.reduce((s, h) => s + h.storePerH, 0), 0) },
+      destroyedPerH: round(heroes.reduce((s, h) => s + h.storePerH, 0), 0),
+      ttkBy: P.ttkBy },
     heroes,
   };
 }

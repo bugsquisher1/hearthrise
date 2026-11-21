@@ -96,3 +96,19 @@ export function gini(xs) {
   for (let i = 0; i < n; i++) cum += (i + 1) * v[i];
   return round((2 * cum) / (n * tot) - (n + 1) / n, 3);
 }
+
+/* THE DANGEROUS HP SHARES the simulator times (Tyler 2026-11-21, docs/design/balance-program/40-formula-brief.md section 6, "dangerous HP
+   thresholds": how long a hero spends under 30% and under 10% of its HP), as { key: share of max HP }. */
+export const UNDER_SHARES = Object.freeze({ p30: 0.30, p10: 0.10 });
+
+/** Into `acc` ({ p30, p10 } ms), the time a tracked HP spends under each of UNDER_SHARES over `ms`: it starts at `cur` and rises at
+    `rate` HP a ms (regeneration, never past `max`), with no blow or heal in between (cell.mjs and the lab's twin step it event to event). */
+export function underInto(acc, cur, rate, max, ms) {
+  if (!(ms > 0) || !(max > 0) || !Number.isFinite(cur)) return acc;
+  for (const [k, share] of Object.entries(UNDER_SHARES)) {
+    const line = share * max;
+    if (cur >= line) continue;
+    acc[k] = (acc[k] || 0) + (rate > 0 ? Math.min(ms, (line - cur) / rate) : ms);
+  }
+  return acc;
+}

@@ -6,10 +6,10 @@ Each question is a place where the first build would bend one of your rulings, o
 
 ## S-11. Which four is the Level table's clock
 
-You ruled the Level table as the clock of a four on the hardest tier it holds. At the sitting you ruled that Deadly is a tier you watch or gamble on, and that idle players mostly use Dangerous (S-6). The balance pass timed the table on the four on Dangerous. Which four is the clock?
+You ruled the Level table as the clock of a four on the hardest tier it holds. At the sitting you ruled that Deadly is a tier you watch or gamble on, and that idle players mostly use Dangerous (S-6). The law is now fitted at your ruled points, so whichever four is the clock lands on your table: Level 100 at 600 hunted hours and Level 400 on day 382. MEASURED on run 44931089433: the four on Dangerous reads 1.263 times the pace contract and a four on Deadly that never dies reads 1.579. Which four is the clock?
 
-- **A. The Dangerous four.** The table is timed on a mid-geared four on Dangerous, the tier an idle four keeps. COMPUTED on the rates of run 44920906999: that four reaches Krell's Hold on day 33, Level 100 at 516 hunted hours and Level 400 on day 400. MEASURED on run 44928035806: Levels 100 to 300 land inside the table's band and Level 400 reads 11% slow. Cost: a four that farms Deadly safely runs 18% ahead of the table, reaching Krell on day 24 and Level 400 on day 326, so the next region must be ready sooner.
-- **B. The Deadly four.** The table stays timed on a mid-geared four on Deadly that never dies, as the book had it. COMPUTED on the same rates: the four on Dangerous, which most idle players will be, runs 24% behind the table, reaching Krell on day 39 and Level 400 on day 472. A watched four that dies on Deadly is behind it too. Cost: almost nobody is on the clock, and the content runway is planned for a pace few players hold.
+- **A. The Dangerous four.** The table is timed on a mid-geared four on Dangerous, the tier an idle four keeps. That four lands on your table. COMPUTED on the ratio of the two readings, 1.579 over 1.263, which is 1.25: a four that farms Deadly safely is about 25% ahead, reaching Level 100 at about 480 hours and Level 400 on about day 305, so the next region must be ready sooner. Chapter 12 found that a single Level can sit some points off that ratio. Cost: the fastest safe four outruns the content plan.
+- **B. The Deadly four.** The table is timed on a mid-geared four on Deadly that never dies. That four lands on your table. COMPUTED on the same ratio: the four on Dangerous, which most idle players will be, needs about 25% longer for every Level, reaching Level 100 at about 750 hours and Level 400 on about day 477. A watched four that dies on Deadly is behind the table too. Cost: almost nobody is on the clock, and the content runway is planned for a pace few players hold.
 - **C. Dangerous now, look again.** Build a, then read the seat again from the playtest's real XP an hour for the fours players run, before Early Access. MEASURED on run 44920906999: the tool's four reads 1.26 times the kills of the one real four on the proposed game, so the real seat may differ. Cost: the same as a for now, and if the seat moves later every live hero's Level moves with it, told in the changelog as you ruled on 2026-11-09. JUDGMENT.
 
 ## S-12. What the ruled death count means
@@ -59,13 +59,12 @@ On 2026-10-23 you ruled that every character is Premium during the closed beta, 
 - **A. Premium for all.** The switch stays on, as ruled on 2026-10-23. Every hero hunts 12 hours on one visit. Test Crowns wait for a later playtest and nothing on money is built now. Cost: the free day of two visits (ruled 2026-11-21) is not played, Deadly's lost hours on the 8 hour bar are not measured, and the Crowns loop stays untested.
 - **B. Free bars, test Crowns.** The switch is off. Each account gets the same weekly test Crowns, and can buy Premium for all four heroes with them or sell them to other players for gold on the Crown Exchange. It reads your grant as covering this build's playtest. Cost: one money lane in the last wave (the exchange, its eight clamps, Premium for each account) and a new surface in the Security review before Early Access. It measures whether players with gold want Crowns, which the critical review calls the trade the money model rests on.
 - **C. Free bars only.** The switch is off and no Crowns are built. Everyone plays the free 8 hour day with two visits. Cost: the free day is measured, but Premium cannot be had, so its 12 hour bar is not played and the Crowns loop waits for a later playtest.
-
 ## Where each question comes from
 
 | Question | Source |
 |---|---|
-| S-11, S-12, S-14 | `../12-balance-pass.md` section 7, items 1 to 3, open items 12-7-1 to 12-7-3 in `../00-the-game.md` section 5.5. Item 4 (12-7-4) needs no answer and is a note in the build plan |
+| S-11, S-12, S-14 | `../12-balance-pass.md` section 7, items 1 to 3, open items 12-7-1 to 12-7-3 in `../00-the-game.md` section 5.5. Item 4 (12-7-4) needs no answer and is a note in the build plan. S-11 reads the seats on run 44931089433, after the law was fitted at the ruled points |
 | S-13 | `../12-balance-pass.md` section 4.1, point 3, and the ruling of 2026-11-08 |
-| S-15 | GR-25, the one item still open in `../00-the-game.md` section 5.5 |
+| S-15 | GR-25, open in `../00-the-game.md` section 5.5 |
 | S-16 | Reversal row 27 in `../00-the-game.md` section 5.3, and `../11-on-call-and-clan-xp.md` section 3.6 |
 | S-17 | The rulings of 2026-10-23 and 2026-11-21 (MM-43), against the measurements the playtest is meant to make |

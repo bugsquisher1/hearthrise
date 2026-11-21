@@ -1,10 +1,10 @@
 # 13. The build plan: the first build
 
-Written 2026-11-21 on `lane/d-build-plan`, cut from `set/v0.2.144` at 735feda87 and merged up to bd5b6bde4. This is step 4 of the critical review (`review/00-critical-review.md`, section 8): narrow the first build. Docs only. No game code, data, migration or tool was changed. Chapters 00 to 11 and `decisions/` were not edited.
+Written 2026-11-21 on `lane/d-build-plan`, cut from `set/v0.2.144` at 735feda87 and merged up to 86f389b47. This is step 4 of the critical review (`review/00-critical-review.md`, section 8): narrow the first build. Docs only. No game code, data, migration or tool was changed. Chapters 00 to 11 and `decisions/` were not edited.
 
 Labels. MEASURED is a run on the real engine, with its run id. COMPUTED is arithmetic on named inputs. JUDGMENT is a design or planning opinion. UNKNOWN means nobody knows. Nothing here is measured against the game that runs today. Lane sizes and migration counts are JUDGMENT.
 
-Run ids used. R0 is GitHub run 44920906999, R1 is 44924971088, R2 is 44925664434, R4 is 44928035806, and L is chapter 12's local probes (chapter 12, section 1).
+Run ids used. R0 is GitHub run 44920906999, R1 is 44924971088, R2 is 44925664434, R4 is 44928035806, and L is chapter 12's local probes (chapter 12, section 1). R5 is 44931089433, the full matrix after the matrix lane fitted the Level law at the ruled points (merged at 86f389b47). On R5 the Dangerous four reads 1.263 times the pace contract and the Deadly four with no death 1.579, where chapter 12 had 1.266 and 1.492. R5 reads 756 RED rows in four causes: the arrival kit 492, armor and best gear 170, sinks beside income 44, and 50 small rows.
 
 ## 0. One screen for Tyler
 
@@ -69,7 +69,7 @@ S-11, S-12 and S-14 are open items 12-7-1 to 12-7-3 of `00-the-game.md` section 
 | 4 | The hunt report with the free risk reading, and lowest health in the server tally | 08 2.3. GR-66 | PROVISIONAL | Whether the counters fit the session row with no added statement (08 item 10) |
 | 5 | The formula steps that move no number: R1 to R5, the floor half of R6, R7, R8 and the two-thirds line, R20, V5 | 01 2.1, 09 2.2. GR-85 DECIDED, GR-86 (R20 only), MM-19 | DECIDED, R20 and MM-19 PROVISIONAL | The five special rules (S-15). The rested bank leaves in R1 (cut, S-9 c) |
 | 6 | Harder tiers on one tier table with one pull number a tier: Dangerous pull 5, Deadly pull 8, both blows 2.5 times Normal | 01 2.11, 12 3.1. CORE-1, GR-27, GR-3 RULED | PROVISIONAL. The death count on each ground waits on the playtest | S-12, S-13, S-14 |
-| 7 | The gear curve, +17% bands, tiers 1 to 7 and the Level 110 band as the played sample, with the armor curve probe and the arrival kit fixed together | 03 2.2, 2.3, 12 3.6. GR-4 | PROVISIONAL. +17% MEASURED for weapons (L, R0) | The arrival kit, the largest design miss (D-3). The cost to reforge a unique up a band (03 item 3) |
+| 7 | The gear curve, +17% bands, tiers 1 to 7 and the Level 110 band as the played sample, with the armor curve probe and the arrival kit fixed together | 03 2.2, 2.3, 12 3.6. GR-4 | PROVISIONAL. +17% MEASURED for weapons (L, R0) | The arrival kit, the largest design miss: 492 of R5's 756 RED rows (D-3). Armor and best gear, 170 more. The cost to reforge a unique up a band (03 item 3) |
 | 8 | The kill reward on the pace line, with one coin line and one derived number a ground written by a generator | 05 2.3, 12 3.4. GR-5, R9, R12 | PROVISIONAL. Holds from Level 45 (MEASURED, R0) | Whether party grounds' two thirds is high (12 3.4) |
 | 9 | The Level law and the Blessing ladder past the third Blessing | 05 2.2, 2.5, 12 3.3, 3.5. GR-6, 6a, 6b PROVISIONAL, GR-6d DECIDED, GR-7 RULED | PROVISIONAL numbers | The seat (S-11). The ladder's threshold, 2 hours (D-4) |
 | 10 | The wage formula as the source for prices, the prices four heroes break, the market open on day one | 04 2.3, 2.7, 2.10, 12 3.7. GR-51, CE-4, CE-5, GR-58, GR-55, GR-59b | PROVISIONAL | Gold in the tool is an upper bound (coin reads 1.24 times real, R0). The refill's base hours (GR-58) |
@@ -222,7 +222,7 @@ The edge is deployed once, in the release window. The world's field list changes
 
 | | |
 |---|---|
-| Builds | Wave 1: chapter 12's band changes 1 to 11. The Level law's derivation fitted at the ruled points, not a median. A `balance-diff` workflow with seeds and hours as inputs, so the death sample and every lane's diff have a home. V5: `architecture-register.mjs --check` and `--selftest` in CI. The coupled arrival-kit run for D-3, 4 seeds of 8 hours. Check C1 for D-1. The two engine tests: heroes on both sides of one fight (MM-41), and one boss room at Levels 25, 52 and 75 (the hall check). Mixed-Level and guest-seat cells (MM-19, OC1 to OC3). One unlock in a cell for D-9. Between waves: fold patch files, run diffs. Wave 5: the full matrix on the assembled set, the death sample, both generated data files re-run, and read-only playtest readers (3.5) |
+| Builds | Already on the set at 86f389b47: chapter 12's band changes 1 to 7, 9 and 10, the Level law fitted at the ruled points, and a manual `balance-diff` workflow with seeds and hours as inputs. Wave 1: band change 8 once S-11 is answered, and change 11 once the book drops check G's last clause (12-7-4). V5: `architecture-register.mjs --check` and `--selftest` in CI. The coupled arrival-kit run for D-3, 4 seeds of 8 hours. Check C1 for D-1. The two engine tests: heroes on both sides of one fight (MM-41), and one boss room at Levels 25, 52 and 75 (the hall check). Mixed-Level and guest-seat cells (MM-19, OC1 to OC3). One unlock in a cell for D-9. Between waves: fold patch files, run diffs. Wave 5: the full matrix on the assembled set, the death sample, both generated data files re-run, and read-only playtest readers (3.5) |
 | Owns | `tools/balance-program/**`, `tools/balance-sim/**`, `.github/workflows/balance-*.yml` |
 | Migrations | None |
 | Edge | None |
@@ -293,7 +293,7 @@ The edge is deployed once, in the release window. The world's field list changes
 | Edge | Yes |
 | Authority | XP and coin are minted only in the settle from server catalogues. The Level curve is a generated server table with a drift guard. A Blessing is bought by RPC at the server's price, journalled |
 | Tests | `tests/hunt-core/run-all.mjs` and `engine-parity.mjs`, `tests/hunt-core/hunt-tiers.mjs` with its vacuous mutants fixed, `tests/level-curve.mjs`, each generator's `--check` with a mutant, a ladder test (a rung opens past the threshold, price from the server, journalled), death viewed and closed, `tests/xp-frac-carry.mjs`, the scaled-hunt tests |
-| Matrix | `bp-gear-step-117.json`, `R10-gear-curve.json`, `R12-kill-reward.json`, `bp-tiers-2500.json`, `R13-level-law.json` and `bp-level-law-dangerous-seat.json` become built. The death sample after stage 2 and again at the end of CB-2 |
+| Matrix | `bp-gear-step-117.json`, `R10-gear-curve.json`, `R12-kill-reward.json`, `bp-tiers-2500.json` and `R13-level-law.json`, fitted at the ruled points on the seat S-11 picks, become built. The death sample after stage 2 and again at the end of CB-2 |
 | Depends on | FB-2 (R7). FB-9's price rows before the ladder is sold. D-3, D-4. S-11, S-12, S-13 |
 
 #### FB-9 `lane/c-economy`. Lane C. Backend architect. Wave 3.
@@ -459,7 +459,7 @@ The one full adversarial review is a hard gate before Early Access and not befor
 - **One release window.** About 85 staged files applied together, 36 of them already on the set. The rehearsal on a production copy is the mitigation. There is no point-in-time restore (2026-11-19), so the restore drill is scripted and not run.
 - **The tier dial may move once more.** CB-2's death sample runs with the gear curve, the kill reward, Talents' unlocks and any party-wide damage in. UNKNOWN by how much.
 - **Gold.** The tool's coin reads 1.24 times real (R0). Every price is PROVISIONAL until the playtest's real gold.
-- **The arrival kit.** Its fix is UNKNOWN until D-3. The first hour's survival rests on it.
+- **The arrival kit.** Its fix is UNKNOWN until D-3. It holds 492 of R5's 756 RED rows, and the first hour's survival rests on it.
 - **The old clan RPCs.** They were written in the `2026-08-*` migrations and carry castle, feast and rested-grant pieces that today's rulings cut or hold. FB-12 must read them all.
 - **Talents' unlocks need three new engine hooks.** Their cost is not estimated (chapter 10).
 - **"No hits landed" may be a real bug.** It was seen in the tool on the proposed game. FB-1 first decides whether a real four on live meets it. If one does, it is player-visible now.

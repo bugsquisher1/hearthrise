@@ -58,7 +58,7 @@ async function world(root) {
 /** One life: `party` (styles) on `policy` from Level 1 until every seat reaches `to` or `maxHours` pass. `xp` ({ charLevelFromXp,
     charXpForLevel }) reads Levels on another curve than the game's (a caller's planted curve; the engine keeps the game's).
     Returns { hours, reached, miles, trace, bank, contractXpPerH }: miles['seat:Level'] = { h, bank, ground, tier, skills }. */
-export async function playLife({ party, policy = 'rec', to = 50, maxHours = 300, plain = false, xp = null, root = ROOT }) {
+export async function playLife({ party, policy = 'rec', to = 50, maxHours = 300, plain = false, xp = null, root = ROOT, seedBase = 7000 }) {
   if (!Array.isArray(party) || !party.length || !POLICIES.includes(policy) || !(to > 1) || !(maxHours > 0)) throw new Error('playLife: bad arguments');
   const W = await world(root), { R, recommendedHunt, T, G, OPEN, floorOf, topOf } = W, XP = xp || R.XP;
   const seats = party.map(() => ({ levelXp: 0, skills: {} }));
@@ -92,7 +92,7 @@ export async function playLife({ party, policy = 'rec', to = 50, maxHours = 300,
     if (policy === 'dangerous' && T.tiersOf(ground).includes('dangerous') && L >= floorOf(ground)) tier = 'dangerous';
     const pull = tier === 'normal' ? null : T.pullOfTier(T.tierRowOf(ground, tier), party.length);
     const cell = { id: 'life:' + chunk, ground, party, startBySeat: seats.map((s) => ({ levelXp: s.levelXp, skills: { ...s.skills } })), hours: chunkH, seeds: 1,
-      seedBase: 7000 + chunk, segmentH: chunkH, windowMs: 600000, supply: 'store', ...(plain ? {} : { profile: 'played' }),
+      seedBase: seedBase + chunk, segmentH: chunkH, windowMs: 600000, supply: 'store', ...(plain ? {} : { profile: 'played' }),
       ...(tier === 'normal' ? {} : { options: { tier } }), ...(pull ? { density: pull } : {}), ...extra };
     const m = R.runCell(cell), h = m.party.hours, before = seats.map((s) => s.levelXp);
     m.heroes.forEach((x, i) => {
